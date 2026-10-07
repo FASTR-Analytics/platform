@@ -3,7 +3,8 @@
 Every HFA request, bug and open question raised by the HFA team, checked against
 the code. HMIS and ICEH items are excluded.
 
-**Compiled:** 2026-10-01, on branch `version2`.
+**Compiled:** 2026-10-01, on branch `version2`. Updated 2026-10-07 from the
+thread "HFA data upload testing".
 
 **Keeping it current.** When an item lands, move its row to "Already done" with
 the date and the commit.
@@ -15,17 +16,22 @@ the date and the commit.
   Ashley Sheffel, 2025-05 to 2026-09-30.
 - Google Sheet "FASTR Wish List Tracker": the "HFA list" tab in full, the other
   tabs searched for HFA rows.
+- Gmail thread "HFA data upload testing" (8 messages, 2026-09-11 to 2026-10-06),
+  Safia's Guinea notes attached to it, and the generic XLSForm Viviane attached
+  on 2026-10-06 (`FASTR Survey - Programed - Generic -
+  20260417.xlsx`).
 
-Not read: screenshots and file attachments. That covers the first part of
-Safia's Guinea notes (the XLSX form conversion section), Sara Riese's Somalia
-notes (SharePoint), and "FASTR Team Feedback.pdf" (2025-05).
+Not read: screenshots, "FASTR Team Feedback.pdf" (2025-05), and Sara Riese's
+Somalia notes and Viviane's Mali notes, which are on World Bank SharePoint and
+not open to Tim. The converter section of Safia's Guinea notes is about the
+XLSForm converter, which is outside this repo, apart from Q8.
 
 "Verified" below means read in the code or the commit history on 2026-10-01.
 Nothing was run in the app.
 
 ## Quick fixes
 
-None open. Q1 to Q7 were built on 2026-10-01 and are under "Already done".
+None open. Q1 to Q8 are under "Already done".
 
 ## Waiting on the HFA team
 
@@ -35,7 +41,6 @@ Small code changes that need an answer first.
 | -- | ---------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | W1 | What are the standard defaults for the HFA module settings (Ashley, 2026-09-11)?                                 | m010 defaults: sample weights off, don't know treated as missing, stop-on-failure off (`wb-fastr-modules/m010/definition.json`)                           |
 | W2 | Is not-applicable coded `-98` and `-999998` ("?????" in the sheet, High)?                                        | Both are classed "question specific", not "not applicable" (`lib/hfa_sentinel_classification.ts:37`). In the Sierra Leone form `-98` is question-specific |
-| W3 | What are the core questionnaire's column names for admin areas, facility type and ownership?                     | Needed to extend Q6 beyond the facility id and the weight                                                                                                 |
 | W4 | Is cross-round carry-forward (`USE_OTHER_ROUND("Cycle 2")`) really complete? The sheet ticks it (Viviane, High). | No such function found in the app or in the m010 script. See L5                                                                                           |
 
 ## Medium
@@ -54,17 +59,44 @@ Small code changes that need an answer first.
 
 ## Large, or needs a design decision
 
-| Id | Issue                                                                                   | Raised by                                         | State in code                                                                                                                                                             |
-| -- | --------------------------------------------------------------------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| L1 | The same file is uploaded twice, once for facilities and once for data                  | Safia, 2026-09-16; Tim, 2026-05-19                | Still true. `PLAN_HFA_FACILITIES_FROM_ROUNDS__WRONG_BECAUSE_FLAWED.md` was set aside because it resolves between-round facility changes by rule instead of surfacing them |
-| L2 | Strata, confidence intervals, margins of error, significance tests, low-precision flags | Safia, 2025-09; Viviane, 2026-06; Tim, 2026-09-19 | m010 computes weighted point estimates only. No strata or variance anywhere                                                                                               |
-| L3 | Reports in Russian for Tajikistan                                                       | Ashley, 2026-09-11                                | Languages are en, fr and pt                                                                                                                                               |
-| L4 | Questionnaires that are not XLSForms: Word files, the Ipsos Excel format                | Ashley, Viviane and Safia, 2026-08 and 2026-09    | The app requires `survey` and `choices` sheets. The converter is outside this repo                                                                                        |
-| L5 | Carry annual items forward or backward across rounds, with a note                       | Safia, 2026-05-21; Viviane (sheet)                | Not found. See W4                                                                                                                                                         |
-| L6 | Sample distribution table (facilities by type, region)                                  | Safia, 2025-09                                    | Not present                                                                                                                                                               |
-| L7 | Immunization readiness module. Analysis of open-ended answers                           | Viviane and Safia, 2025                           | Not present                                                                                                                                                               |
-| L8 | Link HFA and HMIS facilities                                                            | Meghan (sheet, Medium)                            | The two facility registries are independent by design (SYSTEM_05)                                                                                                         |
-| L9 | Dotted-line, stacked bar and gauge charts                                               | Viviane (sheet, Medium)                           | Not checked                                                                                                                                                               |
+| Id | Issue                                                                                   | Raised by                                         | State in code                                                                                                                                                                                                |
+| -- | --------------------------------------------------------------------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| L1 | The same file is uploaded twice, once for facilities and once for data                  | Safia, 2026-09-16; Tim, 2026-05-19                | Still true. `PLAN_HFA_FACILITIES_FROM_ROUNDS__WRONG_BECAUSE_FLAWED.md` was set aside because it resolves between-round facility changes by rule instead of surfacing them. Its rework takes the inputs below |
+| L2 | Strata, confidence intervals, margins of error, significance tests, low-precision flags | Safia, 2025-09; Viviane, 2026-06; Tim, 2026-09-19 | m010 computes weighted point estimates only. No strata or variance anywhere                                                                                                                                  |
+| L3 | Reports in Russian for Tajikistan                                                       | Ashley, 2026-09-11                                | Languages are en, fr and pt                                                                                                                                                                                  |
+| L4 | Questionnaires that are not XLSForms: Word files, the Ipsos Excel format                | Ashley, Viviane and Safia, 2026-08 and 2026-09    | The app requires `survey` and `choices` sheets. The converter is outside this repo                                                                                                                           |
+| L5 | Carry annual items forward or backward across rounds, with a note                       | Safia, 2026-05-21; Viviane (sheet)                | Not found. See W4                                                                                                                                                                                            |
+| L6 | Sample distribution table (facilities by type, region)                                  | Safia, 2025-09                                    | Not present                                                                                                                                                                                                  |
+| L7 | Immunization readiness module. Analysis of open-ended answers                           | Viviane and Safia, 2025                           | Not present                                                                                                                                                                                                  |
+| L8 | Link HFA and HMIS facilities                                                            | Meghan (sheet, Medium)                            | The two facility registries are independent by design (SYSTEM_05)                                                                                                                                            |
+| L9 | Dotted-line, stacked bar and gauge charts                                               | Viviane (sheet, Medium)                           | Not checked                                                                                                                                                                                                  |
+
+### Inputs to the L1 rework
+
+From the thread "HFA data upload testing". They belong in the plan's
+facility-columns step of the HFA data wizard, not in the structure wizard, which
+the plan makes HMIS-only.
+
+- **Core column names** (Viviane, 2026-10-06, and the generic XLSForm): facility
+  id `id_fac_txt`, else `id_fac` (the generic form has no `id_fac_txt`); country
+  `id_admin0`; region `id_admin1_name`; district `id_admin2_name`; name
+  `id_fac_name`; type `id_fac_type`. The generic form has no ownership question.
+  Pre-select these, as Q6 does for the facility id and the weight.
+- **Correction columns** (Safia, Guinea, 2026-09-16): the form has
+  `id_admin1_corrected` and `id_admin2_corrected` (choice codes) and
+  `id_fac_corrected` (text), filled only when the respondent says the pre-filled
+  region, district or name is wrong. Each facility column maps to one file
+  column, so on raw data those facilities keep the wrong pre-filled value. The
+  mapping needs a correction column that wins where it is filled, resolved
+  through the XLSForm like the original.
+- **Mali** (Viviane, 2026-10-02): rounds 1 to 3 used the old 11 regions; later
+  rounds use the current 20 and DHIS2 facility ids. Under latest round wins, the
+  next round adds every facility again under its DHIS2 id with a new region
+  name, and the round 1 to 3 facilities keep the old names, with nothing shown
+  to the user. Viviane plans to reconcile outside the platform, which today
+  means re-keying rounds 1 to 3, deleting their data and weights, Replace all,
+  and re-importing them, because Replace all refuses while an absent facility
+  has data or weights.
 
 ## Not classified
 
@@ -89,6 +121,9 @@ These point to help text or a short guide.
 - Is the XLSForm needed at the facility step? (It is optional and labelled so.)
 - In the Data tab, is each row a variable in one round? (Yes.)
 - Should anything be done to the ODK dataset between collection and upload?
+- How is a facility type of "Other" handled when the file has an "other,
+  specify" column such as Guinea's `id_fac_type_other`? (Add it as a display
+  column in the recode step.)
 
 ## Already done
 
@@ -127,7 +162,7 @@ Verified in code or commits:
   a searchable `SelectSearch` (2026-10-01, `6a245e03f`).
 - Q6: the facility id picker pre-selects `id_fac_txt` and the weight picker
   pre-selects `wgt` when the file has those columns (2026-10-01, `0b5e216cb`).
-  Admin, type and ownership columns wait on W3.
+  The other core columns are under "Inputs to the L1 rework".
 - Q4: a boolean module parameter is a Yes/No select labelled with the
   parameter's description, in every module's settings (2026-10-01, `426dc5f17`).
 - Q5: a held HFA data import lists up to 10 of the facility ids it could not
@@ -135,6 +170,10 @@ Verified in code or commits:
 - Q7: each row of the unused-variables modal has an Add button that opens the
   new-indicator form with the variable's label as the long label (2026-10-01,
   `dd3fab1a2`).
+- Q8: the HFA data import matches a file column to a form question ignoring
+  case, stops with both names when two columns match one question, and the
+  staging summary lists up to 10 of the unmatched columns and of the questions
+  with no column (2026-10-07, `180e72bcc`).
 
 From Tim's emails only, not re-verified:
 
