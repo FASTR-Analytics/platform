@@ -2,20 +2,20 @@ import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import {
   type Folder,
+  type GlobalUser,
   type InstanceSseMessage,
   type InstanceState,
   permissionsUnderScopeAccess,
-  type ScopeAccess,
+  type ProductSummary,
   scopeAccessEqual,
   type ScopeId,
-  type ScopeUuid,
 } from "lib";
-import { visibleFolderIds } from "../../auth/product_access.ts";
-import { listFolders } from "../../db/products/folders.ts";
 import {
-  buildInstanceState,
-  slideIdsInScopes,
-} from "../../task_management/build_instance_state.ts";
+  holdsProductLevel,
+  visibleFolderIds,
+} from "../../auth/product_access.ts";
+import { listFolders } from "../../db/products/folders.ts";
+import { buildInstanceState } from "../../task_management/build_instance_state.ts";
 import { requireGlobalPermission } from "../../middleware/userPermission.ts";
 
 export const routesInstanceSSE = new Hono();
@@ -24,17 +24,14 @@ export type InstanceSseFilterDeps = {
   // Every folder, unfiltered: a restricted connection's visible folders are
   // recomputed from it (R23).
   allFolders: Folder[];
-  slideIdsInScopes: (
-    slideIds: string[],
-    scopeIds: ScopeUuid[],
-  ) => Promise<string[]>;
 };
 
 export type InstanceSseFilterResult = {
   messages: InstanceSseMessage[];
-  // The connection's own scope access changed: the stream ends after these
-  // messages, and the client's reconnect rebuilds its payload under the new
-  // grants (R29).
+  // The stream ends after these messages, and the client's reconnect
+  // rebuilds its payload: the connection's own scope access or admin flag
+  // changed (R29), or a product it lost became visible again while its slide
+  // stamps were withheld.
   close: boolean;
 };
 
@@ -59,13 +56,19 @@ export type InstanceSseFilterResult = {
 //     buildInstanceState applies to the starting payload. A revoked user stops
 //     receiving products on the next `users_updated` without a reconnect; the
 //     unapproved-to-approved fill is the client's reconnect (D8).
-//   - Grants (PLAN_SCOPES §2.6): a RESTRICTED connection gets only its share.
-//     An upserted product outside its grants is rewritten as a deletion (it
-//     may have moved out of a granted scope), scopes are cut to the granted
-//     ones, slide stamps to the slides of granted decks, and its folder list
-//     is recomputed on every product or folder message and sent when it
-//     changes.
-//   - A change to the connection's own scope access ends the stream.
+//   - Visibility (PLAN_PRODUCT_OWNERSHIP §2.7): a connection that is not a
+//     global admin gets only the products it can see, by scope and level
+//     (holdsProductLevel at view). A visible upserted row is forwarded and
+//     remembered as held; a held row that is no longer visible is rewritten
+//     as a deletion and remembered as withdrawn; a row neither visible nor
+//     held is dropped. A withdrawn product that becomes visible again ends
+//     the stream, since its slide stamps were withheld meanwhile. A slide
+//     stamp passes when its deck is held.
+//   - Grants (PLAN_SCOPES §2.6): a RESTRICTED connection's scopes are cut to
+//     the granted ones, and its folder list is recomputed on every product or
+//     folder message and sent when it changes.
+//   - A change to the connection's own scope access or admin flag ends the
+//     stream.
 export type InstanceSseFilterStart = Pick<
   InstanceState,
   | "currentUserEmail"
@@ -80,20 +83,25 @@ export type InstanceSseFilterStart = Pick<
 export function createInstanceSseFilter(
   start: InstanceSseFilterStart,
   deps: InstanceSseFilterDeps,
-): (msg: InstanceSseMessage) => Promise<InstanceSseFilterResult> {
-  let access: ScopeAccess = start.currentUserScopeAccess;
+): (msg: InstanceSseMessage) => InstanceSseFilterResult {
+  let viewer: Pick<GlobalUser, "email" | "isGlobalAdmin" | "scopeAccess"> = {
+    email: start.currentUserEmail,
+    isGlobalAdmin: start.currentUserIsGlobalAdmin,
+    scopeAccess: start.currentUserScopeAccess,
+  };
   let canSeeRunMessages = start.currentUserIsGlobalAdmin ||
     start.currentUserPermissions.can_configure_data;
   let isApproved = start.currentUserApproved;
   let allFolders = deps.allFolders;
-  // The restricted connection's own copy of what it holds.
-  const visibleProducts = new Map(
-    start.products.map((p) => [p.id, p.folderId]),
-  );
+  // The connection's own copy of what it holds (product id to folder id),
+  // and the products this filter took away from it.
+  const held = new Map(start.products.map((p) => [p.id, p.folderId]));
+  const withdrawn = new Set<string>();
   let sentFolders = JSON.stringify(start.folders);
 
   function folderMessage(): InstanceSseMessage[] {
-    const ids = visibleFolderIds(allFolders, [...visibleProducts.values()]);
+    if (viewer.scopeAccess.all) return [];
+    const ids = visibleFolderIds(allFolders, [...held.values()]);
     const folders = allFolders.filter((f) => ids.has(f.id));
     const json = JSON.stringify(folders);
     if (json === sentFolders) return [];
@@ -107,18 +115,23 @@ export function createInstanceSseFilter(
   });
   const drop: InstanceSseFilterResult = { messages: [], close: false };
 
-  return async (msg) => {
+  return (msg) => {
     if (msg.type === "users_updated") {
-      const me = msg.data.find((u) => u.email === start.currentUserEmail);
-      const myAccess = me?.scopeAccess ?? access;
+      const me = msg.data.find((u) => u.email === viewer.email);
+      const next = {
+        email: viewer.email,
+        isGlobalAdmin: me?.isGlobalAdmin ?? viewer.isGlobalAdmin,
+        scopeAccess: me?.scopeAccess ?? viewer.scopeAccess,
+      };
       const myPermissions = me === undefined
         ? undefined
-        : permissionsUnderScopeAccess(me, myAccess);
+        : permissionsUnderScopeAccess(me, next.scopeAccess);
       canSeeRunMessages = (me?.isGlobalAdmin ?? false) ||
         (myPermissions?.can_configure_data ?? false);
       isApproved = me !== undefined;
-      const changed = !scopeAccessEqual(myAccess, access);
-      access = myAccess;
+      const changed = !scopeAccessEqual(next.scopeAccess, viewer.scopeAccess) ||
+        next.isGlobalAdmin !== viewer.isGlobalAdmin;
+      viewer = next;
       return {
         messages: [
           me === undefined ? { type: "users_updated", data: [] } : msg,
@@ -136,53 +149,61 @@ export function createInstanceSseFilter(
       msg.type === "last_updated";
     if (!productPlane) return pass(msg);
     if (!isApproved) return drop;
-    if (access.all) return pass(msg);
-    const granted: ReadonlySet<ScopeId> = new Set(access.scopeIds);
+    if (viewer.isGlobalAdmin) return pass(msg);
     switch (msg.type) {
       case "products_upserted": {
-        const inside = msg.data.products.filter((p) => granted.has(p.scopeId));
-        const outside = msg.data.products
-          .filter((p) => !granted.has(p.scopeId))
-          .map((p) => p.id);
-        for (const p of inside) visibleProducts.set(p.id, p.folderId);
-        for (const id of outside) visibleProducts.delete(id);
+        const visible: ProductSummary[] = [];
+        const lost: string[] = [];
+        let returned = false;
+        for (const p of msg.data.products) {
+          if (holdsProductLevel(viewer, p.scopeId, p, "view")) {
+            returned ||= withdrawn.has(p.id);
+            held.set(p.id, p.folderId);
+            visible.push(p);
+          } else if (held.delete(p.id)) {
+            withdrawn.add(p.id);
+            lost.push(p.id);
+          }
+        }
         return {
           messages: [
-            ...(inside.length > 0
+            ...(visible.length > 0
               ? [{
                 type: "products_upserted" as const,
-                data: { products: inside },
+                data: { products: visible },
               }]
               : []),
-            ...(outside.length > 0
-              ? [{ type: "products_deleted" as const, data: { ids: outside } }]
+            ...(lost.length > 0
+              ? [{ type: "products_deleted" as const, data: { ids: lost } }]
               : []),
             ...folderMessage(),
           ],
-          close: false,
+          close: returned,
         };
       }
       case "products_deleted": {
-        for (const id of msg.data.ids) visibleProducts.delete(id);
+        for (const id of msg.data.ids) {
+          held.delete(id);
+          withdrawn.delete(id);
+        }
         return { messages: [msg, ...folderMessage()], close: false };
       }
       case "folders_updated": {
+        if (viewer.scopeAccess.all) return pass(msg);
         allFolders = msg.data.folders;
         return { messages: folderMessage(), close: false };
       }
-      case "scopes_updated":
+      case "scopes_updated": {
+        const access = viewer.scopeAccess;
+        if (access.all) return pass(msg);
+        const granted: ReadonlySet<ScopeId> = new Set(access.scopeIds);
         return pass({
           type: "scopes_updated",
           data: { scopes: msg.data.scopes.filter((s) => granted.has(s.id)) },
         });
-      case "last_updated": {
-        const ids = msg.data.tableName === "products"
-          ? msg.data.ids.filter((id) => visibleProducts.has(id))
-          : await deps.slideIdsInScopes(msg.data.ids, access.scopeIds);
-        return ids.length === 0
-          ? drop
-          : pass({ type: "last_updated", data: { ...msg.data, ids } });
       }
+      case "last_updated":
+        return held.has(msg.data.productId) ? pass(msg) : drop;
     }
   };
 }
@@ -271,8 +292,6 @@ routesInstanceSSE.get(
           : await listFolders(mainDb);
         const forwardable = createInstanceSseFilter(instanceState, {
           allFolders: allFoldersRes?.success ? allFoldersRes.data : [],
-          slideIdsInScopes: (slideIds, scopeIds) =>
-            slideIdsInScopes(mainDb, slideIds, scopeIds),
         });
 
         // 3. Create ReadableStream and switch listener to stream mode
@@ -298,7 +317,7 @@ routesInstanceSSE.get(
             if (stream.aborted) break;
             const { done, value } = await reader.read();
             if (done) break;
-            const outgoing = await forwardable(value);
+            const outgoing = forwardable(value);
             for (const msg of outgoing.messages) {
               await stream.writeSSE({ data: JSON.stringify(msg) });
             }

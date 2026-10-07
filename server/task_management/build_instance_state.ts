@@ -4,12 +4,10 @@ import {
   type InstanceState,
   permissionsUnderScopeAccess,
   type RunCatalogItem,
-  type ScopeAccess,
   type ScopeId,
-  type ScopeUuid,
 } from "lib";
 import type { Sql } from "postgres";
-import { visibleFolderIds } from "../auth/product_access.ts";
+import { holdsProductLevel, visibleFolderIds } from "../auth/product_access.ts";
 import {
   getInstanceDatasetsSummary,
   getInstanceDetail,
@@ -161,10 +159,11 @@ export async function buildInstanceStateWithoutProducts(
  *
  * The product plane is withheld from an UNAPPROVED connection by the same
  * roster rule that empties `users`; the client reconnects once a roster
- * names its user, which rebuilds this payload whole. A RESTRICTED connection
- * gets only its grants' share (restrictProductPlane). Each read degrades
- * independently: a failure logs and leaves that list empty rather than
- * stopping the boundary from coming up (the runsCatalog rule).
+ * names its user, which rebuilds this payload whole. Every other connection
+ * that is not a global admin gets the products it can see
+ * (restrictProductPlane). Each read degrades independently: a failure logs
+ * and leaves that list empty rather than stopping the boundary from coming
+ * up (the runsCatalog rule).
  */
 export async function buildInstanceState(
   mainDb: Sql,
@@ -197,27 +196,31 @@ export async function buildInstanceState(
     }
   }
 
-  const plane = restrictProductPlane(res.data.currentUserScopeAccess, {
-    products: productsRes.success ? productsRes.data : [],
-    folders: foldersRes.success ? foldersRes.data : [],
-    scopes: scopesRes.success ? scopesRes.data : [],
-  });
-  const slideStamps = slideStampsRes.success ? slideStampsRes.data : {};
-  const visibleSlideIds = res.data.currentUserScopeAccess.all
-    ? undefined
-    : new Set(
-      await slideIdsInScopes(
-        mainDb,
-        Object.keys(slideStamps),
-        res.data.currentUserScopeAccess.scopeIds,
-      ),
-    );
+  const plane = restrictProductPlane(
+    {
+      email: res.data.currentUserEmail,
+      isGlobalAdmin: res.data.currentUserIsGlobalAdmin,
+      scopeAccess: res.data.currentUserScopeAccess,
+    },
+    {
+      products: productsRes.success ? productsRes.data : [],
+      folders: foldersRes.success ? foldersRes.data : [],
+      scopes: scopesRes.success ? scopesRes.data : [],
+    },
+  );
+  const visibleProductIds = new Set(plane.products.map((p) => p.id));
 
   // A product's own stamp IS its cache version, so the index is derived from
   // the list rather than read twice; products_upserted keeps it in step.
   const productStamps: Record<string, string> = {};
   for (const product of plane.products) {
     productStamps[product.id] = product.lastUpdated;
+  }
+  const slideStamps: Record<string, string> = {};
+  for (const stamp of slideStampsRes.success ? slideStampsRes.data : []) {
+    if (visibleProductIds.has(stamp.productId)) {
+      slideStamps[stamp.slideId] = stamp.lastUpdated;
+    }
   }
 
   return {
@@ -226,32 +229,30 @@ export async function buildInstanceState(
       ...res.data,
       ...plane,
       readyPackages: packagesRes.success ? packagesRes.data : [],
-      lastUpdated: {
-        products: productStamps,
-        slides: visibleSlideIds === undefined
-          ? slideStamps
-          : Object.fromEntries(
-            Object.entries(slideStamps).filter(([id]) =>
-              visibleSlideIds.has(id)
-            ),
-          ),
-      },
+      lastUpdated: { products: productStamps, slides: slideStamps },
     },
   };
 }
 
 type ProductPlane = Pick<InstanceState, "products" | "folders" | "scopes">;
 
-// A restricted user's share of the product plane (PLAN_SCOPES §2.6): the
-// products and scopes of their grants, and the folders that hold one of
-// those products (R23). An unrestricted user's plane is returned whole.
+// The share of the product plane a connection can see
+// (PLAN_PRODUCT_OWNERSHIP §2.7): the products it holds view on, by scope and
+// level. Folders carry no level (R5), so an unrestricted connection keeps
+// every folder and a restricted one those whose subtree holds a visible
+// product (R23); a restricted connection keeps only its granted scopes. A
+// global admin's plane is whole.
 export function restrictProductPlane(
-  access: ScopeAccess,
+  viewer: Pick<GlobalUser, "email" | "isGlobalAdmin" | "scopeAccess">,
   plane: ProductPlane,
 ): ProductPlane {
-  if (access.all) return plane;
+  if (viewer.isGlobalAdmin) return plane;
+  const products = plane.products.filter((p) =>
+    holdsProductLevel(viewer, p.scopeId, p, "view")
+  );
+  const access = viewer.scopeAccess;
+  if (access.all) return { ...plane, products };
   const granted: ReadonlySet<ScopeId> = new Set(access.scopeIds);
-  const products = plane.products.filter((p) => granted.has(p.scopeId));
   const folderIds = visibleFolderIds(
     plane.folders,
     products.map((p) => p.folderId),
@@ -261,19 +262,4 @@ export function restrictProductPlane(
     folders: plane.folders.filter((f) => folderIds.has(f.id)),
     scopes: plane.scopes.filter((s) => granted.has(s.id)),
   };
-}
-
-// The slides, of those named, whose deck carries one of the scopes.
-export async function slideIdsInScopes(
-  mainDb: Sql,
-  slideIds: string[],
-  scopeIds: ScopeUuid[],
-): Promise<string[]> {
-  if (slideIds.length === 0 || scopeIds.length === 0) return [];
-  const rows = await mainDb<{ id: string }[]>`
-    SELECT s.id FROM slides s
-    JOIN products p ON p.id = s.slide_deck_id
-    WHERE s.id = ANY(${slideIds}) AND p.scope_id = ANY(${scopeIds})
-  `;
-  return rows.map((r) => r.id);
 }

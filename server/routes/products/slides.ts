@@ -79,6 +79,7 @@ defineRoute(
     recordSlideAdded(params.product_id, res.data.slideId, editor.email);
     notifyInstanceLastUpdated(
       "slides",
+      params.product_id,
       [res.data.slideId],
       res.data.lastUpdated,
     );
@@ -108,7 +109,12 @@ defineRoute(
     const editor = editorFromGlobalUser(c.var.globalUser);
     recordVersionEdit("deck", params.product_id, editor);
     recordDeckReordered(params.product_id, editor.email);
-    notifyInstanceLastUpdated("slides", body.slideIds, res.data.lastUpdated);
+    notifyInstanceLastUpdated(
+      "slides",
+      params.product_id,
+      body.slideIds,
+      res.data.lastUpdated,
+    );
     await notifyInstanceProductsUpserted(c.var.mainDb, [params.product_id]);
     return respond(c, res);
   },
@@ -168,6 +174,7 @@ defineRoute(
     recordSlideEdited(params.product_id, params.slide_id, editor.email);
     notifyInstanceLastUpdated(
       "slides",
+      params.product_id,
       [params.slide_id],
       res.data.lastUpdated,
     );
@@ -206,7 +213,12 @@ defineRoute(
     for (const slideId of deletedIds) {
       recordSlideRemoved(params.product_id, slideId, editor.email);
     }
-    notifyInstanceLastUpdated("slides", deletedIds, res.data.lastUpdated);
+    notifyInstanceLastUpdated(
+      "slides",
+      params.product_id,
+      deletedIds,
+      res.data.lastUpdated,
+    );
     await notifyInstanceProductsUpserted(c.var.mainDb, [params.product_id]);
     return respond(c, res);
   },
@@ -232,6 +244,7 @@ defineRoute(
     }
     notifyInstanceLastUpdated(
       "slides",
+      params.product_id,
       res.data.newSlideIds,
       res.data.lastUpdated,
     );
@@ -263,6 +276,7 @@ defineRoute(
     }
     notifyInstanceLastUpdated(
       "slides",
+      body.targetProductId,
       res.data.newSlideIds,
       res.data.lastUpdated,
     );

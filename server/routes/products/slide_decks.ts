@@ -108,7 +108,12 @@ defineRoute(
     // createSlide announces a new slide.
     const { lastUpdated, coverSlideId } = res.data;
     if (coverSlideId !== undefined) {
-      notifyInstanceLastUpdated("slides", [coverSlideId], lastUpdated);
+      notifyInstanceLastUpdated(
+        "slides",
+        params.product_id,
+        [coverSlideId],
+        lastUpdated,
+      );
     }
     await notifyInstanceProductsUpserted(c.var.mainDb, [params.product_id]);
     return respond(c, { success: true, data: { lastUpdated } });
@@ -364,7 +369,12 @@ defineRoute(
         ...plan.toUpdate.map((s) => s.id),
       ]),
     ];
-    notifyInstanceLastUpdated("slides", touchedSlideIds, lastUpdated);
+    notifyInstanceLastUpdated(
+      "slides",
+      productId,
+      touchedSlideIds,
+      lastUpdated,
+    );
     await notifyInstanceProductsUpserted(mainDb, [productId]);
 
     if (failedSlideIds.length > 0) {

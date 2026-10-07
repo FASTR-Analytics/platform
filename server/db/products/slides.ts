@@ -40,21 +40,31 @@ export async function getSlides(
   });
 }
 
-// The instance-wide slide id to last_updated index for the SSE `starting`
-// payload's `lastUpdated.slides`. Products need no equivalent: a product's
-// stamp rides its own products_upserted summary, so the list IS the index.
+// Every slide's stamp and deck, for the SSE `starting` payload's
+// `lastUpdated.slides`, which keeps the stamps of the decks the connection
+// can see. Products need no equivalent: a product's stamp rides its own
+// products_upserted summary, so the list IS the index.
 export async function listSlideLastUpdated(
   mainDb: Sql,
-): Promise<APIResponseWithData<Record<string, string>>> {
+): Promise<
+  APIResponseWithData<
+    { slideId: string; productId: string; lastUpdated: string }[]
+  >
+> {
   return await tryCatchDatabaseAsync(async () => {
-    const rows = await mainDb<{ id: string; last_updated: string }[]>`
-      SELECT id, last_updated FROM slides
+    const rows = await mainDb<
+      Pick<DBSlide, "id" | "slide_deck_id" | "last_updated">[]
+    >`
+      SELECT id, slide_deck_id, last_updated FROM slides
     `;
-    const index: Record<string, string> = {};
-    for (const row of rows) {
-      index[row.id] = row.last_updated;
-    }
-    return { success: true, data: index };
+    return {
+      success: true,
+      data: rows.map((row) => ({
+        slideId: row.id,
+        productId: row.slide_deck_id,
+        lastUpdated: row.last_updated,
+      })),
+    };
   });
 }
 

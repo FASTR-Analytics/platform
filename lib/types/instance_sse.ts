@@ -230,8 +230,10 @@ export type InstanceSseMessage =
   | { type: "config_updated"; data: InstanceConfig }
   // The product plane, dropped for unapproved connections like the roster.
   // `products_upserted` is the ONLY product-list message: per row, emitted by
-  // every product mutation route and every collab checkpoint. `last_updated` carries `slides` only; a product's own stamp
-  // rides its summary.
+  // every product mutation route and every collab checkpoint. `last_updated`
+  // carries `slides` only; a product's own stamp rides its summary. Its
+  // `productId` is the deck the stamped slides belong to, so the stream
+  // forwards a stamp to exactly the connections that can see that deck.
   | { type: "products_upserted"; data: { products: ProductSummary[] } }
   | { type: "products_deleted"; data: { ids: string[] } }
   | { type: "folders_updated"; data: { folders: Folder[] } }
@@ -240,6 +242,7 @@ export type InstanceSseMessage =
     type: "last_updated";
     data: {
       tableName: LastUpdateTableName;
+      productId: string;
       ids: string[];
       lastUpdated: string;
     };

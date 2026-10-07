@@ -30,11 +30,13 @@ import {
   PRODUCT_GRANT_IS_OWNER,
 } from "../db/products/mod.ts";
 import { _BYPASS_AUTH } from "../exposed_env_vars.ts";
+import { buildGlobalUserFromDb } from "../auth/global_user.ts";
 import { routesFolders } from "../routes/products/folders.ts";
 import { routesProducts } from "../routes/products/products.ts";
 import { routesProductReports } from "../routes/products/reports.ts";
 import { routesProductSlideDecks } from "../routes/products/slide_decks.ts";
 import { routesProductSlides } from "../routes/products/slides.ts";
+import { buildInstanceState } from "../task_management/build_instance_state.ts";
 
 const OWNER = "product-access-test-owner@example.com";
 const EDITOR = "product-access-test-editor@example.com";
@@ -186,6 +188,17 @@ Deno.test("product levels: the guard, the access routes and the bulk action", as
       defaultAccess,
       grants,
     });
+  async function startingPlane(email: string) {
+    const state = await buildInstanceState(
+      mainDb,
+      await buildGlobalUserFromDb(email, null, null),
+    );
+    if (!state.success) throw new Error(state.err);
+    return {
+      productIds: state.data.products.map((p) => p.id),
+      slideStamps: state.data.lastUpdated.slides,
+    };
+  }
   async function accessOf(productId: string): Promise<ProductAccess> {
     const summary = data(await getProductSummaries(mainDb, [productId])).at(0);
     assert(summary !== undefined, productId);
@@ -239,6 +252,17 @@ Deno.test("product levels: the guard, the access routes and the bulk action", as
         contentHash: `levels-${tag}`,
       }),
     ).versionId;
+
+    // The starting payload carries a product to a viewer and not to a
+    // stranger, and the deck's slide stamps go with it.
+    const viewerStart = await startingPlane(VIEWER);
+    assert(viewerStart.productIds.includes(deck));
+    assert(viewerStart.productIds.includes(report));
+    assert(slide.slideId in viewerStart.slideStamps);
+    const strangerStart = await startingPlane(STRANGER);
+    assert(!strangerStart.productIds.includes(deck));
+    assert(!strangerStart.productIds.includes(report));
+    assert(!(slide.slideId in strangerStart.slideStamps));
 
     // A stranger holds none: both detail reads are refused.
     assertEquals(

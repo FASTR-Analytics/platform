@@ -67,7 +67,7 @@ used as the cache version key.
 
 ```text
 Route handler (after a successful DB write)
-  │  notifyInstanceLastUpdated("slides", [slideId], lastUpdated)
+  │  notifyInstanceLastUpdated("slides", productId, [slideId], lastUpdated)
   │  + notifyInstanceProductsUpserted(mainDb, [productId])
   ▼
 notify* wrapper  → broadcastChannel.postMessage({ type, data })
@@ -116,24 +116,36 @@ approved-user data by design: a deliberate narrowing of Q-B to generation
 telemetry (`RunListingItem`'s progress, summary and provenance), because every
 product card shows the label of the package it serves from.
 
-A RESTRICTED connection (its user's `currentUserScopeAccess.all` is false, S15
-"Scope access") gets only its grants' share of the product plane (PLAN_SCOPES
-§2.6). `buildInstanceState` cuts the `starting` payload with
-`restrictProductPlane`: the products of granted scopes, the granted scopes, the
-folders whose subtree holds one of those products (`visibleFolderIds`,
-`server/auth/product_access.ts`), and the slide stamps of granted decks
-(`slideIdsInScopes`). The forward loop is `createInstanceSseFilter`
-(`instance-sse.ts`), which holds the rules above and these: an upserted product
-outside the grants is rewritten as `products_deleted` (it may have been rescoped
-out), `scopes_updated` is cut to the granted scopes, a `last_updated` is cut to
-granted rows and dropped when none remain, and the connection's folder list is
-recomputed from its own copy of what it holds on every product or folder message
-and sent as `folders_updated` when it changes. A restricted user's stored data
-bits never open the generation stream (R26). A `users_updated` that changes the
-connection's own scope access ends the stream after forwarding it; the client
-reconnects (R29) and the new `starting` is built under the new grants. The
-filter is pinned by `server/tests/instance_sse_filter_test.ts`. No other message
-on the channel is filtered per user.
+Every approved connection that is not a global admin gets only the products it
+can see: those whose scope it holds (every scope for an unrestricted user; a
+RESTRICTED one, whose `currentUserScopeAccess.all` is false, S15 "Scope access",
+holds its grants) and on which `productLevelFor` gives at least `view`, the one
+predicate `holdsProductLevel` in `server/auth/product_access.ts` (S12
+"Contract"). A global admin's plane is whole. `buildInstanceState` cuts the
+`starting` payload with `restrictProductPlane`: the visible products; every
+folder for an unrestricted connection, since folders carry no level, and for a
+restricted one the folders whose subtree holds a visible product
+(`visibleFolderIds`); every scope, or a restricted connection's granted ones;
+and the slide stamps of visible decks, read with their deck by
+`listSlideLastUpdated`, so no query names a slide. The forward loop is
+`createInstanceSseFilter` (`instance-sse.ts`), which holds the rules above and
+these, with no query: a visible upserted row is forwarded and its product
+remembered as held; a held row that is no longer visible (rescoped out of a
+grant, or its level lowered to `none`) is rewritten as `products_deleted` and
+remembered as withdrawn; a row neither visible nor held is dropped. A withdrawn
+product that becomes visible again ends the stream, because its slide stamps
+were withheld while it was hidden; the reconnect's `starting` carries fresh
+ones. A product the connection never held arrives as an ordinary upsert, since
+the client holds no stamps for it. A `last_updated` passes when its deck
+(`productId`) is held. For a restricted connection `scopes_updated` is cut to
+the granted scopes, and the folder list is recomputed from what it holds on
+every product or folder message and sent as `folders_updated` when it changes. A
+restricted user's stored data bits never open the generation stream (R26). A
+`users_updated` that changes the connection's own scope access or admin flag
+ends the stream after forwarding it; the client reconnects (R29) and the new
+`starting` is built under the new access. The filter and `restrictProductPlane`
+are pinned by `server/tests/instance_sse_filter_test.ts`. No other message on
+the channel is filtered per user.
 
 `BroadcastChannel` in Deno is in-process: it fans out across the main thread and
 all Web Workers in the same process, which is how a background worker's progress
@@ -212,28 +224,31 @@ write has already committed), `notifyInstanceProductsDeleted`
 list), `notifyInstanceScopesUpdated` (`scopes_updated`, whole list, fired by
 every scope write in `server/routes/instance/scopes.ts`; there is no scope list
 route, so `starting` and this message are how a client holds scopes) and
-`notifyInstanceLastUpdated(tableName, ids, ts)` (`last_updated`, carrying
-`slides` only: a product's own stamp rides its summary, so emitting it here too
-would version the same read twice). Generation telemetry (`run_progress`,
-`r_script`) has no other channel: a product points only at a ready run, so
-nothing else has a live view of a generation. The generate_run emitters call
-`notifyInstanceRunProgress` / `notifyInstanceRScript` directly.
+`notifyInstanceLastUpdated(tableName, productId, ids, ts)` (`last_updated`,
+carrying `slides` only: a product's own stamp rides its summary, so emitting it
+here too would version the same read twice; `productId` names the deck the
+slides belong to, which is what the per-connection filter checks). Generation
+telemetry (`run_progress`, `r_script`) has no other channel: a product points
+only at a ready run, so nothing else has a live view of a generation. The
+generate_run emitters call `notifyInstanceRunProgress` / `notifyInstanceRScript`
+directly.
 
 **The `last_updated` entry point.**
-`notifyInstanceLastUpdated(tableName, ids,
-ts)`, keyed by `LastUpdateTableName`
-(`lib/types/last_updated_tables.ts`, `"products" | "slides"`). Its callers are
-the slide routes (`server/routes/products/slides.ts`, `slide_decks.ts`) and the
-collab slide checkpoint (`server/routes/instance/collab.ts`). The client store
-keeps the matching `instanceState.lastUpdated.{products,slides}` index:
-`products[id]` from each summary's own stamp, `slides[id]` from the message.
-Both key the products T2 caches the editors read.
+`notifyInstanceLastUpdated(tableName,
+productId, ids, ts)`, keyed by
+`LastUpdateTableName` (`lib/types/last_updated_tables.ts`,
+`"products" | "slides"`). Its callers are the slide routes
+(`server/routes/products/slides.ts`, `slide_decks.ts`) and the collab slide
+checkpoint (`server/routes/instance/collab.ts`), each acting on one deck. The
+client store keeps the matching `instanceState.lastUpdated.{products,slides}`
+index: `products[id]` from each summary's own stamp, `slides[id]` from the
+message. Both key the products T2 caches the editors read.
 
 **The mutation recipe** (see `server/routes/products/slides.ts` and
 `server/routes/products/folders.ts`, in registry/`defineRoute` style): after a
 successful write, (1) row-level: a slide write calls
-`notifyInstanceLastUpdated("slides", ids, lastUpdated)` so clients invalidate
-those slides' caches; (2) product-level:
+`notifyInstanceLastUpdated("slides", productId, ids, lastUpdated)` so clients
+invalidate those slides' caches; (2) product-level:
 `await
 notifyInstanceProductsUpserted(mainDb, [productId])` re-reads and
 broadcasts the touched summaries, whose stamps version the product detail

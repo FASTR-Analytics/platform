@@ -326,7 +326,12 @@ routesCollab.get(
           if (!res.success) {
             return { ok: false };
           }
-          notifyInstanceLastUpdated("slides", [slideId], res.data.lastUpdated);
+          notifyInstanceLastUpdated(
+            "slides",
+            productId,
+            [slideId],
+            res.data.lastUpdated,
+          );
           await notifyInstanceProductsUpserted(mainDb, [productId]);
           return { ok: true, lastUpdated: res.data.lastUpdated };
         },

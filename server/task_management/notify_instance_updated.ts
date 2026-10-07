@@ -113,9 +113,10 @@ export function notifyInstanceFoldersUpdated(folders: Folder[]) {
 
 // The instance channel's row-level stamp: `slides` only. A product's own
 // stamp rides its products_upserted summary, so emitting it here too would
-// version the same read twice.
+// version the same read twice. Every emitter acts on one deck, `productId`.
 export function notifyInstanceLastUpdated(
   tableName: LastUpdateTableName,
+  productId: string,
   ids: string[],
   lastUpdated: string,
 ) {
@@ -124,7 +125,7 @@ export function notifyInstanceLastUpdated(
   }
   notifyInstanceUpdate({
     type: "last_updated",
-    data: { tableName, ids, lastUpdated },
+    data: { tableName, productId, ids, lastUpdated },
   });
 }
 
