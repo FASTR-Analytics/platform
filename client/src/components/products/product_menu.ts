@@ -2,7 +2,7 @@ import { type Folder, t3, TC } from "lib";
 import type { MenuItem } from "panther";
 import { sortBySortMode } from "./sort_by_sort_mode";
 import { productsSort } from "~/state/t4_ui";
-import { childFolders, generalLabel } from "./_shared/mod.ts";
+import { childFolders, moveToRootLabel } from "./_shared/mod.ts";
 
 // The move affordances D16 gives both menus: quick hops within reach of the
 // item's own folder, with the full picker as the catch-all. There is no
@@ -116,11 +116,7 @@ export function buildProductMenu(args: {
       folders: args.folders,
       parentId: args.parentId,
       excludeIds: new Set(),
-      moveToRootLabel: t3({
-        en: `Move to ${generalLabel()}`,
-        fr: `Déplacer vers ${generalLabel()}`,
-        pt: `Mover para ${generalLabel()}`,
-      }),
+      moveToRootLabel: moveToRootLabel("product"),
       onMoveTo: args.onMoveTo,
       onMoveToFolder: args.onMoveToFolder,
     }),

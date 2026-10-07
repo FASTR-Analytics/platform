@@ -1,6 +1,6 @@
 import { type Folder, t3 } from "lib";
 import type { MenuItem } from "panther";
-import { descendantIds } from "./_shared/mod.ts";
+import { descendantIds, moveToRootLabel } from "./_shared/mod.ts";
 import { buildQuickMoveEntries } from "./product_menu";
 
 // ONE folder menu: the list row's button and the right-click menu both
@@ -23,11 +23,7 @@ export function buildFolderMenu(args: {
         args.folder.id,
         ...descendantIds(args.folders, args.folder.id),
       ]),
-      moveToRootLabel: t3({
-        en: "Move to top level",
-        fr: "Déplacer au niveau supérieur",
-        pt: "Mover para o nível superior",
-      }),
+      moveToRootLabel: moveToRootLabel("folder"),
       onMoveTo: args.onMoveTo,
       onMoveToFolder: args.onMoveToFolder,
     }),

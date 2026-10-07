@@ -3,16 +3,22 @@ export {
   generateUniqueBlockId,
 } from "./id_generation.ts";
 export { DuplicateProductsModal } from "./duplicate_products_modal.tsx";
-export { generalLabel, topLevelLabel } from "./folder_labels.ts";
+export {
+  generalLabel,
+  moveToRootLabel,
+  topLevelLabel,
+} from "./folder_labels.ts";
 export {
   buildProductTree,
   childFolders,
   descendantIds,
+  dropParent,
+  folderDragItem,
   folderPathOptions,
   GENERAL_ID,
   productTreeRows,
 } from "./folder_tree.ts";
-export type { ProductTreeRow } from "./folder_tree.ts";
+export type { DragItem, DropTarget, ProductTreeRow } from "./folder_tree.ts";
 export { PackageScopeChip } from "./package_scope_chip.tsx";
 export { PackageScopeModal } from "./package_scope_modal.tsx";
 export { createReportPaginator } from "./paginate_report.ts";

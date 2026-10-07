@@ -319,3 +319,50 @@ function groupBy<T>(
   }
   return groups;
 }
+
+// A drag in the list view: the product or folder by id, with its current
+// parent and, for a folder, its subtree.
+export type DragItem =
+  | { kind: "product"; id: string; parentId: string | null }
+  | {
+    kind: "folder";
+    id: string;
+    parentId: string | null;
+    subtree: ReadonlySet<string>;
+  };
+
+// Where a drag can land: a folder row, the General row, or the root zone the
+// list's header becomes during a drag.
+export type DropTarget =
+  | { kind: "folder"; folderId: string }
+  | { kind: "general" }
+  | { kind: "root" };
+
+// Built once, when the drag starts: dragover fires many times a second, and
+// the subtree walk must not run on each.
+export function folderDragItem(folders: Folder[], folder: Folder): DragItem {
+  return {
+    kind: "folder",
+    id: folder.id,
+    parentId: folder.parentId,
+    subtree: descendantIds(folders, folder.id),
+  };
+}
+
+// The parent a drop gives the item: a folder id, null for the root, or
+// undefined for a refused drop (the item's own parent, General for a folder,
+// a folder itself or its subtree). The server's FOLDER_CYCLE stays the
+// authority.
+export function dropParent(
+  item: DragItem,
+  target: DropTarget,
+): string | null | undefined {
+  const parent = target.kind === "folder" ? target.folderId : null;
+  if (parent === item.parentId) return undefined;
+  if (item.kind === "product") return parent;
+  if (target.kind === "general") return undefined;
+  if (parent === item.id || (parent !== null && item.subtree.has(parent))) {
+    return undefined;
+  }
+  return parent;
+}

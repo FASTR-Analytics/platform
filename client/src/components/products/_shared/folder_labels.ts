@@ -13,3 +13,19 @@ export function topLevelLabel(): string {
     pt: "Nível superior",
   });
 }
+
+// The one "move to the root" label, read by both menus and by the list's
+// root zone during a drag.
+export function moveToRootLabel(kind: "product" | "folder"): string {
+  return kind === "product"
+    ? t3({
+      en: `Move to ${generalLabel()}`,
+      fr: `Déplacer vers ${generalLabel()}`,
+      pt: `Mover para ${generalLabel()}`,
+    })
+    : t3({
+      en: "Move to top level",
+      fr: "Déplacer au niveau supérieur",
+      pt: "Mover para o nível superior",
+    });
+}

@@ -1,8 +1,8 @@
 // The product explorer's folder derivations: children, path labels,
 // descendant sets, picker options, the filtered tree and its rows (with the
-// synthetic General row over the root products), each also run over a tree
-// with a deliberately corrupted cycle, where the requirement is that the walk
-// terminates. The client module's only import is a type, so it loads under
+// synthetic General row over the root products) and the drop rule, each also
+// run over a tree with a deliberately corrupted cycle, where the requirement
+// is that the walk terminates. The client module's only import is a type, so it loads under
 // Deno as it is.
 //
 //   deno test -A --env-file server/tests/folder_tree_test.ts
@@ -19,6 +19,10 @@ import {
   buildProductTree,
   childFolders,
   descendantIds,
+  type DragItem,
+  dropParent,
+  type DropTarget,
+  folderDragItem,
   folderPathLabels,
   folderPathOptions,
   GENERAL_ID,
@@ -329,4 +333,64 @@ Deno.test("tree: a product match opens every folder above it", () => {
     "    c",
     "      p2",
   ]);
+});
+
+function dragFolder(folders: Folder[], id: string): DragItem {
+  const f = folders.find((x) => x.id === id);
+  if (f === undefined) throw new Error(id);
+  return folderDragItem(folders, f);
+}
+
+// p1 sits in a; p3 at the root.
+const P1_DRAG: DragItem = { kind: "product", id: "p1", parentId: "a" };
+const P3_DRAG: DragItem = { kind: "product", id: "p3", parentId: null };
+
+const GENERAL: DropTarget = { kind: "general" };
+const ROOT: DropTarget = { kind: "root" };
+const into = (folderId: string): DropTarget => ({ kind: "folder", folderId });
+
+Deno.test("drop: a product goes into another folder, not its own", () => {
+  assertEquals(dropParent(P1_DRAG, into("d")), "d");
+  assertEquals(dropParent(P1_DRAG, into("b")), "b");
+  assertEquals(dropParent(P1_DRAG, into("a")), undefined);
+});
+
+Deno.test("drop: a product in a folder goes to the root by General or the root zone, and one at the root by neither", () => {
+  assertEquals(dropParent(P1_DRAG, GENERAL), null);
+  assertEquals(dropParent(P1_DRAG, ROOT), null);
+  assertEquals(dropParent(P3_DRAG, GENERAL), undefined);
+  assertEquals(dropParent(P3_DRAG, ROOT), undefined);
+});
+
+Deno.test("drop: a folder goes into a sibling, never itself, a descendant or its own parent", () => {
+  const withSibling = [...TREE, folder("e", "Echo", "a")];
+  const b = dragFolder(withSibling, "b");
+  assertEquals(dropParent(b, into("e")), "e");
+  assertEquals(dropParent(b, into("b")), undefined);
+  assertEquals(dropParent(b, into("c")), undefined);
+  assertEquals(dropParent(b, into("a")), undefined);
+});
+
+Deno.test("drop: a folder never goes onto General, and reaches the root zone only from inside a folder", () => {
+  const b = dragFolder(TREE, "b");
+  assertEquals(dropParent(b, GENERAL), undefined);
+  assertEquals(dropParent(b, ROOT), null);
+  const a = dragFolder(TREE, "a");
+  assertEquals(dropParent(a, GENERAL), undefined);
+  assertEquals(dropParent(a, ROOT), undefined);
+});
+
+Deno.test("drag item: a folder carries its subtree, and a cycle terminates", () => {
+  assertEquals(dragFolder(TREE, "a"), {
+    kind: "folder",
+    id: "a",
+    parentId: null,
+    subtree: new Set(["b", "c"]),
+  });
+  assertEquals(dragFolder(CYCLE, "b"), {
+    kind: "folder",
+    id: "b",
+    parentId: "c",
+    subtree: new Set(["c"]),
+  });
 });
