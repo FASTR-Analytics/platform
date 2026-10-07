@@ -8,12 +8,15 @@ import {
   slideDeleteRange,
   type SlideEditResult,
   slideInsertText,
+  slideRenderMarkdown,
+  slideSourceFromRender,
   slideToggleStyle,
   slideWordAt,
   SRC_BLOCK,
   SRC_INLINE_SYNTAX,
   SRC_VISIBLE,
 } from "../../lib/slide_text_offsets.ts";
+import { parseMarkdown } from "@timroberton/panther";
 
 // The canvas slide editor draws the caret from these maps, so a wrong offset
 // is a caret painted on the wrong glyph, and a wrong edit is markdown syntax
@@ -278,4 +281,37 @@ Deno.test("typing continues the formatting it is typed into, validly", () => {
     typeAt("a *b* c", 4, "d", { italic: false, bold: true }).doc,
     "a *b***d** c",
   );
+});
+
+Deno.test("an empty list item is drawn (Enter on a bullet shows the bullet)", () => {
+  const items = (src: string) =>
+    parseMarkdown(slideRenderMarkdown(src)).items.map((i) => i.type);
+  assertEquals(items("- a\n- "), ["list-item", "list-item"]);
+  assertEquals(items("1. a\n2. "), ["list-item", "list-item"]);
+  // Without it, the indented empty item made "a" a setext heading.
+  assertEquals(items("- a\n  - "), ["list-item", "list-item"]);
+  // Fenced code and a bare marker are left alone.
+  assertEquals(slideRenderMarkdown("```\n- \n```"), "```\n- \n```");
+  assertEquals(slideRenderMarkdown("a\n-"), "a\n-");
+  for (const src of ["- a\n- ", "- a\n- \n- b", "1. x\n2.  ", "- a\n  - "]) {
+    assertEquals(slideSourceFromRender(slideRenderMarkdown(src)), src);
+  }
+
+  // The empty item is a unit whose text starts at the end of its line, and
+  // every other offset is still the source's.
+  const src = "- a\n- \n- **b**";
+  const an = analyzeSlideMarkdown(src);
+  assert(an.editable);
+  assertEquals(an.src, src);
+  assertEquals(an.kind.length, src.length);
+  assertEquals(an.units.map((u) => u.emptyAt), [undefined, 6, undefined]);
+  assertEquals(an.units[1].toSrc, [-1]);
+  assertEquals(an.units[2].toSrc, [11]);
+  assertEquals(an.kind[11], SRC_VISIBLE);
+  assert(an.srcStyle[11]?.bold);
+
+  // Typing into it fills the item.
+  const r = slideInsertText(an, 6, "x");
+  assertEquals(apply(src, r), "- a\n- x\n- **b**");
+  assertEquals(r.anchor, 7);
 });

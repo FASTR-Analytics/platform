@@ -430,6 +430,20 @@ export function InlineTextEditor(p: Props) {
     const lines = [];
     for (let n = first; n <= last; n++) lines.push(state.doc.line(n));
     const marker = ordered ? /^(\s*)\d+[.)]\s+/ : /^(\s*)[-*+]\s+/;
+    if (lines.every((l) => !l.text.trim())) {
+      // Nothing on the line yet: start an item there, like a word processor
+      // (the empty item draws via slideRenderMarkdown's placeholder).
+      const l = state.doc.lineAt(s.head);
+      const lead = l.text.length;
+      const ins = ordered ? "1. " : "- ";
+      view.dispatch({
+        changes: { from: l.from + lead, insert: ins },
+        selection: EditorSelection.cursor(l.from + lead + ins.length),
+        userEvent: "input",
+        scrollIntoView: false,
+      });
+      return true;
+    }
     const allOn = lines.every((l) => marker.test(l.text) || !l.text.trim());
     let k = 1;
     for (const l of lines) {

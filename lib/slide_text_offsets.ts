@@ -58,6 +58,10 @@ export type SlideTextUnit = {
   /** Per char of `text`: its source offset, or -1 when it has none. */
   toSrc: number[];
   styles: SlideCharStyle[];
+  /** An empty list item (`- ` with nothing after it yet): the source offset
+   *  where its text goes. Its `text` is the one placeholder char that
+   *  slideRenderMarkdown draws for it, with no source (`toSrc` -1). */
+  emptyAt?: number;
 };
 
 export type SlideTextAnalysis = {
@@ -439,7 +443,103 @@ function blockquoteGroups(inlines: MarkdownInline[]): number[] {
   return groupOf;
 }
 
+// ── Empty list items ─────────────────────────────────────────────────────────
+
+/** What slideRenderMarkdown puts in an empty list item: a zero-width space. */
+export const SLIDE_EMPTY_ITEM_PLACEHOLDER = "\u200B";
+
+const EMPTY_LIST_LINE = /^[ \t]*(?:[-*+]|\d{1,9}[.)])[ \t]+$/;
+const FENCE_LINE = /^[ \t]*(?:```|~~~)/;
+
+/** Source offsets where slideRenderMarkdown inserts a placeholder: the end of
+ *  every empty list item line (`- `, `2. `) outside code fences. */
+function emptyItemOffsets(src: string): number[] {
+  const out: number[] = [];
+  let inFence = false;
+  let start = 0;
+  for (const line of src.split("\n")) {
+    if (FENCE_LINE.test(line)) inFence = !inFence;
+    else if (!inFence && EMPTY_LIST_LINE.test(line)) {
+      out.push(start + line.length);
+    }
+    start += line.length + 1;
+  }
+  return out;
+}
+
+/** The markdown panther draws for a slide text block. markdown-it gives an
+ *  empty list item no inline token, so panther drops it: pressing Enter on a
+ *  bullet showed no new bullet until something was typed (and an indented
+ *  empty `  - ` even turned the item above into a setext heading). A
+ *  zero-width char makes the item real without drawing anything. */
+export function slideRenderMarkdown(src: string): string {
+  const at = emptyItemOffsets(src);
+  if (!at.length) return src;
+  let out = "";
+  let p = 0;
+  for (const a of at) {
+    out += src.slice(p, a) + SLIDE_EMPTY_ITEM_PLACEHOLDER;
+    p = a;
+  }
+  return out + src.slice(p);
+}
+
+/** The source of a slideRenderMarkdown result (its inverse). */
+export function slideSourceFromRender(render: string): string {
+  if (!render.includes(SLIDE_EMPTY_ITEM_PLACEHOLDER)) return render;
+  return render.split("\n").map((line) =>
+    line.endsWith(SLIDE_EMPTY_ITEM_PLACEHOLDER) &&
+      EMPTY_LIST_LINE.test(line.slice(0, -1))
+      ? line.slice(0, -1)
+      : line
+  ).join("\n");
+}
+
+/** The analysis of a slide text block's source, against what panther draws
+ *  for it (slideRenderMarkdown): offsets are the source's, and each empty
+ *  list item is a unit of its own (see SlideTextUnit.emptyAt). */
 export function analyzeSlideMarkdown(src: string): SlideTextAnalysis {
+  const at = emptyItemOffsets(src);
+  if (!at.length) return analyzeRendered(src);
+  const r = analyzeRendered(slideRenderMarkdown(src));
+  // Rendered offset -> source offset; a placeholder maps to -(1 + its
+  // source offset).
+  const back = new Int32Array(r.src.length);
+  for (let i = 0, k = 0; i < r.src.length; i++) {
+    if (k < at.length && i === at[k] + k) {
+      back[i] = -1 - at[k];
+      k++;
+    } else back[i] = i - k;
+  }
+  const kind = new Uint8Array(src.length);
+  const srcStyle = new Array<SlideCharStyle | undefined>(src.length);
+  const srcChar = new Array<string | undefined>(src.length);
+  for (let i = 0; i < r.src.length; i++) {
+    const s = back[i];
+    if (s < 0) continue;
+    kind[s] = r.kind[i];
+    srcStyle[s] = r.srcStyle[i];
+    srcChar[s] = r.srcChar[i];
+  }
+  return {
+    src,
+    editable: r.editable,
+    kind,
+    srcStyle,
+    srcChar,
+    units: r.units.map((u) => {
+      const unit: SlideTextUnit = { ...u, toSrc: [] };
+      for (const t of u.toSrc) {
+        const s = t < 0 ? -1 : back[t];
+        if (s < -1) unit.emptyAt = -1 - s;
+        unit.toSrc.push(s < 0 ? -1 : s);
+      }
+      return unit;
+    }),
+  };
+}
+
+function analyzeRendered(src: string): SlideTextAnalysis {
   const kind = new Uint8Array(src.length);
   const srcStyle = new Array<SlideCharStyle | undefined>(src.length);
   const srcChar = new Array<string | undefined>(src.length);

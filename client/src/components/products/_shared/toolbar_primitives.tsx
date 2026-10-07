@@ -86,9 +86,11 @@ export function MenuDivider() {
   return <div class="bg-base-300 my-1 h-px w-full" />;
 }
 
-// A flat pill button, as in Google Docs: a hover tint only, a primary-subtle
-// fill while its state is active. Letterforms stand in for the glyphs
-// panther's IconName lacks (bold, italic, lists).
+// A flat pill button, as in Google Docs: a hover tint only, and the pinned
+// selected look (primary border + primary-subtle wash) while its state is
+// active. The wash alone is near-white in light mode, so the border is what
+// shows Bold is on. Letterforms stand in for the glyphs panther's IconName
+// lacks (bold, italic, lists).
 export function ToolButton(p: {
   active?: () => boolean;
   onClick: () => void;
@@ -100,9 +102,10 @@ export function ToolButton(p: {
   return (
     <button
       type="button"
-      class="ui-focusable flex h-7 min-w-7 items-center justify-center rounded px-1.5 text-sm"
+      class="ui-focusable flex h-7 min-w-7 items-center justify-center rounded border px-1.5 text-sm"
       classList={{
-        "bg-primary-subtle text-primary": p.active?.() === true,
+        "border-primary bg-primary-subtle text-primary": p.active?.() === true,
+        "border-transparent": p.active?.() !== true,
         "ui-hoverable-base-300": p.active?.() !== true && p.disabled !== true,
         "text-base-content-muted opacity-50": p.disabled === true,
       }}

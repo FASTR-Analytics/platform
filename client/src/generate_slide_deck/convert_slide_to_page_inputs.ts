@@ -19,6 +19,7 @@ import {
   getSlideFontInfo,
   getTextColorForBackground,
   resolveLogoSizing,
+  slideRenderMarkdown,
   TEXT_SIZE_REL,
 } from "lib";
 import type {
@@ -530,7 +531,7 @@ async function convertBlockToPageContentItem(
     // TEXT_SIZE_REL[block.style?.textSize ?? DEFAULT_TEXT_SIZE_KEY];
     const fontFamily = deckStyle.fontFamily;
     return {
-      markdown: block.markdown,
+      markdown: slideRenderMarkdown(block.markdown),
       style: {
         text: {
           base: {

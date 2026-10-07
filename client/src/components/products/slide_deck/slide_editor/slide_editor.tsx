@@ -373,7 +373,10 @@ export function SlideEditor(p: Props) {
   }
 
   // Switching a block's type keeps what it held under the old type, so
-  // switching back restores it.
+  // switching back restores it. The cache holds COPIES both ways: an
+  // unwrapped store object is the live one, and the reconcile below rewrites
+  // it in place into the new block, so a cached alias came back as the block
+  // it had become (switching back to a chart restored an empty text box).
   const blockTypeCache = new Map<string, ContentBlock>();
   function handleBlockTypeChange(
     blockId: string,
@@ -383,10 +386,13 @@ export function SlideEditor(p: Props) {
     const hit = findById(tempSlide.layout, blockId);
     const current = hit?.node.type === "item" ? hit.node.data : undefined;
     if (!current || current.type === newType) return;
-    blockTypeCache.set(`${blockId}_${current.type}`, unwrap(current));
+    blockTypeCache.set(
+      `${blockId}_${current.type}`,
+      structuredClone(unwrap(current)),
+    );
     const cached = blockTypeCache.get(`${blockId}_${newType}`);
     if (cached) {
-      updateBlock(blockId, () => cached);
+      updateBlock(blockId, () => structuredClone(cached));
     } else {
       manuallyUpdateTempSlide(
         reconcile({
@@ -1423,45 +1429,15 @@ export function SlideEditor(p: Props) {
                             await handleEditVisualization();
                           },
                           onConvertToText: (blockId) => {
-                            const newLayout = convertBlockType(
-                              (tempSlide as ContentSlide).layout,
-                              blockId,
-                              "text",
-                            );
-                            manuallyUpdateTempSlide(
-                              reconcile({
-                                ...unwrap(tempSlide),
-                                layout: newLayout,
-                              }),
-                            );
+                            handleBlockTypeChange(blockId, "text");
                             setSelectedBlockId(blockId);
                           },
                           onConvertToFigure: (blockId) => {
-                            const newLayout = convertBlockType(
-                              (tempSlide as ContentSlide).layout,
-                              blockId,
-                              "figure",
-                            );
-                            manuallyUpdateTempSlide(
-                              reconcile({
-                                ...unwrap(tempSlide),
-                                layout: newLayout,
-                              }),
-                            );
+                            handleBlockTypeChange(blockId, "figure");
                             setSelectedBlockId(blockId);
                           },
                           onConvertToImage: (blockId) => {
-                            const newLayout = convertBlockType(
-                              (tempSlide as ContentSlide).layout,
-                              blockId,
-                              "image",
-                            );
-                            manuallyUpdateTempSlide(
-                              reconcile({
-                                ...unwrap(tempSlide),
-                                layout: newLayout,
-                              }),
-                            );
+                            handleBlockTypeChange(blockId, "image");
                             setSelectedBlockId(blockId);
                           },
                         },
