@@ -1,9 +1,9 @@
 // The product explorer's folder derivations: children, path labels,
 // descendant sets, picker options, the filtered tree and its rows (with the
-// synthetic General row over the root products) and the drop rule, each also
-// run over a tree with a deliberately corrupted cycle, where the requirement
-// is that the walk terminates. The client module's only import is a type, so it loads under
-// Deno as it is.
+// synthetic General row over the root products), the drop rule and the rows a
+// drop target's outline spans, each also run over a tree with a deliberately
+// corrupted cycle, where the requirement is that the walk terminates. The
+// client module's only import is a type, so it loads under Deno as it is.
 //
 //   deno test -A --env-file server/tests/folder_tree_test.ts
 
@@ -21,6 +21,7 @@ import {
   descendantIds,
   type DragItem,
   dropParent,
+  dropRegion,
   type DropTarget,
   folderDragItem,
   folderPathLabels,
@@ -393,4 +394,24 @@ Deno.test("drag item: a folder carries its subtree, and a cycle terminates", () 
     parentId: "c",
     subtree: new Set(["c"]),
   });
+});
+
+Deno.test("drop region: an open folder spans its row and everything shown beneath it, innermost first", () => {
+  const rows = productTreeRows(
+    tree(),
+    (id) => ["a", "b", GENERAL_ID].includes(id),
+  );
+  assertEquals(dropRegion(rows, "a"), { start: 0, end: 4 });
+  assertEquals(dropRegion(rows, "b"), { start: 1, end: 3 });
+  assertEquals(dropRegion(rows, "c"), { start: 2, end: 2 });
+  assertEquals(dropRegion(rows, GENERAL_ID), { start: 5, end: 6 });
+  assertEquals(dropRegion(rows, "d"), { start: 7, end: 7 });
+  assertEquals(dropRegion(rows, "nope"), undefined);
+});
+
+Deno.test("drop region: a closed folder and closed General are their own row", () => {
+  const rows = productTreeRows(tree(), () => false);
+  assertEquals(dropRegion(rows, "a"), { start: 0, end: 0 });
+  assertEquals(dropRegion(rows, GENERAL_ID), { start: 1, end: 1 });
+  assertEquals(dropRegion(rows, "d"), { start: 2, end: 2 });
 });

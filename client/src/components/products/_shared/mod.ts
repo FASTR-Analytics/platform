@@ -13,12 +13,19 @@ export {
   childFolders,
   descendantIds,
   dropParent,
+  dropRegion,
   folderDragItem,
   folderPathOptions,
   GENERAL_ID,
   productTreeRows,
+  targetRowIndex,
 } from "./folder_tree.ts";
-export type { DragItem, DropTarget, ProductTreeRow } from "./folder_tree.ts";
+export type {
+  DragItem,
+  DropRegion,
+  DropTarget,
+  ProductTreeRow,
+} from "./folder_tree.ts";
 export { PackageScopeChip } from "./package_scope_chip.tsx";
 export { PackageScopeModal } from "./package_scope_modal.tsx";
 export { createReportPaginator } from "./paginate_report.ts";

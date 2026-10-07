@@ -574,9 +574,10 @@ gated on `isReady`, so the persisted set survives hydration. General's state is
 its own saved flag (`productsGeneralClosed`), open by default and written only
 while the row is shown; it never enters the folder set. The tree is **derived**,
 never stored, by `folder_tree.ts` (`childFolders`, `folderPathLabels`,
-`descendantIds`, `folderPathOptions`, `buildProductTree`, `productTreeRows`, and
-the drop rule `folderDragItem` and `dropParent`: pure, type-import-only, every
-walk carrying a visited set so a corrupted cycle terminates, pinned by
+`descendantIds`, `folderPathOptions`, `buildProductTree`, `productTreeRows`, the
+drop rule `folderDragItem` and `dropParent`, and the outline's rows
+`targetRowIndex` and `dropRegion`: pure, type-import-only, every walk carrying a
+visited set so a corrupted cycle terminates, pinned by
 `server/tests/folder_tree_test.ts`). The labels for the root, General for
 products and "Top level" for folders, and the one "Move to …" label the two
 menus and the list's root zone read (`moveToRootLabel`), are
@@ -626,23 +627,35 @@ root folder the top level for its folders and General for its products.
 **Dragging** (`list_view.tsx`) is the other way to move, with native HTML drag
 events and no library. A product row the user may edit (`canEditProduct`) and a
 folder row when `canEdit()` are `draggable`; General never is. The drop targets
-are a folder row (into it), the General row (to the root, products only) and the
-**root zone**: while the dragged item is not already at the root, the sticky
-header gives up its cells for one cell across the grid, at the header's own
+are a folder (its row and, while it is open, every row beneath it, the innermost
+folder winning, as in Finder and VS Code), General (its row and the root
+products under it, for products only) and the **root**: the blank space below
+the rows and the sticky header, which, while the dragged item is not already at
+the root, gives up its cells for one cell across the grid, at the header's own
 height so no row moves, showing the folder icon and `moveToRootLabel` for the
-item's kind, and takes a drop like a row. `dropParent` decides every target: a
-folder id, `null` for the root, or `undefined` for a refused drop, which is the
-item's own parent, General for a folder, and a folder itself or its subtree
+item's kind. One `dragover` and one `drop` handler on the scroll container
+resolve the target from the nearest element carrying `data-drop-target`: folder
+rows carry their id, product rows their folder's (General for the root), the
+General row `GENERAL_ID`, and the container itself the root, so no row needs
+`dragenter` or `dragleave`. `dropParent` decides every target: a folder id,
+`null` for the root, or `undefined` for a refused drop, which is the item's own
+parent, General for a folder, and a folder itself or its subtree
 (`folderDragItem` walks the subtree once at `dragstart`, not on every
-`dragover`); the server's typed `FOLDER_CYCLE` is still the authority. One
-`dragover` and one `drop` handler on the scroll container resolve the target
-from the nearest element carrying `data-drop-target`, so no row needs
-`dragenter` or `dragleave`; a legal target under the pointer takes
-`ring-2 ring-inset ring-primary`, a refused one leaves the browser's no-drop
-cursor, and leaving the container clears the ring. Hovering a closed folder with
-contents, or closed General, for 600 ms opens it into the same open set a click
-writes, legal target or not, because a product's own folder is refused while its
-subfolders are not; the dragged folder and its subtree never open. A drop calls
+`dragover`); the server's typed `FOLDER_CYCLE` is still the authority. A legal
+target takes one rounded 2px `primary` outline around its whole block, the rows
+`dropRegion` gives (positional: the target's row and the following rows that sit
+deeper), drawn by a pseudo-element on each row so it sits on the grey
+separators, 1px above the block and over the last row's own border; a rounded
+line cannot cover the ends of a straight one, so the row above the block, or the
+header when the block starts at the first row, and the block's last row drop
+their separator while highlighted, and a block at the first row begins at the
+row's own top edge because the sticky header paints above the rows. The header
+takes the same outline as the root target, also when the pointer is over the
+blank space. A refused target leaves the browser's no-drop cursor, and leaving
+the container clears the outline. Hovering a closed folder with contents, or
+closed General, for 600 ms opens it into the same open set a click writes, legal
+target or not, because a product's own folder is refused while its subfolders
+are not; the dragged folder and its subtree never open. A drop calls
 `moveProductsToFolder` or `moveFolder` exactly as the quick moves do, with no
 optimistic move and a refusal shown through `openAlert`, then opens the target
 folder or General so the moved row stays in view; an empty folder added to the

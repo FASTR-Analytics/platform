@@ -10,6 +10,7 @@ import {
 import { Button, Icon, type IconName } from "panther";
 import {
   batch,
+  createMemo,
   createSignal,
   Index,
   type JSX,
@@ -23,10 +24,12 @@ import { resolveScope } from "~/state/instance/t1_store";
 import {
   type DragItem,
   dropParent,
+  dropRegion,
   type DropTarget,
   GENERAL_ID,
   generalLabel,
   moveToRootLabel,
+  targetRowIndex,
 } from "./_shared/mod.ts";
 import type { ProductTreeRow } from "./_shared/mod.ts";
 import { PRODUCT_TYPE_REGISTRY } from "./product_types";
@@ -48,9 +51,22 @@ const _INDENT_REM_PER_LEVEL = 1.75;
 // under this type. Nothing reads it back: the drag item is held in state.
 const _DRAG_MIME = "application/x-fastr-product-tree";
 
-// The `data-drop-target` value of the root zone; folder rows carry their id
-// and the General row GENERAL_ID.
+// The `data-drop-target` of the root, carried by the scroll container so the
+// header and the blank space below the rows resolve to it. Folder rows carry
+// their id, product rows their folder's (General for the root), and the
+// General row GENERAL_ID, so a drop anywhere inside an open folder goes into
+// it, innermost folder winning, as in Finder and VS Code.
 const _ROOT_DROP_KEY = "_root";
+
+// The drop outline: one rounded 2px primary rectangle around the target's
+// whole block, drawn by a pseudo-element on each of its rows. It sits ON the
+// grey separators, 1px above the block and over the last row's own border, so
+// those two rows drop their separator while highlighted: a rounded line cannot
+// cover the ends of a straight one, and grey stubs would show at the corners.
+const _OUTLINE =
+  "relative before:pointer-events-none before:absolute before:inset-x-0 before:border-x-2 before:border-primary";
+const _OUTLINE_TOP = "before:border-t-2 before:rounded-t";
+const _OUTLINE_BOTTOM = "before:border-b-2 before:rounded-b";
 
 const _HOVER_OPEN_MS = 600;
 
@@ -116,6 +132,33 @@ export function ListView(p: Props) {
   let hoverOpenKey: string | null = null;
   let hoverOpenTimer: ReturnType<typeof setTimeout> | undefined;
 
+  // The rows the hovered target's outline spans; the root's is the header.
+  const region = createMemo(() => {
+    const key = hoverKey();
+    const rows = p.rows;
+    if (key === null || key === _ROOT_DROP_KEY) return undefined;
+    return dropRegion(rows, key);
+  });
+
+  // A block starting at the first row begins at that row's own top edge: the
+  // sticky header paints above the rows and would cover the outer pixel.
+  function outlineClassList(i: number) {
+    const r = region();
+    const inside = r !== undefined && i >= r.start && i <= r.end;
+    const last = inside && i === r.end;
+    return {
+      [_OUTLINE]: inside,
+      "before:-top-px": inside && i > 0,
+      "before:top-0": inside && i === 0,
+      "before:bottom-0": inside && !last,
+      "before:-bottom-px": last,
+      [_OUTLINE_TOP]: inside && i === r.start,
+      [_OUTLINE_BOTTOM]: last,
+      "border-b-transparent": r !== undefined &&
+        (i === r.start - 1 || i === r.end),
+    };
+  }
+
   function clearHoverOpen() {
     clearTimeout(hoverOpenTimer);
     hoverOpenTimer = undefined;
@@ -177,11 +220,7 @@ export function ListView(p: Props) {
     if (item.kind === "folder" && (key === item.id || item.subtree.has(key))) {
       return;
     }
-    const row = p.rows.find((r) =>
-      r.kind === "general"
-        ? key === GENERAL_ID
-        : r.kind === "folder" && r.folder.id === key
-    );
+    const row = p.rows.at(targetRowIndex(p.rows, key));
     if (row === undefined || row.kind === "product" || row.expanded) return;
     if (row.kind === "folder" && !row.hasContents) return;
     hoverOpenTimer = setTimeout(() => {
@@ -310,14 +349,13 @@ export function ListView(p: Props) {
 
   function expandableRow(
     tour: string | undefined,
+    i: number,
     r: () => ExpandableRow,
   ): JSX.Element {
     return (
       <div
         class={`${_ROW_GRID} ui-hoverable-base-100 ui-focusable group border-b`}
-        classList={{
-          "ring-2 ring-inset ring-primary": hoverKey() === r().dropKey,
-        }}
+        classList={outlineClassList(i)}
         data-tour={tour}
         data-drop-target={r().dropKey}
         role="button"
@@ -374,8 +412,8 @@ export function ListView(p: Props) {
     );
   }
 
-  function folderRow(r: () => FolderRow): JSX.Element {
-    return expandableRow("products-folder", () => ({
+  function folderRow(i: number, r: () => FolderRow): JSX.Element {
+    return expandableRow("products-folder", i, () => ({
       depth: r().depth,
       expanded: r().expanded,
       hasContents: r().hasContents,
@@ -390,8 +428,8 @@ export function ListView(p: Props) {
   }
 
   // General is only emitted when it holds products, so it always opens.
-  function generalRow(r: () => GeneralRow): JSX.Element {
-    return expandableRow(undefined, () => ({
+  function generalRow(i: number, r: () => GeneralRow): JSX.Element {
+    return expandableRow(undefined, i, () => ({
       depth: 0,
       expanded: r().expanded,
       hasContents: true,
@@ -405,12 +443,14 @@ export function ListView(p: Props) {
     }));
   }
 
-  function productRow(r: () => ProductRow): JSX.Element {
+  function productRow(i: number, r: () => ProductRow): JSX.Element {
     const product = () => r().product;
     return (
       <div
         class={`${_ROW_GRID} ui-hoverable-base-100 ui-focusable group border-b`}
+        classList={outlineClassList(i)}
         data-tour="products-item"
+        data-drop-target={product().folderId ?? GENERAL_ID}
         role="button"
         tabindex="0"
         draggable={p.canDrag(r())}
@@ -528,6 +568,7 @@ export function ListView(p: Props) {
     <div
       class="ui-pad-x h-full w-full overflow-auto"
       data-tour="products-items"
+      data-drop-target={_ROOT_DROP_KEY}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
@@ -536,9 +577,11 @@ export function ListView(p: Props) {
       <div
         class={`${_ROW_GRID} font-700 bg-base-100 sticky top-0 z-10 border-b pt-1 text-xs tracking-wider uppercase`}
         classList={{
-          "ring-2 ring-inset ring-primary": hoverKey() === _ROOT_DROP_KEY,
+          [`${_OUTLINE} before:top-0 before:-bottom-px ${_OUTLINE_TOP} ${_OUTLINE_BOTTOM}`]:
+            hoverKey() === _ROOT_DROP_KEY,
+          "border-b-transparent": hoverKey() === _ROOT_DROP_KEY ||
+            region()?.start === 0,
         }}
-        data-drop-target={rootZoneItem() === null ? undefined : _ROOT_DROP_KEY}
       >
         {headerCells()}
       </div>
@@ -547,11 +590,11 @@ export function ListView(p: Props) {
           position keeps a toggled folder row, and its focus, in place. */
       }
       <Index each={p.rows} fallback={<div class="ui-pad">{p.fallback}</div>}>
-        {(row) => (
+        {(row, i) => (
           <Switch>
-            <Match when={asFolderRow(row())}>{(r) => folderRow(r)}</Match>
-            <Match when={asGeneralRow(row())}>{(r) => generalRow(r)}</Match>
-            <Match when={asProductRow(row())}>{(r) => productRow(r)}</Match>
+            <Match when={asFolderRow(row())}>{(r) => folderRow(i, r)}</Match>
+            <Match when={asGeneralRow(row())}>{(r) => generalRow(i, r)}</Match>
+            <Match when={asProductRow(row())}>{(r) => productRow(i, r)}</Match>
           </Switch>
         )}
       </Index>

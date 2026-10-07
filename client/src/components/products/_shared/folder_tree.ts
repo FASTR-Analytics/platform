@@ -366,3 +366,35 @@ export function dropParent(
   }
   return parent;
 }
+
+// The row a drop target key names: a folder row by id, or the General row for
+// GENERAL_ID. -1 when the tree does not show it.
+export function targetRowIndex(rows: ProductTreeRow[], key: string): number {
+  return rows.findIndex((r) =>
+    r.kind === "general"
+      ? key === GENERAL_ID
+      : r.kind === "folder" && r.folder.id === key
+  );
+}
+
+export type DropRegion = { start: number; end: number };
+
+// The rows a hovered target's outline spans: its own row and, while it is
+// open, the rows beneath it that sit deeper. Positional, so the list view
+// needs no folder data to draw the block.
+export function dropRegion(
+  rows: ProductTreeRow[],
+  key: string,
+): DropRegion | undefined {
+  const start = targetRowIndex(rows, key);
+  if (start === -1) return undefined;
+  const depth = rowDepth(rows[start]);
+  let end = start;
+  while (end + 1 < rows.length && rowDepth(rows[end + 1]) > depth) end += 1;
+  return { start, end };
+}
+
+// General sits at the root, where its products are indented one step.
+function rowDepth(row: ProductTreeRow): number {
+  return row.kind === "general" ? 0 : row.depth;
+}
