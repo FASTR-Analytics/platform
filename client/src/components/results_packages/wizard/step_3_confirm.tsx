@@ -1,8 +1,13 @@
-import { type ModuleId, type RunGenerationStep1Result, t3 } from "lib";
+import {
+  type ModuleId,
+  RUN_LABEL_MAX_LENGTH,
+  type RunGenerationStep1Result,
+  t3,
+} from "lib";
 import { Card, Input } from "panther";
 import { For, Show } from "solid-js";
 import { moduleLabel } from "../package_view/mod.ts";
-import { getRunLabelTooLongMsg } from "./run_label";
+import { isRunLabelTooLong } from "./run_label";
 
 type Props = {
   families: RunGenerationStep1Result;
@@ -30,7 +35,13 @@ export function StepConfirm(p: Props) {
           label={t3({ en: "Label", fr: "Libellé", pt: "Rótulo" })}
           value={p.label}
           onChange={p.setLabel}
-          invalidMsg={getRunLabelTooLongMsg(p.label)}
+          invalidMsg={isRunLabelTooLong(p.label)
+            ? t3({
+              en: `Use ${RUN_LABEL_MAX_LENGTH} characters or fewer`,
+              fr: `Utilisez ${RUN_LABEL_MAX_LENGTH} caractères au maximum`,
+              pt: `Use no máximo ${RUN_LABEL_MAX_LENGTH} caracteres`,
+            })
+            : undefined}
           fullWidth
         />
       </div>

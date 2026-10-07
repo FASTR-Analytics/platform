@@ -2,6 +2,7 @@ import {
   type DatasetType,
   getMergedModuleConfigSelections,
   type ModuleId,
+  RUN_LABEL_MAX_LENGTH,
   type RunGenerationDefaults,
   type RunGenerationModuleOptions,
   type RunGenerationStep1Result,
@@ -22,11 +23,7 @@ import { createStore, unwrap } from "solid-js/store";
 import { getModuleParameterInvalidMsg } from "../_shared/mod.ts";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
-import {
-  freeRunLabel,
-  getRunLabelTooLongMsg,
-  isRunLabelTaken,
-} from "./run_label";
+import { freeRunLabel, isRunLabelTaken, isRunLabelTooLong } from "./run_label";
 import { buildModuleGraph, familiesOf, isOfferable } from "./module_graph";
 import { StepConfirm } from "./step_3_confirm";
 import { type FamilyBlockedReason, StepData } from "./step_1_data";
@@ -251,9 +248,17 @@ function WizardInner(p: InnerProps) {
           }),
         };
       }
-      const tooLongMsg = getRunLabelTooLongMsg(trimmed);
-      if (tooLongMsg !== undefined) {
-        return { success: false, err: tooLongMsg };
+      if (isRunLabelTooLong(trimmed)) {
+        return {
+          success: false,
+          err: t3({
+            en: `Label should use ${RUN_LABEL_MAX_LENGTH} characters or fewer`,
+            fr:
+              `Le libellé doit compter ${RUN_LABEL_MAX_LENGTH} caractères au maximum`,
+            pt:
+              `O rótulo deve ter no máximo ${RUN_LABEL_MAX_LENGTH} caracteres`,
+          }),
+        };
       }
       if (isRunLabelTaken(trimmed, instanceState.runsCatalog)) {
         return {
