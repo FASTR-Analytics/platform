@@ -5,8 +5,8 @@ import { productsSort } from "~/state/t4_ui";
 import { childFolders, moveToRootLabel } from "./_shared/mod.ts";
 
 // The move affordances D16 gives both menus: quick hops within reach of the
-// item's own folder, with the full picker as the catch-all. There is no
-// drag-and-drop, so these are the only way to move anything.
+// item's own folder, with the full picker as the catch-all. Dragging a row
+// onto a folder (list_view.tsx) is the other way to move.
 const _MOVE_SUBMENU_CAP = 10;
 
 export function buildQuickMoveEntries(args: {

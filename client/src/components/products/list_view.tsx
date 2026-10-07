@@ -8,10 +8,26 @@ import {
   t3,
 } from "lib";
 import { Button, Icon, type IconName } from "panther";
-import { Index, type JSX, Match, Show, Switch } from "solid-js";
+import {
+  batch,
+  createSignal,
+  Index,
+  type JSX,
+  Match,
+  onCleanup,
+  Show,
+  Switch,
+} from "solid-js";
 import { packageLabel, scopeLabel } from "~/components/_shared/mod.ts";
 import { resolveScope } from "~/state/instance/t1_store";
-import { GENERAL_ID, generalLabel } from "./_shared/mod.ts";
+import {
+  type DragItem,
+  dropParent,
+  type DropTarget,
+  GENERAL_ID,
+  generalLabel,
+  moveToRootLabel,
+} from "./_shared/mod.ts";
 import type { ProductTreeRow } from "./_shared/mod.ts";
 import { PRODUCT_TYPE_REGISTRY } from "./product_types";
 
@@ -28,20 +44,33 @@ const _ROW_GRID =
 
 const _INDENT_REM_PER_LEVEL = 1.75;
 
+// Firefox starts no drag without data, so every drag carries the row's id
+// under this type. Nothing reads it back: the drag item is held in state.
+const _DRAG_MIME = "application/x-fastr-product-tree";
+
+// The `data-drop-target` value of the root zone; folder rows carry their id
+// and the General row GENERAL_ID.
+const _ROOT_DROP_KEY = "_root";
+
+const _HOVER_OPEN_MS = 600;
+
 type FolderRow = Extract<ProductTreeRow, { kind: "folder" }>;
 type GeneralRow = Extract<ProductTreeRow, { kind: "general" }>;
 type ProductRow = Extract<ProductTreeRow, { kind: "product" }>;
 
 // What a row that opens and closes shows: a folder, or the synthetic General
-// row at the root, which has no menu.
+// row at the root, which has no menu and is never dragged.
 type ExpandableRow = {
   depth: number;
   expanded: boolean;
   hasContents: boolean;
   label: string;
   lastUpdated: string;
+  dropKey: string;
+  draggable: boolean;
   onToggle: () => void;
   onMenu: ((evt: MouseEvent) => void) | undefined;
+  onDragStart: ((evt: DragEvent) => void) | undefined;
 };
 
 type Props = {
@@ -52,10 +81,165 @@ type Props = {
   onToggleFolder: (folderId: string) => void;
   onProductMenu: (evt: MouseEvent, product: ProductSummary) => void;
   onFolderMenu: (evt: MouseEvent, folder: Folder) => void;
+  canDrag: (row: ProductTreeRow) => boolean;
+  // Called only at dragstart, so only for a row canDrag accepted.
+  dragItem: (row: ProductRow | FolderRow) => DragItem;
+  onMove: (item: DragItem, parentId: string | null) => void;
+  // Adds to the open set and never removes. GENERAL_ID opens General.
+  onOpenFolder: (folderId: string) => void;
   fallback: JSX.Element;
 };
 
+function parseDropTarget(key: string): DropTarget {
+  if (key === _ROOT_DROP_KEY) return { kind: "root" };
+  if (key === GENERAL_ID) return { kind: "general" };
+  return { kind: "folder", folderId: key };
+}
+
+function dropKeyAt(target: EventTarget | null): string | null {
+  if (!(target instanceof Element)) return null;
+  return target.closest("[data-drop-target]")?.getAttribute(
+    "data-drop-target",
+  ) ?? null;
+}
+
 export function ListView(p: Props) {
+  // The transient drag: the item (set after dragstart returns, see
+  // startDrag), the legal target under the pointer, and the chip the browser
+  // shows under the pointer in place of its snapshot of the whole row.
+  const [dragItem, setDragItem] = createSignal<DragItem | null>(null);
+  const [hoverKey, setHoverKey] = createSignal<string | null>(null);
+  const [chip, setChip] = createSignal<
+    { iconName: IconName; label: string } | null
+  >(null);
+  let chipEl: HTMLDivElement | undefined;
+  let hoverOpenKey: string | null = null;
+  let hoverOpenTimer: ReturnType<typeof setTimeout> | undefined;
+
+  function clearHoverOpen() {
+    clearTimeout(hoverOpenTimer);
+    hoverOpenTimer = undefined;
+    hoverOpenKey = null;
+  }
+
+  // Browsers send no pointer events during a native drag, so the first one
+  // after dragstart means the drag is over, however it ended: `dragend` on a
+  // source element the list has since replaced reaches no ancestor.
+  function onPointerMove() {
+    endDrag();
+  }
+
+  function endDrag() {
+    window.removeEventListener("pointermove", onPointerMove);
+    clearHoverOpen();
+    batch(() => {
+      setDragItem(null);
+      setHoverKey(null);
+      setChip(null);
+    });
+  }
+
+  onCleanup(endDrag);
+
+  function startDrag(
+    e: DragEvent,
+    row: ProductRow | FolderRow,
+    iconName: IconName,
+    label: string,
+  ) {
+    const dt = e.dataTransfer;
+    if (dt === null) return;
+    dt.setData(
+      _DRAG_MIME,
+      row.kind === "product" ? row.product.id : row.folder.id,
+    );
+    dt.effectAllowed = "move";
+    setChip({ iconName, label });
+    if (chipEl !== undefined) dt.setDragImage(chipEl, 12, 12);
+    const item = p.dragItem(row);
+    // Chrome and Safari abort a drag whose source is no longer under the
+    // pointer when dragstart returns, and storing the item redraws the header
+    // above the row.
+    setTimeout(() => {
+      setDragItem(item);
+      window.addEventListener("pointermove", onPointerMove);
+    }, 0);
+  }
+
+  // A closed folder with contents, or closed General, opens after a hover,
+  // legal target or not: a product's own folder is refused while its
+  // subfolders are not. The dragged folder and its subtree never open.
+  function scheduleHoverOpen(item: DragItem, key: string | null) {
+    if (key === hoverOpenKey) return;
+    clearHoverOpen();
+    hoverOpenKey = key;
+    if (key === null || key === _ROOT_DROP_KEY) return;
+    if (item.kind === "folder" && (key === item.id || item.subtree.has(key))) {
+      return;
+    }
+    const row = p.rows.find((r) =>
+      r.kind === "general"
+        ? key === GENERAL_ID
+        : r.kind === "folder" && r.folder.id === key
+    );
+    if (row === undefined || row.kind === "product" || row.expanded) return;
+    if (row.kind === "folder" && !row.hasContents) return;
+    hoverOpenTimer = setTimeout(() => {
+      hoverOpenTimer = undefined;
+      p.onOpenFolder(key);
+    }, _HOVER_OPEN_MS);
+  }
+
+  // One handler on the scroll container for every target: per-row dragenter
+  // and dragleave flicker as the pointer crosses a row's children.
+  function handleDragOver(e: DragEvent) {
+    const item = dragItem();
+    if (item === null) return;
+    const key = dropKeyAt(e.target);
+    const parent = key === null
+      ? undefined
+      : dropParent(item, parseDropTarget(key));
+    if (parent !== undefined) {
+      e.preventDefault();
+      if (e.dataTransfer !== null) e.dataTransfer.dropEffect = "move";
+    }
+    setHoverKey(parent === undefined ? null : key);
+    scheduleHoverOpen(item, key);
+  }
+
+  function handleDragLeave(e: DragEvent & { currentTarget: HTMLElement }) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const inside = e.clientX >= rect.left && e.clientX < rect.right &&
+      e.clientY >= rect.top && e.clientY < rect.bottom;
+    if (inside) return;
+    clearHoverOpen();
+    setHoverKey(null);
+  }
+
+  function handleDrop(e: DragEvent) {
+    const item = dragItem();
+    if (item === null) return;
+    const key = dropKeyAt(e.target);
+    const target = key === null ? null : parseDropTarget(key);
+    const parent = target === null ? undefined : dropParent(item, target);
+    if (target === null || parent === undefined) {
+      endDrag();
+      return;
+    }
+    e.preventDefault();
+    p.onMove(item, parent);
+    if (target.kind === "folder") p.onOpenFolder(target.folderId);
+    if (target.kind === "general") p.onOpenFolder(GENERAL_ID);
+    endDrag();
+  }
+
+  // The header is the root zone while the dragged item can go to the root.
+  const rootZoneItem = (): DragItem | null => {
+    const item = dragItem();
+    if (item === null) return null;
+    return dropParent(item, { kind: "root" }) === undefined ? null : item;
+  };
+
   const sortGlyph = (mode: SortMode): IconName =>
     p.sort.mode !== mode
       ? "arrowsUpDown"
@@ -131,10 +315,16 @@ export function ListView(p: Props) {
     return (
       <div
         class={`${_ROW_GRID} ui-hoverable-base-100 ui-focusable group border-b`}
+        classList={{
+          "ring-2 ring-inset ring-primary": hoverKey() === r().dropKey,
+        }}
         data-tour={tour}
+        data-drop-target={r().dropKey}
         role="button"
         tabindex="0"
         aria-expanded={r().hasContents ? r().expanded : undefined}
+        draggable={r().draggable}
+        onDragStart={(e) => r().onDragStart?.(e)}
         onClick={() => {
           if (r().hasContents) r().onToggle();
         }}
@@ -191,8 +381,11 @@ export function ListView(p: Props) {
       hasContents: r().hasContents,
       label: r().folder.label,
       lastUpdated: r().lastUpdated,
+      dropKey: r().folder.id,
+      draggable: p.canDrag(r()),
       onToggle: () => p.onToggleFolder(r().folder.id),
       onMenu: (e) => p.onFolderMenu(e, r().folder),
+      onDragStart: (e) => startDrag(e, r(), "folder", r().folder.label),
     }));
   }
 
@@ -204,8 +397,11 @@ export function ListView(p: Props) {
       hasContents: true,
       label: generalLabel(),
       lastUpdated: r().lastUpdated,
+      dropKey: GENERAL_ID,
+      draggable: false,
       onToggle: () => p.onToggleFolder(GENERAL_ID),
       onMenu: undefined,
+      onDragStart: undefined,
     }));
   }
 
@@ -217,6 +413,14 @@ export function ListView(p: Props) {
         data-tour="products-item"
         role="button"
         tabindex="0"
+        draggable={p.canDrag(r())}
+        onDragStart={(e) =>
+          startDrag(
+            e,
+            r(),
+            PRODUCT_TYPE_REGISTRY[product().type].icon,
+            product().label,
+          )}
         onClick={() => p.onOpenProduct(product())}
         onContextMenu={(e) => {
           e.preventDefault();
@@ -264,45 +468,79 @@ export function ListView(p: Props) {
     );
   }
 
+  // The header's cells, or, while a drag can go to the root, one cell across
+  // the grid built like a sort button so the header keeps its height and no
+  // row moves.
+  function headerCells(): JSX.Element {
+    return (
+      <Switch>
+        <Match when={rootZoneItem()}>
+          {(item) => (
+            <div class="ui-pad-sm col-span-full">
+              <span class="-ml-1.5 inline-flex items-center gap-1 px-1.5 py-1">
+                <Icon iconName="folder" />
+                {moveToRootLabel(item().kind)}
+              </span>
+            </div>
+          )}
+        </Match>
+        <Match when={rootZoneItem() === null}>
+          <div class="ui-pad-sm">
+            {headerSortButton(
+              t3({ en: "Name", fr: "Nom", pt: "Nome" }),
+              "name",
+            )}
+          </div>
+          <div class="ui-pad-sm">
+            <span class="-ml-1.5 px-1.5 py-1">
+              {t3({ en: "Type", fr: "Type", pt: "Tipo" })}
+            </span>
+          </div>
+          <div class="ui-pad-sm">
+            <span class="-ml-1.5 px-1.5 py-1">
+              {t3({ en: "Package", fr: "Paquet", pt: "Pacote" })}
+            </span>
+          </div>
+          <div class="ui-pad-sm">
+            <span class="-ml-1.5 px-1.5 py-1">
+              {t3({ en: "Scope", fr: "Portée", pt: "Âmbito" })}
+            </span>
+          </div>
+          <div class="ui-pad-sm">
+            {headerSortButton(
+              t3({
+                en: "Last updated",
+                fr: "Modifié le",
+                pt: "Atualizado",
+              }),
+              "recent",
+            )}
+          </div>
+          <div />
+        </Match>
+      </Switch>
+    );
+  }
+
   return (
     // Horizontal padding only, mirroring the grid's inset: an x-only pad keeps
     // the sticky header flush at top-0 with no scroll-through gap.
     <div
       class="ui-pad-x h-full w-full overflow-auto"
       data-tour="products-items"
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      onDragEnd={endDrag}
     >
       <div
         class={`${_ROW_GRID} font-700 bg-base-100 sticky top-0 z-10 border-b pt-1 text-xs tracking-wider uppercase`}
+        classList={{
+          "ring-2 ring-inset ring-primary": hoverKey() === _ROOT_DROP_KEY,
+        }}
+        data-drop-target={rootZoneItem() === null ? undefined : _ROOT_DROP_KEY}
       >
-        <div class="ui-pad-sm">
-          {headerSortButton(t3({ en: "Name", fr: "Nom", pt: "Nome" }), "name")}
-        </div>
-        <div class="ui-pad-sm">
-          <span class="-ml-1.5 px-1.5 py-1">
-            {t3({ en: "Type", fr: "Type", pt: "Tipo" })}
-          </span>
-        </div>
-        <div class="ui-pad-sm">
-          <span class="-ml-1.5 px-1.5 py-1">
-            {t3({ en: "Package", fr: "Paquet", pt: "Pacote" })}
-          </span>
-        </div>
-        <div class="ui-pad-sm">
-          <span class="-ml-1.5 px-1.5 py-1">
-            {t3({ en: "Scope", fr: "Portée", pt: "Âmbito" })}
-          </span>
-        </div>
-        <div class="ui-pad-sm">
-          {headerSortButton(
-            t3({
-              en: "Last updated",
-              fr: "Modifié le",
-              pt: "Atualizado",
-            }),
-            "recent",
-          )}
-        </div>
-        <div />
+        {headerCells()}
       </div>
       {
         /* Index, not For: every recompute makes new row objects, and keying by
@@ -317,6 +555,21 @@ export function ListView(p: Props) {
           </Switch>
         )}
       </Index>
+      {
+        /* The drag image: rendered off screen, filled before setDragImage
+          reads it. */
+      }
+      <Show when={chip()}>
+        {(c) => (
+          <div
+            ref={chipEl}
+            class="ui-gap-sm ui-pad-sm bg-base-100 text-base-content pointer-events-none fixed -top-96 left-0 inline-flex items-center rounded border text-sm"
+          >
+            <Icon iconName={c().iconName} />
+            <span>{c().label}</span>
+          </div>
+        )}
+      </Show>
     </div>
   );
 }

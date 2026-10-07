@@ -48,6 +48,7 @@ import { EditFolderModal } from "./edit_folder_modal";
 import { buildFolderMenu } from "./folder_menu";
 import {
   buildProductTree,
+  folderDragItem,
   GENERAL_ID,
   generalLabel,
   productTreeRows,
@@ -219,6 +220,15 @@ export function Products() {
     setOpenFolderIds(next);
   }
 
+  // A drag opens folders by hovering and by dropping into them: into the same
+  // open set a click writes, never out of it. An empty folder added here shows
+  // open once the move arrives.
+  function openFolder(folderId: string) {
+    const open = openFolderIds();
+    if (open.has(folderId)) return;
+    setOpenFolderIds(new Set([...open, folderId]));
+  }
+
   // Every folder with something inside to open, as the tree currently shows,
   // plus General when it is shown.
   const openableFolderIds = createMemo(() => {
@@ -295,14 +305,15 @@ export function Products() {
     });
   }
 
-  // The quick moves have no modal, so a failure surfaces through openAlert;
-  // the picker path gets that from createFormAction.
+  // The quick moves and drops have no modal, so a failure surfaces through
+  // openAlert; the picker path gets that from createFormAction. The row moves
+  // when the live update arrives, never before.
   async function quickMoveProducts(
-    product: ProductSummary,
+    productId: string,
     folderId: string | null,
   ) {
     const res = await serverActions.moveProductsToFolder({
-      productIds: [product.id],
+      productIds: [productId],
       folderId,
     });
     if (!res.success) {
@@ -310,9 +321,9 @@ export function Products() {
     }
   }
 
-  async function quickMoveFolder(folder: Folder, parentId: string | null) {
+  async function quickMoveFolder(folderId: string, parentId: string | null) {
     const res = await serverActions.moveFolder({
-      folder_id: folder.id,
+      folder_id: folderId,
       parentId,
     });
     if (!res.success) {
@@ -353,7 +364,7 @@ export function Products() {
       onMoveToFolder: () => void handleMoveToFolder(product),
       onDuplicate: () => void handleDuplicate(product),
       onDelete: () => void handleDelete(product),
-      onMoveTo: (folderId) => void quickMoveProducts(product, folderId),
+      onMoveTo: (folderId) => void quickMoveProducts(product.id, folderId),
     });
   }
 
@@ -407,7 +418,7 @@ export function Products() {
     return buildFolderMenu({
       folder,
       folders: instanceState.folders,
-      onMoveTo: (parentId) => void quickMoveFolder(folder, parentId),
+      onMoveTo: (parentId) => void quickMoveFolder(folder.id, parentId),
       onMoveToFolder: () =>
         void openComponent({
           element: MoveToFolderModal,
@@ -580,6 +591,23 @@ export function Products() {
         onToggleFolder={toggleFolder}
         onProductMenu={handleProductMenu}
         onFolderMenu={handleFolderMenu}
+        canDrag={(row) =>
+          row.kind === "product"
+            ? canEditProduct(row.product.id)
+            : row.kind === "folder" && canEdit()}
+        dragItem={(row) =>
+          row.kind === "product"
+            ? {
+              kind: "product",
+              id: row.product.id,
+              parentId: row.product.folderId,
+            }
+            : folderDragItem(instanceState.folders, row.folder)}
+        onMove={(item, parentId) =>
+          void (item.kind === "product"
+            ? quickMoveProducts(item.id, parentId)
+            : quickMoveFolder(item.id, parentId))}
+        onOpenFolder={openFolder}
         fallback={emptyState()}
       />
     </FrameTop>

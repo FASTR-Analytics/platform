@@ -574,10 +574,12 @@ gated on `isReady`, so the persisted set survives hydration. General's state is
 its own saved flag (`productsGeneralClosed`), open by default and written only
 while the row is shown; it never enters the folder set. The tree is **derived**,
 never stored, by `folder_tree.ts` (`childFolders`, `folderPathLabels`,
-`descendantIds`, `folderPathOptions`, `buildProductTree`, `productTreeRows`:
-pure, type-import-only, every walk carrying a visited set so a corrupted cycle
-terminates, pinned by `server/tests/folder_tree_test.ts`). The labels for the
-root, General for products and "Top level" for folders, are
+`descendantIds`, `folderPathOptions`, `buildProductTree`, `productTreeRows`, and
+the drop rule `folderDragItem` and `dropParent`: pure, type-import-only, every
+walk carrying a visited set so a corrupted cycle terminates, pinned by
+`server/tests/folder_tree_test.ts`). The labels for the root, General for
+products and "Top level" for folders, and the one "Move to …" label the two
+menus and the list's root zone read (`moveToRootLabel`), are
 `_shared/folder_labels.ts`.
 
 The list (`list_view.tsx`) is hand-built from panther parts on one CSS grid
@@ -608,10 +610,10 @@ button and the right-click menu, and both share `buildQuickMoveEntries`,
 relative to the item's own folder: **Move into ▸** (its sibling folders, capped
 at 10, then More…), **Move up to "grandparent"**, the root entry (**Move to
 General** for a product, **Move to top level** for a folder, the label passed by
-each builder), **Move to folder…**. There is no drag-and-drop. Every folder
-move, quick or picked, is `moveFolder`, which writes only the parent. The full
-picker (`move_to_folder_modal.tsx`) moves a product (`moveProductsToFolder`) or
-a folder (`moveFolder`), lists flat full paths sorted by path with General first
+each builder), **Move to folder…**. Every folder move, quick, picked or dropped,
+is `moveFolder`, which writes only the parent. The full picker
+(`move_to_folder_modal.tsx`) moves a product (`moveProductsToFolder`) or a
+folder (`moveFolder`), lists flat full paths sorted by path with General first
 (`GENERAL_ID` as the option value for the root), and excludes a moved folder's
 own subtree; the server's typed `FOLDER_CYCLE` is still the authority.
 `edit_folder_modal.tsx` creates a folder at the top level and renames or
@@ -620,6 +622,41 @@ only and never the parent, so a rename cannot undo a move. Deleting a folder
 **reparents one level and never cascades**, and the confirmation carries the
 direct counts and the destination: the parent for a nested folder, and for a
 root folder the top level for its folders and General for its products.
+
+**Dragging** (`list_view.tsx`) is the other way to move, with native HTML drag
+events and no library. A product row the user may edit (`canEditProduct`) and a
+folder row when `canEdit()` are `draggable`; General never is. The drop targets
+are a folder row (into it), the General row (to the root, products only) and the
+**root zone**: while the dragged item is not already at the root, the sticky
+header gives up its cells for one cell across the grid, at the header's own
+height so no row moves, showing the folder icon and `moveToRootLabel` for the
+item's kind, and takes a drop like a row. `dropParent` decides every target: a
+folder id, `null` for the root, or `undefined` for a refused drop, which is the
+item's own parent, General for a folder, and a folder itself or its subtree
+(`folderDragItem` walks the subtree once at `dragstart`, not on every
+`dragover`); the server's typed `FOLDER_CYCLE` is still the authority. One
+`dragover` and one `drop` handler on the scroll container resolve the target
+from the nearest element carrying `data-drop-target`, so no row needs
+`dragenter` or `dragleave`; a legal target under the pointer takes
+`ring-2 ring-inset ring-primary`, a refused one leaves the browser's no-drop
+cursor, and leaving the container clears the ring. Hovering a closed folder with
+contents, or closed General, for 600 ms opens it into the same open set a click
+writes, legal target or not, because a product's own folder is refused while its
+subfolders are not; the dragged folder and its subtree never open. A drop calls
+`moveProductsToFolder` or `moveFolder` exactly as the quick moves do, with no
+optimistic move and a refusal shown through `openAlert`, then opens the target
+folder or General so the moved row stays in view; an empty folder added to the
+open set shows open once the move arrives. The drag image is a compact chip with
+the row's icon and label, rendered off screen and filled before `setDragImage`
+reads it. The drag item is stored a tick after `dragstart` returns, because
+Chrome and Safari abort a drag whose source leaves the pointer while the handler
+runs and storing it redraws the header above the row. The drag ends on `drop`,
+on `dragend`, or on the first window `pointermove` after `dragstart`: the list
+keys rows by position, so a folder opening above the dragged row can replace the
+source element, whose `dragend` then reaches no ancestor, and browsers send no
+pointer events during a native drag. Several items, keyboard and touch moves and
+reordering are not dragging: the menus stay the path for them, and the order is
+the sort mode's.
 
 Create is one **New** button whose menu offers New deck, New report and New
 folder. Everything is created at the root, where a product shows under General,
