@@ -1,8 +1,10 @@
 import { Hono } from "hono";
 import type { Sql } from "postgres";
+import { closeConnectionsWhoseLevelChanged } from "../../collab/presence_registry.ts";
 import {
   createFolder,
   deleteFolder,
+  getProductSummaries,
   listFolders,
   moveFolder,
   raiseFolderProductsAccess,
@@ -13,6 +15,7 @@ import {
   notifyInstanceFoldersUpdated,
   notifyInstanceProductsUpserted,
 } from "../../task_management/notify_instance_updated.ts";
+import { COLLAB_CLOSE_ACCESS_CHANGED } from "../instance/collab.ts";
 import { defineRoute } from "../route-helpers.ts";
 import { respond } from "./_respond.ts";
 
@@ -99,8 +102,8 @@ defineRoute(
 );
 
 // The bulk action (PLAN_PRODUCT_OWNERSHIP R19). Like the per-product access
-// writes it bumps no last_updated and only re-broadcasts the summaries it
-// changed.
+// writes it bumps no last_updated, re-broadcasts the summaries it changed and
+// closes the collab sockets whose standing on one of them changed.
 defineRoute(
   routesFolders,
   "setFolderProductsAccess",
@@ -115,7 +118,22 @@ defineRoute(
       return respond(c, res);
     }
     await notifyInstanceProductsUpserted(c.var.mainDb, res.data.productIds);
-    // step 3: closeConnectionsWhoseLevelChanged
+    const changed = await getProductSummaries(
+      c.var.mainDb,
+      res.data.productIds,
+    );
+    if (!changed.success) {
+      console.error(`setFolderProductsAccess re-read: ${changed.err}`);
+    } else {
+      for (const product of changed.data) {
+        closeConnectionsWhoseLevelChanged(
+          product.id,
+          product,
+          COLLAB_CLOSE_ACCESS_CHANGED,
+          "Product access changed",
+        );
+      }
+    }
     return respond(c, res);
   },
 );

@@ -57,7 +57,7 @@ Deno.test("two seedings of the same body are two lineages: merged they double, a
 function conn(id: string, inbox: CollabServerMessage[]): RoomConn {
   return {
     connectionId: id,
-    canEdit: true,
+    canEdit: () => true,
     identity: { email: `${id}@example.org`, name: id },
     send: (m) => inbox.push(m),
     isLive: () => true,

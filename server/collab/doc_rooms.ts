@@ -59,7 +59,9 @@ const SAVE_FAILURE_LOG_EVERY = 30;
 
 export type RoomConn = {
   connectionId: string;
-  canEdit: boolean;
+  /** Whether this connection may change the product's documents (keyed by
+   *  the room's ownerId, the product id); a viewer's update is refused. */
+  canEdit: (productId: string) => boolean;
   /** Who this connection is: attributed to version history on every edit. */
   identity?: VersionEditor;
   send: (msg: CollabServerMessage) => void;
@@ -497,7 +499,7 @@ export function applyDocUpdate<T>(
   updateB64: string,
   adapter: DocRoomAdapter<T>,
 ): void {
-  if (!conn.canEdit) {
+  if (!conn.canEdit(ownerId)) {
     conn.send(adapter.msgError(docId, COLLAB_NO_EDIT_PERMISSION));
     return;
   }

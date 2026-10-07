@@ -1,7 +1,7 @@
-// Product levels end to end (PLAN_PRODUCT_OWNERSHIP step 2): five users
-// (owner, editor, viewer, stranger, global admin) against the real product,
-// folder, slide, deck and report routes and the level-aware guard, on the
-// dev database. The Clerk leg simulates only clerkMiddleware's output
+// Product levels end to end (PLAN_PRODUCT_OWNERSHIP steps 2 and 3): five
+// users (owner, editor, viewer, stranger, global admin) against the real
+// product, folder, slide, deck and report routes and the level-aware guard,
+// the starting payload and the collab socket, on the dev database. The Clerk leg simulates only clerkMiddleware's output
 // contract, as products_routes_test.ts does.
 //
 // Needs a ready pinned package on the dev instance. Run alone with:
@@ -12,6 +12,9 @@ import { Hono } from "hono";
 import {
   ALL_DATA_SCOPE_ID,
   type APIResponseWithData,
+  COLLAB_NO_EDIT_PERMISSION,
+  type CollabClientMessage,
+  type CollabServerMessage,
   type ContentSlide,
   type ProductAccess,
   type ProductGrant,
@@ -31,6 +34,10 @@ import {
 } from "../db/products/mod.ts";
 import { _BYPASS_AUTH } from "../exposed_env_vars.ts";
 import { buildGlobalUserFromDb } from "../auth/global_user.ts";
+import {
+  COLLAB_CLOSE_ACCESS_CHANGED,
+  routesCollab,
+} from "../routes/instance/collab.ts";
 import { routesFolders } from "../routes/products/folders.ts";
 import { routesProducts } from "../routes/products/products.ts";
 import { routesProductReports } from "../routes/products/reports.ts";
@@ -68,6 +75,7 @@ function appFor(email: string): Hono {
   app.route("/", routesProductSlideDecks);
   app.route("/", routesProductSlides);
   app.route("/", routesProductReports);
+  app.route("/", routesCollab);
   return app;
 }
 
@@ -125,6 +133,87 @@ const textSlide = (markdown: string): ContentSlide => ({
   },
 });
 
+type CollabSocket = {
+  send: (msg: CollabClientMessage) => void;
+  // The first message of this type not yet taken.
+  next: <T extends CollabServerMessage["type"]>(
+    type: T,
+  ) => Promise<Extract<CollabServerMessage, { type: T }>>;
+  // Whether the server still answers a ping, or has closed the socket.
+  alive: () => Promise<boolean>;
+  closed: Promise<number>;
+  stop: () => Promise<void>;
+};
+
+// One user's collab socket on a server of its own, once the server said
+// hello.
+async function collabSocket(email: string): Promise<CollabSocket> {
+  const server = Deno.serve(
+    { port: 0, onListen: () => {} },
+    appFor(email).fetch,
+  );
+  const ws = new WebSocket(`ws://localhost:${server.addr.port}/collab`);
+  const inbox: CollabServerMessage[] = [];
+  const waiting: (() => void)[] = [];
+  ws.onmessage = (evt) => {
+    inbox.push(JSON.parse(evt.data));
+    for (const wake of waiting.splice(0)) wake();
+  };
+  const closed = new Promise<number>((resolve) => {
+    ws.onclose = (evt) => {
+      resolve(evt.code);
+      for (const wake of waiting.splice(0)) wake();
+    };
+  });
+  let open = true;
+  closed.then(() => (open = false));
+  async function next<T extends CollabServerMessage["type"]>(
+    type: T,
+  ): Promise<Extract<CollabServerMessage, { type: T }>> {
+    const deadline = Date.now() + 10_000;
+    while (true) {
+      const i = inbox.findIndex((m) => m.type === type);
+      if (i >= 0) {
+        return inbox.splice(i, 1)[0] as Extract<
+          CollabServerMessage,
+          { type: T }
+        >;
+      }
+      if (!open) throw new Error(`closed before ${type}`);
+      if (Date.now() > deadline) throw new Error(`no ${type}`);
+      await new Promise<void>((resolve) => {
+        const timer = setTimeout(resolve, 200);
+        waiting.push(() => {
+          clearTimeout(timer);
+          resolve();
+        });
+      });
+    }
+  }
+  const send = (msg: CollabClientMessage) => ws.send(JSON.stringify(msg));
+  await next("hello");
+  return {
+    send,
+    next,
+    alive: async () => {
+      if (!open) return false;
+      send({ type: "ping" });
+      return await next("pong").then(() => true, () => false);
+    },
+    closed,
+    stop: async () => {
+      if (open) ws.close();
+      await closed;
+      await server.shutdown();
+    },
+  };
+}
+
+const subscribe = (reportId: string): CollabClientMessage => ({
+  type: "report_subscribe",
+  data: { productId: reportId, reportId, stateVector: "" },
+});
+
 Deno.test("product levels: the guard, the access routes and the bulk action", async () => {
   if (_BYPASS_AUTH) {
     throw new Error(
@@ -152,6 +241,7 @@ Deno.test("product levels: the guard, the access routes and the bulk action", as
   const admin = appFor(ADMIN);
   const productIds: string[] = [];
   const folderIds: string[] = [];
+  const sockets: CollabSocket[] = [];
   const tag = crypto.randomUUID().slice(0, 8);
 
   async function create(
@@ -198,6 +288,12 @@ Deno.test("product levels: the guard, the access routes and the bulk action", as
       productIds: state.data.products.map((p) => p.id),
       slideStamps: state.data.lastUpdated.slides,
     };
+  }
+  async function openOn(email: string, reportId: string) {
+    const socket = await collabSocket(email);
+    sockets.push(socket);
+    socket.send(subscribe(reportId));
+    return socket;
   }
   async function accessOf(productId: string): Promise<ProductAccess> {
     const summary = data(await getProductSummaries(mainDb, [productId])).at(0);
@@ -431,9 +527,48 @@ Deno.test("product levels: the guard, the access routes and the bulk action", as
     }
     assertEquals(await accessOf(report), before);
 
+    // The collab socket: a viewer's subscribe is admitted and its update
+    // refused; a stranger's subscribe is refused.
+    const viewerSocket = await openOn(VIEWER, report);
+    await viewerSocket.next("report_sync");
+    viewerSocket.send({
+      type: "report_update",
+      data: { productId: report, reportId: report, update: "AA==" },
+    });
+    const refusedUpdate = await viewerSocket.next("report_error");
+    assertEquals(refusedUpdate.data.message, COLLAB_NO_EDIT_PERMISSION);
+    assert(!refusedUpdate.data.fatal);
+    const strangerSocket = await openOn(STRANGER, report);
+    const refusedSubscribe = await strangerSocket.next("report_error");
+    assert(refusedSubscribe.data.fatal);
+
+    // Lowering the viewer to none closes their socket and leaves the
+    // editor's open.
+    const editorSocket = await openOn(EDITOR, report);
+    await editorSocket.next("report_sync");
+    assertEquals(
+      (await setAccess(owner, report, "none", [
+        { email: EDITOR, level: "edit" },
+      ])).status,
+      200,
+    );
+    assertEquals(await viewerSocket.closed, COLLAB_CLOSE_ACCESS_CHANGED);
+    assert(await editorSocket.alive());
+    assertEquals(
+      (await setAccess(owner, report, "none", sharing)).status,
+      200,
+    );
+
+    // A transfer to the editor moves the owner from own to edit and the
+    // editor from edit to own: neither socket's standing changes.
+    const ownerSocket = await openOn(OWNER, report);
+    await ownerSocket.next("report_sync");
+
     // setProductOwner: the previous owner becomes an edit grantee and the new
     // owner's grant goes.
     await ok(owner, "PUT", `/products/${report}/owner`, { email: EDITOR });
+    assert(await ownerSocket.alive());
+    assert(await editorSocket.alive());
     assertEquals(await accessOf(report), {
       owner: EDITOR,
       defaultAccess: "none",
@@ -543,6 +678,9 @@ Deno.test("product levels: the guard, the access routes and the bulk action", as
       ],
     });
   } finally {
+    for (const socket of sockets) {
+      await socket.stop();
+    }
     if (productIds.length > 0) {
       await mainDb`DELETE FROM products WHERE id = ANY(${productIds})`;
     }

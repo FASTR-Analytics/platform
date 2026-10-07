@@ -120,37 +120,49 @@ server-stamped, unspoofable: only the avatar URL is self-reported).
   message can precede the check. Every document message names its product
   (`productId`; a report's equals its `reportId`), rooms are keyed
   `productId::docType::docId`, and presence is keyed by product, so a
-  per-subscribe permission check has its subject without a lookup. An
-  unrestricted approved user is a full editor of every product:
-  `RoomConn.canEdit` is TRUE for every admitted connection and kept as the seam
-  a later permission model fills per subscribe. A restricted user (PLAN_SCOPES
-  §2.6) carries their `scopeAccess` on the connection: each `slide_subscribe`,
-  `report_subscribe` and product-naming `presence_update` is checked against the
-  product's scope (`productInGrants`, one query), a refused subscribe answers a
-  fatal `slide_error` / `report_error`, a refused presence is dropped, and the
-  connection's updates and awareness pass only for products whose subscribe
-  passed, because rooms do not check membership on an update. A pass is
-  remembered for the socket's life (`openedProducts` on the connection, in
-  `presence_registry.ts`), and the access a socket was admitted under is fixed
-  at connect, so each route that changes either answer closes the sockets it no
-  longer holds for, with `COLLAB_CLOSE_ACCESS_CHANGED` (4001, retryable):
-  `setProductScope` closes every connection that opened the product, or whose
-  presence names it, and does not hold its new scope
-  (`closeConnectionsLosingProduct`), and `setUserScopeAccess`, `toggleUserAdmin`
-  and `batchUploadUsers` close every connection whose access no longer equals
-  its user's roster row (`closeConnectionsWithChangedAccess`). The client
-  reconnects and re-subscribes, and a product outside its grants is refused then
-  (R29). `PresenceEntry` carries identity plus opaque document ids, never labels
-  or content. Authorization refusals are delivered as a **post-upgrade close**
-  with `COLLAB_CLOSE_UNAUTHORIZED` (4403) rather than an HTTP status, because a
-  browser cannot read a refused handshake (it surfaces as an unreadable 1006,
-  indistinguishable from a network drop); only the Origin check (403, never
-  upgrade for a foreign origin) and the retryable 503 stay pre-upgrade. The
-  Origin allowlist mirrors `server/middleware/cors.ts` (WS handshakes bypass
-  CORS); same-origin requests are additionally allowed, and requests with **no**
-  Origin header pass (non-browser clients). Frames over ~32 MiB (measured in
-  string length) are rejected unparsed (`error` reply); every parsed frame is
-  schema-validated (`collabClientMessageSchema` in
+  per-subscribe permission check has its subject without a lookup. The
+  connection carries its user's `scopeAccess` and admin flag, fixed at connect.
+  Its level on a product (S12 "Contract": `none`, `view`, `edit`, `own`) is read
+  once, on the first `slide_subscribe`, `report_subscribe` or product-naming
+  `presence_update` that names the product (`readProductLevel`: `own` for a
+  global admin with no query, otherwise one `getProductLevelRows` read, `none`
+  unless the user holds the product's scope and `productLevelFor` reaches
+  `view`), and a level of `view` or above is recorded in the presence registry
+  for the socket's life (`markProductOpened`, read back with
+  `openedProductLevel`). A connection that cannot see the product records
+  nothing and is asked again on its next subscribe. Subscribe and presence need
+  `view`: a refused subscribe answers a fatal `slide_error` / `report_error`, a
+  refused presence is dropped, and a presence whose read finishes after a later
+  presence update is dropped as stale. A document update passes the route only
+  for a product the connection opened, because rooms do not check membership on
+  an update, and the room's `RoomConn.canEdit(productId)`, answered from the
+  record, refuses it below `edit` with the non-fatal
+  `COLLAB_NO_EDIT_PERMISSION`. An awareness update (cursors, selections, cursor
+  chat) passes only at `edit`, so a viewer appears in the product's presence but
+  shows no cursor. Each route that changes a recorded answer closes the sockets
+  whose answer changed, with `COLLAB_CLOSE_ACCESS_CHANGED` (4001, retryable):
+  `setProductAccess`, `setProductOwner` and `setFolderProductsAccess` close, for
+  each product they changed, every connection that opened it and whose standing
+  under the new access differs (`closeConnectionsWhoseLevelChanged`; the
+  standing is refused, viewer or editor, so a transfer that moves the previous
+  owner from `own` to `edit` closes nothing); `setProductScope` closes every
+  connection that opened the product, or whose presence names it, and does not
+  hold its new scope (`closeConnectionsLosingProduct`); and
+  `setUserScopeAccess`, `toggleUserAdmin` and `batchUploadUsers` close every
+  connection whose scope access or admin flag no longer equals its user's roster
+  row (`closeConnectionsWithChangedAccess`), since an admin flag change changes
+  every level. The client reconnects and re-subscribes, and is refused then what
+  it can no longer see (R29). `PresenceEntry` carries identity plus opaque
+  document ids, never labels or content. Authorization refusals are delivered as
+  a **post-upgrade close** with `COLLAB_CLOSE_UNAUTHORIZED` (4403) rather than
+  an HTTP status, because a browser cannot read a refused handshake (it surfaces
+  as an unreadable 1006, indistinguishable from a network drop); only the Origin
+  check (403, never upgrade for a foreign origin) and the retryable 503 stay
+  pre-upgrade. The Origin allowlist mirrors `server/middleware/cors.ts` (WS
+  handshakes bypass CORS); same-origin requests are additionally allowed, and
+  requests with **no** Origin header pass (non-browser clients). Frames over ~32
+  MiB (measured in string length) are rejected unparsed (`error` reply); every
+  parsed frame is schema-validated (`collabClientMessageSchema` in
   [lib/types/collab.ts](lib/types/collab.ts): bounded presence/awareness payload
   sizes, `avatarUrl` restricted to bounded https URLs) before any handler
   touches it.
@@ -356,10 +368,10 @@ The room mechanics are generic
   containing exactly what it's missing, plus the room's own state vector (a
   malformed client SV degrades to a full sync).
 - **Relay**: `slide_update` (base64 Yjs update) is permission-checked
-  (`canEdit`, enforced in `applyDocUpdate`) and applied to the room doc with the
-  sender connection as origin; the doc's update handler forwards it to every
-  _other_ connection and marks the room dirty. A malformed update is rejected
-  non-fatally without touching the doc.
+  (`canEdit(productId)`, enforced in `applyDocUpdate`) and applied to the room
+  doc with the sender connection as origin; the doc's update handler forwards it
+  to every _other_ connection and marks the room dirty. A malformed update is
+  rejected non-fatally without touching the doc.
 - **Checkpoint**: dirty rooms persist on a 1.5 s debounce:
   `materializeSlide(doc)` → `saveSlideCheckpoint`
   ([server/db/products/slides.ts](server/db/products/slides.ts)) writes
@@ -633,18 +645,18 @@ carries the server's state vector, and the client answers with
 edits made while the socket was down whose sends failed). Both directions ship
 only diffs; an in-sync exchange applies as a pure no-op.
 
-| Situation                                     | Behavior                                                                                                                                                                                                                                                                            |
-| --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| WS can't connect / proxy unpatched            | Editors fall back to plain TextAreas; back button saves explicitly with conflict dialog; no presence.                                                                                                                                                                               |
-| Socket drops mid-edit                         | Edits keep accumulating locally; banner + auto-reconnect forever (≤30 s backoff, instant on network/tab return), then two-way catch-up recovers them; closing before reconnect → explicit save.                                                                                     |
-| User not allowed on the socket (unapproved)   | Server accepts then closes 4403; client stops retrying and shows NO banner (`"unauthorized"`); the rest of the app keeps working. Approval calls `reconnectForApproval` (SSE and collab), which clears it.                                                                          |
-| Server restarts mid-edit                      | Room state restored from `crdt_state` on next subscribe, including un-checkpointed edits.                                                                                                                                                                                           |
-| Two users type in the same field              | Character-level CRDT merge; both carets visible; per-user undo.                                                                                                                                                                                                                     |
-| Two users restructure the layout concurrently | Per-key LWW can duplicate a block; `materializeSlide` dedupes deterministically on every client and the next push deletes the shadowed copy, self-healing.                                                                                                                          |
-| AI edits a slide someone has open             | Refused with a named warning (busy guard).                                                                                                                                                                                                                                          |
-| Non-collab save while a room is live          | Routed through the room: merged, relayed live, checkpointed (no clobber in either direction).                                                                                                                                                                                       |
-| Deploy skew (old server / new client)         | `slide_sync` without `stateVector` is tolerated (catch-up skipped, sync still completes).                                                                                                                                                                                           |
-| View-only user opens the editor               | No such role today: `canEditProduct` is `currentUserApproved`, an unapproved user gets the 4403 close, and `RoomConn.canEdit` is TRUE on every admitted connection, so the read-only editor path and the per-message `COLLAB_NO_EDIT_PERMISSION` rejection are seams nothing flips. |
+| Situation                                     | Behavior                                                                                                                                                                                                                                                                                                                                                       |
+| --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| WS can't connect / proxy unpatched            | Editors fall back to plain TextAreas; back button saves explicitly with conflict dialog; no presence.                                                                                                                                                                                                                                                          |
+| Socket drops mid-edit                         | Edits keep accumulating locally; banner + auto-reconnect forever (≤30 s backoff, instant on network/tab return), then two-way catch-up recovers them; closing before reconnect → explicit save.                                                                                                                                                                |
+| User not allowed on the socket (unapproved)   | Server accepts then closes 4403; client stops retrying and shows NO banner (`"unauthorized"`); the rest of the app keeps working. Approval calls `reconnectForApproval` (SSE and collab), which clears it.                                                                                                                                                     |
+| Server restarts mid-edit                      | Room state restored from `crdt_state` on next subscribe, including un-checkpointed edits.                                                                                                                                                                                                                                                                      |
+| Two users type in the same field              | Character-level CRDT merge; both carets visible; per-user undo.                                                                                                                                                                                                                                                                                                |
+| Two users restructure the layout concurrently | Per-key LWW can duplicate a block; `materializeSlide` dedupes deterministically on every client and the next push deletes the shadowed copy, self-healing.                                                                                                                                                                                                     |
+| AI edits a slide someone has open             | Refused with a named warning (busy guard).                                                                                                                                                                                                                                                                                                                     |
+| Non-collab save while a room is live          | Routed through the room: merged, relayed live, checkpointed (no clobber in either direction).                                                                                                                                                                                                                                                                  |
+| Deploy skew (old server / new client)         | `slide_sync` without `stateVector` is tolerated (catch-up skipped, sync still completes).                                                                                                                                                                                                                                                                      |
+| View-only user opens the editor               | The socket admits a viewer's subscribe and presence, refuses each document update with the non-fatal `COLLAB_NO_EDIT_PERMISSION` and relays none of its awareness, so the viewer is present without a cursor. A level lowered to `none`, or from edit to view, closes the socket with 4001 and the reconnect opens the product at the new level or refuses it. |
 
 Known limits: carets render only in the side-panel editors, not on the canvas
 itself (panther's canvas is non-DOM, so the canvas shows the peer border

@@ -3,6 +3,10 @@ import {
   type CollabServerMessage,
   type PresenceEntry,
   type PresenceView,
+  type ProductAccess,
+  type ProductLevel,
+  productLevelAtLeast,
+  productLevelFor,
   type ScopeAccess,
   scopeAccessEqual,
   type ScopeId,
@@ -29,10 +33,11 @@ type Conn = {
   ws: Sender;
   // Fixed at connect time, like the rest of the socket's authorization.
   scopeAccess: ScopeAccess;
-  // The products a restricted connection passed the grant check for
-  // (routes/instance/collab.ts). Rooms do not check membership on an update,
-  // so this is what its edits and awareness are gated on.
-  openedProducts: Set<string>;
+  isGlobalAdmin: boolean;
+  // The level this connection holds on each product it opened, view or
+  // above, resolved once (routes/instance/collab.ts). Rooms do not check
+  // membership on an update, so its edits and awareness are gated on this.
+  productLevels: Map<string, ProductLevel>;
   /** Pending clear of the server-stamped `isEditing` flag. */
   editingTimer?: ReturnType<typeof setTimeout>;
 };
@@ -41,6 +46,7 @@ type Identity = {
   name: string;
   color: string;
   scopeAccess: ScopeAccess;
+  isGlobalAdmin: boolean;
 };
 
 /** How long after the last applied doc update a connection still counts as
@@ -91,7 +97,8 @@ export function addConnection(
   connections.set(connectionId, {
     ws,
     scopeAccess: identity.scopeAccess,
-    openedProducts: new Set(),
+    isGlobalAdmin: identity.isGlobalAdmin,
+    productLevels: new Map(),
     entry: {
       connectionId,
       email: identity.email,
@@ -184,23 +191,25 @@ function broadcastPresenceForConnection(conn: Conn): void {
   }
 }
 
-/** False when the connection was closed while its grant check was in flight,
- *  in which case it must not be subscribed. */
+/** False when the connection was closed while its level was being read, in
+ *  which case it must not be subscribed. */
 export function markProductOpened(
   connectionId: string,
   productId: string,
+  level: ProductLevel,
 ): boolean {
   const conn = connections.get(connectionId);
-  conn?.openedProducts.add(productId);
+  conn?.productLevels.set(productId, level);
   return conn !== undefined;
 }
 
-/** False once the connection is closed or deregistered. */
-export function hasOpenedProduct(
+/** none until the connection opens the product, and once it is closed or
+ *  deregistered. */
+export function openedProductLevel(
   connectionId: string,
   productId: string,
-): boolean {
-  return connections.get(connectionId)?.openedProducts.has(productId) ?? false;
+): ProductLevel {
+  return connections.get(connectionId)?.productLevels.get(productId) ?? "none";
 }
 
 /** Force-close every connection the predicate picks. A socket's
@@ -263,7 +272,7 @@ export function closeConnectionsLosingProduct(
 ): void {
   closeConnectionsWhere(
     (conn) =>
-      (conn.openedProducts.has(productId) ||
+      (conn.productLevels.has(productId) ||
         productIdFor(conn.entry) === productId) &&
       !canUseScope(conn.scopeAccess, scopeId),
     closeCode,
@@ -271,20 +280,55 @@ export function closeConnectionsLosingProduct(
   );
 }
 
-/** Closes every connection whose scope access differs from its user's row in
- *  `users` (a grant change, or an admin flag change, which changes access by
- *  definition). A connection whose user has no row is left alone. */
-export function closeConnectionsWithChangedAccess(
-  users: { email: string; scopeAccess: ScopeAccess }[],
+// All the socket distinguishes on a product.
+function socketStanding(level: ProductLevel): "refused" | "viewer" | "editor" {
+  if (productLevelAtLeast(level, "edit")) return "editor";
+  return productLevelAtLeast(level, "view") ? "viewer" : "refused";
+}
+
+/** A product's access changed (PLAN_PRODUCT_OWNERSHIP §2.8): every
+ *  connection that opened it and whose standing under `access` differs from
+ *  the one it opened at is closed, so its reconnect opens it at the new
+ *  level. A move between edit and own changes nothing the socket enforces. */
+export function closeConnectionsWhoseLevelChanged(
+  productId: string,
+  access: ProductAccess,
   closeCode: number,
   reason: string,
 ): void {
-  const accessByEmail = new Map(users.map((u) => [u.email, u.scopeAccess]));
   closeConnectionsWhere(
     (conn) => {
-      const current = accessByEmail.get(conn.entry.email);
+      const opened = conn.productLevels.get(productId);
+      return opened !== undefined &&
+        socketStanding(opened) !==
+          socketStanding(
+            productLevelFor(access, {
+              email: conn.entry.email,
+              isGlobalAdmin: conn.isGlobalAdmin,
+            }),
+          );
+    },
+    closeCode,
+    reason,
+  );
+}
+
+/** Closes every connection whose scope access or admin flag differs from its
+ *  user's row in `users`: a grant change, or an admin flag change, which
+ *  changes the scope access and every product level. A connection whose user
+ *  has no row is left alone. */
+export function closeConnectionsWithChangedAccess(
+  users: { email: string; scopeAccess: ScopeAccess; isGlobalAdmin: boolean }[],
+  closeCode: number,
+  reason: string,
+): void {
+  const byEmail = new Map(users.map((u) => [u.email, u]));
+  closeConnectionsWhere(
+    (conn) => {
+      const current = byEmail.get(conn.entry.email);
       return current !== undefined &&
-        !scopeAccessEqual(current, conn.scopeAccess);
+        (!scopeAccessEqual(current.scopeAccess, conn.scopeAccess) ||
+          current.isGlobalAdmin !== conn.isGlobalAdmin);
     },
     closeCode,
     reason,

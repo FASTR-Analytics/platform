@@ -66,12 +66,12 @@ import { defineRoute } from "../route-helpers.ts";
 
 export const routesUsers = new Hono();
 
-// Every route that can change a user's scope access (their grants, or their
-// admin flag, since an admin is unrestricted) broadcasts the roster and
-// closes the collab sockets whose access is no longer the roster's, so each
+// Every route that can change a user's scope access or admin flag (an admin
+// is unrestricted and owns every product) broadcasts the roster and closes
+// the collab sockets whose access is no longer the roster's, so each
 // reconnects and subscribes under the new access (R29). The instance stream
 // ends itself on the same roster (instance-sse.ts). On an open-access
-// instance every connection has every scope whatever its row says.
+// instance every connection is an admin whatever its row says.
 export async function broadcastRosterAndCloseStaleCollab(
   mainDb: Sql,
 ): Promise<void> {
@@ -81,7 +81,7 @@ export async function broadcastRosterAndCloseStaleCollab(
   closeConnectionsWithChangedAccess(
     users,
     COLLAB_CLOSE_ACCESS_CHANGED,
-    "Scope access changed",
+    "Access changed",
   );
 }
 

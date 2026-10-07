@@ -11,7 +11,10 @@ import {
   updateProductLabel,
 } from "../../db/products/mod.ts";
 import { setProductRun } from "../../db/instance/run_generation.ts";
-import { closeConnectionsLosingProduct } from "../../collab/presence_registry.ts";
+import {
+  closeConnectionsLosingProduct,
+  closeConnectionsWhoseLevelChanged,
+} from "../../collab/presence_registry.ts";
 import { closeReportRoom } from "../../collab/report_rooms.ts";
 import { closeSlideRoom } from "../../collab/slide_rooms.ts";
 import {
@@ -226,7 +229,8 @@ defineRoute(
 
 // An access change is not a content change (PLAN_PRODUCT_OWNERSHIP R15): no
 // last_updated bump and no version edit, only the summary re-broadcast, so
-// every client re-derives its level.
+// every client re-derives its level, and the close of the collab sockets
+// whose standing on the product changed.
 defineRoute(
   routesProducts,
   "setProductAccess",
@@ -237,7 +241,12 @@ defineRoute(
       return respond(c, res);
     }
     await notifyInstanceProductsUpserted(c.var.mainDb, [params.product_id]);
-    // step 3: closeConnectionsWhoseLevelChanged
+    closeConnectionsWhoseLevelChanged(
+      params.product_id,
+      res.data,
+      COLLAB_CLOSE_ACCESS_CHANGED,
+      "Product access changed",
+    );
     return respond(c, { success: true as const });
   },
 );
@@ -256,7 +265,12 @@ defineRoute(
       return respond(c, res);
     }
     await notifyInstanceProductsUpserted(c.var.mainDb, [params.product_id]);
-    // step 3: closeConnectionsWhoseLevelChanged
+    closeConnectionsWhoseLevelChanged(
+      params.product_id,
+      res.data,
+      COLLAB_CLOSE_ACCESS_CHANGED,
+      "Product access changed",
+    );
     return respond(c, { success: true as const });
   },
 );
