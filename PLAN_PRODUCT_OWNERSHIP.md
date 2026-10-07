@@ -83,7 +83,7 @@ and view on products and folders)" in its ruling R23 as the place where levels
 arrive. This is that plan. What stands today:
 
 - Every product and folder route declares `access: "view" | "edit" | "own"`
-  (`lib/api-routes/products/*`, 12 view, 28 edit, 2 own) and `defineRoute`
+  (`lib/api-routes/products/*`, 12 view, 29 edit, 2 own) and `defineRoute`
   installs `requireProductAccess(level)` from it
   (`server/routes/route-helpers.ts:51-57`). The policy ignores the level: its
   parameter is `_level` and every approved unrestricted user passes
@@ -101,11 +101,11 @@ arrive. This is that plan. What stands today:
   NULL, and D2 said the owner role must come from somewhere else. No owner
   column, grant table or ACL identifier exists anywhere.
 - The client has one boolean gate, `canEditProduct(productId)`, which returns
-  `currentUserApproved` (`client/src/state/instance/product_access.ts`), with 8
+  `currentUserApproved` (`client/src/state/instance/product_access.ts`), with 9
   calls in six files. `ProductSummary` carries `createdBy` and nothing about the
   caller's rights (`lib/types/products.ts:24-50`), so the client cannot derive a
   level and the product menu offers delete to everyone
-  (`client/src/components/products/product_menu.ts`, `products.tsx:363`).
+  (`client/src/components/products/product_menu.ts`, `products.tsx:372`).
 - Some write affordances carry no gate at all, because every approved user could
   edit: the deck editor's Add slide menu and its File menu entries
   (`slide_deck/deck_menu.tsx`, rendered at `slide_list.tsx:681-687`) and the
@@ -185,7 +185,10 @@ the stream and the client read it. `otherUserFromRow` therefore reports
 -- products: two columns after scope_id, because migration 210 adds them to a
 -- live table and a migrated instance and a fresh one must dump the same schema.
   owner text,                          -- email; NULL = no owner
-  default_access text NOT NULL DEFAULT 'none'
+  -- 'view' is what migration 210 gives every product that exists when it runs
+  -- (R3); every insert writes 'none' (R2), so a row inserted by code that does
+  -- not name the column (a rolled-back image, §7) is readable, never hidden.
+  default_access text NOT NULL DEFAULT 'view'
     CHECK (default_access IN ('none', 'view', 'edit')),
 
 CREATE TABLE product_access (
@@ -197,13 +200,12 @@ CREATE TABLE product_access (
 CREATE INDEX idx_product_access_email ON product_access(email);
 ```
 
-The migration adds `owner`, then adds `default_access` with `DEFAULT 'view'` and
-sets the column default to `'none'` afterwards, so every product that exists
-when it runs gets `view` (R3) with no UPDATE and every later insert gets `none`
-(R2). It then sets `owner = created_by` where `owner` is NULL and `created_by`
-names a `users` row, and creates `product_access`. Every statement is
-idempotent, and each is a no-op on a fresh database, whose base schema already
-carries the final columns.
+The migration adds `owner` and `default_access`, so every product that exists
+when it runs gets `view` (R3) with no UPDATE; a new product's `none` (R2) is
+written by every insert, never left to the column default. It then sets
+`owner = created_by` where `owner` is NULL and `created_by` names a `users` row,
+and creates `product_access`. Every statement is idempotent, and each is a no-op
+on a fresh database, whose base schema already carries the final columns.
 
 Neither `products.owner` nor `product_access.email` references `users` (R7);
 §2.10 keeps them consistent.
@@ -385,8 +387,11 @@ the product's presence but shows no cursor (R12).
 The three access routes call
 `closeConnectionsWhoseLevelChanged(productId, access, code, reason)` for each
 product they changed. It closes the connections that recorded a level on the
-product and whose `productLevelFor` under the new access differs; they reconnect
-at the new level (`COLLAB_CLOSE_ACCESS_CHANGED`).
+product and whose standing under the new access differs, where standing is
+whether `productLevelFor` reaches `view` and whether it reaches `edit`: the
+socket distinguishes only refused, viewer and editor, so a transfer that moves
+the previous owner from `own` to `edit` closes nothing. The closed connections
+reconnect at the new level (`COLLAB_CLOSE_ACCESS_CHANGED`).
 `closeConnectionsWithChangedAccess` compares the admin flag as well as the scope
 access, because an admin flag change changes every level.
 
@@ -469,8 +474,7 @@ product in the folder's subtree, in one transaction:
 Nothing is removed and nothing is inherited: a product created in or moved into
 the folder later gets nothing, and each product keeps its own settings
 afterwards. The subtree comes from one recursive query over `folders`, the
-technique `updateFolder`'s cycle check uses
-(`server/db/products/folders.ts:78`).
+technique `moveFolder`'s cycle check uses (`server/db/products/folders.ts:78`).
 
 ---
 
@@ -481,7 +485,10 @@ technique `updateFolder`'s cycle check uses
   in the instance: `none`, `view` or `edit`. Nothing finer: no commenter level,
   no public link, no folder sharing (§6).
 - **R2. A new product starts at `none`** (Tim). Its creator is its owner. Global
-  admins are owners of every product, so a product is never unreachable.
+  admins are owners of every product, so a product is never unreachable. The
+  `none` is written by each of the four inserts (`createProduct`,
+  `duplicateProduct`, `copyReportFromVersion`, `copySlideDeckFromVersion`); the
+  column default is `view` (§2.2, §7).
 - **R3. Existing products get `view`** (Tim). Every product that exists when
   migration 210 runs gets general access `view`; its owner is `created_by` when
   that names a user, else none. At the fleet deploy nearly every product is a
@@ -533,8 +540,9 @@ technique `updateFolder`'s cycle check uses
 - **R12. Collab follows the level per product** _(proposed)_. §2.8. Subscribe
   and presence need `view`; document updates and awareness need `edit`, so a
   viewer appears in a product's presence but shows no cursor, as in Google Docs.
-  An access write closes only the connections whose level changed; an admin flag
-  change counts as an access change.
+  An access write closes only the connections whose standing on the socket
+  (refused, viewer, editor) changed; an admin flag change counts as an access
+  change.
 - **R13. The copilot withholds its write tools from a viewer** (Tim). §2.9. The
   read tools stay, so a viewer can ask about the product.
 - **R14. The dialog and the menus** (Tim). §2.9. The entry is "Manage access…"
@@ -544,7 +552,10 @@ technique `updateFolder`'s cycle check uses
 - **R15. An access change is not a content change** (Tim). No access route bumps
   `last_updated` or records a version edit: detail caches key on the stamp, no
   detail payload carries access (§2.3), and the content did not move. The
-  summaries are re-broadcast so every client's level updates.
+  summaries are re-broadcast so every client's level updates. The client's stamp
+  listener (`addLastUpdatedListener`, `t1_sse.tsx`) fires for a product only
+  when its stamp moved, as its contract says, so a re-broadcast reaches the
+  store and not the copilot's `product_updated` digest.
 - **R16. Headless callers are unchanged** (Tim). No product route is reachable
   headless: the headless app's deny-by-default allowlist holds none
   (`server/middleware/headless_allowlist.ts`). `/mcp` reads packages, not
@@ -592,11 +603,12 @@ and `default_access`; `DBProductAccess` is the grant row. The types and
 functions of §2.1, with `ProductAccessLevel` derived from `ProductLevel`, and
 `otherUserFromRow` reporting `_OPEN_ACCESS || is_admin` (§2.1). `ProductSummary`
 carries `ProductAccess` (§2.3) and the summary query merges grants from a second
-SELECT. `createProduct` writes `owner = createdBy` and leaves `default_access`
-to its default; `duplicateProduct`, `copyReportFromVersion` and
-`copySlideDeckFromVersion` write `owner` = the actor and copy no grant. New DB
-functions: `setProductAccess` and `setProductOwner` with R10's rules and §2.5's
-errors, `raiseFolderProductsAccess` (§2.11),
+SELECT. `createProduct` writes `owner = createdBy` and
+`default_access = 'none'`; `duplicateProduct`, `copyReportFromVersion` and
+`copySlideDeckFromVersion` write `owner` = the actor and
+`default_access = 'none'`, and copy no grant. New DB functions:
+`setProductAccess` and `setProductOwner` with R10's rules and §2.5's errors,
+`raiseFolderProductsAccess` (§2.11),
 `getProductLevelRows(mainDb, productIds, email)` (§2.4), and
 `dropAccessOfMissingUsers` (§2.10), which `deleteUser` (inside a new
 transaction) and `batchUploadUsers` run. `renameUserEmailInMainDb` moves owner
@@ -606,16 +618,18 @@ ids they changed and their handlers re-broadcast those summaries.
 `productLevelAtLeast`: an admin, the owner, each grant level against each
 general access (the higher wins), and a user with neither.
 `server/tests/product_access_db_test.ts` drives the DB layer against the dev
-database: `setProductAccess` and `setProductOwner` with each refusal;
+database: each of the four inserts starts its product at `none` with the actor
+as owner; `setProductAccess` and `setProductOwner` with each refusal;
 `raiseFolderProductsAccess` raising general access and grants without lowering
 either, reaching a product in a subfolder and skipping an owner; `deleteUser` on
 an owner and on a grantee; a users row deleted and re-inserted in one
 transaction, then swept, keeps its ownership and grant;
 `renameUserEmailInMainDb` moves both. Both new test files are added to
-SYSTEM_12's `globs:`. SYSTEM_02 documents migration 210 and why the two columns
-come last. SYSTEM_12 "The products registry on `main`" documents the columns,
-the table, the summary's access fields and the new DB functions. SYSTEM_15 says
-what deleting, batch-replacing and renaming a user do to product ownership and
+SYSTEM_12's `globs:`. SYSTEM_02 documents migration 210, why the two columns
+come last, and why the column default is `view` while every insert writes
+`none`. SYSTEM_12 "The products registry on `main`" documents the columns, the
+table, the summary's access fields and the new DB functions. SYSTEM_15 says what
+deleting, batch-replacing and renaming a user do to product ownership and
 grants, and that the roster reports every user of an open-access instance as an
 admin. SYSTEM_16's email-rename paragraph names the owner and grant move.
 
@@ -734,8 +748,9 @@ the grants that was never held now expects the row dropped. The routes harness
 gains: a viewer's report subscribe is admitted and its update answers
 `COLLAB_NO_EDIT_PERMISSION`; a stranger's subscribe is refused; lowering a
 viewer to `none` closes their socket with `COLLAB_CLOSE_ACCESS_CHANGED` while an
-editor's socket on the same product stays open; the starting payload of a
-stranger lacks the product and a viewer's holds it. SYSTEM_03's
+editor's socket on the same product stays open; a transfer to an editor closes
+neither the previous owner's socket nor the new owner's; the starting payload of
+a stranger lacks the product and a viewer's holds it. SYSTEM_03's
 restricted-connection paragraph becomes the level-and-scope description of the
 payload and the filter, and names the stamp's deck id. SYSTEM_16's transport
 section and its row "View-only user opens the editor" describe the per-product
@@ -752,7 +767,8 @@ the socket and the closes.
 
 ### Step 4: The client
 
-**Surface.** `client/src/state/instance/product_access.ts`;
+**Surface.** `client/src/state/instance/product_access.ts`,
+`client/src/state/instance/t1_sse.tsx` (the `products_upserted` case only);
 `client/src/components/products/{products.tsx,product_menu.ts,folder_menu.ts,list_view.tsx,move_to_folder_modal.tsx}`;
 `client/src/components/products/_shared/{product_access_modal.tsx,mod.ts,product_title.tsx,product_settings.tsx,package_scope_chip.tsx,package_scope_modal.tsx,duplicate_products_modal.tsx,report_style_editor.tsx}`
 (the modal is new);
@@ -766,24 +782,27 @@ the socket and the closes.
 `SYSTEM_12_documents_sharing.md`, `SYSTEM_13_ai_assistant.md`,
 `SYSTEM_16_collaboration.md`. These are every client file that calls an `edit`
 or `own` product route, except the create and folder modals, which keep today's
-gates (R5), plus the menus, the slide card, the dialog and the copilot.
+gates (R5), plus the menus, the slide card, the dialog, the copilot and the SSE
+handler's `products_upserted` case.
 
 **Deliverable.** §2.9 and §2.11 in full. `productLevel`, `canEditProduct` and
 `canOwnProduct` as §2.9; no call site of `canEditProduct` changes its meaning.
-Every affordance follows §2.9's table: the product menu is built from it and
-opens for a viewer; Add slide, the deck File menu entries and the slide card's
-Duplicate slide and Delete slide get their gates; Restore as copy leaves the
-Restore gate; the copy-to-deck picker lists only decks the user can edit; delete
-is reachable only through `canOwnProduct`. The lock icon on the list row.
-`ProductAccessModal` as §2.9, opened from the product menu, the deck File menu
-and the report toolbar, and in its bulk mode from the folder menu for a global
-admin (§2.11), every string in three languages. The copilot as §2.9. An audit of
-every client call to an `edit` or `own` product route and of the editors'
-document writes, each confirmed behind `canEditProduct`, `canOwnProduct` or a
-picker filtered by `canEditProduct`, recorded as one §8 row that lists each call
-site and its gate. SYSTEM_12's client prose names the dialog, its bulk mode and
-the affordance table; SYSTEM_13 names the viewer's catalogue and its prompt
-sentence; SYSTEM_16's read-only editor sentences say a viewer is who gets it.
+The `products_upserted` handler fires the stamp listener only for a product
+whose stamp differs from the one the store holds (R15). Every affordance follows
+§2.9's table: the product menu is built from it and opens for a viewer; Add
+slide, the deck File menu entries and the slide card's Duplicate slide and
+Delete slide get their gates; Restore as copy leaves the Restore gate; the
+copy-to-deck picker lists only decks the user can edit; delete is reachable only
+through `canOwnProduct`. The lock icon on the list row. `ProductAccessModal` as
+§2.9, opened from the product menu, the deck File menu and the report toolbar,
+and in its bulk mode from the folder menu for a global admin (§2.11), every
+string in three languages. The copilot as §2.9. An audit of every client call to
+an `edit` or `own` product route and of the editors' document writes, each
+confirmed behind `canEditProduct`, `canOwnProduct` or a picker filtered by
+`canEditProduct`, recorded as one §8 row that lists each call site and its gate.
+SYSTEM_12's client prose names the dialog, its bulk mode and the affordance
+table; SYSTEM_13 names the viewer's catalogue and its prompt sentence;
+SYSTEM_16's read-only editor sentences say a viewer is who gets it.
 
 **Not in this step.** Nothing on the server.
 
@@ -857,9 +876,9 @@ access, one project folder at a time with the bulk action (R19).
 Rollback is the previous image. The two columns and the table are inert under
 the previous code: its product reads map named fields and ignore the rest, and
 its inserts name their columns, so a product created while rolled back gets
-`owner` NULL and `default_access` `'none'`, and is reachable by admins only
-until one sets its access after the next deploy. §8 records such rows if a
-rollback happens.
+`owner` NULL and `default_access` `'view'`, like a consolidated row: readable by
+everyone, its creator included, until an admin sets its owner after the next
+deploy.
 
 ---
 
