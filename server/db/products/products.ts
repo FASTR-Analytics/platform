@@ -660,35 +660,30 @@ export async function raiseFolderProductsAccess(
   });
 }
 
-// One product as one user's level needs it: its scope, and its access
-// carrying only that user's grant, which is all productLevelFor reads for
-// them. An id that names no row is absent.
+// One product as one user's level needs it: its folder and scope, and its
+// access carrying only that user's grant, which is all productLevelFor reads
+// for them.
 export type ProductLevelRow = {
   productId: string;
+  folderId: string | null;
   scopeId: ScopeId;
   access: ProductAccess;
 };
 
-export async function getProductLevelRows(
-  mainDb: Sql,
-  productIds: string[],
+type DBProductLevelRow =
+  & Pick<
+    DBProduct,
+    "id" | "folder_id" | "scope_id" | "owner" | "default_access"
+  >
+  & { grant_level: ProductGrantLevel | null };
+
+function productLevelRowFromDb(
+  row: DBProductLevelRow,
   email: string,
-): Promise<ProductLevelRow[]> {
-  if (productIds.length === 0) {
-    return [];
-  }
-  const rows = await mainDb<
-    (Pick<DBProduct, "id" | "scope_id" | "owner" | "default_access"> & {
-      grant_level: ProductGrantLevel | null;
-    })[]
-  >`
-    SELECT p.id, p.scope_id, p.owner, p.default_access, pa.level AS grant_level
-    FROM products p
-    LEFT JOIN product_access pa ON pa.product_id = p.id AND pa.email = ${email}
-    WHERE p.id = ANY(${productIds})
-  `;
-  return rows.map((row) => ({
+): ProductLevelRow {
+  return {
     productId: row.id,
+    folderId: row.folder_id,
     scopeId: row.scope_id,
     access: {
       owner: row.owner,
@@ -697,7 +692,45 @@ export async function getProductLevelRows(
         ? []
         : [{ email, level: row.grant_level }],
     },
-  }));
+  };
+}
+
+// The named products; an id that names no row is absent.
+export async function getProductLevelRows(
+  mainDb: Sql,
+  productIds: string[],
+  email: string,
+): Promise<ProductLevelRow[]> {
+  if (productIds.length === 0) {
+    return [];
+  }
+  const rows = await mainDb<DBProductLevelRow[]>`
+    SELECT p.id, p.folder_id, p.scope_id, p.owner, p.default_access,
+      pa.level AS grant_level
+    FROM products p
+    LEFT JOIN product_access pa ON pa.product_id = p.id AND pa.email = ${email}
+    WHERE p.id = ANY(${productIds})
+  `;
+  return rows.map((row) => productLevelRowFromDb(row, email));
+}
+
+// Every product carrying one of the scopes.
+export async function getProductLevelRowsInScopes(
+  mainDb: Sql,
+  scopeIds: ScopeId[],
+  email: string,
+): Promise<ProductLevelRow[]> {
+  if (scopeIds.length === 0) {
+    return [];
+  }
+  const rows = await mainDb<DBProductLevelRow[]>`
+    SELECT p.id, p.folder_id, p.scope_id, p.owner, p.default_access,
+      pa.level AS grant_level
+    FROM products p
+    LEFT JOIN product_access pa ON pa.product_id = p.id AND pa.email = ${email}
+    WHERE p.scope_id = ANY(${scopeIds})
+  `;
+  return rows.map((row) => productLevelRowFromDb(row, email));
 }
 
 // Run by every path that deletes users rows, inside its transaction (R7): an

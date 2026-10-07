@@ -261,10 +261,12 @@ whose access changed. Their refusals come back through the envelope at 200:
 `PRODUCT_GRANT_DUPLICATE` (one email twice) and `PRODUCT_ACCESS_UNKNOWN_USER`
 (an email with no `users` row); an unknown product is `PRODUCT_NOT_FOUND` and an
 unknown folder `FOLDER_NOT_FOUND`. `getProductLevelRows(mainDb, ids, email)`
-reads, in one query, each product's scope and its access carrying only that
-user's grant, which is all `productLevelFor` needs; an id that names no row is
-absent. `dropAccessOfMissingUsers(sql)` runs inside every transaction that
-deletes `users` rows (S15): an owner with no `users` row becomes NULL and a
+reads, in one query, each named product's folder, scope and access carrying only
+that user's grant, which is all `productLevelFor` needs; an id that names no row
+is absent. `getProductLevelRowsInScopes(mainDb, scopeIds, email)` reads the same
+for every product carrying one of the scopes (the restricted folder rule's
+visibility, S1). `dropAccessOfMissingUsers(sql)` runs inside every transaction
+that deletes `users` rows (S15): an owner with no `users` row becomes NULL and a
 grant with no `users` row goes, and it returns the products it changed.
 `folders.ts`: `moveFolder` is the move, writes only the parent and refuses a
 cycle with a recursive CTE walking up from the new parent inside the same

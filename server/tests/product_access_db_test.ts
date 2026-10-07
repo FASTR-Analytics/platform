@@ -267,6 +267,7 @@ Deno.test("product access DB layer: inserts, access writes, bulk raise, user pat
     );
     assertEquals(levelRows, [{
       productId: report,
+      folderId: null,
       scopeId: ALL_DATA_SCOPE_ID,
       access: {
         owner: EDITOR,

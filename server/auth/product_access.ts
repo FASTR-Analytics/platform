@@ -4,7 +4,6 @@ import {
   type GlobalUser,
   type ProductAccess,
   type ProductAccessLevel,
-  type ProductGrantLevel,
   type ProductLevel,
   productLevelAtLeast,
   productLevelFor,
@@ -12,8 +11,10 @@ import {
   type ScopeUuid,
 } from "lib";
 import type { Sql } from "postgres";
-import type { DBProduct } from "../db/instance/_main_database_types.ts";
-import { getProductLevelRows } from "../db/products/products.ts";
+import {
+  getProductLevelRows,
+  getProductLevelRowsInScopes,
+} from "../db/products/products.ts";
 
 // The ids a product or folder route acts on, resolved by requireProductAccess
 // from the fields the route declares (path product_id / folder_id; body
@@ -130,35 +131,12 @@ async function visibleFolderIdsForUser(
     mainDb<{ id: string; parent_id: string | null }[]>`
       SELECT id, parent_id FROM folders
     `,
-    mainDb<
-      (
-        & Pick<DBProduct, "folder_id" | "scope_id" | "owner" | "default_access">
-        & {
-          grant_level: ProductGrantLevel | null;
-        }
-      )[]
-    >`
-      SELECT p.folder_id, p.scope_id, p.owner, p.default_access,
-        pa.level AS grant_level
-      FROM products p
-      LEFT JOIN product_access pa
-        ON pa.product_id = p.id AND pa.email = ${user.email}
-      WHERE p.scope_id = ANY(${scopeIds})
-    `,
+    getProductLevelRowsInScopes(mainDb, scopeIds, user.email),
   ]);
-  const visibleProductFolderIds = products
-    .filter((p) =>
-      holdsProductLevel(user, p.scope_id, {
-        owner: p.owner,
-        defaultAccess: p.default_access,
-        grants: p.grant_level === null
-          ? []
-          : [{ email: user.email, level: p.grant_level }],
-      }, "view")
-    )
-    .map((p) => p.folder_id);
   return visibleFolderIds(
     folders.map((f) => ({ id: f.id, parentId: f.parent_id })),
-    visibleProductFolderIds,
+    products
+      .filter((row) => holdsProductLevel(user, row.scopeId, row.access, "view"))
+      .map((row) => row.folderId),
   );
 }
