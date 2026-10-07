@@ -1928,9 +1928,13 @@ browser decides what a press selects at mousedown; a click-time activation
 leaves a non-editable island that gets whole-widget-selected), and widget
 presses on non-editable areas claim the mousedown with preventDefault, parking
 the caret for the toolbar — shown as the widget's accent ring, since there is no
-source view to open. Split is the raw-source surface. The revealed-region
-machinery (buildRevealedRegion: chrome widgets, per-line grounds, the box layer
-for revealed frames) is retained but unreachable by pointer — the historical
+source view to open. The parked caret is drawn one line tall at the start of its
+line's element (RegionWidget / LeafRenderWidget `coordsAt` → blockCaretRect,
+skipping seams and the peer layer): CodeMirror's default is the widget's whole
+box, which ran it down the block's side and, for a block opening a page, across
+the page gap. Split is the raw-source surface. The revealed-region machinery
+(buildRevealedRegion: chrome widgets, per-line grounds, the box layer for
+revealed frames) is retained but unreachable by pointer — the historical
 derivation: A revealed region shows NO syntax at all: it decomposes into chrome
 (the fence lines, replaced by the block's real header — a callout's title bar, a
 band's kicker — and a silent end cap, each painted on the block's own ground),
@@ -2010,30 +2014,36 @@ a Backspace or Delete that reaches only a marker takes the nearest letter
 instead. The live preview applies it as a transaction filter on user edits
 (`markAwareEdits`); a block's paragraph island, which commits whole text,
 applies the rewrite form in `commitLive` and redraws itself. Before, a selection
-or a run of Backspaces left `]{size=18}` or `{size=18}` in the source. The
-mark's LABEL styling (role class + `font-size`) lives in the whole-doc surface
-StateField, not the conceal plugin — a size changes line height, which
-viewport-scoped decorations must not. An inline action invoked with NOTHING
-selected acts on the word under the caret (the word-processor convention) and
-refuses structural lines outright — fences, code, embed lines — because the
-caret is parked ON the fence whenever a block's chrome was clicked, and the old
-insert-a-bare-pair-at-caret both left invisible atomic junk and corrupted fences
-(`wordAround` in fastr_markdown_edits owns this). A mark edit over a range that
-overlaps EXISTING marks never nests them (nesting is unrenderable): the range
-absorbs any mark it cuts into and is rebuilt as flat segments — each existing
-mark's attrs patched, plain text newly marked, same-attr neighbours merged — so
-re-sizing a partly-sized phrase yields one mark and an inner role survives as
-its own segment (`rewriteRangeMarks`); selections split per line and at table
-pipes, so a label can never swallow a cell boundary. **A theme is five colours
-(Nick, 2026-09-09: "only use 5 colours and make them more muted").**
-`lib/types/report_fastr_themes.ts` writes each theme as a `FastrThemePalette`
-(paper, ink, accent, warm, cool) plus type and extra rules;
-`deriveFastrThemeColors` mixes everything else from the five at module load
-(surfaces and border as paper toward ink, muted ink as ink toward paper, the
-five grounds with the type that reads on each, status colours as the theme's
-own: danger = warm, success = cool, info = accent, warning = the warm-cool
-middle, each with a faded twin for grounds of the other darkness), and a custom
-style's page/ink/accent re-derive the whole set (`derivedFor` in
+or a run of Backspaces left `]{size=18}` or `{size=18}` in the source. A heading
+island holds only its WORDS: the `#` is not in the editable at all, and every
+commit puts it back in front (2026-10-07; as a hidden span it was deleted along
+with the old words and the retyped cover title came out a paragraph). Enter in a
+heading inside a block (a cover's or band's title) is a `<br>` in the source,
+drawn while editing as a hidden tag plus a real break; a trailing one waits for
+text. Table cells render through the same `renderEditableIsland`, so their marks
+are hidden while editing too. The mark's LABEL styling (role class +
+`font-size`) lives in the whole-doc surface StateField, not the conceal plugin —
+a size changes line height, which viewport-scoped decorations must not. An
+inline action invoked with NOTHING selected acts on the word under the caret
+(the word-processor convention) and refuses structural lines outright — fences,
+code, embed lines — because the caret is parked ON the fence whenever a block's
+chrome was clicked, and the old insert-a-bare-pair-at-caret both left invisible
+atomic junk and corrupted fences (`wordAround` in fastr_markdown_edits owns
+this). A mark edit over a range that overlaps EXISTING marks never nests them
+(nesting is unrenderable): the range absorbs any mark it cuts into and is
+rebuilt as flat segments — each existing mark's attrs patched, plain text newly
+marked, same-attr neighbours merged — so re-sizing a partly-sized phrase yields
+one mark and an inner role survives as its own segment (`rewriteRangeMarks`);
+selections split per line and at table pipes, so a label can never swallow a
+cell boundary. **A theme is five colours (Nick, 2026-09-09: "only use 5 colours
+and make them more muted").** `lib/types/report_fastr_themes.ts` writes each
+theme as a `FastrThemePalette` (paper, ink, accent, warm, cool) plus type and
+extra rules; `deriveFastrThemeColors` mixes everything else from the five at
+module load (surfaces and border as paper toward ink, muted ink as ink toward
+paper, the five grounds with the type that reads on each, status colours as the
+theme's own: danger = warm, success = cool, info = accent, warning = the
+warm-cool middle, each with a faded twin for grounds of the other darkness), and
+a custom style's page/ink/accent re-derive the whole set (`derivedFor` in
 report_fastr_css.ts, scheme from the custom page's luminance; a non-hex colour
 falls back to swapping the three). A theme's `extraCss` names the five as
 `--fm-paper/-ink/-accent/-warm/-cool` and never a literal colour (a test pins

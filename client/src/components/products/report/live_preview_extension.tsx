@@ -32,6 +32,7 @@ import {
   EditorView,
   keymap,
   layer,
+  type Rect,
   RectangleMarker,
   ViewPlugin,
   type ViewUpdate,
@@ -703,6 +704,10 @@ class RegionWidget extends WidgetType {
     (dom as unknown as { _dispose?: () => void })._dispose?.();
   }
 
+  override coordsAt(dom: HTMLElement, pos: number): Rect | null {
+    return blockCaretRect(dom, this.source, pos);
+  }
+
   override get estimatedHeight(): number {
     const seen = measuredBlockHeights.get(blockKey("r", this.source));
     if (seen !== undefined) return seen;
@@ -710,6 +715,46 @@ class RegionWidget extends WidgetType {
     const lines = this.endLine - this.startLine + 1;
     return Math.max(40, Math.min(1200, 28 * lines));
   }
+}
+
+// The caret parked in a rendered block (a press on its padding, or arrowing
+// onto it): one line tall, where the line's own element starts.
+// CodeMirror's default draws it the height of the whole widget, which ran
+// it down the block's side and, when a page seam opens the block, from the
+// last page's foot across the gap between the sheets.
+function blockCaretRect(
+  dom: HTMLElement,
+  source: string,
+  pos: number,
+): Rect | null {
+  const rel = source.slice(0, pos).split("\n").length - 1;
+  const onPage = (el: Element) =>
+    el.closest(
+        ".fm-page-gutter, .fm-page-gutter-row, .fm-page-split, .fm-peer-layer",
+      ) === null && el.getClientRects().length > 0;
+  // The element of the nearest line at or above the caret's.
+  let target: HTMLElement | undefined;
+  let best = -1;
+  for (
+    const el of Array.from(dom.querySelectorAll<HTMLElement>("[data-line]"))
+  ) {
+    const n = Number(el.getAttribute("data-line"));
+    if (!(n <= rel) || n <= best || !onPage(el)) continue;
+    target = el;
+    best = n;
+  }
+  target ??= Array.from(dom.children).find((c): c is HTMLElement =>
+    c instanceof HTMLElement && onPage(c)
+  );
+  if (target === undefined) return null;
+  const r = target.getBoundingClientRect();
+  const style = getComputedStyle(target);
+  const top = r.top + (parseFloat(style.borderTopWidth) || 0) +
+    (parseFloat(style.paddingTop) || 0);
+  const lh = parseFloat(style.lineHeight) ||
+    1.5 * (parseFloat(style.fontSize) || 16);
+  const bottom = Math.max(top, Math.min(top + lh, r.bottom));
+  return { left: r.left, right: r.left, top, bottom };
 }
 
 // A figure's size as its own drawn chart reports it: panther lays a figure
@@ -1397,20 +1442,43 @@ function placeIslandCaret(el: HTMLElement, caretAt?: number): void {
   range.selectNodeContents(el);
   range.collapse(false);
   if (caretAt !== undefined) {
+    // Never INSIDE a hidden run (a heading's `# `, a mark's `]{…}`): typing
+    // there lands in syntax the author cannot see. A caret on a hidden run's
+    // edge goes to the visible text after it, or after the run.
     const walker = docOf(el).createTreeWalker(el, NodeFilter.SHOW_TEXT);
     let remaining = caretAt;
     let node: Text | null;
+    let afterHidden: Element | undefined;
+    let placed = false;
     while ((node = walker.nextNode() as Text | null) !== null) {
-      if (remaining <= node.length) {
-        range.setStart(node, remaining);
+      const hidden = node.parentElement?.closest(".cm-fm-island-syntax") ??
+        undefined;
+      if (remaining < node.length || (remaining === node.length && !hidden)) {
+        if (hidden && remaining > 0) range.setStartAfter(hidden);
+        else if (hidden) range.setStartBefore(hidden);
+        else range.setStart(node, remaining);
         range.collapse(true);
+        placed = true;
         break;
       }
       remaining -= node.length;
+      afterHidden = hidden;
+    }
+    if (!placed && afterHidden) {
+      range.setStartAfter(afterHidden);
+      range.collapse(true);
     }
   }
   sel.removeAllRanges();
   sel.addRange(range);
+}
+
+// A hidden run of an island's source (display:none, still in textContent).
+function islandSyntaxSpan(el: HTMLElement, text: string): HTMLSpanElement {
+  const s = docOf(el).createElement("span");
+  s.className = "cm-fm-island-syntax";
+  s.textContent = text;
+  return s;
 }
 
 export function renderEditableIsland(
@@ -1419,11 +1487,17 @@ export function renderEditableIsland(
   heading: boolean,
 ): void {
   el.textContent = "";
-  const hiddenSpan = (t: string) => {
-    const s = docOf(el).createElement("span");
-    s.className = "cm-fm-island-syntax";
-    s.textContent = t;
-    return s;
+  const hiddenSpan = (t: string) => islandSyntaxSpan(el, t);
+  // Text, with each `<br>` as its hidden tag and a real line break (a <br>
+  // element has no text, so textContent stays the source).
+  const appendText = (parent: ParentNode, text: string) => {
+    for (const part of text.split(/(<br\s*\/?>)/i)) {
+      if (/^<br\s*\/?>$/i.test(part)) {
+        parent.append(hiddenSpan(part), docOf(el).createElement("br"));
+      } else if (part.length > 0) {
+        parent.append(docOf(el).createTextNode(part));
+      }
+    }
   };
   // Emphasis runs: same-length `*` fences, content not space-flanked (so a
   // list bullet or a lone `*` in prose never matches). The markers hide,
@@ -1434,7 +1508,7 @@ export function renderEditableIsland(
     let last = 0;
     let m: RegExpExecArray | null;
     while ((m = EMPH_RE.exec(text)) !== null) {
-      parent.append(docOf(el).createTextNode(text.slice(last, m.index)));
+      appendText(parent, text.slice(last, m.index));
       parent.append(hiddenSpan(m[1]));
       const styled = docOf(el).createElement("span");
       if (m[1].length >= 2) styled.style.fontWeight = "700";
@@ -1444,7 +1518,7 @@ export function renderEditableIsland(
       parent.append(hiddenSpan(m[1]));
       last = m.index + m[0].length;
     }
-    parent.append(docOf(el).createTextNode(text.slice(last)));
+    appendText(parent, text.slice(last));
   };
   const frag = docOf(el).createDocumentFragment();
   let rest = source;
@@ -1491,6 +1565,17 @@ export function attachTextEditor(
   // missed blur); the island's own commit is annotated so the region field
   // keeps this DOM instead of rebuilding it under the cursor.
   let committed = original;
+  // A heading's `# ` is not in the island at all: the island holds the
+  // words, and every commit puts the marker back in front of them. As a
+  // hidden span inside the editable heading it could be deleted with the
+  // words (Backspacing an old title away left the new one a paragraph:
+  // Nick, 2026-10-07, "the size of the text turned wrong"), and Chrome
+  // placed the next typing around it. Island offsets (the caret, the
+  // selection mirror) are offsets into the words; the mirror adds the
+  // marker back for the document.
+  const prefix = /^H[1-6]$/.test(el.tagName)
+    ? (/^(#{1,6} )/.exec(original)?.[1] ?? "")
+    : "";
   const committedEndLine1 = () =>
     regionStartLine + rel + committed.split("\n").length;
   const commitLive = () => {
@@ -1499,7 +1584,11 @@ export function attachTextEditor(
     if (!el.isContentEditable || !el.isConnected) return;
     // A line break at the very end waits for the text after it: committed
     // alone it would be a blank line, which ends the paragraph.
-    let next = (el.textContent ?? "").replace(/\r/g, "").replace(/\n+$/, "");
+    let next = prefix +
+      (el.textContent ?? "").replace(/\r/g, "").replace(/\n+$/, "");
+    // A heading's line break at its very end waits for the words after it,
+    // as a paragraph's newline does.
+    if (/^H[1-6]$/.test(el.tagName)) next = next.replace(/(<br\s*\/?>)+$/i, "");
     if (next === committed) return;
     // A formatted phrase stays whole or goes whole: its hidden markers are
     // spans in this island, which a selection or a Backspace can take apart
@@ -1509,7 +1598,7 @@ export function attachTextEditor(
     if (fixed !== undefined) {
       next = fixed.text;
       renderEditableSource(next);
-      placeCaret(fixed.caret);
+      placeCaret(Math.max(0, fixed.caret - prefix.length));
       if (next === committed) return;
     }
     const doc = view.state.doc;
@@ -1550,7 +1639,11 @@ export function attachTextEditor(
   el.classList.add("cm-fm-text-edit");
   // The raw source with the toolbar's syntax hidden (renderEditableIsland).
   const renderEditableSource = (source = original) =>
-    renderEditableIsland(el, source, /^H[1-6]$/.test(el.tagName));
+    renderEditableIsland(
+      el,
+      source.startsWith(prefix) ? source.slice(prefix.length) : source,
+      false,
+    );
   const activate = (caretAt?: number) => {
     (el as unknown as { _rendered: string })._rendered = el.innerHTML;
     renderEditableSource();
@@ -1614,7 +1707,7 @@ export function attachTextEditor(
     const line1 = regionStartLine + rel + 1;
     const endLine1 = committedEndLine1();
     if (endLine1 > doc.lines) return;
-    const base = doc.line(line1).from;
+    const base = doc.line(line1).from + prefix.length;
     const max = doc.line(endLine1).to;
     const offsetOf = (node: Node, offset: number) => {
       const r = docOf(el).createRange();
@@ -1811,6 +1904,34 @@ export function attachTextEditor(
     sel.addRange(caret);
     commitLive();
   };
+  // A heading inside a block (a cover's or a band's title, a column's
+  // heading): a source heading is one line, so its line break is a `<br>`,
+  // drawn here as the hidden tag and a real break (renderEditableIsland).
+  const headingInBlock = /^H[1-6]$/.test(el.tagName) &&
+    el.closest(
+        ".fm-card, .fm-col, .fm-callout, .fm-band, .fm-quote, .fm-cover",
+      ) !== null;
+  const insertHeadingBreak = () => {
+    const sel = winOf(el).getSelection();
+    if (!sel || sel.rangeCount === 0 || !el.contains(sel.anchorNode)) return;
+    const range = sel.getRangeAt(0);
+    range.deleteContents();
+    const br = docOf(el).createElement("br");
+    range.insertNode(br);
+    range.insertNode(islandSyntaxSpan(el, "<br>"));
+    const after = docOf(el).createRange();
+    after.setStartAfter(br);
+    after.setEndAfter(el.lastChild ?? br);
+    if (after.toString().length === 0) {
+      el.appendChild(docOf(el).createElement("br"));
+    }
+    const caret = docOf(el).createRange();
+    caret.setStartAfter(br);
+    caret.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(caret);
+    commitLive();
+  };
   el.addEventListener("keydown", (e) => {
     if (
       e.key === "Enter" && inBlock &&
@@ -1818,6 +1939,11 @@ export function attachTextEditor(
     ) {
       e.preventDefault();
       insertLineBreak();
+      return;
+    }
+    if (e.key === "Enter" && headingInBlock) {
+      e.preventDefault();
+      insertHeadingBreak();
       return;
     }
     if (e.key === "Enter" && !e.shiftKey) {
@@ -1833,7 +1959,7 @@ export function attachTextEditor(
       e.preventDefault();
       // The live commits already changed the document: put the original
       // back (one more island commit), then close.
-      el.textContent = original;
+      renderEditableSource(original);
       commitLive();
       stopMirror();
       el.contentEditable = "false";
@@ -2551,6 +2677,9 @@ class LeafRenderWidget extends WidgetType {
     );
     attachStatEditors(dom, view, this.line1, this.source, true);
     return dom;
+  }
+  override coordsAt(dom: HTMLElement, pos: number): Rect | null {
+    return blockCaretRect(dom, this.source, pos);
   }
   // The page break marker takes no room (a rule laid over the page's foot).
   override get estimatedHeight(): number {
