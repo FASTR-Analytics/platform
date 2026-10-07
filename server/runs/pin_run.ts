@@ -43,7 +43,6 @@ import { attachFollowerToPinnedRun } from "./attach_run.ts";
 export async function pinRunAndRepointFollowers(
   mainDb: Sql,
   runId: string,
-  hiddenProjectIds: Set<string>,
 ): Promise<APIResponseWithData<PinResultsPackageResult>> {
   const pinRes = await setPinnedRun(mainDb, runId);
   if (pinRes.success === false) {
@@ -58,12 +57,7 @@ export async function pinRunAndRepointFollowers(
     supersededMidway: false,
   };
   try {
-    // Private followers are repointed like any other; only their names are
-    // withheld from a caller who cannot see them.
-    const followersRes = await listFollowPinnedProjects(
-      mainDb,
-      hiddenProjectIds,
-    );
+    const followersRes = await listFollowPinnedProjects(mainDb);
     if (followersRes.success === false) {
       return followersRes;
     }

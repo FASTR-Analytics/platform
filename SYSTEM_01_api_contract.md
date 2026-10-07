@@ -491,16 +491,8 @@ full-access user); `globalUser.approved`; `Project-Id` header present; then
 delegates to **`resolveProjectUserAccess`** (exported): loads the `projects`
 row (`label`, `is_locked`, `is_central_reporting`); denies
 `is_central_reporting` projects to non-`H_USERS`; grants full access to global
-admins and `H_USERS` unless the project `is_private`; otherwise loads
-`project_user_roles`, requires at least one `can_*` column true, and builds
-permissions from the row (an admin member of a private project gets full
-access whatever the flags say). Surfaces that list or name projects apply the
-same rule list-wise through `canUserSeeProject` /
-`getHiddenProjectIdsForUser` (`server/db/instance/users.ts`). Access lost
-mid-session (role removed, project made private) is caught by the project SSE
-re-checking on every `project_users_updated` / `project_config_updated`
-(it sends `access_revoked` and ends) and by
-`revalidateProjectCollabConnections` closing collab sockets with 4403.
+admins and `H_USERS`; otherwise loads `project_user_roles`, requires at least
+one `can_*` column true, and builds permissions from the row.
 `resolveProjectUserAccess` is the one shared core: the route middleware and the
 project SSE endpoint (S3, which takes the project id from its URL param, not
 the header) both call it, so they cannot drift. Any new consumer of project
@@ -536,7 +528,7 @@ correct), never inline a permission string elsewhere.
 | -------------- | -------------------------------------------------- | ----------------------------------------------------------------------------- |
 | `_BYPASS_AUTH` | `BYPASS_AUTH` env, dev only (`&& !_IS_PRODUCTION`) | synthetic full-access dev user; Clerk disabled entirely                       |
 | `_OPEN_ACCESS` | `OPEN_ACCESS` env                                  | every authenticated email treated as approved global admin                    |
-| `is_admin`     | `users.is_admin` column                            | global admin, bypasses all permission checks except on private projects       |
+| `is_admin`     | `users.is_admin` column                            | global admin, bypasses all permission checks                                 |
 | `H_USERS`      | hardcoded `lib/h_users.ts` (9 emails)              | access to `is_central_reporting` projects; `unlimitedAi`; full project access |
 | granular       | `users` / `project_user_roles` columns             | normal least-privilege path                                                   |
 

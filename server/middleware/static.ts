@@ -3,9 +3,6 @@ import { serveStatic } from "hono/deno";
 import { normalize } from "@std/path/posix";
 import { _ASSETS_DIR_PATH, _RUNS_DIR_PATH } from "../exposed_env_vars.ts";
 import { getGlobalUser } from "../project_auth.ts";
-import { getPgConnectionFromCacheOrNew } from "../db/mod.ts";
-import { canUserSeeAsset } from "lib";
-import { getAssetPrivacyForAnyName } from "../db/instance/assets.ts";
 import { requireGlobalPermission } from "./userPermission.ts";
 
 // Uploaded IMAGE assets (e.g. logos shown on public dashboards / share links)
@@ -27,59 +24,6 @@ const DATA_FILE_RE = /\.(csv|xlsx?|zip)$/i;
 export function setupStaticServing(app: Hono) {
   // Public static files (no auth required)
   app.use("*", serveStatic({ root: "./client_dist" }));
-
-  // Private assets, ahead of every asset tier (including the public image
-  // one): only the owner and chosen viewers get the bytes. The lookup covers
-  // every spelling serveStatic might resolve to the same file (raw, decoded,
-  // component-decoded, normalized), so no encoding slips past it. Everyone
-  // else gets a plain 404: a private file's existence is not revealed.
-  app.use("*", async (c, next) => {
-    if (c.req.method === "OPTIONS") {
-      await next();
-      return;
-    }
-    const candidates = assetNameCandidates(c.req.path);
-    if (candidates.length === 0) {
-      await next();
-      return;
-    }
-    let privacy: Awaited<ReturnType<typeof getAssetPrivacyForAnyName>>;
-    try {
-      privacy = await getAssetPrivacyForAnyName(
-        getPgConnectionFromCacheOrNew("main", "READ_ONLY"),
-        candidates,
-      );
-    } catch {
-      c.status(503);
-      return c.text("Service temporarily unavailable");
-    }
-    if (privacy === null) {
-      await next();
-      return;
-    }
-    let globalUser: Awaited<ReturnType<typeof getGlobalUser>>;
-    try {
-      globalUser = await getGlobalUser(c);
-    } catch {
-      c.status(503);
-      return c.text("Service temporarily unavailable");
-    }
-    if (
-      globalUser === "NOT_AUTHENTICATED" ||
-      !canUserSeeAsset(privacy, globalUser.email, globalUser.isGlobalAdmin)
-    ) {
-      c.status(404);
-      return c.text("Not found");
-    }
-    c.header("Cache-Control", "private, no-store");
-    // A data file still needs the data bit below; anything else is served
-    // straight to the permitted viewer.
-    if (candidates.some((n) => DATA_FILE_RE.test(n))) {
-      await next();
-      return;
-    }
-    return serveStatic({ root: _ASSETS_DIR_PATH })(c, next);
-  });
 
   // Public uploaded IMAGE assets only (logos on public dashboards / share links)
   app.use("*", async (c, next) => {
@@ -154,33 +98,4 @@ export function setupStaticServing(app: Hono) {
     requireGlobalPermission(),
     serveStatic({ root: _ASSETS_DIR_PATH }),
   );
-}
-
-// The top-level asset names a request path could be served as. Assets are
-// bare basenames, so a path with a directory part after normalizing is not
-// one (serveStatic would look in a subdirectory, and none holds assets).
-function assetNameCandidates(rawPath: string): string[] {
-  const spellings = new Set<string>([rawPath]);
-  try {
-    spellings.add(decodeURI(rawPath));
-  } catch {
-    // Keep the others.
-  }
-  try {
-    spellings.add(decodeURIComponent(rawPath));
-  } catch {
-    // Keep the others.
-  }
-  const names = new Set<string>();
-  for (const spelling of spellings) {
-    const normalized = normalize(spelling).replace(/\/+$/, "").replace(
-      /^\/+/,
-      "",
-    );
-    if (normalized === "" || normalized.includes("/") || normalized === "..") {
-      continue;
-    }
-    names.add(normalized);
-  }
-  return [...names];
 }

@@ -278,9 +278,8 @@ async function getProjectUser(
  * The single authoritative project-access check: central-reporting gate,
  * admin/H_USERS grant, then a role row with >=1 true `can_` flag. Used by both
  * the route middleware (getProjectUser) and the SSE endpoint so the two cannot
- * drift. A PRIVATE project withdraws the admin/H_USERS grant: they need a role
- * row like anyone else, and with one they get full access. Throws
- * "Middleware error: ..." on deny, "SERVICE_UNAVAILABLE" on DB failure.
+ * drift. Throws "Middleware error: ..." on deny, "SERVICE_UNAVAILABLE" on DB
+ * failure.
  */
 export async function resolveProjectUserAccess(
   globalUser: GlobalUser,
@@ -293,13 +292,8 @@ export async function resolveProjectUserAccess(
 }> {
   try {
     const rawProjectResult = await mainDb<
-      {
-        label: string;
-        is_locked: boolean;
-        is_central_reporting: boolean;
-        is_private: boolean;
-      }[]
-    >`SELECT label, is_locked, is_central_reporting, is_private FROM projects WHERE id = ${projectId}`;
+      { label: string; is_locked: boolean; is_central_reporting: boolean }[]
+    >`SELECT label, is_locked, is_central_reporting FROM projects WHERE id = ${projectId}`;
     const rawProject = rawProjectResult.at(0);
 
     if (!rawProject) {
@@ -314,10 +308,7 @@ export async function resolveProjectUserAccess(
       );
     }
 
-    const hasBlanketGrant = globalUser.isGlobalAdmin ||
-      H_USERS.includes(globalUser.email);
-
-    if (hasBlanketGrant && !rawProject.is_private) {
+    if (globalUser.isGlobalAdmin || H_USERS.includes(globalUser.email)) {
       return {
         projectLabel: rawProject.label,
         isLocked: rawProject.is_locked,
@@ -344,20 +335,6 @@ export async function resolveProjectUserAccess(
       throw new Error(
         "Middleware error: User does not have access to this project",
       );
-    }
-    if (hasBlanketGrant) {
-      // An admin who is a member of a private project: membership is binary
-      // for admins, so the row's individual flags do not narrow them.
-      return {
-        projectLabel: rawProject.label,
-        isLocked: rawProject.is_locked,
-        projectUser: {
-          email: globalUser.email,
-          role: "editor", // deprecated
-          isGlobalAdmin: true,
-          ..._PROJECT_USER_PERMISSIONS_DEFAULT_FULL_ACCESS,
-        },
-      };
     }
     return {
       projectLabel: rawProject.label,

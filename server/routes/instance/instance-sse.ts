@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
-import { canUserSeeAsset, type InstanceSseMessage, type InstanceState } from "lib";
+import type { InstanceSseMessage, InstanceState } from "lib";
 import { buildInstanceState } from "../../task_management/build_instance_state.ts";
 import { requireGlobalPermission } from "../../middleware/userPermission.ts";
 
@@ -100,7 +100,6 @@ routesInstanceSSE.get(
         // Returns the message to write (possibly rewritten) or null to drop.
         let canSeeRunMessages = instanceState.currentUserIsGlobalAdmin ||
           instanceState.currentUserPermissions.can_configure_data;
-        let isGlobalAdminNow = instanceState.currentUserIsGlobalAdmin;
         const forwardable = (
           msg: InstanceSseMessage,
         ): InstanceSseMessage | null => {
@@ -110,26 +109,10 @@ routesInstanceSSE.get(
             );
             canSeeRunMessages = (me?.isGlobalAdmin ?? false) ||
               (me?.can_configure_data ?? false);
-            isGlobalAdminNow = me?.isGlobalAdmin ?? false;
             return me === undefined ? { type: "users_updated", data: [] } : msg;
           }
           if (msg.type === "run_progress" || msg.type === "r_script") {
             return canSeeRunMessages ? msg : null;
-          }
-          // Private assets: the broadcast is the full list; each connection
-          // gets only what its user may see (buildInstanceState applies the
-          // same filter to the starting payload).
-          if (msg.type === "assets_updated") {
-            return {
-              type: "assets_updated",
-              data: msg.data.filter((a) =>
-                canUserSeeAsset(
-                  a.privacy,
-                  instanceState.currentUserEmail,
-                  isGlobalAdminNow,
-                )
-              ),
-            };
           }
           return msg;
         };

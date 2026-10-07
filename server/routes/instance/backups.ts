@@ -1,5 +1,4 @@
 import { Hono } from "hono";
-import { getHiddenProjectIdsForUser } from "../../db/instance/users.ts";
 import { requireProjectPermission } from "../../project_auth.ts";
 import { defineRoute } from "../route-helpers.ts";
 import {
@@ -70,13 +69,7 @@ defineRoute(
       }
 
       const data = await response.json();
-      // Private projects the caller cannot see are left out (ids and labels).
-      const hidden = await getHiddenProjectIdsForUser(
-        c.var.mainDb,
-        c.var.globalUser,
-      );
-      const allBackups = ((data.backups || []) as { project_id?: string }[])
-        .filter((b) => !b.project_id || !hidden.has(b.project_id));
+      const allBackups = data.backups || [];
 
       return c.json({
         success: true,

@@ -43,7 +43,6 @@ import {
   notifyInstanceStructureUpdated,
 } from "../../task_management/notify_instance_updated.ts";
 import { defineRoute } from "../route-helpers.ts";
-import { requireVisibleAssets } from "../../middleware/asset_visibility.ts";
 import { streamResponse } from "../streaming.ts";
 
 export const routesStructure = new Hono();
@@ -131,7 +130,6 @@ defineRoute(
   routesStructure,
   "readWeightsCsvHeaders",
   requireGlobalPermission("can_configure_data"),
-  requireVisibleAssets("assetFileName"),
   log("readWeightsCsvHeaders"),
   async (c, { body }) => {
     const filePath = resolveAssetFilePath(body.assetFileName);
@@ -144,7 +142,6 @@ defineRoute(
   routesStructure,
   "importHfaFacilityWeights",
   requireGlobalPermission("can_configure_data"),
-  requireVisibleAssets("assetFileName"),
   log("importHfaFacilityWeights"),
   async (c, { body }) => {
     const mainDb = c.var.mainDb;
@@ -235,7 +232,6 @@ defineRoute(
   routesStructure,
   "structureStep1Csv_UploadFile",
   requireGlobalPermission("can_configure_data"),
-  requireVisibleAssets("assetFileName", "xlsFormAssetFileName"),
   log("structureStep1Csv_UploadFile"),
   async (c, { params, body }) => {
     const res = await structureStep1Csv_UploadFile(

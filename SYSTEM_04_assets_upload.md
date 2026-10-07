@@ -4,11 +4,9 @@ name: Assets & Upload
 globs:
   - client/src/components/_file_upload_selector.tsx
   - client/src/components/_uppy_file_upload.ts
-  - client/src/components/instance/asset_sharing.tsx
   - client/src/components/instance/instance_assets.tsx
   - lib/types/assets.ts
   - server/db/instance/assets.ts
-  - server/middleware/asset_visibility.ts
   - server/routes/instance/assets.ts
   - server/routes/instance/upload.ts
 docs_absorbed:
@@ -27,9 +25,9 @@ Boundaries: **serving** the stored bytes back out is S1's static middleware
 (dashboard logos), data-file extensions (`.csv`/`.xlsx`/`.xls`/`.zip`:
 import-wizard inputs live here, raw facility-level health data) require
 `can_view_data` OR `can_configure_data` (the assets page's own gate; admins
-pass), and everything else is behind bare `requireGlobalPermission()`. A **private** asset is gated ahead of all three
-tiers (see Private assets below). Public asset *names* stay visible to all
-authenticated users (the SSE starting payload). Only the bytes are gated. What consumers **do** with an uploaded file is
+pass), and everything else is behind bare `requireGlobalPermission()`. Asset
+*names* stay visible to all authenticated users (the SSE starting payload).
+Only the bytes are gated. What consumers **do** with an uploaded file is
 theirs: the dataset import wizards are S6; structure/geojson/HFA-weights
 uploads are S5; report images and embeds are S12; batch user
 upload is S15; module runs read `assetsToImport` (e.g. `population.csv`) out of
@@ -116,40 +114,6 @@ whose `asset_metadata.uploader_email` matches them (assets with no metadata row
 are admin-delete-only); admins delete anything. Deletion removes the file
 (missing file tolerated) then the metadata rows.
 
-## Private assets
-
-An asset can be private: visible only to its owner and the viewers they
-chose. Admins get no bypass, except for an asset whose owner account has been
-deleted, which admins can see and take over so it is never stranded. The one
-rule is `canUserSeeAsset` (and `canUserManagePrivateAsset` for change/delete/
-overwrite) in `lib/types/assets.ts`.
-
-- **Storage.** `private_assets (file_name, owner_email)` plus
-  `private_asset_viewers (file_name, email)` (migration 094). `owner_email`
-  has no FK to `users` on purpose: a cascade would silently make the file
-  public. `AssetInfo.privacy` carries owner, viewers and `ownerIsUser`.
-- **Set at upload.** The TUS `Upload-Metadata` carries `fastrVisibility`
-  (`private`/`public`) and `fastrViewers` (comma-joined emails); the assets
-  page's "Upload private" sets them per file. Private rows are written
-  before the file is renamed into place, so it is never servable as public.
-  No visibility field = keep what the file already has (the wizards'
-  uploaders), so a re-upload never widens a private file.
-- **Changed later** by the owner via `updateAssetVisibility`
-  (`POST /assets/visibility`); a public file's uploader (or an admin, for a
-  "system" file) may make it private.
-- **Enforced at:** the static serve (a private-asset middleware ahead of the
-  image tier; it checks every spelling serveStatic may resolve, answers 404
-  to anyone not permitted, `Cache-Control: private, no-store`); the asset
-  list (`getAssetsForUser` in the SSE starting payload, `getAssets`, MCP; the
-  `assets_updated` broadcast is filtered per connection in `instance-sse.ts`);
-  delete; same-name overwrite (`canUserUploadOverAsset`, at POST and again at
-  completion); and every by-name read on a user's behalf
-  (`server/middleware/asset_visibility.ts` on the wizard/import/geojson/
-  population/batch-user routes, an inline check on the AI files proxy).
-- **Not enforced** for module runs' `assetsToImport` (a run reads its fixed
-  input names with no user context) or for a private image already embedded
-  in a report or deck: other viewers simply get a broken image.
-
 ## Client primitives
 
 - **`_uppy_file_upload.ts`** exports `createUppyInstance(config)`: Uppy
@@ -190,8 +154,7 @@ ownership annotation, not a registry.
   and only on a new POST; temp files from crashed/restarted servers have no map
   entry and accumulate in `.tus-uploads` forever. Sweep the directory by mtime
   instead.
-- **Any user can overwrite any asset** (except a private one: only its
-  manager may). RULED accepted
+- **Any user can overwrite any asset.** RULED accepted
   (PLAN_IMPORT_FILE_INPUT_UNIFICATION §4.3, no versioning): completion
   `rename`s over an existing same-named file, last write wins, and the
   ownership upsert transfers delete rights to the overwriter. Launched import

@@ -10,8 +10,6 @@ import {
   type UserPermission,
   type ProjectPermission,
   PROJECT_PERMISSIONS,
-  H_USERS,
-  type GlobalUser,
 } from "lib";
 import { tryCatchDatabaseAsync } from "./../utils.ts";
 import { resolveAssetFilePath } from "./assets.ts";
@@ -21,104 +19,6 @@ import {
   type DBProjectUserRole,
   DBUser,
 } from "./_main_database_types.ts";
-
-// List-wise twin of resolveProjectUserAccess's private-project rule, for
-// every surface that lists or names projects: the ids of projects where the
-// user holds a role row with >=1 true can_ flag (the same membership test).
-export async function getProjectIdsWithRoleForUser(
-  mainDb: Sql,
-  email: string,
-): Promise<Set<string>> {
-  const rows = await mainDb<
-    Record<string, unknown>[]
-  >`SELECT * FROM project_user_roles WHERE email = ${email}`;
-  const ids = new Set<string>();
-  for (const row of rows) {
-    if (roleRowGrantsAccess(row)) {
-      ids.add(String(row.project_id));
-    }
-  }
-  return ids;
-}
-
-export function roleRowGrantsAccess(row: object): boolean {
-  return Object.entries(row).some(([key, value]) =>
-    key.startsWith("can_") && value === true
-  );
-}
-
-// The private projects where this user is the only admin member: deleting
-// them would leave the project with no administrator able to see it.
-export async function getPrivateProjectsWhereLastAdmin(
-  mainDb: Sql,
-  emails: string[],
-): Promise<string[]> {
-  const projects = await mainDb<{ id: string; label: string }[]>`
-    SELECT DISTINCT p.id, p.label FROM projects p
-    JOIN project_user_roles pur ON pur.project_id = p.id
-    WHERE p.is_private AND pur.email = ANY(${emails})
-  `;
-  const labels: string[] = [];
-  for (const p of projects) {
-    const rows = await mainDb<Record<string, unknown>[]>`
-      SELECT pur.* FROM project_user_roles pur
-      JOIN users u ON u.email = pur.email
-      WHERE pur.project_id = ${p.id} AND u.is_admin
-        AND NOT (pur.email = ANY(${emails}))
-    `;
-    const remaining = rows.filter((r) => roleRowGrantsAccess(r)).length;
-    const removingAnAdminMember = (
-      await mainDb<Record<string, unknown>[]>`
-        SELECT pur.* FROM project_user_roles pur
-        JOIN users u ON u.email = pur.email
-        WHERE pur.project_id = ${p.id} AND u.is_admin
-          AND pur.email = ANY(${emails})
-      `
-    ).some((r) => roleRowGrantsAccess(r));
-    if (removingAnAdminMember && remaining === 0) labels.push(p.label);
-  }
-  return labels;
-}
-
-// Whether the user would pass resolveProjectUserAccess for this project.
-export function canUserSeeProject(
-  globalUser: Pick<GlobalUser, "email" | "isGlobalAdmin">,
-  project: { id: string; is_private: boolean; is_central_reporting: boolean },
-  projectIdsWithRole: Set<string>,
-): boolean {
-  const isHUser = H_USERS.includes(globalUser.email);
-  if (project.is_central_reporting && !isHUser) return false;
-  if ((globalUser.isGlobalAdmin || isHUser) && !project.is_private) return true;
-  return projectIdsWithRole.has(project.id);
-}
-
-// The name a hidden project is shown under where its row must stay visible
-// (a results package's attached projects, the pin-follower roster).
-export const HIDDEN_PROJECT_LABEL = "Private project";
-
-export function redactHiddenProjectLabel(
-  project: { id: string; label: string },
-  hiddenProjectIds: Set<string>,
-): string {
-  return hiddenProjectIds.has(project.id) ? HIDDEN_PROJECT_LABEL : project.label;
-}
-
-// For surfaces that must keep a project's row (counts, prune safety) but not
-// its name: the ids of projects this user cannot see.
-export async function getHiddenProjectIdsForUser(
-  mainDb: Sql,
-  globalUser: Pick<GlobalUser, "email" | "isGlobalAdmin">,
-): Promise<Set<string>> {
-  const projects = await mainDb<
-    { id: string; is_private: boolean; is_central_reporting: boolean }[]
-  >`SELECT id, is_private, is_central_reporting FROM projects`;
-  const withRole = await getProjectIdsWithRoleForUser(mainDb, globalUser.email);
-  return new Set(
-    projects.filter((p) => !canUserSeeProject(globalUser, p, withRole)).map((
-      p,
-    ) => p.id),
-  );
-}
 
 // Writes the user's name from Clerk on their first login. The WHERE first_name IS NULL
 // ensures this is a no-op on every subsequent call, so it's safe to fire-and-forget.
@@ -139,7 +39,6 @@ export async function syncUserName(
 export async function getOtherUser(
   mainDb: Sql,
   email: string,
-  viewer: GlobalUser,
 ): Promise<
   APIResponseWithData<{ user: OtherUser; projectUserRoles: ProjectUserRole[] }>
 > {
@@ -150,13 +49,9 @@ export async function getOtherUser(
     if (rawUser === undefined) {
       throw new Error("No matching user");
     }
-    const allProjects = await mainDb<
+    const rawProjects = await mainDb<
       DBProject[]
     >`SELECT * FROM projects ORDER BY LOWER(label)`;
-    const viewerRoleIds = await getProjectIdsWithRoleForUser(mainDb, viewer.email);
-    const rawProjects = allProjects.filter((p) =>
-      canUserSeeProject(viewer, p, viewerRoleIds)
-    );
     const rawUserRoles = await mainDb<
       DBProjectUserRole[]
     >`SELECT * FROM project_user_roles WHERE email = ${email}`;
@@ -166,9 +61,7 @@ export async function getOtherUser(
         projectId: rawProject.id,
         projectLabel: rawProject.label,
         role: rawUser.is_admin
-          ? !rawProject.is_private || (pur && roleRowGrantsAccess(pur))
-            ? "editor"
-            : "none"
+          ? "editor"
           : !pur
             ? "none"
             : pur.role === "editor"
@@ -422,15 +315,6 @@ export async function deleteUser(
   emails: string[],
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
-    const stranded = await getPrivateProjectsWhereLastAdmin(mainDb, emails);
-    if (stranded.length > 0) {
-      return {
-        success: false,
-        err: `Add another administrator to these private projects before deleting this user: ${
-          stranded.join(", ")
-        }`,
-      };
-    }
     await mainDb`DELETE FROM users WHERE email = ANY(${emails})`;
     return { success: true };
   });

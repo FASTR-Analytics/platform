@@ -29,10 +29,6 @@ const lastUpdatedListeners = new Set<LastUpdatedListener>();
 let evtSource: EventSource | null = null;
 let retryTimeoutId: ReturnType<typeof setTimeout> | null = null;
 const [connectionAttempts, setConnectionAttempts] = createSignal(0);
-// Set by the server's access_revoked (removed from the project, or it went
-// private): the stream is over for good, so no retry, and the boundary
-// replaces the project with a notice.
-const [accessRevoked, setAccessRevoked] = createSignal(false);
 let currentProjectId: string | null = null;
 
 export function addLastUpdatedListener(listener: LastUpdatedListener): () => void {
@@ -63,7 +59,6 @@ export function connectProjectSSE(projectId: string): void {
   }
 
   currentProjectId = projectId;
-  setAccessRevoked(false);
   setConnectionAttempts((n) => n + 1);
 
   const url = `${_SERVER_HOST}/project_sse_v2/${projectId}`;
@@ -81,14 +76,6 @@ export function connectProjectSSE(projectId: string): void {
       msg = parseJsonOrThrow<ProjectSseMessage>(event.data);
     } catch (error) {
       console.error("Failed to parse SSE message:", error, "Raw:", event.data);
-      return;
-    }
-
-    if (msg.type === "access_revoked") {
-      evtSource?.close();
-      evtSource = null;
-      disconnectCollab();
-      setAccessRevoked(true);
       return;
     }
 
@@ -142,7 +129,6 @@ export function disconnectProjectSSE(): void {
 
   currentProjectId = null;
   setConnectionAttempts(0);
-  setAccessRevoked(false);
   lastUpdatedListeners.clear();
   resetProjectState();
 }
@@ -166,23 +152,6 @@ export function ProjectSSEBoundary(p: ProjectSSEBoundaryProps) {
   });
 
   return (
-    <Show
-      when={!accessRevoked()}
-      fallback={
-        <div class="ui-pad ui-spy-sm">
-          <div>
-            {t3({
-              en: "You no longer have access to this project.",
-              fr: "Vous n'avez plus accès à ce projet.",
-              pt: "Já não tem acesso a este projeto.",
-            })}
-          </div>
-          <div>
-            <Button href="/">{t3({ en: "Go home", fr: "Retour à l'accueil", pt: "Voltar ao início" })}</Button>
-          </div>
-        </div>
-      }
-    >
     <Show
       when={connectionAttempts() <= MAX_CONNECTION_ATTEMPTS}
       fallback={
@@ -208,7 +177,6 @@ export function ProjectSSEBoundary(p: ProjectSSEBoundaryProps) {
       >
         {p.children}
       </Show>
-    </Show>
     </Show>
   );
 }

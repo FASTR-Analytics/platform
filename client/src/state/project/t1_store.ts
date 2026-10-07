@@ -17,7 +17,6 @@ const EMPTY_PROJECT_STATE: ProjectState = {
   thisUserRole: "viewer",
   isLocked: false,
   isCentralReporting: false,
-  isPrivate: false,
   adminArea2: null,
   attachedRunId: null,
   attachedRun: null,
@@ -78,9 +77,6 @@ export function applyProjectSseMessage(msg: ProjectSseMessage): void {
       }
       if (msg.data.aiContext !== undefined) {
         setProjectState("aiContext", msg.data.aiContext);
-      }
-      if (msg.data.isPrivate !== undefined) {
-        setProjectState("isPrivate", msg.data.isPrivate);
       }
       if (msg.data.isCentralReporting !== undefined) {
         setProjectState("isCentralReporting", msg.data.isCentralReporting);

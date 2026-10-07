@@ -1,18 +1,16 @@
 import {
   Button,
   FrameTop,
-  Icon,
   Table,
   TabsNavigation,
   createDeleteAction,
-  openComponent,
   type BulkAction,
   type ListItem,
   type TableColumn,
 } from "panther";
 import { HeadingBar } from "panther";
 import { Show, createMemo, createSignal, onCleanup, onMount } from "solid-js";
-import { AssetInfo, canUserManagePrivateAsset, t3, TC } from "lib";
+import { AssetInfo, t3, TC } from "lib";
 import { serverActions } from "~/server_actions";
 import { _SERVER_HOST } from "~/server_actions";
 import {
@@ -21,11 +19,6 @@ import {
 } from "~/components/_uppy_file_upload";
 import type Uppy from "@uppy/core";
 import { instanceState } from "~/state/instance/t1_store";
-import {
-  AssetSharingForm,
-  PrivateUploadForm,
-  userDisplayName,
-} from "./asset_sharing";
 
 type FileType = "csv" | "excel" | "image" | "zip" | "other";
 
@@ -64,52 +57,17 @@ function formatDate(timestamp: number): string {
 
 export function InstanceAssets() {
   let uppy: Uppy | undefined = undefined;
-  // A second instance for private uploads, opened only after the viewers are
-  // chosen. Privacy rides in each file's TUS metadata, set as the file is
-  // added (the modal-open clear would wipe anything set earlier), so the
-  // server applies it before the file lands.
-  let privateUppy: Uppy | undefined = undefined;
-  let privateViewerEmails: string[] = [];
 
   onMount(() => {
     uppy = createUppyInstance({
       triggerId: "#select-file-button",
       maxNumberOfFiles: 0,
     });
-    privateUppy = createUppyInstance({
-      triggerId: "#private-upload-trigger",
-      maxNumberOfFiles: 0,
-    });
-    privateUppy.on("file-added", (file) => {
-      privateUppy?.setFileMeta(file.id, {
-        fastrVisibility: "private",
-        fastrViewers: privateViewerEmails.join(","),
-      });
-    });
   });
 
   onCleanup(() => {
     cleanupUppy(uppy);
-    cleanupUppy(privateUppy);
   });
-
-  async function startPrivateUpload() {
-    const res = await openComponent({
-      element: PrivateUploadForm,
-      props: undefined,
-    });
-    if (!res || !privateUppy) return;
-    privateViewerEmails = res.viewerEmails;
-    // deno-lint-ignore no-explicit-any
-    (privateUppy.getPlugin("Dashboard") as any)?.openModal();
-  }
-
-  async function editSharing(asset: AssetInfo) {
-    await openComponent({
-      element: AssetSharingForm,
-      props: { fileName: asset.fileName, privacy: asset.privacy },
-    });
-  }
 
   async function attemptDeleteAssetFile(assetFileName: string) {
     const deleteAction = createDeleteAction(
@@ -135,22 +93,9 @@ export function InstanceAssets() {
             tonal
             heading={t3({ en: "Assets", fr: "Ressources", pt: "Recursos" })}
           >
-            <div class="ui-gap-sm flex items-center">
-              <Button
-                outline
-                iconName="eyeOff"
-                onClick={startPrivateUpload}
-              >
-                {t3({
-                  en: "Upload private",
-                  fr: "Téléverser en privé",
-                  pt: "Carregar em privado",
-                })}
-              </Button>
-              <Button id="select-file-button" iconName="upload">
-                {t3({ en: "Upload", fr: "Téléverser", pt: "Carregar" })}
-              </Button>
-            </div>
+            <Button id="select-file-button" iconName="upload">
+              {t3({ en: "Upload", fr: "Téléverser", pt: "Carregar" })}
+            </Button>
           </HeadingBar>
         </div>
       }
@@ -160,7 +105,6 @@ export function InstanceAssets() {
         currentUserEmail={instanceState.currentUserEmail}
         isAdmin={instanceState.currentUserIsGlobalAdmin}
         onDelete={attemptDeleteAssetFile}
-        onEditSharing={editSharing}
       />
     </FrameTop>
   );
@@ -171,7 +115,6 @@ function AssetFileSystem(p: {
   currentUserEmail: string;
   isAdmin: boolean;
   onDelete: (fileName: string) => void;
-  onEditSharing: (asset: AssetInfo) => void;
 }) {
   const [selectedType, setSelectedType] = createSignal<FileType>("csv");
 
@@ -235,7 +178,6 @@ function AssetFileSystem(p: {
               currentUserEmail={p.currentUserEmail}
               isAdmin={p.isAdmin}
               onDelete={p.onDelete}
-              onEditSharing={p.onEditSharing}
             />
           </div>
         </FrameTop>
@@ -244,33 +186,11 @@ function AssetFileSystem(p: {
   );
 }
 
-// Who may change a file's visibility: a private file's manager; a public
-// file's uploader, or an admin for a file with no uploader (mirrors the
-// server's updateAssetVisibility).
-function canEditSharing(asset: AssetInfo, email: string, isAdmin: boolean) {
-  if (asset.privacy) {
-    return canUserManagePrivateAsset(asset.privacy, email, isAdmin);
-  }
-  return asset.uploaderEmail === email ||
-    (asset.uploaderEmail === null && isAdmin);
-}
-
-function visibilityLabel(asset: AssetInfo): string {
-  const privacy = asset.privacy;
-  if (!privacy) return "";
-  const names = privacy.viewerEmails.map((email) => {
-    const u = instanceState.users.find((x) => x.email === email);
-    return u ? userDisplayName(u) : email;
-  });
-  return names.join("\n");
-}
-
 function AssetTable(p: {
   files: AssetInfo[];
   currentUserEmail: string;
   isAdmin: boolean;
   onDelete: (fileName: string) => void;
-  onEditSharing: (asset: AssetInfo) => void;
 }) {
   const columns = createMemo((): TableColumn<AssetInfo>[] => [
     {
@@ -323,56 +243,12 @@ function AssetTable(p: {
       ),
     },
     {
-      key: "privacy",
-      header: t3({
-        en: "Who can see it",
-        fr: "Qui peut le voir",
-        pt: "Quem o pode ver",
-      }),
-      render: (asset) => (
-        <Show
-          when={asset.privacy}
-          fallback={
-            <span class="text-base-content-muted text-sm">
-              {t3({ en: "Everyone", fr: "Tout le monde", pt: "Todos" })}
-            </span>
-          }
-        >
-          {(privacy) => (
-            <span class="ui-gap-sm flex items-center text-sm" title={visibilityLabel(asset)}>
-              <span class="relative inline-flex h-[1.25em] w-[1.25em] flex-none">
-                <Icon iconName="eyeOff" />
-              </span>
-              {privacy().viewerEmails.length === 0
-                ? t3({
-                  en: "Private: only the owner",
-                  fr: "Privé : propriétaire seulement",
-                  pt: "Privado: apenas o proprietário",
-                })
-                : t3({
-                  en: `Private: owner + ${privacy().viewerEmails.length}`,
-                  fr: `Privé : propriétaire + ${privacy().viewerEmails.length}`,
-                  pt: `Privado: proprietário + ${privacy().viewerEmails.length}`,
-                })}
-            </span>
-          )}
-        </Show>
-      ),
-    },
-    {
       key: "actions",
       header: "",
       alignH: "right",
       render: (asset) => {
-        // A private file: its manager only (admins get no bypass), as on
-        // the server's deleteAssets.
-        const canDelete = asset.privacy
-          ? canUserManagePrivateAsset(
-            asset.privacy,
-            p.currentUserEmail,
-            p.isAdmin,
-          )
-          : p.isAdmin || asset.uploaderEmail === p.currentUserEmail;
+        const canDelete =
+          p.isAdmin || asset.uploaderEmail === p.currentUserEmail;
         // Data-file bytes are served only to data-permitted users (S1's
         // static tier): hide the button rather than let the browser save a
         // 403 body to disk.
@@ -383,18 +259,6 @@ function AssetTable(p: {
           instanceState.currentUserPermissions.can_configure_data;
         return (
           <div class="ui-gap-sm flex items-center justify-end">
-            <Show
-              when={canEditSharing(asset, p.currentUserEmail, p.isAdmin)}
-            >
-              <Button
-                intent="base-100"
-                iconName="users"
-                onClick={(e: MouseEvent) => {
-                  e.stopPropagation();
-                  p.onEditSharing(asset);
-                }}
-              />
-            </Show>
             <Show when={canDownload}>
               <Button
                 intent="base-100"

@@ -40,7 +40,6 @@ import { requireGlobalPermission } from "../../middleware/mod.ts";
 import { notifyInstanceDatasetsUpdated } from "../../task_management/notify_instance_updated.ts";
 import { _FETCH_CACHE_DATASET_HFA_ITEMS } from "../caches/dataset.ts";
 import { defineRoute } from "../route-helpers.ts";
-import { requireVisibleAssets } from "../../middleware/asset_visibility.ts";
 import { NO_STORED_DHIS2_CONNECTION } from "lib";
 
 export const routesDatasets = new Hono();
@@ -357,7 +356,6 @@ defineRoute(
   routesDatasets,
   "parseDatasetHmisCsvHeaders",
   requireGlobalPermission("can_configure_data"),
-  requireVisibleAssets("fileName"),
   log("parseDatasetHmisCsvHeaders"),
   async (c, { body }) => {
     let filePath: string;
@@ -384,7 +382,6 @@ defineRoute(
   routesDatasets,
   "scanDatasetHmisCsvIndicatorValues",
   requireGlobalPermission("can_configure_data"),
-  requireVisibleAssets("fileName"),
   log("scanDatasetHmisCsvIndicatorValues"),
   async (c, { body }) => {
     try {
@@ -407,7 +404,6 @@ defineRoute(
   routesDatasets,
   "launchDatasetHmisCsvRun",
   requireGlobalPermission("can_configure_data"),
-  requireVisibleAssets("config.fileName"),
   log("launchDatasetHmisCsvRun"),
   async (c, { body }) => {
     const res = await launchDatasetHmisCsvImportRun(c.var.mainDb, {
@@ -434,7 +430,6 @@ defineRoute(
   routesDatasets,
   "enqueueDatasetHmisCsvRun",
   requireGlobalPermission("can_configure_data"),
-  requireVisibleAssets("config.fileName"),
   log("enqueueDatasetHmisCsvRun"),
   async (c, { body }) => {
     const res = await enqueueDatasetHmisCsvImportRun(c.var.mainDb, {
@@ -563,7 +558,6 @@ defineRoute(
   routesDatasets,
   "parseDatasetHfaCsvHeaders",
   requireGlobalPermission("can_configure_data"),
-  requireVisibleAssets("csvFileName", "xlsFormFileName"),
   log("parseDatasetHfaCsvHeaders"),
   async (c, { body }) => {
     let csvFilePath: string;
@@ -604,7 +598,6 @@ defineRoute(
   routesDatasets,
   "previewDatasetHfaDuplicates",
   requireGlobalPermission("can_configure_data"),
-  requireVisibleAssets("csvFileName", "xlsFormFileName"),
   log("previewDatasetHfaDuplicates"),
   async (c, { body }) => {
     let filePath: string;
@@ -629,7 +622,6 @@ defineRoute(
   routesDatasets,
   "launchDatasetHfaCsvRun",
   requireGlobalPermission("can_configure_data"),
-  requireVisibleAssets("config.csvFileName", "config.xlsFormFileName"),
   log("launchDatasetHfaCsvRun"),
   async (c, { body }) => {
     const res = await launchDatasetHfaCsvImportRun(c.var.mainDb, {

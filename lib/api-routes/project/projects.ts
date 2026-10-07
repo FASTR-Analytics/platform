@@ -4,7 +4,6 @@ import type {
   ProjectPermission,
   UserLog,
   ProjectDetail,
-  ProjectUser,
 } from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
 
@@ -85,22 +84,6 @@ export const projectRouteRegistry = {
     method: "POST",
     params: projectIdParamsSchema,
     body: z.object({ isCentralReporting: z.boolean() }),
-    requiresProject: true,
-  }),
-
-  setProjectPrivateStatus: route({
-    path: "/project/:project_id/private",
-    method: "POST",
-    params: projectIdParamsSchema,
-    body: z.object({ isPrivate: z.boolean() }),
-    requiresProject: true,
-  }),
-
-  setPrivateProjectAdminMembership: route({
-    path: "/private_project_admin_membership",
-    method: "POST",
-    body: z.object({ email: z.string(), isMember: z.boolean() }),
-    response: {} as { projectUsers: ProjectUser[] },
     requiresProject: true,
   }),
 

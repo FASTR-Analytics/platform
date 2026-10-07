@@ -21,11 +21,7 @@ import {
 import { getPgConnectionFromCacheOrNew } from "../../db/mod.ts";
 import { _BYPASS_AUTH, _SERVER_VERSION } from "../../exposed_env_vars.ts";
 import { _CLIENT_ORIGINS } from "../../exposed_env_vars.ts";
-import {
-  buildGlobalUserFromDb,
-  getGlobalUser,
-  resolveProjectUserAccess,
-} from "../../project_auth.ts";
+import { getGlobalUser, resolveProjectUserAccess } from "../../project_auth.ts";
 import {
   getSlide,
   getSlideCrdtState,
@@ -45,8 +41,6 @@ import {
 import {
   addConnection,
   broadcastPresence,
-  closeConnectionsForEmail,
-  getConnectedEmails,
   markConnectionEditing,
   relayProjectAwareness,
   removeConnection,
@@ -110,37 +104,6 @@ type CollabAuth = {
  * indistinguishable from a network drop and so retried forever.
  */
 export const COLLAB_CLOSE_UNAUTHORIZED = 4403;
-
-/**
- * Access is checked when a collab socket connects; this re-runs that check
- * for every live connection to the project and closes the ones now refused
- * (after a membership change, or the project being made private), so a
- * removed user stops receiving and sending room updates without relying on
- * their client to reconnect. A DB outage closes nothing.
- */
-export async function revalidateProjectCollabConnections(
-  projectId: string,
-): Promise<void> {
-  if (_BYPASS_AUTH) return;
-  const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
-  for (const email of getConnectedEmails(projectId)) {
-    try {
-      const globalUser = await buildGlobalUserFromDb(email, null, null);
-      await resolveProjectUserAccess(globalUser, projectId, mainDb);
-    } catch (error) {
-      if (
-        error instanceof Error && error.message.startsWith("Middleware error:")
-      ) {
-        closeConnectionsForEmail(
-          email,
-          COLLAB_CLOSE_UNAUTHORIZED,
-          "You no longer have access to this project",
-          projectId,
-        );
-      }
-    }
-  }
-}
 
 export const routesProjectCollab = new Hono<
   {

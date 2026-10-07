@@ -18,7 +18,6 @@ import { log } from "../../middleware/logging.ts";
 import { requireGlobalPermission } from "../../middleware/mod.ts";
 import { notifyInstanceDatasetsUpdated } from "../../task_management/notify_instance_updated.ts";
 import { defineRoute } from "../route-helpers.ts";
-import { requireVisibleAssets } from "../../middleware/asset_visibility.ts";
 
 export const routesIceh = new Hono();
 
@@ -51,7 +50,6 @@ defineRoute(
   routesIceh,
   "parseDatasetIcehZipPreview",
   requireGlobalPermission("can_configure_data"),
-  requireVisibleAssets("zipFileName"),
   log("parseDatasetIcehZipPreview"),
   async (c, { body }) => {
     try {
@@ -74,7 +72,6 @@ defineRoute(
   routesIceh,
   "launchDatasetIcehRun",
   requireGlobalPermission("can_configure_data"),
-  requireVisibleAssets("zipFileName"),
   log("launchDatasetIcehRun"),
   async (c, { body }) => {
     const res = await launchDatasetIcehImportRun(c.var.mainDb, {

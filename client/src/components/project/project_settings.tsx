@@ -16,7 +16,6 @@ import {
   Card,
   openAlert,
   openComponent,
-  openConfirm,
   createDeleteAction,
   createButtonAction,
   createFormAction,
@@ -36,7 +35,6 @@ import { CreateBackupForm } from "./create_backup_form";
 import { CreateRestoreFromFileForm } from "./restore_from_file_form";
 import { DisplayProjectUserRole } from "../forms_editors/display_project_user_role.tsx";
 import { projectState } from "~/state/project/t1_store";
-import { instanceState } from "~/state/instance/t1_store";
 import {
   ProjectScopePicker,
   scopeSelectionFromStored,
@@ -329,10 +327,6 @@ export function ProjectSettings(p: Props) {
           </div>
         </Card>
 
-        <Show when={instanceState.currentUserIsGlobalAdmin}>
-          <PrivateProjectSection />
-        </Show>
-
         <Show when={H_USERS.includes(projectState.currentUserEmail)}>
           <CentralReportingSection />
         </Show>
@@ -501,89 +495,6 @@ function ProjectScopeForm(p: AlertComponentProps<void, boolean>) {
   );
 }
 
-// Admin-only (the server enforces). Private withdraws every other admin's
-// access until they are added in the users table above.
-function PrivateProjectSection() {
-  const setPrivate = createButtonAction(
-    async () => {
-      const makePrivate = !projectState.isPrivate;
-      if (makePrivate) {
-        const confirmed = await openConfirm({
-          title: t3({
-            en: "Make this project private?",
-            fr: "Rendre ce projet privé ?",
-            pt: "Tornar este projeto privado?",
-          }),
-          text: t3({
-            en: "Other administrators will no longer see or open this project. You stay a member, and you can add other administrators in Project users. People who already have project permissions keep them.",
-            fr: "Les autres administrateurs ne verront plus ce projet et ne pourront plus l'ouvrir. Vous en restez membre et vous pouvez ajouter d'autres administrateurs dans Utilisateurs du projet. Les personnes qui ont déjà des permissions sur le projet les conservent.",
-            pt: "Os outros administradores deixarão de ver e abrir este projeto. Você continua a ser membro e pode adicionar outros administradores em Utilizadores do projeto. As pessoas que já têm permissões no projeto mantêm-nas.",
-          }),
-          confirmButtonLabel: t3({
-            en: "Make private",
-            fr: "Rendre privé",
-            pt: "Tornar privado",
-          }),
-        });
-        if (!confirmed) return { success: true as const };
-      }
-      const res = await serverActions.setProjectPrivateStatus({
-        project_id: projectState.id,
-        projectId: projectState.id,
-        isPrivate: makePrivate,
-      });
-      if (!res.success) {
-        await openAlert({ text: res.err, intent: "danger" });
-      }
-      return res;
-    },
-    async () => {},
-  );
-
-  return (
-    <Card
-      header={t3({
-        en: "Private project",
-        fr: "Projet privé",
-        pt: "Projeto privado",
-      })}
-      headerRight={
-        <Button
-          onClick={setPrivate.click}
-          state={setPrivate.state()}
-          iconName={projectState.isPrivate ? "eye" : "eyeOff"}
-        >
-          {projectState.isPrivate
-            ? t3({
-              en: "Make visible to all administrators",
-              fr: "Rendre visible à tous les administrateurs",
-              pt: "Tornar visível para todos os administradores",
-            })
-            : t3({
-              en: "Make private",
-              fr: "Rendre privé",
-              pt: "Tornar privado",
-            })}
-        </Button>
-      }
-    >
-      <div class="text-sm">
-        {projectState.isPrivate
-          ? t3({
-            en: "This project is private. Only the people listed with access in Project users can see it, including administrators.",
-            fr: "Ce projet est privé. Seules les personnes ayant accès dans Utilisateurs du projet peuvent le voir, y compris les administrateurs.",
-            pt: "Este projeto é privado. Apenas as pessoas com acesso em Utilizadores do projeto o podem ver, incluindo os administradores.",
-          })
-          : t3({
-            en: "All administrators can see this project. Make it private to hide it from administrators who are not added to it.",
-            fr: "Tous les administrateurs peuvent voir ce projet. Rendez-le privé pour le masquer aux administrateurs qui n'y sont pas ajoutés.",
-            pt: "Todos os administradores podem ver este projeto. Torne-o privado para o ocultar dos administradores que não foram adicionados.",
-          })}
-      </div>
-    </Card>
-  );
-}
-
 function CentralReportingSection() {
   const setCentralReporting = createButtonAction(
     async () => {
@@ -662,51 +573,15 @@ function getRoleSortValue(user: ProjectUser): number {
   return 2;
 }
 
-// Admins on a private project are members or not: no per-permission editor.
-function PrivateProjectAdminToggle(p: { user: ProjectUser }) {
-  const toggle = createButtonAction(
-    async () => {
-      const res = await serverActions.setPrivateProjectAdminMembership({
-        projectId: projectState.id,
-        email: p.user.email,
-        isMember: !hasPermissions(p.user),
-      });
-      if (!res.success) {
-        await openAlert({ text: res.err, intent: "danger" });
-      }
-      return res;
-    },
-    async () => {},
-  );
-  return (
-    <Button
-      onClick={(e: MouseEvent) => {
-        e.stopPropagation();
-        toggle.click();
-      }}
-      state={toggle.state()}
-      intent="base-100"
-      outline
-      iconName={hasPermissions(p.user) ? "x" : "plus"}
-    >
-      {hasPermissions(p.user)
-        ? t3({ en: "Remove", fr: "Retirer", pt: "Remover" })
-        : t3({ en: "Add", fr: "Ajouter", pt: "Adicionar" })}
-    </Button>
-  );
-}
-
 function ProjectUserTable(p: {
   users: ProjectUser[];
   onUserClick?: (users: ProjectUser[]) => void;
   onBulkEditPermissions?: (users: ProjectUser[]) => void;
   onDisplayUserRole?: (user: ProjectUser) => void;
 }) {
-  // On a private project H_USERS need explicit membership like any admin,
-  // so they are listed there.
   const usersWithRole = (): ProjectUserWithRole[] =>
     p.users
-      .filter((u) => projectState.isPrivate || !H_USERS.includes(u.email))
+      .filter((u) => !H_USERS.includes(u.email))
       .map((u) => ({ ...u, roleSortValue: getRoleSortValue(u) }));
 
   const columns: TableColumn<ProjectUserWithRole>[] = [
@@ -756,19 +631,12 @@ function ProjectUserTable(p: {
             </Show>
           }
         >
-          <span class={hasPermissions(user) ? "text-primary" : "text-base-content-muted"}>
+          <span class="text-primary">
             {t3({
               en: "Instance administrator",
               fr: "Administrateur d'instance",
               pt: "Administrador da instância",
             })}
-            <Show when={projectState.isPrivate && !hasPermissions(user)}>
-              {t3({
-                en: " (no access)",
-                fr: " (sans accès)",
-                pt: " (sem acesso)",
-              })}
-            </Show>
           </span>
         </Show>
       ),
@@ -778,23 +646,16 @@ function ProjectUserTable(p: {
       header: "",
       alignH: "right",
       render: (user) => (
-        <Show
-          when={user.isGlobalAdmin && projectState.isPrivate}
-          fallback={
-            <div class={user.isGlobalAdmin ? "invisible" : ""}>
-              <Button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  p.onUserClick?.([user]);
-                }}
-                intent="base-100"
-                iconName="pencil"
-              />
-            </div>
-          }
-        >
-          <PrivateProjectAdminToggle user={user} />
-        </Show>
+        <div class={user.isGlobalAdmin ? "invisible" : ""}>
+          <Button
+            onClick={(e) => {
+              e.stopPropagation();
+              p.onUserClick?.([user]);
+            }}
+            intent="base-100"
+            iconName="pencil"
+          />
+        </div>
       ),
     },
   ];

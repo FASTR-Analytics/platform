@@ -1,13 +1,7 @@
 import { ensureDir } from "@std/fs";
 import { basename, join } from "@std/path";
 import { Hono } from "hono";
-import {
-  applyUploadVisibility,
-  canUserUploadOverAsset,
-  createAssetMetadata,
-  getAssetsForInstance,
-  type UploadVisibility,
-} from "../../db/mod.ts";
+import { createAssetMetadata, getAssetsForInstance } from "../../db/mod.ts";
 import { _ASSETS_DIR_PATH } from "../../exposed_env_vars.ts";
 import { log } from "../../middleware/logging.ts";
 import { requireGlobalPermission } from "../../middleware/mod.ts";
@@ -42,33 +36,8 @@ const uploads = new Map<
     createdAt: Date;
     metadata?: Record<string, string>;
     uploaderEmail: string;
-    uploaderIsGlobalAdmin: boolean;
-    visibility: UploadVisibility;
   }
 >();
-
-// Privacy rides in the TUS Upload-Metadata (client: uppy.setMeta), so it is
-// in force from the moment the file lands; a separate call after upload
-// would leave the file public in between. Absent = keep whatever the file
-// already has (the import wizards' uploaders send nothing).
-function parseUploadVisibility(
-  metadata: Record<string, string>,
-): UploadVisibility {
-  if (metadata.fastrVisibility === "private") {
-    const viewerEmails = (metadata.fastrViewers ?? "")
-      .split(",")
-      .map((e) => e.trim())
-      .filter((e) => e !== "");
-    return { kind: "private", viewerEmails };
-  }
-  if (metadata.fastrVisibility === "public") {
-    return { kind: "public" };
-  }
-  return { kind: "unchanged" };
-}
-
-const PRIVATE_NAME_TAKEN =
-  "A file with this name already exists and only its owner can replace it. Rename your file and upload it again.";
 
 // TUS upload directory
 const TUS_UPLOAD_DIR = join(_ASSETS_DIR_PATH, ".tus-uploads");
@@ -162,15 +131,6 @@ routesUpload.post(
       metadata.filename || `upload-${Date.now()}`,
     );
 
-    // A private file can only be replaced by its owner (re-checked at
-    // completion, which is what actually overwrites).
-    if (
-      !(await canUserUploadOverAsset(c.var.mainDb, filename, c.var.globalUser))
-    ) {
-      c.status(403);
-      return c.text(PRIVATE_NAME_TAKEN);
-    }
-
     // Create upload record
     const uploadId = generateUploadId();
     const upload = {
@@ -181,8 +141,6 @@ routesUpload.post(
       createdAt: new Date(),
       metadata,
       uploaderEmail: c.var.globalUser.email,
-      uploaderIsGlobalAdmin: c.var.globalUser.isGlobalAdmin,
-      visibility: parseUploadVisibility(metadata),
     };
 
     uploads.set(uploadId, upload);
@@ -319,41 +277,9 @@ routesUpload.patch(
 
       // Check if upload is complete
       if (upload.offset >= upload.size) {
-        if (
-          !(await canUserUploadOverAsset(
-            c.var.mainDb,
-            upload.filename,
-            c.var.globalUser,
-          ))
-        ) {
-          uploads.delete(uploadId);
-          await Deno.remove(filePath).catch(() => {});
-          c.status(403);
-          return c.text(PRIVATE_NAME_TAKEN);
-        }
-
-        // Private: the privacy rows go in BEFORE the file appears, so it is
-        // never servable as public. Public/unchanged only ever widens, so it
-        // can follow the rename.
-        const applyVisibility = () =>
-          applyUploadVisibility(
-            c.var.mainDb,
-            upload.filename,
-            upload.uploaderEmail,
-            upload.uploaderIsGlobalAdmin,
-            upload.visibility,
-          );
-        if (upload.visibility.kind === "private") {
-          await applyVisibility();
-        }
-
         // Move file to final location
         const finalPath = join(_ASSETS_DIR_PATH, upload.filename);
         await Deno.rename(filePath, finalPath);
-
-        if (upload.visibility.kind !== "private") {
-          await applyVisibility();
-        }
 
         // Store ownership metadata
         await createAssetMetadata(

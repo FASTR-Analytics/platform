@@ -1,17 +1,11 @@
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
-import {
-  createDevProjectUser,
-  type GlobalUser,
-  ProjectSseMessage,
-  ProjectUser,
-} from "lib";
+import { createDevProjectUser, ProjectSseMessage, ProjectUser } from "lib";
 import { getPgConnectionFromCacheOrNew } from "../../db/mod.ts";
 import { _BYPASS_AUTH } from "../../exposed_env_vars.ts";
 import { ProjectPk } from "../../server_only_types/mod.ts";
 import { buildProjectState } from "../../task_management/build_project_state.ts";
 import {
-  buildGlobalUserFromDb,
   getGlobalUser,
   resolveProjectUserAccess,
 } from "../../project_auth.ts";
@@ -127,29 +121,11 @@ routesProjectSSEV2.get("/project_sse_v2/:project_id", async (c) => {
       };
       await stream.writeSSE({ data: JSON.stringify(startingMessage) });
 
-      // Step 4+5: Drain queue and forward subsequent messages until disconnect.
-      // Access was checked at connect; membership and config messages are
-      // the moments it can be withdrawn (a role removed, the project made
-      // private), so each one re-runs the same check BEFORE it is forwarded
-      // and a denied user gets access_revoked and the stream ends. An outage
-      // during the re-check keeps the stream (deny only on a real refusal).
+      // Step 4+5: Drain queue and forward subsequent messages until disconnect
       while (true) {
         while (messageQueue.length > 0 && !stream.aborted) {
           const queued = messageQueue.shift()!;
           const { projectId: _pid, ...message } = queued;
-          if (
-            !_BYPASS_AUTH &&
-            (message.type === "project_users_updated" ||
-              message.type === "project_config_updated") &&
-            !(await stillHasProjectAccess(globalUser, projectId))
-          ) {
-            const revoked: ProjectSseMessage = {
-              type: "access_revoked",
-              data: { message: "You no longer have access to this project" },
-            };
-            await stream.writeSSE({ data: JSON.stringify(revoked) });
-            return;
-          }
           await stream.writeSSE({ data: JSON.stringify(message) });
         }
         if (stream.aborted) break;
@@ -164,23 +140,3 @@ routesProjectSSEV2.get("/project_sse_v2/:project_id", async (c) => {
     }
   });
 });
-
-// Re-reads the user too: an admin demoted mid-session loses the blanket grant.
-async function stillHasProjectAccess(
-  connectedUser: GlobalUser,
-  projectId: string,
-): Promise<boolean> {
-  try {
-    const globalUser = await buildGlobalUserFromDb(
-      connectedUser.email,
-      connectedUser.firstName,
-      connectedUser.lastName,
-    );
-    const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
-    await resolveProjectUserAccess(globalUser, projectId, mainDb);
-    return true;
-  } catch (error) {
-    return !(error instanceof Error &&
-      error.message.startsWith("Middleware error:"));
-  }
-}

@@ -1,5 +1,4 @@
 import { Hono } from "hono";
-import { getHiddenProjectIdsForUser } from "../../db/instance/users.ts";
 import {
   parseInstalledModuleDefinition,
   type CompareProjectsData,
@@ -22,14 +21,10 @@ defineRoute(
   "compareProjects",
   requireGlobalPermission({ requireAdmin: true }),
   async (c) => {
-    const hidden = await getHiddenProjectIdsForUser(
-      c.var.mainDb,
-      c.var.globalUser,
-    );
     const projects: { id: string; label: string; run_id: string | null }[] =
-      (await c.var.mainDb<{ id: string; label: string; run_id: string | null }[]>`
+      await c.var.mainDb`
       SELECT id, label, run_id FROM projects ORDER BY LOWER(label)
-    `).filter((p: { id: string }) => !hidden.has(p.id));
+    `;
 
     const projectResults = await Promise.all(
       projects.map(async (project) => {

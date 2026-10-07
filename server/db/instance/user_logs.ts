@@ -22,18 +22,13 @@ VALUES
     });
 }
 
-// hiddenProjectIds: private projects the caller cannot see; their rows are
-// left out so the log view does not reveal their activity.
 export async function GetLogs(
     mainDb: Sql,
-    hiddenProjectIds: Set<string>,
 ): Promise<APIResponseWithData<UserLog[]>> {
     return await tryCatchDatabaseAsync(async () => {
-        const hidden = [...hiddenProjectIds];
         const logs: UserLog[] = await mainDb`
 SELECT id, user_email, timestamp, endpoint, endpoint_result, details, project_id
 FROM user_logs
-WHERE project_id IS NULL OR NOT (project_id = ANY(${hidden}))
 ORDER BY timestamp DESC
         `;
         return { success: true, data: logs };

@@ -16,9 +16,7 @@ import {
   deleteUser,
   getInstanceUsers,
   GetInstanceWeeklyTokenUsage,
-  getHiddenProjectIdsForUser,
   getOtherUser,
-  getProjectIdsWithRoleForUser,
   getProjectUsers,
   GetUserDailyTokenUsage,
   getUserDefaultProjectPermissions,
@@ -53,7 +51,6 @@ import { notifyInstanceUsersUpdated, notifyInstanceProjectsLastUpdated } from ".
 import { notifyProjectUsersUpdated } from "../../task_management/notify_project_v2.ts";
 import { COLLAB_CLOSE_UNAUTHORIZED } from "../project/project-collab.ts";
 import { defineRoute } from "../route-helpers.ts";
-import { requireVisibleAssets } from "../../middleware/asset_visibility.ts";
 
 export const routesUsers = new Hono();
 
@@ -87,24 +84,17 @@ defineRoute(
       label: string;
       is_locked: boolean;
       is_central_reporting: boolean;
-      is_private: boolean;
     };
     const rawProjects: RawProjectRow[] = await mainDb<
       RawProjectRow[]
-    >`SELECT id, label, is_locked, is_central_reporting, is_private FROM projects ORDER BY label`;
+    >`SELECT id, label, is_locked, is_central_reporting FROM projects ORDER BY label`;
     const isHUser = H_USERS.includes(globalUser.email);
     // Same access rules as resolveProjectUserAccess, applied list-wise:
     // central-reporting projects only for H_USERS; admins/H_USERS get the
-    // rest except private projects, which need a role row; everyone else
-    // needs a role row with >=1 true can_* flag.
+    // rest; everyone else needs a role row with >=1 true can_* flag.
     if (globalUser.isGlobalAdmin || isHUser) {
-      const withRole = await getProjectIdsWithRoleForUser(
-        mainDb,
-        globalUser.email,
-      );
       const data = rawProjects
         .filter((p) => !p.is_central_reporting || isHUser)
-        .filter((p) => !p.is_private || withRole.has(p.id))
         .map((p) => ({
           id: p.id,
           label: p.label,
@@ -189,11 +179,7 @@ defineRoute(
   requireGlobalPermission("can_configure_users"),
   log("getOtherUser"),
   async (c, { params }) => {
-    const res = await getOtherUser(
-      c.var.mainDb,
-      params.email,
-      c.var.globalUser,
-    );
+    const res = await getOtherUser(c.var.mainDb, params.email);
     return c.json(res);
   },
 );
@@ -269,7 +255,6 @@ defineRoute(
   routesUsers,
   "batchUploadUsers",
   requireGlobalPermission("can_configure_users"),
-  requireVisibleAssets("asset_file_name"),
   log("batchUploadUsers"),
   async (c, { body }) => {
     if (!body.asset_file_name || typeof body.asset_file_name !== "string") {
@@ -320,10 +305,7 @@ defineRoute(
   requireGlobalPermission("can_view_logs"),
   log("getAllUserLogs"),
   async (c) => {
-    const res = await GetLogs(
-      c.var.mainDb,
-      await getHiddenProjectIdsForUser(c.var.mainDb, c.var.globalUser),
-    );
+    const res = await GetLogs(c.var.mainDb);
     return c.json(res);
   },
 );

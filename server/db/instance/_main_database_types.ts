@@ -81,7 +81,6 @@ export type DBProject = {
   run_id: string | null;
   admin_area_2: string | null;
   follow_pinned: boolean;
-  is_private: boolean;
 };
 
 export type DBProjectUserRole = {
