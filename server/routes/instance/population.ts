@@ -15,6 +15,7 @@ import { log } from "../../middleware/logging.ts";
 import { requireGlobalPermission } from "../../middleware/mod.ts";
 import { notifyInstancePopulationUpdated } from "../../task_management/notify_instance_updated.ts";
 import { defineRoute } from "../route-helpers.ts";
+import { requireVisibleAssets } from "../../middleware/asset_visibility.ts";
 
 export const routesPopulation = new Hono();
 
@@ -48,6 +49,7 @@ defineRoute(
   routesPopulation,
   "previewPopulationCsv",
   requireGlobalPermission("can_configure_data"),
+  requireVisibleAssets("assetFileName"),
   log("previewPopulationCsv"),
   async (c, { body }) => {
     return c.json(await previewPopulationCsv(c.var.mainDb, body.assetFileName));
@@ -58,6 +60,7 @@ defineRoute(
   routesPopulation,
   "importPopulationCsv",
   requireGlobalPermission("can_configure_data"),
+  requireVisibleAssets("assetFileName"),
   log("importPopulationCsv"),
   async (c, { body }) => {
     const res = await importPopulationCsv(

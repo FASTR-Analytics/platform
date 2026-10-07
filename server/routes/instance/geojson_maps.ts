@@ -13,6 +13,7 @@ import { log } from "../../middleware/logging.ts";
 import { requireGlobalPermission } from "../../middleware/mod.ts";
 import { notifyInstanceGeoJsonMapsUpdated } from "../../task_management/notify_instance_updated.ts";
 import { defineRoute } from "../route-helpers.ts";
+import { requireVisibleAssets } from "../../middleware/asset_visibility.ts";
 import {
   analyzeGeoJson,
   processGeoJson,
@@ -73,6 +74,7 @@ defineRoute(
   routesGeoJsonMaps,
   "analyzeGeoJsonUpload",
   requireGlobalPermission("can_configure_data"),
+  requireVisibleAssets("assetFileName"),
   log("analyzeGeoJsonUpload"),
   async (c, { body }) => {
     if (!body.assetFileName) {
@@ -102,6 +104,7 @@ defineRoute(
   routesGeoJsonMaps,
   "saveGeoJsonMap",
   requireGlobalPermission("can_configure_data"),
+  requireVisibleAssets("assetFileName"),
   log("saveGeoJsonMap"),
   async (c, { body }) => {
     const { family, adminAreaLevel, assetFileName, areaMatchProp, areaMapping } = body;

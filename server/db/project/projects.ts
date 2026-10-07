@@ -4,6 +4,9 @@ import {
   DatasetInProject,
   EMPTY_HFA_TAXONOMY,
   ProjectDetail,
+  PROJECT_PERMISSIONS,
+  _PROJECT_USER_PERMISSIONS_DEFAULT_NO_ACCESS,
+  H_USERS,
   throwIfErrWithData,
   type GlobalUser,
   type InstalledModuleSummary,
@@ -20,6 +23,7 @@ import {
   type DBProjectUserRole,
 } from "../instance/_main_database_types.ts";
 import { runProjectMigrations } from "../migrations/runner.ts";
+import { roleRowGrantsAccess } from "../instance/users.ts";
 import {
   closePgConnection,
   createWorkerConnection,
@@ -140,64 +144,11 @@ export async function getProjectDetail(
       DBProjectUserRole[]
     >`SELECT * FROM project_user_roles WHERE project_id = ${projectId}`;
 
-    const fullProjectUsers = (
-      await mainDb<DBUser[]>`SELECT * FROM users`
-    ).map<ProjectUser>((u) => {
-      if (u.is_admin) {
-        return {
-          email: u.email,
-          role: "editor",
-          isGlobalAdmin: true,
-          firstName: u.first_name ?? undefined,
-          lastName: u.last_name ?? undefined,
-          can_configure_settings: true,
-          can_create_backups: true,
-          can_restore_backups: true,
-          can_configure_modules: true,
-          can_run_modules: true,
-          can_configure_users: true,
-          can_configure_visualizations: true,
-          can_view_visualizations: true,
-          can_configure_reports: true,
-          can_view_reports: true,
-          can_configure_slide_decks: true,
-          can_view_slide_decks: true,
-          can_configure_data: true,
-          can_view_data: true,
-          can_view_metrics: true,
-          can_view_logs: true,
-          can_view_script_code: true,
-        };
-      }
-      const pur = rawAllUserRolesForProject.find(
-        (pur) => pur.email === u.email,
-      );
-      return {
-        email: u.email,
-        role: !pur ? "none" : pur.role === "editor" ? "editor" : "viewer",
-        isGlobalAdmin: false,
-        firstName: u.first_name ?? undefined,
-        lastName: u.last_name ?? undefined,
-        can_configure_settings: pur?.can_configure_settings ?? false,
-        can_create_backups: pur?.can_create_backups ?? false,
-        can_restore_backups: pur?.can_restore_backups ?? false,
-        can_configure_modules: pur?.can_configure_modules ?? false,
-        can_run_modules: pur?.can_run_modules ?? false,
-        can_configure_users: pur?.can_configure_users ?? false,
-        can_configure_visualizations:
-          pur?.can_configure_visualizations ?? false,
-        can_view_visualizations: pur?.can_view_visualizations ?? false,
-        can_configure_reports: pur?.can_configure_reports ?? false,
-        can_view_reports: pur?.can_view_reports ?? false,
-        can_configure_slide_decks: pur?.can_configure_slide_decks ?? false,
-        can_view_slide_decks: pur?.can_view_slide_decks ?? false,
-        can_configure_data: pur?.can_configure_data ?? false,
-        can_view_data: pur?.can_view_data ?? false,
-        can_view_metrics: pur?.can_view_metrics ?? false,
-        can_view_logs: pur?.can_view_logs ?? false,
-        can_view_script_code: pur?.can_view_script_code ?? false,
-      };
-    });
+    const fullProjectUsers = await buildProjectUsers(
+      mainDb,
+      rawAllUserRolesForProject,
+      rawProject.is_private,
+    );
 
     const projectDetail: ProjectDetail = {
       id: projectId,
@@ -206,6 +157,7 @@ export async function getProjectDetail(
       thisUserRole: "viewer",
       isLocked: rawProject.is_locked,
       isCentralReporting: rawProject.is_central_reporting,
+      isPrivate: rawProject.is_private,
       adminArea2: rawProject.admin_area_2,
       attachedRunId: rawProject.run_id,
       attachedRun: resAttachedRun.data,
@@ -579,6 +531,249 @@ export async function setProjectCentralReportingStatus(
   });
 }
 
+// Every instance user with their standing in one project. On a public
+// project admins are listed with full access (the blanket grant). On a
+// private project an admin is a member only with a role row granting access
+// (resolveProjectUserAccess); a member admin is listed with full access, a
+// non-member admin with none, so the users table can offer to add them.
+async function buildProjectUsers(
+  mainDb: Sql,
+  rawAllUserRolesForProject: DBProjectUserRole[],
+  isPrivate: boolean,
+): Promise<ProjectUser[]> {
+  return (
+    await mainDb<DBUser[]>`SELECT * FROM users`
+  ).map<ProjectUser>((u) => {
+    if (u.is_admin) {
+      const adminPur = rawAllUserRolesForProject.find(
+        (pur) => pur.email === u.email,
+      );
+      if (isPrivate && !(adminPur && roleRowGrantsAccess(adminPur))) {
+        return {
+          email: u.email,
+          role: "none",
+          isGlobalAdmin: true,
+          firstName: u.first_name ?? undefined,
+          lastName: u.last_name ?? undefined,
+          ..._PROJECT_USER_PERMISSIONS_DEFAULT_NO_ACCESS,
+        };
+      }
+      return {
+        email: u.email,
+        role: "editor",
+        isGlobalAdmin: true,
+        firstName: u.first_name ?? undefined,
+        lastName: u.last_name ?? undefined,
+        can_configure_settings: true,
+        can_create_backups: true,
+        can_restore_backups: true,
+        can_configure_modules: true,
+        can_run_modules: true,
+        can_configure_users: true,
+        can_configure_visualizations: true,
+        can_view_visualizations: true,
+        can_configure_reports: true,
+        can_view_reports: true,
+        can_configure_slide_decks: true,
+        can_view_slide_decks: true,
+        can_configure_data: true,
+        can_view_data: true,
+        can_view_metrics: true,
+        can_view_logs: true,
+        can_view_script_code: true,
+      };
+    }
+    const pur = rawAllUserRolesForProject.find(
+      (pur) => pur.email === u.email,
+    );
+    return {
+      email: u.email,
+      role: !pur ? "none" : pur.role === "editor" ? "editor" : "viewer",
+      isGlobalAdmin: false,
+      firstName: u.first_name ?? undefined,
+      lastName: u.last_name ?? undefined,
+      can_configure_settings: pur?.can_configure_settings ?? false,
+      can_create_backups: pur?.can_create_backups ?? false,
+      can_restore_backups: pur?.can_restore_backups ?? false,
+      can_configure_modules: pur?.can_configure_modules ?? false,
+      can_run_modules: pur?.can_run_modules ?? false,
+      can_configure_users: pur?.can_configure_users ?? false,
+      can_configure_visualizations:
+        pur?.can_configure_visualizations ?? false,
+      can_view_visualizations: pur?.can_view_visualizations ?? false,
+      can_configure_reports: pur?.can_configure_reports ?? false,
+      can_view_reports: pur?.can_view_reports ?? false,
+      can_configure_slide_decks: pur?.can_configure_slide_decks ?? false,
+      can_view_slide_decks: pur?.can_view_slide_decks ?? false,
+      can_configure_data: pur?.can_configure_data ?? false,
+      can_view_data: pur?.can_view_data ?? false,
+      can_view_metrics: pur?.can_view_metrics ?? false,
+      can_view_logs: pur?.can_view_logs ?? false,
+      can_view_script_code: pur?.can_view_script_code ?? false,
+    };
+  });
+}
+
+///////////////////////////
+//                       //
+//    Private projects   //
+//                       //
+///////////////////////////
+
+// Admin membership of a private project is binary: a full-access role row
+// or nothing (resolveProjectUserAccess grants member admins full access
+// whatever the flags say, so the flags carry no meaning for them).
+async function upsertFullAccessRole(
+  sql: Sql,
+  projectId: string,
+  email: string,
+): Promise<void> {
+  const full = Object.fromEntries(PROJECT_PERMISSIONS.map((k) => [k, true]));
+  await sql`
+    INSERT INTO project_user_roles ${
+    sql({ email, project_id: projectId, role: "editor", ...full })
+  }
+    ON CONFLICT (email, project_id) DO UPDATE SET ${sql(full)}
+  `;
+}
+
+// Admins and H_USERS get a blanket grant on public projects, so any role row
+// they hold there is leftover (a project's creator always gets one; bulk
+// edits can write them). Those rows would silently become membership the
+// moment the project goes private, so making it private clears every such
+// row except the acting admin's, who becomes the first admin member.
+export async function setProjectPrivateStatus(
+  mainDb: Sql,
+  projectId: string,
+  isPrivate: boolean,
+  actingEmail: string,
+): Promise<APIResponseWithData<{ label: string; isLocked: boolean; isPrivate: boolean }>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const row = await mainDb.begin(async (sql) => {
+      const updated = (
+        await sql<{ label: string; is_locked: boolean; was_private: boolean }[]>`
+          UPDATE projects p SET is_private = ${isPrivate}
+          FROM (SELECT is_private AS was_private FROM projects WHERE id = ${projectId}) old
+          WHERE p.id = ${projectId}
+          RETURNING p.label, p.is_locked, old.was_private
+        `
+      ).at(0);
+      if (!updated) throw new Error("Project not found");
+      if (isPrivate && !updated.was_private) {
+        await sql`
+          DELETE FROM project_user_roles
+          WHERE project_id = ${projectId}
+            AND email <> ${actingEmail}
+            AND (
+              email IN (SELECT email FROM users WHERE is_admin)
+              OR email = ANY(${H_USERS as string[]})
+            )
+        `;
+        await upsertFullAccessRole(sql, projectId, actingEmail);
+      }
+      return updated;
+    });
+    return {
+      success: true,
+      data: { label: row.label, isLocked: row.is_locked, isPrivate },
+    };
+  });
+}
+
+async function countAdminMembers(sql: Sql, projectId: string): Promise<number> {
+  const rows = await sql<Record<string, unknown>[]>`
+    SELECT pur.* FROM project_user_roles pur
+    JOIN users u ON u.email = pur.email
+    WHERE pur.project_id = ${projectId} AND u.is_admin
+  `;
+  return rows.filter((r) => roleRowGrantsAccess(r)).length;
+}
+
+// Add or remove an instance admin on a private project. Refuses to remove
+// the last admin member: non-admin members cannot make a project public
+// again, and no other admin can see it to rescue it.
+export async function setPrivateProjectAdminMembership(
+  mainDb: Sql,
+  projectId: string,
+  email: string,
+  isMember: boolean,
+): Promise<APIResponseWithData<{ projectUsers: ProjectUser[] }>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const project = (
+      await mainDb<{ is_private: boolean }[]>`
+        SELECT is_private FROM projects WHERE id = ${projectId}
+      `
+    ).at(0);
+    if (!project?.is_private) {
+      return {
+        success: false,
+        err: "Administrators already have access to projects that are not private",
+      };
+    }
+    const target = (
+      await mainDb<{ is_admin: boolean }[]>`
+        SELECT is_admin FROM users WHERE email = ${email}
+      `
+    ).at(0);
+    if (!target?.is_admin) {
+      return { success: false, err: "This user is not an administrator" };
+    }
+    const refusal = await mainDb.begin(async (sql) => {
+      if (isMember) {
+        await upsertFullAccessRole(sql, projectId, email);
+        return null;
+      }
+      await sql`
+        DELETE FROM project_user_roles
+        WHERE project_id = ${projectId} AND email = ${email}
+      `;
+      if ((await countAdminMembers(sql, projectId)) === 0) {
+        // Throwing rolls the delete back.
+        throw new Error("LAST_ADMIN_MEMBER");
+      }
+      return null;
+    }).catch((e) => {
+      if (e instanceof Error && e.message === "LAST_ADMIN_MEMBER") {
+        return "A private project needs at least one administrator. Add another administrator before removing this one.";
+      }
+      throw e;
+    });
+    if (refusal !== null) {
+      return { success: false, err: refusal };
+    }
+    const usersRes = await getProjectUsers(mainDb, projectId);
+    if (!usersRes.success) {
+      throw new Error(usersRes.err ?? "Failed to get project users");
+    }
+    return { success: true, data: { projectUsers: usersRes.data } };
+  });
+}
+
+// On a private project admins are managed only through
+// setPrivateProjectAdminMembership; the per-permission editors skip them so
+// a bulk edit cannot quietly add or remove an admin.
+async function withoutPrivateProjectAdmins(
+  mainDb: Sql,
+  projectId: string,
+  emails: string[],
+): Promise<string[]> {
+  const project = (
+    await mainDb<{ is_private: boolean }[]>`
+      SELECT is_private FROM projects WHERE id = ${projectId}
+    `
+  ).at(0);
+  if (!project?.is_private) return emails;
+  const admins = new Set(
+    (
+      await mainDb<{ email: string }[]>`
+        SELECT email FROM users WHERE is_admin AND email = ANY(${emails})
+      `
+    ).map((r) => r.email),
+  );
+  return emails.filter((e) => !admins.has(e));
+}
+
+
 /////////////////////////
 //                     //
 //    Project users    //
@@ -594,64 +789,16 @@ export async function getProjectUsers(
       DBProjectUserRole[]
     >`SELECT * FROM project_user_roles WHERE project_id = ${projectId}`;
 
-    const projectUsers = (
-      await mainDb<DBUser[]>`SELECT * FROM users`
-    ).map<ProjectUser>((u) => {
-      if (u.is_admin) {
-        return {
-          email: u.email,
-          role: "editor",
-          isGlobalAdmin: true,
-          firstName: u.first_name ?? undefined,
-          lastName: u.last_name ?? undefined,
-          can_configure_settings: true,
-          can_create_backups: true,
-          can_restore_backups: true,
-          can_configure_modules: true,
-          can_run_modules: true,
-          can_configure_users: true,
-          can_configure_visualizations: true,
-          can_view_visualizations: true,
-          can_configure_reports: true,
-          can_view_reports: true,
-          can_configure_slide_decks: true,
-          can_view_slide_decks: true,
-          can_configure_data: true,
-          can_view_data: true,
-          can_view_metrics: true,
-          can_view_logs: true,
-          can_view_script_code: true,
-        };
-      }
-      const pur = rawAllUserRolesForProject.find(
-        (pur) => pur.email === u.email,
-      );
-      return {
-        email: u.email,
-        role: !pur ? "none" : pur.role === "editor" ? "editor" : "viewer",
-        isGlobalAdmin: false,
-        firstName: u.first_name ?? undefined,
-        lastName: u.last_name ?? undefined,
-        can_configure_settings: pur?.can_configure_settings ?? false,
-        can_create_backups: pur?.can_create_backups ?? false,
-        can_restore_backups: pur?.can_restore_backups ?? false,
-        can_configure_modules: pur?.can_configure_modules ?? false,
-        can_run_modules: pur?.can_run_modules ?? false,
-        can_configure_users: pur?.can_configure_users ?? false,
-        can_configure_visualizations:
-          pur?.can_configure_visualizations ?? false,
-        can_view_visualizations: pur?.can_view_visualizations ?? false,
-        can_configure_reports: pur?.can_configure_reports ?? false,
-        can_view_reports: pur?.can_view_reports ?? false,
-        can_configure_slide_decks: pur?.can_configure_slide_decks ?? false,
-        can_view_slide_decks: pur?.can_view_slide_decks ?? false,
-        can_configure_data: pur?.can_configure_data ?? false,
-        can_view_data: pur?.can_view_data ?? false,
-        can_view_metrics: pur?.can_view_metrics ?? false,
-        can_view_logs: pur?.can_view_logs ?? false,
-        can_view_script_code: pur?.can_view_script_code ?? false,
-      };
-    });
+    const isPrivate = (
+      await mainDb<{ is_private: boolean }[]>`
+        SELECT is_private FROM projects WHERE id = ${projectId}
+      `
+    ).at(0)?.is_private ?? false;
+    const projectUsers = await buildProjectUsers(
+      mainDb,
+      rawAllUserRolesForProject,
+      isPrivate,
+    );
 
     return { success: true, data: projectUsers };
   });
@@ -662,6 +809,9 @@ export async function addProjectUserRole(
   projectId: string,
   email: string,
 ): Promise<APIResponseWithData<{ projectUsers: ProjectUser[] }>> {
+  if ((await withoutPrivateProjectAdmins(mainDb, projectId, [email])).length === 0) {
+    return await setPrivateProjectAdminMembership(mainDb, projectId, email, true);
+  }
   return await tryCatchDatabaseAsync(async () => {
     const defaultRow = (
       await mainDb<Record<string, boolean>[]>`
@@ -725,7 +875,14 @@ export async function updateProjectUserPermissions(
   permissions: Record<ProjectPermission, boolean>,
 ): Promise<APIResponseWithData<{ projectUsers: ProjectUser[] }>> {
   return await tryCatchDatabaseAsync(async () => {
-    for (const email of emails) {
+    const editable = await withoutPrivateProjectAdmins(mainDb, projectId, emails);
+    if (emails.length > 0 && editable.length === 0) {
+      return {
+        success: false,
+        err: "On a private project, administrators are added or removed, not given individual permissions",
+      };
+    }
+    for (const email of editable) {
       await mainDb`
         INSERT INTO project_user_roles (email, project_id, role, can_configure_settings, can_create_backups, can_restore_backups, can_configure_modules, can_run_modules, can_configure_users, can_configure_visualizations, can_view_visualizations, can_configure_reports, can_view_reports, can_configure_slide_decks, can_view_slide_decks, can_configure_data, can_view_data, can_view_metrics, can_view_logs, can_view_script_code)
         VALUES (${email}, ${projectId}, 'viewer', ${permissions.can_configure_settings}, ${permissions.can_create_backups}, ${permissions.can_restore_backups}, ${permissions.can_configure_modules}, ${permissions.can_run_modules}, ${permissions.can_configure_users}, ${permissions.can_configure_visualizations}, ${permissions.can_view_visualizations}, ${permissions.can_configure_reports}, ${permissions.can_view_reports}, ${permissions.can_configure_slide_decks}, ${permissions.can_view_slide_decks}, ${permissions.can_configure_data}, ${permissions.can_view_data}, ${permissions.can_view_metrics}, ${permissions.can_view_logs}, ${permissions.can_view_script_code})
@@ -772,8 +929,9 @@ export async function bulkUpdateProjectUserPermissions(
       }
       return { success: true, data: { projectUsers: usersRes.data } };
     }
+    const editable = await withoutPrivateProjectAdmins(mainDb, projectId, emails);
     await mainDb.begin(async (sql) => {
-      for (const email of emails) {
+      for (const email of editable) {
         await sql`
           INSERT INTO project_user_roles (email, project_id, role)
           VALUES (${email}, ${projectId}, 'viewer')
@@ -916,7 +1074,9 @@ export async function copyProjectSync(
       VALUES (${globalUser.email}, ${globalUser.isGlobalAdmin})
       ON CONFLICT (email) DO NOTHING
     `;
-    await mainDb`INSERT INTO projects (id, label, ai_context, status, admin_area_2) VALUES (${newProjectId}, ${newProjectLabel}, '', 'copying', ${sourceProject.admin_area_2})`;
+    // A copy of a private project is private too: otherwise copying would
+    // hand its content to every admin.
+    await mainDb`INSERT INTO projects (id, label, ai_context, status, admin_area_2, is_private) VALUES (${newProjectId}, ${newProjectLabel}, '', 'copying', ${sourceProject.admin_area_2}, ${sourceProject.is_private})`;
 
     await mainDb`
       INSERT INTO project_user_roles (email, project_id, role, can_configure_settings, can_create_backups, can_restore_backups, can_configure_modules, can_run_modules, can_configure_users, can_configure_visualizations, can_view_visualizations, can_configure_reports, can_view_reports, can_configure_slide_decks, can_view_slide_decks, can_configure_data, can_view_data, can_view_metrics, can_view_logs, can_view_script_code)
@@ -924,6 +1084,9 @@ export async function copyProjectSync(
       FROM project_user_roles
       WHERE project_id = ${sourceProjectId}
     `;
+    if (sourceProject.is_private) {
+      await upsertFullAccessRole(mainDb, newProjectId, globalUser.email);
+    }
 
     return {
       success: true,

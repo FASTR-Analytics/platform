@@ -29,6 +29,8 @@ export type ProjectState = {
   thisUserRole: "viewer" | "editor" | "admin"; // kept with hardcoding bug intact
   isLocked: boolean;
   isCentralReporting: boolean;
+  // Hidden from admins who are not members (resolveProjectUserAccess).
+  isPrivate: boolean;
   // The project's Admin Area 2 identity; null = national. Folded into the
   // client run version key so a scope change invalidates run-derived caches.
   adminArea2: string | null;
@@ -103,7 +105,7 @@ export type ProjectSseMessage =
     }
 
   // Data updates (replace current "project_updated" catch-all)
-  | { type: "project_config_updated"; data: { label: string; isLocked: boolean; aiContext?: string; isCentralReporting?: boolean; followPinned?: boolean } }
+  | { type: "project_config_updated"; data: { label: string; isLocked: boolean; aiContext?: string; isCentralReporting?: boolean; isPrivate?: boolean; followPinned?: boolean } }
   // Scope identity change: flips the client run version key, invalidating
   // every run-derived cache entry for this project (PLAN_1_PROJECT_AA2_SCOPE §5).
   | { type: "admin_area_2_changed"; data: { adminArea2: string | null } }
@@ -135,4 +137,7 @@ export type ProjectSseMessage =
     }
 
   // Error
-  | { type: "error"; data: { message: string } };
+  | { type: "error"; data: { message: string } }
+  // Sent once, then the stream closes: the connection's user lost access
+  // (removed, or the project went private). The client leaves the project.
+  | { type: "access_revoked"; data: { message: string } };

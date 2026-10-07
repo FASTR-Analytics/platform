@@ -118,8 +118,12 @@ export function closeConnectionsForEmail(
   email: string,
   closeCode: number,
   reason: string,
+  onlyProjectId?: string,
 ): void {
   for (const [projectId, conns] of projects) {
+    if (onlyProjectId !== undefined && projectId !== onlyProjectId) {
+      continue;
+    }
     let touched = false;
     for (const [connectionId, conn] of conns) {
       if (conn.entry.email !== email) {
@@ -144,6 +148,14 @@ export function closeConnectionsForEmail(
       }
     }
   }
+}
+
+/** The distinct emails with a live collab connection to the project (access
+ *  revalidation after a membership or privacy change). */
+export function getConnectedEmails(projectId: string): string[] {
+  const conns = projects.get(projectId);
+  if (!conns) return [];
+  return [...new Set([...conns.values()].map((c) => c.entry.email))];
 }
 
 export function removeConnection(projectId: string, connectionId: string): void {

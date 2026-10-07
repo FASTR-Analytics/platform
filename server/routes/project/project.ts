@@ -11,8 +11,11 @@ import {
   restoreProject,
   getProjectDetail,
   getProjectUserPermissions,
+  getProjectUsers,
+  setPrivateProjectAdminMembership,
   setProjectCentralReportingStatus,
   setProjectLockStatus,
+  setProjectPrivateStatus,
   updateProject,
   updateProjectAdminArea2,
   updateProjectUserPermissions,
@@ -28,6 +31,7 @@ import {
   notifyInstanceRunsCatalogUpdated,
 } from "../../task_management/notify_instance_updated.ts";
 import { defineRoute } from "../route-helpers.ts";
+import { revalidateProjectCollabConnections } from "./project-collab.ts";
 import { GetLogsByProject } from "../../db/instance/user_logs.ts";
 import { log } from "../../middleware/logging.ts";
 import { getPgConnectionFromCacheOrNew } from "../../db/mod.ts";
@@ -104,6 +108,7 @@ defineRoute(
       notifyInstanceProjectsLastUpdated(new Date().toISOString());
       // V2 notify
       notifyProjectUsersUpdated(c.var.ppk.projectId, res.data.projectUsers);
+      revalidateProjectCollabConnections(c.var.ppk.projectId).catch(() => {});
     }
     return c.json(res);
   },
@@ -143,6 +148,7 @@ defineRoute(
       notifyInstanceProjectsLastUpdated(new Date().toISOString());
       // V2 notify
       notifyProjectUsersUpdated(c.var.ppk.projectId, res.data.projectUsers);
+      revalidateProjectCollabConnections(c.var.ppk.projectId).catch(() => {});
     }
     return c.json(res);
   },
@@ -271,6 +277,64 @@ defineRoute(
   },
 );
 
+// Admin-only, and only an admin who can see the project (a member, once it
+// is private) reaches the handler. Going private re-runs every live
+// connection's access check: the project SSE re-checks on the config and
+// users messages below, the collab sockets are revalidated here.
+defineRoute(
+  routesProject,
+  "setProjectPrivateStatus",
+  requireProjectPermission({ requireAdmin: true }),
+  log("setProjectPrivateStatus"),
+  async (c, { body }) => {
+    const projectId = c.var.ppk.projectId;
+    const res = await setProjectPrivateStatus(
+      c.var.mainDb,
+      projectId,
+      body.isPrivate,
+      c.var.globalUser.email,
+    );
+    if (res.success) {
+      notifyInstanceProjectsLastUpdated(new Date().toISOString());
+      notifyProjectConfigUpdated(projectId, {
+        label: res.data.label,
+        isLocked: res.data.isLocked,
+        isPrivate: res.data.isPrivate,
+      });
+      const usersRes = await getProjectUsers(c.var.mainDb, projectId);
+      if (usersRes.success) {
+        notifyProjectUsersUpdated(projectId, usersRes.data);
+      }
+      revalidateProjectCollabConnections(projectId).catch(() => {});
+    }
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesProject,
+  "setPrivateProjectAdminMembership",
+  requireProjectPermission(
+    { preventAccessToLockedProjects: true },
+    "can_configure_users",
+  ),
+  log("setPrivateProjectAdminMembership"),
+  async (c, { body }) => {
+    const res = await setPrivateProjectAdminMembership(
+      c.var.mainDb,
+      c.var.ppk.projectId,
+      body.email,
+      body.isMember,
+    );
+    if (res.success) {
+      notifyInstanceProjectsLastUpdated(new Date().toISOString());
+      notifyProjectUsersUpdated(c.var.ppk.projectId, res.data.projectUsers);
+      revalidateProjectCollabConnections(c.var.ppk.projectId).catch(() => {});
+    }
+    return c.json(res);
+  },
+);
+
 defineRoute(
   routesProject,
   "setProjectCentralReportingStatus",
@@ -366,6 +430,7 @@ defineRoute(
       notifyInstanceProjectsLastUpdated(new Date().toISOString());
       // V2 notify
       notifyProjectUsersUpdated(c.var.ppk.projectId, res.data.projectUsers);
+      revalidateProjectCollabConnections(c.var.ppk.projectId).catch(() => {});
     }
     return c.json(res);
   },

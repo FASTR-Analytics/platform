@@ -8,6 +8,7 @@ import {
   listFollowPinnedProjects,
   listRunCatalog,
 } from "../../db/instance/run_generation.ts";
+import { getHiddenProjectIdsForUser } from "../../db/instance/users.ts";
 import { log } from "../../middleware/logging.ts";
 import { requireGlobalPermission } from "../../middleware/mod.ts";
 import {
@@ -86,7 +87,10 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("listRunCatalog"),
   async (c) => {
-    const res = await listRunCatalog(c.var.mainDb);
+    const res = await listRunCatalog(
+      c.var.mainDb,
+      await getHiddenProjectIdsForUser(c.var.mainDb, c.var.globalUser),
+    );
     return c.json(res);
   },
 );
@@ -113,7 +117,11 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("pinResultsPackage"),
   async (c, { params }) => {
-    const res = await pinRunAndRepointFollowers(c.var.mainDb, params.run_id);
+    const res = await pinRunAndRepointFollowers(
+      c.var.mainDb,
+      params.run_id,
+      await getHiddenProjectIdsForUser(c.var.mainDb, c.var.globalUser),
+    );
     return c.json(res);
   },
 );
@@ -134,7 +142,10 @@ defineRoute(
   "listFollowPinnedProjects",
   requireGlobalPermission("can_configure_data"),
   async (c) => {
-    const res = await listFollowPinnedProjects(c.var.mainDb);
+    const res = await listFollowPinnedProjects(
+      c.var.mainDb,
+      await getHiddenProjectIdsForUser(c.var.mainDb, c.var.globalUser),
+    );
     return c.json(res);
   },
 );
@@ -247,6 +258,19 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("launchRunGeneration"),
   async (c, { body }) => {
+    // Attach targets come from the caller's own (filtered) project list; an
+    // id they cannot see is refused like a deleted project.
+    const hidden = await getHiddenProjectIdsForUser(
+      c.var.mainDb,
+      c.var.globalUser,
+    );
+    if (body.attachTargetProjectIds.some((id) => hidden.has(id))) {
+      return c.json({
+        success: false,
+        err:
+          "These projects can no longer be attached to (deleted, locked, or being copied)",
+      });
+    }
     const res = await launchRunGeneration(
       c.var.mainDb,
       body,

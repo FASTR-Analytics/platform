@@ -4,6 +4,7 @@ import {
   getInstanceDatasetsSummary,
   getInstanceDetail,
   getInstanceIndicatorsSummary,
+  getHiddenProjectIdsForUser,
   getInstancePopulationSummary,
 } from "../db/mod.ts";
 import {
@@ -56,7 +57,10 @@ export async function buildInstanceState(
     (me?.can_configure_data ?? false);
   let runsCatalog: RunCatalogItem[] = [];
   if (canSeeRuns) {
-    const runsRes = await listRunCatalog(mainDb);
+    const runsRes = await listRunCatalog(
+      mainDb,
+      await getHiddenProjectIdsForUser(mainDb, globalUser),
+    );
     if (runsRes.success) {
       runsCatalog = runsRes.data;
     } else {

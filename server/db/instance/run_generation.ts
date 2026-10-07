@@ -1,4 +1,5 @@
 import postgres, { type Sql } from "postgres";
+import { redactHiddenProjectLabel } from "./users.ts";
 import {
   runProgressSchema,
   type APIResponseNoData,
@@ -70,8 +71,12 @@ function toRunListingItem(row: RunListingRow): RunListingItem {
 // they come from projects.run_id, the serving pointer, never from the
 // summary's launch-time attach selection, which says nothing about where a
 // run ended up.
+// hiddenProjectIds: projects the caller cannot see (private). They stay in
+// attachedProjects (the delete guard and prune plan count them) under a
+// placeholder label.
 export async function listRunCatalog(
   mainDb: Sql,
+  hiddenProjectIds: Set<string>,
 ): Promise<APIResponseWithData<RunCatalogItem[]>> {
   try {
     const rows = await mainDb<
@@ -95,7 +100,10 @@ ORDER BY r.created_at DESC
       success: true,
       data: rows.map((row) => ({
         ...toRunListingItem(row),
-        attachedProjects: row.attached_projects,
+        attachedProjects: row.attached_projects.map((p) => ({
+          id: p.id,
+          label: redactHiddenProjectLabel(p, hiddenProjectIds),
+        })),
       })),
     };
   } catch (e) {
@@ -410,6 +418,7 @@ SELECT run_id FROM projects WHERE id = ${projectId}
 // target.
 export async function listFollowPinnedProjects(
   mainDb: Sql,
+  hiddenProjectIds: Set<string>,
 ): Promise<APIResponseWithData<FollowPinnedProject[]>> {
   try {
     const rows = await mainDb<
@@ -422,7 +431,7 @@ ORDER BY label
       success: true,
       data: rows.map((r) => ({
         id: r.id,
-        label: r.label,
+        label: redactHiddenProjectLabel(r, hiddenProjectIds),
         isLocked: r.is_locked,
         runId: r.run_id,
       })),

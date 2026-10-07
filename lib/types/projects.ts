@@ -20,6 +20,7 @@ export type ProjectSummary = {
   label: string;
   thisUserRole: "viewer" | "editor";
   isLocked: boolean;
+  isPrivate: boolean;
   isCentralReporting: boolean;
   adminArea2: string | null;
   status: "ready" | "copying" | "pending_deletion";
@@ -39,6 +40,7 @@ export type ProjectDetail = {
   thisUserRole: "viewer" | "editor" | "admin";
   isLocked: boolean;
   isCentralReporting: boolean;
+  isPrivate: boolean;
   // The project's Admin Area 2 identity (projects.admin_area_2); null =
   // national. Scopes every run read server-side (PLAN_1_PROJECT_AA2_SCOPE).
   adminArea2: string | null;

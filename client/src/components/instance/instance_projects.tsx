@@ -237,6 +237,18 @@ export function InstanceProjects(p: Props) {
                           </div>
                         )}
                       </Show>
+                      <Show when={project.isPrivate}>
+                        <div class="ui-gap-sm text-base-content-muted flex text-sm">
+                          <span class="relative inline-flex h-[1.25em] w-[1.25em]">
+                            <Icon iconName="eyeOff" />
+                          </span>
+                          {t3({
+                            en: "Private project",
+                            fr: "Projet privé",
+                            pt: "Projeto privado",
+                          })}
+                        </div>
+                      </Show>
                       <Show when={project.isLocked}>
                         <div class="ui-gap-sm text-primary flex text-sm">
                           <span class="relative inline-flex h-[1.25em] w-[1.25em]">

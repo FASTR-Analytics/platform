@@ -28,7 +28,8 @@ import {
   type DBProject,
   type DBProjectUserRole,
 } from "./_main_database_types.ts";
-import { getAssetsForInstance } from "./assets.ts";
+import { getAssetsForUser } from "./assets.ts";
+import { getProjectIdsWithRoleForUser } from "./users.ts";
 import { getGeoJsonMapSummaries } from "./geojson_maps.ts";
 import { getAdminAreaLabelsConfig, getStructureSchema } from "./config.ts";
 import { getCurrentDatasetHmisMaxVersionId } from "./dataset_hmis.ts";
@@ -275,6 +276,9 @@ export async function getProjectsForUser(
   globalUser: GlobalUser,
 ): Promise<ProjectSummary[]> {
   if (globalUser.isGlobalAdmin || H_USERS.includes(globalUser.email)) {
+    // Private projects drop out of the blanket grant: listed only where the
+    // admin holds a role row (resolveProjectUserAccess).
+    const withRole = await getProjectIdsWithRoleForUser(mainDb, globalUser.email);
     return (
       await mainDb<(DBProject & { last_activity_at: Date | null; run_label: string | null })[]>`
         SELECT p.*, la.last_activity_at, r.label AS run_label
@@ -288,11 +292,12 @@ export async function getProjectsForUser(
         ) la ON la.project_id = p.id
         ORDER BY LOWER(p.label)
       `
-    ).map<ProjectSummary>((p) => ({
+    ).filter((p) => !p.is_private || withRole.has(p.id)).map<ProjectSummary>((p) => ({
       id: p.id,
       label: p.label,
       thisUserRole: "editor",
       isLocked: p.is_locked,
+      isPrivate: p.is_private,
       isCentralReporting: p.is_central_reporting,
       adminArea2: p.admin_area_2,
       status: p.status as ProjectSummary["status"],
@@ -333,6 +338,7 @@ export async function getProjectsForUser(
     label: p.label,
     thisUserRole: p.role === "editor" ? "editor" : "viewer",
     isLocked: p.is_locked,
+    isPrivate: p.is_private,
     isCentralReporting: false,
     adminArea2: p.admin_area_2,
     status: p.status as ProjectSummary["status"],
@@ -382,7 +388,7 @@ export async function getInstanceDetail(
       `
       ).at(0)?.total_count ?? 0;
 
-    const resAssets = await getAssetsForInstance(mainDb);
+    const resAssets = await getAssetsForUser(mainDb, globalUser);
     if (resAssets.success === false) {
       return resAssets;
     }

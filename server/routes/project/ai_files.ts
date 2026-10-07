@@ -1,5 +1,8 @@
 import { Hono } from "hono";
-import { resolveAssetFilePath } from "../../db/instance/assets.ts";
+import {
+  checkAssetsVisibleToUser,
+  resolveAssetFilePath,
+} from "../../db/instance/assets.ts";
 import { requireProjectPermission } from "../../project_auth.ts";
 import {
   _ANTHROPIC_API_KEY,
@@ -23,6 +26,16 @@ routesAiFiles.post("/files", requireProjectPermission(), async (c) => {
 
   if (!assetFilename) {
     return c.json({ error: { message: "assetFilename is required" } }, 400);
+  }
+
+  // A private asset the caller cannot see answers like a missing one.
+  const visible = await checkAssetsVisibleToUser(
+    c.var.mainDb,
+    [assetFilename],
+    c.var.globalUser,
+  );
+  if (!visible.success) {
+    return c.json({ error: { message: "File not found in assets" } }, 404);
   }
 
   // Read file from assets
