@@ -273,6 +273,15 @@ Deno.test("scope grants: products, folders, data reads, collab and /mcp", async 
       scopeId: other,
     });
     productIds.push(inside.productId, outside.productId);
+    // A new product is its creator's alone (PLAN_PRODUCT_OWNERSHIP R2), so
+    // its owner opens it to everyone at edit, leaving scope as the only rule
+    // these checks exercise.
+    for (const product of [inside, outside]) {
+      await ok(open, "PUT", `/products/${product.productId}/access`, {
+        defaultAccess: "edit",
+        grants: [],
+      });
+    }
 
     // Product list: the starting payload carries only the granted share.
     const limitedState = await buildInstanceState(mainDb, limitedUser);

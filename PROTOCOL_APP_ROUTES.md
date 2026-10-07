@@ -47,6 +47,11 @@ createFolder: route({
   (`slide_id`, `version_id`) follow it, folder paths use `folder_id`, and body
   targets are `productIds` and `targetProductId` (products), `folderId` and
   `parentId` (folders). The guard reads its targets from exactly those fields.
+  The declared level applies to the subjects (`product_id`, `productIds`); a
+  `targetProductId` is a destination the route writes into and always needs
+  `edit`, so a route that only reads its subject and writes elsewhere declares
+  `view`. Folders carry no level, so a folder route declares `edit`, and `own`
+  on a folder route means a global admin only.
 - Don't add `z.unknown()` body fields to dodge writing a schema; the only
   sanctioned uses are external-spec blobs (GeoJSON `geo.data` in
   `lib/types/_figure_bundle.ts`, the per-item `style` record in

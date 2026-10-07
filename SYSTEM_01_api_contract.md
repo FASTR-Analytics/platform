@@ -498,21 +498,35 @@ in `lib/api-routes/products/*` declares `access: "view" | "edit"
 `satisfies` that requires it), and `defineRoute` installs the middleware
 whenever an entry carries the field. Per request it authenticates (401),
 resolves the route's targets from the id fields the contract declares and
-nowhere else (path `product_id` / `folder_id`; body `productIds`,
-`targetProductId`, `folderId`, `parentId`, `scopeId`; a route declaring
-`folder_id` or `parentId` is a folder route), and awaits
-`productAccessPolicy(mainDb, user, level, targets)` in
-`server/auth/product_access.ts` once (403 on false). The level is not consulted.
-An approved unrestricted user is a full editor of every product and folder. A
-restricted user (`user.scopeAccess.all === false`, S15 "Scope access") may act
-only on products whose scope they hold, may name only a scope they hold, may
-name as a destination only the root or a folder whose subtree holds one of their
-products (`visibleFolderIds`), and is refused every folder route. An id that
-names no row passes the policy and fails in the handler. Doctrine: the product
-id in the path IS the authority; a future permission model replaces the policy
-function and inherits the per-route access inventory, and must never be built as
-per-handler checks behind this guard. The registry's other guards never check
-`access`; instance routes do not declare it.
+nowhere else, and awaits `productAccessPolicy(mainDb, user, level, targets)` in
+`server/auth/product_access.ts` once (403 on false). The targets are two product
+lists, `productIds` (the subjects: path `product_id` and body `productIds`,
+which need the declared level) and `destinationProductIds` (body
+`targetProductId`, a product the route writes into, which always needs `edit`),
+plus `folderIds` (path `folder_id`, body `folderId` and `parentId`) and
+`scopeIds` (body `scopeId`); a route declaring `folder_id` or `parentId` is a
+folder route.
+
+The policy is level-aware (S12 "Contract" says what each level allows). In
+order: an unapproved user is refused. A global admin passes with no query: an
+admin is unrestricted and owns every product. A folder route is refused to a
+restricted user; one that declares `own` is refused to everyone else too,
+because nobody but an admin owns a folder (only the bulk action,
+`setFolderProductsAccess`, declares it); any other folder route passes, since
+folders carry no level. Every named scope must be one the user holds. Then one
+query, `getProductLevelRows`, reads every subject and destination: its scope,
+owner, general access and the caller's grant. Each must carry a scope the user
+holds and a level, by `productLevelFor`, at least the declared one for a subject
+and `edit` for a destination (`holdsProductLevel`). A destination folder passes
+for an unrestricted user; a restricted user (`user.scopeAccess.all
+=== false`,
+S15 "Scope access") may name only the root or a folder whose subtree holds a
+product they can see, by scope and level (`visibleFolderIdsForUser`, over
+`visibleFolderIds`). An id that names no row passes the policy and fails in the
+handler. Doctrine: the product id in the path IS the authority; a future
+permission model replaces the policy function and inherits the per-route access
+inventory, and must never be built as per-handler checks behind this guard. The
+registry's other guards never check `access`; instance routes do not declare it.
 
 **The `authError` flag is 401-only.** Only the 401 not-authenticated responses
 carry `authError: true`; no 403 in any guard does, and the client
@@ -531,9 +545,11 @@ token-refresh/logout. Auth-failure vs outage stays distinguishable by status:
 
 Six instance permissions: `can_configure_users`, `can_view_users`,
 `can_view_logs`, `can_configure_settings`, `can_configure_data`, `can_view_data`
-(migration 046 removes `can_configure_assets`). There are no per-product
-permissions: product access is `productAccessPolicy` above. A restricted user's
-`can_view_data`, `can_configure_data` and `can_view_logs` read as false
+(migration 046 removes `can_configure_assets`). Product access is not one of
+them: it is per product, a level derived from the product's owner, general
+access and grants (`productLevelFor`, `lib/types/products.ts`), enforced by
+`productAccessPolicy` above. A restricted user's `can_view_data`,
+`can_configure_data` and `can_view_logs` read as false
 (`permissionsUnderScopeAccess`, `lib/types/instance.ts`), applied once where the
 row becomes a `GlobalUser` (`buildGlobalUserFromDb`) and, for the client's own
 row, where the roster row becomes `currentUserPermissions`. Display labels are

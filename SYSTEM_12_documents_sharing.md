@@ -57,6 +57,7 @@ globs:
   - server/tests/folder_tree_test.ts
   - server/tests/products_routes_test.ts
   - server/tests/product_access_db_test.ts
+  - server/tests/product_access_routes_test.ts
   - server/tests/product_level_test.ts
   - server/tests/scope_grants_routes_test.ts
   - server/tests/scope_routes_test.ts
@@ -141,13 +142,46 @@ functions and additive columns (`saveSlideCheckpoint` / `saveReportCheckpoint`,
 `server/db/products/{reports,slides,slide_decks}.ts`, and the version-history
 routes ride its route files. S12 owns the files, S16 the feature (SYSTEMS.md
 §4.1; [SYSTEM_16_collaboration.md](SYSTEM_16_collaboration.md)). Every product
-route declares its `access` level and is guarded by `requireProductAccess` (S1;
-an unrestricted approved user passes every level, a restricted one only for
-products in their grants, PLAN_SCOPES §2.6); on the client the one gate is
-`canEditProduct(productId)` in `state/instance/product_access.ts`, which needs
-no grant check because a restricted client holds only its grants' products.
-There is no unauthenticated product surface: a deck reaches recipients as an
-emailed PDF (cross-cutting audit SYSTEMS.md §4.3.9).
+route declares its `access` level and is guarded by `requireProductAccess` (S1:
+the user needs the declared level on the product and, if restricted, its scope);
+on the client the one gate is `canEditProduct(productId)` in
+`state/instance/product_access.ts`, which needs no grant check because a
+restricted client holds only its grants' products. There is no unauthenticated
+product surface: a deck reaches recipients as an emailed PDF (cross-cutting
+audit SYSTEMS.md §4.3.9).
+
+**Access is a Google Doc's** (PLAN_PRODUCT_OWNERSHIP). A product has one owner,
+per-user grants at `view` or `edit`, and a general access for everyone else in
+the instance (`none`, `view` or `edit`); global admins own every product. What
+each level allows:
+
+| Level  | Allows                                                                                                                                                                                                    |
+| ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `none` | Nothing. The product is absent from the list, the stream and the collab socket.                                                                                                                           |
+| `view` | List it and open it read-only, present, download, email it ("Share…"), duplicate, read version history, restore a version as a copy, copy slides into a deck the user can edit, ask the copilot about it. |
+| `edit` | Everything `view` allows, plus every content write, rename, move, package and scope changes, version restore, report style changes, and `setProductAccess`.                                               |
+| `own`  | Everything `edit` allows, plus delete and `setProductOwner`.                                                                                                                                              |
+
+A new product, a duplicate and a restore-as-copy belong to whoever made them and
+start at general access `none`; grants are never copied. Folders carry no level:
+any approved unrestricted user may create, rename, move or delete a folder, and
+a deleted folder's contents move one level up, including products that user
+cannot see. The bulk action, `setFolderProductsAccess`
+(`PUT /folders/:folder_id/products/access`, global admins only), applies a
+general access and a list of people to every product in a folder and its
+subfolders at that moment, and only raises: general access becomes the higher of
+its value and the chosen one, each person's grant the higher of theirs and the
+chosen level, and a person who owns a product is skipped for it. Nothing is
+removed and nothing is inherited, so a product created in or moved into the
+folder later gets nothing. It is how admins give a team access to the
+consolidated products, which migration 210 left ownerless at `view`, one project
+folder at a time. `setProductAccess` (`PUT
+/products/:product_id/access`,
+`edit`) replaces a product's general access and grants, and `setProductOwner`
+(`PUT /products/:product_id/owner`, `own`) transfers it. An editor may remove
+their own grant or lower the general access below their own level; the owner and
+the admins always keep access. None of the three bumps `last_updated` or records
+a version edit: each re-broadcasts the summaries it changed.
 
 ## The products registry on `main`
 

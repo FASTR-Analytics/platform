@@ -2,11 +2,18 @@ import {
   canUseScope,
   type Folder,
   type GlobalUser,
+  type ProductAccess,
   type ProductAccessLevel,
+  type ProductGrantLevel,
+  type ProductLevel,
+  productLevelAtLeast,
+  productLevelFor,
   type ScopeId,
   type ScopeUuid,
 } from "lib";
 import type { Sql } from "postgres";
+import type { DBProduct } from "../db/instance/_main_database_types.ts";
+import { getProductLevelRows } from "../db/products/products.ts";
 
 // The ids a product or folder route acts on, resolved by requireProductAccess
 // from the fields the route declares (path product_id / folder_id; body
@@ -25,15 +32,17 @@ export type ProductAccessTargets = {
   folderRoute: boolean;
 };
 
-// The one product-access policy (PLAN_PRODUCTS_RESTRUCTURE D2, PLAN_SCOPES
-// §2.6). Every approved unrestricted user is a full editor of every product
-// and folder, so the level is not consulted, except that only a global admin
-// passes a folder route declaring own: nobody else owns a folder. A
-// restricted user may act only on products whose scope they hold, may name
-// only a scope they hold (R14), may place a product only at the root or in a
-// folder they can see, and may not create, change or delete a folder (R23).
-// An id that names no row passes here and fails in the handler, as it does
-// for an unrestricted user.
+// The one product-access policy (PLAN_PRODUCT_OWNERSHIP §2.4, built on
+// PLAN_PRODUCTS_RESTRUCTURE D2 and PLAN_SCOPES §2.6). A global admin owns
+// every product and is unrestricted, so passes with no query. Folders carry
+// no level (R5): a folder route passes for every approved unrestricted user,
+// except one declaring own, which only a global admin passes because nobody
+// else owns a folder; a restricted user is refused every folder route
+// (PLAN_SCOPES R23). Every named scope must be one the user holds (R14). Each
+// subject needs the declared level and each destination edit, both through
+// holdsProductLevel, in one query. A restricted user may name as a
+// destination folder only the root or a folder they can see. An id that names
+// no row passes here and fails in the handler.
 export async function productAccessPolicy(
   mainDb: Sql,
   user: GlobalUser,
@@ -42,29 +51,54 @@ export async function productAccessPolicy(
 ): Promise<boolean> {
   if (!user.approved) return false;
   if (user.isGlobalAdmin) return true;
-  if (targets.folderRoute && level === "own") return false;
   const access = user.scopeAccess;
-  if (access.all) return true;
-  if (targets.folderRoute) return false;
+  if (targets.folderRoute) return access.all && level !== "own";
   if (!targets.scopeIds.every((id) => canUseScope(access, id))) return false;
   const productIds = [
     ...targets.productIds,
     ...targets.destinationProductIds,
   ];
   if (productIds.length > 0) {
-    const outside = await mainDb<{ id: string }[]>`
-      SELECT id FROM products
-      WHERE id = ANY(${productIds})
-        AND NOT (scope_id = ANY(${access.scopeIds}))
-      LIMIT 1
-    `;
-    if (outside.length > 0) return false;
+    const rows = new Map(
+      (await getProductLevelRows(mainDb, productIds, user.email)).map(
+        (row) => [row.productId, row],
+      ),
+    );
+    const allows = (required: ProductLevel) => (id: string) => {
+      const row = rows.get(id);
+      return row === undefined ||
+        holdsProductLevel(user, row.scopeId, row.access, required);
+    };
+    if (
+      !targets.productIds.every(allows(level)) ||
+      !targets.destinationProductIds.every(allows("edit"))
+    ) {
+      return false;
+    }
   }
-  if (targets.folderIds.length > 0) {
-    const visible = await visibleFolderIdsForScopes(mainDb, access.scopeIds);
+  if (!access.all && targets.folderIds.length > 0) {
+    const visible = await visibleFolderIdsForUser(
+      mainDb,
+      user,
+      access.scopeIds,
+    );
     if (!targets.folderIds.every((id) => visible.has(id))) return false;
   }
   return true;
+}
+
+// A user holds a level on a product when they hold its scope (an
+// unrestricted user holds every scope) and productLevelFor reaches the level:
+// scope and level are both required, the owner included (R6). Seeing a
+// product is holding view (R11).
+export function holdsProductLevel(
+  user: Pick<GlobalUser, "email" | "isGlobalAdmin" | "scopeAccess">,
+  scopeId: ScopeId,
+  access: ProductAccess,
+  required: ProductLevel,
+): boolean {
+  return canUseScope(user.scopeAccess, scopeId) &&
+    productLevelAtLeast(productLevelFor(access, user), required);
 }
 
 // R23: a folder is visible when its subtree holds a visible product, so the
@@ -85,20 +119,46 @@ export function visibleFolderIds(
   return visible;
 }
 
-async function visibleFolderIdsForScopes(
+// The folders a restricted user can see: those whose subtree holds a product
+// the user can see, by scope and level (R5).
+async function visibleFolderIdsForUser(
   mainDb: Sql,
+  user: GlobalUser,
   scopeIds: ScopeUuid[],
 ): Promise<Set<string>> {
   const [folders, products] = await Promise.all([
     mainDb<{ id: string; parent_id: string | null }[]>`
       SELECT id, parent_id FROM folders
     `,
-    mainDb<{ folder_id: string | null }[]>`
-      SELECT DISTINCT folder_id FROM products WHERE scope_id = ANY(${scopeIds})
+    mainDb<
+      (
+        & Pick<DBProduct, "folder_id" | "scope_id" | "owner" | "default_access">
+        & {
+          grant_level: ProductGrantLevel | null;
+        }
+      )[]
+    >`
+      SELECT p.folder_id, p.scope_id, p.owner, p.default_access,
+        pa.level AS grant_level
+      FROM products p
+      LEFT JOIN product_access pa
+        ON pa.product_id = p.id AND pa.email = ${user.email}
+      WHERE p.scope_id = ANY(${scopeIds})
     `,
   ]);
+  const visibleProductFolderIds = products
+    .filter((p) =>
+      holdsProductLevel(user, p.scope_id, {
+        owner: p.owner,
+        defaultAccess: p.default_access,
+        grants: p.grant_level === null
+          ? []
+          : [{ email: user.email, level: p.grant_level }],
+      }, "view")
+    )
+    .map((p) => p.folder_id);
   return visibleFolderIds(
     folders.map((f) => ({ id: f.id, parentId: f.parent_id })),
-    products.map((p) => p.folder_id),
+    visibleProductFolderIds,
   );
 }
