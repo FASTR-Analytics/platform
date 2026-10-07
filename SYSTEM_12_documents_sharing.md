@@ -189,24 +189,26 @@ inside the transaction for the room closers; `duplicateProduct` clones `run_id`
 through `INSERT ... SELECT`, takes `scopeId` from the body (the duplicate
 modal's "keep" sends each source's own; an unknown scope is `SCOPE_NOT_FOUND`)
 and copies the detail through a per-type `Record<ProductType, fn>`.
-`folders.ts`: `updateFolder` is also the move and refuses a cycle with a
-recursive CTE walking up from the new parent inside the same transaction
-(`FOLDER_CYCLE`, through the envelope); `deleteFolder` reparents child folders
-and products one level and returns `freedProductIds`. `slide_decks.ts`,
-`slides.ts`, `move_slides.ts`, `copy_slides.ts` (`copySlidesToSlideDeck`, the
-cross-deck reuse path: configs copied verbatim, scoped by the source product),
-`reports.ts` and `versions.ts` hold the per-type detail: every slide read and
-write is scoped by `product_id` AND `slide_id`, the label lives on `products`
-and the detail reads join it, and the version functions carry the `SlideDeck`
-stem on the `slide_deck_versions` table (`insertSlideDeckVersion`,
-`latestSlideDeckVersionHash`, `copySlideDeckFromVersion`). Every detail mutation
-opens its transaction with `touchProduct` (`_product_row.ts`, which also holds
-the two type not-found constants): one `UPDATE products ... WHERE id AND type`
-that stamps `last_updated` (and the label when the write carries one) and throws
-the writer's type not-found when it matches nothing, so a missing id or a report
-id sent to a deck route rolls back with no side effect and leaves as a 404.
-`updateFolder` and `deleteFolder` throw `FOLDER_NOT_FOUND` the same way.
-`setProductRun`, the products half of the run delete guard and
+`folders.ts`: `moveFolder` is the move, writes only the parent and refuses a
+cycle with a recursive CTE walking up from the new parent inside the same
+transaction (`FOLDER_CYCLE`, through the envelope); `updateFolder` writes label
+and colour only, so a rename and a move cannot undo one another; `deleteFolder`
+reparents child folders and products one level and returns `freedProductIds`.
+`slide_decks.ts`, `slides.ts`, `move_slides.ts`, `copy_slides.ts`
+(`copySlidesToSlideDeck`, the cross-deck reuse path: configs copied verbatim,
+scoped by the source product), `reports.ts` and `versions.ts` hold the per-type
+detail: every slide read and write is scoped by `product_id` AND `slide_id`, the
+label lives on `products` and the detail reads join it, and the version
+functions carry the `SlideDeck` stem on the `slide_deck_versions` table
+(`insertSlideDeckVersion`, `latestSlideDeckVersionHash`,
+`copySlideDeckFromVersion`). Every detail mutation opens its transaction with
+`touchProduct` (`_product_row.ts`, which also holds the two type not-found
+constants): one `UPDATE products ... WHERE id AND type` that stamps
+`last_updated` (and the label when the write carries one) and throws the
+writer's type not-found when it matches nothing, so a missing id or a report id
+sent to a deck route rolls back with no side effect and leaves as a 404.
+`moveFolder`, `updateFolder` and `deleteFolder` throw `FOLDER_NOT_FOUND` the
+same way. `setProductRun`, the products half of the run delete guard and
 `listReadyPackages` live in `db/instance/run_generation.ts`. Ids mint at four
 characters (`generateUniqueProductId`, `generateUniqueSlideId`; existing 3-char
 ids stay valid).
@@ -606,17 +608,18 @@ button and the right-click menu, and both share `buildQuickMoveEntries`,
 relative to the item's own folder: **Move into ▸** (its sibling folders, capped
 at 10, then More…), **Move up to "grandparent"**, the root entry (**Move to
 General** for a product, **Move to top level** for a folder, the label passed by
-each builder), **Move to folder…**. There is no drag-and-drop. The full picker
-(`move_to_folder_modal.tsx`) moves a product or a folder, lists flat full paths
-sorted by path with General first (`GENERAL_ID` as the option value for the
-root), and excludes a moved folder's own subtree; the server's typed
-`FOLDER_CYCLE` is still the authority. `edit_folder_modal.tsx` creates a folder
-at the top level and renames or recolours an existing one, sending its parent
-back unchanged because label, colour and parent are one `updateFolder` write.
-Deleting a folder **reparents one level and never cascades**, and the
-confirmation carries the direct counts and the destination: the parent for a
-nested folder, and for a root folder the top level for its folders and General
-for its products.
+each builder), **Move to folder…**. There is no drag-and-drop. Every folder
+move, quick or picked, is `moveFolder`, which writes only the parent. The full
+picker (`move_to_folder_modal.tsx`) moves a product (`moveProductsToFolder`) or
+a folder (`moveFolder`), lists flat full paths sorted by path with General first
+(`GENERAL_ID` as the option value for the root), and excludes a moved folder's
+own subtree; the server's typed `FOLDER_CYCLE` is still the authority.
+`edit_folder_modal.tsx` creates a folder at the top level and renames or
+recolours an existing one through `updateFolder`, which writes label and colour
+only and never the parent, so a rename cannot undo a move. Deleting a folder
+**reparents one level and never cascades**, and the confirmation carries the
+direct counts and the destination: the parent for a nested folder, and for a
+root folder the top level for its folders and General for its products.
 
 Create is one **New** button whose menu offers New deck, New report and New
 folder. Everything is created at the root, where a product shows under General,

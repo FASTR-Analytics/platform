@@ -405,8 +405,16 @@ Deno.test("scope grants: products, folders, data reads, collab and /mcp", async 
       (await call(limited, "PUT", `/folders/${visibleFolder.folderId}`, {
         label: "x",
         color: null,
-        parentId: null,
       })).status,
+      403,
+    );
+    assertEquals(
+      (await call(
+        limited,
+        "PUT",
+        `/folders/${visibleFolder.folderId}/parent`,
+        { parentId: null },
+      )).status,
       403,
     );
     assertEquals(

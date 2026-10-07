@@ -4,6 +4,7 @@ import {
   createFolder,
   deleteFolder,
   listFolders,
+  moveFolder,
   updateFolder,
 } from "../../db/products/mod.ts";
 import { log } from "../../middleware/logging.ts";
@@ -51,6 +52,20 @@ defineRoute(
   log("updateFolder"),
   async (c, { params, body }) => {
     const res = await updateFolder(c.var.mainDb, params.folder_id, body);
+    if (!res.success) {
+      return respond(c, res);
+    }
+    await notifyFolders(c.var.mainDb);
+    return respond(c, res);
+  },
+);
+
+defineRoute(
+  routesFolders,
+  "moveFolder",
+  log("moveFolder"),
+  async (c, { params, body }) => {
+    const res = await moveFolder(c.var.mainDb, params.folder_id, body.parentId);
     if (!res.success) {
       return respond(c, res);
     }

@@ -426,23 +426,60 @@ SELECT id FROM runs WHERE status = 'ready' AND NOT pinned ORDER BY created_at DE
       parentId: folderB.folderId,
     });
     createdFolderIds.push(folderC.folderId);
-    const cycle = await call(app, "PUT", `/folders/${folderA.folderId}`, {
-      label: "Harness A",
-      color: null,
-      parentId: folderC.folderId,
-    });
+    const cycle = await call(
+      app,
+      "PUT",
+      `/folders/${folderA.folderId}/parent`,
+      { parentId: folderC.folderId },
+    );
     assertEquals(cycle.body, { success: false, err: FOLDER_CYCLE });
-    const selfCycle = await call(app, "PUT", `/folders/${folderA.folderId}`, {
-      label: "Harness A",
-      color: null,
-      parentId: folderA.folderId,
-    });
+    const selfCycle = await call(
+      app,
+      "PUT",
+      `/folders/${folderA.folderId}/parent`,
+      { parentId: folderA.folderId },
+    );
     assertEquals(selfCycle.body, { success: false, err: FOLDER_CYCLE });
+    // A move writes only the parent and a rename only label and colour, so
+    // neither undoes the other.
+    async function folderRow(id: string) {
+      return (
+        await mainDb<
+          { label: string; color: string | null; parent_id: string | null }[]
+        >`SELECT label, color, parent_id FROM folders WHERE id = ${id}`
+      )[0];
+    }
+    await ok(app, "PUT", `/folders/${folderC.folderId}/parent`, {
+      parentId: null,
+    });
+    await ok(app, "PUT", `/folders/${folderC.folderId}`, {
+      label: "Harness C renamed",
+      color: "#00ff00",
+    });
+    assertEquals(await folderRow(folderC.folderId), {
+      label: "Harness C renamed",
+      color: "#00ff00",
+      parent_id: null,
+    });
+    await ok(app, "PUT", `/folders/${folderC.folderId}/parent`, {
+      parentId: folderB.folderId,
+    });
+    assertEquals(
+      (await folderRow(folderC.folderId)).parent_id,
+      folderB.folderId,
+    );
     const missingFolder = crypto.randomUUID();
+    const missingMove = await call(
+      app,
+      "PUT",
+      `/folders/${missingFolder}/parent`,
+      { parentId: folderA.folderId },
+    );
+    assertEquals(missingMove.status, 404);
+    assertEquals(missingMove.body, { success: false, err: FOLDER_NOT_FOUND });
     const missingUpdate = await call(app, "PUT", `/folders/${missingFolder}`, {
       label: "Nobody",
       color: null,
-      parentId: null,
     });
     assertEquals(missingUpdate.status, 404);
     assertEquals(missingUpdate.body, { success: false, err: FOLDER_NOT_FOUND });

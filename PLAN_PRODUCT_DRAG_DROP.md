@@ -12,7 +12,7 @@ their own route, `moveFolder`, which writes only the parent, and `updateFolder`
 narrows to label and colour, so a rename and a move can no longer undo each
 other.
 
-**Next step: Do 1**
+**Next step: Review 1**
 
 - Repo: `wb-fastr-v2`, the worktree at
   `/Users/timroberton/projects/apps/wb-fastr-v2`, on branch `version2`. Never
@@ -371,7 +371,10 @@ localStorage key.
 
 ## 8. Build log
 
-| Date       | Step | Row                                                                         |
-| ---------- | ---- | --------------------------------------------------------------------------- |
-| 2026-10-06 | plan | Written from the chat ruling of 2026-10-06. Next step: Do 1.                |
-| 2026-10-07 | plan | §2.4: `dragItem` takes only a product or folder row (Tim). Next step: Do 1. |
+| Date       | Step | Row                                                                                                                                                                                                                                                                                                                                                                                |
+| ---------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-10-06 | plan | Written from the chat ruling of 2026-10-06. Next step: Do 1.                                                                                                                                                                                                                                                                                                                       |
+| 2026-10-07 | plan | §2.4: `dragItem` takes only a product or folder row (Tim). Next step: Do 1.                                                                                                                                                                                                                                                                                                        |
+| 2026-10-07 | 1    | `deno task test`: 2 failures in `server/tests/report_fastr_word_test.ts` ("raster block ids", "kitchen sink"), outside the surface. The same two fail on a clean checkout of HEAD (b04ec84a2) without this step, so they are pre-existing. Reported, not fixed.                                                                                                                    |
+| 2026-10-07 | 1    | PLAN_PRODUCT_OWNERSHIP §2 cites "`updateFolder`'s cycle check (`server/db/products/folders.ts:78`)". After this step the check is `moveFolder`'s, in the same file. Outside the surface, not edited.                                                                                                                                                                               |
+| 2026-10-07 | 1    | Step 1 built: `moveFolder` (`PUT /folders/:folder_id/parent`) with the cycle check, `updateFolder` narrowed to label and colour, the three callers on `moveFolder`, both route tests, SYSTEM_12. Typecheck, `./validate_protocols`, `./run` (237 routes) and the two route test files green; `deno task test` fails only on the two pre-existing cases above. Next step: Review 1. |

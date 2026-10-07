@@ -311,10 +311,8 @@ export function Products() {
   }
 
   async function quickMoveFolder(folder: Folder, parentId: string | null) {
-    const res = await serverActions.updateFolder({
+    const res = await serverActions.moveFolder({
       folder_id: folder.id,
-      label: folder.label,
-      color: folder.color,
       parentId,
     });
     if (!res.success) {

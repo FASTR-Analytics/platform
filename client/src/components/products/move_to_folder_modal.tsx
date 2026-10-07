@@ -48,12 +48,8 @@ export function MoveToFolderModal(p: AlertComponentProps<Props, ReturnType>) {
       const folderId = selected === GENERAL_ID ? null : selected;
 
       if (p.target.kind === "folder") {
-        // A folder move is `updateFolder`: label, colour and parent are one
-        // metadata write.
-        return serverActions.updateFolder({
+        return serverActions.moveFolder({
           folder_id: p.target.folder.id,
-          label: p.target.folder.label,
-          color: p.target.folder.color,
           parentId: folderId,
         });
       }

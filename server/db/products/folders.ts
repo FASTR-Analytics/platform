@@ -61,22 +61,22 @@ export async function createFolder(
   });
 }
 
-// Also THE move: label, colour and parent are one metadata write. The cycle
-// guard is a recursive CTE walking UP from the target parent inside the same
-// transaction as the UPDATE; a rename or a move to the root cannot create a
-// cycle, so the walk is skipped when the parent is null.
-export async function updateFolder(
+// THE move, and the only writer of parent_id. The cycle guard is a recursive
+// CTE walking UP from the target parent inside the same transaction as the
+// UPDATE; a move to the root cannot create a cycle, so the walk is skipped
+// when the parent is null.
+export async function moveFolder(
   mainDb: Sql,
   folderId: string,
-  args: { label: string; color: string | null; parentId: string | null },
+  parentId: string | null,
 ): Promise<APIResponseWithData<{ lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const lastUpdated = new Date().toISOString();
     const illegal = await mainDb.begin(async (sql) => {
-      if (args.parentId !== null) {
+      if (parentId !== null) {
         const hits = await sql`
           WITH RECURSIVE ancestors AS (
-            SELECT id, parent_id FROM folders WHERE id = ${args.parentId}
+            SELECT id, parent_id FROM folders WHERE id = ${parentId}
             UNION ALL
             SELECT f.id, f.parent_id
             FROM folders f JOIN ancestors a ON f.id = a.parent_id
@@ -87,8 +87,7 @@ export async function updateFolder(
       }
       const rows = await sql`
         UPDATE folders
-        SET label = ${args.label.trim()}, color = ${args.color},
-            parent_id = ${args.parentId}, last_updated = ${lastUpdated}
+        SET parent_id = ${parentId}, last_updated = ${lastUpdated}
         WHERE id = ${folderId}
         RETURNING id
       `;
@@ -99,6 +98,28 @@ export async function updateFolder(
     });
     if (illegal) {
       return { success: false, err: FOLDER_CYCLE };
+    }
+    return { success: true, data: { lastUpdated } };
+  });
+}
+
+// Label and colour only; the parent is moveFolder's (the registry says why).
+export async function updateFolder(
+  mainDb: Sql,
+  folderId: string,
+  args: { label: string; color: string | null },
+): Promise<APIResponseWithData<{ lastUpdated: string }>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const lastUpdated = new Date().toISOString();
+    const rows = await mainDb`
+      UPDATE folders
+      SET label = ${args.label.trim()}, color = ${args.color},
+          last_updated = ${lastUpdated}
+      WHERE id = ${folderId}
+      RETURNING id
+    `;
+    if (rows.length === 0) {
+      throw new Error(FOLDER_NOT_FOUND);
     }
     return { success: true, data: { lastUpdated } };
   });
