@@ -814,33 +814,72 @@ export function HfaIndicatorsManager(p: Props) {
     return map;
   });
 
+  const categoryText = (ind: HfaIndicator): string =>
+    ind.categoryId
+      ? (categoryLabelById().get(ind.categoryId) ?? ind.categoryId)
+      : "";
+
+  const subCategoryText = (ind: HfaIndicator): string =>
+    ind.subCategoryId
+      ? (subCategoryLabelById().get(ind.subCategoryId) ?? ind.subCategoryId)
+      : "";
+
+  const serviceCategoryTexts = (ind: HfaIndicator): string[] => {
+    const svcLabels = serviceCategoryLabelById();
+    return ind.serviceCategoryIds.map((id) => svcLabels.get(id) ?? id);
+  };
+
+  const typeText = (ind: HfaIndicator): string =>
+    `${ind.type === "binary" ? "Boolean" : "Numeric"} (${
+      ind.aggregation === "sum" ? "Sum" : "Avg"
+    })`;
+
+  // One value per state any of the indicator's time points is in, so the
+  // filter keeps an indicator while it has a time point in a checked state.
+  const statusFilterValues = (ind: HfaIndicator): string[] => {
+    const stats = statsByIndicatorId().get(ind.indicatorId);
+    if (!stats) return [];
+    return [
+      ...(stats.ready > 0
+        ? [t3({ en: "Ready", fr: "Prêt", pt: "Pronto" })]
+        : []),
+      ...(stats.warning > 0
+        ? [t3({ en: "Warning", fr: "Avertissement", pt: "Aviso" })]
+        : []),
+      ...(stats.error > 0
+        ? [t3({ en: "Error", fr: "Erreur", pt: "Erro" })]
+        : []),
+    ];
+  };
+
+  const consistentText = (ind: HfaIndicator): string => {
+    const stats = statsByIndicatorId().get(ind.indicatorId);
+    if (!stats || stats.withCode === 0) return "";
+    return stats.consistent
+      ? t3({ en: "Yes", fr: "Oui", pt: "Sim" })
+      : t3({ en: "No", fr: "Non", pt: "Não" });
+  };
+
   // The table's search text. The indicator id has no column, and the category
   // columns hold ids whose labels are resolved here.
-  const indicatorSearchText = (ind: HfaIndicator): string => {
-    const catLabels = categoryLabelById();
-    const subCatLabels = subCategoryLabelById();
-    const svcLabels = serviceCategoryLabelById();
-    return [
+  const indicatorSearchText = (ind: HfaIndicator): string =>
+    [
       ind.indicatorId,
       ind.shortLabel,
       ind.definition,
-      ind.categoryId ? (catLabels.get(ind.categoryId) ?? ind.categoryId) : "",
-      ind.subCategoryId
-        ? (subCatLabels.get(ind.subCategoryId) ?? ind.subCategoryId)
-        : "",
-      ...ind.serviceCategoryIds.map((id) => svcLabels.get(id) ?? id),
+      categoryText(ind),
+      subCategoryText(ind),
+      ...serviceCategoryTexts(ind),
     ].join(" ");
-  };
 
   const columns: TableColumn<HfaIndicator>[] = [
     {
       key: "categoryId",
       header: t3({ en: "Category", fr: "Catégorie", pt: "Categoria" }),
       sortable: true,
-      render: (ind) => {
-        if (!ind.categoryId) return "";
-        return categoryLabelById().get(ind.categoryId) ?? ind.categoryId;
-      },
+      filterable: true,
+      filterValue: categoryText,
+      render: categoryText,
     },
     {
       key: "subCategoryId",
@@ -850,12 +889,9 @@ export function HfaIndicatorsManager(p: Props) {
         pt: "Subcategoria",
       }),
       sortable: true,
-      render: (ind) => {
-        if (!ind.subCategoryId) return "";
-        return (
-          subCategoryLabelById().get(ind.subCategoryId) ?? ind.subCategoryId
-        );
-      },
+      filterable: true,
+      filterValue: subCategoryText,
+      render: subCategoryText,
     },
     {
       key: "serviceCategoryIds",
@@ -865,13 +901,9 @@ export function HfaIndicatorsManager(p: Props) {
         pt: "Categorias de serviço",
       }),
       sortable: true,
-      render: (ind) => {
-        if (ind.serviceCategoryIds.length === 0) return "";
-        const svcLabels = serviceCategoryLabelById();
-        return ind.serviceCategoryIds
-          .map((id) => svcLabels.get(id) ?? id)
-          .join(", ");
-      },
+      filterable: true,
+      filterValue: serviceCategoryTexts,
+      render: (ind) => serviceCategoryTexts(ind).join(", "),
     },
     {
       key: "shortLabel",
@@ -899,12 +931,9 @@ export function HfaIndicatorsManager(p: Props) {
       key: "type",
       header: t3({ en: "Type", fr: "Type", pt: "Tipo" }),
       sortable: true,
-      render: (ind) => (
-        <span>
-          {ind.type === "binary" ? "Boolean" : "Numeric"} (
-          {ind.aggregation === "sum" ? "Sum" : "Avg"})
-        </span>
-      ),
+      filterable: true,
+      filterValue: typeText,
+      render: typeText,
     },
     {
       key: "timePoints",
@@ -936,6 +965,8 @@ export function HfaIndicatorsManager(p: Props) {
       sortable: true,
       sortValue: (ind) =>
         statsByIndicatorId().get(ind.indicatorId)?.error ?? -1,
+      filterable: true,
+      filterValue: statusFilterValues,
       render: (ind) => {
         const stats = statsByIndicatorId().get(ind.indicatorId);
         if (!stats) return "…";
@@ -990,18 +1021,13 @@ export function HfaIndicatorsManager(p: Props) {
         if (!stats || stats.withCode === 0) return -1;
         return stats.consistent ? 1 : 0;
       },
+      filterable: true,
+      filterValue: consistentText,
       render: (ind) => {
-        const stats = statsByIndicatorId().get(ind.indicatorId);
-        if (!stats || stats.withCode === 0) {
-          return <span class="text-base-content-muted">—</span>;
-        }
-        return (
-          <span>
-            {stats.consistent
-              ? t3({ en: "Yes", fr: "Oui", pt: "Sim" })
-              : t3({ en: "No", fr: "Non", pt: "Não" })}
-          </span>
-        );
+        const text = consistentText(ind);
+        return text === ""
+          ? <span class="text-base-content-muted">—</span>
+          : <span>{text}</span>;
       },
     },
   ];
