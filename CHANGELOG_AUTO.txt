@@ -1,41 +1,41 @@
-[TBD] [user] [changed] - Private files and private projects features have been removed
-[TBD] [user] [changed] - All uploaded assets are now visible to everyone with access
-[TBD] [user] [changed] - The "Upload private" button has been removed from Assets
-[TBD] [user] [changed] - The "Who can see it" column has been removed from the assets table
-[TBD] [user] [changed] - The sharing button has been removed from individual asset files
-[TBD] [user] [changed] - The "Private project" setting has been removed from project settings
-[TBD] [user] [changed] - The "Private project" label no longer appears on the project list
-[TBD] [user] [changed] - All administrators can now see all projects without needing to be added
-[TBD] [admin] [changed] - Private projects feature has been completely removed
-[TBD] [admin] [changed] - Private asset uploads and per-file visibility controls removed
-[TBD] [admin] [changed] - All administrators can now see all projects and assets
-[TBD] [admin] [changed] - User deletion no longer blocked by private project membership
-[TBD] [admin] [changed] - Activity logs now show entries from all projects
-[TBD] [admin] [changed] - Results packages and run catalog show all project names
-[TBD] [admin] [changed] - Backups list now includes all projects
-[TBD] [admin] [changed] - Project settings no longer show private project section
-[TBD] [user] [added] - Upload private files visible only to you and chosen people
-[TBD] [user] [added] - Change who can see an existing file after upload
-[TBD] [user] [added] - "Who can see it" column shown in the assets table
-[TBD] [user] [added] - Make a project private so only added members can access it
-[TBD] [user] [added] - Add or remove administrators from a private project
-[TBD] [user] [added] - Private project badge shown in the project list
-[TBD] [user] [changed] - Access is revoked in real time when removed from a private project
-[TBD] [user] [changed] - "You no longer have access" message shown when removed from a project
-[TBD] [admin] [added] - Private projects: hide projects from administrators who are not members
-[TBD] [admin] [added] - Private assets: upload files visible only to you and chosen people
-[TBD] [admin] [added] - Change who can see an existing asset file after upload
-[TBD] [admin] [added] - Private project setting available in project settings for administrators
-[TBD] [admin] [added] - Add or remove administrators on private projects with a single button
-[TBD] [admin] [added] - Private project label shown in the project list
-[TBD] [admin] [changed] - Asset list now only shows files you have permission to see
-[TBD] [admin] [changed] - Deleting a user is blocked if they are the last admin on a private project
-[TBD] [admin] [changed] - Copying a private project preserves its private status
-[TBD] [admin] [changed] - Logs, backups, and results packages hide private project details from non-members
-[TBD] [admin] [changed] - Users are immediately disconnected when removed from a project or when it goes private
-[TBD] [admin] [changed] - Bulk permission edits skip administrators on private projects to prevent accidental changes
-[TBD] [admin] [changed] - Run generation refuses to attach results to projects you cannot see
-[TBD] [admin] [added] - Access revoked notice shown when you lose access to an open project
+[1.76.0] [user] [changed] - Private files and private projects features have been removed
+[1.76.0] [user] [changed] - All uploaded assets are now visible to everyone with access
+[1.76.0] [user] [changed] - The "Upload private" button has been removed from Assets
+[1.76.0] [user] [changed] - The "Who can see it" column has been removed from the assets table
+[1.76.0] [user] [changed] - The sharing button has been removed from individual asset files
+[1.76.0] [user] [changed] - The "Private project" setting has been removed from project settings
+[1.76.0] [user] [changed] - The "Private project" label no longer appears on the project list
+[1.76.0] [user] [changed] - All administrators can now see all projects without needing to be added
+[1.76.0] [admin] [changed] - Private projects feature has been completely removed
+[1.76.0] [admin] [changed] - Private asset uploads and per-file visibility controls removed
+[1.76.0] [admin] [changed] - All administrators can now see all projects and assets
+[1.76.0] [admin] [changed] - User deletion no longer blocked by private project membership
+[1.76.0] [admin] [changed] - Activity logs now show entries from all projects
+[1.76.0] [admin] [changed] - Results packages and run catalog show all project names
+[1.76.0] [admin] [changed] - Backups list now includes all projects
+[1.76.0] [admin] [changed] - Project settings no longer show private project section
+[1.76.0] [user] [added] - Upload private files visible only to you and chosen people
+[1.76.0] [user] [added] - Change who can see an existing file after upload
+[1.76.0] [user] [added] - "Who can see it" column shown in the assets table
+[1.76.0] [user] [added] - Make a project private so only added members can access it
+[1.76.0] [user] [added] - Add or remove administrators from a private project
+[1.76.0] [user] [added] - Private project badge shown in the project list
+[1.76.0] [user] [changed] - Access is revoked in real time when removed from a private project
+[1.76.0] [user] [changed] - "You no longer have access" message shown when removed from a project
+[1.76.0] [admin] [added] - Private projects: hide projects from administrators who are not members
+[1.76.0] [admin] [added] - Private assets: upload files visible only to you and chosen people
+[1.76.0] [admin] [added] - Change who can see an existing asset file after upload
+[1.76.0] [admin] [added] - Private project setting available in project settings for administrators
+[1.76.0] [admin] [added] - Add or remove administrators on private projects with a single button
+[1.76.0] [admin] [added] - Private project label shown in the project list
+[1.76.0] [admin] [changed] - Asset list now only shows files you have permission to see
+[1.76.0] [admin] [changed] - Deleting a user is blocked if they are the last admin on a private project
+[1.76.0] [admin] [changed] - Copying a private project preserves its private status
+[1.76.0] [admin] [changed] - Logs, backups, and results packages hide private project details from non-members
+[1.76.0] [admin] [changed] - Users are immediately disconnected when removed from a project or when it goes private
+[1.76.0] [admin] [changed] - Bulk permission edits skip administrators on private projects to prevent accidental changes
+[1.76.0] [admin] [changed] - Run generation refuses to attach results to projects you cannot see
+[1.76.0] [admin] [added] - Access revoked notice shown when you lose access to an open project
 [1.75.0] [user] [changed] - Pop-up dialogs now have a more consistent button layout
 [1.75.0] [user] [changed] - HFA indicator IDs are now assigned automatically instead of manually
 [1.75.0] [user] [removed] - Indicator ID column removed from the HFA indicators table
