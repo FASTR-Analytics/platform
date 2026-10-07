@@ -1,3 +1,19 @@
+[TBD] [user] [changed] - Private files and private projects features have been removed
+[TBD] [user] [changed] - All uploaded assets are now visible to everyone with access
+[TBD] [user] [changed] - The "Upload private" button has been removed from Assets
+[TBD] [user] [changed] - The "Who can see it" column has been removed from the assets table
+[TBD] [user] [changed] - The sharing button has been removed from individual asset files
+[TBD] [user] [changed] - The "Private project" setting has been removed from project settings
+[TBD] [user] [changed] - The "Private project" label no longer appears on the project list
+[TBD] [user] [changed] - All administrators can now see all projects without needing to be added
+[TBD] [admin] [changed] - Private projects feature has been completely removed
+[TBD] [admin] [changed] - Private asset uploads and per-file visibility controls removed
+[TBD] [admin] [changed] - All administrators can now see all projects and assets
+[TBD] [admin] [changed] - User deletion no longer blocked by private project membership
+[TBD] [admin] [changed] - Activity logs now show entries from all projects
+[TBD] [admin] [changed] - Results packages and run catalog show all project names
+[TBD] [admin] [changed] - Backups list now includes all projects
+[TBD] [admin] [changed] - Project settings no longer show private project section
 [TBD] [user] [added] - Upload private files visible only to you and chosen people
 [TBD] [user] [added] - Change who can see an existing file after upload
 [TBD] [user] [added] - "Who can see it" column shown in the assets table
