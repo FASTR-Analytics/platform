@@ -7,6 +7,14 @@ import { type ProductAccessLevel, route } from "../route-utils.ts";
 // pre-restructure 3-char ids keep working beside newly minted 4-char ones.
 export const productIdParamsSchema = z.object({ product_id: z.string() });
 
+// A general access and a list of people, as the access dialog sends them.
+export const productAccessBodySchema = z.object({
+  defaultAccess: z.enum(["none", "view", "edit"]),
+  grants: z.array(
+    z.object({ email: z.string(), level: z.enum(["view", "edit"]) }),
+  ),
+});
+
 // The cross-type surface: everything that treats a deck and a report alike.
 // Per-type content and version routes live in ./slide-decks.ts, ./slides.ts
 // and ./reports.ts and carry no label, folder, delete or duplicate of their
@@ -89,6 +97,27 @@ export const productRouteRegistry = {
     params: productIdParamsSchema,
     body: z.object({ scopeId: scopeIdSchema }),
     response: {} as { productId: string; lastUpdated: string },
+    access: "view",
+  }),
+
+  // Replaces the general access and the whole grant list in one transaction
+  // (PLAN_PRODUCT_OWNERSHIP R10). Refuses a grant naming the owner, a grant
+  // naming an email with no users row, and a list naming one email twice.
+  setProductAccess: route({
+    path: "/products/:product_id/access",
+    method: "PUT",
+    params: productIdParamsSchema,
+    body: productAccessBodySchema,
     access: "edit",
+  }),
+
+  // The previous owner, if any, becomes an edit grantee; the new owner's
+  // grant, if any, is removed (R10). Refuses an email with no users row.
+  setProductOwner: route({
+    path: "/products/:product_id/owner",
+    method: "PUT",
+    params: productIdParamsSchema,
+    body: z.object({ email: z.string() }),
+    access: "own",
   }),
 } as const satisfies Record<string, { access: ProductAccessLevel }>;

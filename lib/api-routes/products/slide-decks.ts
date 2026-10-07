@@ -78,6 +78,6 @@ export const productSlideDeckRouteRegistry = {
       folderId: z.uuid().nullable(),
     }),
     response: {} as { productId: string; lastUpdated: string },
-    access: "edit",
+    access: "view",
   }),
 } as const satisfies Record<string, { access: ProductAccessLevel }>;

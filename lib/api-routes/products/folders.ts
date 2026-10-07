@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { type ProductAccessLevel, route } from "../route-utils.ts";
+import { productAccessBodySchema } from "./products.ts";
 
 // Folder ids are uuids (unlike product and slide ids).
 const folderIdParamsSchema = z.object({ folder_id: z.uuid() });
@@ -45,12 +46,27 @@ export const folderRouteRegistry = {
   }),
 
   // Child folders and products reparent one level up, never cascade; the
-  // freed product ids come back because their rows changed.
+  // freed product ids come back because their rows changed. A folder has no
+  // owner, so any user who may change folders may delete one
+  // (PLAN_PRODUCT_OWNERSHIP R5).
   deleteFolder: route({
     path: "/folders/:folder_id",
     method: "DELETE",
     params: folderIdParamsSchema,
     response: {} as { freedProductIds: string[] },
+    access: "edit",
+  }),
+
+  // The bulk action (R19): raises access on every product in the folder and
+  // its subfolders, in one transaction, and never lowers it. `own` on a
+  // folder route means a global admin: nobody else owns a folder. Refuses an
+  // email with no users row and a list naming one email twice.
+  setFolderProductsAccess: route({
+    path: "/folders/:folder_id/products/access",
+    method: "PUT",
+    params: folderIdParamsSchema,
+    body: productAccessBodySchema,
+    response: {} as { productIds: string[] },
     access: "own",
   }),
 } as const satisfies Record<string, { access: ProductAccessLevel }>;

@@ -110,9 +110,10 @@ function scopeIdsOf(value: unknown): ScopeId[] {
 }
 
 // The route's targets come from the id fields the contract declares (§3.2)
-// and nowhere else: path product_id / folder_id; body productIds and
-// targetProductId (products), folderId and parentId (folders; null = root),
-// and scopeId. Only the folder routes declare folder_id or parentId.
+// and nowhere else: path product_id / folder_id and body productIds
+// (subjects), body targetProductId (a destination product), folderId and
+// parentId (folders; null = root), and scopeId. Only the folder routes
+// declare folder_id or parentId.
 async function resolveProductAccessTargets(
   c: Context,
 ): Promise<ProductAccessTargets> {
@@ -132,8 +133,8 @@ async function resolveProductAccessTargets(
     productIds: [
       ...stringsOf(params.product_id),
       ...stringsOf(body.productIds),
-      ...stringsOf(body.targetProductId),
     ],
+    destinationProductIds: stringsOf(body.targetProductId),
     folderIds: [
       ...stringsOf(params.folder_id),
       ...stringsOf(body.folderId),

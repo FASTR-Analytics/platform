@@ -5,6 +5,7 @@ import {
   deleteFolder,
   listFolders,
   moveFolder,
+  raiseFolderProductsAccess,
   updateFolder,
 } from "../../db/products/mod.ts";
 import { log } from "../../middleware/logging.ts";
@@ -94,5 +95,27 @@ defineRoute(
       success: true as const,
       data: { freedProductIds: res.data.freedProductIds },
     });
+  },
+);
+
+// The bulk action (PLAN_PRODUCT_OWNERSHIP R19). Like the per-product access
+// writes it bumps no last_updated and only re-broadcasts the summaries it
+// changed.
+defineRoute(
+  routesFolders,
+  "setFolderProductsAccess",
+  log("setFolderProductsAccess"),
+  async (c, { params, body }) => {
+    const res = await raiseFolderProductsAccess(
+      c.var.mainDb,
+      params.folder_id,
+      body,
+    );
+    if (!res.success) {
+      return respond(c, res);
+    }
+    await notifyInstanceProductsUpserted(c.var.mainDb, res.data.productIds);
+    // step 3: closeConnectionsWhoseLevelChanged
+    return respond(c, res);
   },
 );

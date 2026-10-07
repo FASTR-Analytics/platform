@@ -99,7 +99,8 @@ export const productSlideRouteRegistry = {
 
   // The cross-deck reuse path (there is no figure library, D3). Bundles are
   // copied verbatim, so a copied figure shows stale under the target deck
-  // when the two products' (package, scope) pairs differ (D4).
+  // when the two products' (package, scope) pairs differ (D4). The source is
+  // only read; the target, a destination, always needs edit.
   copySlidesToSlideDeck: route({
     path: "/products/:product_id/slides/copy-to-slide-deck",
     method: "POST",
@@ -109,6 +110,6 @@ export const productSlideRouteRegistry = {
       targetProductId: z.string(),
     }),
     response: {} as { newSlideIds: string[]; lastUpdated: string },
-    access: "edit",
+    access: "view",
   }),
 } as const satisfies Record<string, { access: ProductAccessLevel }>;

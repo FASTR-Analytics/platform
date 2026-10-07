@@ -5,6 +5,8 @@ import {
   deleteProducts,
   duplicateProduct,
   moveProductsToFolder,
+  setProductAccess,
+  setProductOwner,
   setProductScope,
   updateProductLabel,
 } from "../../db/products/mod.ts";
@@ -219,5 +221,42 @@ defineRoute(
     await notifyInstanceProductsUpserted(c.var.mainDb, [res.data.productId]);
     notifyInstanceRunsCatalogUpdated();
     return respond(c, res);
+  },
+);
+
+// An access change is not a content change (PLAN_PRODUCT_OWNERSHIP R15): no
+// last_updated bump and no version edit, only the summary re-broadcast, so
+// every client re-derives its level.
+defineRoute(
+  routesProducts,
+  "setProductAccess",
+  log("setProductAccess"),
+  async (c, { params, body }) => {
+    const res = await setProductAccess(c.var.mainDb, params.product_id, body);
+    if (!res.success) {
+      return respond(c, res);
+    }
+    await notifyInstanceProductsUpserted(c.var.mainDb, [params.product_id]);
+    // step 3: closeConnectionsWhoseLevelChanged
+    return respond(c, { success: true as const });
+  },
+);
+
+defineRoute(
+  routesProducts,
+  "setProductOwner",
+  log("setProductOwner"),
+  async (c, { params, body }) => {
+    const res = await setProductOwner(
+      c.var.mainDb,
+      params.product_id,
+      body.email,
+    );
+    if (!res.success) {
+      return respond(c, res);
+    }
+    await notifyInstanceProductsUpserted(c.var.mainDb, [params.product_id]);
+    // step 3: closeConnectionsWhoseLevelChanged
+    return respond(c, { success: true as const });
   },
 );
