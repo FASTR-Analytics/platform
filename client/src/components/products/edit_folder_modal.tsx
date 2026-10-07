@@ -21,7 +21,8 @@ type Props = {
 
 type ReturnType = { lastUpdated: string } | undefined;
 
-// A rename never touches the parent: that is `moveFolder`'s (D16).
+// A rename never touches the parent: that is `moveFolder`'s (the registry
+// says why).
 export function EditFolderModal(p: AlertComponentProps<Props, ReturnType>) {
   const isCreate = p.folder === undefined;
   const [tempLabel, setTempLabel] = createSignal(p.folder?.label ?? "");

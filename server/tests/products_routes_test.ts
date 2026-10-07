@@ -452,6 +452,14 @@ SELECT id FROM runs WHERE status = 'ready' AND NOT pinned ORDER BY created_at DE
     await ok(app, "PUT", `/folders/${folderC.folderId}/parent`, {
       parentId: null,
     });
+    assertEquals(await folderRow(folderC.folderId), {
+      label: "Harness C",
+      color: null,
+      parent_id: null,
+    });
+    await ok(app, "PUT", `/folders/${folderC.folderId}/parent`, {
+      parentId: folderB.folderId,
+    });
     await ok(app, "PUT", `/folders/${folderC.folderId}`, {
       label: "Harness C renamed",
       color: "#00ff00",
@@ -459,15 +467,8 @@ SELECT id FROM runs WHERE status = 'ready' AND NOT pinned ORDER BY created_at DE
     assertEquals(await folderRow(folderC.folderId), {
       label: "Harness C renamed",
       color: "#00ff00",
-      parent_id: null,
+      parent_id: folderB.folderId,
     });
-    await ok(app, "PUT", `/folders/${folderC.folderId}/parent`, {
-      parentId: folderB.folderId,
-    });
-    assertEquals(
-      (await folderRow(folderC.folderId)).parent_id,
-      folderB.folderId,
-    );
     const missingFolder = crypto.randomUUID();
     const missingMove = await call(
       app,
