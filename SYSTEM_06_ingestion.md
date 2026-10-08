@@ -199,7 +199,8 @@ history). Shape:
   already holds, and no DHIS2 import fetches it again. Delete it instead if
   it holds no data." The client's `dhis2FormulaRemedy`
   (`indicator_manager_hmis/_indicator_display.ts`), shown by the run
-  detail's formula banner, carries it verbatim; the ledger message carries
+  detail's formula banner and the import wizard's Review step, carries it
+  verbatim; the ledger message carries
   the same steps in one sentence. The run detail lists both sets
   (`classification.unknownIds` and `dhis2IndicatorIds`), each id beside the
   indicator carrying it as `indicator id · label (UID)` through

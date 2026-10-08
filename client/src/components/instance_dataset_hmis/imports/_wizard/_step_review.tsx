@@ -130,9 +130,6 @@ function notFoundSummary(n: number): string {
       });
 }
 
-// Asks DHIS2 what the selection's data ids are when the step opens, and
-// warns about the ids the run will refuse. Never gates the launch: an error
-// is one line, and the run classifies again when it starts.
 function PreLaunchClassification(p: {
   dataIds: string[];
   indicators: HmisIndicator[];

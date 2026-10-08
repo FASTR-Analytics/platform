@@ -620,10 +620,6 @@ defineRoute(
   },
 );
 
-// The wizard's pre-launch preview of what the run's dispatcher will refuse:
-// the same classification the run makes at start, over the selection's data
-// ids, with no retry. Never gates the launch; the run's own result is the
-// truth.
 defineRoute(
   routesDatasets,
   "classifyDatasetHmisDhis2Selection",
