@@ -5,14 +5,18 @@ import {
   createButtonAction,
 } from "panther";
 import { createSignal, Show } from "solid-js";
-import { type Dhis2LabelRefresh, t3, TC } from "lib";
+import { type Dhis2LabelRefresh, type HmisIndicator, t3, TC } from "lib";
 import { serverActions } from "~/server_actions";
+import { dataIdWithIndicator, dhis2FormulaRemedy } from "./_indicator_display";
 
 // The DHIS2 name refresh, explained before it runs and reported after: one
 // request the button waits on with its spinner (DHIS2 reports no partial
 // progress, so there is no bar to draw), then the counts in place of the
 // explanation. A failure is the action's alert; the button is ready again.
-type Props = AlertComponentProps<{ elementCount: number }, undefined>;
+type Props = AlertComponentProps<
+  { elementCount: number; indicators: HmisIndicator[] },
+  undefined
+>;
 
 export function RefreshDhis2LabelsModal(p: Props) {
   const [result, setResult] = createSignal<Dhis2LabelRefresh>();
@@ -51,7 +55,7 @@ export function RefreshDhis2LabelsModal(p: Props) {
     >
       <div class="ui-spy text-sm">
         <Show when={result()} fallback={<Explanation elementCount={p.elementCount} />}>
-          {(r) => <Result result={r()} />}
+          {(r) => <Result result={r()} indicators={p.indicators} />}
         </Show>
       </div>
     </ModalContainer>
@@ -86,7 +90,13 @@ function Explanation(p: { elementCount: number }) {
   );
 }
 
-function Result(p: { result: Dhis2LabelRefresh }) {
+function Result(p: { result: Dhis2LabelRefresh; indicators: HmisIndicator[] }) {
+  const withUid = (indicatorId: string): string => {
+    const indicator = p.indicators.find((i) => i.indicator_common_id === indicatorId);
+    return indicator?.definition.type === "dhis2_element"
+      ? dataIdWithIndicator(indicator, indicator.definition.data_id)
+      : indicatorId;
+  };
   return (
     <>
       <Callout intent="success" pad="sm">
@@ -96,6 +106,21 @@ function Result(p: { result: Dhis2LabelRefresh }) {
           pt: `${p.result.refreshed} nome(s) DHIS2 atualizado(s), ${p.result.unchanged} já atual(is).`,
         })}
       </Callout>
+      <Show when={p.result.formulas.length > 0}>
+        <Callout intent="warning" pad="sm">
+          <div class="ui-spy-sm">
+            <div>
+              {t3({
+                en: "Point to DHIS2 formulas, not data elements (names left as they are):",
+                fr: "Pointent vers des formules DHIS2, pas vers des éléments de données (noms laissés tels quels) :",
+                pt: "Apontam para fórmulas DHIS2, não para elementos de dados (nomes mantidos como estão):",
+              })}{" "}
+              <span class="font-mono">{p.result.formulas.map(withUid).join(", ")}</span>
+            </div>
+            <div>{dhis2FormulaRemedy()}</div>
+          </div>
+        </Callout>
+      </Show>
       <Show when={p.result.notFound.length > 0}>
         <Callout intent="warning" pad="sm">
           {t3({

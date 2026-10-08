@@ -4,6 +4,7 @@ import {
   type FetchOptions,
   getDataElementsFromDHIS2,
   getDhis2OperandVerdict,
+  getExistingMetadataIds,
   getIndicatorsFromDHIS2,
   searchAllIndicatorsAndDataElements,
   searchDataElementsFromDHIS2,
@@ -82,15 +83,24 @@ defineRoute(
       );
       const elementsById = new Map(elements.map((e) => [e.id, e]));
       const labels = new Map<string, string>();
-      const notFound: string[] = [];
+      const unfound: typeof stored = [];
       for (const s of stored) {
         const element = elementsById.get(dataElementIdOf(s.data_id));
         if (element === undefined) {
-          notFound.push(s.indicator_common_id);
+          unfound.push(s);
         } else {
           labels.set(s.indicator_common_id, dhis2ElementName(element, s.data_id));
         }
       }
+      const formulaUids = unfound.length > 0
+        ? await getExistingMetadataIds(
+          "indicators",
+          unfound.map((s) => dataElementIdOf(s.data_id)),
+          options,
+        )
+        : new Set<string>();
+      const isFormula = (s: (typeof stored)[number]) =>
+        formulaUids.has(dataElementIdOf(s.data_id));
       const refreshed = await setDhis2Labels(c.var.mainDb, labels);
       if (refreshed > 0) {
         notifyInstanceIndicatorsUpdated(
@@ -99,7 +109,14 @@ defineRoute(
       }
       return c.json({
         success: true,
-        data: { refreshed, unchanged: labels.size - refreshed, notFound },
+        data: {
+          refreshed,
+          unchanged: labels.size - refreshed,
+          formulas: unfound.filter(isFormula).map((s) => s.indicator_common_id),
+          notFound: unfound.filter((s) => !isFormula(s)).map((s) =>
+            s.indicator_common_id
+          ),
+        },
       });
     } catch (error) {
       console.error("Error refreshing DHIS2 labels:", error);

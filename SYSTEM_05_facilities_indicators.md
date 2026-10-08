@@ -413,11 +413,20 @@ every DHIS2 element by UID from live metadata with the same chunked fetch
 and the same `dhis2ElementName` rule as the create route, and
 `setDhis2Labels` writes the names that differ (DHIS2 elements only, by
 indicator id, `updated_at` moving on those rows so the dictionary stamp
-changes), reporting refreshed, unchanged and not-found counts; an element
-DHIS2 no longer has keeps its stored name. Display labels are never
-touched. The client runs it from `RefreshDhis2LabelsModal`: the
-explanation and the count of elements to read, the Refresh button waiting
-on the one request with its spinner, then the counts in its place. The manager's toolbar keeps the daily actions as buttons (Sort,
+changes), reporting refreshed and unchanged counts and two lists of
+indicator ids whose UID the element read did not find: `formulas`, those
+one `getExistingMetadataIds("indicators", ...)` call over the unfound
+UIDs says are DHIS2 formulas (what DHIS2 calls an indicator), and
+`notFound`,
+the rest. Both keep their stored names and nothing is stored about the
+classification: it stays live, per the dispatcher's rule (SYSTEM_06).
+Display labels are never touched. The client runs it from
+`RefreshDhis2LabelsModal`: the explanation and the count of elements to
+read, the Refresh button waiting on the one request with its spinner, then
+the counts in its place, a warning callout listing the formula ids beside
+their indicators (`indicator id · label (UID)`) with the formula remedy
+(SYSTEM_06, the dispatcher bullet of "HMIS import runs") above the
+not-found callout. The manager's toolbar keeps the daily actions as buttons (Sort,
 Add from DHIS2, Create new) and puts the occasional ones, the dictionary
 download and Refresh DHIS2 names, in an overflow menu (panther's
 `ActionMenuButton`, `otherActionItems`), global admins only, the refresh gated on a stored

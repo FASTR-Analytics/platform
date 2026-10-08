@@ -195,6 +195,7 @@ export function IndicatorsManager(p: Props) {
       element: RefreshDhis2LabelsModal,
       props: {
         elementCount: indicators.filter((i) => i.definition.type === "dhis2_element").length,
+        indicators,
       },
     });
   }

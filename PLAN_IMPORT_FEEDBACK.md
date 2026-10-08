@@ -13,7 +13,7 @@ indicator (a formula), the DHIS2 import fails every month of it as designed, but
 says so in DHIS2's vocabulary, by bare UID, without the steps that fix it, and
 only after the run.
 
-**Next step: Do 5.** Each session sets this line in its final commit. Its values
+**Next step: Review 5.** Each session sets this line in its final commit. Its values
 are `Do N`, `Review N` and `Fix N`. The review that passes step 5 deletes this
 file.
 
@@ -483,3 +483,5 @@ again. The earlier build runs against the same databases.
 | 4 | Step 4 reviewed: 1 finding. |
 | 4 | Step 4 fixed. |
 | 4 | Step 4 reviewed: pass. |
+| 5 | Outside the surface: `client/src/components/indicator_manager_hmis/indicators_manager.tsx` passes its indicator list into the modal as a prop (one line). Ruling 8 shows each formula id as `indicator id · label (UID)`, the route returns indicator ids, and the manager is where the dictionary already is; the modal fetching it again would be a second read of the same list. |
+| 5 | Step 5 built. |
