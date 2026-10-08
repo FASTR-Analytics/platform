@@ -354,8 +354,9 @@ start.
   `equals`/`not_equals` on the raw cell) drop rows before any duplicate
   handling, then facilities with >1 surviving row resolve to one each via
   `dedupStrategy` ("first"/"last" in file order; the review UI's bulk
-  quick-set) plus per-facility `dedupOverrides` (wizard duplicates step,
-  auto-skipped when the scan finds none). Row numbers everywhere are the
+  quick-set) plus per-facility `dedupOverrides` (the wizard's duplicates
+  step, which always shows: when the scan finds no facility with more than
+  one row it says so and offers Next). Row numbers everywhere are the
   **1-based data-row position in the file** (header excluded), computed by
   `server_only_funcs_csvs/scan_hfa_rows.ts` (shared by the stage leg and the
   stateless `previewDatasetHfaDuplicates` route), never read from a column.

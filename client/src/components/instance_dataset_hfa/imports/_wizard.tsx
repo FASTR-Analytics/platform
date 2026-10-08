@@ -141,8 +141,7 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
     t3({ en: "Review & launch", fr: "Vérifier et lancer", pt: "Rever e iniciar" }),
   ];
 
-  // Leaving the mappings step scans the file for duplicate facilities; the
-  // duplicates step is skipped entirely when there are none.
+  // Leaving the mappings step scans the file for duplicate facilities.
   async function goNextFromMappings() {
     const csv = csvFileName();
     if (!csv || scanning()) {
@@ -162,37 +161,19 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
     }
     setPreview(res.data);
     stepper.goNext();
-    if (res.data.groups.length === 0) {
-      stepper.goNext();
-    }
-  }
-
-  function goPrevFromReview() {
-    stepper.goPrev();
-    if ((preview()?.groups.length ?? 0) === 0) {
-      stepper.goPrev();
-    }
   }
 
   // Chip clicks must never bypass the duplicates scan: without this handler
   // the stepper chips call setCurrentStep directly, so clicking the
   // "Duplicates" chip from the mappings step would skip goNextFromMappings
   // and launch with unreviewed duplicates. Forward chip navigation goes
-  // through the same advance functions as the Next button; backward
-  // navigation honors the auto-skip of an empty duplicates step.
+  // through the same advance functions as the Next button.
   function onStepClick(step: number) {
     const current = stepper.currentStep();
     if (step === current) {
       return;
     }
     if (step < current) {
-      if (
-        STEPS[step] === "duplicates" &&
-        (preview()?.groups.length ?? 0) === 0
-      ) {
-        stepper.setCurrentStep(STEPS.indexOf("mappings"));
-        return;
-      }
       stepper.setCurrentStep(step);
       return;
     }
@@ -276,7 +257,7 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
           ? [
               {
                 label: t3({ en: "Back", fr: "Retour", pt: "Voltar" }),
-                onClick: isLastStep() ? goPrevFromReview : stepper.goPrev,
+                onClick: stepper.goPrev,
                 outline: true,
               },
             ]
@@ -452,11 +433,20 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
             {(data) => (
               <div class="ui-spy">
                 <div class="text-base-content-muted text-sm">
-                  {t3({
-                    en: "Facilities with several rows after filtering: pick which row to keep for each. Row numbers count data rows from 1 in file order (the header row is excluded — add 1 to find the row in a spreadsheet).",
-                    fr: "Établissements ayant plusieurs lignes après filtrage : choisissez la ligne à conserver pour chacun. Les numéros de ligne comptent les lignes de données à partir de 1 dans l'ordre du fichier (ligne d'en-tête exclue — ajoutez 1 pour retrouver la ligne dans un tableur).",
-                    pt: "Estabelecimentos com várias linhas após a filtragem: escolha a linha a manter para cada um. Os números de linha contam as linhas de dados a partir de 1 na ordem do ficheiro (linha de cabeçalho excluída — adicione 1 para encontrar a linha numa folha de cálculo).",
-                  })}
+                  <Show
+                    when={data.groups.length > 0}
+                    fallback={t3({
+                      en: "No facility has more than one row after filtering. There is nothing to resolve.",
+                      fr: "Aucun établissement n'a plus d'une ligne après filtrage. Il n'y a rien à résoudre.",
+                      pt: "Nenhum estabelecimento tem mais de uma linha após a filtragem. Não há nada a resolver.",
+                    })}
+                  >
+                    {t3({
+                      en: "Facilities with several rows after filtering: pick which row to keep for each. Row numbers count data rows from 1 in file order (the header row is excluded — add 1 to find the row in a spreadsheet).",
+                      fr: "Établissements ayant plusieurs lignes après filtrage : choisissez la ligne à conserver pour chacun. Les numéros de ligne comptent les lignes de données à partir de 1 dans l'ordre du fichier (ligne d'en-tête exclue — ajoutez 1 pour retrouver la ligne dans un tableur).",
+                      pt: "Estabelecimentos com várias linhas após a filtragem: escolha a linha a manter para cada um. Os números de linha contam as linhas de dados a partir de 1 na ordem do ficheiro (linha de cabeçalho excluída — adicione 1 para encontrar a linha numa folha de cálculo).",
+                    })}
+                  </Show>
                 </div>
                 <Show when={data.nRowsFilteredOut > 0}>
                   <div class="text-base-content-muted text-sm">
@@ -464,45 +454,47 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
                     : {data.nRowsFilteredOut}
                   </div>
                 </Show>
-                <div class="ui-gap-sm flex items-center">
-                  <span class="text-base-content-muted text-sm">
-                    {t3({ en: "Quick-set all picks:", fr: "Réglage rapide de tous les choix :", pt: "Definição rápida de todas as escolhas:" })}
-                  </span>
-                  <Button size="sm" outline onClick={() => setStrategy("first")}>
-                    {t3({ en: "First row", fr: "Première ligne", pt: "Primeira linha" })}
-                  </Button>
-                  <Button size="sm" outline onClick={() => setStrategy("last")}>
-                    {t3({ en: "Last row", fr: "Dernière ligne", pt: "Última linha" })}
-                  </Button>
-                </div>
-                <div class="ui-spy-sm">
-                  <For each={data.groups}>
-                    {(group) => {
-                      const selected = () => {
-                        const override = mappings.dedupOverrides.find(
-                          (o) => o.facilityId === group.facilityId,
-                        );
-                        return String(override?.keepRow ?? rulePick(group));
-                      };
-                      return (
-                        <div class="ui-gap flex items-center">
-                          <div class="w-40 flex-none font-mono">
-                            {group.facilityId}
+                <Show when={data.groups.length > 0}>
+                  <div class="ui-gap-sm flex items-center">
+                    <span class="text-base-content-muted text-sm">
+                      {t3({ en: "Quick-set all picks:", fr: "Réglage rapide de tous les choix :", pt: "Definição rápida de todas as escolhas:" })}
+                    </span>
+                    <Button size="sm" outline onClick={() => setStrategy("first")}>
+                      {t3({ en: "First row", fr: "Première ligne", pt: "Primeira linha" })}
+                    </Button>
+                    <Button size="sm" outline onClick={() => setStrategy("last")}>
+                      {t3({ en: "Last row", fr: "Dernière ligne", pt: "Última linha" })}
+                    </Button>
+                  </div>
+                  <div class="ui-spy-sm">
+                    <For each={data.groups}>
+                      {(group) => {
+                        const selected = () => {
+                          const override = mappings.dedupOverrides.find(
+                            (o) => o.facilityId === group.facilityId,
+                          );
+                          return String(override?.keepRow ?? rulePick(group));
+                        };
+                        return (
+                          <div class="ui-gap flex items-center">
+                            <div class="w-40 flex-none font-mono">
+                              {group.facilityId}
+                            </div>
+                            <RadioGroup
+                              value={selected()}
+                              options={group.rows.map((r) => ({
+                                value: String(r),
+                                label: `${t3({ en: "Row", fr: "Ligne", pt: "Linha" })} ${r}`,
+                              }))}
+                              onChange={(val) => setPick(group, Number(val))}
+                              horizontal
+                            />
                           </div>
-                          <RadioGroup
-                            value={selected()}
-                            options={group.rows.map((r) => ({
-                              value: String(r),
-                              label: `${t3({ en: "Row", fr: "Ligne", pt: "Linha" })} ${r}`,
-                            }))}
-                            onChange={(val) => setPick(group, Number(val))}
-                            horizontal
-                          />
-                        </div>
-                      );
-                    }}
-                  </For>
-                </div>
+                        );
+                      }}
+                    </For>
+                  </div>
+                </Show>
               </div>
             )}
           </Show>

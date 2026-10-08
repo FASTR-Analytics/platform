@@ -13,7 +13,7 @@ indicator (a formula), the DHIS2 import fails every month of it as designed, but
 says so in DHIS2's vocabulary, by bare UID, without the steps that fix it, and
 only after the run.
 
-**Next step: Do 2.** Each session sets this line in its final commit. Its values
+**Next step: Review 2.** Each session sets this line in its final commit. Its values
 are `Do N`, `Review N` and `Fix N`. The review that passes step 5 deletes this
 file.
 
@@ -458,3 +458,5 @@ again. The earlier build runs against the same databases.
 | 1 | Step 1 reviewed: 3 findings. |
 | 1 | Step 1 fixed. |
 | 1 | Step 1 closed on Tim's instruction after four reviews whose findings were all prose, and the fifth review stopped unfinished. The plans protocol now caps a step at two reviews, scopes a re-review to the fix, and has the reviewer edit prose findings itself (panther 209a0f5, applied here as 6dd76d5e1). |
+| 2 | The ruling 5 commit ran typecheck and `./validate_protocols`; the test task and the run gate, which a client `.tsx` edit cannot reach, ran once at the step's end with the ruling 6 commit. |
+| 2 | Step 2 built. |
