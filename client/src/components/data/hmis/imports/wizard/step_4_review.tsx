@@ -148,7 +148,6 @@ function notFoundSummary(n: number): string {
   });
 }
 
-// An error is one line and never blocks the launch: the run classifies again.
 function SelectionClassification(p: {
   dataIds: string[];
   byDataId: Map<string, HmisIndicator>;
