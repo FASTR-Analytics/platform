@@ -124,9 +124,8 @@ export function dataIdWithIndicator(
     : dataId;
 }
 
-// The one wording of what a user does about a DHIS2 formula id, carried by
-// every surface that names one (SYSTEM_06, the dispatcher bullet of "HMIS
-// import runs").
+// The formula-id remedy exactly as SYSTEM_06 words it (the dispatcher
+// bullet of "HMIS import runs").
 export function dhis2FormulaRemedy(): string {
   return t3({
     en: "To fix it: in the indicator list, use Add from DHIS2, search the formula by name and save it. The app creates one DHIS2 element per data element in the formula and one calculated indicator for the formula itself. Then change the old indicator's type to Uploaded and turn off its Include in analysis: it keeps the values it already holds, and no DHIS2 import fetches it again. Delete it instead if it holds no data.",
