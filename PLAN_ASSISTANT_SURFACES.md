@@ -4,14 +4,15 @@ Status: open.
 
 The AI panel becomes ever-present and the assistant's brain stays local. One
 panel at the shell level hosts whichever chat instance the current context owns:
-today's product copilot while a deck or report is open, a read-only instance
-assistant on every other page, and the HFA indicator assistant inside its
-manager. A context change swaps the instance, never the thread, so no chat
-instance ever holds tools, a prompt or a conversation about a context it is not
-in. Before any of that is built, a review settles the catalogue: every view a
-user can be in, every AI tool that exists on the three surfaces, and which tools
-are available in which view. The proposed catalogue is presented to Tim in the
-chat and signed off in §3 before step 2 starts.
+today's product copilot while a deck or report is open, and one instance
+assistant everywhere else, the HFA indicator manager included, whose tools
+follow the page through views. Opening or closing a product swaps the instance,
+never the thread, so no chat instance ever holds tools, a prompt or a
+conversation about a product it is not in. Before any of that is built, a review
+settles the catalogue: every view a user can be in, every AI tool that exists on
+the three surfaces, and which tools are available in which view. The proposed
+catalogue is presented to Tim in the chat and signed off in §3 before step 2
+starts.
 
 **Next step: Do 1.** Each session sets this line in its final commit. Its values
 are `Do N`, `Review N` and `Fix N`. The review that passes step 5 deletes this
@@ -67,14 +68,16 @@ Rules peculiar to this plan:
   leaves it, is the signed catalogue. Sessions never make those edits.
 - Vocabulary: **surface** = an assistant a tool can exist on: the product
   copilot, the HFA assistant, the headless `/mcp` and, from step 3, the instance
-  assistant; **context** = the thing an instance is attached to, one of
-  `product`, `instance` and `hfa_indicators`; **instance** = one
+  assistant; **context** = the thing an instance is attached to, `product` (one
+  open deck or report) or `instance` (everything else); **instance** = one
   `AIChatProvider` with its tools, system prompt and thread scope; **view** = a
-  panther view id inside one instance's registry; **catalogue** = the table of
-  contexts, instances, views and the tools available in each view; **panel** =
-  the shell-level `FrameRightResizable` that shows the current instance;
-  **pair** = a results package and a scope, `(runId, scopeId)`; **hand-off** =
-  the one-line note the instance assistant can leave for a product's copilot.
+  panther view id inside one instance's registry (a page of the instance is a
+  view of the instance assistant); **sync site** = the mount or cleanup that
+  sets or clears a view; **catalogue** = the table of contexts, instances, views
+  and the tools available in each view; **panel** = the shell-level
+  `FrameRightResizable` that shows the current instance; **pair** = a results
+  package and a scope, `(runId, scopeId)`; **hand-off** = the one-line note the
+  instance assistant can leave for a product's copilot.
 
 ---
 
@@ -175,28 +178,27 @@ report header, figure editor) keep calling `setShowAi(true)`.
 
 The panel shows exactly one instance, chosen by the context:
 
-| Context          | When                                                              | Instance                                                                                                                                        | Thread scope                  |
-| ---------------- | ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
-| `product`        | a deck or report editor is open                                   | today's `ProductCopilot`, unchanged: env, tools, prompt and level fixed per mount, keyed on the product's resolved pair (`copilot.tsx:139-223`) | `copilot:<productId>`         |
-| `hfa_indicators` | the HFA indicator manager is open and the user is a global admin  | today's HFA assistant, unchanged (`wrapper.tsx:28-37`), rendered in the shell panel instead of its own frame                                    | `hfa-indicators`              |
-| `instance`       | everything else: the six tabs, the package page, every other page | the instance assistant (§2.4): read-only, no view registry, bound to one explicit pair                                                          | `assistant:<runId>:<scopeId>` |
+| Context    | When                                                                               | Instance                                                                                                                                                                      | Thread scope          |
+| ---------- | ---------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
+| `product`  | a deck or report editor is open                                                    | today's `ProductCopilot`, unchanged: env, tools, prompt and level fixed per mount, keyed on the product's resolved pair (`copilot.tsx:139-223`)                               | `copilot:<productId>` |
+| `instance` | everything else: the six tabs, the package page, the HFA manager, every other page | the instance assistant (§2.4): one view registry over the instance's pages; read tools everywhere, write tool groups only where a view admits them, under the approval policy | `assistant`           |
 
-Persisted chat settings (model, max tokens) stay shared by the product and
-instance assistants under `settingsScope: "copilot"`; the HFA assistant keeps
-its own.
+A context is a document. A view is a page. The product boundary is the one a
+user recognises (R1, R2); the HFA manager, the package page and a change of
+package or scope on Explore are pages of the instance, and the conversation
+continues across them. Persisted chat settings (model, max tokens) are shared by
+both instances under `settingsScope: "copilot"`.
 
 ### 2.3 The context signal
 
-A T4 accessor, `assistantContext`, in a new `client/src/state/t4_assistant.ts`.
-Three publishers, each publishing at mount and unpublishing in an `onCleanup`:
-`ProductCopilotHost` publishes `{ kind: "product", productId }`, the HFA manager
-publishes `{ kind: "hfa_indicators" }`, and the package page publishes
-`{ kind: "instance", pair }` so the assistant beside it reads the package the
-page shows. Everything else publishes nothing and gets `instance`. A forgotten
-publisher therefore degrades to the read-only assistant beside an editor, never
-to an editor assistant pointed at the wrong product. The derivation from the
-published context and the user's flags is a pure function in `lib/`, tested
-under `deno task test`.
+A T4 accessor, `assistantContext`, in a new `client/src/state/t4_assistant.ts`,
+with one publisher: `ProductCopilotHost` publishes
+`{ kind: "product", productId }` at mount and unpublishes in an `onCleanup`.
+Everything else is `instance`. A forgotten publisher therefore degrades to the
+instance assistant beside an editor, never to an editor assistant pointed at the
+wrong product. The HFA manager, the package page and the Explore page are not
+publishers: they are sync sites on the instance assistant's view controller
+(§2.4), the way the three editors are sync sites on the copilot's.
 
 ### 2.4 The catalogue (working hypothesis; step 1 replaces it, `RS` signs it)
 
@@ -204,12 +206,22 @@ What step 1 must settle, context by context. Tim's candidate list is the
 starting point: instance (everything non-product), report, report visualization
 editor, slide deck, specific slide, slide visualization editor.
 
-| Context           | Views (today)                                            | Candidates for step 1                                                                                                                                                                                                                                       |
-| ----------------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `instance`        | none (no registry)                                       | one instance with a per-send location line (tab, Explore family, module, view); or sub-contexts where the pair differs (Explore's selection vs the package page's package); which reads it offers; whether `switch_tab` and `open_product` are worth having |
-| `product`, deck   | `opening_product`, `editing_slide_deck`, `editing_slide` | a `editing_slide_figure` view for the figure editor open inside a slide (live config as context, the v1 `editing_visualization` shape); which deck-level tools stay available inside a slide                                                                |
-| `product`, report | `opening_product`, `editing_report`                      | a `editing_report_figure` view for the figure editor open inside a report; whether `get_report_pages` and the staged text tools stay as they are                                                                                                            |
-| `hfa_indicators`  | none (no registry)                                       | unchanged, or a view-less catalogue trimmed by the review                                                                                                                                                                                                   |
+| Context           | Views (today)                                            | Candidates for step 1                                                                                                                                                                        |
+| ----------------- | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `instance`        | none (no registry)                                       | the view registry in the table below; which reads the everywhere set offers; whether `switch_tab` and `open_product` are worth having; whether `viewing_figure` earns a view                 |
+| `product`, deck   | `opening_product`, `editing_slide_deck`, `editing_slide` | a `editing_slide_figure` view for the figure editor open inside a slide (live config as context, the v1 `editing_visualization` shape); which deck-level tools stay available inside a slide |
+| `product`, report | `opening_product`, `editing_report`                      | a `editing_report_figure` view for the figure editor open inside a report; whether `get_report_pages` and the staged text tools stay as they are                                             |
+
+The instance assistant's working registry. A view exists only where the tools or
+the live context differ; everywhere else the location line is enough.
+
+| View                     | Sync site                           | Live context                                | Tools beyond the everywhere set                         |
+| ------------------------ | ----------------------------------- | ------------------------------------------- | ------------------------------------------------------- |
+| `browsing` (fallback)    | none                                | the location line: the tab                  | none                                                    |
+| `explore`                | the Explore page                    | family, module, view, pair                  | none at first                                           |
+| `package_page`           | the package page                    | that package, its module statuses           | none                                                    |
+| `hfa_indicators`         | the HFA manager, global admins only | none (the tools read fresh state, as today) | the HFA tools, the six writes under the approval policy |
+| `viewing_figure` (cand.) | the figure editor outside a product | the figure config                           | none                                                    |
 
 The tools the review inventories, by surface. Product copilot (33):
 `get_available_metrics`, `get_metric_data`, `get_available_modules`,
@@ -230,38 +242,77 @@ The tools the review inventories, by surface. Product copilot (33):
 `get_available_metrics`, `get_metric_data`, `get_methodology_docs_list`,
 `get_methodology_doc_content`, `get_info`.
 
-The instance assistant's working tool set, read-only by ruling R5: the five
-shared reads (`lib/ai_tools`), the four module-internals reads, `list_products`
-(every visible product with id, type, label, folder path, package label, scope
-label and the caller's level), `open_product`, `switch_tab`, `get_context`, and
-`ask_user_questions`. Its pair is the Explore selection, one signal shared with
-the Explore page, shown in the pane header; the package page overrides it while
-open. A restricted user gets it without the package and module reads, the
-posture `/mcp` takes.
+The everywhere set: the five shared reads (`lib/ai_tools`), the four
+module-internals reads, `get_package_overview` (the package grounding that today
+sits in the product copilot's system prompt, as a tool result, the `/mcp`
+`get_overview` shape), `list_products` (every visible product with id, type,
+label, folder path, package label, scope label and the caller's level),
+`open_product`, `switch_tab` and `ask_user_questions`. A restricted user gets it
+without the package and module reads, the posture `/mcp` takes. Tools are built
+once per mount from the user's flags, so a non-admin never carries the HFA
+group; an admin carries its 8.8 KB in every instance-assistant request.
+
+The pair rule: the package page's package while that page is open, otherwise the
+Explore selection (R8), read at call time. Because the shared metric tools close
+over a pair's metric list (`lib/ai_tools/tools_metrics.ts`: `get_metric_data`
+resolves the metric from it, `get_available_metrics` prints it), a pair that
+changes under one chat needs the `/mcp` mechanism
+(`server/mcp/mcp_tools.ts:37-45`): the pair-bound tools are static templates
+wrapped with `bindAITool`, whose `resolve` builds the inner tools for the
+current pair from the immutable T2 authoring context and caches them per
+`(runId, definitionHash)`; the inner tool is closed over one pair, so a call
+finishes under the pair it started with. Every package-read result opens with
+the source header (`lib/ai_tools/source_header.ts`, hoisted from
+`server/mcp/context_cache.ts` to lib), the location line names the pair on every
+turn, and the system prompt carries no pair, so the cached prefix is byte-stable
+for the mount. Two residuals, stated: an HFA write admitted by a stale
+`hfa_indicators` view after a missed cleanup is a persisted write, caught only
+by its approval modal; and the model can blend two scopes' numbers in one
+answer, which the header makes visible but does not prevent, the trade `/mcp`
+already makes.
+
+The HFA fold: the twelve HFA tools
+(`client/src/components/data/hfa/indicators/ai/tools.ts`) gain `viewRegistry`
+and `availableIn: ["hfa_indicators"]`; their `approval` blocks and the policy
+the HFA assistant runs today
+(`approvalPolicy: { requireForKind: "write", requireKind: true }`,
+`wrapper.tsx:36`) move onto the instance assistant unchanged; the HFA system
+prompt (`ai/system_prompt.ts`) becomes the view's instructions, about 5 KB per
+turn while the manager is open. `/ai-instance` goes: `/ai` serves both chats,
+and the HFA routes guard themselves with `can_configure_data`. The old
+`hfa-indicators` browser threads are left behind; they are admin test
+conversations under the `hfa-ai-testing` label.
 
 ### 2.5 The hand-off
 
-`open_product` may carry a one-line note. The product copilot's pane shows it as
-a banner with Send and Dismiss; Send calls `sendMessage` on the product thread,
-the path the prompt library already uses. Nothing is sent without the click, and
-only text crosses.
+`open_product` may carry a one-line note. The note is a signal in
+`t4_assistant.ts`; the product copilot's pane shows it as a banner with Send and
+Dismiss, and Send calls `sendMessage` on the product thread, the path the prompt
+library already uses. Nothing is sent without the click, and only text crosses.
+The banner is `products/copilot/handoff_banner.tsx`, inside the product
+copilot's `AIChatProvider` where `sendMessage` is reachable. It cannot live in
+the panel's folder: the panel imports the copilot's `mod.ts` for the product
+slot, so a panel file rendered by the pane would close a runtime folder cycle
+(`lint_structure.ts`, `entry-cycle`).
 
 ### 2.6 What never crosses a context
 
 Threads, tools, the system prompt, live editor state, the interaction log and
-echo marks. A context change disposes the outgoing instance; a turn in flight
-completes into its own conversation store and persists (instance disposal is
-inert, `panther/_305_ai/_core/conversation_store.ts:19-21`; there is no
-`onCleanup` in `_create_ai_chat.ts`), so the reply is there when that context is
-reopened. The panel closes on a context change (R3); reopening shows a header
-naming the context and that context's own thread list, empty on a first visit.
+echo marks. Opening or closing a product disposes the outgoing instance; a turn
+in flight completes into its own conversation store and persists (instance
+disposal is inert, `panther/_305_ai/_core/conversation_store.ts:19-21`; there is
+no `onCleanup` in `_create_ai_chat.ts`), so the reply is there when that context
+is reopened. Within the instance nothing is disposed: a page change is a view
+change on the same chat, carried by the view label and the location line. The
+panel keeps its open state across a context change (R3); its header names the
+new context and its thread list is that context's own, empty on a first visit.
 
 ### 2.7 Telemetry
 
-`ai_usage_logs` gains `surface` (`copilot`, `instance`, `hfa`) and `context_id`
-(the product id, the pair, or null), sent by the SDK clients as request headers
-and read by the shared proxy handler. The product-switch rate, unmeasurable
-today, becomes a query.
+`ai_usage_logs` gains `surface` (`copilot` or `instance`) and `context_id` (the
+product id, or null), sent by the SDK clients as request headers and read by the
+shared proxy handler. The product-switch rate, unmeasurable today, becomes a
+query.
 
 ---
 
@@ -271,20 +322,23 @@ today, becomes a query.
   at the shell; the instance it shows is owned by the current context; a context
   change swaps the instance.
 - **R2. No thread spans contexts** (Tim, 2026-10-08). A conversation holds one
-  product, or one pair, or the HFA manager. The hand-off note is the only
-  bridge, and the user sends it.
-- **R3. The switch is loud** _(proposed)_. The panel closes on a context change;
-  reopened, it shows a header that names the context ("Deck B assistant",
-  "Explore assistant: package X at scope Y", "HFA indicators") and that
-  context's thread list. A first visit shows an empty-state card saying where
-  the previous conversation is.
+  product, or the instance. The hand-off note is the only bridge, and the user
+  sends it.
+- **R3. The switch is loud, the panel stays** (Tim, 2026-10-08). The panel keeps
+  its open state across a context change; its header names the context ("Deck B
+  assistant", "Instance assistant" with the view's label beneath it) and its
+  thread list is that context's. A first visit shows an empty-state card saying
+  where the previous conversation is. Closing the panel on a switch was proposed
+  and dropped: every product open and close would cost a click to reopen, and
+  the editor-local AI buttons are hidden while the panel is shown.
 - **R4. Review before code** (Tim). Step 1 is the inventory and the proposed
   catalogue; `Do 2` is blocked until `RS` exists.
-- **R5. The instance assistant writes nothing** _(proposed)_. No `kind: "write"`
-  tool and no `approval` on that surface; a boot-time assertion and
-  `approvalPolicy: { requireForKind: "write", requireKind: true }` enforce it.
-  Product management from chat (create, rename, move, delete, access) stays on
-  the Products page.
+- **R5. The instance assistant writes only through approval-gated tool groups
+  that a view admits** _(proposed)_.
+  `approvalPolicy: { requireForKind: "write", requireKind: true }` enforces it
+  at boot, and every write group declares `availableIn`. First group: the HFA
+  indicator tools in the `hfa_indicators` view. Product management from chat
+  (create, rename, move, delete, access) stays on the Products page.
 - **R6. The product copilot is unchanged except by the signed catalogue**
   _(proposed)_. Step 2 moves its frame and nothing else; step 4 applies only
   what `RS` says.
@@ -296,13 +350,20 @@ today, becomes a query.
 - **R8. One pair for Explore and the instance assistant** _(proposed)_. The
   Explore page's package and scope memos
   (`client/src/components/explore/explore.tsx:98-115`) move to `t4_explore.ts`
-  as one resolved pair that both read, so the header, the prompt and the data
-  source cannot disagree.
+  as one resolved pair that the Explore page and the instance assistant's env
+  read at call time; the package page's package overrides it while that page is
+  open. The pane header shows the pair the next call will use.
 - **R9. Telemetry columns** _(proposed)_. §2.7, one new numbered migration, text
-  columns, nullable, additive.
+  columns, nullable, additive; `surface` is `copilot` or `instance`,
+  `context_id` the product id or null.
 - **R10. The FASTR syntax doc rides once** _(proposed)_. The per-turn copy in
   the `editing_report` view instructions goes; the cached description copy
   stays.
+- **R11. A capability on an instance page is a view and a tool group, never a
+  new chat** _(proposed)_. A future AI capability on the Scopes page, module
+  defaults, imports, users or HMIS indicators joins the instance assistant as a
+  view with its sync site and a tool group gated by `availableIn` and the
+  approval policy. HFA is only the group that already exists.
 
 ---
 
@@ -357,61 +418,81 @@ passes, the line reads `Do 2`, and `Do 2` waits for `RS`.
 
 **Surface.** `client/src/components/instance/instance.tsx`,
 `client/src/state/t4_ui.ts`, `client/src/state/t4_assistant.ts` (new),
-`lib/ai_tools/assistant_context.ts` (new, the pure derivation),
-`server/tests/assistant_context_test.ts` (new),
-`client/src/components/assistant/{mod.ts,panel.tsx}` (new),
-`client/src/components/products/copilot/copilot.tsx` and `mod.ts`,
-`client/src/components/data/hfa/indicators/ai/wrapper.tsx`, `ai/mod.ts` and
-`manager.tsx`, `client/src/components/_shared/figure_editor/figure_editor.tsx`
-(the AI button only, if the signed catalogue gates it),
-`SYSTEM_13_ai_assistant.md` (globs and the host section),
-`SYSTEM_14_client_shell.md` (the shell).
+`client/src/components/instance/assistant/{mod.ts,panel.tsx}` (new; the panel is
+the shell's, so it nests under the shell folder per PROTOCOL_UI_STRUCTURE rule
+1), `client/src/components/products/copilot/copilot.tsx` and `mod.ts`,
+`client/src/components/_shared/figure_editor/figure_editor.tsx` (the AI button
+only, if the signed catalogue gates it), `SYSTEM_13_ai_assistant.md` (globs and
+the host section), `SYSTEM_14_client_shell.md` (the shell).
 
 **Deliverable.** R1, R3, R7. The panel wraps `ShellEditorWrapper`; the header AI
-button; the context signal with its product and HFA publishers (the package
-page's publisher is step 3); the panel's `Switch` over contexts with the product
-slot (today's host minus its frame, keyed on the productId the host publishes)
-and the HFA slot (today's wrapper minus its frame, admin-gated); the instance
-context shows a placeholder until step 3. `validateAIChatConfig` still runs in
-DEV for both instances. The lint manifests claim the new files.
+button; the context signal with its one publisher; the panel's `Switch` over
+contexts with the product slot (today's host minus its frame, keyed on the
+productId the host publishes); the instance context shows a placeholder until
+step 3. The HFA manager and its assistant are untouched until step 3.
+`validateAIChatConfig` still runs in DEV for the product instance. The lint
+manifests claim the new files.
 
-**Not in this step.** The instance assistant's tools and prompt. The hand-off.
-Any change to the product copilot's registry, tools or prompt.
+**Not in this step.** The instance assistant. The hand-off. The HFA fold. Any
+change to the product copilot's registry, tools or prompt.
 
-**Gates.** The floor. `server/tests/assistant_context_test.ts` green.
-`./validate_protocols` prints no new tier-2 hit and the baseline file is
-unchanged.
+**Gates.** The floor. `./validate_protocols` prints no new tier-2 hit and the
+baseline file is unchanged.
 
 **Ends with.** One or two commits, each green.
 
 ### Step 3: The instance assistant
 
 **Surface.**
-`client/src/components/assistant/{instance_assistant.tsx,instance_tools.ts,instance_system_prompt.ts,handoff_banner.tsx}`
-(new), `client/src/state/t4_explore.ts` and
-`client/src/components/explore/explore.tsx` (R8),
-`client/src/components/results_packages/package_page.tsx` (publishes its pair),
+`client/src/components/instance/assistant/{instance_assistant.tsx,ai_views.ts,instance_tools.ts,instance_system_prompt.ts}`
+(new; the registry, its controller and the three sync sites' contract),
+`client/src/components/products/copilot/handoff_banner.tsx` (new, §2.5),
+`client/src/state/t4_assistant.ts` (the hand-off note),
+`client/src/components/products/copilot/mod.ts` (exports what the instance
+assistant reuses: `createCopilotAIToolEnv`, `getClientToolsForModules`,
+`ConsolidatedChatPane`, `createCopilotSDKClient`),
+`client/src/state/t4_explore.ts` and `client/src/components/explore/explore.tsx`
+(R8, and Explore's sync site),
+`client/src/components/results_packages/package_page.tsx` (its sync site and
+pair), `client/src/components/data/hfa/indicators/manager.tsx` (its sync site;
+loses its frame and local `showAi`),
+`client/src/components/data/hfa/indicators/ai/tools.ts` (`viewRegistry` and
+`availableIn`), `ai/system_prompt.ts` (becomes the view's instructions),
+`ai/mod.ts`, `ai/wrapper.tsx`, `ai/chat_pane.tsx` and `ai/sdk_client.ts`
+(deleted), `server/routes/instance/ai_proxy.ts` (deleted) and `main.ts` (the
+`/ai-instance` mount removed),
 `client/src/components/products/copilot/chat_pane.tsx` (placeholder, header
 extras, the banner),
 `client/src/components/products/copilot/_shared/build_system_prompt.ts` and
 `lib/ai_tools/scope_lines.ts` (new; the scope lines move to lib so both prompts
-share them), `lib/ai_tools/format_products_list_for_ai.ts` (new, pure) and
+share them), `lib/ai_tools/source_header.ts` (the generic `withSourceHeader`
+hoisted from `server/mcp/context_cache.ts`), `server/mcp/context_cache.ts` and
+`server/tests/mcp_tools_source_header_test.ts` (the import),
+`lib/ai_tools/format_products_list_for_ai.ts` (new, pure) and
 `server/tests/format_products_list_for_ai_test.ts` (new), `lib/ai_tools/env.ts`
-(the comment), `SYSTEM_08_results_packages.md` (the package page paragraph),
-`SYSTEM_13_ai_assistant.md`, `SYSTEM_11_viz_authoring.md`,
-`SYSTEM_14_client_shell.md`.
+(the comment), `SYSTEM_05_facilities_indicators.md` (the HFA assistant
+paragraph), `SYSTEM_08_results_packages.md` (the package page paragraph),
+`SYSTEM_13_ai_assistant.md` (the proxies table, the HFA satellite section, the
+instance assistant), `SYSTEM_11_viz_authoring.md`, `SYSTEM_14_client_shell.md`.
 
-**Deliverable.** The instance assistant as the signed catalogue says: its tools,
-R5 enforced at boot, the pair per R8 with the picker or chip in the pane header,
-the location line through `getEphemeralContext`, the thread scope per pair, the
-restricted-user posture, the hand-off banner (R2, §2.5), the stale `env.ts`
-comment rewritten.
+**Deliverable.** The instance assistant as the signed catalogue says: its view
+registry with the `browsing` fallback and the three sync sites (Explore, the
+package page, the HFA manager), the everywhere set, the per-call binding of the
+pair-bound tools with the source header on every package-read result and
+`get_package_overview`, the pair per R8 shown in the pane header, the location
+line through the controller's sections, the thread scope `assistant`, the
+restricted-user posture, the HFA group in the `hfa_indicators` view under the
+approval policy and built only for global admins (R5), the hand-off banner (R2,
+§2.5), one proxy for both chats, the stale `env.ts` comment rewritten.
+`validateAIChatConfig` runs in DEV on the real config.
 
-**Not in this step.** Any write tool. Any change to the product copilot's
-registry or tools. Telemetry.
+**Not in this step.** Any write group beyond HFA. Any change to the product
+copilot's registry or tools. Telemetry.
 
-**Gates.** The floor. The new lib test green. `./validate_protocols` prints no
-new tier-2 hit and the baseline file is unchanged.
+**Gates.** The floor. The new lib test green;
+`server/tests/mcp_tools_source_header_test.ts` green against the lib import.
+`./validate_protocols` prints no new tier-2 hit and the baseline file is
+unchanged. `grep -rn "ai-instance" client/src server main.ts` prints nothing.
 
 **Ends with.** One or two commits, each green.
 
@@ -448,18 +529,26 @@ groups from the calls in `build_tools.ts`.
 `server/db/instance/_main_database.sql`,
 `server/db/instance/_main_database_types.ts`,
 `server/db/instance/ai_usage_logs.ts`,
-`server/routes/anthropic_messages_proxy.ts`,
-`server/routes/instance/ai_proxy.ts` and
-`server/routes/instance/copilot_ai_proxy.ts` (pass the two request headers into
-`ProxyArgs`), the two SDK client factories
-(`client/src/components/products/copilot/ai_configs/defaults.ts`,
-`client/src/components/data/hfa/indicators/ai/sdk_client.ts`) and the instance
-assistant's client, `SYSTEM_13_ai_assistant.md` (governance storage),
-`SYSTEM_02_persistence.md` if its migration list is enumerated there.
+`server/routes/anthropic_messages_proxy.ts` and
+`server/routes/instance/copilot_ai_proxy.ts` (pass the request's header getter
+into `ProxyArgs`; the handler never sees the request),
+`client/src/components/_shared/anthropic_sdk_client.ts` (new: the one factory,
+`createAnthropicSDKClient(surface, contextId)`) and
+`client/src/components/_shared/mod.ts`, the factory it replaces and its call
+sites (`client/src/components/products/copilot/ai_configs/**` deleted,
+`DEFAULT_BUILTIN_TOOLS` moving to `copilot.tsx`, its one consumer;
+`copilot.tsx`, `instance_assistant.tsx` and `products/copilot/mod.ts`
+re-pointed), `SYSTEM_13_ai_assistant.md` (globs and governance storage),
+`SYSTEM_02_persistence.md` (its migration list, which names each file).
 
 **Deliverable.** R9: two nullable text columns, written from two request headers
-the clients send, read once in the shared handler so the two mounts cannot
-drift. No `json` or `jsonb`.
+(`x-fastr-ai-surface`, `x-fastr-ai-context`) that the one SDK client factory
+sends as `defaultHeaders`. `ProxyArgs` takes
+`header: (name: string) => string |
+undefined` in place of `clientBetaHeader`,
+so the handler reads `anthropic-beta` and the two new headers itself. The CORS
+middleware already allows every header (`server/middleware/cors.ts:16`). No
+`json` or `jsonb`.
 
 **Not in this step.** Any reporting UI over the new columns.
 
@@ -476,9 +565,10 @@ and the companion file in its last commit.
 | -------------------------------------------------------------------------------- | ------------- |
 | Companion file fmt-clean, no em-dash, every tool name grep-matched               | Step 1        |
 | An `RS` ruling in §3 carrying `(Tim, <date>)`, catalogue section headed "Signed" | before Do 2   |
-| `server/tests/assistant_context_test.ts`                                         | Step 2        |
 | `./validate_protocols` prints no new tier-2 hit, baseline unchanged              | Step 2        |
 | `server/tests/format_products_list_for_ai_test.ts`                               | Step 3        |
+| `server/tests/mcp_tools_source_header_test.ts` against the lib import            | Step 3        |
+| `grep -rn "ai-instance" client/src server main.ts` prints nothing                | Step 3        |
 | `build_tools.ts` and every `availableIn` equal the signed catalogue              | Step 4        |
 | `./validate_migrations`, `./validate_fresh_boot`                                 | Step 5        |
 
@@ -496,15 +586,16 @@ Named so it is not reopened:
   decks, creating a report from a deck.
 - Product management writes from chat: create, rename, move, reattach, rescope,
   share, delete (R5).
-- Folding the HFA assistant into another instance, or changing its gate, proxy
-  or approval policy.
+- A third chat: a capability on an instance page is a view and a tool group
+  (R11).
 - Explore write tools ("Add to deck or report") and the results-explorer page
   itself (PLAN_PRODUCTS_RESTRUCTURE §8).
 - The panterra ops migration, an awareness digest, a nav index, a server-side
   session (panther `FUTURE_IDEAS_WBFASTR_OPS_MIGRATION.md`, `PLAN_RUNS.md`).
 - Any panther change (R7), including the ephemeral-section decision that gates a
   Fable 5.1 or Opus 5.5 default (panther `FUTURE_IDEAS_AI_CHAT.md` §1).
-- Shortening the system prompt's tool catalogue or the HFA assistant's prompt.
+- Shortening the system prompt's tool catalogue or the `hfa_indicators` view's
+  instructions.
 - Cross-device or server-side threads.
 
 ---
@@ -521,8 +612,8 @@ plan, and the fleet receives it with PLAN_PRODUCTS_RESTRUCTURE step 13.
 Rollback is the previous image. Migration 211's columns are nullable and inserts
 name their columns, so the previous code writes rows without them. Browser
 threads are keyed by scope and are untouched by every step: the product threads
-keep `copilot:<productId>`, the HFA threads keep `hfa-indicators`, and the
-instance assistant's `assistant:<pair>` records are simply unused under the
+keep `copilot:<productId>`, the old `hfa-indicators` threads are left behind,
+and the instance assistant's `assistant` records are simply unused under the
 previous image.
 
 ---
@@ -532,5 +623,7 @@ previous image.
 Append-only, newest last. One row per decision, deviation, correction or defect,
 plus one closing row per session.
 
-| Date | Step | Row |
-| ---- | ---- | --- |
+| Date       | Step  | Row                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| ---------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 2026-10-08 | pre-1 | Amended by Tim after a review of the plan against the code, before Do 1: the panel folder is `instance/assistant/` (PROTOCOL_UI_STRUCTURE rule 1); the hand-off banner and its note are `products/copilot/handoff_banner.tsx` and `t4_assistant.ts` (a panel file rendered by the pane would fail `entry-cycle`); step 3's Surface names `products/copilot/mod.ts` and the `/ai` proxy; step 5 collapses the two SDK client factories into one and the handler reads its own headers; R3 keeps the panel open across a switch.                                                                                                                                                             |
+| 2026-10-08 | pre-1 | Amended at Tim's direction after a second review, before Do 1: a context is a document and a view is a page. The HFA assistant becomes the `hfa_indicators` view and write group of the instance assistant (R5, R11), which now spans the HFA manager, the package page and Explore pair changes in one `assistant` thread with a view registry and three sync sites; the pair-bound tools bind per call (`bindAITool` over templates, a per-pair inner cache) with the source header on every package read, because the shared metric tools close over a pair's metric list; `/ai-instance` goes in step 3; the context signal keeps one publisher and loses its lib derivation and test. |
