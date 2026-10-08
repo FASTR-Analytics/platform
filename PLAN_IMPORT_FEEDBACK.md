@@ -13,7 +13,7 @@ indicator (a formula), the DHIS2 import fails every month of it as designed, but
 says so in DHIS2's vocabulary, by bare UID, without the steps that fix it, and
 only after the run.
 
-**Next step: Review 1.** Each session sets this line in its final commit. Its values
+**Next step: Fix 1.** Each session sets this line in its final commit. Its values
 are `Do N`, `Review N` and `Fix N`. The review that passes step 5 deletes this
 file.
 
@@ -449,3 +449,5 @@ again. The earlier build runs against the same databases.
 | 1 | Review finding. `SYSTEM_06_ingestion.md:343` gives ruling 3's trigger as "When no column matches a staged-type question", but the match skips the facility id column after recording its question as present (`server/worker_routines/import_hfa_data_csv/stage_csv.ts:540-541`), so the abort at `stage_csv.ts:115` also fires when the facility id column is the only column that matches a staged-type question. The test the bullet names as its pin is that case: `server/tests/hfa_csv_column_matching_test.ts:174` stages `id_fac,FOO,bar` against a form whose `id_fac` is a `select_one`, and staging aborts with `0 matched` and without `id_fac` in `First questions`. SYSTEM_06's own "HFA import runs" bullet (line 237) says the facility id column matches a question. Change: in `SYSTEM_06_ingestion.md:343`, replace "When no column matches a staged-type question," with "When no column other than the facility id column matches a staged-type question,". |
 | 1 | Step 1 reviewed: 1 finding. |
 | 1 | Step 1 fixed. |
+| 1 | Review finding. `SYSTEM_06_ingestion.md:342-343` says "Two columns matching one staged question abort staging, naming both.", but the match returns on the facility id column (`server/worker_routines/import_hfa_data_csv/stage_csv.ts:541`) before the duplicate check (`stage_csv.ts:550-556`), so a second column matching the facility id column's question does not abort: it is staged as that question's variable. On the test fixture's form (`id_fac` is a `select_one`), a CSV `id_fac,ID_FAC` with `id_fac` as the facility id column stages without error, `ID_FAC` landing as variable `id_fac`. Ruling 2 as written covers this case too; the code, ported from 180e72bcc, is right, because the facility id column is never staged and so cannot collide on the primary key. Change: in `SYSTEM_06_ingestion.md:342-343`, replace "Two columns matching one staged question abort staging, naming both." with "Two columns other than the facility id column matching one staged question abort staging, naming both." |
+| 1 | Step 1 reviewed: 1 finding. |
