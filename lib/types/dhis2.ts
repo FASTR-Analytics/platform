@@ -36,10 +36,13 @@ export type InstanceDhis2CredentialsInfo = {
   encryptionKeyConfigured: boolean;
 };
 
-// What a DHIS2 name refresh did: names rewritten, names already current,
-// and the ids of the elements DHIS2 no longer has, left as they were.
+// What a DHIS2 name refresh did: names rewritten, names already current, the
+// ids of the elements whose UID is a DHIS2 formula (what DHIS2 calls an
+// indicator), and the ids of the elements DHIS2 has nothing for. Both lists
+// keep their stored names, and the split between them is not stored.
 export type Dhis2LabelRefresh = {
   refreshed: number;
   unchanged: number;
+  formulas: string[];
   notFound: string[];
 };

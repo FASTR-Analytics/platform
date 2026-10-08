@@ -61,8 +61,7 @@ export const indicatorsDhis2RouteRegistry = {
     response: {} as { created: number },
   }),
   // Re-reads every DHIS2 element's name from live metadata and stores it as
-  // its dhis2_label. Display labels are untouched. An element DHIS2 no
-  // longer has is left as it is and counted.
+  // its dhis2_label. Display labels are untouched.
   refreshDhis2Labels: route({
     path: "/indicators-dhis2/refresh-labels",
     method: "POST",

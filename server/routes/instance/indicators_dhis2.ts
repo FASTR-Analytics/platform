@@ -4,6 +4,7 @@ import {
   type FetchOptions,
   getDataElementsFromDHIS2,
   getDhis2OperandVerdict,
+  getExistingMetadataIds,
   getIndicatorsFromDHIS2,
   searchAllIndicatorsAndDataElements,
   searchDataElementsFromDHIS2,
@@ -11,7 +12,11 @@ import {
   withDecompositions,
   withElementVerdicts,
 } from "../../dhis2/mod.ts";
-import { type Dhis2Credentials, dhis2ElementName } from "lib";
+import {
+  DHIS2_UID_PATTERN,
+  type Dhis2Credentials,
+  dhis2ElementName,
+} from "lib";
 import {
   createIndicatorsFromDhis2,
   getDhis2ElementDataIds,
@@ -92,18 +97,31 @@ defineRoute(
       );
       const elementsById = new Map(elements.map((e) => [e.id, e]));
       const labels = new Map<string, string>();
-      const notFound: string[] = [];
       for (const s of stored) {
         const element = elementsById.get(dataElementIdOf(s.data_id));
-        if (element === undefined) {
-          notFound.push(s.indicator_common_id);
-        } else {
+        if (element !== undefined) {
           labels.set(
             s.indicator_common_id,
             dhis2ElementName(element, s.data_id),
           );
         }
       }
+      const unfound = stored.filter((s) =>
+        !elementsById.has(dataElementIdOf(s.data_id))
+      );
+      const formulaUids = await getExistingMetadataIds(
+        "indicators",
+        unfound.map((s) => s.data_id).filter((id) =>
+          DHIS2_UID_PATTERN.test(id)
+        ),
+        options,
+      );
+      const formulas = unfound
+        .filter((s) => formulaUids.has(s.data_id))
+        .map((s) => s.indicator_common_id);
+      const notFound = unfound
+        .filter((s) => !formulaUids.has(s.data_id))
+        .map((s) => s.indicator_common_id);
       const refreshed = await setDhis2Labels(c.var.mainDb, labels);
       if (refreshed > 0) {
         notifyInstanceIndicatorsUpdated(
@@ -112,7 +130,12 @@ defineRoute(
       }
       return c.json({
         success: true,
-        data: { refreshed, unchanged: labels.size - refreshed, notFound },
+        data: {
+          refreshed,
+          unchanged: labels.size - refreshed,
+          formulas,
+          notFound,
+        },
       });
     } catch (error) {
       console.error("Error refreshing DHIS2 labels:", error);

@@ -209,10 +209,11 @@ This section is the authority. Every HMIS import, DHIS2 or CSV, is a row in
   indicator with data can be neither deleted nor given a new DHIS2 id (S5). The
   client's `dhis2FormulaRemedy` and `dhis2NotFoundRemedy`
   (`hmis/_shared/indicator_display.ts`) carry these verbatim and are shown in
-  the run detail and the import wizard's Review step. A refused formula pair's
-  ledger message carries the formula remedy's steps in one sentence; a not-found
-  pair's ends with the not-found remedy's steps, introduced by "To fix this,
-  open the indicator list." The run detail's two banners list
+  the run detail and the import wizard's Review step, and the formula remedy in
+  the Refresh DHIS2 names modal (S5). A refused formula pair's ledger message
+  carries the formula remedy's steps in one sentence; a not-found pair's ends
+  with the not-found remedy's steps, introduced by "To fix this, open the
+  indicator list." The run detail's two banners list
   `classification.dhis2IndicatorIds` and `classification.unknownIds`, each with
   its remedy and each id as `indicator id · label (UID)` through the dictionary
   keyed by data id (`dataIdWithIndicator`), bare where no indicator carries it.

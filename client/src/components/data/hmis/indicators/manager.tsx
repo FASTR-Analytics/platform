@@ -204,6 +204,7 @@ export function IndicatorsManager(p: Props) {
         elementCount: indicators.filter(
           (i) => i.definition.type === "dhis2_element",
         ).length,
+        indicators,
       },
     });
   }

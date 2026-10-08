@@ -400,15 +400,24 @@ The DHIS2 names are refreshed on demand, never on a schedule:
 DHIS2 element by UID from live metadata with the same chunked fetch and the same
 `dhis2ElementName` rule as the create route, and `setDhis2Labels` writes the
 names that differ (DHIS2 elements only, by indicator id, `updated_at` moving on
-those rows so the dictionary stamp changes), reporting refreshed, unchanged and
-not-found counts; an element DHIS2 no longer has keeps its stored name. Display
-labels are never touched. The client runs it from `RefreshDhis2LabelsModal`: the
+those rows so the dictionary stamp changes), reporting the refreshed and
+unchanged counts and two lists of indicator ids among the elements the
+data-element read did not find: `formulas`, whose UID DHIS2 has as a DHIS2
+formula (what DHIS2 calls an indicator; one `getExistingMetadataIds` call over
+`indicators`), and `notFound`, which DHIS2 has nothing for. Both keep their
+stored names, and nothing records which list an element fell in: the
+classification stays live, as the import dispatcher's does (S6). Display labels
+are never touched. The client runs it from `RefreshDhis2LabelsModal`: the
 explanation and the count of elements to read, the Refresh button waiting on the
-one request with its spinner, then the counts in its place. The manager's
-toolbar keeps the daily actions as buttons (Sort, Add from DHIS2, Create new)
-and puts the occasional ones, the dictionary download and Refresh DHIS2 names,
-in an overflow menu (panther's `ActionMenuButton`, `otherActionItems`), global
-admins only, the refresh gated on a stored DHIS2 connection like Add from DHIS2.
+one request with its spinner, then the counts in its place and a warning callout
+for each list, the formulas above the not-found, each id shown as
+`indicator id · label (UID)` (`dataIdWithIndicator`, through one map by
+indicator id over the list the manager passes in) and the formulas with S6's
+formula remedy. The manager's toolbar keeps the daily actions as buttons (Sort,
+Add from DHIS2, Create new) and puts the occasional ones, the dictionary
+download and Refresh DHIS2 names, in an overflow menu (panther's
+`ActionMenuButton`, `otherActionItems`), global admins only, the refresh gated
+on a stored DHIS2 connection like Add from DHIS2.
 
 Instance migration 087 (`087_indicator_data_key.sql`, PLAN_A6 rulings 1, 11, 12
 and 13) gives every Uploaded row a key: a row whose `data_id` was NULL takes a
