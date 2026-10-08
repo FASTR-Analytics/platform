@@ -642,10 +642,12 @@ cursors survive crossing the chrome instead of vanishing.
 ## Reconnect catch-up & failure modes
 
 `*_subscribe` carries the client's state vector (server → client diff); `*_sync`
-carries the server's state vector, and the client answers with
-`Y.encodeStateAsUpdate(doc, serverSV)`, the ops the _server_ is missing (e.g.
-edits made while the socket was down whose sends failed). Both directions ship
-only diffs; an in-sync exchange applies as a pure no-op.
+carries the server's state vector, and a client that can edit the product
+answers with `Y.encodeStateAsUpdate(doc, serverSV)`, the ops the _server_ is
+missing (e.g. edits made while the socket was down whose sends failed) plus the
+doc's whole delete set. A viewer answers nothing: its diff is never empty once
+the doc holds a deletion, and the room refuses it below edit. Both directions
+ship only diffs; an in-sync exchange applies as a pure no-op.
 
 | Situation                                     | Behavior                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |

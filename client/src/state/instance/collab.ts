@@ -27,6 +27,7 @@ import { createStore } from "solid-js/store";
 import { _SERVER_HOST } from "~/server_actions";
 import { notifyPresenceToasts, resetPresenceToasts } from "./presence_toasts";
 import { notifyCollabConnection } from "./connection_banner";
+import { canEditProduct } from "./product_access";
 
 // Client manager for the instance-wide collaboration WebSocket (GET /collab):
 // presence, idle detection, and the two CRDT session families the server
@@ -821,9 +822,10 @@ function handleReportServerMessage(msg: CollabServerMessage): boolean {
       Y.applyUpdate(s.doc, base64ToBytes(msg.data.update), SLIDE_REMOTE_ORIGIN);
       s.ready = true;
       // Two-way sync: push anything the server is missing (guarded like the
-      // slide path: a missing/malformed stateVector must not break onRemote).
+      // slide path: a missing/malformed stateVector must not break onRemote,
+      // and only a user who can edit answers).
       try {
-        if (msg.data.stateVector) {
+        if (msg.data.stateVector && canEditProduct(s.productId)) {
           const diff = Y.encodeStateAsUpdate(
             s.doc,
             base64ToBytes(msg.data.stateVector),
@@ -897,12 +899,14 @@ function handleSlideServerMessage(msg: CollabServerMessage): boolean {
       s.ready = true;
       // Two-way sync: push anything the server is missing, e.g. a local edit
       // whose slide_update was lost before this (re)connect (a switched viz that
-      // updated locally but never reached the server). The diff carries just the
-      // missing ops, not the whole doc; skip it when already in sync. Guarded:
-      // a slide_sync without a (valid) stateVector, e.g. an older server build
-      // during a deploy/rollback, must never break onRemote below.
+      // updated locally but never reached the server). The diff carries the
+      // missing ops and the doc's whole delete set, so only a user who can edit
+      // answers: a viewer's diff is sent once the doc holds a deletion, and the
+      // room refuses it below edit. Guarded: a slide_sync without a (valid)
+      // stateVector, e.g. an older server build during a deploy/rollback, must
+      // never break onRemote below.
       try {
-        if (msg.data.stateVector) {
+        if (msg.data.stateVector && canEditProduct(s.productId)) {
           const diff = Y.encodeStateAsUpdate(
             s.doc,
             base64ToBytes(msg.data.stateVector),
