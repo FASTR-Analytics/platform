@@ -451,8 +451,10 @@ async function run(std: RunWorkerMessage) {
       await failEveryPairOf(
         id,
         `Not found in DHIS2: "${id}", this indicator's DHIS2 id, matches no data element ` +
-          `or operand (data element . category option combo). Fix the id in the indicator ` +
-          `list, or remove the indicator.`,
+          `or operand (data element . category option combo). To fix this, open the ` +
+          `indicator list. If this indicator holds no data, fix the id or delete the ` +
+          `indicator. If it holds data, change its type to Uploaded: it keeps its data, ` +
+          `and no DHIS2 import fetches it again.`,
       );
     }
     for (const id of dhis2IndicatorIds) {
