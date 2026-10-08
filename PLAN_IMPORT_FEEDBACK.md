@@ -19,8 +19,8 @@ file.
 Branch: `version2`. Repos touched: this app only.
 
 The same plan exists on `tim-branch` as `PLAN_IMPORT_FEEDBACK.md` in the
-`wb-fastr` worktree, and runs first. Its last review may have edited this file's
-§3 or §4 with what that work learned (a message text settled differently, a
+`wb-fastr` worktree, and runs first. Its last review edited this file's §0, §3,
+§4 and §8 with what that work learned (a message text settled differently, a
 ruling overruled, a fact the code proved wrong). This file as it stands is
 authoritative; nothing here depends on reading the other.
 
@@ -48,6 +48,10 @@ binds them as follows.
   a migration, the schema, the query engine or help text, so no conditional gate
   applies.
 - Build log: §8. Last step: 5.
+- Reviews follow panther 209a0f5: at most two per step, a re-review scoped to
+  the Fix's commits, and a finding in prose, comments or docs edited by the
+  reviewer itself. This checkout's `panther/` copy predates it; the text is
+  `git show 6dd76d5e1:panther/protocols/PROTOCOL_ALL_PLANS.md`.
 - A step reads, in order: `CLAUDE.md`, `SYSTEMS.md`, the SYSTEM file for each
   area the step names, §2 and §3 of this plan, the step's own section in §4, and
   §8.
@@ -141,10 +145,12 @@ found", which is wrong: DHIS2 has it, as a formula.
 1. **A header matches the question with its id, else the one question whose id
    equals it ignoring case.** Already the code (`matchCsvColumnsToXlsForm`,
    `stage_csv.ts:532`); unchanged.
-2. **Two columns matching one staged question abort staging**, naming both.
-   Already the code; unchanged.
-3. **Zero matched columns abort staging** _(proposed)_, before any row is
-   written, with this message:
+2. **Two columns other than the facility id column matching one staged
+   question abort staging**, naming both. Already the code; unchanged.
+3. **When no column other than the facility id column matches a staged-type
+   question, staging aborts** _(proposed)_, even if some columns match
+   questions of other types (`csvQuestionMappings.length === 0`), before any
+   row is written, with this message:
 
    ```ts
    `No CSV column matches a question in the XLSForm: ${headers.length} columns in the file, ` +
@@ -198,20 +204,40 @@ found", which is wrong: DHIS2 has it, as a formula.
    only HMIS data deletion is all-data, so the retype is the remedy's second
    step, not deletion. The ledger message for a failed pair carries the same
    steps in one sentence.
+
+   A not-found id has its own remedy, for the same reason: `updateIndicator`
+   refuses a new DHIS2 id while rows exist under the old one and
+   `deleteIndicators` refuses an indicator with data, so "fix or remove the
+   id" fails both ways once the indicator holds data. The run detail's
+   not-found banner and the review step give it as:
+
+   > If it holds no data, fix its DHIS2 id or delete the indicator. If it holds
+   > data, change its type to Uploaded: it keeps its data, and no DHIS2 import
+   > fetches it again.
+
+   The not-found ledger message ends "To fix this, open the indicator list. If
+   this indicator holds no data, fix the id or delete the indicator. If it
+   holds data, change its type to Uploaded: it keeps its data, and no DHIS2
+   import fetches it again."
 10. **The wizard says it before launch** _(proposed)_. A new stateless route,
     `classifyDatasetHmisDhis2Selection` (body: the selection's data ids; guard
     `can_configure_data`), resolves the stored connection with
-    `getStoredDhis2CredentialsDecrypted`, runs `classifyElements` on them and
-    returns `{ formulaIds, notFoundIds }`. The review step calls it when it
-    opens and lists both sets per ruling 8 with the remedy. It never blocks the
-    launch, and a connection or DHIS2 error shows as one line where the lists
-    would be, not as a block: the run's own classification stays the truth.
+    `getStoredDhis2CredentialsDecrypted`, runs `classifyElements` on them with
+    `retryOptions: { maxAttempts: 1 }` (the default retries make an unreachable
+    DHIS2 take 12.6 s, and the run retries its own classification) and returns
+    `{ formulaIds, notFoundIds }`. The review step calls it when it opens and
+    lists both sets per ruling 8, each with its remedy (ruling 9). It never
+    blocks the launch, and a connection or DHIS2 error shows as one line where
+    the lists would be, not as a block: the run's own classification stays the
+    truth.
 11. **Refresh DHIS2 names tells formulas from not-found** _(proposed)_. After
     the data-element read, the route asks DHIS2 (`getExistingMetadataIds` over
     `indicators`) which of the unfound UIDs are formulas and returns them as
     `formulas: string[]` (indicator ids) beside `notFound`. The modal lists
-    formulas with the remedy and not-found as today. Nothing is stored: the
-    classification stays live, per the dispatcher's own rule.
+    formulas with the remedy under a heading that carries ruling 7's gloss, and
+    keeps the not-found callout and its heading; the ids in both appear per
+    ruling 8. Nothing is stored: the classification stays live, per the
+    dispatcher's own rule.
 12. **Release** _(proposed)_: nothing in this plan needs a migration or changes
     stored data. It ships with `version2`, whenever `version2` ships; nothing
     here ships on its own (§7).
@@ -222,13 +248,33 @@ found", which is wrong: DHIS2 has it, as a formula.
 
 **Surface.** `server/worker_routines/import_hfa_data_csv/stage_csv.ts`,
 `server/tests/hfa_csv_column_matching_test.ts`, `SYSTEM_06_ingestion.md` (the
-"HFA XLSForm" bullet of "Staging (phase 1)").
+"HFA XLSForm" bullet of "Staging (phase 1)" and the sample sentence of the "HFA
+import runs" bullet).
 
-**Deliverable.** Ruling 3 in `stage_csv.ts`, right after the match at line 115
-and before the raw table is created; a fifth case in the test: a file whose
-headers match no question rejects with a message containing
-`No CSV column matches a question in the XLSForm`; one sentence in the "HFA
-XLSForm" bullet stating the abort.
+**Deliverable.**
+
+- Ruling 3 in `stage_csv.ts`, right after the match at line 115 and before the
+  raw table is created.
+- A fifth case in the test, named for what its file holds: `id_fac,FOO,bar`,
+  whose only column matching a staged-type question is the facility id column
+  (the fixture's `id_fac` is a `select_one`), rejects with a message containing
+  `No CSV column matches a question in the XLSForm` and creates no table. The
+  test's header comment, which restates the match contract and has drifted from
+  it (two columns matching one question of a non-staged type do not abort),
+  becomes a pointer to the "HFA XLSForm" bullet.
+- In the "HFA XLSForm" bullet, ruling 2's sentence becomes "Two columns other
+  than the facility id column matching one staged question abort staging,
+  naming both.", and ruling 3 follows it: "When no column other than the
+  facility id column matches a staged-type question, even if some match
+  questions of other types, staging aborts before any table is created, naming
+  the first columns other than the facility id column that match no question
+  and the first staged-type questions no column matched, so the worker's
+  zero-rows message (facility checks and filters) is reached only in the case
+  it describes."
+- In the "HFA import runs" bullet, "(at most 10 unmatched headers, file order)"
+  becomes "(at most 10 headers other than the facility id column that match no
+  question, file order)": the match returns on the facility id column before it
+  can record it as unmatched.
 
 **Not in this step.** The client (step 2).
 
@@ -272,10 +318,12 @@ becomes a statement of ruling 6.
   failing, and that data already imported is kept, then gives the remedy and
   lists the ids per ruling 8 through the lookups the file already holds (lines
   25-26, 77-81). The not-found banner at line 398 is headed "Some selected
-  indicators point to nothing in DHIS2" and lists its ids the same way.
+  indicators point to nothing in DHIS2", gives ruling 9's not-found remedy, and
+  lists its ids the same way.
 - Rulings 7 and 9 in `worker.ts:459-472`: both ledger messages, the not-found
   one and the formula one, in the new vocabulary, the formula one carrying the
-  remedy's steps in one sentence.
+  remedy's steps in one sentence and the not-found one ending with ruling 9's
+  not-found wording.
 - Comments in `lib/types/dataset_hmis_import.ts` that say "DHIS2 indicator" for
   the user-facing sense say "DHIS2 formula"; identifiers unchanged.
 - `SYSTEM_06_ingestion.md`: the dispatcher bullet uses the vocabulary and names
@@ -328,9 +376,12 @@ becomes a statement of ruling 6.
 `getExistingMetadataIds("indicators", …)` call over the UIDs its data-element
 read did not find, removing those from `notFound`; the modal
 (`refresh_dhis2_labels_modal.tsx:106-114`) shows a warning callout "Point to
-DHIS2 formulas, not data elements (names left as they are):" with the ids per
-ruling 8 and the remedy, above the not-found callout; the refresh prose in
-`SYSTEM_05_facilities_indicators.md` (line 399) names the third count.
+DHIS2 formulas (what DHIS2 calls an indicator), not data elements (names left
+as they are):" with the ids per ruling 8 and the remedy, above the not-found
+callout, whose ids also appear per ruling 8, both resolved through one map by
+indicator id built once with `createMemo`, not a scan of the list per id; the
+refresh prose in `SYSTEM_05_facilities_indicators.md` (line 399) names the
+third count.
 
 **Not in this step.** Any badge or stored flag on dictionary rows (§6).
 
@@ -372,3 +423,10 @@ Rollback is `git revert` of the plan's commits on `version2`.
 
 | Step | Row |
 | ---- | --- |
+| 1 | From tim-branch: ruling 3's count `xlsFormQuestionsNotInCsv.length` omits a staged-type question the facility id column matched, so the message's count is one short when the facility id column is itself a staged-type question. The test fixture is such a case (`id_fac` is a `select_one`): its message says 3 where the form has 4. Kept as ruled. |
+| 2 | From tim-branch: the comment over `goNextFromMappings` (`wizard.tsx:164-165`) is deleted whole, not trimmed to its first clause, which says only what the function's name and its `previewDatasetHfaDuplicates` call already say. |
+| 3 | From tim-branch: `dataIdWithIndicator` (ruling 8's format), `dhis2FormulaRemedy` (ruling 9's formula remedy) and `dhis2NotFoundRemedy` (ruling 9's not-found remedy) live once each in the file the run detail already imports its indicator lookups from, here `client/src/components/data/hmis/_shared/indicator_display.ts` and its `mod.ts`, outside every step's Surface, because rulings 8 and 9 bind three client surfaces to one format and one wording. There step 3 added the first two and step 4 moved the not-found wording out of the run detail into the third; here step 3 adds all three. The reviews accepted the files outside the Surface. |
+| 3 | From tim-branch: the dispatcher bullet of SYSTEM_06 quotes ruling 9's formula remedy exactly, since it is the one place the wording survives this plan, and says the client's `dhis2FormulaRemedy` carries it verbatim and the ledger carries its steps in one sentence. It states ruling 7 as "Every message that names a formula id calls it a "DHIS2 formula" and says once that DHIS2 calls it an indicator", because a heading such as "Some selected indicators point to DHIS2 formulas" leaves the gloss to the sentence under it. The comment over `dhis2FormulaRemedy` is a one-line pointer to that bullet. Each was a review prose edit there. |
+| 4 | From tim-branch: review deleted the comment over the route, which restated the contract on `Dhis2SelectionClassification` (a preview; the run's classification is the truth), and the one over the review step's classification component, which said what it does. The sentence of SYSTEM_06's dispatcher bullet that names where `dhis2FormulaRemedy` is shown gains the Review step in this step and the refresh modal in step 5. |
+| 5 | From tim-branch: `client/src/components/data/hmis/indicators/manager.tsx` passes its indicator list into the modal as a prop (one line in `handleRefreshDhis2Labels`, as the manager passes `p.indicators` to its other modals), because the route returns indicator ids and ruling 8 needs each one's label and UID. Outside the Surface; the review accepted it. |
+| 5 | From tim-branch: the `refreshDhis2Labels` registry comment (`lib/api-routes/instance/indicators_dhis2.ts:63-65`) loses "An element DHIS2 no longer has is left as it is and counted.", since both lists are listed, not counted. The `Dhis2LabelRefresh` comment names the formulas list and ends "Both lists keep their stored names, and the split between them is not stored.", since the refresh stores the names it rewrites. |
