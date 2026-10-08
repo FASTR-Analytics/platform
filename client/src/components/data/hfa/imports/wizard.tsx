@@ -541,7 +541,7 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
                 <Show
                   when={data.groups.length > 0}
                   fallback={
-                    <div class="text-sm">
+                    <div>
                       {t3({
                         en:
                           "No facility has more than one row after filtering. There is nothing to resolve.",
