@@ -3,7 +3,12 @@
   "nodeModulesDir": "auto",
   "links": ["./vendor/postgres"],
   "fmt": {
-    "exclude": ["client/public/", "client/package-lock.json", "vendor/"]
+    "exclude": [
+      "client/public/",
+      "client/package-lock.json",
+      "server/tests/fixtures/fastr_pdf/",
+      "vendor/"
+    ]
   },
   "lint": {
     "exclude": ["client/"],
