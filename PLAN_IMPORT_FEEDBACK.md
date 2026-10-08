@@ -12,9 +12,9 @@ indicator (a formula), the DHIS2 import fails every month of it as designed, but
 says so in DHIS2's vocabulary, by bare UID, without the steps that fix it, and
 only after the run.
 
-**Next step: Do 2.** Each session sets this line in its final commit. Its values
-are `Do N`, `Review N` and `Fix N`. The review that passes step 5 deletes this
-file.
+**Next step: Review 2.** Each session sets this line in its final commit. Its
+values are `Do N`, `Review N` and `Fix N`. The review that passes step 5 deletes
+this file.
 
 Branch: `version2`. Repos touched: this app only.
 
@@ -522,3 +522,4 @@ Rollback is `git revert` of the plan's commits on `version2`.
 | 1    | The column-matching test's helper splits into `runStageLeg` (writes the CSV, runs the stage leg) and `stage` (reads the staged rows, drops the tables), because the abort case looks for the run's tables before any cleanup would drop them.                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | 1    | Step 1 built.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | 1    | Step 1 reviewed: pass.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| 2    | Step 2 built.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
