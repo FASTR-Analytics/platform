@@ -140,6 +140,10 @@ export function HfaStagingSummary(p: Props) {
               <span class="font-700 font-mono text-xl">
                 {toNum0(p.result.nXlsFormQuestionsNotInCsv)}
               </span>
+              <SampleList
+                sample={p.result.xlsFormQuestionsNotInCsvSample}
+                total={p.result.nXlsFormQuestionsNotInCsv}
+              />
             </div>
           </Show>
           <Show when={p.result.nCsvColsNotInXlsForm > 0}>
@@ -150,10 +154,36 @@ export function HfaStagingSummary(p: Props) {
               <span class="font-700 font-mono text-xl">
                 {toNum0(p.result.nCsvColsNotInXlsForm)}
               </span>
+              <SampleList
+                sample={p.result.csvColsNotInXlsFormSample}
+                total={p.result.nCsvColsNotInXlsForm}
+              />
             </div>
           </Show>
         </div>
       </div>
     </div>
+  );
+}
+
+// The ids behind a count, in the server's order; a run staged before the
+// sample fields existed carries none and shows the count alone.
+function SampleList(p: { sample: string[] | undefined; total: number }) {
+  const nBeyondSample = () => p.total - (p.sample?.length ?? 0);
+  return (
+    <Show when={p.sample?.length}>
+      <span class="text-base-content-muted font-mono text-sm">
+        {p.sample?.join(", ")}
+      </span>
+      <Show when={nBeyondSample() > 0}>
+        <span class="text-base-content-muted text-sm">
+          {t3({
+            en: `and ${toNum0(nBeyondSample())} more`,
+            fr: `et ${toNum0(nBeyondSample())} de plus`,
+            pt: `e mais ${toNum0(nBeyondSample())}`,
+          })}
+        </span>
+      </Show>
+    </Show>
   );
 }
