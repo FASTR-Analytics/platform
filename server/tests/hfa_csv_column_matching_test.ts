@@ -190,6 +190,7 @@ Deno.test("a file with no column but the facility id column matching a staged-ty
     "No CSV column matches a question in the XLSForm",
   );
   assertStringIncludes(err.message, "3 columns in the file");
+  assertStringIncludes(err.message, "4 questions of a staged type in the form");
   assertStringIncludes(err.message, "0 matched");
   assertStringIncludes(err.message, "First columns: FOO, bar.");
   assertStringIncludes(err.message, "First questions: serv_08b, hr_01, hr_02.");
