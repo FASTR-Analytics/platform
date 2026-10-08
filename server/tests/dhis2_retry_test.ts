@@ -1,7 +1,5 @@
-// Pins what withRetry throws when its attempts run out: the original error at
-// one attempt, the wrapped "Failed after N attempts" message at two or more,
-// and the original error when shouldRetry refuses. Pure: no DHIS2, no
-// database.
+// Pins what withRetry throws when its attempts run out, whose contract is the
+// "Retry" section of SYSTEM_07_dhis2.md. Pure: no DHIS2, no database.
 //
 //   deno test -A --env-file server/tests/dhis2_retry_test.ts
 
