@@ -52,19 +52,22 @@ Rules peculiar to this plan:
   against the code the way a code review checks a diff: every row is read
   against the file and line it cites.
 - **The catalogue is signed off before any code.** `Do 2` starts only when §3
-  holds the ruling `RS` in Tim's words, with a date, and the companion file's
-  catalogue section is headed "Signed". A session that finds `RS` absent stops
-  and says so. Sessions never write `RS`; only Tim does.
+  holds a ruling `RS` in Tim's words, carrying `(Tim, <date>)`, and the
+  companion file's catalogue section is headed "Signed". No such row exists
+  until he writes it. A session that finds `RS` absent stops and says so.
+  Sessions never write `RS`; only Tim does.
 - **The proposal is presented in the chat.** The Do 1 session's final message
   lays out the proposed catalogue (contexts, instances, views, the tools per
   view) and the questions it raises, so the discussion happens there. Tim never
   opens the companion file to find a question.
 - **Sign-off may change the plan.** If the signed catalogue differs from the
   working catalogue in §2.4, Tim amends §2.4, §3 and the step sections at
-  sign-off, before `Do 2`, and §8 records that he did. Sessions never make those
-  edits.
-- Vocabulary: **surface** = a page or editor an assistant instance can be
-  mounted beside; **context** = the thing an instance is attached to, one of
+  sign-off, before `Do 2`, and §8 records that he did. He makes the same change
+  to the companion's section 4 before heading it "Signed"; that section, as he
+  leaves it, is the signed catalogue. Sessions never make those edits.
+- Vocabulary: **surface** = an assistant a tool can exist on: the product
+  copilot, the HFA assistant, the headless `/mcp` and, from step 3, the instance
+  assistant; **context** = the thing an instance is attached to, one of
   `product`, `instance` and `hfa_indicators`; **instance** = one
   `AIChatProvider` with its tools, system prompt and thread scope; **view** = a
   panther view id inside one instance's registry; **catalogue** = the table of
@@ -77,7 +80,7 @@ Rules peculiar to this plan:
 
 ## 1. The problem
 
-Facts as of 2026-10-08, HEAD `d75ea3801`.
+Facts as of 2026-10-08, HEAD `958bb4b1e`.
 
 - **The copilot exists only inside a product editor.** `openProduct` is the one
   mount site and it opens `ProductCopilotHost` as a full-page view
@@ -111,7 +114,7 @@ Facts as of 2026-10-08, HEAD `d75ea3801`.
   deck-level tool is available in the slide view. The plan of record disagrees
   with itself about Explore: D6 and §8 of PLAN_PRODUCTS_RESTRUCTURE speak of
   "the copilot's `viewing_explore` view" (`:345`, `:2083`) while D15 says the
-  results explorer "mounts its own copilot with its own tools" (`:649`).
+  results explorer "mounts its own copilot with its own tools" (`:664`).
 - **One AI button is dead.** The figure editor's button is gated only on
   `!showAi()` (`figure_editor.tsx:829-836`), so it also renders in the Results
   tab's view-only package view
@@ -185,15 +188,15 @@ its own.
 ### 2.3 The context signal
 
 A T4 accessor, `assistantContext`, in a new `client/src/state/t4_assistant.ts`.
-Three publishers, each publishing at mount and unpublishing in the `onCleanup`
-it already has: `ProductCopilotHost` publishes `{ kind: "product", productId }`,
-the HFA manager publishes `{ kind: "hfa_indicators" }`, and the package page
-publishes `{ kind: "instance", pair }` so the assistant beside it reads the
-package the page shows. Everything else publishes nothing and gets `instance`. A
-forgotten publisher therefore degrades to the read-only assistant beside an
-editor, never to an editor assistant pointed at the wrong product. The
-derivation from the published context and the user's flags is a pure function in
-`lib/`, tested under `deno task test`.
+Three publishers, each publishing at mount and unpublishing in an `onCleanup`:
+`ProductCopilotHost` publishes `{ kind: "product", productId }`, the HFA manager
+publishes `{ kind: "hfa_indicators" }`, and the package page publishes
+`{ kind: "instance", pair }` so the assistant beside it reads the package the
+page shows. Everything else publishes nothing and gets `instance`. A forgotten
+publisher therefore degrades to the read-only assistant beside an editor, never
+to an editor assistant pointed at the wrong product. The derivation from the
+published context and the user's flags is a pure function in `lib/`, tested
+under `deno task test`.
 
 ### 2.4 The catalogue (working hypothesis; step 1 replaces it, `RS` signs it)
 
@@ -300,8 +303,6 @@ today, becomes a query.
 - **R10. The FASTR syntax doc rides once** _(proposed)_. The per-turn copy in
   the `editing_report` view instructions goes; the cached description copy
   stays.
-- **RS. Catalogue signed off.** Written by Tim at sign-off, with the date, after
-  Review 1 passes. Absent until then.
 
 ---
 
@@ -327,7 +328,7 @@ file and line:
    persists, whether it is approval-gated, what context it needs (the pair, the
    authoring context, the live editor), and the headless flag.
 3. **Defects and drift** found on the way, each with its change: the dead AI
-   button, the stale `env.ts` comment, the FASTR triple carriage, any tool whose
+   button, the stale `env.ts` comment, the FASTR double carriage, any tool whose
    gating does not match its needs, any view with no sync site.
 4. **The proposed catalogue.** Contexts, instances, views and the tools per
    view, with the reason for each placement, and each of Tim's six candidates
@@ -345,7 +346,7 @@ two things.
 **Gates.** `deno fmt --check PLAN_ASSISTANT_SURFACES_CATALOGUE.md`. No em-dash
 in the file (`grep -c $'\xe2\x80\x94'` prints 0). Every tool name in section 2
 matches a `name: "..."` in the code, checked by
-`grep -rhoE 'name: "[a-z_]+"' client/src/components/products/copilot/ai_tools lib/ai_tools client/src/components/data/hfa/indicators/ai server/mcp | sort -u`
+`grep -rhoE 'name: "[a-z_]+"' client/src/components/products/copilot/ai_tools lib/ai_tools client/src/components/data/hfa/indicators/ai server/mcp panther/_305_ai/_components | sort -u`
 against the inventory. Every view row's file and line resolves.
 
 **Ends with.** One commit. The session's final message in the chat presents
@@ -367,18 +368,19 @@ passes, the line reads `Do 2`, and `Do 2` waits for `RS`.
 `SYSTEM_14_client_shell.md` (the shell).
 
 **Deliverable.** R1, R3, R7. The panel wraps `ShellEditorWrapper`; the header AI
-button; the context signal with its three publishers; the panel's `Switch` over
-contexts with the product slot (today's host minus its frame, keyed on the
-productId the host publishes) and the HFA slot (today's wrapper minus its frame,
-admin-gated); the instance context shows a placeholder until step 3.
-`validateAIChatConfig` still runs in DEV for both instances. The lint manifests
-claim the new files.
+button; the context signal with its product and HFA publishers (the package
+page's publisher is step 3); the panel's `Switch` over contexts with the product
+slot (today's host minus its frame, keyed on the productId the host publishes)
+and the HFA slot (today's wrapper minus its frame, admin-gated); the instance
+context shows a placeholder until step 3. `validateAIChatConfig` still runs in
+DEV for both instances. The lint manifests claim the new files.
 
 **Not in this step.** The instance assistant's tools and prompt. The hand-off.
 Any change to the product copilot's registry, tools or prompt.
 
 **Gates.** The floor. `server/tests/assistant_context_test.ts` green.
-`./validate_protocols` with no new baseline entry.
+`./validate_protocols` prints no new tier-2 hit and the baseline file is
+unchanged.
 
 **Ends with.** One or two commits, each green.
 
@@ -388,14 +390,15 @@ Any change to the product copilot's registry, tools or prompt.
 `client/src/components/assistant/{instance_assistant.tsx,instance_tools.ts,instance_system_prompt.ts,handoff_banner.tsx}`
 (new), `client/src/state/t4_explore.ts` and
 `client/src/components/explore/explore.tsx` (R8),
-`client/src/components/results_packages/package_view/**` (publishes its pair),
+`client/src/components/results_packages/package_page.tsx` (publishes its pair),
 `client/src/components/products/copilot/chat_pane.tsx` (placeholder, header
 extras, the banner),
 `client/src/components/products/copilot/_shared/build_system_prompt.ts` and
 `lib/ai_tools/scope_lines.ts` (new; the scope lines move to lib so both prompts
 share them), `lib/ai_tools/format_products_list_for_ai.ts` (new, pure) and
 `server/tests/format_products_list_for_ai_test.ts` (new), `lib/ai_tools/env.ts`
-(the comment), `SYSTEM_13_ai_assistant.md`, `SYSTEM_11_viz_authoring.md`,
+(the comment), `SYSTEM_08_results_packages.md` (the package page paragraph),
+`SYSTEM_13_ai_assistant.md`, `SYSTEM_11_viz_authoring.md`,
 `SYSTEM_14_client_shell.md`.
 
 **Deliverable.** The instance assistant as the signed catalogue says: its tools,
@@ -407,8 +410,8 @@ comment rewritten.
 **Not in this step.** Any write tool. Any change to the product copilot's
 registry or tools. Telemetry.
 
-**Gates.** The floor. The new lib test green. `./validate_protocols` with no new
-baseline entry.
+**Gates.** The floor. The new lib test green. `./validate_protocols` prints no
+new tier-2 hit and the baseline file is unchanged.
 
 **Ends with.** One or two commits, each green.
 
@@ -430,9 +433,12 @@ contexts); SYSTEM_13's tool and view prose rewritten to match.
 
 **Not in this step.** Anything the signed catalogue does not name.
 
-**Gates.** The floor. `./validate_protocols` with no new baseline entry. The
-reviewer compares every `availableIn` and every tool group in `build_tools.ts`
-against the signed catalogue's table and lists each difference as a finding.
+**Gates.** The floor. `./validate_protocols` prints no new tier-2 hit and the
+baseline file is unchanged. The reviewer compares every `availableIn` and every
+tool group in `build_tools.ts` against the signed catalogue's table and lists
+each difference as a finding; the `availableIn` lists come from
+`grep -rn 'availableIn' client/src/components/products/copilot/ai_tools` and the
+groups from the calls in `build_tools.ts`.
 
 **Ends with.** One or several commits, each green.
 
@@ -442,11 +448,13 @@ against the signed catalogue's table and lists each difference as a finding.
 `server/db/instance/_main_database.sql`,
 `server/db/instance/_main_database_types.ts`,
 `server/db/instance/ai_usage_logs.ts`,
-`server/routes/anthropic_messages_proxy.ts`, the two SDK client factories
+`server/routes/anthropic_messages_proxy.ts`,
+`server/routes/instance/ai_proxy.ts` and
+`server/routes/instance/copilot_ai_proxy.ts` (pass the two request headers into
+`ProxyArgs`), the two SDK client factories
 (`client/src/components/products/copilot/ai_configs/defaults.ts`,
 `client/src/components/data/hfa/indicators/ai/sdk_client.ts`) and the instance
-assistant's client, `main.ts` only if the dev origin's CORS header list must
-name the two headers, `SYSTEM_13_ai_assistant.md` (governance storage),
+assistant's client, `SYSTEM_13_ai_assistant.md` (governance storage),
 `SYSTEM_02_persistence.md` if its migration list is enumerated there.
 
 **Deliverable.** R9: two nullable text columns, written from two request headers
@@ -464,15 +472,15 @@ and the companion file in its last commit.
 
 ## 5. Gates catalogue
 
-| Gate                                                                | First reached |
-| ------------------------------------------------------------------- | ------------- |
-| Companion file fmt-clean, no em-dash, every tool name grep-matched  | Step 1        |
-| `RS` present in §3, catalogue section headed "Signed"               | before Do 2   |
-| `server/tests/assistant_context_test.ts`                            | Step 2        |
-| `./validate_protocols`, no new tier-2 entry                         | Step 2        |
-| `server/tests/format_products_list_for_ai_test.ts`                  | Step 3        |
-| `build_tools.ts` and every `availableIn` equal the signed catalogue | Step 4        |
-| `./validate_migrations`, `./validate_fresh_boot`                    | Step 5        |
+| Gate                                                                             | First reached |
+| -------------------------------------------------------------------------------- | ------------- |
+| Companion file fmt-clean, no em-dash, every tool name grep-matched               | Step 1        |
+| An `RS` ruling in §3 carrying `(Tim, <date>)`, catalogue section headed "Signed" | before Do 2   |
+| `server/tests/assistant_context_test.ts`                                         | Step 2        |
+| `./validate_protocols` prints no new tier-2 hit, baseline unchanged              | Step 2        |
+| `server/tests/format_products_list_for_ai_test.ts`                               | Step 3        |
+| `build_tools.ts` and every `availableIn` equal the signed catalogue              | Step 4        |
+| `./validate_migrations`, `./validate_fresh_boot`                                 | Step 5        |
 
 The floor (PROTOCOL_APP_PLANS) is green at the end of every step.
 
