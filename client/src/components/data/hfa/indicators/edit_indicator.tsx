@@ -4,9 +4,11 @@ import {
   type HfaIndicatorServiceCategory,
   type HfaIndicatorSubCategory,
   t3,
+  TC,
 } from "lib";
 import {
   AlertComponentProps,
+  Button,
   createFormAction,
   Input,
   ModalContainer,
@@ -27,11 +29,13 @@ export function EditHfaIndicator(
       categories: HfaIndicatorCategory[];
       subCategories: HfaIndicatorSubCategory[];
       serviceCategories: HfaIndicatorServiceCategory[];
+      deleteIndicator?: (onDeleted: () => void) => Promise<void>;
     },
     undefined
   >,
 ) {
   const mode = p.existingIndicator ? "update" : "create";
+  const deleteIndicator = p.deleteIndicator;
 
   const [categoryId, setCategoryId] = createSignal<string | null>(
     p.existingIndicator?.categoryId ?? null,
@@ -109,6 +113,17 @@ export function EditHfaIndicator(
         })}
       form
       onCancel={() => p.close(undefined)}
+      footer={deleteIndicator && (
+        <Button
+          type="button"
+          outline
+          intent="danger"
+          iconName="trash"
+          onClick={() => deleteIndicator(() => p.close(undefined))}
+        >
+          {t3(TC.delete)}
+        </Button>
+      )}
       actions={[{
         label: t3({ en: "Save", fr: "Sauvegarder", pt: "Guardar" }),
         onClick: save.click,

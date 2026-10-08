@@ -11,6 +11,7 @@ import {
   type HfaIndicatorVariantGroup,
   type HfaIndicatorVariantItem,
   t3,
+  TC,
 } from "lib";
 import {
   Button,
@@ -79,6 +80,7 @@ export function HfaIndicatorCodeEditor(
       variantItems: HfaIndicatorVariantItem[];
       showAi: Accessor<boolean>;
       openAi: () => void;
+      deleteIndicator: (onDeleted: () => void) => Promise<void>;
     },
     undefined
   >,
@@ -167,6 +169,15 @@ export function HfaIndicatorCodeEditor(
             ? p.indicator.definition
             : undefined}
         >
+          <Button
+            intent="danger"
+            outline
+            onBackground="base-300"
+            iconName="trash"
+            onClick={() => p.deleteIndicator(() => p.close(undefined))}
+          >
+            {t3(TC.delete)}
+          </Button>
           <Show when={!p.showAi()}>
             <Button
               iconName="chevronLeft"

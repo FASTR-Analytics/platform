@@ -513,6 +513,8 @@ export function HfaIndicatorsManager(p: Props) {
         categories: catSt.data,
         subCategories: subCatSt.data,
         serviceCategories: svcCatSt.data,
+        deleteIndicator: (onDeleted: () => void) =>
+          deleteIndicators([indicator.indicatorId], onDeleted),
       },
     });
   }
@@ -557,6 +559,8 @@ export function HfaIndicatorsManager(p: Props) {
         variantItems: viSt.data,
         showAi,
         openAi,
+        deleteIndicator: (onDeleted: () => void) =>
+          deleteIndicators([indicator.indicatorId], onDeleted),
       },
     });
   }
@@ -620,28 +624,17 @@ export function HfaIndicatorsManager(p: Props) {
     }`;
   }
 
-  async function handleDelete(indicator: HfaIndicator) {
-    const deleteAction = createDeleteAction(
-      {
-        text: deleteConfirmText([indicator.indicatorId]),
-        itemList: [indicator.indicatorId],
-      },
-      () =>
-        serverActions.deleteHfaIndicators({
-          indicatorIds: [indicator.indicatorId],
-        }),
-    );
-    await deleteAction.click();
-  }
-
-  async function handleBulkDelete(selectedIndicators: HfaIndicator[]) {
-    const indicatorIds = selectedIndicators.map((i) => i.indicatorId);
+  async function deleteIndicators(
+    indicatorIds: string[],
+    ...onDeleted: (() => void)[]
+  ) {
     const deleteAction = createDeleteAction(
       {
         text: deleteConfirmText(indicatorIds),
         itemList: indicatorIds,
       },
       () => serverActions.deleteHfaIndicators({ indicatorIds }),
+      ...onDeleted,
     );
     await deleteAction.click();
   }
@@ -1031,42 +1024,6 @@ export function HfaIndicatorsManager(p: Props) {
     },
   ];
 
-  const allColumns = createMemo<TableColumn<HfaIndicator>[]>(() => {
-    if (!instanceState.currentUserIsGlobalAdmin) return columns;
-    return [
-      ...columns,
-      {
-        key: "actions",
-        header: "",
-        alignH: "right",
-        pullInY: true,
-        render: (ind) => (
-          <div class="ui-gap-sm flex justify-end">
-            <Button
-              onClick={(e: MouseEvent) => {
-                e.stopPropagation();
-                const st = indicators();
-                handleOpenCodeEditor(ind, st.status === "ready" ? st.data : []);
-              }}
-              iconName="pencil"
-              intent="base-100"
-              size="sm"
-            />
-            <Button
-              onClick={(e: MouseEvent) => {
-                e.stopPropagation();
-                handleDelete(ind);
-              }}
-              iconName="trash"
-              intent="base-100"
-              size="sm"
-            />
-          </div>
-        ),
-      },
-    ];
-  });
-
   const bulkActions = createMemo<BulkAction<HfaIndicator>[]>(() =>
     instanceState.currentUserIsGlobalAdmin
       ? [
@@ -1074,7 +1031,8 @@ export function HfaIndicatorsManager(p: Props) {
           label: t3(TC.delete),
           intent: "danger",
           outline: true,
-          onClick: handleBulkDelete,
+          onClick: (selected) =>
+            deleteIndicators(selected.map((i) => i.indicatorId)),
         },
       ]
       : []
@@ -1129,9 +1087,12 @@ export function HfaIndicatorsManager(p: Props) {
                     <div class="h-0 w-full flex-1">
                       <Table
                         data={keyedIndicators}
-                        columns={allColumns()}
+                        columns={columns}
                         keyField="indicatorId"
                         config={indicatorsTable}
+                        onRowClick={instanceState.currentUserIsGlobalAdmin
+                          ? (ind) => handleOpenCodeEditor(ind, keyedIndicators)
+                          : undefined}
                         noRowsMessage={t3({
                           en: "No HFA indicators configured",
                           fr: "Aucun indicateur HFA configuré",
