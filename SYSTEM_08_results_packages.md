@@ -376,10 +376,13 @@ three product routes that change a package's products (`setProductPackage`,
 `deleteProducts`, `duplicateProduct`). `createProduct`, `copyReportVersion` and
 `copySlideDeckVersion` also add a product to a package and send no nonce, so an
 open catalogue's "in use by" list lags until its next refetch. The delete guard
-reads the database, so it stays correct. A visitor arriving mid-generation sees
-the stored progress (the stage and chips as of the last push) until the next
-stage push: the `run_progress` listeners are page-local and `updateRunProgress`
-deliberately does not signal the catalogue: per-push signal spam is worse than a
+reads the database, so it stays correct. The list names every product attached
+to a package, by label, whatever the reader's level on it (S12 "Contract"):
+product levels do not reach the catalogue, which only a user with
+`can_configure_data` reads. A visitor arriving mid-generation sees the stored
+progress (the stage and chips as of the last push) until the next stage push:
+the `run_progress` listeners are page-local and `updateRunProgress` deliberately
+does not signal the catalogue: per-push signal spam is worse than a
 bounded-stale chip row (ruled). The listeners live in `results_packages.tsx`,
 which stays mounted under the open page, and the page reads them through
 accessor props. The package page is the ONLY surface that renders a non-ready

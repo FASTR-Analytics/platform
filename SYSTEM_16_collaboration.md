@@ -153,11 +153,15 @@ URL is self-reported).
   connection whose scope access or admin flag no longer equals its user's roster
   row (`closeConnectionsWithChangedAccess`), since an admin flag change changes
   every level. The client reconnects and re-subscribes, and is refused then what
-  it can no longer see (R29). `PresenceEntry` carries identity plus opaque
-  document ids, never labels or content. Authorization refusals are delivered as
-  a **post-upgrade close** with `COLLAB_CLOSE_UNAUTHORIZED` (4403) rather than
-  an HTTP status, because a browser cannot read a refused handshake (it surfaces
-  as an unreadable 1006, indistinguishable from a network drop); only the Origin
+  it can no longer see (R29). No route closes a deleted user's sockets:
+  `deleteUser` closes none, and `closeConnectionsWithChangedAccess` skips a
+  connection whose user has no roster row, so a socket of a user removed by
+  `deleteUser` or a replace-all `batchUploadUsers` keeps the levels it recorded
+  until it closes. `PresenceEntry` carries identity plus opaque document ids,
+  never labels or content. Authorization refusals are delivered as a
+  **post-upgrade close** with `COLLAB_CLOSE_UNAUTHORIZED` (4403) rather than an
+  HTTP status, because a browser cannot read a refused handshake (it surfaces as
+  an unreadable 1006, indistinguishable from a network drop); only the Origin
   check (403, never upgrade for a foreign origin) and the retryable 503 stay
   pre-upgrade. The Origin allowlist mirrors `server/middleware/cors.ts` (WS
   handshakes bypass CORS); same-origin requests are additionally allowed, and
