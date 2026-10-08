@@ -1,10 +1,7 @@
-// Pins how the HFA stage leg matches CSV columns to XLSForm questions: a
-// header that differs from the form's id only in case is staged under the
-// form's spelling, two columns matching one question abort staging, a file
-// whose columns match nothing aborts staging before any table is created, and
-// the diagnostics name the columns and questions left unmatched. Runs the real
-// stage leg on a throwaway database built from _main_database.sql on the dev
-// postgres (the .env the test task loads), dropped afterwards.
+// Pins the HFA stage leg's column match as the "HFA XLSForm" bullet of
+// SYSTEM_06_ingestion.md states it. Runs the real stage leg on a throwaway
+// database built from _main_database.sql on the dev postgres (the .env the
+// test task loads), dropped afterwards.
 //
 //   deno test -A --env-file server/tests/hfa_csv_column_matching_test.ts
 
@@ -165,7 +162,7 @@ Deno.test("two columns matching one question abort staging and name both", async
   );
 });
 
-Deno.test("a file whose headers match no question aborts staging before any table is created", async () => {
+Deno.test("a file with no column but the facility id column matching a staged-type question aborts staging before any table is created", async () => {
   // Runs the stage leg directly: stage() drops the tables on the way out,
   // which would hide whether any were created.
   runId++;

@@ -231,7 +231,8 @@ the shared mechanism; HFA differs only here:
   without a schema, so a renamed key is rewritten in place by an instance
   migration, as 093 did for `nDictionaryVariables` and
   `nXlsFormQuestionsNotInCsv`), `n_rows_integrated`. The diagnostics carry
-  `csvColsNotInXlsFormSample` (at most 10 unmatched headers, file order) and
+  `csvColsNotInXlsFormSample` (at most 10 headers other than the facility id
+  column that match no question, file order) and
   `xlsFormQuestionsNotInCsvSample` (at most 10 ids of staged-type questions
   no column matched, form order). `nXlsFormQuestionsNotInCsv` counts
   staged-type questions only, and a question the facility id column matched
@@ -343,9 +344,10 @@ start.
   column matching one staged question abort staging, naming both. When no
   column other than the facility id column matches a staged-type question,
   even if some match questions of other types, staging aborts before any table
-  is created, naming the first unmatched columns and the first questions
-  without a column, so the worker's zero-rows message (facility checks and
-  filters) is reached only in the case it describes. Pinned by
+  is created, naming the first columns other than the facility id column that
+  match no question and the first staged-type questions no column matched, so
+  the worker's zero-rows message (facility checks and filters) is reached only
+  in the case it describes. Pinned by
   `server/tests/hfa_csv_column_matching_test.ts`.
 - HFA row filtering + dedup (order fixed: **filter → review → resolve**; all
   fields in the run's mappings JSON): `rowFilters` (ANDed; trimmed-string
