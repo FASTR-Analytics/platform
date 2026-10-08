@@ -378,6 +378,9 @@ export async function getCsvStreamComponents(
             );
           }
           await queuePromise;
+          if (processingError) {
+            throw processingError;
+          }
 
           if (!_IS_PRODUCTION) {
             console.log(

@@ -43,6 +43,7 @@ globs:
   - server/server_only_funcs_csvs/**
   - server/tests/csv_header_preselect_test.ts
   - server/tests/csv_mapping_staging_test.ts
+  - server/tests/csv_stream_reader_test.ts
   - server/tests/dhis2_skip_and_record_test.ts
   - server/tests/hfa_csv_column_matching_test.ts
   - server/tests/indicator_selection_expansion_test.ts
@@ -302,7 +303,9 @@ start.
 - CSV parsing goes through `getCsvStreamComponents`
   (`get_csv_components_streaming_fast.ts`): streaming, 2 MB chunks,
   quote-parity-aware chunk boundaries (quoted fields with embedded newlines
-  survive chunking).
+  survive chunking); a row with more columns than the header (under `strict`, a
+  different count) rejects the stream naming the row, whichever row it is,
+  pinned by `server/tests/csv_stream_reader_test.ts`.
 - HMIS-DHIS2 semantics (run worker, the pure reduce in `dispatch.ts`, pinned by
   `server/tests/dhis2_skip_and_record_test.ts`): a facility value is accepted
   only as a non-negative integer (numeric parse, so a NUMBER-typed "12.0" counts
