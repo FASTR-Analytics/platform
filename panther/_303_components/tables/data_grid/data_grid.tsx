@@ -12,6 +12,7 @@ import {
   Show,
 } from "solid-js";
 import { computeGroupSpans } from "../_internal/group_spans.ts";
+import { getNextSortDirection } from "../_internal/sort_cycle.ts";
 import { HeaderGlyph } from "../display_table/header_glyph.tsx";
 import type {
   DataGridCell,
@@ -97,9 +98,11 @@ export function DataGrid(p: DataGridProps) {
 
   const toggleSort = (columnId: string) => {
     const prev = sort();
-    const next: DataGridSort = prev?.columnId === columnId
-      ? { columnId, direction: prev.direction === "asc" ? "desc" : "asc" }
-      : { columnId, direction: "asc" };
+    const direction = getNextSortDirection(
+      prev?.columnId === columnId ? prev.direction : null,
+      false,
+    );
+    const next = direction === null ? null : { columnId, direction };
     setSort(next);
     p.onSortChange?.(next);
   };

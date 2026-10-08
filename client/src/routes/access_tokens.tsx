@@ -108,12 +108,14 @@ function AccessTokensPanel(p: { email: string }) {
       key: "createdAt",
       header: "Created",
       sortable: true,
+      sortDescFirst: true,
       render: (pat) => <span>{formatDate(pat.createdAt)}</span>,
     },
     {
       key: "lastUsedAt",
       header: "Last used",
       sortable: true,
+      sortDescFirst: true,
       render: (pat) =>
         pat.lastUsedAt === null
           ? <span class="text-base-content-muted">Never</span>

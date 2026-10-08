@@ -188,6 +188,7 @@ export function InstanceResultsPackages() {
       key: "createdAt",
       header: t3({ en: "Created", fr: "Créé", pt: "Criado" }),
       sortable: true,
+      sortDescFirst: true,
       searchable: false,
       render: (run) => new Date(run.createdAt).toLocaleString(),
     },

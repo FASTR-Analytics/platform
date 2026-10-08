@@ -180,6 +180,7 @@ export function AIChatConversationSelector(
         pt: "Última atividade",
       }),
       sortable: true,
+      sortDescFirst: true,
       render: (conv) => (
         <span class="text-base-content-muted text-sm">
           {formatDate(conv.lastMessageAt)}

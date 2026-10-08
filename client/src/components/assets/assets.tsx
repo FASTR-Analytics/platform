@@ -140,6 +140,7 @@ function AssetTable(p: {
       key: "lastModified",
       header: t3({ en: "Modified", fr: "Modifié", pt: "Modificado" }),
       sortable: true,
+      sortDescFirst: true,
       searchable: false,
       render: (asset) => (
         <span class="text-base-content-muted">

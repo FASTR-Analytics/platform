@@ -105,7 +105,7 @@ export async function getCountIndicatorsVersion(
 
 export async function getInstanceUsers(mainDb: Sql): Promise<OtherUser[]> {
   const [rows, grants] = await Promise.all([
-    mainDb<DBUser[]>`SELECT * FROM users`,
+    mainDb<DBUser[]>`SELECT * FROM users ORDER BY email`,
     getScopeGrantsByEmail(mainDb),
   ]);
   return rows.map((row) => otherUserFromRow(row, grants.get(row.email) ?? []));

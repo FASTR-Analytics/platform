@@ -70,6 +70,7 @@ export function Dhis2TabHistory(p: Props) {
       key: "startedAt",
       header: t3({ en: "Started", fr: "Démarrée", pt: "Iniciada" }),
       sortable: true,
+      sortDescFirst: true,
       render: (run) => new Date(run.startedAt).toLocaleString(),
     },
     {

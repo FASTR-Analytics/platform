@@ -114,6 +114,7 @@ export function LedgerTable(p: Props) {
         pt: "Última importação",
       }),
       sortable: true,
+      sortDescFirst: true,
       sortValue: (item) => item.latestImportedAt ?? "",
       render: (item) => {
         if (item.latestImportedAt) {

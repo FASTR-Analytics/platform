@@ -357,6 +357,7 @@ function UserTable(p: {
         pt: "Última atividade",
       }),
       sortable: true,
+      sortDescFirst: true,
       searchable: false,
       render: (user) => {
         if (user.lastActiveTs === -1) {

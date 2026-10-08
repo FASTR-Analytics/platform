@@ -91,6 +91,16 @@ theme, `ui-*` utilities, sizing utilities, and sentence case see
     creates its children again on every refetch, so a config created inside it,
     beside the `Table`, is lost with it. A config at module scope lasts the
     session. Read `config.state` anywhere; write only through its setters.
+15. **A column of times sorts newest first, and a table's unsorted order comes
+    from its source**: a sortable column whose value is when something already
+    happened (created, started, uploaded, last active) takes
+    `sortDescFirst: true`, so its first click puts the newest first. A scheduled
+    time and a period label (a month, a survey round) do not. A header's clicks
+    cycle through its first direction, the opposite one, and unsorted, and
+    unsorted is the order of `data`. A table whose unsorted order should mean
+    something (a configured sort order, a roster, users by email) gets that
+    order from its source, such as the query's `ORDER BY`, so clearing the sort
+    shows it.
 
 ## Do / Don't
 
@@ -424,6 +434,8 @@ Outline `Button`s placed in a `tonal` bar still declare their surface:
       columns, and its rows are named by `itemLabel`
 - [ ] A `Table` that a wrapper, `Show` or tab remounts takes a `config` created
       above that wrapper
+- [ ] Every sortable column of times takes `sortDescFirst: true`, and a `Table`
+      whose unsorted order should mean something gets it from its source
 - [ ] Dialogs use the editor/alert helpers; deletes use `createDeleteAction`
 - [ ] Component sizing uses the `size` prop / `ui-form-*`, not ad-hoc classes
 - [ ] Async data rendered through `StateHolderWrapper`

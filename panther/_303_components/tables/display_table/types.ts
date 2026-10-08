@@ -19,6 +19,7 @@ export type TableColumn<T> = {
   key: string;
   header: string;
   sortable?: boolean;
+  sortDescFirst?: boolean;
   sortValue?: (item: T) => unknown;
   filterable?: boolean;
   // A row with several values (tags) is kept while any of them is checked; an

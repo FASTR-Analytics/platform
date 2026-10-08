@@ -24,6 +24,7 @@ import {
   t3,
 } from "../../deps.ts";
 import { padYClass, spyClass } from "../../_internal/pad_classes.ts";
+import { getNextSortDirection } from "../_internal/sort_cycle.ts";
 import type {
   AnyRow,
   BulkAction,
@@ -162,19 +163,16 @@ export function Table<
     sortData(visibleRows(), sortConfig(), p.columns)
   );
 
-  // Handle sorting
   const handleSort = (column: TableColumn<T>) => {
     if (!column.sortable) return;
-
     const prev = sortConfig();
-    const newConfig: SortConfig = prev?.key === column.key
-      ? {
-        key: column.key,
-        direction: prev.direction === "asc" ? "desc" : "asc",
-      }
-      : { key: column.key, direction: "asc" };
-
-    config().setSort(newConfig);
+    const direction = getNextSortDirection(
+      prev?.key === column.key ? prev.direction : null,
+      column.sortDescFirst === true,
+    );
+    config().setSort(
+      direction === null ? null : { key: column.key, direction },
+    );
   };
 
   // Handle selection

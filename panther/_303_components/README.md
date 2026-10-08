@@ -199,7 +199,7 @@ filter (`tables/display_table/column_filter.tsx`) does.
 
 ```tsx
 <Table
-  columns={columns}   // TableColumn<T>[]: { key, header, sortable?, filterable?, searchable?, searchValue? }
+  columns={columns}   // TableColumn<T>[]: { key, header, sortable?, sortDescFirst?, filterable?, searchable?, searchValue? }
   data={data()}
   keyField="id"
   config={usersTable}                  // view state that outlives remounts (optional)
@@ -220,6 +220,20 @@ an `EmptyState` no-rows fallback. A filterable column gets a funnel button in
 its header that lists the column's distinct values as check rows; the unchecked
 values are part of the Table's config.
 
+**Sorting.** Clicks on a sortable header cycle through its first direction, the
+opposite direction, and unsorted. The first direction is ascending, or
+descending for a column marked `sortDescFirst: true`, which every column of
+times takes (created, started, last active) so its first click puts the newest
+first. A `null` or `undefined` value (from `sortValue`, else the field) sorts
+after every other value in both directions; only the order of the other values
+flips. A click on a column other than the sorted one sorts it in its first
+direction. Unsorted is the rows in the order of `data`, so a table whose
+unsorted order should mean something gets that order from its source. A config
+seeded with a sort starts there, and clearing it shows the order of `data`, not
+the seed: a seed of `{ key: "lastActiveTs", direction: "desc" }` on a
+`sortDescFirst` column flips to ascending on the first click, clears on the
+second, and comes back to the seed on the third.
+
 **The config** holds a Table's view state: the sort, each filtered column's
 unchecked values, the search text and the scroll position. It is a Solid store
 with its setters, made by `createTableConfig()`, optionally seeded
@@ -234,7 +248,13 @@ Table. Read `config.state` anywhere; write only through the setters (`setSort`,
 `setFilter`, `setSearchText`, `setScrollTop`, `clearFilters`). Each setter
 replaces the whole field it changes, so a reader of a whole field
 (`on(() => config.state.sort, ...)`) sees every change. A config passed later in
-place of another is picked up, and its scroll position restored.
+place of another is picked up, and its scroll position restored. The filters are
+plain JSON (`Record<string, string[]>`), not a `Map` of `Set`s: a store tracks
+reads inside a plain object but not inside a `Map`, and
+`JSON.stringify(config.state)` writes them out, where a `Map` comes out as `{}`.
+Selection is not part of the config: it refers to the rows currently loaded and
+drives the bulk actions, so it keeps its own `selectedKeys`/`setSelectedKeys`
+pair.
 
 ```tsx
 const usersTable = createTableConfig({ sort: { key: "name", direction: "asc" } });
@@ -332,9 +352,11 @@ Two matrix grids draw rows × columns with a sticky row-header column and share
 the grid contract: `GridColumn { id, label, groupId? }`,
 `GridColumnGroup { id, label }`, `GridRow { id, label }`, and
 `cells[rowIndex][columnIndex]` aligned with `rows` and `columns`. `DataGrid`
-draws numeric cells and sorts; `PresenceGrid` draws a swatch per boolean cell.
-Each has an adapter that builds the contract from a source panther already
-knows: `dataGridPropsFromTableData` from the canvas table's pivot, and
+draws numeric cells and sorts: clicks on a header cycle ascending, descending,
+and unsorted (the rows in the order given), and `onSortChange` receives `null`
+for unsorted. `PresenceGrid` draws a swatch per boolean cell. Each has an
+adapter that builds the contract from a source panther already knows:
+`dataGridPropsFromTableData` from the canvas table's pivot, and
 `presenceGridColumnsFromPeriods` from an inclusive range of month period ids
 (months or quarters grouped by year, or ungrouped years, per the `PeriodType`).
 

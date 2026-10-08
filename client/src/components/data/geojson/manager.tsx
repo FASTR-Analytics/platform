@@ -77,6 +77,7 @@ export function GeoJsonManager(p: Props) {
       key: "uploadedAt",
       header: t3({ en: "Uploaded", fr: "Téléchargé", pt: "Carregado" }),
       sortable: true,
+      sortDescFirst: true,
       render: (item) => (
         <span>{new Date(item.uploadedAt).toLocaleDateString()}</span>
       ),

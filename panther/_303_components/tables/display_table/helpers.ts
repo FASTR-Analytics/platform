@@ -7,9 +7,6 @@ import type { AnyRow, SortConfig, TableColumn, TablePadding } from "./types.ts";
 import type { TableConfigState } from "./table_config.ts";
 
 export function compareValues(a: unknown, b: unknown): number {
-  if (a === undefined || a === null) return 1;
-  if (b === undefined || b === null) return -1;
-
   if (typeof a === "string" && typeof b === "string") {
     return a.toLowerCase().localeCompare(b.toLowerCase());
   }
@@ -40,7 +37,11 @@ export function sortData<T extends AnyRow>(
 
   const sorted = [...data];
   sorted.sort((a, b) => {
-    const comparison = compareValues(getValue(a), getValue(b));
+    const va = getValue(a);
+    const vb = getValue(b);
+    const missing = Number(va == null) - Number(vb == null);
+    if (missing !== 0 || va == null) return missing;
+    const comparison = compareValues(va, vb);
     return direction === "asc" ? comparison : -comparison;
   });
 
