@@ -141,7 +141,8 @@ type CollabSocket = {
   ) => Promise<Extract<CollabServerMessage, { type: T }>>;
   // Whether the server still answers a ping, or has closed the socket.
   alive: () => Promise<boolean>;
-  closed: Promise<number>;
+  // The code the server closes the socket with; fails after 10 s.
+  closeCode: () => Promise<number>;
   stop: () => Promise<void>;
 };
 
@@ -200,7 +201,18 @@ async function collabSocket(email: string): Promise<CollabSocket> {
       send({ type: "ping" });
       return await next("pong").then(() => true, () => false);
     },
-    closed,
+    closeCode: () => {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      return Promise.race([
+        closed.finally(() => clearTimeout(timer)),
+        new Promise<number>((_, reject) => {
+          timer = setTimeout(
+            () => reject(new Error("the socket was not closed")),
+            10_000,
+          );
+        }),
+      ]);
+    },
     stop: async () => {
       if (open) ws.close();
       await closed;
@@ -552,7 +564,7 @@ Deno.test("product levels: the guard, the access routes and the bulk action", as
       ])).status,
       200,
     );
-    assertEquals(await viewerSocket.closed, COLLAB_CLOSE_ACCESS_CHANGED);
+    assertEquals(await viewerSocket.closeCode(), COLLAB_CLOSE_ACCESS_CHANGED);
     assert(await editorSocket.alive());
     assertEquals(
       (await setAccess(owner, report, "none", sharing)).status,
@@ -677,6 +689,27 @@ Deno.test("product levels: the guard, the access routes and the bulk action", as
         { email: VIEWER, level: "edit" },
       ],
     });
+
+    // The bulk action raising a viewer to edit closes the viewer's socket on
+    // that product and leaves the owner's open.
+    const raisedFolder = await folder(null);
+    const raisedReport = await create(owner, "report", raisedFolder);
+    assertEquals(
+      (await setAccess(owner, raisedReport, "none", [
+        { email: VIEWER, level: "view" },
+      ])).status,
+      200,
+    );
+    const raisedViewer = await openOn(VIEWER, raisedReport);
+    await raisedViewer.next("report_sync");
+    const raisedOwner = await openOn(OWNER, raisedReport);
+    await raisedOwner.next("report_sync");
+    await ok(admin, "PUT", `/folders/${raisedFolder}/products/access`, {
+      defaultAccess: "none",
+      grants: [{ email: VIEWER, level: "edit" }],
+    });
+    assertEquals(await raisedViewer.closeCode(), COLLAB_CLOSE_ACCESS_CHANGED);
+    assert(await raisedOwner.alive());
   } finally {
     for (const socket of sockets) {
       await socket.stop();

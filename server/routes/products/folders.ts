@@ -4,7 +4,6 @@ import { closeConnectionsWhoseLevelChanged } from "../../collab/presence_registr
 import {
   createFolder,
   deleteFolder,
-  getProductSummaries,
   listFolders,
   moveFolder,
   raiseFolderProductsAccess,
@@ -117,22 +116,17 @@ defineRoute(
     if (!res.success) {
       return respond(c, res);
     }
-    await notifyInstanceProductsUpserted(c.var.mainDb, res.data.productIds);
-    const changed = await getProductSummaries(
+    const changed = await notifyInstanceProductsUpserted(
       c.var.mainDb,
       res.data.productIds,
     );
-    if (!changed.success) {
-      console.error(`setFolderProductsAccess re-read: ${changed.err}`);
-    } else {
-      for (const product of changed.data) {
-        closeConnectionsWhoseLevelChanged(
-          product.id,
-          product,
-          COLLAB_CLOSE_ACCESS_CHANGED,
-          "Product access changed",
-        );
-      }
+    for (const product of changed) {
+      closeConnectionsWhoseLevelChanged(
+        product.id,
+        product,
+        COLLAB_CLOSE_ACCESS_CHANGED,
+        "Product access changed",
+      );
     }
     return respond(c, res);
   },

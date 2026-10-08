@@ -68,13 +68,14 @@ export async function notifyInstanceConfigUpdatedFromDb(mainDb: Sql) {
 // one deck never re-sends every card. The write has already committed, so a
 // failed re-read is logged and swallowed: losing a broadcast costs a client
 // one stale card until its next event, while throwing would turn a
-// succeeded write into a failed request.
+// succeeded write into a failed request. Returns the summaries it broadcast
+// ([] for no ids or a failed re-read), for a caller that needs them too.
 export async function notifyInstanceProductsUpserted(
   mainDb: Sql,
   productIds: string[],
-): Promise<void> {
+): Promise<ProductSummary[]> {
   if (productIds.length === 0) {
-    return;
+    return [];
   }
   const res = await getProductSummaries(mainDb, productIds);
   if (!res.success) {
@@ -83,15 +84,16 @@ export async function notifyInstanceProductsUpserted(
         productIds.join(", ")
       }: ${res.err}`,
     );
-    return;
+    return [];
   }
   if (res.data.length === 0) {
-    return;
+    return [];
   }
   notifyInstanceUpdate({
     type: "products_upserted",
     data: { products: res.data },
   });
+  return res.data;
 }
 
 export function notifyInstanceProductsDeleted(ids: string[]) {

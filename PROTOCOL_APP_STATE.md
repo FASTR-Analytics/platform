@@ -123,8 +123,12 @@ fetch only console-errors, keeping stale rows visible: accepted. The ephemeral
 `run_progress`/`r_script` filter on the instance channel is also live
 (re-derived from each `users_updated` in the forward loop). See SYSTEM_03 †.
 `users` is `[]` for an UNAPPROVED connection (starting payload and every
-`users_updated`, until a roster names them. SYSTEM_03 †). All other fields are
-identical across clients.
+`users_updated`, until a roster names them. SYSTEM_03 †). The product plane
+(`products`, `folders`, `readyPackages`, `scopes`, `lastUpdated`) is empty for
+an UNAPPROVED connection; a connection that is not a global admin gets only the
+products it can see, by scope and level, and their slide stamps, and a
+restricted one only its visible folders and granted scopes (SYSTEM_03 "SSE: the
+producer side"). All other fields are identical across clients.
 
 The table-name list for `lastUpdated` (a nested
 `Record<LastUpdateTableName, Record<string, string>>`) has one source of truth:
