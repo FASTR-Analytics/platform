@@ -423,10 +423,10 @@ classification: it stays live, per the dispatcher's rule (SYSTEM_06).
 Display labels are never touched. The client runs it from
 `RefreshDhis2LabelsModal`: the explanation and the count of elements to
 read, the Refresh button waiting on the one request with its spinner, then
-the counts in its place, a warning callout listing the formula ids beside
-their indicators (`indicator id · label (UID)`) with the formula remedy
-(SYSTEM_06, the dispatcher bullet of "HMIS import runs") above the
-not-found callout. The manager's toolbar keeps the daily actions as buttons (Sort,
+the counts in its place, a warning callout listing the formula ids with the
+formula remedy (SYSTEM_06, the dispatcher bullet of "HMIS import runs")
+above the not-found callout, every id in both beside its indicator
+(`indicator id · label (UID)`). The manager's toolbar keeps the daily actions as buttons (Sort,
 Add from DHIS2, Create new) and puts the occasional ones, the dictionary
 download and Refresh DHIS2 names, in an overflow menu (panther's
 `ActionMenuButton`, `otherActionItems`), global admins only, the refresh gated on a stored

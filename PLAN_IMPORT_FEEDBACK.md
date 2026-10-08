@@ -13,7 +13,7 @@ indicator (a formula), the DHIS2 import fails every month of it as designed, but
 says so in DHIS2's vocabulary, by bare UID, without the steps that fix it, and
 only after the run.
 
-**Next step: Fix 5.** Each session sets this line in its final commit. Its values
+**Next step: Review 5.** Each session sets this line in its final commit. Its values
 are `Do N`, `Review N` and `Fix N`. The review that passes step 5 deletes this
 file.
 
@@ -493,3 +493,4 @@ again. The earlier build runs against the same databases.
 | 5 | Review prose edit. The comment over the `refreshDhis2Labels` registry entry (`lib/api-routes/instance/indicators_dhis2.ts:64-65`) said "An element DHIS2 no longer has is left as it is and counted.", but step 5 splits those ids into formulas and not-found, both listed rather than counted, and the result's contract is the comment on `Dhis2LabelRefresh` (`lib/types/dhis2.ts:36-40`). The sentence is deleted. |
 | 5 | Review prose edit. The comment on `Dhis2LabelRefresh` (`lib/types/dhis2.ts:39`) ended "Both lists are left as they were; nothing is stored.", though the refresh stores the names it rewrites (the type's first field counts them). It now ends "Both lists keep their stored names, and the split between them is not stored." |
 | 5 | Step 5 reviewed: 3 findings. |
+| 5 | Step 5 fixed. |

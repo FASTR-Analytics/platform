@@ -4,7 +4,7 @@ import {
   ModalContainer,
   createButtonAction,
 } from "panther";
-import { createSignal, Show } from "solid-js";
+import { createMemo, createSignal, Show } from "solid-js";
 import { type Dhis2LabelRefresh, type HmisIndicator, t3, TC } from "lib";
 import { serverActions } from "~/server_actions";
 import { dataIdWithIndicator, dhis2FormulaRemedy } from "./_indicator_display";
@@ -91,8 +91,11 @@ function Explanation(p: { elementCount: number }) {
 }
 
 function Result(p: { result: Dhis2LabelRefresh; indicators: HmisIndicator[] }) {
+  const byId = createMemo(() =>
+    new Map(p.indicators.map((i) => [i.indicator_common_id, i]))
+  );
   const withUid = (indicatorId: string): string => {
-    const indicator = p.indicators.find((i) => i.indicator_common_id === indicatorId);
+    const indicator = byId().get(indicatorId);
     return indicator?.definition.type === "dhis2_element"
       ? dataIdWithIndicator(indicator, indicator.definition.data_id)
       : indicatorId;
@@ -111,9 +114,9 @@ function Result(p: { result: Dhis2LabelRefresh; indicators: HmisIndicator[] }) {
           <div class="ui-spy-sm">
             <div>
               {t3({
-                en: "Point to DHIS2 formulas, not data elements (names left as they are):",
-                fr: "Pointent vers des formules DHIS2, pas vers des éléments de données (noms laissés tels quels) :",
-                pt: "Apontam para fórmulas DHIS2, não para elementos de dados (nomes mantidos como estão):",
+                en: "Point to DHIS2 formulas (what DHIS2 calls an indicator), not data elements (names left as they are):",
+                fr: "Pointent vers des formules DHIS2 (ce que DHIS2 appelle un indicateur), pas vers des éléments de données (noms laissés tels quels) :",
+                pt: "Apontam para fórmulas DHIS2 (o que o DHIS2 chama um indicador), não para elementos de dados (nomes mantidos como estão):",
               })}{" "}
               <span class="font-mono">{p.result.formulas.map(withUid).join(", ")}</span>
             </div>
@@ -128,7 +131,7 @@ function Result(p: { result: Dhis2LabelRefresh; indicators: HmisIndicator[] }) {
             fr: "Introuvables dans DHIS2, laissés tels quels :",
             pt: "Não encontrados no DHIS2, mantidos como estão:",
           })}{" "}
-          <span class="font-mono">{p.result.notFound.join(", ")}</span>
+          <span class="font-mono">{p.result.notFound.map(withUid).join(", ")}</span>
         </Callout>
       </Show>
     </>
