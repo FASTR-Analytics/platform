@@ -339,13 +339,13 @@ start.
   `/` segment, for an ODK group path) matches the question with that id, else
   the one question whose id equals it ignoring case, and the variable id is
   always the form's spelling: survey firms re-case the form's names (Nigeria's
-  `id_fac_txt` for `ID_FAC_TXT`). Two columns matching one staged question
-  abort staging, naming both. When no column other than the facility id column
-  matches a staged-type question, even if some match questions of other types,
-  staging aborts before any table is created, naming the first unmatched
-  columns and the first questions without a column, so the worker's zero-rows
-  message (facility checks and filters) is reached only in the case it
-  describes. Pinned by
+  `id_fac_txt` for `ID_FAC_TXT`). Two columns other than the facility id
+  column matching one staged question abort staging, naming both. When no
+  column other than the facility id column matches a staged-type question,
+  even if some match questions of other types, staging aborts before any table
+  is created, naming the first unmatched columns and the first questions
+  without a column, so the worker's zero-rows message (facility checks and
+  filters) is reached only in the case it describes. Pinned by
   `server/tests/hfa_csv_column_matching_test.ts`.
 - HFA row filtering + dedup (order fixed: **filter → review → resolve**; all
   fields in the run's mappings JSON): `rowFilters` (ANDed; trimmed-string

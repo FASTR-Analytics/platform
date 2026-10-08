@@ -13,7 +13,7 @@ indicator (a formula), the DHIS2 import fails every month of it as designed, but
 says so in DHIS2's vocabulary, by bare UID, without the steps that fix it, and
 only after the run.
 
-**Next step: Fix 1.** Each session sets this line in its final commit. Its values
+**Next step: Review 1.** Each session sets this line in its final commit. Its values
 are `Do N`, `Review N` and `Fix N`. The review that passes step 5 deletes this
 file.
 
@@ -451,3 +451,4 @@ again. The earlier build runs against the same databases.
 | 1 | Step 1 fixed. |
 | 1 | Review finding. `SYSTEM_06_ingestion.md:342-343` says "Two columns matching one staged question abort staging, naming both.", but the match returns on the facility id column (`server/worker_routines/import_hfa_data_csv/stage_csv.ts:541`) before the duplicate check (`stage_csv.ts:550-556`), so a second column matching the facility id column's question does not abort: it is staged as that question's variable. On the test fixture's form (`id_fac` is a `select_one`), a CSV `id_fac,ID_FAC` with `id_fac` as the facility id column stages without error, `ID_FAC` landing as variable `id_fac`. Ruling 2 as written covers this case too; the code, ported from 180e72bcc, is right, because the facility id column is never staged and so cannot collide on the primary key. Change: in `SYSTEM_06_ingestion.md:342-343`, replace "Two columns matching one staged question abort staging, naming both." with "Two columns other than the facility id column matching one staged question abort staging, naming both." |
 | 1 | Step 1 reviewed: 1 finding. |
+| 1 | Step 1 fixed. |
