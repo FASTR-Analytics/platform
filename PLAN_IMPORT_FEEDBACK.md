@@ -13,7 +13,7 @@ indicator (a formula), the DHIS2 import fails every month of it as designed, but
 says so in DHIS2's vocabulary, by bare UID, without the steps that fix it, and
 only after the run.
 
-**Next step: Review 3.** Each session sets this line in its final commit. Its values
+**Next step: Do 4.** Each session sets this line in its final commit. Its values
 are `Do N`, `Review N` and `Fix N`. The review that passes step 5 deletes this
 file.
 
@@ -471,3 +471,4 @@ again. The earlier build runs against the same databases.
 | 3 | Review prose edit. The comment over `dhis2FormulaRemedy` (`client/src/components/indicator_manager_hmis/_indicator_display.ts:127-129`) said its wording is "carried by every surface that names one", but the ledger names formula ids with its own one-sentence wording (`server/worker_routines/import_hmis_data_dhis2/worker.ts:461-468`), as ruling 9 provides. The comment is now a pointer: "The formula-id remedy exactly as SYSTEM_06 words it (the dispatcher bullet of "HMIS import runs")." |
 | 3 | Step 3 reviewed: 1 finding. |
 | 3 | Step 3 fixed. |
+| 3 | Step 3 reviewed: pass. |
