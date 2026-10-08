@@ -171,8 +171,10 @@ function attachBlockContextMenu(
   region: () => { startLine: number; endLine: number; label: string },
 ) {
   el.addEventListener("contextmenu", (e) => {
-    // A view-only reader gets the browser's own menu: the one item this menu
-    // has is an edit, and CodeMirror would refuse it.
+    // A read-only editor (a viewer, or a dead room) gets the browser's own
+    // menu here and opens no island or widget menu below: CodeMirror's
+    // readOnly stops typing but not a dispatch, and the room refuses a
+    // viewer's update.
     if (view.state.readOnly) return;
     const { startLine, endLine, label } = region();
     if (startLine < 0 || endLine >= view.state.doc.lines) return;
@@ -1141,6 +1143,7 @@ export function attachColumnHeadingGhost(
   // As the labels: activate on MOUSEDOWN, after parking the caret on the
   // fence (which may rebuild the widget: activate what stands there now).
   el.addEventListener("mousedown", (e) => {
+    if (view.state.readOnly) return;
     e.stopPropagation();
     if (el.isContentEditable) return;
     if (fenceLine1 <= view.state.doc.lines) {
@@ -1248,6 +1251,7 @@ export function attachAttrEditor(
   // another label). Editable by the time the default runs, the press just
   // places the caret where it landed.
   el.addEventListener("mousedown", (e) => {
+    if (view.state.readOnly) return;
     e.stopPropagation();
     if (el.isContentEditable) return;
     // Park the caret on the fence line FIRST (no focus steal): the toolbar
@@ -1574,6 +1578,7 @@ export function attachTextEditor(
   (el as unknown as { _fmActivate?: (caretAt?: number) => void })._fmActivate =
     activate;
   el.addEventListener("mousedown", (e) => {
+    if (view.state.readOnly) return;
     e.stopPropagation();
     if (el.isContentEditable) return;
     // A right-click is for the context menu: never swap to source under it
@@ -1852,6 +1857,7 @@ export function attachStepsChildContextMenu(
   line1: number,
 ) {
   el.addEventListener("contextmenu", (e) => {
+    if (view.state.readOnly) return;
     if (!stepsChildInfo(view.state.doc.toString(), line1)) return;
     e.preventDefault();
     e.stopPropagation();
@@ -1921,6 +1927,7 @@ export function attachTilesChildContextMenu(
   line1: number,
 ) {
   el.addEventListener("contextmenu", (e) => {
+    if (view.state.readOnly) return;
     const doc = view.state.doc.toString();
     const info = tilesChildInfo(doc, line1);
     if (!info) return;
@@ -2026,6 +2033,7 @@ export function attachCellContextMenu(
     text.trim().length > 0 && text.includes("|") &&
     parseContainerFence(text) === undefined;
   el.addEventListener("contextmenu", (e) => {
+    if (view.state.readOnly) return;
     e.preventDefault();
     e.stopPropagation();
     const doc = view.state.doc;
@@ -2275,6 +2283,7 @@ export function attachCellEditor(
   (el as unknown as { _fmCellActivate?: () => void })._fmCellActivate =
     activate;
   el.addEventListener("mousedown", (e) => {
+    if (view.state.readOnly) return;
     e.stopPropagation();
     if (el.isContentEditable) return;
     e.preventDefault();

@@ -2320,57 +2320,60 @@ lines plus the blank line beside them): the menu's first row names what will go,
 since a right-click inside a nested block is claimed by that block's own menu (a
 card, a step, a table cell) and only reaches the region when it lands on the
 block itself. Without it a cover, a band or a page break had no way out of the
-document at all. Islands COMMIT AS THEY ARE TYPED (text islands, the chrome attr
-editors and table cells alike): every keystroke is a normal doc change, so under
-collab a peer sees the cover title change letter by letter and nothing depends
-on a blur that a widget rebuild may swallow. The island's own commits carry the
-`islandCommit` annotation, and the region field keeps the ACTIVE region's widget
-key (`RegionWidget.sourceKey`, carried through `LiveState.keys`) for those, so
-the widget the user is typing in is never rebuilt under the cursor — while a
-remote edit or a toolbar fence patch into the same region carries no annotation
-and re-renders it as before. A region whose source is unchanged keeps its key
-across ANY transaction (a caret move must not rebuild the island). Closing an
-island dispatches `rebuildRegions`, which bumps `LiveState.rev` — part of every
-touched region's key — so the committed text is rendered even when it equals
-what the island started with (an Escape puts the original back with one more
-commit). That closing dispatch is deferred a microtask and dropped if the island
-is by then detached: Chrome fires the blur of a removed focused element DURING
-CodeMirror's own update (where a dispatch throws) and before the node is
-actually detached. A line-count change in an island (Shift+Enter) lets the
-rebuild happen and re-opens the island on the rebuilt element. Peer PRESENCE
-from inside an island: y-codemirror publishes the caret only while the CM view
-has focus, and an island takes focus from it, so the selection mirror publishes
-the caret itself through the `presenceFacet` (`publishIslandCaret`, relative
-positions on the shared Y.Text) — the attr editors publish their fence line on
-activation. Toolbar text actions reach selections inside widget text islands AND
-table cell islands through a selection MIRROR (`selectionchange` → CM selection,
-alive only while an island is active); cell islands park the caret at the cell's
-content inside the row line first (same park-then-activate), which is also what
-gives the toolbar the table's context on the first click; because that mirror
-flips the region active — a widget rebuild that would destroy the island
-mid-edit — island activation parks the CM selection into the region FIRST and
-then activates the POST-rebuild element (found by `data-line`, activated via its
-`_fmActivate` hook). The document opens FLUSH, as View does: blank lines above
-the first visible block (View renders none) collapse to zero height via
-`cm-fm-lead`, the first visible plain line loses its top padding (`cm-fm-first`)
-and the first region carries `fm-live-region--first`, whose two-class rule beats
-the general first-child margin clamp — otherwise every report began with a strip
-of bare page ground above its cover. An all-blank document keeps its clickable
-lines (there is no first visible block to flush against). Heading lines get
-`cm-fm-hN` classes from a whole-doc StateField because font size changes line
-HEIGHT and height-affecting decorations must exist off-screen. The editor
-wrapper carries `fm-live-scope`, and one host-rendered `<style>` (the scoped
-theme sheet + `buildFastrEditorSurfaceCss`, font import leading) themes both the
-widgets and the editor's own text — a theme switch re-renders that element and
-never touches CodeMirror, which is why `RegionWidget.eq` keys on the source
-slice only. The document stays light in a dark app (documents-stay-light); a
-`:::report` line is fully HIDDEN (zero-height widget, atomic so the caret skips
-it) — findable through the toolbar's Page setup popover, which edits the fence
-from anywhere via `setBlockAttrs` (or `insertPageSetup` when the document has no
-header yet). A region widget's ROOT is built once (`RegionWidget.toDOM`: the
-element, its reveal/embed-select listeners reading the current widget through a
-`_widget` ref) and everything content-dependent lives in `fill()`; a widget with
-a different key for the SAME region (a peer's keystroke inside the block, a
+document at all. A read-only body editor opens no island and no widget menu:
+each press and right-click handler returns on `view.state.readOnly`, because
+CodeMirror's readOnly stops typing but not a dispatch. Islands COMMIT AS THEY
+ARE TYPED (text islands, the chrome attr editors and table cells alike): every
+keystroke is a normal doc change, so under collab a peer sees the cover title
+change letter by letter and nothing depends on a blur that a widget rebuild may
+swallow. The island's own commits carry the `islandCommit` annotation, and the
+region field keeps the ACTIVE region's widget key (`RegionWidget.sourceKey`,
+carried through `LiveState.keys`) for those, so the widget the user is typing in
+is never rebuilt under the cursor — while a remote edit or a toolbar fence patch
+into the same region carries no annotation and re-renders it as before. A region
+whose source is unchanged keeps its key across ANY transaction (a caret move
+must not rebuild the island). Closing an island dispatches `rebuildRegions`,
+which bumps `LiveState.rev` — part of every touched region's key — so the
+committed text is rendered even when it equals what the island started with (an
+Escape puts the original back with one more commit). That closing dispatch is
+deferred a microtask and dropped if the island is by then detached: Chrome fires
+the blur of a removed focused element DURING CodeMirror's own update (where a
+dispatch throws) and before the node is actually detached. A line-count change
+in an island (Shift+Enter) lets the rebuild happen and re-opens the island on
+the rebuilt element. Peer PRESENCE from inside an island: y-codemirror publishes
+the caret only while the CM view has focus, and an island takes focus from it,
+so the selection mirror publishes the caret itself through the `presenceFacet`
+(`publishIslandCaret`, relative positions on the shared Y.Text) — the attr
+editors publish their fence line on activation. Toolbar text actions reach
+selections inside widget text islands AND table cell islands through a selection
+MIRROR (`selectionchange` → CM selection, alive only while an island is active);
+cell islands park the caret at the cell's content inside the row line first
+(same park-then-activate), which is also what gives the toolbar the table's
+context on the first click; because that mirror flips the region active — a
+widget rebuild that would destroy the island mid-edit — island activation parks
+the CM selection into the region FIRST and then activates the POST-rebuild
+element (found by `data-line`, activated via its `_fmActivate` hook). The
+document opens FLUSH, as View does: blank lines above the first visible block
+(View renders none) collapse to zero height via `cm-fm-lead`, the first visible
+plain line loses its top padding (`cm-fm-first`) and the first region carries
+`fm-live-region--first`, whose two-class rule beats the general first-child
+margin clamp — otherwise every report began with a strip of bare page ground
+above its cover. An all-blank document keeps its clickable lines (there is no
+first visible block to flush against). Heading lines get `cm-fm-hN` classes from
+a whole-doc StateField because font size changes line HEIGHT and
+height-affecting decorations must exist off-screen. The editor wrapper carries
+`fm-live-scope`, and one host-rendered `<style>` (the scoped theme sheet +
+`buildFastrEditorSurfaceCss`, font import leading) themes both the widgets and
+the editor's own text — a theme switch re-renders that element and never touches
+CodeMirror, which is why `RegionWidget.eq` keys on the source slice only. The
+document stays light in a dark app (documents-stay-light); a `:::report` line is
+fully HIDDEN (zero-height widget, atomic so the caret skips it) — findable
+through the toolbar's Page setup popover, which edits the fence from anywhere
+via `setBlockAttrs` (or `insertPageSetup` when the document has no header yet).
+A region widget's ROOT is built once (`RegionWidget.toDOM`: the element, its
+reveal/embed-select listeners reading the current widget through a `_widget`
+ref) and everything content-dependent lives in `fill()`; a widget with a
+different key for the SAME region (a peer's keystroke inside the block, a
 toolbar fence patch) re-renders through `updateDOM` into the existing element
 rather than replacing it. CodeMirror lays a fresh block element out at its
 ESTIMATED height until the next measure, and that estimate-then-correct on every
