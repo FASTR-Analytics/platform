@@ -13,7 +13,7 @@ indicator (a formula), the DHIS2 import fails every month of it as designed, but
 says so in DHIS2's vocabulary, by bare UID, without the steps that fix it, and
 only after the run.
 
-**Next step: Review 1.** Each session sets this line in its final commit. Its values
+**Next step: Do 2.** Each session sets this line in its final commit. Its values
 are `Do N`, `Review N` and `Fix N`. The review that passes step 5 deletes this
 file.
 
@@ -457,3 +457,4 @@ again. The earlier build runs against the same databases.
 | 1 | Review finding. `server/tests/hfa_csv_column_matching_test.ts:1-5` says "two columns matching one question abort staging" and "a file whose columns match nothing aborts staging", and the case at line 168 is named "a file whose headers match no question aborts staging before any table is created". Two columns matching one question of a non-staged type do not abort (`server/worker_routines/import_hfa_data_csv/stage_csv.ts:546` returns before the duplicate check): `id_fac,serv_08b,com_notes,COM_NOTES` against the test fixture's form stages `serv_08b` without error. The line-168 case's own file, `id_fac,FOO,bar`, has a column that matches a question: `id_fac` matches the form's `id_fac` (`stage_csv.ts:540`), which is why line 198 finds `id_fac` absent from `First questions`. The header restates the contract that the "HFA XLSForm" bullet of `SYSTEM_06_ingestion.md` states, and has drifted from it. Change: in `server/tests/hfa_csv_column_matching_test.ts:1-5`, replace the sentence from "Pins how the HFA stage leg" to "left unmatched." with "Pins the HFA stage leg's column match as the "HFA XLSForm" bullet of SYSTEM_06_ingestion.md states it."; at line 168, rename the case to "a file with no column but the facility id column matching a staged-type question aborts staging before any table is created". |
 | 1 | Step 1 reviewed: 3 findings. |
 | 1 | Step 1 fixed. |
+| 1 | Step 1 closed on Tim's instruction after four reviews whose findings were all prose, and the fifth review stopped unfinished. The plans protocol now caps a step at two reviews, scopes a re-review to the fix, and has the reviewer edit prose findings itself (panther 209a0f5, applied here as 6dd76d5e1). |
