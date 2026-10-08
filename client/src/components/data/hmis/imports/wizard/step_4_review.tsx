@@ -1,6 +1,6 @@
 import { type Dhis2SelectionDescription, type HmisIndicator, t3 } from "lib";
-import { createQuery, plural, toNum0 } from "panther";
-import { createMemo, For, Match, Show, Switch } from "solid-js";
+import { createQuery, plural, StateHolderWrapper, toNum0 } from "panther";
+import { createMemo, For, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import {
   dataIdWithIndicator,
@@ -155,19 +155,12 @@ function SelectionClassification(p: {
   const classification = createQuery(() =>
     serverActions.classifyDatasetHmisDhis2Selection({ dataIds: p.dataIds })
   );
-  const error = () => {
-    const s = classification.state();
-    return s.status === "error" ? s.err : undefined;
-  };
-  const data = () => {
-    const s = classification.state();
-    return s.status === "ready" ? s.data : undefined;
-  };
   const listed = (ids: string[]) =>
     ids.map((id) => dataIdWithIndicator(id, p.byDataId.get(id)));
   return (
-    <Switch>
-      <Match when={classification.state().status === "loading"}>
+    <StateHolderWrapper
+      state={classification.state()}
+      loadingRenderer={() => (
         <div>
           {t3({
             en: "Checking the selected DHIS2 ids with DHIS2...",
@@ -176,51 +169,48 @@ function SelectionClassification(p: {
             pt: "A verificar os IDs DHIS2 selecionados junto do DHIS2...",
           })}
         </div>
-      </Match>
-      <Match when={error()}>
-        {(err) => (
-          <div>
-            {t3({
-              en: "The selected DHIS2 ids could not be checked before launch",
-              fr:
-                "Les identifiants DHIS2 sélectionnés n'ont pas pu être vérifiés avant le lancement",
-              pt:
-                "Os IDs DHIS2 selecionados não puderam ser verificados antes do início",
-            })} ({err()}). {t3({
-              en: "The import checks them when it runs.",
-              fr: "L'importation les vérifie lors de son exécution.",
-              pt: "A importação verifica-os quando é executada.",
-            })}
-          </div>
-        )}
-      </Match>
-      <Match when={data()}>
-        {(result) => (
-          <>
-            <Show when={result().formulaIds.length > 0}>
-              <div class="ui-spy-sm">
-                <IdListLine
-                  ids={listed(result().formulaIds)}
-                  summary={formulaSummary(result().formulaIds.length)}
-                  class="text-danger"
-                />
-                <div>{dhis2FormulaRemedy()}</div>
-              </div>
-            </Show>
-            <Show when={result().notFoundIds.length > 0}>
-              <div class="ui-spy-sm">
-                <IdListLine
-                  ids={listed(result().notFoundIds)}
-                  summary={notFoundSummary(result().notFoundIds.length)}
-                  class="text-danger"
-                />
-                <div>{dhis2NotFoundRemedy()}</div>
-              </div>
-            </Show>
-          </>
-        )}
-      </Match>
-    </Switch>
+      )}
+      errorRenderer={(err) => (
+        <div>
+          {t3({
+            en: "The selected DHIS2 ids could not be checked before launch",
+            fr:
+              "Les identifiants DHIS2 sélectionnés n'ont pas pu être vérifiés avant le lancement",
+            pt:
+              "Os IDs DHIS2 selecionados não puderam ser verificados antes do início",
+          })} ({err}). {t3({
+            en: "The import checks them when it runs.",
+            fr: "L'importation les vérifie lors de son exécution.",
+            pt: "A importação verifica-os quando é executada.",
+          })}
+        </div>
+      )}
+    >
+      {(result) => (
+        <>
+          <Show when={result.formulaIds.length > 0}>
+            <div class="ui-spy-sm">
+              <IdListLine
+                ids={listed(result.formulaIds)}
+                summary={formulaSummary(result.formulaIds.length)}
+                class="text-danger"
+              />
+              <div>{dhis2FormulaRemedy()}</div>
+            </div>
+          </Show>
+          <Show when={result.notFoundIds.length > 0}>
+            <div class="ui-spy-sm">
+              <IdListLine
+                ids={listed(result.notFoundIds)}
+                summary={notFoundSummary(result.notFoundIds.length)}
+                class="text-danger"
+              />
+              <div>{dhis2NotFoundRemedy()}</div>
+            </div>
+          </Show>
+        </>
+      )}
+    </StateHolderWrapper>
   );
 }
 
