@@ -185,8 +185,7 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
   // Chip clicks must never bypass the duplicates scan: without this handler
   // the stepper chips call setCurrentStep directly, so clicking the
   // "Duplicates" chip from the mappings step would skip goNextFromMappings
-  // and launch with unreviewed duplicates. Forward chip navigation goes
-  // through the same advance functions as the Next button.
+  // and launch with unreviewed duplicates.
   function onStepClick(step: number) {
     const current = stepper.currentStep();
     if (step === current) {
