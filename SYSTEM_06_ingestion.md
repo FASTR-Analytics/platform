@@ -97,9 +97,10 @@ This section is the authority. Every HMIS import, DHIS2 or CSV, is a row in
   UPDATE) is the launch claim, shared by both routes; queued rows of either
   route drain FIFO through the same scheduler tick. Every DHIS2 run uses the
   stored credentials (`instance_dhis2_credentials`, instance-wide, password
-  AES-GCM-encrypted with `DHIS2_CREDENTIALS_ENCRYPTION_KEY`), decrypted only
-  inside the worker via `getStoredDhis2CredentialsDecrypted`; CSV fires need no
-  credentials.
+  AES-GCM-encrypted with `DHIS2_CREDENTIALS_ENCRYPTION_KEY`), decrypted for the
+  run only inside the worker via `getStoredDhis2CredentialsDecrypted` (the
+  wizard's pre-launch classification decrypts them in its route handler); CSV
+  fires need no credentials.
 - **CSV runs** (`import_hmis_data_csv/` worker, `"hmis"` worker key): the wizard
   is client-local: its file input is an ordinary instance asset (uploaded or
   picked, S4), named by `fileName` in the launch payload. After the columns are
@@ -172,7 +173,16 @@ This section is the authority. Every HMIS import, DHIS2 or CSV, is a row in
   through `describeDhis2Selection` (lib), a thin wrapper that joins each data id
   to the DHIS2 element indicator carrying it and passes the dropped lists
   through; the wizard renders it, the server never calls it. Both pinned by
-  `server/tests/indicator_selection_expansion_test.ts`.
+  `server/tests/indicator_selection_expansion_test.ts`. Before launch the
+  wizard's Review step also asks DHIS2 what those data ids are, once each time
+  the step opens, through the stateless `classifyDatasetHmisDhis2Selection` (the
+  stored connection, `classifyElements` with one attempt and a 15 s budget per
+  call), and lists the formula ids and the not-found ids as the dispatcher
+  bullet below describes, each with its remedy. It is a preview: it never blocks
+  the launch, a connection or DHIS2 error is one line in place of the lists, and
+  the run's own classification is the one that counts. A pairs selection (retry
+  failed, re-import) is not asked, since its wizard has no description to read
+  the data ids from.
 - The worker classifies every data id of the run from DHIS2 metadata
   (dispatcher, `dispatch.ts`) and has one fetch route: bare data elements and
   operands → dataValueSets country-pulls (the values facilities reported, no
@@ -199,16 +209,16 @@ This section is the authority. Every HMIS import, DHIS2 or CSV, is a row in
   indicator with data can be neither deleted nor given a new DHIS2 id (S5). The
   client's `dhis2FormulaRemedy` and `dhis2NotFoundRemedy`
   (`hmis/_shared/indicator_display.ts`) carry these verbatim and are shown in
-  the run detail. A refused formula pair's ledger message carries the formula
-  remedy's steps in one sentence; a not-found pair's ends with the not-found
-  remedy's steps, introduced by "To fix this, open the indicator list." The run
-  detail's two banners list `classification.dhis2IndicatorIds` and
-  `classification.unknownIds`, each with its remedy and each id as
-  `indicator id · label (UID)` through the dictionary keyed by data id
-  (`dataIdWithIndicator`), bare where no indicator carries it. A response
-  containing any period other than the requested one fails the pull loudly
-  (permanent). The evidence base (verdicts E1–E13, incl. the calendar finding
-  and the sizing fact that DVS deep-history backfill ≈ 10 MB per dense
+  the run detail and the import wizard's Review step. A refused formula pair's
+  ledger message carries the formula remedy's steps in one sentence; a not-found
+  pair's ends with the not-found remedy's steps, introduced by "To fix this,
+  open the indicator list." The run detail's two banners list
+  `classification.dhis2IndicatorIds` and `classification.unknownIds`, each with
+  its remedy and each id as `indicator id · label (UID)` through the dictionary
+  keyed by data id (`dataIdWithIndicator`), bare where no indicator carries it.
+  A response containing any period other than the requested one fails the pull
+  loudly (permanent). The evidence base (verdicts E1–E13, incl. the calendar
+  finding and the sizing fact that DVS deep-history backfill ≈ 10 MB per dense
   element-month) lives outside this repo in `~/projects/apps/wb-fastr-dhis2-lab`
   (RESULTS.md; DHIS2 caches analytics responses, so never time a repeated
   identical request).

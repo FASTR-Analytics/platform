@@ -429,6 +429,15 @@ export type DatasetHmisImportRunStats = {
   // key (the retired first-run DVS-vs-analytics verification).
 };
 
+// What DHIS2 says the selection's data ids are, asked by the wizard before
+// launch: a preview, since the run classifies again and its answer is the one
+// that counts. formulaIds are DHIS2 formulas (what DHIS2 calls indicators);
+// notFoundIds match no data element or operand.
+export type Dhis2SelectionClassification = {
+  formulaIds: string[];
+  notFoundIds: string[];
+};
+
 // ============================================================================
 // Scheduled Imports (PLAN_DHIS2_IMPORTER Phase 4: C4)
 // ============================================================================

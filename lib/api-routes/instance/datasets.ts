@@ -19,6 +19,7 @@ import type {
   DatasetHmisScheduledImport,
   DatasetHmisVersion,
   Dhis2ImportSchedulingInfo,
+  Dhis2SelectionClassification,
   HmisCsvIndicatorScan,
   ItemsHolderDatasetHmisDisplay,
 } from "../../types/mod.ts";
@@ -208,6 +209,12 @@ export const datasetRouteRegistry = {
     path: "/datasets/hmis/dhis2-runs/cancel",
     method: "POST",
     body: z.object({ runId: z.number().int() }),
+  }),
+  classifyDatasetHmisDhis2Selection: route({
+    path: "/datasets/hmis/dhis2-runs/classify-selection",
+    method: "POST",
+    body: z.object({ dataIds: z.array(z.string()) }),
+    response: {} as Dhis2SelectionClassification,
   }),
 
   // DHIS2 queue + scheduling (PLAN_DHIS2_IMPORTER Phase 4: C3/C4/C6)

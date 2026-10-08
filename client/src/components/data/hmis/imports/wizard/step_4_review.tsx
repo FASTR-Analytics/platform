@@ -1,7 +1,14 @@
-import { type Dhis2SelectionDescription, t3 } from "lib";
-import { plural, toNum0 } from "panther";
-import { For, Show } from "solid-js";
-import { dhis2IdLabel } from "~/components/data/hmis/_shared/mod.ts";
+import { type Dhis2SelectionDescription, type HmisIndicator, t3 } from "lib";
+import { createQuery, plural, toNum0 } from "panther";
+import { createMemo, For, Match, Show, Switch } from "solid-js";
+import { serverActions } from "~/server_actions";
+import {
+  dataIdWithIndicator,
+  dhis2FormulaRemedy,
+  dhis2IdLabel,
+  dhis2NotFoundRemedy,
+  indicatorsByDataId,
+} from "~/components/data/hmis/_shared/mod.ts";
 import { IdListLine } from "./id_list_line";
 
 type Props = {
@@ -10,18 +17,29 @@ type Props = {
   // What the selected indicators expand to (PLAN_A7 ruling 3); undefined
   // for preset pairs, whose list is fixed.
   description: Dhis2SelectionDescription | undefined;
+  dictionary: HmisIndicator[] | undefined;
   timeSummary: string;
   windowSummary: string;
   nPairs: number | undefined; // undefined when a recurring window can't be sized ahead of fire time
   queueNotice: string | undefined;
 };
 
-// Pure summary: the submit button itself lives in the wizard controller's
-// ModalContainer actions (matching the "Add visualization" pattern:
-// step content never owns navigation/submit chrome).
+// The submit button itself lives in the wizard controller's ModalContainer
+// actions (matching the "Add visualization" pattern: step content never owns
+// navigation/submit chrome).
 export function Dhis2StepReview(p: Props) {
+  const byDataId = createMemo(() => indicatorsByDataId(p.dictionary ?? []));
   return (
     <div class="ui-spy">
+      <Show when={p.description}>
+        {(d) => (
+          <SelectionClassification
+            dataIds={d().elements.map((e) => e.dataId)}
+            byDataId={byDataId()}
+          />
+        )}
+      </Show>
+
       <div class="ui-pad ui-spy-sm rounded border text-sm">
         <div>
           <span class="font-700">
@@ -85,6 +103,125 @@ export function Dhis2StepReview(p: Props) {
         </div>
       </Show>
     </div>
+  );
+}
+
+function formulaSummary(n: number): string {
+  return plural(n, {
+    one: t3({
+      en:
+        "1 selected indicator points to a DHIS2 formula (what DHIS2 calls an indicator), which a DHIS2 import does not fetch, so every month of it will fail",
+      fr:
+        "1 indicateur sélectionné pointe vers une formule DHIS2 (ce que DHIS2 appelle un indicateur), qu'une importation DHIS2 ne récupère pas : chacun de ses mois échouera",
+      pt:
+        "1 indicador selecionado aponta para uma fórmula DHIS2 (aquilo a que o DHIS2 chama um indicador), que uma importação DHIS2 não obtém, pelo que todos os seus meses falharão",
+    }),
+    other: t3({
+      en:
+        `${n} selected indicators point to DHIS2 formulas (what DHIS2 calls indicators), which a DHIS2 import does not fetch, so every month of them will fail`,
+      fr:
+        `${n} indicateurs sélectionnés pointent vers des formules DHIS2 (ce que DHIS2 appelle des indicateurs), qu'une importation DHIS2 ne récupère pas : chacun de leurs mois échouera`,
+      pt:
+        `${n} indicadores selecionados apontam para fórmulas DHIS2 (aquilo a que o DHIS2 chama indicadores), que uma importação DHIS2 não obtém, pelo que todos os seus meses falharão`,
+    }),
+  });
+}
+
+function notFoundSummary(n: number): string {
+  return plural(n, {
+    one: t3({
+      en:
+        "1 selected indicator points to nothing in DHIS2, so every month of it will fail",
+      fr:
+        "1 indicateur sélectionné ne pointe vers rien dans DHIS2 : chacun de ses mois échouera",
+      pt:
+        "1 indicador selecionado não aponta para nada no DHIS2, pelo que todos os seus meses falharão",
+    }),
+    other: t3({
+      en:
+        `${n} selected indicators point to nothing in DHIS2, so every month of them will fail`,
+      fr:
+        `${n} indicateurs sélectionnés ne pointent vers rien dans DHIS2 : chacun de leurs mois échouera`,
+      pt:
+        `${n} indicadores selecionados não apontam para nada no DHIS2, pelo que todos os seus meses falharão`,
+    }),
+  });
+}
+
+// An error is one line and never blocks the launch: the run classifies again.
+function SelectionClassification(p: {
+  dataIds: string[];
+  byDataId: Map<string, HmisIndicator>;
+}) {
+  const classification = createQuery(() =>
+    serverActions.classifyDatasetHmisDhis2Selection({ dataIds: p.dataIds })
+  );
+  const error = () => {
+    const s = classification.state();
+    return s.status === "error" ? s.err : undefined;
+  };
+  const data = () => {
+    const s = classification.state();
+    return s.status === "ready" ? s.data : undefined;
+  };
+  const listed = (ids: string[]) =>
+    ids.map((id) => dataIdWithIndicator(id, p.byDataId.get(id)));
+  return (
+    <Switch>
+      <Match when={classification.state().status === "loading"}>
+        <div>
+          {t3({
+            en: "Checking the selected DHIS2 ids with DHIS2...",
+            fr:
+              "Vérification des identifiants DHIS2 sélectionnés auprès de DHIS2...",
+            pt: "A verificar os IDs DHIS2 selecionados junto do DHIS2...",
+          })}
+        </div>
+      </Match>
+      <Match when={error()}>
+        {(err) => (
+          <div>
+            {t3({
+              en: "The selected DHIS2 ids could not be checked before launch",
+              fr:
+                "Les identifiants DHIS2 sélectionnés n'ont pas pu être vérifiés avant le lancement",
+              pt:
+                "Os IDs DHIS2 selecionados não puderam ser verificados antes do início",
+            })} ({err()}). {t3({
+              en: "The import checks them when it runs.",
+              fr: "L'importation les vérifie lors de son exécution.",
+              pt: "A importação verifica-os quando é executada.",
+            })}
+          </div>
+        )}
+      </Match>
+      <Match when={data()}>
+        {(result) => (
+          <>
+            <Show when={result().formulaIds.length > 0}>
+              <div class="ui-spy-sm">
+                <IdListLine
+                  ids={listed(result().formulaIds)}
+                  summary={formulaSummary(result().formulaIds.length)}
+                  class="text-danger"
+                />
+                <div>{dhis2FormulaRemedy()}</div>
+              </div>
+            </Show>
+            <Show when={result().notFoundIds.length > 0}>
+              <div class="ui-spy-sm">
+                <IdListLine
+                  ids={listed(result().notFoundIds)}
+                  summary={notFoundSummary(result().notFoundIds.length)}
+                  class="text-danger"
+                />
+                <div>{dhis2NotFoundRemedy()}</div>
+              </div>
+            </Show>
+          </>
+        )}
+      </Match>
+    </Switch>
   );
 }
 
