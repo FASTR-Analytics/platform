@@ -621,3 +621,18 @@ it's a hardcoded allowlist, and expanding its use spreads policy into code.
   `requireProductAccess(level)`, whose policy checks it.
 - Audit `H_USERS.includes()` call sites; document per site why `requireAdmin` /
   a granular permission is insufficient.
+- **LoggedInWrapper's "not approved" branch is dead and logs the user.**
+  `getCurrentUser` answers every authenticated caller with its `GlobalUser`,
+  approved or not (`server/routes/instance/users.ts:88-111`), so the fallback
+  "Not yet approved for this instance"
+  (`instance/logged_in_wrapper.tsx:160-170`) never renders; the live unapproved
+  screen is the shell's (`instance/instance.tsx:412-425`). Its child
+  `console.log`s the whole `GlobalUser`, email and permission bits included, on
+  every sign-in (173). Replace 158-177 with
+  `{(globalUser) => p.children(globalUser, attemptSignOut)}`.
+- **`getOtherUser` has no caller.** Nothing in `client/src` calls the route
+  (`lib/api-routes/instance/users.ts:40-45`,
+  `server/routes/instance/users.ts:156-165`) and the headless allowlist leaves
+  it out (`server/middleware/headless_allowlist.ts:17-31`). Delete both; keep
+  the db function, which `renameUserEmail` reads
+  (`server/routes/instance/users.ts:534`).

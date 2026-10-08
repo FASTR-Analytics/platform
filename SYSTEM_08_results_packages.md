@@ -115,8 +115,9 @@ re-litigate; the package-format invariants below are their file-level twins):
   `routes/instance/run_generation.ts`) under the INSTANCE data bits
   (`can_view_data`; `can_view_logs` for logs), and one surface, the package page
   (`results_packages/package_page.tsx`, its panes under `package_view/`),
-  renders a package: nothing else explores one. AI tools take a run RESOLVER,
-  never a runId from the model.
+  renders a package's contents: its modules' default visualizations, settings,
+  scripts, logs and files; the Explore tab (S11) reads a ready package's metrics
+  at a scope. AI tools take a run RESOLVER, never a runId from the model.
 - **Retention.** No automatic or time-based GC, ever. Reclamation is ONLY the
   catalogue's guarded hard delete (row + dir), refused while referenced or
   generating.
@@ -319,12 +320,11 @@ call. The SPA-only module tools (script/logs/settings:
 `ClientAIToolEnv`) read the run-keyed mount too
 (`getRunModuleScript`/`getRunModuleLogs`/`getRunModuleWithConfigSelections`,
 `can_view_data` on the settings read, so for a user without the instance bit the
-copilot's `get_module_settings` fails at the route guard, as the package view
-hides settings from them). The headless allowlist admits exactly the run-keyed
-metric reads the `/mcp` tools need (`getRunPresentationObjectItems`,
-`getRunResultsValueInfo`; `/mcp` is for seeing results, so the module reads are
-deliberately absent): a leaked PAT reaches exactly what its user's own instance
-bits already reach in the UI, and less.
+copilot's `get_module_settings` fails at the route guard). The headless
+allowlist admits exactly the run-keyed metric reads the `/mcp` tools need
+(`getRunPresentationObjectItems`, `getRunResultsValueInfo`; `/mcp` is for seeing
+results, so the module reads are deliberately absent): a leaked PAT reaches only
+what its user's approval and scope grants already reach in the UI, and less.
 
 **Metric DATA is package contents too: one read core, one run-keyed mount.** A
 `RunReadContext` is (run, scope), and the caller supplies both halves
@@ -358,15 +358,16 @@ blocks, staleness is per figure).
 
 **The instance catalogue is a list and a page** (ruled 2026-09-22, replacing the
 earlier master-detail pane): the Results packages tab is a panther `Table`
-(`results_packages.tsx`; newest first by default, with the heading bar's label
-search and usage filter, no selection state), and a row's View button opens that
-package's own page (`results_packages/package_page.tsx` = `ResultsPackagePage`)
-through the shell wrapper (`openShellEditor`) with the run id. The page reads
-its row live from `instanceState.runsCatalog`, waits for a freshly launched
-run's row to land (the wizard opens the page before the catalogue refetch), and
-closes itself once a row it has shown is removed. It owns its own editor
-wrapper, one level below the shell's, for the script, logs and files viewers.
-The LISTING is instance-T1 as a nonce pull: `runs_catalog_updated` broadcasts a
+(`results_packages.tsx`; newest first by default, with the table toolbar's
+search, filters on Created by, Status and Usage, and row checkboxes for the bulk
+delete), and a row click opens that package's own page
+(`results_packages/package_page.tsx` = `ResultsPackagePage`) through the shell
+wrapper (`openShellEditor`) with the run id. The page reads its row live from
+`instanceState.runsCatalog`, waits for a freshly launched run's row to land (the
+wizard opens the page before the catalogue refetch), and closes itself once a
+row it has shown is removed. It owns its own editor wrapper, one level below the
+shell's, for the script, logs, files and default visualization viewers. The
+LISTING is instance-T1 as a nonce pull: `runs_catalog_updated` broadcasts a
 data-free nonce, and each entitled client refetches `listRunCatalog` into
 `InstanceState.runsCatalog` (per-request guard; SYSTEM_03 †). The nonce is
 signalled by the in-process catalogue mutations: launch (success and the
@@ -386,15 +387,16 @@ does not signal the catalogue: per-push signal spam is worse than a
 bounded-stale chip row (ruled). The listeners live in `results_packages.tsx`,
 which stays mounted under the open page, and the page reads them through
 accessor props. The package page is the ONLY surface that renders a non-ready
-run, and the only surface that renders a package at all (a product points only
-at a ready run and never explores it, C2 ruling): every status is the same
-heading and status bar over a body by status. The catalogue onboarding tour
-(`onboarding/tours.ts`, `instance-results-packages-catalogue`) walks from the
-list into a package: its first step spotlights a row's View button
-(`data-tour="instance-results-packages-view"`) and completes on the click that
-opens the page, its second waits for the status bar's usage row (`-usage`); it
-auto-starts only while a row is rendered, not merely in the DOM, since an open
-page hides the list under the shell wrapper.
+run, and the only surface that renders a package's contents (a product points
+only at a ready run and never explores it, C2 ruling; the Explore tab reads a
+ready package's metrics, S11): every status is the same heading and status bar
+over a body by status. The catalogue onboarding tour (`onboarding/tours.ts`,
+`instance-results-packages-catalogue`) walks from the list into a package: its
+first step spotlights the table (`data-tour="instance-results-packages-table"`,
+set only while rows exist) and advances on the row click that opens the page,
+its second waits for the status bar's usage row (`-usage`); it auto-starts only
+while a row is rendered, not merely in the DOM, since an open page hides the
+list under the shell wrapper.
 
 **Bulk delete** (`results_packages/results_packages.tsx`, the listing's row
 checkboxes and their one bulk action) is the bulk form of the guarded delete:
@@ -1168,3 +1170,42 @@ hard delete already refuses any run a product points at.
   `autoPinOnSuccess`; the UI luxuries (Regenerate shortcut, newer-run badge,
   per-run rename); parquet-native R scripts in the modules repo and then
   dropping raw CSVs from runs.
+- **A user with `can_configure_data` but not `can_view_data` gets an error in
+  place of every ready package.** The Results tab needs only
+  `can_configure_data` (`instance/instance.tsx:67-74`, 98), but the ready body
+  always reads `getRunDetail` (`results_packages/package_page.tsx:212-217`), a
+  `can_view_data` route (`server/routes/instance/run_generation.ts:214-215`),
+  and any failure renders the whole body as the error (219-225, 313-322),
+  default visualizations included. Read the detail only when
+  `canViewPackageContents()` (`results_packages/package_view/status.tsx:21-26`),
+  pass it to `FamilyTabs` and `FamilyPane` as optional
+  (`results_packages/package_page.tsx:355`;
+  `results_packages/package_view/family_pane.tsx:24`, 72), and wrap the module
+  pane's Settings (`results_packages/package_view/module_pane.tsx:67-94`) and
+  Output files (116-161) in `<Show when={canViewPackageContents()}>`.
+- **Under a limiting page scope, excluded modules show as red "No data
+  available".** The page reads its authoring context at All data whatever the
+  page scope (`results_packages/package_page.tsx:214-216`), takes its tabs and
+  module lists from it (359-366), and renders each module's default cards under
+  the page scope (`results_packages/package_view/module_pane.tsx:61-66`). For a
+  family or module the scope excludes, the server's predicate is `FALSE`
+  (`server/run_query/run_read.ts:830-837`), so every card reads "No data
+  available" in red (`_shared/figure_preview.ts:33-47`;
+  `results_packages/package_view/visualizations.tsx:158-162`), while Explore at
+  the same pair hides those modules. Also read the context under the page scope
+  in `FamilyTabs` (`package_page.tsx:353-389`), keep the tabs and module lists
+  from the All-data one, and in `ModulePane` show "Outside this scope" (fr "Hors
+  de cette portée", pt "Fora deste âmbito") in place of `ModuleVisualizations`
+  when the scoped context lacks the module.
+- **The Delete comment omits pinned and describes a button the page replaces.**
+  `results_packages/package_page.tsx:121-126` says the server refuses while a
+  product points at the package or it is still generating, and that the page
+  states the reason "rather than hiding the button"; the server also refuses a
+  pinned package (`server/db/instance/run_generation.ts:143-146`), and the page
+  shows the reason in place of the button (270-286). Replace that sentence with
+  "The server refuses while the package is pinned, in use or still generating;
+  the page shows the reason where the Delete button would be."
+- **The catalogue's header comment describes a View button.**
+  `results_packages/results_packages.tsx:46-47` says a row's View button opens
+  the package page; a row click does (251). Change "a row's View button opens"
+  to "a row click opens".

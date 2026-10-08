@@ -472,12 +472,14 @@ session for the same slide):
   `session.isLive()` (ready AND socket open, drives save decisions).
 - **Saving when collab can't**: while `isLive()`, closing needs no save (the
   room checkpoints). Otherwise, for a user who can edit (`draftToSave`), the
-  back button runs the explicit save (`updateSlide` with `expectedLastUpdated`;
-  on CONFLICT a resolution modal: cancel keeps editing), and `onCleanup` does a
-  best-effort silent save for exits that bypass the back button; a viewer saves
-  nothing, although `needsSave` also flips when it adopts a remote change. Edits
-  made while disconnected also accumulate in the local doc and are pushed by the
-  reconnect catch-up if a reconnect happens first.
+  deck's `flush` runs the explicit save before it swaps the open slide
+  (`updateSlide` with `expectedLastUpdated`; on CONFLICT a resolution modal:
+  cancel keeps the slide open), and `onCleanup` does a best-effort silent save
+  on every other unmount (closing the deck, a deck-config change remounting the
+  editor); a viewer saves nothing, although `needsSave` also flips when it
+  adopts a remote change. Edits made while disconnected also accumulate in the
+  local doc and are pushed by the reconnect catch-up if a reconnect happens
+  first.
 
 ### Text editors: CodeMirror + yCollab
 

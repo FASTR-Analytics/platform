@@ -37,48 +37,50 @@ and the instance tabs are pages keyed on the shell's tab signal, and the deck,
 slide and report editor tours are pages keyed on the copilot's view controller
 (`editing_slide_deck`, `editing_slide` by the open slide's type,
 `editing_report`), because the editors are overlays that leave the tab on
-Products. The Products page predicate excludes the editing views, so a list tour
-never fires behind an editor. Deferred parts (a card on screen, a slide in the
-deck, a figure in the report) use entry-level `when` gates plus `watch` triggers
-over the T1 list lengths, the explorer's location, filter and view signals, and
-the open view's slide or figure count. A tour never waits on a control the
-user's level hides, because roadtrip aborts a run whose step target never
-appears (after 8 s) and marks every tour in it seen: the deck intro's Add slide
-step has a step-level `when` on that control, the deck settings tour waits for
-the Deck menu, the slide tours' pages need edit on the open deck, and the
-catalogue's deck settings and slide rows open a deck the user can edit
-(`editableDecks`). A tour may walk across a page boundary: the results-package
-catalogue tour's first step completes on the user's click of a list row
-(`advanceOn`), which opens the package page over the shell, and its second step
-waits for a target on that page (S8). The same directory hosts the tour
-catalogue modal (`tour_catalogue_modal.tsx` + `catalogue.ts`, opened from the
-Help menu, always offered), which lists every tour by area (Products, Slide
-decks, Reports, Instance) with availability computed over T1 only
-(`instanceState.products`, `readyPackages`, the permissions; the three
-slide-type rows first run a cache-first search of the decks' slide documents,
-`findDeckWithSlideOfType`) and a reason when unavailable. Play calls the entry's
-`navigate(openTab)`: a tab switch, plus for the editor tours a
-`pendingEditorOpen` request (`{ productId }` in `t4_ui.ts`, persisting until the
-Products page mounts and consumes it) and, for the slide tours, a
-`pendingSlideOpen` the deck editor consumes to open the first slide of that
-type; once navigate resolves (the slide tours search first, and a search that
-finds nothing arms no replay) it arms `pendingTourReplay` with the tour id and
-the product the tour's page lives in. The order matters: the manager's replay
-effect runs synchronously on that write, starts the tour once its page predicate
-is true, drops a tab-page replay whose page is not active (the switch was
-synchronous, so the tab is denied), and drops a product replay only once T1 is
-ready and no longer holds the product (a dead id, the Products page's own rule
-for the open request). It reads nothing transient, so the Products page clearing
-the open request just before it mounts the editor does not disturb a waiting
-replay. The manager is created with the shared button labels (`tourLabels()`,
-merged by roadtrip under any per-tour labels) and `onEvent: reportTourEvent`
-(`telemetry.ts`), which posts tour start / finish / abort to `recordTourEvent`
-(`server/routes/instance/onboarding.ts`) → the user-log pipeline as
-`tour_<event>:<tourId>` rows (details carry page, trigger, and for aborts the
-step reached and the reason, skip vs missing target); per-step events are not
-sent. Seen-state in the modal reads the Solid manager's reactive `hasSeen()`.
-Plus stewardship of the 241-file `t3` call-site surface. Reviewed against code
-(first review cycle, review-only; absorbs DOC_TRANSLATION + DOC_HELP_BUTTONS).
+Products. The Products page predicate excludes the `editing_` views, so a list
+tour does not fire behind an editor that has set its view (Open items: one still
+loading, and the tab pages under a full-page view). Deferred parts (a card on
+screen, a slide in the deck, a figure in the report) use entry-level `when`
+gates plus `watch` triggers over the product and ready-package counts, the
+Products page's open folders (`productsExpandedFolders`), and the open view's
+slide or figure count. A tour never waits on a control the user's level hides,
+because roadtrip aborts a run whose step target never appears (after 8 s) and
+marks every tour in it seen: the deck intro's Add slide step has a step-level
+`when` on that control, the deck settings tour waits for the Deck menu, the
+slide tours' pages need edit on the open deck, and the catalogue's deck settings
+and slide rows open a deck the user can edit (`editableDecks`). A tour may walk
+across a page boundary: the results-package catalogue tour's first step
+completes on the user's click of a list row (`advanceOn`), which opens the
+package page over the shell, and its second step waits for a target on that page
+(S8). The same directory hosts the tour catalogue modal
+(`tour_catalogue_modal.tsx` + `catalogue.ts`, opened from the Help menu, always
+offered), which lists every tour by area (Products, Slide decks, Reports,
+Instance) with availability computed over T1 only (`instanceState.products`,
+`readyPackages`, the permissions; the three slide-type rows first run a
+cache-first search of the decks' slide documents, `findDeckWithSlideOfType`) and
+a reason when unavailable. Play calls the entry's `navigate(openTab)`: a tab
+switch, plus for the editor tours a `pendingEditorOpen` request (`{ productId }`
+in `t4_ui.ts`, persisting until the Products page mounts and consumes it) and,
+for the slide tours, a `pendingSlideOpen` the deck editor consumes to open the
+first slide of that type; once navigate resolves (the slide tours search first,
+and a search that finds nothing arms no replay) it arms `pendingTourReplay` with
+the tour id and the product the tour's page lives in. The order matters: the
+manager's replay effect runs synchronously on that write, starts the tour once
+its page predicate is true, drops a tab-page replay whose page is not active
+(the switch was synchronous, so the tab is denied), and drops a product replay
+only once T1 is ready and no longer holds the product (a dead id, the Products
+page's own rule for the open request). It reads nothing transient, so the
+Products page clearing the open request just before it mounts the editor does
+not disturb a waiting replay. The manager is created with the shared button
+labels (`tourLabels()`, merged by roadtrip under any per-tour labels) and
+`onEvent: reportTourEvent` (`telemetry.ts`), which posts tour start / finish /
+abort to `recordTourEvent` (`server/routes/instance/onboarding.ts`) → the
+user-log pipeline as `tour_<event>:<tourId>` rows (details carry page, trigger,
+and for aborts the step reached and the reason, skip vs missing target);
+per-step events are not sent. Seen-state in the modal reads the Solid manager's
+reactive `hasSeen()`. Plus stewardship of the 241-file `t3` call-site surface.
+Reviewed against code (first review cycle, review-only; absorbs
+DOC_TRANSLATION + DOC_HELP_BUTTONS).
 
 Boundaries: the generic translation rules (`TranslatableString`, `t3` vs
 `resolveTS`, fallback-to-English, `Record<Language, T>` formatting lookups) are
@@ -172,8 +174,9 @@ a permission-guarded derivation that selects Products / Explore / Results / Data
 / Assets / Users, in that nav order; Products (S12's `components/products/`) is
 first and the default, and Explore (S11's `components/explore/`, one package at
 one scope, a family's modules in a select, a module's views in a select with a
-type toggle, and a frame per view, S11 "The Explore page") needs approval only,
-which the whole nav already requires. The tab id union is `InstanceTab` in
+type toggle, and a frame per view, S11 "The Explore page") needs approval and
+all-scope access (`currentUserScopeAccess.all`): a restricted user has no
+Explore tab (PLAN_SCOPES R13). The tab id union is `InstanceTab` in
 `onboarding/catalogue.ts` and the shell imports it.
 
 The shell is `ShellEditorWrapper` around a `FrameTop` whose panel is the header,
@@ -192,11 +195,12 @@ truthy accessor even when it renders nothing and `FrameLeft` would draw an empty
 rail. `ShellEditorWrapper` and `openShellEditor` are the one
 `getEditorWrapper()` the app has at shell level, created in `t4_ui.ts`; every
 view a user reaches through a Back button (the product editors, module defaults,
-the Scopes page, the package viewers, the Data hub's sub-pages, the user detail)
+the Scopes page, the package page, the Data hub's sub-pages, the user detail)
 opens through it and covers the header and the rail, so its Back is the only way
 out and the rail cannot switch tabs under an open editor. The tab stays on
 Products while a product editor is open. Views those full-page views open
-through their own wrappers (the slide editor, an import run detail) are already
+through their own wrappers (a deck's settings, a product's version history and
+figure editor, the package page's viewers, an import run detail) are already
 full page. This file also hosts the language menu and the onboarding-modal
 effect (below).
 
@@ -319,28 +323,26 @@ the window listeners are never attached.
 ## Onboarding modals
 
 An effect in `components/instance/instance.tsx` (after approval + Clerk user)
-sequentially opens `EmailOptInModal` (writes
-`clerk.user.unsafeMetadata.{emailOptIn, emailOptInAsked}`) then
-`OrganisationModal` (writes `unsafeMetadata.organisation`; skippable), then
-`WhatsNewModal`, a multi-page release-notes popup. The sequence is guarded to
-run ONCE per signed-in user id (the approval store re-fires the effect, which
-would otherwise re-open the modals). Posts are authored in the Admin-Website,
-fetched by `server/routes/instance/whats_new.ts` from status-api (60s in-memory
-cache, fail-silent, 30s backoff after a failed fetch) and pre-filtered
-server-side to
+opens `OrganisationModal` when `unsafeMetadata.organisation` is unset (it writes
+that key; skippable), then `WhatsNewModal`, a multi-page release-notes popup.
+The sequence is guarded to run ONCE per signed-in user id (the approval store
+re-fires the effect, which would otherwise re-open the modals). Posts are
+authored in the Admin-Website, fetched by `server/routes/instance/whats_new.ts`
+from status-api (60s in-memory cache, fail-silent, 30s backoff after a failed
+fetch) and pre-filtered server-side to
 `published && version <= _SERVER_VERSION && (!adminsOnly || isGlobalAdmin)` (the
 version gate is skipped when `SERVER_VERSION` is non-dotted, i.e. ad-hoc test
 deploys). Read-state is a per-post id set in
 `unsafeMetadata.whatsNewReadPostIds` (a post counts as read once opened, Skip or
 Done alike), pruned on write to the currently-eligible ids; users still carrying
 the superseded high-water `whatsNewSeenVersion` are migrated once by marking
-every post at or below it read. Brand-new users (detected as `!emailOptInAsked`
-before the opt-in modal writes it) are baselined with everything marked read, so
-they get neither popup nor dot. The fetched posts also power a header bell
-(between the language switcher and the Help menu; hidden when there are no
-posts) with a warning-coloured unread dot and a `WhatsNewFeedModal` history
-feed. The dot persists until every missed post has been opened. The feed does
-NOT bulk-acknowledge; it marks each post read as it is opened and flags the
+every post at or below it read. Brand-new users (detected as carrying neither
+`whatsNewReadPostIds` nor `whatsNewSeenVersion`) are baselined with everything
+marked read, so they get neither popup nor dot. The fetched posts also power a
+header bell (between the language menu and the profile icon; hidden when there
+are no posts) with a warning-coloured unread dot and a `WhatsNewFeedModal`
+history feed. The dot persists until every missed post has been opened. The feed
+does NOT bulk-acknowledge; it marks each post read as it is opened and flags the
 still-unread rows. The login popup (`whatsNewAutoShowPost`) only pushes a
 release NEWER than every version already acknowledged, so acknowledging one
 release never drags an older unread backlog into subsequent logins. Those stay
@@ -355,7 +357,7 @@ are recorded via `recordWhatsNewEvent` → the user-log pipeline as
 survive the 7-day rollup; surfaced per-post in the Admin-Website). Layouts are
 locked presets (`WHATS_NEW_LAYOUTS`, incl. a full-bleed `cover`), each page
 scaling its media via `mediaSize`. Types + `compareDottedVersions` live in
-`lib/types/whats_new.ts`. The three onboarding modals persist to Clerk
+`lib/types/whats_new.ts`. The two onboarding modals persist to Clerk
 `unsafeMetadata` only, with no localStorage writes.
 
 ## Help buttons (`lib/help/**`, `_shared/figure_editor/help_button.tsx`)
@@ -372,8 +374,9 @@ via `getHelpUrl` (site URL, `/fr` prefix when `getLanguage() === "fr"`, the
 language's own anchor). The recipe and its traps are
 [PROTOCOL_APP_HELP_BUTTONS.md](PROTOCOL_APP_HELP_BUTTONS.md). Coverage today:
 **EN/FR only** (a `pt` user gets English content and the English site), and
-exactly **one** of the 43 targets has a button in the UI (`viz-data-tab`, in the
-PO editor's data panel).
+**none** of the 43 targets has a button in the UI: the one written,
+`viz-data-tab` in the figure editor's data panel, sits inside a JSX comment
+(Open items).
 
 ## Open items
 
@@ -387,7 +390,81 @@ PO editor's data panel).
 - Help system has no `pt`: the generator and `getHelpUrl` are EN/FR-only, so
   Portuguese users silently get English summaries and the English site. Needs a
   site-side `pt` tree before the app side can follow.
-- Help-button adoption is 1 of 43 generated targets. The machinery is built; the
-  buttons were never rolled out.
+- Help-button adoption is 0 of 43 generated targets: the one button written
+  (`viz-data-tab`) is commented out in
+  `_shared/figure_editor/editor_panel_data.tsx:53-57`, kept reachable only by
+  its unused import (16). The machinery is built; the buttons were never rolled
+  out.
 - Help generator hygiene: `.mdx` pages are silently skipped by the walk;
   `getHelpTarget` in `lib/help/mod.ts` is an unused export.
+- **OrganisationModal shows nothing when its save fails.** `handleSave` lets a
+  failed Clerk write throw past `p.close`
+  (`instance/organisation_modal.tsx:10-25`), and the Save action carries no
+  state (42-48), so no error renders and the rejection goes unhandled. Build
+  Save with `createButtonAction` (closing on success), pass its `state` so
+  `ModalContainer` renders the error, and take `cancelDisabled` from its loading
+  state.
+- **Tour pages stay true under the views that cover them.** The rule at
+  `onboarding/index.ts:50-52` says a page predicate holds only while its page is
+  visible, but `products` (83) holds while a product editor is still loading,
+  because `opening_product` is the controller's fallback and `isEditingView`
+  tests the `editing_` prefix (`onboarding/catalogue.ts:63-64`), and the Data,
+  Results, Assets and Users pages (84-87) hold under every full-page view their
+  tabs open, because the tab does not change. PLAN_COPILOT03_ONE_CHAT re-keys
+  the pages on the one chat's view ids.
+- **Help requests never say where they were sent from.** `FeedbackForm` sends
+  `p.context` (`instance/feedback_form.tsx:18`, 81) and the email renders it
+  (`server/routes/instance/emails.ts:213-216`), but `openFeedback` passes only
+  `initialType` (`instance/instance.tsx:203-208`). Pass `context: tab()` there,
+  and make the registry comment at `lib/api-routes/instance/emails.ts:48` read
+  "Where in the app the report came from: the tab it was sent from.", since the
+  Help menu sits in the header, which every full-page view covers
+  (`instance.tsx:271-318`, 410-411).
+- **The Users tour's Bulk step misdescribes the download.** Its body says the
+  download carries each user's permissions (`onboarding/tours.ts:1288-1295`),
+  but the CSV holds only email and `is_global_admin` (`users/users.tsx:73-84`),
+  and its target `instance-users-bulk` sits on Download alone (132) though the
+  text also covers Batch import (143-153). Move
+  `data-tour="instance-users-bulk"` to the div that holds both buttons
+  (`users.tsx:130`) and make the body en "Download the user list, with each
+  user's email and whether they are an admin. User managers can also import many
+  users at once from a CSV.", fr "Téléchargez la liste des utilisateurs, avec
+  l'e-mail de chacun et s'il est administrateur. Les gestionnaires
+  d'utilisateurs peuvent aussi importer plusieurs utilisateurs à la fois depuis
+  un CSV.", pt "Transfira a lista de utilizadores, com o e-mail de cada um e se
+  é administrador. Os gestores de utilizadores também podem importar vários
+  utilizadores de uma vez a partir de um CSV."
+- **The Results catalogue tour says the Delete button stays.** Its usage step
+  says a package in use cannot be deleted "and the button says so rather than
+  disappearing" (`onboarding/tours.ts:1150`, fr 1152, pt 1154), but the page
+  shows the reason in place of the button
+  (`results_packages/package_page.tsx:270-286`) and also blocks a pinned or
+  generating package (127-149). Replace that sentence with en "A package that is
+  pinned, in use or still generating cannot be deleted, and the page shows why
+  where the Delete button would be.", fr "Un paquet épinglé, utilisé ou encore
+  en cours de génération ne peut pas être supprimé, et la page en donne la
+  raison à la place du bouton Supprimer.", pt "Um pacote fixado, em uso ou ainda
+  em geração não pode ser eliminado, e a página indica o motivo no lugar do
+  botão Eliminar."
+- **What's New's own Escape branch never runs.** The comment at
+  `instance/whats_new_modal.tsx:61-62` says panther's modal system has no
+  keyboard handling, but panther's `DialogLayer` cancels the dialog on Escape
+  (`panther/_303_components/special_state/alert.tsx:161-165`) and registers its
+  listener first, so the branch at 70-73 never fires and the caller records
+  every Escape as skipped (`instance/instance.tsx:609`, 634). Delete the branch
+  and make 61-62 read "Arrow-key paging lives here; Escape belongs to panther's
+  DialogLayer, which cancels the dialog first, and the caller records a skip."
+- **Two stale comments in `onboarding/tours.ts`.** 892-893 list an Explore tour
+  that does not exist (the pages are `onboarding/index.ts:82-97`), and 895-897
+  say the nav renders twice by breakpoint, but the rail is one `TabsNavigation`
+  (`instance/instance.tsx:392-406`). Drop "Explore /" at 892 and delete 895-897.
+- **The Assets catalogue entry carries a reason it never shows.**
+  `onboarding/catalogue.ts:621-622` pairs `available: () => true` with an
+  `unavailableReason`, which the field's contract leaves absent on an
+  always-available entry (35-37). Delete 622.
+- Cruft: `fitWithin`, `headerOrContent` and `policyHeaderOrContent`
+  (`state/t4_ui.ts:161-163`, 175-181) have no reader; the one other `fitWithin`
+  match is an unrelated prop
+  (`products/slide_deck/slide_editor/slide_editor.tsx:1392`). Delete
+  `t4_ui.ts:157-163` and 171-181, and their names from the in-memory list under
+  `## UI preferences`.

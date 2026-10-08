@@ -443,11 +443,14 @@ hash).
 
 One imports surface per family, opened from a single `Imports` button in the
 dataset page's admin controls, the seam between the viewer and the imports
-layer: that one button and `Delete data`, with no wizard shortcuts (ruled). HMIS
-puts them in the page's heading bar beside an "Import running" badge from the
-SSE `hmisImportRunActive` flag; the queued count and the scheduled-import
-attention flag show only inside the imports view (Current tab badge, attention
-banner). HFA and ICEH keep them in an admin sidebar with no heading (HFA also
+layer: that one button and `Delete data`, with no wizard shortcuts (ruled),
+except the HMIS ledger's two pair actions, "Re-import this indicator" and "Retry
+failed pairs", which moved with the ledger onto the HMIS Data page (PLAN_A8
+ruling 6) and open the DHIS2 wizard from there (below). HMIS puts them in the
+page's heading bar beside an "Import running" badge from the SSE
+`hmisImportRunActive` flag; the queued count and the scheduled-import attention
+flag show only inside the imports view (Current tab badge, attention banner).
+HFA and ICEH keep them in an admin sidebar with no heading (HFA also
 `Manage time points`). The surface's toolbar owns the actions. The runs query
 polls every 2 s while a run is active, needs_review runs render as Current cards
 with the staging diagnostics + Integrate anyway / Discard, History rows click
@@ -606,6 +609,67 @@ into its inputs plus the dataset version stamps the manifest records
 - **Decoupling: dual CSV parsers.** papaparse vs panther `parseCSV`; evaluate
   consuming panther's `_100_csv`/`_232_csv` (panther's modules are whole-string
   today. Adoption would mean adding streaming there first).
+- **The Indicators rows are offered to view-only users, whose pages then fail.**
+  Neither Indicators row is gated (`data/data.tsx:262-277`, 392-407) while the
+  tab admits `can_view_data` (`instance/instance.tsx:109-113`), and both pages'
+  main reads require `can_configure_data`: `getIndicators`
+  (`server/routes/instance/indicators.ts:66-67`) and all 39 routes in
+  `server/routes/instance/hfa_indicators.ts` (`getHfaIndicators` at 506-508).
+  Push both rows only when `canConfigureData()` (`data.tsx:53-55`), the
+  predicate the DHIS2 row uses (237).
+- **A user with `can_configure_data` but not `can_view_data` is offered five
+  rows that show only an error.** Facilities (HMIS and HFA,
+  `data/data.tsx:135-169`), HMIS Data (278-283), Sampling weights (357-391), HFA
+  Data (408-413) and Equity data (419-430) open pages whose reads require
+  `can_view_data` (`server/routes/instance/structure.ts:80-81`, 128-129;
+  `server/routes/instance/datasets.ts:84-85`, 95-96, 549-550;
+  `server/routes/instance/iceh.ts:26-27`) and whose write controls are
+  admin-only (`data/facilities/facilities.tsx:199`,
+  `data/hmis/dataset/dataset.tsx:293`, `data/hfa/hfa_weights.tsx:102`,
+  `data/hfa/dataset/dataset.tsx:67`, `data/iceh/dataset/dataset.tsx:81`). Push
+  those rows only when `instanceState.currentUserIsGlobalAdmin` or
+  `instanceState.currentUserPermissions.can_view_data` holds. Population stays:
+  its panel works under `can_configure_data`
+  (`data/hmis/population/manager.tsx:32-34`, 93) and only its grid read needs
+  `can_view_data` (`server/routes/instance/population.ts:39-40`). The ICEH
+  section is then left with no row for such a user and keeps its heading, which
+  the Data tour targets (`onboarding/tours.ts:1028`).
+- **HMIS Data offers DHIS2 re-imports to users who cannot import.** "Retry
+  failed pairs" (`data/hmis/dataset/ledger_table.tsx:189-204`) and the ledger
+  detail's "Re-import this indicator"
+  (`data/hmis/dataset/import_ledger_indicator_detail.tsx:196-204`) render for
+  every viewer of the page and open the DHIS2 wizard, whose launch routes take
+  `can_configure_data` (`server/routes/instance/datasets.ts:128-129`, 166-167),
+  while the page's own Imports and Delete sit behind `currentUserIsGlobalAdmin`
+  (`data/hmis/dataset/dataset.tsx:293`). PLAN_A8 ruling 6 moved both actions
+  here from the admin-only imports view. Render both behind the same gate
+  as 293.
+- **HMIS Data resets the indicator selection on every refetch.** The display
+  effect (`data/hmis/dataset/dataset.tsx:88-116`) re-runs on
+  `datasetVersions.hmis`, `countIndicatorsVersion`, the HMIS schema,
+  `structureLastUpdated` and `hmisImportRunActive`, and each run sets
+  `vizConfig.indicators` to every indicator (110-113), so a narrowed selection
+  is lost at every import start and end. Seed it on the first load only; on a
+  later refetch keep the selection intersected with the new list, and take the
+  whole new list when the selection held every previous indicator.
+- **The HFA Time points row tells the user to import first.** Its empty summary
+  reads "No time points (import data to create)" (`data/data.tsx:349-353`), but
+  the HFA import wizard only picks an existing time point
+  (`data/hfa/imports/wizard.tsx:109-117`, 410-420) and the time points page says
+  to add one before importing (`data/hfa/_shared/time_points.tsx:235-242`). Make
+  it en "No time points (add one before importing data or weights)", fr "Aucun
+  point temporel (en ajouter un avant d'importer des données ou des
+  pondérations)", pt "Nenhum ponto temporal (adicione um antes de importar dados
+  ou pesos)".
+- **The switchboard comment says every row opens a full-page view.**
+  `data/data.tsx:85` says so, but AI context and DHIS2 connection open modals
+  (226-227, 252-253). Replace its first sentence with "A sub-page opens as a
+  full-page view over the shell; its Back closes it."
+- **The dataset pages' admin controls are write-gate sites.**
+  `data/hmis/dataset/dataset.tsx:293`, `data/hfa/dataset/dataset.tsx:67` and
+  `data/iceh/dataset/dataset.tsx:81` gate on `currentUserIsGlobalAdmin` while
+  their routes take `can_configure_data`; SYSTEM_05's write-gate decision (Open
+  items) covers them.
 
 ### HFA follow-on work
 

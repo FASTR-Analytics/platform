@@ -475,3 +475,19 @@ bump.
 - Cruft: rename away the opaque `TimCacheC`/`cache_class_C` suffix and
   disambiguate "cache" (Valkey read-model) from `cacheMiddleware` (HTTP headers)
   when touched.
+- **The approval reconnect unmounts the whole shell.** `reconnectForApproval`
+  (`state/instance/t1_sse.tsx:335-339`) runs when approval lands and when the
+  user's own scope access changes (245-250, 359-369), and its
+  `disconnectInstanceSSE` calls `resetInstanceState` (324), which sets `isReady`
+  false (`state/instance/t1_store.ts:42-43`, 143-145). Until the new `starting`
+  lands, the boundary renders its Loading fallback in place of `Instance`
+  (`t1_sse.tsx:435-462`), so every open full-page view closes with its unsaved
+  state and the tab returns to Products. The user is the same and `starting`
+  replaces the store whole (`initInstanceState`, `t1_store.ts:135-137`): close
+  and reopen the stream in `reconnectForApproval` without the reset, keep the
+  reset on the boundary's unmount (`t1_sse.tsx:346-350`), replace the sentence
+  at 331-334 with "The reconnect keeps the store: the user is the same, and the
+  new `starting` replaces it through `initInstanceState`, so the shell stays
+  mounted.", and delete the clause "`currentUserApproved` goes false transiently
+  on every reconnect (the store reset), and" at 355-357; the comment at 464-466
+  then holds.

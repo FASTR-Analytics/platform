@@ -114,7 +114,8 @@ wb-fastr-site (.md tags)  ──build:help-buttons──▶  lib/help/help_targe
   (`https://fastr-analytics.org`, plus `/fr` when `getLanguage() === "fr"`, plus
   the page slug and the language's own `#anchor`).
 - **`client/src/components/_shared/figure_editor/help_button.tsx`**: the icon
-  button + the modal (S11's folder: the figure editor is its one consumer; it is
-  promoted to `_shared/` at its second consumer) (opened via panther's
-  `openComponent`). Fully self-contained: `id` is the only prop. No runtime
-  fetch; the live docs site is only touched when the user clicks "Read more…".
+  button + the modal (S11's folder: its one use, in the figure editor's data
+  panel, is commented out; it is promoted to `_shared/` at its second consumer)
+  (opened via panther's `openComponent`). Fully self-contained: `id` is the only
+  prop. No runtime fetch; the live docs site is only touched when the user
+  clicks "Read more…".

@@ -2507,3 +2507,43 @@ interpolation in both routes.
   typewise; ties into the tighten-to-schema follow-on.
 - **Barrel bypass**: `slide_list.tsx` imports the vendored SortableJS wrapper
   via a deep `../../../../panther/...` path instead of `"panther"`.
+- **A deck rename is reverted by the next Deck-menu change (MED).** Renaming
+  writes `products.label` only (`products/_shared/product_title.tsx:28-36`,
+  `products/_shared/product_settings.tsx:51-56`, through
+  `server/db/products/products.ts:273-295`), the deck detail returns the stored
+  config with its stale `label` copy (`server/db/products/slide_decks.ts:66`),
+  `patchDeckConfig` sends the whole config
+  (`products/slide_deck/slide_deck.tsx:130-138`), and `updateSlideDeckConfig`
+  writes `config.label` back to `products.label` (`slide_decks.ts:114-120`).
+  Make `slide_decks.ts:66` lay the live label over the stored config:
+
+  ```ts
+  config: { ...parseSlideDeckConfig(deck.config, deck.label), label: deck.label },
+  ```
+
+- **A failed authoring-context read leaves the deck's slide area blank and the
+  report's figure actions silent.** Both editors drop the failure
+  (`products/slide_deck/slide_deck.tsx:204-208`,
+  `products/report/report.tsx:866-869`) and nothing retries until the pair
+  changes: the deck never mounts a slide editor and renders nothing in its place
+  (`slide_deck.tsx:407-417`, 501-515), and the report's Insert, Switch and Edit
+  figure return without a word (`report.tsx:1803-1805`, 1937-1942). Keep the
+  error in a signal beside `authoringContext` and show it in the deck's slide
+  area and as an alert from those report actions.
+- **The report writes an edited figure back under the pair it opened with.**
+  `handleEdit` captures `staleContext()` before opening the editor
+  (`products/report/report.tsx:1941`) and re-resolves the result under that
+  `ctx.scope` (2001-2005), so a reattach or rescope while the editor is open
+  writes the figure under the old pair, against the comment at 1999-2000; the
+  slide host resolves under its live `p.scope`
+  (`products/slide_deck/slide_editor/slide_editor.tsx:1079-1083`). Resolve under
+  the live pair `scope()` (`report.tsx:231-234`) read after the editor closes,
+  returning when it is undefined.
+- **The slide editor's own editor wrapper is dead.** Its one render site always
+  passes `openHostEditor` (`products/slide_deck/slide_deck.tsx:530`), so the
+  fallback to the local wrapper
+  (`products/slide_deck/slide_editor/slide_editor.tsx:1062`) never runs and the
+  `getEditorWrapper()` at 166, with its `EditorWrapper` at 1313 and 1539, never
+  holds a view. Make `openHostEditor` required (144), call it at 1062, delete
+  the local wrapper, and drop "Absent, it opens here" from the comment at
+  140-143.

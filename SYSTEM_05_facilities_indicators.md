@@ -570,18 +570,20 @@ shared by the client editor validator and the server dependency analyzer
 (`server_only_funcs/hfa_dependency_analyzer.ts`). Never re-fork these. A fork
 (two whitelists, or a server that does not strip comments) makes editor-green
 code hard-fail whole module runs. lib compiles into both runtimes: keep it pure
-(no Deno/UI imports). The editor's persisted
-`has_syntax_error`/`code_consistent` flags are display-only advisory metadata:
-the run's `hfa_indicators_snapshot.json` carries them and its reader
+(no Deno/UI imports). The persisted `has_syntax_error`/`code_consistent` flags
+are advisory metadata that the manager does not display (its Status and
+Consistent columns compute from the code) and that only the HFA assistant reads
+(`get_hfa_indicators`, and `validate_hfa_indicators` as its preview's before
+status): the run's `hfa_indicators_snapshot.json` carries them and its reader
 (`hfaIndicatorRow`, `server/run_query/run_read.ts`) drops them, and bulk
 validation updates deliberately do NOT bump `updated_at` (a bump would move
-`hfaIndicatorsVersion`, the run's HFA staleness stamp, for a display-only edit).
-Warnings (lone `=`) are a distinct severity and never persist as errors. The
-R-code lifecycle: instance edits → run capture (S6's run-capture seam) snapshots
-indicators+taxonomy+code → S8's module run builds a cross-indicator dependency
-graph (topological sort, cycles rejected) and splices each round's code into
-`case_when` branches; `STOP_IF_INDICATOR_FAILS` (default TRUE) makes one invalid
-indicator kill the run.
+`hfaIndicatorsVersion`, the run's HFA staleness stamp, for an edit generation
+ignores). Warnings (lone `=`) are a distinct severity and never persist as
+errors. The R-code lifecycle: instance edits → run capture (S6's run-capture
+seam) snapshots indicators+taxonomy+code → S8's module run builds a
+cross-indicator dependency graph (topological sort, cycles rejected) and splices
+each round's code into `case_when` branches; `STOP_IF_INDICATOR_FAILS` (default
+TRUE) makes one invalid indicator kill the run.
 
 An indicator is NA when its **own expression** evaluates to NA, not when an
 input is missing. R's `&`/`|` are three-valued, so a skip-logic "." on a
@@ -1119,9 +1121,21 @@ layer.
   denominator" classification, or the per-variable reading is documented as
   answering a different question.
 - **Decision needed:** UI write-gates use `currentUserIsGlobalAdmin` while the
-  server gates on `can_configure_data` in four slices (HMIS manager, HFA
-  manager, geojson manager, weights import). Decide which contract wins and
-  align.
+  server gates on `can_configure_data`, at nine sites: the HMIS indicators
+  manager (`data/hmis/indicators/manager.tsx:557`, 652, 679), the HFA indicators
+  manager and its taxonomy managers (`data/hfa/indicators/manager.tsx:1074`,
+  1101, 1139, 1170; `data/hfa/indicators/categories_manager.tsx:86`, 256;
+  `data/hfa/indicators/service_categories_manager.tsx:19`;
+  `data/hfa/indicators/variant_groups_manager.tsx:88`, 290), the geojson manager
+  (`data/geojson/manager.tsx:113`, 149), the weights import
+  (`data/hfa/hfa_weights.tsx:102`), the facilities import panel
+  (`data/facilities/facilities.tsx:199`), HFA time points
+  (`data/hfa/_shared/time_points.tsx:234`), and S6's HMIS, HFA and ICEH dataset
+  controls (`data/hmis/dataset/dataset.tsx:293`,
+  `data/hfa/dataset/dataset.tsx:67`, `data/iceh/dataset/dataset.tsx:81`).
+  Population (`data/hmis/population/manager.tsx:32-34`) and the DHIS2 connection
+  row (`data/data.tsx:237`) already take admin or `can_configure_data`. Decide
+  which contract wins and align every site.
 - Server-produced wizard/staging/integration error strings are English-only and
   rendered verbatim by the client, and need a mechanism (error codes or
   translatable errs), not per-string patching.
@@ -1144,6 +1158,37 @@ layer.
   factor 1000 decomposes to `number` with a note until then): touches the DB
   check, the manifest schema, the figure bundle, the value scale and four style
   editors.
+- **The GeoJSON mapping editor has no way out when its load fails.** Cancel and
+  Save render only inside the loaded-state `Show`
+  (`data/geojson/edit_modal.tsx:246-362`, Cancel at 358-360), and the error
+  state renders a message alone (242-244). The editor covers the manager and its
+  Back (`data/geojson/manager.tsx:52-60`) and the shell view covers the rail, so
+  a failed load leaves a reload as the only exit. Move Cancel out of the `Show`
+  so it renders in the loading and error states too.
+- **Facilities fetches the upload attempt for every viewer.**
+  `data/facilities/facilities.tsx:124-126` calls `getStructureUploadAttempt` on
+  mount, a `can_configure_data` route
+  (`server/routes/instance/structure.ts:219-220`), though only the admin-only
+  Imports panel reads the result (199); for a viewer without the bit the request
+  fails and the failure is swallowed (109-122). Fetch it from an effect on
+  `instanceState.currentUserIsGlobalAdmin`, the panel's gate, in place of the
+  unconditional `onMount`.
+- **A manager comment ties the code editor to imported data.**
+  `data/hfa/indicators/manager.tsx:528-529` says the metadata-only fallback
+  applies "with no HFA data imported", but the test is `hfaDataAvailable()`
+  (254), `!!instanceState.hfaCacheHash`, which is empty only while no time point
+  exists (`server/db/instance/dataset_hfa.ts:34-44`). Make 528-529 read "The
+  code editor keys its code by time point; with no HFA time point defined, fall
+  back to the metadata-only modal so labels/categories stay editable."
+- **Two comments misdescribe the stored validation flags.**
+  `data/hfa/indicators/indicator_code_editor.tsx:437-438` calls the flag
+  display-only editor metadata, but the manager displays no flag
+  (`manager.tsx:285-377`, 956-1026) and the HFA assistant's tools read it
+  (`ai/tools.ts:208`, 221-222, 652-655). `manager.tsx:469` says SSE will trigger
+  a refetch, but the write leaves `hfaIndicatorsVersion` unchanged
+  (`server/db/instance/instance.ts:43-44`), so nothing refetches. Make the
+  parenthetical at 437-438 read "(main + variant snippets; the stored flag is
+  advisory metadata generation ignores)", and delete the comment at 469.
 
 ### HFA variant groups: open questions
 

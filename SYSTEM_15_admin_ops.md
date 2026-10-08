@@ -295,18 +295,19 @@ failures surface as user-facing route errors with GB figures.
 - **Users tab** (`users/users.tsx` + `user.tsx` + bulk forms; visibility
   `admin || can_configure_users || can_view_users`): user table with last-active
   (from `getAllUserLogs`), admin toggle (server requires full admin: the bulk
-  buttons show for `can_configure_users` and 403 at click, Open item), per-user
+  buttons and the user detail's Make admin and Make non-admin show for
+  `can_configure_users` and 403 at click, Open item), per-user
   instance-permission checkboxes, batch CSV upload (`email, is_global_admin`
   headers; server validates emails, optional replace-all), H_USERS-only
   unlimited-AI/contact-person sections. One bulk tri-state editor
   (`unchanged → true → false`, posting only changed keys) covers the instance
   flags.
-- **Self-profile** (`profile.tsx`): AI usage bars; organisation + `emailOptIn`
-  are written **directly to Clerk `unsafeMetadata`**, a second persistence plane
-  outside serverActions/Postgres. Change-email wizard
-  (`change_email_modal.tsx`): adds and code-verifies the address through the
-  Clerk JS SDK, runs S1's `renameUserEmailEverywhere` fleet rename, then flips
-  the Clerk primary and refreshes the session token.
+- **Self-profile** (`profile.tsx`): AI usage bars; the organisation is written
+  **directly to Clerk `unsafeMetadata`**, a second persistence plane outside
+  serverActions/Postgres. Change-email wizard (`change_email_modal.tsx`): adds
+  and code-verifies the address through the Clerk JS SDK, runs S1's
+  `renameUserEmailEverywhere` fleet rename, then flips the Clerk primary and
+  refreshes the session token.
 - **Feedback form** → S12's `sendHelpEmail` route (`requireGlobalPermission()`):
   SendGrid confirmation to the user + copies to `_FEEDBACK_EMAIL_RECIPIENTS`,
   `replyTo` the user.
@@ -338,8 +339,45 @@ currently internet-exposed behind a shared password, PLAN_HARDEN_SECURITY).
   has no `iceh` entry.
 - **Hardcoded personal emails** in shipped code: health_check's exclusion list,
   the resize-alert recipients, all fleet-config candidates.
-- **Client/server guard mismatch**: bulk admin-toggle buttons show for
-  `can_configure_users` but the route requires full admin (403 at click).
+- **Client/server guard mismatch**: Make admin and Make non-admin show for
+  `can_configure_users`, in the bulk actions (`users/users.tsx:485-506`) and on
+  the user detail (`users/user.tsx:238-265`), but `toggleUserAdmin` requires
+  full admin (`server/routes/instance/users.ts:193`), so both 403 at click. Show
+  both only when `instanceState.currentUserIsGlobalAdmin`.
 - **Legacy UUID project DBs stay on prod hosts** after consolidation; nothing
   drops them (see Production topology).
-- Cruft: dead `showCommingSoon` prop in `users/users.tsx`.
+- Cruft: dead `showCommingSoon` prop in `users/users.tsx`; unused
+  `openComponent` import in `users/user.tsx:18`.
+- **A failed permissions read lets Save write every bit false, and the
+  checkboxes are not live.** The user detail reads its bits once from
+  `getUserPermissions` (`users/user.tsx:118-128`) and seeds all-false on a
+  failure, so toggling one box makes `hasChanges` true and Save writes the rest
+  as false (130-157); the unlimited-AI and contact-person checkboxes are
+  mount-time copies (92, 104-106), against the comment at 39-41. The roster row
+  already carries the stored bits (`lib/types/instance.ts:273-283`), live over
+  `users_updated`. Keep only the toggled keys as a patch over `p.user` and save
+  `p.user`'s bits with the patch applied, read `unlimitedAi` and
+  `isContactPerson` from `p.user`, and delete `getUserPermissions`, whose only
+  caller this is (`lib/api-routes/instance/users.ts:74`,
+  `server/routes/instance/users.ts:303-312`,
+  `server/db/instance/users.ts:266-292`).
+- **Add users and Batch import show for viewers.** Both buttons render for every
+  Users-tab viewer (`users/users.tsx:143-165`), while `addUsers` and
+  `batchUploadUsers` require `can_configure_users`
+  (`server/routes/instance/users.ts:170`, 243). Lift `canConfigureUsers`
+  (`users.tsx:478-480`) into `InstanceUsers` and render both only when it holds.
+- **Last active shows "..." forever without `can_view_logs`.**
+  `users/users.tsx:39` always runs `getAllUserLogs`, which requires
+  `can_view_logs` (`server/routes/instance/users.ts:295`), so `logs` stays
+  undefined (92-95) and every row renders "..." (363-370). Build the query and
+  the Last active column (352-374) only when
+  `instanceState.currentUserIsGlobalAdmin` or
+  `instanceState.currentUserPermissions.can_view_logs` holds.
+- **Change email's report phase has no button to leave.** After a partial
+  failure the footer holds only Retry
+  (`instance/change_email_modal.tsx:336-349`), so Escape is the only exit, and
+  the header comment says an all-green rename ends with a Done button (29-32),
+  but the code reloads at once (118-120). Give the report case
+  `onCancel: () => p.close(undefined)`, `cancelLabel` en "Close", fr "Fermer",
+  pt "Fechar", and `cancelDisabled: busy()`, and make 31-32 read "all-green
+  reloads at once, since the SPA's identity state is stale after a self-rename."

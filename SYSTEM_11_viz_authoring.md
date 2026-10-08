@@ -207,8 +207,9 @@ does not call it.
 ## The Explore page
 
 `components/explore/explore.tsx` renders one package at one scope for an
-approved user: a compact `HeadingBar` whose tabs are the families the package
-has any module for, in `MODULE_FAMILY_ORDER`, with a package `Select` over
+approved user with all-scope access (a restricted user has no Explore tab): a
+compact `HeadingBar` whose tabs are the families the package has any module for,
+in `MODULE_FAMILY_ORDER`, with a package `Select` over
 `instanceState.readyPackages` (opening on the pin, else the newest ready
 package) and the shared `ScopeSelect` over the T1 scopes list. Explore always
 reads through a named scope: it opens on "All data" (`exploreScopeId` starts as
@@ -570,9 +571,52 @@ changed something.
   order (keep) or start clean (prune).
 - **Dead code (zero importers/consumers):** `lib/types/dimension_definitions.ts`
   (barrel-exported, zero uses); the download modal's `allReplicants` result
-  field (hard-coded false).
+  field (hard-coded false); the data panel's `viewResultsObject` prop, declared
+  at `_shared/figure_editor/editor_panel_data.tsx:23` and `editor_panel.tsx:27`,
+  passed at `editor_panel.tsx:146` and `figure_editor.tsx:852`, read nowhere.
 - **Stale white-fill comment**: the download path claims `getFigureAsCanvas`
   fills white pending a panther flag. Panther does not fill; verify transparent
   PNG end-to-end and update or delete.
 - **i18n gaps**: `window.alert` in `custom_series_styles.tsx`.
-- Commented-out remnants: disaggregation chips (`metric_card.tsx`).
+- Commented-out remnants: disaggregation chips (`metric_card.tsx`); the data
+  panel's help button (`_shared/figure_editor/editor_panel_data.tsx:53-57`, its
+  import at 16; SYSTEM_14's help-button item).
+- **Explore says a package has no modules when the scope hides them all.** The
+  families come from the authoring context read under the scope
+  (`explore/explore.tsx:169-178`), which drops every module the scope excludes
+  (`server/run_query/authoring_context.ts:27-31`); with none left, the page
+  shows `no_modules`, "This package has no modules, so there are no results to
+  explore." (`explore.tsx:201-208`; `explore/_shared/empty_state.tsx:11-16`).
+  Add a kind `no_modules_in_scope`, en "This scope shows none of this package's
+  modules.", fr "Cette portée n'affiche aucun des modules de ce paquet.", pt
+  "Este âmbito não mostra nenhum dos módulos deste pacote.", used at
+  `explore.tsx:206` when `p.scope.scopeId !== ALL_DATA_SCOPE_ID`, and name it in
+  the empty-state sentence under `## The Explore page`.
+- **Explore's no-package message sends users to a page most cannot open.** It
+  says "Generate one from the Results packages page"
+  (`explore/explore.tsx:122-131`); the rail calls that tab Results and shows it
+  only with admin or `can_configure_data` (`instance/instance.tsx:98-108`),
+  while Explore needs only all-scope access (91). Make it en "No results package
+  is ready yet. An admin generates one under Results.", fr "Aucun paquet de
+  résultats n'est encore prêt. Un administrateur en génère un sous Résultats.",
+  pt "Ainda não há nenhum pacote de resultados pronto. Um administrador gera um
+  em Resultados."
+- **Explore's header comment says nothing is written.** `explore/explore.tsx:96`
+  says "Nothing here is written anywhere", but the family, module, view and type
+  choices persist to localStorage (`state/t4_explore.ts:43-74`). Delete the
+  sentence; `t4_explore.ts:12-19` says what persists.
+- **Three comments say the figure editor's pair is live.**
+  `_shared/figure_editor/figure_editor.tsx:103-104` ("passed live so a mid-edit
+  reattach moves the preview"), 124-125 ("the host's scope prop is live") and
+  `_shared/figure_editor/visualization_editor.tsx:65-66` ("read live from T1 by
+  the host") are false: the hosts pass the pair as a plain value
+  (`products/slide_deck/slide_editor/slide_editor.tsx:1066`,
+  `products/report/report.tsx:1988`,
+  `results_packages/package_view/visualizations.tsx:45`) and panther's
+  `openEditor` stores the props once
+  (`panther/_303_components/special_state/generic_editor_wrapper.tsx:40-44`,
+  61-68). Make 103-104 read "The embedded figure editor: a figure
+  `{ metricId, config }` edited under the host's PackageScope at open, fixed for
+  the editor's life.", 124-125 "The pair every read resolves under: the host's
+  at open, since openEditor stores the props once.", and 65-66 "The host's pair
+  when the editor opens; every read this editor makes resolves under it."
