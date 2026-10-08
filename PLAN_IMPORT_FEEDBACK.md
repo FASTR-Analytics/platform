@@ -13,7 +13,7 @@ indicator (a formula), the DHIS2 import fails every month of it as designed, but
 says so in DHIS2's vocabulary, by bare UID, without the steps that fix it, and
 only after the run.
 
-**Next step: Fix 1.** Each session sets this line in its final commit. Its values
+**Next step: Review 1.** Each session sets this line in its final commit. Its values
 are `Do N`, `Review N` and `Fix N`. The review that passes step 5 deletes this
 file.
 
@@ -445,3 +445,4 @@ again. The earlier build runs against the same databases.
 | 1 | Step 1 built. |
 | 1 | Review finding. `SYSTEM_06_ingestion.md:343-344` gives ruling 3's trigger as "Zero matched columns abort staging", but the code aborts on `csvQuestionMappings.length === 0` (`server/worker_routines/import_hfa_data_csv/stage_csv.ts:115`), which also fires when every matched column matches a question of a non-staged type (the first row of this log): a CSV `id_fac,id_fac_name,COM_NOTES` against the test fixture's form aborts with two columns matched. That row is deleted with this plan, so SYSTEM_06 is where the real trigger must be stated. Change: in `SYSTEM_06_ingestion.md:343-344`, replace "Zero matched columns abort staging before any table is created," with "When no column matches a staged-type question, even if some match questions of other types, staging aborts before any table is created,". |
 | 1 | Step 1 reviewed: 1 finding. |
+| 1 | Step 1 fixed. |
