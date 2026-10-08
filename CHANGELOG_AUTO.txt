@@ -1,3 +1,21 @@
+[1.76.1] [user] [added] - DHIS2 import review step now warns about formula and missing indicators before launch
+[1.76.1] [user] [added] - DHIS2 label refresh now separately identifies formula-based indicators
+[1.76.1] [user] [added] - Import error messages now show indicator names alongside DHIS2 ids
+[1.76.1] [user] [added] - HFA import now lists the names of unmatched columns and questions
+[1.76.1] [user] [added] - HFA import stops early with a clear message when no columns match the form
+[1.76.1] [user] [added] - HFA import detects and rejects duplicate CSV columns matching the same question
+[1.76.1] [user] [changed] - HFA duplicate facilities step now always shows, with a message when none found
+[1.76.1] [user] [changed] - DHIS2 import error messages now include step-by-step fix instructions
+[1.76.1] [user] [fixed] - HFA import now correctly matches CSV column names regardless of uppercase or lowercase
+[1.76.1] [admin] [added] - DHIS2 import review step now warns about formula and not-found indicators before launch
+[1.76.1] [admin] [added] - DHIS2 label refresh now separately identifies indicators pointing to formulas versus missing items
+[1.76.1] [admin] [changed] - DHIS2 import error messages now show indicator names alongside DHIS2 ids for easier identification
+[1.76.1] [admin] [changed] - DHIS2 import error messages now include step-by-step fix instructions
+[1.76.1] [admin] [changed] - HFA import duplicates step now always shown, with a clear message when no duplicates exist
+[1.76.1] [admin] [added] - HFA import staging summary now lists sample names of unmatched CSV columns and XLSForm questions
+[1.76.1] [admin] [fixed] - HFA import now rejects CSV files where no column matches any form question, with a clear explanation
+[1.76.1] [admin] [fixed] - HFA column matching is now case-insensitive so mixed-case CSV headers match correctly
+[1.76.1] [admin] [fixed] - HFA import now detects and rejects duplicate CSV columns matching the same form question
 [1.76.0] [user] [changed] - Private files and private projects features have been removed
 [1.76.0] [user] [changed] - All uploaded assets are now visible to everyone with access
 [1.76.0] [user] [changed] - The "Upload private" button has been removed from Assets
