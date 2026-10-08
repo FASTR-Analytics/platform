@@ -12,9 +12,9 @@ indicator (a formula), the DHIS2 import fails every month of it as designed, but
 says so in DHIS2's vocabulary, by bare UID, without the steps that fix it, and
 only after the run.
 
-**Next step: Review 2.** Each session sets this line in its final commit. Its
-values are `Do N`, `Review N` and `Fix N`. The review that passes step 5 deletes
-this file.
+**Next step: Do 3.** Each session sets this line in its final commit. Its values
+are `Do N`, `Review N` and `Fix N`. The review that passes step 5 deletes this
+file.
 
 Branch: `version2`. Repos touched: this app only.
 
@@ -527,3 +527,4 @@ Rollback is `git revert` of the plan's commits on `version2`.
 | 2    | Code finding, for Fix 2. `client/src/components/data/hfa/imports/wizard.tsx:544`: ruling 6's empty-state sentence is `<div class="text-sm">`, a size on body text, which `panther/protocols/PROTOCOL_UI_STYLING.md` ("Type": "Do leave body text unsized"; empty messages are the Body role) rules out: `body` already sets `--ui-text-body`, and the class would not follow a change to it. Edit: `<div class="text-sm">` becomes `<div>`.                                                                                                                                                                                                                    |
 | 2    | Step 2 reviewed: 2 findings.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | 2    | Step 2 fixed.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| 2    | Step 2 reviewed: pass.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
