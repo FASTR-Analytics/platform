@@ -122,38 +122,34 @@ function Result(p: { result: Dhis2LabelRefresh; indicators: HmisIndicator[] }) {
       </Callout>
       <Show when={p.result.formulas.length > 0}>
         <Callout intent="warning" pad="sm">
-          <div class="ui-spy-sm">
-            <div>
-              {t3({
-                en:
-                  "Point to DHIS2 formulas (what DHIS2 calls an indicator), not data elements (names left as they are):",
-                fr:
-                  "Pointent vers des formules DHIS2 (ce que DHIS2 appelle un indicateur), et non vers des éléments de données (noms laissés tels quels) :",
-                pt:
-                  "Apontam para fórmulas DHIS2 (aquilo a que o DHIS2 chama um indicador), e não para elementos de dados (nomes mantidos como estão):",
-              })}
-            </div>
-            <For each={listed(p.result.formulas)}>
-              {(line) => <div>{line}</div>}
-            </For>
-            <div>{dhis2FormulaRemedy()}</div>
+          <div>
+            {t3({
+              en:
+                "Point to DHIS2 formulas (what DHIS2 calls an indicator), not data elements (names left as they are):",
+              fr:
+                "Pointent vers des formules DHIS2 (ce que DHIS2 appelle un indicateur), et non vers des éléments de données (noms laissés tels quels) :",
+              pt:
+                "Apontam para fórmulas DHIS2 (aquilo a que o DHIS2 chama um indicador), e não para elementos de dados (nomes mantidos como estão):",
+            })}
           </div>
+          <For each={listed(p.result.formulas)}>
+            {(line) => <div>{line}</div>}
+          </For>
+          <div>{dhis2FormulaRemedy()}</div>
         </Callout>
       </Show>
       <Show when={p.result.notFound.length > 0}>
         <Callout intent="warning" pad="sm">
-          <div class="ui-spy-sm">
-            <div>
-              {t3({
-                en: "Not found in DHIS2, left as they are:",
-                fr: "Introuvables dans DHIS2, laissés tels quels :",
-                pt: "Não encontrados no DHIS2, mantidos como estão:",
-              })}
-            </div>
-            <For each={listed(p.result.notFound)}>
-              {(line) => <div>{line}</div>}
-            </For>
+          <div>
+            {t3({
+              en: "Not found in DHIS2, left as they are:",
+              fr: "Introuvables dans DHIS2, laissés tels quels :",
+              pt: "Não encontrados no DHIS2, mantidos como estão:",
+            })}
           </div>
+          <For each={listed(p.result.notFound)}>
+            {(line) => <div>{line}</div>}
+          </For>
         </Callout>
       </Show>
     </>
