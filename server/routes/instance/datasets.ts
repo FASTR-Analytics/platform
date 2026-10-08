@@ -629,10 +629,12 @@ defineRoute(
     try {
       const credentials = await getStoredDhis2CredentialsDecrypted(c.var.mainDb);
       const dataIds = [...new Set(body.dataIds)];
-      // No retry: the user waits on the Review step for this answer, and the
-      // run retries its own classification when it starts.
+      // One attempt and a 15 s budget per call: the user waits on the Review
+      // step for this answer, and the run classifies again, with retries and
+      // the fetcher's default timeout, when it starts.
       const routes = await classifyElements(dataIds, {
         dhis2Credentials: credentials,
+        timeout: 15000,
         retryOptions: { maxAttempts: 1 },
       });
       const refusedFor = (reason: "dhis2_indicator" | "not_found") =>

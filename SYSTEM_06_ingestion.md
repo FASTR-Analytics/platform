@@ -507,7 +507,8 @@ callback re-parses the new bytes).
   `describeDhis2Selection` over the dictionary the picker loaded; the
   Review step also asks DHIS2, through the stateless
   `classifyDatasetHmisDhis2Selection` route (the run's own
-  `classifyElements` over the description's data ids, no retry), which
+  `classifyElements` over the description's data ids, asked once with a
+  15 s budget per DHIS2 call), which
   selected ids are DHIS2 formulas and which DHIS2 has nothing for, and
   lists each beside its indicator with the remedy above the launch
   summary; it never blocks the launch, a connection or DHIS2 error is one
