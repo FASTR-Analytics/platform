@@ -27,8 +27,12 @@ its work lands.
 
 A session does exactly one thing, named by the **Next step** line at the top of
 the plan: `Do N` builds step N; `Review N` reviews it; `Fix N` builds the work
-list a review left. Steps alternate Do and Review, and the line moves on only
-when a review passes. A session never does two of these.
+list a review left. Steps alternate Do and Review. A step gets at most two
+reviews: the first after its Do, and one re-review after a Fix. The line moves
+on when a review has no findings that change code, or when the re-review has
+run: a Fix after the re-review applies the re-review's findings and sets the
+line to `Do N+1` itself, unreviewed, with a build-log row saying so. A session
+never does two of these.
 
 **Who runs a session.** Do and Fix sessions may be one agent throughout or a
 fresh agent each time, which is a cost choice: one warm context reads the plan
@@ -53,9 +57,9 @@ and ends when the step's gates and the floor are green, the build log has the
 rows the step produced plus its closing row, the **Next step** line says
 `Review N`, and the last commit is made. Then it stops.
 
-**A Review session** runs in a context that did not write the code (above). It
-lists the step's commits (`git log` from the commit that last set the **Next
-step** line to `Do N` or `Fix N`) and checks four things:
+**A Review session** runs in a context that did not write the code (above). The
+first review lists the step's commits (`git log` from the commit that last set
+the **Next step** line to `Do N`) and checks four things:
 
 1. Nothing outside the step's Surface changed. Diff the stat against the surface
    list; every file outside it is a finding.
@@ -67,14 +71,28 @@ step** line to `Do N` or `Fix N`) and checks four things:
 4. The build log has the rows the step should have produced: deviations, facts
    the step found wrong in the plan, and defects found by running the app.
 
-Each finding is one row in the build log with the file and line, followed by the
-closing row. The review ends with the **Next step** line set to `Do N+1` if
-there are no findings that change code, or `Fix N` if there are. After the last
-step's review passes, the reviewer deletes the plan file in its last commit
-instead of setting the line. Then it stops.
+A re-review is narrower. It reads only the Fix's commits (`git log` from the
+commit that set the line to `Fix N`) and checks that each finding is resolved by
+the edit the finding stated, that nothing outside the files the findings name
+changed, and that the gates the Fix's diff can affect pass: a change confined to
+prose and comments needs only the doc lint; a code change needs the floor and
+the step's gates. It never widens the review. A defect it sees outside the
+findings is a build-log row, not a finding, and does not move the line.
+
+A review reads the whole surface once and reports every defect it finds in that
+one pass; a finding held back for the next round costs a full session. Each
+finding is one row in the build log with the file and line and the edit that
+resolves it, followed by the closing row. A finding in prose, comments or docs
+is not a code finding: the reviewer makes the edit itself, in its own commit,
+after reading the code the prose describes, and records the edit as a row. The
+review ends with the **Next step** line set to `Do N+1` if no finding changes
+code, or `Fix N` if one does. After the last step's review passes, the reviewer
+deletes the plan file in its last commit instead of setting the line. Then it
+stops.
 
 **A Fix session** is a Do session whose work list is the review's findings and
-nothing else. It ends with its closing row and the line set to `Review N`.
+nothing else. It ends with its closing row and the line set to `Review N` after
+the first review, or `Do N+1` after the re-review.
 
 ## The two-things rule
 
@@ -84,7 +102,9 @@ even one it has shown to be wrong; it records the disagreement in the build log,
 and the code wins. The edit rides the session's last commit, so the tree and the
 plan always agree.
 
-Deleting the file after the last review is the one exception.
+Deleting the file after the last review is one exception. A reviewer's prose
+edit (above) is the other: it touches the app's docs, never the plan file beyond
+the two things.
 
 If a session cannot finish, it leaves the tree green at the last good commit,
 records in the build log exactly what is done and what is not, leaves the **Next
