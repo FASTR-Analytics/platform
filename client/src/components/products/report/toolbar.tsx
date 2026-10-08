@@ -47,6 +47,7 @@ import {
 import { Button, Icon, plural } from "panther";
 import { Portal } from "solid-js/web";
 import {
+  manageAccessLabel,
   MenuDivider,
   MenuFlyout,
   PopoverRow,
@@ -162,6 +163,7 @@ type Props = {
   onDownload: () => void;
   onEmail: () => void;
   onRename: () => void;
+  onManageAccess: () => void;
   onDuplicate: () => void;
   // Where the report wants the menu row: its header, under the name (the
   // slide deck's layout). The row is rendered there through a portal; it
@@ -366,6 +368,7 @@ export function ReportFileMenu(p: {
   onDownload: () => void;
   onEmail: () => void;
   onRename: () => void;
+  onManageAccess: () => void;
   onDuplicate: () => void;
 }) {
   return (
@@ -408,6 +411,15 @@ export function ReportFileMenu(p: {
               }}
             >
               {t3({ en: "Rename…", fr: "Renommer…", pt: "Mudar o nome…" })}
+            </PopoverRow>
+            <PopoverRow
+              active={false}
+              onClick={() => {
+                p.onManageAccess();
+                close();
+              }}
+            >
+              {manageAccessLabel()}
             </PopoverRow>
           </Show>
           <PopoverRow
@@ -559,6 +571,7 @@ export function ReportToolbar(p: Props) {
         onDownload={p.onDownload}
         onEmail={p.onEmail}
         onRename={p.onRename}
+        onManageAccess={p.onManageAccess}
         onDuplicate={p.onDuplicate}
       />
       <Popover

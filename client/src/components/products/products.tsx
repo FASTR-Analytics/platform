@@ -43,6 +43,7 @@ import {
 import { ProductCopilotHost } from "~/components/products/copilot/mod.ts";
 import { DuplicateProductsModal } from "./_shared/mod.ts";
 import { PackageScopeModal } from "./_shared/mod.ts";
+import { ProductAccessModal } from "./_shared/mod.ts";
 import { CreateProductModal } from "./create_product_modal";
 import { EditFolderModal } from "./edit_folder_modal";
 import { buildFolderMenu } from "./folder_menu";
@@ -291,6 +292,13 @@ export function Products() {
     await openComponent({ element: PackageScopeModal, props: { product } });
   }
 
+  async function openAccess(product: ProductSummary) {
+    await openComponent({
+      element: ProductAccessModal,
+      props: { mode: "product" as const, productId: product.id },
+    });
+  }
+
   async function handleMoveToFolder(product: ProductSummary) {
     await openComponent({
       element: MoveToFolderModal,
@@ -363,6 +371,7 @@ export function Products() {
       parentId: product.folderId,
       onSettings: () => void openSettings(product),
       onPackageScope: () => void openPackageScope(product),
+      onManageAccess: () => void openAccess(product),
       onMoveToFolder: () => void handleMoveToFolder(product),
       onDuplicate: () => void handleDuplicate(product),
       onDelete: () => void handleDelete(product),
@@ -419,6 +428,7 @@ export function Products() {
     return buildFolderMenu({
       folder,
       folders: instanceState.folders,
+      isGlobalAdmin: instanceState.currentUserIsGlobalAdmin,
       onMoveTo: (parentId) => void quickMoveFolder(folder.id, parentId),
       onMoveToFolder: () =>
         void openComponent({
@@ -432,6 +442,11 @@ export function Products() {
         void openComponent({
           element: EditFolderModal,
           props: { folder, parentId: folder.parentId },
+        }),
+      onSetProductsAccess: () =>
+        void openComponent({
+          element: ProductAccessModal,
+          props: { mode: "folder" as const, folderId: folder.id },
         }),
       onDelete: () => void handleDeleteFolder(folder),
     });

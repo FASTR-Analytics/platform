@@ -128,6 +128,7 @@ import {
 } from "~/components/_shared/figure_editor/mod.ts";
 import { PackageScopeChip } from "~/components/products/_shared/mod.ts";
 import { PackageScopeModal } from "~/components/products/_shared/mod.ts";
+import { ProductAccessModal } from "~/components/products/_shared/mod.ts";
 import { ProductSettings } from "~/components/products/_shared/mod.ts";
 import type { FigureStaleContext } from "~/components/products/_shared/mod.ts";
 import type {
@@ -2048,6 +2049,13 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     });
   }
 
+  async function openAccess() {
+    await openComponent({
+      element: ProductAccessModal,
+      props: { mode: "product" as const, productId: p.productId },
+    });
+  }
+
   async function emailReport() {
     await openComponent({
       element: ShareReport,
@@ -2582,6 +2590,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
                 onDownload={download}
                 onEmail={emailReport}
                 onRename={openProductSettings}
+                onManageAccess={openAccess}
                 onDuplicate={duplicateReport}
               />
             </Show>
@@ -2603,6 +2612,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
               onDownload={download}
               onEmail={emailReport}
               onRename={openProductSettings}
+              onManageAccess={openAccess}
               onDuplicate={duplicateReport}
               context={blockContext}
               theme={fastrTheme}

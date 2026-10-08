@@ -43,7 +43,10 @@ import {
 } from "~/components/products/_shared/mod.ts";
 import { AddSlideMenu, DeckFileMenu, DeckMenu } from "./deck_menu";
 import { SlideDeckThemeModal } from "./style_editor/mod.ts";
-import { PackageScopeModal } from "~/components/products/_shared/mod.ts";
+import {
+  PackageScopeModal,
+  ProductAccessModal,
+} from "~/components/products/_shared/mod.ts";
 import {
   collectDeckStaleFigures,
   updateAllDeckFigures,
@@ -686,6 +689,11 @@ export function SlideList(p: Props) {
             onDownload={() => void p.download()}
             onShare={() => void p.share()}
             onRename={() => void p.handleOpenProductSettings()}
+            onManageAccess={() =>
+              void openComponent({
+                element: ProductAccessModal,
+                props: { mode: "product" as const, productId: p.productId },
+              })}
             selectedCount={selectedIds().size}
             onCopyToDeck={() => void copyToDeck()}
           />

@@ -26,6 +26,7 @@ import {
 } from "panther";
 import { createSignal, For, type JSX, onCleanup, Show } from "solid-js";
 import {
+  manageAccessLabel,
   MenuDivider,
   MenuFlyout,
   PopoverRow,
@@ -201,6 +202,7 @@ export function DeckFileMenu(p: {
   onDownload: () => void;
   onShare: () => void;
   onRename: () => void;
+  onManageAccess: () => void;
   /** How many slides the rail has selected: none means nothing to copy. */
   selectedCount: number;
   onCopyToDeck: () => void;
@@ -254,6 +256,15 @@ export function DeckFileMenu(p: {
                 fr: "Nom et dossier…",
                 pt: "Nome e pasta…",
               })}
+            </PopoverRow>
+            <PopoverRow
+              active={false}
+              onClick={() => {
+                close();
+                p.onManageAccess();
+              }}
+            >
+              {manageAccessLabel()}
             </PopoverRow>
           </Show>
           <PopoverRow

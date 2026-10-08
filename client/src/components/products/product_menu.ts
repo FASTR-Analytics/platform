@@ -2,7 +2,11 @@ import { type Folder, t3, TC } from "lib";
 import type { MenuItem } from "panther";
 import { sortBySortMode } from "./sort_by_sort_mode";
 import { productsSort } from "~/state/t4_ui";
-import { childFolders, moveToRootLabel } from "./_shared/mod.ts";
+import {
+  childFolders,
+  manageAccessLabel,
+  moveToRootLabel,
+} from "./_shared/mod.ts";
 
 // The move affordances D16 gives both menus: quick hops within reach of the
 // item's own folder, with the full picker as the catch-all. Dragging a row
@@ -109,6 +113,7 @@ export function buildProductMenu(args: {
   parentId: string | null;
   onSettings: () => void;
   onPackageScope: () => void;
+  onManageAccess: () => void;
   onMoveToFolder: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
@@ -143,6 +148,11 @@ export function buildProductMenu(args: {
       }),
       icon: "package",
       onClick: args.onPackageScope,
+    },
+    {
+      label: manageAccessLabel(),
+      icon: "users",
+      onClick: args.onManageAccess,
     },
     duplicate,
     ...(args.canOwn

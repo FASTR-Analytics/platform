@@ -28,6 +28,10 @@ export type {
 } from "./folder_tree.ts";
 export { PackageScopeChip } from "./package_scope_chip.tsx";
 export { PackageScopeModal } from "./package_scope_modal.tsx";
+export {
+  manageAccessLabel,
+  ProductAccessModal,
+} from "./product_access_modal.tsx";
 export { createReportPaginator } from "./paginate_report.ts";
 export type {
   ReportPaginator,

@@ -10,9 +10,12 @@ import { buildQuickMoveEntries } from "./product_menu";
 export function buildFolderMenu(args: {
   folder: Folder;
   folders: Folder[];
+  // The bulk action (PLAN_PRODUCT_OWNERSHIP R19) is a global admin's alone.
+  isGlobalAdmin: boolean;
   onMoveTo: (parentId: string | null) => void;
   onMoveToFolder: () => void;
   onEdit: () => void;
+  onSetProductsAccess: () => void;
   onDelete: () => void;
 }): MenuItem[] {
   return [
@@ -37,6 +40,19 @@ export function buildFolderMenu(args: {
       icon: "pencil",
       onClick: args.onEdit,
     },
+    ...(args.isGlobalAdmin
+      ? [
+        {
+          label: t3({
+            en: "Set access for everything in this folder…",
+            fr: "Définir l'accès pour tout le contenu de ce dossier…",
+            pt: "Definir o acesso para todo o conteúdo desta pasta…",
+          }),
+          icon: "users",
+          onClick: args.onSetProductsAccess,
+        } satisfies MenuItem,
+      ]
+      : []),
     {
       label: t3({
         en: "Delete folder",
