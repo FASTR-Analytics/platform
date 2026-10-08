@@ -141,7 +141,6 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
     t3({ en: "Review & launch", fr: "Vérifier et lancer", pt: "Rever e iniciar" }),
   ];
 
-  // Leaving the mappings step scans the file for duplicate facilities.
   async function goNextFromMappings() {
     const csv = csvFileName();
     if (!csv || scanning()) {

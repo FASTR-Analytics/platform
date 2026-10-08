@@ -166,8 +166,6 @@ export function HfaStagingSummary(p: Props) {
   );
 }
 
-// The ids behind a count, in the server's order; a run staged before the
-// sample fields existed carries none and shows the count alone.
 function SampleList(p: { sample: string[] | undefined; total: number }) {
   const nBeyondSample = () => p.total - (p.sample?.length ?? 0);
   return (
