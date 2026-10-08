@@ -1,7 +1,8 @@
-import { t3 } from "lib";
+import { productLevelAtLeast, t3 } from "lib";
 import type { IconName } from "panther";
 import type { ProductSummary, SlideType } from "lib";
 import { instanceState } from "~/state/instance/t1_store";
+import { productSummaryLevel } from "~/state/instance/product_access";
 import { copilotViewController } from "~/components/products/copilot/mod.ts";
 import { setPendingEditorOpen, setPendingSlideOpen } from "~/state/t4_ui";
 import { getSlideDeckDetailFromCacheOrFetch } from "~/state/products/t2_slide_deck_detail";
@@ -49,6 +50,10 @@ const perms = () => instanceState.currentUserPermissions;
 const admin = () => instanceState.currentUserIsGlobalAdmin;
 const decks = () =>
   instanceState.products.filter((p) => p.type === "slide_deck");
+// The deck settings and slide tours walk the Deck menu and the slide toolbar,
+// which render only for a user who can edit the deck.
+const editableDecks = () =>
+  decks().filter((d) => productLevelAtLeast(productSummaryLevel(d), "edit"));
 const reports = () => instanceState.products.filter((p) => p.type === "report");
 const hasPackage = () => instanceState.readyPackages.length > 0;
 const hasProducts = () => instanceState.products.length > 0;
@@ -145,7 +150,7 @@ export const SLIDE_TOUR_TYPES: SlideType[] = ["cover", "section", "content"];
 export async function findDeckWithSlideOfType(
   type: SlideType,
 ): Promise<string | null> {
-  for (const deck of decks()) {
+  for (const deck of editableDecks()) {
     const detail = await getSlideDeckDetailFromCacheOrFetch(deck.id);
     if (!detail.success) continue;
     for (const slideId of detail.data.slideIds) {
@@ -196,7 +201,7 @@ const openFirstDeckSlide = async (
 const slideTourAvailable = (
   type: SlideType,
   slideTypesPresent: Partial<Record<SlideType, boolean>>,
-) => decks().length > 0 && slideTypesPresent[type] === true;
+) => editableDecks().length > 0 && slideTypesPresent[type] === true;
 
 export function getTourAreas(): {
   area: TourArea;
@@ -382,15 +387,15 @@ export function getTourCatalogue(
       }),
       description: t3({
         en:
-          "The Deck menu: theme, logos, footer and page numbers. Opens your first slide deck.",
+          "The Deck menu: theme, logos, footer and page numbers. Opens the first slide deck you can edit.",
         fr:
-          "Le menu Présentation : thème, logos, pied de page et numéros de page. Ouvre votre première présentation.",
+          "Le menu Présentation : thème, logos, pied de page et numéros de page. Ouvre la première présentation que vous pouvez modifier.",
         pt:
-          "O menu Apresentação: tema, logótipos, rodapé e números de página. Abre a sua primeira apresentação.",
+          "O menu Apresentação: tema, logótipos, rodapé e números de página. Abre a primeira apresentação que pode editar.",
       }),
-      available: () => decks().length > 0,
+      available: () => editableDecks().length > 0,
       unavailableReason: reasonNeedDeck,
-      navigate: openFirstDeck,
+      navigate: (openTab) => openProduct(openTab, editableDecks()[0]),
     },
     {
       id: "slide-cover-intro",
@@ -410,7 +415,7 @@ export function getTourCatalogue(
       }),
       available: () => slideTourAvailable("cover", slideTypesPresent),
       unavailableReason: () =>
-        decks().length === 0
+        editableDecks().length === 0
           ? reasonNeedDeck()
           : reasonNeedSlideOfType("cover"),
       navigate: (openTab) => openFirstDeckSlide(openTab, "cover"),
@@ -433,7 +438,7 @@ export function getTourCatalogue(
       }),
       available: () => slideTourAvailable("section", slideTypesPresent),
       unavailableReason: () =>
-        decks().length === 0
+        editableDecks().length === 0
           ? reasonNeedDeck()
           : reasonNeedSlideOfType("section"),
       navigate: (openTab) => openFirstDeckSlide(openTab, "section"),
@@ -456,7 +461,7 @@ export function getTourCatalogue(
       }),
       available: () => slideTourAvailable("content", slideTypesPresent),
       unavailableReason: () =>
-        decks().length === 0
+        editableDecks().length === 0
           ? reasonNeedDeck()
           : reasonNeedSlideOfType("content"),
       navigate: (openTab) => openFirstDeckSlide(openTab, "content"),

@@ -447,11 +447,14 @@ canvas) and bridges it to a per-slide session doc from
 session for the same slide):
 
 - **Local → doc**: one tracking effect (`trackStore(tempSlide)`) runs on every
-  store change and calls `session.pushLocal(unwrap(tempSlide))` →
-  `syncSlideToDoc` inside a transaction. Any resulting update auto-sends as
-  `slide_update`. Remote-applied changes push back as no-ops (idempotency is the
-  echo guard, deliberately no "was this remote?" flag, which could stick and
-  swallow edits). The same effect debounces the canvas re-render.
+  store change and, for a user who can edit (`untrack(canEdit)`), calls
+  `session.pushLocal(unwrap(tempSlide))` → `syncSlideToDoc` inside a
+  transaction. Any resulting update auto-sends as `slide_update`. Remote-applied
+  changes push back as no-ops (idempotency is the echo guard, deliberately no
+  "was this remote?" flag, which could stick and swallow edits). The same effect
+  debounces the canvas re-render. A viewer pushes nothing: its only push that is
+  not a no-op is the dedupe heal after a concurrent restructure (Self-healing
+  duplicate ids, above), which the room refuses below `edit`.
 - **Doc → local**: `onRemote` (fired on `slide_sync`/`slide_update`)
   materializes the doc and `setTempSlide(reconcile(docSlide))`. reconcile
   preserves object identity of unchanged subtrees, which keeps `setOpaque`'s
@@ -464,12 +467,13 @@ session for the same slide):
 - **Readiness**: `collabReady` (latched, drives which editors render) vs
   `session.isLive()` (ready AND socket open, drives save decisions).
 - **Saving when collab can't**: while `isLive()`, closing needs no save (the
-  room checkpoints). Otherwise the back button runs the explicit save
-  (`updateSlide` with `expectedLastUpdated`; on CONFLICT a resolution modal:
-  cancel keeps editing), and `onCleanup` does a best-effort silent save for
-  exits that bypass the back button. Edits made while disconnected also
-  accumulate in the local doc and are pushed by the reconnect catch-up if a
-  reconnect happens first.
+  room checkpoints). Otherwise, for a user who can edit (`draftToSave`), the
+  back button runs the explicit save (`updateSlide` with `expectedLastUpdated`;
+  on CONFLICT a resolution modal: cancel keeps editing), and `onCleanup` does a
+  best-effort silent save for exits that bypass the back button; a viewer saves
+  nothing, although `needsSave` also flips when it adopts a remote change. Edits
+  made while disconnected also accumulate in the local doc and are pushed by the
+  reconnect catch-up if a reconnect happens first.
 
 ### Text editors: CodeMirror + yCollab
 
@@ -510,9 +514,9 @@ edits flow through the doc while live. The AI accept applies as a **rebase**
 collaborator concurrently edited are skipped and surfaced to the user and the
 AI, so an accept merges with concurrent peer typing instead of clobbering it.
 Close-flush mirrors the slide rules (never-ready → REST flush; ready+offline →
-best-effort REST flush of the doc state; live → the room finalizes). AI edits
-need no busy-guard: they apply through the proposing user's own live session and
-merge via CRDT.
+best-effort REST flush of the doc state by a user who can edit (`canConfigure`);
+live → the room finalizes). AI edits need no busy-guard: they apply through the
+proposing user's own live session and merge via CRDT.
 
 ### Figure editor
 

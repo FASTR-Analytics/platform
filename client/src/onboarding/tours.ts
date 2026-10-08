@@ -45,6 +45,10 @@ export function buildDeckEditorIntroTour(): TourDefinition {
       {
         id: "add-slide",
         target: tourTarget("deck-add-slide"),
+        // Add slide renders only for a user who can edit the deck, and a step
+        // whose target never appears aborts the whole run.
+        when: () =>
+          document.querySelector('[data-tour="deck-add-slide"]') !== null,
         title: t3({
           en: "Add a slide",
           fr: "Ajouter une diapositive",

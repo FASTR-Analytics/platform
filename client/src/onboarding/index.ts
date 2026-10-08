@@ -32,6 +32,7 @@ import {
   tourLabels,
 } from "./tours";
 import { instanceState } from "~/state/instance/t1_store";
+import { canEditProduct } from "~/state/instance/product_access";
 import { copilotViewController } from "~/components/products/copilot/mod.ts";
 import {
   pendingTourReplay,
@@ -54,10 +55,13 @@ import {
 // which editor is open.
 
 const currentView = () => copilotViewController.current();
+// The slide tours walk the slide toolbar, which renders only for a user who
+// can edit the deck.
 const editingSlideOfType = (type: SlideType) => {
   const view = currentView();
   return (
-    view.id === "editing_slide" && view.context.getTempSlide().type === type
+    view.id === "editing_slide" && view.context.getTempSlide().type === type &&
+    canEditProduct(view.params.deckId)
   );
 };
 
@@ -147,7 +151,13 @@ export function setupTours(opts: {
       tour: buildDeckEditorPresentTour(),
     },
     { page: "deck-editor", tour: buildDeckEditorHistoryTour() },
-    { page: "deck-editor", tour: buildDeckEditorSettingsTour() },
+    // Deferred until the Deck menu is on screen: it renders only for a user
+    // who can edit the deck.
+    {
+      page: "deck-editor",
+      when: () => document.querySelector('[data-tour="deck-menu"]') !== null,
+      tour: buildDeckEditorSettingsTour(),
+    },
     // Inside a slide: one tour per slide type, each running the first time the
     // user edits a slide of that type.
     { page: "slide-cover", tour: buildSlideCoverTour() },

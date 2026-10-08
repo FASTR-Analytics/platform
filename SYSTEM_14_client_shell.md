@@ -41,12 +41,18 @@ Products. The Products page predicate excludes the editing views, so a list tour
 never fires behind an editor. Deferred parts (a card on screen, a slide in the
 deck, a figure in the report) use entry-level `when` gates plus `watch` triggers
 over the T1 list lengths, the explorer's location, filter and view signals, and
-the open view's slide or figure count. A tour may walk across a page boundary:
-the results-package catalogue tour's first step completes on the user's click of
-a list row (`advanceOn`), which opens the package page over the shell, and its
-second step waits for a target on that page (S8). The same directory hosts the
-tour catalogue modal (`tour_catalogue_modal.tsx` + `catalogue.ts`, opened from
-the Help menu, always offered), which lists every tour by area (Products, Slide
+the open view's slide or figure count. A tour never waits on a control the
+user's level hides, because roadtrip aborts a run whose step target never
+appears (after 8 s) and marks every tour in it seen: the deck intro's Add slide
+step has a step-level `when` on that control, the deck settings tour waits for
+the Deck menu, the slide tours' pages need edit on the open deck, and the
+catalogue's deck settings and slide rows open a deck the user can edit
+(`editableDecks`). A tour may walk across a page boundary: the results-package
+catalogue tour's first step completes on the user's click of a list row
+(`advanceOn`), which opens the package page over the shell, and its second step
+waits for a target on that page (S8). The same directory hosts the tour
+catalogue modal (`tour_catalogue_modal.tsx` + `catalogue.ts`, opened from the
+Help menu, always offered), which lists every tour by area (Products, Slide
 decks, Reports, Instance) with availability computed over T1 only
 (`instanceState.products`, `readyPackages`, the permissions; the three
 slide-type rows first run a cache-first search of the decks' slide documents,

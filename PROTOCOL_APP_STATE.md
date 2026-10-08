@@ -302,10 +302,11 @@ notification without subscribing to the store:
 
 - `addLastUpdatedListener(fn)` in `client/src/state/instance/t1_sse.tsx`: fires
   with `(tableName, ids, timestamp)` for the `last_updated` message (`slides`)
-  and for every row of `products_upserted` (`products`, the product's own
-  stamp). Used by the slide and report editors to keep their optimistic-save
-  timestamp fresh under collab checkpoints, and by the copilot to notice slide
-  edits and changes to its product.
+  and for each row of `products_upserted` whose stamp differs from the one the
+  store holds (`products`, the product's own stamp), so a re-broadcast after an
+  access change fires nothing. Used by the slide and report editors to keep
+  their optimistic-save timestamp fresh under collab checkpoints, and by the
+  copilot to notice slide edits and changes to its product.
 
 Returns a cleanup function; register in `onMount`, clean up in `onCleanup`. The
 instance channel also has the pair for generation telemetry
