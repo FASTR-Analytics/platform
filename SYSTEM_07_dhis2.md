@@ -7,6 +7,7 @@ globs:
   - server/routes/instance/indicators_dhis2.ts
   - server/tests/dhis2_decompose_indicator_test.ts
   - server/tests/dhis2_element_eligibility_test.ts
+  - server/tests/dhis2_retry_test.ts
 docs_absorbed:
 ---
 # S7: DHIS2 Connector
@@ -101,9 +102,12 @@ retries only 429, but it classifies by **substring-matching
 `error.message`** (`"API Error (4"` / `"download failed: 4"` /
 `"429"`), not the structured `error.status` that `DHIS2FetchError`
 carries. It works for current message shapes and is brittle (Open
-items). On exhaustion, `withRetry` throws a **new plain `Error`**
-(`"Failed after N attempts. Last error: …"`). The structured
-`status`/`responseBody` fields do not survive to the caller.
+items). On exhaustion with two or more attempts, `withRetry` throws a
+**new plain `Error`** (`"Failed after N attempts. Last error: …"`); at
+`maxAttempts: 1` the original error is thrown unchanged, so a
+single-attempt caller shows the fetcher's own message. The structured
+`status`/`responseBody` fields do not survive the wrapped form. Pinned by
+`server/tests/dhis2_retry_test.ts`.
 
 Callers can tune per call: the S6 HMIS import worker passes
 `maxAttempts: 3` and excludes size-cap and timeout errors from retry
@@ -315,10 +319,10 @@ this system carry en/fr/pt.
   versions answer auth failures with a 302 login redirect instead of a
   401, which validation and retry would misread.
 - **Retry classifies on `error.message` substrings**, not
-  `error.status`; and after exhaustion the thrown error is a plain
-  `Error`: `status`/`responseBody` are gone. Don't branch on
-  `DHIS2FetchError` fields downstream of `withRetry` without checking
-  the exhaustion path.
+  `error.status`; and after exhaustion with two or more attempts the
+  thrown error is a plain `Error`: `status`/`responseBody` are gone.
+  Don't branch on `DHIS2FetchError` fields downstream of `withRetry`
+  without checking the exhaustion path.
 - **The timeout timer spans the body read on purpose.** Don't "fix" it
   to clear at headers: a stalled body would hang the caller forever.
 - **DHIS2 2.40 geojson facts**: `level` must be a filter when any
