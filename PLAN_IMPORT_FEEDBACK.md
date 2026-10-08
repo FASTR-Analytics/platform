@@ -13,7 +13,7 @@ indicator (a formula), the DHIS2 import fails every month of it as designed, but
 says so in DHIS2's vocabulary, by bare UID, without the steps that fix it, and
 only after the run.
 
-**Next step: Review 1.** Each session sets this line in its final commit. Its values
+**Next step: Fix 1.** Each session sets this line in its final commit. Its values
 are `Do N`, `Review N` and `Fix N`. The review that passes step 5 deletes this
 file.
 
@@ -443,3 +443,5 @@ again. The earlier build runs against the same databases.
 | 1 | `deno task test` with `.env` as is fails `server/tests/mcp_context_cache_test.ts` (outside the surface, unchanged since 2026-09-14): the machine-global `pg` container was started from the `wb-fastr-v2` worktree and serves its data, so the ready run the test picks has its manifest under v2's runs dir, not this checkout's. Against this checkout's own data the suite is 150 passed, 0 failed. |
 | 1 | The `./run` gate ran as an isolated boot. `./run` stops and replaces the machine-global `pg` and `valkey-local` containers and binds port 8000, all held by a live `wb-fastr-v2` session (foreground `main.ts` started 2026-10-08 12:48). Same `main.ts` command and `.env`, with `PG_PORT=7002`, `VALKEY_URL=redis://localhost:7380` and `PORT=8002` from the shell, against `pg-step1` and `valkey-step1` mounting this checkout's `_example_instance_dir`, vite on 3002. Migrations ran, 286 routes validated, `/` served 200, SIGINT shutdown clean. Both containers removed afterwards. |
 | 1 | Step 1 built. |
+| 1 | Review finding. `SYSTEM_06_ingestion.md:343-344` gives ruling 3's trigger as "Zero matched columns abort staging", but the code aborts on `csvQuestionMappings.length === 0` (`server/worker_routines/import_hfa_data_csv/stage_csv.ts:115`), which also fires when every matched column matches a question of a non-staged type (the first row of this log): a CSV `id_fac,id_fac_name,COM_NOTES` against the test fixture's form aborts with two columns matched. That row is deleted with this plan, so SYSTEM_06 is where the real trigger must be stated. Change: in `SYSTEM_06_ingestion.md:343-344`, replace "Zero matched columns abort staging before any table is created," with "When no column matches a staged-type question, even if some match questions of other types, staging aborts before any table is created,". |
+| 1 | Step 1 reviewed: 1 finding. |
