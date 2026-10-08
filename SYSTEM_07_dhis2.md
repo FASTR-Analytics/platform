@@ -7,6 +7,7 @@ globs:
   - server/routes/instance/indicators_dhis2.ts
   - server/tests/dhis2_decompose_indicator_test.ts
   - server/tests/dhis2_element_eligibility_test.ts
+  - server/tests/dhis2_retry_test.ts
 docs_absorbed:
 ---
 
@@ -97,9 +98,12 @@ jitter, and an `onRetry` that console-logs attempt/message/delay. The default
 but it classifies by **substring-matching `error.message`** (`"API Error (4"` /
 `"download failed: 4"` / `"429"`), not the structured `error.status` that
 `DHIS2FetchError` carries. It works for current message shapes and is brittle
-(Open items). On exhaustion, `withRetry` throws a **new plain `Error`**
-(`"Failed after N attempts. Last error: …"`). The structured
-`status`/`responseBody` fields do not survive to the caller.
+(Open items). On exhaustion with two or more attempts, `withRetry` throws a
+**new plain `Error`** (`"Failed after N attempts. Last error: …"`); at
+`maxAttempts: 1` the original error is thrown unchanged, so a single-attempt
+caller shows the fetcher's own message. The structured `status`/`responseBody`
+fields do not survive the wrapped form. Pinned by
+`server/tests/dhis2_retry_test.ts`.
 
 Callers can tune per call: the S6 HMIS import worker passes `maxAttempts: 3` and
 excludes size-cap and timeout errors from retry (it splits the pull by org-unit

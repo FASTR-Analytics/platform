@@ -59,7 +59,7 @@ export async function withRetry<T>(
 
       // Last attempt, throw the error
       if (attempt === opts.maxAttempts) {
-        throw new Error(
+        throw opts.maxAttempts === 1 ? lastError : new Error(
           `Failed after ${opts.maxAttempts} attempts. Last error: ${lastError.message}`,
         );
       }
