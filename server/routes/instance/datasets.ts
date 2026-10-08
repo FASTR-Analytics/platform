@@ -629,8 +629,11 @@ defineRoute(
     try {
       const credentials = await getStoredDhis2CredentialsDecrypted(c.var.mainDb);
       const dataIds = [...new Set(body.dataIds)];
+      // No retry: the user waits on the Review step for this answer, and the
+      // run retries its own classification when it starts.
       const routes = await classifyElements(dataIds, {
         dhis2Credentials: credentials,
+        retryOptions: { maxAttempts: 1 },
       });
       const refusedFor = (reason: "dhis2_indicator" | "not_found") =>
         dataIds.filter((id) => {

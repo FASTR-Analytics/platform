@@ -13,7 +13,7 @@ indicator (a formula), the DHIS2 import fails every month of it as designed, but
 says so in DHIS2's vocabulary, by bare UID, without the steps that fix it, and
 only after the run.
 
-**Next step: Fix 4.** Each session sets this line in its final commit. Its values
+**Next step: Review 4.** Each session sets this line in its final commit. Its values
 are `Do N`, `Review N` and `Fix N`. The review that passes step 5 deletes this
 file.
 
@@ -481,3 +481,4 @@ again. The earlier build runs against the same databases.
 | 4 | Review prose edit. The comment over `PreLaunchClassification` (`client/src/components/instance_dataset_hmis/imports/_wizard/_step_review.tsx:133-135`) said what the component does and restated the same contract. The comment is deleted. |
 | 4 | Review prose edit. The dispatcher bullet of `SYSTEM_06_ingestion.md` (lines 200-202) named the run detail's formula banner as the one place `dhis2FormulaRemedy` is shown; step 4 also shows it on the import wizard's Review step (`_step_review.tsx:184`). The sentence now names both. |
 | 4 | Step 4 reviewed: 1 finding. |
+| 4 | Step 4 fixed. |
