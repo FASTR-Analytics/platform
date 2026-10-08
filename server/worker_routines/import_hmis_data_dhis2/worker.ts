@@ -447,7 +447,8 @@ async function run(std: RunWorkerMessage) {
 
     // Refused ids get no fetch: every pair becomes a permanent,
     // ledger-visible error so stale config is loud. A DHIS2 formula keeps its
-    // existing data; the ledger gives the remedy.
+    // existing data. The authoritative wording of both remedies is the
+    // dispatcher bullet of SYSTEM_06_ingestion.md.
     const failEveryPairOf = async (id: string, message: string) => {
       for (const pair of allPairs.filter((p) => p.dataId === id)) {
         await failPair(pair, message, "permanent");
