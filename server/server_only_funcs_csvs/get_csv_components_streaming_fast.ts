@@ -376,9 +376,9 @@ export async function getCsvStreamComponents(
             );
           }
           await queuePromise;
-          // The queue loop exits on an empty queue once parsing completes,
-          // so an error set on a row that never reached the queue is only
-          // seen here.
+          // The queue loop returns without reading processingError when it
+          // finds the queue empty after parsing completes, so a parser error
+          // with no row left to process surfaces only here.
           if (processingError) {
             throw processingError;
           }
