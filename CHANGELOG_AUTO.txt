@@ -1,3 +1,9 @@
+[TBD] [user] [fixed] - Clearer error messages when CSV columns don't match survey questions
+[TBD] [user] [fixed] - File upload errors now surface correctly instead of being silently ignored
+[TBD] [admin] [fixed] - CSV upload errors now always surface correctly instead of being silently ignored
+[TBD] [admin] [fixed] - DHIS2 element classification on the Review step now times out faster to avoid long waits
+[TBD] [admin] [fixed] - Single-attempt DHIS2 errors now show the original message instead of a confusing wrapper
+[TBD] [admin] [fixed] - Zero-column-match error now reports the correct count of eligible form questions
 [1.76.1] [user] [added] - DHIS2 import review step now warns about formula and missing indicators before launch
 [1.76.1] [user] [added] - DHIS2 label refresh now separately identifies formula-based indicators
 [1.76.1] [user] [added] - Import error messages now show indicator names alongside DHIS2 ids
