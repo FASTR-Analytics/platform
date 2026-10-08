@@ -9,6 +9,7 @@ import {
 } from "lib";
 import {
   Button,
+  createTableConfig,
   type EditorComponentProps,
   FrameTop,
   HeadingBar,
@@ -41,6 +42,10 @@ type Props = EditorComponentProps<Record<never, never>, undefined>;
 // scope routes are guarded the same way). A product picks one by label. The
 // reserved "All data" scope is listed and opens read-only.
 export function ScopesPage(p: Props) {
+  const scopesTable = createTableConfig({
+    sort: { key: "label", direction: "asc" },
+  });
+
   const rows = createMemo(() => {
     const counts = productCountsByScope();
     return instanceState.scopes.map((scope) => toRow(scope, counts));
@@ -95,7 +100,7 @@ export function ScopesPage(p: Props) {
       <Table
         data={rows()}
         columns={columns}
-        defaultSort={{ key: "label", direction: "asc" }}
+        config={scopesTable}
         keyField="id"
         noRowsMessage={t3({
           en: "No scopes",

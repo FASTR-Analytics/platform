@@ -26,8 +26,8 @@ const SEARCH_THRESHOLD = 8;
 type ColumnFilterProps<T extends AnyRow> = {
   column: TableColumn<T>;
   data: T[];
-  excluded: ReadonlySet<string>;
-  onChange: (excluded: ReadonlySet<string>) => void;
+  excluded: readonly string[];
+  onChange: (excluded: string[]) => void;
   scrollContainer: Accessor<HTMLElement | undefined>;
   class: string;
 };
@@ -41,7 +41,8 @@ export function ColumnFilter<T extends AnyRow>(p: ColumnFilterProps<T>) {
 
   const [open, setOpen] = createSignal(false);
   const [query, setQuery] = createSignal("");
-  const active = () => p.excluded.size > 0;
+  const active = () => p.excluded.length > 0;
+  const excluded = createMemo(() => new Set(p.excluded));
 
   const options = createMemo(() =>
     open() ? distinctFilterValues(p.data, p.column) : []
@@ -58,24 +59,24 @@ export function ColumnFilter<T extends AnyRow>(p: ColumnFilterProps<T>) {
     return options().filter((_, i) => matchesSearch(haystacks[i], tokens));
   });
 
-  const checkedCount = () => options().filter((v) => !p.excluded.has(v)).length;
+  const checkedCount = () => options().filter((v) => !excluded().has(v)).length;
   const allShownChecked = () =>
-    shown().length > 0 && shown().every((v) => !p.excluded.has(v));
-  const someShownChecked = () => shown().some((v) => !p.excluded.has(v));
+    shown().length > 0 && shown().every((v) => !excluded().has(v));
+  const someShownChecked = () => shown().some((v) => !excluded().has(v));
 
   function toggleValue(value: string) {
-    const next = new Set(p.excluded);
+    const next = new Set(excluded());
     if (next.has(value)) {
       next.delete(value);
     } else {
       next.add(value);
     }
-    p.onChange(next);
+    p.onChange([...next]);
   }
 
   function toggleAllShown() {
     if (shown().length === 0) return;
-    const next = new Set(p.excluded);
+    const next = new Set(excluded());
     const uncheck = allShownChecked();
     for (const v of shown()) {
       if (uncheck) {
@@ -84,7 +85,7 @@ export function ColumnFilter<T extends AnyRow>(p: ColumnFilterProps<T>) {
         next.delete(v);
       }
     }
-    p.onChange(next);
+    p.onChange([...next]);
   }
 
   function hide() {
@@ -219,11 +220,11 @@ export function ColumnFilter<T extends AnyRow>(p: ColumnFilterProps<T>) {
                 {(value) => (
                   <div
                     role="option"
-                    aria-selected={!p.excluded.has(value)}
+                    aria-selected={!excluded().has(value)}
                     class="ui-hoverable-base-100 flex cursor-pointer items-center gap-2 rounded px-2 py-1"
                     onClick={() => toggleValue(value)}
                   >
-                    <CheckMark checked={!p.excluded.has(value)} />
+                    <CheckMark checked={!excluded().has(value)} />
                     <span
                       class="flex-1 select-none truncate"
                       classList={{ "text-base-content-muted": value === "" }}
@@ -246,7 +247,7 @@ export function ColumnFilter<T extends AnyRow>(p: ColumnFilterProps<T>) {
             <Show when={active()}>
               <div
                 class="ui-hoverable-base-100 flex-none cursor-pointer border-t px-3 py-1.5"
-                onClick={() => p.onChange(new Set())}
+                onClick={() => p.onChange([])}
               >
                 {t3({
                   en: "Clear filter",

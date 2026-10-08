@@ -4,12 +4,14 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
+  batch,
+  createEffect,
   createMemo,
   createSignal,
   For,
   type JSX,
   Match,
-  onMount,
+  on,
   Show,
   Switch,
 } from "solid-js";
@@ -25,13 +27,14 @@ import { padYClass, spyClass } from "../../_internal/pad_classes.ts";
 import type {
   AnyRow,
   BulkAction,
-  FilterConfig,
   SortConfig,
   TableColumn,
   TableProps,
 } from "./types.ts";
+import { createTableConfig } from "./table_config.ts";
 import {
   buildSearchHaystacks,
+  excludedValues,
   filterData,
   getCellAlignment,
   getPaddingClasses,
@@ -81,15 +84,14 @@ function getHeaderEdgeMargins(
   }
 }
 
-const EMPTY_EXCLUDED: ReadonlySet<string> = new Set();
-
 export function Table<
   T extends AnyRow,
   K extends keyof T = keyof T,
 >(p: TableProps<T, K>) {
-  const [sortConfig, setSortConfig] = createSignal<SortConfig | null>(
-    p.defaultSort || null,
-  );
+  // A memo, not a per-call read: an inline config={createTableConfig()} is a
+  // getter that would build a new store on every access.
+  const config = createMemo(() => p.config ?? createTableConfig());
+  const sortConfig = () => config().state.sort;
   const [internalSelectedKeys, setInternalSelectedKeys] = createSignal<
     Set<T[K]>
   >(new Set());
@@ -108,19 +110,8 @@ export function Table<
     }
   };
 
-  const [filters, setFilters] = createSignal<FilterConfig>(
-    p.defaultFilters ?? new Map(),
-  );
-
-  const [internalSearchText, setInternalSearchText] = createSignal("");
-  const searchText = () => p.searchText ?? internalSearchText();
-  const setSearchText = (v: string) => {
-    if (p.setSearchText) {
-      p.setSearchText(v);
-    } else {
-      setInternalSearchText(v);
-    }
-  };
+  const searchText = () => config().state.searchText;
+  const setSearchText = (v: string) => config().setSearchText(v);
   const activeSearchTokens = createMemo(() => searchTokens(searchText()));
   const isSearching = createMemo(() => activeSearchTokens().length > 0);
   // Folded once per change of the rows, not per keystroke, and only while a
@@ -141,32 +132,16 @@ export function Table<
         activeSearchTokens(),
         matchesSearch,
       ),
-      filters(),
+      config().state.filters,
       p.columns,
     )
   );
 
-  const replaceFilters = (next: FilterConfig) => {
-    setFilters(next);
-    p.onFilterChange?.(next);
-  };
-
-  const clearSearchAndFilters = () => {
-    setSearchText("");
-    if (filters().size > 0) {
-      replaceFilters(new Map());
-    }
-  };
-
-  const updateFilter = (key: string, excluded: ReadonlySet<string>) => {
-    const next = new Map(filters());
-    if (excluded.size === 0) {
-      next.delete(key);
-    } else {
-      next.set(key, excluded);
-    }
-    replaceFilters(next);
-  };
+  const clearSearchAndFilters = () =>
+    batch(() => {
+      config().setSearchText("");
+      config().clearFilters();
+    });
 
   // A selected row hidden by a filter stays selected, so the header checkbox
   // reflects visible rows by membership, not by comparing counts.
@@ -199,8 +174,7 @@ export function Table<
       }
       : { key: column.key, direction: "asc" };
 
-    setSortConfig(newConfig);
-    p.onSortChange?.(newConfig);
+    config().setSort(newConfig);
   };
 
   // Handle selection
@@ -298,11 +272,11 @@ export function Table<
   // Restore needs real layout — under a display:none ancestor scrollHeight is 0
   // and the write is a silent no-op (hide with visibility:hidden instead).
   let scrollContainerRef: HTMLDivElement | undefined;
-  onMount(() => {
-    if (p.initialScrollTop && scrollContainerRef) {
-      scrollContainerRef.scrollTop = p.initialScrollTop;
+  createEffect(on(config, (c) => {
+    if (scrollContainerRef) {
+      scrollContainerRef.scrollTop = c.state.scrollTop;
     }
-  });
+  }));
 
   // min-h-0 on the root: as an item of a column flex parent it must be able to
   // shrink below its rows' height, or it overflows the parent instead of
@@ -324,7 +298,7 @@ export function Table<
         </Show>
         <div
           ref={scrollContainerRef}
-          onScroll={() => p.onScrollTopChange?.(scrollContainerRef!.scrollTop)}
+          onScroll={() => config().setScrollTop(scrollContainerRef!.scrollTop)}
           class="min-h-0 overflow-auto"
           style={{ "max-height": p.maxHeight }}
         >
@@ -398,10 +372,12 @@ export function Table<
                               <ColumnFilter
                                 column={column}
                                 data={p.data}
-                                excluded={filters().get(column.key) ??
-                                  EMPTY_EXCLUDED}
+                                excluded={excludedValues(
+                                  config().state.filters,
+                                  column.key,
+                                )}
                                 onChange={(next) =>
-                                  updateFilter(column.key, next)}
+                                  config().setFilter(column.key, next)}
                                 scrollContainer={() => scrollContainerRef}
                                 class={`${HEADER_BUTTON} ${margins().filter}`}
                               />
@@ -474,7 +450,7 @@ export function Table<
                         <Button
                           intent="neutral"
                           outline
-                          onClick={() => replaceFilters(new Map())}
+                          onClick={() => config().clearFilters()}
                         >
                           {t3({
                             en: "Clear filters",

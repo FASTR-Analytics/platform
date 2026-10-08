@@ -68,19 +68,29 @@ theme, `ui-*` utilities, sizing utilities, and sentence case see
     `DOC_CONTAINER_MODEL.md`.
 12. **A table's search field is the table's**: `toolbar={{ search: true }}` on
     the `Table`. The one alternative is a `HeadingBar`'s field wired to the
-    table's `searchText` / `setSearchText`, for a page whose whole content is
-    one table and whose only header is that bar. Never an `Input` beside a
-    `Table`, and never a hand-built count or "no results" line: the toolbar
-    shows "5 of 12 users" and the table has its own no-match state. The toolbar
-    floats above the table's border by default, with no inset of its own. A
-    table placed flush in an unpadded parent (a `<Card pad="none">`, a `none`
-    slot) passes `toolbar={{ nested: true }}`, which puts it inside the border.
+    table's config (`searchText={config.state.searchText}`,
+    `setSearchText={config.setSearchText}`, rule 14), for a page whose whole
+    content is one table and whose only header is that bar. Never an `Input`
+    beside a `Table`, and never a hand-built count or "no results" line: the
+    toolbar shows "5 of 12 users" and the table has its own no-match state. The
+    toolbar floats above the table's border by default, with no inset of its
+    own. A table placed flush in an unpadded parent (a `<Card pad="none">`, a
+    `none` slot) passes `toolbar={{ nested: true }}`, which puts it inside the
+    border.
 13. **A table's search text is declared on the table**: per column
     (`searchValue`, else `filterValue`, else the field; `searchable: false` to
     leave a column out), or as a table-level `searchValue` when the rows are
     searched by text no column shows. Never a memo in front of `data` that
     filters the rows before the `Table` sees them: it hides the total from the
     count and loses the "Clear search" state.
+14. **A table's view state outlives its remounts in a `config`**: the sort, the
+    column filters, the search text and the scroll position live in a
+    `TableConfig` from `createTableConfig({ sort })`, passed as `config`. A
+    `Table` inside a `StateHolderWrapper`, a `Show` or a tab takes a config
+    created in the component that owns the query, above the wrapper: the wrapper
+    creates its children again on every refetch, so a config created inside it,
+    beside the `Table`, is lost with it. A config at module scope lasts the
+    session. Read `config.state` anywhere; write only through its setters.
 
 ## Do / Don't
 
@@ -241,13 +251,20 @@ is for a Cancel that needs another name ("Skip"), never for the only button.
 ### Containers and their content
 
 ```tsx
+const catalogTable = createTableConfig();
+
 // ❌ DON'T: a padding div between the container and its content; the loading
 // and error states render outside it and do not line up with the table
 <FrameTop panelChildren={<HeadingBar compact heading="Ops catalog" />}>
   <StateHolderWrapper state={entries.state()}>
     {(list) => (
       <div class="ui-pad">
-        <Table data={list} columns={COLUMNS} keyField="name" />
+        <Table
+          config={catalogTable}
+          data={list}
+          columns={COLUMNS}
+          keyField="name"
+        />
       </div>
     )}
   </StateHolderWrapper>
@@ -257,7 +274,14 @@ is for a Cancel that needs another name ("Skip"), never for the only button.
 // is the slot's direct child, so it scrolls inside itself with its header stuck
 <FrameTop pad="md" panelChildren={<HeadingBar compact heading="Ops catalog" />}>
   <StateHolderWrapper state={entries.state()}>
-    {(list) => <Table data={list} columns={COLUMNS} keyField="name" />}
+    {(list) => (
+      <Table
+        config={catalogTable}
+        data={list}
+        columns={COLUMNS}
+        keyField="name"
+      />
+    )}
   </StateHolderWrapper>
 </FrameTop>;
 
@@ -310,13 +334,17 @@ const query = createQuery(
   () => serverActions.getRows(),
   t3({ en: "Loading…", fr: "Chargement…" }),
 );
+// Above the wrapper, which creates the Table again on every refetch (rule 14).
+const rowsTable = createTableConfig();
 
 <FrameTop
   pad="md"
   panelChildren={<HeadingBar heading={t3({ en: "Rows", fr: "Lignes" })} />}
 >
   <StateHolderWrapper state={query.state()}>
-    {(rows) => <Table columns={columns} data={rows} />}
+    {(rows) => (
+      <Table config={rowsTable} columns={columns} data={rows} keyField="id" />
+    )}
   </StateHolderWrapper>
 </FrameTop>;
 ```
@@ -392,8 +420,10 @@ Outline `Button`s placed in a `tonal` bar still declare their surface:
 - [ ] No hand-rolled equivalents of panther `Button`/`Input`/`Select`/etc.
 - [ ] Data tables use `Table` with typed `TableColumn<T>[]`
 - [ ] A table's search is `toolbar.search` (or the `HeadingBar` field wired to
-      `searchText`), its search text is declared on the table or its columns,
-      and its rows are named by `itemLabel`
+      the table's config), its search text is declared on the table or its
+      columns, and its rows are named by `itemLabel`
+- [ ] A `Table` that a wrapper, `Show` or tab remounts takes a `config` created
+      above that wrapper
 - [ ] Dialogs use the editor/alert helpers; deletes use `createDeleteAction`
 - [ ] Component sizing uses the `size` prop / `ui-form-*`, not ad-hoc classes
 - [ ] Async data rendered through `StateHolderWrapper`

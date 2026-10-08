@@ -85,6 +85,7 @@ export type {
 } from "../_112_ai_tool_core/mod.ts";
 export {
   Button,
+  createTableConfig,
   deriveMarkdownCssVars,
   Icon,
   markdownClasses,

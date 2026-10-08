@@ -16,6 +16,7 @@ import {
   type BulkAction,
   Button,
   createDeleteAction,
+  createTableConfig,
   FrameLeft,
   FrameTop,
   getEditorWrapper,
@@ -62,14 +63,12 @@ export function HfaIndicatorsManager(p: Props) {
   const [showAi, setShowAi] = createSignal(false);
   const openAi = () => setShowAi(true);
 
-  // Hoisted like selectedCategoryId below: the table remounts on every SSE
-  // refetch (keyed StateHolderWrapper) and on tab switches; not a signal
-  // because nothing renders from it: Table reads it once on mount.
-  let indicatorsScrollTop = 0;
-
-  // Hoisted for the same reason: the Table would lose a search text it held
-  // itself on every remount.
-  const [searchText, setSearchText] = createSignal("");
+  // Above the keyed StateHolderWrapper and the tab's Show, which create the
+  // Table again on every SSE refetch and tab switch (PROTOCOL_UI_COMPONENTS.md
+  // rule 14).
+  const indicatorsTable = createTableConfig({
+    sort: { key: "definition", direction: "asc" },
+  });
 
   const [indicators, setIndicators] = createSignal<StateHolder<HfaIndicator[]>>(
     {
@@ -1132,7 +1131,7 @@ export function HfaIndicatorsManager(p: Props) {
                         data={keyedIndicators}
                         columns={allColumns()}
                         keyField="indicatorId"
-                        defaultSort={{ key: "definition", direction: "asc" }}
+                        config={indicatorsTable}
                         noRowsMessage={t3({
                           en: "No HFA indicators configured",
                           fr: "Aucun indicateur HFA configuré",
@@ -1152,8 +1151,6 @@ export function HfaIndicatorsManager(p: Props) {
                           }),
                         }}
                         searchValue={indicatorSearchText}
-                        searchText={searchText()}
-                        setSearchText={setSearchText}
                         toolbar={{
                           search: {
                             placeholder: t3({
@@ -1246,10 +1243,6 @@ export function HfaIndicatorsManager(p: Props) {
                               </Button>
                             </Show>
                           ),
-                        }}
-                        initialScrollTop={indicatorsScrollTop}
-                        onScrollTopChange={(v) => {
-                          indicatorsScrollTop = v;
                         }}
                       />
                     </div>

@@ -1,5 +1,6 @@
 import { emailRecipientsSchema, t3, TC } from "lib";
 import {
+  createTableConfig,
   EditorComponentProps,
   getTruncatedString,
   ModalContainer,
@@ -36,6 +37,9 @@ export function ShareReport(
   const [pct, setPct] = createSignal<number>(0);
   const [err, setErr] = createSignal("");
   const [sent, setSent] = createSignal(false);
+  const usersTable = createTableConfig({
+    sort: { key: "email", direction: "asc" },
+  });
 
   const userRows = (): UserRow[] =>
     p.userEmails.map((email: string) => ({ email }));
@@ -182,7 +186,7 @@ export function ShareReport(
             data={userRows()}
             columns={columns}
             keyField="email"
-            defaultSort={{ key: "email", direction: "asc" }}
+            config={usersTable}
             noRowsMessage={t3({
               en: "No users",
               fr: "Aucun utilisateur",

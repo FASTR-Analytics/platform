@@ -9,6 +9,7 @@ import {
   Button,
   createMemo,
   createSignal,
+  createTableConfig,
   ModalContainer,
   Show,
   t3,
@@ -31,6 +32,9 @@ export function AIChatConversationSelector(
   const conversations = p.conversations;
   const [deleting, setDeleting] = createSignal<string | null>(null);
   const [selectedKeys, setSelectedKeys] = createSignal<Set<string>>(new Set());
+  const tableConfig = createTableConfig({
+    sort: { key: "lastMessageAt", direction: "desc" },
+  });
 
   // In-flight guard: no switching away from (or deleting, or replacing via
   // "New Conversation") a conversation whose turn is running. Non-creating
@@ -237,7 +241,7 @@ export function AIChatConversationSelector(
           data={conversations.conversations()}
           columns={columns}
           keyField="id"
-          defaultSort={{ key: "lastMessageAt", direction: "desc" }}
+          config={tableConfig}
           onRowClick={handleSelect}
           bulkActions={bulkActions()}
           itemLabel={{

@@ -9,6 +9,7 @@ import {
   type BulkAction,
   Button,
   createDeleteAction,
+  createTableConfig,
   FrameTop,
   openComponent,
   plural,
@@ -234,6 +235,10 @@ export function InstanceResultsPackages() {
       ? "instance-results-packages-table"
       : undefined;
 
+  const packagesTable = createTableConfig({
+    sort: { key: "createdAt", direction: "desc" },
+  });
+
   return (
     <FrameTop pad="md">
       <div class="h-full w-full" data-tour={tableTourAnchor()}>
@@ -241,7 +246,7 @@ export function InstanceResultsPackages() {
           data={instanceState.runsCatalog}
           columns={columns()}
           keyField="id"
-          defaultSort={{ key: "createdAt", direction: "desc" }}
+          config={packagesTable}
           onRowClick={(run) => openPackagePage(run.id)}
           bulkActions={bulkActions()}
           noRowsMessage={emptyMessage()}

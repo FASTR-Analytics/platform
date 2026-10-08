@@ -3,13 +3,8 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type {
-  AnyRow,
-  FilterConfig,
-  SortConfig,
-  TableColumn,
-  TablePadding,
-} from "./types.ts";
+import type { AnyRow, SortConfig, TableColumn, TablePadding } from "./types.ts";
+import type { TableConfigState } from "./table_config.ts";
 
 export function compareValues(a: unknown, b: unknown): number {
   if (a === undefined || a === null) return 1;
@@ -36,14 +31,17 @@ export function sortData<T extends AnyRow>(
   columns?: TableColumn<T>[],
 ): T[] {
   if (!sortConfig) return data;
+  // Read once: sortConfig may be a store proxy, and a read per comparison
+  // would add a tracked source to the calling memo each time.
+  const { key, direction } = sortConfig;
 
-  const column = columns?.find((c) => c.key === sortConfig.key);
-  const getValue = column?.sortValue ?? ((item: T) => item[sortConfig.key]);
+  const column = columns?.find((c) => c.key === key);
+  const getValue = column?.sortValue ?? ((item: T) => item[key]);
 
   const sorted = [...data];
   sorted.sort((a, b) => {
     const comparison = compareValues(getValue(a), getValue(b));
-    return sortConfig.direction === "asc" ? comparison : -comparison;
+    return direction === "asc" ? comparison : -comparison;
   });
 
   return sorted;
@@ -71,15 +69,26 @@ export function distinctFilterValues<T extends AnyRow>(
   return [...values].sort(compareValues);
 }
 
+const NO_EXCLUDED: readonly string[] = [];
+
+// Own keys only: a column keyed like an Object.prototype member
+// ("constructor") would otherwise read that member.
+export function excludedValues(
+  filters: Readonly<TableConfigState["filters"]>,
+  columnKey: string,
+): readonly string[] {
+  return Object.hasOwn(filters, columnKey) ? filters[columnKey] : NO_EXCLUDED;
+}
+
 export function filterData<T extends AnyRow>(
   data: T[],
-  filters: FilterConfig,
+  filters: Readonly<TableConfigState["filters"]>,
   columns: TableColumn<T>[],
 ): T[] {
   const active = columns.flatMap((column) => {
-    const excluded = filters.get(column.key);
-    return column.filterable && excluded && excluded.size > 0
-      ? [{ column, excluded }]
+    const excluded = excludedValues(filters, column.key);
+    return column.filterable && excluded.length > 0
+      ? [{ column, excluded: new Set(excluded) }]
       : [];
   });
   if (active.length === 0) return data;

@@ -23,6 +23,7 @@ import {
   createButtonAction,
   createDeleteAction,
   createQuery,
+  createTableConfig,
   FrameTop,
   getEditorWrapper,
   getQueryStateFromApiResponse,
@@ -37,6 +38,7 @@ import {
   StateHolderWrapper,
   Table,
   TableColumn,
+  type TableConfig,
 } from "panther";
 import {
   createEffect,
@@ -111,6 +113,10 @@ export function IndicatorsManager(p: Props) {
     }
     setIndicators(getQueryStateFromApiResponse(res));
   });
+
+  // Above the keyed StateHolderWrapper, which creates the Table again on every
+  // refetch (PROTOCOL_UI_COMPONENTS.md rule 14).
+  const indicatorsTable = createTableConfig();
 
   // Which data ids have rows, for the computability status: the ledger is
   // the cheap answer (one row per data id × month), re-read when an import
@@ -255,6 +261,7 @@ export function IndicatorsManager(p: Props) {
         <StateHolderWrapper state={indicators()} loadingAndErrorPad="md">
           {(keyedIndicators) => (
             <IndicatorsTable
+              config={indicatorsTable}
               indicators={keyedIndicators.indicators}
               idsWithRows={idsWithRows()}
               handleDownloadCsv={handleDownloadCsv}
@@ -298,6 +305,7 @@ function otherActionItems(p: {
 }
 
 function IndicatorsTable(p: {
+  config: TableConfig;
   indicators: HmisIndicator[];
   idsWithRows: Set<string> | undefined;
   handleDownloadCsv: (indicators: HmisIndicator[]) => void;
@@ -637,6 +645,7 @@ function IndicatorsTable(p: {
         : undefined}
     >
       <Table
+        config={p.config}
         data={p.indicators}
         columns={columns}
         keyField="indicator_common_id"

@@ -202,6 +202,7 @@ filter (`tables/display_table/column_filter.tsx`) does.
   columns={columns}   // TableColumn<T>[]: { key, header, sortable?, filterable?, searchable?, searchValue? }
   data={data()}
   keyField="id"
+  config={usersTable}                  // view state that outlives remounts (optional)
   itemLabel={{ one: t3(USER), other: t3(USERS) }} // PluralForms<string>, default "item" / "items"
   onRowClick={open}
   selectedKeys={selectedKeys}          // controlled selection (optional)
@@ -216,8 +217,36 @@ filter (`tables/display_table/column_filter.tsx`) does.
 Sorting and per-column value filters via column config (`sortable`,
 `filterable`), a built-in search, controlled multi-select with bulk actions, and
 an `EmptyState` no-rows fallback. A filterable column gets a funnel button in
-its header that lists the column's distinct values as check rows;
-`defaultFilters` and `onFilterChange` persist the unchecked values.
+its header that lists the column's distinct values as check rows; the unchecked
+values are part of the Table's config.
+
+**The config** holds a Table's view state: the sort, each filtered column's
+unchecked values, the search text and the scroll position. It is a Solid store
+with its setters, made by `createTableConfig()`, optionally seeded
+(`createTableConfig({ sort: { key: "name", direction: "asc" } })`), and passed
+as `config`. Without one the Table makes its own, which a remount loses. Where
+the caller creates the config sets how long the state lives: in the body of the
+component that owns the query, above any `StateHolderWrapper`, `Show` or tab
+that remounts the Table, it lasts as long as that component; at module scope it
+lasts the session. A `StateHolderWrapper` creates its children again on every
+refetch, so a config created inside it, beside the Table, is lost with the
+Table. Read `config.state` anywhere; write only through the setters (`setSort`,
+`setFilter`, `setSearchText`, `setScrollTop`, `clearFilters`). Each setter
+replaces the whole field it changes, so a reader of a whole field
+(`on(() => config.state.sort, ...)`) sees every change. A config passed later in
+place of another is picked up, and its scroll position restored.
+
+```tsx
+const usersTable = createTableConfig({ sort: { key: "name", direction: "asc" } });
+
+<HeadingBar
+  searchText={usersTable.state.searchText}
+  setSearchText={usersTable.setSearchText}
+/>
+<StateHolderWrapper state={query.state()}>
+  {(rows) => <Table config={usersTable} data={rows} columns={columns} keyField="id" />}
+</StateHolderWrapper>
+```
 
 **The frame** is the bordered, rounded box that holds the rows. It is the
 element directly around the scroll box, not the Table's root. The scroll box
@@ -265,11 +294,9 @@ table-level `searchValue(item)` when given; otherwise the text of every column
 not marked `searchable: false`, joined by spaces, where a column's text is its
 `searchValue(item)`, else its `filterValue(item)`, else the field as a string.
 Columns search by default: a text no column shows (an id, a resolved label) goes
-in a table-level `searchValue`. The search text is the Table's own state unless
-`searchText` and `setSearchText` are passed together, which is how a field
-outside the table (a `HeadingBar`'s) drives it, and how a search survives a
-remount of the table: the Table's own text is lost when it remounts, so a parent
-that remounts it holds the signal. Visible rows are `data` after the search and
+in a table-level `searchValue`. The search text is part of the config, which is
+how a field outside the table (a `HeadingBar`'s) drives it and how a search
+survives a remount of the table. Visible rows are `data` after the search and
 the column filters; sort applies after. Select-all acts on the visible rows, and
 a selected row hidden by the search or a filter stays selected. When nothing
 matches, the Table says so and offers "Clear search", which also clears the

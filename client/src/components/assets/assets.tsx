@@ -2,6 +2,7 @@ import {
   type BulkAction,
   Button,
   createDeleteAction,
+  createTableConfig,
   FrameTop,
   plural,
   Table,
@@ -100,6 +101,10 @@ function AssetTable(p: {
   isAdmin: boolean;
   onDelete: (fileName: string) => void;
 }) {
+  const assetsTable = createTableConfig({
+    sort: { key: "fileName", direction: "asc" },
+  });
+
   const columns = createMemo((): TableColumn<AssetInfo>[] => [
     {
       key: "fileName",
@@ -255,7 +260,7 @@ function AssetTable(p: {
       data={p.files}
       columns={columns()}
       keyField="fileName"
-      defaultSort={{ key: "fileName", direction: "asc" }}
+      config={assetsTable}
       noRowsMessage={t3({
         en: "No assets uploaded yet",
         fr: "Aucune ressource téléversée",

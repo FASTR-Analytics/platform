@@ -25,7 +25,7 @@ import { AddUserForm } from "./add_user_form";
 import { BatchUploadUsersForm } from "./batch_upload_users_form";
 import { BulkEditPermissionsForm } from "./bulk_edit_permissions_form";
 import { User } from "./user";
-import { BulkAction, Table, TableColumn } from "panther";
+import { BulkAction, createTableConfig, Table, TableColumn } from "panther";
 import { serverActions } from "~/server_actions";
 import type { UserLog } from "lib";
 import { instanceState } from "~/state/instance/t1_store";
@@ -304,6 +304,10 @@ function UserTable(p: {
   showHUsers: () => boolean;
   toolbarChildren: JSX.Element;
 }) {
+  const usersTable = createTableConfig({
+    sort: { key: "lastActiveTs", direction: "desc" },
+  });
+
   const userRows = (): UserTableData[] => {
     const map = new Map<string, number>();
     for (const log of p.logs ?? []) {
@@ -537,7 +541,7 @@ function UserTable(p: {
     <Table
       data={userRows()}
       columns={columns}
-      defaultSort={{ key: "lastActiveTs", direction: "desc" }}
+      config={usersTable}
       keyField="email"
       noRowsMessage={t3({
         en: "No users",

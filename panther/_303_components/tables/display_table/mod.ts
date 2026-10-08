@@ -5,9 +5,10 @@
 
 export { Table } from "./table.tsx";
 export { SelectionActions } from "./selection_actions.tsx";
+export { createTableConfig } from "./table_config.ts";
+export type { TableConfig, TableConfigState } from "./table_config.ts";
 export type {
   BulkAction,
-  FilterConfig,
   SortConfig,
   TableColumn,
   TablePadding,
