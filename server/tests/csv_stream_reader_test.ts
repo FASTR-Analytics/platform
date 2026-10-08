@@ -1,8 +1,6 @@
 // Pins the streaming CSV reader's column-count check as the
-// getCsvStreamComponents bullet of SYSTEM_06_ingestion.md states it: a row
-// with more columns than the header (under strict, a different count)
-// rejects the stream naming the row, whichever row it is. No database; the
-// reader reads the .env the test task loads.
+// getCsvStreamComponents bullet of SYSTEM_06_ingestion.md states it. No
+// database; the reader reads the .env the test task loads.
 //
 //   deno test -A --env-file server/tests/csv_stream_reader_test.ts
 
