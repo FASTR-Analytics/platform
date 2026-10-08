@@ -107,8 +107,11 @@ fields do not survive the wrapped form. Pinned by
 
 Callers can tune per call: the S6 HMIS import worker passes `maxAttempts: 3` and
 excludes size-cap and timeout errors from retry (it splits the pull by org-unit
-subtree instead); the heavy geojson fetch passes `maxAttempts: 1` because
-retrying a ~20 MB download re-pays the whole transfer per attempt.
+subtree instead); the S6 import wizard's pre-launch classification
+(`classifyDatasetHmisDhis2Selection`) passes `maxAttempts: 1` with a 15 s
+timeout, because the user waits on it and the run classifies again; the heavy
+geojson fetch passes `maxAttempts: 1` because retrying a ~20 MB download re-pays
+the whole transfer per attempt.
 
 ## The `goalN_` convention
 
