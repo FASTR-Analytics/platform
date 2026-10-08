@@ -102,16 +102,17 @@ function userByEmail(email: string): OtherUser | undefined {
   return instanceState.users.find((u) => u.email === email);
 }
 
-function personLabel(email: string): string {
-  const user = userByEmail(email);
+function personLabel(email: string, user: OtherUser | undefined): string {
   const name = [user?.firstName, user?.lastName].filter(Boolean).join(" ");
   return name ? `${name} (${email})` : email;
 }
 
 // A grant to a restricted user who lacks the product's scope is accepted and
 // stays inert until their scope access changes (R6), so the dialog says so.
-function lacksScope(email: string, scopeId: ScopeId | undefined): boolean {
-  const user = userByEmail(email);
+function lacksScope(
+  user: OtherUser | undefined,
+  scopeId: ScopeId | undefined,
+): boolean {
   if (user === undefined || user.scopeAccess.all) return false;
   return scopeId === undefined || !canUseScope(user.scopeAccess, scopeId);
 }
@@ -137,12 +138,15 @@ function candidateOptions(
 ): SelectOption<string>[] {
   return instanceState.users
     .filter((u) => !exclude.has(u.email) && (includeAdmins || !u.isGlobalAdmin))
-    .map((u) => ({
-      value: u.email,
-      label: lacksScope(u.email, scopeId)
-        ? `${personLabel(u.email)} · ${lacksScopeLabel(bulk)}`
-        : personLabel(u.email),
-    }))
+    .map((u) => {
+      const label = personLabel(u.email, u);
+      return {
+        value: u.email,
+        label: lacksScope(u, scopeId)
+          ? `${label} · ${lacksScopeLabel(bulk)}`
+          : label,
+      };
+    })
     .sort((a, b) => a.label.localeCompare(b.label));
 }
 
@@ -197,11 +201,12 @@ function PersonRow(p: {
   bulk: boolean;
   children: JSX.Element;
 }) {
+  const user = () => userByEmail(p.email);
   return (
     <div class="ui-gap-sm ui-pad-sm flex items-center border-b last:border-b-0">
       <div class="min-w-0 flex-1">
-        <div class="truncate">{personLabel(p.email)}</div>
-        <Show when={lacksScope(p.email, p.scopeId)}>
+        <div class="truncate">{personLabel(p.email, user())}</div>
+        <Show when={lacksScope(user(), p.scopeId)}>
           <div class="text-base-content-muted text-xs">
             {lacksScopeLabel(p.bulk)}
           </div>
@@ -430,7 +435,10 @@ function ProductAccessForm(p: {
                       pt: "Proprietário",
                     })}
                   </span>
-                  <Show when={canOwnProduct(p.productId) && !choosingOwner()}>
+                  <Show
+                    when={canOwnProduct(p.productId) && !choosingOwner() &&
+                      tempOwner() === stored.owner}
+                  >
                     <Button
                       size="sm"
                       outline

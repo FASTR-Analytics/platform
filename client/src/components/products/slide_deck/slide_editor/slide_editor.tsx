@@ -555,11 +555,16 @@ export function SlideEditor(p: Props) {
     // when a remote reconcile made no tracked change, silently swallowing the
     // NEXT local edit: the cause of visualization edits not saving/syncing.
     setNeedsSave(true);
-    const skipId = editingFigureBlockId();
-    session()?.pushLocal(
-      unwrap(tempSlide),
-      skipId ? { skipFigureConfigForBlockIds: new Set([skipId]) } : undefined,
-    );
+    // A viewer makes no local edit, so its push could only be the dedupe heal
+    // after a concurrent restructure (materializeSlide), which the room
+    // refuses below edit: only a user who can edit pushes.
+    if (untrack(canEdit)) {
+      const skipId = editingFigureBlockId();
+      session()?.pushLocal(
+        unwrap(tempSlide),
+        skipId ? { skipFigureConfigForBlockIds: new Set([skipId]) } : undefined,
+      );
+    }
 
     // Re-render the preview for both local and remote changes. Typing on the
     // canvas redraws at once: the canvas IS the text being typed.

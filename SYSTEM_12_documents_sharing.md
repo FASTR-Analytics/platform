@@ -186,8 +186,11 @@ a version edit: each re-broadcasts the summaries it changed.
 level from the product's summary in `instanceState.products` with
 `productLevelFor`, reading `currentUserEmail` and `currentUserIsGlobalAdmin`, so
 every gate follows a level change live; an id not in the store is `none`.
-`canEditProduct` is `edit` or above and `canOwnProduct` is `own`. Every
-affordance follows this table:
+`productSummaryLevel(product)` is the same derivation for a caller that already
+holds the summary, so a walk over the products list (the list's drag gate, the
+copy-to-deck picker) does not look each product up again. `canEditProduct` is
+`edit` or above and `canOwnProduct` is `own`. Every affordance follows this
+table:
 
 | Needs  | Affordances                                                                                                                                                                                                                                                                                                                                                                                                    |
 | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -211,23 +214,24 @@ is behind "Manage access…" in the product menu, the deck's File menu and the
 FASTR report's File menu, at `edit`. It holds a General access select
 (Restricted / Anyone in this instance can view / Anyone in this instance can
 edit); the owner row, where an owner or a global admin picks a new owner
-(Transfer ownership…, or Set owner… on an ownerless product), applied to the
-draft as the server applies it (the previous owner becomes an `edit` grantee and
-the new owner's grant goes); a fixed "Administrators: full access" row; the
-grants, each with a level select and a remove button; and an add-person picker
-over `instanceState.users` that leaves out the owner, global admins and the
-people already listed. A restricted user who lacks the product's scope is
-marked, in the picker and in their row, because such a grant stays inert until
-their scope access changes. Save calls `setProductOwner` when the owner changed,
-then `setProductAccess` when the draft differs from what the transfer leaves.
-The dialog never offers the owner as a grantee, offers only roster users and
-lists each person once, so it cannot produce the three refusals; one caused by a
-race shows the server's message. Its bulk mode, "Set access for everything in
-this folder…" in the folder menu for a global admin, calls
-`setFolderProductsAccess`: a General access select whose first choice, "Leave as
-is", sends `none`; the add-person picker with a level per person and no remove
-buttons; no owner row and no existing people; and a line giving how many
-products the folder and its subfolders hold and that access is only raised.
+(Transfer ownership…, or Set owner… on an ownerless product), once per opening
+so a wrong pick is undone by cancelling, applied to the draft as the server
+applies it (the previous owner becomes an `edit` grantee and the new owner's
+grant goes); a fixed "Administrators: full access" row; the grants, each with a
+level select and a remove button; and an add-person picker over
+`instanceState.users` that leaves out the owner, global admins and the people
+already listed. A restricted user who lacks the product's scope is marked, in
+the picker and in their row, because such a grant stays inert until their scope
+access changes. Save calls `setProductOwner` when the owner changed, then
+`setProductAccess` when the draft differs from what the transfer leaves. The
+dialog never offers the owner as a grantee, offers only roster users and lists
+each person once, so it cannot produce the three refusals; one caused by a race
+shows the server's message. Its bulk mode, "Set access for everything in this
+folder…" in the folder menu for a global admin, calls `setFolderProductsAccess`:
+a General access select whose first choice, "Leave as is", sends `none`; the
+add-person picker with a level per person and no remove buttons; no owner row
+and no existing people; and a line giving how many products the folder and its
+subfolders hold and that access is only raised.
 
 ## The products registry on `main`
 

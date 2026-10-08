@@ -1,4 +1,4 @@
-import { type ProductSummary, t3 } from "lib";
+import { productLevelAtLeast, type ProductSummary, t3 } from "lib";
 import {
   type AlertComponentProps,
   createFormAction,
@@ -10,7 +10,7 @@ import {
 import { createMemo, createSignal } from "solid-js";
 import { packageScopeCaption } from "~/components/_shared/mod.ts";
 import { serverActions } from "~/server_actions";
-import { canEditProduct } from "~/state/instance/product_access";
+import { productSummaryLevel } from "~/state/instance/product_access";
 import { instanceState } from "~/state/instance/t1_store";
 
 type Props = { sourceProductId: string; slideIds: string[] };
@@ -31,7 +31,7 @@ export function CopySlidesToDeckModal(
     instanceState.products.filter(
       (product): product is Extract<ProductSummary, { type: "slide_deck" }> =>
         product.type === "slide_deck" && product.id !== p.sourceProductId &&
-        canEditProduct(product.id),
+        productLevelAtLeast(productSummaryLevel(product), "edit"),
     )
   );
 

@@ -1,4 +1,9 @@
-import { type ProductLevel, productLevelAtLeast, productLevelFor } from "lib";
+import {
+  type ProductLevel,
+  productLevelAtLeast,
+  productLevelFor,
+  type ProductSummary,
+} from "lib";
 import { instanceState, productById } from "./t1_store";
 
 // The client's product gates (PLAN_PRODUCT_OWNERSHIP §2.9): the connection's
@@ -7,7 +12,12 @@ import { instanceState, productById } from "./t1_store";
 // productAccessPolicy in server/auth/product_access.ts.
 export function productLevel(productId: string): ProductLevel {
   const product = productById(productId);
-  if (product === undefined) return "none";
+  return product === undefined ? "none" : productSummaryLevel(product);
+}
+
+// For a caller that already holds the summary, such as a walk over the
+// products list, which would otherwise look each product up again.
+export function productSummaryLevel(product: ProductSummary): ProductLevel {
   return productLevelFor(product, {
     email: instanceState.currentUserEmail,
     isGlobalAdmin: instanceState.currentUserIsGlobalAdmin,

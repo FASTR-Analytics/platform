@@ -1,5 +1,11 @@
 import { useSearchParams } from "@solidjs/router";
-import { type Folder, type ProductSummary, type ProductType, t3 } from "lib";
+import {
+  type Folder,
+  productLevelAtLeast,
+  type ProductSummary,
+  type ProductType,
+  t3,
+} from "lib";
 import {
   Button,
   createDeleteAction,
@@ -27,7 +33,11 @@ import {
 import { nextSort, sortBySortMode } from "./sort_by_sort_mode";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
-import { canEditProduct, canOwnProduct } from "~/state/instance/product_access";
+import {
+  canEditProduct,
+  canOwnProduct,
+  productSummaryLevel,
+} from "~/state/instance/product_access";
 import {
   _PRODUCT_QUERY_PARAM,
   openShellEditor,
@@ -609,7 +619,7 @@ export function Products() {
         onFolderMenu={handleFolderMenu}
         canDrag={(row) =>
           row.kind === "product"
-            ? canEditProduct(row.product.id)
+            ? productLevelAtLeast(productSummaryLevel(row.product), "edit")
             : row.kind === "folder" && canEdit()}
         dragItem={(row) =>
           row.kind === "product"
