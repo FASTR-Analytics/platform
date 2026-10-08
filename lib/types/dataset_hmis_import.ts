@@ -298,6 +298,15 @@ export type Dhis2WindowSelectionInput = {
   endPeriod: number;
 };
 
+// What DHIS2 says a selection's data ids are, asked by the wizard's review
+// step before launch: formula ids (what DHIS2 calls an indicator) and ids
+// DHIS2 has no data element or operand for. A preview only: the run
+// classifies again when it starts, and that classification is the truth.
+export type Dhis2SelectionClassification = {
+  formulaIds: string[];
+  notFoundIds: string[];
+};
+
 export type Dhis2RunPairInput = { dataId: string; periodId: number };
 
 export type Dhis2PairSelectionInput = {

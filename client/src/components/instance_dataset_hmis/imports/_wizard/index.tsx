@@ -609,6 +609,7 @@ function Dhis2WizardInner(p: InnerProps) {
             connectionSummary={connectionSummary()}
             nIndicators={isPreset ? undefined : selectedIndicators().length}
             description={description()}
+            indicators={dictionary()}
             timeSummary={timeSummary()}
             windowSummary={windowSummary()}
             nPairs={nPairs()}

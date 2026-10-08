@@ -20,6 +20,7 @@ import type {
   DatasetHmisScheduledImport,
   DatasetHmisVersion,
   Dhis2ImportSchedulingInfo,
+  Dhis2SelectionClassification,
   ItemsHolderDatasetHmisDisplay,
 } from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
@@ -177,6 +178,12 @@ export const datasetRouteRegistry = {
   }),
 
   // DHIS2 import runs (per-pair fetch+integrate; PLAN_DHIS2_IMPORTER Phase 3)
+  classifyDatasetHmisDhis2Selection: route({
+    path: "/datasets/hmis/runs/dhis2-selection-classification",
+    method: "POST",
+    body: z.object({ dataIds: z.array(z.string()) }),
+    response: {} as Dhis2SelectionClassification,
+  }),
   launchDatasetHmisDhis2Run: route({
     path: "/datasets/hmis/dhis2-runs",
     method: "POST",

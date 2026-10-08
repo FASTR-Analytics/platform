@@ -24,6 +24,7 @@ import { serverActions } from "~/server_actions";
 import {
   dataIdWithIndicator,
   dhis2FormulaRemedy,
+  dhis2NotFoundRemedy,
   indicatorsByDataId,
   indicatorNameText,
 } from "~/components/indicator_manager_hmis/_indicator_display";
@@ -323,10 +324,11 @@ export function Dhis2RunDetail(
                     </div>
                     <div class="text-sm">
                       {t3({
-                        en: "Their DHIS2 ids match no data element or operand in DHIS2. Every selected month of each failed without a fetch, and will fail every run until the indicator is changed in the indicator list. If it holds no data, fix its DHIS2 id or delete the indicator. If it holds data, change its type to Uploaded: it keeps its data, and no DHIS2 import fetches it again.",
-                        fr: "Leurs identifiants DHIS2 ne correspondent à aucun élément de données ni opérande dans DHIS2. Chaque mois sélectionné de chacun a échoué sans récupération, et échouera à chaque importation tant que l'indicateur n'est pas modifié dans la liste des indicateurs. S'il ne contient aucune donnée, corrigez son identifiant DHIS2 ou supprimez l'indicateur. S'il contient des données, changez son type en Téléversé : il conserve ses données, et aucune importation DHIS2 ne le récupère plus.",
-                        pt: "Os seus IDs DHIS2 não correspondem a nenhum elemento de dados nem operando no DHIS2. Todos os meses selecionados de cada um falharam sem obtenção, e falharão em todas as importações até o indicador ser alterado na lista de indicadores. Se não tiver dados, corrija o seu ID DHIS2 ou elimine o indicador. Se tiver dados, mude o seu tipo para Carregado: mantém os seus dados, e nenhuma importação DHIS2 o volta a obter.",
-                      })}
+                        en: "Their DHIS2 ids match no data element or operand in DHIS2. Every selected month of each failed without a fetch, and will fail every run until the indicator is changed in the indicator list.",
+                        fr: "Leurs identifiants DHIS2 ne correspondent à aucun élément de données ni opérande dans DHIS2. Chaque mois sélectionné de chacun a échoué sans récupération, et échouera à chaque importation tant que l'indicateur n'est pas modifié dans la liste des indicateurs.",
+                        pt: "Os seus IDs DHIS2 não correspondem a nenhum elemento de dados nem operando no DHIS2. Todos os meses selecionados de cada um falharam sem obtenção, e falharão em todas as importações até o indicador ser alterado na lista de indicadores.",
+                      })}{" "}
+                      {dhis2NotFoundRemedy()}
                     </div>
                     <IdLines ids={unknownIds} label={idWithIndicator} />
                   </div>

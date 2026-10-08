@@ -133,3 +133,13 @@ export function dhis2FormulaRemedy(): string {
     pt: "Para corrigir: na lista de indicadores, use Adicionar do DHIS2, procure a fórmula pelo nome e guarde-a. A aplicação cria um elemento DHIS2 por elemento de dados da fórmula e um indicador calculado para a própria fórmula. Depois mude o tipo do indicador antigo para Carregado e desligue o seu Incluir na análise: mantém os valores que já tem, e nenhuma importação DHIS2 o volta a obter. Em vez disso, elimine-o se não tiver dados.",
   });
 }
+
+// What a user does about an indicator whose DHIS2 id matches nothing in
+// DHIS2: the retype is the only step the app allows once it holds rows.
+export function dhis2NotFoundRemedy(): string {
+  return t3({
+    en: "If it holds no data, fix its DHIS2 id or delete the indicator. If it holds data, change its type to Uploaded: it keeps its data, and no DHIS2 import fetches it again.",
+    fr: "S'il ne contient aucune donnée, corrigez son identifiant DHIS2 ou supprimez l'indicateur. S'il contient des données, changez son type en Téléversé : il conserve ses données, et aucune importation DHIS2 ne le récupère plus.",
+    pt: "Se não tiver dados, corrija o seu ID DHIS2 ou elimine o indicador. Se tiver dados, mude o seu tipo para Carregado: mantém os seus dados, e nenhuma importação DHIS2 o volta a obter.",
+  });
+}

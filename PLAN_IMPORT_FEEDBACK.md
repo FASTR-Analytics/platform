@@ -13,7 +13,7 @@ indicator (a formula), the DHIS2 import fails every month of it as designed, but
 says so in DHIS2's vocabulary, by bare UID, without the steps that fix it, and
 only after the run.
 
-**Next step: Do 4.** Each session sets this line in its final commit. Its values
+**Next step: Review 4.** Each session sets this line in its final commit. Its values
 are `Do N`, `Review N` and `Fix N`. The review that passes step 5 deletes this
 file.
 
@@ -472,3 +472,6 @@ again. The earlier build runs against the same databases.
 | 3 | Step 3 reviewed: 1 finding. |
 | 3 | Step 3 fixed. |
 | 3 | Step 3 reviewed: pass. |
+| 4 | Outside the surface: `client/src/components/indicator_manager_hmis/_indicator_display.ts` gains `dhis2NotFoundRemedy`, and the not-found banner in `client/src/components/instance_dataset_hmis/imports/_run_detail.tsx` reads it, so the review step's not-found list carries the sentence Fix 3 settled instead of a copy. Ruling 10 lists both sets "with the remedy", and for an indicator with rows the only remedy the app allows is the retype (Review 3's finding). |
+| 4 | The route answers on the booted dev server. With this checkout's stored connection, whose password the current key cannot decrypt, it returns `success: false` with the decrypt error, which the review step shows as its one error line. The happy path is the dispatcher's own `classifyElements`, unchanged. |
+| 4 | Step 4 built. |

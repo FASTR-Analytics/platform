@@ -1,7 +1,19 @@
-import { t3, type Dhis2SelectionDescription } from "lib";
-import { toNum0 } from "panther";
-import { For, Show } from "solid-js";
-import { dhis2IdLabel } from "~/components/indicator_manager_hmis/_indicator_display";
+import {
+  t3,
+  type Dhis2SelectionClassification,
+  type Dhis2SelectionDescription,
+  type HmisIndicator,
+} from "lib";
+import { createQuery, toNum0 } from "panther";
+import { For, Show, createMemo } from "solid-js";
+import {
+  dataIdWithIndicator,
+  dhis2FormulaRemedy,
+  dhis2IdLabel,
+  dhis2NotFoundRemedy,
+  indicatorsByDataId,
+} from "~/components/indicator_manager_hmis/_indicator_display";
+import { serverActions } from "~/server_actions";
 import { IdListLine } from "./_id_list_line";
 
 type Props = {
@@ -10,6 +22,8 @@ type Props = {
   // What the selected indicators expand to (PLAN_A7 ruling 3); undefined
   // for preset pairs, whose list is fixed.
   description: Dhis2SelectionDescription | undefined;
+  // The dictionary the picker loaded, which names the ids DHIS2 refuses.
+  indicators: HmisIndicator[] | undefined;
   timeSummary: string;
   windowSummary: string;
   nPairs: number | undefined; // undefined when a recurring window can't be sized ahead of fire time
@@ -22,6 +36,14 @@ type Props = {
 export function Dhis2StepReview(p: Props) {
   return (
     <div class="ui-spy">
+      <Show when={p.description}>
+        {(d) => (
+          <PreLaunchClassification
+            dataIds={d().elements.map((e) => e.dataId)}
+            indicators={p.indicators ?? []}
+          />
+        )}
+      </Show>
       <div class="ui-pad ui-spy-sm rounded border text-sm">
         <div>
           <span class="font-700">
@@ -77,6 +99,104 @@ export function Dhis2StepReview(p: Props) {
         </div>
       </Show>
     </div>
+  );
+}
+
+function formulaSummary(n: number): string {
+  return n === 1
+    ? t3({
+        en: "1 selected indicator points to a DHIS2 formula (what DHIS2 calls an indicator), which this import does not fetch: every month of it will fail, and its existing data is kept",
+        fr: "1 indicateur sélectionné pointe vers une formule DHIS2 (ce que DHIS2 appelle un indicateur), que cette importation ne récupère pas : chaque mois échouera, et ses données existantes sont conservées",
+        pt: "1 indicador selecionado aponta para uma fórmula DHIS2 (o que o DHIS2 chama um indicador), que esta importação não obtém: todos os meses falharão, e os seus dados existentes são mantidos",
+      })
+    : t3({
+        en: `${n} selected indicators point to DHIS2 formulas (what DHIS2 calls an indicator), which this import does not fetch: every month of each will fail, and their existing data is kept`,
+        fr: `${n} indicateurs sélectionnés pointent vers des formules DHIS2 (ce que DHIS2 appelle un indicateur), que cette importation ne récupère pas : chaque mois de chacun échouera, et leurs données existantes sont conservées`,
+        pt: `${n} indicadores selecionados apontam para fórmulas DHIS2 (o que o DHIS2 chama um indicador), que esta importação não obtém: todos os meses de cada um falharão, e os seus dados existentes são mantidos`,
+      });
+}
+
+function notFoundSummary(n: number): string {
+  return n === 1
+    ? t3({
+        en: "1 selected indicator points to nothing in DHIS2 (no data element or operand has its id): every month of it will fail",
+        fr: "1 indicateur sélectionné ne correspond à rien dans DHIS2 (aucun élément de données ni opérande n'a son identifiant) : chaque mois échouera",
+        pt: "1 indicador selecionado não aponta para nada no DHIS2 (nenhum elemento de dados nem operando tem o seu ID): todos os meses falharão",
+      })
+    : t3({
+        en: `${n} selected indicators point to nothing in DHIS2 (no data element or operand has their ids): every month of each will fail`,
+        fr: `${n} indicateurs sélectionnés ne correspondent à rien dans DHIS2 (aucun élément de données ni opérande n'a leurs identifiants) : chaque mois de chacun échouera`,
+        pt: `${n} indicadores selecionados não apontam para nada no DHIS2 (nenhum elemento de dados nem operando tem os seus IDs): todos os meses de cada um falharão`,
+      });
+}
+
+// Asks DHIS2 what the selection's data ids are when the step opens, and
+// warns about the ids the run will refuse. Never gates the launch: an error
+// is one line, and the run classifies again when it starts.
+function PreLaunchClassification(p: {
+  dataIds: string[];
+  indicators: HmisIndicator[];
+}) {
+  const classification = createQuery(() =>
+    serverActions.classifyDatasetHmisDhis2Selection({ dataIds: p.dataIds }),
+  );
+  const byDataId = createMemo(() => indicatorsByDataId(p.indicators));
+  const label = (dataId: string) =>
+    dataIdWithIndicator(byDataId().get(dataId), dataId);
+  const errorText = () => {
+    const s = classification.state();
+    return s.status === "error" ? s.err : undefined;
+  };
+  const refused = (): Dhis2SelectionClassification | undefined => {
+    const s = classification.state();
+    return s.status === "ready" &&
+        (s.data.formulaIds.length > 0 || s.data.notFoundIds.length > 0)
+      ? s.data
+      : undefined;
+  };
+  return (
+    <>
+      <Show when={classification.state().status === "loading"}>
+        <div class="text-base-content-muted text-sm">
+          {t3({
+            en: "Asking DHIS2 what the selected ids are...",
+            fr: "Interrogation de DHIS2 sur les identifiants sélectionnés...",
+            pt: "A perguntar ao DHIS2 o que são os IDs selecionados...",
+          })}
+        </div>
+      </Show>
+      <Show when={errorText()}>
+        {(err) => (
+          <div class="text-base-content-muted text-sm">
+            {t3({
+              en: `Could not ask DHIS2 what the selected ids are (${err()}). The import classifies them itself when it runs.`,
+              fr: `Impossible d'interroger DHIS2 sur les identifiants sélectionnés (${err()}). L'importation les classera elle-même lors de son exécution.`,
+              pt: `Não foi possível perguntar ao DHIS2 o que são os IDs selecionados (${err()}). A importação classifica-os quando for executada.`,
+            })}
+          </div>
+        )}
+      </Show>
+      <Show when={refused()}>
+        {(r) => (
+          <div class="border-danger bg-danger-subtle ui-pad ui-spy-sm rounded border text-sm">
+            <IdListLine
+              ids={r().formulaIds.map(label)}
+              summary={formulaSummary(r().formulaIds.length)}
+            />
+            <Show when={r().formulaIds.length > 0}>
+              <div>{dhis2FormulaRemedy()}</div>
+            </Show>
+            <IdListLine
+              ids={r().notFoundIds.map(label)}
+              summary={notFoundSummary(r().notFoundIds.length)}
+            />
+            <Show when={r().notFoundIds.length > 0}>
+              <div>{dhis2NotFoundRemedy()}</div>
+            </Show>
+          </div>
+        )}
+      </Show>
+    </>
   );
 }
 

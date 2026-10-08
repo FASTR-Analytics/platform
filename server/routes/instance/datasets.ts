@@ -19,6 +19,7 @@ import {
   getDatasetHmisImportRunSummaries,
   getDatasetHmisItemsForDisplay,
   getDatasetHmisScheduledImports,
+  getStoredDhis2CredentialsDecrypted,
   getStoredDhis2CredentialsInfo,
   getVersionsForDatasetHmis,
   isDhis2CredentialsEncryptionKeyConfigured,
@@ -34,6 +35,7 @@ import { getCsvDetails } from "../../server_only_funcs_csvs/get_csv_components.t
 import { getXlsxSheetNamesRaw } from "../../server_only_funcs_csvs/read_xlsx_raw.ts";
 import { scanHfaDuplicates } from "../../server_only_funcs_csvs/scan_hfa_rows.ts";
 import { scanHmisCsvIndicatorValues } from "../../worker_routines/import_hmis_data_csv/scan_indicator_values.ts";
+import { classifyElements } from "../../worker_routines/import_hmis_data_dhis2/dispatch.ts";
 import { resolveAssetFileOrThrow } from "../../db/instance/assets.ts";
 import { log } from "../../middleware/logging.ts";
 import { requireGlobalPermission } from "../../middleware/mod.ts";
@@ -615,6 +617,43 @@ defineRoute(
       body.rowFilters,
     );
     return c.json({ success: true, data });
+  },
+);
+
+// The wizard's pre-launch preview of what the run's dispatcher will refuse:
+// the same classification the run makes at start, over the selection's data
+// ids, with no retry. Never gates the launch; the run's own result is the
+// truth.
+defineRoute(
+  routesDatasets,
+  "classifyDatasetHmisDhis2Selection",
+  requireGlobalPermission("can_configure_data"),
+  log("classifyDatasetHmisDhis2Selection"),
+  async (c, { body }) => {
+    try {
+      const credentials = await getStoredDhis2CredentialsDecrypted(c.var.mainDb);
+      const dataIds = [...new Set(body.dataIds)];
+      const routes = await classifyElements(dataIds, {
+        dhis2Credentials: credentials,
+      });
+      const refusedFor = (reason: "dhis2_indicator" | "not_found") =>
+        dataIds.filter((id) => {
+          const route = routes.get(id);
+          return route?.kind === "unknown" && route.reason === reason;
+        });
+      return c.json({
+        success: true,
+        data: {
+          formulaIds: refusedFor("dhis2_indicator"),
+          notFoundIds: refusedFor("not_found"),
+        },
+      });
+    } catch (e) {
+      return c.json({
+        success: false,
+        err: e instanceof Error ? e.message : String(e),
+      });
+    }
   },
 );
 

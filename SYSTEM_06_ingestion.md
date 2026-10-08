@@ -499,8 +499,16 @@ callback re-parses the new bytes).
   elements, one row per DHIS2 element indicator with its DHIS2 id, in
   expansion order, followed by the dropped parts, Uploaded members and
   population terms, each with the reason it is not fetched, all from
-  `describeDhis2Selection` over the dictionary the picker loaded; a
-  preset-pairs run skips the Indicators step and shows no list) and CSV
+  `describeDhis2Selection` over the dictionary the picker loaded; the
+  Review step also asks DHIS2, through the stateless
+  `classifyDatasetHmisDhis2Selection` route (the run's own
+  `classifyElements` over the description's data ids, no retry), which
+  selected ids are DHIS2 formulas and which DHIS2 has nothing for, and
+  lists each beside its indicator with the remedy above the launch
+  summary; it never blocks the launch, a connection or DHIS2 error is one
+  line where the lists would be, and the run's own classification stays
+  the truth; a preset-pairs run skips the Indicators step and shows no
+  list and no classification) and CSV
   (upload → columns → mapping → review: the Mapping step lists every
   distinct value of the indicator column with its row count and a
   searchable picker over the indicators with rows, seeded by
