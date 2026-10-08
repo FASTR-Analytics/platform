@@ -2051,28 +2051,28 @@ rewritten to rgba() first or it throws on an unsupported colour function. The
 `sendReportEmail` route carries the attachment's MIME type), Rename… (the shared
 `ProductSettings`; the host's heading follows the store), Manage access…
 (`ProductAccessModal`) and Make a copy… (the shared `DuplicateProductsModal`).
-The menu is `ReportFileMenu`; for a FASTR report the user cannot write it sits
-alone in the menu row without Rename… and Manage access…. The Insert menu's
-Cover page row opens a thumbnail flyout (`CoverPicker`): one tile per
-`FASTR_COVER_PRESETS` entry (a layout on the ground that shows it best), each
-the REAL cover markup under the toolbar's scoped theme sheet plus
-`buildFastrCoverTileCss` (a fixed 4:3 box the cover fills absolutely, em-scaled
-by a 5px font), so a tile is what the insert will look like in the current
-theme; the block segment's Layout control changes the composition afterwards.
-The hidden `:::report` fence is never a block target — the Page menu owns it.
-Right-clicking a table cell, a stat tile, a card, a column or a step opens
-panther's `showMenu` (rows/columns for tables; add-before/after, a Columns
-submenu and delete for tiles, cards and columns — the grid's column count
-follows the child count while it fits, and a card's or column's whole block
-moves as one, via `applyTilesChildAction`; add-before/after and delete for steps
-via `applyStepsChildAction`, where a step is any DIRECT child of `:::steps` — a
-paragraph's blank-separated run, or a nested block whole — and deleting the only
-step removes the block). The Insert menu's Stat, Tiles, Columns and Steps rows
-open the same count flyout as Table (`TilesPicker`, 1–4 across; 1–8 steps).
-Enter inside a step's island makes the NEXT step rather than committing: the
-text after the caret (or a placeholder) becomes a new blank-separated paragraph
-and its island is activated with the placeholder selected, one dispatch. Text
-actions go through pure functions in
+The menu is `ReportFileMenu`; for a FASTR report the user cannot write (a
+viewer, or an editor after a fatal collab error) it sits alone in the menu row,
+with Rename… and Manage access… only at `edit`. The Insert menu's Cover page row
+opens a thumbnail flyout (`CoverPicker`): one tile per `FASTR_COVER_PRESETS`
+entry (a layout on the ground that shows it best), each the REAL cover markup
+under the toolbar's scoped theme sheet plus `buildFastrCoverTileCss` (a fixed
+4:3 box the cover fills absolutely, em-scaled by a 5px font), so a tile is what
+the insert will look like in the current theme; the block segment's Layout
+control changes the composition afterwards. The hidden `:::report` fence is
+never a block target — the Page menu owns it. Right-clicking a table cell, a
+stat tile, a card, a column or a step opens panther's `showMenu` (rows/columns
+for tables; add-before/after, a Columns submenu and delete for tiles, cards and
+columns — the grid's column count follows the child count while it fits, and a
+card's or column's whole block moves as one, via `applyTilesChildAction`;
+add-before/after and delete for steps via `applyStepsChildAction`, where a step
+is any DIRECT child of `:::steps` — a paragraph's blank-separated run, or a
+nested block whole — and deleting the only step removes the block). The Insert
+menu's Stat, Tiles, Columns and Steps rows open the same count flyout as Table
+(`TilesPicker`, 1–4 across; 1–8 steps). Enter inside a step's island makes the
+NEXT step rather than committing: the text after the caret (or a placeholder)
+becomes a new blank-separated paragraph and its island is activated with the
+placeholder selected, one dispatch. Text actions go through pure functions in
 [lib/fastr_markdown_edits.ts](lib/fastr_markdown_edits.ts) that return
 pre-transaction, disjoint, ascending changes for ONE dispatch — in `lib/`
 because `server/tests/` cannot import from `client/src`, and the fiddly rules
