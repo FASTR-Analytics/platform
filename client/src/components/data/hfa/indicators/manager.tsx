@@ -13,6 +13,7 @@ import {
   TC,
 } from "lib";
 import {
+  ActionMenuButton,
   type BulkAction,
   Button,
   createDeleteAction,
@@ -23,6 +24,7 @@ import {
   getQueryStateFromApiResponse,
   HeadingBar,
   type ListItem,
+  type MenuItem,
   openComponent,
   plural,
   saveAs,
@@ -1024,6 +1026,50 @@ export function HfaIndicatorsManager(p: Props) {
     },
   ];
 
+  const otherActions = (): MenuItem[] => [
+    {
+      label: t3({
+        en: "Revalidate all",
+        fr: "Revalider tout",
+        pt: "Revalidar tudo",
+      }),
+      icon: "refresh",
+      disabled: !hfaDataAvailable() || revalidating(),
+      onClick: handleRevalidateAll,
+    },
+    {
+      label: t3({
+        en: "Check unused variables",
+        fr: "Vérifier les variables inutilisées",
+        pt: "Verificar variáveis não utilizadas",
+      }),
+      icon: "search",
+      disabled: !hfaDataAvailable(),
+      onClick: handleCheckUnusedVariables,
+    },
+    { type: "divider" },
+    {
+      label: t3({
+        en: "Download Excel",
+        fr: "Télécharger Excel",
+        pt: "Transferir Excel",
+      }),
+      icon: "download",
+      disabled: !hfaDataAvailable(),
+      onClick: handleDownloadXlsx,
+    },
+    {
+      label: t3({
+        en: "Import Excel",
+        fr: "Importer Excel",
+        pt: "Importar Excel",
+      }),
+      icon: "upload",
+      disabled: !hfaDataAvailable(),
+      onClick: () => handleWorkbookImport({ kind: "pick" }),
+    },
+  ];
+
   const bulkActions = createMemo<BulkAction<HfaIndicator>[]>(() =>
     instanceState.currentUserIsGlobalAdmin
       ? [
@@ -1123,59 +1169,8 @@ export function HfaIndicatorsManager(p: Props) {
                           children: (
                             <Show when={instanceState.currentUserIsGlobalAdmin}>
                               <div
-                                class="ui-gap-sm flex items-center"
                                 title={hfaDataAvailable() ? "" : noHfaDataMsg()}
                               >
-                                <Button
-                                  iconName="refresh"
-                                  onClick={handleRevalidateAll}
-                                  loading={revalidating()}
-                                  disabled={!hfaDataAvailable()}
-                                  outline
-                                >
-                                  {t3({
-                                    en: "Revalidate all",
-                                    fr: "Revalider tout",
-                                    pt: "Revalidar tudo",
-                                  })}
-                                </Button>
-                                <Button
-                                  iconName="search"
-                                  onClick={handleCheckUnusedVariables}
-                                  disabled={!hfaDataAvailable()}
-                                  outline
-                                >
-                                  {t3({
-                                    en: "Check unused variables",
-                                    fr: "Vérifier les variables inutilisées",
-                                    pt: "Verificar variáveis não utilizadas",
-                                  })}
-                                </Button>
-                                <Button
-                                  iconName="download"
-                                  onClick={handleDownloadXlsx}
-                                  disabled={!hfaDataAvailable()}
-                                  outline
-                                >
-                                  {t3({
-                                    en: "Download Excel",
-                                    fr: "Télécharger Excel",
-                                    pt: "Transferir Excel",
-                                  })}
-                                </Button>
-                                <Button
-                                  iconName="upload"
-                                  onClick={() =>
-                                    handleWorkbookImport({ kind: "pick" })}
-                                  disabled={!hfaDataAvailable()}
-                                  outline
-                                >
-                                  {t3({
-                                    en: "Import Excel",
-                                    fr: "Importer Excel",
-                                    pt: "Importar Excel",
-                                  })}
-                                </Button>
                                 <Button
                                   iconName="import"
                                   onClick={() =>
@@ -1202,6 +1197,7 @@ export function HfaIndicatorsManager(p: Props) {
                                   pt: "Adicionar",
                                 })}
                               </Button>
+                              <ActionMenuButton items={otherActions} outline />
                             </Show>
                           ),
                         }}
