@@ -19,9 +19,12 @@ import {
   type TableColumn,
   toNum0,
 } from "panther";
-import { createMemo, Show } from "solid-js";
+import { createMemo, For, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import {
+  dataIdWithIndicator,
+  dhis2FormulaRemedy,
+  dhis2NotFoundRemedy,
   indicatorNameText,
   indicatorsByDataId,
 } from "~/components/data/hmis/_shared/mod.ts";
@@ -80,6 +83,13 @@ export function Dhis2RunDetail(
     const indicator = byDataId().get(dataId);
     return indicator ? indicatorNameText(indicator) : "";
   };
+  const idList = (ids: string[]) => (
+    <div class="ui-spy-sm">
+      <For each={ids}>
+        {(id) => <div>{dataIdWithIndicator(id, byDataId().get(id))}</div>}
+      </For>
+    </div>
+  );
 
   const windowSelection = () =>
     p.run.selection?.kind === "window" ? p.run.selection : undefined;
@@ -395,22 +405,26 @@ export function Dhis2RunDetail(
                   <div class="border-danger bg-danger-subtle ui-pad ui-spy-sm rounded border">
                     <div class="ui-text-heading">
                       {t3({
-                        en: "DHIS2 ids not found in DHIS2",
-                        fr: "Identifiants DHIS2 introuvables dans DHIS2",
-                        pt: "IDs DHIS2 não encontrados no DHIS2",
+                        en:
+                          "Some selected indicators point to nothing in DHIS2",
+                        fr:
+                          "Certains indicateurs sélectionnés ne pointent vers rien dans DHIS2",
+                        pt:
+                          "Alguns indicadores selecionados não apontam para nada no DHIS2",
                       })}
                     </div>
-                    <div class="text-sm">
+                    <div>
                       {t3({
                         en:
-                          "These DHIS2 ids match no data element or operand in DHIS2 — every selected month of the indicators carrying them failed without a fetch, and will fail every run until the ids are fixed or removed in the indicator configuration.",
+                          "Their DHIS2 ids match no data element or operand in DHIS2, so every selected month of each failed without a fetch and will fail on every run until it is fixed.",
                         fr:
-                          "Ces identifiants DHIS2 ne correspondent à aucun élément de données ni opérande dans DHIS2 — chaque mois sélectionné des indicateurs qui les portent a échoué sans récupération, et échouera à chaque importation tant que les identifiants ne sont pas corrigés ou retirés de la configuration des indicateurs.",
+                          "Leurs identifiants DHIS2 ne correspondent à aucun élément de données ni opérande dans DHIS2 : chaque mois sélectionné de chacun a donc échoué sans récupération, et échouera à chaque importation tant qu'il n'est pas corrigé.",
                         pt:
-                          "Estes IDs DHIS2 não correspondem a nenhum elemento de dados nem operando no DHIS2 — todos os meses selecionados dos indicadores que os têm falharam sem obtenção, e falharão em todas as importações até os IDs serem corrigidos ou removidos na configuração dos indicadores.",
+                          "Os seus IDs DHIS2 não correspondem a nenhum elemento de dados nem operando no DHIS2, pelo que todos os meses selecionados de cada um falharam sem obtenção e falharão em todas as importações até ser corrigido.",
                       })}
                     </div>
-                    <div class="text-sm font-mono">{unknownIds.join(", ")}</div>
+                    <div>{dhis2NotFoundRemedy()}</div>
+                    {idList(unknownIds)}
                   </div>
                 </Show>
 
@@ -418,26 +432,25 @@ export function Dhis2RunDetail(
                   <div class="border-danger bg-danger-subtle ui-pad ui-spy-sm rounded border">
                     <div class="ui-text-heading">
                       {t3({
-                        en: "DHIS2 indicators are not imported as values",
+                        en: "Some selected indicators point to DHIS2 formulas",
                         fr:
-                          "Les indicateurs DHIS2 ne sont pas importés comme valeurs",
+                          "Certains indicateurs sélectionnés pointent vers des formules DHIS2",
                         pt:
-                          "Os indicadores DHIS2 não são importados como valores",
+                          "Alguns indicadores selecionados apontam para fórmulas DHIS2",
                       })}
                     </div>
-                    <div class="text-sm">
+                    <div>
                       {t3({
                         en:
-                          "These IDs are DHIS2 indicators (formulas). The importer reads only data elements and operands, so every selected month failed without a fetch and will keep failing; existing data is kept. Re-create each one with Add indicators from DHIS2 in the indicator list, which decomposes the formula into its data elements.",
+                          "A DHIS2 formula is what DHIS2 calls an indicator, and the importer reads only data elements, so every selected month of each of these failed without a fetch and will keep failing; data already imported is kept.",
                         fr:
-                          "Ces ID sont des indicateurs DHIS2 (des formules). L'importation ne lit que les éléments de données et les opérandes : chaque mois sélectionné a échoué sans récupération et continuera d'échouer ; les données existantes sont conservées. Recréez chacun d'eux avec Ajouter des indicateurs depuis DHIS2 dans la liste des indicateurs, qui décompose la formule en ses éléments de données.",
+                          "Une formule DHIS2 est ce que DHIS2 appelle un indicateur, et l'importation ne lit que les éléments de données : chaque mois sélectionné de chacun d'eux a donc échoué sans récupération et continuera d'échouer ; les données déjà importées sont conservées.",
                         pt:
-                          "Estes IDs são indicadores DHIS2 (fórmulas). A importação lê apenas elementos de dados e operandos, pelo que todos os meses selecionados falharam sem obtenção e continuarão a falhar; os dados existentes são mantidos. Recrie cada um com Adicionar indicadores do DHIS2 na lista de indicadores, que decompõe a fórmula nos seus elementos de dados.",
+                          "Uma fórmula DHIS2 é aquilo a que o DHIS2 chama um indicador, e a importação lê apenas elementos de dados, pelo que todos os meses selecionados de cada um destes falharam sem obtenção e continuarão a falhar; os dados já importados são mantidos.",
                       })}
                     </div>
-                    <div class="text-sm font-mono">
-                      {dhis2IndicatorIds.join(", ")}
-                    </div>
+                    <div>{dhis2FormulaRemedy()}</div>
+                    {idList(dhis2IndicatorIds)}
                   </div>
                 </Show>
 

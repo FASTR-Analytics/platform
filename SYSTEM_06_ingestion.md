@@ -182,14 +182,32 @@ This section is the authority. Every HMIS import, DHIS2 or CSV, is a row in
     the app never converts calendars/dates; a calendar-configured server does
     not read startDate/endDate as Gregorian), level-2 subtree split on
     size/timeout. Every other id gets no fetch and a permanent ledger error: a
-    DHIS2 indicator (a formula; the error names the DHIS2 indicator import in
-    the indicator configuration, which decomposes it into data elements, and its
-    existing data stays), or a data id that matches no data element or operand
-    at all. The run detail lists both sets (`classification.unknownIds` and
-    `dhis2IndicatorIds`). A response containing any period other than the
-    requested one fails the pull loudly (permanent). The evidence base (verdicts
-    E1–E13, incl. the calendar finding and the sizing fact that DVS deep-history
-    backfill ≈ 10 MB per dense element-month) lives outside this repo in
+    DHIS2 formula (what DHIS2 calls an indicator; its existing data stays), or a
+    data id that matches no data element or operand at all. Every message that
+    names a formula id calls it a "DHIS2 formula" and says once that DHIS2 calls
+    it an indicator; the internal names keep DHIS2's word: `run_stats` rows
+    store `dhis2IndicatorIds`, and the dispatcher's reason `dhis2_indicator`
+    matches it. The remedy for a formula id is: "To fix it: in the indicator
+    list, use Add from DHIS2, search the formula by name and save it. The app
+    creates one DHIS2 element per data element in the formula and one calculated
+    indicator for the formula itself. Then change the old indicator's type to
+    Uploaded and turn off its Include in analysis: it keeps the values it
+    already holds, and no DHIS2 import fetches it again. Delete it instead if it
+    holds no data." The remedy for a not-found id is: "If it holds no data, fix
+    its DHIS2 id or delete the indicator. If it holds data, change its type to
+    Uploaded: it keeps its data, and no DHIS2 import fetches it again." Retyping
+    to Uploaded is the remedy because an indicator with data can be neither
+    deleted nor given a new DHIS2 id (S5). The client's `dhis2FormulaRemedy` and
+    `dhis2NotFoundRemedy` (`hmis/_shared/indicator_display.ts`) carry these
+    verbatim and are shown in the run detail; each refused pair's ledger message
+    carries the same steps in one sentence. The run detail's two banners list
+    `classification.dhis2IndicatorIds` and `classification.unknownIds`, each
+    with its remedy and each id as `indicator id · label (UID)` through the
+    dictionary keyed by data id (`dataIdWithIndicator`), bare where no indicator
+    carries it. A response containing any period other than the requested one
+    fails the pull loudly (permanent). The evidence base (verdicts E1–E13, incl.
+    the calendar finding and the sizing fact that DVS deep-history backfill ≈ 10
+    MB per dense element-month) lives outside this repo in
     `~/projects/apps/wb-fastr-dhis2-lab` (RESULTS.md; DHIS2 caches analytics
     responses, so never time a repeated identical request).
 - Each pair integrates in its own small transaction: scoped delete (against an

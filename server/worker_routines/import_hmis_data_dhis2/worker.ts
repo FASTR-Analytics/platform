@@ -446,8 +446,8 @@ async function run(std: RunWorkerMessage) {
     );
 
     // Refused ids get no fetch: every pair becomes a permanent,
-    // ledger-visible error so stale config is loud. A DHIS2 indicator keeps
-    // its existing data; the ledger names the importer that re-creates it.
+    // ledger-visible error so stale config is loud. A DHIS2 formula keeps its
+    // existing data; the ledger gives the remedy.
     const failEveryPairOf = async (id: string, message: string) => {
       for (const pair of allPairs.filter((p) => p.dataId === id)) {
         await failPair(pair, message, "permanent");
@@ -457,16 +457,19 @@ async function run(std: RunWorkerMessage) {
       await failEveryPairOf(
         id,
         `Not found in DHIS2: "${id}" matches no data element or operand ` +
-          `(data element . category option combo). Update or remove this indicator's DHIS2 id.`,
+          `(data element . category option combo). To fix this, open the indicator list. ` +
+          `If this indicator holds no data, fix the id or delete the indicator. If it holds ` +
+          `data, change its type to Uploaded: it keeps its data, and no DHIS2 import fetches it again.`,
       );
     }
     for (const id of dhis2IndicatorIds) {
       await failEveryPairOf(
         id,
-        `"${id}" is a DHIS2 indicator (a formula), which this importer does not fetch: ` +
-          `only data elements and operands are imported as values. Re-create it through ` +
-          `the DHIS2 indicator import in the indicator configuration, which decomposes the ` +
-          `formula into its data elements. Its existing data is kept.`,
+        `"${id}" is a DHIS2 formula (what DHIS2 calls an indicator), which this importer ` +
+          `does not fetch: only data elements and operands are imported as values. Its ` +
+          `existing data is kept. To fix this, in the indicator list use Add from DHIS2 to ` +
+          `search the formula by name and save it, then change this indicator's type to ` +
+          `Uploaded and turn off its Include in analysis, or delete it if it holds no data.`,
       );
     }
 

@@ -419,8 +419,8 @@ export type DatasetHmisImportRunStats = {
     // data ids that are no data element or operand in DHIS2: permanent
     // ledger errors without any fetch.
     unknownIds: string[];
-    // data ids that are DHIS2 indicators (formulas): permanent ledger
-    // errors naming the decomposition importer, no fetch, existing data
+    // data ids that are DHIS2 formulas (what DHIS2 calls indicators):
+    // permanent ledger errors carrying the remedy, no fetch, existing data
     // kept.
     dhis2IndicatorIds: string[];
   };

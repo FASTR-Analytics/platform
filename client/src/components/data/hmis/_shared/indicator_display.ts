@@ -111,3 +111,38 @@ export function indicatorsByDataId(
   }
   return byDataId;
 }
+
+// How an import surface lists a data id: the indicator carrying it, then the
+// id itself; a data id no indicator carries appears bare.
+export function dataIdWithIndicator(
+  dataId: string,
+  indicator: HmisIndicator | undefined,
+): string {
+  return indicator === undefined
+    ? dataId
+    : `${indicator.indicator_common_id} · ${indicator.indicator_common_label} (${dataId})`;
+}
+
+// The authoritative wording is the dispatcher bullet of SYSTEM_06_ingestion.md.
+export function dhis2FormulaRemedy(): string {
+  return t3({
+    en:
+      "To fix it: in the indicator list, use Add from DHIS2, search the formula by name and save it. The app creates one DHIS2 element per data element in the formula and one calculated indicator for the formula itself. Then change the old indicator's type to Uploaded and turn off its Include in analysis: it keeps the values it already holds, and no DHIS2 import fetches it again. Delete it instead if it holds no data.",
+    fr:
+      "Pour corriger : dans la liste des indicateurs, utilisez Ajouter depuis DHIS2, recherchez la formule par son nom et enregistrez-la. L'application crée un élément DHIS2 par élément de données de la formule et un indicateur calculé pour la formule elle-même. Changez ensuite le type de l'ancien indicateur en Téléversé et désactivez son Inclure dans l'analyse : il garde les valeurs qu'il contient déjà, et aucune importation DHIS2 ne le récupère plus. Supprimez-le plutôt s'il ne contient aucune donnée.",
+    pt:
+      "Para corrigir: na lista de indicadores, use Adicionar do DHIS2, procure a fórmula pelo nome e guarde-a. A aplicação cria um elemento DHIS2 por cada elemento de dados da fórmula e um indicador calculado para a própria fórmula. Depois, mude o tipo do indicador antigo para Carregado e desative o seu Incluir na análise: mantém os valores que já tem, e nenhuma importação DHIS2 o volta a obter. Em vez disso, elimine-o se não tiver dados.",
+  });
+}
+
+// The authoritative wording is the dispatcher bullet of SYSTEM_06_ingestion.md.
+export function dhis2NotFoundRemedy(): string {
+  return t3({
+    en:
+      "If it holds no data, fix its DHIS2 id or delete the indicator. If it holds data, change its type to Uploaded: it keeps its data, and no DHIS2 import fetches it again.",
+    fr:
+      "S'il ne contient aucune donnée, corrigez son identifiant DHIS2 ou supprimez l'indicateur. S'il contient des données, changez son type en Téléversé : il garde ses données, et aucune importation DHIS2 ne le récupère plus.",
+    pt:
+      "Se não tiver dados, corrija o seu ID DHIS2 ou elimine o indicador. Se tiver dados, mude o seu tipo para Carregado: mantém os seus dados, e nenhuma importação DHIS2 o volta a obter.",
+  });
+}
