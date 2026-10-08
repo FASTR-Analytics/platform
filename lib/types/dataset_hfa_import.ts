@@ -114,6 +114,12 @@ export type DatasetHfaCsvStagingResult = {
   nDictionaryVariables: number;
   nDictionaryValues: number;
   nXlsFormQuestionsNotInCsv: number;
+  // At most 10 of the question ids counted above, in form order. Absent on
+  // runs staged before the field existed.
+  xlsFormQuestionsNotInCsvSample?: string[];
   nCsvColsNotInXlsForm: number;
+  // At most 10 of the headers counted above, in file order. Absent on runs
+  // staged before the field existed.
+  csvColsNotInXlsFormSample?: string[];
   nSelectMultipleExpanded: number;
 };

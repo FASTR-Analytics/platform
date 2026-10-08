@@ -13,7 +13,7 @@ indicator (a formula), the DHIS2 import fails every month of it as designed, but
 says so in DHIS2's vocabulary, by bare UID, without the steps that fix it, and
 only after the run.
 
-**Next step: Do 1.** Each session sets this line in its final commit. Its values
+**Next step: Review 1.** Each session sets this line in its final commit. Its values
 are `Do N`, `Review N` and `Fix N`. The review that passes step 5 deletes this
 file.
 
@@ -437,3 +437,9 @@ again. The earlier build runs against the same databases.
 
 | Step | Row |
 | ---- | --- |
+| 1 | Ruling 3's abort fires when no column will become a variable (`csvQuestionMappings.length === 0`), the exact precondition for the stage leg writing nothing. A file whose only matches are non-staged types (`text`, `calculate`) aborts here too, with the same message, instead of reaching the worker's zero-rows message. |
+| 1 | Ruling 3's "questions of a staged type in the form" is `xlsFormQuestionsNotInCsv.length`, as ruled, which by ruling 4 omits a staged-type question the facility id column matched. The count is short by one only when the facility column is itself a staged-type question. The test fixture is such a case (`id_fac` is a `select_one`), so its message says 3 where the form has 4. |
+| 1 | The resolved open item "duplicate CSV columns die on a cryptic PK error" is deleted from `SYSTEM_06_ingestion.md` (SYSTEMS.md §6: a resolved item is deleted, not annotated). |
+| 1 | `deno task test` with `.env` as is fails `server/tests/mcp_context_cache_test.ts` (outside the surface, unchanged since 2026-09-14): the machine-global `pg` container was started from the `wb-fastr-v2` worktree and serves its data, so the ready run the test picks has its manifest under v2's runs dir, not this checkout's. Against this checkout's own data the suite is 150 passed, 0 failed. |
+| 1 | The `./run` gate ran as an isolated boot. `./run` stops and replaces the machine-global `pg` and `valkey-local` containers and binds port 8000, all held by a live `wb-fastr-v2` session (foreground `main.ts` started 2026-10-08 12:48). Same `main.ts` command and `.env`, with `PG_PORT=7002`, `VALKEY_URL=redis://localhost:7380` and `PORT=8002` from the shell, against `pg-step1` and `valkey-step1` mounting this checkout's `_example_instance_dir`, vite on 3002. Migrations ran, 286 routes validated, `/` served 200, SIGINT shutdown clean. Both containers removed afterwards. |
+| 1 | Step 1 built. |

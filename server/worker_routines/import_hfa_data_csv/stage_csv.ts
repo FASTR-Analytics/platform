@@ -10,6 +10,7 @@ import {
 } from "lib";
 import { getHfaRowScanComponents } from "../../server_only_funcs_csvs/scan_hfa_rows.ts";
 import {
+  type ParsedXlsForm,
   parseXlsForm,
   qualifiedQuestionLabel,
   XLSFORM_LABEL_SEPARATOR,
@@ -23,6 +24,8 @@ import {
 // tables feed the integrate leg; the three intermediates are dropped as soon
 // as staging finishes. This replaces the fixed staging-table names, and is
 // what makes releasing the single-running slot on needs_review safe.
+
+const DIAGNOSTIC_SAMPLE_SIZE = 10;
 
 export function hfaStagingTableNames(runId: number): {
   raw: string;
@@ -101,56 +104,22 @@ export async function stageHfaCsvIntoTables(args: {
   const { headers, facilityIdIndex, processFilteredRows } =
     await getHfaRowScanComponents(csvFilePath, mappings.facilityIdColumn, rowFilters);
 
-  // Match CSV columns to XLSForm questions.
-  type CsvQuestionMapping = {
-    csvHeader: string;
-    csvIndex: number;
-    question: XlsFormQuestion;
-    choices?: XlsFormChoice[];
-  };
+  const {
+    csvQuestionMappings,
+    csvColsNotInXlsForm,
+    xlsFormQuestionsNotInCsv,
+  } = matchCsvColumnsToXlsForm(headers, facilityIdIndex, xlsForm);
 
-  const csvQuestionMappings: CsvQuestionMapping[] = [];
-  const unmatchedCsvCols: string[] = [];
-
-  for (let i = 0; i < headers.length; i++) {
-    if (i === facilityIdIndex) continue;
-    const csvHeader = headers[i];
-    // An ODK export header is the question's path through its groups,
-    // "section_a/subsection/question_id"; the last segment is the question id.
-    const questionId = csvHeader.includes("/")
-      ? csvHeader.substring(csvHeader.lastIndexOf("/") + 1)
-      : csvHeader;
-
-    const question = xlsForm.questions.get(questionId);
-    if (!question) {
-      unmatchedCsvCols.push(csvHeader);
-      continue;
-    }
-
-    // Only include select_one, select_multiple, integer, decimal
-    if (
-      question.type !== "select_one" &&
-      question.type !== "select_multiple" &&
-      question.type !== "integer" &&
-      question.type !== "decimal"
-    ) {
-      continue;
-    }
-
-    const mapping: CsvQuestionMapping = {
-      csvHeader,
-      csvIndex: i,
-      question,
-    };
-
-    if (
-      (question.type === "select_one" || question.type === "select_multiple") &&
-      question.listName
-    ) {
-      mapping.choices = xlsForm.choiceLists.get(question.listName);
-    }
-
-    csvQuestionMappings.push(mapping);
+  // Nothing would be staged, and the worker's zero-rows message would send
+  // the user to the facility column and the filters, which are not the cause.
+  if (csvQuestionMappings.length === 0) {
+    throw new Error(
+      `No CSV column matches a question in the XLSForm: ${headers.length} columns in the file, ` +
+        `${xlsFormQuestionsNotInCsv.length} questions of a staged type in the form, 0 matched. ` +
+        `The CSV headers and the XLSForm 'name' column must carry the same question ids. ` +
+        `First columns: ${csvColsNotInXlsForm.slice(0, 5).join(", ")}. ` +
+        `First questions: ${xlsFormQuestionsNotInCsv.slice(0, 5).join(", ")}.`,
+    );
   }
 
   const variableIds = csvQuestionMappings.flatMap((m) => {
@@ -172,17 +141,6 @@ export async function stageHfaCsvIntoTables(args: {
     throw new Error(
       `The variable id "${reservedCollisions[0]}" is reserved (it collides with a function or operator used in indicator code, or with a column the analysis script generates). Rename the question in the XLSForm, and its column in the CSV, and re-upload.`,
     );
-  }
-
-  const nCsvColsNotInXlsForm = unmatchedCsvCols.length;
-
-  // Count XLSForm questions not in CSV (informational)
-  const matchedQuestionIds = new Set(
-    csvQuestionMappings.map((m) => m.question.questionId),
-  );
-  let nXlsFormQuestionsNotInCsv = 0;
-  for (const questionId of xlsForm.questions.keys()) {
-    if (!matchedQuestionIds.has(questionId)) nXlsFormQuestionsNotInCsv++;
   }
 
   const nSelectMultipleExpanded = csvQuestionMappings.filter(
@@ -514,8 +472,104 @@ WHERE NOT EXISTS (
     timePoint,
     nDictionaryVariables: dictVariableRows.length,
     nDictionaryValues: dictValueRows.length,
-    nXlsFormQuestionsNotInCsv,
-    nCsvColsNotInXlsForm,
+    nXlsFormQuestionsNotInCsv: xlsFormQuestionsNotInCsv.length,
+    xlsFormQuestionsNotInCsvSample: xlsFormQuestionsNotInCsv.slice(
+      0,
+      DIAGNOSTIC_SAMPLE_SIZE,
+    ),
+    nCsvColsNotInXlsForm: csvColsNotInXlsForm.length,
+    csvColsNotInXlsFormSample: csvColsNotInXlsForm.slice(
+      0,
+      DIAGNOSTIC_SAMPLE_SIZE,
+    ),
     nSelectMultipleExpanded,
   };
+}
+
+const STAGED_QUESTION_TYPES = new Set<XlsFormQuestion["type"]>([
+  "select_one",
+  "select_multiple",
+  "integer",
+  "decimal",
+]);
+
+type CsvQuestionMapping = {
+  csvHeader: string;
+  csvIndex: number;
+  question: XlsFormQuestion;
+  choices?: XlsFormChoice[];
+};
+
+// A header matches the question with its id, else the one question whose id
+// equals it ignoring case: a survey firm's export can re-case the form's names
+// (Nigeria's id_fac_txt for ID_FAC_TXT). The variable id is the form's spelling.
+function matchCsvColumnsToXlsForm(
+  headers: string[],
+  facilityIdIndex: number,
+  xlsForm: ParsedXlsForm,
+): {
+  csvQuestionMappings: CsvQuestionMapping[];
+  csvColsNotInXlsForm: string[];
+  xlsFormQuestionsNotInCsv: string[];
+} {
+  const questionsByLowerId = new Map<string, XlsFormQuestion[]>();
+  for (const question of xlsForm.questions.values()) {
+    const key = question.questionId.toLowerCase();
+    questionsByLowerId.set(key, [
+      ...(questionsByLowerId.get(key) ?? []),
+      question,
+    ]);
+  }
+  const findQuestion = (questionId: string): XlsFormQuestion | undefined => {
+    const caseless = questionsByLowerId.get(questionId.toLowerCase()) ?? [];
+    return xlsForm.questions.get(questionId) ??
+      (caseless.length === 1 ? caseless[0] : undefined);
+  };
+
+  const csvQuestionMappings: CsvQuestionMapping[] = [];
+  const csvColsNotInXlsForm: string[] = [];
+  const questionIdsInCsv = new Set<string>();
+  const stagedHeaderByQuestionId = new Map<string, string>();
+
+  headers.forEach((csvHeader, csvIndex) => {
+    // An ODK export header is the question's path through its groups,
+    // "section_a/subsection/question_id"; the last segment is the question id.
+    const question = findQuestion(
+      csvHeader.substring(csvHeader.lastIndexOf("/") + 1),
+    );
+    if (question) questionIdsInCsv.add(question.questionId);
+    if (csvIndex === facilityIdIndex) return;
+    if (!question) {
+      csvColsNotInXlsForm.push(csvHeader);
+      return;
+    }
+    if (!STAGED_QUESTION_TYPES.has(question.type)) return;
+
+    // Two columns for one question would collide on the final table's primary
+    // key with a Postgres error no user can read.
+    const earlierHeader = stagedHeaderByQuestionId.get(question.questionId);
+    if (earlierHeader !== undefined) {
+      throw new Error(
+        `The CSV columns "${earlierHeader}" and "${csvHeader}" both match the XLSForm question "${question.questionId}". Remove one of them from the CSV and re-upload.`,
+      );
+    }
+    stagedHeaderByQuestionId.set(question.questionId, csvHeader);
+
+    csvQuestionMappings.push({
+      csvHeader,
+      csvIndex,
+      question,
+      choices: question.listName
+        ? xlsForm.choiceLists.get(question.listName)
+        : undefined,
+    });
+  });
+
+  const xlsFormQuestionsNotInCsv = [...xlsForm.questions.values()]
+    .filter((q) =>
+      STAGED_QUESTION_TYPES.has(q.type) && !questionIdsInCsv.has(q.questionId)
+    )
+    .map((q) => q.questionId);
+
+  return { csvQuestionMappings, csvColsNotInXlsForm, xlsFormQuestionsNotInCsv };
 }

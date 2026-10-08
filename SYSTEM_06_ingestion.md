@@ -39,6 +39,7 @@ globs:
   - server/server_only_funcs_csvs/**
   - server/tests/csv_mapping_staging_test.ts
   - server/tests/dhis2_skip_and_record_test.ts
+  - server/tests/hfa_csv_column_matching_test.ts
   - server/tests/indicator_selection_expansion_test.ts
   - server/worker_routines/import_hfa_data_csv/**
   - server/worker_routines/import_hmis_data_csv/**
@@ -229,7 +230,13 @@ the shared mechanism; HFA differs only here:
   at complete; rides the polled list, no detail route; a TEXT column parsed
   without a schema, so a renamed key is rewritten in place by an instance
   migration, as 093 did for `nDictionaryVariables` and
-  `nXlsFormQuestionsNotInCsv`), `n_rows_integrated`.
+  `nXlsFormQuestionsNotInCsv`), `n_rows_integrated`. The diagnostics carry
+  `csvColsNotInXlsFormSample` (at most 10 unmatched headers, file order) and
+  `xlsFormQuestionsNotInCsvSample` (at most 10 ids of staged-type questions
+  no column matched, form order). `nXlsFormQuestionsNotInCsv` counts
+  staged-type questions only, and a question the facility id column matched
+  counts as present. Both sample fields are optional, so a run staged before
+  they existed reads without them.
 - **Clean condition**: `nRowsInvalidMissingFacilityId +
   nRowsInvalidFacilityNotFound = 0 AND nRowsTotal > 0`. Duplicates and
   filtered-out rows never gate. Both are resolved by user intent at wizard
@@ -328,7 +335,16 @@ start.
   variable, a `-99` don't-know parent marks unselected choices `-99`); a
   variable id that `isReservedHfaId` rejects (`weight`, `variable_id`,
   `time_point`, an R keyword, any case, expanded ids included) aborts
-  staging; duplicate question ids are a hard error.
+  staging; duplicate question ids are a hard error. A CSV header (its last
+  `/` segment, for an ODK group path) matches the question with that id, else
+  the one question whose id equals it ignoring case, and the variable id is
+  always the form's spelling: survey firms re-case the form's names (Nigeria's
+  `id_fac_txt` for `ID_FAC_TXT`). Two columns matching one staged question
+  abort staging, naming both. Zero matched columns abort staging before any
+  table is created, naming the first unmatched columns and the first questions
+  without a column, so the worker's zero-rows message (facility checks and
+  filters) is reached only in the case it describes. Pinned by
+  `server/tests/hfa_csv_column_matching_test.ts`.
 - HFA row filtering + dedup (order fixed: **filter → review → resolve**; all
   fields in the run's mappings JSON): `rowFilters` (ANDed; trimmed-string
   `equals`/`not_equals` on the raw cell) drop rows before any duplicate
@@ -554,7 +570,7 @@ dataset version stamps the manifest records. No project table is written.
   projection is redacted; at-rest encryption is a pending ruling, same item in
   SYSTEM_05).
 - HFA: the final staging table is LOGGED while the dict tables are UNLOGGED
-  (mixed crash durability); duplicate CSV columns die on a cryptic PK error.
+  (mixed crash durability).
 - `getCsvDetails` (both CSV families' header parse) reads the whole file into memory for
   headers; the streaming variant's header read is one 64 KB `file.read()` (wide
   XLSForm exports / short reads → confusing failure).
