@@ -1171,7 +1171,8 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
 
       // Prune orphan registry entries at load (PLAN_REPORTS.md §11). The
       // loosest scan ("any": both token syntaxes and anything looser) — a
-      // kept orphan is harmless, a missed reference deletes a figure.
+      // kept orphan is harmless, a missed reference deletes a figure. Only a
+      // user who can edit writes the prune back; a viewer's stays in memory.
       const refs = referencedReportEmbedIds(res.data.body, "any");
       const prunedFigures = Object.fromEntries(
         Object.entries(res.data.figures).filter(([id]) => refs.figures.has(id)),
@@ -1182,12 +1183,14 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
       setFigures(prunedFigures);
       setImages(prunedImages);
       if (
+        canConfigure() &&
         Object.keys(prunedFigures).length !==
           Object.keys(res.data.figures).length
       ) {
         void persistFigures(prunedFigures);
       }
       if (
+        canConfigure() &&
         Object.keys(prunedImages).length !== Object.keys(res.data.images).length
       ) {
         void persistImages(prunedImages);
@@ -1456,11 +1459,11 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     } else if (!collabReady()) {
       // Collab never became ready: the REST autosave owns persistence.
       void flushBodySave();
-    } else if (s && !s.isLive()) {
+    } else if (s && !s.isLive() && canConfigure()) {
       // Collab has edits the server never received (socket down, no reconnect
-      // before close): best-effort REST flush of the shared doc's state. If
-      // another user's room is still live server-side, the chokepoint merges
-      // this instead of clobbering.
+      // before close): best-effort REST flush of the shared doc's state, by a
+      // user who can edit. If another user's room is still live server-side,
+      // the chokepoint merges this instead of clobbering.
       const content = materializeReport(s.doc);
       void serverActions.updateReportBody({
         product_id: p.productId,

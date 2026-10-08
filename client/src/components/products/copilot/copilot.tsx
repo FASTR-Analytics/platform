@@ -33,6 +33,7 @@ import {
   instanceState,
   productById,
 } from "~/state/instance/t1_store";
+import { productLevel } from "~/state/instance/product_access";
 import { addLastUpdatedListener } from "~/state/instance/t1_sse";
 import { getRunAuthoringContextFromCacheOrFetch } from "~/state/instance/t2_run_authoring_context";
 import { ConsolidatedChatPane } from "./chat_pane";
@@ -150,11 +151,16 @@ function ProductCopilot(p: {
     })),
   };
 
+  // Read once, like the rest of the catalogue: a level change reaches the
+  // copilot the next time the product is opened.
+  const level = productLevel(p.productId);
+
   const tools = buildCopilotTools(
     env,
     p.scope,
     p.authoringContext,
     hfaTaxonomy,
+    level,
   );
 
   // CACHE RULE: no currentView here: the no-view catalog is byte-stable;
@@ -171,6 +177,7 @@ function ProductCopilot(p: {
       p.scope,
       p.authoringContext,
       toolCatalog,
+      level,
     )
   );
 

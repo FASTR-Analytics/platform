@@ -144,11 +144,10 @@ routes ride its route files. S12 owns the files, S16 the feature (SYSTEMS.md
 §4.1; [SYSTEM_16_collaboration.md](SYSTEM_16_collaboration.md)). Every product
 route declares its `access` level and is guarded by `requireProductAccess` (S1:
 the user needs the declared level on the product and, if restricted, its scope);
-on the client the one gate is `canEditProduct(productId)` in
-`state/instance/product_access.ts`, which needs no grant check because a
-restricted client holds only its grants' products. There is no unauthenticated
-product surface: a deck reaches recipients as an emailed PDF (cross-cutting
-audit SYSTEMS.md §4.3.9).
+on the client the gates are `productLevel`, `canEditProduct` and `canOwnProduct`
+in `state/instance/product_access.ts` ("Access in the client" below). There is
+no unauthenticated product surface: a deck reaches recipients as an emailed PDF
+(cross-cutting audit SYSTEMS.md §4.3.9).
 
 **Access is a Google Doc's** (PLAN_PRODUCT_OWNERSHIP). A product has one owner,
 per-user grants at `view` or `edit`, and a general access for everyone else in
@@ -182,6 +181,53 @@ folder at a time. `setProductAccess` (`PUT
 their own grant or lower the general access below their own level; the owner and
 the admins always keep access. None of the three bumps `last_updated` or records
 a version edit: each re-broadcasts the summaries it changed.
+
+**Access in the client.** `productLevel(productId)` derives the connection's own
+level from the product's summary in `instanceState.products` with
+`productLevelFor`, reading `currentUserEmail` and `currentUserIsGlobalAdmin`, so
+every gate follows a level change live; an id not in the store is `none`.
+`canEditProduct` is `edit` or above and `canOwnProduct` is `own`. Every
+affordance follows this table:
+
+| Needs  | Affordances                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `view` | Open, Present, Download…, Share… and Email this file…, History, Restore as copy, Copy to deck… (its picker lists only decks the user can edit), Duplicate and Make a copy…, the copilot's read tools and draft previews                                                                                                                                                                                        |
+| `edit` | Add slide, Duplicate slide, Delete slide, the rail's reorder, every content write in both editors, Update all figures, the figure editor, the Deck menu (theme, logos, footer, all deck settings), the report's theme and page setup, Name and folder… and Rename…, the package and scope chip, Restore, Save this report's style…, the draft preview's Add to deck, Manage access…, the copilot's write tools |
+| `own`  | Delete, Transfer ownership…                                                                                                                                                                                                                                                                                                                                                                                    |
+
+A viewer's editors open read-only: the deck hides Add slide, the Deck menu,
+Update all figures and the slide card's menu, the rail does not reorder, and the
+slide canvas takes no divider drag, block swap or context menu; the report's
+body editor is read-only, and a FASTR report the user cannot write shows its
+File menu alone in the menu row (`ReportFileMenu`: Download…, Email this file…,
+Make a copy…). A product row in the list shows a lock icon when its general
+access is `none`. Folder and create affordances keep `currentUserApproved`,
+since folders carry no level. The `products_upserted` handler fires the stamp
+listener only for a product whose stamp moved, so an access re-broadcast reaches
+the store and no listener.
+
+**The access dialog.** `ProductAccessModal` (`_shared/product_access_modal.tsx`)
+is behind "Manage access…" in the product menu, the deck's File menu and the
+FASTR report's File menu, at `edit`. It holds a General access select
+(Restricted / Anyone in this instance can view / Anyone in this instance can
+edit); the owner row, where an owner or a global admin picks a new owner
+(Transfer ownership…, or Set owner… on an ownerless product), applied to the
+draft as the server applies it (the previous owner becomes an `edit` grantee and
+the new owner's grant goes); a fixed "Administrators: full access" row; the
+grants, each with a level select and a remove button; and an add-person picker
+over `instanceState.users` that leaves out the owner, global admins and the
+people already listed. A restricted user who lacks the product's scope is
+marked, in the picker and in their row, because such a grant stays inert until
+their scope access changes. Save calls `setProductOwner` when the owner changed,
+then `setProductAccess` when the draft differs from what the transfer leaves.
+The dialog never offers the owner as a grantee, offers only roster users and
+lists each person once, so it cannot produce the three refusals; one caused by a
+race shows the server's message. Its bulk mode, "Set access for everything in
+this folder…" in the folder menu for a global admin, calls
+`setFolderProductsAccess`: a General access select whose first choice, "Leave as
+is", sends `none`; the add-person picker with a level per person and no remove
+buttons; no owner row and no existing people; and a line giving how many
+products the folder and its subfolders hold and that access is only raised.
 
 ## The products registry on `main`
 
@@ -465,8 +511,8 @@ product deleted under an open editor closes it. The header shows the
 which for an editor opens `PackageScopeModal` with a count of the figures the
 candidate pair would leave stale; Present and History are buttons on the bar,
 and the deck's File menu holds Download, Share, `ProductSettings` for name and
-folder, and copying selected slides to another deck (there is no overflow menu
-left).
+folder and Manage access… (both for an editor), and copying selected slides to
+another deck (there is no overflow menu left).
 
 **One screen, Google-Slides style (2026-09-22).** The deck is ONE header: the
 name (with the deck glyph over the back arrow, the chip and presence) and, under
@@ -519,11 +565,11 @@ already a no-op in the editor. Verified by sampling the header's box every frame
 across both a warm and a cold switch: one geometry, no variation.
 
 **The Deck menu (2026-09-24).** The menu row is the deck's own menus first
-(`File`: Download, Share, name and folder, and copy-to-deck, as the report
-toolbar's File menu does; then `Deck`), then the open slide's (Slide / Insert /
-Split panel, portaled there by `SlideToolbar` through `menuRowHost`), and
-`SlideList` owns that row's padding and the pull-back that puts the first label
-on the deck name's left margin. `Deck`
+(`File`: Download, Share, name and folder, Manage access…, and copy-to-deck, as
+the report toolbar's File menu does; then `Deck`, for an editor), then the open
+slide's (Slide / Insert / Split panel, portaled there by `SlideToolbar` through
+`menuRowHost`), and `SlideList` owns that row's padding and the pull-back that
+puts the first label on the deck name's left margin. `Deck`
 ([deck_menu.tsx](client/src/components/products/slide_deck/deck_menu.tsx)) is
 the report toolbar's Page menu, for decks: Theme (the `ThemePicker` cards,
 live-previewing this deck), Logos (the custom list plus the cover, header and
@@ -686,22 +732,26 @@ restores the tree. The list's clickable Name and Last updated headers set the
 sort (`SortMode`); folders sort by the same mode and always come first.
 
 One menu builder per kind (`product_menu.ts`, `folder_menu.ts`) serves the row's
-button and the right-click menu, and both share `buildQuickMoveEntries`,
-relative to the item's own folder: **Move into ▸** (its sibling folders, capped
-at 10, then More…), **Move up to "grandparent"**, the root entry (**Move to
-General** for a product, **Move to top level** for a folder, the label passed by
-each builder), **Move to folder…**. Every folder move, quick, picked or dropped,
-is `moveFolder`, which writes only the parent. The full picker
-(`move_to_folder_modal.tsx`) moves a product (`moveProductsToFolder`) or a
-folder (`moveFolder`), lists flat full paths sorted by path with General first
-(`GENERAL_ID` as the option value for the root), and excludes a moved folder's
-own subtree; the server's typed `FOLDER_CYCLE` is still the authority.
-`edit_folder_modal.tsx` creates a folder at the top level and renames or
-recolours an existing one through `updateFolder`, which writes label and colour
-only and never the parent, so a rename cannot undo a move. Deleting a folder
-**reparents one level and never cascades**, and the confirmation carries the
-direct counts and the destination: the parent for a nested folder, and for a
-root folder the top level for its folders and General for its products.
+button and the right-click menu. The product menu is built from the level table
+("Access in the client"): a viewer's holds Duplicate only; at `edit` it adds the
+quick moves, Settings, Results package and scope… and Manage access…; at `own`
+it adds Delete. The folder menu offers a global admin "Set access for everything
+in this folder…". Both share `buildQuickMoveEntries`, relative to the item's own
+folder: **Move into ▸** (its sibling folders, capped at 10, then More…), **Move
+up to "grandparent"**, the root entry (**Move to General** for a product, **Move
+to top level** for a folder, the label passed by each builder), **Move to
+folder…**. Every folder move, quick, picked or dropped, is `moveFolder`, which
+writes only the parent. The full picker (`move_to_folder_modal.tsx`) moves a
+product (`moveProductsToFolder`) or a folder (`moveFolder`), lists flat full
+paths sorted by path with General first (`GENERAL_ID` as the option value for
+the root), and excludes a moved folder's own subtree; the server's typed
+`FOLDER_CYCLE` is still the authority. `edit_folder_modal.tsx` creates a folder
+at the top level and renames or recolours an existing one through
+`updateFolder`, which writes label and colour only and never the parent, so a
+rename cannot undo a move. Deleting a folder **reparents one level and never
+cascades**, and the confirmation carries the direct counts and the destination:
+the parent for a nested folder, and for a root folder the top level for its
+folders and General for its products.
 
 **Dragging** (`list_view.tsx`) is the other way to move, with native HTML drag
 events and no library. A product row the user may edit (`canEditProduct`) and a
@@ -769,11 +819,12 @@ the store is ready is dropped as a dead link).
 
 The deck view's `SlideList` renders cards in the vendored SortableJS wrapper
 (multiDrag; optimistic local order; reorder diffs the moved run and calls
-`moveSlides`), and its menu carries **"Copy to deck…"**
+`moveSlides`, for an editor), and its menu carries **"Copy to deck…"**
 (`copy_slides_to_deck_modal.tsx` over `copySlidesToSlideDeck`), the only
 cross-product figure reuse there is: bundles are copied verbatim, so the picker
-names each destination deck's package and scope. Folders have **no GET route**:
-they ride the `starting` payload and `folders_updated` only.
+names each destination deck's package and scope, and it lists only the decks the
+user can edit, because the copy writes into the destination. Folders have **no
+GET route**: they ride the `starting` payload and `folders_updated` only.
 
 ## Reports
 
@@ -1993,29 +2044,31 @@ html2canvas facts are load-bearing: `foreignObjectRendering` is required (the
 default text path drops the SPACES between words on these fonts), and every
 `color(srgb …)` — how Chrome serializes the theme's `color-mix()` — must be
 rewritten to rgba() first or it throws on an unsupported colour function. The
-`sendReportEmail` route carries the attachment's MIME type), Rename…
-(`rename_report_modal.tsx` → `updateReportLabel`; the host's heading follows at
-once) and Make a copy… (the project list's `DuplicateReportModal`, seeded with
-the current label and folder). The Insert menu's Cover page row opens a
-thumbnail flyout (`CoverPicker`): one tile per `FASTR_COVER_PRESETS` entry (a
-layout on the ground that shows it best), each the REAL cover markup under the
-toolbar's scoped theme sheet plus `buildFastrCoverTileCss` (a fixed 4:3 box the
-cover fills absolutely, em-scaled by a 5px font), so a tile is what the insert
-will look like in the current theme; the block segment's Layout control changes
-the composition afterwards. The hidden `:::report` fence is never a block target
-— the Page menu owns it. Right-clicking a table cell, a stat tile, a card, a
-column or a step opens panther's `showMenu` (rows/columns for tables;
-add-before/after, a Columns submenu and delete for tiles, cards and columns —
-the grid's column count follows the child count while it fits, and a card's or
-column's whole block moves as one, via `applyTilesChildAction`; add-before/after
-and delete for steps via `applyStepsChildAction`, where a step is any DIRECT
-child of `:::steps` — a paragraph's blank-separated run, or a nested block whole
-— and deleting the only step removes the block). The Insert menu's Stat, Tiles,
-Columns and Steps rows open the same count flyout as Table (`TilesPicker`, 1–4
-across; 1–8 steps). Enter inside a step's island makes the NEXT step rather than
-committing: the text after the caret (or a placeholder) becomes a new
-blank-separated paragraph and its island is activated with the placeholder
-selected, one dispatch. Text actions go through pure functions in
+`sendReportEmail` route carries the attachment's MIME type), Rename… (the shared
+`ProductSettings`; the host's heading follows the store), Manage access…
+(`ProductAccessModal`) and Make a copy… (the shared `DuplicateProductsModal`).
+The menu is `ReportFileMenu`; for a FASTR report the user cannot write it sits
+alone in the menu row without Rename… and Manage access…. The Insert menu's
+Cover page row opens a thumbnail flyout (`CoverPicker`): one tile per
+`FASTR_COVER_PRESETS` entry (a layout on the ground that shows it best), each
+the REAL cover markup under the toolbar's scoped theme sheet plus
+`buildFastrCoverTileCss` (a fixed 4:3 box the cover fills absolutely, em-scaled
+by a 5px font), so a tile is what the insert will look like in the current
+theme; the block segment's Layout control changes the composition afterwards.
+The hidden `:::report` fence is never a block target — the Page menu owns it.
+Right-clicking a table cell, a stat tile, a card, a column or a step opens
+panther's `showMenu` (rows/columns for tables; add-before/after, a Columns
+submenu and delete for tiles, cards and columns — the grid's column count
+follows the child count while it fits, and a card's or column's whole block
+moves as one, via `applyTilesChildAction`; add-before/after and delete for steps
+via `applyStepsChildAction`, where a step is any DIRECT child of `:::steps` — a
+paragraph's blank-separated run, or a nested block whole — and deleting the only
+step removes the block). The Insert menu's Stat, Tiles, Columns and Steps rows
+open the same count flyout as Table (`TilesPicker`, 1–4 across; 1–8 steps).
+Enter inside a step's island makes the NEXT step rather than committing: the
+text after the caret (or a placeholder) becomes a new blank-separated paragraph
+and its island is activated with the placeholder selected, one dispatch. Text
+actions go through pure functions in
 [lib/fastr_markdown_edits.ts](lib/fastr_markdown_edits.ts) that return
 pre-transaction, disjoint, ascending changes for ONE dispatch — in `lib/`
 because `server/tests/` cannot import from `client/src`, and the fiddly rules

@@ -372,7 +372,20 @@ a `kind` (`"read"` / `"write"`); no tool is `"nav"`, because there is nothing
 for the model to navigate: the copilot lives inside one product. There is no
 product registry: the model never lists, opens or creates products, and a draft
 slide goes only into the open deck (the preview card offers "Add to this deck"
-from the deck and slide views and is preview-only in a report).
+from the deck and slide views when the user can edit the deck, and is
+preview-only in a report and for a viewer).
+
+**A viewer's catalogue** (PLAN_PRODUCT_OWNERSHIP R13): `ProductCopilot` reads
+the user's level on the product once per mount (`productLevel`, S12) and passes
+it to `buildCopilotTools`, which keeps only the `kind: "read"` tools of the
+three editor groups for a user below `edit`: `get_deck`, `get_slide`,
+`get_slide_editor`, `get_report_editor`, `get_report_figure` and
+`get_report_pages`. The metrics, module, methodology, info, draft-preview and
+question tools are unchanged, so a viewer can still ask about the product. Like
+the rest of the catalogue the level is fixed for the mount: a level change takes
+effect the next time the product is opened, and a write tool used after a
+demotion fails with the server's refusal. The chat menu's "Save this report's
+style…" is offered only to a user who can edit the report.
 
 **Gating is declarative.** The editor tools are standalone
 `createAITool({viewRegistry: copilotViews, availableIn: […]})` declarations: the
@@ -587,7 +600,10 @@ full, with the rule that a limit applies only to a table that has a column for
 it; the package's datasets and indicator lists) + the instance-level
 `ai_context` + reference-doc catalog (`SPA_INFO_TOPICS`) + base instructions
 (read-data-first, no fabrication, indicator directionality) + the tool catalog.
-The accessor takes no view argument, so the prompt is **byte-stable across
+For a viewer the results-package section carries one more sentence: the user can
+view the product but not change it, so the model can read it and answer
+questions but has no tools that edit it. The accessor takes no view argument and
+the level is read once per mount, so the prompt is **byte-stable across
 navigation within one package** and its prompt-cache breakpoint keeps hitting:
 the per-view instructions (still exported from this file, with short
 primary-tool pointers) are composed by the view registry

@@ -7,6 +7,8 @@ import {
   MAX_CONTENT_BLOCKS,
   MODULE_FAMILY_ORDER,
   type PackageScope,
+  type ProductLevel,
+  productLevelAtLeast,
   type RunAuthoringContext,
   type Scope,
   type ScopeDefinition,
@@ -68,15 +70,17 @@ function scopeLines(scope: Scope | undefined): string[] {
 // results package and scope, and the instance-level `ai_context`
 // (PLAN_PRODUCTS_RESTRUCTURE D15).
 //
-// BYTE-STABLE for the life of one mount: the pair and the authoring context
-// are fixed per mount (a reattach remounts), no view argument is taken, and
-// per-view instructions ride each view's instructions in ai_views.ts as a
-// per-turn ephemeral section. Only the instance AI context can change it.
+// BYTE-STABLE for the life of one mount: the pair, the authoring context and
+// the user's level are fixed per mount (a reattach remounts), no view
+// argument is taken, and per-view instructions ride each view's instructions
+// in ai_views.ts as a per-turn ephemeral section. Only the instance AI
+// context can change it.
 export function buildSystemPromptForContext(
   instance: InstanceState,
   scope: PackageScope,
   authoringContext: RunAuthoringContext,
   toolCatalog: string,
+  level: ProductLevel,
 ): string {
   const pkg = instance.readyPackages.find((p) => p.id === scope.runId);
   // A product attached to a package that is no longer ready has no entry:
@@ -91,6 +95,10 @@ export function buildSystemPromptForContext(
     "# Results package",
     "",
     "The open product is attached to exactly one results package at one scope; every figure inside it, and every metric read you make, resolves under that pair.",
+    ...(productLevelAtLeast(level, "edit") ? [] : [
+      "",
+      "The user can view this product but not change it, so you can read it and answer questions about it but have no tools that edit it.",
+    ]),
     "",
     packageLine,
     ...scopeLines(instance.scopes.find((s) => s.id === scope.scopeId)),

@@ -448,6 +448,11 @@ export function SlideEditor(p: Props) {
   let onLineageReset: (() => void) | undefined;
   const canEdit = () => canEditProduct(p.productId);
   const canUndoRedo = () => !!session() && collabReady() && canEdit();
+  // needsSave also flips when a remote change is adopted, so a viewer's editor
+  // can carry it: only a user who can edit ever saves over REST, and only
+  // while collab is not persisting.
+  const draftToSave = () =>
+    canEdit() && needsSave() && !(session()?.isLive() ?? false);
 
   function undo() {
     undoMgr?.undo();
@@ -737,7 +742,7 @@ export function SlideEditor(p: Props) {
     // deck switch): if collab isn't persisting and edits are pending, save
     // best-effort. Fire-and-forget with no conflict modal: at teardown there
     // is no UI to ask; a conflicting concurrent save simply wins.
-    if (needsSave() && !(session()?.isLive() ?? false)) {
+    if (draftToSave()) {
       void serverActions.updateSlide({
         product_id: p.productId,
         slide_id: p.slideId,
@@ -858,7 +863,7 @@ export function SlideEditor(p: Props) {
   // not the latched collabReady: edits made while disconnected sit only in
   // the local doc and die with it on close).
   async function flush(): Promise<boolean> {
-    if (needsSave() && !(session()?.isLive() ?? false)) {
+    if (draftToSave()) {
       const res = await saveFunc();
       if (
         res.success &&
