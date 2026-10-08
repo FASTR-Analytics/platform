@@ -186,11 +186,23 @@ history). Shape:
   the app never converts calendars/dates; a calendar-configured server does
   not read startDate/endDate as Gregorian), level-2 subtree split on
   size/timeout. Every other id gets no fetch and a permanent ledger error:
-  a DHIS2 indicator (a formula; the error names the DHIS2 indicator import
-  in the indicator configuration, which decomposes it into data elements,
-  and its existing data stays), or a data id that matches no data element
-  or operand at all. The run detail lists both sets
-  (`classification.unknownIds` and `dhis2IndicatorIds`). A response containing any period other than the
+  a DHIS2 formula (what DHIS2 calls an indicator; its existing data stays),
+  or a data id that matches no data element or operand at all. Every string
+  a user reads says "DHIS2 formula", with "what DHIS2 calls an indicator"
+  at its first mention; the stored identifiers (`dhis2_indicator`,
+  `dhis2IndicatorIds`) keep their names. The remedy for a formula id, worded
+  once here and carried verbatim by the client's `dhis2FormulaRemedy` (in
+  `indicator_manager_hmis/_indicator_display.ts`, the run detail's banner)
+  and in one sentence by the ledger message: in the indicator list, use Add
+  from DHIS2, search the formula by name and save it (one DHIS2 element per
+  data element in the formula and one calculated indicator for the formula
+  itself), then change the old indicator's type to Uploaded and turn off its
+  Include in analysis so it keeps its values and is never fetched again, or
+  delete it if it holds no data. The run detail lists both sets
+  (`classification.unknownIds` and `dhis2IndicatorIds`), each id beside the
+  indicator carrying it as `indicator id · label (UID)` through
+  `dataIdWithIndicator`, bare when no indicator carries it. A response
+  containing any period other than the
   requested one fails the pull loudly (permanent). The evidence base
   (verdicts E1–E13, incl. the calendar finding and the sizing fact that DVS
   deep-history backfill ≈ 10 MB per dense element-month) lives in the retired

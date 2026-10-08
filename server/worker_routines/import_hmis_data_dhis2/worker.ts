@@ -440,8 +440,8 @@ async function run(std: RunWorkerMessage) {
     );
 
     // Refused ids get no fetch: every pair becomes a permanent,
-    // ledger-visible error so stale config is loud. A DHIS2 indicator keeps
-    // its existing data; the ledger names the importer that re-creates it.
+    // ledger-visible error so stale config is loud. A DHIS2 formula keeps
+    // its existing data; the ledger carries the remedy (SYSTEM_06).
     const failEveryPairOf = async (id: string, message: string) => {
       for (const pair of allPairs.filter((p) => p.dataId === id)) {
         await failPair(pair, message, "permanent");
@@ -450,17 +450,22 @@ async function run(std: RunWorkerMessage) {
     for (const id of unknownIds) {
       await failEveryPairOf(
         id,
-        `Not found in DHIS2: "${id}" matches no data element or operand ` +
-          `(data element . category option combo). Update or remove this indicator's DHIS2 id.`,
+        `Not found in DHIS2: "${id}", this indicator's DHIS2 id, matches no data element ` +
+          `or operand (data element . category option combo). Fix the id in the indicator ` +
+          `list, or remove the indicator.`,
       );
     }
     for (const id of dhis2IndicatorIds) {
       await failEveryPairOf(
         id,
-        `"${id}" is a DHIS2 indicator (a formula), which this importer does not fetch: ` +
-          `only data elements and operands are imported as values. Re-create it through ` +
-          `the DHIS2 indicator import in the indicator configuration, which decomposes the ` +
-          `formula into its data elements. Its existing data is kept.`,
+        `"${id}" is a DHIS2 formula (what DHIS2 calls an indicator), which this importer ` +
+          `does not fetch because only data elements are imported as values, so this ` +
+          `indicator keeps the data it already holds and will fail every run until it is ` +
+          `fixed: in the indicator list, use Add from DHIS2 to search the formula by name ` +
+          `and save it, which creates one DHIS2 element per data element in the formula ` +
+          `and one calculated indicator for the formula itself, then change this ` +
+          `indicator's type to Uploaded and turn off its Include in analysis so it keeps ` +
+          `its values and is never fetched again, or delete it if it holds no data.`,
       );
     }
 

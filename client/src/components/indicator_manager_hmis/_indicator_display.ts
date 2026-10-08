@@ -114,3 +114,23 @@ export function indicatorsByDataId(
   }
   return byDataId;
 }
+
+export function dataIdWithIndicator(
+  indicator: HmisIndicator | undefined,
+  dataId: string,
+): string {
+  return indicator
+    ? `${indicator.indicator_common_id} · ${indicator.indicator_common_label} (${dataId})`
+    : dataId;
+}
+
+// The one wording of what a user does about a DHIS2 formula id, carried by
+// every surface that names one (SYSTEM_06, the dispatcher bullet of "HMIS
+// import runs").
+export function dhis2FormulaRemedy(): string {
+  return t3({
+    en: "To fix it: in the indicator list, use Add from DHIS2, search the formula by name and save it. The app creates one DHIS2 element per data element in the formula and one calculated indicator for the formula itself. Then change the old indicator's type to Uploaded and turn off its Include in analysis: it keeps the values it already holds, and no DHIS2 import fetches it again. Delete it instead if it holds no data.",
+    fr: "Pour corriger : dans la liste des indicateurs, utilisez Ajouter depuis DHIS2, recherchez la formule par son nom et enregistrez-la. L'application crée un élément DHIS2 par élément de données de la formule et un indicateur calculé pour la formule elle-même. Changez ensuite le type de l'ancien indicateur en Téléversé et désactivez son Inclure dans l'analyse : il conserve les valeurs qu'il contient déjà, et aucune importation DHIS2 ne le récupère plus. Supprimez-le plutôt s'il ne contient aucune donnée.",
+    pt: "Para corrigir: na lista de indicadores, use Adicionar do DHIS2, procure a fórmula pelo nome e guarde-a. A aplicação cria um elemento DHIS2 por elemento de dados da fórmula e um indicador calculado para a própria fórmula. Depois mude o tipo do indicador antigo para Carregado e desligue o seu Incluir na análise: mantém os valores que já tem, e nenhuma importação DHIS2 o volta a obter. Em vez disso, elimine-o se não tiver dados.",
+  });
+}

@@ -13,7 +13,7 @@ indicator (a formula), the DHIS2 import fails every month of it as designed, but
 says so in DHIS2's vocabulary, by bare UID, without the steps that fix it, and
 only after the run.
 
-**Next step: Do 3.** Each session sets this line in its final commit. Its values
+**Next step: Review 3.** Each session sets this line in its final commit. Its values
 are `Do N`, `Review N` and `Fix N`. The review that passes step 5 deletes this
 file.
 
@@ -463,3 +463,5 @@ again. The earlier build runs against the same databases.
 | 2 | Review prose edit. `client/src/components/instance_dataset_hfa/imports/_wizard.tsx:144` kept, of the comment the step trimmed, only "Leaving the mappings step scans the file for duplicate facilities.", which says what `goNextFromMappings` does: its name and its `previewDatasetHfaDuplicates` call already say it. The comment is deleted. |
 | 2 | Review prose edit. `client/src/components/instance_dataset_hfa/imports/_staging_summary.tsx:169-170`, the comment over `SampleList`, restated the sample fields' contract (server order, absent on runs staged before the fields existed), whose one authoritative comment is on `DatasetHfaCsvStagingResult` (`lib/types/dataset_hfa_import.ts:117-123`), and described the render the code shows. The comment is deleted. |
 | 2 | Step 2 reviewed: pass. |
+| 3 | Outside the surface: `client/src/components/indicator_manager_hmis/_indicator_display.ts` gains `dataIdWithIndicator` (ruling 8's `indicator id · label (UID)`) and `dhis2FormulaRemedy` (ruling 9's text). Rulings 8 and 9 bind three client surfaces (the run detail, step 4's review step, step 5's refresh modal) to one format and one wording, so each has one copy, in the display-vocabulary file the run detail and the wizard already import from, instead of a copy per step. |
+| 3 | Step 3 built. |
