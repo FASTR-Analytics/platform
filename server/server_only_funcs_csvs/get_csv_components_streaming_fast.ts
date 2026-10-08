@@ -376,6 +376,12 @@ export async function getCsvStreamComponents(
             );
           }
           await queuePromise;
+          // The queue loop exits on an empty queue once parsing completes,
+          // so an error set on a row that never reached the queue is only
+          // seen here.
+          if (processingError) {
+            throw processingError;
+          }
 
           if (!_IS_PRODUCTION) {
             console.log(

@@ -14,7 +14,7 @@ after 1 attempts. Last error: …" as its error line, and waits on the fetcher's
 two-minute default timeout per metadata call. And the refresh modal imports a
 symbol it never uses.
 
-**Next step: Do 1.** Each session sets this line in its final commit. Its values
+**Next step: Review 1.** Each session sets this line in its final commit. Its values
 are `Do N`, `Review N` and `Fix N`. The review that passes step 2 deletes this
 file.
 
@@ -294,3 +294,7 @@ again.
 
 | Step | Row |
 | ---- | --- |
+| 1 | The checkout is on `main`, not `tim-branch`: `tim-branch` is an ancestor of `main`, two commits behind (the v1.76.1 changelog and this plan's own commit), so the plan's commits go on `main`. |
+| 1 | §0 is stale on `server/tests/mcp_context_cache_test.ts`: it passes on this machine. `deno task test` was 150 passed, 0 failed before the step and 155 passed, 0 failed after it. |
+| 1 | §1.2 undercounts the reader's callers: besides the HFA scan and the HMIS CSV stage leg it serves the HMIS indicator scan (`scan_indicator_values.ts`), structure staging (`stage_structure_from_csv.ts`, `db/instance/structure.ts`), HFA facility weights and population imports. Each now rejects a first-row column-count error as it already rejected a later one; none needed an edit. |
+| 1 | Step 1 built. |
