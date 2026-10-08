@@ -5,7 +5,7 @@ import {
   createButtonAction,
 } from "panther";
 import { createMemo, createSignal, Show } from "solid-js";
-import { type Dhis2LabelRefresh, type HmisIndicator, t3, TC } from "lib";
+import { type Dhis2LabelRefresh, type HmisIndicator, t3 } from "lib";
 import { serverActions } from "~/server_actions";
 import { dataIdWithIndicator, dhis2FormulaRemedy } from "./_indicator_display";
 

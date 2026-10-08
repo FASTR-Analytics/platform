@@ -14,7 +14,7 @@ after 1 attempts. Last error: …" as its error line, and waits on the fetcher's
 two-minute default timeout per metadata call. And the refresh modal imports a
 symbol it never uses.
 
-**Next step: Do 2.** Each session sets this line in its final commit. Its values
+**Next step: Review 2.** Each session sets this line in its final commit. Its values
 are `Do N`, `Review N` and `Fix N`. The review that passes step 2 deletes this
 file.
 
@@ -305,3 +305,7 @@ again.
 | 1 | Review: a reader defect outside ruling 2, not a finding. A row callback that throws while the file is still being read rejects `queuePromise` (`get_csv_components_streaming_fast.ts:170-173`) with no handler attached until `await queuePromise` (line 378), so the rejection is unhandled across the pending read. Run directly, the process dies with "Uncaught (in promise)" before the caller's `catch` runs; in a Web Worker the error reaches the host's `error` listener and the worker's own `catch` never runs. Both import stage legs await a database flush inside the callback (HMIS `stage_csv.ts:201`, HFA `stage_csv.ts:254`), so a failed flush errors the run through the host's crash listener as "Worker crashed: Uncaught (in promise) Error: …" instead of through the worker's own error path. The pre-step code does the same. The change to make: `queuePromise.catch(() => {});` on the line after `const queuePromise = processQueue();` (line 178), with a comment that the rejection is read at `await queuePromise`. No ruling covers it. |
 | 1 | Review: a reader cost outside the step, not a finding. `processQueue` takes each batch with 1 000 `rowQueue.shift()` calls (`get_csv_components_streaming_fast.ts:146-151`), and each shift on a queue that large moves the remaining rows, so a 2 MB chunk costs time quadratic in its row count. On a 104 MB file of 2 000 000 HMIS-shaped rows with a no-op callback, the reader took 7.7 s and 10.5 s; with those lines replaced by `const batch = rowQueue.splice(0, BATCH_SIZE);` it took 0.9 s. That replacement is the change to make. No ruling covers it. |
 | 1 | Step 1 reviewed: pass. |
+| 2 | `SYSTEM_07_dhis2.md`'s Traps bullet on retry also said the error after exhaustion is always a plain `Error`. Docs move with the code, so it now says "with two or more attempts". It lies outside the lines step 2 names in that file. The Retry section's new sentence also ends "Pinned by `server/tests/dhis2_retry_test.ts`", since the new test's header points at that section. |
+| 2 | Ruling 3 also changes the other single-attempt caller, the heavy geojson fetch (`HEAVY_GEOJSON_FETCH` in `server/routes/instance/geojson_maps.ts`): a failed save from DHIS2 now shows the fetcher's own message instead of the "Failed after 1 attempts" wrapper. Nothing in `server`, `lib` or `client/src` matches the wrapper text. |
+| 2 | §1.4's "up to three in sequence" is a floor: `getExistingMetadataIds` asks for 100 ids per call, so each of the three endpoints makes one call per 100 ids. The 15 s budget is per call, and on a hanging DHIS2 the first call's timeout ends the classification. A harness calling `classifyElements` with the route's options against a local server that never answers rejected after 15.0 s with "DHIS2 request timeout after 15000ms: http://localhost:…/api/dataElements.json?…", no wrapper. |
+| 2 | Step 2 built. |
