@@ -112,8 +112,7 @@ export function indicatorsByDataId(
   return byDataId;
 }
 
-// How an import surface lists a data id: the indicator carrying it, then the
-// id itself; a data id no indicator carries appears bare.
+// How an import surface lists a data id.
 export function dataIdWithIndicator(
   dataId: string,
   indicator: HmisIndicator | undefined,
