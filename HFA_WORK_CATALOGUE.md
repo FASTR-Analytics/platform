@@ -3,7 +3,7 @@
 Every HFA request, bug and open question raised by the HFA team, checked against
 the code. HMIS and ICEH items are excluded.
 
-**Compiled:** 2026-10-01, on branch `version2`. Updated 2026-10-07 from the
+**Compiled:** 2026-10-01, on branch `version2`. Updated 2026-10-08 from the
 thread "HFA data upload testing".
 
 **Keeping it current.** When an item lands, move its row to "Already done" with
@@ -16,10 +16,11 @@ the date and the commit.
   Ashley Sheffel, 2025-05 to 2026-09-30.
 - Google Sheet "FASTR Wish List Tracker": the "HFA list" tab in full, the other
   tabs searched for HFA rows.
-- Gmail thread "HFA data upload testing" (8 messages, 2026-09-11 to 2026-10-06),
-  Safia's Guinea notes attached to it, and the generic XLSForm Viviane attached
-  on 2026-10-06 (`FASTR Survey - Programed - Generic -
-  20260417.xlsx`).
+- Gmail thread "HFA data upload testing" (10 messages, 2026-09-11 to
+  2026-10-07), Safia's Guinea notes attached to it, the generic XLSForm Viviane
+  attached on 2026-10-06 (`FASTR Survey - Programed - Generic - 20260417.xlsx`),
+  and the Madagascar round 1 file Angelica attached on 2026-10-07
+  (`mg_r1-V2.csv`).
 
 Not read: screenshots, "FASTR Team Feedback.pdf" (2025-05), and Sara Riese's
 Somalia notes and Viviane's Mali notes, which are on World Bank SharePoint and
@@ -31,7 +32,11 @@ Nothing was run in the app.
 
 ## Quick fixes
 
-None open. Q1 to Q8 are under "Already done".
+Q1 to Q8 are under "Already done".
+
+| Id | Issue                                                                                           | Raised by            | State in code                                                                                                                        |
+| -- | ----------------------------------------------------------------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Q9 | The facility id default picks `id_fac_txt` when it is blank (Madagascar R1), so every row drops | Angelica, 2026-10-07 | `lib/utils.ts:39` matches the header name only. Pre-select the first of `id_fac_txt`, `id_fac` that has values, in all three wizards |
 
 ## Waiting on the HFA team
 
@@ -78,10 +83,19 @@ facility-columns step of the HFA data wizard, not in the structure wizard, which
 the plan makes HMIS-only.
 
 - **Core column names** (Viviane, 2026-10-06, and the generic XLSForm): facility
-  id `id_fac_txt`, else `id_fac` (the generic form has no `id_fac_txt`); country
-  `id_admin0`; region `id_admin1_name`; district `id_admin2_name`; name
-  `id_fac_name`; type `id_fac_type`. The generic form has no ownership question.
-  Pre-select these, as Q6 does for the facility id and the weight.
+  id: the first of `id_fac_txt`, `id_fac` that has values (the generic form has
+  no `id_fac_txt`, and Madagascar R1 has it blank); country `id_admin0`; region
+  `id_admin1_name`; district `id_admin2_name`; name `id_fac_name`; type
+  `id_fac_type`. The generic form has no ownership question. Pre-select these,
+  as Q6 does for the facility id and the weight. These are defaults only. Some
+  firms put region names in `id_admin1`. Ipsos files use their own facility id
+  name, which can change between rounds, so the id column is chosen per round.
+  Guinea's raw file names them `SynID`, `weights` and `Stratum`. Each country's
+  recode do-file (`gn_recode.do`) records its renames.
+- **Blank country column** (Angelica and Viviane, 2026-10-07): Madagascar R1 has
+  `id_admin0` blank in every row. Level 1 is a mapped column and a blank value
+  drops the row. The instance's country is already set by `ISO_COUNTRY_CODE`, so
+  fill level 1 from it instead of mapping a column.
 - **Correction columns** (Safia, Guinea, 2026-09-16): the form has
   `id_admin1_corrected` and `id_admin2_corrected` (choice codes) and
   `id_fac_corrected` (text), filled only when the respondent says the pre-filled
@@ -108,6 +122,7 @@ the plan makes HMIS-only.
 | U4 | Sort tables and charts lowest to highest, or manually. Rearrange how indicators group | Safia, 2026-05; Meghan, 2026-06; Viviane, High | An indicator sort order exists and feeds figures. Not checked end to end                          |
 | U5 | HMIS facilities and GeoJSON left over in the HFA registry                             | Safia, 2026-09-25                              | Meghan cleaned the test countries by hand. Other instances need a read-only look at production    |
 | U6 | Which cases show as a warning and which as an error in the indicator status column    | Ashley, 2026-09-11; Meghan, 2026-04 and 05     | A separate warning state exists and the sheet ticks the request as done. The validator not traced |
+| U7 | Round 3 and round 4 results not visible in a test visualization                       | Ashley, 2026-09-11                             | Ashley suspected her unreviewed indicators. Not reproduced                                        |
 
 ## Questions, not code
 
@@ -124,6 +139,12 @@ These point to help text or a short guide.
 - How is a facility type of "Other" handled when the file has an "other,
   specify" column such as Guinea's `id_fac_type_other`? (Add it as a display
   column in the recode step.)
+- How are extra facility attributes, such as type tags, added? (Turn on a custom
+  facility column in the HFA facility configuration and map it at import.)
+- Is the HFA facility upload a job for the HMIS team? (The HFA registry is
+  separate from the HMIS one, L8.)
+- As rounds are added, is "Add new facilities and update existing ones" the
+  standard import mode?
 
 ## Already done
 
