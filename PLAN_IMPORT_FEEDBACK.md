@@ -12,9 +12,9 @@ indicator (a formula), the DHIS2 import fails every month of it as designed, but
 says so in DHIS2's vocabulary, by bare UID, without the steps that fix it, and
 only after the run.
 
-**Next step: Review 4.** Each session sets this line in its final commit. Its
-values are `Do N`, `Review N` and `Fix N`. The review that passes step 5 deletes
-this file.
+**Next step: Do 5.** Each session sets this line in its final commit. Its values
+are `Do N`, `Review N` and `Fix N`. The review that passes step 5 deletes this
+file.
 
 Branch: `version2`. Repos touched: this app only.
 
@@ -548,3 +548,4 @@ Rollback is `git revert` of the plan's commits on `version2`.
 | 4    | Code finding, for Fix 4. `client/src/components/data/hmis/imports/wizard/step_4_review.tsx:158-223`: `SelectionClassification` renders its query state in a hand-built `<Switch>`; PROTOCOL_UI_STATE rule 8 requires `StateHolderWrapper`, whose `loadingRenderer` and `errorRenderer` fit the two one-line states. Edit: delete the `error` and `data` accessors (158-165); replace the `<Switch>` (169-223) with `<StateHolderWrapper state={classification.state()} loadingRenderer={() => <div>...</div>} errorRenderer={(err) => <div>...</div>}>`, its child `(result) =>` the two `<Show>` blocks; import it, drop `Match`, `Switch`.                   |
 | 4    | Step 4 reviewed: 4 findings.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | 4    | Step 4 fixed.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| 4    | Step 4 reviewed: pass.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
