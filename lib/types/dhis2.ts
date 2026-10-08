@@ -36,7 +36,8 @@ export type InstanceDhis2CredentialsInfo = {
 // What a DHIS2 name refresh did: names rewritten, names already current,
 // the indicator ids whose UID is a DHIS2 formula (what DHIS2 calls an
 // indicator) rather than a data element, and the ids of the elements DHIS2
-// has nothing for. Both lists are left as they were; nothing is stored.
+// has nothing for. Both lists keep their stored names, and the split
+// between them is not stored.
 export type Dhis2LabelRefresh = {
   refreshed: number;
   unchanged: number;
