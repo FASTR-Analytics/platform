@@ -32,6 +32,7 @@ import type {
 } from "./_shared/mod.ts";
 import { SaveReportStyleModal } from "./save_report_style";
 import { setShowAi } from "~/state/t4_ui";
+import { canEditProduct } from "~/state/instance/product_access";
 import { serverActions } from "~/server_actions";
 import { AIDocumentList, useAIDocuments } from "./ai_documents/mod.ts";
 import { usePromptLibrary } from "./ai_prompt_library/mod.ts";
@@ -233,14 +234,17 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
 
   // The AI pane is view-agnostic; this one item is gated on being inside an
   // HTML report editor (any style — plain reports are worth saving too once
-  // the user has styled them by hand).
+  // the user has styled them by hand) that the user can edit, since saving a
+  // style is an edit on the report it is authored from.
   function currentHtmlReport():
     | { params: EditingReportParams; context: EditingReportContext }
     | undefined {
     const v = copilotViewController.current();
     if (v.id !== "editing_report") return undefined;
     const params = v.params as EditingReportParams;
-    if (params.format !== "html") return undefined;
+    if (params.format !== "html" || !canEditProduct(params.reportId)) {
+      return undefined;
+    }
     return { params, context: v.context as EditingReportContext };
   }
 

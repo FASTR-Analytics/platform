@@ -99,8 +99,11 @@ export function buildQuickMoveEntries(args: {
 }
 
 // ONE product menu: the list row's button and the right-click menu both
-// render this.
+// render this. Built from the level table (PLAN_PRODUCT_OWNERSHIP §2.9), so a
+// viewer's menu holds Duplicate only.
 export function buildProductMenu(args: {
+  canEdit: boolean;
+  canOwn: boolean;
   folders: Folder[];
   // The product's folder: the quick moves are relative to it.
   parentId: string | null;
@@ -111,6 +114,12 @@ export function buildProductMenu(args: {
   onDelete: () => void;
   onMoveTo: (folderId: string | null) => void;
 }): MenuItem[] {
+  const duplicate: MenuItem = {
+    label: t3({ en: "Duplicate", fr: "Dupliquer", pt: "Duplicar" }),
+    icon: "copy",
+    onClick: args.onDuplicate,
+  };
+  if (!args.canEdit) return [duplicate];
   return [
     ...buildQuickMoveEntries({
       folders: args.folders,
@@ -135,17 +144,17 @@ export function buildProductMenu(args: {
       icon: "package",
       onClick: args.onPackageScope,
     },
-    {
-      label: t3({ en: "Duplicate", fr: "Dupliquer", pt: "Duplicar" }),
-      icon: "copy",
-      onClick: args.onDuplicate,
-    },
-    { type: "divider" },
-    {
-      label: t3(TC.delete),
-      icon: "trash",
-      intent: "danger",
-      onClick: args.onDelete,
-    },
+    duplicate,
+    ...(args.canOwn
+      ? [
+        { type: "divider" } satisfies MenuItem,
+        {
+          label: t3(TC.delete),
+          icon: "trash",
+          intent: "danger",
+          onClick: args.onDelete,
+        } satisfies MenuItem,
+      ]
+      : []),
   ];
 }

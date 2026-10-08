@@ -27,7 +27,7 @@ import {
 import { nextSort, sortBySortMode } from "./sort_by_sort_mode";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
-import { canEditProduct } from "~/state/instance/product_access";
+import { canEditProduct, canOwnProduct } from "~/state/instance/product_access";
 import {
   _PRODUCT_QUERY_PARAM,
   openShellEditor,
@@ -357,6 +357,8 @@ export function Products() {
 
   function productMenuItems(product: ProductSummary): MenuItem[] {
     return buildProductMenu({
+      canEdit: canEditProduct(product.id),
+      canOwn: canOwnProduct(product.id),
       folders: instanceState.folders,
       parentId: product.folderId,
       onSettings: () => void openSettings(product),
@@ -369,7 +371,6 @@ export function Products() {
   }
 
   function handleProductMenu(e: MouseEvent, product: ProductSummary) {
-    if (!canEditProduct(product.id)) return;
     showMenu({
       anchor: { x: e.clientX, y: e.clientY, width: 0, height: 0 },
       items: productMenuItems(product),

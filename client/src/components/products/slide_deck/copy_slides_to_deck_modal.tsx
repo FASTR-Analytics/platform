@@ -10,6 +10,7 @@ import {
 import { createMemo, createSignal } from "solid-js";
 import { packageScopeCaption } from "~/components/_shared/mod.ts";
 import { serverActions } from "~/server_actions";
+import { canEditProduct } from "~/state/instance/product_access";
 import { instanceState } from "~/state/instance/t1_store";
 
 type Props = { sourceProductId: string; slideIds: string[] };
@@ -25,10 +26,12 @@ type ReturnType = { newSlideIds: string[] } | undefined;
 export function CopySlidesToDeckModal(
   p: AlertComponentProps<Props, ReturnType>,
 ) {
+  // Only decks the user can edit: the copy writes into the destination.
   const targetDecks = createMemo(() =>
     instanceState.products.filter(
       (product): product is Extract<ProductSummary, { type: "slide_deck" }> =>
-        product.type === "slide_deck" && product.id !== p.sourceProductId,
+        product.type === "slide_deck" && product.id !== p.sourceProductId &&
+        canEditProduct(product.id),
     )
   );
 

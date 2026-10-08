@@ -70,6 +70,9 @@ const _OUTLINE_BOTTOM = "before:border-b-2 before:rounded-b";
 
 const _HOVER_OPEN_MS = 600;
 
+const restrictedLabel = () =>
+  t3({ en: "Restricted", fr: "Restreint", pt: "Restrito" });
+
 type FolderRow = Extract<ProductTreeRow, { kind: "folder" }>;
 type GeneralRow = Extract<ProductTreeRow, { kind: "general" }>;
 type ProductRow = Extract<ProductTreeRow, { kind: "product" }>;
@@ -483,6 +486,15 @@ export function ListView(p: Props) {
             "text-base-content-muted",
           )}
           <div class="min-w-0">{product().label}</div>
+          <Show when={product().defaultAccess === "none"}>
+            <span
+              class="text-base-content-muted flex h-[1lh] w-4 flex-none items-center"
+              title={restrictedLabel()}
+              aria-label={restrictedLabel()}
+            >
+              <Icon iconName="lock" />
+            </span>
+          </Show>
         </div>
         <div class="ui-pad-sm">
           {PRODUCT_TYPE_REGISTRY[product().type].label()}

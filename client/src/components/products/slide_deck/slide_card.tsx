@@ -23,6 +23,9 @@ type Props = {
   // The slide open in the editor beside the rail.
   isCurrent: boolean;
   selectedCount: number;
+  // The card's menu edits the deck, so a viewer gets none; a click still
+  // opens the slide.
+  canEdit: boolean;
   onCardClick: (event: MouseEvent | undefined, isCircleClick: boolean) => void;
   onEdit: () => void;
   onDelete: () => void;
@@ -63,6 +66,7 @@ export function SlideCard(p: Props) {
   });
 
   function handleContextMenu(e: MouseEvent) {
+    if (!p.canEdit) return;
     e.preventDefault();
 
     const deleteLabel = p.isSelected && p.selectedCount > 1

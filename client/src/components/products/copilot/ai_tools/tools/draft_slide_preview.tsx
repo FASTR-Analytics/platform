@@ -29,6 +29,7 @@ import { convertAiInputToSlide } from "../../slide_ai/mod.ts";
 import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
 import { copilotViewController } from "../../_shared/mod.ts";
 import { addSlideToDeck } from "./add_slide_to_deck";
+import { canEditProduct } from "~/state/instance/product_access";
 
 type SlideState = {
   pageInputs: PageInputs;
@@ -42,12 +43,14 @@ type Props = {
 };
 
 // The deck the draft can be added to: the open deck, from the deck view or
-// from one of its slides. A report has no deck, so the card is preview-only.
-function openDeckId(): string | undefined {
+// from one of its slides, when the user can edit it. A report has no deck, so
+// the card is preview-only there, as it is for a viewer.
+function editableDeckId(): string | undefined {
   const view = copilotViewController.current();
-  return view.id === "editing_slide_deck" || view.id === "editing_slide"
-    ? view.params.deckId
-    : undefined;
+  if (view.id !== "editing_slide_deck" && view.id !== "editing_slide") {
+    return undefined;
+  }
+  return canEditProduct(view.params.deckId) ? view.params.deckId : undefined;
 }
 
 export function DraftSlidePreview(p: Props) {
@@ -116,7 +119,9 @@ export function DraftSlidePreview(p: Props) {
       element: ExpandedSlideModal,
       props: {
         pageInputs: state.data.pageInputs,
-        onAddToDeck: openDeckId() === undefined ? undefined : handleAddToDeck,
+        onAddToDeck: editableDeckId() === undefined
+          ? undefined
+          : handleAddToDeck,
         addToDeckLabel: addToDeckLabel(),
       },
     });
@@ -124,7 +129,7 @@ export function DraftSlidePreview(p: Props) {
 
   async function handleAddToDeck() {
     const state = slideState();
-    const deckId = openDeckId();
+    const deckId = editableDeckId();
     if (state.status !== "ready" || deckId === undefined) return;
     await addSlideToDeck(state.data.convertedSlide, deckId);
   }
@@ -153,7 +158,7 @@ export function DraftSlidePreview(p: Props) {
               iconName="maximize"
               onClick={openExpandedView}
             />
-            <Show when={openDeckId() !== undefined}>
+            <Show when={editableDeckId() !== undefined}>
               <Button size="sm" outline onClick={handleAddToDeck}>
                 {addToDeckLabel()}
               </Button>

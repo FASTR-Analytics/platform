@@ -527,7 +527,7 @@ export function SlideList(p: Props) {
     }
   }
 
-  const canEditFigures = () => canEditProduct(p.productId);
+  const canEdit = () => canEditProduct(p.productId);
 
   // The Deck menu edits the deck's config with no Save button: the deck
   // applies each change at once (rail, open slide and this header alike) and
@@ -544,8 +544,8 @@ export function SlideList(p: Props) {
   createEffect(() => {
     const loading = p.isLoading;
     const config = deckConfig();
-    const canEdit = canEditFigures();
-    if (themeAsked || loading || config.themeChosen !== false || !canEdit) {
+    const editable = canEdit();
+    if (themeAsked || loading || config.themeChosen !== false || !editable) {
       return;
     }
     themeAsked = true;
@@ -622,7 +622,7 @@ export function SlideList(p: Props) {
       <div class="flex items-center">
         <PackageScopeChip
           product={p.product}
-          onClick={canEditFigures() ? () => void openPackageScope() : undefined}
+          onClick={canEdit() ? () => void openPackageScope() : undefined}
         />
       </div>
       {
@@ -639,7 +639,7 @@ export function SlideList(p: Props) {
           {t3({ en: "Present", fr: "Présenter", pt: "Apresentar" })}
         </Button>
       </Show>
-      <Show when={canEditFigures()}>
+      <Show when={canEdit()}>
         <UpdateAllFiguresButton
           count={staleCount()}
           busy={updatingFigures()}
@@ -678,20 +678,24 @@ export function SlideList(p: Props) {
       </HeadingBar>
       <HeaderRows>
         <MenuRow ref={p.onMenuRowHost}>
-          <AddSlideMenu onAdd={(slide) => void addSlide(slide)} />
+          <Show when={canEdit()}>
+            <AddSlideMenu onAdd={(slide) => void addSlide(slide)} />
+          </Show>
           <DeckFileMenu
+            canEdit={canEdit()}
             onDownload={() => void p.download()}
             onShare={() => void p.share()}
             onRename={() => void p.handleOpenProductSettings()}
             selectedCount={selectedIds().size}
             onCopyToDeck={() => void copyToDeck()}
           />
-          <DeckMenu
-            config={deckConfig()}
-            canEdit={canEditFigures()}
-            onPatch={(patch) => void patchDeckConfig(patch)}
-            onOpenAllSettings={() => void p.handleOpenSettings()}
-          />
+          <Show when={canEdit()}>
+            <DeckMenu
+              config={deckConfig()}
+              onPatch={(patch) => void patchDeckConfig(patch)}
+              onOpenAllSettings={() => void p.handleOpenSettings()}
+            />
+          </Show>
         </MenuRow>
         {/* The open slide's toolbar, portaled in by the slide editor. */}
         <div ref={p.onToolbarHost} data-tour="slide-editor-header" />
@@ -735,6 +739,7 @@ export function SlideList(p: Props) {
                   idField="id"
                   items={sortableSlideItems()}
                   setItems={(newItems: { id: string }[]) => {
+                    if (!canEdit()) return;
                     const oldItems = sortableSlideItems();
                     setSortableSlideItems(newItems);
                     handleReorder(
@@ -743,6 +748,7 @@ export function SlideList(p: Props) {
                     );
                   }}
                   class="flex flex-col gap-3"
+                  sort={canEdit()}
                   multiDrag
                   avoidImplicitDeselect
                   selectedClass="sortable-selected"
@@ -763,6 +769,7 @@ export function SlideList(p: Props) {
                         isSelected={selectedIds().has(item.id)}
                         isCurrent={p.currentSlideId === item.id}
                         selectedCount={selectedIds().size}
+                        canEdit={canEdit()}
                         onCardClick={(e, isCircleClick) =>
                           handleSlideClick(index(), item.id, e, isCircleClick)}
                         onEdit={() => void p.onSelectSlide(item.id)}
@@ -785,14 +792,20 @@ export function SlideList(p: Props) {
           when={!(!p.isLoading && p.slideIds.length === 0)}
           fallback={
             <div class="text-base-content-muted flex h-full items-center justify-center p-16 text-center">
-              {t3({
-                en:
-                  'No slides yet. Ask the AI to create some slides, or click "+ Add slide" to create your own',
-                fr:
-                  "Aucune diapositive. Demandez à l'IA de créer des diapositives, ou cliquez sur « + Ajouter une diapositive » pour en créer vous-même",
-                pt:
-                  'Ainda não há diapositivos. Peça à IA para criar alguns diapositivos ou clique em "+ Adicionar diapositivo" para criar os seus',
-              })}
+              {canEdit()
+                ? t3({
+                  en:
+                    'No slides yet. Ask the AI to create some slides, or click "+ Add slide" to create your own',
+                  fr:
+                    "Aucune diapositive. Demandez à l'IA de créer des diapositives, ou cliquez sur « + Ajouter une diapositive » pour en créer vous-même",
+                  pt:
+                    'Ainda não há diapositivos. Peça à IA para criar alguns diapositivos ou clique em "+ Adicionar diapositivo" para criar os seus',
+                })
+                : t3({
+                  en: "This deck has no slides yet",
+                  fr: "Cette présentation n'a pas encore de diapositives",
+                  pt: "Esta apresentação ainda não tem diapositivos",
+                })}
             </div>
           }
         >

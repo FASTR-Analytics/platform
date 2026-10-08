@@ -731,14 +731,14 @@ export function DeckVersionPreview(p: {
                 />
               </Show>
               <div class="flex-1" />
+              <Button outline onClick={() => restoreAsCopy(v)}>
+                {t3({
+                  en: "Restore as copy",
+                  fr: "Restaurer comme copie",
+                  pt: "Restaurar como cópia",
+                })}
+              </Button>
               <Show when={p.canRestore}>
-                <Button outline onClick={() => restoreAsCopy(v)}>
-                  {t3({
-                    en: "Restore as copy",
-                    fr: "Restaurer comme copie",
-                    pt: "Restaurar como cópia",
-                  })}
-                </Button>
                 <Button onClick={() => restore(v)}>
                   {t3({ en: "Restore", fr: "Restaurer", pt: "Restaurar" })}
                 </Button>

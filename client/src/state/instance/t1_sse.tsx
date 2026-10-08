@@ -76,7 +76,8 @@ export function addInstanceRScriptListener(
 // subscribing to the store (an editor keeping its optimistic-save timestamp
 // fresh). Fires for both stamp carriers: the `last_updated` message (slides)
 // and the per-row `products_upserted` summary, whose own `lastUpdated` IS the
-// products table's stamp.
+// products table's stamp; a summary fires only when that stamp moved, so a
+// re-broadcast after an access change (PLAN_PRODUCT_OWNERSHIP R15) does not.
 type LastUpdatedListener = (
   tableName: LastUpdateTableName,
   ids: string[],
@@ -199,9 +200,13 @@ export function connectInstanceSSE(): void {
           updateInstanceConfig(msg.data);
           break;
           break;
-        case "products_upserted":
+        case "products_upserted": {
+          const moved = msg.data.products.filter((product) =>
+            instanceState.lastUpdated.products[product.id] !==
+              product.lastUpdated
+          );
           upsertInstanceProducts(msg.data.products);
-          for (const product of msg.data.products) {
+          for (const product of moved) {
             fireLastUpdatedListeners(
               "products",
               [product.id],
@@ -209,6 +214,7 @@ export function connectInstanceSSE(): void {
             );
           }
           break;
+        }
         case "products_deleted":
           removeInstanceProducts(msg.data.ids);
           break;

@@ -358,6 +358,77 @@ function toneAttrFor(name: string): string {
   return name === "report" ? "background" : "tone";
 }
 
+// File: the whole-document operations, as in Google Docs' File menu and the
+// deck's. The toolbar renders it for an editor; the report header renders it
+// alone for a reader, whose toolbar is hidden.
+export function ReportFileMenu(p: {
+  canEdit: boolean;
+  onDownload: () => void;
+  onEmail: () => void;
+  onRename: () => void;
+  onDuplicate: () => void;
+}) {
+  return (
+    <Popover
+      menu
+      label={t3({ en: "File", fr: "Fichier", pt: "Ficheiro" })}
+      title={t3({ en: "File", fr: "Fichier", pt: "Ficheiro" })}
+    >
+      {(close) => (
+        <div class="ui-spy-sm flex w-56 flex-col">
+          <PopoverRow
+            active={false}
+            onClick={() => {
+              p.onDownload();
+              close();
+            }}
+          >
+            {t3({ en: "Download…", fr: "Télécharger…", pt: "Transferir…" })}
+          </PopoverRow>
+          <PopoverRow
+            active={false}
+            onClick={() => {
+              p.onEmail();
+              close();
+            }}
+          >
+            {t3({
+              en: "Email this file…",
+              fr: "Envoyer par email…",
+              pt: "Enviar por email…",
+            })}
+          </PopoverRow>
+          <MenuDivider />
+          <Show when={p.canEdit}>
+            <PopoverRow
+              active={false}
+              onClick={() => {
+                p.onRename();
+                close();
+              }}
+            >
+              {t3({ en: "Rename…", fr: "Renommer…", pt: "Mudar o nome…" })}
+            </PopoverRow>
+          </Show>
+          <PopoverRow
+            active={false}
+            onClick={() => {
+              p.onDuplicate();
+              close();
+            }}
+          >
+            {t3({
+              en: "Make a copy…",
+              fr: "Créer une copie…",
+              pt: "Criar uma cópia…",
+            })}
+          </PopoverRow>
+        </div>
+      )}
+    </Popover>
+  );
+}
+
 export function ReportToolbar(p: Props) {
   // The block the block segment acts on: the fence on the caret's own line
   // when there is one (that is the only way a leaf block like `:::stat` is
@@ -483,65 +554,13 @@ export function ReportToolbar(p: Props) {
   //    header's MenuRow.
   const menuRow = () => (
     <>
-      {
-        /* File: the whole-document operations, as in Google Docs' File
-            menu. Download moved here from the header. */
-      }
-      <Popover
-        menu
-        label={t3({ en: "File", fr: "Fichier", pt: "Ficheiro" })}
-        title={t3({ en: "File", fr: "Fichier", pt: "Ficheiro" })}
-      >
-        {(close) => (
-          <div class="ui-spy-sm flex w-56 flex-col">
-            <PopoverRow
-              active={false}
-              onClick={() => {
-                p.onDownload();
-                close();
-              }}
-            >
-              {t3({ en: "Download…", fr: "Télécharger…", pt: "Transferir…" })}
-            </PopoverRow>
-            <PopoverRow
-              active={false}
-              onClick={() => {
-                p.onEmail();
-                close();
-              }}
-            >
-              {t3({
-                en: "Email this file…",
-                fr: "Envoyer par email…",
-                pt: "Enviar por email…",
-              })}
-            </PopoverRow>
-            <MenuDivider />
-            <PopoverRow
-              active={false}
-              onClick={() => {
-                p.onRename();
-                close();
-              }}
-            >
-              {t3({ en: "Rename…", fr: "Renommer…", pt: "Mudar o nome…" })}
-            </PopoverRow>
-            <PopoverRow
-              active={false}
-              onClick={() => {
-                p.onDuplicate();
-                close();
-              }}
-            >
-              {t3({
-                en: "Make a copy…",
-                fr: "Créer une copie…",
-                pt: "Criar uma cópia…",
-              })}
-            </PopoverRow>
-          </div>
-        )}
-      </Popover>
+      <ReportFileMenu
+        canEdit
+        onDownload={p.onDownload}
+        onEmail={p.onEmail}
+        onRename={p.onRename}
+        onDuplicate={p.onDuplicate}
+      />
       <Popover
         menu
         label={t3({ en: "Widgets", fr: "Widgets", pt: "Widgets" })}

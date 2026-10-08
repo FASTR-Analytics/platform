@@ -37,7 +37,6 @@ import { ThemePicker } from "./style_editor/mod.ts";
 
 type Props = {
   config: SlideDeckConfig;
-  canEdit: boolean;
   /** Applied optimistically and saved; the deck refetches behind it. */
   onPatch: (patch: Partial<SlideDeckConfig>) => void;
   onOpenAllSettings: () => void;
@@ -198,6 +197,7 @@ export function AddSlideMenu(p: { onAdd: (slide: Slide) => void }) {
 // report toolbar's. It replaced the header's overflow menu outright, so it
 // holds everything that menu did.
 export function DeckFileMenu(p: {
+  canEdit: boolean;
   onDownload: () => void;
   onShare: () => void;
   onRename: () => void;
@@ -241,19 +241,21 @@ export function DeckFileMenu(p: {
             {t3({ en: "Share…", fr: "Partager…", pt: "Partilhar…" })}
           </PopoverRow>
           <MenuDivider />
-          <PopoverRow
-            active={false}
-            onClick={() => {
-              close();
-              p.onRename();
-            }}
-          >
-            {t3({
-              en: "Name and folder…",
-              fr: "Nom et dossier…",
-              pt: "Nome e pasta…",
-            })}
-          </PopoverRow>
+          <Show when={p.canEdit}>
+            <PopoverRow
+              active={false}
+              onClick={() => {
+                close();
+                p.onRename();
+              }}
+            >
+              {t3({
+                en: "Name and folder…",
+                fr: "Nom et dossier…",
+                pt: "Nome e pasta…",
+              })}
+            </PopoverRow>
+          </Show>
           <PopoverRow
             active={false}
             disabled={p.selectedCount === 0}
@@ -332,109 +334,107 @@ export function DeckMenu(p: Props) {
     >
       {(close) => (
         <div class="flex w-56 flex-col">
-          <Show when={p.canEdit}>
-            <MenuFlyout label={t3({ en: "Theme", fr: "Thème", pt: "Tema" })}>
-              <FlyoutPanel class="w-[29rem]">
-                <ThemePicker
-                  value={p.config.theme}
-                  config={p.config}
-                  onChange={(theme) => {
-                    p.onPatch({ theme, themeChosen: true });
-                    close();
-                  }}
-                />
-              </FlyoutPanel>
-            </MenuFlyout>
+          <MenuFlyout label={t3({ en: "Theme", fr: "Thème", pt: "Tema" })}>
+            <FlyoutPanel class="w-[29rem]">
+              <ThemePicker
+                value={p.config.theme}
+                config={p.config}
+                onChange={(theme) => {
+                  p.onPatch({ theme, themeChosen: true });
+                  close();
+                }}
+              />
+            </FlyoutPanel>
+          </MenuFlyout>
 
-            <MenuFlyout
-              label={t3({ en: "Logos", fr: "Logos", pt: "Logótipos" })}
-            >
-              <FlyoutPanel class="w-80">
-                <div class="ui-spy-sm">
-                  <div>
-                    <div class="text-base-content-muted font-700 mb-2 text-sm">
-                      {t3({
-                        en: "Custom logos",
-                        fr: "Logos personnalisés",
-                        pt: "Logótipos personalizados",
-                      })}
-                    </div>
-                    <div class="ui-spy-sm">
-                      <For each={logos().availableCustom}>
-                        {(logo, i_logo) => (
-                          <div class="ui-gap-sm flex items-center">
-                            <Select
-                              options={imageOptions()}
-                              value={logo}
-                              onChange={(v) => setCustomLogo(i_logo(), v)}
-                              fullWidth
-                            />
-                            <Button
-                              intent="danger"
-                              onClick={() => removeCustomLogo(i_logo())}
-                              outline
-                              iconName="trash"
-                            />
-                          </div>
-                        )}
-                      </For>
-                      <Button
-                        onClick={() =>
-                          patchLogos({
-                            availableCustom: [...logos().availableCustom, ""],
-                          })}
-                        iconName="plus"
-                        size="sm"
-                      >
-                        {t3({ en: "Add", fr: "Ajouter", pt: "Adicionar" })}
-                      </Button>
-                    </div>
+          <MenuFlyout
+            label={t3({ en: "Logos", fr: "Logos", pt: "Logótipos" })}
+          >
+            <FlyoutPanel class="w-80">
+              <div class="ui-spy-sm">
+                <div>
+                  <div class="text-base-content-muted font-700 mb-2 text-sm">
+                    {t3({
+                      en: "Custom logos",
+                      fr: "Logos personnalisés",
+                      pt: "Logótipos personalizados",
+                    })}
                   </div>
-                  <MenuDivider />
-                  <LogoSectionEditor
-                    title={t3({ en: "Cover", fr: "Couverture", pt: "Capa" })}
-                    config={logos().cover}
-                    customLogos={logos().availableCustom.filter(Boolean)}
-                    onChange={(c) => patchLogos({ cover: c })}
-                  />
-                  <LogoSectionEditor
-                    title={t3({
-                      en: "Content header",
-                      fr: "En-tête de contenu",
-                      pt: "Cabeçalho de conteúdo",
-                    })}
-                    config={logos().header}
-                    customLogos={logos().availableCustom.filter(Boolean)}
-                    onChange={(c) => patchLogos({ header: c })}
-                  />
-                  <LogoSectionEditor
-                    title={t3({
-                      en: "Content footer",
-                      fr: "Pied de page de contenu",
-                      pt: "Rodapé de conteúdo",
-                    })}
-                    config={logos().footer}
-                    customLogos={logos().availableCustom.filter(Boolean)}
-                    onChange={(c) => patchLogos({ footer: c })}
-                  />
+                  <div class="ui-spy-sm">
+                    <For each={logos().availableCustom}>
+                      {(logo, i_logo) => (
+                        <div class="ui-gap-sm flex items-center">
+                          <Select
+                            options={imageOptions()}
+                            value={logo}
+                            onChange={(v) => setCustomLogo(i_logo(), v)}
+                            fullWidth
+                          />
+                          <Button
+                            intent="danger"
+                            onClick={() => removeCustomLogo(i_logo())}
+                            outline
+                            iconName="trash"
+                          />
+                        </div>
+                      )}
+                    </For>
+                    <Button
+                      onClick={() =>
+                        patchLogos({
+                          availableCustom: [...logos().availableCustom, ""],
+                        })}
+                      iconName="plus"
+                      size="sm"
+                    >
+                      {t3({ en: "Add", fr: "Ajouter", pt: "Adicionar" })}
+                    </Button>
+                  </div>
                 </div>
-              </FlyoutPanel>
-            </MenuFlyout>
+                <MenuDivider />
+                <LogoSectionEditor
+                  title={t3({ en: "Cover", fr: "Couverture", pt: "Capa" })}
+                  config={logos().cover}
+                  customLogos={logos().availableCustom.filter(Boolean)}
+                  onChange={(c) => patchLogos({ cover: c })}
+                />
+                <LogoSectionEditor
+                  title={t3({
+                    en: "Content header",
+                    fr: "En-tête de contenu",
+                    pt: "Cabeçalho de conteúdo",
+                  })}
+                  config={logos().header}
+                  customLogos={logos().availableCustom.filter(Boolean)}
+                  onChange={(c) => patchLogos({ header: c })}
+                />
+                <LogoSectionEditor
+                  title={t3({
+                    en: "Content footer",
+                    fr: "Pied de page de contenu",
+                    pt: "Rodapé de conteúdo",
+                  })}
+                  config={logos().footer}
+                  customLogos={logos().availableCustom.filter(Boolean)}
+                  onChange={(c) => patchLogos({ footer: c })}
+                />
+              </div>
+            </FlyoutPanel>
+          </MenuFlyout>
 
-            <MenuFlyout
-              label={t3({
-                en: "Footer & page numbers",
-                fr: "Pied de page et numéros",
-                pt: "Rodapé e números de página",
-              })}
-            >
-              <FlyoutPanel class="w-80">
-                <FooterPanel config={p.config} onPatch={p.onPatch} />
-              </FlyoutPanel>
-            </MenuFlyout>
+          <MenuFlyout
+            label={t3({
+              en: "Footer & page numbers",
+              fr: "Pied de page et numéros",
+              pt: "Rodapé e números de página",
+            })}
+          >
+            <FlyoutPanel class="w-80">
+              <FooterPanel config={p.config} onPatch={p.onPatch} />
+            </FlyoutPanel>
+          </MenuFlyout>
 
-            <MenuDivider />
-          </Show>
+          <MenuDivider />
 
           <PopoverRow
             active={false}

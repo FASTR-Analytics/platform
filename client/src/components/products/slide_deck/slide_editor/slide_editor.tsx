@@ -1407,10 +1407,12 @@ export function SlideEditor(p: Props) {
                         selectTextTarget(target.type);
                       }
                     }}
-                    onDividerDrag={handleDividerDrag}
-                    onLayoutItemSwap={handleLayoutItemSwap}
+                    onDividerDrag={canEdit() ? handleDividerDrag : undefined}
+                    onLayoutItemSwap={canEdit()
+                      ? handleLayoutItemSwap
+                      : undefined}
                     onContextMenu={(e, target) => {
-                      if (target.type !== "layoutItem") return;
+                      if (!canEdit() || target.type !== "layoutItem") return;
                       const callbacks = getLayoutCallbacks();
                       if (!callbacks) return;
                       const items = buildLayoutContextMenu(
