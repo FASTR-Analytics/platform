@@ -2687,7 +2687,9 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
       <ReportEditorCursors
         reportId={p.productId}
         awareness={() => session()?.awareness}
-        enabled={() => !!session() && collabReady() && panesCovered() === 0}
+        enabled={() =>
+          !!session() && collabReady() && panesCovered() === 0 &&
+          canConfigure()}
         covered={() => panesCovered() > 0}
       />
       <ReportPeerSelectionOverlay

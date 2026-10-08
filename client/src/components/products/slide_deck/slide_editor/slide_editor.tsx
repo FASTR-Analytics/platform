@@ -506,9 +506,10 @@ export function SlideEditor(p: Props) {
 
   // Live cursors: surface glue lives in slide_cursors.tsx
   // (mounted in the JSX below). Disabled while a sub-editor modal covers the
-  // canvas (the figure modal's own broadcaster takes over the awareness field).
+  // canvas (the figure modal's own broadcaster takes over the awareness field),
+  // and for a viewer, whose pointer and cursor chat the room never relays.
   const slideCursorsEnabled = () =>
-    !!session() && collabReady() && subEditorOpen() === 0;
+    !!session() && collabReady() && subEditorOpen() === 0 && canEdit();
 
   // Render slide preview (run-id guard: an older in-flight render must not
   // overwrite a newer one that resolved first)
