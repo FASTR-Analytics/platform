@@ -114,6 +114,19 @@ export async function stageHfaCsvIntoTables(args: {
     xlsFormQuestionsNotInCsv,
   } = matchCsvColumnsToXlsForm(headers, facilityIdIndex, xlsForm);
 
+  if (csvQuestionMappings.length === 0) {
+    const nStagedTypeQuestions = [...xlsForm.questions.values()].filter((q) =>
+      STAGED_QUESTION_TYPES.has(q.type)
+    ).length;
+    throw new Error(
+      `No CSV column matches a question in the XLSForm: ${headers.length} columns in the file, ` +
+        `${nStagedTypeQuestions} questions of a staged type in the form, 0 matched. ` +
+        `The CSV headers and the XLSForm 'name' column must carry the same question ids. ` +
+        `First columns: ${csvColsNotInXlsForm.slice(0, 5).join(", ")}. ` +
+        `First questions: ${xlsFormQuestionsNotInCsv.slice(0, 5).join(", ")}.`,
+    );
+  }
+
   const variableIds = csvQuestionMappings.flatMap((m) => {
     const { questionId } = m.question;
     if (m.question.type === "select_multiple") {

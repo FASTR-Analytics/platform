@@ -1,13 +1,11 @@
-// Pins how the HFA stage leg matches CSV columns to XLSForm questions: a
-// header that differs from the form's id only in case is staged under the
-// form's spelling, two columns matching one question abort staging, and the
-// diagnostics name the columns and questions left unmatched. Runs the real
-// stage leg on a throwaway database built from _main_database.sql on the dev
-// postgres (the .env the test task loads), dropped afterwards.
+// Pins the HFA stage leg's column match, whose contract is the "HFA XLSForm"
+// bullet of SYSTEM_06_ingestion.md. Runs the real stage leg on a throwaway
+// database built from _main_database.sql on the dev postgres (the .env the
+// test task loads), dropped afterwards.
 //
 //   deno test -A --env-file server/tests/hfa_csv_column_matching_test.ts
 
-import { assertEquals, assertRejects } from "@std/assert";
+import { assertEquals, assertRejects, assertStringIncludes } from "@std/assert";
 import { encodeRawCsvHeader } from "lib";
 import { utils, write } from "xlsx/xlsx.mjs";
 import { getPgConnection } from "../db/postgres/connection_manager.ts";
@@ -73,31 +71,32 @@ await Deno.writeFile(
 
 let runId = 0;
 
-async function stage(lines: string[]) {
+async function runStageLeg(lines: string[]) {
   runId++;
   const csvPath = await Deno.makeTempFile({ suffix: ".csv" });
   tempPaths.push(csvPath);
   await Deno.writeTextFile(csvPath, lines.join("\n") + "\n");
   const headers = lines[0].split(",");
+  return await stageHfaCsvIntoTables({
+    importDb: db,
+    csvFilePath: csvPath,
+    csvFileName: "round.csv",
+    xlsFormFilePath: xlsFormPath,
+    mappings: {
+      facilityIdColumn: encodeRawCsvHeader(headers.indexOf("id_fac"), "id_fac"),
+      timePoint: "Round 1",
+      rowFilters: [],
+      dedupStrategy: "first",
+      dedupOverrides: [],
+    },
+    runId,
+    onProgress: () => {},
+  });
+}
+
+async function stage(lines: string[]) {
   try {
-    const result = await stageHfaCsvIntoTables({
-      importDb: db,
-      csvFilePath: csvPath,
-      csvFileName: "round.csv",
-      xlsFormFilePath: xlsFormPath,
-      mappings: {
-        facilityIdColumn: encodeRawCsvHeader(
-          headers.indexOf("id_fac"),
-          "id_fac",
-        ),
-        timePoint: "Round 1",
-        rowFilters: [],
-        dedupStrategy: "first",
-        dedupOverrides: [],
-      },
-      runId,
-      onProgress: () => {},
-    });
+    const result = await runStageLeg(lines);
     const staged = await db<{ variable_id: string; value: string }[]>`
       SELECT variable_id, value FROM ${db(hfaStagingTableNames(runId).final)}
       ORDER BY variable_id
@@ -153,6 +152,26 @@ Deno.test("two columns matching one question abort staging and name both", async
     Error,
     `The CSV columns "serv_08b" and "SERV_08B" both match the XLSForm question "serv_08b"`,
   );
+});
+
+Deno.test("a file whose only column matching a staged question is the facility id column aborts before any table is created", async () => {
+  const error = await assertRejects(
+    () => runStageLeg(["id_fac,FOO,bar", "F1,1,2"]),
+    Error,
+  );
+  assertStringIncludes(
+    error.message,
+    "No CSV column matches a question in the XLSForm",
+  );
+  assertStringIncludes(
+    error.message,
+    "4 questions of a staged type in the form",
+  );
+  const created = await db<{ tablename: string }[]>`
+    SELECT tablename FROM pg_tables
+    WHERE tablename = ANY(${Object.values(hfaStagingTableNames(runId))})
+  `;
+  assertEquals(created.length, 0);
 });
 
 Deno.test("cleanup", async () => {
