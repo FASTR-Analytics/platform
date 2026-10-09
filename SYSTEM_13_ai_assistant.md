@@ -353,21 +353,31 @@ pendingInteractions queue + `reduceInteractions` pipeline. Producers call
 `copilotViewController.notify(...)`: the INSTANCE SSE side-channel
 ([copilot.tsx](client/src/components/products/copilot/copilot.tsx)), which
 carries two things (the per-row `products_upserted` summary, as
-`product_updated`, and `last_updated("slides")`, as `edited_slide`), and the
-editors and selection UIs (`edited_*_locally`, `selected_slides`, and
-`draft_added_to_deck`, the accepted-draft signal the model would otherwise never
-hear, since the write's own SSE echo is marked as an AI edit). The host filters
+`product_updated`, whose deck line says the deck's slides or its settings
+changed, since every slide write bumps the deck's row, and
+`last_updated("slides")`, as `edited_slide`), and the editors and selection UIs
+(`edited_*_locally`, `selected_slides`, and `draft_added_to_deck`, the
+accepted-draft signal the model would otherwise never hear, since the write's
+own SSE echo is marked as an AI edit). The local-edit lines carry the id of the
+slide or report that changed and a `filter` keeps only the one open at drain, so
+the digest names the open slide or report and never an author: a collaborator's
+edit to it invalidates the AI's read as the user's own does, and both read "The
+open slide's content changed" or "The report body changed". Every rail selection
+path goes through `updateSelection`, so each one reports, and a cleared
+selection reads "Cleared the slide selection". The host filters
 `products_upserted` to the OPEN product: another product changing is not this
 copilot's business. The engine owns the transactional drain at turn creation
 (restored on a failed send, so entries are never lost or double-delivered) and
 the reduction pipeline (`relevantIn` / per-entry `filter` / coalesce per id),
 plus a coalesced `__navigation` line. The old "SSE echoes the AI's own tool
 edits" defect is fixed in the general case: every persist-path write tool marks
-`slide:` / `product:` echo keys via `markAIEdit`, so the AI's own server writes
-are dropped at drain (TTL-scoped, either-order). The collab-checkpoint residual
-is in Open items. Because the controller is a module singleton, `ProductCopilot`
-calls `clearInteractionLog()` at mount: each mount is a new conversation scope,
-and retained actions from the previous product (or, on a Clerk cross-tab user
+its `slide:` and `product:` echo keys via `markAIEdit` once its write has landed
+(a report tool marks its `product:` key after the accepted commit, or after a
+figure update saves), so the AI's own server writes are dropped at drain
+(TTL-scoped, either-order). The collab-checkpoint residual is in Open items.
+Because the controller is a module singleton, `ProductCopilot` calls
+`clearInteractionLog()` at mount: each mount is a new conversation scope, and
+retained actions from the previous product (or, on a Clerk cross-tab user
 switch, the previous user) would otherwise arrive in this product's first digest
 as fake activity.
 

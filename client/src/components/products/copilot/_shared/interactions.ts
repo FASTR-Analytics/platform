@@ -1,6 +1,10 @@
 import { defineAIInteractions, interaction } from "panther";
 import type { ProductType } from "lib";
-import type { EditingSlideDeckContext, EditingSlideParams } from "./ai_views";
+import type {
+  EditingReportParams,
+  EditingSlideDeckContext,
+  EditingSlideParams,
+} from "./ai_views";
 
 // The copilot's interaction registry: what the USER did since the last
 // message. Producers call `copilotViewController.notify(...)`: the instance
@@ -47,7 +51,7 @@ export const copilotInteractions = defineAIInteractions({
     coalesce: (entries) => entries.slice(0, 1),
     format: (p) =>
       p.type === "slide_deck"
-        ? `Slide deck "${p.label}" changed (slides added, removed or reordered, or its settings changed)`
+        ? `Slide deck "${p.label}" changed (its slides or its settings)`
         : `Report "${p.label}" changed`,
     echoKey: (p) => `product:${p.productId}`,
   }),
@@ -56,16 +60,29 @@ export const copilotInteractions = defineAIInteractions({
   // message.
   selected_slides: interaction<{ slideIds: string[] }>({
     relevantIn: ["editing_slide_deck", "editing_slide"],
-    format: (p) => `Selected slides: ${p.slideIds.join(", ")}`,
+    format: (p) =>
+      p.slideIds.length === 0
+        ? "Cleared the slide selection"
+        : `Selected slides: ${p.slideIds.join(", ")}`,
   }),
-  edited_slide_locally: interaction({
+  // The editors' own change signals carry the id of what changed and report
+  // only the slide or report open at drain: a line about a slide the user
+  // has since left would describe the wrong slide. No author is named: a
+  // collaborator's edit to the open one invalidates the AI's read just the
+  // same.
+  edited_slide_locally: interaction<{ slideId: string }>({
     relevantIn: ["editing_slide"],
-    format: () => "User made local changes to the slide content (unsaved)",
-  }),
-  edited_report_locally: interaction({
-    relevantIn: ["editing_report"],
+    filter: (p, view) =>
+      (view.params as EditingSlideParams).slideId === p.slideId,
     format: () =>
-      "User edited the report body (re-read with get_report_editor before proposing edits)",
+      "The open slide's content changed (re-read with get_slide_editor before editing it)",
+  }),
+  edited_report_locally: interaction<{ reportId: string }>({
+    relevantIn: ["editing_report"],
+    filter: (p, view) =>
+      (view.params as EditingReportParams).reportId === p.reportId,
+    format: () =>
+      "The report body changed (re-read with get_report_editor before proposing edits)",
   }),
   // App-notified (not SSE): the user accepted an AI draft into the open deck
   // via the preview card. The write's SSE echoes are marked as AI edits (the

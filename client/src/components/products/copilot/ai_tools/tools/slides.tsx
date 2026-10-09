@@ -234,6 +234,7 @@ export function getClientToolsForSlides(
         if (!res.success) throwSlideUpdateError(res.err);
 
         copilotViewController.markAIEdit(`slide:${input.slideId}`);
+        copilotViewController.markAIEdit(`product:${view.params.deckId}`);
 
         return `Replaced slide ${input.slideId}: "${
           getSlideTitle(convertedSlide)
@@ -309,6 +310,7 @@ export function getClientToolsForSlides(
         if (!res.success) throwSlideUpdateError(res.err);
 
         copilotViewController.markAIEdit(`slide:${input.slideId}`);
+        copilotViewController.markAIEdit(`product:${view.params.deckId}`);
 
         const blockIds = input.updates.map((u) => u.blockId).join(", ");
         return `Updated ${input.updates.length} block(s) in slide ${input.slideId}: ${blockIds}`;
@@ -361,6 +363,7 @@ export function getClientToolsForSlides(
         if (!res.success) throwSlideUpdateError(res.err);
 
         copilotViewController.markAIEdit(`slide:${input.slideId}`);
+        copilotViewController.markAIEdit(`product:${view.params.deckId}`);
 
         return `Updated header for slide ${input.slideId}: "${input.newHeader}"`;
       },
@@ -517,6 +520,7 @@ export function getClientToolsForSlides(
         if (!res.success) throwSlideUpdateError(res.err);
 
         copilotViewController.markAIEdit(`slide:${input.slideId}`);
+        copilotViewController.markAIEdit(`product:${view.params.deckId}`);
 
         const parts = [`Modified layout for slide ${input.slideId}.`];
         if (removedBlocks.length > 0) {

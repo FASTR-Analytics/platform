@@ -191,8 +191,7 @@ export function SlideList(p: Props) {
       } else {
         newSelected = new Set([slideId]);
       }
-      setSelectedIds(newSelected);
-      p.setSelectedSlideIds(Array.from(newSelected));
+      updateSelection(newSelected);
       setLastSelectedIndex(index);
       syncSelectionWithSortableJS(newSelected);
       return;
@@ -206,8 +205,7 @@ export function SlideList(p: Props) {
       } else {
         newSelected.add(slideId);
       }
-      setSelectedIds(newSelected);
-      p.setSelectedSlideIds(Array.from(newSelected));
+      updateSelection(newSelected);
       setLastSelectedIndex(index);
       syncSelectionWithSortableJS(newSelected);
       return;
@@ -223,8 +221,7 @@ export function SlideList(p: Props) {
       for (let i = start; i <= end; i++) {
         newSelected.add(items[i].id);
       }
-      setSelectedIds(newSelected);
-      p.setSelectedSlideIds(Array.from(newSelected));
+      updateSelection(newSelected);
       syncSelectionWithSortableJS(newSelected);
       return;
     }

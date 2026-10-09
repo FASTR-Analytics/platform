@@ -1581,7 +1581,9 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     // Let the AI know the body changed (skip AI-applied edits; while live,
     // remote peer edits land here too: they equally invalidate the AI's read).
     if (!applyingProgrammaticEdit) {
-      copilotViewController.notify("edited_report_locally");
+      copilotViewController.notify("edited_report_locally", {
+        reportId: p.productId,
+      });
     }
     // Live collab: edits stream into the shared doc via yCollab and the room
     // checkpoints them: the REST autosave stays off (see collabReady note).

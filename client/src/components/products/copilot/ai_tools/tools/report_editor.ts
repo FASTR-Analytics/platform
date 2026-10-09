@@ -36,7 +36,7 @@ import { getResultsValueInfoForPresentationObjectFromCacheOrFetch } from "~/stat
 import { getReportDetailFromCacheOrFetch } from "~/state/products/t2_report_detail";
 import { describeReportPages } from "./report_page_map";
 import { resolveLogoUrl } from "~/generate_slide_deck/fastr_logos";
-import { copilotViews } from "../../_shared/mod.ts";
+import { copilotViewController, copilotViews } from "../../_shared/mod.ts";
 import { formatLineRanges } from "~/components/products/_shared/mod.ts";
 import { resolveFigureFromMetric } from "../../slide_ai/mod.ts";
 import { formatFigureConfigForAI } from "../../_shared/mod.ts";
@@ -475,6 +475,7 @@ export function getClientToolsForReportEditor(
               `check their connection and try again.`,
           );
         }
+        copilotViewController.markAIEdit(`product:${view.params.reportId}`);
         return `Updated figure ${input.figureId}.\n${
           report.map((l) => `- ${l}`).join("\n")
         }\nThe preview is updated and saved.`;
@@ -614,6 +615,9 @@ ${FASTR_MD_SYNTAX_DOC}`,
             stillValid: prep.stillValid,
             commit: async () => {
               const { skipped } = await prep.commit();
+              copilotViewController.markAIEdit(
+                `product:${view.params.reportId}`,
+              );
               return (
                 "The user ACCEPTED the rewrite; it is now applied to the report." +
                 skippedNote(skipped)
@@ -686,6 +690,9 @@ ${FASTR_MD_SYNTAX_DOC}`,
             stillValid: prep.stillValid,
             commit: async () => {
               const { skipped } = await prep.commit();
+              copilotViewController.markAIEdit(
+                `product:${view.params.reportId}`,
+              );
               return (
                 `The user ACCEPTED the rewrite of section "${input.sectionHeading}"; it is now applied.` +
                 skippedNote(skipped)
@@ -754,6 +761,9 @@ ${FASTR_MD_SYNTAX_DOC}`,
             stillValid: prep.stillValid,
             commit: async () => {
               const { skipped } = await prep.commit();
+              copilotViewController.markAIEdit(
+                `product:${view.params.reportId}`,
+              );
               return (
                 "The user ACCEPTED the edit; it is now applied to the report." +
                 skippedNote(skipped)
@@ -811,6 +821,9 @@ ${FASTR_MD_SYNTAX_DOC}`,
             stillValid: prep.stillValid,
             commit: async () => {
               const { skipped } = await prep.commit();
+              copilotViewController.markAIEdit(
+                `product:${view.params.reportId}`,
+              );
               return (
                 `The user ACCEPTED the figure insert (id ${id}); it is now in the report.` +
                 skippedNote(skipped) +
@@ -908,6 +921,9 @@ ${FASTR_MD_SYNTAX_DOC}`,
             stillValid: prep.stillValid,
             commit: async () => {
               const { skipped } = await prep.commit();
+              copilotViewController.markAIEdit(
+                `product:${view.params.reportId}`,
+              );
               return (
                 `The user ACCEPTED the figure replacement (new id ${newId}); it is now in the report.` +
                 skippedNote(skipped) +

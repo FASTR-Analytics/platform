@@ -177,7 +177,9 @@ export function SlideEditor(p: Props) {
 
   const manuallyUpdateTempSlide: SetStoreFunction<Slide> = (...args: any[]) => {
     (setTempSlide as any)(...args);
-    copilotViewController.notify("edited_slide_locally");
+    copilotViewController.notify("edited_slide_locally", {
+      slideId: p.slideId,
+    });
   };
 
   // Cache each type's state for restoration when switching back
