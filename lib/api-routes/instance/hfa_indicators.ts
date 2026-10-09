@@ -372,9 +372,7 @@ export const hfaIndicatorRouteRegistry = {
       codeConsistent: z.boolean(),
     }),
   }),
-  // The AI's one-request code save (set_hfa_indicator_code, its one caller):
-  // each indicator's row and main code, variant code untouched, one
-  // transaction, one broadcast.
+  // set_hfa_indicator_code's batch save; its contract is saveHfaIndicatorsCode.
   saveHfaIndicatorsCode: route({
     path: "/hfa-indicators/save-code",
     method: "POST",
