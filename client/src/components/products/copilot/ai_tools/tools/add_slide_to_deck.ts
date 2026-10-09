@@ -1,19 +1,19 @@
-import type { Slide } from "lib";
+import type { APIResponseWithData, Slide } from "lib";
 import { serverActions } from "~/server_actions";
 import { copilotViewController } from "../../_shared/mod.ts";
 
 // The draft was resolved under the open product's pair, which is the open
-// deck's, so it is written as is.
+// deck's, so it is written as is. The response is the card's to report.
 export async function addSlideToDeck(
   slide: Slide,
   deckId: string,
-): Promise<void> {
+): Promise<APIResponseWithData<{ slideId: string; lastUpdated: string }>> {
   const res = await serverActions.createSlide({
     product_id: deckId,
     position: { toEnd: true },
     slide,
   });
-  if (!res.success) throw new Error(res.err);
+  if (!res.success) return res;
   // The slide's content is the AI's, so its SSE echoes are marked as AI
   // edits; the user's ACCEPT decision is reported explicitly instead (the
   // model would otherwise never learn its draft landed, or worse, see a
@@ -24,4 +24,5 @@ export async function addSlideToDeck(
     slideId: res.data.slideId,
     deckId,
   });
+  return res;
 }

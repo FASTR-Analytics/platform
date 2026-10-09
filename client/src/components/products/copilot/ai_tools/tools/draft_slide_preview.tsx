@@ -12,6 +12,7 @@ import {
 import type { AlertComponentProps, PageInputs, StateHolder } from "panther";
 import {
   Button,
+  createButtonAction,
   LoadingIndicator,
   ModalContainer,
   openComponent,
@@ -65,7 +66,7 @@ export function DraftSlidePreview(p: Props) {
 
   function getDeckConfig(): SlideDeckConfig {
     const view = copilotViewController.current();
-    if (view.id === "editing_slide_deck") {
+    if (view.id === "editing_slide_deck" || view.id === "editing_slide") {
       return view.context.getDeckConfig();
     }
     return getStartingConfigForSlideDeck("Draft");
@@ -111,27 +112,46 @@ export function DraftSlidePreview(p: Props) {
       fr: "Ajouter à cette présentation",
       pt: "Adicionar a esta apresentação",
     });
+  const addedLabel = () =>
+    t3({
+      en: "Added to this deck",
+      fr: "Ajoutée à cette présentation",
+      pt: "Adicionado a esta apresentação",
+    });
+
+  // One draft adds once: Add is disabled while the write runs and after it
+  // lands, a failure alerts, and the expanded view offers Add only while the
+  // card's button is enabled.
+  const [added, setAdded] = createSignal(false);
+  const add = createButtonAction(
+    (slide: Slide, deckId: string) => addSlideToDeck(slide, deckId),
+    () => {
+      setAdded(true);
+    },
+  );
+  const addTarget = (): { slide: Slide; deckId: string } | undefined => {
+    const state = slideState();
+    const deckId = editableDeckId();
+    return state.status === "ready" && deckId !== undefined
+      ? { slide: state.data.convertedSlide, deckId }
+      : undefined;
+  };
+  const addEnabled = () => !added() && add.state().status === "ready";
 
   function openExpandedView() {
     const state = slideState();
     if (state.status !== "ready") return;
+    const target = addEnabled() ? addTarget() : undefined;
     openComponent<ExpandedSlideModalProps, void>({
       element: ExpandedSlideModal,
       props: {
         pageInputs: state.data.pageInputs,
-        onAddToDeck: editableDeckId() === undefined
+        onAddToDeck: target === undefined
           ? undefined
-          : handleAddToDeck,
+          : () => void add.click(target.slide, target.deckId),
         addToDeckLabel: addToDeckLabel(),
       },
     });
-  }
-
-  async function handleAddToDeck() {
-    const state = slideState();
-    const deckId = editableDeckId();
-    if (state.status !== "ready" || deckId === undefined) return;
-    await addSlideToDeck(state.data.convertedSlide, deckId);
   }
 
   return (
@@ -158,10 +178,18 @@ export function DraftSlidePreview(p: Props) {
               iconName="maximize"
               onClick={openExpandedView}
             />
-            <Show when={editableDeckId() !== undefined}>
-              <Button size="sm" outline onClick={handleAddToDeck}>
-                {addToDeckLabel()}
-              </Button>
+            <Show when={addTarget()} keyed>
+              {(target) => (
+                <Button
+                  size="sm"
+                  outline
+                  state={add.state()}
+                  disabled={!addEnabled()}
+                  onClick={() => void add.click(target.slide, target.deckId)}
+                >
+                  {added() ? addedLabel() : addToDeckLabel()}
+                </Button>
+              )}
             </Show>
           </div>
         </Show>

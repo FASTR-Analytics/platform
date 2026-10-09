@@ -64,6 +64,16 @@ function replaceFigureBundleInLayout(
   return { ...slide, layout: walk(slide.layout) };
 }
 
+// A handler holds the view it got at entry; a slide switch during its awaits
+// unmounts that editor, so a write would land in a dead store and report
+// success. Checked before every write to the open slide.
+function assertSlideStillOpen(slideId: string): void {
+  const current = copilotViewController.current();
+  if (current.id !== "editing_slide" || current.params.slideId !== slideId) {
+    throw new AIToolFailure("The user switched slides; nothing was applied.");
+  }
+}
+
 export function getClientToolsForSlideEditor(
   env: ClientAIToolEnv,
   metrics: MetricWithStatus[],
@@ -103,7 +113,7 @@ export function getClientToolsForSlideEditor(
       viewRegistry: copilotViews,
       name: "update_slide_editor",
       description:
-        "Update the slide content. Provide an `update` object whose `type` matches the slide's type (shown by get_slide_editor), with only the fields you want to change. Changes are LOCAL (preview only) until user clicks Save. Use get_slide_editor first to see current state and block IDs.",
+        "Update the slide content. Provide an `update` object whose `type` matches the slide's type (shown by get_slide_editor), with only the fields you want to change. Changes apply to the open slide at once and save automatically. Use get_slide_editor first to see current state and block IDs.",
       inputSchema: z.object({
         // Mirrors the Slide storage union so a field aimed at the wrong slide
         // type is unrepresentable in the tool call. The union must sit under a
@@ -205,6 +215,7 @@ export function getClientToolsForSlideEditor(
             changes.push("date");
           }
           if (changes.length > 0) {
+            assertSlideStillOpen(view.params.slideId);
             ctx.setTempSlide(reconcile(updated));
           }
         }
@@ -220,6 +231,7 @@ export function getClientToolsForSlideEditor(
             changes.push("sectionSubtitle");
           }
           if (changes.length > 0) {
+            assertSlideStillOpen(view.params.slideId);
             ctx.setTempSlide(reconcile(updated));
           }
         }
@@ -350,6 +362,7 @@ export function getClientToolsForSlideEditor(
             changes.push("layout");
           }
           if (changes.length > 0) {
+            assertSlideStillOpen(view.params.slideId);
             ctx.setTempSlide(reconcile(updated));
           }
         }
@@ -360,7 +373,7 @@ export function getClientToolsForSlideEditor(
 
         return `Updated ${
           changes.join(", ")
-        }. The preview will update automatically. User must click "Save" to persist changes.`;
+        }. The change is applied to the open slide and saves automatically.`;
       },
       inProgressLabel: "Updating slide...",
       completionMessage: (input) => {
@@ -376,10 +389,10 @@ export function getClientToolsForSlideEditor(
       viewRegistry: copilotViews,
       name: "update_figure",
       description:
-        "Edit an existing FIGURE block in place — THE tool for changing anything about a figure already on a slide (the replicant, filters, disaggregation, period, captions), regardless of how it was created. Works BOTH inside the slide editor and at the deck level (pass slideId when at the deck level; omit it in the editor). Provide the figure's blockId and only the fields to change (e.g. selectedReplicantValue, filterBy, disaggregateBy, periodFilter, caption); everything else is preserved and the data is re-queried automatically. To CHANGE A REPLICANT, always use this — it validates the value against the available options and errors clearly. The figure's chart type cannot be changed here (recreate via a from_metric block to change type). In the slide editor, changes are LOCAL (preview only) until the user clicks Save; at the deck level the slide is saved immediately. To edit a figure embedded in a REPORT, use update_report_figure instead.",
+        "Edit an existing FIGURE block in place — THE tool for changing anything about a figure already on a slide (the replicant, filters, disaggregation, period, captions), regardless of how it was created. Works BOTH inside the slide editor and at the deck level (pass slideId when at the deck level; omit it in the editor). Provide the figure's blockId and only the fields to change (e.g. selectedReplicantValue, filterBy, disaggregateBy, periodFilter, caption); everything else is preserved and the data is re-queried automatically. To CHANGE A REPLICANT, always use this — it validates the value against the available options and errors clearly. The figure's chart type cannot be changed here (recreate via a from_metric block to change type). In the slide editor the change applies to the open slide at once and saves automatically; at the deck level the slide is saved immediately. To edit a figure embedded in a REPORT, use update_report_figure instead.",
       inputSchema: z.object({
         slideId: z.string().optional().describe(
-          "Required at the DECK level (from get_deck/get_slide). Omit inside the slide editor — the open slide is used.",
+          "Required at the DECK level (from get_deck/get_slide). Omit inside the slide editor — the open slide is used. A slideId that is not the open slide is refused.",
         ),
         blockId: z.string().describe(
           "Figure block ID (from get_slide_editor or get_slide).",
@@ -407,6 +420,14 @@ export function getClientToolsForSlideEditor(
         let slide: Slide;
         let expectedLastUpdated: string | undefined;
         if (view.id === "editing_slide") {
+          if (
+            input.slideId !== undefined &&
+            input.slideId !== view.params.slideId
+          ) {
+            throw new AIToolFailure(
+              `Slide "${input.slideId}" is not the open slide ("${view.params.slideId}"). While a slide is open, update_figure edits only that slide: omit slideId, or ask the user to open slide "${input.slideId}".`,
+            );
+          }
           slide = unwrap(view.context.getTempSlide());
         } else {
           if (!input.slideId) {
@@ -562,10 +583,10 @@ export function getClientToolsForSlideEditor(
 
         const reportText = report.map((l) => `- ${l}`).join("\n");
 
-        // Save: live preview (Save to persist) in the editor, or directly to the deck.
         if (view.id === "editing_slide") {
+          assertSlideStillOpen(view.params.slideId);
           view.context.setTempSlide(reconcile(updatedSlide));
-          return `Updated figure ${input.blockId}.\n${reportText}\nThe preview will update automatically. User must click "Save" to persist changes.`;
+          return `Updated figure ${input.blockId}.\n${reportText}\nThe change is applied to the open slide and saves automatically.`;
         }
         const saveRes = await serverActions.updateSlide({
           product_id: view.params.deckId,

@@ -39,13 +39,6 @@ function throwSlideUpdateError(err: string): never {
   throw new AIToolFailure(err);
 }
 
-// Situational redirect that used to live in the requireDeckContext gate
-// message: the uniform view-gate refusal drops it, so it rides each deck
-// tool's DESCRIPTION instead (the cache-stable channel the model reads
-// before its first refusal).
-const DECK_LEVEL_NOTE =
-  " If the user has a single slide open in the slide editor, they must close it first — deck-level changes are only available from the deck view.";
-
 // A figure is `{ metricId, config }` resolved under the deck's own results
 // package and scope (D3): there is no figure library to point at, so every
 // figure block starts from a metric and one of that metric's presets.
@@ -61,8 +54,7 @@ export function getClientToolsForSlides(
       viewRegistry: copilotViews,
       name: "get_deck",
       description:
-        "Get the current state of the slide deck, including a summary outline of all slides. This provides essential context about the deck's structure, existing content, and slide order. ALWAYS call this tool first when starting a conversation or before making any changes to understand what's already in the deck." +
-        DECK_LEVEL_NOTE,
+        "Get the current state of the slide deck, including a summary outline of all slides. This provides essential context about the deck's structure, existing content, and slide order. ALWAYS call this tool first when starting a conversation or before making any changes to understand what's already in the deck.",
       inputSchema: z.object({}),
       availableIn: ["editing_slide_deck", "editing_slide"],
       kind: "read",
@@ -90,8 +82,7 @@ export function getClientToolsForSlides(
       name: "create_slide",
       description:
         "Create a new slide and insert it into the deck at a specified position. Supports three slide types: 'cover' (title slide), 'section' (section divider), and 'content' (main content with text and/or figures)." +
-        FIGURE_SOURCE_NOTE +
-        DECK_LEVEL_NOTE,
+        FIGURE_SOURCE_NOTE,
       inputSchema: z.object({
         position: z
           .union([
@@ -181,8 +172,7 @@ export function getClientToolsForSlides(
       name: "replace_slide",
       description:
         "Completely replace an existing slide with new content from scratch. This regenerates the entire slide including layout optimization. WARNING: This destroys any manual layout customizations. Use this ONLY when:\n- Rebuilding a slide from scratch with different structure\n- Changing slide types (content → section, etc.)\n\nFor layout changes on existing content, prefer modify_slide_layout which preserves existing blocks. For content updates, prefer update_slide_content (preserves layout)." +
-        FIGURE_SOURCE_NOTE +
-        DECK_LEVEL_NOTE,
+        FIGURE_SOURCE_NOTE,
       inputSchema: z.object({
         slideId: z.string().describe(
           "Slide ID (3-char alphanumeric, e.g. 'a3k'). Get these from get_deck.",
@@ -259,8 +249,7 @@ export function getClientToolsForSlides(
       name: "update_slide_content",
       description:
         "Update specific content blocks within a slide while preserving the layout structure. Only the specified blocks are replaced; all other blocks and the layout structure remain unchanged. Use block IDs from get_slide to target specific text or figure blocks for replacement. NOTE: this REPLACES a block with new content (rebuilding a figure from scratch); to merely tweak an existing figure's config (replicant, filters, captions) without rebuilding it, use update_figure (pass this slideId + the figure's blockId). To add/remove blocks or change layout arrangement, use modify_slide_layout instead." +
-        FIGURE_SOURCE_NOTE +
-        DECK_LEVEL_NOTE,
+        FIGURE_SOURCE_NOTE,
       inputSchema: z.object({
         slideId: z.string().describe(
           "Slide ID (3-char alphanumeric, e.g. 'a3k'). Get these from get_deck.",
@@ -333,8 +322,7 @@ export function getClientToolsForSlides(
       viewRegistry: copilotViews,
       name: "update_slide_header",
       description:
-        "Update just the header of a content slide without modifying its content or layout. Use this for simple header changes like fixing typos or rewording. Much faster and safer than replace_slide for header-only changes. For cover slides, use replace_slide to update the title." +
-        DECK_LEVEL_NOTE,
+        "Update just the header of a content slide without modifying its content or layout. Use this for simple header changes like fixing typos or rewording. Much faster and safer than replace_slide for header-only changes. For cover slides, use replace_slide to update the title.",
       inputSchema: z.object({
         slideId: z.string().describe(
           "Slide ID (3-char alphanumeric, e.g. 'a3k'). Get these from get_deck.",
@@ -385,8 +373,7 @@ export function getClientToolsForSlides(
       viewRegistry: copilotViews,
       name: "modify_slide_layout",
       description:
-        "Modify the layout and/or blocks of a content slide. Use this to: add new blocks, remove blocks, rearrange blocks, or change column widths. The layout specifies ALL blocks that will be on the slide — any existing blocks not referenced are REMOVED. Use block IDs from get_slide to keep existing blocks; provide inline content for new blocks. Prefer balanced spans (e.g. 6+6 or 8+4) unless the user requests specific proportions.\n\nTo change what's IN a block → use update_slide_content.\nTo change which blocks EXIST or how they're ARRANGED → use this tool." +
-        DECK_LEVEL_NOTE,
+        "Modify the layout and/or blocks of a content slide. Use this to: add new blocks, remove blocks, rearrange blocks, or change column widths. The layout specifies ALL blocks that will be on the slide — any existing blocks not referenced are REMOVED. Use block IDs from get_slide to keep existing blocks; provide inline content for new blocks. Prefer balanced spans (e.g. 6+6 or 8+4) unless the user requests specific proportions.\n\nTo change what's IN a block → use update_slide_content.\nTo change which blocks EXIST or how they're ARRANGED → use this tool.",
       inputSchema: z.object({
         slideId: z
           .string()
@@ -551,8 +538,7 @@ export function getClientToolsForSlides(
       viewRegistry: copilotViews,
       name: "delete_slides",
       description:
-        "Permanently remove one or more slides from the deck. The slides are deleted immediately and cannot be recovered. Remaining slides will maintain their relative order." +
-        DECK_LEVEL_NOTE,
+        "Permanently remove one or more slides from the deck. The slides are deleted immediately and cannot be recovered. Remaining slides will maintain their relative order.",
       inputSchema: z.object({
         slideIds: z
           .array(z.string())
@@ -605,8 +591,7 @@ export function getClientToolsForSlides(
       viewRegistry: copilotViews,
       name: "duplicate_slides",
       description:
-        "Create copies of one or more slides. All duplicates are inserted after the last original slide (preserving their relative order). The duplicated slides have identical content but receive new unique IDs. This is also the only way to reuse a figure: there is no figure library, so copying the slide that holds it is how a figure is reused." +
-        DECK_LEVEL_NOTE,
+        "Create copies of one or more slides. All duplicates are inserted after the last original slide (preserving their relative order). The duplicated slides have identical content but receive new unique IDs. This is also the only way to reuse a figure: there is no figure library, so copying the slide that holds it is how a figure is reused.",
       inputSchema: z.object({
         slideIds: z
           .array(z.string())
@@ -660,8 +645,7 @@ export function getClientToolsForSlides(
       viewRegistry: copilotViews,
       name: "move_slides",
       description:
-        "Reposition one or more slides to a new location in the deck. This is the recommended way to reorder slides, as it's safer and more precise than trying to recreate the entire deck. The moved slides will maintain their relative order to each other." +
-        DECK_LEVEL_NOTE,
+        "Reposition one or more slides to a new location in the deck. This is the recommended way to reorder slides, as it's safer and more precise than trying to recreate the entire deck. The moved slides will maintain their relative order to each other.",
       inputSchema: z.object({
         slideIds: z
           .array(z.string())

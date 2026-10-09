@@ -4,7 +4,7 @@
 > (`PLAN_COPILOT_ORCHESTRATION.md` in the panther repo, ruling R2). Waits on no
 > gate. Opens G2.
 
-**Next step: Do 2**
+**Next step: Review 2**
 
 This plan fixes the AI defects the 2026-10-08 review found in the product
 copilot, the HFA assistant and `/mcp` that need no panther change and whose fix
@@ -516,3 +516,6 @@ plus one closing row per session.
 | 2026-10-09 | 1    | Step 1 built                                                                                                                                                                                                                                                                                                                                 |
 | 2026-10-09 | 1    | Review: the comment over the view params (`copilot/_shared/ai_views.ts:64`) said params carry ids only; `EditingReportParams` also carries `format`, `htmlStyle` and `customStyle`, fixed before `setView`. Rewritten in the review's own commit to say params carry what is fixed before `setView`: ids, and the report's format and style. |
 | 2026-10-09 | 1    | Step 1 reviewed: 1 finding                                                                                                                                                                                                                                                                                                                   |
+| 2026-10-09 | 2    | The shared deck workflow's update_figure line (ruling 11's constant) says "inside the slide editor omit slideId, since there it edits only the open slide": in the slide view the line otherwise names a call ruling 4 refuses.                                                                                                              |
+| 2026-10-09 | 2    | The draft card's Add shows only once the draft has rendered, where it used to show while the draft loaded and drop the click: `createButtonAction` acts on the rendered slide, so there is nothing to offer before it exists.                                                                                                                |
+| 2026-10-09 | 2    | Step 2 built                                                                                                                                                                                                                                                                                                                                 |

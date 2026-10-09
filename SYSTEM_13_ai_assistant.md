@@ -383,7 +383,11 @@ for the model to navigate: the copilot lives inside one product. There is no
 product registry: the model never lists, opens or creates products, and a draft
 slide goes only into the open deck (the preview card offers "Add to this deck"
 from the deck and slide views when the user can edit the deck, and is
-preview-only in a report and for a viewer).
+preview-only in a report and for a viewer). From either deck view the card lays
+out under the open deck's config. Add runs through `createButtonAction`, so a
+failed `createSlide` alerts; the button is disabled while the write runs and
+reads "Added to this deck" once it has landed, so one draft adds once, and the
+expanded view offers Add only while the card's button is enabled.
 
 **A viewer's catalogue** (PLAN_PRODUCT_OWNERSHIP R13): `ProductCopilot` reads
 the user's level on the product once per mount (`productLevel`, S12) and passes

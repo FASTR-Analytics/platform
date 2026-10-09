@@ -143,6 +143,18 @@ The product is still loading, or it failed to load and the page shows the error.
 
 // ── Editing mode instructions ──
 
+// The deck workflow: the deck view's own, and the slide view's for the other
+// slides and the whole deck, since every deck tool runs there too.
+const DECK_WORKFLOW = `1. Call get_deck FIRST to understand current structure
+2. Call get_slide before modifying any specific slide
+3. Choose the right tool for the job:
+   - **Tweak an existing figure** (replicant, filters, disaggregation, period, caption) → update_figure (pass slideId + blockId; inside the slide editor omit slideId, since there it edits only the open slide)
+   - **Swap a block for different content** (replace text, replace a chart with a different metric) → update_slide_content
+   - **Change layout** (add/remove blocks, rearrange, resize) → modify_slide_layout
+   - **Change header only** → update_slide_header
+   - **Rebuild from scratch or change slide type** → replace_slide (last resort)
+4. Call get_metric_data before creating from_metric blocks to check available data`;
+
 export function getEditingSlideDeckInstructions(deckLabel: string): string {
   return `# Current Mode: Editing Slide Deck
 
@@ -181,15 +193,7 @@ When talking to the user, never mention internal slide IDs or block IDs (e.g. 'a
 
 ## Workflow
 
-1. Call get_deck FIRST to understand current structure
-2. Call get_slide before modifying any specific slide
-3. Choose the right tool for the job:
-   - **Tweak an existing figure** (replicant, filters, disaggregation, period, caption) → update_figure (pass slideId + blockId)
-   - **Swap a block for different content** (replace text, replace a chart with a different metric) → update_slide_content
-   - **Change layout** (add/remove blocks, rearrange, resize) → modify_slide_layout
-   - **Change header only** → update_slide_header
-   - **Rebuild from scratch or change slide type** → replace_slide (last resort)
-4. Call get_metric_data before creating from_metric blocks to check available data`;
+${DECK_WORKFLOW}`;
 }
 
 export function getEditingSlideInstructions(
@@ -217,7 +221,11 @@ You're editing slide: "${slideLabel}" in deck: "${deckLabel}"
 1. Call get_slide_editor FIRST to see current content and block IDs
 2. Suggest changes based on what would improve the slide
 3. Use update_slide_editor to apply changes
-4. Changes are LOCAL until the user saves - remind them to save if satisfied
+4. Changes apply to the open slide at once and save automatically
+
+## Other slides and the whole deck
+
+${DECK_WORKFLOW}
 
 ## Text Length Guidelines
 
@@ -228,8 +236,7 @@ Keep text concise and focused. Slides with figures should have less text. Use bu
 
 ## Important
 
-- Changes are previewed immediately but NOT saved automatically
-- The user must click Save to persist changes
+- Changes apply to the open slide at once and save automatically; there is no Save button
 - For content slides, use block IDs from get_slide_editor to target specific blocks
 - IMPORTANT: Markdown tables are NOT allowed in text blocks. To display tabular data, use a from_metric block with a table-type preset.`;
 }

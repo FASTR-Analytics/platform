@@ -410,7 +410,8 @@ export function SlideEditor(p: Props) {
   // Live co-editing (Milestone 3). The editor keeps mutating `tempSlide`; a
   // bridge syncs it to a shared CRDT doc. Degrades gracefully: if the collab
   // socket/room is unavailable, the session never becomes ready, pushLocal is a
-  // no-op, and editing behaves exactly as before (tempSlide + explicit Save).
+  // no-op, and `tempSlide` is saved by the deck's `flush` before a slide swap
+  // and by the unmount save in onCleanup.
   const [collabReady, setCollabReady] = createSignal(false);
   // Signal (not a bare let) so the panel reactively picks up the session once it
   // opens: needed to bind the CodeMirror text editor to the block's Y.Text.
@@ -699,8 +700,9 @@ export function SlideEditor(p: Props) {
     document.addEventListener("keydown", handleEditorKeyDown);
 
     // Keep the optimistic-save timestamp fresh as server-side checkpoints (or
-    // other users' saves) bump last_updated, so the explicit Save fallback
-    // won't raise a spurious conflict while co-editing.
+    // other users' saves) bump last_updated, so the REST fallback (the deck's
+    // `flush` before a slide swap, the unmount save) won't raise a spurious
+    // conflict while co-editing.
     removeLastUpdatedListener = addLastUpdatedListener((tableName, ids, ts) => {
       if (tableName === "slides" && ids.includes(p.slideId)) {
         setLastKnownServerTimestamp(ts);
@@ -738,10 +740,10 @@ export function SlideEditor(p: Props) {
     if (p.returnToContext) {
       restoreCopilotView(p.returnToContext);
     }
-    // Last-chance flush for exits that bypass the back button (route change,
-    // deck switch): if collab isn't persisting and edits are pending, save
-    // best-effort. Fire-and-forget with no conflict modal: at teardown there
-    // is no UI to ask; a conflicting concurrent save simply wins.
+    // The unmount save, for a close the deck did not `flush` first (the deck
+    // closing, a route change): if collab isn't persisting and edits are
+    // pending, save best-effort. Fire-and-forget with no conflict modal: at
+    // teardown there is no UI to ask; a conflicting concurrent save simply wins.
     if (draftToSave()) {
       void serverActions.updateSlide({
         product_id: p.productId,

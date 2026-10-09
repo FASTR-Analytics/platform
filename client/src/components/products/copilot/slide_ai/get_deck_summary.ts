@@ -38,10 +38,11 @@ export async function getDeckSummaryForAI(
   if (slideIds.length === 0) {
     lines.push("No slides yet");
   } else {
-    for (let i = 0; i < slideIds.length; i++) {
+    const slides = await Promise.all(
+      slideIds.map((slideId) => getSlideFromCacheOrFetch(productId, slideId)),
+    );
+    slides.forEach((res, i) => {
       const slideId = slideIds[i];
-      const res = await getSlideFromCacheOrFetch(productId, slideId);
-
       if (!res.success) {
         lines.push(`  ${slideId}: [Failed to load: ${res.err}]`);
       } else {
@@ -51,7 +52,7 @@ export async function getDeckSummaryForAI(
           `  ${slideId} (${res.data.slide.type}): "${title}"${contentSummary}`,
         );
       }
-    }
+    });
   }
 
   lines.push("");
