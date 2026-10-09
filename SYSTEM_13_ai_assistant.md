@@ -363,23 +363,23 @@ slide or report that changed and a `filter` keeps only the one open at drain, so
 the digest names the open slide or report and never an author: a collaborator's
 edit to it invalidates the AI's read as the user's own does, and both read "The
 open slide's content changed" or "The report body changed". Every rail selection
-path goes through `updateSelection`, so each one reports, and a cleared
-selection reads "Cleared the slide selection". The host filters
-`products_upserted` to the OPEN product: another product changing is not this
-copilot's business. The engine owns the transactional drain at turn creation
-(restored on a failed send, so entries are never lost or double-delivered) and
-the reduction pipeline (`relevantIn` / per-entry `filter` / coalesce per id),
-plus a coalesced `__navigation` line. The old "SSE echoes the AI's own tool
-edits" defect is fixed in the general case: every persist-path write tool marks
-its `slide:` and `product:` echo keys via `markAIEdit` once its write has landed
-(a report tool marks its `product:` key after the accepted commit, or after a
-figure update saves), so the AI's own server writes are dropped at drain
-(TTL-scoped, either-order). The collab-checkpoint residual is in Open items.
-Because the controller is a module singleton, `ProductCopilot` calls
-`clearInteractionLog()` at mount: each mount is a new conversation scope, and
-retained actions from the previous product (or, on a Clerk cross-tab user
-switch, the previous user) would otherwise arrive in this product's first digest
-as fake activity.
+path notifies `selected_slides`: the click paths through `updateSelection`, the
+clear paths through `clearSelection`, whose line reads "Cleared the slide
+selection". The host filters `products_upserted` to the OPEN product: another
+product changing is not this copilot's business. The engine owns the
+transactional drain at turn creation (restored on a failed send, so entries are
+never lost or double-delivered) and the reduction pipeline (`relevantIn` /
+per-entry `filter` / coalesce per id), plus a coalesced `__navigation` line. The
+old "SSE echoes the AI's own tool edits" defect is fixed in the general case:
+every persist-path write tool marks its `slide:` and `product:` echo keys via
+`markAIEdit` once its write has landed (a report tool marks its `product:` key
+after the accepted commit, or after a figure update saves), so the AI's own
+server writes are dropped at drain (TTL-scoped, either-order). The
+collab-checkpoint residual is in Open items. Because the controller is a module
+singleton, `ProductCopilot` calls `clearInteractionLog()` at mount: each mount
+is a new conversation scope, and retained actions from the previous product (or,
+on a Clerk cross-tab user switch, the previous user) would otherwise arrive in
+this product's first digest as fake activity.
 
 ## Tools, view gating, and approval
 
