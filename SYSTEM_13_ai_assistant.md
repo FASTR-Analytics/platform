@@ -722,7 +722,7 @@ assistant: same panther engine, own conversation scope (`hfa-indicators`), own
 SDK client pointed at `/ai-instance` (duplicates the 429-localizing fetch
 wrapper), its own `modelConfig` (`max_tokens: 4096`, where the copilot omits
 it), **no built-in web tools**. Structural differences from the copilot: no view
-registry, so every write goes straight to serverActions. Its six write tools
+registry, so every write goes straight to serverActions. Its five write tools
 declare `approval.propose` with `presentation: "modal"` (panther owns the
 propose → modal diff → commit lifecycle; the old hand-rolled `confirmChain`
 serializer is deleted), and the config sets
@@ -730,17 +730,26 @@ serializer is deleted), and the config sets
 "write", requireKind: true }`
 ([ai/wrapper.tsx:36](client/src/components/data/hfa/indicators/ai/wrapper.tsx#L36)).
 A write tool without approval, or any tool without a `kind`, fails at
-construction. Every anticipated failure throws `AIToolFailure` (zero
-plain-`Error` throws in
+construction. `validate_hfa_indicators` is a read: it computes each indicator's
+issues from main code and stores nothing, since the manager recomputes status at
+render and the stored flags' only reader is `get_hfa_indicators`
+(`bulkUpdateHfaIndicatorValidation` serves the manager's Revalidate all alone).
+`create_hfa_indicators` reports what the batch route created and, under
+`notCreated`, an id another save took between the proposal and the acceptance.
+Every anticipated failure throws `AIToolFailure` carrying the server's error
+(zero plain-`Error` throws in
 [tools.ts](client/src/components/data/hfa/indicators/ai/tools.ts), the
-failure-channel ruling above). The system prompt deliberately embeds no live
+failure-channel ruling above). The survey dictionary and the dataset display are
+read through the manager's T2 caches; the indicators, the taxonomy and the code
+are read fresh on every call. The system prompt deliberately embeds no live
 state (the model reads through tools, avoiding staleness with its own edits).
 Write commits do whole-object load → propose → save, last write wins: the
 app-wide concurrency model, deliberate (a re-read-after-confirm refactor was
-rejected as an inconsistent outlier). Its hand-written schemas comply with the
-S13 conventions (storage field names, throw-don't-catch, no strictObject /
-strict:true). S13 convention changes must be checked against this directory; its
-tool semantics are S5's.
+rejected as an inconsistent outlier); a label batch carries only the indicators
+whose label changed. Its hand-written schemas comply with the S13 conventions
+(storage field names, throw-don't-catch, `.min(1)` on inclusion lists, no
+strictObject / strict:true). S13 convention changes must be checked against this
+directory; its tool semantics are S5's.
 
 ## Traps
 

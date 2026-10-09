@@ -17,6 +17,11 @@ import {
   serialiseMultiMembershipValues,
 } from "lib";
 import { serverActions } from "~/server_actions";
+import { instanceState } from "~/state/instance/t1_store";
+import {
+  getDatasetHfaDisplayInfoFromCacheOrFetch,
+  getHfaDictionaryFromCacheOrFetch,
+} from "~/state/instance/t2_datasets";
 import {
   checkRCodeResultType,
   hasRCodeErrors,
@@ -24,13 +29,17 @@ import {
 } from "../_shared/mod.ts";
 
 // ---------------------------------------------------------------------------
-// Loaders: always read fresh so the AI acts on current state, and so writes
-// from earlier in the conversation are reflected.
+// Loaders. The indicators, the taxonomy and the code are read fresh on every
+// call so the AI acts on current state, its own earlier writes included; the
+// survey dictionary and the dataset display read through the T2 caches the
+// manager uses, keyed on the instance's HFA cache hash.
 // ---------------------------------------------------------------------------
 
 async function loadIndicators(): Promise<HfaIndicator[]> {
   const res = await serverActions.getHfaIndicators({});
-  if (!res.success) throw new AIToolFailure("Could not load HFA indicators.");
+  if (!res.success) {
+    throw new AIToolFailure(`Could not load HFA indicators: ${res.err}`);
+  }
   return res.data;
 }
 
@@ -40,8 +49,14 @@ async function loadTaxonomy() {
     serverActions.getHfaIndicatorSubCategories({}),
     serverActions.getHfaIndicatorServiceCategories({}),
   ]);
-  if (!cats.success || !subs.success || !svcs.success) {
-    throw new AIToolFailure("Could not load HFA taxonomy.");
+  if (!cats.success) {
+    throw new AIToolFailure(`Could not load the HFA taxonomy: ${cats.err}`);
+  }
+  if (!subs.success) {
+    throw new AIToolFailure(`Could not load the HFA taxonomy: ${subs.err}`);
+  }
+  if (!svcs.success) {
+    throw new AIToolFailure(`Could not load the HFA taxonomy: ${svcs.err}`);
   }
   return {
     categories: cats.data,
@@ -58,28 +73,38 @@ async function applyIndicatorUpdates(merged: HfaIndicator[]): Promise<void> {
   });
   if (!res.success) {
     throw new AIToolFailure(
-      `Failed to apply the ${merged.length} update(s) — nothing was saved. Retry the batch.`,
+      `Failed to apply the ${merged.length} HFA indicator update(s); nothing was saved: ${res.err}`,
     );
   }
 }
 
 async function loadDictionary(): Promise<HfaDictionaryForValidation> {
-  const res = await serverActions.getHfaDictionaryForValidation({});
+  const res = await getHfaDictionaryFromCacheOrFetch(
+    instanceState.hfaCacheHash,
+  );
   if (!res.success) {
-    throw new AIToolFailure("Could not load the survey variable dictionary.");
+    throw new AIToolFailure(
+      `Could not load the HFA survey variable dictionary: ${res.err}`,
+    );
   }
   return res.data;
 }
 
 async function loadAllCode(): Promise<HfaIndicatorCode[]> {
   const res = await serverActions.getAllHfaIndicatorCode({});
-  if (!res.success) throw new AIToolFailure("Could not load indicator code.");
+  if (!res.success) {
+    throw new AIToolFailure(`Could not load HFA indicator code: ${res.err}`);
+  }
   return res.data;
 }
 
 async function loadAllVariantCode(): Promise<HfaIndicatorVariantCode[]> {
   const res = await serverActions.getAllHfaIndicatorVariantCode({});
-  if (!res.success) throw new AIToolFailure("Could not load variant code.");
+  if (!res.success) {
+    throw new AIToolFailure(
+      `Could not load HFA indicator variant code: ${res.err}`,
+    );
+  }
   return res.data;
 }
 
@@ -91,19 +116,13 @@ function formatCodeRound(round: CodeRound): string {
     : round.rCode;
 }
 
-function statusText(hasSyntaxError: boolean, codeConsistent: boolean): string {
-  if (hasSyntaxError) return "error";
-  if (!codeConsistent) return "inconsistent";
-  return "ok";
-}
-
 // Mirrors the manager's "Revalidate all" computation (syntax + variable
 // existence → hasSyntaxError; identical non-empty rounds → codeConsistent), plus
 // two additions: an unknown time point also counts as a syntax error, and
 // advisory findings (lone-`=` warnings, the binary/numeric result-type check)
-// are surfaced in `issues` ONLY: they never flip hasSyntaxError, so the stored
-// status stays consistent with the editor for everything the editor itself
-// treats as an error.
+// are surfaced in `issues` ONLY: they never flip hasSyntaxError, and, unlike
+// the editor (`hfa/indicator_code_editor.tsx:471-489`), it reads main code
+// only.
 function computeIndicatorValidation(
   code: CodeRound[],
   dict: HfaDictionaryForValidation,
@@ -230,7 +249,7 @@ export function buildHfaIndicatorTools() {
     createAITool({
       name: "get_hfa_taxonomy",
       description:
-        "List the available categories, sub-categories (each with its parent categoryId), and service categories — the valid ids that indicators can be assigned to.",
+        "List the HFA indicator taxonomy: the available categories, sub-categories (each with its parent categoryId), and service categories — the valid ids that HFA indicators can be assigned to.",
       kind: "read",
       inputSchema: z.object({}),
       handler: async () => {
@@ -256,7 +275,7 @@ export function buildHfaIndicatorTools() {
     createAITool({
       name: "update_hfa_indicator_labels",
       description:
-        "Set the short label and/or long label (definition) of existing indicators, in a batch. Only the fields you provide change. The short label is used in dense chart contexts; the long label is the full descriptive text. Does NOT change measurement, categorisation, or r-code.",
+        "Set the short label and/or long label (definition) of existing HFA indicators, in a batch. Only the fields you provide change. The short label is used in dense chart contexts; the long label is the full descriptive text. Does NOT change measurement, categorisation, or r-code.",
       kind: "write",
       inputSchema: z.object({
         updates: z.array(z.object({
@@ -299,7 +318,12 @@ export function buildHfaIndicatorTools() {
               });
               next.definition = u.definition;
             }
-            merged.push(next);
+            if (
+              next.shortLabel !== cur.shortLabel ||
+              next.definition !== cur.definition
+            ) {
+              merged.push(next);
+            }
           }
           if (changes.length === 0) {
             return {
@@ -335,7 +359,7 @@ export function buildHfaIndicatorTools() {
     createAITool({
       name: "assign_hfa_indicator_categories",
       description:
-        "Assign or clear the category, sub-category, and/or service categories of existing indicators, in a batch. Only the fields you provide change. Use null to clear a category or sub-category. All ids are validated against the live taxonomy (call get_hfa_taxonomy first if unsure).",
+        "Assign or clear the category, sub-category, and/or service categories of existing HFA indicators, in a batch. Only the fields you provide change. Use null to clear a category or sub-category. All ids are validated against the live taxonomy (call get_hfa_taxonomy first if unsure).",
       kind: "write",
       inputSchema: z.object({
         updates: z.array(z.object({
@@ -476,7 +500,7 @@ export function buildHfaIndicatorTools() {
     createAITool({
       name: "get_hfa_variable_dictionary",
       description:
-        "List the survey variables in the dataset — variable id, human label, and data type — per round (time point). Compact by default. To see a variable's coded response options, missingness and the values actually present, use inspect_hfa_variable.",
+        "List the HFA survey variables in the dataset — variable id, human label, and data type — per round (time point). Compact by default. To see a variable's coded response options, missingness and the values actually present, use inspect_hfa_variable.",
       kind: "read",
       inputSchema: z.object({
         timePoint: z.string().optional().describe(
@@ -519,7 +543,7 @@ export function buildHfaIndicatorTools() {
     createAITool({
       name: "inspect_hfa_variable",
       description:
-        "Inspect one or more survey variables in depth: per round, the coded response options (value → label), how many facilities answered vs are missing, and the distinct values actually present in the data. Use this before writing r-code that compares against a variable's codes.",
+        "Inspect one or more HFA survey variables in depth: per round, the coded response options (value → label), how many facilities answered vs are missing, and the distinct values actually present in the data. Use this before writing r-code that compares against a variable's codes.",
       kind: "read",
       inputSchema: z.object({
         variableIds: z.array(z.string()).min(1).describe(
@@ -530,10 +554,12 @@ export function buildHfaIndicatorTools() {
         ),
       }),
       handler: async (input) => {
-        const res = await serverActions.getDatasetHfaDisplayInfo({});
+        const res = await getDatasetHfaDisplayInfoFromCacheOrFetch(
+          instanceState.hfaCacheHash,
+        );
         if (!res.success) {
           throw new AIToolFailure(
-            "Could not load the dataset variable details.",
+            `Could not load the HFA dataset variable details: ${res.err}`,
           );
         }
         const wanted = new Set(input.variableIds);
@@ -565,10 +591,10 @@ export function buildHfaIndicatorTools() {
     createAITool({
       name: "get_hfa_indicator_code",
       description:
-        "Read the per-round r-code (rCode and optional rFilterCode) of existing indicators.",
+        "Read the per-round r-code (rCode and optional rFilterCode) of existing HFA indicators.",
       kind: "read",
       inputSchema: z.object({
-        indicatorIds: z.array(z.string()).optional().describe(
+        indicatorIds: z.array(z.string()).min(1).optional().describe(
           "Restrict to these indicators; omit for all.",
         ),
         timePoint: z.string().optional().describe(
@@ -601,89 +627,53 @@ export function buildHfaIndicatorTools() {
     createAITool({
       name: "validate_hfa_indicators",
       description:
-        "Validate indicators' r-code against the survey dictionary and persist the result (the manager's ready/error status). Returns, per checked indicator, whether it has syntax / unknown-variable / result-type issues, whether its code is consistent across rounds, and the specific issues. Run it after creating or editing code, and to find indicators that need fixing.",
-      kind: "write",
+        "Validate HFA indicators' r-code against the HFA survey dictionary. Writes nothing. Returns how many indicators were checked and, for each one with an issue, whether it has syntax / unknown-variable / result-type issues, whether its code is consistent across rounds, and the specific issues. Run it after creating or editing code, and to find indicators that need fixing.",
+      kind: "read",
       inputSchema: z.object({
-        indicatorIds: z.array(z.string()).optional().describe(
+        indicatorIds: z.array(z.string()).min(1).optional().describe(
           "Indicators to validate; omit to validate all.",
         ),
       }),
-      approval: {
-        propose: async (input) => {
-          const indicators = await loadIndicators();
-          const allCode = await loadAllCode();
-          const dict = await loadDictionary();
-          const allIds = new Set(indicators.map((i) => i.indicatorId));
-          const codeByIndicatorId = new Map<string, CodeRound[]>();
-          for (const c of allCode) {
-            const arr = codeByIndicatorId.get(c.indicatorId) ?? [];
-            arr.push({
-              timePoint: c.timePoint,
-              rCode: c.rCode,
-              rFilterCode: c.rFilterCode,
-            });
-            codeByIndicatorId.set(c.indicatorId, arr);
-          }
-          const target = input.indicatorIds
-            ? indicators.filter((i) =>
-              input.indicatorIds!.includes(i.indicatorId)
-            )
-            : indicators;
-          const results = target.map((ind) => {
-            const other = new Set(allIds);
-            other.delete(ind.indicatorId);
-            const v = computeIndicatorValidation(
-              codeByIndicatorId.get(ind.indicatorId) ?? [],
-              dict,
-              other,
-              ind.type,
-            );
-            return {
-              indicatorId: ind.indicatorId,
-              hasSyntaxError: v.hasSyntaxError,
-              codeConsistent: v.codeConsistent,
-              issues: v.issues,
-            };
+      handler: async (input) => {
+        const indicators = await loadIndicators();
+        const allCode = await loadAllCode();
+        const dict = await loadDictionary();
+        const allIds = new Set(indicators.map((i) => i.indicatorId));
+        const codeByIndicatorId = new Map<string, CodeRound[]>();
+        for (const c of allCode) {
+          const arr = codeByIndicatorId.get(c.indicatorId) ?? [];
+          arr.push({
+            timePoint: c.timePoint,
+            rCode: c.rCode,
+            rFilterCode: c.rFilterCode,
           });
-          const withIssues = results.filter((r) =>
-            r.hasSyntaxError || !r.codeConsistent || r.issues.length > 0
+          codeByIndicatorId.set(c.indicatorId, arr);
+        }
+        const target = input.indicatorIds
+          ? indicators.filter((i) =>
+            input.indicatorIds!.includes(i.indicatorId)
+          )
+          : indicators;
+        const results = target.map((ind) => {
+          const other = new Set(allIds);
+          other.delete(ind.indicatorId);
+          const v = computeIndicatorValidation(
+            codeByIndicatorId.get(ind.indicatorId) ?? [],
+            dict,
+            other,
+            ind.type,
           );
-          const changes = results.flatMap((r, i) => {
-            const before = statusText(
-              target[i].hasSyntaxError,
-              target[i].codeConsistent,
-            );
-            const after = statusText(r.hasSyntaxError, r.codeConsistent);
-            return before === after
-              ? []
-              : [{ label: r.indicatorId, before, after }];
-          });
           return {
-            preview: {
-              title: "Save validation status",
-              description:
-                `Save the computed ready/error status for ${results.length} indicator(s)? (${withIssues.length} with issues)`,
-              changes: changes.length > 0 ? changes : undefined,
-            },
-            commit: async () => {
-              const persistRes = await serverActions
-                .bulkUpdateHfaIndicatorValidation({
-                  updates: results.map((r) => ({
-                    indicatorId: r.indicatorId,
-                    hasSyntaxError: r.hasSyntaxError,
-                    codeConsistent: r.codeConsistent,
-                  })),
-                });
-              if (!persistRes.success) {
-                throw new AIToolFailure(
-                  "Validation was computed but could not be saved.",
-                );
-              }
-              return { validated: results.length, withIssues };
-            },
+            indicatorId: ind.indicatorId,
+            hasSyntaxError: v.hasSyntaxError,
+            codeConsistent: v.codeConsistent,
+            issues: v.issues,
           };
-        },
-        presentation: "modal",
+        });
+        const withIssues = results.filter((r) =>
+          r.hasSyntaxError || !r.codeConsistent || r.issues.length > 0
+        );
+        return { validated: results.length, withIssues };
       },
       inProgressLabel: () => "Validating r-code...",
       completionMessage: (
@@ -838,17 +828,30 @@ export function buildHfaIndicatorTools() {
                 replaceAll: false,
               });
               if (!res.success) {
-                throw new AIToolFailure("Failed to create indicators.");
+                throw new AIToolFailure(
+                  `Failed to create HFA indicators: ${res.err}`,
+                );
               }
+              const createdIds = new Set(res.data.createdIndicatorIds);
+              const created = indicatorsToCreate.filter((i) =>
+                createdIds.has(i.indicatorId)
+              );
               return {
                 applied: true,
-                created: indicatorsToCreate.map((i) => ({
+                created: created.map((i) => ({
                   indicatorId: i.indicatorId,
                   definition: i.definition,
                 })),
-                withValidationIssues: indicatorsToCreate.filter((i) =>
-                  i.hasSyntaxError
-                ).map((i) => i.indicatorId),
+                notCreated: indicatorsToCreate
+                  .filter((i) => !createdIds.has(i.indicatorId))
+                  .map((i) => ({
+                    indicatorId: i.indicatorId,
+                    definition: i.definition,
+                    reason:
+                      "an HFA indicator with this id was saved after the proposal; nothing was created for it",
+                  })),
+                withValidationIssues: created.filter((i) => i.hasSyntaxError)
+                  .map((i) => i.indicatorId),
               };
             },
           };
@@ -863,7 +866,7 @@ export function buildHfaIndicatorTools() {
     createAITool({
       name: "set_hfa_indicator_code",
       description:
-        "Set the per-round r-code of EXISTING indicators (to fix or change how they are computed). Each entry replaces that indicator+round's rCode/rFilterCode; other rounds are kept. Validation (including the result-type check) is recomputed automatically.",
+        "Set the per-round r-code of EXISTING HFA indicators (to fix or change how they are computed). Each entry replaces that indicator+round's rCode/rFilterCode; other rounds are kept. Validation (including the result-type check) is recomputed automatically.",
       kind: "write",
       inputSchema: z.object({
         updates: z.array(z.object({
@@ -965,7 +968,7 @@ export function buildHfaIndicatorTools() {
                   .getHfaIndicatorVariantCode({ indicatorId: vn });
                 if (!variantRes.success) {
                   throw new AIToolFailure(
-                    `Failed to load variant code for "${vn}".`,
+                    `Failed to load variant code for "${vn}": ${variantRes.err}`,
                   );
                 }
                 const res = await serverActions.saveHfaIndicatorFull({
@@ -988,7 +991,9 @@ export function buildHfaIndicatorTools() {
                   codeConsistent: v.codeConsistent,
                 });
                 if (!res.success) {
-                  throw new AIToolFailure(`Failed to update code for "${vn}".`);
+                  throw new AIToolFailure(
+                    `Failed to update code for "${vn}": ${res.err}`,
+                  );
                 }
                 results.push({
                   indicatorId: vn,
@@ -1017,7 +1022,7 @@ export function buildHfaIndicatorTools() {
     createAITool({
       name: "delete_hfa_indicators",
       description:
-        "Permanently delete indicators by indicator id (and their r-code). Use with care.",
+        "Permanently delete HFA indicators by indicator id (and their r-code). Use with care.",
       kind: "write",
       inputSchema: z.object({ indicatorIds: z.array(z.string()).min(1) }),
       approval: {
@@ -1075,7 +1080,9 @@ export function buildHfaIndicatorTools() {
                 indicatorIds: input.indicatorIds,
               });
               if (!res.success) {
-                throw new AIToolFailure("Failed to delete indicators.");
+                throw new AIToolFailure(
+                  `Failed to delete HFA indicators: ${res.err}`,
+                );
               }
               return {
                 applied: true,

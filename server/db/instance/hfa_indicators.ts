@@ -924,13 +924,16 @@ export async function deleteHfaIndicators(
   });
 }
 
+// Inserts only the ids not yet stored and returns the ids it created: an id
+// taken between the caller's read and this insert is reported, not re-coded.
 export async function batchUploadHfaIndicators(
   mainDb: Sql,
   indicators: HfaIndicator[],
   code: HfaIndicatorCode[],
   replaceAll: boolean,
-): Promise<APIResponseNoData> {
+): Promise<APIResponseWithData<{ createdIndicatorIds: string[] }>> {
   return await tryCatchDatabaseAsync(async () => {
+    const createdIndicatorIds: string[] = [];
     await mainDb.begin(async (sql) => {
       if (replaceAll) {
         await sql`DELETE FROM hfa_indicators`;
@@ -949,29 +952,32 @@ export async function batchUploadHfaIndicators(
         nextSortOrder = (maxResult[0]?.max_order ?? -1) + 1;
       }
 
-      const insertedIndicatorIds = new Set<string>();
       for (let i = 0; i < indicators.length; i++) {
         const ind = indicators[i];
         if (!replaceAll && existingIndicatorIds.has(ind.indicatorId)) {
           continue;
         }
         const sortOrder = replaceAll ? i : nextSortOrder++;
-        await sql`
+        const inserted = await sql<{ indicator_id: string }[]>`
           INSERT INTO hfa_indicators (indicator_id, category_id, sub_category_id, service_category_ids, short_label, definition, type, aggregation, sort_order, has_syntax_error, code_consistent, variant_group_id, updated_at)
           VALUES (${ind.indicatorId}, ${ind.categoryId}, ${ind.subCategoryId}, ${
           JSON.stringify(ind.serviceCategoryIds)
         }, ${ind.shortLabel}, ${ind.definition}, ${ind.type}, ${ind.aggregation}, ${sortOrder}, ${ind.hasSyntaxError}, ${ind.codeConsistent}, ${ind.variantGroupId}, CURRENT_TIMESTAMP)
           ON CONFLICT (indicator_id) DO NOTHING
+          RETURNING indicator_id
         `;
-        insertedIndicatorIds.add(ind.indicatorId);
+        for (const row of inserted) {
+          createdIndicatorIds.push(row.indicator_id);
+        }
       }
 
-      for (const indicatorId of insertedIndicatorIds) {
+      const created = new Set(createdIndicatorIds);
+      for (const indicatorId of created) {
         await sql`DELETE FROM hfa_indicator_code WHERE indicator_id = ${indicatorId}`;
       }
       for (const c of code) {
         if (!c.rCode.trim()) continue;
-        if (!insertedIndicatorIds.has(c.indicatorId)) continue;
+        if (!created.has(c.indicatorId)) continue;
         await sql`
           INSERT INTO hfa_indicator_code (indicator_id, time_point, r_code, r_filter_code)
           VALUES (${c.indicatorId}, ${c.timePoint}, ${c.rCode}, ${
@@ -981,7 +987,7 @@ export async function batchUploadHfaIndicators(
       }
       await assertVariantIntegrity(sql);
     });
-    return { success: true };
+    return { success: true, data: { createdIndicatorIds } };
   });
 }
 
@@ -1358,8 +1364,9 @@ export async function bulkUpdateHfaIndicatorValidation(
     await mainDb.begin(async (sql) => {
       for (const u of updates) {
         // Deliberately no updated_at bump: these flags are display-only editor
-        // metadata (never captured into a package), and bumping would
-        // spuriously flag the instance's HFA dataset as stale.
+        // metadata (a package captures them, server/runs/capture_inputs/hfa.ts:85-87,
+        // and its reader drops them, server/run_query/run_read.ts:367-374), and
+        // bumping would spuriously flag the instance's HFA dataset as stale.
         await sql`
           UPDATE hfa_indicators
           SET has_syntax_error = ${u.hasSyntaxError},

@@ -497,11 +497,14 @@ and survey variable ids (the id is interpolated as a bare R symbol, so it must
 not shadow a dataset column). The single create route assigns it on the server
 under a table lock; the AI batch tool and a workbook row with a blank
 `indicatorId` assign it on the client from the same rule, over the stored ids
-plus the batch's own. An id is immutable: every update path identifies the row
-by it and none renames. Ids are shown nowhere in the UI except the code editor,
-whose "Other indicators" list inserts one into the code on click; the workbook
-keeps its `indicatorId` column so a re-import updates rows in place. Stored ids
-that predate this rule (or violate `HFA_INDICATOR_ID_REGEX`,
+plus the batch's own. The batch route inserts only the ids not yet stored
+(`ON CONFLICT DO NOTHING ... RETURNING`), writes code for those alone and
+returns them, so an id taken between the AI's proposal and its acceptance is
+reported as not created. An id is immutable: every update path identifies the
+row by it and none renames. Ids are shown nowhere in the UI except the code
+editor, whose "Other indicators" list inserts one into the code on click; the
+workbook keeps its `indicatorId` column so a re-import updates rows in place.
+Stored ids that predate this rule (or violate `HFA_INDICATOR_ID_REGEX`,
 `^[a-zA-Z][a-zA-Z0-9_]{0,63}$`, which batch and workbook ids must still pass)
 are carried unchanged. Taxonomy: categories → sub-categories (real FKs) plus
 service categories stored as a JSON string array on the indicator (no FK;
@@ -1200,11 +1203,13 @@ raised by adversarial review of the shipped feature; none blocks it.
   is non-ready, so a failed variant-code fetch suppresses even main-code
   warnings rather than saying "references could not be checked". Pre-existing
   convention for main code; the variant union widened the surface.
-- **Decision needed:** `handleRevalidateAll` and the AI validation tools compute
-  `hasSyntaxError` from main code only, while the editor's save includes variant
-  snippets, so revalidate-all can wipe a variant-only syntax flag. The flag is
-  display-only advisory metadata (generation validates independently), so this
-  is a badge-accuracy question, not a correctness one.
+- **Decision needed:** `handleRevalidateAll`, `create_hfa_indicators` and
+  `set_hfa_indicator_code` compute `hasSyntaxError` from main code only, while
+  the editor's save includes variant snippets, so revalidate-all can wipe a
+  variant-only syntax flag. The flag is display-only advisory metadata
+  (generation validates independently); the flag's only reader is
+  `get_hfa_indicators` (`hfa/ai/tools.ts:193-222`); the manager recomputes
+  status at render (`hfa/manager.tsx:285-377`).
 - A survey-dictionary import can introduce a variable equal to an existing
   composed `<parent>__<item>` column (ODK/Kobo `group__field` exports make `__`
   common). `hfa_variables` ingestion does not assert, so the collision lands and

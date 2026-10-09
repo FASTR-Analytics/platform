@@ -323,6 +323,7 @@ export const hfaIndicatorRouteRegistry = {
       code: z.array(hfaIndicatorCodeSchema),
       replaceAll: z.boolean(),
     }),
+    response: {} as { createdIndicatorIds: string[] },
   }),
   importHfaIndicatorsWorkbook: route({
     path: "/hfa-indicators/import-workbook",
