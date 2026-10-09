@@ -5,17 +5,18 @@
 > opens G3.
 
 The copilot stops being a chat mounted per open product. One chat sits beside
-the whole shell, with one thread list per user, and every place the user can be
-(each tab page, each full-page view, each nested editor, the HFA indicator
-manager and its two editors) sets a view of it. The view decides which tools of
-one fixed set may run and what the next message tells the model. Every user and
-every session registers the same tools, so the prompt cache survives every move;
-a tool outside the current view, or beyond the user's permissions or product
-level, refuses when called. The tools that touch a results package run against
-the package the current view shows, bound per call over an inner tool set cached
-per (package, scope), and every package read names its package and scope. The
-HFA indicator assistant becomes three views of the same chat. The chat's
-shell-level code moves from `client/src/components/products/copilot/` to
+the whole shell, with one thread list per user and one browser tab owning it at
+a time (ruling 14), and every place the user can be (each tab page, each
+full-page view, each nested editor, the HFA indicator manager and its two
+editors) sets a view of it. The view decides which tools of one fixed set may
+run and what the next message tells the model. Every user and every session
+registers the same tools, so the prompt cache survives every move; a tool
+outside the current view, or beyond the user's permissions or product level,
+refuses when called. The tools that touch a results package run against the
+package the current view shows, bound per call over an inner tool set cached per
+(package, scope), and every package read names its package and scope. The HFA
+indicator assistant becomes three views of the same chat. The chat's shell-level
+code moves from `client/src/components/products/copilot/` to
 `client/src/components/instance/copilot/`. The engine work this needs (E1 to E8)
 is PLAN_COPILOT01_ENGINE's and the frames fix is PLAN_FRAME_PANELS step 1; both
 land in panther before step 1 here, and step 7 syncs the frames fix here when
@@ -42,7 +43,7 @@ and sections are `PROTOCOL_APP_PLANS.md`. This plan binds them as follows.
   step `./validate_protocols` also prints no new tier-2 flag and no
   stale-baseline note, and `validate_protocols_baseline.json` changes only as
   step 1 says (R9).
-- Build log: §8. Last step: 11.
+- Build log: §8. Last step: 12.
 - Reading order: `CLAUDE.md`, `SYSTEMS.md`, `SYSTEM_13_ai_assistant.md` and the
   SYSTEM file of each other area the step's Surface names,
   `PROTOCOL_APP_AI_TOOLS.md`, `panther/protocols/PROTOCOL_UI_AI_CHAT.md`,
@@ -51,8 +52,8 @@ and sections are `PROTOCOL_APP_PLANS.md`. This plan binds them as follows.
 - Citations: Program rulings by number from `PLAN_COPILOT_ORCHESTRATION.md` §3
   (R1 one chat, R2 the catalogue, R3 the risk-tier rule, R5 cross-repo steps, R6
   gates are facts, R8 the findings companions, R9 the folder move, R10 no step
-  waits on Tim); this plan's rulings 1 to 13 (§3); the companion's A01 to H53
-  and F01 to F13 (its C01 to C29 are engine facts).
+  waits on Tim, R11 one tab owns the chat); this plan's rulings 1 to 14 (§3);
+  the companion's A01 to H53 and F01 to F13 (its C01 to C29 are engine facts).
 - Paths: Repo-relative, except that `components/`, `state/` and `onboarding/`
   stand for `client/src/components/`, `client/src/state/` and
   `client/src/onboarding/`, and `SYSTEM_NN` for the repo's `SYSTEM_NN_*.md`. A
@@ -104,6 +105,8 @@ Vocabulary:
   block** when the date changes, and the digest.
 - **panel, opener**: the shell-level `FrameRightResizable` holding the chat, and
   the handle on the window's right edge that opens it.
+- **owner**: the tab whose panel holds the chat lock (ruling 14); the other
+  tabs' panels show the notice in the chat's place.
 
 ## 1. The problem
 
@@ -157,8 +160,10 @@ what it fixes: those, D34 and the D.3 rows for 03.
   unanswered message loses its blocks; a changed system-and-tools hash strips
   stored thinking once; the accessor returns the system text and the next
   message's blocks.
-- E8, `crossTabTurns` (`AIChatConfig`): a turn holds a cross-tab lock on its
-  conversation; list writes are serialized in place.
+- E8: conversation-list writes are serialized in place, a turn's `finally`
+  awaits its save, and the instance's `whenIdle()` resolves once no turn runs
+  and the record is written. The engine takes no turn lock: one live tab per
+  user is this plan's (R11, ruling 14).
 - GF, PLAN_FRAME_PANELS step 1: every frame builds its panel once (C08).
 
 ### 2.2 The panel and the conversation
@@ -176,6 +181,13 @@ unapproved user, or on `/access-tokens` (A01, A03, A04). One opener, outside
 HFA manager's `showAi` go, and `showAi` in `state/t4_ui.ts` is the panel's one
 open state (H38).
 
+One tab owns the chat (R11, ruling 14). The panel requests a Web Lock for the
+user's thread scope when it mounts and mounts the chat only while it holds it;
+in another tab the panel shows the notice and the take-over button in the chat's
+place, and the chat there mounts when the lock is granted: when the owner tab
+closes, or hands over after stopping its turn and awaiting `whenIdle()`. A store
+is therefore always built from a record no other live tab writes (C27).
+
 Thread and settings scope are `copilot:<Clerk user id>`, which survives an email
 change (ruling 13 without a Clerk user); the thread list and New conversation
 stay, and the current thread follows the user through every view and tab. Old
@@ -183,9 +195,10 @@ threads (`copilot:<productId>`, `hfa-indicators`) and settings keys
 (`panther-ai-settings-copilot`, `panther-ai-settings-hfa-indicators`) stay
 unlisted and unread (H33). The chat clears the interaction log when it mounts
 and stops its turn when it unmounts (sign-out, a user switch without a reload,
-the stream reset). While a turn runs, the language menu and the profile's Clear
-data cache, Clear AI chat history, Sign out and Change email ask first, because
-a reload loses the turn and its record of applied changes.
+the stream reset) and when it hands the chat to another tab (ruling 14). While a
+turn runs, the language menu and the profile's Clear data cache, Clear AI chat
+history, Sign out and Change email ask first, because a reload loses the turn
+and its record of applied changes.
 
 ### 2.3 Views, tools and what the model is told
 
@@ -393,6 +406,24 @@ earlier turn happened; the system prompt is instance level (step 4).
     `VITE_BYPASS_AUTH` there is no Clerk user
     (`components/instance/logged_in_wrapper.tsx:25-26, 98`); the key is then
     `copilot:dev`.
+14. **One tab owns the chat** (Tim, 2026-10-09; program R11). `tab_owner.ts` in
+    `components/instance/copilot/` holds it. At mount the panel requests the Web
+    Lock `copilot-owner/<scope>` (the thread scope of §2.2) with a queued
+    request whose callback returns a promise the panel resolves to release; its
+    `AbortSignal` is aborted at unmount while the request is pending. While the
+    request is pending the panel renders the notice and the button in the chat's
+    place; when the lock is granted it creates the chat (`createAIChat`, E2) and
+    mounts `AIChat`. The button posts `takeover` on a `BroadcastChannel` of the
+    lock's name. The owner, on `takeover` or at unmount, calls
+    `stopGeneration()`, awaits `whenIdle()` (E8), releases the lock and, if
+    still mounted, renders the notice; the browser grants the next queued
+    request, and releases a closed or crashed owner's lock by itself, so a tab
+    left waiting becomes the owner with no message. Without `navigator.locks`
+    (an insecure context) the panel mounts the chat at once, as today. The texts
+    _(proposed)_: the notice `The AI chat is open in another tab.` /
+    `Le chat IA est ouvert dans un autre onglet.` /
+    `O chat de IA está aberto noutro separador.`; the button `Use it here` /
+    `L'utiliser ici` / `Usar aqui`.
 
 ## 4. Steps
 
@@ -520,7 +551,7 @@ runs both files. **Ends with.** One commit.
 - Every product tool (deck, slide editor, report, draft) is built with the
   registry and `availableIn: COPILOT_TOOL_VIEWS.<name>`; the module tools
   declare theirs and the lib metric tools are bound with theirs in step 6
-  (ruling 3, E5), the HFA tools in step 11.
+  (ruling 3, E5), the HFA tools in step 12.
 - E6: the `edited_slide` and `product_updated` producers move from
   `copilot.tsx:190-217` into the deck and report editors, each for its own
   product, removed on cleanup; `copilot.tsx` keeps the log clear at mount, its
@@ -681,21 +712,18 @@ commit.
 - First, when the vendored copy predates GF: `panther/` (the sync), `deno.lock`
   (when the typecheck rewrites it).
 - New; moved with `git mv` and rewritten; deleted:
-  `components/instance/copilot/{panel.tsx, turn_guard.ts}`;
+  `components/instance/copilot/{panel.tsx, tab_owner.ts}`;
   `components/products/copilot/build_tools.ts` to
   `components/instance/copilot_tools.ts`;
   `components/products/copilot/copilot.tsx`.
-- Edited: `components/instance/{instance.tsx, profile.tsx}`,
+- Edited: `components/instance/instance.tsx`,
   `components/instance/copilot/{mod.ts, chat_pane.tsx, ai_debug_panel.tsx, build_system_prompt.ts}`,
-  `components/products/{copilot/mod.ts, products.tsx, slide_deck/slide_list.tsx, report/report.tsx}`,
-  `components/_shared/figure_editor/figure_editor.tsx`,
+  `components/products/{copilot/mod.ts, products.tsx}`,
   `state/products/t4_ai_documents.ts` (:3-7).
 - Docs: `SYSTEMS.md` (the S13 row), SYSTEM_13 (globs:
   `client/src/components/instance/copilot_tools.ts`; the opening paragraph,
   :25-27; "The client copilot"), SYSTEM_14 (the shell paragraph, :182-205; UI
-  preferences, :255-279), SYSTEM_12 (`openProduct`, the deck and report
-  headers), SYSTEM_11 (the figure editor header), SYSTEM_15 (the self-profile,
-  :305).
+  preferences, :255-279), SYSTEM_12 (`openProduct`).
 
 **Deliverable.**
 
@@ -713,39 +741,71 @@ commit.
 - §2.2: the panel, with no `onToggleShow` (D62), and the opener
   (`id="copilot-opener"`) in `instance.tsx`; `CopilotPanel` in `panel.tsx` with
   the per-user thread and settings scope (D52), the log clear at mount (D53),
-  the stop at unmount (D44's second half), the pane's instance passed to
-  `AIChat` as `chat` (E2; C07), `crossTabTurns: true` (E8; C27), the
-  instance-level system prompt, the consumer blocks from the view's pair and its
-  T2 authoring context, the approval policy and `validateAIChatConfig` in DEV.
+  ruling 14's lock, notice and hand-over in `tab_owner.ts` (R11; E8; C27), the
+  stop and `whenIdle()` at unmount and hand-over (D44's second half), the pane's
+  instance passed to `AIChat` as `chat` (E2; C07), the instance-level system
+  prompt, the consumer blocks from the view's pair and its T2 authoring context,
+  the approval policy and `validateAIChatConfig` in DEV.
 - `copilot_tools.ts` assembles the one set (§2.3): the outer package tools over
   the inner builder, the reference tools with `SPA_INFO_TOPICS`, one
   `ask_user_questions`, all through ruling 11's wrapper.
 - `openProduct` opens `PRODUCT_TYPE_REGISTRY[type].editor` directly, and the
   host's spinner goes with the host (D54).
-- The deck header's, report header's and figure editor's AI buttons go
-  (`slide_list.tsx:661-670`, `report.tsx:2548-2558`,
-  `figure_editor.tsx:829-837`; D45's opener).
-- `turn_guard.ts` holds whether a turn runs (set by the pane) and the question
-  the reload guards ask; the language menu (`instance.tsx:326-358`) and the
-  profile's Clear data cache, Clear AI chat history, Sign out and Change email
-  ask it first (A07, A08).
 - View AI tool output shows `get_available_metrics`' text for the current view's
   package and is hidden in a view with none (D60's second half).
 - SYSTEM_13's opening paragraph and "The client copilot" describe the one chat:
   no tool count (D66) and no explorer that mounts its own (D70).
 
-**Not in this step.** Sync sites outside the product editors. The tours.
-**Gates.** The floor. `git grep -n "ProductCopilotHost" -- client/src` prints
-nothing. `git grep -n "setShowAi(true)" -- client/src` shows the opener in
-`instance.tsx` and the HFA manager's own signal (`manager.tsx:66`), which step
-11 removes.
+**Not in this step.** The AI buttons and the reload guards (step 8). Sync sites
+outside the product editors. The tours. **Gates.** The floor.
+`git grep -n "ProductCopilotHost" -- client/src` prints nothing.
+`git grep -n "setShowAi(true)" -- client/src` shows the opener in
+`instance.tsx`, the three AI buttons step 8 removes, and the HFA manager's own
+signal (`manager.tsx:66`), which step 12 removes.
+`git grep -n "navigator.locks" -- client/src` prints one line, in
+`components/instance/copilot/tab_owner.ts`.
 `git grep -c "createAskUserQuestionsTool()" -- client/src/components/instance`
 prints `client/src/components/instance/copilot_tools.ts:1`. A sync commit, if
 made, lists only `panther/` paths and `deno.lock` in `git show --stat`. **Ends
 with.** The sync commit when the vendored copy predates GF's commit, then one or
 two commits, each green.
 
-### Step 8: Results and Explore are views
+### Step 8: The old AI buttons go, and a reload under a running turn asks first
+
+**Surface.**
+
+- Code:
+  `components/instance/copilot/{turn_guard.ts (new), mod.ts, chat_pane.tsx}`,
+  `components/instance/{instance.tsx (:326-358), profile.tsx}`,
+  `components/products/slide_deck/slide_list.tsx` (:661-670),
+  `components/products/report/report.tsx` (:2548-2558),
+  `components/_shared/figure_editor/figure_editor.tsx` (:829-837),
+  `onboarding/tours.ts` (:604-622).
+- Docs: SYSTEM_12 (the deck and report headers), SYSTEM_11 (the figure editor
+  header), SYSTEM_14 (the language menu in the shell paragraph, :182-205; the
+  report tour), SYSTEM_15 (the self-profile, :305).
+
+**Deliverable.**
+
+- The deck header's, report header's and figure editor's AI buttons go
+  (`slide_list.tsx:661-670`, `report.tsx:2548-2558`,
+  `figure_editor.tsx:829-837`; D45's opener), so step 7's opener is the one way
+  to open the panel; the report intro tour's AI step and its `when` guard read
+  `#copilot-opener` (`tours.ts:604-622`; D61, for this button).
+- `turn_guard.ts` holds whether a turn runs (set by the pane) and the question
+  the reload guards ask; the language menu (`instance.tsx:326-358`) and the
+  profile's Clear data cache, Clear AI chat history, Sign out and Change email
+  ask it first (A07, A08), because a reload loses the turn and its record of
+  applied changes.
+
+**Not in this step.** The tours' page keys (step 10). **Gates.** The floor.
+`git grep -n "setShowAi(true)" -- client/src` shows the opener in `instance.tsx`
+and the HFA manager's own signal (`manager.tsx:66`) alone.
+`git grep -n "report-ai-button" -- client/src` prints nothing, and
+`git grep -n "#copilot-opener" -- client/src/onboarding` shows the report tour's
+AI step and its `when` guard. **Ends with.** One commit.
+
+### Step 9: Results and Explore are views
 
 **Surface.**
 
@@ -768,13 +828,13 @@ pinned package and counts by status. SYSTEM_13:104-106 states ruling 1's
 narrowing for the `package` and `explore` blocks (H25); SYSTEM_11 no longer says
 Explore has no copilot.
 
-**Not in this step.** The package figure viewer's view (step 10). **Gates.** The
+**Not in this step.** The package figure viewer's view (step 11). **Gates.** The
 floor. The sync-site check (§0) for `explore` in `explore.tsx`,
 `results_packages` in `results_packages.tsx`, `package` in `package_page.tsx`,
 `module_defaults` in `module_defaults.tsx`, and `scopes` in `scopes.tsx`. **Ends
 with.** One commit.
 
-### Step 9: Products, Data, Assets and Users are views; `list_products`; the tours key on views
+### Step 10: Products, Data, Assets and Users are views; `list_products`; the tours key on views
 
 **Surface.**
 
@@ -785,7 +845,7 @@ with.** One commit.
   `components/instance/copilot_tools.ts`,
   `components/instance/copilot/{ai_views.ts, build_system_prompt.ts}`,
   `components/{data/data.tsx, assets/assets.tsx, users/users.tsx, users/user.tsx}`,
-  `onboarding/{index.ts, catalogue.ts, tours.ts}`.
+  `onboarding/{index.ts, catalogue.ts}`.
 - Docs: SYSTEM_04, SYSTEM_06 (the switchboard), SYSTEM_12 (the Products page),
   SYSTEM_14 (the tours' pages, :33-42; its Open item on tour pages), SYSTEM_15
   (Users and the user detail), SYSTEM_13 (globs: the new test; "There is no
@@ -809,8 +869,7 @@ with.** One commit.
 - The tours (D61): `pages` keys `products`, `instance-data`,
   `instance-results-packages`, `instance-assets` and `instance-users` on the
   views `products`, `data`, `results_packages`, `assets` and `users`;
-  `isEditingView` (`catalogue.ts:63-64`) goes; the report intro tour's AI step
-  targets `#copilot-opener` (`tours.ts:604-622`); SYSTEM_14's Open item on tour
+  `isEditingView` (`catalogue.ts:63-64`) goes; SYSTEM_14's Open item on tour
   pages goes.
 
 **Not in this step.** Views inside products. **Gates.** The floor;
@@ -820,7 +879,7 @@ with.** One commit.
 `git grep -n "isEditingView" -- client/src` prints nothing. **Ends with.** One
 or two commits, each green.
 
-### Step 10: Views inside products; the figure editor tools
+### Step 11: Views inside products; the figure editor tools
 
 **Surface.**
 
@@ -864,7 +923,7 @@ in `version_history.tsx`, `editing_slide_figure` in `slide_editor.tsx`,
 `visualizations.tsx`, and `results_file` in `view_results_object.tsx`. **Ends
 with.** One or two commits, each green.
 
-### Step 11: HFA joins the chat
+### Step 12: HFA joins the chat
 
 **Surface.**
 
@@ -924,20 +983,21 @@ check (§0) for `hfa_indicators` in `manager.tsx`, `hfa_indicator_editor` in
 
 ## 5. Gates catalogue
 
-| Gate                                                                                                         | First reached |
-| ------------------------------------------------------------------------------------------------------------ | ------------- |
-| The floor (PROTOCOL_APP_PLANS)                                                                               | Step 1        |
-| `./validate_protocols`: no new tier-2 flag, no stale-baseline note; baseline changes only by step 1          | Step 1        |
-| `components/instance/copilot/` imports nothing at runtime from `components/` but `components/_shared/mod.ts` | Step 1        |
-| `server/tests/copilot_catalogue_test.ts`                                                                     | Step 2        |
-| `server/tests/mcp_tools_source_header_test.ts` with the scope                                                | Step 2        |
-| Every client `availableIn` reads `COPILOT_TOOL_VIEWS`                                                        | Step 3        |
-| `server/tests/copilot_prompt_test.ts`                                                                        | Step 4        |
-| No web fetch; the approval policy reads `COPILOT_APPROVAL_EXEMPT`                                            | Step 5        |
-| No `ProductCopilotHost`; one `ask_user_questions`; a sync commit holds only `panther/` and `deno.lock`       | Step 7        |
-| `server/tests/format_products_list_for_ai_test.ts`                                                           | Step 9        |
-| Every view of ruling 1 but `shell` has a sync site                                                           | Step 11       |
-| No `/ai-instance` and no HFA chat                                                                            | Step 11       |
+| Gate                                                                                                                                  | First reached |
+| ------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| The floor (PROTOCOL_APP_PLANS)                                                                                                        | Step 1        |
+| `./validate_protocols`: no new tier-2 flag, no stale-baseline note; baseline changes only by step 1                                   | Step 1        |
+| `components/instance/copilot/` imports nothing at runtime from `components/` but `components/_shared/mod.ts`                          | Step 1        |
+| `server/tests/copilot_catalogue_test.ts`                                                                                              | Step 2        |
+| `server/tests/mcp_tools_source_header_test.ts` with the scope                                                                         | Step 2        |
+| Every client `availableIn` reads `COPILOT_TOOL_VIEWS`                                                                                 | Step 3        |
+| `server/tests/copilot_prompt_test.ts`                                                                                                 | Step 4        |
+| No web fetch; the approval policy reads `COPILOT_APPROVAL_EXEMPT`                                                                     | Step 5        |
+| No `ProductCopilotHost`; one `ask_user_questions`; one `navigator.locks` request; a sync commit holds only `panther/` and `deno.lock` | Step 7        |
+| No AI button but the opener; the report tour targets it                                                                               | Step 8        |
+| `server/tests/format_products_list_for_ai_test.ts`                                                                                    | Step 10       |
+| Every view of ruling 1 but `shell` has a sync site                                                                                    | Step 12       |
+| No `/ai-instance` and no HFA chat                                                                                                     | Step 12       |
 
 ## 6. Out of scope
 
@@ -954,8 +1014,8 @@ Named so it is not reopened:
   tab's gates, Escape in dialogs, the help request's context, HMIS selection
   reset): not in this program.
 - PLAN_REFERENCE_DOCS_ONE_PAIR: the three reference tools stay as they are.
-- PLAN_BUG_FIXES's onboarding fixes; step 9 edits the same `pages` map and keeps
-  whatever that plan has landed.
+- PLAN_BUG_FIXES's onboarding fixes; step 10 edits the same `pages` map and
+  keeps whatever that plan has landed.
 - A navigation tool or any AI-driven move; product management from chat (create,
   rename, move, reattach, rescope, share, delete); cross-product writes.
 - Re-scoping, migrating or deleting the old threads and settings keys.
@@ -964,6 +1024,8 @@ Named so it is not reopened:
 - HFA taxonomy and variant-group tools; a server-side model allowlist; usage
   telemetry per view; compaction; a new default model; hard per-view tool sets.
 - `/mcp` gains no view and no tool.
+- A cross-tab turn lock or record adoption in the engine: one tab owns the chat
+  (R11, ruling 14).
 
 ## 7. Rollout and rollback
 
@@ -971,8 +1033,8 @@ Everything lands on `version2`. Every step ends green with the app working, so
 `version2` may be deployed at any step boundary, PLAN_PRODUCTS_RESTRUCTURE step
 11's redeploys to the three v2 testing instances included. Between steps the
 chat is partial: per product with the new views, refusals and wire until step 7,
-then beside the shell, the other views arriving in steps 8 to 11 and the HFA
-assistant its own chat until step 11. The fleet receives the plan with
+then beside the shell, the other views arriving in steps 9 to 12 and the HFA
+assistant its own chat until step 12. The fleet receives the plan with
 PLAN_PRODUCTS_RESTRUCTURE step 13; COPILOT04 starts once `main` carries this
 plan's last commit (GM).
 
@@ -980,12 +1042,13 @@ From the deploy carrying step 7, the `copilot:<productId>` scopes (in
 `ai-conv-list`, with their `ai-conv/<id>` records and
 `ai-conv-last-active-<scope>` keys) stay unlisted and
 `panther-ai-settings-copilot` unread, so a user's first chat starts on panther's
-default model and max tokens; from the deploy carrying step 11, so does
+default model and max tokens; from the deploy carrying step 12, so does
 `hfa-indicators` (its settings key is never written, A52). Clear AI chat history
-removes old and new together.
+removes old and new together. From the deploy carrying step 7 a second tab of
+the app shows ruling 14's notice in its panel instead of the chat.
 
 Rollback is the image of an earlier step boundary; no step writes a migration or
-a server-side record. An image before step 11 restores `/ai-instance` and the
+a server-side record. An image before step 12 restores `/ai-instance` and the
 HFA chat; one before step 7 lists `copilot:<productId>` and reads
 `panther-ai-settings-copilot` again, while what `copilot:<Clerk user id>` holds
 stays in the browser, unlisted, until a later image. Records stay within
