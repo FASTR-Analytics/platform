@@ -5,6 +5,7 @@ import {
   AiFigureFromMetricSchema,
   buildReportEmbedToken,
   collapseFastrBlankRuns,
+  COPILOT_TOOL_VIEWS,
   FASTR_REPORT_THEMES,
   type FastrReportTheme,
   type FigureBlock,
@@ -173,7 +174,7 @@ export function getClientToolsForReportEditor(
       description:
         "Get the report's current body (markdown, FASTR Markdown or HTML — stated in the output), a headings index (each heading's line and the exact section range rewrite_section would replace), a one-line index of each embedded figure (id, metric, type, caption, active replicant), and the embedded image ids (live editor state, including unsaved changes). ALWAYS call this first before proposing edits. For a figure's full config (available replicant values, slots, filters) call get_report_figure.",
       inputSchema: z.object({}),
-      availableIn: ["editing_report"],
+      availableIn: COPILOT_TOOL_VIEWS.get_report_editor,
       kind: "read",
       handler: async (_input, view) => {
         const ctx = view.context;
@@ -276,7 +277,7 @@ export function getClientToolsForReportEditor(
             "Figure id from get_report_editor (the part after 'figure:').",
           ),
       }),
-      availableIn: ["editing_report"],
+      availableIn: COPILOT_TOOL_VIEWS.get_report_figure,
       kind: "read",
       handler: async (input, view) => {
         const ctx = view.context;
@@ -328,7 +329,7 @@ export function getClientToolsForReportEditor(
           ),
         patch: AiFigureConfigPatchSchema,
       }),
-      availableIn: ["editing_report"],
+      availableIn: COPILOT_TOOL_VIEWS.update_report_figure,
       kind: "write",
       handler: async (input, view) => {
         const ctx = view.context;
@@ -500,7 +501,7 @@ export function getClientToolsForReportEditor(
           "Lay the draft out under this theme instead of the report's own.",
         ),
       }),
-      availableIn: ["editing_report"],
+      availableIn: COPILOT_TOOL_VIEWS.get_report_pages,
       kind: "read",
       inProgressLabel: "Laying the report out as pages...",
       completionMessage: "Read the page map",
@@ -568,7 +569,7 @@ ${FASTR_MD_SYNTAX_DOC}`,
           "FASTR Markdown only. Set true ONLY when the user explicitly asked for a plain document with none of the format's blocks. Without it, a body that uses no blocks is rejected.",
         ),
       }),
-      availableIn: ["editing_report"],
+      availableIn: COPILOT_TOOL_VIEWS.rewrite_report,
       kind: "write",
       approval: {
         propose: async (raw, view) => {
@@ -646,7 +647,7 @@ ${FASTR_MD_SYNTAX_DOC}`,
           "FASTR Markdown only. Set true ONLY when the user explicitly asked for specific literal colours, gradients or image backgrounds (bg=...). Without it, newly-added literal bg= values are rejected — use tones, which follow the theme.",
         ),
       }),
-      availableIn: ["editing_report"],
+      availableIn: COPILOT_TOOL_VIEWS.rewrite_section,
       kind: "write",
       approval: {
         propose: async (raw, view) => {
@@ -721,7 +722,7 @@ ${FASTR_MD_SYNTAX_DOC}`,
           "FASTR Markdown only. Set true ONLY when the user explicitly asked for specific literal colours, gradients or image backgrounds (bg=...). Without it, newly-added literal bg= values are rejected — use tones, which follow the theme.",
         ),
       }),
-      availableIn: ["editing_report"],
+      availableIn: COPILOT_TOOL_VIEWS.replace_text,
       kind: "write",
       approval: {
         propose: async (input, view) => {
@@ -789,7 +790,7 @@ ${FASTR_MD_SYNTAX_DOC}`,
         caption: z.string().optional(),
         afterHeading: z.string().optional(),
       }),
-      availableIn: ["editing_report"],
+      availableIn: COPILOT_TOOL_VIEWS.insert_figure,
       kind: "write",
       approval: {
         propose: async (input, view) => {
@@ -852,7 +853,7 @@ ${FASTR_MD_SYNTAX_DOC}`,
         figure: AiFigureFromMetricSchema,
         caption: z.string().optional(),
       }),
-      availableIn: ["editing_report"],
+      availableIn: COPILOT_TOOL_VIEWS.replace_figure,
       kind: "write",
       approval: {
         propose: async (input, view) => {

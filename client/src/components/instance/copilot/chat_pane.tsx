@@ -33,7 +33,83 @@ import { AIDocumentList, useAIDocuments } from "./ai_documents/mod.ts";
 import { usePromptLibrary } from "./ai_prompt_library/mod.ts";
 import { SaveableUserTextRenderer } from "./ai_prompt_library/mod.ts";
 import { AIDebugPanel, type AIDebugPanelProps } from "./ai_debug_panel";
-import type { HfaTaxonomyForAI, RunAuthoringContext } from "lib";
+import type {
+  CopilotViewId,
+  HfaTaxonomyForAI,
+  RunAuthoringContext,
+  TranslatableString,
+} from "lib";
+
+const ASK_ANYTHING: TranslatableString = {
+  en: "Ask anything...",
+  fr: "Posez une question...",
+  pt: "Faça uma pergunta...",
+};
+const ASK_DECK: TranslatableString = {
+  en: "Ask about this slide deck...",
+  fr: "Posez une question sur cette présentation...",
+  pt: "Faça uma pergunta sobre esta apresentação...",
+};
+const ASK_REPORT: TranslatableString = {
+  en: "Ask about this report...",
+  fr: "Posez une question sur ce rapport...",
+  pt: "Faça uma pergunta sobre este relatório...",
+};
+const ASK_FIGURE: TranslatableString = {
+  en: "Ask about this visualization...",
+  fr: "Posez une question sur cette visualisation...",
+  pt: "Faça uma pergunta sobre esta visualização...",
+};
+const ASK_PACKAGE: TranslatableString = {
+  en: "Ask about this results package...",
+  fr: "Posez une question sur ce paquet de résultats...",
+  pt: "Faça uma pergunta sobre este pacote de resultados...",
+};
+const ASK_DATA: TranslatableString = {
+  en: "Ask about this data...",
+  fr: "Posez une question sur ces données...",
+  pt: "Faça uma pergunta sobre estes dados...",
+};
+const ASK_HFA: TranslatableString = {
+  en: "Ask about HFA indicators...",
+  fr: "Posez une question sur les indicateurs HFA...",
+  pt: "Faça uma pergunta sobre os indicadores HFA...",
+};
+
+// The composer's placeholder per view: a new view fails here until it has
+// one.
+const PLACEHOLDERS: Record<CopilotViewId, TranslatableString> = {
+  products: ASK_ANYTHING,
+  opening_product: { en: "Opening...", fr: "Ouverture...", pt: "A abrir..." },
+  editing_slide_deck: ASK_DECK,
+  editing_slide: {
+    en: "Ask about this slide...",
+    fr: "Posez une question sur cette diapositive...",
+    pt: "Faça uma pergunta sobre este diapositivo...",
+  },
+  editing_slide_figure: ASK_FIGURE,
+  deck_settings: ASK_DECK,
+  deck_history: ASK_DECK,
+  report_history: ASK_REPORT,
+  editing_report: ASK_REPORT,
+  editing_report_figure: ASK_FIGURE,
+  results_file: ASK_PACKAGE,
+  explore: ASK_DATA,
+  results_packages: ASK_ANYTHING,
+  package: ASK_PACKAGE,
+  viewing_package_figure: ASK_FIGURE,
+  module_defaults: ASK_ANYTHING,
+  scopes: ASK_ANYTHING,
+  data: ASK_DATA,
+  data_page: ASK_DATA,
+  hfa_indicators: ASK_HFA,
+  hfa_indicator_editor: ASK_HFA,
+  hfa_indicator_import: ASK_HFA,
+  assets: ASK_ANYTHING,
+  users: ASK_ANYTHING,
+  user: ASK_ANYTHING,
+  shell: ASK_ANYTHING,
+};
 
 const RESET_RE = /will reset at ([^".}]+)/i;
 
@@ -376,39 +452,8 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
     ];
   };
 
-  const placeholder = () => {
-    const view = copilotViewController.current();
-    switch (view.id) {
-      case "editing_slide_deck":
-        return t3({
-          en: "Ask about this slide deck...",
-          fr: "Posez une question sur cette présentation...",
-          pt: "Faça uma pergunta sobre esta apresentação...",
-        });
-      case "editing_slide":
-        return t3({
-          en: "Ask about this slide...",
-          fr: "Posez une question sur cette diapositive...",
-          pt: "Faça uma pergunta sobre este diapositivo...",
-        });
-      case "editing_report":
-        return t3({
-          en: "Ask about this report...",
-          fr: "Posez une question sur ce rapport...",
-          pt: "Faça uma pergunta sobre este relatório...",
-        });
-      case "opening_product":
-        return t3({
-          en: "Opening...",
-          fr: "Ouverture...",
-          pt: "A abrir...",
-        });
-      default: {
-        const _exhaustive: never = view;
-        return _exhaustive;
-      }
-    }
-  };
+  const placeholder = () =>
+    t3(PLACEHOLDERS[copilotViewController.current().id]);
 
   type AiUsageData = {
     tokensUsedToday: number;

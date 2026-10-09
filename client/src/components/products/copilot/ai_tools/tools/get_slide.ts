@@ -1,6 +1,6 @@
 import { AIToolFailure, createAITool } from "panther";
 import { z } from "zod";
-import type { MetricWithStatus } from "lib";
+import { COPILOT_TOOL_VIEWS, type MetricWithStatus } from "lib";
 import { simplifySlideForAI } from "../../slide_ai/mod.ts";
 import { copilotViews } from "~/components/instance/copilot/mod.ts";
 import type { ClientAIToolEnv } from "~/components/instance/copilot/mod.ts";
@@ -21,7 +21,7 @@ export function createGetSlideTool(
         "Slide ID (3-char alphanumeric, e.g. 'a3k'). Get these from get_deck.",
       ),
     }),
-    availableIn: ["editing_slide_deck", "editing_slide"],
+    availableIn: COPILOT_TOOL_VIEWS.get_slide,
     kind: "read",
     handler: async (input, view) => {
       const res = await env.getSlide(view.params.deckId, input.slideId);

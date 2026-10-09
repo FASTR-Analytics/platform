@@ -643,11 +643,12 @@ only covers the slide pane beside the rail, and the slide stays mounted
 underneath, so its collab binding lives); every result resolves through
 `resolveFigureBundleInteractively` under the product's current pair, so editing
 a stale figure also brings it up to date. Local edits notify the AI
-(`edited_slide_locally`) and the editor registers the `editing_slide` view's
-mutator context on the AI view controller (S13); the copilot host wraps
-whichever editor the Products page opens (`ProductCopilotHost`, D15: one mount
-site, one copilot per open product), so a slide editor opened inside a deck
-shares the deck's copilot.
+(`edited_slide_locally`) and the editor holds the deck's view
+(`holdCopilotView`) and registers the `editing_slide` view's mutator context on
+the AI view controller (S13), so a slide switch restores the deck view between
+slides; the copilot host wraps whichever editor the Products page opens
+(`ProductCopilotHost`, D15: one mount site, one copilot per open product), so a
+slide editor opened inside a deck shares the deck's copilot.
 
 **Typing on the canvas.** Double-clicking a text block or a title primitive (or
 Enter with one selected) mounts

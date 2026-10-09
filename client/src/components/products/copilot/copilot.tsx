@@ -39,7 +39,6 @@ import {
   productById,
 } from "~/state/instance/t1_store";
 import { productLevel } from "~/state/instance/product_access";
-import { addLastUpdatedListener } from "~/state/instance/t1_sse";
 import { getRunAuthoringContextFromCacheOrFetch } from "~/state/instance/t2_run_authoring_context";
 import { buildCopilotTools } from "./build_tools";
 import { setShowAi, showAi } from "~/state/t4_ui";
@@ -178,39 +177,13 @@ function ProductCopilot(p: {
     )
   );
 
-  // The sanctioned imperative entity-change side-channel (S3): notify on
-  // changes to the OPEN product; the interaction registry (interactions.ts)
-  // filters per view at drain, and echo keys drop the AI's own persisted
-  // writes (markAIEdit in the write tools). Two carriers on the instance
-  // channel: the per-row `products_upserted` summary and the `last_updated`
-  // message for slides.
+  // The controller is a module singleton whose interaction log outlives a
+  // mount, so the chat empties it when it mounts: actions retained from
+  // before (the previous product, or on a Clerk cross-tab user switch the
+  // previous user) would otherwise ride this chat's first digest as fake
+  // activity. The producers are the editors (interactions.ts).
   onMount(() => {
-    // The controller is a module singleton and its log is scope-local data.
-    // Each mount is a new conversation scope; without the clear, the previous
-    // product's retained actions would arrive in this product's first digest
-    // as fake activity.
     copilotViewController.clearInteractionLog();
-
-    const cleanup = addLastUpdatedListener((tableName, ids) => {
-      if (tableName === "slides") {
-        for (const id of ids) {
-          copilotViewController.notify("edited_slide", { slideId: id });
-        }
-        return;
-      }
-      if (!ids.includes(p.productId)) return;
-      const product = productById(p.productId);
-      // A deletion has no summary to name; `products_deleted` carries no
-      // stamp and never reaches this listener.
-      if (!product) return;
-      copilotViewController.notify("product_updated", {
-        productId: p.productId,
-        type: product.type,
-        label: product.label,
-      });
-    });
-
-    onCleanup(cleanup);
   });
 
   const config: AIChatConfig = {

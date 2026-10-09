@@ -4,6 +4,7 @@ import {
   type PackageScope,
   productScope,
   type ProductSummary,
+  type ResolvedPackageScope,
   type RunAuthoringContext,
   type Slide,
   type SlideDeckConfig,
@@ -15,6 +16,7 @@ import {
   instanceState,
   productById,
 } from "~/state/instance/t1_store";
+import { addLastUpdatedListener } from "~/state/instance/t1_sse";
 import {
   AIToolFailure,
   EditorComponentProps,
@@ -49,8 +51,8 @@ import { SlidePresenter } from "./slide_presenter";
 import { SlideDeckSettings, type SlideDeckSettingsProps } from "./settings";
 import {
   copilotViewController,
-  type CopilotViewState,
-  restoreCopilotView,
+  type EditingSlideDeckContext,
+  holdCopilotView,
 } from "~/components/instance/copilot/mod.ts";
 import { snapshotForSlideEditor } from "./editor_snapshot";
 import { pendingSlideOpen, setPendingSlideOpen } from "~/state/t4_ui";
@@ -59,10 +61,7 @@ import { clerk } from "~/state/_infra/clerk";
 import { VersionHistoryEditor } from "~/components/products/_shared/version_history/mod.ts";
 import { ProductSettings } from "~/components/products/_shared/mod.ts";
 
-type Props = EditorComponentProps<
-  { productId: string; returnToContext?: CopilotViewState },
-  undefined
->;
+type Props = EditorComponentProps<{ productId: string }, undefined>;
 
 // The deck editor takes ONE thing: the product id (D16). Label, package and
 // scope are read LIVE from the T1 products row, so a reattach or scope change
@@ -77,16 +76,29 @@ export function SlideDeckEditor(p: Props) {
     return row === undefined ? undefined : productScope(row);
   };
   const deckLabel = () => product()?.label ?? "";
-  // Write tools read the pair through the view context, so a missing row (the
-  // product was deleted; the effect below closes the editor) is a tool
-  // failure, not an optional value.
-  const requireScope = (): PackageScope => {
-    const s = scope();
+  // The pair with its scope's definition hash, as the authoring context and
+  // the copilot's package views read it. Write tools read it through the
+  // view context, so a missing row (the product was deleted; the effect
+  // below closes the editor) is a tool failure, not an optional value.
+  const resolvedScope = createResolvedScope(scope);
+  const requireScope = (): ResolvedPackageScope => {
+    const s = resolvedScope();
     if (s === undefined) {
       throw new AIToolFailure("This product no longer exists.");
     }
     return s;
   };
+  const getRunId = () => requireScope().runId;
+
+  // The copilot's views: the deck holds the view it opened over, sets
+  // `opening_product` now and `editing_slide_deck` once loaded; the hold
+  // restores the covered view when the deck unmounts.
+  holdCopilotView();
+  copilotViewController.setView(
+    "opening_product",
+    { productId: p.productId },
+    { getLabel: deckLabel, getScope: requireScope, getRunId },
+  );
 
   async function handleClose() {
     p.close(undefined);
@@ -109,11 +121,31 @@ export function SlideDeckEditor(p: Props) {
   onMount(() => {
     setCollabAvatar(clerk.user?.imageUrl);
     setCollabView({ deckId: p.productId });
+    // The copilot's digest of what changed under the user, from the instance
+    // SSE side-channel: every slides-table row change (the interaction keeps
+    // this deck's own) and this deck's row, which every slide write, rename,
+    // reattach or scope change bumps. The AI's own writes mark their echo
+    // keys, so they drop at drain.
+    const removeListener = addLastUpdatedListener((tableName, ids) => {
+      if (tableName === "slides") {
+        for (const id of ids) {
+          copilotViewController.notify("edited_slide", { slideId: id });
+        }
+        return;
+      }
+      if (tableName !== "products" || !ids.includes(p.productId)) return;
+      const row = product();
+      if (row === undefined) return;
+      copilotViewController.notify("product_updated", {
+        productId: p.productId,
+        type: row.type,
+        label: row.label,
+      });
+    });
+    onCleanup(removeListener);
   });
 
   onCleanup(() => {
-    if (p.returnToContext) restoreCopilotView(p.returnToContext);
-    else copilotViewController.clearView();
     setCollabView({});
   });
 
@@ -145,22 +177,17 @@ export function SlideDeckEditor(p: Props) {
     }
   }
 
-  // The copilot's deck view: set once the deck has loaded, and what the
-  // slide editor beside the rail returns to between slides. Read live: a
-  // reattach remounts the copilot on the new pair, and the tools of that
-  // mount see the same pair here (D15).
-  const deckContext = {
-    getScope: () => requireScope(),
+  // The copilot's deck view, set once the deck has loaded and carried by the
+  // slide editor beside the rail, which holds it between slides. Read live:
+  // a reattach moves the pair under the view.
+  const deckContext: EditingSlideDeckContext = {
+    getScope: requireScope,
+    getRunId,
     getDeckLabel: () => deckLabel(),
     getDeckConfig: () => deckConfig(),
     getSlideIds: () => slideIds(),
     getSelectedSlideIds: () => selectedSlideIds(),
   };
-  const deckViewState = (): CopilotViewState => ({
-    id: "editing_slide_deck",
-    params: { deckId: p.productId },
-    context: deckContext,
-  });
 
   // A read that fails before the first success: the error replaces the
   // editor, nothing is written and the copilot stays on `opening_product`.
@@ -192,7 +219,11 @@ export function SlideDeckEditor(p: Props) {
       if (!aiContextSet) {
         aiContextSet = true;
         setLoadState({ status: "ready", data: true });
-        restoreCopilotView(deckViewState());
+        copilotViewController.setView(
+          "editing_slide_deck",
+          { deckId: p.productId },
+          deckContext,
+        );
       }
       // One write: slides that arrive with a config (the cover the first
       // theme choice makes) must never render a frame under the old one.
@@ -213,7 +244,6 @@ export function SlideDeckEditor(p: Props) {
   // metric and preset catalogue the insert-figure wizard and the update
   // actions author against. Immutable by identity, so this is a cache hit
   // after the first read of any given package under a definition.
-  const resolvedScope = createResolvedScope(scope);
   createEffect(() => {
     const resolved = resolvedScope();
     setAuthoringContext(undefined);
@@ -248,7 +278,6 @@ export function SlideDeckEditor(p: Props) {
           isLoading={isLoading()}
           setSelectedSlideIds={setSelectedSlideIds}
           deckContext={deckContext}
-          deckViewState={deckViewState}
           handleClose={handleClose}
         />
       )}
@@ -267,13 +296,7 @@ function SlideDeckEditorInner(p: {
   slideIds: string[];
   isLoading: boolean;
   setSelectedSlideIds: (ids: string[]) => void;
-  deckContext: {
-    getDeckLabel: () => string;
-    getDeckConfig: () => SlideDeckConfig;
-    getSlideIds: () => string[];
-    getSelectedSlideIds: () => string[];
-  };
-  deckViewState: () => CopilotViewState;
+  deckContext: EditingSlideDeckContext;
   handleClose: () => Promise<void>;
 }) {
   const {
@@ -552,7 +575,6 @@ function SlideDeckEditorInner(p: {
                   slide={es.slide}
                   scope={p.scope!}
                   authoringContext={p.authoringContext!}
-                  returnToContext={p.deckViewState()}
                   toolbarHost={toolbarHost()}
                   menuRowHost={menuRowHost()}
                   statusHost={statusHost()}

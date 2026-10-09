@@ -4,6 +4,7 @@ import {
   AiContentSlideSchema,
   AiCoverSlideSchema,
   AiSectionSlideSchema,
+  COPILOT_TOOL_VIEWS,
   getStartingConfigForSlideDeck,
   MAX_CONTENT_BLOCKS,
   type MetricWithStatus,
@@ -16,7 +17,10 @@ import {
 import { resolveFigureFromMetric } from "../../slide_ai/mod.ts";
 import { convertAiInputToSlide } from "../../slide_ai/mod.ts";
 import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
-import { copilotViewController } from "~/components/instance/copilot/mod.ts";
+import {
+  copilotViewController,
+  copilotViews,
+} from "~/components/instance/copilot/mod.ts";
 import { DraftSlidePreview } from "./draft_slide_preview";
 
 // A draft resolves under the open product's pair, the only pair this copilot
@@ -28,7 +32,9 @@ export function getClientToolsForDrafts(
 ) {
   return [
     createAITool({
+      viewRegistry: copilotViews,
       name: "show_draft_slide_to_user",
+      availableIn: COPILOT_TOOL_VIEWS.show_draft_slide_to_user,
       description:
         `Show an ad-hoc slide preview to the user inline in the chat. This is also how you show a single chart: put one from_metric figure on a content slide. Use it to propose slide content, display ideas, or when the user asks to see something charted. While a slide deck is open the user can add the draft to it from the preview.\n\nSupports three slide types:\n- 'cover': Title slide with optional title/subtitle/presenter/date\n- 'section': Section divider with title and optional subtitle\n- 'content': Content slide with optional header and blocks (text and/or figures)\n\nFor content blocks, use the same rules as create_slide: from_metric for figures (call get_metric_data first), text for markdown. IMPORTANT: Markdown tables are NOT allowed — to display tabular data, use a from_metric block with a table-type preset. Max ${MAX_CONTENT_BLOCKS} content blocks.`,
       inputSchema: z.object({

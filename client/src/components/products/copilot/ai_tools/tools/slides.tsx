@@ -7,6 +7,7 @@ import {
   AiCoverSlideSchema,
   AiSectionSlideSchema,
   type ContentBlock,
+  COPILOT_TOOL_VIEWS,
   getSlideTitle,
   LayoutSpecSchema,
   MAX_CONTENT_BLOCKS,
@@ -59,7 +60,7 @@ export function getClientToolsForSlides(
       description:
         "Get the current state of the slide deck, including a summary outline of all slides. This provides essential context about the deck's structure, existing content, and slide order. ALWAYS call this tool first when starting a conversation or before making any changes to understand what's already in the deck.",
       inputSchema: z.object({}),
-      availableIn: ["editing_slide_deck", "editing_slide"],
+      availableIn: COPILOT_TOOL_VIEWS.get_deck,
       kind: "read",
       handler: async (_input, view) => {
         return await getDeckSummaryForAI(
@@ -121,7 +122,7 @@ export function getClientToolsForSlides(
             "The complete slide content. Must be one of three types: 'cover' (title slide with optional title/subtitle/presenter/date), 'section' (section divider with sectionTitle and optional sectionSubtitle), or 'content' (content slide with optional header and blocks array containing text and/or figures).",
           ),
       }),
-      availableIn: ["editing_slide_deck", "editing_slide"],
+      availableIn: COPILOT_TOOL_VIEWS.create_slide,
       kind: "write",
       handler: async (input, view) => {
         if (input.slide.type === "content") {
@@ -190,7 +191,7 @@ export function getClientToolsForSlides(
             "The complete new slide content. The slide will be rebuilt from scratch. For content slides, layout will be auto-optimized.",
           ),
       }),
-      availableIn: ["editing_slide_deck", "editing_slide"],
+      availableIn: COPILOT_TOOL_VIEWS.replace_slide,
       kind: "write",
       handler: async (input, view) => {
         assertSlidesNotBusy([input.slideId]);
@@ -269,7 +270,7 @@ export function getClientToolsForSlides(
           "Array of updates to apply. Each update specifies a block ID and the new content for that block.",
         ),
       }),
-      availableIn: ["editing_slide_deck", "editing_slide"],
+      availableIn: COPILOT_TOOL_VIEWS.update_slide_content,
       kind: "write",
       handler: async (input, view) => {
         assertSlidesNotBusy([input.slideId]);
@@ -336,7 +337,7 @@ export function getClientToolsForSlides(
           "The new header text for the content slide",
         ),
       }),
-      availableIn: ["editing_slide_deck", "editing_slide"],
+      availableIn: COPILOT_TOOL_VIEWS.update_slide_header,
       kind: "write",
       handler: async (input, view) => {
         assertSlidesNotBusy([input.slideId]);
@@ -395,7 +396,7 @@ export function getClientToolsForSlides(
           ),
         layout: LayoutSpecSchema,
       }),
-      availableIn: ["editing_slide_deck", "editing_slide"],
+      availableIn: COPILOT_TOOL_VIEWS.modify_slide_layout,
       kind: "write",
       handler: async (input, view) => {
         assertSlidesNotBusy([input.slideId]);
@@ -553,7 +554,7 @@ export function getClientToolsForSlides(
             "Array of slide IDs to delete (3-char alphanumeric, e.g. ['a3k', 'x7m']). Get these from get_deck.",
           ),
       }),
-      availableIn: ["editing_slide_deck", "editing_slide"],
+      availableIn: COPILOT_TOOL_VIEWS.delete_slides,
       kind: "write",
       handler: async (input, view) => {
         assertSlidesNotBusy(input.slideIds);
@@ -606,7 +607,7 @@ export function getClientToolsForSlides(
             "Array of slide IDs to duplicate (3-char alphanumeric, e.g. ['a3k', 'x7m']). Get these from get_deck.",
           ),
       }),
-      availableIn: ["editing_slide_deck", "editing_slide"],
+      availableIn: COPILOT_TOOL_VIEWS.duplicate_slides,
       kind: "write",
       handler: async (input, view) => {
         if (input.slideIds.length === 0) {
@@ -684,7 +685,7 @@ export function getClientToolsForSlides(
           ])
           .describe("The destination position for the slides."),
       }),
-      availableIn: ["editing_slide_deck", "editing_slide"],
+      availableIn: COPILOT_TOOL_VIEWS.move_slides,
       kind: "write",
       handler: async (input, view) => {
         if (input.slideIds.length === 0) {

@@ -7,11 +7,14 @@ import type {
 } from "./ai_views";
 
 // The copilot's interaction registry: what the USER did since the last
-// message. Producers call `copilotViewController.notify(...)`: the instance
-// SSE side-channel (index.tsx, filtered to the open product) and the editors
-// and selection UIs. The engine owns the transactional drain at turn creation
-// and the reduction pipeline (relevantIn / per-entry filter / coalesce per
-// id), plus a coalesced `__navigation` line.
+// message. Producers call `copilotViewController.notify(...)`: the deck and
+// report editors, each listening to the instance SSE side-channel for its own
+// product (`edited_slide` from the deck, `product_updated` from both), and
+// the editors and selection UIs. With digestAcrossViews an entry is admitted
+// against the view it happens in and its line names that view. The engine
+// owns the transactional drain at turn creation and the reduction pipeline
+// (relevantIn / per-entry filter / coalesce per id), plus a coalesced
+// `__navigation` line.
 //
 // Echo keys close the SSE self-echo loop: every persist-path write tool marks
 // the same keys via `copilotViewController.markAIEdit`, so the AI's own server
@@ -39,10 +42,10 @@ export const copilotInteractions = defineAIInteractions({
     format: (p) => `Edited slide ${p.slideId}`,
     echoKey: (p) => `slide:${p.slideId}`,
   }),
-  // SSE `products_upserted` for the OPEN product only (the host filters). A
-  // deck's row bumps on every slide write AND on a rename, reattach or scope
-  // change; a report's on every body save. A collaborator can change the
-  // product under the user, so it is reported in every view.
+  // SSE `products_upserted` for the open product only (its editor filters).
+  // A deck's row bumps on every slide write AND on a rename, reattach or
+  // scope change; a report's on every body save. A collaborator can change
+  // the product under the user, so it is reported in every view.
   product_updated: interaction<{
     productId: string;
     type: ProductType;

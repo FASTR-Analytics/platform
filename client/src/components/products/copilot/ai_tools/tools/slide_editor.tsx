@@ -2,6 +2,7 @@ import {
   AiContentBlockInputSchema,
   AiFigureConfigPatchSchema,
   type ContentBlock,
+  COPILOT_TOOL_VIEWS,
   type FigureBundle,
   LayoutSpecSchema,
   MAX_CONTENT_BLOCKS,
@@ -93,7 +94,7 @@ export function getClientToolsForSlideEditor(
       description:
         "Get the current content and structure of the slide being edited. Shows live state from the editor (including unsaved changes). ALWAYS call this first when starting to help with a slide.",
       inputSchema: z.object({}),
-      availableIn: ["editing_slide"],
+      availableIn: COPILOT_TOOL_VIEWS.get_slide_editor,
       kind: "read",
       handler: async (_input, view) => {
         const slide = view.context.getTempSlide();
@@ -177,7 +178,7 @@ export function getClientToolsForSlideEditor(
             "Per-type update. `type` must match the slide being edited.",
           ),
       }),
-      availableIn: ["editing_slide"],
+      availableIn: COPILOT_TOOL_VIEWS.update_slide_editor,
       kind: "write",
       handler: async (input, view) => {
         const ctx = view.context;
@@ -407,7 +408,7 @@ export function getClientToolsForSlideEditor(
         ),
         patch: AiFigureConfigPatchSchema,
       }),
-      availableIn: ["editing_slide", "editing_slide_deck"],
+      availableIn: COPILOT_TOOL_VIEWS.update_figure,
       kind: "write",
       handler: async (input, view) => {
         // metricId/type are not in the patch schema (silently stripped), so an

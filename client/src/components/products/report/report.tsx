@@ -43,6 +43,7 @@ import {
   type ReportDocContent,
   type ReportFormat,
   type ReportStyleColors,
+  type ResolvedPackageScope,
   type RunAuthoringContext,
   scanContainerLines,
   t3,
@@ -139,8 +140,7 @@ import type {
 } from "~/components/instance/copilot/mod.ts";
 import {
   copilotViewController,
-  type CopilotViewState,
-  restoreCopilotView,
+  holdCopilotView,
 } from "~/components/instance/copilot/mod.ts";
 import { SaveReportStyleModal } from "~/components/products/copilot/mod.ts";
 import {
@@ -206,10 +206,7 @@ type ReportMode = "edit" | "view" | "split";
 // The report editor takes ONE thing: the product id (D16). Label, package and
 // scope are read LIVE from the T1 products row; a report IS its product, so
 // the product id is also the collab document id.
-type Props = EditorComponentProps<
-  { productId: string; returnToContext?: CopilotViewState },
-  undefined
->;
+type Props = EditorComponentProps<{ productId: string }, undefined>;
 
 const AUTOSAVE_MS = 800;
 
@@ -236,16 +233,29 @@ export function ReportEditor(p: Props) {
     return row === undefined ? undefined : productScope(row);
   };
   const label = () => product()?.label ?? "";
-  // Write tools read the pair through the view context, so a missing row (the
-  // product was deleted, which closes the editor) is a tool failure, not an
-  // optional value.
-  const requireScope = (): PackageScope => {
-    const s = scope();
+  // The pair with its scope's definition hash, as the authoring context and
+  // the copilot's package views read it. Write tools read it through the
+  // view context, so a missing row (the product was deleted, which closes
+  // the editor) is a tool failure, not an optional value.
+  const resolvedScope = createResolvedScope(scope);
+  const requireScope = (): ResolvedPackageScope => {
+    const s = resolvedScope();
     if (s === undefined) {
       throw new AIToolFailure("This product no longer exists.");
     }
     return s;
   };
+  const getRunId = () => requireScope().runId;
+
+  // The copilot's views: the report holds the view it opened over, sets
+  // `opening_product` now and `editing_report` once loaded; the hold
+  // restores the covered view when the report unmounts.
+  holdCopilotView();
+  copilotViewController.setView(
+    "opening_product",
+    { productId: p.productId },
+    { getLabel: label, getScope: requireScope, getRunId },
+  );
   const { openEditor: openInnerEditor, EditorWrapper: InnerEditorWrapper } =
     getEditorWrapper();
   // Count of sub-editors (figure modal, pickers, version history) currently
@@ -867,7 +877,6 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
   const [authoringContext, setAuthoringContext] = createSignal<
     RunAuthoringContext | undefined
   >();
-  const resolvedScope = createResolvedScope(scope);
   createEffect(() => {
     const resolved = resolvedScope();
     setAuthoringContext(undefined);
@@ -1269,12 +1278,20 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     // Keep the optimistic-save timestamp fresh as server-side checkpoints
     // bump the product's stamp (a report IS its product, so it rides the
     // products_upserted summary), so the offline/fallback flush won't raise
-    // a spurious conflict against collab's own autosaves.
+    // a spurious conflict against collab's own autosaves; and tell the
+    // copilot's digest the report changed (the AI's own writes mark their
+    // echo key, so they drop at drain).
     removeLastUpdatedListener = addLastUpdatedListener(
       (tableName, ids, ts) => {
-        if (tableName === "products" && ids.includes(p.productId)) {
-          bumpLastUpdated(ts);
-        }
+        if (tableName !== "products" || !ids.includes(p.productId)) return;
+        bumpLastUpdated(ts);
+        const row = product();
+        if (row === undefined) return;
+        copilotViewController.notify("product_updated", {
+          productId: p.productId,
+          type: row.type,
+          label: row.label,
+        });
       },
     );
     setIsLoading(false);
@@ -1300,9 +1317,9 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
         customStyle,
       },
       {
-        // Read live from the T1 row: a reattach remounts the copilot on the new
-        // pair, and the tools of that mount see the same pair here (D15).
-        getScope: () => requireScope(),
+        // Read live from the T1 row: a reattach moves the pair under the view.
+        getScope: requireScope,
+        getRunId,
         getLabel: () => label(),
         getTemplate: () => template(),
         getBody: () => body(),
@@ -1517,8 +1534,6 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     removeLastUpdatedListener = undefined;
     // Clear the "in this report" presence when the editor closes.
     setCollabView({});
-    if (p.returnToContext) restoreCopilotView(p.returnToContext);
-    else copilotViewController.clearView();
   });
 
   // ── live collab ──────────────────────────────────────────────────────────

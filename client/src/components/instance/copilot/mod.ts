@@ -1,19 +1,34 @@
 export {
   copilotViewController,
   copilotViews,
+  DATA_PAGE_IDS,
+  holdCopilotView,
   restoreCopilotView,
 } from "./ai_views.ts";
 export type {
   CopilotViewDefs,
-  CopilotViewId,
   CopilotViewState,
+  DataPageId,
+  DataPageParams,
   EditingReportContext,
+  EditingReportFigureParams,
   EditingReportParams,
   EditingSlideContext,
   EditingSlideDeckContext,
   EditingSlideDeckParams,
+  EditingSlideFigureParams,
   EditingSlideParams,
-  OpenProductScope,
+  FigureEditorContext,
+  HfaIndicatorEditorContext,
+  HfaIndicatorEditorParams,
+  OpeningProductParams,
+  PackagePageContext,
+  PackagePageParams,
+  PackageViewContext,
+  ProductViewContext,
+  ReportParams,
+  ResultsFileParams,
+  ViewingPackageFigureParams,
 } from "./ai_views.ts";
 export { buildSystemPromptForContext } from "./build_system_prompt.ts";
 export { createCopilotAIToolEnv } from "./client_env.ts";

@@ -69,8 +69,8 @@ import { buildLayoutContextMenu } from "./build_context_menu";
 import { InsertFigureModal } from "~/components/products/_shared/mod.ts";
 import {
   copilotViewController,
-  type CopilotViewState,
-  restoreCopilotView,
+  type EditingSlideDeckContext,
+  holdCopilotView,
 } from "~/components/instance/copilot/mod.ts";
 import { VisualizationEditor } from "~/components/_shared/figure_editor/mod.ts";
 import type { VizFigureCollabBinding } from "~/components/_shared/figure_editor/mod.ts";
@@ -126,7 +126,6 @@ type SlideEditorInnerProps = {
   // resolves under and what staleness is measured against (D4).
   scope: PackageScope;
   authoringContext: RunAuthoringContext;
-  returnToContext?: CopilotViewState;
   // Where the deck wants the slide's toolbar: the toolbar row under the
   // deck's heading bar, spanning the rail and the slide (Google Slides). The
   // toolbar is rendered there through a portal; it stays this editor's.
@@ -142,12 +141,7 @@ type SlideEditorInnerProps = {
   openHostEditor?: ReturnType<typeof getEditorWrapper>["openEditor"];
   // The deck the slide sits in, read live: the copilot's slide view carries
   // the deck's tools too, since the deck's rail is always beside the slide.
-  deckContext: {
-    getDeckLabel: () => string;
-    getDeckConfig: () => SlideDeckConfig;
-    getSlideIds: () => string[];
-    getSelectedSlideIds: () => string[];
-  };
+  deckContext: EditingSlideDeckContext;
   // What the deck may ask of the mounted editor: `flush` settles an unsaved
   // draft before the deck swaps the slide out (false = the user chose to keep
   // editing, so the swap is off).
@@ -588,15 +582,18 @@ export function SlideEditor(p: Props) {
   // could otherwise repeat the same alert).
   let collabErrorShown = false;
 
+  // The copilot's slide view over the deck's: the hold restores the deck view
+  // when this slide closes.
+  holdCopilotView();
   onMount(() => {
     attemptGetPageInputs(unwrap(tempSlide));
     copilotViewController.setView(
       "editing_slide",
       { slideId: p.slideId, deckId: p.productId },
       {
-        // The deck editor's live pair, the one the copilot mount is keyed on
-        // (D15).
-        getScope: () => p.scope,
+        // The deck's live pair and run, through the deck's own context.
+        getScope: () => p.deckContext.getScope(),
+        getRunId: () => p.deckContext.getRunId(),
         getTempSlide: () => tempSlide,
         setTempSlide,
         getDeckLabel: () => p.deckContext.getDeckLabel(),
@@ -739,9 +736,6 @@ export function SlideEditor(p: Props) {
     detachUndoPop?.();
     detachUndoPop = undefined;
     undoMgr = undefined;
-    if (p.returnToContext) {
-      restoreCopilotView(p.returnToContext);
-    }
     // The unmount save, for a close the deck did not `flush` first (the deck
     // closing, a route change): if collab isn't persisting and edits are
     // pending, save best-effort. Fire-and-forget with no conflict modal: at
