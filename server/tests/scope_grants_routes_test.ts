@@ -26,7 +26,10 @@ import { setUserScopeAccess } from "../db/instance/users.ts";
 import { closeAllConnections } from "../db/postgres/connection_manager.ts";
 import { _ASSETS_DIR_PATH, _BYPASS_AUTH } from "../exposed_env_vars.ts";
 import { buildGlobalUserFromDb } from "../auth/global_user.ts";
-import { resolvePackageContext } from "../mcp/context_cache.ts";
+import {
+  buildMcpPrincipal,
+  resolvePackageContext,
+} from "../mcp/context_cache.ts";
 import {
   COLLAB_CLOSE_ACCESS_CHANGED,
   routesCollab,
@@ -565,8 +568,9 @@ Deno.test("scope grants: products, folders, data reads, collab and /mcp", async 
     );
 
     // /mcp reads through "All data" and is refused to a restricted user.
+    const limitedPrincipal = await buildMcpPrincipal("t", LIMITED_EMAIL);
     await assertRejects(
-      () => resolvePackageContext({ token: "t", email: LIMITED_EMAIL }, runId),
+      () => resolvePackageContext(limitedPrincipal, runId),
       AIToolFailure,
     );
   } finally {

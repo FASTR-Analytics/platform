@@ -60,7 +60,27 @@ const CONTEXT_LRU_CAP = 50;
 export const NO_PIN_MESSAGE =
   "No results package is pinned on this instance. An admin with can_configure_data pins one under Results packages.";
 
-export type McpPrincipal = { token: string; email: string };
+// A principal is one credential: its key names the core panther caches for
+// it, so two PATs or a rotated OAuth token of one email never share a core
+// or the token its tools close over. The key is secret-free, as panther asks
+// of a principal key: the email plus the first 16 hex digits of the token's
+// SHA-256, readable in panther's per-request log line.
+export type McpPrincipal = { token: string; email: string; key: string };
+
+export async function buildMcpPrincipal(
+  token: string,
+  email: string,
+): Promise<McpPrincipal> {
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(token),
+  );
+  const hex = Array.from(
+    new Uint8Array(digest),
+    (b) => b.toString(16).padStart(2, "0"),
+  ).join("");
+  return { token, email, key: `${email}#${hex.slice(0, 16)}` };
+}
 
 export type McpPackageContext = {
   runId: string;

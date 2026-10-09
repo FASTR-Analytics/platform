@@ -23,7 +23,10 @@ import {
 } from "../db/instance/personal_access_tokens.ts";
 import { closeAllConnections } from "../db/postgres/connection_manager.ts";
 import { _BYPASS_AUTH } from "../exposed_env_vars.ts";
-import { resolvePackageContext } from "../mcp/context_cache.ts";
+import {
+  buildMcpPrincipal,
+  resolvePackageContext,
+} from "../mcp/context_cache.ts";
 
 const TEST_EMAIL = "mcp-context-cache-test@example.com";
 
@@ -69,8 +72,8 @@ Deno.test("/mcp context cache: keyed by (token, runId) — same user, two PATs, 
   );
   if (!mintedB.success) throw new Error(mintedB.err);
 
-  const principalA = { token: mintedA.data.token, email: TEST_EMAIL };
-  const principalB = { token: mintedB.data.token, email: TEST_EMAIL };
+  const principalA = await buildMcpPrincipal(mintedA.data.token, TEST_EMAIL);
+  const principalB = await buildMcpPrincipal(mintedB.data.token, TEST_EMAIL);
 
   try {
     // 1. Cold build.

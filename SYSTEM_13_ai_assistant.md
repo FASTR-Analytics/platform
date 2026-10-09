@@ -17,6 +17,7 @@ globs:
   - server/routes/instance/ai_proxy.ts
   - server/routes/instance/copilot_ai_proxy.ts
   - server/tests/mcp_context_cache_test.ts
+  - server/tests/mcp_principal_key_test.ts
   - server/tests/mcp_tools_source_header_test.ts
   - server/tests/methodology_docs_decode_test.ts
 ---
@@ -109,11 +110,15 @@ the query pipeline the data tools call is **S9**.
    call (a pin-move is visible on the next call; `get_overview` answers without
    a pin), and package tools are boot-time templates bound per call via
    panther's `bindAITool` because panther caches a principal's tool set per
-   core. The catalog is fixed per process: a client sees a catalog change only
-   when it re-lists (a chat client: refresh the connector's tools, or a new
-   conversation, though neither claude.ai nor Claude Code reliably re-lists on a
-   new conversation alone), and the server does not advertise `listChanged`
-   (panther ruling, DOC_AI_CHAT §Headless tools). So results are
+   core. A core is keyed per credential: `buildMcpPrincipal` gives each PAT or
+   OAuth access token its own principal, whose key is the email plus a 16-digit
+   prefix of the token's SHA-256 (`server/tests/mcp_principal_key_test.ts`), so
+   a second PAT or a rotated token of one user never runs over another
+   credential's token. The catalog is fixed per process: a client sees a catalog
+   change only when it re-lists (a chat client: refresh the connector's tools,
+   or a new conversation, though neither claude.ai nor Claude Code reliably
+   re-lists on a new conversation alone), and the server does not advertise
+   `listChanged` (panther ruling, DOC_AI_CHAT §Headless tools). So results are
    self-identifying instead: every package-tool result starts with a
    `Source: results package "<label>" (generated <createdAt>)` line naming the
    run it read (`withSourceHeader` in `context_cache.ts`, applied where run and

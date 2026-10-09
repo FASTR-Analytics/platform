@@ -5,7 +5,7 @@ import {
 } from "../headless_auth.ts";
 import { mcpResourceMetadataUrl } from "../routes/public/oauth_metadata.ts";
 import { _BYPASS_AUTH, _SERVER_VERSION } from "../exposed_env_vars.ts";
-import type { McpPrincipal } from "./context_cache.ts";
+import { buildMcpPrincipal, type McpPrincipal } from "./context_cache.ts";
 import { buildMcpToolsForPrincipal } from "./mcp_tools.ts";
 
 // The remote MCP endpoint (PLAN_112, re-cut 2026-08-19 to the pinned
@@ -53,7 +53,7 @@ export const mcpHttpHandler = createMCPHttpHandler<McpPrincipal>({
 }, {
   authenticate: async (req) => {
     if (_BYPASS_AUTH) {
-      return { token: "", email: "dev@offline.local" };
+      return await buildMcpPrincipal("", "dev@offline.local");
     }
     const authz = req.headers.get("Authorization") ?? "";
     // A backend failure here throws: the adapter answers 503 (credentials not
@@ -65,9 +65,10 @@ export const mcpHttpHandler = createMCPHttpHandler<McpPrincipal>({
     // The raw token rides on the principal: every server action this principal
     // dispatches re-presents it to the headless middleware, so the credential
     // is re-judged per dispatch rather than trusted from the door.
-    return { token: authz.slice(BEARER_PREFIX.length), email };
+    return await buildMcpPrincipal(authz.slice(BEARER_PREFIX.length), email);
   },
-  principalKey: (principal) => principal.email,
+  // One core per credential (the key's contract is on McpPrincipal).
+  principalKey: (principal) => principal.key,
   // RFC 9728 discovery: the 401 tells an OAuth-capable client WHERE to read
   // this server's protected-resource metadata, which is how claude.ai gets
   // from "Connect" to the Clerk consent screen. Derived per request from the

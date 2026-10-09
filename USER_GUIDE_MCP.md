@@ -2,8 +2,8 @@
 
 Connect any Claude client (Claude Code CLI, Claude Desktop, claude.ai
 web/mobile) to a FASTR instance so you can ask questions about the instance's
-national results package (its metrics and their data, its analysis modules'
-scripts, logs and settings) from a Claude chat, with the same permissions you
+national results package (its metrics and their data) and read the FASTR
+methodology and reference docs from a Claude chat, with the same permissions you
 have in the browser.
 
 There are **two ways to connect**, and both end up in exactly the same place:
@@ -49,10 +49,16 @@ browser tab.
 | Metrics   | `get_available_metrics`, `get_metric_data` (CSV output)                |
 | Reference | `get_methodology_docs_list`, `get_methodology_doc_content`, `get_info` |
 
-No tool takes a product or package id: every call reads whatever package is
-pinned **right now** (an admin re-pinning moves the connector on the next call).
-Reading a package needs the instance permission **can_view_data**; global admins
-always have it.
+No tool takes a product or package id. The two metric tools,
+`get_available_metrics` and `get_metric_data`, read whatever package is pinned
+**right now** (an admin re-pinning moves the connector on the next call); the
+reference tools read the FASTR methodology and reference docs, not the package.
+Reading the package needs an **approved** FASTR account with access to **all
+data**; global admins always have both. Otherwise the metric tools answer with
+one of two messages: "Your account is awaiting approval, which the
+results-package reads require. Ask an instance admin to approve it." or "Your
+account is limited to some scopes, and this connection reads all data in the
+results package. Ask an instance admin if you need it."
 
 If **nothing is pinned**, `get_overview` still answers and says so; the package
 tools return the same message until an admin with `can_configure_data` pins a
@@ -120,8 +126,7 @@ Use YOUR account email (the one you log into FASTR with) and any label you like.
 
 **A PAT** does **not expire**: it is valid until revoked. Revoke it from the
 `/access-tokens` panel (or delete its row in `personal_access_tokens`).
-Revocation is instant: the next call fails, including a report creation you have
-already been asked to confirm but not yet accepted.
+Revocation is instant: the next call fails.
 
 **An OAuth connection** is revoked on the Clerk side (your identity provider),
 not in FASTR. Removing the connector in Claude stops _that_ client using it, and
@@ -193,8 +198,8 @@ let the assistant orient itself:
   pinned and what metrics it holds."**
 
 `get_overview` carries the live grounding (the pinned package's name, its
-datasets and indicators, its analysis modules) and how to query metric data.
-Then ask naturally:
+datasets, indicators and period coverage) and how to query metric data. Then ask
+naturally:
 
 - **Explore data**: "What's the trend in <metric> over the last two years? Break
   it down by region." The assistant calls `get_available_metrics` to find ids,
@@ -236,11 +241,12 @@ Then ask naturally:
   does not have **dynamic client registration** enabled (Clerk Dashboard →
   Configure → OAuth applications). Without it Claude cannot register itself and
   the flow cannot start.
-- **You log in and consent, but the tools then say your account lacks
-  `can_view_data`.** Either the OAuth login matched a Clerk account whose
-  **primary email** is not a FASTR user (or a different address from the one
-  your FASTR account uses, so check which email you signed in with), or your
-  FASTR user really lacks the instance permission. Ask an instance admin.
+- **You log in and consent, but the metric tools then say your account is
+  awaiting approval, or is limited to some scopes.** Either the OAuth login
+  matched a Clerk account whose **primary email** is not a FASTR user (or a
+  different address from the one your FASTR account uses, so check which email
+  you signed in with), or your FASTR account really is unapproved or limited to
+  some scopes. Ask an instance admin.
 - **"No results package is pinned on this instance".** Nothing is wrong with
   your connection: no package is pinned yet. An admin with `can_configure_data`
   pins one under Results packages; the tools work from the next call.
@@ -262,12 +268,13 @@ Then ask naturally:
   (~30 seconds) so that a single request does not hammer the identity provider,
   so a revoked OAuth grant can keep working for up to that long. Plan for
   "within a minute", not "immediately".
-- Every tool call runs the same server-side checks as the browser app: token
+- Every package read runs the same server-side checks as the browser app: token
   verification, a **deny-by-default** route allowlist (a PAT can only reach the
   read-only package routes the assistant needs: it can never mint or revoke
-  tokens, reach admin/user routes, or write anything), and the instance
-  `can_view_data` gate on every read.
-- The surface is **read-only by construction**: it exposes no write tool at all,
-  so a leaked credential can read exactly what your own instance permissions
-  already show you in the app, and change nothing.
+  tokens, reach admin/user routes, or write anything), and on every read the
+  checks that the account is approved and holds access to all data.
+- The surface is **read-only by construction**: it exposes no write tool at all.
+  A leaked credential can read what an approved account with access to all data
+  reads in the app, the pinned package, and the FASTR reference docs. It can
+  change nothing.
 - PATs **do not expire**, so revoke them when you're done (step 1, "Revoking").
