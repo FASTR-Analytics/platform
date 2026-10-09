@@ -35,9 +35,7 @@ Cadence, session shapes, the two-things rule and the step rules are
 and sections are `PROTOCOL_APP_PLANS.md`. This plan binds them as follows.
 
 - Instruction: "Do the next step of PLAN_COPILOT03_ONE_CHAT.md."
-- Branch: `version2`, overriding PROTOCOL_APP_PLANS's `tim-branch`: the product
-  plane, and with it the copilot, lives on `version2` until
-  PLAN_PRODUCTS_RESTRUCTURE step 13 merges it into `main`.
+- Branch: `version2`.
 - Floor: PROTOCOL_APP_PLANS's. No step touches a migration, the base schema, the
   seed, the query engine or help text, so no conditional gate applies. In every
   step `./validate_protocols` also prints no new tier-2 flag and no
@@ -122,8 +120,8 @@ finds each cited line by its content.
   `components/products/copilot/_shared/ai_views.ts:107-176`).
 - **A second chat for HFA indicators** (A51, A52, B.2) on `/ai-instance` (B54).
 - **No other place has a chat or a view** (A14, A35 to A50, A56 to A60).
-- **R1** (Tim, 2026-10-08) supersedes PLAN_PRODUCTS_RESTRUCTURE D15
-  (`PLAN_PRODUCTS_RESTRUCTURE.md:649-680`; H03 to H07).
+- **R1** (Tim, 2026-10-08) supersedes the one-mount-per-product design (H03 to
+  H07).
 
 That design leaves broken the companion's D.2 (D44 to D63), two engine facts one
 chat per user makes defects (C07, C27), and a reload under a running turn once
@@ -274,12 +272,11 @@ earlier turn happened; the system prompt is instance level (step 4).
    its import, HFA time points, sampling weights and their import, HFA data with
    its imports, run detail and delete, and ICEH data with its imports, run
    detail and delete. Modals are not views: they cover the panel, and the view
-   beneath stays current. Two earlier rulings move: `list_products` reverses
-   D15's "no product-registry tools" (`PLAN_PRODUCTS_RESTRUCTURE.md:667-668`;
-   H06), and the `package` and `explore` blocks narrow SYSTEM_13's "nothing
-   about modules goes into the AI context" (`SYSTEM_13_ai_assistant.md:104-106`;
-   H25) to the package grounding: on those two pages the module and its status
-   are what the user is looking at.
+   beneath stays current. Two earlier rulings move: `list_products` reverses "no
+   product-registry tools" (H06), and the `package` and `explore` blocks narrow
+   SYSTEM_13's "nothing about modules goes into the AI context"
+   (`SYSTEM_13_ai_assistant.md:104-106`; H25) to the package grounding: on those
+   two pages the module and its status are what the user is looking at.
 
 2. **What the folder move moves** (R9). The shell-level code R9 moves: the panel
    and pane, settings, documents, prompt library, debug panel, view registry,
@@ -1030,13 +1027,10 @@ Named so it is not reopened:
 ## 7. Rollout and rollback
 
 Everything lands on `version2`. Every step ends green with the app working, so
-`version2` may be deployed at any step boundary, PLAN_PRODUCTS_RESTRUCTURE step
-11's redeploys to the three v2 testing instances included. Between steps the
-chat is partial: per product with the new views, refusals and wire until step 7,
-then beside the shell, the other views arriving in steps 9 to 12 and the HFA
-assistant its own chat until step 12. The fleet receives the plan with
-PLAN_PRODUCTS_RESTRUCTURE step 13; COPILOT04 starts once `main` carries this
-plan's last commit (GM).
+`version2` may be deployed at any step boundary. Between steps the chat is
+partial: per product with the new views, refusals and wire until step 7, then
+beside the shell, the other views arriving in steps 9 to 12 and the HFA
+assistant its own chat until step 12. COPILOT04 starts once G3 opens.
 
 From the deploy carrying step 7, the `copilot:<productId>` scopes (in
 `ai-conv-list`, with their `ai-conv/<id>` records and

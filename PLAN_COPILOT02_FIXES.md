@@ -13,9 +13,8 @@ editors written over after a failed load, views and tool texts that lie, a
 digest that blames the user, garbled French, silent HFA errors, and `/mcp`
 acting as the first credential it saw. Every other defect is COPILOT03's (§6).
 
-Branch: `version2`, and `tim-branch` for ruling 13's two cherry-picks. Repos
-touched: this app; the panther repo only when the last review opens G2 in
-`PLAN_COPILOT_ORCHESTRATION.md`.
+Branch: `version2`. Repos touched: this app; the panther repo only when the last
+review opens G2 in `PLAN_COPILOT_ORCHESTRATION.md`.
 
 Read first: what §0's reading order names.
 
@@ -28,12 +27,7 @@ version here (R4), read it with
 The app's bindings are `PROTOCOL_APP_PLANS.md`. This plan binds them as follows.
 
 - Instruction: "Do the next step of PLAN_COPILOT02_FIXES.md."
-- Branch: `version2`, overriding PROTOCOL_APP_PLANS's `tim-branch`: the product
-  plane lives on `version2` until PLAN_PRODUCTS_RESTRUCTURE step 13 merges it
-  into `main`, and the copilot, report and HFA assistant files this plan edits
-  do not exist on `main` or `tim-branch`. Steps 4 and 7 also commit on
-  `tim-branch`, in its worktree `/Users/timroberton/projects/apps/wb-fastr`
-  (ruling 13).
+- Branch: `version2`.
 - Floor: `deno task typecheck`, `deno task test`, `./validate_protocols` and
   `./run`, as PROTOCOL_APP_PLANS lists them. No step touches a migration, the
   base schema, the seed, the query engine or help text, so no conditional gate
@@ -159,22 +153,6 @@ _(proposed)_ was derived here and stands unless Tim overrules it here before
     `POST /hfa-indicators/save-code`, `can_configure_data`, body
     `{ indicators: { indicator: HfaIndicator; code: { timePoint: string; rCode: string; rFilterCode?: string }[] }[] }`
     with `.min(1)`, returning no data.
-13. **D18 and D28 reach production before step 13** (Tim, 2026-10-09). Each is
-    its own commit on `version2` (step 4's first, step 7's first) holding only
-    the fix, its tests and the SYSTEM_13 glob line that claims a new test, and
-    is cherry-picked onto `tim-branch` with `git cherry-pick -x <sha>` in the
-    worktree `/Users/timroberton/projects/apps/wb-fastr`, once
-    `git -C /Users/timroberton/projects/apps/wb-fastr branch --show-current`
-    prints `tim-branch` and its `git status --porcelain` prints nothing. A
-    conflict in `SYSTEM_13_ai_assistant.md` is resolved by adding the test's
-    line to that branch's `server/tests/` list; a conflict in any other file
-    aborts the cherry-pick (`git cherry-pick --abort`), and §8 records the files
-    for Tim. The floor on `tim-branch` is its own `PROTOCOL_APP_PLANS.md`'s, run
-    in that worktree before the commit is reported.
-    `lib/ai_tools/tools_methodology_docs.ts` and `server/mcp/mcp_endpoint.ts`
-    read the same on both branches but for the lines §7 names, and
-    `server/mcp/context_cache.ts` differs only outside the `McpPrincipal`
-    region.
 
 The texts, all _(proposed)_:
 
@@ -297,8 +275,7 @@ view an action arrives in (engine change E6), and the producer named at
 `copilot/ai_prompt_library/saveable_user_text_renderer.tsx`;
 `copilot/save_report_style.tsx` (:19-24); `lib/fastr_markdown_spec.ts` (:1-6);
 `SYSTEM_13_ai_assistant.md` (the globs, :276-280, :310-315, :421-428, :462-468);
-`SYSTEM_03_realtime_cache.md` (:434-436). On `tim-branch`, in its worktree
-(ruling 13): the first commit's files.
+`SYSTEM_03_realtime_cache.md` (:434-436).
 
 **Deliverable.**
 
@@ -313,18 +290,16 @@ view an action arrives in (engine change E6), and the producer named at
 (`lib/ai_tools/env.ts:13-16`, D78) and moving the pane's files (R9), both
 COPILOT03's. Panther's chat renderers (engine change E1, COPILOT01).
 
-**Gates.** The floor; on `tim-branch`, its floor after the cherry-pick (ruling
-13); and `deno test -A --no-check server/tests/methodology_docs_decode_test.ts`
-green on its own, with two cases whose expected text is encoded by the test
-itself (`TextEncoder`, then `btoa`):
+**Gates.** The floor, and
+`deno test -A --no-check server/tests/methodology_docs_decode_test.ts` green on
+its own, with two cases whose expected text is encoded by the test itself
+(`TextEncoder`, then `btoa`):
 
 - "decodeBase64Utf8: UTF-8 text, French accents included, decodes as written"
 - "decodeBase64Utf8: base64 in 60-character lines, as GitHub sends it, decodes"
 
-**Ends with.** Three commits, each green: D18 (`tools_methodology_docs.ts`,
-`decodeBase64Utf8`, its test and SYSTEM_13's glob line), cherry-picked onto
-`tim-branch` (ruling 13) before the next; the rest of `lib/ai_tools` and the
-attachment prefix; then the pane, its documents and the prose.
+**Ends with.** Two commits, each green: `lib/ai_tools` and the attachment
+prefix; then the pane, its documents and the prose.
 
 ### Step 5: The HFA tools do what they say, and tell the model why they failed
 
@@ -395,8 +370,7 @@ tool's commit; then the text.
 `server/tests/`, `mcp_principal_key_test.ts` (new), `mcp_context_cache_test.ts`
 (:26, :72-73) and `pat_identity_parity_test.ts`; `USER_GUIDE_MCP.md`;
 `SYSTEM_13_ai_assistant.md` (the globs; principle 2's `/mcp` sentences,
-:85-130); `SYSTEM_01_api_contract.md` (:421-426). On `tim-branch`, in its
-worktree (ruling 13): the first commit's files.
+:85-130); `SYSTEM_01_api_contract.md` (:421-426).
 
 **Deliverable.**
 
@@ -416,8 +390,8 @@ worktree (ruling 13): the first commit's files.
 (step 8). Passing the request's own credential into a tool call, which would be
 a panther change. `withSourceHeader`'s `runStructured` (D34, COPILOT03).
 
-**Gates.** The floor; on `tim-branch`, its floor after the cherry-pick (ruling
-13); `deno test -A --no-check --env-file server/tests/mcp_principal_key_test.ts`
+**Gates.** The floor;
+`deno test -A --no-check --env-file server/tests/mcp_principal_key_test.ts`
 green on its own, with three cases:
 
 - "buildMcpPrincipal: two credentials of one email get two keys"
@@ -428,12 +402,8 @@ green on its own, with three cases:
 and, with this tree's server up as the floor boots it (§8 names its port,
 `<port>`), `./mcp_probe http://localhost:<port> get_overview` answers.
 
-**Ends with.** Three commits, each green: D28 (`buildMcpPrincipal`, both
-`authenticate` branches and `principalKey`, `mcp_principal_key_test.ts`,
-`mcp_context_cache_test.ts`'s principals and SYSTEM_13's glob line),
-cherry-picked onto `tim-branch` (ruling 13) before the next; the guide and
-SYSTEM_13's principle 2; then the boot check, the derivation and the chain's
-comments.
+**Ends with.** Two commits, each green: the credential key, its tests and the
+guide; then the boot check, the derivation and the chain's comments.
 
 ### Step 8: `/mcp`'s overview, and the sections both prompts share
 
@@ -495,7 +465,6 @@ and, with this tree's server up as the floor boots it (§8 names its port,
 | The floor (PROTOCOL_APP_PLANS)                                                                      | Step 1        |
 | `./validate_protocols`: `0 new tier-2 flag(s)`, baseline unchanged                                  | Step 1        |
 | `server/tests/methodology_docs_decode_test.ts`                                                      | Step 4        |
-| `tim-branch`'s floor after each cherry-pick (ruling 13)                                             | Step 4        |
 | `server/tests/mcp_principal_key_test.ts`                                                            | Step 7        |
 | `./mcp_probe http://localhost:<port> get_overview` answers against this tree's server               | Step 7        |
 | `server/tests/ai_context_sections_test.ts`, `server/tests/hfa_time_points_for_ai_test.ts`           | Step 8        |
@@ -510,23 +479,14 @@ Named so it is not reopened:
 - The entries the companion assigns to COPILOT03, D34 among them (COPILOT03
   ruling 10).
 - The engine changes E1 to E8 (COPILOT01) and PLAN_FRAME_PANELS step 1; the
-  defects of the proposal's section 6, outside the AI; the same defects on
-  `main` and `tim-branch` (§7); folding the three reference tools into one pair
-  (PLAN_REFERENCE_DOCS_ONE_PAIR).
+  defects of the proposal's section 6, outside the AI; folding the three
+  reference tools into one pair (PLAN_REFERENCE_DOCS_ONE_PAIR).
 
 ## 7. Rollout and rollback
 
-Every step stands alone and leaves `version2` green. `version2` is in
-PLAN_PRODUCTS_RESTRUCTURE step 11, deployed to the three v2 testing instances
-and refined there, so Tim's next deploy of `version2` ships every step landed by
-then; nothing in this plan deploys on its own. The fleet receives the plan with
-PLAN_PRODUCTS_RESTRUCTURE step 13. Until then `main` and `tim-branch` keep D19,
-D33 and the `/mcp` half of D29 to D31 in the same files
-(`client/src/state/clear_caches.ts:4` and `USER_GUIDE_MCP.md:5-6` read as on
-`version2`); D18 and D28 reach `tim-branch` by ruling 13
-(`lib/ai_tools/tools_methodology_docs.ts:30` and `:85` and
-`server/mcp/mcp_endpoint.ts:70` read as on `version2`), and production with
-Tim's next deploy of it.
+Every step stands alone and leaves `version2` green, so Tim's next deploy of
+`version2` ships every step landed by then; nothing in this plan deploys on its
+own.
 
 What changes for a user beyond the fixes themselves: pending attachments now
 survive a deploy and go with Clear AI chat history. Each PAT and each OAuth
@@ -541,8 +501,7 @@ needs a Valkey prefix bump. The batch route's response gains data that only the
 AI tool reads, the new code route has the AI tool as its one caller, and the
 client and server deploy together.
 
-Rollback is `git revert` of a step's commits on `version2`, and of a cherry-pick
-on `tim-branch`.
+Rollback is `git revert` of a step's commits on `version2`.
 
 ## 8. Build log
 
