@@ -1,11 +1,11 @@
-// Identity-parity test for the /pat mount (REVIEW_MCP_HOST_ARCHITECTURE.md §7):
-// the same registry route reached via a personal access token and via a Clerk
-// session must resolve to the IDENTICAL user context and effect. The
-// representative route is GET /user (getCurrentUser): its response IS the
-// resolved GlobalUser.
+// Identity-parity test for the headless app /mcp dispatches into
+// (REVIEW_MCP_HOST_ARCHITECTURE.md §7): the same registry route reached via a
+// personal access token and via a Clerk session must resolve to the IDENTICAL
+// user context and effect. The representative route is GET /user
+// (getCurrentUser): its response IS the resolved GlobalUser.
 //
-// The PAT leg is fully real: real headlessAuthMiddleware, real allowlist, real
-// route registration, real DB. The Clerk leg simulates only clerkMiddleware's
+// The PAT leg is fully real: the exported headlessApp, with its real
+// headlessAuthMiddleware, allowlist and route registration, over the real DB. The Clerk leg simulates only clerkMiddleware's
 // output contract: c.set("clerkAuth", authFn), the seam getAuth() invokes,
 // because verifying Clerk's network handshake belongs to Clerk, not this app.
 // Everything downstream (getGlobalUser → buildGlobalUserFromDb → permission
@@ -22,8 +22,7 @@ import type { ServerActionTransport } from "../../lib/server_actions/transport.t
 import { setServerActionTransport } from "../../lib/server_actions/transport.ts";
 import { createAllServerActions } from "../../lib/server_actions/create_server_action.ts";
 import { routesUsers } from "../routes/instance/users.ts";
-import { headlessAuthMiddleware } from "../middleware/auth.ts";
-import { headlessRouteAllowlist } from "../middleware/headless_allowlist.ts";
+import { headlessApp } from "../headless_app.ts";
 import { getPgConnectionFromCacheOrNew } from "../db/mod.ts";
 import {
   createPersonalAccessToken,
@@ -76,11 +75,7 @@ Deno.test("PAT auth resolves to the identical user context as Clerk auth (GET /u
   if (!minted.success) throw new Error(minted.err);
 
   try {
-    // PAT leg: the real /pat composition from main.ts.
-    const headlessApp = new Hono();
-    headlessApp.use("*", headlessAuthMiddleware as never);
-    headlessApp.use("*", headlessRouteAllowlist);
-    headlessApp.route("/", routesUsers);
+    // PAT leg: the exported headlessApp, as /mcp dispatches into it.
     const patRes = await headlessApp.request("/user", {
       headers: { Authorization: `Bearer ${minted.data.token}` },
     });

@@ -10,6 +10,7 @@ import type {
   ServerActionTransport,
 } from "lib";
 import {
+  ALL_DATA_SCOPE_ID,
   createAllServerActions,
   createDevGlobalUser,
   formatSourceHeader,
@@ -25,13 +26,9 @@ import {
 import { buildGlobalUserFromDb } from "../auth/global_user.ts";
 import { buildInstanceStateWithoutProducts } from "../task_management/build_instance_state.ts";
 import { headlessAppFetch } from "../headless_app.ts";
-import { getRunManifestCached } from "../runs/manifest_cache.ts";
 import {
-  getHfaTaxonomyFromManifestInputs,
-  getIcehIndicatorsFromManifestInputs,
-  getMetricsWithStatusFromManifest,
-  getModuleSummariesFromManifest,
-  getRunDatasetsFromManifest,
+  buildRunAuthoringContext,
+  getRunReadContextForRun,
 } from "../run_query/mod.ts";
 import { createMcpAIToolEnv } from "./env.ts";
 import {
@@ -131,8 +128,8 @@ function cacheSet<T>(map: Map<string, CacheEntry<T>>, key: string, value: T) {
 
 // The per-principal transport (PLAN_112 D4): every server action dispatches
 // in-process through headlessApp's full middleware chain: credential verify
-// (a PAT also gets its last-used stamp), deny-by-default allowlist, zod
-// validation, instance permissions, logging.
+// (a PAT also stamps last_used_at), allowlist, zod validation, approval and
+// scope-grant checks; no user_logs row.
 export function buildPrincipalTransport(token: string): ServerActionTransport {
   return {
     baseUrl: "",
@@ -299,23 +296,30 @@ export async function resolvePackageContext(
   }
   const run = runRes.data;
 
-  // The same manifest-derived catalog buildRunAuthoringContext serves
-  // (run_query/authoring_context.ts): one derivation, two callers.
-  const manifest = await getRunManifestCached(runId);
-  const runInputs = { runId, manifest };
-  const metrics = getMetricsWithStatusFromManifest(manifest);
-  const icehIndicators = await getIcehIndicatorsFromManifestInputs(runInputs);
+  // The authoring context the SPA reads, under the "All data" scope: one
+  // derivation for both surfaces.
+  const readRes = await getRunReadContextForRun(
+    mainDb,
+    runId,
+    ALL_DATA_SCOPE_ID,
+    globalUser.scopeAccess,
+  );
+  if (!readRes.success) {
+    throw new Error(`Could not read results package ${runId}: ${readRes.err}`);
+  }
+  const { manifest } = readRes.data;
+  const authoring = await buildRunAuthoringContext(readRes.data);
   // The package's taxonomy carries no time points (instance T1 state, not
   // run content; D7), so the AI's full HfaTaxonomyForAI is composed here.
   const hfaTaxonomy: HfaTaxonomyForAI = {
-    ...(await getHfaTaxonomyFromManifestInputs(runInputs)),
+    ...authoring.hfaTaxonomy,
     timePoints: await getHfaTimePointsForAI(mainDb),
   };
   const grounding: PackageGrounding = {
     calendar: manifest.calendar,
-    datasets: getRunDatasetsFromManifest(manifest),
-    hmisIndicators: manifest.hmisIndicators,
-    icehIndicators,
+    datasets: authoring.datasets,
+    hmisIndicators: authoring.hmisIndicators,
+    icehIndicators: authoring.icehIndicators,
     periodCoverage: packagePeriodCoverage(manifest),
   };
 
@@ -326,9 +330,9 @@ export async function resolvePackageContext(
   // deno-lint-ignore no-explicit-any
   const sessionTools: AIToolWithMetadata<any>[] = getSharedToolsForMetrics(
     env,
-    metrics,
-    getModuleSummariesFromManifest(manifest),
-    icehIndicators,
+    authoring.metrics,
+    authoring.modules,
+    authoring.icehIndicators,
     hfaTaxonomy,
   ).map((tool) => withSourceHeader(tool, run));
 

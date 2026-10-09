@@ -37,7 +37,7 @@ import { route } from "../route-utils.ts";
 // 2026-08-18): a package is
 // instance-level data, so what it contains is gated on the instance data
 // bits: `can_view_data` for detail/script/files/download, `can_view_logs`
-// for logs, wherever it is explored (the catalogue, the AI tools, MCP). Reader: server/runs/package_internals.ts.
+// for logs, wherever it is explored (the catalogue, the copilot's tools). Reader: server/runs/package_internals.ts.
 const runModuleParamsSchema = z.object({
   run_id: z.string(),
   module_id: z.string(),
@@ -103,8 +103,8 @@ export const runGenerationRouteRegistry = {
     response: {} as RunModuleFileListing,
   }),
   // One module's configuration as generated (the manifest's
-  // configSelections, definition-typed): the AI tools' get_module_settings
-  // read, on both the copilot and MCP.
+  // configSelections, definition-typed): the copilot's get_module_settings
+  // read.
   getRunModuleWithConfigSelections: route({
     path: "/run_generation/run/:run_id/module/:module_id/config_selections",
     method: "GET",

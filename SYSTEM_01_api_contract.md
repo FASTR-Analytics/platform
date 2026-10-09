@@ -421,11 +421,12 @@ per-context transport**, passed as an argument and never registered anywhere.
 over the network. The `/mcp` endpoint builds one per (token, pinned package)
 context carrying that caller's own token, with `fetchImpl:
 headlessAppFetch`, so
-every action runs the real headless middleware chain (verify + `last_used_at`
-stamp, deny-by-default allowlist, zod validation, `requireApprovedUser()` on the
-run-keyed package reads, logging) with no loopback HTTP and no shared state.
-Per-request isolation is exactly what the explicit form provides; SPA callers
-take both defaults (`createAllServerActions()`, global fetch). Pinned by
+every action runs the real headless middleware chain (credential verify, a PAT
+also stamping `last_used_at`; the deny-by-default allowlist; zod validation; the
+approval and scope-grant checks on the run-keyed package reads; no `user_logs`
+row) with no loopback HTTP and no shared state. Per-request isolation is exactly
+what the explicit form provides; SPA callers take both defaults
+(`createAllServerActions()`, global fetch). Pinned by
 `server/tests/pat_identity_parity_test.ts`, which drives the same route through
 the raw PAT app, an explicit transport, and a defaulted caller and asserts all
 three agree. The headless app's mount list and the allowlist are two hand-kept

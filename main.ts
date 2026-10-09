@@ -1,4 +1,8 @@
 import { type Context, Hono } from "hono";
+import {
+  type CreateMCPServerConfig,
+  validateMCPServerConfig,
+} from "@timroberton/panther";
 import { dbStartUp } from "./server/db_startup.ts";
 import { getPgConnectionFromCacheOrNew } from "./server/db/mod.ts";
 import { DeleteOldLogs } from "./server/db/instance/user_logs.ts";
@@ -60,7 +64,8 @@ import { routesOAuthMetadata } from "./server/routes/public/oauth_metadata.ts";
 import { routesCustomPrompts } from "./server/routes/instance/custom_prompts.ts";
 import { routesWhatsNew } from "./server/routes/instance/whats_new.ts";
 import { routesOnboarding } from "./server/routes/instance/onboarding.ts";
-import { mcpHttpHandler } from "./server/mcp/mcp_endpoint.ts";
+import { mcpHttpHandler, mcpServerConfig } from "./server/mcp/mcp_endpoint.ts";
+import { buildMcpPrincipal } from "./server/mcp/context_cache.ts";
 
 await dbStartUp();
 
@@ -230,6 +235,14 @@ validateAllRoutesDefined();
 if (_IS_DEV) {
   validateHeadlessMounts();
 }
+// The /mcp tool set is otherwise first built on a principal's first request,
+// where a construction throw answers 500 on every request; building it once
+// here, for the dev identity, fail-stops the boot instead. The cast is the
+// one panther's own HTTP adapter makes: the validator takes the untyped
+// config.
+validateMCPServerConfig(mcpServerConfig as CreateMCPServerConfig, {
+  principal: await buildMcpPrincipal("", "dev@offline.local"),
+});
 
 // Process-level backstop for the serving phase. A single collaborative-editing
 // frame, or any other un-awaited async path, must never take down this

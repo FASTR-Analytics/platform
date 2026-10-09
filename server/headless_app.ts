@@ -13,8 +13,9 @@ import { routesUsers } from "./routes/instance/users.ts";
 // allowlist. Since the /mcp endpoint replaced the local MCP host, this app is
 // INTERNAL plumbing: the /mcp context builds per-principal server actions
 // whose fetchImpl dispatches into it via headlessAppFetch below, so every tool
-// call runs the full headless middleware chain (credential verify, allowlist,
-// permissions, logging) exactly as a network caller would. Handlers are
+// call runs the full headless middleware chain (credential verify, a PAT also
+// stamping last_used_at; allowlist; zod validation; approval and scope-grant
+// checks; no user_logs row) exactly as a network caller would. Handlers are
 // auth-agnostic (they read context set by getGlobalUser), so identity parity
 // with the cookie mount is structural (pinned by
 // server/tests/pat_identity_parity).
@@ -46,8 +47,7 @@ headlessApp.get("/info/:file{[A-Za-z0-9_-]+\\.md}", async (c) => {
 });
 
 // In-process dispatch entry (PLAN_112 D4): the ServerActionTransport.fetchImpl
-// the /mcp context cache installs. headlessApp.request paths carry no /pat
-// prefix (the allowlist's replace() is a no-op for them, by design).
+// the /mcp context cache installs.
 export function headlessAppFetch(
   input: string | URL | Request,
   init: RequestInit,
