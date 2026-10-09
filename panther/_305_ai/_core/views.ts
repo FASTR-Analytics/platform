@@ -3,9 +3,14 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { buildInteractionDigest, createSignal, untrack } from "../deps.ts";
+import {
+  admitInteraction,
+  buildInteractionDigest,
+  createInteractionLog,
+  createSignal,
+  untrack,
+} from "../deps.ts";
 import type { AIInteractionDefLike } from "../deps.ts";
-import { createInteractionLog } from "./interactions.ts";
 import type {
   AIInteractionRegistry,
   AnyAIInteraction,
@@ -14,10 +19,12 @@ import type {
 import { resolveViewLabel } from "../deps.ts";
 import type {
   AIViewDefinition,
+  AIViewIdentity,
   AIViewRegistry,
   AIViewState,
   AIViewVoidKeys,
   AnyAIView,
+  GateView,
   SetViewArgs,
 } from "../deps.ts";
 
@@ -111,24 +118,42 @@ export type AIViewController<
   // harmless now that handlers close over nothing. Consumers never call
   // this.
   _registry(): unknown;
-  // Engine-internal: transactional interaction drain at turn creation, for
-  // the sending CONVERSATION (per-conversation cursors over the shared
-  // app-level log — "since the last message" is true per transcript). The
-  // engine calls restore() iff the turn ends with no assistant message from
-  // the model (failed/stopped send) — the cursor rolls back, so the same
+  // Engine-internal: transactional interaction drain at turn creation, and
+  // with appendOnlyTurns again for a message typed mid-turn, for the sending
+  // CONVERSATION (per-conversation cursors over the shared app-level log —
+  // "since the last message" is true per transcript). The engine calls
+  // restore() iff the model never answers the message the drain rode
+  // (failed/stopped send; with the option, each carrier after the turn's
+  // last model reply, latest first) — the cursor rolls back, so the same
   // window rides the retry's fresh digest; never lost, never
   // double-delivered. Null when no interactions registry is configured.
   // Consumers never call this.
   _drainForSend(
     conversationId: string,
   ): { digest: string | null; restore: () => void } | null;
+  // Engine-internal: the digest _drainForSend would deliver now, with the
+  // log untouched (the cursor stays), for getNextTurnPreview. Null when no
+  // interactions registry is configured. Consumers never call this.
+  _peekForSend(conversationId: string): string | null;
   // Engine-internal: the raw pieces of the turn's view sections, resolved
-  // safely (a throwing label/instructions is logged and degraded, never a
-  // turn failure). Consumers never call this.
+  // safely (a throwing label/state/instructions/identity is logged and
+  // degraded, never a turn failure); `view` is also the turn's reference for
+  // the gate. Consumers never call this.
   _turnSectionParts(): {
-    view: { id: string; label: string | null };
+    view: GateView;
+    viewState: string | null;
     viewInstructions: string | null;
   };
+  // Engine-internal: ONE read of the live view with its label and identity
+  // resolved, for one gate check or one approval lifecycle, so the check and
+  // what runs after it see the same view. Consumers never call this.
+  _snapshot(): { state: AIViewState<TDefs>; view: GateView };
+  // Engine-internal: the conversations manager reports each conversation it
+  // makes active (mount, create, switch, after deleting the active one).
+  // With digestAcrossViews the conversation's cursor moves to the log's end,
+  // so it hears only what happens after; a no-op otherwise. Consumers never
+  // call this.
+  _activateConversation(conversationId: string): void;
 };
 
 const DEFAULT_ECHO_TTL_MS = 30_000;
@@ -155,6 +180,18 @@ export function createAIViewController<
     // "ai" and dropped from the digest. Raise it if the app's routing takes
     // longer to settle (lazy-loaded editors). Default 5 000 ms.
     navAttributionMs?: number;
+    // Report actions against the view they happened in. On: notify admits
+    // an entry when it is recorded (relevantIn, then filter, against the
+    // view the user is in then) and records that view; the digest runs
+    // neither hook again, coalesces per interaction and recorded view, and
+    // ends each line with `(in "<label>")`; and a conversation's cursor
+    // moves to the log's end each time the conversations manager makes it
+    // active, so a new or switched-to conversation hears only what happens
+    // after. Off (default): both hooks run at drain against the view the
+    // user sends from, lines name no view, and cursors start at 0, so a
+    // conversation's first digest carries the retained backlog. Opt-in until
+    // COPILOT04 deletes the field with the off path.
+    digestAcrossViews?: boolean;
   },
 ): AIViewController<TDefs, TIDefs> {
   const fallbackId = options.fallback as keyof TDefs;
@@ -243,6 +280,7 @@ export function createAIViewController<
     : null;
   const reportNavigation = interactionLog !== null &&
     (options.reportNavigation ?? true);
+  const digestAcrossViews = options.digestAcrossViews ?? false;
 
   const fallbackState = {
     id: fallbackId,
@@ -280,10 +318,55 @@ export function createAIViewController<
     }
   }
 
+  function resolveState(s: AIViewState<TDefs>): string | null {
+    const def = defFor(s);
+    if (def.state === undefined) return null;
+    try {
+      return def.state(s.params, s.context);
+    } catch (err) {
+      console.error(
+        `AI view state for "${
+          String(s.id)
+        }" threw; dropping the section for this turn.`,
+        err,
+      );
+      return null;
+    }
+  }
+
   function instructionsDeliveryFor(
     s: AIViewState<TDefs>,
   ): "ephemeral" | "manual" {
     return defFor(s).instructionsDelivery ?? "ephemeral";
+  }
+
+  // undefined: the view declares no identity; null: it threw, which the gate
+  // treats as a move (never equal), so a stale identity refuses view-limited
+  // calls until the user writes instead of failing the turn.
+  function resolveIdentity(
+    s: AIViewState<TDefs>,
+  ): AIViewIdentity | null | undefined {
+    const def = defFor(s);
+    if (def.identity === undefined) return undefined;
+    if (typeof def.identity !== "function") return def.identity;
+    try {
+      return def.identity(s.params, s.context);
+    } catch (err) {
+      console.error(
+        `AI view identity for "${
+          String(s.id)
+        }" threw; view-limited calls are refused until the user writes. A stale identity must never fail a turn.`,
+        err,
+      );
+      return null;
+    }
+  }
+
+  function gateView(s: AIViewState<TDefs>): GateView {
+    const identity = resolveIdentity(s);
+    return identity === undefined
+      ? { id: String(s.id), label: resolveLabel(s) }
+      : { id: String(s.id), label: resolveLabel(s), identity };
   }
 
   // Built-in __navigation event around every state change: labels resolved
@@ -365,7 +448,25 @@ export function createAIViewController<
           }"): this controller has no interactions registry — pass one via createAIViewController options`,
         );
       }
-      interactionLog.record(String(id), (args as unknown[])[0]);
+      const payload = (args as unknown[])[0];
+      const def = digestAcrossViews ? interactionDefs![String(id)] : undefined;
+      if (!def) {
+        interactionLog.record(String(id), payload);
+        return;
+      }
+      // Admission against the view the user is in NOW, since the digest
+      // across views cannot run the hooks at drain (the user may have left).
+      // One UNTRACKED region around the read, the hooks and the label, for
+      // applyWithNavigation's reason: notify observes the view, the hooks
+      // and the label may read live signals, and a caller inside an effect
+      // must subscribe to none of them.
+      const recorded = untrack(() => {
+        const s = state();
+        const live = { id: String(s.id), params: s.params, context: s.context };
+        if (!admitInteraction(String(id), def, payload, live)) return null;
+        return { id: live.id, label: resolveLabel(s) ?? live.id };
+      });
+      if (recorded) interactionLog.record(String(id), payload, recorded);
     },
     markAIEdit(key: string): void {
       interactionLog?.markAIEdit(key);
@@ -387,7 +488,8 @@ export function createAIViewController<
       const { entries, restore } = interactionLog.drainFor(conversationId);
       const s = state();
       // Reduction runs at drain time against the view the user is in when
-      // the message is sent; every consumer callback inside is caught
+      // the message is sent (with digestAcrossViews, against each entry's
+      // recorded view); every consumer callback inside is caught
       // (buildInteractionDigest) — a throwing callback drops its line, never
       // the turn. Belt and braces on top (review H3): if the digest build
       // ever escapes anyway, restore the drained entries immediately — the
@@ -395,11 +497,12 @@ export function createAIViewController<
       // the one place a throw can lose entries — and deliver no digest this
       // turn.
       try {
-        const digest = buildInteractionDigest(entries, interactionDefs!, {
-          id: String(s.id),
-          params: s.params,
-          context: s.context,
-        });
+        const digest = buildInteractionDigest(
+          entries,
+          interactionDefs!,
+          { id: String(s.id), params: s.params, context: s.context },
+          digestAcrossViews ? "across-views" : "at-send",
+        );
         return { digest, restore };
       } catch (err) {
         console.error(
@@ -410,14 +513,40 @@ export function createAIViewController<
         return { digest: null, restore: () => {} };
       }
     },
+    _peekForSend(conversationId: string): string | null {
+      if (!interactionLog) return null;
+      const s = state();
+      try {
+        return buildInteractionDigest(
+          interactionLog.peekFor(conversationId),
+          interactionDefs!,
+          { id: String(s.id), params: s.params, context: s.context },
+          digestAcrossViews ? "across-views" : "at-send",
+        );
+      } catch (err) {
+        console.error(
+          "AI interaction digest preview threw; showing no digest.",
+          err,
+        );
+        return null;
+      }
+    },
     _turnSectionParts() {
       const s = state();
       return {
-        view: { id: String(s.id), label: resolveLabel(s) },
+        view: gateView(s),
+        viewState: resolveState(s),
         viewInstructions: instructionsDeliveryFor(s) === "ephemeral"
           ? resolveInstructions(s)
           : null,
       };
+    },
+    _snapshot() {
+      const s = state();
+      return { state: s, view: gateView(s) };
+    },
+    _activateConversation(conversationId: string): void {
+      if (digestAcrossViews) interactionLog?.activate(conversationId);
     },
   };
   return controller;

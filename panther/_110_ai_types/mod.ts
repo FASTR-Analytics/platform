@@ -60,21 +60,31 @@ export {
   buildToolResultUserMessage,
   classifyTurnContinuation,
   demoteStaleCarriers,
+  fnv1a32,
   getUserFacingAIErrorMessage,
+  hashRequestPrefix,
   lastMessageHasUnresolvedToolUse,
   legacyStripEphemeralMarkers,
+  reconcileRequestPrefix,
+  releaseUnansweredCarriers,
   renderOutgoingMessages,
+  selectTurnSections,
+  STRIPPED_THINKING_PLACEHOLDER,
+  stripThinkingBlocks,
   trimDanglingServerToolUse,
 } from "./turn_logic.ts";
 
 export type {
   AIErrorInfo,
+  SectionRetention,
   SystemNoticeType,
+  ToolDefinitionLike,
   ToolResultBlock,
   TurnContinuation,
 } from "./turn_logic.ts";
 
 export {
+  admitInteraction,
   APPROVAL_DECLINED_MESSAGE,
   APPROVAL_STALE_MESSAGE,
   assembleTurnSections,
@@ -86,18 +96,33 @@ export {
   buildNavigationPendingMessage,
   buildViewGateMessage,
   buildViewLabelSectionText,
+  buildViewMovedMessage,
+  decideViewGate,
   dropSuppressedEchoes,
   INTERACTION_DIGEST_PREFIX,
   NAVIGATION_INTERACTION_ID,
+  viewIdentityKey,
 } from "./view_logic.ts";
 
 export type {
   AIInteractionDefLike,
+  DigestMode,
   EchoMarks,
+  GateView,
   InteractionQueueEntry,
   InteractionViewStateLike,
   NavigationEventPayload,
   TurnSectionParts,
+  ViewGateDecision,
+  ViewIdentityLike,
 } from "./view_logic.ts";
+
+export {
+  createInteractionLog,
+  DEFAULT_NAV_ATTRIBUTION_MS,
+  MAX_LOG_RECORDS,
+} from "./interaction_log.ts";
+
+export type { InteractionLog } from "./interaction_log.ts";
 
 export type { ModelPricing } from "./anthropic_consts.ts";

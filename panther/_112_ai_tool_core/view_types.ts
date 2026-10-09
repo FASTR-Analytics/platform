@@ -30,6 +30,19 @@ import type { zType } from "./deps.ts";
 // AIView marker carries a structural phantom property; without it structural
 // typing collapses the context types and defineAIViews loses them.
 
+// What a view shows, as string fields: the entity, and any package and scope
+// around it (`{ deckId, slideId }`). Compared by canonical key (keys sorted,
+// then JSON), so field order never matters.
+export type AIViewIdentity = Readonly<Record<string, string>>;
+
+// What a display card keeps of the view its tool ran in: the id and the
+// identity, never params or context, since it persists with the
+// conversation. identity is absent when the view declares none.
+export type AIViewSnapshot = {
+  id: string;
+  identity?: AIViewIdentity;
+};
+
 export type AIViewDefinition<TParams, TContext> = {
   // The one-line current-view statement injected each turn, resolved at send
   // time against the live params/context. The rendered section always pairs
@@ -37,6 +50,21 @@ export type AIViewDefinition<TParams, TContext> = {
   label: string | ((params: TParams, context: TContext) => string);
   // Optional zod schema for params; setView parses through it when present.
   params?: zType.ZodType<TParams>;
+  // The identity of what the view shows. The gate refuses a view-limited
+  // call once the live identity differs from the one the turn last told the
+  // model, which the view id alone cannot see: two slides of one deck both
+  // sit in "editing_slide". Absent, the id is the whole identity. Resolved
+  // like the label: a throw logs and counts as a move.
+  identity?:
+    | AIViewIdentity
+    | ((params: TParams, context: TContext) => AIViewIdentity);
+  // What the view shows right now that changes without a navigation: the
+  // selection, the cursor, a filter. Rides every message as a view-state
+  // section, so keep it to a line or two; text that holds across messages
+  // belongs in `instructions`, which append-only turns send once per text.
+  // Resolved like the label: a throw logs and drops the section for this
+  // turn, never a failed turn.
+  state?: (params: TParams, context: TContext) => string | null;
   // Optional per-view instructions for the model. NOT part of the system
   // prompt — with "ephemeral" delivery this rides each turn as its own
   // section (that separation is the cache design). Keep it SMALL (a few

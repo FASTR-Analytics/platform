@@ -4,8 +4,9 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
-  buildViewGateMessage,
   type ContentBlock,
+  decideViewGate,
+  type GateView,
   SERVER_TOOL_LABELS,
 } from "../deps.ts";
 import type { DisplayItem } from "./types.ts";
@@ -186,17 +187,22 @@ export class ToolRegistry {
 // Soft gating: every tool is always
 // sent to the API (tool definitions live in the cached prompt prefix), but an
 // out-of-view EXECUTION is refused before the handler runs. Returns null when
-// the block may execute (tool unknown/ungated or the view matches); the loop
-// calls this per block against the LIVE view id, so a nav tool changing the
-// view mid-turn is seen by the very next check.
+// the block may execute (tool unknown/ungated, or the view matches the gate
+// and the reference). The loop calls this per block with ONE snapshot of the
+// live view and the turn's reference (the view the model was last told), so a
+// nav tool changing the view mid-turn is seen by the very next check, and a
+// move of the view's identity under the turn refuses every view-limited call
+// until the user writes.
 export function checkViewGate(
   block: { id: string; name: string; input: unknown },
   toolRegistry: ToolRegistry,
-  currentViewId: string,
+  live: GateView,
+  reference: GateView | null,
 ): { result: ToolResult; errorItem: DisplayItem } | null {
   const availableIn = toolRegistry.getMetadata(block.name)?.availableIn;
-  if (!availableIn || availableIn.includes(currentViewId)) return null;
-  const message = buildViewGateMessage(availableIn, currentViewId);
+  const decision = decideViewGate({ availableIn, live, reference });
+  if (decision.kind === "admit") return null;
+  const message = decision.message;
   return {
     result: {
       type: "tool_result",

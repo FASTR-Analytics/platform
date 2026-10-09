@@ -33,6 +33,40 @@ function App() {
 }
 ```
 
+A pane that calls `updateConfig`, `getConfig` or `sendMessage` itself builds the
+instance under the provider and hands it to `AIChat`, so the pane and the chat
+run one engine instance (one registry, one settings copy, one queue drain)
+instead of two:
+
+```typescript
+import {
+  AIChat,
+  type AIChatInstance,
+  createAIChat,
+} from "@timroberton/panther";
+
+function ChatPane() {
+  const chat: AIChatInstance = createAIChat();
+  return (
+    <>
+      <SettingsButton onSave={(values) => chat.updateConfig(values)} />
+      <AIChat chat={chat} />
+    </>
+  );
+}
+```
+
+`whenIdle()` resolves once the active conversation has no turn in flight and its
+record is written, so a pane that hands the conversation to another tab waits on
+it first:
+
+```typescript
+async function handOver(chat: AIChatInstance, channel: BroadcastChannel) {
+  await chat.whenIdle();
+  channel.postMessage({ type: "take-over", id: chat.conversationId() });
+}
+```
+
 ## One-Shot Requests
 
 ```typescript
@@ -134,20 +168,33 @@ const views = defineAIViews({
   editing_slide: view<{ slideId: string }, SlideEditorContext>({
     label: (p, ctx) => `Editing slide ${p.slideId} of ${ctx.deckName}`,
     params: z.object({ slideId: z.string() }),
+    // What the view shows: a view-limited call made after the user moved to
+    // another slide is refused until they write again.
+    identity: (p, ctx) => ({ deckId: ctx.deckId, slideId: p.slideId }),
+    // What changes without a navigation, a line or two on every message.
+    state: (_p, ctx) => `Selected elements: ${ctx.selectedIds().join(", ")}`,
   }),
 });
 
 // 2. Interactions: "user actions since last message" digest, with echo
 //    suppression for the AI's own edits (markAIEdit in mutating handlers).
+//    relevantIn scopes an interaction to views; with digestAcrossViews it
+//    is checked when notify records the entry, and the line names that view:
+//    `User edited slide s3. (in "Editing slide s3 of Deck A")`.
 const interactions = defineAIInteractions({
   edited_slide: interaction<{ slideId: string }>({
+    relevantIn: ["editing_slide"],
     coalesce: "count",
     format: (p, n) => n > 1 ? `User edited slide ${p.slideId} (×${n}).` : `User edited slide ${p.slideId}.`,
     echoKey: (p) => `slide:${p.slideId}`,
   }),
 });
 
-const vc = createAIViewController(views, { fallback: "home", interactions });
+const vc = createAIViewController(views, {
+  fallback: "home",
+  interactions,
+  digestAcrossViews: true,
+});
 vc.setView("editing_slide", { slideId: "s3" }, editorContext); // from your nav sync sites
 vc.notify("edited_slide", { slideId: "s3" });                  // from your UI events
 
@@ -194,12 +241,37 @@ const navTool = createNavigationTool({
 //    cache rule, see DOC_AI_CHAT.md).
 const system = () => `${basePrompt}\n\n${buildToolCatalog(allTools)}`;
 
-<AIChatProvider config={{ ..., tools: [updateSlide, deleteSlide, navTool], viewController: vc }}>
+// 7. Append-only turns: every message keeps its sections on the wire, so the
+//    prompt cache and preserved thinking stay valid and a view's instructions
+//    ride once per text. Keep `system` fixed for the whole conversation then
+//    (per-view text goes in instructions and state).
+<AIChatProvider config={{ ..., tools: [updateSlide, deleteSlide, navTool], viewController: vc, appendOnlyTurns: true }}>
 ```
 
 Run `validateAIChatConfig(config)` in a committed smoke test — it performs all
-construction-time validation (duplicate names, strict schemas, availableIn ids,
-approval policy) without mounting anything.
+construction-time validation (duplicate names, availableIn ids, approval policy)
+without mounting anything.
+
+A headless template shared with a server (an MCP surface) binds to the view per
+call with `bindAIToolToView`: `resolve` receives the view snapshot the engine
+read for the call's gate and returns the inner tool for it, and `availableIn`
+gates a template that declares none.
+
+```typescript
+import { AIToolFailure, bindAIToolToView } from "@timroberton/panther";
+
+const readSlide = bindAIToolToView(
+  views,
+  readSlideTemplate, // headless: true, no availableIn
+  (view) => {
+    if (view.id !== "editing_slide") {
+      throw new AIToolFailure("Open a slide first.");
+    }
+    return makeReadSlide(view.params.slideId);
+  },
+  { availableIn: ["editing_slide"] },
+);
+```
 
 ## Tool Results Display
 
@@ -217,6 +289,10 @@ Tool executions now show their results to users (collapsible):
 - Click "stack trace" to see full error details (unexpected throws only —
   `AIToolFailure` renders without a stack section)
 - Helps debug tool issues
+
+**Custom cards:** a tool's `displayComponent` receives `{ input, view }`, where
+`view` is the id and identity of the view the call ran in (`AIViewSnapshot`),
+stored with the card; absent on cards stored before the view declared one.
 
 ## Built-in Tools
 
@@ -276,13 +352,19 @@ builtInTools: {
 **Functions:**
 
 - `createSDKClient()` - Configure SDK
+- `createAIChat()` - One engine instance; pass it to `AIChat` as `chat` when the
+  pane needs it too
 - `createAITool()` - Define custom tools; add `viewRegistry` for view-typed
   tools (compile-checked `availableIn`, narrowed handler view state)
 - `aiToolFactory(registry)` - Binds one registry once; the recommended form for
   an app with a single view registry
+- `bindAIToolToView(registry, template, resolve, options?)` - Resolves a tool's
+  inner implementation per call from the view the call runs in
 - `callAI()` - One-shot requests
 - `view()` / `defineAIViews()` / `createAIViewController()` - View system
-- `interaction()` / `defineAIInteractions()` - Interaction log
+- `interaction()` / `defineAIInteractions()` - Interaction log;
+  `digestAcrossViews` on the controller reports each action against the view it
+  happened in
 - `createNavigationTool()` - Built-in "the model asks to move" tool
 - `buildToolCatalog()` - Derived tool list for prompt composition
 - `validateAIChatConfig()` - Construction-time validation without mounting
@@ -290,6 +372,10 @@ builtInTools: {
 **Types:**
 
 - `AIChatConfig`
+- `AIChatInstance` - what `createAIChat()` returns; `AIChat`'s `chat` prop; its
+  `getNextTurnPreview()` gives the system text and the sections the next message
+  would carry, for a prompt panel, and its `whenIdle()` resolves once the active
+  conversation has no turn in flight and its record is written
 - `AnthropicModelConfig`
 - `BuiltInToolsConfig`
 - `CallAIConfig`

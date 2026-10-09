@@ -5,4 +5,6 @@
 
 import { createMarkdownIt } from "../../deps.ts";
 
-export const md = createMarkdownIt();
+// Model text renders through innerHTML, so an image element would make the
+// browser fetch any URL the model writes, data in its query string included.
+export const md = createMarkdownIt({ images: false });

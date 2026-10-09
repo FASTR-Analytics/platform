@@ -3,7 +3,8 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { ContentBlock, MessageParam } from "./types.ts";
+import type { ContentBlock, EphemeralSection, MessageParam } from "./types.ts";
+import type { SystemParam } from "./request_shaping.ts";
 
 ////////////////////////////////////////////////////////////////////////////////
 // EPHEMERAL SECTIONS — WRITE-ONLY WIRE RENDERING
@@ -15,15 +16,24 @@ import type { ContentBlock, MessageParam } from "./types.ts";
 // parsed back — nothing strips markers out of display or storage, so the
 // marker syntax is a write-only wire convention, not a correctness surface.
 //
-// Render rule (ONE wire format for every model): sections render for the
-// LATEST carrier only — every earlier carrier renders bare (load-bearing: a
-// failed turn's carrier has no assistant after it, so the follows-condition
-// alone would double-render on the retry) — and only while NO ASSISTANT
-// MESSAGE FOLLOWS the carrier in the outgoing history. This covers: first
-// request of a turn (renders), tool-loop recursion (assistant follows →
-// bare), multi-message batches (only user messages follow the batch's first
-// message → still renders), and a failed turn's carrier once a retry sends
-// (no longer latest → bare).
+// Render rule (ONE wire format for every model), retention "latest":
+// sections render for the LATEST carrier only — every earlier carrier
+// renders bare (load-bearing: a failed turn's carrier has no assistant after
+// it, so the follows-condition alone would double-render on the retry) —
+// and only while NO ASSISTANT MESSAGE FOLLOWS the carrier in the outgoing
+// history. This covers: first request of a turn (renders), tool-loop
+// recursion (assistant follows → bare), multi-message batches (only user
+// messages follow the batch's first message → still renders), and a failed
+// turn's carrier once a retry sends (no longer latest → bare).
+//
+// Retention "permanent" (the engine's appendOnlyTurns): EVERY carrier
+// renders, each spliced where "latest" splices it, so each request's
+// messages are a prefix of the next request's. That is what the message
+// cache and a preserved thinking block's prefix check need: a block of text
+// put into an earlier message and later removed is an edit to the prefix.
+// Under this rule a stale carrier is never re-rendered by accident, so what
+// each message carries is decided at turn creation (selectTurnSections) and
+// at the turn's end (releaseUnansweredCarriers) instead.
 
 const EPHEMERAL_CONTEXT_OPEN = "<<<[";
 const EPHEMERAL_CONTEXT_CLOSE = "]>>>";
@@ -47,8 +57,45 @@ function collapseLiteralMarkers(text: string): string {
   return out;
 }
 
+export type SectionRetention = "latest" | "permanent";
+
+function isCarrier(msg: MessageParam): boolean {
+  return msg.role === "user" && msg.ephemeralSections !== undefined &&
+    msg.ephemeralSections.length > 0;
+}
+
+// The sections as one wire block, spliced in front of the message's first
+// text block — the same position the pre-0B wrap produced; on a tool-result
+// message that is after the results, which the API requires first. A
+// message with no text block gets one at the end.
+function spliceSections(
+  msg: MessageParam,
+  ephemeralSections: EphemeralSection[],
+): MessageParam {
+  const block = `${EPHEMERAL_CONTEXT_OPEN}${
+    ephemeralSections.map((s) => collapseLiteralMarkers(s.text)).join("\n\n")
+  }${EPHEMERAL_CONTEXT_CLOSE}\n\n`;
+
+  if (typeof msg.content === "string") {
+    return { ...msg, content: block + msg.content };
+  }
+  let spliced = false;
+  const content = msg.content.map((b) => {
+    if (!spliced && b.type === "text") {
+      spliced = true;
+      return { ...b, text: block + b.text };
+    }
+    return b;
+  });
+  if (!spliced) {
+    content.push({ type: "text", text: block.trimEnd() });
+  }
+  return { ...msg, content };
+}
+
 export function renderOutgoingMessages(
   messages: MessageParam[],
+  retention: SectionRetention = "latest",
 ): MessageParam[] {
   // System-role entries are never emitted — the live engine no longer
   // constructs them, and the v1 persistence migration strips stored ones;
@@ -58,14 +105,12 @@ export function renderOutgoingMessages(
     : messages;
 
   let carrierIndex = -1;
-  for (let i = wireMessages.length - 1; i >= 0; i--) {
-    const msg = wireMessages[i];
-    if (
-      msg.role === "user" && msg.ephemeralSections &&
-      msg.ephemeralSections.length > 0
-    ) {
-      carrierIndex = i;
-      break;
+  if (retention === "latest") {
+    for (let i = wireMessages.length - 1; i >= 0; i--) {
+      if (isCarrier(wireMessages[i])) {
+        carrierIndex = i;
+        break;
+      }
     }
   }
   const renderCarrier = carrierIndex >= 0 &&
@@ -78,30 +123,152 @@ export function renderOutgoingMessages(
     // (byte- and identity-parity for no-adoption histories).
     if (!msg.ephemeralSections) return msg;
     const { ephemeralSections, ...rest } = msg;
-    if (i !== carrierIndex || !renderCarrier) return rest;
-
-    const block = `${EPHEMERAL_CONTEXT_OPEN}${
-      ephemeralSections.map((s) => collapseLiteralMarkers(s.text)).join("\n\n")
-    }${EPHEMERAL_CONTEXT_CLOSE}\n\n`;
-
-    if (typeof rest.content === "string") {
-      return { ...rest, content: block + rest.content };
-    }
-    // Block-form content (documents + text): the sections prefix the first
-    // text block — the same position the pre-0B wrap produced.
-    let spliced = false;
-    const content = rest.content.map((b) => {
-      if (!spliced && b.type === "text") {
-        spliced = true;
-        return { ...b, text: block + b.text };
-      }
-      return b;
-    });
-    if (!spliced) {
-      content.push({ type: "text", text: block.trimEnd() });
-    }
-    return { ...rest, content };
+    const render = retention === "permanent"
+      ? ephemeralSections.length > 0
+      : i === carrierIndex && renderCarrier;
+    return render ? spliceSections(rest, ephemeralSections) : rest;
   });
+}
+
+// Which sections a message carries under append-only turns. An ALWAYS kind
+// states what is true of this message (where the user is, the view's live
+// state, what they did since the last one) and rides every message. A ONCE
+// kind holds until its text changes (a view's instructions, a consumer
+// block): rendered permanently, a stored copy stays in the history for
+// good, so it rides only when no stored message already carries its text.
+// A released carrier has no sections, so what it carried never counts.
+// "view-prompt" is the stored legacy tag for view-instructions.
+const ONCE_KINDS: ReadonlySet<string> = new Set([
+  "view-instructions",
+  "view-prompt",
+  "consumer",
+]);
+
+export function selectTurnSections(
+  candidates: EphemeralSection[],
+  history: MessageParam[],
+): EphemeralSection[] {
+  const carried = new Set<string>();
+  for (const msg of history) {
+    for (const section of msg.ephemeralSections ?? []) {
+      if (ONCE_KINDS.has(section.kind)) carried.add(section.text);
+    }
+  }
+  return candidates.filter((section) =>
+    !ONCE_KINDS.has(section.kind) || !carried.has(section.text)
+  );
+}
+
+// At a turn's end, a carrier the model never answered (the turn failed or
+// was stopped after it) loses its sections: rendered permanently, they
+// would ride every later request as context the model was never told, and
+// the retry attaches fresh ones. fromIndex is the turn's first message;
+// answeredThrough is the index of the turn's last model reply, fromIndex - 1
+// when none. The released indexes come latest first, the order the engine
+// restores their interaction drains in, so the cursor ends at the earliest
+// drain's start. Input by reference when nothing is released.
+export function releaseUnansweredCarriers(
+  messages: MessageParam[],
+  fromIndex: number,
+  answeredThrough: number,
+): { messages: MessageParam[]; released: number[] } {
+  const released: number[] = [];
+  const first = Math.max(fromIndex, answeredThrough + 1, 0);
+  for (let i = messages.length - 1; i >= first; i--) {
+    if (isCarrier(messages[i])) released.push(i);
+  }
+  if (released.length === 0) return { messages, released };
+  const releasedSet = new Set(released);
+  return {
+    messages: messages.map((msg, i) => {
+      if (!releasedSet.has(i)) return msg;
+      const { ephemeralSections: _dropped, ...rest } = msg;
+      return rest;
+    }),
+    released,
+  };
+}
+
+// The text an assistant message keeps when the strip empties it: the API
+// rejects an assistant message with no content.
+export const STRIPPED_THINKING_PLACEHOLDER = "[Thinking omitted]";
+
+// A preserved thinking block is bound to the system text and tools it was
+// minted under, and an enforced account refuses a request that replays it
+// under others. The one recovery without the binding beta is to remove
+// every thinking and redacted_thinking block once and keep them out, which
+// the check accepts (any contiguous run may go, all of them included).
+// Input by reference when nothing is stripped.
+export function stripThinkingBlocks(messages: MessageParam[]): MessageParam[] {
+  let changed = false;
+  const out = messages.map((msg) => {
+    if (msg.role !== "assistant" || typeof msg.content === "string") {
+      return msg;
+    }
+    const kept = msg.content.filter((block) =>
+      block.type !== "thinking" && block.type !== "redacted_thinking"
+    );
+    if (kept.length === msg.content.length) return msg;
+    changed = true;
+    return {
+      ...msg,
+      content: kept.length > 0
+        ? kept
+        : [{ type: "text" as const, text: STRIPPED_THINKING_PLACEHOLDER }],
+    };
+  });
+  return changed ? out : messages;
+}
+
+// FNV-1a, 32 bits, over the UTF-8 bytes; eight lower-case hex digits.
+export function fnv1a32(text: string): string {
+  let hash = 0x811c9dc5;
+  for (const byte of new TextEncoder().encode(text)) {
+    hash ^= byte;
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash.toString(16).padStart(8, "0");
+}
+
+export type ToolDefinitionLike = { name: string; cache_control?: unknown };
+
+// The request prefix a thinking block is bound to: the system text blocks
+// (text only: cache_control counts for neither the check nor the cache) and
+// the tools sorted by name, since the check ignores tool order. The model is
+// left out: a model switch is not a prefix edit; the API drops blocks the
+// new model cannot read by itself.
+export function hashRequestPrefix(
+  system: SystemParam,
+  tools: readonly ToolDefinitionLike[],
+): string {
+  const texts = typeof system === "string"
+    ? [system]
+    : system.map((block) => block.text);
+  const sortedTools = tools
+    .map(({ cache_control: _ignored, ...tool }) => tool)
+    .sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
+  return fnv1a32(JSON.stringify([texts, sortedTools]));
+}
+
+// At turn start, under append-only turns. Unchanged prefix: the messages
+// stand. Changed (a conversation with messages and no stored hash counts as
+// changed: its blocks were minted under a prefix nothing recorded): the
+// thinking blocks are stripped and the new hash stored. A tool_use awaiting
+// a result keeps the strip waiting, since that reply's own thinking must
+// return with its results: the messages and the stored hash stand and the
+// next turn start reconciles again.
+export function reconcileRequestPrefix(
+  messages: MessageParam[],
+  storedHash: string | undefined,
+  currentHash: string,
+): { messages: MessageParam[]; hash: string | undefined } {
+  if (messages.length === 0 || storedHash === currentHash) {
+    return { messages, hash: currentHash };
+  }
+  if (lastMessageHasUnresolvedToolUse(messages)) {
+    return { messages, hash: storedHash };
+  }
+  return { messages: stripThinkingBlocks(messages), hash: currentHash };
 }
 
 // Storage normalization run by the engine at TURN CREATION, before the new

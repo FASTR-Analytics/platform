@@ -3,7 +3,14 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { MessageParam, Usage } from "../deps.ts";
+import type {
+  AnthropicModel,
+  AnthropicType,
+  GateView,
+  MessageParam,
+  SystemParam,
+  Usage,
+} from "../deps.ts";
 import { batch, createSignal } from "solid-js";
 import type { ChatState, DisplayItem } from "./types.ts";
 import type { ProposalPreview } from "../deps.ts";
@@ -38,16 +45,45 @@ export type ActiveTurn = {
   // count — only the model's own message consumes the digest.
   modelAssistantAppended: boolean;
   // Resolvers for sendMessage/sendMessages promises whose texts this turn
-  // carried (direct sends, drained queue entries, mid-turn injections),
-  // resolved in the turn's finally — await means "the attempt finished",
-  // not "it succeeded" (errors surface via error()).
+  // carried (direct sends, drained queue entries, mid-turn injections) and
+  // for whenIdle() waiters, resolved in the turn's finally after its record
+  // is saved — await means "the attempt finished", not "it succeeded"
+  // (errors surface via error()).
   resolveOnFinish: Array<() => void>;
+  // The view of the latest view line this turn sent: what the model was last
+  // told. Every view-limited call gates against it, so a move of the view's
+  // identity under the turn refuses the call instead of running it against
+  // what the user moved to. Set with the turn's first message; never
+  // persisted. Null without a view controller.
+  viewReference: GateView | null;
   // Cancels THIS turn's currently-executing promise-blocking card
   // (ask_user_questions), set by the loop around the block's await and
   // called by stopGeneration. Turn-scoped ON PURPOSE: a
   // registry-wide sweep cancelled another conversation's pending question
   // when two chats shared the same tool instance.
   cancelPendingInteraction: (() => void) | null;
+  // appendOnlyTurns: the model, system text and tools read once at turn
+  // start, so every request of the turn sends one prefix (the built-in web
+  // tool variants and their beta header are tied to the model, so a model
+  // switched mid-turn through updateConfig takes effect at the next turn).
+  // Null with the option off, where each request reads them as it always
+  // has.
+  prefix: {
+    model: AnthropicModel;
+    system: SystemParam;
+    tools: AnthropicType.Messages.ToolUnion[];
+  } | null;
+  // The index of this turn's first message, null until it is appended, and
+  // of the model's last reply this turn (-1 when none; the synthetic
+  // "[Stopped]" repair never counts): the release at the turn's end strips
+  // the sections of every carrier after the last reply.
+  firstIndex: number | null;
+  lastModelReplyIndex: number;
+  // Every message this turn built sections for, with the restore of the
+  // interaction drain it carried. With the option off there is one, the
+  // turn's first message, restored iff the model never replied; with it on,
+  // each released carrier's drain is restored, latest first.
+  carriers: Array<{ index: number; restore: (() => void) | null }>;
 };
 
 export type QueuedMessage = {
@@ -58,15 +94,16 @@ export type QueuedMessage = {
 // The pending approval decision (Feature 4), owned by the CONVERSATION —
 // never by UI mount (decision log #6): the card is a pure view over this
 // signal plus a display item; unmount and instance disposal are inert, and
-// only explicit paths resolve it (user decision, Stop, view-exit
-// auto-decline, staleness at accept, modal displacement). Decision lifetime
-// ⊆ turn lifetime.
+// only explicit paths resolve it (user decision, Stop, auto-decline when the
+// live view leaves availableIn or its identity moves under the decision,
+// staleness at accept). Decision lifetime ⊆ turn lifetime.
 export type PendingDecisionOutcome =
   | { kind: "accepted"; alwaysThisSession: boolean }
   | { kind: "declined" }
-  // View-exit auto-decline and stale-at-accept both record as auto_declined;
-  // viewId is the view the user left (for the standardized result string).
-  | { kind: "auto_declined"; viewId: string }
+  // View exit and a move of identity under the decision both record as
+  // auto_declined; message is the standardized result: the view-exit string
+  // naming the view the user left, or the moved string naming both views.
+  | { kind: "auto_declined"; message: string }
   // Stop/halt — the block resolves through the cancelled-result machinery.
   | { kind: "interrupted" };
 
@@ -78,8 +115,10 @@ export type PendingDecision = {
   // The tool's availableIn, for the auto-decline watcher (absent = the tool
   // declared view-independence and opted out).
   availableIn?: string[];
-  // The live view id when the decision was registered.
-  viewIdAtCreation?: string;
+  // The view the lifecycle started in, read once before propose's await:
+  // the watcher gates the live view against it (id in availableIn, identity
+  // equal), and its id names the view the user LEFT in the decline message.
+  viewAtCreation?: GateView;
   // Idempotent — the first resolution wins, later calls are no-ops.
   resolve: (outcome: PendingDecisionOutcome) => void;
 };
@@ -102,6 +141,11 @@ export type ConversationStore = {
   // conversation" checkbox (approval mode "session"). Persisted with the
   // conversation record; hydrated with it.
   approvedTools: ReturnType<typeof createSignal<string[]>>;
+  // The hash of the request prefix (system text and tools) the stored
+  // thinking blocks were minted under (hashRequestPrefix). Written by a turn
+  // with appendOnlyTurns, persisted and hydrated with the record; undefined
+  // until then, which the next such turn reads as a changed prefix.
+  prefixHash: ReturnType<typeof createSignal<string | undefined>>;
   // Resolves once the initial IndexedDB hydration attempt has settled
   // (hydrated, skipped, or persistence disabled). Sends await this before
   // claiming a turn — a send that appended before hydration resolved would
@@ -122,6 +166,7 @@ export function getOrCreateConversationStore(
     const messages = createSignal<MessageParam[]>([]);
     const displayItems = createSignal<DisplayItem[]>([]);
     const approvedTools = createSignal<string[]>([]);
+    const prefixHash = createSignal<string | undefined>(undefined);
 
     const ready = enablePersistence
       ? loadConversation(conversationId).then((persisted) => {
@@ -135,6 +180,7 @@ export function getOrCreateConversationStore(
           setMessages(persisted.messages);
           setDisplayItems(persisted.displayItems);
           approvedTools[1](persisted.approvedTools ?? []);
+          prefixHash[1](persisted.prefixHash);
         }
       })
       : Promise.resolve();
@@ -154,6 +200,7 @@ export function getOrCreateConversationStore(
       pendingDecision: createSignal<PendingDecision | null>(null),
       queuedMessages: createSignal<QueuedMessage[]>([]),
       approvedTools,
+      prefixHash,
       ready,
     };
 
@@ -204,6 +251,7 @@ export function clearConversationStore(conversationId: string): void {
       setUsageHistory([]);
       setServerToolLabel(undefined);
       store.approvedTools[1]([]);
+      store.prefixHash[1](undefined);
       setQueued([]);
     });
     for (const entry of entries) entry.resolve();

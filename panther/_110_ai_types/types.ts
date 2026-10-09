@@ -83,16 +83,21 @@ export type ContentBlock =
   | DocumentContentBlock;
 
 // Typed ephemeral context attached to a user turn at creation (view label,
-// per-view prompt, interaction digest, consumer hook). Storage-only data:
-// renderOutgoingMessages derives the wire text from it at request time and
-// strips the field — the wire never parses it back. The kind tags exist so a
-// future per-section retention policy is a renderer flag, not a storage
-// migration. Nothing reads this field today (it is write-only). Persisted
-// conversations can carry the kind "view-prompt" where the code now writes
-// "view-instructions", so the first code to branch on kind must treat
-// "view-prompt" as "view-instructions".
+// view state, per-view instructions, interaction digest, consumer blocks).
+// Storage-only data: renderOutgoingMessages derives the wire text from it at
+// request time and strips the field — the wire never parses it back. The
+// kind decides retention: selectTurnSections (turn_logic.ts) sends an always
+// kind (view-label, view-state, digest) on every message and a once kind
+// (view-instructions, consumer) only when no stored message carries its
+// text. Persisted conversations can carry the kind "view-prompt" where the
+// code now writes "view-instructions"; selectTurnSections reads it as one.
 export type EphemeralSection = {
-  kind: "view-label" | "view-instructions" | "digest" | "consumer";
+  kind:
+    | "view-label"
+    | "view-state"
+    | "view-instructions"
+    | "digest"
+    | "consumer";
   text: string;
 };
 

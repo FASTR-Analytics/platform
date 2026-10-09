@@ -19,6 +19,9 @@ import { clamp } from "../deps.ts";
 import type { PadSize } from "../types.ts";
 import { padClass, spyClass } from "../_internal/pad_classes.ts";
 
+// A JSX prop is a getter that builds its element on each read, so a frame
+// reads its panel prop once (through `Show`'s accessor, or the three-column
+// frame's memo) and renders what it read.
 type FrameBaseProps = {
   panelChildren?: JSX.Element;
   children: JSX.Element;
@@ -106,21 +109,25 @@ export function FrameLeft(p: SideFrameProps) {
         </div>
       }
     >
-      <div class="flex h-full w-full">
-        <div
-          class={slotClass(
-            "h-full flex-none overflow-auto",
-            p.panelPad,
-            p.panelSpy,
-          )}
-          classList={{ "border-r": !p.noBorder }}
-        >
-          {p.panelChildren}
+      {(panel) => (
+        <div class="flex h-full w-full">
+          <div
+            class={slotClass(
+              "h-full flex-none overflow-auto",
+              p.panelPad,
+              p.panelSpy,
+            )}
+            classList={{ "border-r": !p.noBorder }}
+          >
+            {panel()}
+          </div>
+          <div
+            class={slotClass("h-full w-0 flex-1 overflow-auto", p.pad, p.spy)}
+          >
+            {p.children}
+          </div>
         </div>
-        <div class={slotClass("h-full w-0 flex-1 overflow-auto", p.pad, p.spy)}>
-          {p.children}
-        </div>
-      </div>
+      )}
     </Show>
   );
 }
@@ -135,21 +142,25 @@ export function FrameRight(p: SideFrameProps) {
         </div>
       }
     >
-      <div class="flex h-full w-full">
-        <div class={slotClass("h-full w-0 flex-1 overflow-auto", p.pad, p.spy)}>
-          {p.children}
+      {(panel) => (
+        <div class="flex h-full w-full">
+          <div
+            class={slotClass("h-full w-0 flex-1 overflow-auto", p.pad, p.spy)}
+          >
+            {p.children}
+          </div>
+          <div
+            class={slotClass(
+              "h-full flex-none overflow-auto",
+              p.panelPad,
+              p.panelSpy,
+            )}
+            classList={{ "border-l": !p.noBorder }}
+          >
+            {panel()}
+          </div>
         </div>
-        <div
-          class={slotClass(
-            "h-full flex-none overflow-auto",
-            p.panelPad,
-            p.panelSpy,
-          )}
-          classList={{ "border-l": !p.noBorder }}
-        >
-          {p.panelChildren}
-        </div>
-      </div>
+      )}
     </Show>
   );
 }
@@ -158,15 +169,17 @@ export function FrameTop(p: FrameBaseProps) {
   return (
     <div class="flex h-full w-full flex-col">
       <Show when={p.panelChildren}>
-        <div
-          class={slotClass(
-            "w-full flex-none overflow-auto",
-            p.panelPad,
-            p.panelSpy,
-          )}
-        >
-          {p.panelChildren}
-        </div>
+        {(panel) => (
+          <div
+            class={slotClass(
+              "w-full flex-none overflow-auto",
+              p.panelPad,
+              p.panelSpy,
+            )}
+          >
+            {panel()}
+          </div>
+        )}
       </Show>
       <div class={slotClass("h-0 w-full flex-1 overflow-auto", p.pad, p.spy)}>
         {p.children}
@@ -320,32 +333,36 @@ export function FrameLeftResizable(p: ResizableFrameProps) {
         </div>
       }
     >
-      <div ref={setContainerRef} class="flex h-full w-full">
-        <div
-          class="relative h-full flex-none"
-          style={{ width: `${displayWidth()}px` }}
-        >
+      {(panel) => (
+        <div ref={setContainerRef} class="flex h-full w-full">
           <div
-            class={slotClass("h-full overflow-auto", p.panelPad, p.panelSpy)}
-            classList={{ "mr-px": !p.noBorder }}
-            style={{ display: p.isShown === false ? "none" : "block" }}
+            class="relative h-full flex-none"
+            style={{ width: `${displayWidth()}px` }}
           >
-            {p.panelChildren}
+            <div
+              class={slotClass("h-full overflow-auto", p.panelPad, p.panelSpy)}
+              classList={{ "mr-px": !p.noBorder }}
+              style={{ display: p.isShown === false ? "none" : "block" }}
+            >
+              {panel()}
+            </div>
+            <div
+              class="group absolute -right-[4px] top-0 z-50 h-full cursor-col-resize"
+              classList={{ "w-[9px]": !p.noBorder, "w-[8px]": !!p.noBorder }}
+              onMouseDown={handleMouseDown}
+              data-dragging={isDragging()}
+              style={{ display: p.isShown === false ? "none" : "block" }}
+            >
+              <ResizeHandleLine side="left" noBorder={p.noBorder} />
+            </div>
           </div>
           <div
-            class="group absolute -right-[4px] top-0 z-50 h-full cursor-col-resize"
-            classList={{ "w-[9px]": !p.noBorder, "w-[8px]": !!p.noBorder }}
-            onMouseDown={handleMouseDown}
-            data-dragging={isDragging()}
-            style={{ display: p.isShown === false ? "none" : "block" }}
+            class={slotClass("h-full w-0 flex-1 overflow-auto", p.pad, p.spy)}
           >
-            <ResizeHandleLine side="left" noBorder={p.noBorder} />
+            {p.children}
           </div>
         </div>
-        <div class={slotClass("h-full w-0 flex-1 overflow-auto", p.pad, p.spy)}>
-          {p.children}
-        </div>
-      </div>
+      )}
     </Show>
   );
 }
@@ -363,32 +380,36 @@ export function FrameRightResizable(p: ResizableFrameProps) {
         </div>
       }
     >
-      <div ref={setContainerRef} class="flex h-full w-full">
-        <div class={slotClass("h-full w-0 flex-1 overflow-auto", p.pad, p.spy)}>
-          {p.children}
-        </div>
-        <div
-          class="relative h-full flex-none"
-          style={{ width: `${displayWidth()}px` }}
-        >
+      {(panel) => (
+        <div ref={setContainerRef} class="flex h-full w-full">
           <div
-            class="group absolute -left-[4px] top-0 z-50 h-full cursor-col-resize"
-            classList={{ "w-[9px]": !p.noBorder, "w-[8px]": !!p.noBorder }}
-            onMouseDown={handleMouseDown}
-            data-dragging={isDragging()}
-            style={{ display: p.isShown === false ? "none" : "block" }}
+            class={slotClass("h-full w-0 flex-1 overflow-auto", p.pad, p.spy)}
           >
-            <ResizeHandleLine side="right" noBorder={p.noBorder} />
+            {p.children}
           </div>
           <div
-            class={slotClass("h-full overflow-auto", p.panelPad, p.panelSpy)}
-            classList={{ "ml-px": !p.noBorder }}
-            style={{ display: p.isShown === false ? "none" : "block" }}
+            class="relative h-full flex-none"
+            style={{ width: `${displayWidth()}px` }}
           >
-            {p.panelChildren}
+            <div
+              class="group absolute -left-[4px] top-0 z-50 h-full cursor-col-resize"
+              classList={{ "w-[9px]": !p.noBorder, "w-[8px]": !!p.noBorder }}
+              onMouseDown={handleMouseDown}
+              data-dragging={isDragging()}
+              style={{ display: p.isShown === false ? "none" : "block" }}
+            >
+              <ResizeHandleLine side="right" noBorder={p.noBorder} />
+            </div>
+            <div
+              class={slotClass("h-full overflow-auto", p.panelPad, p.panelSpy)}
+              classList={{ "ml-px": !p.noBorder }}
+              style={{ display: p.isShown === false ? "none" : "block" }}
+            >
+              {panel()}
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </Show>
   );
 }
@@ -427,12 +448,10 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
     }
   });
 
-  const hasLeft = createMemo(
-    () => p.leftChild !== undefined && p.leftChild !== null,
-  );
-  const hasRight = createMemo(
-    () => p.rightChild !== undefined && p.rightChild !== null,
-  );
+  const leftChild = createMemo(() => p.leftChild);
+  const rightChild = createMemo(() => p.rightChild);
+  const hasLeft = () => !!leftChild();
+  const hasRight = () => !!rightChild();
 
   const collapsedPanes = () => {
     const panes: Array<{ label: string; onClick: () => void }> = [];
@@ -448,26 +467,28 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
   return (
     <div ref={containerRef} class="flex h-full w-full flex-col">
       <div class="flex h-0 w-full flex-1">
-        <Show when={hasLeft()}>
-          <div
-            class="relative h-full flex-none"
-            style={{ width: `${left.displayWidth()}px` }}
-          >
+        <Show when={leftChild()}>
+          {(child) => (
             <div
-              class="h-full overflow-auto"
-              classList={{ "mr-px": !p.noBorder }}
+              class="relative h-full flex-none"
+              style={{ width: `${left.displayWidth()}px` }}
             >
-              {p.leftChild}
+              <div
+                class="h-full overflow-auto"
+                classList={{ "mr-px": !p.noBorder }}
+              >
+                {child()}
+              </div>
+              <div
+                class="group absolute -right-[4px] top-0 z-50 h-full cursor-col-resize"
+                classList={{ "w-[9px]": !p.noBorder, "w-[8px]": !!p.noBorder }}
+                data-dragging={left.isDragging()}
+                onMouseDown={left.handleMouseDown}
+              >
+                <ResizeHandleLine side="left" noBorder={p.noBorder} />
+              </div>
             </div>
-            <div
-              class="group absolute -right-[4px] top-0 z-50 h-full cursor-col-resize"
-              classList={{ "w-[9px]": !p.noBorder, "w-[8px]": !!p.noBorder }}
-              data-dragging={left.isDragging()}
-              onMouseDown={left.handleMouseDown}
-            >
-              <ResizeHandleLine side="left" noBorder={p.noBorder} />
-            </div>
-          </div>
+          )}
         </Show>
 
         <div class="relative h-full w-0 flex-1">
@@ -495,13 +516,15 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
           </Show>
         </div>
 
-        <Show when={hasRight()}>
-          <div
-            class="relative h-full flex-none"
-            style={{ width: `${right.displayWidth()}px` }}
-          >
-            <div class="h-full overflow-auto">{p.rightChild}</div>
-          </div>
+        <Show when={rightChild()}>
+          {(child) => (
+            <div
+              class="relative h-full flex-none"
+              style={{ width: `${right.displayWidth()}px` }}
+            >
+              <div class="h-full overflow-auto">{child()}</div>
+            </div>
+          )}
         </Show>
       </div>
 

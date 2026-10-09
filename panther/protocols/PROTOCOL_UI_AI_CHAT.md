@@ -21,7 +21,9 @@ is the rulebook a consumer app must follow.
    site leaves the gate admitting execution against a torn-down context
 4. **Gate with `availableIn`, a whitelist**: family guards ("not while editing
    anything") stay one-line in-handler checks; situational redirects go in tool
-   DESCRIPTIONS, never in gate messages
+   DESCRIPTIONS, never in gate messages; a view whose tools act on one entity or
+   package declares `identity`, so a move inside it (another slide of the same
+   deck) refuses a call planned for the old one
 5. **Input schemas must accept unknown keys everywhere**: no `z.strictObject`,
    no `.catchall(z.never())`, no enum/pattern-keyed `z.record` inputs;
    violations throw at construction
@@ -39,10 +41,15 @@ is the rulebook a consumer app must follow.
    matching the interaction's `echoKey` (a constant key over-suppresses)
 10. **Clear the interaction log on consumer scope change**: the controller is a
     singleton but its log is scope-local data; call `clearInteractionLog()`
-    where the new scope (project/workspace) mounts
+    where the new scope (project/workspace) mounts. With `digestAcrossViews`,
+    activation (mount, create, switch, after a delete) moves a conversation to
+    the log's end, so it hears only what happens after
 11. **Keep the system prompt byte-stable across navigation**: per-view
     `instructions` use `"ephemeral"` delivery; a `buildToolCatalog` call
-    composed into `system` must omit `currentView`
+    composed into `system` must omit `currentView`. With `appendOnlyTurns` the
+    system prompt stays fixed for the whole conversation: per-view and
+    per-package text goes in view `instructions`, view `state` and consumer
+    blocks, never in `system`
 12. **No hand-maintained tool lists in prompt text**: render tool
     names/descriptions with `buildToolCatalog(tools)`; a hand list drifts from
     the registry immediately
@@ -338,6 +345,8 @@ UI-purpose and view-gated tools stay client-resident and off the MCP surface.
 - [ ] No in-handler mode guards that test only the view id (use `availableIn`);
       remaining in-handler guards are family guards or deliberate, documented
       omissions
+- [ ] Every view whose tools act on one entity or package declares `identity`
+      (the entity, and any package and scope around it)
 - [ ] No `z.strictObject` / `.catchall(z.never())` / keyed `z.record` in tool
       input schemas
 - [ ] No `throw new Error` in tool handlers except invariant/bug detectors;
@@ -347,9 +356,12 @@ UI-purpose and view-gated tools stay client-resident and off the MCP surface.
 - [ ] No `markAIEdit` inside `propose`; persist-path writes mark payload-bearing
       keys that match interaction `echoKey`s
 - [ ] `clearInteractionLog()` called at each scope root if scopes are switchable
-      within one SPA session
+      within one SPA session; with `digestAcrossViews`, a conversation hears
+      only actions after its activation
 - [ ] `buildToolCatalog` in the `system` accessor has no `currentView` argument;
-      no hand-maintained tool list in any prompt text
+      no hand-maintained tool list in any prompt text; with `appendOnlyTurns`,
+      nothing per-view or per-package in `system` (it goes in `instructions`,
+      `state` or consumer blocks)
 - [ ] `validateAIChatConfig(config)` runs on the real assembled config under
       `import.meta.env.DEV` for every surface
 - [ ] No `mode: "session"` combined with `presentation: "modal"`

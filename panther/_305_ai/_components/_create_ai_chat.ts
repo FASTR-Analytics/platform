@@ -26,15 +26,20 @@ import {
   buildCancelledToolResults,
   buildToolResultUserMessage,
   classifyTurnContinuation,
+  decideViewGate,
   demoteStaleCarriers,
   getUserFacingAIErrorMessage,
+  hashRequestPrefix,
   lastMessageHasUnresolvedToolUse,
   openConfirm,
+  reconcileRequestPrefix,
+  releaseUnansweredCarriers,
   renderOutgoingMessages,
   resolveModelConfig,
   resolveOutputConfig,
   resolveThinkingConfig,
   sanitizePersistedSettings,
+  selectTurnSections,
   shapeCachedPayload,
   supportsDynamicWebTools,
   trimDanglingServerToolUse,
@@ -55,6 +60,7 @@ import type {
   ConversationStore,
   PendingDecisionOutcome,
 } from "../_core/conversation_store.ts";
+import type { AIViewSnapshot, GateView } from "../deps.ts";
 import { saveConversation } from "../_core/persistence.ts";
 import { getDisplayItemsFromMessage } from "../_core/display_items.ts";
 import { SERVER_TOOL_LABELS } from "../deps.ts";
@@ -106,6 +112,15 @@ const MAX_TURN_CONTINUATIONS = 24;
 // active ENQUEUES behind it. Stop aborts the turn's controller and the tool
 // loop races handler awaits against the signal, so Stop always releases the
 // conversation — even under a never-resolving handler.
+
+function viewSnapshotOf(
+  view: GateView | undefined,
+): AIViewSnapshot | undefined {
+  if (!view) return undefined;
+  return view.identity
+    ? { id: view.id, identity: view.identity }
+    : { id: view.id };
+}
 
 function loadSettings(key: string): AIChatSettingsValues | undefined {
   try {
@@ -278,10 +293,11 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
   }
 
   // Merge custom tools (SDK betaZodTools) with built-in tools (web_search,
-  // bash, etc.). Computed per request — built-in web tool versions depend on
-  // the current model, which can change via updateConfig. Cast to SDK's
-  // ToolUnion type - built-in tools like web_search have different shapes
-  // but are valid for the API.
+  // bash, etc.). Computed per request, or once per turn with appendOnlyTurns
+  // (the turn's prefix, read with the model it was built for) — built-in web
+  // tool versions depend on the current model, which can change via
+  // updateConfig. Cast to SDK's ToolUnion type - built-in tools like
+  // web_search have different shapes but are valid for the API.
   const getAllTools = () =>
     [
       ...toolRegistry.getSDKTools(),
@@ -354,7 +370,8 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
   // — never inside the tool loop's async continuation (an effect created
   // there has no Solid owner and never disposes). While the ACTIVE
   // conversation's decision is pending for a view-gated tool and the live
-  // view is outside the tool's set, the engine declines it: commit closures
+  // view is outside the tool's set, or its identity has moved from the view
+  // the lifecycle started in, the engine declines it: commit closures
   // capture view-local state that navigation tears down. Fires on the
   // pendingDecision transition too, so a view change DURING the async
   // propose is caught the moment the decision registers, and a decision
@@ -366,11 +383,19 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     if (!vc) return;
     const pending = store().pendingDecision[0]();
     if (!pending?.availableIn) return;
-    const currentViewId = String(vc.current().id);
-    if (!pending.availableIn.includes(currentViewId)) {
+    const decision = decideViewGate({
+      availableIn: pending.availableIn,
+      live: vc._snapshot().view,
+      reference: pending.viewAtCreation ?? null,
+    });
+    if (decision.kind !== "admit") {
       pending.resolve({
         kind: "auto_declined",
-        viewId: pending.viewIdAtCreation ?? pending.availableIn[0],
+        message: decision.kind === "moved"
+          ? decision.message
+          : buildApprovalViewExitMessage(
+            pending.viewAtCreation?.id ?? pending.availableIn[0],
+          ),
       });
     }
   });
@@ -445,10 +470,36 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       containerId: undefined,
       modelAssistantAppended: false,
       resolveOnFinish: [],
+      viewReference: null,
       cancelPendingInteraction: null,
+      prefix: null,
+      firstIndex: null,
+      lastModelReplyIndex: -1,
+      carriers: [],
     };
     s.activeTurn[1](turn);
     return turn;
+  }
+
+  // Attach a turn's sections to the message about to be appended at
+  // history.length, recording the carrier and the restore of its
+  // interaction drain. With appendOnlyTurns only the sections the history
+  // does not already carry ride (selectTurnSections), since every carrier
+  // renders for good.
+  function attachSections(
+    turn: ActiveTurn,
+    msg: MessageParam,
+    built: ReturnType<typeof buildTurnSections>,
+    history: MessageParam[],
+  ): void {
+    const sections = config.appendOnlyTurns
+      ? selectTurnSections(built.sections, history)
+      : built.sections;
+    if (sections.length > 0) msg.ephemeralSections = sections;
+    turn.carriers.push({
+      index: history.length,
+      restore: built.restoreInteractions,
+    });
   }
 
   // The turn's ephemeral sections, resolved at turn creation (inside the
@@ -460,15 +511,21 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
   // guarantee); directSend encodes that.
   //
   // The interaction drain is TRANSACTIONAL: restoreInteractions is invoked
-  // by runTurn's finally iff the turn ends with no assistant message from
-  // the model (failed or stopped send) — entries are never lost on failure
-  // and never double-delivered (the failed carrier's sections are demoted at
-  // the next turn's creation; restored entries ride the retry's fresh
-  // digest). The consumer hook runs BEFORE the drain so a hook throw cannot
-  // strand already-drained entries.
+  // by runTurn's finally iff the model never answered the message it was
+  // drained for — with appendOnlyTurns off, iff the turn ends with no
+  // assistant message from the model (failed or stopped send); on, per
+  // carrier after the turn's last model reply, latest first — so entries
+  // are never lost on failure and never double-delivered (the unanswered
+  // carrier's sections are demoted at the next turn's creation, or released
+  // at this turn's end with the option; restored entries ride the retry's
+  // fresh digest). The consumer hook runs BEFORE the drain so a hook throw
+  // cannot strand already-drained entries.
   function buildTurnSections(directSend: boolean, conversationId: string): {
     sections: EphemeralSection[];
     restoreInteractions: (() => void) | null;
+    // The view the sections tell the model about, which the turn's gate
+    // checks every view-limited call against.
+    reference: GateView | null;
   } {
     const vc = config.viewController;
     if (vc) {
@@ -478,18 +535,23 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       return {
         sections: assembleTurnSections({
           view: parts.view,
+          viewState: parts.viewState,
           viewInstructions: parts.viewInstructions,
           digest: drained?.digest ?? null,
           consumer,
         }),
         restoreInteractions: drained?.restore ?? null,
+        reference: parts.view,
       };
     }
-    if (!directSend) return { sections: [], restoreInteractions: null };
+    if (!directSend) {
+      return { sections: [], restoreInteractions: null, reference: null };
+    }
     const consumer = config.getEphemeralContext?.() ?? null;
     return {
-      sections: consumer ? [{ kind: "consumer", text: consumer }] : [],
+      sections: assembleTurnSections({ consumer }),
       restoreInteractions: null,
+      reference: null,
     };
   }
 
@@ -524,8 +586,9 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
 
   function sendMessages(userMessages: string[]): Promise<void> {
     if (userMessages.length === 0) return Promise.resolve();
-    // No ephemeral context on the batch path — parity with the historical
-    // sendMessages behavior (context rides direct sends only).
+    // Without a view controller the consumer blocks ride direct sends only
+    // (the historical sendMessages behaviour); with one, sections ride every
+    // turn-creating path, this batch included (buildTurnSections).
     return startOrEnqueue(userMessages, false);
   }
 
@@ -541,7 +604,6 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       ts.currentStreamingText;
     turn.resolveOnFinish.push(...queueResolvers);
     ts.error[1](null);
-    let restoreInteractions: (() => void) | null = null;
 
     // PROTECTED REGION: everything from here to the finally runs under the
     // turn lock, and the lock is released on EVERY exit — including a
@@ -563,6 +625,27 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       // internally; disabled persistence resolves immediately).
       await ts.ready;
 
+      // appendOnlyTurns: the model, system text and tools are read once per
+      // turn, so every request of the turn sends one prefix, and a prefix
+      // that changed since the conversation's last turn strips the thinking
+      // blocks minted under the old one before anything is sent
+      // (reconcileRequestPrefix). The hash it decides on is what the
+      // record stores.
+      if (config.appendOnlyTurns) {
+        const system = config.system();
+        const tools = getAllTools();
+        turn.prefix = { model: modelConfig.model, system, tools };
+        const reconciled = reconcileRequestPrefix(
+          tMessages(),
+          ts.prefixHash[0](),
+          hashRequestPrefix(system, tools),
+        );
+        if (reconciled.messages !== tMessages()) {
+          setTMessages(reconciled.messages);
+        }
+        ts.prefixHash[1](reconciled.hash);
+      }
+
       // Storage normalization at turn creation: demote a FAILED prior
       // turn's carrier so its stale sections can never re-render on this
       // turn's wire (the render rule alone cannot distinguish that history
@@ -574,6 +657,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
 
       if (texts.length > 0) {
         const isFirstMessage = tMessages().length === 0;
+        turn.firstIndex = tMessages().length;
         const built: MessageParam[] = [];
         const displayMessages: MessageParam[] = [];
         // createUserMessage attaches only not-yet-sent documents, so the
@@ -586,10 +670,8 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
           directSend,
           turn.conversationId,
         );
-        restoreInteractions = turnSections.restoreInteractions;
-        if (turnSections.sections.length > 0) {
-          firstMsg.ephemeralSections = turnSections.sections;
-        }
+        turn.viewReference = turnSections.reference;
+        attachSections(turn, firstMsg, turnSections, tMessages());
         built.push(firstMsg);
         if (texts[0].trim()) displayMessages.push(firstMsg);
         for (const text of texts.slice(1)) {
@@ -672,9 +754,26 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       // count) never delivered its digest. Restore the drained entries; they
       // ride the retry's fresh digest, and the failed carrier's stored
       // sections are demoted at the next turn's creation, so nothing
-      // double-delivers.
-      if (restoreInteractions && !turn.modelAssistantAppended) {
-        restoreInteractions();
+      // double-delivers. With appendOnlyTurns the same per carrier: every
+      // carrier after the model's last reply loses its sections now (it
+      // renders for good otherwise, as context the model was never told)
+      // and its drain is restored, latest first.
+      if (config.appendOnlyTurns) {
+        if (turn.firstIndex !== null) {
+          const released = releaseUnansweredCarriers(
+            tMessages(),
+            turn.firstIndex,
+            turn.lastModelReplyIndex,
+          );
+          if (released.messages !== tMessages()) {
+            setTMessages(released.messages);
+          }
+          for (const index of released.released) {
+            turn.carriers.find((c) => c.index === index)?.restore?.();
+          }
+        }
+      } else if (!turn.modelAssistantAppended) {
+        for (const carrier of turn.carriers) carrier.restore?.();
       }
       turn.activeStream = null;
       batch(() => {
@@ -687,13 +786,15 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
 
       // Save conversation state after turn completes — the finally-only
       // save is load-bearing for the no-dangling-tool_use invariant (never
-      // add mid-turn saves).
+      // add mid-turn saves). Awaited, so the release below and the promises
+      // it resolves mean the record is written.
       if (config.enablePersistence ?? true) {
-        saveConversation(
+        await saveConversation(
           turn.conversationId,
           tMessages(),
           ts.displayItems[0](),
           ts.approvedTools[0](),
+          ts.prefixHash[0](),
         );
       }
 
@@ -703,7 +804,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       }
 
       // Release the conversation's turn lock, then resolve the senders'
-      // promises for every text this turn carried.
+      // promises for every text this turn carried and whenIdle's waiters.
       ts.activeTurn[1](null);
       for (const resolve of turn.resolveOnFinish) resolve();
     }
@@ -794,10 +895,12 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     const approval = metadata.approval!;
     const toolName = block.name;
     const vc = config.viewController;
-    // The view the gate just passed in, captured BEFORE propose's await — a
-    // mid-propose navigation must name the view the user actually LEFT in
+    // ONE read of the view for the whole lifecycle, BEFORE propose's await:
+    // propose, the pending decision, the session short-circuit and the
+    // display item all see the view the gate just admitted, and a
+    // mid-propose navigation names the view the user actually LEFT in
     // auto-decline messages, not the view they arrived in.
-    const viewIdAtStart = vc ? String(vc.current().id) : undefined;
+    const viewAtStart = vc ? vc._snapshot() : undefined;
 
     const normalResult = (content: string): ToolResult => ({
       type: "tool_result",
@@ -846,7 +949,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       // long server-side propose can cancel on Stop.
       let prep: ProposalResult<unknown>;
       try {
-        prep = await approval.propose(input, vc?.current(), {
+        prep = await approval.propose(input, viewAtStart?.state, {
           signal: turn.abort.signal,
         });
       } catch (err) {
@@ -881,9 +984,12 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
         // owns its display (no generic tool_success item).
         const skipText = String(prep.skip);
         if (metadata.displayComponent) {
-          addDisplayItemsTo(ts, [
-            { type: "tool_display", toolName, input: block.input },
-          ]);
+          addDisplayItemsTo(ts, [{
+            type: "tool_display",
+            toolName,
+            input: block.input,
+            view: viewSnapshotOf(viewAtStart?.view),
+          }]);
           return { result: normalResult(skipText) };
         }
         return {
@@ -942,9 +1048,12 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
             ? value
             : JSON.stringify(value);
           if (metadata.displayComponent) {
-            addDisplayItemsTo(ts, [
-              { type: "tool_display", toolName, input: block.input },
-            ]);
+            addDisplayItemsTo(ts, [{
+              type: "tool_display",
+              toolName,
+              input: block.input,
+              view: viewSnapshotOf(viewAtStart?.view),
+            }]);
           }
           return { result: normalResult(content) };
         } catch (err) {
@@ -956,26 +1065,30 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
 
       // Session auto-approve short-circuit: propose ran (fresh preview and
       // commit), presentation is skipped entirely. No decision registers on
-      // this path, so the auto-decline watcher cannot see a view exit that
-      // happened during propose's await — re-check the live view here before
-      // committing (commit closures capture view-local state that navigation
-      // tears down).
+      // this path, so the auto-decline watcher cannot see a view exit or an
+      // identity move that happened during propose's await — re-check the
+      // live view against the start read here before committing (commit
+      // closures capture view-local state that navigation tears down).
       if (
         approval.mode === "session" &&
         ts.approvedTools[0]().includes(toolName)
       ) {
-        if (
-          metadata.availableIn && vc &&
-          !metadata.availableIn.includes(String(vc.current().id))
-        ) {
-          addDecision("auto_declined", previewTitle);
-          return {
-            result: normalResult(
-              buildApprovalViewExitMessage(
-                viewIdAtStart ?? metadata.availableIn[0],
+        if (metadata.availableIn && vc && viewAtStart) {
+          const decision = decideViewGate({
+            availableIn: metadata.availableIn,
+            live: vc._snapshot().view,
+            reference: viewAtStart.view,
+          });
+          if (decision.kind !== "admit") {
+            addDecision("auto_declined", previewTitle);
+            return {
+              result: normalResult(
+                decision.kind === "moved"
+                  ? decision.message
+                  : buildApprovalViewExitMessage(viewAtStart.view.id),
               ),
-            ),
-          };
+            };
+          }
         }
         addDecision("auto_approved", previewTitle);
         return await runCommit();
@@ -1010,7 +1123,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
         preview,
         sessionCheckbox,
         availableIn: metadata.availableIn,
-        viewIdAtCreation: viewIdAtStart,
+        viewAtCreation: viewAtStart?.view,
         resolve: decide,
       });
 
@@ -1075,10 +1188,9 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
         }
       } else if (approval.presentation === "modal") {
         // openConfirm with the SAME structured preview body the inline card
-        // renders. Displacement cannot hang the turn: a displaced dialog
-        // resolves cancelled → declined. Known limit: a decision resolved
-        // externally (Stop) leaves the dialog visible; its eventual button
-        // click is a no-op (the resolver is idempotent).
+        // renders. Known limit: a decision resolved externally (Stop, a view
+        // exit or an identity move under it) leaves the dialog visible; its
+        // eventual button click is a no-op (the resolver is idempotent).
         openConfirm({
           title: previewTitle,
           text: () => ProposalPreviewBody({ preview }),
@@ -1110,9 +1222,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
           return interruptedOutput();
         case "auto_declined":
           addDecision("auto_declined", previewTitle);
-          return {
-            result: normalResult(buildApprovalViewExitMessage(outcome.viewId)),
-          };
+          return { result: normalResult(outcome.message) };
         case "declined":
           addDecision("declined", previewTitle);
           return { result: normalResult(APPROVAL_DECLINED_MESSAGE) };
@@ -1178,32 +1288,35 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     const ts = turn.store;
     // Use SDK's beta streaming. The web-fetch beta header is only needed
     // for the basic web_fetch variant used on pre-4.6 models.
-    const allTools = getAllTools();
+    // With appendOnlyTurns the turn's one prefix serves every request, and
+    // the model it was built for goes with it.
+    const model = turn.prefix?.model ?? modelConfig.model;
+    const allTools = turn.prefix?.tools ?? getAllTools();
     const betas = getBetasArray(
       hasWebFetchTool(config.builtInTools) &&
-        !supportsDynamicWebTools(modelConfig.model),
+        !supportsDynamicWebTools(model),
       messagesContainDocuments(currentMessages),
     );
     const shaped = shapeCachedPayload(
-      config.system(),
-      renderOutgoingMessages(currentMessages),
+      turn.prefix?.system ?? config.system(),
+      renderOutgoingMessages(
+        currentMessages,
+        config.appendOnlyTurns ? "permanent" : "latest",
+      ),
     );
-    const thinking = resolveThinkingConfig(
-      modelConfig.model,
-      modelConfig.thinking,
-    );
+    const thinking = resolveThinkingConfig(model, modelConfig.thinking);
     const stream = config.sdkClient.beta.messages.stream({
-      model: modelConfig.model,
+      model,
       max_tokens: modelConfig.max_tokens,
       // Models from Opus 4.7 onward reject non-default sampling params with
       // a 400 — omit temperature there. Thinking and effort are resolved
       // per model (request_shaping.ts) so unsupported configs are never sent.
-      temperature: supportsSamplingParams(modelConfig.model)
+      temperature: supportsSamplingParams(model)
         ? modelConfig.temperature
         : undefined,
       thinking,
       output_config: resolveOutputConfig(
-        modelConfig.model,
+        model,
         modelConfig.output_config,
         thinking,
       ),
@@ -1276,6 +1389,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     batch(() => {
       ts.messages[1](updatedMessages);
       turn.modelAssistantAppended = true;
+      turn.lastModelReplyIndex = updatedMessages.length - 1;
       processMessageForDisplayTo(ts, assistantMsg);
 
       // Clear streaming state immediately after message is processed
@@ -1467,12 +1581,16 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
           }
         } else {
           // Soft gate (Feature 2): refuse an out-of-view execution before
-          // the handler runs — checked per block against the LIVE view, so
-          // a nav tool changing the view mid-turn is seen by the very next
-          // block's check.
+          // the handler runs — ONE snapshot of the live view per block,
+          // checked against the turn's reference (the view the model was
+          // last told), so a nav tool changing the view mid-turn is seen by
+          // the very next block's check and a move of the view's identity
+          // under the turn refuses the call instead of running it against
+          // what the user moved to. The handler keeps the live accessor.
           const vc = config.viewController;
-          const gated = vc
-            ? checkViewGate(block, toolRegistry, String(vc.current().id))
+          const live = vc ? vc._snapshot() : undefined;
+          const gated = live
+            ? checkViewGate(block, toolRegistry, live.view, turn.viewReference)
             : null;
           if (gated) {
             allResults.push(gated.result);
@@ -1588,6 +1706,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
                 type: "tool_display",
                 toolName: block.name,
                 input: block.input,
+                view: viewSnapshotOf(live?.view),
               }]);
             }
           }
@@ -1627,6 +1746,15 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       }
 
       const toolResultMsg = buildToolResultUserMessage(allResults, queuedTexts);
+      // appendOnlyTurns: a message typed mid-turn rides the tool-result
+      // message with its own sections, so the model learns where the user
+      // is now and the gate's reference moves with it; a bare tool-result
+      // message carries none.
+      if (config.appendOnlyTurns && queuedTexts.length > 0) {
+        const built = buildTurnSections(false, turn.conversationId);
+        turn.viewReference = built.reference;
+        attachSections(turn, toolResultMsg, built, updatedMessages);
+      }
 
       const messagesWithToolResults = [...updatedMessages, toolResultMsg];
       ts.messages[1](messagesWithToolResults);
@@ -1718,6 +1846,51 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     return { ...modelConfig };
   }
 
+  // The system text and the sections the next message would carry, for a
+  // consumer's prompt panel: the controller's parts, the interaction log
+  // peeked (its cursor stays), and the consumer hook, which a preview calls
+  // like a send does, so a hook with side effects must not be previewed.
+  // With appendOnlyTurns the sections are selected against the active
+  // conversation's history, as the send would select them.
+  function getNextTurnPreview(): {
+    system: string;
+    sections: EphemeralSection[];
+  } {
+    const system = config.system();
+    const text = typeof system === "string"
+      ? system
+      : system.map((block) => block.text).join("\n\n");
+    const vc = config.viewController;
+    const consumer = config.getEphemeralContext?.() ?? null;
+    const candidates = vc
+      ? assembleTurnSections({
+        ...vc._turnSectionParts(),
+        digest: vc._peekForSend(conversationId()),
+        consumer,
+      })
+      : assembleTurnSections({ consumer });
+    return {
+      system: text,
+      sections: config.appendOnlyTurns
+        ? selectTurnSections(candidates, store().messages[0]())
+        : candidates,
+    };
+  }
+
+  // Resolves once the active conversation has no turn in flight and each
+  // finished turn's record is written: at once when idle, otherwise with
+  // the running turn's resolveOnFinish, which the finally reaches only
+  // after it awaited the save. The check repeats after each wait because
+  // the release drains a message queued mid-turn into the next turn before
+  // the waiters resolve. A consumer handing the conversation to another tab
+  // waits on it.
+  function whenIdle(): Promise<void> {
+    const turn = store().activeTurn[0]();
+    if (!turn) return Promise.resolve();
+    return new Promise<void>((resolve) => turn.resolveOnFinish.push(resolve))
+      .then(whenIdle);
+  }
+
   return {
     updateConfig,
     getConfig,
@@ -1743,8 +1916,12 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     decideApproval,
     clearInProgressItems,
     conversationId,
+    getNextTurnPreview,
+    whenIdle,
   };
 }
+
+export type AIChatInstance = ReturnType<typeof createAIChat>;
 
 // Thin instanceof adapter over the SDK error classes — all classification
 // logic is pure in turn_logic.ts (getUserFacingAIErrorMessage). err.type is

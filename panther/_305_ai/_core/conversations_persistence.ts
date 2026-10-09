@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { get, set } from "../deps.ts";
+import { withListLock } from "./conversation_locks.ts";
 import { clearConversationPersistence } from "./persistence.ts";
 
 const CONVERSATION_LIST_KEY = "ai-conv-list";
@@ -37,30 +38,35 @@ export async function saveConversationList(
   }
 }
 
-export async function addConversationToList(
+export function addConversationToList(
   metadata: ConversationMetadata,
 ): Promise<void> {
-  const list = await loadConversationList();
-  list.unshift(metadata);
-  await saveConversationList(list);
+  return withListLock(async () => {
+    const list = await loadConversationList();
+    list.unshift(metadata);
+    await saveConversationList(list);
+  });
 }
 
-export async function updateConversationInList(
+export function updateConversationInList(
   id: string,
   updates: Partial<Pick<ConversationMetadata, "title" | "lastMessageAt">>,
 ): Promise<void> {
-  const list = await loadConversationList();
-  const index = list.findIndex((c) => c.id === id);
-  if (index !== -1) {
-    list[index] = { ...list[index], ...updates };
-    await saveConversationList(list);
-  }
+  return withListLock(async () => {
+    const list = await loadConversationList();
+    const index = list.findIndex((c) => c.id === id);
+    if (index !== -1) {
+      list[index] = { ...list[index], ...updates };
+      await saveConversationList(list);
+    }
+  });
 }
 
 export async function removeConversationFromList(id: string): Promise<void> {
-  const list = await loadConversationList();
-  const filtered = list.filter((c) => c.id !== id);
-  await saveConversationList(filtered);
+  await withListLock(async () => {
+    const list = await loadConversationList();
+    await saveConversationList(list.filter((c) => c.id !== id));
+  });
   await clearConversationPersistence(id);
 }
 

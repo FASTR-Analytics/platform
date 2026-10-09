@@ -32,8 +32,11 @@ export {
   validateMCPServerConfig,
 } from "./mcp_server.ts";
 export { MCPRequestError } from "./mcp_types.ts";
-export { bindAITool, scopeAITool } from "./scope_ai_tool.ts";
-export type { ScopeAIToolOptions } from "./scope_ai_tool.ts";
+export { bindAITool, bindAIToolToView, scopeAITool } from "./scope_ai_tool.ts";
+export type {
+  BindAIToolToViewOptions,
+  ScopeAIToolOptions,
+} from "./scope_ai_tool.ts";
 
 export type {
   AIToolApprovalConfig,
@@ -54,8 +57,10 @@ export type {
   AIView,
   AIViewContext,
   AIViewDefinition,
+  AIViewIdentity,
   AIViewParams,
   AIViewRegistry,
+  AIViewSnapshot,
   AIViewState,
   AIViewStateFor,
   AIViewVoidKeys,

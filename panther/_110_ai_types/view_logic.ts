@@ -10,10 +10,10 @@ import type { EphemeralSection } from "./types.ts";
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Pure assembly of a turn's ephemeral sections when a view controller is
-// configured. The engine resolves the
-// live pieces (view id + label, per-view prompt section, interaction digest,
-// consumer hook) at turn creation and passes plain strings here; this module
-// owns the section FORMAT and ORDER so they are unit-testable and stable.
+// configured. The engine resolves the live pieces (view id + label, view
+// state, per-view instructions, interaction digest, consumer blocks) at turn
+// creation and passes plain strings here; this module owns the section
+// FORMAT and ORDER so they are unit-testable and stable.
 //
 // The view-label section always includes the stable view id alongside the
 // human label — gate messages, auto-decline strings, and catalog annotations
@@ -71,6 +71,77 @@ export function buildViewGateMessage(
   const views = availableIn.map((v) => `"${v}"`).join(", ");
   const noun = availableIn.length === 1 ? "view" : "views";
   return `This tool is only available in ${noun} ${views}. The user is currently in "${currentViewId}". Do not call it again until the user navigates there — you may ask them to.`;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// VIEW GATE DECISION
+////////////////////////////////////////////////////////////////////////////////
+//
+// One decision for every place the engine admits or refuses a view-limited
+// call: the tool loop's gate, the approval watcher and the session
+// short-circuit. The live view is one snapshot; the reference is the view of
+// the latest view line the turn sent, which is what the model was last told.
+// A refusal carries no view line, so after a move every view-limited call is
+// refused until the user writes: only their next message tells the model
+// where they are now.
+
+export type ViewIdentityLike = Readonly<Record<string, string>>;
+
+// identity: absent when the view declares none, null when its identity
+// function threw (declared but unknown, so never equal to anything).
+export type GateView = {
+  id: string;
+  label: string | null;
+  identity?: ViewIdentityLike | null;
+};
+
+export type ViewGateDecision =
+  | { kind: "admit" }
+  | { kind: "out-of-view"; message: string }
+  | { kind: "moved"; message: string };
+
+export function viewIdentityKey(identity: ViewIdentityLike): string {
+  const keys = Object.keys(identity).sort();
+  return JSON.stringify(keys.map((key) => [key, identity[key]]));
+}
+
+export function decideViewGate(args: {
+  availableIn: readonly string[] | undefined;
+  live: GateView;
+  reference: GateView | null;
+}): ViewGateDecision {
+  const { availableIn, live, reference } = args;
+  if (!availableIn) return { kind: "admit" };
+  if (!availableIn.includes(live.id)) {
+    return {
+      kind: "out-of-view",
+      message: buildViewGateMessage([...availableIn], live.id),
+    };
+  }
+  if (!reference) return { kind: "admit" };
+  const declared = reference.identity !== undefined ||
+    live.identity !== undefined;
+  if (!declared) return { kind: "admit" };
+  const same = live.id === reference.id &&
+    live.identity != null && reference.identity != null &&
+    viewIdentityKey(live.identity) === viewIdentityKey(reference.identity);
+  if (same) return { kind: "admit" };
+  return { kind: "moved", message: buildViewMovedMessage(reference, live) };
+}
+
+function describeGateView(view: GateView): string {
+  return view.label === null
+    ? `"${view.id}"`
+    : `"${view.id}" — "${sanitizeQuoted(view.label)}"`;
+}
+
+// The is_error tool_result for a view-limited call after the view moved
+// under the turn. is_error like the gate message, so the model stops; the
+// remedy is the user's next message, not another call.
+export function buildViewMovedMessage(from: GateView, to: GateView): string {
+  return `The user has moved from view ${describeGateView(from)} to view ${
+    describeGateView(to)
+  } since the last message. Nothing was applied. Do not call a view-limited tool again until the user writes.`;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -134,15 +205,17 @@ export function buildNavigationPendingMessage(
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Pure reduction of the interaction queue into one digest string at drain
-// time (turn creation). The controller owns the queue and the echo-mark
-// bookkeeping (interactions.ts); this module owns the reduction ORDER and
+// time (turn creation). The log owns the queue and the echo-mark
+// bookkeeping (interaction_log.ts); this module owns the reduction ORDER and
 // the digest FORMAT: echo suppression (dropSuppressedEchoes, applied by the
-// controller's drain) → relevantIn against the live view → per-entry filter
-// → coalesce per interaction id → format → prefix. Consumer callbacks
-// (relevantIn functions, filter, coalesce, format) run against live view
-// context that may be torn down — every call AND the consumption of its
-// return value is caught; a throwing callback drops its entry/line and
-// logs, never fails the turn (the same rule the view label follows).
+// log's drain) → relevantIn against the live view → per-entry filter →
+// coalesce per interaction id → format → prefix. With digestAcrossViews the
+// two hooks run at record time instead (admitInteraction) and the digest
+// names each entry's recorded view. Consumer callbacks (relevantIn
+// functions, filter, coalesce, format) run against live view context that
+// may be torn down — every call AND the consumption of its return value is
+// caught; a throwing callback drops its entry/line and logs, never fails the
+// turn (the same rule the view label follows).
 
 export type InteractionViewStateLike = {
   id: string;
@@ -169,6 +242,12 @@ export type InteractionQueueEntry = {
   // Arrival time (controller clock). Echo suppression is decided at DRAIN
   // against this timestamp — see dropSuppressedEchoes.
   at: number;
+  // The view the entry was recorded in, set by a controller with
+  // digestAcrossViews (the label resolved at record time, the bare id when
+  // the label threw). Absent otherwise, and on navigation entries, which
+  // carry their own views.
+  viewId?: string;
+  viewLabel?: string;
 };
 
 // Reserved built-in interaction id (user-declared ids may not start with
@@ -273,6 +352,57 @@ function safeCall<T>(
   }
 }
 
+// relevantIn scopes the interaction TYPE by view; filter decides per
+// payload (payload × view reductions). Both guarded: a throw rejects and
+// logs.
+function isRelevantIn(
+  def: AIInteractionDefLike,
+  id: string,
+  view: InteractionViewStateLike,
+): boolean {
+  const relevantIn = def.relevantIn;
+  if (Array.isArray(relevantIn)) return relevantIn.includes(view.id);
+  if (typeof relevantIn !== "function") return true;
+  const rel = safeCall("relevantIn", id, () => relevantIn(view));
+  return rel.ok && rel.value === true;
+}
+
+function passesFilter(
+  def: AIInteractionDefLike,
+  id: string,
+  payload: unknown,
+  view: InteractionViewStateLike,
+): boolean {
+  const filter = def.filter;
+  if (!filter) return true;
+  const kept = safeCall("filter", id, () => filter(payload, view));
+  return kept.ok && kept.value === true;
+}
+
+// Admission at RECORD time (a controller with digestAcrossViews): relevantIn,
+// then filter, against the view the user is in when notify is called. An
+// entry admitted here is reported wherever the user later sends from, with
+// that view named on its line; the digest across views runs neither hook
+// again. A throwing hook rejects the entry and logs, never throws into the
+// consumer's event handler.
+export function admitInteraction(
+  id: string,
+  def: AIInteractionDefLike,
+  payload: unknown,
+  view: InteractionViewStateLike,
+): boolean {
+  return isRelevantIn(def, id, view) && passesFilter(def, id, payload, view);
+}
+
+// "at-send" (the default): relevantIn and filter run here against the view
+// the user sends from, and lines name no view. "across-views" (a controller
+// with digestAcrossViews): both hooks ran at record time (admitInteraction),
+// entries coalesce per interaction id AND recorded view, and each line ends
+// with the recorded view's label; the navigation line is the same in both.
+export type DigestMode = "at-send" | "across-views";
+
+type DigestGroup = { id: string; viewLabel?: string; payloads: unknown[] };
+
 // Digest lines keep first-notify order (per interaction id, including the
 // built-in navigation line at its first event's position). Coalesce
 // semantics: "keep-latest" (default) formats the latest payload with count
@@ -286,19 +416,29 @@ export function buildInteractionDigest(
   entries: InteractionQueueEntry[],
   defs: Record<string, AIInteractionDefLike>,
   view: InteractionViewStateLike,
+  mode: DigestMode = "at-send",
 ): string | null {
-  const byId = new Map<string, unknown[]>();
+  const groups = new Map<string, DigestGroup>();
   for (const entry of entries) {
-    const group = byId.get(entry.id);
+    const perView = mode === "across-views" &&
+      entry.id !== NAVIGATION_INTERACTION_ID;
+    const key = perView
+      ? `${entry.id}\u0000${entry.viewId ?? ""}\u0000${entry.viewLabel ?? ""}`
+      : entry.id;
+    const group = groups.get(key);
     if (group) {
-      group.push(entry.payload);
+      group.payloads.push(entry.payload);
     } else {
-      byId.set(entry.id, [entry.payload]);
+      groups.set(key, {
+        id: entry.id,
+        viewLabel: perView ? entry.viewLabel : undefined,
+        payloads: [entry.payload],
+      });
     }
   }
 
   const lines: string[] = [];
-  for (const [id, payloads] of byId) {
+  for (const { id, viewLabel, payloads } of groups.values()) {
     if (id === NAVIGATION_INTERACTION_ID) {
       // Guarded like every other line builder: only recordNavigation can
       // enqueue this id today, but a malformed payload must degrade to a
@@ -319,26 +459,12 @@ export function buildInteractionDigest(
       continue;
     }
 
-    // relevantIn scopes the interaction TYPE by view.
-    if (Array.isArray(def.relevantIn)) {
-      if (!def.relevantIn.includes(view.id)) continue;
-    } else if (typeof def.relevantIn === "function") {
-      const rel = safeCall(
-        "relevantIn",
-        id,
-        () =>
-          (def.relevantIn as (v: InteractionViewStateLike) => boolean)(view),
-      );
-      if (!rel.ok || !rel.value) continue;
-    }
-
-    // Per-entry filter decides per payload (payload × view reductions).
     let surviving = payloads;
-    if (def.filter) {
-      surviving = surviving.filter((payload) => {
-        const kept = safeCall("filter", id, () => def.filter!(payload, view));
-        return kept.ok && kept.value;
-      });
+    if (mode === "at-send") {
+      if (!isRelevantIn(def, id, view)) continue;
+      surviving = payloads.filter((payload) =>
+        passesFilter(def, id, payload, view)
+      );
     }
     if (surviving.length === 0) continue;
 
@@ -370,6 +496,11 @@ export function buildInteractionDigest(
       formatted = reduced.value;
     }
 
+    // The recorded view's label is a library-quoted span: sanitized like the
+    // view label, so a label can neither close the span nor add a line.
+    const viewSuffix = viewLabel === undefined
+      ? ""
+      : ` (in "${sanitizeQuoted(viewLabel)}")`;
     for (const { payload, count } of formatted) {
       // String coercion inside the guard: an erased format returning an
       // object with a throwing toString must drop the line, not escape at
@@ -382,7 +513,7 @@ export function buildInteractionDigest(
       // bullet; newline collapse so one format return is always exactly
       // one bullet (quotes stay — bullets are not a quoted span).
       if (line.ok && line.value && line.value.trim()) {
-        lines.push(collapseToSingleLine(line.value));
+        lines.push(collapseToSingleLine(line.value) + viewSuffix);
       }
     }
   }
@@ -394,16 +525,17 @@ export function buildInteractionDigest(
 }
 
 export type TurnSectionParts = {
-  view?: { id: string; label: string | null } | null;
+  view?: GateView | null;
+  viewState?: string | null;
   viewInstructions?: string | null;
   digest?: string | null;
-  consumer?: string | null;
+  consumer?: string | string[] | null;
 };
 
-// Section order is a stated contract: view label, then per-view
-// instructions, then
-// interaction digest, then the consumer hook's free-form context. Empty
-// strings are dropped like nulls — a section never renders blank.
+// Section order is a stated contract: view label, then view state, then
+// per-view instructions, then interaction digest, then the consumer hook's
+// blocks, one section each in the hook's order. Empty strings are dropped
+// like nulls — a section never renders blank.
 export function assembleTurnSections(
   parts: TurnSectionParts,
 ): EphemeralSection[] {
@@ -414,14 +546,20 @@ export function assembleTurnSections(
       text: buildViewLabelSectionText(parts.view.id, parts.view.label),
     });
   }
+  if (parts.viewState) {
+    sections.push({ kind: "view-state", text: parts.viewState });
+  }
   if (parts.viewInstructions) {
     sections.push({ kind: "view-instructions", text: parts.viewInstructions });
   }
   if (parts.digest) {
     sections.push({ kind: "digest", text: parts.digest });
   }
-  if (parts.consumer) {
-    sections.push({ kind: "consumer", text: parts.consumer });
+  const consumer = typeof parts.consumer === "string"
+    ? [parts.consumer]
+    : parts.consumer ?? [];
+  for (const text of consumer) {
+    if (text) sections.push({ kind: "consumer", text });
   }
   return sections;
 }

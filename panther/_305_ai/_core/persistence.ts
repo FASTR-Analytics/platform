@@ -27,6 +27,11 @@ type PersistedConversation = {
   // library reading a record that carries it just ignores the field — no
   // version bump needed (each migration targets its own legacy signature).
   approvedTools?: string[];
+  // The request prefix the stored thinking blocks were minted under, written
+  // by a turn with appendOnlyTurns (hashRequestPrefix). Additive within v2
+  // like approvedTools: absent → unknown, and only an append-only turn
+  // reads it.
+  prefixHash?: string;
 };
 
 function stripMarkersFromContent(
@@ -91,9 +96,10 @@ export async function saveConversation(
   messages: MessageParam[],
   displayItems: DisplayItem[],
   approvedTools: string[],
+  prefixHash: string | undefined,
 ): Promise<void> {
   try {
-    await set(`ai-conv/${conversationId}`, {
+    const record: PersistedConversation = {
       conversationId,
       messages,
       // A pending approval card is turn-scoped UI state, never a record —
@@ -104,7 +110,9 @@ export async function saveConversation(
       lastUpdated: new Date().toISOString(),
       formatVersion: CURRENT_FORMAT_VERSION,
       approvedTools,
-    });
+    };
+    if (prefixHash !== undefined) record.prefixHash = prefixHash;
+    await set(`ai-conv/${conversationId}`, record);
   } catch (err) {
     console.error("Failed to save conversation:", err);
   }

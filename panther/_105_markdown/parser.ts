@@ -11,7 +11,9 @@ import type {
   ParsedMarkdownItem,
 } from "./types.ts";
 
-export function createMarkdownIt(options?: { html?: boolean }): MarkdownIt {
+export function createMarkdownIt(
+  options?: { html?: boolean; images?: boolean },
+): MarkdownIt {
   const md = new MarkdownIt({
     breaks: true,
     // html:false by default so raw HTML is escaped, not injected — callers
@@ -25,6 +27,9 @@ export function createMarkdownIt(options?: { html?: boolean }): MarkdownIt {
     typographer: true,
   });
   md.disable("replacements", true);
+  // images:false leaves the link rule on, so `![alt](url)` renders as a link
+  // to the url instead of an element the browser would fetch.
+  if (options?.images === false) md.disable("image");
   return md;
 }
 

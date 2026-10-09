@@ -32,6 +32,9 @@ import {
 
 export type UseConversationsOptions = {
   scope?: string;
+  // Called with each conversation the manager makes active: on mount, on
+  // create, on switch, and after deleting the active one.
+  onActivate?: (id: string) => void;
 };
 
 export type ConversationsContextValue = {
@@ -74,6 +77,11 @@ export function createConversationsManager(
     return allConversations().find((c) => c.id === id) ?? null;
   };
 
+  function activate(id: string) {
+    setActiveConversationId(id);
+    options?.onActivate?.(id);
+  }
+
   onMount(async () => {
     const [list, lastActiveId] = await Promise.all([
       loadConversationList(),
@@ -89,12 +97,9 @@ export function createConversationsManager(
       const lastActive = lastActiveId
         ? scopedConversations.find((c) => c.id === lastActiveId)
         : undefined;
-      setActiveConversationId(
-        lastActive ? lastActive.id : scopedConversations[0].id,
-      );
+      activate(lastActive ? lastActive.id : scopedConversations[0].id);
     } else {
-      const newId = await createConversation();
-      setActiveConversationId(newId);
+      await createConversation();
     }
   });
 
@@ -120,7 +125,7 @@ export function createConversationsManager(
     await addConversationToList(metadata);
     batch(() => {
       setAllConversations((prev) => [metadata, ...prev]);
-      setActiveConversationId(id);
+      activate(id);
     });
     saveLastActiveConversationId(scope, id);
 
@@ -136,7 +141,7 @@ export function createConversationsManager(
     if (current && hasActiveTurn(current)) return;
     const exists = allConversations().find((c) => c.id === id);
     if (exists) {
-      setActiveConversationId(id);
+      activate(id);
       saveLastActiveConversationId(scope, id);
     }
   }
@@ -156,10 +161,9 @@ export function createConversationsManager(
     if (current === id) {
       const remaining = conversations();
       if (remaining.length > 0) {
-        setActiveConversationId(remaining[0].id);
+        activate(remaining[0].id);
       } else {
-        const newId = await createConversation();
-        setActiveConversationId(newId);
+        await createConversation();
       }
     }
   }

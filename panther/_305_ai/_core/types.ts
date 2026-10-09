@@ -15,7 +15,12 @@ import type {
   Usage,
 } from "../deps.ts";
 import type { BuiltInToolsConfig } from "./builtin_tools.ts";
-import type { AnyAITool, ApprovalPolicy, ProposalPreview } from "../deps.ts";
+import type {
+  AIViewSnapshot,
+  AnyAITool,
+  ApprovalPolicy,
+  ProposalPreview,
+} from "../deps.ts";
 import type { AIViewController } from "./views.ts";
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -77,10 +82,13 @@ export type DisplayItem =
     expected?: boolean;
     toolInput?: unknown;
   }
+  // view: the id and identity of the view the call ran in (persisted; absent
+  // on cards stored before the engine recorded it).
   | {
     type: "tool_display";
     toolName: string;
     input: unknown;
+    view?: AIViewSnapshot;
   }
   // Non-error turn outcomes surfaced by the API (refusal, truncation,
   // context exceeded, continuation caps) — distinct from tool_error, which
@@ -231,7 +239,11 @@ export type AIChatConfig = {
 
   getDocumentRefs?: DocumentRefsGetter;
 
-  getEphemeralContext?: () => string | null;
+  // Free-form context for the next message: one block, or several, each its
+  // own consumer section. Split what changes from what holds, so that under
+  // append-only turns a block that holds is sent once and only the changed
+  // one again.
+  getEphemeralContext?: () => string | string[] | null;
 
   // View system (createAIViewController). When present, every turn carries a
   // [Current view: …] section (plus the view's ephemeral instructions and
@@ -249,6 +261,19 @@ export type AIChatConfig = {
   // requireKind additionally makes an undeclared kind a boot-time throw.
   // Enforced on dynamic register() too. Strictly opt-in.
   approvalPolicy?: ApprovalPolicy;
+
+  // Append-only turns: every message keeps its sections on the wire for
+  // good, so each request's messages are a prefix of the next request's
+  // (the prompt cache's rule and a preserved thinking block's). A turn reads
+  // the system text and tools once, strips the thinking blocks when that
+  // prefix changed since the conversation's last turn, sends a once section
+  // (view instructions, a consumer block) only when no stored message
+  // carries its text, gives a message typed mid-turn its own sections, and
+  // at its end strips what the model never answered. Off (default): today's
+  // wire, where only the latest carrier renders and only on its turn's
+  // first request. Opt-in until COPILOT04 deletes the field with the off
+  // path.
+  appendOnlyTurns?: boolean;
 };
 
 ////////////////////////////////////////////////////////////////////////////////

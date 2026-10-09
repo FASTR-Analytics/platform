@@ -19,13 +19,21 @@ import {
   t3,
 } from "../deps.ts";
 import { createScrollManager } from "./_scroll_manager.ts";
-import { AIChatConfigContext, createAIChat } from "./_create_ai_chat.ts";
+import {
+  AIChatConfigContext,
+  type AIChatInstance,
+  createAIChat,
+} from "./_create_ai_chat.ts";
 import type { DisplayRegistry } from "../_core/types.ts";
 import { MessageInput } from "./message_input.tsx";
 import { MessageList } from "./message_list.tsx";
 import { UsageDisplay } from "./usage_display.tsx";
 
 type Props = {
+  // Read once at setup. A pane that needs updateConfig or sendMessage builds
+  // the instance itself and passes it here, so the pane and the chat share
+  // one registry, one settings copy, one watcher and one queue drain.
+  chat?: AIChatInstance;
   customRenderers?: DisplayRegistry;
   placeholder?: string;
   submitLabel?: string;
@@ -64,7 +72,7 @@ export function AIChat(p: Props) {
     pendingUserAction,
     decideApproval,
     clearInProgressItems,
-  } = createAIChat();
+  } = p.chat ?? createAIChat();
   const [inputValue, setInputValue] = createSignal("");
 
   const handleStop = () => {

@@ -123,7 +123,7 @@ export function MessageList(p: Props) {
         const toolWithMetadata = p.toolRegistry.get(item.toolName);
         if (toolWithMetadata?.metadata.displayComponent) {
           const DisplayComponent = toolWithMetadata.metadata.displayComponent;
-          return <DisplayComponent input={item.input} />;
+          return <DisplayComponent input={item.input} view={item.view} />;
         }
         return null;
       }

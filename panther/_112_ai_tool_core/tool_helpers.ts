@@ -8,6 +8,7 @@ import type { Component, zType } from "./deps.ts";
 import { AIToolFailure } from "./tool_failure.ts";
 import type {
   AIViewRegistry,
+  AIViewSnapshot,
   AIViewState,
   AIViewStateFor,
   AnyAIView,
@@ -140,7 +141,11 @@ export type ApprovalPolicy = {
 };
 
 export type ToolUIMetadata<TInput = unknown> = {
-  displayComponent?: Component<{ input: TInput }>;
+  // `view` is the id and identity of the view the call ran in, stored with
+  // the card, so a card rendered again later shows the call's context, not
+  // whatever the component closes over now. Absent on cards stored before
+  // the engine recorded it.
+  displayComponent?: Component<{ input: TInput; view?: AIViewSnapshot }>;
 
   inProgressComponent?: Component<{ input: TInput }>;
 
@@ -329,7 +334,8 @@ export type CreateAIToolConfigCommon<TInput> = {
 
   inputSchema: zType.ZodType<TInput>;
 
-  displayComponent?: Component<{ input: TInput }>;
+  // See ToolUIMetadata.displayComponent.
+  displayComponent?: Component<{ input: TInput; view?: AIViewSnapshot }>;
 
   inProgressComponent?: Component<{ input: TInput }>;
 

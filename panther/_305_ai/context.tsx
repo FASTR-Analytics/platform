@@ -19,7 +19,10 @@ type Props = {
 
 export function AIChatProvider(p: Props) {
   const conversationsManager = p.config.scope !== undefined
-    ? createConversationsManager({ scope: p.config.scope })
+    ? createConversationsManager({
+      scope: p.config.scope,
+      onActivate: (id) => p.config.viewController?._activateConversation(id),
+    })
     : undefined;
 
   return (

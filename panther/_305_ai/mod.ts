@@ -46,6 +46,7 @@ export { getBetaHeaders } from "./_core/beta_headers.ts";
 ////////////////////////////////////////////////////////////////////////////////
 
 export type { AIChatConfig } from "./_core/types.ts";
+export type { AIChatInstance } from "./_components/_create_ai_chat.ts";
 export type { AIViewController } from "./_core/views.ts";
 export type {
   AIInteraction,

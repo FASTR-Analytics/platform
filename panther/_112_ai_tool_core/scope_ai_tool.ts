@@ -13,7 +13,10 @@
 //
 // bindAITool (below) is the no-parameter sibling: same static template, same
 // per-call resolve, but the surface — not the model — picks the context.
+// bindAIToolToView (below) is the chat-side sibling: the view the call runs
+// in picks the context, and the chat's gate and registry still see the tool.
 
+import { buildAvailabilityHint } from "./deps.ts";
 import { AIToolFailure } from "./tool_failure.ts";
 import type {
   AnyAITool,
@@ -21,6 +24,7 @@ import type {
   SDKTool,
 } from "./tool_helpers.ts";
 import { getHeadlessCapability } from "./tool_helpers.ts";
+import type { AIViewRegistry, AIViewState, AnyAIView } from "./view_types.ts";
 
 export type ScopeAIToolOptions = {
   // Name of the injected required string property.
@@ -34,9 +38,14 @@ export type ScopeAIToolOptions = {
   resolve: (value: string) => Promise<AnyAITool> | AnyAITool;
 };
 
-// The createAITool-level headless invariants, re-run at composition: the
-// wrappers below exist only for headless (MCP) surfaces, and composition must
-// not launder a tool the filter would reject.
+// The createAITool-level headless invariants, re-run at composition for
+// bindAITool and scopeAITool only: those two exist for headless (MCP)
+// surfaces, and composition must not launder a tool the filter would reject.
+// Stricter than createAITool and createMCPServer, which accept `headless`
+// beside a `viewRegistry` (an ungated view-typed handler may never read the
+// view): a template built with one is refused here too, because the per-call
+// inner tool is never registered, so nothing would check the view it was
+// typed for. bindAIToolToView does not run it.
 function assertHeadlessTemplate(
   wrapper: "scopeAITool" | "bindAITool",
   template: AnyAITool,
@@ -264,6 +273,134 @@ export function scopeAITool(
     metadata: {
       ...template.metadata,
       approval,
+    },
+  };
+}
+
+export type BindAIToolToViewOptions<
+  TDefs extends Record<string, AnyAIView>,
+> = {
+  // Gate for a template that declares none (a headless template cannot).
+  availableIn?: readonly (keyof TDefs & string)[];
+};
+
+// bindAIToolToView: the chat-side sibling of bindAITool. The template
+// supplies name/description/schema; `resolve` supplies the inner tool for one
+// call, from the view the call runs in. The engine's gate, `resolve` and the
+// inner tool all read ONE snapshot of the view, read here once per call: a
+// move between the gate and the handler can never run the inner tool against
+// a view the gate did not admit.
+export function bindAIToolToView<TDefs extends Record<string, AnyAIView>>(
+  viewRegistry: AIViewRegistry<TDefs>,
+  template: AnyAITool,
+  resolve: (view: AIViewState<TDefs>) => Promise<AnyAITool> | AnyAITool,
+  options?: BindAIToolToViewOptions<TDefs>,
+): AnyAITool {
+  const name = template.sdkTool.name;
+  const templateRegistry = template.metadata._viewRegistry;
+  if (templateRegistry !== undefined && templateRegistry !== viewRegistry) {
+    throw new Error(
+      `bindAIToolToView("${name}"): template tool was typed against a DIFFERENT view registry than the one bound here. Pass the same defineAIViews registry to createAITool's \`viewRegistry\` and to bindAIToolToView.`,
+    );
+  }
+  const optionAvailableIn = options?.availableIn;
+  if (optionAvailableIn !== undefined) {
+    if (template.metadata.availableIn !== undefined) {
+      throw new Error(
+        `bindAIToolToView("${name}"): the template already declares availableIn — a second list would replace the gate its description announces. Omit options.availableIn.`,
+      );
+    }
+    if (optionAvailableIn.length === 0) {
+      throw new Error(
+        `bindAIToolToView("${name}"): availableIn is empty — the tool would be executable nowhere. Omit the field for an everywhere-available tool.`,
+      );
+    }
+    for (const id of optionAvailableIn) {
+      if (!viewRegistry._defs[id]) {
+        throw new Error(
+          `bindAIToolToView("${name}"): availableIn references view id "${id}", which is not in the bound view registry.`,
+        );
+      }
+    }
+  }
+  const availableIn = optionAvailableIn
+    ? [...optionAvailableIn]
+    : template.metadata.availableIn;
+  const description = optionAvailableIn
+    ? `${template.sdkTool.description}\n\n${
+      buildAvailabilityHint([...optionAvailableIn])
+    }`
+    : template.sdkTool.description;
+  const templateApproval = template.metadata.approval;
+
+  const resolveInner = async (view: AIViewState<TDefs>): Promise<AnyAITool> => {
+    const inner = await Promise.resolve(resolve(view));
+    if (inner.sdkTool.name !== name) {
+      throw new Error(
+        `bindAIToolToView("${name}"): resolve() returned tool "${inner.sdkTool.name}" — the inner tool must carry the template's name.`,
+      );
+    }
+    return inner;
+  };
+
+  const approvalError = () =>
+    new Error(
+      `Tool "${name}" requires user approval and can only execute inside an approval lifecycle (createAIChat's chat loop or createMCPServer's approval driver).`,
+    );
+
+  const noView = () =>
+    new Error(
+      `Tool "${name}" is bound to the view and can only execute inside createAIChat's tool loop, which supplies the live view.`,
+    );
+
+  const run = (_input: unknown): Promise<string> =>
+    Promise.reject(templateApproval ? approvalError() : noView());
+
+  const runWithView = async (
+    input: unknown,
+    getView?: () => unknown,
+  ): Promise<string> => {
+    if (templateApproval) throw approvalError();
+    if (getView === undefined) throw noView();
+    const snapshot = getView() as AIViewState<TDefs>;
+    const inner = await resolveInner(snapshot);
+    return inner.sdkTool.runWithView
+      ? await inner.sdkTool.runWithView(input, () => snapshot)
+      : await inner.sdkTool.run(input);
+  };
+
+  const approval: ErasedApprovalConfig | undefined = templateApproval
+    ? {
+      propose: async (input, view, ctx) => {
+        const inner = await resolveInner(view as AIViewState<TDefs>);
+        const innerApproval = inner.metadata.approval;
+        if (!innerApproval) {
+          throw new Error(
+            `bindAIToolToView("${name}"): resolve() returned a tool without approval, but the template declares approval — the bound tool cannot drive the approval lifecycle.`,
+          );
+        }
+        return await Promise.resolve(innerApproval.propose(input, view, ctx));
+      },
+      mode: templateApproval.mode,
+      presentation: templateApproval.presentation,
+    }
+    : undefined;
+
+  const { headless: _headless, ...templateMetadata } = template.metadata;
+  return {
+    sdkTool: {
+      name,
+      description,
+      input_schema: template.sdkTool.input_schema,
+      parse: template.sdkTool.parse,
+      run,
+      runWithView,
+    },
+    metadata: {
+      ...templateMetadata,
+      availableIn,
+      approval,
+      _viewRegistry: viewRegistry,
     },
   };
 }
