@@ -136,12 +136,13 @@ import type { FigureStaleContext } from "~/components/products/_shared/mod.ts";
 import type {
   ReportEditProposal,
   ReportEditProposalResult,
-} from "~/components/products/copilot/mod.ts";
+} from "~/components/instance/copilot/mod.ts";
 import {
   copilotViewController,
   type CopilotViewState,
   restoreCopilotView,
-} from "~/components/products/copilot/mod.ts";
+} from "~/components/instance/copilot/mod.ts";
+import { SaveReportStyleModal } from "~/components/products/copilot/mod.ts";
 import {
   formatLineRanges,
   type SkippedRange,
@@ -1359,6 +1360,21 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
           };
         },
         applyFigureUpdate: (figureId, block) => updateFigure(figureId, block),
+        // Any html style: a plain report is worth saving once the user has
+        // styled it by hand. Saving is an edit on the report it comes from.
+        getSaveStyleAction: () =>
+          format() === "html" && canConfigure()
+            ? async () => {
+              await openComponent({
+                element: SaveReportStyleModal,
+                props: {
+                  productId: p.productId,
+                  reportLabel: label(),
+                  body: body(),
+                },
+              });
+            }
+            : undefined,
       },
     );
   });

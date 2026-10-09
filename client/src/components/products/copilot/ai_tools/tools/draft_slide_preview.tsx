@@ -28,7 +28,7 @@ import {
 } from "solid-js";
 import { convertAiInputToSlide } from "../../slide_ai/mod.ts";
 import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
-import { copilotViewController } from "../../_shared/mod.ts";
+import { copilotViewController } from "~/components/instance/copilot/mod.ts";
 import { addSlideToDeck } from "./add_slide_to_deck";
 import { canEditProduct } from "~/state/instance/product_access";
 

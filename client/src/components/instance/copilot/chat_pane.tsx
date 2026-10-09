@@ -25,14 +25,9 @@ import {
   onMount,
   Show,
 } from "solid-js";
-import { copilotViewController } from "./_shared/mod.ts";
-import type {
-  EditingReportContext,
-  EditingReportParams,
-} from "./_shared/mod.ts";
-import { SaveReportStyleModal } from "./save_report_style";
+import { copilotViewController } from "./ai_views";
+import type { EditingReportContext } from "./ai_views";
 import { setShowAi } from "~/state/t4_ui";
-import { canEditProduct } from "~/state/instance/product_access";
 import { serverActions } from "~/server_actions";
 import { AIDocumentList, useAIDocuments } from "./ai_documents/mod.ts";
 import { usePromptLibrary } from "./ai_prompt_library/mod.ts";
@@ -232,83 +227,62 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
     }
   };
 
-  // The AI pane is view-agnostic; this one item is gated on being inside an
-  // HTML report editor (any style — plain reports are worth saving too once
-  // the user has styled them by hand) that the user can edit, since saving a
-  // style is an edit on the report it is authored from.
-  function currentHtmlReport():
-    | { params: EditingReportParams; context: EditingReportContext }
-    | undefined {
+  // The pane is view-agnostic; its one view-specific item is the action the
+  // report view supplies (ai_views.ts: getSaveStyleAction), so the pane
+  // imports nothing from components/products/.
+  function saveStyleAction(): (() => Promise<void>) | undefined {
     const v = copilotViewController.current();
     if (v.id !== "editing_report") return undefined;
-    const params = v.params as EditingReportParams;
-    if (params.format !== "html" || !canEditProduct(params.reportId)) {
-      return undefined;
-    }
-    return { params, context: v.context as EditingReportContext };
+    return (v.context as EditingReportContext).getSaveStyleAction();
   }
 
-  async function openSaveReportStyle() {
-    const cur = currentHtmlReport();
-    if (!cur) return;
-    await openComponent({
-      element: SaveReportStyleModal,
-      props: {
-        productId: cur.params.reportId,
-        reportLabel: cur.context.getLabel(),
-        body: cur.context.getBody(),
+  const menuItems = (): MenuItem[] => {
+    const saveStyle = saveStyleAction();
+    return [
+      {
+        label: t3({
+          en: "New conversation",
+          fr: "Nouvelle conversation",
+          pt: "Nova conversa",
+        }),
+        icon: "plus",
+        onClick: () => conversations.createConversation(),
+        disabled: isLoading(),
       },
-    });
-  }
-
-  const menuItems = (): MenuItem[] => [
-    {
-      label: t3({
-        en: "New conversation",
-        fr: "Nouvelle conversation",
-        pt: "Nova conversa",
-      }),
-      icon: "plus",
-      onClick: () => conversations.createConversation(),
-      disabled: isLoading(),
-    },
-    {
-      label: t3({
-        en: "Switch conversation",
-        fr: "Changer de conversation",
-        pt: "Mudar de conversa",
-      }),
-      icon: "versions",
-      onClick: openConversationSelector,
-      disabled: isLoading(),
-    },
-    {
-      type: "divider",
-    },
-    {
-      label: t3({
-        en: "Prompt library",
-        fr: "Bibliothèque de prompts",
-        pt: "Biblioteca de prompts",
-      }),
-      icon: "sparkles",
-      onClick: openPromptLibrary,
-      disabled: isLoading(),
-    },
-    {
-      label: t3({
-        en: "Include file",
-        fr: "Inclure un fichier",
-        pt: "Incluir ficheiro",
-      }),
-      icon: "document",
-      onClick: p.aiDocs.openSelector,
-      disabled: isLoading(),
-    },
-    // HTML report open → offer to distill its ACTUAL styling into a reusable
-    // custom style (save_report_style.tsx).
-    ...(currentHtmlReport()
-      ? [
+      {
+        label: t3({
+          en: "Switch conversation",
+          fr: "Changer de conversation",
+          pt: "Mudar de conversa",
+        }),
+        icon: "versions",
+        onClick: openConversationSelector,
+        disabled: isLoading(),
+      },
+      {
+        type: "divider",
+      },
+      {
+        label: t3({
+          en: "Prompt library",
+          fr: "Bibliothèque de prompts",
+          pt: "Biblioteca de prompts",
+        }),
+        icon: "sparkles",
+        onClick: openPromptLibrary,
+        disabled: isLoading(),
+      },
+      {
+        label: t3({
+          en: "Include file",
+          fr: "Inclure un fichier",
+          pt: "Incluir ficheiro",
+        }),
+        icon: "document",
+        onClick: p.aiDocs.openSelector,
+        disabled: isLoading(),
+      },
+      ...(saveStyle === undefined ? [] : [
         {
           label: t3({
             en: "Save this report's style…",
@@ -316,91 +290,91 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
             pt: "Guardar o estilo deste relatório…",
           }),
           icon: "save",
-          onClick: openSaveReportStyle,
+          onClick: saveStyle,
           disabled: isLoading(),
         } satisfies MenuItem,
-      ]
-      : []),
-    {
-      type: "divider",
-    },
-    {
-      label: t3({
-        en: "AI settings",
-        fr: "Paramètres IA",
-        pt: "Definições da IA",
-      }),
-      icon: "settings",
-      onClick: openSettings,
-    },
-    {
-      label: t3({
-        en: "View system prompt",
-        fr: "Voir le prompt système",
-        pt: "Ver prompt do sistema",
-      }),
-      icon: "code",
-      onClick: () => {
-        // The per-view instructions (design briefs, editing rules) are NOT in
-        // the cached system prompt — they ride each message as an ephemeral
-        // section. Show them first so "is the brief actually reaching the
-        // model?" is answerable by eye.
-        const parts = copilotViewController._turnSectionParts();
-        const viewBlock = [
-          "# PER-TURN VIEW SECTION (attached to your next message; not part of the cached system prompt below)",
-          `View: ${parts.view.id}${
-            parts.view.label ? ` — ${parts.view.label}` : ""
-          }`,
-          "",
-          parts.viewInstructions ?? "(this view delivers no instructions)",
-        ].join("\n");
-        const sp = p.getSystemPrompt();
-        openComponent<AIChatSystemPromptPanelProps, void>({
-          element: AIChatSystemPromptPanel,
-          props: {
-            systemPrompt: [
-              { type: "text" as const, text: viewBlock },
-              ...(typeof sp === "string"
-                ? [{ type: "text" as const, text: sp }]
-                : sp),
-            ],
-          },
-        });
+      ]),
+      {
+        type: "divider",
       },
-    },
-    {
-      label: t3({
-        en: "View AI tool output",
-        fr: "Voir la sortie des outils IA",
-        pt: "Ver resultado das ferramentas de IA",
-      }),
-      icon: "search",
-      onClick: () =>
-        openComponent<AIDebugPanelProps, void>({
-          element: AIDebugPanel,
-          props: {
-            metrics: p.authoringContext.metrics,
-            modules: p.authoringContext.modules,
-            icehIndicators: p.authoringContext.icehIndicators,
-            hfaTaxonomy: p.hfaTaxonomy,
-          },
+      {
+        label: t3({
+          en: "AI settings",
+          fr: "Paramètres IA",
+          pt: "Definições da IA",
         }),
-    },
-    {
-      type: "divider",
-    },
-    {
-      label: t3({
-        en: "Delete conversation",
-        fr: "Supprimer la conversation",
-        pt: "Eliminar conversa",
-      }),
-      icon: "trash",
-      intent: "danger",
-      onClick: handleDeleteConversation,
-      disabled: isLoading(),
-    },
-  ];
+        icon: "settings",
+        onClick: openSettings,
+      },
+      {
+        label: t3({
+          en: "View system prompt",
+          fr: "Voir le prompt système",
+          pt: "Ver prompt do sistema",
+        }),
+        icon: "code",
+        onClick: () => {
+          // The per-view instructions (design briefs, editing rules) are NOT in
+          // the cached system prompt — they ride each message as an ephemeral
+          // section. Show them first so "is the brief actually reaching the
+          // model?" is answerable by eye.
+          const parts = copilotViewController._turnSectionParts();
+          const viewBlock = [
+            "# PER-TURN VIEW SECTION (attached to your next message; not part of the cached system prompt below)",
+            `View: ${parts.view.id}${
+              parts.view.label ? ` — ${parts.view.label}` : ""
+            }`,
+            "",
+            parts.viewInstructions ?? "(this view delivers no instructions)",
+          ].join("\n");
+          const sp = p.getSystemPrompt();
+          openComponent<AIChatSystemPromptPanelProps, void>({
+            element: AIChatSystemPromptPanel,
+            props: {
+              systemPrompt: [
+                { type: "text" as const, text: viewBlock },
+                ...(typeof sp === "string"
+                  ? [{ type: "text" as const, text: sp }]
+                  : sp),
+              ],
+            },
+          });
+        },
+      },
+      {
+        label: t3({
+          en: "View AI tool output",
+          fr: "Voir la sortie des outils IA",
+          pt: "Ver resultado das ferramentas de IA",
+        }),
+        icon: "search",
+        onClick: () =>
+          openComponent<AIDebugPanelProps, void>({
+            element: AIDebugPanel,
+            props: {
+              metrics: p.authoringContext.metrics,
+              modules: p.authoringContext.modules,
+              icehIndicators: p.authoringContext.icehIndicators,
+              hfaTaxonomy: p.hfaTaxonomy,
+            },
+          }),
+      },
+      {
+        type: "divider",
+      },
+      {
+        label: t3({
+          en: "Delete conversation",
+          fr: "Supprimer la conversation",
+          pt: "Eliminar conversa",
+        }),
+        icon: "trash",
+        intent: "danger",
+        onClick: handleDeleteConversation,
+        disabled: isLoading(),
+      },
+    ];
+  };
 
   const placeholder = () => {
     const view = copilotViewController.current();

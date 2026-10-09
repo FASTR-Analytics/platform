@@ -53,7 +53,7 @@ import {
   updateContainerFenceLine,
   updateEmbedLineAttrs,
 } from "lib";
-import type { ReportEditorSelection } from "~/components/products/copilot/mod.ts";
+import type { ReportEditorSelection } from "~/components/instance/copilot/mod.ts";
 import { type EmbedResolver, embedWidgets } from "./figure_widget_extension";
 import type { FigureStaleContext } from "~/components/products/_shared/mod.ts";
 import type { FigureInkTheme } from "~/generate_report/mod";

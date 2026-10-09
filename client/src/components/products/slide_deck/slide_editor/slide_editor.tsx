@@ -71,7 +71,7 @@ import {
   copilotViewController,
   type CopilotViewState,
   restoreCopilotView,
-} from "~/components/products/copilot/mod.ts";
+} from "~/components/instance/copilot/mod.ts";
 import { VisualizationEditor } from "~/components/_shared/figure_editor/mod.ts";
 import type { VizFigureCollabBinding } from "~/components/_shared/figure_editor/mod.ts";
 import {

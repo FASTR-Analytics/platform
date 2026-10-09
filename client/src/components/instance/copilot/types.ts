@@ -1,6 +1,5 @@
 import type { FigureBlock } from "lib";
 import type { ProposalPreview } from "panther";
-import type { SkippedRange } from "~/components/products/_shared/mod.ts";
 
 // A staged AI edit the user accepts/rejects via a diff (never silent mutation).
 export type ReportEditProposal = {
@@ -27,7 +26,7 @@ export type ReportEditProposalResult =
     preview: ProposalPreview;
     customProposalUI: (signal: AbortSignal) => Promise<boolean>;
     stillValid: () => boolean;
-    commit: () => Promise<{ skipped: SkippedRange[] }>;
+    commit: () => Promise<{ skipped: { fromLine: number; toLine: number }[] }>;
   };
 
 // Live CodeMirror selection, surfaced to the AI so it can act on what the user

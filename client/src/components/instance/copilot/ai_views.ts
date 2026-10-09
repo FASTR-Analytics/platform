@@ -105,6 +105,10 @@ export type EditingReportContext = OpenProductScope & {
   getSelection: () => ReportEditorSelection | undefined;
   proposeEdit: (proposal: ReportEditProposal) => ReportEditProposalResult;
   applyFigureUpdate: (figureId: string, block: FigureBlock) => Promise<boolean>;
+  // The chat menu's "Save this report's style…": the action for an html
+  // report the user can edit, undefined otherwise. The report supplies it,
+  // so the pane imports nothing from components/products/.
+  getSaveStyleAction: () => (() => Promise<void>) | undefined;
 };
 
 export const copilotViews = defineAIViews({

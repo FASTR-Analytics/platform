@@ -51,7 +51,7 @@ import {
   copilotViewController,
   type CopilotViewState,
   restoreCopilotView,
-} from "~/components/products/copilot/mod.ts";
+} from "~/components/instance/copilot/mod.ts";
 import { snapshotForSlideEditor } from "./editor_snapshot";
 import { pendingSlideOpen, setPendingSlideOpen } from "~/state/t4_ui";
 import { setCollabAvatar, setCollabView } from "~/state/instance/collab";

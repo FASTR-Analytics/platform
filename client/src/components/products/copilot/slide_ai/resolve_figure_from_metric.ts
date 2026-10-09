@@ -6,7 +6,7 @@ import type {
 } from "lib";
 import { validateMetricInputs } from "lib";
 import { resolveBundleFromMetricAndConfig } from "~/generate_visualization/mod";
-import { createCopilotAIToolEnv } from "../_shared/mod.ts";
+import { createCopilotAIToolEnv } from "~/components/instance/copilot/mod.ts";
 import { buildConfigFromPreset } from "./build_config_from_preset";
 
 // AI adapter: builds the config from the preset + AI overrides, runs AI-specific

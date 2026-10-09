@@ -1,6 +1,6 @@
 import type { APIResponseWithData, Slide } from "lib";
 import { serverActions } from "~/server_actions";
-import { copilotViewController } from "../../_shared/mod.ts";
+import { copilotViewController } from "~/components/instance/copilot/mod.ts";
 
 // The draft was resolved under the open product's pair, which is the open
 // deck's, so it is written as is. The response is the card's to report.

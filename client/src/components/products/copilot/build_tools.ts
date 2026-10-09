@@ -11,10 +11,12 @@ import {
   type RunAuthoringContext,
 } from "lib";
 import { createAskUserQuestionsTool } from "panther";
-import type { ClientAIToolEnv } from "./_shared/mod.ts";
-import { SPA_INFO_TOPICS } from "./_shared/mod.ts";
+import type { ClientAIToolEnv } from "~/components/instance/copilot/mod.ts";
+import {
+  getClientToolsForModules,
+  SPA_INFO_TOPICS,
+} from "~/components/instance/copilot/mod.ts";
 import { getClientToolsForDrafts } from "./ai_tools/tools/mod.ts";
-import { getClientToolsForModules } from "./ai_tools/tools/mod.ts";
 import { getClientToolsForReportEditor } from "./ai_tools/tools/mod.ts";
 import { getClientToolsForSlideEditor } from "./ai_tools/tools/mod.ts";
 import { getClientToolsForSlides } from "./ai_tools/tools/mod.ts";

@@ -16,7 +16,7 @@ import {
 import { convertAiInputToSlide } from "../../slide_ai/mod.ts";
 import { extractBlocksFromLayout } from "../../slide_ai/mod.ts";
 import { createGetSlideTool } from "./get_slide";
-import type { ClientAIToolEnv } from "../../_shared/mod.ts";
+import type { ClientAIToolEnv } from "~/components/instance/copilot/mod.ts";
 import { getSlideWithUpdatedBlocks } from "../../slide_ai/mod.ts";
 import { getDeckSummaryForAI } from "../../slide_ai/mod.ts";
 import { buildLayoutFromSpec, normalizeSpans } from "../../slide_ai/mod.ts";
@@ -28,7 +28,10 @@ import {
   validateSlideTotalWordCount,
 } from "../../_shared/mod.ts";
 import { assertSlidesNotBusy } from "../validators/mod.ts";
-import { copilotViewController, copilotViews } from "../../_shared/mod.ts";
+import {
+  copilotViewController,
+  copilotViews,
+} from "~/components/instance/copilot/mod.ts";
 
 function throwSlideUpdateError(err: string): never {
   if (err === "CONFLICT") {

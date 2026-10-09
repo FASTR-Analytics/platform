@@ -22,7 +22,7 @@ is PLAN_COPILOT01_ENGINE's and the frames fix is panther `0b381f5` (GF); both
 land in panther before step 1 here, and step 7 syncs the frames fix here when
 G1's sync predates it.
 
-**Next step: Do 1**
+**Next step: Review 1**
 
 Branch: `version2`. Repos touched: this app; the panther repo only for the
 commit that opens G3 (step 7 runs panther's `./sync`, which writes only here).
@@ -1053,5 +1053,8 @@ panther's conversation format 2, whose fields COPILOT01 added (`prefixHash`,
 Append-only, newest last. One row per decision, deviation, correction or defect,
 plus one closing row per session.
 
-| Date | Step | Row |
-| ---- | ---- | --- |
+| Date       | Step | Row                                                                                                                                                                                                                                                                                                                                                                       |
+| ---------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-10-09 | 1    | Gates G1, G2 and GF read open before `Do 1`. GF's `0b381f5` is an ancestor of the synced panther `e08a9de` (`git merge-base --is-ancestor` exits 0), so step 7 needs no sync commit.                                                                                                                                                                                      |
+| 2026-10-09 | 1    | Ruling 4 as built: `EditingReportContext.getSaveStyleAction()` returns the action for an html report the user can edit, else `undefined`; the pane's `menuItems` reads it once per open. `git diff -M` scores `chat_pane.tsx` R071, still a rename. SYSTEM_13's Open items named the old `format_for_ai/` folder; the row now names `components/instance/copilot/tools/`. |
+| 2026-10-09 | 1    | Step 1 built.                                                                                                                                                                                                                                                                                                                                                             |

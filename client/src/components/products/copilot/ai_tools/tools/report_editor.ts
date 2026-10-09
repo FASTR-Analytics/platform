@@ -36,12 +36,15 @@ import { getResultsValueInfoForPresentationObjectFromCacheOrFetch } from "~/stat
 import { getReportDetailFromCacheOrFetch } from "~/state/products/t2_report_detail";
 import { describeReportPages } from "./report_page_map";
 import { resolveLogoUrl } from "~/generate_slide_deck/fastr_logos";
-import { copilotViewController, copilotViews } from "../../_shared/mod.ts";
+import {
+  copilotViewController,
+  copilotViews,
+} from "~/components/instance/copilot/mod.ts";
 import { formatLineRanges } from "~/components/products/_shared/mod.ts";
 import { resolveFigureFromMetric } from "../../slide_ai/mod.ts";
 import { formatFigureConfigForAI } from "../../_shared/mod.ts";
 import { validateMetricInputs } from "lib";
-import type { ClientAIToolEnv } from "../../_shared/mod.ts";
+import type { ClientAIToolEnv } from "~/components/instance/copilot/mod.ts";
 import {
   validateFastrContainers,
   validateFastrNewLiteralBackgrounds,

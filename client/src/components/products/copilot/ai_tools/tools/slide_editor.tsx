@@ -28,14 +28,14 @@ import {
   copilotViewController,
   copilotViews,
   type CopilotViewState,
-} from "../../_shared/mod.ts";
+} from "~/components/instance/copilot/mod.ts";
 import { validateMetricInputs } from "lib";
 import {
   validateMaxContentBlocks,
   validateNoMarkdownTables,
   validateSlideTotalWordCount,
 } from "../../_shared/mod.ts";
-import type { ClientAIToolEnv } from "../../_shared/mod.ts";
+import type { ClientAIToolEnv } from "~/components/instance/copilot/mod.ts";
 import { assertSlidesNotBusy } from "../validators/mod.ts";
 import {
   extractBlocksFromLayout,

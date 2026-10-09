@@ -6,7 +6,7 @@ import {
   layoutNodeToStructure,
   type LayoutStructure,
 } from "./layout_spec_helpers";
-import type { ClientAIToolEnv } from "../_shared/mod.ts";
+import type { ClientAIToolEnv } from "~/components/instance/copilot/mod.ts";
 
 export type BlockWithId = {
   id: string;

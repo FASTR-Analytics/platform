@@ -2,6 +2,7 @@
 system: 13
 name: AI Copilot & Usage Governance
 globs:
+  - client/src/components/instance/copilot/**
   - client/src/components/products/copilot/**
   - client/src/components/data/general/ai_context_form.tsx
   - client/src/state/products/t4_ai_documents.ts
@@ -148,9 +149,9 @@ the query pipeline the data tools call is **S9**.
 3. **Editors expose live mutators via the view registry's context**: each
    editing view's live context carries the editor's store getters/setters AND
    the open product's `getScope()`
-   ([ai_views.ts](client/src/components/products/copilot/_shared/ai_views.ts)),
-   so the AI edits exactly the same in-memory editor state the user is looking
-   at, never a parallel copy. The pair rides the opaque CONTEXT half: no run id
+   ([ai_views.ts](client/src/components/instance/copilot/ai_views.ts)), so the
+   AI edits exactly the same in-memory editor state the user is looking at,
+   never a parallel copy. The pair rides the opaque CONTEXT half: no run id
    crosses the tool seam. A mid-edit reattach remounts the chat beside the
    editor (the host is keyed on the pair) while the editor itself stays up.
 4. **Anthropic shapes in, Anthropic shapes out.** The proxies return
@@ -173,7 +174,7 @@ registry), mounted in [main.ts:174-175](main.ts#L174-L175):
 | ------ | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
 | Route  | `POST /ai/v1/messages` ([copilot_ai_proxy.ts](server/routes/instance/copilot_ai_proxy.ts))             | `POST /ai-instance/v1/messages` ([ai_proxy.ts](server/routes/instance/ai_proxy.ts))                           |
 | Guard  | `requireApprovedUser()` and nothing finer: the copilot reads through its product's scope (PLAN_SCOPES) | `requireGlobalPermission("can_configure_data")`                                                               |
-| Client | the copilot ([defaults.ts](client/src/components/products/copilot/ai_configs/defaults.ts))             | HFA indicator-manager assistant ([sdk_client.ts](client/src/components/data/hfa/indicators/ai/sdk_client.ts)) |
+| Client | the copilot ([defaults.ts](client/src/components/instance/copilot/ai_configs/defaults.ts))             | HFA indicator-manager assistant ([sdk_client.ts](client/src/components/data/hfa/indicators/ai/sdk_client.ts)) |
 
 The shared flow:
 
@@ -264,6 +265,22 @@ calls the Files API by file id, so there is no GET or DELETE passthrough.
 
 ## The client copilot
 
+The chat's code has two homes. The shell-level half is
+`client/src/components/instance/copilot/`: the pane
+([chat_pane.tsx](client/src/components/instance/copilot/chat_pane.tsx)), the SDK
+client and built-in tools (`ai_configs/`), documents (`ai_documents/`), the
+prompt library (`ai_prompt_library/`), the debug panel, the view registry,
+controller and interactions, the system prompt, the env (`client_env.ts`) and
+the module tools (`tools/`), exported through its `mod.ts`, which every page and
+product tool reads for the registry, the controller and their types. It imports
+nothing at runtime from `components/` but `components/_shared/mod.ts`, and has
+no `_shared/`: its files sit at the folder's root. The product half stays in
+`client/src/components/products/copilot/`: the host, `build_tools.ts`, the
+product tools (`ai_tools/`), the slide conversion layer (`slide_ai/`), the two
+`_shared/` files both of those read (`content_validators.ts`,
+`format_figure_config_for_ai.ts`) and the save-style modal; its `mod.ts` exports
+`ProductCopilotHost` and `SaveReportStyleModal`.
+
 [`ProductCopilotHost`](client/src/components/products/copilot/copilot.tsx) is
 the copilot mount (D15): the product opener (`openProduct` in
 `client/src/components/products/products.tsx`, the ONE mount site) renders it
@@ -286,7 +303,7 @@ panther's no-mount construction check: both assistants call
 [ai/wrapper.tsx:39-41](client/src/components/data/hfa/indicators/ai/wrapper.tsx#L39-L41)):
 
 - **sdkClient**
-  ([defaults.ts](client/src/components/products/copilot/ai_configs/defaults.ts)):
+  ([defaults.ts](client/src/components/instance/copilot/ai_configs/defaults.ts)):
   Anthropic browser SDK, `baseURL {host}/ai`, `apiKey: "not-needed"`, no default
   headers, plus a fetch wrapper that rewrites the ISO reset timestamp inside 429
   bodies to the user's locale.
@@ -298,7 +315,7 @@ panther's no-mount construction check: both assistants call
   tool_use block that must fit inside it). Panther resolves the config into
   per-instance state, so the shared default is never mutated. The settings panel
   exposes model + max_tokens (`adjustable`,
-  [chat_pane.tsx](client/src/components/products/copilot/chat_pane.tsx)); the
+  [chat_pane.tsx](client/src/components/instance/copilot/chat_pane.tsx)); the
   model list is panther's `MODEL_OPTIONS`, client-side only. The proxy forwards
   any `model` verbatim (Open items).
 - **builtInTools** = `{webSearch: true, webFetch: true}`: Anthropic server-side
@@ -328,7 +345,7 @@ panther's no-mount construction check: both assistants call
   once over these values and registered once.
 
 The chat pane (`ConsolidatedChatPane`,
-[chat_pane.tsx](client/src/components/products/copilot/chat_pane.tsx)) lives in
+[chat_pane.tsx](client/src/components/instance/copilot/chat_pane.tsx)) lives in
 a `FrameRightResizable` panel toggled by `showAi()` (T4 UI state) and registers
 three custom renderers, keyed to panther's `DisplayRegistry`: `toolError`,
 `systemNotice` (refusals/truncation/context-exceeded/ continuation caps arrive
@@ -338,7 +355,7 @@ disabled, so a user's or a library prompt's text never fetches an image URL as
 it renders).
 
 **The view registry.**
-[`copilotViews`](client/src/components/products/copilot/_shared/ai_views.ts)
+[`copilotViews`](client/src/components/instance/copilot/ai_views.ts)
 (`defineAIViews`, 4 views: `opening_product` + 3 `editing_*`) and the
 module-level singleton `copilotViewController` (fallback `opening_product`)
 replaced the old `AIContext` discriminated union's interpretation duty. Per
@@ -370,7 +387,7 @@ view instructions, interactions digest), rendered as one `<<<[…]>>>` block on
 the latest carrier only: a write-only wire, one format for every model.
 
 **Interactions and echo suppression.**
-[`copilotInteractions`](client/src/components/products/copilot/_shared/interactions.ts)
+[`copilotInteractions`](client/src/components/instance/copilot/interactions.ts)
 (`defineAIInteractions`, 6 typed interactions) replaced the hand-rolled
 pendingInteractions queue + `reduceInteractions` pipeline. Producers call
 `copilotViewController.notify(...)`: the INSTANCE SSE side-channel
@@ -432,7 +449,10 @@ question tools are unchanged, so a viewer can still ask about the product. Like
 the rest of the catalogue the level is fixed for the mount: a level change takes
 effect the next time the product is opened, and a write tool used after a
 demotion fails with the server's refusal. The chat menu's "Save this report's
-style…" is offered only to a user who can edit the report.
+style…" shows when the `editing_report` view's context supplies
+`getSaveStyleAction()`: `report.tsx` defines it for an html report the user can
+edit and leaves it undefined otherwise, so the pane imports nothing from
+`components/products/`.
 
 **Gating is declarative.** The editor tools are standalone
 `createAITool({viewRegistry: copilotViews, availableIn: […]})` declarations: the
@@ -449,7 +469,7 @@ editor), `getDeckConfig`/`getSlideIds`/`getSelectedSlideIds` (deck), and the
 report contract
 (`getBody`/`getFigures`/`getImages`/`getSelection`/`proposeEdit`/
 `applyFigureUpdate`). See
-[ai_views.ts](client/src/components/products/copilot/_shared/ai_views.ts).
+[ai_views.ts](client/src/components/instance/copilot/ai_views.ts).
 
 **Report edits are never silent**: they ride panther's approval lifecycle. The
 five staged text tools (`rewrite_report {body}`, `rewrite_section {newBody}`,
@@ -636,7 +656,7 @@ identical:
 ## System prompt, documents, prompt library
 
 **System prompt**
-([build_system_prompt.ts](client/src/components/products/copilot/_shared/build_system_prompt.ts)):
+([build_system_prompt.ts](client/src/components/instance/copilot/build_system_prompt.ts)):
 date header + instance/terminology section (country, admin-area labels, data
 sources) + results-package section (the package label and generation time, the
 scope's label and one line per dataset family saying what its section does:
@@ -654,13 +674,12 @@ The accessor takes no view argument and the level is read once per mount, so the
 prompt is **byte-stable across navigation within one package** and its
 prompt-cache breakpoint keeps hitting: the per-view instructions (still exported
 from this file, with short primary-tool pointers) are composed by the view
-registry
-([ai_views.ts](client/src/components/products/copilot/_shared/ai_views.ts)) and
+registry ([ai_views.ts](client/src/components/instance/copilot/ai_views.ts)) and
 delivered ephemerally per turn, and the hand-typed tool list was replaced by
 panther's `buildToolCatalog(tools)`, composed ONCE in the wrapper. Cache rule:
 never pass `currentView` there (view-grouped ordering would bust the breakpoint
 on every navigation). Viewable via the chat menu; the debug panel
-([ai_debug_panel.tsx](client/src/components/products/copilot/ai_debug_panel.tsx))
+([ai_debug_panel.tsx](client/src/components/instance/copilot/ai_debug_panel.tsx))
 renders the metric-list formatter verbatim so a human sees exactly what the
 model sees. AI data payloads exclude the admin-area roll-up row (double-counting
 guard, S9).
@@ -688,7 +707,7 @@ items).
 
 **Prompt library.** Shared prompts fetched at open from the GitHub
 `fastr-resource-hub` (`prompts.md`/`prompts_fr.md`, cache-busted; parsed by
-[parse_prompts.ts](client/src/components/products/copilot/ai_prompt_library/parse_prompts.ts))
+[parse_prompts.ts](client/src/components/instance/copilot/ai_prompt_library/parse_prompts.ts))
 plus custom prompts, user-scoped and country-scoped rows in the main DB
 ([lib/types/custom_prompts.ts](lib/types/custom_prompts.ts); registry routes
 [custom_prompts.ts](server/routes/instance/custom_prompts.ts)). Reads return
@@ -880,8 +899,8 @@ From the read-only audit that hunted the bug _class_ behind the slide-figure
 replicant bug. Every item below is one shape:
 
 > The AI's **read-projections** (`simplifySlideForAI`, `get_report_editor`, the
-> `format_*_for_ai.ts` formatters in `lib/ai_tools/` and in the copilot's
-> `ai_tools/tools/format_for_ai/`) and its **write-schemas**
+> `format_*_for_ai.ts` formatters in `lib/ai_tools/` and in
+> `client/src/components/instance/copilot/tools/`) and its **write-schemas**
 > (`lib/types/ai_input.ts` `Ai*Schema`) were each designed around a minimal
 > title/text/figure-data mental model, while the stored shapes (`Slide` /
 > `ContentBlock` / `FigureBundle` / `PresentationObjectConfig`) are far richer.

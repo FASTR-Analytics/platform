@@ -3,7 +3,7 @@ import type { IconName } from "panther";
 import type { ProductSummary, SlideType } from "lib";
 import { instanceState } from "~/state/instance/t1_store";
 import { productSummaryLevel } from "~/state/instance/product_access";
-import { copilotViewController } from "~/components/products/copilot/mod.ts";
+import { copilotViewController } from "~/components/instance/copilot/mod.ts";
 import { setPendingEditorOpen, setPendingSlideOpen } from "~/state/t4_ui";
 import { getSlideDeckDetailFromCacheOrFetch } from "~/state/products/t2_slide_deck_detail";
 import { getSlideFromCacheOrFetch } from "~/state/products/t2_slides";

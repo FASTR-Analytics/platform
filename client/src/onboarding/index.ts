@@ -33,7 +33,7 @@ import {
 } from "./tours";
 import { instanceState } from "~/state/instance/t1_store";
 import { canEditProduct } from "~/state/instance/product_access";
-import { copilotViewController } from "~/components/products/copilot/mod.ts";
+import { copilotViewController } from "~/components/instance/copilot/mod.ts";
 import {
   pendingTourReplay,
   productsExpandedFolders,

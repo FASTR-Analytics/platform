@@ -25,10 +25,14 @@ import {
 } from "solid-js";
 import { Dynamic } from "solid-js/web";
 import {
+  buildSystemPromptForContext,
+  ConsolidatedChatPane,
+  copilotViewController,
+  createCopilotAIToolEnv,
   createCopilotSDKClient,
   DEFAULT_BUILTIN_TOOLS,
-} from "./ai_configs/mod.ts";
-import { copilotViewController } from "./_shared/mod.ts";
+  useAIDocuments,
+} from "~/components/instance/copilot/mod.ts";
 import {
   createResolvedScope,
   instanceState,
@@ -37,12 +41,8 @@ import {
 import { productLevel } from "~/state/instance/product_access";
 import { addLastUpdatedListener } from "~/state/instance/t1_sse";
 import { getRunAuthoringContextFromCacheOrFetch } from "~/state/instance/t2_run_authoring_context";
-import { ConsolidatedChatPane } from "./chat_pane";
 import { buildCopilotTools } from "./build_tools";
-import { buildSystemPromptForContext } from "./_shared/mod.ts";
-import { createCopilotAIToolEnv } from "./_shared/mod.ts";
 import { setShowAi, showAi } from "~/state/t4_ui";
-import { useAIDocuments } from "./ai_documents/mod.ts";
 import type { ProductEditorComponent } from "~/components/products/mod.ts";
 
 type HostProps = EditorComponentProps<
