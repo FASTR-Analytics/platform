@@ -22,7 +22,7 @@ is PLAN_COPILOT01_ENGINE's and the frames fix is panther `0b381f5` (GF); both
 land in panther before step 1 here, and step 7 syncs the frames fix here when
 G1's sync predates it.
 
-**Next step: Review 2**
+**Next step: Do 3**
 
 Branch: `version2`. Repos touched: this app; the panther repo only for the
 commit that opens G3 (step 7 runs panther's `./sync`, which writes only here).
@@ -1064,3 +1064,4 @@ plus one closing row per session.
 | 2026-10-09 | 2    | `server/tests/mcp_tools_source_header_test.ts` also pins the scope-less line a Module internals read carries (ruling 10) and that the header is read at call time.                                                                                                                                                                                                                                                                                         |
 | 2026-10-09 | 2    | The floor's `./run` was run as its two commands (the server, then vite) against the `pg` and `valkey-local` containers already up, which mount this checkout, so the containers other sessions use were not replaced.                                                                                                                                                                                                                                      |
 | 2026-10-09 | 2    | Step 2 built.                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| 2026-10-09 | 2    | Step 2 reviewed: pass.                                                                                                                                                                                                                                                                                                                                                                                                                                     |
