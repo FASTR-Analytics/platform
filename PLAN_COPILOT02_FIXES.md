@@ -478,7 +478,7 @@ Named so it is not reopened:
 
 - The entries the companion assigns to COPILOT03, D34 among them (COPILOT03
   ruling 10).
-- The engine changes E1 to E8 (COPILOT01) and PLAN_FRAME_PANELS step 1; the
+- The engine changes E1 to E8 (COPILOT01) and the panel-once fix (GF); the
   defects of the proposal's section 6, outside the AI; folding the three
   reference tools into one pair (PLAN_REFERENCE_DOCS_ONE_PAIR).
 

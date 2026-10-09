@@ -18,7 +18,7 @@ package the current view shows, bound per call over an inner tool set cached per
 indicator assistant becomes three views of the same chat. The chat's shell-level
 code moves from `client/src/components/products/copilot/` to
 `client/src/components/instance/copilot/`. The engine work this needs (E1 to E8)
-is PLAN_COPILOT01_ENGINE's and the frames fix is PLAN_FRAME_PANELS step 1; both
+is PLAN_COPILOT01_ENGINE's and the frames fix is panther `0b381f5` (GF); both
 land in panther before step 1 here, and step 7 syncs the frames fix here when
 G1's sync predates it.
 
@@ -162,7 +162,7 @@ what it fixes: those, D34 and the D.3 rows for 03.
   awaits its save, and the instance's `whenIdle()` resolves once no turn runs
   and the record is written. The engine takes no turn lock: one live tab per
   user is this plan's (R11, ruling 14).
-- GF, PLAN_FRAME_PANELS step 1: every frame builds its panel once (C08).
+- GF, panther `0b381f5`: every frame builds its panel once (C08).
 
 ### 2.2 The panel and the conversation
 
@@ -724,10 +724,10 @@ commit.
 
 **Deliverable.**
 
-- Before any other change, when GF's commit
-  (`git -C <panther> log --format=%H -S'Next step: Do 2' -- PLAN_FRAME_PANELS.md | tail -1`)
-  is not an ancestor of `<pantherGitCommit>`: from `<panther>`, on a clean
-  `main` whose `deno task typecheck` passes,
+- Before any other change, when GF's commit `0b381f5` is not an ancestor of
+  `<pantherGitCommit>`
+  (`git -C <panther> merge-base --is-ancestor 0b381f5 <pantherGitCommit>` exits
+  1): from `<panther>`, on a clean `main` whose `deno task typecheck` passes,
   `./sync wb-fastr-v2 --force --no-commit`, once `git status --porcelain` here
   lists no tracked change and no untracked path under `panther/`, `client/`,
   `server/` or `lib/`, and `panther/` here is tracked files, not a submodule;
@@ -1002,9 +1002,8 @@ Named so it is not reopened:
 
 - The fixes of PLAN_COPILOT02_FIXES (G2): the companion's D01 to D33, D35 to
   D43, D97 and its D.3 rows marked 02.
-- The engine (PLAN_COPILOT01_ENGINE, G1) and the frames (PLAN_FRAME_PANELS step
-  1, GF). Deleting the opt-in fields and the latest-turn render
-  (PLAN_COPILOT04).
+- The engine (PLAN_COPILOT01_ENGINE, G1) and the frames fix (panther `0b381f5`,
+  GF). Deleting the opt-in fields and the latest-turn render (PLAN_COPILOT04).
 - The proposal's findings outside the AI (deck rename reverted, the Indicators
   rows for view-only users, HMIS re-imports, configure without view, limiting
   scopes on the package page and Explore, the GeoJSON editor's Cancel, the Users

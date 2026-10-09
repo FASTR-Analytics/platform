@@ -25,7 +25,8 @@ ID instead of restating them.
 - IDs: places A01 to A60, tools B01 to B57, engine facts C01 to C29, defects D01
   to D97, rulings and attempts H01 to H53, measurements F01 to F13. "Engine
   change E1" to "engine change E8" are COPILOT01's changes, named as in
-  `PLAN_COPILOT03_ONE_CHAT.md` §2.1; GF is the gate on PLAN_FRAME_PANELS step 1.
+  `PLAN_COPILOT03_ONE_CHAT.md` §2.1; GF is the gate on the panel-once fix
+  (panther `0b381f5`).
 
 **Paths.** Repo-relative, except these prefixes:
 
