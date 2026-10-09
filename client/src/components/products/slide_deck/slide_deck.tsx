@@ -20,6 +20,8 @@ import {
   EditorComponentProps,
   getEditorWrapper,
   openComponent,
+  type StateHolder,
+  StateHolderWrapper,
 } from "panther";
 import {
   batch,
@@ -149,18 +151,29 @@ export function SlideDeckEditor(p: Props) {
   // mount see the same pair here (D15).
   const deckContext = {
     getScope: () => requireScope(),
+    getDeckLabel: () => deckLabel(),
     getDeckConfig: () => deckConfig(),
     getSlideIds: () => slideIds(),
     getSelectedSlideIds: () => selectedSlideIds(),
   };
   const deckViewState = (): CopilotViewState => ({
     id: "editing_slide_deck",
-    params: { deckId: p.productId, deckLabel: deckLabel() },
+    params: { deckId: p.productId },
     context: deckContext,
   });
 
-  // Single fetch path: first run loads the deck (and then sets the copilot
-  // view), subsequent runs are SSE-driven refetches on version flips.
+  // A read that fails before the first success: the error replaces the
+  // editor, nothing is written and the copilot stays on `opening_product`.
+  // A later successful read runs as the first. Loading itself is `isLoading`,
+  // shown by the rail under the deck's header, so this is ready or error;
+  // `true` is the data because the wrapper's ready branch needs truthy data.
+  const [loadState, setLoadState] = createSignal<StateHolder<true>>({
+    status: "ready",
+    data: true,
+  });
+
+  // Single fetch path: first run loads the deck (and sets the copilot view),
+  // subsequent runs are SSE-driven refetches on version flips.
   let aiContextSet = false;
   createEffect(() => {
     void instanceState.lastUpdated.products[p.productId];
@@ -169,22 +182,28 @@ export function SlideDeckEditor(p: Props) {
     async function load() {
       const res = await getSlideDeckDetailFromCacheOrFetch(p.productId);
       if (controller.signal.aborted) return;
-      if (res.success) {
-        // One write: slides that arrive with a config (the cover the first
-        // theme choice makes) must never render a frame under the old one.
-        // While a config save of ours is in flight, the optimistic config
-        // already IS what we sent, and a refetch landing mid-flight would
-        // flick the deck back to an older value.
-        batch(() => {
-          setSlideIds(res.data.slideIds);
-          if (configSavesInFlight === 0) setDeckConfig(res.data.config);
-        });
+      if (!res.success) {
+        if (!aiContextSet) setLoadState({ status: "error", err: res.err });
+        return;
       }
-      setIsLoading(false);
+      // The deck's view goes first: the batch below mounts the open slide's
+      // editor, which sets `editing_slide` over it. The other order left the
+      // deck view current with a slide open.
       if (!aiContextSet) {
         aiContextSet = true;
+        setLoadState({ status: "ready", data: true });
         restoreCopilotView(deckViewState());
       }
+      // One write: slides that arrive with a config (the cover the first
+      // theme choice makes) must never render a frame under the old one.
+      // While a config save of ours is in flight, the optimistic config
+      // already IS what we sent, and a refetch landing mid-flight would
+      // flick the deck back to an older value.
+      batch(() => {
+        setSlideIds(res.data.slideIds);
+        if (configSavesInFlight === 0) setDeckConfig(res.data.config);
+      });
+      setIsLoading(false);
     }
     load();
   });
@@ -209,21 +228,31 @@ export function SlideDeckEditor(p: Props) {
   });
 
   return (
-    <SlideDeckEditorInner
-      productId={p.productId}
-      product={product()}
-      scope={scope()}
-      authoringContext={authoringContext()}
-      deckLabel={deckLabel()}
-      deckConfig={deckConfig()}
-      patchDeckConfig={patchDeckConfig}
-      slideIds={slideIds()}
-      isLoading={isLoading()}
-      setSelectedSlideIds={setSelectedSlideIds}
-      deckContext={deckContext}
-      deckViewState={deckViewState}
-      handleClose={handleClose}
-    />
+    <StateHolderWrapper
+      state={loadState()}
+      onErrorButton={{
+        label: t3({ en: "Close", fr: "Fermer", pt: "Fechar" }),
+        onClick: () => void handleClose(),
+      }}
+    >
+      {() => (
+        <SlideDeckEditorInner
+          productId={p.productId}
+          product={product()}
+          scope={scope()}
+          authoringContext={authoringContext()}
+          deckLabel={deckLabel()}
+          deckConfig={deckConfig()}
+          patchDeckConfig={patchDeckConfig}
+          slideIds={slideIds()}
+          isLoading={isLoading()}
+          setSelectedSlideIds={setSelectedSlideIds}
+          deckContext={deckContext}
+          deckViewState={deckViewState}
+          handleClose={handleClose}
+        />
+      )}
+    </StateHolderWrapper>
   );
 }
 
@@ -239,6 +268,7 @@ function SlideDeckEditorInner(p: {
   isLoading: boolean;
   setSelectedSlideIds: (ids: string[]) => void;
   deckContext: {
+    getDeckLabel: () => string;
     getDeckConfig: () => SlideDeckConfig;
     getSlideIds: () => string[];
     getSelectedSlideIds: () => string[];
@@ -517,7 +547,6 @@ function SlideDeckEditorInner(p: {
               {(es) => (
                 <SlideEditor
                   productId={p.productId}
-                  deckLabel={p.deckLabel}
                   slideId={es.slideId}
                   lastUpdated={es.lastUpdated}
                   slide={es.slide}

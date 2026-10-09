@@ -15,7 +15,6 @@ import {
   canonicalJson,
   COLLAB_NO_EDIT_PERMISSION,
   findSlideFigureConfigMap,
-  getSlideTitle,
   materializeSlide,
   PAGE_HEIGHT_DU,
   PAGE_WIDTH_DU,
@@ -118,7 +117,6 @@ const INLINE_TITLE_FIELDS: Record<
 
 type SlideEditorInnerProps = {
   productId: string;
-  deckLabel: string;
   slideId: string;
   slide: Slide;
   lastUpdated: string;
@@ -145,6 +143,7 @@ type SlideEditorInnerProps = {
   // The deck the slide sits in, read live: the copilot's slide view carries
   // the deck's tools too, since the deck's rail is always beside the slide.
   deckContext: {
+    getDeckLabel: () => string;
     getDeckConfig: () => SlideDeckConfig;
     getSlideIds: () => string[];
     getSelectedSlideIds: () => string[];
@@ -590,19 +589,14 @@ export function SlideEditor(p: Props) {
     attemptGetPageInputs(unwrap(tempSlide));
     copilotViewController.setView(
       "editing_slide",
-      {
-        slideId: p.slideId,
-        slideLabel: getSlideTitle(normalizedSlide),
-        slideType: normalizedSlide.type as SlideType,
-        deckId: p.productId,
-        deckLabel: p.deckLabel,
-      },
+      { slideId: p.slideId, deckId: p.productId },
       {
         // The deck editor's live pair, the one the copilot mount is keyed on
         // (D15).
         getScope: () => p.scope,
         getTempSlide: () => tempSlide,
         setTempSlide,
+        getDeckLabel: () => p.deckContext.getDeckLabel(),
         getDeckConfig: () => p.deckContext.getDeckConfig(),
         getSlideIds: () => p.deckContext.getSlideIds(),
         getSelectedSlideIds: () => p.deckContext.getSelectedSlideIds(),

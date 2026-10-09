@@ -213,7 +213,7 @@ export function getClientToolsForReportEditor(
           : "";
         const formatLabel = format === "fastr" ? "FASTR Markdown" : format;
         return [
-          `# REPORT EDITOR: ${view.params.reportLabel}`,
+          `# REPORT EDITOR: ${ctx.getLabel()}`,
           `Format: ${formatLabel}${styleNote}${
             format === "html"
               ? ` — embed tokens are ${

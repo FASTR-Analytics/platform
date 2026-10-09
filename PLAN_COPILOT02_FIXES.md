@@ -4,7 +4,7 @@
 > (`PLAN_COPILOT_ORCHESTRATION.md` in the panther repo, ruling R2). Waits on no
 > gate. Opens G2.
 
-**Next step: Do 1**
+**Next step: Review 1**
 
 This plan fixes the AI defects the 2026-10-08 review found in the product
 copilot, the HFA assistant and `/mcp` that need no panther change and whose fix
@@ -508,5 +508,9 @@ Rollback is `git revert` of a step's commits on `version2`.
 Append-only, newest last. One row per decision, deviation, correction or defect,
 plus one closing row per session.
 
-| Date | Step | Row |
-| ---- | ---- | --- |
+| Date       | Step | Row                                                                                                                                                                                                                                                                          |
+| ---------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-10-09 | 1    | `./run` boots this tree's server on port 8000 (`PORT` in `.env`). The `pg` and `valkey-local` containers mounted the `wb-fastr` checkout's data, so `deno task test` failed 7 schema tests until `./run` replaced them, as its comment says it does.                         |
+| 2026-10-09 | 1    | `StateHolderWrapper` renders its ready branch only for truthy `data`, so each editor's load state is `createSignal<StateHolder<true>>` (ready with `data: true`, or error) rather than a raw error signal, which `./validate_protocols` flags as a new tier-2 hit (STATE 8). |
+| 2026-10-09 | 1    | The deck's error button reads "Close" (`t3`: Close, Fermer, Fechar) and calls `handleClose`; the report gets no button because its header's back button stays rendered over the error.                                                                                       |
+| 2026-10-09 | 1    | Step 1 built                                                                                                                                                                                                                                                                 |

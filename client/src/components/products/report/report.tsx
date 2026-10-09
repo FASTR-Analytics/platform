@@ -61,6 +61,8 @@ import {
   openComponent,
   plural,
   Select,
+  type StateHolder,
+  StateHolderWrapper,
 } from "panther";
 import {
   createEffect,
@@ -260,6 +262,14 @@ export function ReportEditor(p: Props) {
   }
 
   const [isLoading, setIsLoading] = createSignal(true);
+  // A detail read that fails at mount: the error replaces the editor and
+  // preview, nothing is written and the copilot stays on `opening_product`.
+  // Loading itself is `isLoading`, so this is ready or error; `true` is the
+  // data because the wrapper's ready branch needs truthy data.
+  const [loadState, setLoadState] = createSignal<StateHolder<true>>({
+    status: "ready",
+    data: true,
+  });
   const [body, setBody] = createSignal("");
   // The body format — fixed at creation, read from config before anything
   // parses tokens (the orphan prune, the editor language, the AI view).
@@ -1116,152 +1126,156 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     // once the room syncs, the shared doc owns this content, and a refetch
     // landing mid-session would fight it.
     const res = await getReportDetailFromCacheOrFetch(p.productId);
-    if (res.success) {
-      setFormat(getReportFormat(res.data.config));
-      setTemplate(getFastrReportTemplate(res.data.config));
-      if (getReportFormat(res.data.config) === "fastr") setMode("edit");
-      htmlStyle = getReportHtmlStyle(res.data.config);
-      // Custom style: live ref + snapshot fallback (S12) — prefer the CURRENT
-      // library brief when the style still exists and is visible here, so
-      // tuning a style once benefits every report using it; the creation-time
-      // snapshot keeps deleted/hidden styles working.
-      const snap = getReportCustomStyle(res.data.config);
-      loadedConfig = res.data.config;
-      const loadedFormat = getReportFormat(res.data.config);
-      if (loadedFormat === "fastr") {
-        const theme = getFastrReportTheme(res.data.config);
-        setFastrTheme(theme);
-        setFastrColors(snap?.colors ?? undefined);
-        // fastr grounds come from the theme, not from an AI-written stylesheet:
-        // hand the ink deriver the palette the page actually paints with.
-        const tok = FASTR_THEME_TOKENS[theme];
-        const palette = snap?.colors ?? {
-          page: tok.page,
-          ink: tok.ink,
-          accent: tok.accent,
-        };
-        setInkTheme(figureInkThemeForStyle("default", palette));
-        setDarkInk(figureDarkInkForColors(palette));
-      } else {
-        setInkTheme(figureInkThemeForStyle(htmlStyle, snap?.colors));
-        setDarkInk(figureDarkInkForColors(snap?.colors));
-      }
-      if (snap) {
-        customStyle = {
-          label: snap.label,
-          brief: snap.brief,
-          referenceCss: snap.referenceCss,
-        };
-        const live = await serverActions.listReportStyles({
-          product_id: p.productId,
-        });
-        if (live.success) {
-          const cur = live.data.find((st) => st.id === snap.id);
-          if (cur) {
-            customStyle = {
-              label: cur.label,
-              brief: cur.brief,
-              referenceCss: cur.referenceCss,
-            };
-          }
+    if (!mounted) return;
+    if (!res.success) {
+      setLoadState({ status: "error", err: res.err });
+      return;
+    }
+    setFormat(getReportFormat(res.data.config));
+    setTemplate(getFastrReportTemplate(res.data.config));
+    if (getReportFormat(res.data.config) === "fastr") setMode("edit");
+    htmlStyle = getReportHtmlStyle(res.data.config);
+    // Custom style: live ref + snapshot fallback (S12) — prefer the CURRENT
+    // library brief when the style still exists and is visible here, so
+    // tuning a style once benefits every report using it; the creation-time
+    // snapshot keeps deleted/hidden styles working.
+    const snap = getReportCustomStyle(res.data.config);
+    loadedConfig = res.data.config;
+    const loadedFormat = getReportFormat(res.data.config);
+    if (loadedFormat === "fastr") {
+      const theme = getFastrReportTheme(res.data.config);
+      setFastrTheme(theme);
+      setFastrColors(snap?.colors ?? undefined);
+      // fastr grounds come from the theme, not from an AI-written stylesheet:
+      // hand the ink deriver the palette the page actually paints with.
+      const tok = FASTR_THEME_TOKENS[theme];
+      const palette = snap?.colors ?? {
+        page: tok.page,
+        ink: tok.ink,
+        accent: tok.accent,
+      };
+      setInkTheme(figureInkThemeForStyle("default", palette));
+      setDarkInk(figureDarkInkForColors(palette));
+    } else {
+      setInkTheme(figureInkThemeForStyle(htmlStyle, snap?.colors));
+      setDarkInk(figureDarkInkForColors(snap?.colors));
+    }
+    if (snap) {
+      customStyle = {
+        label: snap.label,
+        brief: snap.brief,
+        referenceCss: snap.referenceCss,
+      };
+      const live = await serverActions.listReportStyles({
+        product_id: p.productId,
+      });
+      if (!mounted) return;
+      if (live.success) {
+        const cur = live.data.find((st) => st.id === snap.id);
+        if (cur) {
+          customStyle = {
+            label: cur.label,
+            brief: cur.brief,
+            referenceCss: cur.referenceCss,
+          };
         }
       }
-      setBody(res.data.body);
-      setLastUpdated(res.data.lastUpdated);
-
-      // Prune orphan registry entries at load (PLAN_REPORTS.md §11). The
-      // loosest scan ("any": both token syntaxes and anything looser) — a
-      // kept orphan is harmless, a missed reference deletes a figure. Only a
-      // user who can edit writes the prune back; a viewer's stays in memory.
-      const refs = referencedReportEmbedIds(res.data.body, "any");
-      const prunedFigures = Object.fromEntries(
-        Object.entries(res.data.figures).filter(([id]) => refs.figures.has(id)),
-      );
-      const prunedImages = Object.fromEntries(
-        Object.entries(res.data.images).filter(([id]) => refs.images.has(id)),
-      );
-      setFigures(prunedFigures);
-      setImages(prunedImages);
-      if (
-        canConfigure() &&
-        Object.keys(prunedFigures).length !==
-          Object.keys(res.data.figures).length
-      ) {
-        void persistFigures(prunedFigures);
-      }
-      if (
-        canConfigure() &&
-        Object.keys(prunedImages).length !== Object.keys(res.data.images).length
-      ) {
-        void persistImages(prunedImages);
-      }
-
-      // Snapshot the UNPRUNED fetch for the first-sync merge rule (the room
-      // seeds from the same DB row, so this is what its doc should equal).
-      loadedSnapshot = {
-        body: res.data.body,
-        figures: res.data.figures,
-        images: res.data.images,
-      };
-
-      // Bind this report to a shared CRDT document for live co-editing.
-      const s = openReportSession(
-        p.productId,
-        p.productId,
-        onRemoteReport,
-        (errMsg, fatal) => {
-          console.warn("Report collab error:", errMsg);
-          // Fatal ⇔ the report/room is gone (deleted, not found): the server
-          // silently drops every further update, so lock the editor instead of
-          // letting the user type into a void that still says "Live".
-          if (fatal) {
-            setCollabFatal(errMsg);
-            return;
-          }
-          // Edit rejected on the socket's snapshot auth. If the live store
-          // says this user CAN edit, the socket is stale (permission granted
-          // after connect): reconnect to re-derive auth; the resync then
-          // pushes the rejected local ops. Otherwise the user really is
-          // read-only: say so once instead of silently dropping their edits.
-          if (errMsg === COLLAB_NO_EDIT_PERMISSION) {
-            if (canConfigure()) {
-              reconnectForStaleEditAuth();
-            } else if (!permErrorShown) {
-              permErrorShown = true;
-              void openAlert({
-                text: t3({
-                  en:
-                    "You don't have permission to edit reports — your changes are not being saved.",
-                  fr:
-                    "Vous n'avez pas la permission de modifier les rapports — vos modifications ne sont pas enregistrées.",
-                  pt:
-                    "Não tem permissão para editar relatórios — as suas alterações não estão a ser guardadas.",
-                }),
-                intent: "danger",
-              });
-            }
-          }
-        },
-        () => {
-          // The room re-seeded its doc (a fresh lineage of the same text) and
-          // the session adopted it instead of merging: rebind the editor.
-          setLineage((n) => n + 1);
-        },
-      );
-      setSession(s);
-
-      // Keep the optimistic-save timestamp fresh as server-side checkpoints
-      // bump the product's stamp (a report IS its product, so it rides the
-      // products_upserted summary), so the offline/fallback flush won't raise
-      // a spurious conflict against collab's own autosaves.
-      removeLastUpdatedListener = addLastUpdatedListener(
-        (tableName, ids, ts) => {
-          if (tableName === "products" && ids.includes(p.productId)) {
-            bumpLastUpdated(ts);
-          }
-        },
-      );
     }
+    setBody(res.data.body);
+    setLastUpdated(res.data.lastUpdated);
+
+    // Prune orphan registry entries at load (PLAN_REPORTS.md §11). The
+    // loosest scan ("any": both token syntaxes and anything looser) — a
+    // kept orphan is harmless, a missed reference deletes a figure. Only a
+    // user who can edit writes the prune back; a viewer's stays in memory.
+    const refs = referencedReportEmbedIds(res.data.body, "any");
+    const prunedFigures = Object.fromEntries(
+      Object.entries(res.data.figures).filter(([id]) => refs.figures.has(id)),
+    );
+    const prunedImages = Object.fromEntries(
+      Object.entries(res.data.images).filter(([id]) => refs.images.has(id)),
+    );
+    setFigures(prunedFigures);
+    setImages(prunedImages);
+    if (
+      canConfigure() &&
+      Object.keys(prunedFigures).length !==
+        Object.keys(res.data.figures).length
+    ) {
+      void persistFigures(prunedFigures);
+    }
+    if (
+      canConfigure() &&
+      Object.keys(prunedImages).length !== Object.keys(res.data.images).length
+    ) {
+      void persistImages(prunedImages);
+    }
+
+    // Snapshot the UNPRUNED fetch for the first-sync merge rule (the room
+    // seeds from the same DB row, so this is what its doc should equal).
+    loadedSnapshot = {
+      body: res.data.body,
+      figures: res.data.figures,
+      images: res.data.images,
+    };
+
+    // Bind this report to a shared CRDT document for live co-editing.
+    const s = openReportSession(
+      p.productId,
+      p.productId,
+      onRemoteReport,
+      (errMsg, fatal) => {
+        console.warn("Report collab error:", errMsg);
+        // Fatal ⇔ the report/room is gone (deleted, not found): the server
+        // silently drops every further update, so lock the editor instead of
+        // letting the user type into a void that still says "Live".
+        if (fatal) {
+          setCollabFatal(errMsg);
+          return;
+        }
+        // Edit rejected on the socket's snapshot auth. If the live store
+        // says this user CAN edit, the socket is stale (permission granted
+        // after connect): reconnect to re-derive auth; the resync then
+        // pushes the rejected local ops. Otherwise the user really is
+        // read-only: say so once instead of silently dropping their edits.
+        if (errMsg === COLLAB_NO_EDIT_PERMISSION) {
+          if (canConfigure()) {
+            reconnectForStaleEditAuth();
+          } else if (!permErrorShown) {
+            permErrorShown = true;
+            void openAlert({
+              text: t3({
+                en:
+                  "You don't have permission to edit reports — your changes are not being saved.",
+                fr:
+                  "Vous n'avez pas la permission de modifier les rapports — vos modifications ne sont pas enregistrées.",
+                pt:
+                  "Não tem permissão para editar relatórios — as suas alterações não estão a ser guardadas.",
+              }),
+              intent: "danger",
+            });
+          }
+        }
+      },
+      () => {
+        // The room re-seeded its doc (a fresh lineage of the same text) and
+        // the session adopted it instead of merging: rebind the editor.
+        setLineage((n) => n + 1);
+      },
+    );
+    setSession(s);
+
+    // Keep the optimistic-save timestamp fresh as server-side checkpoints
+    // bump the product's stamp (a report IS its product, so it rides the
+    // products_upserted summary), so the offline/fallback flush won't raise
+    // a spurious conflict against collab's own autosaves.
+    removeLastUpdatedListener = addLastUpdatedListener(
+      (tableName, ids, ts) => {
+        if (tableName === "products" && ids.includes(p.productId)) {
+          bumpLastUpdated(ts);
+        }
+      },
+    );
     setIsLoading(false);
 
     // A report nobody has chosen a look for yet: ask now, once. Only a report
@@ -1280,7 +1294,6 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
       "editing_report",
       {
         reportId: p.productId,
-        reportLabel: label(),
         format: format(),
         htmlStyle,
         customStyle,
@@ -1289,6 +1302,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
         // Read live from the T1 row: a reattach remounts the copilot on the new
         // pair, and the tools of that mount see the same pair here (D15).
         getScope: () => requireScope(),
+        getLabel: () => label(),
         getTemplate: () => template(),
         getBody: () => body(),
         getFigures: () => figures(),
@@ -2682,7 +2696,9 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
   return (
     <InnerEditorWrapper>
       <FrameTop panelChildren={headerPanel}>
-        <MainArea />
+        <StateHolderWrapper state={loadState()}>
+          {() => <MainArea />}
+        </StateHolderWrapper>
       </FrameTop>
       <ReportEditorCursors
         reportId={p.productId}

@@ -138,7 +138,7 @@ export function buildSystemPromptForContext(
 export function getOpeningProductInstructions(): string {
   return `# Current View: Opening product
 
-The product is still loading. Tell the user to wait a moment and ask again; do not call editing tools yet.`;
+The product is still loading, or it failed to load and the page shows the error. Do not call editing tools yet. Tell the user to wait a moment or, if the page shows an error, to close the product and open it again.`;
 }
 
 // ── Editing mode instructions ──

@@ -255,7 +255,7 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
       element: SaveReportStyleModal,
       props: {
         productId: cur.params.reportId,
-        reportLabel: cur.params.reportLabel,
+        reportLabel: cur.context.getLabel(),
         body: cur.context.getBody(),
       },
     });

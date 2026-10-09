@@ -816,10 +816,10 @@ typed `PACKAGE_OR_SCOPE_UNAVAILABLE` shows in the dialog when the package or
 scope went away while it was open. The product entries disable before the click
 when there is no ready package or no scope. The editor opens on the SSE echo, on
 the page's own `awaitingProductId` wait for a product it just created, or
-through `pendingEditorOpen({ kind: "product" })`, the one opener the tours, the
-copilot and the `?product=<id>` deep link share (`_PRODUCT_QUERY_PARAM`; the
-parameter is consumed into that request and cleared, and an id still absent once
-the store is ready is dropped as a dead link).
+through `pendingEditorOpen({ productId })`, the one opener the tours and the
+`?product=<id>` deep link share (`_PRODUCT_QUERY_PARAM`; the parameter is
+consumed into that request and cleared, and an id still absent once the store is
+ready is dropped as a dead link).
 
 The deck view's `SlideList` renders cards in the vendored SortableJS wrapper
 (multiDrag; optimistic local order; reorder diffs the moved run and calls
@@ -2416,7 +2416,11 @@ shows a dismissible "your changes were saved over theirs" banner. The
 `overwrite` param is accepted but unused, reserved for a hard-reject mode (Open
 item). Figures/images/config/label are separate whole-registry PUTs with **no
 concurrency guard**, the known MED lost-update race on the registries (Open
-item).
+item). The editor row, the room, the autosave and the copilot's `editing_report`
+view all follow a successful detail read at mount; a read that fails renders the
+error through `StateHolderWrapper` in place of the editor and preview, so
+nothing is written over the stored report, and a report closed before its read
+returns opens no room and sets no view.
 
 **AI-diff view**: the `editing_report` view context registers `proposeEdit` and
 `applyFigureUpdate`. `proposeEdit` is the propose phase of the report tools'

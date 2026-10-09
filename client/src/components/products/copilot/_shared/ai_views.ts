@@ -1,6 +1,10 @@
 import { createAIViewController, defineAIViews, view } from "panther";
 import type { AIViewController, AIViewState } from "panther";
-import { type FastrReportTemplate, getEditingReportInstructions } from "lib";
+import {
+  type FastrReportTemplate,
+  getEditingReportInstructions,
+  getSlideTitle,
+} from "lib";
 import type {
   FigureBlock,
   ImageBlock,
@@ -9,7 +13,6 @@ import type {
   ReportHtmlStyle,
   Slide,
   SlideDeckConfig,
-  SlideType,
 } from "lib";
 import type { SetStoreFunction } from "solid-js/store";
 import type {
@@ -58,11 +61,13 @@ export type OpenProductScope = {
   getScope: () => PackageScope;
 };
 
+// Params carry ids only. Labels are read live through the context, so a
+// rename or a title edit never leaves the view line stale.
 export type EditingSlideDeckParams = {
   deckId: string;
-  deckLabel: string;
 };
 export type EditingSlideDeckContext = OpenProductScope & {
+  getDeckLabel: () => string;
   getDeckConfig: () => SlideDeckConfig;
   getSlideIds: () => string[];
   getSelectedSlideIds: () => string[];
@@ -70,10 +75,7 @@ export type EditingSlideDeckContext = OpenProductScope & {
 
 export type EditingSlideParams = {
   slideId: string;
-  slideLabel: string;
-  slideType: SlideType;
   deckId: string;
-  deckLabel: string;
 };
 // The slide editor sits beside the deck's slide rail, so this view carries
 // the deck's context too: every deck tool is available while a slide is open.
@@ -84,7 +86,6 @@ export type EditingSlideContext = EditingSlideDeckContext & {
 
 export type EditingReportParams = {
   reportId: string;
-  reportLabel: string;
   // Format and (html only) style, fixed at creation and known before setView.
   format: ReportFormat;
   htmlStyle?: ReportHtmlStyle;
@@ -93,6 +94,7 @@ export type EditingReportParams = {
 };
 // See ./types.ts for ReportEditProposal(Result) and ReportEditorSelection.
 export type EditingReportContext = OpenProductScope & {
+  getLabel: () => string;
   // The template the report was started from (fastr only), read live: it is
   // chosen after the view is set, from the template modal.
   getTemplate: () => FastrReportTemplate | undefined;
@@ -113,10 +115,10 @@ export const copilotViews = defineAIViews({
   // exposed (deckId / slideId / reportId): ids are the model's cross-turn
   // correlation handle (tools RETURN ids; labels are not unique).
   editing_slide_deck: view<EditingSlideDeckParams, EditingSlideDeckContext>({
-    label: (params) => params.deckLabel,
+    label: (_params, context) => context.getDeckLabel(),
     instructions: (params, context) => {
       const base = `${
-        getEditingSlideDeckInstructions(params.deckLabel)
+        getEditingSlideDeckInstructions(context.getDeckLabel())
       }\n\ndeckId: ${params.deckId}`;
       const selected = context.getSelectedSlideIds();
       if (selected.length === 0) return base;
@@ -126,10 +128,13 @@ export const copilotViews = defineAIViews({
     },
   }),
   editing_slide: view<EditingSlideParams, EditingSlideContext>({
-    label: (params) => params.slideLabel,
+    label: (_params, context) => getSlideTitle(context.getTempSlide()),
     instructions: (params, context) => {
       const base = `${
-        getEditingSlideInstructions(params.slideLabel, params.deckLabel)
+        getEditingSlideInstructions(
+          getSlideTitle(context.getTempSlide()),
+          context.getDeckLabel(),
+        )
       }\n\nslideId: ${params.slideId} | deckId: ${params.deckId}`;
       const selected = context.getSelectedSlideIds();
       if (selected.length === 0) return base;
@@ -139,11 +144,11 @@ export const copilotViews = defineAIViews({
     },
   }),
   editing_report: view<EditingReportParams, EditingReportContext>({
-    label: (params) => params.reportLabel,
+    label: (_params, context) => context.getLabel(),
     instructions: (params, context) => {
       const base = `${
         getEditingReportInstructions(
-          params.reportLabel,
+          context.getLabel(),
           params.format,
           params.htmlStyle,
           params.customStyle,

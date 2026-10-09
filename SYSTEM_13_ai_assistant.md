@@ -319,15 +319,25 @@ save-to-prompt-library, strips ephemeral markers from display).
 (`defineAIViews`, 4 views: `opening_product` + 3 `editing_*`) and the
 module-level singleton `copilotViewController` (fallback `opening_product`)
 replaced the old `AIContext` discriminated union's interpretation duty. Per
-view, params are the serializable model-visible half; context is the live
-payload (editor getters/setters plus the product's `getScope()`) delivered to
-tool handlers opaquely. `opening_product` is the paramless fallback the
-controller sits in between the host mounting and the editor's first `setView`
-(each editor sets its view after its first fetch); its instructions tell the
-model the product is still loading. Sync is imperative and there is no
-tab-to-view map: the only sync sites are each editor's mount (`setView`) and
-teardown (`restoreCopilotView(returnToContext)`, the nested-editor stack from
-deck editor to slide editor, else `clearView()`).
+view, params are the serializable model-visible half (ids, and the report's
+format and style); context is the live payload (editor getters/setters plus the
+product's `getScope()`) delivered to tool handlers opaquely. Labels are read
+live from the context, never captured into params: the deck's name
+(`getDeckLabel`), the open slide's title (`getSlideTitle` over `getTempSlide()`,
+which also gives the slide's type) and the report's name (`getLabel`), so a
+rename, a title edit or a type switch never leaves the view line, the
+instructions or a tool's read-back stale. `opening_product` is the paramless
+fallback the controller sits in between the host mounting and the editor's first
+`setView`: the report sets `editing_report` after its first fetch succeeds, and
+the deck sets `editing_slide_deck` on its first successful fetch BEFORE its
+slide list mounts the open slide's editor, which then sets `editing_slide` over
+it. A load that fails before that renders the error through `StateHolderWrapper`
+in place of the editor, writes nothing (no autosave, no room, no deck-config
+save) and leaves the controller on `opening_product`, whose instructions tell
+the model the product is still loading or failed to load. Sync is imperative and
+there is no tab-to-view map: the only sync sites are each editor's mount
+(`setView`) and teardown (`restoreCopilotView(returnToContext)`, the
+nested-editor stack from deck editor to slide editor, else `clearView()`).
 
 Per-view `instructions` (default ephemeral delivery) carry the per-view prompt
 plus the live bits of the view: entity ids (deckId/slideId/reportId), the deck's

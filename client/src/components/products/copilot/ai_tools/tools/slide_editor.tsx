@@ -86,8 +86,8 @@ export function getClientToolsForSlideEditor(
         lines.push("=".repeat(80));
         lines.push("");
         lines.push(`**Slide ID:** ${view.params.slideId}`);
-        lines.push(`**Slide type:** ${view.params.slideType}`);
-        lines.push(`**Deck:** ${view.params.deckLabel}`);
+        lines.push(`**Slide type:** ${slide.type}`);
+        lines.push(`**Deck:** ${view.context.getDeckLabel()}`);
         lines.push("");
         lines.push("## CURRENT CONTENT");
         lines.push("=".repeat(50));
