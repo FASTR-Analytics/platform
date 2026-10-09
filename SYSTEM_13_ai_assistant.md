@@ -139,8 +139,8 @@ the query pipeline the data tools call is **S9**.
    line, `[panther mcp] fastr: <era> <method> …`; `./mcp_probe <origin> --info`
    shows the handshake. The system prompt splits the same way: shared grounding
    blocks in `lib/ai_tools/build_system_prompt.ts`, each surface assembling its
-   own context and closing it with the instance `ai_context` through the shared
-   `buildAiContextSections` (nothing for a blank context,
+   own context, with the instance `ai_context` after its data coverage through
+   the shared `buildAiContextSections` (nothing for a blank context,
    `server/tests/ai_context_sections_test.ts`), so `get_overview` carries what
    the admin wrote for the assistant. The SPA's assembled prompt is byte-stable
    for the life of one mount (prompt-cache breakpoint); only the instance AI
@@ -645,15 +645,16 @@ modules, indicators, HFA categories and HFA service categories, each listed in
 full, with the rule that a limit applies only to a table that has a column for
 it; the package's datasets and indicator lists) + the instance-level
 `ai_context` (`buildAiContextSections`, the shared block `/mcp`'s `get_overview`
-also ends with) + reference-doc catalog (`SPA_INFO_TOPICS`) + base instructions
-(read-data-first, no fabrication, indicator directionality) + the tool catalog.
-For a viewer the results-package section carries one more sentence: the user can
-view the product but not change it, so the model can read it and answer
-questions but has no tools that edit it. The accessor takes no view argument and
-the level is read once per mount, so the prompt is **byte-stable across
-navigation within one package** and its prompt-cache breakpoint keeps hitting:
-the per-view instructions (still exported from this file, with short
-primary-tool pointers) are composed by the view registry
+also carries after its data coverage) + reference-doc catalog
+(`SPA_INFO_TOPICS`) + base instructions (read-data-first, no fabrication,
+indicator directionality) + the tool catalog. For a viewer the results-package
+section carries one more sentence: the user can view the product but not change
+it, so the model can read it and answer questions but has no tools that edit it.
+The accessor takes no view argument and the level is read once per mount, so the
+prompt is **byte-stable across navigation within one package** and its
+prompt-cache breakpoint keeps hitting: the per-view instructions (still exported
+from this file, with short primary-tool pointers) are composed by the view
+registry
 ([ai_views.ts](client/src/components/products/copilot/_shared/ai_views.ts)) and
 delivered ephemerally per turn, and the hand-typed tool list was replaced by
 panther's `buildToolCatalog(tools)`, composed ONCE in the wrapper. Cache rule:
@@ -667,8 +668,10 @@ guard, S9).
 The instance `ai_context` is one `instance_config` row (`ai_context`), edited
 from a row on the Data page behind `can_configure_settings`
 ([ai_context_form.tsx](client/src/components/data/general/ai_context_form.tsx),
-`updateAiContextConfig`), and rides `InstanceState` with the rest of the config
-so the prompt reads it from T1 with no fetch.
+`updateAiContextConfig`), and rides `InstanceState` with the rest of the config,
+so the SPA prompt reads it from T1 with no fetch and `/mcp`'s `get_overview`
+reads it from the instance state its context cache holds per user for 30 s
+(`resolveInstanceState`, `server/mcp/context_cache.ts`).
 
 **Documents.** `useAIDocuments` keeps `{assetFilename, anthropicFileId}` pairs
 in IndexedDB, one instance-wide upload registry shared by every product's

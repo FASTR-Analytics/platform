@@ -454,10 +454,12 @@ package and should not pin. Rulings, all deliberate:
   `pinnedRunId` is instance T1, broadcast unfiltered (S3), which is what lets
   the dialog default to the pin for users without `can_configure_data`.
 - **MCP reads the pin** (PLAN_MCP_PINNED_PACKAGE). The `/mcp` surface is
-  instance-level: every tool reads the pinned package under "All data"
+  instance-level: its two metric tools, `get_available_metrics` and
+  `get_metric_data`, read the pinned package under "All data"
   (`scopeId: "all-data"`) through the run-keyed instance routes, gated on an
-  approved user (D7); no package id appears in any tool schema. It reads
-  `getPinnedRunId` from the DB on EVERY call (never the 30 s cached
+  approved user (D7), and its methodology tools and `get_info` read reference
+  docs, not the package (S13); no package id appears in any tool schema. It
+  reads `getPinnedRunId` from the DB on EVERY call (never the 30 s cached
   `InstanceState` copy), so a pin-move is visible on the next call; its context
   cache is keyed `(token, runId)`. No pin is a typed state: `get_overview` still
   answers (naming the fix: an admin with `can_configure_data` pins one), the
