@@ -148,7 +148,6 @@ export async function getMetricDataForAI(
   const res = await env.getItems({
     resultsObjectId: metric.resultsObjectId,
     fetchConfig,
-    firstPeriodOption: metric.mostGranularTimePeriodColumnInResultsFile,
   });
   if (!res.success) {
     throw new AIToolFailure(res.err);

@@ -4,6 +4,15 @@ import { z } from "zod";
 const GITHUB_API_BASE =
   "https://api.github.com/repos/FASTR-Analytics/fastr-resource-hub/contents/methodology";
 
+// GitHub's contents API sends the file as base64 of its UTF-8 bytes, in
+// 60-character lines; atob alone yields one char per byte, so every non-ASCII
+// character arrives garbled unless the bytes are decoded as UTF-8.
+export function decodeBase64Utf8(content: string): string {
+  return new TextDecoder().decode(
+    Uint8Array.from(atob(content), (c) => c.charCodeAt(0)),
+  );
+}
+
 export function getSharedToolsForMethodologyDocs() {
   return [
     createAITool({
@@ -27,7 +36,7 @@ export function getSharedToolsForMethodologyDocs() {
         };
 
         if (fileData.encoding === "base64") {
-          const content = atob(fileData.content);
+          const content = decodeBase64Utf8(fileData.content);
           return {
             tableOfContents: content,
           };
@@ -82,7 +91,7 @@ export function getSharedToolsForMethodologyDocs() {
         };
 
         if (fileData.encoding === "base64") {
-          const content = atob(fileData.content);
+          const content = decodeBase64Utf8(fileData.content);
           return {
             fileName: fileData.name,
             content: content,

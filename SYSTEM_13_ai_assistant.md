@@ -18,6 +18,7 @@ globs:
   - server/routes/instance/copilot_ai_proxy.ts
   - server/tests/mcp_context_cache_test.ts
   - server/tests/mcp_tools_source_header_test.ts
+  - server/tests/methodology_docs_decode_test.ts
 ---
 
 # S13: AI Copilot & Usage Governance

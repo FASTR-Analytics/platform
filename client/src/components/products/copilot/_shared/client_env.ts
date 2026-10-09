@@ -60,9 +60,6 @@ export type ClientAIToolEnv = AIToolEnv & {
 
 export function createCopilotAIToolEnv(scope: PackageScope): ClientAIToolEnv {
   return {
-    // `firstPeriodOption` is dropped on the way through, as it is at /mcp: the
-    // run-keyed read derives the metric's finest physical time column from
-    // the package manifest itself, so the caller's hint is redundant here.
     getItems: async ({ resultsObjectId, fetchConfig }) => {
       const params = {
         scope: resolveScope(scope),

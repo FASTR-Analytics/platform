@@ -129,10 +129,6 @@ export function validateDateRange(
         );
       }
     }
-  } else if (startDate != null || endDate != null) {
-    throw new AIToolFailure(
-      "Both startDate and endDate must be provided together, or neither.",
-    );
   }
 }
 

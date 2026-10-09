@@ -1,7 +1,7 @@
 import { del, keys } from "idb-keyval";
 import { clearGeoJsonMemoryCache } from "./instance/t2_geojson";
 
-const AI_PREFIXES = ["ai-conv", "ai-documents"];
+const AI_PREFIXES = ["ai-conv", "ai-documents", "ai-attachments"];
 
 export async function clearDataCache(): Promise<void> {
   clearGeoJsonMemoryCache();

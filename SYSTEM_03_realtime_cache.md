@@ -432,8 +432,9 @@ Around it:
   `server/run_query/run_data_reads.ts` at 10/15), a cross-tier duplicate that
   could live in `lib/` (Open items).
 - **`clear_caches.ts`**: `clearDataCache()` deletes every IndexedDB key except
-  the AI prefixes (`ai-conv`, `ai-documents`) and clears the geojson memory
-  cache; `clearAiChatCache()` deletes only the AI prefixes.
+  the AI prefixes (`ai-conv`, `ai-documents`, `ai-attachments`) and clears the
+  geojson memory cache; `clearAiChatCache()` deletes only the AI prefixes, so
+  pending attachments survive a deploy and go with Clear AI chat history.
 - **Deploy flush**: `instance/logged_in_wrapper.tsx` (S1 file, this system a
   reader) compares the server's `serverVersion` against `localStorage` on boot
   and calls `clearDataCache()` on change: client caches auto-invalidate on

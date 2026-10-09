@@ -2,7 +2,6 @@ import type {
   APIResponseWithData,
   GenericLongFormFetchConfig,
   ItemsHolderPresentationObject,
-  PeriodOption,
   ResultsValueInfoForPresentationObject,
 } from "../types/mod.ts";
 
@@ -21,7 +20,6 @@ export type AIToolEnv = {
   getItems: (params: {
     resultsObjectId: string;
     fetchConfig: GenericLongFormFetchConfig;
-    firstPeriodOption: PeriodOption | undefined;
   }) => Promise<APIResponseWithData<ItemsHolderPresentationObject>>;
   getResultsValueInfo: (
     metricId: string,
