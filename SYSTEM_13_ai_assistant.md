@@ -833,9 +833,6 @@ Remaining:
 
 **HFA satellite (fixes are S5's to land; contract is S13's)**
 
-- **[MED-LOW] `set_hfa_indicator_code` partial application**: sequential
-  per-indicator saves; a mid-loop failure leaves earlier saves applied while the
-  error implies none were.
 - **Indicator-assistant hardening** (S–M, from the retired HFA plan). The first
   pass is shipped: a self-contained assistant in
   [client/src/components/data/hfa/indicators/ai/](client/src/components/data/hfa/indicators/ai/),

@@ -938,76 +938,57 @@ export function buildHfaIndicatorTools() {
               description: `Update r-code for ${affected.size} indicator(s)?`,
               changes,
             },
-            // Sequential per-indicator saves, unchanged from the pre-approval
-            // handler: partial failure (one saveHfaIndicatorFull throwing)
-            // stops the loop, leaving earlier saves in this batch already
-            // persisted server-side: the same throw-mid-batch semantics as
-            // before migration.
             commit: async () => {
-              const results: {
-                indicatorId: string;
-                hasSyntaxError: boolean;
-                codeConsistent: boolean;
-                issues: string[];
-              }[] = [];
-              for (const vn of affected) {
-                const indicator = byIndicatorId.get(vn)!;
-                const code = codeByIndicatorId.get(vn) ?? [];
+              const results = [...affected].map((indicatorId) => {
+                const indicator = byIndicatorId.get(indicatorId)!;
+                const code = codeByIndicatorId.get(indicatorId) ?? [];
                 const other = new Set(allIds);
-                other.delete(vn);
-                const v = computeIndicatorValidation(
+                other.delete(indicatorId);
+                return {
+                  indicatorId,
+                  indicator,
                   code,
-                  dict,
-                  other,
-                  indicator.type,
-                );
-                // saveHfaIndicatorFull replaces the indicator's whole variant
-                // code set: pass the stored rows back so they survive a
-                // main-code-only edit.
-                const variantRes = await serverActions
-                  .getHfaIndicatorVariantCode({ indicatorId: vn });
-                if (!variantRes.success) {
-                  throw new AIToolFailure(
-                    `Failed to load variant code for "${vn}": ${variantRes.err}`,
-                  );
-                }
-                const res = await serverActions.saveHfaIndicatorFull({
+                  ...computeIndicatorValidation(
+                    code,
+                    dict,
+                    other,
+                    indicator.type,
+                  ),
+                };
+              });
+              const res = await serverActions.saveHfaIndicatorsCode({
+                indicators: results.map((r) => ({
                   indicator: {
-                    ...indicator,
-                    hasSyntaxError: v.hasSyntaxError,
-                    codeConsistent: v.codeConsistent,
+                    ...r.indicator,
+                    hasSyntaxError: r.hasSyntaxError,
+                    codeConsistent: r.codeConsistent,
                   },
-                  code: code.map((c) => ({
+                  code: r.code.map((c) => ({
                     timePoint: c.timePoint,
                     rCode: c.rCode,
                     rFilterCode: c.rFilterCode,
                   })),
-                  variantCode: variantRes.data.map((c) => ({
-                    timePoint: c.timePoint,
-                    itemId: c.itemId,
-                    rCode: c.rCode,
-                  })),
-                  hasSyntaxError: v.hasSyntaxError,
-                  codeConsistent: v.codeConsistent,
-                });
-                if (!res.success) {
-                  throw new AIToolFailure(
-                    `Failed to update code for "${vn}": ${res.err}`,
-                  );
-                }
-                results.push({
-                  indicatorId: vn,
-                  hasSyntaxError: v.hasSyntaxError,
-                  codeConsistent: v.codeConsistent,
-                  issues: v.issues,
-                });
+                })),
+              });
+              if (!res.success) {
+                throw new AIToolFailure(
+                  `Failed to update HFA indicator code; nothing was saved: ${res.err}`,
+                );
               }
               return {
                 applied: true,
                 updated: results.length,
-                withValidationIssues: results.filter((r) =>
-                  r.hasSyntaxError || !r.codeConsistent || r.issues.length > 0
-                ),
+                withValidationIssues: results
+                  .filter((r) =>
+                    r.hasSyntaxError || !r.codeConsistent ||
+                    r.issues.length > 0
+                  )
+                  .map((r) => ({
+                    indicatorId: r.indicatorId,
+                    hasSyntaxError: r.hasSyntaxError,
+                    codeConsistent: r.codeConsistent,
+                    issues: r.issues,
+                  })),
               };
             },
           };

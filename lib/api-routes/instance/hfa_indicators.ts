@@ -372,6 +372,23 @@ export const hfaIndicatorRouteRegistry = {
       codeConsistent: z.boolean(),
     }),
   }),
+  // The AI's one-request code save (set_hfa_indicator_code, its one caller):
+  // each indicator's row and main code, variant code untouched, one
+  // transaction, one broadcast.
+  saveHfaIndicatorsCode: route({
+    path: "/hfa-indicators/save-code",
+    method: "POST",
+    body: z.object({
+      indicators: z.array(z.object({
+        indicator: hfaIndicatorEditSchema,
+        code: z.array(z.object({
+          timePoint: z.string(),
+          rCode: z.string(),
+          rFilterCode: z.string().optional(),
+        })),
+      })).min(1),
+    }),
+  }),
   getHfaDictionaryForValidation: route({
     path: "/hfa-indicators/dictionary",
     method: "GET",

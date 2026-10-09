@@ -33,6 +33,7 @@ import {
   reorderHfaIndicatorVariantGroups,
   reorderHfaIndicatorVariantItems,
   saveHfaIndicatorFull,
+  saveHfaIndicatorsCode,
   updateHfaIndicator,
   updateHfaIndicatorCategory,
   updateHfaIndicatorsBulk,
@@ -659,6 +660,22 @@ defineRoute(
       body.hasSyntaxError,
       body.codeConsistent,
     );
+    if (res.success) {
+      notifyInstanceIndicatorsUpdated(
+        await getInstanceIndicatorsSummary(c.var.mainDb),
+      );
+    }
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesHfaIndicators,
+  "saveHfaIndicatorsCode",
+  requireGlobalPermission("can_configure_data"),
+  log("saveHfaIndicatorsCode"),
+  async (c, { body }) => {
+    const res = await saveHfaIndicatorsCode(c.var.mainDb, body.indicators);
     if (res.success) {
       notifyInstanceIndicatorsUpdated(
         await getInstanceIndicatorsSummary(c.var.mainDb),

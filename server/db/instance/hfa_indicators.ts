@@ -1272,22 +1272,68 @@ export async function importHfaIndicatorsWorkbook(
   });
 }
 
+type HfaIndicatorMainCode = {
+  timePoint: string;
+  rCode: string;
+  rFilterCode?: string | undefined;
+};
+
+function findFilterOnlyRound(
+  code: HfaIndicatorMainCode[],
+): HfaIndicatorMainCode | undefined {
+  return code.find(
+    (c) => (c.rFilterCode?.trim() ?? "") !== "" && !c.rCode.trim(),
+  );
+}
+
+// The indicator's row and its main code, as one write. The updated_at bump is
+// what makes a code change visible to hfaIndicatorsVersion: hfa_indicator_code
+// is not hashed on its own.
+async function writeHfaIndicatorRowAndMainCode(
+  sql: Sql,
+  indicator: HfaIndicator,
+  code: HfaIndicatorMainCode[],
+  hasSyntaxError: boolean,
+  codeConsistent: boolean,
+): Promise<void> {
+  await sql`
+    UPDATE hfa_indicators
+    SET category_id = ${indicator.categoryId},
+        sub_category_id = ${indicator.subCategoryId},
+        service_category_ids = ${JSON.stringify(indicator.serviceCategoryIds)},
+        short_label = ${indicator.shortLabel},
+        definition = ${indicator.definition},
+        type = ${indicator.type},
+        aggregation = ${indicator.aggregation},
+        sort_order = ${indicator.sortOrder},
+        has_syntax_error = ${hasSyntaxError},
+        code_consistent = ${codeConsistent},
+        variant_group_id = ${indicator.variantGroupId},
+        updated_at = CURRENT_TIMESTAMP
+    WHERE indicator_id = ${indicator.indicatorId}
+  `;
+  await sql`DELETE FROM hfa_indicator_code WHERE indicator_id = ${indicator.indicatorId}`;
+  for (const c of code) {
+    if (!c.rCode.trim()) continue;
+    await sql`
+      INSERT INTO hfa_indicator_code (indicator_id, time_point, r_code, r_filter_code)
+      VALUES (${indicator.indicatorId}, ${c.timePoint}, ${c.rCode}, ${
+      c.rFilterCode ?? null
+    })
+    `;
+  }
+}
+
 export async function saveHfaIndicatorFull(
   mainDb: Sql,
   indicator: HfaIndicator,
-  code: {
-    timePoint: string;
-    rCode: string;
-    rFilterCode?: string | undefined;
-  }[],
+  code: HfaIndicatorMainCode[],
   variantCode: { timePoint: string; itemId: string; rCode: string }[],
   hasSyntaxError: boolean,
   codeConsistent: boolean,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
-    const filterOnly = code.find(
-      (c) => (c.rFilterCode?.trim() ?? "") !== "" && !c.rCode.trim(),
-    );
+    const filterOnly = findFilterOnlyRound(code);
     if (filterOnly) {
       return {
         success: false,
@@ -1311,40 +1357,53 @@ export async function saveHfaIndicatorFull(
         indicator.indicatorId,
         indicator.variantGroupId,
       );
-      await sql`
-        UPDATE hfa_indicators
-        SET category_id = ${indicator.categoryId},
-            sub_category_id = ${indicator.subCategoryId},
-            service_category_ids = ${
-        JSON.stringify(indicator.serviceCategoryIds)
-      },
-            short_label = ${indicator.shortLabel},
-            definition = ${indicator.definition},
-            type = ${indicator.type},
-            aggregation = ${indicator.aggregation},
-            sort_order = ${indicator.sortOrder},
-            has_syntax_error = ${hasSyntaxError},
-            code_consistent = ${codeConsistent},
-            variant_group_id = ${indicator.variantGroupId},
-            updated_at = CURRENT_TIMESTAMP
-        WHERE indicator_id = ${indicator.indicatorId}
-      `;
-      await sql`DELETE FROM hfa_indicator_code WHERE indicator_id = ${indicator.indicatorId}`;
-      for (const c of code) {
-        if (!c.rCode.trim()) continue;
-        await sql`
-          INSERT INTO hfa_indicator_code (indicator_id, time_point, r_code, r_filter_code)
-          VALUES (${indicator.indicatorId}, ${c.timePoint}, ${c.rCode}, ${
-          c.rFilterCode ?? null
-        })
-        `;
-      }
+      await writeHfaIndicatorRowAndMainCode(
+        sql,
+        indicator,
+        code,
+        hasSyntaxError,
+        codeConsistent,
+      );
       await sql`DELETE FROM hfa_indicator_variant_code WHERE indicator_id = ${indicator.indicatorId}`;
       for (const c of nonEmptyVariantCode) {
         await sql`
           INSERT INTO hfa_indicator_variant_code (indicator_id, time_point, item_id, r_code)
           VALUES (${indicator.indicatorId}, ${c.timePoint}, ${c.itemId}, ${c.rCode})
         `;
+      }
+      await assertVariantIntegrity(sql);
+    });
+    return { success: true };
+  });
+}
+
+// The AI's code save: every indicator's row and main code in one transaction,
+// each written as saveHfaIndicatorFull writes them, its variant code left as
+// stored. A failure applies nothing.
+export async function saveHfaIndicatorsCode(
+  mainDb: Sql,
+  indicators: { indicator: HfaIndicator; code: HfaIndicatorMainCode[] }[],
+): Promise<APIResponseNoData> {
+  return await tryCatchDatabaseAsync(async () => {
+    for (const { indicator, code } of indicators) {
+      const filterOnly = findFilterOnlyRound(code);
+      if (filterOnly) {
+        return {
+          success: false,
+          err:
+            `Filter code requires R code for "${indicator.indicatorId}" at time point "${filterOnly.timePoint}"`,
+        };
+      }
+    }
+    await mainDb.begin(async (sql) => {
+      for (const { indicator, code } of indicators) {
+        await writeHfaIndicatorRowAndMainCode(
+          sql,
+          indicator,
+          code,
+          indicator.hasSyntaxError,
+          indicator.codeConsistent,
+        );
       }
       await assertVariantIntegrity(sql);
     });
