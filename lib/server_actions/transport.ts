@@ -17,9 +17,9 @@ export type ServerActionTransport = {
   // In-process dispatch seam (PLAN_112 D4): when set, server actions issue
   // requests through this instead of global fetch. The /mcp endpoint points
   // it at headlessApp.request(), so every action still runs the full headless
-  // middleware chain (credential verify, allowlist, zod validation, approval
-  // and scope-grant checks; no user_logs row) without a network hop. Absent =
-  // global fetch, zero behavior change.
+  // middleware chain (credential verify, a PAT also stamping last_used_at;
+  // allowlist; zod validation; approval and scope-grant checks; no user_logs
+  // row) without a network hop. Absent = global fetch, zero behavior change.
   fetchImpl?: (
     input: string | URL | Request,
     init: RequestInit,

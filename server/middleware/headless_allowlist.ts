@@ -6,10 +6,10 @@ import { routeRegistry } from "lib";
 // the /mcp endpoint dispatches into headlessApp in-process): a headless
 // credential can reach exactly the routes the /mcp tools need: the
 // run-keyed package reads (all read-only, gated on an approved user and the
-// scope grant), a whoami, and the /info reference docs. A route added next year is
-// headless-closed until opted in here. Token mint/list/revoke and user/admin
-// routes are deliberately absent: a headless caller can never mint or revoke
-// PATs.
+// scope grant), a whoami, and the /info reference docs. A route added next
+// year is headless-closed until opted in here. Token mint/list/revoke and
+// user/admin routes are deliberately absent: a headless caller can never mint
+// or revoke PATs.
 // Exported for validateHeadlessMounts (headless_app.ts), the dev-boot check
 // that every name here is actually reachable through headlessApp (the
 // allowlist and the mount list are two lists; the check is what keeps them

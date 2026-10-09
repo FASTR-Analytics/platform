@@ -5,11 +5,12 @@
 // (getCurrentUser): its response IS the resolved GlobalUser.
 //
 // The PAT leg is fully real: the exported headlessApp, with its real
-// headlessAuthMiddleware, allowlist and route registration, over the real DB. The Clerk leg simulates only clerkMiddleware's
-// output contract: c.set("clerkAuth", authFn), the seam getAuth() invokes,
-// because verifying Clerk's network handshake belongs to Clerk, not this app.
-// Everything downstream (getGlobalUser → buildGlobalUserFromDb → permission
-// middleware → handler) is the real code on both legs.
+// headlessAuthMiddleware, allowlist and route registration, over the real DB.
+// The Clerk leg simulates only clerkMiddleware's output contract:
+// c.set("clerkAuth", authFn), the seam getAuth() invokes, because verifying
+// Clerk's network handshake belongs to Clerk, not this app. Everything
+// downstream (getGlobalUser → buildGlobalUserFromDb → permission middleware →
+// handler) is the real code on both legs.
 //
 // Run on a machine with the dev database (BYPASS_AUTH= overrides the dev
 // .env, which sets it truthy: _BYPASS_AUTH is a !! check, so only an empty
