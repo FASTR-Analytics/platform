@@ -15,6 +15,7 @@ import {
   type HfaIndicatorVariantCode,
   nextHfaIndicatorId,
   serialiseMultiMembershipValues,
+  t3,
 } from "lib";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
@@ -110,10 +111,38 @@ async function loadAllVariantCode(): Promise<HfaIndicatorVariantCode[]> {
 
 type CodeRound = { timePoint: string; rCode: string; rFilterCode?: string };
 
+// What the user sees in a preview. Everything a tool returns to the model
+// stays English; everything the approval modal or the chat timeline shows the
+// user goes through t3.
 function formatCodeRound(round: CodeRound): string {
   return round.rFilterCode?.trim()
-    ? `${round.rCode}  [filter: ${round.rFilterCode}]`
+    ? `${round.rCode}  [${
+      t3({ en: "filter", fr: "filtre", pt: "filtro" })
+    }: ${round.rFilterCode}]`
     : round.rCode;
+}
+
+function describeAssignment(indicator: HfaIndicator): string {
+  const none = "—";
+  return t3({
+    en: `category: ${indicator.categoryId ?? none}, sub: ${
+      indicator.subCategoryId ?? none
+    }, services: [${indicator.serviceCategoryIds.join(", ") || none}]`,
+    fr: `catégorie : ${indicator.categoryId ?? none}, sous-catégorie : ${
+      indicator.subCategoryId ?? none
+    }, services : [${indicator.serviceCategoryIds.join(", ") || none}]`,
+    pt: `categoria: ${indicator.categoryId ?? none}, subcategoria: ${
+      indicator.subCategoryId ?? none
+    }, serviços: [${indicator.serviceCategoryIds.join(", ") || none}]`,
+  });
+}
+
+function countIndicators(n: number): string {
+  return t3({
+    en: `${n} indicator(s)`,
+    fr: `${n} indicateur(s)`,
+    pt: `${n} indicador(es)`,
+  });
 }
 
 // Mirrors the manager's "Revalidate all" computation (syntax + variable
@@ -242,8 +271,18 @@ export function buildHfaIndicatorTools() {
           })),
         };
       },
-      inProgressLabel: () => "Reading indicators...",
-      completionMessage: "Read indicators",
+      inProgressLabel: () =>
+        t3({
+          en: "Reading HFA indicators...",
+          fr: "Lecture des indicateurs HFA...",
+          pt: "A ler os indicadores HFA...",
+        }),
+      completionMessage: () =>
+        t3({
+          en: "Read HFA indicators",
+          fr: "Indicateurs HFA lus",
+          pt: "Indicadores HFA lidos",
+        }),
     }),
 
     createAITool({
@@ -268,8 +307,18 @@ export function buildHfaIndicatorTools() {
           })),
         };
       },
-      inProgressLabel: () => "Reading taxonomy...",
-      completionMessage: () => "Read taxonomy",
+      inProgressLabel: () =>
+        t3({
+          en: "Reading the HFA taxonomy...",
+          fr: "Lecture de la taxonomie HFA...",
+          pt: "A ler a taxonomia HFA...",
+        }),
+      completionMessage: () =>
+        t3({
+          en: "Read the HFA taxonomy",
+          fr: "Taxonomie HFA lue",
+          pt: "Taxonomia HFA lida",
+        }),
     }),
 
     createAITool({
@@ -294,8 +343,12 @@ export function buildHfaIndicatorTools() {
             (await loadIndicators()).map((i) => [i.indicatorId, i]),
           );
           const merged: HfaIndicator[] = [];
-          const changes: { label: string; before: string; after: string }[] =
-            [];
+          const edits: {
+            indicatorId: string;
+            field: "short label" | "long label";
+            before: string;
+            after: string;
+          }[] = [];
           for (const u of input.updates) {
             const cur = byIndicatorId.get(u.indicatorId);
             if (!cur) {
@@ -303,16 +356,18 @@ export function buildHfaIndicatorTools() {
             }
             const next = { ...cur };
             if (u.shortLabel !== undefined && u.shortLabel !== cur.shortLabel) {
-              changes.push({
-                label: `${u.indicatorId} — short label`,
+              edits.push({
+                indicatorId: u.indicatorId,
+                field: "short label",
                 before: cur.shortLabel,
                 after: u.shortLabel,
               });
               next.shortLabel = u.shortLabel;
             }
             if (u.definition !== undefined && u.definition !== cur.definition) {
-              changes.push({
-                label: `${u.indicatorId} — long label`,
+              edits.push({
+                indicatorId: u.indicatorId,
+                field: "long label",
                 before: cur.definition,
                 after: u.definition,
               });
@@ -325,25 +380,54 @@ export function buildHfaIndicatorTools() {
               merged.push(next);
             }
           }
-          if (changes.length === 0) {
+          if (edits.length === 0) {
             return {
               skip: "No changes — provided values match the current labels.",
             };
           }
+          const fieldLabel = (field: "short label" | "long label") =>
+            field === "short label"
+              ? t3({
+                en: "short label",
+                fr: "libellé court",
+                pt: "rótulo curto",
+              })
+              : t3({
+                en: "long label",
+                fr: "libellé long",
+                pt: "rótulo longo",
+              });
           return {
             preview: {
-              title: "Apply label changes",
-              description:
-                `Apply these label changes to ${merged.length} indicator(s)?`,
-              changes,
+              title: t3({
+                en: "Apply label changes",
+                fr: "Appliquer les modifications de libellés",
+                pt: "Aplicar as alterações de rótulos",
+              }),
+              description: t3({
+                en: `Apply these label changes to ${
+                  countIndicators(merged.length)
+                }?`,
+                fr: `Appliquer ces modifications de libellés à ${
+                  countIndicators(merged.length)
+                } ?`,
+                pt: `Aplicar estas alterações de rótulos a ${
+                  countIndicators(merged.length)
+                }?`,
+              }),
+              changes: edits.map((e) => ({
+                label: `${e.indicatorId} — ${fieldLabel(e.field)}`,
+                before: e.before,
+                after: e.after,
+              })),
             },
             commit: async () => {
               await applyIndicatorUpdates(merged);
               return {
                 applied: true,
                 indicatorsUpdated: merged.length,
-                changes: changes.map((c) =>
-                  `${c.label}: "${c.before}" → "${c.after}"`
+                changes: edits.map((e) =>
+                  `${e.indicatorId} ${e.field}: "${e.before}" → "${e.after}"`
                 ),
               };
             },
@@ -351,9 +435,22 @@ export function buildHfaIndicatorTools() {
         },
         presentation: "modal",
       },
-      inProgressLabel: () => "Proposing label changes...",
+      inProgressLabel: () =>
+        t3({
+          en: "Proposing label changes...",
+          fr: "Proposition de modifications de libellés...",
+          pt: "A propor alterações de rótulos...",
+        }),
       completionMessage: (input) =>
-        `Label changes for ${input.updates.length} indicator(s)`,
+        t3({
+          en: `Label changes for ${countIndicators(input.updates.length)}`,
+          fr: `Modifications de libellés pour ${
+            countIndicators(input.updates.length)
+          }`,
+          pt: `Alterações de rótulos para ${
+            countIndicators(input.updates.length)
+          }`,
+        }),
     }),
 
     createAITool({
@@ -457,12 +554,8 @@ export function buildHfaIndicatorTools() {
             if (changed) {
               changes.push({
                 label: u.indicatorId,
-                before: `category: ${cur.categoryId ?? "—"}, sub: ${
-                  cur.subCategoryId ?? "—"
-                }, services: [${cur.serviceCategoryIds.join(", ") || "—"}]`,
-                after: `category: ${next.categoryId ?? "—"}, sub: ${
-                  next.subCategoryId ?? "—"
-                }, services: [${next.serviceCategoryIds.join(", ") || "—"}]`,
+                before: describeAssignment(cur),
+                after: describeAssignment(next),
               });
               merged.push(next);
             }
@@ -475,9 +568,22 @@ export function buildHfaIndicatorTools() {
           }
           return {
             preview: {
-              title: "Apply category changes",
-              description:
-                `Apply these category assignments to ${merged.length} indicator(s)?`,
+              title: t3({
+                en: "Apply category changes",
+                fr: "Appliquer les modifications de catégories",
+                pt: "Aplicar as alterações de categorias",
+              }),
+              description: t3({
+                en: `Apply these category assignments to ${
+                  countIndicators(merged.length)
+                }?`,
+                fr: `Appliquer ces affectations de catégories à ${
+                  countIndicators(merged.length)
+                } ?`,
+                pt: `Aplicar estas atribuições de categorias a ${
+                  countIndicators(merged.length)
+                }?`,
+              }),
               changes,
             },
             commit: async () => {
@@ -485,16 +591,35 @@ export function buildHfaIndicatorTools() {
               return {
                 applied: true,
                 indicatorsUpdated: merged.length,
-                changes: changes.map((c) => `${c.label} → ${c.after}`),
+                changes: merged.map((m) =>
+                  `${m.indicatorId} → category: ${
+                    m.categoryId ?? "none"
+                  }, sub: ${m.subCategoryId ?? "none"}, services: [${
+                    m.serviceCategoryIds.join(", ")
+                  }]`
+                ),
               };
             },
           };
         },
         presentation: "modal",
       },
-      inProgressLabel: () => "Proposing category changes...",
+      inProgressLabel: () =>
+        t3({
+          en: "Proposing category changes...",
+          fr: "Proposition de modifications de catégories...",
+          pt: "A propor alterações de categorias...",
+        }),
       completionMessage: (input) =>
-        `Category changes for ${input.updates.length} indicator(s)`,
+        t3({
+          en: `Category changes for ${countIndicators(input.updates.length)}`,
+          fr: `Modifications de catégories pour ${
+            countIndicators(input.updates.length)
+          }`,
+          pt: `Alterações de categorias para ${
+            countIndicators(input.updates.length)
+          }`,
+        }),
     }),
 
     createAITool({
@@ -536,8 +661,18 @@ export function buildHfaIndicatorTools() {
           }),
         };
       },
-      inProgressLabel: () => "Reading the dataset dictionary...",
-      completionMessage: "Read variable dictionary",
+      inProgressLabel: () =>
+        t3({
+          en: "Reading the HFA survey dictionary...",
+          fr: "Lecture du dictionnaire de l'enquête HFA...",
+          pt: "A ler o dicionário do inquérito HFA...",
+        }),
+      completionMessage: () =>
+        t3({
+          en: "Read the HFA survey dictionary",
+          fr: "Dictionnaire de l'enquête HFA lu",
+          pt: "Dicionário do inquérito HFA lido",
+        }),
     }),
 
     createAITool({
@@ -584,8 +719,17 @@ export function buildHfaIndicatorTools() {
         };
       },
       inProgressLabel: (input) =>
-        `Inspecting ${input.variableIds.join(", ")}...`,
-      completionMessage: "Inspected variable(s)",
+        t3({
+          en: `Inspecting ${input.variableIds.join(", ")}...`,
+          fr: `Inspection de ${input.variableIds.join(", ")}...`,
+          pt: `A inspecionar ${input.variableIds.join(", ")}...`,
+        }),
+      completionMessage: () =>
+        t3({
+          en: "Inspected HFA variable(s)",
+          fr: "Variable(s) HFA inspectée(s)",
+          pt: "Variável(eis) HFA inspecionada(s)",
+        }),
     }),
 
     createAITool({
@@ -620,8 +764,18 @@ export function buildHfaIndicatorTools() {
           })),
         };
       },
-      inProgressLabel: () => "Reading indicator code...",
-      completionMessage: "Read indicator code",
+      inProgressLabel: () =>
+        t3({
+          en: "Reading HFA indicator code...",
+          fr: "Lecture du code des indicateurs HFA...",
+          pt: "A ler o código dos indicadores HFA...",
+        }),
+      completionMessage: () =>
+        t3({
+          en: "Read HFA indicator code",
+          fr: "Code des indicateurs HFA lu",
+          pt: "Código dos indicadores HFA lido",
+        }),
     }),
 
     createAITool({
@@ -675,12 +829,24 @@ export function buildHfaIndicatorTools() {
         );
         return { validated: results.length, withIssues };
       },
-      inProgressLabel: () => "Validating r-code...",
-      completionMessage: (
-        input,
-      ) => (input.indicatorIds
-        ? `Validated ${input.indicatorIds.length} indicator(s)`
-        : "Validated all indicators"),
+      inProgressLabel: () =>
+        t3({
+          en: "Validating HFA indicator r-code...",
+          fr: "Validation du code R des indicateurs HFA...",
+          pt: "A validar o código R dos indicadores HFA...",
+        }),
+      completionMessage: (input) =>
+        input.indicatorIds
+          ? t3({
+            en: `Validated ${countIndicators(input.indicatorIds.length)}`,
+            fr: `${countIndicators(input.indicatorIds.length)} validé(s)`,
+            pt: `${countIndicators(input.indicatorIds.length)} validado(s)`,
+          })
+          : t3({
+            en: "Validated all HFA indicators",
+            fr: "Tous les indicateurs HFA validés",
+            pt: "Todos os indicadores HFA validados",
+          }),
     }),
 
     createAITool({
@@ -808,7 +974,13 @@ export function buildHfaIndicatorTools() {
               label: ind.definition,
               after: `${ind.type}/${ind.aggregation}${
                 v.issues.length
-                  ? ` — ${v.issues.length} issue(s): ${v.issues.join("; ")}`
+                  ? ` — ${
+                    t3({
+                      en: `${v.issues.length} issue(s)`,
+                      fr: `${v.issues.length} problème(s)`,
+                      pt: `${v.issues.length} problema(s)`,
+                    })
+                  }: ${v.issues.join("; ")}`
                   : ""
               }`,
             });
@@ -816,9 +988,16 @@ export function buildHfaIndicatorTools() {
 
           return {
             preview: {
-              title: "Create indicators",
-              description:
-                `Create ${indicatorsToCreate.length} new indicator(s)?`,
+              title: t3({
+                en: "Create HFA indicators",
+                fr: "Créer des indicateurs HFA",
+                pt: "Criar indicadores HFA",
+              }),
+              description: t3({
+                en: `Create ${countIndicators(indicatorsToCreate.length)}?`,
+                fr: `Créer ${countIndicators(indicatorsToCreate.length)} ?`,
+                pt: `Criar ${countIndicators(indicatorsToCreate.length)}?`,
+              }),
               changes,
             },
             commit: async () => {
@@ -858,9 +1037,18 @@ export function buildHfaIndicatorTools() {
         },
         presentation: "modal",
       },
-      inProgressLabel: () => "Proposing new indicators...",
+      inProgressLabel: () =>
+        t3({
+          en: "Proposing new HFA indicators...",
+          fr: "Proposition de nouveaux indicateurs HFA...",
+          pt: "A propor novos indicadores HFA...",
+        }),
       completionMessage: (input) =>
-        `Create ${input.indicators.length} indicator(s)`,
+        t3({
+          en: `Create ${countIndicators(input.indicators.length)}`,
+          fr: `Créer ${countIndicators(input.indicators.length)}`,
+          pt: `Criar ${countIndicators(input.indicators.length)}`,
+        }),
     }),
 
     createAITool({
@@ -915,7 +1103,9 @@ export function buildHfaIndicatorTools() {
             }
             const arr = codeByIndicatorId.get(u.indicatorId) ?? [];
             const idx = arr.findIndex((c) => c.timePoint === u.timePoint);
-            const before = idx >= 0 ? formatCodeRound(arr[idx]) : "(none)";
+            const before = idx >= 0
+              ? formatCodeRound(arr[idx])
+              : t3({ en: "(none)", fr: "(aucun)", pt: "(nenhum)" });
             const round = {
               timePoint: u.timePoint,
               rCode: u.rCode,
@@ -934,8 +1124,20 @@ export function buildHfaIndicatorTools() {
 
           return {
             preview: {
-              title: "Update indicator code",
-              description: `Update r-code for ${affected.size} indicator(s)?`,
+              title: t3({
+                en: "Update HFA indicator code",
+                fr: "Mettre à jour le code des indicateurs HFA",
+                pt: "Atualizar o código dos indicadores HFA",
+              }),
+              description: t3({
+                en: `Update r-code for ${countIndicators(affected.size)}?`,
+                fr: `Mettre à jour le code R de ${
+                  countIndicators(affected.size)
+                } ?`,
+                pt: `Atualizar o código R de ${
+                  countIndicators(affected.size)
+                }?`,
+              }),
               changes,
             },
             commit: async () => {
@@ -995,9 +1197,18 @@ export function buildHfaIndicatorTools() {
         },
         presentation: "modal",
       },
-      inProgressLabel: () => "Proposing code changes...",
+      inProgressLabel: () =>
+        t3({
+          en: "Proposing code changes...",
+          fr: "Proposition de modifications de code...",
+          pt: "A propor alterações de código...",
+        }),
       completionMessage: (input) =>
-        `Code changes for ${input.updates.length} round(s)`,
+        t3({
+          en: `Code changes for ${input.updates.length} round(s)`,
+          fr: `Modifications de code pour ${input.updates.length} vague(s)`,
+          pt: `Alterações de código para ${input.updates.length} ronda(s)`,
+        }),
     }),
 
     createAITool({
@@ -1039,22 +1250,45 @@ export function buildHfaIndicatorTools() {
               referencing.add(c.indicatorId);
             }
           }
+          const referencedBy = [...referencing].sort().join(", ");
           const referencedByNote = referencing.size > 0
-            ? `\n\nReferenced by: ${
-              [...referencing].sort().join(", ")
-            } — their code will fail validation.`
+            ? "\n\n" + t3({
+              en:
+                `Referenced by: ${referencedBy} — their code will fail validation.`,
+              fr:
+                `Référencés par : ${referencedBy} — leur code échouera à la validation.`,
+              pt:
+                `Referenciados por: ${referencedBy} — o código deles falhará na validação.`,
+            })
             : "";
           return {
             preview: {
-              title: "Delete indicators",
-              description:
-                `Permanently delete ${input.indicatorIds.length} indicator(s)?${referencedByNote}`,
+              title: t3({
+                en: "Delete HFA indicators",
+                fr: "Supprimer des indicateurs HFA",
+                pt: "Eliminar indicadores HFA",
+              }),
+              description: t3({
+                en: `Permanently delete ${
+                  countIndicators(input.indicatorIds.length)
+                }?`,
+                fr: `Supprimer définitivement ${
+                  countIndicators(input.indicatorIds.length)
+                } ?`,
+                pt: `Eliminar definitivamente ${
+                  countIndicators(input.indicatorIds.length)
+                }?`,
+              }) + referencedByNote,
               changes: input.indicatorIds.map((vn) => ({
                 label: vn,
-                after: "deleted",
+                after: t3({ en: "deleted", fr: "supprimé", pt: "eliminado" }),
               })),
               intent: "danger",
-              confirmLabel: "Delete",
+              confirmLabel: t3({
+                en: "Delete",
+                fr: "Supprimer",
+                pt: "Eliminar",
+              }),
             },
             commit: async () => {
               const res = await serverActions.deleteHfaIndicators({
@@ -1077,9 +1311,18 @@ export function buildHfaIndicatorTools() {
         },
         presentation: "modal",
       },
-      inProgressLabel: () => "Proposing deletion...",
+      inProgressLabel: () =>
+        t3({
+          en: "Proposing deletion...",
+          fr: "Proposition de suppression...",
+          pt: "A propor a eliminação...",
+        }),
       completionMessage: (input) =>
-        `Delete ${input.indicatorIds.length} indicator(s)`,
+        t3({
+          en: `Delete ${countIndicators(input.indicatorIds.length)}`,
+          fr: `Supprimer ${countIndicators(input.indicatorIds.length)}`,
+          pt: `Eliminar ${countIndicators(input.indicatorIds.length)}`,
+        }),
     }),
 
     createAskUserQuestionsTool(),
