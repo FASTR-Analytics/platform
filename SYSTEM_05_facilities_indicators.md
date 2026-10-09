@@ -576,14 +576,13 @@ code hard-fail whole module runs. lib compiles into both runtimes: keep it pure
 (no Deno/UI imports). The persisted `has_syntax_error`/`code_consistent` flags
 are advisory metadata that the manager does not display (its Status and
 Consistent columns compute from the code) and that only the HFA assistant reads
-(`get_hfa_indicators`, and `validate_hfa_indicators` as its preview's before
-status): the run's `hfa_indicators_snapshot.json` carries them and its reader
-(`hfaIndicatorRow`, `server/run_query/run_read.ts`) drops them, and bulk
-validation updates deliberately do NOT bump `updated_at` (a bump would move
-`hfaIndicatorsVersion`, the run's HFA staleness stamp, for an edit generation
-ignores). Warnings (lone `=`) are a distinct severity and never persist as
-errors. The R-code lifecycle: instance edits → run capture (S6's run-capture
-seam) snapshots indicators+taxonomy+code → S8's module run builds a
+(`get_hfa_indicators`): the run's `hfa_indicators_snapshot.json` carries them
+and its reader (`hfaIndicatorRow`, `server/run_query/run_read.ts`) drops them,
+and bulk validation updates deliberately do NOT bump `updated_at` (a bump would
+move `hfaIndicatorsVersion`, the run's HFA staleness stamp, for an edit
+generation ignores). Warnings (lone `=`) are a distinct severity and never
+persist as errors. The R-code lifecycle: instance edits → run capture (S6's
+run-capture seam) snapshots indicators+taxonomy+code → S8's module run builds a
 cross-indicator dependency graph (topological sort, cycles rejected) and splices
 each round's code into `case_when` branches; `STOP_IF_INDICATOR_FAILS` (default
 TRUE) makes one invalid indicator kill the run.
@@ -1208,7 +1207,7 @@ raised by adversarial review of the shipped feature; none blocks it.
   the editor's save includes variant snippets, so revalidate-all can wipe a
   variant-only syntax flag. The flag is display-only advisory metadata
   (generation validates independently); the flag's only reader is
-  `get_hfa_indicators` (`hfa/ai/tools.ts:193-222`); the manager recomputes
+  `get_hfa_indicators` (`hfa/ai/tools.ts:226-241`); the manager recomputes
   status at render (`hfa/manager.tsx:285-377`).
 - A survey-dictionary import can introduce a variable equal to an existing
   composed `<parent>__<item>` column (ODK/Kobo `group__field` exports make `__`
