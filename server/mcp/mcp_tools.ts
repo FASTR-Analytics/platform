@@ -7,6 +7,7 @@ import type { AIToolWithMetadata } from "@timroberton/panther";
 import { z } from "zod";
 import type { AIToolEnv } from "lib";
 import {
+  buildAiContextSections,
   buildDataCoverageSections,
   buildInstanceContextSections,
   buildPackageGroundingSections,
@@ -81,7 +82,7 @@ export function buildMcpToolsForPrincipal(principal: McpPrincipal): AnyTool[] {
       const instanceState = await resolveInstanceState(principal);
       const runId = await resolvePinnedRunId();
       // The overview answers WITHOUT a pin: a connector still connects and
-      // the model can explain what to do; every other tool fails typed.
+      // the model can explain what to do; the package tools fail typed.
       if (runId === null) {
         return [
           `FASTR Analytics instance "${instanceState.instanceName}" — health-facility data analysis over the instance's pinned results package.`,
@@ -98,15 +99,16 @@ export function buildMcpToolsForPrincipal(principal: McpPrincipal): AnyTool[] {
         `**Generated:** ${ctx.run.createdAt}`,
         ...buildPackageGroundingSections(ctx.grounding),
         ...buildDataCoverageSections(instanceState),
+        ...buildAiContextSections(instanceState.aiContext),
         "",
-        "Every tool here reads all data in the package. Discover metric ids with get_available_metrics; never invent them.",
+        "get_available_metrics and get_metric_data read all data in the package. Discover metric ids with get_available_metrics; never invent them.",
         "",
         "---",
         "",
       ].join("\n");
       return buildSystemPrompt({
         contextSection,
-        toolCatalog: buildToolCatalog(ctx.sessionTools),
+        toolCatalog: buildToolCatalog(tools),
         infoTopics: INFO_TOPICS,
         roleAndPurpose:
           "You are an AI assistant helping users explore and analyze the health data in this instance's pinned results package. You can list metrics and query metric data (CSV), and read the FASTR methodology and reference docs. Everything is read-only.",
@@ -136,10 +138,13 @@ export function buildMcpToolsForPrincipal(principal: McpPrincipal): AnyTool[] {
     })
   );
 
-  return [
+  // The overview's catalogue renders this same list, so it names every tool
+  // the server lists.
+  const tools: AnyTool[] = [
     getOverviewTool,
     ...boundPackageTools,
     ...getSharedToolsForMethodologyDocs(),
     ...getSharedToolsForInfo(INFO_TOPICS, transport),
   ];
+  return tools;
 }

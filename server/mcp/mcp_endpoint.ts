@@ -14,11 +14,12 @@ import { buildMcpToolsForPrincipal } from "./mcp_tools.ts";
 // The remote MCP endpoint (PLAN_112, re-cut 2026-08-19 to the pinned
 // package): any Claude client connects with just the instance URL
 // (https://<instance>/mcp) and a PAT in the Authorization header. Stateless
-// above the wire (D1): identity rides every request, every tool call reads
-// the instance's CURRENT pinned results package (no package id in
-// any schema), authorization runs per call. All tools are read-only. The
-// panther adapter owns the wire (both protocol eras, sessions, elicitation);
-// the D3 thunk below binds one tool set per authenticated principal.
+// above the wire (D1): identity rides every request, the two metric tools
+// read the instance's CURRENT pinned results package on every call (no
+// package id in any schema), authorization runs per call. All tools are
+// read-only. The panther adapter owns the wire (both protocol eras, sessions,
+// elicitation); the D3 thunk below binds one tool set per authenticated
+// principal.
 //
 // Auth is the shared headless-credential seam (server/headless_auth.ts): the
 // SAME resolver the per-dispatch middleware runs, which is what keeps a
@@ -29,7 +30,7 @@ import { buildMcpToolsForPrincipal } from "./mcp_tools.ts";
 // auth-on.
 
 const INSTRUCTIONS = [
-  "FASTR Analytics assistant. Every tool reads this instance's pinned national results package.",
+  "FASTR Analytics assistant. get_available_metrics and get_metric_data read this instance's pinned national results package; get_methodology_docs_list, get_methodology_doc_content and get_info read reference docs, not the package.",
   "Rules:",
   "- Call get_overview FIRST — it carries the live grounding (which package is pinned, its datasets, indicators and period coverage) and the tool catalog.",
   "- Discover metric ids with get_available_metrics; never invent them.",

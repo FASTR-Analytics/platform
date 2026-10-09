@@ -16,6 +16,8 @@ globs:
   - server/routes/instance/ai_files.ts
   - server/routes/instance/ai_proxy.ts
   - server/routes/instance/copilot_ai_proxy.ts
+  - server/tests/ai_context_sections_test.ts
+  - server/tests/hfa_time_points_for_ai_test.ts
   - server/tests/mcp_context_cache_test.ts
   - server/tests/mcp_principal_key_test.ts
   - server/tests/mcp_tools_source_header_test.ts
@@ -90,10 +92,14 @@ the query pipeline the data tools call is **S9**.
    `resolvePackageContext` refuses a restricted one with a tool failure when it
    builds a context, and the routes refuse them "All data" on every read, since
    a restricted user cannot hold that scope) and exposes only the shared tools +
-   `get_overview`: 6 read-only tools, no writes. **Interpretation context rides
-   the grounding and the shared reads, not extra tools**:
-   `buildPackageGroundingSections` lists every HMIS indicator of the package
-   with its format, direction, thresholds, target and, for a calculated
+   `get_overview`: 6 read-only tools, no writes, all six listed under
+   `# Available Tools` in the overview, which renders the same list the server
+   returns. Only `get_available_metrics` and `get_metric_data` read the pin; the
+   methodology tools and `get_info` read reference docs, and the server's
+   instructions, the overview and the endpoint's file comment say so.
+   **Interpretation context rides the grounding and the shared reads, not extra
+   tools**: `buildPackageGroundingSections` lists every HMIS indicator of the
+   package with its format, direction, thresholds, target and, for a calculated
    indicator, its flattened formula (the manifest's `hmisIndicators`, in
    dictionary order; the indicator's type is deliberately absent, an
    implementation detail no reader needs), and `get_metric_data` fetches value
@@ -106,20 +112,21 @@ the query pipeline the data tools call is **S9**.
    manifest). Nothing about modules, provenance, or unavailable metrics goes
    into the AI context: it does not help read a metric (ruled). A separate
    indicator-dictionary tool was considered and dropped as redundant. The `/mcp`
-   surface is stateless above the wire: the pin is read from the DB on every
-   call (a pin-move is visible on the next call; `get_overview` answers without
-   a pin), and package tools are boot-time templates bound per call via
-   panther's `bindAITool` because panther caches a principal's tool set per
-   core. A core is keyed per credential: `buildMcpPrincipal` gives each PAT or
-   OAuth access token its own principal, whose key is the email plus a 16-digit
-   prefix of the token's SHA-256 (`server/tests/mcp_principal_key_test.ts`), so
-   a second PAT or a rotated token of one user never runs over another
-   credential's token. The catalog is fixed per process: a client sees a catalog
-   change only when it re-lists (a chat client: refresh the connector's tools,
-   or a new conversation, though neither claude.ai nor Claude Code reliably
-   re-lists on a new conversation alone), and the server does not advertise
-   `listChanged` (panther ruling, DOC_AI_CHAT §Headless tools). So results are
-   self-identifying instead: every package-tool result starts with a
+   surface is stateless above the wire: the metric tools read the pin from the
+   DB on every call (a pin-move is visible on the next call; `get_overview`
+   answers without a pin), and package tools are boot-time templates bound per
+   call via panther's `bindAITool` because panther caches a principal's tool set
+   per core. A core is keyed per credential: `buildMcpPrincipal` gives each PAT
+   or OAuth access token its own principal, whose key is the email plus a
+   16-digit prefix of the token's SHA-256
+   (`server/tests/mcp_principal_key_test.ts`), so a second PAT or a rotated
+   token of one user never runs over another credential's token. The catalog is
+   fixed per process: a client sees a catalog change only when it re-lists (a
+   chat client: refresh the connector's tools, or a new conversation, though
+   neither claude.ai nor Claude Code reliably re-lists on a new conversation
+   alone), and the server does not advertise `listChanged` (panther ruling,
+   DOC_AI_CHAT §Headless tools). So results are self-identifying instead: every
+   package-tool result starts with a
    `Source: results package "<label>" (generated <createdAt>)` line naming the
    run it read (`withSourceHeader` in `context_cache.ts`, applied where run and
    session tools meet; failures pass through unheadered; the line is
@@ -132,8 +139,12 @@ the query pipeline the data tools call is **S9**.
    line, `[panther mcp] fastr: <era> <method> …`; `./mcp_probe <origin> --info`
    shows the handshake. The system prompt splits the same way: shared grounding
    blocks in `lib/ai_tools/build_system_prompt.ts`, each surface assembling its
-   own context. The SPA's assembled prompt is byte-stable for the life of one
-   mount (prompt-cache breakpoint); only the instance AI context can change it.
+   own context and closing it with the instance `ai_context` through the shared
+   `buildAiContextSections` (nothing for a blank context,
+   `server/tests/ai_context_sections_test.ts`), so `get_overview` carries what
+   the admin wrote for the assistant. The SPA's assembled prompt is byte-stable
+   for the life of one mount (prompt-cache breakpoint); only the instance AI
+   context can change it.
 3. **Editors expose live mutators via the view registry's context**: each
    editing view's live context carries the editor's store getters/setters AND
    the open product's `getScope()`
@@ -308,9 +319,13 @@ panther's no-mount construction check: both assistants call
   metrics, datasets, indicator vocabularies, the HFA taxonomy) are props of the
   inner `ProductCopilot`, fixed for its life; the HFA survey rounds
   (instance-wide T1, not in the per-run payload) are merged in once at
-  construction. Nothing moves under the tools, so no store, no reconcile and no
-  call-time scope resolver: the tools array is built once over these values and
-  registered once.
+  construction through `hfaTimePointsForAI` (lib), which keeps the imported
+  rounds in the order given, the label as the id: the same function `/mcp`'s
+  package context calls over the `hfa_time_points` rows in `sort_order`
+  (`getHfaTimePointsForAI`, `server/tests/hfa_time_points_for_ai_test.ts`), so
+  both surfaces list the same rounds. Nothing moves under the tools, so no
+  store, no reconcile and no call-time scope resolver: the tools array is built
+  once over these values and registered once.
 
 The chat pane (`ConsolidatedChatPane`,
 [chat_pane.tsx](client/src/components/products/copilot/chat_pane.tsx)) lives in
@@ -629,7 +644,8 @@ excluded, included with no limits, or limited to an area, years, time points,
 modules, indicators, HFA categories and HFA service categories, each listed in
 full, with the rule that a limit applies only to a table that has a column for
 it; the package's datasets and indicator lists) + the instance-level
-`ai_context` + reference-doc catalog (`SPA_INFO_TOPICS`) + base instructions
+`ai_context` (`buildAiContextSections`, the shared block `/mcp`'s `get_overview`
+also ends with) + reference-doc catalog (`SPA_INFO_TOPICS`) + base instructions
 (read-data-first, no fabrication, indicator directionality) + the tool catalog.
 For a viewer the results-package section carries one more sentence: the user can
 view the product but not change it, so the model can read it and answer

@@ -9,6 +9,7 @@ import {
 } from "panther";
 import {
   type HfaTaxonomyForAI,
+  hfaTimePointsForAI,
   type PackageScope,
   packageScopesEqual,
   productScope,
@@ -144,11 +145,7 @@ function ProductCopilot(p: {
   // imported mid-session reaches the copilot on its next mount.
   const hfaTaxonomy: HfaTaxonomyForAI = {
     ...p.authoringContext.hfaTaxonomy,
-    timePoints: instanceState.hfaTimePoints.map((tp) => ({
-      id: tp.label,
-      label: tp.label,
-      periodId: tp.periodId,
-    })),
+    timePoints: hfaTimePointsForAI(instanceState.hfaTimePoints),
   };
 
   // Read once, like the rest of the catalogue: a level change reaches the

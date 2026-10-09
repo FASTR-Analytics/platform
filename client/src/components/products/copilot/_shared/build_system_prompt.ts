@@ -1,4 +1,5 @@
 import {
+  buildAiContextSections,
   buildDataCoverageSections,
   buildInstanceContextSections,
   buildPackageGroundingSections,
@@ -109,17 +110,11 @@ export function buildSystemPromptForContext(
       icehIndicators: authoringContext.icehIndicators,
     }),
     ...buildDataCoverageSections(instance),
+    ...buildAiContextSections(instance.aiContext),
+    "",
+    "---",
+    "",
   ];
-  if (instance.aiContext.trim()) {
-    sections.push("");
-    sections.push("# Additional Context");
-    sections.push("");
-    sections.push(instance.aiContext.trim());
-  }
-  sections.push("");
-  sections.push("---");
-  sections.push("");
-
   return buildSystemPrompt({
     contextSection: sections.join("\n"),
     toolCatalog,

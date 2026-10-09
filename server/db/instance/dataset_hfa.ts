@@ -3,6 +3,8 @@ import {
   APIResponseNoData,
   APIResponseWithData,
   DatasetHfaDetail,
+  HfaTaxonomyForAI,
+  hfaTimePointsForAI,
   ItemsHolderDatasetHfaDisplay,
 } from "lib";
 import { tryCatchDatabaseAsync } from "../utils.ts";
@@ -15,20 +17,27 @@ export async function getHfaTimePointOrder(mainDb: Sql): Promise<string[]> {
 }
 
 // Time points are instance-wide (not run content: every run of an instance
-// shares its survey rounds), restricted to those actually imported.
+// shares its survey rounds); hfaTimePointsForAI keeps the imported ones.
 export async function getHfaTimePointsForAI(
   mainDb: Sql,
-): Promise<{ id: string; label: string; periodId: string }[]> {
-  const rows = await mainDb<{ label: string; period_id: string }[]>`
-    SELECT label, period_id FROM hfa_time_points
-    WHERE imported_at IS NOT NULL
+): Promise<HfaTaxonomyForAI["timePoints"]> {
+  const rows = await mainDb<
+    {
+      label: string;
+      period_id: string;
+      sort_order: number;
+      imported_at: string | null;
+    }[]
+  >`
+    SELECT label, period_id, sort_order, imported_at FROM hfa_time_points
     ORDER BY sort_order
   `;
-  return rows.map((t) => ({
-    id: t.label,
-    label: t.label,
-    periodId: t.period_id,
-  }));
+  return hfaTimePointsForAI(rows.map((r) => ({
+    label: r.label,
+    periodId: r.period_id,
+    sortOrder: r.sort_order,
+    importedAt: r.imported_at ?? undefined,
+  })));
 }
 
 export function computeHfaCacheHash(

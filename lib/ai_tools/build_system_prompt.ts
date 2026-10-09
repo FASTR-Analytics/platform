@@ -16,9 +16,10 @@ import {
 
 // The shared halves of the AI system prompt: what both surfaces (the SPA
 // copilot and the /mcp get_overview) ground the model with. Each surface
-// assembles its own context section from these building blocks and its own
-// prose (the SPA: the open product's package and scope and the instance
-// ai_context, client/src/components/products/copilot/_shared/build_system_prompt.ts;
+// assembles its own context section from these building blocks, the instance
+// ai_context (buildAiContextSections) the last of them, and its own prose
+// (the SPA: the open product's package and scope,
+// client/src/components/products/copilot/_shared/build_system_prompt.ts;
 // /mcp: the pinned package, server/mcp/mcp_tools.ts), then hands it to
 // buildSystemPrompt.
 //
@@ -334,6 +335,14 @@ export function buildDataCoverageSections(instance: InstanceState): string[] {
     }
   }
   return sections;
+}
+
+// ── The instance ai_context: what an admin wrote for the assistant ──
+
+export function buildAiContextSections(aiContext: string): string[] {
+  const trimmed = aiContext.trim();
+  if (trimmed === "") return [];
+  return ["", "# Additional Context", "", trimmed];
 }
 
 // ── Base instructions ──
