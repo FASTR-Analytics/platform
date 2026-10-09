@@ -274,7 +274,8 @@ controller and interactions, the system prompt, the env (`client_env.ts`) and
 the module tools (`tools/`), exported through its `mod.ts`, which every page and
 product tool reads for the registry, the controller and their types. It imports
 nothing at runtime from `components/` but `components/_shared/mod.ts`, and has
-no `_shared/`: its files sit at the folder's root. The product half stays in
+no `_shared/`: the registry, controller, interactions, system prompt, env and
+types sit at the folder's root. The product half stays in
 `client/src/components/products/copilot/`: the host, `build_tools.ts`, the
 product tools (`ai_tools/`), the slide conversion layer (`slide_ai/`), the two
 `_shared/` files both of those read (`content_validators.ts`,
