@@ -24,7 +24,11 @@ import {
 import { reconcile } from "solid-js/store";
 import { unwrap } from "solid-js/store";
 import { z } from "zod";
-import { copilotViewController, copilotViews } from "../../_shared/mod.ts";
+import {
+  copilotViewController,
+  copilotViews,
+  type CopilotViewState,
+} from "../../_shared/mod.ts";
 import { validateMetricInputs } from "lib";
 import {
   validateMaxContentBlocks,
@@ -65,11 +69,15 @@ function replaceFigureBundleInLayout(
 }
 
 // A handler holds the view it got at entry; a slide switch during its awaits
-// unmounts that editor, so a write would land in a dead store and report
-// success. Checked before every write to the open slide.
-function assertSlideStillOpen(slideId: string): void {
+// unmounts that editor (a switch away and back remounts it over a fresh
+// store), so a write would land in a dead store and report success. The
+// context reference is the mount's identity, so it is what is compared;
+// checked before every write to the open slide.
+function assertSlideStillOpen(
+  view: Extract<CopilotViewState, { id: "editing_slide" }>,
+): void {
   const current = copilotViewController.current();
-  if (current.id !== "editing_slide" || current.params.slideId !== slideId) {
+  if (current.id !== "editing_slide" || current.context !== view.context) {
     throw new AIToolFailure("The user switched slides; nothing was applied.");
   }
 }
@@ -215,7 +223,7 @@ export function getClientToolsForSlideEditor(
             changes.push("date");
           }
           if (changes.length > 0) {
-            assertSlideStillOpen(view.params.slideId);
+            assertSlideStillOpen(view);
             ctx.setTempSlide(reconcile(updated));
           }
         }
@@ -231,7 +239,7 @@ export function getClientToolsForSlideEditor(
             changes.push("sectionSubtitle");
           }
           if (changes.length > 0) {
-            assertSlideStillOpen(view.params.slideId);
+            assertSlideStillOpen(view);
             ctx.setTempSlide(reconcile(updated));
           }
         }
@@ -362,7 +370,7 @@ export function getClientToolsForSlideEditor(
             changes.push("layout");
           }
           if (changes.length > 0) {
-            assertSlideStillOpen(view.params.slideId);
+            assertSlideStillOpen(view);
             ctx.setTempSlide(reconcile(updated));
           }
         }
@@ -584,7 +592,7 @@ export function getClientToolsForSlideEditor(
         const reportText = report.map((l) => `- ${l}`).join("\n");
 
         if (view.id === "editing_slide") {
-          assertSlideStillOpen(view.params.slideId);
+          assertSlideStillOpen(view);
           view.context.setTempSlide(reconcile(updatedSlide));
           return `Updated figure ${input.blockId}.\n${reportText}\nThe change is applied to the open slide and saves automatically.`;
         }
