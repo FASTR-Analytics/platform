@@ -276,7 +276,7 @@ panther's no-mount construction check: both assistants call
   bodies to the user's locale.
 - **modelConfig**: omitted, so panther's `DEFAULT_MODEL_CONFIG` applies
   (`claude-sonnet-5`, `max_tokens: 32_000`, `output_config: {effort: "high"}`,
-  [anthropic_consts.ts:236](panther/_110_ai_types/anthropic_consts.ts#L236);
+  [anthropic_consts.ts:248-252](panther/_110_ai_types/anthropic_consts.ts#L248-L252);
   effort is re-resolved per model by panther and dropped where unsupported;
   max_tokens fits every listed model's output cap, and a report rewrite is one
   tool_use block that must fit inside it). Panther resolves the config into
@@ -313,7 +313,9 @@ a `FrameRightResizable` panel toggled by `showAi()` (T4 UI state) and registers
 three custom renderers, keyed to panther's `DisplayRegistry`: `toolError`,
 `systemNotice` (refusals/truncation/context-exceeded/ continuation caps arrive
 as `system_notice` items), and `userText` (`SaveableUserTextRenderer`: adds
-save-to-prompt-library, strips ephemeral markers from display).
+save-to-prompt-library and renders the text as typed, with image syntax
+disabled, so a user's or a library prompt's text never fetches an image URL as
+it renders).
 
 **The view registry.**
 [`copilotViews`](client/src/components/products/copilot/_shared/ai_views.ts)
@@ -447,17 +449,16 @@ stylesheet from, led by a top-of-instructions banner and backstopped by
 `validateStyledReportHasStylesheet` on `rewrite_report`. The AI pane's kebab
 menu offers "Save this report's style..." inside an HTML report
 ([save_report_style.tsx](client/src/components/products/copilot/save_report_style.tsx)):
-a one-shot Sonnet call on the governed instance proxy distills the report's
-markup patterns into a preset-shaped brief + tile colors, while the report's
-actual `<style>` CSS is extracted EXACTLY in code and stored as the style's
-reference stylesheet, injected verbatim into the instructions as the CSS to
-reuse; all reviewed in the S12 style editor before it enters the library):
-tokens are built/parsed through the lib helpers, `get_report_editor` prints the
-format plus a headings index (1-based line + the exact section range and
-`wrapper <tag>`/`flat` mode from `lib/report_sections.ts`), `rewrite_section`
-splices that range (wrapper mode insists `newBody` starts with the wrapper tag),
-`insert_figure.afterHeading` lands after the heading's header block, and the
-validators
+a one-shot Sonnet call on `/ai` distills the report's markup patterns into a
+preset-shaped brief + tile colors, while the report's actual `<style>` CSS is
+extracted EXACTLY in code and stored as the style's reference stylesheet,
+injected verbatim into the instructions as the CSS to reuse; all reviewed in the
+S12 style editor before it enters the library): tokens are built/parsed through
+the lib helpers, `get_report_editor` prints the format plus a headings index
+(1-based line + the exact section range and `wrapper <tag>`/`flat` mode from
+`lib/report_sections.ts`), `rewrite_section` splices that range (wrapper mode
+insists `newBody` starts with the wrapper tag), `insert_figure.afterHeading`
+lands after the heading's header block, and the validators
 ([report_validators.ts](client/src/components/products/copilot/ai_tools/validators/report_validators.ts))
 reject wrong-syntax tokens (with the correct spelling), doctype/html/head/body
 wrappers and non-well-formed html (incl. unclosed elements) for whole bodies and
@@ -487,13 +488,13 @@ doesn't change).
 The **FASTR Markdown branch is the inverse of the html one**: there the model
 designs and CSS is its output; here the design already exists as a real theme
 stylesheet, so the brief is `FASTR_MD_SYNTAX_DOC`
-([lib/fastr_markdown_spec.ts](lib/fastr_markdown_spec.ts), the ONE reference,
-also rendered by the in-editor guide, so the two cannot drift) plus an explicit
-"never write CSS, a `<style>` block or raw layout HTML; reach for a block
-instead": such markup would be INERT and would break the user's ability to
-re-theme. The brief deliberately never NAMES the theme, because the theme is
-changeable at any time (S12's theme modal) and a name in the view params would
-go stale. `validateFastrContainers`
+([lib/fastr_markdown_spec.ts](lib/fastr_markdown_spec.ts), one file with two
+texts: the brief, and the `FASTR_BLOCK_SNIPPETS` the in-editor guide renders)
+plus an explicit "never write CSS, a `<style>` block or raw layout HTML; reach
+for a block instead": such markup would be INERT and would break the user's
+ability to re-theme. The brief deliberately never NAMES the theme, because the
+theme is changeable at any time (S12's theme modal) and a name in the view
+params would go stale. `validateFastrContainers`
 ([report_validators.ts](client/src/components/products/copilot/ai_tools/validators/report_validators.ts))
 rejects an unbalanced or misspelt `:::` before staging (an unclosed container
 runs to EOF) and it checks the SPLICED result, not the fragment, so a locally

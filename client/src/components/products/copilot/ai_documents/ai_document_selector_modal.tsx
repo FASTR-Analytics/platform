@@ -9,8 +9,8 @@ import {
 import { createMemo, createSignal, onCleanup, onMount, Show } from "solid-js";
 import type Uppy from "@uppy/core";
 import { cleanupUppy, createUppyInstance } from "~/components/_shared/mod.ts";
-import { _SERVER_HOST, serverActions } from "~/server_actions";
-import { instanceState, updateInstanceAssets } from "~/state/instance/t1_store";
+import { _SERVER_HOST } from "~/server_actions";
+import { instanceState } from "~/state/instance/t1_store";
 import {
   addUpload,
   getUploads,
@@ -61,11 +61,6 @@ export function AIDocumentSelectorModal(
         const fileName = file?.name;
         if (!fileName) return;
         setSelectedFiles((prev) => [...new Set([...prev, fileName])]);
-      },
-      onComplete: () => {
-        serverActions.getAssets({}).then((res) => {
-          if (res.success) updateInstanceAssets(res.data);
-        });
       },
     });
   });

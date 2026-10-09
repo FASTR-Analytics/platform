@@ -20,8 +20,8 @@ import { createCopilotSDKClient } from "./ai_configs/mod.ts";
 // one-shot Claude call distills the report's ACTUAL body/CSS into a reusable
 // design brief in the same shape as the built-in preset briefs, plus tile
 // colors — then hands the draft to the normal style editor for review/edit
-// before it enters the library. The call rides the governed instance AI
-// proxy (the same client the chat uses).
+// before it enters the library. The call goes to `/ai` through its own
+// `createCopilotSDKClient()`.
 
 type Seed = {
   label: string;

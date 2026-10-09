@@ -6,23 +6,20 @@ import {
 } from "./save_to_prompt_library_modal";
 import { t3 } from "lib";
 
+// A user's text, a country-wide library prompt included, must not fetch an
+// image URL as it renders: image syntax renders as a link instead.
 const md = createMarkdownIt();
-
-function stripAIContext(text: string): string {
-  return text.replace(/<<<.*?>>>/gs, "").trim();
-}
+md.disable("image");
 
 type UserTextItem = { type: "user_text"; text: string };
 
 export const SaveableUserTextRenderer: Component<{ item: UserTextItem }> = (
   props,
 ) => {
-  const displayText = () => stripAIContext(props.item.text);
-
   const handleSave = async () => {
     await openComponent<{ initialContent: string }, SaveToPromptLibraryResult>({
       element: SaveToPromptLibraryModal,
-      props: { initialContent: displayText() },
+      props: { initialContent: props.item.text },
     });
   };
 
@@ -42,7 +39,7 @@ export const SaveableUserTextRenderer: Component<{ item: UserTextItem }> = (
       </button>
       <div
         class="bg-base-200 text-base-content min-w-0 flex-1 rounded px-4 py-3 text-left text-sm"
-        innerHTML={md.render(displayText())}
+        innerHTML={md.render(props.item.text)}
       />
     </div>
   );

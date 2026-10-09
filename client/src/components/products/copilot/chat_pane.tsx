@@ -481,12 +481,16 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
     const resetAt = new Date();
     resetAt.setUTCDate(resetAt.getUTCDate() + 1);
     resetAt.setUTCHours(0, 0, 0, 0);
-    return `${pct}% of daily AI limit used · Resets ${
-      resetAt.toLocaleString(undefined, {
-        dateStyle: "medium",
-        timeStyle: "short",
-      })
-    }`;
+    const resetText = resetAt.toLocaleString(undefined, {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
+    return t3({
+      en: `${pct}% of daily AI limit used · Resets ${resetText}`,
+      fr:
+        `${pct} % de la limite IA journalière utilisée · Réinitialisation ${resetText}`,
+      pt: `${pct}% do limite diário de IA utilizado · Reinicia ${resetText}`,
+    });
   };
 
   return (
@@ -498,7 +502,11 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
             onClick={() => setShowAi(false)}
             intent="base-300"
             iconName="chevronRight"
-            ariaLabel="Hide AI panel"
+            ariaLabel={t3({
+              en: "Hide AI panel",
+              fr: "Masquer le panneau IA",
+              pt: "Ocultar o painel de IA",
+            })}
           />
         </div>
       </HeadingBar>
@@ -556,7 +564,11 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
             />
           </svg>
           <span class="ui-text-caption">
-            {usagePct()}% of daily AI limit used
+            {t3({
+              en: `${usagePct()}% of daily AI limit used`,
+              fr: `${usagePct()} % de la limite IA journalière utilisée`,
+              pt: `${usagePct()}% do limite diário de IA utilizado`,
+            })}
           </span>
         </div>
       </Show>

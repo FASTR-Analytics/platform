@@ -1,8 +1,8 @@
 // =============================================================================
-// The one authoritative FASTR Markdown reference. The AI authoring brief
-// (build_system_prompt.ts) and the in-editor guide both read from here, so the
-// syntax cannot drift between what the model is told and what an author is
-// shown. The blocks themselves are defined in fastr_markdown_blocks.ts.
+// The FASTR Markdown reference, two texts in one file: FASTR_MD_SYNTAX_DOC is
+// the AI authoring brief (ai_tools/build_system_prompt.ts) and
+// FASTR_BLOCK_SNIPPETS is what the in-editor guide renders (report/toolbar.tsx).
+// The blocks themselves are defined in fastr_markdown_blocks.ts.
 // =============================================================================
 
 import type { FastrBlockName } from "./fastr_markdown_blocks.ts";
