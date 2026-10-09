@@ -181,7 +181,9 @@ function ProductCopilot(p: {
   // mount, so the chat empties it when it mounts: actions retained from
   // before (the previous product, or on a Clerk cross-tab user switch the
   // previous user) would otherwise ride this chat's first digest as fake
-  // activity. The producers are the editors (interactions.ts).
+  // activity; with digestAcrossViews, activation already starts each
+  // conversation's digest at the log's end. The producers are the editors
+  // (interactions.ts).
   onMount(() => {
     copilotViewController.clearInteractionLog();
   });
