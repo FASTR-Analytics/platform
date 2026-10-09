@@ -61,8 +61,9 @@ export type OpenProductScope = {
   getScope: () => PackageScope;
 };
 
-// Params carry ids only. Labels are read live through the context, so a
-// rename or a title edit never leaves the view line stale.
+// Params carry what is fixed before setView: ids, and the report's format
+// and style. Labels are read live through the context, so a rename or a
+// title edit never leaves the view line stale.
 export type EditingSlideDeckParams = {
   deckId: string;
 };
