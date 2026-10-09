@@ -18,6 +18,7 @@ globs:
   - server/routes/instance/ai_proxy.ts
   - server/routes/instance/copilot_ai_proxy.ts
   - server/tests/ai_context_sections_test.ts
+  - server/tests/copilot_catalogue_test.ts
   - server/tests/hfa_time_points_for_ai_test.ts
   - server/tests/mcp_context_cache_test.ts
   - server/tests/mcp_principal_key_test.ts
@@ -128,20 +129,24 @@ the query pipeline the data tools call is **S9**.
    alone), and the server does not advertise `listChanged` (panther ruling,
    DOC_AI_CHAT §Headless tools). So results are self-identifying instead: every
    package-tool result starts with a
-   `Source: results package "<label>" (generated <createdAt>)` line naming the
-   run it read (`withSourceHeader` in `context_cache.ts`, applied where run and
-   session tools meet; failures pass through unheadered; the line is
-   `formatSourceHeader` in `lib/ai_tools/source_header.ts`, pinned by
-   `server/tests/mcp_tools_source_header_test.ts`). The SPA needs no header: its
-   copilot is mounted per product over one fixed pair, so every result in a
-   thread comes from the package the system prompt names. `serverInfo.version`
-   reports the deployed `SERVER_VERSION` (hygiene: no client re-lists on it). A
-   client's re-list behaviour is observed from panther's per-request stderr
-   line, `[panther mcp] fastr: <era> <method> …`; `./mcp_probe <origin> --info`
-   shows the handshake. The system prompt splits the same way: shared grounding
-   blocks in `lib/ai_tools/build_system_prompt.ts`, each surface assembling its
-   own context, with the instance `ai_context` after its data coverage through
-   the shared `buildAiContextSections` (nothing for a blank context,
+   `Source: results package "<label>" (generated <createdAt>), scope "All data"`
+   line naming the run and the scope it read. The line is `formatSourceHeader`
+   in `lib/ai_tools/source_header.ts`, whose scope label is optional so a read
+   bound by run id alone can name the package and no scope, and the wrapper is
+   `withSourceHeader` beside it: it prepends the header, read at call time, on
+   `run`, `runWithView` and `runStructured`, and lets a failure through
+   unheadered. `context_cache.ts` applies it where run and session tools meet,
+   passing "All data"; `server/tests/mcp_tools_source_header_test.ts` pins both
+   functions and the `/mcp` line. The SPA needs no header: its copilot is
+   mounted per product over one fixed pair, so every result in a thread comes
+   from the package the system prompt names. `serverInfo.version` reports the
+   deployed `SERVER_VERSION` (hygiene: no client re-lists on it). A client's
+   re-list behaviour is observed from panther's per-request stderr line,
+   `[panther mcp] fastr: <era> <method> …`; `./mcp_probe <origin> --info` shows
+   the handshake. The system prompt splits the same way: shared grounding blocks
+   in `lib/ai_tools/build_system_prompt.ts`, each surface assembling its own
+   context, with the instance `ai_context` after its data coverage through the
+   shared `buildAiContextSections` (nothing for a blank context,
    `server/tests/ai_context_sections_test.ts`), so `get_overview` carries what
    the admin wrote for the assistant. The SPA's assembled prompt is byte-stable
    for the life of one mount (prompt-cache breakpoint); only the instance AI

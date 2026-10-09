@@ -15,6 +15,7 @@ import {
   createDevGlobalUser,
   formatSourceHeader,
   getSharedToolsForMetrics,
+  withSourceHeader,
 } from "lib";
 import type { GlobalUser } from "lib";
 import { getPgConnectionFromCacheOrNew } from "../db/mod.ts";
@@ -214,39 +215,16 @@ export function packagePeriodCoverage(
 
 // Every package-tool result at /mcp starts with one provenance line naming
 // the run it read (label + generated timestamp, the same identity
-// get_overview gives; no run id, which no tool accepts as input). The pin
-// can move between two calls of one conversation and a client may carry a
-// stale catalog, so results are self-identifying by construction. Failures
-// pass through unchanged. The line itself is `formatSourceHeader`
-// (lib/ai_tools).
+// get_overview gives; no run id, which no tool accepts as input) under the
+// "All data" scope this surface reads through. The line is
+// `formatSourceHeader` and the wrapper `withSourceHeader` (lib/ai_tools):
+// applied below where run and session tools meet, failures pass through.
 export function buildSourceHeader(run: RunListingItem): string {
   return formatSourceHeader({
     packageLabel: run.label,
     createdAt: run.createdAt,
+    scopeLabel: "All data",
   });
-}
-
-// deno-lint-ignore no-explicit-any
-export function withSourceHeader<T extends AIToolWithMetadata<any>>(
-  tool: T,
-  run: RunListingItem,
-): T {
-  const header = buildSourceHeader(run);
-  const prepend = (body: string) => `${header}\n\n${body}`;
-  const inner = tool.sdkTool;
-  return {
-    metadata: tool.metadata,
-    sdkTool: {
-      ...inner,
-      run: async (input: unknown) => prepend(await inner.run(input)),
-      runWithView: async (input: unknown, getView?: () => unknown) =>
-        prepend(
-          inner.runWithView
-            ? await inner.runWithView(input, getView)
-            : await inner.run(input),
-        ),
-    },
-  } as T;
 }
 
 export async function requirePinnedPackageContext(
@@ -327,6 +305,7 @@ export async function resolvePackageContext(
   const serverActions = createAllServerActions(transport);
   const env = createMcpAIToolEnv(serverActions, runId);
 
+  const header = buildSourceHeader(run);
   // deno-lint-ignore no-explicit-any
   const sessionTools: AIToolWithMetadata<any>[] = getSharedToolsForMetrics(
     env,
@@ -334,7 +313,7 @@ export async function resolvePackageContext(
     authoring.modules,
     authoring.icehIndicators,
     hfaTaxonomy,
-  ).map((tool) => withSourceHeader(tool, run));
+  ).map((tool) => withSourceHeader(tool, () => header));
 
   const context: McpPackageContext = {
     runId,
