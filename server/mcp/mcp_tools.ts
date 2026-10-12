@@ -17,6 +17,7 @@ import {
   getSharedToolsForMethodologyDocs,
   getSharedToolsForMetrics,
   INFO_TOPICS,
+  isoDateToday,
 } from "lib";
 import {
   buildPrincipalTransport,
@@ -106,8 +107,12 @@ export function buildMcpToolsForPrincipal(principal: McpPrincipal): AnyTool[] {
         "---",
         "",
       ].join("\n");
+      // A one-shot text with no message or tools array behind it: the date
+      // and the catalogue, which the chat carries in its blocks and its
+      // request, ride the overview itself.
       return buildSystemPrompt({
         contextSection,
+        currentDate: isoDateToday(),
         toolCatalog: buildToolCatalog(tools),
         infoTopics: INFO_TOPICS,
         roleAndPurpose:

@@ -7,6 +7,7 @@ import {
   type FastrReportTemplate,
   getEditingReportInstructions,
   getSlideTitle,
+  productLevelAtLeast,
 } from "lib";
 import type {
   DatasetType,
@@ -35,7 +36,9 @@ import {
   getEditingSlideDeckInstructions,
   getEditingSlideInstructions,
   getOpeningProductInstructions,
+  PRODUCT_VIEW_ONLY_LINE,
 } from "./build_system_prompt";
+import { productLevel } from "~/state/instance/product_access";
 
 ////////////////////////////////////////////////////////////////////////////////
 // COPILOT: AI VIEW REGISTRY
@@ -65,10 +68,14 @@ import {
 // loaded) and the slide editor (`editing_slide`); every other view is
 // declared here and has no sync site yet.
 //
-// instructions carries the per-view prompt PLUS the live bits that used to
-// ride the old mode string (the deck's selected slide ids; the report
-// editor's selection preview). instructionsDelivery stays the default
-// "ephemeral" everywhere: the `system` accessor takes no view argument.
+// What the model is told per view splits in two (append-only turns, E7):
+// `instructions` is the static guidance of the view, which rides a message
+// once per text; `state` is what changes without a navigation (the entity
+// ids, the deck's selected slide ids, the report editor's selection preview)
+// and rides every message. Below edit level a product view's instructions
+// carry PRODUCT_VIEW_ONLY_LINE, read live at send. instructionsDelivery stays
+// the default "ephemeral" everywhere: the `system` accessor is instance level
+// and takes no view argument.
 
 // Every package view's context: the pair the package tools run against,
 // with its scope's definition hash (the identity's pair part reads it), and
@@ -217,6 +224,23 @@ export type HfaIndicatorEditorContext = {
   getLabel: () => string;
 };
 
+// The level line for a product view's instructions: present below edit
+// level, read live from the product's summary, so a demotion reaches the next
+// message.
+function productViewOnlyLine(productId: string): string {
+  return productLevelAtLeast(productLevel(productId), "edit")
+    ? ""
+    : `\n\n${PRODUCT_VIEW_ONLY_LINE}`;
+}
+
+// The deck views' state: the ids the model correlates tool results by, and
+// the rail's selection.
+function deckViewState(ids: string, selectedSlideIds: string[]): string {
+  return selectedSlideIds.length === 0
+    ? ids
+    : `${ids}\nSelected slide id(s): ${selectedSlideIds.join(", ")}`;
+}
+
 export const copilotViews = defineAIViews(
   {
     products: view({ label: "Products" }),
@@ -229,9 +253,9 @@ export const copilotViews = defineAIViews(
         }),
       instructions: () => getOpeningProductInstructions(),
     }),
-    // The editing_* instructions each carry the entity IDS the old mode
-    // string exposed (deckId / slideId / reportId): ids are the model's
-    // cross-turn correlation handle (tools RETURN ids; labels are not unique).
+    // The editing_* states each carry the entity IDS (deckId / slideId /
+    // reportId): ids are the model's cross-turn correlation handle (tools
+    // RETURN ids; labels are not unique).
     editing_slide_deck: view<EditingSlideDeckParams, EditingSlideDeckContext>({
       label: (_params, context) => context.getDeckLabel(),
       identity: (params, context) =>
@@ -239,16 +263,15 @@ export const copilotViews = defineAIViews(
           deck: params.deckId,
           pair: pairOf(context),
         }),
-      instructions: (params, context) => {
-        const base = `${
-          getEditingSlideDeckInstructions(context.getDeckLabel())
-        }\n\ndeckId: ${params.deckId}`;
-        const selected = context.getSelectedSlideIds();
-        if (selected.length === 0) return base;
-        return `${base}\n\n## User's current selection\nSelected slide id(s): ${
-          selected.join(", ")
-        }`;
-      },
+      instructions: (params, context) =>
+        `${getEditingSlideDeckInstructions(context.getDeckLabel())}${
+          productViewOnlyLine(params.deckId)
+        }`,
+      state: (params, context) =>
+        deckViewState(
+          `deckId: ${params.deckId}`,
+          context.getSelectedSlideIds(),
+        ),
     }),
     editing_slide: view<EditingSlideParams, EditingSlideContext>({
       label: (_params, context) => getSlideTitle(context.getTempSlide()),
@@ -258,19 +281,18 @@ export const copilotViews = defineAIViews(
           slide: params.slideId,
           pair: pairOf(context),
         }),
-      instructions: (params, context) => {
-        const base = `${
+      instructions: (params, context) =>
+        `${
           getEditingSlideInstructions(
             getSlideTitle(context.getTempSlide()),
             context.getDeckLabel(),
           )
-        }\n\nslideId: ${params.slideId} | deckId: ${params.deckId}`;
-        const selected = context.getSelectedSlideIds();
-        if (selected.length === 0) return base;
-        return `${base}\n\n## User's current selection in the slide list\nSelected slide id(s): ${
-          selected.join(", ")
-        }`;
-      },
+        }${productViewOnlyLine(params.deckId)}`,
+      state: (params, context) =>
+        deckViewState(
+          `slideId: ${params.slideId} | deckId: ${params.deckId}`,
+          context.getSelectedSlideIds(),
+        ),
     }),
     editing_slide_figure: view<EditingSlideFigureParams, FigureEditorContext>({
       label: (_params, context) => context.getLabel(),
@@ -313,8 +335,8 @@ export const copilotViews = defineAIViews(
           report: params.reportId,
           pair: pairOf(context),
         }),
-      instructions: (params, context) => {
-        const base = `${
+      instructions: (params, context) =>
+        `${
           getEditingReportInstructions(
             context.getLabel(),
             params.format,
@@ -322,14 +344,16 @@ export const copilotViews = defineAIViews(
             params.customStyle,
             context.getTemplate(),
           )
-        }\n\nreportId: ${params.reportId}`;
+        }${productViewOnlyLine(params.reportId)}`,
+      state: (params, context) => {
+        const ids = `reportId: ${params.reportId}`;
         const sel = context.getSelection();
-        if (!sel) return base;
+        if (!sel) return ids;
         if (sel.empty) {
-          return `${base}\n\n## User's current selection\nCursor at line ${sel.fromLine} (no text selected).`;
+          return `${ids}\nCursor at line ${sel.fromLine} (no text selected).`;
         }
         const preview = sel.text.replace(/\s+/g, " ").trim().slice(0, 200);
-        return `${base}\n\n## User's current selection\nSelected text (lines ${sel.fromLine}-${sel.toLine}, ${sel.text.length} chars): "${preview}${
+        return `${ids}\nSelected text (lines ${sel.fromLine}-${sel.toLine}, ${sel.text.length} chars): "${preview}${
           sel.text.length > 200 ? "…" : ""
         }"`;
       },

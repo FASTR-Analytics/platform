@@ -19,6 +19,7 @@ globs:
   - server/routes/instance/copilot_ai_proxy.ts
   - server/tests/ai_context_sections_test.ts
   - server/tests/copilot_catalogue_test.ts
+  - server/tests/copilot_prompt_test.ts
   - server/tests/hfa_time_points_for_ai_test.ts
   - server/tests/mcp_context_cache_test.ts
   - server/tests/mcp_principal_key_test.ts
@@ -148,9 +149,16 @@ the query pipeline the data tools call is **S9**.
    context, with the instance `ai_context` after its data coverage through the
    shared `buildAiContextSections` (nothing for a blank context,
    `server/tests/ai_context_sections_test.ts`), so `get_overview` carries what
-   the admin wrote for the assistant. The SPA's assembled prompt is byte-stable
-   for the life of one mount (prompt-cache breakpoint); only the instance AI
-   context can change it.
+   the admin wrote for the assistant. The SPA's system prompt is instance level:
+   only an instance input changes it, so one conversation keeps one prompt
+   through every view and every package (the prompt-cache breakpoint and a
+   preserved thinking block's prefix check both need that). The package
+   grounding rides the package block (`buildPackageBlock`), a per-turn consumer
+   block the chat attaches to a message whenever its text is new to the
+   conversation, and the date rides the date block the same way; `get_overview`,
+   a one-shot text with no message or tools array behind it, asks
+   `buildSystemPrompt` for the date and the tool catalogue
+   (`server/tests/copilot_prompt_test.ts`).
 3. **Editors expose live mutators via the view registry's context**: each
    editing view's live context carries the editor's store getters/setters AND
    the package view contract, `getScope()` (the product's pair with its scope's
@@ -336,9 +344,11 @@ panther's no-mount construction check: both assistants call
   persisted chat settings (model, max tokens, `panther-ai-settings-copilot`) are
   shared by every product's copilot (panther's `AIChatConfig.settingsScope`,
   added for this).
-- **system** = `buildSystemPromptForContext` memo (byte-stable within one
-  package, see below); **getDocumentRefs** from `useAIDocuments`;
-  **viewController** = `copilotViewController` (below).
+- **system** = `buildSystemPromptForContext` memo over the instance (instance
+  level, see below); **getEphemeralContext** = the date block and the package
+  block (`buildCopilotPackageBlock` over the mount's pair and authoring
+  context); **appendOnlyTurns** = `true` (E7, below); **getDocumentRefs** from
+  `useAIDocuments`; **viewController** = `copilotViewController` (below).
 - **the (package, scope) pair** and the package's authoring context (modules,
   metrics, datasets, indicator vocabularies, the HFA taxonomy) are props of the
   inner `ProductCopilot`, fixed for its life; the HFA survey rounds
@@ -403,12 +413,28 @@ declared, with its params and context types and the identity its page will
 supply, and has no sync site yet: the controller sits on `shell` outside a
 product. There is no tab-to-view map.
 
-Per-view `instructions` (default ephemeral delivery) carry the per-view prompt
-plus the live bits of the view: entity ids (deckId/slideId/reportId), the deck's
-selected slide ids, and the report editor's CodeMirror selection preview. The
-engine delivers them as typed ephemeral sections stored on the turn (view label,
-view instructions, interactions digest), rendered as one `<<<[…]>>>` block on
-the latest carrier only: a write-only wire, one format for every model.
+**What a message carries** (`appendOnlyTurns: true`, panther's E7). Every
+message carries the view line, the view's `state` and the interactions digest; a
+view's `instructions` and the chat's consumer blocks ride a message only when
+their text is new to the conversation, so each is sent once per text; a message
+the model never answered loses its blocks, and a changed system-and-tools hash
+strips the stored thinking blocks once. Per view, `instructions` is the static
+guidance (the deck, slide and report briefs; below edit level a product view's
+instructions carry the level line, read live, so the model is told not to call
+the editing tools, which refuse) and `state` is what changes without a
+navigation: the entity ids (deckId/slideId/reportId), the deck's selected slide
+ids, and the report editor's CodeMirror selection preview, a line or two. The
+chat's consumer blocks (`getEphemeralContext`) are the date block and the
+package block: the package's label and generation time, the scope with one line
+per dataset family (excluded, unlimited, or its limits), the datasets, the HMIS
+and ICEH indicator lists and the calendar, built by the pure `buildPackageBlock`
+in lib over values the host resolves live (`buildCopilotPackageBlock`), so a
+reattach, rescope or scope edit puts the new package in front of the model once,
+on the message where it happened. The engine stores the sections as typed data
+on the turn and renders every carrier permanently as a `<<<[…]>>>` block, so
+each request's messages are a prefix of the next request's and each block stays
+on the message it rode: the model can tell where every earlier turn happened. A
+write-only wire, one format for every model.
 
 **Interactions and echo suppression.**
 [`copilotInteractions`](client/src/components/instance/copilot/interactions.ts)
@@ -566,13 +592,15 @@ plus an explicit "never write CSS, a `<style>` block or raw layout HTML; reach
 for a block instead": such markup would be INERT and would break the user's
 ability to re-theme. The brief deliberately never NAMES the theme, because the
 theme is changeable at any time (S12's theme modal) and a name in the view
-params would go stale. `validateFastrContainers`
+params would go stale. The brief rides `rewrite_report`'s description alone (in
+the request's tools array, cached once per conversation); the `editing_report`
+instructions point at it, so a FASTR report's first request carries the doc once
+(`server/tests/copilot_prompt_test.ts`). `validateFastrContainers`
 ([report_validators.ts](client/src/components/products/copilot/ai_tools/validators/report_validators.ts))
 rejects an unbalanced or misspelt `:::` before staging (an unclosed container
 runs to EOF) and it checks the SPLICED result, not the fragment, so a locally
-balanced `newBody` that unbalances the document is still caught. Since
-2026-09-23 the same brief ALSO rides `rewrite_report`'s description (cached in
-the system prompt, once per conversation): with the chat's one-shot
+balanced `newBody` that unbalances the document is still caught. The brief moved
+into `rewrite_report`'s description on 2026-09-23: with the chat's one-shot
 `create_report` gone in v2, `rewrite_report` on a fresh report IS how a report
 gets written from a prompt, and the brief in the per-turn view section alone
 left the model writing plain markdown into FASTR reports (the lesson
@@ -689,28 +717,29 @@ identical:
 
 **System prompt**
 ([build_system_prompt.ts](client/src/components/instance/copilot/build_system_prompt.ts)):
-date header + instance/terminology section (country, admin-area labels, data
-sources) + results-package section (the package label and generation time, the
-scope's label and one line per dataset family saying what its section does:
-excluded, included with no limits, or limited to an area, years, time points,
-modules, indicators, HFA categories and HFA service categories, each listed in
-full, with the rule that a limit applies only to a table that has a column for
-it; the package's datasets and indicator lists) + the instance-level
-`ai_context` (`buildAiContextSections`, the shared block `/mcp`'s `get_overview`
-also carries after its data coverage) + reference-doc catalog
-(`SPA_INFO_TOPICS`) + base instructions (read-data-first, no fabrication,
-indicator directionality) + the tool catalog. For a viewer the results-package
-section carries one more sentence: the user can view the product but not change
-it, so the model can read it and answer questions but has no tools that edit it.
-The accessor takes no view argument and the level is read once per mount, so the
-prompt is **byte-stable across navigation within one package** and its
-prompt-cache breakpoint keeps hitting: the per-view instructions (still exported
-from this file, with short primary-tool pointers) are composed by the view
-registry ([ai_views.ts](client/src/components/instance/copilot/ai_views.ts)) and
-delivered ephemerally per turn, and the hand-typed tool list was replaced by
-panther's `buildToolCatalog(tools)`, composed ONCE in the wrapper. Cache rule:
-never pass `currentView` there (view-grouped ordering would bust the breakpoint
-on every navigation). Viewable via the chat menu; the debug panel
+instance/terminology section (country, admin-area labels, data sources) + data
+coverage + the instance-level `ai_context` (`buildAiContextSections`, the shared
+block `/mcp`'s `get_overview` also carries after its data coverage) +
+reference-doc catalog (`SPA_INFO_TOPICS`) + base instructions (the app's role,
+read-data-first, no fabrication, ask when uncertain, indicator directionality).
+It is **instance level**: no date, no package section, no viewer sentence and no
+tool catalogue, so only an instance input changes it and one conversation keeps
+one prompt through every view and package. What used to ride it rides elsewhere:
+the date and the package in view are the consumer blocks above (the package
+block holds the package label and generation time, the scope's label and one
+line per dataset family saying what its section does: excluded, included with no
+limits, or limited to an area, years, time points, modules, indicators, HFA
+categories and HFA service categories, each listed in full, with the rule that a
+limit applies only to a table that has a column for it; then the package's
+datasets, indicator lists and calendar); the level line rides a product view's
+instructions below edit; the per-view instructions (still exported from this
+file, with short primary-tool pointers) are composed by the view registry
+([ai_views.ts](client/src/components/instance/copilot/ai_views.ts)); and the
+tools ride the request's tools array, never a catalogue in the prompt
+(`server/tests/copilot_prompt_test.ts` pins the absence; `get_overview` is the
+one surface that asks `buildSystemPrompt` for a date and a catalogue). The chat
+menu's View system prompt shows the blocks the next message would carry, through
+the instance's `getNextTurnPreview()`, then the system text; the debug panel
 ([ai_debug_panel.tsx](client/src/components/instance/copilot/ai_debug_panel.tsx))
 renders the metric-list formatter verbatim so a human sees exactly what the
 model sees. AI data payloads exclude the admin-area roll-up row (double-counting

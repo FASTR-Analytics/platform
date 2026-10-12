@@ -8,7 +8,8 @@ import { inferPeriodFormatFromValue } from "../types/_metric_installed.ts";
 import { describeIndicatorFacts } from "./format_metric_data_for_ai.ts";
 import type { InfoCatalogTopic } from "./info_catalog.ts";
 import type { ReportFormat, ReportHtmlStyle } from "../types/reports.ts";
-import { FASTR_MD_SYNTAX_DOC } from "../fastr_markdown_spec.ts";
+import type { ScopeDefinition } from "../types/scope.ts";
+import { MODULE_FAMILY_ORDER } from "../group_metrics.ts";
 import {
   type FastrReportTemplate,
   fastrReportTemplateBrief,
@@ -17,21 +18,22 @@ import {
 // The shared halves of the AI system prompt: what both surfaces (the SPA
 // copilot and the /mcp get_overview) ground the model with. Each surface
 // assembles its own context section from these building blocks, the instance
-// ai_context (buildAiContextSections) the last of them, and its own prose
-// (the SPA: the open product's package and scope,
-// client/src/components/instance/copilot/build_system_prompt.ts;
-// /mcp: the pinned package, server/mcp/mcp_tools.ts), then hands it to
+// ai_context (buildAiContextSections) the last of them, and hands it to
 // buildSystemPrompt.
 //
-// The SPA's assembled prompt is BYTE-STABLE across navigation WITHIN one
-// package (per-view instructions ride each view's instructions in ai_views.ts
-// as an ephemeral section, never baked in here): the prompt-cache breakpoint
-// depends on it. Opening a product on another package rewrites the grounding
-// half once, deliberately.
+// The SPA's system prompt is INSTANCE LEVEL
+// (client/src/components/instance/copilot/build_system_prompt.ts): only an
+// instance input changes it, so one conversation keeps one prompt through
+// every view and every package. The package grounding rides the package
+// block (buildPackageBlock), a per-turn consumer block the chat attaches to
+// a message whenever its text is new to the conversation, and the date rides
+// the date block the same way; per-view text rides each view's instructions
+// and state (ai_views.ts). /mcp's get_overview is a one-shot text with no
+// tools array or message behind it, so it asks buildSystemPrompt for the date
+// and the tool catalogue (server/mcp/mcp_tools.ts).
 
 export type SystemPromptParts = {
   contextSection: string;
-  toolCatalog: string;
   // The get_info topics THIS surface exposes: the same list its
   // getSharedToolsForInfo was built with, so the prompt never names a topic
   // the tool would refuse.
@@ -42,17 +44,34 @@ export type SystemPromptParts = {
   // adds "ask when uncertain": the ask_user_questions tool exists only
   // there).
   extraCorePrinciples: string[];
+  // The date header and the `# Available Tools` section, for a surface with
+  // no per-turn blocks and no tools array of its own (get_overview). The
+  // chat passes neither: its date rides the date block and its tools ride
+  // the request's tools array.
+  currentDate?: string;
+  toolCatalog?: string;
 };
 
+export function isoDateToday(): string {
+  return new Date().toISOString().split("T")[0];
+}
+
+export function buildDateBlock(date: string): string {
+  return `**CURRENT DATE: ${date}**`;
+}
+
 export function buildSystemPrompt(parts: SystemPromptParts): string {
-  const currentDate = new Date().toISOString().split("T")[0];
-  const dateHeader = `**CURRENT DATE: ${currentDate}**\n\n---\n\n`;
+  const dateHeader = parts.currentDate === undefined
+    ? ""
+    : `${buildDateBlock(parts.currentDate)}\n\n---\n\n`;
   const referenceDocsSection = buildReferenceDocsSection(parts.infoTopics);
   const baseInstructions = getBaseInstructions(
     parts.roleAndPurpose,
     parts.extraCorePrinciples,
   );
-  const toolsSection = `\n# Available Tools\n\n${parts.toolCatalog}\n`;
+  const toolsSection = parts.toolCatalog === undefined
+    ? ""
+    : `\n# Available Tools\n\n${parts.toolCatalog}\n`;
   return `${dateHeader}${parts.contextSection}${referenceDocsSection}${baseInstructions}${toolsSection}`;
 }
 
@@ -289,6 +308,93 @@ function describeHmisIndicatorForPrompt(ind: RunHmisIndicator): string {
   const factText = facts.length > 0 ? ` [${facts.join("; ")}]` : "";
   const formula = ind.expression ? ` = ${ind.expression}` : "";
   return `- ${ind.id}: ${ind.label}${factText}${formula}`;
+}
+
+// ── The package block: the package in view, its scope and its grounding ──
+//
+// The chat's per-turn consumer block for the results package the current
+// view shows. It rides a message whenever its text is new to the
+// conversation, so a reattach, a rescope or a scope edit puts the new package
+// in front of the model once, on the message where it happened, and the
+// system prompt stays instance level. Pure over its inputs: the caller
+// resolves the package's label and date, the scope's display label and
+// definition, and the authoring context's grounding.
+
+const FAMILY_NAMES = { hmis: "HMIS", hfa: "HFA", iceh: "ICEH" } as const;
+
+// One family's section of the scope: excluded, unlimited, or its limits.
+function familyLine(
+  family: keyof ScopeDefinition,
+  definition: ScopeDefinition,
+): string {
+  const section = definition[family];
+  const name = FAMILY_NAMES[family];
+  if (!section.include) {
+    return `- ${name}: excluded. Every ${name} table reads as empty and no ${name} module or metric is offered.`;
+  }
+  const limits = [
+    "adminArea2" in section && section.adminArea2 !== null &&
+    `admin area 2 "${section.adminArea2}"`,
+    "years" in section && section.years !== null &&
+    `years ${section.years.start} to ${section.years.end}`,
+    "timePoints" in section && section.timePoints !== null &&
+    `time points ${section.timePoints.join(", ")}`,
+    section.modules !== null && `modules ${section.modules.join(", ")}`,
+    section.indicators !== null &&
+    `indicators ${section.indicators.join(", ")}`,
+    "categories" in section && section.categories !== null &&
+    `categories ${section.categories.join(", ")}`,
+    "serviceCategories" in section && section.serviceCategories !== null &&
+    `service categories ${section.serviceCategories.join(", ")}`,
+  ].filter((limit) => typeof limit === "string");
+  return limits.length === 0
+    ? `- ${name}: included, no limits.`
+    : `- ${name}: included, limited to ${limits.join("; ")}.`;
+}
+
+// What the scope limits, family by family, in words the model can act on: a
+// figure it authors reads only rows inside these limits, so a filter outside
+// them returns nothing.
+function scopeLines(scope: PackageBlockScope | undefined): string[] {
+  if (scope === undefined) return ["**Scope:** not listed"];
+  return [
+    `**Scope:** ${scope.label}`,
+    "Every read returns only the rows inside this scope. Each dataset family has its own limits:",
+    ...MODULE_FAMILY_ORDER.map((family) =>
+      familyLine(family, scope.definition)
+    ),
+    "A limit applies to a table only when the table has a column for it; a table without one is returned whole, unless its module is outside its family's module list.",
+  ];
+}
+
+export type PackageBlockScope = {
+  // The display label ("All data" for the reserved scope): the caller
+  // translates, this file does not.
+  label: string;
+  definition: ScopeDefinition;
+};
+
+export type PackageBlockInputs = {
+  packageLabel: string;
+  createdAt: string | null;
+  // Undefined when the scopes list does not hold the pair's scope.
+  scope: PackageBlockScope | undefined;
+  grounding: PackageGrounding;
+};
+
+export function buildPackageBlock(inputs: PackageBlockInputs): string {
+  const packageLine = `**Package:** ${inputs.packageLabel}${
+    inputs.createdAt === null ? "" : ` (generated ${inputs.createdAt})`
+  }`;
+  return [
+    "# Results package in view",
+    "",
+    "The current view shows one results package at one scope. Every metric read you make and every figure you author here resolves under this pair; you do not choose the package, and no tool takes one.",
+    "",
+    packageLine,
+    ...scopeLines(inputs.scope),
+    ...buildPackageGroundingSections(inputs.grounding),
+  ].join("\n");
 }
 
 // ── Data coverage: the instance's facility registries ──
@@ -716,19 +822,18 @@ ${common}
 
 The user is editing a long-form report written in **FASTR Markdown** — ordinary markdown plus a small set of \`:::\` blocks — with embedded live figures. The user hand-edits this document, so keep the source clean and readable.
 
-**Whenever you write or restructure this report (rewrite_report, or a rewrite_section that adds new material), build it from the format's \`:::\` blocks** — open with a \`:::cover\` (choosing a \`layout\`), add a \`:::contents\` line when the report is long, put the headline numbers in a \`:::tiles\` row of \`:::stat\` blocks, mark the turning points with \`:::band\` — with the shape the "Composing a report" guidance below describes. Do this on the first write, without being asked: a plain run of headings and paragraphs wastes the format. Write plain only when the user asks for something plain.
+**Whenever you write or restructure this report (rewrite_report, or a rewrite_section that adds new material), build it from the format's \`:::\` blocks** — open with a \`:::cover\` (choosing a \`layout\`), add a \`:::contents\` line when the report is long, put the headline numbers in a \`:::tiles\` row of \`:::stat\` blocks, mark the turning points with \`:::band\` — with the shape the "Composing a report" guidance in rewrite_report's description gives. Do this on the first write, without being asked: a plain run of headings and paragraphs wastes the format. Write plain only when the user asks for something plain.
 ${template ? `\n${fastrReportTemplateBrief(template)}\n` : ""}
 ${common}
 
 ## Writing FASTR Markdown for this report
 
-${FASTR_MD_SYNTAX_DOC}
-
+- The format guide (every \`:::\` block, its attributes, the figure syntax, the page budget and how to compose a report) is in rewrite_report's description. Follow it for every tool that writes this report, rewrite_section and replace_text included.
 - The report already looks designed: its theme supplies the typography, palette and every block's appearance, and the user can switch themes at any time. Writing CSS or raw layout HTML would not just be redundant, it would be INERT and would break that switch. (Which theme is in use is the user's business, not yours — never name one or write for one.)
 - Use the blocks where they earn their place — a callout for a caveat or key finding, a tiles row of stats for headline numbers, columns to set commentary beside a figure. Plain prose and lists are still the backbone of the document.
 - **Sections** (rewrite_section, the headings index) are flat: a section runs from its \`#\` heading to the next heading of the same or higher level, and your newBody replaces that whole range starting with the heading. Only TOP-LEVEL headings are sections — a heading inside a \`:::\` block is not addressable, so keep headings outside blocks.
 - For insert_figure, pass afterHeading so the figure lands in the right section.
-- The report prints on pages, and the pages are the deliverable. Before proposing a rewrite_report, or a rewrite_section that changes what a page holds, call get_report_pages with the body as it would stand (the current body from get_report_editor with your section swapped in, as \`markdown\`) and fix every page it flags; the page budget is in the format guide above.`;
+- The report prints on pages, and the pages are the deliverable. Before proposing a rewrite_report, or a rewrite_section that changes what a page holds, call get_report_pages with the body as it would stand (the current body from get_report_editor with your section swapped in, as \`markdown\`) and fix every page it flags; the page budget is in the format guide in rewrite_report's description.`;
   }
   return `# Current View: Editing Report "${reportLabel}"
 

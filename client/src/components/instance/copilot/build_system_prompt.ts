@@ -2,113 +2,33 @@ import {
   buildAiContextSections,
   buildDataCoverageSections,
   buildInstanceContextSections,
-  buildPackageGroundingSections,
+  buildPackageBlock,
   buildSystemPrompt,
   type InstanceState,
   MAX_CONTENT_BLOCKS,
-  MODULE_FAMILY_ORDER,
   type PackageScope,
-  type ProductLevel,
-  productLevelAtLeast,
   type RunAuthoringContext,
-  type Scope,
-  type ScopeDefinition,
   SLIDE_TEXT_TOTAL_WORD_COUNT_MAX,
   SLIDE_TEXT_TOTAL_WORD_COUNT_TARGET,
 } from "lib";
 import { scopeDisplayLabel } from "~/components/_shared/mod.ts";
 import { SPA_INFO_TOPICS } from "./client_info_topics";
 
-const FAMILY_NAMES = { hmis: "HMIS", hfa: "HFA", iceh: "ICEH" } as const;
-
-// One family's section of the scope: excluded, unlimited, or its limits.
-function familyLine(
-  family: keyof ScopeDefinition,
-  definition: ScopeDefinition,
-): string {
-  const section = definition[family];
-  const name = FAMILY_NAMES[family];
-  if (!section.include) {
-    return `- ${name}: excluded. Every ${name} table reads as empty and no ${name} module or metric is offered.`;
-  }
-  const limits = [
-    "adminArea2" in section && section.adminArea2 !== null &&
-    `admin area 2 "${section.adminArea2}"`,
-    "years" in section && section.years !== null &&
-    `years ${section.years.start} to ${section.years.end}`,
-    "timePoints" in section && section.timePoints !== null &&
-    `time points ${section.timePoints.join(", ")}`,
-    section.modules !== null && `modules ${section.modules.join(", ")}`,
-    section.indicators !== null &&
-    `indicators ${section.indicators.join(", ")}`,
-    "categories" in section && section.categories !== null &&
-    `categories ${section.categories.join(", ")}`,
-    "serviceCategories" in section && section.serviceCategories !== null &&
-    `service categories ${section.serviceCategories.join(", ")}`,
-  ].filter((limit) => typeof limit === "string");
-  return limits.length === 0
-    ? `- ${name}: included, no limits.`
-    : `- ${name}: included, limited to ${limits.join("; ")}.`;
-}
-
-// What the scope limits, family by family, in words the model can act on: a
-// figure it authors reads only rows inside these limits, so a filter outside
-// them returns nothing.
-function scopeLines(scope: Scope | undefined): string[] {
-  if (scope === undefined) return ["**Scope:** not listed"];
-  return [
-    `**Scope:** ${scopeDisplayLabel(scope)}`,
-    "Every read returns only the rows inside this scope. Each dataset family has its own limits:",
-    ...MODULE_FAMILY_ORDER.map((family) =>
-      familyLine(family, scope.definition)
-    ),
-    "A limit applies to a table only when the table has a column for it; a table without one is returned whole, unless its module is outside its family's module list.",
-  ];
-}
-
 // The copilot's system prompt: the shared grounding blocks (lib/ai_tools/
-// build_system_prompt.ts) plus the instance's own prose: the open product's
-// results package and scope, and the instance-level `ai_context`
-// (PLAN_PRODUCTS_RESTRUCTURE D15).
+// build_system_prompt.ts) over the instance alone: country, terminology, data
+// coverage and the instance-level `ai_context`, then the reference docs, the
+// role, the principles and the interpretation framework.
 //
-// BYTE-STABLE for the life of one mount: the pair, the authoring context and
-// the user's level are fixed per mount (a reattach remounts), no view
-// argument is taken, and per-view instructions ride each view's instructions
-// in ai_views.ts as a per-turn ephemeral section. Only the instance AI
-// context can change it.
-export function buildSystemPromptForContext(
-  instance: InstanceState,
-  scope: PackageScope,
-  authoringContext: RunAuthoringContext,
-  toolCatalog: string,
-  level: ProductLevel,
-): string {
-  const pkg = instance.readyPackages.find((p) => p.id === scope.runId);
-  // A product attached to a package that is no longer ready has no entry:
-  // the run id is the honest fallback rather than a fabricated label.
-  const packageLine = pkg
-    ? `**Package:** ${pkg.label}${
-      pkg.createdAt === null ? "" : ` (generated ${pkg.createdAt})`
-    }`
-    : `**Package:** ${scope.runId}`;
+// INSTANCE LEVEL: only an instance input (name, country, admin-area labels,
+// structure counts, data sources, ai_context) changes it, so one
+// conversation keeps one prompt through every view and every package, which
+// is what append-only turns and the prompt cache need. No date, no package,
+// no level and no tool catalogue ride here: the date and the package in view
+// are per-turn blocks (buildCopilotPackageBlock), the level line rides a
+// product view's instructions (ai_views.ts) and the tools ride the request.
+export function buildSystemPromptForContext(instance: InstanceState): string {
   const sections: string[] = [
     ...buildInstanceContextSections(instance),
-    "# Results package",
-    "",
-    "The open product is attached to exactly one results package at one scope; every figure inside it, and every metric read you make, resolves under that pair.",
-    ...(productLevelAtLeast(level, "edit") ? [] : [
-      "",
-      "The user can view this product but not change it, so you can read it and answer questions about it but have no tools that edit it.",
-    ]),
-    "",
-    packageLine,
-    ...scopeLines(instance.scopes.find((s) => s.id === scope.scopeId)),
-    ...buildPackageGroundingSections({
-      calendar: instance.instanceCalendar,
-      datasets: authoringContext.datasets,
-      hmisIndicators: authoringContext.hmisIndicators,
-      icehIndicators: authoringContext.icehIndicators,
-    }),
     ...buildDataCoverageSections(instance),
     ...buildAiContextSections(instance.aiContext),
     "",
@@ -117,15 +37,47 @@ export function buildSystemPromptForContext(
   ];
   return buildSystemPrompt({
     contextSection: sections.join("\n"),
-    toolCatalog,
     infoTopics: SPA_INFO_TOPICS,
     roleAndPurpose:
-      "You are an AI assistant helping users explore, analyze, and present their health data inside the slide deck or report they have open. You can query data, draft slides and figures, and help build that deck or report.",
+      "You are an AI assistant helping users explore, analyze and present the health data in this FASTR instance. The user moves through the app while you talk: each message tells you the current view, its state and, where one is in view, the results package and scope every read resolves under. You can query data, draft slides and figures, and help build the slide deck or report the user has open; a tool outside the current view refuses when called, so work with what the view offers.",
     extraCorePrinciples: [
       "**Ask when uncertain** - Use the ask_user_questions tool to clarify preferences, choose between approaches, or confirm decisions before proceeding. Don't guess what the user wants when you can ask.",
     ],
   });
 }
+
+// The package block for a pair: the package's label and date from the ready
+// list (a package no longer ready has no entry, so the run id is the honest
+// fallback), the scope's display label and definition from the scopes list,
+// and the authoring context's grounding. Read live, so a rename or a scope
+// edit changes the text and the block rides again.
+export function buildCopilotPackageBlock(
+  instance: InstanceState,
+  scope: PackageScope,
+  authoringContext: RunAuthoringContext,
+): string {
+  const pkg = instance.readyPackages.find((p) => p.id === scope.runId);
+  const row = instance.scopes.find((s) => s.id === scope.scopeId);
+  return buildPackageBlock({
+    packageLabel: pkg?.label ?? scope.runId,
+    createdAt: pkg?.createdAt ?? null,
+    scope: row === undefined
+      ? undefined
+      : { label: scopeDisplayLabel(row), definition: row.definition },
+    grounding: {
+      calendar: instance.instanceCalendar,
+      datasets: authoringContext.datasets,
+      hmisIndicators: authoringContext.hmisIndicators,
+      icehIndicators: authoringContext.icehIndicators,
+    },
+  });
+}
+
+// Below edit level a product view's instructions carry this line, read live
+// at send (ai_views.ts): the editing tools are registered for every user and
+// refuse below edit, so the model is told not to reach for them.
+export const PRODUCT_VIEW_ONLY_LINE =
+  "The user can view this product but not change it: read it and answer questions about it, and do not call its editing tools, which refuse below edit level.";
 
 // ── View instructions ──
 // Each function below is used as a view's instructions in ai_views.ts.

@@ -30,7 +30,10 @@ export type {
   ResultsFileParams,
   ViewingPackageFigureParams,
 } from "./ai_views.ts";
-export { buildSystemPromptForContext } from "./build_system_prompt.ts";
+export {
+  buildCopilotPackageBlock,
+  buildSystemPromptForContext,
+} from "./build_system_prompt.ts";
 export { createCopilotAIToolEnv } from "./client_env.ts";
 export type { ClientAIToolEnv } from "./client_env.ts";
 export { SPA_INFO_TOPICS } from "./client_info_topics.ts";

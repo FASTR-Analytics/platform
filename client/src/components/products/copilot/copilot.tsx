@@ -1,15 +1,16 @@
 import {
   type AIChatConfig,
   AIChatProvider,
-  buildToolCatalog,
   type EditorComponentProps,
   FrameRightResizable,
   LoadingIndicator,
   validateAIChatConfig,
 } from "panther";
 import {
+  buildDateBlock,
   type HfaTaxonomyForAI,
   hfaTimePointsForAI,
+  isoDateToday,
   type PackageScope,
   packageScopesEqual,
   productScope,
@@ -25,6 +26,7 @@ import {
 } from "solid-js";
 import { Dynamic } from "solid-js/web";
 import {
+  buildCopilotPackageBlock,
   buildSystemPromptForContext,
   ConsolidatedChatPane,
   copilotViewController,
@@ -159,23 +161,24 @@ function ProductCopilot(p: {
     level,
   );
 
-  // CACHE RULE: no currentView here: the no-view catalog is byte-stable;
-  // view-grouped ordering would bust the system-prompt cache breakpoint on
-  // every navigation.
-  const toolCatalog = buildToolCatalog(tools);
-
-  // Per-view instructions ride each view's instructions (ai_views.ts) as a
-  // per-turn ephemeral section, so this string only changes with the instance
-  // AI context.
+  // Instance level: only an instance input (name, country, admin-area
+  // labels, structure counts, data sources, ai_context) changes it. The date
+  // and the package in view are the consumer blocks below, per-view text
+  // rides each view's instructions and state (ai_views.ts), and the tools
+  // ride the request, so one conversation keeps one prompt.
   const systemPrompt = createMemo(() =>
-    buildSystemPromptForContext(
-      instanceState,
-      p.scope,
-      p.authoringContext,
-      toolCatalog,
-      level,
-    )
+    buildSystemPromptForContext(instanceState)
   );
+
+  // The blocks a message carries beside the view's sections: the date, and
+  // the package the chat runs against with its scope and grounding. Under
+  // append-only turns each rides when its text is new to the conversation,
+  // so the date rides once a day and the package block once per package,
+  // scope and scope edit, on the message where the change happened.
+  const getEphemeralContext = (): string[] => [
+    buildDateBlock(isoDateToday()),
+    buildCopilotPackageBlock(instanceState, p.scope, p.authoringContext),
+  ];
 
   // The controller is a module singleton whose interaction log outlives a
   // mount, so the chat empties it when it mounts: actions retained from
@@ -195,8 +198,10 @@ function ProductCopilot(p: {
     scope: `copilot:${p.productId}`,
     settingsScope: "copilot",
     system: systemPrompt,
+    getEphemeralContext,
     getDocumentRefs: aiDocs.getDocumentRefs,
     viewController: copilotViewController,
+    appendOnlyTurns: true,
   };
 
   if (import.meta.env.DEV) {
@@ -207,7 +212,6 @@ function ProductCopilot(p: {
     <AIChatProvider config={config}>
       <ConsolidatedChatPane
         aiDocs={aiDocs}
-        getSystemPrompt={systemPrompt}
         authoringContext={p.authoringContext}
         hfaTaxonomy={hfaTaxonomy}
       />

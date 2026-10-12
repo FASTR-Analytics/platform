@@ -17,14 +17,7 @@ import {
   useConversations,
 } from "panther";
 import { t3, TC } from "lib";
-import {
-  type Accessor,
-  createEffect,
-  createSignal,
-  on,
-  onMount,
-  Show,
-} from "solid-js";
+import { createEffect, createSignal, on, onMount, Show } from "solid-js";
 import { copilotViewController } from "./ai_views";
 import type { EditingReportContext } from "./ai_views";
 import { setShowAi } from "~/state/t4_ui";
@@ -216,7 +209,6 @@ const customChatRenderers = {
 
 type ConsolidatedChatPaneProps = {
   aiDocs: ReturnType<typeof useAIDocuments>;
-  getSystemPrompt: Accessor<string>;
   authoringContext: RunAuthoringContext;
   hfaTaxonomy: HfaTaxonomyForAI;
 };
@@ -229,6 +221,7 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
     isLoading,
     sendMessage,
     messages,
+    getNextTurnPreview,
   } = createAIChat();
   const conversations = useConversations();
 
@@ -390,28 +383,27 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
         }),
         icon: "code",
         onClick: () => {
-          // The per-view instructions (design briefs, editing rules) are NOT in
-          // the cached system prompt — they ride each message as an ephemeral
-          // section. Show them first so "is the brief actually reaching the
-          // model?" is answerable by eye.
-          const parts = copilotViewController._turnSectionParts();
-          const viewBlock = [
-            "# PER-TURN VIEW SECTION (attached to your next message; not part of the cached system prompt below)",
-            `View: ${parts.view.id}${
-              parts.view.label ? ` — ${parts.view.label}` : ""
-            }`,
-            "",
-            parts.viewInstructions ?? "(this view delivers no instructions)",
-          ].join("\n");
-          const sp = p.getSystemPrompt();
+          // What the next message would carry (the view line, its state and
+          // instructions, the digest, the date and package blocks), selected
+          // as the send would select them, then the instance-level system
+          // prompt: "is the brief actually reaching the model?" is answerable
+          // by eye.
+          const preview = getNextTurnPreview();
+          const blocks = preview.sections.length === 0
+            ? "(the next message carries no blocks)"
+            : preview.sections
+              .map((section) => `[${section.kind}]\n${section.text}`)
+              .join("\n\n");
           openComponent<AIChatSystemPromptPanelProps, void>({
             element: AIChatSystemPromptPanel,
             props: {
               systemPrompt: [
-                { type: "text" as const, text: viewBlock },
-                ...(typeof sp === "string"
-                  ? [{ type: "text" as const, text: sp }]
-                  : sp),
+                {
+                  type: "text" as const,
+                  text:
+                    `# NEXT MESSAGE'S BLOCKS (attached to your next message; not part of the system prompt below)\n\n${blocks}`,
+                },
+                { type: "text" as const, text: preview.system },
               ],
             },
           });
