@@ -188,15 +188,17 @@ export default function Instance(p: Props) {
   });
 
   // A language applies by full reload, which loses an AI turn in flight, so
-  // the switch asks first while one runs (S13's turn guard).
+  // the switch asks first while one runs (S13's turn guard). Choosing the
+  // language already on screen still pins it: a browser without the key
+  // follows the instance language.
   function languageItem(lang: Language, label: string): MenuItem {
     return {
       label,
       onClick: async () => {
-        if (getLanguage() === lang) return;
-        if (!(await confirmReloadUnderTurn())) return;
+        const changed = getLanguage() !== lang;
+        if (changed && !(await confirmReloadUnderTurn())) return;
         localStorage.setItem(LANGUAGE_STORAGE_KEY, lang);
-        window.location.reload();
+        if (changed) window.location.reload();
       },
     };
   }
