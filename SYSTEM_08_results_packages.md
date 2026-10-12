@@ -313,11 +313,14 @@ changes shape). Script/log bytes stay T3.
 
 The same rule governs the AI tools: the shared tools' `AIToolEnv`
 (`lib/ai_tools/env.ts`) is bound to ONE package at construction: a runId never
-comes from the model. The SPA env is bound to the open product's pair for the
-life of its mount (D15); the `/mcp` env is bound to the pin resolved for that
-call. The SPA-only module tools (script/logs/settings:
+comes from the model. Both surfaces build an inner tool set per pair and bind
+the registered tool to it per call: the SPA to the pair of the view the call
+runs in (`client/src/components/instance/copilot/bind_package_tools.ts`), `/mcp`
+to the pin resolved for that call. The SPA-only module tools
+(script/logs/settings:
 `client/src/components/instance/copilot/tools/modules.ts`, getters on
-`ClientAIToolEnv`) read the run-keyed mount too
+`ModuleInternalsEnv`) read the run-keyed mount too, bound by the view's run id
+alone so a generating or failed package answers
 (`getRunModuleScript`/`getRunModuleLogs`/`getRunModuleWithConfigSelections`,
 `can_view_data` on the settings read, so for a user without the instance bit the
 copilot's `get_module_settings` fails at the route guard). The headless

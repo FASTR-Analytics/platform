@@ -27,11 +27,16 @@ import { instanceState, resolveScope } from "~/state/instance/t1_store";
 // content (slides) and figure-shaping helpers (replicant options, dimension
 // labels).
 //
-// One env per copilot mount, bound to the open product's (package, scope)
-// pair for the mount's life (PLAN_PRODUCTS_RESTRUCTURE D15): a reattach
-// remounts the copilot with a new env. No run id crosses the tool seam and
-// none appears in a tool schema.
-export type ClientAIToolEnv = AIToolEnv & {
+// One env per inner tool set, built for the pair the call's view shows
+// (bind_package_tools.ts): the package tools the chat registers are outer
+// tools bound per call, so a reattach or rescope changes the env at the next
+// call with no remount. No run id crosses the tool seam and none appears in
+// a tool schema.
+
+// The run-keyed reads of how a package was produced. What a package contains
+// is a function of the run id alone, so these bind by run id (no scope) and
+// answer for a package that is still generating or has failed.
+export type ModuleInternalsEnv = {
   getModuleScript: (
     moduleId: string,
   ) => Promise<APIResponseWithData<{ script: string }>>;
@@ -41,6 +46,9 @@ export type ClientAIToolEnv = AIToolEnv & {
   getModuleSettings: (
     moduleId: string,
   ) => Promise<APIResponseWithData<InstalledModuleWithConfigSelections>>;
+};
+
+export type ClientAIToolEnv = AIToolEnv & ModuleInternalsEnv & {
   getSlide: (
     productId: string,
     slideId: string,
@@ -58,8 +66,23 @@ export type ClientAIToolEnv = AIToolEnv & {
   ) => DisaggregationLabelConfig;
 };
 
+export function createModuleInternalsEnv(runId: string): ModuleInternalsEnv {
+  return {
+    getModuleScript: (moduleId) =>
+      serverActions.getRunModuleScript({ run_id: runId, module_id: moduleId }),
+    getModuleLogs: (moduleId) =>
+      serverActions.getRunModuleLogs({ run_id: runId, module_id: moduleId }),
+    getModuleSettings: (moduleId) =>
+      serverActions.getRunModuleWithConfigSelections({
+        run_id: runId,
+        module_id: moduleId,
+      }),
+  };
+}
+
 export function createCopilotAIToolEnv(scope: PackageScope): ClientAIToolEnv {
   return {
+    ...createModuleInternalsEnv(scope.runId),
     getItems: async ({ resultsObjectId, fetchConfig }) => {
       const params = {
         scope: resolveScope(scope),
@@ -83,21 +106,6 @@ export function createCopilotAIToolEnv(scope: PackageScope): ClientAIToolEnv {
     },
     getResultsValueInfo: (metricId) =>
       getResultsValueInfoForPresentationObjectFromCacheOrFetch(scope, metricId),
-    getModuleScript: (moduleId) =>
-      serverActions.getRunModuleScript({
-        run_id: scope.runId,
-        module_id: moduleId,
-      }),
-    getModuleLogs: (moduleId) =>
-      serverActions.getRunModuleLogs({
-        run_id: scope.runId,
-        module_id: moduleId,
-      }),
-    getModuleSettings: (moduleId) =>
-      serverActions.getRunModuleWithConfigSelections({
-        run_id: scope.runId,
-        module_id: moduleId,
-      }),
     getSlide: (productId, slideId) =>
       getSlideFromCacheOrFetch(productId, slideId),
     getReplicantOptions: (metricId, replicateBy, fetchConfig) =>

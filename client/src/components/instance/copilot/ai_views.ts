@@ -1,6 +1,8 @@
 import { createAIViewController, defineAIViews, view } from "panther";
 import type { AIViewController, AIViewState, AnyAIView } from "panther";
 import {
+  COPILOT_PACKAGE_VIEWS,
+  type CopilotPackageViewId,
   type CopilotPair,
   type CopilotViewId,
   copilotViewIdentity,
@@ -49,9 +51,10 @@ import { productLevel } from "~/state/instance/product_access";
 // the fallback until a page sets its view. TParams is the serializable,
 // model-visible half (ids; the report's format and style); TContext is the
 // live payload (an editor's store getters and setters, a package view's
-// pair) delivered to tool handlers opaquely. Labels are read live through
-// the context, never captured into params, so a rename or a title edit never
-// leaves the view line stale.
+// pair) delivered to tool handlers opaquely; the package tools bind per call
+// to the pair the view's context returns (bind_package_tools.ts). Labels are
+// read live through the context, never captured into params, so a rename or
+// a title edit never leaves the view line stale.
 //
 // Every view that shows something declares its `identity` through
 // `copilotViewIdentity`: a view-limited call is refused once the live
@@ -86,6 +89,25 @@ export type PackageViewContext = {
   getScope: () => ResolvedPackageScope;
   getRunId: () => string;
 };
+
+// The views whose context carries the pair, as the catalogue lists them.
+type CopilotPackageViewState = Extract<
+  CopilotViewState,
+  { id: CopilotPackageViewId }
+>;
+
+function isPackageView(
+  view: CopilotViewState,
+): view is CopilotPackageViewState {
+  return (COPILOT_PACKAGE_VIEWS as readonly string[]).includes(view.id);
+}
+
+// The pair context of a package view; undefined for a view with no package.
+export function packageViewContext(
+  view: CopilotViewState,
+): PackageViewContext | undefined {
+  return isPackageView(view) ? view.context : undefined;
+}
 
 // The identity's pair part; absent while the view has no package.
 function pairOf(context: PackageViewContext): CopilotPair | undefined {

@@ -82,24 +82,27 @@ the query pipeline the data tools call is **S9**.
    tools: `INFO_TOPICS` (lib, shared: `iceh`) and the client's `SPA_INFO_TOPICS`
    (shared + the equity-profile report recipe); each surface passes its ONE list
    to both `getSharedToolsForInfo` and `buildSystemPrompt`, so tool whitelist
-   and prompt never diverge. The SPA binds one env PER MOUNT
-   (`createCopilotAIToolEnv(scope)`, cache-backed over the run-keyed package
+   and prompt never diverge. The SPA binds one env per inner tool set
+   (`createCopilotAIToolEnv(pair)`, cache-backed over the run-keyed package
    routes; `ClientAIToolEnv` adds the module script/logs/settings getters and
-   the product-content getters), closed over the open product's pair for the
-   life of that mount. It concatenates its own client tools in
-   [build_tools.ts](client/src/components/products/copilot/build_tools.ts):
-   module internals ×4 (`/mcp` is for seeing results, ruled), the editors and
-   the draft preview. `/mcp` binds the instance's **pinned** results package
-   (under the reserved "All data" scope, `scopeId: "all-data"`, on the run-keyed
-   instance routes, gate = an approved unrestricted user:
-   `resolvePackageContext` refuses a restricted one with a tool failure when it
-   builds a context, and the routes refuse them "All data" on every read, since
-   a restricted user cannot hold that scope) and exposes only the shared tools +
-   `get_overview`: 6 read-only tools, no writes, all six listed under
-   `# Available Tools` in the overview, which renders the same list the server
-   returns. Only `get_available_metrics` and `get_metric_data` read the pin; the
-   methodology tools and `get_info` read reference docs, and the server's
-   instructions, the overview and the endpoint's file comment say so.
+   the product-content getters) and registers outer tools bound per call to the
+   pair of the view the call runs in
+   ([bind_package_tools.ts](client/src/components/instance/copilot/bind_package_tools.ts),
+   panther's `bindAIToolToView`): the inner builder in
+   [build_tools.ts](client/src/components/products/copilot/build_tools.ts)
+   concatenates the shared metric tools with its own client tools (the module
+   list, the editors and the draft preview), and the three module internals
+   (`/mcp` is for seeing results, ruled) bind by run id alone. `/mcp` binds the
+   instance's **pinned** results package (under the reserved "All data" scope,
+   `scopeId: "all-data"`, on the run-keyed instance routes, gate = an approved
+   unrestricted user: `resolvePackageContext` refuses a restricted one with a
+   tool failure when it builds a context, and the routes refuse them "All data"
+   on every read, since a restricted user cannot hold that scope) and exposes
+   only the shared tools + `get_overview`: 6 read-only tools, no writes, all six
+   listed under `# Available Tools` in the overview, which renders the same list
+   the server returns. Only `get_available_metrics` and `get_metric_data` read
+   the pin; the methodology tools and `get_info` read reference docs, and the
+   server's instructions, the overview and the endpoint's file comment say so.
    **Interpretation context rides the grounding and the shared reads, not extra
    tools**: `buildPackageGroundingSections` lists every HMIS indicator of the
    package with its format, direction, thresholds, target and, for a calculated
@@ -138,14 +141,17 @@ the query pipeline the data tools call is **S9**.
    `run`, `runWithView` and `runStructured`, and lets a failure through
    unheadered. `context_cache.ts` applies it where run and session tools meet,
    passing "All data"; `server/tests/mcp_tools_source_header_test.ts` pins both
-   functions and the `/mcp` line. The SPA needs no header: its copilot is
-   mounted per product over one fixed pair, so every result in a thread comes
-   from the package the package block names. `serverInfo.version` reports the
-   deployed `SERVER_VERSION` (hygiene: no client re-lists on it). A client's
-   re-list behaviour is observed from panther's per-request stderr line,
-   `[panther mcp] fastr: <era> <method> …`; `./mcp_probe <origin> --info` shows
-   the handshake. The system prompt splits the same way: shared grounding blocks
-   in `lib/ai_tools/build_system_prompt.ts`, each surface assembling its own
+   functions and the `/mcp` line. The SPA applies the same line to every read of
+   a pair-bound inner set, with the scope's display label, and to a module
+   internals read with the package and no scope (`bind_package_tools.ts`): the
+   pair behind a registered tool follows the view between two calls of one
+   thread, so every package read on both surfaces opens with its own source
+   line. `serverInfo.version` reports the deployed `SERVER_VERSION` (hygiene: no
+   client re-lists on it). A client's re-list behaviour is observed from
+   panther's per-request stderr line, `[panther mcp] fastr: <era> <method> …`;
+   `./mcp_probe <origin> --info` shows the handshake. The system prompt splits
+   the same way: shared grounding blocks in
+   `lib/ai_tools/build_system_prompt.ts`, each surface assembling its own
    context, with the instance `ai_context` after its data coverage through the
    shared `buildAiContextSections` (nothing for a blank context,
    `server/tests/ai_context_sections_test.ts`), so `get_overview` carries what
@@ -284,7 +290,8 @@ The chat's code has two homes. The shell-level half is
 ([chat_pane.tsx](client/src/components/instance/copilot/chat_pane.tsx)), the SDK
 client and built-in tools (`ai_configs/`), documents (`ai_documents/`), the
 prompt library (`ai_prompt_library/`), the debug panel, the view registry,
-controller and interactions, the system prompt, the env (`client_env.ts`) and
+controller and interactions, the system prompt, the env (`client_env.ts`), the
+package-tool binder (`bind_package_tools.ts`), the guard (`tool_guard.ts`) and
 the module tools (`tools/`), exported through its `mod.ts`, which every page and
 product tool reads for the registry, the controller and their types. It imports
 nothing at runtime from `components/` but `components/_shared/mod.ts`, and has
@@ -307,13 +314,14 @@ that scope (T2, immutable per run id and definition hash; modules outside the
 scope's module list are absent from it, with their metrics and presets): the
 inner `ProductCopilot` remounts when the pair or its scope's definition changes
 (`createResolvedScope`, `t1_store.ts`, holds the resolved pair steady through
-every other change to the scopes list), which is what keeps the env and the
-tools fixed for the life of one chat instance. The Products page and every other
-tab have no copilot; the results explorer, when it lands, mounts its own with
-its own tools, the pattern the HFA indicator manager already uses. Each mount
-builds one panther `AIChatProvider` config, validated in dev by panther's
-no-mount construction check: both assistants call `validateAIChatConfig(config)`
-under `import.meta.env.DEV` at config assembly (HFA
+every other change to the scopes list), which is what moves the package block;
+the tools are one set for every pair, bound per call to the view's pair
+(`bind_package_tools.ts`). The Products page and every other tab have no
+copilot; the results explorer, when it lands, mounts its own with its own tools,
+the pattern the HFA indicator manager already uses. Each mount builds one
+panther `AIChatProvider` config, validated in dev by panther's no-mount
+construction check: both assistants call `validateAIChatConfig(config)` under
+`import.meta.env.DEV` at config assembly (HFA
 [ai/wrapper.tsx:39-41](client/src/components/data/hfa/indicators/ai/wrapper.tsx#L39-L41)):
 
 - **sdkClient**
@@ -479,29 +487,31 @@ log's end.
 ## Tools, view gating, and approval
 
 [`buildCopilotTools`](client/src/components/products/copilot/build_tools.ts)
-assembles one flat array, the same for every user and always registered with the
-API: base data tools (metrics, modules, methodology docs, info), view-gated
-editor tools (deck-level slides, slide editor, report editor), the draft preview
-and panther's `ask_user_questions`. Every tool declares a `kind` (`"read"` /
-`"write"`); no tool is `"nav"`, because there is nothing for the model to
-navigate: the copilot lives inside one product. The deck writes go through the
-product routes (`createSlide`, `updateSlide`, `deleteSlides`, `duplicateSlides`,
-`moveSlides`), the slide editor's and the report's through the live view
-context. There is no product registry: the model never lists, opens or creates
-products, and a draft slide goes only into a deck on the pair it was drafted
-under. The preview card stores the view its call ran in (panther E4,
-`AIViewSnapshot`, the id and identity) and renders under that identity's pair,
-with the pair's metrics from the T2 authoring context, so an old card keeps its
-package after a reattach; a card stored before the engine recorded the view
-renders under the current view's pair and offers no Add. The card offers "Add to
-this deck" from the deck and slide views when the open deck is on the draft's
-pair and the user can edit it, and is preview-only in a report, on another
-package and for a viewer. From either deck view on the draft's pair the card
-lays out under the open deck's config; elsewhere under the starting draft
-config. Add runs through `createButtonAction`, so a failed `createSlide` alerts;
-the button is disabled while the write runs and reads "Added to this deck" once
-it has landed, so one draft adds once, and the expanded view offers Add only
-while the card's button is enabled.
+assembles one flat array, the same for every user and every pair and always
+registered with the API: the outer package tools (`bindPackageTools` over the
+inner builder: metrics, the module list, the editors and the draft preview, each
+bound per call to the inner set of the view's pair; the module internals, bound
+by its run id), the reference tools (methodology docs, info) and panther's
+`ask_user_questions`. Every tool declares a `kind` (`"read"` / `"write"`); no
+tool is `"nav"`, because there is nothing for the model to navigate: the copilot
+lives inside one product. The deck writes go through the product routes
+(`createSlide`, `updateSlide`, `deleteSlides`, `duplicateSlides`, `moveSlides`),
+the slide editor's and the report's through the live view context. There is no
+product registry: the model never lists, opens or creates products, and a draft
+slide goes only into a deck on the pair it was drafted under. The preview card
+stores the view its call ran in (panther E4, `AIViewSnapshot`, the id and
+identity) and renders under that identity's pair, with the pair's metrics from
+the T2 authoring context, so an old card keeps its package after a reattach; a
+card stored before the engine recorded the view renders under the current view's
+pair and offers no Add. The card offers "Add to this deck" from the deck and
+slide views when the open deck is on the draft's pair and the user can edit it,
+and is preview-only in a report, on another package and for a viewer. From
+either deck view on the draft's pair the card lays out under the open deck's
+config; elsewhere under the starting draft config. Add runs through
+`createButtonAction`, so a failed `createSlide` alerts; the button is disabled
+while the write runs and reads "Added to this deck" once it has landed, so one
+draft adds once, and the expanded view offers Add only while the card's button
+is enabled.
 
 **Refusals come from one table through one wrapper** (COPILOT03 ruling 11).
 Every user registers the same tools, so the prompt cache survives every move;
@@ -654,12 +664,25 @@ inside `getMetricDataForAI`) lives in `lib/ai_tools/content_validators.ts`. The
 accepted-but-inert-patch rule (Type 1 / Type 2) is stated once, in
 [PROTOCOL_APP_AI_TOOLS.md](PROTOCOL_APP_AI_TOOLS.md).
 
-**Tools are built once per mount over fixed values.** Panther registers
+**Tools are registered once and bind per call.** Panther registers
 `config.tools` into its `ToolRegistry` once at chat construction and never
-re-reads the array, and everything the copilot's tools close over (the env, the
-pair, the authoring context, the HFA rounds) is fixed for the life of one
-`ProductCopilot`. A value that must change (a reattach, a different product)
-changes by remount, never by mutation under the tools.
+re-reads the array, so the registered set closes over nothing that moves: every
+package tool is an outer tool
+([bind_package_tools.ts](client/src/components/instance/copilot/bind_package_tools.ts),
+panther's `bindAIToolToView`, E5) whose call resolves the pair of the view it
+runs in (`getScope` on the view's context) and runs the same-named tool of an
+inner set built over that pair's env, its T2 authoring context and the HFA
+rounds `hfaTimePointsForAI` keeps, cached by `packageToolsKey` (run, scope,
+definition hash, rounds), so a reattach, rescope, scope edit or time-point
+import binds at the next call with no remount; the module internals bind by the
+view's run id alone (`getRunId`, `createModuleInternalsEnv`), so they answer for
+a package that is still generating or has failed. A view whose `getScope` throws
+refuses the call with its reason; an authoring-context read that fails refuses
+the call with the read's error and the next call reads again; every read of a
+pair-bound set opens with the Source line, a run-bound read with the package and
+no scope, and writes and failures pass through. The templates the chat registers
+come from one run of the inner builder over a throwing env and an empty
+authoring context, as `/mcp` builds its boot-time templates.
 
 ## Tool input schemas
 
@@ -894,10 +917,12 @@ directory; its tool semantics are S5's.
 - **Don't wrap proxy responses in `APIResponse`**: the client SDK parses
   Anthropic shapes. Equally: don't let new failure paths fall to `app.onError`,
   which returns an envelope at HTTP 200 the SDK can't parse.
-- **Tools are registered once at pane mount.** Nothing they close over may move
-  afterwards: the env, the pair and the authoring context are fixed per
-  `ProductCopilot`, and a value that must change changes by remount (the host
-  keys the chat on the pair). Do not reintroduce a store the tools read live.
+- **Tools are registered once at pane mount.** Nothing a registered tool closes
+  over may move afterwards: a value that depends on the pair (the env, the
+  authoring context, the HFA rounds) lives in an inner set the outer tool binds
+  to per call (`bind_package_tools.ts`), keyed by `packageToolsKey`. Do not
+  build a package tool over a mount's pair, and do not reintroduce a store the
+  tools read live.
 - **`z.strictObject` and `strict: true` are banned in tool schemas**. See
   PROTOCOL_APP_AI_TOOLS.md.
 - **Token limits are token-denominated, not dollar-denominated.** Cache tokens

@@ -1,14 +1,16 @@
 import type { AnyAITool } from "@timroberton/panther";
 
-// The provenance line that opens a package-bound read's result. A result
-// names the package and scope it read because the pair behind a bound tool
-// can move between two calls of one conversation (the /mcp pin moves; a
-// client may carry a stale catalog), so results are self-identifying by
-// construction. A read bound by run id alone (a module's script, log or
-// settings) passes no scope label: it does not depend on one, and a
-// generating or failed package has none. Failures pass through unheadered:
-// a throw is the model's self-correction channel and must not be dressed up
-// as a result. /mcp applies the line to its package tools under "All data".
+// The provenance line that opens a package-bound read's result on both
+// surfaces. A result names the package and scope it read because the pair
+// behind a registered tool moves between two calls of one conversation (the
+// SPA binds each call to the pair of the view it runs in; the /mcp pin
+// moves), so results are self-identifying by construction. A read bound by
+// run id alone (a module's script, log or settings) passes no scope label:
+// it does not depend on one, and a generating or failed package has none.
+// Failures pass through unheadered: a throw is the model's self-correction
+// channel and must not be dressed up as a result. The SPA applies the line
+// to every read of a pair-bound inner set with the scope's display label;
+// /mcp to its package tools under "All data".
 export function formatSourceHeader(args: {
   packageLabel: string;
   createdAt: string | null;

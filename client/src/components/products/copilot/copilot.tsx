@@ -31,7 +31,6 @@ import {
   buildSystemPromptForContext,
   ConsolidatedChatPane,
   copilotViewController,
-  createCopilotAIToolEnv,
   createCopilotSDKClient,
   DEFAULT_BUILTIN_TOOLS,
   useAIDocuments,
@@ -61,8 +60,8 @@ type CopilotBinding = {
 // copilot per open product. The editor itself is never remounted from here
 // (it handles a reattach live, D16); the chat beside it is keyed on the
 // product's (package, scope) pair and remounts when that pair changes, which
-// is what keeps the env, the tools and the system prompt fixed for the life
-// of one chat instance.
+// is what moves the package block: the tools are the same set for every
+// pair and bind to the view's pair per call (bind_package_tools.ts).
 export function ProductCopilotHost(p: HostProps) {
   // Referentially stable while the pair is unchanged, so a rename or a slide
   // write (which bump the T1 row) does not remount the chat.
@@ -138,23 +137,19 @@ function ProductCopilot(p: {
 }) {
   const sdkClient = createCopilotSDKClient();
   const aiDocs = useAIDocuments();
-  const env = createCopilotAIToolEnv(p.scope);
 
   // HFA survey rounds are instance-wide T1, not part of the per-run payload
-  // (`RunAuthoringContext`'s seam). Read once here: the tools array below is
-  // registered once at chat construction and is not re-read, so a round
-  // imported mid-session reaches the copilot on its next mount.
+  // (`RunAuthoringContext`'s seam). Read once here for the pane's View AI
+  // tool output; the tools read the rounds per call (bind_package_tools.ts).
   const hfaTaxonomy: HfaTaxonomyForAI = {
     ...p.authoringContext.hfaTaxonomy,
     timePoints: hfaTimePointsForAI(instanceState.hfaTimePoints),
   };
 
-  const tools = buildCopilotTools(
-    env,
-    p.scope,
-    p.authoringContext,
-    hfaTaxonomy,
-  );
+  // One set for every user and every pair: each package tool binds to the
+  // view's pair when it is called, so the set closes over nothing of this
+  // mount.
+  const tools = buildCopilotTools();
 
   // Instance level: only an instance input (name, country, admin-area
   // labels, structure counts, data sources, ai_context) changes it. The date

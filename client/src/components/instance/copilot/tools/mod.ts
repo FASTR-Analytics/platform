@@ -1,1 +1,4 @@
-export { getClientToolsForModules } from "./modules.ts";
+export {
+  getClientToolsForModuleInternals,
+  getClientToolsForModules,
+} from "./modules.ts";

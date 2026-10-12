@@ -3,16 +3,13 @@ import {
   getSharedToolsForMethodologyDocs,
   getSharedToolsForMetrics,
 } from "lib";
-import {
-  type HfaTaxonomyForAI,
-  type PackageScope,
-  type RunAuthoringContext,
-} from "lib";
+import type { AnyAITool } from "panther";
 import { createAskUserQuestionsTool } from "panther";
-import type { ClientAIToolEnv } from "~/components/instance/copilot/mod.ts";
 import {
+  bindPackageTools,
   getClientToolsForModules,
   guardCopilotTools,
+  type PackageToolsBuilder,
   SPA_INFO_TOPICS,
 } from "~/components/instance/copilot/mod.ts";
 import { getClientToolsForDrafts } from "./ai_tools/tools/mod.ts";
@@ -21,46 +18,45 @@ import { getClientToolsForSlideEditor } from "./ai_tools/tools/mod.ts";
 import { getClientToolsForSlides } from "./ai_tools/tools/mod.ts";
 import { instanceState } from "~/state/instance/t1_store";
 
-// The copilot's tool set = the SHARED tools (lib/ai_tools: the same
-// definitions the /mcp surface exposes, over the env bound to the open
-// product's (package, scope) pair) + the CLIENT tools (module internals,
-// editors, drafts). Array order is the tool-catalog order and the catalog is
-// a prompt-cache input: keep it stable.
-//
-// Built once per mount over that mount's fixed env and authoring context
-// (PLAN_PRODUCTS_RESTRUCTURE D15): nothing moves under the tools, so no
-// handler needs a store to stay live. Every user gets the same set: what a
+// The inner set over one pair: the SHARED metric tools (lib/ai_tools: the
+// same definitions the /mcp surface exposes, over the env bound to the pair),
+// the module list, the editors and the draft preview. The chat never
+// registers this set: bindPackageTools runs it once over a throwing env for
+// the templates and once per pair a call's view shows, cached by
+// packageToolsKey, so nothing here needs a store to stay live. Array order is
+// the tool-catalog order and the catalog is a prompt-cache input: keep it
+// stable.
+const buildPackageTools: PackageToolsBuilder = (
+  env,
+  scope,
+  ctx,
+  hfaTaxonomy,
+) => [
+  ...getSharedToolsForMetrics(
+    env,
+    ctx.metrics,
+    ctx.modules,
+    ctx.icehIndicators,
+    hfaTaxonomy,
+  ),
+  ...getClientToolsForModules(ctx.modules, ctx.metrics),
+  ...getClientToolsForSlides(env, ctx.metrics),
+  ...getClientToolsForSlideEditor(env, ctx.metrics),
+  ...getClientToolsForReportEditor(env, ctx.metrics),
+  ...getClientToolsForDrafts(scope, ctx.metrics),
+];
+
+// The copilot's tool set, the same for every user and every pair: the outer
+// package tools (bound per call to the view's pair, the module internals by
+// its run id), the reference tools and panther's ask_user_questions. What a
 // user may not do refuses at the call through the guard (tool_guard.ts),
 // which reads the permissions and the level on the view's product live.
-export function buildCopilotTools(
-  env: ClientAIToolEnv,
-  scope: PackageScope,
-  ctx: RunAuthoringContext,
-  hfaTaxonomy: HfaTaxonomyForAI,
-) {
+export function buildCopilotTools(): AnyAITool[] {
   return guardCopilotTools(
     [
-      ...getSharedToolsForMetrics(
-        env,
-        ctx.metrics,
-        ctx.modules,
-        ctx.icehIndicators,
-        hfaTaxonomy,
-      ),
-      // Module internals of that package (SPA-only)
-      ...getClientToolsForModules(env, ctx.modules, ctx.metrics),
+      ...bindPackageTools(buildPackageTools),
       ...getSharedToolsForMethodologyDocs(),
       ...getSharedToolsForInfo(SPA_INFO_TOPICS),
-
-      // View-gated tools (createAITool with viewRegistry + availableIn)
-      ...getClientToolsForSlides(env, ctx.metrics),
-      ...getClientToolsForSlideEditor(env, ctx.metrics),
-      ...getClientToolsForReportEditor(env, ctx.metrics),
-
-      // Draft preview tool - available in every package view
-      ...getClientToolsForDrafts(scope, ctx.metrics),
-
-      // Interactive tools
       createAskUserQuestionsTool(),
     ],
     {

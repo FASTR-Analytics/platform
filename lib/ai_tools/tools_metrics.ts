@@ -38,10 +38,7 @@ export function getSharedToolsForMetrics(
         );
       },
       inProgressLabel: "Getting available metrics...",
-      // Thunk, not template: the host builds tools at boot when `metrics` is
-      // still empty (the array is hydrated in place later), so an eager
-      // string would freeze at "0 metric(s)".
-      completionMessage: () => `Retrieved ${metrics.length} metric(s)`,
+      completionMessage: "Retrieved the available metrics",
       kind: "read",
       headless: true,
     }),
