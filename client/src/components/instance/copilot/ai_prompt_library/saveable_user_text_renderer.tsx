@@ -8,8 +8,7 @@ import { t3 } from "lib";
 
 // A user's text, a country-wide library prompt included, must not fetch an
 // image URL as it renders: image syntax renders as a link instead.
-const md = createMarkdownIt();
-md.disable("image");
+const md = createMarkdownIt({ images: false });
 
 type UserTextItem = { type: "user_text"; text: string };
 

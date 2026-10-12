@@ -1,4 +1,5 @@
 import { AIToolFailure, createAITool } from "panther";
+import type { AIViewSnapshot } from "panther";
 import { z } from "zod";
 import {
   AiContentSlideSchema,
@@ -23,9 +24,10 @@ import {
 } from "~/components/instance/copilot/mod.ts";
 import { DraftSlidePreview } from "./draft_slide_preview";
 
-// A draft resolves under the open product's pair, the only pair this copilot
-// serves (D15). From the deck and slide views the preview card adds it
-// straight to the open deck; in a report it is preview-only.
+// The handler resolves a draft under the mount's pair, the one this copilot
+// serves (D15). The card stores the view the call ran in (E4) and renders
+// under that view's pair, so an old card keeps its package after a reattach;
+// it offers Add only in an editable deck on that same pair.
 export function getClientToolsForDrafts(
   scope: PackageScope,
   metrics: MetricWithStatus[],
@@ -95,15 +97,10 @@ export function getClientToolsForDrafts(
             | z.infer<typeof AiSectionSlideSchema>
             | z.infer<typeof AiContentSlideSchema>;
         };
-      }) => {
-        return (
-          <DraftSlidePreview
-            scope={scope}
-            slideInput={props.input.slide}
-            metrics={metrics}
-          />
-        );
-      },
+        view?: AIViewSnapshot;
+      }) => (
+        <DraftSlidePreview view={props.view} slideInput={props.input.slide} />
+      ),
       inProgressLabel: (input) =>
         `Creating ${input.slide.type} slide preview...`,
       completionMessage: (input) => `${input.slide.type} slide preview shown`,

@@ -332,10 +332,11 @@ under `import.meta.env.DEV` at config assembly (HFA
   [chat_pane.tsx](client/src/components/instance/copilot/chat_pane.tsx)); the
   model list is panther's `MODEL_OPTIONS`, client-side only. The proxy forwards
   any `model` verbatim (Open items).
-- **builtInTools** = `{webSearch: true, webFetch: true}`: Anthropic server-side
-  tools, resolved per model by panther (dynamic `_20260209` variants on 4.6+,
-  basic + beta header otherwise). Currently unrestricted: no `max_uses` /
-  `allowed_domains` / `max_content_tokens` (Open items).
+- **builtInTools** = `{webSearch: true}`: Anthropic's server-side web search,
+  resolved per model by panther (the dynamic `_20260209` variant on 4.6+, the
+  basic one otherwise). No web fetch: it would carry anything the conversation
+  holds (a tool result, an error quoting its input) to any host the model names.
+  Search is unrestricted: no `max_uses` / `allowed_domains` (Open items).
 - **scope** = `copilot:<productId>`: conversations are per product (one
   IndexedDB registry, filtered by scope, with a last-active id per scope), so a
   thread's history is about one deck or report on one package, and reopening the
@@ -478,35 +479,60 @@ log's end.
 ## Tools, view gating, and approval
 
 [`buildCopilotTools`](client/src/components/products/copilot/build_tools.ts)
-assembles one flat array of 32 tools (31 app tools + panther's
-`ask_user_questions`), all always registered with the API: base data tools
-(metrics, modules, methodology docs, info), view-gated editor tools (deck-level
-slides, slide editor, report editor), and the draft preview. Every tool declares
-a `kind` (`"read"` / `"write"`); no tool is `"nav"`, because there is nothing
-for the model to navigate: the copilot lives inside one product. There is no
-product registry: the model never lists, opens or creates products, and a draft
-slide goes only into the open deck (the preview card offers "Add to this deck"
-from the deck and slide views when the user can edit the deck, and is
-preview-only in a report and for a viewer). From either deck view the card lays
-out under the open deck's config. Add runs through `createButtonAction`, so a
-failed `createSlide` alerts; the button is disabled while the write runs and
-reads "Added to this deck" once it has landed, so one draft adds once, and the
-expanded view offers Add only while the card's button is enabled.
+assembles one flat array, the same for every user and always registered with the
+API: base data tools (metrics, modules, methodology docs, info), view-gated
+editor tools (deck-level slides, slide editor, report editor), the draft preview
+and panther's `ask_user_questions`. Every tool declares a `kind` (`"read"` /
+`"write"`); no tool is `"nav"`, because there is nothing for the model to
+navigate: the copilot lives inside one product. The deck writes go through the
+product routes (`createSlide`, `updateSlide`, `deleteSlides`, `duplicateSlides`,
+`moveSlides`), the slide editor's and the report's through the live view
+context. There is no product registry: the model never lists, opens or creates
+products, and a draft slide goes only into a deck on the pair it was drafted
+under. The preview card stores the view its call ran in (panther E4,
+`AIViewSnapshot`, the id and identity) and renders under that identity's pair,
+with the pair's metrics from the T2 authoring context, so an old card keeps its
+package after a reattach; a card stored before the engine recorded the view
+renders under the current view's pair and offers no Add. The card offers "Add to
+this deck" from the deck and slide views when the open deck is on the draft's
+pair and the user can edit it, and is preview-only in a report, on another
+package and for a viewer. From either deck view the card lays out under the open
+deck's config. Add runs through `createButtonAction`, so a failed `createSlide`
+alerts; the button is disabled while the write runs and reads "Added to this
+deck" once it has landed, so one draft adds once, and the expanded view offers
+Add only while the card's button is enabled.
 
-**A viewer's catalogue** (PLAN_PRODUCT_OWNERSHIP R13): `ProductCopilot` reads
-the user's level on the product once per mount (`productLevel`, S12) and passes
-it to `buildCopilotTools`, which keeps only the `kind: "read"` tools of the
-three editor groups for a user below `edit`: `get_deck`, `get_slide`,
-`get_slide_editor`, `get_report_editor`, `get_report_figure` and
-`get_report_pages`. The metrics, module, methodology, info, draft-preview and
-question tools are unchanged, so a viewer can still ask about the product. Like
-the rest of the catalogue the level is fixed for the mount: a level change takes
-effect the next time the product is opened, and a write tool used after a
-demotion fails with the server's refusal. The chat menu's "Save this report's
-style…" shows when the `editing_report` view's context supplies
-`getSaveStyleAction()`: `report.tsx` defines it for an html report the user can
-edit and leaves it undefined otherwise, so the pane imports nothing from
-`components/products/`.
+**Refusals come from one table through one wrapper** (COPILOT03 ruling 11).
+Every user registers the same tools, so the prompt cache survives every move;
+what a user may not do refuses at the call.
+[`tool_guard.ts`](client/src/components/instance/copilot/tool_guard.ts) wraps
+each tool where the set is assembled and, before the handler or an approval's
+`propose` runs, asks `copilotToolRefusal` (`lib/ai_tools/copilot_catalogue.ts`)
+over the tool's requirement, the user's live permissions
+(`instanceState.currentUserPermissions`), the live level on the view's product
+(`productLevel`, S12, from the view's `productId`, `deckId` or `reportId`; null
+in a view with no product) and the HFA write gate the assembler supplies, and
+throws the table's reason as an `AIToolFailure`. So a viewer can read a deck or
+report and ask about it while its writes refuse, `get_module_r_script` and
+`get_module_settings` refuse without `can_view_data` and `get_module_log`
+without `can_view_logs`, and a demotion reaches the next call. A tool outside
+the catalogue fails the assembly. Below edit level a product view's instructions
+carry the level line (above). The chat menu's "Save this report's style…" shows
+when the `editing_report` view's context supplies `getSaveStyleAction()`:
+`report.tsx` defines it for an html report the user can edit and leaves it
+undefined otherwise, so the pane imports nothing from `components/products/`.
+
+**The approval policy** is the chat's
+`{ requireForKind: "write", requireKind: true, exempt: COPILOT_APPROVAL_EXEMPT }`
+(`copilot.tsx`), so a write tool is either exempt, as the direct editor writes
+to what the user is looking at are (the catalogue's `COPILOT_APPROVAL_EXEMPT`:
+the deck's slide writes but deletion, the open slide's draft, a report's figure
+by stable id, the figure editor's draft and the HFA code editor's unsaved
+state), or declares its approval: `delete_slides` takes a modal approval with
+intent danger whose preview lists the slides by title and whose commit deletes
+and marks the echo keys, and the five staged report tools their diff.
+`validateAIChatConfig` runs on the assembled config in DEV, so a write tool with
+neither fails on page load.
 
 **Gating is declarative.** Every product tool (deck, slide editor, report and
 the draft preview) is a standalone
@@ -913,9 +939,6 @@ Remaining:
 
 **Security / access**
 
-- **[MED] `webFetch` unrestricted in a health-data app**: prompt-injected
-  exfiltration via `web_fetch` to attacker URLs; Anthropic's own guidance is
-  domain allowlisting. Configure `allowed_domains`/`max_uses`.
 - **[MED] Public `/ai_usage`** returns per-user emails + per-call behavior,
   unbounded full-table scan; the other health routes expose aggregates. Decide
   the exception or add guard/limit.

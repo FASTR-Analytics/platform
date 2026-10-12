@@ -49,3 +49,4 @@ export {
 } from "./ai_configs/mod.ts";
 export { useAIDocuments } from "./ai_documents/mod.ts";
 export { getClientToolsForModules } from "./tools/mod.ts";
+export { guardCopilotTools } from "./tool_guard.ts";

@@ -1,7 +1,9 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { _SERVER_HOST } from "~/server_actions";
 
-export const DEFAULT_BUILTIN_TOOLS = { webSearch: true, webFetch: true };
+// Web search alone: web fetch would carry anything the conversation holds
+// (a tool result, an error quoting its input) to any host the model names.
+export const DEFAULT_BUILTIN_TOOLS = { webSearch: true };
 
 const ISO_RE = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/;
 

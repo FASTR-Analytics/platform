@@ -8,6 +8,7 @@ import {
 } from "panther";
 import {
   buildDateBlock,
+  COPILOT_APPROVAL_EXEMPT,
   type HfaTaxonomyForAI,
   hfaTimePointsForAI,
   isoDateToday,
@@ -40,7 +41,6 @@ import {
   instanceState,
   productById,
 } from "~/state/instance/t1_store";
-import { productLevel } from "~/state/instance/product_access";
 import { getRunAuthoringContextFromCacheOrFetch } from "~/state/instance/t2_run_authoring_context";
 import { buildCopilotTools } from "./build_tools";
 import { setShowAi, showAi } from "~/state/t4_ui";
@@ -149,16 +149,11 @@ function ProductCopilot(p: {
     timePoints: hfaTimePointsForAI(instanceState.hfaTimePoints),
   };
 
-  // Read once, like the rest of the catalogue: a level change reaches the
-  // copilot the next time the product is opened.
-  const level = productLevel(p.productId);
-
   const tools = buildCopilotTools(
     env,
     p.scope,
     p.authoringContext,
     hfaTaxonomy,
-    level,
   );
 
   // Instance level: only an instance input (name, country, admin-area
@@ -201,6 +196,14 @@ function ProductCopilot(p: {
     getEphemeralContext,
     getDocumentRefs: aiDocs.getDocumentRefs,
     viewController: copilotViewController,
+    // Every write asks before it applies unless the catalogue exempts it:
+    // the direct editor writes to what the user is looking at. delete_slides
+    // and the staged report edits declare their own approval.
+    approvalPolicy: {
+      requireForKind: "write",
+      requireKind: true,
+      exempt: COPILOT_APPROVAL_EXEMPT,
+    },
     appendOnlyTurns: true,
   };
 

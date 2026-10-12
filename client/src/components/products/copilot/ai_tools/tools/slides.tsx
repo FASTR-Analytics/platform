@@ -13,10 +13,13 @@ import {
   MAX_CONTENT_BLOCKS,
   type MetricWithStatus,
   type Slide,
+  t3,
+  TC,
 } from "lib";
 import { convertAiInputToSlide } from "../../slide_ai/mod.ts";
 import { extractBlocksFromLayout } from "../../slide_ai/mod.ts";
 import { createGetSlideTool } from "./get_slide";
+import { getSlideFromCacheOrFetch } from "~/state/products/t2_slides";
 import type { ClientAIToolEnv } from "~/components/instance/copilot/mod.ts";
 import { getSlideWithUpdatedBlocks } from "../../slide_ai/mod.ts";
 import { getDeckSummaryForAI } from "../../slide_ai/mod.ts";
@@ -546,7 +549,7 @@ export function getClientToolsForSlides(
       viewRegistry: copilotViews,
       name: "delete_slides",
       description:
-        "Permanently remove one or more slides from the deck. The slides are deleted immediately and cannot be recovered. Remaining slides will maintain their relative order.",
+        "Permanently remove one or more slides from the deck. The user confirms the deletion in a dialog that lists the slides by title; once confirmed the slides cannot be recovered. Remaining slides will maintain their relative order.",
       inputSchema: z.object({
         slideIds: z
           .array(z.string())
@@ -556,39 +559,66 @@ export function getClientToolsForSlides(
       }),
       availableIn: COPILOT_TOOL_VIEWS.delete_slides,
       kind: "write",
-      handler: async (input, view) => {
-        assertSlidesNotBusy(input.slideIds);
+      // The one deck write that asks first (the others are the catalogue's
+      // approval exemptions): a deletion cannot be undone, so the user sees
+      // the slides by title and confirms before anything is written.
+      approval: {
+        presentation: "modal",
+        propose: async (input, view) => {
+          assertSlidesNotBusy(input.slideIds);
 
-        if (input.slideIds.length === 0) {
-          throw new AIToolFailure(
-            "No slide IDs provided. Specify at least one slide to delete.",
+          if (input.slideIds.length === 0) {
+            throw new AIToolFailure(
+              "No slide IDs provided. Specify at least one slide to delete.",
+            );
+          }
+
+          const deckSlideIds = view.context.getSlideIds();
+          const invalidIds = input.slideIds.filter((id) =>
+            !deckSlideIds.includes(id)
           );
-        }
+          if (invalidIds.length > 0) {
+            throw new AIToolFailure(
+              `Slide ID(s) not found in deck: ${
+                invalidIds.join(", ")
+              }. Use get_deck to see current slide IDs.`,
+            );
+          }
 
-        const deckSlideIds = view.context.getSlideIds();
-        const invalidIds = input.slideIds.filter((id) =>
-          !deckSlideIds.includes(id)
-        );
-        if (invalidIds.length > 0) {
-          throw new AIToolFailure(
-            `Slide ID(s) not found in deck: ${
-              invalidIds.join(", ")
-            }. Use get_deck to see current slide IDs.`,
+          const deckId = view.params.deckId;
+          const titles = await Promise.all(
+            input.slideIds.map(async (slideId) => {
+              const res = await getSlideFromCacheOrFetch(deckId, slideId);
+              return res.success ? getSlideTitle(res.data.slide) : slideId;
+            }),
           );
-        }
+          return {
+            preview: {
+              title: t3({
+                en: `Delete ${titles.length} slide(s)`,
+                fr: `Supprimer ${titles.length} diapositive(s)`,
+                pt: `Eliminar ${titles.length} diapositivo(s)`,
+              }),
+              description: titles.map((title) => `- ${title}`).join("\n"),
+              intent: "danger",
+              confirmLabel: t3(TC.delete),
+            },
+            commit: async () => {
+              const res = await serverActions.deleteSlides({
+                product_id: deckId,
+                slideIds: input.slideIds,
+              });
+              if (!res.success) throw new AIToolFailure(res.err);
 
-        const res = await serverActions.deleteSlides({
-          product_id: view.params.deckId,
-          slideIds: input.slideIds,
-        });
-        if (!res.success) throw new AIToolFailure(res.err);
+              for (const slideId of res.data.deletedIds) {
+                copilotViewController.markAIEdit(`slide:${slideId}`);
+              }
+              copilotViewController.markAIEdit(`product:${deckId}`);
 
-        for (const slideId of res.data.deletedIds) {
-          copilotViewController.markAIEdit(`slide:${slideId}`);
-        }
-        copilotViewController.markAIEdit(`product:${view.params.deckId}`);
-
-        return `Deleted ${res.data.deletedIds.length} slide(s). Deck has been updated. Call get_deck if you need to review the current deck state.`;
+              return `Deleted ${res.data.deletedIds.length} slide(s). Deck has been updated. Call get_deck if you need to review the current deck state.`;
+            },
+          };
+        },
       },
       inProgressLabel: (input) =>
         `Deleting ${input.slideIds.length} slide(s)...`,

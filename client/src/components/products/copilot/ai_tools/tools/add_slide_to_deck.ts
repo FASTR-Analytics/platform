@@ -2,8 +2,9 @@ import type { APIResponseWithData, Slide } from "lib";
 import { serverActions } from "~/server_actions";
 import { copilotViewController } from "~/components/instance/copilot/mod.ts";
 
-// The draft was resolved under the open product's pair, which is the open
-// deck's, so it is written as is. The response is the card's to report.
+// The card offers Add only in an editable deck on the pair the draft was
+// resolved under (draft_slide_preview.tsx), so the slide is written as is.
+// The response is the card's to report.
 export async function addSlideToDeck(
   slide: Slide,
   deckId: string,

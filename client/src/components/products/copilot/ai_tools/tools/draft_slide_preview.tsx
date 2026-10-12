@@ -1,15 +1,23 @@
 import {
   type AiSlideInput,
+  COPILOT_PACKAGE_VIEWS,
   getStartingConfigForSlideDeck,
   type MetricWithStatus,
   type PackageScope,
+  packageScopesEqual,
   PAGE_HEIGHT_DU,
   PAGE_WIDTH_DU,
+  scopeIdSchema,
   type Slide,
   type SlideDeckConfig,
   t3,
 } from "lib";
-import type { AlertComponentProps, PageInputs, StateHolder } from "panther";
+import type {
+  AIViewSnapshot,
+  AlertComponentProps,
+  PageInputs,
+  StateHolder,
+} from "panther";
 import {
   Button,
   createButtonAction,
@@ -28,9 +36,15 @@ import {
 } from "solid-js";
 import { convertAiInputToSlide } from "../../slide_ai/mod.ts";
 import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
-import { copilotViewController } from "~/components/instance/copilot/mod.ts";
+import {
+  copilotViewController,
+  type CopilotViewState,
+  type PackageViewContext,
+} from "~/components/instance/copilot/mod.ts";
 import { addSlideToDeck } from "./add_slide_to_deck";
 import { canEditProduct } from "~/state/instance/product_access";
+import { resolveScope } from "~/state/instance/t1_store";
+import { getRunAuthoringContextFromCacheOrFetch } from "~/state/instance/t2_run_authoring_context";
 
 type SlideState = {
   pageInputs: PageInputs;
@@ -38,19 +52,61 @@ type SlideState = {
 };
 
 type Props = {
-  scope: PackageScope;
+  // The view the draft was made in, stored with the card (E4): its identity
+  // carries the pair the draft resolves under. Absent on a card stored before
+  // the engine recorded it.
+  view: AIViewSnapshot | undefined;
   slideInput: AiSlideInput;
-  metrics: MetricWithStatus[];
 };
 
+// The pair the current view shows, when it is a package view with a package.
+function currentPair(view: CopilotViewState): PackageScope | undefined {
+  if (!(COPILOT_PACKAGE_VIEWS as readonly string[]).includes(view.id)) {
+    return undefined;
+  }
+  try {
+    const { runId, scopeId } = (view.context as PackageViewContext).getScope();
+    return { runId, scopeId };
+  } catch {
+    return undefined;
+  }
+}
+
+// The pair a card renders under: the one its stored view names, so an old
+// card keeps its package after a reattach; a card stored without a view
+// renders under the current view's pair and offers no Add, since the pair it
+// was drafted under is unknown.
+function draftPair(
+  view: AIViewSnapshot | undefined,
+): { pair: PackageScope; stored: boolean } | undefined {
+  // The identity is flat strings (copilotViewIdentity); the scope id comes
+  // back through its schema.
+  const identity = view?.identity;
+  const scopeId = identity === undefined
+    ? undefined
+    : scopeIdSchema.safeParse(identity.scopeId);
+  if (identity?.runId !== undefined && scopeId?.success) {
+    return {
+      pair: { runId: identity.runId, scopeId: scopeId.data },
+      stored: true,
+    };
+  }
+  const pair = currentPair(copilotViewController.current());
+  return pair === undefined ? undefined : { pair, stored: false };
+}
+
 // The deck the draft can be added to: the open deck, from the deck view or
-// from one of its slides, when the user can edit it. A report has no deck, so
-// the card is preview-only there, as it is for a viewer.
-function editableDeckId(): string | undefined {
+// from one of its slides, when the user can edit it and it sits on the pair
+// the draft was made under. A report has no deck, a deck on another package
+// would render the draft's figures under the wrong data, and a viewer cannot
+// write, so the card is preview-only in each case.
+function editableDeckId(draft: PackageScope): string | undefined {
   const view = copilotViewController.current();
   if (view.id !== "editing_slide_deck" && view.id !== "editing_slide") {
     return undefined;
   }
+  const pair = currentPair(view);
+  if (pair === undefined || !packageScopesEqual(pair, draft)) return undefined;
   return canEditProduct(view.params.deckId) ? view.params.deckId : undefined;
 }
 
@@ -72,13 +128,39 @@ export function DraftSlidePreview(p: Props) {
     return getStartingConfigForSlideDeck("Draft");
   }
 
+  // The pair's metrics come from its T2 authoring context, a cache hit for
+  // any package a product on it has opened.
+  async function metricsFor(
+    pair: PackageScope,
+  ): Promise<MetricWithStatus[]> {
+    const res = await getRunAuthoringContextFromCacheOrFetch(
+      resolveScope(pair),
+    );
+    if (!res.success) throw new Error(res.err);
+    return res.data.metrics;
+  }
+
   async function buildSlide() {
     try {
+      const draft = draftPair(p.view);
+      if (draft === undefined) {
+        setSlideState({
+          status: "error",
+          err: t3({
+            en: "No results package is in view to render this draft under.",
+            fr:
+              "Aucun paquet de résultats n'est affiché pour rendre ce brouillon.",
+            pt:
+              "Nenhum pacote de resultados está em vista para apresentar este rascunho.",
+          }),
+        });
+        return;
+      }
       const deckConfig = getDeckConfig();
       const convertedSlide = await convertAiInputToSlide(
-        p.scope,
+        draft.pair,
         p.slideInput,
-        p.metrics,
+        await metricsFor(draft.pair),
         deckConfig,
       );
       const renderRes = await convertSlideToPageInputs(
@@ -131,10 +213,14 @@ export function DraftSlidePreview(p: Props) {
   );
   const addTarget = (): { slide: Slide; deckId: string } | undefined => {
     const state = slideState();
-    const deckId = editableDeckId();
-    return state.status === "ready" && deckId !== undefined
-      ? { slide: state.data.convertedSlide, deckId }
-      : undefined;
+    const draft = draftPair(p.view);
+    if (state.status !== "ready" || draft === undefined || !draft.stored) {
+      return undefined;
+    }
+    const deckId = editableDeckId(draft.pair);
+    return deckId === undefined
+      ? undefined
+      : { slide: state.data.convertedSlide, deckId };
   };
   const addEnabled = () => !added() && add.state().status === "ready";
 
