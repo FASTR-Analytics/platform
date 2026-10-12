@@ -3,7 +3,6 @@ export {
   copilotViews,
   DATA_PAGE_IDS,
   holdCopilotView,
-  packageViewContext,
   restoreCopilotView,
 } from "./ai_views.ts";
 export type {
@@ -35,10 +34,7 @@ export {
   buildCopilotPackageBlock,
   buildSystemPromptForContext,
 } from "./build_system_prompt.ts";
-export {
-  createCopilotAIToolEnv,
-  createModuleInternalsEnv,
-} from "./client_env.ts";
+export { createCopilotAIToolEnv } from "./client_env.ts";
 export type { ClientAIToolEnv, ModuleInternalsEnv } from "./client_env.ts";
 export { bindPackageTools } from "./bind_package_tools.ts";
 export type { PackageToolsBuilder } from "./bind_package_tools.ts";
@@ -54,8 +50,5 @@ export {
   DEFAULT_BUILTIN_TOOLS,
 } from "./ai_configs/mod.ts";
 export { useAIDocuments } from "./ai_documents/mod.ts";
-export {
-  getClientToolsForModuleInternals,
-  getClientToolsForModules,
-} from "./tools/mod.ts";
+export { getClientToolsForModules } from "./tools/mod.ts";
 export { guardCopilotTools } from "./tool_guard.ts";

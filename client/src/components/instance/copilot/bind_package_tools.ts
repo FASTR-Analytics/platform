@@ -90,10 +90,12 @@ const TEMPLATE_CONTEXT: RunAuthoringContext = {
   population: null,
 };
 
-// The ready list names a package; a package no longer ready (or not yet) has
-// no entry, so the run id is the honest fallback.
+// The ready list names a package; the catalogue, which data-configuring
+// users see, is the second source for a package that is generating or has
+// failed (the run-bound reads' case); a run in neither is named by its id.
 function packageHeaderParts(runId: string) {
-  const pkg = instanceState.readyPackages.find((p) => p.id === runId);
+  const pkg = instanceState.readyPackages.find((p) => p.id === runId) ??
+    instanceState.runsCatalog.find((r) => r.id === runId);
   return {
     packageLabel: pkg?.label ?? runId,
     createdAt: pkg?.createdAt ?? null,
