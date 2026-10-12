@@ -596,7 +596,10 @@ keyed slide editor. The menu is rendered by `SlideList`, never by
 `SlideToolbar`, for that same reason: a menu inside the keyed editor would close
 on its own first click. The full settings screen (`SlideDeckSettings`, with the
 delete action) is still there, one row down the menu as "All deck settings";
-name and folder sits in File.
+name and folder sits in File. The settings screen takes the deck id and sets the
+chat's `deck_settings` view over the deck's (S13; its context is the product's
+live row through `productViewContext`), so the deck tools refuse while the user
+is there; History sets `deck_history` the same way (S16).
 
 **The slide editor**
 ([slide_editor/slide_editor.tsx](client/src/components/products/slide_deck/slide_editor/slide_editor.tsx))
@@ -641,7 +644,9 @@ right-click. Figure blocks have ONE authoring path (D3): insert and replace open
 edit opens S11's embedded `VisualizationEditor` over the WHOLE deck (the deck's
 `openHostEditor`, as Settings and History open; the slide editor's own wrapper
 only covers the slide pane beside the rail, and the slide stays mounted
-underneath, so its collab binding lives); every result resolves through
+underneath, so its collab binding lives), naming the chat's
+`editing_slide_figure` view in its `aiView` prop with the deck, slide and block
+ids (the report names `editing_report_figure`); every result resolves through
 `resolveFigureBundleInteractively` under the product's current pair, so editing
 a stale figure also brings it up to date. Local edits notify the AI
 (`edited_slide_locally`) and the editor holds the deck's view

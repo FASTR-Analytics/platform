@@ -2030,6 +2030,10 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
             scope: ctx.scope,
             metric,
             configSnapshot: structuredClone(bundle.config),
+            aiView: {
+              id: "editing_report_figure" as const,
+              params: { reportId: p.productId, figureId: sel.id },
+            },
             authoringContext: ctx.context,
             collabBinding,
             // The theme's chart colours, the ones this figure prints in.

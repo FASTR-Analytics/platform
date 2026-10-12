@@ -157,6 +157,43 @@ export function getUsersInstructions(): string {
 The user is on the Users page, which lists the instance's users and their permissions. You are told nothing of the roster: no names, no emails. ${NO_PACKAGE_LINE}`;
 }
 
+// The figure editor's three views: what is being edited or shown, by the
+// metric label its host passes, and what the two figure editor tools do to
+// the draft.
+export type FigureEditorHost = "slide" | "report" | "package";
+
+const FIGURE_EDITOR_TOOLS_LINES =
+  `get_figure_editor reads the draft as it stands in the editor (metric, type, disaggregations and their display slots, filters, the replicant, the period and the captions). update_figure_editor changes the draft in place: pass only the fields to change; the change shows in the editor at once. The chart type can be changed here, which is the one place it can.`;
+
+export function getFigureEditorInstructions(
+  label: string,
+  host: FigureEditorHost,
+): string {
+  switch (host) {
+    case "slide":
+      return `# Current View: Figure editor (slide)
+
+The user is editing the figure "${label}" of the open slide in the figure editor. ${FIGURE_EDITOR_TOOLS_LINES} The user keeps the result with the editor's Apply button or discards it with Cancel; under live co-editing every change streams into the deck as it is made. The figure resolves under the deck's results package and scope.`;
+    case "report":
+      return `# Current View: Figure editor (report)
+
+The user is editing the figure "${label}" of the open report in the figure editor. ${FIGURE_EDITOR_TOOLS_LINES} The user keeps the result with the editor's Apply button or discards it with Cancel; under live co-editing every change streams into the report as it is made. The figure resolves under the report's results package and scope.`;
+    case "package":
+      return `# Current View: Figure viewer (package)
+
+The user is looking at the package's default visualization "${label}" in the figure viewer, which belongs to no product: the draft is for looking at, and closing the viewer keeps nothing. ${FIGURE_EDITOR_TOOLS_LINES} The figure resolves under the package page's package and scope.`;
+  }
+}
+
+export function getResultsFileInstructions(
+  moduleId: string,
+  resultsObjectId: string,
+): string {
+  return `# Current View: Results file
+
+The user is looking at the raw results file "${resultsObjectId}" of module "${moduleId}", read under the package and scope in view: the rows behind the figure's metric, as a table. The package reads resolve under the same pair.`;
+}
+
 export function getUserInstructions(): string {
   return `# Current View: User
 

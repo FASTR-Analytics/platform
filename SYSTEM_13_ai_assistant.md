@@ -486,10 +486,21 @@ over the `DataSectionForAI` rows the page supplies, never a summary), and its
 family; instructions name both) for every page it opens and restores the covered
 view when the page closes (S6); the Assets page sets `assets`, the Users page
 `users` and the user detail `user`, each with instructions that name the page
-and nothing of its contents: no roster, no email. The views inside products (the
-figure editors, deck settings, the version histories, the results file viewer)
-and the HFA views are declared, with their params and context types and the
-identity their page will supply, and have no sync site yet. There is no
+and nothing of its contents: no roster, no email. Inside products, deck settings
+(`SlideDeckSettings`, given the deck id) sets `deck_settings` and the version
+history (`VersionHistoryEditor`) sets `deck_history` or `report_history` by its
+`kind`, each with `productViewContext(productId)`, the product's live row as
+label and pair (ruling 7's reason once the row is gone); the figure editor (S11)
+holds in `VisualizationEditor` and sets, from `VisualizationEditorInner` once
+the draft exists, the view its host names in the required `aiView` prop
+(`editing_slide_figure`, `editing_report_figure`, `viewing_package_figure`, each
+with the params its identity needs) through `setFigureEditorView`, with a
+`FigureEditorContext` of the pair, the metric and the draft (`getDraftConfig`,
+`applyDraftConfig`), and instructions naming the figure by its label
+(`getFigureEditorInstructions`); the results file viewer sets `results_file`
+from its props with the same pair, and instructions naming the module and the
+results object. The HFA views are declared, with their params and context types
+and the identity their page will supply, and have no sync site yet. There is no
 tab-to-view map.
 
 **What a message carries** (`appendOnlyTurns: true`, panther's E7). Every
@@ -561,15 +572,26 @@ activation already starts each conversation's digest at the log's end.
 one flat array once per shell mount, the same for every user, every view and
 every pair and always registered with the API: the outer package tools
 (`bindPackageTools` over the inner builder: metrics, the module list, the
-editors and the draft preview, each bound per call to the inner set of the
-view's pair; the module internals, bound by its run id), the Products page's
-`list_products`, the reference tools (methodology docs, info) and panther's one
-`ask_user_questions`. Every tool declares a `kind` (`"read"` / `"write"`); no
-tool is `"nav"`: a navigation tool or any AI-driven move is out of the chat's
-scope, so the user moves and the view line tells the model where. The deck
-writes go through the product routes (`createSlide`, `updateSlide`,
+editors, the figure editor and the draft preview, each bound per call to the
+inner set of the view's pair; the module internals, bound by its run id), the
+Products page's `list_products`, the reference tools (methodology docs, info)
+and panther's one `ask_user_questions`. Every tool declares a `kind` (`"read"` /
+`"write"`); no tool is `"nav"`: a navigation tool or any AI-driven move is out
+of the chat's scope, so the user moves and the view line tells the model where.
+The deck writes go through the product routes (`createSlide`, `updateSlide`,
 `deleteSlides`, `duplicateSlides`, `moveSlides`), the slide editor's and the
-report's through the live view context. `list_products`
+report's through the live view context. The Figure editor group
+([figure_editor.ts](client/src/components/products/copilot/ai_tools/tools/figure_editor.ts),
+in the inner set, admitted in the three figure views): `get_figure_editor`
+formats the draft with `formatFigureConfigForAI`, and `update_figure_editor`
+runs `update_figure`'s validate-before-commit pipeline over the draft (apply the
+patch, validate the edit, validate the metric inputs, resolve the bundle, check
+slot collisions, all before anything changes) and then reconciles the new config
+into the editor's store through `applyDraftConfig`, after checking the editor
+that set the view is still current; its schema is `AiVizConfigUpdateSchema`, the
+figure patch plus the chart type and the timeseries grouping, which the editor
+can change and the figure tools cannot; it is approval-exempt, since the user
+keeps or discards the draft with the editor's own buttons. `list_products`
 ([products.ts](client/src/components/products/copilot/ai_tools/tools/products.ts),
 admitted on the Products page alone) lists the products the user can see, which
 is what T1 holds, each with its folder path, its package by label (a package no
@@ -862,10 +884,11 @@ limit applies only to a table that has a column for it; then the package's
 datasets, indicator lists and calendar); the level line rides a product view's
 instructions below edit; the per-view instructions (still exported from this
 file, with short primary-tool pointers; the Products, Data page, Assets, Users
-and user detail views name their page) and the view states of the Results,
-Explore and Data pages (`formatExploreState`, `formatPackageState`,
-`formatResultsPackagesState` and `formatDataState`, this file too) are composed
-per view by the view registry
+and user detail views name their page, the figure views the figure by its label
+and its host, and the results file view its module and object) and the view
+states of the Results, Explore and Data pages (`formatExploreState`,
+`formatPackageState`, `formatResultsPackagesState` and `formatDataState`, this
+file too) are composed per view by the view registry
 ([ai_views.ts](client/src/components/instance/copilot/ai_views.ts)); and the
 tools ride the request's tools array, never a catalogue in the prompt
 (`server/tests/copilot_prompt_test.ts` pins the absence; `get_overview` is the

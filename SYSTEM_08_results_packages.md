@@ -293,7 +293,9 @@ of `RunAuthoringContext.presets` whose metric the module produced, in preset
 order, each rendered through S11's shared `_shared/figure_preview.ts` helper
 under the page scope; a default whose metric is stamped unavailable shows the
 stamped reason in place of a figure and is not clickable; clicking a card opens
-S11's `VisualizationEditor` as a viewer (`viewOnly`) through the page's own
+S11's `VisualizationEditor` as a viewer (`viewOnly`, naming the chat's
+`viewing_package_figure` view with the default's id in `aiView`, S13; its
+Download's results file viewer sets `results_file`) through the page's own
 editor wrapper, with the default's metric and config, the page scope and the
 package's authoring context, so the user can disaggregate it differently to look
 at, and closing returns nothing: no draft, no storage, no route, no cache key,

@@ -1,4 +1,9 @@
-import { createAIViewController, defineAIViews, view } from "panther";
+import {
+  AIToolFailure,
+  createAIViewController,
+  defineAIViews,
+  view,
+} from "panther";
 import type { AIViewController, AIViewState, AnyAIView } from "panther";
 import {
   COPILOT_PACKAGE_VIEWS,
@@ -10,6 +15,7 @@ import {
   getEditingReportInstructions,
   getSlideTitle,
   productLevelAtLeast,
+  productScope,
 } from "lib";
 import type {
   DatasetType,
@@ -47,14 +53,20 @@ import {
   getDataPageInstructions,
   getEditingSlideDeckInstructions,
   getEditingSlideInstructions,
+  getFigureEditorInstructions,
   getOpeningProductInstructions,
   getProductsInstructions,
+  getResultsFileInstructions,
   getUserInstructions,
   getUsersInstructions,
   PRODUCT_VIEW_ONLY_LINE,
 } from "./build_system_prompt";
 import { productLevel } from "~/state/instance/product_access";
-import { instanceState } from "~/state/instance/t1_store";
+import {
+  createResolvedScope,
+  instanceState,
+  productById,
+} from "~/state/instance/t1_store";
 
 ////////////////////////////////////////////////////////////////////////////////
 // COPILOT: AI VIEW REGISTRY
@@ -85,10 +97,14 @@ import { instanceState } from "~/state/instance/t1_store";
 // loaded), the slide editor (`editing_slide`), Explore (`explore`), the
 // Results page (`results_packages`), the package page (`package`, set again
 // when the status changes), the Module defaults and Scopes views, the
-// Products, Data, Assets and Users pages and the user detail, and the Data
+// Products, Data, Assets and Users pages and the user detail, the Data
 // switchboard's `openSubPage`, which sets `data_page` for every page it opens
-// and restores the view it covered when the page closes; every other view is
-// declared here and has no sync site yet.
+// and restores the view it covered when the page closes, and the places
+// inside products: deck settings (`deck_settings`), the version histories
+// (`deck_history`, `report_history`), the figure editor (the view its host
+// names in `aiView`, through `setFigureEditorView`) and the results file
+// viewer (`results_file`). The HFA views are declared here and have no sync
+// site yet.
 //
 // What the model is told per view splits in two (append-only turns, E7):
 // `instructions` is the static guidance of the view, which rides a message
@@ -143,6 +159,28 @@ function pairOf(context: PackageViewContext): CopilotPair | undefined {
 export type ProductViewContext = PackageViewContext & {
   getLabel: () => string;
 };
+
+// A product's own view context from its T1 row, read live: the label, and
+// the pair with its scope's definition hash, or ruling 7's reason once the
+// row is gone. Creates a memo, so it is called in a component body.
+export function productViewContext(productId: string): ProductViewContext {
+  const resolved = createResolvedScope(() => {
+    const product = productById(productId);
+    return product === undefined ? undefined : productScope(product);
+  });
+  const getScope = () => {
+    const scope = resolved();
+    if (scope === undefined) {
+      throw new AIToolFailure("This product no longer exists.");
+    }
+    return scope;
+  };
+  return {
+    getLabel: () => productById(productId)?.label ?? "",
+    getScope,
+    getRunId: () => getScope().runId,
+  };
+}
 
 export type OpeningProductParams = {
   productId: string;
@@ -223,6 +261,44 @@ export type EditingReportFigureParams = {
 export type ViewingPackageFigureParams = {
   figureId: string;
 };
+
+// The view a figure editor's host names in the editor's `aiView` prop: which
+// of the three figure views, with the params its identity needs.
+export type FigureEditorView =
+  | { id: "editing_slide_figure"; params: EditingSlideFigureParams }
+  | { id: "editing_report_figure"; params: EditingReportFigureParams }
+  | { id: "viewing_package_figure"; params: ViewingPackageFigureParams };
+
+// The figure editor sets the view its host named. A switch, for the reason
+// `restoreCopilotView` gives.
+export function setFigureEditorView(
+  view: FigureEditorView,
+  context: FigureEditorContext,
+): void {
+  switch (view.id) {
+    case "editing_slide_figure":
+      copilotViewController.setView(
+        "editing_slide_figure",
+        view.params,
+        context,
+      );
+      return;
+    case "editing_report_figure":
+      copilotViewController.setView(
+        "editing_report_figure",
+        view.params,
+        context,
+      );
+      return;
+    case "viewing_package_figure":
+      copilotViewController.setView(
+        "viewing_package_figure",
+        view.params,
+        context,
+      );
+      return;
+  }
+}
 
 export type ResultsFileParams = {
   moduleId: string;
@@ -365,6 +441,8 @@ export const copilotViews = defineAIViews(
           figure: params.figureId,
           pair: pairOf(context),
         }),
+      instructions: (_params, context) =>
+        getFigureEditorInstructions(context.getLabel(), "slide"),
     }),
     deck_settings: view<EditingSlideDeckParams, ProductViewContext>({
       label: (_params, context) => context.getLabel(),
@@ -431,6 +509,8 @@ export const copilotViews = defineAIViews(
           figure: params.figureId,
           pair: pairOf(context),
         }),
+      instructions: (_params, context) =>
+        getFigureEditorInstructions(context.getLabel(), "report"),
     }),
     results_file: view<ResultsFileParams, PackageViewContext>({
       label: (params) => `${params.moduleId} / ${params.resultsObjectId}`,
@@ -439,6 +519,8 @@ export const copilotViews = defineAIViews(
           resultsObject: params.resultsObjectId,
           pair: pairOf(context),
         }),
+      instructions: (params) =>
+        getResultsFileInstructions(params.moduleId, params.resultsObjectId),
     }),
     explore: view<void, ExploreContext>({
       label: "Explore",
@@ -478,6 +560,8 @@ export const copilotViews = defineAIViews(
           figure: params.figureId,
           pair: pairOf(context),
         }),
+      instructions: (_params, context) =>
+        getFigureEditorInstructions(context.getLabel(), "package"),
     }),
     module_defaults: view({ label: "Module defaults" }),
     scopes: view({ label: "Scopes" }),

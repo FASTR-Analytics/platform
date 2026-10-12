@@ -2,7 +2,9 @@ export {
   copilotViewController,
   copilotViews,
   holdCopilotView,
+  productViewContext,
   restoreCopilotView,
+  setFigureEditorView,
 } from "./ai_views.ts";
 export type {
   CopilotViewState,
@@ -10,6 +12,8 @@ export type {
   DataPageId,
   EditingSlideDeckContext,
   ExploreContext,
+  FigureEditorContext,
+  FigureEditorView,
   PackagePageContext,
   PackageViewContext,
 } from "./ai_views.ts";

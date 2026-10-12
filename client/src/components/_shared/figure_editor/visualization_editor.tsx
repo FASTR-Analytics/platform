@@ -1,9 +1,9 @@
 import {
   type FastrChartPalette,
   type FigureBundle,
+  type MetricWithStatus,
   PackageScope,
   PresentationObjectConfig,
-  ResultsValue,
   ResultsValueInfoForPresentationObject,
   RunAuthoringContext,
   t3,
@@ -13,6 +13,10 @@ import { AlertComponentProps, createQuery, StateHolderWrapper } from "panther";
 import type { Awareness } from "y-protocols/awareness";
 import type * as Y from "yjs";
 import { getResultsValueInfoForPresentationObjectFromCacheOrFetch } from "~/state/products/t2_figure_data";
+import {
+  type FigureEditorView,
+  holdCopilotView,
+} from "~/components/instance/copilot/mod.ts";
 import { VisualizationEditorInner } from "./figure_editor";
 
 // The embedded figure editor. A figure is `{ metricId, config }` inside a
@@ -62,11 +66,15 @@ export type VizFigureCollabBinding = {
 export type VisualizationEditorProps = {
   /** Header label: the figure's metric label. */
   label: string;
-  /** The host's pair, read live from T1 by the host and passed down here.
-   *  Every read this editor makes resolves under it. */
+  /** The host's pair when the editor opens; every read this editor makes
+   *  resolves under it. */
   scope: PackageScope;
-  metric: ResultsValue;
+  metric: MetricWithStatus;
   configSnapshot: PresentationObjectConfig;
+  /** The chat view this editor sets (S13), named by the host: the figure
+   *  being edited on a slide or in a report, or the package's default
+   *  visualization being viewed. */
+  aiView: FigureEditorView;
   /** The package's authoring context (immutable T2, keyed by the live runId):
    *  the module catalogue behind the results-object viewer. */
   authoringContext: RunAuthoringContext;
@@ -83,9 +91,12 @@ export type VisualizationEditorProps = {
   chartPalette?: () => FastrChartPalette | undefined;
 };
 
+// The editor holds the chat view it opens over at mount; the inner editor
+// sets the host's view once the metric's shape is in and the draft exists.
 export function VisualizationEditor(
   p: AlertComponentProps<VisualizationEditorProps, FigureEditorResult>,
 ) {
+  holdCopilotView();
   const resultsValueInfo = createQuery(
     () =>
       getResultsValueInfoForPresentationObjectFromCacheOrFetch(
@@ -106,6 +117,7 @@ export function VisualizationEditor(
           label={p.label}
           metric={p.metric}
           configSnapshot={p.configSnapshot}
+          aiView={p.aiView}
           authoringContext={p.authoringContext}
           resultsValueInfo={keyedResultsValueInfo}
           collabBinding={p.collabBinding}

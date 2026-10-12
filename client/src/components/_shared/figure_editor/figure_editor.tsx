@@ -9,11 +9,11 @@ import {
   isSampleNProp,
   ItemsHolderPresentationObject,
   materializeFigureConfig,
+  type MetricWithStatus,
   normalizePOConfigForStorage,
   PackageScope,
   type PresenceEntry,
   PresentationObjectConfig,
-  ResultsValue,
   ResultsValueInfoForPresentationObject,
   RunAuthoringContext,
   SAMPLE_N_PREFIX,
@@ -64,6 +64,11 @@ import {
   docSaveFailing,
   otherPeers,
 } from "~/state/instance/collab";
+import { resolveScope } from "~/state/instance/t1_store";
+import {
+  type FigureEditorView,
+  setFigureEditorView,
+} from "~/components/instance/copilot/mod.ts";
 import { VizEditorCursors } from "./viz_editor_cursors";
 import { ReplicateByOptionsList } from "./replicate_by_options";
 import { DownloadPresentationObject } from "./download_presentation_object";
@@ -100,12 +105,15 @@ const NON_TEXT_INPUT_TYPES = new Set([
 ]);
 
 // The embedded figure editor: a figure `{ metricId, config }` edited under the
-// host's PackageScope, passed live so a mid-edit reattach moves the preview.
+// host's PackageScope at open, fixed for the editor's life, which is what the
+// figure views' identity needs.
 type InnerProps = {
   scope: PackageScope;
-  metric: ResultsValue;
+  metric: MetricWithStatus;
   label: string;
   configSnapshot: PresentationObjectConfig;
+  /** The chat view this editor sets (VisualizationEditorProps). */
+  aiView: FigureEditorView;
   authoringContext: RunAuthoringContext;
   resultsValueInfo: ResultsValueInfoForPresentationObject;
   /** Live co-editing of the figure inside the host doc; absent means Apply/Cancel. */
@@ -120,8 +128,8 @@ type InnerProps = {
 export function VisualizationEditorInner(p: InnerProps) {
   const metric = p.metric;
   const label = p.label;
-  // The pair every read resolves under. Tracked: the host's scope prop is
-  // live, so a reattach mid-edit refetches the preview under the new package.
+  // The pair every read resolves under: the host's at open, since openEditor
+  // stores the props once.
   const scope = (): PackageScope => ({
     runId: p.scope.runId,
     scopeId: p.scope.scopeId,
@@ -151,6 +159,19 @@ export function VisualizationEditorInner(p: InnerProps) {
   // interaction fires when it applies the coherent bundle.
   const manuallyUpdateTempConfig: SetStoreFunction<PresentationObjectConfig> =
     setTempConfig;
+
+  // The chat's figure view (S13), over the view the outer editor holds: its
+  // pair, its metric and the draft, read and written live. An AI write lands
+  // like a user's edit: it marks the draft for Apply, re-previews, and streams
+  // into the host doc under live co-editing.
+  setFigureEditorView(p.aiView, {
+    getLabel: () => label,
+    getScope: () => resolveScope(scope()),
+    getRunId: () => scope().runId,
+    getMetric: () => metric,
+    getDraftConfig: () => unwrap(tempConfig),
+    applyDraftConfig: (config) => setTempConfig(reconcile(config)),
+  });
 
   const [itemsHolder, setItemsHolder] = createSignal<
     StateHolder<{
@@ -555,9 +576,8 @@ export function VisualizationEditorInner(p: InnerProps) {
     // without a refetch. Must be called on the live store proxy: trackStore on
     // an unwrap()ed object silently no-ops (verified by execution 2026-07-28).
     trackStore(tempConfig.d);
-    // Tracked pair read: a reattach or scope change mid-edit refetches the
-    // preview under the new package. The pair leads the items cache's
-    // uniqueness key, so this is a different entry, not an invalidation.
+    // The pair is fixed for the editor's life (above), so only a data change
+    // re-fetches. The pair leads the items cache's uniqueness key.
     const fetchScope = scope();
     if (firstRunConfigChange) {
       firstRunConfigChange = false;

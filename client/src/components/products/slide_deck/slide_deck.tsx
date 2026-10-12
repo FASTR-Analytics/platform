@@ -314,6 +314,7 @@ function SlideDeckEditorInner(p: {
     await openSettingsEditor<SlideDeckSettingsProps, "AFTER_DELETE">({
       element: SlideDeckSettings,
       props: {
+        deckId: p.productId,
         config: p.deckConfig,
         heading: t3({
           en: "Slide deck settings",

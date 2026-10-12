@@ -1064,6 +1064,14 @@ export function SlideEditor(p: Props) {
               scope: p.scope,
               metric,
               configSnapshot: structuredClone(unwrap(bundleConfig)),
+              aiView: {
+                id: "editing_slide_figure" as const,
+                params: {
+                  deckId: p.productId,
+                  slideId: p.slideId,
+                  figureId: blockId,
+                },
+              },
               authoringContext: p.authoringContext,
               collabBinding,
             },

@@ -18,6 +18,11 @@ import { createSignal, For, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { canEditProduct } from "~/state/instance/product_access";
 import { PresenceAvatars } from "~/components/_shared/mod.ts";
+import {
+  copilotViewController,
+  holdCopilotView,
+  productViewContext,
+} from "~/components/instance/copilot/mod.ts";
 import { DeckVersionPreview } from "./deck_version_preview";
 import { editorDisplayName } from "./diff_segments";
 import { ReportVersionPreview } from "./report_version_preview";
@@ -60,8 +65,24 @@ type Props = EditorComponentProps<
 // Google-Docs-style version history panel: versions (one per editing session,
 // captured server-side) grouped by day on the left, a read-only preview of the
 // selected version on the right, with restore / restore-as-copy for users who
-// can configure the document.
+// can configure the document. It sets the chat's `deck_history` or
+// `report_history` view (S13) over the editor's, so the editing tools refuse
+// while the user looks at history.
 export function VersionHistoryEditor(p: Props) {
+  holdCopilotView();
+  if (p.kind === "deck") {
+    copilotViewController.setView(
+      "deck_history",
+      { deckId: p.docId },
+      productViewContext(p.docId),
+    );
+  } else {
+    copilotViewController.setView(
+      "report_history",
+      { reportId: p.docId },
+      productViewContext(p.docId),
+    );
+  }
   const versions = createQuery<VersionRow[]>(
     async () => {
       if (p.kind === "report") {

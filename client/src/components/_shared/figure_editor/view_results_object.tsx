@@ -12,11 +12,17 @@ import {
 import { createMemo, Match, Switch } from "solid-js";
 import { _SERVER_HOST } from "~/server_actions";
 import { serverActions } from "~/server_actions";
+import { resolveScope } from "~/state/instance/t1_store";
+import {
+  copilotViewController,
+  holdCopilotView,
+} from "~/components/instance/copilot/mod.ts";
 
 // The RAW results file behind a metric, read straight from the run directory
 // under the caller's PackageScope. The read runs against the same scoped view
 // the figure queries do, so a product's raw preview shows that product's
-// rows.
+// rows. The viewer sets the chat's `results_file` view (S13) over the figure
+// editor's, with the same pair.
 export function ViewResultsObject(
   p: EditorComponentProps<
     {
@@ -27,6 +33,15 @@ export function ViewResultsObject(
     undefined
   >,
 ) {
+  holdCopilotView();
+  copilotViewController.setView(
+    "results_file",
+    { moduleId: p.moduleId, resultsObjectId: p.resultsObjectId },
+    {
+      getScope: () => resolveScope(p.scope),
+      getRunId: () => p.scope.runId,
+    },
+  );
   const items = createQuery<ItemsHolderResultsObject>(
     async () => {
       return await serverActions.getRunResultsObjectItems({

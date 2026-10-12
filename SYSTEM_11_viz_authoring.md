@@ -79,7 +79,7 @@ dependency list; do not add one.
 
 [_shared/figure_editor/visualization_editor.tsx](client/src/components/_shared/figure_editor/visualization_editor.tsx)
 takes
-`{ label, scope, metric, configSnapshot, authoringContext,
+`{ label, scope, metric, configSnapshot, aiView, authoringContext,
 collabBinding? }`,
 resolves the metric's queryable shape (`resultsValueInfo`, S9's scope-keyed
 `t2_figure_data.ts`) under the pair, and mounts `VisualizationEditorInner`.
@@ -89,10 +89,23 @@ Three hosts open it: `slide_editor/slide_editor.tsx` (edits
 pane (`ModuleVisualizations` in
 `results_packages/package_view/visualizations.tsx`, S8), which opens it
 `viewOnly`: no collab binding, Back is the only way out, and the draft never
-leaves the editor. The product hosts pass the scope LIVE from the T1 products
-row, so a reattach or rescope mid-edit re-previews under the new package (S10
-"The captured pair"); the package page's scope cannot change while the editor
-covers it.
+leaves the editor. Every host passes the pair as a plain value and panther's
+`openEditor` stores the props once, so the pair is fixed for the editor's life,
+which is what the figure views' identity needs. The editor is a place of the
+chat (S13): the outer wrapper holds the view it opens over, and the inner editor
+sets the view the host names in the required `aiView` prop
+(`editing_slide_figure` with the deck, slide and block ids,
+`editing_report_figure` with the report and figure ids, `viewing_package_figure`
+with the default visualization's id), through `setFigureEditorView`, once the
+draft exists, with a context that exposes the pair, the metric and the draft
+live (`getDraftConfig` reads the store, `applyDraftConfig` reconciles a config
+into it, so an AI write lands like a user's edit: it marks the draft for Apply,
+re-previews, and streams into the host doc under live co-editing); its
+instructions name the figure by the `label` prop. The two Figure editor tools,
+`get_figure_editor` and `update_figure_editor`, read and write that draft (S13).
+The results file viewer the editor's Download opens (`view_results_object.tsx`)
+holds the figure view and sets `results_file` from its props, with the same
+pair.
 
 **Snapshot isolation.** The draft is
 `createStore(structuredClone(p.configSnapshot))`, so editor writes never reach
@@ -616,18 +629,3 @@ changed something.
   says "Nothing here is written anywhere", but the family, module, view and type
   choices persist to localStorage (`state/t4_explore.ts:43-74`). Delete the
   sentence; `t4_explore.ts:12-19` says what persists.
-- **Three comments say the figure editor's pair is live.**
-  `_shared/figure_editor/figure_editor.tsx:103-104` ("passed live so a mid-edit
-  reattach moves the preview"), 124-125 ("the host's scope prop is live") and
-  `_shared/figure_editor/visualization_editor.tsx:65-66` ("read live from T1 by
-  the host") are false: the hosts pass the pair as a plain value
-  (`products/slide_deck/slide_editor/slide_editor.tsx:1066`,
-  `products/report/report.tsx:1988`,
-  `results_packages/package_view/visualizations.tsx:45`) and panther's
-  `openEditor` stores the props once
-  (`panther/_303_components/special_state/generic_editor_wrapper.tsx:40-44`,
-  61-68). Make 103-104 read "The embedded figure editor: a figure
-  `{ metricId, config }` edited under the host's PackageScope at open, fixed for
-  the editor's life.", 124-125 "The pair every read resolves under: the host's
-  at open, since openEditor stores the props once.", and 65-66 "The host's pair
-  when the editor opens; every read this editor makes resolves under it."

@@ -1,5 +1,6 @@
 export {
   getClientToolsForDrafts,
+  getClientToolsForFigureEditor,
   getClientToolsForProducts,
   getClientToolsForReportEditor,
   getClientToolsForSlideEditor,

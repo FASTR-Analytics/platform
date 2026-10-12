@@ -1165,10 +1165,14 @@ holds `VersionHistoryEditor`, a full-panel editor: day-grouped version list on
 the left (pinned "Current version" row, contributor chips via
 `PresenceAvatars` + `presenceColorForKey(email)`, names preferring the live
 instance roster (`instanceState.users`) over the stored capture-time name,
-"Restored" badge, slide counts), preview on the right. The version list is a
-plain one-shot fetch refreshed by its own Refresh button, deliberately not tied
-to the `last_updated` cache triangle (a version insert never bumps
-`last_updated`, by design).
+"Restored" badge, slide counts), preview on the right. It holds the chat view it
+opens over and sets `deck_history` or `report_history` by its `kind` (S13), with
+the product's live row as context (`productViewContext`), so the deck and report
+tools refuse while the user looks at history and a report rewrite proposed
+before cannot commit under it (`stillValid`). The version list is a plain
+one-shot fetch refreshed by its own Refresh button, deliberately not tied to the
+`last_updated` cache triangle (a version insert never bumps `last_updated`, by
+design).
 
 - **Report**: opens on **"Edits in this session"**, the diff of the selected
   version against the version immediately before it (the oldest diffs against an
