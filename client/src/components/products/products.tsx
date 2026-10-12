@@ -50,7 +50,6 @@ import {
   setProductsGeneralClosed,
   setProductsSort,
 } from "~/state/t4_ui";
-import { ProductCopilotHost } from "~/components/products/copilot/mod.ts";
 import { DuplicateProductsModal } from "./_shared/mod.ts";
 import { PackageScopeModal } from "./_shared/mod.ts";
 import { ProductAccessModal } from "./_shared/mod.ts";
@@ -96,13 +95,10 @@ export function Products() {
   async function openProduct(product: ProductSummary) {
     // The editors take the product id and read label, package and scope LIVE
     // from the T1 row (D16); nothing about the pair is snapshotted here. The
-    // copilot host is the one mount site (D15): one copilot per open product.
+    // chat beside the shell follows the view the editor sets.
     await openShellEditor({
-      element: ProductCopilotHost,
-      props: {
-        productId: product.id,
-        editor: PRODUCT_TYPE_REGISTRY[product.type].editor,
-      },
+      element: PRODUCT_TYPE_REGISTRY[product.type].editor,
+      props: { productId: product.id },
     });
   }
 

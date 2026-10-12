@@ -3,6 +3,7 @@ system: 13
 name: AI Copilot & Usage Governance
 globs:
   - client/src/components/instance/copilot/**
+  - client/src/components/instance/copilot_tools.ts
   - client/src/components/products/copilot/**
   - client/src/components/data/general/ai_context_form.tsx
   - client/src/state/products/t4_ai_documents.ts
@@ -30,11 +31,11 @@ globs:
 # S13: AI Copilot & Usage Governance
 
 The Anthropic proxies with token-limit governance, plus the browser-side
-copilot: 32 client-executed tools mutating app state only through the live view
-context of panther's view registry, mounted once per open product. Reviewed
-against code (first review cycle; absorbed and deleted
-DOC_AI_PROXY_AND_USAGE_GOVERNANCE and DOC_AI_TOOL_SCHEMAS, the authoring recipe
-from the latter now lives in
+copilot: one chat beside the whole shell, whose client-executed tools act on the
+view the user is in (through panther's view registry and the product routes),
+every place a view of it. Reviewed against code (first review cycle; absorbed
+and deleted DOC_AI_PROXY_AND_USAGE_GOVERNANCE and DOC_AI_TOOL_SCHEMAS, the
+authoring recipe from the latter now lives in
 [PROTOCOL_APP_AI_TOOLS.md](PROTOCOL_APP_AI_TOOLS.md)); AI-surface prose
 re-verified after both assistants adopted panther's
 views/gating/interactions/approval system. Two same-day fix batches
@@ -89,7 +90,7 @@ the query pipeline the data tools call is **S9**.
    pair of the view the call runs in
    ([bind_package_tools.ts](client/src/components/instance/copilot/bind_package_tools.ts),
    panther's `bindAIToolToView`): the inner builder in
-   [build_tools.ts](client/src/components/products/copilot/build_tools.ts)
+   [copilot_tools.ts](client/src/components/instance/copilot_tools.ts)
    concatenates the shared metric tools with its own client tools (the module
    list, the editors and the draft preview), and the three module internals
    (`/mcp` is for seeing results, ruled) bind by run id alone. `/mcp` binds the
@@ -172,8 +173,8 @@ the query pipeline the data tools call is **S9**.
    ([ai_views.ts](client/src/components/instance/copilot/ai_views.ts)), so the
    AI edits exactly the same in-memory editor state the user is looking at,
    never a parallel copy. The pair rides the opaque CONTEXT half: no run id
-   crosses the tool seam. A mid-edit reattach remounts the chat beside the
-   editor (the host is keyed on the pair) while the editor itself stays up.
+   crosses the tool seam. A mid-edit reattach moves the view's identity, so a
+   call planned before it refuses, and the next call binds to the new pair.
 4. **Anthropic shapes in, Anthropic shapes out.** The proxies return
    Anthropic-shaped bodies and errors (not the `APIResponse` envelope) because
    the client Anthropic SDK parses them, the enumerated exception to the
@@ -286,42 +287,68 @@ calls the Files API by file id, so there is no GET or DELETE passthrough.
 ## The client copilot
 
 The chat's code has two homes. The shell-level half is
-`client/src/components/instance/copilot/`: the pane
+`client/src/components/instance/copilot/`: the panel
+([panel.tsx](client/src/components/instance/copilot/panel.tsx)) and its tab
+ownership ([tab_owner.ts](client/src/components/instance/copilot/tab_owner.ts)),
+the pane
 ([chat_pane.tsx](client/src/components/instance/copilot/chat_pane.tsx)), the SDK
 client and built-in tools (`ai_configs/`), documents (`ai_documents/`), the
 prompt library (`ai_prompt_library/`), the debug panel, the view registry,
 controller and interactions, the system prompt, the env (`client_env.ts`), the
 package-tool binder (`bind_package_tools.ts`), the guard (`tool_guard.ts`) and
-the module tools (`tools/`), exported through its `mod.ts`, which every page and
-product tool reads for the registry, the controller and their types. It imports
-nothing at runtime from `components/` but `components/_shared/mod.ts`, and has
-no `_shared/`: the registry, controller, interactions, system prompt, env and
-types sit at the folder's root. The product half stays in
-`client/src/components/products/copilot/`: the host, `build_tools.ts`, the
-product tools (`ai_tools/`), the slide conversion layer (`slide_ai/`), the two
-`_shared/` files both of those read (`content_validators.ts`,
+the module tools (`tools/`), exported through its `mod.ts`, which the shell
+reads for the panel and every page and product tool reads for the registry, the
+controller and their types. It imports nothing at runtime from `components/` but
+`components/_shared/mod.ts`, and has no `_shared/`: the registry, controller,
+interactions, system prompt, env and types sit at the folder's root. The tool
+assembly sits beside it, outside the folder, in
+[copilot_tools.ts](client/src/components/instance/copilot_tools.ts), because it
+reads the product tools, which read the folder's registry; `instance.tsx` alone
+imports it. The product half stays in `client/src/components/products/copilot/`:
+the product tools (`ai_tools/`), the slide conversion layer (`slide_ai/`), the
+two `_shared/` files both of those read (`content_validators.ts`,
 `format_figure_config_for_ai.ts`) and the save-style modal; its `mod.ts` exports
-`ProductCopilotHost` and `SaveReportStyleModal`.
+the four tool builders and `SaveReportStyleModal`.
 
-[`ProductCopilotHost`](client/src/components/products/copilot/copilot.tsx) is
-the copilot mount (D15): the product opener (`openProduct` in
-`client/src/components/products/products.tsx`, the ONE mount site) renders it
-around whichever editor it opens, so there is one copilot per open product and
-the panel spans the editor's full height. The host keeps the editor mounted (a
-reattach is handled live there, D16) and keys the chat beside it on the
-product's (package, scope) pair plus that package's `RunAuthoringContext` under
-that scope (T2, immutable per run id and definition hash; modules outside the
-scope's module list are absent from it, with their metrics and presets): the
-inner `ProductCopilot` remounts when the pair or its scope's definition changes
-(`createResolvedScope`, `t1_store.ts`, holds the resolved pair steady through
-every other change to the scopes list), which is what moves the package block;
-the tools are one set for every pair, bound per call to the view's pair
-(`bind_package_tools.ts`). The Products page and every other tab have no
-copilot; the results explorer, when it lands, mounts its own with its own tools,
-the pattern the HFA indicator manager already uses. Each mount builds one
-panther `AIChatProvider` config, validated in dev by panther's no-mount
-construction check: both assistants call `validateAIChatConfig(config)` under
-`import.meta.env.DEV` at config assembly (HFA
+One chat sits beside the whole shell. `instance.tsx` wraps `ShellEditorWrapper`
+in a `FrameRightResizable` whose panel is
+[`CopilotPanel`](client/src/components/instance/copilot/panel.tsx), so the chat
+is beside every tab page, full-page view and nested editor; the slot is always
+passed and built once (every frame builds its panel once) and the chat inside
+mounts once the user is approved, so there is no chat before sign-in, for an
+unapproved user, or on `/access-tokens`, which is another route. The panel's one
+open state is `showAi` (T4): its own header button closes it and the opener
+(`#copilot-opener`, a button on the window's right edge outside the editor
+wrapper, shown while the panel is closed) opens it. The product opener
+(`openProduct` in `client/src/components/products/products.tsx`) opens the
+registry's editor directly; the editors set their views (below) and the chat
+follows. Threads and settings are the user's: the thread scope and the settings
+key are `copilot:<Clerk user id>` (`copilot:dev` under `VITE_BYPASS_AUTH`, where
+there is no Clerk user), read live from Clerk's listener and keyed on, so a
+cross-tab user switch without a reload stops the previous user's turn and opens
+the next user's threads; the thread list, New conversation and the last-active
+id follow the user through every view and tab, and the old per-product scopes
+(`copilot:<productId>`) and the old settings key (`panther-ai-settings-copilot`)
+stay unlisted and unread. One browser tab owns the chat: the panel requests the
+Web Lock `copilot-owner/<scope>` when it mounts and mounts the chat only while
+it holds it; another tab's panel shows the notice ("The AI chat is open in
+another tab.") and the Use it here button in the chat's place, and the button
+posts `takeover` on a `BroadcastChannel` of the lock's name, on which the owner
+stops its turn (`stopGeneration`), awaits the record's save (`whenIdle`),
+releases the lock, shows the notice and queues a new request; the browser grants
+the taker's pending request, releases a closed or crashed owner's lock by
+itself, and without the Web Locks API (an insecure context) the tab is the owner
+at once. A store is therefore always built from a record no other live tab
+writes. The panel stops the chat's turn and awaits its save the same way when it
+unmounts (sign-out, a user switch, the instance-stream reset on approval or a
+change to the user's own scope access, which remounts the shell and with it the
+chat on the same thread). The pane creates the one engine instance
+(`createAIChat`) inside the provider and hands it to `AIChat` as `chat` (E2), so
+the pane and the chat share one registry, one settings copy and one queue drain.
+The panel builds one panther `AIChatProvider` config, validated in dev by
+panther's no-mount construction check: both assistants call
+`validateAIChatConfig(config)` under `import.meta.env.DEV` at config assembly
+(HFA
 [ai/wrapper.tsx:39-41](client/src/components/data/hfa/indicators/ai/wrapper.tsx#L39-L41)):
 
 - **sdkClient**
@@ -345,38 +372,35 @@ construction check: both assistants call `validateAIChatConfig(config)` under
   basic one otherwise). No web fetch: it would carry anything the conversation
   holds (a tool result, an error quoting its input) to any host the model names.
   Search is unrestricted: no `max_uses` / `allowed_domains` (Open items).
-- **scope** = `copilot:<productId>`: conversations are per product (one
-  IndexedDB registry, filtered by scope, with a last-active id per scope), so a
-  thread's history is about one deck or report on one package, and reopening the
-  product restores it. **settingsScope** = the constant `"copilot"`: the
-  persisted chat settings (model, max tokens, `panther-ai-settings-copilot`) are
-  shared by every product's copilot (panther's `AIChatConfig.settingsScope`,
-  added for this).
+- **scope** = `copilot:<Clerk user id>`: conversations are the user's (one
+  IndexedDB registry, filtered by scope, with a last-active id per scope), so
+  the current thread follows the user through every view and tab, and the
+  persisted chat settings (model, max tokens) default to the same key
+  (`panther-ai-settings-copilot:<Clerk user id>`).
 - **system** = `buildSystemPromptForContext` memo over the instance (instance
   level, see below); **getEphemeralContext** = the date block and the package
-  block (`buildCopilotPackageBlock` over the mount's pair and authoring
-  context); **appendOnlyTurns** = `true` (E7, below); **getDocumentRefs** from
-  `useAIDocuments`; **viewController** = `copilotViewController` (below).
-- **the (package, scope) pair** and the package's authoring context (modules,
-  metrics, datasets, indicator vocabularies, the HFA taxonomy) are props of the
-  inner `ProductCopilot`, fixed for its life, and feed the package block and the
-  pane's View AI tool output; the HFA survey rounds the pane shows
-  (instance-wide T1, not in the per-run payload) are merged in once at
-  construction through `hfaTimePointsForAI` (lib), which keeps the imported
-  rounds in the order given, the label as the id: the same function the binder
-  calls per tool call and `/mcp`'s package context calls over the
-  `hfa_time_points` rows in `sort_order` (`getHfaTimePointsForAI`,
+  block (`buildCopilotPackageBlock` over the pair the current view shows and its
+  T2 authoring context, which the panel resolves live from the view's
+  `getScope()` and fetches when the pair changes; a view with no package, or
+  whose context is still loading, sends no package block); **appendOnlyTurns** =
+  `true` (E7, below); **getDocumentRefs** from `useAIDocuments`;
+  **viewController** = `copilotViewController` (below).
+- **the HFA survey rounds** (instance-wide T1, not in the per-run payload) are
+  merged into each inner set and into the pane's View AI tool output through
+  `hfaTimePointsForAI` (lib), which keeps the imported rounds in the order
+  given, the label as the id: the same function `/mcp`'s package context calls
+  over the `hfa_time_points` rows in `sort_order` (`getHfaTimePointsForAI`,
   `server/tests/hfa_time_points_for_ai_test.ts`), so both surfaces list the same
-  rounds. The registered tools close over none of these: the array is one set
-  for every pair, each package tool bound per call to the inner set of the
+  rounds. The registered tools close over nothing of the panel: the array is one
+  set for every pair, each package tool bound per call to the inner set of the
   view's pair (`bind_package_tools.ts`, below).
 
 The chat pane (`ConsolidatedChatPane`,
-[chat_pane.tsx](client/src/components/instance/copilot/chat_pane.tsx)) lives in
-a `FrameRightResizable` panel toggled by `showAi()` (T4 UI state) and registers
-three custom renderers, keyed to panther's `DisplayRegistry`: `toolError`,
-`systemNotice` (refusals/truncation/context-exceeded/ continuation caps arrive
-as `system_notice` items), and `userText` (`SaveableUserTextRenderer`: adds
+[chat_pane.tsx](client/src/components/instance/copilot/chat_pane.tsx)) fills the
+panel while this tab owns the chat, and registers three custom renderers, keyed
+to panther's `DisplayRegistry`: `toolError`, `systemNotice`
+(refusals/truncation/context-exceeded/ continuation caps arrive as
+`system_notice` items), and `userText` (`SaveableUserTextRenderer`: adds
 save-to-prompt-library and renders the text as typed, with image syntax
 disabled, so a user's or a library prompt's text never fetches an image URL as
 it renders).
@@ -438,12 +462,13 @@ chat's consumer blocks (`getEphemeralContext`) are the date block and the
 package block: the package's label and generation time, the scope with one line
 per dataset family (excluded, unlimited, or its limits), the datasets, the HMIS
 and ICEH indicator lists and the calendar, built by the pure `buildPackageBlock`
-in lib over values the host resolves live (`buildCopilotPackageBlock`), so a
-reattach, rescope or scope edit puts the new package in front of the model once,
-on the message where it happened. The engine stores the sections as typed data
-on the turn and renders every carrier permanently as a `<<<[…]>>>` block, so
-each request's messages are a prefix of the next request's and each block stays
-on the message it rode: the model can tell where every earlier turn happened. A
+in lib over values the panel resolves live from the current view's pair
+(`buildCopilotPackageBlock`), so a move to another package, a reattach, a
+rescope or a scope edit puts the new package in front of the model once, on the
+message where it happened. The engine stores the sections as typed data on the
+turn and renders every carrier permanently as a `<<<[…]>>>` block, so each
+request's messages are a prefix of the next request's and each block stays on
+the message it rode: the model can tell where every earlier turn happened. A
 write-only wire, one format for every model.
 
 **Interactions and echo suppression.**
@@ -479,24 +504,24 @@ persist-path write tool marks its `slide:` and `product:` echo keys via
 after the accepted commit, or after a figure update saves), so the AI's own
 server writes are dropped at drain (TTL-scoped, either-order). The
 collab-checkpoint residual is in Open items. The controller is a module
-singleton whose log outlives a mount, so `ProductCopilot` calls
-`clearInteractionLog()` when it mounts: actions retained from before (the
-previous product, or on a Clerk cross-tab user switch the previous user) would
-otherwise ride this chat's first digest as fake activity; with
-`digestAcrossViews`, activation already starts each conversation's digest at the
-log's end.
+singleton whose log outlives a mount, so the panel calls `clearInteractionLog()`
+when the chat mounts: actions retained from before (the previous user on a Clerk
+cross-tab user switch, or the previous owner tab's hand-over) would otherwise
+ride this chat's first digest as fake activity; with `digestAcrossViews`,
+activation already starts each conversation's digest at the log's end.
 
 ## Tools, view gating, and approval
 
-[`buildCopilotTools`](client/src/components/products/copilot/build_tools.ts)
-assembles one flat array, the same for every user and every pair and always
-registered with the API: the outer package tools (`bindPackageTools` over the
-inner builder: metrics, the module list, the editors and the draft preview, each
-bound per call to the inner set of the view's pair; the module internals, bound
-by its run id), the reference tools (methodology docs, info) and panther's
-`ask_user_questions`. Every tool declares a `kind` (`"read"` / `"write"`); no
-tool is `"nav"`, because there is nothing for the model to navigate: the copilot
-lives inside one product. The deck writes go through the product routes
+[`buildCopilotTools`](client/src/components/instance/copilot_tools.ts) assembles
+one flat array once per shell mount, the same for every user, every view and
+every pair and always registered with the API: the outer package tools
+(`bindPackageTools` over the inner builder: metrics, the module list, the
+editors and the draft preview, each bound per call to the inner set of the
+view's pair; the module internals, bound by its run id), the reference tools
+(methodology docs, info) and panther's one `ask_user_questions`. Every tool
+declares a `kind` (`"read"` / `"write"`); no tool is `"nav"`: a navigation tool
+or any AI-driven move is out of the chat's scope, so the user moves and the view
+line tells the model where. The deck writes go through the product routes
 (`createSlide`, `updateSlide`, `deleteSlides`, `duplicateSlides`, `moveSlides`),
 the slide editor's and the report's through the live view context. There is no
 product registry: the model never lists, opens or creates products, and a draft

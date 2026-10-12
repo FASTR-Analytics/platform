@@ -14,6 +14,7 @@ import {
   AlertProvider,
   Button,
   FrameLeft,
+  FrameRightResizable,
   FrameTop,
   HeadingBar,
   Icon,
@@ -51,8 +52,12 @@ import {
   darkMode,
   navCollapsed,
   setNavCollapsed,
+  setShowAi,
   ShellEditorWrapper,
+  showAi,
 } from "~/state/t4_ui";
+import { CopilotPanel } from "./copilot/mod.ts";
+import { buildCopilotTools } from "./copilot_tools";
 import { FeedbackForm, type FeedbackType } from "./feedback_form";
 import { InstanceMetaForm } from "./instance_meta_form";
 import { ProfileForm } from "./profile";
@@ -388,6 +393,23 @@ export default function Instance(p: Props) {
       {cluster}
     </HeadingBar>
   );
+  // The chat's one tool set, assembled once per shell mount
+  // (copilot_tools.ts) and registered for every user and every view.
+  const copilotTools = buildCopilotTools();
+
+  // The chat beside the whole shell: every tab page, full-page view and
+  // nested editor sits in the frame's content slot, so the panel is beside
+  // each of them. The slot is always passed and built once (the frames build
+  // their panel once); the chat inside mounts once the user is approved. The
+  // panel's one open state is `showAi`; its own header button closes it, and
+  // the opener below, outside the editor wrapper so a full-page view does not
+  // cover it, is the one way to open it.
+  const copilotPanel = (
+    <Show when={instanceState.currentUserApproved}>
+      <CopilotPanel tools={copilotTools} />
+    </Show>
+  );
+
   // Built once, like the header: FrameLeft also reads `panelChildren` twice.
   const rail = (
     <div ref={observeRail} class="h-full">
@@ -407,70 +429,94 @@ export default function Instance(p: Props) {
 
   return (
     <>
-      <ShellEditorWrapper>
-        <FrameTop panelChildren={header}>
-          <Show
-            when={instanceState.currentUserApproved}
-            fallback={
-              <div class="ui-pad">
-                {t3({
-                  en:
-                    "You are not yet approved. Wait for an administrator to add you to the platform.",
-                  fr:
-                    "Vous n'êtes pas encore approuvé. Veuillez attendre qu'un administrateur vous ajoute à la plateforme.",
-                  pt:
-                    "Ainda não foi aprovado. Aguarde que um administrador o adicione à plataforma.",
-                })}
-              </div>
-            }
-          >
-            {
-              /* The approval Show sits around FrameLeft, not inside its panel:
+      <FrameRightResizable
+        minWidth={300}
+        startingWidth={600}
+        maxWidth={1200}
+        isShown={showAi()}
+        panelChildren={copilotPanel}
+      >
+        <ShellEditorWrapper>
+          <FrameTop panelChildren={header}>
+            <Show
+              when={instanceState.currentUserApproved}
+              fallback={
+                <div class="ui-pad">
+                  {t3({
+                    en:
+                      "You are not yet approved. Wait for an administrator to add you to the platform.",
+                    fr:
+                      "Vous n'êtes pas encore approuvé. Veuillez attendre qu'un administrateur vous ajoute à la plateforme.",
+                    pt:
+                      "Ainda não foi aprovado. Aguarde que um administrador o adicione à plataforma.",
+                  })}
+                </div>
+              }
+            >
+              {
+                /* The approval Show sits around FrameLeft, not inside its panel:
               a Show passed as a prop is a truthy accessor even when it
               renders nothing, so FrameLeft would draw an empty rail. */
-            }
-            <FrameLeft
-              panelChildren={rail}
-            >
-              <Switch>
-                <Match when={tab() === "products"}>
-                  <Products />
-                </Match>
-                <Match when={tab() === "explore"}>
-                  <Explore />
-                </Match>
-                <Match
-                  when={tab() === "data" &&
-                    (instanceState.currentUserIsGlobalAdmin ||
-                      instanceState.currentUserPermissions.can_view_data ||
-                      instanceState.currentUserPermissions.can_configure_data)}
-                >
-                  <InstanceData />
-                </Match>
-                <Match
-                  when={tab() === "results_packages" && canConfigureData()}
-                >
-                  <InstanceResultsPackages />
-                </Match>
-                <Match when={tab() === "assets"}>
-                  <InstanceAssets />
-                </Match>
-                <Match
-                  when={(instanceState.currentUserIsGlobalAdmin ||
-                    instanceState.currentUserPermissions
-                      .can_configure_users ||
-                    instanceState.currentUserPermissions.can_view_users) &&
-                    tab() === "users"}
-                >
-                  <InstanceUsers
-                    thisLoggedInUserEmail={instanceState.currentUserEmail}
-                  />
-                </Match>
-              </Switch>
-            </FrameLeft>
-          </Show>
-        </FrameTop>
-      </ShellEditorWrapper>
+              }
+              <FrameLeft
+                panelChildren={rail}
+              >
+                <Switch>
+                  <Match when={tab() === "products"}>
+                    <Products />
+                  </Match>
+                  <Match when={tab() === "explore"}>
+                    <Explore />
+                  </Match>
+                  <Match
+                    when={tab() === "data" &&
+                      (instanceState.currentUserIsGlobalAdmin ||
+                        instanceState.currentUserPermissions.can_view_data ||
+                        instanceState.currentUserPermissions
+                          .can_configure_data)}
+                  >
+                    <InstanceData />
+                  </Match>
+                  <Match
+                    when={tab() === "results_packages" && canConfigureData()}
+                  >
+                    <InstanceResultsPackages />
+                  </Match>
+                  <Match when={tab() === "assets"}>
+                    <InstanceAssets />
+                  </Match>
+                  <Match
+                    when={(instanceState.currentUserIsGlobalAdmin ||
+                      instanceState.currentUserPermissions
+                        .can_configure_users ||
+                      instanceState.currentUserPermissions.can_view_users) &&
+                      tab() === "users"}
+                  >
+                    <InstanceUsers
+                      thisLoggedInUserEmail={instanceState.currentUserEmail}
+                    />
+                  </Match>
+                </Switch>
+              </FrameLeft>
+            </Show>
+          </FrameTop>
+        </ShellEditorWrapper>
+      </FrameRightResizable>
+      <Show when={instanceState.currentUserApproved && !showAi()}>
+        <div class="fixed top-1/2 right-0 z-20 -translate-y-1/2">
+          <Button
+            id="copilot-opener"
+            onClick={() => setShowAi(true)}
+            intent="primary"
+            iconName="chevronLeft"
+            ariaLabel={t3({
+              en: "Open AI panel",
+              fr: "Ouvrir le panneau IA",
+              pt: "Abrir o painel de IA",
+            })}
+          />
+        </div>
+      </Show>
       <AlertProvider />
       <PopoverMenuProvider />
       <TooltipProvider />

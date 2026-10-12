@@ -1,31 +1,34 @@
-import { type AlertComponentProps, ModalContainer } from "panther";
+import {
+  type AlertComponentProps,
+  createQuery,
+  ModalContainer,
+  StateHolderWrapper,
+} from "panther";
 import {
   formatMetricsListForAI,
-  type HfaTaxonomyForAI,
-  type InstalledModuleSummary,
-  type MetricWithStatus,
+  hfaTimePointsForAI,
+  type ResolvedPackageScope,
   t3,
+  TC,
 } from "lib";
+import { instanceState } from "~/state/instance/t1_store";
+import { getRunAuthoringContextFromCacheOrFetch } from "~/state/instance/t2_run_authoring_context";
 
-// Renders the metric-list formatter VERBATIM, so a human sees exactly what
-// get_available_metrics puts in front of the model.
+// Renders the metric-list formatter VERBATIM over the current view's package,
+// so a human sees exactly what get_available_metrics puts in front of the
+// model there: the pair's T2 authoring context with the HFA rounds the inner
+// set lists.
 export type AIDebugPanelProps = {
-  metrics: MetricWithStatus[];
-  modules: InstalledModuleSummary[];
-  icehIndicators: { id: string; label: string; category: string }[];
-  hfaTaxonomy: HfaTaxonomyForAI;
+  scope: ResolvedPackageScope;
 };
 
 type Props = AlertComponentProps<AIDebugPanelProps, void>;
 
 export function AIDebugPanel(p: Props) {
-  const content = () =>
-    formatMetricsListForAI(
-      p.metrics,
-      p.modules,
-      p.icehIndicators,
-      p.hfaTaxonomy,
-    );
+  const query = createQuery(
+    () => getRunAuthoringContextFromCacheOrFetch(p.scope),
+    t3(TC.loading),
+  );
 
   return (
     <ModalContainer
@@ -38,7 +41,16 @@ export function AIDebugPanel(p: Props) {
       scroll="content"
       onClose={{ kind: "close", onClick: () => p.close() }}
     >
-      <pre class="whitespace-pre-wrap break-words text-xs">{content()}</pre>
+      <StateHolderWrapper state={query.state()} loadingAndErrorPad="md">
+        {(ctx) => (
+          <pre class="whitespace-pre-wrap break-words text-xs">
+            {formatMetricsListForAI(ctx.metrics, ctx.modules, ctx.icehIndicators, {
+              ...ctx.hfaTaxonomy,
+              timePoints: hfaTimePointsForAI(instanceState.hfaTimePoints),
+            })}
+          </pre>
+        )}
+      </StateHolderWrapper>
     </ModalContainer>
   );
 }

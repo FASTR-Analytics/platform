@@ -29,7 +29,7 @@ observability (17).
 | [S10](SYSTEM_10_figure_render_export.md) | Figure Rendering & Export Engine         | stored FigureBundle → `buildFigureInputs` → panther, slide→page render, PDF/PPTX/XLSX/DOCX |
 | [S11](SYSTEM_11_viz_authoring.md)        | Visualization Authoring UI               | the embedded figure editor + the insert-figure wizard + the Explore tab                    |
 | [S12](SYSTEM_12_documents_sharing.md)    | Documents & Sharing                      | the products registry: slide decks + reports, nested folders, versions, exports            |
-| [S13](SYSTEM_13_ai_assistant.md)         | AI Copilot & Usage Governance            | Anthropic proxy + governance + browser tools via the AIContext contract                    |
+| [S13](SYSTEM_13_ai_assistant.md)         | AI Copilot & Usage Governance            | Anthropic proxy + governance + the one chat beside the shell, its views and tools          |
 | [S14](SYSTEM_14_client_shell.md)         | Client Shell & Session                   | SPA boot, page maps, language/calendar singletons, UI prefs, help chrome                   |
 | [S15](SYSTEM_15_admin_ops.md)            | Instance Administration & Ops            | users and permissions, health, disk autonomics, deploy                                     |
 | [S16](SYSTEM_16_collaboration.md)        | Realtime Collaboration & Version History | live Yjs co-editing over one instance WS; rooms checkpoint into S12 tables + S3 notifies   |

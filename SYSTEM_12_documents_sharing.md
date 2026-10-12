@@ -646,9 +646,10 @@ a stale figure also brings it up to date. Local edits notify the AI
 (`edited_slide_locally`) and the editor holds the deck's view
 (`holdCopilotView`) and registers the `editing_slide` view's mutator context on
 the AI view controller (S13), so a slide switch restores the deck view between
-slides; the copilot host wraps whichever editor the Products page opens
-(`ProductCopilotHost`, D15: one mount site, one copilot per open product), so a
-slide editor opened inside a deck shares the deck's copilot.
+slides; the Products page opens the registry's editor directly through the
+shell's editor wrapper, and the one chat beside the shell (S13) follows the view
+the editor sets, so a slide editor opened inside a deck talks to the same chat
+as the deck.
 
 **Typing on the canvas.** Double-clicking a text block or a title primitive (or
 Enter with one selected) mounts

@@ -11,12 +11,22 @@ import {
   guardCopilotTools,
   type PackageToolsBuilder,
   SPA_INFO_TOPICS,
-} from "~/components/instance/copilot/mod.ts";
-import { getClientToolsForDrafts } from "./ai_tools/tools/mod.ts";
-import { getClientToolsForReportEditor } from "./ai_tools/tools/mod.ts";
-import { getClientToolsForSlideEditor } from "./ai_tools/tools/mod.ts";
-import { getClientToolsForSlides } from "./ai_tools/tools/mod.ts";
+} from "./copilot/mod.ts";
+import {
+  getClientToolsForDrafts,
+  getClientToolsForReportEditor,
+  getClientToolsForSlideEditor,
+  getClientToolsForSlides,
+} from "~/components/products/copilot/mod.ts";
 import { instanceState } from "~/state/instance/t1_store";
+
+// The chat's one tool set, assembled once per shell mount and registered for
+// every user and every view, so the prompt cache survives every move. It
+// lives beside the shell, outside the chat's folder, because it reads the
+// product tools: the chat's folder imports nothing at runtime from
+// components/ but components/_shared/mod.ts, and the product tools read the
+// chat's registry, so the assembly is where the two meet (instance.tsx reads
+// it alone).
 
 // The inner set over one pair: the SHARED metric tools (lib/ai_tools: the
 // same definitions the /mcp surface exposes, over the env bound to the pair),
@@ -46,11 +56,11 @@ const buildPackageTools: PackageToolsBuilder = (
   ...getClientToolsForDrafts(scope, ctx.metrics),
 ];
 
-// The copilot's tool set, the same for every user and every pair: the outer
-// package tools (bound per call to the view's pair, the module internals by
-// its run id), the reference tools and panther's ask_user_questions. What a
-// user may not do refuses at the call through the guard (tool_guard.ts),
-// which reads the permissions and the level on the view's product live.
+// The outer package tools (bound per call to the view's pair, the module
+// internals by its run id), the reference tools and panther's
+// ask_user_questions. What a user may not do refuses at the call through the
+// guard (copilot/tool_guard.ts), which reads the permissions and the level on
+// the view's product live.
 export function buildCopilotTools(): AnyAITool[] {
   return guardCopilotTools(
     [

@@ -179,30 +179,34 @@ all-scope access (`currentUserScopeAccess.all`): a restricted user has no
 Explore tab (PLAN_SCOPES R13). The tab id union is `InstanceTab` in
 `onboarding/catalogue.ts` and the shell imports it.
 
-The shell is `ShellEditorWrapper` around a `FrameTop` whose panel is the header,
-a tonal `HeadingBar` (logo and instance name in its left slot, with the divider
-between them on the rail's border: the shell measures the rail, whose width
-follows its labels, centres the logo over it, and shows only the logo's arrows
-while the rail is collapsed; and the right-hand cluster: Theme, Help, versions,
-language, bell, profile; Theme and versions are hidden behind
-`THEME_SWITCHER_ENABLED` and `INSTANCE_META_BUTTON_ENABLED`) and whose content
-is, once the user is approved, a `FrameLeft` whose panel is the rail: a
-vertical, collapsible `TabsNavigation` with `inset` items over `navItems()`, one
-gated ordered list, with its collapsed state persisted in `t4_ui`'s
-`navCollapsed` (default collapsed). The approval `Show` wraps the `FrameLeft`
-rather than sitting inside its panel, because a `Show` passed as a prop is a
-truthy accessor even when it renders nothing and `FrameLeft` would draw an empty
-rail. `ShellEditorWrapper` and `openShellEditor` are the one
-`getEditorWrapper()` the app has at shell level, created in `t4_ui.ts`; every
-view a user reaches through a Back button (the product editors, module defaults,
-the Scopes page, the package page, the Data hub's sub-pages, the user detail)
-opens through it and covers the header and the rail, so its Back is the only way
-out and the rail cannot switch tabs under an open editor. The tab stays on
-Products while a product editor is open. Views those full-page views open
-through their own wrappers (a deck's settings, a product's version history and
-figure editor, the package page's viewers, an import run detail) are already
-full page. This file also hosts the language menu and the onboarding-modal
-effect (below).
+The shell is a `FrameRightResizable` whose panel is the AI chat (`CopilotPanel`,
+S13: one chat beside every tab page, full-page view and nested editor, mounted
+once the user is approved, with its one open state `showAi` and an opener button
+on the window's right edge, `#copilot-opener`, outside the editor wrapper so a
+full-page view does not cover it) around `ShellEditorWrapper` around a
+`FrameTop` whose panel is the header, a tonal `HeadingBar` (logo and instance
+name in its left slot, with the divider between them on the rail's border: the
+shell measures the rail, whose width follows its labels, centres the logo over
+it, and shows only the logo's arrows while the rail is collapsed; and the
+right-hand cluster: Theme, Help, versions, language, bell, profile; Theme and
+versions are hidden behind `THEME_SWITCHER_ENABLED` and
+`INSTANCE_META_BUTTON_ENABLED`) and whose content is, once the user is approved,
+a `FrameLeft` whose panel is the rail: a vertical, collapsible `TabsNavigation`
+with `inset` items over `navItems()`, one gated ordered list, with its collapsed
+state persisted in `t4_ui`'s `navCollapsed` (default collapsed). The approval
+`Show` wraps the `FrameLeft` rather than sitting inside its panel, because a
+`Show` passed as a prop is a truthy accessor even when it renders nothing and
+`FrameLeft` would draw an empty rail. `ShellEditorWrapper` and `openShellEditor`
+are the one `getEditorWrapper()` the app has at shell level, created in
+`t4_ui.ts`; every view a user reaches through a Back button (the product
+editors, module defaults, the Scopes page, the package page, the Data hub's
+sub-pages, the user detail) opens through it and covers the header and the rail,
+so its Back is the only way out and the rail cannot switch tabs under an open
+editor. The tab stays on Products while a product editor is open. Views those
+full-page views open through their own wrappers (a deck's settings, a product's
+version history and figure editor, the package page's viewers, an import run
+detail) are already full page. This file also hosts the language menu and the
+onboarding-modal effect (below).
 
 ## Language, calendar & translation
 
@@ -267,15 +271,16 @@ value from a build that spelled one differently degrades to "no match" rather
 than throwing. Plus the scheme preference (`scheme`, tri-state on panther's
 data-scheme contract, applied at module scope before first paint; a stored
 `darkMode` boolean is mapped on read when no `scheme` key is stored). In-memory
-only (deliberately not persisted): `fitWithin`, `showAi`, `headerOrContent`,
-`policyHeaderOrContent`, the three request signals the tours and the deep link
-use (`pendingEditorOpen`, `pendingSlideOpen`, `pendingTourReplay`), and the
-shell's full-page wrapper (`openShellEditor`, `ShellEditorWrapper`: a
-module-level `getEditorWrapper()` so the frame pages that open views share the
-instance the shell renders, recreated on each shell mount so a same-tab user
-switch without a reload cannot resurface the previous user's open view). The
-rule these encode: **display-only preferences stay in T4: they never enter fetch
-configs or cache hashes** (the roll-up sentinel lesson, SYSTEM_09).
+only (deliberately not persisted): `fitWithin`, `showAi` (the AI panel's one
+open state, S13), `headerOrContent`, `policyHeaderOrContent`, the three request
+signals the tours and the deep link use (`pendingEditorOpen`,
+`pendingSlideOpen`, `pendingTourReplay`), and the shell's full-page wrapper
+(`openShellEditor`, `ShellEditorWrapper`: a module-level `getEditorWrapper()` so
+the frame pages that open views share the instance the shell renders, recreated
+on each shell mount so a same-tab user switch without a reload cannot resurface
+the previous user's open view). The rule these encode: **display-only
+preferences stay in T4: they never enter fetch configs or cache hashes** (the
+roll-up sentinel lesson, SYSTEM_09).
 
 ## Theme prototype (`state/t4_theme.ts`, `components/instance/theme_modal.tsx`)
 

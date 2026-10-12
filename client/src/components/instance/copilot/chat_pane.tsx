@@ -2,13 +2,13 @@ import {
   ActionMenuButton,
   AIChat,
   AIChatConversationSelector,
+  type AIChatInstance,
   AIChatSettingsPanel,
   type AIChatSettingsPanelProps,
   type AIChatSettingsValues,
   AIChatSystemPromptPanel,
   type AIChatSystemPromptPanelProps,
   Button,
-  createAIChat,
   HeadingBar,
   Icon,
   type MenuItem,
@@ -18,7 +18,7 @@ import {
 } from "panther";
 import { t3, TC } from "lib";
 import { createEffect, createSignal, on, onMount, Show } from "solid-js";
-import { copilotViewController } from "./ai_views";
+import { copilotViewController, packageViewContext } from "./ai_views";
 import type { EditingReportContext } from "./ai_views";
 import { setShowAi } from "~/state/t4_ui";
 import { serverActions } from "~/server_actions";
@@ -28,8 +28,7 @@ import { SaveableUserTextRenderer } from "./ai_prompt_library/mod.ts";
 import { AIDebugPanel, type AIDebugPanelProps } from "./ai_debug_panel";
 import type {
   CopilotViewId,
-  HfaTaxonomyForAI,
-  RunAuthoringContext,
+  ResolvedPackageScope,
   TranslatableString,
 } from "lib";
 
@@ -208,9 +207,10 @@ const customChatRenderers = {
 } as Parameters<typeof AIChat>[0]["customRenderers"];
 
 type ConsolidatedChatPaneProps = {
+  // The panel's engine instance, which the pane also hands to AIChat (E2):
+  // one registry, one settings copy, one queue drain.
+  chat: AIChatInstance;
   aiDocs: ReturnType<typeof useAIDocuments>;
-  authoringContext: RunAuthoringContext;
-  hfaTaxonomy: HfaTaxonomyForAI;
 };
 
 export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
@@ -222,7 +222,7 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
     sendMessage,
     messages,
     getNextTurnPreview,
-  } = createAIChat();
+  } = p.chat;
   const conversations = useConversations();
 
   p.aiDocs.bind(conversationId, messages);
@@ -305,8 +305,21 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
     return (v.context as EditingReportContext).getSaveStyleAction();
   }
 
+  // The pair the current view shows, for View AI tool output; undefined in a
+  // view with no package, where the item is hidden.
+  function viewPair(): ResolvedPackageScope | undefined {
+    const context = packageViewContext(copilotViewController.current());
+    if (context === undefined) return undefined;
+    try {
+      return context.getScope();
+    } catch {
+      return undefined;
+    }
+  }
+
   const menuItems = (): MenuItem[] => {
     const saveStyle = saveStyleAction();
+    const pair = viewPair();
     return [
       {
         label: t3({
@@ -409,24 +422,21 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
           });
         },
       },
-      {
-        label: t3({
-          en: "View AI tool output",
-          fr: "Voir la sortie des outils IA",
-          pt: "Ver resultado das ferramentas de IA",
-        }),
-        icon: "search",
-        onClick: () =>
-          openComponent<AIDebugPanelProps, void>({
-            element: AIDebugPanel,
-            props: {
-              metrics: p.authoringContext.metrics,
-              modules: p.authoringContext.modules,
-              icehIndicators: p.authoringContext.icehIndicators,
-              hfaTaxonomy: p.hfaTaxonomy,
-            },
+      ...(pair === undefined ? [] : [
+        {
+          label: t3({
+            en: "View AI tool output",
+            fr: "Voir la sortie des outils IA",
+            pt: "Ver resultado das ferramentas de IA",
           }),
-      },
+          icon: "search",
+          onClick: () =>
+            openComponent<AIDebugPanelProps, void>({
+              element: AIDebugPanel,
+              props: { scope: pair },
+            }),
+        } satisfies MenuItem,
+      ]),
       {
         type: "divider",
       },
@@ -530,6 +540,7 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
 
       <div class="flex-1 overflow-hidden">
         <AIChat
+          chat={p.chat}
           placeholder={placeholder()}
           onScrollReady={(fn) => (scrollToBottom = fn)}
           customRenderers={customChatRenderers}

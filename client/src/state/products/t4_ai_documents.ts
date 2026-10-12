@@ -2,9 +2,8 @@ import { get, set } from "idb-keyval";
 
 // The copilot's PDF attachments (T4: per-browser IndexedDB, no server copy).
 // The upload registry is instance-wide (a file uploaded once serves every
-// product's copilot); pending attachments are per conversation id, which is
-// unique across the per-product conversation scopes (PLAN_PRODUCTS_RESTRUCTURE
-// D15).
+// thread); pending attachments are per conversation id, unique within the
+// user's one thread scope.
 export type UploadedDocument = {
   assetFilename: string;
   anthropicFileId: string;
