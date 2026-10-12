@@ -7,11 +7,12 @@ import {
   type DatasetType,
   type ExploreViewBinding,
   type ExploreViewTypeId,
-  type FamilyQuery,
   type InstalledModuleSummary,
   type InstanceState,
   MAX_CONTENT_BLOCKS,
   type PackageScope,
+  periodChoiceId,
+  type ResolvedView,
   type RunAuthoringContext,
   type RunCatalogStatus,
   type RunListingItem,
@@ -21,7 +22,6 @@ import {
   SLIDE_TEXT_TOTAL_WORD_COUNT_MAX,
   SLIDE_TEXT_TOTAL_WORD_COUNT_TARGET,
   t3,
-  type ViewChoices,
 } from "lib";
 import { scopeDisplayLabel } from "~/components/_shared/mod.ts";
 import { SPA_INFO_TOPICS } from "./client_info_topics";
@@ -210,16 +210,76 @@ function joinParts(parts: (string | undefined)[]): string {
   return parts.filter((part) => part !== undefined).join(" | ");
 }
 
-// What Explore resolves on its pair: each a stored choice resolved against
-// the package, or undefined where the package offers nothing to resolve.
+// What Explore resolves on its pair: the family, module, view and type are
+// the stored choices resolved against the package, undefined where the
+// package offers nothing to resolve; `resolved` is the view as the frame
+// resolved it for its toolbar (the metric, the switch, the level, each pin,
+// the category, the period and the grain, against the package and the
+// metric's possible values), undefined while no metric of the view is ready.
 export type ExploreSelection = {
   family: DatasetType | undefined;
   module: InstalledModuleSummary | undefined;
   view: ExploreViewBinding | undefined;
   type: ExploreViewTypeId | undefined;
-  query: FamilyQuery | undefined;
-  choices: ViewChoices | undefined;
+  resolved: ResolvedView | undefined;
 };
+
+function labelWithId(label: string, id: string): string {
+  return label === id ? id : `${label} (${id})`;
+}
+
+function optionLabel(
+  options: { id: string; label: string }[],
+  id: string,
+): string {
+  return labelWithId(options.find((o) => o.id === id)?.label ?? id, id);
+}
+
+function periodLabel(v: ResolvedView): string | undefined {
+  const time = v.time;
+  if (time === undefined) return undefined;
+  const id = periodChoiceId(v.query.period, time.choices);
+  return time.choices.find((c) => c.id === id)?.label ??
+    JSON.stringify(v.query.period);
+}
+
+// Empty values read every option, as the toolbar's placeholder says.
+function categoryPart(v: ResolvedView): string | undefined {
+  const category = v.category;
+  if (category?.placement !== "laid_out") return undefined;
+  const values = category.values.length === 0
+    ? `all (${category.options.length})`
+    : category.values.map((id) => optionLabel(category.options, id)).join(", ");
+  return `${category.dimension}: ${values}`;
+}
+
+// The toolbar's values, each by the id a package tool takes: a pin over the
+// server's cap says so, and a pin with no value yet is left out.
+function formatResolvedSettings(v: ResolvedView): string {
+  const period = periodLabel(v);
+  return joinParts([
+    v.switch === undefined ? undefined : `${t3(v.switch.label)}: ${
+      optionLabel(
+        v.switch.options.map((o) => ({ id: o.id, label: t3(o.label) })),
+        v.switch.value,
+      )
+    }`,
+    v.area === undefined ? undefined : `level: ${v.area.level}`,
+    ...v.pins.map((pin) =>
+      pin.status === "too_many_values"
+        ? `${pin.dimension}: too many values (over 500)`
+        : pin.value === undefined
+        ? undefined
+        : `${pin.dimension}: ${optionLabel(pin.options, pin.value)}`
+    ),
+    categoryPart(v),
+    period === undefined ? undefined : `period: ${period}`,
+    v.time?.grainShown ? `grain: ${v.query.grain}` : undefined,
+    v.droppedIndicators.length === 0
+      ? undefined
+      : `${v.droppedIndicators.length} chosen indicator(s) not in this package`,
+  ]);
+}
 
 // Null while Explore has no package or its authoring context is still
 // loading, so the message carries no state section rather than a stale one.
@@ -236,11 +296,13 @@ export function formatExploreState(
       ? undefined
       : `View: ${t3(selection.view.label)} (${selection.view.id})`,
     selection.type === undefined ? undefined : `Type: ${selection.type}`,
+    selection.resolved === undefined
+      ? undefined
+      : `Metric: ${selection.resolved.metric.id}`,
   ]);
-  const settings = { query: selection.query, choices: selection.choices };
-  return selection.query === undefined && selection.choices === undefined
+  return selection.resolved === undefined
     ? line
-    : `${line}\nSettings: ${JSON.stringify(settings)}`;
+    : `${line}\nSettings: ${formatResolvedSettings(selection.resolved)}`;
 }
 
 // A stored `ended` stage is the transform's stamp on a run that recorded no

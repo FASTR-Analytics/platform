@@ -7,6 +7,7 @@ import {
   type FamilyQuery,
   type MetricWithStatus,
   type PackageScope,
+  type ResolvedView,
   resolveView,
   type ResolveViewInput,
   type ResultsValueInfoForPresentationObject,
@@ -16,10 +17,12 @@ import {
 } from "lib";
 import { FrameTop, getLanguage, StateHolderWrapper } from "panther";
 import {
+  createEffect,
   createMemo,
   createSignal,
   type JSX,
   Match,
+  onCleanup,
   Show,
   Switch,
 } from "solid-js";
@@ -41,6 +44,10 @@ export type ViewFrameProps = {
   choices: ViewChoices | undefined;
   setChoices: (choices: ViewChoices) => void;
   selectors: JSX.Element;
+  // The view as resolved for the toolbar and the body, for the page's chat
+  // view state; undefined while no metric of the view is ready and once the
+  // frame unmounts.
+  onView: (view: ResolvedView | undefined) => void;
 };
 
 // One view: the frame owns the metric info read, the toolbar and the body.
@@ -158,6 +165,8 @@ function MetricFrame(
     const v = view();
     return v === undefined ? undefined : deriveViewConfig(v, getLanguage());
   });
+  createEffect(() => p.onView(view()));
+  onCleanup(() => p.onView(undefined));
   const [find, setFind] = createSignal("");
   const [download, setDownload] = createSignal<(() => void) | undefined>(
     undefined,
