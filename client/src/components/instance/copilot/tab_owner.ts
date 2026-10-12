@@ -49,6 +49,11 @@ export function createTabOwner(
     pending = controller;
     locks
       .request(name, { signal: controller.signal }, () => {
+        // The spec ignores the abort once the lock is granted and runs the
+        // callback in a later task, so a grant can land after the cleanup;
+        // returning then releases the lock instead of holding it until the
+        // tab closes.
+        if (!mounted) return;
         pending = undefined;
         setOwner(true);
         return new Promise<void>((resolve) => {
