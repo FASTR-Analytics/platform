@@ -24,10 +24,11 @@ import {
 } from "~/components/instance/copilot/mod.ts";
 import { DraftSlidePreview } from "./draft_slide_preview";
 
-// The handler resolves a draft under the mount's pair, the one this copilot
-// serves (D15). The card stores the view the call ran in (E4) and renders
-// under that view's pair, so an old card keeps its package after a reattach;
-// it offers Add only in an editable deck on that same pair.
+// The handler resolves a draft under the pair of the inner set it was built
+// for, the pair of the view the call runs in (bind_package_tools.ts). The card
+// stores the view the call ran in (E4) and renders under that view's pair, so
+// an old card keeps its package after a reattach; it offers Add only in an
+// editable deck on that same pair.
 export function getClientToolsForDrafts(
   scope: PackageScope,
   metrics: MetricWithStatus[],

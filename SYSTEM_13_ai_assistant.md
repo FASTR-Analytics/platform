@@ -359,15 +359,17 @@ construction check: both assistants call `validateAIChatConfig(config)` under
   `useAIDocuments`; **viewController** = `copilotViewController` (below).
 - **the (package, scope) pair** and the package's authoring context (modules,
   metrics, datasets, indicator vocabularies, the HFA taxonomy) are props of the
-  inner `ProductCopilot`, fixed for its life; the HFA survey rounds
+  inner `ProductCopilot`, fixed for its life, and feed the package block and the
+  pane's View AI tool output; the HFA survey rounds the pane shows
   (instance-wide T1, not in the per-run payload) are merged in once at
   construction through `hfaTimePointsForAI` (lib), which keeps the imported
-  rounds in the order given, the label as the id: the same function `/mcp`'s
-  package context calls over the `hfa_time_points` rows in `sort_order`
-  (`getHfaTimePointsForAI`, `server/tests/hfa_time_points_for_ai_test.ts`), so
-  both surfaces list the same rounds. Nothing moves under the tools, so no
-  store, no reconcile and no call-time scope resolver: the tools array is built
-  once over these values and registered once.
+  rounds in the order given, the label as the id: the same function the binder
+  calls per tool call and `/mcp`'s package context calls over the
+  `hfa_time_points` rows in `sort_order` (`getHfaTimePointsForAI`,
+  `server/tests/hfa_time_points_for_ai_test.ts`), so both surfaces list the same
+  rounds. The registered tools close over none of these: the array is one set
+  for every pair, each package tool bound per call to the inner set of the
+  view's pair (`bind_package_tools.ts`, below).
 
 The chat pane (`ConsolidatedChatPane`,
 [chat_pane.tsx](client/src/components/instance/copilot/chat_pane.tsx)) lives in
