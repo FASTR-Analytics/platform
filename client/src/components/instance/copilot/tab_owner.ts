@@ -38,6 +38,11 @@ export function createTabOwner(
   let release: (() => void) | undefined;
   let pending: AbortController | undefined;
   let mounted = true;
+  // A second `takeover` during the stop-and-save await must not start a
+  // second hand-over: both would queue a request, and a request granted after
+  // the panel unmounts holds the lock for every panel of this user until the
+  // tab closes.
+  let handingOver = false;
 
   function request(): void {
     const controller = new AbortController();
@@ -56,8 +61,10 @@ export function createTabOwner(
   }
 
   async function handOver(): Promise<void> {
-    if (!owner()) return;
+    if (!owner() || handingOver) return;
+    handingOver = true;
     await onHandOver();
+    handingOver = false;
     setOwner(false);
     release?.();
     release = undefined;
