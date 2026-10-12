@@ -37,6 +37,10 @@ import {
 } from "~/state/instance/t1_sse";
 import { instanceState } from "~/state/instance/t1_store";
 import { openShellEditor } from "~/state/t4_ui";
+import {
+  copilotViewController,
+  holdCopilotView,
+} from "~/components/instance/copilot/mod.ts";
 import { serverActions } from "~/server_actions";
 
 // The instance "Results packages" surface (PLAN_RESULTS_RUNS Phase 3 items 1
@@ -50,6 +54,11 @@ import { serverActions } from "~/server_actions";
 // Products point at a package from product settings. This surface owns the
 // only act that ever reclaims a package's disk.
 export function InstanceResultsPackages() {
+  // The page's chat view (S13): the pinned package and the counts by status
+  // ride its state, read from the catalogue the page lists.
+  holdCopilotView();
+  copilotViewController.setView("results_packages");
+
   // Live generation state over instance SSE (Q-B ruling (a) and (e)):
   // progress patches the page in place and the R line is keyed by RUN as
   // well as module, so two concurrent generations never overwrite each

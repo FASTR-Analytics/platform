@@ -1,7 +1,9 @@
 import {
   type DatasetType,
   EXPLORE_TYPE_LABELS,
+  type ExploreViewBinding,
   exploreViewKey,
+  type ExploreViewType,
   type ExploreViewTypeId,
   type FamilyQuery,
   type InstalledModuleSummary,
@@ -33,6 +35,32 @@ function moduleMetrics(
     .toSorted((a, b) => a.id.localeCompare(b.id));
 }
 
+// The three resolutions this pane makes, shared with the page's chat view
+// state so the model is told what is on screen: a module with no ready
+// metric shows no view; the stored view and type are resolved against the
+// module's bindings on every read.
+export function moduleHasReadyMetric(
+  module: InstalledModuleSummary,
+  ctx: RunAuthoringContext,
+): boolean {
+  return moduleMetrics(module, ctx).some((m) => m.status === "ready");
+}
+
+export function pickModuleView(
+  moduleId: string,
+  views: ExploreViewBinding[],
+): ExploreViewBinding | undefined {
+  return views.find((v) => v.id === exploreViews()[moduleId]) ?? views[0];
+}
+
+export function pickViewType(
+  view: ExploreViewBinding,
+  key: string,
+): ExploreViewType {
+  return view.types.find((t) => t.type === exploreViewTypes()[key]) ??
+    view.types[0];
+}
+
 // The chosen module's views under the selectors row: the module select the
 // page built, a `SelectV2` over the module's bindings (`viewsForModule`),
 // and a `ButtonGroup` over the view's types when it offers more than one.
@@ -52,13 +80,11 @@ export function ModuleView(p: {
 }) {
   const metrics = createMemo(() => moduleMetrics(p.module, p.ctx));
   const views = createMemo(() => viewsForModule(p.module, p.ctx));
-  const view = createMemo(() =>
-    views().find((v) => v.id === exploreViews()[p.module.id]) ?? views()[0]
-  );
+  const view = createMemo(() => pickModuleView(p.module.id, views()));
 
   return (
     <Show
-      when={metrics().some((m) => m.status === "ready")}
+      when={moduleHasReadyMetric(p.module, p.ctx)}
       fallback={
         <Fallback selectors={<SelectorsRow>{p.moduleSelect}</SelectorsRow>}>
           <EmptyState kind="no_metric" reason={metrics()[0]?.statusReason} />
@@ -75,10 +101,7 @@ export function ModuleView(p: {
       >
         {(v) => {
           const key = () => exploreViewKey(p.module.id, v().id);
-          const type = createMemo(() =>
-            v().types.find((t) => t.type === exploreViewTypes()[key()]) ??
-              v().types[0]
-          );
+          const type = createMemo(() => pickViewType(v(), key()));
           return (
             <ViewFrame
               ctx={p.ctx}

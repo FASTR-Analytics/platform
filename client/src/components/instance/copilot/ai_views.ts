@@ -20,6 +20,8 @@ import type {
   ReportFormat,
   ReportHtmlStyle,
   ResolvedPackageScope,
+  RunCatalogStatus,
+  RunProgress,
   Slide,
   SlideDeckConfig,
 } from "lib";
@@ -35,12 +37,17 @@ import {
   copilotInteractions,
 } from "./interactions";
 import {
+  type ExploreSelection,
+  formatExploreState,
+  formatPackageState,
+  formatResultsPackagesState,
   getEditingSlideDeckInstructions,
   getEditingSlideInstructions,
   getOpeningProductInstructions,
   PRODUCT_VIEW_ONLY_LINE,
 } from "./build_system_prompt";
 import { productLevel } from "~/state/instance/product_access";
+import { instanceState } from "~/state/instance/t1_store";
 
 ////////////////////////////////////////////////////////////////////////////////
 // COPILOT: AI VIEW REGISTRY
@@ -68,8 +75,10 @@ import { productLevel } from "~/state/instance/product_access";
 // Solid cleans a node's children before its own cleanups, so nested places
 // unwind in order. The sync sites are the deck and report editors
 // (`opening_product` at mount, `editing_slide_deck` or `editing_report` once
-// loaded) and the slide editor (`editing_slide`); every other view is
-// declared here and has no sync site yet.
+// loaded), the slide editor (`editing_slide`), Explore (`explore`), the
+// Results page (`results_packages`), the package page (`package`, set again
+// when the status changes) and the Module defaults and Scopes views; every
+// other view is declared here and has no sync site yet.
 //
 // What the model is told per view splits in two (append-only turns, E7):
 // `instructions` is the static guidance of the view, which rides a message
@@ -210,11 +219,23 @@ export type ResultsFileParams = {
   resultsObjectId: string;
 };
 
+// Explore's view: the pair it resolves (the chosen package or its fallback,
+// at the chosen scope) and what the page resolves on it, read live.
+export type ExploreContext = PackageViewContext & {
+  getSelection: () => ExploreSelection | undefined;
+};
+
 export type PackagePageParams = {
   runId: string;
 };
+// The package page's view: its pair is the page's package at the page scope,
+// which `getScope` has only while the package is ready; the status, the
+// progress and the open module are the state.
 export type PackagePageContext = PackageViewContext & {
   getLabel: () => string;
+  getStatus: () => RunCatalogStatus;
+  getProgress: () => RunProgress | null;
+  getOpenModuleId: () => string | undefined;
 };
 
 // The Data switchboard's pages, each a `data_page` with the family it is
@@ -400,18 +421,32 @@ export const copilotViews = defineAIViews(
           pair: pairOf(context),
         }),
     }),
-    explore: view<void, PackageViewContext>({
+    explore: view<void, ExploreContext>({
       label: "Explore",
       identity: (_params, context) =>
         copilotViewIdentity("explore", { pair: pairOf(context) }),
+      state: (_params, context) => formatExploreState(context.getSelection()),
     }),
-    results_packages: view({ label: "Results packages" }),
+    results_packages: view({
+      label: "Results packages",
+      state: () =>
+        formatResultsPackagesState(
+          instanceState.pinnedRunId,
+          instanceState.runsCatalog,
+        ),
+    }),
     package: view<PackagePageParams, PackagePageContext>({
       label: (_params, context) => context.getLabel(),
       identity: (params, context) =>
         copilotViewIdentity("package", {
           run: params.runId,
           pair: pairOf(context),
+        }),
+      state: (_params, context) =>
+        formatPackageState({
+          status: context.getStatus(),
+          progress: context.getProgress(),
+          openModuleId: context.getOpenModuleId(),
         }),
     }),
     viewing_package_figure: view<

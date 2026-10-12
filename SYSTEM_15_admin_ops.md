@@ -63,10 +63,11 @@ is S9 "The scoped view"). It is not a tab: a "Scopes" button on the Results page
 (`results_packages.tsx`, S8), beside "Module defaults", opens it as a full-page
 view through `openShellEditor`. The button is shown only when
 `instanceState.currentUserIsGlobalAdmin` is true, the same rule the three scope
-routes enforce with `requireAdmin`. `ScopesPage` (`scopes.tsx`) is a `Table`
-over `instanceState.scopes` with one row per scope, "All data" included: the
-label, one column per family (HMIS, HFA, ICEH) saying "Excluded", "No limits" or
-the section's limits in a few words, and a Usage column showing the number of
+routes enforce with `requireAdmin`. The page sets the chat's `scopes` view (S13)
+while it is open. `ScopesPage` (`scopes.tsx`) is a `Table` over
+`instanceState.scopes` with one row per scope, "All data" included: the label,
+one column per family (HMIS, HFA, ICEH) saying "Excluded", "No limits" or the
+section's limits in a few words, and a Usage column showing the number of
 products that carry it as a badge (`ProductCountBadge`, shared with the results
 packages table, S8; nothing for none), counted in one pass over
 `instanceState.products`. A row opens `ScopeEditor` (`scope_editor.tsx`) in a

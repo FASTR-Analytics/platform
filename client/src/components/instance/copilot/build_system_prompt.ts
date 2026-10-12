@@ -4,12 +4,24 @@ import {
   buildInstanceContextSections,
   buildPackageBlock,
   buildSystemPrompt,
+  type DatasetType,
+  type ExploreViewBinding,
+  type ExploreViewTypeId,
+  type FamilyQuery,
+  type InstalledModuleSummary,
   type InstanceState,
   MAX_CONTENT_BLOCKS,
   type PackageScope,
   type RunAuthoringContext,
+  type RunCatalogStatus,
+  type RunListingItem,
+  type RunProgress,
+  runProgressSteps,
+  runStageLabel,
   SLIDE_TEXT_TOTAL_WORD_COUNT_MAX,
   SLIDE_TEXT_TOTAL_WORD_COUNT_TARGET,
+  t3,
+  type ViewChoices,
 } from "lib";
 import { scopeDisplayLabel } from "~/components/_shared/mod.ts";
 import { SPA_INFO_TOPICS } from "./client_info_topics";
@@ -186,4 +198,117 @@ Keep text concise and focused. Slides with figures should have less text. Use bu
 - Changes apply to the open slide at once and save automatically; there is no Save button
 - For content slides, use block IDs from get_slide_editor to target specific blocks
 - IMPORTANT: Markdown tables are NOT allowed in text blocks. To display tabular data, use a from_metric block with a table-type preset.`;
+}
+
+// The view states of the Results and Explore pages: what the user is looking
+// at that changes without a navigation, a line or two on every message. On
+// these pages the module and the package's status are what the user sees,
+// which narrows "nothing about modules goes into the AI context" to the
+// package grounding (SYSTEM_13).
+
+function joinParts(parts: (string | undefined)[]): string {
+  return parts.filter((part) => part !== undefined).join(" | ");
+}
+
+// What Explore resolves on its pair: each a stored choice resolved against
+// the package, or undefined where the package offers nothing to resolve.
+export type ExploreSelection = {
+  family: DatasetType | undefined;
+  module: InstalledModuleSummary | undefined;
+  view: ExploreViewBinding | undefined;
+  type: ExploreViewTypeId | undefined;
+  query: FamilyQuery | undefined;
+  choices: ViewChoices | undefined;
+};
+
+// Null while Explore has no package or its authoring context is still
+// loading, so the message carries no state section rather than a stale one.
+export function formatExploreState(
+  selection: ExploreSelection | undefined,
+): string | null {
+  if (selection === undefined) return null;
+  const line = joinParts([
+    `Family: ${selection.family ?? "none"}`,
+    selection.module === undefined
+      ? undefined
+      : `Module: ${selection.module.label} (${selection.module.id})`,
+    selection.view === undefined
+      ? undefined
+      : `View: ${t3(selection.view.label)} (${selection.view.id})`,
+    selection.type === undefined ? undefined : `Type: ${selection.type}`,
+  ]);
+  const settings = { query: selection.query, choices: selection.choices };
+  return selection.query === undefined && selection.choices === undefined
+    ? line
+    : `${line}\nSettings: ${JSON.stringify(settings)}`;
+}
+
+// A stored `ended` stage is the transform's stamp on a run that recorded no
+// stage, not a place the run is or died in.
+function stageLabel(progress: RunProgress | null): string | undefined {
+  return progress === null || progress.stage.kind === "ended"
+    ? undefined
+    : runStageLabel(progress);
+}
+
+export function formatPackageState(args: {
+  status: RunCatalogStatus;
+  progress: RunProgress | null;
+  openModuleId: string | undefined;
+}): string {
+  const { status, progress, openModuleId } = args;
+  const stage = stageLabel(progress);
+  switch (status) {
+    case "generating": {
+      const steps = progress === null ? undefined : runProgressSteps(progress);
+      return joinParts([
+        "Status: generating",
+        stage === undefined ? undefined : `stage: ${stage}`,
+        steps === undefined
+          ? undefined
+          : `modules done: ${steps.done}/${steps.total}`,
+        progress?.currentModuleId
+          ? `current module: ${progress.currentModuleId}`
+          : undefined,
+      ]);
+    }
+    case "failed":
+      return joinParts([
+        "Status: failed",
+        stage === undefined ? undefined : `failed at: ${stage}`,
+        `error: ${progress?.errorDetail ?? "none recorded"}`,
+      ]);
+    case "ready":
+      return joinParts([
+        "Status: ready",
+        openModuleId === undefined ? undefined : `open module: ${openModuleId}`,
+      ]);
+    case "retired":
+      return "Status: retired";
+  }
+}
+
+const RUN_STATUSES: readonly RunCatalogStatus[] = [
+  "ready",
+  "generating",
+  "failed",
+  "retired",
+];
+
+export function formatResultsPackagesState(
+  pinnedRunId: string | null,
+  runs: RunListingItem[],
+): string {
+  const pinned = pinnedRunId === null
+    ? "none"
+    : runs.find((r) => r.id === pinnedRunId)?.label ?? pinnedRunId;
+  const counts = RUN_STATUSES.map(
+    (status) =>
+      [status, runs.filter((r) => r.status === status).length] as const,
+  )
+    .filter(([, n]) => n > 0)
+    .map(([status, n]) => `${n} ${status}`);
+  return `Pinned package: ${pinned} | Packages: ${
+    counts.length === 0 ? "none" : counts.join(", ")
+  }`;
 }

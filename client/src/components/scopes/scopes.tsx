@@ -25,6 +25,10 @@ import {
   usageColumnHeader,
 } from "~/components/_shared/mod.ts";
 import { instanceState } from "~/state/instance/t1_store";
+import {
+  copilotViewController,
+  holdCopilotView,
+} from "~/components/instance/copilot/mod.ts";
 import { AllDataScopeView, ScopeEditor } from "./scope_editor";
 
 type ScopeRow = {
@@ -42,6 +46,9 @@ type Props = EditorComponentProps<Record<never, never>, undefined>;
 // scope routes are guarded the same way). A product picks one by label. The
 // reserved "All data" scope is listed and opens read-only.
 export function ScopesPage(p: Props) {
+  holdCopilotView();
+  copilotViewController.setView("scopes");
+
   const scopesTable = createTableConfig({
     sort: { key: "label", direction: "asc" },
   });

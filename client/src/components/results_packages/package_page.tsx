@@ -16,6 +16,7 @@ import {
   TC,
 } from "lib";
 import {
+  AIToolFailure,
   Button,
   createButtonAction,
   createDeleteAction,
@@ -34,6 +35,7 @@ import {
   createMemo,
   createSignal,
   Match,
+  on,
   Show,
   Switch,
 } from "solid-js";
@@ -46,6 +48,11 @@ import {
   StatusBar,
 } from "./package_view/mod.ts";
 import { serverActions } from "~/server_actions";
+import {
+  copilotViewController,
+  holdCopilotView,
+  type PackagePageContext,
+} from "~/components/instance/copilot/mod.ts";
 import { instanceState, resolveScope } from "~/state/instance/t1_store";
 import { getRunAuthoringContextFromCacheOrFetch } from "~/state/instance/t2_run_authoring_context";
 import { getRunDetailFromCacheOrFetch } from "~/state/instance/t2_runs";
@@ -77,6 +84,7 @@ type FamilyModules = { family: DatasetType; modules: InstalledModuleSummary[] };
 // page waits for the row to appear and closes itself only once a row it has
 // shown is removed.
 export function ResultsPackagePage(p: Props) {
+  holdCopilotView();
   const run = createMemo(() =>
     instanceState.runsCatalog.find((r) => r.id === p.runId)
   );
@@ -231,6 +239,79 @@ function PackageBody(p: {
       : undefined;
   };
 
+  // The ready body's page state: the active family (starts at the first),
+  // the selected module per family (starts at the primary) and the page
+  // scope every figure renders under, never stored. The page starts on "All
+  // data"; a scope deleted while it is chosen falls back to it.
+  const modulesByFamily = createMemo((): FamilyModules[] => {
+    const ctx = readyReads()?.ctx;
+    if (ctx === undefined) return [];
+    return MODULE_FAMILY_ORDER.flatMap((family) => {
+      const modules = ctx.modules
+        .filter((m) => m.family === family)
+        .toSorted(compareModules);
+      return modules.length === 0 ? [] : [{ family, modules }];
+    });
+  });
+  const [chosenFamily, setChosenFamily] = createSignal<DatasetType>();
+  const activeFamily = createMemo(
+    () =>
+      modulesByFamily().find((f) => f.family === chosenFamily()) ??
+        modulesByFamily()[0],
+  );
+  const [chosenModule, setChosenModule] = createSignal<
+    Partial<Record<DatasetType, string>>
+  >({});
+  const openModuleId = (): string | undefined => {
+    const family = activeFamily();
+    return family === undefined
+      ? undefined
+      : chosenModule()[family.family] ?? family.modules[0].id;
+  };
+  const [chosenScopeId, setChosenScopeId] = createSignal<ScopeId>(
+    ALL_DATA_SCOPE_ID,
+  );
+  const scope = (): PackageScope => {
+    const chosen = chosenScopeId();
+    return {
+      runId: p.run.id,
+      scopeId: instanceState.scopes.some((s) => s.id === chosen)
+        ? chosen
+        : ALL_DATA_SCOPE_ID,
+    };
+  };
+
+  // The page's chat view (S13): its pair is the package at the page scope,
+  // which a generating, failed or retired package has not, so the package
+  // reads refuse with that reason while the module internals read by run id;
+  // the status, the progress and the open module ride its state. The view is
+  // set again when the status changes, so the identity gains its pair as the
+  // package becomes ready.
+  const context: PackagePageContext = {
+    getScope: () => {
+      switch (p.run.status) {
+        case "ready":
+          return resolveScope(scope());
+        case "generating":
+          throw new AIToolFailure("This package is still generating.");
+        case "failed":
+          throw new AIToolFailure("This package failed.");
+        case "retired":
+          throw new AIToolFailure("This package is retired.");
+      }
+    },
+    getRunId: () => p.run.id,
+    getLabel: () => p.run.label,
+    getStatus: () => p.run.status,
+    getProgress: progress,
+    getOpenModuleId: openModuleId,
+  };
+  createEffect(on(
+    () => p.run.status,
+    () =>
+      copilotViewController.setView("package", { runId: p.run.id }, context),
+  ));
+
   const heading = (
     <span class="inline-flex items-center gap-2">
       <span class="truncate">{p.run.label}</span>
@@ -316,6 +397,14 @@ function PackageBody(p: {
                 runId={p.run.id}
                 detail={data.detail}
                 ctx={data.ctx}
+                families={modulesByFamily()}
+                active={activeFamily()}
+                onChangeFamily={setChosenFamily}
+                selectedModuleId={openModuleId()}
+                onSelectModule={(family, moduleId) =>
+                  setChosenModule((prev) => ({ ...prev, [family]: moduleId }))}
+                scope={scope()}
+                onChangeScope={setChosenScopeId}
                 openEditor={p.openEditor}
               />
             )}
@@ -346,51 +435,24 @@ function PackageBody(p: {
 }
 
 // A READY package's body: one tab per family the package ran, in family
-// order, each a module list beside the selected module's pane. The active
-// family (starts at the first), the selected module per family (starts at
-// the primary) and the page scope every figure renders under are page
-// state, never stored.
+// order, each a module list beside the selected module's pane. The page
+// owns the selection (the chat view reads it); this lays it out.
 function FamilyTabs(p: {
   runId: string;
   detail: RunDetail;
   ctx: RunAuthoringContext;
+  families: FamilyModules[];
+  active: FamilyModules | undefined;
+  onChangeFamily: (family: DatasetType) => void;
+  selectedModuleId: string | undefined;
+  onSelectModule: (family: DatasetType, moduleId: string) => void;
+  scope: PackageScope;
+  onChangeScope: (scopeId: ScopeId) => void;
   openEditor: OpenEditor;
 }) {
-  const modulesByFamily = createMemo((): FamilyModules[] =>
-    MODULE_FAMILY_ORDER.flatMap((family) => {
-      const modules = p.ctx.modules
-        .filter((m) => m.family === family)
-        .toSorted(compareModules);
-      return modules.length === 0 ? [] : [{ family, modules }];
-    })
-  );
-  const [chosenFamily, setChosenFamily] = createSignal<DatasetType>();
-  const active = createMemo(
-    () =>
-      modulesByFamily().find((f) => f.family === chosenFamily()) ??
-        modulesByFamily()[0],
-  );
-  const [chosenModule, setChosenModule] = createSignal<
-    Partial<Record<DatasetType, string>>
-  >({});
-  // The page starts on "All data". A scope deleted while it is chosen falls
-  // back to it.
-  const [chosenScopeId, setChosenScopeId] = createSignal<ScopeId>(
-    ALL_DATA_SCOPE_ID,
-  );
-  const scope = (): PackageScope => {
-    const chosen = chosenScopeId();
-    return {
-      runId: p.runId,
-      scopeId: instanceState.scopes.some((s) => s.id === chosen)
-        ? chosen
-        : ALL_DATA_SCOPE_ID,
-    };
-  };
-
   return (
     <Show
-      when={active()}
+      when={p.active}
       keyed
       fallback={
         <div class="ui-pad text-base-content-muted text-sm">
@@ -407,12 +469,12 @@ function FamilyTabs(p: {
           pad="md"
           panelChildren={
             <TabsNavigation
-              items={modulesByFamily().map((f) => ({
+              items={p.families.map((f) => ({
                 id: f.family,
                 label: getModuleFamilyLabel(f.family),
               }))}
               value={family.family}
-              onChange={setChosenFamily}
+              onChange={p.onChangeFamily}
               insetRail
             />
           }
@@ -420,17 +482,13 @@ function FamilyTabs(p: {
           <FamilyPane
             runId={p.runId}
             modules={family.modules}
-            selectedModuleId={chosenModule()[family.family] ??
-              family.modules[0].id}
+            selectedModuleId={p.selectedModuleId ?? family.modules[0].id}
             onSelectModule={(moduleId) =>
-              setChosenModule((prev) => ({
-                ...prev,
-                [family.family]: moduleId,
-              }))}
+              p.onSelectModule(family.family, moduleId)}
             detail={p.detail}
             ctx={p.ctx}
-            scope={scope()}
-            onChangeScope={setChosenScopeId}
+            scope={p.scope}
+            onChangeScope={p.onChangeScope}
             openEditor={p.openEditor}
           />
         </FrameTop>

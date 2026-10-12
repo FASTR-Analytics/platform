@@ -23,6 +23,10 @@ import {
   ModuleParameterInputs,
 } from "./_shared/mod.ts";
 import { serverActions } from "~/server_actions";
+import {
+  copilotViewController,
+  holdCopilotView,
+} from "~/components/instance/copilot/mod.ts";
 
 // The instance's module-defaults editor (S8 "Instance module defaults"): the
 // ONE writer of the `run_generation_defaults` store, which pre-fills the
@@ -46,6 +50,9 @@ import { serverActions } from "~/server_actions";
 type Props = EditorComponentProps<Record<never, never>, undefined>;
 
 export function ModuleDefaultsEditor(p: Props) {
+  holdCopilotView();
+  copilotViewController.setView("module_defaults");
+
   const query = createQuery(
     async () => {
       const [optionsRes, defaultsRes] = await Promise.all([

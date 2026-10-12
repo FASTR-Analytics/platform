@@ -117,23 +117,26 @@ the query pipeline the data tools call is **S9**.
    `buildPackageGroundingSections` states the package's calendar and period
    coverage (finest physical time column; `/mcp` only, since the SPA holds no
    manifest). Nothing about modules, provenance, or unavailable metrics goes
-   into the AI context: it does not help read a metric (ruled). A separate
-   indicator-dictionary tool was considered and dropped as redundant. The `/mcp`
-   surface is stateless above the wire: the metric tools read the pin from the
-   DB on every call (a pin-move is visible on the next call; `get_overview`
-   answers without a pin), and package tools are boot-time templates bound per
-   call via panther's `bindAITool` because panther caches a principal's tool set
-   per core. A core is keyed per credential: `buildMcpPrincipal` gives each PAT
-   or OAuth access token its own principal, whose key is the email plus a
-   16-digit prefix of the token's SHA-256
-   (`server/tests/mcp_principal_key_test.ts`), so a second PAT or a rotated
-   token of one user never runs over another credential's token. The catalog is
-   fixed per process: a client sees a catalog change only when it re-lists (a
-   chat client: refresh the connector's tools, or a new conversation, though
-   neither claude.ai nor Claude Code reliably re-lists on a new conversation
-   alone), and the server does not advertise `listChanged` (panther ruling,
-   DOC_AI_CHAT §Headless tools). So results are self-identifying instead: every
-   package-tool result starts with a
+   into the package grounding: it does not help read a metric (ruled). The
+   `package` and `explore` views are the narrowing (COPILOT03 ruling 1): on
+   those two pages the module and the package's status are what the user is
+   looking at, so their view state names the open module, and the package page's
+   its status, stage, error and progress. A separate indicator-dictionary tool
+   was considered and dropped as redundant. The `/mcp` surface is stateless
+   above the wire: the metric tools read the pin from the DB on every call (a
+   pin-move is visible on the next call; `get_overview` answers without a pin),
+   and package tools are boot-time templates bound per call via panther's
+   `bindAITool` because panther caches a principal's tool set per core. A core
+   is keyed per credential: `buildMcpPrincipal` gives each PAT or OAuth access
+   token its own principal, whose key is the email plus a 16-digit prefix of the
+   token's SHA-256 (`server/tests/mcp_principal_key_test.ts`), so a second PAT
+   or a rotated token of one user never runs over another credential's token.
+   The catalog is fixed per process: a client sees a catalog change only when it
+   re-lists (a chat client: refresh the connector's tools, or a new
+   conversation, though neither claude.ai nor Claude Code reliably re-lists on a
+   new conversation alone), and the server does not advertise `listChanged`
+   (panther ruling, DOC_AI_CHAT §Headless tools). So results are
+   self-identifying instead: every package-tool result starts with a
    `Source: results package "<label>" (generated <createdAt>), scope "All data"`
    line naming the run and the scope it read. The line is `formatSourceHeader`
    in `lib/ai_tools/source_header.ts`, whose scope label is optional so a read
@@ -456,10 +459,22 @@ the open slide's editor, which holds the deck's view and sets `editing_slide`
 over it, so a slide switch restores the deck view between slides. A load that
 fails before that renders the error through `StateHolderWrapper` in place of the
 editor, writes nothing (no autosave, no room, no deck-config save) and leaves
-the controller on `opening_product`. Every other view of the registry is
-declared, with its params and context types and the identity its page will
-supply, and has no sync site yet: the controller sits on `shell` outside a
-product. There is no tab-to-view map.
+the controller on `opening_product`. The Results and Explore pages set their
+own: Explore (`components/explore/explore.tsx`) holds at mount and sets
+`explore`, whose `getScope` is the resolved package at the resolved scope or
+ruling 7's no-package reason, and whose state names the family, module, view,
+type and settings the panes resolve (the same resolution functions, so the model
+is told what is on screen), once the package's authoring context is in; the
+Results page sets `results_packages`, whose state names the pinned package and
+the counts by status from the catalogue; the package page holds in
+`ResultsPackagePage` and sets `package` from `PackageBody` on every status
+change (params: the run id; its pair the page's package at the page scope, which
+`getScope` has only while the package is ready, so the package reads refuse with
+the status's reason while the module internals read by run id; its state the
+status, stage, error, progress and open module); Module defaults sets
+`module_defaults` and the Scopes page `scopes`. Every other view of the registry
+is declared, with its params and context types and the identity its page will
+supply, and has no sync site yet. There is no tab-to-view map.
 
 **What a message carries** (`appendOnlyTurns: true`, panther's E7). Every
 message carries the view line, the view's `state` and the interactions digest; a

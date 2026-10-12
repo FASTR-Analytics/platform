@@ -117,7 +117,11 @@ re-litigate; the package-format invariants below are their file-level twins):
   (`results_packages/package_page.tsx`, its panes under `package_view/`),
   renders a package's contents: its modules' default visualizations, settings,
   scripts, logs and files; the Explore tab (S11) reads a ready package's metrics
-  at a scope. AI tools take a run RESOLVER, never a runId from the model.
+  at a scope. AI tools take a run RESOLVER, never a runId from the model: the
+  package page sets the chat's `package` view (S13) with the page's package at
+  the page scope, and its state names the status, stage, error, progress and
+  open module, so a generating or failed package's script and log reads work
+  while its package reads refuse; the Results page sets `results_packages`.
 - **Retention.** No automatic or time-based GC, ever. Reclamation is ONLY the
   catalogue's guarded hard delete (row + dir), refused while referenced or
   generating.

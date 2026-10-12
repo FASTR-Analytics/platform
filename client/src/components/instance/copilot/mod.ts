@@ -6,8 +6,11 @@ export {
 export type {
   CopilotViewState,
   EditingSlideDeckContext,
+  ExploreContext,
+  PackagePageContext,
   PackageViewContext,
 } from "./ai_views.ts";
+export type { ExploreSelection } from "./build_system_prompt.ts";
 export { createCopilotAIToolEnv } from "./client_env.ts";
 export type { ClientAIToolEnv, ModuleInternalsEnv } from "./client_env.ts";
 export { bindPackageTools } from "./bind_package_tools.ts";
