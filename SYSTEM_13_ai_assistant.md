@@ -140,7 +140,7 @@ the query pipeline the data tools call is **S9**.
    passing "All data"; `server/tests/mcp_tools_source_header_test.ts` pins both
    functions and the `/mcp` line. The SPA needs no header: its copilot is
    mounted per product over one fixed pair, so every result in a thread comes
-   from the package the system prompt names. `serverInfo.version` reports the
+   from the package the package block names. `serverInfo.version` reports the
    deployed `SERVER_VERSION` (hygiene: no client re-lists on it). A client's
    re-list behaviour is observed from panther's per-request stderr line,
    `[panther mcp] fastr: <era> <method> …`; `./mcp_probe <origin> --info` shows
@@ -307,14 +307,13 @@ that scope (T2, immutable per run id and definition hash; modules outside the
 scope's module list are absent from it, with their metrics and presets): the
 inner `ProductCopilot` remounts when the pair or its scope's definition changes
 (`createResolvedScope`, `t1_store.ts`, holds the resolved pair steady through
-every other change to the scopes list), which is what keeps the env, the tools
-and the system prompt fixed for the life of one chat instance. The Products page
-and every other tab have no copilot; the results explorer, when it lands, mounts
-its own with its own tools, the pattern the HFA indicator manager already uses.
-Each mount builds one panther `AIChatProvider` config, validated in dev by
-panther's no-mount construction check: both assistants call
-`validateAIChatConfig(config)` under `import.meta.env.DEV` at config assembly
-(HFA
+every other change to the scopes list), which is what keeps the env and the
+tools fixed for the life of one chat instance. The Products page and every other
+tab have no copilot; the results explorer, when it lands, mounts its own with
+its own tools, the pattern the HFA indicator manager already uses. Each mount
+builds one panther `AIChatProvider` config, validated in dev by panther's
+no-mount construction check: both assistants call `validateAIChatConfig(config)`
+under `import.meta.env.DEV` at config assembly (HFA
 [ai/wrapper.tsx:39-41](client/src/components/data/hfa/indicators/ai/wrapper.tsx#L39-L41)):
 
 - **sdkClient**

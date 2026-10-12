@@ -59,8 +59,8 @@ export const copilotInteractions = defineAIInteractions({
     echoKey: (p) => `product:${p.productId}`,
   }),
   // The deck editor's slide list. The open deck's CURRENT selection also rides
-  // the view instructions; this reports the act of selecting since the last
-  // message.
+  // the view state (ai_views.ts); this reports the act of selecting since the
+  // last message.
   selected_slides: interaction<{ slideIds: string[] }>({
     relevantIn: ["editing_slide_deck", "editing_slide"],
     format: (p) =>
