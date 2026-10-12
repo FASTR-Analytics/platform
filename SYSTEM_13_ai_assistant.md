@@ -342,13 +342,14 @@ at once. A store is therefore always built from a record no other live tab
 writes. The panel stops the chat's turn and awaits its save the same way when it
 unmounts (sign-out, a user switch, the instance-stream reset on approval or a
 change to the user's own scope access, which remounts the shell and with it the
-chat on the same thread). The pane creates the one engine instance
-(`createAIChat`) inside the provider and hands it to `AIChat` as `chat` (E2), so
-the pane and the chat share one registry, one settings copy and one queue drain.
-The panel builds one panther `AIChatProvider` config, validated in dev by
-panther's no-mount construction check: both assistants call
-`validateAIChatConfig(config)` under `import.meta.env.DEV` at config assembly
-(HFA
+chat on the same thread). The panel creates the one engine instance
+(`createAIChat`, inside the provider once the lock is granted), keeps it to stop
+and await at a hand-over and at its own cleanup, and hands it to the pane, which
+hands it to `AIChat` as `chat` (E2), so the pane and the chat share one
+registry, one settings copy and one queue drain. The panel builds one panther
+`AIChatProvider` config, validated in dev by panther's no-mount construction
+check: both assistants call `validateAIChatConfig(config)` under
+`import.meta.env.DEV` at config assembly (HFA
 [ai/wrapper.tsx:39-41](client/src/components/data/hfa/indicators/ai/wrapper.tsx#L39-L41)):
 
 - **sdkClient**
@@ -562,13 +563,13 @@ undefined otherwise, so the pane imports nothing from `components/products/`.
 
 **The approval policy** is the chat's
 `{ requireForKind: "write", requireKind: true, exempt: COPILOT_APPROVAL_EXEMPT }`
-(`copilot.tsx`), so a write tool is either exempt, as the direct editor writes
-to what the user is looking at are (the catalogue's `COPILOT_APPROVAL_EXEMPT`:
-the deck's slide writes but deletion, the open slide's draft, a report's figure
-by stable id, the figure editor's draft and the HFA code editor's unsaved
-state), or declares its approval: `delete_slides` takes a modal approval with
-intent danger whose preview lists the slides by title and whose commit deletes
-and marks the echo keys, and the five staged report tools their diff.
+(`panel.tsx`), so a write tool is either exempt, as the direct editor writes to
+what the user is looking at are (the catalogue's `COPILOT_APPROVAL_EXEMPT`: the
+deck's slide writes but deletion, the open slide's draft, a report's figure by
+stable id, the figure editor's draft and the HFA code editor's unsaved state),
+or declares its approval: `delete_slides` takes a modal approval with intent
+danger whose preview lists the slides by title and whose commit deletes and
+marks the echo keys, and the five staged report tools their diff.
 `validateAIChatConfig` runs on the assembled config in DEV, so a write tool with
 neither fails on page load.
 

@@ -51,8 +51,8 @@ import {
 // (tab active AND permission granted): otherwise a tour could fire, find no
 // targets, and be marked seen invisibly. The editors keep the shell's tab on
 // "products", so the Products page predicate excludes the editing views; the
-// copilot's view controller (one mount per open product, D15) is what tracks
-// which editor is open.
+// copilot's view controller, on which every editor sets its view, is what
+// tracks which editor is open.
 
 const currentView = () => copilotViewController.current();
 // The slide tours walk the slide toolbar, which renders only for a user who
