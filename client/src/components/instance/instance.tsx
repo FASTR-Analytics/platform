@@ -9,7 +9,7 @@ import {
   t3,
   whatsNewAutoShowPost,
 } from "lib";
-import type { WhatsNewPost } from "lib";
+import type { Language, WhatsNewPost } from "lib";
 import {
   AlertProvider,
   Button,
@@ -56,7 +56,7 @@ import {
   ShellEditorWrapper,
   showAi,
 } from "~/state/t4_ui";
-import { CopilotPanel } from "./copilot/mod.ts";
+import { confirmReloadUnderTurn, CopilotPanel } from "./copilot/mod.ts";
 import { buildCopilotTools } from "./copilot_tools";
 import { FeedbackForm, type FeedbackType } from "./feedback_form";
 import { InstanceMetaForm } from "./instance_meta_form";
@@ -186,6 +186,20 @@ export default function Instance(p: Props) {
       await maybeShowWhatsNew();
     })();
   });
+
+  // A language applies by full reload, which loses an AI turn in flight, so
+  // the switch asks first while one runs (S13's turn guard).
+  function languageItem(lang: Language, label: string): MenuItem {
+    return {
+      label,
+      onClick: async () => {
+        if (getLanguage() === lang) return;
+        if (!(await confirmReloadUnderTurn())) return;
+        localStorage.setItem(LANGUAGE_STORAGE_KEY, lang);
+        window.location.reload();
+      },
+    };
+  }
 
   async function openProfile() {
     await openComponent({
@@ -331,31 +345,10 @@ export default function Instance(p: Props) {
         <MenuButton
           data-tour="instance-topbar-language"
           items={[
-            {
-              label: "English",
-              onClick: () => {
-                localStorage.setItem(LANGUAGE_STORAGE_KEY, "en");
-                if (getLanguage() === "en") return;
-                window.location.reload();
-              },
-            },
-            {
-              label: "Français",
-              onClick: () => {
-                localStorage.setItem(LANGUAGE_STORAGE_KEY, "fr");
-                if (getLanguage() === "fr") return;
-                window.location.reload();
-              },
-            },
-            {
-              label: "Português",
-              onClick: () => {
-                localStorage.setItem(LANGUAGE_STORAGE_KEY, "pt");
-                if (getLanguage() === "pt") return;
-                window.location.reload();
-              },
-            },
-          ] satisfies MenuItem[]}
+            languageItem("en", "English"),
+            languageItem("fr", "Français"),
+            languageItem("pt", "Português"),
+          ]}
           position="bottom-end"
           intent="base-300"
         >

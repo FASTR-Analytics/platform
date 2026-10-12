@@ -37,50 +37,52 @@ and the instance tabs are pages keyed on the shell's tab signal, and the deck,
 slide and report editor tours are pages keyed on the copilot's view controller
 (`editing_slide_deck`, `editing_slide` by the open slide's type,
 `editing_report`), because the editors are overlays that leave the tab on
-Products. The Products page predicate excludes the `editing_` views, so a list
-tour does not fire behind an editor that has set its view (Open items: one still
-loading, and the tab pages under a full-page view). Deferred parts (a card on
-screen, a slide in the deck, a figure in the report) use entry-level `when`
-gates plus `watch` triggers over the product and ready-package counts, the
-Products page's open folders (`productsExpandedFolders`), and the open view's
-slide or figure count. A tour never waits on a control the user's level hides,
-because roadtrip aborts a run whose step target never appears (after 8 s) and
-marks every tour in it seen: the deck intro's Add slide step has a step-level
-`when` on that control, the deck settings tour waits for the Deck menu, the
-slide tours' pages need edit on the open deck, and the catalogue's deck settings
-and slide rows open a deck the user can edit (`editableDecks`). A tour may walk
-across a page boundary: the results-package catalogue tour's first step
-completes on the user's click of a list row (`advanceOn`), which opens the
-package page over the shell, and its second step waits for a target on that page
-(S8). The same directory hosts the tour catalogue modal
-(`tour_catalogue_modal.tsx` + `catalogue.ts`, opened from the Help menu, always
-offered), which lists every tour by area (Products, Slide decks, Reports,
-Instance) with availability computed over T1 only (`instanceState.products`,
-`readyPackages`, the permissions; the three slide-type rows first run a
-cache-first search of the decks' slide documents, `findDeckWithSlideOfType`) and
-a reason when unavailable. Play calls the entry's `navigate(openTab)`: a tab
-switch, plus for the editor tours a `pendingEditorOpen` request (`{ productId }`
-in `t4_ui.ts`, persisting until the Products page mounts and consumes it) and,
-for the slide tours, a `pendingSlideOpen` the deck editor consumes to open the
-first slide of that type; once navigate resolves (the slide tours search first,
-and a search that finds nothing arms no replay) it arms `pendingTourReplay` with
-the tour id and the product the tour's page lives in. The order matters: the
-manager's replay effect runs synchronously on that write, starts the tour once
-its page predicate is true, drops a tab-page replay whose page is not active
-(the switch was synchronous, so the tab is denied), and drops a product replay
-only once T1 is ready and no longer holds the product (a dead id, the Products
-page's own rule for the open request). It reads nothing transient, so the
-Products page clearing the open request just before it mounts the editor does
-not disturb a waiting replay. The manager is created with the shared button
-labels (`tourLabels()`, merged by roadtrip under any per-tour labels) and
-`onEvent: reportTourEvent` (`telemetry.ts`), which posts tour start / finish /
-abort to `recordTourEvent` (`server/routes/instance/onboarding.ts`) → the
-user-log pipeline as `tour_<event>:<tourId>` rows (details carry page, trigger,
-and for aborts the step reached and the reason, skip vs missing target);
-per-step events are not sent. Seen-state in the modal reads the Solid manager's
-reactive `hasSeen()`. Plus stewardship of the 241-file `t3` call-site surface.
-Reviewed against code (first review cycle, review-only; absorbs
-DOC_TRANSLATION + DOC_HELP_BUTTONS).
+Products. The report intro tour's AI step targets the shell's chat opener
+(`#copilot-opener`, S13), with a step-level `when` for it, since the opener
+shows only while the panel is closed. The Products page predicate excludes the
+`editing_` views, so a list tour does not fire behind an editor that has set its
+view (Open items: one still loading, and the tab pages under a full-page view).
+Deferred parts (a card on screen, a slide in the deck, a figure in the report)
+use entry-level `when` gates plus `watch` triggers over the product and
+ready-package counts, the Products page's open folders
+(`productsExpandedFolders`), and the open view's slide or figure count. A tour
+never waits on a control the user's level hides, because roadtrip aborts a run
+whose step target never appears (after 8 s) and marks every tour in it seen: the
+deck intro's Add slide step has a step-level `when` on that control, the deck
+settings tour waits for the Deck menu, the slide tours' pages need edit on the
+open deck, and the catalogue's deck settings and slide rows open a deck the user
+can edit (`editableDecks`). A tour may walk across a page boundary: the
+results-package catalogue tour's first step completes on the user's click of a
+list row (`advanceOn`), which opens the package page over the shell, and its
+second step waits for a target on that page (S8). The same directory hosts the
+tour catalogue modal (`tour_catalogue_modal.tsx` + `catalogue.ts`, opened from
+the Help menu, always offered), which lists every tour by area (Products, Slide
+decks, Reports, Instance) with availability computed over T1 only
+(`instanceState.products`, `readyPackages`, the permissions; the three
+slide-type rows first run a cache-first search of the decks' slide documents,
+`findDeckWithSlideOfType`) and a reason when unavailable. Play calls the entry's
+`navigate(openTab)`: a tab switch, plus for the editor tours a
+`pendingEditorOpen` request (`{ productId }` in `t4_ui.ts`, persisting until the
+Products page mounts and consumes it) and, for the slide tours, a
+`pendingSlideOpen` the deck editor consumes to open the first slide of that
+type; once navigate resolves (the slide tours search first, and a search that
+finds nothing arms no replay) it arms `pendingTourReplay` with the tour id and
+the product the tour's page lives in. The order matters: the manager's replay
+effect runs synchronously on that write, starts the tour once its page predicate
+is true, drops a tab-page replay whose page is not active (the switch was
+synchronous, so the tab is denied), and drops a product replay only once T1 is
+ready and no longer holds the product (a dead id, the Products page's own rule
+for the open request). It reads nothing transient, so the Products page clearing
+the open request just before it mounts the editor does not disturb a waiting
+replay. The manager is created with the shared button labels (`tourLabels()`,
+merged by roadtrip under any per-tour labels) and `onEvent: reportTourEvent`
+(`telemetry.ts`), which posts tour start / finish / abort to `recordTourEvent`
+(`server/routes/instance/onboarding.ts`) → the user-log pipeline as
+`tour_<event>:<tourId>` rows (details carry page, trigger, and for aborts the
+step reached and the reason, skip vs missing target); per-step events are not
+sent. Seen-state in the modal reads the Solid manager's reactive `hasSeen()`.
+Plus stewardship of the 241-file `t3` call-site surface. Reviewed against code
+(first review cycle, review-only; absorbs DOC_TRANSLATION + DOC_HELP_BUTTONS).
 
 Boundaries: the generic translation rules (`TranslatableString`, `t3` vs
 `resolveTS`, fallback-to-English, `Record<Language, T>` formatting lookups) are
@@ -212,9 +214,11 @@ onboarding-modal effect (below).
 
 Three languages: `en`, `fr`, and `pt` (European Portuguese). Language is
 per-browser (`localStorage.fastrLanguage`), defaulting to the instance language;
-the language menu writes localStorage and calls `window.location.reload()`.
-**Language and calendar apply by full reload, nothing re-renders reactively**.
-Calendar (`gregorian`/`ethiopian`) is instance config only.
+the language menu writes localStorage and calls `window.location.reload()`,
+after asking first while an AI turn runs (S13's `confirmReloadUnderTurn`, since
+a reload loses the turn and its record of what it changed). **Language and
+calendar apply by full reload, nothing re-renders reactively**. Calendar
+(`gregorian`/`ethiopian`) is instance config only.
 
 `lib/translate/` is the app's whole translation surface over panther's
 primitives:

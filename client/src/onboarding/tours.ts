@@ -603,7 +603,7 @@ export function buildReportEditorIntroTour(): TourDefinition {
       },
       {
         id: "ai",
-        target: "#report-ai-button",
+        target: "#copilot-opener",
         title: t3({
           en: "Write with the AI",
           fr: "Écrire avec l'IA",
@@ -618,7 +618,7 @@ export function buildReportEditorIntroTour(): TourDefinition {
             "Abra o assistente para redigir ou reformular secções. Selecione primeiro algum texto e ele trabalha apenas nessa parte.",
         }),
         placement: "bottom",
-        when: () => document.querySelector("#report-ai-button") !== null,
+        when: () => document.querySelector("#copilot-opener") !== null,
       },
       {
         id: "back",

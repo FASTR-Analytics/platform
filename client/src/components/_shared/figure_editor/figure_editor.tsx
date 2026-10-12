@@ -80,7 +80,6 @@ import {
   getPresentationObjectItemsFromCacheOrFetch,
   getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator,
 } from "~/state/products/t2_figure_data";
-import { setShowAi, showAi } from "~/state/t4_ui";
 import type {
   FigureEditorResult,
   VizFigureCollabBinding,
@@ -826,15 +825,6 @@ export function VisualizationEditorInner(p: InnerProps) {
                 outline
               >
               </Button>
-              <Show when={!showAi()}>
-                <Button
-                  onClick={() => setShowAi(true)}
-                  iconName="chevronLeft"
-                  outline
-                >
-                  {t3({ en: "AI", fr: "IA", pt: "IA" })}
-                </Button>
-              </Show>
             </div>
           </div>
         }

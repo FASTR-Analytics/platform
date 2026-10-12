@@ -523,11 +523,12 @@ name (with the deck glyph over the back arrow, the chip and presence) and, under
 it, ONE menu row on the left; on the right, on that same lower line, the
 `PackageScopeChip`, the open slide's live/save dot (portaled in from the slide
 editor through `statusHost`, the report header's save indicator for slides) and
-the deck's actions (Present, Update figures, History, AI; Add slide is the menu
-row's first dropdown, `AddSlideMenu`, ahead of File); beneath it a full-width
-TOOLBAR ROW (the open slide's formatting pill, portaled through `toolbarHost`),
-over a `FrameLeftResizable` (210px, 140-420): the RAIL on the left is the
-vertical slide list, and the slide clicked in it is open beside it. `SlideList`
+the deck's actions (Present, Update figures, History; the AI chat opens from the
+shell's opener, S13, not from the header; Add slide is the menu row's first
+dropdown, `AddSlideMenu`, ahead of File); beneath it a full-width TOOLBAR ROW
+(the open slide's formatting pill, portaled through `toolbarHost`), over a
+`FrameLeftResizable` (210px, 140-420): the RAIL on the left is the vertical
+slide list, and the slide clicked in it is open beside it. `SlideList`
 ([slide_list.tsx](client/src/components/products/slide_deck/slide_list.tsx)) is
 that frame and takes the editor as its children; the deck component
 (`SlideDeckEditorInner`) owns `currentSlideId`, fetches the slide's content, and

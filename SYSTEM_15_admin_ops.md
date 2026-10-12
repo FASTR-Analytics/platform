@@ -304,10 +304,12 @@ failures surface as user-facing route errors with GB figures.
   flags.
 - **Self-profile** (`profile.tsx`): AI usage bars; the organisation is written
   **directly to Clerk `unsafeMetadata`**, a second persistence plane outside
-  serverActions/Postgres. Change-email wizard (`change_email_modal.tsx`): adds
-  and code-verifies the address through the Clerk JS SDK, runs S1's
-  `renameUserEmailEverywhere` fleet rename, then flips the Clerk primary and
-  refreshes the session token.
+  serverActions/Postgres. Clear data cache, Clear AI chat history, Sign out and
+  Change email each reload the page, so each asks first while an AI turn runs
+  (S13's `confirmReloadUnderTurn`). Change-email wizard
+  (`change_email_modal.tsx`): adds and code-verifies the address through the
+  Clerk JS SDK, runs S1's `renameUserEmailEverywhere` fleet rename, then flips
+  the Clerk primary and refreshes the session token.
 - **Feedback form** → S12's `sendHelpEmail` route (`requireGlobalPermission()`):
   SendGrid confirmation to the user + copies to `_FEEDBACK_EMAIL_RECIPIENTS`,
   `replyTo` the user.

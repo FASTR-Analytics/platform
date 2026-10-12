@@ -17,8 +17,16 @@ import {
   useConversations,
 } from "panther";
 import { t3, TC } from "lib";
-import { createEffect, createSignal, on, onMount, Show } from "solid-js";
+import {
+  createEffect,
+  createSignal,
+  on,
+  onCleanup,
+  onMount,
+  Show,
+} from "solid-js";
 import { copilotViewController, packageViewContext } from "./ai_views";
+import { setTurnRunning } from "./turn_guard";
 import type { EditingReportContext } from "./ai_views";
 import { setShowAi } from "~/state/t4_ui";
 import { serverActions } from "~/server_actions";
@@ -226,6 +234,11 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
   const conversations = useConversations();
 
   p.aiDocs.bind(conversationId, messages);
+
+  // The reload guards (turn_guard.ts) read whether a turn runs here; a
+  // hand-over or a user switch unmounts the pane, so the flag clears with it.
+  createEffect(() => setTurnRunning(isLoading()));
+  onCleanup(() => setTurnRunning(false));
 
   let scrollToBottom: ((force?: boolean) => void) | null = null;
 

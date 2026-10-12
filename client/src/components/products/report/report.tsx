@@ -111,12 +111,7 @@ import {
 import { canEditProduct } from "~/state/instance/product_access";
 import { getRunAuthoringContextFromCacheOrFetch } from "~/state/instance/t2_run_authoring_context";
 import { getReportDetailFromCacheOrFetch } from "~/state/products/t2_report_detail";
-import {
-  reportOutlineClosed,
-  setReportOutlineClosed,
-  setShowAi,
-  showAi,
-} from "~/state/t4_ui";
+import { reportOutlineClosed, setReportOutlineClosed } from "~/state/t4_ui";
 import {
   REPORT_OUTLINE_WIDTH_PX,
   ReportDocumentOutline,
@@ -2590,17 +2585,6 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
           onClick={download}
         >
           {t3({ en: "Download", fr: "Télécharger", pt: "Transferir" })}
-        </Button>
-      </Show>
-      <Show when={!showAi()}>
-        <Button
-          id="report-ai-button"
-          outline
-          onBackground="base-300"
-          iconName="chevronLeft"
-          onClick={() => setShowAi(true)}
-        >
-          {t3({ en: "AI", fr: "IA", pt: "IA" })}
         </Button>
       </Show>
     </div>

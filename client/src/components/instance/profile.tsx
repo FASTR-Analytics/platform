@@ -16,6 +16,7 @@ import {
   TextArea,
 } from "panther";
 import { ChangeEmailModal } from "./change_email_modal";
+import { confirmReloadUnderTurn } from "./copilot/mod.ts";
 import { serverActions } from "~/server_actions";
 import { createSignal, onCleanup, Show } from "solid-js";
 
@@ -97,6 +98,8 @@ export function ProfileForm(
     }),
   );
 
+  // Each of these reloads the page, which loses an AI turn in flight, so each
+  // asks first while one runs (S13's turn guard).
   const clearCache = createButtonAction(
     async () => {
       await clearDataCache();
@@ -113,6 +116,10 @@ export function ProfileForm(
     () => window.location.reload(),
   );
 
+  async function afterTurnGuard(action: () => Promise<unknown>): Promise<void> {
+    if (await confirmReloadUnderTurn()) await action();
+  }
+
   return (
     <ModalContainer
       title={t3({ en: "Your profile", fr: "Votre profil", pt: "O seu perfil" })}
@@ -124,7 +131,7 @@ export function ProfileForm(
             fr: "Se déconnecter",
             pt: "Terminar sessão",
           }),
-          onClick: p.attemptSignOut,
+          onClick: () => afterTurnGuard(p.attemptSignOut),
           outline: true,
           iconName: "arrowLeft",
         },
@@ -285,10 +292,12 @@ export function ProfileForm(
                     </span>
                     <Button
                       onClick={() =>
-                        openComponent({
-                          element: ChangeEmailModal,
-                          props: { currentEmail: keyedUser.email },
-                        })}
+                        afterTurnGuard(() =>
+                          openComponent({
+                            element: ChangeEmailModal,
+                            props: { currentEmail: keyedUser.email },
+                          })
+                        )}
                       outline
                       size="sm"
                       iconName="pencil"
@@ -469,7 +478,7 @@ export function ProfileForm(
                 headerRight={
                   <div class="ui-gap-sm flex">
                     <Button
-                      onClick={clearCache.click}
+                      onClick={() => afterTurnGuard(clearCache.click)}
                       state={clearCache.state()}
                       outline
                       iconName="trash"
@@ -481,7 +490,7 @@ export function ProfileForm(
                       })}
                     </Button>
                     <Button
-                      onClick={clearAiChat.click}
+                      onClick={() => afterTurnGuard(clearAiChat.click)}
                       state={clearAiChat.state()}
                       outline
                       iconName="trash"

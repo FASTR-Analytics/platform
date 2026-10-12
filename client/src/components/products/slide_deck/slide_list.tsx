@@ -30,7 +30,6 @@ import { CopySlidesToDeckModal } from "./copy_slides_to_deck_modal";
 import { SlideCard } from "./slide_card";
 import { PresenceAvatars } from "~/components/_shared/mod.ts";
 import { otherPeers } from "~/state/instance/collab";
-import { setShowAi, showAi } from "~/state/t4_ui";
 import { copilotViewController } from "~/components/instance/copilot/mod.ts";
 import { instanceState } from "~/state/instance/t1_store";
 import { canEditProduct } from "~/state/instance/product_access";
@@ -655,16 +654,6 @@ export function SlideList(p: Props) {
       >
         {t3({ en: "History", fr: "Historique", pt: "Histórico" })}
       </Button>
-      <Show when={!showAi()}>
-        <Button
-          onClick={() => setShowAi(true)}
-          iconName="chevronLeft"
-          outline
-          onBackground="base-300"
-        >
-          {t3({ en: "AI", fr: "IA", pt: "IA" })}
-        </Button>
-      </Show>
     </div>
   );
   // Three rows, each ruled off from the next (Google Slides): back, the name
