@@ -14,6 +14,7 @@
 import {
   analyzeSlideMarkdown,
   assignRunsToUnit,
+  slideSourceFromRender,
   type SlideTextAnalysis,
   type SlideTextUnit,
 } from "lib";
@@ -226,6 +227,14 @@ function addUnit(
       spaceW,
     });
 
+    if (unit.emptyAt !== undefined) {
+      // An empty list item: its one (zero-width) placeholder run is where
+      // typed text starts, just after the bullet.
+      const run = line.runs[0];
+      g.stops.push({ src: unit.emptyAt, x: lx + (run?.x ?? 0), line: lineIdx });
+      return;
+    }
+
     if (!line.runs.length) {
       // A line made by a break: the caret sits after that break.
       const k = unit.text.indexOf("\n", prevEnd);
@@ -319,7 +328,9 @@ export function buildBlockGeometry(
   const bounds = node.contentRpd;
   const rc = new CanvasRenderContext(ctx2d());
   const measured = MarkdownRenderer.measure(rc, bounds, input);
-  const analysis = analyzeSlideMarkdown(input.markdown);
+  // input.markdown is slideRenderMarkdown's output; offsets are the source's.
+  const source = slideSourceFromRender(input.markdown);
+  const analysis = analyzeSlideMarkdown(source);
 
   // A one-letter block in the same style gives the metrics of an empty line.
   const probe = MarkdownRenderer.measure(rc, bounds, {
@@ -359,7 +370,7 @@ export function buildBlockGeometry(
 
   const g: TextGeometry = {
     kind: "markdown",
-    source: input.markdown,
+    source,
     inSync: true,
     editable: analysis.editable,
     analysis,
