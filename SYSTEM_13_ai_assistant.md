@@ -295,20 +295,21 @@ the pane
 client and built-in tools (`ai_configs/`), documents (`ai_documents/`), the
 prompt library (`ai_prompt_library/`), the debug panel, the view registry,
 controller and interactions, the system prompt, the env (`client_env.ts`), the
-package-tool binder (`bind_package_tools.ts`), the guard (`tool_guard.ts`) and
-the module tools (`tools/`), exported through its `mod.ts`, which the shell
-reads for the panel and every page and product tool reads for the registry, the
-controller and their types. It imports nothing at runtime from `components/` but
-`components/_shared/mod.ts`, and has no `_shared/`: the registry, controller,
-interactions, system prompt, env and types sit at the folder's root. The tool
-assembly sits beside it, outside the folder, in
-[copilot_tools.ts](client/src/components/instance/copilot_tools.ts), because it
-reads the product tools, which read the folder's registry; `instance.tsx` alone
-imports it. The product half stays in `client/src/components/products/copilot/`:
-the product tools (`ai_tools/`), the slide conversion layer (`slide_ai/`), the
-two `_shared/` files both of those read (`content_validators.ts`,
-`format_figure_config_for_ai.ts`) and the save-style modal; its `mod.ts` exports
-the four tool builders and `SaveReportStyleModal`.
+package-tool binder (`bind_package_tools.ts`), the guard (`tool_guard.ts`), the
+reload guard (`turn_guard.ts`) and the module tools (`tools/`), exported through
+its `mod.ts`, which the shell reads for the panel and every page and product
+tool reads for the registry, the controller and their types. It imports nothing
+at runtime from `components/` but `components/_shared/mod.ts`, and has no
+`_shared/`: the registry, controller, interactions, system prompt, env and types
+sit at the folder's root. The tool assembly sits beside it, outside the folder,
+in [copilot_tools.ts](client/src/components/instance/copilot_tools.ts), because
+it reads the product tools, which read the folder's registry; `instance.tsx`
+alone imports it. The product half stays in
+`client/src/components/products/copilot/`: the product tools (`ai_tools/`), the
+slide conversion layer (`slide_ai/`), the two `_shared/` files both of those
+read (`content_validators.ts`, `format_figure_config_for_ai.ts`) and the
+save-style modal; its `mod.ts` exports the four tool builders and
+`SaveReportStyleModal`.
 
 One chat sits beside the whole shell. `instance.tsx` wraps `ShellEditorWrapper`
 in a `FrameRightResizable` whose panel is
@@ -405,6 +406,18 @@ to panther's `DisplayRegistry`: `toolError`, `systemNotice`
 save-to-prompt-library and renders the text as typed, with image syntax
 disabled, so a user's or a library prompt's text never fetches an image URL as
 it renders).
+
+The pane also keeps the reload guard
+([turn_guard.ts](client/src/components/instance/copilot/turn_guard.ts)) current:
+`turnRunning`, set from the instance's `isLoading` (true from the turn's start
+to its `finally`, so a turn parked on an approval or an ask_user_questions card
+counts) and cleared when the pane unmounts (a hand-over, a user switch), and
+`confirmReloadUnderTurn()`, the only one of the two that `mod.ts` exports, true
+at once with no turn and otherwise the user's answer to a warning confirm. Every
+control that reloads the page asks it first (the language menu, S14; the
+profile's Clear data cache, Clear AI chat history, Sign out and Change email,
+S15), because a reload loses the turn and the conversation's record of what it
+applied, which the engine writes only in the turn's `finally`.
 
 **The view registry.**
 [`copilotViews`](client/src/components/instance/copilot/ai_views.ts) is the one
