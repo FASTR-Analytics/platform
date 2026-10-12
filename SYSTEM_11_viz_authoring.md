@@ -588,10 +588,10 @@ changed something.
   import at 16; SYSTEM_14's help-button item).
 - **Explore says a package has no modules when the scope hides them all.** The
   families come from the authoring context read under the scope
-  (`explore/explore.tsx:169-178`), which drops every module the scope excludes
+  (`explore/explore.tsx:261-275`), which drops every module the scope excludes
   (`server/run_query/authoring_context.ts:27-31`); with none left, the page
   shows `no_modules`, "This package has no modules, so there are no results to
-  explore." (`explore.tsx:201-208`; `explore/_shared/empty_state.tsx:11-16`).
+  explore." (`explore.tsx:299-306`; `explore/_shared/empty_state.tsx:11-16`).
   Add a kind `no_modules_in_scope`, en "This scope shows none of this package's
   modules.", fr "Cette portée n'affiche aucun des modules de ce paquet.", pt
   "Este âmbito não mostra nenhum dos módulos deste pacote.", used at

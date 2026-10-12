@@ -839,9 +839,11 @@ categories and HFA service categories, each listed in full, with the rule that a
 limit applies only to a table that has a column for it; then the package's
 datasets, indicator lists and calendar); the level line rides a product view's
 instructions below edit; the per-view instructions (still exported from this
-file, with short primary-tool pointers) are composed by the view registry
-([ai_views.ts](client/src/components/instance/copilot/ai_views.ts)); and the
-tools ride the request's tools array, never a catalogue in the prompt
+file, with short primary-tool pointers) and the view states of the Results and
+Explore pages (`formatExploreState`, `formatPackageState` and
+`formatResultsPackagesState`, this file too) are composed per view by the view
+registry ([ai_views.ts](client/src/components/instance/copilot/ai_views.ts));
+and the tools ride the request's tools array, never a catalogue in the prompt
 (`server/tests/copilot_prompt_test.ts` pins the absence; `get_overview` is the
 one surface that asks `buildSystemPrompt` for a date and a catalogue). The chat
 menu's View system prompt shows the blocks the next message would carry, through
