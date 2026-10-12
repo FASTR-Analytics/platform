@@ -451,7 +451,9 @@ one sync site for the pages it opens: it sets `data_page` with the page id
 full-page view opens, and restores the view it covered when the page closes
 (`restoreCopilotView`), unless the switchboard itself unmounted meanwhile, since
 its own cleanup restored the view it holds. The views a page opens keep its
-`data_page`; the HFA indicators manager sets its own view on top (S5).
+`data_page`, since a page opens them through its own editor wrapper, not the
+shell's; no HFA view has a sync site yet (S13), so the HFA indicators manager
+keeps `data_page` too.
 
 One imports surface per family, opened from a single `Imports` button in the
 dataset page's admin controls, the seam between the viewer and the imports
