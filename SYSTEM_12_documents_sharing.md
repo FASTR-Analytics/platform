@@ -695,25 +695,27 @@ overwrite path: the human editor's modal is the only override).
 over the two flat T1 lists (`instanceState.products` and
 `instanceState.folders`, both maintained per row off the instance channel),
 shown as a **tree** from the top level where any number of folders are open at
-once. The root products (`folderId: null`) sit under **General**, one synthetic
-folder row (`GENERAL_ID` in `folder_tree.ts`) sorted among the root folders like
-any of them and shown only when there are root products to hold. General is
-presentation only: no `Folder` row, no colour, no menu, never merged with a user
-folder of the same name, and folders are its siblings, never its children. The
-open folders are an id set in localStorage (`productsExpandedFolders`) beside
-the sort (`state/t4_ui.ts`); ids of deleted folders drop out through an effect
-gated on `isReady`, so the persisted set survives hydration. General's state is
-its own saved flag (`productsGeneralClosed`), open by default and written only
-while the row is shown; it never enters the folder set. The tree is **derived**,
-never stored, by `folder_tree.ts` (`childFolders`, `folderPathLabels`,
-`descendantIds`, `folderPathOptions`, `buildProductTree`, `productTreeRows`, the
-drop rule `folderDragItem` and `dropParent`, and the outline's rows
-`targetRowIndex` and `dropRegion`: pure, type-import-only, every walk carrying a
-visited set so a corrupted cycle terminates, pinned by
-`server/tests/folder_tree_test.ts`). The labels for the root, General for
-products and "Top level" for folders, and the one "Move to …" label the two
-menus and the list's root zone read (`moveToRootLabel`), are
-`_shared/folder_labels.ts`.
+once. The page holds and sets the chat's `products` view at mount (S13), the one
+view that admits `list_products`, which reads the same two lists; an editor it
+opens sets its own view over it. The root products (`folderId: null`) sit under
+**General**, one synthetic folder row (`GENERAL_ID` in `folder_tree.ts`) sorted
+among the root folders like any of them and shown only when there are root
+products to hold. General is presentation only: no `Folder` row, no colour, no
+menu, never merged with a user folder of the same name, and folders are its
+siblings, never its children. The open folders are an id set in localStorage
+(`productsExpandedFolders`) beside the sort (`state/t4_ui.ts`); ids of deleted
+folders drop out through an effect gated on `isReady`, so the persisted set
+survives hydration. General's state is its own saved flag
+(`productsGeneralClosed`), open by default and written only while the row is
+shown; it never enters the folder set. The tree is **derived**, never stored, by
+`folder_tree.ts` (`childFolders`, `folderPathLabels`, `descendantIds`,
+`folderPathOptions`, `buildProductTree`, `productTreeRows`, the drop rule
+`folderDragItem` and `dropParent`, and the outline's rows `targetRowIndex` and
+`dropRegion`: pure, type-import-only, every walk carrying a visited set so a
+corrupted cycle terminates, pinned by `server/tests/folder_tree_test.ts`). The
+labels for the root, General for products and "Top level" for folders, and the
+one "Move to …" label the two menus and the list's root zone read
+(`moveToRootLabel`), are `_shared/folder_labels.ts`.
 
 The list (`list_view.tsx`) is hand-built from panther parts on one CSS grid
 template shared by the header row and every body row, the sanctioned exception

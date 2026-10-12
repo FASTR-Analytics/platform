@@ -441,6 +441,18 @@ hash).
 
 ## Client
 
+The Data switchboard (`data/data.tsx`) is the tab page: one table per family
+(HMIS, HFA, ICEH) and, for a settings-configuring user, the instance settings,
+each row a label, a summary and a status mark (Ready, Partial, Missing, Not
+set). It holds and sets the chat's `data` view at mount (S13), whose state is
+every row's label and status and never its summary, and its `openSubPage` is the
+one sync site for the pages it opens: it sets `data_page` with the page id
+(`DataPageId`, S13's registry) and, on a family's page, the family, before the
+full-page view opens, and restores the view it covered when the page closes
+(`restoreCopilotView`), unless the switchboard itself unmounted meanwhile, since
+its own cleanup restored the view it holds. The views a page opens keep its
+`data_page`; the HFA indicators manager sets its own view on top (S5).
+
 One imports surface per family, opened from a single `Imports` button in the
 dataset page's admin controls, the seam between the viewer and the imports
 layer: that one button and `Delete data`, with no wizard shortcuts (ruled),

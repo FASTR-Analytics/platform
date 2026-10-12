@@ -4,10 +4,9 @@ import {
   type SolidTourManagerController,
 } from "@njwse/roadtrip/solid";
 import { createEffect } from "solid-js";
-import type { SlideType } from "lib";
+import type { CopilotViewId, SlideType } from "lib";
 import { clerkOnboardingStorage } from "./storage";
 import { reportTourEvent } from "./telemetry";
-import { type InstanceTab, isEditingView } from "./catalogue";
 import {
   buildDeckEditorHistoryTour,
   buildDeckEditorIntroTour,
@@ -47,14 +46,15 @@ import {
 //
 // Each page's tour auto-starts on the user's first visit; seen-flags live in
 // Clerk unsafeMetadata.onboarding (tour:<id>), so once per user across devices.
-// A `pages` predicate must be true only while that page is actually visible
-// (tab active AND permission granted): otherwise a tour could fire, find no
-// targets, and be marked seen invisibly. The editors keep the shell's tab on
-// "products", so the Products page predicate excludes the editing views; the
-// copilot's view controller, on which every editor sets its view, is what
-// tracks which editor is open.
+// A `pages` predicate must be true only while that page is actually visible:
+// otherwise a tour could fire, find no targets, and be marked seen invisibly.
+// Every page keys on the copilot's view controller, on which every tab page,
+// full-page view and editor sets its view (D61): a tab page's predicate is
+// false under the editor or the full-page view that covers it, since that
+// place has set its own view, and false before the page mounts.
 
 const currentView = () => copilotViewController.current();
+const onView = (id: CopilotViewId) => () => currentView().id === id;
 // The slide tours walk the slide toolbar, which renders only for a user who
 // can edit the deck.
 const editingSlideOfType = (type: SlideType) => {
@@ -65,35 +65,32 @@ const editingSlideOfType = (type: SlideType) => {
   );
 };
 
-// Called once from the instance shell, which passes its permission-normalized
-// tab accessor plus a visibility gate (approved) so a tour can never fire
-// behind the sign-in wall.
+// Called once from the instance shell, which passes a visibility gate
+// (approved) so a tour can never fire behind the sign-in wall.
 export function setupTours(opts: {
-  currentTab: () => InstanceTab;
   instanceVisible: () => boolean;
 }): SolidTourManagerController {
-  const onTab = (tab: InstanceTab) => () =>
-    opts.instanceVisible() && opts.currentTab() === tab;
+  const onPage = (id: CopilotViewId) => () =>
+    opts.instanceVisible() && onView(id)();
   const productRowOnScreen = () =>
     document.querySelector('[data-tour="products-item"]') !== null;
   const slideCardOnScreen = () =>
     document.querySelector('[data-tour="deck-slide-card"]') !== null;
 
   const pages: Record<string, () => boolean> = {
-    products: () => onTab("products")() && !isEditingView(),
-    "instance-data": onTab("data"),
-    "instance-results-packages": onTab("results_packages"),
-    "instance-assets": onTab("assets"),
-    "instance-users": onTab("users"),
+    products: onPage("products"),
+    "instance-data": onPage("data"),
+    "instance-results-packages": onPage("results_packages"),
+    "instance-assets": onPage("assets"),
+    "instance-users": onPage("users"),
     // The deck's rail is on screen in both views (a slide is open beside it
     // whenever the deck has one).
     "deck-editor": () =>
-      currentView().id === "editing_slide_deck" ||
-      currentView().id === "editing_slide",
+      onView("editing_slide_deck")() || onView("editing_slide")(),
     "slide-cover": () => editingSlideOfType("cover"),
     "slide-section": () => editingSlideOfType("section"),
     "slide-content": () => editingSlideOfType("content"),
-    "report-editor": () => currentView().id === "editing_report",
+    "report-editor": onView("editing_report"),
   };
 
   const tours = [

@@ -32,18 +32,18 @@ preferences, connection monitoring, onboarding modals, the help-button system,
 and the first-visit page tours (`client/src/onboarding/`: the `@njwse/roadtrip`
 tour manager, Clerk-backed seen-flags under `unsafeMetadata.onboarding`). ONE
 manager serves the whole app (`setupTours`, mounted from the instance shell with
-its permission-normalized tab accessor and an approved gate): the Products page
-and the instance tabs are pages keyed on the shell's tab signal, and the deck,
-slide and report editor tours are pages keyed on the copilot's view controller
-(`editing_slide_deck`, `editing_slide` by the open slide's type,
-`editing_report`), because the editors are overlays that leave the tab on
-Products. The report intro tour's AI step targets the shell's chat opener
-(`#copilot-opener`, S13), with a step-level `when` for it, since the opener
-shows only while the panel is closed. The Products page predicate excludes the
-`editing_` views, so a list tour does not fire behind an editor that has set its
-view (Open items: one still loading, and the tab pages under a full-page view).
-Deferred parts (a card on screen, a slide in the deck, a figure in the report)
-use entry-level `when` gates plus `watch` triggers over the product and
+an approved gate): every page is keyed on the copilot's view controller, on
+which every tab page, full-page view and editor sets its view (S13): the
+Products, Data, Results, Assets and Users pages on `products`, `data`,
+`results_packages`, `assets` and `users`, and the deck, slide and report editor
+tours on `editing_slide_deck`, `editing_slide` by the open slide's type and
+`editing_report`. A tab page's predicate is therefore false under the editor or
+the full-page view that covers it, which has set its own view, and false while a
+product is still loading (`opening_product`). The report intro tour's AI step
+targets the shell's chat opener (`#copilot-opener`, S13), with a step-level
+`when` for it, since the opener shows only while the panel is closed. Deferred
+parts (a card on screen, a slide in the deck, a figure in the report) use
+entry-level `when` gates plus `watch` triggers over the product and
 ready-package counts, the Products page's open folders
 (`productsExpandedFolders`), and the open view's slide or figure count. A tour
 never waits on a control the user's level hides, because roadtrip aborts a run
@@ -413,14 +413,6 @@ language's own anchor). The recipe and its traps are
   Save with `createButtonAction` (closing on success), pass its `state` so
   `ModalContainer` renders the error, and take `cancelDisabled` from its loading
   state.
-- **Tour pages stay true under the views that cover them.** The rule at
-  `onboarding/index.ts:50-52` says a page predicate holds only while its page is
-  visible, but `products` (83) holds while a product editor is still loading,
-  because `opening_product` is the controller's fallback and `isEditingView`
-  tests the `editing_` prefix (`onboarding/catalogue.ts:63-64`), and the Data,
-  Results, Assets and Users pages (84-87) hold under every full-page view their
-  tabs open, because the tab does not change. PLAN_COPILOT03_ONE_CHAT re-keys
-  the pages on the one chat's view ids.
 - **Help requests never say where they were sent from.** `FeedbackForm` sends
   `p.context` (`instance/feedback_form.tsx:18`, 81) and the email renders it
   (`server/routes/instance/emails.ts:213-216`), but `openFeedback` passes only

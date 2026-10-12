@@ -15,6 +15,10 @@ import { _SERVER_HOST } from "~/server_actions";
 import { cleanupUppy, createUppyInstance } from "~/components/_shared/mod.ts";
 import type Uppy from "@uppy/core";
 import { instanceState } from "~/state/instance/t1_store";
+import {
+  copilotViewController,
+  holdCopilotView,
+} from "~/components/instance/copilot/mod.ts";
 
 type FileType = "csv" | "excel" | "image" | "zip" | "other";
 
@@ -52,6 +56,8 @@ function formatDate(timestamp: number): string {
 }
 
 export function InstanceAssets() {
+  holdCopilotView();
+  copilotViewController.setView("assets");
   let uppy: Uppy | undefined = undefined;
 
   onMount(() => {

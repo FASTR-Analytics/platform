@@ -37,13 +37,20 @@ import {
   copilotInteractions,
 } from "./interactions";
 import {
+  type DataSectionForAI,
   type ExploreSelection,
+  formatDataState,
   formatExploreState,
   formatPackageState,
   formatResultsPackagesState,
+  getAssetsInstructions,
+  getDataPageInstructions,
   getEditingSlideDeckInstructions,
   getEditingSlideInstructions,
   getOpeningProductInstructions,
+  getProductsInstructions,
+  getUserInstructions,
+  getUsersInstructions,
   PRODUCT_VIEW_ONLY_LINE,
 } from "./build_system_prompt";
 import { productLevel } from "~/state/instance/product_access";
@@ -77,8 +84,11 @@ import { instanceState } from "~/state/instance/t1_store";
 // (`opening_product` at mount, `editing_slide_deck` or `editing_report` once
 // loaded), the slide editor (`editing_slide`), Explore (`explore`), the
 // Results page (`results_packages`), the package page (`package`, set again
-// when the status changes) and the Module defaults and Scopes views; every
-// other view is declared here and has no sync site yet.
+// when the status changes), the Module defaults and Scopes views, the
+// Products, Data, Assets and Users pages and the user detail, and the Data
+// switchboard's `openSubPage`, which sets `data_page` for every page it opens
+// and restores the view it covered when the page closes; every other view is
+// declared here and has no sync site yet.
 //
 // What the model is told per view splits in two (append-only turns, E7):
 // `instructions` is the static guidance of the view, which rides a message
@@ -238,6 +248,12 @@ export type PackagePageContext = PackageViewContext & {
   getOpenModuleId: () => string | undefined;
 };
 
+// The Data switchboard's view: its rows' labels and status marks, read live
+// from the page.
+export type DataContext = {
+  getSections: () => DataSectionForAI[];
+};
+
 // The Data switchboard's pages, each a `data_page` with the family it is
 // about, when it is about one.
 export const DATA_PAGE_IDS = [
@@ -286,7 +302,10 @@ function deckViewState(ids: string, selectedSlideIds: string[]): string {
 
 export const copilotViews = defineAIViews(
   {
-    products: view({ label: "Products" }),
+    products: view({
+      label: "Products",
+      instructions: () => getProductsInstructions(),
+    }),
     opening_product: view<OpeningProductParams, ProductViewContext>({
       label: (_params, context) => context.getLabel(),
       identity: (params, context) =>
@@ -462,7 +481,10 @@ export const copilotViews = defineAIViews(
     }),
     module_defaults: view({ label: "Module defaults" }),
     scopes: view({ label: "Scopes" }),
-    data: view({ label: "Data" }),
+    data: view<void, DataContext>({
+      label: "Data",
+      state: (_params, context) => formatDataState(context.getSections()),
+    }),
     data_page: view<DataPageParams, void>({
       label: (params) =>
         params.family === undefined
@@ -473,6 +495,8 @@ export const copilotViews = defineAIViews(
           page: params.page,
           family: params.family,
         }),
+      instructions: (params) =>
+        getDataPageInstructions(params.page, params.family),
     }),
     hfa_indicators: view({ label: "HFA indicators" }),
     hfa_indicator_editor: view<
@@ -486,9 +510,12 @@ export const copilotViews = defineAIViews(
         }),
     }),
     hfa_indicator_import: view({ label: "HFA indicator import" }),
-    assets: view({ label: "Assets" }),
-    users: view({ label: "Users" }),
-    user: view({ label: "User" }),
+    assets: view({
+      label: "Assets",
+      instructions: () => getAssetsInstructions(),
+    }),
+    users: view({ label: "Users", instructions: () => getUsersInstructions() }),
+    user: view({ label: "User", instructions: () => getUserInstructions() }),
     shell: view({ label: "No page open" }),
   } satisfies Record<CopilotViewId, AnyAIView>,
 );
@@ -527,7 +554,6 @@ export function restoreCopilotView(state: CopilotViewState): void {
     case "results_packages":
     case "module_defaults":
     case "scopes":
-    case "data":
     case "hfa_indicators":
     case "hfa_indicator_import":
     case "assets":
@@ -607,6 +633,9 @@ export function restoreCopilotView(state: CopilotViewState): void {
       return;
     case "explore":
       copilotViewController.setView("explore", undefined, state.context);
+      return;
+    case "data":
+      copilotViewController.setView("data", undefined, state.context);
       return;
     case "package":
       copilotViewController.setView("package", state.params, state.context);

@@ -133,7 +133,8 @@ are admin-delete-only); admins delete anything. Deletion removes the file
   with a filterable type column (CSV/Excel/Image/ZIP/Other), size/modified/owner
   columns, per-row download (root-path `GET`, S1 static serve) and delete;
   delete buttons and the admin-only bulk delete mirror the server's ownership
-  rule.
+  rule. The page holds and sets the chat's `assets` view at mount (S13), whose
+  instructions name the page and nothing of its contents.
 
 ## Contract
 

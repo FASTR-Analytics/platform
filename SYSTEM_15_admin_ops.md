@@ -302,7 +302,9 @@ failures surface as user-facing route errors with GB figures.
   headers; server validates emails, optional replace-all), H_USERS-only
   unlimited-AI/contact-person sections. One bulk tri-state editor
   (`unchanged → true → false`, posting only changed keys) covers the instance
-  flags.
+  flags. The page holds and sets the chat's `users` view at mount and the user
+  detail (opened over the shell) `user` (S13); each view's label and
+  instructions name the page and never the roster or the email.
 - **Self-profile** (`profile.tsx`): AI usage bars; the organisation is written
   **directly to Clerk `unsafeMetadata`**, a second persistence plane outside
   serverActions/Postgres. Clear data cache, Clear AI chat history, Sign out and

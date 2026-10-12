@@ -21,6 +21,7 @@ globs:
   - server/tests/ai_context_sections_test.ts
   - server/tests/copilot_catalogue_test.ts
   - server/tests/copilot_prompt_test.ts
+  - server/tests/format_products_list_for_ai_test.ts
   - server/tests/hfa_time_points_for_ai_test.ts
   - server/tests/mcp_context_cache_test.ts
   - server/tests/mcp_principal_key_test.ts
@@ -477,9 +478,19 @@ change (params: the run id; its pair the page's package at the page scope, which
 `getScope` has only while the package is ready, so the package reads refuse with
 the status's reason while the module internals read by run id; its state the
 status, stage, error, progress and open module); Module defaults sets
-`module_defaults` and the Scopes page `scopes`. Every other view of the registry
-is declared, with its params and context types and the identity its page will
-supply, and has no sync site yet. There is no tab-to-view map.
+`module_defaults` and the Scopes page `scopes`. The Products page sets
+`products`, whose instructions point at `list_products`; the Data switchboard
+sets `data`, whose state is each row's label and status mark (`formatDataState`
+over the `DataSectionForAI` rows the page supplies, never a summary), and its
+`openSubPage` sets `data_page` (params: the page id and, on a family's page, the
+family; instructions name both) for every page it opens and restores the covered
+view when the page closes (S6); the Assets page sets `assets`, the Users page
+`users` and the user detail `user`, each with instructions that name the page
+and nothing of its contents: no roster, no email. The views inside products (the
+figure editors, deck settings, the version histories, the results file viewer)
+and the HFA views are declared, with their params and context types and the
+identity their page will supply, and have no sync site yet. There is no
+tab-to-view map.
 
 **What a message carries** (`appendOnlyTurns: true`, panther's E7). Every
 message carries the view line, the view's `state` and the interactions digest; a
@@ -551,28 +562,35 @@ one flat array once per shell mount, the same for every user, every view and
 every pair and always registered with the API: the outer package tools
 (`bindPackageTools` over the inner builder: metrics, the module list, the
 editors and the draft preview, each bound per call to the inner set of the
-view's pair; the module internals, bound by its run id), the reference tools
-(methodology docs, info) and panther's one `ask_user_questions`. Every tool
-declares a `kind` (`"read"` / `"write"`); no tool is `"nav"`: a navigation tool
-or any AI-driven move is out of the chat's scope, so the user moves and the view
-line tells the model where. The deck writes go through the product routes
-(`createSlide`, `updateSlide`, `deleteSlides`, `duplicateSlides`, `moveSlides`),
-the slide editor's and the report's through the live view context. There is no
-product registry: the model never lists, opens or creates products, and a draft
-slide goes only into a deck on the pair it was drafted under. The preview card
-stores the view its call ran in (panther E4, `AIViewSnapshot`, the id and
-identity) and renders under that identity's pair, with the pair's metrics from
-the T2 authoring context, so an old card keeps its package after a reattach; a
-card stored before the engine recorded the view renders under the current view's
-pair and offers no Add. The card offers "Add to this deck" from the deck and
-slide views when the open deck is on the draft's pair and the user can edit it,
-and is preview-only in a report, on another package and for a viewer. From
-either deck view on the draft's pair the card lays out under the open deck's
-config; elsewhere under the starting draft config. Add runs through
-`createButtonAction`, so a failed `createSlide` alerts; the button is disabled
-while the write runs and reads "Added to this deck" once it has landed, so one
-draft adds once, and the expanded view offers Add only while the card's button
-is enabled.
+view's pair; the module internals, bound by its run id), the Products page's
+`list_products`, the reference tools (methodology docs, info) and panther's one
+`ask_user_questions`. Every tool declares a `kind` (`"read"` / `"write"`); no
+tool is `"nav"`: a navigation tool or any AI-driven move is out of the chat's
+scope, so the user moves and the view line tells the model where. The deck
+writes go through the product routes (`createSlide`, `updateSlide`,
+`deleteSlides`, `duplicateSlides`, `moveSlides`), the slide editor's and the
+report's through the live view context. `list_products`
+([products.ts](client/src/components/products/copilot/ai_tools/tools/products.ts),
+admitted on the Products page alone) lists the products the user can see, which
+is what T1 holds, each with its folder path, its package by label (a package no
+longer ready by its run id), its scope by display label and the user's level,
+through the pure `formatProductsListForAI`
+([lib/ai_tools/format_products_list_for_ai.ts](lib/ai_tools/format_products_list_for_ai.ts),
+pinned by `server/tests/format_products_list_for_ai_test.ts`); the model never
+opens or creates a product, since no tool navigates, and a draft slide goes only
+into a deck on the pair it was drafted under. The preview card stores the view
+its call ran in (panther E4, `AIViewSnapshot`, the id and identity) and renders
+under that identity's pair, with the pair's metrics from the T2 authoring
+context, so an old card keeps its package after a reattach; a card stored before
+the engine recorded the view renders under the current view's pair and offers no
+Add. The card offers "Add to this deck" from the deck and slide views when the
+open deck is on the draft's pair and the user can edit it, and is preview-only
+in a report, on another package and for a viewer. From either deck view on the
+draft's pair the card lays out under the open deck's config; elsewhere under the
+starting draft config. Add runs through `createButtonAction`, so a failed
+`createSlide` alerts; the button is disabled while the write runs and reads
+"Added to this deck" once it has landed, so one draft adds once, and the
+expanded view offers Add only while the card's button is enabled.
 
 **Refusals come from one table through one wrapper** (COPILOT03 ruling 11).
 Every user registers the same tools, so the prompt cache survives every move;
@@ -843,11 +861,13 @@ categories and HFA service categories, each listed in full, with the rule that a
 limit applies only to a table that has a column for it; then the package's
 datasets, indicator lists and calendar); the level line rides a product view's
 instructions below edit; the per-view instructions (still exported from this
-file, with short primary-tool pointers) and the view states of the Results and
-Explore pages (`formatExploreState`, `formatPackageState` and
-`formatResultsPackagesState`, this file too) are composed per view by the view
-registry ([ai_views.ts](client/src/components/instance/copilot/ai_views.ts));
-and the tools ride the request's tools array, never a catalogue in the prompt
+file, with short primary-tool pointers; the Products, Data page, Assets, Users
+and user detail views name their page) and the view states of the Results,
+Explore and Data pages (`formatExploreState`, `formatPackageState`,
+`formatResultsPackagesState` and `formatDataState`, this file too) are composed
+per view by the view registry
+([ai_views.ts](client/src/components/instance/copilot/ai_views.ts)); and the
+tools ride the request's tools array, never a catalogue in the prompt
 (`server/tests/copilot_prompt_test.ts` pins the absence; `get_overview` is the
 one surface that asks `buildSystemPrompt` for a date and a catalogue). The chat
 menu's View system prompt shows the blocks the next message would carry, through

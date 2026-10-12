@@ -167,7 +167,6 @@ export default function Instance(p: Props) {
 
   // First-visit tours for every page and editor: one manager, this shell.
   const tourManager = setupTours({
-    currentTab: tab,
     instanceVisible: () => instanceState.currentUserApproved,
   });
 

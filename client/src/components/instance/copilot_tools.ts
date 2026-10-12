@@ -14,6 +14,7 @@ import {
 } from "./copilot/mod.ts";
 import {
   getClientToolsForDrafts,
+  getClientToolsForProducts,
   getClientToolsForReportEditor,
   getClientToolsForSlideEditor,
   getClientToolsForSlides,
@@ -57,14 +58,15 @@ const buildPackageTools: PackageToolsBuilder = (
 ];
 
 // The outer package tools (bound per call to the view's pair, the module
-// internals by its run id), the reference tools and panther's
-// ask_user_questions. What a user may not do refuses at the call through the
-// guard (copilot/tool_guard.ts), which reads the permissions and the level on
-// the view's product live.
+// internals by its run id), the Products page's list, the reference tools
+// and panther's ask_user_questions. What a user may not do refuses at the
+// call through the guard (copilot/tool_guard.ts), which reads the permissions
+// and the level on the view's product live.
 export function buildCopilotTools(): AnyAITool[] {
   return guardCopilotTools(
     [
       ...bindPackageTools(buildPackageTools),
+      ...getClientToolsForProducts(),
       ...getSharedToolsForMethodologyDocs(),
       ...getSharedToolsForInfo(SPA_INFO_TOPICS),
       createAskUserQuestionsTool(),

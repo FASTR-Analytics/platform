@@ -69,13 +69,20 @@ import { MoveToFolderModal } from "./move_to_folder_modal";
 import { buildProductMenu } from "./product_menu";
 import { PRODUCT_TYPE_REGISTRY } from "./product_types";
 import { ProductSettings } from "./_shared/mod.ts";
+import {
+  copilotViewController,
+  holdCopilotView,
+} from "~/components/instance/copilot/mod.ts";
 
 const _SEARCH_MIN_LENGTH = 3;
 
 // The product explorer (D16): a file browser over the flat T1 products and
 // folders lists, shown as a tree from the top level with any number of folders
-// open in place.
+// open in place. The page sets the chat's `products` view (S13), which admits
+// `list_products`; an editor it opens sets its own view over it.
 export function Products() {
+  holdCopilotView();
+  copilotViewController.setView("products");
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchText, setSearchText] = createSignal("");
   // Folders the user opened or closed during this search,
