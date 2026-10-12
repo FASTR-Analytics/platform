@@ -496,11 +496,12 @@ package after a reattach; a card stored before the engine recorded the view
 renders under the current view's pair and offers no Add. The card offers "Add to
 this deck" from the deck and slide views when the open deck is on the draft's
 pair and the user can edit it, and is preview-only in a report, on another
-package and for a viewer. From either deck view the card lays out under the open
-deck's config. Add runs through `createButtonAction`, so a failed `createSlide`
-alerts; the button is disabled while the write runs and reads "Added to this
-deck" once it has landed, so one draft adds once, and the expanded view offers
-Add only while the card's button is enabled.
+package and for a viewer. From either deck view on the draft's pair the card
+lays out under the open deck's config; elsewhere under the starting draft
+config. Add runs through `createButtonAction`, so a failed `createSlide` alerts;
+the button is disabled while the write runs and reads "Added to this deck" once
+it has landed, so one draft adds once, and the expanded view offers Add only
+while the card's button is enabled.
 
 **Refusals come from one table through one wrapper** (COPILOT03 ruling 11).
 Every user registers the same tools, so the prompt cache survives every move;

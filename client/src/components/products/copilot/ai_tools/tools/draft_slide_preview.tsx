@@ -95,18 +95,30 @@ function draftPair(
   return pair === undefined ? undefined : { pair, stored: false };
 }
 
-// The deck the draft can be added to: the open deck, from the deck view or
-// from one of its slides, when the user can edit it and it sits on the pair
-// the draft was made under. A report has no deck, a deck on another package
-// would render the draft's figures under the wrong data, and a viewer cannot
-// write, so the card is preview-only in each case.
-function editableDeckId(draft: PackageScope): string | undefined {
+// The open deck, from the deck view or from one of its slides, when it sits
+// on the pair the draft was made under: the deck the card lays out for and
+// may add to. A report has no deck, and a deck on another package would lay
+// the draft out under a config its figures were not resolved for.
+function openDeckOnPair(
+  draft: PackageScope,
+):
+  | Extract<CopilotViewState, { id: "editing_slide_deck" | "editing_slide" }>
+  | undefined {
   const view = copilotViewController.current();
   if (view.id !== "editing_slide_deck" && view.id !== "editing_slide") {
     return undefined;
   }
   const pair = currentPair(view);
-  if (pair === undefined || !packageScopesEqual(pair, draft)) return undefined;
+  return pair !== undefined && packageScopesEqual(pair, draft)
+    ? view
+    : undefined;
+}
+
+// The deck the draft can be added to: the open deck on the draft's pair, when
+// the user can edit it. A viewer cannot write, so the card is preview-only.
+function editableDeckId(draft: PackageScope): string | undefined {
+  const view = openDeckOnPair(draft);
+  if (view === undefined) return undefined;
   return canEditProduct(view.params.deckId) ? view.params.deckId : undefined;
 }
 
@@ -120,12 +132,13 @@ export function DraftSlidePreview(p: Props) {
     }),
   });
 
-  function getDeckConfig(): SlideDeckConfig {
-    const view = copilotViewController.current();
-    if (view.id === "editing_slide_deck" || view.id === "editing_slide") {
-      return view.context.getDeckConfig();
-    }
-    return getStartingConfigForSlideDeck("Draft");
+  // The open deck's config only in a deck view on the draft's pair (D63);
+  // elsewhere the starting draft config.
+  function getDeckConfig(draft: PackageScope): SlideDeckConfig {
+    const view = openDeckOnPair(draft);
+    return view === undefined
+      ? getStartingConfigForSlideDeck("Draft")
+      : view.context.getDeckConfig();
   }
 
   // The pair's metrics come from its T2 authoring context, a cache hit for
@@ -156,7 +169,7 @@ export function DraftSlidePreview(p: Props) {
         });
         return;
       }
-      const deckConfig = getDeckConfig();
+      const deckConfig = getDeckConfig(draft.pair);
       const convertedSlide = await convertAiInputToSlide(
         draft.pair,
         p.slideInput,
