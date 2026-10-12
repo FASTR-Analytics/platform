@@ -233,10 +233,11 @@ family, module, view and type the panes resolve, through the same functions
 settings of the view the frame resolved: `MetricFrame` reports `resolveView`'s
 result up to the page through `onView`, the way `PackageExplorer` reports the
 authoring context through `onContext`, and `formatExploreState` (S13) prints its
-metric, switch option, level, each pin's value, the laid-out category's values,
-period and grain, each by the id a package tool takes, so the chat's package
-tools read what is on screen. The page writes nothing: no insert into a product,
-no persisted draft, no help buttons.
+metric, switch option, level, each pin's value, the laid-out category's values
+and grain, each by the id a package tool takes, and the period by its choice's
+label, as the toolbar's select shows it, so the chat's package tools read what
+is on screen. The page writes nothing: no insert into a product, no persisted
+draft, no help buttons.
 
 Under a family tab, `ModuleView` (`module_view.tsx`) fills the pane, and its
 first row in every state is the selectors row: a `SelectV2` over the family's

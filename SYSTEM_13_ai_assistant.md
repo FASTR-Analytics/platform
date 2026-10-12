@@ -467,18 +467,19 @@ ruling 7's no-package reason, and whose state names the family, module, view and
 type the panes resolve (the same resolution functions) and the settings of the
 view the frame resolved (`resolveView`'s result in `MetricFrame`, reported up
 through `onView`: the metric, the switch option, the level, each pin's value,
-the laid-out category's values, the period and the grain, each by the id a
-package tool takes), so the model is told what is on screen, once the package's
-authoring context is in; the Results page sets `results_packages`, whose state
-names the pinned package and the counts by status from the catalogue; the
-package page holds in `ResultsPackagePage` and sets `package` from `PackageBody`
-on every status change (params: the run id; its pair the page's package at the
-page scope, which `getScope` has only while the package is ready, so the package
-reads refuse with the status's reason while the module internals read by run id;
-its state the status, stage, error, progress and open module); Module defaults
-sets `module_defaults` and the Scopes page `scopes`. Every other view of the
-registry is declared, with its params and context types and the identity its
-page will supply, and has no sync site yet. There is no tab-to-view map.
+the laid-out category's values and the grain, each by the id a package tool
+takes, and the period by its choice's label, as the toolbar's select shows it),
+so the model is told what is on screen, once the package's authoring context is
+in; the Results page sets `results_packages`, whose state names the pinned
+package and the counts by status from the catalogue; the package page holds in
+`ResultsPackagePage` and sets `package` from `PackageBody` on every status
+change (params: the run id; its pair the page's package at the page scope, which
+`getScope` has only while the package is ready, so the package reads refuse with
+the status's reason while the module internals read by run id; its state the
+status, stage, error, progress and open module); Module defaults sets
+`module_defaults` and the Scopes page `scopes`. Every other view of the registry
+is declared, with its params and context types and the identity its page will
+supply, and has no sync site yet. There is no tab-to-view map.
 
 **What a message carries** (`appendOnlyTurns: true`, panther's E7). Every
 message carries the view line, the view's `state` and the interactions digest; a
