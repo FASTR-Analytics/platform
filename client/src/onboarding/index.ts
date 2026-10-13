@@ -184,9 +184,14 @@ export function setupTours(opts: {
     labels: tourLabels(),
     onEvent: reportTourEvent,
     pages,
-    // Extra re-check triggers for the deferred parts, whose `when` gates read
-    // the DOM or state the page predicates do not.
+    // Extra re-check triggers: the deferred parts, whose `when` gates read the
+    // DOM or state the page predicates do not, and the end of each run, since
+    // a re-check made while a run is active starts nothing (the open slide's
+    // editor mounts after the deck's own run has launched).
     watch: [
+      // Read only once the page effect runs, which Solid defers past this
+      // assignment because the shell calls setupTours while rendering.
+      () => manager.getActiveTourId(),
       () => instanceState.products.length,
       () => instanceState.readyPackages.length,
       productsExpandedFolders,

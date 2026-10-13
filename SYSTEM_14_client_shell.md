@@ -48,8 +48,10 @@ S13), with a step-level `when` for it, since the opener shows only while the
 panel is closed. Deferred parts (a card on screen, a slide in the deck, a figure
 in the report) use entry-level `when` gates plus `watch` triggers over the
 product and ready-package counts, the Products page's open folders
-(`productsExpandedFolders`), the open view's slide or figure count, and the open
-slide's type. A tour never waits on a control the user's level hides, because
+(`productsExpandedFolders`), the open view's slide or figure count, the open
+slide's type, and the end of each run (a re-check made while a run is active
+starts nothing, and the open slide's editor mounts after the deck's run has
+launched). A tour never waits on a control the user's level hides, because
 roadtrip aborts a run whose step target never appears (after 8 s) and marks
 every tour in it seen: the deck intro's Add slide step has a step-level `when`
 on that control, the deck settings tour waits for the Deck menu, the slide
@@ -461,7 +463,7 @@ language's own anchor). The recipe and its traps are
   and make 61-62 read "Arrow-key paging lives here; Escape belongs to panther's
   DialogLayer, which cancels the dialog first, and the caller records a skip."
 - **Two stale comments in `onboarding/tours.ts`.** 915-916 list an Explore tour
-  that does not exist (the pages are `onboarding/index.ts:82-97`), and 918-920
+  that does not exist (the pages are `onboarding/index.ts:80-91`), and 918-920
   say the nav renders twice by breakpoint, but the rail is one `TabsNavigation`
   (`instance/instance.tsx:392-406`). Drop "Explore /" at 915 and delete 918-920.
 - **Two tour steps misname Download.** The deck File step's pt body calls it
