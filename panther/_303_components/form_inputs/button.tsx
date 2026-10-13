@@ -67,7 +67,7 @@ function getButtonClasses(
     "justify-center",
     "gap-[0.5em]",
     "whitespace-nowrap",
-    flushEdge === "right" ? "rounded-l border-r-0" : "rounded",
+    flushEdge === "right" ? "rounded-l-full border-r-0" : "rounded",
     "border",
     "overflow-clip",
     "align-middle",
