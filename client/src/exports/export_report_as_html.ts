@@ -2,7 +2,6 @@ import {
   type APIResponseNoData,
   buildFastrPagedCss,
   buildFastrReportCss,
-  buildFastrWordRasterCss,
   FASTR_THEME_TOKENS,
   fastrChartPalette,
   fastrFigureFitCss,
@@ -10,7 +9,6 @@ import {
   fastrGapStretchCss,
   type FastrPagedFooter,
   fastrPagedRunnerJs,
-  type FastrPageSetup,
   fastrParagraphSplitsCss,
   fastrPrintTitleHtml,
   FIGURE_EXPORT_WIDTH_PX,
@@ -110,16 +108,6 @@ export type StandaloneReportOptions = {
     ) => FigureRasterState;
     imageUrl: (id: string) => string | undefined;
   };
-  // The Word export's raster frame: the print column's geometry with no
-  // pagination (buildFastrWordRasterCss) and the source-line anchors on, so
-  // the server's Chrome can find and picture the decorative blocks.
-  rasterFrame?: { page: FastrPageSetup };
-  // Hand back the figure rasters and inlined images the document was built
-  // with, so the Word export embeds the same pixels without a second render.
-  collect?: {
-    figures: Map<string, FigureRasterState>;
-    images: Map<string, string>;
-  };
 };
 
 function pagedScriptsHtml(): string {
@@ -132,65 +120,24 @@ const FALLBACK_FIGURE_SIZE = {
 };
 const FALLBACK_IMAGE_SIZE = { width: 1200, height: 675 };
 
-export async function buildStandaloneReportHtml(
+// A report's figures and images as pixels: each figure drawn once, in light
+// ink when `onDark` says it stands on a dark ground, and each image inlined
+// (or both from the host's cache, see StandaloneReportOptions.cached). Shared
+// by the standalone document below and the Word export, which embeds the
+// same pixels without building a document.
+export async function loadReportEmbeds(
   detail: ReportDetail,
+  onDark: (figureId: string) => boolean,
   progress: (pct: number) => void,
-  opts: StandaloneReportOptions = {},
-): Promise<string> {
+  cached?: StandaloneReportOptions["cached"],
+): Promise<{
+  figures: Map<string, FigureRasterState>;
+  images: Map<string, string>;
+}> {
   const figureEntries = Object.entries(detail.figures);
-  const format = getReportFormat(detail.config);
-  const isFastr = format === "fastr";
+  const isFastr = getReportFormat(detail.config) === "fastr";
   const customColors = getReportCustomStyle(detail.config)?.colors;
   const fastrTheme = getFastrReportTheme(detail.config);
-  // A paged document (the PDF, the editor's layout frame) owns its breaks
-  // and must carry none of the browser-print rules the .html download
-  // needs; see BROWSER_PRINT_CSS.
-  const paged = opts.paged !== undefined || opts.layoutOnly !== undefined ||
-    opts.rasterFrame !== undefined;
-  let themeCss = isFastr
-    ? buildFastrReportCss(fastrTheme, customColors ?? undefined, "", {
-      omitPrintRules: paged,
-    })
-    : undefined;
-  if (isFastr && themeCss !== undefined && opts.inlineFonts) {
-    const fontImport = FASTR_THEME_TOKENS[fastrTheme].fontImport;
-    if (fontImport.length > 0) {
-      themeCss = themeCss.replace(
-        fontImport,
-        await inlineThemeFontCss(fontImport),
-      );
-    }
-  }
-  if (opts.layoutOnly) {
-    return buildLayoutOnlyDocument(detail, themeCss, opts);
-  }
-  // Ink follows each figure's ACTUAL ground (same rule as the preview): the
-  // sanitized document — figure tokens still raw — is mounted in a hidden
-  // iframe to measure computed backgrounds before any rasterization. For fastr
-  // the ground is painted by the theme sheet, so it must be in that document.
-  // A paged document keeps its source-line anchors: the editor's pages edit
-  // in place through them, and the printed pixels are the same either way.
-  const sanitized = isFastr
-    ? sanitizeReportHtml(
-      renderFastrMarkdownToHtml(detail.body, {
-        lineAnchors: opts.paged !== undefined || opts.rasterFrame !== undefined,
-      }),
-    )
-    : sanitizeReportHtml(detail.body);
-  const docSettings = isFastr
-    ? readFastrDocumentSettings(detail.body)
-    : undefined;
-  const darkGrounds = await measureFigureGrounds(
-    wrapReportDocument({
-      title: detail.label,
-      bodyHtml: sanitized,
-      themeCss,
-      documentClass: docSettings?.className,
-      documentStyle: docSettings?.style,
-      pageCss: docSettings?.pageCss,
-    }),
-  );
-  progress(0.15);
   const fastrTokens = FASTR_THEME_TOKENS[fastrTheme];
   const lightInk = (isFastr
     ? figureInkThemeForStyle(
@@ -217,14 +164,10 @@ export async function buildStandaloneReportHtml(
   const rasters = new Map<string, FigureRasterState>();
   let done = 0;
   for (const [id, block] of figureEntries) {
-    if (opts.cached) {
+    if (cached) {
       rasters.set(
         id,
-        opts.cached.figureRaster(
-          id,
-          block,
-          darkGrounds.get(id) ? lightInk : darkInk,
-        ),
+        cached.figureRaster(id, block, onDark(id) ? lightInk : darkInk),
       );
       continue;
     }
@@ -244,7 +187,7 @@ export async function buildStandaloneReportHtml(
       const r = await getFigureAsDataUrlBrowser(
         applyInkTheme(
           figureInputsForDownload(fi, true, false),
-          darkGrounds.get(id) ? lightInk : darkInk,
+          onDark(id) ? lightInk : darkInk,
         ),
         FIGURE_EXPORT_WIDTH_PX,
       );
@@ -259,22 +202,84 @@ export async function buildStandaloneReportHtml(
       rasters.set(id, { state: "missing" });
     }
     done++;
-    progress(0.2 + 0.5 * (done / Math.max(1, figureEntries.length)));
+    progress(done / Math.max(1, figureEntries.length));
   }
   const imageUrls = new Map<string, string>();
   for (const [id, block] of Object.entries(detail.images)) {
-    if (opts.cached) {
-      const url = opts.cached.imageUrl(id);
+    if (cached) {
+      const url = cached.imageUrl(id);
       if (url) imageUrls.set(id, url);
       continue;
     }
     const entry = await loadImageEntry(resolveLogoUrl(block.imgFile));
     if (entry) imageUrls.set(id, entry.dataUrl);
   }
-  if (opts.collect) {
-    for (const [id, r] of rasters) opts.collect.figures.set(id, r);
-    for (const [id, u] of imageUrls) opts.collect.images.set(id, u);
+  return { figures: rasters, images: imageUrls };
+}
+
+export async function buildStandaloneReportHtml(
+  detail: ReportDetail,
+  progress: (pct: number) => void,
+  opts: StandaloneReportOptions = {},
+): Promise<string> {
+  const format = getReportFormat(detail.config);
+  const isFastr = format === "fastr";
+  const customColors = getReportCustomStyle(detail.config)?.colors;
+  const fastrTheme = getFastrReportTheme(detail.config);
+  // A paged document (the PDF, the editor's layout frame) owns its breaks
+  // and must carry none of the browser-print rules the .html download
+  // needs; see BROWSER_PRINT_CSS.
+  const paged = opts.paged !== undefined || opts.layoutOnly !== undefined;
+  let themeCss = isFastr
+    ? buildFastrReportCss(fastrTheme, customColors ?? undefined, "", {
+      omitPrintRules: paged,
+    })
+    : undefined;
+  if (isFastr && themeCss !== undefined && opts.inlineFonts) {
+    const fontImport = FASTR_THEME_TOKENS[fastrTheme].fontImport;
+    if (fontImport.length > 0) {
+      themeCss = themeCss.replace(
+        fontImport,
+        await inlineThemeFontCss(fontImport),
+      );
+    }
   }
+  if (opts.layoutOnly) {
+    return buildLayoutOnlyDocument(detail, themeCss, opts);
+  }
+  // Ink follows each figure's ACTUAL ground (same rule as the preview): the
+  // sanitized document — figure tokens still raw — is mounted in a hidden
+  // iframe to measure computed backgrounds before any rasterization. For fastr
+  // the ground is painted by the theme sheet, so it must be in that document.
+  // A paged document keeps its source-line anchors: the editor's pages edit
+  // in place through them, and the printed pixels are the same either way.
+  const sanitized = isFastr
+    ? sanitizeReportHtml(
+      renderFastrMarkdownToHtml(detail.body, {
+        lineAnchors: opts.paged !== undefined,
+      }),
+    )
+    : sanitizeReportHtml(detail.body);
+  const docSettings = isFastr
+    ? readFastrDocumentSettings(detail.body)
+    : undefined;
+  const darkGrounds = await measureFigureGrounds(
+    wrapReportDocument({
+      title: detail.label,
+      bodyHtml: sanitized,
+      themeCss,
+      documentClass: docSettings?.className,
+      documentStyle: docSettings?.style,
+      pageCss: docSettings?.pageCss,
+    }),
+  );
+  progress(0.15);
+  const { figures: rasters, images: imageUrls } = await loadReportEmbeds(
+    detail,
+    (id) => darkGrounds.get(id) === true,
+    (v) => progress(0.2 + 0.5 * v),
+    opts.cached,
+  );
   progress(0.8);
   // Built in the APP document's inert <template> — nothing loads or applies
   // until the user opens the file.
@@ -309,9 +314,7 @@ function pagedDocumentParts(
   >
 > {
   if (!opts.paged) {
-    return opts.rasterFrame
-      ? { headExtraCss: buildFastrWordRasterCss(opts.rasterFrame.page) }
-      : { pageCss: docSettings?.pageCss };
+    return { pageCss: docSettings?.pageCss };
   }
   // The paged sheet owns @page; an html-format report (no header) prints A4.
   const setup = docSettings?.page ?? readFastrDocumentSettings("").page;

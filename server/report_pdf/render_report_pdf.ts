@@ -7,19 +7,13 @@
 //
 // One browser, launched on first use and closed after a quiet spell; one
 // render at a time. A report is a few seconds and a few hundred MB of Chrome,
-// and the instance hosts are small, so renders queue rather than fan out. The
-// Word export's block rasterizer (rasterize_blocks.ts) shares the browser and
-// the queue through withReportBrowser.
+// and the instance hosts are small, so renders queue rather than fan out.
 // =============================================================================
 
 import type { Browser } from "@astral/astral";
-import type { APIResponseWithData, FastrWordRasterBlock } from "lib";
+import type { APIResponseWithData } from "lib";
 import { _CHROME_PATH } from "../exposed_env_vars.ts";
 import { launchChrome, printPagedDocument } from "./paged_chrome.ts";
-import {
-  type RasterBlockRequest,
-  rasterizeBlocksOnPage,
-} from "./rasterize_blocks.ts";
 
 export const RENDER_TIMEOUT_MS = 90_000;
 const IDLE_CLOSE_MS = 5 * 60_000;
@@ -105,33 +99,6 @@ export function renderReportPdf(
     });
     return { pdf: out.pdf, pages: out.result.total };
   });
-}
-
-// Picture the decorative blocks of a report for the Word export: a fresh page
-// on the shared browser, closed whatever happens.
-export function rasterizeReportBlocks(
-  html: string,
-  blocks: readonly RasterBlockRequest[],
-  progress: (pct: number, message: string) => Promise<void>,
-): Promise<APIResponseWithData<FastrWordRasterBlock[]>> {
-  return withReportBrowser(
-    "picturing the report's design blocks",
-    async (b) => {
-      const page = await b.newPage();
-      try {
-        return await rasterizeBlocksOnPage(page, html, blocks, {
-          timeoutMs: RENDER_TIMEOUT_MS,
-          progress,
-        });
-      } finally {
-        try {
-          await page.close();
-        } catch {
-          // The page dying is the browser dying; the caller relaunches next time.
-        }
-      }
-    },
-  );
 }
 
 // Whether this instance can render at all — the client shows a plain message

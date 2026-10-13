@@ -3,27 +3,22 @@ import {
   buildFastrWordDocument,
   createFastrMarkdownIt,
   dataUrlToWordImage,
+  fastrWordDarkFigures,
   type FastrWordFigure,
-  type FastrWordRasterBlock,
-  fastrWordRasterBlockIds,
   getFastrReportTheme,
   getReportCustomStyle,
-  readFastrDocumentSettings,
   type ReportDetail,
 } from "lib";
 import { Packer } from "docx";
 import { saveAs } from "panther";
 import { serverActions } from "~/server_actions";
-import type { FigureRasterState } from "~/generate_report/mod";
-import { buildStandaloneReportHtml } from "./export_report_as_html";
+import { loadReportEmbeds } from "./export_report_as_html";
 import { fastrPagedFooter } from "./export_report_as_paged_pdf";
 import { loadThemeFontsForWord } from "./word_theme_fonts";
 
-// The Word file of a FASTR Markdown report (lib/report_fastr_word.ts): the
-// text as native Word structures, the decorative blocks as pictures made by
-// the server's headless Chrome with editable text boxes over them. Built
-// HERE, in the browser that owns the figure rasters, from the same standalone
-// document the PDF prints; the server only pictures and measures the blocks.
+// The Word file of a FASTR Markdown report (lib/report_fastr_word.ts): a
+// plain, editable document. Built entirely HERE, in the browser that draws
+// the figures; the server is asked for the report and nothing else.
 
 // An inlined image's pixel size, which the document builder needs to scale it.
 async function imageSize(
@@ -39,38 +34,30 @@ async function buildWordBlob(
   detail: ReportDetail,
   progress: (pct: number) => void,
 ): Promise<Blob> {
-  const md = createFastrMarkdownIt();
-  const tokens = md.parse(detail.body, {});
-  const blocks = fastrWordRasterBlockIds(tokens);
-  const settings = readFastrDocumentSettings(detail.body);
-  const collect = {
-    figures: new Map<string, FigureRasterState>(),
-    images: new Map<string, string>(),
-  };
-  progress(0.05);
-  const html = await buildStandaloneReportHtml(
-    detail,
-    (v) => progress(0.05 + v * 0.4),
-    { inlineFonts: true, rasterFrame: { page: settings.page }, collect },
-  );
+  const tokens = createFastrMarkdownIt().parse(detail.body, {});
   const theme = getFastrReportTheme(detail.config);
+  const base = {
+    tokens,
+    body: detail.body,
+    title: detail.label,
+    theme,
+    colors: getReportCustomStyle(detail.config)?.colors ?? undefined,
+    footer: fastrPagedFooter(detail.label),
+  };
+  // Each figure is drawn in the ink of the ground it stands on in the Word
+  // document, which is not always its ground on screen.
+  const dark = fastrWordDarkFigures(base);
+  progress(0.05);
+  const embeds = await loadReportEmbeds(
+    detail,
+    (id) => dark.has(id),
+    (v) => progress(0.05 + v * 0.75),
+  );
   const fonts = await loadThemeFontsForWord(theme);
-  progress(0.5);
-
-  // A report with no decorative block never needs the server.
-  const rasters = new Map<number, FastrWordRasterBlock>();
-  if (blocks.length > 0) {
-    const res = await serverActions.rasterizeReportBlocks(
-      { product_id: detail.id, html, blocks },
-      (p) => progress(0.5 + Math.max(0, Math.min(1, p)) * 0.35),
-    );
-    if (!res.success) throw new Error(res.err);
-    for (const b of res.data.blocks) rasters.set(b.id, b);
-  }
   progress(0.85);
 
   const images = new Map<string, FastrWordFigure>();
-  for (const [id, url] of collect.images) {
+  for (const [id, url] of embeds.images) {
     try {
       const size = await imageSize(url);
       const fig = dataUrlToWordImage(url, size.width, size.height);
@@ -80,15 +67,9 @@ async function buildWordBlob(
     }
   }
   const doc = buildFastrWordDocument({
-    tokens,
-    body: detail.body,
-    title: detail.label,
-    theme,
-    colors: getReportCustomStyle(detail.config)?.colors ?? undefined,
-    footer: fastrPagedFooter(detail.label),
-    rasters,
+    ...base,
     figure: (id) => {
-      const r = collect.figures.get(id);
+      const r = embeds.figures.get(id);
       return r?.state === "ready"
         ? dataUrlToWordImage(r.url, r.width, r.height)
         : undefined;

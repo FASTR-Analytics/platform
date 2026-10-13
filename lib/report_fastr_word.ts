@@ -1,39 +1,32 @@
 // =============================================================================
-// FASTR Markdown → Word (.docx). Two kinds of content, one document:
+// FASTR Markdown → Word (.docx): a plain, editable document.
 //
-//   • Text-carrying blocks (headings, paragraphs, lists, tables, callouts,
-//     quotes, steps, columns, marks) become NATIVE Word structures, so the
-//     file reflows, edits and pastes into a ministry's own template.
-//   • The decorative blocks (cover, band, tiles, card, stat) have no Word
-//     equivalent. The client asks the server's headless Chrome to rasterize
-//     each one (server/report_pdf/rasterize_blocks.ts) with its glyphs hidden,
-//     and to MEASURE where every text element sits; the document then carries
-//     the picture behind an anchor paragraph and one editable text box per
-//     text element on top of it, in the same font, size, colour and place.
+//   • What Word has itself stays what it is: headings, paragraphs, lists,
+//     tables, figures, logos, the contents field, page breaks, and the
+//     callouts, quotes, steps and columns Word can express natively. The file
+//     reflows, edits and pastes into a ministry's own template.
+//   • The design blocks (cover, band, tiles, card, stat) have no Word
+//     equivalent and are not imitated: each one contributes the text it
+//     holds, in the flow, as ordinary paragraphs and headings on the page's
+//     own ground (FASTR_WORD_PLAIN_BLOCKS).
 //
 // DOM-free, like the markdown compiler: the builder walks markdown-it's token
 // stream (createFastrMarkdownIt, report_fastr_markdown.ts) rather than the
 // rendered HTML, so the Deno tests build documents from fixture bodies with no
-// browser, and the container attrs arrive parsed rather than scraped.
-//
-// What the measure script runs against is the same standalone document the
-// PDF prints (buildStandaloneReportHtml), laid out at the print column's
-// width by buildFastrWordRasterCss, so a band's PNG is the width of the
-// printed band and its text sits where print put it.
+// browser, and the container attrs arrive parsed rather than scraped. Nothing
+// here needs the server.
 // =============================================================================
 
 import type MarkdownIt from "markdown-it";
 import {
   AlignmentType,
   BorderStyle,
-  BuilderElement,
   Column,
   ColumnBreak,
   Document,
   ExternalHyperlink,
   Footer,
   HeadingLevel,
-  HorizontalPositionRelativeFrom,
   type IBorderOptions,
   ImageRun,
   type IParagraphOptions,
@@ -41,12 +34,10 @@ import {
   type ISectionPropertiesOptions,
   LevelFormat,
   LineRuleType,
-  PageBreak,
   PageNumber,
   PageOrientation,
   Paragraph,
   type ParagraphChild,
-  Run,
   SectionType,
   ShadingType,
   Tab,
@@ -57,8 +48,6 @@ import {
   TableRow,
   TabStopType,
   TextRun,
-  TextWrappingType,
-  VerticalPositionRelativeFrom,
   WidthType,
 } from "docx";
 import {
@@ -77,7 +66,6 @@ import {
   fastrSheetPx,
   fastrSurfaceTone,
   fastrTocOptions,
-  isFastrLeafBlock,
   readFastrDocumentSettings,
 } from "./fastr_markdown_blocks.ts";
 import {
@@ -99,96 +87,21 @@ import {
 
 type Token = ReturnType<MarkdownIt["parse"]>[number];
 
-// ── Contracts with the rasterizer ─────────────────────────────────────────────
-
-// The blocks that become pictures with text boxes over them. Anything nested
-// inside one of these is part of its picture.
-export const FASTR_WORD_RASTER_BLOCKS = [
+// The design blocks Word has no equivalent for: each one is written as the
+// text it holds (Builder.plainBlock).
+export const FASTR_WORD_PLAIN_BLOCKS = [
   "cover",
   "band",
   "tiles",
   "card",
   "stat",
 ] as const;
-export type FastrWordRasterKind = (typeof FASTR_WORD_RASTER_BLOCKS)[number];
+export type FastrWordPlainBlock = (typeof FASTR_WORD_PLAIN_BLOCKS)[number];
 
-// The class the server toggles on a block to hide its glyphs before the
-// screenshot; the rule ships in buildFastrWordRasterCss.
-export const FASTR_WORD_HIDE_CLASS = "fm-word-hide";
-
-// One run of text inside a measured element, as Chrome computed it.
-export type FastrWordRasterRun = {
-  // Whitespace collapsed like CSS; "" with break for a <br>.
-  text: string;
-  break?: true;
-  // First family of the computed font-family, quotes stripped.
-  fontFamily: string;
-  fontSizePx: number;
-  // Computed font-weight >= 600.
-  bold: boolean;
-  italic: boolean;
-  // "rrggbb".
-  color: string;
-  // 0 for "normal".
-  letterSpacingPx: number;
-  underline: boolean;
-  // text-transform: uppercase; the text stays as authored, Word applies caps.
-  allCaps: boolean;
-};
-
-// One text element (heading, paragraph, item, kicker, dek, stat value/label/
-// delta, card title, caption, cell, citation).
-export type FastrWordRasterText = {
-  // Content box, CSS px, relative to the block's border box.
-  left: number;
-  top: number;
-  width: number;
-  height: number;
-  align: "left" | "center" | "right" | "justify";
-  lineHeightPx: number;
-  runs: FastrWordRasterRun[];
-};
-
-export type FastrWordRasterBlock = {
-  // token.map[0], the 0-based source line of the fence == its data-line.
-  id: number;
-  kind: FastrWordRasterKind;
-  // CSS px of the border box; the PNG is 2x.
-  widthPx: number;
-  heightPx: number;
-  // The block's left edge relative to the text column's (negative for a band,
-  // which bleeds into the margins), and its vertical margins, CSS px.
-  leftPx: number;
-  marginTopPx: number;
-  marginBottomPx: number;
-  // base64 PNG.
-  png: string;
-  texts: FastrWordRasterText[];
-};
-
-export type FastrWordRasterMeta = Omit<FastrWordRasterBlock, "png">;
-
-// Which blocks of a body the rasterizer must picture: every decorative block
-// that is not inside another decorative block, by its fence line.
-export function fastrWordRasterBlockIds(
-  tokens: readonly Token[],
-): { id: number; kind: FastrWordRasterKind }[] {
-  const out: { id: number; kind: FastrWordRasterKind }[] = [];
-  for (let i = 0; i < tokens.length; i++) {
-    const t = tokens[i];
-    if (t.type !== "fm_container_open") continue;
-    const kind = rasterKindOf(t);
-    if (kind === undefined || t.map === null) continue;
-    out.push({ id: t.map[0], kind });
-    i = matchingClose(tokens, i);
-  }
-  return out;
-}
-
-function rasterKindOf(t: Token): FastrWordRasterKind | undefined {
+function plainBlockOf(t: Token): FastrWordPlainBlock | undefined {
   const name = containerName(t);
-  return (FASTR_WORD_RASTER_BLOCKS as readonly string[]).includes(name)
-    ? name as FastrWordRasterKind
+  return (FASTR_WORD_PLAIN_BLOCKS as readonly string[]).includes(name)
+    ? name as FastrWordPlainBlock
     : undefined;
 }
 
@@ -209,216 +122,6 @@ function matchingClose(tokens: readonly Token[], i: number): number {
   return tokens.length - 1;
 }
 
-// ── The raster frame ──────────────────────────────────────────────────────────
-
-// Appended after the theme sheet in the document the rasterizer loads: the
-// same geometry as the printed page (report_fastr_paged.ts), without Paged.js.
-// The body is the text column; a band's negative bleed margin takes it to the
-// sheet's edge and its bleed pad brings its text back to the column, exactly
-// as print does, so a band's PNG is a printed band. A filling cover is a
-// whole sheet. The glyph-hiding rule ships here so the server only toggles a
-// class: fill-color rather than visibility or color, so layout, backgrounds,
-// currentColor rules, bullets and counters (pseudo-elements) stay painted and
-// only the text nodes' glyphs vanish, which are exactly what the text boxes
-// carry.
-export function buildFastrWordRasterCss(page: FastrPageSetup): string {
-  const [w, h] = fastrSheetPx(page);
-  const m = fastrPageMarginPx(page.margin);
-  const column = w - 2 * m;
-  return `/* ── Word raster frame ─────────────────────────────────────────────────── */
-html { overflow: visible; --fm-page-area: ${h - 2 * m}px; }
-html, body { max-width: none; }
-body { width: ${column}px; margin: 0 auto; padding: 0; }
-:root, body, .fm-doc--wide, .fm-doc--full {
-  --fm-measure: 100%;
-  --fm-bleed-margin: -${m}px;
-  --fm-bleed-pad: ${m}px;
-  --fm-print-column: ${column}px;
-  --fm-print-area: ${h - 2 * m}px;
-}
-.fm-band.fm-cover { min-height: 544px; margin-top: 0; }
-.fm-band.fm-cover.fm-cover--fill { min-height: ${h}px; box-sizing: border-box; margin-top: 0; margin-bottom: 0; }
-.${FASTR_WORD_HIDE_CLASS}, .${FASTR_WORD_HIDE_CLASS} * {
-  -webkit-text-fill-color: transparent !important;
-  text-decoration-color: transparent !important;
-}
-.${FASTR_WORD_HIDE_CLASS}::before, .${FASTR_WORD_HIDE_CLASS}::after,
-.${FASTR_WORD_HIDE_CLASS} *::before, .${FASTR_WORD_HIDE_CLASS} *::after {
-  -webkit-text-fill-color: currentcolor !important;
-}
-`;
-}
-
-// The selector for a block by its fence line: the outermost element carrying
-// that anchor (a fence is one line, so it is unique).
-export function fastrWordBlockSelector(id: number): string {
-  return `[data-line="${id}"]:not([data-line="${id}"] *)`;
-}
-
-// The in-page measure function, as source: `(function (id) { ... })`, so the
-// server evaluates `${fastrWordMeasureJs()}(${id})`. Plain ES5-ish on purpose
-// (inlined into a page, not bundled). Returns a FastrWordRasterMeta without
-// `kind`, or null when the block is not in the document.
-export function fastrWordMeasureJs(): string {
-  return `(function (id) {
-  var sel = '[data-line="' + id + '"]:not([data-line="' + id + '"] *)';
-  var root = document.querySelector(sel);
-  if (!root) return null;
-  var rootRect = root.getBoundingClientRect();
-  var bodyRect = document.body.getBoundingClientRect();
-  var rootStyle = window.getComputedStyle(root);
-  function isInlineDisplay(el) {
-    var d = window.getComputedStyle(el).display;
-    return d === "inline" || d === "contents";
-  }
-  function blank(s) { return s.replace(/\\s+/g, "").length === 0; }
-  // Own text: a text node, or text inside an inline descendant.
-  function hasOwnText(el) {
-    for (var n = el.firstChild; n; n = n.nextSibling) {
-      if (n.nodeType === 3 && !blank(n.nodeValue)) return true;
-      if (n.nodeType === 1 && isInlineDisplay(n) && hasOwnText(n)) return true;
-    }
-    return false;
-  }
-  // A computed colour as channels. Chrome serializes legacy colours as
-  // rgb()/rgba() and a color-mix() result (the muted ink, a pill) as
-  // color(srgb r g b / a); anything else goes through a canvas, which
-  // normalizes whatever it can paint.
-  var canvasCtx = null;
-  function parseColor(css) {
-    css = (css || "").trim();
-    var m = /^rgba?\\(([^)]+)\\)$/.exec(css);
-    if (m) {
-      var p = m[1].split(/[\\s,\\/]+/).filter(function (x) { return x.length > 0; }).map(parseFloat);
-      if (p.length >= 3) return { r: p[0], g: p[1], b: p[2], a: p.length > 3 ? p[3] : 1 };
-    }
-    m = /^color\\(srgb\\s+([^)]+)\\)$/.exec(css);
-    if (m) {
-      var q = m[1].replace("/", " ").split(/\\s+/).filter(function (x) { return x.length > 0; })
-        .map(function (x) { return x === "none" ? 0 : parseFloat(x); });
-      if (q.length >= 3) return { r: q[0] * 255, g: q[1] * 255, b: q[2] * 255, a: q.length > 3 ? q[3] : 1 };
-    }
-    m = /^#([0-9a-f]{6})$/i.exec(css);
-    if (m) return { r: parseInt(m[1].slice(0, 2), 16), g: parseInt(m[1].slice(2, 4), 16), b: parseInt(m[1].slice(4, 6), 16), a: 1 };
-    try {
-      if (!canvasCtx) canvasCtx = document.createElement("canvas").getContext("2d");
-      canvasCtx.fillStyle = "#010203";
-      canvasCtx.fillStyle = css;
-      var s = canvasCtx.fillStyle;
-      if (s !== css) return parseColor(s);
-    } catch (e) { /* not a colour */ }
-    return null;
-  }
-  function over(top, bottom) {
-    var a = top.a;
-    return { r: top.r * a + bottom.r * (1 - a), g: top.g * a + bottom.g * (1 - a), b: top.b * a + bottom.b * (1 - a), a: 1 };
-  }
-  // The opaque colour behind an element: its ancestors' grounds composited
-  // down to the page (white when nothing paints).
-  function groundBehind(el) {
-    var layers = [];
-    for (var e = el; e; e = e.parentElement) {
-      var c = parseColor(window.getComputedStyle(e).backgroundColor);
-      if (c && c.a > 0) { layers.push(c); if (c.a >= 1) break; }
-    }
-    var out = { r: 255, g: 255, b: 255, a: 1 };
-    for (var i = layers.length - 1; i >= 0; i--) out = over(layers[i], out);
-    return out;
-  }
-  // Word has no alpha: a translucent ink is composited on what is behind it.
-  function hexOf(css, el) {
-    var c = parseColor(css);
-    if (!c) return "000000";
-    if (c.a < 1) c = over(c, groundBehind(el));
-    return [c.r, c.g, c.b].map(function (v) {
-      var s = Math.max(0, Math.min(255, Math.round(v))).toString(16);
-      return s.length < 2 ? "0" + s : s;
-    }).join("");
-  }
-  function styleOf(el) {
-    var cs = window.getComputedStyle(el);
-    var fam = (cs.fontFamily || "").split(",")[0].replace(/["']/g, "").trim();
-    var ls = parseFloat(cs.letterSpacing);
-    return {
-      fontFamily: fam,
-      fontSizePx: parseFloat(cs.fontSize) || 16,
-      bold: (parseInt(cs.fontWeight, 10) || 400) >= 600,
-      italic: cs.fontStyle === "italic" || cs.fontStyle === "oblique",
-      color: hexOf(cs.color, el),
-      letterSpacingPx: isFinite(ls) ? ls : 0,
-      underline: (cs.textDecorationLine || "").indexOf("underline") >= 0,
-      allCaps: cs.textTransform === "uppercase"
-    };
-  }
-  function runsOf(host) {
-    var runs = [];
-    function walk(el) {
-      for (var n = el.firstChild; n; n = n.nextSibling) {
-        if (n.nodeType === 3) {
-          var text = n.nodeValue.replace(/\\s+/g, " ");
-          if (text.length === 0) continue;
-          var st = styleOf(n.parentElement || host);
-          st.text = text;
-          runs.push(st);
-        } else if (n.nodeType === 1) {
-          if (n.tagName === "BR") { runs.push({ text: "", break: true, fontFamily: "", fontSizePx: 0, bold: false, italic: false, color: "000000", letterSpacingPx: 0, underline: false, allCaps: false }); continue; }
-          if (!isInlineDisplay(n)) continue;
-          walk(n);
-        }
-      }
-    }
-    walk(host);
-    // Trim the edges: leading and trailing whitespace is nothing on a line.
-    var out = [];
-    for (var i = 0; i < runs.length; i++) {
-      var r = runs[i];
-      if (i === 0 || (i > 0 && runs[i - 1].break)) r.text = r.text.replace(/^ +/, "");
-      if (i === runs.length - 1 || (i + 1 < runs.length && runs[i + 1].break)) r.text = r.text.replace(/ +$/, "");
-      if (r.text.length === 0 && !r.break) continue;
-      out.push(r);
-    }
-    return out;
-  }
-  var texts = [];
-  var all = [root].concat(Array.prototype.slice.call(root.querySelectorAll("*")));
-  for (var i = 0; i < all.length; i++) {
-    var el = all[i];
-    if (isInlineDisplay(el)) continue;
-    if (!hasOwnText(el)) continue;
-    var cs = window.getComputedStyle(el);
-    var rect = el.getBoundingClientRect();
-    var pl = parseFloat(cs.paddingLeft) || 0, pr = parseFloat(cs.paddingRight) || 0;
-    var pt = parseFloat(cs.paddingTop) || 0, pb = parseFloat(cs.paddingBottom) || 0;
-    var bl = parseFloat(cs.borderLeftWidth) || 0, br = parseFloat(cs.borderRightWidth) || 0;
-    var bt = parseFloat(cs.borderTopWidth) || 0, bb = parseFloat(cs.borderBottomWidth) || 0;
-    var ta = cs.textAlign;
-    var align = ta === "center" ? "center" : (ta === "right" || ta === "end") ? "right" : ta === "justify" ? "justify" : "left";
-    var lh = parseFloat(cs.lineHeight);
-    if (!isFinite(lh)) lh = (parseFloat(cs.fontSize) || 16) * 1.2;
-    var runs = runsOf(el);
-    if (runs.length === 0) continue;
-    texts.push({
-      left: rect.left - rootRect.left + bl + pl,
-      top: rect.top - rootRect.top + bt + pt,
-      width: Math.max(1, rect.width - bl - br - pl - pr),
-      height: Math.max(1, rect.height - bt - bb - pt - pb),
-      align: align,
-      lineHeightPx: lh,
-      runs: runs
-    });
-  }
-  return {
-    id: id,
-    widthPx: rootRect.width,
-    heightPx: rootRect.height,
-    leftPx: rootRect.left - bodyRect.left,
-    marginTopPx: parseFloat(rootStyle.marginTop) || 0,
-    marginBottomPx: parseFloat(rootStyle.marginBottom) || 0,
-    texts: texts
-  };
-})`;
-}
-
 // ── Units and colours ─────────────────────────────────────────────────────────
 
 const BODY_PX = 16;
@@ -428,12 +131,6 @@ export function fastrWordHalfPoints(px: number): number {
 }
 export function fastrWordTwips(px: number): number {
   return Math.round(px * 15);
-}
-function emu(px: number): number {
-  return Math.round(px * 9525);
-}
-function pt(px: number): number {
-  return Math.round(px * 75) / 100;
 }
 
 const NAMED_HEX: Record<string, string> = {
@@ -590,7 +287,6 @@ export type FastrWordBuildInput = {
   theme: FastrReportTheme;
   colors?: FastrThemeColorOverride;
   footer: FastrPagedFooter;
-  rasters: ReadonlyMap<number, FastrWordRasterBlock>;
   figure: (id: string) => FastrWordFigure | undefined;
   image: (id: string) => FastrWordFigure | undefined;
   fonts?: readonly FastrWordFont[];
@@ -599,7 +295,7 @@ export type FastrWordBuildInput = {
 type Block = Paragraph | Table | TableOfContents;
 
 type SectionDraft = {
-  kind: "normal" | "cover" | "columns";
+  kind: "normal" | "columns";
   column?: { count: number; widths: number[]; space: number };
   children: Block[];
 };
@@ -687,73 +383,6 @@ function noBorders() {
   };
 }
 
-// A VML text box as a RUN, so several can hang off one anchor paragraph with
-// the picture. docx's own Textbox is a paragraph with a filled, stroked,
-// auto-inset, grow-to-fit shape and no way to change any of that; this one is
-// unfilled, unstroked, zero-inset and placed by absolute offsets relative to
-// the anchor paragraph and the column (or the page, for a filling cover).
-// mso-fit-shape-to-text lets the box grow downward when someone types more,
-// so an edit shows rather than clips.
-export class FastrTextboxRun extends Run {
-  constructor(o: {
-    id: number;
-    leftPt: number;
-    topPt: number;
-    widthPt: number;
-    heightPt: number;
-    relative: "text" | "page";
-    children: Paragraph[];
-  }) {
-    super({});
-    const style = [
-      "position:absolute",
-      `margin-left:${o.leftPt}pt`,
-      `margin-top:${o.topPt}pt`,
-      `width:${o.widthPt}pt`,
-      `height:${o.heightPt}pt`,
-      `z-index:${251659264 + o.id}`,
-      "mso-position-horizontal:absolute",
-      `mso-position-horizontal-relative:${o.relative}`,
-      "mso-position-vertical:absolute",
-      `mso-position-vertical-relative:${o.relative}`,
-      "mso-wrap-style:none",
-    ].join(";");
-    this.root.push(
-      new BuilderElement({
-        name: "w:pict",
-        children: [
-          new BuilderElement({
-            name: "v:shape",
-            attributes: {
-              id: { key: "id", value: `fmtb${o.id}` },
-              type: { key: "type", value: "#_x0000_t202" },
-              filled: { key: "filled", value: "f" },
-              stroked: { key: "stroked", value: "f" },
-              style: { key: "style", value: style },
-            },
-            children: [
-              new BuilderElement({
-                name: "v:textbox",
-                attributes: {
-                  insetmode: { key: "insetmode", value: "custom" },
-                  inset: { key: "inset", value: "0,0,0,0" },
-                  style: { key: "style", value: "mso-fit-shape-to-text:t" },
-                },
-                children: [
-                  new BuilderElement({
-                    name: "w:txbxContent",
-                    children: o.children,
-                  }),
-                ],
-              }),
-            ],
-          }),
-        ],
-      }),
-    );
-  }
-}
-
 class Builder {
   private readonly tokens: readonly Token[];
   private readonly input: FastrWordBuildInput;
@@ -786,10 +415,10 @@ class Builder {
   private pendingBreak = false;
   private emitted = false;
   private hasToc = false;
-  private textboxSeq = 0;
-  // In a columns section: the left edge of the current col, px from the
-  // text column's left, so a picture inside it is placed within the col.
-  private colLeftPx = 0;
+  // Inside a `:::cover`: its headings are the title page, not sections.
+  private coverDepth = 0;
+  // The figures drawn so far that sit on a dark ground (fastrWordDarkFigures).
+  readonly darkFigures = new Set<string>();
 
   constructor(input: FastrWordBuildInput) {
     this.tokens = input.tokens;
@@ -1127,7 +756,9 @@ class Builder {
   private resolveEmbed(src: string): FastrWordFigure | undefined {
     const m = /^(figure|image):(.+)$/.exec(src);
     if (!m) return undefined;
-    return m[1] === "figure" ? this.input.figure(m[2]) : this.input.image(m[2]);
+    if (m[1] === "image") return this.input.image(m[2]);
+    if (this.pal.dark) this.darkFigures.add(m[2]);
+    return this.input.figure(m[2]);
   }
 
   private imageSize(
@@ -1207,146 +838,94 @@ class Builder {
     }
   }
 
-  // ── Overlay blocks ────────────────────────────────────────────────────────
+  // ── Design blocks, as their text ──────────────────────────────────────────
 
-  private overlay(open: Token, kind: FastrWordRasterKind): void {
-    const id = open.map?.[0] ?? -1;
-    const block = this.input.rasters.get(id);
-    if (block === undefined) {
-      throw new Error(
-        `The ${kind} block at line ${
-          id + 1
-        } was not rasterized, so the Word file cannot be built.`,
-      );
+  // A design block is not imitated. The text it holds joins the flow as
+  // ordinary paragraphs and headings, in the ink of whatever it sits in: its
+  // own tone goes with its surface. The attribute text comes where the block
+  // shows it (kicker above, standfirst below, a card's title first).
+  private plainBlock(
+    i: number,
+    close: number,
+    kind: FastrWordPlainBlock,
+    attrs: FastrContainerAttrs,
+  ): void {
+    switch (kind) {
+      case "stat":
+        this.stat(attrs);
+        return;
+      case "tiles":
+        this.walk(i + 1, close);
+        return;
+      case "card":
+        this.plainLine(attrs["title"], { bold: true }, true);
+        this.walk(i + 1, close);
+        return;
+      case "band":
+        this.plainLine(attrs["kicker"], {}, true);
+        this.walk(i + 1, close);
+        this.plainLine(attrs["sub"]);
+        return;
+      case "cover":
+        this.plainLine(attrs["kicker"], {}, true);
+        this.coverDepth++;
+        try {
+          this.walk(i + 1, close);
+        } finally {
+          this.coverDepth--;
+        }
+        this.plainLine(attrs["sub"]);
+        // A cover that fills its page is a title page: what follows it
+        // starts the next one.
+        if (String(attrs["fill"] ?? "").toLowerCase() === "page") {
+          this.pendingBreak = true;
+        }
+        return;
     }
-    const attrs = containerAttrs(open);
-    const fill = kind === "cover" &&
-      String(attrs["fill"] ?? "").toLowerCase() === "page";
-    // A cover at the head of the report is pulled up through the top margin,
-    // flush with the sheet, as print does.
-    const flush = kind === "cover" && !fill && !this.emitted &&
-      this.sinks.length === 1;
-    const relative: "text" | "page" = fill ? "page" : "text";
-    const originLeft = fill ? 0 : block.leftPx - this.colLeftPx;
-    const originTop = flush ? -this.marginPx : 0;
-    const boxes = block.texts.map((text) =>
-      this.textbox(text, originLeft, originTop, relative)
-    );
-    const image = new ImageRun({
-      type: "png",
-      data: decodeBase64Bytes(block.png),
-      transformation: {
-        width: Math.round(block.widthPx),
-        height: Math.round(block.heightPx),
-      },
-      floating: {
-        horizontalPosition: {
-          relative: fill
-            ? HorizontalPositionRelativeFrom.PAGE
-            : HorizontalPositionRelativeFrom.COLUMN,
-          offset: emu(originLeft),
-        },
-        verticalPosition: {
-          relative: fill
-            ? VerticalPositionRelativeFrom.PAGE
-            : VerticalPositionRelativeFrom.PARAGRAPH,
-          offset: emu(originTop),
-        },
-        behindDocument: true,
-        allowOverlap: true,
-        lockAnchor: true,
-        layoutInCell: false,
-        wrap: { type: TextWrappingType.NONE },
-        zIndex: 0,
-      },
-    });
-    if (fill) {
-      this.openSection("cover");
-      this.push(
-        new Paragraph({
-          spacing: {
-            before: 0,
-            after: 0,
-            line: 20,
-            lineRule: LineRuleType.EXACT,
-          },
-          children: [image, ...boxes],
-        }),
-      );
-      this.pendingBreak = false;
-      this.openSection("normal");
-      return;
-    }
-    const height = Math.max(1, block.heightPx + originTop);
+  }
+
+  // One line of a block's attribute text, as a paragraph.
+  private plainLine(
+    value: string | true | undefined,
+    style: Partial<RunStyle> = {},
+    keepNext = false,
+  ): void {
+    if (typeof value !== "string" || value.trim().length === 0) return;
+    const { run } = this.decorated();
     this.push(
-      new Paragraph({
-        pageBreakBefore: this.takeBreak(),
-        spacing: {
-          before: flush ? 0 : fastrWordTwips(block.marginTopPx),
-          after: fastrWordTwips(block.marginBottomPx),
-          line: fastrWordTwips(height),
-          lineRule: LineRuleType.EXACT,
-        },
-        children: [image, ...boxes],
+      this.paragraph([this.textRun(value.trim(), { ...run, ...style })], {
+        keepNext,
       }),
     );
   }
 
-  private textbox(
-    text: FastrWordRasterText,
-    originLeft: number,
-    originTop: number,
-    relative: "text" | "page",
-  ): FastrTextboxRun {
-    const align = text.align === "center"
-      ? AlignmentType.CENTER
-      : text.align === "right"
-      ? AlignmentType.RIGHT
-      : text.align === "justify"
-      ? AlignmentType.JUSTIFIED
-      : AlignmentType.LEFT;
-    // One paragraph per line-break group, exact line height as measured.
-    const groups: FastrWordRasterRun[][] = [[]];
-    for (const r of text.runs) {
-      if (r.break) groups.push([]);
-      else groups[groups.length - 1].push(r);
+  // A stat is one line: the value in bold, its label, the change in brackets.
+  private stat(attrs: FastrContainerAttrs): void {
+    const text = (key: string) => {
+      const v = attrs[key];
+      return typeof v === "string" && v.trim().length > 0
+        ? v.trim()
+        : undefined;
+    };
+    const { run } = this.decorated();
+    const value = text("value");
+    const label = text("label");
+    const delta = text("delta");
+    const children: ParagraphChild[] = [];
+    if (value !== undefined) {
+      children.push(this.textRun(value, { ...run, bold: true }));
     }
-    const paragraphs = groups.map((g) =>
-      new Paragraph({
-        alignment: align,
-        spacing: {
-          before: 0,
-          after: 0,
-          line: fastrWordTwips(text.lineHeightPx),
-          lineRule: LineRuleType.EXACT,
-        },
-        children: g.map((r) =>
-          new TextRun({
-            text: r.text,
-            font: r.fontFamily.length > 0 ? r.fontFamily : this.bodyFont,
-            size: fastrWordHalfPoints(r.fontSizePx),
-            bold: r.bold && !this.embeddedIsBold(r.fontFamily),
-            italics: r.italic,
-            color: r.color,
-            allCaps: r.allCaps,
-            underline: r.underline ? {} : undefined,
-            characterSpacing: r.letterSpacingPx === 0
-              ? undefined
-              : fastrWordTwips(r.letterSpacingPx),
-          })
-        ),
-      })
-    );
-    return new FastrTextboxRun({
-      id: ++this.textboxSeq,
-      leftPt: pt(originLeft + text.left),
-      topPt: pt(originTop + text.top),
-      // A pixel of slack against a re-wrap at the box's edge.
-      widthPt: pt(text.width + 1),
-      heightPt: pt(text.height + 1),
-      relative,
-      children: paragraphs,
-    });
+    if (label !== undefined) {
+      children.push(
+        this.textRun(children.length > 0 ? ` ${label}` : label, run),
+      );
+    }
+    if (delta !== undefined) {
+      children.push(
+        this.textRun(children.length > 0 ? ` (${delta})` : delta, run),
+      );
+    }
+    if (children.length > 0) this.push(this.paragraph(children));
   }
 
   // ── Block walk ────────────────────────────────────────────────────────────
@@ -1364,9 +943,9 @@ class Builder {
     if (name === "report") return close;
     const breakMode = fastrBreakMode(attrs);
     if (breakMode === "before") this.pendingBreak = true;
-    const raster = rasterKindOf(open);
-    if (raster !== undefined) {
-      this.overlay(open, raster);
+    const plain = plainBlockOf(open);
+    if (plain !== undefined) {
+      this.plainBlock(i, close, plain, attrs);
       if (breakMode === "after") this.pendingBreak = true;
       return close;
     }
@@ -1547,8 +1126,13 @@ class Builder {
     }
     children.push(...this.inline(inline?.children ?? [], base));
     const before = open.tag === "h1" ? px * 1.3 : px * 1.8;
+    // A cover's headings are the title page: its h1 is Word's Title, and
+    // none of them is a section the contents field would list.
+    const style = this.coverDepth > 0
+      ? (level === 1 ? HeadingLevel.TITLE : undefined)
+      : HEADING_LEVELS[level - 1];
     this.push(this.paragraph(children, {
-      heading: HEADING_LEVELS[level - 1],
+      heading: style,
       keepNext: true,
       keepLines: true,
     }, {
@@ -1958,7 +1542,6 @@ class Builder {
       widths: widthsPx.map((w) => fastrWordTwips(w)),
       space: fastrWordTwips(gapPx),
     });
-    let left = 0;
     cols.forEach((c, k) => {
       if (k > 0) {
         this.push(
@@ -1973,16 +1556,13 @@ class Builder {
           }),
         );
       }
-      this.colLeftPx = left;
       this.widths.push(widthsPx[k]);
       try {
         this.walk(c.open + 1, c.close);
       } finally {
         this.widths.pop();
       }
-      left += widthsPx[k] + gapPx;
     });
-    this.colLeftPx = 0;
     this.openSection("normal");
   }
 
@@ -2165,11 +1745,9 @@ class Builder {
     });
   }
 
-  private pageProperties(
-    margins: boolean,
-  ): NonNullable<ISectionPropertiesOptions["page"]> {
+  private pageProperties(): NonNullable<ISectionPropertiesOptions["page"]> {
     const [w, h] = this.sheetPx;
-    const m = margins ? fastrWordTwips(this.marginPx) : 0;
+    const m = fastrWordTwips(this.marginPx);
     return {
       size: {
         width: fastrWordTwips(w),
@@ -2197,32 +1775,25 @@ class Builder {
     const sections = drafts.map((s, k) => {
       const prev = drafts[k - 1];
       const continuous = s.kind === "columns" || prev?.kind === "columns";
-      const properties: ISectionPropertiesOptions = s.kind === "cover"
-        ? {
-          page: this.pageProperties(false),
-          type: k === 0 ? undefined : SectionType.NEXT_PAGE,
-        }
-        : {
-          page: this.pageProperties(true),
-          type: k === 0
-            ? undefined
-            : continuous
-            ? SectionType.CONTINUOUS
-            : SectionType.NEXT_PAGE,
-          column: s.column === undefined ? { count: 1 } : {
-            count: s.column.count,
-            space: s.column.space,
-            equalWidth: false,
-            children: s.column.widths.map((w) =>
-              new Column({ width: w, space: s.column!.space })
-            ),
-          },
-        };
+      const properties: ISectionPropertiesOptions = {
+        page: this.pageProperties(),
+        type: k === 0
+          ? undefined
+          : continuous
+          ? SectionType.CONTINUOUS
+          : SectionType.NEXT_PAGE,
+        column: s.column === undefined ? { count: 1 } : {
+          count: s.column.count,
+          space: s.column.space,
+          equalWidth: false,
+          children: s.column.widths.map((w) =>
+            new Column({ width: w, space: s.column!.space })
+          ),
+        },
+      };
       return {
         properties,
-        footers: s.kind === "cover"
-          ? { default: new Footer({ children: [] }) }
-          : { default: this.footer() },
+        footers: { default: this.footer() },
         children: s.children,
       };
     });
@@ -2355,11 +1926,27 @@ class Builder {
   }
 }
 
-// Build the Word document for a FASTR Markdown report. Throws when a
-// decorative block has no raster (the export then fails, as the PDF does
-// without Chrome); the caller packs the Document with docx's Packer.
+// Build the Word document for a FASTR Markdown report; the caller packs the
+// Document with docx's Packer.
 export function buildFastrWordDocument(input: FastrWordBuildInput): Document {
   return new Builder(input).build();
+}
+
+// The figures that stand on a dark ground in the Word document (a dark page
+// ground, or a toned callout, quote or steps block): the ones to draw in
+// light ink. Asked before the figures are drawn, so the walk resolves none.
+// A figure inside a design block stands on the page here, whatever ground
+// the block gives it on screen.
+export function fastrWordDarkFigures(
+  input: Omit<FastrWordBuildInput, "figure" | "image" | "fonts">,
+): Set<string> {
+  const builder = new Builder({
+    ...input,
+    figure: () => undefined,
+    image: () => undefined,
+  });
+  builder.build();
+  return builder.darkFigures;
 }
 
 // ── Small helpers ─────────────────────────────────────────────────────────────

@@ -24,8 +24,8 @@ export function DownloadReport(
     {
       productId: string;
       // Absent means markdown (PDF / Word). fastr gets the paged PDF (the
-      // pages the editor shows, printed by the server), a Word file built
-      // from the same document, and the .html file; html renders through the
+      // pages the editor shows, printed by the server), a plain Word file
+      // built in the browser, and the .html file; html renders through the
       // same funnel but has no pagination, so it keeps the .html / print pair.
       format?: ReportFormat;
     },
@@ -131,11 +131,11 @@ export function DownloadReport(
           <div class="text-base-content-muted text-xs">
             {t3({
               en:
-                "The PDF has exactly the pages the editor shows. The Word file keeps headings, text, tables and visualizations editable; covers, bands and tiles are pictures with their text in editable boxes on top (Word asks to update fields on opening when the report has a contents page, and a coloured page ground prints only with Word's 'Print background colours' on). The HTML file is self-contained (visualizations embedded as images) and reads as one continuous page.",
+                "The PDF has exactly the pages the editor shows. The Word file is a plain, editable document: headings, text, tables and visualizations are kept, while covers, bands, tiles, cards and stats become the text they hold (Word asks to update fields on opening when the report has a contents page, and a coloured page ground prints only with Word's 'Print background colours' on). The HTML file is self-contained (visualizations embedded as images) and reads as one continuous page.",
               fr:
-                "Le PDF contient exactement les pages affichées dans l'éditeur. Le fichier Word garde les titres, le texte, les tableaux et les visualisations modifiables ; les couvertures, bandeaux et tuiles sont des images avec leur texte dans des zones modifiables par-dessus (Word propose de mettre à jour les champs à l'ouverture si le rapport a une table des matières, et un fond de page coloré ne s'imprime qu'avec l'option « Imprimer les couleurs d'arrière-plan » de Word). Le fichier HTML est autonome (visualisations intégrées en images) et se lit comme une seule page continue.",
+                "Le PDF contient exactement les pages affichées dans l'éditeur. Le fichier Word est un document simple et modifiable : les titres, le texte, les tableaux et les visualisations sont conservés, tandis que les couvertures, bandeaux, tuiles, cartes et chiffres deviennent le texte qu'ils contiennent (Word propose de mettre à jour les champs à l'ouverture si le rapport a une table des matières, et un fond de page coloré ne s'imprime qu'avec l'option « Imprimer les couleurs d'arrière-plan » de Word). Le fichier HTML est autonome (visualisations intégrées en images) et se lit comme une seule page continue.",
               pt:
-                "O PDF tem exatamente as páginas que o editor mostra. O ficheiro Word mantém títulos, texto, tabelas e visualizações editáveis; capas, faixas e mosaicos são imagens com o seu texto em caixas editáveis por cima (o Word pede para atualizar os campos ao abrir quando o relatório tem um índice, e um fundo de página colorido só é impresso com a opção 'Imprimir cores de fundo' do Word). O ficheiro HTML é autónomo (visualizações incorporadas como imagens) e lê-se como uma única página contínua.",
+                "O PDF tem exatamente as páginas que o editor mostra. O ficheiro Word é um documento simples e editável: os títulos, o texto, as tabelas e as visualizações são mantidos, enquanto as capas, faixas, mosaicos, cartões e indicadores passam a ser o texto que contêm (o Word pede para atualizar os campos ao abrir quando o relatório tem um índice, e um fundo de página colorido só é impresso com a opção 'Imprimir cores de fundo' do Word). O ficheiro HTML é autónomo (visualizações incorporadas como imagens) e lê-se como uma única página contínua.",
             })}
           </div>
         </Show>

@@ -63,7 +63,6 @@ globs:
   - server/tests/report_format_helpers_test.ts
   - server/tests/report_html_sanitize_test.ts
   - server/tests/report_pdf_render_test.ts
-  - server/tests/report_word_raster_test.ts
   - server/tests/report_sections_test.ts
   - server/tests/slide_text_offsets_test.ts
   - server/utils/id_generation.ts
@@ -852,44 +851,51 @@ PAGED PDF (see "Paged PDF and page boxes" below) and, since 2026-09-22, a Word
 file (see "Word export" below). Panther's markdown-to-Word engine is NOT used
 for it: its IR cannot represent the blocks and would silently drop every one.
 
-**Word export (2026-09-22).** `lib/report_fastr_word.ts` builds the .docx from
-markdown-it's token stream (the same `createFastrMarkdownIt` the compiler uses,
-so container attrs arrive parsed) with the `docx` library, in the browser
-(`client/src/exports/export_report_as_fastr_word.ts`, `Packer.toBlob`
+**Word export (2026-09-22, made plain 2026-10-13).** `lib/report_fastr_word.ts`
+builds the .docx from markdown-it's token stream (the same
+`createFastrMarkdownIt` the compiler uses, so container attrs arrive parsed)
+with the `docx` library, entirely in the browser
+(`client/src/exports/export_report_as_fastr_word.ts`, `Packer.toBlob` then
+`saveAs`); the server is asked for the report and nothing else, so the export
+needs no Chrome. It is a plain, editable document, not a copy of the page:
 
-- `saveAs`). Text-carrying blocks become native Word structures so the file
-  reflows and pastes into a ministry's own template: headings (with the
-  `numbering=sections` numbers baked into the text, so a live TOC agrees),
-  paragraphs, lists, tables, callouts and steps as shaded one-cell tables,
-  quotes as ruled paragraphs, `:::columns` as a continuous multi-column section,
-  marks as run colours, `:::contents` as a Word TOC field with update-on-open, a
-  `:::logos` row as one aligned paragraph of inline images at the row's height
-  (scaled down whole if wider than the column), figures inline at the column's
-  width under a Caption paragraph, the page ground as Word's page colour, and
-  the PDF's running footer with PAGE/NUMPAGES fields. The decorative blocks
-  (cover, band, tiles, card, stat) have no Word equivalent, so they are PICTURES
-  with the text laid over them in editable boxes: the client posts the same
-  standalone document the PDF prints, laid out at the print column by
-  `buildFastrWordRasterCss` (bands bleed by the margin exactly as print), to
-  `rasterizeReportBlocks` (`server/report_pdf/rasterize_blocks.ts`, on the PDF's
-  shared browser via `withReportBrowser`); Chrome measures every text element of
-  each block (`fastrWordMeasureJs`: content box, alignment, line height, per-run
-  font, size, weight, colour with any alpha composited onto the ground,
-  tracking, caps), hides the glyphs with `-webkit-text-fill-color: transparent`
-  (so rules, pills, bullets and counters stay painted) and screenshots the block
-  at 2x. The document anchors the PNG behind one exact-height paragraph and
-  floats a VML text box per element (`FastrTextboxRun`: unfilled, unstroked,
-  zero inset, grow-to-fit; docx's own `Textbox` can be none of those) at the
-  measured offsets; a `fill=page` cover is its own zero-margin section with no
-  footer, a natural cover is pulled up through the top margin like print. Only
-  authored breaks (`:::pagebreak`, `break=`) are forced; Word paginates the
-  rest, so page counts drift from the PDF by a page or so. The theme's faces are
-  embedded from static TrueType files vendored under `client/public/fonts/word/`
-  (one face per family; docx writes `embedRegular` only, so a heading family
-  embedded at 700 is emitted unbolded). Same Chrome gate as the PDF, no degraded
-  fallback: a report with no decorative block never calls the server. Tests:
-  `server/tests/report_fastr_word_test.ts` (asserts on the .docx's own XML) and
-  the Chrome-gated `server/tests/report_word_raster_test.ts`.
+- What Word has itself stays what it is, so the file reflows and pastes into a
+  ministry's own template: headings (with the `numbering=sections` numbers baked
+  into the text, so a live TOC agrees), paragraphs, lists, tables, callouts and
+  steps as shaded one-cell tables, quotes as ruled paragraphs, `:::columns` as a
+  continuous multi-column section, marks as run colours, `:::contents` as a Word
+  TOC field with update-on-open, a `:::logos` row as one aligned paragraph of
+  inline images at the row's height (scaled down whole if wider than the
+  column), figures inline at the column's width under a Caption paragraph, the
+  page ground as Word's page colour, and the PDF's running footer with
+  PAGE/NUMPAGES fields.
+- The design blocks (cover, band, tiles, card, stat: `FASTR_WORD_PLAIN_BLOCKS`)
+  have no Word equivalent and are NOT imitated. Each contributes the text it
+  holds, in the flow, in the ink of whatever it sits in (its tone and surface
+  are dropped): a cover or band is its `kicker`, its content, then its `sub`; a
+  card is its title in bold, then its content; a stat is one line, the value in
+  bold, the label, the delta in brackets; tiles are their children one after
+  another. Content inside them keeps its own structure (a heading is a heading,
+  a list a list). A cover's headings are the title page, as in the contents
+  outline: its h1 takes Word's Title style and none is a Heading the TOC field
+  would list. A `fill=page` cover ends its page. Until 2026-10-13 these blocks
+  were Chrome-rasterized pictures with VML text boxes over them
+  (`rasterizeReportBlocks`, `server/report_pdf/rasterize_blocks.ts`); that
+  pipeline was removed, Nick's call, as more than a Word file needs.
+- Figures are drawn for the ground they stand on IN WORD, which is not always
+  their ground on screen: a figure inside an ink band is on the page here.
+  `fastrWordDarkFigures` walks the same builder first and names the figures on a
+  dark ground (a dark page ground, a toned callout, quote or steps);
+  `loadReportEmbeds` (export_report_as_html.ts, shared with the standalone
+  document) draws each one once in the matching ink.
+
+Only authored breaks (`:::pagebreak`, `break=`, a filling cover) are forced;
+Word paginates the rest. The theme's faces are embedded from static TrueType
+files vendored under `client/public/fonts/word/` (one face per family; docx
+writes `embedRegular` only, so a heading family embedded at 700 is emitted
+unbolded). Tests: `server/tests/report_fastr_word_test.ts` asserts on the
+.docx's own XML; its kitchen-sink body is inline because `deno fmt` reflows the
+`.md` fixtures' fence lines into prose.
 
 **Paged PDF and page boxes (2026-09-08, inverted 2026-09-10).** A FASTR Markdown
 report has a real PDF, and the Edit pane shows where its pages fall. The EDITOR
