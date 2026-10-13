@@ -626,12 +626,13 @@ renders none of them. Below it the canvas is a live preview through S10's
 `convertSlideToPageInputs`, debounced 100ms off `trackStore(tempSlide)` except
 while typing on it. Every figure it writes is stamped with the product's pair, a
 figure block whose bundle was resolved under another pair shows S11's stale
-badge in the block panel (S10 "The captured pair and staleness"). The deck
-header's "Update all figures" counts and re-resolves them across every slide
-through `deck_stale_figures.ts`, which walks the per-slide cache, swaps bundles
-with `slide_transforms/update_block_in_layout.ts` (the one structural walk the
-slide editor's own block edits use, so every write carries a fresh reference for
-the CRDT sync) and writes each updated slide back through `updateSlide` with its
+badge among its toolbar controls when selected (S10 "The captured pair and
+staleness"). The deck header's "Update all visualizations" button counts and
+re-resolves the stale figures across every slide through
+`deck_stale_figures.ts`, which walks the per-slide cache, swaps bundles with
+`slide_transforms/update_block_in_layout.ts` (the one structural walk the slide
+editor's own block edits use, so every write carries a fresh reference for the
+CRDT sync) and writes each updated slide back through `updateSlide` with its
 `expectedLastUpdated`. Slide-type switching keeps a per-type cache so switching
 back restores prior state (same idiom per-block for block-type switches). The
 layout tree is manipulated exclusively through panther node ops via

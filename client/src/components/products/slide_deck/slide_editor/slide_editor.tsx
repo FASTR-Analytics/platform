@@ -1151,7 +1151,7 @@ export function SlideEditor(p: Props) {
 
   // ── Stale figures on this slide ─────────────────────────────────────────────
   // Compared against the product's live pair, so a reattach while the slide
-  // editor is open lights the count without a remount.
+  // editor is open lights the selected figure's stale badge without a remount.
   const staleContext = () => ({
     scope: p.scope,
     authoringContext: p.authoringContext,
@@ -1161,8 +1161,8 @@ export function SlideEditor(p: Props) {
       ? findStaleFiguresInLayout(tempSlide.layout, resolveScope(p.scope))
       : [];
 
-  // The selected block's bundle, but only when it is stale: the block panel
-  // renders the badge off this.
+  // The selected block's bundle, but only when it is stale: the toolbar's
+  // figure controls render the badge off this.
   const selectedStaleBundle = (): FigureBundle | undefined => {
     const blockId = selectedBlockId();
     if (!blockId) return undefined;
