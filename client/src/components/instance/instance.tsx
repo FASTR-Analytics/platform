@@ -502,13 +502,16 @@ export default function Instance(p: Props) {
             id="copilot-opener"
             onClick={() => setShowAi(true)}
             intent="primary"
+            flushEdge="right"
             iconName="chevronLeft"
             ariaLabel={t3({
               en: "Open AI panel",
               fr: "Ouvrir le panneau IA",
               pt: "Abrir o painel de IA",
             })}
-          />
+          >
+            AI
+          </Button>
         </div>
       </Show>
       <AlertProvider />
