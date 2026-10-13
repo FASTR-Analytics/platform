@@ -32,9 +32,9 @@ import { instanceState } from "~/state/instance/t1_store";
 
 // The inner set over one pair: the SHARED metric tools (lib/ai_tools: the
 // same definitions the /mcp surface exposes, over the env bound to the pair),
-// the module list, the editors, the figure editor and the draft preview. The chat never
-// registers this set: bindPackageTools runs it once over a throwing env for
-// the templates and once per pair a call's view shows, cached by
+// the module list, the editors, the figure editor and the draft preview. The
+// chat never registers this set: bindPackageTools runs it once over a throwing
+// env for the templates and once per pair a call's view shows, cached by
 // packageToolsKey, so nothing here needs a store to stay live. Array order is
 // the tool-catalog order and the catalog is a prompt-cache input: keep it
 // stable.
