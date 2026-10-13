@@ -4,10 +4,6 @@ export {
   validateFastrNewLiteralBackgrounds,
   validateFastrRewriteUsesBlocks,
   validateFastrStatPlacement,
-  validateReferenceCssReuse,
-  validateReportBodyDelta,
-  validateReportBodyForFormat,
   validateReportBodyLength,
   validateReportTokensResolve,
-  validateStyledReportHasStylesheet,
 } from "./report_validators.ts";

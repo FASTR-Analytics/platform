@@ -1845,16 +1845,8 @@ opens with a FILE menu (Google Docs' shape): Download… (the host's
 `DownloadReport` modal — the header's Download button hides while the toolbar
 shows it), Email this file… (`share_report.tsx`, the slide deck's share modal
 for a report: the attachment is always a PDF, built in memory by
-`exports/export_report_attachment.ts` — markdown through panther's vector
-renderer, fastr through the paged PDF (`export_report_as_paged_pdf.ts`, the same
-bytes Download saves), html through `rasterize_report_document.ts`, which mounts
-the standalone document in a hidden iframe sized to the PRINTABLE AREA (so `vh`
-blocks like a cover match the sheet), rasterizes it and cuts it into pages at
-top-level block boundaries, a cover taking a full sheet of its own ground. Two
-html2canvas facts are load-bearing: `foreignObjectRendering` is required (the
-default text path drops the SPACES between words on these fonts), and every
-`color(srgb …)` — how Chrome serializes the theme's `color-mix()` — must be
-rewritten to rgba() first or it throws on an unsupported colour function. The
+`exports/export_report_attachment.ts`: the paged PDF
+(`export_report_as_paged_pdf.ts`, the same bytes Download saves). The
 `sendReportEmail` route carries the attachment's MIME type), Rename…
 (`rename_report_modal.tsx` → `updateReportLabel`; the host's heading follows at
 once) and Make a copy… (the project list's `DuplicateReportModal`, seeded with

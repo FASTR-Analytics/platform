@@ -3,7 +3,6 @@ import {
   type FigureBlock,
   findReportEmbeds,
   type ImageBlock,
-  type ReportFormat,
   type ReportVersionDetail,
   t3,
 } from "lib";
@@ -11,7 +10,6 @@ import {
   Button,
   ButtonGroup,
   createQuery,
-  MarkdownPresentationJsx,
   openAlert,
   openComponent,
   openConfirm,
@@ -22,7 +20,6 @@ import { serverActions } from "~/server_actions";
 import { resolveLogoUrl } from "~/generate_slide_deck/fastr_logos";
 import { productById } from "~/state/instance/t1_store";
 import { ReportFigureEmbed } from "../mod.ts";
-import { REPORT_MARKDOWN_STYLE } from "~/generate_report/mod";
 import { ReportHtmlPreview } from "../mod.ts";
 import {
   createFigureRasterCache,
@@ -40,9 +37,11 @@ import { computeAttributedDiff, type DiffSegment } from "./version_diff";
 
 type PreviewMode = "edits" | "preview";
 
-// Read-only render of one report version: the same markdown funnel as the
-// report View mode, but embed tokens resolve against the version's SNAPSHOT
-// figure/image registries, so the preview shows the document as it was then.
+// Read-only render of one report version: the same FASTR Markdown funnel as
+// the report View mode, but embed tokens resolve against the version's
+// SNAPSHOT figure/image registries, so the preview shows the document as it
+// was then. Every version body is read as FASTR Markdown, including one saved
+// while the report was in a retired format.
 export function ReportVersionPreview(p: {
   productId: string;
   versionId: string;
@@ -52,9 +51,7 @@ export function ReportVersionPreview(p: {
   canRestore: boolean;
   /** Live body accessor for "Compare with current". */
   getCurrentBody?: () => string;
-  /** The report's body format (fixed at creation; every version shares it). */
-  format: ReportFormat;
-  /** fastr only: the CURRENT theme stylesheet. The theme is not part of a
+  /** The CURRENT theme stylesheet. The theme is not part of a
    *  version snapshot (it lives in config, not the body), so an old version
    *  renders in whatever theme the report wears today. */
   fastrThemeCss?: string;
@@ -77,57 +74,6 @@ export function ReportVersionPreview(p: {
   // What the selected session changed, shown by default (Google-Docs-style);
   // toggle to the rendered preview of the snapshot.
   const [mode, setMode] = createSignal<PreviewMode>("edits");
-
-  function renderEmbedFor(v: ReportVersionDetail) {
-    return (
-      src: string,
-      alt: string,
-      line?: number,
-    ): JSX.Element | undefined => {
-      const fig = /^figure:(.+)$/.exec(src);
-      if (fig) {
-        const fb = v.figures[fig[1]];
-        return fb
-          ? (
-            <div class="ui-pad my-4 rounded border" data-line={line}>
-              <ReportFigureEmbed figure={fb} />
-            </div>
-          )
-          : (
-            <div class="text-danger text-xs" data-line={line}>
-              {t3({
-                en: "Missing visualization:",
-                fr: "Visualisation manquante :",
-                pt: "Visualização em falta:",
-              })} {fig[1]}
-            </div>
-          );
-      }
-      const img = /^image:(.+)$/.exec(src);
-      if (img) {
-        const ib = v.images[img[1]];
-        return ib
-          ? (
-            <img
-              class="w-full"
-              src={resolveLogoUrl(ib.imgFile)}
-              alt={alt}
-              data-line={line}
-            />
-          )
-          : (
-            <div class="text-danger text-xs" data-line={line}>
-              {t3({
-                en: "Missing image:",
-                fr: "Image manquante :",
-                pt: "Imagem em falta:",
-              })} {img[1]}
-            </div>
-          );
-      }
-      return undefined;
-    };
-  }
 
   async function compareWithCurrent(v: ReportVersionDetail) {
     await openComponent({
@@ -234,34 +180,17 @@ export function ReportVersionPreview(p: {
           <Show
             when={mode() === "edits"}
             fallback={
-              <Show
-                when={p.format !== "markdown"}
-                fallback={
-                  <div class="bg-base-200 min-h-0 flex-1 overflow-auto px-8 py-10">
-                    <div class="bg-base-100 md-dark-adapt mx-auto min-h-full w-full max-w-4xl rounded px-6 py-10 shadow-floating">
-                      <MarkdownPresentationJsx
-                        markdown={v.body}
-                        renderImage={renderEmbedFor(v)}
-                        style={REPORT_MARKDOWN_STYLE}
-                      />
-                    </div>
-                  </div>
-                }
-              >
-                <HtmlVersionPreview
-                  version={v}
-                  format={p.format}
-                  themeCss={p.fastrThemeCss}
-                  inkTheme={p.figureInkTheme}
-                />
-              </Show>
+              <HtmlVersionPreview
+                version={v}
+                themeCss={p.fastrThemeCss}
+                inkTheme={p.figureInkTheme}
+              />
             }
           >
             <SessionEdits
               productId={p.productId}
               version={v}
               previousVersionId={p.previousVersionId}
-              format={p.format}
             />
           </Show>
           <div class="ui-pad ui-gap-sm flex items-center border-t">
@@ -294,12 +223,11 @@ export function ReportVersionPreview(p: {
   );
 }
 
-// Read-only render of an HTML-format version — the same sandboxed-iframe
-// funnel as the report's View mode, against the version's SNAPSHOT registries,
-// with its own raster cache (disposed with the pane).
+// Read-only render of a version as its compiled document: the same
+// sandboxed-iframe funnel as the report's View mode, against the version's
+// SNAPSHOT registries, with its own raster cache (disposed with the pane).
 function HtmlVersionPreview(p: {
   version: ReportVersionDetail;
-  format: ReportFormat;
   themeCss?: string;
   inkTheme?: FigureInkTheme;
 }) {
@@ -318,7 +246,6 @@ function HtmlVersionPreview(p: {
         rasters={rasters}
         rasterVersion={rasterTick()}
         lightInk={p.inkTheme}
-        format={p.format}
         themeCss={p.themeCss}
         lineAnchors={false}
       />
@@ -333,7 +260,6 @@ function SessionEdits(p: {
   productId: string;
   version: ReportVersionDetail;
   previousVersionId?: string;
-  format: ReportFormat;
 }) {
   // The snapshot is wrapped in an object because StateHolderWrapper renders
   // nothing for falsy ready-data: a bare "" (the oldest version's base)
@@ -401,7 +327,7 @@ function SessionEdits(p: {
             .filter((c) => c.kind === "edited")
             .map((c) => c.key),
         );
-        const marked = markEditedEmbeds(segments, editedKeys, p.format, {
+        const marked = markEditedEmbeds(segments, editedKeys, {
           who: editorDisplayNames(p.version.editors) || undefined,
           whoExact: p.version.editors.length === 1,
           whoEmail: p.version.editors.length === 1
@@ -414,7 +340,6 @@ function SessionEdits(p: {
         // freshest alt; prev body covers removed embeds).
         const embedLabels = collectEmbedLabels(
           [p.version.body, prev.body],
-          p.format,
         );
         return (
           <div class="bg-base-200 min-h-0 flex-1 overflow-auto px-8 py-6">
@@ -543,11 +468,10 @@ function diffRegistry<T>(
 // bodies in priority order.
 function collectEmbedLabels(
   bodies: string[],
-  format: ReportFormat,
 ): Map<string, string> {
   const out = new Map<string, string>();
   for (const body of bodies) {
-    for (const ref of findReportEmbeds(body, format)) {
+    for (const ref of findReportEmbeds(body)) {
       if (ref.caption && !out.has(ref.id)) {
         out.set(ref.id, ref.caption);
       }
@@ -563,7 +487,6 @@ function collectEmbedLabels(
 function markEditedEmbeds(
   segments: DiffSegment[],
   editedKeys: Set<string>,
-  format: ReportFormat,
   who: { who?: string; whoExact?: boolean; whoEmail?: string },
 ): DiffSegment[] {
   if (editedKeys.size === 0) {
@@ -576,7 +499,7 @@ function markEditedEmbeds(
       continue;
     }
     let pos = 0;
-    for (const ref of findReportEmbeds(seg.text, format)) {
+    for (const ref of findReportEmbeds(seg.text)) {
       if (!editedKeys.has(ref.id)) {
         continue;
       }

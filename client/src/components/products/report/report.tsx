@@ -28,10 +28,9 @@ import {
   getFastrReportTemplate,
   getFastrReportTheme,
   getReportCustomStyle,
-  getReportFormat,
-  getReportHtmlStyle,
   type ImageBlock,
   isFastrEmbedLine,
+  isRetiredReportFormat,
   logosSnippet,
   materializeReport,
   type PackageScope,
@@ -41,7 +40,6 @@ import {
   referencedReportEmbedIds,
   type ReportConfig,
   type ReportDocContent,
-  type ReportFormat,
   type ReportStyleColors,
   type RunAuthoringContext,
   scanContainerLines,
@@ -51,15 +49,12 @@ import {
 import {
   AIToolFailure,
   Button,
-  ButtonGroup,
   type EditorComponentProps,
   FrameTop,
   getEditorWrapper,
   HeadingBar,
-  MarkdownPresentationJsx,
   openAlert,
   openComponent,
-  Select,
 } from "panther";
 import {
   createEffect,
@@ -84,7 +79,6 @@ import {
   type ReportSession,
   setCollabView,
 } from "~/state/instance/collab";
-import { fastrThemeOptions } from "./fastr_theme_labels";
 import {
   createReportPaginator,
   HeaderRows,
@@ -148,7 +142,6 @@ import { VisualizationEditor } from "~/components/_shared/figure_editor/mod.ts";
 import type { VizFigureCollabBinding } from "~/components/_shared/figure_editor/mod.ts";
 import { InsertFigureModal } from "~/components/products/_shared/mod.ts";
 import {
-  EDITOR_PANE_MAX_REM,
   type ReportBlockContext,
   ReportBodyEditor,
   type ReportEditorApi,
@@ -158,39 +151,25 @@ import {
   FM_LIVE_SCOPE_CLASS,
   type PageBoxGeometry,
 } from "./live_preview_extension";
-import { REPORT_MARKDOWN_STYLE } from "~/generate_report/mod";
 import {
-  ReportEmbedControls,
   ReportEmbedToolbarControls,
-  ReportInsertEmbedButtons,
   type SelectedReportEmbed,
 } from "./embed_editor";
 import { ReportImagePicker } from "./image_picker";
 import { ReportLogoPicker } from "./logo_picker";
 import { ReportMarkdownDiff } from "./markdown_diff";
-import { ReportFigureEmbed } from "~/components/products/_shared/mod.ts";
 import { DownloadReport } from "./download_report";
 import { isDarkGroundBehind } from "~/generate_report/mod";
 import { ShareReport } from "./share_report";
 import { ReportThemeModal } from "./theme_modal";
-import { ReportStyleEditor } from "~/components/products/_shared/mod.ts";
+import { ReportStyleEditor } from "./report_style_editor";
 import { DuplicateProductsModal } from "~/components/products/_shared/mod.ts";
 import { instanceState } from "~/state/instance/t1_store";
 import {
-  divSurface,
-  isSurfaceAtBottom,
-  lineToPreviewTop,
-  type PreviewSurface,
-  previewTopToLine,
-  scrollSurfaceToBottom,
-} from "~/components/products/_shared/mod.ts";
-import { ReportHtmlPreview } from "~/components/products/_shared/mod.ts";
-import {
-  createFigureRasterCache,
   createFigureSizeCache,
   figureDarkInkForColors,
   type FigureInkTheme,
-  figureInkThemeForStyle,
+  figureLightInkForColors,
   GENERIC_DARK_INK,
   GENERIC_LIGHT_INK,
 } from "~/generate_report/mod";
@@ -198,7 +177,6 @@ import { VersionHistoryEditor } from "~/components/products/_shared/version_hist
 
 type EmbedKind = "figure" | "image";
 type EmbedSelection = { kind: EmbedKind; id: string };
-type ReportMode = "edit" | "view" | "split";
 
 // The report editor takes ONE thing: the product id (D16). Label, package and
 // scope are read LIVE from the T1 products row; a report IS its product, so
@@ -261,56 +239,43 @@ export function ReportEditor(p: Props) {
 
   const [isLoading, setIsLoading] = createSignal(true);
   const [body, setBody] = createSignal("");
-  // The body format — fixed at creation, read from config before anything
-  // parses tokens (the orphan prune, the editor language, the AI view).
-  const [format, setFormat] = createSignal<ReportFormat>("markdown");
-  // Only consumed by the AI view params (the styled authoring brief).
-  let htmlStyle: ReturnType<typeof getReportHtmlStyle> = "default";
-  // The config as loaded — re-sent whole on a theme change so no sibling field
+  // A report still stored in a format that no longer has an editor: it opens
+  // to a notice and nothing else (isRetiredReportFormat).
+  const [retiredFormat, setRetiredFormat] = createSignal(false);
+  // The config as loaded: re-sent whole on a theme change so no sibling field
   // is dropped (updateReportConfig re-imposes format and style, not the rest).
   let loadedConfig: ReportConfig = {};
-  let customStyle:
-    | { label: string; brief: string; referenceCss?: string | null }
-    | undefined;
   const [figures, setFigures] = createSignal<Record<string, FigureBlock>>({});
   const [images, setImages] = createSignal<Record<string, ImageBlock>>({});
-  // HTML preview: figure rasters (content-keyed blob URLs) live here so they
-  // survive Edit↔Split remounts; rasterTick re-renders the frame as they land.
-  const [rasterTick, setRasterTick] = createSignal(0);
-  // The style's light-ink palette — used by the preview for figures whose
-  // detected ground is dark. A signal, not a let: a FASTR Markdown report can
-  // be re-themed at any time, which moves the palette.
+  // The palette's light ink, for figures whose detected ground is dark. A
+  // signal, not a let: a report can be re-themed at any time, which moves the
+  // palette.
   const [inkTheme, setInkTheme] = createSignal<FigureInkTheme | undefined>();
   // The ink for LIGHT grounds — the palette's own — so a figure whose stored
   // style is white-on-dark (a dark dashboard's) still reads on the page.
   const [darkInk, setDarkInk] = createSignal<FigureInkTheme>(GENERIC_DARK_INK);
   // The theme's series palette for every figure the report embeds; a custom
-  // palette's accent leads it. Only FASTR reports are themed this way.
+  // palette's accent leads it.
   const chartPalette = createMemo(() =>
-    format() === "fastr"
-      ? fastrChartPalette(fastrTheme(), fastrColors())
-      : undefined
+    fastrChartPalette(fastrTheme(), fastrColors())
   );
   // What every rendered figure asks: which ink for the ground behind it.
   const figureInkFor = (el: Element): FigureInkTheme =>
     isDarkGroundBehind(el) ? (inkTheme() ?? GENERIC_LIGHT_INK) : darkInk();
-  // FASTR Markdown theming. Unlike htmlStyle this is changeable after creation
-  // — the body carries no CSS, so nothing can be invalidated by a re-theme.
+  // The theme is changeable after creation: the body carries no CSS, so
+  // nothing can be invalidated by a re-theme.
   const [fastrTheme, setFastrTheme] = createSignal<FastrReportTheme>("default");
   // Where the caret is, structurally — pushed by the editor on cursor moves and
   // edits, and read only by the toolbar.
   const [blockContext, setBlockContext] = createSignal<
     ReportBlockContext | undefined
   >();
-  // A custom style contributes only its palette to a fastr report (its
-  // reference_css targets AI-authored class names, not fm-*).
+  // A custom style contributes its palette.
   const [fastrColors, setFastrColors] = createSignal<
     ReportStyleColors | undefined
   >();
   const themeCss = createMemo(() =>
-    format() === "fastr"
-      ? buildFastrReportCss(fastrTheme(), fastrColors())
-      : undefined
+    buildFastrReportCss(fastrTheme(), fastrColors())
   );
   // The `:::report{width=...}` header widens the Edit sheet exactly as it
   // widens the page in View. A string memo, so keystrokes anywhere else in
@@ -423,12 +388,6 @@ ${scope} .cm-fm-h1 *, ${scope} .cm-fm-h2 *, ${scope} .cm-fm-h3 * { text-decorati
 ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-h3 .fm-mark--u { text-decoration: underline !important; }`,
     ].join("\n");
   });
-  const rasters = createFigureRasterCache(() => setRasterTick((t) => t + 1));
-  // The live preview surface, for the peer-selection overlay (an iframe's
-  // embeds are not reachable by querySelector from the parent document).
-  const [previewSurface, setPreviewSurface] = createSignal<
-    PreviewSurface | undefined
-  >();
   // The lastUpdated we last saw from the server — round-tripped for optimistic
   // concurrency (PLAN_REPORTS.md §4).
   const [lastUpdated, setLastUpdated] = createSignal<string>("");
@@ -443,16 +402,6 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
   const [selectedEmbed, setSelectedEmbed] = createSignal<
     EmbedSelection | undefined
   >();
-  // Three modes: edit (CodeMirror only), split (editor + preview, the
-  // default), view (read-only HTML preview only). AI is mode-agnostic: the
-  // editor stays mounted in every mode.
-  // A FASTR Markdown report has ONE: edit (Nick, 2026-09-21). Its Edit pane
-  // is the finished page (live preview on page boxes, the PDF's own layout),
-  // so Split and View showed the same thing twice; the load below puts it in
-  // edit and the header drops the switch. The older markdown and html formats
-  // keep all three: their Edit pane is raw source, and View is the only
-  // place they render.
-  const [mode, setMode] = createSignal<ReportMode>("split");
   // Live collab (Yjs). collabReady LATCHES at the first report_sync: from then
   // on the room's checkpoints own persistence and the REST autosave is off for
   // good: even while disconnected (edits accumulate in the local doc and the
@@ -482,102 +431,6 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
   // op repeats the same non-fatal error).
   let permErrorShown = false;
 
-  // The figure-editor sidebar collapses in View, so clear the embed selection
-  // when entering View. The CM editor is visible in Edit & Split: re-measure it when it
-  // (re)appears (e.g. coming back from View where it was hidden). Also align the
-  // newly revealed pane to targetLine (§8 scroll-sync): when the editor reappears
-  // after View, scroll it to targetLine; when the preview mounts after Edit,
-  // scroll it to targetLine and arm figure-settle. One effect (not two) so refresh
-  // runs before scrollToLine and they can't race.
-  createEffect(
-    on(mode, (m, prev) => {
-      if (m === "view") setSelectedEmbed(undefined);
-      if (m !== "view") editorApi?.refresh();
-      if (prev === undefined) return; // initial render sits at the top
-
-      const editorRevealed = prev === "view" && m !== "view";
-      const previewMounted = prev === "edit" && m !== "edit";
-      if (!editorRevealed && !previewMounted) return;
-
-      // Defer so the just-shown pane has laid out (CM measure / preview mount).
-      queueMicrotask(() =>
-        requestAnimationFrame(() => {
-          if (mode() !== m) return; // toggled again mid-schedule
-          if (editorRevealed) {
-            if (targetAtBottom) editorApi?.scrollToBottom();
-            else editorApi?.scrollToLine(targetLine);
-          }
-          // The HTML preview's surface arrives asynchronously (srcdoc load) —
-          // HtmlPreviewPane aligns when ReportHtmlPreview hands it the surface;
-          // here `preview` is only set for the markdown pane, whose surface
-          // exists synchronously at mount.
-          if (previewMounted && preview) alignPreviewToTarget();
-        })
-      );
-    }),
-  );
-
-  // Resolve an embed token to its live render: same funnel as the CM widget, so
-  // a figure/image looks identical in Edit and View. Plain markdown image URLs
-  // return undefined → MarkdownPresentationJsx falls back to a plain <img>.
-  function renderEmbed(
-    src: string,
-    alt: string,
-    line?: number,
-  ): JSX.Element | undefined {
-    const fig = /^figure:(.+)$/.exec(src);
-    if (fig) {
-      const fb = figures()[fig[1]];
-      return fb
-        ? (
-          <div
-            class="ui-pad my-4 rounded border"
-            data-line={line}
-            data-embed-id={fig[1]}
-          >
-            <ReportFigureEmbed
-              figure={fb}
-              stale={figureStale(fig[1])}
-              onMeasured={() => armFigureSettle()}
-            />
-          </div>
-        )
-        : (
-          <div class="text-danger text-xs" data-line={line}>
-            {t3({
-              en: "Missing visualization:",
-              fr: "Visualisation manquante :",
-              pt: "Visualização em falta:",
-            })} {fig[1]}
-          </div>
-        );
-    }
-    const img = /^image:(.+)$/.exec(src);
-    if (img) {
-      const ib = images()[img[1]];
-      return ib
-        ? (
-          <img
-            class="w-full"
-            src={assetUrl(ib.imgFile)}
-            alt={alt}
-            data-line={line}
-            data-embed-id={img[1]}
-          />
-        )
-        : (
-          <div class="text-danger text-xs" data-line={line}>
-            {t3({
-              en: "Missing image:",
-              fr: "Image manquante :",
-              pt: "Imagem em falta:",
-            })} {img[1]}
-          </div>
-        );
-    }
-    return undefined;
-  }
-
   let editorApi: ReportEditorApi | undefined;
   let saveTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -586,8 +439,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
   // paginator lays the SAME paged document the PDF is printed from out in a
   // hidden frame, paginate_report.ts). An experimental second mode that
   // edited on the rendered pages themselves was removed 2026-09-30.
-  const paginationWanted = () =>
-    format() === "fastr" && mode() === "edit" && !isLoading();
+  const paginationWanted = () => !isLoading() && !retiredFormat();
   // The boxes the layout frame gives embeds: a figure's raster box (what the
   // PDF embeds) and an image's natural size, both cached; a size landing
   // re-runs the layout. Never the editor's own DOM, which only holds what is
@@ -688,90 +540,11 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
   // instead of committing against a torn-down editor.
   let mounted = true;
 
-  // ── scroll sync (PLAN_REPORT_SCROLL_SYNC.md) ────────────────────────────────
-  // The source line is the canonical coordinate; pixel positions are derived live
-  // from the DOM at apply-time. targetLine is fractional, 0-based.
-  let targetLine = 0;
-  // Edge-snap: when the driving pane is scrolled to its end, the follower snaps
-  // to its end too (the top-line coordinate saturates near the bottom, so the
-  // last screenful can't be top-aligned). Tracked so mode-switch / figure-settle
-  // also pin to the bottom.
-  let targetAtBottom = false;
-  // Breaks the echo loop: a programmatic scroll on one pane fires that pane's
-  // scroll event, which must not re-drive the other. Cleared on the next rAF
-  // because programmatic scrollTop writes dispatch their scroll event async.
-  let syncing = false;
-  // The preview surface (markdown: the scrolling div; html: the iframe
-  // document) — set when the pane is ready, cleared on unmount.
-  let preview: PreviewSurface | undefined;
-
-  // Figure-settle (§7): figures measure their height a few frames after mount, so
-  // a one-shot align can land before they settle. While armed (and the user
-  // hasn't taken over), re-project targetLine as heights change.
-  let settleArmed = false;
-  let settleUntouched = true;
-  let quietTimer: ReturnType<typeof setTimeout> | undefined;
-  let ceilingTimer: ReturnType<typeof setTimeout> | undefined;
-
-  function disarmSettle() {
-    settleArmed = false;
-    if (quietTimer) clearTimeout(quietTimer);
-    if (ceilingTimer) clearTimeout(ceilingTimer);
-    quietTimer = undefined;
-    ceilingTimer = undefined;
-  }
-
-  // Re-arm the quiet window (~250 ms with no further height change → disarm).
-  function bumpQuiet() {
-    if (!settleArmed) return;
-    if (quietTimer) clearTimeout(quietTimer);
-    quietTimer = setTimeout(disarmSettle, 250);
-  }
-
-  // Arm the settle window. No-op once the user has taken over this mount, so a
-  // late figure measure can't re-enable auto-scroll after a manual scroll.
-  function armFigureSettle() {
-    if (!settleUntouched) return;
-    settleArmed = true;
-    if (ceilingTimer) clearTimeout(ceilingTimer);
-    ceilingTimer = setTimeout(disarmSettle, 2000); // hard ceiling
-    bumpQuiet();
-  }
-
-  // The preview's ResizeObserver calls this as figure heights settle.
-  function onPreviewResize() {
-    if (!settleArmed || !settleUntouched || !preview) return;
-    bumpQuiet();
-    const next = targetAtBottom
-      ? preview.scrollHeight() - preview.clientHeight()
-      : lineToPreviewTop(preview, targetLine);
-    if (Math.abs(next - preview.scrollTop()) < 1) return; // skip no-ops
-    syncing = true; // §7: must not masquerade as a user scroll
-    preview.setScrollTop(next);
-    requestAnimationFrame(() => (syncing = false));
-  }
-
-  // Put the preview at targetLine (or the bottom) and arm figure-settle — the
-  // mode-switch / AI-accept / surface-ready alignment.
-  function alignPreviewToTarget() {
-    if (!preview) return;
-    if (targetAtBottom) scrollSurfaceToBottom(preview);
-    else preview.setScrollTop(lineToPreviewTop(preview, targetLine));
-    armFigureSettle();
-  }
-
-  // First genuine user gesture in the preview ends the settle window (one-shot).
-  function onPreviewUserGesture() {
-    settleUntouched = false;
-    disarmSettle();
-  }
-
-  // The outline sidebar (FASTR Edit): the headings the report's own contents
+  // The outline sidebar: the headings the report's own contents
   // block would list, re-derived per edit but only re-rendered when one
   // changes, and the line being read (probed a little below the viewport top,
   // so a heading just jumped to counts as in view).
-  const outlineShown = () =>
-    !isLoading() && format() === "fastr" && mode() === "edit";
+  const outlineShown = () => !isLoading() && !retiredFormat();
   const outlineItems = createMemo(
     () => (outlineShown() ? fastrDocumentOutline(body()) : []),
     [],
@@ -810,33 +583,8 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     }
   });
 
-  // Editor scrolled (fires in Edit + Split). In Split, drive the preview.
   function onEditorScroll() {
     if (outlineShown()) readOutlineViewLine();
-    if (syncing) return;
-    const line = editorApi?.getTopLine();
-    if (line === undefined) return;
-    targetLine = line;
-    targetAtBottom = editorApi?.isAtBottom() ?? false;
-    if (mode() === "split" && preview) {
-      syncing = true;
-      if (targetAtBottom) scrollSurfaceToBottom(preview);
-      else preview.setScrollTop(lineToPreviewTop(preview, line));
-      requestAnimationFrame(() => (syncing = false));
-    }
-  }
-
-  // Preview scrolled (fires in View + Split). In Split, drive the editor.
-  function onPreviewScroll() {
-    if (syncing || !preview) return;
-    targetLine = previewTopToLine(preview);
-    targetAtBottom = isSurfaceAtBottom(preview);
-    if (mode() === "split") {
-      syncing = true;
-      if (targetAtBottom) editorApi?.scrollToBottom();
-      else editorApi?.scrollToLine(targetLine);
-      requestAnimationFrame(() => (syncing = false));
-    }
   }
 
   const canConfigure = () => canEditProduct(p.productId);
@@ -1045,22 +793,21 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
   // Caption for an embed = its token's caption/alt (first occurrence).
   function captionForId(kind: EmbedKind, id: string): string {
     return (
-      findReportEmbeds(body(), format()).find(
+      findReportEmbeds(body()).find(
         (r) => r.kind === kind && r.id === id,
       )?.caption ?? ""
     );
   }
 
-  // A FASTR figure's width, read off its line's `{…}` block (first
-  // occurrence); undefined where a width means nothing (another format, or
-  // an embed inline in a paragraph, which is not a figure).
+  // A figure's width, read off its line's `{…}` block (first occurrence);
+  // undefined where a width means nothing (an embed inline in a paragraph,
+  // which is not a figure).
   function widthForId(
     kind: EmbedKind,
     id: string,
   ): FastrFigureWidth | undefined {
-    if (format() !== "fastr") return undefined;
     const src = body();
-    const ref = findReportEmbeds(src, "fastr").find(
+    const ref = findReportEmbeds(src).find(
       (r) => r.kind === kind && r.id === id,
     );
     if (!ref) return undefined;
@@ -1116,56 +863,26 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     // once the room syncs, the shared doc owns this content, and a refetch
     // landing mid-session would fight it.
     const res = await getReportDetailFromCacheOrFetch(p.productId);
-    if (res.success) {
-      setFormat(getReportFormat(res.data.config));
+    if (res.success && isRetiredReportFormat(res.data.config)) {
+      setRetiredFormat(true);
+    } else if (res.success) {
       setTemplate(getFastrReportTemplate(res.data.config));
-      if (getReportFormat(res.data.config) === "fastr") setMode("edit");
-      htmlStyle = getReportHtmlStyle(res.data.config);
-      // Custom style: live ref + snapshot fallback (S12) — prefer the CURRENT
-      // library brief when the style still exists and is visible here, so
-      // tuning a style once benefits every report using it; the creation-time
-      // snapshot keeps deleted/hidden styles working.
+      // Custom style: the palette the report snapshotted when it was applied.
       const snap = getReportCustomStyle(res.data.config);
       loadedConfig = res.data.config;
-      const loadedFormat = getReportFormat(res.data.config);
-      if (loadedFormat === "fastr") {
-        const theme = getFastrReportTheme(res.data.config);
-        setFastrTheme(theme);
-        setFastrColors(snap?.colors ?? undefined);
-        // fastr grounds come from the theme, not from an AI-written stylesheet:
-        // hand the ink deriver the palette the page actually paints with.
-        const tok = FASTR_THEME_TOKENS[theme];
-        const palette = snap?.colors ?? {
-          page: tok.page,
-          ink: tok.ink,
-          accent: tok.accent,
-        };
-        setInkTheme(figureInkThemeForStyle("default", palette));
-        setDarkInk(figureDarkInkForColors(palette));
-      } else {
-        setInkTheme(figureInkThemeForStyle(htmlStyle, snap?.colors));
-        setDarkInk(figureDarkInkForColors(snap?.colors));
-      }
-      if (snap) {
-        customStyle = {
-          label: snap.label,
-          brief: snap.brief,
-          referenceCss: snap.referenceCss,
-        };
-        const live = await serverActions.listReportStyles({
-          product_id: p.productId,
-        });
-        if (live.success) {
-          const cur = live.data.find((st) => st.id === snap.id);
-          if (cur) {
-            customStyle = {
-              label: cur.label,
-              brief: cur.brief,
-              referenceCss: cur.referenceCss,
-            };
-          }
-        }
-      }
+      const theme = getFastrReportTheme(res.data.config);
+      setFastrTheme(theme);
+      setFastrColors(snap?.colors ?? undefined);
+      // Grounds come from the theme: hand the ink deriver the palette the
+      // page actually paints with.
+      const tok = FASTR_THEME_TOKENS[theme];
+      const palette = snap?.colors ?? {
+        page: tok.page,
+        ink: tok.ink,
+        accent: tok.accent,
+      };
+      setInkTheme(figureLightInkForColors(palette));
+      setDarkInk(figureDarkInkForColors(palette));
       setBody(res.data.body);
       setLastUpdated(res.data.lastUpdated);
 
@@ -1267,7 +984,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     // a reader cannot answer it.
     if (
       loadedConfig?.themeChosen === false &&
-      getReportFormat(loadedConfig) === "fastr" &&
+      !retiredFormat() &&
       canEditBody()
     ) {
       void openThemeModal();
@@ -1275,13 +992,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
 
     copilotViewController.setView(
       "editing_report",
-      {
-        reportId: p.productId,
-        reportLabel: label(),
-        format: format(),
-        htmlStyle,
-        customStyle,
-      },
+      { reportId: p.productId, reportLabel: label() },
       {
         // Read live from the T1 row: a reattach remounts the copilot on the new
         // pair, and the tools of that mount see the same pair here (D15).
@@ -1320,7 +1031,6 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
                   oldText: baseBody,
                   newText: proposal.newBody,
                   summary: proposal.summary,
-                  format: format(),
                   signal,
                 },
               }).then((accepted) => accepted === true),
@@ -1421,19 +1131,14 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
       });
     }
     editorApi?.refresh();
-    // Align both panes to the first APPLIED change so the accepted edit lands
-    // on screen (same defer pattern as the mode-switch effect: let layout
-    // settle first). firstAppliedLine is in current-doc coordinates from the
-    // rebase; absent when nothing applied (every hunk skipped): don't move.
+    // Scroll to the first APPLIED change so the accepted edit lands on
+    // screen (deferred: let layout settle first). firstAppliedLine is in
+    // current-doc coordinates from the rebase; absent when nothing applied
+    // (every hunk skipped): don't move.
     const changedLine = res.firstAppliedLine;
     if (changedLine !== undefined) {
-      targetLine = changedLine;
-      targetAtBottom = false;
       queueMicrotask(() =>
-        requestAnimationFrame(() => {
-          editorApi?.scrollToLine(changedLine);
-          alignPreviewToTarget();
-        })
+        requestAnimationFrame(() => editorApi?.scrollToLine(changedLine))
       );
     }
     return res.skipped;
@@ -1441,7 +1146,6 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
 
   onCleanup(() => {
     mounted = false;
-    rasters.dispose();
     const s = session();
     if (collabFatal()) {
       // The report/room is gone: nothing to flush to.
@@ -1612,7 +1316,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
       ink: tok.ink,
       accent: tok.accent,
     };
-    setInkTheme(figureInkThemeForStyle("default", palette));
+    setInkTheme(figureLightInkForColors(palette));
     setDarkInk(figureDarkInkForColors(palette));
   }
 
@@ -1820,7 +1524,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     const id = crypto.randomUUID();
     await updateFigure(id, { type: "figure", bundle: resolved.bundle });
     editorApi?.insertBlockOnNewLine(
-      buildReportEmbedToken(format(), "figure", id, picked.metric.label),
+      buildReportEmbedToken("figure", id, picked.metric.label),
     );
     setSelectedEmbed({ kind: "figure", id });
   }
@@ -1837,7 +1541,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     setImages(next);
     await persistImages(next);
     editorApi?.insertBlockOnNewLine(
-      buildReportEmbedToken(format(), "image", id, picked.alt),
+      buildReportEmbedToken("image", id, picked.alt),
     );
     setSelectedEmbed({ kind: "image", id });
   }
@@ -2041,7 +1745,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
   async function download() {
     await openComponent({
       element: DownloadReport,
-      props: { productId: p.productId, format: format() },
+      props: { productId: p.productId },
     });
   }
 
@@ -2070,14 +1774,9 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     });
   }
 
-  // The FASTR toolbar carries a File menu (Download lives there); the header
-  // keeps its Download button for every other case — View, and the markdown
-  // and html formats, which have no toolbar.
-  // `format` starts at its markdown default and only becomes the real format
-  // once getReportDetail resolves, so BOTH strips wait for the load — a fastr
-  // report used to flash the markdown strip's insert buttons on open.
-  const fileMenuShown = () =>
-    !isLoading() && mode() !== "view" && canEditBody() && format() === "fastr";
+  // The toolbar carries a File menu (Download lives there); the header keeps
+  // its Download button for a reader, who has no toolbar.
+  const fileMenuShown = () => !isLoading() && !retiredFormat() && canEditBody();
 
   async function openVersionHistory() {
     await withPanesCovered(
@@ -2088,7 +1787,6 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
           docId: p.productId,
           currentLabel: label(),
           getCurrentBody: body,
-          reportFormat: format(),
           reportFastrThemeCss: themeCss(),
           figureInkTheme: inkTheme(),
         },
@@ -2096,122 +1794,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     );
   }
 
-  // The preview pane (View & Split) owns its scroll-sync lifecycle: it attaches
-  // the surface (an rAF-throttled scroll listener, a content ResizeObserver for
-  // figure-settle §7, user-gesture latches) — all torn down on unmount, since
-  // the pane unmounts in Edit. Markdown: the surface is the scrolling div,
-  // ready synchronously at mount. HTML: the surface is the iframe document,
-  // ready only after the srcdoc loads — the pane aligns to targetLine at that
-  // moment (a next-frame alignment from the mode effect would find no anchors).
-  function attachPreviewSurface(surface: PreviewSurface): () => void {
-    let scrollRAF = 0;
-    const onScroll = () => {
-      if (scrollRAF) return;
-      scrollRAF = requestAnimationFrame(() => {
-        scrollRAF = 0;
-        onPreviewScroll();
-      });
-    };
-    const offs = [
-      surface.on("scroll", onScroll),
-      surface.on("wheel", onPreviewUserGesture),
-      surface.on("pointerdown", onPreviewUserGesture),
-      surface.observeContent(() => onPreviewResize()),
-    ];
-    preview = surface;
-    setPreviewSurface(() => surface);
-    return () => {
-      if (scrollRAF) cancelAnimationFrame(scrollRAF);
-      for (const off of offs) off();
-      disarmSettle();
-      preview = undefined;
-      setPreviewSurface(undefined);
-    };
-  }
-
-  const MarkdownPreviewPane = () => {
-    let paneEl: HTMLDivElement | undefined;
-    let contentEl: HTMLDivElement | undefined;
-    onMount(() => {
-      if (!paneEl) return;
-      settleUntouched = true;
-      settleArmed = false;
-      onCleanup(attachPreviewSurface(divSurface(paneEl, contentEl)));
-    });
-    return (
-      <div
-        class="min-h-0 flex-1 overflow-auto px-8 py-10"
-        classList={{ "border-l": mode() === "split" }}
-        data-report-cursor="preview-pane"
-        data-tour="report-preview-pane"
-        ref={(el) => (paneEl = el)}
-      >
-        <div
-          class="bg-base-100 md-dark-adapt shadow-floating mx-auto min-h-full w-full max-w-4xl rounded px-6 py-10"
-          data-report-cursor="preview-content"
-          ref={(el) => (contentEl = el)}
-        >
-          <MarkdownPresentationJsx
-            markdown={body()}
-            renderImage={renderEmbed}
-            style={REPORT_MARKDOWN_STYLE}
-          />
-        </div>
-      </div>
-    );
-  };
-
-  const HtmlPreviewPane = () => {
-    let detach: (() => void) | undefined;
-    onMount(() => {
-      settleUntouched = true;
-      settleArmed = false;
-    });
-    onCleanup(() => detach?.());
-    return (
-      <div
-        class="min-h-0 flex-1 overflow-hidden px-8 py-10"
-        classList={{ "border-l": mode() === "split" }}
-        data-report-cursor="preview-pane"
-        data-tour="report-preview-pane"
-      >
-        <ReportHtmlPreview
-          class="shadow-floating mx-auto block h-full w-full max-w-4xl rounded border-0 bg-white"
-          body={body()}
-          title={label()}
-          figures={figures()}
-          images={images()}
-          assetUrl={assetUrl}
-          rasters={rasters}
-          rasterVersion={rasterTick()}
-          lightInk={inkTheme()}
-          darkInk={darkInk()}
-          chartPalette={chartPalette()}
-          format={format()}
-          themeCss={themeCss()}
-          lineAnchors
-          forwardPointer
-          dataReportCursor="preview-content"
-          onSurface={(surface) => {
-            detach?.();
-            detach = attachPreviewSurface(surface);
-            alignPreviewToTarget();
-          }}
-          onReady={() => armFigureSettle()}
-        />
-      </div>
-    );
-  };
-
-  // FASTR Markdown renders through the html funnel (compiled markdown +
-  // theme stylesheet), so only plain markdown takes panther's IR renderer.
-  const ReportPreviewPane = () =>
-    format() === "markdown" ? <MarkdownPreviewPane /> : <HtmlPreviewPane />;
-
-  // The content area (banners + CM editor + preview + diff), shared by both
-  // modes. The CM editor stays mounted in View too: AI accept applies via its
-  // imperative setBody and body() updates flow through onBodyChange regardless
-  // of mode (PLAN_REPORT_PREVIEW_TOGGLE.md §2). Only the left sidebar differs.
+  // The content area: banners above the editor.
   const MainArea = () => (
     <div
       class="bg-base-200 flex h-full w-full flex-col"
@@ -2270,12 +1853,22 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
       <Show when={saveError()}>
         <div class="text-danger ui-pad text-xs">{saveError()}</div>
       </Show>
-      <Show when={!isLoading()}>
+      <Show when={retiredFormat()}>
+        <div class="ui-pad text-base-content-muted text-sm">
+          {t3({
+            en:
+              "This report was written in the HTML format, which has been retired. It can no longer be opened or edited.",
+            fr:
+              "Ce rapport a été rédigé au format HTML, qui a été retiré. Il ne peut plus être ouvert ni modifié.",
+            pt:
+              "Este relatório foi escrito no formato HTML, que foi descontinuado. Já não pode ser aberto nem editado.",
+          })}
+        </div>
+      </Show>
+      <Show when={!isLoading() && !retiredFormat()}>
         {
-          /* Editor + preview row. The CM editor stays mounted in every mode (AI
-            accept applies via its imperative setBody). In Split, editor (left)
-            and preview (right) sit side by side. A staged AI edit is reviewed in
-            a locking modal (see proposeEdit), so nothing here is hidden for it. */
+          /* A staged AI edit is reviewed in a locking modal (see
+            proposeEdit), so nothing here is hidden for it. */
         }
         <div
           class="relative flex min-h-0 flex-1"
@@ -2318,19 +1911,11 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
               </div>
             </Show>
           </Show>
-          {
-            /* In Split, cap the editor pane to the editor's max content width
-              (column + gutter) so it doesn't stretch to half: the preview takes
-              the leftover. flex-1 still fills it in Edit and shrinks if narrow. */
-          }
           <div
             class="min-h-0 flex-1"
-            classList={{ hidden: mode() === "view" }}
             data-report-cursor="code-pane"
             data-tour="report-code-pane"
-            style={mode() === "split"
-              ? { "max-width": `${EDITOR_PANE_MAX_REM}rem` }
-              : { "padding-left": `${outlinePagePad()}px` }}
+            style={{ "padding-left": `${outlinePagePad()}px` }}
           >
             {
               /* Live preview: the theme sheet, scoped to the editor wrapper, so
@@ -2339,12 +1924,9 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
                 touched. The font import leads the sheet (an @import after
                 other rules is dropped by CSS). */
             }
-            <Show when={format() === "fastr"}>
-              <style>{liveSurfaceCss()}</style>
-            </Show>
+            <style>{liveSurfaceCss()}</style>
             <ReportBodyEditor
               body={body()}
-              format={format()}
               figures={figures()}
               figureStale={figureStale}
               images={images()}
@@ -2359,11 +1941,11 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
               onBodyChange={handleBodyChange}
               onSelectEmbed={(kind, id) => setSelectedEmbed({ kind, id })}
               onEditLogos={(fence) => {
-                if (canConfigure() && mode() !== "view") void editLogos(fence);
+                if (canConfigure()) void editLogos(fence);
               }}
               selectedId={() => selectedEmbed()?.id}
               onScroll={onEditorScroll}
-              centered={() => mode() === "edit"}
+              centered={() => true}
               collab={() => {
                 const s = session();
                 lineage();
@@ -2373,7 +1955,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
               }}
               canEdit={canEditBody}
               onContextChange={setBlockContext}
-              livePreview={() => format() === "fastr" && mode() === "edit"}
+              livePreview={() => true}
               ref={(api) => {
                 editorApi = api;
                 // The page-box effect below can run before the editor
@@ -2382,13 +1964,6 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
               }}
             />
           </div>
-          {
-            /* HTML preview: visible in View & Split. Unmounts in Edit, so its
-              scroll/resize listeners are (re)established per mount (§7). */
-          }
-          <Show when={mode() !== "edit"}>
-            <ReportPreviewPane />
-          </Show>
         </div>
       </Show>
     </div>
@@ -2419,58 +1994,13 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
   );
   // Each control centred on the buttons' height: the save dot is 15px
   // against a 36px button.
-  // `format` reads markdown until the detail loads, so every control that
-  // depends on the format waits for it (knownFormat): a FASTR report used to
-  // flash the markdown header (Edit/Split/View, undo/redo, Download) on open.
-  const knownFormat = () => (isLoading() ? undefined : format());
   const headerActions = (
     <div class="ui-gap-sm flex items-center">
-      <Show when={knownFormat() !== undefined && knownFormat() !== "fastr"}>
-        <ButtonGroup<ReportMode>
-          data-tour="report-mode"
-          items={[
-            {
-              id: "edit",
-              label: t3({ en: "Edit", fr: "Édition", pt: "Editar" }),
-            },
-            {
-              id: "split",
-              label: t3({ en: "Split", fr: "Divisé", pt: "Dividido" }),
-            },
-            {
-              id: "view",
-              label: t3({ en: "View", fr: "Aperçu", pt: "Ver" }),
-            },
-          ]}
-          value={mode()}
-          onChange={(v) => v && setMode(v)}
-        />
-      </Show>
       <PackageScopeChip
         product={product()}
         onClick={canConfigure() ? () => void openPackageScope() : undefined}
         tour="report-package-scope"
       />
-      {
-        /* FASTR Markdown carries no CSS in its body, so re-theming is
-          safe at any time, unlike an html report's style, which is
-          fixed at creation because the body IS the design. */
-      }
-      {
-        /* The FASTR toolbar's Page menu owns the theme; the header
-          keeps this select for the cases with no toolbar (View). */
-      }
-      <Show when={format() === "fastr" && canEditBody() && !fileMenuShown()}>
-        <div data-tour="report-fastr-theme">
-          <Select<FastrReportTheme>
-            size="sm"
-            outline
-            value={fastrTheme()}
-            options={fastrThemeOptions()}
-            onChange={changeFastrTheme}
-          />
-        </div>
-      </Show>
       {/* Who else is currently in THIS report (live presence). */}
       <PresenceAvatars
         peers={otherPeers().filter(
@@ -2491,27 +2021,6 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
         />
         <span>{saveIndicator().text}</span>
       </div>
-      {
-        /* Undo/redo the body text. Hidden in View (the editor is
-          hidden there, so there is nothing to undo into) — and for
-          FASTR the toolbar pill carries the pair, Google Docs style. */
-      }
-      <Show
-        when={mode() !== "view" && canEditBody() &&
-          knownFormat() !== undefined &&
-          knownFormat() !== "fastr"}
-      >
-        <Button
-          outline
-          iconName="undo"
-          onClick={() => editorApi?.undo()}
-        />
-        <Button
-          outline
-          iconName="redo"
-          onClick={() => editorApi?.redo()}
-        />
-      </Show>
       <Show when={canConfigure()}>
         <UpdateAllFiguresButton
           count={staleFigures().length}
@@ -2527,7 +2036,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
       >
         {t3({ en: "History", fr: "Historique", pt: "Histórico" })}
       </Button>
-      <Show when={!isLoading() && !fileMenuShown()}>
+      <Show when={!isLoading() && !retiredFormat() && !fileMenuShown()}>
         <Button
           id="report-download-button"
           outline
@@ -2605,7 +2114,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
             embedControls={
               <ReportEmbedToolbarControls
                 embed={selectedEmbedDetail()}
-                canConfigure={canConfigure() && mode() !== "view"}
+                canConfigure={canConfigure()}
                 onUpdateCaption={handleUpdateCaption}
                 onSetWidth={handleSetEmbedWidth}
                 onEditFigure={handleEdit}
@@ -2615,40 +2124,13 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
                 onDelete={handleDelete}
               />
             }
-            canInsertEmbeds={() => canConfigure() && mode() !== "view"}
+            canInsertEmbeds={() => canConfigure()}
             onInsertFigure={insertFigure}
             onInsertImage={insertImage}
             onInsertLogos={insertLogos}
             onEditLogos={editLogos}
           />
         </HeaderRows>
-      </Show>
-      <Show
-        when={!isLoading() && mode() !== "view" && format() !== "fastr" &&
-          canConfigure()}
-      >
-        <div
-          class="ui-pad-sm ui-gap flex flex-wrap items-center border-t"
-          data-cursor-zone="header"
-        >
-          <Show when={selectedEmbed() === undefined}>
-            <ReportInsertEmbedButtons
-              canConfigure={canConfigure() && mode() !== "view"}
-              onInsertFigure={insertFigure}
-              onInsertImage={insertImage}
-            />
-          </Show>
-          <ReportEmbedControls
-            embed={selectedEmbedDetail()}
-            canConfigure={canConfigure() && mode() !== "view"}
-            onUpdateCaption={handleUpdateCaption}
-            onEditFigure={handleEdit}
-            onSwitchFigure={replaceSelectedFigure}
-            onCreateFigure={replaceSelectedFigure}
-            onChangeImageFile={handleChangeImageFile}
-            onDelete={handleDelete}
-          />
-        </div>
       </Show>
     </div>
   );
@@ -2667,7 +2149,6 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
       <ReportPeerSelectionOverlay
         reportId={p.productId}
         suppressed={panesCovered() > 0}
-        previewSurface={previewSurface}
       />
     </InnerEditorWrapper>
   );
@@ -2676,21 +2157,12 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
 // Presence borders around report embeds: the report counterpart of the
 // slide editor's PeerSelectionOverlay: a colored border + name tags around
 // the figure/image each peer currently has selected (their embed selection,
-// broadcast via presence `selectedBlockId`). DOM-anchored in BOTH panes:
-// embeds are located by [data-embed-id] on the CM figure widgets (code pane)
-// and on the preview's rendered embeds, each clipped to its own pane's
-// visible viewport. The code pane is the primary anchor: it is what users
-// see and click in Edit/Split, and it renders a widget for every token line,
-// whereas the markdown preview drops embeds that aren't blank-line-separated
-// (so a preview-only anchor silently misses them). A pane that is hidden
-// (Edit's preview, View's editor) has a zero rect and contributes nothing.
+// broadcast via presence `selectedBlockId`). DOM-anchored: embeds are located
+// by [data-embed-id] on the editor's figure widgets, clipped to the pane's
+// visible viewport.
 function ReportPeerSelectionOverlay(p: {
   reportId: string;
   suppressed: boolean;
-  // The live preview surface: embeds inside the HTML preview's iframe are
-  // located through it (parent-viewport rects), and its internal scroll —
-  // invisible to the window's capture listener — re-measures the boxes.
-  previewSurface: () => PreviewSurface | undefined;
 }) {
   const [tick, setTick] = createSignal(0);
   const bump = () => setTick((t) => t + 1);
@@ -2704,12 +2176,6 @@ function ReportPeerSelectionOverlay(p: {
       clearInterval(sweep);
     });
   });
-  createEffect(() => {
-    const surface = p.previewSurface();
-    if (!surface) return;
-    onCleanup(surface.on("scroll", bump));
-  });
-
   const boxes = () => {
     tick();
     if (p.suppressed) return [];
@@ -2717,21 +2183,12 @@ function ReportPeerSelectionOverlay(p: {
       (peer) => peer.reportId === p.reportId && peer.selectedBlockId,
     );
     if (peers.length === 0) return [];
-    const surface = p.previewSurface();
     const panes = [
       {
         el: document.querySelector('[data-report-cursor="code-pane"]'),
         find: (pane: Element, id: string) =>
           pane.querySelector(`[data-embed-id="${id}"]`)
             ?.getBoundingClientRect(),
-      },
-      {
-        el: document.querySelector('[data-report-cursor="preview-pane"]'),
-        find: (pane: Element, id: string) =>
-          surface
-            ? surface.findEmbedRect(id)
-            : pane.querySelector(`[data-embed-id="${id}"]`)
-              ?.getBoundingClientRect(),
       },
     ].filter((pane): pane is { el: Element; find: typeof pane.find } => {
       if (!pane.el) return false;
@@ -2747,9 +2204,8 @@ function ReportPeerSelectionOverlay(p: {
       height: number;
       editors: { name: string; color: string; editingFigure: boolean }[];
     }[] = [];
-    // One box per embed per pane (not per peer): co-selectors share the box,
-    // their name tags sit side by side (mirrors the slide editor's overlay).
-    // In Split an embed can anchor in both panes: one box in each.
+    // One box per embed (not per peer): co-selectors share the box, their
+    // name tags sit side by side (mirrors the slide editor's overlay).
     const byTarget = new Map<string, (typeof out)[number]>();
     for (const [paneIdx, pane] of panes.entries()) {
       const paneRect = pane.el.getBoundingClientRect();

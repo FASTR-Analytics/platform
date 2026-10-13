@@ -18,7 +18,6 @@ import {
   type FastrChartPalette,
   FIGURE_EXPORT_WIDTH_PX,
   type FigureBlock,
-  type ReportHtmlStyle,
   type ReportStyleColors,
 } from "lib";
 import {
@@ -77,11 +76,6 @@ export function figureDarkInkForColors(
   return GENERIC_DARK_INK;
 }
 
-const PRESET_INK_THEMES: Partial<Record<ReportHtmlStyle, FigureInkTheme>> = {
-  terminal: { text: "#9BB39F", axis: "#5E7A66", grid: "#223129" },
-  blueprint: { text: "#E7F0F7", axis: "#7FA6C6", grid: "#2E5B85" },
-};
-
 function hexRgb(hex: string): [number, number, number] | undefined {
   const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
   if (!m) return undefined;
@@ -97,26 +91,23 @@ function mixHex(a: string, b: string, t: number): string {
   return `#${c.map((v) => v.toString(16).padStart(2, "0")).join("")}`;
 }
 
-// The style's light-ink palette, used when a figure's detected ground is
-// dark. Custom styles with a dark tile page derive from their tile colors;
-// everything else falls back to GENERIC_LIGHT_INK at the point of use.
-export function figureInkThemeForStyle(
-  htmlStyle: ReportHtmlStyle,
-  customColors: ReportStyleColors | null | undefined,
+// The palette's light ink, used when a figure's detected ground is dark. A
+// palette with a dark page derives it from its own colors; everything else
+// falls back to GENERIC_LIGHT_INK at the point of use.
+export function figureLightInkForColors(
+  colors: ReportStyleColors | null | undefined,
 ): FigureInkTheme | undefined {
-  if (customColors) {
-    const rgb = hexRgb(customColors.page);
-    if (!rgb) return undefined;
-    const luminance = (0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]) /
-      255;
-    if (luminance >= 0.45) return undefined;
-    return {
-      text: customColors.ink,
-      axis: mixHex(customColors.ink, customColors.page, 0.35),
-      grid: mixHex(customColors.ink, customColors.page, 0.75),
-    };
-  }
-  return PRESET_INK_THEMES[htmlStyle];
+  if (!colors) return undefined;
+  const rgb = hexRgb(colors.page);
+  if (!rgb) return undefined;
+  const luminance = (0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]) /
+    255;
+  if (luminance >= 0.45) return undefined;
+  return {
+    text: colors.ink,
+    axis: mixHex(colors.ink, colors.page, 0.35),
+    grid: mixHex(colors.ink, colors.page, 0.75),
+  };
 }
 
 // Merge the theme into FigureInputs.style (touched paths only; explicit

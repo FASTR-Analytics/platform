@@ -18,7 +18,6 @@ import {
   type FigureBlock,
   type ImageBlock,
   parseReportEmbedLine,
-  type ReportFormat,
   t3,
 } from "lib";
 import {
@@ -174,17 +173,16 @@ class EmbedWidget extends WidgetType {
   }
 }
 
-// A line that is exactly one embed token (per format — lib parseReportEmbedLine)
+// A line that is exactly one embed token (lib parseReportEmbedLine)
 // renders as an atomic block widget.
 function buildEmbedDecorations(
   state: EditorState,
   resolver: EmbedResolver,
-  format: ReportFormat,
 ): DecorationSet {
   const builder = new RangeSetBuilder<Decoration>();
   for (let i = 1; i <= state.doc.lines; i++) {
     const line = state.doc.line(i);
-    const parsed = parseReportEmbedLine(line.text, format);
+    const parsed = parseReportEmbedLine(line.text);
     if (!parsed) continue;
     builder.add(
       line.from,
@@ -207,16 +205,13 @@ function buildEmbedDecorations(
 // plugin) — see EditorView.decorations facet docs.
 export function embedWidgets(
   resolver: EmbedResolver,
-  format: ReportFormat,
 ): Extension {
   const field = StateField.define<DecorationSet>({
     create(state) {
-      return buildEmbedDecorations(state, resolver, format);
+      return buildEmbedDecorations(state, resolver);
     },
     update(deco, tr) {
-      return tr.docChanged
-        ? buildEmbedDecorations(tr.state, resolver, format)
-        : deco;
+      return tr.docChanged ? buildEmbedDecorations(tr.state, resolver) : deco;
     },
     provide: (f) => EditorView.decorations.from(f),
   });

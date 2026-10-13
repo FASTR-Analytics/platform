@@ -3,7 +3,6 @@ import { EditorView, keymap } from "@codemirror/view";
 import { Compartment, EditorState } from "@codemirror/state";
 import { basicSetup } from "codemirror";
 import { markdown } from "@codemirror/lang-markdown";
-import { html } from "@codemirror/lang-html";
 import { redo as cmRedo, undo as cmUndo } from "@codemirror/commands";
 import { openSearchPanel, search, searchKeymap } from "@codemirror/search";
 import { yCollab, yUndoManagerKeymap } from "y-codemirror.next";
@@ -37,7 +36,6 @@ import {
   isFastrEmbedLine,
   parseContainerFence,
   type ReportEmbedRef,
-  type ReportFormat,
   rewriteReportEmbedToken,
   setHeadingLevelEdit,
   setInlineColorEdit,
@@ -220,8 +218,6 @@ export type ReportEditorApi = {
 
 type Props = {
   body: string;
-  // Fixed for the editor's lifetime (a report's format never changes).
-  format: ReportFormat;
   figures: Record<string, FigureBlock>;
   images: Record<string, ImageBlock>;
   // What an embed needs to judge and update its own figure (D4).
@@ -364,7 +360,7 @@ export function ReportBodyEditor(p: Props) {
   // sheet scrolls it too.
   let paneBar!: HTMLDivElement;
   let paneBarSpacer!: HTMLDivElement;
-  const barShown = () => isFastr && (p.livePreview?.() ?? false);
+  const barShown = () => p.livePreview?.() ?? false;
   const syncPaneBar = () => {
     if (!view || !paneBar) return;
     const s = view.scrollDOM;
@@ -416,16 +412,13 @@ export function ReportBodyEditor(p: Props) {
   // props say) and again when the collab binding appears or the edit permission
   // flips: preserving scroll position and (clamped) selection across the swap.
   // Known cost: the local undo history resets on a rebuild.
-  // Fixed for the editor's lifetime, like the format it reads.
-  const isFastr = p.format === "fastr";
-
   function liveExtensions(
     on: boolean,
     collab: { yText: Y.Text; awareness: Awareness } | undefined,
   ) {
     return on
       ? livePreviewExtensions(resolver, collab)
-      : [...darkMarkdownExtensions(), embedWidgets(resolver, p.format)];
+      : [...darkMarkdownExtensions(), embedWidgets(resolver)];
   }
 
   // Runtime Edit <-> Split flip, mirroring applyCenterTheme: reconfigure the
@@ -479,11 +472,10 @@ export function ReportBodyEditor(p: Props) {
           },
         ]),
         basicSetup,
-        ...(isFastr ? [] : darkMarkdownExtensions()),
         // FASTR Markdown is markdown to CodeMirror; the `:::` fences get
         // their own line decoration on top.
-        p.format === "html" ? html() : markdown(),
-        ...(p.format === "fastr" ? fastrContainerFences() : []),
+        markdown(),
+        ...fastrContainerFences(),
         ...(p.canEdit()
           ? []
           : [EditorState.readOnly.of(true), EditorView.editable.of(false)]),
@@ -514,22 +506,19 @@ export function ReportBodyEditor(p: Props) {
           },
         }),
         centerCompartment.of(centerTheme(p.centered(), 0)),
-        // For fastr, this slot toggles between the live-preview surface (Edit)
-        // and the classic source view (Split) via a compartment, so flipping
-        // modes preserves undo, scroll, selection and the collab binding. The
-        // dark markdown highlighter lives in the OFF branch: live preview is a
-        // light DOCUMENT even in a dark app. Other formats keep the plain
-        // embed widgets, untouched.
-        ...(isFastr
-          ? [livePreviewCompartment.of(
-            liveExtensions(p.livePreview?.() ?? false, collab),
-          )]
-          : [embedWidgets(resolver, p.format)]),
+        // This slot toggles between the live-preview surface and the classic
+        // source view via a compartment, so a flip preserves undo, scroll,
+        // selection and the collab binding. The dark markdown highlighter
+        // lives in the OFF branch: live preview is a light DOCUMENT even in a
+        // dark app.
+        livePreviewCompartment.of(
+          liveExtensions(p.livePreview?.() ?? false, collab),
+        ),
         EditorView.updateListener.of((u) => {
           if (u.docChanged) p.onBodyChange(u.state.doc.toString());
           // Push, not poll: a timer would still be wrong between ticks, and
           // this is exact and free. Guarded inside emitContext.
-          if (isFastr && (u.docChanged || u.selectionSet)) {
+          if (u.docChanged || u.selectionSet) {
             emitContext(u.state, u.docChanged);
           }
         }),
@@ -569,14 +558,12 @@ export function ReportBodyEditor(p: Props) {
     }
     // So the toolbar has a context on first paint and after every rebuild —
     // the selection dispatch above does not always produce a selectionSet.
-    if (isFastr) {
-      const liveOn = p.livePreview?.() ?? false;
-      lastLiveKey = String(liveOn);
-      parent.classList.toggle(FM_LIVE_SCOPE_CLASS, liveOn);
-      ctxKey = "";
-      emitContext(view.state, true);
-      if (liveOn) reapplyPagination();
-    }
+    const liveOn = p.livePreview?.() ?? false;
+    lastLiveKey = String(liveOn);
+    parent.classList.toggle(FM_LIVE_SCOPE_CLASS, liveOn);
+    ctxKey = "";
+    emitContext(view.state, true);
+    if (liveOn) reapplyPagination();
   }
 
   function insertBlockOnNewLine(token: string) {
@@ -892,15 +879,15 @@ export function ReportBodyEditor(p: Props) {
   ): { ref: ReportEmbedRef; ownsLine: boolean } | undefined {
     if (!view) return undefined;
     const doc = view.state.doc;
-    const ref = findReportEmbeds(doc.toString(), p.format).find(
+    const ref = findReportEmbeds(doc.toString()).find(
       (r) => r.kind === kind && r.id === id,
     );
     if (!ref) return undefined;
     const line = doc.lineAt(ref.start);
-    // The token alone, or (FASTR Markdown) the token and its `{…}` block:
-    // a sized figure's line is still the figure's, so it goes whole.
+    // The token alone, or the token and its `{…}` block: a sized figure's
+    // line is still the figure's, so it goes whole.
     const ownsLine = (line.text.trim() === ref.raw.trim() ||
-      (p.format === "fastr" && isFastrEmbedLine(line.text))) &&
+      isFastrEmbedLine(line.text)) &&
       doc.lineAt(ref.end).number === line.number;
     return { ref, ownsLine };
   }
@@ -931,7 +918,7 @@ export function ReportBodyEditor(p: Props) {
       changes: {
         from: found.ref.start,
         to: found.ref.end,
-        insert: rewriteReportEmbedToken(found.ref, { caption }, p.format),
+        insert: rewriteReportEmbedToken(found.ref, { caption }),
       },
     });
   }
@@ -944,7 +931,7 @@ export function ReportBodyEditor(p: Props) {
     id: string,
     width: FastrFigureWidth,
   ) {
-    if (!view || p.format !== "fastr") return;
+    if (!view) return;
     const found = findToken(kind, id);
     if (!found?.ownsLine) return;
     const line = view.state.doc.lineAt(found.ref.start);
@@ -1210,7 +1197,7 @@ export function ReportBodyEditor(p: Props) {
   // Edit <-> Split flips the live-preview surface without a rebuild.
   createEffect(() => {
     const on = p.livePreview?.() ?? false;
-    if (isFastr) applyLivePreview(on);
+    applyLivePreview(on);
   });
 
   // Rebuild when the collab binding appears (plain -> live upgrade shortly

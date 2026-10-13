@@ -1,19 +1,11 @@
-export {
-  buildReportFigureMap,
-  buildReportImageMap,
-  figureInputsForDownload,
-  loadImageEntry,
-} from "./_report_export_maps";
-export {
-  replaceUnavailableMediaTokens,
-  unavailableItemMarkdown,
-} from "./_media_placeholder";
+export { figureInputsForDownload, loadImageEntry } from "./_report_export_maps";
+export { unavailableItemMarkdown } from "./_media_placeholder";
 export {
   applyInkTheme,
   createFigureRasterCache,
   createFigureSizeCache,
   figureDarkInkForColors,
-  figureInkThemeForStyle,
+  figureLightInkForColors,
   figureRasterKey,
   GENERIC_DARK_INK,
   GENERIC_LIGHT_INK,
@@ -39,4 +31,3 @@ export {
   wrapReportDocument,
 } from "./report_html";
 export type { FigureRasterState } from "./report_html";
-export { REPORT_MARKDOWN_STYLE } from "./report_markdown_style";

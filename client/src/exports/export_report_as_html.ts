@@ -14,8 +14,6 @@ import {
   FIGURE_EXPORT_WIDTH_PX,
   getFastrReportTheme,
   getReportCustomStyle,
-  getReportFormat,
-  getReportHtmlStyle,
   pagedDocumentScriptsHtml,
   readFastrDocumentSettings,
   renderFastrMarkdownToHtml,
@@ -42,7 +40,7 @@ import {
   applyInkTheme,
   figureDarkInkForColors,
   type FigureInkTheme,
-  figureInkThemeForStyle,
+  figureLightInkForColors,
   GENERIC_LIGHT_INK,
 } from "~/generate_report/mod";
 import type { FigureBlock } from "lib";
@@ -55,12 +53,11 @@ import {
   wrapReportDocument,
 } from "~/generate_report/mod";
 
-// The standalone .html file and print-to-PDF, for BOTH html-format reports
-// (the body is the markup) and FASTR Markdown (the body compiles to markup and
-// the theme stylesheet rides along in the document head). Same builder as the
-// editor preview (sanitize → materialize embeds → base CSS), with figures as
-// PNG data URLs and images inlined so the file is self-contained (web
-// images/fonts the author referenced stay external).
+// The standalone .html file of a report: the FASTR Markdown body compiles to
+// markup and the theme stylesheet rides along in the document head. Same
+// builder as the editor preview (sanitize → materialize embeds → base CSS),
+// with figures as PNG data URLs and images inlined so the file is
+// self-contained (web images/fonts the author referenced stay external).
 //
 // The same builder also produces the PAGED document (Paged.js + the paged
 // sheet, lib/report_fastr_paged.ts) that the editor lays out for its page
@@ -135,31 +132,22 @@ export async function loadReportEmbeds(
   images: Map<string, string>;
 }> {
   const figureEntries = Object.entries(detail.figures);
-  const isFastr = getReportFormat(detail.config) === "fastr";
   const customColors = getReportCustomStyle(detail.config)?.colors;
   const fastrTheme = getFastrReportTheme(detail.config);
   const fastrTokens = FASTR_THEME_TOKENS[fastrTheme];
-  const lightInk = (isFastr
-    ? figureInkThemeForStyle(
-      "default",
-      customColors ?? {
-        page: fastrTokens.page,
-        ink: fastrTokens.ink,
-        accent: fastrTokens.accent,
-      },
-    )
-    : figureInkThemeForStyle(
-      getReportHtmlStyle(detail.config),
-      customColors,
-    )) ?? GENERIC_LIGHT_INK;
+  const lightInk = figureLightInkForColors(
+    customColors ?? {
+      page: fastrTokens.page,
+      ink: fastrTokens.ink,
+      accent: fastrTokens.accent,
+    },
+  ) ?? GENERIC_LIGHT_INK;
   const darkInk = figureDarkInkForColors(
-    isFastr
-      ? customColors ?? {
-        page: fastrTokens.page,
-        ink: fastrTokens.ink,
-        accent: fastrTokens.accent,
-      }
-      : customColors,
+    customColors ?? {
+      page: fastrTokens.page,
+      ink: fastrTokens.ink,
+      accent: fastrTokens.accent,
+    },
   );
   const rasters = new Map<string, FigureRasterState>();
   let done = 0;
@@ -177,7 +165,7 @@ export async function loadReportEmbeds(
       const fi = buildFigureInputs(
         bundle,
         undefined,
-        isFastr ? fastrChartPalette(fastrTheme, customColors) : undefined,
+        fastrChartPalette(fastrTheme, customColors),
       );
       await loadFontsWithTimeout(
         new CustomFigureStyle(fi.style).getFontsToRegister(),
@@ -222,20 +210,21 @@ export async function buildStandaloneReportHtml(
   progress: (pct: number) => void,
   opts: StandaloneReportOptions = {},
 ): Promise<string> {
-  const format = getReportFormat(detail.config);
-  const isFastr = format === "fastr";
   const customColors = getReportCustomStyle(detail.config)?.colors;
   const fastrTheme = getFastrReportTheme(detail.config);
   // A paged document (the PDF, the editor's layout frame) owns its breaks
   // and must carry none of the browser-print rules the .html download
   // needs; see BROWSER_PRINT_CSS.
   const paged = opts.paged !== undefined || opts.layoutOnly !== undefined;
-  let themeCss = isFastr
-    ? buildFastrReportCss(fastrTheme, customColors ?? undefined, "", {
+  let themeCss = buildFastrReportCss(
+    fastrTheme,
+    customColors ?? undefined,
+    "",
+    {
       omitPrintRules: paged,
-    })
-    : undefined;
-  if (isFastr && themeCss !== undefined && opts.inlineFonts) {
+    },
+  );
+  if (opts.inlineFonts) {
     const fontImport = FASTR_THEME_TOKENS[fastrTheme].fontImport;
     if (fontImport.length > 0) {
       themeCss = themeCss.replace(
@@ -249,28 +238,24 @@ export async function buildStandaloneReportHtml(
   }
   // Ink follows each figure's ACTUAL ground (same rule as the preview): the
   // sanitized document — figure tokens still raw — is mounted in a hidden
-  // iframe to measure computed backgrounds before any rasterization. For fastr
-  // the ground is painted by the theme sheet, so it must be in that document.
+  // iframe to measure computed backgrounds before any rasterization. The
+  // ground is painted by the theme sheet, so it must be in that document.
   // A paged document keeps its source-line anchors: the editor's pages edit
   // in place through them, and the printed pixels are the same either way.
-  const sanitized = isFastr
-    ? sanitizeReportHtml(
-      renderFastrMarkdownToHtml(detail.body, {
-        lineAnchors: opts.paged !== undefined,
-      }),
-    )
-    : sanitizeReportHtml(detail.body);
-  const docSettings = isFastr
-    ? readFastrDocumentSettings(detail.body)
-    : undefined;
+  const sanitized = sanitizeReportHtml(
+    renderFastrMarkdownToHtml(detail.body, {
+      lineAnchors: opts.paged !== undefined,
+    }),
+  );
+  const docSettings = readFastrDocumentSettings(detail.body);
   const darkGrounds = await measureFigureGrounds(
     wrapReportDocument({
       title: detail.label,
       bodyHtml: sanitized,
       themeCss,
-      documentClass: docSettings?.className,
-      documentStyle: docSettings?.style,
-      pageCss: docSettings?.pageCss,
+      documentClass: docSettings.className,
+      documentStyle: docSettings.style,
+      pageCss: docSettings.pageCss,
     }),
   );
   progress(0.15);
@@ -296,8 +281,8 @@ export async function buildStandaloneReportHtml(
     title: detail.label,
     bodyHtml: holder.innerHTML,
     themeCss,
-    documentClass: docSettings?.className,
-    documentStyle: docSettings?.style,
+    documentClass: docSettings.className,
+    documentStyle: docSettings.style,
     ...pagedDocumentParts(detail, docSettings, opts),
   });
 }
@@ -305,7 +290,7 @@ export async function buildStandaloneReportHtml(
 // The paged additions, or the plain `@page` rule for an unpaged document.
 function pagedDocumentParts(
   detail: ReportDetail,
-  docSettings: ReturnType<typeof readFastrDocumentSettings> | undefined,
+  docSettings: ReturnType<typeof readFastrDocumentSettings>,
   opts: StandaloneReportOptions,
 ): Partial<
   Pick<
@@ -314,10 +299,10 @@ function pagedDocumentParts(
   >
 > {
   if (!opts.paged) {
-    return { pageCss: docSettings?.pageCss };
+    return { pageCss: docSettings.pageCss };
   }
-  // The paged sheet owns @page; an html-format report (no header) prints A4.
-  const setup = docSettings?.page ?? readFastrDocumentSettings("").page;
+  // The paged sheet owns @page.
+  const setup = docSettings.page;
   return {
     headExtraCss: buildFastrPagedCss(setup, opts.paged.footer) +
       (opts.paged.pageStarts !== undefined
@@ -336,19 +321,14 @@ function pagedDocumentParts(
 // ink) and no image fetch — the sizes come from the live editor.
 function buildLayoutOnlyDocument(
   detail: ReportDetail,
-  themeCss: string | undefined,
+  themeCss: string,
   opts: StandaloneReportOptions,
 ): string {
   const sizes = opts.layoutOnly!;
-  const isFastr = getReportFormat(detail.config) === "fastr";
-  const sanitized = isFastr
-    ? sanitizeReportHtml(
-      renderFastrMarkdownToHtml(detail.body, { lineAnchors: true }),
-    )
-    : sanitizeReportHtml(detail.body);
-  const docSettings = isFastr
-    ? readFastrDocumentSettings(detail.body)
-    : undefined;
+  const sanitized = sanitizeReportHtml(
+    renderFastrMarkdownToHtml(detail.body, { lineAnchors: true }),
+  );
+  const docSettings = readFastrDocumentSettings(detail.body);
   const frag = buildReportBodyNodes(
     document,
     sanitized,
@@ -374,8 +354,8 @@ function buildLayoutOnlyDocument(
     title: detail.label,
     bodyHtml: holder.innerHTML,
     themeCss,
-    documentClass: docSettings?.className,
-    documentStyle: docSettings?.style,
+    documentClass: docSettings.className,
+    documentStyle: docSettings.style,
     ...pagedDocumentParts(detail, docSettings, opts),
   });
 }
@@ -402,63 +382,6 @@ export async function exportReportAsHtml(
     return {
       success: false,
       err: "Error exporting report HTML: " +
-        (e instanceof Error ? e.message : String(e)),
-    };
-  }
-}
-
-// One hidden print frame at a time. Must not be display:none (print needs
-// layout); `allow-modals` is what permits print() inside a sandboxed frame. It
-// is deliberately NOT torn down on afterprint (some browsers fire it before
-// the dialog's work is done) — the previous frame is replaced when the next
-// print starts, and a fresh frame guarantees a load event.
-let printFrame: HTMLIFrameElement | undefined;
-
-function getPrintFrame(): HTMLIFrameElement {
-  printFrame?.remove();
-  const f = document.createElement("iframe");
-  f.setAttribute("sandbox", "allow-same-origin allow-modals");
-  f.setAttribute("aria-hidden", "true");
-  f.tabIndex = -1;
-  f.style.cssText =
-    "position:fixed;left:0;top:0;width:0;height:0;border:0;opacity:0;pointer-events:none;";
-  document.body.appendChild(f);
-  printFrame = f;
-  return f;
-}
-
-export async function printReportHtml(
-  productId: string,
-  progress: (pct: number) => void,
-): Promise<APIResponseNoData> {
-  try {
-    await new Promise((res) => setTimeout(res, 0));
-    progress(0.05);
-    const res = await serverActions.getReportDetail({
-      product_id: productId,
-    });
-    if (!res.success) return res;
-    const html = await buildStandaloneReportHtml(res.data, progress);
-    const frame = getPrintFrame();
-    await new Promise<void>((resolve) => {
-      frame.onload = () => resolve();
-      frame.srcdoc = html;
-    });
-    const win = frame.contentWindow;
-    const doc = frame.contentDocument;
-    if (!win || !doc) throw new Error("print frame unavailable");
-    await Promise.all(
-      Array.from(doc.images).map((img) => img.decode().catch(() => undefined)),
-    );
-    await doc.fonts?.ready;
-    progress(1);
-    win.focus();
-    win.print();
-    return { success: true };
-  } catch (e) {
-    return {
-      success: false,
-      err: "Error printing report: " +
         (e instanceof Error ? e.message : String(e)),
     };
   }

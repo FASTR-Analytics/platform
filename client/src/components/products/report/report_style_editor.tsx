@@ -1,13 +1,4 @@
-import {
-  REPORT_CUSTOM_BRIEF_MAX,
-  REPORT_HTML_STYLES,
-  REPORT_STYLE_BRIEFS,
-  REPORT_STYLE_REFERENCE_CSS_MAX,
-  type ReportCustomStyle,
-  type ReportHtmlStyle,
-  type ReportStyleColors,
-  t3,
-} from "lib";
+import { type ReportCustomStyle, type ReportStyleColors, t3 } from "lib";
 import {
   type AlertComponentProps,
   Button,
@@ -15,22 +6,18 @@ import {
   Input,
   ModalContainer,
   RadioGroup,
-  Select,
   type StateHolderFormAction,
   StateHolderFormError,
-  TextArea,
 } from "panther";
 import { createSignal, For, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 
-// Create / edit one custom report style (a library row in the MAIN db; the
-// brief is injected into the AI's instructions exactly like a preset's).
+// Create / edit one custom report style (a library row in the MAIN db): a
+// palette that overrides the report theme's colors.
 // Opened from the style picker's "+ New style" tile / edit affordance (as a
-// wizard step, one panther modal slot), and from the report editor's
-// "Save this report's style..." flow with `seed` carrying the AI-distilled
-// draft. Delete lives here (not on picker tiles) because openConfirm would
-// replace the picker modal.
+// wizard step, one panther modal slot). Delete lives here (not on picker
+// tiles) because openConfirm would replace the picker modal.
 //
 // Visibility is per PRODUCT (PLAN_PRODUCTS_RESTRUCTURE): this report, a
 // chosen set of reports, or every report on the instance.
@@ -43,13 +30,6 @@ type Props = AlertComponentProps<
   {
     productId: string;
     existing?: ReportCustomStyle;
-    seed?: {
-      label: string;
-      description: string;
-      brief: string;
-      referenceCss: string | null;
-      colors: ReportStyleColors | null;
-    };
   },
   ReportStyleEditorResult
 >;
@@ -61,16 +41,9 @@ const DEFAULT_COLORS: ReportStyleColors = {
 };
 
 export function ReportStyleEditor(p: Props) {
-  const base = p.existing ??
-    (p.seed
-      ? { ...p.seed, productIds: [p.productId] as string[] | null }
-      : undefined);
+  const base = p.existing;
   const [label, setLabel] = createSignal(base?.label ?? "");
   const [description, setDescription] = createSignal(base?.description ?? "");
-  const [brief, setBrief] = createSignal(base?.brief ?? "");
-  const [referenceCss, setReferenceCss] = createSignal(
-    base?.referenceCss ?? "",
-  );
   const [colors, setColors] = createSignal<ReportStyleColors>(
     base?.colors ?? DEFAULT_COLORS,
   );
@@ -91,7 +64,6 @@ export function ReportStyleEditor(p: Props) {
   );
   const reportProducts = () =>
     instanceState.products.filter((product) => product.type === "report");
-  const [prefill, setPrefill] = createSignal<string>("_none");
   const [saveState, setSaveState] = createSignal<StateHolderFormAction>({
     status: "ready",
   });
@@ -113,14 +85,6 @@ export function ReportStyleEditor(p: Props) {
     return ids.length > 0 ? ids : [p.productId];
   }
 
-  function applyPrefill(preset: string) {
-    setPrefill(preset);
-    if (preset === "_none") return;
-    const entry =
-      REPORT_STYLE_BRIEFS[preset as Exclude<ReportHtmlStyle, "default">];
-    if (entry) setBrief(entry.brief);
-  }
-
   async function save() {
     if (saveState().status === "loading") return;
     if (!label().trim()) {
@@ -134,28 +98,15 @@ export function ReportStyleEditor(p: Props) {
       });
       return;
     }
-    if (!brief().trim()) {
-      setSaveState({
-        status: "error",
-        err: t3({
-          en:
-            "The design brief is empty — describe the style, or start from a preset.",
-          fr:
-            "La description du style est vide — décrivez le style ou partez d'un préréglage.",
-          pt:
-            "O guia de estilo está vazio — descreva o estilo ou parta de uma predefinição.",
-        }),
-      });
-      return;
-    }
     setSaveState({ status: "loading" });
+    // brief and referenceCss are no longer edited here (see
+    // lib/types/report_styles.ts): an existing style's stored values are sent
+    // back unchanged so a save does not wipe them.
     const body = {
       label: label().trim(),
       description: description().trim(),
-      brief: brief(),
-      referenceCss: referenceCss().trim()
-        ? referenceCss().slice(0, REPORT_STYLE_REFERENCE_CSS_MAX)
-        : null,
+      brief: p.existing?.brief ?? "",
+      referenceCss: p.existing?.referenceCss ?? null,
       colors: colors(),
       productIds: productIdsForSave(),
     };
@@ -260,7 +211,7 @@ export function ReportStyleEditor(p: Props) {
           value={label()}
           onChange={setLabel}
           fullWidth
-          autoFocus={!p.seed}
+          autoFocus
         />
         <Input
           label={t3({
@@ -272,73 +223,6 @@ export function ReportStyleEditor(p: Props) {
           onChange={setDescription}
           fullWidth
         />
-        <div class="ui-spy-sm">
-          <TextArea
-            label={t3({
-              en:
-                "Design brief — what the AI follows when it writes reports in this style",
-              fr:
-                "Guide de style — ce que l'IA suit quand elle rédige dans ce style",
-              pt: "Guia de estilo — o que a IA segue ao escrever neste estilo",
-            })}
-            value={brief()}
-            onChange={setBrief}
-            rows={12}
-            mono
-            fullWidth
-            placeholder={t3({
-              en:
-                "Fonts (via @import), palette, structure (masthead, sections, cards, tables), visualization treatment…",
-              fr:
-                "Polices (via @import), palette, structure (manchette, sections, cartes, tableaux), traitement des visualisations…",
-              pt:
-                "Tipos de letra (via @import), paleta, estrutura (cabeçalho, secções, cartões, tabelas), tratamento das visualizações…",
-            })}
-          />
-          <TextArea
-            label={t3({
-              en:
-                "Reference CSS (optional) — the exact stylesheet the AI reuses; the brief describes how to use its classes",
-              fr:
-                "CSS de référence (optionnel) — la feuille de style exacte que l'IA réutilise ; le guide décrit l'usage de ses classes",
-              pt:
-                "CSS de referência (opcional) — a folha de estilos exata que a IA reutiliza; o guia descreve como usar as suas classes",
-            })}
-            value={referenceCss()}
-            onChange={setReferenceCss}
-            rows={6}
-            mono
-            fullWidth
-            placeholder={t3({
-              en:
-                "Filled automatically when saving a style from a report. Without it, the AI writes CSS from the brief alone (less faithful).",
-              fr:
-                "Rempli automatiquement quand le style est enregistré depuis un rapport. Sans lui, l'IA écrit le CSS à partir du guide seul (moins fidèle).",
-              pt:
-                "Preenchido automaticamente ao guardar um estilo a partir de um relatório. Sem ele, a IA escreve o CSS apenas a partir do guia (menos fiel).",
-            })}
-          />
-          <div class="flex items-center gap-2">
-            <Select
-              label={t3({
-                en: "Start from a preset's brief",
-                fr: "Partir du guide d'un préréglage",
-                pt: "Partir do guia de uma predefinição",
-              })}
-              options={[
-                { value: "_none", label: "—" },
-                ...REPORT_HTML_STYLES.filter((v) => v !== "default").map(
-                  (v) => ({ value: v, label: REPORT_STYLE_BRIEFS[v].name }),
-                ),
-              ]}
-              value={prefill()}
-              onChange={applyPrefill}
-            />
-            <div class="text-base-content-muted ml-auto text-xs">
-              {brief().length} / {REPORT_CUSTOM_BRIEF_MAX}
-            </div>
-          </div>
-        </div>
         <div class="ui-spy-sm">
           <RadioGroup<Visibility>
             label={t3({

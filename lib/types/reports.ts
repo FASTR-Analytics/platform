@@ -1,11 +1,11 @@
 // =============================================================================
-// Reports — long-form analytical documents (markdown OR html body + figure/image
-// registries). See SYSTEM_12_documents_sharing.md "Reports". Figures/images
-// reuse the slide FigureBlock / ImageBlock types verbatim.
+// Reports: long-form analytical documents (a FASTR Markdown body plus figure
+// and image registries). See SYSTEM_12_documents_sharing.md "Reports".
+// Figures/images reuse the slide FigureBlock / ImageBlock types verbatim.
 //
-// Every embed-token read/write goes through the format-aware helpers below —
-// the editor's load-time orphan prune deletes registry entries, so no site may
-// parse tokens ad hoc.
+// Every embed-token read/write goes through the helpers below: the editor's
+// load-time orphan prune deletes registry entries, so no site may parse tokens
+// ad hoc.
 // =============================================================================
 
 import {
@@ -26,47 +26,16 @@ import { figureBlockSchema, imageBlockSchema } from "./_slide_config.ts";
 
 // ── Format ───────────────────────────────────────────────────────────────────
 
-// "fastr" = FASTR Markdown: markdown plus the `:::` container blocks
+// Every report is FASTR Markdown: markdown plus the `:::` container blocks
 // (lib/fastr_markdown_blocks.ts), rendered through a real theme stylesheet
-// (lib/report_fastr_css.ts) into the same html funnel. It is markdown-shaped
-// everywhere it matters — embed tokens, headings, sections — so every helper
-// below that asks `format === "html"` is already correct for it.
-export const REPORT_FORMATS = ["markdown", "html", "fastr"] as const;
-export type ReportFormat = (typeof REPORT_FORMATS)[number];
+// (lib/report_fastr_css.ts). Two older formats are retired: plain markdown,
+// which the reports data transform converts on boot, and html, whose body
+// cannot be converted. A report still stored as html opens to a notice
+// instead of an editor (isRetiredReportFormat).
+export const REPORT_FORMAT = "fastr";
+const RETIRED_REPORT_FORMATS: readonly string[] = ["html"];
 
-// The two formats that render through the sanitize → iframe → .html/print
-// pipeline rather than panther's markdown IR.
-export function reportRendersAsHtml(format: ReportFormat): boolean {
-  return format === "html" || format === "fastr";
-}
-
-// HTML-only presentation style — changes ONLY the AI's authoring brief (no
-// seed/render difference): each styled preset briefs the model on one design
-// language (REPORT_STYLE_BRIEFS in lib/ai_tools/build_system_prompt.ts);
-// "default" keeps styling minimal.
-export const REPORT_HTML_STYLES = [
-  "default",
-  "minimal",
-  "corporate",
-  "ministry",
-  "classic",
-  "executive",
-  "clinical",
-  "editorial",
-  "swiss",
-  "monochrome",
-  "bauhaus",
-  "blueprint",
-  "broadsheet",
-  "risograph",
-  "artdeco",
-  "japanese",
-  "terminal",
-  "brutalist",
-] as const;
-export type ReportHtmlStyle = (typeof REPORT_HTML_STYLES)[number];
-
-// ── Config (v1: format only; no per-report styling) ──────────────────────────
+// ── Config ───────────────────────────────────────────────────────────────────
 
 // Snapshot of a custom style taken at creation (live ref + snapshot fallback:
 // the id resolves the live library brief while the style exists and is visible
@@ -90,34 +59,33 @@ const reportCustomStyleSnapshotSchema = z.object({
 export type ReportConfig = {
   // Reserved for future per-report theming / header-footer.
   version?: number;
-  // Fixed at creation. Absent ⇒ markdown (reports predate the field).
-  format?: ReportFormat;
-  // Fixed at creation; html only. Absent ⇒ default. Ignored when customStyle
-  // is present.
-  htmlStyle?: ReportHtmlStyle;
-  // Fixed at creation; html/fastr. For html it wins over htmlStyle; for fastr
-  // only its colors are used (see getReportCustomStyle callers).
+  // "fastr" on every live report. Kept as a stored string so a report still
+  // on a retired format can be told apart (isRetiredReportFormat).
+  format?: string;
+  // Fixed at creation. Only its colors are used: they override the theme's
+  // palette (see getReportCustomStyle callers).
   customStyle?: ReportCustomStyleSnapshot;
-  // fastr only. UNLIKE htmlStyle this is changeable at any time — a FASTR
-  // Markdown body carries no CSS, so re-theming can never invalidate it.
+  // Changeable at any time: a FASTR Markdown body carries no CSS, so
+  // re-theming can never invalidate it.
   fastrTheme?: FastrReportTheme;
-  // fastr only, and false ONLY on a report minted since the theme modal
-  // existed and never answered: the editor opens the modal once on that
-  // report and sets it true. Absent on every older report, so none of them
-  // is interrupted by a modal about a choice they were never offered.
+  // False ONLY on a report minted since the theme modal existed and never
+  // answered: the editor opens the modal once on that report and sets it
+  // true. Absent on every older report, so none of them is interrupted by a
+  // modal about a choice they were never offered.
   themeChosen?: boolean;
-  // fastr only: the template the report was started from (template_modal.tsx,
-  // offered after the theme while the body is still the new-report seed).
-  // Metadata for the AI, which is told what kind of document it is writing;
-  // the body carries the template's skeleton, never a reference to it.
+  // The template the report was started from (template_modal.tsx, offered
+  // after the theme while the body is still the new-report seed). Metadata
+  // for the AI, which is told what kind of document it is writing; the body
+  // carries the template's skeleton, never a reference to it.
   template?: FastrReportTemplate;
 };
 
+// passthrough: a stored config may still carry keys of the retired formats
+// (htmlStyle); they ride along untouched.
 export const reportConfigSchema = z
   .object({
     version: z.number().optional(),
-    format: z.enum(REPORT_FORMATS).optional(),
-    htmlStyle: z.enum(REPORT_HTML_STYLES).optional(),
+    format: z.string().optional(),
     customStyle: reportCustomStyleSnapshotSchema.optional(),
     fastrTheme: z.enum(FASTR_REPORT_THEMES).optional(),
     themeChosen: z.boolean().optional(),
@@ -126,34 +94,30 @@ export const reportConfigSchema = z
   .passthrough();
 
 export function getStartingConfigForReport(
-  format: ReportFormat = "markdown",
-  htmlStyle: ReportHtmlStyle = "default",
   customStyle?: ReportCustomStyleSnapshot,
   fastrTheme: FastrReportTheme = "default",
 ): ReportConfig {
-  if (format === "fastr") {
-    return customStyle
-      ? { version: 1, format, fastrTheme, customStyle, themeChosen: false }
-      : { version: 1, format, fastrTheme, themeChosen: false };
-  }
-  if (format !== "html") return { version: 1, format };
   return customStyle
-    ? { version: 1, format, customStyle }
-    : { version: 1, format, htmlStyle };
+    ? {
+      version: 1,
+      format: REPORT_FORMAT,
+      fastrTheme,
+      customStyle,
+      themeChosen: false,
+    }
+    : { version: 1, format: REPORT_FORMAT, fastrTheme, themeChosen: false };
 }
 
-// Total: the stored config is a raw JSON cast on the server, so an unknown
-// value (an older client, a retired format) reads as markdown.
-export function getReportFormat(
+// Whether the report is stored in a format that no longer has an editor.
+// Total: the stored config is a raw JSON cast on the server.
+export function isRetiredReportFormat(
   config: ReportConfig | null | undefined,
-): ReportFormat {
+): boolean {
   const v = config?.format;
-  return v !== undefined && (REPORT_FORMATS as readonly string[]).includes(v)
-    ? v
-    : "markdown";
+  return typeof v === "string" && RETIRED_REPORT_FORMATS.includes(v);
 }
 
-// Total, same rationale as getReportFormat. undefined = no custom style.
+// Total, same rationale as isRetiredReportFormat. undefined = no custom style.
 export function getReportCustomStyle(
   config: ReportConfig | null | undefined,
 ): ReportCustomStyleSnapshot | undefined {
@@ -163,7 +127,7 @@ export function getReportCustomStyle(
     : undefined;
 }
 
-// Total, same rationale as getReportFormat.
+// Total, same rationale as isRetiredReportFormat.
 export function getFastrReportTheme(
   config: ReportConfig | null | undefined,
 ): FastrReportTheme {
@@ -171,7 +135,8 @@ export function getFastrReportTheme(
   return isFastrReportTheme(v) ? v : "default";
 }
 
-// Total, same rationale as getReportFormat. undefined = no template chosen.
+// Total, same rationale as isRetiredReportFormat. undefined = no template
+// chosen.
 export function getFastrReportTemplate(
   config: ReportConfig | null | undefined,
 ): FastrReportTemplate | undefined {
@@ -179,22 +144,8 @@ export function getFastrReportTemplate(
   return isFastrReportTemplate(v) ? v : undefined;
 }
 
-// Total, same rationale as getReportFormat.
-export function getReportHtmlStyle(
-  config: ReportConfig | null | undefined,
-): ReportHtmlStyle {
-  const v = config?.htmlStyle;
-  return v && (REPORT_HTML_STYLES as readonly string[]).includes(v)
-    ? v
-    : "default";
-}
-
-export function getStartingBodyForReport(
-  label: string,
-  format: ReportFormat,
-): string {
-  if (format === "html") return `<h1>${escapeReportHtml(label)}</h1>\n`;
-  // Markdown and FASTR Markdown both start with just the title.
+// A new report starts with just its title.
+export function getStartingBodyForReport(label: string): string {
   return `# ${label}\n\n`;
 }
 
@@ -208,31 +159,6 @@ export function escapeReportHtml(s: string): string {
     .replaceAll('"', "&quot;");
 }
 
-const NAMED_ENTITIES: Record<string, string> = {
-  amp: "&",
-  lt: "<",
-  gt: ">",
-  quot: '"',
-  apos: "'",
-  nbsp: "\u00a0",
-};
-
-// One pass, so "&amp;lt;" decodes to "&lt;" (never double-decoded).
-export function decodeReportHtmlEntities(s: string): string {
-  return s.replace(
-    /&(#x[0-9a-f]+|#[0-9]+|[a-z]+);/gi,
-    (m: string, e: string) => {
-      if (e[0] === "#") {
-        const code = e[1] === "x" || e[1] === "X"
-          ? parseInt(e.slice(2), 16)
-          : parseInt(e.slice(1), 10);
-        return Number.isFinite(code) ? String.fromCodePoint(code) : m;
-      }
-      return NAMED_ENTITIES[e.toLowerCase()] ?? m;
-    },
-  );
-}
-
 // ── Embed registry write-validation ──────────────────────────────────────────
 // Reuses the slide figure/image block schemas verbatim: report figures/images
 // ARE slides' FigureBlock / ImageBlock (the strict figureBlockSchema, meaning the bundle
@@ -242,11 +168,8 @@ export const reportFiguresSchema = z.record(z.string(), figureBlockSchema);
 export const reportImagesSchema = z.record(z.string(), imageBlockSchema);
 
 // ── Embed tokens ─────────────────────────────────────────────────────────────
-// markdown: ![caption](figure:<id>) / ![caption](image:<id>)
-// html:     <img src="figure:<id>" alt="caption"> (other attributes are the
-//           author's and are preserved by every rewrite)
-// Captions in these APIs are always PLAIN text (decoded); the html builders
-// entity-escape on write and the parsers decode on read.
+// ![caption](figure:<id>) / ![caption](image:<id>)
+// Captions in these APIs are always PLAIN text.
 
 export type ReportEmbedKind = "figure" | "image";
 
@@ -263,103 +186,13 @@ export type ReportEmbedRef = {
 
 const MD_TOKEN_RE = /!\[([^\]]*)\]\((figure|image):([^)\s]+)\)/g;
 const MD_LINE_TOKEN_RE = /^!\[([^\]]*)\]\((figure|image):([^)\s]+)\)$/;
-// An <img …> tag; quoted attribute values may contain ">".
-const HTML_IMG_TAG_RE = /<img\b(?:[^>"']|"[^"]*"|'[^']*')*>/gi;
-const HTML_ATTR_RE =
-  /([^\s"'<>\/=]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/g;
-const EMBED_SRC_RE = /^(figure|image):(.+)$/;
-// The loosest possible reference scan — for the orphan prune only, where
+// The loosest possible reference scan, for the orphan prune only, where
 // over-retention is harmless and a miss deletes a registry entry.
 const ANY_REF_RE = /(figure|image):([A-Za-z0-9_-]+)/g;
 
-type ImgTagAttr = {
-  name: string;
-  value: string | undefined;
-  // Attribute span within the tag text (name through closing quote).
-  start: number;
-  end: number;
-  // Value span within the tag text (inside the quotes, or the bare value).
-  valueStart: number;
-  valueEnd: number;
-};
-
-// Attributes of one "<img …>" tag text, with offsets for in-place patching.
-function scanImgTagAttrs(tag: string): ImgTagAttr[] {
-  const attrs: ImgTagAttr[] = [];
-  const re = new RegExp(HTML_ATTR_RE.source, "g");
-  re.lastIndex = 4; // past "<img"
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(tag)) !== null) {
-    if (m[0].length === 0) {
-      re.lastIndex++;
-      continue;
-    }
-    const start = m.index;
-    const end = m.index + m[0].length;
-    let value: string | undefined;
-    let valueStart = end;
-    let valueEnd = end;
-    if (m[2] !== undefined) {
-      value = m[2];
-      valueEnd = end - 1;
-      valueStart = valueEnd - value.length;
-    } else if (m[3] !== undefined) {
-      value = m[3];
-      valueEnd = end - 1;
-      valueStart = valueEnd - value.length;
-    } else if (m[4] !== undefined) {
-      value = m[4];
-      valueStart = end - value.length;
-    }
-    attrs.push({
-      name: m[1].toLowerCase(),
-      value,
-      start,
-      end,
-      valueStart,
-      valueEnd,
-    });
-  }
-  return attrs;
-}
-
-function parseHtmlEmbedTag(
-  tag: string,
-): { kind: ReportEmbedKind; id: string; caption: string } | undefined {
-  const attrs = scanImgTagAttrs(tag);
-  const src = attrs.find((a) => a.name === "src")?.value;
-  if (src === undefined) return undefined;
-  const m = EMBED_SRC_RE.exec(src.trim());
-  if (!m) return undefined;
-  const alt = attrs.find((a) => a.name === "alt")?.value ?? "";
-  return {
-    kind: m[1] as ReportEmbedKind,
-    id: m[2],
-    caption: decodeReportHtmlEntities(alt),
-  };
-}
-
 // Every embed token in the body, in document order.
-export function findReportEmbeds(
-  body: string,
-  format: ReportFormat,
-): ReportEmbedRef[] {
+export function findReportEmbeds(body: string): ReportEmbedRef[] {
   const out: ReportEmbedRef[] = [];
-  if (format === "html") {
-    const re = new RegExp(HTML_IMG_TAG_RE.source, "gi");
-    let m: RegExpExecArray | null;
-    while ((m = re.exec(body)) !== null) {
-      const parsed = parseHtmlEmbedTag(m[0]);
-      if (!parsed) continue;
-      out.push({
-        ...parsed,
-        start: m.index,
-        end: m.index + m[0].length,
-        raw: m[0],
-      });
-    }
-    return out;
-  }
   const re = new RegExp(MD_TOKEN_RE.source, "g");
   let m: RegExpExecArray | null;
   while ((m = re.exec(body)) !== null) {
@@ -375,15 +208,15 @@ export function findReportEmbeds(
   return out;
 }
 
-// Ids referenced by the body. "any" is the substring scan (both syntaxes and
-// anything looser) — use it for the load-time orphan prune.
+// Ids referenced by the body. "any" is the substring scan (the token syntax
+// and anything looser): use it for the load-time orphan prune.
 export function referencedReportEmbedIds(
   body: string,
-  format: ReportFormat | "any",
+  scan: "tokens" | "any" = "tokens",
 ): { figures: Set<string>; images: Set<string> } {
   const figures = new Set<string>();
   const images = new Set<string>();
-  if (format === "any") {
+  if (scan === "any") {
     const re = new RegExp(ANY_REF_RE.source, "g");
     let m: RegExpExecArray | null;
     while ((m = re.exec(body)) !== null) {
@@ -392,104 +225,57 @@ export function referencedReportEmbedIds(
     }
     return { figures, images };
   }
-  for (const ref of findReportEmbeds(body, format)) {
+  for (const ref of findReportEmbeds(body)) {
     if (ref.kind === "figure") figures.add(ref.id);
     else images.add(ref.id);
   }
   return { figures, images };
 }
 
-// Plain caption text safe for the token: markdown must not contain the
-// characters that end the token; both collapse whitespace.
-export function sanitizeReportCaption(
-  format: ReportFormat,
-  caption: string,
-): string {
-  const base = format === "markdown"
-    ? caption.replace(/[[\]\n\r]/g, " ")
-    : caption;
-  return base.replace(/\s+/g, " ").trim();
+// Plain caption text safe for the token: no character that ends the token,
+// whitespace collapsed.
+export function sanitizeReportCaption(caption: string): string {
+  return caption.replace(/[[\]\n\r]/g, " ").replace(/\s+/g, " ").trim();
 }
 
 export function buildReportEmbedToken(
-  format: ReportFormat,
   kind: ReportEmbedKind,
   id: string,
   caption: string,
 ): string {
-  const safe = sanitizeReportCaption(format, caption);
-  return format === "html"
-    ? `<img src="${kind}:${id}" alt="${escapeReportHtml(safe)}">`
-    : `![${safe}](${kind}:${id})`;
+  return `![${sanitizeReportCaption(caption)}](${kind}:${id})`;
 }
 
-// A line that is exactly one token (after trimming) — the block-widget rule.
+// A line that is exactly one token (after trimming): the block-widget rule.
 export function parseReportEmbedLine(
   line: string,
-  format: ReportFormat,
 ): { kind: ReportEmbedKind; id: string; caption: string } | undefined {
-  const t = line.trim();
-  if (format === "html") {
-    const refs = findReportEmbeds(t, "html");
-    if (refs.length !== 1) return undefined;
-    const r = refs[0];
-    if (r.start !== 0 || r.end !== t.length) return undefined;
-    return { kind: r.kind, id: r.id, caption: r.caption };
-  }
-  const m = MD_LINE_TOKEN_RE.exec(t);
+  const m = MD_LINE_TOKEN_RE.exec(line.trim());
   if (!m) return undefined;
   return { kind: m[2] as ReportEmbedKind, id: m[3], caption: m[1] };
 }
 
-// New token text for an existing token: html patches only the src value and
-// the alt attribute inside ref.raw (class/style/id/width… survive); markdown
-// rebuilds. `caption` is plain text.
+// New token text for an existing token. `caption` is plain text.
 export function rewriteReportEmbedToken(
   ref: ReportEmbedRef,
   patch: { id?: string; caption?: string },
-  format: ReportFormat,
 ): string {
-  const id = patch.id ?? ref.id;
-  const caption = patch.caption ?? ref.caption;
-  if (format === "markdown") {
-    return buildReportEmbedToken("markdown", ref.kind, id, caption);
-  }
-  const attrs = scanImgTagAttrs(ref.raw);
-  const src = attrs.find((a) => a.name === "src");
-  if (!src || src.value === undefined) {
-    return buildReportEmbedToken("html", ref.kind, id, caption);
-  }
-  const alt = attrs.find((a) => a.name === "alt");
-  const altText = `alt="${
-    escapeReportHtml(sanitizeReportCaption("html", caption))
-  }"`;
-  // Apply patches right-to-left so earlier offsets stay valid.
-  const edits: { start: number; end: number; text: string }[] = [
-    { start: src.valueStart, end: src.valueEnd, text: `${ref.kind}:${id}` },
-  ];
-  if (alt) {
-    edits.push({ start: alt.start, end: alt.end, text: altText });
-  } else {
-    edits.push({ start: src.end, end: src.end, text: ` ${altText}` });
-  }
-  edits.sort((a, b) => b.start - a.start);
-  let out = ref.raw;
-  for (const e of edits) {
-    out = out.slice(0, e.start) + e.text + out.slice(e.end);
-  }
-  return out;
+  return buildReportEmbedToken(
+    ref.kind,
+    patch.id ?? ref.id,
+    patch.caption ?? ref.caption,
+  );
 }
 
 // Replace every token of (kind, id); the replacer usually wraps
 // rewriteReportEmbedToken. Returns the new body and how many were replaced.
 export function replaceReportEmbedTokens(
   body: string,
-  format: ReportFormat,
   kind: ReportEmbedKind,
   id: string,
   replacer: (ref: ReportEmbedRef) => string,
 ): { body: string; count: number } {
-  const refs = findReportEmbeds(body, format).filter(
+  const refs = findReportEmbeds(body).filter(
     (r) => r.kind === kind && r.id === id,
   );
   let out = body;
@@ -501,7 +287,8 @@ export function replaceReportEmbedTokens(
 }
 
 // ── HTML sanitizer config (pure data; the client feeds it to DOMPurify) ──────
-// The default tag list would otherwise allow form controls, dialog/template/
+// The compiled document is sanitized on its way into the editor's widgets,
+// the preview and every export. The default tag list would otherwise allow form controls, dialog/template/
 // marquee and (with FORCE_BODY) head/title; the default URI regexp rejects the
 // figure:/image: embed schemes. Exercised by server/tests/report_html_sanitize_test.ts.
 

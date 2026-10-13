@@ -738,16 +738,10 @@ export function buildVizEditorTour(): TourDefinition {
 
 // ----------------------------------------------------------- Report editor
 
-// A report is one of three formats. New reports are FASTR reports, edited on
-// the page itself with a menu row and a formatting bar; the two older formats
-// (markdown, html) are edited as text beside a preview, behind an
-// Edit/Split/View switch. The steps below are gated on what each one renders.
-const reportFormat = () => {
-  const view = copilotViewController.current();
-  return view.id === "editing_report" ? view.params.format : undefined;
-};
+// A report is edited on the page itself, with a menu row and a formatting
+// bar. A reader has neither, so the steps below are gated on what is on
+// screen.
 const REPORT_MENU_ROW = tourTarget("report-menu-row");
-const REPORT_MODE = tourTarget("report-mode");
 
 export function buildReportEditorIntroTour(): TourDefinition {
   return {
@@ -772,26 +766,6 @@ export function buildReportEditorIntroTour(): TourDefinition {
         placement: "bottom",
       },
       {
-        id: "mode",
-        target: REPORT_MODE,
-        title: t3({
-          en: "Edit, Split or View",
-          fr: "Édition, Divisé ou Aperçu",
-          pt: "Editar, Dividido ou Ver",
-        }),
-        body: t3({
-          en:
-            "Split shows your text beside the finished page. Edit gives the text all the room, and View shows only the finished page.",
-          fr:
-            "Divisé affiche votre texte à côté de la page finale. Édition donne toute la place au texte, et Aperçu n'affiche que la page finale.",
-          pt:
-            "Dividido mostra o seu texto ao lado da página final. Editar dá todo o espaço ao texto, e Ver mostra apenas a página final.",
-        }),
-        placement: "bottom",
-        // Only the older formats have the switch.
-        when: onScreen(REPORT_MODE),
-      },
-      {
         id: "menus",
         target: REPORT_MENU_ROW,
         title: t3({
@@ -808,7 +782,7 @@ export function buildReportEditorIntroTour(): TourDefinition {
             "Ficheiro transfere o relatório, envia-o por email, muda-lhe o nome ou cria uma cópia. Widgets adiciona esquemas prontos a usar, como um destaque, uma estatística, colunas, uma página de capa ou um índice. Figuras adiciona uma visualização ou uma imagem. Página define o tema, o fundo, a orientação e as secções numeradas.",
         }),
         placement: "bottom",
-        // A FASTR report someone can edit; a reader has no menus.
+        // A report someone can edit; a reader has no menus.
         when: onScreen(REPORT_MENU_ROW),
       },
       {
@@ -833,92 +807,29 @@ export function buildReportEditorIntroTour(): TourDefinition {
       {
         id: "code-pane",
         target: tourTarget("report-code-pane"),
-        // Three pages share this anchor: the FASTR page being edited, an
-        // older format's text, and a report the user can only read.
+        // Two pages share this anchor: the page being edited, and a report
+        // the user can only read.
         title: () =>
-          onScreen(REPORT_MENU_ROW)() || onScreen(REPORT_MODE)()
+          onScreen(REPORT_MENU_ROW)()
             ? t3({ en: "Write here", fr: "Écrivez ici", pt: "Escreva aqui" })
             : t3({ en: "The report", fr: "Le rapport", pt: "O relatório" }),
-        body: () => {
-          if (onScreen(REPORT_MENU_ROW)()) {
-            return t3({
+        body: () =>
+          onScreen(REPORT_MENU_ROW)()
+            ? t3({
               en:
                 "This is the page, shown as it will look when it is downloaded. Click anywhere on it and type.",
               fr:
                 "Voici la page, telle qu'elle apparaîtra une fois téléchargée. Cliquez n'importe où et écrivez.",
               pt:
                 "Esta é a página, tal como ficará quando for transferida. Clique em qualquer ponto e escreva.",
-            });
-          }
-          if (!onScreen(REPORT_MODE)()) {
-            return t3({
+            })
+            : t3({
               en: "This is the report. You can read it here.",
               fr: "Voici le rapport. Vous pouvez le lire ici.",
               pt: "Este é o relatório. Pode lê-lo aqui.",
-            });
-          }
-          return reportFormat() === "markdown"
-            ? t3({
-              en:
-                "This is the report's text. A few marks set the formatting: # starts a heading, ** on each side of a word makes it bold, and - starts a list item. Visualizations appear as blocks you can click.",
-              fr:
-                "Voici le texte du rapport. Quelques signes définissent la mise en forme : # commence un titre, ** de chaque côté d'un mot le met en gras, et - commence un élément de liste. Les visualisations apparaissent sous forme de blocs cliquables.",
-              pt:
-                "Este é o texto do relatório. Alguns sinais definem a formatação: # inicia um título, ** de cada lado de uma palavra põe-na a negrito, e - inicia um item de lista. As visualizações aparecem como blocos em que pode clicar.",
-            })
-            : t3({
-              en:
-                "This is the report's text. Type and edit it here. Visualizations appear as blocks you can click.",
-              fr:
-                "Voici le texte du rapport. Écrivez-le et modifiez-le ici. Les visualisations apparaissent sous forme de blocs cliquables.",
-              pt:
-                "Este é o texto do relatório. Escreva-o e edite-o aqui. As visualizações aparecem como blocos em que pode clicar.",
-            });
-        },
+            }),
         placement: "right",
         ...SKIP_IF_MISSING,
-      },
-      {
-        id: "preview",
-        target: tourTarget("report-preview-pane"),
-        title: t3({
-          en: "The finished page",
-          fr: "La page finale",
-          pt: "A página final",
-        }),
-        body: t3({
-          en:
-            "This is what the downloaded document will look like. It updates as you type, and scrolling one side moves the other.",
-          fr:
-            "Voici l'apparence du document téléchargé. Il se met à jour pendant que vous écrivez, et le défilement d'un côté entraîne l'autre.",
-          pt:
-            "É este o aspeto do documento transferido. É atualizado enquanto escreve, e deslocar um lado move o outro.",
-        }),
-        placement: "left",
-        when: onScreen(tourTarget("report-preview-pane")),
-      },
-      {
-        id: "embed-panel",
-        target: tourTarget("report-insert-buttons"),
-        title: t3({
-          en: "Visualizations and images",
-          fr: "Visualisations et images",
-          pt: "Visualizações e imagens",
-        }),
-        body: t3({
-          en:
-            "Add a visualization or an image from here. Click one that is already in the report to change or remove it.",
-          fr:
-            "Ajoutez une visualisation ou une image depuis ici. Cliquez sur un élément déjà présent dans le rapport pour le modifier ou le retirer.",
-          pt:
-            "Adicione uma visualização ou uma imagem a partir daqui. Clique numa que já esteja no relatório para a alterar ou remover.",
-        }),
-        placement: "bottom",
-        // The older formats' own buttons. In a FASTR report these live in the
-        // Figures menu, which the menus step has already named.
-        when: () =>
-          onScreen(REPORT_MODE)() &&
-          onScreen(tourTarget("report-insert-buttons"))(),
       },
       {
         id: "outline",
@@ -937,7 +848,7 @@ export function buildReportEditorIntroTour(): TourDefinition {
             "Todos os títulos do relatório estão listados aqui. Clique num para ir diretamente até ele. A seta no topo oculta a lista.",
         }),
         placement: "right",
-        // FASTR reports only, and only while the list is open.
+        // Only while the list is open.
         when: onScreen(tourTarget("report-outline")),
       },
       packageScopeStep("report"),

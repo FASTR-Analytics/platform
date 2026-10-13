@@ -1,10 +1,11 @@
 // =============================================================================
-// Custom report styles: user-authored design briefs for HTML and FASTR
-// Markdown reports, stored in the MAIN database. A style is injected into the
-// AI's authoring instructions exactly like a built-in preset (SYSTEM_13);
-// reports snapshot the brief at creation and resolve the live library copy
-// while it is still visible (live ref + snapshot fallback, see reports.ts
-// `customStyle`).
+// Custom report styles: user-authored palettes for reports, stored in the
+// MAIN database. A style's colors override the palette of whichever theme the
+// report is on; a report snapshots the style when it is applied (see
+// reports.ts `customStyle`). `brief` and `referenceCss` are what a style was
+// when reports could be written as html (an AI design brief and the source
+// report's stylesheet): they are still stored and round-tripped, and nothing
+// reads them.
 //
 // Visibility is per PRODUCT: a style is either instance-wide or limited to a
 // named set of reports (PLAN_PRODUCTS_RESTRUCTURE left no project layer to
@@ -42,7 +43,7 @@ export type ReportCustomStyle = {
 export const reportStyleBodySchema = z.object({
   label: z.string().min(1).max(80),
   description: z.string().max(200),
-  brief: z.string().min(1).max(REPORT_CUSTOM_BRIEF_MAX),
+  brief: z.string().max(REPORT_CUSTOM_BRIEF_MAX),
   referenceCss: z.string().max(REPORT_STYLE_REFERENCE_CSS_MAX).nullable(),
   colors: reportStyleColorsSchema.nullable(),
   productIds: z.array(z.string()).nullable(),

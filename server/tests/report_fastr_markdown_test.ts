@@ -66,12 +66,10 @@ import {
 import {
   findReportEmbeds,
   getFastrReportTheme,
-  getReportFormat,
   getStartingBodyForReport,
   getStartingConfigForReport,
   referencedReportEmbedIds,
   reportConfigSchema,
-  reportRendersAsHtml,
 } from "../../lib/types/reports.ts";
 import {
   findReportHeadings,
@@ -284,20 +282,13 @@ Do things.
 `;
 
 Deno.test("headings inside a container are not addressable sections", () => {
-  const texts = findReportHeadings(SECTIONED, "fastr").map((h) => h.text);
+  const texts = findReportHeadings(SECTIONED).map((h) => h.text);
   assertEquals(texts, ["Report", "Findings", "Recommendations"]);
-  // Plain markdown is deliberately UNCHANGED — it still sees every `#` line.
-  assert(
-    findReportHeadings(SECTIONED, "markdown").map((h) => h.text).includes(
-      "Inner heading",
-    ),
-  );
 });
 
 Deno.test("a section splice never cuts a container in half", () => {
   const res = spliceReportSection(
     SECTIONED,
-    "fastr",
     "Findings",
     "## Findings\n\nReplaced.\n",
     undefined,
@@ -310,19 +301,6 @@ Deno.test("a section splice never cuts a container in half", () => {
 
 // ── Format plumbing ──────────────────────────────────────────────────────────
 
-Deno.test("getReportFormat stays total with three values", () => {
-  assertEquals(getReportFormat({ format: "fastr" }), "fastr");
-  assertEquals(getReportFormat({ format: "html" }), "html");
-  assertEquals(getReportFormat({}), "markdown");
-  assertEquals(
-    getReportFormat({ format: "FASTR" as unknown as "fastr" }),
-    "markdown",
-  );
-  assert(reportRendersAsHtml("fastr"));
-  assert(reportRendersAsHtml("html"));
-  assert(!reportRendersAsHtml("markdown"));
-});
-
 Deno.test("getFastrReportTheme is total", () => {
   assertEquals(getFastrReportTheme(undefined), "default");
   assertEquals(getFastrReportTheme({}), "default");
@@ -334,12 +312,7 @@ Deno.test("getFastrReportTheme is total", () => {
 });
 
 Deno.test("a fastr starting config round-trips the schema and carries a theme", () => {
-  const config = getStartingConfigForReport(
-    "fastr",
-    "default",
-    undefined,
-    "ministry",
-  );
+  const config = getStartingConfigForReport(undefined, "ministry");
   assertEquals(config.format, "fastr");
   assertEquals(config.fastrTheme, "ministry");
   assertEquals(reportConfigSchema.parse(config).fastrTheme, "ministry");
@@ -347,14 +320,14 @@ Deno.test("a fastr starting config round-trips the schema and carries a theme", 
 
 Deno.test("the seeded body is just the title", () => {
   assertEquals(
-    getStartingBodyForReport("My report", "fastr"),
+    getStartingBodyForReport("My report"),
     "# My report\n\n",
   );
 });
 
-Deno.test("embed helpers treat fastr as markdown", () => {
+Deno.test("embed helpers find a token inside a block", () => {
   const body = ":::card\n![Cap](figure:abc)\n:::\n";
-  const refs = findReportEmbeds(body, "fastr");
+  const refs = findReportEmbeds(body);
   assertEquals(refs.length, 1);
   assertEquals(refs[0].id, "abc");
   assertEquals(refs[0].caption, "Cap");
@@ -1487,23 +1460,11 @@ Deno.test("every rule that darkens the ground re-points the semantic colours", (
   assertStringIncludes(lightBlock, "--fm-danger: var(--fm-danger-light);");
 });
 
-Deno.test("all 11 themes build, and the html styles with no theme are the retired ones", async () => {
+Deno.test("all 11 themes build", () => {
   assertEquals(FASTR_REPORT_THEMES.length, 11);
-  const { REPORT_HTML_STYLES } = await import("../../lib/types/reports.ts");
-  const themes = new Set<string>(FASTR_REPORT_THEMES);
-  // A retired theme keeps its html style: an html report written in one still
-  // renders. blueprint went 2026-09-03; the five loud ones 2026-09-17;
-  // classic 2026-09-21; monochrome 2026-09-29.
-  assertEquals(REPORT_HTML_STYLES.filter((s) => !themes.has(s)), [
-    "classic",
-    "monochrome",
-    "blueprint",
-    "risograph",
-    "artdeco",
-    "japanese",
-    "terminal",
-    "brutalist",
-  ]);
+  for (const theme of FASTR_REPORT_THEMES) {
+    assert(buildFastrReportCss(theme).length > 0);
+  }
 });
 
 // The scope rewriter runs line-by-line over each theme's extraCss. A comment
@@ -2202,43 +2163,22 @@ Deno.test("templates: every skeleton is well-formed FASTR Markdown with real blo
   assert(!brief.includes(":::contents") && !brief.includes("numbering="));
 });
 
-Deno.test("templates: the AI is told which one, and only for FASTR", async () => {
+Deno.test("templates: the AI is told which one", async () => {
   const { getEditingReportInstructions } = await import(
     "../../lib/ai_tools/build_system_prompt.ts"
   );
-  const withBrief = getEditingReportInstructions(
-    "R",
-    "fastr",
-    "default",
-    undefined,
-    "policy_brief",
-  );
+  const withBrief = getEditingReportInstructions("R", "policy_brief");
   assertStringIncludes(withBrief, "POLICY BRIEF");
   assertStringIncludes(withBrief, "{.muted}");
   assertStringIncludes(
-    getEditingReportInstructions(
-      "R",
-      "fastr",
-      "default",
-      undefined,
-      "long_form",
-    ),
+    getEditingReportInstructions("R", "long_form"),
     "LONG-FORM REPORT",
   );
   assertStringIncludes(
-    getEditingReportInstructions("R", "fastr", "default", undefined, "empty"),
+    getEditingReportInstructions("R", "empty"),
     "blank page",
   );
-  assert(!getEditingReportInstructions("R", "fastr").includes("POLICY BRIEF"));
-  assert(
-    !getEditingReportInstructions(
-      "R",
-      "markdown",
-      "default",
-      undefined,
-      "policy_brief",
-    ).includes("POLICY BRIEF"),
-  );
+  assert(!getEditingReportInstructions("R").includes("POLICY BRIEF"));
 });
 
 Deno.test("templates: the choice survives the config schema and reads back totally", async () => {

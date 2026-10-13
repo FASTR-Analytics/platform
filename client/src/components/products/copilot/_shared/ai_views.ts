@@ -5,8 +5,6 @@ import type {
   FigureBlock,
   ImageBlock,
   PackageScope,
-  ReportFormat,
-  ReportHtmlStyle,
   Slide,
   SlideDeckConfig,
   SlideType,
@@ -85,15 +83,10 @@ export type EditingSlideContext = EditingSlideDeckContext & {
 export type EditingReportParams = {
   reportId: string;
   reportLabel: string;
-  // Format and (html only) style, fixed at creation and known before setView.
-  format: ReportFormat;
-  htmlStyle?: ReportHtmlStyle;
-  // Custom style, resolved live-vs-snapshot by the report editor (S12).
-  customStyle?: { label: string; brief: string; referenceCss?: string | null };
 };
 // See ./types.ts for ReportEditProposal(Result) and ReportEditorSelection.
 export type EditingReportContext = OpenProductScope & {
-  // The template the report was started from (fastr only), read live: it is
+  // The template the report was started from, read live: it is
   // chosen after the view is set, from the template modal.
   getTemplate: () => FastrReportTemplate | undefined;
   getBody: () => string;
@@ -144,9 +137,6 @@ export const copilotViews = defineAIViews({
       const base = `${
         getEditingReportInstructions(
           params.reportLabel,
-          params.format,
-          params.htmlStyle,
-          params.customStyle,
           context.getTemplate(),
         )
       }\n\nreportId: ${params.reportId}`;

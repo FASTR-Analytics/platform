@@ -3,7 +3,6 @@ import {
   type FigureBlock,
   type ImageBlock,
   readFastrDocumentSettings,
-  type ReportFormat,
 } from "lib";
 import { createEffect, on, onCleanup } from "solid-js";
 import {
@@ -22,7 +21,8 @@ import {
 } from "~/generate_report/mod";
 import { iframeSurface, type PreviewSurface } from "./scroll_sync";
 
-// The rendered HTML report: a `sandbox="allow-same-origin"` srcdoc iframe
+// The rendered report (FASTR Markdown compiled to markup): a
+// `sandbox="allow-same-origin"` srcdoc iframe
 // (scripts browser-blocked; the report's own <style>/@page/vh work natively and
 // stay scoped to the frame; blob: rasters and asset URLs load because the frame
 // keeps the parent origin). The body is re-rendered in place — sanitize →
@@ -40,9 +40,7 @@ import { iframeSurface, type PreviewSurface } from "./scroll_sync";
 type Props = {
   body: string;
   title: string;
-  // "html" (the body IS the markup) or "fastr" (markdown compiled to markup).
-  format: ReportFormat;
-  // fastr only: the theme stylesheet, swapped in place when the user re-themes.
+  // The theme stylesheet, swapped in place when the user re-themes.
   themeCss?: string;
   figures: Record<string, FigureBlock>;
   images: Record<string, ImageBlock>;
@@ -117,14 +115,11 @@ export function ReportHtmlPreview(p: Props) {
     syncThemeCss(doc);
     // `:::report` is part of the body, so it is re-read on every render and
     // lands on <html> (see wrapReportDocument) rather than the text column.
-    const docSettings = p.format === "fastr"
-      ? readFastrDocumentSettings(p.body)
-      : undefined;
-    doc.documentElement.className = docSettings?.className ?? "";
-    doc.documentElement.setAttribute("style", docSettings?.style ?? "");
+    const docSettings = readFastrDocumentSettings(p.body);
+    doc.documentElement.className = docSettings.className;
+    doc.documentElement.setAttribute("style", docSettings.style);
     const html = renderReportBodyHtml(p.body, {
       lineAnchors: p.lineAnchors,
-      format: p.format,
     });
     const frag = buildReportBodyNodes(
       doc,

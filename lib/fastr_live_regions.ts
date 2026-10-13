@@ -49,7 +49,7 @@ export function isFastrEmbedLine(text: string): boolean {
 
 function isEmbedLine(text: string): boolean {
   const t = text.trim().replace(TRAILING_ATTRS_RE, "");
-  return t.length > 0 && parseReportEmbedLine(t, "fastr") !== undefined;
+  return t.length > 0 && parseReportEmbedLine(t) !== undefined;
 }
 
 // A GFM delimiter row (`| --- | :---: |`), which is what separates "a line

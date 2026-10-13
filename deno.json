@@ -3,7 +3,12 @@
   "nodeModulesDir": "auto",
   "links": ["./vendor/postgres"],
   "fmt": {
-    "exclude": ["client/public/", "client/package-lock.json", "vendor/"]
+    "exclude": [
+      "client/public/",
+      "client/package-lock.json",
+      "vendor/",
+      "report-forge/harness/baseline/"
+    ]
   },
   "lint": {
     "exclude": ["client/"],

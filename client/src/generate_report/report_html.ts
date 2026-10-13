@@ -1,6 +1,7 @@
-// HTML-format reports: the ONE document builder behind the editor preview, the
-// version-history preview, the .html download and print-to-PDF —
-// sanitize (DOMPurify + the lib config) → materialize embeds → base CSS.
+// The ONE report document builder behind the read-only preview, the
+// version-history preview, the .html download and the PDF: compile the FASTR
+// Markdown body → sanitize (DOMPurify + the lib config) → materialize embeds →
+// base CSS.
 // DOM-dependent (client only); the sanitizer CONFIG itself is pure data in
 // lib/types/reports.ts and is exercised by server/tests/report_html_sanitize_test.ts.
 //
@@ -12,13 +13,7 @@
 // the sanitizer is load-bearing there.
 
 import DOMPurify from "dompurify";
-import {
-  injectReportHtmlLineAnchors,
-  renderFastrMarkdownToHtml,
-  REPORT_PURIFY_CONFIG,
-  type ReportFormat,
-  t3,
-} from "lib";
+import { renderFastrMarkdownToHtml, REPORT_PURIFY_CONFIG, t3 } from "lib";
 
 export function sanitizeReportHtml(html: string): string {
   return DOMPurify.sanitize(html, REPORT_PURIFY_CONFIG);
@@ -32,20 +27,14 @@ export {
   wrapReportDocument,
 } from "lib";
 
-// html: inject line anchors (preview only) → sanitize.
-// fastr: compile the markdown (anchors come from markdown-it's token.map) →
-// sanitize. Both land in the same funnel from here on.
+// Compile the markdown (line anchors come from markdown-it's token.map), then
+// sanitize.
 export function renderReportBodyHtml(
   body: string,
-  opts: { lineAnchors: boolean; format?: ReportFormat },
+  opts: { lineAnchors: boolean },
 ): string {
-  if (opts.format === "fastr") {
-    return sanitizeReportHtml(
-      renderFastrMarkdownToHtml(body, { lineAnchors: opts.lineAnchors }),
-    );
-  }
   return sanitizeReportHtml(
-    opts.lineAnchors ? injectReportHtmlLineAnchors(body) : body,
+    renderFastrMarkdownToHtml(body, { lineAnchors: opts.lineAnchors }),
   );
 }
 

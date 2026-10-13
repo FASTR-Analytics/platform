@@ -409,16 +409,9 @@ library), the report's live-resolved brief: a prescriptive design language
 (fonts via `@import`, palette, structural devices, figure treatment; shared
 sanitizer constraints ride once at the end) that the model writes its own
 stylesheet from, led by a top-of-instructions banner and backstopped by
-`validateStyledReportHasStylesheet` on `rewrite_report`. The AI pane's kebab
-menu offers "Save this report's style..." inside an HTML report
-([save_report_style.tsx](client/src/components/products/copilot/save_report_style.tsx)):
-a one-shot Sonnet call on the governed instance proxy distills the report's
-markup patterns into a preset-shaped brief + tile colors, while the report's
-actual `<style>` CSS is extracted EXACTLY in code and stored as the style's
-reference stylesheet, injected verbatim into the instructions as the CSS to
-reuse; all reviewed in the S12 style editor before it enters the library):
-tokens are built/parsed through the lib helpers, `get_report_editor` prints the
-format plus a headings index (1-based line + the exact section range and
+`validateStyledReportHasStylesheet` on `rewrite_report`): tokens are
+built/parsed through the lib helpers, `get_report_editor` prints the format plus
+a headings index (1-based line + the exact section range and
 `wrapper <tag>`/`flat` mode from `lib/report_sections.ts`), `rewrite_section`
 splices that range (wrapper mode insists `newBody` starts with the wrapper tag),
 `insert_figure.afterHeading` lands after the heading's header block, and the

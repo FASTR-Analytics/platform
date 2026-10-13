@@ -12,13 +12,11 @@ import {
   findReportHeadings,
   getFastrReportTheme,
   getReplicateByProp,
-  getReportFormat,
   insertAfterReportHeading,
   type MetricWithStatus,
   type PeriodBounds,
   periodFilterHasBounds,
   replaceReportEmbedTokens,
-  type ReportFormat,
   type ReportHeading,
   type ResultsValueInfoForPresentationObject,
   rewriteReportEmbedToken,
@@ -47,12 +45,8 @@ import {
   validateFastrNewLiteralBackgrounds,
   validateFastrRewriteUsesBlocks,
   validateFastrStatPlacement,
-  validateReferenceCssReuse,
-  validateReportBodyDelta,
-  validateReportBodyForFormat,
   validateReportBodyLength,
   validateReportTokensResolve,
-  validateStyledReportHasStylesheet,
 } from "../validators/mod.ts";
 
 // Appended to a tool's ACCEPTED message when the accept-time rebase skipped
@@ -119,12 +113,8 @@ function replaceTextOccurrence(
 }
 
 // The headings index for get_report_editor: where each section starts/ends
-// (1-based lines) and, for HTML, whether it is a wrapper element or a flat
-// run — exactly what rewrite_section will replace.
-function formatHeadingsIndex(
-  headings: ReportHeading[],
-  format: ReportFormat,
-): string[] {
+// (1-based lines), exactly what rewrite_section will replace.
+function formatHeadingsIndex(headings: ReportHeading[]): string[] {
   if (headings.length === 0) return [`## Headings: none`];
   return [
     `## Headings (section = what rewrite_section replaces; lines are 1-based)`,
@@ -132,14 +122,9 @@ function formatHeadingsIndex(
       const range = h.section.fromLine === h.section.toLine
         ? `line ${h.section.fromLine}`
         : `lines ${h.section.fromLine}-${h.section.toLine}`;
-      const mode = format === "html"
-        ? h.section.mode === "wrapper"
-          ? ` · wrapper <${h.section.wrapperTag}>`
-          : ` · flat`
-        : "";
       return `- line ${h.line}: ${
         "#".repeat(h.level)
-      } ${h.text} → section ${range}${mode}`;
+      } ${h.text} → section ${range}`;
     }),
   ];
 }
@@ -168,7 +153,7 @@ export function getClientToolsForReportEditor(
       viewRegistry: copilotViews,
       name: "get_report_editor",
       description:
-        "Get the report's current body (markdown, FASTR Markdown or HTML — stated in the output), a headings index (each heading's line and the exact section range rewrite_section would replace), a one-line index of each embedded figure (id, metric, type, caption, active replicant), and the embedded image ids (live editor state, including unsaved changes). ALWAYS call this first before proposing edits. For a figure's full config (available replicant values, slots, filters) call get_report_figure.",
+        "Get the report's current body (FASTR Markdown), a headings index (each heading's line and the exact section range rewrite_section would replace), a one-line index of each embedded figure (id, metric, type, caption, active replicant), and the embedded image ids (live editor state, including unsaved changes). ALWAYS call this first before proposing edits. For a figure's full config (available replicant values, slots, filters) call get_report_figure.",
       inputSchema: z.object({}),
       availableIn: ["editing_report"],
       kind: "read",
@@ -195,36 +180,10 @@ export function getClientToolsForReportEditor(
             ...figureIds.map((id) => formatFigureIndexLine(id, figs[id])),
           ]
           : [`## Figures: none`];
-        const format = view.params.format;
         const body = ctx.getBody();
-        const readStyleName = view.params.customStyle
-          ? `CUSTOM "${view.params.customStyle.label}"${
-            view.params.customStyle.referenceCss?.trim()
-              ? " with reference stylesheet"
-              : " (prose brief only — no reference stylesheet)"
-          }`
-          : view.params.htmlStyle && view.params.htmlStyle !== "default"
-          ? view.params.htmlStyle.toUpperCase()
-          : undefined;
-        const styleNote = format === "html"
-          ? readStyleName
-            ? ` · Style: ${readStyleName} (full-body rewrites must be fully designed pages — see the Design brief in your instructions)`
-            : ` · Style: default`
-          : "";
-        const formatLabel = format === "fastr" ? "FASTR Markdown" : format;
         return [
           `# REPORT EDITOR: ${view.params.reportLabel}`,
-          `Format: ${formatLabel}${styleNote}${
-            format === "html"
-              ? ` — embed tokens are ${
-                buildReportEmbedToken("html", "figure", "<id>", "caption")
-              }`
-              : ""
-          }${
-            format === "fastr"
-              ? " — the theme supplies the design; never write CSS or a <style> block"
-              : ""
-          }`,
+          `Format: FASTR Markdown — the theme supplies the design; never write CSS or a <style> block`,
           ...(() => {
             const template = ctx.getTemplate();
             return template === undefined ? [] : [
@@ -238,10 +197,10 @@ export function getClientToolsForReportEditor(
             ];
           })(),
           ``,
-          `## Current body (${formatLabel})`,
+          `## Current body (FASTR Markdown)`,
           body,
           ``,
-          ...formatHeadingsIndex(findReportHeadings(body, format), format),
+          ...formatHeadingsIndex(findReportHeadings(body)),
           ``,
           ...figureSection,
           `## Images: ${
@@ -342,7 +301,7 @@ export function getClientToolsForReportEditor(
           );
         }
         if (
-          !findReportEmbeds(ctx.getBody(), view.params.format).some(
+          !findReportEmbeds(ctx.getBody()).some(
             (r) => r.kind === "figure" && r.id === input.figureId,
           )
         ) {
@@ -501,11 +460,6 @@ export function getClientToolsForReportEditor(
       inProgressLabel: "Laying the report out as pages...",
       completionMessage: "Read the page map",
       handler: async (input, view) => {
-        if (view.params.format !== "fastr") {
-          throw new AIToolFailure(
-            "Only a FASTR Markdown report has pages to map.",
-          );
-        }
         // The stored detail carries the config (the theme drives the page
         // metrics); the live editor state carries what the user can see.
         const res = await getReportDetailFromCacheOrFetch(view.params.reportId);
@@ -528,11 +482,6 @@ export function getClientToolsForReportEditor(
             images: ctx.getImages(),
             config: { ...res.data.config, fastrTheme: theme },
           };
-        if (getReportFormat(detail.config) !== "fastr") {
-          throw new AIToolFailure(
-            "Only a FASTR Markdown report has pages to map.",
-          );
-        }
         return await describeReportPages(
           detail,
           (imgFile) => resolveLogoUrl(imgFile),
@@ -550,18 +499,18 @@ export function getClientToolsForReportEditor(
       // tool description is in the cached system prompt, so the cost is paid
       // once per conversation.
       description:
-        `Propose a full rewrite of the report body, written in the report's format (markdown, FASTR Markdown or HTML — see get_report_editor). The user reviews a diff and accepts or rejects — nothing is applied silently. Keep all existing figure/image tokens you want to retain; you may only reference figure/image ids that already exist. HTML bodies must be body-only, well-formed markup.
+        `Propose a full rewrite of the report body, written in FASTR Markdown. The user reviews a diff and accepts or rejects — nothing is applied silently. Keep all existing figure/image tokens you want to retain; you may only reference figure/image ids that already exist.
 
-When the report's format is FASTR Markdown, the body MUST be built from the format's \`:::\` blocks — a plain run of headings and paragraphs is rejected unless you pass plain: true, which you do only when the user asked for a plain document. Before proposing, lay the draft out with get_report_pages (pass it as \`markdown\`) and fix every page it flags. The format:
+The body MUST be built from the format's \`:::\` blocks — a plain run of headings and paragraphs is rejected unless you pass plain: true, which you do only when the user asked for a plain document. Before proposing, lay the draft out with get_report_pages (pass it as \`markdown\`) and fix every page it flags. The format:
 
 ${FASTR_MD_SYNTAX_DOC}`,
       inputSchema: z.object({
         body: z.string(),
         allowLiteralColors: z.boolean().optional().describe(
-          "FASTR Markdown only. Set true ONLY when the user explicitly asked for specific literal colours, gradients or image backgrounds (bg=...). Without it, newly-added literal bg= values are rejected — use tones, which follow the theme.",
+          "Set true ONLY when the user explicitly asked for specific literal colours, gradients or image backgrounds (bg=...). Without it, newly-added literal bg= values are rejected — use tones, which follow the theme.",
         ),
         plain: z.boolean().optional().describe(
-          "FASTR Markdown only. Set true ONLY when the user explicitly asked for a plain document with none of the format's blocks. Without it, a body that uses no blocks is rejected.",
+          "Set true ONLY when the user explicitly asked for a plain document with none of the format's blocks. Without it, a body that uses no blocks is rejected.",
         ),
       }),
       availableIn: ["editing_report"],
@@ -569,39 +518,22 @@ ${FASTR_MD_SYNTAX_DOC}`,
       approval: {
         propose: async (raw, view) => {
           const ctx = view.context;
-          const format = view.params.format;
           // In FASTR Markdown a run of blank lines is vertical space on the
           // page; a model means nothing by it (collapseFastrBlankRuns).
-          const input = format === "fastr"
-            ? { ...raw, body: collapseFastrBlankRuns(raw.body) }
-            : raw;
+          const input = { ...raw, body: collapseFastrBlankRuns(raw.body) };
           validateReportBodyLength(input.body);
-          validateReportBodyForFormat(input.body, format);
-          validateFastrContainers(input.body, format);
-          validateFastrStatPlacement(input.body, format);
-          validateFastrRewriteUsesBlocks(input.body, format, input.plain);
+          validateFastrContainers(input.body);
+          validateFastrStatPlacement(input.body);
+          validateFastrRewriteUsesBlocks(input.body, input.plain);
           validateFastrNewLiteralBackgrounds(
             input.body,
             ctx.getBody(),
-            format,
             input.allowLiteralColors,
-          );
-          const styleName = view.params.customStyle?.label ??
-            (view.params.htmlStyle && view.params.htmlStyle !== "default"
-              ? view.params.htmlStyle
-              : undefined);
-          validateStyledReportHasStylesheet(input.body, format, styleName);
-          validateReferenceCssReuse(
-            input.body,
-            format,
-            view.params.customStyle?.referenceCss,
-            view.params.customStyle?.label,
           );
           validateReportTokensResolve(
             input.body,
             ctx.getFigures(),
             ctx.getImages(),
-            format,
           );
           const prep = ctx.proposeEdit({
             newBody: input.body,
@@ -630,13 +562,13 @@ ${FASTR_MD_SYNTAX_DOC}`,
       viewRegistry: copilotViews,
       name: "rewrite_section",
       description:
-        "Propose rewriting one heading-bounded section. Address by exact heading text; if the heading is not unique, pass occurrenceIndex (1-based). The section is exactly the range get_report_editor's headings index reports for that heading: markdown — from the heading line to the next heading of the same or higher level; HTML — either the heading's wrapper element (the <section>/<div> that starts with the heading and holds no other heading of that level — mode 'wrapper', and then newBody must START with that same wrapper tag and contain the whole element) or the flat run of siblings to the next such heading (mode 'flat', newBody starts with the heading). newBody replaces that WHOLE range, is written in the report's format and must include the heading. In a FASTR Markdown report a section reaches for the format's blocks too — a stat row for its numbers, a callout for its caveat, a band for its turning point (the format is in rewrite_report's description). The user reviews a diff.",
+        "Propose rewriting one heading-bounded section. Address by exact heading text; if the heading is not unique, pass occurrenceIndex (1-based). The section is exactly the range get_report_editor's headings index reports for that heading: from the heading line to the next heading of the same or higher level. newBody replaces that WHOLE range, is written in FASTR Markdown and must include the heading. A section reaches for the format's blocks too — a stat row for its numbers, a callout for its caveat, a band for its turning point (the format is in rewrite_report's description). The user reviews a diff.",
       inputSchema: z.object({
         sectionHeading: z.string(),
         newBody: z.string(),
         occurrenceIndex: z.number().int().positive().optional(),
         allowLiteralColors: z.boolean().optional().describe(
-          "FASTR Markdown only. Set true ONLY when the user explicitly asked for specific literal colours, gradients or image backgrounds (bg=...). Without it, newly-added literal bg= values are rejected — use tones, which follow the theme.",
+          "Set true ONLY when the user explicitly asked for specific literal colours, gradients or image backgrounds (bg=...). Without it, newly-added literal bg= values are rejected — use tones, which follow the theme.",
         ),
       }),
       availableIn: ["editing_report"],
@@ -644,15 +576,13 @@ ${FASTR_MD_SYNTAX_DOC}`,
       approval: {
         propose: async (raw, view) => {
           const ctx = view.context;
-          const format = view.params.format;
           // As for rewrite_report: the section's blank-line runs collapse.
-          const input = format === "fastr"
-            ? { ...raw, newBody: collapseFastrBlankRuns(raw.newBody) }
-            : raw;
-          validateReportBodyForFormat(input.newBody, format);
+          const input = {
+            ...raw,
+            newBody: collapseFastrBlankRuns(raw.newBody),
+          };
           const result = spliceReportSection(
             ctx.getBody(),
-            format,
             input.sectionHeading,
             input.newBody,
             input.occurrenceIndex,
@@ -661,19 +591,17 @@ ${FASTR_MD_SYNTAX_DOC}`,
             throw new AIToolFailure(result.error);
           }
           validateReportBodyLength(result.newBody);
-          validateFastrContainers(result.newBody, format);
-          validateFastrStatPlacement(result.newBody, format);
+          validateFastrContainers(result.newBody);
+          validateFastrStatPlacement(result.newBody);
           validateFastrNewLiteralBackgrounds(
             result.newBody,
             ctx.getBody(),
-            format,
             input.allowLiteralColors,
           );
           validateReportTokensResolve(
             result.newBody,
             ctx.getFigures(),
             ctx.getImages(),
-            format,
           );
           const prep = ctx.proposeEdit({
             newBody: result.newBody,
@@ -702,13 +630,13 @@ ${FASTR_MD_SYNTAX_DOC}`,
       viewRegistry: copilotViews,
       name: "replace_text",
       description:
-        "Propose a targeted edit: replace an exact run of text (oldText) with newText. oldText must match the current body VERBATIM (whitespace and markup included) and occur exactly once — if it appears multiple times, pass occurrenceIndex (1-based) or include more surrounding text to make it unique. Use this for small/sentence-level edits, or to act on the user's current selection. Keep any figure/image tokens you intend to retain; in an HTML report the edit may span tag boundaries but must leave the document as well-formed as it was. The user reviews a diff and accepts or rejects — nothing is applied silently.",
+        "Propose a targeted edit: replace an exact run of text (oldText) with newText. oldText must match the current body VERBATIM (whitespace and markup included) and occur exactly once — if it appears multiple times, pass occurrenceIndex (1-based) or include more surrounding text to make it unique. Use this for small/sentence-level edits, or to act on the user's current selection. Keep any figure/image tokens you intend to retain. The user reviews a diff and accepts or rejects — nothing is applied silently.",
       inputSchema: z.object({
         oldText: z.string(),
         newText: z.string(),
         occurrenceIndex: z.number().int().positive().optional(),
         allowLiteralColors: z.boolean().optional().describe(
-          "FASTR Markdown only. Set true ONLY when the user explicitly asked for specific literal colours, gradients or image backgrounds (bg=...). Without it, newly-added literal bg= values are rejected — use tones, which follow the theme.",
+          "Set true ONLY when the user explicitly asked for specific literal colours, gradients or image backgrounds (bg=...). Without it, newly-added literal bg= values are rejected — use tones, which follow the theme.",
         ),
       }),
       availableIn: ["editing_report"],
@@ -716,7 +644,6 @@ ${FASTR_MD_SYNTAX_DOC}`,
       approval: {
         propose: async (input, view) => {
           const ctx = view.context;
-          const format = view.params.format;
           const base = ctx.getBody();
           const result = replaceTextOccurrence(
             base,
@@ -728,20 +655,17 @@ ${FASTR_MD_SYNTAX_DOC}`,
             throw new AIToolFailure(result.error);
           }
           validateReportBodyLength(result.newBody);
-          validateFastrContainers(result.newBody, format);
-          validateFastrStatPlacement(result.newBody, format);
+          validateFastrContainers(result.newBody);
+          validateFastrStatPlacement(result.newBody);
           validateFastrNewLiteralBackgrounds(
             result.newBody,
             base,
-            format,
             input.allowLiteralColors,
           );
-          validateReportBodyDelta(base, result.newBody, format);
           validateReportTokensResolve(
             result.newBody,
             ctx.getFigures(),
             ctx.getImages(),
-            format,
           );
           const prep = ctx.proposeEdit({
             newBody: result.newBody,
@@ -770,7 +694,7 @@ ${FASTR_MD_SYNTAX_DOC}`,
       viewRegistry: copilotViews,
       name: "insert_figure",
       description:
-        "Propose inserting a live data figure. The `figure` is a `from_metric` block: a metric plus one of its presets (get metricIds and presets from get_available_metrics), exactly like slide figures, resolved under the report's own results package and scope. Optionally place it after a heading (afterHeading must match an existing heading's text, or the call errors; omit to append at the end, and in an HTML report always pass afterHeading so the figure lands inside the right section) and give a caption. The token is written in the report's own format. The user reviews a diff; on accept the figure is added to the report and its token inserted.",
+        "Propose inserting a live data figure. The `figure` is a `from_metric` block: a metric plus one of its presets (get metricIds and presets from get_available_metrics), exactly like slide figures, resolved under the report's own results package and scope. Optionally place it after a heading (afterHeading must match an existing heading's text, or the call errors; omit to append at the end) and give a caption. The user reviews a diff; on accept the figure is added to the report and its token inserted.",
       inputSchema: z.object({
         figure: AiFigureFromMetricSchema,
         caption: z.string().optional(),
@@ -787,12 +711,10 @@ ${FASTR_MD_SYNTAX_DOC}`,
             metrics,
           );
           const id = crypto.randomUUID();
-          const format = view.params.format;
           const caption = (input.caption ?? "").replace(/\s+/g, " ").trim();
-          const token = buildReportEmbedToken(format, "figure", id, caption);
+          const token = buildReportEmbedToken("figure", id, caption);
           const result = insertAfterReportHeading(
             ctx.getBody(),
-            format,
             input.afterHeading,
             token,
           );
@@ -841,14 +763,13 @@ ${FASTR_MD_SYNTAX_DOC}`,
       approval: {
         propose: async (input, view) => {
           const ctx = view.context;
-          const format = view.params.format;
           if (!ctx.getFigures()[input.figureId]) {
             throw new AIToolFailure(
               `No figure with id "${input.figureId}" in this report. Call get_report_editor to see figure ids.`,
             );
           }
           if (
-            !findReportEmbeds(ctx.getBody(), format).some(
+            !findReportEmbeds(ctx.getBody()).some(
               (r) => r.kind === "figure" && r.id === input.figureId,
             )
           ) {
@@ -866,8 +787,8 @@ ${FASTR_MD_SYNTAX_DOC}`,
             ? input.caption.replace(/\s+/g, " ").trim()
             : undefined;
           // Swap every token for this figure id (preserving each caption unless
-          // overridden, and — for HTML — the token's other attributes) to a
-          // fresh id pointing at the new figure block. A caption override
+          // overridden) to a fresh id pointing at the new figure block. A
+          // caption override
           // therefore rewrites EVERY embed of this id, which is destructive
           // when the same figure is embedded twice with different captions —
           // the tool input has no occurrence selector, so the count is surfaced
@@ -875,14 +796,12 @@ ${FASTR_MD_SYNTAX_DOC}`,
           // accept/reject diff.
           const swapped = replaceReportEmbedTokens(
             ctx.getBody(),
-            format,
             "figure",
             input.figureId,
             (ref) =>
               rewriteReportEmbedToken(
                 ref,
                 { id: newId, caption: overrideCaption },
-                format,
               ),
           );
           const embedCount = swapped.count;
@@ -892,7 +811,6 @@ ${FASTR_MD_SYNTAX_DOC}`,
             newBody,
             { ...ctx.getFigures(), [newId]: figureBlock },
             ctx.getImages(),
-            format,
           );
           const prep = ctx.proposeEdit({
             newBody,

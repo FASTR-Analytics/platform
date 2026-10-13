@@ -741,21 +741,19 @@ including the style builders and the legend builder
 
 The twin of `generate_slide_deck/` for reports: what the report editor, the
 version-history preview and the exporters all render through, so the preview and
-the file agree. Five files behind `mod.ts`:
+the file agree. Four files behind `mod.ts`:
 [report_html.ts](client/src/generate_report/report_html.ts) (sanitize →
 materialize embeds → base CSS, the one document builder),
 [report_figure_raster.ts](client/src/generate_report/report_figure_raster.ts)
 (the content-keyed figure raster cache and the ink themes),
-`report_markdown_style.ts` (`REPORT_MARKDOWN_STYLE` for markdown-format
-reports), `_report_export_maps.ts` (the figure and image maps keyed by literal
-`figure:<id>` / `image:<id>` tokens, `figureInputsForDownload`) and
-`_media_placeholder.ts` (the localized "could not be displayed" placeholder and
-the token swap the report exporters run; `convertSlideToPageInputs` reads the
-placeholder too). The folder imports `generate_visualization/`,
-`server_actions/` (`_SERVER_HOST`), lib, panther and `dompurify`, and nothing
-from `exports/` or `components/` (PROTOCOL_UI_STRUCTURE layers). The formats
-themselves are S12's: its Reports section is the authoritative description of
-this pipeline, and S12 is the mandatory reader (SYSTEMS.md §4.1).
+`_report_export_maps.ts` (`loadImageEntry`, `figureInputsForDownload`) and
+`_media_placeholder.ts` (the localized "could not be displayed" placeholder,
+which `convertSlideToPageInputs` reads). The folder imports
+`generate_visualization/`, `server_actions/` (`_SERVER_HOST`), lib, panther and
+`dompurify`, and nothing from `exports/` or `components/` (PROTOCOL_UI_STRUCTURE
+layers). The formats themselves are S12's: its Reports section is the
+authoritative description of this pipeline, and S12 is the mandatory reader
+(SYSTEMS.md §4.1).
 
 ## The export engine (client/src/exports)
 

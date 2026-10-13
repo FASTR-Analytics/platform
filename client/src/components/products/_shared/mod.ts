@@ -29,8 +29,6 @@ export {
 } from "./rebase_edits.ts";
 export type { RebasedEdit, SkippedRange } from "./rebase_edits.ts";
 export { ReportHtmlPreview } from "./report_html_preview.tsx";
-export { ReportStyleEditor } from "./report_style_editor.tsx";
-export type { ReportStyleEditorResult } from "./report_style_editor.tsx";
 export { ReportFigureEmbed } from "./report_figure_embed.tsx";
 export type { FigureStaleContext } from "./report_figure_embed.tsx";
 export {
