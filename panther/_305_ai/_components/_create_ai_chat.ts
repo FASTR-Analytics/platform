@@ -35,7 +35,6 @@ import {
   openConfirm,
   reconcileRequestPrefix,
   releaseUnansweredCarriers,
-  renderEphemeralBlock,
   renderOutgoingMessages,
   resolveModelConfig,
   resolveOutputConfig,
@@ -64,10 +63,7 @@ import type {
 } from "../_core/conversation_store.ts";
 import type { AIViewSnapshot, GateView } from "../deps.ts";
 import { saveConversation } from "../_core/persistence.ts";
-import {
-  getDisplayItemsFromMessage,
-  withSentContext,
-} from "../_core/display_items.ts";
+import { getDisplayItemsFromMessage } from "../_core/display_items.ts";
 import { SERVER_TOOL_LABELS } from "../deps.ts";
 import {
   buildInProgressItem,
@@ -464,18 +460,12 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     };
   };
 
-  const sentBlockOf = (message: MessageParam): string | undefined =>
-    config.showSentContext?.() && message.ephemeralSections?.length
-      ? renderEphemeralBlock(message.ephemeralSections)
-      : undefined;
-
   const processMessageForDisplayTo = (
     s: ConversationStore,
     message: MessageParam,
   ) => {
     const items = getDisplayItemsFromMessage(
-      message,
-      sentBlockOf(message),
+      config.showSentContext ? renderOutgoingMessages([message])[0] : message,
     );
     addDisplayItemsTo(s, items);
   };
@@ -1730,26 +1720,25 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       // A message typed mid-turn rides the tool-result message with its own
       // sections, so the model learns where the user is now and the gate's
       // reference moves with it; a bare tool-result message carries none.
-      // Sections attach before the bubbles are made so a debug display can
-      // show the sent text.
       if (queuedTexts.length > 0) {
         const built = buildTurnSections(false, turn.conversationId);
         turn.viewReference = built.reference;
         attachSections(turn, toolResultMsg, built, updatedMessages);
       }
+
       if (queueEntries.length > 0) {
         batch(() => {
           ts.queuedMessages[1]([]);
           turn.resolveOnFinish.push(...queueEntries.map((q) => q.resolve));
-          const bubbles: DisplayItem[] = queuedTexts
-            .filter((text) => text.trim())
-            .map((text) => ({ type: "user_text", text: text.trim() }));
-          const sentBlock = sentBlockOf(toolResultMsg);
           addDisplayItemsTo(
             ts,
-            sentBlock === undefined
-              ? bubbles
-              : withSentContext(sentBlock, bubbles),
+            config.showSentContext
+              ? getDisplayItemsFromMessage(
+                renderOutgoingMessages([toolResultMsg])[0],
+              )
+              : queuedTexts
+                .filter((text) => text.trim())
+                .map((text) => ({ type: "user_text", text: text.trim() })),
           );
         });
       }

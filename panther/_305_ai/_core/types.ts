@@ -244,10 +244,9 @@ export type AIChatConfig = {
   // block that holds is sent once and only the changed one again.
   getEphemeralContext?: () => string | string[] | null;
 
-  // Debug: when true, a user message's display text is the exact text sent to
-  // the model (its context block, then what was typed). Read when the
-  // message's display item is created.
-  showSentContext?: () => boolean;
+  // Debug: when true, a new user message's display text is the exact text
+  // sent to the model (its context block, then what was typed).
+  showSentContext?: boolean;
 
   // View system (createAIViewController). When present, every turn carries a
   // [Current view: …] section (plus the view's ephemeral instructions and

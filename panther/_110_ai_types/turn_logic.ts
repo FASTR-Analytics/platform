@@ -52,14 +52,6 @@ function isCarrier(msg: MessageParam): boolean {
     msg.ephemeralSections.length > 0;
 }
 
-// The exact text the sections add in front of a message on the wire. Also
-// what a debug display shows, so the shown text is the sent text.
-export function renderEphemeralBlock(sections: EphemeralSection[]): string {
-  return `${EPHEMERAL_CONTEXT_OPEN}${
-    sections.map((s) => collapseLiteralMarkers(s.text)).join("\n\n")
-  }${EPHEMERAL_CONTEXT_CLOSE}\n\n`;
-}
-
 // The sections as one wire block, spliced in front of the message's first
 // text block — the same position the pre-0B wrap produced; on a tool-result
 // message that is after the results, which the API requires first. A
@@ -68,7 +60,9 @@ function spliceSections(
   msg: MessageParam,
   ephemeralSections: EphemeralSection[],
 ): MessageParam {
-  const block = renderEphemeralBlock(ephemeralSections);
+  const block = `${EPHEMERAL_CONTEXT_OPEN}${
+    ephemeralSections.map((s) => collapseLiteralMarkers(s.text)).join("\n\n")
+  }${EPHEMERAL_CONTEXT_CLOSE}\n\n`;
 
   if (typeof msg.content === "string") {
     return { ...msg, content: block + msg.content };
