@@ -1,3 +1,19 @@
+# The config files also hold tasks, fmt and lint settings, which change far more
+# often than dependencies. The install layer keys on these dependency-only
+# copies, so editing a task does not reinstall node_modules. The copies are
+# written fresh because a copied file's mode is part of the cache key.
+FROM denoland/deno:ubuntu-2.5.3 AS dependency-manifests
+COPY deno.json /config/deno.json
+COPY panther/deno.json /config/panther/deno.json
+RUN mkdir -p /manifests/panther && deno eval --no-config ' \
+  const keep = (path, keys) => { \
+    const config = JSON.parse(Deno.readTextFileSync(`/config/${path}`)); \
+    const kept = Object.fromEntries(keys.filter((k) => k in config).map((k) => [k, config[k]])); \
+    Deno.writeTextFileSync(`/manifests/${path}`, JSON.stringify(kept)); \
+  }; \
+  keep("deno.json", ["workspace", "nodeModulesDir", "links", "imports"]); \
+  keep("panther/deno.json", ["name", "exports", "imports"]);'
+
 FROM denoland/deno:ubuntu-2.5.3
 
 RUN apt update && \
@@ -33,20 +49,20 @@ EXPOSE 8000
 
 WORKDIR /app
 
-COPY deno.json deno.json
-COPY panther/deno.json panther/deno.json
+RUN mkdir /app/databases /app/runs
+
+COPY --from=dependency-manifests /manifests/deno.json deno.json
+COPY --from=dependency-manifests /manifests/panther/deno.json panther/deno.json
 COPY vendor vendor
 
 RUN deno install --allow-import
 
+COPY deno.json deno.json
 COPY lib lib
 COPY panther panther
 COPY server server
 COPY client_dist client_dist
 COPY main.ts main.ts
-
-RUN mkdir /app/databases
-RUN mkdir /app/runs
 
 # ==============================================================================
 # Environment Variables
