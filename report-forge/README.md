@@ -14,7 +14,14 @@ TypeScript source. Your app's own Vite compiles it.
 
 ## Quick start
 
-1. **Add the folder** to your project as `report-forge/` (a git submodule).
+1. **Add the folder** to your project as `report-forge/`, a git submodule:
+
+   ```
+   git submodule add https://github.com/NicholasWillmott/report-forge.git report-forge
+   ```
+
+   The repository is private, so you need access to it. A fresh clone of your
+   project then needs `git submodule update --init`.
 
 2. **Install its dependencies.** They are the `peerDependencies` in
    [package.json](package.json): solid-js, the CodeMirror 6 packages,
