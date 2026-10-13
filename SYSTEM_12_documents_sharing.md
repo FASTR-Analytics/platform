@@ -626,16 +626,16 @@ renders none of them. Below it the canvas is a live preview through S10's
 `convertSlideToPageInputs`, debounced 100ms off `trackStore(tempSlide)` except
 while typing on it. Every figure it writes is stamped with the product's pair, a
 figure block whose bundle was resolved under another pair shows S11's stale
-badge in the block panel, and the header counts them with "Update all figures"
-(S10 "The captured pair and staleness"). The deck header does the same across
-every slide through `deck_stale_figures.ts`, which walks the per-slide cache,
-swaps bundles with `slide_transforms/update_block_in_layout.ts` (the one
-structural walk the slide editor's own block edits use, so every write carries a
-fresh reference for the CRDT sync) and writes each updated slide back through
-`updateSlide` with its `expectedLastUpdated`. Slide-type switching keeps a
-per-type cache so switching back restores prior state (same idiom per-block for
-block-type switches). The layout tree is manipulated exclusively through panther
-node ops via `buildLayoutContextMenu`
+badge in the block panel (S10 "The captured pair and staleness"). The deck
+header's "Update all figures" counts and re-resolves them across every slide
+through `deck_stale_figures.ts`, which walks the per-slide cache, swaps bundles
+with `slide_transforms/update_block_in_layout.ts` (the one structural walk the
+slide editor's own block edits use, so every write carries a fresh reference for
+the CRDT sync) and writes each updated slide back through `updateSlide` with its
+`expectedLastUpdated`. Slide-type switching keeps a per-type cache so switching
+back restores prior state (same idiom per-block for block-type switches). The
+layout tree is manipulated exclusively through panther node ops via
+`buildLayoutContextMenu`
 ([slide_editor/build_context_menu.ts](client/src/components/products/slide_deck/slide_editor/build_context_menu.ts)):
 split/add/move/delete/convert, reachable from both the panel button and canvas
 right-click. Figure blocks have ONE authoring path: insert and replace open

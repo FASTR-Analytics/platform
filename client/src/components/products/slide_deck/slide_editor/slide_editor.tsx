@@ -78,10 +78,6 @@ import {
   findStaleFiguresInLayout,
   resolveFigureBundleInteractively,
 } from "~/generate_visualization/mod";
-import {
-  UpdateAllFiguresButton,
-  updateFigureToScope,
-} from "~/components/_shared/figure_editor/mod.ts";
 import { serverActions } from "~/server_actions";
 import { _SLIDE_CACHE } from "~/state/products/t2_slides";
 import {
@@ -1164,32 +1160,6 @@ export function SlideEditor(p: Props) {
     tempSlide.type === "content"
       ? findStaleFiguresInLayout(tempSlide.layout, resolveScope(p.scope))
       : [];
-  const [updatingFigures, setUpdatingFigures] = createSignal(false);
-
-  // Re-resolve every stale figure on this slide. Failures are per figure:
-  // the ones that cannot move keep their old bundle and report why.
-  async function updateAllFiguresOnSlide() {
-    const stale = staleFigures();
-    if (stale.length === 0) return;
-    setUpdatingFigures(true);
-    const failures: string[] = [];
-    for (const s of stale) {
-      const res = await updateFigureToScope(
-        p.scope,
-        p.authoringContext,
-        s.bundle,
-      );
-      if (res.ok) {
-        setFigureBlockBundle(s.blockId, res.bundle);
-      } else {
-        failures.push(res.reason);
-      }
-    }
-    setUpdatingFigures(false);
-    if (failures.length > 0) {
-      await openAlert({ text: failures.join("\n"), intent: "danger" });
-    }
-  }
 
   // The selected block's bundle, but only when it is stale: the block panel
   // renders the badge off this.
