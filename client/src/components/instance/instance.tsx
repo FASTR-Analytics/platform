@@ -497,7 +497,7 @@ export default function Instance(p: Props) {
         </ShellEditorWrapper>
       </FrameRightResizable>
       <Show when={instanceState.currentUserApproved && !showAi()}>
-        <div class="fixed top-1/2 right-0 z-20 -translate-y-1/2">
+        <div class="fixed right-0 bottom-20 z-20">
           <Button
             id="copilot-opener"
             onClick={() => setShowAi(true)}
