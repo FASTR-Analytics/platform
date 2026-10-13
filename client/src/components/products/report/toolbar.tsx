@@ -374,6 +374,7 @@ export function ReportFileMenu(p: {
   return (
     <Popover
       menu
+      tour="report-file-menu"
       label={t3({ en: "File", fr: "Fichier", pt: "Ficheiro" })}
       title={t3({ en: "File", fr: "Fichier", pt: "Ficheiro" })}
     >

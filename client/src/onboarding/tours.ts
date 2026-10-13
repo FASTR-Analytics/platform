@@ -600,6 +600,29 @@ export function buildReportEditorIntroTour(): TourDefinition {
             "Descarregue o relatório como documento Word ou PDF, com as visualizações apresentadas no devido lugar.",
         }),
         placement: "bottom",
+        // The header's Download button and the File menu are exclusive: a
+        // FASTR report moves Download into its File menu.
+        when: () => document.querySelector("#report-download-button") !== null,
+      },
+      {
+        id: "file",
+        target: tourTarget("report-file-menu"),
+        title: t3({
+          en: "Export and share",
+          fr: "Exporter et partager",
+          pt: "Exportar e partilhar",
+        }),
+        body: t3({
+          en:
+            "File holds everything that acts on the whole report: Download (Word or PDF), Email this file, Make a copy and, if you can edit it, renaming it and managing who has access.",
+          fr:
+            "Fichier contient tout ce qui agit sur l'ensemble du rapport : Télécharger (Word ou PDF), Envoyer par email, Créer une copie et, si vous pouvez le modifier, le renommer et gérer qui y a accès.",
+          pt:
+            "Ficheiro contém tudo o que atua sobre todo o relatório: Descarregar (Word ou PDF), Enviar por email, Criar uma cópia e, se o puder editar, mudar-lhe o nome e gerir quem lhe tem acesso.",
+        }),
+        placement: "bottom",
+        when: () =>
+          document.querySelector('[data-tour="report-file-menu"]') !== null,
       },
       {
         id: "ai",
