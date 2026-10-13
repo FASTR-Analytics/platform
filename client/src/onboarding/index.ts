@@ -3,7 +3,7 @@ import {
   createTourManager,
   type SolidTourManagerController,
 } from "@njwse/roadtrip/solid";
-import { createEffect } from "solid-js";
+import { createEffect, createSignal } from "solid-js";
 import type { CopilotViewId, SlideType } from "lib";
 import { clerkOnboardingStorage } from "./storage";
 import { reportTourEvent } from "./telemetry";
@@ -179,19 +179,25 @@ export function setupTours(opts: {
     { page: "report-editor", tour: buildReportEditorHistoryTour() },
   ];
 
+  const [tourEnds, setTourEnds] = createSignal(0);
   const manager = createTourManager({
     storage: clerkOnboardingStorage,
     labels: tourLabels(),
-    onEvent: reportTourEvent,
+    onEvent: (event) => {
+      reportTourEvent(event);
+      if (event.type === "finish" || event.type === "abort") {
+        setTourEnds((n) => n + 1);
+      }
+    },
     pages,
     // Extra re-check triggers: the deferred parts, whose `when` gates read the
-    // DOM or state the page predicates do not, and the end of each run, since
-    // a re-check made while a run is active starts nothing (the open slide's
-    // editor mounts after the deck's own run has launched).
+    // DOM or state the page predicates do not, and each tour's finish or
+    // abort, since a re-check made while a run is active starts nothing (the
+    // open slide's editor mounts after the deck's own run has launched). Only
+    // a tour that ran ends this way, so a run whose steps' `when` gates all
+    // fail cannot relaunch itself.
     watch: [
-      // Read only once the page effect runs, which Solid defers past this
-      // assignment because the shell calls setupTours while rendering.
-      () => manager.getActiveTourId(),
+      tourEnds,
       () => instanceState.products.length,
       () => instanceState.readyPackages.length,
       productsExpandedFolders,

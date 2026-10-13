@@ -49,9 +49,9 @@ panel is closed. Deferred parts (a card on screen, a slide in the deck, a figure
 in the report) use entry-level `when` gates plus `watch` triggers over the
 product and ready-package counts, the Products page's open folders
 (`productsExpandedFolders`), the open view's slide or figure count, the open
-slide's type, and the end of each run (a re-check made while a run is active
-starts nothing, and the open slide's editor mounts after the deck's run has
-launched). A tour never waits on a control the user's level hides, because
+slide's type, and each tour's finish or abort (a re-check made while a run is
+active starts nothing, and the open slide's editor mounts after the deck's run
+has launched). A tour never waits on a control the user's level hides, because
 roadtrip aborts a run whose step target never appears (after 8 s) and marks
 every tour in it seen: the deck intro's Add slide step has a step-level `when`
 on that control, the deck settings tour waits for the Deck menu, the slide
