@@ -95,7 +95,7 @@ function readStoredProductsSort(): ListSort {
   try {
     const parsed = JSON.parse(localStorage.getItem("productsSort") ?? "");
     return (parsed.mode === "name" || parsed.mode === "recent") &&
-      (parsed.direction === "asc" || parsed.direction === "desc")
+        (parsed.direction === "asc" || parsed.direction === "desc")
       ? { mode: parsed.mode, direction: parsed.direction }
       : fallback;
   } catch {
@@ -129,19 +129,19 @@ export function setReportOutlineClosed(closed: boolean) {
 // never touched the old toggle (no key) get "system".
 const storedScheme = localStorage.getItem("scheme");
 const legacyDarkMode = localStorage.getItem("darkMode");
-const initialScheme: SchemePreference =
-  storedScheme === "system" ||
-  storedScheme === "light" ||
-  storedScheme === "dark"
-    ? storedScheme
-    : legacyDarkMode === "true"
-      ? "dark"
-      : legacyDarkMode === "false"
-        ? "light"
-        : "system";
+const initialScheme: SchemePreference = storedScheme === "system" ||
+    storedScheme === "light" ||
+    storedScheme === "dark"
+  ? storedScheme
+  : legacyDarkMode === "true"
+  ? "dark"
+  : legacyDarkMode === "false"
+  ? "light"
+  : "system";
 
-export const [schemePref, setSchemePrefInternal] =
-  createSignal<SchemePreference>(initialScheme);
+export const [schemePref, setSchemePrefInternal] = createSignal<
+  SchemePreference
+>(initialScheme);
 
 export function setScheme(pref: SchemePreference) {
   localStorage.setItem("scheme", pref);
@@ -193,14 +193,16 @@ export const [policyHeaderOrContent, setPolicyHeaderOrContent] = createSignal<
 // signal BEFORE calling its opener (the editor promise only resolves when the
 // editor closes).
 export type PendingEditorOpen = { productId: string };
-export const [pendingEditorOpen, setPendingEditorOpen] =
-  createSignal<PendingEditorOpen | null>(null);
+export const [pendingEditorOpen, setPendingEditorOpen] = createSignal<
+  PendingEditorOpen | null
+>(null);
 
 // Second level of the same pattern: set alongside a pending open by the tour
 // catalogue's slide-tour replays, consumed by the deck editor once its slides
 // have loaded: it opens the first slide of this type.
-export const [pendingSlideOpen, setPendingSlideOpen] =
-  createSignal<SlideType | null>(null);
+export const [pendingSlideOpen, setPendingSlideOpen] = createSignal<
+  SlideType | null
+>(null);
 
 // Top level of the chain: a tour replay requested from the catalogue modal,
 // armed AFTER the entry's navigate() has switched tab and requested any
@@ -213,5 +215,6 @@ export const [pendingSlideOpen, setPendingSlideOpen] =
 // not active: a tab switch is synchronous, and the catalogue cannot be opened
 // while a full-page view covers the shell.
 export type PendingTourReplay = { tourId: string; productId?: string };
-export const [pendingTourReplay, setPendingTourReplay] =
-  createSignal<PendingTourReplay | null>(null);
+export const [pendingTourReplay, setPendingTourReplay] = createSignal<
+  PendingTourReplay | null
+>(null);
