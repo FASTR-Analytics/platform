@@ -451,9 +451,7 @@ export default function Instance(p: Props) {
               a Show passed as a prop is a truthy accessor even when it
               renders nothing, so FrameLeft would draw an empty rail. */
               }
-              <FrameLeft
-                panelChildren={rail}
-              >
+              <FrameLeft panelChildren={rail}>
                 <Switch>
                   <Match when={tab() === "products"}>
                     <Products />
@@ -502,7 +500,7 @@ export default function Instance(p: Props) {
             onClick={() => setShowAi(true)}
             intent="primary"
             flushEdge="right"
-            iconName="chevronLeft"
+            // iconName="chevronLeft"
             ariaLabel={t3({
               en: "Open AI panel",
               fr: "Ouvrir le panneau IA",
