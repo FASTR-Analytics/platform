@@ -87,11 +87,14 @@ export function setupTours(opts: {
     // whenever the deck has one).
     "deck-editor": () =>
       onView("editing_slide_deck")() || onView("editing_slide")(),
-    "slide-cover": () => editingSlideOfType("cover"),
-    "slide-section": () => editingSlideOfType("section"),
-    "slide-content": () => editingSlideOfType("content"),
     "report-editor": onView("editing_report"),
   };
+
+  const slideTours = [
+    { type: "cover", tour: buildSlideCoverTour() },
+    { type: "section", tour: buildSlideSectionTour() },
+    { type: "content", tour: buildSlideContentTour() },
+  ] as const;
 
   const tours = [
     // Ordered before the products tours: on a brand-new user's first visit
@@ -147,6 +150,16 @@ export function setupTours(opts: {
       when: () => document.querySelector("#deck-present-button") !== null,
       tour: buildDeckEditorPresentTour(),
     },
+    // Inside a slide: one tour per slide type, each running the first time the
+    // user edits a slide of that type. They share the deck's page, gated on
+    // the open slide's type: the rail stays on screen beside an open slide and
+    // the manager keeps one page at a time, so a page of their own would
+    // never win.
+    ...slideTours.map(({ type, tour }) => ({
+      page: "deck-editor",
+      when: () => editingSlideOfType(type),
+      tour,
+    })),
     { page: "deck-editor", tour: buildDeckEditorHistoryTour() },
     // Deferred until the Deck menu is on screen: it renders only for a user
     // who can edit the deck.
@@ -155,11 +168,6 @@ export function setupTours(opts: {
       when: () => document.querySelector('[data-tour="deck-menu"]') !== null,
       tour: buildDeckEditorSettingsTour(),
     },
-    // Inside a slide: one tour per slide type, each running the first time the
-    // user edits a slide of that type.
-    { page: "slide-cover", tour: buildSlideCoverTour() },
-    { page: "slide-section", tour: buildSlideSectionTour() },
-    { page: "slide-content", tour: buildSlideContentTour() },
     // Inside a report: the walkthrough, then the figure step once one is
     // actually in the document, then history (which closes itself).
     { page: "report-editor", tour: buildReportEditorIntroTour() },
@@ -177,7 +185,7 @@ export function setupTours(opts: {
     onEvent: reportTourEvent,
     pages,
     // Extra re-check triggers for the deferred parts, whose `when` gates read
-    // the DOM rather than reactive state.
+    // the DOM or state the page predicates do not.
     watch: [
       () => instanceState.products.length,
       () => instanceState.readyPackages.length,
@@ -186,6 +194,8 @@ export function setupTours(opts: {
         const view = currentView();
         return view.id === "editing_slide_deck"
           ? view.context.getSlideIds().length
+          : view.id === "editing_slide"
+          ? view.context.getTempSlide().type
           : view.id === "editing_report"
           ? Object.keys(view.context.getFigures()).length
           : 0;
@@ -198,23 +208,30 @@ export function setupTours(opts: {
   // switches tab and, for the editor tours, asks the Products page to open a
   // product, and arms `pendingTourReplay` once that has resolved. The editor
   // is not mounted yet at that point, so the start waits here until the
-  // tour's own page is active. This effect runs synchronously on every write
-  // it tracks, including the Products page clearing `pendingEditorOpen` just
-  // before it mounts the editor, so the drop rule reads nothing transient: a
-  // replay on a tab page is dropped if the page is not active (the switch was
-  // synchronous, so the tab is denied), and a replay on a product is dropped
-  // only once T1 is ready and no longer holds that product (a dead id, the
-  // Products page's own rule for the open request).
-  const pageForTour = new Map(tours.map((t) => [t.tour.id, t.page]));
+  // tour's own page is active, or for a slide tour until a slide of its type
+  // is open, which the deck editor does only after the deck has opened. This
+  // effect runs synchronously on every write it tracks, including the
+  // Products page clearing `pendingEditorOpen` just before it mounts the
+  // editor, so the drop rule reads nothing transient: a replay on a tab page
+  // is dropped if the page is not active (the switch was synchronous, so the
+  // tab is denied), and a replay on a product is dropped only once T1 is
+  // ready and no longer holds that product (a dead id, the Products page's
+  // own rule for the open request).
+  const replayReadyFor = new Map<string, () => boolean>([
+    ...tours.map((t) => [t.tour.id, pages[t.page]] as const),
+    ...slideTours.map(
+      ({ type, tour }) => [tour.id, () => editingSlideOfType(type)] as const,
+    ),
+  ]);
   createEffect(() => {
     const replay = pendingTourReplay();
     if (replay === null) return;
-    const page = pageForTour.get(replay.tourId);
-    if (page === undefined) {
+    const ready = replayReadyFor.get(replay.tourId);
+    if (ready === undefined) {
       setPendingTourReplay(null);
       return;
     }
-    if (pages[page]()) {
+    if (ready()) {
       setPendingTourReplay(null);
       void manager.start(replay.tourId);
       return;
