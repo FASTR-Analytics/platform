@@ -510,7 +510,7 @@ export default function Instance(p: Props) {
               pt: "Abrir o painel de IA",
             })}
           >
-            AI
+            {t3({ en: "AI", fr: "IA", pt: "IA" })}
           </Button>
         </div>
       </Show>
