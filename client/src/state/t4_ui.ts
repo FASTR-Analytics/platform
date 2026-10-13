@@ -25,7 +25,7 @@ export function setNavCollapsed(collapsed: boolean) {
 
 // Debug: true makes each new user message in the copilot chat show the exact
 // text sent to the model, context block included, as raw text.
-export const SHOW_SENT_CONTEXT = true;
+export const SHOW_SENT_CONTEXT = false;
 
 // The shell's one full-page wrapper. `ShellEditorWrapper` wraps the whole
 // frame (header, rail and tab page), so a view opened through
