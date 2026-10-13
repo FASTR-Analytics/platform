@@ -1,3 +1,4 @@
+import { formatLineRanges } from "report-forge";
 import { AIToolFailure, createAITool } from "panther";
 import { z } from "zod";
 import {
@@ -35,7 +36,6 @@ import { getReportDetailFromCacheOrFetch } from "~/state/products/t2_report_deta
 import { describeReportPages } from "./report_page_map";
 import { resolveLogoUrl } from "~/generate_slide_deck/fastr_logos";
 import { copilotViews } from "../../_shared/mod.ts";
-import { formatLineRanges } from "~/components/products/_shared/mod.ts";
 import { resolveFigureFromMetric } from "../../slide_ai/mod.ts";
 import { formatFigureConfigForAI } from "../../_shared/mod.ts";
 import { validateMetricInputs } from "lib";

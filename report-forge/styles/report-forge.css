@@ -577,6 +577,8 @@
 @layer properties;
 :root, :host, .rf-root {
   --rf-spacing: 0.25rem;
+  --rf-text-xs: 0.75rem;
+  --rf-text-xs--line-height: calc(1 / 0.75);
   --rf-text-sm: 0.875rem;
   --rf-text-sm--line-height: calc(1.25 / 0.875);
   --rf-color-white: #ffffff;
@@ -644,8 +646,14 @@
 .rf\:relative {
   position: relative;
 }
+.rf\:inset-y-0 {
+  inset-block: calc(var(--rf-spacing) * 0);
+}
 .rf\:top-0 {
   top: calc(var(--rf-spacing) * 0);
+}
+.rf\:right-0 {
+  right: calc(var(--rf-spacing) * 0);
 }
 .rf\:left-full {
   left: 100%;
@@ -682,11 +690,17 @@
 .rf\:h-7 {
   height: calc(var(--rf-spacing) * 7);
 }
+.rf\:h-full {
+  height: 100%;
+}
 .rf\:h-px {
   height: 1px;
 }
 .rf\:w-3 {
   width: calc(var(--rf-spacing) * 3);
+}
+.rf\:w-4 {
+  width: calc(var(--rf-spacing) * 4);
 }
 .rf\:w-full {
   width: 100%;
@@ -757,6 +771,9 @@
 .rf\:gap-1 {
   gap: calc(var(--rf-spacing) * 1);
 }
+.rf\:overflow-y-scroll {
+  overflow-y: scroll;
+}
 .rf\:rounded {
   border-radius: var(--rf-radius-ui);
 }
@@ -826,12 +843,19 @@
   font-size: var(--rf-text-sm);
   line-height: var(--tw-leading, var(--rf-text-sm--line-height));
 }
+.rf\:text-xs {
+  font-size: var(--rf-text-xs);
+  line-height: var(--tw-leading, var(--rf-text-xs--line-height));
+}
 .rf\:font-700 {
   --tw-font-weight: var(--rf-font-weight-700);
   font-weight: var(--rf-font-weight-700);
 }
 .rf\:text-base-content-muted {
   color: var(--rf-color-base-content-muted);
+}
+.rf\:text-danger {
+  color: var(--rf-color-danger);
 }
 .rf\:text-primary {
   color: var(--rf-color-primary);

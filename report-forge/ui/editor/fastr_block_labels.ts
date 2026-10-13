@@ -5,8 +5,8 @@ import {
   type FastrLogoAlign,
   type FastrLogoSize,
   type FastrTone,
-  t3,
-} from "lib";
+} from "../../engine/mod.ts";
+import { t3 } from "../../engine/i18n.ts";
 
 // Display names for the FASTR Markdown vocabulary — blocks, tones and inline
 // roles — shared by the editor toolbar and the sidebar format guide. The

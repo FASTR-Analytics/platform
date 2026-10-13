@@ -64,8 +64,9 @@ import {
   fastrLogoSizeLabel,
   fastrRoleLabel,
   fastrToneLabel,
-} from "./fastr_block_labels";
-import type { ReportBlockContext, ReportEditorApi } from "./body_editor";
+  type ReportBlockContext,
+  type ReportEditorApi,
+} from "report-forge";
 
 // The "Fixed colours" swatches. The toolbar draws its own grid (its colour
 // popover is a toolbar surface, not panther's ColorPicker), so the palette

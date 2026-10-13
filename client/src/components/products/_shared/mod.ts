@@ -22,12 +22,6 @@ export type {
 } from "./paginate_report.ts";
 export { ProductSettings } from "./product_settings.tsx";
 export { ProductTitle } from "./product_title.tsx";
-export {
-  applyRebasedEdits,
-  formatLineRanges,
-  rebaseProposedEdits,
-} from "./rebase_edits.ts";
-export type { RebasedEdit, SkippedRange } from "./rebase_edits.ts";
 export { ReportHtmlPreview } from "./report_html_preview.tsx";
 export { ReportFigureEmbed } from "./report_figure_embed.tsx";
 export type { FigureStaleContext } from "./report_figure_embed.tsx";

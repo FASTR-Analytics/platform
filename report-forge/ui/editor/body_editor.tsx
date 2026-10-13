@@ -6,11 +6,7 @@ import { markdown } from "@codemirror/lang-markdown";
 import { redo as cmRedo, undo as cmUndo } from "@codemirror/commands";
 import { openSearchPanel, search, searchKeymap } from "@codemirror/search";
 import { yCollab, yUndoManagerKeymap } from "y-codemirror.next";
-import {
-  attachSelectionNameHover,
-  darkMarkdownExtensions,
-  yCaretHygiene,
-} from "~/components/_shared/mod.ts";
+import { attachSelectionNameHover, yCaretHygiene } from "../collab.ts";
 import type { Awareness } from "y-protocols/awareness";
 import * as Y from "yjs";
 import {
@@ -26,9 +22,7 @@ import {
   fastrOpenFenceOnLine,
   fastrPageStartLines,
   fastrParagraphSplits,
-  type FigureBlock,
   findReportEmbeds,
-  type ImageBlock,
   type InlineMarkState,
   inlineMarkStateAt,
   insertBlockEdit,
@@ -43,18 +37,21 @@ import {
   setInlineRoleEdit,
   setInlineSizeEdit,
   setInlineUnderlineEdit,
-  t3,
   type TableCellAction,
   tableSnippet,
   toggleInlineDelimiters,
   toggleLinePrefixEdit,
   updateContainerFenceLine,
   updateEmbedLineAttrs,
-} from "lib";
-import type { ReportEditorSelection } from "~/components/products/copilot/mod.ts";
-import { type EmbedResolver, embedWidgets } from "./figure_widget_extension";
-import type { FigureStaleContext } from "~/components/products/_shared/mod.ts";
-import type { FigureInkTheme } from "~/generate_report/mod";
+} from "../../engine/mod.ts";
+import { t3 } from "../../engine/i18n.ts";
+import type { Component } from "solid-js";
+import type {
+  EmbedResolver,
+  FigureViewProps,
+  ReportImage,
+} from "./embed_resolver.ts";
+import type { FigureInkTheme } from "../figure_ink.ts";
 import {
   type EditorPagination,
   FM_LIVE_SCOPE_CLASS,
@@ -64,13 +61,21 @@ import {
   setLayoutHints as setLayoutHintsEffect,
   setPagination as setPaginationEffect,
   stretchField,
-} from "./live_preview_extension";
-import { fastrContainerFences } from "./fastr_fence_extension";
-import {
-  rebaseProposedEdits,
-  type SkippedRange,
-} from "~/components/products/_shared/mod.ts";
-import { darkMode } from "~/state/t4_ui";
+} from "./live_preview_extension.tsx";
+import { fastrContainerFences } from "./fastr_fence_extension.ts";
+import { rebaseProposedEdits, type SkippedRange } from "./rebase_edits.ts";
+
+// The text selection (or the caret, when nothing is selected), for a host
+// that acts on what the user has highlighted: an assistant, a comment tool.
+export type ReportEditorSelection = {
+  // True when it is just a caret (no text selected).
+  empty: boolean;
+  // 1-based.
+  fromLine: number;
+  toLine: number;
+  // The selected text ("" when empty).
+  text: string;
+};
 
 const clamp = (n: number, lo: number, hi: number) =>
   Math.max(lo, Math.min(hi, n));
@@ -218,20 +223,18 @@ export type ReportEditorApi = {
 
 type Props = {
   body: string;
-  figures: Record<string, FigureBlock>;
-  images: Record<string, ImageBlock>;
-  // What an embed needs to judge and update its own figure (D4).
-  figureStale: (id: string) => FigureStaleContext | undefined;
+  // Figures are the host's: whether an id exists, and the component that
+  // draws one (absent in a host with no figures). See EmbedResolver.
+  hasFigure: (id: string) => boolean;
+  FigureView?: Component<FigureViewProps>;
+  images: Record<string, ReportImage>;
   assetUrl: (imgFile: string) => string;
   // Ink for a figure on the ground behind an element (see EmbedResolver).
   figureInkFor: (el: Element) => FigureInkTheme | undefined;
   // The report theme's series palette for its figures (undefined = default).
   figureChartPalette: () => FastrChartPalette | undefined;
   // Embed boxes known ahead of drawing (see EmbedResolver).
-  figureSize?: (
-    id: string,
-    block: FigureBlock,
-  ) => { width: number; height: number } | undefined;
+  figureSize?: (id: string) => { width: number; height: number } | undefined;
   imageSize?: (id: string) => { width: number; height: number } | undefined;
   onBodyChange: (body: string) => void;
   onSelectEmbed: (kind: "figure" | "image", id: string) => void;
@@ -339,8 +342,10 @@ export function ReportBodyEditor(p: Props) {
   // Read the registries/selection live (Solid props are reactive getters) so a
   // newly inserted figure resolves immediately and the selected ring stays live.
   const resolver: EmbedResolver = {
-    getFigure: (id) => p.figures[id],
-    figureStale: (id) => p.figureStale(id),
+    hasFigure: (id) => p.hasFigure(id),
+    get FigureView() {
+      return p.FigureView;
+    },
     getImage: (id) => p.images[id],
     assetUrl: (imgFile) => p.assetUrl(imgFile),
     onSelectEmbed: (kind, id) => p.onSelectEmbed(kind, id),
@@ -348,7 +353,7 @@ export function ReportBodyEditor(p: Props) {
     getSelectedId: () => p.selectedId(),
     inkFor: (el) => p.figureInkFor(el),
     chartPalette: () => p.figureChartPalette(),
-    figureSize: (id, block) => p.figureSize?.(id, block),
+    figureSize: (id) => p.figureSize?.(id),
     imageSize: (id) => p.imageSize?.(id),
   };
 
@@ -360,7 +365,7 @@ export function ReportBodyEditor(p: Props) {
   // sheet scrolls it too.
   let paneBar!: HTMLDivElement;
   let paneBarSpacer!: HTMLDivElement;
-  const barShown = () => p.livePreview?.() ?? false;
+  const barShown = () => p.livePreview?.() ?? true;
   const syncPaneBar = () => {
     if (!view || !paneBar) return;
     const s = view.scrollDOM;
@@ -416,9 +421,7 @@ export function ReportBodyEditor(p: Props) {
     on: boolean,
     collab: { yText: Y.Text; awareness: Awareness } | undefined,
   ) {
-    return on
-      ? livePreviewExtensions(resolver, collab)
-      : [...darkMarkdownExtensions(), embedWidgets(resolver)];
+    return on ? livePreviewExtensions(resolver, collab) : [];
   }
 
   // Runtime Edit <-> Split flip, mirroring applyCenterTheme: reconfigure the
@@ -485,7 +488,7 @@ export function ReportBodyEditor(p: Props) {
         EditorView.theme({
           "&.cm-editor": { height: "100%" },
           // Fixed editor text size, independent of page size.
-          "&": { fontSize: "var(--text-base)" },
+          "&": { fontSize: "1rem" },
           // Code-editor idiom: gutter on the left, text left-aligned full-width,
           // scrollbar at the pane edge. The gutter anchors the column so it
           // doesn't float.
@@ -512,7 +515,7 @@ export function ReportBodyEditor(p: Props) {
         // lives in the OFF branch: live preview is a light DOCUMENT even in a
         // dark app.
         livePreviewCompartment.of(
-          liveExtensions(p.livePreview?.() ?? false, collab),
+          liveExtensions(p.livePreview?.() ?? true, collab),
         ),
         EditorView.updateListener.of((u) => {
           if (u.docChanged) p.onBodyChange(u.state.doc.toString());
@@ -558,7 +561,7 @@ export function ReportBodyEditor(p: Props) {
     }
     // So the toolbar has a context on first paint and after every rebuild —
     // the selection dispatch above does not always produce a selectionSet.
-    const liveOn = p.livePreview?.() ?? false;
+    const liveOn = p.livePreview?.() ?? true;
     lastLiveKey = String(liveOn);
     parent.classList.toggle(FM_LIVE_SCOPE_CLASS, liveOn);
     ctxKey = "";
@@ -1196,21 +1199,19 @@ export function ReportBodyEditor(p: Props) {
 
   // Edit <-> Split flips the live-preview surface without a rebuild.
   createEffect(() => {
-    const on = p.livePreview?.() ?? false;
+    const on = p.livePreview?.() ?? true;
     applyLivePreview(on);
   });
 
   // Rebuild when the collab binding appears (plain -> live upgrade shortly
-  // after open), the edit permission flips (permissions can arrive late), or
-  // the theme toggles (darkMarkdownExtensions is baked into the extension
-  // list and must be re-evaluated in this tracked scope).
+  // after open) or the edit permission flips (permissions can arrive late).
   // The key names the DOC the view is bound to (its Y.Doc guid), not just
   // "collab": a lineage reset (collab.ts) swaps the session's doc for a
   // fresh one of the server's lineage, and the view must rebind to it.
   function bindKeyOf(collab: { yText: Y.Text } | undefined): string {
     return `${
       collab ? `collab:${collab.yText.doc?.guid ?? ""}` : "plain"
-    }:${p.canEdit()}:${darkMode()}`;
+    }:${p.canEdit()}`;
   }
   createEffect(() => {
     const collab = p.collab?.();
@@ -1239,24 +1240,24 @@ export function ReportBodyEditor(p: Props) {
   });
 
   return (
-    <div class="relative h-full w-full" onWheel={paneWheel}>
+    <div class="rf:relative rf:h-full rf:w-full" onWheel={paneWheel}>
       <div
         ref={parent}
-        class="h-full w-full"
+        class="rf:h-full rf:w-full"
         classList={{
           // The live-preview sheet's base-200 ground is painted by the live
           // surface CSS (buildFastrEditorSurfaceCss); the plain code editor
           // stays on the editor white.
-          "bg-base-100": !(p.livePreview?.() ?? false),
+          "rf:bg-base-100": !(p.livePreview?.() ?? true),
         }}
       />
       <div
         ref={paneBar}
-        class="absolute inset-y-0 right-0 w-4 overflow-y-scroll"
-        classList={{ hidden: !barShown() }}
+        class="rf:absolute rf:inset-y-0 rf:right-0 rf:w-4 rf:overflow-y-scroll"
+        classList={{ "rf:hidden": !barShown() }}
         onScroll={onPaneBarScroll}
       >
-        <div ref={paneBarSpacer} class="w-px" />
+        <div ref={paneBarSpacer} class="rf:w-px" />
       </div>
     </div>
   );

@@ -21,7 +21,7 @@ import { liveConnectionIds } from "~/state/instance/collab";
 // the surfaces that support it (slide canvas, viz editor preview/panel). Rides
 // the existing per-session Yjs awareness (ephemeral, relayed, never persisted)
 // in its OWN field "pointer" — the fields "cursor" (yCollab text carets; nulled
-// on every CodeMirror blur/teardown by yCaretHygiene in collab_markdown_editor
+// on every CodeMirror blur/teardown by yCaretHygiene (report-forge/ui/collab.ts)
 // — yCollab itself never clears it) and "user" (identity; rewritten wholesale
 // on every presence_state) are reserved by existing machinery and must not be
 // touched.

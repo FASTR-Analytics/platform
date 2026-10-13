@@ -8,3 +8,22 @@
 export * from "./engine/mod.ts";
 export * from "./ui/kit/mod.ts";
 export * from "./ui/toolbar_primitives.tsx";
+export * from "./ui/collab.ts";
+export * from "./ui/figure_ink.ts";
+export * from "./ui/report_html.ts";
+export * from "./ui/editor/embed_resolver.ts";
+export * from "./ui/editor/rebase_edits.ts";
+export * from "./ui/editor/fastr_block_labels.ts";
+export {
+  EDITOR_COLUMN_MAX_REM,
+  type ReportBlockContext,
+  ReportBodyEditor,
+  type ReportEditorApi,
+  type ReportEditorSelection,
+  type ReportPageLayoutOut,
+} from "./ui/editor/body_editor.tsx";
+export {
+  type EditorPagination,
+  FM_LIVE_SCOPE_CLASS,
+  type PageBoxGeometry,
+} from "./ui/editor/live_preview_extension.tsx";

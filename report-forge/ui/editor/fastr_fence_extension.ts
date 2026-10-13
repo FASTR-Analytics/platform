@@ -6,7 +6,7 @@ import {
   ViewPlugin,
   type ViewUpdate,
 } from "@codemirror/view";
-import { parseContainerFence } from "lib";
+import { parseContainerFence } from "../../engine/mod.ts";
 
 // FASTR Markdown only: tint the `:::` container fences so the block structure
 // reads at a glance while typing. @codemirror/lang-markdown has no idea what a

@@ -1,3 +1,4 @@
+import { formatLineRanges, type SkippedRange } from "report-forge";
 import { HeaderRows, MenuRow } from "report-forge";
 import {
   buildFastrEditorSurfaceCss,
@@ -133,23 +134,19 @@ import {
   type CopilotViewState,
   restoreCopilotView,
 } from "~/components/products/copilot/mod.ts";
-import {
-  formatLineRanges,
-  type SkippedRange,
-} from "~/components/products/_shared/mod.ts";
 import { VisualizationEditor } from "~/components/_shared/figure_editor/mod.ts";
 import type { VizFigureCollabBinding } from "~/components/_shared/figure_editor/mod.ts";
 import { InsertFigureModal } from "~/components/products/_shared/mod.ts";
+import { ReportToolbar } from "./toolbar";
 import {
+  type FigureViewProps,
+  FM_LIVE_SCOPE_CLASS,
+  type PageBoxGeometry,
   type ReportBlockContext,
   ReportBodyEditor,
   type ReportEditorApi,
-} from "./body_editor";
-import { ReportToolbar } from "./toolbar";
-import {
-  FM_LIVE_SCOPE_CLASS,
-  type PageBoxGeometry,
-} from "./live_preview_extension";
+} from "report-forge";
+import { ReportFigureEmbed } from "~/components/products/_shared/mod.ts";
 import {
   ReportEmbedToolbarControls,
   type SelectedReportEmbed,
@@ -663,6 +660,21 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
       onUpdated: (bundle) => void updateFigure(id, { type: "figure", bundle }),
     };
   }
+  // The figure the editor's widgets draw: the report's own block, with its
+  // staleness badge. Report Forge knows a figure only by its id.
+  const FigureView = (fp: FigureViewProps) => (
+    <Show when={figures()[fp.id]}>
+      {(fig) => (
+        <ReportFigureEmbed
+          figure={fig()}
+          stale={figureStale(fp.id)}
+          onMeasured={fp.onMeasured}
+          inkFor={fp.inkFor}
+          chartPalette={fp.chartPalette}
+        />
+      )}
+    </Show>
+  );
   const [updatingFigures, setUpdatingFigures] = createSignal(false);
 
   // Re-resolve them all. Per-figure failures keep the old bundle and are
@@ -1926,8 +1938,8 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
             <style>{liveSurfaceCss()}</style>
             <ReportBodyEditor
               body={body()}
-              figures={figures()}
-              figureStale={figureStale}
+              hasFigure={(id) => figures()[id] !== undefined}
+              FigureView={FigureView}
               images={images()}
               figureInkFor={figureInkFor}
               figureChartPalette={chartPalette}

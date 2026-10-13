@@ -54,12 +54,11 @@ import {
   Transaction,
 } from "@codemirror/state";
 import { ensureSyntaxTree, syntaxTree } from "@codemirror/language";
-import { render } from "solid-js/web";
+import { Dynamic, render } from "solid-js/web";
 import { Show } from "solid-js";
 import type { Awareness } from "y-protocols/awareness";
 import * as Y from "yjs";
-import { type MenuItem, showMenu } from "panther";
-import { dismissPopoverMenu } from "./dismiss_popover_menu";
+import { hideMenu, type MenuItem, showMenu } from "../kit/menu.tsx";
 import {
   applyStepsChildAction,
   applyTableCellAction,
@@ -88,7 +87,6 @@ import {
   fastrStripInlineSyntax,
   fastrSurfaceTone,
   fastrTocOptions,
-  type FigureBlock,
   FM_BOX_GAP,
   FM_BOX_INSET,
   FM_BOX_PAD_BOTTOM,
@@ -106,18 +104,17 @@ import {
   scanContainerLines,
   type StepsChildAction,
   stepsChildInfo,
-  t3,
   TILES_MAX_COLS,
   tilesChildInfo,
   updateContainerFenceLine,
-} from "lib";
+} from "../../engine/mod.ts";
+import { t3 } from "../../engine/i18n.ts";
 import {
   materializeReportBackgrounds,
   sanitizeReportHtml,
-} from "~/generate_report/mod";
-import { fastrBlockLabel } from "./fastr_block_labels";
-import type { EmbedResolver } from "./figure_widget_extension";
-import { ReportFigureEmbed } from "~/components/products/_shared/mod.ts";
+} from "../report_html.ts";
+import { fastrBlockLabel } from "./fastr_block_labels.ts";
+import type { EmbedResolver } from "./embed_resolver.ts";
 
 // The scope class the host puts on the editor wrapper and passes to
 // buildFastrReportCss / buildFastrEditorSurfaceCss. One name, three users.
@@ -373,7 +370,7 @@ class RegionWidget extends WidgetType {
     // claim below), which starves panther's document-level menu dismiss — so
     // an open context menu is closed HERE, in the capture phase, before any
     // child handler can swallow the event.
-    dom.addEventListener("mousedown", () => dismissPopoverMenu(), true);
+    dom.addEventListener("mousedown", () => hideMenu(), true);
     dom.style.display = "flow-root";
     dom.style.position = "relative";
     dom.contentEditable = "false";
@@ -514,10 +511,7 @@ class RegionWidget extends WidgetType {
       const mount = document.createElement("div");
       mount.setAttribute("data-embed-id", id);
       mount.setAttribute("data-embed-kind", kind);
-      applyFigureSize(
-        mount,
-        figureSizeOf(this.resolver, id, this.resolver.getFigure(id)),
-      );
+      applyFigureSize(mount, figureSizeOf(this.resolver, id));
       applyFigureFit(
         mount,
         view.state.field(paginationField, false)?.pagination?.figureFits?.get(
@@ -528,9 +522,10 @@ class RegionWidget extends WidgetType {
       disposers.push(render(
         () => (
           <Show
-            when={this.resolver.getFigure(id)}
+            when={this.resolver.FigureView !== undefined &&
+              this.resolver.hasFigure(id)}
             fallback={
-              <div class="text-danger text-xs">
+              <div class="rf:text-danger rf:text-xs">
                 {t3({
                   en: "Missing visualization:",
                   fr: "Visualisation manquante :",
@@ -539,14 +534,13 @@ class RegionWidget extends WidgetType {
               </div>
             }
           >
-            {(fig) => (
-              <ReportFigureEmbed
-                figure={fig()}
-                onMeasured={() => view.requestMeasure()}
-                inkFor={this.resolver.inkFor}
-                chartPalette={this.resolver.chartPalette}
-              />
-            )}
+            <Dynamic
+              component={this.resolver.FigureView}
+              id={id}
+              onMeasured={() => view.requestMeasure()}
+              inkFor={this.resolver.inkFor}
+              chartPalette={this.resolver.chartPalette}
+            />
           </Show>
         ),
         mount,
@@ -768,9 +762,8 @@ const derivedFigureSizes = new Map<string, { width: number; height: number }>();
 function figureSizeOf(
   resolver: EmbedResolver,
   id: string,
-  block: FigureBlock | undefined,
 ): { width: number; height: number } | undefined {
-  const cached = block ? resolver.figureSize?.(id, block) : undefined;
+  const cached = resolver.hasFigure(id) ? resolver.figureSize?.(id) : undefined;
   const drawn = derivedFigureSizes.get(id);
   if (drawn === undefined) return cached;
   // The raster's aspect (the cache's) is exact; a drawn canvas's is whole
@@ -872,7 +865,7 @@ function figureImageBox(
 ): { imgH: number; fitted: number | undefined } | undefined {
   const m = /\(figure:([^)\s]+)\)/.exec(text);
   if (m === null) return undefined;
-  const size = figureSizeOf(resolver, m[1], resolver.getFigure(m[1]));
+  const size = figureSizeOf(resolver, m[1]);
   if (size === undefined || !(size.width > 0) || !(size.height > 0)) {
     return undefined;
   }
@@ -916,10 +909,7 @@ function embedSizePlugin(resolver: EmbedResolver) {
         ) {
           const id = mount.getAttribute("data-embed-id") ?? "";
           if (
-            applyFigureSize(
-              mount,
-              figureSizeOf(resolver, id, resolver.getFigure(id)),
-            )
+            applyFigureSize(mount, figureSizeOf(resolver, id))
           ) {
             changed = true;
             const line = Number(

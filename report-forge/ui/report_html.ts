@@ -2,9 +2,8 @@
 // version-history preview, the .html download and the PDF: compile the FASTR
 // Markdown body → sanitize (DOMPurify + the lib config) → materialize embeds →
 // base CSS.
-// DOM-dependent (client only); the sanitizer CONFIG itself is pure data in
-// report-forge/engine/embeds.ts and is exercised by
-// report-forge/tests/report_html_sanitize_test.ts.
+// DOM-dependent (browser only); the sanitizer CONFIG itself is pure data in
+// engine/embeds.ts and is exercised by tests/report_html_sanitize_test.ts.
 //
 // The preview renders the result inside a `sandbox="allow-same-origin"` srcdoc
 // iframe: scripts are browser-blocked there regardless of the sanitizer, the
@@ -14,19 +13,15 @@
 // the sanitizer is load-bearing there.
 
 import DOMPurify from "dompurify";
-import { renderFastrMarkdownToHtml, REPORT_PURIFY_CONFIG, t3 } from "lib";
+import {
+  renderFastrMarkdownToHtml,
+  REPORT_PURIFY_CONFIG,
+} from "../engine/mod.ts";
+import { t3 } from "../engine/i18n.ts";
 
 export function sanitizeReportHtml(html: string): string {
   return DOMPurify.sanitize(html, REPORT_PURIFY_CONFIG);
 }
-
-// The document shell (base stylesheet + html wrapper) lives in lib so the
-// Deno render tests build the same document; re-exported for the callers here.
-export {
-  FASTR_THEME_STYLE_ATTR,
-  REPORT_BASE_CSS,
-  wrapReportDocument,
-} from "lib";
 
 // Compile the markdown (line anchors come from markdown-it's token.map), then
 // sanitize.

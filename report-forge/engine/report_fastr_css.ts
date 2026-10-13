@@ -1218,7 +1218,7 @@ export function buildFastrEditorSurfaceCss(scope: string): string {
   // the pane is the app's base-200 ground, exactly like View's bounded page,
   // painted on the scope root over the theme's own structure background
   // (this sheet is appended last, so the tie resolves here).
-  const sheet = `${scope} { background: var(--color-base-200, #f2f2f2); }
+  const sheet = `${scope} { background: var(--forge-surface-2, #f2f2f2); }
 /* The EDITOR is the sheet: the printed sheet at 96dpi (the host sets
    --fm-sheet, 794px for A4, and --fm-measure so the column below is the
    printed column, 1:1, so lines wrap here exactly as they wrap in print),
@@ -1245,8 +1245,8 @@ ${d}.cm-scroller {
      gap (.fm-page-gutter__band, an in-flow child) paints over an inset
      shadow, so each sheet's side edges stop at the gap instead of running
      on through it. */
-  box-shadow: inset 1px 0 0 var(--color-base-300, #d9d9d9),
-    inset -1px 0 0 var(--color-base-300, #d9d9d9);
+  box-shadow: inset 1px 0 0 var(--forge-surface-3, #d9d9d9),
+    inset -1px 0 0 var(--forge-surface-3, #d9d9d9);
   /* The scroller is a flex item: without an explicit width it would shrink
      to fit content. */
   width: 100%;
@@ -1695,10 +1695,10 @@ ${d}.fm-page-gutter__foot {
 ${d}.fm-page-gutter__band {
   display: block;
   height: 30px;
-  background: var(--color-base-200, #f2f2f2);
+  background: var(--forge-surface-2, #f2f2f2);
   box-shadow:
-    inset 0 1px 0 var(--color-base-300, #d9d9d9),
-    inset 0 -1px 0 var(--color-base-300, #d9d9d9);
+    inset 0 1px 0 var(--forge-surface-3, #d9d9d9),
+    inset 0 -1px 0 var(--forge-surface-3, #d9d9d9);
 }
 /* The next page's top margin. Before the document's first line too, when
    page 1 is not a cover (a cover has no margins). */
@@ -1752,8 +1752,8 @@ ${d}.fm-page-gutter--inner {
   border-radius: 0 !important;
   /* The block's own shadow never, but the SHEET's side edges (the scroller's
      inset hairlines, which this strip paints over). */
-  box-shadow: inset 1px 0 0 var(--color-base-300, #d9d9d9),
-    inset -1px 0 0 var(--color-base-300, #d9d9d9) !important;
+  box-shadow: inset 1px 0 0 var(--forge-surface-3, #d9d9d9),
+    inset -1px 0 0 var(--forge-surface-3, #d9d9d9) !important;
   background: var(--fm-page-ground, var(--fm-page));
   color: var(--fm-ink-muted);
   counter-increment: none !important;

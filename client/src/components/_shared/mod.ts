@@ -1,8 +1,6 @@
 export {
-  attachSelectionNameHover,
   CollabMarkdownEditor,
   darkMarkdownExtensions,
-  yCaretHygiene,
 } from "./collab_markdown_editor.tsx";
 export { FileUploadSelector } from "./file_upload_selector.tsx";
 export { createFigurePreview, fetchFigureInputs } from "./figure_preview.ts";
