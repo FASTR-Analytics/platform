@@ -427,7 +427,7 @@ language's own anchor). The recipe and its traps are
   Help menu sits in the header, which every full-page view covers
   (`instance.tsx:271-318`, 410-411).
 - **The Users tour's Bulk step misdescribes the download.** Its body says the
-  download carries each user's permissions (`onboarding/tours.ts:1288-1295`),
+  download carries each user's permissions (`onboarding/tours.ts:1311-1318`),
   but the CSV holds only email and `is_global_admin` (`users/users.tsx:73-84`),
   and its target `instance-users-bulk` sits on Download alone (132) though the
   text also covers Batch import (143-153). Move
@@ -442,7 +442,7 @@ language's own anchor). The recipe and its traps are
   utilizadores de uma vez a partir de um CSV."
 - **The Results catalogue tour says the Delete button stays.** Its usage step
   says a package in use cannot be deleted "and the button says so rather than
-  disappearing" (`onboarding/tours.ts:1150`, fr 1152, pt 1154), but the page
+  disappearing" (`onboarding/tours.ts:1173`, fr 1175, pt 1177), but the page
   shows the reason in place of the button
   (`results_packages/package_page.tsx:270-286`) and also blocks a pinned or
   generating package (127-149). Replace that sentence with en "A package that is
@@ -460,10 +460,10 @@ language's own anchor). The recipe and its traps are
   every Escape as skipped (`instance/instance.tsx:609`, 634). Delete the branch
   and make 61-62 read "Arrow-key paging lives here; Escape belongs to panther's
   DialogLayer, which cancels the dialog first, and the caller records a skip."
-- **Two stale comments in `onboarding/tours.ts`.** 892-893 list an Explore tour
-  that does not exist (the pages are `onboarding/index.ts:82-97`), and 895-897
+- **Two stale comments in `onboarding/tours.ts`.** 915-916 list an Explore tour
+  that does not exist (the pages are `onboarding/index.ts:82-97`), and 918-920
   say the nav renders twice by breakpoint, but the rail is one `TabsNavigation`
-  (`instance/instance.tsx:392-406`). Drop "Explore /" at 892 and delete 895-897.
+  (`instance/instance.tsx:392-406`). Drop "Explore /" at 915 and delete 918-920.
 - **The Assets catalogue entry carries a reason it never shows.**
   `onboarding/catalogue.ts:621-622` pairs `available: () => true` with an
   `unavailableReason`, which the field's contract leaves absent on an

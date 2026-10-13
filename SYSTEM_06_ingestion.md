@@ -646,7 +646,7 @@ into its inputs plus the dataset version stamps the manifest records
   (`data/hmis/population/manager.tsx:32-34`, 93) and only its grid read needs
   `can_view_data` (`server/routes/instance/population.ts:39-40`). The ICEH
   section is then left with no row for such a user and keeps its heading, which
-  the Data tour targets (`onboarding/tours.ts:1028`).
+  the Data tour targets (`onboarding/tours.ts:1051`).
 - **HMIS Data offers DHIS2 re-imports to users who cannot import.** "Retry
   failed pairs" (`data/hmis/dataset/ledger_table.tsx:189-204`) and the ledger
   detail's "Re-import this indicator"
