@@ -6,7 +6,10 @@
 // =============================================================================
 
 import { type Browser, launch, type Page } from "@astral/astral";
-import { FASTR_PAGED_GLOBAL, type FastrPagedResult } from "lib";
+import {
+  FASTR_PAGED_GLOBAL,
+  type FastrPagedResult,
+} from "../engine/report_fastr_paged.ts";
 
 const POLL_MS = 150;
 

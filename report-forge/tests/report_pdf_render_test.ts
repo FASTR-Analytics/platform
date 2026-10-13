@@ -1,7 +1,7 @@
-// Renders the pagination fixtures (report-forge/tests/fixtures/) through
+// Renders the pagination fixtures (tests/fixtures/) through
 // the REAL print path — the same document shell, theme sheet, paged sheet and
 // Paged.js runner the client builds, printed by headless Chrome
-// (server/report_pdf/paged_chrome.ts) — and asserts the pagination rules on
+// (server/paged_chrome.ts) — and asserts the pagination rules on
 // the laid-out pages before printing:
 //   • no atomic block is split while it fits on a page;
 //   • no heading ends a page;
@@ -32,22 +32,16 @@ import {
   renderFastrMarkdownToHtml,
   sizedPlaceholderImageSrc,
   wrapReportDocument,
-} from "../../lib/mod.ts";
-import {
-  launchChrome,
-  printPagedDocument,
-} from "../../server/report_pdf/paged_chrome.ts";
+} from "../engine/mod.ts";
+import { launchChrome, printPagedDocument } from "../server/paged_chrome.ts";
 
 const CHROME_PATH = Deno.env.get("CHROME_PATH");
 const OUT_DIR = Deno.env.get("FASTR_PDF_OUT");
 const POLYFILL_URL = new URL(
-  "../../client/node_modules/pagedjs/dist/paged.polyfill.min.js",
+  "../ui/exports/vendor/paged.polyfill.min.js",
   import.meta.url,
 );
-const FIXTURE_DIR = new URL(
-  "../../report-forge/tests/fixtures/",
-  import.meta.url,
-);
+const FIXTURE_DIR = new URL("./fixtures/", import.meta.url);
 
 // A figure token has no raster here: a sized transparent box stands in, which
 // is exactly what the editor's own layout frame does.

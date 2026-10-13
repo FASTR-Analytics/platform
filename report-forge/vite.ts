@@ -1,4 +1,4 @@
-// A Vite plugin for hosts of Report Forge. It does two things a host would
+// A Vite plugin for hosts of Report Forge. It does what a host would
 // otherwise write by hand:
 //
 // - `report-forge` and `report-forge/styles.css` resolve to this folder,
@@ -7,13 +7,15 @@
 //   pre-bundled when the dev server starts. The package ships as source, so
 //   without this a second copy of solid-js or CodeMirror could be picked up
 //   from a node_modules beside it, or bundled a second time when the editor
-//   first mounts, and two copies of either do not work together.
+//   first mounts, and two copies of either do not work together;
+// - the dev server may read this folder, wherever it is.
 //
 //   import { reportForge } from "./report-forge/vite.ts";
 //   export default defineConfig({ plugins: [solid(), reportForge()] });
 
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { searchForWorkspaceRoot } from "vite";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -39,8 +41,18 @@ export const REPORT_FORGE_DEPENDENCIES: string[] = [
 export function reportForge() {
   return {
     name: "report-forge",
-    config() {
+    config(userConfig: { root?: string }) {
       return {
+        // The package may sit outside the host's own folder (a symlink, a
+        // sibling checkout): let the dev server read it.
+        server: {
+          fs: {
+            allow: [
+              searchForWorkspaceRoot(userConfig.root ?? process.cwd()),
+              here,
+            ],
+          },
+        },
         resolve: {
           alias: [
             {

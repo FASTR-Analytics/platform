@@ -42,7 +42,6 @@ globs:
   - server/tests/report_config_test.ts
   - server/tests/report_format_conversion_test.ts
   - server/tests/report_format_helpers_test.ts
-  - server/tests/report_pdf_render_test.ts
   - server/tests/slide_text_offsets_test.ts
   - server/utils/id_generation.ts
 docs_absorbed:
