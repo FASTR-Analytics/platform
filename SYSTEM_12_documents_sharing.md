@@ -2553,15 +2553,15 @@ interpolation in both routes.
   area and as an alert from those report actions.
 - **The report writes an edited figure back under the pair it opened with.**
   `handleEdit` captures `staleContext()` before opening the editor
-  (`products/report/report.tsx:1941`) and re-resolves the result under that
-  `ctx.scope` (2001-2005), so a reattach or rescope while the editor is open
-  writes the figure under the old pair, against the comment at 1999-2000; the
+  (`products/report/report.tsx:1984`) and re-resolves the result under that
+  `ctx.scope` (2048-2052), so a reattach or rescope while the editor is open
+  writes the figure under the old pair, against the comment at 2046-2047; the
   slide host resolves under its live `p.scope`
   (`products/slide_deck/slide_editor/slide_editor.tsx:1081-1085`). Resolve under
-  the live pair `scope()` (`report.tsx:231-234`) read after the editor closes,
+  the live pair `scope()` (`report.tsx:226-229`) read after the editor closes,
   returning when it is undefined.
 - **The slide editor's own editor wrapper is dead.** Its one render site always
-  passes `openHostEditor` (`products/slide_deck/slide_deck.tsx:530`), so the
+  passes `openHostEditor` (`products/slide_deck/slide_deck.tsx:582`), so the
   fallback to the local wrapper
   (`products/slide_deck/slide_editor/slide_editor.tsx:1056`) never runs and the
   `getEditorWrapper()` at 155, with its `EditorWrapper` at 1289 and 1485, never
@@ -2569,7 +2569,7 @@ interpolation in both routes.
   the local wrapper, and drop "Absent, it opens here" from the comment at
   133-136.
 - **The docs quote the bulk update's old label.** The button reads "Update all
-  visualizations (N)" (`_shared/figure_editor/stale_figure_badge.tsx:184-188`),
+  visualizations (N)" (`_shared/figure_editor/stale_figure_badge.tsx:185-189`),
   but this file calls it "Update all figures" in the permissions table (197),
   the paragraph under it (201) and the report editor (1883), as do
   SYSTEM_11_viz_authoring.md (51) and SYSTEM_10_figure_render_export.md
