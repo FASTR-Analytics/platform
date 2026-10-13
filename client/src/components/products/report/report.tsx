@@ -614,6 +614,11 @@ export function ReportEditor(p: Props) {
     }
     setIsLoading(false);
 
+    // A retired report loaded nothing and mounts no editor: the copilot gets
+    // no report view, or its tools would read an empty document and stage a
+    // proposal into a dialog host that is not there.
+    if (retiredFormat()) return;
+
     copilotViewController.setView(
       "editing_report",
       { reportId: p.productId, reportLabel: label() },
@@ -1257,11 +1262,22 @@ export function ReportEditor(p: Props) {
   // resolves the style snapshot server-side; a plain theme switch or a
   // template choice is a config write. Rejects with the server's reason, and
   // Report Forge shows it.
+  //
+  // The report carries a SNAPSHOT of its style, so a style edited in the
+  // library reaches the report only when it is applied again. The picker
+  // hands over the library's colours, the report holds the snapshot's: when
+  // the two differ under one id, that is the re-apply, and it must take the
+  // snapshot write too.
   async function handleSettingsChange(next: ReportForgeSettings) {
     const cur = settings();
     const stored = config();
+    const paletteEdited = next.paletteId !== undefined &&
+      (next.colors?.page !== cur.colors?.page ||
+        next.colors?.ink !== cur.colors?.ink ||
+        next.colors?.accent !== cur.colors?.accent);
     if (
-      next.paletteId !== cur.paletteId || next.themeChosen !== cur.themeChosen
+      next.paletteId !== cur.paletteId ||
+      next.themeChosen !== cur.themeChosen || paletteEdited
     ) {
       const res = await serverActions.setReportStyle({
         product_id: p.productId,

@@ -386,7 +386,7 @@ export function getEditingReportInstructions(
 - Every TEXT edit you propose is STAGED as a diff the user accepts or rejects — nothing is applied silently. Make focused, well-scoped edits.
 - **Figure edits are different from text edits.** update_report_figure applies straight to the live preview and saves — it is NOT staged as a diff (the figure's body token doesn't change). Body/text edits and figure inserts ARE staged for accept/reject.
 - Prefer **rewrite_section** for targeted changes; use **replace_text** for small/sentence-level edits; use **rewrite_report** only for whole-document restructures.
-- ALWAYS call get_report_editor first: it returns the current body, the format, and a headings index (each heading's 1-based line, level, and the exact line range + mode of its section).
+- ALWAYS call get_report_editor first: it returns the current body, the format, and a headings index (each heading's 1-based line, level, and the exact line range of its section).
 - You may only reference figure/image ids that already exist; do not invent embed ids. Use **insert_figure** to add a new figure from a metric plus one of its presets.
 - Every figure in this report resolves under the report's own results package and scope; you do not choose the package, and no tool takes one.`;
   // The design already exists as a real stylesheet the user picked, so the

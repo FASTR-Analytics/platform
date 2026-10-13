@@ -4,9 +4,10 @@
 // look only this app ever had.
 //
 // It is the look of the reports written BEFORE FASTR Markdown: plain markdown
-// rendered by panther's own markdown style (client/src/generate_report/
-// report_markdown_style.ts over panther's _004_markdown_style defaults),
-// which is what View mode and the PDF/Word exports gave a markdown report.
+// rendered by panther's own markdown style (the app's report markdown
+// style over panther's _004_markdown_style defaults, both since removed
+// from the report path), which is what View mode and the PDF/Word exports
+// gave a markdown report.
 // It exists so those reports can be converted to FASTR Markdown without
 // their authors finding a different document: white page, near-black text,
 // Inter, the link blue as the only colour in the file, panther's modest

@@ -514,9 +514,7 @@ export function ReportBodyEditor(p: Props) {
         centerCompartment.of(centerTheme(p.centered(), 0)),
         // This slot toggles between the live-preview surface and the classic
         // source view via a compartment, so a flip preserves undo, scroll,
-        // selection and the collab binding. The dark markdown highlighter
-        // lives in the OFF branch: live preview is a light DOCUMENT even in a
-        // dark app.
+        // selection and the collab binding.
         livePreviewCompartment.of(
           liveExtensions(p.livePreview?.() ?? true, collab),
         ),

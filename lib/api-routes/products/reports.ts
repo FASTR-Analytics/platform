@@ -92,10 +92,8 @@ export const productReportRouteRegistry = {
     isStreaming: true,
   }),
 
-  // A FASTR Markdown report's look, changed after creation. Unlike an html
-  // report's style (fixed at creation because the body IS the design), a
-  // fastr body carries no CSS, so re-theming can never invalidate it. The
-  // custom style is named by ID and resolved server-side: the visibility
+  // A report's look, changed after creation. The body carries no CSS, so
+  // re-theming can never invalidate it. The custom style is named by ID and resolved server-side: the visibility
   // check and the snapshot are not the client's to assert.
   setReportStyle: route({
     path: "/products/:product_id/report/style",

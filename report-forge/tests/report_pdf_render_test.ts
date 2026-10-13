@@ -15,7 +15,7 @@
 //
 // Env-gated: needs CHROME_PATH (a chrome-headless-shell binary). Run:
 //   CHROME_PATH=... LD_LIBRARY_PATH=... FASTR_PDF_OUT=/tmp/pdf_pages \
-//     deno test -A server/tests/report_pdf_render_test.ts
+//     deno test -A report-forge/tests/report_pdf_render_test.ts
 
 import { assert, assertEquals } from "@std/assert";
 import {

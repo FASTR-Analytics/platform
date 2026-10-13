@@ -75,10 +75,11 @@ export type ReportConfig = {
   // true. Absent on every older report, so none of them is interrupted by a
   // modal about a choice they were never offered.
   themeChosen?: boolean;
-  // The template the report was started from (template_modal.tsx, offered
-  // after the theme while the body is still the new-report seed). Metadata
-  // for the AI, which is told what kind of document it is writing; the body
-  // carries the template's skeleton, never a reference to it.
+  // The template the report was started from (the theme picker's second
+  // step, offered after the theme while the body is still the new-report
+  // seed). Metadata for the AI, which is told what kind of document it is
+  // writing; the body carries the template's skeleton, never a reference to
+  // it.
   template?: FastrReportTemplate;
 };
 

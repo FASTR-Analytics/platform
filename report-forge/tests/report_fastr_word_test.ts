@@ -20,9 +20,7 @@ import {
   fastrWordDarkFigures,
 } from "../engine/mod.ts";
 
-// The kitchen-sink report, here rather than in tests/fixtures: `deno fmt`
-// reflows a .md file, which joins the `:::` fence lines into prose and leaves
-// no blocks to test.
+// The kitchen-sink report, inline so the test reads on its own.
 const KITCHEN_SINK = `:::report{background=paper numbering=sections}
 :::cover{tone=ink layout=poster fill=page kicker="Ministry of Health · Q3 2026" sub="Routine data, national roll-up"}
 # Quarterly service review
