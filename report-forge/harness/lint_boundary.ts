@@ -27,17 +27,26 @@ export const DEPENDENCIES: readonly string[] = [
   "@lezer/common",
   "@lezer/highlight",
   "pagedjs",
-  "sortablejs",
   "yjs",
   "y-protocols",
   "y-codemirror.next",
   "@astral/astral",
 ];
 
-// The harness and the playground are tools around the package, not part of
-// what a host imports: they may use the Deno standard library and jszip.
-const TOOLING_ONLY: readonly string[] = ["@std/", "jszip", "zod", "npm:jsdom"];
+// The harness, the tests and the playground are tools around the package,
+// not part of what a host imports: they may use the Deno standard library,
+// a DOM for tests, Vite, and the package itself by its public name. The Vite
+// plugin (vite.ts) runs in Node at build time.
+const TOOLING_ONLY: readonly string[] = [
+  "@std/",
+  "jszip",
+  "zod",
+  "npm:jsdom",
+  "vite",
+  "report-forge",
+];
 const TOOLING_DIRS = ["harness", "playground", "tests"];
+const NODE_BUILTIN_FILES = ["vite.ts"];
 
 const root = resolve(dirname(fromFileUrl(import.meta.url)), "..");
 const IMPORT_RE =
@@ -48,6 +57,10 @@ function allowedBare(spec: string, tooling: boolean): boolean {
   if (DEPENDENCIES.some(hit)) return true;
   if (tooling && TOOLING_ONLY.some((t) => spec.startsWith(t))) return true;
   return false;
+}
+
+function allowedNodeBuiltin(spec: string, rel: string): boolean {
+  return spec.startsWith("node:") && NODE_BUILTIN_FILES.includes(rel);
 }
 
 const problems: string[] = [];
@@ -75,7 +88,7 @@ for await (
       }
       continue;
     }
-    if (!allowedBare(spec, tooling)) {
+    if (!allowedBare(spec, tooling) && !allowedNodeBuiltin(spec, rel)) {
       problems.push(`${rel}: "${spec}" is not a Report Forge dependency`);
     }
   }

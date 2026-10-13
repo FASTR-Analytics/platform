@@ -1,0 +1,156 @@
+/* Report Forge: the token layer and the utility classes the editor chrome is
+   written with. This file is the INPUT of build.mjs, which compiles the
+   utilities the package's source actually uses (every `rf:` class) into
+   report-forge.css. Nothing here reaches a host directly.
+
+   The utilities are Tailwind's, under the `rf` prefix so they cannot collide
+   with a host's own classes: `rf:flex`, `rf:gap-1`, `rf:hover:bg-base-200`.
+   The theme below is the package's own. Its values point at the --forge-*
+   variables a host may set, with the defaults a host gets if it sets none. */
+
+@import "tailwindcss/theme.css" prefix(rf);
+@import "tailwindcss/utilities.css" prefix(rf);
+
+@theme static {
+  /* Only the colours the chrome uses; the stock palette is not shipped. */
+  --color-*: initial;
+  --color-white: #ffffff;
+  --color-black: #000000;
+  --color-transparent: transparent;
+  --color-current: currentColor;
+  --color-base-100: var(--forge-surface, #ffffff);
+  --color-base-200: var(--forge-surface-2, #f2f2f2);
+  --color-base-300: var(--forge-surface-3, #e4e4e4);
+  --color-base-content: var(--forge-ink, #2a2a2a);
+  --color-base-content-muted: var(
+    --forge-ink-muted,
+    color-mix(
+      in oklab,
+      var(--forge-ink, #2a2a2a) 70%,
+      var(--forge-surface, #ffffff)
+    )
+  );
+  --color-border: var(--forge-border, #cacaca);
+  --color-primary: var(--forge-accent, #0e706c);
+  --color-primary-content: var(--forge-accent-ink, #ffffff);
+  --color-primary-subtle: color-mix(
+    in oklab,
+    var(--forge-accent, #0e706c) 10%,
+    var(--forge-surface, #ffffff)
+  );
+  --color-neutral: var(--forge-neutral, #a1a1a1);
+  --color-success: var(--forge-success, #009f70);
+  --color-warning: var(--forge-warning, #d97706);
+  --color-danger: var(--forge-danger, #f04d44);
+  --color-focus: var(--forge-focus, var(--forge-accent, #0e706c));
+  --color-scrim: var(--forge-scrim, rgb(0 0 0 / 0.3));
+
+  --font-*: initial;
+  --font-sans: var(
+    --forge-font,
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    "Helvetica Neue",
+    Arial,
+    sans-serif
+  );
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* Two weights, named by their number: `rf:font-700`. */
+  --font-weight-*: initial;
+  --font-weight-400: 400;
+  --font-weight-700: 700;
+
+  /* One radius for every control and panel, and one elevation. */
+  --radius-*: initial;
+  --radius-ui: var(--forge-radius, 4px);
+  --shadow-*: initial;
+  --shadow-floating: var(
+    --forge-shadow,
+    0 10px 15px -3px rgb(0 0 0 / 0.1),
+    0 4px 6px -4px rgb(0 0 0 / 0.1)
+  );
+}
+
+/* `rf:rounded` is the one radius. */
+@utility rounded {
+  border-radius: var(--rf-radius-ui);
+}
+
+/* Spacing bundles: a panel's padding, the gap between controls, and the
+   rhythm between stacked children, each at two sizes. */
+@utility ui-pad {
+  padding: 1rem;
+}
+@utility ui-pad-sm {
+  padding: 0.5rem;
+}
+@utility ui-gap {
+  gap: 1rem;
+}
+@utility ui-gap-sm {
+  gap: 0.5rem;
+}
+@utility ui-spy {
+  & > * + * {
+    margin-top: 1rem;
+  }
+}
+@utility ui-spy-sm {
+  & > * + * {
+    margin-top: 0.5rem;
+  }
+}
+
+/* Small secondary text under or beside a control. */
+@utility ui-text-caption {
+  font-size: 0.75rem;
+  line-height: 1.25;
+  color: var(--rf-color-base-content-muted);
+}
+
+/* The focus ring every interactive element takes from the keyboard. */
+@utility ui-focusable {
+  outline: none;
+  &:focus-visible {
+    z-index: 10;
+    outline: 2px solid var(--rf-color-focus);
+    outline-offset: 2px;
+  }
+}
+
+/* Hover and press for a clickable surface: a tint of the ink over the
+   surface it sits on, or over nothing for a ghost. */
+@utility ui-hoverable-ghost {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 100ms cubic-bezier(0.2, 0, 0, 1);
+  &:hover {
+    background-color: color-mix(in oklab, currentColor 8%, transparent);
+  }
+  &:active {
+    background-color: color-mix(in oklab, currentColor 14%, transparent);
+  }
+}
+@utility ui-hoverable-base-* {
+  cursor: pointer;
+  user-select: none;
+  background-color: --value(--color-base-*);
+  transition: background-color 100ms cubic-bezier(0.2, 0, 0, 1);
+  &:hover {
+    background-color: color-mix(
+      in oklab,
+      --value(--color-base-*),
+      var(--rf-color-base-content) 6%
+    );
+  }
+  &:active {
+    background-color: color-mix(
+      in oklab,
+      --value(--color-base-*),
+      var(--rf-color-base-content) 10%
+    );
+  }
+}

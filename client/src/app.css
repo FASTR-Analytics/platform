@@ -6,6 +6,11 @@
 
 @import "../../panther/_303_components/_fixed.css";
 
+/* The report editor's chrome (Report Forge) ships its own stylesheet. The
+   --forge-* block below hands it this app's tokens, so its buttons, menus
+   and dialogs match everything around them in both schemes. */
+@import "../../report-forge/styles/report-forge.css";
+
 @theme {
   /* True overrides/extensions only — everything else inherits the kit
      defaults from _fixed.css (which already wipes and re-declares the
@@ -28,6 +33,25 @@
   --color-package-content: var(--color-base-100);
   --color-package-hover: color-mix(in oklab, var(--color-package), black 8%);
   --color-package-active: color-mix(in oklab, var(--color-package), black 14%);
+}
+
+:root {
+  --forge-surface: var(--color-base-100);
+  --forge-surface-2: var(--color-base-200);
+  --forge-surface-3: var(--color-base-300);
+  --forge-ink: var(--color-base-content);
+  --forge-ink-muted: var(--color-base-content-muted);
+  --forge-border: var(--color-border);
+  --forge-accent: var(--color-primary);
+  --forge-accent-ink: var(--color-primary-content);
+  --forge-neutral: var(--color-neutral);
+  --forge-success: var(--color-success);
+  --forge-warning: var(--color-warning);
+  --forge-danger: var(--color-danger);
+  --forge-focus: var(--color-focus);
+  --forge-scrim: var(--color-scrim);
+  --forge-font: var(--font-sans);
+  --forge-shadow: var(--shadow-floating);
 }
 
 /* The package accent's fill and hoverable skins, the same two bundles

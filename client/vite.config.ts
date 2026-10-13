@@ -3,9 +3,10 @@ import solidPlugin from "vite-plugin-solid";
 import tsconfigPaths from "vite-tsconfig-paths";
 import tailwindcss from "@tailwindcss/vite";
 import path from "path";
+import { reportForge } from "../report-forge/vite.ts";
 
 export default defineConfig({
-  plugins: [solidPlugin(), tsconfigPaths(), tailwindcss()],
+  plugins: [solidPlugin(), tsconfigPaths(), tailwindcss(), reportForge()],
   resolve: {
     // Single-copy the Yjs family so `instanceof` checks (yjs "already imported"
     // guard, y-protocols Awareness) work; the yjs alias below also collapses

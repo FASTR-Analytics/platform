@@ -1,0 +1,569 @@
+/* Report Forge: the editor chrome's own components (button, field, modal,
+   menu). Hand-written; the utility classes the rest of the chrome uses are
+   generated from utilities.css (see build.mjs). Both end up in
+   report-forge.css, the one stylesheet a host imports.
+
+   Every colour, the radius, the font and the floating shadow come from the
+   --forge-* variables a host may set (README, "Theming"). The --rf-color-*
+   names used below are the internal tokens those feed (utilities.css). */
+
+/* ── What the chrome inherits ─────────────────────────────────────────────
+   .rf-root wraps everything the package draws, including what it portals to
+   <body> (modals, menus), so the type and ink below reach all of it. */
+.rf-root {
+  font-family: var(--rf-font-sans);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: var(--rf-color-base-content);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* A reset for the package's OWN elements only: anything carrying one of its
+   classes. Zero specificity, so every rule below and every utility wins, and
+   a host's content in a slot (which carries no such class) is never touched.
+   It is what a utility-first sheet assumes of the page: borders are solid
+   and off until a width is set, boxes size by their border, and form
+   controls take the surrounding type. */
+:where(
+  .rf-root,
+  [class^="rf:"],
+  [class*=" rf:"],
+  [class^="rf-"],
+  [class*=" rf-"]
+) {
+  box-sizing: border-box;
+  border: 0 solid var(--rf-color-border);
+  margin: 0;
+  padding: 0;
+}
+:where(
+  .rf-root,
+  [class^="rf:"],
+  [class*=" rf:"],
+  [class^="rf-"],
+  [class*=" rf-"]
+)::before,
+:where(
+  .rf-root,
+  [class^="rf:"],
+  [class*=" rf:"],
+  [class^="rf-"],
+  [class*=" rf-"]
+)::after {
+  box-sizing: border-box;
+  border: 0 solid var(--rf-color-border);
+}
+:where(
+  button[class^="rf:"],
+  button[class*=" rf:"],
+  button[class^="rf-"],
+  button[class*=" rf-"],
+  input[class^="rf:"],
+  input[class*=" rf:"],
+  input[class^="rf-"],
+  input[class*=" rf-"],
+  select[class^="rf:"],
+  select[class*=" rf:"],
+  select[class^="rf-"],
+  select[class*=" rf-"],
+  textarea[class^="rf:"],
+  textarea[class*=" rf:"],
+  textarea[class^="rf-"],
+  textarea[class*=" rf-"]
+) {
+  font: inherit;
+  font-feature-settings: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+  background-color: transparent;
+  border-radius: 0;
+  opacity: 1;
+}
+:where(
+  button[class^="rf:"],
+  button[class*=" rf:"],
+  button[class^="rf-"],
+  button[class*=" rf-"]
+) {
+  appearance: button;
+  text-align: inherit;
+}
+:where(
+  svg[class^="rf:"],
+  svg[class*=" rf:"],
+  svg[class^="rf-"],
+  svg[class*=" rf-"],
+  img[class^="rf:"],
+  img[class*=" rf:"],
+  img[class^="rf-"],
+  img[class*=" rf-"]
+) {
+  display: block;
+  vertical-align: middle;
+}
+:where(
+  img[class^="rf:"],
+  img[class*=" rf:"],
+  img[class^="rf-"],
+  img[class*=" rf-"]
+) {
+  max-width: 100%;
+  height: auto;
+}
+:where(h1, h2, h3, h4, p, ul, ol):where(
+  [class^="rf:"],
+  [class*=" rf:"],
+  [class^="rf-"],
+  [class*=" rf-"]
+) {
+  font-size: inherit;
+  font-weight: inherit;
+  list-style: none;
+}
+
+/* ── Button ───────────────────────────────────────────────────────────── */
+.rf-btn {
+  --rf-btn-c: var(--rf-color-primary);
+  --rf-btn-on: var(--rf-color-primary-content);
+  --rf-btn-surface: var(--rf-color-base-100);
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5em;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--rf-btn-c);
+  border-radius: var(--rf-radius-ui);
+  overflow: clip;
+  vertical-align: middle;
+  white-space: nowrap;
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
+  user-select: none;
+  appearance: none;
+  background-color: var(--rf-btn-c);
+  color: var(--rf-btn-on);
+  transition: background-color 100ms cubic-bezier(0.2, 0, 0, 1);
+  outline: none;
+}
+.rf-btn:hover {
+  background-color: color-mix(in oklab, var(--rf-btn-c), black 8%);
+}
+.rf-btn:active {
+  background-color: color-mix(in oklab, var(--rf-btn-c), black 14%);
+}
+.rf-btn:focus-visible,
+.rf-focusable:focus-visible {
+  z-index: 10;
+  outline: 2px solid var(--rf-color-focus);
+  outline-offset: 2px;
+}
+.rf-focusable {
+  outline: none;
+}
+.rf-btn:disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+.rf-btn--sm {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+}
+.rf-btn--neutral {
+  --rf-btn-c: var(--rf-color-neutral);
+  --rf-btn-on: var(--rf-color-base-100);
+}
+.rf-btn--danger {
+  --rf-btn-c: var(--rf-color-danger);
+  --rf-btn-on: var(--rf-color-base-100);
+}
+.rf-btn--success {
+  --rf-btn-c: var(--rf-color-success);
+  --rf-btn-on: var(--rf-color-base-100);
+}
+/* Outline: the intent is the ink and the rule; the fill is the surface the
+   button sits on, tinted by the ink under the cursor. */
+.rf-btn--outline {
+  background-color: var(--rf-btn-surface);
+  color: var(--rf-btn-c);
+}
+.rf-btn--outline:hover {
+  background-color: color-mix(
+    in oklab,
+    currentColor 8%,
+    var(--rf-btn-surface)
+  );
+}
+.rf-btn--outline:active {
+  background-color: color-mix(
+    in oklab,
+    currentColor 14%,
+    var(--rf-btn-surface)
+  );
+}
+.rf-btn--on-surface-2 {
+  --rf-btn-surface: var(--rf-color-base-200);
+}
+/* Ghost: no rest surface at all, so it holds on any ground. */
+.rf-btn--ghost {
+  border-color: transparent;
+  background-color: transparent;
+  color: var(--rf-color-base-content);
+}
+.rf-btn--ghost:hover {
+  background-color: color-mix(in oklab, currentColor 8%, transparent);
+}
+.rf-btn--ghost:active {
+  background-color: color-mix(in oklab, currentColor 14%, transparent);
+}
+.rf-btn__label {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.25em;
+}
+.rf-btn__icon {
+  position: relative;
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 1.25em;
+  height: 1.25em;
+  line-height: 1.25;
+}
+.rf-btn__icon > svg {
+  display: block;
+  width: 1.25em;
+  height: 1.25em;
+}
+.rf-btn--sm .rf-btn__icon > svg {
+  width: 1.125em;
+  height: 1.125em;
+}
+/* A button that is only its icon sits a little tighter than its padding. */
+.rf-btn--icon-only > .rf-btn__icon {
+  margin-inline: -0.1667em;
+}
+.rf-btn--loading > .rf-btn__label,
+.rf-btn--loading > .rf-btn__icon {
+  visibility: hidden;
+}
+.rf-btn__spinner {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 1.1em;
+  height: 1.1em;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 9999px;
+  animation: rf-spin 0.7s linear infinite;
+}
+@keyframes rf-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ── Field: label, text input, radio group ────────────────────────────── */
+.rf-field {
+  width: 200px;
+}
+.rf-field--full {
+  width: 100%;
+}
+.rf-label {
+  display: inline-block;
+  padding-bottom: 0.25rem;
+  font-size: 0.875rem;
+  line-height: 1.25;
+  cursor: default;
+}
+.rf-input {
+  display: block;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--rf-color-border);
+  border-radius: var(--rf-radius-ui);
+  overflow: clip;
+  background-color: var(--rf-color-base-100);
+  color: var(--rf-color-base-content);
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.25;
+  outline: none;
+}
+.rf-input:focus-visible {
+  z-index: 10;
+  outline: 2px solid var(--rf-color-focus);
+  outline-offset: 2px;
+}
+.rf-radio {
+  display: flex;
+  width: fit-content;
+  align-items: center;
+  cursor: default;
+}
+.rf-radio + .rf-radio {
+  margin-top: 0.25rem;
+}
+.rf-radio__box {
+  position: relative;
+  flex: none;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-right: 0.5rem;
+}
+.rf-radio__input {
+  appearance: none;
+  display: inline-block;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0;
+  border: 1px solid var(--rf-color-border);
+  border-radius: 9999px;
+  background-color: var(--rf-color-base-100);
+  cursor: pointer;
+  outline: none;
+}
+.rf-radio__input:focus-visible {
+  outline: 2px solid var(--rf-color-focus);
+  outline-offset: 2px;
+}
+.rf-radio__dot {
+  position: absolute;
+  inset: 0.25rem;
+  display: none;
+  border-radius: 9999px;
+  background-color: var(--rf-color-base-content);
+  pointer-events: none;
+}
+.rf-radio__input:checked + .rf-radio__dot {
+  display: block;
+}
+.rf-radio__text {
+  font-size: 0.875rem;
+  line-height: 1.25;
+  user-select: none;
+}
+.rf-error {
+  color: var(--rf-color-danger);
+}
+
+/* ── Card ─────────────────────────────────────────────────────────────── */
+.rf-card {
+  overflow: clip;
+  border: 1px solid var(--rf-color-border);
+  border-radius: var(--rf-radius-ui);
+  background-color: var(--rf-color-base-100);
+}
+.rf-card__body {
+  padding: 1rem;
+}
+
+/* ── Modal ────────────────────────────────────────────────────────────── */
+.rf-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background-color: var(--rf-color-scrim);
+}
+.rf-dialog {
+  --rf-modal-gutter: 3rem;
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  overflow-y: auto;
+  outline: none;
+  container-type: size;
+}
+.rf-dialog__center {
+  display: flex;
+  min-height: 100%;
+  align-items: center;
+  justify-content: center;
+}
+.rf-dialog__panel {
+  z-index: 50;
+  margin: var(--rf-modal-gutter);
+  border: 1px solid var(--rf-color-border);
+  border-radius: var(--rf-radius-ui);
+  background-color: var(--rf-color-base-100);
+  box-shadow: var(--rf-shadow-floating);
+  outline: none;
+}
+.rf-modal {
+  display: flex;
+  flex-direction: column;
+  width: min(
+    var(--rf-modal-w),
+    calc(100cqw - 2 * var(--rf-modal-gutter, 3rem))
+  );
+  max-height: calc(100cqh - 2 * var(--rf-modal-gutter, 3rem));
+}
+.rf-modal--sm {
+  --rf-modal-w: 400px;
+}
+.rf-modal--md {
+  --rf-modal-w: 560px;
+}
+.rf-modal--lg {
+  --rf-modal-w: 800px;
+}
+.rf-modal--xl {
+  --rf-modal-w: 1000px;
+}
+.rf-modal--2xl {
+  --rf-modal-w: 1200px;
+}
+.rf-modal--4xl {
+  --rf-modal-w: 1600px;
+}
+.rf-modal__head {
+  padding: 1rem;
+  border-bottom: 1px solid var(--rf-color-border);
+  line-height: 1;
+}
+.rf-modal__title {
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1;
+}
+.rf-modal__subtitle {
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  line-height: 1.25;
+  color: var(--rf-color-base-content-muted);
+}
+.rf-modal__body {
+  flex: 1 1 0%;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 1rem;
+}
+.rf-modal__body > * + * {
+  margin-top: 1rem;
+}
+.rf-modal__body--flush {
+  padding: 0;
+}
+.rf-modal__foot {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  border-top: 1px solid var(--rf-color-border);
+}
+.rf-modal__foot-left {
+  display: flex;
+  flex: 1 1 0%;
+  align-items: center;
+  gap: 0.5rem;
+}
+.rf-modal__foot-right {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* ── Context menu ─────────────────────────────────────────────────────── */
+.rf-menu-pop {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  padding: 0;
+  border: none;
+  overflow: visible;
+  background: transparent;
+}
+.rf-menu {
+  min-width: 160px;
+  overflow: hidden;
+  border: 1px solid var(--rf-color-border);
+  border-radius: var(--rf-radius-ui);
+  background-color: var(--rf-color-base-100);
+  box-shadow: var(--rf-shadow-floating);
+  font-family: var(--rf-font-sans);
+}
+.rf-menu__item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border: 0;
+  background-color: var(--rf-color-base-100);
+  color: inherit;
+  font: inherit;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  text-align: left;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 100ms cubic-bezier(0.2, 0, 0, 1);
+}
+.rf-menu__item:hover,
+.rf-menu__item[data-open="true"] {
+  background-color: color-mix(
+    in oklab,
+    var(--rf-color-base-100),
+    var(--rf-color-base-content) 6%
+  );
+}
+.rf-menu__item:disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+.rf-menu__item--danger {
+  color: var(--rf-color-danger);
+}
+.rf-menu__label {
+  flex: 1 1 0%;
+}
+.rf-menu__chevron {
+  width: 1rem;
+  opacity: 0.6;
+}
+.rf-menu__chevron > svg {
+  display: block;
+  width: 1.25em;
+  height: 1.25em;
+}
+.rf-menu__divider {
+  height: 1px;
+  margin: 0.25rem 0;
+  background-color: var(--rf-color-border);
+}
+
+/* ── Sortable list ────────────────────────────────────────────────────── */
+.rf-sortable__row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border: 1px solid var(--rf-color-border);
+  border-radius: var(--rf-radius-ui);
+  background-color: var(--rf-color-base-100);
+}
+.rf-sortable__row + .rf-sortable__row {
+  margin-top: 0.5rem;
+}
+.rf-sortable__handle {
+  flex: none;
+  cursor: grab;
+  color: var(--rf-color-base-content-muted);
+  user-select: none;
+}
+.rf-sortable__ghost {
+  opacity: 0.4;
+}
+.rf-sortable__row--target {
+  box-shadow: 0 -2px 0 0 var(--rf-color-primary);
+}
