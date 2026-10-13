@@ -6,7 +6,30 @@
 import type { ContentBlock, MessageParam } from "../deps.ts";
 import type { DisplayItem } from "./types.ts";
 
+// sentBlock: debug only. The text the wire puts in front of this message,
+// so the first user bubble shows exactly what was sent.
 export function getDisplayItemsFromMessage(
+  message: MessageParam,
+  sentBlock?: string,
+): DisplayItem[] {
+  const items = collectDisplayItems(message);
+  return sentBlock === undefined ? items : withSentContext(sentBlock, items);
+}
+
+// The block goes on the first user bubble, where the wire splices it.
+export function withSentContext(
+  block: string,
+  items: DisplayItem[],
+): DisplayItem[] {
+  const first = items.findIndex((item) => item.type === "user_text");
+  return items.map((item, i) =>
+    i === first && item.type === "user_text"
+      ? { ...item, text: block + item.text }
+      : item
+  );
+}
+
+function collectDisplayItems(
   message: MessageParam,
 ): DisplayItem[] {
   // System messages carry ephemeral context for the model, never chat

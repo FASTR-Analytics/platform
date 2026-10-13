@@ -67,6 +67,7 @@ export {
   legacyStripEphemeralMarkers,
   reconcileRequestPrefix,
   releaseUnansweredCarriers,
+  renderEphemeralBlock,
   renderOutgoingMessages,
   selectTurnSections,
   STRIPPED_THINKING_PLACEHOLDER,

@@ -35,6 +35,7 @@ export {
   MODEL_PRICING,
   reconcileRequestPrefix,
   releaseUnansweredCarriers,
+  renderEphemeralBlock,
   renderOutgoingMessages,
   resolveModelConfig,
   resolveOutputConfig,
