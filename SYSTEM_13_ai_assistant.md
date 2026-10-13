@@ -389,9 +389,8 @@ construction check: the panel calls `validateAIChatConfig(config)` under
   block (`buildCopilotPackageBlock` over the pair the current view shows and its
   T2 authoring context, which the panel resolves live from the view's
   `getScope()` and fetches when the pair changes; a view with no package, or
-  whose context is still loading, sends no package block); **appendOnlyTurns** =
-  `true` (E7, below); **getDocumentRefs** from `useAIDocuments`;
-  **viewController** = `copilotViewController` (below).
+  whose context is still loading, sends no package block); **getDocumentRefs**
+  from `useAIDocuments`; **viewController** = `copilotViewController` (below).
 - **the HFA survey rounds** (instance-wide T1, not in the per-run payload) are
   merged into each inner set and into the pane's View AI tool output through
   `hfaTimePointsForAI` (lib), which keeps the imported rounds in the order
@@ -431,21 +430,20 @@ registry of the chat: a view per place the user can be, keyed by the catalogue's
 `server/tests/copilot_catalogue_test.ts` pins the views, each gated tool's
 views, the requirements and the identity parts; the registry's keys satisfy
 `Record<CopilotViewId, AnyAIView>`, so the two cannot drift), and the
-module-level singleton `copilotViewController` (fallback `shell`,
-`digestAcrossViews: true`). Per view, params are the serializable model-visible
-half (ids, and the report's format and style); context is the live payload
-(editor getters/setters plus, on every package view, `getScope()` and
-`getRunId()`) delivered to tool handlers opaquely. Labels are read live from the
-context, never captured into params: the deck's name (`getDeckLabel`), the open
-slide's title (`getSlideTitle` over `getTempSlide()`, which also gives the
-slide's type) and the report's name (`getLabel`), so a rename, a title edit or a
-type switch never leaves the view line, the instructions or a tool's read-back
-stale. Every view that shows something declares its `identity` through
-`copilotViewIdentity` (the entity ids, and for a package view the pair with its
-definition hash), so the engine refuses a view-limited call once the live
-identity differs from the one the turn last saw: a call planned for one slide
-does not run against the next, and a call planned before a reattach does not run
-against the new package.
+module-level singleton `copilotViewController` (fallback `shell`). Per view,
+params are the serializable model-visible half (ids, and the report's format and
+style); context is the live payload (editor getters/setters plus, on every
+package view, `getScope()` and `getRunId()`) delivered to tool handlers
+opaquely. Labels are read live from the context, never captured into params: the
+deck's name (`getDeckLabel`), the open slide's title (`getSlideTitle` over
+`getTempSlide()`, which also gives the slide's type) and the report's name
+(`getLabel`), so a rename, a title edit or a type switch never leaves the view
+line, the instructions or a tool's read-back stale. Every view that shows
+something declares its `identity` through `copilotViewIdentity` (the entity ids,
+and for a package view the pair with its definition hash), so the engine refuses
+a view-limited call once the live identity differs from the one the turn last
+saw: a call planned for one slide does not run against the next, and a call
+planned before a reattach does not run against the new package.
 
 A place holds the view it covers and sets its own: `holdCopilotView()` (called
 synchronously in the place's component body) captures the controller's current
@@ -514,11 +512,11 @@ the editor offers and `applyDraft`, which writes the store with the controls'
 semantics and marks the draft unsaved; its Excel import sets
 `hfa_indicator_import`. There is no tab-to-view map.
 
-**What a message carries** (`appendOnlyTurns: true`, panther's E7). Every
-message carries the view line, the view's `state` and the interactions digest; a
-view's `instructions` and the chat's consumer blocks ride a message only when
-their text is new to the conversation, so each is sent once per text; a message
-the model never answered loses its blocks, and a changed system-and-tools hash
+**What a message carries** (panther's append-only turns, E7). Every message
+carries the view line, the view's `state` and the interactions digest; a view's
+`instructions` and the chat's consumer blocks ride a message only when their
+text is new to the conversation, so each is sent once per text; a message the
+model never answered loses its blocks, and a changed system-and-tools hash
 strips the stored thinking blocks once. Per view, `instructions` is the static
 guidance (the deck, slide and report briefs; below edit level a product view's
 instructions carry the level line, read live, so the model is told not to call
@@ -559,22 +557,21 @@ does, and both read "The open slide's content changed" or "The report body
 changed". Every rail selection path notifies `selected_slides`: the click paths
 through `updateSelection`, the clear paths through `clearSelection`, whose line
 reads "Cleared the slide selection". Each editor filters `products_upserted` to
-its OWN product: another product changing is not its business. With
-`digestAcrossViews` an entry is admitted (`relevantIn`, then `filter`) against
-the view the user is in when it is recorded, and its digest line names that
-view. The engine owns the transactional drain at turn creation (restored on a
-failed send, so entries are never lost or double-delivered) and the reduction
-pipeline (coalesce per id), plus a coalesced `__navigation` line. The old "SSE
-echoes the AI's own tool edits" defect is fixed in the general case: every
-persist-path write tool marks its `slide:` and `product:` echo keys via
-`markAIEdit` once its write has landed (a report tool marks its `product:` key
-after the accepted commit, or after a figure update saves), so the AI's own
-server writes are dropped at drain (TTL-scoped, either-order). The
-collab-checkpoint residual is in Open items. The controller is a module
-singleton whose log outlives a mount, so the panel calls `clearInteractionLog()`
-when the chat mounts: actions retained from before (the previous user on a Clerk
-cross-tab user switch, or the previous owner tab's hand-over) would otherwise
-ride this chat's first digest as fake activity; with `digestAcrossViews`,
+its OWN product: another product changing is not its business. An entry is
+admitted (`relevantIn`, then `filter`) against the view the user is in when it
+is recorded, and its digest line names that view. The engine owns the
+transactional drain at turn creation (restored on a failed send, so entries are
+never lost or double-delivered) and the reduction pipeline (coalesce per id),
+plus a coalesced `__navigation` line. The old "SSE echoes the AI's own tool
+edits" defect is fixed in the general case: every persist-path write tool marks
+its `slide:` and `product:` echo keys via `markAIEdit` once its write has landed
+(a report tool marks its `product:` key after the accepted commit, or after a
+figure update saves), so the AI's own server writes are dropped at drain
+(TTL-scoped, either-order). The collab-checkpoint residual is in Open items. The
+controller is a module singleton whose log outlives a mount, so the panel calls
+`clearInteractionLog()` when the chat mounts: actions retained from before (the
+previous user on a Clerk cross-tab user switch, or the previous owner tab's
+hand-over) would otherwise ride this chat's first digest as fake activity;
 activation already starts each conversation's digest at the log's end.
 
 ## Tools, view gating, and approval

@@ -148,13 +148,12 @@ function withTailBreakpoint(messages: MessageParam[]): MessageParam[] {
   });
 }
 
-// Document blocks lead their user message and the mutable text (the
-// ephemeral-section splice, rendered on the turn's first request and bare on
-// every request after) follows them, so a tail entry covering the docs is
-// invalidated by the very next request. A breakpoint on the docs themselves
-// is the stable boundary that keeps them cached. LAST doc-carrying message,
-// not first: docs can join mid-conversation, and every message before it is
-// byte-stable (only the latest carrier renders sections), so this covers
+// Document blocks lead their user message, and the tail breakpoint moves on
+// with every request; a breakpoint on the docs themselves is a boundary
+// that stays where it is for the whole conversation, so the documents stay
+// a cache hit however far the tail moves. LAST doc-carrying message, not
+// first: docs can join mid-conversation, and every message before it is
+// byte-stable (every carrier renders its sections for good), so this covers
 // every document in the prefix. Skipped when the target block already
 // carries the tail breakpoint (a doc-carrying message with nothing after
 // its docs).

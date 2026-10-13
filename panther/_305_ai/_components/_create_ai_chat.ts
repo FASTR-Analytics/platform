@@ -12,11 +12,13 @@ import {
 } from "solid-js";
 import { Anthropic } from "../deps.ts";
 import type {
+  AnthropicModel,
   AnthropicModelConfig,
   ContentBlock,
   DocumentContentBlock,
   EphemeralSection,
   MessageParam,
+  SystemParam,
 } from "../deps.ts";
 import {
   APPROVAL_DECLINED_MESSAGE,
@@ -27,7 +29,6 @@ import {
   buildToolResultUserMessage,
   classifyTurnContinuation,
   decideViewGate,
-  demoteStaleCarriers,
   getUserFacingAIErrorMessage,
   hashRequestPrefix,
   lastMessageHasUnresolvedToolUse,
@@ -142,6 +143,16 @@ function saveSettings(key: string, values: AIChatSettingsValues) {
 
 // SDK tool union type for API calls
 type SDKToolUnion = Anthropic.Messages.ToolUnion;
+
+// The model, system text and tools a turn reads once after the store's
+// hydration, so every request of the turn sends one prefix (the built-in
+// web tool variants and their beta header are tied to the model, so a model
+// switched mid-turn through updateConfig takes effect at the next turn).
+type TurnPrefix = {
+  model: AnthropicModel;
+  system: SystemParam;
+  tools: SDKToolUnion[];
+};
 
 // Type for tool_use blocks from SDK responses
 type ToolUseBlock = {
@@ -293,11 +304,11 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
   }
 
   // Merge custom tools (SDK betaZodTools) with built-in tools (web_search,
-  // bash, etc.). Computed per request, or once per turn with appendOnlyTurns
-  // (the turn's prefix, read with the model it was built for) — built-in web
-  // tool versions depend on the current model, which can change via
-  // updateConfig. Cast to SDK's ToolUnion type - built-in tools like
-  // web_search have different shapes but are valid for the API.
+  // bash, etc.). Read once per turn into the turn's prefix, with the model
+  // it was built for — built-in web tool versions depend on the current
+  // model, which can change via updateConfig. Cast to SDK's ToolUnion type -
+  // built-in tools like web_search have different shapes but are valid for
+  // the API.
   const getAllTools = () =>
     [
       ...toolRegistry.getSDKTools(),
@@ -468,11 +479,9 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       abort: new AbortController(),
       activeStream: null,
       containerId: undefined,
-      modelAssistantAppended: false,
       resolveOnFinish: [],
       viewReference: null,
       cancelPendingInteraction: null,
-      prefix: null,
       firstIndex: null,
       lastModelReplyIndex: -1,
       carriers: [],
@@ -483,18 +492,15 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
 
   // Attach a turn's sections to the message about to be appended at
   // history.length, recording the carrier and the restore of its
-  // interaction drain. With appendOnlyTurns only the sections the history
-  // does not already carry ride (selectTurnSections), since every carrier
-  // renders for good.
+  // interaction drain. Only the sections the history does not already carry
+  // ride (selectTurnSections), since every carrier renders for good.
   function attachSections(
     turn: ActiveTurn,
     msg: MessageParam,
     built: ReturnType<typeof buildTurnSections>,
     history: MessageParam[],
   ): void {
-    const sections = config.appendOnlyTurns
-      ? selectTurnSections(built.sections, history)
-      : built.sections;
+    const sections = selectTurnSections(built.sections, history);
     if (sections.length > 0) msg.ephemeralSections = sections;
     turn.carriers.push({
       index: history.length,
@@ -512,14 +518,11 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
   //
   // The interaction drain is TRANSACTIONAL: restoreInteractions is invoked
   // by runTurn's finally iff the model never answered the message it was
-  // drained for — with appendOnlyTurns off, iff the turn ends with no
-  // assistant message from the model (failed or stopped send); on, per
-  // carrier after the turn's last model reply, latest first — so entries
-  // are never lost on failure and never double-delivered (the unanswered
-  // carrier's sections are demoted at the next turn's creation, or released
-  // at this turn's end with the option; restored entries ride the retry's
-  // fresh digest). The consumer hook runs BEFORE the drain so a hook throw
-  // cannot strand already-drained entries.
+  // drained for (each carrier after the turn's last model reply, latest
+  // first), so entries are never lost on failure and never double-delivered
+  // (the unanswered carrier's sections are released at the turn's end;
+  // restored entries ride the retry's fresh digest). The consumer hook runs
+  // BEFORE the drain so a hook throw cannot strand already-drained entries.
   function buildTurnSections(directSend: boolean, conversationId: string): {
     sections: EphemeralSection[];
     restoreInteractions: (() => void) | null;
@@ -625,35 +628,25 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       // internally; disabled persistence resolves immediately).
       await ts.ready;
 
-      // appendOnlyTurns: the model, system text and tools are read once per
-      // turn, so every request of the turn sends one prefix, and a prefix
-      // that changed since the conversation's last turn strips the thinking
-      // blocks minted under the old one before anything is sent
-      // (reconcileRequestPrefix). The hash it decides on is what the
-      // record stores.
-      if (config.appendOnlyTurns) {
-        const system = config.system();
-        const tools = getAllTools();
-        turn.prefix = { model: modelConfig.model, system, tools };
-        const reconciled = reconcileRequestPrefix(
-          tMessages(),
-          ts.prefixHash[0](),
-          hashRequestPrefix(system, tools),
-        );
-        if (reconciled.messages !== tMessages()) {
-          setTMessages(reconciled.messages);
-        }
-        ts.prefixHash[1](reconciled.hash);
+      // The model, system text and tools are read once per turn, so every
+      // request of the turn sends one prefix, and a prefix that changed
+      // since the conversation's last turn strips the thinking blocks minted
+      // under the old one before anything is sent (reconcileRequestPrefix).
+      // The hash it decides on is what the record stores.
+      const prefix: TurnPrefix = {
+        model: modelConfig.model,
+        system: config.system(),
+        tools: getAllTools(),
+      };
+      const reconciled = reconcileRequestPrefix(
+        tMessages(),
+        ts.prefixHash[0](),
+        hashRequestPrefix(prefix.system, prefix.tools),
+      );
+      if (reconciled.messages !== tMessages()) {
+        setTMessages(reconciled.messages);
       }
-
-      // Storage normalization at turn creation: demote a FAILED prior
-      // turn's carrier so its stale sections can never re-render on this
-      // turn's wire (the render rule alone cannot distinguish that history
-      // from a multi-message batch — see demoteStaleCarriers).
-      const demoted = demoteStaleCarriers(tMessages());
-      if (demoted !== tMessages()) {
-        setTMessages(demoted);
-      }
+      ts.prefixHash[1](reconciled.hash);
 
       if (texts.length > 0) {
         const isFirstMessage = tMessages().length === 0;
@@ -702,7 +695,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
         setTCurrentStreamingText(undefined);
       });
 
-      await streamWithToolLoop(turn, tMessages());
+      await streamWithToolLoop(turn, tMessages(), prefix);
       if (turn.abort.signal.aborted) {
         const partialText = tCurrentStreamingText();
         if (partialText?.trim()) {
@@ -748,32 +741,25 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
         }
       }
 
-      // Transactional interaction drain: a turn that ends without
-      // any assistant message FROM THE MODEL (failed or stopped before/
-      // during the stream — the synthetic "[Stopped]" repair above doesn't
-      // count) never delivered its digest. Restore the drained entries; they
-      // ride the retry's fresh digest, and the failed carrier's stored
-      // sections are demoted at the next turn's creation, so nothing
-      // double-delivers. With appendOnlyTurns the same per carrier: every
-      // carrier after the model's last reply loses its sections now (it
-      // renders for good otherwise, as context the model was never told)
-      // and its drain is restored, latest first.
-      if (config.appendOnlyTurns) {
-        if (turn.firstIndex !== null) {
-          const released = releaseUnansweredCarriers(
-            tMessages(),
-            turn.firstIndex,
-            turn.lastModelReplyIndex,
-          );
-          if (released.messages !== tMessages()) {
-            setTMessages(released.messages);
-          }
-          for (const index of released.released) {
-            turn.carriers.find((c) => c.index === index)?.restore?.();
-          }
+      // Transactional interaction drain: every carrier after the model's
+      // last reply (failed or stopped before/during the stream — the
+      // synthetic "[Stopped]" repair above doesn't count) was never answered,
+      // so it loses its sections now (it renders for good otherwise, as
+      // context the model was never told) and its drain is restored, latest
+      // first; the restored entries ride the retry's fresh digest, so nothing
+      // is lost or double-delivered.
+      if (turn.firstIndex !== null) {
+        const released = releaseUnansweredCarriers(
+          tMessages(),
+          turn.firstIndex,
+          turn.lastModelReplyIndex,
+        );
+        if (released.messages !== tMessages()) {
+          setTMessages(released.messages);
         }
-      } else if (!turn.modelAssistantAppended) {
-        for (const carrier of turn.carriers) carrier.restore?.();
+        for (const index of released.released) {
+          turn.carriers.find((c) => c.index === index)?.restore?.();
+        }
       }
       turn.activeStream = null;
       batch(() => {
@@ -1283,26 +1269,23 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
   async function streamWithToolLoop(
     turn: ActiveTurn,
     currentMessages: MessageParam[],
+    prefix: TurnPrefix,
     depth: number = 0,
   ): Promise<void> {
     const ts = turn.store;
     // Use SDK's beta streaming. The web-fetch beta header is only needed
-    // for the basic web_fetch variant used on pre-4.6 models.
-    // With appendOnlyTurns the turn's one prefix serves every request, and
-    // the model it was built for goes with it.
-    const model = turn.prefix?.model ?? modelConfig.model;
-    const allTools = turn.prefix?.tools ?? getAllTools();
+    // for the basic web_fetch variant used on pre-4.6 models. The turn's
+    // one prefix serves every request, and the model it was built for goes
+    // with it.
+    const { model, tools: allTools } = prefix;
     const betas = getBetasArray(
       hasWebFetchTool(config.builtInTools) &&
         !supportsDynamicWebTools(model),
       messagesContainDocuments(currentMessages),
     );
     const shaped = shapeCachedPayload(
-      turn.prefix?.system ?? config.system(),
-      renderOutgoingMessages(
-        currentMessages,
-        config.appendOnlyTurns ? "permanent" : "latest",
-      ),
+      prefix.system,
+      renderOutgoingMessages(currentMessages),
     );
     const thinking = resolveThinkingConfig(model, modelConfig.thinking);
     const stream = config.sdkClient.beta.messages.stream({
@@ -1388,7 +1371,6 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     const updatedMessages = [...currentMessages, assistantMsg];
     batch(() => {
       ts.messages[1](updatedMessages);
-      turn.modelAssistantAppended = true;
       turn.lastModelReplyIndex = updatedMessages.length - 1;
       processMessageForDisplayTo(ts, assistantMsg);
 
@@ -1442,7 +1424,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
         ts.isStreaming[1](true);
         ts.currentStreamingText[1](undefined);
       });
-      await streamWithToolLoop(turn, updatedMessages, depth + 1);
+      await streamWithToolLoop(turn, updatedMessages, prefix, depth + 1);
       return;
     }
 
@@ -1746,11 +1728,10 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       }
 
       const toolResultMsg = buildToolResultUserMessage(allResults, queuedTexts);
-      // appendOnlyTurns: a message typed mid-turn rides the tool-result
-      // message with its own sections, so the model learns where the user
-      // is now and the gate's reference moves with it; a bare tool-result
-      // message carries none.
-      if (config.appendOnlyTurns && queuedTexts.length > 0) {
+      // A message typed mid-turn rides the tool-result message with its own
+      // sections, so the model learns where the user is now and the gate's
+      // reference moves with it; a bare tool-result message carries none.
+      if (queuedTexts.length > 0) {
         const built = buildTurnSections(false, turn.conversationId);
         turn.viewReference = built.reference;
         attachSections(turn, toolResultMsg, built, updatedMessages);
@@ -1766,7 +1747,12 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
         ts.isStreaming[1](true);
         ts.currentStreamingText[1](undefined);
       });
-      await streamWithToolLoop(turn, messagesWithToolResults, depth + 1);
+      await streamWithToolLoop(
+        turn,
+        messagesWithToolResults,
+        prefix,
+        depth + 1,
+      );
     }
   }
 
@@ -1850,8 +1836,8 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
   // consumer's prompt panel: the controller's parts, the interaction log
   // peeked (its cursor stays), and the consumer hook, which a preview calls
   // like a send does, so a hook with side effects must not be previewed.
-  // With appendOnlyTurns the sections are selected against the active
-  // conversation's history, as the send would select them.
+  // The sections are selected against the active conversation's history,
+  // as the send would select them.
   function getNextTurnPreview(): {
     system: string;
     sections: EphemeralSection[];
@@ -1871,9 +1857,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       : assembleTurnSections({ consumer });
     return {
       system: text,
-      sections: config.appendOnlyTurns
-        ? selectTurnSections(candidates, store().messages[0]())
-        : candidates,
+      sections: selectTurnSections(candidates, store().messages[0]()),
     };
   }
 

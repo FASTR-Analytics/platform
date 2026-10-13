@@ -161,7 +161,6 @@ function CopilotChat(p: { scope: string; tools: AnyAITool[] }) {
       requireKind: true,
       exempt: COPILOT_APPROVAL_EXEMPT,
     },
-    appendOnlyTurns: true,
   };
 
   if (import.meta.env.DEV) {
@@ -202,9 +201,8 @@ function OwnedChat(p: {
   // mount, so the chat empties it when it mounts: actions retained from
   // before (the previous user on a cross-tab user switch, the previous owner
   // tab's hand-over) would otherwise ride this chat's first digest as fake
-  // activity; with digestAcrossViews, activation already starts each
-  // conversation's digest at the log's end. The producers are the editors
-  // (interactions.ts).
+  // activity; activation already starts each conversation's digest at the
+  // log's end. The producers are the editors (interactions.ts).
   onMount(() => {
     copilotViewController.clearInteractionLog();
   });

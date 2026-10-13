@@ -76,7 +76,6 @@ export {
 
 export type {
   AIErrorInfo,
-  SectionRetention,
   SystemNoticeType,
   ToolDefinitionLike,
   ToolResultBlock,
@@ -106,7 +105,6 @@ export {
 
 export type {
   AIInteractionDefLike,
-  DigestMode,
   EchoMarks,
   GateView,
   InteractionQueueEntry,

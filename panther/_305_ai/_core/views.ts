@@ -103,9 +103,12 @@ export type AIViewController<
   // per-conversation cursors, any open AI-navigation window. For a consumer
   // SCOPE change (the app moved to a different project/workspace in the same
   // SPA session): the log is controller-lifetime, so without this, actions
-  // retained from the previous scope ride the next conversation's first
-  // digest as if they happened in the current one. Call it where the new
-  // scope mounts. No-op without an interactions registry.
+  // retained from the previous scope ride the next digest of a conversation
+  // still active across the switch, or the first digest of an app with no
+  // `scope` (no manager activates its conversations), as if they happened in
+  // the current one; a conversation activated after the switch starts past
+  // them. Call it where the new scope mounts. No-op without an interactions
+  // registry.
   clearInteractionLog(): void;
   // Engine-internal: the registry's view ids, for availableIn validation on
   // the chat's ToolRegistry. Consumers never call this.
@@ -119,13 +122,12 @@ export type AIViewController<
   // this.
   _registry(): unknown;
   // Engine-internal: transactional interaction drain at turn creation, and
-  // with appendOnlyTurns again for a message typed mid-turn, for the sending
-  // CONVERSATION (per-conversation cursors over the shared app-level log —
-  // "since the last message" is true per transcript). The engine calls
-  // restore() iff the model never answers the message the drain rode
-  // (failed/stopped send; with the option, each carrier after the turn's
-  // last model reply, latest first) — the cursor rolls back, so the same
-  // window rides the retry's fresh digest; never lost, never
+  // again for a message typed mid-turn, for the sending CONVERSATION
+  // (per-conversation cursors over the shared app-level log — "since the
+  // last message" is true per transcript). The engine calls restore() iff
+  // the model never answers the message the drain rode (each carrier after
+  // the turn's last model reply, latest first) — the cursor rolls back, so
+  // the same window rides the retry's fresh digest; never lost, never
   // double-delivered. Null when no interactions registry is configured.
   // Consumers never call this.
   _drainForSend(
@@ -149,10 +151,9 @@ export type AIViewController<
   // what runs after it see the same view. Consumers never call this.
   _snapshot(): { state: AIViewState<TDefs>; view: GateView };
   // Engine-internal: the conversations manager reports each conversation it
-  // makes active (mount, create, switch, after deleting the active one).
-  // With digestAcrossViews the conversation's cursor moves to the log's end,
-  // so it hears only what happens after; a no-op otherwise. Consumers never
-  // call this.
+  // makes active (mount, create, switch, after deleting the active one). The
+  // conversation's cursor moves to the log's end, so it hears only what
+  // happens after. Consumers never call this.
   _activateConversation(conversationId: string): void;
 };
 
@@ -180,18 +181,6 @@ export function createAIViewController<
     // "ai" and dropped from the digest. Raise it if the app's routing takes
     // longer to settle (lazy-loaded editors). Default 5 000 ms.
     navAttributionMs?: number;
-    // Report actions against the view they happened in. On: notify admits
-    // an entry when it is recorded (relevantIn, then filter, against the
-    // view the user is in then) and records that view; the digest runs
-    // neither hook again, coalesces per interaction and recorded view, and
-    // ends each line with `(in "<label>")`; and a conversation's cursor
-    // moves to the log's end each time the conversations manager makes it
-    // active, so a new or switched-to conversation hears only what happens
-    // after. Off (default): both hooks run at drain against the view the
-    // user sends from, lines name no view, and cursors start at 0, so a
-    // conversation's first digest carries the retained backlog. Opt-in until
-    // COPILOT04 deletes the field with the off path.
-    digestAcrossViews?: boolean;
   },
 ): AIViewController<TDefs, TIDefs> {
   const fallbackId = options.fallback as keyof TDefs;
@@ -280,7 +269,6 @@ export function createAIViewController<
     : null;
   const reportNavigation = interactionLog !== null &&
     (options.reportNavigation ?? true);
-  const digestAcrossViews = options.digestAcrossViews ?? false;
 
   const fallbackState = {
     id: fallbackId,
@@ -449,17 +437,19 @@ export function createAIViewController<
         );
       }
       const payload = (args as unknown[])[0];
-      const def = digestAcrossViews ? interactionDefs![String(id)] : undefined;
+      const def = interactionDefs![String(id)];
       if (!def) {
+        // An unknown id throws through record, as the registry contract
+        // says.
         interactionLog.record(String(id), payload);
         return;
       }
       // Admission against the view the user is in NOW, since the digest
-      // across views cannot run the hooks at drain (the user may have left).
-      // One UNTRACKED region around the read, the hooks and the label, for
-      // applyWithNavigation's reason: notify observes the view, the hooks
-      // and the label may read live signals, and a caller inside an effect
-      // must subscribe to none of them.
+      // cannot run the hooks at drain (the user may have left the view by
+      // then). One UNTRACKED region around the read, the hooks and the
+      // label, for applyWithNavigation's reason: notify observes the view,
+      // the hooks and the label may read live signals, and a caller inside
+      // an effect must subscribe to none of them.
       const recorded = untrack(() => {
         const s = state();
         const live = { id: String(s.id), params: s.params, context: s.context };
@@ -486,23 +476,15 @@ export function createAIViewController<
     _drainForSend(conversationId: string) {
       if (!interactionLog) return null;
       const { entries, restore } = interactionLog.drainFor(conversationId);
-      const s = state();
-      // Reduction runs at drain time against the view the user is in when
-      // the message is sent (with digestAcrossViews, against each entry's
-      // recorded view); every consumer callback inside is caught
-      // (buildInteractionDigest) — a throwing callback drops its line, never
-      // the turn. Belt and braces on top (review H3): if the digest build
-      // ever escapes anyway, restore the drained entries immediately — the
-      // window between drain and the engine holding the restore handle is
-      // the one place a throw can lose entries — and deliver no digest this
-      // turn.
+      // Reduction runs at drain time against each entry's recorded view;
+      // every consumer callback inside is caught (buildInteractionDigest) —
+      // a throwing callback drops its line, never the turn. Belt and braces
+      // on top (review H3): if the digest build ever escapes anyway, restore
+      // the drained entries immediately — the window between drain and the
+      // engine holding the restore handle is the one place a throw can lose
+      // entries — and deliver no digest this turn.
       try {
-        const digest = buildInteractionDigest(
-          entries,
-          interactionDefs!,
-          { id: String(s.id), params: s.params, context: s.context },
-          digestAcrossViews ? "across-views" : "at-send",
-        );
+        const digest = buildInteractionDigest(entries, interactionDefs!);
         return { digest, restore };
       } catch (err) {
         console.error(
@@ -515,13 +497,10 @@ export function createAIViewController<
     },
     _peekForSend(conversationId: string): string | null {
       if (!interactionLog) return null;
-      const s = state();
       try {
         return buildInteractionDigest(
           interactionLog.peekFor(conversationId),
           interactionDefs!,
-          { id: String(s.id), params: s.params, context: s.context },
-          digestAcrossViews ? "across-views" : "at-send",
         );
       } catch (err) {
         console.error(
@@ -546,7 +525,7 @@ export function createAIViewController<
       return { state: s, view: gateView(s) };
     },
     _activateConversation(conversationId: string): void {
-      if (digestAcrossViews) interactionLog?.activate(conversationId);
+      interactionLog?.activate(conversationId);
     },
   };
   return controller;

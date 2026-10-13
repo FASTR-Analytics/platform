@@ -19,8 +19,8 @@ function lockManager(): LockManager | undefined {
 
 // Awaited rather than returned: TypeScript 5.9's lib types `request` as
 // generic over the callback's return, so an async callback would type as a
-// nested promise (the runtime flattens it), while Deno's lib types it as
-// `Promise<any>`; `await` unwraps both.
+// nested promise (the runtime flattens it), while TypeScript 6.0's lib, which
+// Deno runs, types it as `Promise<Awaited<T>>`; `await` unwraps both.
 export async function withListLock<T>(fn: () => Promise<T>): Promise<T> {
   const locks = lockManager();
   if (locks) return await locks.request(LIST_LOCK_NAME, fn);

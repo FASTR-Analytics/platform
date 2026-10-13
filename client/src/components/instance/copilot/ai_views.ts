@@ -684,7 +684,6 @@ export const copilotViewController: AIViewController<
 > = createAIViewController(copilotViews, {
   fallback: "shell",
   interactions: copilotInteractions,
-  digestAcrossViews: true,
 });
 
 // Captures the current view and restores it when the calling place unmounts.

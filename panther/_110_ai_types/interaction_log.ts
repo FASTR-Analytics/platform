@@ -21,12 +21,12 @@ import {
 // message". The app declares its interaction types in _305_ai
 // (interactions.ts) and reports occurrences through the view controller;
 // this log retains them. The engine drains the log TRANSACTIONALLY at turn
-// creation, and under append-only turns again for a message typed mid-turn:
-// the digest rides its message as an ephemeral section, and if the model
-// never answers that message (a failed or stopped send), the drained entries
-// are restored — never lost, never double-delivered (the unanswered
-// carrier's sections are demoted or released; restored entries ride the
-// retry's fresh digest).
+// creation, and again for a message typed mid-turn: the digest rides its
+// message as an ephemeral section, and if the model never answers that
+// message (a failed or stopped send), the drained entries are restored —
+// never lost, never double-delivered (the unanswered carrier's sections are
+// released at the turn's end; restored entries ride the retry's fresh
+// digest).
 //
 // Echo suppression closes the "AI's own edits echo back as user actions"
 // loop generically: a mutating tool handler calls markAIEdit(key); at drain,
@@ -63,11 +63,13 @@ export const DEFAULT_NAV_ATTRIBUTION_MS = 5_000;
 // cursors (bucket-3 ratification): each conversation's digest covers the
 // entries recorded since ITS OWN last drained message — "since the last
 // message" is true per transcript, concurrent conversations cannot steal or
-// reorder each other's windows, and a new conversation (cursor 0) hears
-// every retained action it has not heard yet, including on its first
-// message. Plain arrays/maps in closure — nothing reactive reads the log,
-// and records are never rendered or persisted (reload drops them; stated
-// acceptance). `now` is injectable for tests.
+// reorder each other's windows, and a cursor starts at 0 (the conversation
+// hears every retained action, including on its first message) until
+// `activate` moves it to the log's end, which the controller does each time
+// the conversations manager makes the conversation active. Plain arrays/maps
+// in closure — nothing reactive reads the log, and records are never
+// rendered or persisted (reload drops them; stated acceptance). `now` is
+// injectable for tests.
 export function createInteractionLog(
   defs: Record<string, AIInteractionDefLike>,
   echoTtlMs: number,
@@ -135,8 +137,8 @@ export function createInteractionLog(
   }
 
   return {
-    // `view` is the view the entry was recorded in, which a controller with
-    // digestAcrossViews supplies after admitting the entry against it.
+    // `view` is the view the entry was recorded in, which the controller
+    // supplies after admitting the entry against it.
     record(
       id: string,
       payload: unknown,
@@ -154,10 +156,10 @@ export function createInteractionLog(
       );
     },
     // Move a conversation's cursor to the high-water mark: it hears only
-    // what is recorded after this. A controller with digestAcrossViews calls
-    // it each time the conversations manager makes a conversation active,
-    // so a new or switched-to conversation never opens with the retained
-    // backlog of every view. Other conversations' cursors are untouched.
+    // what is recorded after this. The controller calls it each time the
+    // conversations manager makes a conversation active, so a new or
+    // switched-to conversation never opens with the retained backlog of
+    // every view. Other conversations' cursors are untouched.
     activate(conversationId: string): void {
       cursors.set(conversationId, nextSeq - 1);
     },

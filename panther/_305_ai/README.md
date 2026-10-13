@@ -178,8 +178,8 @@ const views = defineAIViews({
 
 // 2. Interactions: "user actions since last message" digest, with echo
 //    suppression for the AI's own edits (markAIEdit in mutating handlers).
-//    relevantIn scopes an interaction to views; with digestAcrossViews it
-//    is checked when notify records the entry, and the line names that view:
+//    relevantIn scopes an interaction to views, checked when notify records
+//    the entry, and the line names that view:
 //    `User edited slide s3. (in "Editing slide s3 of Deck A")`.
 const interactions = defineAIInteractions({
   edited_slide: interaction<{ slideId: string }>({
@@ -193,7 +193,6 @@ const interactions = defineAIInteractions({
 const vc = createAIViewController(views, {
   fallback: "home",
   interactions,
-  digestAcrossViews: true,
 });
 vc.setView("editing_slide", { slideId: "s3" }, editorContext); // from your nav sync sites
 vc.notify("edited_slide", { slideId: "s3" });                  // from your UI events
@@ -241,11 +240,11 @@ const navTool = createNavigationTool({
 //    cache rule, see DOC_AI_CHAT.md).
 const system = () => `${basePrompt}\n\n${buildToolCatalog(allTools)}`;
 
-// 7. Append-only turns: every message keeps its sections on the wire, so the
-//    prompt cache and preserved thinking stay valid and a view's instructions
-//    ride once per text. Keep `system` fixed for the whole conversation then
-//    (per-view text goes in instructions and state).
-<AIChatProvider config={{ ..., tools: [updateSlide, deleteSlide, navTool], viewController: vc, appendOnlyTurns: true }}>
+// 7. Every message keeps its sections on the wire, so the prompt cache and
+//    preserved thinking stay valid and a view's instructions ride once per
+//    text. Keep `system` fixed for the whole conversation (per-view text goes
+//    in instructions and state).
+<AIChatProvider config={{ ..., tools: [updateSlide, deleteSlide, navTool], viewController: vc }}>
 ```
 
 Run `validateAIChatConfig(config)` in a committed smoke test — it performs all
@@ -362,9 +361,8 @@ builtInTools: {
   inner implementation per call from the view the call runs in
 - `callAI()` - One-shot requests
 - `view()` / `defineAIViews()` / `createAIViewController()` - View system
-- `interaction()` / `defineAIInteractions()` - Interaction log;
-  `digestAcrossViews` on the controller reports each action against the view it
-  happened in
+- `interaction()` / `defineAIInteractions()` - Interaction log; each action is
+  reported against the view it happened in
 - `createNavigationTool()` - Built-in "the model asks to move" tool
 - `buildToolCatalog()` - Derived tool list for prompt composition
 - `validateAIChatConfig()` - Construction-time validation without mounting

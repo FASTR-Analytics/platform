@@ -61,7 +61,7 @@ export type AIViewDefinition<TParams, TContext> = {
   // What the view shows right now that changes without a navigation: the
   // selection, the cursor, a filter. Rides every message as a view-state
   // section, so keep it to a line or two; text that holds across messages
-  // belongs in `instructions`, which append-only turns send once per text.
+  // belongs in `instructions`, which the engine sends once per text.
   // Resolved like the label: a throw logs and drops the section for this
   // turn, never a failed turn.
   state?: (params: TParams, context: TContext) => string | null;
