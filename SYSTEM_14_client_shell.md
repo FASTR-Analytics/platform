@@ -58,16 +58,16 @@ or states never render is excluded by a step-level `when` (a DOM probe is safe
 there: the page is mounted by the time a tour starts), and a target that may be
 absent or late is given `onTargetTimeout: "skip"`: roadtrip's default is to
 abort, which in a merged run drops every tour behind the missing step. The
-report tour is the case in point: a FASTR report being edited has a menu row and
-a formatting bar and no header Download button, the older formats the reverse,
-and a reader neither. The wording rules every step follows (control names as the
-screen labels them, no internal vocabulary) are the header comment of
-`tours.ts`. A tour may walk across a page boundary: the results-package
-catalogue tour's first step completes on the user's click of a list row
-(`advanceOn`), which opens the package page over the shell, and its second step
-waits for a target on that page (S8). The same directory hosts the tour
-catalogue modal (`tour_catalogue_modal.tsx` + `catalogue.ts`, opened from the
-Help menu, always offered), which lists every tour by area (Products, Slide
+report tour is the case in point: a report being edited has a menu row and a
+formatting bar (Report Forge's, S12) and no header Download button, and a reader
+has the Download button and neither of the other two. The wording rules every
+step follows (control names as the screen labels them, no internal vocabulary)
+are the header comment of `tours.ts`. A tour may walk across a page boundary:
+the results-package catalogue tour's first step completes on the user's click of
+a list row (`advanceOn`), which opens the package page over the shell, and its
+second step waits for a target on that page (S8). The same directory hosts the
+tour catalogue modal (`tour_catalogue_modal.tsx` + `catalogue.ts`, opened from
+the Help menu, always offered), which lists every tour by area (Products, Slide
 decks, Reports, Visualizations, and the remaining tabs under "The platform")
 with availability computed over T1 only (`instanceState.products`,
 `readyPackages`, the permissions; the three slide-type rows first run a
