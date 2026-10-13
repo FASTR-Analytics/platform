@@ -1,4 +1,4 @@
-// The naming step (PLAN_A6 ruling 7): the DHIS2 select form's. A DHIS2
+// The naming step: the DHIS2 select form's. A DHIS2
 // element or operand becomes a new DHIS2 element under an id
 // generateIndicatorId proposes and the user edits inline; an existing id
 // is refused; a UID some indicator already carries as its data id is shown

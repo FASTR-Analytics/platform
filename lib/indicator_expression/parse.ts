@@ -2,12 +2,11 @@
 // Indicator expression grammar: tokenizer, parser, AST
 // =============================================================================
 //
-// The grammar a calculated indicator's definition is written in
-// (PLAN_1a §1.3): `+ - * /`, parentheses, numeric literals, identifiers, and
-// the three calls `abs` / `coalesce` / `nullif`. An identifier names another
-// indicator: bare when it matches BARE_IDENTIFIER_PATTERN, otherwise
-// written `[in brackets]` (indicator ids may carry characters the bare
-// form cannot).
+// The grammar a calculated indicator's definition is written in: `+ - * /`,
+// parentheses, numeric literals, identifiers, and the three calls `abs` /
+// `coalesce` / `nullif`. An identifier names another indicator: bare when it
+// matches BARE_IDENTIFIER_PATTERN, otherwise written `[in brackets]`
+// (indicator ids may carry characters the bare form cannot).
 //
 // Expressions are CATALOG DATA. They are parsed here, evaluated by
 // evaluate.ts, and never emitted as SQL or accepted from the wire.
@@ -320,8 +319,8 @@ export function writeIdentifier(name: string): string {
 
 // A number the grammar will read back. The tokenizer accepts plain decimals
 // only (`[0-9]+(\.[0-9]+)?`), so this never goes through String(), which
-// emits `1e-7` / `1e+21` for extreme values (PLAN_1a §1.3). Negative values
-// carry a leading `-`, which re-parses as a negation of the literal.
+// emits `1e-7` / `1e+21` for extreme values. Negative values carry a leading
+// `-`, which re-parses as a negation of the literal.
 export function writeNumberLiteral(value: number): string {
   if (!Number.isFinite(value)) {
     throw new Error(`Cannot write ${value} as an expression literal`);

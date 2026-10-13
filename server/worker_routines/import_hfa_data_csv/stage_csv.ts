@@ -18,12 +18,12 @@ import {
   type XlsFormQuestion,
 } from "../../server_only_funcs_csvs/parse_xlsform.ts";
 
-// Per-run staging tables (PLAN_DHIS2_IMPORTER_CONSOLIDATION B4): staging
-// output must survive a needs_review hold across other imports running in
-// between, so every table carries a _run_{runId} suffix. The three "final"
-// tables feed the integrate leg; the three intermediates are dropped as soon
-// as staging finishes. This replaces the fixed staging-table names, and is
-// what makes releasing the single-running slot on needs_review safe.
+// Per-run staging tables: staging output must survive a needs_review hold
+// across other imports running in between, so every table carries a
+// _run_{runId} suffix. The three "final" tables feed the integrate leg; the
+// three intermediates are dropped as soon as staging finishes. This replaces
+// the fixed staging-table names, and is what makes releasing the single-running
+// slot on needs_review safe.
 
 const DIAGNOSTIC_SAMPLE_SIZE = 10;
 
@@ -231,7 +231,7 @@ CREATE UNLOGGED TABLE ${names.raw} (
           // Expand to binary variables. An unanswered parent stays missing
           // on every expanded variable; a "don't know" (-99) answer marks the
           // unselected choices -99 instead of 0, so downstream sentinel
-          // handling sees it (PLAN_HFA_FEATURES.md)
+          // handling sees it.
           const selectedCodes = new Set(
             value ? value.split(" ").filter((s) => s.length > 0) : [],
           );

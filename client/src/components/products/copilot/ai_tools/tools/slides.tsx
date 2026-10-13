@@ -47,7 +47,7 @@ function throwSlideUpdateError(err: string): never {
 }
 
 // A figure is `{ metricId, config }` resolved under the deck's own results
-// package and scope (D3): there is no figure library to point at, so every
+// package and scope: there is no figure library to point at, so every
 // figure block starts from a metric and one of that metric's presets.
 const FIGURE_SOURCE_NOTE =
   "\n\nContent blocks are either:\n- from_metric: a figure built from a metric + one of its presets. IMPORTANT: always call get_metric_data FIRST to see available disaggregations, filters and time ranges. The figure resolves under the deck's results package and scope.\n- text: markdown content with autofit. IMPORTANT: Markdown tables are NOT allowed. To display tabular data, use a from_metric block with a table-type preset.";

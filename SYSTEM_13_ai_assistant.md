@@ -118,25 +118,25 @@ produce are **S10/S12**; the query pipeline the data tools call is **S9**.
    coverage (finest physical time column; `/mcp` only, since the SPA holds no
    manifest). Nothing about modules, provenance, or unavailable metrics goes
    into the package grounding: it does not help read a metric (ruled). The
-   `package` and `explore` views are the narrowing (COPILOT03 ruling 1): on
-   those two pages the module and the package's status are what the user is
-   looking at, so their view state names the open module, and the package page's
-   its status, stage, error and progress. A separate indicator-dictionary tool
-   was considered and dropped as redundant. The `/mcp` surface is stateless
-   above the wire: the metric tools read the pin from the DB on every call (a
-   pin-move is visible on the next call; `get_overview` answers without a pin),
-   and package tools are boot-time templates bound per call via panther's
-   `bindAITool` because panther caches a principal's tool set per core. A core
-   is keyed per credential: `buildMcpPrincipal` gives each PAT or OAuth access
-   token its own principal, whose key is the email plus a 16-digit prefix of the
-   token's SHA-256 (`server/tests/mcp_principal_key_test.ts`), so a second PAT
-   or a rotated token of one user never runs over another credential's token.
-   The catalog is fixed per process: a client sees a catalog change only when it
-   re-lists (a chat client: refresh the connector's tools, or a new
-   conversation, though neither claude.ai nor Claude Code reliably re-lists on a
-   new conversation alone), and the server does not advertise `listChanged`
-   (panther ruling, DOC_AI_CHAT §Headless tools). So results are
-   self-identifying instead: every package-tool result starts with a
+   `package` and `explore` views are the narrowing: on those two pages the
+   module and the package's status are what the user is looking at, so their
+   view state names the open module, and the package page's its status, stage,
+   error and progress. A separate indicator-dictionary tool was considered and
+   dropped as redundant. The `/mcp` surface is stateless above the wire: the
+   metric tools read the pin from the DB on every call (a pin-move is visible on
+   the next call; `get_overview` answers without a pin), and package tools are
+   boot-time templates bound per call via panther's `bindAITool` because panther
+   caches a principal's tool set per core. A core is keyed per credential:
+   `buildMcpPrincipal` gives each PAT or OAuth access token its own principal,
+   whose key is the email plus a 16-digit prefix of the token's SHA-256
+   (`server/tests/mcp_principal_key_test.ts`), so a second PAT or a rotated
+   token of one user never runs over another credential's token. The catalog is
+   fixed per process: a client sees a catalog change only when it re-lists (a
+   chat client: refresh the connector's tools, or a new conversation, though
+   neither claude.ai nor Claude Code reliably re-lists on a new conversation
+   alone), and the server does not advertise `listChanged` (panther's
+   DOC_AI_CHAT §Headless tools). So results are self-identifying instead: every
+   package-tool result starts with a
    `Source: results package "<label>" (generated <createdAt>), scope "All data"`
    line naming the run and the scope it read. The line is `formatSourceHeader`
    in `lib/ai_tools/source_header.ts`, whose scope label is optional so a read
@@ -199,8 +199,6 @@ finer: the chat's tools run in the browser and reach a product or the HFA
 indicators only through the routes, which guard themselves. Its client is the
 copilot's SDK client
 ([defaults.ts](client/src/components/instance/copilot/ai_configs/defaults.ts)).
-The HFA indicator assistant's own mount went with that assistant when its tools
-joined the chat (COPILOT03 step 12).
 
 The flow:
 
@@ -352,10 +350,10 @@ reset on approval or a change to the user's own scope access, which remounts the
 shell and with it the chat on the same thread). The panel creates the one engine
 instance (`createAIChat`, inside the provider once the lock is granted), keeps
 it to stop and await at a hand-over and at its own cleanup, and hands it to the
-pane, which hands it to `AIChat` as `chat` (E2), so the pane and the chat share
-one registry, one settings copy and one queue drain. The panel builds one
-panther `AIChatProvider` config, validated in dev by panther's no-mount
-construction check: the panel calls `validateAIChatConfig(config)` under
+pane, which hands it to `AIChat` as `chat`, so the pane and the chat share one
+registry, one settings copy and one queue drain. The panel builds one panther
+`AIChatProvider` config, validated in dev by panther's no-mount construction
+check: the panel calls `validateAIChatConfig(config)` under
 `import.meta.env.DEV` at config assembly:
 
 - **sdkClient**
@@ -461,36 +459,37 @@ fails before that renders the error through `StateHolderWrapper` in place of the
 editor, writes nothing (no autosave, no room, no deck-config save) and leaves
 the controller on `opening_product`. The Results and Explore pages set their
 own: Explore (`components/explore/explore.tsx`) holds at mount and sets
-`explore`, whose `getScope` is the resolved package at the resolved scope or
-ruling 7's no-package reason, and whose state names the family, module, view and
-type the panes resolve (the same resolution functions) and the settings of the
-view the frame resolved (`resolveView`'s result in `MetricFrame`, reported up
-through `onView`: the metric, the switch option, the level, each pin's value,
-the laid-out category's values and the grain, each by the id a package tool
-takes, and the period by its choice's label, as the toolbar's select shows it),
-so the model is told what is on screen, once the package's authoring context is
-in; the Results page sets `results_packages`, whose state names the pinned
-package and the counts by status from the catalogue; the package page holds in
-`ResultsPackagePage` and sets `package` from `PackageBody` on every status
-change (params: the run id; its pair the page's package at the page scope, which
-`getScope` has only while the package is ready, so the package reads refuse with
-the status's reason while the module internals read by run id; its state the
-status, stage, error, progress and open module); Module defaults sets
-`module_defaults` and the Scopes page `scopes`. The Products page sets
-`products`, whose instructions point at `list_products`; the Data switchboard
-sets `data`, whose state is each row's label and status mark (`formatDataState`
-over the `DataSectionForAI` rows the page supplies, never a summary), and its
-`openSubPage` sets `data_page` (params: the page id and, on a family's page, the
-family; instructions name both) for every page it opens and restores the covered
-view when the page closes (S6); the Assets page sets `assets`, the Users page
-`users` and the user detail `user`, each with instructions that name the page
-and nothing of its contents: no roster, no email. Inside products, deck settings
-(`SlideDeckSettings`, given the deck id) sets `deck_settings` and the version
-history (`VersionHistoryEditor`) sets `deck_history` or `report_history` by its
-`kind`, each with `productViewContext(productId)`, the product's live row as
-label and pair (ruling 7's reason once the row is gone); the figure editor (S11)
-holds in `VisualizationEditor` and sets, from `VisualizationEditorInner` once
-the draft exists, the view its host names in the required `aiView` prop
+`explore`, whose `getScope` is the resolved package at the resolved scope or a
+refusal naming why while none is ready, and whose state names the family,
+module, view and type the panes resolve (the same resolution functions) and the
+settings of the view the frame resolved (`resolveView`'s result in
+`MetricFrame`, reported up through `onView`: the metric, the switch option, the
+level, each pin's value, the laid-out category's values and the grain, each by
+the id a package tool takes, and the period by its choice's label, as the
+toolbar's select shows it), so the model is told what is on screen, once the
+package's authoring context is in; the Results page sets `results_packages`,
+whose state names the pinned package and the counts by status from the
+catalogue; the package page holds in `ResultsPackagePage` and sets `package`
+from `PackageBody` on every status change (params: the run id; its pair the
+page's package at the page scope, which `getScope` has only while the package is
+ready, so the package reads refuse with the status's reason while the module
+internals read by run id; its state the status, stage, error, progress and open
+module); Module defaults sets `module_defaults` and the Scopes page `scopes`.
+The Products page sets `products`, whose instructions point at `list_products`;
+the Data switchboard sets `data`, whose state is each row's label and status
+mark (`formatDataState` over the `DataSectionForAI` rows the page supplies,
+never a summary), and its `openSubPage` sets `data_page` (params: the page id
+and, on a family's page, the family; instructions name both) for every page it
+opens and restores the covered view when the page closes (S6); the Assets page
+sets `assets`, the Users page `users` and the user detail `user`, each with
+instructions that name the page and nothing of its contents: no roster, no
+email. Inside products, deck settings (`SlideDeckSettings`, given the deck id)
+sets `deck_settings` and the version history (`VersionHistoryEditor`) sets
+`deck_history` or `report_history` by its `kind`, each with
+`productViewContext(productId)`, the product's live row as label and pair (a
+refusal naming why once the row is gone); the figure editor (S11) holds in
+`VisualizationEditor` and sets, from `VisualizationEditorInner` once the draft
+exists, the view its host names in the required `aiView` prop
 (`editing_slide_figure`, `editing_report_figure`, `viewing_package_figure`, each
 with the params its identity needs) through `setFigureEditorView`, with a
 `FigureEditorContext` of the pair, the metric and the draft (`getDraftConfig`,
@@ -512,8 +511,8 @@ the editor offers and `applyDraft`, which writes the store with the controls'
 semantics and marks the draft unsaved; its Excel import sets
 `hfa_indicator_import`. There is no tab-to-view map.
 
-**What a message carries** (panther's append-only turns, E7). Every message
-carries the view line, the view's `state` and the interactions digest; a view's
+**What a message carries** (panther's append-only turns). Every message carries
+the view line, the view's `state` and the interactions digest; a view's
 `instructions` and the chat's consumer blocks ride a message only when their
 text is new to the conversation, so each is sent once per text; a message the
 model never answered loses its blocks, and a changed system-and-tools hash
@@ -612,7 +611,7 @@ through the pure `formatProductsListForAI`
 pinned by `server/tests/format_products_list_for_ai_test.ts`); the model never
 opens or creates a product, since no tool navigates, and a draft slide goes only
 into a deck on the pair it was drafted under. The preview card stores the view
-its call ran in (panther E4, `AIViewSnapshot`, the id and identity) and renders
+its call ran in (panther's `AIViewSnapshot`, the id and identity) and renders
 under that identity's pair, with the pair's metrics from the T2 authoring
 context, so an old card keeps its package after a reattach; a card stored before
 the engine recorded the view renders under the current view's pair and offers no
@@ -625,9 +624,9 @@ starting draft config. Add runs through `createButtonAction`, so a failed
 "Added to this deck" once it has landed, so one draft adds once, and the
 expanded view offers Add only while the card's button is enabled.
 
-**Refusals come from one table through one wrapper** (COPILOT03 ruling 11).
-Every user registers the same tools, so the prompt cache survives every move;
-what a user may not do refuses at the call.
+**Refusals come from one table through one wrapper.** Every user registers the
+same tools, so the prompt cache survives every move; what a user may not do
+refuses at the call.
 [`tool_guard.ts`](client/src/components/instance/copilot/tool_guard.ts) wraps
 each tool where the set is assembled and, before the handler or an approval's
 `propose` runs, asks `copilotToolRefusal` (`lib/ai_tools/copilot_catalogue.ts`)
@@ -781,20 +780,20 @@ accepted-but-inert-patch rule (Type 1 / Type 2) is stated once, in
 re-reads the array, so the registered set closes over nothing that moves: every
 package tool is an outer tool
 ([bind_package_tools.ts](client/src/components/instance/copilot/bind_package_tools.ts),
-panther's `bindAIToolToView`, E5) whose call resolves the pair of the view it
-runs in (`getScope` on the view's context) and runs the same-named tool of an
-inner set built over that pair's env, its T2 authoring context and the HFA
-rounds `hfaTimePointsForAI` keeps, cached by `packageToolsKey` (run, scope,
-definition hash, rounds), so a reattach, rescope, scope edit or time-point
-import binds at the next call with no remount; the module internals bind by the
-view's run id alone (`getRunId`, `createModuleInternalsEnv`), so they answer for
-a package that is still generating or has failed. A view whose `getScope` throws
-refuses the call with its reason; an authoring-context read that fails refuses
-the call with the read's error and the next call reads again; every read of a
-pair-bound set opens with the Source line, a run-bound read with the package and
-no scope, and writes and failures pass through. The templates the chat registers
-come from one run of the inner builder over a throwing env and an empty
-authoring context, as `/mcp` builds its boot-time templates.
+panther's `bindAIToolToView`) whose call resolves the pair of the view it runs
+in (`getScope` on the view's context) and runs the same-named tool of an inner
+set built over that pair's env, its T2 authoring context and the HFA rounds
+`hfaTimePointsForAI` keeps, cached by `packageToolsKey` (run, scope, definition
+hash, rounds), so a reattach, rescope, scope edit or time-point import binds at
+the next call with no remount; the module internals bind by the view's run id
+alone (`getRunId`, `createModuleInternalsEnv`), so they answer for a package
+that is still generating or has failed. A view whose `getScope` throws refuses
+the call with its reason; an authoring-context read that fails refuses the call
+with the read's error and the next call reads again; every read of a pair-bound
+set opens with the Source line, a run-bound read with the package and no scope,
+and writes and failures pass through. The templates the chat registers come from
+one run of the inner builder over a throwing env and an empty authoring context,
+as `/mcp` builds its boot-time templates.
 
 ## Tool input schemas
 
@@ -990,9 +989,9 @@ parts S13 relies on, verified this cycle:
 ## The HFA tools (S5-owned, S13-governed)
 
 `client/src/components/data/hfa/indicators/ai/` holds the HFA reads, HFA writes
-and HFA editor groups of the catalogue (COPILOT03 ruling 1), registered in the
-one chat by `copilot_tools.ts` like every other tool and gated by view: the
-reads (`get_hfa_indicators`, `get_hfa_taxonomy`, `get_hfa_variable_dictionary`,
+and HFA editor groups of the catalogue, registered in the one chat by
+`copilot_tools.ts` like every other tool and gated by view: the reads
+(`get_hfa_indicators`, `get_hfa_taxonomy`, `get_hfa_variable_dictionary`,
 `inspect_hfa_variable`, `get_hfa_indicator_code`, `validate_hfa_indicators`) in
 the three HFA views, the writes (`update_hfa_indicator_labels`,
 `assign_hfa_indicator_categories`, `create_hfa_indicators`,

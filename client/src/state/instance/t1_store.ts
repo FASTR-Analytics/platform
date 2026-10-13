@@ -191,7 +191,7 @@ export function structureSchemaForFamily(
 }
 
 // ============================================================================
-// Products, folders, ready packages (PLAN_PRODUCTS_RESTRUCTURE D8)
+// Products, folders, ready packages
 // ============================================================================
 
 // PER ROW, never a list replacement: `products_upserted` carries only the
@@ -312,7 +312,7 @@ export function updateInstanceLastUpdated(
 }
 
 // Live derived lookup: the editors read their product's label, package and
-// scope from the T1 row (D16), never from a snapshot taken at open, so a
+// scope from the T1 row, never from a snapshot taken at open, so a
 // reattach or scope change mid-edit moves the figure data and the authoring
 // context together and lights the stale badges.
 export function productById(id: string): ProductSummary | undefined {
@@ -343,7 +343,7 @@ export function updatePinnedRunId(pinnedRunId: string | null): void {
   setInstanceState("pinnedRunId", pinnedRunId);
 }
 
-// Live read of the current user's own catalogue entitlement (Q-B): the
+// Live read of the current user's own catalogue entitlement: the
 // boundary's catalogue fetch tracks this, so a grant or revocation takes
 // effect without a reconnect.
 export function canSeeRunsCatalog(): boolean {
@@ -398,7 +398,7 @@ export function updateInstancePopulation(
 // ============================================================================
 
 // The roster row carries stored permission bits; the current user's are
-// reduced for a restricted user (R26), as the server reduces them.
+// reduced for a restricted user, as the server reduces them.
 export function updateCurrentUser(me: OtherUser | undefined): void {
   const scopeAccess = me?.scopeAccess ?? ALL_SCOPES;
   const permissions = me === undefined

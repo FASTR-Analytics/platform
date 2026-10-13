@@ -234,7 +234,7 @@ function ClerkNewLogin() {
                 {
                   /* Fixed light brand panel: pin static dark text so dark
                     mode's light base-content doesn't wash it out. (Proper fix
-                    is a light-scheme island per PLAN_DARK_MODE plank 3.) */
+                    is a light-scheme island.) */
                 }
                 <div
                   class="font-700 text-5xl leading-tight"

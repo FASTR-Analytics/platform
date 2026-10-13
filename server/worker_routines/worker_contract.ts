@@ -1,8 +1,7 @@
-// Shared worker-contract helpers (PLAN_DHIS2_IMPORTER_CONSOLIDATION A4):
-// the failure-mode knowledge from the DHIS2 run worker reviews (throttled
-// status-guarded progress writes, bounded error text) lives once, consumed by
-// every import-run worker. The READY handshake is already shared
-// (instantiate_worker_generic.ts), not duplicated here.
+// Shared worker-contract helpers: the failure-mode knowledge from the DHIS2 run
+// worker reviews (throttled status-guarded progress writes, bounded error text)
+// lives once, consumed by every import-run worker. The READY handshake is
+// already shared (instantiate_worker_generic.ts), not duplicated here.
 
 export const PROGRESS_WRITE_INTERVAL_MS = 2000;
 

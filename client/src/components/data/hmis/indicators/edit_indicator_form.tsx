@@ -1,14 +1,13 @@
-// Create/update one indicator. The form branches on what the indicator IS
-// (PLAN_A5 §2, PLAN_A6 §2): an Uploaded indicator is a count filled by CSV
-// import, whose mapping step points file values at it (its key is the
-// server's and never shown), a DHIS2 element a count the import fetches
-// under its DHIS2 id, a sum the total of indicators that have rows, a
-// calculated one a formula over other indicators and population terms with a
-// free display format. Every indicator carries the include-in-analysis
-// checkbox. The id is renamable (ruling 5); a DHIS2 id is fixed once rows
-// exist under it (ruling 4). The palette below the formula inserts
-// correctly written identifiers, and the legend names every identifier the
-// formula references.
+// Create/update one indicator. The form branches on what the indicator IS:
+// an Uploaded indicator is a count filled by CSV import, whose mapping step
+// points file values at it (its key is the server's and never shown), a
+// DHIS2 element a count the import fetches under its DHIS2 id, a sum the
+// total of indicators that have rows, a calculated one a formula over other
+// indicators and population terms with a free display format. Every
+// indicator carries the include-in-analysis checkbox. The id is renamable; a
+// DHIS2 id is fixed once rows exist under it. The palette below the formula
+// inserts correctly written identifiers, and the legend names every
+// identifier the formula references.
 import {
   AlertComponentProps,
   Button,
@@ -167,7 +166,7 @@ type LegendRow = {
   label: string | undefined;
   // Population rows only: what the store holds for the type, so the author
   // sees a gap here rather than at generation (which is where it is
-  // enforced: PLAN_1b ruling 6). Display only; never a save rule.
+  // enforced). Display only; never a save rule.
   coverage?: { text: string; empty: boolean };
 };
 
@@ -241,7 +240,7 @@ export function EditIndicatorForm(
     existing !== undefined &&
     indicatorId().trim() !== existing.indicator_common_id;
 
-  // Whether rows exist under the indicator's data id (ruling 4): the ledger's
+  // Whether rows exist under the indicator's data id: the ledger's
   // answer through idsWithData; while that is unknown, an indicator with a
   // key counts as having rows, since the server refuses the change either way.
   const existingHasRows = (): boolean =>
@@ -251,7 +250,7 @@ export function EditIndicatorForm(
   const dataIdLocked = () => existingHasRows();
 
   // The sums that name the indicator being edited: a switch out of the
-  // types that have rows is refused while one does (ruling 3).
+  // types that have rows is refused while one does.
   const namingSums = createMemo(() =>
     existing === undefined ? [] : p.indicators
       .filter((c) =>
@@ -362,8 +361,8 @@ export function EditIndicatorForm(
     }`;
   });
 
-  // Ruling 3: a checked calculated indicator reaches every indicator its
-  // formula flattens to, checked or not. Said here, once; the save goes.
+  // A checked calculated indicator reaches every indicator its formula
+  // flattens to, checked or not. Said here, once; the save goes.
   const unanalysedReached = createMemo<string[]>(() => {
     const j = judgement();
     if (!includeInAnalysis() || j === undefined || j.kind === "unresolvable") {
@@ -473,7 +472,7 @@ export function EditIndicatorForm(
     return undefined;
   }
 
-  // The type switches the server refuses (ruling 3): out of the types that
+  // The type switches the server refuses: out of the types that
   // have rows while rows exist or while a sum names the indicator; into
   // DHIS2 element without a DHIS2-shaped data id.
   function typeSwitchError(): string | undefined {

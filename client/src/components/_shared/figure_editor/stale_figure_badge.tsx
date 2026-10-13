@@ -15,7 +15,7 @@ import {
   type ResolveFigureResult,
 } from "~/generate_visualization/mod";
 
-// The stale-figure affordance (PLAN_PRODUCTS_RESTRUCTURE D4). A figure whose
+// The stale-figure affordance. A figure whose
 // captured pair differs from its container's is shown, not hidden and not
 // blocked. The badge offers one action, re-resolving this figure's
 // `{ metricId, config }` under the container's current pair, and when that

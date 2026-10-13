@@ -20,7 +20,7 @@
 //      indicator type's rename.
 //   2. inputs/hfa_indicators_snapshot.json: the `var_name` key reads
 //      `indicator_id` (manifest v11, stamped by manifest block 9): the HFA
-//      indicator id's rename (PLAN_HFA_ID_VOCABULARY).
+//      indicator id's rename.
 //
 // =============================================================================
 

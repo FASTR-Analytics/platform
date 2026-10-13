@@ -33,10 +33,8 @@ export function setupStaticServing(app: Hono) {
 
   // Run output downloads, the package detail's file rows, at
   // /{runId}/outputs/{moduleId}/{file}. Scoped to that shape AND gated on
-  // the instance data bit (PLAN_RESULTS_RUNS Q-G, regated 2026-08-18): this
-  // mount used to answer any path under the runs volume for any
-  // authenticated instance user, so knowing a runId was enough to download
-  // raw output CSVs. It carries the same guard as the run-keyed package reads
+  // the instance data bit, so knowing a runId is not enough to download raw
+  // output CSVs. It carries the same guard as the run-keyed package reads
   // the listing comes from (`getRunDetail`, `can_view_data`). The path scope
   // also matters for what follows: a wildcard mount with this guard would
   // 403 every non-data request that falls through to the assets serve below.

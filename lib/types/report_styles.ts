@@ -7,8 +7,7 @@
 // `customStyle`).
 //
 // Visibility is per PRODUCT: a style is either instance-wide or limited to a
-// named set of reports (PLAN_PRODUCTS_RESTRUCTURE left no project layer to
-// scope it to).
+// named set of reports (there is no project layer to scope it to).
 // =============================================================================
 
 import { z } from "zod";

@@ -157,10 +157,10 @@ function moduleEntries(modules: InstalledModuleSummary[]): ListEntry<string>[] {
 // Nothing here is written anywhere.
 //
 // The page sets the chat's `explore` view (S13): its pair is the resolved
-// package at the resolved scope, or ruling 7's reason while none is ready,
-// and its state is what the panes resolve on that pair, read live once the
-// package's authoring context is in: the family, module, view and type from
-// the stored choices, and the settings from the view the frame resolved.
+// package at the resolved scope, or an AIToolFailure naming why while none is
+// ready, and its state is what the panes resolve on that pair, read live once
+// the package's authoring context is in: the family, module, view and type
+// from the stored choices, and the settings from the view the frame resolved.
 export function Explore() {
   holdCopilotView();
   const packageId = createMemo((): string | undefined => {

@@ -10,7 +10,7 @@ import { buildQuickMoveEntries } from "./product_menu";
 export function buildFolderMenu(args: {
   folder: Folder;
   folders: Folder[];
-  // The bulk action (PLAN_PRODUCT_OWNERSHIP R19) is a global admin's alone.
+  // The bulk action is a global admin's alone.
   isGlobalAdmin: boolean;
   onMoveTo: (parentId: string | null) => void;
   onMoveToFolder: () => void;

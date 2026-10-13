@@ -32,7 +32,7 @@ import { instanceState } from "~/state/instance/t1_store";
 // draft. Delete lives here (not on picker tiles) because openConfirm would
 // replace the picker modal.
 //
-// Visibility is per PRODUCT (PLAN_PRODUCTS_RESTRUCTURE): this report, a
+// Visibility is per PRODUCT: this report, a
 // chosen set of reports, or every report on the instance.
 
 export type ReportStyleEditorResult = { saved: true };

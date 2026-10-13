@@ -1,4 +1,4 @@
-// The lockstep guard for the Explore bindings (R15). The pure checks always
+// The lockstep guard for the Explore bindings. The pure checks always
 // run; the checks against the module definitions need the local modules
 // checkout (FASTR_MODULES_LOCAL_DIR) and are skipped otherwise:
 //

@@ -46,7 +46,7 @@ function assertFigureEditorStillOpen(view: FigureEditorViewState): void {
   }
 }
 
-// The Figure editor group (ruling 1): the open figure editor's draft, read
+// The Figure editor group: the open figure editor's draft, read
 // and written live through the view's context, in the three figure views.
 // The write is update_figure's validate-before-commit pipeline over the
 // draft instead of a stored bundle, with the editor's own patch schema, which

@@ -237,9 +237,8 @@ routesHealth.post("/pg_stat_statements_reset", async (c: Context) => {
 });
 
 // Every DHIS2 element in the dictionary with the indicator that holds it.
-// The wire keys (id, label, mappedTo) predate PLAN_A3 and are read outside
-// this repo (SYSTEM_15), so they stay: id is the element's data id, mappedTo
-// the indicator's own id.
+// The wire keys (id, label, mappedTo) are read outside this repo (SYSTEM_15),
+// so they stay: id is the element's data id, mappedTo the indicator's own id.
 routesHealth.get("/dhis2-indicators-export", async (c: Context) => {
   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
   const elements = await mainDb<

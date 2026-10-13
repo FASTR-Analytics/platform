@@ -82,7 +82,7 @@ function canConfigureData(): boolean {
 // same gates.
 function navItems(): ListItem<InstanceTab>[] {
   const items: ListItem<InstanceTab>[] = [
-    // First and default (PLAN_PRODUCTS_RESTRUCTURE D17).
+    // First and default.
     {
       id: "products",
       label: t3({ en: "Products", fr: "Produits", pt: "Produtos" }),
@@ -90,9 +90,8 @@ function navItems(): ListItem<InstanceTab>[] {
     },
   ];
   // Approved users only, like every tab: the whole nav sits behind
-  // currentUserApproved (PLAN_PRODUCTS_RESTRUCTURE D6). A restricted user has
-  // no Explore (PLAN_SCOPES R13); Results and Data hide for them because their
-  // data bits read as false (R26).
+  // currentUserApproved. A restricted user has no Explore; Results and Data
+  // hide for them because their data bits read as false.
   if (instanceState.currentUserScopeAccess.all) {
     items.push({
       id: "explore",

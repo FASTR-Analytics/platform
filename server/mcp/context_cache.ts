@@ -127,10 +127,10 @@ function cacheSet<T>(map: Map<string, CacheEntry<T>>, key: string, value: T) {
   }
 }
 
-// The per-principal transport (PLAN_112 D4): every server action dispatches
-// in-process through headlessApp's full middleware chain: credential verify
-// (a PAT also stamps last_used_at), allowlist, zod validation, approval and
-// scope-grant checks; no user_logs row.
+// The per-principal transport: every server action dispatches in-process
+// through headlessApp's full middleware chain: credential verify (a PAT also
+// stamps last_used_at), allowlist, zod validation, approval and scope-grant
+// checks; no user_logs row.
 export function buildPrincipalTransport(token: string): ServerActionTransport {
   return {
     baseUrl: "",
@@ -245,11 +245,10 @@ export async function resolvePackageContext(
   const cached = cacheGet(packageContexts, key);
   if (cached) return cached;
 
-  // The door check: the run-keyed routes require an approved user (D7) and
-  // refuse a restricted user the "All data" scope this surface reads through
-  // (a restricted user cannot hold it) on every dispatch regardless; judging
-  // it here gives the model one clean failure instead of a denial on each
-  // tool.
+  // The door check: the run-keyed routes require an approved user and refuse a
+  // restricted user the "All data" scope this surface reads through (a
+  // restricted user cannot hold it) on every dispatch regardless; judging it
+  // here gives the model one clean failure instead of a denial on each tool.
   const globalUser = await resolveGlobalUser(principal);
   if (!globalUser.approved) {
     throw new AIToolFailure(
@@ -288,7 +287,7 @@ export async function resolvePackageContext(
   const { manifest } = readRes.data;
   const authoring = await buildRunAuthoringContext(readRes.data);
   // The package's taxonomy carries no time points (instance T1 state, not
-  // run content; D7), so the AI's full HfaTaxonomyForAI is composed here.
+  // run content), so the AI's full HfaTaxonomyForAI is composed here.
   const hfaTaxonomy: HfaTaxonomyForAI = {
     ...authoring.hfaTaxonomy,
     timePoints: await getHfaTimePointsForAI(mainDb),

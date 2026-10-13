@@ -13,18 +13,16 @@ import type {
   RunSummary,
 } from "./run_manifest.ts";
 
-// Results-package generation (PLAN_RESULTS_RUNS item 2, re-cut by Phase 3
-// item 1). Two surfaces: the LAUNCH wizard (an ephemeral modal, its step
-// results are client-local until launch sends them in one body; nothing is
-// persisted server-side before that) and the run pipeline (execution state
-// lives on the runs catalog row: runs.status + runs.progress). The wizard is
-// entered from the instance shell: generation is an instance-level act, and
+// Results-package generation. Two surfaces: the LAUNCH wizard (an ephemeral
+// modal, its step results are client-local until launch sends them in one body;
+// nothing is persisted server-side before that) and the run pipeline (execution
+// state lives on the runs catalog row: runs.status + runs.progress). The wizard
+// is entered from the instance shell: generation is an instance-level act, and
 // products point at a run rather than a run belonging to one.
 
 // Step 1, choose data: plain family-inclusion checkboxes. Generation always
-// captures the FULL dataset per family (PLAN_FULL_CAPTURE_GENERATION ruling
-// 2026-08-03): a product narrows by its scope at read time, never at
-// generation.
+// captures the FULL dataset per family: a product narrows by its scope at
+// read time, never at generation.
 export const runGenerationStep1ResultSchema = z.object({
   hmis: z.boolean(),
   hfa: z.boolean(),
@@ -50,14 +48,13 @@ export type RunGenerationStep2Result = z.infer<
   typeof runGenerationStep2ResultSchema
 >;
 
-// The instance defaults store (Q8, §3.5): the wizard's starting values,
-// written only by the module-defaults editor (S8 "Instance module defaults")
-// and kept in instance_config under
-// `run_generation_defaults`. Flat: one country per instance makes per-country
-// presets meaningless. Merge order in the wizard is instance defaults >
-// definition defaults; there is no manifest tier (the wizard is
-// instance-entered, so there is no anchor run). Unknown moduleIds in the
-// store are tolerated: modules evolve, the store does not have to.
+// The instance defaults store: the wizard's starting values, written only by
+// the module-defaults editor (S8 "Instance module defaults") and kept in
+// instance_config under `run_generation_defaults`. Flat: one country per
+// instance makes per-country presets meaningless. Merge order in the wizard is
+// instance defaults > definition defaults; there is no manifest tier (the
+// wizard is instance-entered, so there is no anchor run). Unknown moduleIds in
+// the store are tolerated: modules evolve, the store does not have to.
 // step1 is .catch(null): a stored step1 under an older shape degrades to
 // "no step-1 default" without discarding the module/parameter defaults.
 export const runGenerationDefaultsSchema = z.object({
@@ -113,7 +110,7 @@ export type RunListingItem = {
   progress: RunProgress | null;
 };
 
-// The instance catalogue row (Phase 3 item 3): every run on the instance,
+// The instance catalogue row: every run on the instance,
 // plus the products currently pointing at it: both the "in use by" column and
 // the reason a run cannot be deleted.
 export type RunCatalogItem = RunListingItem & {
@@ -122,9 +119,9 @@ export type RunCatalogItem = RunListingItem & {
 
 // A ready results package as the product package picker lists it. The label
 // is approved-user data (every product card shows the label of the package
-// it serves from), so this narrows SYSTEM_03's Q-B to generation telemetry:
-// `RunListingItem`'s progress, summary and provenance stay at
-// can_configure_data.
+// it serves from), so SYSTEM_03's rule that run data reaches only
+// can_configure_data narrows to generation telemetry: `RunListingItem`'s
+// progress, summary and provenance stay at can_configure_data.
 export type ReadyPackage = {
   id: string;
   label: string;
@@ -160,8 +157,8 @@ export type RunModuleFileListing = {
 
 // Worker-updated pipeline progress (runs.progress JSON), pushed on every
 // state change over instance SSE (the catalogue, filtered to
-// can_configure_data, see Q-B). moduleOrder is execution order; the reuse plan
-// is readable from it (§3.7 UX: per-module reused/will-run).
+// can_configure_data). moduleOrder is execution order; the reuse plan is
+// readable from it (per-module reused/will-run).
 export const runModuleProgressStatusSchema = z.enum([
   "pending",
   "reused",

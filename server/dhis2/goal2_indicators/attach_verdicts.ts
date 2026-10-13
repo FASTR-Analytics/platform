@@ -1,5 +1,5 @@
 // Shapes search results for the dictionary: each data element carries its
-// element verdict (ruling 6) and each indicator its decomposition (ruling 8),
+// element verdict and each indicator its decomposition,
 // with every operand judged through its element on the live server.
 
 import type {

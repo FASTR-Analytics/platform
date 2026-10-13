@@ -34,9 +34,9 @@ type StepKind = "upload" | "mappings" | "duplicates" | "review";
 
 const STEPS: StepKind[] = ["upload", "mappings", "duplicates", "review"];
 
-// The HFA import wizard (PLAN_DHIS2_IMPORTER_CONSOLIDATION B7): a modal with
-// client-local state: the file inputs are ordinary instance assets (uploaded
-// or picked), so nothing persists server-side before launch. Launch inserts a
+// The HFA import wizard: a modal with client-local state: the file inputs are
+// ordinary instance assets (uploaded or picked), so nothing persists
+// server-side before launch. Launch inserts a
 // run row; abandoning this wizard is a no-op by construction.
 export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
   const [csvFileName, setCsvFileName] = createSignal<string>("");

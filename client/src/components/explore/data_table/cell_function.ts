@@ -9,7 +9,7 @@ import { type DataGridCellFunction, getColor } from "panther";
 import { formatIndicatorValue } from "~/generate_visualization/get_style_from_po/_0_common";
 
 // Each cell formatted by its own indicator's format, the raw number kept as
-// the sort key, and coloured by the config's conditional formatting (R11):
+// the sort key, and coloured by the config's conditional formatting:
 // a thresholds rule applies to every cell, the indicator mode applies each
 // indicator's own rule, anything else leaves the cell uncoloured.
 // `indicatorAxis` is the grid axis the indicator dimension is laid out on;

@@ -252,9 +252,8 @@ function getPeriodAxisSort(
 }
 
 // THE axis-sort dispatcher: the one authoritative home for the ordering
-// precedence (2026-08-09 ruling, PLAN_AXIS_SORT_DISPATCHER.md). Ordering is a
-// property of the dimension, not of the axis; every figure axis routes
-// through here. Precedence:
+// precedence. Ordering is a property of the dimension, not of the axis;
+// every figure axis routes through here. Precedence:
 //
 //   1. An absent axis gets NO sort. Load-bearing for tables: panther's group
 //      promotion carries `itemSort ?? groupSort`, so a sort supplied for an
@@ -277,10 +276,10 @@ function getPeriodAxisSort(
 //      when the roll-up is active (the pins are id-keyed no-ops on axes
 //      without sentinel rows).
 // `indicatorSortOrder` is the ATTACHED PACKAGE's catalog order: the ids of
-// its indicator catalog, in the order the instance's dictionary put them
-// (PLAN_1a §1.9). It replaces a hardcoded 14-id list that could only ever
-// order the seeded indicators, and it is unconditional: a package always
-// carries a catalog, so there is no vintage branch and no fallback.
+// its indicator catalog, in the order the instance's dictionary put them. It
+// replaces a hardcoded 14-id list that could only ever order the seeded
+// indicators, and it is unconditional: a package always carries a catalog,
+// so there is no vintage branch and no fallback.
 export function getAxisSort(
   config: PresentationObjectConfig,
   axisProp: DisaggregationOption | "--v" | undefined,
@@ -507,7 +506,7 @@ function getChartJsonDataConfig(
     sort: {
       // The bars axis rides one seam: panther honours sort.indicator only
       // when sortIndicatorValues is undefined. "none" means the dimension's
-      // natural order (2026-08-09 ruling), so it maps to undefined + the
+      // natural order, so it maps to undefined + the
       // dispatcher's sort; asc/desc (an explicit value ranking) pass through
       // below and panther ignores sort.indicator entirely.
       indicator: getAxisSort(config, indicatorPropRaw, indicatorSortOrder),

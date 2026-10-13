@@ -42,9 +42,9 @@ function errorKindLabel(kind: Dhis2FetchErrorKind | undefined): string {
   return "";
 }
 
-// The per-run error surface (PLAN_DHIS2_IMPORTER_SURFACE_ERRORS): everything
-// the system recorded about one run (the fatal error, unknown indicator ids,
-// per-pair fetch failures), opened from a History row.
+// The per-run error surface: everything the system recorded about one run
+// (the fatal error, unknown indicator ids, per-pair fetch failures), opened
+// from a History row.
 // Closes with a pair list when the user asks to retry the failed pairs; the
 // shell feeds it to the wizard's presetPairs entry.
 export function Dhis2RunDetail(
@@ -70,8 +70,8 @@ export function Dhis2RunDetail(
       pt: "A carregar o detalhe da importação...",
     }),
   );
-  // The pairs carry data ids (PLAN_A5 ruling 9); the dictionary keyed by
-  // data id names them. A display-only enrichment: blank until ready.
+  // The pairs carry data ids; the dictionary keyed by data id names them. A
+  // display-only enrichment: blank until ready.
   const indicators = createQuery(() => serverActions.getIndicators({}));
   const byDataId = createMemo(() => {
     const s = indicators.state();

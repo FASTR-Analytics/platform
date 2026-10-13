@@ -34,7 +34,7 @@ const datasetHmisWindowingBaseSchema = z.object({
   facilityTypesToInclude: z.array(z.string()).optional(),
 });
 
-// A windowing selects indicators (the delete-data route, PLAN_A4 ruling 9).
+// A windowing selects indicators (the delete-data route).
 export const datasetHmisWindowingSchema = datasetHmisWindowingBaseSchema
   .extend({
     indicatorsToInclude: z.array(z.string()),

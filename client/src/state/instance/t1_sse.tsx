@@ -38,7 +38,7 @@ import {
 } from "./t1_store";
 import { connectCollab, disconnectCollab } from "./collab";
 
-// Live results-package generation (Q-B): ephemeral execution state, not T1:
+// Live results-package generation: ephemeral execution state, not T1:
 // these go to listeners and never touch the store. (The catalogue LISTING is
 // T1 via the refetch-on-nonce pattern:
 // `runs_catalog_updated` is a data-free timestamp and the boundary below
@@ -77,7 +77,7 @@ export function addInstanceRScriptListener(
 // fresh). Fires for both stamp carriers: the `last_updated` message (slides)
 // and the per-row `products_upserted` summary, whose own `lastUpdated` IS the
 // products table's stamp; a summary fires only when that stamp moved, so a
-// re-broadcast after an access change (PLAN_PRODUCT_OWNERSHIP R15) does not.
+// re-broadcast after an access change does not.
 type LastUpdatedListener = (
   tableName: LastUpdateTableName,
   ids: string[],
@@ -123,10 +123,10 @@ let shouldBeConnected = false;
 // Was the CURRENT connection admitted as an approved user? The server withholds
 // products, folders, ready packages and the roster from an unapproved
 // connection, and it decides that once, at connect. So an approval that lands
-// mid-session needs a new connection, not just a store update (D8).
+// mid-session needs a new connection, not just a store update.
 let connectedAsApproved = false;
 // The scope access the current connection was built under. The server filters
-// the product plane by it, so a change needs a new connection too (R29).
+// the product plane by it, so a change needs a new connection too.
 let connectedScopeAccess: ScopeAccess = ALL_SCOPES;
 
 const [connectionDown, setConnectionDown] = createSignal(false);
@@ -324,14 +324,13 @@ export function disconnectInstanceSSE(): void {
   resetInstanceState();
 }
 
-// The unapproved to approved transition (D8), and a change to the user's own
-// scope access (R29). Everything either unlocks or hides is decided per
-// CONNECTION server-side, so re-open both channels: the SSE for
-// its `starting` payload and the collab socket, which the server refuses to
-// an unapproved user with a terminal close the client never retries. The
-// reset inside the disconnect flips `currentUserApproved` back to false for
-// one tick; the approval effect below no-ops on that and re-runs when the
-// new `starting` payload lands.
+// The unapproved to approved transition, and a change to the user's own scope
+// access. Everything either unlocks or hides is decided per CONNECTION
+// server-side, so re-open both channels: the SSE for its `starting` payload
+// and the collab socket, which the server refuses to an unapproved user with
+// a terminal close the client never retries. The reset inside the disconnect
+// flips `currentUserApproved` back to false for one tick; the approval effect
+// below no-ops on that and re-runs when the new `starting` payload lands.
 export function reconnectForApproval(): void {
   disconnectInstanceSSE();
   connectInstanceSSE();
@@ -368,13 +367,13 @@ export function InstanceSSEBoundary(p: { children: JSX.Element }) {
     },
   ));
 
-  // Ready packages: the `runsCatalog` idiom exactly (D8, §3.4): filled by
-  // `starting`, refetched on the EXISTING `runs_catalog_updated` nonce, no
-  // message type of its own. Unlike the catalogue below it is gated on
-  // APPROVAL, not on can_configure_data: a ready package's label is what
-  // every product card and the package picker show (the deliberate revision
-  // of Q-B, `lib/types/instance_sse.ts`). Tracking the flag live means an
-  // approval also fills the list without waiting for the next nonce.
+  // Ready packages: the `runsCatalog` idiom exactly: filled by `starting`,
+  // refetched on the EXISTING `runs_catalog_updated` nonce, no message type
+  // of its own. Unlike the catalogue below it is gated on APPROVAL, not on
+  // can_configure_data: a ready package's label is what every product card
+  // and the package picker show (a deliberate exception to "run labels must
+  // not fan out", `lib/types/instance_sse.ts`). Tracking the flag live means
+  // an approval also fills the list without waiting for the next nonce.
   createEffect(on(
     () =>
       [
@@ -402,7 +401,7 @@ export function InstanceSSEBoundary(p: { children: JSX.Element }) {
   ));
 
   // Runs catalogue: the broadcast is a data-free nonce (run labels must not
-  // fan out, Q-B). The AbortController ignores a response that lands after
+  // fan out). The AbortController ignores a response that lands after
   // the effect re-ran (tryCatchServer supports no external abort). Also tracks
   // the user's OWN entitlement, so a mid-session grant fetches the catalogue
   // and a revocation clears it: no reconnect needed. defer: true skips only

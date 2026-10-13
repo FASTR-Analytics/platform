@@ -106,7 +106,7 @@ defineRoute(
     // readers: see getVersionsForDatasetHmis), and the client bypasses it
     // while a run is active, so mid-run reads stay live end to end. The
     // count stamp, not the full one: a calculated indicator's definition
-    // changes nothing about this datatable (PLAN_1a §1.13).
+    // changes nothing about this datatable.
     const res = await getDatasetHmisItemsForDisplay(
       c.var.mainDb,
       body.versionId,
@@ -346,7 +346,7 @@ defineRoute(
     );
     if (res.success) {
       // The edit clears the last-fire outcome: the instance-wide attention
-      // banner must clear with it (review finding 5).
+      // banner must clear with it.
       notifyInstanceDatasetsUpdated(
         await getInstanceDatasetsSummary(c.var.mainDb),
       );
@@ -422,7 +422,7 @@ defineRoute(
 
 // Stateless: the distinct values of the indicator column with their row
 // counts, for the wizard's mapping step, and the pin of the bytes read,
-// which the launch passes back (PLAN_A6 ruling 4). Nothing is persisted.
+// which the launch passes back. Nothing is persisted.
 defineRoute(
   routesDatasets,
   "scanDatasetHmisCsvIndicatorValues",

@@ -78,11 +78,12 @@ export type InstanceState = {
   users: OtherUser[];
   assets: AssetInfo[];
   geojsonMaps: GeoJsonMapSummary[];
-  // Per-user (Q-B: run labels must not fan out). Filled at build for can_configure_data / global-admin callers ([] for
-  // everyone else); after that, `runs_catalog_updated` broadcasts only a
-  // data-free nonce and each entitled client refetches via listRunCatalog,
-  // whose route guard is evaluated per request: so grants/revocations take
-  // effect live, with no connection-captured gating anywhere.
+  // Per-user (run labels must not fan out). Filled at build for
+  // can_configure_data / global-admin callers ([] for everyone else); after
+  // that, `runs_catalog_updated` broadcasts only a data-free nonce and each
+  // entitled client refetches via listRunCatalog, whose route guard is
+  // evaluated per request: so grants/revocations take effect live, with no
+  // connection-captured gating anywhere.
   // `runsCatalogSignal` is a NONCE (collision-proof; a same-ms timestamp pair
   // was dropped by the store's equality guard), stamped fresh on every
   // connect: the refetch after every `starting` is DELIBERATE: it is the
@@ -117,10 +118,10 @@ export type InstanceState = {
   // While a per-pair DHIS2 run is integrating, dataset_hmis keeps changing
   // under the settled version token: display caches must be bypassed.
   hmisImportRunActive: boolean;
-  // Queued DHIS2 runs waiting for the import slot (Phase 4 C6).
+  // Queued DHIS2 runs waiting for the import slot.
   hmisImportRunsQueued: number;
   // A scheduled DHIS2 import needs attention: its last fire was refused or
-  // missed, or the run it launched ended in error (Phase 4 C4).
+  // missed, or the run it launched ended in error.
   hmisScheduledImportAttention: boolean;
   hfaTimePoints: HfaTimePoint[];
   hfaCacheHash: string;
@@ -133,11 +134,11 @@ export type InstanceState = {
   populationLastUpdated: string | undefined;
 
   // Cache versioning (regular fields, read by dataset caches as version keys).
-  // Two indicator stamps, split in PLAN_1a §1.13: the full one moves whenever
-  // ANY indicator changes and keys the indicator manager; the count one
-  // moves only when the extract-relevant rows (the analysed counts:
-  // Uploaded, DHIS2 element and Sum with the checkbox on) change, so editing
-  // a calculated definition costs the HMIS datatable caches nothing.
+  // Two indicator stamps: the full one moves whenever ANY indicator changes and
+  // keys the indicator manager; the count one moves only when the
+  // extract-relevant rows (the analysed counts: Uploaded, DHIS2 element and Sum
+  // with the checkbox on) change, so editing a calculated definition costs the
+  // HMIS datatable caches nothing.
   indicatorsVersion: string;
   countIndicatorsVersion: string;
   hfaIndicatorsVersion: string;
@@ -147,8 +148,7 @@ export type InstanceState = {
   currentUserEmail: string;
   currentUserApproved: boolean;
   currentUserIsGlobalAdmin: boolean;
-  // Already reduced per R26 for a restricted user
-  // (permissionsUnderScopeAccess).
+  // Already reduced for a restricted user (permissionsUnderScopeAccess).
   currentUserPermissions: UserPermissions;
   currentUserScopeAccess: ScopeAccess;
 };
@@ -206,11 +206,11 @@ export type InstanceDatasetsSummary = {
 // ============================================================================
 
 // `run_progress` and `r_script` are the results-package catalogue's live
-// generation view (Q-B ruling). They are ephemeral execution state, not
-// InstanceState fields, and they are the only messages on this channel that
-// are FILTERED per user: routesInstanceSSE drops them for callers without
-// can_configure_data, because run labels, module ids and R error detail must
-// not fan out to every connected user. The filter is LIVE: it re-derives
+// generation view. They are ephemeral execution state, not InstanceState
+// fields, and they are the only messages on this channel that are FILTERED per
+// user: routesInstanceSSE drops them for callers without can_configure_data,
+// because run labels, module ids and R error detail must not fan out to every
+// connected user. The filter is LIVE: it re-derives
 // from each `users_updated` passing through the forward loop, so grants and
 // revocations take effect without a reconnect. Per-message filtering is
 // acceptable ONLY because these are ephemeral telemetry: durable per-user

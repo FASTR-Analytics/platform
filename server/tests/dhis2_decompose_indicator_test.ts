@@ -1,4 +1,4 @@
-// Pins PLAN_A3 ruling 8 as a pure function: a DHIS2 indicator formula is
+// Pins parseDhis2Indicator as a pure function: a DHIS2 indicator formula is
 // accepted by whitelist (`#{uid}` / `#{uid.coc}`, numeric literals, + - * /,
 // parentheses, whitespace), its factor maps to a display format, and every
 // other form is refused with the offending term. The expression it emits must

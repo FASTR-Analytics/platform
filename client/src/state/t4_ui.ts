@@ -50,8 +50,8 @@ export function ShellEditorWrapper(p: { children: JSX.Element }) {
 // ============================================================================
 
 // The deep-link parameter: `?product=<id>` opens that product's editor over
-// the Products page (D16). It replaces `?p=` / `?d=` for products, with no
-// shim; named here so the page and the tour catalogue spell it the same way.
+// the Products page. Named here so the page and the tour catalogue spell it
+// the same way.
 export const _PRODUCT_QUERY_PARAM = "product";
 
 // The product explorer's open folders.

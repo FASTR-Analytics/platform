@@ -198,9 +198,9 @@ function isReplicant(
   ) && getDisaggregationAllowedPresentationOptions(dim) === undefined;
 }
 
-// R10: a level is offered when it is deeper than the scope's area while the
-// area is laid out, deeper or equal while it is pinned; national only under
-// no scope area. For a `byLevel` metric the candidates are its keys whose
+// A level is offered when it is deeper than the scope's area while the area
+// is laid out, deeper or equal while it is pinned; national only under no
+// scope area. For a `byLevel` metric the candidates are its keys whose
 // metric is ready; otherwise the admin dimensions the metric carries.
 function offeredLevels(
   binding: ExploreViewBinding,
@@ -248,7 +248,7 @@ function servedValues(
 }
 
 // The dictionary for an indicator dimension, the possible values otherwise.
-// R16: a pinned `hfa_category` facet narrows the HFA indicators to its own.
+// A pinned `hfa_category` facet narrows the HFA indicators to its own.
 function categoryOptions(
   dim: DisaggregationOption,
   family: DatasetType,
@@ -396,9 +396,9 @@ export function periodChoiceId(
   return choices.find((c) => JSON.stringify(c.period) === key)?.id;
 }
 
-// R9: months take the family window laid out or pinned; years and time
-// points take the chosen values laid out (none meaning all), and pinned the
-// latest chosen, else the latest available.
+// Months take the family window laid out or pinned; years and time points
+// take the chosen values laid out (none meaning all), and pinned the latest
+// chosen, else the latest available.
 function resolvePeriod(
   wanted: ExplorePeriod,
   kind: "months" | "values",
@@ -684,7 +684,7 @@ function axisEntry(
   }
 }
 
-// R5: the metric's first preset of the same type, else the defaults, with
+// The metric's first preset of the same type, else the defaults, with
 // `cfMode: "indicator"` when the metric's format is the indicator's own.
 function borrowedStyle(
   metric: MetricWithStatus,
@@ -703,9 +703,9 @@ function borrowedStyle(
 }
 
 // The figure config the resolved view reads: `d` derived from the type's
-// layout (§2.3) and the pins, `s` borrowed by type, `t` empty since the
-// view's name is the caption. Undefined while a pin has no value, over the
-// cap, or when a pinned time has no period to read.
+// layout and the pins, `s` borrowed by type, `t` empty since the view's name
+// is the caption. Undefined while a pin has no value, over the cap, or when a
+// pinned time has no period to read.
 export function deriveViewConfig(
   view: ResolvedView,
   language: Language,

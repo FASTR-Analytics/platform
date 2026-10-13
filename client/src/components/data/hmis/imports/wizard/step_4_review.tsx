@@ -14,8 +14,8 @@ import { IdListLine } from "./id_list_line";
 type Props = {
   connectionSummary: string;
   nIndicators: number | undefined; // undefined = preset pairs (fixed list, no indicator count to show separately)
-  // What the selected indicators expand to (PLAN_A7 ruling 3); undefined
-  // for preset pairs, whose list is fixed.
+  // What the selected indicators expand to; undefined for preset pairs,
+  // whose list is fixed.
   description: Dhis2SelectionDescription | undefined;
   dictionary: HmisIndicator[] | undefined;
   timeSummary: string;

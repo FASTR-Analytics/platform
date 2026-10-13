@@ -78,10 +78,9 @@ export const configRequirements = z.object({
   parameters: z.array(moduleParameter),
 });
 
-// Two kinds of asset (PLAN_RESULTS_RUNS item 2 ruling, 2026-07-13; re-cut
-// 2026-08-03): a plain string names an instance-uploaded asset (resolved from
-// the instance Assets dir); an object pins a modules-repo data file by repo
-// path + sha256, fetched at the definition's own gitRef, verified against
+// Two kinds of asset: a plain string names an instance-uploaded asset (resolved
+// from the instance Assets dir); an object pins a modules-repo data file by
+// repo path + sha256, fetched at the definition's own gitRef, verified against
 // sha256, and cached content-addressed (repo_assets/{sha256}). Legacy stored
 // definitions carry a now-ignored `commit` field (stripped on parse).
 export const repoAssetToImport = z.object({
@@ -131,9 +130,9 @@ export const moduleDefinitionInstalledStrict = z.object({
   script: z.string(),
   assetsToImport: z.array(assetToImport),
   resultsObjects: z.array(resultsObjectDefinitionInstalledStrict),
-  // defaultPresentationObjects was removed in PLAN_RESULTS_RUNS item 5b:
-  // defaults are derived from metric viz presets, never stored. Old blobs
-  // still carrying the key parse fine (strip mode).
+  // No defaultPresentationObjects: defaults are derived from metric viz
+  // presets, never stored. Old blobs still carrying the key parse fine (strip
+  // mode).
 });
 
 export const moduleDefinitionInstalledSchema = moduleDefinitionInstalledStrict;

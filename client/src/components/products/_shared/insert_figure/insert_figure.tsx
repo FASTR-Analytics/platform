@@ -25,7 +25,7 @@ import { Step1Metric } from "./step_1_metric";
 import { Step2Preset } from "./step_2_preset";
 import { Step3Configure } from "./step_3_configure";
 
-// What the wizard hands back. A figure IS `{ metricId, config }` (D3): the
+// What the wizard hands back. A figure IS `{ metricId, config }`: the
 // caller resolves the bundle under its own PackageScope, so nothing here is
 // stored.
 export type InsertFigureResult = {

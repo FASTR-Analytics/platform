@@ -1,11 +1,9 @@
 import { createHash } from "node:crypto";
 
-// §3.7 memoization keys (PLAN_RESULTS_RUNS): a module node's inputKey =
-// hash(generated script text, sorted content hashes of its declared input
-// files, dataset extracts + upstream outputs + assets, and the R image
-// tag). Item 2 computes and records keys while forcing every node to run;
-// item 3 turns on base-run diffing. A wrong or absent key can only cost a
-// wasted re-run, never wrong data: memoization fails closed.
+// Memoization keys: a module node's inputKey = hash(generated script text,
+// sorted content hashes of its declared input files, dataset extracts +
+// upstream outputs + assets, and the R image tag). A wrong or absent key can
+// only cost a wasted re-run, never wrong data: memoization fails closed.
 
 export function sha256HexOfText(text: string): string {
   return createHash("sha256").update(text).digest("hex");

@@ -50,7 +50,7 @@ async function run(std: GenerateRunStartData) {
       );
       await failGeneration(mainDb, std, e);
     }
-    // One notify site for finalize AND fail (ruling 3): by this point either
+    // One notify site for finalize AND fail: by this point either
     // publishReadyRun or markRunGenerationFailed has updated the row.
     notifyInstanceRunsCatalogUpdated();
     const ended: GenerateRunEndedData = {

@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Fleet rollout for the products restructure (PLAN_PRODUCTS_RESTRUCTURE
-# step 13). Runs from the local machine; per instance it:
+# Fleet rollout for the products restructure. Runs from the local machine;
+# per instance it:
 #
 #   1. preflights: the instance exists, its runs volume has headroom, and the
 #      operator confirms a NAMED status-api dump of `main` is on disk (the
@@ -311,5 +311,5 @@ else
     echo "  Logs:        $LOG_DIR/"
     echo ""
     echo "The legacy project databases are STILL ON DISK: they are the rollback"
-    echo "path. Let this settle for days, then run ./purge_legacy_dbs (step 14)."
+    echo "path. Let this settle for days, then run ./purge_legacy_dbs."
 fi

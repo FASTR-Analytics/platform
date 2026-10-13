@@ -14,25 +14,26 @@
 //       200 recorded, two project databases that are byte-identical WITH
 //       TEMPLATE copies, a pending_deletion copy and a `copying` row without
 //       a database) taken through 000, 201 and 202 by the real runner over
-//       the real instance directory ends with: folders nested per D10, every
-//       id collision re-minted with the full reference surface rewritten,
-//       every figure bundle on all four surfaces stamped with the owning
-//       project's run and scope, the ai_context blobs concatenated, and a
-//       schema byte-identical to the base.
+//       the real instance directory ends with: one folder per project with
+//       its sub-folders nested inside, every id collision re-minted with
+//       the full reference surface rewritten, every figure bundle on all
+//       four surfaces stamped with the owning project's run and scope, the
+//       ai_context blobs concatenated, and a schema byte-identical to the
+//       base.
 //   (b) A legacy database whose users carry the default_project_* flags,
 //       whose logs carry project_id and whose aggregate rows differ only by
 //       project_id comes out of 202 with users and logs preserved and the
 //       aggregates merged.
-//   (c) The two negative controls from the plan's Appendix A: on the base,
-//       000 without the user_logs_aggregate ALTER fails at 035, and 000
-//       without any log ALTER fails at 016.
+//   (c) Two negative controls: on the base, 000 without the
+//       user_logs_aggregate ALTER fails at 035, and 000 without any log
+//       ALTER fails at 016.
 //   (d) The fresh path: the base plus the whole instance directory, applied
 //       by the runner in one pass, converges on the same schema as (a).
 //
 // Before (a) runs the migrations, the read-only dry-run
 // (validate_consolidation.ts) plans the same seeded instance; its FAIL,
 // REVIEW and planned counts are checked against what 201 then inserts, which
-// is the mechanism the step 10 post-check reuses.
+// is the mechanism the ./rollout_products post-check reuses.
 
 import { dirname, fromFileUrl, join } from "@std/path";
 import { parseScopeDefinition, scopeAreasOf } from "lib";

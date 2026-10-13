@@ -18,8 +18,7 @@ export const productAccessBodySchema = z.object({
 // The cross-type surface: everything that treats a deck and a report alike.
 // Per-type content and version routes live in ./slide-decks.ts, ./slides.ts
 // and ./reports.ts and carry no label, folder, delete or duplicate of their
-// own. Every entry declares `access`; defineRoute installs the guard from it
-// (PLAN_PRODUCTS_RESTRUCTURE §3.2).
+// own. Every entry declares `access`; defineRoute installs the guard from it.
 export const productRouteRegistry = {
   // The caller names the package and the scope (a create dialog asks for
   // both); the server mints the label. Fails typed
@@ -68,7 +67,7 @@ export const productRouteRegistry = {
   }),
 
   // Reattach never blocks and has no compatibility pre-flight: figures that
-  // no longer match the product's pair show a per-figure stale badge (D4).
+  // no longer match the product's pair show a per-figure stale badge.
   // The runs.status = 'ready' gate is IN the UPDATE.
   setProductPackage: route({
     path: "/products/:product_id/package",
@@ -90,7 +89,7 @@ export const productRouteRegistry = {
 
   // Clones run_id verbatim into the source's folder under the scope the
   // caller names (the source's own to keep it): a deck copied per scope is
-  // how scoped products are made (D5).
+  // how scoped products are made.
   duplicateProduct: route({
     path: "/products/:product_id/duplicate",
     method: "POST",
@@ -100,9 +99,9 @@ export const productRouteRegistry = {
     access: "view",
   }),
 
-  // Replaces the general access and the whole grant list in one transaction
-  // (PLAN_PRODUCT_OWNERSHIP R10). Refuses a grant naming the owner, a grant
-  // naming an email with no users row, and a list naming one email twice.
+  // Replaces the general access and the whole grant list in one
+  // transaction. Refuses a grant naming the owner, a grant naming an email
+  // with no users row, and a list naming one email twice.
   setProductAccess: route({
     path: "/products/:product_id/access",
     method: "PUT",
@@ -112,7 +111,7 @@ export const productRouteRegistry = {
   }),
 
   // The previous owner, if any, becomes an edit grantee; the new owner's
-  // grant, if any, is removed (R10). Refuses an email with no users row.
+  // grant, if any, is removed. Refuses an email with no users row.
   setProductOwner: route({
     path: "/products/:product_id/owner",
     method: "PUT",

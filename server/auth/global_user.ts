@@ -4,8 +4,8 @@
 // session. `approved` (`_OPEN_ACCESS || !!usersRow`) is what
 // requireApprovedUser() and productAccessPolicy gate the product surface on;
 // the six instance permission flags say nothing about approval.
-// `scopeAccess` is the user's grants (PLAN_SCOPES §2.6), and a restricted
-// user's permission bits are reduced here, once (R26).
+// `scopeAccess` is the user's grants, and a restricted user's permission bits
+// are reduced here, once.
 
 import type { Context } from "hono";
 import {
@@ -68,7 +68,7 @@ export async function getGlobalUser(
   );
 }
 
-// Exported for the /mcp context cache (PLAN_112): it resolves a headless
+// Exported for the /mcp context cache: it resolves a headless
 // caller's email to the same GlobalUser the middleware chain builds. Headless
 // callers carry no name claims: pass null/null, exactly as getGlobalUser's
 // headless branch does.

@@ -33,7 +33,7 @@ import { createIdGeneratorForLayout } from "~/components/products/_shared/mod.ts
  * Convert AI input (blocks[]) to storage format (LayoutNode<ContentBlock>).
  *
  * Figures resolve under the caller's PackageScope: the deck the slide is
- * destined for (D3/D4).
+ * destined for.
  */
 export async function convertAiInputToSlide(
   scope: PackageScope,

@@ -76,7 +76,7 @@ import {
 
 const _SEARCH_MIN_LENGTH = 3;
 
-// The product explorer (D16): a file browser over the flat T1 products and
+// The product explorer: a file browser over the flat T1 products and
 // folders lists, shown as a tree from the top level with any number of folders
 // open in place. The page sets the chat's `products` view (S13), which admits
 // `list_products`; an editor it opens sets its own view over it.
@@ -101,7 +101,7 @@ export function Products() {
 
   async function openProduct(product: ProductSummary) {
     // The editors take the product id and read label, package and scope LIVE
-    // from the T1 row (D16); nothing about the pair is snapshotted here. The
+    // from the T1 row; nothing about the pair is snapshotted here. The
     // chat beside the shell follows the view the editor sets.
     await openShellEditor({
       element: PRODUCT_TYPE_REGISTRY[product.type].editor,
@@ -360,7 +360,7 @@ export function Products() {
   }
 
   async function handleDelete(product: ProductSummary) {
-    // Hard delete, no trash (D16).
+    // Hard delete, no trash.
     const deleteAction = createDeleteAction(
       t3({
         en:
@@ -408,7 +408,7 @@ export function Products() {
       ).length,
     };
     const parent = instanceState.folders.find((f) => f.id === folder.parentId);
-    // Deleting a folder reparents one level and never cascades (D16), so the
+    // Deleting a folder reparents one level and never cascades, so the
     // confirmation carries the direct counts and where the contents land. At
     // the root the two land in different places: folders at the top level,
     // products under General.

@@ -193,7 +193,7 @@ export class TimCacheC<UniquenessParams, VersionParams, T> {
 
   // For hashes obtained from scanUniquenessHashes: the params that produced
   // them are not recoverable from the hash, so bulk purges (results-package
-  // deletion, PLAN_RESULTS_RUNS Q-D) clear by hash directly.
+  // deletion) clear by hash directly.
   clearByUniquenessHash(uniquenessHash: string) {
     this._unresolved.delete(uniquenessHash);
 

@@ -8,7 +8,7 @@ import {
   type HfaIndicatorEditorPatch,
 } from "~/components/instance/copilot/mod.ts";
 
-// The HFA editor group (ruling 1): the code editor's unsaved draft of one
+// The HFA editor group: the code editor's unsaved draft of one
 // indicator, read and written live through the view's context. The write
 // checks its ids against the taxonomy and the rounds the editor offers
 // before it touches the draft, then lands in the editor's store like the

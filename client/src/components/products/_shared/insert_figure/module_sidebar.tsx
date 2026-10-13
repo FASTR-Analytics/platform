@@ -8,7 +8,7 @@ import { type ListEntry, type ListItem, SelectList } from "panther";
 import { createMemo } from "solid-js";
 
 // Module identity here is read-plane: a plain string from the attached
-// package's manifest (PLAN_1a §0 clause 3). "Primary results" (the primary
+// package's manifest. "Primary results" (the primary
 // modules' metrics of every family in the package) opens first, then "All
 // modules", then the modules under a family heading in module order.
 type Props = {

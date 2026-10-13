@@ -1,7 +1,7 @@
 /**
  * GOAL 2: Indicators and Data Elements
  * Fetching and searching indicators and data elements from DHIS2, the element
- * eligibility check (ruling 6), the indicator decomposition parser (ruling 8),
+ * eligibility check, the indicator decomposition parser,
  * and the search-result shaping that attaches both.
  */
 

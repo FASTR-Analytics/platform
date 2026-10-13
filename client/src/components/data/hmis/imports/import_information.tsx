@@ -42,9 +42,9 @@ export function ImportInformation(
   const dhis2RowsDeleted = () => dhis2Result()?.dhis2RowsDeleted;
 
   // The period stats are keyed by data id; each row is labelled through the
-  // dictionary and shows the key only under a DHIS2 element (PLAN_A6 ruling
-  // 1). A display-only enrichment: the bare key stands in until the
-  // dictionary arrives, and stays where no indicator carries the key.
+  // dictionary and shows the key only under a DHIS2 element. A display-only
+  // enrichment: the bare key stands in until the dictionary arrives, and
+  // stays where no indicator carries the key.
   const indicators = createQuery(() => serverActions.getIndicators({}));
   const byDataId = createMemo((): Map<string, HmisIndicator> => {
     const s = indicators.state();

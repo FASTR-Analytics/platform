@@ -87,34 +87,34 @@ Exactly **one SSE-feeding** broadcast channel, with one endpoint:
 † The instance endpoint admits every logged-in user, so the two results-package
 generation messages (`run_progress` and `r_script`, which carry run labels,
 module ids and R error detail) are dropped in the forward loop for callers
-without `can_configure_data` (PLAN_RESULTS_RUNS Q-B). The filter is LIVE: every
-`users_updated` passing through the same forward loop carries the full
-permission rows, and the filter re-derives the connection's entitlement from it
-(keyed on the connection's own email, which never changes), so a mid-session
-grant starts the stream and a revocation stops it without a reconnect.
-Per-message filtering is tolerable ONLY because these are ephemeral telemetry.
-Durable per-user state never relies on it: the runs CATALOGUE broadcasts a
-data-free nonce (`runs_catalog_updated`) and each entitled client fetches
-`listRunCatalog` through its per-request guard, so nothing sensitive rides the
-broadcast and permission changes take effect live. The one other per-connection
-rule on the instance channel is the ROSTER: a connection whose user is absent
-from the `users` table (Clerk-authenticated but unapproved) receives `users: []`
-in `starting` and has every `users_updated` rewritten to `[]` in the forward
-loop, until a roster payload names them, at which point that message flows whole
-and the client's own-email re-derivation flips them approved. The roster is an
-enumeration surface (emails, names, permission maps) with no consumer on the
-pending-approval screen. Deliberately NOT withheld from unapproved connections,
-pending a separate ruling if ever wanted: `dhis2ConnectionUrl`, the
-structure/indicator/dataset summaries, and assets; likewise approved non-admin
-users still receive the full roster. The product plane rides the same roster
-rule (PLAN_PRODUCTS_RESTRUCTURE D8): `buildInstanceState` leaves `products`,
-`folders`, `readyPackages`, `scopes` and the `lastUpdated` index empty for an
-unapproved connection, and the forward loop drops `products_upserted`,
-`products_deleted`, `folders_updated`, `scopes_updated` and `last_updated` while
-the connection's user is absent from the roster. The `readyPackages` labels are
-approved-user data by design: a deliberate narrowing of Q-B to generation
-telemetry (`RunListingItem`'s progress, summary and provenance), because every
-product card shows the label of the package it serves from.
+without `can_configure_data`. The filter is LIVE: every `users_updated` passing
+through the same forward loop carries the full permission rows, and the filter
+re-derives the connection's entitlement from it (keyed on the connection's own
+email, which never changes), so a mid-session grant starts the stream and a
+revocation stops it without a reconnect. Per-message filtering is tolerable ONLY
+because these are ephemeral telemetry. Durable per-user state never relies on
+it: the runs CATALOGUE broadcasts a data-free nonce (`runs_catalog_updated`) and
+each entitled client fetches `listRunCatalog` through its per-request guard, so
+nothing sensitive rides the broadcast and permission changes take effect live.
+The one other per-connection rule on the instance channel is the ROSTER: a
+connection whose user is absent from the `users` table (Clerk-authenticated but
+unapproved) receives `users: []` in `starting` and has every `users_updated`
+rewritten to `[]` in the forward loop, until a roster payload names them, at
+which point that message flows whole and the client's own-email re-derivation
+flips them approved. The roster is an enumeration surface (emails, names,
+permission maps) with no consumer on the pending-approval screen. Deliberately
+NOT withheld from unapproved connections, pending a separate ruling if ever
+wanted: `dhis2ConnectionUrl`, the structure/indicator/dataset summaries, and
+assets; likewise approved non-admin users still receive the full roster. The
+product plane rides the same roster rule: `buildInstanceState` leaves
+`products`, `folders`, `readyPackages`, `scopes` and the `lastUpdated` index
+empty for an unapproved connection, and the forward loop drops
+`products_upserted`, `products_deleted`, `folders_updated`, `scopes_updated` and
+`last_updated` while the connection's user is absent from the roster. The
+`readyPackages` labels are approved-user data by design: a deliberate narrowing
+of the run-label filter above to generation telemetry (`RunListingItem`'s
+progress, summary and provenance), because every product card shows the label of
+the package it serves from.
 
 Every approved connection that is not a global admin gets only the products it
 can see: those whose scope it holds (every scope for an unrestricted user; a
@@ -140,9 +140,9 @@ the client holds no stamps for it. A `last_updated` passes when its deck
 (`productId`) is held. For a restricted connection `scopes_updated` is cut to
 the granted scopes, and the folder list is recomputed from what it holds on
 every product or folder message and sent as `folders_updated` when it changes. A
-restricted user's stored data bits never open the generation stream (R26). A
+restricted user's stored data bits never open the generation stream. A
 `users_updated` that changes the connection's own scope access or admin flag
-ends the stream after forwarding it; the client reconnects (R29) and the new
+ends the stream after forwarding it; the client reconnects and the new
 `starting` is built under the new access. The filter and `restrictProductPlane`
 are pinned by `server/tests/instance_sse_filter_test.ts`. No other message on
 the channel is filtered per user.
@@ -332,8 +332,7 @@ self-check. Redis key: `cache:<prefix>:<uniquenessHash>`; stored value:
   and try/catches, returning a miss. The app runs cache-disabled, never
   cache-broken.
 
-**Two version layers on the run-keyed caches.** Each layer has a distinct job
-(PLAN_RESULTS_RUNS §2.5 keyed the data dimension onto the run):
+**Two version layers on the run-keyed caches.** Each layer has a distinct job:
 
 1. **Identity**: the immutable `runId` (which run the data came from) leads the
    UNIQUENESS hash and the `scopeToken` trails it. The token is the hash of the
@@ -366,13 +365,13 @@ ledger the read takes a few milliseconds, and a cache only adds liabilities
 (mid-run bypass dance, prefix-bump obligation). `getDatasetHmisDisplayInfo`
 computes live; client-side T2 caching remains.
 
-**Purge on run deletion** (`server/runs/delete_run.ts`, PLAN_RESULTS_RUNS Q-D)
-is the one place that deliberately deletes entries rather than out-versioning
-them, and it is **disk reclamation, not correctness**: TTLs plus the version
-comparison in `get` already mean a dead run's entries are never served. Because
-`po_items`, `grid_items`, `metric_info` and `replicant_opts` fold `runId` into
-their UNIQUENESS hash, they are swept by prefix (`scanUniquenessHashes(runId…)`
-→ `clearByUniquenessHash`).
+**Purge on run deletion** (`server/runs/delete_run.ts`) is the one place that
+deliberately deletes entries rather than out-versioning them, and it is **disk
+reclamation, not correctness**: TTLs plus the version comparison in `get`
+already mean a dead run's entries are never served. Because `po_items`,
+`grid_items`, `metric_info` and `replicant_opts` fold `runId` into their
+UNIQUENESS hash, they are swept by prefix (`scanUniquenessHashes(runId…)` →
+`clearByUniquenessHash`).
 
 **Rules.** Every cache is version-gated on a column bumped by _every_ write path
 to its data. Never `.clear()` on a normal write. `parseData` must derive the
@@ -469,8 +468,8 @@ bump.
   to kill, here spanning route and db.
 - Cross-deploy payload-shape handling is per-cache and partial:
   `PO_CACHE_VERSION` covers the three run-keyed caches, `ds_hfa` uses a prefix
-  bump (`ds_hfa_v2`, PLAN_HFA_ID_VOCABULARY step 2). Fold a deploy/build version
-  into `versionHash` generically, or document the per-cache choice.
+  bump (`ds_hfa_v2`). Fold a deploy/build version into `versionHash`
+  generically, or document the per-cache choice.
 - `RequestQueue` is an identical class copy-pasted into
   `client/src/state/_infra/` and `server/utils/`. Move one copy to `lib/`.
 - Cruft: rename away the opaque `TimCacheC`/`cache_class_C` suffix and

@@ -1,5 +1,4 @@
-// Regression pin for the /mcp context cache (PLAN_112 step 4, re-cut to the
-// pinned package 2026-08-19).
+// Regression pin for the /mcp context cache.
 //
 // WHY THIS EXISTS: the cache is keyed by (token, runId). The token half is
 // what makes revocation invalidation exact: every context captures server

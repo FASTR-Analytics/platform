@@ -22,8 +22,8 @@ export type RunDataset =
     dateExported: string;
   };
 
-// Capture is always the full dataset (PLAN_FULL_CAPTURE_GENERATION). Manifest
-// transform block 9 holds every stored info to exactly these keys.
+// Capture is always the full dataset. Manifest transform block 9 holds every
+// stored info to exactly these keys.
 export type RunDatasetHmisInfo = {
   version: DatasetHmisVersion;
   totalRows?: number;

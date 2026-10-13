@@ -1,9 +1,8 @@
 import type { RunGenerationStep1Result, RunGenerationStep2Result } from "lib";
 
-// Wire shapes between the launch host and the generate_run worker
-// (PLAN_RESULTS_RUNS item 2): the start payload posted after the READY
-// handshake, and the completion message the worker broadcasts so the host
-// can terminate it and release its entry.
+// Wire shapes between the launch host and the generate_run worker: the start
+// payload posted after the READY handshake, and the completion message the
+// worker broadcasts so the host can terminate it and release its entry.
 
 export type GenerateRunStartData = {
   runId: string;

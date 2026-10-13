@@ -51,7 +51,7 @@ import { createTabOwner } from "./tab_owner";
 // show the notice in its place.
 
 // The Clerk user id, live: Clerk reports a cross-tab user switch through its
-// listener. Under VITE_BYPASS_AUTH there is no Clerk user (ruling 13).
+// listener. Under VITE_BYPASS_AUTH there is no Clerk user.
 function createThreadScope(): Accessor<string> {
   const [userId, setUserId] = createSignal(clerk.user?.id);
   onCleanup(clerk.addListener((event) => setUserId(event.user?.id)));
@@ -190,7 +190,7 @@ function CopilotChat(p: { scope: string; tools: AnyAITool[] }) {
 }
 
 // Inside the provider: one engine instance, shared by the pane and the chat
-// it mounts (E2), created when the lock is granted.
+// it mounts, created when the lock is granted.
 function OwnedChat(p: {
   aiDocs: ReturnType<typeof useAIDocuments>;
   onChat: (chat: AIChatInstance) => void;

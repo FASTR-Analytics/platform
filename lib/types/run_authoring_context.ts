@@ -10,7 +10,7 @@ import type { RunHmisIndicator, RunPopulation } from "./run_manifest.ts";
 // derived from the manifest). A pure function of the run directory and the
 // scope definition it is read under, so keyed by `(runId, definition hash)`
 // the payload is immutable by identity and the client caches it without
-// revalidating (PLAN_PRODUCTS_RESTRUCTURE D7).
+// revalidating.
 //
 // The scope's module list is the only part of a scope that changes it:
 // modules outside the list are absent, with their metrics and presets. The
@@ -34,7 +34,7 @@ export type RunAuthoringContext = {
   icehIndicators: { id: string; label: string; category: string }[];
   hfaTaxonomy: RunAuthoringContextHfaTaxonomy;
   // Presets are not products: no rows, no detail read. They render through
-  // the run-keyed items read with their own config (D6).
+  // the run-keyed items read with their own config.
   presets: DerivedDefaultVisualization[];
   // The manifest's population stamp, verbatim: what the package's rate
   // indicators are aggregated at, for the badge's reason line.

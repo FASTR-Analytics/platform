@@ -149,10 +149,9 @@ in `state/instance/product_access.ts` ("Access in the client" below). There is
 no unauthenticated product surface: a deck reaches recipients as an emailed PDF
 (cross-cutting audit SYSTEMS.md §4.3.9).
 
-**Access is a Google Doc's** (PLAN_PRODUCT_OWNERSHIP). A product has one owner,
-per-user grants at `view` or `edit`, and a general access for everyone else in
-the instance (`none`, `view` or `edit`); global admins own every product. What
-each level allows:
+**Access is a Google Doc's**. A product has one owner, per-user grants at `view`
+or `edit`, and a general access for everyone else in the instance (`none`,
+`view` or `edit`); global admins own every product. What each level allows:
 
 | Level  | Allows                                                                                                                                                                                                    |
 | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -267,23 +266,23 @@ access, so the general access is a floor no grant lowers. `productLevelAtLeast`
 compares two levels. The level a route declares, `ProductAccessLevel`, is
 `ProductLevel` without `none`.
 
-**The layer** (`server/db/products/**`, PLAN_PRODUCTS_RESTRUCTURE step 5): every
-function takes `mainDb` and keys off the registry. `products.ts` holds the
-cross-type surface: one summary query for both types (`listProducts` /
-`getProductSummaries`, the registry row plus `firstSlideId` for a deck and
-`hasEmbeds` for a report, computed in SQL so no body crosses the DB boundary,
-plus the product's `ProductAccess`: `owner` and `defaultAccess` from the row,
-and `grants`, ordered by email, from one more SELECT over `product_access` for
-the ids in hand, merged in TypeScript; no detail payload carries access);
-`createProduct` inserts the registry row and the detail row in one transaction
-(a new deck is minted EMPTY with `themeChosen: false`; the config write that
-first answers the theme question, the first-open wizard in practice, makes the
-deck's cover in the same transaction, under a row lock, and only while the deck
-has no slides: see `updateSlideDeckConfig`, whose route announces the new slide
-as createSlide does), takes `runId` and `scopeId` from the caller, checks inside
-the insert that the run is `ready` and that both rows exist, and returns the
-typed `PACKAGE_OR_SCOPE_UNAVAILABLE` when nothing qualifies. Every product
-insert (`createProduct`, `duplicateProduct`, `copyReportFromVersion`,
+**The layer** (`server/db/products/**`): every function takes `mainDb` and keys
+off the registry. `products.ts` holds the cross-type surface: one summary query
+for both types (`listProducts` / `getProductSummaries`, the registry row plus
+`firstSlideId` for a deck and `hasEmbeds` for a report, computed in SQL so no
+body crosses the DB boundary, plus the product's `ProductAccess`: `owner` and
+`defaultAccess` from the row, and `grants`, ordered by email, from one more
+SELECT over `product_access` for the ids in hand, merged in TypeScript; no
+detail payload carries access); `createProduct` inserts the registry row and the
+detail row in one transaction (a new deck is minted EMPTY with
+`themeChosen: false`; the config write that first answers the theme question,
+the first-open wizard in practice, makes the deck's cover in the same
+transaction, under a row lock, and only while the deck has no slides: see
+`updateSlideDeckConfig`, whose route announces the new slide as createSlide
+does), takes `runId` and `scopeId` from the caller, checks inside the insert
+that the run is `ready` and that both rows exist, and returns the typed
+`PACKAGE_OR_SCOPE_UNAVAILABLE` when nothing qualifies. Every product insert
+(`createProduct`, `duplicateProduct`, `copyReportFromVersion`,
 `copySlideDeckFromVersion`) writes the actor as `owner` and `default_access`
 `none`, and no grant is copied; `updateProductLabel`, `moveProductsToFolder`,
 `setProductScope` (takes a `scopeId`, and the scope's existence is checked in
@@ -506,7 +505,7 @@ text without re-validation.
 **The deck editor** (`SlideDeckEditor` in
 [slide_deck/slide_deck.tsx](client/src/components/products/slide_deck/slide_deck.tsx))
 takes `{ productId }`: label, package and scope come from `productById` on the
-T1 store (D16), the authoring context from S9's immutable
+T1 store, the authoring context from S9's immutable
 `t2_run_authoring_context.ts` keyed by the LIVE pair, so a reattach or rescope
 (from the header chip, the Products page or a collaborator) moves figure data,
 metrics and presets together and lights the stale badges without a remount; a
@@ -639,7 +638,7 @@ block-type switches). The layout tree is manipulated exclusively through panther
 node ops via `buildLayoutContextMenu`
 ([slide_editor/build_context_menu.ts](client/src/components/products/slide_deck/slide_editor/build_context_menu.ts)):
 split/add/move/delete/convert, reachable from both the panel button and canvas
-right-click. Figure blocks have ONE authoring path (D3): insert and replace open
+right-click. Figure blocks have ONE authoring path: insert and replace open
 `InsertFigureModal` (the product package's presets and the metric wizard) and
 edit opens S11's embedded `VisualizationEditor` over the WHOLE deck (the deck's
 `openHostEditor`, as Settings and History open; the slide editor's own wrapper
@@ -882,7 +881,7 @@ the other greyscale theme): the html style stays so an html report written in
 one still renders, and a fastr report stored on a retired theme opens on the
 default, `getFastrReportTheme` being total. **Creation asks nothing**: the
 products page mints the report the way it mints a deck, server-labelled and
-instantly open (D16). The look is chosen from INSIDE the report instead, by
+instantly open. The look is chosen from INSIDE the report instead, by
 [theme_modal.tsx](client/src/components/products/report/theme_modal.tsx), which
 the editor opens unprompted the first time a new report is opened and which the
 Page menu reaches after that. `config.themeChosen === false` is the mark of a
@@ -1115,31 +1114,30 @@ to feel right. `lib/report_fastr_paged.ts` is the contract: the paged stylesheet
 cover with `fill=page` (any other cover is a 544px-tall band at the head of page
 1, flush to the top of the sheet through the page's top margin with a negative
 margin, the report continuing below it on a page that keeps its bottom margin
-and footer; Nick's rulings 2026-09-08, "back to normal size, maybe have an
-option to page fill" and no white above the cover; a named page with no top
-margin was tried first, but Paged.js breaks wherever the flow leaves a named
-page and the cover took page 1 alone), the running footer as margin boxes,
-keep-together on the designed blocks that are one thing (cards, stats, tiles,
-columns, figures, table rows, list items, each step) while callouts, bands,
-quotes and steps CONTINUE across pages between paragraphs and steps with the box
-drawn on both sides (Nick, 2026-09-08, after a bulletin printed with pages half
-empty behind blocks that missed the foot by a line; a block's title or kicker
-never ends a page, its standfirst never opens one, and a break at a flowing
-block's first content counts as a break before the block so the heading above
-travels with it; the runner judges "first on the page" by a block's FIRST
-fragment inside the page box, since a block that overflowed also has a fragment
-in Paged.js's overflow column whose top is the page's top; a continued block's
-page starts at its first new child, not at the cloned box), keep-with-next on
-headings, orphans/widows 3, explicit breaks from `:::pagebreak` (its marker is
-out of the flow, pinned to the page's top corner: pushed to the next page by a
-margin it would break after itself and print a blank page) and
-`break=before|after`, section counters on the renderer-stamped `fm-numbered`
-class, TOC page numbers via `target-counter`) and the in-document runner
-(`fastrPagedRunnerJs`), which releases blocks taller than a page before
-pagination (they split as a last resort and are reported), repairs Paged.js's
-keep-with-next flags, redirects a break that lands inside a whole block to the
-block itself (and back over its heading), repeats table header rows on
-continuations, paints the document ground on every sheet, and publishes a
+and footer, so the cover is normal size, page fill is an option, and no white
+shows above the cover; a named page with no top margin was tried first, but
+Paged.js breaks wherever the flow leaves a named page and the cover took page 1
+alone), the running footer as margin boxes, keep-together on the designed blocks
+that are one thing (cards, stats, tiles, columns, figures, table rows, list
+items, each step) while callouts, bands, quotes and steps CONTINUE across pages
+between paragraphs and steps with the box drawn on both sides (Nick, 2026-09-08,
+after a bulletin printed with pages half empty behind blocks that missed the
+foot by a line; a block's title or kicker never ends a page, its standfirst
+never opens one, and a break at a flowing block's first content counts as a
+break before the block so the heading above travels with it; the runner judges
+"first on the page" by a block's FIRST fragment inside the page box, since a
+block that overflowed also has a fragment in Paged.js's overflow column whose
+top is the page's top; a continued block's page starts at its first new child,
+not at the cloned box), keep-with-next on headings, orphans/widows 3, explicit
+breaks from `:::pagebreak` (its marker is out of the flow, pinned to the page's
+top corner: pushed to the next page by a margin it would break after itself and
+print a blank page) and `break=before|after`, section counters on the
+renderer-stamped `fm-numbered` class, TOC page numbers via `target-counter`) and
+the in-document runner (`fastrPagedRunnerJs`), which releases blocks taller than
+a page before pagination (they split as a last resort and are reported), repairs
+Paged.js's keep-with-next flags, redirects a break that lands inside a whole
+block to the block itself (and back over its heading), repeats table header rows
+on continuations, paints the document ground on every sheet, and publishes a
 `FastrPagedResult` in SOURCE LINES on `window.__fmPaged`.
 `lib/report_document_shell.ts` holds the document wrapper so the Deno render
 test builds byte-identical documents. A paged document takes the theme sheet
@@ -1838,9 +1836,7 @@ selector after it and left that rule unscoped (a picker tile repainting the
 whole app — invisible in output, caught by the leak test).
 
 **No masthead.** A top-level `h1` is deliberately NOT special — the title page
-is `:::cover`'s job (ruled 2026-09-03; the earlier `body > h1:first-child`
-masthead treatment, one shared rule plus twelve per-theme full-bleed promotions,
-was removed with it). The only concession is standard typography:
+is `:::cover`'s job. The only concession is standard typography:
 `body > :where(:first-child)` drops the document's first top margin, at zero
 specificity so a first-child cover/band still wins with its own negative bleed
 margin. The bleed geometry is defined ONCE as `--fm-bleed-margin` /
@@ -2487,8 +2483,8 @@ Per-family t2 reactive caches version off the SSE-pushed `lastUpdated` maps
 slide), `slide_deck_detail` (per deck), `report_detail` (per report;
 `state/products/t2_report_detail.ts`). Every product mutation ends with
 `notifyInstanceProductsUpserted` (the per-row summary re-read, the only
-product-list message, D8), which is also how a product's own `last_updated`
-reaches the client; slide writers add
+product-list message), which is also how a product's own `last_updated` reaches
+the client; slide writers add
 `notifyInstanceLastUpdated("slides", productId, ids, ts)` for the per-slide
 cache; deletes fire `notifyInstanceProductsDeleted`; folders re-broadcast the
 whole list through `notifyInstanceFoldersUpdated`. Because slide create, delete,
@@ -2500,8 +2496,8 @@ stale.
 [routes/instance/emails.ts](server/routes/instance/emails.ts) is the only
 SendGrid egress (raw fetch, `Bearer _SEND_GRID_API`, from
 `noreply@fastr-analytics.org`). `sendSlideDeckEmail` (`requireApprovedUser()`;
-the recipient roster is the instance roster, D2): the PDF is client-rendered
-(S10 base64 export); recipients are schema-validated
+the recipient roster is the instance roster): the PDF is client-rendered (S10
+base64 export); recipients are schema-validated
 (`z.array(z.email()).min(1).max(50)`); sequential per-recipient sends with
 partial failures returned as `{sent: false,
 failedRecipients}`. `sendHelpEmail`

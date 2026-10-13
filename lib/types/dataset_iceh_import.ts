@@ -1,7 +1,7 @@
 import type { AssetFilePin } from "./assets.ts";
 
 // ============================================================================
-// ICEH Import Types (PLAN_DHIS2_IMPORTER_CONSOLIDATION Phase C)
+// ICEH Import Types
 // ============================================================================
 
 // The zip preview served by the stateless parse route (the wizard's upload

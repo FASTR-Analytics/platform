@@ -126,8 +126,8 @@ export async function deleteAllDatasetHmisData(
     conditions.push(`period_id >= ${windowing.start}`);
     conditions.push(`period_id <= ${windowing.end}`);
 
-    // Indicator filtering (PLAN_A4 ruling 9): the window selects
-    // indicators; the rows deleted are those under their data ids.
+    // Indicator filtering: the window selects indicators; the rows deleted are
+    // those under their data ids.
     if (
       !windowing.takeAllIndicators &&
       windowing.indicatorsToInclude.length > 0
@@ -368,7 +368,7 @@ async function getDatasetHmisItemsForDisplayByIndicator(
     // inside every integration/deletion transaction, so it always agrees.
     // n_records > 0 keeps display behavior identical: zero-count "checked,
     // empty" and error-only pairs are checklist information, not data cells.
-    // One view, by the indicators that have rows (PLAN_A4 ruling 8): the
+    // One view, by the indicators that have rows: the
     // ledger's data ids labelled through the dictionary, under the
     // indicator's id (`indicator_common_id`, the datatable's series). Sums
     // have no rows and do not appear.

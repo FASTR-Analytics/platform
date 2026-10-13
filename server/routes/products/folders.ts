@@ -21,9 +21,9 @@ import { respond } from "./_respond.ts";
 export const routesFolders = new Hono();
 
 // The guard is the registry entry's `access` (defineRoute installs it), and
-// productAccessPolicy refuses a restricted user every route here (PLAN_SCOPES
-// R23); the DB layer refuses a cycle with the typed FOLDER_CYCLE failure,
-// which returns through the envelope before any notify fires.
+// productAccessPolicy refuses a restricted user every route here; the DB
+// layer refuses a cycle with the typed FOLDER_CYCLE failure, which returns
+// through the envelope before any notify fires.
 
 async function notifyFolders(mainDb: Sql): Promise<void> {
   const res = await listFolders(mainDb);
@@ -100,9 +100,9 @@ defineRoute(
   },
 );
 
-// The bulk action (PLAN_PRODUCT_OWNERSHIP R19). Like the per-product access
-// writes it bumps no last_updated, re-broadcasts the summaries it changed and
-// closes the collab sockets whose standing on one of them changed.
+// The bulk action: like the per-product access writes it bumps no
+// last_updated, re-broadcasts the summaries it changed and closes the collab
+// sockets whose standing on one of them changed.
 defineRoute(
   routesFolders,
   "setFolderProductsAccess",

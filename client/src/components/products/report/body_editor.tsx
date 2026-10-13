@@ -224,7 +224,7 @@ type Props = {
   format: ReportFormat;
   figures: Record<string, FigureBlock>;
   images: Record<string, ImageBlock>;
-  // What an embed needs to judge and update its own figure (D4).
+  // What an embed needs to judge and update its own figure.
   figureStale: (id: string) => FigureStaleContext | undefined;
   assetUrl: (imgFile: string) => string;
   // Ink for a figure on the ground behind an element (see EmbedResolver).

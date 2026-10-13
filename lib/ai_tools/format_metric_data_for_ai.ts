@@ -109,11 +109,12 @@ export async function getMetricDataForAI(
   // enabled must say so in the context text (see format_viz_editor_for_ai).
   const fetchConfig: GenericLongFormFetchConfig = metric
       .catalogExpressionEvaluation
-    // A catalog-evaluated metric (PLAN_1a §1.6): the wire carries the declared
-    // ingredient columns, SUMmed, and the server returns one computed `value`.
-    // Its valueProps are ["value"], which is NOT a column of the results
-    // object, so without this branch every query is rejected by the §1.7
-    // guard. Same wire/display split as the PAE branch below.
+    // A catalog-evaluated metric: the wire carries the declared ingredient
+    // columns, SUMmed, and the server returns one computed `value`. Its
+    // valueProps are ["value"], which is NOT a column of the results object,
+    // so without this branch every query is rejected by the server guard that
+    // admits only the declared ingredient props. Same wire/display split as
+    // the PAE branch below.
     ? {
       values: metric.catalogExpressionEvaluation.ingredientProps.map(
         (prop) => ({ prop, func: "SUM" as const }),

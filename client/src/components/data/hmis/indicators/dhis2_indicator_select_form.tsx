@@ -1,7 +1,6 @@
-// Add indicators from DHIS2 (PLAN_A5 ruling 7, PLAN_A3 ruling 8): search
-// data elements and DHIS2 indicators, refuse the ineligible ones in the
-// list with the reason,
-// then name what the selection becomes and save it in one transaction. An
+// Add indicators from DHIS2: search data elements and DHIS2 indicators,
+// refuse the ineligible ones in the list with the reason, then name what the
+// selection becomes and save it in one transaction. An
 // element or operand becomes a DHIS2 element indicator carrying its UID as
 // its DHIS2 id; a DHIS2 indicator is decomposed into its operands and a
 // calculated over the indicators they become. The server re-reads every

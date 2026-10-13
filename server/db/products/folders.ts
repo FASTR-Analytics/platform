@@ -3,7 +3,7 @@ import { type APIResponseWithData, type Folder } from "lib";
 import { tryCatchDatabaseAsync } from "../utils.ts";
 import { type DBFolder } from "../instance/_main_database_types.ts";
 
-// Folders nest through parent_id (D1). The acyclic invariant is enforced
+// Folders nest through parent_id. The acyclic invariant is enforced
 // here, inside the move transaction; delete reparents one level and never
 // cascades.
 

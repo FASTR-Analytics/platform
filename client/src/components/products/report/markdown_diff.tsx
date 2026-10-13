@@ -27,7 +27,7 @@ type Props = AlertComponentProps<
 // Accept/reject diff for a staged AI edit, shown as a locking modal (openComponent
 // backdrop) so the user must act on the proposal before any other work. Built on
 // @codemirror/merge MergeView (no panther diff primitive). Change tinting is the
-// merge view's own semantic styling; our chrome uses success/danger intents (§8.0).
+// merge view's own semantic styling; our chrome uses success/danger intents.
 export function ReportMarkdownDiff(p: Props) {
   let parent!: HTMLDivElement;
   let merge: MergeView | undefined;

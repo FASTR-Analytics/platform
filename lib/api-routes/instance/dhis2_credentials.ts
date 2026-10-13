@@ -8,9 +8,9 @@ const dhis2CredentialsSchema = z.object({
   password: z.string(),
 });
 
-// Instance-wide stored DHIS2 credentials, shared by every DHIS2 flow
-// (PLAN_DHIS2_CREDENTIAL_STORE_CONSOLIDATION Phase 1). Save/delete are
-// configuration actions: every consumer is a configuration flow.
+// Instance-wide stored DHIS2 credentials, shared by every DHIS2 flow.
+// Save/delete are configuration actions: every consumer is a configuration
+// flow.
 export const dhis2CredentialsRouteRegistry = {
   getInstanceDhis2CredentialsInfo: route({
     path: "/instance/dhis2-credentials",

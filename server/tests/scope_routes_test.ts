@@ -1,8 +1,7 @@
-// The scope routes end to end (PLAN_SCOPES step 6), as a global admin on the
-// dev database: the reserved "All data" scope is there, it can be neither
-// edited nor deleted, and the routes take only the per-family definition. The
-// Clerk leg simulates only clerkMiddleware's output contract, as
-// products_routes_test.ts does.
+// The scope routes end to end, as a global admin on the dev database: the
+// reserved "All data" scope is there, it can be neither edited nor deleted,
+// and the routes take only the per-family definition. The Clerk leg simulates
+// only clerkMiddleware's output contract, as products_routes_test.ts does.
 //
 // Run alone with:
 //   BYPASS_AUTH= deno test -A --env-file --unstable-broadcast-channel server/tests/scope_routes_test.ts

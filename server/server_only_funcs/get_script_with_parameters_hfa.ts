@@ -19,17 +19,17 @@ import {
   topologicalSort,
 } from "./hfa_dependency_analyzer.ts";
 
-// The run's person-years file (PLAN_1b) sits beside the datasets dir, at
+// The run's person-years file sits beside the datasets dir, at
 // inputs/population.csv — one file, written by prepare_inputs on every HMIS
 // capture. Quoted like a dataset path; shared by both generators.
 export function populationFilePathLiteral(datasetsDirPath: string): string {
   return `'${join(dirname(datasetsDirPath), "population.csv")}'`;
 }
 
-// Per-variable sentinel classification captured at import time
-// (PLAN_HFA_FEATURES.md), propagated to the project snapshot and
-// consumed here. A variable absent from the map falls back to the hardcoded
-// Sierra-Leone set, so un-reclassified snapshots keep working.
+// Per-variable sentinel classification captured at import time, propagated to
+// the project snapshot and consumed here. A variable absent from the map falls
+// back to the hardcoded Sierra-Leone set, so un-reclassified snapshots keep
+// working.
 export type HfaSentinelRow = {
   variableId: string;
   value: string;
@@ -90,7 +90,7 @@ const SAFE_IN_BINDING =
 // -999999 (numeric don't-know) is always missing; select don't-know (-99) is
 // missing unless the DONT_KNOW_TREATMENT parameter says to treat it as "No"
 // for binary indicators, in which case it stays in the data and fails the
-// indicator's positive test item-by-item (see PLAN_HFA_FEATURES.md).
+// indicator's positive test item-by-item.
 function buildSentinelBindings(
   variableIds: string[],
   includeDontKnow: boolean,
@@ -243,7 +243,7 @@ function buildPerTimePointMutateExpression(
 // Response-status companion to the value expression: classifies each
 // facility × time_point as dont_know / missing / not_applicable / answered,
 // independent of the DONT_KNOW_TREATMENT policy. Consumed by the
-// M10_hfa_response_status.csv results object (PLAN_HFA_FEATURES.md).
+// M10_hfa_response_status.csv results object.
 function buildPerTimePointStatusExpression(
   codeSnippets: HfaIndicatorCode[],
   allIndicatorIds: Set<string>,
@@ -443,9 +443,9 @@ export function getScriptWithParametersHfa(
     );
   }
 
-  // Variant breakdown (PLAN_HFA_VARIANT_DIMENSION): per-item numerator columns
-  // feeding the separate M10_hfa_results_variants.csv pipeline. Gated on the
-  // resolved definition declaring the RO so generation at older pinned refs
+  // Variant breakdown: per-item numerator columns feeding the separate
+  // M10_hfa_results_variants.csv pipeline. Gated on the resolved definition
+  // declaring the RO so generation at older pinned refs
   // stays byte-identical — the gate covers item mutates, item columns, AND
   // metadata entries atomically (a partial gate would emit composed column names
   // as fake indicators into the main table, which ingests cleanly).
@@ -583,7 +583,7 @@ export function getScriptWithParametersHfa(
         a.itemId.localeCompare(b.itemId),
     );
 
-    // D8 composed-name validations — hard errors in BOTH modes: a collision
+    // Composed-name validations — hard errors in BOTH modes: a collision
     // silently corrupts the MAIN results (duplicate metadata keys →
     // many-to-many join, or an overwritten raw question column), and a
     // reserved suffix double-routes into the response-status pivot.

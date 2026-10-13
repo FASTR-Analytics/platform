@@ -47,8 +47,7 @@ export const folderRouteRegistry = {
 
   // Child folders and products reparent one level up, never cascade; the
   // freed product ids come back because their rows changed. A folder has no
-  // owner, so any user who may change folders may delete one
-  // (PLAN_PRODUCT_OWNERSHIP R5).
+  // owner, so any user who may change folders may delete one.
   deleteFolder: route({
     path: "/folders/:folder_id",
     method: "DELETE",
@@ -57,7 +56,7 @@ export const folderRouteRegistry = {
     access: "edit",
   }),
 
-  // The bulk action (R19): raises access on every product in the folder and
+  // The bulk action: raises access on every product in the folder and
   // its subfolders, in one transaction, and never lowers it. `own` on a
   // folder route means a global admin: nobody else owns a folder. Refuses an
   // email with no users row and a list naming one email twice.

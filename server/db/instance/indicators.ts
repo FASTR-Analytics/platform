@@ -42,7 +42,7 @@ import {
 } from "lib";
 import { tryCatchDatabaseAsync } from "./../utils.ts";
 
-// The stored shape of one indicator (PLAN_A5 ruling 1, PLAN_A6 ruling 1).
+// The stored shape of one indicator.
 // `expression` is a calculated indicator's formula, `data_id` the key an
 // Uploaded or DHIS2 element indicator's rows carry (a generated opaque key
 // or the UID); each NULL for the other types (the table's CHECK).
@@ -132,7 +132,7 @@ type DefinitionFields = {
 // The columns a posted definition writes. An Uploaded indicator's key is
 // the one the row already holds, whatever type it held it under, or a
 // generated one when it holds none (a create, or a retype from Sum or
-// Calculated); a DHIS2 element's is the typed UID (PLAN_A6 ruling 1).
+// Calculated); a DHIS2 element's is the typed UID.
 function definitionFields(
   definition: HmisIndicatorDefinitionInput,
   currentDataId: string | null,
@@ -152,7 +152,7 @@ function inputDataId(definition: HmisIndicatorDefinitionInput): string | null {
   return definition.type === "dhis2_element" ? definition.data_id : null;
 }
 
-// `format_as` is display-only and the sole scale (PLAN_1c ruling 3), and so
+// `format_as` is display-only and the sole scale, and so
 // are `thresholds` and `target`. A count is always a number with no
 // conditional-formatting rule and no target (the table's three count
 // CHECKs); a calculated one chooses all three. `expected_low_counts` is a
@@ -196,7 +196,7 @@ function dataIdError(
   return undefined;
 }
 
-// Sum members are indicators that have rows (PLAN_A5 ruling 2): each member
+// Sum members are indicators that have rows: each member
 // must exist, as Uploaded or a DHIS2 element, in the dictionary the write
 // leaves behind. `types` is that dictionary's id → type.
 function membersRuleError(
@@ -284,7 +284,7 @@ export async function getInstanceIndicatorDetails(
 // GUARDS
 // =============================================================================
 
-// The authoring validator (PLAN_1a §1.2): an expression may only name
+// The authoring validator: an expression may only name
 // indicators that resolve, may not cycle or nest too deep, and must flatten
 // to no more ingredients than a results row can carry. Enforced HERE, where
 // the user is; run capture enforces the same rules again where the data
@@ -414,7 +414,7 @@ function describeWithData(rows: WithData[]): string {
   return rows.map((r) => `${r.indicator_id} (${r.count} records)`).join(", ");
 }
 
-// A sum is data, so the dependency on its members is strict (ruling 2):
+// A sum is data, so the dependency on its members is strict:
 // the sums that name any of `memberIds`, excluding `ignoreSumIds`.
 async function sumsNaming(
   sql: Sql,
@@ -655,7 +655,7 @@ export async function createIndicators(
 }
 
 // =============================================================================
-// THE NAMING STEP (PLAN_A6 ruling 7)
+// THE NAMING STEP
 // =============================================================================
 
 type NamingPlan =
@@ -806,11 +806,10 @@ export type Dhis2NamingIndicator = {
   decomposition: Dhis2IndicatorDecomposition;
 };
 
-// The DHIS2 select form's save (rulings 6 and 8): the verdicts and
-// decompositions are the server's own, computed by the route against live
-// DHIS2 metadata, never the client's. A refused element or indicator
-// refuses the whole save; an accepted indicator becomes a calculated over the
-// DHIS2 elements its operands land in.
+// The DHIS2 select form's save: the verdicts and decompositions are the
+// server's own, computed by the route against live DHIS2 metadata, never the
+// client's. A refused element or indicator refuses the whole save; an accepted
+// indicator becomes a calculated over the DHIS2 elements its operands land in.
 // Every DHIS2 element's id and data id, for the label refresh.
 export async function getDhis2ElementDataIds(
   mainDb: Sql,
@@ -909,12 +908,12 @@ export async function createIndicatorsFromDhis2(
 }
 
 // =============================================================================
-// UPDATE, RENAME (PLAN_A5 rulings 3, 4 and 5)
+// UPDATE, RENAME
 // =============================================================================
 
 // Why a rename to `update.indicator_common_id` is refused. Renaming from a
 // special id is allowed: it takes the id out of the module scripts' inputs,
-// exactly as deleting the indicator does (Tim, 2026-09-13).
+// exactly as deleting the indicator does.
 async function renameError(
   mainDb: Sql,
   update: NewIndicator,
@@ -945,7 +944,7 @@ async function renameError(
 // UID as its key. Any switch to Sum or Calculated is refused with rows or
 // while a sum names the indicator. A DHIS2 id is fixed once rows exist
 // under it; without rows it may change within the type's rule, and it must
-// not belong to another indicator (PLAN_A6 ruling 1).
+// not belong to another indicator.
 export async function updateIndicator(
   mainDb: Sql,
   oldIndicatorId: string,
@@ -1172,8 +1171,8 @@ export async function reorderHmisIndicators(
 
 // Deletes indicators. Refused with a listing when one still has data, a
 // surviving sum names it, or another indicator's expression still needs the
-// id. A special indicator is deleted like any other (ruling 14: the data
-// FKs stay, so data never outlives the indicator that holds its key).
+// id. A special indicator is deleted like any other: the data FKs stay, so
+// data never outlives the indicator that holds its key.
 // The include-in-analysis flag over many rows at once, the list's bulk
 // action. A special is analysed whatever its flag says
 // (`analysedIndicatorIds`) and the editor keeps it on, so excluding one is

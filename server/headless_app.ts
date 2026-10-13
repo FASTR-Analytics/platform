@@ -8,8 +8,7 @@ import {
 import { routesRunGeneration } from "./routes/instance/run_generation.ts";
 import { routesUsers } from "./routes/instance/users.ts";
 
-// The headless app (REVIEW_MCP_HOST_ARCHITECTURE.md §8, retired as a public
-// mount by PLAN_112 D5): headless-credential-only auth + deny-by-default route
+// The headless app: headless-credential-only auth + deny-by-default route
 // allowlist. Since the /mcp endpoint replaced the local MCP host, this app is
 // INTERNAL plumbing: the /mcp context builds per-principal server actions
 // whose fetchImpl dispatches into it via headlessAppFetch below, so every tool
@@ -46,7 +45,7 @@ headlessApp.get("/info/:file{[A-Za-z0-9_-]+\\.md}", async (c) => {
   return c.notFound();
 });
 
-// In-process dispatch entry (PLAN_112 D4): the ServerActionTransport.fetchImpl
+// In-process dispatch entry: the ServerActionTransport.fetchImpl
 // the /mcp context cache installs.
 export function headlessAppFetch(
   input: string | URL | Request,

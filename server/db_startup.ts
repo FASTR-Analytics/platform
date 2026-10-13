@@ -78,10 +78,9 @@ ${userInserts}
   }
   await runInstanceDataTransforms(sqlMain);
 
-  // Results runs (PLAN_RESULTS_RUNS §2.6): a crashed generation leaves only a
-  // .tmp- dir, never a readable run: sweep the debris at boot, and mark any
-  // 'generating' catalog rows failed (their worker died with the previous
-  // process).
+  // Results runs: a crashed generation leaves only a .tmp- dir, never a
+  // readable run: sweep the debris at boot, and mark any 'generating' catalog
+  // rows failed (their worker died with the previous process).
   await Deno.mkdir(_RUNS_DIR_PATH, { recursive: true });
   await sweepAbandonedTmpRunDirs();
   await resetDuckDbSpillDir();
@@ -169,7 +168,7 @@ SELECT id FROM runs WHERE status NOT IN ('generating', 'failed')
 }
 
 // Only the structure family (S5) still runs on upload attempts: every
-// dataset family is import runs (PLAN_DHIS2_IMPORTER_CONSOLIDATION).
+// dataset family is import runs.
 async function resetWedgedUploadAttempts(mainDb: Sql): Promise<void> {
   const message =
     "Import interrupted by a server restart. Delete this attempt and start again.";

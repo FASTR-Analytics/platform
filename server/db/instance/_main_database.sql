@@ -24,7 +24,7 @@ CREATE TABLE users (
   all_scopes boolean NOT NULL DEFAULT TRUE
 );
 
--- Results runs catalog (PLAN_RESULTS_RUNS §2.6).
+-- Results runs catalog.
 -- status: generating | ready | failed | retired. A referenced run is
 -- undeletable via the products.run_id FK (no cascade). progress is the run
 -- pipeline's worker-updated JSON (RunProgress), pushed over instance SSE.
@@ -414,7 +414,7 @@ CREATE INDEX idx_facilities_hfa_facility_ownership ON facilities_hfa(facility_ow
 -- INDICATORS
 -- ============================================================================
 
--- The dictionary (PLAN_A5 §2, PLAN_A6 §2). The data rows of dataset_hmis
+-- The dictionary. The data rows of dataset_hmis
 -- are facts keyed by `data_id`; an indicator is a name and a type over
 -- them, and nothing here moves a row. Four types: `uploaded` (an additive
 -- monthly series filled by file; its rows carry its `data_id`, an opaque
@@ -510,7 +510,7 @@ CREATE TABLE indicator_sum_members (
     ON UPDATE CASCADE
 );
 
--- The population store (PLAN_1b ruling 1): annual figures per admin area ×
+-- The population store: annual figures per admin area ×
 -- year × type, at the level the row was uploaded for. Names match the HMIS
 -- structure tables (validated at upload, never FK'd — a structure re-import
 -- must not silently delete population; a stale row is caught by the coverage
@@ -575,8 +575,8 @@ CREATE TABLE dataset_hmis (
   -- SET CONSTRAINTS delete is gone; the FK is left DEFERRABLE but its name is
   -- no longer used by code.
   CONSTRAINT dataset_hmis_facility_id_fkey FOREIGN KEY (facility_id) REFERENCES facilities_hmis(facility_id) DEFERRABLE,
-  -- Every data row is keyed by what DHIS2 or the file called its series
-  -- (PLAN_A5 §2), which some indicator holds as its data id; deleting that
+  -- Every data row is keyed by what DHIS2 or the file called its series,
+  -- which some indicator holds as its data id; deleting that
   -- indicator, or changing its data id while rows exist, is refused by the
   -- app's pre-check before this FK would. Named because instance migration
   -- 086 adds it under this name.
@@ -645,11 +645,10 @@ CREATE TABLE dataset_hmis_import_runs (
 CREATE UNIQUE INDEX idx_dataset_hmis_import_runs_single_running
   ON dataset_hmis_import_runs ((true)) WHERE status = 'running';
 
--- Stored instance DHIS2 credentials (PLAN_DHIS2_CREDENTIAL_STORE_
--- CONSOLIDATION Phase 1): single row, shared by every DHIS2 flow (structure,
--- indicators, geojson, HMIS data). Password encrypted at rest with a key
--- from the DHIS2_CREDENTIALS_ENCRYPTION_KEY env var (never in the DB);
--- decrypted server-side only at fetch time
+-- Stored instance DHIS2 credentials: single row, shared by every DHIS2 flow
+-- (structure, indicators, geojson, HMIS data). Password encrypted at rest
+-- with a key from the DHIS2_CREDENTIALS_ENCRYPTION_KEY env var (never in the
+-- DB); decrypted server-side only at fetch time
 -- (see server/db/instance/instance_dhis2_credentials.ts).
 CREATE TABLE instance_dhis2_credentials (
   singleton boolean PRIMARY KEY DEFAULT true CHECK (singleton),
@@ -660,8 +659,8 @@ CREATE TABLE instance_dhis2_credentials (
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
--- Scheduled DHIS2 imports (PLAN_DHIS2_IMPORTER Phase 4, C4): one-shot +
--- recurring rows fired by the ~60 s scheduler tick
+-- Scheduled DHIS2 imports: one-shot + recurring rows fired by the ~60 s
+-- scheduler tick
 -- (see server/worker_routines/import_hmis_data_dhis2/scheduler.ts).
 -- selection is JSON over indicator ids (a rolling window { indicatorIds,
 -- monthsBack } resolved at fire time, or an explicit range); last_fired_at is the last HANDLED occurrence — the
@@ -677,7 +676,7 @@ CREATE TABLE dataset_hmis_scheduled_imports (
   created_by text NOT NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
   -- Stamped on create/enable/edit; occurrences before it are never due
-  -- (no phantom first fire, no false 'missed' — review finding 1).
+  -- (no phantom first fire, no false 'missed').
   armed_at timestamptz NOT NULL DEFAULT now(),
   last_fired_at timestamptz,
   last_outcome text CHECK (last_outcome IN ('launched', 'refused', 'missed')),

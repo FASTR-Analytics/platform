@@ -406,8 +406,7 @@ export async function batchUploadUsers(
     const isAdminRow = (u: BatchUser) =>
       u.is_global_admin.toLowerCase() === "true";
 
-    // The admin flag makes a user unrestricted, so only an admin grants it
-    // (PLAN_SCOPES R25).
+    // The admin flag makes a user unrestricted, so only an admin grants it.
     if (!caller.isGlobalAdmin && batchUsers.some(isAdminRow)) {
       return { success: false, err: ADMIN_FLAG_NEEDS_ADMIN };
     }

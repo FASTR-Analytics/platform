@@ -23,7 +23,7 @@ function presentIds(rows: IdRow[] | null | undefined): string[] {
   return (rows ?? []).flatMap((row) => (row.id == null ? [] : [row.id]));
 }
 
-// One country-scale pull per base data element (PLAN_DHIS2_IMPORTER §2.4):
+// One country-scale pull per base data element:
 // ~1-2 s server think time + transfer, where the same data via the analytics
 // engine costs minutes-to-hours. children=true descends from the given org
 // units to facility level. A month with no data legitimately returns a body
@@ -62,7 +62,7 @@ export async function getDataValueSetsFromDHIS2(
 
 // Which of `ids` exist on a DHIS2 metadata endpoint (fields=id, chunked id:in
 // filters). Drives the fetch dispatcher's per-run classification: metadata is
-// the source of truth, no stored type field to drift (PLAN_DHIS2_IMPORTER §4.4).
+// the source of truth, no stored type field to drift.
 export async function getExistingMetadataIds(
   endpoint: "dataElements" | "indicators" | "categoryOptionCombos",
   ids: string[],

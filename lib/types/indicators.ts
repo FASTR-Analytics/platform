@@ -19,7 +19,7 @@ export type InstanceIndicatorDetails = {
   indicators: HmisIndicator[];
 };
 
-// The dictionary download (PLAN_A6 ruling 8): one CSV for the whole list,
+// The dictionary download: one CSV for the whole list,
 // `type` in the four code names, `dhis2_id` and `dhis2_label` for a DHIS2
 // element and blank for every other type (an Uploaded indicator's key is
 // opaque and means nothing to a reader), `members` semicolon-separated for a sum,
@@ -78,9 +78,9 @@ export const RESERVED_WORDS: readonly string[] = [
 
 // Applies to NEWLY created ids only (never to existing stored ids). Commas,
 // semicolons, and colons corrupt the dictionary download's member list.
-// Square brackets break the expression grammar's [quoted
-// identifier] form, which has no escape (PLAN_1a §1.3). Instance migration
-// 079 guards stored ids the same way. Dots stay legal.
+// Square brackets break the expression grammar's [quoted identifier] form,
+// which has no escape. Instance migration 079 guards stored ids the same way.
+// Dots stay legal.
 function getIdCharsetIssue(id: string): NewIndicatorIdIssue | undefined {
   if (id.length === 0) {
     return "empty";
@@ -152,9 +152,9 @@ export function describeNewIndicatorIdIssue(
 // HMIS indicator definitions
 // ============================================================================
 
-// What an indicator IS (PLAN_A5 §2, PLAN_A6 §2). The data rows of
-// dataset_hmis are facts keyed by `data_id`; the dictionary is a layer of
-// names and types over them, and nothing in it moves a row. Generation
+// What an indicator IS. The data rows of dataset_hmis are facts keyed by
+// `data_id`; the dictionary is a layer of names and types over them, and
+// nothing in it moves a row. Generation
 // decides what the numbers are made of; the query only aggregates and
 // applies the formula.
 //
@@ -197,7 +197,7 @@ export type HmisIndicatorDefinition =
 
 // What a client posts as a definition: the stored shape, except that an
 // Uploaded indicator carries no data id (its key is generated at creation
-// and kept on update; no path accepts one from a client, PLAN_A6 ruling 1)
+// and kept on update; no path accepts one from a client)
 // and a DHIS2 element carries no DHIS2 label (the server reads it from
 // DHIS2 when the picker creates the indicator, keeps it while the data id
 // stands, and clears it otherwise).
@@ -240,9 +240,9 @@ export function definitionDataId(
 }
 
 // The `type` a package's frozen catalog row may carry: the four code names,
-// plus `base` for counts in packages generated before PLAN_A5, which no
-// transform resolves because the real type lives only in the live
-// dictionary. No read path consumes it.
+// plus `base` for counts in packages generated before Uploaded and DHIS2
+// element were separate types, which no transform resolves because the real
+// type lives only in the live dictionary. No read path consumes it.
 export type PackageIndicatorType = HmisIndicatorType | "base";
 
 export const PACKAGE_INDICATOR_TYPES: readonly PackageIndicatorType[] = [
@@ -262,11 +262,10 @@ export const PACKAGE_INDICATOR_TYPES: readonly PackageIndicatorType[] = [
 // means none. `expected_low_counts` marks a count whose facility-month
 // values are expected to be small, for the adjustment modules; always false
 // on a calculated indicator, which is never adjusted.
-// `include_in_analysis` on means the extract carries the indicator and m001
-// and m002 adjust it (the analysed set, PLAN_A4 ruling 3, stated once in
-// lib/hmis_indicator_catalog.ts); off means dictionary only: its data is
-// still imported and stored, and it is still usable as a member or in an
-// expression.
+// `include_in_analysis` on means the extract carries the indicator and m001 and
+// m002 adjust it (the analysed set, stated once in
+// lib/hmis_indicator_catalog.ts); off means dictionary only: its data is still
+// imported and stored, and it is still usable as a member or in an expression.
 export type HmisIndicator = {
   indicator_common_id: string;
   indicator_common_label: string;
@@ -363,7 +362,7 @@ export interface DHIS2Indicator {
 }
 
 // ============================================================================
-// Element eligibility and indicator decomposition (PLAN_A3 rulings 6 and 8)
+// Element eligibility and indicator decomposition
 // ============================================================================
 
 // Why a DHIS2 data element cannot fill a DHIS2 element indicator: it must be
@@ -551,13 +550,12 @@ export function describeDhis2ParseRefusal(
 }
 
 // ============================================================================
-// The naming step (PLAN_A6 ruling 7)
+// The naming step
 // ============================================================================
 
-// A DHIS2 element or operand the naming step imports (PLAN_A6 ruling 7): it
-// becomes a new DHIS2 element under `indicator_id` carrying `data_id`. An
-// existing id is refused. A data id some indicator already holds creates
-// nothing.
+// A DHIS2 element or operand the naming step imports: it becomes a new DHIS2
+// element under `indicator_id` carrying `data_id`. An existing id is refused. A
+// data id some indicator already holds creates nothing.
 export type IndicatorNamingElement = {
   data_id: string;
   indicator_id: string;
@@ -606,13 +604,12 @@ export type IndicatorMetadata = {
   // The HFA/ICEH category carrier; an HMIS indicator never sets it.
   group_label?: string;
   sort_order?: number;
-  // Expression evaluation, stamped for HMIS dictionaries only
-  // (PLAN_1a §1.5). `expression` is the FLATTENED formula: every identifier
-  // in it is a count indicator id or a population type id, and
-  // `slot_map` says which ingredient column of an indicator_values row
-  // carries that ingredient's sum. A count's expression is its own single
-  // slot. Absent on every other family's catalog entries, and on a count the
-  // extract has no rows for.
+  // Expression evaluation, stamped for HMIS dictionaries only. `expression` is
+  // the FLATTENED formula: every identifier in it is a count indicator id or a
+  // population type id, and `slot_map` says which ingredient column of an
+  // indicator_values row carries that ingredient's sum. A count's expression is
+  // its own single slot. Absent on every other family's catalog entries, and on
+  // a count the extract has no rows for.
   type?: PackageIndicatorType;
   expression?: string;
   slot_map?: Record<string, string>;

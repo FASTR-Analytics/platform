@@ -1,6 +1,5 @@
-// Pins the one level derivation (PLAN_PRODUCT_OWNERSHIP R8): a global admin
-// and the owner hold own, everyone else the higher of their grant and the
-// general access.
+// Pins the one level derivation: a global admin and the owner hold own,
+// everyone else the higher of their grant and the general access.
 //
 //   deno test -A server/tests/product_level_test.ts
 

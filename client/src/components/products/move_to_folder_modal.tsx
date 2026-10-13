@@ -11,7 +11,7 @@ import { folderPathOptions, GENERAL_ID, generalLabel } from "./_shared/mod.ts";
 
 type Props = {
   // What is being moved: a batch of products, or one folder (folders are never
-  // part of a batch, D16).
+  // part of a batch).
   target:
     | { kind: "products"; productIds: string[]; currentFolderId: string | null }
     | { kind: "folder"; folder: Folder };
@@ -20,8 +20,7 @@ type Props = {
 
 type ReturnType = { lastUpdated: string } | undefined;
 
-// The full picker: flat full paths sorted by path, General (the root) first
-// (D16).
+// The full picker: flat full paths sorted by path, General (the root) first.
 // A moved folder's own subtree is excluded outright, because a Select option
 // carries no disabled state; the server's typed FOLDER_CYCLE still comes back
 // through the envelope and is the authority.

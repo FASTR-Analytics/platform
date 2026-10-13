@@ -11,13 +11,11 @@ import {
 import { _RUNS_DIR_PATH } from "../../exposed_env_vars.ts";
 import { readXlsxFileAsSheets } from "../../server_only_funcs_csvs/read_xlsx_raw.ts";
 
-// The ICEH ingest internals (PLAN_DHIS2_IMPORTER_CONSOLIDATION Phase C),
-// relocated from the old fire-and-forget stageAndIntegrateIcehData: zip
-// extract, CSV/xlsx parse, per-row validation, and the single cumulative
-// upsert transaction. Semantics unchanged except that the silent insert-time
-// skips (invalid year, indicator code absent from indicators.xlsx) are now
-// counted stage-side diagnostics that feed the review gate, and the
-// completion flip lives inside the merge transaction.
+// The ICEH ingest internals: zip extract, CSV/xlsx parse, per-row validation,
+// and the single cumulative upsert transaction. Insert-time skips (invalid
+// year, indicator code absent from indicators.xlsx) are counted stage-side
+// diagnostics that feed the review gate, and the completion flip lives inside
+// the merge transaction.
 
 const MAX_SKIP_SAMPLES = 5;
 

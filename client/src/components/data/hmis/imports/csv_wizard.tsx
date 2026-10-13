@@ -49,7 +49,7 @@ const _HMIS_SQL_COL_NAMES: (keyof HmisCsvColumns)[] = [
 
 // What the Columns step calls each of the file's four columns. The
 // indicator column holds what the file calls each series; the Mapping step
-// points each distinct value at an indicator (PLAN_A6 §2).
+// points each distinct value at an indicator.
 const COLUMN_LABELS: Record<keyof HmisCsvColumns, () => string> = {
   facility_id: () =>
     t3({
@@ -84,14 +84,12 @@ type MappingInputs = {
   indicators: HmisIndicator[];
 };
 
-// The CSV import wizard (PLAN_DHIS2_IMPORTER_CONSOLIDATION A7, PLAN_A6 §2):
-// a modal with client-local state: the file input is an ordinary instance
-// asset (uploaded or picked), so nothing persists server-side before
-// launch. The Mapping step scans the file for every distinct value in the
-// indicator column and the user points each at an existing indicator or
-// skips it; the mapping rides the launch payload with the pin the scan
-// read. Launch inserts a run row; abandoning this wizard is a no-op by
-// construction.
+// The CSV import wizard: a modal with client-local state: the file input is an
+// ordinary instance asset (uploaded or picked), so nothing persists server-side
+// before launch. The Mapping step scans the file for every distinct value in
+// the indicator column and the user points each at an existing indicator or
+// skips it; the mapping rides the launch payload with the pin the scan read.
+// Launch inserts a run row; abandoning this wizard is a no-op by construction.
 export function CsvWizard(
   p: AlertComponentProps<CsvWizardProps, CsvWizardResult>,
 ) {
@@ -206,8 +204,8 @@ export function CsvWizard(
   const unresolvedCount = () =>
     choices().filter((c) => c.choice.kind === "unresolved").length;
 
-  // Two values may not map onto the same indicator in one import (ruling
-  // 3): the indicators chosen more than once.
+  // Two values may not map onto the same indicator in one import: the
+  // indicators chosen more than once.
   const chosenTwice = createMemo(() => {
     const uses = new Map<string, number>();
     for (const c of choices()) {

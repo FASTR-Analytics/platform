@@ -116,58 +116,58 @@ URL is self-reported).
 - Endpoint: `GET /collab`, upgraded in
   [server/routes/instance/collab.ts](server/routes/instance/collab.ts), mounted
   raw in `main.ts` behind the global `authMiddleware` (off-registry, S1's
-  inventory). Admission is origin plus Clerk plus `globalUser.approved`
-  (PLAN_PRODUCTS_RESTRUCTURE D2, D8), resolved **before** the upgrade so no
-  message can precede the check. Every document message names its product
-  (`productId`; a report's equals its `reportId`), rooms are keyed
-  `productId::docType::docId`, and presence is keyed by product, so a
-  per-subscribe permission check has its subject without a lookup. The
-  connection carries its user's `scopeAccess` and admin flag, fixed at connect.
-  Its level on a product (S12 "Contract": `none`, `view`, `edit`, `own`) is read
-  once, on the first `slide_subscribe`, `report_subscribe` or product-naming
-  `presence_update` that names the product (`readProductLevel`: `own` for a
-  global admin with no query, otherwise one `getProductLevelRows` read, `none`
-  unless the user holds the product's scope and `productLevelFor` reaches
-  `view`), and a level of `view` or above is recorded in the presence registry
-  for the socket's life (`markProductOpened`, read back with
-  `openedProductLevel`). A connection that cannot see the product records
-  nothing and is asked again on its next subscribe. Subscribe and presence need
-  `view`: a refused subscribe answers a fatal `slide_error` / `report_error`, a
-  refused presence is dropped, and a presence whose read finishes after a later
-  presence update is dropped as stale. A document update passes the route only
-  for a product the connection opened, because rooms do not check membership on
-  an update, and the room's `RoomConn.canEdit(productId)`, answered from the
-  record, refuses it below `edit` with the non-fatal
-  `COLLAB_NO_EDIT_PERMISSION`. An awareness update (cursors, selections, cursor
-  chat) passes only at `edit`, so a viewer appears in the product's presence but
-  shows no cursor. Each route that changes a recorded answer closes the sockets
-  whose answer changed, with `COLLAB_CLOSE_ACCESS_CHANGED` (4001, retryable):
-  `setProductAccess`, `setProductOwner` and `setFolderProductsAccess` close, for
-  each product they changed, every connection that opened it and whose standing
-  under the new access differs (`closeConnectionsWhoseLevelChanged`; the
-  standing is refused, viewer or editor, so a transfer that moves the previous
-  owner from `own` to `edit` closes nothing); `setProductScope` closes every
-  connection that opened the product, or whose presence names it, and does not
-  hold its new scope (`closeConnectionsLosingProduct`); and
-  `setUserScopeAccess`, `toggleUserAdmin` and `batchUploadUsers` close every
-  connection whose scope access or admin flag no longer equals its user's roster
-  row (`closeConnectionsWithChangedAccess`), since an admin flag change changes
-  every level. The client reconnects and re-subscribes, and is refused then what
-  it can no longer see (R29). No route closes a deleted user's sockets:
-  `deleteUser` closes none, and `closeConnectionsWithChangedAccess` skips a
-  connection whose user has no roster row, so a socket of a user removed by
-  `deleteUser` or a replace-all `batchUploadUsers` keeps the levels it recorded
-  until it closes. `PresenceEntry` carries identity plus opaque document ids,
-  never labels or content. Authorization refusals are delivered as a
-  **post-upgrade close** with `COLLAB_CLOSE_UNAUTHORIZED` (4403) rather than an
-  HTTP status, because a browser cannot read a refused handshake (it surfaces as
-  an unreadable 1006, indistinguishable from a network drop); only the Origin
-  check (403, never upgrade for a foreign origin) and the retryable 503 stay
-  pre-upgrade. The Origin allowlist mirrors `server/middleware/cors.ts` (WS
-  handshakes bypass CORS); same-origin requests are additionally allowed, and
-  requests with **no** Origin header pass (non-browser clients). Frames over ~32
-  MiB (measured in string length) are rejected unparsed (`error` reply); every
-  parsed frame is schema-validated (`collabClientMessageSchema` in
+  inventory). Admission is origin plus Clerk plus `globalUser.approved`,
+  resolved **before** the upgrade so no message can precede the check. Every
+  document message names its product (`productId`; a report's equals its
+  `reportId`), rooms are keyed `productId::docType::docId`, and presence is
+  keyed by product, so a per-subscribe permission check has its subject without
+  a lookup. The connection carries its user's `scopeAccess` and admin flag,
+  fixed at connect. Its level on a product (S12 "Contract": `none`, `view`,
+  `edit`, `own`) is read once, on the first `slide_subscribe`,
+  `report_subscribe` or product-naming `presence_update` that names the product
+  (`readProductLevel`: `own` for a global admin with no query, otherwise one
+  `getProductLevelRows` read, `none` unless the user holds the product's scope
+  and `productLevelFor` reaches `view`), and a level of `view` or above is
+  recorded in the presence registry for the socket's life (`markProductOpened`,
+  read back with `openedProductLevel`). A connection that cannot see the product
+  records nothing and is asked again on its next subscribe. Subscribe and
+  presence need `view`: a refused subscribe answers a fatal `slide_error` /
+  `report_error`, a refused presence is dropped, and a presence whose read
+  finishes after a later presence update is dropped as stale. A document update
+  passes the route only for a product the connection opened, because rooms do
+  not check membership on an update, and the room's
+  `RoomConn.canEdit(productId)`, answered from the record, refuses it below
+  `edit` with the non-fatal `COLLAB_NO_EDIT_PERMISSION`. An awareness update
+  (cursors, selections, cursor chat) passes only at `edit`, so a viewer appears
+  in the product's presence but shows no cursor. Each route that changes a
+  recorded answer closes the sockets whose answer changed, with
+  `COLLAB_CLOSE_ACCESS_CHANGED` (4001, retryable): `setProductAccess`,
+  `setProductOwner` and `setFolderProductsAccess` close, for each product they
+  changed, every connection that opened it and whose standing under the new
+  access differs (`closeConnectionsWhoseLevelChanged`; the standing is refused,
+  viewer or editor, so a transfer that moves the previous owner from `own` to
+  `edit` closes nothing); `setProductScope` closes every connection that opened
+  the product, or whose presence names it, and does not hold its new scope
+  (`closeConnectionsLosingProduct`); and `setUserScopeAccess`, `toggleUserAdmin`
+  and `batchUploadUsers` close every connection whose scope access or admin flag
+  no longer equals its user's roster row (`closeConnectionsWithChangedAccess`),
+  since an admin flag change changes every level. The client reconnects and
+  re-subscribes, and is refused then what it can no longer see. No route closes
+  a deleted user's sockets: `deleteUser` closes none, and
+  `closeConnectionsWithChangedAccess` skips a connection whose user has no
+  roster row, so a socket of a user removed by `deleteUser` or a replace-all
+  `batchUploadUsers` keeps the levels it recorded until it closes.
+  `PresenceEntry` carries identity plus opaque document ids, never labels or
+  content. Authorization refusals are delivered as a **post-upgrade close** with
+  `COLLAB_CLOSE_UNAUTHORIZED` (4403) rather than an HTTP status, because a
+  browser cannot read a refused handshake (it surfaces as an unreadable 1006,
+  indistinguishable from a network drop); only the Origin check (403, never
+  upgrade for a foreign origin) and the retryable 503 stay pre-upgrade. The
+  Origin allowlist mirrors `server/middleware/cors.ts` (WS handshakes bypass
+  CORS); same-origin requests are additionally allowed, and requests with **no**
+  Origin header pass (non-browser clients). Frames over ~32 MiB (measured in
+  string length) are rejected unparsed (`error` reply); every parsed frame is
+  schema-validated (`collabClientMessageSchema` in
   [lib/types/collab.ts](lib/types/collab.ts): bounded presence/awareness payload
   sizes, `avatarUrl` restricted to bounded https URLs) before any handler
   touches it.
@@ -229,7 +229,7 @@ URL is self-reported).
   the mount check, busting the IndexedDB caches off the same trigger.
 - Ops requirement: reverse proxies must forward WebSocket upgrade headers on
   `/collab`; the server-cli site template becomes path-agnostic before the
-  rollout (PLAN_PRODUCTS_RESTRUCTURE D8).
+  rollout.
 
 ## Presence: who is where
 
@@ -1280,9 +1280,7 @@ Entry points: the History button in the report and deck headers.
   `dropStorageInvalidTransients*` are S16 changes in everything but the lint.
 
 - **[URGENT] Report registry edits are outside undo entirely, and collab is
-  why.** Absorbed from the deleted PLAN_REPORT_UNDO_REDO.md, whose design
-  assumed CodeMirror history owns undo; it does not. Recorded here rather than
-  re-planned because the fix belongs to this system.
+  why.**
 
   **The state.** A report's body text is undoable; its figure and image
   registries are not. `setFigures`/`setImages` +

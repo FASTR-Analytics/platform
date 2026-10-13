@@ -1,6 +1,7 @@
-// Pins PLAN_A3 ruling 6 as a pure function: a DHIS2 data element fills a base
-// only when its aggregation type is SUM, its value type is a count and it is
-// collected in a monthly data set. An operand is checked through its element.
+// Pins DHIS2 element eligibility as a pure function: a DHIS2 data element
+// fills a base only when its aggregation type is SUM, its value type is a
+// count and it is collected in a monthly data set. An operand is checked
+// through its element.
 //
 //   deno test -A --env-file server/tests/dhis2_element_eligibility_test.ts
 

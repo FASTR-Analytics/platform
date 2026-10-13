@@ -81,9 +81,9 @@ if (_INSTANCE_FISCAL_YEAR !== "none" && _INSTANCE_CALENDAR !== "gregorian") {
   );
 }
 
-// Country the instance reports on. Every instance HAS a country (Tim's ruling
-// 2026-08-06): country-less is not a legitimate state, so this is required and
-// boot fail-stops without it. An ISO3 code, plus SOMALILAND: the one territory
+// Country the instance reports on. Every instance HAS a country:
+// country-less is not a legitimate state, so this is required and boot
+// fail-stops without it. An ISO3 code, plus SOMALILAND: the one territory
 // FASTR reports on that has no ISO3 code. The value is interpolated into
 // generated R scripts as `${countryIso3}`.
 export const _INSTANCE_COUNTRY_ISO3 = Deno.env
@@ -246,10 +246,10 @@ if (
   );
 }
 
-// Encrypts the stored DHIS2 password at rest (PLAN_DHIS2_IMPORTER Phase 4,
-// C3). Unset = credentials cannot be stored, so nothing can fire unattended;
-// saving/decrypting fails loudly with a clear message. Changing the key
-// orphans the stored password (re-save credentials once).
+// Encrypts the stored DHIS2 password at rest. Unset = credentials cannot be
+// stored, so nothing can fire unattended; saving/decrypting fails loudly with
+// a clear message. Changing the key orphans the stored password (re-save
+// credentials once).
 export const _DHIS2_CREDENTIALS_ENCRYPTION_KEY: string =
   Deno.env.get("DHIS2_CREDENTIALS_ENCRYPTION_KEY") ?? "";
 

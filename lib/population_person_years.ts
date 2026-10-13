@@ -1,5 +1,5 @@
 // =============================================================================
-// Person-years: annual population stock → monthly flow (PLAN_1b rulings 3, 4)
+// Person-years: annual population stock → monthly flow
 // =============================================================================
 //
 // PURE. A population figure for a year is a STOCK, anchored at that year's

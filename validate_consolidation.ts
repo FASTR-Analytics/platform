@@ -3,8 +3,8 @@
 // PRE-DEPLOY FLEET DRY-RUN: project to product consolidation
 // =============================================================================
 //
-// The gate for the products restructure (PLAN_PRODUCTS_RESTRUCTURE D13). Run
-// it against the whole fleet before the rollout deploy; zero FAIL is the gate.
+// The gate for the products restructure. Run it against the whole fleet
+// before the rollout deploy; zero FAIL is the gate.
 //
 // It shares its planning code with the migration: `planConsolidation()` in
 // server/db/migrations/consolidation/plan.ts is exactly what 201 executes, and
@@ -17,11 +17,11 @@
 // Two verdict classes, kept apart on purpose:
 //   FAIL    the migration would abort here. Blocks the deploy. Exit 1.
 //   REVIEW  a count Tim must read and accept before deploying: the
-//           visualizations and dashboards that get deleted (D3), the users who
-//           become full editors (D2), the central-reporting projects that
-//           become ordinary visible folders and the pending_deletion projects
-//           that are not migrated (D11). None of these stop the migration; all
-//           of them are irreversible once it runs.
+//           visualizations and dashboards that get deleted, the users who
+//           become full editors, the central-reporting projects that become
+//           ordinary visible folders and the pending_deletion projects that
+//           are not migrated. None of these stop the migration; all of them
+//           are irreversible once it runs.
 //
 // Usage:
 //   ./validate_consolidation.ts                       every running instance
@@ -33,8 +33,9 @@
 //                                                     per-instance counts
 //
 // The `--json` file (default rollout_logs/consolidation_plan.json) is what the
-// step 10 post-check compares each migrated instance against, so the numbers
-// the deploy is verified against are the numbers this gate approved.
+// ./rollout_products post-check compares each migrated instance against, so
+// the numbers the deploy is verified against are the numbers this gate
+// approved.
 //
 // Fleet mode resolves each instance's Postgres port and password from the
 // container over ssh and opens its own short-lived tunnel per instance
@@ -280,7 +281,7 @@ export async function dryRunInstance(
 
   const mainDb = connect(instance, "main");
   try {
-    // The pin (D5): the run_id for a project that has none.
+    // The pin: the run_id for a project that has none.
     report.pinnedRunId = await readPinnedRunId(mainDb);
     if (report.pinnedRunId !== null) {
       const pinned = await mainDb<{ label: string }[]>`
@@ -289,10 +290,10 @@ export async function dryRunInstance(
       report.pinnedRunLabel = pinned[0]?.label ?? null;
     }
 
-    // Projects by status and the two D11 lists. Ordered by id, as 201 orders
-    // them, so the ids that collide, and how many, are the migration's own.
-    // The replacements are minted at random when 201 runs, so they are not
-    // reported.
+    // Projects by status, and the pending_deletion and central-reporting
+    // lists. Ordered by id, as 201 orders them, so the ids that collide, and
+    // how many, are the migration's own. The replacements are minted at
+    // random when 201 runs, so they are not reported.
     const projects = await readProjects(mainDb);
     for (const project of projects) {
       report.statusCounts.set(
@@ -307,7 +308,7 @@ export async function dryRunInstance(
       }
     }
 
-    // Users: the D2 blast radius.
+    // Users: the blast radius of every approved user becoming a full editor.
     const userRows = await mainDb<{ count: number }[]>`
       SELECT COUNT(*)::int AS count FROM users
     `;
@@ -359,7 +360,7 @@ export async function dryRunInstance(
       const runId = project.run_id ?? report.pinnedRunId;
       if (runId === null) {
         report.fails.push(
-          `project ${project.id} ("${project.label}") has no run_id and this instance has no pinned package; pin one first (D5)`,
+          `project ${project.id} ("${project.label}") has no run_id and this instance has no pinned package; pin one first`,
         );
         continue;
       }
@@ -433,22 +434,22 @@ async function countExtraDropped(projectDb: Sql): Promise<ExtraDroppedCounts> {
 function addReviews(report: InstanceReport): void {
   if (report.viewerOnlyUsers.length > 0) {
     report.reviews.push(
-      `${report.viewerOnlyUsers.length} viewer-only user(s) become full editors of every product (D2)`,
+      `${report.viewerOnlyUsers.length} viewer-only user(s) become full editors of every product`,
     );
   }
   if (report.usersWithNoProjectRole > 0) {
     report.reviews.push(
-      `${report.usersWithNoProjectRole} user(s) with no project role become full editors of every product (D2)`,
+      `${report.usersWithNoProjectRole} user(s) with no project role become full editors of every product`,
     );
   }
   if (report.pendingDeletion.length > 0) {
     report.reviews.push(
-      `${report.pendingDeletion.length} pending_deletion project(s) are NOT migrated; restore any that must survive (D11)`,
+      `${report.pendingDeletion.length} pending_deletion project(s) are NOT migrated; restore any that must survive`,
     );
   }
   if (report.centralReporting.length > 0) {
     report.reviews.push(
-      `${report.centralReporting.length} central-reporting project(s) become ordinary folders visible to every approved user (D11)`,
+      `${report.centralReporting.length} central-reporting project(s) become ordinary folders visible to every approved user`,
     );
   }
   if (report.dbAbsent.length > 0) {
@@ -459,12 +460,12 @@ function addReviews(report: InstanceReport): void {
   const dropped = sumDropped(report);
   if (dropped.presentationObjects > 0) {
     report.reviews.push(
-      `${dropped.presentationObjects} visualization(s) are DELETED, ${report.extraDropped.userAuthoredVisualizations} of them user-authored (D3)`,
+      `${dropped.presentationObjects} visualization(s) are DELETED, ${report.extraDropped.userAuthoredVisualizations} of them user-authored`,
     );
   }
   if (dropped.dashboards > 0) {
     report.reviews.push(
-      `${dropped.dashboards} dashboard(s) are DELETED, ${report.extraDropped.publicDashboards} of them public (D3)`,
+      `${dropped.dashboards} dashboard(s) are DELETED, ${report.extraDropped.publicDashboards} of them public`,
     );
   }
   const orphans = report.plans.reduce(
@@ -544,11 +545,11 @@ function printInstanceReport(report: InstanceReport): void {
   );
 
   if (report.pendingDeletion.length > 0) {
-    console.log("  pending_deletion (NOT migrated, D11):");
+    console.log("  pending_deletion (NOT migrated):");
     for (const ref of report.pendingDeletion) console.log(projectLine(ref));
   }
   if (report.centralReporting.length > 0) {
-    console.log("  central reporting (become visible folders, D11):");
+    console.log("  central reporting (become visible folders):");
     for (const ref of report.centralReporting) console.log(projectLine(ref));
   }
   if (report.dbAbsent.length > 0) {
@@ -563,7 +564,7 @@ function printInstanceReport(report: InstanceReport): void {
   }
   if (report.runIdNull.length > 0) {
     console.log(
-      `  run_id NULL (attached to the pin, D5): ${report.runIdNull.length}`,
+      `  run_id NULL (attached to the pin): ${report.runIdNull.length}`,
     );
     for (const ref of report.runIdNull) console.log(projectLine(ref));
   }
@@ -605,7 +606,7 @@ function printInstanceReport(report: InstanceReport): void {
     `  users:           ${report.totalUsers} total, ` +
       `${report.viewerOnlyUsers.length} viewer-only, ` +
       `${report.usersWithNoProjectRole} with no project role; ` +
-      "all become full editors (D2)",
+      "all become full editors",
   );
 
   for (const review of report.reviews) {
@@ -733,7 +734,7 @@ function printFleetSummary(reports: InstanceReport[]): boolean {
   return true;
 }
 
-// ── The plan file the step 10 post-check compares against ────────────────────
+// ── The plan file the rollout post-check compares against ────────────────────
 
 // Defaults into rollout_logs/, which is gitignored, so no untracked file
 // appears at the repo root.

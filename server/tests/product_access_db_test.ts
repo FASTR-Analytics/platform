@@ -1,7 +1,6 @@
-// The product access DB layer (PLAN_PRODUCT_OWNERSHIP step 1) against the
-// dev database: who owns a new product, the two access writes and their
-// refusals, the bulk raise, and what deleting, re-inserting and renaming a
-// user do to ownership and grants.
+// The product access DB layer against the dev database: who owns a new
+// product, the two access writes and their refusals, the bulk raise, and what
+// deleting, re-inserting and renaming a user do to ownership and grants.
 //
 // Needs a ready pinned package on the dev instance. Run alone with:
 //   BYPASS_AUTH= deno test -A --env-file server/tests/product_access_db_test.ts
@@ -173,7 +172,7 @@ Deno.test("product access DB layer: inserts, access writes, bulk raise, user pat
     }
 
     // setProductAccess replaces the general access and every grant, returns
-    // what it stored, and leaves the content stamp alone (R15).
+    // what it stored, and leaves the content stamp alone.
     const stampBefore = await lastUpdatedOf(report);
     const replaced = data(
       await setProductAccess(mainDb, report, {

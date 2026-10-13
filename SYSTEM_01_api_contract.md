@@ -410,8 +410,8 @@ LoggedInWrapper registers the browser transport (Clerk cookie, session refresh,
 reload on persistent 401) at module scope; the generated actions are identical
 wherever they run.
 
-**Transport registration doctrine** (PLAN_112 D4). The prohibition that matters
-stands verbatim: **no server code ever calls `setServerActionTransport`.** A
+**Transport registration doctrine**. The prohibition that matters stands
+verbatim: **no server code ever calls `setServerActionTransport`.** A
 process-global registration would make the app server issue authenticated calls
 under whichever identity was registered last, a confused-deputy shape with no
 per-request isolation. The sanctioned shape is the opposite: an **explicit
@@ -485,11 +485,11 @@ actor.
 `globalUser.approved` (else 403 "awaiting approval"); sets `c.var.globalUser`
 and `c.var.mainDb`. It guards the run-keyed figure-data reads, the authoring
 context, the ready-package list, the product email send, and the copilot proxy
-and its Files route on `/ai` (PLAN_PRODUCTS_RESTRUCTURE D2, D15). The instance
-collab socket (`routes/instance/collab.ts`) applies the same
-signed-in-and-approved test inline before the upgrade rather than through this
-middleware, because its denials must travel as a post-upgrade close. Unlike the
-zero-permission `requireGlobalPermission()`, it checks `approved`.
+and its Files route on `/ai`. The instance collab socket
+(`routes/instance/collab.ts`) applies the same signed-in-and-approved test
+inline before the upgrade rather than through this middleware, because its
+denials must travel as a post-upgrade close. Unlike the zero-permission
+`requireGlobalPermission()`, it checks `approved`.
 
 **`requireProductAccess(level)`**: the guard for every product and folder route,
 and the one guard a handler in `server/routes/products/` never names. Each entry

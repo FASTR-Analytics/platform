@@ -4,11 +4,11 @@ import { tryCatchDatabaseAsync } from "../utils.ts";
 import { touchProduct } from "./_product_row.ts";
 import { mintSlideIds, reSequence } from "./slides.ts";
 
-// The cross-deck reuse path: there is no figure library (D3), so copying
+// The cross-deck reuse path: there is no figure library, so copying
 // slides between decks is how a figure gets reused. Slide configs, and so
 // their FigureBundles, are copied VERBATIM: a copied figure keeps the
 // (run id, definition hash) stamp it was resolved under and shows stale under the
-// target whenever the two products' pairs differ (D4). Copies land at the end
+// target whenever the two products' pairs differ. Copies land at the end
 // of the target deck, in the order requested. The source ids are scoped by
 // the source product, so a slide id from a third deck is not found.
 export async function copySlidesToSlideDeck(

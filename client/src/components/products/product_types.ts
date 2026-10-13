@@ -4,10 +4,9 @@ import type { JSX } from "solid-js";
 import { ReportEditor } from "./report/mod.ts";
 import { SlideDeckEditor } from "./slide_deck/mod.ts";
 
-// The one place the client knows what a product type IS
-// (PLAN_PRODUCTS_RESTRUCTURE §3.6). Every per-type dispatch reads this object,
-// never a switch with a default, so adding a type is a compile error here
-// until the entry is filled in.
+// The one place the client knows what a product type IS. Every per-type
+// dispatch reads this object, never a switch with a default, so adding a type
+// is a compile error here until the entry is filled in.
 export type ProductEditorComponent = (
   p: EditorComponentProps<{ productId: string }, undefined>,
 ) => JSX.Element;

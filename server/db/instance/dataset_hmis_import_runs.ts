@@ -176,12 +176,11 @@ export async function assertNoRunningDatasetHmisImportRun(
 }
 
 // Validates a selection + instance state shared by launch, enqueue and the
-// scheduler's fire path, and expands a window's indicators to the data ids
-// the run fetches (PLAN_A4 ruling 5, PLAN_A5 ruling 9). The returned
-// selection is what gets stored on the run row and carried in the worker
-// message, so nothing downstream re-resolves: an element assigned after
-// enqueue is not in that run. A pairs selection names (data id, month)
-// pairs; each data id must belong to a DHIS2 element, and nothing is
+// scheduler's fire path, and expands a window's indicators to the data ids the
+// run fetches. The returned selection is what gets stored on the run row and
+// carried in the worker message, so nothing downstream re-resolves: an element
+// assigned after enqueue is not in that run. A pairs selection names (data id,
+// month) pairs; each data id must belong to a DHIS2 element, and nothing is
 // resolved.
 async function validateRunSelection(
   mainDb: Sql,
@@ -379,14 +378,14 @@ export async function launchDatasetHmisDhis2ImportRun(
     `;
     const runId = inserted[0].id;
 
-    // The stored credentials are decrypted inside the worker (C3).
+    // The stored credentials are decrypted inside the worker.
     await spawnRunWorker(mainDb, { runId, selection, onComplete });
 
     return { success: true, data: { runId } };
   });
 }
 
-// C6: queue, not concurrent execution: a queued row is inert (no claim, no
+// Queue, not concurrent execution: a queued row is inert (no claim, no
 // worker) until the ~60 s scheduler tick drains it FIFO through
 // launchQueuedDatasetHmisImportRun once the import slot is free. Queued fires
 // are unattended and, like every run, use the stored credentials.
@@ -533,10 +532,10 @@ export async function launchQueuedDatasetHmisImportRun(
 }
 
 // ============================================================================
-// CSV IMPORT RUNS (PLAN_DHIS2_IMPORTER_CONSOLIDATION Phase A)
+// CSV IMPORT RUNS
 // ============================================================================
 
-// The mapping's server half (PLAN_A6 ruling 3): every target is the data
+// The mapping's server half: every target is the data
 // id of an indicator with rows, no two values map onto the same indicator,
 // and at least one value is mapped, since a run whose every value is
 // skipped would stage nothing.
@@ -572,8 +571,8 @@ async function validateCsvMapping(
 }
 
 // Validates the launch input and pins the file: the pin the scan read must
-// still match the bytes, so the mapping describes the file that is staged
-// (ruling 4). The returned config is what gets stored on the run row.
+// still match the bytes, so the mapping describes the file that is staged.
+// The returned config is what gets stored on the run row.
 async function validateCsvRunConfig(
   mainDb: Sql,
   input: DatasetHmisCsvRunLaunchInput,
@@ -841,7 +840,7 @@ export async function launchQueuedDatasetHmisCsvImportRun(
   return true;
 }
 
-// needs_review resolution (PLAN_A6 ruling 6). "Integrate anyway" re-claims
+// needs_review resolution. "Integrate anyway" re-claims
 // the slot (or queues explicitly behind a running import: a hold never
 // blocks the lane) and integrates the surviving staging table; "Discard"
 // cancels and drops the surviving staging table.

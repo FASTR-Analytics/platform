@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# ROLLBACK for the products restructure (PLAN_PRODUCTS_RESTRUCTURE §6):
+# ROLLBACK for the products restructure:
 # restores one instance's `main` database from a named status-api dump and
 # puts the instance back on its previous server image.
 #

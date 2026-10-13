@@ -1,7 +1,6 @@
-// Pins the rows `list_products` returns (PLAN_COPILOT03_ONE_CHAT step 10,
-// ruling 1's Products group): each product names its folder path, package,
-// scope and the user's level, and a package no longer ready is named by its
-// run id.
+// Pins the rows `list_products` returns: each product names its folder path,
+// package, scope and the user's level, and a package no longer ready is named
+// by its run id.
 //
 //   deno test -A --no-check server/tests/format_products_list_for_ai_test.ts
 

@@ -36,7 +36,7 @@ import { TimCacheC } from "../../valkey/cache_class_C.ts";
 // bump is declared hygiene rather than load-bearing: the shape of the cached
 // ItemsHolder.fetchConfig changed, and safety should not rest on the
 // incidental impossibility of an old/new key collision.
-// "9": the PLAN_RESULTS_RUNS cutover (merged past both sides' independent
+// "9": the results-runs cutover (merged past both sides' independent
 // bump histories: the results-runs branch used "6" for this change):
 // payloads are now sourced from the attached run (DuckDB over parquet:
 // native numbers where postgres.js returned NUMERIC strings) and
@@ -58,30 +58,28 @@ import { TimCacheC } from "../../valkey/cache_class_C.ts";
 // cached under "11" has no such field. And manifest schema v3 stamped the
 // indicator catalog, making the manifest a code dimension these three caches
 // key on.
-// "13": the declared-format design (PLAN_EFFECTIVE_FORMAT). Manifest schema
-// v4 rewrites metrics[].format_as in place under the SAME runId, and "12"
-// entries (briefly live on testing deploys) hold payloads computed under the
-// deleted inference design.
+// "13": the declared-format design. Manifest schema v4 rewrites
+// metrics[].format_as in place under the SAME runId, and "12" entries (briefly
+// live on testing deploys) hold payloads computed under the deleted inference
+// design.
 // "14": the PAE groupBy/value-prop collision fix (paeCollidingGroupBys):
 // configs disaggregated by a PAE ingredient previously had DuckDB bind the
 // expression to the raw grouped value instead of the aggregate; cached "13"
 // items hold those numbers.
-// "15": AA2 scope (PLAN_1_PROJECT_AA2_SCOPE): payloads are computed under the
-// caller's scope and the keys gain a scopeToken segment; "14" entries were
-// keyed without it.
-// "17": the indicator restructure (PLAN_1a). Manifest schema v6
-// rewrites indicators[] in place under the SAME runId: legacy catalogs gain
-// sort_order, which axis order now comes from, and the items payload for a
-// catalog-evaluated results object is a computed `value` where "16" entries
-// hold raw ingredient columns.
-// "18" (2026-09-03): thresholds as a CF source (PLAN_1d). The indicator
-// catalog's traffic-light pair became a `thresholds` rule: po_items carries
+// "15": AA2 scope: payloads are computed under the caller's scope and the keys
+// gain a scopeToken segment; "14" entries were keyed without it.
+// "17": the indicator restructure. Manifest schema v6 rewrites indicators[] in
+// place under the SAME runId: legacy catalogs gain sort_order, which axis order
+// now comes from, and the items payload for a catalog-evaluated results object
+// is a computed `value` where "16" entries hold raw ingredient columns.
+// "18" (2026-09-03): thresholds as a CF source. The indicator catalog's
+// traffic-light pair became a `thresholds` rule: po_items carries
 // IndicatorMetadataDisplay[] in the new shape, metric_info gained
 // `indicatorRules` beside `indicatorFormats`, and manifest schema v6 was
 // rewritten in place under the SAME runId; "17" entries hold the old shape.
 // "19" (2026-09-04): the write-only freshness pair (moduleLastRun,
-// datasetsVersion) left every data payload (PLAN_RESULTS_RUNS ruling 4):
-// the run id IS the provenance; "18" entries carry the old shape.
+// datasetsVersion) left every data payload: the run id IS the provenance; "18"
+// entries carry the old shape.
 // "20" (2026-09-15): IndicatorMetadataDisplay gained `direction` and
 // `target`, which po_items carries; "19" entries lack them.
 // "21" (2026-09-15): manifest schema v9 (hmisIndicators entries carry the
@@ -98,24 +96,23 @@ import { TimCacheC } from "../../valkey/cache_class_C.ts";
 // "25" (2026-09-22): manifest schema v13 (module blobs declare family, tier
 // and sortOrder; metrics[].datasetFamily is non-null). metric_info payloads
 // carry datasetFamily, so "24" entries may hold null where it is now declared.
-// "26" (2026-10-01): scopes (PLAN_SCOPES step 2). The trailing key segment
-// is the hash of the scope's definition, where "25" entries carry the
-// percent-encoded area name, and every payload's `scopeToken` is that hash.
-// "27" (2026-10-01): the scope's time, module and indicator parts filter
-// (PLAN_SCOPES step 3). "26" entries under a definition holding those parts
-// were computed without them, under the same hash.
+// "26" (2026-10-01): scopes. The trailing key segment is the hash of the
+// scope's definition, where "25" entries carry the percent-encoded area name,
+// and every payload's `scopeToken` is that hash.
+// "27" (2026-10-01): the scope's time, module and indicator parts filter. "26"
+// entries under a definition holding those parts were computed without them,
+// under the same hash.
 const PO_CACHE_VERSION = "27";
 
-// The immutable run id replaces the data-version dimensions (PLAN_RESULTS_RUNS
-// §2.5): it is the uniqueness scope for the four data caches, so two products
-// on the same run share entries. The scopeToken rides beside it: the hash of
-// the scope's definition (scopeDefinitionHash, lib/types/scope.ts). Payloads
-// are computed under that definition, so two reads share entries only when
-// they share BOTH run and definition, whatever the scope's id or label, and an
-// edited definition lands on new keys. Required on the uniqueness side so
-// every exists/read site is forced to supply it (an optional would compile and
-// silently mis-key); trailing segment so the `${runId}|`/`${runId}::` prefix
-// scans in `runs/delete_run.ts` keep working.
+// The immutable run id is the uniqueness scope for the four data caches, so two
+// products on the same run share entries. The scopeToken rides beside it: the
+// hash of the scope's definition (scopeDefinitionHash, lib/types/scope.ts).
+// Payloads are computed under that definition, so two reads share entries only
+// when they share BOTH run and definition, whatever the scope's id or label,
+// and an edited definition lands on new keys. Required on the uniqueness side
+// so every exists/read site is forced to supply it (an optional would compile
+// and silently mis-key); trailing segment so the `${runId}|`/`${runId}::`
+// prefix scans in `runs/delete_run.ts` keep working.
 export type PoDataVersionParams = {
   runId: string;
 };

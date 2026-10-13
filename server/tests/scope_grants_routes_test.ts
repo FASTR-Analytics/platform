@@ -1,8 +1,7 @@
-// Scope grants end to end (PLAN_SCOPES step 5): one unrestricted and one
-// restricted user against the real product, folder, user and run-keyed read
-// routes, the collab socket and the /mcp door check, on the dev database. The Clerk
-// leg simulates only clerkMiddleware's output contract, as
-// products_routes_test.ts does.
+// Scope grants end to end: one unrestricted and one restricted user against
+// the real product, folder, user and run-keyed read routes, the collab socket
+// and the /mcp door check, on the dev database. The Clerk leg simulates only
+// clerkMiddleware's output contract, as products_routes_test.ts does.
 //
 // Needs a ready pinned package on the dev instance. Run alone with:
 //   BYPASS_AUTH= deno test -A --env-file --unstable-broadcast-channel server/tests/scope_grants_routes_test.ts
@@ -276,9 +275,8 @@ Deno.test("scope grants: products, folders, data reads, collab and /mcp", async 
       scopeId: other,
     });
     productIds.push(inside.productId, outside.productId);
-    // A new product is its creator's alone (PLAN_PRODUCT_OWNERSHIP R2), so
-    // its owner opens it to everyone at edit, leaving scope as the only rule
-    // these checks exercise.
+    // A new product is its creator's alone, so its owner opens it to everyone
+    // at edit, leaving scope as the only rule these checks exercise.
     for (const product of [inside, outside]) {
       await ok(open, "PUT", `/products/${product.productId}/access`, {
         defaultAccess: "edit",
@@ -382,8 +380,8 @@ Deno.test("scope grants: products, folders, data reads, collab and /mcp", async 
       403,
     );
 
-    // A product's scope set to a scope the user does not hold (R14), and a
-    // new product naming one.
+    // A product's scope set to a scope the user does not hold, and a new
+    // product naming one.
     assertEquals(
       (await call(limited, "PUT", `/products/${inside.productId}/scope`, {
         scopeId: other,
@@ -403,8 +401,8 @@ Deno.test("scope grants: products, folders, data reads, collab and /mcp", async 
       scopeId: granted,
     });
 
-    // Folders (R23): no folder route, and no move into a folder the user
-    // cannot see; the root and a visible folder are fine.
+    // Folders: no folder route, and no move into a folder the user cannot see;
+    // the root and a visible folder are fine.
     assertEquals(
       (await call(limited, "POST", "/folders", {
         label: "x",
@@ -525,7 +523,7 @@ Deno.test("scope grants: products, folders, data reads, collab and /mcp", async 
     await mainDb`UPDATE users SET is_admin = FALSE WHERE email = ${OPEN_EMAIL}`;
 
     // A restricted user who manages users cannot write the admin flag, which
-    // would lift their own restriction (R25): not on a new user, not on their
+    // would lift their own restriction: not on a new user, not on their
     // own row through the batch upload, and not by renaming an admin's row to
     // an address of their own.
     await mainDb`

@@ -5,7 +5,7 @@ import { copilotViews } from "~/components/instance/copilot/mod.ts";
 import { scopeDisplayLabel } from "~/components/_shared/mod.ts";
 import { instanceState } from "~/state/instance/t1_store";
 
-// The Products group (ruling 1): the products the user can see, which is what
+// The Products group: the products the user can see, which is what
 // the instance channel delivers to T1, each with the level this connection
 // holds on it. The model lists and describes them; the user opens one, since
 // no tool navigates.

@@ -1,11 +1,11 @@
-// Pins the naming step's transaction (PLAN_A6 ruling 7): an element becomes
-// a new DHIS2 element under the chosen id; an existing id of any type is
-// refused; an element whose UID some indicator already holds creates
-// nothing; a decomposed DHIS2 indicator becomes DHIS2 elements for its
-// operands and a calculated over their ids; createIndicatorsFromDhis2 refuses
-// a refused element or indicator and creates nothing. Runs on a throwaway
-// database built from _main_database.sql on the dev postgres (the .env the
-// test task loads), dropped afterwards.
+// Pins the naming step's transaction: an element becomes a new DHIS2 element
+// under the chosen id; an existing id of any type is refused; an element
+// whose UID some indicator already holds creates nothing; a decomposed DHIS2
+// indicator becomes DHIS2 elements for its operands and a calculated over
+// their ids; createIndicatorsFromDhis2 refuses a refused element or indicator
+// and creates nothing. Runs on a throwaway database built from
+// _main_database.sql on the dev postgres (the .env the test task loads),
+// dropped afterwards.
 //
 //   deno test -A --env-file server/tests/indicator_naming_test.ts
 

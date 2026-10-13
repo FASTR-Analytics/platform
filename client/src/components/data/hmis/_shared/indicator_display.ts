@@ -6,8 +6,8 @@ import {
   t3,
 } from "lib";
 
-// The Type column (PLAN_A5 ruling 2): the stored type under its word. One
-// derivation for the manager and the import picker.
+// The Type column: the stored type under its word. One derivation for the
+// manager and the import picker.
 export function indicatorTypeLabel(indicator: HmisIndicator): string {
   return indicatorTypeWord(indicator.definition.type);
 }
@@ -30,8 +30,7 @@ export function indicatorTypeWord(type: HmisIndicatorType): string {
 }
 
 // What a screen calls a DHIS2 element's data id. An Uploaded indicator's
-// key is opaque and never shown (PLAN_A6 ruling 1); a sum or a calculated has
-// none.
+// key is opaque and never shown; a sum or a calculated has none.
 export function dhis2IdLabel(): string {
   return t3({ en: "DHIS2 id", fr: "Identifiant DHIS2", pt: "ID DHIS2" });
 }
@@ -99,7 +98,7 @@ export function indicatorNameText(indicator: HmisIndicator): string {
 }
 
 // The dictionary keyed by data id, for the run, ledger and progress views
-// whose rows carry data ids (ruling 9): a pair's key is what DHIS2 or the
+// whose rows carry data ids: a pair's key is what DHIS2 or the
 // file called the series, and the indicator under it is looked up here.
 export function indicatorsByDataId(
   indicators: HmisIndicator[],

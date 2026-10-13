@@ -35,7 +35,7 @@ import type { ProductTreeRow } from "./_shared/mod.ts";
 import { PRODUCT_TYPE_REGISTRY } from "./product_types";
 
 // Hand-built rather than assembled from panther's `Table`: the sanctioned
-// exception to PROTOCOL_UI_COMPONENTS rule 4 (D16), because the rows open
+// exception to PROTOCOL_UI_COMPONENTS rule 4, because the rows open
 // editors, reveal per-row menus and mix two entity kinds, none of which a data
 // grid does. Composed from panther parts and tokens only.
 

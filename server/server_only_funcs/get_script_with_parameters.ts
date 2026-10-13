@@ -17,7 +17,7 @@ import {
 
 // datasetsDirPath = where the generated script finds dataset extract CSVs,
 // relative to the module's working directory. A module workspace is
-// runs/{runId}/outputs/{moduleId} (§2.1 run layout), so it reads
+// runs/{runId}/outputs/{moduleId} (the run layout), so it reads
 // "../../inputs/datasets".
 
 export function getScriptWithParameters(

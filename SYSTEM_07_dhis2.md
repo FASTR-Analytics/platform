@@ -137,26 +137,25 @@ and merges deduped by id. The data-element field list carries
 `dataSetElements[dataSet[id,periodType]]` so the eligibility check below can see
 the element's period type.
 
-**Element eligibility** (`goal2_indicators/element_eligibility.ts`, pure;
-PLAN_A3 ruling 6). A DHIS2 data element may fill a DHIS2 element indicator (be
-its data id) only when DHIS2's own metadata says it is an additive monthly
-count: `aggregationType` is `SUM`; `valueType` is `NUMBER` (the DHIS2 editor's
-default, which most real count elements carry; integrality is enforced per value
-at import by S6's skip-and-record), `INTEGER`, `INTEGER_POSITIVE` or
-`INTEGER_ZERO_OR_POSITIVE` (`INTEGER_NEGATIVE` is refused, since every value of
-such an element would be skipped at import; `PERCENTAGE`, `UNIT_INTERVAL` and
-every non-numeric type are refused); and at least one of its data sets has
-period type `Monthly` (an element in no data set has no period and is refused;
-one monthly data set among several is enough, since the monthly values are what
-the dataValueSets pull reads). `getDhis2ElementVerdict(element)` returns
-`{ accepted: true }` or `{ accepted: false, refusal }` where the refusal names
-the failing field and the metadata value; an operand is checked through its
-element by `getDhis2OperandVerdict`, which adds `element_not_found` for an
-element the server no longer has. The verdict types live in
-`lib/types/indicators.ts` (S5).
+**Element eligibility** (`goal2_indicators/element_eligibility.ts`, pure). A
+DHIS2 data element may fill a DHIS2 element indicator (be its data id) only when
+DHIS2's own metadata says it is an additive monthly count: `aggregationType` is
+`SUM`; `valueType` is `NUMBER` (the DHIS2 editor's default, which most real
+count elements carry; integrality is enforced per value at import by S6's
+skip-and-record), `INTEGER`, `INTEGER_POSITIVE` or `INTEGER_ZERO_OR_POSITIVE`
+(`INTEGER_NEGATIVE` is refused, since every value of such an element would be
+skipped at import; `PERCENTAGE`, `UNIT_INTERVAL` and every non-numeric type are
+refused); and at least one of its data sets has period type `Monthly` (an
+element in no data set has no period and is refused; one monthly data set among
+several is enough, since the monthly values are what the dataValueSets pull
+reads). `getDhis2ElementVerdict(element)` returns `{ accepted: true }` or
+`{ accepted: false, refusal }` where the refusal names the failing field and the
+metadata value; an operand is checked through its element by
+`getDhis2OperandVerdict`, which adds `element_not_found` for an element the
+server no longer has. The verdict types live in `lib/types/indicators.ts` (S5).
 
-**Indicator decomposition** (`goal2_indicators/decompose_indicator.ts`, pure;
-PLAN_A3 ruling 8). A DHIS2 indicator is never imported as values;
+**Indicator decomposition** (`goal2_indicators/decompose_indicator.ts`, pure). A
+DHIS2 indicator is never imported as values;
 `parseDhis2Indicator({ numerator, denominator, annualized, factor })` turns it
 into operands and an expression, or refuses it. The formula is accepted by
 WHITELIST: `#{uid}` and `#{uid.coc}` terms (each part a DHIS2 UID), plain

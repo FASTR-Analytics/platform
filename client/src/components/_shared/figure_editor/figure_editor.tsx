@@ -293,7 +293,7 @@ export function VisualizationEditorInner(p: InnerProps) {
   // ── Live collaboration ──────────────────────────────────────────────────────
   // One surface: the host (slide/report editor) passes a collabBinding and
   // the figure's config is co-edited IN the host's shared doc (a figure has no
-  // document of its own, D3). The binding exposes a config Y.Map + awareness +
+  // document of its own). The binding exposes a config Y.Map + awareness +
   // a per-user origin; push/reconcile/undo/captions run off it. Without a live
   // binding the editor keeps the classic Apply/Cancel flow (no target).
   const [hostConfigMap, setHostConfigMap] = createSignal<Y.Map<unknown> | null>(

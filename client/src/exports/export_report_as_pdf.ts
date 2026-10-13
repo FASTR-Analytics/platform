@@ -9,8 +9,9 @@ import {
 import { replaceUnavailableMediaTokens } from "~/generate_report/mod";
 import { REPORT_MARKDOWN_STYLE } from "~/generate_report/mod";
 
-// A4 portrait DU frame (1000 wide × ~1.414 → 1414). Fixed minimal style for v1
-// (PLAN_REPORTS.md §10.2). Keep asSlides unset/false (§5 footgun).
+// A4 portrait DU frame (1000 wide × ~1.414 → 1414). Fixed minimal style for v1.
+// Keep asSlides unset/false: when true, panther splits the body at every
+// `---` line, so markdown horizontal rules would become page breaks.
 const PAGE_WIDTH = 1000;
 const PAGE_HEIGHT = 1414;
 

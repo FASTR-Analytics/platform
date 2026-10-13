@@ -6,7 +6,7 @@ import {
 } from "@duckdb/node-api";
 import { _RUNS_DIR_PATH } from "../exposed_env_vars.ts";
 
-// The DuckDB query engine for results-run parquet files (PLAN_RESULTS_RUNS §2.4).
+// The DuckDB query engine for results-run parquet files.
 // Serving model: a fresh in-memory instance per call (cold open→query→close is
 // ~5 ms), read-only views over parquet, bounded memory. The Postgres→DuckDB
 // dialect deltas are owned HERE, never in the S9 SQL builders:
@@ -24,11 +24,11 @@ import { _RUNS_DIR_PATH } from "../exposed_env_vars.ts";
 //     get_data_config_from_po.ts) and option-list callers re-sort in TS; an
 //     ORDER BY inside the SQL still controls WHICH rows a LIMIT keeps.
 
-// Sized empirically (review finding 11): the worst ordinary serving shape,
-// a facility_name disaggregation over a 59.5M-row parquet, 1.92M groups,
-// OOMs at 512MB (temp_directory or not, the grouped aggregate must fit),
-// completes at 4GB in-memory in ~2s. temp_directory is the backstop for
-// larger shapes; the cap is per-connection and queries peak far below it.
+// Sized empirically: the worst ordinary serving shape, a facility_name
+// disaggregation over a 59.5M-row parquet, 1.92M groups, OOMs at 512MB
+// (temp_directory or not, the grouped aggregate must fit), completes at 4GB
+// in-memory in ~2s. temp_directory is the backstop for larger shapes; the cap
+// is per-connection and queries peak far below it.
 const DUCKDB_MEMORY_LIMIT = "4GB";
 
 const SAFE_VIEW_NAME = /^[a-z_][a-z0-9_]*$/;

@@ -9,9 +9,9 @@ type Props = {
   selectedIds: () => string[];
   setSelectedIds: (ids: string[]) => void;
   onDictionaryLoaded: (indicators: HmisIndicator[]) => void;
-  // The seeded ids left out when the dictionary loaded (PLAN_A7 ruling 12).
+  // The seeded ids left out when the dictionary loaded.
   seedDrops: Dhis2SeedDrop[];
-  // Why the step refuses Next (PLAN_A7 ruling 5); undefined when it does not.
+  // Why the step refuses Next; undefined when it does not.
   refusal: string | undefined;
 };
 

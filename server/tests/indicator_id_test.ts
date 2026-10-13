@@ -1,6 +1,6 @@
-// Pins PLAN_A3 rulings 5 and 10 as pure functions: the id generator
-// (lib/indicator_id.ts) and the validator (lib/types/indicators.ts). Migration
-// 086 restates the generator in PL/pgSQL, so a change here is a change there.
+// Pins, as pure functions, the id generator (lib/indicator_id.ts) and the
+// validator (lib/types/indicators.ts). Migration 086 restates the generator
+// in PL/pgSQL, so a change here is a change there.
 // The charset rule applies to every new id, a DHIS2 id included.
 //
 //   deno test -A --env-file server/tests/indicator_id_test.ts

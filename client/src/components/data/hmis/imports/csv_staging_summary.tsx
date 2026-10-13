@@ -9,7 +9,7 @@ type Props = {
 // The CSV staging diagnostics render (relocated from the deleted attempt
 // wizard's review step): used by the needs_review card and the CSV run
 // detail. Rows under values skipped in the mapping step are a statistic,
-// never a validation issue: the user chose the skip (PLAN_A6 ruling 5).
+// never a validation issue: the user chose the skip.
 export function CsvStagingSummary(p: Props) {
   const totalRecords = () =>
     p.result.periodIndicatorStats.reduce(

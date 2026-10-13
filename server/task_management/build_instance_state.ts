@@ -62,11 +62,12 @@ export async function buildInstanceStateWithoutProducts(
   // no roster consumer, and the first `users_updated` naming them flows whole.
   const rosterForCaller = me === undefined ? [] : users;
 
-  // Per-user fill (Q-B: run labels must not fan out): entitled callers get the catalogue in the starting payload, a
-  // fresh-auth point-in-time response, like every field here, and everyone
-  // else gets []. After connect, runs_catalog_updated broadcasts only a
-  // timestamp and entitled clients refetch via listRunCatalog (per-request
-  // guard). The /mcp context cache inherits the same fill, which is correct.
+  // Per-user fill (run labels must not fan out): entitled callers get the
+  // catalogue in the starting payload, a fresh-auth point-in-time response,
+  // like every field here, and everyone else gets []. After connect,
+  // runs_catalog_updated broadcasts only a timestamp and entitled clients
+  // refetch via listRunCatalog (per-request guard). The /mcp context cache
+  // inherits the same fill, which is correct.
   const scopeAccess = me?.scopeAccess ?? ALL_SCOPES;
   const myPermissions = me === undefined
     ? undefined
@@ -155,7 +156,7 @@ export async function buildInstanceStateWithoutProducts(
 /**
  * The full instance-SSE `starting` payload: the grounding half plus the
  * product plane (products, folders, ready packages, scopes and the last_updated
- * cache-version index; PLAN_PRODUCTS_RESTRUCTURE D8).
+ * cache-version index).
  *
  * The product plane is withheld from an UNAPPROVED connection by the same
  * roster rule that empties `users`; the client reconnects once a roster
@@ -236,11 +237,10 @@ export async function buildInstanceState(
 
 type ProductPlane = Pick<InstanceState, "products" | "folders" | "scopes">;
 
-// The share of the product plane a connection can see
-// (PLAN_PRODUCT_OWNERSHIP §2.7): the products it holds view on, by scope and
-// level. Folders carry no level (R5), so an unrestricted connection keeps
-// every folder and a restricted one those whose subtree holds a visible
-// product (R23); a restricted connection keeps only its granted scopes. A
+// The share of the product plane a connection can see: the products it holds
+// view on, by scope and level. Folders carry no level, so an unrestricted
+// connection keeps every folder and a restricted one those whose subtree holds
+// a visible product; a restricted connection keeps only its granted scopes. A
 // global admin's plane is whole.
 export function restrictProductPlane(
   viewer: Pick<GlobalUser, "email" | "isGlobalAdmin" | "scopeAccess">,

@@ -49,7 +49,7 @@ import {
 // A `pages` predicate must be true only while that page is actually visible:
 // otherwise a tour could fire, find no targets, and be marked seen invisibly.
 // Every page keys on the copilot's view controller, on which every tab page,
-// full-page view and editor sets its view (D61): a tab page's predicate is
+// full-page view and editor sets its view: a tab page's predicate is
 // false under the editor or the full-page view that covers it, since that
 // place has set its own view, and false before the page mounts.
 

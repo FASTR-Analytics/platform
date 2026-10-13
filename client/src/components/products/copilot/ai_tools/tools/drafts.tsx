@@ -26,7 +26,7 @@ import { DraftSlidePreview } from "./draft_slide_preview";
 
 // The handler resolves a draft under the pair of the inner set it was built
 // for, the pair of the view the call runs in (bind_package_tools.ts). The card
-// stores the view the call ran in (E4) and renders under that view's pair, so
+// stores the view the call ran in and renders under that view's pair, so
 // an old card keeps its package after a reattach; it offers Add only in an
 // editable deck on that same pair.
 export function getClientToolsForDrafts(

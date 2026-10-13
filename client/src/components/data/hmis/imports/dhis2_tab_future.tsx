@@ -153,12 +153,10 @@ function EditDeleteActions(
   );
 }
 
-// Future tab: the schedule listing, minus the inline editor (moved into the
-// wizard: PLAN_DHIS2_IMPORTER_UI_REVISION §4) and minus the Enabled toggle
-// (removed: PLAN_DHIS2_IMPORTER_UI_FUTURE_LISTING §0: set-and-forget
-// scheduling has one place to configure (the wizard via Edit) and one
-// off-switch: Delete). Recurring and one-time schedules get separate
-// sections since their columns genuinely differ.
+// Future tab: the schedule listing, with no inline editor and no Enabled
+// toggle: set-and-forget scheduling has one place to configure (the wizard
+// via Edit) and one off-switch (Delete). Recurring and one-time schedules get
+// separate sections since their columns genuinely differ.
 export function Dhis2TabFuture(p: Props) {
   const visible = () => visibleFutureSchedules(p.schedules);
   const recurring = () => visible().filter((s) => s.kind === "recurring");

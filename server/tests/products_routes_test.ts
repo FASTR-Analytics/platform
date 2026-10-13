@@ -1,9 +1,8 @@
-// The product plane's harness (PLAN_PRODUCTS_RESTRUCTURE step 5): the
-// product, folder, slide-deck, slide and report routes exercised through the
-// real registry, defineRoute, the access guard and the DB layer against the
-// dev database. The Clerk leg simulates only clerkMiddleware's output
-// contract, as pat_identity_parity_test.ts does; everything downstream is
-// the real code.
+// The product plane's harness: the product, folder, slide-deck, slide and
+// report routes exercised through the real registry, defineRoute, the access
+// guard and the DB layer against the dev database. The Clerk leg simulates
+// only clerkMiddleware's output contract, as pat_identity_parity_test.ts does;
+// everything downstream is the real code.
 //
 // Needs a ready pinned package on the dev instance. Run alone with:
 //   BYPASS_AUTH= deno test -A --env-file server/tests/products_routes_test.ts

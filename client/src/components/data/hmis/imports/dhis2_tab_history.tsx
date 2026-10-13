@@ -46,8 +46,8 @@ export function selectionLabel(run: DatasetHmisImportRunSummary): string {
         pt: "elementos DHIS2",
       })
     }`;
-    // A run recorded before PLAN_A3 selected elements directly and has no
-    // indicator selection to show.
+    // An older run selected elements directly and has no indicator selection
+    // to show.
     const label = run.selection.indicatorIds.length === 0
       ? elements
       : `${toNum0(run.selection.indicatorIds.length)} ${

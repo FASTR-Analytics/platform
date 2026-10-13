@@ -1076,7 +1076,7 @@ function FigureControls(p: Props & { blockId: string; block: FigureBlock }) {
     <>
       {
         /* Resolved under another package or scope than the deck now serves
-          from (D4): shown, never blocking. */
+          from: shown, never blocking. */
       }
       <Show when={p.staleFigureBundle} keyed>
         {(stale) => (

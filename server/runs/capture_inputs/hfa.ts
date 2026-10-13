@@ -26,8 +26,7 @@ import {
 // See the HMIS file's header note. computeDatasetHfaRunCapture does the
 // instance reads + COPY export and returns every captured row set. Capture
 // is always the FULL dataset: every service category's indicator
-// definitions and R code ship in the run (PLAN_FULL_CAPTURE_GENERATION
-// ruling 2026-08-03).
+// definitions and R code ship in the run.
 
 export type DatasetHfaRunCapture = {
   info: RunDatasetHfaInfo;
@@ -151,7 +150,7 @@ FROM hfa_data h
 INNER JOIN facilities_hfa f ON h.facility_id = f.facility_id
 LEFT JOIN hfa_facility_weights w ON w.facility_id = h.facility_id AND w.time_point = h.time_point
 -- Deterministic row order: the extract's bytes are a module inputKey
--- ingredient (PLAN_RESULTS_RUNS §3.7); unordered COPY output varies run to run.
+-- ingredient; unordered COPY output varies run to run.
 ORDER BY h.facility_id, h.time_point, h.variable_id, h.value`;
 
     // Use COPY with optimized settings for better performance

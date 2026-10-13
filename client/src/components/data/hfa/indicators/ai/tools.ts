@@ -210,12 +210,11 @@ function computeIndicatorValidation(
 }
 
 // ---------------------------------------------------------------------------
-// Tools: the HFA reads and HFA writes of the chat's catalogue (ruling 1),
-// registered for every user and gated by view through `availableIn`
-// (the reads in the manager, the code editor and the Excel import; the
-// writes in the manager alone, where each proposes a modal approval). Who
-// may call them refuses at the call through the chat's guard, under
-// `canWriteHfaIndicators()` for the writes.
+// Tools: the HFA reads and HFA writes of the chat's catalogue, registered for
+// every user and gated by view through `availableIn` (the reads in the manager,
+// the code editor and the Excel import; the writes in the manager alone, where
+// each proposes a modal approval). Who may call them refuses at the call
+// through the chat's guard, under `canWriteHfaIndicators()` for the writes.
 // ---------------------------------------------------------------------------
 
 export function buildHfaIndicatorTools() {

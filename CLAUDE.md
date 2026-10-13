@@ -45,15 +45,17 @@ per-directory style.
 ## Gates
 
 - `deno task typecheck` runs `deno fmt --check`, the server check, the client
-  check, `lint:systems`, `lint:structure`, `lint:text-sizes` and
-  `lint:sql-json`. The systems lint fails if any tracked `.ts` or `.tsx` file
-  under `server/`, `lib/`, or `client/src/` is not claimed by exactly one SYSTEM
-  file's file-pattern (`globs`) manifest. Adding or moving a file means editing
-  a manifest. The structure lint fails if the client tree breaks a rule of
-  `panther/protocols/PROTOCOL_UI_STRUCTURE.md` (names, `mod.ts` entries, scoped
-  `_shared/`, layer direction, reachability, folder cycles). The text-size lint
-  fails on any UI text size outside the rem token scale: an arbitrary
-  `text-[Npx]`, `text-md`, or an inline font-size in px.
+  check, `lint:systems`, `lint:structure`, `lint:text-sizes`, `lint:sql-json`
+  and `lint:plan-citations`. The systems lint fails if any tracked `.ts` or
+  `.tsx` file under `server/`, `lib/`, or `client/src/` is not claimed by
+  exactly one SYSTEM file's file-pattern (`globs`) manifest. Adding or moving a
+  file means editing a manifest. The structure lint fails if the client tree
+  breaks a rule of `panther/protocols/PROTOCOL_UI_STRUCTURE.md` (names, `mod.ts`
+  entries, scoped `_shared/`, layer direction, reachability, folder cycles). The
+  text-size lint fails on any UI text size outside the rem token scale: an
+  arbitrary `text-[Npx]`, `text-md`, or an inline font-size in px. The
+  plan-citation lint fails on a plan name or a ruling id in code or a standing
+  doc: plans are deleted, so a comment that needs a reason states the reason.
 - Migrations use idempotent schema SQL and must pass `./validate_migrations`. A
   hook in `.claude/settings.json` reminds you when you touch one.
 - **Write a new migration file. Do not edit an existing one.** A new numbered

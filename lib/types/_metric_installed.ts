@@ -338,11 +338,11 @@ export const postAggregationExpressionStrict = z.object({
   expression: z.string(),
 });
 
-// Declared catalog evaluation (PLAN_1a §1.6): the wire/display split that
-// PAE metrics have, but declared rather than inferred. The named ingredient
-// props are SUM-aggregated on the wire; the server then applies each
-// indicator's own catalog expression to the aggregated row and returns one
-// `value` column, which is why such a metric's valueProps stay ["value"].
+// Declared catalog evaluation: the wire/display split that PAE metrics have,
+// but declared rather than inferred. The named ingredient props are
+// SUM-aggregated on the wire; the server then applies each indicator's own
+// catalog expression to the aggregated row and returns one `value` column,
+// which is why such a metric's valueProps stay ["value"].
 export const catalogExpressionEvaluationStrict = z.object({
   ingredientProps: z.array(z.string()).min(1),
 });

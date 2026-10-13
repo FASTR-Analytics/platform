@@ -1,7 +1,7 @@
-// Pins PLAN_A5 ruling 1 and PLAN_A6 ruling 1: the dictionary's tables and
-// constraints as _main_database.sql declares them, fourteen cases each in its own rolled-back
-// transaction on a throwaway database built from _main_database.sql on the
-// dev postgres (the .env the test task loads), dropped afterwards.
+// Pins the dictionary's tables and constraints as _main_database.sql
+// declares them, fourteen cases each in its own rolled-back transaction on a
+// throwaway database built from _main_database.sql on the dev postgres (the
+// .env the test task loads), dropped afterwards.
 //
 //   deno test -A --env-file server/tests/indicator_schema_test.ts
 

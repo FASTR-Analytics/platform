@@ -1,6 +1,6 @@
-// Regression pin for the methodology tools' base64 decode (PLAN_COPILOT02_FIXES
-// step 4, D18): GitHub's contents API sends UTF-8 bytes as base64 in
-// 60-character lines, and the text must come back exactly as written.
+// Regression pin for the methodology tools' base64 decode: GitHub's contents
+// API sends UTF-8 bytes as base64 in 60-character lines, and the text must
+// come back exactly as written.
 //
 //   deno test -A --no-check server/tests/methodology_docs_decode_test.ts
 

@@ -13,7 +13,7 @@ import { generateUniqueSlideId } from "../../utils/id_generation.ts";
 import { touchProduct } from "./_product_row.ts";
 
 // Every slide read and write is scoped by the owning product as well as the
-// slide id, so a slide id from another deck is not found here (§3.3).
+// slide id, so a slide id from another deck is not found here.
 export const SLIDE_NOT_FOUND = "Slide not found";
 
 function rowToSlide(raw: DBSlide, index: number): SlideWithMeta {

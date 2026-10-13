@@ -23,14 +23,13 @@ globs:
 
 # S9: Visualization Query & Cache Service
 
-> **One read path.** `server/run_query/run_read.ts` is the only read path
-> (PLAN_RESULTS_RUNS Phase 4 step C); the SQL cores in
-> `server_only_funcs_presentation_objects/` take their `QueryContext` from the
-> manifest and their executor from DuckDB over the run's parquet. Caches are
-> run-keyed. The constants in `server/routes/caches/visualizations.ts` are the
-> authority for the live keying (`PO_CACHE_VERSION` is "27"); SYSTEM_03's cache
-> catalog restates them. Calendar threads via `QueryContext`, not
-> `getCalendar()` at the call sites.
+> **One read path.** `server/run_query/run_read.ts` is the only read path; the
+> SQL cores in `server_only_funcs_presentation_objects/` take their
+> `QueryContext` from the manifest and their executor from DuckDB over the run's
+> parquet. Caches are run-keyed. The constants in
+> `server/routes/caches/visualizations.ts` are the authority for the live keying
+> (`PO_CACHE_VERSION` is "27"); SYSTEM_03's cache catalog restates them.
+> Calendar threads via `QueryContext`, not `getCalendar()` at the call sites.
 
 PO config → fetch-config contract → DuckDB SQL over the results package the
 caller names → run-keyed cached payloads, on both tiers. **This system does not
@@ -101,7 +100,7 @@ expression, on qualifying fetches. Qualification is RO-level
 (`indicator_common_id` column + all-SUM values
 
 - no metric-wide PAE), while `formatAs: "indicator"` stays the metric-level
-  formatting fact. Not built; PLAN_1_COMMON_INDICATOR_TYPES.md, in git history.)
+  formatting fact. Not built.)
 
 **The replicant pin and the options/items split.** `getFiltersWithReplicant`
 appends
@@ -855,8 +854,8 @@ same `answersKeyedScope` store guard as the figure-data caches. The deck and
 report editors and the copilot read it by their container's live pair, resolved
 with `resolveScope` inside the effect so an edit to the scope's definition
 re-reads; the package page reads it under "All data", whatever scope its select
-shows, since the page describes the package. The D4 update action takes its
-metric from it.
+shows, since the page describes the package. A stale figure's update action
+takes its metric from it.
 
 **HFA dataset display cache**
 ([routes/caches/dataset.ts](server/routes/caches/dataset.ts)): `ds_hfa` is a

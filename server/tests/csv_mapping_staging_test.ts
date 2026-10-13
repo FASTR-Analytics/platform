@@ -1,12 +1,11 @@
-// Pins PLAN_A6 ruling 2: CSV staging resolves nothing. Each value the
-// file's indicator column says is looked up in the run's mapping: a value
-// mapped to a data id lands under it, a value mapped to null is counted in
-// skippedByMapping and dropped, and a value absent from the mapping fails
-// the run. The value is derived from the cell exactly as the scan derives
-// it (trimmed), so the scan's list is the mapping's key set. Runs the real
-// stage leg and the real scan on a throwaway database built from
-// _main_database.sql on the dev postgres (the .env the test task loads),
-// dropped afterwards.
+// Pins that CSV staging resolves nothing. Each value the file's indicator
+// column says is looked up in the run's mapping: a value mapped to a data id
+// lands under it, a value mapped to null is counted in skippedByMapping and
+// dropped, and a value absent from the mapping fails the run. The value is
+// derived from the cell exactly as the scan derives it (trimmed), so the
+// scan's list is the mapping's key set. Runs the real stage leg and the real
+// scan on a throwaway database built from _main_database.sql on the dev
+// postgres (the .env the test task loads), dropped afterwards.
 //
 //   deno test -A --env-file server/tests/csv_mapping_staging_test.ts
 

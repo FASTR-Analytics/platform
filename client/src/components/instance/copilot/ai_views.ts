@@ -168,8 +168,8 @@ export type ProductViewContext = PackageViewContext & {
 };
 
 // A product's own view context from its T1 row, read live: the label, and
-// the pair with its scope's definition hash, or ruling 7's reason once the
-// row is gone. Creates a memo, so it is called in a component body.
+// the pair with its scope's definition hash, or an AIToolFailure naming why
+// once the row is gone. Creates a memo, so it is called in a component body.
 export function productViewContext(productId: string): ProductViewContext {
   const resolved = createResolvedScope(() => {
     const product = productById(productId);

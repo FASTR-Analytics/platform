@@ -14,7 +14,7 @@ export type ServerActionTransport = {
   // (offline banner); a headless host omits them.
   onNetworkFailure?: () => void;
   onNetworkSuccess?: () => void;
-  // In-process dispatch seam (PLAN_112 D4): when set, server actions issue
+  // In-process dispatch seam: when set, server actions issue
   // requests through this instead of global fetch. The /mcp endpoint points
   // it at headlessApp.request(), so every action still runs the full headless
   // middleware chain (credential verify, a PAT also stamping last_used_at;

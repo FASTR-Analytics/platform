@@ -1,6 +1,6 @@
 import { type Accessor, createSignal, onCleanup } from "solid-js";
 
-// One tab owns the chat (ruling 14): a conversation store is built from a
+// One tab owns the chat: a conversation store is built from a
 // record no other live tab writes, since the engine takes no cross-tab turn
 // lock and adopts no record. The panel requests the Web Lock named for the
 // user's thread scope when it mounts and mounts the chat only while it holds

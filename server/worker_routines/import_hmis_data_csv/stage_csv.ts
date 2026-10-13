@@ -17,12 +17,11 @@ import {
   getCsvStreamComponents,
 } from "../../server_only_funcs_csvs/get_csv_components_streaming_fast.ts";
 
-// Per-run staging tables (PLAN_DHIS2_IMPORTER_CONSOLIDATION A4): staging
-// output must survive a needs_review hold across other imports running in
-// between, so every table (the final ready-for-integration table plus the
-// four throwaway intermediates) carries a _run_{runId} suffix. Dropped on
-// integrate/discard/sweep: this is what makes releasing the single-running
-// slot on needs_review safe.
+// Per-run staging tables: staging output must survive a needs_review hold
+// across other imports running in between, so every table (the final
+// ready-for-integration table plus the four throwaway intermediates) carries a
+// _run_{runId} suffix. Dropped on integrate/discard/sweep: this is what makes
+// releasing the single-running slot on needs_review safe.
 
 export function hmisCsvStagingTableNames(runId: number): {
   raw: string;
@@ -60,14 +59,14 @@ export async function dropHmisCsvStagingTables(
   }
 }
 
-// Stream the CSV into a raw table, dedup, validate facilities, look each
-// value of the indicator column up in the run's mapping, and build the
-// final staging table. Staging resolves nothing (PLAN_A6 ruling 2): a value
-// the mapping sends to a data id lands under it, a value it sends to null
-// is counted and dropped, and a value absent from the mapping throws, since
-// the scan and the launch pinned the same bytes and calculated the values the
-// same way, so a gap is a defect. Never throws on dropped rows: the
-// caller's clean-condition gate decides what a nonzero drop count means.
+// Stream the CSV into a raw table, dedup, validate facilities, look each value
+// of the indicator column up in the run's mapping, and build the final staging
+// table. Staging resolves nothing: a value the mapping sends to a data id lands
+// under it, a value it sends to null is counted and dropped, and a value absent
+// from the mapping throws, since the scan and the launch pinned the same bytes
+// and calculated the values the same way, so a gap is a defect. Never throws on
+// dropped rows: the caller's clean-condition gate decides what a nonzero drop
+// count means.
 export async function stageHmisCsvIntoTables(args: {
   importDb: Sql;
   csvFilePath: string;

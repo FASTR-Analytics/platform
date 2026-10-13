@@ -23,10 +23,9 @@ import {
 } from "../../worker_routines/worker_store.ts";
 import type { DBHfaImportRun } from "./_main_database_types.ts";
 
-// HFA import runs (PLAN_DHIS2_IMPORTER_CONSOLIDATION Phase B): one row per
-// import, claimed by the partial unique index on status='running'. HFA is a
-// deliberately smaller machine than HMIS: no queue and no scheduler, so a
-// second launch while one runs is refused explicitly.
+// HFA import runs: one row per import, claimed by the partial unique index on
+// status='running'. HFA is a deliberately smaller machine than HMIS: no queue
+// and no scheduler, so a second launch while one runs is refused explicitly.
 
 function toRunSummary(row: DBHfaImportRun): HfaImportRunSummary {
   const config = parseJsonOrUndefined<HfaCsvRunConfig>(row.csv_config);

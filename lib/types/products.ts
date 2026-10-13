@@ -59,9 +59,9 @@ export function productLevelAtLeast(
   return PRODUCT_LEVELS.indexOf(level) >= PRODUCT_LEVELS.indexOf(required);
 }
 
-// The one derivation (PLAN_PRODUCT_OWNERSHIP R8): a global admin and the
-// owner hold own; everyone else holds the higher of their grant and the
-// general access, so the general access is a floor no grant lowers.
+// The one derivation: a global admin and the owner hold own; everyone else
+// holds the higher of their grant and the general access, so the general access
+// is a floor no grant lowers.
 export function productLevelFor(
   access: ProductAccess,
   user: { email: string; isGlobalAdmin: boolean },

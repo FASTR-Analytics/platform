@@ -20,7 +20,7 @@ type ReturnType = { productIds: string[] } | undefined;
 
 type ScopeChoice = "keep" | "set";
 
-// `duplicateProduct` keeps the source's package and mints its own label (D5);
+// `duplicateProduct` keeps the source's package and mints its own label;
 // the scope is the one thing to decide here, because a deck copied per scope
 // is the way scoped products are made. The default keeps each original's
 // scope, so a plain duplicate stays one click.

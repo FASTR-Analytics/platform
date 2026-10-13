@@ -236,7 +236,7 @@ export function rawJsonNeedsFigureBlockTransform(raw: string): boolean {
   );
 }
 
-// The traffic-light pair a pre-PLAN_1d metadata entry carries → the rule it
+// The traffic-light pair a legacy metadata entry carries → the rule it
 // meant (lib trafficLightThresholdsToRule, the same conversion migration 079
 // runs on the dictionary). Runs BEFORE the allow-list strip, on both the
 // pre-P2 source metadata and the post-P2 bundle metadata.
@@ -346,7 +346,7 @@ export function transformFigureBlock(block: FigureBlockMut): void {
     transformFigureInputs(block.figureInputs);
   }
 
-  // Block: provenance became the run identity (PLAN_RESULTS_RUNS ruling 4).
+  // Block: provenance became the run identity.
   // A bundle carrying the old freshness pair drops it and keeps the run id
   // the consolidation stamped beside it.
   if (
@@ -360,7 +360,7 @@ export function transformFigureBlock(block: FigureBlockMut): void {
     bundle.provenance = { runId };
   }
 
-  // Block: the scope stamp gained the definition hash (PLAN_SCOPES step 2).
+  // Block: the scope stamp gained the definition hash.
   // A bundle stamped with only its area gets the hash of the definition
   // limited by that area alone (geographyOnlyScopeDefinition), which is the
   // hash of the scope migration 204 gave its product, so a

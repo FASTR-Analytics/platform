@@ -11,15 +11,13 @@ import { _BYPASS_AUTH, _SERVER_VERSION } from "../exposed_env_vars.ts";
 import { buildMcpPrincipal, type McpPrincipal } from "./context_cache.ts";
 import { buildMcpToolsForPrincipal } from "./mcp_tools.ts";
 
-// The remote MCP endpoint (PLAN_112, re-cut 2026-08-19 to the pinned
-// package): any Claude client connects with just the instance URL
-// (https://<instance>/mcp) and a PAT in the Authorization header. Stateless
-// above the wire (D1): identity rides every request, the two metric tools
-// read the instance's CURRENT pinned results package on every call (no
-// package id in any schema), authorization runs per call. All tools are
-// read-only. The panther adapter owns the wire (both protocol eras, sessions,
-// elicitation); the D3 thunk below binds one tool set per authenticated
-// principal.
+// The remote MCP endpoint: any Claude client connects with just the instance
+// URL (https://<instance>/mcp) and a PAT in the Authorization header. Stateless
+// above the wire: identity rides every request, the two metric tools read the
+// instance's CURRENT pinned results package on every call (no package id in
+// any schema), authorization runs per call. All tools are read-only. The
+// panther adapter owns the wire (both protocol eras, sessions, elicitation);
+// the thunk below binds one tool set per authenticated principal.
 //
 // Auth is the shared headless-credential seam (server/headless_auth.ts): the
 // SAME resolver the per-dispatch middleware runs, which is what keeps a

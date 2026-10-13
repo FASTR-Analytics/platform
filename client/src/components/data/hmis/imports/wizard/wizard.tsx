@@ -36,7 +36,7 @@ import { Dhis2StepReview } from "./step_4_review";
 import { Dhis2StepTime, type Dhis2WizardTimeChoice } from "./step_2_time";
 
 // `new` may carry a selection to preselect (the indicator manager's bulk
-// action, PLAN_A7 ruling 12); the imports view passes none.
+// action); the imports view passes none.
 export type Dhis2WizardEntry =
   | { kind: "new"; indicatorIds?: string[] }
   | { kind: "editSchedule"; schedule: DatasetHmisScheduledImport }
@@ -100,9 +100,9 @@ function currentYearMonth(): string {
 }
 
 // The one wizard for every way a DHIS2 import gets configured: ad hoc run,
-// queue, one-shot future run, recurring schedule (PLAN_DHIS2_IMPORTER_UI_REVISION
-// §3). A modal (Add-visualization pattern), not a full-screen editor: short,
-// transient configure-and-submit, dismissed straight back to its host. It
+// queue, one-shot future run, recurring schedule. A modal (Add-visualization
+// pattern), not a full-screen editor: short, transient configure-and-submit,
+// dismissed straight back to its host. It
 // reads what it needs itself, so the imports view and the indicator manager
 // hand it the entry and nothing else.
 export function Dhis2Wizard(
@@ -146,7 +146,7 @@ function Dhis2WizardInner(p: InnerProps) {
   // describe what the selection expands to (the DHIS2 elements fetched and
   // the parts dropped) with the same lib expansion the server persists at
   // launch; the step refuses Next while nothing would be fetched or a
-  // calculated does not resolve (PLAN_A7 rulings 3 and 5).
+  // calculated does not resolve.
   const [selectedIndicators, setSelectedIndicators] = createSignal<string[]>(
     p.entry.kind === "new"
       ? (p.entry.indicatorIds ?? [])
@@ -158,7 +158,7 @@ function Dhis2WizardInner(p: InnerProps) {
   // A seeded selection (the manager's rows, a stored schedule) may name ids
   // the picker does not list: an Uploaded indicator, or one no longer in the
   // dictionary. They are dropped once, when the dictionary first arrives,
-  // and the step says which and why (PLAN_A7 ruling 12).
+  // and the step says which and why.
   const [seedDrops, setSeedDrops] = createSignal<Dhis2SeedDrop[]>([]);
   let seedChecked = false;
   function handleDictionaryLoaded(loaded: HmisIndicator[]) {

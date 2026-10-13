@@ -1,13 +1,13 @@
 import { unwrap } from "solid-js/store";
 import type { SlideDeckConfig } from "lib";
 
-// What the slide editor freezes at open, and what it does not (D16).
+// What the slide editor freezes at open, and what it does not.
 //
 // The PackageScope is deliberately absent: the editors read it LIVE from the
 // T1 products row, and the authoring context from the immutable T2 cache
 // keyed by that live runId. Reattaching a product or changing its scope while
 // an editor is open therefore moves the figure data AND the metric/preset
-// catalogue together, and lights the D4 stale badges. Freezing the pair here
+// catalogue together, and lights the stale badges. Freezing the pair here
 // is exactly the bug that would hide.
 //
 // What must not move under an open slide editor is the DECK's own

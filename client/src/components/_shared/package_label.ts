@@ -9,7 +9,7 @@ import {
 import { instanceState } from "~/state/instance/t1_store";
 
 // The package a product serves from, by LABEL. Ready-package labels are
-// approved-user data and ride the instance channel for exactly this (D8); a
+// approved-user data and ride the instance channel for exactly this; a
 // product attached to a package that has left the ready list still shows
 // something honest rather than a blank. The catalogue is the second source
 // for data-configuring users, who see packages that are not ready.

@@ -44,7 +44,7 @@ type VersionRow = {
 type DayGroup = { day: string; rows: VersionRow[] };
 
 // `docId` is the product id: a deck's or a report's versions hang off its
-// product row (PLAN_PRODUCTS_RESTRUCTURE D1).
+// product row.
 type Props = EditorComponentProps<
   {
     kind: VersionHistoryKind;

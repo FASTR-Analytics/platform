@@ -1,8 +1,8 @@
-// Product levels end to end (PLAN_PRODUCT_OWNERSHIP steps 2 and 3): five
-// users (owner, editor, viewer, stranger, global admin) against the real
-// product, folder, slide, deck and report routes and the level-aware guard,
-// the starting payload and the collab socket, on the dev database. The Clerk leg simulates only clerkMiddleware's output
-// contract, as products_routes_test.ts does.
+// Product levels end to end: five users (owner, editor, viewer, stranger,
+// global admin) against the real product, folder, slide, deck and report
+// routes and the level-aware guard, the starting payload and the collab
+// socket, on the dev database. The Clerk leg simulates only clerkMiddleware's
+// output contract, as products_routes_test.ts does.
 //
 // Needs a ready pinned package on the dev instance. Run alone with:
 //   BYPASS_AUTH= deno test -A --env-file --unstable-broadcast-channel server/tests/product_access_routes_test.ts
@@ -462,8 +462,8 @@ Deno.test("product levels: the guard, the access routes and the bulk action", as
     const adminTarget = await create(owner, "report");
     await ok(admin, "DELETE", "/products", { productIds: [adminTarget] });
 
-    // Levels are additive (R8): the higher of the grant and the general
-    // access wins, either way round.
+    // Levels are additive: the higher of the grant and the general access
+    // wins, either way round.
     assertEquals(
       (await setAccess(owner, report, "view", [
         { email: VIEWER, level: "edit" },
@@ -591,8 +591,7 @@ Deno.test("product levels: the guard, the access routes and the bulk action", as
     });
 
     // A product with no owner at view, as the fleet deploy leaves the
-    // consolidated ones (R3): no non-admin deletes it, and the admin sets
-    // its owner.
+    // consolidated ones: no non-admin deletes it, and the admin sets its owner.
     const ownerless = await create(owner, "report");
     await mainDb`
       UPDATE products SET owner = NULL, default_access = 'view'
@@ -613,8 +612,8 @@ Deno.test("product levels: the guard, the access routes and the bulk action", as
     await ok(admin, "PUT", `/products/${ownerless}/owner`, { email: OWNER });
     assertEquals((await accessOf(ownerless)).owner, OWNER);
 
-    // Folders carry no level (R5): a user who holds nothing inside deletes
-    // a folder, and its product moves up.
+    // Folders carry no level: a user who holds nothing inside deletes a
+    // folder, and its product moves up.
     const doomed = await folder(null);
     const hiddenInside = await create(owner, "report", doomed);
     const freed = await ok<{ freedProductIds: string[] }>(

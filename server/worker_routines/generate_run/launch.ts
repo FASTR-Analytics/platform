@@ -31,14 +31,13 @@ import {
   RUN_GENERATION_ENDED_CHANNEL,
 } from "./types.ts";
 
-// Host side of the run pipeline (PLAN_RESULTS_RUNS item 2): launch takes the
-// wizard's configuration in the request body (the wizard is an ephemeral
-// modal, nothing is persisted before this call), validates it, mints the
-// 'generating' catalog row, and spawns the worker; the run owns its whole
-// lifecycle from here. Generations run concurrently: a generation produces a
-// package and repoints nothing, so no two launches can conflict. The host owns
-// teardown: workers never self-close, and a crashed worker's containers are
-// removed by deterministic name.
+// Host side of the run pipeline: launch takes the wizard's configuration in the
+// request body (the wizard is an ephemeral modal, nothing is persisted before
+// this call), validates it, mints the 'generating' catalog row, and spawns the
+// worker; the run owns its whole lifecycle from here. Generations run
+// concurrently: a generation produces a package and repoints nothing, so no two
+// launches can conflict. The host owns teardown: workers never self-close, and
+// a crashed worker's containers are removed by deterministic name.
 
 type GeneratingEntry = {
   moduleIds: string[];

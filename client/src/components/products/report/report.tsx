@@ -198,7 +198,7 @@ type EmbedKind = "figure" | "image";
 type EmbedSelection = { kind: EmbedKind; id: string };
 type ReportMode = "edit" | "view" | "split";
 
-// The report editor takes ONE thing: the product id (D16). Label, package and
+// The report editor takes ONE thing: the product id. Label, package and
 // scope are read LIVE from the T1 products row; a report IS its product, so
 // the product id is also the collab document id.
 type Props = EditorComponentProps<{ productId: string }, undefined>;
@@ -446,7 +446,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     PreviewSurface | undefined
   >();
   // The lastUpdated we last saw from the server — round-tripped for optimistic
-  // concurrency (PLAN_REPORTS.md §4).
+  // concurrency.
   const [lastUpdated, setLastUpdated] = createSignal<string>("");
   const [showConflictBanner, setShowConflictBanner] = createSignal(false);
   const [saveError, setSaveError] = createSignal<string | undefined>();
@@ -501,7 +501,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
   // The figure-editor sidebar collapses in View, so clear the embed selection
   // when entering View. The CM editor is visible in Edit & Split: re-measure it when it
   // (re)appears (e.g. coming back from View where it was hidden). Also align the
-  // newly revealed pane to targetLine (§8 scroll-sync): when the editor reappears
+  // newly revealed pane to targetLine: when the editor reappears
   // after View, scroll it to targetLine; when the preview mounts after Edit,
   // scroll it to targetLine and arm figure-settle. One effect (not two) so refresh
   // runs before scrollToLine and they can't race.
@@ -704,7 +704,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
   // instead of committing against a torn-down editor.
   let mounted = true;
 
-  // ── scroll sync (PLAN_REPORT_SCROLL_SYNC.md) ────────────────────────────────
+  // ── scroll sync ─────────────────────────────────────────────────────────────
   // The source line is the canonical coordinate; pixel positions are derived live
   // from the DOM at apply-time. targetLine is fractional, 0-based.
   let targetLine = 0;
@@ -721,7 +721,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
   // document) — set when the pane is ready, cleared on unmount.
   let preview: PreviewSurface | undefined;
 
-  // Figure-settle (§7): figures measure their height a few frames after mount, so
+  // Figure-settle: figures measure their height a few frames after mount, so
   // a one-shot align can land before they settle. While armed (and the user
   // hasn't taken over), re-project targetLine as heights change.
   let settleArmed = false;
@@ -762,7 +762,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
       ? preview.scrollHeight() - preview.clientHeight()
       : lineToPreviewTop(preview, targetLine);
     if (Math.abs(next - preview.scrollTop()) < 1) return; // skip no-ops
-    syncing = true; // §7: must not masquerade as a user scroll
+    syncing = true; // must not masquerade as a user scroll
     preview.setScrollTop(next);
     requestAnimationFrame(() => (syncing = false));
   }
@@ -864,7 +864,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     if (row === undefined && !loading) p.close(undefined);
   });
 
-  // ── Package and scope (D16, D4) ─────────────────────────────────────────────
+  // ── Package and scope ───────────────────────────────────────────────────────
   // The authoring context follows the LIVE pair and its scope's definition: a
   // reattach, a scope change or an edit to the scope's module list swaps the
   // metric and preset catalogue the wizard and the update actions author
@@ -908,7 +908,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     });
   }
 
-  // ── Stale figures (D4) ──────────────────────────────────────────────────────
+  // ── Stale figures ───────────────────────────────────────────────────────────
   const staleContext = () => {
     const pair = scope();
     const context = authoringContext();
@@ -967,7 +967,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     return resolveLogoUrl(imgFile);
   }
 
-  // Never rewind lastUpdated when out-of-order save responses resolve (M3).
+  // Never rewind lastUpdated when out-of-order save responses resolve.
   function bumpLastUpdated(ts: string) {
     setLastUpdated((prev) => (ts > prev ? ts : prev));
   }
@@ -1189,10 +1189,11 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     setBody(res.data.body);
     setLastUpdated(res.data.lastUpdated);
 
-    // Prune orphan registry entries at load (PLAN_REPORTS.md §11). The
-    // loosest scan ("any": both token syntaxes and anything looser) — a
-    // kept orphan is harmless, a missed reference deletes a figure. Only a
-    // user who can edit writes the prune back; a viewer's stays in memory.
+    // Prune orphan registry entries only at load, when no undo history can
+    // bring their tokens back. The loosest scan ("any": both token syntaxes
+    // and anything looser) — a kept orphan is harmless, a missed reference
+    // deletes a figure. Only a user who can edit writes the prune back; a
+    // viewer's stays in memory.
     const refs = referencedReportEmbedIds(res.data.body, "any");
     const prunedFigures = Object.fromEntries(
       Object.entries(res.data.figures).filter(([id]) => refs.figures.has(id)),
@@ -1392,7 +1393,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
   });
 
   // Flush a pending debounced body save immediately (before unmount/accept) so a
-  // save in the autosave window is never dropped (H3).
+  // save in the autosave window is never dropped.
   function flushBodySave() {
     if (saveTimer) {
       clearTimeout(saveTimer);
@@ -1840,7 +1841,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
 
   // ── toolbar / embed-editor actions ───────────────────────────────────────────
 
-  // The ONE figure-authoring path (D3): the product package's presets and
+  // The ONE figure-authoring path: the product package's presets and
   // the metric wizard, resolved under the product's pair.
   async function pickFigure() {
     const ctx = staleContext();
@@ -1983,7 +1984,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     const ctx = staleContext();
     if (!bundle || !ctx) return;
     // The metric comes from the product package's authoring context; a
-    // figure carried over from another package edits under this one (D4).
+    // figure carried over from another package edits under this one.
     const metric = ctx.context.metrics.find((m) => m.id === bundle.metricId);
     if (!metric) {
       await openAlert({
@@ -2085,7 +2086,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
   }
 
   // The File menu's whole-document actions (FASTR toolbar). Rename and
-  // duplicate are the SHARED product surfaces (D16), not report-only modals:
+  // duplicate are the SHARED product surfaces, not report-only modals:
   // the label lives on the product row, so the header follows the store and
   // nothing here has to be told about the new name. A copy lands in the
   // products list; the current report stays open.
@@ -2148,7 +2149,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
 
   // The preview pane (View & Split) owns its scroll-sync lifecycle: it attaches
   // the surface (an rAF-throttled scroll listener, a content ResizeObserver for
-  // figure-settle §7, user-gesture latches) — all torn down on unmount, since
+  // figure-settle, user-gesture latches) — all torn down on unmount, since
   // the pane unmounts in Edit. Markdown: the surface is the scrolling div,
   // ready synchronously at mount. HTML: the surface is the iframe document,
   // ready only after the srcdoc loads — the pane aligns to targetLine at that
@@ -2261,7 +2262,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
   // The content area (banners + CM editor + preview + diff), shared by both
   // modes. The CM editor stays mounted in View too: AI accept applies via its
   // imperative setBody and body() updates flow through onBodyChange regardless
-  // of mode (PLAN_REPORT_PREVIEW_TOGGLE.md §2). Only the left sidebar differs.
+  // of mode. Only the left sidebar differs.
   const MainArea = () => (
     <div
       class="bg-base-200 flex h-full w-full flex-col"
@@ -2434,7 +2435,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
           </div>
           {
             /* HTML preview: visible in View & Split. Unmounts in Edit, so its
-              scroll/resize listeners are (re)established per mount (§7). */
+              scroll/resize listeners are (re)established per mount. */
           }
           <Show when={mode() !== "edit"}>
             <ReportPreviewPane />

@@ -9,10 +9,9 @@ import {
   DEFAULT_T_CONFIG,
 } from "./types/presentation_object_defaults.ts";
 
-// THE preset→config derivation (PLAN_RESULTS_RUNS item 5b). Presets are pure
-// projections of a package's manifest, and the AI deck figure path builds
-// from the same presets, so both consumers derive through here and cannot
-// drift.
+// THE preset→config derivation. Presets are pure projections of a package's
+// manifest, and the AI deck figure path builds from the same presets, so both
+// consumers derive through here and cannot drift.
 
 export function deriveConfigFromVizPreset(
   preset: VizPreset,

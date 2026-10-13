@@ -54,7 +54,7 @@ import {
 type Props = {
   productId: string;
   product: ProductSummary | undefined;
-  // The product's live pair and its package's authoring context (D4);
+  // The product's live pair and its package's authoring context;
   // undefined until the T1 row and the context have both arrived.
   scope: PackageScope | undefined;
   authoringContext: RunAuthoringContext | undefined;
@@ -472,7 +472,7 @@ export function SlideList(p: Props) {
     }
   }
 
-  // ── Stale figures (D4) ──────────────────────────────────────────────────────
+  // ── Stale figures ───────────────────────────────────────────────────────────
   // Recomputed whenever the deck's slide set changes or the container is
   // reattached or rescoped. The slides are already in the per-slide cache
   // (the cards render from it), so this is a walk, not a fetch storm. The
@@ -576,7 +576,7 @@ export function SlideList(p: Props) {
     });
   }
 
-  // The only cross-product figure reuse there is (D3): copy whole slides, with
+  // The only cross-product figure reuse there is: copy whole slides, with
   // their bundles verbatim. Enabled only with a selection.
   async function copyToDeck() {
     const slideIds = Array.from(selectedIds());

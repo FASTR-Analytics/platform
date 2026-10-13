@@ -12,13 +12,12 @@ import { fetchCommits } from "../github/fetch_module.ts";
 import { getModuleDefinitionDetail } from "../module_loader/mod.ts";
 import { MODULE_SOURCE } from "../module_loader/module_source.ts";
 
-// Wizard-support read for the results-package launch wizard
-// (PLAN_RESULTS_RUNS item 2, session 3): every offerable module's definition
-// resolved from the modules repo at latest commit, returning the one gitRef
-// step 2 records so the run pipeline re-fetches identical definitions. The
-// wizard's other starting values come from the instance defaults store
-// (`getRunGenerationDefaultsConfig`): the wizard is instance-entered, so
-// there is no anchor run to mine a prefill from.
+// Wizard-support read for the results-package launch wizard: every offerable
+// module's definition resolved from the modules repo at latest commit,
+// returning the one gitRef step 2 records so the run pipeline re-fetches
+// identical definitions. The wizard's other starting values come from the
+// instance defaults store (`getRunGenerationDefaultsConfig`): the wizard is
+// instance-entered, so there is no anchor run to mine a prefill from.
 
 // "Latest commit" = the repo's HEAD, resolved once: a single commit that
 // contains every module path's latest content, unlike per-path last-touch

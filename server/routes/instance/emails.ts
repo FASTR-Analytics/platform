@@ -11,9 +11,8 @@ import { log } from "../../middleware/logging.ts";
 export const routesEmails = new Hono();
 
 // The only SendGrid egress. sendSlideDeckEmail is a product surface, so it
-// sits behind requireApprovedUser() like every other product read
-// (PLAN_PRODUCTS_RESTRUCTURE D2); the PDF is client-rendered and the
-// recipient roster on offer is the instance roster.
+// sits behind requireApprovedUser() like every other product read; the PDF is
+// client-rendered and the recipient roster on offer is the instance roster.
 
 function escapeHtml(s: string): string {
   return s

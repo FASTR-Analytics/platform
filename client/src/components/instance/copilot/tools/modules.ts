@@ -14,9 +14,9 @@ import { formatModuleSettingsForAI } from "./format_module_settings_for_ai.ts";
 // input: each tool is a template the chat binds per call to the inner set of
 // the view's package (bind_package_tools.ts). The module list is built over
 // the pair's authoring context with the package reads; the script, log and
-// settings reads bind by run id alone (Tim's ruling 2026-08-18: what a
-// package contains is a function of the runId alone), so they answer for a
-// package that is still generating or has failed. The gates are the
+// settings reads bind by run id alone (what a package contains is a
+// function of the runId alone), so they answer for a package that is still
+// generating or has failed. The gates are the
 // catalogue's, declared in the plain shape: the chat checks the ids against
 // its registry when the tool registers.
 

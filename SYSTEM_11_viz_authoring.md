@@ -34,9 +34,8 @@ docs_absorbed:
 # S11: Visualization Authoring UI
 
 The embedded figure editor, the insert-figure wizard, and the figure-config
-semantics in `lib/`. A visualization is a figure inside a product
-(PLAN_PRODUCTS_RESTRUCTURE D3): there is no visualization product, no library
-and no standalone editor since step 9a.
+semantics in `lib/`. A visualization is a figure inside a product: there is no
+visualization product, no library and no standalone editor.
 
 ## Scope
 
@@ -49,13 +48,13 @@ The `globs:` frontmatter above is the lint-enforced manifest
 - the three panel tabs and their sub-panels; `replicate_by_options.tsx`;
   `conditional_formatting_editor.tsx` + `conditional_formatting_store.ts`) and
   `stale_figure_badge.tsx` (the per-figure stale badge, its "Update to
-  <package>" action and the "Update all figures" header button of
-  PLAN_PRODUCTS_RESTRUCTURE D4, the contract being S10's "The captured pair and
-  staleness"). `components/products/_shared/insert_figure/**` (the insert-figure
-  wizard and the preset gallery it renders, below). `components/explore/**` (the
-  instance Explore tab's page, S14 mounts it: "The Explore page" below). The
-  figure modals in `_shared/figure_editor/` (download, results-file viewer,
-  custom series styles). `products/slide_deck/editor_snapshot.ts`
+  <package>" action and the "Update all figures" header button, the contract
+  being S10's "The captured pair and staleness").
+  `components/products/_shared/insert_figure/**` (the insert-figure wizard and
+  the preset gallery it renders, below). `components/explore/**` (the instance
+  Explore tab's page, S14 mounts it: "The Explore page" below). The figure
+  modals in `_shared/figure_editor/` (download, results-file viewer, custom
+  series styles). `products/slide_deck/editor_snapshot.ts`
   (`snapshotForSlideEditor`, the one thing the slide editor freezes at open) and
   `products/slide_deck/slide_editor/conflict_resolution_modal.tsx` are S12's
   now, under its slide deck glob. Lib config semantics
@@ -112,7 +111,8 @@ pair.
 the host's store.
 [editor_snapshot.ts](client/src/components/products/slide_deck/editor_snapshot.ts)
 holds only the slide editor's `snapshotForSlideEditor` (the deck config at
-open): the pair is deliberately NOT snapshotted (D16).
+open): the pair is deliberately NOT snapshotted: the editors read it live from
+the T1 products row.
 
 ## Draft state & the refetch contract
 
@@ -139,9 +139,9 @@ open): the pair is deliberately NOT snapshotted (D16).
 - The items generator auto-resolves an unset/invalid replicant to the first
   valid option (`resolveDefaultReplicant`) on a **fresh config copy** (it never
   mutates the passed unwrapped store) and the editor commits the resolved value
-  back into the draft, guarded on inequality. This is also the D4 auto-default:
-  a replicant stored under a previous package that the current one lacks is
-  replaced, never thrown on.
+  back into the draft, guarded on inequality. This is also the auto-default
+  after a package change: a replicant stored under a previous package that the
+  current one lacks is replaced, never thrown on.
 - Preview guards before render: duplicate display-slot check
   (`hasDuplicateDisaggregatorDisplayOptions` on the effective config), "You must
   select a replicant" fallback, and `too_many_items` (20,000-point message) /
@@ -205,17 +205,16 @@ cannot drift. A preview renders through the one shared helper,
 the scope-keyed `state/products/t2_figure_data.ts` (S9) and assembles them with
 `makeFigureBundleFromFetchedData(scope, ...)` + `buildFigureInputs`, so
 reopening a preset under the same `(runId, definitionHash)` is a cache hit and a
-preset is never a row (D6). The package page's default-visualization cards (S8)
+preset is never a row. The package page's default-visualization cards (S8)
 render through the same helper, so a default seen there and later inserted under
 the same pair is one cache entry. Custom configs go through
 `getStartingConfigForPresentationObject` (type defaults from `VIZ_TYPE_CONFIG`,
 display slots assigned via `getNextAvailableDisaggregationDisplayOption`). **The
 wizard never persists**. It closes with
-`InsertFigureResult = { metric, config }` (a figure IS `{
-metricId, config }`,
-D3) and its two callers, the slide and report editors, build a figure block
-directly from their live pair and context; the Explore page is read-only and
-does not call it.
+`InsertFigureResult = { metric, config }` (a figure IS `{ metricId, config }`)
+and its two callers, the slide and report editors, build a figure block directly
+from their live pair and context; the Explore page is read-only and does not
+call it.
 
 ## The Explore page
 
@@ -240,8 +239,8 @@ read: a choice the package lacks falls back to the first offered (the package to
 the pin, else the newest ready one) without being overwritten. The authoring
 context is read through `t2_run_authoring_context`. The page sets the chat's
 `explore` view (S13): its pair is the resolved package at the resolved scope (or
-ruling 7's no-package reason while none is ready) and its state names the
-family, module, view and type the panes resolve, through the same functions
+a refusal naming why while none is ready) and its state names the family,
+module, view and type the panes resolve, through the same functions
 (`resolveFamily`, `resolveModule`, `pickModuleView`, `pickViewType`), and the
 settings of the view the frame resolved: `MetricFrame` reports `resolveView`'s
 result up to the page through `onView`, the way `PackageExplorer` reports the
@@ -475,21 +474,20 @@ roll-up at the top; `values` puts the value props on the axis), an over-time
 type's panes (the category) and lines (the unit when `series: "unit"`, else the
 values), a chart's `axis` (`area` or `category`) and `series`, a map's area. A
 type's `values` narrows the metric's value props; the first type is the view's
-default. `viewsForModule` applies R7: a view is offered only for metrics the
-package carries and stamps ready, and `byLevel` and `switch` need one ready
-option and offer only those. `UNBOUND_METRICS` lists every non-hidden metric of
-a bound module that no binding reads, with a reason.
-`server/tests/explore_views_test.ts` is the lockstep guard: the pure checks
-always run (view ids unique per module and every view with a type, every axis a
-role the view has and rows apart from cols, a type's `values` non-empty and one
-under a unit on the series, no `byLevel` national key with the area laid out, no
-over-time type on HFA, every registry module bound), and under
-`FASTR_MODULES_LOCAL_DIR` every binding is checked against the module
-definitions (metrics present and not hidden, role dimensions columns of the
-results object, required non-time dimensions grouped with at most one replicant
-per type, a type's `values` among every bound metric's value props and a unit on
-the series reading one value prop, a period column for the over-time type, every
-non-hidden metric of a bound module bound or listed).
+default. `viewsForModule` offers a view only for metrics the package carries and
+stamps ready, and `byLevel` and `switch` need one ready option and offer only
+those. `UNBOUND_METRICS` lists every non-hidden metric of a bound module that no
+binding reads, with a reason. `server/tests/explore_views_test.ts` is the
+lockstep guard: the pure checks always run (view ids unique per module and every
+view with a type, every axis a role the view has and rows apart from cols, a
+type's `values` non-empty and one under a unit on the series, no `byLevel`
+national key with the area laid out, no over-time type on HFA, every registry
+module bound), and under `FASTR_MODULES_LOCAL_DIR` every binding is checked
+against the module definitions (metrics present and not hidden, role dimensions
+columns of the results object, required non-time dimensions grouped with at most
+one replicant per type, a type's `values` among every bound metric's value props
+and a unit on the series reading one value prop, a period column for the
+over-time type, every non-hidden metric of a bound module bound or listed).
 
 The bindings today, each view with its types in order, the first the default:
 m012 "Service counts" (a table of areas by indicator; over time; a map under one

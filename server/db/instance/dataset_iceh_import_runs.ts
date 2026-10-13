@@ -22,11 +22,10 @@ import {
 import { _INSTANCE_COUNTRY_ISO3 } from "../../exposed_env_vars.ts";
 import type { DBIcehImportRun } from "./_main_database_types.ts";
 
-// ICEH import runs (PLAN_DHIS2_IMPORTER_CONSOLIDATION Phase C): one row per
-// import, claimed by the partial unique index on status='running'. ICEH is a
-// deliberately smaller machine than HMIS: no queue and no scheduler, so a
-// second launch while one runs is refused explicitly. These run rows are
-// ICEH's first-ever durable import history.
+// ICEH import runs: one row per import, claimed by the partial unique index on
+// status='running'. ICEH is a deliberately smaller machine than HMIS: no queue
+// and no scheduler, so a second launch while one runs is refused explicitly.
+// These run rows are ICEH's first-ever durable import history.
 
 function toRunSummary(row: DBIcehImportRun): IcehImportRunSummary {
   const config = parseJsonOrUndefined<IcehRunConfig>(row.zip_config);

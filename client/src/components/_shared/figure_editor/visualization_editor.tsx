@@ -20,12 +20,11 @@ import {
 import { VisualizationEditorInner } from "./figure_editor";
 
 // The embedded figure editor. A figure is `{ metricId, config }` inside a
-// product (PLAN_PRODUCTS_RESTRUCTURE D3): a host (slide editor, report
-// editor) hands it a metric, a config and the host's
-// PackageScope, and gets back the edited config. This wrapper resolves the
-// metric's queryable shape (`resultsValueInfo`) under that pair before
-// mounting the editor; that read is scope-dependent, which is why it lives
-// here and not in the host.
+// product: a host (slide editor, report editor) hands it a metric, a config and
+// the host's PackageScope, and gets back the edited config. This wrapper
+// resolves the metric's queryable shape (`resultsValueInfo`) under that pair
+// before mounting the editor; that read is scope-dependent, which is why it
+// lives here and not in the host.
 
 export type FigureEditorResult =
   | undefined

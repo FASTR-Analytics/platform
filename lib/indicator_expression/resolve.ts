@@ -5,7 +5,7 @@
 // One entry point, used by BOTH the authoring validator (the indicator editor,
 // via the instance routes) and run capture. Same rules in both places: the
 // editor states them where the user is, capture enforces them where the data
-// is (PLAN_1a §1.2).
+// is.
 //
 // Flattening is substitution: a `calculated` ingredient is replaced by its own
 // expression, recursively, until the expression names nothing but leaves:
@@ -25,7 +25,7 @@ import {
   POPULATION_TYPE_IDS,
 } from "../types/population.ts";
 
-// The results object carries eight ingredient slots (PLAN_1a §1.5).
+// The results object carries eight ingredient slots.
 export const MAX_INDICATOR_EXPRESSION_INGREDIENTS = 8;
 
 // Substitution depth: how many `calculated`-on-`calculated` links a chain may have.
@@ -186,7 +186,7 @@ function describeChain(chain: string[]): string {
     })`;
 }
 
-// Ingredient id → results-row column, in resolution order (PLAN_1a §1.5).
+// Ingredient id → results-row column, in resolution order.
 export function buildIngredientSlotMap(
   ingredientIds: string[],
 ): Record<string, string> {

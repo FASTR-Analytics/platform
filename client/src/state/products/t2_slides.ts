@@ -5,8 +5,8 @@ import { createReactiveCache } from "../_infra/reactive_cache";
 // One slide's content, versioned by its own optimistic-lock stamp (the
 // `last_updated` message): per-entity (Variant B), so a flip is one
 // incremental change to the slide on screen and consumers leave stale
-// content visible while the refetch runs. Slide ids are instance-wide unique
-// (D14), so the slide id alone is the uniqueness key; the product id only
+// content visible while the refetch runs. Slide ids are instance-wide unique,
+// so the slide id alone is the uniqueness key; the product id only
 // scopes the read on the wire.
 export const _SLIDE_CACHE = createReactiveCache<
   { productId: string; slideId: string },

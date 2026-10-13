@@ -100,7 +100,7 @@ function checkRowsRequest(
     };
   }
 
-  // Guards on a catalog-evaluated results object (PLAN_1a §1.7): validations
+  // Guards on a catalog-evaluated results object: validations
   // of a DECLARED fact, never inference. Its value comes from applying each
   // indicator's own catalog expression to SUMmed ingredient columns, so a
   // request may only ever ask for those columns, summed, with no expression of

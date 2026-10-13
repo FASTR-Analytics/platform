@@ -22,9 +22,9 @@ import { _MODULES_LOCAL_DIR } from "../exposed_env_vars.ts";
 import { MODULE_SOURCE } from "./module_source.ts";
 import { ensureRepoAssetCached } from "./repo_assets.ts";
 
-// pinnedGitRef: fetch the module's files at this exact commit instead of
-// HEAD: the run pipeline re-fetches the definitions the wizard's step 2
-// resolved (PLAN_RESULTS_RUNS item 2). undefined = HEAD (install/update).
+// pinnedGitRef: fetch the module's files at this exact commit instead of HEAD:
+// the run pipeline re-fetches the definitions the wizard's step 2 resolved.
+// undefined = HEAD (install/update).
 // Local source ignores the pin: local refs are per-read placeholders, and
 // dev reads the working tree by design.
 export async function fetchModuleFiles(
@@ -104,10 +104,10 @@ export async function fetchModuleFiles(
   return { definition, script: stripFrontmatter(rawScript), gitRef };
 }
 
-// Definition resolution is where pinned repo assets are fetched, verified,
-// and cached (PLAN_RESULTS_RUNS item 2 ruling): a bad pin fails install/
-// update/preview in the admin's face, never a module run. Assets are fetched
-// at the same gitRef the definition was, so the two cannot disagree.
+// Definition resolution is where pinned repo assets are fetched, verified, and
+// cached: a bad pin fails install/update/preview in the admin's face, never a
+// module run. Assets are fetched at the same gitRef the definition was, so the
+// two cannot disagree.
 async function cachePinnedRepoAssets(
   moduleId: string,
   definition: ModuleDefinitionGithub,

@@ -123,7 +123,7 @@ type SlideEditorInnerProps = {
   deckConfigSnapshot: SlideDeckConfig;
   // The product's live (package, scope) pair and that package's authoring
   // context, passed down by the deck editor: what every figure on this slide
-  // resolves under and what staleness is measured against (D4).
+  // resolves under and what staleness is measured against.
   scope: PackageScope;
   authoringContext: RunAuthoringContext;
   // Where the deck wants the slide's toolbar: the toolbar row under the
@@ -1015,7 +1015,7 @@ export function SlideEditor(p: Props) {
 
     try {
       // The metric comes from the product package's authoring context; a
-      // figure carried over from another package edits under this one (D4).
+      // figure carried over from another package edits under this one.
       const metric = p.authoringContext.metrics.find((m) => m.id === metricId);
       if (!metric) {
         await openAlert({
@@ -1106,7 +1106,7 @@ export function SlideEditor(p: Props) {
     }
   }
 
-  // The ONE figure-authoring path (D3): the product package's presets and
+  // The ONE figure-authoring path: the product package's presets and
   // the metric wizard, resolved under the product's pair. Inserting into an
   // empty block and replacing an existing figure are the same action.
   async function handleCreateVisualization() {
@@ -1153,7 +1153,7 @@ export function SlideEditor(p: Props) {
     );
   }
 
-  // ── Stale figures on this slide (D4) ────────────────────────────────────────
+  // ── Stale figures on this slide ─────────────────────────────────────────────
   // Compared against the product's live pair, so a reattach while the slide
   // editor is open lights the count without a remount.
   const staleContext = () => ({

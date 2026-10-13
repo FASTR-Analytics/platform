@@ -22,7 +22,7 @@ export const routesInstanceSSE = new Hono();
 
 export type InstanceSseFilterDeps = {
   // Every folder, unfiltered: a restricted connection's visible folders are
-  // recomputed from it (R23).
+  // recomputed from it.
   allFolders: Folder[];
 };
 
@@ -30,8 +30,8 @@ export type InstanceSseFilterResult = {
   messages: InstanceSseMessage[];
   // The stream ends after these messages, and the client's reconnect
   // rebuilds its payload: the connection's own scope access or admin flag
-  // changed (R29), or a product it lost became visible again while its slide
-  // stamps were withheld.
+  // changed, or a product it lost became visible again while its slide stamps
+  // were withheld.
   close: boolean;
 };
 
@@ -39,10 +39,10 @@ export type InstanceSseFilterResult = {
 // connection was sent. Rules, all LIVE off the same re-derivation (every
 // `users_updated` carries the full roster, and the connection's own email
 // never changes, so re-finding it in each roster is sufficient):
-//   - Q-B: `run_progress`/`r_script` (run labels, module ids, R error detail)
-//     go to instance data admins only: a mid-session grant starts the stream,
-//     a revocation stops it, no reconnect. A restricted user is never one
-//     (R26).
+//   - Telemetry: `run_progress`/`r_script` (run labels, module ids, R error
+//     detail) go to instance data admins only: a mid-session grant starts the
+//     stream, a revocation stops it, no reconnect. A restricted user is never
+//     one: permissionsUnderScopeAccess reads its data bits as false.
 //   - Roster: an UNAPPROVED connection (its user absent from the roster) gets
 //     `users_updated` rewritten to `[]`: the roster is an enumeration surface
 //     (emails, names, permission maps) with no consumer on the pending-approval
@@ -55,18 +55,17 @@ export type InstanceSseFilterResult = {
 //     `scopes_updated` / `last_updated`, matching the withholding
 //     buildInstanceState applies to the starting payload. A revoked user stops
 //     receiving products on the next `users_updated` without a reconnect; the
-//     unapproved-to-approved fill is the client's reconnect (D8).
-//   - Visibility (PLAN_PRODUCT_OWNERSHIP §2.7): a connection that is not a
-//     global admin gets only the products it can see, by scope and level
-//     (holdsProductLevel at view). A visible upserted row is forwarded and
+//     unapproved-to-approved fill is the client's reconnect.
+//   - Visibility: a connection that is not a global admin gets only the
+//     products it can see, by scope and level (holdsProductLevel at view). A visible upserted row is forwarded and
 //     remembered as held; a held row that is no longer visible is rewritten
 //     as a deletion and remembered as withdrawn; a row neither visible nor
 //     held is dropped. A withdrawn product that becomes visible again ends
 //     the stream, since its slide stamps were withheld meanwhile. A slide
 //     stamp passes when its deck is held.
-//   - Grants (PLAN_SCOPES §2.6): a RESTRICTED connection's scopes are cut to
-//     the granted ones, and its folder list is recomputed on every product or
-//     folder message and sent when it changes.
+//   - Grants: a RESTRICTED connection's scopes are cut to the granted ones,
+//     and its folder list is recomputed on every product or folder message
+//     and sent when it changes.
 //   - A change to the connection's own scope access or admin flag ends the
 //     stream.
 export type InstanceSseFilterStart = Pick<
