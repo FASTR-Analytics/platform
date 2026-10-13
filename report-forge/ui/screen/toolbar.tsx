@@ -71,8 +71,8 @@ import type {
 } from "../editor/body_editor.tsx";
 
 // The "Fixed colours" swatches. The toolbar draws its own grid (its colour
-// popover is a toolbar surface, not panther's ColorPicker), so the palette
-// lives here rather than being reached out of panther, whose set is private.
+// popover is a toolbar surface, not a colour-picker control), so the palette
+// lives here.
 // Six per row, matching the grid below: blues, reds, greens, yellows and
 // purples, then greys and the two extremes.
 const FIXED_COLORS: string[] = [
@@ -1257,8 +1257,7 @@ export function ReportToolbar(p: Props) {
               onClick={() => p.api()?.insertLink()}
             >
               {
-                /* panther's icon set has no chain glyph, so the link button
-                  uses a letterform like B/I/U do. */
+                /* The link button uses a letterform, like B/I/U do. */
               }
               <span class="rf:underline">↗</span>
             </ToolButton>
@@ -1827,7 +1826,7 @@ function roleClassOf(role: FastrInkRole | undefined): string {
 
 // The combined ground panel: the theme's four TONES as preset swatches on
 // top (roles, so they re-theme with the document) above the literal colour
-// grid (the same "standard" set panther's ColorPicker showed) and a hex field
+// grid (the "standard" set of fixed colours) and a hex field
 // for anything else. Tone swatches paint the REAL scoped rule, so a swatch is
 // the ground the report will get; the "default" tone is the clear, drawn as a
 // struck-through chip so the row reads as four colours and a none. `onPick`

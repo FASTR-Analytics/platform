@@ -1,12 +1,12 @@
 // =============================================================================
 // The editor toolbar's text operations, as pure functions over a string.
 //
-// DOM-free and CodeMirror-free on purpose: the toolbar is the first UI in this
-// app that rewrites report source programmatically, and every one of these
-// rules (where a delimiter goes relative to whitespace, which lines a heading
-// may touch, how a list renumbers) is the kind of thing that is settled by a
-// test in a second and by clicking around for ten minutes. Living in lib/ is
-// what makes that possible — server/tests/ cannot import from client/src.
+// DOM-free and CodeMirror-free on purpose: the toolbar rewrites report
+// source programmatically, and every one of these rules (where a delimiter
+// goes relative to whitespace, which lines a heading may touch, how a list
+// renumbers) is the kind of thing that is settled by a test in a second and
+// by clicking around for ten minutes. Living in the engine is what makes
+// that possible: the tests run without a browser.
 //
 // Every function returns changes with PRE-TRANSACTION offsets, disjoint and
 // ascending, so the caller dispatches them as ONE CodeMirror transaction. That

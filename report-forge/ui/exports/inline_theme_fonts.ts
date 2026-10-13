@@ -1,6 +1,6 @@
 // A FASTR theme's web fonts, made self-contained. The theme sheet loads its
 // typefaces with one Google Fonts `@import`; the paged PDF is printed by a
-// headless Chrome on the instance host, which must not depend on reaching
+// headless Chrome on the host's server, which must not depend on reaching
 // Google (a blocked or slow host would silently fall back to system fonts and
 // every page break would move). So the browser, which has the fonts already,
 // fetches the CSS and the font files and hands the server a stylesheet with

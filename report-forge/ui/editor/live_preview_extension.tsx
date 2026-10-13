@@ -367,8 +367,8 @@ class RegionWidget extends WidgetType {
     // over the one that built the element.
     const self = () => (dom as unknown as { _widget: RegionWidget })._widget;
     // Presses inside the widget stopPropagation (cells, islands, the press
-    // claim below), which starves panther's document-level menu dismiss — so
-    // an open context menu is closed HERE, in the capture phase, before any
+    // claim below), which starves the menu's document-level dismiss, so an
+    // open context menu is closed HERE, in the capture phase, before any
     // child handler can swallow the event.
     dom.addEventListener("mousedown", () => hideMenu(), true);
     dom.style.display = "flow-root";
@@ -751,10 +751,10 @@ function blockCaretRect(
   return { left: r.left, right: r.left, top, bottom };
 }
 
-// A figure's size as its own drawn chart reports it: panther lays a figure
-// out at its reference frame whatever the display, so the live canvas's
-// backing size carries the same aspect as the PDF's raster. Once a chart
-// has drawn, its aspect is the truth for the editor, ahead of the host's
+// A figure's size as its own drawn chart reports it: a host that lays a
+// figure out at a reference frame whatever the display gives the live
+// canvas a backing size with the same aspect as the PDF's raster. Once a
+// chart has drawn, its aspect is the truth for the editor, ahead of the host's
 // size cache (which can be late, or fail, and then a figure stood a page
 // tall: Nick's "test 22", a figure alone on the page after a heading and
 // three lines). By figure id.
@@ -1958,8 +1958,8 @@ export function attachTextEditor(
   });
 }
 
-// Right-click on a step: a step either side, delete it — panther's showMenu,
-// same as tiles. A paragraph inside `:::steps` IS a step (the renderer
+// Right-click on a step: a step either side, delete it (the kit's showMenu,
+// same as tiles). A paragraph inside `:::steps` IS a step (the renderer
 // numbers the block's direct children), so this menu and Enter are the only
 // chrome a step needs (applyStepsChildAction).
 export function attachStepsChildContextMenu(
@@ -2027,8 +2027,8 @@ export function attachStepsChildContextMenu(
 // live doc at menu time (the clicked row could sit inside a container region,
 // so the REGION's bounds are not the table's).
 // Right-click on a stat tile, a card or a column: add a sibling either side,
-// pick the grid's column count, delete it — panther's showMenu, same as
-// table cells.
+// pick the grid's column count, delete it (the kit's showMenu, same as
+// table cells).
 // The column count follows the child count while it fits
 // (applyTilesChildAction).
 export function attachTilesChildContextMenu(
@@ -2968,8 +2968,8 @@ function buildLiveState(
     const touched = selectionTouches(state, r.from, r.to);
     // No region reveals its source any more: every block edits IN PLACE in
     // its rendered form (paragraph/cell/label editors below), so the caret
-    // inside a region shows as the widget's active ring. Split remains the
-    // raw-source view. buildRevealedRegion is kept for a possible explicit
+    // inside a region shows as the widget's active ring. Live preview off remains
+    // the raw-source view. buildRevealedRegion is kept for a possible explicit
     // keyboard-driven source mode.
     void buildRevealedRegion;
     protectedLines.push({
@@ -4142,7 +4142,7 @@ const sheetBleedVars = ViewPlugin.fromClass(
 // free. The width classes are deliberately dropped: the host pins the measure
 // in px, and the rem-based fm-doc--wide rule would re-shear it against the
 // app's root font size. Everything applied is tracked and removed on destroy,
-// so flipping to Split leaves no tint behind.
+// so turning live preview off leaves no tint behind.
 function docGroundPlugin(resolver: EmbedResolver) {
   return ViewPlugin.fromClass(
     class {
@@ -6337,7 +6337,7 @@ function pageBoxPlugin(resolver: EmbedResolver) {
       destroy() {
         this.resize?.disconnect();
         this.oracle.dispose();
-        // The live-preview extensions leave with the mode (Edit -> Split): the
+        // The live-preview extensions leave with the mode (live preview off): the
         // flowing surface takes its scroll-past-end pad back.
         this.view.scrollDOM.classList.remove("cm-fm-paged");
       }

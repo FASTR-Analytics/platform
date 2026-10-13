@@ -485,8 +485,10 @@ session for the same slide):
 
 ### Report editor
 
-[report/report.tsx](client/src/components/products/report/report.tsx) +
-[body_editor.tsx](client/src/components/products/report/body_editor.tsx): the
+[report/report.tsx](client/src/components/products/report/report.tsx) hosts the
+editor, which is Report Forge's (S12): the app owns the session and hands the
+body's `Y.Text` and the awareness to it as the `collab` prop, and the package's
+[body_editor.tsx](report-forge/ui/editor/body_editor.tsx) owns the binding. The
 CodeMirror view rebuilds once when the session becomes ready, swapping in
 `yCollab` + per-user undo; the latched `collabReady` turns the 800 ms REST
 autosave off for good (offline edits accumulate in the doc and the reconnect
@@ -564,7 +566,8 @@ and [cursors.tsx](client/src/components/products/report/cursors.tsx).
 
 **Awareness field registry** (one shared Awareness per session — do not
 collide): `cursor` = yCollab text caret (nulled on every CM blur and on view
-teardown by `yCaretHygiene` in `_shared/collab_markdown_editor.tsx` —
+teardown by `yCaretHygiene`, which lives in `report-forge/ui/collab.ts` and is
+used by every collaborative CodeMirror here, the report's and the decks' —
 y-codemirror.next itself NEVER clears it: its blur-clear branch is dead code
 upstream, so without the plugin a caret sat in peers' editors after its owner
 clicked away, tabbed out, or closed the editor); `user` = identity —
@@ -1264,16 +1267,15 @@ history" in the deck overflow menu.
   CodeMirror transactions as `StateEffect`s and let `invertedEffects` + CM's own
   history undo "doc change + registry change" atomically. That only works where
   CM history is the authority, and it isn't:
-  [body_editor.tsx:180](client/src/components/products/report/body_editor.tsx#L180)
-  installs `yUndoManagerKeymap` ahead of `basicSetup` precisely because
-  "yCollab's per-user undo takes precedence", and `yCollab` is installed at
-  `:219`. `collabReady` latches at the first `report_sync`, so the editor
-  upgrades from plain to collab shortly after mount and **Y.UndoManager, not CM
-  history, owns undo in the steady state.** Building the `invertedEffects`
-  version would produce a registry undo that is live only in the brief pre-sync
-  window or when the socket is down, and would split behaviour confusingly:
-  Ctrl+Z undoing body text via Yjs while toolbar buttons drove an inert CM
-  stack.
+  [body_editor.tsx:460](report-forge/ui/editor/body_editor.tsx#L460) installs
+  `yUndoManagerKeymap` ahead of `basicSetup` precisely because "yCollab's
+  per-user undo takes precedence", and `yCollab` is installed at `:531`.
+  `collabReady` latches at the first `report_sync`, so the editor upgrades from
+  plain to collab shortly after mount and **Y.UndoManager, not CM history, owns
+  undo in the steady state.** Building the `invertedEffects` version would
+  produce a registry undo that is live only in the brief pre-sync window or when
+  the socket is down, and would split behaviour confusingly: Ctrl+Z undoing body
+  text via Yjs while toolbar buttons drove an inert CM stack.
 
   **The shape of a real fix.** Put the figure/image registries into the room's
   Y.Doc (Y.Maps) and construct the undo manager over all three shared types

@@ -1,10 +1,10 @@
 // =============================================================================
 // FASTR Markdown report TEMPLATES: the Google-Docs-style starting points a
-// new report is offered right after its theme is picked (theme_modal.tsx →
-// template_modal.tsx). A template is a skeleton BODY (real blocks, headings
-// in the right order, placeholder guidance in each slot) plus a brief for
-// the AI, which is told which template the report was started from so it
-// writes to that shape (build_system_prompt.ts, getEditingReportInstructions).
+// new report is offered right after its theme is picked (the theme modal's
+// second step). A template is a skeleton BODY (real blocks, headings in the
+// right order, placeholder guidance in each slot) plus a brief for the AI,
+// which is told which template the report was started from so it writes to
+// that shape (fastrReportTemplateBrief).
 //
 // Placeholders are muted role marks, `[What goes here]{.muted}`: they read as
 // grey guidance on the page, a user types over them, and the AI brief names

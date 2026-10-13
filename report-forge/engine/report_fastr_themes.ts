@@ -1,13 +1,13 @@
 // =============================================================================
-// FASTR Markdown themes — the design tokens behind the format's REAL
-// stylesheets. Unlike REPORT_HTML_STYLES (prose briefs steering the AI), these
-// drive a deterministic renderer: report_fastr_css.ts projects one token set
-// into `--fm-*` custom properties that the single structure sheet reads.
+// FASTR Markdown themes: the design tokens behind the format's REAL
+// stylesheets. They drive a deterministic renderer: report_fastr_css.ts
+// projects one token set into `--fm-*` custom properties that the single
+// structure sheet reads.
 //
-// A theme is therefore swappable at any time — a FASTR Markdown body carries no
-// CSS of its own. Adding a theme is safe; REMOVING one needs the retired-value
-// treatment (PROTOCOL_APP_MIGRATIONS.md + the Block-2 transform in
-// data_transforms/reports.ts), same as the html styles.
+// A theme is therefore swappable at any time: a FASTR Markdown body carries no
+// CSS of its own. Adding a theme is safe; REMOVING a built-in strands every
+// document stored on it (it falls back to the default theme's tokens), so a
+// host with stored documents migrates them first.
 // =============================================================================
 
 import type { ReportForgeText } from "./i18n.ts";
@@ -224,7 +224,7 @@ const FASTR_THEME_SPECS: Record<FastrBuiltInTheme, FastrThemeSpec> = {
     },
     // Inter, not the system stack this theme used to name. A system font is
     // whatever the MACHINE has, and the PDF is printed by a headless Chrome
-    // on the instance host whose only face is Liberation: the author's page
+    // on a server whose only face is Liberation: the author's page
     // was set in Segoe UI or SF and the PDF came back in something else, with
     // every line wrapping at a different word. Inter is inlined into the
     // printed document like every other theme's face (inline_theme_fonts.ts),

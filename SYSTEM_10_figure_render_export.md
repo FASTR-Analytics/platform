@@ -35,8 +35,8 @@ The `globs:` frontmatter above is the lint-enforced manifest
 the stale predicate `figure_staleness.ts`, special chart modes, the
 conditional-formatting compile path, `GLOBAL_STYLE_OPTIONS`);
 `generate_slide_deck/**` (`convertSlideToPageInputs`); `generate_report/**` (the
-report document model and its HTML rendering, below; S12's prose describes the
-pipeline, SYSTEMS.md §4.1); `client/src/exports/**` (incl.
+app's half of report rendering: figure rasters and their ink, below; the
+document builder itself is Report Forge's, S12); `client/src/exports/**` (incl.
 `get_table_export_aoa.ts`); lib render contracts (`_figure_bundle.ts`,
 `brand_presets.ts`, `key_colors.ts`, slide-font types);
 `state/products/t2_images.ts`; the two schema and predicate pins under
@@ -737,47 +737,47 @@ carries the CF traffic-light palette + qualitative scales (15 consumer files,
 including the style builders and the legend builder
 `conditional_formatting.ts`).
 
-## Report document rendering (generate_report)
+## Report figures (generate_report)
 
-The twin of `generate_slide_deck/` for reports: what the report editor, the
-version-history preview and the exporters all render through, so the preview and
-the file agree. Four files behind `mod.ts`:
-[report_html.ts](client/src/generate_report/report_html.ts) (sanitize →
-materialize embeds → base CSS, the one document builder),
+The report document builder (sanitize, materialize embeds, the theme sheet) is
+Report Forge's: `report-forge/ui/report_html.ts` and `report-forge/ui/exports/`
+(S12). What stays here is the half only this app can do, drawing a report's
+figures with panther. Three files behind `mod.ts`:
 [report_figure_raster.ts](client/src/generate_report/report_figure_raster.ts)
-(the content-keyed figure raster cache and the ink themes),
+(the content-keyed figure raster cache, the size cache, and `applyInkTheme`,
+which recolours a figure's text for the ground it sits on),
 `_report_export_maps.ts` (`loadImageEntry`, `figureInputsForDownload`) and
 `_media_placeholder.ts` (the localized "could not be displayed" placeholder,
-which `convertSlideToPageInputs` reads). The folder imports
-`generate_visualization/`, `server_actions/` (`_SERVER_HOST`), lib, panther and
-`dompurify`, and nothing from `exports/` or `components/` (PROTOCOL_UI_STRUCTURE
-layers). The formats themselves are S12's: its Reports section is the
-authoritative description of this pipeline, and S12 is the mandatory reader
-(SYSTEMS.md §4.1).
+which `convertSlideToPageInputs` reads). `mod.ts` also re-exports the package's
+builder and ink names (`renderReportBodyHtml`, `materializeReportEmbeds`,
+`FigureInkTheme`, ...) so the app's figure code keeps one import. The folder
+imports `generate_visualization/`, lib, panther and `report-forge`, and nothing
+from `exports/` or `components/` (PROTOCOL_UI_STRUCTURE layers).
 
 ## The export engine (client/src/exports)
 
-11 files, ~1.5k LOC, no barrel (callers import files directly). Every heavy
-engine is panther-side: `PageRenderer`,
-`createPdfRenderContextWithFontsBrowser`, `pagesToPptxBrowser`,
-`markdownToPdfBrowser` / `markdownToWordBrowser`. The app files are
-orchestrators: fetch detail → build model/PageInputs → panther → `saveAs`. Every
+7 files, no barrel (callers import files directly). The deck engines are
+panther-side: `PageRenderer`, `createPdfRenderContextWithFontsBrowser`,
+`pagesToPptxBrowser`. The deck files are orchestrators: fetch detail → build
+model/PageInputs → panther → `saveAs`. The three report files are adapters over
+Report Forge's exporters (`report-forge/ui/exports/`): `reportDocumentOf` turns
+a stored `ReportDetail` into the package's `ReportDocument`, and
+`reportExportHostOf` is this app's half of an export (where an image lives, and
+a figure's pixels, drawn by panther from the report's own figure blocks). Every
 entry returns an `APIResponse` envelope (never throws), takes a `progress(pct)`
-callback, and yields to the UI between items. The exception to "panther does the
-heavy work" is the paged report PDF, whose engine is the SERVER's headless
-Chrome (S12).
+callback, and yields to the UI between items. The paged report PDF is printed by
+the SERVER's headless Chrome (S12).
 
-| Artifact   | Formats                                                          | Pipeline                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| ---------- | ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Slide deck | PDF (download), PDF-base64 (email), PPTX                         | `(productId, progress)`: fetch deck detail + per-slide `getSlideFromCacheOrFetch` → `convertSlideToPageInputs` → PageRenderer into jsPDF (deck-family fonts only) or `pagesToPptxBrowser`; 1400×788                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| Report     | fastr: paged PDF, HTML · markdown: PDF, Word · html: HTML, print | `(productId, progress)` throughout. markdown: fetch report detail → hydrate figure/image maps keyed by literal `figure:<id>` / `image:<id>` tokens → `markdownTo{Pdf,Word}Browser` (PDF 1000×1414 with page numbers). html and fastr (`export_report_as_html.ts`, S12's formats): the same sanitize→materialize→base-CSS builder as the editor preview with figures as `getFigureAsDataUrlBrowser` PNGs at 1920 and images inlined → standalone `.html` via `saveAs`, or a hidden `sandbox="allow-same-origin allow-modals"` frame → `print()`. fastr's PDF is the paged one (`export_report_as_paged_pdf.ts`): the client builds the complete paged document and `renderReportPdf` prints it with headless Chrome, so the PDF and the editor's page boxes agree |
-| Single viz | PNG, table CSV, data CSV, JSON definition                        | in the editor (`figure_editor.tsx`, outside `exports/`): transient bundle → `getFigureAsCanvas` at `FIGURE_EXPORT_WIDTH_PX` 1920; multi-replicant download disabled                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| Artifact   | Formats                                   | Pipeline                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| ---------- | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Slide deck | PDF (download), PDF-base64 (email), PPTX  | `(productId, progress)`: fetch deck detail + per-slide `getSlideFromCacheOrFetch` → `convertSlideToPageInputs` → PageRenderer into jsPDF (deck-family fonts only) or `pagesToPptxBrowser`; 1400×788                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| Report     | paged PDF, Word, HTML                     | The editor's Download dialog is Report Forge's and exports the LIVE document through the host interfaces (`imageHost`, `figures.rasterize`, `renderPdf`). From a stored report: `buildStandaloneReportHtml(detail, progress, opts)` (`export_report_as_html.ts`) is the same builder as the editor preview with figures as `getFigureAsDataUrlBrowser` PNGs at `FIGURE_EXPORT_WIDTH_PX` and images inlined; `buildReportPdfFromDetail` (`export_report_as_paged_pdf.ts`) builds the complete paged document and `renderReportPdf` prints it with headless Chrome, forcing the open editor's page breaks (`registerReportPageLayout`) when the fetched body is the body it laid out, so the PDF and the editor's page boxes agree |
+| Single viz | PNG, table CSV, data CSV, JSON definition | in the editor (`figure_editor.tsx`, outside `exports/`): transient bundle → `getFigureAsCanvas` at `FIGURE_EXPORT_WIDTH_PX` 1920; multi-replicant download disabled                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 
 The email exits are the only non-download paths: `ShareSlideDeck` →
 `exportSlideDeckAsPdfBase64` → `sendSlideDeckEmail`, and `ShareReport` →
 `buildReportAttachment` → `sendReportEmail` (S12's SendGrid routes). A report
-goes as the file its format downloads as, so unlike the deck's fixed PDF the
-attachment carries its own MIME type.
+goes as its paged PDF, the same bytes Download saves.
 
 **`getTableExportAoa`**
 ([get_table_export_aoa.ts](client/src/exports/get_table_export_aoa.ts)) exports
@@ -796,9 +796,10 @@ tokens in place for the localized placeholder. Slide decks degrade per-block
 upstream in `convertSlideToPageInputs`, but a failed slide fetch or convert
 **aborts the whole deck export**.
 
-**UI entry points:** `DownloadSlideDeck` + `ShareSlideDeck` (deck page),
-`DownloadReport` (report page), and the figure editor's download modal.
-Deck/report exports pass the raw DB label to `pdf.save`/`saveAs` (Open item).
+**UI entry points:** `DownloadSlideDeck` + `ShareSlideDeck` (deck page), Report
+Forge's download dialog (report page: File > Download), and the figure editor's
+download modal. Deck/report exports pass the raw DB label to `pdf.save`/`saveAs`
+(Open item).
 
 ## Open items
 
@@ -856,7 +857,6 @@ Deck/report exports pass the raw DB label to `pdf.save`/`saveAs` (Open item).
   Revive or delete.
 - The editor PNG honors transparency only in the no-padding branch
   (`getFigureAsCanvas` fills white); blocked on a panther transparent flag.
-- `buildReportFigureMap` is `async` with zero awaits.
 
 - **Deck-themed SERIES colors** (deferred half of the deck-colors work).
   Structural figure colors (grid lines, borders, data-label backgrounds,

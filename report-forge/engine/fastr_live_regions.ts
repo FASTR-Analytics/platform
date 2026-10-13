@@ -10,8 +10,8 @@
 // materialising the document as a string.
 //
 // Table detection is a delimiter-row heuristic, NOT a parse: the editor's
-// Lezer tree is commonmark (no Table nodes), and a heuristic in lib/ stays
-// testable. It is deliberately conservative — a table markdown-it would accept
+// Lezer tree is commonmark (no Table nodes), and a heuristic in the engine
+// stays testable. It is deliberately conservative — a table markdown-it would accept
 // as a paragraph interruption is left as prose. Misdetection is SELF-CORRECTING
 // for fidelity: a widget always shows the true render of its source slice
 // through the real renderer, so the worst case of a boundary miss is an odd

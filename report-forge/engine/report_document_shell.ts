@@ -1,8 +1,8 @@
 // =============================================================================
 // The standalone report DOCUMENT shell: the base stylesheet and the html
-// wrapper around a sanitized report body. Pure strings, in lib/ so the client
-// (preview, .html export, paged PDF) and the Deno tests that render fixture
-// documents through headless Chrome build byte-identical documents.
+// wrapper around a sanitized report body. Pure strings, in the engine so the
+// client (preview, .html export, paged PDF) and the Deno tests that render
+// fixture documents through headless Chrome build byte-identical documents.
 // =============================================================================
 
 import { escapeReportHtml } from "./embeds.ts";

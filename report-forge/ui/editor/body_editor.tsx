@@ -83,8 +83,8 @@ const clamp = (n: number, lo: number, hi: number) =>
 
 // Single source of truth for the editor's readable writing column and the pane
 // width it needs to show that column at full size. Shared by the CM theme
-// (.cm-content max-width), the Split pane cap (index.tsx), and the centering
-// threshold, so they can't drift apart.
+// (.cm-content max-width) and the centering threshold, so they can't drift
+// apart.
 export const EDITOR_COLUMN_MAX_REM = 56;
 // The line-number gutter adds ~4rem; the pane must be this wide for the column
 // to reach EDITOR_COLUMN_MAX_REM.
@@ -193,7 +193,7 @@ export type ReportEditorApi = {
   whenIdle: () => Promise<void>;
   // Switch the page boxes on (a pagination with no pages: the editor lays
   // the document out itself, live_preview_extension's pageBoxPlugin) or
-  // off (undefined). Live preview only; a no-op in Split.
+  // off (undefined). Live preview only; a no-op in the raw-source view.
   setPagination: (pagination: EditorPagination | undefined) => void;
   // Print's height for every block, by source text (the host's background
   // layout): the estimates for blocks the editor has not rendered.
@@ -244,7 +244,8 @@ type Props = {
   selectedId: () => string | undefined;
   // rAF-throttled notification that the editor's scroll position changed.
   onScroll?: () => void;
-  // Center the writing column (Edit mode); left-align it otherwise (Split).
+  // Center the writing column (live preview); left-align it otherwise (the
+  // raw-source view).
   centered: () => boolean;
   // When centered, px reserved on the right so the column lines up with content
   // centered past the left sidebar (matches the View preview placement).
@@ -262,10 +263,11 @@ type Props = {
   // moves as well as edits, but only when something the toolbar renders has
   // actually changed.
   onContextChange?: (ctx: ReportBlockContext) => void;
-  // FASTR only: Edit mode's Obsidian-style surface — regions render as their
-  // true themed HTML, inline syntax conceals, the editor paints the document
-  // page. Toggled at runtime (Edit <-> Split) via a compartment, so flipping it
-  // preserves undo, scroll, selection and the collab binding.
+  // The Obsidian-style surface: regions render as their true themed HTML,
+  // inline syntax conceals, the editor paints the document page. On unless
+  // this reads false, which leaves the raw source. Toggled at runtime via a
+  // compartment, so flipping it preserves undo, scroll, selection and the
+  // collab binding.
   livePreview?: () => boolean;
   ref?: (api: ReportEditorApi) => void;
 };
@@ -398,8 +400,8 @@ export function ReportBodyEditor(p: Props) {
       : 1;
     view.scrollDOM.scrollBy({ top: e.deltaY * unit });
   };
-  // Shown again after Split: its spacer and position
-  // were not tracked while hidden.
+  // Shown again after the raw-source view: its spacer and position were not
+  // tracked while hidden.
   createEffect(() => {
     if (barShown()) requestAnimationFrame(syncPaneBar);
   });
@@ -425,7 +427,7 @@ export function ReportBodyEditor(p: Props) {
     return on ? livePreviewExtensions(resolver, collab) : [];
   }
 
-  // Runtime Edit <-> Split flip, mirroring applyCenterTheme: reconfigure the
+  // Runtime live-preview flip, mirroring applyCenterTheme: reconfigure the
   // compartment and toggle the document-surface scope class, never rebuild.
   function applyLivePreview(on: boolean) {
     const key = String(on);
@@ -485,7 +487,7 @@ export function ReportBodyEditor(p: Props) {
           : [EditorState.readOnly.of(true), EditorView.editable.of(false)]),
         EditorView.lineWrapping,
         // Fill the container so the editor (and its line-number gutter) extends
-        // the full height even when the document is short (panther fullHeight).
+        // the full height even when the document is short.
         EditorView.theme({
           "&.cm-editor": { height: "100%" },
           // Fixed editor text size, independent of page size.
@@ -1198,7 +1200,7 @@ export function ReportBodyEditor(p: Props) {
     });
   });
 
-  // Edit <-> Split flips the live-preview surface without a rebuild.
+  // Flipping live preview swaps the surface without a rebuild.
   createEffect(() => {
     const on = p.livePreview?.() ?? true;
     applyLivePreview(on);

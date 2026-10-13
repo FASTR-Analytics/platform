@@ -1,7 +1,6 @@
 // =============================================================================
-// FASTR Markdown → HTML. Ordinary CommonMark (markdown-it, configured exactly
-// like panther's parser so plain prose reads identically to a markdown report)
-// plus the `:::` container blocks defined in fastr_markdown_blocks.ts.
+// FASTR Markdown → HTML. Ordinary CommonMark (markdown-it, so plain prose
+// reads as it does in any CommonMark renderer) plus the `:::` container blocks defined in fastr_markdown_blocks.ts.
 //
 // Output is UNSANITIZED: the client hands it to DOMPurify with
 // REPORT_PURIFY_CONFIG on the way into the preview / export, exactly as the html
@@ -64,8 +63,8 @@ export function createFastrMarkdownIt(): MarkdownIt {
     linkify: false,
     typographer: true,
   });
-  // Same as panther: typographer is wanted for quotes/dashes, but the
-  // (c)/(tm)/±-style substitutions mangle report text.
+  // The typographer is wanted for quotes/dashes, but the (c)/(tm)/±-style
+  // substitutions mangle report text.
   md.disable("replacements", true);
 
   // ── `:::` containers ───────────────────────────────────────────────────────
