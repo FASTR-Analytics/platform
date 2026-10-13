@@ -60,7 +60,7 @@ import {
 // self-contained (web images/fonts the author referenced stay external).
 //
 // The same builder also produces the PAGED document (Paged.js + the paged
-// sheet, lib/report_fastr_paged.ts) that the editor lays out for its page
+// sheet, report-forge/engine/report_fastr_paged.ts) that the editor lays out for its page
 // boxes and the server prints to PDF — one document, so they agree.
 
 export type StandaloneReportOptions = {

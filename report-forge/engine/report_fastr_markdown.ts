@@ -36,7 +36,7 @@ import {
   readFastrDocumentSettings,
   renderFastrTocHtml,
 } from "./fastr_markdown_blocks.ts";
-import { escapeReportHtml } from "./types/reports.ts";
+import { escapeReportHtml } from "./embeds.ts";
 
 type ContainerMeta = {
   name: string;

@@ -16,7 +16,7 @@ import { loadReportEmbeds } from "./export_report_as_html";
 import { fastrPagedFooter } from "./export_report_as_paged_pdf";
 import { loadThemeFontsForWord } from "./word_theme_fonts";
 
-// The Word file of a FASTR Markdown report (lib/report_fastr_word.ts): a
+// The Word file of a FASTR Markdown report (report-forge/engine/report_fastr_word.ts): a
 // plain, editable document. Built entirely HERE, in the browser that draws
 // the figures; the server is asked for the report and nothing else.
 

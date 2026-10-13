@@ -7,11 +7,11 @@ import type { RunHmisIndicator } from "../types/run_manifest.ts";
 import { inferPeriodFormatFromValue } from "../types/_metric_installed.ts";
 import { describeIndicatorFacts } from "./format_metric_data_for_ai.ts";
 import type { InfoCatalogTopic } from "./info_catalog.ts";
-import { FASTR_MD_SYNTAX_DOC } from "../fastr_markdown_spec.ts";
+import { FASTR_MD_SYNTAX_DOC } from "../../report-forge/engine/fastr_markdown_spec.ts";
 import {
   type FastrReportTemplate,
   fastrReportTemplateBrief,
-} from "../fastr_report_templates.ts";
+} from "../../report-forge/engine/fastr_report_templates.ts";
 
 // The shared halves of the AI system prompt: what both surfaces (the SPA
 // copilot and the /mcp get_overview) ground the model with. Each surface

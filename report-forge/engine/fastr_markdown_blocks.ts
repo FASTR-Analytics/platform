@@ -17,8 +17,8 @@
 // the theme swappable after creation.
 // =============================================================================
 
-import { escapeReportHtml } from "./types/reports.ts";
-import { FASTR_GROUNDS } from "./types/report_fastr_themes.ts";
+import { escapeReportHtml } from "./embeds.ts";
+import { FASTR_GROUNDS } from "./report_fastr_themes.ts";
 
 export const FASTR_BLOCK_NAMES = [
   "callout",

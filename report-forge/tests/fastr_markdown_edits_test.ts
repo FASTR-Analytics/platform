@@ -24,7 +24,7 @@ import {
   tableSnippet,
   toggleInlineDelimiters,
   toggleLinePrefixEdit,
-} from "../../lib/fastr_markdown_edits.ts";
+} from "../engine/fastr_markdown_edits.ts";
 
 // The toolbar dispatches every EditResult as ONE CodeMirror transaction, which
 // requires the changes to be disjoint and ascending with pre-transaction
@@ -1135,7 +1135,7 @@ Deno.test("enterBesideRegionEdit: prose and the report header are left alone", (
 import {
   fastrMarkAwareEdit,
   fastrMarkAwareRewrite,
-} from "../../lib/fastr_markdown_edits.ts";
+} from "../engine/fastr_markdown_edits.ts";
 
 // Applies fastrMarkAwareEdit the way the editor's filter does.
 function markEdit(text: string, from: number, to: number, insert = ""): string {

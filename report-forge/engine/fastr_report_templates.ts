@@ -16,7 +16,7 @@
 // theme it is metadata, never part of the body.
 // =============================================================================
 
-import { t3 } from "./translate/mod.ts";
+import { t3 } from "./i18n.ts";
 
 export const FASTR_REPORT_TEMPLATES = [
   "policy_brief",

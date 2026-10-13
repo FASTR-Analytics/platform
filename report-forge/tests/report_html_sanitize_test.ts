@@ -8,13 +8,13 @@
 // forms, link) — the properties the sandboxed preview and the un-sandboxed
 // .html export both rely on.
 //
-// Run: deno test -A server/tests/report_html_sanitize_test.ts
+// Run: deno test -A report-forge/tests/report_html_sanitize_test.ts
 
 import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import { JSDOM } from "npm:jsdom@^26.1.0";
 import createDOMPurify from "dompurify";
-import { REPORT_PURIFY_CONFIG } from "../../lib/types/reports.ts";
-import { renderFastrMarkdownToHtml } from "../../lib/report_fastr_markdown.ts";
+import { REPORT_PURIFY_CONFIG } from "../engine/mod.ts";
+import { renderFastrMarkdownToHtml } from "../engine/report_fastr_markdown.ts";
 
 const window = new JSDOM("").window;
 const purify = createDOMPurify(window as unknown as Window & typeof globalThis);

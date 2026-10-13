@@ -1,7 +1,7 @@
 // The page map for the AI (get_report_pages): lay a FASTR Markdown report
 // out as the PDF's pages, in the editor's hidden frame (paginate_report.ts,
 // the same paged document the server prints), and describe what landed
-// where (lib/fastr_report_page_map.ts). Figures take the box their raster
+// where (report-forge/engine/fastr_report_page_map.ts). Figures take the box their raster
 // will have (the size cache, measured first) and images their natural size,
 // as in the editor, so the map is the PDF's pages give or take a fit.
 

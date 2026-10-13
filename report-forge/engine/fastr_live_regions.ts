@@ -24,7 +24,7 @@ import {
   isFastrLeafBlock,
   scanContainerLines,
 } from "./fastr_markdown_blocks.ts";
-import { parseReportEmbedLine } from "./types/reports.ts";
+import { parseReportEmbedLine } from "./embeds.ts";
 
 export type FastrLiveRegion = {
   kind: "container" | "leaf" | "table" | "embed";

@@ -3,7 +3,8 @@
 // Markdown body → sanitize (DOMPurify + the lib config) → materialize embeds →
 // base CSS.
 // DOM-dependent (client only); the sanitizer CONFIG itself is pure data in
-// lib/types/reports.ts and is exercised by server/tests/report_html_sanitize_test.ts.
+// report-forge/engine/embeds.ts and is exercised by
+// report-forge/tests/report_html_sanitize_test.ts.
 //
 // The preview renders the result inside a `sandbox="allow-same-origin"` srcdoc
 // iframe: scripts are browser-blocked there regardless of the sanitizer, the

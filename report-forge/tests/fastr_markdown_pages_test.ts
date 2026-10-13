@@ -4,7 +4,7 @@ import {
   fastrPageStartLines,
   fastrParagraphSplits,
   layoutFastrPages,
-} from "../../lib/fastr_markdown_pages.ts";
+} from "../engine/fastr_markdown_pages.ts";
 
 const G = { pageH: 1123, marginPx: 68, sheetW: 794 };
 // A4 at 96dpi: 987px of content between the margins.

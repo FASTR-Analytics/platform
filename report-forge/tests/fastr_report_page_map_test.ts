@@ -1,6 +1,6 @@
 import { assertStringIncludes } from "@std/assert";
-import { fastrPageMapText } from "../../lib/fastr_report_page_map.ts";
-import type { FastrPagedResult } from "../../lib/report_fastr_paged.ts";
+import { fastrPageMapText } from "../engine/fastr_report_page_map.ts";
+import type { FastrPagedResult } from "../engine/report_fastr_paged.ts";
 
 const body = [
   ":::report{background=paper}",

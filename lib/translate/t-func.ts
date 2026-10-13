@@ -1,7 +1,19 @@
-import { type Language, type TranslatableString } from "@timroberton/panther";
+import {
+  type Language,
+  setLanguage as setPantherLanguage,
+  type TranslatableString,
+} from "@timroberton/panther";
+import { setReportForgeLanguage } from "../../report-forge/engine/i18n.ts";
 import { InstanceCalendar } from "../types/mod.ts";
 
-export { getLanguage, setLanguage, t3 } from "@timroberton/panther";
+export { getLanguage, t3 } from "@timroberton/panther";
+
+// One language for the whole app: panther's strings and the report editor's
+// (Report Forge keeps its own, so it can live outside this app).
+export function setLanguage(language: Language): void {
+  setPantherLanguage(language);
+  setReportForgeLanguage(language);
+}
 
 export const LANGUAGE_STORAGE_KEY = "fastrLanguage";
 

@@ -27,7 +27,7 @@ import {
   type FastrReportTheme,
   type FastrThemeColorOverride,
   type FastrThemeTokens,
-} from "./types/report_fastr_themes.ts";
+} from "./report_fastr_themes.ts";
 
 // Scope "" = the whole report document; anything else (a picker tile) roots the
 // same rules at that selector.

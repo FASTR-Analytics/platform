@@ -37,7 +37,6 @@ export * from "./last_updated_tables.ts";
 export * from "./products.ts";
 export * from "./scope.ts";
 export * from "./reports.ts";
-export * from "./report_fastr_themes.ts";
 export * from "./report_styles.ts";
 export * from "./run_generation.ts";
 export * from "./run_authoring_context.ts";

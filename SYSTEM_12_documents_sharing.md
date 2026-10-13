@@ -22,23 +22,9 @@ globs:
   - lib/types/_slide_deck_themes.ts
   - lib/types/products.ts
   - lib/types/reports.ts
-  - lib/types/report_fastr_themes.ts
   - lib/types/report_styles.ts
   - lib/types/scope.ts
   - lib/types/slides.ts
-  - lib/fastr_live_regions.ts
-  - lib/fastr_markdown_blocks.ts
-  - lib/fastr_markdown_edits.ts
-  - lib/fastr_report_templates.ts
-  - lib/fastr_markdown_pages.ts
-  - lib/fastr_markdown_spec.ts
-  - lib/fastr_report_page_map.ts
-  - lib/report_document_shell.ts
-  - lib/report_fastr_css.ts
-  - lib/report_fastr_markdown.ts
-  - lib/report_fastr_paged.ts
-  - lib/report_fastr_word.ts
-  - lib/report_sections.ts
   - lib/slide_text_offsets.ts
   - server/db/instance/report_styles.ts
   - server/db/instance/scopes.ts
@@ -49,21 +35,14 @@ globs:
   - server/routes/products/**
   - server/tests/scope_definition_hash_test.ts
   - server/tests/consolidated_products_test.ts
-  - server/tests/fastr_live_regions_test.ts
-  - server/tests/fastr_markdown_edits_test.ts
-  - server/tests/fastr_markdown_pages_test.ts
-  - server/tests/fastr_report_page_map_test.ts
   - server/tests/folder_tree_test.ts
   - server/tests/products_routes_test.ts
   - server/tests/scope_grants_routes_test.ts
   - server/tests/scope_routes_test.ts
-  - server/tests/report_fastr_markdown_test.ts
-  - server/tests/report_fastr_word_test.ts
+  - server/tests/report_config_test.ts
   - server/tests/report_format_conversion_test.ts
   - server/tests/report_format_helpers_test.ts
-  - server/tests/report_html_sanitize_test.ts
   - server/tests/report_pdf_render_test.ts
-  - server/tests/report_sections_test.ts
   - server/tests/slide_text_offsets_test.ts
   - server/utils/id_generation.ts
 docs_absorbed:
@@ -722,8 +701,8 @@ or the registries; a report's summary carries only `hasEmbeds`, computed in SQL.
 **HTML format.** Rendering = DOMPurify with the pure-data `REPORT_PURIFY_CONFIG`
 (lib; `FORCE_BODY`, explicit `FORBID_TAGS`, the default URI regexp plus the
 `figure:`/`image:` schemes — pinned by
-`server/tests/report_html_sanitize_test.ts` on jsdom) → materialize embeds →
-base CSS ([report_html.ts](client/src/generate_report/report_html.ts) in S10's
+`report-forge/tests/report_html_sanitize_test.ts` on jsdom) → materialize embeds
+→ base CSS ([report_html.ts](client/src/generate_report/report_html.ts) in S10's
 `generate_report/`, the one builder for preview, version-history preview,
 `.html` download and print). The editor preview is a
 `sandbox="allow-same-origin"` srcdoc iframe
@@ -750,8 +729,9 @@ materializes fresh block objects on every remote update), serial with a frame
 yield, pending → placeholder, failure → "Missing visualization". Structural
 operations (headings index, `rewrite_section`'s wrapper/flat sections, line
 anchors, well-formedness incl. unclosed elements) all read one `@lezer/html`
-tree in [lib/report_sections.ts](lib/report_sections.ts)
-(`server/tests/report_sections_test.ts`). Exports: markdown → PDF/Word as
+tree in
+[report-forge/engine/report_sections.ts](report-forge/engine/report_sections.ts)
+(`report-forge/tests/report_sections_test.ts`). Exports: markdown → PDF/Word as
 before; html → standalone `.html` (figures as data URLs, images inlined) or a
 hidden `allow-same-origin allow-modals` print frame
 ([export_report_as_html.ts](client/src/exports/export_report_as_html.ts)).
@@ -760,22 +740,22 @@ hidden `allow-same-origin allow-modals` print frame
 CommonMark plus `:::` container blocks, and the design is a REAL hand-authored
 stylesheet rather than an AI brief — so the format needs no AI at all, and what
 you type is what you get. Syntax primitives are pure and Deno-testable in
-[lib/fastr_markdown_blocks.ts](lib/fastr_markdown_blocks.ts)
+[report-forge/engine/fastr_markdown_blocks.ts](report-forge/engine/fastr_markdown_blocks.ts)
 (`parseContainerFence`, `parseContainerAttrs`, `containerHtmlFor` — the `fm-*`
 class taxonomy is defined ONCE there — and `listFastrContainerDefects`);
-[lib/report_fastr_markdown.ts](lib/report_fastr_markdown.ts) is the markdown-it
-compiler (one generic block rule, depth-counted so `:::tiles`/`:::card`/`:::`
-nests at the same marker length; `stat` is a LEAF block taking no close).
-Blocks: `callout` (5 kinds), `tiles`/`card`, `stat`, `columns`/`col`, `quote`,
-`band`, `contents` (a LEAF: a table of contents whose content is the DOCUMENT,
-not the author's lines — `fastrDocumentOutline` in fastr_markdown_blocks is the
-one authority, skipping code fences and a cover's title page, and
-`renderFastrTocHtml` the one markup, so the renderer's `fm_toc` core rule and
-the editor's leaf widget cannot drift; the core rule also stamps `id=` on the
-heading tokens with the same slug function, only when the document has a
-contents block, and the slug is spent even for headings the depth omits so a
-deeper `depth=` never renumbers anchors. In the editor an entry cannot navigate,
-so a click parks the CARET on its heading; the widget's eq keys on the
+[report-forge/engine/report_fastr_markdown.ts](report-forge/engine/report_fastr_markdown.ts)
+is the markdown-it compiler (one generic block rule, depth-counted so
+`:::tiles`/`:::card`/`:::` nests at the same marker length; `stat` is a LEAF
+block taking no close). Blocks: `callout` (5 kinds), `tiles`/`card`, `stat`,
+`columns`/`col`, `quote`, `band`, `contents` (a LEAF: a table of contents whose
+content is the DOCUMENT, not the author's lines — `fastrDocumentOutline` in
+fastr_markdown_blocks is the one authority, skipping code fences and a cover's
+title page, and `renderFastrTocHtml` the one markup, so the renderer's `fm_toc`
+core rule and the editor's leaf widget cannot drift; the core rule also stamps
+`id=` on the heading tokens with the same slug function, only when the document
+has a contents block, and the slug is spent even for headings the depth omits so
+a deeper `depth=` never renumbers anchors. In the editor an entry cannot
+navigate, so a click parks the CARET on its heading; the widget's eq keys on the
 serialized outline, so it re-renders when a heading changes and not on any other
 edit), `cover` (both taking `kicker`/`sub` masthead lines; a cover also takes
 `layout=classic|centered|poster|spine|frame|split|minimal|block`, the
@@ -793,68 +773,69 @@ passes through the compiler and is made safe by the same DOMPurify pass, not by
 the compiler.
 
 **Themes**
-([lib/types/report_fastr_themes.ts](lib/types/report_fastr_themes.ts),
-[lib/report_fastr_css.ts](lib/report_fastr_css.ts)): ONE structure sheet plus a
-per-theme token block. **11 presets**: ten named for a `REPORT_HTML_STYLES`
-preset, so a report can be moved between formats without losing its look, plus
-**`legacy`**, which is not a design but a reproduction. It restates the panther
-markdown look (`REPORT_MARKDOWN_STYLE` over panther's `_004_markdown_style`
-defaults) that every markdown-format report renders in, so such a report can be
-converted to FASTR Markdown without becoming a different document: white page,
-panther's near-black ink, Inter, its link blue `#0066cc` (the one saturated
-accent in the set, exempted in the muted-palette test for that reason), its
-heading scale, its ruled tables and its block rhythm. Two things it cannot carry
-over, both the FORMAT's and not the theme's: the document is set at 16px/1.55
-(`REPORT_BASE_CSS`) where panther set it at 14px/1.4, and figures are PNG
-rasters where panther drew vectors into the PDF. It is chosen deliberately and
-never seeded. A theme is ~700 chars of tokens plus 0-195 chars of its own rules
-against a shared 12k sheet, which is why every block, tone and background added
-since landed on all of them at once. Two WERE dark pages (blueprint, terminal,
-both retired), and that is what forced the callout/delta colours out of the
-sheet: they carry MEANING so they cannot come from the palette, but a fixed
-light-page set is unreadable on a dark ground. The machinery stays: a custom
-style's colours can still make a page dark, and every theme left is light. Each
-theme declares `scheme: "light" | "dark"`, which picks which of its two status
-sets the page reads, and every rule that establishes a ground of the other
-darkness (a tone the theme paints dark, `fm-ink--light`) re-points the set
-locally — pinned by a test, since the first attempt missed the ink tone and
-nothing else would have caught it. Tokens are projected into `--fm-*` custom
-properties. A theme's `extraCss` may override anything MEASURED off the live
-sheet at layout time (margins, paddings, list indents: `measurePrintMetrics`),
-which is how `legacy` restates panther's rhythm. It may never re-cut a heading,
-because font metrics are read rather than measured, by three sheets that have to
-agree on a heading's box: the structure sheet, the editor's own `cm-fm-h*` lines
-and the Word export. A re-cut goes in the spec's `headings` map
-(`fastrHeadingStyle`, `--fm-h<n>-size` / `-weight` / `-line-height`), which all
-three read; a test pins it. `buildFastrReportCss(theme, colors?, scope?, opts?)`
-is a pure string builder, so the same call serves the preview, the export AND
-the creation picker's tiles — which therefore show the real design, not an
-impression. Everything is in `em` so a tile shrinks the whole sheet by dropping
-its root font-size. `@import` must LEAD a sheet, hence
-`fastrAllFontImportsCss()` + `omitFontImport` for the concatenated multi-theme
-tile sheet. **The theme is changeable after creation** (unlike `htmlStyle`) —
-the body carries no CSS, so nothing can be invalidated. Two writes reach it, and
-only these two. The quick switch (the header `Select` and the Page menu's theme
-flyout) writes `config.fastrTheme` through `updateReportConfig`, which
-re-imposes format, the custom-style snapshot and `themeChosen` but lets the
-theme through. The theme modal writes through `setReportStyle`, the one route
-that may also change a fastr report's custom style: it resolves the style from
-an id, checks its visibility, snapshots it, and refuses a report that is not
-fastr. Both read the stored config INSIDE their write transaction, so a
-concurrent style change cannot be pinned back to its old value. A custom
-`report_styles` row contributes only its `colors` here — its `reference_css`
-targets AI-authored class names, not `fm-*`. Sections are the markdown `#`-line
-scan with a top-level mask (`fastrTopLevelLineMask`): headings inside a
-container or a code fence are NOT indexed, so `rewrite_section` can never splice
-a section that starts mid-block. Exports: `.html` (same builder as html), a
-PAGED PDF (see "Paged PDF and page boxes" below) and, since 2026-09-22, a Word
-file (see "Word export" below). Panther's markdown-to-Word engine is NOT used
-for it: its IR cannot represent the blocks and would silently drop every one.
+([report-forge/engine/report_fastr_themes.ts](report-forge/engine/report_fastr_themes.ts),
+[report-forge/engine/report_fastr_css.ts](report-forge/engine/report_fastr_css.ts)):
+ONE structure sheet plus a per-theme token block. **11 presets**: ten named for
+a `REPORT_HTML_STYLES` preset, so a report can be moved between formats without
+losing its look, plus **`legacy`**, which is not a design but a reproduction. It
+restates the panther markdown look (`REPORT_MARKDOWN_STYLE` over panther's
+`_004_markdown_style` defaults) that every markdown-format report renders in, so
+such a report can be converted to FASTR Markdown without becoming a different
+document: white page, panther's near-black ink, Inter, its link blue `#0066cc`
+(the one saturated accent in the set, exempted in the muted-palette test for
+that reason), its heading scale, its ruled tables and its block rhythm. Two
+things it cannot carry over, both the FORMAT's and not the theme's: the document
+is set at 16px/1.55 (`REPORT_BASE_CSS`) where panther set it at 14px/1.4, and
+figures are PNG rasters where panther drew vectors into the PDF. It is chosen
+deliberately and never seeded. A theme is ~700 chars of tokens plus 0-195 chars
+of its own rules against a shared 12k sheet, which is why every block, tone and
+background added since landed on all of them at once. Two WERE dark pages
+(blueprint, terminal, both retired), and that is what forced the callout/delta
+colours out of the sheet: they carry MEANING so they cannot come from the
+palette, but a fixed light-page set is unreadable on a dark ground. The
+machinery stays: a custom style's colours can still make a page dark, and every
+theme left is light. Each theme declares `scheme: "light" | "dark"`, which picks
+which of its two status sets the page reads, and every rule that establishes a
+ground of the other darkness (a tone the theme paints dark, `fm-ink--light`)
+re-points the set locally — pinned by a test, since the first attempt missed the
+ink tone and nothing else would have caught it. Tokens are projected into
+`--fm-*` custom properties. A theme's `extraCss` may override anything MEASURED
+off the live sheet at layout time (margins, paddings, list indents:
+`measurePrintMetrics`), which is how `legacy` restates panther's rhythm. It may
+never re-cut a heading, because font metrics are read rather than measured, by
+three sheets that have to agree on a heading's box: the structure sheet, the
+editor's own `cm-fm-h*` lines and the Word export. A re-cut goes in the spec's
+`headings` map (`fastrHeadingStyle`, `--fm-h<n>-size` / `-weight` /
+`-line-height`), which all three read; a test pins it.
+`buildFastrReportCss(theme, colors?, scope?, opts?)` is a pure string builder,
+so the same call serves the preview, the export AND the creation picker's tiles
+— which therefore show the real design, not an impression. Everything is in `em`
+so a tile shrinks the whole sheet by dropping its root font-size. `@import` must
+LEAD a sheet, hence `fastrAllFontImportsCss()` + `omitFontImport` for the
+concatenated multi-theme tile sheet. **The theme is changeable after creation**
+(unlike `htmlStyle`) — the body carries no CSS, so nothing can be invalidated.
+Two writes reach it, and only these two. The quick switch (the header `Select`
+and the Page menu's theme flyout) writes `config.fastrTheme` through
+`updateReportConfig`, which re-imposes format, the custom-style snapshot and
+`themeChosen` but lets the theme through. The theme modal writes through
+`setReportStyle`, the one route that may also change a fastr report's custom
+style: it resolves the style from an id, checks its visibility, snapshots it,
+and refuses a report that is not fastr. Both read the stored config INSIDE their
+write transaction, so a concurrent style change cannot be pinned back to its old
+value. A custom `report_styles` row contributes only its `colors` here — its
+`reference_css` targets AI-authored class names, not `fm-*`. Sections are the
+markdown `#`-line scan with a top-level mask (`fastrTopLevelLineMask`): headings
+inside a container or a code fence are NOT indexed, so `rewrite_section` can
+never splice a section that starts mid-block. Exports: `.html` (same builder as
+html), a PAGED PDF (see "Paged PDF and page boxes" below) and, since 2026-09-22,
+a Word file (see "Word export" below). Panther's markdown-to-Word engine is NOT
+used for it: its IR cannot represent the blocks and would silently drop every
+one.
 
-**Word export (2026-09-22, made plain 2026-10-13).** `lib/report_fastr_word.ts`
-builds the .docx from markdown-it's token stream (the same
-`createFastrMarkdownIt` the compiler uses, so container attrs arrive parsed)
-with the `docx` library, entirely in the browser
+**Word export (2026-09-22, made plain 2026-10-13).**
+`report-forge/engine/report_fastr_word.ts` builds the .docx from markdown-it's
+token stream (the same `createFastrMarkdownIt` the compiler uses, so container
+attrs arrive parsed) with the `docx` library, entirely in the browser
 (`client/src/exports/export_report_as_fastr_word.ts`, `Packer.toBlob` then
 `saveAs`); the server is asked for the report and nothing else, so the export
 needs no Chrome. It is a plain, editable document, not a copy of the page:
@@ -893,7 +874,7 @@ Only authored breaks (`:::pagebreak`, `break=`, a filling cover) are forced;
 Word paginates the rest. The theme's faces are embedded from static TrueType
 files vendored under `client/public/fonts/word/` (one face per family; docx
 writes `embedRegular` only, so a heading family embedded at 700 is emitted
-unbolded). Tests: `server/tests/report_fastr_word_test.ts` asserts on the
+unbolded). Tests: `report-forge/tests/report_fastr_word_test.ts` asserts on the
 .docx's own XML; its kitchen-sink body is inline because `deno fmt` reflows the
 `.md` fixtures' fence lines into prose.
 
@@ -901,20 +882,21 @@ unbolded). Tests: `server/tests/report_fastr_word_test.ts` asserts on the
 report has a real PDF, and the Edit pane shows where its pages fall. The EDITOR
 decides where the pages break, and print follows: the editor lays the document
 out from CodeMirror's height map on every measure (`layoutFastrPages`,
-lib/fastr_markdown_pages.ts), and the export forces Paged.js to break on exactly
-those lines inside the server's headless Chrome (`server/report_pdf/`, astral
-over CDP, the Chrome for Testing headless shell the Dockerfile installs at
-`CHROME_PATH`), so the seams the editor draws and the pages the PDF prints
-cannot disagree. The first design ran Paged.js on both sides and had the editor
-chase the paginator's answer; the section below says why that could not be made
-to feel right. `lib/report_fastr_paged.ts` is the contract: the paged stylesheet
-(`buildFastrPagedCss` — `@page` size/margins, a zero-margin named page for a
-cover with `fill=page` (any other cover is a 544px-tall band at the head of page
-1, flush to the top of the sheet through the page's top margin with a negative
-margin, the report continuing below it on a page that keeps its bottom margin
-and footer; Nick's rulings 2026-09-08, "back to normal size, maybe have an
-option to page fill" and no white above the cover; a named page with no top
-margin was tried first, but Paged.js breaks wherever the flow leaves a named
+report-forge/engine/fastr_markdown_pages.ts), and the export forces Paged.js to
+break on exactly those lines inside the server's headless Chrome
+(`server/report_pdf/`, astral over CDP, the Chrome for Testing headless shell
+the Dockerfile installs at `CHROME_PATH`), so the seams the editor draws and the
+pages the PDF prints cannot disagree. The first design ran Paged.js on both
+sides and had the editor chase the paginator's answer; the section below says
+why that could not be made to feel right.
+`report-forge/engine/report_fastr_paged.ts` is the contract: the paged
+stylesheet (`buildFastrPagedCss` — `@page` size/margins, a zero-margin named
+page for a cover with `fill=page` (any other cover is a 544px-tall band at the
+head of page 1, flush to the top of the sheet through the page's top margin with
+a negative margin, the report continuing below it on a page that keeps its
+bottom margin and footer; Nick's rulings 2026-09-08, "back to normal size, maybe
+have an option to page fill" and no white above the cover; a named page with no
+top margin was tried first, but Paged.js breaks wherever the flow leaves a named
 page and the cover took page 1 alone), the running footer as margin boxes,
 keep-together on the designed blocks that are one thing (cards, stats, tiles,
 columns, figures, table rows, list items, each step) while callouts, bands,
@@ -938,17 +920,17 @@ keep-with-next flags, redirects a break that lands inside a whole block to the
 block itself (and back over its heading), repeats table header rows on
 continuations, paints the document ground on every sheet, and publishes a
 `FastrPagedResult` in SOURCE LINES on `window.__fmPaged`.
-`lib/report_document_shell.ts` holds the document wrapper so the Deno render
-test builds byte-identical documents. A paged document takes the theme sheet
-with `omitPrintRules` (`BROWSER_PRINT_CSS` is the .html download's browser
-print: Paged.js applies `@media print` while laying out, Chrome again when
-printing the fixed pages, and its callout keep-together and cover padding fought
-the paged sheet; found 2026-09-08 when a long callout refused to flow). Side
-margins are zero on the page and live on the content wrapper: Paged.js treats
-any content wider than its box as overflow, and bands must bleed to the paper
-edge. The client builds the document (`buildStandaloneReportHtml` with `paged`,
-fonts inlined as data URLs by `exports/inline_theme_fonts.ts` so the host needs
-no network) and POSTs it to the streaming `renderReportPdf` route
+`report-forge/engine/report_document_shell.ts` holds the document wrapper so the
+Deno render test builds byte-identical documents. A paged document takes the
+theme sheet with `omitPrintRules` (`BROWSER_PRINT_CSS` is the .html download's
+browser print: Paged.js applies `@media print` while laying out, Chrome again
+when printing the fixed pages, and its callout keep-together and cover padding
+fought the paged sheet; found 2026-09-08 when a long callout refused to flow).
+Side margins are zero on the page and live on the content wrapper: Paged.js
+treats any content wider than its box as overflow, and bands must bleed to the
+paper edge. The client builds the document (`buildStandaloneReportHtml` with
+`paged`, fonts inlined as data URLs by `exports/inline_theme_fonts.ts` so the
+host needs no network) and POSTs it to the streaming `renderReportPdf` route
 (can_view_reports; one render at a time per instance; `CHROME_PATH` unset ⇒ a
 clean "cannot render" error). An opt-in "Edit on rendered pages (experimental)"
 mode, which edited on the Paged.js pages in an iframe (`paged_edit_surface.ts`),
@@ -1096,21 +1078,21 @@ tool available everywhere) lays a draft's markdown, or a report by id (the open
 editor's live body when it is the one open), out in the editor's hidden frame
 (`describeReportPages`, report_page_map.ts: figure boxes from the size cache
 first, images at their natural size, then `createReportPaginator`) and returns
-the page map (`fastrPageMapText`, lib/fastr_report_page_map.ts, pure and
-tested): every page's fill, each block on it named from its source with its
-share of the page, the spacing between blocks as a row so the shares add up, and
-the problems: a page under 75% left short by the block that moved whole to the
-next page (named, with the block a moved heading keeps with), and a last page
-under 40% that is a stub. The brief carries a page budget (100 units a page: a
-line of prose 3, a heading 10 and an h1 11, a cover 60, a tiles row 22, a band
-25, a columns pair 30, a callout 8 plus 4 a line, a steps block 12 a step, a
-figure 50, a table 6 a row plus 6, a contents block 13 plus 3.5 an entry, 1.75
-in two columns), tells the model to plan pages to 85 to 95 units, to check the
-draft with the tool before proposing (create_report's description and the editor
-instructions say so too) and to fix what it flags by moving prose or blocks
-across the boundary, never with blank lines. The gap stretch never grows the gap
-under a heading (a heading keeps its text): 48px above a heading, 32px beside a
-block or figure, 12px between paragraphs.
+the page map (`fastrPageMapText`, report-forge/engine/fastr_report_page_map.ts,
+pure and tested): every page's fill, each block on it named from its source with
+its share of the page, the spacing between blocks as a row so the shares add up,
+and the problems: a page under 75% left short by the block that moved whole to
+the next page (named, with the block a moved heading keeps with), and a last
+page under 40% that is a stub. The brief carries a page budget (100 units a
+page: a line of prose 3, a heading 10 and an h1 11, a cover 60, a tiles row 22,
+a band 25, a columns pair 30, a callout 8 plus 4 a line, a steps block 12 a
+step, a figure 50, a table 6 a row plus 6, a contents block 13 plus 3.5 an
+entry, 1.75 in two columns), tells the model to plan pages to 85 to 95 units, to
+check the draft with the tool before proposing (create_report's description and
+the editor instructions say so too) and to fix what it flags by moving prose or
+blocks across the boundary, never with blank lines. The gap stretch never grows
+the gap under a heading (a heading keeps its text): 48px above a heading, 32px
+beside a block or figure, 12px between paragraphs.
 
 **A figure's box from its own chart** (2026-09-10, Nick's "test 22" PDF: a
 heading and three lines alone on page 4, the figure that followed them at the
@@ -1276,8 +1258,8 @@ before its figure, never two figures back to back, alternate blocks with prose,
 no page breaks to tidy what it cannot see. The Download modal offers PDF
 (default) and HTML for fastr; Print is gone for that format. Verified by
 `server/tests/report_pdf_render_test.ts` (env-gated on `CHROME_PATH`): the
-fixture corpus in `server/tests/fixtures/fastr_pdf/` on every theme, with
-structural assertions on the Paged.js DOM before printing.
+fixture corpus in `report-forge/tests/fixtures/` on every theme, with structural
+assertions on the Paged.js DOM before printing.
 
 **Pixel for pixel** (2026-09-11, "make sure that the pdf export is pixel perfect
 with the pages on the edit pane"). Two probes judge it: one photographs every
@@ -1517,12 +1499,12 @@ reports can do" is to name the ROLE, not the value. Every block takes
 `tone = paper|ink|accent|warm|cool` — the theme's five colours as grounds, and
 only five, so the picker shows five (Nick, 2026-09-09) — resolved once in
 `fastrSurfaceTone`
-([lib/fastr_markdown_blocks.ts](lib/fastr_markdown_blocks.ts)), which also folds
-the older spellings (`muted`, `solid`, `dark`, `inverse`, `gradient`, the four
-status names) and the card's historical `accent` flag into one of the five so
-existing bodies keep rendering; the toolbar, the live preview and the defect
-lister all go through it. Each ground is the palette colour with the paper or
-the ink as its type, whichever stands further (`grounds` in
+([report-forge/engine/fastr_markdown_blocks.ts](report-forge/engine/fastr_markdown_blocks.ts)),
+which also folds the older spellings (`muted`, `solid`, `dark`, `inverse`,
+`gradient`, the four status names) and the card's historical `accent` flag into
+one of the five so existing bodies keep rendering; the toolbar, the live preview
+and the defect lister all go through it. Each ground is the palette colour with
+the paper or the ink as its type, whichever stands further (`grounds` in
 `deriveFastrThemeColors`; the paper ground carries 8% ink or a paper panel on
 the paper page would be invisible), emitted as
 `--fm-<tone>-ground`/`--fm-<tone>-ground-ink`, which never re-scope. The tone
@@ -1776,11 +1758,11 @@ modal is step 1 of 2 (`offerTemplates`): Next applies the theme and step 2 is a
 template gallery (`template_gallery.tsx`, Back returns, Skip keeps the theme and
 the title): Policy brief, Long-form report and Empty, each tile the template's
 real first page rendered under the look just chosen (`FastrTemplateMock`). The
-skeletons live in `lib/fastr_report_templates.ts` with placeholder guidance
-written as muted marks (`[What goes here]{.muted}`, bracketed text in
-attributes); the chosen body goes in through `applyRebasedBody` (one
-transaction, so collaborators and undo see it) and the choice is stored as
-`config.template`. The AI's editing instructions append
+skeletons live in `report-forge/engine/fastr_report_templates.ts` with
+placeholder guidance written as muted marks (`[What goes here]{.muted}`,
+bracketed text in attributes); the chosen body goes in through
+`applyRebasedBody` (one transaction, so collaborators and undo see it) and the
+choice is stored as `config.template`. The AI's editing instructions append
 `fastrReportTemplateBrief` for that template (shape, section order, the
 placeholder convention), read live from the view context's `getTemplate`, and
 `get_report_editor` names it. LINE BREAKS IN BLOCKS (2026-09-23): in a paragraph
@@ -1870,10 +1852,10 @@ across; 1–8 steps). Enter inside a step's island makes the NEXT step rather th
 committing: the text after the caret (or a placeholder) becomes a new
 blank-separated paragraph and its island is activated with the placeholder
 selected, one dispatch. Text actions go through pure functions in
-[lib/fastr_markdown_edits.ts](lib/fastr_markdown_edits.ts) that return
-pre-transaction, disjoint, ascending changes for ONE dispatch — in `lib/`
-because `server/tests/` cannot import from `client/src`, and the fiddly rules
-(delimiters go inside the selection's whitespace; a heading or list never
+[report-forge/engine/fastr_markdown_edits.ts](report-forge/engine/fastr_markdown_edits.ts)
+that return pre-transaction, disjoint, ascending changes for ONE dispatch — in
+`lib/` because `server/tests/` cannot import from `client/src`, and the fiddly
+rules (delimiters go inside the selection's whitespace; a heading or list never
 touches a `:::` fence or a code line; ordered lists renumber from the top) are
 settled by test rather than by clicking. The right half appears only when the
 caret is inside a block and rewrites THAT block's opening fence via
@@ -1906,13 +1888,13 @@ document in silence.
 
 **Live preview**
 ([live_preview_extension.tsx](client/src/components/products/report/live_preview_extension.tsx),
-[lib/fastr_live_regions.ts](lib/fastr_live_regions.ts)): for FASTR reports, Edit
-mode is an Obsidian-style surface — still CodeMirror on the same Y.Text (collab,
-per-user undo and the toolbar untouched), but decorated. Top-level `:::`
-regions, tables and embed lines (the pure region mapper, built on
-`scanContainerLines`; tables by a conservative delimiter-row heuristic because
-the editor's Lezer tree is commonmark and carries no Table nodes) collapse into
-block widgets holding their TRUE render: the slice through
+[report-forge/engine/fastr_live_regions.ts](report-forge/engine/fastr_live_regions.ts)):
+for FASTR reports, Edit mode is an Obsidian-style surface — still CodeMirror on
+the same Y.Text (collab, per-user undo and the toolbar untouched), but
+decorated. Top-level `:::` regions, tables and embed lines (the pure region
+mapper, built on `scanContainerLines`; tables by a conservative delimiter-row
+heuristic because the editor's Lezer tree is commonmark and carries no Table
+nodes) collapse into block widgets holding their TRUE render: the slice through
 `renderFastrMarkdownToHtml`, sanitized, styled by the scoped theme sheet, with
 live `ReportFigureEmbed`s mounted inside. **Nothing reveals its source any more
 — every block edits IN PLACE in its rendered form.** Pressing a paragraph, list
@@ -2034,12 +2016,12 @@ marked, same-attr neighbours merged — so re-sizing a partly-sized phrase yield
 one mark and an inner role survives as its own segment (`rewriteRangeMarks`);
 selections split per line and at table pipes, so a label can never swallow a
 cell boundary. **A theme is five colours (Nick, 2026-09-09: "only use 5 colours
-and make them more muted").** `lib/types/report_fastr_themes.ts` writes each
-theme as a `FastrThemePalette` (paper, ink, accent, warm, cool) plus type and
-extra rules; `deriveFastrThemeColors` mixes everything else from the five at
-module load (surfaces and border as paper toward ink, muted ink as ink toward
-paper, the five grounds with the type that reads on each, status colours as the
-theme's own: danger = warm, success = cool, info = accent, warning = the
+and make them more muted").** `report-forge/engine/report_fastr_themes.ts`
+writes each theme as a `FastrThemePalette` (paper, ink, accent, warm, cool) plus
+type and extra rules; `deriveFastrThemeColors` mixes everything else from the
+five at module load (surfaces and border as paper toward ink, muted ink as ink
+toward paper, the five grounds with the type that reads on each, status colours
+as the theme's own: danger = warm, success = cool, info = accent, warning = the
 warm-cool middle, each with a faded twin for grounds of the other darkness), and
 a custom style's page/ink/accent re-derive the whole set (`derivedFor` in
 report_fastr_css.ts, scheme from the custom page's luminance; a non-hex colour

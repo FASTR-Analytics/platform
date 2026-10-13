@@ -1,7 +1,7 @@
-// Pins the section resolver (lib/report_sections.ts): the layer the AI's
+// Pins the section resolver (report-forge/engine/report_sections.ts): the layer the AI's
 // rewrite_section / insert_figure.afterHeading / headings index run on.
 //
-// Run: deno test -A server/tests/report_sections_test.ts
+// Run: deno test -A report-forge/tests/report_sections_test.ts
 
 import { assertEquals, assertStringIncludes } from "@std/assert";
 import {
@@ -9,7 +9,7 @@ import {
   insertAfterReportHeading,
   resolveReportSection,
   spliceReportSection,
-} from "../../lib/report_sections.ts";
+} from "../engine/report_sections.ts";
 
 function ok<T extends object>(r: T | { error: string }): T {
   if ("error" in r) throw new Error(`unexpected error: ${r.error}`);

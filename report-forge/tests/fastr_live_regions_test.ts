@@ -1,5 +1,5 @@
 import { assertEquals } from "@std/assert";
-import { fastrLiveRegions } from "../../lib/fastr_live_regions.ts";
+import { fastrLiveRegions } from "../engine/fastr_live_regions.ts";
 
 // The live-preview region mapper decides which line ranges Edit mode collapses
 // into rendered widgets. Wrong boundaries here mean a widget renders the wrong

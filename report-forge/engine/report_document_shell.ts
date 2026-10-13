@@ -5,7 +5,7 @@
 // documents through headless Chrome build byte-identical documents.
 // =============================================================================
 
-import { escapeReportHtml } from "./types/reports.ts";
+import { escapeReportHtml } from "./embeds.ts";
 
 // Inserted BEFORE the report's own CSS so the report always wins.
 export const REPORT_BASE_CSS = `

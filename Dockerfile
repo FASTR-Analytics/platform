@@ -40,6 +40,7 @@ COPY vendor vendor
 RUN deno install --allow-import
 
 COPY lib lib
+COPY report-forge report-forge
 COPY panther panther
 COPY server server
 COPY client_dist client_dist

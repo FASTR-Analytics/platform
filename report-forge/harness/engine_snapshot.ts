@@ -6,7 +6,7 @@
 //     <engine module path> <out.json>
 //   deno run -A report-forge/harness/engine_compare.ts <a.json> <b.json>
 //
-// The corpus is every .md file under harness/corpus plus the built-in
+// The corpus is every .md file under tests/fixtures plus the built-in
 // templates and block snippets, each rendered on every theme the engine lists.
 
 import { Packer } from "docx";
@@ -23,7 +23,7 @@ if (!enginePath || !outPath) {
 const E: any = await import(toFileUrl(resolve(enginePath)).href);
 
 const here = dirname(fromFileUrl(import.meta.url));
-const corpusDir = join(here, "corpus");
+const corpusDir = join(here, "..", "tests", "fixtures");
 
 const PNG_1X1 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";

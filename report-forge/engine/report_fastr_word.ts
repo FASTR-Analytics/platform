@@ -83,7 +83,7 @@ import {
   type FastrThemeColorOverride,
   type FastrThemeSemantic,
   mixFastrColor,
-} from "./types/report_fastr_themes.ts";
+} from "./report_fastr_themes.ts";
 
 type Token = ReturnType<MarkdownIt["parse"]>[number];
 

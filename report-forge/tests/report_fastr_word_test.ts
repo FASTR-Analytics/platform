@@ -1,4 +1,4 @@
-// Pins the Word export of FASTR Markdown (lib/report_fastr_word.ts): the
+// Pins the Word export of FASTR Markdown (report-forge/engine/report_fastr_word.ts): the
 // document the builder writes from the token stream. Native headings, marks,
 // tables, callouts, steps, columns, the contents field, the running footer,
 // the embedded fonts and the page ground; and the design blocks (cover, band,
@@ -6,7 +6,7 @@
 // box anywhere. Assertions read the .docx's own XML, so what Word will see is
 // the contract.
 //
-// Run: deno test -A server/tests/report_fastr_word_test.ts
+// Run: deno test -A report-forge/tests/report_fastr_word_test.ts
 
 import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import { Packer } from "docx";
@@ -18,9 +18,9 @@ import {
   dataUrlToWordImage,
   type FastrWordBuildInput,
   fastrWordDarkFigures,
-} from "../../lib/mod.ts";
+} from "../engine/mod.ts";
 
-// The kitchen-sink report, here rather than in fixtures/fastr_pdf: `deno fmt`
+// The kitchen-sink report, here rather than in tests/fixtures: `deno fmt`
 // reflows a .md file, which joins the `:::` fence lines into prose and leaves
 // no blocks to test.
 const KITCHEN_SINK = `:::report{background=paper numbering=sections}

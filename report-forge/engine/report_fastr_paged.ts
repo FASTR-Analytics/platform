@@ -32,7 +32,7 @@ import {
   type FastrPageSetup,
   fastrSheetPx,
 } from "./fastr_markdown_blocks.ts";
-import { escapeReportHtml } from "./types/reports.ts";
+import { escapeReportHtml } from "./embeds.ts";
 
 // window[FASTR_PAGED_GLOBAL] once the runner has finished (or failed).
 export const FASTR_PAGED_GLOBAL = "__fmPaged";

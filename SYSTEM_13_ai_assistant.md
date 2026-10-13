@@ -412,10 +412,10 @@ stylesheet from, led by a top-of-instructions banner and backstopped by
 `validateStyledReportHasStylesheet` on `rewrite_report`): tokens are
 built/parsed through the lib helpers, `get_report_editor` prints the format plus
 a headings index (1-based line + the exact section range and
-`wrapper <tag>`/`flat` mode from `lib/report_sections.ts`), `rewrite_section`
-splices that range (wrapper mode insists `newBody` starts with the wrapper tag),
-`insert_figure.afterHeading` lands after the heading's header block, and the
-validators
+`wrapper <tag>`/`flat` mode from `report-forge/engine/report_sections.ts`),
+`rewrite_section` splices that range (wrapper mode insists `newBody` starts with
+the wrapper tag), `insert_figure.afterHeading` lands after the heading's header
+block, and the validators
 ([report_validators.ts](client/src/components/products/copilot/ai_tools/validators/report_validators.ts))
 reject wrong-syntax tokens (with the correct spelling), doctype/html/head/body
 wrappers and non-well-formed html (incl. unclosed elements) for whole bodies and
@@ -445,13 +445,13 @@ doesn't change).
 The **FASTR Markdown branch is the inverse of the html one**: there the model
 designs and CSS is its output; here the design already exists as a real theme
 stylesheet, so the brief is `FASTR_MD_SYNTAX_DOC`
-([lib/fastr_markdown_spec.ts](lib/fastr_markdown_spec.ts), the ONE reference,
-also rendered by the in-editor guide, so the two cannot drift) plus an explicit
-"never write CSS, a `<style>` block or raw layout HTML; reach for a block
-instead": such markup would be INERT and would break the user's ability to
-re-theme. The brief deliberately never NAMES the theme, because the theme is
-changeable at any time (S12's theme modal) and a name in the view params would
-go stale. `validateFastrContainers`
+([report-forge/engine/fastr_markdown_spec.ts](report-forge/engine/fastr_markdown_spec.ts),
+the ONE reference, also rendered by the in-editor guide, so the two cannot
+drift) plus an explicit "never write CSS, a `<style>` block or raw layout HTML;
+reach for a block instead": such markup would be INERT and would break the
+user's ability to re-theme. The brief deliberately never NAMES the theme,
+because the theme is changeable at any time (S12's theme modal) and a name in
+the view params would go stale. `validateFastrContainers`
 ([report_validators.ts](client/src/components/products/copilot/ai_tools/validators/report_validators.ts))
 rejects an unbalanced or misspelt `:::` before staging (an unclosed container
 runs to EOF) and it checks the SPLICED result, not the fragment, so a locally

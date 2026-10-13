@@ -1,6 +1,6 @@
 import { z } from "zod";
+import { FASTR_REPORT_THEMES } from "../../../report-forge/engine/report_fastr_themes.ts";
 import {
-  FASTR_REPORT_THEMES,
   reportConfigSchema,
   reportFiguresSchema,
   reportImagesSchema,

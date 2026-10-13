@@ -2,7 +2,7 @@
 // Paged report PDF: prints a complete, self-contained report document with
 // headless Chrome. The document arrives from the CLIENT already laid out for
 // paper — theme sheet, rasters, inlined fonts, the paged stylesheet and the
-// Paged.js runner (lib/report_fastr_paged.ts) — so this module's whole job is
+// Paged.js runner (report-forge/engine/report_fastr_paged.ts) — so this module's whole job is
 // to hand it to Chrome (paged_chrome.ts) and return the bytes.
 //
 // One browser, launched on first use and closed after a quiet spell; one

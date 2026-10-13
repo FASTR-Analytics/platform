@@ -1,6 +1,6 @@
 // =============================================================================
 // Headless Chrome, driven over CDP (astral): load a paged report document,
-// wait for its Paged.js runner (lib/report_fastr_paged.ts) to publish where
+// wait for its Paged.js runner (report-forge/engine/report_fastr_paged.ts) to publish where
 // the pages fell, print to PDF. No instance state here — the browser and the
 // path are the caller's — so the render tests can drive it directly.
 // =============================================================================

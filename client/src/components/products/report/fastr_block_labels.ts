@@ -10,7 +10,7 @@ import {
 
 // Display names for the FASTR Markdown vocabulary — blocks, tones and inline
 // roles — shared by the editor toolbar and the sidebar format guide. The
-// vocabulary itself (what these names DO) lives in lib/fastr_markdown_blocks.ts;
+// vocabulary itself (what these names DO) lives in report-forge/engine/fastr_markdown_blocks.ts;
 // this file only says what to call each one in three languages.
 //
 // Every switch is exhaustive with no `default`, so adding a block, tone or role

@@ -93,8 +93,9 @@ where `n` can be 0 are marked.
   `data/hmis/indicators/manager.tsx:663`: whole-sentence variants.
 
 **Not a problem.** English text addressed to the model or produced for it
-(`products/copilot/ai_tools/validators/*.ts`, `lib/fastr_report_page_map.ts`,
-`lib/hmis_indicator_catalog.ts`, `lib/indicator_expression/parse.ts`,
+(`products/copilot/ai_tools/validators/*.ts`,
+`report-forge/engine/fastr_report_page_map.ts`, `lib/hmis_indicator_catalog.ts`,
+`lib/indicator_expression/parse.ts`,
 `lib/ai_tools/format_metric_data_for_ai.ts`,
 `client/src/generate_visualization/validate_figure_config_edit.ts`) is English
 whatever the UI language, and `plural()` follows the UI language.

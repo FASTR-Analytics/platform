@@ -5,7 +5,7 @@
 // the toolbar are untouched); this file only DECORATES it. Three layers:
 //
 //   • Region widgets: every top-level `:::` region, table and embed line
-//     (lib/fastr_live_regions.ts) is replaced by a block widget holding its
+//     (report-forge/engine/fastr_live_regions.ts) is replaced by a block widget holding its
 //     TRUE render — the slice compiled through the real markdown-it renderer,
 //     sanitized, styled by the scoped theme sheet, with live figures mounted
 //     inside. Reveal is DERIVED: a region whose range the selection touches is
@@ -4808,7 +4808,7 @@ function applyRegionPagination(
 // The EDITOR decides where the pages break, on every measure, from
 // CodeMirror's height map: every block's own box (a line's, a region
 // widget's), the space between blocks, and the paged sheet's rules, run
-// through layoutFastrPages (lib/fastr_markdown_pages.ts). The result is
+// through layoutFastrPages (report-forge/engine/fastr_markdown_pages.ts). The result is
 // the pagination the seams draw, at once: nothing waits on a paginator, so
 // Enter moves a block to the next page in the same frame and Backspace
 // brings it back. The PDF export forces Paged.js to break on these lines

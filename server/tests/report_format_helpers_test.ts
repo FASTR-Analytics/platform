@@ -20,7 +20,7 @@ import {
   reportConfigSchema,
   rewriteReportEmbedToken,
   sanitizeReportCaption,
-} from "../../lib/types/reports.ts";
+} from "../../lib/mod.ts";
 
 const ID = "8b7c1c2e-6f2a-4a3b-9c1d-0e1f2a3b4c5d";
 const ID2 = "11111111-2222-4333-8444-555555555555";

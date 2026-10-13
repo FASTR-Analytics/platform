@@ -7,7 +7,7 @@ import {
 
 // Display names + one-line characters for the FASTR Markdown themes, shared by
 // the creation picker and the report editor's theme switcher. The themes
-// themselves (the design tokens) live in lib/types/report_fastr_themes.ts.
+// themselves (the design tokens) live in report-forge/engine/report_fastr_themes.ts.
 
 export function fastrThemeLabel(theme: FastrReportTheme): string {
   switch (theme) {

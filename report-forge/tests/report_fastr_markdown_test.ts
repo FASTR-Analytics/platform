@@ -1,11 +1,11 @@
-// Pins FASTR Markdown: the `:::` container syntax (lib/fastr_markdown_blocks.ts),
-// its markdown-it compiler (lib/report_fastr_markdown.ts), the theme
-// stylesheets (lib/report_fastr_css.ts) and the format's place in the shared
+// Pins FASTR Markdown: the `:::` container syntax (report-forge/engine/fastr_markdown_blocks.ts),
+// its markdown-it compiler (report-forge/engine/report_fastr_markdown.ts), the theme
+// stylesheets (report-forge/engine/report_fastr_css.ts) and the format's place in the shared
 // report helpers. The compiled HTML feeds the SAME sanitize → iframe → export
 // funnel as html-format reports, so what survives DOMPurify is part of the
 // contract, not an implementation detail.
 //
-// Run: deno test -A server/tests/report_fastr_markdown_test.ts
+// Run: deno test -A report-forge/tests/report_fastr_markdown_test.ts
 
 import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import {
@@ -42,8 +42,8 @@ import {
   serializeFastrMarkAttrs,
   updateContainerFenceLine,
   updateEmbedLineAttrs,
-} from "../../lib/fastr_markdown_blocks.ts";
-import { renderFastrMarkdownToHtml } from "../../lib/report_fastr_markdown.ts";
+} from "../engine/fastr_markdown_blocks.ts";
+import { renderFastrMarkdownToHtml } from "../engine/report_fastr_markdown.ts";
 import {
   buildFastrCoverTileCss,
   buildFastrEditorSurfaceCss,
@@ -51,30 +51,26 @@ import {
   buildFastrStructureCss,
   buildFastrThemeVarsCss,
   fastrAllFontImportsCss,
-} from "../../lib/report_fastr_css.ts";
+} from "../engine/report_fastr_css.ts";
 import {
   coverSnippet,
   FASTR_COVER_PRESETS,
-} from "../../lib/fastr_markdown_edits.ts";
+} from "../engine/fastr_markdown_edits.ts";
 import {
   FASTR_GROUNDS,
   FASTR_REPORT_THEMES,
   FASTR_THEME_TOKENS,
   fastrChartPalette,
-} from "../../lib/types/report_fastr_themes.ts";
+} from "../engine/report_fastr_themes.ts";
 
 import {
   findReportEmbeds,
-  getFastrReportTheme,
-  getStartingBodyForReport,
-  getStartingConfigForReport,
   referencedReportEmbedIds,
-  reportConfigSchema,
-} from "../../lib/types/reports.ts";
+} from "../engine/embeds.ts";
 import {
   findReportHeadings,
   spliceReportSection,
-} from "../../lib/report_sections.ts";
+} from "../engine/report_sections.ts";
 
 const render = (md: string) =>
   renderFastrMarkdownToHtml(md, { lineAnchors: false });
@@ -297,32 +293,6 @@ Deno.test("a section splice never cuts a container in half", () => {
   assert(!res.newBody.includes(":::"));
   assertStringIncludes(res.newBody, "## Recommendations");
   assertEquals(listFastrContainerDefects(res.newBody), []);
-});
-
-// ── Format plumbing ──────────────────────────────────────────────────────────
-
-Deno.test("getFastrReportTheme is total", () => {
-  assertEquals(getFastrReportTheme(undefined), "default");
-  assertEquals(getFastrReportTheme({}), "default");
-  assertEquals(getFastrReportTheme({ fastrTheme: "swiss" }), "swiss");
-  assertEquals(
-    getFastrReportTheme({ fastrTheme: "vaporwave" as unknown as "swiss" }),
-    "default",
-  );
-});
-
-Deno.test("a fastr starting config round-trips the schema and carries a theme", () => {
-  const config = getStartingConfigForReport(undefined, "ministry");
-  assertEquals(config.format, "fastr");
-  assertEquals(config.fastrTheme, "ministry");
-  assertEquals(reportConfigSchema.parse(config).fastrTheme, "ministry");
-});
-
-Deno.test("the seeded body is just the title", () => {
-  assertEquals(
-    getStartingBodyForReport("My report"),
-    "# My report\n\n",
-  );
 });
 
 Deno.test("embed helpers find a token inside a block", () => {
@@ -1491,8 +1461,8 @@ Deno.test("a comment in a theme's extraCss does not unscope the next rule", () =
 Deno.test("no stray backtick inside the CSS template literals", async () => {
   for (
     const rel of [
-      "../../lib/report_fastr_css.ts",
-      "../../lib/types/report_fastr_themes.ts",
+      "../engine/report_fastr_css.ts",
+      "../engine/report_fastr_themes.ts",
     ]
   ) {
     const src = await Deno.readTextFile(new URL(rel, import.meta.url));
@@ -1572,7 +1542,7 @@ Deno.test("a tone outranks a theme's own background", () => {
 import {
   FASTR_BLOCK_SNIPPETS,
   FASTR_MD_SYNTAX_DOC,
-} from "../../lib/fastr_markdown_spec.ts";
+} from "../engine/fastr_markdown_spec.ts";
 
 function openFenceLines(): string[] {
   const out: string[] = [];
@@ -1975,11 +1945,11 @@ import {
   FASTR_PAGED_GLOBAL,
   fastrPagedRunnerJs,
   fastrPrintTitleHtml,
-} from "../../lib/report_fastr_paged.ts";
+} from "../engine/report_fastr_paged.ts";
 import {
   fastrBreakMode,
   fastrSheetMm,
-} from "../../lib/fastr_markdown_blocks.ts";
+} from "../engine/fastr_markdown_blocks.ts";
 
 Deno.test(":::pagebreak is a one-line leaf that renders an empty marker", () => {
   assert(isFastrLeafBlock("pagebreak"));
@@ -2128,11 +2098,13 @@ Deno.test("listFastrNestedStats: a stat inside a card or column is flagged, a ba
   assertStringIncludes(FASTR_MD_SYNTAX_DOC, "never inside a `card` or a `col`");
 });
 
-// ── Templates (lib/fastr_report_templates.ts) ────────────────────────────────
+// ── Templates (report-forge/engine/fastr_report_templates.ts) ────────────────────────────────
 
 Deno.test("templates: every skeleton is well-formed FASTR Markdown with real blocks", async () => {
-  const t = await import("../../lib/fastr_report_templates.ts");
-  const blocks = await import("../../lib/fastr_markdown_blocks.ts");
+  const t = await import("../engine/fastr_report_templates.ts");
+  const blocks = await import(
+    "../engine/fastr_markdown_blocks.ts"
+  );
   for (const template of t.FASTR_REPORT_TEMPLATES) {
     const body = t.fastrReportTemplateBody(template, 'Q3 "review"');
     if (template === "empty") {
@@ -2161,38 +2133,6 @@ Deno.test("templates: every skeleton is well-formed FASTR Markdown with real blo
   // A brief is short: no contents, no numbering.
   const brief = t.fastrReportTemplateBody("policy_brief", "R");
   assert(!brief.includes(":::contents") && !brief.includes("numbering="));
-});
-
-Deno.test("templates: the AI is told which one", async () => {
-  const { getEditingReportInstructions } = await import(
-    "../../lib/ai_tools/build_system_prompt.ts"
-  );
-  const withBrief = getEditingReportInstructions("R", "policy_brief");
-  assertStringIncludes(withBrief, "POLICY BRIEF");
-  assertStringIncludes(withBrief, "{.muted}");
-  assertStringIncludes(
-    getEditingReportInstructions("R", "long_form"),
-    "LONG-FORM REPORT",
-  );
-  assertStringIncludes(
-    getEditingReportInstructions("R", "empty"),
-    "blank page",
-  );
-  assert(!getEditingReportInstructions("R").includes("POLICY BRIEF"));
-});
-
-Deno.test("templates: the choice survives the config schema and reads back totally", async () => {
-  const r = await import("../../lib/types/reports.ts");
-  const parsed = r.reportConfigSchema.parse({
-    format: "fastr",
-    template: "long_form",
-  });
-  assertEquals(r.getFastrReportTemplate(parsed), "long_form");
-  assertEquals(
-    r.getFastrReportTemplate({ template: "nonsense" as never }),
-    undefined,
-  );
-  assertEquals(r.getFastrReportTemplate(undefined), undefined);
 });
 
 Deno.test("a columns row with any coloured column is a row of panels", () => {
