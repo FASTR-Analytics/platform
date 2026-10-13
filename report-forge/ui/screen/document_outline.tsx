@@ -1,6 +1,7 @@
 import { createEffect, For, Show } from "solid-js";
-import { Button } from "panther";
-import { type FastrTocItem, t3 } from "lib";
+import { Button } from "../kit/mod.ts";
+import { type FastrTocItem } from "../../engine/mod.ts";
+import { t3 } from "../../engine/i18n.ts";
 
 // The sidebar's width, in px so the host can keep the page clear of it.
 export const REPORT_OUTLINE_WIDTH_PX = 240;
@@ -42,12 +43,12 @@ export function ReportDocumentOutline(p: {
 
   return (
     <div
-      class="flex h-full flex-none flex-col"
+      class="rf:flex rf:h-full rf:flex-none rf:flex-col"
       style={{ width: `${REPORT_OUTLINE_WIDTH_PX}px` }}
       data-tour="report-outline"
     >
-      <div class="flex flex-none items-center gap-1 py-2 pl-4 pr-2">
-        <div class="ui-text-caption flex-1 truncate">
+      <div class="rf:flex rf:flex-none rf:items-center rf:gap-1 rf:py-2 rf:pl-4 rf:pr-2">
+        <div class="rf:ui-text-caption rf:flex-1 rf:truncate">
           {t3({
             en: "Report tabs",
             fr: "Onglets du rapport",
@@ -66,11 +67,14 @@ export function ReportDocumentOutline(p: {
           onClick={p.onClose}
         />
       </div>
-      <div class="min-h-0 flex-1 overflow-y-auto pb-4 pr-2" ref={list}>
+      <div
+        class="rf:min-h-0 rf:flex-1 rf:overflow-y-auto rf:pb-4 rf:pr-2"
+        ref={list}
+      >
         <Show
           when={p.items.length > 0}
           fallback={
-            <div class="ui-text-caption px-4">
+            <div class="rf:ui-text-caption rf:px-4">
               {t3({
                 en: "Headings you add to the report appear here.",
                 fr: "Les titres que vous ajoutez au rapport apparaissent ici.",
@@ -83,12 +87,12 @@ export function ReportDocumentOutline(p: {
             {(it) => (
               <button
                 type="button"
-                class="block w-full truncate border-l-2 py-1 pr-2 text-left"
+                class="rf:block rf:w-full rf:truncate rf:border-l-2 rf:py-1 rf:pr-2 rf:text-left"
                 classList={{
-                  "border-primary text-primary": activeLine() === it.line,
-                  "ui-hoverable-ghost border-transparent":
+                  "rf:border-primary rf:text-primary": activeLine() === it.line,
+                  "rf:ui-hoverable-ghost rf:border-transparent":
                     activeLine() !== it.line,
-                  "font-700": it.level === minLevel(),
+                  "rf:font-700": it.level === minLevel(),
                 }}
                 style={{
                   "padding-left": `${

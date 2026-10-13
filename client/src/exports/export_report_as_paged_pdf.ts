@@ -1,14 +1,5 @@
-import {
-  type APIResponseNoData,
-  type APIResponseWithData,
-  type ReportDetail,
-} from "lib";
-import {
-  base64ToBytes,
-  buildPagedReportHtml,
-  type ReportPageLayout,
-  saveBlob,
-} from "report-forge";
+import { type APIResponseWithData, type ReportDetail } from "lib";
+import { buildPagedReportHtml, type ReportPageLayout } from "report-forge";
 import { serverActions } from "~/server_actions";
 import { reportDocumentOf, reportExportHostOf } from "./export_report_as_html";
 
@@ -98,17 +89,4 @@ export async function buildReportPdfBase64(
     res.data,
     (v) => progress(0.03 + v * 0.97),
   );
-}
-
-export async function exportReportAsPagedPdf(
-  productId: string,
-  progress: (pct: number) => void,
-): Promise<APIResponseNoData> {
-  const res = await buildReportPdfBase64(productId, progress);
-  if (!res.success) return res;
-  saveBlob(
-    new Blob([base64ToBytes(res.data.base64)], { type: "application/pdf" }),
-    res.data.filename,
-  );
-  return { success: true };
 }

@@ -1,46 +1,34 @@
-import type Uppy from "@uppy/core";
-import { t3 } from "lib";
+import { createSignal, For, Show } from "solid-js";
+import { t3 } from "../../engine/i18n.ts";
 import {
-  type AlertComponentProps,
   Button,
-  Card,
-  ModalContainer,
+  FormError,
+  Modal,
+  type ModalProps,
   SortableList,
-} from "panther";
-import {
-  createEffect,
-  createSignal,
-  For,
-  onCleanup,
-  onMount,
-  Show,
-} from "solid-js";
-import { cleanupUppy, createUppyInstance } from "~/components/_shared/mod.ts";
-import {
-  FASTR_LOGO_VALUES,
-  FASTR_LOGOS,
-  resolveLogoUrl,
-} from "~/generate_slide_deck/fastr_logos";
-import { instanceState } from "~/state/instance/t1_store";
+} from "../kit/mod.ts";
+import { requestImageUpload } from "./image_picker.tsx";
+import type { ReportForgeImageHost } from "./types.ts";
 
-// The logos of a `:::logos` row, left to right: the built-in FASTR logos and
-// the instance's image assets (upload one here too). Returns the chosen
-// files in order: the same `imgFile` values a report image carries.
+// The logos of a `:::logos` row, left to right: the host's own logos and the
+// images it already has (upload one here too). Returns the chosen files in
+// order: the same `imgFile` values an image record carries.
 
 type Props = {
+  host: ReportForgeImageHost;
   initial: string[];
   editing: boolean;
 };
 
-let triggerCounter = 0;
-
-export function ReportLogoPicker(p: AlertComponentProps<Props, string[]>) {
+export function LogoPicker(p: ModalProps<Props, string[]>) {
   const [chosen, setChosen] = createSignal<string[]>([...p.initial]);
-  const [waitingFor, setWaitingFor] = createSignal<string | null>(null);
-  const triggerId = `report-logo-upload-${++triggerCounter}`;
+  const [uploading, setUploading] = createSignal(false);
+  const [err, setErr] = createSignal<string>();
 
-  const imageAssets = () =>
-    instanceState.assets.filter((a) => a.isImage).map((a) => a.fileName);
+  const builtIn = () => p.host.logos ?? [];
+  const library = () => p.host.library?.() ?? [];
+  const canUpload = () =>
+    p.host.requestUpload !== undefined || p.host.upload !== undefined;
 
   const isChosen = (file: string) => chosen().includes(file);
   const toggle = (file: string) =>
@@ -48,38 +36,61 @@ export function ReportLogoPicker(p: AlertComponentProps<Props, string[]>) {
       prev.includes(file) ? prev.filter((f) => f !== file) : [...prev, file]
     );
 
-  const labelOf = (file: string) => {
-    const fastr = FASTR_LOGOS.find((l) => l.value === file);
-    return fastr ? t3(fastr.label) : file;
-  };
+  const labelOf = (file: string) =>
+    builtIn().find((l) => l.value === file)?.label ?? file;
+  const onDark = (file: string) =>
+    builtIn().find((l) => l.value === file)?.onDark === true;
 
-  // An upload lands in the assets over SSE; it joins the row once it has.
-  let uppy: Uppy | undefined;
-  onMount(() => {
-    uppy = createUppyInstance({
-      triggerId: `#${triggerId}`,
-      allowedFileTypes: ["image/*"],
-      onUploadSuccess: (file) => {
-        if (!file) return;
-        const name = file.name as string;
-        if (imageAssets().includes(name)) {
-          if (!isChosen(name)) toggle(name);
-        } else {
-          setWaitingFor(name);
-        }
-      },
-    });
-  });
-  onCleanup(() => cleanupUppy(uppy));
-  createEffect(() => {
-    const pending = waitingFor();
-    if (pending === null || !imageAssets().includes(pending)) return;
-    if (!isChosen(pending)) toggle(pending);
-    setWaitingFor(null);
-  });
+  // An uploaded image joins the row as soon as the host has stored it.
+  async function upload() {
+    setErr(undefined);
+    setUploading(true);
+    try {
+      const stored = await requestImageUpload(p.host);
+      if (stored !== undefined && !isChosen(stored)) toggle(stored);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  // A logo on a ground it reads on: a light logo is invisible on white, so
+  // it previews on a dark ground (a content colour, like the logo).
+  const LogoThumb = (t: { file: string; class: string }) => (
+    <div
+      class={`rf:flex rf:shrink-0 rf:items-center rf:justify-center rf:rounded ${t.class}`}
+      style={onDark(t.file) ? { "background-color": "#1f2a30" } : undefined}
+    >
+      <img
+        src={p.host.assetUrl(t.file)}
+        alt=""
+        loading="lazy"
+        class="rf:max-h-full rf:max-w-full rf:object-contain rf:p-1"
+      />
+    </div>
+  );
+
+  // A selectable tile (a logo or an image the host has).
+  const Tile = (t: { file: string; label: string }) => (
+    <button
+      type="button"
+      class="rf:ui-focusable rf:rounded rf:border rf:p-2 rf:text-left"
+      classList={{
+        "rf:border-primary rf:bg-primary-subtle": isChosen(t.file),
+        "rf:ui-hoverable-base-100": !isChosen(t.file),
+      }}
+      onClick={() => toggle(t.file)}
+    >
+      <LogoThumb file={t.file} class="rf:h-12 rf:w-full" />
+      <div class="rf:truncate rf:pt-1 rf:text-xs" title={t.label}>
+        {t.label}
+      </div>
+    </button>
+  );
 
   return (
-    <ModalContainer
+    <Modal
       width="2xl"
       title={t3({ en: "Logos", fr: "Logos", pt: "Logótipos" })}
       onCancel={() => p.close(undefined)}
@@ -93,9 +104,9 @@ export function ReportLogoPicker(p: AlertComponentProps<Props, string[]>) {
         },
       ]}
     >
-      <div class="ui-spy">
-        <div class="ui-spy-sm">
-          <div class="ui-text-caption">
+      <div class="rf:ui-spy">
+        <div class="rf:ui-spy-sm">
+          <div class="rf:ui-text-caption">
             {t3({
               en: "In the row, left to right",
               fr: "Dans la rangée, de gauche à droite",
@@ -105,7 +116,7 @@ export function ReportLogoPicker(p: AlertComponentProps<Props, string[]>) {
           <Show
             when={chosen().length > 0}
             fallback={
-              <div class="text-base-content-muted text-sm">
+              <div class="rf:text-base-content-muted rf:text-sm">
                 {t3({
                   en: "Pick one or more logos below",
                   fr: "Choisissez un ou plusieurs logos ci-dessous",
@@ -119,9 +130,9 @@ export function ReportLogoPicker(p: AlertComponentProps<Props, string[]>) {
               onReorder={(ids) => setChosen(ids)}
             >
               {(item) => (
-                <div class="flex min-w-0 flex-1 items-center gap-2">
-                  <LogoThumb file={item.id} class="h-8 w-20" />
-                  <span class="flex-1 truncate text-sm">
+                <div class="rf:flex rf:min-w-0 rf:flex-1 rf:items-center rf:gap-2">
+                  <LogoThumb file={item.id} class="rf:h-8 rf:w-20" />
+                  <span class="rf:flex-1 rf:truncate rf:text-sm">
                     {labelOf(item.id)}
                   </span>
                   <Button
@@ -141,96 +152,62 @@ export function ReportLogoPicker(p: AlertComponentProps<Props, string[]>) {
           </Show>
         </div>
 
-        <div class="ui-spy-sm">
-          <div class="ui-text-caption">FASTR</div>
-          <div class="ui-gap-sm grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))]">
-            <For each={FASTR_LOGOS}>
-              {(logo) => (
-                <Card
-                  pad="sm"
-                  selected={isChosen(logo.value)}
-                  onClick={() => toggle(logo.value)}
-                >
-                  <LogoThumb file={logo.value} class="h-12 w-full" />
-                  <div class="truncate pt-1 text-xs">{t3(logo.label)}</div>
-                </Card>
-              )}
-            </For>
+        <Show when={builtIn().length > 0}>
+          <div class="rf:ui-spy-sm">
+            <div class="rf:ui-gap-sm rf:grid rf:grid-cols-[repeat(auto-fill,minmax(10rem,1fr))]">
+              <For each={builtIn()}>
+                {(logo) => <Tile file={logo.value} label={logo.label} />}
+              </For>
+            </div>
           </div>
-        </div>
+        </Show>
 
-        <div class="ui-spy-sm">
-          <div class="flex items-center gap-2">
-            <div class="ui-text-caption flex-1">
-              {t3({
-                en: "Your images",
-                fr: "Vos images",
-                pt: "As suas imagens",
-              })}
-            </div>
-            <Button id={triggerId} size="sm" outline iconName="upload">
-              {t3({
-                en: "Upload logo",
-                fr: "Téléverser un logo",
-                pt: "Carregar logótipo",
-              })}
-            </Button>
-          </div>
-          <Show when={waitingFor()}>
-            <div class="text-base-content-muted text-sm">
-              {t3({
-                en: "Processing upload...",
-                fr: "Traitement du téléversement...",
-                pt: "A processar o carregamento...",
-              })}
-            </div>
-          </Show>
-          <div class="ui-gap-sm grid max-h-72 grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] overflow-auto">
-            <For
-              each={imageAssets()}
-              fallback={
-                <div class="text-base-content-muted text-sm">
+        <Show when={canUpload() || p.host.library !== undefined}>
+          <div class="rf:ui-spy-sm">
+            <div class="rf:flex rf:items-center rf:gap-2">
+              <div class="rf:ui-text-caption rf:flex-1">
+                {t3({
+                  en: "Your images",
+                  fr: "Vos images",
+                  pt: "As suas imagens",
+                })}
+              </div>
+              <Show when={canUpload()}>
+                <Button
+                  size="sm"
+                  outline
+                  iconName="upload"
+                  loading={uploading()}
+                  onClick={() => void upload()}
+                >
                   {t3({
-                    en: "No images uploaded yet",
-                    fr: "Aucune image téléversée",
-                    pt: "Ainda não há imagens carregadas",
+                    en: "Upload logo",
+                    fr: "Téléverser un logo",
+                    pt: "Carregar logótipo",
                   })}
-                </div>
-              }
-            >
-              {(file) => (
-                <Card
-                  pad="sm"
-                  selected={isChosen(file)}
-                  onClick={() => toggle(file)}
-                >
-                  <LogoThumb file={file} class="h-12 w-full" />
-                  <div class="truncate pt-1 text-xs" title={file}>{file}</div>
-                </Card>
-              )}
-            </For>
+                </Button>
+              </Show>
+            </div>
+            <FormError error={err()} />
+            <div class="rf:ui-gap-sm rf:grid rf:max-h-72 rf:grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] rf:overflow-auto">
+              <For
+                each={library()}
+                fallback={
+                  <div class="rf:text-base-content-muted rf:text-sm">
+                    {t3({
+                      en: "No images uploaded yet",
+                      fr: "Aucune image téléversée",
+                      pt: "Ainda não há imagens carregadas",
+                    })}
+                  </div>
+                }
+              >
+                {(file) => <Tile file={file} label={file} />}
+              </For>
+            </div>
           </div>
-        </div>
+        </Show>
       </div>
-    </ModalContainer>
-  );
-}
-
-// A logo on a ground it reads on: the white FASTR logo is invisible on
-// white, so it previews on a dark ground (a content colour, like the logo).
-function LogoThumb(p: { file: string; class: string }) {
-  const dark = () => p.file === FASTR_LOGO_VALUES[1];
-  return (
-    <div
-      class={`flex shrink-0 items-center justify-center rounded ${p.class}`}
-      style={dark() ? { "background-color": "#1f2a30" } : undefined}
-    >
-      <img
-        src={resolveLogoUrl(p.file)}
-        alt=""
-        loading="lazy"
-        class="max-h-full max-w-full object-contain p-1"
-      />
-    </div>
+    </Modal>
   );
 }

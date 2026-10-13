@@ -2,30 +2,25 @@ import { MergeView } from "@codemirror/merge";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { markdown } from "@codemirror/lang-markdown";
-import { t3 } from "lib";
-import { type AlertComponentProps, Button, ModalContainer } from "panther";
+import { t3 } from "../../engine/i18n.ts";
+import { Modal, type ModalProps } from "../kit/mod.ts";
 import { onCleanup, onMount } from "solid-js";
 
-type Props = AlertComponentProps<
+type Props = ModalProps<
   {
     oldText: string;
     newText: string;
     summary?: string;
-    // Syntax highlighting; absent ⇒ markdown.
-    // Set when staged via the approval lifecycle's customProposalUI override
-    // (report_editor's propose-edit tools): aborts on an EXTERNAL resolution
-    // (Stop): this UI's cleanup obligation is to close itself, since
-    // panther has no dismissal API for an already-open openComponent
-    // dialog.
+    // Aborts on an EXTERNAL resolution (the proposer withdrew the change):
+    // the dialog closes itself, as a rejection.
     signal?: AbortSignal;
   },
   boolean
 >;
 
-// Accept/reject diff for a staged AI edit, shown as a locking modal (openComponent
-// backdrop) so the user must act on the proposal before any other work. Built on
-// @codemirror/merge MergeView (no panther diff primitive). Change tinting is the
-// merge view's own semantic styling; our chrome uses success/danger intents (§8.0).
+// Accept/reject diff for a proposed edit, shown as a modal so the user acts
+// on the proposal before any other work. Built on @codemirror/merge
+// MergeView; change tinting is the merge view's own semantic styling.
 export function ReportMarkdownDiff(p: Props) {
   let parent!: HTMLDivElement;
   let merge: MergeView | undefined;
@@ -60,7 +55,7 @@ export function ReportMarkdownDiff(p: Props) {
     const bPane = [
       ...base,
       EditorView.theme({
-        "&": { borderLeft: "1px solid var(--color-base-300)" },
+        "&": { borderLeft: "1px solid var(--rf-color-base-300)" },
       }),
     ];
     merge = new MergeView({
@@ -79,7 +74,7 @@ export function ReportMarkdownDiff(p: Props) {
   onCleanup(() => merge?.destroy());
 
   return (
-    <ModalContainer
+    <Modal
       width="4xl"
       pad="none"
       title={p.summary ??
@@ -104,6 +99,6 @@ export function ReportMarkdownDiff(p: Props) {
       ]}
     >
       <div ref={parent} />
-    </ModalContainer>
+    </Modal>
   );
 }

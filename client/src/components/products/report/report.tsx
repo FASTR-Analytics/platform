@@ -1,53 +1,46 @@
-import { formatLineRanges, type SkippedRange } from "report-forge";
-import { HeaderRows, MenuRow } from "report-forge";
 import {
-  buildFastrEditorSurfaceCss,
   buildFastrReportCss,
-  buildReportEmbedToken,
   canonicalJson,
   COLLAB_NO_EDIT_PERMISSION,
   FASTR_THEME_TOKENS,
   fastrChartPalette,
-  fastrDocumentOutline,
-  type FastrFencePatch,
-  type FastrFigureWidth,
-  fastrFigureWidthOfLine,
-  fastrLayoutHints,
-  fastrLogoImageIds,
-  fastrLogoSrcAttr,
-  type FastrOpenFence,
-  fastrOpenFenceOnLine,
-  fastrPageMarginPx,
-  type FastrReportTemplate,
-  fastrReportTemplateBody,
-  type FastrReportTheme,
-  fastrSheetPx,
   type FigureBlock,
   type FigureBundle,
   findReportBodyText,
-  findReportEmbeds,
   findReportFigureConfigMap,
   getFastrReportTemplate,
   getFastrReportTheme,
   getReportCustomStyle,
   type ImageBlock,
-  isFastrEmbedLine,
   isRetiredReportFormat,
-  logosSnippet,
   materializeReport,
   type PackageScope,
   productScope,
   type ProductSummary,
-  readFastrDocumentSettings,
   referencedReportEmbedIds,
   type ReportConfig,
+  type ReportCustomStyle,
   type ReportDocContent,
   type ReportStyleColors,
   type RunAuthoringContext,
-  scanContainerLines,
   t3,
-  TC,
 } from "lib";
+import {
+  base64ToBytes,
+  type FigureViewProps,
+  formatLineRanges,
+  openModal,
+  type RenderReportPdf,
+  ReportForge,
+  type ReportForgeApi,
+  type ReportForgeFigureHost,
+  type ReportForgeImageHost,
+  type ReportForgeSettings,
+  ReportMarkdownDiff,
+  type ReportPalette,
+  type SkippedRange,
+  ToolbarPillButton,
+} from "report-forge";
 import {
   AIToolFailure,
   Button,
@@ -55,6 +48,7 @@ import {
   FrameTop,
   getEditorWrapper,
   HeadingBar,
+  Icon,
   openAlert,
   openComponent,
 } from "panther";
@@ -63,15 +57,17 @@ import {
   createMemo,
   createSignal,
   For,
-  type JSX,
-  on,
   onCleanup,
   onMount,
   Show,
 } from "solid-js";
 import { Portal } from "solid-js/web";
 import { serverActions } from "~/server_actions";
-import { resolveLogoUrl } from "~/generate_slide_deck/fastr_logos";
+import {
+  FASTR_LOGO_VALUES,
+  FASTR_LOGOS,
+  resolveLogoUrl,
+} from "~/generate_slide_deck/fastr_logos";
 import {
   collabSocketOpen,
   docSaveFailing,
@@ -82,16 +78,17 @@ import {
   setCollabView,
 } from "~/state/instance/collab";
 import { ProductTitle } from "~/components/products/_shared/mod.ts";
+import { registerReportPageLayout } from "~/exports/export_report_as_paged_pdf";
+import { reportExportHostOf } from "~/exports/export_report_as_html";
 import {
-  fastrPagedFooter,
-  registerReportPageLayout,
-} from "~/exports/export_report_as_paged_pdf";
-import { buildStandaloneReportHtml } from "~/exports/export_report_as_html";
-import { PresenceAvatars } from "~/components/_shared/mod.ts";
+  PresenceAvatars,
+  requestImageAssetUpload,
+} from "~/components/_shared/mod.ts";
 import { ReportEditorCursors } from "./cursors";
 import { addLastUpdatedListener } from "~/state/instance/t1_sse";
 import {
   createResolvedScope,
+  instanceState,
   productById,
   resolveScope,
 } from "~/state/instance/t1_store";
@@ -107,21 +104,24 @@ import {
   showAi,
 } from "~/state/t4_ui";
 import {
-  REPORT_OUTLINE_WIDTH_PX,
-  ReportDocumentOutline,
-} from "./document_outline.tsx";
-import {
   findStaleFiguresInReport,
   resolveFigureBundleInteractively,
 } from "~/generate_visualization/mod";
 import {
   UpdateAllFiguresButton,
   updateFigureToScope,
+  VisualizationEditor,
+  type VizFigureCollabBinding,
 } from "~/components/_shared/figure_editor/mod.ts";
-import { PackageScopeChip } from "~/components/products/_shared/mod.ts";
-import { PackageScopeModal } from "~/components/products/_shared/mod.ts";
-import { ProductSettings } from "~/components/products/_shared/mod.ts";
-import type { FigureStaleContext } from "~/components/products/_shared/mod.ts";
+import {
+  DuplicateProductsModal,
+  type FigureStaleContext,
+  InsertFigureModal,
+  PackageScopeChip,
+  PackageScopeModal,
+  ProductSettings,
+  ReportFigureEmbed,
+} from "~/components/products/_shared/mod.ts";
 import type {
   ReportEditProposal,
   ReportEditProposalResult,
@@ -131,41 +131,12 @@ import {
   type CopilotViewState,
   restoreCopilotView,
 } from "~/components/products/copilot/mod.ts";
-import { VisualizationEditor } from "~/components/_shared/figure_editor/mod.ts";
-import type { VizFigureCollabBinding } from "~/components/_shared/figure_editor/mod.ts";
-import { InsertFigureModal } from "~/components/products/_shared/mod.ts";
-import { ReportToolbar } from "./toolbar";
-import {
-  createReportPaginator,
-  type FigureViewProps,
-  FM_LIVE_SCOPE_CLASS,
-  type PageBoxGeometry,
-  type ReportBlockContext,
-  ReportBodyEditor,
-  type ReportEditorApi,
-} from "report-forge";
-import { ReportFigureEmbed } from "~/components/products/_shared/mod.ts";
-import {
-  ReportEmbedToolbarControls,
-  type SelectedReportEmbed,
-} from "./embed_editor";
 import { ReportImagePicker } from "./image_picker";
-import { ReportLogoPicker } from "./logo_picker";
-import { ReportMarkdownDiff } from "./markdown_diff";
-import { DownloadReport } from "./download_report";
-import { isDarkGroundBehind } from "~/generate_report/mod";
 import { ShareReport } from "./share_report";
-import { ReportThemeModal } from "./theme_modal";
 import { ReportStyleEditor } from "./report_style_editor";
-import { DuplicateProductsModal } from "~/components/products/_shared/mod.ts";
-import { instanceState } from "~/state/instance/t1_store";
 import {
   createFigureSizeCache,
-  figureDarkInkForColors,
-  type FigureInkTheme,
   figureLightInkForColors,
-  GENERIC_DARK_INK,
-  GENERIC_LIGHT_INK,
 } from "~/generate_report/mod";
 import { VersionHistoryEditor } from "~/components/products/_shared/version_history/mod.ts";
 
@@ -181,22 +152,6 @@ type Props = EditorComponentProps<
 >;
 
 const AUTOSAVE_MS = 800;
-
-// The editor's page box for a document's page setup, in CSS px at 96dpi:
-// the printed sheet 1:1 (liveSurfaceCss sets the vars; the editor's page layout and
-// pageBoxPlugin measure against them).
-function pageBoxOf(
-  text: string,
-): { sheetPx: number; columnPx: number; geometry: PageBoxGeometry } {
-  const page = readFastrDocumentSettings(text).page;
-  const [w, h] = fastrSheetPx(page);
-  const marginPx = fastrPageMarginPx(page.margin);
-  return {
-    sheetPx: w,
-    columnPx: w - 2 * marginPx,
-    geometry: { pageH: h, marginPx },
-  };
-}
 
 export function ReportEditor(p: Props) {
   const product = (): ProductSummary | undefined => productById(p.productId);
@@ -236,151 +191,42 @@ export function ReportEditor(p: Props) {
   // A report still stored in a format that no longer has an editor: it opens
   // to a notice and nothing else (isRetiredReportFormat).
   const [retiredFormat, setRetiredFormat] = createSignal(false);
-  // The config as loaded: re-sent whole on a theme change so no sibling field
-  // is dropped (updateReportConfig re-imposes format and style, not the rest).
-  let loadedConfig: ReportConfig = {};
+  // The stored config: the report's look is read off it, and it is re-sent
+  // whole on a theme change so no sibling field is dropped (updateReportConfig
+  // re-imposes format and style, not the rest).
+  const [config, setConfig] = createSignal<ReportConfig>({});
   const [figures, setFigures] = createSignal<Record<string, FigureBlock>>({});
   const [images, setImages] = createSignal<Record<string, ImageBlock>>({});
-  // The palette's light ink, for figures whose detected ground is dark. A
-  // signal, not a let: a report can be re-themed at any time, which moves the
+  // The theme is changeable after creation: the body carries no CSS, so
+  // nothing can be invalidated by a re-theme. A custom style contributes its
   // palette.
-  const [inkTheme, setInkTheme] = createSignal<FigureInkTheme | undefined>();
-  // The ink for LIGHT grounds — the palette's own — so a figure whose stored
-  // style is white-on-dark (a dark dashboard's) still reads on the page.
-  const [darkInk, setDarkInk] = createSignal<FigureInkTheme>(GENERIC_DARK_INK);
+  const fastrTheme = () => getFastrReportTheme(config());
+  const customStyle = () => getReportCustomStyle(config());
+  const fastrColors = (): ReportStyleColors | undefined =>
+    customStyle()?.colors ?? undefined;
+  // What Report Forge is told of the look.
+  const settings = createMemo<ReportForgeSettings>(() => ({
+    theme: fastrTheme(),
+    colors: fastrColors(),
+    paletteId: customStyle()?.id,
+    template: getFastrReportTemplate(config()),
+    themeChosen: config().themeChosen,
+  }));
   // The theme's series palette for every figure the report embeds; a custom
   // palette's accent leads it.
   const chartPalette = createMemo(() =>
     fastrChartPalette(fastrTheme(), fastrColors())
   );
-  // What every rendered figure asks: which ink for the ground behind it.
-  const figureInkFor = (el: Element): FigureInkTheme =>
-    isDarkGroundBehind(el) ? (inkTheme() ?? GENERIC_LIGHT_INK) : darkInk();
-  // The theme is changeable after creation: the body carries no CSS, so
-  // nothing can be invalidated by a re-theme.
-  const [fastrTheme, setFastrTheme] = createSignal<FastrReportTheme>("default");
-  // Where the caret is, structurally — pushed by the editor on cursor moves and
-  // edits, and read only by the toolbar.
-  const [blockContext, setBlockContext] = createSignal<
-    ReportBlockContext | undefined
-  >();
-  // A custom style contributes its palette.
-  const [fastrColors, setFastrColors] = createSignal<
-    ReportStyleColors | undefined
-  >();
+  // For the version history's preview: the report's stylesheet, and the
+  // light ink its figures take on a dark ground.
   const themeCss = createMemo(() =>
     buildFastrReportCss(fastrTheme(), fastrColors())
   );
-  // The `:::report{width=...}` header widens the Edit sheet exactly as it
-  // widens the page in View. A string memo, so keystrokes anywhere else in
-  // the document never rebuild the surface sheet.
-  const liveDocWidth = createMemo(() =>
-    /fm-doc--(wide|full)/.exec(readFastrDocumentSettings(body()).className)
-      ?.[1] ?? "normal"
-  );
-  // The `:::report` fence itself, for the toolbar's Page setup control — the
-  // line is invisible in the editor, so the toolbar edits it from anywhere.
-  const pageSetupFence = createMemo(() => {
-    for (
-      const { index, text, inCode, fence } of scanContainerLines(
-        body().split("\n"),
-      )
-    ) {
-      if (inCode || fence?.kind !== "open" || fence.name !== "report") continue;
-      return fastrOpenFenceOnLine(text, index + 1);
-    }
-    return undefined;
-  });
-  function patchPageSetup(patch: FastrFencePatch) {
-    const fence = pageSetupFence();
-    if (fence) editorApi?.setBlockAttrs(fence.line, patch);
-    else editorApi?.insertPageSetup(patch);
-  }
-  // The live-preview document surface: the full theme sheet scoped to the
-  // editor wrapper plus the token->CodeMirror mapping. One <style> element,
-  // re-rendered on theme change. Declared AFTER the signals it reads — a memo
-  // runs its computation eagerly at creation, so putting it above fastrColors
-  // was a temporal-dead-zone crash on every report open ("Cannot access 'M'
-  // before initialization" in the minified build).
-  const liveSurfaceCss = createMemo(() => {
-    // The :root prefix is LOAD-BEARING: app.css themes CodeMirror app-wide
-    // with ":root .cm-editor …" selectors written to outrank CM's own theme
-    // classes — activeLine tint, caret and selection colours. Those must not
-    // reach into the live-preview document (the tint painted over toned
-    // grounds; a dark-app caret is white and vanishes on the light sheet),
-    // so every live rule matches that specificity and wins on order.
-    const scope = `:root .${FM_LIVE_SCOPE_CLASS}`;
-    const themed = buildFastrReportCss(fastrTheme(), fastrColors(), scope);
-    // The measure, at the IFRAME's scale (16px root) — the app's own root
-    // font-size differs, and a rem-resolved measure would shear the whole
-    // sheet geometry away from View. width=wide/full mirror the sheet's
-    // .fm-doc--wide/full measures (74rem/100rem).
-    // The column is the PRINTED page's text column, scaled to the sheet: the
-    // editor shows page boxes, and the PDF's column is the sheet minus its
-    // margins (report_fastr_paged.ts sets --fm-measure to the whole printable
-    // width). A4 portrait at the 896px sheet: 174mm of 210mm = 742px. The
-    // theme's own reading measure and the :::report width no longer apply to
-    // a paginated document.
-    void liveDocWidth;
-    // The sheet is the printed page at 96dpi, 1:1 (794px wide for A4): the
-    // column, the fonts and so the line wraps are print's own, and a page
-    // box holds exactly what the printed page holds. The surface's column is
-    // --fm-measure less View's two 24px bleed pads
-    // (buildFastrEditorSurfaceCss), hence the 48.
-    const box = pageBoxOf(body());
-    const measurePx = `${box.columnPx + 48}px`;
-    const sheetPx = `${box.sheetPx}px`;
-    // Every page box in the editor is padded to the page's height
-    // (pageBoxPlugin) and a cover fills it; the margins are the printed
-    // page's top and bottom margins.
-    const pageHPx = `${box.geometry.pageH}px`;
-    const pageMarginPx = `${box.geometry.marginPx}px`;
-    // Re-target the theme's own heading rules at the editor's line classes —
-    // h1 underlines/centring, h2-h6 accents (Swiss's black top rule,
-    // Ministry's serif colour). Margins are then neutralised by the trailing
-    // rule — a .cm-line may carry borders and padding but never margins.
-    const escaped = scope.replaceAll(".", "\\.");
-    const retargeted = (themed.match(/[^{}]+\{[^}]*\}/g) ?? [])
-      .map((rule) => {
-        let out = rule;
-        for (let n = 1; n <= 6; n++) {
-          out = out.replace(
-            new RegExp(`(^|,)(\\s*)${escaped} h${n}(?=\\s*[,{])`, "gm"),
-            `$1$2${scope} .cm-fm-h${n}`,
-          );
-        }
-        // Blockquote styling (border, muted ink, padding) applies per line —
-        // contiguous quote lines stack into a continuous bar.
-        out = out.replace(
-          new RegExp(`(^|,)(\\s*)${escaped} blockquote(?=\\s*[,{])`, "gm"),
-          `$1$2${scope} .cm-fm-bq`,
-        );
-        // A table continued on the next page repeats its header rows there
-        // as print does (applyRegionPagination): the theme's header cell
-        // rules reach the repeated rows too.
-        out = out.replace(
-          new RegExp(`(^|,)(\\s*)${escaped} thead th(?=\\s*[,{])`, "gm"),
-          `$1$2${scope} thead th, ${scope} tr.fm-page-gutter-repeat > th`,
-        );
-        // Only rules a replacement actually changed belong in the extra
-        // sheet; copying the rest would re-fight the cascade.
-        return out === rule ? "" : out;
-      })
-      .filter((rule) => rule.length > 0)
-      .join("\n");
-    return [
-      themed,
-      // After `themed`, whose vars block also sets --fm-measure.
-      `${scope} { --fm-measure: ${measurePx}; --fm-sheet: ${sheetPx}; --fm-page-h: ${pageHPx}; --fm-page-margin: ${pageMarginPx}; --fm-page-area: calc(${pageHPx} - 2 * ${pageMarginPx}); }`,
-      buildFastrEditorSurfaceCss(scope),
-      retargeted,
-      `${scope} .cm-line.cm-fm-h1, ${scope} .cm-line.cm-fm-h2, ${scope} .cm-line.cm-fm-h3,
-${scope} .cm-line.cm-fm-h4, ${scope} .cm-line.cm-fm-h5, ${scope} .cm-line.cm-fm-h6, ${scope} .cm-line.cm-fm-bq {
-  margin: 0 !important; width: auto !important; text-decoration: none;
-}
-${scope} .cm-fm-h1 *, ${scope} .cm-fm-h2 *, ${scope} .cm-fm-h3 * { text-decoration: none !important; }
-${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-h3 .fm-mark--u { text-decoration: underline !important; }`,
-    ].join("\n");
+  const inkTheme = createMemo(() => {
+    const tok = FASTR_THEME_TOKENS[fastrTheme()];
+    return figureLightInkForColors(
+      fastrColors() ?? { page: tok.page, ink: tok.ink, accent: tok.accent },
+    );
   });
   // The lastUpdated we last saw from the server — round-tripped for optimistic
   // concurrency (PLAN_REPORTS.md §4).
@@ -392,7 +238,8 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     "saved" | "unsaved" | "saving" | "error"
   >("saved");
   const [lastSavedAt, setLastSavedAt] = createSignal<string>("");
-  // The embed whose editor is shown in the ever-present left panel.
+  // The embed selected in the editor (Report Forge owns the selection; this
+  // mirrors it for presence and the figure actions).
   const [selectedEmbed, setSelectedEmbed] = createSignal<
     EmbedSelection | undefined
   >();
@@ -411,10 +258,6 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     string | undefined
   >(undefined);
   const [session, setSession] = createSignal<ReportSession | null>(null);
-  // The template the report was started from (fastr), for the AI.
-  const [template, setTemplate] = createSignal<
-    FastrReportTemplate | undefined
-  >();
   // Bumped when the session swaps its doc for one of the server's lineage
   // (collab.ts, onLineageReset): everything that binds to the doc re-reads it.
   const [lineage, setLineage] = createSignal(0);
@@ -425,160 +268,18 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
   // op repeats the same non-fatal error).
   let permErrorShown = false;
 
-  let editorApi: ReportEditorApi | undefined;
+  // The mounted editor's handle (Report Forge), once it is up.
+  let forge: ReportForgeApi | undefined;
   let saveTimer: ReturnType<typeof setTimeout> | undefined;
+  // Suppresses the "user edited" AI notification while an AI-accepted edit is
+  // applied through the editor (which reports it like any other change).
+  let applyingProposal = false;
 
-  // ── Pages ──────────────────────────────────────────────────────────────────
-  // The CodeMirror live preview draws page SEAMS where the pages start (the
-  // paginator lays the SAME paged document the PDF is printed from out in a
-  // hidden frame, paginate_report.ts). An experimental second mode that
-  // edited on the rendered pages themselves was removed 2026-09-30.
-  const paginationWanted = () => !isLoading() && !retiredFormat();
-  // The boxes the layout frame gives embeds: a figure's raster box (what the
-  // PDF embeds) and an image's natural size, both cached; a size landing
-  // re-runs the layout. Never the editor's own DOM, which only holds what is
-  // scrolled into view.
-  const [sizeTick, setSizeTick] = createSignal(0);
-  const figureSizes = createFigureSizeCache(() => setSizeTick((t) => t + 1));
-  onCleanup(() => figureSizes.dispose());
-  const imageSizes = new Map<
-    string,
-    { width: number; height: number } | null
-  >();
-  const imageSize = (id: string) => {
-    const entry = images()[id];
-    if (!entry) return undefined;
-    const hit = imageSizes.get(entry.imgFile);
-    if (hit) return hit;
-    if (hit === undefined) {
-      imageSizes.set(entry.imgFile, null);
-      const img = new Image();
-      img.onload = () => {
-        if (img.naturalWidth > 0 && img.naturalHeight > 0) {
-          imageSizes.set(entry.imgFile, {
-            width: img.naturalWidth,
-            height: img.naturalHeight,
-          });
-          setSizeTick((t) => t + 1);
-        }
-      };
-      img.src = assetUrl(entry.imgFile);
-    }
-    return undefined;
-  };
-
-  // The background layout of the whole document at the print column: its
-  // block heights, by source text, are the editor's estimates for blocks it
-  // has not rendered (the editor lays the pages out itself).
-  const paginator = createReportPaginator({
-    document: () =>
-      loadedConfig === undefined || !paginationWanted() ? undefined : {
-        title: label(),
-        body: body(),
-        theme: fastrTheme(),
-        colors: fastrColors(),
-        images: images(),
-        figureIds: Object.keys(figures()),
-      },
-    footer: () => fastrPagedFooter(label()),
-    figureSize: (id) => {
-      const block = figures()[id];
-      return block ? figureSizes.get(id, block) : undefined;
-    },
-    imageSize,
-    onResult: (result, bodyUsed) => {
-      if (result === undefined) return;
-      editorApi?.setLayoutHints(fastrLayoutHints(result, bodyUsed));
-    },
-  });
-  const emptyPagination = () => ({
-    result: {
-      total: 0,
-      sheet: {
-        width: pageBoxOf(body()).sheetPx,
-        height: pageBoxOf(body()).geometry.pageH,
-      },
-      pages: [],
-      splits: [],
-    },
-    title: label(),
-    fillers: new Map<number, number>(),
-  });
-  onCleanup(
-    registerReportPageLayout(p.productId, () => editorApi?.getPageLayout()),
-  );
-  onCleanup(() => paginator.dispose());
-  // Typing, and an embed's size landing: after the debounce. Everything that
-  // re-lays the whole document (theme, page setup, the mode itself): now.
-  createEffect(on([body, figures, images, sizeTick], () => {
-    if (paginationWanted()) paginator.request();
-  }, { defer: true }));
-  // A size landing: the rendered embeds waiting for it take their box now,
-  // not after the paginator's debounce.
-  createEffect(
-    on(sizeTick, () => editorApi?.refreshEmbedSizes(), { defer: true }),
-  );
-  createEffect(on([paginationWanted, fastrTheme, fastrColors, label], () => {
-    if (paginationWanted()) {
-      editorApi?.setPagination(emptyPagination());
-      paginator.requestNow();
-    } else editorApi?.setPagination(undefined);
-  }));
-  // Suppresses the "user edited" AI notification while we apply an AI-accepted
-  // edit through the editor (setBody also fires the CM change listener).
-  let applyingProgrammaticEdit = false;
   // stillValid()'s unmount half (see proposeEdit below): flips false in
   // onCleanup, before the view controller leaves editing_report. Checked ONLY at
   // accept time by panther's approval engine, so a stale accept auto-declines
   // instead of committing against a torn-down editor.
   let mounted = true;
-
-  // The outline sidebar: the headings the report's own contents
-  // block would list, re-derived per edit but only re-rendered when one
-  // changes, and the line being read (probed a little below the viewport top,
-  // so a heading just jumped to counts as in view).
-  const outlineShown = () => !isLoading() && !retiredFormat();
-  const outlineItems = createMemo(
-    () => (outlineShown() ? fastrDocumentOutline(body()) : []),
-    [],
-    {
-      equals: (a, b) =>
-        a.length === b.length &&
-        a.every((it, i) =>
-          it.line === b[i].line && it.level === b[i].level &&
-          it.text === b[i].text
-        ),
-    },
-  );
-  const [outlineViewLine, setOutlineViewLine] = createSignal<number>();
-  // The sidebar floats over the ground beside the centred page, Google Docs
-  // style, and pushes the page right only by as much as it would otherwise
-  // overlap it (a narrow window), never more than its own width. With pad x
-  // the page's left edge sits at x + (row - x - sheet) / 2; keeping that
-  // clear of the sidebar plus a gap solves to the clamp below.
-  const [editorRowWidth, setEditorRowWidth] = createSignal(0);
-  const outlineSheetPx = createMemo(() =>
-    outlineShown() ? pageBoxOf(body()).sheetPx : 0
-  );
-  const outlinePagePad = () => {
-    if (!outlineShown() || reportOutlineClosed()) return 0;
-    const clearance = REPORT_OUTLINE_WIDTH_PX + 16;
-    const need = 2 * clearance + outlineSheetPx() - editorRowWidth();
-    return Math.min(REPORT_OUTLINE_WIDTH_PX, Math.max(0, need));
-  };
-  function readOutlineViewLine() {
-    setOutlineViewLine(editorApi?.getLineAt(96));
-  }
-  createEffect(() => {
-    outlineItems();
-    if (outlineShown() && !reportOutlineClosed()) {
-      requestAnimationFrame(readOutlineViewLine);
-    }
-  });
-
-  function onEditorScroll() {
-    if (outlineShown()) readOutlineViewLine();
-  }
 
   const canConfigure = () => canEditProduct(p.productId);
 
@@ -713,10 +414,6 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     setLastUpdated((prev) => (ts > prev ? ts : prev));
   }
 
-  // The report header hosts the toolbar's menu row under the name, the way
-  // the deck's header hosts the slide's (one header, Google Slides).
-  const [menuRowHost, setMenuRowHost] = createSignal<HTMLDivElement>();
-
   const saveIndicator = createMemo(() => {
     // The report/room is gone (deleted, not found): nothing persists anymore.
     if (collabFatal()) {
@@ -798,60 +495,6 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     }
   });
 
-  // Caption for an embed = its token's caption/alt (first occurrence).
-  function captionForId(kind: EmbedKind, id: string): string {
-    return (
-      findReportEmbeds(body()).find(
-        (r) => r.kind === kind && r.id === id,
-      )?.caption ?? ""
-    );
-  }
-
-  // A figure's width, read off its line's `{…}` block (first occurrence);
-  // undefined where a width means nothing (an embed inline in a paragraph,
-  // which is not a figure).
-  function widthForId(
-    kind: EmbedKind,
-    id: string,
-  ): FastrFigureWidth | undefined {
-    const src = body();
-    const ref = findReportEmbeds(src).find(
-      (r) => r.kind === kind && r.id === id,
-    );
-    if (!ref) return undefined;
-    const from = src.lastIndexOf("\n", ref.start - 1) + 1;
-    const nl = src.indexOf("\n", ref.end);
-    const line = src.slice(from, nl === -1 ? src.length : nl);
-    return isFastrEmbedLine(line) ? fastrFigureWidthOfLine(line) : undefined;
-  }
-
-  const selectedEmbedDetail = createMemo<SelectedReportEmbed | undefined>(
-    () => {
-      const sel = selectedEmbed();
-      if (!sel) return undefined;
-      if (sel.kind === "figure") {
-        const fb = figures()[sel.id];
-        if (!fb) return undefined;
-        return {
-          kind: "figure",
-          id: sel.id,
-          caption: captionForId("figure", sel.id),
-          width: widthForId("figure", sel.id),
-          figureBlock: fb,
-        };
-      }
-      const ib = images()[sel.id];
-      if (!ib) return undefined;
-      return {
-        kind: "image",
-        id: sel.id,
-        caption: captionForId("image", sel.id),
-        width: widthForId("image", sel.id),
-        imageBlock: ib,
-      };
-    },
-  );
-
   // Advertise which report this user has open, which embed they have
   // selected (peers draw a presence border around it in their preview), and
   // which figure modal they are inside. One reactive effect: imperative
@@ -874,23 +517,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     if (res.success && isRetiredReportFormat(res.data.config)) {
       setRetiredFormat(true);
     } else if (res.success) {
-      setTemplate(getFastrReportTemplate(res.data.config));
-      // Custom style: the palette the report snapshotted when it was applied.
-      const snap = getReportCustomStyle(res.data.config);
-      loadedConfig = res.data.config;
-      const theme = getFastrReportTheme(res.data.config);
-      setFastrTheme(theme);
-      setFastrColors(snap?.colors ?? undefined);
-      // Grounds come from the theme: hand the ink deriver the palette the
-      // page actually paints with.
-      const tok = FASTR_THEME_TOKENS[theme];
-      const palette = snap?.colors ?? {
-        page: tok.page,
-        ink: tok.ink,
-        accent: tok.accent,
-      };
-      setInkTheme(figureLightInkForColors(palette));
-      setDarkInk(figureDarkInkForColors(palette));
+      setConfig(res.data.config);
       setBody(res.data.body);
       setLastUpdated(res.data.lastUpdated);
 
@@ -986,18 +613,6 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     }
     setIsLoading(false);
 
-    // A report nobody has chosen a look for yet: ask now, once. Only a report
-    // minted since the modal existed carries `themeChosen: false`, so no older
-    // report is interrupted about a choice it was never offered. Editors only:
-    // a reader cannot answer it.
-    if (
-      loadedConfig?.themeChosen === false &&
-      !retiredFormat() &&
-      canEditBody()
-    ) {
-      void openThemeModal();
-    }
-
     copilotViewController.setView(
       "editing_report",
       { reportId: p.productId, reportLabel: label() },
@@ -1005,11 +620,11 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
         // Read live from the T1 row: a reattach remounts the copilot on the new
         // pair, and the tools of that mount see the same pair here (D15).
         getScope: () => requireScope(),
-        getTemplate: () => template(),
+        getTemplate: () => getFastrReportTemplate(config()),
         getBody: () => body(),
         getFigures: () => figures(),
         getImages: () => images(),
-        getSelection: () => editorApi?.getSelection(),
+        getSelection: () => forge?.getSelection(),
         proposeEdit: (proposal): ReportEditProposalResult => {
           // The base the proposal was computed from. Every proposing tool builds
           // newBody from getBody() with only synchronous work before calling
@@ -1033,7 +648,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
             // the modal closes itself (see ReportMarkdownDiff's signal prop):
             // panther has no dismissal API for an already-open dialog otherwise.
             customProposalUI: (signal) =>
-              openComponent({
+              openModal({
                 element: ReportMarkdownDiff,
                 props: {
                   oldText: baseBody,
@@ -1099,15 +714,11 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
         );
       }
     }
-    // Never dispatch into a view mid-update (see ReportEditorApi.whenIdle).
-    await editorApi?.whenIdle();
-    applyingProgrammaticEdit = true;
-    const res = editorApi?.applyRebasedBody(baseBody, prop.newBody) ?? {
-      applied: 0,
-      skipped: [] as SkippedRange[],
-      firstAppliedLine: undefined,
-    };
-    applyingProgrammaticEdit = false;
+    // Report Forge applies it rebased and scrolls to the first change.
+    applyingProposal = true;
+    const res = await forge?.applyBody(baseBody, prop.newBody).finally(() => {
+      applyingProposal = false;
+    }) ?? { skipped: [] as SkippedRange[] };
     if (saveTimer) {
       clearTimeout(saveTimer);
       saveTimer = undefined;
@@ -1137,17 +748,6 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
             `A(s) alteração(ões) da IA na(s) linha(s) ${lines} não foi/foram aplicada(s) porque um colaborador está a editar esse texto. Volte a executar a IA se ainda a(s) quiser.`,
         }),
       });
-    }
-    editorApi?.refresh();
-    // Scroll to the first APPLIED change so the accepted edit lands on
-    // screen (deferred: let layout settle first). firstAppliedLine is in
-    // current-doc coordinates from the rebase; absent when nothing applied
-    // (every hunk skipped): don't move.
-    const changedLine = res.firstAppliedLine;
-    if (changedLine !== undefined) {
-      queueMicrotask(() =>
-        requestAnimationFrame(() => editorApi?.scrollToLine(changedLine))
-      );
     }
     return res.skipped;
   }
@@ -1267,7 +867,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     setBody(nextBody);
     // Let the AI know the body changed (skip AI-applied edits; while live,
     // remote peer edits land here too: they equally invalidate the AI's read).
-    if (!applyingProgrammaticEdit) {
+    if (!applyingProposal) {
       copilotViewController.notify("edited_report_locally");
     }
     // Live collab: edits stream into the shared doc via yCollab and the room
@@ -1311,152 +911,6 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     setSaveError(res.err);
     setSaveStatus("error");
     return false;
-  }
-
-  // FASTR Markdown re-theming. Safe on a live report because the theme is not
-  // in the body: nothing the user typed can be invalidated, and every peer
-  // picks the new theme up on their next load. Optimistic, reverted on failure.
-  function applyFastrTheme(theme: FastrReportTheme) {
-    setFastrTheme(theme);
-    const tok = FASTR_THEME_TOKENS[theme];
-    const palette = fastrColors() ?? {
-      page: tok.page,
-      ink: tok.ink,
-      accent: tok.accent,
-    };
-    setInkTheme(figureLightInkForColors(palette));
-    setDarkInk(figureDarkInkForColors(palette));
-  }
-
-  async function changeFastrTheme(theme: FastrReportTheme) {
-    const previous = fastrTheme();
-    if (theme === previous) return;
-    applyFastrTheme(theme);
-    setSaveStatus("saving");
-    const res = await serverActions.updateReportConfig({
-      product_id: p.productId,
-      config: { ...loadedConfig, fastrTheme: theme },
-    });
-    if (!res.success) {
-      applyFastrTheme(previous);
-      setSaveError(res.err);
-      setSaveStatus("error");
-      return;
-    }
-    loadedConfig = { ...loadedConfig, fastrTheme: theme };
-    bumpLastUpdated(res.data.lastUpdated);
-    markSaved();
-  }
-
-  // The report's look, from inside the report. Every report is minted as
-  // FASTR Markdown on the default theme, so the modal is how a new one gets
-  // its design: `themeChosen: false` is the mark of a report that has never
-  // been asked, and answering the modal retires it server-side.
-  //
-  // The style editor cannot stack on the picker (panther has ONE alert slot),
-  // so `editStyle` closes the picker, runs the editor, and loops back.
-  async function openThemeModal(): Promise<void> {
-    for (;;) {
-      const res = await openComponent({
-        element: ReportThemeModal,
-        props: {
-          productId: p.productId,
-          reportLabel: label(),
-          fastrTheme: fastrTheme(),
-          customStyleId: getReportCustomStyle(loadedConfig)?.id,
-          // A report still holding only its title: the template gallery is
-          // the modal's step 2.
-          offerTemplates: bodyIsSeed() && canEditBody(),
-        },
-      });
-      if (!res) return;
-      if ("editStyle" in res) {
-        await openComponent({
-          element: ReportStyleEditor,
-          props: { productId: p.productId, existing: res.editStyle.style },
-        });
-        continue;
-      }
-      // The stored config comes back with the write, so the palette and the
-      // ink themes repaint off what was actually saved without re-reading the
-      // report (which would race the products SSE behind the detail cache).
-      loadedConfig = res.applied.config;
-      const snap = getReportCustomStyle(loadedConfig);
-      setFastrColors(snap?.colors ?? undefined);
-      applyFastrTheme(getFastrReportTheme(loadedConfig));
-      bumpLastUpdated(res.applied.lastUpdated);
-      if (res.template !== undefined) await applyTemplate(res.template);
-      return;
-    }
-  }
-
-  // Whether the body is still what a new report is created with, a title
-  // line alone (whatever the title now says) or nothing: the only state a
-  // template may replace.
-  function bodyIsSeed(): boolean {
-    const text = body().trim();
-    return text.length === 0 || /^#\s[^\n]*$/.test(text);
-  }
-
-  // Step 2 of the theme modal picked a template: its body goes in through
-  // the editor (one transaction, so collaborators and undo see it like any
-  // edit) and the choice is stored on the config, where the AI's
-  // instructions read it.
-  async function applyTemplate(chosen: FastrReportTemplate): Promise<void> {
-    // Someone may have started writing while the gallery was open.
-    if (!bodyIsSeed()) return;
-    const next = fastrReportTemplateBody(chosen, label());
-    await editorApi?.whenIdle();
-    editorApi?.applyRebasedBody(body(), next);
-    setTemplate(chosen);
-    const config = { ...loadedConfig, template: chosen };
-    const saved = await serverActions.updateReportConfig({
-      product_id: p.productId,
-      config,
-    });
-    if (saved.success) {
-      loadedConfig = config;
-      bumpLastUpdated(saved.data.lastUpdated);
-    } else {
-      setSaveError(saved.err);
-    }
-  }
-
-  // What the Page menu's Document details panel shows. Cheap enough to
-  // recompute on demand: the body is already in a signal.
-  const documentStats = () => {
-    const text = body();
-    const words = text
-      .replace(/```[\s\S]*?```/g, " ")
-      .replace(/^:::.*$/gm, " ")
-      .replace(/[#*_>`|\[\]{}]/g, " ")
-      .split(/\s+/)
-      .filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
-    return {
-      words,
-      headings: fastrDocumentOutline(text, 6).length,
-      figures: Object.keys(figures()).length,
-      images: Object.keys(images()).length,
-      lastSaved: lastSavedAt(),
-    };
-  };
-
-  // The page ground as an IMAGE: pick (or upload) one, register it like any
-  // report image so the prune keeps it, and hand the id back for the fence.
-  async function pickPageImage(): Promise<string | undefined> {
-    const picked = await openComponent({
-      element: ReportImagePicker,
-      props: {},
-    });
-    if (!picked) return undefined;
-    const id = crypto.randomUUID();
-    const next = {
-      ...images(),
-      [id]: { type: "image", imgFile: picked.imgFile } as ImageBlock,
-    };
-    setImages(next);
-    await persistImages(next);
-    return id;
   }
 
   async function persistImages(next: Record<string, ImageBlock>) {
@@ -1516,10 +970,14 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     );
   }
 
-  async function insertFigure() {
+  // Report Forge's "Insert > Visualization": make the figure here and hand
+  // back its id and caption; the editor inserts the token and selects it.
+  async function insertFigure(): Promise<
+    { id: string; caption: string } | undefined
+  > {
     const ctx = staleContext();
     const picked = await pickFigure();
-    if (!ctx || !picked) return;
+    if (!ctx || !picked) return undefined;
     const resolved = await resolveFigureBundleInteractively(
       ctx.scope,
       picked.metric,
@@ -1527,94 +985,11 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     );
     if (!resolved.ok) {
       await openAlert({ text: resolved.reason, intent: "danger" });
-      return;
+      return undefined;
     }
     const id = crypto.randomUUID();
     await updateFigure(id, { type: "figure", bundle: resolved.bundle });
-    editorApi?.insertBlockOnNewLine(
-      buildReportEmbedToken("figure", id, picked.metric.label),
-    );
-    setSelectedEmbed({ kind: "figure", id });
-  }
-
-  async function insertImage() {
-    const picked = await openComponent({
-      element: ReportImagePicker,
-      props: {},
-    });
-    if (!picked) return;
-    const id = crypto.randomUUID();
-    const block: ImageBlock = { type: "image", imgFile: picked.imgFile };
-    const next = { ...images(), [id]: block };
-    setImages(next);
-    await persistImages(next);
-    editorApi?.insertBlockOnNewLine(
-      buildReportEmbedToken("image", id, picked.alt),
-    );
-    setSelectedEmbed({ kind: "image", id });
-  }
-
-  // A logos row's logos are image registry entries like any report image
-  // (the built-in FASTR logos too: resolveLogoUrl knows their files), so the
-  // editor, the prune and every export resolve them one way. An edit keeps
-  // the id of a logo the row already had.
-  async function registerLogos(
-    files: string[],
-    reuse: string[] = [],
-  ): Promise<string[]> {
-    const current = images();
-    const next = { ...current };
-    const free = reuse.filter((id) => current[id] !== undefined);
-    const ids = files.map((file) => {
-      const k = free.findIndex((id) => current[id].imgFile === file);
-      if (k >= 0) return free.splice(k, 1)[0];
-      const id = crypto.randomUUID();
-      next[id] = { type: "image", imgFile: file };
-      return id;
-    });
-    if (Object.keys(next).length !== Object.keys(current).length) {
-      setImages(next);
-      await persistImages(next);
-    }
-    return ids;
-  }
-
-  async function insertLogos() {
-    const files = await openComponent({
-      element: ReportLogoPicker,
-      props: { initial: [], editing: false },
-    });
-    if (!files || files.length === 0) return;
-    const ids = await registerLogos(files);
-    editorApi?.insertBlockOnNewLine(logosSnippet(ids));
-  }
-
-  async function editLogos(fence: FastrOpenFence) {
-    const had = fastrLogoImageIds(fence.attrs);
-    const files = await openComponent({
-      element: ReportLogoPicker,
-      props: {
-        initial: had.map((id) => images()[id]?.imgFile).filter(
-          (f): f is string => f !== undefined,
-        ),
-        editing: true,
-      },
-    });
-    if (!files || files.length === 0) return;
-    const ids = await registerLogos(files, had);
-    editorApi?.setBlockAttrs(fence.line, { src: fastrLogoSrcAttr(ids) });
-  }
-
-  function handleUpdateCaption(id: string, caption: string) {
-    const sel = selectedEmbed();
-    if (!sel) return;
-    editorApi?.setEmbedCaption(sel.kind, id, caption);
-  }
-
-  function handleSetEmbedWidth(width: FastrFigureWidth) {
-    const sel = selectedEmbed();
-    if (!sel) return;
-    editorApi?.setEmbedWidth(sel.kind, sel.id, width);
+    return { id, caption: picked.metric.label };
   }
 
   async function replaceSelectedFigure() {
@@ -1728,34 +1103,9 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     const figureId = Object.keys(registry).find((id) => registry[id]?.bundle);
     setPendingVisualizationOpen(false);
     if (figureId === undefined || !mayEdit) return;
-    setSelectedEmbed({ kind: "figure", id: figureId });
+    forge?.selectEmbed({ kind: "figure", id: figureId });
     void handleEdit();
   });
-
-  async function handleChangeImageFile(id: string, imgFile: string) {
-    const ib = images()[id];
-    if (!ib) return;
-    const next = { ...images(), [id]: { ...ib, imgFile } };
-    setImages(next);
-    await persistImages(next);
-  }
-
-  function handleDelete() {
-    const sel = selectedEmbed();
-    if (!sel) return;
-    // Remove only the body token; keep the registry entry for the session so
-    // Ctrl+Z restores a working embed (not "Missing visualization"). Orphaned
-    // entries are pruned at next load (see onMount).
-    editorApi?.removeEmbedToken(sel.kind, sel.id);
-    setSelectedEmbed(undefined);
-  }
-
-  async function download() {
-    await openComponent({
-      element: DownloadReport,
-      props: { productId: p.productId },
-    });
-  }
 
   // The File menu's whole-document actions (FASTR toolbar). Rename and
   // duplicate are the SHARED product surfaces (D16), not report-only modals:
@@ -1802,27 +1152,179 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     );
   }
 
-  // The content area: banners above the editor.
-  const MainArea = () => (
-    <div
-      class="bg-base-200 flex h-full w-full flex-col"
-      // A press anywhere in the document but on an embed ends the embed
-      // selection, so the toolbar returns to the text controls. On the press
-      // and in the CAPTURE phase: the in-place editors (islands, block
-      // titles, stat pieces) stop their clicks from bubbling, so a click
-      // handler here never heard a press on another widget. A press on an
-      // embed passes, and its own click selects it.
-      ref={(el) =>
-        el.addEventListener(
-          "pointerdown",
-          (e) => {
-            const t = e.target as Element | null;
-            if (t?.closest?.("[data-embed-id]")) return;
-            setSelectedEmbed(undefined);
-          },
-          true,
-        )}
-    >
+  // The figures' raster boxes (what the PDF embeds): Report Forge gives each
+  // live figure the same box before it draws, and re-boxes when one lands.
+  const figureSizes = createFigureSizeCache(() => forge?.refreshEmbedSizes());
+  onCleanup(() => figureSizes.dispose());
+
+  // The editor's collab binding: the shared body text, once the room has
+  // synced. Re-read when the session adopts a doc of the server's lineage.
+  const bodyCollab = createMemo(() => {
+    const s = session();
+    lineage();
+    return collabReady() && s
+      ? { yText: findReportBodyText(s.doc), awareness: s.awareness }
+      : undefined;
+  });
+
+  // ── What Report Forge asks of this app ─────────────────────────────────────
+  // Images are instance assets: listed off the store, uploaded through the
+  // app's own upload dialog, chosen with its asset picker.
+  const imageHost: ReportForgeImageHost = {
+    assetUrl,
+    library: () =>
+      instanceState.assets.filter((a) => a.isImage).map((a) => a.fileName),
+    requestUpload: () =>
+      requestImageAssetUpload((name) =>
+        instanceState.assets.some((a) => a.isImage && a.fileName === name)
+      ),
+    pick: () => openComponent({ element: ReportImagePicker, props: {} }),
+    logos: FASTR_LOGOS.map((logo) => ({
+      value: logo.value,
+      label: t3(logo.label),
+      onDark: logo.value === FASTR_LOGO_VALUES[1],
+    })),
+  };
+
+  // Figures are this app's: drawn by panther from the report's own blocks,
+  // authored through the product package's presets and the metric wizard.
+  const figureHost: ReportForgeFigureHost = {
+    ids: () => Object.keys(figures()),
+    View: FigureView,
+    size: (id) => {
+      const block = figures()[id];
+      return block ? figureSizes.get(id, block) : undefined;
+    },
+    rasterize: (id, ink, palette) =>
+      reportExportHostOf(figures()).rasterizeFigure?.(id, ink, palette) ??
+        Promise.resolve(undefined),
+    insert: insertFigure,
+    controls: (id) => (
+      <>
+        <Show when={figures()[id]?.bundle !== undefined}>
+          <ToolbarPillButton onClick={() => void handleEdit()}>
+            <Icon iconName="pencil" class="h-4 w-4" />
+            {t3({
+              en: "Edit visualization",
+              fr: "Modifier la visualisation",
+              pt: "Editar visualização",
+            })}
+          </ToolbarPillButton>
+        </Show>
+        <ToolbarPillButton onClick={() => void replaceSelectedFigure()}>
+          <Icon iconName="chart" class="h-4 w-4" />
+          {t3({
+            en: "Replace visualization",
+            fr: "Remplacer la visualisation",
+            pt: "Substituir visualização",
+          })}
+        </ToolbarPillButton>
+      </>
+    ),
+  };
+
+  // The saved custom styles, as the palettes the theme picker offers; the
+  // style editor is this app's own dialog.
+  let stylesById = new Map<string, ReportCustomStyle>();
+  const palettes = {
+    list: async (): Promise<ReportPalette[]> => {
+      const res = await serverActions.listReportStyles({
+        product_id: p.productId,
+      });
+      if (!res.success) return [];
+      stylesById = new Map(res.data.map((style) => [style.id, style]));
+      return res.data.map((style) => ({
+        id: style.id,
+        label: style.label,
+        description: style.description,
+        colors: style.colors,
+      }));
+    },
+    edit: async (palette: ReportPalette | undefined) => {
+      await openComponent({
+        element: ReportStyleEditor,
+        props: {
+          productId: p.productId,
+          existing: palette ? stylesById.get(palette.id) : undefined,
+        },
+      });
+    },
+  };
+
+  // The report's look changed in the editor. Applying a style (or answering
+  // the theme picker for the first time) goes through setReportStyle, which
+  // resolves the style snapshot server-side; a plain theme switch or a
+  // template choice is a config write. Rejects with the server's reason, and
+  // Report Forge shows it.
+  async function handleSettingsChange(next: ReportForgeSettings) {
+    const cur = settings();
+    const stored = config();
+    if (
+      next.paletteId !== cur.paletteId || next.themeChosen !== cur.themeChosen
+    ) {
+      const res = await serverActions.setReportStyle({
+        product_id: p.productId,
+        fastrTheme: next.theme,
+        customStyleId: next.paletteId ?? null,
+      });
+      if (!res.success) throw new Error(res.err);
+      // The stored config comes back with the write, so the palette repaints
+      // off what was actually saved without re-reading the report (which
+      // would race the products SSE behind the detail cache).
+      setConfig(res.data.config);
+      bumpLastUpdated(res.data.lastUpdated);
+      return;
+    }
+    if (next.theme === cur.theme && next.template === cur.template) return;
+    // Optimistic, reverted on failure. Safe on a live report because the
+    // theme is not in the body: nothing the user typed can be invalidated,
+    // and every peer picks the new theme up on their next load.
+    const wanted: ReportConfig = {
+      ...stored,
+      fastrTheme: next.theme,
+      ...(next.template === undefined ? {} : { template: next.template }),
+    };
+    setConfig(wanted);
+    setSaveStatus("saving");
+    const res = await serverActions.updateReportConfig({
+      product_id: p.productId,
+      config: wanted,
+    });
+    if (!res.success) {
+      setConfig(stored);
+      setSaveStatus("error");
+      throw new Error(res.err);
+    }
+    bumpLastUpdated(res.data.lastUpdated);
+    markSaved();
+  }
+
+  async function handleImagesChange(next: Record<string, ImageBlock>) {
+    setImages(next);
+    await persistImages(next);
+  }
+
+  // Prints the paged document on the server's headless Chrome.
+  const renderPdf: RenderReportPdf = async (html, onProgress) => {
+    const res = await serverActions.renderReportPdf(
+      { product_id: p.productId, html },
+      onProgress,
+    );
+    if (!res.success) throw new Error(res.err);
+    return new Blob([base64ToBytes(res.data.pdfBase64)], {
+      type: "application/pdf",
+    });
+  };
+
+  // The Email export (share_report.tsx) prints the saved report and forces
+  // the editor's page breaks on it when the two bodies match.
+  onCleanup(
+    registerReportPageLayout(p.productId, () => forge?.getPageLayout()),
+  );
+
+  // This app's banners, above the editing surface.
+  const banners = (
+    <>
       <Show when={collabFatal()}>
         <div class="bg-danger/10 text-danger ui-pad flex items-center gap-2 text-xs">
           <span class="flex-1">
@@ -1861,6 +1363,12 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
       <Show when={saveError()}>
         <div class="text-danger ui-pad text-xs">{saveError()}</div>
       </Show>
+    </>
+  );
+
+  // The content area: Report Forge, or the notice a retired report opens to.
+  const MainArea = () => (
+    <>
       <Show when={retiredFormat()}>
         <div class="ui-pad text-base-content-muted text-sm">
           {t3({
@@ -1874,107 +1382,59 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
         </div>
       </Show>
       <Show when={!isLoading() && !retiredFormat()}>
-        {
-          /* A staged AI edit is reviewed in a locking modal (see
-            proposeEdit), so nothing here is hidden for it. */
-        }
-        <div
-          class="relative flex min-h-0 flex-1"
-          ref={(el) => {
-            const ro = new ResizeObserver(() =>
-              setEditorRowWidth(el.clientWidth)
-            );
-            ro.observe(el);
-            onCleanup(() => ro.disconnect());
-          }}
-        >
-          <Show when={outlineShown()}>
-            <Show
-              when={!reportOutlineClosed()}
-              fallback={
-                <div class="absolute left-2 top-2 z-10">
-                  <Button
-                    ghost
-                    size="sm"
-                    iconName="chevronRight"
-                    iconPosition="right"
-                    onClick={() => setReportOutlineClosed(false)}
-                  >
-                    {t3({
-                      en: "Report tabs",
-                      fr: "Onglets du rapport",
-                      pt: "Separadores do relatório",
-                    })}
-                  </Button>
-                </div>
-              }
-            >
-              <div class="absolute inset-y-0 left-0 z-10">
-                <ReportDocumentOutline
-                  items={outlineItems()}
-                  viewLine={outlineViewLine()}
-                  onSelect={(line) => editorApi?.goToLine(line)}
-                  onClose={() => setReportOutlineClosed(true)}
-                />
-              </div>
-            </Show>
-          </Show>
-          <div
-            class="min-h-0 flex-1"
-            data-report-cursor="code-pane"
-            data-tour="report-code-pane"
-            style={{ "padding-left": `${outlinePagePad()}px` }}
-          >
+        <ReportForge
+          title={label()}
+          body={body()}
+          onBodyChange={handleBodyChange}
+          settings={settings()}
+          onSettingsChange={handleSettingsChange}
+          images={images()}
+          onImagesChange={handleImagesChange}
+          canEdit={canEditBody()}
+          lastSaved={lastSavedAt()}
+          imageHost={imageHost}
+          figures={figureHost}
+          palettes={palettes}
+          renderPdf={renderPdf}
+          collab={bodyCollab()}
+          menuItems={[
             {
-              /* Live preview: the theme sheet, scoped to the editor wrapper, so
-                widgets AND the editor's own text carry the document's design.
-                A theme switch re-renders this one element; the editor is never
-                touched. The font import leads the sheet (an @import after
-                other rules is dropped by CSS). */
-            }
-            <style>{liveSurfaceCss()}</style>
-            <ReportBodyEditor
-              body={body()}
-              hasFigure={(id) => figures()[id] !== undefined}
-              FigureView={FigureView}
-              images={images()}
-              figureInkFor={figureInkFor}
-              figureChartPalette={chartPalette}
-              figureSize={(id) => {
-                const block = figures()[id];
-                return block ? figureSizes.get(id, block) : undefined;
-              }}
-              imageSize={imageSize}
-              assetUrl={assetUrl}
-              onBodyChange={handleBodyChange}
-              onSelectEmbed={(kind, id) => setSelectedEmbed({ kind, id })}
-              onEditLogos={(fence) => {
-                if (canConfigure()) void editLogos(fence);
-              }}
-              selectedId={() => selectedEmbed()?.id}
-              onScroll={onEditorScroll}
-              centered={() => true}
-              collab={() => {
-                const s = session();
-                lineage();
-                return collabReady() && s
-                  ? { yText: findReportBodyText(s.doc), awareness: s.awareness }
-                  : undefined;
-              }}
-              canEdit={canEditBody}
-              onContextChange={setBlockContext}
-              livePreview={() => true}
-              ref={(api) => {
-                editorApi = api;
-                // The page-box effect below can run before the editor
-                // mounts (first open): ask again now that it is here.
-                if (paginationWanted()) api.setPagination(emptyPagination());
-              }}
-            />
-          </div>
-        </div>
+              menu: "file",
+              label: t3({
+                en: "Email this file…",
+                fr: "Envoyer par email…",
+                pt: "Enviar por email…",
+              }),
+              onClick: () => void emailReport(),
+            },
+            {
+              menu: "file",
+              dividerBefore: true,
+              label: t3({
+                en: "Rename…",
+                fr: "Renommer…",
+                pt: "Mudar o nome…",
+              }),
+              onClick: () => void openProductSettings(),
+            },
+            {
+              menu: "file",
+              label: t3({
+                en: "Make a copy…",
+                fr: "Créer une copie…",
+                pt: "Criar uma cópia…",
+              }),
+              onClick: () => void duplicateReport(),
+            },
+          ]}
+          banner={banners}
+          outlineClosed={reportOutlineClosed()}
+          onOutlineClosedChange={setReportOutlineClosed}
+          onSelectedEmbedChange={setSelectedEmbed}
+          ref={(api) => (forge = api)}
+        />
       </Show>
-    </div>
+    </>
   );
 
   // Every piece of the header is built ONCE and passed by reference:
@@ -2049,7 +1509,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
           id="report-download-button"
           outline
           iconName="download"
-          onClick={download}
+          onClick={() => forge?.openDownload()}
         >
           {t3({ en: "Download", fr: "Télécharger", pt: "Transferir" })}
         </Button>
@@ -2066,10 +1526,9 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
       </Show>
     </div>
   );
-  // Three rows, each ruled off from the next (the slide deck's shape): back,
-  // the name and the report's actions in panther's HeadingBar; the toolbar's
-  // menus (File, Page, Insert...), portaled into their own row; and the
-  // formatting pill for whatever is selected.
+  // The title bar: back, the name and the report's actions in panther's
+  // HeadingBar. The menus and the formatting pill under it are Report
+  // Forge's, the first rows of the content area below.
   const headerPanel = (
     <div
       class="h-full w-full"
@@ -2082,64 +1541,6 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
       >
         {headerActions}
       </HeadingBar>
-      {/* The toolbar's menu row: the toolbar portals its menus in. */}
-      <Show when={fileMenuShown()}>
-        <HeaderRows>
-          <MenuRow
-            tour="report-menu-row"
-            ref={(el) => {
-              setMenuRowHost(el);
-              onCleanup(() => setMenuRowHost(undefined));
-            }}
-          />
-          {
-            /* The formatting strip: the toolbar's PILL, under the header
-                  whose menu row it portals into. A row of its own rather than
-                  more controls in the header's right group, which already
-                  carries seven and is anchored by onboarding tour steps.
-                  FrameTop's panel sizes to its content, so the strip just grows
-                  the header. The embed controls (insert visualization/image;
-                  the selected embed's actions) ride the same row: the left
-                  sidebar they used to live in is gone. */
-          }
-          <ReportToolbar
-            menuRowHost={menuRowHost()}
-            api={() => editorApi}
-            onDownload={download}
-            onEmail={emailReport}
-            onRename={openProductSettings}
-            onDuplicate={duplicateReport}
-            context={blockContext}
-            theme={fastrTheme}
-            colors={fastrColors}
-            pageSetup={pageSetupFence}
-            onPatchPageSetup={patchPageSetup}
-            onSelectTheme={changeFastrTheme}
-            onOpenThemeModal={() => void openThemeModal()}
-            onPickPageImage={pickPageImage}
-            documentStats={documentStats}
-            embedKind={() => selectedEmbed()?.kind}
-            embedControls={
-              <ReportEmbedToolbarControls
-                embed={selectedEmbedDetail()}
-                canConfigure={canConfigure()}
-                onUpdateCaption={handleUpdateCaption}
-                onSetWidth={handleSetEmbedWidth}
-                onEditFigure={handleEdit}
-                onSwitchFigure={replaceSelectedFigure}
-                onCreateFigure={replaceSelectedFigure}
-                onChangeImageFile={handleChangeImageFile}
-                onDelete={handleDelete}
-              />
-            }
-            canInsertEmbeds={() => canConfigure()}
-            onInsertFigure={insertFigure}
-            onInsertImage={insertImage}
-            onInsertLogos={insertLogos}
-            onEditLogos={editLogos}
-          />
-        </HeaderRows>
-      </Show>
     </div>
   );
 

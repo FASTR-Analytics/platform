@@ -31,15 +31,23 @@ type OpenModal = {
 const [stack, setStack] = createSignal<OpenModal[]>([]);
 let nextId = 1;
 
-export function openModal<P extends object, R>(spec: {
-  element: Component<ModalProps<P, R>>;
-  props: P;
-}): Promise<R | undefined> {
+// The result type a modal component closes with.
+type ResultOf<T> = T extends { close: (result: infer R) => void }
+  ? Exclude<R, undefined>
+  : never;
+
+export function openModal<
+  // deno-lint-ignore no-explicit-any
+  T extends { close: (result: any) => void },
+>(spec: {
+  element: Component<T>;
+  props: Omit<T, "close">;
+}): Promise<ResultOf<T> | undefined> {
   return new Promise((resolve) => {
     const id = nextId++;
     const close = (result: unknown) => {
       setStack((s) => s.filter((m) => m.id !== id));
-      resolve(result as R | undefined);
+      resolve(result as ResultOf<T> | undefined);
     };
     setStack((s) => [...s, {
       id,

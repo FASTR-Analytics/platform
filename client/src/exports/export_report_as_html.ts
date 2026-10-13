@@ -1,5 +1,4 @@
 import {
-  type APIResponseNoData,
   type FigureBlock,
   getFastrReportTheme,
   getReportCustomStyle,
@@ -10,10 +9,8 @@ import {
   FIGURE_EXPORT_WIDTH_PX,
   type FigureInkTheme,
   type FigureRasterState,
-  loadReportEmbeds as loadDocumentEmbeds,
   type ReportDocument,
   type ReportExportHost,
-  saveBlob,
   type StandaloneReportOptions as DocumentOptions,
 } from "report-forge";
 import {
@@ -21,7 +18,6 @@ import {
   getFigureAsDataUrlBrowser,
   loadFontsWithTimeout,
 } from "panther";
-import { serverActions } from "~/server_actions";
 import { resolveLogoUrl } from "~/generate_slide_deck/fastr_logos";
 import { buildFigureInputs } from "~/generate_visualization/mod";
 import { applyInkTheme, figureInputsForDownload } from "~/generate_report/mod";
@@ -93,24 +89,6 @@ function cachedFor(
   };
 }
 
-export function loadReportEmbeds(
-  detail: ReportDetail,
-  onDark: (figureId: string) => boolean,
-  progress: (pct: number) => void,
-  cached?: StandaloneReportOptions["cached"],
-): Promise<{
-  figures: Map<string, FigureRasterState>;
-  images: Map<string, string>;
-}> {
-  return loadDocumentEmbeds(
-    reportDocumentOf(detail),
-    reportExportHostOf(detail.figures),
-    onDark,
-    progress,
-    cachedFor(detail, cached),
-  );
-}
-
 export function buildStandaloneReportHtml(
   detail: ReportDetail,
   progress: (pct: number) => void,
@@ -122,31 +100,4 @@ export function buildStandaloneReportHtml(
     progress,
     { ...opts, cached: cachedFor(detail, opts.cached) },
   );
-}
-
-export async function exportReportAsHtml(
-  productId: string,
-  progress: (pct: number) => void,
-): Promise<APIResponseNoData> {
-  try {
-    await new Promise((res) => setTimeout(res, 0));
-    progress(0.05);
-    const res = await serverActions.getReportDetail({
-      product_id: productId,
-    });
-    if (!res.success) return res;
-    const html = await buildStandaloneReportHtml(res.data, progress);
-    progress(1);
-    saveBlob(
-      new Blob([html], { type: "text/html;charset=utf-8" }),
-      `${res.data.label}.html`,
-    );
-    return { success: true };
-  } catch (e) {
-    return {
-      success: false,
-      err: "Error exporting report HTML: " +
-        (e instanceof Error ? e.message : String(e)),
-    };
-  }
 }

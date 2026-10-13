@@ -2,8 +2,8 @@ import {
   FASTR_REPORT_THEMES,
   type FastrReportTemplate,
   type FastrReportTheme,
-  t3,
-} from "lib";
+} from "../../engine/mod.ts";
+import { t3 } from "../../engine/i18n.ts";
 
 // Display names + one-line characters for the FASTR Markdown themes, shared by
 // the creation picker and the report editor's theme switcher. The themes

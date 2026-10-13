@@ -3,10 +3,10 @@ import {
   FASTR_REPORT_THEMES,
   fastrAllFontImportsCss,
   type FastrReportTheme,
-  type ReportCustomStyle,
-  t3,
-} from "lib";
+} from "../../engine/mod.ts";
+import { t3 } from "../../engine/i18n.ts";
 import { Show } from "solid-js";
+import type { ReportPalette } from "./types.ts";
 
 // Creation-picker tiles for FASTR Markdown themes. Unlike the html style tiles
 // — hand-authored impressions, because the real output is AI-written and
@@ -76,7 +76,7 @@ const TILE_SHELL_CSS = `
 // Only a style's id and palette matter here, so a report's stored style
 // snapshot serves as well as a library row.
 export function FastrThemeMockStyles(p: {
-  customStyles: Pick<ReportCustomStyle, "id" | "colors">[];
+  customStyles: Pick<ReportPalette, "id" | "colors">[];
 }) {
   return (
     <style>
@@ -162,7 +162,7 @@ export function FastrThemeMock(p: { theme: FastrReportTheme }) {
   );
 }
 
-export function FastrCustomThemeMock(p: { style: ReportCustomStyle }) {
+export function FastrCustomThemeMock(p: { style: ReportPalette }) {
   return (
     <Show
       when={p.style.colors}
@@ -207,7 +207,7 @@ export function FastrTemplateMock(
           aria-hidden="true"
         >
           <span
-            class="text-base-content-muted font-light"
+            class="rf:text-base-content-muted"
             style={{ "font-size": "40px" }}
           >
             +

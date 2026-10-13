@@ -26,5 +26,9 @@ export {
 } from "./package_label.ts";
 export { PresenceAvatars } from "./presence_avatars.tsx";
 export { ScopeSelect, scopeSelectLabel } from "./scope_select.tsx";
-export { cleanupUppy, createUppyInstance } from "./uppy_file_upload.ts";
+export {
+  cleanupUppy,
+  createUppyInstance,
+  requestImageAssetUpload,
+} from "./uppy_file_upload.ts";
 export type { UppyFileUploadConfig } from "./uppy_file_upload.ts";

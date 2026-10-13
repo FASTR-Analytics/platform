@@ -1,120 +1,107 @@
-import {
-  FASTR_REPORT_THEMES,
-  type FastrReportTemplate,
-  type FastrReportTheme,
-  type ReportConfig,
-  type ReportCustomStyle,
-  t3,
-} from "lib";
-import {
-  type AlertComponentProps,
-  Button,
-  Icon,
-  ModalContainer,
-  type StateHolderFormAction,
-  StateHolderFormError,
-} from "panther";
 import { createSignal, For, onMount, Show } from "solid-js";
-import { serverActions } from "~/server_actions";
-import { fastrThemeCaption, fastrThemeLabel } from "./fastr_theme_labels";
+import {
+  FASTR_REPORT_TEMPLATES,
+  type FastrReportTemplate,
+} from "../../engine/fastr_report_templates.ts";
+import type { FastrReportTheme } from "../../engine/report_fastr_themes.ts";
+import { t3 } from "../../engine/i18n.ts";
+import { Button, FormError, Icon, Modal, type ModalProps } from "../kit/mod.ts";
+
+import { fastrThemeCaption, fastrThemeLabel } from "./fastr_theme_labels.ts";
 import {
   FastrCustomThemeMock,
   fastrMockScopeClass,
   FastrThemeMock,
   FastrThemeMockStyles,
-} from "./fastr_theme_mock";
-import { ReportTemplateGallery } from "./template_gallery";
+} from "./fastr_theme_mock.tsx";
+import { ReportTemplateGallery } from "./template_gallery.tsx";
+import type { ReportPalette } from "./types.ts";
 
-// The report's look, chosen from inside the report. Every new report is FASTR
-// Markdown on the default theme, so this is the one place a report's design
-// is decided: the editor opens it unprompted the first time a new report is
-// opened (config.themeChosen === false) and from the Page menu after that.
+// The document's look, chosen from inside the document. The editor opens it
+// unprompted the first time a new document is opened (settings.themeChosen
+// === false) and from the Page menu after that.
 //
-// A fastr body carries no CSS, so re-theming can never invalidate it. That is
-// what separates this from an html report's style, which is fixed at creation
-// because the body IS the design.
+// The body carries no CSS, so re-theming can never invalidate it.
 //
-// On a report that is still just its title (`offerTemplates`), the theme is
-// step 1 of 2: Next applies it and moves to a template gallery
+// On a document that is still just its title (`offerTemplates`), the theme
+// is step 1 of 2: Next applies it and moves to a template gallery
 // (template_gallery.tsx), whose pick rides the result for the editor to
 // write into the body. Skip there keeps the theme and the plain title.
 //
 // Tiles are the real stylesheets (FastrThemeMock), so a preview is exactly
-// what the report becomes. A saved custom style contributes only its palette
-// here; its design brief and reference stylesheet are for the AI in html
-// reports.
+// what the document becomes. A saved palette repaints the default theme.
 
-export type ReportThemeModalResult =
-  // The STORED config the write produced: the style snapshot is resolved
-  // server-side, so the editor repaints from this rather than re-reading the
-  // report, which would race the products SSE.
+export type ThemeChoice = { theme: FastrReportTheme; palette?: ReportPalette };
+
+export type ThemeModalResult =
+  // The look was applied (by `apply`, which the modal has already awaited).
   | {
-    applied: { lastUpdated: string; config: ReportConfig };
+    applied: true;
     // Step 2's pick, when templates were offered and one was chosen.
     template?: FastrReportTemplate;
   }
-  // Open the style editor. The caller runs it and re-opens this modal after:
-  // panther has ONE alert slot, so the editor cannot stack on this one.
-  | { editStyle: { style?: ReportCustomStyle } };
+  // Open the host's palette editor. The caller runs it and re-opens this
+  // modal after, so a host's own dialog never has to stack on this one.
+  | { editPalette: ReportPalette | undefined };
 
 type Sel =
   | { kind: "theme"; value: FastrReportTheme }
-  | { kind: "custom"; style: ReportCustomStyle };
+  | { kind: "custom"; style: ReportPalette };
 
-type Props = AlertComponentProps<
+type Props = ModalProps<
   {
-    productId: string;
-    reportLabel: string;
-    // The report's current look, so the modal opens on what it already is.
-    fastrTheme: FastrReportTheme;
-    customStyleId?: string;
-    // A new report still holding only its title: the theme is step 1 of 2
+    documentTitle: string;
+    // The themes on offer, in order.
+    themes: readonly FastrReportTheme[];
+    // The document's current look, so the modal opens on what it already is.
+    theme: FastrReportTheme;
+    paletteId?: string;
+    // The host's saved palettes, and whether it can edit one.
+    listPalettes?: () => Promise<ReportPalette[]>;
+    canEditPalettes: boolean;
+    // A new document still holding only its title: the theme is step 1 of 2
     // and the template gallery follows.
     offerTemplates?: boolean;
+    // Applies the choice (the host stores it). Rejects with the reason when
+    // it could not, which the modal shows.
+    apply: (choice: ThemeChoice) => Promise<void>;
   },
-  ReportThemeModalResult
+  ThemeModalResult
 >;
 
-export function ReportThemeModal(p: Props) {
+export function ThemeModal(p: Props) {
   const [selected, setSelected] = createSignal<Sel | undefined>(
-    p.customStyleId === undefined
-      ? { kind: "theme", value: p.fastrTheme }
-      : undefined,
+    p.paletteId === undefined ? { kind: "theme", value: p.theme } : undefined,
   );
-  const [customStyles, setCustomStyles] = createSignal<ReportCustomStyle[]>([]);
-  const [saveState, setSaveState] = createSignal<StateHolderFormAction>({
-    status: "ready",
-  });
+  const [customStyles, setCustomStyles] = createSignal<ReportPalette[]>([]);
+  const [saving, setSaving] = createSignal(false);
+  const [saveError, setSaveError] = createSignal<string>();
   const [step, setStep] = createSignal<"theme" | "template">("theme");
-  // The theme write step 1 made: step 2 closes with it whatever it picks.
-  const [applied, setApplied] = createSignal<
-    { lastUpdated: string; config: ReportConfig } | undefined
-  >();
+  // Whether step 1 applied a look: step 2 closes with it whatever it picks.
+  const [applied, setApplied] = createSignal(false);
   const [template, setTemplate] = createSignal<FastrReportTemplate>(
-    "policy_brief",
+    FASTR_REPORT_TEMPLATES[0],
   );
   const templateScope = () => {
     const sel = selected();
     return sel?.kind === "custom"
       ? fastrMockScopeClass("default", sel.style.id)
-      : fastrMockScopeClass(sel?.value ?? p.fastrTheme);
+      : fastrMockScopeClass(sel?.value ?? p.theme);
   };
   const finish = (t?: FastrReportTemplate) => {
-    const a = applied();
-    if (a) {
-      p.close(t === undefined ? { applied: a } : { applied: a, template: t });
+    if (applied()) {
+      p.close(
+        t === undefined ? { applied: true } : { applied: true, template: t },
+      );
     }
   };
 
   onMount(() => {
     void (async () => {
-      const res = await serverActions.listReportStyles({
-        product_id: p.productId,
-      });
-      if (!res.success) return;
-      setCustomStyles(res.data);
-      // A custom style is only selectable once its row has loaded.
-      const current = res.data.find((s) => s.id === p.customStyleId);
+      const list = await p.listPalettes?.().catch(() => []) ?? [];
+      setCustomStyles(list);
+      // A palette is only selectable once its row has loaded.
+      const current = list.find((s) => s.id === p.paletteId);
       if (current) setSelected({ kind: "custom", style: current });
     })();
   });
@@ -132,41 +119,44 @@ export function ReportThemeModal(p: Props) {
   }
 
   async function apply(sel: Sel | undefined) {
-    if (!sel || saveState().status === "loading") return;
-    setSaveState({ status: "loading" });
-    // A custom style rides the default stylesheet and repaints it with its
-    // own palette, exactly as its tile shows it.
-    const res = await serverActions.setReportStyle({
-      product_id: p.productId,
-      fastrTheme: sel.kind === "theme" ? sel.value : "default",
-      customStyleId: sel.kind === "custom" ? sel.style.id : null,
-    });
-    if (!res.success) {
-      setSaveState({ status: "error", err: res.err });
+    if (!sel || saving()) return;
+    setSaving(true);
+    setSaveError(undefined);
+    try {
+      // A palette rides the default stylesheet and repaints it with its own
+      // colours, exactly as its tile shows it.
+      await p.apply(
+        sel.kind === "theme"
+          ? { theme: sel.value }
+          : { theme: "default", palette: sel.style },
+      );
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : String(e));
+      setSaving(false);
       return;
     }
+    setSaving(false);
     if (p.offerTemplates) {
-      setApplied(res.data);
-      setSaveState({ status: "ready" });
+      setApplied(true);
       setStep("template");
       return;
     }
-    p.close({ applied: res.data });
+    p.close({ applied: true });
   }
 
   return (
-    <ModalContainer
+    <Modal
       width="2xl"
       title={step() === "template"
         ? t3({
-          en: `Start “${p.reportLabel}” from a template`,
-          fr: `Commencer « ${p.reportLabel} » à partir d'un modèle`,
-          pt: `Começar “${p.reportLabel}” a partir de um modelo`,
+          en: `Start “${p.documentTitle}” from a template`,
+          fr: `Commencer « ${p.documentTitle} » à partir d'un modèle`,
+          pt: `Começar “${p.documentTitle}” a partir de um modelo`,
         })
         : t3({
-          en: `Choose a theme for “${p.reportLabel}”`,
-          fr: `Choisissez un thème pour « ${p.reportLabel} »`,
-          pt: `Escolha um tema para “${p.reportLabel}”`,
+          en: `Choose a theme for “${p.documentTitle}”`,
+          fr: `Choisissez un thème pour « ${p.documentTitle} »`,
+          pt: `Escolha um tema para “${p.documentTitle}”`,
         })}
       subtitle={p.offerTemplates
         ? step() === "theme"
@@ -219,7 +209,7 @@ export function ReportThemeModal(p: Props) {
               pt: "Aplicar tema",
             }),
           onClick: () => void apply(selected()),
-          state: saveState(),
+          loading: saving(),
           disabled: selected() === undefined,
           iconName: p.offerTemplates
             ? "chevronRight" as const
@@ -230,15 +220,15 @@ export function ReportThemeModal(p: Props) {
       <FastrThemeMockStyles customStyles={customStyles()} />
       <Show when={step() === "template"}>
         <ReportTemplateGallery
-          reportLabel={p.reportLabel}
+          reportLabel={p.documentTitle}
           scopeClass={templateScope()}
           selected={template()}
           onSelect={setTemplate}
           onPick={(t) => finish(t)}
         />
       </Show>
-      <div class="ui-spy-sm" classList={{ hidden: step() !== "theme" }}>
-        <div class="text-base-content-muted text-sm">
+      <div class="rf:ui-spy-sm" classList={{ "rf:hidden": step() !== "theme" }}>
+        <div class="rf:text-base-content-muted rf:text-sm">
           {t3({
             en:
               "The theme is the report's real stylesheet, so these previews are exactly what you get. You can change it again at any time from the Page menu.",
@@ -248,26 +238,26 @@ export function ReportThemeModal(p: Props) {
               "O tema é a folha de estilos real do relatório, por isso estas pré-visualizações são exatamente o que vai obter. Pode alterá-lo a qualquer momento no menu Página.",
           })}
         </div>
-        <div class="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
-          <For each={FASTR_REPORT_THEMES}>
+        <div class="rf:grid rf:grid-cols-2 rf:gap-3 rf:md:grid-cols-3 rf:xl:grid-cols-4">
+          <For each={p.themes}>
             {(theme) => {
               const sel: Sel = { kind: "theme", value: theme };
               return (
                 <button
                   type="button"
-                  class="ui-focusable group rounded-md p-1.5 text-left"
+                  class="rf:ui-focusable rf:group rf:p-1.5 rf:text-left"
                   classList={{
-                    "ring-primary ring-2": isSelected(sel),
-                    "hover:bg-base-200": !isSelected(sel),
+                    "rf:ring-primary rf:ring-2": isSelected(sel),
+                    "rf:hover:bg-base-200": !isSelected(sel),
                   }}
                   onClick={() => setSelected(sel)}
                   onDblClick={() => void apply(sel)}
                 >
                   <FastrThemeMock theme={theme} />
-                  <div class="text-base-content font-700 mt-1.5">
+                  <div class="rf:text-base-content rf:font-700 rf:mt-1.5">
                     {fastrThemeLabel(theme)}
                   </div>
-                  <div class="text-base-content-muted text-xs leading-snug">
+                  <div class="rf:text-base-content-muted rf:text-xs rf:leading-snug">
                     {fastrThemeCaption(theme)}
                   </div>
                 </button>
@@ -280,28 +270,28 @@ export function ReportThemeModal(p: Props) {
               return (
                 <button
                   type="button"
-                  class="ui-focusable group relative rounded-md p-1.5 text-left"
+                  class="rf:ui-focusable rf:group rf:relative rf:p-1.5 rf:text-left"
                   classList={{
-                    "ring-primary ring-2": isSelected(sel),
-                    "hover:bg-base-200": !isSelected(sel),
+                    "rf:ring-primary rf:ring-2": isSelected(sel),
+                    "rf:hover:bg-base-200": !isSelected(sel),
                   }}
                   onClick={() => setSelected(sel)}
                   onDblClick={() => void apply(sel)}
                 >
                   <FastrCustomThemeMock style={style} />
-                  <div class="text-base-content font-700 mt-1.5 flex items-center gap-1.5">
-                    <span class="min-w-0 truncate">{style.label}</span>
-                    <span class="bg-base-300 text-base-content rounded px-1 text-xs font-normal">
+                  <div class="rf:text-base-content rf:font-700 rf:mt-1.5 rf:flex rf:items-center rf:gap-1.5">
+                    <span class="rf:min-w-0 rf:truncate">{style.label}</span>
+                    <span class="rf:bg-base-300 rf:text-base-content rf:rounded rf:px-1 rf:text-xs">
                       {t3({ en: "custom", fr: "perso", pt: "próprio" })}
                     </span>
                   </div>
-                  <div class="text-base-content-muted text-xs leading-snug">
+                  <div class="rf:text-base-content-muted rf:text-xs rf:leading-snug">
                     {style.description}
                   </div>
                   <span
                     role="button"
                     tabIndex={0}
-                    class="bg-base-100 hover:bg-base-200 absolute top-3 right-3 rounded border p-1"
+                    class="rf:bg-base-100 rf:hover:bg-base-200 rf:absolute rf:top-3 rf:right-3 rf:rounded rf:border rf:p-1"
                     title={t3({
                       en: "Edit style",
                       fr: "Modifier le style",
@@ -309,30 +299,18 @@ export function ReportThemeModal(p: Props) {
                     })}
                     onClick={(e) => {
                       e.stopPropagation();
-                      p.close({ editStyle: { style } });
+                      p.close({ editPalette: style });
                     }}
                   >
-                    <Icon iconName="pencil" class="h-3.5 w-3.5" />
+                    <Icon name="pencil" class="rf:h-3.5 rf:w-3.5" />
                   </span>
                 </button>
               );
             }}
           </For>
         </div>
-        <Show when={customStyles().length > 0}>
-          <div class="text-base-content-muted text-xs">
-            {t3({
-              en:
-                "A saved style contributes only its colours here: its design brief guides the AI in HTML reports, and its stylesheet targets markup FASTR Markdown does not produce.",
-              fr:
-                "Un style enregistré n'apporte ici que ses couleurs : son guide de style oriente l'IA dans les rapports HTML, et sa feuille de style vise un balisage que FASTR Markdown ne produit pas.",
-              pt:
-                "Um estilo guardado contribui aqui apenas com as suas cores: o seu guia de estilo orienta a IA nos relatórios HTML, e a sua folha de estilos visa marcação que o FASTR Markdown não produz.",
-            })}
-          </div>
-        </Show>
-        <StateHolderFormError state={saveState()} />
+        <FormError error={saveError()} />
       </div>
-    </ModalContainer>
+    </Modal>
   );
 }

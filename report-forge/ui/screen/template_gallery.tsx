@@ -3,12 +3,15 @@ import {
   type FastrReportTemplate,
   fastrReportTemplateBody,
   renderFastrMarkdownToHtml,
-  t3,
-} from "lib";
+} from "../../engine/mod.ts";
+import { t3 } from "../../engine/i18n.ts";
 import { For } from "solid-js";
-import { sanitizeReportHtml } from "~/generate_report/mod";
-import { fastrTemplateCaption, fastrTemplateLabel } from "./fastr_theme_labels";
-import { FastrTemplateMock } from "./fastr_theme_mock";
+import { sanitizeReportHtml } from "../report_html.ts";
+import {
+  fastrTemplateCaption,
+  fastrTemplateLabel,
+} from "./fastr_theme_labels.ts";
+import { FastrTemplateMock } from "./fastr_theme_mock.tsx";
 
 // Step 2 of starting a report, inside the theme modal (theme_modal.tsx): a
 // template gallery, as a word processor offers. Each tile is the template's
@@ -31,8 +34,8 @@ export function ReportTemplateGallery(p: {
     );
   };
   return (
-    <div class="ui-spy-sm">
-      <div class="text-base-content-muted text-sm">
+    <div class="rf:ui-spy-sm">
+      <div class="rf:text-base-content-muted rf:text-sm">
         {t3({
           en:
             "A template gives the report its sections and blocks, with grey guidance in each slot to type over. The AI is told which template you chose and writes to its shape.",
@@ -42,15 +45,15 @@ export function ReportTemplateGallery(p: {
             "Um modelo dá ao relatório as suas secções e blocos, com indicações a cinzento em cada espaço para substituir. A IA sabe que modelo escolheu e escreve de acordo com a sua forma.",
         })}
       </div>
-      <div class="grid grid-cols-3 gap-4">
+      <div class="rf:grid rf:grid-cols-3 rf:gap-4">
         <For each={FASTR_REPORT_TEMPLATES}>
           {(template) => (
             <button
               type="button"
-              class="ui-focusable flex flex-col rounded-md p-1.5 text-left"
+              class="rf:ui-focusable rf:flex rf:flex-col rf:p-1.5 rf:text-left"
               classList={{
-                "ring-primary ring-2": p.selected === template,
-                "hover:bg-base-200": p.selected !== template,
+                "rf:ring-primary rf:ring-2": p.selected === template,
+                "rf:hover:bg-base-200": p.selected !== template,
               }}
               onClick={() => p.onSelect(template)}
               onDblClick={() => p.onPick(template)}
@@ -59,10 +62,10 @@ export function ReportTemplateGallery(p: {
                 scopeClass={p.scopeClass}
                 html={html(template)}
               />
-              <div class="text-base-content font-700 mt-1.5">
+              <div class="rf:text-base-content rf:font-700 rf:mt-1.5">
                 {fastrTemplateLabel(template)}
               </div>
-              <div class="text-base-content-muted text-xs leading-snug">
+              <div class="rf:text-base-content-muted rf:text-xs rf:leading-snug">
                 {fastrTemplateCaption(template)}
               </div>
             </button>
