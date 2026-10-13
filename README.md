@@ -11,6 +11,11 @@ architecture for executing R-based data processing pipelines.
 git clone https://github.com/FASTR-Analytics/platform.git
 cd platform
 
+# Fetch the report editor (required)
+# report-forge/ is a git submodule, a private repository: you need access to
+# https://github.com/NicholasWillmott/report-forge
+git submodule update --init
+
 # Sync the Panther library (required)
 # This project uses the Panther visualization library which is synced separately.
 # If you have access to panther source repository:
@@ -133,6 +138,7 @@ platform/
 ├── server/                  Server source (Deno/Hono)
 ├── lib/                     Shared library (types, translations, etc.)
 ├── panther/                 External UI/visualization library
+├── report-forge/            The report editor package (git submodule)
 ├── module_defs/             Module definition source files
 ├── module_defs_dist/        Generated module definitions
 ├── main.ts                  Server entry point

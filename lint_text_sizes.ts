@@ -35,7 +35,8 @@ type Hit = { file: string; line: number; message: string };
 
 async function trackedFiles(): Promise<string[]> {
   const out = await new Deno.Command("git", {
-    args: ["ls-files", "--", ...ROOTS],
+    // Report Forge is a submodule, whose files a plain ls-files leaves out.
+    args: ["ls-files", "--recurse-submodules", "--", ...ROOTS],
     stdout: "piped",
   }).output();
   return new TextDecoder()

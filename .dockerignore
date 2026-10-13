@@ -6,6 +6,7 @@ client
 
 # Large dependency trees
 node_modules
+report-forge/playground
 
 # Git history
 .git
