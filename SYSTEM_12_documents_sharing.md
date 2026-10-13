@@ -2568,3 +2568,9 @@ interpolation in both routes.
   holds a view. Make `openHostEditor` required (137), call it at 1056, delete
   the local wrapper, and drop "Absent, it opens here" from the comment at
   133-136.
+- **The docs quote the bulk update's old label.** The button reads "Update all
+  visualizations (N)" (`_shared/figure_editor/stale_figure_badge.tsx:184-188`),
+  but this file calls it "Update all figures" in the permissions table (197),
+  the paragraph under it (201) and the report editor (1883), as do
+  SYSTEM_11_viz_authoring.md (51) and SYSTEM_10_figure_render_export.md
+  (351-352). Make each "Update all visualizations".

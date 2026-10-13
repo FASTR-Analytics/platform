@@ -464,6 +464,18 @@ language's own anchor). The recipe and its traps are
   that does not exist (the pages are `onboarding/index.ts:82-97`), and 918-920
   say the nav renders twice by breakpoint, but the rail is one `TabsNavigation`
   (`instance/instance.tsx:392-406`). Drop "Explore /" at 915 and delete 918-920.
+- **Two tour steps misname Download.** The deck File step's pt body calls it
+  "Descarregar" (`onboarding/tours.ts:81`), but the menu item reads
+  "Transferir…" (`slide_deck/deck_menu.tsx:234`): make it "Transferir
+  (PowerPoint ou PDF)". The report intro's `download` step, which runs only on
+  the markdown and html formats, says the report downloads "as a Word document
+  or PDF" (596, fr 598, pt 600), but an html report offers an HTML file or Print
+  / save as PDF (`products/report/download_report.tsx:89-101`), and its pt says
+  "Descarregue" where the button reads "Transferir"
+  (`products/report/report.tsx:2592`). Make the body en "Download the report,
+  with the visualizations rendered in place.", fr "Téléchargez le rapport, avec
+  les visualisations rendues à leur place.", pt "Transfira o relatório, com as
+  visualizações apresentadas no devido lugar."
 - **The Assets catalogue entry carries a reason it never shows.**
   `onboarding/catalogue.ts:621-622` pairs `available: () => true` with an
   `unavailableReason`, which the field's contract leaves absent on an
