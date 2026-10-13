@@ -15,11 +15,6 @@ export {
 export type { ProductTreeRow } from "./folder_tree.ts";
 export { PackageScopeChip } from "./package_scope_chip.tsx";
 export { PackageScopeModal } from "./package_scope_modal.tsx";
-export { createReportPaginator } from "./paginate_report.ts";
-export type {
-  ReportPaginator,
-  ReportPaginatorDeps,
-} from "./paginate_report.ts";
 export { ProductSettings } from "./product_settings.tsx";
 export { ProductTitle } from "./product_title.tsx";
 export { ReportHtmlPreview } from "./report_html_preview.tsx";

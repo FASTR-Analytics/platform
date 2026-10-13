@@ -10,11 +10,12 @@
       "report-forge/harness/baseline/",
       "report-forge/styles/report-forge.css",
       "report-forge/styles/utilities.css",
+      "report-forge/ui/exports/vendor/",
       "report-forge/playground/package-lock.json"
     ]
   },
   "lint": {
-    "exclude": ["client/"],
+    "exclude": ["client/", "report-forge/ui/exports/vendor/"],
     "rules": {
       "exclude": ["jsx-key"]
     }

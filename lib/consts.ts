@@ -155,9 +155,8 @@ export const MAX_CONTENT_BLOCKS = 3;
 export const SLIDE_TEXT_TOTAL_WORD_COUNT_TARGET = "50-100";
 export const SLIDE_TEXT_TOTAL_WORD_COUNT_MAX = 180;
 
-// Output pixel width for downloading a single figure as a PNG. The figure is
-// laid out at the canonical REFERENCE_WIDTH_DU frame and supersampled to this.
-export const FIGURE_EXPORT_WIDTH_PX = 1920;
+// FIGURE_EXPORT_WIDTH_PX (the pixel width a figure is drawn at for export)
+// is the report engine's: report-forge/engine/embeds.ts.
 
 // The deck's zoom-frame geometry, in DUs. PAGE_WIDTH_DU is wider than the
 // default REFERENCE_WIDTH_DU (1000) for a roomier page without retuning styles.

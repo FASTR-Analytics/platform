@@ -136,6 +136,12 @@ export function replaceReportEmbedTokens(
   return { body: out, count: refs.length };
 }
 
+// ── Figure pixels ────────────────────────────────────────────────────────────
+
+// The pixel width a host draws a figure at for export (the standalone .html,
+// the PDF, Word). Layout sizes a figure from this box's aspect.
+export const FIGURE_EXPORT_WIDTH_PX = 1920;
+
 // ── HTML sanitizer config (pure data; the client feeds it to DOMPurify) ──────
 // The compiled document is sanitized on its way into the editor's widgets,
 // the preview and every export. The default tag list would otherwise allow form controls, dialog/template/

@@ -81,10 +81,7 @@ import {
   type ReportSession,
   setCollabView,
 } from "~/state/instance/collab";
-import {
-  createReportPaginator,
-  ProductTitle,
-} from "~/components/products/_shared/mod.ts";
+import { ProductTitle } from "~/components/products/_shared/mod.ts";
 import {
   fastrPagedFooter,
   registerReportPageLayout,
@@ -139,6 +136,7 @@ import type { VizFigureCollabBinding } from "~/components/_shared/figure_editor/
 import { InsertFigureModal } from "~/components/products/_shared/mod.ts";
 import { ReportToolbar } from "./toolbar";
 import {
+  createReportPaginator,
   type FigureViewProps,
   FM_LIVE_SCOPE_CLASS,
   type PageBoxGeometry,
@@ -473,15 +471,14 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
   // block heights, by source text, are the editor's estimates for blocks it
   // has not rendered (the editor lays the pages out itself).
   const paginator = createReportPaginator({
-    detail: () =>
+    document: () =>
       loadedConfig === undefined || !paginationWanted() ? undefined : {
-        id: p.productId,
-        label: label(),
+        title: label(),
         body: body(),
-        figures: figures(),
+        theme: fastrTheme(),
+        colors: fastrColors(),
         images: images(),
-        config: { ...loadedConfig, fastrTheme: fastrTheme() },
-        lastUpdated: "",
+        figureIds: Object.keys(figures()),
       },
     footer: () => fastrPagedFooter(label()),
     figureSize: (id) => {

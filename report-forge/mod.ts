@@ -14,6 +14,13 @@ export * from "./ui/report_html.ts";
 export * from "./ui/editor/embed_resolver.ts";
 export * from "./ui/editor/rebase_edits.ts";
 export * from "./ui/editor/fastr_block_labels.ts";
+export * from "./ui/paginator.ts";
+export * from "./ui/exports/standalone_html.ts";
+export * from "./ui/exports/paged_pdf.ts";
+export * from "./ui/exports/word.ts";
+export * from "./ui/exports/save.ts";
+export { inlineThemeFontCss } from "./ui/exports/inline_theme_fonts.ts";
+export { loadThemeFontsForWord } from "./ui/exports/word_theme_fonts.ts";
 export {
   EDITOR_COLUMN_MAX_REM,
   type ReportBlockContext,

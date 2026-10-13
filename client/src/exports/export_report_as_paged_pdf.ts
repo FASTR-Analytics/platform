@@ -1,39 +1,29 @@
 import {
   type APIResponseNoData,
   type APIResponseWithData,
-  type FastrPagedFooter,
   type ReportDetail,
-  t3,
 } from "lib";
-import { saveAs } from "panther";
+import {
+  base64ToBytes,
+  buildPagedReportHtml,
+  type ReportPageLayout,
+  saveBlob,
+} from "report-forge";
 import { serverActions } from "~/server_actions";
-import { buildStandaloneReportHtml } from "./export_report_as_html";
+import { reportDocumentOf, reportExportHostOf } from "./export_report_as_html";
 
-// The paged PDF of a FASTR Markdown report: the standalone document laid out
-// for paper (Paged.js + the paged sheet, fonts inlined) is built HERE, in the
-// browser that owns the rasters, and printed by the server's headless Chrome.
-// Download saves the bytes; Email attaches them (export_report_attachment.ts).
+export { fastrPagedFooter, type ReportPageLayout } from "report-forge";
 
-export function fastrPagedFooter(title: string): FastrPagedFooter {
-  return {
-    title,
-    pageWord: t3({ en: "Page", fr: "Page", pt: "Página" }),
-    ofWord: t3({ en: "of", fr: "sur", pt: "de" }),
-  };
-}
+// The paged PDF of a report: the paged document is built by Report Forge in
+// the browser that owns the rasters, and printed by the server's headless
+// Chrome. Download saves the bytes; Email attaches them
+// (export_report_attachment.ts).
 
 // The page starts of the report open in the editor, by report id: the
 // editor registers what it laid out (with the body it laid out), and the
 // export forces those breaks when the body it fetched is that same body,
 // so the PDF breaks where the author's page boxes did. Unsaved edits or no
 // open editor: Paged.js decides by the same rules.
-export type ReportPageLayout = {
-  body: string;
-  pageStarts: number[];
-  paraSplits: { line: number; rows: number[] }[];
-  figureFits: { line: number; height: number }[];
-  gapStretches: { line: number; marginTop: number }[];
-};
 const pageLayouts = new Map<string, () => ReportPageLayout | undefined>();
 
 export function registerReportPageLayout(
@@ -65,19 +55,11 @@ export async function buildReportPdfFromDetail(
   progress: (pct: number) => void,
 ): Promise<APIResponseWithData<ReportPdfBytes>> {
   try {
-    const html = await buildStandaloneReportHtml(
-      detail,
+    const html = await buildPagedReportHtml(
+      reportDocumentOf(detail),
+      reportExportHostOf(detail.figures),
+      layoutFor(detail),
       (v) => progress(v * 0.5),
-      {
-        paged: {
-          footer: fastrPagedFooter(detail.label),
-          pageStarts: layoutFor(detail)?.pageStarts,
-          paraSplits: layoutFor(detail)?.paraSplits,
-          figureFits: layoutFor(detail)?.figureFits,
-          gapStretches: layoutFor(detail)?.gapStretches,
-        },
-        inlineFonts: true,
-      },
     );
     const rendered = await serverActions.renderReportPdf(
       { product_id: detail.id, html },
@@ -118,20 +100,13 @@ export async function buildReportPdfBase64(
   );
 }
 
-function base64ToBytes(b64: string): Uint8Array<ArrayBuffer> {
-  const bin = atob(b64);
-  const out = new Uint8Array(new ArrayBuffer(bin.length));
-  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-  return out;
-}
-
 export async function exportReportAsPagedPdf(
   productId: string,
   progress: (pct: number) => void,
 ): Promise<APIResponseNoData> {
   const res = await buildReportPdfBase64(productId, progress);
   if (!res.success) return res;
-  saveAs(
+  saveBlob(
     new Blob([base64ToBytes(res.data.base64)], { type: "application/pdf" }),
     res.data.filename,
   );

@@ -1,6 +1,6 @@
 // The editor's paginator: lays the current document out as printed pages in
-// a hidden frame — with the SAME paged document the server prints
-// (buildStandaloneReportHtml + Paged.js) — and hands back where each page
+// a hidden frame, with the SAME paged document the PDF is printed from
+// (buildStandaloneReportHtml + Paged.js), and hands back where each page
 // starts, in source lines. Runs after a typing pause, one layout at a time; a
 // request arriving mid-layout queues one more run rather than a pile-up.
 //
@@ -15,13 +15,15 @@ import {
   FASTR_PAGED_GLOBAL,
   type FastrPagedFooter,
   type FastrPagedResult,
-  type ReportDetail,
-} from "lib";
-import { buildStandaloneReportHtml } from "~/exports/export_report_as_html";
+} from "../engine/report_fastr_paged.ts";
+import {
+  buildStandaloneReportHtml,
+  type ReportDocument,
+} from "./exports/standalone_html.ts";
 
 export type ReportPaginatorDeps = {
-  // The document as it stands: body from the editor, the rest from the host.
-  detail: () => ReportDetail | undefined;
+  // The document as it stands; undefined while there is nothing to lay out.
+  document: () => ReportDocument | undefined;
   footer: () => FastrPagedFooter;
   figureSize: (id: string) => { width: number; height: number } | undefined;
   imageSize: (id: string) => { width: number; height: number } | undefined;
@@ -70,22 +72,31 @@ export function createReportPaginator(
     }
     running = true;
     try {
-      const detail = deps.detail();
-      if (detail === undefined) {
+      const doc = deps.document();
+      if (doc === undefined) {
         deps.onResult(undefined, "");
         return;
       }
-      const html = await buildStandaloneReportHtml(detail, () => {}, {
-        paged: { footer: deps.footer() },
-        layoutOnly: {
-          figureSize: deps.figureSize,
-          imageSize: deps.imageSize,
+      // Layout only: no figure is drawn and no image fetched, so the host
+      // half of an export is never asked for.
+      const html = await buildStandaloneReportHtml(
+        doc,
+        {
+          assetUrl: (f) => f,
         },
-      });
+        () => {},
+        {
+          paged: { footer: deps.footer() },
+          layoutOnly: {
+            figureSize: deps.figureSize,
+            imageSize: deps.imageSize,
+          },
+        },
+      );
       if (disposed) return;
       const result = await layoutInFrame(html);
       if (disposed) return;
-      deps.onResult(result, detail.body);
+      deps.onResult(result, doc.body);
     } catch (e) {
       console.warn("Report pagination failed", e);
       if (!disposed) deps.onResult(undefined, "");
