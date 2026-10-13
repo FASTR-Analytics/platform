@@ -36,7 +36,7 @@ export function showMenu(
 ): void {
   hideMenu();
   const pop = document.createElement("div");
-  pop.className = "rf-root rf-menu-pop";
+  pop.className = "rf-menu-pop";
   pop.setAttribute("popover", "manual");
   document.body.append(pop);
 
@@ -70,20 +70,25 @@ export function showMenu(
   place(pop, opts.anchor);
 }
 
-// Below the anchor's left edge, flipped above or pulled left when it would
-// leave the viewport.
+// A small gap off the anchor, on whichever side of it has more room (below
+// when it is even), starting at the anchor's left edge and pulled left when
+// that would leave the viewport.
+const MENU_GAP_PX = 6;
 function place(el: HTMLElement, anchor: MenuAnchor): void {
   const { width, height } = el.getBoundingClientRect();
   const vw = document.documentElement.clientWidth;
   const vh = document.documentElement.clientHeight;
+  const roomBelow = vh - (anchor.y + anchor.height);
+  const roomAbove = anchor.y;
+  const top = roomBelow >= roomAbove
+    ? anchor.y + anchor.height + MENU_GAP_PX
+    : anchor.y - height - MENU_GAP_PX;
   let left = anchor.x;
-  let top = anchor.y + anchor.height;
   if (left + width > vw - 4) {
     left = Math.max(4, anchor.x + anchor.width - width);
   }
-  if (top + height > vh - 4) top = Math.max(4, anchor.y - height);
   el.style.left = `${Math.round(left)}px`;
-  el.style.top = `${Math.round(top)}px`;
+  el.style.top = `${Math.round(Math.max(4, top))}px`;
 }
 
 function MenuPanel(
@@ -101,7 +106,10 @@ function MenuPanel(
             <button
               type="button"
               class="rf-menu__item"
-              classList={{ "rf-menu__item--danger": item.intent === "danger" }}
+              classList={{
+                "rf-menu__item--danger": item.intent === "danger",
+                "rf-menu__item--sub": item.subMenu !== undefined,
+              }}
               data-open={open()?.index === i()}
               disabled={item.disabled}
               onMouseEnter={(e) =>
@@ -140,7 +148,7 @@ function MenuPanel(
           const sub = item.type === "divider" ? [] : item.subMenu ?? [];
           return (
             <div
-              style={{ position: "fixed" }}
+              class="rf-menu-sub"
               ref={(el) =>
                 queueMicrotask(() => {
                   const r = o().rect;

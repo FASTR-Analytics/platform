@@ -3,10 +3,11 @@
 //
 // - `report-forge` and `report-forge/styles.css` resolve to this folder,
 //   wherever the host keeps it;
-// - every package Report Forge imports resolves to the HOST's copy. The
-//   package ships as source, so without this a second copy of solid-js or
-//   CodeMirror could be picked up from a node_modules beside it, and two
-//   copies of either do not work together.
+// - every package Report Forge imports resolves to the HOST's copy, and is
+//   pre-bundled when the dev server starts. The package ships as source, so
+//   without this a second copy of solid-js or CodeMirror could be picked up
+//   from a node_modules beside it, or bundled a second time when the editor
+//   first mounts, and two copies of either do not work together.
 //
 //   import { reportForge } from "./report-forge/vite.ts";
 //   export default defineConfig({ plugins: [solid(), reportForge()] });
@@ -25,13 +26,10 @@ export const REPORT_FORGE_DEPENDENCIES: string[] = [
   "@codemirror/search",
   "@codemirror/state",
   "@codemirror/view",
-  "@lezer/common",
-  "@lezer/highlight",
   "codemirror",
   "docx",
   "dompurify",
   "markdown-it",
-  "pagedjs",
   "solid-js",
   "y-codemirror.next",
   "y-protocols",
@@ -56,6 +54,18 @@ export function reportForge() {
             { find: /^report-forge$/, replacement: path.join(here, "mod.ts") },
           ],
           dedupe: REPORT_FORGE_DEPENDENCIES,
+        },
+        // Pre-bundle them when the dev server starts. The editor is usually
+        // mounted late (when a document opens), and a dependency Vite first
+        // meets at that moment makes it re-bundle mid-session: the page then
+        // holds modules from before and after, and two copies of a package.
+        optimizeDeps: {
+          // y-protocols has no root entry; the editor uses its awareness.
+          include: [
+            ...REPORT_FORGE_DEPENDENCIES.filter((d) => d !== "y-protocols"),
+            "solid-js/web",
+            "y-protocols/awareness",
+          ],
         },
       };
     },

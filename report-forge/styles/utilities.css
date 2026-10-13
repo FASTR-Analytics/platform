@@ -111,12 +111,13 @@
   color: var(--rf-color-base-content-muted);
 }
 
-/* The focus ring every interactive element takes from the keyboard. */
+/* The focus ring every interactive element takes from the keyboard. A host
+   whose own controls draw none sets --forge-focus-style to `none`. */
 @utility ui-focusable {
   outline: none;
   &:focus-visible {
     z-index: 10;
-    outline: 2px solid var(--rf-color-focus);
+    outline: 2px var(--forge-focus-style, solid) var(--rf-color-focus);
     outline-offset: 2px;
   }
 }

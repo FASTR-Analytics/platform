@@ -9,27 +9,24 @@
 import { walk } from "@std/fs/walk";
 import { dirname, fromFileUrl, relative, resolve } from "@std/path";
 
-// What a host installs. The engine needs the first group; the editor adds
-// the second; the collab seam the third; the Deno renderer the fourth.
+// What a host installs (the same list as vite.ts and package.json), plus
+// the browser launcher the Deno renderer in server/ uses.
 export const DEPENDENCIES: readonly string[] = [
-  "markdown-it",
-  "docx",
-  "dompurify",
-  "solid-js",
-  "codemirror",
   "@codemirror/commands",
-  "@codemirror/language",
   "@codemirror/lang-markdown",
+  "@codemirror/language",
   "@codemirror/merge",
   "@codemirror/search",
   "@codemirror/state",
   "@codemirror/view",
-  "@lezer/common",
-  "@lezer/highlight",
-  "pagedjs",
-  "yjs",
-  "y-protocols",
+  "codemirror",
+  "docx",
+  "dompurify",
+  "markdown-it",
+  "solid-js",
   "y-codemirror.next",
+  "y-protocols",
+  "yjs",
   "@astral/astral",
 ];
 

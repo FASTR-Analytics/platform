@@ -162,7 +162,7 @@
 .rf-btn:focus-visible,
 .rf-focusable:focus-visible {
   z-index: 10;
-  outline: 2px solid var(--rf-color-focus);
+  outline: 2px var(--forge-focus-style, solid) var(--rf-color-focus);
   outline-offset: 2px;
 }
 .rf-focusable {
@@ -281,6 +281,7 @@
   width: 100%;
 }
 .rf-label {
+  color: var(--rf-color-base-content);
   display: inline-block;
   padding-bottom: 0.25rem;
   font-size: 0.875rem;
@@ -304,7 +305,7 @@
 }
 .rf-input:focus-visible {
   z-index: 10;
-  outline: 2px solid var(--rf-color-focus);
+  outline: 2px var(--forge-focus-style, solid) var(--rf-color-focus);
   outline-offset: 2px;
 }
 .rf-radio {
@@ -336,7 +337,7 @@
   outline: none;
 }
 .rf-radio__input:focus-visible {
-  outline: 2px solid var(--rf-color-focus);
+  outline: 2px var(--forge-focus-style, solid) var(--rf-color-focus);
   outline-offset: 2px;
 }
 .rf-radio__dot {
@@ -477,14 +478,24 @@
 }
 
 /* ── Context menu ─────────────────────────────────────────────────────── */
+/* The popover keeps the browser's own top-layer ink (CanvasText), as any
+   native menu does; only the type is the editor's. */
 .rf-menu-pop {
+  font-family: var(--rf-font-sans);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
   position: fixed;
   inset: auto;
   margin: 0;
   padding: 0;
   border: none;
-  overflow: visible;
+  /* A host whose own menus clip their shadow sets this to `clip`. */
+  overflow: var(--forge-menu-overflow, visible);
   background: transparent;
+}
+.rf-menu-sub {
+  position: fixed;
+  overflow: var(--forge-menu-overflow, visible);
 }
 .rf-menu {
   min-width: 160px;
@@ -526,6 +537,10 @@
 }
 .rf-menu__item--danger {
   color: var(--rf-color-danger);
+}
+/* A row that opens a submenu is the anchor the submenu is placed against. */
+.rf-menu__item--sub {
+  position: relative;
 }
 .rf-menu__label {
   flex: 1 1 0%;
@@ -678,7 +693,7 @@
   outline: none;
   &:focus-visible {
     z-index: 10;
-    outline: 2px solid var(--rf-color-focus);
+    outline: 2px var(--forge-focus-style, solid) var(--rf-color-focus);
     outline-offset: 2px;
   }
 }

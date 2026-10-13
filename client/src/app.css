@@ -52,6 +52,14 @@
   --forge-scrim: var(--color-scrim);
   --forge-font: var(--font-sans);
   --forge-shadow: var(--shadow-floating);
+  /* This app's own context menus clip their shadow to the popover's box,
+     so the editor's match them. */
+  --forge-menu-overflow: clip;
+  /* This app's controls currently draw no focus ring: ui-focusable sets
+     outline-none, which under Tailwind 4 also switches off the style that
+     focus-visible:outline-2 relies on. The editor's controls follow suit
+     until that is settled for the whole app. */
+  --forge-focus-style: none;
 }
 
 /* The package accent's fill and hoverable skins, the same two bundles

@@ -1179,6 +1179,7 @@ export function ReportEditor(p: Props) {
         instanceState.assets.some((a) => a.isImage && a.fileName === name)
       ),
     pick: () => openComponent({ element: ReportImagePicker, props: {} }),
+    logosLabel: "FASTR",
     logos: FASTR_LOGOS.map((logo) => ({
       value: logo.value,
       label: t3(logo.label),

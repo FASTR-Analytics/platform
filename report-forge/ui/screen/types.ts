@@ -62,8 +62,10 @@ export type ReportForgeImageHost = {
   // Replace the whole insert-image picker with the host's own.
   pick?: () => Promise<{ imgFile: string; alt: string } | undefined>;
   // Logos the host ships with (a `:::logos` row offers them beside the
-  // library). `onDark` previews a light logo on a dark ground.
+  // library), and a caption for the group (an organisation's name).
+  // `onDark` previews a light logo on a dark ground.
   logos?: { value: string; label: string; onDark?: boolean }[];
+  logosLabel?: string;
 };
 
 // ── Figures ──────────────────────────────────────────────────────────────────

@@ -154,6 +154,9 @@ export function LogoPicker(p: ModalProps<Props, string[]>) {
 
         <Show when={builtIn().length > 0}>
           <div class="rf:ui-spy-sm">
+            <Show when={p.host.logosLabel}>
+              <div class="rf:ui-text-caption">{p.host.logosLabel}</div>
+            </Show>
             <div class="rf:ui-gap-sm rf:grid rf:grid-cols-[repeat(auto-fill,minmax(10rem,1fr))]">
               <For each={builtIn()}>
                 {(logo) => <Tile file={logo.value} label={logo.label} />}
