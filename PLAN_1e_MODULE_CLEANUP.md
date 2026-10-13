@@ -1,5 +1,18 @@
 # PLAN_1e — Module cleanup (m003 becomes the indicators module; disruptions → m011)
 
+> **NEEDS REWRITING. Do not run it as written.** Its end state (m003 absorbs
+> m012) was overtaken by the 2026-09-01 ruling recorded in
+> `wb-fastr-modules/_frozen_modules.ts`: m003, m004, m007 and m008 are retired
+> and frozen, m012 stays the indicators module, and the app's `MODULE_REGISTRY`
+> no longer lists m003. Its trigger names projects, which version 2 removes, and
+> its repo path is the version 1 checkout. Two items survive. First, m011 has
+> metrics only for admin areas 1 and 2 (`m11-01-01`, `m11-01-02`), although its
+> script writes `M11_disruptions_analysis_admin_area_3.csv` and `_4.csv`. With
+> m003 gone, no module offers disruption metrics at admin areas 3 and 4. The
+> rewrite adds those two metrics and their ids in
+> `SPECIAL_DISRUPTIONS_CHART_V2_METRICS`. Second, the four frozen directories
+> are deleted once the fleet runs version 2.
+
 Status: DIRECTION RULED 2026-08-30 (Tim); facts corrected same day after the
 code-verified review round. The indicator restructure it cleans up after (typed
 common indicators with calculated expressions, the population store, population
