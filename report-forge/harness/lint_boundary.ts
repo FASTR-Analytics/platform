@@ -56,8 +56,10 @@ function allowedBare(spec: string, tooling: boolean): boolean {
   return false;
 }
 
+// The Vite plugin runs in Node, inside the host's Vite, at build time.
 function allowedNodeBuiltin(spec: string, rel: string): boolean {
-  return spec.startsWith("node:") && NODE_BUILTIN_FILES.includes(rel);
+  return (spec.startsWith("node:") || spec === "vite") &&
+    NODE_BUILTIN_FILES.includes(rel);
 }
 
 const problems: string[] = [];
