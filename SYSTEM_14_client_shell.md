@@ -471,6 +471,6 @@ language's own anchor). The recipe and its traps are
 - Cruft: `fitWithin`, `headerOrContent` and `policyHeaderOrContent`
   (`state/t4_ui.ts:161-163`, 175-181) have no reader; the one other `fitWithin`
   match is an unrelated prop
-  (`products/slide_deck/slide_editor/slide_editor.tsx:1392`). Delete
+  (`products/slide_deck/slide_editor/slide_editor.tsx:1368`). Delete
   `t4_ui.ts:157-163` and 171-181, and their names from the in-memory list under
   `## UI preferences`.

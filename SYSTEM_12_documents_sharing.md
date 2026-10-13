@@ -2557,14 +2557,14 @@ interpolation in both routes.
   `ctx.scope` (2001-2005), so a reattach or rescope while the editor is open
   writes the figure under the old pair, against the comment at 1999-2000; the
   slide host resolves under its live `p.scope`
-  (`products/slide_deck/slide_editor/slide_editor.tsx:1079-1083`). Resolve under
+  (`products/slide_deck/slide_editor/slide_editor.tsx:1081-1085`). Resolve under
   the live pair `scope()` (`report.tsx:231-234`) read after the editor closes,
   returning when it is undefined.
 - **The slide editor's own editor wrapper is dead.** Its one render site always
   passes `openHostEditor` (`products/slide_deck/slide_deck.tsx:530`), so the
   fallback to the local wrapper
-  (`products/slide_deck/slide_editor/slide_editor.tsx:1062`) never runs and the
-  `getEditorWrapper()` at 166, with its `EditorWrapper` at 1313 and 1539, never
-  holds a view. Make `openHostEditor` required (144), call it at 1062, delete
+  (`products/slide_deck/slide_editor/slide_editor.tsx:1056`) never runs and the
+  `getEditorWrapper()` at 155, with its `EditorWrapper` at 1289 and 1485, never
+  holds a view. Make `openHostEditor` required (137), call it at 1056, delete
   the local wrapper, and drop "Absent, it opens here" from the comment at
-  140-143.
+  133-136.
