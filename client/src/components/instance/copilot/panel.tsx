@@ -28,7 +28,7 @@ import {
 import { clerk } from "~/state/_infra/clerk";
 import { instanceState } from "~/state/instance/t1_store";
 import { getRunAuthoringContextFromCacheOrFetch } from "~/state/instance/t2_run_authoring_context";
-import { setShowAi } from "~/state/t4_ui";
+import { setShowAi, SHOW_SENT_CONTEXT } from "~/state/t4_ui";
 import { copilotViewController, packageViewContext } from "./ai_views";
 import {
   createCopilotSDKClient,
@@ -130,10 +130,6 @@ function CopilotChat(p: { scope: string; tools: AnyAITool[] }) {
   // scope and scope edit, on the message where the move happened. A view
   // with no package, or whose context is still loading, sends no package
   // block; every package read still opens with its Source line.
-  // Debug: true makes each new user message show the exact text sent to the
-  // model, context block included.
-  const SHOW_SENT_CONTEXT = false;
-
   const getEphemeralContext = (): string[] => {
     const pkg = viewPackage();
     return pkg === undefined ? [buildDateBlock(isoDateToday())] : [
@@ -155,7 +151,7 @@ function CopilotChat(p: { scope: string; tools: AnyAITool[] }) {
     scope: p.scope,
     system: systemPrompt,
     getEphemeralContext,
-    showSentContext: () => SHOW_SENT_CONTEXT,
+    showSentContext: SHOW_SENT_CONTEXT,
     getDocumentRefs: aiDocs.getDocumentRefs,
     viewController: copilotViewController,
     // Every write asks before it applies unless the catalogue exempts it:

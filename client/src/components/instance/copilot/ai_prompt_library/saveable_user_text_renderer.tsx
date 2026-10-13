@@ -5,6 +5,7 @@ import {
   type SaveToPromptLibraryResult,
 } from "./save_to_prompt_library_modal";
 import { t3 } from "lib";
+import { SHOW_SENT_CONTEXT } from "~/state/t4_ui";
 
 // A user's text, a country-wide library prompt included, must not fetch an
 // image URL as it renders: image syntax renders as a link instead.

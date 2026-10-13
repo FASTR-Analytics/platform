@@ -904,11 +904,11 @@ file too) are composed per view by the view registry
 tools ride the request's tools array, never a catalogue in the prompt
 (`server/tests/copilot_prompt_test.ts` pins the absence; `get_overview` is the
 one surface that asks `buildSystemPrompt` for a date and a catalogue). The
-panel's `SHOW_SENT_CONTEXT` (a code boolean, off) makes each new user bubble the
-exact text sent, its context block then what was typed (panther
-`showSentContext`). The chat menu's View system prompt shows the blocks the next
-message would carry, through the instance's `getNextTurnPreview()`, then the
-system text; the debug panel
+`SHOW_SENT_CONTEXT` boolean in `state/t4_ui.ts` (a code boolean, off) makes each
+new user bubble the exact text sent, its context block then what was typed
+(panther `showSentContext`). The chat menu's View system prompt shows the blocks
+the next message would carry, through the instance's `getNextTurnPreview()`,
+then the system text; the debug panel
 ([ai_debug_panel.tsx](client/src/components/instance/copilot/ai_debug_panel.tsx))
 renders the metric-list formatter verbatim so a human sees exactly what the
 model sees. AI data payloads exclude the admin-area roll-up row (double-counting
