@@ -1,3 +1,4 @@
+import { HeaderRows, MenuRow } from "report-forge";
 import {
   buildFastrEditorSurfaceCss,
   buildFastrReportCss,
@@ -81,8 +82,6 @@ import {
 } from "~/state/instance/collab";
 import {
   createReportPaginator,
-  HeaderRows,
-  MenuRow,
   ProductTitle,
 } from "~/components/products/_shared/mod.ts";
 import {

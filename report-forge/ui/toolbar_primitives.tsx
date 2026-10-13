@@ -3,7 +3,7 @@
 // report/toolbar.tsx and slide_deck/slide_editor/slide_toolbar.tsx.
 
 import { createSignal, type JSX, onCleanup, Show, splitProps } from "solid-js";
-import { Icon } from "panther";
+import { Icon } from "./kit/icon.tsx";
 
 // The rows under a product's HeadingBar: the menu row, then the toolbar row
 // (or the host a toolbar portals into). The closing pad and rule are the
@@ -11,7 +11,7 @@ import { Icon } from "panther";
 // mounted, and no row has to know that it is the last one.
 export function HeaderRows(p: { children: JSX.Element }) {
   return (
-    <div class="border-b pb-1.5" data-cursor-zone="header">
+    <div class="rf:border-b rf:pb-1.5" data-cursor-zone="header">
       {p.children}
     </div>
   );
@@ -32,7 +32,7 @@ export function MenuRow(p: {
       // The left pad is the row's less a menu button's own, so the first
       // label ("File") starts on the header's padding edge, under the back
       // button.
-      class="flex flex-wrap items-center gap-1 pt-1.5 pr-[var(--ui-pad-x)] pl-[calc(var(--ui-pad-x)-var(--ui-pad-sm-x))]"
+      class="rf:flex rf:flex-wrap rf:items-center rf:gap-1 rf:pt-1.5 rf:pr-4 rf:pl-2"
       data-cursor-zone="header"
     >
       {p.children}
@@ -54,7 +54,7 @@ export function ToolbarRow(
   const [local, rest] = splitProps(p, ["children"]);
   return (
     <div
-      class="flex flex-wrap items-center gap-0.5 px-3 pt-1"
+      class="rf:flex rf:flex-wrap rf:items-center rf:gap-0.5 rf:px-3 rf:pt-1"
       data-cursor-zone="header"
       {...rest}
     >
@@ -68,12 +68,12 @@ export function ToolbarRow(
 // over the row or the panel, both children of this wrapper).
 export function MenuFlyout(p: { label: string; children: JSX.Element }) {
   return (
-    <div class="group relative">
+    <div class="rf:group rf:relative">
       <PopoverRow active={false} onClick={() => {}}>
-        <span class="flex-1">{p.label}</span>
-        <span class="text-base-content-muted">▸</span>
+        <span class="rf:flex-1">{p.label}</span>
+        <span class="rf:text-base-content-muted">▸</span>
       </PopoverRow>
-      <div class="absolute top-0 left-full hidden pl-1 group-hover:block">
+      <div class="rf:absolute rf:top-0 rf:left-full rf:hidden rf:pl-1 rf:group-hover:block">
         {p.children}
       </div>
     </div>
@@ -81,18 +81,18 @@ export function MenuFlyout(p: { label: string; children: JSX.Element }) {
 }
 
 export function ToolbarDivider() {
-  return <div class="bg-base-300 mx-1 h-4 w-px" />;
+  return <div class="rf:bg-base-300 rf:mx-1 rf:h-4 rf:w-px" />;
 }
 
 export function MenuDivider() {
-  return <div class="bg-base-300 my-1 h-px w-full" />;
+  return <div class="rf:bg-base-300 rf:my-1 rf:h-px rf:w-full" />;
 }
 
 // A flat pill button, as in Google Docs: a hover tint only, and the pinned
 // selected look (primary border + primary-subtle wash) while its state is
 // active. The wash alone is near-white in light mode, so the border is what
-// shows Bold is on. Letterforms stand in for the glyphs panther's IconName
-// lacks (bold, italic, lists).
+// shows Bold is on. Letterforms stand in for glyphs the icon set lacks
+// (bold, italic, lists).
 export function ToolButton(p: {
   active?: () => boolean;
   onClick: () => void;
@@ -104,12 +104,14 @@ export function ToolButton(p: {
   return (
     <button
       type="button"
-      class="ui-focusable flex h-7 min-w-7 items-center justify-center rounded border px-1.5 text-sm"
+      class="rf:ui-focusable rf:flex rf:h-7 rf:min-w-7 rf:items-center rf:justify-center rf:rounded rf:border rf:px-1.5 rf:text-sm"
       classList={{
-        "border-primary bg-primary-subtle text-primary": p.active?.() === true,
-        "border-transparent": p.active?.() !== true,
-        "ui-hoverable-base-300": p.active?.() !== true && p.disabled !== true,
-        "text-base-content-muted opacity-50": p.disabled === true,
+        "rf:border-primary rf:bg-primary-subtle rf:text-primary":
+          p.active?.() === true,
+        "rf:border-transparent": p.active?.() !== true,
+        "rf:ui-hoverable-base-300": p.active?.() !== true &&
+          p.disabled !== true,
+        "rf:text-base-content-muted rf:opacity-50": p.disabled === true,
       }}
       aria-label={p.label}
       title={p.label}
@@ -121,11 +123,10 @@ export function ToolButton(p: {
   );
 }
 
-// Panther's showMenu takes string labels only — no swatch, no active tick — so
-// any dropdown that has to SHOW a colour is hand-composed, the same way
-// panther's own ColorPicker and the slide editor's TextStylePopover are.
-// The panel rides the browser's TOP LAYER (the native popover API, same as
-// panther's own menus): an inline-absolute panel is clipped by the header and
+// A context menu's rows are text only (no swatch, no active tick), so any
+// dropdown that has to SHOW a colour is hand-composed here.
+// The panel rides the browser's TOP LAYER (the native popover API, as the
+// context menus do): an inline-absolute panel is clipped by the header and
 // out-stacked by the editor sheet's own stacking contexts, no z-index wins.
 // `menu` renders the trigger as a plain menu-bar item (the Google Docs menu
 // row) instead of a flat pill button with a dropdown chevron (`chevron`
@@ -173,10 +174,10 @@ export function ToolbarPopover(p: {
         fallback={
           <button
             type="button"
-            class="ui-focusable flex h-7 items-center gap-1 rounded px-2 text-sm"
+            class="rf:ui-focusable rf:flex rf:h-7 rf:items-center rf:gap-1 rf:rounded rf:px-2 rf:text-sm"
             classList={{
-              "ui-hoverable-base-300": p.disabled !== true,
-              "text-base-content-muted opacity-50": p.disabled === true,
+              "rf:ui-hoverable-base-300": p.disabled !== true,
+              "rf:text-base-content-muted rf:opacity-50": p.disabled === true,
             }}
             aria-label={p.title}
             title={p.title}
@@ -187,8 +188,8 @@ export function ToolbarPopover(p: {
             {p.label}
             <Show when={p.chevron !== false}>
               <Icon
-                iconName="chevronDown"
-                class="text-base-content-muted h-3 w-3"
+                name="chevronDown"
+                class="rf:text-base-content-muted rf:h-3 rf:w-3"
               />
             </Show>
           </button>
@@ -196,7 +197,7 @@ export function ToolbarPopover(p: {
       >
         <button
           type="button"
-          class="ui-focusable ui-hoverable-base-100 rounded px-2 py-0.5 text-sm"
+          class="rf:ui-focusable rf:ui-hoverable-base-100 rf:rounded rf:px-2 rf:py-0.5 rf:text-sm"
           data-tour={p.tour}
           onClick={toggle}
         >
@@ -212,7 +213,7 @@ export function ToolbarPopover(p: {
             queueMicrotask(() => el.showPopover?.());
           }}
           popover="manual"
-          class="bg-base-100 ui-pad-sm shadow-floating m-0 min-w-40 rounded border"
+          class="rf:bg-base-100 rf:ui-pad-sm rf:shadow-floating rf:m-0 rf:min-w-40 rf:rounded rf:border"
           style={{
             position: "fixed",
             left: `${anchor().x}px`,
@@ -240,11 +241,11 @@ export function PopoverRow(p: {
   return (
     <button
       type="button"
-      class="ui-focusable flex w-full items-center rounded px-2 py-1 text-left text-sm"
+      class="rf:ui-focusable rf:flex rf:w-full rf:items-center rf:rounded rf:px-2 rf:py-1 rf:text-left rf:text-sm"
       classList={{
-        "border-primary bg-primary-subtle font-700": p.active,
-        "ui-hoverable-base-100": !p.active && !p.disabled,
-        "text-base-content-muted cursor-not-allowed": p.disabled === true,
+        "rf:border-primary rf:bg-primary-subtle rf:font-700": p.active,
+        "rf:ui-hoverable-base-100": !p.active && !p.disabled,
+        "rf:text-base-content-muted rf:cursor-not-allowed": p.disabled === true,
       }}
       disabled={p.disabled}
       onClick={p.onClick}

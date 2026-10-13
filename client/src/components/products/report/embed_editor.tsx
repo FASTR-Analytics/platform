@@ -1,3 +1,4 @@
+import { PopoverRow, ToolbarDivider, ToolbarPopover } from "report-forge";
 import type { FastrFigureWidth, FigureBlock, ImageBlock } from "lib";
 import type Uppy from "@uppy/core";
 import { t3 } from "lib";
@@ -19,11 +20,6 @@ import {
   createUppyInstance,
   FileUploadSelector,
 } from "~/components/_shared/mod.ts";
-import {
-  PopoverRow,
-  ToolbarDivider,
-  ToolbarPopover,
-} from "~/components/products/_shared/mod.ts";
 import { instanceState } from "~/state/instance/t1_store";
 
 // The currently-selected report embed. `width` is the figure's `{width=…}`,

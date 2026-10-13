@@ -574,7 +574,11 @@
 /* ── Utilities ─────────────────────────────────────────────────────────── */
 
 /*! tailwindcss v4.1.17 | MIT License | https://tailwindcss.com */
+@layer properties;
 :root, :host, .rf-root {
+  --rf-spacing: 0.25rem;
+  --rf-text-sm: 0.875rem;
+  --rf-text-sm--line-height: calc(1.25 / 0.875);
   --rf-color-white: #ffffff;
   --rf-color-black: #000000;
   --rf-color-transparent: transparent;
@@ -633,4 +637,316 @@
     0 10px 15px -3px rgb(0 0 0 / 0.1),
     0 4px 6px -4px rgb(0 0 0 / 0.1)
   );
+}
+.rf\:absolute {
+  position: absolute;
+}
+.rf\:relative {
+  position: relative;
+}
+.rf\:top-0 {
+  top: calc(var(--rf-spacing) * 0);
+}
+.rf\:left-full {
+  left: 100%;
+}
+.rf\:ui-focusable {
+  outline: none;
+  &:focus-visible {
+    z-index: 10;
+    outline: 2px solid var(--rf-color-focus);
+    outline-offset: 2px;
+  }
+}
+.rf\:m-0 {
+  margin: calc(var(--rf-spacing) * 0);
+}
+.rf\:mx-1 {
+  margin-inline: calc(var(--rf-spacing) * 1);
+}
+.rf\:my-1 {
+  margin-block: calc(var(--rf-spacing) * 1);
+}
+.rf\:flex {
+  display: flex;
+}
+.rf\:hidden {
+  display: none;
+}
+.rf\:h-3 {
+  height: calc(var(--rf-spacing) * 3);
+}
+.rf\:h-4 {
+  height: calc(var(--rf-spacing) * 4);
+}
+.rf\:h-7 {
+  height: calc(var(--rf-spacing) * 7);
+}
+.rf\:h-px {
+  height: 1px;
+}
+.rf\:w-3 {
+  width: calc(var(--rf-spacing) * 3);
+}
+.rf\:w-full {
+  width: 100%;
+}
+.rf\:w-px {
+  width: 1px;
+}
+.rf\:min-w-7 {
+  min-width: calc(var(--rf-spacing) * 7);
+}
+.rf\:min-w-40 {
+  min-width: calc(var(--rf-spacing) * 40);
+}
+.rf\:flex-1 {
+  flex: 1;
+}
+.rf\:ui-hoverable-base-100 {
+  cursor: pointer;
+  user-select: none;
+  background-color: var(--rf-color-base-100);
+  transition: background-color 100ms cubic-bezier(0.2, 0, 0, 1);
+  &:hover {
+    background-color: var(--rf-color-base-100);
+    @supports (color: color-mix(in lab, red, red)) {
+      background-color: color-mix( in oklab, var(--rf-color-base-100), var(--rf-color-base-content) 6% );
+    }
+  }
+  &:active {
+    background-color: var(--rf-color-base-100);
+    @supports (color: color-mix(in lab, red, red)) {
+      background-color: color-mix( in oklab, var(--rf-color-base-100), var(--rf-color-base-content) 10% );
+    }
+  }
+}
+.rf\:ui-hoverable-base-300 {
+  cursor: pointer;
+  user-select: none;
+  background-color: var(--rf-color-base-300);
+  transition: background-color 100ms cubic-bezier(0.2, 0, 0, 1);
+  &:hover {
+    background-color: var(--rf-color-base-300);
+    @supports (color: color-mix(in lab, red, red)) {
+      background-color: color-mix( in oklab, var(--rf-color-base-300), var(--rf-color-base-content) 6% );
+    }
+  }
+  &:active {
+    background-color: var(--rf-color-base-300);
+    @supports (color: color-mix(in lab, red, red)) {
+      background-color: color-mix( in oklab, var(--rf-color-base-300), var(--rf-color-base-content) 10% );
+    }
+  }
+}
+.rf\:cursor-not-allowed {
+  cursor: not-allowed;
+}
+.rf\:flex-wrap {
+  flex-wrap: wrap;
+}
+.rf\:items-center {
+  align-items: center;
+}
+.rf\:justify-center {
+  justify-content: center;
+}
+.rf\:gap-0\.5 {
+  gap: calc(var(--rf-spacing) * 0.5);
+}
+.rf\:gap-1 {
+  gap: calc(var(--rf-spacing) * 1);
+}
+.rf\:rounded {
+  border-radius: var(--rf-radius-ui);
+}
+.rf\:border {
+  border-style: var(--tw-border-style);
+  border-width: 1px;
+}
+.rf\:border-b {
+  border-bottom-style: var(--tw-border-style);
+  border-bottom-width: 1px;
+}
+.rf\:border-primary {
+  border-color: var(--rf-color-primary);
+}
+.rf\:border-transparent {
+  border-color: transparent;
+}
+.rf\:bg-base-100 {
+  background-color: var(--rf-color-base-100);
+}
+.rf\:bg-base-300 {
+  background-color: var(--rf-color-base-300);
+}
+.rf\:bg-primary-subtle {
+  background-color: var(--rf-color-primary-subtle);
+}
+.rf\:ui-pad-sm {
+  padding: 0.5rem;
+}
+.rf\:px-1\.5 {
+  padding-inline: calc(var(--rf-spacing) * 1.5);
+}
+.rf\:px-2 {
+  padding-inline: calc(var(--rf-spacing) * 2);
+}
+.rf\:px-3 {
+  padding-inline: calc(var(--rf-spacing) * 3);
+}
+.rf\:py-0\.5 {
+  padding-block: calc(var(--rf-spacing) * 0.5);
+}
+.rf\:py-1 {
+  padding-block: calc(var(--rf-spacing) * 1);
+}
+.rf\:pt-1 {
+  padding-top: calc(var(--rf-spacing) * 1);
+}
+.rf\:pt-1\.5 {
+  padding-top: calc(var(--rf-spacing) * 1.5);
+}
+.rf\:pr-4 {
+  padding-right: calc(var(--rf-spacing) * 4);
+}
+.rf\:pb-1\.5 {
+  padding-bottom: calc(var(--rf-spacing) * 1.5);
+}
+.rf\:pl-1 {
+  padding-left: calc(var(--rf-spacing) * 1);
+}
+.rf\:pl-2 {
+  padding-left: calc(var(--rf-spacing) * 2);
+}
+.rf\:text-left {
+  text-align: left;
+}
+.rf\:text-sm {
+  font-size: var(--rf-text-sm);
+  line-height: var(--tw-leading, var(--rf-text-sm--line-height));
+}
+.rf\:font-700 {
+  --tw-font-weight: var(--rf-font-weight-700);
+  font-weight: var(--rf-font-weight-700);
+}
+.rf\:text-base-content-muted {
+  color: var(--rf-color-base-content-muted);
+}
+.rf\:text-primary {
+  color: var(--rf-color-primary);
+}
+.rf\:opacity-50 {
+  opacity: 50%;
+}
+.rf\:shadow-floating {
+  --tw-shadow: var(
+    --forge-shadow,
+    0 10px 15px -3px rgb(0 0 0 / 0.1),
+    0 4px 6px -4px rgb(0 0 0 / 0.1)
+  );
+  box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
+}
+.rf\:group-hover\:block {
+  &:is(:where(.rf\:group):hover *) {
+    @media (hover: hover) {
+      display: block;
+    }
+  }
+}
+@property --tw-border-style {
+  syntax: "*";
+  inherits: false;
+  initial-value: solid;
+}
+@property --tw-font-weight {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-shadow {
+  syntax: "*";
+  inherits: false;
+  initial-value: 0 0 #0000;
+}
+@property --tw-shadow-color {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-shadow-alpha {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 100%;
+}
+@property --tw-inset-shadow {
+  syntax: "*";
+  inherits: false;
+  initial-value: 0 0 #0000;
+}
+@property --tw-inset-shadow-color {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-inset-shadow-alpha {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 100%;
+}
+@property --tw-ring-color {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-ring-shadow {
+  syntax: "*";
+  inherits: false;
+  initial-value: 0 0 #0000;
+}
+@property --tw-inset-ring-color {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-inset-ring-shadow {
+  syntax: "*";
+  inherits: false;
+  initial-value: 0 0 #0000;
+}
+@property --tw-ring-inset {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-ring-offset-width {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+@property --tw-ring-offset-color {
+  syntax: "*";
+  inherits: false;
+  initial-value: #fff;
+}
+@property --tw-ring-offset-shadow {
+  syntax: "*";
+  inherits: false;
+  initial-value: 0 0 #0000;
+}
+@layer properties {
+  @supports ((-webkit-hyphens: none) and (not (margin-trim: inline))) or ((-moz-orient: inline) and (not (color:rgb(from red r g b)))) {
+    *, ::before, ::after, ::backdrop {
+      --tw-border-style: solid;
+      --tw-font-weight: initial;
+      --tw-shadow: 0 0 #0000;
+      --tw-shadow-color: initial;
+      --tw-shadow-alpha: 100%;
+      --tw-inset-shadow: 0 0 #0000;
+      --tw-inset-shadow-color: initial;
+      --tw-inset-shadow-alpha: 100%;
+      --tw-ring-color: initial;
+      --tw-ring-shadow: 0 0 #0000;
+      --tw-inset-ring-color: initial;
+      --tw-inset-ring-shadow: 0 0 #0000;
+      --tw-ring-inset: initial;
+      --tw-ring-offset-width: 0px;
+      --tw-ring-offset-color: #fff;
+      --tw-ring-offset-shadow: 0 0 #0000;
+    }
+  }
 }

@@ -46,14 +46,3 @@ export type {
 } from "./scroll_sync.ts";
 export { InsertFigureModal } from "./insert_figure/mod.ts";
 export type { InsertFigureResult } from "./insert_figure/mod.ts";
-export {
-  HeaderRows,
-  MenuDivider,
-  MenuFlyout,
-  MenuRow,
-  PopoverRow,
-  ToolbarDivider,
-  ToolbarPopover,
-  ToolbarRow,
-  ToolButton,
-} from "./toolbar_primitives.tsx";

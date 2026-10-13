@@ -1,4 +1,13 @@
 import {
+  MenuDivider,
+  MenuFlyout,
+  PopoverRow,
+  ToolbarDivider as Divider,
+  ToolbarPopover as Popover,
+  ToolbarRow,
+  ToolButton,
+} from "report-forge";
+import {
   buildFastrCoverTileCss,
   buildFastrReportCss,
   cardTilesSnippet,
@@ -46,15 +55,6 @@ import {
 } from "solid-js";
 import { Button, Icon } from "panther";
 import { Portal } from "solid-js/web";
-import {
-  MenuDivider,
-  MenuFlyout,
-  PopoverRow,
-  ToolbarDivider as Divider,
-  ToolbarPopover as Popover,
-  ToolbarRow,
-  ToolButton,
-} from "~/components/products/_shared/mod.ts";
 import { fastrThemeLabel } from "./fastr_theme_labels";
 import {
   fastrBlockLabel,

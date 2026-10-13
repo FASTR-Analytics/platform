@@ -8,6 +8,12 @@
 // a menu living inside that editor would close on its own first click.
 
 import {
+  MenuDivider,
+  MenuFlyout,
+  PopoverRow,
+  ToolbarPopover,
+} from "report-forge";
+import {
   getDefaultContentSlide,
   getDefaultCoverSlide,
   getDefaultSectionSlide,
@@ -24,12 +30,6 @@ import {
   TextArea,
 } from "panther";
 import { createSignal, For, type JSX, onCleanup, Show } from "solid-js";
-import {
-  MenuDivider,
-  MenuFlyout,
-  PopoverRow,
-  ToolbarPopover,
-} from "~/components/products/_shared/mod.ts";
 import { instanceState } from "~/state/instance/t1_store";
 import { LogoSectionEditor } from "./logo_section_editor";
 import { ThemePicker } from "./style_editor/mod.ts";

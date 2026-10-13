@@ -1,3 +1,4 @@
+import { HeaderRows, MenuRow } from "report-forge";
 import {
   type PackageScope,
   type ProductSummary,
@@ -36,8 +37,6 @@ import { instanceState } from "~/state/instance/t1_store";
 import { canEditProduct } from "~/state/instance/product_access";
 import { UpdateAllFiguresButton } from "~/components/_shared/figure_editor/mod.ts";
 import {
-  HeaderRows,
-  MenuRow,
   PackageScopeChip,
   ProductTitle,
 } from "~/components/products/_shared/mod.ts";

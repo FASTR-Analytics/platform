@@ -5,6 +5,14 @@
 // controls. It replaces the old left-hand panel; text itself is edited on the
 // canvas (inline_text_editor.tsx).
 
+import {
+  MenuDivider,
+  PopoverRow,
+  ToolbarDivider,
+  ToolbarPopover,
+  ToolbarRow,
+  ToolButton,
+} from "report-forge";
 import type {
   ContentBlock,
   ContentSlide,
@@ -33,14 +41,6 @@ import {
 } from "solid-js";
 import { Portal } from "solid-js/web";
 import type { SetStoreFunction } from "solid-js/store";
-import {
-  MenuDivider,
-  PopoverRow,
-  ToolbarDivider,
-  ToolbarPopover,
-  ToolbarRow,
-  ToolButton,
-} from "~/components/products/_shared/mod.ts";
 import { StaleFigureBadge } from "~/components/_shared/figure_editor/mod.ts";
 import { instanceState } from "~/state/instance/t1_store";
 import {
