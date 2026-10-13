@@ -568,11 +568,14 @@ its `slide:` and `product:` echo keys via `markAIEdit` once its write has landed
 (a report tool marks its `product:` key after the accepted commit, or after a
 figure update saves), so the AI's own server writes are dropped at drain
 (TTL-scoped, either-order). The collab-checkpoint residual is in Open items. The
-controller is a module singleton whose log outlives a mount, so the panel calls
-`clearInteractionLog()` when the chat mounts: actions retained from before (the
-previous user on a Clerk cross-tab user switch, or the previous owner tab's
-hand-over) would otherwise ride this chat's first digest as fake activity;
-activation already starts each conversation's digest at the log's end.
+controller is a module singleton whose log outlives a mount. The manager
+activates a conversation on every mount, which starts its digest at the log's
+end, so actions retained from before (the previous user's on a Clerk cross-tab
+user switch, this tab's while another tab owned the chat) never ride this chat's
+digest; the panel still calls `clearInteractionLog()` when the chat mounts,
+which drops them and, with them, the echo marks and any open AI-navigation
+window the previous user's chat left, which would otherwise drop or misattribute
+this user's first actions within their TTLs.
 
 ## Tools, view gating, and approval
 

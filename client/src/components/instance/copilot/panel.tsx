@@ -198,11 +198,14 @@ function OwnedChat(p: {
   p.onChat(chat);
 
   // The controller is a module singleton whose interaction log outlives a
-  // mount, so the chat empties it when it mounts: actions retained from
-  // before (the previous user on a cross-tab user switch, the previous owner
-  // tab's hand-over) would otherwise ride this chat's first digest as fake
-  // activity; activation already starts each conversation's digest at the
-  // log's end. The producers are the editors (interactions.ts).
+  // mount. The manager activates a conversation on every mount, which starts
+  // its digest at the log's end, so actions retained from before (the
+  // previous user's on a cross-tab user switch, this tab's while another tab
+  // owned the chat) never ride this chat's digest. The clear drops them, and
+  // with them the echo marks and any open AI-navigation window the previous
+  // user's chat left, which would otherwise drop or misattribute this user's
+  // first actions within their TTLs. The producers are the editors
+  // (interactions.ts).
   onMount(() => {
     copilotViewController.clearInteractionLog();
   });
