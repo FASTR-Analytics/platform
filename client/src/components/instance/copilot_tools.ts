@@ -20,13 +20,17 @@ import {
   getClientToolsForSlideEditor,
   getClientToolsForSlides,
 } from "~/components/products/copilot/mod.ts";
-import { instanceState } from "~/state/instance/t1_store";
+import {
+  buildHfaIndicatorTools,
+  canWriteHfaIndicators,
+  getClientToolsForHfaIndicatorEditor,
+} from "~/components/data/hfa/indicators/mod.ts";
 
 // The chat's one tool set, assembled once per shell mount and registered for
 // every user and every view, so the prompt cache survives every move. It
 // lives beside the shell, outside the chat's folder, because it reads the
-// product tools: the chat's folder imports nothing at runtime from
-// components/ but components/_shared/mod.ts, and the product tools read the
+// product and HFA tools: the chat's folder imports nothing at runtime from
+// components/ but components/_shared/mod.ts, and those tools read the
 // chat's registry, so the assembly is where the two meet (instance.tsx reads
 // it alone).
 
@@ -60,24 +64,22 @@ const buildPackageTools: PackageToolsBuilder = (
 ];
 
 // The outer package tools (bound per call to the view's pair, the module
-// internals by its run id), the Products page's list, the reference tools
-// and panther's ask_user_questions. What a user may not do refuses at the
-// call through the guard (copilot/tool_guard.ts), which reads the permissions
-// and the level on the view's product live.
+// internals by its run id), the Products page's list, the HFA reads, writes
+// and editor tools, the reference tools and panther's ask_user_questions.
+// What a user may not do refuses at the call through the guard
+// (copilot/tool_guard.ts), which reads the permissions, the level on the
+// view's product and the HFA manager's write gate live.
 export function buildCopilotTools(): AnyAITool[] {
   return guardCopilotTools(
     [
       ...bindPackageTools(buildPackageTools),
       ...getClientToolsForProducts(),
+      ...buildHfaIndicatorTools(),
+      ...getClientToolsForHfaIndicatorEditor(),
       ...getSharedToolsForMethodologyDocs(),
       ...getSharedToolsForInfo(SPA_INFO_TOPICS),
       createAskUserQuestionsTool(),
     ],
-    {
-      // The HFA indicator manager's write gate today (its bulk delete and
-      // its write controls read currentUserIsGlobalAdmin); no HFA tool is in
-      // this set until the HFA views join the chat.
-      canWriteHfaIndicators: () => instanceState.currentUserIsGlobalAdmin,
-    },
+    { canWriteHfaIndicators },
   );
 }

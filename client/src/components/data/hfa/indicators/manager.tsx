@@ -54,16 +54,25 @@ import {
   HfaUnusedVariablesModal,
   type UnusedVariablesByTimePoint,
 } from "./unused_variables_modal";
-import { HfaIndicatorAiWrapper } from "./ai/mod.ts";
+import { getHfaIndicatorsGuidance } from "./ai/mod.ts";
+import { canWriteHfaIndicators } from "./write_gate.ts";
+import {
+  copilotViewController,
+  holdCopilotView,
+} from "~/components/instance/copilot/mod.ts";
 
 type Props = {
   close: (v: undefined) => void;
 };
 
+// The manager sets the chat's `hfa_indicators` view (S13) over the
+// switchboard's `data_page`: its state is the open tab and its instructions
+// the HFA guidance in ./ai/instructions.ts, supplied through the context so
+// the chat's registry imports nothing from this folder. The code editor and
+// the Excel import it opens set their own views on top.
 export function HfaIndicatorsManager(p: Props) {
   const { openEditor, EditorWrapper } = getEditorWrapper();
-  const [showAi, setShowAi] = createSignal(false);
-  const openAi = () => setShowAi(true);
+  holdCopilotView();
 
   // Above the keyed StateHolderWrapper and the tab's Show, which create the
   // Table again on every SSE refetch and tab switch (PROTOCOL_UI_COMPONENTS.md
@@ -134,6 +143,10 @@ export function HfaIndicatorsManager(p: Props) {
     | "service_categories"
     | "variant_groups";
   const [tab, setTab] = createSignal<Tab>("indicators");
+  copilotViewController.setView("hfa_indicators", undefined, {
+    getGuidance: getHfaIndicatorsGuidance,
+    getTab: () => tab(),
+  });
   const tabItems: ListItem<Tab>[] = [
     {
       id: "indicators",
@@ -559,8 +572,6 @@ export function HfaIndicatorsManager(p: Props) {
         serviceCategories: svcCatSt.data,
         variantGroups: vgSt.data,
         variantItems: viSt.data,
-        showAi,
-        openAi,
         deleteIndicator: (onDeleted: () => void) =>
           deleteIndicators([indicator.indicatorId], onDeleted),
       },
@@ -706,8 +717,6 @@ export function HfaIndicatorsManager(p: Props) {
         existingIndicatorIds: st.status === "ready"
           ? st.data.map((i) => i.indicatorId)
           : [],
-        showAi,
-        openAi,
       },
     });
   }
@@ -1071,7 +1080,7 @@ export function HfaIndicatorsManager(p: Props) {
   ];
 
   const bulkActions = createMemo<BulkAction<HfaIndicator>[]>(() =>
-    instanceState.currentUserIsGlobalAdmin
+    canWriteHfaIndicators()
       ? [
         {
           label: t3(TC.delete),
@@ -1085,176 +1094,162 @@ export function HfaIndicatorsManager(p: Props) {
   );
 
   return (
-    <HfaIndicatorAiWrapper show={showAi} onClose={() => setShowAi(false)}>
-      <EditorWrapper hideMode="visibility-hidden">
+    <EditorWrapper hideMode="visibility-hidden">
+      <FrameTop
+        panelChildren={
+          <HeadingBar
+            tonal
+            onBack={() => p.close(undefined)}
+            heading={t3({
+              en: "HFA INDICATORS",
+              fr: "INDICATEURS HFA",
+              pt: "INDICADORES HFA",
+            })}
+          />
+        }
+      >
         <FrameTop
+          pad="md"
           panelChildren={
-            <HeadingBar
-              tonal
-              onBack={() => p.close(undefined)}
-              heading={t3({
-                en: "HFA INDICATORS",
-                fr: "INDICATEURS HFA",
-                pt: "INDICADORES HFA",
-              })}
-            >
-              <Show when={instanceState.currentUserIsGlobalAdmin && !showAi()}>
-                <Button
-                  iconName="chevronLeft"
-                  outline
-                  onBackground="base-300"
-                  onClick={openAi}
-                >
-                  {t3({ en: "AI", fr: "IA", pt: "IA" })}
-                </Button>
-              </Show>
-            </HeadingBar>
+            <TabsNavigation
+              items={tabItems}
+              value={tab()}
+              onChange={setTab}
+            />
           }
         >
-          <FrameTop
-            pad="md"
-            panelChildren={
-              <TabsNavigation
-                items={tabItems}
-                value={tab()}
-                onChange={setTab}
-              />
-            }
-          >
-            <Show when={tab() === "indicators"}>
-              <StateHolderWrapper state={indicators()}>
-                {(keyedIndicators) => (
-                  <div class="flex h-full flex-col">
-                    <Show when={!hfaDataAvailable()}>
-                      <div class="bg-warning-subtle text-warning-subtle-content mb-4 flex-none rounded px-3 py-2 text-sm">
-                        {noHfaDataMsg()}
-                      </div>
-                    </Show>
-                    <div class="h-0 w-full flex-1">
-                      <Table
-                        data={keyedIndicators}
-                        columns={columns}
-                        keyField="indicatorId"
-                        config={indicatorsTable}
-                        onRowClick={instanceState.currentUserIsGlobalAdmin
-                          ? (ind) => handleOpenCodeEditor(ind, keyedIndicators)
-                          : undefined}
-                        noRowsMessage={t3({
-                          en: "No HFA indicators configured",
-                          fr: "Aucun indicateur HFA configuré",
-                          pt: "Nenhum indicador HFA configurado",
-                        })}
-                        bulkActions={bulkActions()}
-                        itemLabel={{
-                          one: t3({
-                            en: "indicator",
-                            fr: "indicateur",
-                            pt: "indicador",
+          <Show when={tab() === "indicators"}>
+            <StateHolderWrapper state={indicators()}>
+              {(keyedIndicators) => (
+                <div class="flex h-full flex-col">
+                  <Show when={!hfaDataAvailable()}>
+                    <div class="bg-warning-subtle text-warning-subtle-content mb-4 flex-none rounded px-3 py-2 text-sm">
+                      {noHfaDataMsg()}
+                    </div>
+                  </Show>
+                  <div class="h-0 w-full flex-1">
+                    <Table
+                      data={keyedIndicators}
+                      columns={columns}
+                      keyField="indicatorId"
+                      config={indicatorsTable}
+                      onRowClick={canWriteHfaIndicators()
+                        ? (ind) => handleOpenCodeEditor(ind, keyedIndicators)
+                        : undefined}
+                      noRowsMessage={t3({
+                        en: "No HFA indicators configured",
+                        fr: "Aucun indicateur HFA configuré",
+                        pt: "Nenhum indicador HFA configurado",
+                      })}
+                      bulkActions={bulkActions()}
+                      itemLabel={{
+                        one: t3({
+                          en: "indicator",
+                          fr: "indicateur",
+                          pt: "indicador",
+                        }),
+                        other: t3({
+                          en: "indicators",
+                          fr: "indicateurs",
+                          pt: "indicadores",
+                        }),
+                      }}
+                      searchValue={indicatorSearchText}
+                      toolbar={{
+                        search: {
+                          placeholder: t3({
+                            en: "Search indicators...",
+                            fr: "Rechercher des indicateurs...",
+                            pt: "Pesquisar indicadores...",
                           }),
-                          other: t3({
-                            en: "indicators",
-                            fr: "indicateurs",
-                            pt: "indicadores",
-                          }),
-                        }}
-                        searchValue={indicatorSearchText}
-                        toolbar={{
-                          search: {
-                            placeholder: t3({
-                              en: "Search indicators...",
-                              fr: "Rechercher des indicateurs...",
-                              pt: "Pesquisar indicadores...",
-                            }),
-                          },
-                          children: (
-                            <Show when={instanceState.currentUserIsGlobalAdmin}>
-                              <div
-                                title={hfaDataAvailable() ? "" : noHfaDataMsg()}
-                              >
-                                <Button
-                                  iconName="import"
-                                  onClick={() =>
-                                    handleWorkbookImport({ kind: "default" })}
-                                  disabled={!hfaDataAvailable()}
-                                  outline
-                                >
-                                  {t3({
-                                    en: "Import default indicators",
-                                    fr: "Importer les indicateurs par défaut",
-                                    pt: "Importar indicadores predefinidos",
-                                  })}
-                                </Button>
-                              </div>
+                        },
+                        children: (
+                          <Show when={canWriteHfaIndicators()}>
+                            <div
+                              title={hfaDataAvailable() ? "" : noHfaDataMsg()}
+                            >
                               <Button
-                                iconName="plus"
-                                intent="primary"
+                                iconName="import"
                                 onClick={() =>
-                                  openCreateIndicator()}
+                                  handleWorkbookImport({ kind: "default" })}
+                                disabled={!hfaDataAvailable()}
+                                outline
                               >
                                 {t3({
-                                  en: "Add",
-                                  fr: "Ajouter",
-                                  pt: "Adicionar",
+                                  en: "Import default indicators",
+                                  fr: "Importer les indicateurs par défaut",
+                                  pt: "Importar indicadores predefinidos",
                                 })}
                               </Button>
-                              <ActionMenuButton items={otherActions} outline />
-                            </Show>
-                          ),
-                        }}
-                      />
-                    </div>
+                            </div>
+                            <Button
+                              iconName="plus"
+                              intent="primary"
+                              onClick={() => openCreateIndicator()}
+                            >
+                              {t3({
+                                en: "Add",
+                                fr: "Ajouter",
+                                pt: "Adicionar",
+                              })}
+                            </Button>
+                            <ActionMenuButton items={otherActions} outline />
+                          </Show>
+                        ),
+                      }}
+                    />
                   </div>
-                )}
-              </StateHolderWrapper>
-            </Show>
-            <Show when={tab() === "categories"}>
-              <StateHolderWrapper state={categories()}>
-                {(keyedCategories) => (
-                  <StateHolderWrapper state={subCategories()}>
-                    {(keyedSubCategories) => (
-                      <HfaCategoriesManager
-                        categories={keyedCategories}
-                        subCategories={keyedSubCategories}
-                        selectedCategoryId={selectedCategoryId()}
-                        onSelectCategory={setSelectedCategoryId}
-                      />
-                    )}
-                  </StateHolderWrapper>
-                )}
-              </StateHolderWrapper>
-            </Show>
-            <Show when={tab() === "service_categories"}>
-              <StateHolderWrapper state={serviceCategories()}>
-                {(keyedServiceCategories) => (
-                  <HfaServiceCategoriesManager
-                    serviceCategories={keyedServiceCategories}
-                  />
-                )}
-              </StateHolderWrapper>
-            </Show>
-            <Show when={tab() === "variant_groups"}>
-              <StateHolderWrapper state={variantGroups()}>
-                {(keyedVariantGroups) => (
-                  <StateHolderWrapper state={variantItems()}>
-                    {(keyedVariantItems) => (
-                      <HfaVariantGroupsManager
-                        variantGroups={keyedVariantGroups}
-                        variantItems={keyedVariantItems}
-                        indicators={(() => {
-                          const st = indicators();
-                          return st.status === "ready" ? st.data : [];
-                        })()}
-                        selectedGroupId={selectedVariantGroupId()}
-                        onSelectGroup={setSelectedVariantGroupId}
-                      />
-                    )}
-                  </StateHolderWrapper>
-                )}
-              </StateHolderWrapper>
-            </Show>
-          </FrameTop>
+                </div>
+              )}
+            </StateHolderWrapper>
+          </Show>
+          <Show when={tab() === "categories"}>
+            <StateHolderWrapper state={categories()}>
+              {(keyedCategories) => (
+                <StateHolderWrapper state={subCategories()}>
+                  {(keyedSubCategories) => (
+                    <HfaCategoriesManager
+                      categories={keyedCategories}
+                      subCategories={keyedSubCategories}
+                      selectedCategoryId={selectedCategoryId()}
+                      onSelectCategory={setSelectedCategoryId}
+                    />
+                  )}
+                </StateHolderWrapper>
+              )}
+            </StateHolderWrapper>
+          </Show>
+          <Show when={tab() === "service_categories"}>
+            <StateHolderWrapper state={serviceCategories()}>
+              {(keyedServiceCategories) => (
+                <HfaServiceCategoriesManager
+                  serviceCategories={keyedServiceCategories}
+                />
+              )}
+            </StateHolderWrapper>
+          </Show>
+          <Show when={tab() === "variant_groups"}>
+            <StateHolderWrapper state={variantGroups()}>
+              {(keyedVariantGroups) => (
+                <StateHolderWrapper state={variantItems()}>
+                  {(keyedVariantItems) => (
+                    <HfaVariantGroupsManager
+                      variantGroups={keyedVariantGroups}
+                      variantItems={keyedVariantItems}
+                      indicators={(() => {
+                        const st = indicators();
+                        return st.status === "ready" ? st.data : [];
+                      })()}
+                      selectedGroupId={selectedVariantGroupId()}
+                      onSelectGroup={setSelectedVariantGroupId}
+                    />
+                  )}
+                </StateHolderWrapper>
+              )}
+            </StateHolderWrapper>
+          </Show>
         </FrameTop>
-      </EditorWrapper>
-    </HfaIndicatorAiWrapper>
+      </FrameTop>
+    </EditorWrapper>
   );
 }

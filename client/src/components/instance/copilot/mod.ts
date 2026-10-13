@@ -14,6 +14,11 @@ export type {
   ExploreContext,
   FigureEditorContext,
   FigureEditorView,
+  HfaIndicatorEditorContext,
+  HfaIndicatorEditorDraft,
+  HfaIndicatorEditorPatch,
+  HfaIndicatorEditorRound,
+  HfaIndicatorsContext,
   PackagePageContext,
   PackageViewContext,
 } from "./ai_views.ts";

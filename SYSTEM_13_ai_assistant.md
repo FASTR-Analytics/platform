@@ -16,7 +16,6 @@ globs:
   - server/routes/anthropic_messages_proxy.ts
   - server/routes/instance/custom_prompts.ts
   - server/routes/instance/ai_files.ts
-  - server/routes/instance/ai_proxy.ts
   - server/routes/instance/copilot_ai_proxy.ts
   - server/tests/ai_context_sections_test.ts
   - server/tests/copilot_catalogue_test.ts
@@ -49,12 +48,12 @@ tool-execution loop, display registry, conversation persistence) is panther's
 re-sync). Guards themselves are **S1**; the daily token counters are columns on
 `users` (`db/instance/users.ts` is S1-owned with S13 a mandatory reader, per
 SYSTEMS.md §4.1). The unguarded health routes that surface usage are **S15**.
-The HFA indicator-manager assistant client
-(`client/src/components/data/hfa/indicators/ai/**`) is an **S5-owned
-satellite**: S13 owns the `/ai-instance` proxy it talks to, the panther engine
-contract, and the tool-schema conventions it must follow; S5 owns the tool
-semantics. The slide/figure shapes the slide_ai helpers produce are **S10/S12**;
-the query pipeline the data tools call is **S9**.
+The HFA tools (`client/src/components/data/hfa/indicators/ai/**`) are
+**S5-owned**: S13 owns the chat they register in, the panther engine contract
+and the tool-schema conventions they follow; S5 owns their semantics, the HFA
+guidance the manager attaches to its view, and the write gate they refuse under
+(`indicators/write_gate.ts`). The slide/figure shapes the slide_ai helpers
+produce are **S10/S12**; the query pipeline the data tools call is **S9**.
 
 ## Principles
 
@@ -187,21 +186,23 @@ the query pipeline the data tools call is **S9**.
    AI-built configs are storage-compatible by construction. See
    [PROTOCOL_APP_AI_TOOLS.md](PROTOCOL_APP_AI_TOOLS.md).
 
-## The proxies
+## The proxy
 
-One shared handler,
+One handler,
 [anthropic_messages_proxy.ts](server/routes/anthropic_messages_proxy.ts)
-(governance, usage logging, and beta policy live there so the two mounts cannot
-drift), behind two thin raw Hono routes (deliberately outside the S1 route
-registry), mounted in [main.ts:174-175](main.ts#L174-L175):
+(governance, usage logging and beta policy live there), behind one thin raw Hono
+route (deliberately outside the S1 route registry): `POST /ai/v1/messages`
+([copilot_ai_proxy.ts](server/routes/instance/copilot_ai_proxy.ts)), mounted at
+`/ai` in [main.ts:179](main.ts#L179) beside the Files proxy
+([main.ts:180](main.ts#L180)), guarded by `requireApprovedUser()` and nothing
+finer: the chat's tools run in the browser and reach a product or the HFA
+indicators only through the routes, which guard themselves. Its client is the
+copilot's SDK client
+([defaults.ts](client/src/components/instance/copilot/ai_configs/defaults.ts)).
+The HFA indicator assistant's own mount went with that assistant when its tools
+joined the chat (COPILOT03 step 12).
 
-|        | Copilot proxy                                                                                          | Instance proxy                                                                                                |
-| ------ | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
-| Route  | `POST /ai/v1/messages` ([copilot_ai_proxy.ts](server/routes/instance/copilot_ai_proxy.ts))             | `POST /ai-instance/v1/messages` ([ai_proxy.ts](server/routes/instance/ai_proxy.ts))                           |
-| Guard  | `requireApprovedUser()` and nothing finer: the copilot reads through its product's scope (PLAN_SCOPES) | `requireGlobalPermission("can_configure_data")`                                                               |
-| Client | the copilot ([defaults.ts](client/src/components/instance/copilot/ai_configs/defaults.ts))             | HFA indicator-manager assistant ([sdk_client.ts](client/src/components/data/hfa/indicators/ai/sdk_client.ts)) |
-
-The shared flow:
+The flow:
 
 1. Key and URL come from the boot-validated `_ANTHROPIC_API_KEY` /
    `_ANTHROPIC_API_URL` (`exposed_env_vars.ts`; the URL env is the **full**
@@ -354,9 +355,8 @@ it to stop and await at a hand-over and at its own cleanup, and hands it to the
 pane, which hands it to `AIChat` as `chat` (E2), so the pane and the chat share
 one registry, one settings copy and one queue drain. The panel builds one
 panther `AIChatProvider` config, validated in dev by panther's no-mount
-construction check: both assistants call `validateAIChatConfig(config)` under
-`import.meta.env.DEV` at config assembly (HFA
-[ai/wrapper.tsx:39-41](client/src/components/data/hfa/indicators/ai/wrapper.tsx#L39-L41)):
+construction check: the panel calls `validateAIChatConfig(config)` under
+`import.meta.env.DEV` at config assembly:
 
 - **sdkClient**
   ([defaults.ts](client/src/components/instance/copilot/ai_configs/defaults.ts)):
@@ -499,9 +499,19 @@ with the params its identity needs) through `setFigureEditorView`, with a
 `applyDraftConfig`), and instructions naming the figure by its label
 (`getFigureEditorInstructions`); the results file viewer sets `results_file`
 from its props with the same pair, and instructions naming the module and the
-results object. The HFA views are declared, with their params and context types
-and the identity their page will supply, and have no sync site yet. There is no
-tab-to-view map.
+results object. The HFA indicators manager (S5) holds the switchboard's
+`data_page` and sets `hfa_indicators`, whose state is the open tab and whose
+instructions are the HFA guidance S5 keeps in
+`components/data/hfa/indicators/ai/instructions.ts`, supplied through the view's
+context (`getGuidance`) and framed by `getHfaIndicatorsInstructions`, so the
+registry imports nothing from `components/data/`; its code editor holds in
+`HfaIndicatorCodeEditor` and sets `hfa_indicator_editor` from `EditorInner` once
+the draft store exists, with the indicator id as identity, the open round in its
+state, and an `HfaIndicatorEditorContext` of the saved label, the selected
+round, the draft read live with the editor's own validation per round
+(`getDraft`), the taxonomy the editor offers and `applyDraft`, which writes the
+store with the controls' semantics and marks the draft unsaved; its Excel import
+sets `hfa_indicator_import`. There is no tab-to-view map.
 
 **What a message carries** (`appendOnlyTurns: true`, panther's E7). Every
 message carries the view line, the view's `state` and the interactions digest; a
@@ -974,38 +984,50 @@ parts S13 relies on, verified this cycle:
 - `one_shot.ts` (`callAI`/`callAIStructured`) exists in the barrel but has
   **zero consumers in this app**.
 
-## The HFA satellite (S5-owned, S13-governed)
+## The HFA tools (S5-owned, S13-governed)
 
-`client/src/components/data/hfa/indicators/ai/` is a second, fully isolated
-assistant: same panther engine, own conversation scope (`hfa-indicators`), own
-SDK client pointed at `/ai-instance` (duplicates the 429-localizing fetch
-wrapper), its own `modelConfig` (`max_tokens: 4096`, where the copilot omits
-it), **no built-in web tools**. Structural differences from the copilot: no view
-registry, so every write goes straight to serverActions. Its five write tools
-declare `approval.propose` with `presentation: "modal"` (panther owns the
-propose → modal diff → commit lifecycle; the old hand-rolled `confirmChain`
-serializer is deleted), and the config sets
-`approvalPolicy: { requireForKind:
-"write", requireKind: true }`
-([ai/wrapper.tsx:36](client/src/components/data/hfa/indicators/ai/wrapper.tsx#L36)).
-A write tool without approval, or any tool without a `kind`, fails at
-construction. `validate_hfa_indicators` is a read: it computes each indicator's
-issues from main code and stores nothing, since the manager recomputes status at
-render and the stored flags' only reader is `get_hfa_indicators`
-(`bulkUpdateHfaIndicatorValidation` serves the manager's Revalidate all alone).
-`create_hfa_indicators` reports what the batch route created and, under
-`notCreated`, an id another save took between the proposal and the acceptance.
-Every anticipated failure throws `AIToolFailure` carrying the server's error
-(zero plain-`Error` throws in
+`client/src/components/data/hfa/indicators/ai/` holds the HFA reads, HFA writes
+and HFA editor groups of the catalogue (COPILOT03 ruling 1), registered in the
+one chat by `copilot_tools.ts` like every other tool and gated by view: the
+reads (`get_hfa_indicators`, `get_hfa_taxonomy`, `get_hfa_variable_dictionary`,
+`inspect_hfa_variable`, `get_hfa_indicator_code`, `validate_hfa_indicators`) in
+the three HFA views, the writes (`update_hfa_indicator_labels`,
+`assign_hfa_indicator_categories`, `create_hfa_indicators`,
+`set_hfa_indicator_code`, `delete_hfa_indicators`) in `hfa_indicators` alone,
+and the editor tools (`get_hfa_indicator_editor`, `update_hfa_indicator_editor`,
+`editor_tools.ts`) in `hfa_indicator_editor` alone. Who may call them refuses
+through the guard: the reads need `can_configure_data` (`inspect_hfa_variable`
+`can_view_data`), the writes and `update_hfa_indicator_editor` the manager's
+write gate, `canWriteHfaIndicators()` (`indicators/write_gate.ts`, today global
+admin), which the manager's indicator write controls read too, so SYSTEM_05's
+open decision on that gate moves both at once. Every HFA route keeps its own
+guard. The five writes declare `approval.propose` with `presentation: "modal"`
+(panther owns the propose → modal → commit lifecycle); the editor write is
+exempt, since it lands in the open editor's unsaved draft, which the user saves
+or discards. The HFA guidance (the model, type and aggregation, how to write
+r-code, how to work) is `instructions.ts`'s `getHfaIndicatorsGuidance`, attached
+to the manager's view; it names no tool, since the registered tools describe
+themselves, and promises no diff. `validate_hfa_indicators` is a read: it
+computes each indicator's issues from main code and stores nothing, since the
+manager recomputes status at render and the stored flags' only reader is
+`get_hfa_indicators` (`bulkUpdateHfaIndicatorValidation` serves the manager's
+Revalidate all alone). `create_hfa_indicators` reports what the batch route
+created and, under `notCreated`, an id another save took between the proposal
+and the acceptance. Every anticipated failure throws `AIToolFailure` carrying
+the server's error (zero plain-`Error` throws in
 [tools.ts](client/src/components/data/hfa/indicators/ai/tools.ts), the
 failure-channel ruling above). The survey dictionary and the dataset display are
 read through the manager's T2 caches; the indicators, the taxonomy and the code
-are read fresh on every call. The system prompt deliberately embeds no live
-state (the model reads through tools, avoiding staleness with its own edits).
-Write commits do whole-object load → propose → save, last write wins: the
-app-wide concurrency model, deliberate (a re-read-after-confirm refactor was
-rejected as an inconsistent outlier); a label batch carries only the indicators
-whose label changed. Its hand-written schemas comply with the S13 conventions
+are read fresh on every call, so the model acts on current state, its own
+earlier writes included. Write commits do whole-object load → propose → save,
+last write wins: the app-wide concurrency model, deliberate (a
+re-read-after-confirm refactor was rejected as an inconsistent outlier); a label
+batch carries only the indicators whose label changed. The editor tools never
+await: `get_hfa_indicator_editor` reads the draft the view's context returns,
+and `update_hfa_indicator_editor` checks its ids against the taxonomy and the
+rounds the editor offers, applies the patch through `applyDraft` and reports
+each field as changed or as no change, so the editor that set the view is the
+one the write reaches. The hand-written schemas comply with the S13 conventions
 (storage field names, throw-don't-catch, `.min(1)` on inclusion lists, no
 strictObject / strict:true). S13 convention changes must be checked against this
 directory; its tool semantics are S5's.
@@ -1018,8 +1040,8 @@ directory; its tool semantics are S5's.
   (`message_start`/`message_delta`); an Anthropic event-shape change silently
   zeroes logged usage. New betas panther starts sending must be added to
   `FORWARDABLE_BETAS` or they are silently dropped.
-- **Governance changes go in `anthropic_messages_proxy.ts`**, never in the two
-  mount files, which are deliberately logic-free.
+- **Governance changes go in `anthropic_messages_proxy.ts`**, never in the mount
+  file, which is deliberately logic-free.
 - **Don't wrap proxy responses in `APIResponse`**: the client SDK parses
   Anthropic shapes. Equally: don't let new failure paths fall to `app.onError`,
   which returns an envelope at HTTP 200 the SDK can't parse.
@@ -1089,24 +1111,20 @@ Remaining:
   checkpoint-carried origin?), not a missing mark; predates the interactions
   migration.
 
-**HFA satellite (fixes are S5's to land; contract is S13's)**
+**HFA tools (fixes are S5's to land; contract is S13's)**
 
-- **Indicator-assistant hardening** (S–M, from the retired HFA plan). The first
-  pass is shipped: a self-contained assistant in
+- **HFA tool hardening** (S–M, from the retired HFA plan). The tools are in
   [client/src/components/data/hfa/indicators/ai/](client/src/components/data/hfa/indicators/ai/),
-  instance proxy
-  [server/routes/instance/ai_proxy.ts](server/routes/instance/ai_proxy.ts), all
-  three tool tiers with a per-write confirm gate. Remaining, in priority order:
-  (1) **the visual-diff review UX**: `system_prompt.ts:46` promises writes are
-  shown "with a diff", but they render as plain-text summary lines in a confirm
-  dialog; build the diff/accept preview or fix the prompt to match (top gap).
-  (2) **Taxonomy editing**: the assistant can assign categories but cannot
-  create or rename them; decide whether that stays manual. (3) No
-  per-conversation cost cap (only the shared instance/user token limits) and
-  `max_tokens` is hardcoded. (4) `inspect_hfa_variable` loads the whole dataset
-  display then filters client-side: fine now, unbounded at scale. (5) No tests
-  and no telemetry on tool accept/reject rate. (6) Graduation from the
-  `hfa-ai-testing` label/deploy to production.
+  registered in the one chat with a modal approval per batched write. Remaining,
+  in priority order: (1) **the write previews**: the approval modal shows a
+  before-to-after list per change, with no diff; a create preview carries no
+  code and no categories, and a delete preview the ids only; build the diff and
+  the fuller previews. (2) **Taxonomy editing**: the tools can assign categories
+  but cannot create or rename them; decide whether that stays manual. (3) No
+  per-conversation cost cap (only the shared instance/user token limits). (4)
+  `inspect_hfa_variable` loads the whole dataset display then filters
+  client-side: fine now, unbounded at scale. (5) No tests and no telemetry on
+  tool accept/reject rate.
 
 **Surface gaps: read-projection ≠ write-schema ≠ stored-shape**
 
@@ -1201,7 +1219,5 @@ inventory every tool against it.
 
 **Hygiene**
 
-- The duplicated 429 fetch wrapper in the HFA sdk_client is the remaining
-  client-side duplication.
 - Rename the PascalCase DB log functions; decide the `can_use_ai` permission
   question (any-member remains the deliberate state until then).

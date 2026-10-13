@@ -31,14 +31,21 @@ import {
   StateHolderWrapper,
   TextArea,
 } from "panther";
-import { type Accessor, createMemo, createSignal, For, Show } from "solid-js";
+import { createMemo, createSignal, For, Show } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
 import { serverActions } from "~/server_actions";
 import {
+  checkRCodeResultType,
   hasRCodeErrors,
   type RCodeValidationResult,
   validateRCode,
 } from "./_shared/mod.ts";
+import {
+  copilotViewController,
+  type HfaIndicatorEditorDraft,
+  type HfaIndicatorEditorPatch,
+  holdCopilotView,
+} from "~/components/instance/copilot/mod.ts";
 
 type TempCodeEntry = {
   timePoint: string;
@@ -78,13 +85,14 @@ export function HfaIndicatorCodeEditor(
       serviceCategories: HfaIndicatorServiceCategory[];
       variantGroups: HfaIndicatorVariantGroup[];
       variantItems: HfaIndicatorVariantItem[];
-      showAi: Accessor<boolean>;
-      openAi: () => void;
       deleteIndicator: (onDeleted: () => void) => Promise<void>;
     },
     undefined
   >,
 ) {
+  // The editor holds the manager's view; EditorInner sets
+  // `hfa_indicator_editor` once the draft store exists (S13).
+  holdCopilotView();
   const codeQuery = createQuery(
     () =>
       serverActions.getHfaIndicatorCode({
@@ -178,16 +186,6 @@ export function HfaIndicatorCodeEditor(
           >
             {t3(TC.delete)}
           </Button>
-          <Show when={!p.showAi()}>
-            <Button
-              iconName="chevronLeft"
-              outline
-              onBackground="base-300"
-              onClick={p.openAi}
-            >
-              {t3({ en: "AI", fr: "IA", pt: "IA" })}
-            </Button>
-          </Show>
         </HeadingBar>
       }
     >
@@ -547,6 +545,107 @@ function EditorInner(p: {
   };
   const searchMatches = (text: string) =>
     matchesSearch(folded(text), variableSearchTokens());
+
+  // The issues the editor shows for one round, as English lines for the
+  // chat: the validation of the code and the filter against this round's
+  // variables, and the result-type check the code's label states.
+  const roundIssues = (c: TempCodeEntry): string[] => {
+    const tp = p.dictionary.timePoints.find((t) => t.timePoint === c.timePoint);
+    const available = new Set(tp?.variables.map((v) => v.variableId) ?? []);
+    const issues: string[] = [];
+    if (c.rFilterCode.trim() && !c.rCode.trim()) {
+      issues.push("rFilterCode: filter code requires R code for this round");
+    }
+    const fields: [string, string][] = [
+      ["rCode", c.rCode],
+      ["rFilterCode", c.rFilterCode],
+    ];
+    for (const [field, code] of fields) {
+      if (!code.trim()) continue;
+      const r = validateRCode(code, available, otherIndicatorIds);
+      for (const e of r.syntaxErrors) issues.push(`${field}: ${e}`);
+      for (const e of r.unknownVariableErrors) issues.push(`${field}: ${e}`);
+      for (const w of r.warnings) issues.push(`${field}: WARNING: ${w}`);
+    }
+    if (c.rCode.trim()) {
+      for (const w of checkRCodeResultType(c.rCode, state.type)) {
+        issues.push(`rCode: ${w}`);
+      }
+    }
+    return issues;
+  };
+
+  const getDraft = (): HfaIndicatorEditorDraft => ({
+    shortLabel: state.shortLabel,
+    definition: state.definition,
+    type: state.type,
+    aggregation: state.aggregation,
+    categoryId: state.categoryId,
+    subCategoryId: state.subCategoryId,
+    serviceCategoryIds: [...state.serviceCategoryIds],
+    code: state.code.map((c) => ({
+      timePoint: c.timePoint,
+      rCode: c.rCode,
+      rFilterCode: c.rFilterCode,
+      issues: roundIssues(c),
+    })),
+    codeConsistent: roundsConsistency() !== "different",
+  });
+
+  // The chat's write, with the controls' own semantics: a category change
+  // clears the sub-category (the category select does the same), a round
+  // keeps the field the patch omits, and the draft is marked unsaved.
+  const applyDraft = (patch: HfaIndicatorEditorPatch) => {
+    if (
+      patch.categoryId !== undefined && patch.categoryId !== state.categoryId
+    ) {
+      setState("categoryId", patch.categoryId);
+      setState("subCategoryId", null);
+    }
+    if (patch.subCategoryId !== undefined) {
+      setState("subCategoryId", patch.subCategoryId);
+    }
+    if (patch.serviceCategoryIds !== undefined) {
+      setState("serviceCategoryIds", patch.serviceCategoryIds);
+    }
+    if (patch.shortLabel !== undefined) {
+      setState("shortLabel", patch.shortLabel);
+    }
+    if (patch.definition !== undefined) {
+      setState("definition", patch.definition);
+    }
+    if (patch.type !== undefined) setState("type", patch.type);
+    if (patch.aggregation !== undefined) {
+      setState("aggregation", patch.aggregation);
+    }
+    for (const round of patch.code ?? []) {
+      const idx = state.code.findIndex((c) => c.timePoint === round.timePoint);
+      if (idx < 0) continue;
+      if (round.rCode !== undefined) {
+        setState("code", idx, "rCode", round.rCode);
+      }
+      if (round.rFilterCode !== undefined) {
+        setState("code", idx, "rFilterCode", round.rFilterCode);
+      }
+    }
+    markDirty();
+  };
+
+  copilotViewController.setView(
+    "hfa_indicator_editor",
+    { indicatorId: p.indicator.indicatorId },
+    {
+      getLabel: () => composeHfaIndicatorLabel(p.indicator, "compact"),
+      getSelectedTimePoint: selectedTimePoint,
+      getDraft,
+      getTaxonomy: () => ({
+        categories: p.categories,
+        subCategories: p.subCategories,
+        serviceCategories: p.serviceCategories,
+      }),
+      applyDraft,
+    },
+  );
 
   return (
     <div class="flex h-full flex-col">

@@ -20,6 +20,9 @@ import {
 import type {
   DatasetType,
   FigureBlock,
+  HfaIndicatorCategory,
+  HfaIndicatorServiceCategory,
+  HfaIndicatorSubCategory,
   ImageBlock,
   MetricWithStatus,
   PresentationObjectConfig,
@@ -54,6 +57,8 @@ import {
   getEditingSlideDeckInstructions,
   getEditingSlideInstructions,
   getFigureEditorInstructions,
+  getHfaIndicatorEditorInstructions,
+  getHfaIndicatorsInstructions,
   getOpeningProductInstructions,
   getProductsInstructions,
   getResultsFileInstructions,
@@ -102,9 +107,11 @@ import {
 // and restores the view it covered when the page closes, and the places
 // inside products: deck settings (`deck_settings`), the version histories
 // (`deck_history`, `report_history`), the figure editor (the view its host
-// names in `aiView`, through `setFigureEditorView`) and the results file
-// viewer (`results_file`). The HFA views are declared here and have no sync
-// site yet.
+// names in `aiView`, through `setFigureEditorView`), the results file
+// viewer (`results_file`) and the HFA indicators manager (`hfa_indicators`,
+// over the switchboard's `data_page`), whose code editor sets
+// `hfa_indicator_editor` once its draft store exists and whose Excel import
+// sets `hfa_indicator_import`.
 //
 // What the model is told per view splits in two (append-only turns, E7):
 // `instructions` is the static guidance of the view, which rides a message
@@ -352,11 +359,66 @@ export type DataPageParams = {
   family?: DatasetType;
 };
 
+// The HFA indicators manager's view: the guidance the manager supplies
+// (`components/data/hfa/indicators/ai/instructions.ts`, S5's, so this
+// registry imports nothing from `components/data/`) and the open tab.
+export type HfaIndicatorsContext = {
+  getGuidance: () => string;
+  getTab: () => string;
+};
+
 export type HfaIndicatorEditorParams = {
   indicatorId: string;
 };
+// One round of the code editor's draft, with the issues the editor's own
+// validation finds in it (syntax, unknown variables, warnings, the result
+// type), as English lines.
+export type HfaIndicatorEditorRound = {
+  timePoint: string;
+  rCode: string;
+  rFilterCode: string;
+  issues: string[];
+};
+// The code editor's unsaved state: the fields its tools may change, the
+// code per round, and whether the non-empty rounds agree.
+export type HfaIndicatorEditorDraft = {
+  shortLabel: string;
+  definition: string;
+  type: "binary" | "numeric";
+  aggregation: "sum" | "avg";
+  categoryId: string | null;
+  subCategoryId: string | null;
+  serviceCategoryIds: string[];
+  code: HfaIndicatorEditorRound[];
+  codeConsistent: boolean;
+};
+// What `update_hfa_indicator_editor` may change: every field optional, the
+// code by round, a round's field omitted to keep it.
+export type HfaIndicatorEditorPatch = {
+  shortLabel?: string;
+  definition?: string;
+  type?: "binary" | "numeric";
+  aggregation?: "sum" | "avg";
+  categoryId?: string | null;
+  subCategoryId?: string | null;
+  serviceCategoryIds?: string[];
+  code?: { timePoint: string; rCode?: string; rFilterCode?: string }[];
+};
+export type HfaIndicatorEditorTaxonomy = {
+  categories: HfaIndicatorCategory[];
+  subCategories: HfaIndicatorSubCategory[];
+  serviceCategories: HfaIndicatorServiceCategory[];
+};
+// The code editor's view: the open indicator's saved label, the round the
+// user is looking at, the draft read live with the editor's validation, the
+// taxonomy the editor offers, and the write that lands in the draft and
+// marks it unsaved, for the user to save.
 export type HfaIndicatorEditorContext = {
   getLabel: () => string;
+  getSelectedTimePoint: () => string;
+  getDraft: () => HfaIndicatorEditorDraft;
+  getTaxonomy: () => HfaIndicatorEditorTaxonomy;
+  applyDraft: (patch: HfaIndicatorEditorPatch) => void;
 };
 
 // The level line for a product view's instructions: present below edit
@@ -582,7 +644,12 @@ export const copilotViews = defineAIViews(
       instructions: (params) =>
         getDataPageInstructions(params.page, params.family),
     }),
-    hfa_indicators: view({ label: "HFA indicators" }),
+    hfa_indicators: view<void, HfaIndicatorsContext>({
+      label: "HFA indicators",
+      instructions: (_params, context) =>
+        getHfaIndicatorsInstructions(context.getGuidance()),
+      state: (_params, context) => `Open tab: ${context.getTab()}`,
+    }),
     hfa_indicator_editor: view<
       HfaIndicatorEditorParams,
       HfaIndicatorEditorContext
@@ -592,6 +659,10 @@ export const copilotViews = defineAIViews(
         copilotViewIdentity("hfa_indicator_editor", {
           indicator: params.indicatorId,
         }),
+      instructions: (_params, context) =>
+        getHfaIndicatorEditorInstructions(context.getLabel()),
+      state: (params, context) =>
+        `indicatorId: ${params.indicatorId} | round: ${context.getSelectedTimePoint()}`,
     }),
     hfa_indicator_import: view({ label: "HFA indicator import" }),
     assets: view({
@@ -638,7 +709,6 @@ export function restoreCopilotView(state: CopilotViewState): void {
     case "results_packages":
     case "module_defaults":
     case "scopes":
-    case "hfa_indicators":
     case "hfa_indicator_import":
     case "assets":
     case "users":
@@ -720,6 +790,13 @@ export function restoreCopilotView(state: CopilotViewState): void {
       return;
     case "data":
       copilotViewController.setView("data", undefined, state.context);
+      return;
+    case "hfa_indicators":
+      copilotViewController.setView(
+        "hfa_indicators",
+        undefined,
+        state.context,
+      );
       return;
     case "package":
       copilotViewController.setView("package", state.params, state.context);

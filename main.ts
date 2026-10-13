@@ -45,7 +45,6 @@ import { routesPopulation } from "./server/routes/instance/population.ts";
 import { routesInstanceSSE } from "./server/routes/instance/instance-sse.ts";
 
 import { routesCollab } from "./server/routes/instance/collab.ts";
-import { routesInstanceAiProxy } from "./server/routes/instance/ai_proxy.ts";
 import { routesCopilotAiProxy } from "./server/routes/instance/copilot_ai_proxy.ts";
 import { routesAiFiles } from "./server/routes/instance/ai_files.ts";
 import { routesEmails } from "./server/routes/instance/emails.ts";
@@ -178,7 +177,6 @@ app.route("/", routesProductSlideDecks);
 app.route("/", routesProductSlides);
 app.route("/", routesProductReports);
 app.route("/ai", routesCopilotAiProxy);
-app.route("/ai-instance", routesInstanceAiProxy);
 app.route("/ai", routesAiFiles);
 app.route("/", routesCustomPrompts);
 app.route("/", routesWhatsNew);

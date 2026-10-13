@@ -1,4 +1,4 @@
-import { type Accessor, createSignal, onMount } from "solid-js";
+import { createSignal, onMount } from "solid-js";
 import { t3, TC } from "lib";
 import {
   Button,
@@ -26,6 +26,10 @@ import {
   detectHfaWorkbookShape,
   type WorkbookShape,
 } from "./xlsx_workbook";
+import {
+  copilotViewController,
+  holdCopilotView,
+} from "~/components/instance/copilot/mod.ts";
 
 export type HfaWorkbookSource = { kind: "pick" } | { kind: "default" };
 
@@ -83,8 +87,6 @@ type Props = EditorComponentProps<
     timePoints: string[];
     variableIds: string[];
     existingIndicatorIds: string[];
-    showAi: Accessor<boolean>;
-    openAi: () => void;
   },
   undefined
 >;
@@ -93,7 +95,11 @@ type Step =
   | { name: "pick" }
   | { name: "reconcile"; shape: WorkbookShape };
 
+// The import sets the chat's `hfa_indicator_import` view (S13) over the
+// manager's: the HFA reads stay available, no write runs here.
 export function HfaIndicatorsXlsxUploadForm(p: Props) {
+  holdCopilotView();
+  copilotViewController.setView("hfa_indicator_import");
   const [uploadMode, setUploadMode] = createSignal<"replace" | "add">("add");
   const [step, setStep] = createSignal<Step>({ name: "pick" });
 
@@ -130,18 +136,7 @@ export function HfaIndicatorsXlsxUploadForm(p: Props) {
               pt: "Importar indicadores HFA a partir do Excel",
             })}
           onBack={() => p.close(undefined)}
-        >
-          <Show when={!p.showAi()}>
-            <Button
-              iconName="chevronLeft"
-              outline
-              onBackground="base-300"
-              onClick={p.openAi}
-            >
-              {t3({ en: "AI", fr: "IA", pt: "IA" })}
-            </Button>
-          </Show>
-        </HeadingBar>
+        />
       }
     >
       <div class="ui-spy max-w-3xl">

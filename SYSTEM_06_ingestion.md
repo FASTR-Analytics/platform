@@ -452,8 +452,9 @@ full-page view opens, and restores the view it covered when the page closes
 (`restoreCopilotView`), unless the switchboard itself unmounted meanwhile, since
 its own cleanup restored the view it holds. The views a page opens keep its
 `data_page`, since a page opens them through its own editor wrapper, not the
-shell's; no HFA view has a sync site yet (S13), so the HFA indicators manager
-keeps `data_page` too.
+shell's, except the HFA indicators manager (S5), which sets `hfa_indicators` on
+top and whose code editor and Excel import set `hfa_indicator_editor` and
+`hfa_indicator_import` on top of that (S13).
 
 One imports surface per family, opened from a single `Imports` button in the
 dataset page's admin controls, the seam between the viewer and the imports

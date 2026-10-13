@@ -575,11 +575,11 @@ shared by the client editor validator and the server dependency analyzer
 code hard-fail whole module runs. lib compiles into both runtimes: keep it pure
 (no Deno/UI imports). The persisted `has_syntax_error`/`code_consistent` flags
 are advisory metadata that the manager does not display (its Status and
-Consistent columns compute from the code) and that only the HFA assistant reads
-(`get_hfa_indicators`): the run's `hfa_indicators_snapshot.json` carries them
-and its reader (`hfaIndicatorRow`, `server/run_query/run_read.ts`) drops them,
-and bulk validation updates deliberately do NOT bump `updated_at` (a bump would
-move `hfaIndicatorsVersion`, the run's HFA staleness stamp, for an edit
+Consistent columns compute from the code) and that only the chat's HFA tools
+read (`get_hfa_indicators`): the run's `hfa_indicators_snapshot.json` carries
+them and its reader (`hfaIndicatorRow`, `server/run_query/run_read.ts`) drops
+them, and bulk validation updates deliberately do NOT bump `updated_at` (a bump
+would move `hfaIndicatorsVersion`, the run's HFA staleness stamp, for an edit
 generation ignores). Warnings (lone `=`) are a distinct severity and never
 persist as errors. The R-code lifecycle: instance edits → run capture (S6's
 run-capture seam) snapshots indicators+taxonomy+code → S8's module run builds a
@@ -1084,7 +1084,10 @@ layer.
   zero-permission too; the HMIS and HFA dictionary reads and every mutation are
   `can_configure_data`; config mutations `can_configure_settings`. Several
   manager UIs still gate their write buttons on `currentUserIsGlobalAdmin`
-  instead (Open items).
+  instead (Open items); the HFA indicators manager's indicator write controls
+  read it through one predicate, `canWriteHfaIndicators()`
+  (`data/hfa/indicators/write_gate.ts`), which the chat's HFA write tools refuse
+  under too (S13).
 - The HFA manager's unused-variables modal (`HfaUnusedVariablesModal`) lists,
   per time point, the survey variables no indicator code references. Each row
   has an Add button: the modal closes with that variable, and the manager opens
@@ -1127,8 +1130,11 @@ layer.
 - **Decision needed:** UI write-gates use `currentUserIsGlobalAdmin` while the
   server gates on `can_configure_data`, at nine sites: the HMIS indicators
   manager (`data/hmis/indicators/manager.tsx:557`, 652, 679), the HFA indicators
-  manager and its taxonomy managers (`data/hfa/indicators/manager.tsx:1074`,
-  1101, 1139, 1170; `data/hfa/indicators/categories_manager.tsx:86`, 256;
+  manager, whose three indicator write controls (the bulk delete, the row click
+  into the code editor and the toolbar) read `canWriteHfaIndicators()` in
+  `data/hfa/indicators/write_gate.ts`, the one predicate the chat's HFA write
+  tools refuse under too (S13), so this decision moves both at once, and its
+  taxonomy managers (`data/hfa/indicators/categories_manager.tsx:86`, 256;
   `data/hfa/indicators/service_categories_manager.tsx:19`;
   `data/hfa/indicators/variant_groups_manager.tsx:88`, 290), the geojson manager
   (`data/geojson/manager.tsx:113`, 149), the weights import
@@ -1187,8 +1193,8 @@ layer.
 - **Two comments misdescribe the stored validation flags.**
   `data/hfa/indicators/indicator_code_editor.tsx:437-438` calls the flag
   display-only editor metadata, but the manager displays no flag
-  (`manager.tsx:285-377`, 956-1026) and the HFA assistant's tools read it
-  (`ai/tools.ts:208`, 221-222, 652-655). `manager.tsx:469` says SSE will trigger
+  (`manager.tsx:285-377`, 956-1026) and the chat's HFA tools read it
+  (`ai/tools.ts`, `get_hfa_indicators`). `manager.tsx:469` says SSE will trigger
   a refetch, but the write leaves `hfaIndicatorsVersion` unchanged
   (`server/db/instance/instance.ts:43-44`), so nothing refetches. Make the
   parenthetical at 437-438 read "(main + variant snippets; the stored flag is
