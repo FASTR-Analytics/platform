@@ -37,7 +37,7 @@ every place a view of it. Reviewed against code (first review cycle; absorbed
 and deleted DOC_AI_PROXY_AND_USAGE_GOVERNANCE and DOC_AI_TOOL_SCHEMAS, the
 authoring recipe from the latter now lives in
 [PROTOCOL_APP_AI_TOOLS.md](PROTOCOL_APP_AI_TOOLS.md)); AI-surface prose
-re-verified after both assistants adopted panther's
+re-verified after the copilot and the HFA tools adopted panther's
 views/gating/interactions/approval system. Two same-day fix batches
 (governance + panther turn-logic, then the client-copilot findings) are folded
 into the prose; remaining triaged findings are in Open items below.
@@ -266,7 +266,7 @@ hard one.
 rate-limit object, the upstream error body at its status, and anything _thrown_
 in the handler (malformed request JSON, upstream fetch network failure), which
 the shared handler catches and returns as an Anthropic-shaped 502
-([anthropic_messages_proxy.ts:51-64](server/routes/anthropic_messages_proxy.ts#L51-L64))
+([anthropic_messages_proxy.ts:50-63](server/routes/anthropic_messages_proxy.ts#L50-L63))
 rather than letting it fall to `app.onError`'s envelope-at-HTTP-200. The one
 envelope shape on the surface: guard rejections are `{success:false, err}` at
 401/403.
@@ -508,10 +508,11 @@ registry imports nothing from `components/data/`; its code editor holds in
 `HfaIndicatorCodeEditor` and sets `hfa_indicator_editor` from `EditorInner` once
 the draft store exists, with the indicator id as identity, the open round in its
 state, and an `HfaIndicatorEditorContext` of the saved label, the selected
-round, the draft read live with the editor's own validation per round
-(`getDraft`), the taxonomy the editor offers and `applyDraft`, which writes the
-store with the controls' semantics and marks the draft unsaved; its Excel import
-sets `hfa_indicator_import`. There is no tab-to-view map.
+round, the draft read live, each round with the issues the editor's validators
+find and the result-type check its code label states (`getDraft`), the taxonomy
+the editor offers and `applyDraft`, which writes the store with the controls'
+semantics and marks the draft unsaved; its Excel import sets
+`hfa_indicator_import`. There is no tab-to-view map.
 
 **What a message carries** (`appendOnlyTurns: true`, panther's E7). Every
 message carries the view line, the view's `state` and the interactions digest; a
@@ -948,11 +949,10 @@ silently deletes their country-scoped prompts too.
 ## The panther engine (what this app depends on)
 
 First synced at commits 62ed6c03/ca3ae868 (SDK 0.71 → 0.110) and repeatedly
-since. Both assistants also depend on the engine's
-views/gating/interactions/approval surface (`defineAIViews`,
-`createAIViewController`, `defineAIInteractions`, `availableIn` gating,
-`approval.propose`, `buildToolCatalog`, `validateAIChatConfig`). The consumer
-rulebook is the vendored
+since. The chat also depends on the engine's views/gating/interactions/approval
+surface (`defineAIViews`, `createAIViewController`, `defineAIInteractions`,
+`availableIn` gating, `approval.propose`, `buildToolCatalog`,
+`validateAIChatConfig`). The consumer rulebook is the vendored
 [PROTOCOL_UI_AI_CHAT.md](panther/protocols/PROTOCOL_UI_AI_CHAT.md); the full
 contract doc is DOC_AI_CHAT.md at the panther repo root (not vendored). The
 parts S13 relies on, verified this cycle:
@@ -1070,7 +1070,7 @@ panther modelConfig/labels/cap-pause items, and the client-copilot findings
 fetch-on-miss, tools-reactivity memo removal, ai_files env/URL cleanup,
 Anthropic-shaped thrown errors, CORS header enumeration, and the LOW hygiene
 tail). The HFA whole-object read-modify-write finding was **rejected**: it
-matches the app-wide last-write-wins model (see the satellite section).
+matches the app-wide last-write-wins model (see the HFA tools section).
 Remaining:
 
 **Governance policy (decisions, not bugs)**

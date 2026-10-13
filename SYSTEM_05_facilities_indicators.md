@@ -1184,21 +1184,21 @@ layer.
   `instanceState.currentUserIsGlobalAdmin`, the panel's gate, in place of the
   unconditional `onMount`.
 - **A manager comment ties the code editor to imported data.**
-  `data/hfa/indicators/manager.tsx:528-529` says the metadata-only fallback
+  `data/hfa/indicators/manager.tsx:541-542` says the metadata-only fallback
   applies "with no HFA data imported", but the test is `hfaDataAvailable()`
-  (254), `!!instanceState.hfaCacheHash`, which is empty only while no time point
-  exists (`server/db/instance/dataset_hfa.ts:34-44`). Make 528-529 read "The
+  (267), `!!instanceState.hfaCacheHash`, which is empty only while no time point
+  exists (`server/db/instance/dataset_hfa.ts:34-44`). Make 541-542 read "The
   code editor keys its code by time point; with no HFA time point defined, fall
   back to the metadata-only modal so labels/categories stay editable."
 - **Two comments misdescribe the stored validation flags.**
-  `data/hfa/indicators/indicator_code_editor.tsx:437-438` calls the flag
+  `data/hfa/indicators/indicator_code_editor.tsx:435-436` calls the flag
   display-only editor metadata, but the manager displays no flag
-  (`manager.tsx:285-377`, 956-1026) and the chat's HFA tools read it
-  (`ai/tools.ts`, `get_hfa_indicators`). `manager.tsx:469` says SSE will trigger
+  (`manager.tsx:298-390`, 965-1035) and the chat's HFA tools read it
+  (`ai/tools.ts`, `get_hfa_indicators`). `manager.tsx:482` says SSE will trigger
   a refetch, but the write leaves `hfaIndicatorsVersion` unchanged
   (`server/db/instance/instance.ts:43-44`), so nothing refetches. Make the
-  parenthetical at 437-438 read "(main + variant snippets; the stored flag is
-  advisory metadata generation ignores)", and delete the comment at 469.
+  parenthetical at 435-436 read "(main + variant snippets; the stored flag is
+  advisory metadata generation ignores)", and delete the comment at 482.
 
 ### HFA variant groups: open questions
 
