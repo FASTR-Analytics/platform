@@ -21,6 +21,7 @@ function getButtonClasses(
   outline?: boolean,
   onBackground?: Intent,
   ghost?: boolean,
+  flushEdge?: "right",
 ) {
   return [
     // Component classes (defined in CSS): the per-intent skin, then the
@@ -66,7 +67,7 @@ function getButtonClasses(
     "justify-center",
     "gap-[0.5em]",
     "whitespace-nowrap",
-    "rounded",
+    flushEdge === "right" ? "rounded-l border-r-0" : "rounded",
     "border",
     "overflow-clip",
     "align-middle",
@@ -91,6 +92,9 @@ type ButtonPropsBase = {
   iconPosition?: "left" | "right";
   ariaLabel?: string;
   size?: "sm";
+  // Sits against the named screen edge like a pull tab: that side is square
+  // and borderless, the opposite side keeps its rounding.
+  flushEdge?: "right";
 };
 
 // A ghost has no surface, so it neither outlines nor rests on a backdrop;
@@ -206,6 +210,7 @@ export function Button(p: ButtonProps) {
             p.outline,
             p.onBackground,
             p.ghost,
+            p.flushEdge,
           )}
           onClick={p.onClick}
           onPointerDown={p.onPointerDown}
@@ -229,6 +234,7 @@ export function Button(p: ButtonProps) {
             p.outline,
             p.onBackground,
             p.ghost,
+            p.flushEdge,
           )}
           href={p.href}
           id={p.id}
