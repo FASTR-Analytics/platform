@@ -28,7 +28,7 @@ import {
 import { copilotViewController, packageViewContext } from "./ai_views";
 import { setTurnRunning } from "./turn_guard";
 import type { EditingReportContext } from "./ai_views";
-import { setShowAi } from "~/state/t4_ui";
+import { setShowAi, setShowSentContext, showSentContext } from "~/state/t4_ui";
 import { serverActions } from "~/server_actions";
 import { AIDocumentList, useAIDocuments } from "./ai_documents/mod.ts";
 import { usePromptLibrary } from "./ai_prompt_library/mod.ts";
@@ -434,6 +434,21 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
             },
           });
         },
+      },
+      {
+        label: showSentContext()
+          ? t3({
+            en: "Show typed text only",
+            fr: "Afficher seulement le texte saisi",
+            pt: "Mostrar apenas o texto escrito",
+          })
+          : t3({
+            en: "Show text as sent to the AI",
+            fr: "Afficher le texte tel qu'envoyé à l'IA",
+            pt: "Mostrar o texto tal como enviado à IA",
+          }),
+        icon: showSentContext() ? "eyeOff" : "eye",
+        onClick: () => setShowSentContext(!showSentContext()),
       },
       ...(pair === undefined ? [] : [
         {

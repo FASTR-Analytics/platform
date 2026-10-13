@@ -28,7 +28,7 @@ import {
 import { clerk } from "~/state/_infra/clerk";
 import { instanceState } from "~/state/instance/t1_store";
 import { getRunAuthoringContextFromCacheOrFetch } from "~/state/instance/t2_run_authoring_context";
-import { setShowAi } from "~/state/t4_ui";
+import { setShowAi, showSentContext } from "~/state/t4_ui";
 import { copilotViewController, packageViewContext } from "./ai_views";
 import {
   createCopilotSDKClient,
@@ -151,6 +151,7 @@ function CopilotChat(p: { scope: string; tools: AnyAITool[] }) {
     scope: p.scope,
     system: systemPrompt,
     getEphemeralContext,
+    showSentContext,
     getDocumentRefs: aiDocs.getDocumentRefs,
     viewController: copilotViewController,
     // Every write asks before it applies unless the catalogue exempts it:
