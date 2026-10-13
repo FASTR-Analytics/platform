@@ -623,6 +623,7 @@ export function SlideList(p: Props) {
         <PackageScopeChip
           product={p.product}
           onClick={canEditFigures() ? () => void openPackageScope() : undefined}
+          tour="deck-package-scope"
         />
       </div>
       {
@@ -655,7 +656,12 @@ export function SlideList(p: Props) {
         {t3({ en: "History", fr: "Historique", pt: "Histórico" })}
       </Button>
       <Show when={!showAi()}>
-        <Button onClick={() => setShowAi(true)} iconName="chevronLeft" outline>
+        <Button
+          data-tour="deck-ai-button"
+          onClick={() => setShowAi(true)}
+          iconName="chevronLeft"
+          outline
+        >
           {t3({ en: "AI", fr: "IA", pt: "IA" })}
         </Button>
       </Show>

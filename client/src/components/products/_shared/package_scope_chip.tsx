@@ -8,6 +8,8 @@ type Props = {
   // Present when the viewer may change the pair: the chip is then the button
   // that opens PackageScopeModal. Absent, it is a static label.
   onClick?: () => void;
+  // The tour anchor, on whichever element the chip renders as.
+  tour?: string;
 };
 
 // The (package, scope) pair in the editor headers. It wears the package accent
@@ -33,12 +35,17 @@ export function PackageScopeChip(p: Props) {
   return (
     <Show
       when={p.onClick}
-      fallback={<div class={`${layout} ui-fill-package`}>{content()}</div>}
+      fallback={
+        <div class={`${layout} ui-fill-package`} data-tour={p.tour}>
+          {content()}
+        </div>
+      }
     >
       {(onClick) => (
         <button
           type="button"
           class={`${layout} ui-hoverable-package ui-focusable text-package-content`}
+          data-tour={p.tour}
           onClick={() => onClick()()}
         >
           {content()}

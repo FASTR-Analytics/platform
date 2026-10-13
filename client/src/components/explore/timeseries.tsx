@@ -81,7 +81,10 @@ export function Timeseries(p: {
       panelChildren={
         <>
           {p.selectors}
-          <div class="ui-gap-sm flex flex-wrap items-end">
+          <div
+            class="ui-gap-sm flex flex-wrap items-end"
+            data-tour="explore-filters"
+          >
             <IndicatorsControl
               values={resolved().query.indicators}
               options={indicatorOptions(p.family, p.ctx)}

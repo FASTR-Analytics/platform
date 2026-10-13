@@ -134,7 +134,10 @@ export function Explore() {
         <PackageExplorer
           scope={{ runId, scopeId: scopeId() }}
           controls={
-            <div class="ui-gap-sm flex items-center">
+            <div
+              class="ui-gap-sm flex items-center"
+              data-tour="explore-controls"
+            >
               <Select
                 value={runId}
                 options={instanceState.readyPackages.map((pkg) => ({
@@ -184,6 +187,7 @@ function PackageExplorer(p: {
       items: families().map((f) => ({ id: f, label: getModuleFamilyLabel(f) })),
       value,
       onChange: setExploreFamily,
+      "data-tour": "explore-families",
     };
   };
 

@@ -34,7 +34,10 @@ export function Toolbar(p: {
     <div class="ui-spy-sm">
       <div class="ui-gap-sm flex flex-wrap items-center">
         {p.selectors}
-        <div class="ui-gap-sm ml-auto flex items-center">
+        <div
+          class="ui-gap-sm ml-auto flex items-center"
+          data-tour="explore-download"
+        >
           <div class="w-48">
             <Input
               value={p.find}
@@ -61,7 +64,10 @@ export function Toolbar(p: {
           </Button>
         </div>
       </div>
-      <div class="ui-gap-sm flex flex-wrap items-end">
+      <div
+        class="ui-gap-sm flex flex-wrap items-end"
+        data-tour="explore-filters"
+      >
         <Show
           when={p.query.unit.kind === "admin" ? p.query.unit : undefined}
           keyed

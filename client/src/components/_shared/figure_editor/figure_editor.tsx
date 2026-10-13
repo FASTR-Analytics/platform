@@ -80,7 +80,7 @@ import {
   getPresentationObjectItemsFromCacheOrFetch,
   getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator,
 } from "~/state/products/t2_figure_data";
-import { setShowAi, showAi } from "~/state/t4_ui";
+import { setOpenVisualizationEditors, setShowAi, showAi } from "~/state/t4_ui";
 import type {
   FigureEditorResult,
   VizFigureCollabBinding,
@@ -129,6 +129,20 @@ export function VisualizationEditorInner(p: InnerProps) {
   });
   const moduleIdForMetric = () =>
     p.authoringContext.metrics.find((m) => m.id === metric.id)?.moduleId ?? "";
+
+  // Counted open for the visualization editor tour. A read-only view (a
+  // package's own visualizations on the Results page) is not: the tour is
+  // about editing.
+  if (!p.viewOnly) {
+    let counted = false;
+    onMount(() => {
+      counted = true;
+      setOpenVisualizationEditors((n) => n + 1);
+    });
+    onCleanup(() => {
+      if (counted) setOpenVisualizationEditors((n) => n - 1);
+    });
+  }
 
   const defaultHeight = p.configSnapshot.d.type === "table"
     ? ("ideal" as const)
@@ -739,6 +753,7 @@ export function VisualizationEditorInner(p: InnerProps) {
           <div
             class="ui-pad ui-gap flex items-center border-b"
             data-cursor-zone="header"
+            data-tour="viz-editor-header"
           >
             <div class="ui-gap-sm flex items-center">
               <Show
@@ -856,7 +871,7 @@ export function VisualizationEditorInner(p: InnerProps) {
             />
           }
         >
-          <div class="flex h-full w-full">
+          <div class="flex h-full w-full" data-tour="viz-editor-preview">
             <Show when={getReplicateByProp(tempConfig)} keyed>
               {(keyedReplicateBy) => {
                 return (

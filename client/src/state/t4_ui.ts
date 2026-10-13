@@ -169,6 +169,16 @@ export const [fitWithin, setFitWithin] = createSignal<
 export const [showAi, setShowAi] = createSignal<boolean>(false);
 
 // ============================================================================
+// Visualization editor
+// ============================================================================
+
+// How many visualization editors are open for editing. The editor opens over
+// a slide or a report without changing the copilot's view id, so this count
+// is what the tour manager's page predicate reads (onboarding/index.ts).
+export const [openVisualizationEditors, setOpenVisualizationEditors] =
+  createSignal(0);
+
+// ============================================================================
 // Slide/Report Editor State
 // ============================================================================
 
@@ -201,6 +211,12 @@ export const [pendingEditorOpen, setPendingEditorOpen] = createSignal<
 export const [pendingSlideOpen, setPendingSlideOpen] = createSignal<
   SlideType | null
 >(null);
+
+// The same second level for the visualization editor tour's replay: set
+// alongside a pending open of a report, consumed by the report editor once it
+// has loaded: it opens the report's first visualization in the editor.
+export const [pendingVisualizationOpen, setPendingVisualizationOpen] =
+  createSignal(false);
 
 // Top level of the chain: a tour replay requested from the catalogue modal,
 // armed AFTER the entry's navigate() has switched tab and requested any

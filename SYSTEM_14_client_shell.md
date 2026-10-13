@@ -33,33 +33,58 @@ and the first-visit page tours (`client/src/onboarding/`: the `@njwse/roadtrip`
 tour manager, Clerk-backed seen-flags under `unsafeMetadata.onboarding`). ONE
 manager serves the whole app (`setupTours`, mounted from the instance shell with
 its permission-normalized tab accessor and an approved gate): the Products page
-and the instance tabs are pages keyed on the shell's tab signal, and the deck,
-slide and report editor tours are pages keyed on the copilot's view controller
-(`editing_slide_deck`, `editing_slide` by the open slide's type,
-`editing_report`), because the editors are overlays that leave the tab on
-Products. The Products page predicate excludes the editing views, so a list tour
-never fires behind an editor. Deferred parts (a card on screen, a slide in the
-deck, a figure in the report) use entry-level `when` gates plus `watch` triggers
+and the instance tabs (Explore included) are pages keyed on the shell's tab
+signal, and the deck and report editor tours are pages keyed on the copilot's
+view controller (`editing_slide_deck` or `editing_slide`, and `editing_report`),
+because the editors are overlays that leave the tab on Products. The Products
+page predicate excludes the editing views, so a list tour never fires behind an
+editor. The manager is on ONE page at a time, the first predicate that holds in
+the order `pages` lists them, and only that page's tours are considered; a tour
+whose page can never be the first to hold never auto-starts. So the three
+slide-type tours are entries on the deck editor's page, not pages of their own
+(a slide is open beside the deck's rail whenever the deck has one): each is
+gated by an entry-level `when` on the open slide's type and on
+`deck-editor-slides` having been seen, which keeps a first visit to the deck's
+own tours and starts the slide's tour on a later slide. The visualization editor
+is a page too, listed ahead of the product editors: it opens over a slide or a
+report without changing the copilot's view, so its predicate reads
+`openVisualizationEditors` (`t4_ui.ts`), a count `VisualizationEditorInner`
+(S11) keeps while it is open for editing (a read-only view is not counted).
+Deferred parts (a card on screen, a slide in the deck, a figure in the report, a
+ready package for Explore) use entry-level `when` gates plus `watch` triggers
 over the T1 list lengths, the explorer's location, filter and view signals, and
-the open view's slide or figure count. A tour may walk across a page boundary:
-the results-package catalogue tour's first step completes on the user's click of
-a list row (`advanceOn`), which opens the package page over the shell, and its
-second step waits for a target on that page (S8). The same directory hosts the
-tour catalogue modal (`tour_catalogue_modal.tsx` + `catalogue.ts`, opened from
-the Help menu, always offered), which lists every tour by area (Products, Slide
-decks, Reports, Instance) with availability computed over T1 only
-(`instanceState.products`, `readyPackages`, the permissions; the three
-slide-type rows first run a cache-first search of the decks' slide documents,
-`findDeckWithSlideOfType`) and a reason when unavailable. Play calls the entry's
-`navigate(openTab)`: a tab switch, plus for the editor tours a
-`pendingEditorOpen` request (`{ productId }` in `t4_ui.ts`, persisting until the
-Products page mounts and consumes it) and, for the slide tours, a
-`pendingSlideOpen` the deck editor consumes to open the first slide of that
-type; once navigate resolves (the slide tours search first, and a search that
-finds nothing arms no replay) it arms `pendingTourReplay` with the tour id and
-the product the tour's page lives in. The order matters: the manager's replay
-effect runs synchronously on that write, starts the tour once its page predicate
-is true, drops a tab-page replay whose page is not active (the switch was
+the open view's slide or figure count. A step whose target some users, formats
+or states never render is excluded by a step-level `when` (a DOM probe is safe
+there: the page is mounted by the time a tour starts), and a target that may be
+absent or late is given `onTargetTimeout: "skip"`: roadtrip's default is to
+abort, which in a merged run drops every tour behind the missing step. The
+report tour is the case in point: a FASTR report being edited has a menu row and
+a formatting bar and no header Download button, the older formats the reverse,
+and a reader neither. The wording rules every step follows (control names as the
+screen labels them, no internal vocabulary) are the header comment of
+`tours.ts`. A tour may walk across a page boundary: the results-package
+catalogue tour's first step completes on the user's click of a list row
+(`advanceOn`), which opens the package page over the shell, and its second step
+waits for a target on that page (S8). The same directory hosts the tour
+catalogue modal (`tour_catalogue_modal.tsx` + `catalogue.ts`, opened from the
+Help menu, always offered), which lists every tour by area (Products, Slide
+decks, Reports, Visualizations, and the remaining tabs under "The platform")
+with availability computed over T1 only (`instanceState.products`,
+`readyPackages`, the permissions; the three slide-type rows first run a
+cache-first search of the decks' slide documents, `findDeckWithSlideOfType`) and
+a reason when unavailable. Play calls the entry's `navigate(openTab)`: a tab
+switch, plus for the editor tours a `pendingEditorOpen` request (`{ productId }`
+in `t4_ui.ts`, persisting until the Products page mounts and consumes it) and,
+for the slide tours, a `pendingSlideOpen` the deck editor consumes to open the
+first slide of that type, and for the visualization editor tour a
+`pendingVisualizationOpen` the report editor consumes to open its first
+visualization; once navigate resolves (the slide tours search first, and a
+search that finds nothing arms no replay) it arms `pendingTourReplay` with the
+tour id and the product the tour's page lives in. The order matters: the
+manager's replay effect runs synchronously on that write, starts the tour once
+its page predicate is true (a slide tour, which shares the deck editor's page,
+waits instead for a slide of its own type to be open: `replayReady` in
+`index.ts`), drops a tab-page replay whose page is not active (the switch was
 synchronous, so the tab is denied), and drops a product replay only once T1 is
 ready and no longer holds the product (a dead id, the Products page's own rule
 for the open request). It reads nothing transient, so the Products page clearing
@@ -254,14 +279,16 @@ than throwing. Plus the scheme preference (`scheme`, tri-state on panther's
 data-scheme contract, applied at module scope before first paint; a stored
 `darkMode` boolean is mapped on read when no `scheme` key is stored). In-memory
 only (deliberately not persisted): `fitWithin`, `showAi`, `headerOrContent`,
-`policyHeaderOrContent`, the three request signals the tours and the deep link
-use (`pendingEditorOpen`, `pendingSlideOpen`, `pendingTourReplay`), and the
-shell's full-page wrapper (`openShellEditor`, `ShellEditorWrapper`: a
-module-level `getEditorWrapper()` so the frame pages that open views share the
-instance the shell renders, recreated on each shell mount so a same-tab user
-switch without a reload cannot resurface the previous user's open view). The
-rule these encode: **display-only preferences stay in T4: they never enter fetch
-configs or cache hashes** (the roll-up sentinel lesson, SYSTEM_09).
+`policyHeaderOrContent`, the four request signals the tours and the deep link
+use (`pendingEditorOpen`, `pendingSlideOpen`, `pendingVisualizationOpen`,
+`pendingTourReplay`), the `openVisualizationEditors` count the visualization
+editor tour's page reads, and the shell's full-page wrapper (`openShellEditor`,
+`ShellEditorWrapper`: a module-level `getEditorWrapper()` so the frame pages
+that open views share the instance the shell renders, recreated on each shell
+mount so a same-tab user switch without a reload cannot resurface the previous
+user's open view). The rule these encode: **display-only preferences stay in T4:
+they never enter fetch configs or cache hashes** (the roll-up sentinel lesson,
+SYSTEM_09).
 
 ## Theme prototype (`state/t4_theme.ts`, `components/instance/theme_modal.tsx`)
 

@@ -454,6 +454,7 @@ export function InstanceData(p: Props) {
         />
         <Show when={canConfigureSettings()}>
           <DataSection
+            data-tour="instance-data-settings"
             heading={t3({
               en: "Instance settings",
               fr: "Paramètres de l'instance",

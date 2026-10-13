@@ -267,11 +267,9 @@ function AssetTable(p: {
       toolbar={{
         search: true,
         children: (
-          <div data-tour="instance-assets-header">
-            <Button id="select-file-button" iconName="upload">
-              {t3({ en: "Upload", fr: "Téléverser", pt: "Carregar" })}
-            </Button>
-          </div>
+          <Button id="select-file-button" iconName="upload">
+            {t3({ en: "Upload", fr: "Téléverser", pt: "Carregar" })}
+          </Button>
         ),
       }}
     />

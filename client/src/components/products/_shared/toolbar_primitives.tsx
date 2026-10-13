@@ -22,11 +22,13 @@ export function HeaderRows(p: { children: JSX.Element }) {
 // open document's toolbar portals its menus into (the ref is the portal host).
 export function MenuRow(p: {
   ref: (el: HTMLDivElement) => void;
+  tour?: string;
   children?: JSX.Element;
 }) {
   return (
     <div
       ref={p.ref}
+      data-tour={p.tour}
       // The left pad is the row's less a menu button's own, so the first
       // label ("File") starts on the header's padding edge, under the back
       // button.

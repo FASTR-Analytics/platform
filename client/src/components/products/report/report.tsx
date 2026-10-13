@@ -108,7 +108,9 @@ import { canEditProduct } from "~/state/instance/product_access";
 import { getRunAuthoringContextFromCacheOrFetch } from "~/state/instance/t2_run_authoring_context";
 import { getReportDetailFromCacheOrFetch } from "~/state/products/t2_report_detail";
 import {
+  pendingVisualizationOpen,
   reportOutlineClosed,
+  setPendingVisualizationOpen,
   setReportOutlineClosed,
   setShowAi,
   showAi,
@@ -2000,6 +2002,24 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     }
   }
 
+  // Tour catalogue replay: once the report and its package's contents have
+  // loaded, open the report's first visualization in the editor. Cleared
+  // before opening; a report with no visualization changes nothing, and the
+  // waiting tour starts the next time the user opens one themselves.
+  createEffect(() => {
+    const wanted = pendingVisualizationOpen();
+    const loading = isLoading();
+    const contextReady = staleContext() !== undefined;
+    const registry = figures();
+    const mayEdit = canConfigure();
+    if (!wanted || loading || !contextReady) return;
+    const figureId = Object.keys(registry).find((id) => registry[id]?.bundle);
+    setPendingVisualizationOpen(false);
+    if (figureId === undefined || !mayEdit) return;
+    setSelectedEmbed({ kind: "figure", id: figureId });
+    void handleEdit();
+  });
+
   async function handleChangeImageFile(id: string, imgFile: string) {
     const ib = images()[id];
     if (!ib) return;
@@ -2429,6 +2449,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
       <PackageScopeChip
         product={product()}
         onClick={canConfigure() ? () => void openPackageScope() : undefined}
+        tour="report-package-scope"
       />
       {
         /* FASTR Markdown carries no CSS in its body, so re-theming is
@@ -2548,6 +2569,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
       <Show when={fileMenuShown()}>
         <HeaderRows>
           <MenuRow
+            tour="report-menu-row"
             ref={(el) => {
               setMenuRowHost(el);
               onCleanup(() => setMenuRowHost(undefined));

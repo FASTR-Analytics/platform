@@ -3,7 +3,11 @@ import type { IconName } from "panther";
 import type { ProductSummary, SlideType } from "lib";
 import { instanceState } from "~/state/instance/t1_store";
 import { copilotViewController } from "~/components/products/copilot/mod.ts";
-import { setPendingEditorOpen, setPendingSlideOpen } from "~/state/t4_ui";
+import {
+  setPendingEditorOpen,
+  setPendingSlideOpen,
+  setPendingVisualizationOpen,
+} from "~/state/t4_ui";
 import { getSlideDeckDetailFromCacheOrFetch } from "~/state/products/t2_slide_deck_detail";
 import { getSlideFromCacheOrFetch } from "~/state/products/t2_slides";
 
@@ -19,8 +23,14 @@ export type InstanceTab =
   | "users";
 
 // Sidebar categories, in tab order with the editors after the page they open
-// from. Each is one `area` value below.
-export type TourArea = "products" | "decks" | "reports" | "instance";
+// from. Each is one `area` value below. "instance" is every other tab plus
+// the shell; on screen it is headed "The platform".
+export type TourArea =
+  | "products"
+  | "decks"
+  | "reports"
+  | "visualizations"
+  | "instance";
 
 export type TourCatalogueEntry = {
   /** Must match the TourDefinition id exactly. */
@@ -181,6 +191,14 @@ const openFirstDeck = (openTab: (tab: InstanceTab) => void) =>
   openProduct(openTab, decks()[0]);
 const openFirstReport = (openTab: (tab: InstanceTab) => void) =>
   openProduct(openTab, reports()[0]);
+// The visualization editor tour: the report editor opens its first
+// visualization once it has loaded (`pendingVisualizationOpen`).
+const openFirstReportVisualization = (
+  openTab: (tab: InstanceTab) => void,
+): Promise<TourReplayTarget | null> => {
+  if (reports()[0] !== undefined) setPendingVisualizationOpen(true);
+  return openFirstReport(openTab);
+};
 const openFirstDeckSlide = async (
   openTab: (tab: InstanceTab) => void,
   type: SlideType,
@@ -224,8 +242,21 @@ export function getTourAreas(): {
       iconName: "report",
     },
     {
+      area: "visualizations",
+      heading: t3({
+        en: "Visualizations",
+        fr: "Visualisations",
+        pt: "Visualizações",
+      }),
+      iconName: "chart",
+    },
+    {
       area: "instance",
-      heading: t3({ en: "Instance", fr: "Instance", pt: "Instância" }),
+      heading: t3({
+        en: "The platform",
+        fr: "La plateforme",
+        pt: "A plataforma",
+      }),
       iconName: "layoutGrid",
     },
   ];
@@ -249,10 +280,10 @@ export function getTourCatalogue(
         pt: "Visão geral dos produtos",
       }),
       description: t3({
-        en:
-          "The Products page: searching, filtering by type, sorting and folders.",
-        fr: "La page Produits : recherche, filtre par type, tri et dossiers.",
-        pt: "A página Produtos: pesquisa, filtro por tipo, ordenação e pastas.",
+        en: "The Products page: searching, folders, and what the columns show.",
+        fr:
+          "La page Produits : recherche, dossiers et ce que montrent les colonnes.",
+        pt: "A página Produtos: pesquisa, pastas e o que as colunas mostram.",
       }),
       available: () => true,
       navigate: openTabOnly("products"),
@@ -266,10 +297,12 @@ export function getTourCatalogue(
         pt: "Criar apresentações, relatórios e pastas",
       }),
       description: t3({
-        en: "Starting a new product, and organising products into folders.",
+        en:
+          "Starting a new deck or report with its results package and scope, and keeping products in folders.",
         fr:
-          "Démarrer un nouveau produit et organiser les produits en dossiers.",
-        pt: "Começar um novo produto e organizar os produtos em pastas.",
+          "Démarrer une présentation ou un rapport avec son paquet de résultats et sa portée, et ranger les produits dans des dossiers.",
+        pt:
+          "Começar uma apresentação ou um relatório com o seu pacote de resultados e âmbito, e guardar os produtos em pastas.",
       }),
       available: () => instanceState.currentUserApproved,
       unavailableReason: reasonNeedApproval,
@@ -284,11 +317,12 @@ export function getTourCatalogue(
         pt: "Abrir e gerir produtos",
       }),
       description: t3({
-        en: "What a product row shows, and the actions behind a right-click.",
+        en:
+          "Opening a product, and moving, renaming, duplicating or deleting it.",
         fr:
-          "Ce que montre une ligne de produit et les actions accessibles par clic droit.",
+          "Ouvrir un produit, et le déplacer, le renommer, le dupliquer ou le supprimer.",
         pt:
-          "O que mostra uma linha de produto e as ações acessíveis com o botão direito.",
+          "Abrir um produto, e movê-lo, mudar-lhe o nome, duplicá-lo ou eliminá-lo.",
       }),
       available: () => hasProducts(),
       unavailableReason: reasonNeedProduct,
@@ -299,16 +333,17 @@ export function getTourCatalogue(
       id: "deck-editor-intro",
       area: "decks",
       label: t3({
-        en: "Slide deck editor",
-        fr: "Éditeur de présentation",
-        pt: "Editor de apresentações",
+        en: "Inside a slide deck",
+        fr: "Dans une présentation",
+        pt: "Dentro de uma apresentação",
       }),
       description: t3({
-        en: "A walkthrough of the deck editor. Opens your first slide deck.",
+        en:
+          "The menus and buttons of a slide deck, and where its numbers come from. Opens your first slide deck.",
         fr:
-          "Visite de l'éditeur de présentation. Ouvre votre première présentation.",
+          "Les menus et les boutons d'une présentation, et d'où viennent ses chiffres. Ouvre votre première présentation.",
         pt:
-          "Visita ao editor de apresentações. Abre a sua primeira apresentação.",
+          "Os menus e os botões de uma apresentação, e de onde vêm os seus números. Abre a sua primeira apresentação.",
       }),
       available: () => decks().length > 0,
       unavailableReason: reasonNeedDeck,
@@ -323,11 +358,12 @@ export function getTourCatalogue(
         pt: "Trabalhar com diapositivos",
       }),
       description: t3({
-        en: "Slide cards inside a deck. Opens your first slide deck.",
+        en:
+          "The list of slides: opening, reordering, selecting, duplicating and deleting. Opens your first slide deck.",
         fr:
-          "Les cartes de diapositives dans une présentation. Ouvre votre première présentation.",
+          "La liste des diapositives : ouvrir, réordonner, sélectionner, dupliquer et supprimer. Ouvre votre première présentation.",
         pt:
-          "Os cartões de diapositivos numa apresentação. Abre a sua primeira apresentação.",
+          "A lista de diapositivos: abrir, reordenar, selecionar, duplicar e eliminar. Abre a sua primeira apresentação.",
       }),
       available: () => decks().length > 0 && firstDeckHasSlides(),
       unavailableReason: () =>
@@ -343,9 +379,12 @@ export function getTourCatalogue(
         pt: "Apresentar uma apresentação",
       }),
       description: t3({
-        en: "Starting a presentation. Opens your first slide deck.",
-        fr: "Lancer une présentation. Ouvre votre première présentation.",
-        pt: "Iniciar uma apresentação. Abre a sua primeira apresentação.",
+        en:
+          "Showing the deck full screen and moving between slides. Opens your first slide deck.",
+        fr:
+          "Afficher la présentation en plein écran et passer d'une diapositive à l'autre. Ouvre votre première présentation.",
+        pt:
+          "Mostrar a apresentação em ecrã inteiro e passar de um diapositivo para outro. Abre a sua primeira apresentação.",
       }),
       available: () => decks().length > 0 && firstDeckHasSlides(),
       unavailableReason: () =>
@@ -396,9 +435,9 @@ export function getTourCatalogue(
       id: "slide-cover-intro",
       area: "decks",
       label: t3({
-        en: "Cover slide editor",
-        fr: "Éditeur de diapositive de couverture",
-        pt: "Editor de diapositivo de capa",
+        en: "Cover slides",
+        fr: "Diapositives de couverture",
+        pt: "Diapositivos de capa",
       }),
       description: t3({
         en:
@@ -419,9 +458,9 @@ export function getTourCatalogue(
       id: "slide-section-intro",
       area: "decks",
       label: t3({
-        en: "Section slide editor",
-        fr: "Éditeur de diapositive de section",
-        pt: "Editor de diapositivo de secção",
+        en: "Section slides",
+        fr: "Diapositives de section",
+        pt: "Diapositivos de secção",
       }),
       description: t3({
         en:
@@ -442,9 +481,9 @@ export function getTourCatalogue(
       id: "slide-content-intro",
       area: "decks",
       label: t3({
-        en: "Content slide editor",
-        fr: "Éditeur de diapositive de contenu",
-        pt: "Editor de diapositivo de conteúdo",
+        en: "Content slides",
+        fr: "Diapositives de contenu",
+        pt: "Diapositivos de conteúdo",
       }),
       description: t3({
         en:
@@ -466,14 +505,17 @@ export function getTourCatalogue(
       id: "report-editor-intro",
       area: "reports",
       label: t3({
-        en: "Report editor",
-        fr: "Éditeur de rapport",
-        pt: "Editor de relatórios",
+        en: "Inside a report",
+        fr: "Dans un rapport",
+        pt: "Dentro de um relatório",
       }),
       description: t3({
-        en: "A walkthrough of the report editor. Opens your first report.",
-        fr: "Visite de l'éditeur de rapport. Ouvre votre premier rapport.",
-        pt: "Visita ao editor de relatórios. Abre o seu primeiro relatório.",
+        en:
+          "Writing a report: the menus, formatting, the list of headings, and where its numbers come from. Opens your first report.",
+        fr:
+          "Rédiger un rapport : les menus, la mise en forme, la liste des titres, et d'où viennent ses chiffres. Ouvre votre premier rapport.",
+        pt:
+          "Escrever um relatório: os menus, a formatação, a lista de títulos, e de onde vêm os seus números. Abre o seu primeiro relatório.",
       }),
       available: () => reports().length > 0,
       unavailableReason: reasonNeedReport,
@@ -488,11 +530,12 @@ export function getTourCatalogue(
         pt: "Visualizações nos relatórios",
       }),
       description: t3({
-        en: "Working with embedded visualizations. Opens your first report.",
+        en:
+          "Selecting a visualization in a report to edit, replace, resize or delete it. Opens your first report.",
         fr:
-          "Travailler avec des visualisations intégrées. Ouvre votre premier rapport.",
+          "Sélectionner une visualisation dans un rapport pour la modifier, la remplacer, la redimensionner ou la supprimer. Ouvre votre premier rapport.",
         pt:
-          "Trabalhar com visualizações incorporadas. Abre o seu primeiro relatório.",
+          "Selecionar uma visualização num relatório para a editar, substituir, redimensionar ou eliminar. Abre o seu primeiro relatório.",
       }),
       available: () => reports().length > 0 && firstReportHasEmbeds(),
       unavailableReason: () =>
@@ -518,7 +561,29 @@ export function getTourCatalogue(
       unavailableReason: reasonNeedReport,
       navigate: openFirstReport,
     },
-    // ── Instance ─────────────────────────────────────────────────────────
+    // ── Visualizations ───────────────────────────────────────────────────
+    {
+      id: "viz-editor-intro",
+      area: "visualizations",
+      label: t3({
+        en: "Editing a visualization",
+        fr: "Modifier une visualisation",
+        pt: "Editar uma visualização",
+      }),
+      description: t3({
+        en:
+          "Choosing what a visualization shows, how it looks and its text. Opens the first visualization in your first report.",
+        fr:
+          "Choisir ce qu'une visualisation montre, son apparence et son texte. Ouvre la première visualisation de votre premier rapport.",
+        pt:
+          "Escolher o que uma visualização mostra, o seu aspeto e o seu texto. Abre a primeira visualização do seu primeiro relatório.",
+      }),
+      available: () => reports().length > 0 && firstReportHasEmbeds(),
+      unavailableReason: () =>
+        reports().length === 0 ? reasonNeedReport() : reasonNeedReportFigure(),
+      navigate: openFirstReportVisualization,
+    },
+    // ── The platform ─────────────────────────────────────────────────────
     {
       id: "instance-welcome",
       area: "instance",
@@ -529,48 +594,51 @@ export function getTourCatalogue(
       }),
       description: t3({
         en:
-          "The instance itself: navigation, language, release notes and where to find help.",
+          "Finding your way around: the tabs, the language, what's new and where to get help.",
         fr:
-          "L'instance elle-même : navigation, langue, nouveautés et où trouver de l'aide.",
+          "Se repérer : les onglets, la langue, les nouveautés et où trouver de l'aide.",
         pt:
-          "A própria instância: navegação, idioma, novidades e onde encontrar ajuda.",
+          "Orientar-se: os separadores, o idioma, as novidades e onde obter ajuda.",
       }),
       available: () => true,
       navigate: openTabOnly("products"),
     },
     {
-      id: "instance-data-intro",
+      id: "explore-intro",
       area: "instance",
-      label: t3({
-        en: "Instance data overview",
-        fr: "Aperçu des données de l'instance",
-        pt: "Visão geral dos dados da instância",
-      }),
+      label: t3({ en: "Explore", fr: "Explorer", pt: "Explorar" }),
       description: t3({
-        en: "Where data is uploaded once for the whole instance.",
+        en:
+          "Looking through the results directly: choosing a package, a scope and what to see.",
         fr:
-          "Où les données sont importées une seule fois pour toute l'instance.",
-        pt: "Onde os dados são carregados uma única vez para toda a instância.",
+          "Parcourir directement les résultats : choisir un paquet, une portée et ce qu'il faut afficher.",
+        pt:
+          "Percorrer diretamente os resultados: escolher um pacote, um âmbito e o que ver.",
       }),
-      available: () =>
-        admin() || perms().can_view_data || perms().can_configure_data,
-      unavailableReason: reasonNoPageAccess,
-      navigate: openTabOnly("data"),
+      // Mirrors the instance shell's own gate for this tab, plus what the
+      // page needs before it shows anything.
+      available: () => instanceState.currentUserScopeAccess.all && hasPackage(),
+      unavailableReason: () =>
+        instanceState.currentUserScopeAccess.all
+          ? reasonNeedPackage()
+          : reasonNoPageAccess(),
+      navigate: openTabOnly("explore"),
     },
     {
       id: "instance-results-packages-intro",
       area: "instance",
       label: t3({
-        en: "Results packages overview",
-        fr: "Aperçu des paquets de résultats",
-        pt: "Visão geral dos pacotes de resultados",
+        en: "Results packages",
+        fr: "Paquets de résultats",
+        pt: "Pacotes de resultados",
       }),
       description: t3({
         en:
-          "Generating a package for the instance, and the catalogue of the ones it holds.",
+          "What a results package is, generating one, module defaults and scopes.",
         fr:
-          "Générer un paquet pour l'instance et le catalogue de ceux qu'elle détient.",
-        pt: "Gerar um pacote para a instância e o catálogo dos que ela detém.",
+          "Ce qu'est un paquet de résultats, en générer un, les paramètres par défaut des modules et les portées.",
+        pt:
+          "O que é um pacote de resultados, gerar um, as predefinições dos módulos e os âmbitos.",
       }),
       // Mirrors the instance shell's own gate for this tab.
       available: () => admin() || perms().can_configure_data,
@@ -581,17 +649,17 @@ export function getTourCatalogue(
       id: "instance-results-packages-catalogue",
       area: "instance",
       label: t3({
-        en: "The package catalogue",
-        fr: "Le catalogue des paquets",
-        pt: "O catálogo de pacotes",
+        en: "Inside a results package",
+        fr: "Dans un paquet de résultats",
+        pt: "Dentro de um pacote de resultados",
       }),
       description: t3({
         en:
-          "Opening a package from the list, reading its status bar, and when one can be deleted.",
+          "Opening a package from the list, what its page shows, and pinning or deleting it.",
         fr:
-          "Ouvrir un paquet depuis la liste, lire sa barre d'état, et quand il peut être supprimé.",
+          "Ouvrir un paquet depuis la liste, ce que montre sa page, et l'épingler ou le supprimer.",
         pt:
-          "Abrir um pacote a partir da lista, ler a sua barra de estado, e quando pode ser eliminado.",
+          "Abrir um pacote a partir da lista, o que a sua página mostra, e fixá-lo ou eliminá-lo.",
       }),
       available: () => (admin() || perms().can_configure_data) && hasPackage(),
       unavailableReason: () =>
@@ -601,17 +669,41 @@ export function getTourCatalogue(
       navigate: openTabOnly("results_packages"),
     },
     {
+      id: "instance-data-intro",
+      area: "instance",
+      label: t3({
+        en: "Data",
+        fr: "Données",
+        pt: "Dados",
+      }),
+      description: t3({
+        en:
+          "Where data is uploaded: routine facility data, facility assessments and equity data.",
+        fr:
+          "Où les données sont importées : données de routine, enquêtes auprès des établissements et données d'équité.",
+        pt:
+          "Onde os dados são carregados: dados de rotina, avaliações de unidades de saúde e dados de equidade.",
+      }),
+      available: () =>
+        admin() || perms().can_view_data || perms().can_configure_data,
+      unavailableReason: reasonNoPageAccess,
+      navigate: openTabOnly("data"),
+    },
+    {
       id: "instance-assets-intro",
       area: "instance",
       label: t3({
-        en: "Assets overview",
-        fr: "Aperçu des ressources",
-        pt: "Visão geral dos recursos",
+        en: "Assets",
+        fr: "Ressources",
+        pt: "Recursos",
       }),
       description: t3({
-        en: "Shared files available to every product.",
-        fr: "Les fichiers partagés disponibles pour tous les produits.",
-        pt: "Ficheiros partilhados disponíveis para todos os produtos.",
+        en:
+          "Shared logos, images and files that any slide deck or report can use.",
+        fr:
+          "Logos, images et fichiers partagés, utilisables dans n'importe quelle présentation ou n'importe quel rapport.",
+        pt:
+          "Logótipos, imagens e ficheiros partilhados que qualquer apresentação ou relatório pode usar.",
       }),
       available: () => true,
       unavailableReason: reasonNoPageAccess,
@@ -621,9 +713,9 @@ export function getTourCatalogue(
       id: "instance-users-intro",
       area: "instance",
       label: t3({
-        en: "Users overview",
-        fr: "Aperçu des utilisateurs",
-        pt: "Visão geral dos utilizadores",
+        en: "Users",
+        fr: "Utilisateurs",
+        pt: "Utilizadores",
       }),
       description: t3({
         en: "Managing who has access and what they can do.",

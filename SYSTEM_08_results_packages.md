@@ -383,11 +383,14 @@ run, and the only surface that renders a package at all (a product points only
 at a ready run and never explores it, C2 ruling): every status is the same
 heading and status bar over a body by status. The catalogue onboarding tour
 (`onboarding/tours.ts`, `instance-results-packages-catalogue`) walks from the
-list into a package: its first step spotlights a row's View button
-(`data-tour="instance-results-packages-view"`) and completes on the click that
-opens the page, its second waits for the status bar's usage row (`-usage`); it
-auto-starts only while a row is rendered, not merely in the DOM, since an open
-page hides the list under the shell wrapper.
+list into a package: its first step spotlights the table
+(`data-tour="instance-results-packages-table"`, set only while there are rows)
+and completes on the click that opens the page, its second waits for the status
+bar's usage row (`-usage`) and its third names pin and delete on the heading
+bar's housekeeping group (`-actions`); it auto-starts only while the table is
+rendered, not merely in the DOM, since an open page hides the list under the
+shell wrapper. The intro tour's last step is the Scopes button (`-scopes`), for
+global admins.
 
 **Bulk delete** (`results_packages/results_packages.tsx`, the listing's row
 checkboxes and their one bulk action) is the bulk form of the guarded delete:
