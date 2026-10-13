@@ -272,20 +272,19 @@ direction) from `lib/types/sort.ts`, one vocabulary for every list). The
 open-folder set and the sort are parsed defensively (malformed JSON reads as the
 default); the rest are unvalidated on read: they only feed comparisons, and a
 value from a build that spelled one differently degrades to "no match" rather
-than throwing. Plus the copilot debug switch `showSentContext`
-(`copilotShowSentContext`, off by default; S13). Plus the scheme preference
-(`scheme`, tri-state on panther's data-scheme contract, applied at module scope
-before first paint; a stored `darkMode` boolean is mapped on read when no
-`scheme` key is stored). In-memory only (deliberately not persisted):
-`fitWithin`, `showAi` (the AI panel's one open state, S13), `headerOrContent`,
-`policyHeaderOrContent`, the three request signals the tours and the deep link
-use (`pendingEditorOpen`, `pendingSlideOpen`, `pendingTourReplay`), and the
-shell's full-page wrapper (`openShellEditor`, `ShellEditorWrapper`: a
-module-level `getEditorWrapper()` so the frame pages that open views share the
-instance the shell renders, recreated on each shell mount so a same-tab user
-switch without a reload cannot resurface the previous user's open view). The
-rule these encode: **display-only preferences stay in T4: they never enter fetch
-configs or cache hashes** (the roll-up sentinel lesson, SYSTEM_09).
+than throwing. Plus the scheme preference (`scheme`, tri-state on panther's
+data-scheme contract, applied at module scope before first paint; a stored
+`darkMode` boolean is mapped on read when no `scheme` key is stored). In-memory
+only (deliberately not persisted): `fitWithin`, `showAi` (the AI panel's one
+open state, S13), `headerOrContent`, `policyHeaderOrContent`, the three request
+signals the tours and the deep link use (`pendingEditorOpen`,
+`pendingSlideOpen`, `pendingTourReplay`), and the shell's full-page wrapper
+(`openShellEditor`, `ShellEditorWrapper`: a module-level `getEditorWrapper()` so
+the frame pages that open views share the instance the shell renders, recreated
+on each shell mount so a same-tab user switch without a reload cannot resurface
+the previous user's open view). The rule these encode: **display-only
+preferences stay in T4: they never enter fetch configs or cache hashes** (the
+roll-up sentinel lesson, SYSTEM_09).
 
 ## Theme prototype (`state/t4_theme.ts`, `components/instance/theme_modal.tsx`)
 

@@ -23,17 +23,6 @@ export function setNavCollapsed(collapsed: boolean) {
   setNavCollapsedInternal(collapsed);
 }
 
-// Debug: a user message in the copilot chat shows the exact text sent to the
-// model, its context block included. Read as each message is created.
-const [showSentContext, setShowSentContextInternal] = createSignal<boolean>(
-  localStorage.getItem("copilotShowSentContext") === "true",
-);
-export { showSentContext };
-export function setShowSentContext(show: boolean) {
-  localStorage.setItem("copilotShowSentContext", String(show));
-  setShowSentContextInternal(show);
-}
-
 // The shell's one full-page wrapper. `ShellEditorWrapper` wraps the whole
 // frame (header, rail and tab page), so a view opened through
 // `openShellEditor` covers all of it and its Back is the only way out; the
