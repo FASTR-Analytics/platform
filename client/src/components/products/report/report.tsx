@@ -2,8 +2,8 @@ import {
   buildFastrReportCss,
   canonicalJson,
   COLLAB_NO_EDIT_PERMISSION,
-  FASTR_THEME_TOKENS,
   fastrChartPalette,
+  fastrThemeTokens,
   type FigureBlock,
   type FigureBundle,
   findReportBodyText,
@@ -41,6 +41,7 @@ import {
   type SkippedRange,
   ToolbarPillButton,
 } from "report-forge";
+import { REPORT_EDIT_UNCHANGED_MESSAGE } from "report-forge/ai";
 import {
   AIToolFailure,
   Button,
@@ -223,7 +224,7 @@ export function ReportEditor(p: Props) {
     buildFastrReportCss(fastrTheme(), fastrColors())
   );
   const inkTheme = createMemo(() => {
-    const tok = FASTR_THEME_TOKENS[fastrTheme()];
+    const tok = fastrThemeTokens(fastrTheme());
     return figureLightInkForColors(
       fastrColors() ?? { page: tok.page, ink: tok.ink, accent: tok.accent },
     );
@@ -634,8 +635,7 @@ export function ReportEditor(p: Props) {
           const baseBody = body();
           if (proposal.newBody === baseBody) {
             return {
-              skip:
-                "The proposed body is IDENTICAL to the current body — nothing to review, so no accept/reject dialog was shown. Re-read with get_report_editor and propose an actual change.",
+              skip: REPORT_EDIT_UNCHANGED_MESSAGE,
             };
           }
           return {

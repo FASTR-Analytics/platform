@@ -139,6 +139,60 @@ the transport and the awareness. The editor binds to the text, draws other
 people's carets, keeps undo per user, and clears a caret when its owner leaves
 the editor.
 
+## AI tools
+
+`report-forge/ai` gives an assistant the tools to edit the open document's text:
+read it (the body, a headings index, the selection), rewrite it whole, rewrite
+one section, replace a piece of text, and describe its printed pages. Each tool
+is a name, a description, a plain JSON Schema and a `run` function that resolves
+to the text the model reads, so it registers with any tool-calling model client.
+No edit is applied silently: a tool checks the new body (every block closed,
+every embed id one that exists), shows the user the editor's accept/reject diff,
+and tells the model what they decided.
+
+```ts
+import { createReportTextTools } from "report-forge/ai";
+import { FASTR_MD_SYNTAX_DOC } from "report-forge/engine";
+
+// `forge` is the editor's handle: <ReportForge ref={(api) => (forge = api)} />
+const tools = createReportTextTools({
+  getBody: () => body(),
+  getSelection: () => forge.getSelection(),
+  proposeEdit: (proposal) => forge.proposeEdit(proposal),
+  imageIds: () => Object.keys(images()),
+});
+const reply = await anthropic.messages.create({
+  model: "claude-opus-5-5",
+  max_tokens: 16000,
+  system: `You edit the report the user has open.\n\n${FASTR_MD_SYNTAX_DOC}`,
+  messages,
+  tools: tools.map((t) => ({
+    name: t.name,
+    description: t.description,
+    input_schema: t.inputSchema,
+  })),
+});
+// Answer each tool_use block in the reply with a tool_result whose content is
+// `await tools.find((t) => t.name === block.name).run(block.input)`.
+```
+
+`FASTR_MD_SYNTAX_DOC` is the brief that teaches a model the format: put it in
+the system prompt. The chat UI, the prompts and the model client stay yours. The
+entry is its own import, resolved by the Vite plugin; for TypeScript add
+`"report-forge/ai": ["./report-forge/ai/mod.ts"]` to `paths`.
+
+The host object is small. `figureIds` and `imageIds` list what the body may
+embed; a body that names any other id is refused. `describePages(body)` is
+optional and adds the pages tool: lay the body out with `createReportPaginator`
+and return `fastrPageMapText(result, body)`. The brief tells the model to check
+its pages with that tool, so supply it when you can.
+
+A host with its own tool layer skips the ready-made tools and calls the
+operations under them, which are pure functions: `readReportText`,
+`rewriteReportBody`, `rewriteReportSection` and `replaceReportText` take the
+current body and the model's arguments, and return the new body with a summary,
+or the message the model should read.
+
 ## Theming the chrome
 
 The toolbar, menus and dialogs read their colours, radius and font from CSS
@@ -167,6 +221,60 @@ variables. Set them on `:root`:
 The document itself (the page, its headings, its blocks) is not styled by these.
 It takes its look from the document's theme.
 
+## Themes and templates
+
+Ten themes and three templates are built in. Both are registries, so you can add
+your own. Register at module load, before the editor mounts and before you
+validate a stored `settings.theme`: the pickers read the lists once.
+
+A theme is four colours, its type, and any extra rules. Everything else the
+stylesheet needs is mixed from the four, so the quickest theme starts from a
+built-in and changes what differs.
+
+```ts
+import { fastrThemeTokens, registerFastrTheme } from "report-forge";
+
+registerFastrTheme("house", {
+  label: { en: "House", fr: "Maison" },
+  caption: { en: "Our own colours", fr: "Nos couleurs" },
+  tokens: {
+    ...fastrThemeTokens("corporate"),
+    palette: {
+      paper: "#fdfdfd",
+      ink: "#202020",
+      accent: "#35618f",
+      warm: "#8a5a4a",
+    },
+    fontHeading: "Georgia, serif",
+  },
+});
+```
+
+The tokens are documented on the `FastrThemeTokens` type in
+[engine/report_fastr_themes.ts](engine/report_fastr_themes.ts). You write its
+`FastrThemeSpec` half (scheme, palette, fonts, radius, heading cuts, extra CSS);
+its `FastrDerivedColors` half is always mixed from your palette.
+
+A template is a starting body and, optionally, a brief for a language model
+writing into it.
+
+```ts
+import { registerFastrTemplate } from "report-forge";
+
+registerFastrTemplate("memo", {
+  label: { en: "Memo", fr: "Note" },
+  caption: { en: "One page, to one reader", fr: "Une page, un lecteur" },
+  body: (title) => `# ${title}\n\n[Who this is for]{.muted}\n`,
+  brief: "## This report is a MEMO\n\nOne page, one reader, one ask.",
+});
+```
+
+`fastrThemeIds()` and `fastrTemplateIds()` list the built-ins and then yours, in
+the order you registered them. `isFastrReportTheme` and `isFastrReportTemplate`
+test an id, and `fastrThemeTokens(id)` returns the default theme's tokens for
+one it does not know. Registering an id again replaces it; a built-in's id
+cannot be registered.
+
 ## The engine on its own
 
 `report-forge/engine` has no browser framework in it and runs in Deno: render a
@@ -193,6 +301,7 @@ handed to a language model as well as read.
 | -------------------------------------- | --------------------------------------------- |
 | [mod.ts](mod.ts)                       | Everything a client imports                   |
 | [engine/](engine/)                     | The document engine. Pure TypeScript          |
+| [ai/](ai/)                             | Text-editing tools for an assistant           |
 | [ui/screen/](ui/screen/)               | The mounted editor, its toolbar and dialogs   |
 | [ui/editor/](ui/editor/)               | The CodeMirror editing surface and page boxes |
 | [ui/exports/](ui/exports/)             | HTML, PDF and Word builders                   |

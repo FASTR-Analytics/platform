@@ -1,7 +1,6 @@
 import {
   buildFastrPagedCss,
   buildFastrReportCss,
-  FASTR_THEME_TOKENS,
   type FastrChartPalette,
   fastrChartPalette,
   fastrFigureFitCss,
@@ -13,6 +12,7 @@ import {
   fastrPrintTitleHtml,
   type FastrReportTheme,
   type FastrThemeColorOverride,
+  fastrThemeTokens,
   FIGURE_EXPORT_WIDTH_PX,
   pagedDocumentScriptsHtml,
   readFastrDocumentSettings,
@@ -145,7 +145,7 @@ export async function loadReportEmbeds(
   figures: Map<string, FigureRasterState>;
   images: Map<string, string>;
 }> {
-  const tokens = FASTR_THEME_TOKENS[doc.theme] ?? FASTR_THEME_TOKENS.default;
+  const tokens = fastrThemeTokens(doc.theme);
   const palette = doc.colors ?? {
     page: tokens.page,
     ink: tokens.ink,
@@ -211,9 +211,7 @@ export async function buildStandaloneReportHtml(
     },
   );
   if (opts.inlineFonts) {
-    const fontImport =
-      (FASTR_THEME_TOKENS[fastrTheme] ?? FASTR_THEME_TOKENS.default)
-        .fontImport;
+    const fontImport = fastrThemeTokens(fastrTheme).fontImport;
     if (fontImport.length > 0) {
       themeCss = themeCss.replace(
         fontImport,

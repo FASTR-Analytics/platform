@@ -727,16 +727,9 @@ Deno.test("every theme is four muted colours, and everything else is mixed from 
       `${theme} has ${Object.keys(t.palette).length} palette colours`,
     );
     // Muted: no colour is saturated (HSL saturation), and the two hues
-    // are neither near-white nor near-black.
-    // Legacy is exempt on its accent alone: it is not a design but a
-    // reproduction of the panther markdown look, and that look's one colour
-    // is the link blue #0066cc, at full saturation. Muting it would make a
-    // converted report a different document, which is the only thing the
-    // theme exists not to do. Its warm pole takes the rule like any other.
-    const muted = theme === "legacy"
-      ? [t.palette.warm]
-      : [t.palette.accent, t.palette.warm];
-    for (const c of muted) {
+    // are neither near-white nor near-black. A rule for the built-ins: a
+    // theme a host registers is the host's to colour.
+    for (const c of [t.palette.accent, t.palette.warm]) {
       assert(
         satOf(c) <= 0.55,
         `${theme} ${c} is too saturated (${satOf(c).toFixed(2)})`,
@@ -792,7 +785,7 @@ Deno.test("every theme is four muted colours, and everything else is mixed from 
     // lines would keep the default size and Edit would break its pages where
     // print does not. A re-cut goes in `headings`, which all three read.
     // (Margins, paddings and indents are measured off the live sheet, so
-    // extraCss may set those freely — legacy does.)
+    // extraCss may set those freely.)
     for (const line of t.extraCss.split("\n")) {
       const sel = line.split("{")[0];
       if (!/^h[1-6]\b|,\s*h[1-6]\b/.test(sel)) continue;
@@ -1430,8 +1423,8 @@ Deno.test("every rule that darkens the ground re-points the semantic colours", (
   assertStringIncludes(lightBlock, "--fm-danger: var(--fm-danger-light);");
 });
 
-Deno.test("all 11 themes build", () => {
-  assertEquals(FASTR_REPORT_THEMES.length, 11);
+Deno.test("all 10 built-in themes build", () => {
+  assertEquals(FASTR_REPORT_THEMES.length, 10);
   for (const theme of FASTR_REPORT_THEMES) {
     assert(buildFastrReportCss(theme).length > 0);
   }
@@ -1905,7 +1898,7 @@ Deno.test("the editor surface sheet is scope-prefixed and token-driven", () => {
   }
   // The heading scale mirrors the structure sheet, so Edit shows print sizes.
   // Both read the SAME per-level tokens rather than each naming a size, which
-  // is what lets a theme re-cut a heading (legacy does) without Edit and
+  // is what lets a theme re-cut a heading (executive does) without Edit and
   // print disagreeing about how tall it is.
   assertStringIncludes(css, ".cm-fm-h1");
   assertStringIncludes(css, "font-size: var(--fm-h1-size)");
@@ -1928,13 +1921,12 @@ Deno.test("the editor surface sheet is scope-prefixed and token-driven", () => {
   // Every level's tokens are declared, at the default cut for a theme that
   // says nothing and at the theme's own where it does.
   const def = buildFastrThemeVarsCss(FASTR_THEME_TOKENS.default);
-  const leg = buildFastrThemeVarsCss(FASTR_THEME_TOKENS.legacy);
+  const exec = buildFastrThemeVarsCss(FASTR_THEME_TOKENS.executive);
   assertStringIncludes(def, "--fm-h1-size: 2.15em;");
   assertStringIncludes(def, "--fm-h1-weight: var(--fm-heading-weight);");
   assertStringIncludes(def, "--fm-h6-line-height: 1.2;");
-  assertStringIncludes(leg, "--fm-h1-size: 1.65em;");
-  assertStringIncludes(leg, "--fm-h1-weight: 800;");
-  assertStringIncludes(leg, "--fm-h4-weight: 400;");
+  assertStringIncludes(exec, "--fm-h1-size: 2.6em;");
+  assertStringIncludes(exec, "--fm-h2-size: 1.55em;");
 });
 
 // ── Pagination: page breaks, break attributes and the paged sheet ────────────

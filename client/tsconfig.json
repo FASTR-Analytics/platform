@@ -21,6 +21,7 @@
       "@timroberton/panther": ["../panther/mod.ui.ts"],
       "lib": ["../lib/mod.ts"],
       "report-forge": ["../report-forge/mod.ts"],
+      "report-forge/ai": ["../report-forge/ai/mod.ts"],
       "@codemirror/view": ["./node_modules/@codemirror/view"],
       "@codemirror/commands": ["./node_modules/@codemirror/commands"],
       "@codemirror/language": ["./node_modules/@codemirror/language"],

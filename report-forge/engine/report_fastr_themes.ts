@@ -10,6 +10,12 @@
 // data_transforms/reports.ts), same as the html styles.
 // =============================================================================
 
+import type { ReportForgeText } from "./i18n.ts";
+
+// The BUILT-IN themes only, in the order a picker lists them. A host adds its
+// own with registerFastrTheme, so this is not every theme a document may be
+// on: fastrThemeIds() is the full list and isFastrReportTheme the test. Use
+// this one only where a static list is needed.
 export const FASTR_REPORT_THEMES = [
   "default",
   "minimal",
@@ -22,11 +28,11 @@ export const FASTR_REPORT_THEMES = [
   // The artistic pair, matching the html style briefs of the same names.
   "bauhaus",
   "broadsheet",
-  // The panther markdown look, for reports written before FASTR Markdown
-  // existed: see the theme's own note in FASTR_THEME_SPECS.
-  "legacy",
 ] as const;
-export type FastrReportTheme = (typeof FASTR_REPORT_THEMES)[number];
+type FastrBuiltInTheme = (typeof FASTR_REPORT_THEMES)[number];
+// A theme's id: a built-in or one a host registered, so any string.
+// isFastrReportTheme tells whether one is known.
+export type FastrReportTheme = string;
 
 // The FOUR colours a theme is. Everything else the stylesheet needs (surfaces,
 // borders, the muted ink, the dark band, the chart cycle, the status colours)
@@ -207,7 +213,7 @@ function googleFonts(spec: string): string {
   return `@import url('https://fonts.googleapis.com/css2?${spec}&display=swap');`;
 }
 
-const FASTR_THEME_SPECS: Record<FastrReportTheme, FastrThemeSpec> = {
+const FASTR_THEME_SPECS: Record<FastrBuiltInTheme, FastrThemeSpec> = {
   default: {
     scheme: "light",
     palette: {
@@ -560,96 +566,6 @@ thead th { border-bottom: 3px double var(--fm-ink); font-variant: small-caps; }
 .fm-kicker { letter-spacing: 0.35em; }
 `,
   },
-  // The look of the reports written BEFORE FASTR Markdown: plain markdown
-  // rendered by panther's own markdown style (client/src/generate_report/
-  // report_markdown_style.ts over panther's _004_markdown_style defaults),
-  // which is what View mode and the PDF/Word exports gave a markdown report.
-  // It exists so those reports can be converted to FASTR Markdown without
-  // their authors finding a different document: white page, near-black text,
-  // Inter, the link blue as the only colour in the file, panther's modest
-  // heading scale (h1 1.65 at weight 800, h2 1.25, h3 1.125, h4-h6 plain body
-  // text), tables ruled on every edge under a shaded header, and panther's
-  // block rhythm. Chosen deliberately, so a converted report keeps it and a
-  // new report is never started on it.
-  //
-  // What it CANNOT carry over, because these are the format's and not the
-  // theme's: the document is set at 16px/1.55 (REPORT_BASE_CSS) where panther
-  // set it at 14px/1.4, so the column holds fewer words per line; and figures
-  // are PNG rasters where panther drew them into the PDF as vectors.
-  legacy: {
-    scheme: "light",
-    // panther's own: base100 as the page, baseContent as the text, and the
-    // markdown style's link blue as the accent. That blue is the ONE colour a
-    // markdown report ever showed, and it is a full-saturation web blue where
-    // every other theme's hues are muted — kept anyway, and exempted in the
-    // muted-palette test, because a muted blue would simply be a different
-    // document. The warm pole is NOT panther's alarm red: nothing in a
-    // markdown report was ever warm (there were no callouts, stats or deltas
-    // to colour), so it is free, and a muted brick is the better neighbour
-    // for the blocks a converted report may gain later.
-    palette: {
-      paper: "#ffffff",
-      ink: "#2a2a2a",
-      accent: "#0066cc",
-      warm: "#9c5a4d",
-    },
-    // The app set markdown in International Inter; Inter is its public twin
-    // and the one the default theme already inlines into the printed file.
-    // 800 is here for the h1 weight, which no other theme asks Inter for.
-    fontImport: googleFonts("family=Inter:wght@400;500;600;700;800"),
-    fontBody: `Inter, ${SYSTEM_SANS}`,
-    fontHeading: `Inter, ${SYSTEM_SANS}`,
-    radius: "4px",
-    borderWidth: "1px",
-    headingWeight: "700",
-    headingTracking: "0em",
-    headingCase: "none",
-    // panther rendered the report into the preview's max-w-4xl card.
-    measure: "56rem",
-    // panther's headingRelFontSizes with the report style's heavier h1, and
-    // h4-h6 as they were: base text, unbolded. Leading is the base text's
-    // 1.4, not the structure sheet's tighter 1.2.
-    headings: {
-      h1: { size: "1.65em", weight: "800", lineHeight: "1.4" },
-      h2: { size: "1.25em", lineHeight: "1.4" },
-      h3: { size: "1.125em", lineHeight: "1.4" },
-      h4: { weight: "400", lineHeight: "1.4" },
-      h5: { weight: "400", lineHeight: "1.4" },
-      h6: { weight: "400", lineHeight: "1.4" },
-    },
-    // panther's marginsEm verbatim: every block declares the gap ABOVE it and
-    // nothing below, so the space after a heading is whatever follows it
-    // asking for room (0.5em before a list, 1.5em before a quote). A
-    // paragraph keeps a bottom margin as well as its top, which collapsing
-    // makes a no-op between blocks and which the page layout needs — the
-    // editor reads a paragraph's rhythm off margin-BOTTOM (measurePrintMetrics
-    // pMargin), and a paragraph with none would close up every page.
-    extraCss: `
-h1, h2, h3, h4, h5, h6 { font-family: var(--fm-font-body); margin-bottom: 0; }
-h1 { margin-top: 0.9em; }
-h2 { margin-top: 0.95em; border-bottom: none; padding-bottom: 0; }
-h3, h4, h5, h6 { margin-top: 1em; }
-p { margin: 1em 0; }
-a { text-decoration: underline; }
-/* panther's own list indent (textIndentEm), markers and all: the structure
-   sheet draws them with a ::before at the negative of the padding, so the
-   two move together or the marker leaves the text. */
-ul, ol { margin: 0.5em 0; --fm-mt: 0.5em; --fm-mb: 0.5em; padding-left: 1.714em; }
-ul > li::before, ol:not(.fm-toc__list) > li::before { left: -1.714em; width: 1.714em; }
-li { margin: 0.5em 0 0; }
-li:first-child { margin-top: 0; }
-hr { margin: 1.5em 0; }
-pre { margin: 1.5em 0; padding: 1em; }
-blockquote { margin: 1.5em 0; --fm-mt: 1.5em; --fm-mb: 1.5em; padding: 0.25em 0 0.25em 0.75em; border-left: 3px solid var(--fm-ink); color: var(--fm-ink); }
-/* A ruled grid with a shaded header, sized by its content, not the structure
-   sheet's full-width underlined table. */
-table { width: auto; margin: 1em 0 1.5em; --fm-mt: 1em; --fm-mb: 1.5em; font-size: 1em; }
-th, td { border: 1px solid var(--fm-border); padding: 0.25em 0.5em; }
-thead th { background: var(--fm-surface-alt); border-bottom: 1px solid var(--fm-border); }
-/* An image was a bare image in the flow, never a card. */
-.fm-figure { margin: 1em 0 1.5em; --fm-mt: 1em; --fm-mb: 1.5em; }
-`,
-  },
 };
 
 // Colour-only skin taken from a custom report_styles row (its reference_css
@@ -757,16 +673,88 @@ export function deriveFastrThemeColors(
   };
 }
 
-export const FASTR_THEME_TOKENS: Record<FastrReportTheme, FastrThemeTokens> =
-  Object.fromEntries(
-    (Object.keys(FASTR_THEME_SPECS) as FastrReportTheme[]).map((name) => {
-      const spec = FASTR_THEME_SPECS[name];
-      return [name, {
-        ...spec,
-        ...deriveFastrThemeColors(spec.palette, spec.scheme),
-      }];
-    }),
-  ) as Record<FastrReportTheme, FastrThemeTokens>;
+const themeTokens: Record<string, FastrThemeTokens> = Object.fromEntries(
+  (Object.keys(FASTR_THEME_SPECS) as FastrBuiltInTheme[]).map((name) => {
+    const spec = FASTR_THEME_SPECS[name];
+    return [name, {
+      ...spec,
+      ...deriveFastrThemeColors(spec.palette, spec.scheme),
+    }];
+  }),
+);
+
+// Every theme's tokens by id: the built-ins, plus each theme a host has
+// registered from the moment it registers. Index it only with an id known to
+// be a theme; fastrThemeTokens is the accessor that is total.
+export const FASTR_THEME_TOKENS: Readonly<Record<string, FastrThemeTokens>> =
+  themeTokens;
+
+// ── The registry ─────────────────────────────────────────────────────────────
+
+// What a host hands registerFastrTheme: the theme as it is written and the
+// two strings a picker shows for it.
+export type FastrThemeRegistration = {
+  label: ReportForgeText;
+  // One line on the theme's character, under its tile.
+  caption: ReportForgeText;
+  // The theme as written: its four colours, its type and its extra rules.
+  // The derived half of FastrThemeTokens is always mixed from the four, as it
+  // is for a built-in, so a theme may start from another's tokens
+  // (`{ ...fastrThemeTokens("default"), palette }`) and still be its own
+  // colours throughout.
+  tokens: FastrThemeSpec;
+};
+
+// Insertion-ordered, which is the order fastrThemeIds lists them in.
+const registeredThemes = new Map<string, FastrThemeRegistration>();
+
+function isBuiltInTheme(id: string): boolean {
+  return (FASTR_REPORT_THEMES as readonly string[]).includes(id);
+}
+
+// Adds a theme to every list and lookup in the package, after the built-ins.
+// Call it at module load, before an editor mounts or a stored theme is
+// validated: nothing re-reads the registry reactively. Registering an id a
+// second time replaces its spec and keeps its place in the order.
+//
+// Throws on an id that is not letters, digits, `-` and `_` starting with a
+// letter (the id is stored on documents and becomes a CSS class in the theme
+// picker), and on a built-in's id: the built-ins are fixed, `default` being
+// what an unknown id falls back to.
+export function registerFastrTheme(
+  id: string,
+  spec: FastrThemeRegistration,
+): void {
+  if (!/^[A-Za-z][A-Za-z0-9_-]*$/.test(id)) {
+    throw new Error(`registerFastrTheme: "${id}" is not a usable theme id`);
+  }
+  if (isBuiltInTheme(id)) {
+    throw new Error(`registerFastrTheme: "${id}" is a built-in theme`);
+  }
+  const t = spec.tokens;
+  themeTokens[id] = { ...t, ...deriveFastrThemeColors(t.palette, t.scheme) };
+  registeredThemes.set(id, spec);
+}
+
+// Every theme a document may be on: the built-ins, then the registered ones
+// in the order they were first registered.
+export function fastrThemeIds(): FastrReportTheme[] {
+  return [...FASTR_REPORT_THEMES, ...registeredThemes.keys()];
+}
+
+// The registration behind a registered theme (its label and caption are what
+// a picker shows); undefined for a built-in or an unknown id.
+export function fastrRegisteredTheme(
+  id: string,
+): FastrThemeRegistration | undefined {
+  return registeredThemes.get(id);
+}
+
+// Total: the default theme's tokens for an id that is not a theme, so a
+// document stored on a theme this build does not have still renders.
+export function fastrThemeTokens(theme: FastrReportTheme): FastrThemeTokens {
+  return isFastrReportTheme(theme) ? themeTokens[theme] : themeTokens.default;
+}
 
 export type FastrThemeColorOverride = {
   page: string;
@@ -774,9 +762,10 @@ export type FastrThemeColorOverride = {
   accent: string;
 };
 
+// Whether `v` names a theme: a built-in or a registered one.
 export function isFastrReportTheme(v: unknown): v is FastrReportTheme {
   return typeof v === "string" &&
-    (FASTR_REPORT_THEMES as readonly string[]).includes(v);
+    (isBuiltInTheme(v) || registeredThemes.has(v));
 }
 
 // What a report hands every figure it embeds (see getStandardSeriesColorFunc
@@ -796,7 +785,7 @@ export function fastrChartPalette(
   // ink and page tune the derived pair. Any subset may be given.
   colors?: { accent?: string; page?: string; ink?: string } | null,
 ): FastrChartPalette {
-  const tokens = FASTR_THEME_TOKENS[theme] ?? FASTR_THEME_TOKENS.default;
+  const tokens = fastrThemeTokens(theme);
   const chart = tokens.chart;
   const accent = colors?.accent?.toLowerCase();
   const series = accent

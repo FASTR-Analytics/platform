@@ -1,6 +1,6 @@
 import {
-  FASTR_THEME_TOKENS,
   type FastrReportTheme,
+  fastrThemeTokens,
 } from "../../engine/report_fastr_themes.ts";
 import type { FastrWordFont } from "../../engine/report_fastr_word.ts";
 
@@ -93,7 +93,7 @@ function load(family: string): Promise<FastrWordFont | undefined> {
 export async function loadThemeFontsForWord(
   theme: FastrReportTheme,
 ): Promise<FastrWordFont[]> {
-  const tokens = FASTR_THEME_TOKENS[theme] ?? FASTR_THEME_TOKENS.default;
+  const tokens = fastrThemeTokens(theme);
   const families = [
     ...new Set([firstFamily(tokens.fontBody), firstFamily(tokens.fontHeading)]),
   ];

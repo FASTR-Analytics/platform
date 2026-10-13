@@ -20,13 +20,14 @@ import {
   deriveFastrThemeColors,
   FASTR_GROUNDS,
   FASTR_HEADING_TAGS,
-  FASTR_THEME_TOKENS,
   type FastrDerivedColors,
   type FastrGround,
   fastrHeadingStyle,
   type FastrReportTheme,
   type FastrThemeColorOverride,
+  fastrThemeIds,
   type FastrThemeTokens,
+  fastrThemeTokens,
 } from "./report_fastr_themes.ts";
 
 // Scope "" = the whole report document; anything else (a picker tile) roots the
@@ -1145,8 +1146,9 @@ const BROWSER_PRINT_CSS = `
 // leave every theme but the first without its typeface.
 export function fastrAllFontImportsCss(): string {
   const seen = new Set<string>();
-  for (const tokens of Object.values(FASTR_THEME_TOKENS)) {
-    if (tokens.fontImport.length > 0) seen.add(tokens.fontImport);
+  for (const theme of fastrThemeIds()) {
+    const { fontImport } = fastrThemeTokens(theme);
+    if (fontImport.length > 0) seen.add(fontImport);
   }
   return [...seen].join("\n");
 }
@@ -1157,7 +1159,7 @@ export function buildFastrReportCss(
   scope = "",
   opts?: { omitFontImport?: boolean; omitPrintRules?: boolean },
 ): string {
-  const tokens = FASTR_THEME_TOKENS[theme] ?? FASTR_THEME_TOKENS.default;
+  const tokens = fastrThemeTokens(theme);
   const { d } = selectors(scope);
   const extra = tokens.extraCss.trim().length === 0
     ? ""

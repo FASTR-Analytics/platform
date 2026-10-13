@@ -1,7 +1,7 @@
 import {
-  FASTR_REPORT_TEMPLATES,
   type FastrReportTemplate,
   fastrReportTemplateBody,
+  fastrTemplateIds,
   renderFastrMarkdownToHtml,
 } from "../../engine/mod.ts";
 import { t3 } from "../../engine/i18n.ts";
@@ -46,7 +46,7 @@ export function ReportTemplateGallery(p: {
         })}
       </div>
       <div class="rf:grid rf:grid-cols-3 rf:gap-4">
-        <For each={FASTR_REPORT_TEMPLATES}>
+        <For each={fastrTemplateIds()}>
           {(template) => (
             <button
               type="button"

@@ -1,8 +1,8 @@
 import {
   buildFastrReportCss,
-  FASTR_REPORT_THEMES,
   fastrAllFontImportsCss,
   type FastrReportTheme,
+  fastrThemeIds,
 } from "../../engine/mod.ts";
 import { t3 } from "../../engine/i18n.ts";
 import { Show } from "solid-js";
@@ -84,7 +84,7 @@ export function FastrThemeMockStyles(p: {
         // @import must lead the sheet or the browser drops it.
         fastrAllFontImportsCss(),
         TILE_SHELL_CSS,
-        ...FASTR_REPORT_THEMES.map((t) =>
+        ...fastrThemeIds().map((t) =>
           buildFastrReportCss(t, undefined, `.${scopeFor(t)}`, {
             omitFontImport: true,
           })

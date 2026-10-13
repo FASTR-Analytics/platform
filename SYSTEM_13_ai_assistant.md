@@ -428,10 +428,28 @@ surface is therefore the open report alone, `editing_report`, and it includes
 `get_report_pages`: the draft or the live body laid out as the printed pages, so
 a rewrite can be checked against the page budget BEFORE it is proposed. The
 fastr write tools (`rewrite_report`, `rewrite_section`, `replace_text`) carry
-the literal-background gate delta-based (`validateFastrNewLiteralBackgrounds`):
+the literal-background gate delta-based (`checkFastrNewLiteralBackgrounds`):
 only literals whose value is not already in the current body trip it, so
 user-sanctioned colours survive rewrites, and `allowLiteralColors` is the
 deliberate escape hatch for when the user asked for exact colours.
+
+**The text core of these tools is Report Forge's, not the copilot's.** The body
+half of `get_report_editor` and the three write tools run on the package's pure
+operations (`readReportText`, `rewriteReportBody`, `rewriteReportSection`,
+`replaceReportText` in
+[report-forge/ai/operations.ts](report-forge/ai/operations.ts)): each takes the
+current body and the model's arguments and returns the new body with its
+summary, or the message the model reads. The checks a proposed body must pass,
+and every message, live beside them as `check*` functions returning the message
+or undefined ([report-forge/ai/validators.ts](report-forge/ai/validators.ts)).
+The copilot keeps the tool names, zod schemas, descriptions and the approval
+flow
+([report_editor.ts](client/src/components/products/copilot/ai_tools/tools/report_editor.ts)),
+turns a refusal into an `AIToolFailure` and an unchanged body into `{skip}`, and
+owns everything about figures; `report_validators.ts` is now two throwing
+wrappers for the figure tools. The same core is offered to any other host as
+ready-made tools (`createReportTextTools`), so there is one implementation of
+each text edit; `report-forge/tests/ai_tools_test.ts` pins the messages.
 
 `proposeEdit` stages the CodeMirror diff as the `customProposalUI`, an
 identical-body proposal short-circuits to panther's `{skip}` (a normal
@@ -451,25 +469,24 @@ drift) plus an explicit "never write CSS, a `<style>` block or raw layout HTML;
 reach for a block instead": such markup would be INERT and would break the
 user's ability to re-theme. The brief deliberately never NAMES the theme,
 because the theme is changeable at any time (S12's theme modal) and a name in
-the view params would go stale. `validateFastrContainers`
-([report_validators.ts](client/src/components/products/copilot/ai_tools/validators/report_validators.ts))
-rejects an unbalanced or misspelt `:::` before staging (an unclosed container
-runs to EOF) and it checks the SPLICED result, not the fragment, so a locally
-balanced `newBody` that unbalances the document is still caught. Since
-2026-09-23 the same brief ALSO rides `rewrite_report`'s description (cached in
-the system prompt, once per conversation): with the chat's one-shot
-`create_report` gone in v2, `rewrite_report` on a fresh report IS how a report
-gets written from a prompt, and the brief in the per-turn view section alone
-left the model writing plain markdown into FASTR reports (the lesson
-`create_report` had already learned on 2026-09-02). The contract is hard:
-`validateFastrRewriteUsesBlocks` refuses a FASTR body of twelve or more
-non-blank lines that uses no `:::` block unless the model passes `plain: true`,
-which it does only when the user asked for a plain document; `rewrite_section`'s
-description points at the same blocks for a section. Same day, at Nick's
-request: a stat is a tile of its own, never nested in a card or a column (the
-brief used to say a stat "reads well inside a card");
-`validateFastrStatPlacement` (over `listFastrNestedStats` in lib) refuses such a
-body on all three staged text tools.
+the view params would go stale. `checkFastrContainers`
+([report-forge/ai/validators.ts](report-forge/ai/validators.ts)) rejects an
+unbalanced or misspelt `:::` before staging (an unclosed container runs to EOF)
+and it checks the SPLICED result, not the fragment, so a locally balanced
+`newBody` that unbalances the document is still caught. Since 2026-09-23 the
+same brief ALSO rides `rewrite_report`'s description (cached in the system
+prompt, once per conversation): with the chat's one-shot `create_report` gone in
+v2, `rewrite_report` on a fresh report IS how a report gets written from a
+prompt, and the brief in the per-turn view section alone left the model writing
+plain markdown into FASTR reports (the lesson `create_report` had already
+learned on 2026-09-02). The contract is hard: `checkFastrRewriteUsesBlocks`
+refuses a FASTR body of twelve or more non-blank lines that uses no `:::` block
+unless the model passes `plain: true`, which it does only when the user asked
+for a plain document; `rewrite_section`'s description points at the same blocks
+for a section. Same day, at Nick's request: a stat is a tile of its own, never
+nested in a card or a column (the brief used to say a stat "reads well inside a
+card"); `checkFastrStatPlacement` (over `listFastrNestedStats` in lib) refuses
+such a body on all three staged text tools.
 
 **Validate-before-commit.** `update_figure` (slide editor, deck level) and
 `update_report_figure` share one pipeline: `applyFigureConfigPatch` →

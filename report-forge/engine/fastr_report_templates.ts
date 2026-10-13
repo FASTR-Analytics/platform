@@ -16,18 +16,76 @@
 // theme it is metadata, never part of the body.
 // =============================================================================
 
-import { t3 } from "./i18n.ts";
+import { type ReportForgeText, t3 } from "./i18n.ts";
 
+// The BUILT-IN templates only. A host adds its own with
+// registerFastrTemplate: fastrTemplateIds() is the full list and
+// isFastrReportTemplate the test.
 export const FASTR_REPORT_TEMPLATES = [
   "policy_brief",
   "long_form",
   "empty",
 ] as const;
-export type FastrReportTemplate = (typeof FASTR_REPORT_TEMPLATES)[number];
+// A template's id: a built-in or one a host registered, so any string.
+export type FastrReportTemplate = string;
 
+// What a host hands registerFastrTemplate.
+export type FastrTemplateRegistration = {
+  label: ReportForgeText;
+  // One line on what the template is for, under its tile.
+  caption: ReportForgeText;
+  // The body a document starts with, given its title (one line, never
+  // empty). Write placeholders the way the built-ins do, as muted marks.
+  body: (title: string) => string;
+  // English, model-facing: what fastrReportTemplateBrief returns for it.
+  brief?: string;
+};
+
+// Insertion-ordered, which is the order fastrTemplateIds lists them in.
+const registeredTemplates = new Map<string, FastrTemplateRegistration>();
+
+function isBuiltInTemplate(id: string): boolean {
+  return (FASTR_REPORT_TEMPLATES as readonly string[]).includes(id);
+}
+
+// Adds a template to the gallery, after the built-ins. Call it at module
+// load, before an editor mounts or a stored template is validated.
+// Registering an id a second time replaces its spec and keeps its place.
+// Throws on an id that is not letters, digits, `-` and `_` starting with a
+// letter, and on a built-in's id.
+export function registerFastrTemplate(
+  id: string,
+  spec: FastrTemplateRegistration,
+): void {
+  if (!/^[A-Za-z][A-Za-z0-9_-]*$/.test(id)) {
+    throw new Error(
+      `registerFastrTemplate: "${id}" is not a usable template id`,
+    );
+  }
+  if (isBuiltInTemplate(id)) {
+    throw new Error(`registerFastrTemplate: "${id}" is a built-in template`);
+  }
+  registeredTemplates.set(id, spec);
+}
+
+// Every template on offer: the built-ins, then the registered ones in the
+// order they were first registered.
+export function fastrTemplateIds(): FastrReportTemplate[] {
+  return [...FASTR_REPORT_TEMPLATES, ...registeredTemplates.keys()];
+}
+
+// The registration behind a registered template; undefined for a built-in or
+// an unknown id.
+export function fastrRegisteredTemplate(
+  id: string,
+): FastrTemplateRegistration | undefined {
+  return registeredTemplates.get(id);
+}
+
+// Whether `v` names a template: a built-in or a registered one.
 export function isFastrReportTemplate(v: unknown): v is FastrReportTemplate {
   return typeof v === "string" &&
-    (FASTR_REPORT_TEMPLATES as readonly string[]).includes(v);
+    (isBuiltInTemplate(v) || registeredTemplates.has(v));
 }
 
 // A placeholder line: grey guidance the user or the AI replaces.
@@ -459,7 +517,8 @@ function longFormBody(title: string): string {
 }
 
 // The body a template starts a report with, titled with the report's label.
-// Empty is a blank page, as in a word processor.
+// Empty is a blank page, as in a word processor, and so is an id that names
+// no template.
 export function fastrReportTemplateBody(
   template: FastrReportTemplate,
   title: string,
@@ -472,11 +531,15 @@ export function fastrReportTemplateBody(
       return longFormBody(t);
     case "empty":
       return "";
+    default:
+      return registeredTemplates.get(template)?.body(t) ?? "";
   }
 }
 
 // English, model-facing: what the template MEANS, so the AI writes to its
 // shape. Rides the editing view's instructions (getEditingReportInstructions).
+// A registered template's is the brief it was registered with, and nothing
+// when it gave none.
 export function fastrReportTemplateBrief(
   template: FastrReportTemplate,
 ): string {
@@ -519,5 +582,7 @@ ${placeholders}`;
       return `## This report started from a blank page
 
 The user chose the **Empty** template: there is no prescribed structure. Follow the user's lead on what the report is; when you write the whole report, compose it with the format's blocks as the format guide describes.`;
+    default:
+      return registeredTemplates.get(template)?.brief ?? "";
   }
 }

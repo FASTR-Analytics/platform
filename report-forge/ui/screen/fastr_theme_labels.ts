@@ -1,13 +1,19 @@
 import {
-  FASTR_REPORT_THEMES,
+  fastrRegisteredTemplate,
+  fastrRegisteredTheme,
   type FastrReportTemplate,
   type FastrReportTheme,
+  fastrThemeIds,
 } from "../../engine/mod.ts";
 import { t3 } from "../../engine/i18n.ts";
 
 // Display names + one-line characters for the FASTR Markdown themes, shared by
 // the creation picker and the report editor's theme switcher. The themes
 // themselves (the design tokens) live in report-forge/engine/report_fastr_themes.ts.
+//
+// The built-ins' strings are written here. A theme or template a host
+// registered brings its own (registerFastrTheme, registerFastrTemplate); an
+// id that names neither reads as the id, with no caption.
 
 export function fastrThemeLabel(theme: FastrReportTheme): string {
   switch (theme) {
@@ -31,8 +37,10 @@ export function fastrThemeLabel(theme: FastrReportTheme): string {
       return t3({ en: "Bauhaus", fr: "Bauhaus", pt: "Bauhaus" });
     case "broadsheet":
       return t3({ en: "Broadsheet", fr: "Grand format", pt: "Formato grande" });
-    case "legacy":
-      return t3({ en: "Legacy", fr: "Ancien", pt: "Antigo" });
+    default: {
+      const registered = fastrRegisteredTheme(theme);
+      return registered ? t3(registered.label) : theme;
+    }
   }
 }
 
@@ -98,12 +106,10 @@ export function fastrThemeCaption(theme: FastrReportTheme): string {
         fr: "Serif de presse, bandeau centré",
         pt: "Serifa de jornal, cabeçalho centrado",
       });
-    case "legacy":
-      return t3({
-        en: "The look of the old markdown reports",
-        fr: "L'aspect des anciens rapports markdown",
-        pt: "O aspeto dos antigos relatórios markdown",
-      });
+    default: {
+      const registered = fastrRegisteredTheme(theme);
+      return registered ? t3(registered.caption) : "";
+    }
   }
 }
 
@@ -111,7 +117,7 @@ export function fastrThemeOptions(): {
   value: FastrReportTheme;
   label: string;
 }[] {
-  return FASTR_REPORT_THEMES.map((t) => ({
+  return fastrThemeIds().map((t) => ({
     value: t,
     label: fastrThemeLabel(t),
   }));
@@ -133,6 +139,10 @@ export function fastrTemplateLabel(template: FastrReportTemplate): string {
       });
     case "empty":
       return t3({ en: "Empty", fr: "Vide", pt: "Vazio" });
+    default: {
+      const registered = fastrRegisteredTemplate(template);
+      return registered ? t3(registered.label) : template;
+    }
   }
 }
 
@@ -161,5 +171,9 @@ export function fastrTemplateCaption(template: FastrReportTemplate): string {
         fr: "Une page blanche",
         pt: "Uma página em branco",
       });
+    default: {
+      const registered = fastrRegisteredTemplate(template);
+      return registered ? t3(registered.caption) : "";
+    }
   }
 }

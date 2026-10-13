@@ -8,16 +8,19 @@
 // =============================================================================
 
 import {
-  FASTR_REPORT_TEMPLATES,
   type FastrReportTemplate,
   isFastrReportTemplate,
 } from "../../report-forge/engine/fastr_report_templates.ts";
 import { z } from "zod";
 import {
-  FASTR_REPORT_THEMES,
   type FastrReportTheme,
   isFastrReportTheme,
 } from "../../report-forge/engine/report_fastr_themes.ts";
+// For its side effect: the `legacy` theme is the platform's own and exists
+// only once this has run. The schemas below validate against the engine's
+// registry, so the registration must come first; importing it here makes
+// that true for every caller. See the file's own note.
+import "../report_legacy_theme.ts";
 import { reportStyleColorsSchema } from "./report_styles.ts";
 import type { ImageBlock } from "./slides.ts";
 import type { FigureBlock } from "./_figure_bundle.ts";
@@ -79,6 +82,20 @@ export type ReportConfig = {
   template?: FastrReportTemplate;
 };
 
+// A theme id the engine knows: its ten built-ins plus `legacy`
+// (report_legacy_theme.ts). The themes are a registry, not a closed list, so
+// this is a membership test instead of an enum. It must keep REJECTING an
+// unknown id: that failure is what routes a report on a retired theme into
+// the reports data transform (Block 3).
+export const fastrReportThemeSchema = z.string().refine(isFastrReportTheme, {
+  message: "Unknown report theme",
+});
+
+// The same for the template a report was started from.
+const fastrReportTemplateSchema = z.string().refine(isFastrReportTemplate, {
+  message: "Unknown report template",
+});
+
 // passthrough: a stored config may still carry keys of the retired formats
 // (htmlStyle); they ride along untouched.
 export const reportConfigSchema = z
@@ -86,9 +103,9 @@ export const reportConfigSchema = z
     version: z.number().optional(),
     format: z.string().optional(),
     customStyle: reportCustomStyleSnapshotSchema.optional(),
-    fastrTheme: z.enum(FASTR_REPORT_THEMES).optional(),
+    fastrTheme: fastrReportThemeSchema.optional(),
     themeChosen: z.boolean().optional(),
-    template: z.enum(FASTR_REPORT_TEMPLATES).optional(),
+    template: fastrReportTemplateSchema.optional(),
   })
   .passthrough();
 

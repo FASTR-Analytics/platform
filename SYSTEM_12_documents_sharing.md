@@ -26,6 +26,7 @@ globs:
   - lib/types/scope.ts
   - lib/types/slides.ts
   - lib/slide_text_offsets.ts
+  - lib/report_legacy_theme.ts
   - server/db/instance/report_styles.ts
   - server/db/instance/scopes.ts
   - server/db/products/**
@@ -774,15 +775,23 @@ the compiler.
 **Themes**
 ([report-forge/engine/report_fastr_themes.ts](report-forge/engine/report_fastr_themes.ts),
 [report-forge/engine/report_fastr_css.ts](report-forge/engine/report_fastr_css.ts)):
-ONE structure sheet plus a per-theme token block. **11 presets**: ten named for
-a `REPORT_HTML_STYLES` preset, so a report can be moved between formats without
-losing its look, plus **`legacy`**, which is not a design but a reproduction. It
-restates the panther markdown look (`REPORT_MARKDOWN_STYLE` over panther's
-`_004_markdown_style` defaults) that every markdown-format report renders in, so
-such a report can be converted to FASTR Markdown without becoming a different
-document: white page, panther's near-black ink, Inter, its link blue `#0066cc`
-(the one saturated accent in the set, exempted in the muted-palette test for
-that reason), its heading scale, its ruled tables and its block rhythm. Two
+ONE structure sheet plus a per-theme token block. Themes are a registry
+(`registerFastrTheme`, `fastrThemeIds()`, `fastrThemeTokens(theme)`), and the
+platform has **11**: the engine's ten built-ins, each named for a
+`REPORT_HTML_STYLES` preset, so a report can be moved between formats without
+losing its look, plus **`legacy`**, which is the platform's own and is
+registered when [lib/report_legacy_theme.ts](lib/report_legacy_theme.ts) loads.
+`lib/types/reports.ts` imports that file itself, so the registration has always
+run before `reportConfigSchema` validates a stored theme (the schema is a
+membership test against the registry, and an unknown id must keep failing it:
+Block 3 of the reports data transform depends on that). `legacy` is not a design
+but a reproduction. It restates the panther markdown look
+(`REPORT_MARKDOWN_STYLE` over panther's `_004_markdown_style` defaults) that
+every markdown-format report renders in, so such a report can be converted to
+FASTR Markdown without becoming a different document: white page, panther's
+near-black ink, Inter, its link blue `#0066cc` (the one saturated accent in the
+set, and exempt for that reason from the muted-palette test the engine holds its
+built-ins to), its heading scale, its ruled tables and its block rhythm. Two
 things it cannot carry over, both the FORMAT's and not the theme's: the document
 is set at 16px/1.55 (`REPORT_BASE_CSS`) where panther set it at 14px/1.4, and
 figures are PNG rasters where panther drew vectors into the PDF. It is chosen

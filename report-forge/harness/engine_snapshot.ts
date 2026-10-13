@@ -6,8 +6,10 @@
 //     <engine module path> <out.json>
 //   deno run -A report-forge/harness/engine_compare.ts <a.json> <b.json>
 //
-// The corpus is every .md file under tests/fixtures plus the built-in
-// templates and block snippets, each rendered on every theme the engine lists.
+// The corpus is every .md file under tests/fixtures plus the templates and
+// block snippets, each rendered on every theme the engine lists: the
+// built-ins, and whatever the module under test registered (a host's barrel
+// brings the host's own themes, the engine's own entry only the built-ins).
 
 import { Packer } from "docx";
 import JSZip from "jszip";
@@ -37,7 +39,7 @@ for await (const entry of Deno.readDir(corpusDir)) {
     body: await Deno.readTextFile(join(corpusDir, entry.name)),
   });
 }
-for (const template of E.FASTR_REPORT_TEMPLATES as string[]) {
+for (const template of E.fastrTemplateIds() as string[]) {
   bodies.push({
     name: `template_${template}`,
     body: E.fastrReportTemplateBody(template, "Quarterly review"),
@@ -70,7 +72,7 @@ async function wordXml(body: string, theme: string): Promise<string> {
 }
 
 const out: Record<string, unknown> = {};
-const themes = E.FASTR_REPORT_THEMES as string[];
+const themes = E.fastrThemeIds() as string[];
 const scope = ":root .fm-live-scope";
 
 out["syntax_doc"] = E.FASTR_MD_SYNTAX_DOC;

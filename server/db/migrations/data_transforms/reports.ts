@@ -14,7 +14,7 @@
 // =============================================================================
 
 import {
-  FASTR_REPORT_THEMES,
+  isFastrReportTheme,
   listFastrContainerDefects,
   reportConfigSchema,
   reportFiguresSchema,
@@ -125,7 +125,7 @@ export async function migrateReports(
     }
     if (
       typeof config.fastrTheme === "string" &&
-      !(FASTR_REPORT_THEMES as readonly string[]).includes(config.fastrTheme)
+      !isFastrReportTheme(config.fastrTheme)
     ) {
       delete config.fastrTheme;
     }
@@ -134,7 +134,7 @@ export async function migrateReports(
     // format is retired: every report still on it becomes a FASTR Markdown
     // report on the `legacy` theme, which reproduces the panther markdown
     // look those reports render in today (the theme's own note in
-    // report-forge/engine/report_fastr_themes.ts). The BODY is deliberately untouched.
+    // lib/report_legacy_theme.ts). The BODY is deliberately untouched.
     // A markdown body is ALREADY valid FASTR Markdown: embed tokens are the
     // same, headings and
     // sections are the same `#` scan, and both parsers are markdown-it with

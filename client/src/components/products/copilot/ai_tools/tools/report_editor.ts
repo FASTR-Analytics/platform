@@ -1,4 +1,12 @@
-import { formatLineRanges } from "report-forge";
+import {
+  readReportText,
+  replaceReportText,
+  type ReportEmbedIds,
+  reportSkippedNote,
+  type ReportTextEdit,
+  rewriteReportBody,
+  rewriteReportSection,
+} from "report-forge/ai";
 import { AIToolFailure, createAITool } from "panther";
 import { z } from "zod";
 import {
@@ -6,11 +14,10 @@ import {
   AiFigureFromMetricSchema,
   buildReportEmbedToken,
   collapseFastrBlankRuns,
-  FASTR_REPORT_THEMES,
   type FastrReportTheme,
+  fastrThemeIds,
   type FigureBlock,
   findReportEmbeds,
-  findReportHeadings,
   getFastrReportTheme,
   getReplicateByProp,
   insertAfterReportHeading,
@@ -18,10 +25,8 @@ import {
   type PeriodBounds,
   periodFilterHasBounds,
   replaceReportEmbedTokens,
-  type ReportHeading,
   type ResultsValueInfoForPresentationObject,
   rewriteReportEmbedToken,
-  spliceReportSection,
 } from "lib";
 import { FASTR_MD_SYNTAX_DOC } from "lib";
 import {
@@ -39,94 +44,38 @@ import { copilotViews } from "../../_shared/mod.ts";
 import { resolveFigureFromMetric } from "../../slide_ai/mod.ts";
 import { formatFigureConfigForAI } from "../../_shared/mod.ts";
 import { validateMetricInputs } from "lib";
-import type { ClientAIToolEnv } from "../../_shared/mod.ts";
+import type {
+  ClientAIToolEnv,
+  EditingReportContext,
+} from "../../_shared/mod.ts";
 import {
-  validateFastrContainers,
-  validateFastrNewLiteralBackgrounds,
-  validateFastrRewriteUsesBlocks,
-  validateFastrStatPlacement,
   validateReportBodyLength,
   validateReportTokensResolve,
 } from "../validators/mod.ts";
 
-// Appended to a tool's ACCEPTED message when the accept-time rebase skipped
-// hunks that collided with a collaborator's concurrent edits: the AI must
-// know its edit only partially applied, and where.
-function skippedNote(
-  skipped: { fromLine: number; toLine: number }[] | undefined,
-): string {
-  if (!skipped || skipped.length === 0) return "";
-  return ` NOTE: the proposed change(s) at line(s) ${
-    formatLineRanges(
-      skipped,
-    )
-  } were NOT applied — a collaborator edited that text while the proposal was open. Re-read the report (get_report_editor) before retrying those parts.`;
+// The text tools (rewrite_report, rewrite_section, replace_text and the body
+// half of get_report_editor) run on Report Forge's own operations
+// (report-forge/ai): one implementation of each edit and of the checks a
+// proposed body must pass, shared with any other host of the editor. What
+// stays here is the platform's: the approval flow, and everything about
+// figures.
+
+// The ids a proposed body may embed: the report's own figures and images.
+function embedIdsOf(ctx: EditingReportContext): ReportEmbedIds {
+  return {
+    figures: Object.keys(ctx.getFigures()),
+    images: Object.keys(ctx.getImages()),
+  };
 }
 
-// Replace one verbatim occurrence of oldText with newText. Ambiguous matches
-// require occurrenceIndex (1-based), same convention as spliceReportSection.
-function replaceTextOccurrence(
-  body: string,
-  oldText: string,
-  newText: string,
-  occurrenceIndex: number | undefined,
-): { newBody: string } | { error: string } {
-  if (oldText === "") {
-    return { error: "oldText must not be empty." };
-  }
-  const positions: number[] = [];
-  let from = 0;
-  for (;;) {
-    const idx = body.indexOf(oldText, from);
-    if (idx < 0) break;
-    positions.push(idx);
-    from = idx + oldText.length;
-  }
-  if (positions.length === 0) {
-    return {
-      error:
-        "oldText was not found verbatim. Call get_report_editor to see the exact current text (whitespace and markup must match).",
-    };
-  }
-  let pos: number;
-  if (positions.length === 1) {
-    pos = positions[0];
-  } else {
-    if (occurrenceIndex === undefined) {
-      return {
-        error:
-          `oldText occurs ${positions.length} times. Provide occurrenceIndex (1-${positions.length}), or include more surrounding text to make it unique.`,
-      };
-    }
-    const p = positions[occurrenceIndex - 1];
-    if (p === undefined) {
-      return {
-        error:
-          `occurrenceIndex ${occurrenceIndex} out of range (1-${positions.length}).`,
-      };
-    }
-    pos = p;
-  }
-  const newBody = body.slice(0, pos) + newText +
-    body.slice(pos + oldText.length);
-  return { newBody };
-}
-
-// The headings index for get_report_editor: where each section starts/ends
-// (1-based lines), exactly what rewrite_section will replace.
-function formatHeadingsIndex(headings: ReportHeading[]): string[] {
-  if (headings.length === 0) return [`## Headings: none`];
-  return [
-    `## Headings (section = what rewrite_section replaces; lines are 1-based)`,
-    ...headings.map((h) => {
-      const range = h.section.fromLine === h.section.toLine
-        ? `line ${h.section.fromLine}`
-        : `lines ${h.section.fromLine}-${h.section.toLine}`;
-      return `- line ${h.line}: ${
-        "#".repeat(h.level)
-      } ${h.text} → section ${range}`;
-    }),
-  ];
+// A text edit the package refused. A body that broke a rule is a tool
+// failure; a body identical to the current one is a no-decision result (no
+// dialog was shown), which is panther's {skip}.
+function refusedTextEdit(
+  edit: Extract<ReportTextEdit, { ok: false }>,
+): { skip: string } {
+  if (edit.unchanged) return { skip: edit.error };
+  throw new AIToolFailure(edit.error);
 }
 
 // One cheap index line per figure for get_report_editor: pure, no fetch.
@@ -162,54 +111,28 @@ export function getClientToolsForReportEditor(
         const figs = ctx.getFigures();
         const figureIds = Object.keys(figs);
         const imgIds = Object.keys(ctx.getImages());
-        const sel = ctx.getSelection();
-        const selectionSection = sel && !sel.empty
-          ? [
-            ``,
-            `## User's current selection (lines ${sel.fromLine}-${sel.toLine})`,
-            sel.text,
-          ]
-          : [
-            `## User's current selection: none (cursor at line ${
-              sel?.fromLine ?? 1
-            })`,
-          ];
         const figureSection = figureIds.length
           ? [
             `## Figures (call get_report_figure for full config; update_report_figure to edit in place):`,
             ...figureIds.map((id) => formatFigureIndexLine(id, figs[id])),
           ]
           : [`## Figures: none`];
-        const body = ctx.getBody();
-        return [
-          `# REPORT EDITOR: ${view.params.reportLabel}`,
-          `Format: FASTR Markdown — the theme supplies the design; never write CSS or a <style> block`,
-          ...(() => {
-            const template = ctx.getTemplate();
-            return template === undefined ? [] : [
-              `Template: ${
-                template === "policy_brief"
-                  ? "Policy brief"
-                  : template === "long_form"
-                  ? "Long-form report"
-                  : "Empty"
-              } (write to its shape; see the template section in your instructions)`,
-            ];
-          })(),
-          ``,
-          `## Current body (FASTR Markdown)`,
-          body,
-          ``,
-          ...formatHeadingsIndex(findReportHeadings(body)),
-          ``,
-          ...figureSection,
-          `## Images: ${
-            imgIds.length
-              ? imgIds.map((id) => `image:${id}`).join(", ")
-              : "none"
-          }`,
-          ...selectionSection,
-        ].join("\n");
+        const template = ctx.getTemplate();
+        return readReportText(ctx.getBody(), {
+          title: view.params.reportLabel,
+          headerLines: template === undefined ? [] : [
+            `Template: ${
+              template === "policy_brief"
+                ? "Policy brief"
+                : template === "long_form"
+                ? "Long-form report"
+                : "Empty"
+            } (write to its shape; see the template section in your instructions)`,
+          ],
+          figureLines: figureSection,
+          embeds: { figures: figureIds, images: imgIds },
+          selection: ctx.getSelection(),
+        }).text;
       },
       inProgressLabel: "Reading report editor...",
       completionMessage: "Read report editor",
@@ -451,9 +374,12 @@ export function getClientToolsForReportEditor(
         markdown: z.string().optional().describe(
           "A draft body in FASTR Markdown to lay out instead of the current one (no figures needed).",
         ),
-        theme: z.enum(FASTR_REPORT_THEMES).optional().describe(
-          "Lay the draft out under this theme instead of the report's own.",
-        ),
+        // The themes are a registry (the engine's own plus this app's
+        // `legacy`), so the list is read here, when the tool is built.
+        theme: z.enum(fastrThemeIds() as [string, ...string[]]).optional()
+          .describe(
+            "Lay the draft out under this theme instead of the report's own.",
+          ),
       }),
       availableIn: ["editing_report"],
       kind: "read",
@@ -516,28 +442,17 @@ ${FASTR_MD_SYNTAX_DOC}`,
       availableIn: ["editing_report"],
       kind: "write",
       approval: {
-        propose: async (raw, view) => {
+        propose: async (input, view) => {
           const ctx = view.context;
-          // In FASTR Markdown a run of blank lines is vertical space on the
-          // page; a model means nothing by it (collapseFastrBlankRuns).
-          const input = { ...raw, body: collapseFastrBlankRuns(raw.body) };
-          validateReportBodyLength(input.body);
-          validateFastrContainers(input.body);
-          validateFastrStatPlacement(input.body);
-          validateFastrRewriteUsesBlocks(input.body, input.plain);
-          validateFastrNewLiteralBackgrounds(
-            input.body,
+          const edit = rewriteReportBody(
             ctx.getBody(),
-            input.allowLiteralColors,
+            input,
+            embedIdsOf(ctx),
           );
-          validateReportTokensResolve(
-            input.body,
-            ctx.getFigures(),
-            ctx.getImages(),
-          );
+          if (!edit.ok) return refusedTextEdit(edit);
           const prep = ctx.proposeEdit({
-            newBody: input.body,
-            summary: "Rewrite entire report",
+            newBody: edit.newBody,
+            summary: edit.summary,
           });
           if ("skip" in prep) return prep;
           return {
@@ -548,7 +463,7 @@ ${FASTR_MD_SYNTAX_DOC}`,
               const { skipped } = await prep.commit();
               return (
                 "The user ACCEPTED the rewrite; it is now applied to the report." +
-                skippedNote(skipped)
+                reportSkippedNote(skipped)
               );
             },
           };
@@ -574,38 +489,17 @@ ${FASTR_MD_SYNTAX_DOC}`,
       availableIn: ["editing_report"],
       kind: "write",
       approval: {
-        propose: async (raw, view) => {
+        propose: async (input, view) => {
           const ctx = view.context;
-          // As for rewrite_report: the section's blank-line runs collapse.
-          const input = {
-            ...raw,
-            newBody: collapseFastrBlankRuns(raw.newBody),
-          };
-          const result = spliceReportSection(
+          const edit = rewriteReportSection(
             ctx.getBody(),
-            input.sectionHeading,
-            input.newBody,
-            input.occurrenceIndex,
+            input,
+            embedIdsOf(ctx),
           );
-          if ("error" in result) {
-            throw new AIToolFailure(result.error);
-          }
-          validateReportBodyLength(result.newBody);
-          validateFastrContainers(result.newBody);
-          validateFastrStatPlacement(result.newBody);
-          validateFastrNewLiteralBackgrounds(
-            result.newBody,
-            ctx.getBody(),
-            input.allowLiteralColors,
-          );
-          validateReportTokensResolve(
-            result.newBody,
-            ctx.getFigures(),
-            ctx.getImages(),
-          );
+          if (!edit.ok) return refusedTextEdit(edit);
           const prep = ctx.proposeEdit({
-            newBody: result.newBody,
-            summary: `Rewrite section "${input.sectionHeading}"`,
+            newBody: edit.newBody,
+            summary: edit.summary,
           });
           if ("skip" in prep) return prep;
           return {
@@ -616,7 +510,7 @@ ${FASTR_MD_SYNTAX_DOC}`,
               const { skipped } = await prep.commit();
               return (
                 `The user ACCEPTED the rewrite of section "${input.sectionHeading}"; it is now applied.` +
-                skippedNote(skipped)
+                reportSkippedNote(skipped)
               );
             },
           };
@@ -644,32 +538,15 @@ ${FASTR_MD_SYNTAX_DOC}`,
       approval: {
         propose: async (input, view) => {
           const ctx = view.context;
-          const base = ctx.getBody();
-          const result = replaceTextOccurrence(
-            base,
-            input.oldText,
-            input.newText,
-            input.occurrenceIndex,
+          const edit = replaceReportText(
+            ctx.getBody(),
+            input,
+            embedIdsOf(ctx),
           );
-          if ("error" in result) {
-            throw new AIToolFailure(result.error);
-          }
-          validateReportBodyLength(result.newBody);
-          validateFastrContainers(result.newBody);
-          validateFastrStatPlacement(result.newBody);
-          validateFastrNewLiteralBackgrounds(
-            result.newBody,
-            base,
-            input.allowLiteralColors,
-          );
-          validateReportTokensResolve(
-            result.newBody,
-            ctx.getFigures(),
-            ctx.getImages(),
-          );
+          if (!edit.ok) return refusedTextEdit(edit);
           const prep = ctx.proposeEdit({
-            newBody: result.newBody,
-            summary: "Replace text",
+            newBody: edit.newBody,
+            summary: edit.summary,
           });
           if ("skip" in prep) return prep;
           return {
@@ -680,7 +557,7 @@ ${FASTR_MD_SYNTAX_DOC}`,
               const { skipped } = await prep.commit();
               return (
                 "The user ACCEPTED the edit; it is now applied to the report." +
-                skippedNote(skipped)
+                reportSkippedNote(skipped)
               );
             },
           };
@@ -735,7 +612,7 @@ ${FASTR_MD_SYNTAX_DOC}`,
               const { skipped } = await prep.commit();
               return (
                 `The user ACCEPTED the figure insert (id ${id}); it is now in the report.` +
-                skippedNote(skipped) +
+                reportSkippedNote(skipped) +
                 (skipped.length
                   ? " If the figure token was in a skipped change, the figure is unreferenced and will be pruned."
                   : "")
@@ -828,7 +705,7 @@ ${FASTR_MD_SYNTAX_DOC}`,
               const { skipped } = await prep.commit();
               return (
                 `The user ACCEPTED the figure replacement (new id ${newId}); it is now in the report.` +
-                skippedNote(skipped) +
+                reportSkippedNote(skipped) +
                 (skipped.length
                   ? " If the token swap was in a skipped change, the old figure may still be referenced and the new one unreferenced (it will be pruned)."
                   : "")

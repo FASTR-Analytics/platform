@@ -4,6 +4,7 @@
 //   import "report-forge/styles.css";            the editor chrome's styles
 //
 // The engine alone (no browser framework) is "report-forge/engine".
+// The tools for an assistant that edits the document are "report-forge/ai".
 
 export * from "./engine/mod.ts";
 export * from "./ui/kit/mod.ts";

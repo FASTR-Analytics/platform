@@ -1,4 +1,5 @@
 import { presentableDiff } from "@codemirror/merge";
+import type { SkippedRange } from "../../engine/line_ranges.ts";
 
 // Rebase an AI proposal's edits over concurrent collaborator edits.
 //
@@ -20,11 +21,6 @@ import { presentableDiff } from "@codemirror/merge";
 // lands BEFORE the AI's replacement.
 
 export type RebasedEdit = { from: number; to: number; insert: string };
-
-/** Where a skipped hunk sits, as 1-based line numbers in the CURRENT document
- *  (the text the user is looking at), so the notice can say which lines were
- *  left alone. Approximate when concurrent edits straddle the hunk. */
-export type SkippedRange = { fromLine: number; toLine: number };
 
 export function rebaseProposedEdits(
   baseBody: string,
@@ -84,15 +80,6 @@ export function rebaseProposedEdits(
   }
 
   return { changes, skipped };
-}
-
-/** "5", "5–8", "5, 12–14", for embedding in skip notices. */
-export function formatLineRanges(skipped: SkippedRange[]): string {
-  return skipped
-    .map((s) =>
-      s.fromLine === s.toLine ? `${s.fromLine}` : `${s.fromLine}–${s.toLine}`
-    )
-    .join(", ");
 }
 
 /** Apply rebased edits to a string (for tests and non-editor callers). */

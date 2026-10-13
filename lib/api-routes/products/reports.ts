@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { FASTR_REPORT_THEMES } from "../../../report-forge/engine/report_fastr_themes.ts";
 import {
+  fastrReportThemeSchema,
   reportConfigSchema,
   reportFiguresSchema,
   reportImagesSchema,
@@ -102,7 +102,7 @@ export const productReportRouteRegistry = {
     method: "PUT",
     params: productIdParamsSchema,
     body: z.object({
-      fastrTheme: z.enum(FASTR_REPORT_THEMES),
+      fastrTheme: fastrReportThemeSchema,
       // null clears a custom style back to the theme's own palette.
       customStyleId: z.string().nullable(),
     }),

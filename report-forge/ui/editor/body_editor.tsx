@@ -63,7 +63,8 @@ import {
   stretchField,
 } from "./live_preview_extension.tsx";
 import { fastrContainerFences } from "./fastr_fence_extension.ts";
-import { rebaseProposedEdits, type SkippedRange } from "./rebase_edits.ts";
+import type { SkippedRange } from "../../engine/line_ranges.ts";
+import { rebaseProposedEdits } from "./rebase_edits.ts";
 
 // The text selection (or the caret, when nothing is selected), for a host
 // that acts on what the user has highlighted: an assistant, a comment tool.

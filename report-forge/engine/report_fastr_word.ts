@@ -75,13 +75,13 @@ import {
 import type { FastrPagedFooter } from "./report_fastr_paged.ts";
 import {
   FASTR_HEADING_TAGS,
-  FASTR_THEME_TOKENS,
   type FastrGround,
   fastrHeadingStyle,
   type FastrHeadingTag,
   type FastrReportTheme,
   type FastrThemeColorOverride,
   type FastrThemeSemantic,
+  fastrThemeTokens,
   mixFastrColor,
 } from "./report_fastr_themes.ts";
 
@@ -423,8 +423,7 @@ class Builder {
   constructor(input: FastrWordBuildInput) {
     this.tokens = input.tokens;
     this.input = input;
-    const tokens = FASTR_THEME_TOKENS[input.theme] ??
-      FASTR_THEME_TOKENS.default;
+    const tokens = fastrThemeTokens(input.theme);
     this.c = fastrDerivedColorsFor(tokens, input.colors);
     const settings = readFastrDocumentSettings(input.body);
     this.page = settings.page;

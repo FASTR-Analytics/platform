@@ -63,6 +63,10 @@ export function reportForge() {
               find: /^report-forge\/engine$/,
               replacement: path.join(here, "engine", "mod.ts"),
             },
+            {
+              find: /^report-forge\/ai$/,
+              replacement: path.join(here, "ai", "mod.ts"),
+            },
             { find: /^report-forge$/, replacement: path.join(here, "mod.ts") },
           ],
           dedupe: REPORT_FORGE_DEPENDENCIES,

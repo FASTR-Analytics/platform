@@ -14,6 +14,7 @@ export * from "./fastr_markdown_pages.ts";
 export * from "./fastr_markdown_spec.ts";
 export * from "./fastr_report_page_map.ts";
 export * from "./fastr_report_templates.ts";
+export * from "./line_ranges.ts";
 export * from "./report_document_shell.ts";
 export * from "./report_fastr_css.ts";
 export * from "./report_fastr_markdown.ts";

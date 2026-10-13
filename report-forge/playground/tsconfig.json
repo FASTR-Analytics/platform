@@ -15,8 +15,9 @@
     "paths": {
       "report-forge": ["../mod.ts"],
       "report-forge/engine": ["../engine/mod.ts"],
+      "report-forge/ai": ["../ai/mod.ts"],
       "*": ["./node_modules/@types/*", "./node_modules/*"]
     }
   },
-  "include": ["src", "../mod.ts", "../ui/exports/raw.d.ts"]
+  "include": ["src", "../mod.ts", "../ai/mod.ts", "../ui/exports/raw.d.ts"]
 }

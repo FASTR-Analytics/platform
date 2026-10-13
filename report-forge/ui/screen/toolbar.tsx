@@ -19,8 +19,6 @@ import {
   FASTR_INK_ROLES,
   FASTR_LOGO_ALIGNS,
   FASTR_LOGO_SIZES,
-  FASTR_REPORT_THEMES,
-  FASTR_THEME_TOKENS,
   FASTR_TOC_DEFAULT_DEPTH,
   FASTR_TONES,
   type FastrBlockName,
@@ -31,6 +29,8 @@ import {
   type FastrReportTheme,
   fastrSurfaceTone,
   type FastrThemeColorOverride,
+  fastrThemeIds,
+  fastrThemeTokens,
   type FastrTone,
   fastrToneOf,
   isFastrBlockName,
@@ -770,7 +770,7 @@ export function ReportToolbar(p: Props) {
               }
               <div class="rf:bg-base-100 rf:ui-pad-sm rf:shadow-floating rf:max-h-80 rf:w-64 rf:overflow-y-auto rf:rounded rf:border">
                 <div class="rf:grid rf:grid-cols-2 rf:gap-1">
-                  <For each={FASTR_REPORT_THEMES}>
+                  <For each={fastrThemeIds()}>
                     {(theme) => (
                       <button
                         type="button"
@@ -1698,7 +1698,7 @@ function TABLE_ACTIONS(): {
 // Drawn from the tokens rather than the stylesheet, so the flyout costs no
 // scoped copy of every theme's CSS.
 function ThemeChip(p: { theme: FastrReportTheme }) {
-  const tok = () => FASTR_THEME_TOKENS[p.theme];
+  const tok = () => fastrThemeTokens(p.theme);
   return (
     <span
       class="rf:border-base-300 rf:flex rf:h-10 rf:w-full rf:items-center rf:gap-1 rf:overflow-hidden rf:rounded rf:border rf:px-1.5"

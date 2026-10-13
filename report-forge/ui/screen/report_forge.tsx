@@ -11,8 +11,6 @@ import {
   buildFastrEditorSurfaceCss,
   buildFastrReportCss,
   buildReportEmbedToken,
-  FASTR_REPORT_THEMES,
-  FASTR_THEME_TOKENS,
   fastrChartPalette,
   fastrDocumentOutline,
   type FastrFencePatch,
@@ -28,6 +26,8 @@ import {
   fastrReportTemplateBody,
   type FastrReportTheme,
   fastrSheetPx,
+  fastrThemeIds,
+  fastrThemeTokens,
   findReportEmbeds,
   isFastrEmbedLine,
   logosSnippet,
@@ -118,7 +118,7 @@ export function ReportForge(p: ReportForgeProps): JSX.Element {
   // The ink a figure takes: the palette's own on a light ground, a light ink
   // where the ground behind it is dark.
   const palette = createMemo(() => {
-    const tok = FASTR_THEME_TOKENS[theme()] ?? FASTR_THEME_TOKENS.default;
+    const tok = fastrThemeTokens(theme());
     return colors() ?? { page: tok.page, ink: tok.ink, accent: tok.accent };
   });
   const lightInk = createMemo(() => figureLightInkForColors(palette()));
@@ -525,7 +525,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
         element: ThemeModal,
         props: {
           documentTitle: title(),
-          themes: FASTR_REPORT_THEMES,
+          themes: fastrThemeIds(),
           theme: theme(),
           paletteId: p.settings.paletteId,
           listPalettes: p.palettes?.list,
