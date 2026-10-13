@@ -20,24 +20,39 @@ deletes the file.
 3. Refine there: commit fixes to `version2` and redeploy. 201 runs once per
    instance, so redeploys skip it.
 
-Until step 13, a migration added on `main` keeps its own numbering, below 200,
-and so sorts before 200 to 202.
+Until step 13, `version2` replaces `main` rather than merging it, so a fix that
+lands on `main` is ported to `version2` in its own commit. A ported migration
+keeps its file name, below 200, so it sorts before 200 to 202 and matches the
+fleet's record of having run it.
 
 Done when the team and the client are happy with version 2.
 
 ### Step 12: Prepare the fleet deploy
 
-1. Merge `main` into `version2`.
-2. status-api tolerates the fields version 2 removes (External couplings,
+1. `git log version2..origin/main`: every commit there that changes code, docs
+   or a migration has its counterpart on `version2`. Port any that does not.
+2. Make `main`'s history part of `version2`'s while keeping only `version2`'s
+   tree, except the release record:
+
+   ```sh
+   git merge -s ours --no-commit origin/main
+   git checkout origin/main -- VERSION CHANGELOG_AUTO.txt
+   git commit
+   ```
+
+   `VERSION` comes from `main` so `./deploy` bumps past the version the fleet
+   runs. `main`'s `CHANGELOG_AUTO.txt` already lists every `[TBD]` line on
+   `version2` under a released version.
+3. status-api tolerates the fields version 2 removes (External couplings,
    below).
-3. `./validate_consolidation.ts --json` across the fleet. Fix every FAIL
+4. `./validate_consolidation.ts --json` across the fleet. Fix every FAIL
    (usually: pin a package on the instance). Read the REVIEW counts.
 
 ### Step 13: Deploy to the fleet
 
-1. Merge `version2` into `main`.
-2. Deploy with `rollout_products`, which checks each instance's product and
-   folder counts against step 12's `--json`.
+1. `git push origin version2:main`, a fast-forward after step 12.
+2. Deploy from a `main` checkout with `rollout_products`, which checks each
+   instance's product and folder counts against step 12's `--json`.
 
 ### Step 14: Purge and close
 
