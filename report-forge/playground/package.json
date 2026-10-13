@@ -7,7 +7,9 @@
     "build": "vite build",
     "styles": "node ../styles/build.mjs",
     "styles:check": "node ../styles/build.mjs --check",
-    "typecheck": "tsc --noEmit --skipLibCheck"
+    "typecheck": "tsc --noEmit --skipLibCheck",
+    "shots": "node ../harness/browser/shots.mjs",
+    "compare": "node ../harness/browser/compare.mjs"
   },
   "dependencies": {
     "@codemirror/commands": "^6.0.0",
@@ -28,6 +30,8 @@
   },
   "devDependencies": {
     "@types/markdown-it": "^14.1.2",
+    "playwright-core": "^1.50.0",
+    "pngjs": "^7.0.0",
     "tailwindcss": "4.1.17",
     "typescript": "^5.3.3",
     "vite": "^6.0.11",

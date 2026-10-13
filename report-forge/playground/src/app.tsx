@@ -7,6 +7,7 @@ import {
   type ReportForgeSettings,
 } from "report-forge";
 import kitchenSink from "../../tests/fixtures/kitchen_sink.md?raw";
+import manySections from "../../tests/fixtures/many_sections.md?raw";
 
 const START = `# Quarterly review
 
@@ -24,8 +25,10 @@ Write here.
 
 export function App() {
   const params = new URLSearchParams(location.search);
+  // ?doc picks a fixture (the harness uses them); ?reader mounts read-only.
+  const doc = params.get("doc");
   const [body, setBody] = createSignal(
-    params.get("doc") === "sink" ? kitchenSink : START,
+    doc === "sink" ? kitchenSink : doc === "sections" ? manySections : START,
   );
   const [settings, setSettings] = createSignal<ReportForgeSettings>({
     theme: (params.get("theme") as ReportForgeSettings["theme"]) ?? "default",
@@ -57,6 +60,7 @@ export function App() {
       <div style={{ flex: "1", "min-height": "0" }}>
         <ReportForge
           title="Quarterly review"
+          canEdit={!params.has("reader")}
           body={body()}
           onBodyChange={setBody}
           settings={settings()}

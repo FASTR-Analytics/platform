@@ -335,6 +335,17 @@ npm run typecheck
   setup, Word XML); [harness/engine_compare.ts](harness/engine_compare.ts) diffs
   a run against [harness/baseline/](harness/baseline/). A change that is meant
   to alter output updates the baseline in the same commit.
+- **Browser parity.** With the playground running, `npm run shots -- <outDir>`
+  drives it through a fixed set of scenarios (documents on three themes, each
+  menu, the download and theme dialogs, a context menu, the read-only view) in a
+  headless Chrome and records a screenshot and the layout numbers for each:
+  where the pages break, where every block sits, the toolbar's geometry.
+  `npm run compare -- ../harness/baseline/browser_metrics.json <outDir>` checks
+  the numbers against the committed baseline;
+  `npm run compare -- <before> <after>` on two runs from the same machine also
+  compares the screenshots pixel by pixel. The themes load their typefaces from
+  Google Fonts, so the numbers hold only with a network. It needs a Chrome:
+  `CHROME_PATH`, or one Playwright has downloaded.
 - **Tests.** `deno test -A tests/` from a project whose import map has the
   dependencies.
 
