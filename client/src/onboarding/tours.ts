@@ -741,7 +741,11 @@ export function buildVizEditorTour(): TourDefinition {
 // A report is edited on the page itself, with a menu row and a formatting
 // bar. A reader has neither, so the steps below are gated on what is on
 // screen.
-const REPORT_MENU_ROW = tourTarget("report-menu-row");
+// The report editor is Report Forge's, which marks its parts with its own
+// neutral attribute, not with this app's tour names.
+const reportPart = (part: "menu-row" | "toolbar" | "page" | "outline") =>
+  `[data-rf-part="${part}"]`;
+const REPORT_MENU_ROW = reportPart("menu-row");
 
 export function buildReportEditorIntroTour(): TourDefinition {
   return {
@@ -787,7 +791,7 @@ export function buildReportEditorIntroTour(): TourDefinition {
       },
       {
         id: "formatting",
-        target: tourTarget("report-format-toolbar"),
+        target: reportPart("toolbar"),
         title: t3({
           en: "Formatting",
           fr: "Mise en forme",
@@ -806,7 +810,7 @@ export function buildReportEditorIntroTour(): TourDefinition {
       },
       {
         id: "code-pane",
-        target: tourTarget("report-code-pane"),
+        target: reportPart("page"),
         // Two pages share this anchor: the page being edited, and a report
         // the user can only read.
         title: () =>
@@ -833,7 +837,7 @@ export function buildReportEditorIntroTour(): TourDefinition {
       },
       {
         id: "outline",
-        target: tourTarget("report-outline"),
+        target: reportPart("outline"),
         title: t3({
           en: "Report tabs",
           fr: "Onglets du rapport",
@@ -849,7 +853,7 @@ export function buildReportEditorIntroTour(): TourDefinition {
         }),
         placement: "right",
         // Only while the list is open.
-        when: onScreen(tourTarget("report-outline")),
+        when: onScreen(reportPart("outline")),
       },
       packageScopeStep("report"),
       {

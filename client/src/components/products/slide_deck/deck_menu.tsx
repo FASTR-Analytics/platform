@@ -143,7 +143,7 @@ export function AddSlideMenu(p: { onAdd: (slide: Slide) => void }) {
   return (
     <ToolbarPopover
       menu
-      tour="deck-add-slide"
+      attrs={{ "data-tour": "deck-add-slide" }}
       label={
         // Just the +, at the height of the text menus beside it; the name
         // is its tooltip and its accessible label.
@@ -207,7 +207,7 @@ export function DeckFileMenu(p: {
   return (
     <ToolbarPopover
       menu
-      tour="deck-file-menu"
+      attrs={{ "data-tour": "deck-file-menu" }}
       label={t3({ en: "File", fr: "Fichier", pt: "Ficheiro" })}
       title={t3({ en: "File", fr: "Fichier", pt: "Ficheiro" })}
     >
@@ -315,7 +315,7 @@ export function DeckMenu(p: Props) {
   return (
     <ToolbarPopover
       menu
-      tour="deck-menu"
+      attrs={{ "data-tour": "deck-menu" }}
       label={t3({ en: "Deck", fr: "Présentation", pt: "Apresentação" })}
       title={t3({
         en: "Deck settings",

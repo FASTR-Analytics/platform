@@ -310,7 +310,7 @@ export function SlideToolbar(p: Props) {
   const blockKindControls = (blockId: string) => (
     <>
       <ToolbarPopover
-        tour="slide-block-type"
+        attrs={{ "data-tour": "slide-block-type" }}
         label={<span>{blockTypeLabel(selectedBlock()?.type)}</span>}
         title={t3({
           en: "Content type",
@@ -437,7 +437,7 @@ export function SlideToolbar(p: Props) {
     >
       <ToolbarPopover
         menu
-        tour="slide-type-select"
+        attrs={{ "data-tour": "slide-type-select" }}
         label={t3({ en: "Slide", fr: "Diapositive", pt: "Diapositivo" })}
         title={t3({ en: "Slide", fr: "Diapositive", pt: "Diapositivo" })}
       >
@@ -517,7 +517,7 @@ export function SlideToolbar(p: Props) {
 
       <ToolbarPopover
         menu
-        tour="slide-text-fields"
+        attrs={{ "data-tour": "slide-text-fields" }}
         label={t3({ en: "Insert", fr: "Insérer", pt: "Inserir" })}
         title={t3({ en: "Insert", fr: "Insérer", pt: "Inserir" })}
       >
@@ -588,7 +588,7 @@ export function SlideToolbar(p: Props) {
       <Show when={p.tempSlide.type === "content"}>
         <ToolbarPopover
           menu
-          tour="slide-split-menu"
+          attrs={{ "data-tour": "slide-split-menu" }}
           label={t3({
             en: "Split panel",
             fr: "Panneau divisé",
