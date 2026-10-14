@@ -16,11 +16,13 @@ import {
   type FastrReportTheme,
   isFastrReportTheme,
 } from "../../report-forge/engine/report_fastr_themes.ts";
-// For its side effect: the `legacy` theme is the platform's own and exists
-// only once this has run. The schemas below validate against the engine's
-// registry, so the registration must come first; importing it here makes
-// that true for every caller. See the file's own note.
+// For their side effect: the `legacy` theme and the report templates are
+// the platform's own and exist only once these have run. The schemas below
+// validate against the engine's registries, so the registrations must come
+// first; importing them here makes that true for every caller. See each
+// file's own note.
 import "../report_legacy_theme.ts";
+import "../report_templates.ts";
 import { reportStyleColorsSchema } from "./report_styles.ts";
 import type { ImageBlock } from "./slides.ts";
 import type { FigureBlock } from "./_figure_bundle.ts";

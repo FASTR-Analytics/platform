@@ -8,9 +8,11 @@ import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import {
   buildFastrReportCss,
   buildFastrThemeVarsCss,
-  FASTR_REPORT_TEMPLATES,
   FASTR_REPORT_THEMES,
+  fastrDocumentOutline,
   fastrRegisteredTheme,
+  fastrReportTemplateBody,
+  fastrReportTemplateBrief,
   fastrTemplateIds,
   fastrThemeIds,
   fastrThemeTokens,
@@ -18,6 +20,9 @@ import {
   getStartingBodyForReport,
   getStartingConfigForReport,
   isFastrReportTheme,
+  listFastrContainerDefects,
+  listFastrNestedStats,
+  REPORT_TEMPLATES,
   reportConfigSchema,
 } from "../../lib/mod.ts";
 
@@ -59,8 +64,10 @@ Deno.test("the stored theme is one of the engine's ten or legacy, legacy last", 
   assert(reportConfigSchema.safeParse({ format: "fastr" }).success);
 });
 
-Deno.test("the stored template is one of the engine's three", () => {
-  assertEquals(fastrTemplateIds(), [...FASTR_REPORT_TEMPLATES]);
+// The engine ships no templates: these three are the platform's own, registered
+// from lib/report_templates.ts.
+Deno.test("the stored template is one of the platform's three", () => {
+  assertEquals(fastrTemplateIds(), [...REPORT_TEMPLATES]);
   assertEquals(fastrTemplateIds(), ["policy_brief", "long_form", "empty"]);
   for (const template of fastrTemplateIds()) {
     assert(reportConfigSchema.safeParse({ template }).success, template);
@@ -69,6 +76,54 @@ Deno.test("the stored template is one of the engine's three", () => {
     assert(
       !reportConfigSchema.safeParse({ template: bad }).success,
       `accepted ${JSON.stringify(bad)}`,
+    );
+  }
+});
+
+Deno.test("templates: every skeleton is well-formed FASTR Markdown with real blocks", () => {
+  for (const template of REPORT_TEMPLATES) {
+    const body = fastrReportTemplateBody(template, 'Q3 "review"');
+    if (template === "empty") {
+      assertEquals(body, "");
+      continue;
+    }
+    assertEquals(listFastrContainerDefects(body), [], template);
+    assertEquals(listFastrNestedStats(body), [], template);
+    assert(
+      body.includes(`# Q3 "review"`),
+      `${template} carries the report's title`,
+    );
+    assert(
+      /^:::(cover|tiles|steps|callout|band)/m.test(body),
+      `${template} uses blocks`,
+    );
+    assert(body.includes("]{.muted}"), `${template} marks its placeholders`);
+    // Every section heading is outside a block, so it stays addressable.
+    const outline = fastrDocumentOutline(body, 3).map((i) => i.level);
+    assert(outline.length >= 5, `${template} has sections`);
+  }
+  // Long-form numbers its sections and opens on a title page with contents.
+  const long = fastrReportTemplateBody("long_form", "R");
+  assert(long.startsWith(":::report{numbering=sections}"));
+  assert(long.includes("fill=page") && long.includes(":::contents"));
+  // A brief is short: no contents, no numbering.
+  const brief = fastrReportTemplateBody("policy_brief", "R");
+  assert(!brief.includes(":::contents") && !brief.includes("numbering="));
+});
+
+// The AI is told what each template means, and how to treat the skeleton's
+// placeholder guidance.
+Deno.test("templates: each has a brief for the AI", () => {
+  assertStringIncludes(
+    fastrReportTemplateBrief("policy_brief"),
+    "POLICY BRIEF",
+  );
+  assertStringIncludes(fastrReportTemplateBrief("long_form"), "LONG-FORM");
+  assertStringIncludes(fastrReportTemplateBrief("empty"), "blank page");
+  for (const template of ["policy_brief", "long_form"]) {
+    assertStringIncludes(
+      fastrReportTemplateBrief(template),
+      "REPLACE every placeholder",
     );
   }
 });

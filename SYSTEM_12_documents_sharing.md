@@ -27,6 +27,7 @@ globs:
   - lib/types/slides.ts
   - lib/slide_text_offsets.ts
   - lib/report_legacy_theme.ts
+  - lib/report_templates.ts
   - server/db/instance/report_styles.ts
   - server/db/instance/scopes.ts
   - server/db/products/**
@@ -1974,14 +1975,18 @@ where it used to sit under a band of top margin after a page break. TEMPLATES
 (2026-09-23): on a report whose body is still a title line alone, the theme
 modal is step 1 of 2 (`offerTemplates`): Next applies the theme and step 2 is a
 template gallery (`report-forge/ui/screen/template_gallery.tsx`, Back returns,
-Skip keeps the theme and the title): Policy brief, Long-form report and Empty
-(`FASTR_REPORT_TEMPLATES`; a host may register more), each tile the template's
-real first page rendered under the look just chosen (`FastrTemplateMock`). The
-skeletons live in `report-forge/engine/fastr_report_templates.ts` with
-placeholder guidance written as muted marks (`[What goes here]{.muted}`,
-bracketed text in attributes); the chosen body goes in through
-`applyRebasedBody` (one transaction, so collaborators and undo see it), only
-while the body is still the seed, and the choice reaches the host as
+Skip keeps the theme and the title): Policy brief, Long-form report and Empty,
+each tile the template's real first page rendered under the look just chosen
+(`FastrTemplateMock`). The package ships NO templates (2026-10-14): these three
+are the platform's own, registered from
+[lib/report_templates.ts](lib/report_templates.ts) (`REPORT_TEMPLATES`) into the
+registry in `report-forge/engine/fastr_report_templates.ts`, and
+`lib/types/reports.ts` imports that file so a stored `config.template` can never
+be validated before the registration. A host with no templates gets no step 2.
+The skeletons carry placeholder guidance written as muted marks
+(`[What goes here]{.muted}`, bracketed text in attributes); the chosen body goes
+in through `applyRebasedBody` (one transaction, so collaborators and undo see
+it), only while the body is still the seed, and the choice reaches the host as
 `settings.template`, which it stores as `config.template`. The AI's editing
 instructions append `fastrReportTemplateBrief` for that template (shape, section
 order, the placeholder convention), read live from the view context's
