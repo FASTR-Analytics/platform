@@ -10,10 +10,10 @@ import type {
 // message. Producers call `copilotViewController.notify(...)`: the deck and
 // report editors, each listening to the instance SSE side-channel for its own
 // product (`edited_slide` from the deck, `product_updated` from both), and
-// the editors and selection UIs. With digestAcrossViews an entry is admitted
-// against the view it happens in and its line names that view. The engine
-// owns the transactional drain at turn creation and the reduction pipeline
-// (relevantIn / per-entry filter / coalesce per id), plus a coalesced
+// the editors and selection UIs. An entry is admitted (relevantIn, then the
+// per-entry filter) against the view it happens in and its line names that
+// view. The engine owns the transactional drain at turn creation and the
+// reduction pipeline (coalesce per id and view), plus a coalesced
 // `__navigation` line.
 //
 // Echo keys close the SSE self-echo loop: every persist-path write tool marks

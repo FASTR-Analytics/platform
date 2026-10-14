@@ -83,14 +83,15 @@ export async function resolveBundleFromMetricAndConfig(
   );
 }
 
-// The human counterpart of the resolver above: the D4 "Update to <package>"
-// action goes through here. The two differ in exactly one policy: the AI path
-// validates the replicant strictly so the model gets the valid-value list
-// back, while this path auto-defaults an unset or no-longer-valid replicant
-// inside the items read (resolveDefaultReplicant), which D4 makes the rule
-// for updating a stale figure: a stored replicant value missing under the new
-// package is defaulted, never thrown on. It returns a reason rather than
-// throwing because its callers show that reason on the figure itself.
+// The human counterpart of the resolver above: a stale figure's "Update to
+// <package>" action goes through here. The two differ in exactly one policy:
+// the AI path validates the replicant strictly so the model gets the
+// valid-value list back, while this path auto-defaults an unset or
+// no-longer-valid replicant inside the items read (resolveDefaultReplicant),
+// which is the rule for updating a stale figure: a stored replicant value
+// missing under the new package is defaulted, never thrown on. It returns a
+// reason rather than throwing because its callers show that reason on the
+// figure itself.
 export type ResolveFigureResult =
   | { ok: true; bundle: FigureBundle }
   | { ok: false; reason: string };

@@ -57,7 +57,7 @@ export type HfaCsvRunConfig = {
 };
 
 // ============================================================================
-// Import Run Types (PLAN_DHIS2_IMPORTER_CONSOLIDATION Phase B)
+// Import Run Types
 // ============================================================================
 
 // "needs_review" = staging dropped facility rows; the run holds with its

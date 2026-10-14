@@ -1,4 +1,9 @@
-import { createAIViewController, defineAIViews, view } from "panther";
+import {
+  AIToolFailure,
+  createAIViewController,
+  defineAIViews,
+  view,
+} from "panther";
 import type { AIViewController, AIViewState, AnyAIView } from "panther";
 import {
   COPILOT_PACKAGE_VIEWS,
@@ -10,10 +15,14 @@ import {
   getEditingReportInstructions,
   getSlideTitle,
   productLevelAtLeast,
+  productScope,
 } from "lib";
 import type {
   DatasetType,
   FigureBlock,
+  HfaIndicatorCategory,
+  HfaIndicatorServiceCategory,
+  HfaIndicatorSubCategory,
   ImageBlock,
   MetricWithStatus,
   PresentationObjectConfig,
@@ -35,17 +44,32 @@ import {
   copilotInteractions,
 } from "./interactions";
 import {
+  type DataSectionForAI,
   type ExploreSelection,
+  formatDataState,
   formatExploreState,
   formatPackageState,
   formatResultsPackagesState,
+  getAssetsInstructions,
+  getDataPageInstructions,
   getEditingSlideDeckInstructions,
   getEditingSlideInstructions,
+  getFigureEditorInstructions,
+  getHfaIndicatorEditorInstructions,
+  getHfaIndicatorsInstructions,
   getOpeningProductInstructions,
+  getProductsInstructions,
+  getResultsFileInstructions,
+  getUserInstructions,
+  getUsersInstructions,
   PRODUCT_VIEW_ONLY_LINE,
 } from "./build_system_prompt";
 import { productLevel } from "~/state/instance/product_access";
-import { instanceState } from "~/state/instance/t1_store";
+import {
+  createResolvedScope,
+  instanceState,
+  productById,
+} from "~/state/instance/t1_store";
 
 ////////////////////////////////////////////////////////////////////////////////
 // COPILOT: AI VIEW REGISTRY
@@ -75,8 +99,17 @@ import { instanceState } from "~/state/instance/t1_store";
 // (`opening_product` at mount, `editing_slide_deck` or `editing_report` once
 // loaded), the slide editor (`editing_slide`), Explore (`explore`), the
 // Results page (`results_packages`), the package page (`package`, set again
-// when the status changes) and the Module defaults and Scopes views; every
-// other view is declared here and has no sync site yet.
+// when the status changes), the Module defaults and Scopes views, the
+// Products, Data, Assets and Users pages and the user detail, the Data
+// switchboard's `openSubPage`, which sets `data_page` for every page it opens
+// and restores the view it covered when the page closes, and the places
+// inside products: deck settings (`deck_settings`), the version histories
+// (`deck_history`, `report_history`), the figure editor (the view its host
+// names in `aiView`, through `setFigureEditorView`), the results file
+// viewer (`results_file`) and the HFA indicators manager (`hfa_indicators`,
+// over the switchboard's `data_page`), whose code editor sets
+// `hfa_indicator_editor` once its draft store exists and whose Excel import
+// sets `hfa_indicator_import`.
 //
 // What the model is told per view splits in two (append-only turns, E7):
 // `instructions` is the static guidance of the view, which rides a message
@@ -131,6 +164,28 @@ function pairOf(context: PackageViewContext): CopilotPair | undefined {
 export type ProductViewContext = PackageViewContext & {
   getLabel: () => string;
 };
+
+// A product's own view context from its T1 row, read live: the label, and
+// the pair with its scope's definition hash, or an AIToolFailure naming why
+// once the row is gone. Creates a memo, so it is called in a component body.
+export function productViewContext(productId: string): ProductViewContext {
+  const resolved = createResolvedScope(() => {
+    const product = productById(productId);
+    return product === undefined ? undefined : productScope(product);
+  });
+  const getScope = () => {
+    const scope = resolved();
+    if (scope === undefined) {
+      throw new AIToolFailure("This product no longer exists.");
+    }
+    return scope;
+  };
+  return {
+    getLabel: () => productById(productId)?.label ?? "",
+    getScope,
+    getRunId: () => getScope().runId,
+  };
+}
 
 export type OpeningProductParams = {
   productId: string;
@@ -203,6 +258,44 @@ export type ViewingPackageFigureParams = {
   figureId: string;
 };
 
+// The view a figure editor's host names in the editor's `aiView` prop: which
+// of the three figure views, with the params its identity needs.
+export type FigureEditorView =
+  | { id: "editing_slide_figure"; params: EditingSlideFigureParams }
+  | { id: "editing_report_figure"; params: EditingReportFigureParams }
+  | { id: "viewing_package_figure"; params: ViewingPackageFigureParams };
+
+// The figure editor sets the view its host named. A switch, for the reason
+// `restoreCopilotView` gives.
+export function setFigureEditorView(
+  view: FigureEditorView,
+  context: FigureEditorContext,
+): void {
+  switch (view.id) {
+    case "editing_slide_figure":
+      copilotViewController.setView(
+        "editing_slide_figure",
+        view.params,
+        context,
+      );
+      return;
+    case "editing_report_figure":
+      copilotViewController.setView(
+        "editing_report_figure",
+        view.params,
+        context,
+      );
+      return;
+    case "viewing_package_figure":
+      copilotViewController.setView(
+        "viewing_package_figure",
+        view.params,
+        context,
+      );
+      return;
+  }
+}
+
 export type ResultsFileParams = {
   moduleId: string;
   resultsObjectId: string;
@@ -227,6 +320,12 @@ export type PackagePageContext = PackageViewContext & {
   getOpenModuleId: () => string | undefined;
 };
 
+// The Data switchboard's view: its rows' labels and status marks, read live
+// from the page.
+export type DataContext = {
+  getSections: () => DataSectionForAI[];
+};
+
 // The Data switchboard's pages, each a `data_page` with the family it is
 // about, when it is about one.
 export const DATA_PAGE_IDS = [
@@ -249,11 +348,66 @@ export type DataPageParams = {
   family?: DatasetType;
 };
 
+// The HFA indicators manager's view: the guidance the manager supplies
+// (`components/data/hfa/indicators/ai/instructions.ts`, S5's, so this
+// registry imports nothing from `components/data/`) and the open tab.
+export type HfaIndicatorsContext = {
+  getGuidance: () => string;
+  getTab: () => string;
+};
+
 export type HfaIndicatorEditorParams = {
   indicatorId: string;
 };
+// One round of the code editor's draft, with the issues the editor's own
+// validation finds in it (syntax, unknown variables, warnings, the result
+// type), as English lines.
+export type HfaIndicatorEditorRound = {
+  timePoint: string;
+  rCode: string;
+  rFilterCode: string;
+  issues: string[];
+};
+// The code editor's unsaved state: the fields its tools may change, the
+// code per round, and whether the non-empty rounds agree.
+export type HfaIndicatorEditorDraft = {
+  shortLabel: string;
+  definition: string;
+  type: "binary" | "numeric";
+  aggregation: "sum" | "avg";
+  categoryId: string | null;
+  subCategoryId: string | null;
+  serviceCategoryIds: string[];
+  code: HfaIndicatorEditorRound[];
+  codeConsistent: boolean;
+};
+// What `update_hfa_indicator_editor` may change: every field optional, the
+// code by round, a round's field omitted to keep it.
+export type HfaIndicatorEditorPatch = {
+  shortLabel?: string;
+  definition?: string;
+  type?: "binary" | "numeric";
+  aggregation?: "sum" | "avg";
+  categoryId?: string | null;
+  subCategoryId?: string | null;
+  serviceCategoryIds?: string[];
+  code?: { timePoint: string; rCode?: string; rFilterCode?: string }[];
+};
+export type HfaIndicatorEditorTaxonomy = {
+  categories: HfaIndicatorCategory[];
+  subCategories: HfaIndicatorSubCategory[];
+  serviceCategories: HfaIndicatorServiceCategory[];
+};
+// The code editor's view: the open indicator's saved label, the round the
+// user is looking at, the draft read live with the editor's validation, the
+// taxonomy the editor offers, and the write that lands in the draft and
+// marks it unsaved, for the user to save.
 export type HfaIndicatorEditorContext = {
   getLabel: () => string;
+  getSelectedTimePoint: () => string;
+  getDraft: () => HfaIndicatorEditorDraft;
+  getTaxonomy: () => HfaIndicatorEditorTaxonomy;
+  applyDraft: (patch: HfaIndicatorEditorPatch) => void;
 };
 
 // The level line for a product view's instructions: present below edit
@@ -275,7 +429,10 @@ function deckViewState(ids: string, selectedSlideIds: string[]): string {
 
 export const copilotViews = defineAIViews(
   {
-    products: view({ label: "Products" }),
+    products: view({
+      label: "Products",
+      instructions: () => getProductsInstructions(),
+    }),
     opening_product: view<OpeningProductParams, ProductViewContext>({
       label: (_params, context) => context.getLabel(),
       identity: (params, context) =>
@@ -335,6 +492,8 @@ export const copilotViews = defineAIViews(
           figure: params.figureId,
           pair: pairOf(context),
         }),
+      instructions: (_params, context) =>
+        getFigureEditorInstructions(context.getLabel(), "slide"),
     }),
     deck_settings: view<EditingSlideDeckParams, ProductViewContext>({
       label: (_params, context) => context.getLabel(),
@@ -398,6 +557,8 @@ export const copilotViews = defineAIViews(
           figure: params.figureId,
           pair: pairOf(context),
         }),
+      instructions: (_params, context) =>
+        getFigureEditorInstructions(context.getLabel(), "report"),
     }),
     results_file: view<ResultsFileParams, PackageViewContext>({
       label: (params) => `${params.moduleId} / ${params.resultsObjectId}`,
@@ -406,6 +567,8 @@ export const copilotViews = defineAIViews(
           resultsObject: params.resultsObjectId,
           pair: pairOf(context),
         }),
+      instructions: (params) =>
+        getResultsFileInstructions(params.moduleId, params.resultsObjectId),
     }),
     explore: view<void, ExploreContext>({
       label: "Explore",
@@ -445,10 +608,15 @@ export const copilotViews = defineAIViews(
           figure: params.figureId,
           pair: pairOf(context),
         }),
+      instructions: (_params, context) =>
+        getFigureEditorInstructions(context.getLabel(), "package"),
     }),
     module_defaults: view({ label: "Module defaults" }),
     scopes: view({ label: "Scopes" }),
-    data: view({ label: "Data" }),
+    data: view<void, DataContext>({
+      label: "Data",
+      state: (_params, context) => formatDataState(context.getSections()),
+    }),
     data_page: view<DataPageParams, void>({
       label: (params) =>
         params.family === undefined
@@ -459,8 +627,15 @@ export const copilotViews = defineAIViews(
           page: params.page,
           family: params.family,
         }),
+      instructions: (params) =>
+        getDataPageInstructions(params.page, params.family),
     }),
-    hfa_indicators: view({ label: "HFA indicators" }),
+    hfa_indicators: view<void, HfaIndicatorsContext>({
+      label: "HFA indicators",
+      instructions: (_params, context) =>
+        getHfaIndicatorsInstructions(context.getGuidance()),
+      state: (_params, context) => `Open tab: ${context.getTab()}`,
+    }),
     hfa_indicator_editor: view<
       HfaIndicatorEditorParams,
       HfaIndicatorEditorContext
@@ -470,11 +645,18 @@ export const copilotViews = defineAIViews(
         copilotViewIdentity("hfa_indicator_editor", {
           indicator: params.indicatorId,
         }),
+      instructions: (_params, context) =>
+        getHfaIndicatorEditorInstructions(context.getLabel()),
+      state: (params, context) =>
+        `indicatorId: ${params.indicatorId} | round: ${context.getSelectedTimePoint()}`,
     }),
     hfa_indicator_import: view({ label: "HFA indicator import" }),
-    assets: view({ label: "Assets" }),
-    users: view({ label: "Users" }),
-    user: view({ label: "User" }),
+    assets: view({
+      label: "Assets",
+      instructions: () => getAssetsInstructions(),
+    }),
+    users: view({ label: "Users", instructions: () => getUsersInstructions() }),
+    user: view({ label: "User", instructions: () => getUserInstructions() }),
     shell: view({ label: "No page open" }),
   } satisfies Record<CopilotViewId, AnyAIView>,
 );
@@ -488,7 +670,6 @@ export const copilotViewController: AIViewController<
 > = createAIViewController(copilotViews, {
   fallback: "shell",
   interactions: copilotInteractions,
-  digestAcrossViews: true,
 });
 
 // Captures the current view and restores it when the calling place unmounts.
@@ -513,8 +694,6 @@ export function restoreCopilotView(state: CopilotViewState): void {
     case "results_packages":
     case "module_defaults":
     case "scopes":
-    case "data":
-    case "hfa_indicators":
     case "hfa_indicator_import":
     case "assets":
     case "users":
@@ -593,6 +772,16 @@ export function restoreCopilotView(state: CopilotViewState): void {
       return;
     case "explore":
       copilotViewController.setView("explore", undefined, state.context);
+      return;
+    case "data":
+      copilotViewController.setView("data", undefined, state.context);
+      return;
+    case "hfa_indicators":
+      copilotViewController.setView(
+        "hfa_indicators",
+        undefined,
+        state.context,
+      );
       return;
     case "package":
       copilotViewController.setView("package", state.params, state.context);

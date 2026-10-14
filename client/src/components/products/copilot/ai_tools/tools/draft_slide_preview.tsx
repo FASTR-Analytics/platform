@@ -52,7 +52,7 @@ type SlideState = {
 };
 
 type Props = {
-  // The view the draft was made in, stored with the card (E4): its identity
+  // The view the draft was made in, stored with the card: its identity
   // carries the pair the draft resolves under. Absent on a card stored before
   // the engine recorded it.
   view: AIViewSnapshot | undefined;
@@ -132,7 +132,7 @@ export function DraftSlidePreview(p: Props) {
     }),
   });
 
-  // The open deck's config only in a deck view on the draft's pair (D63);
+  // The open deck's config only in a deck view on the draft's pair;
   // elsewhere the starting draft config.
   function getDeckConfig(draft: PackageScope): SlideDeckConfig {
     const view = openDeckOnPair(draft);

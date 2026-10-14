@@ -26,7 +26,7 @@ import { instanceState, productById } from "~/state/instance/t1_store";
 import { descendantIds } from "./folder_tree";
 
 // The entry that opens the access dialog, in the product menu and both
-// editors' File menus (R14): never "Share…", which already means email a PDF.
+// editors' File menus: never "Share…", which already means email a PDF.
 export const manageAccessLabel = () =>
   t3({
     en: "Manage access…",
@@ -34,11 +34,10 @@ export const manageAccessLabel = () =>
     pt: "Gerir o acesso…",
   });
 
-// "Manage access…" (PLAN_PRODUCT_OWNERSHIP §2.9) for one product, and its bulk
-// mode, "Set access for everything in this folder…" (§2.11), for a global
-// admin. The dialog cannot produce the server's three refusals: it never
-// offers the owner as a grantee, offers only roster users, and lists each
-// person once.
+// "Manage access…" for one product, and its bulk mode, "Set access for
+// everything in this folder…", for a global admin. The dialog cannot produce
+// the server's three refusals: it never offers the owner as a grantee, offers
+// only roster users, and lists each person once.
 type Props =
   | { mode: "product"; productId: string }
   | { mode: "folder"; folderId: string };
@@ -73,7 +72,7 @@ export function ProductAccessModal(
   );
 }
 
-// What the server does on a transfer (R10): the previous owner, if any,
+// What the server does on a transfer: the previous owner, if any,
 // becomes an edit grantee and the new owner's grant goes. Applied to the draft
 // when an owner is picked, and to the stored access to know whether the draft
 // asks for more than the transfer itself.
@@ -108,7 +107,7 @@ function personLabel(email: string, user: OtherUser | undefined): string {
 }
 
 // A grant to a restricted user who lacks the product's scope is accepted and
-// stays inert until their scope access changes (R6), so the dialog says so.
+// stays inert until their scope access changes, so the dialog says so.
 function lacksScope(
   user: OtherUser | undefined,
   scopeId: ScopeId | undefined,

@@ -1,8 +1,8 @@
 # PROTOCOL_APP_AI_TOOLS: authoring AI tool input schemas
 
-The recipe for writing Zod input schemas for AI tools (the copilot, HFA
-assistant, and any future surface). The architecture (where validation is
-enforced, which derived schemas exist) is
+The recipe for writing Zod input schemas for AI tools (the chat's tools, the HFA
+tools among them, the `/mcp` surface, and any future one). The architecture
+(where validation is enforced, which derived schemas exist) is
 [SYSTEM_13_ai_assistant.md](SYSTEM_13_ai_assistant.md).
 
 ## Core principle: derive from storage schemas

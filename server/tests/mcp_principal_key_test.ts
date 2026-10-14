@@ -1,7 +1,7 @@
-// Regression pin for the /mcp principal key (PLAN_COPILOT02_FIXES step 7,
-// D28): panther caches one core per principal key, and a core's tools close
-// over the token of the request that built it, so the key must tell two
-// credentials of one email apart while naming no part of either.
+// Regression pin for the /mcp principal key: panther caches one core per
+// principal key, and a core's tools close over the token of the request that
+// built it, so the key must tell two credentials of one email apart while
+// naming no part of either.
 //
 //   deno test -A --no-check --env-file server/tests/mcp_principal_key_test.ts
 

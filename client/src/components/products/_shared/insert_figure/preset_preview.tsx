@@ -27,7 +27,7 @@ type Props = {
   onClick: () => void;
 };
 
-// A preset is not a row and has no detail read (D6): it renders through the
+// A preset is not a row and has no detail read: it renders through the
 // same scope-keyed items read as any inserted figure, so a gallery of
 // previews and the figure a user then inserts share cache entries.
 export function PresetPreview(p: Props) {

@@ -9,6 +9,7 @@ import {
   type InstalledModuleSummary,
   type MetricWithStatus,
   type PackageScope,
+  type ResolvedView,
   type RunAuthoringContext,
   t3,
   viewsForModule,
@@ -77,6 +78,7 @@ export function ModuleView(p: {
   moduleSelect: JSX.Element;
   query: FamilyQuery | undefined;
   setQuery: (query: FamilyQuery) => void;
+  onView: (view: ResolvedView | undefined) => void;
 }) {
   const metrics = createMemo(() => moduleMetrics(p.module, p.ctx));
   const views = createMemo(() => viewsForModule(p.module, p.ctx));
@@ -113,6 +115,7 @@ export function ModuleView(p: {
               setQuery={p.setQuery}
               choices={exploreViewChoices()[key()]}
               setChoices={(choices) => setExploreViewChoices(key(), choices)}
+              onView={p.onView}
               selectors={
                 <SelectorsRow>
                   {p.moduleSelect}

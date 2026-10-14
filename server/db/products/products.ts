@@ -40,9 +40,7 @@ export const PRODUCT_NOT_FOUND = "Product not found";
 export const PACKAGE_OR_SCOPE_UNAVAILABLE =
   "The results package is not ready, or the package or scope no longer exists";
 
-// The access writes' refusals (PLAN_PRODUCT_OWNERSHIP R10, R19), returned
-// through the envelope like FOLDER_CYCLE. Rulings cited below without a plan
-// name are that plan's.
+// The access writes' refusals, returned through the envelope like FOLDER_CYCLE.
 export const PRODUCT_GRANT_IS_OWNER =
   "The owner already has full access and cannot also be given a level";
 export const PRODUCT_GRANT_DUPLICATE = "Each person can be listed only once";
@@ -222,11 +220,11 @@ const INSERT_DETAIL_BY_TYPE: Record<
   report: insertNewReportDetail,
 };
 
-// The registry row and its detail row go in ONE transaction (the D1 writer
-// rule). The caller names the package and the scope; the ready gate and both
-// existence checks are INSIDE the insert, so there is no read-then-write
-// window. The server mints the label in the instance language. The creator
-// owns the product and nobody else can see it (R2).
+// The registry row and its detail row go in ONE transaction, since the schema
+// does not enforce that the detail row exists. The caller names the package and
+// the scope; the ready gate and both existence checks are INSIDE the insert, so
+// there is no read-then-write window. The server mints the label in the
+// instance language. The creator owns the product and nobody else can see it.
 export async function createProduct(
   mainDb: Sql,
   args: {
@@ -397,10 +395,10 @@ const DUPLICATE_DETAIL_BY_TYPE: Record<
   report: duplicateReportDetail,
 };
 
-// The Q2 to Q3 workflow's first half (D5): the copy clones run_id VERBATIM
+// The Q2 to Q3 workflow's first half: the copy clones run_id VERBATIM
 // through INSERT ... SELECT, so the package can never drift to the pin, takes
 // the scope the caller names, and lands in the source's folder. Whoever made
-// the copy owns it, nobody else can see it, and no grant is copied (R2).
+// the copy owns it, nobody else can see it, and no grant is copied.
 export async function duplicateProduct(
   mainDb: Sql,
   productId: string,
@@ -493,9 +491,9 @@ async function readProductAccess(
   };
 }
 
-// R10: the general access and the whole grant list, replaced in one
+// The general access and the whole grant list, replaced in one
 // transaction. The product row is locked, so the owner check and the write
-// see the same owner. No access write bumps last_updated (R15): the content
+// see the same owner. No access write bumps last_updated: the content
 // did not change.
 export async function setProductAccess(
   mainDb: Sql,
@@ -540,7 +538,7 @@ export async function setProductAccess(
   });
 }
 
-// R10: the previous owner, if any, becomes an edit grantee, and the new
+// The previous owner, if any, becomes an edit grantee, and the new
 // owner's grant, if any, goes, so the owner is never a grantee.
 export async function setProductOwner(
   mainDb: Sql,
@@ -582,7 +580,7 @@ export async function setProductOwner(
   });
 }
 
-// R19, the bulk action: raises access on every product in the folder's
+// The bulk action: raises access on every product in the folder's
 // subtree at this moment, in one transaction, and never lowers it. General
 // access becomes the higher of its value and the chosen one, and each chosen
 // person's grant the higher of theirs and the chosen level; a person who owns
@@ -733,8 +731,9 @@ export async function getProductLevelRowsInScopes(
   return rows.map((row) => productLevelRowFromDb(row, email));
 }
 
-// Run by every path that deletes users rows, inside its transaction (R7): an
-// owner with no users row becomes NULL and a grant with no users row goes.
+// Run by every path that deletes users rows, inside its transaction, since
+// owner and grants name users by email with no foreign key: an owner with no
+// users row becomes NULL and a grant with no users row goes.
 // A users row deleted and re-inserted in the same transaction keeps both.
 // Returns the products it changed, for the caller to re-broadcast.
 export async function dropAccessOfMissingUsers(sql: Sql): Promise<string[]> {

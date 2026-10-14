@@ -17,15 +17,14 @@ import { notifyInstanceRScript } from "../../task_management/notify_instance_upd
 import { sha256HexOfFile } from "./input_key.ts";
 import type { ResolvedRunModule } from "./resolve_modules.ts";
 
-// Stage 3 of the run pipeline: execute or reuse one module
-// (PLAN_RESULTS_RUNS items 2 + 3). The module's workspace is the run's own
-// outputs/{moduleId} dir (§2.1): the R container mounts the run tmp dir and
-// works there, so raw outputs are born inside the run and are never copied
-// from a serving location. Inter-module reads (../{upstreamId}/) resolve
-// because module dirs stay siblings; dataset reads resolve to the run's own
-// ../../inputs/datasets/ (generated scripts are pointed there per-caller).
+// Stage 3 of the run pipeline: execute or reuse one module. The module's
+// workspace is the run's own outputs/{moduleId} dir: the R container mounts the
+// run tmp dir and works there, so raw outputs are born inside the run and are
+// never copied from a serving location. Inter-module reads (../{upstreamId}/)
+// resolve because module dirs stay siblings; dataset reads resolve to the run's
+// own ../../inputs/datasets/ (generated scripts are pointed there per-caller).
 //
-// Reuse (§3.7): when the catalog-wide search finds the module's inputKey in
+// Reuse: when the catalog-wide search finds the module's inputKey in
 // a ready run, reuseRunModule copies that run's raw output CSVs instead of
 // running R: only R execution is memoized; finalize rebuilds parquet fresh
 // under the CURRENT facility config, so copied CSVs never freeze stale
@@ -53,7 +52,7 @@ export async function executeRunModule(args: {
 }): Promise<ModuleRunResult> {
   const { module: mod } = args;
   const moduleId = mod.moduleId;
-  // The live R line goes to the instance catalogue only (Q-B/(e)):
+  // The live R line goes to the instance catalogue only:
   // generation is an instance act and a product points only at a ready run,
   // so nothing else has a live view to feed. The full log is captured in the
   // run either way.
@@ -101,7 +100,7 @@ export async function executeRunModule(args: {
 
     // Verify every declared results object was written (write-time
     // contract), hash outputs for downstream inputKeys, and warn on
-    // undeclared files (excluded from all accounting, §2.3). Imported
+    // undeclared files (excluded from all accounting). Imported
     // assets are inputs staged into the workspace, not outputs.
     const declaredFiles = new Set<string>([
       _MODULE_SCRIPT_FILE_NAME,
@@ -143,14 +142,14 @@ export async function executeRunModule(args: {
   }
 }
 
-// §3.7 reuse: the module's inputs are byte-identical to the matched run's,
-// so its raw output CSVs are copied from that run's outputs/{moduleId} and R
-// is skipped. **Copy, never link: an ironclad rule** (Tim, 2026-07-30):
+// Reuse: the module's inputs are byte-identical to the matched run's, so its
+// raw output CSVs are copied from that run's outputs/{moduleId} and R is
+// skipped. **Copy, never link: an ironclad rule**:
 // every file in a results package is an unlinked copy, so the package is 100%
 // immutable, 100% standalone, and transportable by copying its directory
 // alone. Never turn this into `Deno.link`/`Deno.symlink`; the duplicated bytes
-// are an accepted cost, and PLAN_RESULTS_RUNS §10 Q3 (parquet-native R) is the
-// ruled way to pay them down. outputFileHashes come from the source
+// are an accepted cost, and parquet-native R, which drops the raw CSVs, is the
+// way to pay them down. outputFileHashes come from the source
 // manifest: they describe the exact bytes copied from the immutable run.
 export async function reuseRunModule(args: {
   runId: string;

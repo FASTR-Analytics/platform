@@ -12,6 +12,7 @@ export * from "./source_header.ts";
 export * from "./content_validators.ts";
 export * from "./format_metric_data_for_ai.ts";
 export * from "./format_metrics_list_for_ai.ts";
+export * from "./format_products_list_for_ai.ts";
 export * from "./hfa_time_points_for_ai.ts";
 export * from "./tools_metrics.ts";
 export * from "./tools_methodology_docs.ts";

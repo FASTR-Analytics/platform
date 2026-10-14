@@ -1,8 +1,7 @@
 // The instance stream's per-connection filter and the starting payload's
 // share of the product plane: a restricted connection receives only its
-// grants' share (PLAN_SCOPES step 5), and every connection that is not a
-// global admin only the products it holds view on (PLAN_PRODUCT_OWNERSHIP
-// §2.7). Pure: no database.
+// grants' share, and every connection that is not a global admin only the
+// products it holds view on. Pure: no database.
 
 import { assertEquals } from "@std/assert";
 import { ALL_DATA_SCOPE_DEFINITION, ALL_SCOPES } from "lib";

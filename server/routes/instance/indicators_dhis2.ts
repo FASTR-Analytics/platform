@@ -249,7 +249,7 @@ defineRoute(
   },
 );
 
-// POST /indicators-dhis2/create - Save the naming step (PLAN_A5 ruling 7)
+// POST /indicators-dhis2/create - Save the naming step
 defineRoute(
   routesIndicatorsDhis2,
   "createIndicatorsFromDhis2",

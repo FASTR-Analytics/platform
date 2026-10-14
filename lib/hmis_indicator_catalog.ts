@@ -5,15 +5,15 @@
 // PURE. Turns the instance's live indicator dictionary into the rows a run's
 // `indicators.json` input mirror carries: the snapshot every later reader
 // (finalize, the manifest transform, the read path) works from, so an edit
-// after generation cannot change what a package computes (PLAN_1a §1.10).
+// after generation cannot change what a package computes.
 //
 // This is where "generation decides what the numbers are made of" happens: a
 // calculated indicator's expression is FLATTENED here, so the row names nothing
 // but leaves, counts (Uploaded, DHIS2 element, Sum) and population types,
 // and each of those is assigned the ingredient column its value will travel
 // in. Everything downstream just sums columns and applies a formula. A sum
-// is a leaf like any count (its members are summed at extract, PLAN_A4
-// ruling 4), so the resolver and the catalog never look inside one.
+// is a leaf like any count (its members are summed at extract), so the
+// resolver and the catalog never look inside one.
 //
 // =============================================================================
 
@@ -47,12 +47,11 @@ import { isSpecialIndicatorId } from "./special_indicators.ts";
 // One row of the v2 `indicators.json` mirror. `expression` is flattened and
 // `slot_map` names the ingredient column of each leaf it uses: a count or a
 // population type, in first-appearance order, no slot special. A count's
-// expression is its own identifier, one slot; a sum is one slot like any
-// other count, so the package format is unchanged by sums. `type` is the
-// stored type under its code name (PLAN_A5 ruling 10). `direction`,
-// `target` and `expected_low_counts` are the indicator's own (HmisIndicator,
-// lib/types/indicators.ts); a package generated before they existed has no
-// key for them.
+// expression is its own identifier, one slot; a sum is one slot like any other
+// count, so the package format is unchanged by sums. `type` is the stored type
+// under its code name. `direction`, `target` and `expected_low_counts` are the
+// indicator's own (HmisIndicator, lib/types/indicators.ts); a package generated
+// before they existed has no key for them.
 export type HmisIndicatorCatalogRow = {
   indicator_common_id: string;
   indicator_common_label: string;
@@ -121,13 +120,13 @@ function resolveOrUndefined(
   }
 }
 
-// THE analysed set (PLAN_A4 ruling 3), stated once: a count (Uploaded,
-// DHIS2 element or Sum) is in the extract, and therefore in m001, m002 and
-// every package, when its checkbox is on, or it is a special, or a calculated
-// with its checkbox on reaches it through the resolver. Sum membership alone
-// puts nothing in the extract: the sum is computed from its members' rows
-// whether or not they are analysed themselves. A calculated that does not
-// resolve reaches nothing here; capture refuses it with the reason.
+// THE analysed set, stated once: a count (Uploaded, DHIS2 element or Sum) is in
+// the extract, and therefore in m001, m002 and every package, when its checkbox
+// is on, or it is a special, or a calculated with its checkbox on reaches it
+// through the resolver. Sum membership alone puts nothing in the extract: the
+// sum is computed from its members' rows whether or not they are analysed
+// themselves. A calculated that does not resolve reaches nothing here; capture
+// refuses it with the reason.
 export function analysedIndicatorIds(
   indicators: HmisIndicator[],
   populationTypeIds: string[],
@@ -160,7 +159,7 @@ export function analysedIndicatorIds(
 // The analysed counts the extract can produce values for: an Uploaded or
 // DHIS2 element whose data id has rows, a sum with rows under any member's
 // data id. `dataIdsWithRows` is the set of data ids that have dataset_hmis
-// rows (PLAN_A5 ruling 10).
+// rows.
 export function analysedIdsWithData(
   indicators: HmisIndicator[],
   analysed: Set<string>,
@@ -196,8 +195,7 @@ export function analysedIdsWithData(
 // population term must be an analysed count with data. Capture refuses
 // the run on any other answer; the indicator manager and editor show the
 // same answer. Whether the population store covers a population type is the
-// person-years expansion's check at prepare time (PLAN_1b ruling 6), not
-// this one.
+// person-years expansion's check at prepare time, not this one.
 export type CalculatedIndicatorComputability =
   | { kind: "computable"; resolved: ResolvedIndicatorExpression }
   | {
@@ -273,14 +271,14 @@ function describeComputabilityProblem(
   } not in the data (${missing.length === 1 ? "it has" : "they have"} no rows)`;
 }
 
-// The catalog is the analysed set (ruling 3): every analysed count under
-// its own type, and every calculated with its checkbox on. `idsWithData` is
-// the subset of those that the extract can actually produce values for. An
-// expression that reaches outside it would silently evaluate to NULL
-// everywhere, so it fails the capture instead. A calculated with its checkbox
-// off is in no package; a chain through it still resolves, since the
-// dictionary is the whole list. `populationTypeIds` is the store's
-// vocabulary: a population identifier resolves iff it names one.
+// The catalog is the analysed set: every analysed count under its own type, and
+// every calculated with its checkbox on. `idsWithData` is the subset of those
+// that the extract can actually produce values for. An expression that reaches
+// outside it would silently evaluate to NULL everywhere, so it fails the
+// capture instead. A calculated with its checkbox off is in no package; a chain
+// through it still resolves, since the dictionary is the whole list.
+// `populationTypeIds` is the store's vocabulary: a population identifier
+// resolves iff it names one.
 export function resolveHmisIndicatorCatalog(
   indicators: HmisIndicator[],
   idsWithData: Set<string>,
@@ -315,10 +313,10 @@ export function resolveHmisIndicatorCatalog(
       // An analysed count the extract cannot produce values for carries no
       // expression and no slot map: it contributes no ingredient row, m012
       // emits nothing for it, and a read yields NULL: the same answer as any
-      // other missing ingredient (PLAN_1a §1.5). This is the ordinary case,
-      // not a failure: a special may exist as an Uploaded indicator before
-      // any file has been mapped onto it, so treating an empty count as an
-      // error would block generation fleet-wide.
+      // other missing ingredient. This is the ordinary case, not a failure: a
+      // special may exist as an Uploaded indicator before any file has been
+      // mapped onto it, so treating an empty count as an error would block
+      // generation fleet-wide.
       const hasData = idsWithData.has(indicator.indicator_common_id);
       rows.push({
         ...shared,
@@ -449,7 +447,7 @@ function rStringLiteral(value: string): string {
 }
 
 // =============================================================================
-// Import selection expansion (PLAN_A4 ruling 5)
+// Import selection expansion
 // =============================================================================
 
 // A DHIS2 import selects INDICATORS; what it fetches is expanded here, once,
@@ -458,9 +456,8 @@ function rStringLiteral(value: string): string {
 // members; a calculated flattens through the resolver to the counts it
 // reaches, and a reached sum to its members. The DHIS2 elements among them
 // contribute their data ids, in first-appearance order; population terms
-// and Uploaded indicators are dropped and listed for the run detail
-// (PLAN_A5 ruling 3). `unknownIndicatorIds` and `unresolvable` are refusals
-// the caller reports.
+// and Uploaded indicators are dropped and listed for the run detail.
+// `unknownIndicatorIds` and `unresolvable` are refusals the caller reports.
 export type IndicatorSelectionExpansion = {
   dataIds: string[];
   populationTermsDropped: string[];
@@ -545,7 +542,7 @@ export function expandIndicatorSelection(
   };
 }
 
-// The expansion as the wizard shows it before launch (PLAN_A7 ruling 4):
+// The expansion as the wizard shows it before launch:
 // each fetched data id joined to the DHIS2 element indicator that carries
 // it, so the Review can list the covered elements, plus the dropped parts
 // under the expansion's names. A thin read of `expandIndicatorSelection`;

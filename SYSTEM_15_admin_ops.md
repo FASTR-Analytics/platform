@@ -132,12 +132,11 @@ delete; migration 205). A global admin is unrestricted whatever the flag says.
 `GlobalUser` and every roster row (`OtherUser`) carry it, and `canUseScope` asks
 it. A restricted user sees only products in their scopes, reads data only
 through them, has no Explore, no `/mcp`, no Results or Data page, and their
-`can_view_data`, `can_configure_data` and `can_view_logs` read as false
-(PLAN_SCOPES R13, R26). Where each rule is enforced: products and folders S1
-(`productAccessPolicy`), data reads S8 "Scope access", the instance stream S3,
-collab S16.
+`can_view_data`, `can_configure_data` and `can_view_logs` read as false. Where
+each rule is enforced: products and folders S1 (`productAccessPolicy`), data
+reads S8 "Scope access", the instance stream S3, collab S16.
 
-Only a global admin changes it (R25), so a restricted user holding
+Only a global admin changes it, so a restricted user holding
 `can_configure_users` cannot lift their own restriction. That covers the admin
 flag too, since an admin is unrestricted: `addUsers` and `batchUploadUsers`
 answer 403 (`ADMIN_FLAG_NEEDS_ADMIN`) when a caller who is not a global admin
@@ -162,7 +161,7 @@ can change a user's access does the same through
 `batchUploadUsers`): it closes each collab socket whose access no longer equals
 its user's roster row. The client compares its own row's access with the one its
 connection was built under and reconnects both channels on a change
-(`t1_sse.tsx`, R29). An email rename moves the grants (`rename_user_email.ts`).
+(`t1_sse.tsx`). An email rename moves the grants (`rename_user_email.ts`).
 
 The roster row reports a global admin as the guard derives one: on an
 open-access instance every user is a global admin whatever `users.is_admin` says
@@ -217,8 +216,7 @@ owns the consequences).
 registry blind spot (11 endpoints). `authMiddleware` is `clerkMiddleware()`,
 which populates session state and **never rejects**, and these routes carry no
 guards, so all 11 health endpoints are public by design (external status
-dashboard). What each leaks must stay a deliberate decision
-(PLAN_HARDEN_SECURITY):
+dashboard). What each leaks must stay a deliberate decision:
 
 1. `/health_check`: instance meta, uptime, **every user email + admin emails**,
    contact persons, whether a run is generating, dataset stats, last user-log
@@ -239,9 +237,9 @@ dashboard). What each leaks must stay a deliberate decision
     `mappedTo` = the indicator id; wire keys the Admin-Website reads, so they
     stay).
 
-**Central export: none** (ruled, PLAN_RESULTS_RUNS work item 6): there is no
-`export_central.ts`, no `main.ts` mount for one, and no `CENTRAL_SERVER_SECRET`
-env var. A future central hub streams run files instead of `ro_*` COPY.
+**Central export: none** (ruled): there is no `export_central.ts`, no `main.ts`
+mount for one, and no `CENTRAL_SERVER_SECRET` env var. A future central hub
+streams run files instead of `ro_*` COPY.
 
 ## user_logs
 
@@ -277,11 +275,11 @@ failures surface as user-facing route errors with GB figures.
 - **`./run`**: backgrounds the Deno server + Vite client with prefixed output,
   killing both on INT/TERM.
 - **`./deploy`** (in order): typecheck gate (includes `lint:systems`,
-  `lint:structure`, `lint:text-sizes` and `lint:sql-json`) →
-  `./validate_protocols` (a failure prompts to continue) → optional
-  `./validate_migrations` → optional `./validate_queries` → minor/patch VERSION
-  bump prompts → client build baked into `client_dist/` (with backup/rollback
-  trap) →
+  `lint:structure`, `lint:text-sizes`, `lint:sql-json` and
+  `lint:plan-citations`) → `./validate_protocols` (a failure prompts to
+  continue) → optional `./validate_migrations` → optional `./validate_queries` →
+  minor/patch VERSION bump prompts → client build baked into `client_dist/`
+  (with backup/rollback trap) →
   `docker build --platform linux/amd64 -t
   timroberton/comb:wb-fastr-server-v$VERSION`
   → push (`crane` when installed, else `docker push`) → git commit
@@ -302,7 +300,9 @@ failures surface as user-facing route errors with GB figures.
   headers; server validates emails, optional replace-all), H_USERS-only
   unlimited-AI/contact-person sections. One bulk tri-state editor
   (`unchanged → true → false`, posting only changed keys) covers the instance
-  flags.
+  flags. The page holds and sets the chat's `users` view at mount and the user
+  detail (opened over the shell) `user` (S13); each view's label and
+  instructions name the page and never the roster or the email.
 - **Self-profile** (`profile.tsx`): AI usage bars; the organisation is written
   **directly to Clerk `unsafeMetadata`**, a second persistence plane outside
   serverActions/Postgres. Clear data cache, Clear AI chat history, Sign out and
@@ -326,7 +326,7 @@ content into `main`, and nothing drops them afterwards.
 
 SSH/credential/tunnel/psql recipes stay in the **gitignored**
 `PROTOCOL_ACCESS_DBS.md` (read-only-by-default rules; the Postgres ports are
-currently internet-exposed behind a shared password, PLAN_HARDEN_SECURITY).
+currently internet-exposed behind a shared password).
 
 ## Open items
 
@@ -336,8 +336,7 @@ currently internet-exposed behind a shared password, PLAN_HARDEN_SECURITY).
   `openAccess` and the two constants `adminVersion` and `isHealthy` is already
   public by design on `/health_check`. Open question: trim the payload
   (environment/databaseFolder/versions) to what the login screen needs, or
-  accept as part of the deliberate health exposure inventory
-  (PLAN_HARDEN_SECURITY).
+  accept as part of the deliberate health exposure inventory.
 - **Disk checks**: Linux-only fail-open (`df` GNU flags); `checkSpaceForDataset`
   has no `iceh` entry.
 - **Hardcoded personal emails** in shipped code: health_check's exclusion list,

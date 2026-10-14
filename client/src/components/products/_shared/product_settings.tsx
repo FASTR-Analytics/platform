@@ -18,7 +18,7 @@ type Props = {
 
 type ReturnType = { lastUpdated: string } | undefined;
 
-// THE product settings surface (D16): name and folder, opened from the card
+// THE product settings surface: name and folder, opened from the card
 // menu and both editor headers. The (package, scope) pair has its own surface,
 // PackageScopeModal, behind the PackageScopeChip.
 export function ProductSettings(p: AlertComponentProps<Props, ReturnType>) {
@@ -28,7 +28,7 @@ export function ProductSettings(p: AlertComponentProps<Props, ReturnType>) {
   );
 
   // The same flat full-path list, sorted by path with General (the root)
-  // first, that the move picker shows (D16).
+  // first, that the move picker shows.
   const folderOptions = createMemo(() => [
     { value: GENERAL_ID, label: generalLabel() },
     ...folderPathOptions(instanceState.folders, {}),

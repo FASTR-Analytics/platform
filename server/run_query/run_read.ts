@@ -414,8 +414,8 @@ async function readInputRows<T>(
 }
 
 // The dataset/indicator lists a reader carries, all served from the run's
-// own inputs (PLAN_RESULTS_RUNS Phase 3 re-cut ruling 5: the mirror tables
-// are no longer written, so they are never read).
+// own inputs (the mirror tables are no longer written, so they are never
+// read).
 
 export function getRunDatasetsFromManifest(
   manifest: RunManifest,
@@ -690,7 +690,7 @@ export function getModuleSummariesFromManifest(
     .toSorted(compareModules);
 }
 
-// Metric status = the finalize-computed availability stamp (§2.2); readers
+// Metric status = the finalize-computed availability stamp; readers
 // never re-derive availability, and unavailable metrics surface the stamped
 // reason.
 export function getMetricsWithStatusFromManifest(
@@ -904,8 +904,7 @@ function inAreaPredicate(column: string, adminArea2: string): string {
 // admin_area_2 from their admin3 outputs, so serving the table whole would
 // show every area in the country inside a scoped product. Blank is wrong
 // visibly; national data under a regional heading is wrong silently. The
-// durable fix is those scripts emitting admin_area_2, tracked in the modules
-// repo as PLAN_ADMIN_AREA_2_ON_ADMIN3_OUTPUTS.md.
+// durable fix is those module scripts emitting admin_area_2.
 function geographyPredicate(
   adminArea2: string | null,
   facilitiesTable: string,
@@ -1041,7 +1040,7 @@ export async function getPresentationObjectItemsFromRun(
     getRunVersionInfo(ctx),
     maxItems,
   );
-  // Post-aggregation catalog evaluation (PLAN_1a §1.6): the engine returned
+  // Post-aggregation catalog evaluation: the engine returned
   // SUMmed ingredient columns for main AND roll-up rows; each row's own
   // indicator expression turns them into one `value`.
   const catalogEvaluation = getCatalogEvaluationForResultsObject(

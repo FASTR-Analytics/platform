@@ -13,7 +13,7 @@ import { answersKeyedScope, resolveScope } from "~/state/instance/t1_store";
 import { serverActions } from "~/server_actions";
 
 // The valid values of a figure's replicant dimension, read under one
-// PackageScope through the run-keyed mount (PLAN_PRODUCTS_RESTRUCTURE D7).
+// PackageScope through the run-keyed mount.
 // Version key CONSTANT, identity in the UNIQUENESS key: a package is
 // immutable and the scope is another axis of the question, so
 // `(runId, definitionHash)` leads the key instead of versioning it, and a

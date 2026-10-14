@@ -78,10 +78,6 @@ import {
   findStaleFiguresInLayout,
   resolveFigureBundleInteractively,
 } from "~/generate_visualization/mod";
-import {
-  UpdateAllFiguresButton,
-  updateFigureToScope,
-} from "~/components/_shared/figure_editor/mod.ts";
 import { serverActions } from "~/server_actions";
 import { _SLIDE_CACHE } from "~/state/products/t2_slides";
 import {
@@ -123,7 +119,7 @@ type SlideEditorInnerProps = {
   deckConfigSnapshot: SlideDeckConfig;
   // The product's live (package, scope) pair and that package's authoring
   // context, passed down by the deck editor: what every figure on this slide
-  // resolves under and what staleness is measured against (D4).
+  // resolves under and what staleness is measured against.
   scope: PackageScope;
   authoringContext: RunAuthoringContext;
   // Where the deck wants the slide's toolbar: the toolbar row under the
@@ -1015,7 +1011,7 @@ export function SlideEditor(p: Props) {
 
     try {
       // The metric comes from the product package's authoring context; a
-      // figure carried over from another package edits under this one (D4).
+      // figure carried over from another package edits under this one.
       const metric = p.authoringContext.metrics.find((m) => m.id === metricId);
       if (!metric) {
         await openAlert({
@@ -1064,6 +1060,14 @@ export function SlideEditor(p: Props) {
               scope: p.scope,
               metric,
               configSnapshot: structuredClone(unwrap(bundleConfig)),
+              aiView: {
+                id: "editing_slide_figure" as const,
+                params: {
+                  deckId: p.productId,
+                  slideId: p.slideId,
+                  figureId: blockId,
+                },
+              },
               authoringContext: p.authoringContext,
               collabBinding,
             },
@@ -1098,7 +1102,7 @@ export function SlideEditor(p: Props) {
     }
   }
 
-  // The ONE figure-authoring path (D3): the product package's presets and
+  // The ONE figure-authoring path: the product package's presets and
   // the metric wizard, resolved under the product's pair. Inserting into an
   // empty block and replacing an existing figure are the same action.
   async function handleCreateVisualization() {
@@ -1145,9 +1149,9 @@ export function SlideEditor(p: Props) {
     );
   }
 
-  // ── Stale figures on this slide (D4) ────────────────────────────────────────
+  // ── Stale figures on this slide ─────────────────────────────────────────────
   // Compared against the product's live pair, so a reattach while the slide
-  // editor is open lights the count without a remount.
+  // editor is open lights the selected figure's stale badge without a remount.
   const staleContext = () => ({
     scope: p.scope,
     authoringContext: p.authoringContext,
@@ -1156,35 +1160,9 @@ export function SlideEditor(p: Props) {
     tempSlide.type === "content"
       ? findStaleFiguresInLayout(tempSlide.layout, resolveScope(p.scope))
       : [];
-  const [updatingFigures, setUpdatingFigures] = createSignal(false);
 
-  // Re-resolve every stale figure on this slide. Failures are per figure:
-  // the ones that cannot move keep their old bundle and report why.
-  async function updateAllFiguresOnSlide() {
-    const stale = staleFigures();
-    if (stale.length === 0) return;
-    setUpdatingFigures(true);
-    const failures: string[] = [];
-    for (const s of stale) {
-      const res = await updateFigureToScope(
-        p.scope,
-        p.authoringContext,
-        s.bundle,
-      );
-      if (res.ok) {
-        setFigureBlockBundle(s.blockId, res.bundle);
-      } else {
-        failures.push(res.reason);
-      }
-    }
-    setUpdatingFigures(false);
-    if (failures.length > 0) {
-      await openAlert({ text: failures.join("\n"), intent: "danger" });
-    }
-  }
-
-  // The selected block's bundle, but only when it is stale: the block panel
-  // renders the badge off this.
+  // The selected block's bundle, but only when it is stale: the toolbar's
+  // figure controls render the badge off this.
   const selectedStaleBundle = (): FigureBundle | undefined => {
     const blockId = selectedBlockId();
     if (!blockId) return undefined;

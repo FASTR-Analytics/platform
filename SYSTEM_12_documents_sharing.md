@@ -134,10 +134,9 @@ in `state/instance/product_access.ts` ("Access in the client" below). There is
 no unauthenticated product surface: a deck reaches recipients as an emailed PDF
 (cross-cutting audit SYSTEMS.md §4.3.9).
 
-**Access is a Google Doc's** (PLAN_PRODUCT_OWNERSHIP). A product has one owner,
-per-user grants at `view` or `edit`, and a general access for everyone else in
-the instance (`none`, `view` or `edit`); global admins own every product. What
-each level allows:
+**Access is a Google Doc's**. A product has one owner, per-user grants at `view`
+or `edit`, and a general access for everyone else in the instance (`none`,
+`view` or `edit`); global admins own every product. What each level allows:
 
 | Level  | Allows                                                                                                                                                                                                    |
 | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -252,23 +251,23 @@ access, so the general access is a floor no grant lowers. `productLevelAtLeast`
 compares two levels. The level a route declares, `ProductAccessLevel`, is
 `ProductLevel` without `none`.
 
-**The layer** (`server/db/products/**`, PLAN_PRODUCTS_RESTRUCTURE step 5): every
-function takes `mainDb` and keys off the registry. `products.ts` holds the
-cross-type surface: one summary query for both types (`listProducts` /
-`getProductSummaries`, the registry row plus `firstSlideId` for a deck and
-`hasEmbeds` for a report, computed in SQL so no body crosses the DB boundary,
-plus the product's `ProductAccess`: `owner` and `defaultAccess` from the row,
-and `grants`, ordered by email, from one more SELECT over `product_access` for
-the ids in hand, merged in TypeScript; no detail payload carries access);
-`createProduct` inserts the registry row and the detail row in one transaction
-(a new deck is minted EMPTY with `themeChosen: false`; the config write that
-first answers the theme question, the first-open wizard in practice, makes the
-deck's cover in the same transaction, under a row lock, and only while the deck
-has no slides: see `updateSlideDeckConfig`, whose route announces the new slide
-as createSlide does), takes `runId` and `scopeId` from the caller, checks inside
-the insert that the run is `ready` and that both rows exist, and returns the
-typed `PACKAGE_OR_SCOPE_UNAVAILABLE` when nothing qualifies. Every product
-insert (`createProduct`, `duplicateProduct`, `copyReportFromVersion`,
+**The layer** (`server/db/products/**`): every function takes `mainDb` and keys
+off the registry. `products.ts` holds the cross-type surface: one summary query
+for both types (`listProducts` / `getProductSummaries`, the registry row plus
+`firstSlideId` for a deck and `hasEmbeds` for a report, computed in SQL so no
+body crosses the DB boundary, plus the product's `ProductAccess`: `owner` and
+`defaultAccess` from the row, and `grants`, ordered by email, from one more
+SELECT over `product_access` for the ids in hand, merged in TypeScript; no
+detail payload carries access); `createProduct` inserts the registry row and the
+detail row in one transaction (a new deck is minted EMPTY with
+`themeChosen: false`; the config write that first answers the theme question,
+the first-open wizard in practice, makes the deck's cover in the same
+transaction, under a row lock, and only while the deck has no slides: see
+`updateSlideDeckConfig`, whose route announces the new slide as createSlide
+does), takes `runId` and `scopeId` from the caller, checks inside the insert
+that the run is `ready` and that both rows exist, and returns the typed
+`PACKAGE_OR_SCOPE_UNAVAILABLE` when nothing qualifies. Every product insert
+(`createProduct`, `duplicateProduct`, `copyReportFromVersion`,
 `copySlideDeckFromVersion`) writes the actor as `owner` and `default_access`
 `none`, and no grant is copied; `updateProductLabel`, `moveProductsToFolder`,
 `setProductScope` (takes a `scopeId`, and the scope's existence is checked in
@@ -491,7 +490,7 @@ text without re-validation.
 **The deck editor** (`SlideDeckEditor` in
 [slide_deck/slide_deck.tsx](client/src/components/products/slide_deck/slide_deck.tsx))
 takes `{ productId }`: label, package and scope come from `productById` on the
-T1 store (D16), the authoring context from S9's immutable
+T1 store, the authoring context from S9's immutable
 `t2_run_authoring_context.ts` keyed by the LIVE pair, so a reattach or rescope
 (from the header chip, the Products page or a collaborator) moves figure data,
 metrics and presets together and lights the stale badges without a remount; a
@@ -581,7 +580,10 @@ keyed slide editor. The menu is rendered by `SlideList`, never by
 `SlideToolbar`, for that same reason: a menu inside the keyed editor would close
 on its own first click. The full settings screen (`SlideDeckSettings`, with the
 delete action) is still there, one row down the menu as "All deck settings";
-name and folder sits in File.
+name and folder sits in File. The settings screen takes the deck id and sets the
+chat's `deck_settings` view over the deck's (S13; its context is the product's
+live row through `productViewContext`), so the deck tools refuse while the user
+is there; History sets `deck_history` the same way (S16).
 
 **The slide editor**
 ([slide_editor/slide_editor.tsx](client/src/components/products/slide_deck/slide_editor/slide_editor.tsx))
@@ -609,25 +611,27 @@ which draws slide text, renders none of them. Below it the canvas is a live
 preview through S10's `convertSlideToPageInputs`, debounced 100ms off
 `trackStore(tempSlide)` except while typing on it. Every figure it writes is
 stamped with the product's pair, a figure block whose bundle was resolved under
-another pair shows S11's stale badge in the block panel, and the header counts
-them with "Update all figures" (S10 "The captured pair and staleness"). The deck
-header does the same across every slide through `deck_stale_figures.ts`, which
-walks the per-slide cache, swaps bundles with
-`slide_transforms/update_block_in_layout.ts` (the one structural walk the slide
-editor's own block edits use, so every write carries a fresh reference for the
-CRDT sync) and writes each updated slide back through `updateSlide` with its
-`expectedLastUpdated`. Slide-type switching keeps a per-type cache so switching
-back restores prior state (same idiom per-block for block-type switches). The
-layout tree is manipulated exclusively through panther node ops via
-`buildLayoutContextMenu`
+another pair shows S11's stale badge among its toolbar controls when selected
+(S10 "The captured pair and staleness"). The deck header's "Update all
+visualizations" button counts and re-resolves the stale figures across every
+slide through `deck_stale_figures.ts`, which walks the per-slide cache, swaps
+bundles with `slide_transforms/update_block_in_layout.ts` (the one structural
+walk the slide editor's own block edits use, so every write carries a fresh
+reference for the CRDT sync) and writes each updated slide back through
+`updateSlide` with its `expectedLastUpdated`. Slide-type switching keeps a
+per-type cache so switching back restores prior state (same idiom per-block for
+block-type switches). The layout tree is manipulated exclusively through panther
+node ops via `buildLayoutContextMenu`
 ([slide_editor/build_context_menu.ts](client/src/components/products/slide_deck/slide_editor/build_context_menu.ts)):
 split/add/move/delete/convert, reachable from both the panel button and canvas
-right-click. Figure blocks have ONE authoring path (D3): insert and replace open
+right-click. Figure blocks have ONE authoring path: insert and replace open
 `InsertFigureModal` (the product package's presets and the metric wizard) and
 edit opens S11's embedded `VisualizationEditor` over the WHOLE deck (the deck's
 `openHostEditor`, as Settings and History open; the slide editor's own wrapper
 only covers the slide pane beside the rail, and the slide stays mounted
-underneath, so its collab binding lives); every result resolves through
+underneath, so its collab binding lives), naming the chat's
+`editing_slide_figure` view in its `aiView` prop with the deck, slide and block
+ids (the report names `editing_report_figure`); every result resolves through
 `resolveFigureBundleInteractively` under the product's current pair, so editing
 a stale figure also brings it up to date. Local edits notify the AI
 (`edited_slide_locally`) and the editor holds the deck's view
@@ -681,25 +685,27 @@ overwrite path: the human editor's modal is the only override).
 over the two flat T1 lists (`instanceState.products` and
 `instanceState.folders`, both maintained per row off the instance channel),
 shown as a **tree** from the top level where any number of folders are open at
-once. The root products (`folderId: null`) sit under **General**, one synthetic
-folder row (`GENERAL_ID` in `folder_tree.ts`) sorted among the root folders like
-any of them and shown only when there are root products to hold. General is
-presentation only: no `Folder` row, no colour, no menu, never merged with a user
-folder of the same name, and folders are its siblings, never its children. The
-open folders are an id set in localStorage (`productsExpandedFolders`) beside
-the sort (`state/t4_ui.ts`); ids of deleted folders drop out through an effect
-gated on `isReady`, so the persisted set survives hydration. General's state is
-its own saved flag (`productsGeneralClosed`), open by default and written only
-while the row is shown; it never enters the folder set. The tree is **derived**,
-never stored, by `folder_tree.ts` (`childFolders`, `folderPathLabels`,
-`descendantIds`, `folderPathOptions`, `buildProductTree`, `productTreeRows`, the
-drop rule `folderDragItem` and `dropParent`, and the outline's rows
-`targetRowIndex` and `dropRegion`: pure, type-import-only, every walk carrying a
-visited set so a corrupted cycle terminates, pinned by
-`server/tests/folder_tree_test.ts`). The labels for the root, General for
-products and "Top level" for folders, and the one "Move to …" label the two
-menus and the list's root zone read (`moveToRootLabel`), are
-`_shared/folder_labels.ts`.
+once. The page holds and sets the chat's `products` view at mount (S13), the one
+view that admits `list_products`, which reads the same two lists; an editor it
+opens sets its own view over it. The root products (`folderId: null`) sit under
+**General**, one synthetic folder row (`GENERAL_ID` in `folder_tree.ts`) sorted
+among the root folders like any of them and shown only when there are root
+products to hold. General is presentation only: no `Folder` row, no colour, no
+menu, never merged with a user folder of the same name, and folders are its
+siblings, never its children. The open folders are an id set in localStorage
+(`productsExpandedFolders`) beside the sort (`state/t4_ui.ts`); ids of deleted
+folders drop out through an effect gated on `isReady`, so the persisted set
+survives hydration. General's state is its own saved flag
+(`productsGeneralClosed`), open by default and written only while the row is
+shown; it never enters the folder set. The tree is **derived**, never stored, by
+`folder_tree.ts` (`childFolders`, `folderPathLabels`, `descendantIds`,
+`folderPathOptions`, `buildProductTree`, `productTreeRows`, the drop rule
+`folderDragItem` and `dropParent`, and the outline's rows `targetRowIndex` and
+`dropRegion`: pure, type-import-only, every walk carrying a visited set so a
+corrupted cycle terminates, pinned by `server/tests/folder_tree_test.ts`). The
+labels for the root, General for products and "Top level" for folders, and the
+one "Move to …" label the two menus and the list's root zone read
+(`moveToRootLabel`), are `_shared/folder_labels.ts`.
 
 The list (`list_view.tsx`) is hand-built from panther parts on one CSS grid
 template shared by the header row and every body row, the sanctioned exception
@@ -879,15 +885,14 @@ renderer or an AI brief any more.
   parameter every embed helper took.
 
 **Creation asks nothing**: the products page mints the report the way it mints a
-deck, server-labelled and instantly open (D16). The look is chosen from INSIDE
-the report instead, by
-[theme_modal.tsx](report-forge/ui/screen/theme_modal.tsx), which the editor
-opens unprompted the first time a new report is opened and which the Page menu
-reaches after that. `config.themeChosen === false` is the mark of a report that
-has never been asked: it is written only at creation, so a report minted before
-the modal existed carries no flag at all and is never interrupted about a choice
-it was never offered. Its tiles render the REAL theme sheet over the REAL `fm-*`
-markup, scoped per tile
+deck, server-labelled and instantly open. The look is chosen from INSIDE the
+report instead, by [theme_modal.tsx](report-forge/ui/screen/theme_modal.tsx),
+which the editor opens unprompted the first time a new report is opened and
+which the Page menu reaches after that. `config.themeChosen === false` is the
+mark of a report that has never been asked: it is written only at creation, so a
+report minted before the modal existed carries no flag at all and is never
+interrupted about a choice it was never offered. Its tiles render the REAL theme
+sheet over the REAL `fm-*` markup, scoped per tile
 ([fastr_theme_mock.tsx](report-forge/ui/screen/fastr_theme_mock.tsx)), so a
 preview is exactly what the report becomes.
 
@@ -1029,12 +1034,12 @@ host hands it, prop by prop.
   `reportExportHostOf(figures).rasterizeFigure`
   (`exports/export_report_as_html.ts`: panther draws the bundle on a transparent
   ground at `FIGURE_EXPORT_WIDTH_PX`, in the ink and palette asked for);
-  `insert` opens `InsertFigureModal` (the ONE figure-authoring path, D3),
-  resolves the bundle under the product's pair, writes it to the registry under
-  a fresh uuid and returns the id with the metric's label as its caption;
-  `controls` adds "Edit visualization" (S11's embedded `VisualizationEditor`,
-  bound to the figure's config in the shared doc while the session is live) and
-  "Replace visualization" to a selected figure's toolbar.
+  `insert` opens `InsertFigureModal` (the ONE figure-authoring path), resolves
+  the bundle under the product's pair, writes it to the registry under a fresh
+  uuid and returns the id with the metric's label as its caption; `controls`
+  adds "Edit visualization" (S11's embedded `VisualizationEditor`, bound to the
+  figure's config in the shared doc while the session is live) and "Replace
+  visualization" to a selected figure's toolbar.
 - `palettes`: the saved custom styles. `list` is `listReportStyles` mapped to
   `{id, label, description, colors}`; `edit` opens `ReportStyleEditor`.
 - `renderPdf`: posts the paged document to the streaming `renderReportPdf` route
@@ -1293,31 +1298,30 @@ stylesheet (`buildFastrPagedCss` — `@page` size/margins, a zero-margin named
 page for a cover with `fill=page` (any other cover is a 544px-tall band at the
 head of page 1, flush to the top of the sheet through the page's top margin with
 a negative margin, the report continuing below it on a page that keeps its
-bottom margin and footer; Nick's rulings 2026-09-08, "back to normal size, maybe
-have an option to page fill" and no white above the cover; a named page with no
-top margin was tried first, but Paged.js breaks wherever the flow leaves a named
-page and the cover took page 1 alone), the running footer as margin boxes,
-keep-together on the designed blocks that are one thing (cards, stats, tiles,
-columns, figures, table rows, list items, each step) while callouts, bands,
-quotes and steps CONTINUE across pages between paragraphs and steps with the box
-drawn on both sides (Nick, 2026-09-08, after a bulletin printed with pages half
-empty behind blocks that missed the foot by a line; a block's title or kicker
-never ends a page, its standfirst never opens one, and a break at a flowing
-block's first content counts as a break before the block so the heading above
-travels with it; the runner judges "first on the page" by a block's FIRST
-fragment inside the page box, since a block that overflowed also has a fragment
-in Paged.js's overflow column whose top is the page's top; a continued block's
-page starts at its first new child, not at the cloned box), keep-with-next on
-headings, orphans/widows 3, explicit breaks from `:::pagebreak` (its marker is
-out of the flow, pinned to the page's top corner: pushed to the next page by a
-margin it would break after itself and print a blank page) and
-`break=before|after`, section counters on the renderer-stamped `fm-numbered`
-class, TOC page numbers via `target-counter`) and the in-document runner
-(`fastrPagedRunnerJs`), which releases blocks taller than a page before
-pagination (they split as a last resort and are reported), repairs Paged.js's
-keep-with-next flags, redirects a break that lands inside a whole block to the
-block itself (and back over its heading), repeats table header rows on
-continuations, paints the document ground on every sheet, and publishes a
+bottom margin and footer, so the cover is normal size, page fill is an option,
+and no white shows above the cover; a named page with no top margin was tried
+first, but Paged.js breaks wherever the flow leaves a named page and the cover
+took page 1 alone), the running footer as margin boxes, keep-together on the
+designed blocks that are one thing (cards, stats, tiles, columns, figures, table
+rows, list items, each step) while callouts, bands, quotes and steps CONTINUE
+across pages between paragraphs and steps with the box drawn on both sides
+(Nick, 2026-09-08, after a bulletin printed with pages half empty behind blocks
+that missed the foot by a line; a block's title or kicker never ends a page, its
+standfirst never opens one, and a break at a flowing block's first content
+counts as a break before the block so the heading above travels with it; the
+runner judges "first on the page" by a block's FIRST fragment inside the page
+box, since a block that overflowed also has a fragment in Paged.js's overflow
+column whose top is the page's top; a continued block's page starts at its first
+new child, not at the cloned box), keep-with-next on headings, orphans/widows 3,
+explicit breaks from `:::pagebreak` (its marker is out of the flow, pinned to
+the page's top corner: pushed to the next page by a margin it would break after
+itself and print a blank page) and `break=before|after`, section counters on the
+renderer-stamped `fm-numbered` class, TOC page numbers via `target-counter`) and
+the in-document runner (`fastrPagedRunnerJs`), which releases blocks taller than
+a page before pagination (they split as a last resort and are reported), repairs
+Paged.js's keep-with-next flags, redirects a break that lands inside a whole
+block to the block itself (and back over its heading), repeats table header rows
+on continuations, paints the document ground on every sheet, and publishes a
 `FastrPagedResult` in SOURCE LINES on `window.__fmPaged`.
 `report-forge/engine/report_document_shell.ts` holds the document wrapper so the
 Deno render test builds byte-identical documents. A paged document takes the
@@ -2048,9 +2052,7 @@ selector after it and left that rule unscoped (a picker tile repainting the
 whole app, invisible in output, caught by the leak test).
 
 **No masthead.** A top-level `h1` is deliberately NOT special: the title page is
-`:::cover`'s job (ruled 2026-09-03; the earlier `body > h1:first-child` masthead
-treatment, one shared rule plus twelve per-theme full-bleed promotions, was
-removed with it). The only concession is standard typography:
+`:::cover`'s job. The only concession is standard typography:
 `body > :where(:first-child)` drops the document's first top margin, at zero
 specificity so a first-child cover/band still wins with its own negative bleed
 margin. The bleed geometry is defined ONCE as `--fm-bleed-margin` /
@@ -2733,8 +2735,8 @@ Per-family t2 reactive caches version off the SSE-pushed `lastUpdated` maps
 slide), `slide_deck_detail` (per deck), `report_detail` (per report;
 `state/products/t2_report_detail.ts`). Every product mutation ends with
 `notifyInstanceProductsUpserted` (the per-row summary re-read, the only
-product-list message, D8), which is also how a product's own `last_updated`
-reaches the client; slide writers add
+product-list message), which is also how a product's own `last_updated` reaches
+the client; slide writers add
 `notifyInstanceLastUpdated("slides", productId, ids, ts)` for the per-slide
 cache; deletes fire `notifyInstanceProductsDeleted`; folders re-broadcast the
 whole list through `notifyInstanceFoldersUpdated`. Because slide create, delete,
@@ -2746,8 +2748,8 @@ stale.
 [routes/instance/emails.ts](server/routes/instance/emails.ts) is the only
 SendGrid egress (raw fetch, `Bearer _SEND_GRID_API`, from
 `noreply@fastr-analytics.org`). `sendSlideDeckEmail` (`requireApprovedUser()`;
-the recipient roster is the instance roster, D2): the PDF is client-rendered
-(S10 base64 export); recipients are schema-validated
+the recipient roster is the instance roster): the PDF is client-rendered (S10
+base64 export); recipients are schema-validated
 (`z.array(z.email()).min(1).max(50)`); sequential per-recipient sends with
 partial failures returned as `{sent: false,
 failedRecipients}`.
@@ -2807,18 +2809,24 @@ interpolation in every route.
   area and as an alert from those report actions.
 - **The report writes an edited figure back under the pair it opened with.**
   `handleEdit` captures `staleContext()` before opening the editor
-  (`products/report/report.tsx:1941`) and re-resolves the result under that
-  `ctx.scope` (2001-2005), so a reattach or rescope while the editor is open
-  writes the figure under the old pair, against the comment at 1999-2000; the
+  (`products/report/report.tsx:1984`) and re-resolves the result under that
+  `ctx.scope` (2048-2052), so a reattach or rescope while the editor is open
+  writes the figure under the old pair, against the comment at 2046-2047; the
   slide host resolves under its live `p.scope`
-  (`products/slide_deck/slide_editor/slide_editor.tsx:1079-1083`). Resolve under
-  the live pair `scope()` (`report.tsx:231-234`) read after the editor closes,
+  (`products/slide_deck/slide_editor/slide_editor.tsx:1081-1085`). Resolve under
+  the live pair `scope()` (`report.tsx:226-229`) read after the editor closes,
   returning when it is undefined.
 - **The slide editor's own editor wrapper is dead.** Its one render site always
-  passes `openHostEditor` (`products/slide_deck/slide_deck.tsx:530`), so the
+  passes `openHostEditor` (`products/slide_deck/slide_deck.tsx:582`), so the
   fallback to the local wrapper
-  (`products/slide_deck/slide_editor/slide_editor.tsx:1062`) never runs and the
-  `getEditorWrapper()` at 166, with its `EditorWrapper` at 1313 and 1539, never
-  holds a view. Make `openHostEditor` required (144), call it at 1062, delete
+  (`products/slide_deck/slide_editor/slide_editor.tsx:1056`) never runs and the
+  `getEditorWrapper()` at 155, with its `EditorWrapper` at 1289 and 1485, never
+  holds a view. Make `openHostEditor` required (137), call it at 1056, delete
   the local wrapper, and drop "Absent, it opens here" from the comment at
-  140-143.
+  133-136.
+- **The docs quote the bulk update's old label.** The button reads "Update all
+  visualizations (N)" (`_shared/figure_editor/stale_figure_badge.tsx:185-189`),
+  but this file calls it "Update all figures" in the permissions table (197),
+  the paragraph under it (201) and the report editor (1883), as do
+  SYSTEM_11_viz_authoring.md (51) and SYSTEM_10_figure_render_export.md
+  (351-352). Make each "Update all visualizations".

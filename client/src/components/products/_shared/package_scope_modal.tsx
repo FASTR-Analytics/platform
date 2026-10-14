@@ -36,7 +36,7 @@ type ReturnType = { lastUpdated: string } | undefined;
 // PackageScopeChip in both editor headers and from the product menu. Changing
 // either never blocks and has no compatibility pre-flight: figures that no
 // longer match the pair show their own stale badge and "Update to <package>"
-// action (D4). The count below is the one forewarning.
+// action. The count below is the one forewarning.
 export function PackageScopeModal(p: AlertComponentProps<Props, ReturnType>) {
   const [tempRunId, setTempRunId] = createSignal(p.product.runId);
   const [tempScopeId, setTempScopeId] = createSignal(p.product.scopeId);

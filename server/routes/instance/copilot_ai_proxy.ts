@@ -4,13 +4,12 @@ import { proxyAnthropicMessages } from "../anthropic_messages_proxy.ts";
 
 export const routesCopilotAiProxy = new Hono();
 
-// The copilot proxy, mounted at /ai, behind every per-product copilot mount.
-// Guarded by requireApprovedUser() and nothing finer: the proxy reads and
-// writes no product. The copilot's tools run in the browser and reach a
-// product only through the product routes and the collab socket, which guard
-// each product themselves.
-// The token limits are user- and instance-scoped. Passthrough, governance and beta policy live in
-// anthropic_messages_proxy.ts, shared with the HFA indicator manager's mount.
+// The copilot proxy, mounted at /ai, behind the shell's chat. Guarded by
+// requireApprovedUser() and nothing finer: the proxy reads and writes
+// nothing. The chat's tools run in the browser and reach a product or the
+// HFA indicators only through the routes, which guard themselves.
+// The token limits are user- and instance-scoped. Passthrough, governance
+// and beta policy live in anthropic_messages_proxy.ts.
 routesCopilotAiProxy.post("/v1/messages", requireApprovedUser(), async (c) => {
   return await proxyAnthropicMessages({
     parseBody: () => c.req.json(),

@@ -34,9 +34,8 @@ docs_absorbed:
 # S11: Visualization Authoring UI
 
 The embedded figure editor, the insert-figure wizard, and the figure-config
-semantics in `lib/`. A visualization is a figure inside a product
-(PLAN_PRODUCTS_RESTRUCTURE D3): there is no visualization product, no library
-and no standalone editor since step 9a.
+semantics in `lib/`. A visualization is a figure inside a product: there is no
+visualization product, no library and no standalone editor.
 
 ## Scope
 
@@ -49,13 +48,13 @@ The `globs:` frontmatter above is the lint-enforced manifest
 - the three panel tabs and their sub-panels; `replicate_by_options.tsx`;
   `conditional_formatting_editor.tsx` + `conditional_formatting_store.ts`) and
   `stale_figure_badge.tsx` (the per-figure stale badge, its "Update to
-  <package>" action and the "Update all figures" header button of
-  PLAN_PRODUCTS_RESTRUCTURE D4, the contract being S10's "The captured pair and
-  staleness"). `components/products/_shared/insert_figure/**` (the insert-figure
-  wizard and the preset gallery it renders, below). `components/explore/**` (the
-  instance Explore tab's page, S14 mounts it: "The Explore page" below). The
-  figure modals in `_shared/figure_editor/` (download, results-file viewer,
-  custom series styles). `products/slide_deck/editor_snapshot.ts`
+  <package>" action and the "Update all figures" header button, the contract
+  being S10's "The captured pair and staleness").
+  `components/products/_shared/insert_figure/**` (the insert-figure wizard and
+  the preset gallery it renders, below). `components/explore/**` (the instance
+  Explore tab's page, S14 mounts it: "The Explore page" below). The figure
+  modals in `_shared/figure_editor/` (download, results-file viewer, custom
+  series styles). `products/slide_deck/editor_snapshot.ts`
   (`snapshotForSlideEditor`, the one thing the slide editor freezes at open) and
   `products/slide_deck/slide_editor/conflict_resolution_modal.tsx` are S12's
   now, under its slide deck glob. Lib config semantics
@@ -79,7 +78,7 @@ dependency list; do not add one.
 
 [_shared/figure_editor/visualization_editor.tsx](client/src/components/_shared/figure_editor/visualization_editor.tsx)
 takes
-`{ label, scope, metric, configSnapshot, authoringContext,
+`{ label, scope, metric, configSnapshot, aiView, authoringContext,
 collabBinding? }`,
 resolves the metric's queryable shape (`resultsValueInfo`, S9's scope-keyed
 `t2_figure_data.ts`) under the pair, and mounts `VisualizationEditorInner`.
@@ -89,17 +88,31 @@ Three hosts open it: `slide_editor/slide_editor.tsx` (edits
 pane (`ModuleVisualizations` in
 `results_packages/package_view/visualizations.tsx`, S8), which opens it
 `viewOnly`: no collab binding, Back is the only way out, and the draft never
-leaves the editor. The product hosts pass the scope LIVE from the T1 products
-row, so a reattach or rescope mid-edit re-previews under the new package (S10
-"The captured pair"); the package page's scope cannot change while the editor
-covers it.
+leaves the editor. Every host passes the pair as a plain value and panther's
+`openEditor` stores the props once, so the pair is fixed for the editor's life,
+which is what the figure views' identity needs. The editor is a place of the
+chat (S13): the outer wrapper holds the view it opens over, and the inner editor
+sets the view the host names in the required `aiView` prop
+(`editing_slide_figure` with the deck, slide and block ids,
+`editing_report_figure` with the report and figure ids, `viewing_package_figure`
+with the default visualization's id), through `setFigureEditorView`, once the
+draft exists, with a context that exposes the pair, the metric and the draft
+live (`getDraftConfig` reads the store, `applyDraftConfig` reconciles a config
+into it, so an AI write lands like a user's edit: it marks the draft for Apply,
+re-previews, and streams into the host doc under live co-editing); its
+instructions name the figure by the `label` prop. The two Figure editor tools,
+`get_figure_editor` and `update_figure_editor`, read and write that draft (S13).
+The results file viewer the editor's Download opens (`view_results_object.tsx`)
+holds the figure view and sets `results_file` from its props, with the same
+pair.
 
 **Snapshot isolation.** The draft is
 `createStore(structuredClone(p.configSnapshot))`, so editor writes never reach
 the host's store.
 [editor_snapshot.ts](client/src/components/products/slide_deck/editor_snapshot.ts)
 holds only the slide editor's `snapshotForSlideEditor` (the deck config at
-open): the pair is deliberately NOT snapshotted (D16).
+open): the pair is deliberately NOT snapshotted: the editors read it live from
+the T1 products row.
 
 ## Draft state & the refetch contract
 
@@ -126,9 +139,9 @@ open): the pair is deliberately NOT snapshotted (D16).
 - The items generator auto-resolves an unset/invalid replicant to the first
   valid option (`resolveDefaultReplicant`) on a **fresh config copy** (it never
   mutates the passed unwrapped store) and the editor commits the resolved value
-  back into the draft, guarded on inequality. This is also the D4 auto-default:
-  a replicant stored under a previous package that the current one lacks is
-  replaced, never thrown on.
+  back into the draft, guarded on inequality. This is also the auto-default
+  after a package change: a replicant stored under a previous package that the
+  current one lacks is replaced, never thrown on.
 - Preview guards before render: duplicate display-slot check
   (`hasDuplicateDisaggregatorDisplayOptions` on the effective config), "You must
   select a replicant" fallback, and `too_many_items` (20,000-point message) /
@@ -192,17 +205,16 @@ cannot drift. A preview renders through the one shared helper,
 the scope-keyed `state/products/t2_figure_data.ts` (S9) and assembles them with
 `makeFigureBundleFromFetchedData(scope, ...)` + `buildFigureInputs`, so
 reopening a preset under the same `(runId, definitionHash)` is a cache hit and a
-preset is never a row (D6). The package page's default-visualization cards (S8)
+preset is never a row. The package page's default-visualization cards (S8)
 render through the same helper, so a default seen there and later inserted under
 the same pair is one cache entry. Custom configs go through
 `getStartingConfigForPresentationObject` (type defaults from `VIZ_TYPE_CONFIG`,
 display slots assigned via `getNextAvailableDisaggregationDisplayOption`). **The
 wizard never persists**. It closes with
-`InsertFigureResult = { metric, config }` (a figure IS `{
-metricId, config }`,
-D3) and its two callers, the slide and report editors, build a figure block
-directly from their live pair and context; the Explore page is read-only and
-does not call it.
+`InsertFigureResult = { metric, config }` (a figure IS `{ metricId, config }`)
+and its two callers, the slide and report editors, build a figure block directly
+from their live pair and context; the Explore page is read-only and does not
+call it.
 
 ## The Explore page
 
@@ -227,11 +239,17 @@ read: a choice the package lacks falls back to the first offered (the package to
 the pin, else the newest ready one) without being overwritten. The authoring
 context is read through `t2_run_authoring_context`. The page sets the chat's
 `explore` view (S13): its pair is the resolved package at the resolved scope (or
-ruling 7's no-package reason while none is ready) and its state names the
-family, module, view, type and settings the panes resolve, through the same
-functions (`resolveFamily`, `resolveModule`, `pickModuleView`, `pickViewType`),
-so the chat's package tools read what is on screen. The page writes nothing: no
-insert into a product, no persisted draft, no help buttons.
+a refusal naming why while none is ready) and its state names the family,
+module, view and type the panes resolve, through the same functions
+(`resolveFamily`, `resolveModule`, `pickModuleView`, `pickViewType`), and the
+settings of the view the frame resolved: `MetricFrame` reports `resolveView`'s
+result up to the page through `onView`, the way `PackageExplorer` reports the
+authoring context through `onContext`, and `formatExploreState` (S13) prints its
+metric, switch option, level, each pin's value, the laid-out category's values
+and grain, each by the id a package tool takes, and the period by its choice's
+label, as the toolbar's select shows it, so the chat's package tools read what
+is on screen. The page writes nothing: no insert into a product, no persisted
+draft, no help buttons.
 
 Under a family tab, `ModuleView` (`module_view.tsx`) fills the pane, and its
 first row in every state is the selectors row: a `SelectV2` over the family's
@@ -456,21 +474,20 @@ roll-up at the top; `values` puts the value props on the axis), an over-time
 type's panes (the category) and lines (the unit when `series: "unit"`, else the
 values), a chart's `axis` (`area` or `category`) and `series`, a map's area. A
 type's `values` narrows the metric's value props; the first type is the view's
-default. `viewsForModule` applies R7: a view is offered only for metrics the
-package carries and stamps ready, and `byLevel` and `switch` need one ready
-option and offer only those. `UNBOUND_METRICS` lists every non-hidden metric of
-a bound module that no binding reads, with a reason.
-`server/tests/explore_views_test.ts` is the lockstep guard: the pure checks
-always run (view ids unique per module and every view with a type, every axis a
-role the view has and rows apart from cols, a type's `values` non-empty and one
-under a unit on the series, no `byLevel` national key with the area laid out, no
-over-time type on HFA, every registry module bound), and under
-`FASTR_MODULES_LOCAL_DIR` every binding is checked against the module
-definitions (metrics present and not hidden, role dimensions columns of the
-results object, required non-time dimensions grouped with at most one replicant
-per type, a type's `values` among every bound metric's value props and a unit on
-the series reading one value prop, a period column for the over-time type, every
-non-hidden metric of a bound module bound or listed).
+default. `viewsForModule` offers a view only for metrics the package carries and
+stamps ready, and `byLevel` and `switch` need one ready option and offer only
+those. `UNBOUND_METRICS` lists every non-hidden metric of a bound module that no
+binding reads, with a reason. `server/tests/explore_views_test.ts` is the
+lockstep guard: the pure checks always run (view ids unique per module and every
+view with a type, every axis a role the view has and rows apart from cols, a
+type's `values` non-empty and one under a unit on the series, no `byLevel`
+national key with the area laid out, no over-time type on HFA, every registry
+module bound), and under `FASTR_MODULES_LOCAL_DIR` every binding is checked
+against the module definitions (metrics present and not hidden, role dimensions
+columns of the results object, required non-time dimensions grouped with at most
+one replicant per type, a type's `values` among every bound metric's value props
+and a unit on the series reading one value prop, a period column for the
+over-time type, every non-hidden metric of a bound module bound or listed).
 
 The bindings today, each view with its types in order, the first the default:
 m012 "Service counts" (a table of areas by indicator; over time; a map under one
@@ -588,10 +605,10 @@ changed something.
   import at 16; SYSTEM_14's help-button item).
 - **Explore says a package has no modules when the scope hides them all.** The
   families come from the authoring context read under the scope
-  (`explore/explore.tsx:169-178`), which drops every module the scope excludes
+  (`explore/explore.tsx:261-275`), which drops every module the scope excludes
   (`server/run_query/authoring_context.ts:27-31`); with none left, the page
   shows `no_modules`, "This package has no modules, so there are no results to
-  explore." (`explore.tsx:201-208`; `explore/_shared/empty_state.tsx:11-16`).
+  explore." (`explore.tsx:299-306`; `explore/_shared/empty_state.tsx:11-16`).
   Add a kind `no_modules_in_scope`, en "This scope shows none of this package's
   modules.", fr "Cette portée n'affiche aucun des modules de ce paquet.", pt
   "Este âmbito não mostra nenhum dos módulos deste pacote.", used at
@@ -610,18 +627,3 @@ changed something.
   says "Nothing here is written anywhere", but the family, module, view and type
   choices persist to localStorage (`state/t4_explore.ts:43-74`). Delete the
   sentence; `t4_explore.ts:12-19` says what persists.
-- **Three comments say the figure editor's pair is live.**
-  `_shared/figure_editor/figure_editor.tsx:103-104` ("passed live so a mid-edit
-  reattach moves the preview"), 124-125 ("the host's scope prop is live") and
-  `_shared/figure_editor/visualization_editor.tsx:65-66` ("read live from T1 by
-  the host") are false: the hosts pass the pair as a plain value
-  (`products/slide_deck/slide_editor/slide_editor.tsx:1066`,
-  `products/report/report.tsx:1988`,
-  `results_packages/package_view/visualizations.tsx:45`) and panther's
-  `openEditor` stores the props once
-  (`panther/_303_components/special_state/generic_editor_wrapper.tsx:40-44`,
-  61-68). Make 103-104 read "The embedded figure editor: a figure
-  `{ metricId, config }` edited under the host's PackageScope at open, fixed for
-  the editor's life.", 124-125 "The pair every read resolves under: the host's
-  at open, since openEditor stores the props once.", and 65-66 "The host's pair
-  when the editor opens; every read this editor makes resolves under it."

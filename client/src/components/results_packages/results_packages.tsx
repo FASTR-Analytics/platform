@@ -43,15 +43,14 @@ import {
 } from "~/components/instance/copilot/mod.ts";
 import { serverActions } from "~/server_actions";
 
-// The instance "Results packages" surface (PLAN_RESULTS_RUNS Phase 3 items 1
-// and 3): generation is an instance-level act, so this is both where the
-// launch wizard is entered (an ephemeral modal, nothing persisted before
-// launch), and the catalogue of every package the instance holds, as a
-// newest-first table; a row's View button opens the package's own page
-// through the shell wrapper, and the row checkboxes feed one bulk action,
-// delete. The listing is T1 (`instanceState.runsCatalog`, pushed on every
-// catalogue mutation), so this surface has no component fetch of its own.
-// Products point at a package from product settings. This surface owns the
+// The instance "Results packages" surface: generation is an instance-level act,
+// so this is both where the launch wizard is entered (an ephemeral modal,
+// nothing persisted before launch), and the catalogue of every package the
+// instance holds, as a newest-first table; a row's View button opens the
+// package's own page through the shell wrapper, and the row checkboxes feed one
+// bulk action, delete. The listing is T1 (`instanceState.runsCatalog`, pushed
+// on every catalogue mutation), so this surface has no component fetch of its
+// own. Products point at a package from product settings. This surface owns the
 // only act that ever reclaims a package's disk.
 export function InstanceResultsPackages() {
   // The page's chat view (S13): the pinned package and the counts by status
@@ -59,7 +58,7 @@ export function InstanceResultsPackages() {
   holdCopilotView();
   copilotViewController.setView("results_packages");
 
-  // Live generation state over instance SSE (Q-B ruling (a) and (e)):
+  // Live generation state over instance SSE:
   // progress patches the page in place and the R line is keyed by RUN as
   // well as module, so two concurrent generations never overwrite each
   // other's line. The listeners live here, which stays mounted under the

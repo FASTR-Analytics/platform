@@ -35,8 +35,8 @@ import { respond } from "./_respond.ts";
 
 export const routesProducts = new Hono();
 
-// Per-type dispatch is a Record, never a switch with a default (§3.6), so a
-// third product type is a compile error here until both are filled in.
+// Per-type dispatch is a Record, never a switch with a default, so a third
+// product type is a compile error here until both are filled in.
 //
 // The room a product owns DIRECTLY: a report is its own document, while a
 // deck's documents are its slides, closed from the delete's slide pairs, so
@@ -53,11 +53,11 @@ const PRODUCT_VERSION_KIND: Record<ProductType, VersionKind> = {
 };
 
 // The cross-type product surface: label, folder, package, scope, duplicate
-// and delete treat a deck and a report alike, so there is ONE set of routes
-// (D1). The guard is the registry entry's `access`, installed by defineRoute:
-// no handler here checks access (D2). Every route that changes a product
-// re-reads the touched summaries through notifyInstanceProductsUpserted, the
-// only product-list message, whose `lastUpdated` versions the detail cache.
+// and delete treat a deck and a report alike, so there is ONE set of routes.
+// The guard is the registry entry's `access`, installed by defineRoute: no
+// handler here checks access. Every route that changes a product re-reads the
+// touched summaries through notifyInstanceProductsUpserted, the only
+// product-list message, whose `lastUpdated` versions the detail cache.
 
 defineRoute(
   routesProducts,
@@ -227,10 +227,10 @@ defineRoute(
   },
 );
 
-// An access change is not a content change (PLAN_PRODUCT_OWNERSHIP R15): no
-// last_updated bump and no version edit, only the summary re-broadcast, so
-// every client re-derives its level, and the close of the collab sockets
-// whose standing on the product changed.
+// An access change is not a content change: no last_updated bump and no
+// version edit, only the summary re-broadcast, so every client re-derives its
+// level, and the close of the collab sockets whose standing on the product
+// changed.
 defineRoute(
   routesProducts,
   "setProductAccess",

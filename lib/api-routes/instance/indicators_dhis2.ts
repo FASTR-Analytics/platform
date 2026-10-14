@@ -40,9 +40,9 @@ export const indicatorsDhis2RouteRegistry = {
       indicators: Dhis2IndicatorSearchItem[];
     },
   }),
-  // The naming step's save (PLAN_A4 ruling 6): the server re-reads every
-  // element and indicator from DHIS2, judges them itself, and creates
-  // everything in one transaction or nothing.
+  // The naming step's save: the server re-reads every element and indicator
+  // from DHIS2, judges them itself, and creates everything in one
+  // transaction or nothing.
   createIndicatorsFromDhis2: route({
     path: "/indicators-dhis2/create",
     method: "POST",

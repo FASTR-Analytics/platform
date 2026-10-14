@@ -25,9 +25,9 @@ type Props = {
 };
 
 // The indicator multi-select shared by the run launcher and the schedule
-// editor (PLAN_A4 ruling 5): an import selects indicators; the server
-// expands them to the DHIS2 elements it fetches. An Uploaded indicator is
-// never fetched, so it is not offered (PLAN_A7 ruling 1).
+// editor: an import selects indicators; the server expands them to the DHIS2
+// elements it fetches. An Uploaded indicator is never fetched, so it is not
+// offered.
 export function Dhis2IndicatorPicker(p: Props) {
   const indicators = createQuery(
     () => serverActions.getIndicators({}),

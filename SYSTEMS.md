@@ -153,6 +153,7 @@ deno task lint:systems
 deno task lint:structure
 deno task lint:text-sizes
 deno task lint:sql-json
+deno task lint:plan-citations
 deno task lint:report-forge
 ```
 
@@ -191,3 +192,11 @@ on a SQL `json` or `jsonb` type, cast or function, in any case, in any tracked
 source file, `.sql` file or root script. Stored JSON is a `text` column, parsed
 in TypeScript. The existing migrations that already use them are listed by name
 in the script and are the only files exempt.
+
+`lint_plan_citations.ts` (task `lint:plan-citations`, chained after
+`lint:sql-json`) fails on a citation of a plan in code or a standing doc (the
+SYSTEM, PROTOCOL_APP, CLAUDE, README and USER_GUIDE files): a plan or review
+file name or a ruling anywhere in a line, and a ruling id or a plan section
+number in a comment. A plan is deleted when its work lands, so a comment that
+needs a reason states it. The existing migrations that already cite one are
+listed by name in the script and are the only files exempt.

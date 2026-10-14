@@ -25,16 +25,14 @@ import { genericLongFormFetchConfigSchema } from "../../validate_fetch_config.ts
 import { scopeIdSchema } from "../../types/scope.ts";
 import { route } from "../route-utils.ts";
 
-// Results-package launch wizard + catalogue (PLAN_RESULTS_RUNS item 2,
-// re-cut by Phase 3 items 1 and 3). Instance-level routes entered from the
-// instance shell, instance-admin gated (can_configure_data) except the
-// package reads below: the wizard
-// is an ephemeral modal that persists nothing before launch, and a
-// generation repoints nothing: products point at a package afterwards.
+// Results-package launch wizard + catalogue. Instance-level routes entered
+// from the instance shell, instance-admin gated (can_configure_data) except
+// the package reads below: the wizard is an ephemeral modal that persists
+// nothing before launch, and a generation repoints nothing: products point at
+// a package afterwards.
 
 // A run's outputs dir holds one module's generated script, execution log and
-// raw CSVs. These reads are run-keyed and mounted ONCE (Tim's ruling
-// 2026-08-18): a package is
+// raw CSVs. These reads are run-keyed and mounted ONCE: a package is
 // instance-level data, so what it contains is gated on the instance data
 // bits: `can_view_data` for detail/script/files/download, `can_view_logs`
 // for logs, wherever it is explored (the catalogue, the copilot's tools). Reader: server/runs/package_internals.ts.
@@ -44,7 +42,7 @@ const runModuleParamsSchema = z.object({
 });
 
 export const runGenerationRouteRegistry = {
-  // The instance catalogue (item 3): every run, newest first, with the
+  // The instance catalogue: every run, newest first, with the
   // products currently attached to each. This is instance-T1's fetch half:
   // `runs_catalog_updated` broadcasts a data-free
   // timestamp, and each entitled client pulls the listing here: the guard
@@ -55,8 +53,8 @@ export const runGenerationRouteRegistry = {
     method: "GET",
     response: {} as RunCatalogItem[],
   }),
-  // Guarded hard delete (Q1 ruling): catalog row + run dir + the runId-keyed
-  // cache entries, in ONE act. Refused while any product points at the run,
+  // Guarded hard delete: catalog row + run dir + the runId-keyed cache
+  // entries, in ONE act. Refused while any product points at the run,
   // while it is pinned, or while it is still generating.
   deleteRun: route({
     path: "/run_generation/run/:run_id",
@@ -197,9 +195,8 @@ export const runGenerationRouteRegistry = {
     params: z.object({ run_id: z.string() }),
     response: {} as RunDetail,
   }),
-  // The instance defaults store (§3.5): the wizard's starting values,
-  // written only by the module-defaults editor (S8 "Instance module
-  // defaults").
+  // The instance defaults store: the wizard's starting values, written only
+  // by the module-defaults editor (S8 "Instance module defaults").
   getRunGenerationDefaults: route({
     path: "/run_generation/defaults",
     method: "GET",

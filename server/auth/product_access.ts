@@ -33,15 +33,13 @@ export type ProductAccessTargets = {
   folderRoute: boolean;
 };
 
-// The one product-access policy (PLAN_PRODUCT_OWNERSHIP §2.4, built on
-// PLAN_PRODUCTS_RESTRUCTURE D2 and PLAN_SCOPES §2.6). A global admin owns
-// every product and is unrestricted, so passes with no query. Folders carry
-// no level (R5): a folder route passes for every approved unrestricted user,
-// except one declaring own, which only a global admin passes because nobody
-// else owns a folder; a restricted user is refused every folder route
-// (PLAN_SCOPES R23). Every named scope must be one the user holds (R14). Each
-// subject needs the declared level and each destination edit, both through
-// holdsProductLevel, in one query. A restricted user may name as a
+// The one product-access policy. A global admin owns every product and is
+// unrestricted, so passes with no query. Folders carry no level: a folder route
+// passes for every approved unrestricted user, except one declaring own, which
+// only a global admin passes because nobody else owns a folder; a restricted
+// user is refused every folder route. Every named scope must be one the user
+// holds. Each subject needs the declared level and each destination edit, both
+// through holdsProductLevel, in one query. A restricted user may name as a
 // destination folder only the root or a folder they can see. An id that names
 // no row passes here and fails in the handler.
 export async function productAccessPolicy(
@@ -90,8 +88,8 @@ export async function productAccessPolicy(
 
 // A user holds a level on a product when they hold its scope (an
 // unrestricted user holds every scope) and productLevelFor reaches the level:
-// scope and level are both required, the owner included (R6). Seeing a
-// product is holding view (R11).
+// scope and level are both required, the owner included. Seeing a product
+// is holding view.
 export function holdsProductLevel(
   user: Pick<GlobalUser, "email" | "isGlobalAdmin" | "scopeAccess">,
   scopeId: ScopeId,
@@ -102,7 +100,7 @@ export function holdsProductLevel(
     productLevelAtLeast(productLevelFor(access, user), required);
 }
 
-// R23: a folder is visible when its subtree holds a visible product, so the
+// A folder is visible when its subtree holds a visible product, so the
 // visible set is every folder on the path from such a product to the root.
 export function visibleFolderIds(
   folders: Pick<Folder, "id" | "parentId">[],
@@ -121,7 +119,7 @@ export function visibleFolderIds(
 }
 
 // The folders a restricted user can see: those whose subtree holds a product
-// the user can see, by scope and level (R5).
+// the user can see, by scope and level.
 async function visibleFolderIdsForUser(
   mainDb: Sql,
   user: GlobalUser,

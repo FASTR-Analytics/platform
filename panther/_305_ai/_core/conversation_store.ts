@@ -3,14 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type {
-  AnthropicModel,
-  AnthropicType,
-  GateView,
-  MessageParam,
-  SystemParam,
-  Usage,
-} from "../deps.ts";
+import type { GateView, MessageParam, Usage } from "../deps.ts";
 import { batch, createSignal } from "solid-js";
 import type { ChatState, DisplayItem } from "./types.ts";
 import type { ProposalPreview } from "../deps.ts";
@@ -38,12 +31,6 @@ export type ActiveTurn = {
   // Code-execution container id — turn-scoped (an expired id errors, so it
   // must never outlive the turn).
   containerId: string | undefined;
-  // True once the model's assistant message lands in the store. Drives the
-  // transactional interaction-drain restore: a turn that ends
-  // WITHOUT one never delivered its digest, so the drained entries are
-  // restored. The synthetic "[Stopped]" / cancelled-result repairs don't
-  // count — only the model's own message consumes the digest.
-  modelAssistantAppended: boolean;
   // Resolvers for sendMessage/sendMessages promises whose texts this turn
   // carried (direct sends, drained queue entries, mid-turn injections) and
   // for whenIdle() waiters, resolved in the turn's finally after its record
@@ -62,27 +49,16 @@ export type ActiveTurn = {
   // registry-wide sweep cancelled another conversation's pending question
   // when two chats shared the same tool instance.
   cancelPendingInteraction: (() => void) | null;
-  // appendOnlyTurns: the model, system text and tools read once at turn
-  // start, so every request of the turn sends one prefix (the built-in web
-  // tool variants and their beta header are tied to the model, so a model
-  // switched mid-turn through updateConfig takes effect at the next turn).
-  // Null with the option off, where each request reads them as it always
-  // has.
-  prefix: {
-    model: AnthropicModel;
-    system: SystemParam;
-    tools: AnthropicType.Messages.ToolUnion[];
-  } | null;
   // The index of this turn's first message, null until it is appended, and
   // of the model's last reply this turn (-1 when none; the synthetic
   // "[Stopped]" repair never counts): the release at the turn's end strips
-  // the sections of every carrier after the last reply.
+  // the sections of every carrier after the last reply, and an approval
+  // lifecycle, which runs only after a reply landed, can never see a restore.
   firstIndex: number | null;
   lastModelReplyIndex: number;
   // Every message this turn built sections for, with the restore of the
-  // interaction drain it carried. With the option off there is one, the
-  // turn's first message, restored iff the model never replied; with it on,
-  // each released carrier's drain is restored, latest first.
+  // interaction drain it carried: each released carrier's drain is restored,
+  // latest first.
   carriers: Array<{ index: number; restore: (() => void) | null }>;
 };
 
@@ -142,9 +118,10 @@ export type ConversationStore = {
   // conversation record; hydrated with it.
   approvedTools: ReturnType<typeof createSignal<string[]>>;
   // The hash of the request prefix (system text and tools) the stored
-  // thinking blocks were minted under (hashRequestPrefix). Written by a turn
-  // with appendOnlyTurns, persisted and hydrated with the record; undefined
-  // until then, which the next such turn reads as a changed prefix.
+  // thinking blocks were minted under (hashRequestPrefix). Written by every
+  // turn, persisted and hydrated with the record; undefined only on a record
+  // saved before the hash existed, which the next turn reads as a changed
+  // prefix.
   prefixHash: ReturnType<typeof createSignal<string | undefined>>;
   // Resolves once the initial IndexedDB hydration attempt has settled
   // (hydrated, skipped, or persistence disabled). Sends await this before

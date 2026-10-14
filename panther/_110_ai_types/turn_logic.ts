@@ -16,24 +16,14 @@ import type { SystemParam } from "./request_shaping.ts";
 // parsed back — nothing strips markers out of display or storage, so the
 // marker syntax is a write-only wire convention, not a correctness surface.
 //
-// Render rule (ONE wire format for every model), retention "latest":
-// sections render for the LATEST carrier only — every earlier carrier
-// renders bare (load-bearing: a failed turn's carrier has no assistant after
-// it, so the follows-condition alone would double-render on the retry) —
-// and only while NO ASSISTANT MESSAGE FOLLOWS the carrier in the outgoing
-// history. This covers: first request of a turn (renders), tool-loop
-// recursion (assistant follows → bare), multi-message batches (only user
-// messages follow the batch's first message → still renders), and a failed
-// turn's carrier once a retry sends (no longer latest → bare).
-//
-// Retention "permanent" (the engine's appendOnlyTurns): EVERY carrier
-// renders, each spliced where "latest" splices it, so each request's
-// messages are a prefix of the next request's. That is what the message
-// cache and a preserved thinking block's prefix check need: a block of text
-// put into an earlier message and later removed is an edit to the prefix.
-// Under this rule a stale carrier is never re-rendered by accident, so what
-// each message carries is decided at turn creation (selectTurnSections) and
-// at the turn's end (releaseUnansweredCarriers) instead.
+// Render rule (ONE wire format for every model): EVERY carrier renders, its
+// sections spliced in front of its first text block (after the tool results
+// on a tool-result message), so each request's messages are a prefix of the
+// next request's. That is what the message cache and a preserved thinking
+// block's prefix check need: a block of text put into an earlier message and
+// later removed is an edit to the prefix. What each message carries is
+// therefore decided at turn creation (selectTurnSections) and at the turn's
+// end (releaseUnansweredCarriers), never at render time.
 
 const EPHEMERAL_CONTEXT_OPEN = "<<<[";
 const EPHEMERAL_CONTEXT_CLOSE = "]>>>";
@@ -56,8 +46,6 @@ function collapseLiteralMarkers(text: string): string {
   }
   return out;
 }
-
-export type SectionRetention = "latest" | "permanent";
 
 function isCarrier(msg: MessageParam): boolean {
   return msg.role === "user" && msg.ephemeralSections !== undefined &&
@@ -95,7 +83,6 @@ function spliceSections(
 
 export function renderOutgoingMessages(
   messages: MessageParam[],
-  retention: SectionRetention = "latest",
 ): MessageParam[] {
   // System-role entries are never emitted — the live engine no longer
   // constructs them, and the v1 persistence migration strips stored ones;
@@ -104,38 +91,23 @@ export function renderOutgoingMessages(
     ? messages.filter((msg) => msg.role !== "system")
     : messages;
 
-  let carrierIndex = -1;
-  if (retention === "latest") {
-    for (let i = wireMessages.length - 1; i >= 0; i--) {
-      if (isCarrier(wireMessages[i])) {
-        carrierIndex = i;
-        break;
-      }
-    }
-  }
-  const renderCarrier = carrierIndex >= 0 &&
-    !wireMessages.slice(carrierIndex + 1).some(
-      (msg) => msg.role === "assistant",
-    );
-
-  return wireMessages.map((msg, i) => {
+  return wireMessages.map((msg) => {
     // Entries without the storage-only field pass through by reference
     // (byte- and identity-parity for no-adoption histories).
     if (!msg.ephemeralSections) return msg;
     const { ephemeralSections, ...rest } = msg;
-    const render = retention === "permanent"
-      ? ephemeralSections.length > 0
-      : i === carrierIndex && renderCarrier;
-    return render ? spliceSections(rest, ephemeralSections) : rest;
+    return ephemeralSections.length > 0
+      ? spliceSections(rest, ephemeralSections)
+      : rest;
   });
 }
 
-// Which sections a message carries under append-only turns. An ALWAYS kind
-// states what is true of this message (where the user is, the view's live
-// state, what they did since the last one) and rides every message. A ONCE
-// kind holds until its text changes (a view's instructions, a consumer
-// block): rendered permanently, a stored copy stays in the history for
-// good, so it rides only when no stored message already carries its text.
+// Which sections a message carries. An ALWAYS kind states what is true of
+// this message (where the user is, the view's live state, what they did
+// since the last one) and rides every message. A ONCE kind holds until its
+// text changes (a view's instructions, a consumer block): rendered
+// permanently, a stored copy stays in the history for good, so it rides
+// only when no stored message already carries its text.
 // A released carrier has no sections, so what it carried never counts.
 // "view-prompt" is the stored legacy tag for view-instructions.
 const ONCE_KINDS: ReadonlySet<string> = new Set([
@@ -250,8 +222,8 @@ export function hashRequestPrefix(
   return fnv1a32(JSON.stringify([texts, sortedTools]));
 }
 
-// At turn start, under append-only turns. Unchanged prefix: the messages
-// stand. Changed (a conversation with messages and no stored hash counts as
+// At turn start. Unchanged prefix: the messages stand. Changed (a
+// conversation with messages and no stored hash counts as
 // changed: its blocks were minted under a prefix nothing recorded): the
 // thinking blocks are stripped and the new hash stored. A tool_use awaiting
 // a result keeps the strip waiting, since that reply's own thinking must
@@ -271,15 +243,14 @@ export function reconcileRequestPrefix(
   return { messages: stripThinkingBlocks(messages), hash: currentHash };
 }
 
-// Storage normalization run by the engine at TURN CREATION, before the new
-// turn's messages are appended: a FAILED prior turn's carrier (user entry
-// with sections and no assistant after it — the error path appends nothing)
-// must never re-render on a later turn's wire. The render rule alone cannot
-// distinguish that history from a multi-message batch (both are a trailing
-// user run with the carrier first), so the stale carrier is demoted here
-// instead. Completed turns' carriers keep their sections (inspectable; the
-// no-assistant-follows rule already renders them bare). Reference-identical
-// when nothing demotes.
+// Storage normalization for a record saved before the release existed (no
+// prefixHash): a FAILED last turn's carrier (user entry with sections and no
+// assistant after it — the error path appended nothing) still holds its
+// sections there, and rendered permanently it would ride every later
+// request beside the retry's fresh digest, a double delivery. The engine
+// runs this at hydration (persistence.ts); a record with a hash was saved
+// after a release and holds no such carrier. Completed turns' carriers keep
+// their sections. Reference-identical when nothing demotes.
 export function demoteStaleCarriers(messages: MessageParam[]): MessageParam[] {
   let changed = false;
   let assistantSeen = false;

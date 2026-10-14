@@ -1,4 +1,4 @@
-// Pins PLAN_A5 rulings 4 and 5: updateIndicator renames an indicator in one
+// Pins the indicator rename: updateIndicator renames an indicator in one
 // transaction, rewriting the sums that name it (the junction follows by ON
 // UPDATE CASCADE), every calculated expression that names it (text kept as
 // written) and every schedule's selection; run rows are history and stay;

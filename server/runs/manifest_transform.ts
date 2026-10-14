@@ -15,15 +15,14 @@
 //   1. indicators[]: the per-module resolved indicator catalog (schema v3),
 //      recomputed from the package's own input mirrors.
 //   2. metrics[].format_as → "indicator" for the 8 pre-declaration metrics
-//      (schema v4): the declared-format migration (PLAN_EFFECTIVE_FORMAT).
+//      (schema v4): the declared-format migration.
 //   3. facilityColumnsConfig → per-family structureSchemaHmis/Hfa slots
-//      (schema v5): the structure family split (PLAN_2). Pure copy, no
-//      recompute, no parquet read.
+//      (schema v5): the structure family split. Pure copy, no recompute, no
+//      parquet read.
 //   4. hmisIndicators stamped from the package's own indicators mirror,
 //      metrics[].catalog_expression_evaluation defaulted to null, and the
-//      `population` stamp defaulted to null (schema v6), the
-//      indicator restructure (PLAN_1a §1.9) and the population store
-//      (PLAN_1b), one release. Note what this
+//      `population` stamp defaulted to null (schema v6), the indicator
+//      restructure and the population store, one release. Note what this
 //      block does NOT do: it never patches indicators[]. Block 1 recomputes
 //      that catalog unconditionally on every forced pass through
 //      buildRunIndicatorCatalog, and the v6 additions to it (sort_order for
@@ -35,8 +34,8 @@
 //      the intersection of population and HMIS data, and the stamp records
 //      what a generation covered.
 //   6. the `commonIndicators` key dropped (schema v8): block 4 stamps the
-//      same list as `hmisIndicators` (PLAN_A4 ruling 13), so this is a key
-//      rename and nothing else.
+//      same list as `hmisIndicators`, so this is a key rename and nothing
+//      else.
 //   7. hmisIndicators entries carry the interpretation facts (schema v9):
 //      block 4's recompute already writes the new shape on every forced
 //      pass, so this block only stamps.
@@ -258,9 +257,9 @@ async function transformRunManifest(
   }
   m.manifestSchemaVersion = 7;
 
-  // 6. `commonIndicators` → `hmisIndicators` (PLAN_A4 ruling 13). Block 4
-  //    already stamps the list under its new name on every forced pass, so
-  //    the only work is dropping the legacy key. Idempotent.
+  // 6. `commonIndicators` → `hmisIndicators`. Block 4 already stamps the list
+  //    under its new name on every forced pass, so the only work is dropping
+  //    the legacy key. Idempotent.
   delete m.commonIndicators;
   m.manifestSchemaVersion = 8;
 

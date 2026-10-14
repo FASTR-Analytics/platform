@@ -9,10 +9,9 @@ import {
 export const routesAiFiles = new Hono();
 
 // The Anthropic Files endpoint, mounted at /ai beside the copilot proxy and
-// guarded the same way, requireApprovedUser() (D2/D15): the files it uploads
-// are instance assets. _ANTHROPIC_API_URL is the /v1/messages endpoint, so
-// the Files URL is derived from the same origin rather than re-hardcoding a
-// host.
+// guarded the same way, requireApprovedUser(): the files it uploads are
+// instance assets. _ANTHROPIC_API_URL is the /v1/messages endpoint, so the
+// Files URL is derived from the same origin rather than re-hardcoding a host.
 const ANTHROPIC_FILES_URL = new URL("/v1/files", _ANTHROPIC_API_URL).toString();
 const FILES_API_BETA_HEADER = "files-api-2025-04-14";
 

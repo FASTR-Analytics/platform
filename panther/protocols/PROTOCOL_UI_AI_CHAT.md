@@ -41,15 +41,14 @@ is the rulebook a consumer app must follow.
    matching the interaction's `echoKey` (a constant key over-suppresses)
 10. **Clear the interaction log on consumer scope change**: the controller is a
     singleton but its log is scope-local data; call `clearInteractionLog()`
-    where the new scope (project/workspace) mounts. With `digestAcrossViews`,
-    activation (mount, create, switch, after a delete) moves a conversation to
-    the log's end, so it hears only what happens after
+    where the new scope (project/workspace) mounts. Activation (mount, create,
+    switch, after a delete) moves a conversation to the log's end, so it hears
+    only what happens after
 11. **Keep the system prompt byte-stable across navigation**: per-view
     `instructions` use `"ephemeral"` delivery; a `buildToolCatalog` call
-    composed into `system` must omit `currentView`. With `appendOnlyTurns` the
-    system prompt stays fixed for the whole conversation: per-view and
-    per-package text goes in view `instructions`, view `state` and consumer
-    blocks, never in `system`
+    composed into `system` must omit `currentView`. The system prompt stays
+    fixed for the whole conversation: per-view and per-package text goes in view
+    `instructions`, view `state` and consumer blocks, never in `system`
 12. **No hand-maintained tool lists in prompt text**: render tool
     names/descriptions with `buildToolCatalog(tools)`; a hand list drifts from
     the registry immediately
@@ -356,12 +355,12 @@ UI-purpose and view-gated tools stay client-resident and off the MCP surface.
 - [ ] No `markAIEdit` inside `propose`; persist-path writes mark payload-bearing
       keys that match interaction `echoKey`s
 - [ ] `clearInteractionLog()` called at each scope root if scopes are switchable
-      within one SPA session; with `digestAcrossViews`, a conversation hears
-      only actions after its activation
+      within one SPA session; a conversation hears only actions after its
+      activation
 - [ ] `buildToolCatalog` in the `system` accessor has no `currentView` argument;
-      no hand-maintained tool list in any prompt text; with `appendOnlyTurns`,
-      nothing per-view or per-package in `system` (it goes in `instructions`,
-      `state` or consumer blocks)
+      no hand-maintained tool list in any prompt text; nothing per-view or
+      per-package in `system` (it goes in `instructions`, `state` or consumer
+      blocks)
 - [ ] `validateAIChatConfig(config)` runs on the real assembled config under
       `import.meta.env.DEV` for every surface
 - [ ] No `mode: "session"` combined with `presentation: "modal"`

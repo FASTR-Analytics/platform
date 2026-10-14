@@ -309,11 +309,11 @@ export async function restoreReportContent(
 }
 
 /** "Restore as copy": a brand-new report PRODUCT from a version snapshot,
- *  in one transaction (the D1 writer rule). It carries the source report's
- *  current config (versions store none) and, through INSERT ... SELECT, the
- *  source product's (run_id, scope_id) pair verbatim. Whoever made the copy
- *  owns it, nobody else can see it, and no grant is copied
- *  (PLAN_PRODUCT_OWNERSHIP R2). */
+ *  in one transaction, since the schema does not enforce that the detail row
+ *  exists. It carries the source report's current config (versions store
+ *  none) and, through INSERT ... SELECT, the source product's (run_id,
+ *  scope_id) pair verbatim. Whoever made the copy owns it, nobody else can
+ *  see it, and no grant is copied. */
 export async function copyReportFromVersion(
   mainDb: Sql,
   args: {

@@ -1,5 +1,12 @@
 # PLAN: HFA facilities derived from survey rounds
 
+> **NEEDS REWRITING. Do not run any step as written.** The design resolves a
+> facility's between-round changes by rule (the latest round by `sort_order`
+> wins per column, §2.3) instead of surfacing them for the user to decide. The
+> rewrite keeps the goal: one upload per round, with the registry built from the
+> rounds. It must surface those changes, and it takes the inputs listed under
+> "Inputs to the L1 rework" in [HFA_WORK_CATALOGUE.md](HFA_WORK_CATALOGUE.md).
+
 **Status:** open, not started.
 
 **What this plan does.** The HFA facility registry (`facilities_hfa`) stops

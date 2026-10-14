@@ -16,11 +16,11 @@ globs:
   - server/routes/anthropic_messages_proxy.ts
   - server/routes/instance/custom_prompts.ts
   - server/routes/instance/ai_files.ts
-  - server/routes/instance/ai_proxy.ts
   - server/routes/instance/copilot_ai_proxy.ts
   - server/tests/ai_context_sections_test.ts
   - server/tests/copilot_catalogue_test.ts
   - server/tests/copilot_prompt_test.ts
+  - server/tests/format_products_list_for_ai_test.ts
   - server/tests/hfa_time_points_for_ai_test.ts
   - server/tests/mcp_context_cache_test.ts
   - server/tests/mcp_principal_key_test.ts
@@ -37,7 +37,7 @@ every place a view of it. Reviewed against code (first review cycle; absorbed
 and deleted DOC_AI_PROXY_AND_USAGE_GOVERNANCE and DOC_AI_TOOL_SCHEMAS, the
 authoring recipe from the latter now lives in
 [PROTOCOL_APP_AI_TOOLS.md](PROTOCOL_APP_AI_TOOLS.md)); AI-surface prose
-re-verified after both assistants adopted panther's
+re-verified after the copilot and the HFA tools adopted panther's
 views/gating/interactions/approval system. Two same-day fix batches
 (governance + panther turn-logic, then the client-copilot findings) are folded
 into the prose; remaining triaged findings are in Open items below.
@@ -48,12 +48,12 @@ tool-execution loop, display registry, conversation persistence) is panther's
 re-sync). Guards themselves are **S1**; the daily token counters are columns on
 `users` (`db/instance/users.ts` is S1-owned with S13 a mandatory reader, per
 SYSTEMS.md §4.1). The unguarded health routes that surface usage are **S15**.
-The HFA indicator-manager assistant client
-(`client/src/components/data/hfa/indicators/ai/**`) is an **S5-owned
-satellite**: S13 owns the `/ai-instance` proxy it talks to, the panther engine
-contract, and the tool-schema conventions it must follow; S5 owns the tool
-semantics. The slide/figure shapes the slide_ai helpers produce are **S10/S12**;
-the query pipeline the data tools call is **S9**.
+The HFA tools (`client/src/components/data/hfa/indicators/ai/**`) are
+**S5-owned**: S13 owns the chat they register in, the panther engine contract
+and the tool-schema conventions they follow; S5 owns their semantics, the HFA
+guidance the manager attaches to its view, and the write gate they refuse under
+(`indicators/write_gate.ts`). The slide/figure shapes the slide_ai helpers
+produce are **S10/S12**; the query pipeline the data tools call is **S9**.
 
 ## Principles
 
@@ -118,25 +118,25 @@ the query pipeline the data tools call is **S9**.
    coverage (finest physical time column; `/mcp` only, since the SPA holds no
    manifest). Nothing about modules, provenance, or unavailable metrics goes
    into the package grounding: it does not help read a metric (ruled). The
-   `package` and `explore` views are the narrowing (COPILOT03 ruling 1): on
-   those two pages the module and the package's status are what the user is
-   looking at, so their view state names the open module, and the package page's
-   its status, stage, error and progress. A separate indicator-dictionary tool
-   was considered and dropped as redundant. The `/mcp` surface is stateless
-   above the wire: the metric tools read the pin from the DB on every call (a
-   pin-move is visible on the next call; `get_overview` answers without a pin),
-   and package tools are boot-time templates bound per call via panther's
-   `bindAITool` because panther caches a principal's tool set per core. A core
-   is keyed per credential: `buildMcpPrincipal` gives each PAT or OAuth access
-   token its own principal, whose key is the email plus a 16-digit prefix of the
-   token's SHA-256 (`server/tests/mcp_principal_key_test.ts`), so a second PAT
-   or a rotated token of one user never runs over another credential's token.
-   The catalog is fixed per process: a client sees a catalog change only when it
-   re-lists (a chat client: refresh the connector's tools, or a new
-   conversation, though neither claude.ai nor Claude Code reliably re-lists on a
-   new conversation alone), and the server does not advertise `listChanged`
-   (panther ruling, DOC_AI_CHAT §Headless tools). So results are
-   self-identifying instead: every package-tool result starts with a
+   `package` and `explore` views are the narrowing: on those two pages the
+   module and the package's status are what the user is looking at, so their
+   view state names the open module, and the package page's its status, stage,
+   error and progress. A separate indicator-dictionary tool was considered and
+   dropped as redundant. The `/mcp` surface is stateless above the wire: the
+   metric tools read the pin from the DB on every call (a pin-move is visible on
+   the next call; `get_overview` answers without a pin), and package tools are
+   boot-time templates bound per call via panther's `bindAITool` because panther
+   caches a principal's tool set per core. A core is keyed per credential:
+   `buildMcpPrincipal` gives each PAT or OAuth access token its own principal,
+   whose key is the email plus a 16-digit prefix of the token's SHA-256
+   (`server/tests/mcp_principal_key_test.ts`), so a second PAT or a rotated
+   token of one user never runs over another credential's token. The catalog is
+   fixed per process: a client sees a catalog change only when it re-lists (a
+   chat client: refresh the connector's tools, or a new conversation, though
+   neither claude.ai nor Claude Code reliably re-lists on a new conversation
+   alone), and the server does not advertise `listChanged` (panther's
+   DOC_AI_CHAT §Headless tools). So results are self-identifying instead: every
+   package-tool result starts with a
    `Source: results package "<label>" (generated <createdAt>), scope "All data"`
    line naming the run and the scope it read. The line is `formatSourceHeader`
    in `lib/ai_tools/source_header.ts`, whose scope label is optional so a read
@@ -186,21 +186,21 @@ the query pipeline the data tools call is **S9**.
    AI-built configs are storage-compatible by construction. See
    [PROTOCOL_APP_AI_TOOLS.md](PROTOCOL_APP_AI_TOOLS.md).
 
-## The proxies
+## The proxy
 
-One shared handler,
+One handler,
 [anthropic_messages_proxy.ts](server/routes/anthropic_messages_proxy.ts)
-(governance, usage logging, and beta policy live there so the two mounts cannot
-drift), behind two thin raw Hono routes (deliberately outside the S1 route
-registry), mounted in [main.ts:174-175](main.ts#L174-L175):
+(governance, usage logging and beta policy live there), behind one thin raw Hono
+route (deliberately outside the S1 route registry): `POST /ai/v1/messages`
+([copilot_ai_proxy.ts](server/routes/instance/copilot_ai_proxy.ts)), mounted at
+`/ai` in [main.ts:179](main.ts#L179) beside the Files proxy
+([main.ts:180](main.ts#L180)), guarded by `requireApprovedUser()` and nothing
+finer: the chat's tools run in the browser and reach a product or the HFA
+indicators only through the routes, which guard themselves. Its client is the
+copilot's SDK client
+([defaults.ts](client/src/components/instance/copilot/ai_configs/defaults.ts)).
 
-|        | Copilot proxy                                                                                          | Instance proxy                                                                                                |
-| ------ | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
-| Route  | `POST /ai/v1/messages` ([copilot_ai_proxy.ts](server/routes/instance/copilot_ai_proxy.ts))             | `POST /ai-instance/v1/messages` ([ai_proxy.ts](server/routes/instance/ai_proxy.ts))                           |
-| Guard  | `requireApprovedUser()` and nothing finer: the copilot reads through its product's scope (PLAN_SCOPES) | `requireGlobalPermission("can_configure_data")`                                                               |
-| Client | the copilot ([defaults.ts](client/src/components/instance/copilot/ai_configs/defaults.ts))             | HFA indicator-manager assistant ([sdk_client.ts](client/src/components/data/hfa/indicators/ai/sdk_client.ts)) |
-
-The shared flow:
+The flow:
 
 1. Key and URL come from the boot-validated `_ANTHROPIC_API_KEY` /
    `_ANTHROPIC_API_URL` (`exposed_env_vars.ts`; the URL env is the **full**
@@ -264,7 +264,7 @@ hard one.
 rate-limit object, the upstream error body at its status, and anything _thrown_
 in the handler (malformed request JSON, upstream fetch network failure), which
 the shared handler catches and returns as an Anthropic-shaped 502
-([anthropic_messages_proxy.ts:51-64](server/routes/anthropic_messages_proxy.ts#L51-L64))
+([anthropic_messages_proxy.ts:50-63](server/routes/anthropic_messages_proxy.ts#L50-L63))
 rather than letting it fall to `app.onError`'s envelope-at-HTTP-200. The one
 envelope shape on the surface: guard rejections are `{success:false, err}` at
 401/403.
@@ -341,20 +341,20 @@ posts `takeover` on a `BroadcastChannel` of the lock's name, on which the owner
 stops its turn (`stopGeneration`), awaits the record's save (`whenIdle`),
 releases the lock, shows the notice and queues a new request; the browser grants
 the taker's pending request, releases a closed or crashed owner's lock by
-itself, and without the Web Locks API (an insecure context) the tab is the owner
-at once. A store is therefore always built from a record no other live tab
-writes. The panel stops the chat's turn and awaits its save the same way when it
-unmounts (sign-out, a user switch, the instance-stream reset on approval or a
-change to the user's own scope access, which remounts the shell and with it the
-chat on the same thread). The panel creates the one engine instance
-(`createAIChat`, inside the provider once the lock is granted), keeps it to stop
-and await at a hand-over and at its own cleanup, and hands it to the pane, which
-hands it to `AIChat` as `chat` (E2), so the pane and the chat share one
+itself, releases at once a grant that lands after the panel's cleanup (the abort
+is ignored once a lock is granted), and without the Web Locks API (an insecure
+context) the tab is the owner at once. A store is therefore always built from a
+record no other live tab writes. The panel stops the chat's turn and awaits its
+save the same way when it unmounts (sign-out, a user switch, the instance-stream
+reset on approval or a change to the user's own scope access, which remounts the
+shell and with it the chat on the same thread). The panel creates the one engine
+instance (`createAIChat`, inside the provider once the lock is granted), keeps
+it to stop and await at a hand-over and at its own cleanup, and hands it to the
+pane, which hands it to `AIChat` as `chat`, so the pane and the chat share one
 registry, one settings copy and one queue drain. The panel builds one panther
 `AIChatProvider` config, validated in dev by panther's no-mount construction
-check: both assistants call `validateAIChatConfig(config)` under
-`import.meta.env.DEV` at config assembly (HFA
-[ai/wrapper.tsx:39-41](client/src/components/data/hfa/indicators/ai/wrapper.tsx#L39-L41)):
+check: the panel calls `validateAIChatConfig(config)` under
+`import.meta.env.DEV` at config assembly:
 
 - **sdkClient**
   ([defaults.ts](client/src/components/instance/copilot/ai_configs/defaults.ts)):
@@ -387,9 +387,8 @@ check: both assistants call `validateAIChatConfig(config)` under
   block (`buildCopilotPackageBlock` over the pair the current view shows and its
   T2 authoring context, which the panel resolves live from the view's
   `getScope()` and fetches when the pair changes; a view with no package, or
-  whose context is still loading, sends no package block); **appendOnlyTurns** =
-  `true` (E7, below); **getDocumentRefs** from `useAIDocuments`;
-  **viewController** = `copilotViewController` (below).
+  whose context is still loading, sends no package block); **getDocumentRefs**
+  from `useAIDocuments`; **viewController** = `copilotViewController` (below).
 - **the HFA survey rounds** (instance-wide T1, not in the per-run payload) are
   merged into each inner set and into the pane's View AI tool output through
   `hfaTimePointsForAI` (lib), which keeps the imported rounds in the order
@@ -429,21 +428,20 @@ registry of the chat: a view per place the user can be, keyed by the catalogue's
 `server/tests/copilot_catalogue_test.ts` pins the views, each gated tool's
 views, the requirements and the identity parts; the registry's keys satisfy
 `Record<CopilotViewId, AnyAIView>`, so the two cannot drift), and the
-module-level singleton `copilotViewController` (fallback `shell`,
-`digestAcrossViews: true`). Per view, params are the serializable model-visible
-half (ids, and the report's format and style); context is the live payload
-(editor getters/setters plus, on every package view, `getScope()` and
-`getRunId()`) delivered to tool handlers opaquely. Labels are read live from the
-context, never captured into params: the deck's name (`getDeckLabel`), the open
-slide's title (`getSlideTitle` over `getTempSlide()`, which also gives the
-slide's type) and the report's name (`getLabel`), so a rename, a title edit or a
-type switch never leaves the view line, the instructions or a tool's read-back
-stale. Every view that shows something declares its `identity` through
-`copilotViewIdentity` (the entity ids, and for a package view the pair with its
-definition hash), so the engine refuses a view-limited call once the live
-identity differs from the one the turn last saw: a call planned for one slide
-does not run against the next, and a call planned before a reattach does not run
-against the new package.
+module-level singleton `copilotViewController` (fallback `shell`). Per view,
+params are the serializable model-visible half (ids, and the report's format and
+style); context is the live payload (editor getters/setters plus, on every
+package view, `getScope()` and `getRunId()`) delivered to tool handlers
+opaquely. Labels are read live from the context, never captured into params: the
+deck's name (`getDeckLabel`), the open slide's title (`getSlideTitle` over
+`getTempSlide()`, which also gives the slide's type) and the report's name
+(`getLabel`), so a rename, a title edit or a type switch never leaves the view
+line, the instructions or a tool's read-back stale. Every view that shows
+something declares its `identity` through `copilotViewIdentity` (the entity ids,
+and for a package view the pair with its definition hash), so the engine refuses
+a view-limited call once the live identity differs from the one the turn last
+saw: a call planned for one slide does not run against the next, and a call
+planned before a reattach does not run against the new package.
 
 A place holds the view it covers and sets its own: `holdCopilotView()` (called
 synchronously in the place's component body) captures the controller's current
@@ -461,26 +459,63 @@ fails before that renders the error through `StateHolderWrapper` in place of the
 editor, writes nothing (no autosave, no room, no deck-config save) and leaves
 the controller on `opening_product`. The Results and Explore pages set their
 own: Explore (`components/explore/explore.tsx`) holds at mount and sets
-`explore`, whose `getScope` is the resolved package at the resolved scope or
-ruling 7's no-package reason, and whose state names the family, module, view,
-type and settings the panes resolve (the same resolution functions, so the model
-is told what is on screen), once the package's authoring context is in; the
-Results page sets `results_packages`, whose state names the pinned package and
-the counts by status from the catalogue; the package page holds in
-`ResultsPackagePage` and sets `package` from `PackageBody` on every status
-change (params: the run id; its pair the page's package at the page scope, which
-`getScope` has only while the package is ready, so the package reads refuse with
-the status's reason while the module internals read by run id; its state the
-status, stage, error, progress and open module); Module defaults sets
-`module_defaults` and the Scopes page `scopes`. Every other view of the registry
-is declared, with its params and context types and the identity its page will
-supply, and has no sync site yet. There is no tab-to-view map.
+`explore`, whose `getScope` is the resolved package at the resolved scope or a
+refusal naming why while none is ready, and whose state names the family,
+module, view and type the panes resolve (the same resolution functions) and the
+settings of the view the frame resolved (`resolveView`'s result in
+`MetricFrame`, reported up through `onView`: the metric, the switch option, the
+level, each pin's value, the laid-out category's values and the grain, each by
+the id a package tool takes, and the period by its choice's label, as the
+toolbar's select shows it), so the model is told what is on screen, once the
+package's authoring context is in; the Results page sets `results_packages`,
+whose state names the pinned package and the counts by status from the
+catalogue; the package page holds in `ResultsPackagePage` and sets `package`
+from `PackageBody` on every status change (params: the run id; its pair the
+page's package at the page scope, which `getScope` has only while the package is
+ready, so the package reads refuse with the status's reason while the module
+internals read by run id; its state the status, stage, error, progress and open
+module); Module defaults sets `module_defaults` and the Scopes page `scopes`.
+The Products page sets `products`, whose instructions point at `list_products`;
+the Data switchboard sets `data`, whose state is each row's label and status
+mark (`formatDataState` over the `DataSectionForAI` rows the page supplies,
+never a summary), and its `openSubPage` sets `data_page` (params: the page id
+and, on a family's page, the family; instructions name both) for every page it
+opens and restores the covered view when the page closes (S6); the Assets page
+sets `assets`, the Users page `users` and the user detail `user`, each with
+instructions that name the page and nothing of its contents: no roster, no
+email. Inside products, deck settings (`SlideDeckSettings`, given the deck id)
+sets `deck_settings` and the version history (`VersionHistoryEditor`) sets
+`deck_history` or `report_history` by its `kind`, each with
+`productViewContext(productId)`, the product's live row as label and pair (a
+refusal naming why once the row is gone); the figure editor (S11) holds in
+`VisualizationEditor` and sets, from `VisualizationEditorInner` once the draft
+exists, the view its host names in the required `aiView` prop
+(`editing_slide_figure`, `editing_report_figure`, `viewing_package_figure`, each
+with the params its identity needs) through `setFigureEditorView`, with a
+`FigureEditorContext` of the pair, the metric and the draft (`getDraftConfig`,
+`applyDraftConfig`), and instructions naming the figure by its label
+(`getFigureEditorInstructions`); the results file viewer sets `results_file`
+from its props with the same pair, and instructions naming the module and the
+results object. The HFA indicators manager (S5) holds the switchboard's
+`data_page` and sets `hfa_indicators`, whose state is the open tab and whose
+instructions are the HFA guidance S5 keeps in
+`components/data/hfa/indicators/ai/instructions.ts`, supplied through the view's
+context (`getGuidance`) and framed by `getHfaIndicatorsInstructions`, so the
+registry imports nothing from `components/data/`; its code editor holds in
+`HfaIndicatorCodeEditor` and sets `hfa_indicator_editor` from `EditorInner` once
+the draft store exists, with the indicator id as identity, the open round in its
+state, and an `HfaIndicatorEditorContext` of the saved label, the selected
+round, the draft read live, each round with the issues the editor's validators
+find and the result-type check its code label states (`getDraft`), the taxonomy
+the editor offers and `applyDraft`, which writes the store with the controls'
+semantics and marks the draft unsaved; its Excel import sets
+`hfa_indicator_import`. There is no tab-to-view map.
 
-**What a message carries** (`appendOnlyTurns: true`, panther's E7). Every
-message carries the view line, the view's `state` and the interactions digest; a
-view's `instructions` and the chat's consumer blocks ride a message only when
-their text is new to the conversation, so each is sent once per text; a message
-the model never answered loses its blocks, and a changed system-and-tools hash
+**What a message carries** (panther's append-only turns). Every message carries
+the view line, the view's `state` and the interactions digest; a view's
+`instructions` and the chat's consumer blocks ride a message only when their
+text is new to the conversation, so each is sent once per text; a message the
+model never answered loses its blocks, and a changed system-and-tools hash
 strips the stored thinking blocks once. Per view, `instructions` is the static
 guidance (the deck, slide and report briefs; below edit level a product view's
 instructions carry the level line, read live, so the model is told not to call
@@ -521,23 +556,25 @@ does, and both read "The open slide's content changed" or "The report body
 changed". Every rail selection path notifies `selected_slides`: the click paths
 through `updateSelection`, the clear paths through `clearSelection`, whose line
 reads "Cleared the slide selection". Each editor filters `products_upserted` to
-its OWN product: another product changing is not its business. With
-`digestAcrossViews` an entry is admitted (`relevantIn`, then `filter`) against
-the view the user is in when it is recorded, and its digest line names that
-view. The engine owns the transactional drain at turn creation (restored on a
-failed send, so entries are never lost or double-delivered) and the reduction
-pipeline (coalesce per id), plus a coalesced `__navigation` line. The old "SSE
-echoes the AI's own tool edits" defect is fixed in the general case: every
-persist-path write tool marks its `slide:` and `product:` echo keys via
-`markAIEdit` once its write has landed (a report tool marks its `product:` key
-after the accepted commit, or after a figure update saves), so the AI's own
-server writes are dropped at drain (TTL-scoped, either-order). The
-collab-checkpoint residual is in Open items. The controller is a module
-singleton whose log outlives a mount, so the panel calls `clearInteractionLog()`
-when the chat mounts: actions retained from before (the previous user on a Clerk
-cross-tab user switch, or the previous owner tab's hand-over) would otherwise
-ride this chat's first digest as fake activity; with `digestAcrossViews`,
-activation already starts each conversation's digest at the log's end.
+its OWN product: another product changing is not its business. An entry is
+admitted (`relevantIn`, then `filter`) against the view the user is in when it
+is recorded, and its digest line names that view. The engine owns the
+transactional drain at turn creation (restored on a failed send, so entries are
+never lost or double-delivered) and the reduction pipeline (coalesce per id),
+plus a coalesced `__navigation` line. The old "SSE echoes the AI's own tool
+edits" defect is fixed in the general case: every persist-path write tool marks
+its `slide:` and `product:` echo keys via `markAIEdit` once its write has landed
+(a report tool marks its `product:` key after the accepted commit, or after a
+figure update saves), so the AI's own server writes are dropped at drain
+(TTL-scoped, either-order). The collab-checkpoint residual is in Open items. The
+controller is a module singleton whose log outlives a mount. The manager
+activates a conversation on every mount, which starts its digest at the log's
+end, so actions retained from before (the previous user's on a Clerk cross-tab
+user switch, this tab's while another tab owned the chat) never ride this chat's
+digest; the panel still calls `clearInteractionLog()` when the chat mounts,
+which drops them and, with them, the echo marks and any open AI-navigation
+window the previous user's chat left, which would otherwise drop or misattribute
+this user's first actions within their TTLs.
 
 ## Tools, view gating, and approval
 
@@ -545,33 +582,51 @@ activation already starts each conversation's digest at the log's end.
 one flat array once per shell mount, the same for every user, every view and
 every pair and always registered with the API: the outer package tools
 (`bindPackageTools` over the inner builder: metrics, the module list, the
-editors and the draft preview, each bound per call to the inner set of the
-view's pair; the module internals, bound by its run id), the reference tools
-(methodology docs, info) and panther's one `ask_user_questions`. Every tool
-declares a `kind` (`"read"` / `"write"`); no tool is `"nav"`: a navigation tool
-or any AI-driven move is out of the chat's scope, so the user moves and the view
-line tells the model where. The deck writes go through the product routes
-(`createSlide`, `updateSlide`, `deleteSlides`, `duplicateSlides`, `moveSlides`),
-the slide editor's and the report's through the live view context. There is no
-product registry: the model never lists, opens or creates products, and a draft
-slide goes only into a deck on the pair it was drafted under. The preview card
-stores the view its call ran in (panther E4, `AIViewSnapshot`, the id and
-identity) and renders under that identity's pair, with the pair's metrics from
-the T2 authoring context, so an old card keeps its package after a reattach; a
-card stored before the engine recorded the view renders under the current view's
-pair and offers no Add. The card offers "Add to this deck" from the deck and
-slide views when the open deck is on the draft's pair and the user can edit it,
-and is preview-only in a report, on another package and for a viewer. From
-either deck view on the draft's pair the card lays out under the open deck's
-config; elsewhere under the starting draft config. Add runs through
-`createButtonAction`, so a failed `createSlide` alerts; the button is disabled
-while the write runs and reads "Added to this deck" once it has landed, so one
-draft adds once, and the expanded view offers Add only while the card's button
-is enabled.
+editors, the figure editor and the draft preview, each bound per call to the
+inner set of the view's pair; the module internals, bound by its run id), the
+Products page's `list_products`, the reference tools (methodology docs, info)
+and panther's one `ask_user_questions`. Every tool declares a `kind` (`"read"` /
+`"write"`); no tool is `"nav"`: a navigation tool or any AI-driven move is out
+of the chat's scope, so the user moves and the view line tells the model where.
+The deck writes go through the product routes (`createSlide`, `updateSlide`,
+`deleteSlides`, `duplicateSlides`, `moveSlides`), the slide editor's and the
+report's through the live view context. The Figure editor group
+([figure_editor.ts](client/src/components/products/copilot/ai_tools/tools/figure_editor.ts),
+in the inner set, admitted in the three figure views): `get_figure_editor`
+formats the draft with `formatFigureConfigForAI`, and `update_figure_editor`
+runs `update_figure`'s validate-before-commit pipeline over the draft (apply the
+patch, validate the edit, validate the metric inputs, resolve the bundle, check
+slot collisions, all before anything changes) and then reconciles the new config
+into the editor's store through `applyDraftConfig`, after checking the editor
+that set the view is still current; its schema is `AiVizConfigUpdateSchema`, the
+figure patch plus the chart type and the timeseries grouping, which the editor
+can change and the figure tools cannot; it is approval-exempt, since the user
+keeps or discards the draft with the editor's own buttons. `list_products`
+([products.ts](client/src/components/products/copilot/ai_tools/tools/products.ts),
+admitted on the Products page alone) lists the products the user can see, which
+is what T1 holds, each with its folder path, its package by label (a package no
+longer ready by its run id), its scope by display label and the user's level,
+through the pure `formatProductsListForAI`
+([lib/ai_tools/format_products_list_for_ai.ts](lib/ai_tools/format_products_list_for_ai.ts),
+pinned by `server/tests/format_products_list_for_ai_test.ts`); the model never
+opens or creates a product, since no tool navigates, and a draft slide goes only
+into a deck on the pair it was drafted under. The preview card stores the view
+its call ran in (panther's `AIViewSnapshot`, the id and identity) and renders
+under that identity's pair, with the pair's metrics from the T2 authoring
+context, so an old card keeps its package after a reattach; a card stored before
+the engine recorded the view renders under the current view's pair and offers no
+Add. The card offers "Add to this deck" from the deck and slide views when the
+open deck is on the draft's pair and the user can edit it, and is preview-only
+in a report, on another package and for a viewer. From either deck view on the
+draft's pair the card lays out under the open deck's config; elsewhere under the
+starting draft config. Add runs through `createButtonAction`, so a failed
+`createSlide` alerts; the button is disabled while the write runs and reads
+"Added to this deck" once it has landed, so one draft adds once, and the
+expanded view offers Add only while the card's button is enabled.
 
-**Refusals come from one table through one wrapper** (COPILOT03 ruling 11).
-Every user registers the same tools, so the prompt cache survives every move;
-what a user may not do refuses at the call.
+**Refusals come from one table through one wrapper.** Every user registers the
+same tools, so the prompt cache survives every move; what a user may not do
+refuses at the call.
 [`tool_guard.ts`](client/src/components/instance/copilot/tool_guard.ts) wraps
 each tool where the set is assembled and, before the handler or an approval's
 `propose` runs, asks `copilotToolRefusal` (`lib/ai_tools/copilot_catalogue.ts`)
@@ -736,20 +791,20 @@ accepted-but-inert-patch rule (Type 1 / Type 2) is stated once, in
 re-reads the array, so the registered set closes over nothing that moves: every
 package tool is an outer tool
 ([bind_package_tools.ts](client/src/components/instance/copilot/bind_package_tools.ts),
-panther's `bindAIToolToView`, E5) whose call resolves the pair of the view it
-runs in (`getScope` on the view's context) and runs the same-named tool of an
-inner set built over that pair's env, its T2 authoring context and the HFA
-rounds `hfaTimePointsForAI` keeps, cached by `packageToolsKey` (run, scope,
-definition hash, rounds), so a reattach, rescope, scope edit or time-point
-import binds at the next call with no remount; the module internals bind by the
-view's run id alone (`getRunId`, `createModuleInternalsEnv`), so they answer for
-a package that is still generating or has failed. A view whose `getScope` throws
-refuses the call with its reason; an authoring-context read that fails refuses
-the call with the read's error and the next call reads again; every read of a
-pair-bound set opens with the Source line, a run-bound read with the package and
-no scope, and writes and failures pass through. The templates the chat registers
-come from one run of the inner builder over a throwing env and an empty
-authoring context, as `/mcp` builds its boot-time templates.
+panther's `bindAIToolToView`) whose call resolves the pair of the view it runs
+in (`getScope` on the view's context) and runs the same-named tool of an inner
+set built over that pair's env, its T2 authoring context and the HFA rounds
+`hfaTimePointsForAI` keeps, cached by `packageToolsKey` (run, scope, definition
+hash, rounds), so a reattach, rescope, scope edit or time-point import binds at
+the next call with no remount; the module internals bind by the view's run id
+alone (`getRunId`, `createModuleInternalsEnv`), so they answer for a package
+that is still generating or has failed. A view whose `getScope` throws refuses
+the call with its reason; an authoring-context read that fails refuses the call
+with the read's error and the next call reads again; every read of a pair-bound
+set opens with the Source line, a run-bound read with the package and no scope,
+and writes and failures pass through. The templates the chat registers come from
+one run of the inner builder over a throwing env and an empty authoring context,
+as `/mcp` builds its boot-time templates.
 
 ## Tool input schemas
 
@@ -849,13 +904,21 @@ categories and HFA service categories, each listed in full, with the rule that a
 limit applies only to a table that has a column for it; then the package's
 datasets, indicator lists and calendar); the level line rides a product view's
 instructions below edit; the per-view instructions (still exported from this
-file, with short primary-tool pointers) are composed by the view registry
+file, with short primary-tool pointers; the Products, Data page, Assets, Users
+and user detail views name their page, the figure views the figure by its label
+and its host, and the results file view its module and object) and the view
+states of the Results, Explore and Data pages (`formatExploreState`,
+`formatPackageState`, `formatResultsPackagesState` and `formatDataState`, this
+file too) are composed per view by the view registry
 ([ai_views.ts](client/src/components/instance/copilot/ai_views.ts)); and the
 tools ride the request's tools array, never a catalogue in the prompt
 (`server/tests/copilot_prompt_test.ts` pins the absence; `get_overview` is the
-one surface that asks `buildSystemPrompt` for a date and a catalogue). The chat
-menu's View system prompt shows the blocks the next message would carry, through
-the instance's `getNextTurnPreview()`, then the system text; the debug panel
+one surface that asks `buildSystemPrompt` for a date and a catalogue). The
+`SHOW_SENT_CONTEXT` boolean in `state/t4_ui.ts` (a code boolean, off) makes each
+new user bubble the exact text sent, its context block then what was typed
+(panther `showSentContext`). The chat menu's View system prompt shows the blocks
+the next message would carry, through the instance's `getNextTurnPreview()`,
+then the system text; the debug panel
 ([ai_debug_panel.tsx](client/src/components/instance/copilot/ai_debug_panel.tsx))
 renders the metric-list formatter verbatim so a human sees exactly what the
 model sees. AI data payloads exclude the admin-area roll-up row (double-counting
@@ -899,11 +962,10 @@ silently deletes their country-scoped prompts too.
 ## The panther engine (what this app depends on)
 
 First synced at commits 62ed6c03/ca3ae868 (SDK 0.71 → 0.110) and repeatedly
-since. Both assistants also depend on the engine's
-views/gating/interactions/approval surface (`defineAIViews`,
-`createAIViewController`, `defineAIInteractions`, `availableIn` gating,
-`approval.propose`, `buildToolCatalog`, `validateAIChatConfig`). The consumer
-rulebook is the vendored
+since. The chat also depends on the engine's views/gating/interactions/approval
+surface (`defineAIViews`, `createAIViewController`, `defineAIInteractions`,
+`availableIn` gating, `approval.propose`, `buildToolCatalog`,
+`validateAIChatConfig`). The consumer rulebook is the vendored
 [PROTOCOL_UI_AI_CHAT.md](panther/protocols/PROTOCOL_UI_AI_CHAT.md); the full
 contract doc is DOC_AI_CHAT.md at the panther repo root (not vendored). The
 parts S13 relies on, verified this cycle:
@@ -935,38 +997,50 @@ parts S13 relies on, verified this cycle:
 - `one_shot.ts` (`callAI`/`callAIStructured`) exists in the barrel but has
   **zero consumers in this app**.
 
-## The HFA satellite (S5-owned, S13-governed)
+## The HFA tools (S5-owned, S13-governed)
 
-`client/src/components/data/hfa/indicators/ai/` is a second, fully isolated
-assistant: same panther engine, own conversation scope (`hfa-indicators`), own
-SDK client pointed at `/ai-instance` (duplicates the 429-localizing fetch
-wrapper), its own `modelConfig` (`max_tokens: 4096`, where the copilot omits
-it), **no built-in web tools**. Structural differences from the copilot: no view
-registry, so every write goes straight to serverActions. Its five write tools
-declare `approval.propose` with `presentation: "modal"` (panther owns the
-propose → modal diff → commit lifecycle; the old hand-rolled `confirmChain`
-serializer is deleted), and the config sets
-`approvalPolicy: { requireForKind:
-"write", requireKind: true }`
-([ai/wrapper.tsx:36](client/src/components/data/hfa/indicators/ai/wrapper.tsx#L36)).
-A write tool without approval, or any tool without a `kind`, fails at
-construction. `validate_hfa_indicators` is a read: it computes each indicator's
-issues from main code and stores nothing, since the manager recomputes status at
-render and the stored flags' only reader is `get_hfa_indicators`
-(`bulkUpdateHfaIndicatorValidation` serves the manager's Revalidate all alone).
-`create_hfa_indicators` reports what the batch route created and, under
-`notCreated`, an id another save took between the proposal and the acceptance.
-Every anticipated failure throws `AIToolFailure` carrying the server's error
-(zero plain-`Error` throws in
+`client/src/components/data/hfa/indicators/ai/` holds the HFA reads, HFA writes
+and HFA editor groups of the catalogue, registered in the one chat by
+`copilot_tools.ts` like every other tool and gated by view: the reads
+(`get_hfa_indicators`, `get_hfa_taxonomy`, `get_hfa_variable_dictionary`,
+`inspect_hfa_variable`, `get_hfa_indicator_code`, `validate_hfa_indicators`) in
+the three HFA views, the writes (`update_hfa_indicator_labels`,
+`assign_hfa_indicator_categories`, `create_hfa_indicators`,
+`set_hfa_indicator_code`, `delete_hfa_indicators`) in `hfa_indicators` alone,
+and the editor tools (`get_hfa_indicator_editor`, `update_hfa_indicator_editor`,
+`editor_tools.ts`) in `hfa_indicator_editor` alone. Who may call them refuses
+through the guard: the reads need `can_configure_data` (`inspect_hfa_variable`
+`can_view_data`), the writes and `update_hfa_indicator_editor` the manager's
+write gate, `canWriteHfaIndicators()` (`indicators/write_gate.ts`, today global
+admin), which the manager's indicator write controls read too, so SYSTEM_05's
+open decision on that gate moves both at once. Every HFA route keeps its own
+guard. The five writes declare `approval.propose` with `presentation: "modal"`
+(panther owns the propose → modal → commit lifecycle); the editor write is
+exempt, since it lands in the open editor's unsaved draft, which the user saves
+or discards. The HFA guidance (the model, type and aggregation, how to write
+r-code, how to work) is `instructions.ts`'s `getHfaIndicatorsGuidance`, attached
+to the manager's view; it names no tool, since the registered tools describe
+themselves, and promises no diff. `validate_hfa_indicators` is a read: it
+computes each indicator's issues from main code and stores nothing, since the
+manager recomputes status at render and the stored flags' only reader is
+`get_hfa_indicators` (`bulkUpdateHfaIndicatorValidation` serves the manager's
+Revalidate all alone). `create_hfa_indicators` reports what the batch route
+created and, under `notCreated`, an id another save took between the proposal
+and the acceptance. Every anticipated failure throws `AIToolFailure` carrying
+the server's error (zero plain-`Error` throws in
 [tools.ts](client/src/components/data/hfa/indicators/ai/tools.ts), the
 failure-channel ruling above). The survey dictionary and the dataset display are
 read through the manager's T2 caches; the indicators, the taxonomy and the code
-are read fresh on every call. The system prompt deliberately embeds no live
-state (the model reads through tools, avoiding staleness with its own edits).
-Write commits do whole-object load → propose → save, last write wins: the
-app-wide concurrency model, deliberate (a re-read-after-confirm refactor was
-rejected as an inconsistent outlier); a label batch carries only the indicators
-whose label changed. Its hand-written schemas comply with the S13 conventions
+are read fresh on every call, so the model acts on current state, its own
+earlier writes included. Write commits do whole-object load → propose → save,
+last write wins: the app-wide concurrency model, deliberate (a
+re-read-after-confirm refactor was rejected as an inconsistent outlier); a label
+batch carries only the indicators whose label changed. The editor tools never
+await: `get_hfa_indicator_editor` reads the draft the view's context returns,
+and `update_hfa_indicator_editor` checks its ids against the taxonomy and the
+rounds the editor offers, applies the patch through `applyDraft` and reports
+each field as changed or as no change, so the editor that set the view is the
+one the write reaches. The hand-written schemas comply with the S13 conventions
 (storage field names, throw-don't-catch, `.min(1)` on inclusion lists, no
 strictObject / strict:true). S13 convention changes must be checked against this
 directory; its tool semantics are S5's.
@@ -979,8 +1053,8 @@ directory; its tool semantics are S5's.
   (`message_start`/`message_delta`); an Anthropic event-shape change silently
   zeroes logged usage. New betas panther starts sending must be added to
   `FORWARDABLE_BETAS` or they are silently dropped.
-- **Governance changes go in `anthropic_messages_proxy.ts`**, never in the two
-  mount files, which are deliberately logic-free.
+- **Governance changes go in `anthropic_messages_proxy.ts`**, never in the mount
+  file, which is deliberately logic-free.
 - **Don't wrap proxy responses in `APIResponse`**: the client SDK parses
   Anthropic shapes. Equally: don't let new failure paths fall to `app.onError`,
   which returns an envelope at HTTP 200 the SDK can't parse.
@@ -1009,7 +1083,7 @@ panther modelConfig/labels/cap-pause items, and the client-copilot findings
 fetch-on-miss, tools-reactivity memo removal, ai_files env/URL cleanup,
 Anthropic-shaped thrown errors, CORS header enumeration, and the LOW hygiene
 tail). The HFA whole-object read-modify-write finding was **rejected**: it
-matches the app-wide last-write-wins model (see the satellite section).
+matches the app-wide last-write-wins model (see the HFA tools section).
 Remaining:
 
 **Governance policy (decisions, not bugs)**
@@ -1050,24 +1124,20 @@ Remaining:
   checkpoint-carried origin?), not a missing mark; predates the interactions
   migration.
 
-**HFA satellite (fixes are S5's to land; contract is S13's)**
+**HFA tools (fixes are S5's to land; contract is S13's)**
 
-- **Indicator-assistant hardening** (S–M, from the retired HFA plan). The first
-  pass is shipped: a self-contained assistant in
+- **HFA tool hardening** (S–M, from the retired HFA plan). The tools are in
   [client/src/components/data/hfa/indicators/ai/](client/src/components/data/hfa/indicators/ai/),
-  instance proxy
-  [server/routes/instance/ai_proxy.ts](server/routes/instance/ai_proxy.ts), all
-  three tool tiers with a per-write confirm gate. Remaining, in priority order:
-  (1) **the visual-diff review UX**: `system_prompt.ts:46` promises writes are
-  shown "with a diff", but they render as plain-text summary lines in a confirm
-  dialog; build the diff/accept preview or fix the prompt to match (top gap).
-  (2) **Taxonomy editing**: the assistant can assign categories but cannot
-  create or rename them; decide whether that stays manual. (3) No
-  per-conversation cost cap (only the shared instance/user token limits) and
-  `max_tokens` is hardcoded. (4) `inspect_hfa_variable` loads the whole dataset
-  display then filters client-side: fine now, unbounded at scale. (5) No tests
-  and no telemetry on tool accept/reject rate. (6) Graduation from the
-  `hfa-ai-testing` label/deploy to production.
+  registered in the one chat with a modal approval per batched write. Remaining,
+  in priority order: (1) **the write previews**: the approval modal shows a
+  before-to-after list per change, with no diff; a create preview carries no
+  code and no categories, and a delete preview the ids only; build the diff and
+  the fuller previews. (2) **Taxonomy editing**: the tools can assign categories
+  but cannot create or rename them; decide whether that stays manual. (3) No
+  per-conversation cost cap (only the shared instance/user token limits). (4)
+  `inspect_hfa_variable` loads the whole dataset display then filters
+  client-side: fine now, unbounded at scale. (5) No tests and no telemetry on
+  tool accept/reject rate.
 
 **Surface gaps: read-projection ≠ write-schema ≠ stored-shape**
 
@@ -1163,7 +1233,5 @@ inventory every tool against it.
 
 **Hygiene**
 
-- The duplicated 429 fetch wrapper in the HFA sdk_client is the remaining
-  client-side duplication.
 - Rename the PascalCase DB log functions; decide the `can_use_ai` permission
   question (any-member remains the deliberate state until then).

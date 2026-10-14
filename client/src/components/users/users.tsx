@@ -30,12 +30,18 @@ import { serverActions } from "~/server_actions";
 import type { UserLog } from "lib";
 import { instanceState } from "~/state/instance/t1_store";
 import { openShellEditor } from "~/state/t4_ui";
+import {
+  copilotViewController,
+  holdCopilotView,
+} from "~/components/instance/copilot/mod.ts";
 
 type Props = {
   thisLoggedInUserEmail: string;
 };
 
 export function InstanceUsers(p: Props) {
+  holdCopilotView();
+  copilotViewController.setView("users");
   const userLogs = createQuery(() => serverActions.getAllUserLogs({}));
 
   const [showHUsers, setShowHUsers] = createSignal(false);

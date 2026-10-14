@@ -12,12 +12,12 @@ import { answersKeyedScope } from "./t1_store";
 // presets), keyed by `(runId, definitionHash)`. Immutable-by-identity like
 // `t2_runs.ts`: it is a pure function of the run directory and the scope
 // definition, and a ready run dir never changes, so the version key is a
-// constant and nothing ever invalidates an entry (PLAN_PRODUCTS_RESTRUCTURE
-// D7). Every product attached to the same package under the same definition
-// shares the one entry. Bump the name whenever RunAuthoringContext changes
-// shape (CLAUDE.md: a cached payload's shape change needs a prefix bump).
-// The caller resolves the pair (resolveScope) inside its own reactive scope,
-// so an edit to the scope's definition re-reads.
+// constant and nothing ever invalidates an entry. Every product attached to the
+// same package under the same definition shares the one entry. Bump the name
+// whenever RunAuthoringContext changes shape (CLAUDE.md: a cached payload's
+// shape change needs a prefix bump). The caller resolves the pair
+// (resolveScope) inside its own reactive scope, so an edit to the scope's
+// definition re-reads.
 const _RUN_AUTHORING_CONTEXT_CACHE = createReactiveCache<
   { scope: ResolvedPackageScope },
   RunAuthoringContext

@@ -1,10 +1,9 @@
-// Pins PLAN_A4 ruling 3, the analysed set (analysedIndicatorIds in lib): a
-// count (Uploaded, DHIS2 element or Sum) is analysed when its checkbox is
-// on, or it is a special, or a calculated with its checkbox on reaches it
-// through the resolver; sum membership alone puts nothing in the extract; a
-// calculated with its checkbox off is left out of the catalog. And PLAN_A5
-// ruling 10's shape: the catalog row carries the stored type, and "with
-// data" is judged by data id.
+// Pins the analysed set (analysedIndicatorIds in lib): a count (Uploaded,
+// DHIS2 element or Sum) is analysed when its checkbox is on, or it is a
+// special, or a calculated with its checkbox on reaches it through the
+// resolver; sum membership alone puts nothing in the extract; a calculated
+// with its checkbox off is left out of the catalog. And the catalog row's
+// shape: it carries the stored type, and "with data" is judged by data id.
 //
 //   deno test -A --env-file server/tests/indicator_analysed_set_test.ts
 

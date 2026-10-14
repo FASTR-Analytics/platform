@@ -22,7 +22,7 @@ export const routesIndicators = new Hono();
 // population terms: is validated in the DB layer against the live
 // dictionary and the population store, because only there is the full
 // vocabulary available. An Uploaded indicator posts no data id, and one
-// posted anyway is dropped here: its key is the server's (PLAN_A6 ruling 1).
+// posted anyway is dropped here: its key is the server's.
 export function narrowIndicatorDefinition(
   raw: { type: string } & Record<string, unknown>,
 ): HmisIndicatorDefinitionInput {

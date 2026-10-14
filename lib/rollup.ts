@@ -94,9 +94,9 @@ export type RollupEligibilityInputs = {
 // - identity values whose ratio is recomputed after the union: either via a
 //   metric-wide post-aggregation expression, or, for a catalog-evaluated
 //   metric, via each row's own indicator expression over its summed
-//   ingredients (PLAN_1a §1.6). Both are the same case: the ingredients are
-//   additive, so the roll-up row's formula is applied to correctly summed
-//   parts rather than averaging finished ratios;
+//   ingredients. Both are the same case: the ingredients are additive, so
+//   the roll-up row's formula is applied to correctly summed parts rather
+//   than averaging finished ratios;
 // - AVG over FACILITY-LEVEL rows (raw observations: re-averaging over any
 //   collapsed scope is the correctly weighted statistic).
 // Excluded: bare identity (pre-aggregated percentages/rates), AVG over

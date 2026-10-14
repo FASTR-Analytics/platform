@@ -14,7 +14,7 @@ import { getHfaTimePointOrder } from "../../db/mod.ts";
 import { getScriptWithParameters } from "../../server_only_funcs/get_script_with_parameters.ts";
 import type { PreparedRunInputs } from "./prepare_inputs.ts";
 
-// Stage 2 of the run pipeline: resolve (PLAN_RESULTS_RUNS item 2 / §3.7).
+// Stage 2 of the run pipeline: resolve.
 // Re-fetches the exact definitions the wizard's step 2 recorded (pinned
 // gitRef), validates the selection is a closed DAG whose data sources are
 // all in the run, freezes parameter selections, and generates each module's

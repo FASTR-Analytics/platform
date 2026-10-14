@@ -11,8 +11,8 @@ type Props = {
 };
 
 // Step 1: choose data: plain family-inclusion checkboxes. Generation always
-// captures the FULL dataset per family (PLAN_FULL_CAPTURE_GENERATION);
-// a product narrows by its scope at read time, never here.
+// captures the FULL dataset per family; a product narrows by its scope at
+// read time, never here.
 export function StepData(p: Props) {
   const blockedNote: Record<FamilyBlockedReason, string> = {
     no_data: t3({

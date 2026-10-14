@@ -1,5 +1,5 @@
 // ============================================================================
-// ICEH IMPORT RUN WORKER (PLAN_DHIS2_IMPORTER_CONSOLIDATION Phase C)
+// ICEH IMPORT RUN WORKER
 //
 // Two legs, one worker: STAGE (in-memory zip parse + per-row validation:
 // ICEH is small, no staging tables) and INTEGRATE (the single-transaction
@@ -36,10 +36,9 @@ import { integrateIcehData, stageIcehZip } from "./ingest.ts";
 
 let alreadyRunning = false;
 
-// The ICEH clean condition (C4): no row was skipped for a reason the user
-// didn't author, and something staged. Missing estimates never gate: "NA"
-// estimates are a normal feature of Retriever exports, reported but never
-// blocking.
+// The ICEH clean condition: no row was skipped for a reason the user didn't
+// author, and something staged. Missing estimates never gate: "NA" estimates
+// are a normal feature of Retriever exports, reported but never blocking.
 function isCleanStaging(result: IcehStagingResult): boolean {
   return (
     result.nRowsSkippedUnknownStrat === 0 &&

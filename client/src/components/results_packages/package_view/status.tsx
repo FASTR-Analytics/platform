@@ -13,11 +13,11 @@ import { instanceState } from "~/state/instance/t1_store";
 // explores a package: the same run shown from two places must read
 // identically.
 
-// Who may explore what a package CONTAINS (Tim's ruling 2026-08-18): a
-// package is instance-level data, so the instance data bits decide, whichever
-// surface asks. Server guards are authoritative (routes/instance/
-// run_generation.ts + the outputs download mount); these exist so a caller
-// without access sees no button rather than one that 403s.
+// Who may explore what a package CONTAINS: a package is instance-level data, so
+// the instance data bits decide, whichever surface asks. Server guards are
+// authoritative (routes/instance/run_generation.ts + the outputs download
+// mount); these exist so a caller without access sees no button rather than one
+// that 403s.
 export function canViewPackageContents(): boolean {
   return (
     instanceState.currentUserIsGlobalAdmin ||

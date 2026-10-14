@@ -1,13 +1,13 @@
 import {
   AIToolFailure,
   createAITool,
-  createAskUserQuestionsTool,
   foldString,
   matchesSearch,
   searchTokens,
 } from "panther";
 import { z } from "zod";
 import {
+  COPILOT_TOOL_VIEWS,
   extractRIdentifiers,
   type HfaDictionaryForValidation,
   type HfaIndicator,
@@ -28,6 +28,7 @@ import {
   hasRCodeErrors,
   validateRCode,
 } from "../_shared/mod.ts";
+import { copilotViews } from "~/components/instance/copilot/mod.ts";
 
 // ---------------------------------------------------------------------------
 // Loaders. The indicators, the taxonomy and the code are read fresh on every
@@ -209,13 +210,19 @@ function computeIndicatorValidation(
 }
 
 // ---------------------------------------------------------------------------
-// Tools
+// Tools: the HFA reads and HFA writes of the chat's catalogue, registered for
+// every user and gated by view through `availableIn` (the reads in the manager,
+// the code editor and the Excel import; the writes in the manager alone, where
+// each proposes a modal approval). Who may call them refuses at the call
+// through the chat's guard, under `canWriteHfaIndicators()` for the writes.
 // ---------------------------------------------------------------------------
 
 export function buildHfaIndicatorTools() {
   return [
     createAITool({
+      viewRegistry: copilotViews,
       name: "get_hfa_indicators",
+      availableIn: COPILOT_TOOL_VIEWS.get_hfa_indicators,
       description:
         "List HFA indicators with their labels, measurement (type/aggregation), category / sub-category / service-category assignments, and validation status. Optional filters narrow the result; omit all to get every indicator.",
       kind: "read",
@@ -286,7 +293,9 @@ export function buildHfaIndicatorTools() {
     }),
 
     createAITool({
+      viewRegistry: copilotViews,
       name: "get_hfa_taxonomy",
+      availableIn: COPILOT_TOOL_VIEWS.get_hfa_taxonomy,
       description:
         "List the HFA indicator taxonomy: the available categories, sub-categories (each with its parent categoryId), and service categories — the valid ids that HFA indicators can be assigned to.",
       kind: "read",
@@ -322,7 +331,9 @@ export function buildHfaIndicatorTools() {
     }),
 
     createAITool({
+      viewRegistry: copilotViews,
       name: "update_hfa_indicator_labels",
+      availableIn: COPILOT_TOOL_VIEWS.update_hfa_indicator_labels,
       description:
         "Set the short label and/or long label (definition) of existing HFA indicators, in a batch. Only the fields you provide change. The short label is used in dense chart contexts; the long label is the full descriptive text. Does NOT change measurement, categorisation, or r-code.",
       kind: "write",
@@ -454,7 +465,9 @@ export function buildHfaIndicatorTools() {
     }),
 
     createAITool({
+      viewRegistry: copilotViews,
       name: "assign_hfa_indicator_categories",
+      availableIn: COPILOT_TOOL_VIEWS.assign_hfa_indicator_categories,
       description:
         "Assign or clear the category, sub-category, and/or service categories of existing HFA indicators, in a batch. Only the fields you provide change. Use null to clear a category or sub-category. All ids are validated against the live taxonomy (call get_hfa_taxonomy first if unsure).",
       kind: "write",
@@ -623,7 +636,9 @@ export function buildHfaIndicatorTools() {
     }),
 
     createAITool({
+      viewRegistry: copilotViews,
       name: "get_hfa_variable_dictionary",
+      availableIn: COPILOT_TOOL_VIEWS.get_hfa_variable_dictionary,
       description:
         "List the HFA survey variables in the dataset — variable id, human label, and data type — per round (time point). Compact by default. To see a variable's coded response options, missingness and the values actually present, use inspect_hfa_variable.",
       kind: "read",
@@ -676,7 +691,9 @@ export function buildHfaIndicatorTools() {
     }),
 
     createAITool({
+      viewRegistry: copilotViews,
       name: "inspect_hfa_variable",
+      availableIn: COPILOT_TOOL_VIEWS.inspect_hfa_variable,
       description:
         "Inspect one or more HFA survey variables in depth: per round, the coded response options (value → label), how many facilities answered vs are missing, and the distinct values actually present in the data. Use this before writing r-code that compares against a variable's codes.",
       kind: "read",
@@ -733,7 +750,9 @@ export function buildHfaIndicatorTools() {
     }),
 
     createAITool({
+      viewRegistry: copilotViews,
       name: "get_hfa_indicator_code",
+      availableIn: COPILOT_TOOL_VIEWS.get_hfa_indicator_code,
       description:
         "Read the per-round r-code (rCode and optional rFilterCode) of existing HFA indicators.",
       kind: "read",
@@ -779,7 +798,9 @@ export function buildHfaIndicatorTools() {
     }),
 
     createAITool({
+      viewRegistry: copilotViews,
       name: "validate_hfa_indicators",
+      availableIn: COPILOT_TOOL_VIEWS.validate_hfa_indicators,
       description:
         "Validate HFA indicators' r-code against the HFA survey dictionary. Writes nothing. Returns how many indicators were checked and, for each one with an issue, whether it has syntax / unknown-variable / result-type issues, whether its code is consistent across rounds, and the specific issues. Run it after creating or editing code, and to find indicators that need fixing.",
       kind: "read",
@@ -850,7 +871,9 @@ export function buildHfaIndicatorTools() {
     }),
 
     createAITool({
+      viewRegistry: copilotViews,
       name: "create_hfa_indicators",
+      availableIn: COPILOT_TOOL_VIEWS.create_hfa_indicators,
       description:
         'Create new HFA indicators from the survey dataset, in a batch. For each: a long label (definition), type + aggregation (usually binary+avg for "% of facilities" — see the modelling guidance), optional category/sub-category/service categories (must already exist), and per-round r-code. The app assigns each indicator\'s id and returns it; time points are validated and r-code is validated against the dictionary (including a result-type check).',
       kind: "write",
@@ -1052,7 +1075,9 @@ export function buildHfaIndicatorTools() {
     }),
 
     createAITool({
+      viewRegistry: copilotViews,
       name: "set_hfa_indicator_code",
+      availableIn: COPILOT_TOOL_VIEWS.set_hfa_indicator_code,
       description:
         "Set the per-round r-code of EXISTING HFA indicators (to fix or change how they are computed). Each entry replaces that indicator+round's rCode/rFilterCode; other rounds are kept. Validation (including the result-type check) is recomputed automatically.",
       kind: "write",
@@ -1212,7 +1237,9 @@ export function buildHfaIndicatorTools() {
     }),
 
     createAITool({
+      viewRegistry: copilotViews,
       name: "delete_hfa_indicators",
+      availableIn: COPILOT_TOOL_VIEWS.delete_hfa_indicators,
       description:
         "Permanently delete HFA indicators by indicator id (and their r-code). Use with care.",
       kind: "write",
@@ -1324,7 +1351,5 @@ export function buildHfaIndicatorTools() {
           pt: `Eliminar ${countIndicators(input.indicatorIds.length)}`,
         }),
     }),
-
-    createAskUserQuestionsTool(),
   ];
 }

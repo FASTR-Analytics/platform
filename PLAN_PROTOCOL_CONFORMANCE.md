@@ -1,5 +1,15 @@
 # PLAN: Protocol conformance catalogue (client)
 
+> **NEEDS REWRITING before any step runs.** Its file paths and validator state
+> are from version 1. Step 1 is done: `./validate_protocols` reports no new hit,
+> and the baseline holds 14 entries, all matching code. Every path in the tables
+> has moved; `validate_protocols_baseline.json` lists the current ones (for
+> example `project_ai/` is now `components/instance/copilot/`, and
+> `useAIDocuments.ts` is now `ai_documents_store.ts`). The `ForceDeleteModal`
+> row went with projects. `body_editor.tsx` is a baselined exception the tables
+> do not list. The `report_version_preview.tsx` ternaries are still in the code
+> but are no longer flagged.
+
 Status: CATALOGUE ONLY, written 2026-09-06. Nothing here is built. Each item is
 a tier-2 hit from `./validate_protocols` that is currently suppressed by
 `validate_protocols_baseline.json`, plus one new hit the baseline does not

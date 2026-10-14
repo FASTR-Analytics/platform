@@ -28,8 +28,7 @@ export const PERIOD_COLUMN_EXPRESSIONS = {
 
 // Calendar is data semantics and changes the generated SQL, so it threads in
 // from the caller's context: the instance env for the Postgres path, the run
-// manifest for the runs path, never from the i18n global (PLAN_RESULTS_RUNS
-// §2.4).
+// manifest for the runs path, never from the i18n global.
 export function getQuarterIdExpression(calendar: InstanceCalendar): string {
   if (calendar === "ethiopian") {
     // Ethiopian Q1 is months 11-1, with Nov/Dec belonging to NEXT year's Q1

@@ -11,9 +11,9 @@ import type { ServerActionTransport } from "../server_actions/transport.ts";
 // against `topics` also whitelists the fetch path (no traversal, never serves
 // the SPA fallback).
 //
-// Headless use passes the transport EXPLICITLY (PLAN_112 step 2): reading the
-// process-global transport at call time is the confused-deputy shape a
-// multi-principal server must never touch. The SPA passes nothing and keeps
+// Headless use passes the transport EXPLICITLY: reading the process-global
+// transport at call time is the confused-deputy shape a multi-principal
+// server must never touch. The SPA passes nothing and keeps
 // its document branch (same-origin fetch, no transport involved).
 export function getSharedToolsForInfo(
   topics: InfoCatalogTopic[],

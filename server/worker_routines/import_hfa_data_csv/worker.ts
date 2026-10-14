@@ -1,5 +1,5 @@
 // ============================================================================
-// HFA CSV IMPORT RUN WORKER (PLAN_DHIS2_IMPORTER_CONSOLIDATION Phase B)
+// HFA CSV IMPORT RUN WORKER
 //
 // Two legs, one worker: STAGE (XLSForm parse + wide→long CSV stream into
 // per-run staging tables, evaluate the clean condition) and INTEGRATE (the
@@ -36,7 +36,7 @@ import { integrateStagedHfaData } from "./integrate_staged.ts";
 
 let alreadyRunning = false;
 
-// The HFA clean condition (B4): no facility row was dropped, and something
+// The HFA clean condition: no facility row was dropped, and something
 // staged. Duplicates do NOT gate: they are RESOLVED at wizard time by the
 // dedup strategy/overrides, so a nonzero count is normal. Filtered-out rows do
 // not gate either: row filters are user-authored intent.

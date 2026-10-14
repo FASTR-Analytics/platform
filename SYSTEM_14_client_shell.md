@@ -32,46 +32,45 @@ preferences, connection monitoring, onboarding modals, the help-button system,
 and the first-visit page tours (`client/src/onboarding/`: the `@njwse/roadtrip`
 tour manager, Clerk-backed seen-flags under `unsafeMetadata.onboarding`). ONE
 manager serves the whole app (`setupTours`, mounted from the instance shell with
-its permission-normalized tab accessor and an approved gate): the Products page
-and the instance tabs (Explore included) are pages keyed on the shell's tab
-signal, and the deck and report editor tours are pages keyed on the copilot's
-view controller (`editing_slide_deck` or `editing_slide`, and `editing_report`),
-because the editors are overlays that leave the tab on Products. The Products
-page predicate excludes the `editing_` views, so a list tour does not fire
-behind an editor that has set its view (Open items: one still loading, and the
-tab pages under a full-page view). The manager is on ONE page at a time, the
-first predicate that holds in the order `pages` lists them, and only that page's
-tours are considered; a tour whose page can never be the first to hold never
-auto-starts. So the three slide-type tours are entries on the deck editor's
-page, not pages of their own (a slide is open beside the deck's rail whenever
-the deck has one): each is gated by an entry-level `when` on the open slide's
-type, on the user being able to edit the deck (the slide tours walk the slide
-toolbar) and on `deck-editor-slides` having been seen, which keeps a first visit
-to the deck's own tours and starts the slide's tour on a later slide. The
-visualization editor is a page too, listed ahead of the product editors: it
-opens over a slide or a report without changing the copilot's view, so its
-predicate reads `openVisualizationEditors` (`t4_ui.ts`), a count
-`VisualizationEditorInner` (S11) keeps while it is open for editing (a read-only
-view is not counted). Deferred parts (a card on screen, a slide in the deck, a
-figure in the report, a ready package for Explore) use entry-level `when` gates
-plus `watch` triggers over the T1 list lengths, the Products page's open folders
-(`productsExpandedFolders`), the explorer's location, filter and view signals,
-and the open view's slide or figure count. A tour never waits on a control the
-user's level hides, because roadtrip aborts a run whose step target never
-appears (after 8 s) and marks every tour in it seen: the deck intro's Add slide
-step has a step-level `when` on that control, the deck settings tour waits for
-the Deck menu, and the catalogue's deck settings and slide rows open a deck the
-user can edit (`editableDecks`). More generally, a step whose target some users,
-formats or states never render is excluded by a step-level `when` (a DOM probe
-is safe there: the page is mounted by the time a tour starts), and a target that
-may be absent or late is given `onTargetTimeout: "skip"`: roadtrip's default is
-to abort, which in a merged run drops every tour behind the missing step. The AI
-steps of the deck and report intro tours target the shell's chat opener
-(`#copilot-opener`, S13), with a step-level `when` for it, since the opener
-shows only while the panel is closed. The report tour finds Report Forge's menu
-row, formatting bar, page and outline by the editor's own `data-rf-part` anchors
-(S12); a reader has none of the editing menus or the formatting bar, only a File
-menu of this app's in their place. The wording rules every step follows (control
+an approved gate): every page is keyed on the copilot's view controller, on
+which every tab page, full-page view and editor sets its view (S13): the
+Products, Explore, Data, Results, Assets and Users pages on `products`,
+`explore`, `data`, `results_packages`, `assets` and `users`, the deck editor on
+`editing_slide_deck` or `editing_slide`, and the report editor on
+`editing_report`. A tab page's predicate is therefore false under the editor or
+the full-page view that covers it, which has set its own view, and false while a
+product is still loading (`opening_product`). The one page not keyed on a view
+is the visualization editor's, listed ahead of the product editors: it opens
+over a slide or a report, so its predicate reads `openVisualizationEditors`
+(`t4_ui.ts`), a count `VisualizationEditorInner` (S11) keeps while it is open
+for editing (a read-only view is not counted). The slide tours share the deck's
+page, each with an entry-level `when` on the open slide's type: the deck's rail
+stays on screen beside an open slide and the manager keeps one page at a time,
+the first whose predicate holds, so a page of their own would never win.
+Deferred parts (a card on screen, a slide in the deck, a figure in the report, a
+ready package for Explore) use entry-level `when` gates plus `watch` triggers
+over the product and ready-package counts, the Products page's open folders
+(`productsExpandedFolders`), the open view's slide or figure count, the open
+slide's type, and each tour's finish or abort (a re-check made while a run is
+active starts nothing, and the open slide's editor mounts after the deck's run
+has launched). A tour never waits on a control the user's level hides, because
+roadtrip aborts a run whose step target never appears (after 8 s) and marks
+every tour in it seen: the deck intro's Add slide step has a step-level `when`
+on that control, the deck settings tour waits for the Deck menu, the slide
+tours' `when` needs edit on the open deck, and the catalogue's deck settings and
+slide rows open a deck the user can edit (`editableDecks`). More generally, a
+step whose target some users, formats or states never render is excluded by a
+step-level `when` (a DOM probe is safe there: the page is mounted by the time a
+tour starts), and a target that may be absent or late is given
+`onTargetTimeout: "skip"`: roadtrip's default is to abort, which in a merged run
+drops every tour behind the missing step. The AI steps of the deck and report
+intro tours target the shell's chat opener (`#copilot-opener`, S13), with a
+step-level `when` for it, since the opener shows only while the panel is closed.
+The report tour finds Report Forge's menu row, formatting bar, page and outline
+by the editor's own `data-rf-part` anchors (S12), and its File step finds
+whichever File menu is on screen: the editor's (its `file-menu` part) or, for a
+reader, for whom the editor draws no menus, this app's own
+(`data-tour="report-file-menu"`). The wording rules every step follows (control
 names as the screen labels them, no internal vocabulary) are the header comment
 of `tours.ts`. A tour may walk across a page boundary: the results-package
 catalogue tour's first step completes on the user's click of a list row
@@ -79,23 +78,22 @@ catalogue tour's first step completes on the user's click of a list row
 waits for a target on that page (S8). The same directory hosts the tour
 catalogue modal (`tour_catalogue_modal.tsx` + `catalogue.ts`, opened from the
 Help menu, always offered), which lists every tour by area (Products, Slide
-decks, Reports, Visualizations, and the remaining tabs under "The platform")
-with availability computed over T1 only (`instanceState.products`,
-`readyPackages`, the permissions; the three slide-type rows first run a
-cache-first search of the decks' slide documents, `findDeckWithSlideOfType`) and
-a reason when unavailable. Play calls the entry's `navigate(openTab)`: a tab
-switch, plus for the editor tours a `pendingEditorOpen` request (`{ productId }`
-in `t4_ui.ts`, persisting until the Products page mounts and consumes it) and,
-for the slide tours, a `pendingSlideOpen` the deck editor consumes to open the
-first slide of that type, and for the visualization editor tour a
-`pendingVisualizationOpen` the report editor consumes to open its first
-visualization; once navigate resolves (the slide tours search first, and a
-search that finds nothing arms no replay) it arms `pendingTourReplay` with the
-tour id and the product the tour's page lives in. The order matters: the
-manager's replay effect runs synchronously on that write, starts the tour once
-its page predicate is true (a slide tour, which shares the deck editor's page,
-waits instead for a slide of its own type to be open: `replayReady` in
-`index.ts`), drops a tab-page replay whose page is not active (the switch was
+decks, Reports, Visualizations, Instance) with availability computed over T1
+only (`instanceState.products`, `readyPackages`, the permissions; the three
+slide-type rows first run a cache-first search of the decks' slide documents,
+`findDeckWithSlideOfType`) and a reason when unavailable. Play calls the entry's
+`navigate(openTab)`: a tab switch, plus for the editor tours a
+`pendingEditorOpen` request (`{ productId }` in `t4_ui.ts`, persisting until the
+Products page mounts and consumes it) and, for the slide tours, a
+`pendingSlideOpen` the deck editor consumes to open the first slide of that
+type, and for the visualization editor tour a `pendingVisualizationOpen` the
+report editor consumes to open its first visualization; once navigate resolves
+(the slide tours search first, and a search that finds nothing arms no replay)
+it arms `pendingTourReplay` with the tour id and the product the tour's page
+lives in. The order matters: the manager's replay effect runs synchronously on
+that write, starts the tour once its page predicate is true (a slide tour once a
+slide of its type is open, which the deck editor does only after the deck has
+opened), drops a tab-page replay whose page is not active (the switch was
 synchronous, so the tab is denied), and drops a product replay only once T1 is
 ready and no longer holds the product (a dead id, the Products page's own rule
 for the open request). It reads nothing transient, so the Products page clearing
@@ -204,8 +202,8 @@ first and the default, and Explore (S11's `components/explore/`, one package at
 one scope, a family's modules in a select, a module's views in a select with a
 type toggle, and a frame per view, S11 "The Explore page") needs approval and
 all-scope access (`currentUserScopeAccess.all`): a restricted user has no
-Explore tab (PLAN_SCOPES R13). The tab id union is `InstanceTab` in
-`onboarding/catalogue.ts` and the shell imports it.
+Explore tab. The tab id union is `InstanceTab` in `onboarding/catalogue.ts` and
+the shell imports it.
 
 The shell is a `FrameRightResizable` whose panel is the AI chat (`CopilotPanel`,
 S13: one chat beside every tab page, full-page view and nested editor, mounted
@@ -440,14 +438,6 @@ language's own anchor). The recipe and its traps are
   Save with `createButtonAction` (closing on success), pass its `state` so
   `ModalContainer` renders the error, and take `cancelDisabled` from its loading
   state.
-- **Tour pages stay true under the views that cover them.** The rule at
-  `onboarding/index.ts:50-52` says a page predicate holds only while its page is
-  visible, but `products` (83) holds while a product editor is still loading,
-  because `opening_product` is the controller's fallback and `isEditingView`
-  tests the `editing_` prefix (`onboarding/catalogue.ts:63-64`), and the Data,
-  Results, Assets and Users pages (84-87) hold under every full-page view their
-  tabs open, because the tab does not change. PLAN_COPILOT03_ONE_CHAT re-keys
-  the pages on the one chat's view ids.
 - **Help requests never say where they were sent from.** `FeedbackForm` sends
   `p.context` (`instance/feedback_form.tsx:18`, 81) and the email renders it
   (`server/routes/instance/emails.ts:213-216`), but `openFeedback` passes only
@@ -457,7 +447,7 @@ language's own anchor). The recipe and its traps are
   Help menu sits in the header, which every full-page view covers
   (`instance.tsx:271-318`, 410-411).
 - **The Users tour's Bulk step misdescribes the download.** Its body says the
-  download carries each user's permissions (`onboarding/tours.ts:1288-1295`),
+  download carries each user's permissions (`onboarding/tours.ts:1311-1318`),
   but the CSV holds only email and `is_global_admin` (`users/users.tsx:73-84`),
   and its target `instance-users-bulk` sits on Download alone (132) though the
   text also covers Batch import (143-153). Move
@@ -472,7 +462,7 @@ language's own anchor). The recipe and its traps are
   utilizadores de uma vez a partir de um CSV."
 - **The Results catalogue tour says the Delete button stays.** Its usage step
   says a package in use cannot be deleted "and the button says so rather than
-  disappearing" (`onboarding/tours.ts:1150`, fr 1152, pt 1154), but the page
+  disappearing" (`onboarding/tours.ts:1173`, fr 1175, pt 1177), but the page
   shows the reason in place of the button
   (`results_packages/package_page.tsx:270-286`) and also blocks a pinned or
   generating package (127-149). Replace that sentence with en "A package that is
@@ -490,10 +480,25 @@ language's own anchor). The recipe and its traps are
   every Escape as skipped (`instance/instance.tsx:609`, 634). Delete the branch
   and make 61-62 read "Arrow-key paging lives here; Escape belongs to panther's
   DialogLayer, which cancels the dialog first, and the caller records a skip."
-- **Two stale comments in `onboarding/tours.ts`.** 892-893 list an Explore tour
-  that does not exist (the pages are `onboarding/index.ts:82-97`), and 895-897
+- **Two stale comments in `onboarding/tours.ts`.** 915-916 list an Explore tour
+  that does not exist (the pages are `onboarding/index.ts:80-91`), and 918-920
   say the nav renders twice by breakpoint, but the rail is one `TabsNavigation`
-  (`instance/instance.tsx:392-406`). Drop "Explore /" at 892 and delete 895-897.
+  (`instance/instance.tsx:392-406`). Drop "Explore /" at 915 and delete 918-920.
+- **Three tour steps misname Download.** The deck File step's pt body calls it
+  "Descarregar" (`onboarding/tours.ts:81`), but the menu item reads
+  "Transferir…" (`products/slide_deck/deck_menu.tsx:234`): make it "Transferir
+  (PowerPoint ou PDF)". The report intro's `download` step, which runs only on
+  the markdown and html formats, says the report downloads "as a Word document
+  or PDF" (596, fr 598, pt 600), but an html report offers an HTML file or Print
+  / save as PDF (`products/report/download_report.tsx:91-102`), and its pt says
+  "Descarregue" where the button reads "Transferir"
+  (`products/report/report.tsx:2592`). Make the body en "Download the report,
+  with the visualizations rendered in place.", fr "Téléchargez le rapport, avec
+  les visualisations rendues à leur place.", pt "Transfira o relatório, com as
+  visualizações apresentadas no devido lugar." The Assets tour's list step says
+  "Descarregue" (`onboarding/tours.ts:1237`) where the table's button reads
+  "Transferir" (`assets/assets.tsx:200-204`): make it "Transfira qualquer
+  ficheiro a partir da tabela."
 - **The Assets catalogue entry carries a reason it never shows.**
   `onboarding/catalogue.ts:621-622` pairs `available: () => true` with an
   `unavailableReason`, which the field's contract leaves absent on an
@@ -501,6 +506,6 @@ language's own anchor). The recipe and its traps are
 - Cruft: `fitWithin`, `headerOrContent` and `policyHeaderOrContent`
   (`state/t4_ui.ts:161-163`, 175-181) have no reader; the one other `fitWithin`
   match is an unrelated prop
-  (`products/slide_deck/slide_editor/slide_editor.tsx:1392`). Delete
+  (`products/slide_deck/slide_editor/slide_editor.tsx:1368`). Delete
   `t4_ui.ts:157-163` and 171-181, and their names from the in-memory list under
   `## UI preferences`.

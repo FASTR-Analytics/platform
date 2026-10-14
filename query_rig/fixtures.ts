@@ -35,8 +35,8 @@ export type Fixture = {
   name: string;
   family: "hmis" | "hfa" | "iceh";
   // Seeded into the family's structure_schema_{family} row alongside the
-  // flags. Not consumed by the query engine (ruling 4: flags only). It makes
-  // the seeded row a valid StructureSchema.
+  // flags. Not consumed by the query engine, which reads only the flags. It
+  // makes the seeded row a valid StructureSchema.
   adminDepth: 1 | 2 | 3 | 4;
   moduleId: string;
   moduleDefinition: Record<string, unknown>;

@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { _CLERK_PUBLISHABLE_KEY } from "../../exposed_env_vars.ts";
 
-// OAuth discovery for the /mcp endpoint (PLAN_MCP_OAUTH).
+// OAuth discovery for the /mcp endpoint.
 //
 // These are the documents an OAuth-capable MCP client (claude.ai custom
 // connectors, Claude Desktop) fetches to learn that /mcp is a protected

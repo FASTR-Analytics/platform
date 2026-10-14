@@ -69,9 +69,9 @@ export const routesUsers = new Hono();
 // Every route that can change a user's scope access or admin flag (an admin
 // is unrestricted and owns every product) broadcasts the roster and closes
 // the collab sockets whose access is no longer the roster's, so each
-// reconnects and subscribes under the new access (R29). The instance stream
-// ends itself on the same roster (instance-sse.ts). On an open-access
-// instance every connection is an admin whatever its row says.
+// reconnects and subscribes under the new access. The instance stream ends
+// itself on the same roster (instance-sse.ts). On an open-access instance
+// every connection is an admin whatever its row says.
 export async function broadcastRosterAndCloseStaleCollab(
   mainDb: Sql,
 ): Promise<void> {
@@ -170,8 +170,8 @@ defineRoute(
   requireGlobalPermission("can_configure_users"),
   log("addUsers"),
   async (c, { body }) => {
-    // The admin flag makes a user unrestricted, so only an admin grants it
-    // (R25), as toggleUserAdmin requires.
+    // The admin flag makes a user unrestricted, so only an admin grants it,
+    // as toggleUserAdmin requires.
     if (body.isGlobalAdmin && !c.var.globalUser.isGlobalAdmin) {
       return c.json({ success: false, err: ADMIN_FLAG_NEEDS_ADMIN }, 403);
     }
@@ -527,8 +527,8 @@ defineRoute(
       });
     }
     // The rename moves the whole row, admin flag included, to an address the
-    // caller may hold, so only an admin renames an admin (R25). The machine
-    // call has no caller and is trusted.
+    // caller may hold, so only an admin renames an admin. The machine call
+    // has no caller and is trusted.
     const caller = c.var.globalUser as GlobalUser | undefined;
     if (caller !== undefined && !caller.isGlobalAdmin) {
       const target = await getOtherUser(c.var.mainDb, oldEmail);

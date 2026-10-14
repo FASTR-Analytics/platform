@@ -80,14 +80,13 @@ type CollabAuth = {
   isGlobalAdmin: boolean;
 };
 
-// The level a connection holds on a product (PLAN_PRODUCT_OWNERSHIP §2.8): own
-// for a global admin, with no query; otherwise its level when it holds the
-// product's scope and at least view, and none for a product it cannot see or
-// that does not exist. Read on the first subscribe or presence naming the
-// product, then recorded in the registry for the socket's life, so the routes
-// that change the answer close the sockets it no longer holds for:
-// setProductScope, the three access routes, and every route that changes a
-// user's scope access or admin flag.
+// The level a connection holds on a product: own for a global admin, with no
+// query; otherwise its level when it holds the product's scope and at least
+// view, and none for a product it cannot see or that does not exist. Read on
+// the first subscribe or presence naming the product, then recorded in the
+// registry for the socket's life, so the routes that change the answer close
+// the sockets it no longer holds for: setProductScope, the three access
+// routes, and every route that changes a user's scope access or admin flag.
 async function readProductLevel(
   productId: string,
   auth: CollabAuth,
@@ -160,16 +159,15 @@ function isAllowedWsOrigin(
  * The instance collaboration WebSocket.
  *
  * Carries presence plus the two CRDT document families (slide_* / report_*).
- * Admission is origin plus Clerk plus approved (PLAN_PRODUCTS_RESTRUCTURE D2,
- * D8) and resolves BEFORE the upgrade so the socket can never become an
- * unauthenticated channel. Every document message names its product, which
- * keys the room. Subscribe and presence need view on the product, by scope
- * and level (readProductLevel); a document update passes only for a product
- * the connection opened and the room refuses it below edit; awareness passes
- * only at edit, so a viewer is present but shows no cursor
- * (PLAN_PRODUCT_OWNERSHIP §2.8). Presence is scoped to the
- * product a peer has open (presence_registry.ts) and carries no document
- * content: identity plus opaque ids.
+ * Admission is origin plus Clerk plus approved and resolves BEFORE the upgrade
+ * so the socket can never become an unauthenticated channel. Every document
+ * message names its product, which keys the room. Subscribe and presence need
+ * view on the product, by scope and level (readProductLevel); a document
+ * update passes only for a product the connection opened and the room refuses
+ * it below edit; awareness passes only at edit, so a viewer is present but
+ * shows no cursor. Presence is scoped to the product a peer has open
+ * (presence_registry.ts) and carries no document content: identity plus
+ * opaque ids.
  *
  * Authorization failures are refused with a post-upgrade
  * COLLAB_CLOSE_UNAUTHORIZED close so the client can tell "never allowed" from

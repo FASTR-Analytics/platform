@@ -1,7 +1,7 @@
 // Applies the pending instance migrations to each restored dump and asserts
-// PLAN_A5 §5 gate 5 over the result. Run through ./validate_indicator_migration,
-// which supplies the container, the restored databases and the env. Each
-// argument is `label=dbname`.
+// the checks listed in ./validate_indicator_migration, which runs it and
+// supplies the container, the restored databases and the env. Each argument
+// is `label=dbname`.
 
 import { join } from "@std/path";
 import postgres, { type Sql } from "postgres";
@@ -273,7 +273,7 @@ type Expected = {
   renamedSpecials: Map<string, string>;
 };
 
-// Ruling 8 restated over the pre-state, with lib's own generator, so the
+// 086's outcome restated over the pre-state, with lib's own generator, so the
 // migration's PL/pgSQL is checked against the TypeScript spelling.
 function expectedOutcome(pre: PreState): Expected {
   const commonById = new Map(pre.commons.map((c) => [c.id, c]));
@@ -577,10 +577,10 @@ async function assertMigrated(
 
   // The analysed set after equals the set of commons before (the renamed
   // derived under its new id, plus the Uploaded indicator under the special
-  // id). The set is ruling 3's, as the extract computes it (a checkbox on,
-  // a special, or reached by a checked derived), never the checkbox alone:
-  // a raw kept under a special id lands with its checkbox off and is
-  // analysed regardless.
+  // id). The set is the one the extract computes (a checkbox on, a special,
+  // or reached by a checked derived), never the checkbox alone: a raw kept
+  // under a special id lands with its checkbox off and is analysed
+  // regardless.
   const expectedAnalysed = new Set([
     ...pre.commons.map((c) => expected.renamedSpecials.get(c.id) ?? c.id),
     ...expected.renamedSpecials.keys(),

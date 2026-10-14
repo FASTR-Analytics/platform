@@ -29,7 +29,7 @@ import { trackDeep } from "@solid-primitives/deep";
 //
 // There is no version-key read any more: the options cache is keyed by
 // `(runId, scopeToken, …)`, so a scope or package change lands on a DIFFERENT
-// entry rather than invalidating this one (D8). Re-reading `p.scope` inside the
+// entry rather than invalidating this one. Re-reading `p.scope` inside the
 // tracked effect is what makes a mid-edit reattach re-query.
 
 // Replicant picker options with Nigeria admin-area labels cleaned for display

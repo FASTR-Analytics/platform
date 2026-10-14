@@ -59,7 +59,7 @@ export function getFetchConfigFromPresentationObjectConfig(
     ? getFiltersWithoutReplicant(config)
     : getFiltersWithReplicant(config);
 
-  // A catalog-evaluated metric (PLAN_1a §1.6): the wire carries the declared
+  // A catalog-evaluated metric: the wire carries the declared
   // ingredient columns, SUMmed; the server applies each indicator's own
   // expression to the aggregated row and returns one `value`. Structurally the
   // same wire/display split a PAE metric has, but DECLARED: and like that
@@ -174,11 +174,11 @@ export function getPeriodFilterExactBounds(
   // only "Last year" (stored as last_n_months) and "Custom", module presets
   // on annual metrics carry last_n_months/last_calendar_year meaning exactly
   // this, and the AI patch path rejects from_month for year granularity
-  // (applyFigureConfigPatch). Ruled 2026-08-03, pinned by the rig's
-  // hmis_yearly period-filter cases; a drift arrival (a filter authored under
-  // a finer granularity surviving a module re-run to annual) also collapses
-  // here rather than degrading to full bounds like the quarter_id block below
-  //: acceptable because no module has ever changed a metric's granularity.
+  // (applyFigureConfigPatch). Pinned by the rig's hmis_yearly period-filter
+  // cases; a drift arrival (a filter authored under a finer granularity
+  // surviving a module re-run to annual) also collapses here rather than
+  // degrading to full bounds like the quarter_id block below: acceptable
+  // because no module has ever changed a metric's granularity.
   if (fmt === "year") {
     const max = periodBounds.max;
     return { min: max, max };
@@ -469,11 +469,10 @@ export type RollupLabelContext =
 //    value (replicant or single-value filter) names the row.
 // 2. national.
 // Facility dimensions are always "all_facilities".
-// FILTERS NEVER CHANGE THE LABEL (Tim 2026-07-28: this removed an earlier
-// "All selected areas/facilities" subset kind): a filter is the AUTHOR's
-// context, not the READER's; the row states the figure's scope, and the
-// reader of a report filtered to some areas or facility types reads the total
-// row as the total of what the figure shows.
+// FILTERS NEVER CHANGE THE LABEL: a filter is the AUTHOR's context, not the
+// READER's; the row states the figure's scope, and the reader of a report
+// filtered to some areas or facility types reads the total row as the total of
+// what the figure shows.
 export function getRollupLabelContextForDimension(
   config: PresentationObjectConfig,
   dim: RollupDimension,

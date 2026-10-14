@@ -1,5 +1,5 @@
 // ============================================================================
-// DHIS2 IMPORT SCHEDULER (PLAN_DHIS2_IMPORTER Phase 4, C4 + C6)
+// DHIS2 IMPORT SCHEDULER
 //
 // A ~60 s tick (started from main.ts: deliberately NOT the boot-anchored
 // 24 h jobs, which would usually miss a 01:15 Lagos window). Each tick:
@@ -42,7 +42,7 @@ import { getWorker } from "../worker_store.ts";
 const TICK_INTERVAL_MS = 60_000;
 
 // A fire missed by more than this (server down through the window) would
-// land in daytime load, and §2.7 says skipping loudly beats firing late.
+// land in daytime load, and skipping loudly beats firing late.
 export const SCHEDULE_GRACE_MS = 4 * 60 * 60 * 1000;
 
 // Recurring fires start a deterministic few minutes inside the window so
@@ -328,8 +328,7 @@ export function decideScheduleFire(
   // Occurrences from before the row existed / was last armed (create,
   // enable, edit) are not this schedule's business: neither a fire (an
   // unattended import launching the moment a schedule is saved) nor a
-  // 'missed' alarm (review finding 1). The first real occurrence is the
-  // next one after arming.
+  // 'missed' alarm. The first real occurrence is the next one after arming.
   if (occurrenceMs < row.armedAtMs) {
     return { action: "none" };
   }
@@ -371,7 +370,7 @@ export function resolveRollingSelection(selection: {
 }
 
 // The fire path's selection input: the launch expands the indicators to
-// DHIS2 elements like a manual launch (PLAN_A3 ruling 7).
+// DHIS2 elements like a manual launch.
 export function resolveScheduleSelection(
   selection: Dhis2ScheduleSelection,
 ): Dhis2RunSelectionInput {
@@ -408,15 +407,15 @@ export async function tickDhis2ImportScheduler(): Promise<void> {
   try {
     const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
 
-    // Spent-one-shot sweep (§0 lifecycle table): runs every tick, even when
-    // the import slot is busy: it only deletes rows whose story has ended.
+    // Spent-one-shot sweep: runs every tick, even when the import slot is
+    // busy: it only deletes rows whose story has ended.
     const swept = await sweepSpentOneShotScheduledImports(mainDb);
     if (swept > 0) {
       await notifyDatasets(mainDb);
     }
 
     // Skip entirely while any HMIS import operation is active: queued items
-    // and due schedules wait their turn (C6: queue, not concurrency).
+    // and due schedules wait their turn (queue, not concurrency).
     if (getWorker("hmis") || getWorker("hmis_dhis2_run")) {
       return;
     }
@@ -583,8 +582,7 @@ async function fireSchedule(
   // the occurrence so the next tick retries (within grace; past grace it
   // becomes a truthful 'missed'). Anything else is deterministic and records
   // a loud refusal. The revert is conditional on the row still holding this
-  // tick's claim, so it can never clobber a concurrent edit's re-arm (review
-  // finding 4 + CAS-revert low).
+  // tick's claim, so it can never clobber a concurrent edit's re-arm.
   if (await hasRunningDatasetHmisImportRun(mainDb)) {
     await revertScheduledImportClaim(
       mainDb,

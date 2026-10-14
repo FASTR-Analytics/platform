@@ -3,13 +3,12 @@ import { thresholdsRuleSchema } from "../../types/conditional_formatting.ts";
 import type { InstanceIndicatorDetails } from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
 
-// What an indicator IS (PLAN_A5 §2). The expression grammar itself is
-// checked server-side against the live dictionary and the population store;
-// a sum's members are checked there against the live list: the shape check
-// here only says which fields each type carries. The count→number format
-// rule lives in the DB layer too, where the type is known. An Uploaded
-// indicator posts no data id: its key is generated at creation and kept on
-// update (PLAN_A6 ruling 1).
+// What an indicator IS. The expression grammar itself is checked
+// server-side against the live dictionary and the population store; a sum's
+// members are checked there against the live list: the shape check here
+// only says which fields each type carries. The count→number format rule
+// lives in the DB layer too, where the type is known. An Uploaded indicator
+// posts no data id: its key is generated at creation and kept on update.
 const indicatorDefinitionSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("uploaded") }),
   z.object({ type: z.literal("dhis2_element"), data_id: z.string() }),
@@ -31,8 +30,8 @@ const indicatorItemSchema = z.object({
   expected_low_counts: z.boolean(),
 });
 
-// The naming step's input (PLAN_A6 ruling 7): the DHIS2 create route's
-// elements and the calculated indicators over them.
+// The naming step's input: the DHIS2 create route's elements and the
+// calculated indicators over them.
 export const indicatorNamingElementSchema = z.object({
   data_id: z.string(),
   indicator_id: z.string(),

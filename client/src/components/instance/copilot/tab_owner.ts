@@ -1,6 +1,6 @@
 import { type Accessor, createSignal, onCleanup } from "solid-js";
 
-// One tab owns the chat (ruling 14): a conversation store is built from a
+// One tab owns the chat: a conversation store is built from a
 // record no other live tab writes, since the engine takes no cross-tab turn
 // lock and adopts no record. The panel requests the Web Lock named for the
 // user's thread scope when it mounts and mounts the chat only while it holds
@@ -49,6 +49,11 @@ export function createTabOwner(
     pending = controller;
     locks
       .request(name, { signal: controller.signal }, () => {
+        // The spec ignores the abort once the lock is granted and runs the
+        // callback in a later task, so a grant can land after the cleanup;
+        // returning then releases the lock instead of holding it until the
+        // tab closes.
+        if (!mounted) return;
         pending = undefined;
         setOwner(true);
         return new Promise<void>((resolve) => {

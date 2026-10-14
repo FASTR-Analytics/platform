@@ -45,14 +45,13 @@ import { writeParquetFromCsv } from "../../run_query/mod.ts";
 import { sha256HexOfFile } from "./input_key.ts";
 import type { HfaSentinelRow } from "../../server_only_funcs/get_script_with_parameters_hfa.ts";
 
-// Stage 1 of the run pipeline: prepare inputs (PLAN_RESULTS_RUNS item 2;
-// COPY TO re-targeted by item 7, binding decision 4). The dataset CAPTURE
-// functions do every instance-DB read plus the `COPY … TO` that writes each
-// extract DIRECTLY into the run's inputs/datasets/ (the Postgres container
-// writes through the runs volume via the _POSTGRES_INTERNAL namespace). The
-// captured rows become this run's own input mirrors (JSON + facilities parquet) and its manifest datasets info,
-// and they feed script generation. A family not selected in step 1 simply
-// has no extract and no manifest entry.
+// Stage 1 of the run pipeline: prepare inputs. The dataset CAPTURE functions do
+// every instance-DB read plus the `COPY … TO` that writes each extract DIRECTLY
+// into the run's inputs/datasets/ (the Postgres container writes through the
+// runs volume via the _POSTGRES_INTERNAL namespace). The captured rows become
+// this run's own input mirrors (JSON + facilities parquet) and its manifest
+// datasets info, and they feed script generation. A family not selected in
+// step 1 simply has no extract and no manifest entry.
 
 // The content hashes of the run's prepared input files: module inputKey
 // ingredients (resolve_reuse.ts), one per declared data source kind.
@@ -68,7 +67,7 @@ export type RunInputHashes = {
 export type PreparedRunInputs = {
   selectedFamilies: DatasetType[];
   inputHashes: RunInputHashes;
-  // The manifest's `population` stamp (PLAN_1b ruling 4).
+  // The manifest's `population` stamp.
   population: RunPopulation | null;
   // Relative paths (from the run dir root) for the manifest's inputFiles.
   extraInputFiles: string[];
@@ -87,14 +86,14 @@ export type PreparedRunInputs = {
     hfaVariantCode: HfaIndicatorVariantCode[];
     hfaSentinelRows: HfaSentinelRow[];
     // The resolved HMIS indicator catalog, from the HMIS capture. m012's
-    // ingredient table is built from it and substituted into its script
-    // (PLAN_1a §1.5); empty when the run carries no HMIS family.
+    // ingredient table is built from it and substituted into its script;
+    // empty when the run carries no HMIS family.
     hmisIndicatorCatalog: HmisIndicatorCatalogRow[];
   };
 };
 
 // The captured facilities columns are all-text; the run parquet declares the
-// same (§2.3 declared types, never inferred).
+// same (declared types, never inferred).
 const FACILITY_PARQUET_COLUMNS: ExportedColumn[] = RUN_FACILITY_COLUMN_NAMES
   .map((name) => ({
     name,
@@ -152,15 +151,15 @@ export async function prepareRunInputs(
       lastUpdated: capture.lastUpdated,
       info: capture.info,
     });
-    // The v2 indicators mirror: the WHOLE HMIS dictionary, resolved
-    // (PLAN_1a §1.10). The separate calculated_indicators_snapshot.json that
-    // used to sit beside it is gone: one writer, one catalog contract.
+    // The v2 indicators mirror: the WHOLE HMIS dictionary, resolved. The
+    // separate calculated_indicators_snapshot.json that used to sit beside it
+    // is gone: one writer, one catalog contract.
     await writeInputJson(tmpDir, "indicators.json", capture.indicators);
     extraInputFiles.push("inputs/indicators.json");
     // The resolved catalog is also a SCRIPT-GENERATION input: m012's
-    // ingredient table is substituted into its script as a data literal
-    // (PLAN_1a §1.5), so nothing is written to inputs/ for it and no
-    // memoization input class exists: the literal rides in scriptText.
+    // ingredient table is substituted into its script as a data literal, so
+    // nothing is written to inputs/ for it and no memoization input class
+    // exists: the literal rides in scriptText.
     scriptInputs.hmisIndicatorCatalog = capture.indicators;
     await writeFacilitiesParquet(tmpDir, "facilities_hmis", capture.facilities);
     extraInputFiles.push("inputs/facilities_hmis.parquet");
@@ -497,7 +496,7 @@ async function writeFacilitiesParquet(
   );
 }
 
-// Explicit parquet schema for the extract twins (§2.3: declared types, never
+// Explicit parquet schema for the extract twins (declared types, never
 // inferred: facility ids and HFA values are TEXT that inference would
 // mangle). Mirrors the Postgres types of the export statements'
 // columns: everything is an identifier/label except the few numeric columns

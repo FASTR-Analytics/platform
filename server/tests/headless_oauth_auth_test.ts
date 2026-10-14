@@ -1,4 +1,4 @@
-// The OAuth branch of the headless credential seam (PLAN_MCP_OAUTH step 3b).
+// The OAuth branch of the headless credential seam.
 //
 // WHY THIS EXISTS: Clerk's verifier NEVER throws. It folds every failure,
 // whether unknown token, wrong secret key, HTTP 500, or DNS failure, into the same

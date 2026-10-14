@@ -6,10 +6,10 @@ import {
 } from "lib";
 import { instanceState, productById } from "./t1_store";
 
-// The client's product gates (PLAN_PRODUCT_OWNERSHIP §2.9): the connection's
-// own level on a product, derived from the summary the store holds, so every
-// gate follows a level change live. The server counterpart is
-// productAccessPolicy in server/auth/product_access.ts.
+// The client's product gates: the connection's own level on a product,
+// derived from the summary the store holds, so every gate follows a level
+// change live. The server counterpart is productAccessPolicy in
+// server/auth/product_access.ts.
 export function productLevel(productId: string): ProductLevel {
   const product = productById(productId);
   return product === undefined ? "none" : productSummaryLevel(product);

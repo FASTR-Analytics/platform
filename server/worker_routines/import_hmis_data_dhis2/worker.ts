@@ -4,12 +4,11 @@
 // One run = fetch + integrate per (data id, month) pair. Each pair commits
 // in its own small transaction (scoped delete → insert → ledger row → run
 // counters), so a run that dies at hour 40 keeps 40 hours of work, visible
-// in the ledger. The run's data ids (each DHIS2 element's data element UID
-// or operand) were expanded from its selected indicators at launch and
-// travel in the message (PLAN_A4 ruling 5, PLAN_A5 ruling 9): the worker
-// fetches each data id and writes its rows under that same key without
-// re-resolving. The dispatcher classifies every data id per run from DHIS2
-// metadata: data elements and operands are
+// in the ledger. The run's data ids (each DHIS2 element's data element UID or
+// operand) were expanded from its selected indicators at launch and travel in
+// the message: the worker fetches each data id and writes its rows under that
+// same key without re-resolving. The dispatcher classifies every data id per
+// run from DHIS2 metadata: data elements and operands are
 // fetched from dataValueSets (the values facilities reported, with no
 // DHIS2-side formula), the importer's only route; a DHIS2 indicator or any
 // id DHIS2 does not know is a permanent ledger error with no fetch. Data is
@@ -84,7 +83,7 @@ const CONCURRENT_REQUESTS = _DHIS2_CONCURRENT_REQUESTS;
 // dataValueSets pulls: a dense Nigeria element-month is ~10-12 MB; the cap
 // exists so a pathological response can't balloon worker memory. On cap or
 // timeout the pull splits by level-2 subtree (state): never fail a pair on
-// size without having tried the split (§4.4).
+// size without having tried the split.
 const DVS_MAX_RESPONSE_BYTES = 100 * 1024 * 1024;
 const DVS_TIMEOUT_MS = 300_000;
 
@@ -95,8 +94,7 @@ type RunWorkerMessage = {
 
 type DvsTask = {
   dataElementId: string;
-  // One pull = one month (ruled 2026-07-14): the fetch unit matches the
-  // import unit.
+  // One pull = one month: the fetch unit matches the import unit.
   periodId: number;
   // Every data id this pull covers for that month: operands sharing a data
   // element share one pull.
@@ -356,9 +354,9 @@ async function run(std: RunWorkerMessage) {
       throw new Error(`Run ${runId} is not in 'running' state`);
     }
 
-    // Credentials are read + decrypted HERE, in the worker (C3 ruling:
-    // decrypt only at fetch time: the host and the scheduler tick never see
-    // the plaintext password). A missing row or a changed encryption key
+    // Credentials are read + decrypted HERE, in the worker (decrypt only at
+    // fetch time: the host and the scheduler tick never see the plaintext
+    // password). A missing row or a changed encryption key
     // throws, and the catch below fails the run loudly.
     const credentials: Dhis2Credentials =
       await getStoredDhis2CredentialsDecrypted(mainDb);

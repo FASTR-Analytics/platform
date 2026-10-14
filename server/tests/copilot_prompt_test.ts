@@ -1,8 +1,8 @@
-// Pins what the chat tells the model under append-only turns
-// (PLAN_COPILOT03_ONE_CHAT step 4, E7): the system prompt is instance level,
-// with no date and no tool catalogue, which only /mcp's one-shot get_overview
-// asks for; the FASTR brief rides rewrite_report's description alone; and the
-// package block names the package, the scope and each family's limits.
+// Pins what the chat tells the model under append-only turns: the system
+// prompt is instance level, with no date and no tool catalogue, which only
+// /mcp's one-shot get_overview asks for; the FASTR brief rides
+// rewrite_report's description alone; and the package block names the
+// package, the scope and each family's limits.
 //
 //   deno test -A --no-check server/tests/copilot_prompt_test.ts
 

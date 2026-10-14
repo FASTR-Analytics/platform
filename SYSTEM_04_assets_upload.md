@@ -80,10 +80,9 @@ ownership is upserted into `asset_metadata`, the map entry is deleted, and
 `notifyInstanceAssetsUpdated` broadcasts the refreshed list (S3). The response
 carries `X-Upload-Complete` / `X-Upload-Filename`.
 
-**Import wizards are ordinary asset consumers**
-(PLAN_IMPORT_FILE_INPUT_UNIFICATION). There is no wizard-temp TUS mode: every
-upload takes the asset path above, and the S6 wizards name their inputs by asset
-`fileName` (upload a new file or pick an existing one via
+**Import wizards are ordinary asset consumers**. There is no wizard-temp TUS
+mode: every upload takes the asset path above, and the S6 wizards name their
+inputs by asset `fileName` (upload a new file or pick an existing one via
 `_shared/file_upload_selector.tsx`). Import inputs persist after the run
 (nothing deletes them at finalize) and are managed on the assets page like any
 other asset.
@@ -133,7 +132,8 @@ are admin-delete-only); admins delete anything. Deletion removes the file
   with a filterable type column (CSV/Excel/Image/ZIP/Other), size/modified/owner
   columns, per-row download (root-path `GET`, S1 static serve) and delete;
   delete buttons and the admin-only bulk delete mirror the server's ownership
-  rule.
+  rule. The page holds and sets the chat's `assets` view at mount (S13), whose
+  instructions name the page and nothing of its contents.
 
 ## Contract
 
@@ -156,12 +156,12 @@ ownership annotation, not a registry.
   and only on a new POST; temp files from crashed/restarted servers have no map
   entry and accumulate in `.tus-uploads` forever. Sweep the directory by mtime
   instead.
-- **Any user can overwrite any asset.** RULED accepted
-  (PLAN_IMPORT_FILE_INPUT_UNIFICATION §4.3, no versioning): completion `rename`s
-  over an existing same-named file, last write wins, and the ownership upsert
-  transfers delete rights to the overwriter. Launched import runs are protected
-  by the byte pin; pre-launch, wizards re-parse on every upload. Files that feed
-  module runs (`population.csv`) remain the known sharp corner.
+- **Any user can overwrite any asset.** RULED accepted, with no versioning:
+  completion `rename`s over an existing same-named file, last write wins, and
+  the ownership upsert transfers delete rights to the overwriter. Launched
+  import runs are protected by the byte pin; pre-launch, wizards re-parse on
+  every upload. Files that feed module runs (`population.csv`) remain the known
+  sharp corner.
 - **Same-name-overwrite residual windows: RULED accepted.** The byte pin covers
   launch→spawn only; the wizard-session window, the spawn→worker-open window,
   and bare-auth upload overwriting a read-gated file are all accepted residual

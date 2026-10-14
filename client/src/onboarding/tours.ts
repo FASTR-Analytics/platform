@@ -751,6 +751,10 @@ export function buildVizEditorTour(): TourDefinition {
 const reportPart = (part: "menu-row" | "toolbar" | "page" | "outline") =>
   `[data-rf-part="${part}"]`;
 const REPORT_MENU_ROW = reportPart("menu-row");
+// Report Forge's File menu for an editor; the reader's own File menu, which
+// report.tsx draws when the editor draws none.
+const REPORT_FILE_MENU =
+  '[data-rf-part="file-menu"], [data-tour="report-file-menu"]';
 
 export function buildReportEditorIntroTour(): TourDefinition {
   return {
@@ -880,24 +884,25 @@ export function buildReportEditorIntroTour(): TourDefinition {
         placement: "bottom",
       },
       {
-        id: "download",
-        target: "#report-download-button",
+        id: "file",
+        // The editor's File menu is Report Forge's (its `file-menu` part); a
+        // reader's is this app's own, marked for this step.
+        target: REPORT_FILE_MENU,
         title: t3({
-          en: "Download it",
-          fr: "Téléchargez-le",
-          pt: "Transfira-o",
+          en: "Export and share",
+          fr: "Exporter et partager",
+          pt: "Exportar e partilhar",
         }),
         body: t3({
           en:
-            "Download the report as a PDF or a Word document, with the visualizations in place.",
+            "File holds everything that acts on the whole report: Download (PDF, Word or HTML), Email this file, Make a copy and, if you can edit it, renaming it and managing who has access.",
           fr:
-            "Téléchargez le rapport en PDF ou en document Word, avec les visualisations à leur place.",
+            "Fichier contient tout ce qui agit sur l'ensemble du rapport : Télécharger (PDF, Word ou HTML), Envoyer par email, Créer une copie et, si vous pouvez le modifier, le renommer et gérer qui y a accès.",
           pt:
-            "Transfira o relatório como PDF ou documento Word, com as visualizações no devido lugar.",
+            "Ficheiro contém tudo o que atua sobre todo o relatório: Transferir (PDF, Word ou HTML), Enviar por email, Criar uma cópia e, se o puder editar, mudar-lhe o nome e gerir quem lhe tem acesso.",
         }),
         placement: "bottom",
-        // A FASTR report being edited has Download in its File menu instead.
-        when: onScreen("#report-download-button"),
+        when: () => document.querySelector(REPORT_FILE_MENU) !== null,
       },
       {
         id: "ai",

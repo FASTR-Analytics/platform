@@ -46,7 +46,6 @@ type ResizableFrameProps = SideFrameProps & {
   maxWidth?: number;
   preventPanelResizeOnParentResize?: boolean;
   isShown?: boolean;
-  onToggleShow?: () => void;
 };
 
 type ThreeColumnResizableProps = {

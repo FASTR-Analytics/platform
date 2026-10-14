@@ -63,11 +63,11 @@ import { ProductSettings } from "~/components/products/_shared/mod.ts";
 
 type Props = EditorComponentProps<{ productId: string }, undefined>;
 
-// The deck editor takes ONE thing: the product id (D16). Label, package and
+// The deck editor takes ONE thing: the product id. Label, package and
 // scope are read LIVE from the T1 products row, so a reattach or scope change
 // (from this header's Settings entry, from the Products page, or by a
 // collaborator) moves the deck's figure data and authoring context together
-// and lights the D4 stale badges without a remount. A deleted product closes
+// and lights the stale badges without a remount. A deleted product closes
 // the editor: its row leaves T1.
 export function SlideDeckEditor(p: Props) {
   const product = (): ProductSummary | undefined => productById(p.productId);
@@ -314,6 +314,7 @@ function SlideDeckEditorInner(p: {
     await openSettingsEditor<SlideDeckSettingsProps, "AFTER_DELETE">({
       element: SlideDeckSettings,
       props: {
+        deckId: p.productId,
         config: p.deckConfig,
         heading: t3({
           en: "Slide deck settings",
@@ -340,7 +341,7 @@ function SlideDeckEditorInner(p: {
     });
   }
 
-  // The ONE product settings surface (D16): label, folder, package, scope.
+  // The ONE product settings surface: label, folder, package, scope.
   async function handleOpenProductSettings() {
     const product = p.product;
     if (!product) return;
@@ -371,7 +372,7 @@ function SlideDeckEditorInner(p: {
       props: {
         productId: p.productId,
         deckLabel: p.deckLabel,
-        // Every approved user is a possible recipient (D2).
+        // Every approved user is a possible recipient.
         userEmails: instanceState.users.map((u) => u.email),
       },
     });

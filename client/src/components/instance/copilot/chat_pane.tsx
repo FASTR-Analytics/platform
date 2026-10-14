@@ -214,7 +214,7 @@ const customChatRenderers = {
 } as Parameters<typeof AIChat>[0]["customRenderers"];
 
 type ConsolidatedChatPaneProps = {
-  // The panel's engine instance, which the pane also hands to AIChat (E2):
+  // The panel's engine instance, which the pane also hands to AIChat:
   // one registry, one settings copy, one queue drain.
   chat: AIChatInstance;
   aiDocs: ReturnType<typeof useAIDocuments>;

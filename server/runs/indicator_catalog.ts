@@ -58,9 +58,9 @@ const icehIndicatorRow = z.object({
 });
 
 // The seed order of the 14 indicators every instance was created with before
-// the special-indicator list replaced that seed (PLAN_A3 ruling 5). FROZEN
-// here rather than read from the live list: the manifest transform backfills
-// immutable old packages from it, and the special list may change.
+// the special-indicator list replaced that seed. FROZEN here rather than read
+// from the live list: the manifest transform backfills immutable old packages
+// from it, and the special list may change.
 const LEGACY_SEED_ORDER: readonly string[] = [
   "new_fp",
   "anc1",
@@ -78,10 +78,10 @@ const LEGACY_SEED_ORDER: readonly string[] = [
   "ipd",
 ];
 
-// The sort_order backfill rule for dictionaries that predate the column
-// (PLAN_1a §1.9): seeded indicators keep the seed order, remaining bases
-// follow alphabetically, and the migrated catalog rows keep their own order
-// at the end. Instance migration 079 applied the same rule to the live
+// The sort_order backfill rule for dictionaries that predate the column:
+// seeded indicators keep the seed order, remaining bases follow
+// alphabetically, and the migrated catalog rows keep their own order at the
+// end. Instance migration 079 applied the same rule to the live
 // dictionary; this applies it to a legacy package's input mirrors, whose
 // only order was the catalog snapshot's.
 //
@@ -115,8 +115,8 @@ function backfillHmisIndicatorSortOrder(args: {
   return sortOrderById;
 }
 
-// indicators.json has TWO writer formats and ONE reader contract (PLAN_1a
-// §1.10). v1 (pre-restructure packages): id + label only, with a separate
+// indicators.json has TWO writer formats and ONE reader contract. v1
+// (pre-restructure packages): id + label only, with a separate
 // calculated_indicators_snapshot.json beside it. v2 (this release onwards):
 // the whole HMIS dictionary, resolved: type, flattened expression, slot
 // map, presentation and sort. The discriminator is the `type` field, which
@@ -131,7 +131,8 @@ const indicatorRowV1 = z.object({
 });
 
 // `type` is the stored type under its code name; `base` is what packages
-// generated before PLAN_A5 carry, accepted and never mapped (ruling 10).
+// generated before the four-type split carry, accepted and never mapped: the
+// frozen row lacks the DHIS2 id that would tell Uploaded from DHIS2 element.
 // `direction`, `target` and `expected_low_counts` are absent from every
 // mirror written before they existed and are never backfilled: the input
 // stage (input_transform.ts) only renames values a row already carries, so
@@ -197,10 +198,10 @@ export async function buildRunIndicatorCatalog(
   return catalog;
 }
 
-// The manifest's `hmisIndicators` field (PLAN_1a §1.9; the shape is
-// documented once, on runHmisIndicatorSchema). Derived HERE, once: at
-// finalize from a v2 mirror, and by manifest transform block 4 from an
-// existing package's mirror, so the read path never opens a mirror again.
+// The manifest's `hmisIndicators` field (the shape is documented once, on
+// runHmisIndicatorSchema). Derived HERE, once: at finalize from a v2 mirror,
+// and by manifest transform block 4 from an existing package's mirror, so the
+// read path never opens a mirror again.
 export async function buildRunHmisIndicators(
   readRows: RunInputRowsReader,
 ): Promise<RunHmisIndicator[]> {

@@ -39,8 +39,8 @@ export function ImportLedgerIndicatorDetail(
   >,
 ) {
   // The indicator under the key, with the UID beside it for a DHIS2
-  // element; an Uploaded indicator's key is opaque and not shown (PLAN_A6
-  // ruling 1). The bare key only where no indicator carries it.
+  // element; an Uploaded indicator's key is opaque and not shown. The bare
+  // key only where no indicator carries it.
   const subheading = () => {
     if (p.indicator === undefined) return p.dataId;
     const name = indicatorNameText(p.indicator);

@@ -1,11 +1,11 @@
 // =============================================================================
-// CONSOLIDATE PROJECTS INTO PRODUCTS (PLAN_PRODUCTS_RESTRUCTURE D9)
+// CONSOLIDATE PROJECTS INTO PRODUCTS
 // =============================================================================
 //
 // The body of migration 201. Every slide deck and report of every READY
 // project becomes a `products` row plus its detail and child rows, foldered
-// per D10, attached to the project's package or the instance pin per D5,
-// with the figure bundles stamped per D4. The planning is plan.ts, shared
+// by project, attached to the project's package or else the instance pin,
+// with the figure bundles stamped. The planning is plan.ts, shared
 // verbatim with the read-only fleet dry-run (validate_consolidation.ts), so
 // the gate and the migration cannot diverge; the helpers exported here are
 // the dry-run's too, for the same reason.
@@ -16,12 +16,12 @@
 // and fail-stop funnel.
 //
 // SKIPPED: `copying` projects (a half-built WITH TEMPLATE copy) and
-// `pending_deletion` projects (D11). Projects whose database is gone are
+// `pending_deletion` projects. Projects whose database is gone are
 // skipped with a log line. The dry-run reports all three classes per instance
 // ahead of the deploy.
 //
 // HARD STOPS, both dry-run FAILs: a source DB not at the latest project
-// migration, and a project with no run_id on an instance with no pin (D5).
+// migration, and a project with no run_id on an instance with no pin.
 //
 // =============================================================================
 
@@ -233,7 +233,7 @@ async function executePlan(tx: Sql, plan: ConsolidationPlan): Promise<void> {
   }
 }
 
-// D15: the per-project ai_context blobs become one instance-level value, each
+// The per-project ai_context blobs become one instance-level value, each
 // under a `## <project label>` heading. An ai_context an admin has already
 // written is kept and the project sections append beneath it.
 async function writeAiContext(

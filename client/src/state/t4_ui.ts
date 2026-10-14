@@ -23,6 +23,10 @@ export function setNavCollapsed(collapsed: boolean) {
   setNavCollapsedInternal(collapsed);
 }
 
+// Debug: true makes each new user message in the copilot chat show the exact
+// text sent to the model, context block included, as raw text.
+export const SHOW_SENT_CONTEXT = false;
+
 // The shell's one full-page wrapper. `ShellEditorWrapper` wraps the whole
 // frame (header, rail and tab page), so a view opened through
 // `openShellEditor` covers all of it and its Back is the only way out; the
@@ -46,8 +50,8 @@ export function ShellEditorWrapper(p: { children: JSX.Element }) {
 // ============================================================================
 
 // The deep-link parameter: `?product=<id>` opens that product's editor over
-// the Products page (D16). It replaces `?p=` / `?d=` for products, with no
-// shim; named here so the page and the tour catalogue spell it the same way.
+// the Products page. Named here so the page and the tour catalogue spell it
+// the same way.
 export const _PRODUCT_QUERY_PARAM = "product";
 
 // The product explorer's open folders.
@@ -109,9 +113,7 @@ export function setProductsSort(sort: ListSort) {
 // The FASTR report editor's outline sidebar (Google Docs' document outline),
 // open unless the user closed it.
 export const [reportOutlineClosed, setReportOutlineClosedInternal] =
-  createSignal<boolean>(
-    localStorage.getItem("reportOutlineClosed") === "true",
-  );
+  createSignal<boolean>(localStorage.getItem("reportOutlineClosed") === "true");
 export function setReportOutlineClosed(closed: boolean) {
   localStorage.setItem("reportOutlineClosed", String(closed));
   setReportOutlineClosedInternal(closed);

@@ -8,11 +8,11 @@ import {
   PACKAGE_INDICATOR_TYPES,
 } from "./indicators.ts";
 
-// The run manifest (PLAN_RESULTS_RUNS §2.2): written once by the finalize
-// step of a generation, the ONLY thing readers consult at query time. Precomputed, never probed: every fact the
-// read path used to discover via per-request column probes is stamped here.
-// Identity is in the artifact: runId required, and no instance FK inside run
-// files (§9 layer rule).
+// The run manifest: written once by the finalize step of a generation, the
+// ONLY thing readers consult at query time. Precomputed, never probed: every
+// fact the read path used to discover via per-request column probes is
+// stamped here. Identity is in the artifact: runId required, and no instance
+// FK inside run files (a run reads nothing live).
 
 // 3: gained `indicators`, the per-module resolved indicator catalog, so the
 // read path stops re-deriving it from the input mirrors on every request.
@@ -25,22 +25,22 @@ import {
 // consumes it), and there is no shared adminAreaLabels key (every admin-label
 // consumer reads live instance state). Pure copy in manifest_transform
 // block 3.
-// 6: the indicator restructure (PLAN_1a) + the population store
-// (PLAN_1b, PLAN_1c), one release. indicators[] catalog entries gained
+// 6: the indicator restructure + the population store, one release.
+// indicators[] catalog entries gained
 // sort_order plus the type/expression/slot_map evaluation fields (type is
 // one of PACKAGE_INDICATOR_TYPES; a population term is an ordinary `population:<type>`
 // ingredient in the slot map, never a field of its own), a new top-level
 // `hmisIndicators` list replaced the read path's per-request read of the
 // indicators input mirror, and `population` stamps the person-years file a
 // wizard generation wrote (null for packages that carry none). A catalog
-// entry's traffic-light pair became a general `thresholds` rule (PLAN_1d,
-// same release). Manifest transform block 4.
+// entry's traffic-light pair became a general `thresholds` rule (same
+// release). Manifest transform block 4.
 // 7: the `population` stamp gained `active` (recomputed from its own type
 // list) and `coverage`, the per-type area and month coverage a generation
 // wrote into the person-years file (carried forward as null: a v6 capture
 // refused any shortfall and recorded nothing). Manifest transform block 5.
-// 8: the `commonIndicators` list is `hmisIndicators` (PLAN_A4 ruling 13), a
-// key rename and nothing else. Manifest transform block 6.
+// 8: the `commonIndicators` list is `hmisIndicators`, a key rename and
+// nothing else. Manifest transform block 6.
 // 9: `hmisIndicators` entries carry the indicator's interpretation facts
 // (format, direction, target, thresholds, a calculated indicator's flattened
 // expression) in dictionary order, so the AI copilot's grounding states what
@@ -53,7 +53,7 @@ import {
 // the pre-1.72 HMIS stamp pair renamed `indicatorsVersion` /
 // `countIndicatorsVersion`, the keys nothing reads dropped. Block 9.
 // 12: the hfa_indicators_snapshot mirror's rows carry `indicator_id` instead
-// of `var_name` (input block 2, PLAN_HFA_ID_VOCABULARY); the manifest's own
+// of `var_name` (input block 2); the manifest's own
 // shape is unchanged and block 10 only stamps.
 // 13: every `modules[].moduleDefinition` blob carries the module's declared
 // `family`, `tier` and `sortOrder` (stamped for legacy blobs from the frozen
@@ -93,10 +93,10 @@ export const runResultsObjectSchema = z.object({
 export type RunResultsObject = z.infer<typeof runResultsObjectSchema>;
 
 // Module catalog entry: the installed definition verbatim (raw JSON string,
-// exactly as installed, so existing parsers apply unchanged). inputKey/outputFileHashes are the §3.7 memoization
-// fields: schema-present from the first manifest, computed by generation;
-// packages synthesized during the 2026-08 fleet cutover carry null and are
-// never reuse sources.
+// exactly as installed, so existing parsers apply unchanged).
+// inputKey/outputFileHashes are the memoization fields: schema-present from
+// the first manifest, computed by generation; packages synthesized during the
+// 2026-08 fleet cutover carry null and are never reuse sources.
 export const runModuleSchema = z.object({
   id: z.string(),
   moduleDefinition: z.string(),
@@ -133,8 +133,8 @@ export const runMetricSchema = z.object({
 });
 export type RunMetric = z.infer<typeof runMetricSchema>;
 
-// Finalize-computed availability stamp per metric (§2.2): readers never
-// re-derive availability; resolution failures surface the stamped reason.
+// Finalize-computed availability stamp per metric: readers never re-derive
+// availability; resolution failures surface the stamped reason.
 export const runMetricAvailabilitySchema = z.object({
   metricId: z.string(),
   status: z.enum(["available", "unavailable"]),
@@ -154,7 +154,7 @@ export type RunManifestDataset = z.infer<typeof runManifestDatasetSchema>;
 
 // Pinned copy of an instance asset the run's modules declare (stored at
 // inputs/assets/{fileName}), hashed so the run records exactly which asset
-// bytes it consumed (§6.2: assets are unversioned and mutable in place).
+// bytes it consumed (assets are unversioned and mutable in place).
 export const runAssetSchema = z.object({
   fileName: z.string(),
   sha256: z.string(),
@@ -274,9 +274,9 @@ export const runManifestSchema = z.object({
   rImageTag: z.string().nullable(),
 
   // Data semantics captured into the run at finalize: the adapter reads
-  // calendar from HERE, never from the env global (§2.4); the per-family
-  // structure-schema slots are the dissolved N1 gap (§8 SNAP-1), null when
-  // that family's facilities are not in the package.
+  // calendar from HERE, never from the env global; the per-family
+  // structure-schema slots likewise come from the run, never from live
+  // config, null when that family's facilities are not in the package.
   calendar: z.enum(["gregorian", "ethiopian"]),
   countryIso3: z.string().nullable(),
   structureSchemaHmis: structureColumnsSchema.nullable(),
@@ -302,11 +302,10 @@ export type RunManifest = z.infer<typeof runManifestSchema>;
 
 // Stored in the instance-DB runs catalog row (runs.summary) for listing.
 // `diskSizeBytes` is the package's total file size, summed by the shared
-// builder over the finished tmp dir: both writers stamp it, so every run
-// minted from Phase 3 item 3 onwards carries one. Null is a run written
-// before the stamp existed: displayed as unknown, never recomputed at read
-// time (a run dir is immutable, so a `du` fallback would only ever be a
-// slower way to get the same number).
+// builder over the finished tmp dir: both writers stamp it, so every new run
+// carries one. Null is a run written before the stamp existed: displayed as
+// unknown, never recomputed at read time (a run dir is immutable, so a `du`
+// fallback would only ever be a slower way to get the same number).
 export type RunSummary = {
   manifestSchemaVersion: number;
   provenance: RunProvenance;

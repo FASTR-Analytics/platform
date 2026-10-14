@@ -1,5 +1,5 @@
-// Pins PLAN_A4 ruling 5 and PLAN_A5 ruling 3: an import selects indicators
-// and the expansion to the data ids it fetches happens once, at validation
+// Pins the selection expansion: an import selects indicators and the
+// expansion to the data ids it fetches happens once, at validation
 // (expandIndicatorSelection in lib), and is then persisted on the run row.
 // A sum expands to its members' data ids, a calculated through the resolver
 // to the DHIS2 elements it reaches, Uploaded indicators and population
@@ -166,8 +166,8 @@ Deno.test("expansion: an unresolvable calculated is reported, not thrown", () =>
   assertEquals(e.unresolvable.map((u) => u.id), ["broken"]);
 });
 
-// The wizard's read of the same expansion (PLAN_A7 ruling 4): each data id
-// joined to its DHIS2-element indicator, the dropped parts passed through.
+// The wizard's read of the same expansion: each data id joined to its
+// DHIS2-element indicator, the dropped parts passed through.
 Deno.test("description: one element is one row with its label", () => {
   const d = describeDhis2Selection(["anc4"], DICTIONARY, POPULATION_TYPE_IDS);
   assertEquals(d.elements, [

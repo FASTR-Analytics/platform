@@ -87,8 +87,11 @@ is not a code finding: the reviewer makes the edit itself, in its own commit,
 after reading the code the prose describes, and records the edit as a row. The
 review ends with the **Next step** line set to `Do N+1` if no finding changes
 code, or `Fix N` if one does. After the last step's review passes, the reviewer
-deletes the plan file in its last commit instead of setting the line. Then it
-stops.
+deletes the plan file in its last commit instead of setting the line. When the
+steps after the last code step are not code, such as deploys, the review that
+passes the last code step cuts the file in its last commit to those steps and
+what they need: the rulings, the model and the log go, because the standing docs
+now describe the code. Then it stops.
 
 **A Fix session** is a Do session whose work list is the review's findings and
 nothing else. It ends with its closing row and the line set to `Review N` after
@@ -126,6 +129,11 @@ step** line unchanged, and says so.
   rulings section, before the step that depends on it.
 - **Docs move with the code.** Prose describing a contract the step changes is
   rewritten in the same step, never deferred to the closing step.
+- **Nothing outside the plan cites it.** Code, comments and the standing docs
+  never name a plan, a ruling, a section or a step: a comment that needs a
+  reason states the reason. A citation outlives the plan and then points
+  nowhere, and while the plan is open it makes a ruling the code has since moved
+  past read as current.
 - **Append to the build log before committing.** Every deviation, every fact
   found wrong, every defect found by running the app, with the step number and
   the reason. The next agent reads the log first.

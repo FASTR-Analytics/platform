@@ -3,12 +3,12 @@ import type { Dhis2StoredCredentialsInfo } from "./dhis2.ts";
 import { definitionDataId, hasRows, type HmisIndicator } from "./indicators.ts";
 
 // ============================================================================
-// CSV Import Run Types (PLAN_DHIS2_IMPORTER_CONSOLIDATION Phase A)
+// CSV Import Run Types
 // ============================================================================
 
 // The file's columns as the wizard names them. `data_id` is the indicator
 // column: the values it says are input to the wizard's mapping (below), not
-// ids the app resolves (PLAN_A6 §2).
+// ids the app resolves.
 export type HmisCsvColumns = {
   facility_id: string;
   data_id: string;
@@ -16,16 +16,16 @@ export type HmisCsvColumns = {
   count: string;
 };
 
-// The wizard's mapping (PLAN_A6 ruling 3): every distinct value in the
-// file's indicator column, to the data id its rows land under, or to null
-// for a value the user skipped. Stored on the run row, never remembered
+// The wizard's mapping: every distinct value in the file's indicator column,
+// to the data id its rows land under, or to null for a value the user
+// skipped. Stored on the run row, never remembered
 // between imports: the next import maps again, seeded by auto-selection.
 export type HmisCsvMapping = Record<string, string | null>;
 
 // What the scan reads from the file before the mapping step: each distinct
 // value with its row count, sorted by descending row count, and the pin of
 // the bytes it read, which the launch passes back so a file swapped between
-// the scan and the launch is refused (ruling 4).
+// the scan and the launch is refused.
 export type HmisCsvIndicatorValue = { value: string; rowCount: number };
 
 export type HmisCsvIndicatorScan = {
@@ -45,18 +45,18 @@ export function csvIndicatorValueFromCell(cell: string): string {
   return cell.trim();
 }
 
-// Ruling 3's normalisation: lowercased, everything but letters and digits
-// stripped.
+// The auto-selection normalisation: lowercased, everything but letters and
+// digits stripped.
 export function normaliseIndicatorMatchKey(text: string): string {
   return text.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
 }
 
-// Auto-selection (ruling 3): a value matches an indicator with rows when it
-// equals that indicator's id under normalisation, or, for a DHIS2 element
-// only, when it exactly equals its data id (the UID). Nothing matches an
-// Uploaded indicator's key. A value that matches two indicators selects
-// neither, and two values that match the same indicator select nothing,
-// since one import may map one value onto an indicator: the user decides.
+// Auto-selection: a value matches an indicator with rows when it equals that
+// indicator's id under normalisation, or, for a DHIS2 element only, when it
+// exactly equals its data id (the UID). Nothing matches an Uploaded indicator's
+// key. A value that matches two indicators selects neither, and two values that
+// match the same indicator select nothing, since one import may map one value
+// onto an indicator: the user decides.
 export function autoSelectHmisCsvMapping(
   values: string[],
   indicators: HmisIndicator[],
@@ -166,7 +166,7 @@ export type DatasetCsvStagingResult = {
       }>;
       rowsDropped: number;
     };
-    // Rows whose file value the mapping sends to null (PLAN_A6 ruling 5):
+    // Rows whose file value the mapping sends to null:
     // reported, never gating, since the user chose it at wizard time.
     skippedByMapping: {
       rowsDropped: number;
@@ -256,9 +256,9 @@ export type DatasetHmisLedgerSkippedValue = {
   value: string;
 };
 
-// One row per (data id, month): the latest import state of that pair
-// (PLAN_DHIS2_IMPORTER WS-B). status 'error' keeps the last data-bearing
-// counts untouched: the error describes the most recent failed attempt.
+// One row per (data id, month): the latest import state of that pair.
+// status 'error' keeps the last data-bearing counts untouched: the error
+// describes the most recent failed attempt.
 export type DatasetHmisImportLedgerItem = {
   dataId: string;
   periodId: number;
@@ -282,14 +282,13 @@ export type DatasetHmisImportLedgerItem = {
 };
 
 // ============================================================================
-// DHIS2 Import Run Types (PLAN_DHIS2_IMPORTER Phase 3: C1/C2 + dispatcher)
+// DHIS2 Import Run Types
 // ============================================================================
 
 // What a DHIS2 run fetches: a DHIS2 element's data id, the element or
-// operand DHIS2 knows it by, whose values are written under that same key
-// (PLAN_A5 ruling 9). Resolved once, where the selection is validated, and
-// persisted on the run row and in the worker message, so the worker never
-// re-resolves.
+// operand DHIS2 knows it by, whose values are written under that same key.
+// Resolved once, where the selection is validated, and persisted on the run
+// row and in the worker message, so the worker never re-resolves.
 export type Dhis2FetchTarget = { dataId: string };
 
 // A pair is one data id × one month: the unit the importer fetches and
@@ -341,10 +340,10 @@ export type Dhis2RunSelection =
   | { kind: "pairs"; pairs: Dhis2RunPair[] };
 
 // "queued" = waiting behind the running run; the ~60 s scheduler tick drains
-// queued rows FIFO once the import slot is free (PLAN_DHIS2_IMPORTER Phase 4,
-// C6: queue, not concurrent execution). "needs_review" = a CSV stage dropped
-// rows; the run holds with diagnostics and RELEASES the single-running slot
-// until the user integrates anyway or discards.
+// queued rows FIFO once the import slot is free (a queue, not concurrent
+// execution). "needs_review" = a CSV stage dropped rows; the run holds with
+// diagnostics and RELEASES the single-running slot until the user integrates
+// anyway or discards.
 export type DatasetHmisImportRunStatus =
   | "queued"
   | "running"
@@ -398,10 +397,9 @@ export type DatasetHmisImportRunSummary = {
   progress?: DatasetHmisImportRunProgress;
 };
 
-// The run_stats blob (durable per-run instrumentation: the home that
-// PLAN_DHIS2_IMPORTER §4.1 designated for pairFetchStats). Not shipped in the
-// runs list (polled at 2 s, must stay small); served per-run by
-// getDatasetHmisImportRunDetail.
+// The run_stats blob (durable per-run instrumentation, the home of
+// pairFetchStats). Not shipped in the runs list (polled at 2 s, must stay
+// small); served per-run by getDatasetHmisImportRunDetail.
 export type DatasetHmisImportRunDetail = DatasetHmisImportRunSummary & {
   // Absent when the run was interrupted from outside the worker (cancel /
   // host-detected crash / restart sweep): stats live in worker memory and
@@ -439,7 +437,7 @@ export type Dhis2SelectionClassification = {
 };
 
 // ============================================================================
-// Scheduled Imports (PLAN_DHIS2_IMPORTER Phase 4: C4)
+// Scheduled Imports
 // ============================================================================
 
 // A schedule's selection: "last_n_months" is a rolling window resolved at
@@ -464,7 +462,7 @@ export type DatasetHmisScheduledImportKind = "one_shot" | "recurring";
 
 // Recurrence for recurring schedules: an explicit anchor (the first
 // occurrence) plus a kind: occurrences are exact arithmetic from the
-// anchor, never counted from the last fire (PLAN_SCHEDULE_RECURRENCE).
+// anchor, never counted from the last fire.
 export type Dhis2ScheduleRecurrence =
   | {
     kind: "daily";
@@ -499,9 +497,8 @@ export type Dhis2ScheduleRecurrence =
 // "launched" = a run was started (last_run_id points at it). "refused" = the
 // fire was blocked at fire time (no stored credentials, or the stored URL
 // changed under a queued run): loud, with the reason in lastError.
-// "missed" = the fire window
-// (occurrence + grace) passed with no fire (server down); skipping loudly
-// beats firing into daytime load (PLAN_DHIS2_IMPORTER §2.7).
+// "missed" = the fire window (occurrence + grace) passed with no fire (server
+// down); skipping loudly beats firing into daytime load.
 export type DatasetHmisScheduledImportOutcome =
   | "launched"
   | "refused"

@@ -1,6 +1,5 @@
-// Identity-parity test for the headless app /mcp dispatches into
-// (REVIEW_MCP_HOST_ARCHITECTURE.md §7): the same registry route reached via a
-// personal access token and via a Clerk session must resolve to the IDENTICAL
+// Identity-parity test for the headless app /mcp dispatches into: the same
+// registry route reached via a personal access token and via a Clerk session must resolve to the IDENTICAL
 // user context and effect. The representative route is GET /user
 // (getCurrentUser): its response IS the resolved GlobalUser.
 //
@@ -174,11 +173,11 @@ Deno.test("PAT auth resolves to the identical user context as Clerk auth (GET /u
     assertEquals(afterBlankRows[0].first_name, "Renamed");
     assertEquals(afterBlankRows[0].last_name, "Probe");
 
-    // Explicit-transport leg (PLAN_112 step 2): the same route reached
-    // through createAllServerActions over an EXPLICIT transport whose
-    // fetchImpl dispatches in-process into headlessApp must be byte-identical to
-    // the raw headlessApp request: this is the /mcp endpoint's dispatch path
-    // (D4), proven against the real middleware chain.
+    // Explicit-transport leg: the same route reached through
+    // createAllServerActions over an EXPLICIT transport whose fetchImpl
+    // dispatches in-process into headlessApp must be byte-identical to the raw
+    // headlessApp request: this is the /mcp endpoint's dispatch path, proven
+    // against the real middleware chain.
     const explicitTransport: ServerActionTransport = {
       baseUrl: "",
       refreshSession: async () => {},

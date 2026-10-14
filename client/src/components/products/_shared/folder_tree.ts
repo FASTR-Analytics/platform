@@ -1,6 +1,6 @@
 import type { Folder, ProductSummary } from "lib";
 
-// Pure derivations over the flat T1 `Folder[]` (D16): the tree is derived
+// Pure derivations over the flat T1 `Folder[]`: the tree is derived
 // where it is needed and never mutated into state. The server refuses cycles
 // inside the move transaction, but these run in the render path, so every walk
 // carries a visited set and terminates on malformed data rather than hanging.
@@ -81,8 +81,8 @@ export function descendantIds(
   return result;
 }
 
-// The flat full-path option list the move picker renders, sorted by path
-// (D16). `excludeSubtree` drops a moved folder and its descendants: they are
+// The flat full-path option list the move picker renders, sorted by path.
+// `excludeSubtree` drops a moved folder and its descendants: they are
 // the illegal targets, and the server's FOLDER_CYCLE stays the authority.
 export function folderPathOptions(
   folders: Folder[],

@@ -18,9 +18,9 @@ export const cacheMiddleware = async (c: Context, next: Next) => {
   }
 
   // The SPA shell is unhashed, so freshness must be explicit: with no
-  // directive a browser MAY reuse a stale copy heuristically (RFC 9111
-  // §4.2.2), and a stale shell references the previous build's hashed
-  // bundles, which ARE served immutable. Defensive hardening: no observed
+  // directive a browser MAY reuse a stale copy heuristically
+  // (RFC 9111 §4.2.2), and a stale shell references the previous build's
+  // hashed bundles, which ARE served immutable. Defensive hardening: no observed
   // incident was traced to heuristic shell caching (with no validator the
   // major engines' heuristics effectively don't cache it). Revalidate the
   // shell on every load; the hashed assets keep their immutable year.

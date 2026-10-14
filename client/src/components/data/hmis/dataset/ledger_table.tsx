@@ -18,8 +18,8 @@ import { WrapOnUnderscore } from "~/components/data/hmis/_shared/mod.ts";
 export type LedgerPeriodWindow = { min: number; max: number };
 
 type Props = {
-  // Both reads are page-owned (PLAN_A8 ruling 10): the table is a render
-  // over state that survives a tab switch.
+  // Both reads are page-owned: the table is a render over state that
+  // survives a tab switch.
   ledger: StateHolder<DatasetHmisImportLedgerItem[]>;
   // The dictionary keyed by data id, a display-only enrichment: a row whose
   // data id no indicator carries shows blank indicator columns.
@@ -43,7 +43,7 @@ type DataIdRollup = {
   items: DatasetHmisImportLedgerItem[];
 };
 
-// The import ledger pivoted by data id (its key, PLAN_A5 ruling 9): one row
+// The import ledger pivoted by data id (its key): one row
 // per data id across the dataset's period window, labelled through the
 // dictionary, click-through to the per-month detail.
 export function LedgerTable(p: Props) {
@@ -85,8 +85,7 @@ export function LedgerTable(p: Props) {
     },
     {
       // The key is shown only where it means something to a reader: a
-      // DHIS2 element's UID. An Uploaded indicator's key is opaque (PLAN_A6
-      // ruling 1).
+      // DHIS2 element's UID. An Uploaded indicator's key is opaque.
       key: "dhis2Id",
       header: t3({ en: "DHIS2 id", fr: "Identifiant DHIS2", pt: "ID DHIS2" }),
       sortable: true,

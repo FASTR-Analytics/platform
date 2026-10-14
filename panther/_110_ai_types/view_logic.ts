@@ -206,16 +206,17 @@ export function buildNavigationPendingMessage(
 //
 // Pure reduction of the interaction queue into one digest string at drain
 // time (turn creation). The log owns the queue and the echo-mark
-// bookkeeping (interaction_log.ts); this module owns the reduction ORDER and
-// the digest FORMAT: echo suppression (dropSuppressedEchoes, applied by the
-// log's drain) → relevantIn against the live view → per-entry filter →
-// coalesce per interaction id → format → prefix. With digestAcrossViews the
-// two hooks run at record time instead (admitInteraction) and the digest
-// names each entry's recorded view. Consumer callbacks (relevantIn
-// functions, filter, coalesce, format) run against live view context that
-// may be torn down — every call AND the consumption of its return value is
-// caught; a throwing callback drops its entry/line and logs, never fails the
-// turn (the same rule the view label follows).
+// bookkeeping (interaction_log.ts); this module owns admission and the
+// reduction ORDER and the digest FORMAT: relevantIn then filter at RECORD
+// time, against the view the user is in then (admitInteraction, called by
+// the controller's notify); then at drain, echo suppression
+// (dropSuppressedEchoes, applied by the log's drain) → coalesce per
+// interaction id and recorded view → format, each line naming its recorded
+// view → prefix. Consumer callbacks (relevantIn functions, filter, coalesce,
+// format) run against live view context that may be torn down — every call
+// AND the consumption of its return value is caught; a throwing callback
+// drops its entry/line and logs, never fails the turn (the same rule the
+// view label follows).
 
 export type InteractionViewStateLike = {
   id: string;
@@ -242,9 +243,8 @@ export type InteractionQueueEntry = {
   // Arrival time (controller clock). Echo suppression is decided at DRAIN
   // against this timestamp — see dropSuppressedEchoes.
   at: number;
-  // The view the entry was recorded in, set by a controller with
-  // digestAcrossViews (the label resolved at record time, the bare id when
-  // the label threw). Absent otherwise, and on navigation entries, which
+  // The view the entry was recorded in (the label resolved at record time,
+  // the bare id when the label threw). Absent on navigation entries, which
   // carry their own views.
   viewId?: string;
   viewLabel?: string;
@@ -379,12 +379,11 @@ function passesFilter(
   return kept.ok && kept.value === true;
 }
 
-// Admission at RECORD time (a controller with digestAcrossViews): relevantIn,
-// then filter, against the view the user is in when notify is called. An
-// entry admitted here is reported wherever the user later sends from, with
-// that view named on its line; the digest across views runs neither hook
-// again. A throwing hook rejects the entry and logs, never throws into the
-// consumer's event handler.
+// Admission at RECORD time: relevantIn, then filter, against the view the
+// user is in when notify is called. An entry admitted here is reported
+// wherever the user later sends from, with that view named on its line; the
+// digest runs neither hook again. A throwing hook rejects the entry and
+// logs, never throws into the consumer's event handler.
 export function admitInteraction(
   id: string,
   def: AIInteractionDefLike,
@@ -394,34 +393,26 @@ export function admitInteraction(
   return isRelevantIn(def, id, view) && passesFilter(def, id, payload, view);
 }
 
-// "at-send" (the default): relevantIn and filter run here against the view
-// the user sends from, and lines name no view. "across-views" (a controller
-// with digestAcrossViews): both hooks ran at record time (admitInteraction),
-// entries coalesce per interaction id AND recorded view, and each line ends
-// with the recorded view's label; the navigation line is the same in both.
-export type DigestMode = "at-send" | "across-views";
-
 type DigestGroup = { id: string; viewLabel?: string; payloads: unknown[] };
 
-// Digest lines keep first-notify order (per interaction id, including the
-// built-in navigation line at its first event's position). Coalesce
-// semantics: "keep-latest" (default) formats the latest payload with count
-// 1 (repeats collapse invisibly); "count" formats the latest payload with
-// count = the number of surviving entries (so format can render "(×3)"); a
-// custom reducer maps the surviving payloads to a new list, each formatted
-// with count 1 (a reducer that needs multiplicity bakes it into its
-// payloads). Entries whose id has no def are dropped (the typed notify()
-// surface prevents this; erased callers get the drop, logged).
+// Digest lines keep first-notify order (per interaction id and recorded
+// view, including the built-in navigation line at its first event's
+// position). Coalesce semantics: "keep-latest" (default) formats the latest
+// payload with count 1 (repeats collapse invisibly); "count" formats the
+// latest payload with count = the number of entries (so format can
+// render "(×3)"); a custom reducer maps the entries' payloads to a new
+// list, each formatted with count 1 (a reducer that needs multiplicity bakes
+// it into its payloads). Each line ends with its recorded view's label; the
+// navigation line carries its own views. Entries whose id has no def are
+// dropped (the typed notify() surface prevents this; erased callers get the
+// drop, logged).
 export function buildInteractionDigest(
   entries: InteractionQueueEntry[],
   defs: Record<string, AIInteractionDefLike>,
-  view: InteractionViewStateLike,
-  mode: DigestMode = "at-send",
 ): string | null {
   const groups = new Map<string, DigestGroup>();
   for (const entry of entries) {
-    const perView = mode === "across-views" &&
-      entry.id !== NAVIGATION_INTERACTION_ID;
+    const perView = entry.id !== NAVIGATION_INTERACTION_ID;
     const key = perView
       ? `${entry.id}\u0000${entry.viewId ?? ""}\u0000${entry.viewLabel ?? ""}`
       : entry.id;
@@ -459,23 +450,14 @@ export function buildInteractionDigest(
       continue;
     }
 
-    let surviving = payloads;
-    if (mode === "at-send") {
-      if (!isRelevantIn(def, id, view)) continue;
-      surviving = payloads.filter((payload) =>
-        passesFilter(def, id, payload, view)
-      );
-    }
-    if (surviving.length === 0) continue;
-
     const coalesce = def.coalesce ?? "keep-latest";
     let formatted: Array<{ payload: unknown; count: number }>;
     if (coalesce === "keep-latest") {
-      formatted = [{ payload: surviving[surviving.length - 1], count: 1 }];
+      formatted = [{ payload: payloads[payloads.length - 1], count: 1 }];
     } else if (coalesce === "count") {
       formatted = [{
-        payload: surviving[surviving.length - 1],
-        count: surviving.length,
+        payload: payloads[payloads.length - 1],
+        count: payloads.length,
       }];
     } else {
       // The whole reduction — invocation AND consumption of the return
@@ -484,7 +466,7 @@ export function buildInteractionDigest(
       // H3: an escape here fires after the queue was drained and before
       // the engine holds the restore handle, losing every entry).
       const reduced = safeCall("coalesce", id, () => {
-        const out = coalesce([...surviving]);
+        const out = coalesce([...payloads]);
         if (!Array.isArray(out)) {
           throw new Error(
             `coalesce returned ${typeof out} instead of an array`,

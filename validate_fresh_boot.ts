@@ -1,7 +1,7 @@
 // Boots the server's database startup against an EMPTY postgres and asserts
-// an empty dictionary (PLAN_A6 ruling 10): no indicator rows, no sum
-// members, and none of the retired tables. Run through
-// ./validate_fresh_boot, which supplies the throwaway container and the env.
+// an empty dictionary: no indicator rows, no sum members, and none of the
+// retired tables. Run through ./validate_fresh_boot, which supplies the
+// throwaway container and the env.
 
 import { assertEquals } from "@std/assert";
 import { dbStartUp } from "./server/db_startup.ts";

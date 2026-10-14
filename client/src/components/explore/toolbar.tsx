@@ -30,7 +30,7 @@ const NATIONAL_LABEL = { en: "National", fr: "National", pt: "Nacional" };
 // and the grain. A control appears only when its role is present and its
 // options number more than one, except the level and period selects, which
 // always appear with their role. A pinned dimension over the server's cap
-// shows the cap message where its select would be (R13). Every control
+// shows the cap message where its select would be. Every control
 // shows the resolved value, so it shows what is read.
 export function Toolbar(p: {
   selectors: JSX.Element;

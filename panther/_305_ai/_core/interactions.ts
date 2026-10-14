@@ -15,29 +15,27 @@ import type { InteractionViewStateLike } from "../deps.ts";
 // occurrences with typed viewController.notify() calls. The log the
 // controller composes (per-conversation cursors, transactional drain and
 // restore, echo marks, the AI-navigation window) is
-// _110_ai_types/interaction_log.ts, and the reduction pipeline (echo drop →
-// relevantIn → filter → coalesce → format → prefix) is
-// _110_ai_types/view_logic.ts; both are pure and committed-tested.
+// _110_ai_types/interaction_log.ts, and admission (relevantIn → filter at
+// record time) with the reduction pipeline (echo drop → coalesce → format →
+// prefix) is _110_ai_types/view_logic.ts; both are pure and committed-tested.
 
 export type AIInteractionDef<TPayload = void> = {
   // Views where this interaction is reported; absent = all views. Checked
-  // against the view the user is in: at DRAIN time, when the message is
-  // sent (an entry recorded in a view the user has since left is dropped),
-  // or, with the controller's digestAcrossViews, at RECORD time, when
-  // notify is called (an entry admitted then is reported wherever the user
-  // sends from, its view named on the line). An interaction that must be
-  // reported regardless omits both hooks. String ids are validated against
-  // the view registry at controller construction.
+  // at RECORD time against the view the user is in when notify is called:
+  // an entry admitted then is reported wherever the user later sends from,
+  // its view named on the line. An interaction that must be reported
+  // regardless omits both hooks. String ids are validated against the view
+  // registry at controller construction.
   relevantIn?:
     | string[]
     | ((view: InteractionViewStateLike) => boolean);
   // Per-ENTRY relevance against the live view (params AND context) — the
   // hook for payload×view reductions (keep an edited_slide entry only if its
   // slideId is in the current deck). relevantIn scopes the TYPE by view;
-  // filter decides per payload; both run at the same time (drain, or record
-  // with digestAcrossViews). View params/context are `unknown` here by
-  // design — the interaction registry is declared independently of any view
-  // registry; consumers narrow inside the callback.
+  // filter decides per payload; both run at record time. View
+  // params/context are `unknown` here by design — the interaction registry
+  // is declared independently of any view registry; consumers narrow inside
+  // the callback.
   filter?: (payload: TPayload, view: InteractionViewStateLike) => boolean;
   // How repeated notifications collapse before formatting. "keep-latest"
   // (default): one line from the latest payload, count 1. "count": one line

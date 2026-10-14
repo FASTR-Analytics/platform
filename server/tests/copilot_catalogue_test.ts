@@ -1,7 +1,6 @@
-// Pins lib/ai_tools/copilot_catalogue.ts to the chat's catalogue as ruled
-// (PLAN_COPILOT03_ONE_CHAT ruling 1, 2026-10-08): the two tables below are
-// written from the ruling, independently of the module, and every case
-// derives what the module must hold from them.
+// Pins lib/ai_tools/copilot_catalogue.ts to the chat's catalogue: the tables
+// below are written independently of the module, and every case derives what
+// the module must hold from them.
 //
 //   deno test -A --no-check server/tests/copilot_catalogue_test.ts
 
@@ -23,7 +22,6 @@ import {
   USER_PERMISSIONS,
 } from "lib";
 
-// Ruling 1's first table: the tool groups.
 const GROUPS = {
   chat_wide: [
     "ask_user_questions",
@@ -99,8 +97,8 @@ const PACKAGE_TOOL_GROUPS: Group[] = [
   "figure_editor",
 ];
 
-// Ruling 1's second table: each view, whether it has a package in view, its
-// groups beyond chat-wide, and the one tool named outside its group.
+// Each view, whether it has a package in view, its groups beyond chat-wide,
+// and the one tool named outside its group.
 const PRODUCT: Group[] = ["package_reads", "module_internals", "drafts"];
 const VIEWS: {
   id: string;
@@ -256,7 +254,6 @@ Deno.test("the approval exemptions are exactly the direct-apply editor writes", 
   assertEquals(sorted(COPILOT_APPROVAL_EXEMPT), sorted(expected));
 });
 
-// Ruling 5's requirements.
 const REQUIREMENTS: Record<string, string> = Object.fromEntries([
   ...ALL_TOOLS.map((t) => [t, "none"]),
   ["get_module_r_script", "can_view_data"],
@@ -335,7 +332,6 @@ Deno.test("refusals follow the permission bits, the product level and the HFA wr
   }
 });
 
-// Ruling 5's identity parts.
 const IDENTITY_PARTS: Record<string, string[]> = {
   opening_product: ["product", "pair"],
   editing_slide_deck: ["deck", "pair"],

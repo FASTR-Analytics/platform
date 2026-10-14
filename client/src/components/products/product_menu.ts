@@ -8,7 +8,7 @@ import {
   moveToRootLabel,
 } from "./_shared/mod.ts";
 
-// The move affordances D16 gives both menus: quick hops within reach of the
+// The move affordances of both menus: quick hops within reach of the
 // item's own folder, with the full picker as the catch-all. Dragging a row
 // onto a folder (list_view.tsx) is the other way to move.
 const _MOVE_SUBMENU_CAP = 10;
@@ -103,8 +103,8 @@ export function buildQuickMoveEntries(args: {
 }
 
 // ONE product menu: the list row's button and the right-click menu both
-// render this. Built from the level table (PLAN_PRODUCT_OWNERSHIP §2.9), so a
-// viewer's menu holds Duplicate only.
+// render this. Built from the level table (S12), so a viewer's menu holds
+// Duplicate only.
 export function buildProductMenu(args: {
   canEdit: boolean;
   canOwn: boolean;

@@ -28,7 +28,7 @@ import {
 import { clerk } from "~/state/_infra/clerk";
 import { instanceState } from "~/state/instance/t1_store";
 import { getRunAuthoringContextFromCacheOrFetch } from "~/state/instance/t2_run_authoring_context";
-import { setShowAi } from "~/state/t4_ui";
+import { setShowAi, SHOW_SENT_CONTEXT } from "~/state/t4_ui";
 import { copilotViewController, packageViewContext } from "./ai_views";
 import {
   createCopilotSDKClient,
@@ -51,7 +51,7 @@ import { createTabOwner } from "./tab_owner";
 // show the notice in its place.
 
 // The Clerk user id, live: Clerk reports a cross-tab user switch through its
-// listener. Under VITE_BYPASS_AUTH there is no Clerk user (ruling 13).
+// listener. Under VITE_BYPASS_AUTH there is no Clerk user.
 function createThreadScope(): Accessor<string> {
   const [userId, setUserId] = createSignal(clerk.user?.id);
   onCleanup(clerk.addListener((event) => setUserId(event.user?.id)));
@@ -151,6 +151,7 @@ function CopilotChat(p: { scope: string; tools: AnyAITool[] }) {
     scope: p.scope,
     system: systemPrompt,
     getEphemeralContext,
+    showSentContext: SHOW_SENT_CONTEXT,
     getDocumentRefs: aiDocs.getDocumentRefs,
     viewController: copilotViewController,
     // Every write asks before it applies unless the catalogue exempts it:
@@ -161,7 +162,6 @@ function CopilotChat(p: { scope: string; tools: AnyAITool[] }) {
       requireKind: true,
       exempt: COPILOT_APPROVAL_EXEMPT,
     },
-    appendOnlyTurns: true,
   };
 
   if (import.meta.env.DEV) {
@@ -190,7 +190,7 @@ function CopilotChat(p: { scope: string; tools: AnyAITool[] }) {
 }
 
 // Inside the provider: one engine instance, shared by the pane and the chat
-// it mounts (E2), created when the lock is granted.
+// it mounts, created when the lock is granted.
 function OwnedChat(p: {
   aiDocs: ReturnType<typeof useAIDocuments>;
   onChat: (chat: AIChatInstance) => void;
@@ -199,11 +199,13 @@ function OwnedChat(p: {
   p.onChat(chat);
 
   // The controller is a module singleton whose interaction log outlives a
-  // mount, so the chat empties it when it mounts: actions retained from
-  // before (the previous user on a cross-tab user switch, the previous owner
-  // tab's hand-over) would otherwise ride this chat's first digest as fake
-  // activity; with digestAcrossViews, activation already starts each
-  // conversation's digest at the log's end. The producers are the editors
+  // mount. The manager activates a conversation on every mount, which starts
+  // its digest at the log's end, so actions retained from before (the
+  // previous user's on a cross-tab user switch, this tab's while another tab
+  // owned the chat) never ride this chat's digest. The clear drops them, and
+  // with them the echo marks and any open AI-navigation window the previous
+  // user's chat left, which would otherwise drop or misattribute this user's
+  // first actions within their TTLs. The producers are the editors
   // (interactions.ts).
   onMount(() => {
     copilotViewController.clearInteractionLog();

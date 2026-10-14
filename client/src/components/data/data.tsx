@@ -1,6 +1,7 @@
 import {
   type AdminAreaLevel,
   ALL_ADMIN_AREA_LEVELS,
+  type DatasetType,
   type FacilityFamily,
   t3,
 } from "lib";
@@ -11,7 +12,7 @@ import {
   type TableColumn,
   toNum0,
 } from "panther";
-import { type JSX, Show } from "solid-js";
+import { type JSX, onCleanup, Show } from "solid-js";
 import { InstanceDatasetIceh } from "./iceh/mod.ts";
 import { Facilities } from "./facilities/mod.ts";
 import { FamilyConfiguration } from "./family_configuration";
@@ -35,12 +36,22 @@ import {
 } from "~/state/instance/t1_store";
 import { getAdminAreaLabel } from "~/state/instance/_util_disaggregation_label";
 import { openShellEditor } from "~/state/t4_ui";
+import {
+  copilotViewController,
+  type DataPageId,
+  type DataRowStatus,
+  type DataSectionForAI,
+  holdCopilotView,
+  restoreCopilotView,
+} from "~/components/instance/copilot/mod.ts";
 import { AdminAreaLabels, AiContextForm } from "./general/mod.ts";
 
 type Props = {};
 
-// "unset" is an optional item left empty: shown, but not flagged as missing.
-type RowStatus = "ready" | "partial" | "missing" | "unset";
+// The status vocabulary is the chat's `DataRowStatus` (S13), since each
+// row's label and status are the `data` view's state; "unset" is an optional
+// item left empty: shown, but not flagged as missing.
+type RowStatus = DataRowStatus;
 
 type DataRow = {
   label: string;
@@ -49,7 +60,25 @@ type DataRow = {
   onClick: () => void;
 };
 
+const HMIS_HEADING = () => t3({ en: "HMIS", fr: "SNIS", pt: "HMIS" });
+const HFA_HEADING = () => t3({ en: "HFA", fr: "Enquêtes FOSA", pt: "HFA" });
+const ICEH_HEADING = () => t3({ en: "ICEH", fr: "ICEH", pt: "ICEH" });
+const SETTINGS_HEADING = () =>
+  t3({
+    en: "Instance settings",
+    fr: "Paramètres de l'instance",
+    pt: "Definições da instância",
+  });
+
+// The switchboard sets the chat's `data` view (S13), whose state is each
+// row's label and status, never its summary, and `data_page` for every page
+// it opens, restoring the view it covered when the page closes.
 export function InstanceData(p: Props) {
+  holdCopilotView();
+  let mounted = true;
+  onCleanup(() => {
+    mounted = false;
+  });
   const canConfigureData = () =>
     instanceState.currentUserIsGlobalAdmin ||
     instanceState.currentUserPermissions.can_configure_data;
@@ -83,12 +112,22 @@ export function InstanceData(p: Props) {
       .map((g) => g.adminAreaLevel);
 
   // Every row opens a full-page view over the shell; its Back closes it. The
-  // const type parameter keeps a family literal from widening to string.
+  // const type parameter keeps a family literal from widening to string. The
+  // one sync site for the switchboard's pages: `data_page` names the page
+  // and, on a family's page, the family, and the covered view returns when
+  // the page closes, unless the switchboard itself has unmounted meanwhile,
+  // since its own cleanup restored the view it holds.
   function openSubPage<const TProps>(
+    page: DataPageId,
+    family: DatasetType | undefined,
     element: (p: EditorComponentProps<TProps, undefined>) => JSX.Element,
     props: TProps,
   ) {
-    void openShellEditor({ element, props });
+    const covered = copilotViewController.current();
+    copilotViewController.setView("data_page", { page, family });
+    void openShellEditor({ element, props }).then(() => {
+      if (mounted) restoreCopilotView(covered);
+    });
   }
 
   const hasData = (dataset: "hmis" | "hfa" | "iceh"): DataRow["status"] =>
@@ -127,7 +166,10 @@ export function InstanceData(p: Props) {
       } colunas dos estabelecimentos`,
     }),
     status: "ready",
-    onClick: () => openSubPage(FamilyConfiguration, { family }),
+    onClick: () =>
+      openSubPage("registry_configuration", family, FamilyConfiguration, {
+        family,
+      }),
   });
 
   // Admin areas are derived from the facility rows, so their counts are
@@ -165,7 +207,7 @@ export function InstanceData(p: Props) {
           pt: "Nenhum estabelecimento de saúde importado",
         }),
       status: count > 0 ? "ready" : "missing",
-      onClick: () => openSubPage(Facilities, { family }),
+      onClick: () => openSubPage("facilities", family, Facilities, { family }),
     };
   };
 
@@ -189,7 +231,8 @@ export function InstanceData(p: Props) {
         pt: "Nenhum mapa GeoJSON carregado",
       }),
     status: geojsonLevels(family).length > 0 ? "ready" : "missing",
-    onClick: () => openSubPage(GeoJsonManager, { family }),
+    onClick: () =>
+      openSubPage("geojson_maps", family, GeoJsonManager, { family }),
   });
 
   const generalRows = (): DataRow[] => {
@@ -212,7 +255,8 @@ export function InstanceData(p: Props) {
             pt: "Não definidos — a usar nomes predefinidos",
           }),
         status: labelsSet ? "ready" : "missing",
-        onClick: () => openSubPage(AdminAreaLabels, {}),
+        onClick: () =>
+          openSubPage("admin_area_labels", undefined, AdminAreaLabels, {}),
       },
       {
         label: t3({
@@ -273,13 +317,15 @@ export function InstanceData(p: Props) {
             pt: "Nenhum indicador",
           }),
         status: indicators > 0 ? "ready" : "missing",
-        onClick: () => openSubPage(IndicatorsManager, {}),
+        onClick: () =>
+          openSubPage("hmis_indicators", "hmis", IndicatorsManager, {}),
       },
       {
         label: t3({ en: "Data", fr: "Données", pt: "Dados" }),
         summary: dataSummary("hmis"),
         status: hasData("hmis"),
-        onClick: () => openSubPage(InstanceDatasetHmis, {}),
+        onClick: () =>
+          openSubPage("hmis_data", "hmis", InstanceDatasetHmis, {}),
       },
       geojsonRow("hmis"),
       {
@@ -314,7 +360,7 @@ export function InstanceData(p: Props) {
             pt: "Sem dados de população",
           }),
         status: populationLevel !== undefined ? "ready" : "unset",
-        onClick: () => openSubPage(PopulationManager, {}),
+        onClick: () => openSubPage("population", "hmis", PopulationManager, {}),
       },
     );
     return rows;
@@ -352,7 +398,8 @@ export function InstanceData(p: Props) {
             pt: "Nenhum ponto temporal (importar dados para criar)",
           }),
         status: timePoints > 0 ? "ready" : "missing",
-        onClick: () => openSubPage(InstanceHfaTimePoints, {}),
+        onClick: () =>
+          openSubPage("hfa_time_points", "hfa", InstanceHfaTimePoints, {}),
       },
       {
         label: t3({
@@ -387,7 +434,7 @@ export function InstanceData(p: Props) {
             pt: "Nenhum peso importado",
           }),
         status: !hasWeights ? "missing" : weightsPartial ? "partial" : "ready",
-        onClick: () => openSubPage(HfaWeights, {}),
+        onClick: () => openSubPage("hfa_weights", "hfa", HfaWeights, {}),
       },
       {
         label: t3({ en: "Indicators", fr: "Indicateurs", pt: "Indicadores" }),
@@ -403,13 +450,14 @@ export function InstanceData(p: Props) {
             pt: "Nenhum indicador HFA configurado",
           }),
         status: indicators > 0 ? "ready" : "missing",
-        onClick: () => openSubPage(HfaIndicatorsManager, {}),
+        onClick: () =>
+          openSubPage("hfa_indicators", "hfa", HfaIndicatorsManager, {}),
       },
       {
         label: t3({ en: "Data", fr: "Données", pt: "Dados" }),
         summary: dataSummary("hfa"),
         status: hasData("hfa"),
-        onClick: () => openSubPage(InstanceDatasetHfa, {}),
+        onClick: () => openSubPage("hfa_data", "hfa", InstanceDatasetHfa, {}),
       },
       geojsonRow("hfa"),
     );
@@ -425,16 +473,34 @@ export function InstanceData(p: Props) {
       }),
       summary: dataSummary("iceh"),
       status: hasData("iceh"),
-      onClick: () => openSubPage(InstanceDatasetIceh, {}),
+      onClick: () => openSubPage("iceh_data", "iceh", InstanceDatasetIceh, {}),
     },
   ];
+
+  const sectionsForAI = (): DataSectionForAI[] => {
+    const section = (heading: string, rows: DataRow[]): DataSectionForAI => ({
+      heading,
+      rows: rows.map((row) => ({ label: row.label, status: row.status })),
+    });
+    return [
+      section(HMIS_HEADING(), hmisRows()),
+      section(HFA_HEADING(), hfaRows()),
+      section(ICEH_HEADING(), icehRows()),
+      ...(canConfigureSettings()
+        ? [section(SETTINGS_HEADING(), generalRows())]
+        : []),
+    ];
+  };
+  copilotViewController.setView("data", undefined, {
+    getSections: sectionsForAI,
+  });
 
   return (
     <div class="ui-pad h-full w-full overflow-auto">
       <div class="ui-spy-lg">
         <DataSection
           data-tour="instance-data-hmis"
-          heading={t3({ en: "HMIS", fr: "SNIS", pt: "HMIS" })}
+          heading={HMIS_HEADING()}
           subheading={t3({
             en: "Health Management Information System",
             fr: "Système d'information sanitaire",
@@ -444,7 +510,7 @@ export function InstanceData(p: Props) {
         />
         <DataSection
           data-tour="instance-data-hfa"
-          heading={t3({ en: "HFA", fr: "Enquêtes FOSA", pt: "HFA" })}
+          heading={HFA_HEADING()}
           subheading={t3({
             en: "Health facility assessments",
             fr: "Enquêtes auprès des établissements",
@@ -454,7 +520,7 @@ export function InstanceData(p: Props) {
         />
         <DataSection
           data-tour="instance-data-iceh"
-          heading={t3({ en: "ICEH", fr: "ICEH", pt: "ICEH" })}
+          heading={ICEH_HEADING()}
           subheading={t3({
             en: "Equity data",
             fr: "Données d'équité",
@@ -465,11 +531,7 @@ export function InstanceData(p: Props) {
         <Show when={canConfigureSettings()}>
           <DataSection
             data-tour="instance-data-settings"
-            heading={t3({
-              en: "Instance settings",
-              fr: "Paramètres de l'instance",
-              pt: "Definições da instância",
-            })}
+            heading={SETTINGS_HEADING()}
             subheading={t3({
               en: "Shared by every dataset",
               fr: "Communs à tous les jeux de données",

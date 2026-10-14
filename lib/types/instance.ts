@@ -101,7 +101,7 @@ export type InstanceDetail = {
   structureSchemaHmis: StructureSchema | null;
   structureSchemaHfa: StructureSchema | null;
   adminAreaLabels: InstanceConfigAdminAreaLabels;
-  // The instance-level copilot grounding text (D15); "" when unset.
+  // The instance-level copilot grounding text; "" when unset.
   aiContext: string;
   // The stored DHIS2 connection's URL, or null when none is configured. Rides
   // the instance payload (and the config SSE) rather than being fetched per
@@ -282,9 +282,9 @@ export type OtherUser = {
   scopeAccess: ScopeAccess;
 } & UserPermissions;
 
-// Which scopes a user may use (PLAN_SCOPES §2.6). `all: false` is a
-// restricted user (`users.all_scopes = FALSE`), limited to the products that
-// carry one of `scopeIds` and to package data read through one of them. A
+// Which scopes a user may use. `all: false` is a restricted user
+// (`users.all_scopes = FALSE`), limited to the products that carry one of
+// `scopeIds` and to package data read through one of them. A
 // global admin and every user of an open-access instance are `{ all: true }`.
 export type ScopeAccess =
   | { all: true }
@@ -306,7 +306,7 @@ export function scopeAccessEqual(a: ScopeAccess, b: ScopeAccess): boolean {
     a.scopeIds.every((id) => bIds.has(id));
 }
 
-// R26: these three bits expose whole packages and raw datasets, which a
+// These three bits expose whole packages and raw datasets, which a
 // restricted user must not read, so they read as false whatever is stored.
 export function permissionsUnderScopeAccess(
   permissions: UserPermissions,
@@ -495,8 +495,8 @@ export type ItemsHolderPresentationObject =
   & {
     resultsObjectId: string;
     fetchConfig: GenericLongFormFetchConfig;
-    // The immutable run this payload was served from: the cache identity
-    // (PLAN_RESULTS_RUNS §2.5) and the figure's provenance (ruling 4).
+    // The immutable run this payload was served from: the cache identity and
+    // the figure's provenance.
     runId: string;
     // The scope the payload was computed under (scopeToken): folded into
     // cache versions beside runId.

@@ -17,9 +17,9 @@ import {
 // the types declare it as a named export, which typechecks and fails at load.
 const { PostgresError } = postgres;
 
-// The runs catalog (PLAN_RESULTS_RUNS item 2, re-cut by Phase 3 items 1 and
-// 3). The first section is the read surface: the instance catalogue listing,
-// the guarded hard delete, the ready-package list and the product pointer.
+// The runs catalog. The first section is the read surface: the instance
+// catalogue listing, the guarded hard delete, the ready-package list and the
+// product pointer.
 //
 // The last section is the runs-catalog execution state the pipeline writes:
 // the 'generating' row minted at launch, worker progress updates, the
@@ -64,7 +64,7 @@ function toRunListingItem(row: RunListingRow): RunListingItem {
   };
 }
 
-// The instance catalogue (Phase 3 item 3): every run on the instance, newest
+// The instance catalogue: every run on the instance, newest
 // first, each with the products currently pointing at it. Those pointers are
 // both the "in use by" column and the delete guard's subject.
 export async function listRunCatalog(
@@ -102,7 +102,7 @@ SELECT run_id, type, id, label FROM products ORDER BY label
   }
 }
 
-// Guarded hard delete's DB half (Q1 ruling: ONE act, no archived state). The
+// Guarded hard delete's DB half (ONE act, no archived state). The
 // guard is IN the DELETE so a product cannot attach between a check and the
 // delete; a refusal re-reads the row to say WHY. The caller
 // (server/runs/delete_run.ts) owns the run dir and cache purge and only runs
@@ -192,12 +192,11 @@ ORDER BY created_at DESC
   }
 }
 
-// The product's package pointer (PLAN_PRODUCTS_RESTRUCTURE D5): one UPDATE
-// with the ready gate IN the WHERE clause, so a package that flips out of
-// `ready` between check and write cannot be attached, and the products.run_id
-// FK (no cascade) blocks a concurrent delete of the target. Reattach never
-// blocks on compatibility: staleness is a per-figure badge (D4). A refused
-// write re-reads to say which reason.
+// The product's package pointer: one UPDATE with the ready gate IN the WHERE
+// clause, so a package that flips out of `ready` between check and write cannot
+// be attached, and the products.run_id FK (no cascade) blocks a concurrent
+// delete of the target. Reattach never blocks on compatibility: staleness is a
+// per-figure badge. A refused write re-reads to say which reason.
 export async function setProductRun(
   mainDb: Sql,
   productId: string,

@@ -268,19 +268,19 @@ generated client action, no registry typing, invisible to
 `validateAllRoutesDefined`. This is the **complete** allowed list; anything not
 here uses the registry.
 
-| File                                                                 | Owner | Why raw                                                                                                                                                                                                                                                              |
-| -------------------------------------------------------------------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `routes/instance/instance-sse.ts`                                    | S3    | SSE long-lived stream, not request/response                                                                                                                                                                                                                          |
-| `routes/instance/collab.ts`                                          | S16   | WebSocket upgrade (`GET /collab`), the instance-wide collab transport for slide and report rooms, mounted raw in `main.ts` behind the global `authMiddleware`; admission = origin + Clerk + `approved`, resolved pre-upgrade; every document frame names its product |
-| `routes/instance/copilot_ai_proxy.ts`, `routes/instance/ai_proxy.ts` | S13   | Anthropic passthrough (mounted `/ai` behind `requireApprovedUser()` and `/ai-instance` behind `can_configure_data`, both thin wrappers over `routes/anthropic_messages_proxy.ts`). Returns Anthropic-shaped bodies, not `APIResponse`                                |
-| `routes/instance/ai_files.ts`                                        | S13   | Anthropic Files API passthrough, mounted `/ai` beside the copilot proxy, same guard                                                                                                                                                                                  |
-| `routes/instance/upload.ts`                                          | S4    | Hand-rolled TUS resumable-upload protocol (custom headers/handshake)                                                                                                                                                                                                 |
-| `routes/instance/health.ts`                                          | S15   | Diagnostics; 11 routes, bare JSON, deliberately unauthenticated for external monitoring (exposure inventory is S15's contract)                                                                                                                                       |
-| `routes/instance/structure.ts` (2 routes only)                       | S5    | CSV download `Response`s (facilities export, HFA weights export) inside an otherwise-registry file, guarded and logged, but raw                                                                                                                                      |
-| `routes/instance/population.ts` (2 routes only)                      | S5    | CSV download `Response`s (population export, import template) inside an otherwise-registry file, guarded and logged, but raw                                                                                                                                         |
-| `routes/public/oauth_metadata.ts`                                    | S1    | OAuth discovery documents for `/mcp` clients (three `GET`s), public by protocol                                                                                                                                                                                      |
-| `main.ts` `app.all("/mcp")`                                          | S13   | The remote MCP endpoint: answers the CORS preflight before auth, then hands the request to the MCP adapter                                                                                                                                                           |
-| `main.ts` `app.get("/access-tokens")`                                | S1    | Serves the SPA shell for the unlisted token panel with `no-cache`, registered ahead of the cache middleware and the global auth mount (the page itself signs in)                                                                                                     |
+| File                                            | Owner | Why raw                                                                                                                                                                                                                                                              |
+| ----------------------------------------------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `routes/instance/instance-sse.ts`               | S3    | SSE long-lived stream, not request/response                                                                                                                                                                                                                          |
+| `routes/instance/collab.ts`                     | S16   | WebSocket upgrade (`GET /collab`), the instance-wide collab transport for slide and report rooms, mounted raw in `main.ts` behind the global `authMiddleware`; admission = origin + Clerk + `approved`, resolved pre-upgrade; every document frame names its product |
+| `routes/instance/copilot_ai_proxy.ts`           | S13   | Anthropic passthrough (mounted `/ai` behind `requireApprovedUser()`, a thin wrapper over `routes/anthropic_messages_proxy.ts`). Returns Anthropic-shaped bodies, not `APIResponse`                                                                                   |
+| `routes/instance/ai_files.ts`                   | S13   | Anthropic Files API passthrough, mounted `/ai` beside the copilot proxy, same guard                                                                                                                                                                                  |
+| `routes/instance/upload.ts`                     | S4    | Hand-rolled TUS resumable-upload protocol (custom headers/handshake)                                                                                                                                                                                                 |
+| `routes/instance/health.ts`                     | S15   | Diagnostics; 11 routes, bare JSON, deliberately unauthenticated for external monitoring (exposure inventory is S15's contract)                                                                                                                                       |
+| `routes/instance/structure.ts` (2 routes only)  | S5    | CSV download `Response`s (facilities export, HFA weights export) inside an otherwise-registry file, guarded and logged, but raw                                                                                                                                      |
+| `routes/instance/population.ts` (2 routes only) | S5    | CSV download `Response`s (population export, import template) inside an otherwise-registry file, guarded and logged, but raw                                                                                                                                         |
+| `routes/public/oauth_metadata.ts`               | S1    | OAuth discovery documents for `/mcp` clients (three `GET`s), public by protocol                                                                                                                                                                                      |
+| `main.ts` `app.all("/mcp")`                     | S13   | The remote MCP endpoint: answers the CORS preflight before auth, then hands the request to the MCP adapter                                                                                                                                                           |
+| `main.ts` `app.get("/access-tokens")`           | S1    | Serves the SPA shell for the unlisted token panel with `no-cache`, registered ahead of the cache middleware and the global auth mount (the page itself signs in)                                                                                                     |
 
 ## Access control
 
@@ -410,8 +410,8 @@ LoggedInWrapper registers the browser transport (Clerk cookie, session refresh,
 reload on persistent 401) at module scope; the generated actions are identical
 wherever they run.
 
-**Transport registration doctrine** (PLAN_112 D4). The prohibition that matters
-stands verbatim: **no server code ever calls `setServerActionTransport`.** A
+**Transport registration doctrine**. The prohibition that matters stands
+verbatim: **no server code ever calls `setServerActionTransport`.** A
 process-global registration would make the app server issue authenticated calls
 under whichever identity was registered last, a confused-deputy shape with no
 per-request isolation. The sanctioned shape is the opposite: an **explicit
@@ -485,11 +485,11 @@ actor.
 `globalUser.approved` (else 403 "awaiting approval"); sets `c.var.globalUser`
 and `c.var.mainDb`. It guards the run-keyed figure-data reads, the authoring
 context, the ready-package list, the product email send, and the copilot proxy
-and its Files route on `/ai` (PLAN_PRODUCTS_RESTRUCTURE D2, D15). The instance
-collab socket (`routes/instance/collab.ts`) applies the same
-signed-in-and-approved test inline before the upgrade rather than through this
-middleware, because its denials must travel as a post-upgrade close. Unlike the
-zero-permission `requireGlobalPermission()`, it checks `approved`.
+and its Files route on `/ai`. The instance collab socket
+(`routes/instance/collab.ts`) applies the same signed-in-and-approved test
+inline before the upgrade rather than through this middleware, because its
+denials must travel as a post-upgrade close. Unlike the zero-permission
+`requireGlobalPermission()`, it checks `approved`.
 
 **`requireProductAccess(level)`**: the guard for every product and folder route,
 and the one guard a handler in `server/routes/products/` never names. Each entry

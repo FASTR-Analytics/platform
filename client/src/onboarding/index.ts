@@ -3,11 +3,10 @@ import {
   createTourManager,
   type SolidTourManagerController,
 } from "@njwse/roadtrip/solid";
-import { createEffect } from "solid-js";
-import type { SlideType } from "lib";
+import { createEffect, createSignal } from "solid-js";
+import type { CopilotViewId, SlideType } from "lib";
 import { clerkOnboardingStorage } from "./storage";
 import { reportTourEvent } from "./telemetry";
-import { type InstanceTab, isEditingView } from "./catalogue";
 import {
   buildDeckEditorHistoryTour,
   buildDeckEditorIntroTour,
@@ -50,20 +49,15 @@ import {
 //
 // Each page's tour auto-starts on the user's first visit; seen-flags live in
 // Clerk unsafeMetadata.onboarding (tour:<id>), so once per user across devices.
-// A `pages` predicate must be true only while that page is actually visible
-// (tab active AND permission granted): otherwise a tour could fire, find no
-// targets, and be marked seen invisibly. The editors keep the shell's tab on
-// "products", so the Products page predicate excludes the editing views; the
-// copilot's view controller, on which every editor sets its view, is what
-// tracks which editor is open.
-//
-// The manager is on ONE page at a time: the first predicate that holds, in the
-// order `pages` lists them. A tour whose page can never be the first to hold
-// never auto-starts, so two things that are on screen together share a page
-// and tell their tours apart with entry-level `when` gates (the deck's rail
-// and its open slide, below).
+// A `pages` predicate must be true only while that page is actually visible:
+// otherwise a tour could fire, find no targets, and be marked seen invisibly.
+// Every page keys on the copilot's view controller, on which every tab page,
+// full-page view and editor sets its view: a tab page's predicate is
+// false under the editor or the full-page view that covers it, since that
+// place has set its own view, and false before the page mounts.
 
 const currentView = () => copilotViewController.current();
+const onView = (id: CopilotViewId) => () => currentView().id === id;
 // The slide tours walk the slide toolbar, which renders only for a user who
 // can edit the deck.
 const editingSlideOfType = (type: SlideType) => {
@@ -74,46 +68,42 @@ const editingSlideOfType = (type: SlideType) => {
   );
 };
 
-// Called once from the instance shell, which passes its permission-normalized
-// tab accessor plus a visibility gate (approved) so a tour can never fire
-// behind the sign-in wall.
+// Called once from the instance shell, which passes a visibility gate
+// (approved) so a tour can never fire behind the sign-in wall.
 export function setupTours(opts: {
-  currentTab: () => InstanceTab;
   instanceVisible: () => boolean;
 }): SolidTourManagerController {
-  const onTab = (tab: InstanceTab) => () =>
-    opts.instanceVisible() && opts.currentTab() === tab;
+  const onPage = (id: CopilotViewId) => () =>
+    opts.instanceVisible() && onView(id)();
   const productRowOnScreen = () =>
     document.querySelector('[data-tour="products-item"]') !== null;
   const slideCardOnScreen = () =>
     document.querySelector('[data-tour="deck-slide-card"]') !== null;
 
   const pages: Record<string, () => boolean> = {
-    products: () => onTab("products")() && !isEditingView(),
-    explore: onTab("explore"),
-    "instance-data": onTab("data"),
-    "instance-results-packages": onTab("results_packages"),
-    "instance-assets": onTab("assets"),
-    "instance-users": onTab("users"),
+    products: onPage("products"),
+    explore: onPage("explore"),
+    "instance-data": onPage("data"),
+    "instance-results-packages": onPage("results_packages"),
+    "instance-assets": onPage("assets"),
+    "instance-users": onPage("users"),
     // Ahead of the product editors: the visualization editor opens over a
-    // slide or a report and leaves the copilot's view as it was.
-    "viz-editor": () => openVisualizationEditors() > 0,
-    // One page for the deck and its open slide: the rail is on screen in both
-    // views, and a slide is open beside it whenever the deck has one.
+    // slide or a report and leaves the copilot's view as it was, so its
+    // page reads the count the editor keeps while it is open for editing.
+    "viz-editor": () =>
+      opts.instanceVisible() && openVisualizationEditors() > 0,
+    // The deck's rail is on screen in both views (a slide is open beside it
+    // whenever the deck has one).
     "deck-editor": () =>
-      currentView().id === "editing_slide_deck" ||
-      currentView().id === "editing_slide",
-    "report-editor": () => currentView().id === "editing_report",
+      onView("editing_slide_deck")() || onView("editing_slide")(),
+    "report-editor": onView("editing_report"),
   };
 
-  // The slide tours are held back until the deck's own slide list has been
-  // toured, so a first visit is the deck's tour alone and the open slide's
-  // tour starts on a later slide. Late-bound: the gates below are read only
-  // after the manager exists.
-  let manager: SolidTourManagerController | undefined;
-  const seen = (tourId: string) => manager?.hasSeen(tourId) ?? false;
-  const slideTourDue = (type: SlideType) => () =>
-    editingSlideOfType(type) && seen("deck-editor-slides");
+  const slideTours = [
+    { type: "cover", tour: buildSlideCoverTour() },
+    { type: "section", tour: buildSlideSectionTour() },
+    { type: "content", tour: buildSlideContentTour() },
+  ] as const;
 
   const tours = [
     // Ordered before the products tours: on a brand-new user's first visit
@@ -162,7 +152,7 @@ export function setupTours(opts: {
     { page: "instance-assets", tour: buildInstanceAssetsTour() },
     { page: "instance-users", tour: buildInstanceUsersTour() },
     { page: "viz-editor", tour: buildVizEditorTour() },
-    // Inside a deck: toolbar, slides, present, history, then the Deck menu.
+    // Inside a deck: toolbar, slides, present, history, then open Settings.
     // Array order is merge order, so the two parts that end inside a
     // full-region overlay come last (history hands back via its back button,
     // and settings is the very end of the run).
@@ -172,29 +162,21 @@ export function setupTours(opts: {
       when: slideCardOnScreen,
       tour: buildDeckEditorSlidesTour(),
     },
-    // Inside a slide: one tour per slide type, each running the first time the
-    // user opens a slide of that type once the deck's slide list has been
-    // toured.
-    {
-      page: "deck-editor",
-      when: slideTourDue("cover"),
-      tour: buildSlideCoverTour(),
-    },
-    {
-      page: "deck-editor",
-      when: slideTourDue("section"),
-      tour: buildSlideSectionTour(),
-    },
-    {
-      page: "deck-editor",
-      when: slideTourDue("content"),
-      tour: buildSlideContentTour(),
-    },
     {
       page: "deck-editor",
       when: () => document.querySelector("#deck-present-button") !== null,
       tour: buildDeckEditorPresentTour(),
     },
+    // Inside a slide: one tour per slide type, each running the first time the
+    // user edits a slide of that type. They share the deck's page, gated on
+    // the open slide's type: the rail stays on screen beside an open slide and
+    // the manager keeps one page at a time, so a page of their own would
+    // never win.
+    ...slideTours.map(({ type, tour }) => ({
+      page: "deck-editor",
+      when: () => editingSlideOfType(type),
+      tour,
+    })),
     { page: "deck-editor", tour: buildDeckEditorHistoryTour() },
     // Deferred until the Deck menu is on screen: it renders only for a user
     // who can edit the deck.
@@ -214,14 +196,25 @@ export function setupTours(opts: {
     { page: "report-editor", tour: buildReportEditorHistoryTour() },
   ];
 
-  manager = createTourManager({
+  const [tourEnds, setTourEnds] = createSignal(0);
+  const manager = createTourManager({
     storage: clerkOnboardingStorage,
     labels: tourLabels(),
-    onEvent: reportTourEvent,
+    onEvent: (event) => {
+      reportTourEvent(event);
+      if (event.type === "finish" || event.type === "abort") {
+        setTourEnds((n) => n + 1);
+      }
+    },
     pages,
-    // Extra re-check triggers for the deferred parts, whose `when` gates read
-    // the DOM rather than reactive state.
+    // Extra re-check triggers: the deferred parts, whose `when` gates read the
+    // DOM or state the page predicates do not, and each tour's finish or
+    // abort, since a re-check made while a run is active starts nothing (the
+    // open slide's editor mounts after the deck's own run has launched). Only
+    // a tour that ran ends this way, so a run whose steps' `when` gates all
+    // fail cannot relaunch itself.
     watch: [
+      tourEnds,
       () => instanceState.products.length,
       () => instanceState.readyPackages.length,
       productsExpandedFolders,
@@ -229,6 +222,8 @@ export function setupTours(opts: {
         const view = currentView();
         return view.id === "editing_slide_deck"
           ? view.context.getSlideIds().length
+          : view.id === "editing_slide"
+          ? view.context.getTempSlide().type
           : view.id === "editing_report"
           ? Object.keys(view.context.getFigures()).length
           : 0;
@@ -236,40 +231,37 @@ export function setupTours(opts: {
     ],
     tours,
   });
-  const started = manager;
-
-  // A replay that needs more than its tour's page: the slide tours share the
-  // deck editor's page, and must wait for a slide of their own type to open.
-  const replayReady: Record<string, () => boolean> = {
-    "slide-cover-intro": () => editingSlideOfType("cover"),
-    "slide-section-intro": () => editingSlideOfType("section"),
-    "slide-content-intro": () => editingSlideOfType("content"),
-  };
 
   // Replay chain. The catalogue modal calls the entry's navigate(), which
   // switches tab and, for the editor tours, asks the Products page to open a
   // product, and arms `pendingTourReplay` once that has resolved. The editor
   // is not mounted yet at that point, so the start waits here until the
-  // tour's own page is active. This effect runs synchronously on every write
-  // it tracks, including the Products page clearing `pendingEditorOpen` just
-  // before it mounts the editor, so the drop rule reads nothing transient: a
-  // replay on a tab page is dropped if the page is not active (the switch was
-  // synchronous, so the tab is denied), and a replay on a product is dropped
-  // only once T1 is ready and no longer holds that product (a dead id, the
-  // Products page's own rule for the open request).
-  const pageForTour = new Map(tours.map((t) => [t.tour.id, t.page]));
+  // tour's own page is active, or for a slide tour until a slide of its type
+  // is open, which the deck editor does only after the deck has opened. This
+  // effect runs synchronously on every write it tracks, including the
+  // Products page clearing `pendingEditorOpen` just before it mounts the
+  // editor, so the drop rule reads nothing transient: a replay on a tab page
+  // is dropped if the page is not active (the switch was synchronous, so the
+  // tab is denied), and a replay on a product is dropped only once T1 is
+  // ready and no longer holds that product (a dead id, the Products page's
+  // own rule for the open request).
+  const replayReadyFor = new Map<string, () => boolean>([
+    ...tours.map((t) => [t.tour.id, pages[t.page]] as const),
+    ...slideTours.map(
+      ({ type, tour }) => [tour.id, () => editingSlideOfType(type)] as const,
+    ),
+  ]);
   createEffect(() => {
     const replay = pendingTourReplay();
     if (replay === null) return;
-    const page = pageForTour.get(replay.tourId);
-    if (page === undefined) {
+    const ready = replayReadyFor.get(replay.tourId);
+    if (ready === undefined) {
       setPendingTourReplay(null);
       return;
     }
-    const ready = replayReady[replay.tourId] ?? pages[page];
     if (ready()) {
       setPendingTourReplay(null);
-      void started.start(replay.tourId);
+      void manager.start(replay.tourId);
       return;
     }
     if (replay.productId === undefined) {
@@ -285,5 +277,5 @@ export function setupTours(opts: {
     }
   });
 
-  return started;
+  return manager;
 }

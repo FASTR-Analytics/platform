@@ -55,8 +55,8 @@ export type MetricGroup = {
 };
 
 export type MetricsByModule = {
-  // Read-plane module identity: a plain string from the package's manifest
-  // (PLAN_1a §0 clause 3).
+  // Read-plane module identity: a plain string from the package's manifest,
+  // since the module registry is generation-plane only.
   moduleId: string;
   moduleLabel: string;
   family: DatasetType;

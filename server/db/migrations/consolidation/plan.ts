@@ -1,5 +1,5 @@
 // =============================================================================
-// CONSOLIDATION PLANNER (PLAN_PRODUCTS_RESTRUCTURE D9, D10, D13, D14)
+// CONSOLIDATION PLANNER
 // =============================================================================
 //
 // Reads ONE legacy project database and returns the complete set of rows the
@@ -16,7 +16,7 @@
 // The slide layout walker and ProductType survive the restructure and are
 // imported.
 //
-// ID COLLISIONS (D9 item 6, D14): project DBs were created WITH TEMPLATE, so
+// ID COLLISIONS: project DBs were created WITH TEMPLATE, so
 // ids, uuids included, are byte-identical across projects copied from one
 // another. Every primary key is checked against `takenIds` (ids claimed by
 // main or by an earlier project in the same run) and re-minted on collision,
@@ -27,12 +27,12 @@
 // project. New product and slide ids are 4-char nanoids; new version ids are
 // uuids.
 //
-// FOLDERS (D10): one root folder per project, one child per legacy sub-folder
+// FOLDERS: one root folder per project, one child per legacy sub-folder
 // that receives a product; same-label deck and report sub-folders merge into
 // one child. Folders are emitted lazily, so a sub-folder with no product is
 // dropped (there is nothing to hold), as is a project with no products.
 //
-// FIGURE STAMPING (D4): every figure block that has a bundle, in the live
+// FIGURE STAMPING: every figure block that has a bundle, in the live
 // tables AND the version snapshots, gets `bundle.scope` and
 // `bundle.provenance.runId` from the owning project row. A block without a
 // bundle is an empty placeholder and is left alone. Stamping overwrites
@@ -47,7 +47,7 @@
 // re-seeded report starts with unknown authorship. Version snapshots keep
 // their own ledgers.
 //
-// NOT READ (D3): presentation_objects, visualization_folders, dashboards,
+// NOT READ: presentation_objects, visualization_folders, dashboards,
 // dashboard_items, dashboard_item_groups. Deleted with the project DBs; only
 // counted, so the loss is known before the deploy rather than after.
 //
@@ -141,7 +141,7 @@ type LegacyDeckVersionRow = {
 // ── Planned rows: one per main-DB table, columns 1:1 ─────────────────────────
 
 // createdBy and createdAt are typed `null`: the legacy tables carry no
-// provenance and D9 forbids inventing any.
+// provenance, and the consolidation invents none.
 export type PlannedFolder = {
   id: string;
   label: string;
@@ -308,7 +308,7 @@ function claimId(
   return replacement;
 }
 
-// ── Figure-block stamping (D4) ───────────────────────────────────────────────
+// ── Figure-block stamping ────────────────────────────────────────────────────
 
 function stampFigureBlock(
   block: FigureBlockMut,
@@ -489,7 +489,7 @@ export async function planConsolidation(args: {
   const deckFoldersById = new Map(deckFolderRows.map((f) => [f.id, f]));
   const reportFoldersById = new Map(reportFolderRows.map((f) => [f.id, f]));
 
-  // ── Folders (D10) ──────────────────────────────────────────────────────────
+  // ── Folders ────────────────────────────────────────────────────────────────
 
   const folders: PlannedFolder[] = [];
   const childrenByLabel = new Map<string, PlannedFolder>();

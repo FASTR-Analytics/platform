@@ -1,4 +1,4 @@
-// PLAN_A3 ruling 6: a DHIS2 data element may fill a base only when DHIS2's
+// A DHIS2 data element may fill a base only when DHIS2's
 // own metadata says it is an additive monthly count. Pure: the caller fetches
 // the element (with dataSetElements[dataSet[periodType]]) and asks here.
 

@@ -1,7 +1,6 @@
-// Regression pin for the provenance header (PLAN_MCP_CATALOG_CHANGE,
-// 2026-08-19; the scope and `runStructured` 2026-10-09): every package-bound
-// result names the package and scope it read on every execution path, the
-// header is read at call time, and failures pass through untouched.
+// Regression pin for the provenance header: every package-bound result names
+// the package and scope it read on every execution path, the header is read
+// at call time, and failures pass through untouched.
 //
 //   deno test -A --env-file server/tests/mcp_tools_source_header_test.ts
 

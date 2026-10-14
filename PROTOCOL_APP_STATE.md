@@ -105,7 +105,7 @@ derived lookups) from the one file.
 
 **Per-connection fields:** `currentUser*` are per-user, re-derived by finding
 the current user in the broadcast list on `users_updated`. `runsCatalog` is
-per-user by a signal-plus-own-fetch shape: run labels must not fan out (Q-B), so
+per-user by a signal-plus-own-fetch shape: run labels must not fan out, so
 `runs_catalog_updated` carries only a data-free NONCE (`crypto.randomUUID()`,
 not a timestamp: two same-millisecond mutations minted identical ISO strings and
 the store's equality guard silently dropped the second refetch; a nonce cannot

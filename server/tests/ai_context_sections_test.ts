@@ -1,6 +1,6 @@
-// Regression pin for the AI-context section both surfaces share
-// (PLAN_COPILOT02_FIXES step 8, D31): the SPA prompt and /mcp get_overview add
-// the instance ai_context through one function, so neither can omit it.
+// Regression pin for the AI-context section both surfaces share: the SPA
+// prompt and /mcp get_overview add the instance ai_context through one
+// function, so neither can omit it.
 //
 //   deno test -A --no-check server/tests/ai_context_sections_test.ts
 

@@ -464,8 +464,8 @@ export function readyMetric(
   return metric?.status === "ready" ? metric : undefined;
 }
 
-// R7: a view is offered only for metrics the package carries: `{ id }`
-// ready; `byLevel` and `switch` with at least one ready option.
+// A view is offered only for metrics the package carries: `{ id }` ready;
+// `byLevel` and `switch` with at least one ready option.
 export function viewsForModule(
   module: InstalledModuleSummary,
   ctx: RunAuthoringContext,

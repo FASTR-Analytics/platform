@@ -26,8 +26,8 @@ import type {
 import { route } from "../route-utils.ts";
 
 // A window selects indicators; the server expands them to the data ids it
-// fetches at launch (PLAN_A4 ruling 5). A pairs selection names the
-// (data id, month) pairs the ledger recorded: retries and re-imports.
+// fetches at launch. A pairs selection names the (data id, month) pairs the
+// ledger recorded: retries and re-imports.
 const dhis2RunSelectionSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("window"),
@@ -112,9 +112,8 @@ const hmisCsvColumnsSchema = z.object({
 
 // The file is an instance asset named by fileName. `pin` is the pin the
 // scan returned: the launch refuses a file whose bytes no longer match it,
-// so the mapping always describes the file that is staged (PLAN_A6 ruling
-// 4). `mapping` is every distinct value the scan found, to a data id or to
-// null for skipped (ruling 3).
+// so the mapping always describes the file that is staged. `mapping` is
+// every distinct value the scan found, to a data id or to null for skipped.
 const hmisCsvRunConfigSchema = z.object({
   fileName: z.string(),
   pin: z.object({ size: z.number(), mtimeMs: z.number() }),
@@ -182,7 +181,7 @@ export const datasetRouteRegistry = {
     body: z.object({ windowing: datasetHmisWindowingSchema }),
   }),
 
-  // DHIS2 import runs (per-pair fetch+integrate; PLAN_DHIS2_IMPORTER Phase 3)
+  // DHIS2 import runs (per-pair fetch+integrate)
   launchDatasetHmisDhis2Run: route({
     path: "/datasets/hmis/dhis2-runs",
     method: "POST",
@@ -217,7 +216,7 @@ export const datasetRouteRegistry = {
     response: {} as Dhis2SelectionClassification,
   }),
 
-  // DHIS2 queue + scheduling (PLAN_DHIS2_IMPORTER Phase 4: C3/C4/C6)
+  // DHIS2 queue + scheduling
   enqueueDatasetHmisDhis2Run: route({
     path: "/datasets/hmis/dhis2-runs/enqueue",
     method: "POST",
@@ -249,10 +248,9 @@ export const datasetRouteRegistry = {
     body: z.object({ id: z.number().int() }),
   }),
 
-  // CSV import runs (config-on-client, run-on-server:
-  // PLAN_DHIS2_IMPORTER_CONSOLIDATION Phase A). The wizard is client-local;
-  // its file input is an ordinary instance asset (uploaded or picked), so
-  // nothing persists server-side before launch.
+  // CSV import runs (config-on-client, run-on-server). The wizard is
+  // client-local; its file input is an ordinary instance asset (uploaded or
+  // picked), so nothing persists server-side before launch.
   parseDatasetHmisCsvHeaders: route({
     path: "/datasets/hmis/csv-runs/parse-headers",
     method: "POST",
@@ -282,8 +280,8 @@ export const datasetRouteRegistry = {
     body: z.object({ config: hmisCsvRunConfigSchema }),
     response: {} as { runId: number },
   }),
-  // A needs_review hold offers two actions (PLAN_A6 ruling 6): integrate
-  // the surviving staged rows anyway, or discard the run.
+  // A needs_review hold offers two actions: integrate the surviving staged
+  // rows anyway, or discard the run.
   resolveDatasetHmisCsvReview: route({
     path: "/datasets/hmis/csv-runs/resolve-review",
     method: "POST",
@@ -310,10 +308,10 @@ export const datasetRouteRegistry = {
     body: z.object({ timePoint: z.string().optional() }),
   }),
 
-  // HFA import runs (config-on-client, run-on-server:
-  // PLAN_DHIS2_IMPORTER_CONSOLIDATION Phase B). The wizard is client-local;
-  // its file inputs are ordinary instance assets (uploaded or picked).
-  // No queue and no scheduler: a second launch while one runs is refused.
+  // HFA import runs (config-on-client, run-on-server). The wizard is
+  // client-local; its file inputs are ordinary instance assets (uploaded or
+  // picked). No queue and no scheduler: a second launch while one runs is
+  // refused.
   parseDatasetHfaCsvHeaders: route({
     path: "/datasets/hfa/runs/parse-headers",
     method: "POST",

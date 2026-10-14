@@ -184,7 +184,7 @@ export async function buildRunPackageIntoTmp(
   // recorded first; captured assets follow.
   const inputFiles: string[] = [...opts.extraInputFiles];
 
-  // Pinned assets (§6.2): every asset the installed modules declare, copied
+  // Pinned assets: every asset the installed modules declare, copied
   // into inputs/assets/ and hashed into the manifest. Instance-uploaded
   // assets come from the Assets dir; pinned repo assets come from the
   // content-addressed cache, which is exact. A missing asset degrades loudly

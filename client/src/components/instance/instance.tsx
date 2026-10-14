@@ -82,7 +82,7 @@ function canConfigureData(): boolean {
 // same gates.
 function navItems(): ListItem<InstanceTab>[] {
   const items: ListItem<InstanceTab>[] = [
-    // First and default (PLAN_PRODUCTS_RESTRUCTURE D17).
+    // First and default.
     {
       id: "products",
       label: t3({ en: "Products", fr: "Produits", pt: "Produtos" }),
@@ -90,9 +90,8 @@ function navItems(): ListItem<InstanceTab>[] {
     },
   ];
   // Approved users only, like every tab: the whole nav sits behind
-  // currentUserApproved (PLAN_PRODUCTS_RESTRUCTURE D6). A restricted user has
-  // no Explore (PLAN_SCOPES R13); Results and Data hide for them because their
-  // data bits read as false (R26).
+  // currentUserApproved. A restricted user has no Explore; Results and Data
+  // hide for them because their data bits read as false.
   if (instanceState.currentUserScopeAccess.all) {
     items.push({
       id: "explore",
@@ -167,7 +166,6 @@ export default function Instance(p: Props) {
 
   // First-visit tours for every page and editor: one manager, this shell.
   const tourManager = setupTours({
-    currentTab: tab,
     instanceVisible: () => instanceState.currentUserApproved,
   });
 
@@ -453,9 +451,7 @@ export default function Instance(p: Props) {
               a Show passed as a prop is a truthy accessor even when it
               renders nothing, so FrameLeft would draw an empty rail. */
               }
-              <FrameLeft
-                panelChildren={rail}
-              >
+              <FrameLeft panelChildren={rail}>
                 <Switch>
                   <Match when={tab() === "products"}>
                     <Products />
@@ -498,18 +494,21 @@ export default function Instance(p: Props) {
         </ShellEditorWrapper>
       </FrameRightResizable>
       <Show when={instanceState.currentUserApproved && !showAi()}>
-        <div class="fixed top-1/2 right-0 z-20 -translate-y-1/2">
+        <div class="fixed right-0 bottom-20 z-20">
           <Button
             id="copilot-opener"
             onClick={() => setShowAi(true)}
             intent="primary"
-            iconName="chevronLeft"
+            flushEdge="right"
+            // iconName="chevronLeft"
             ariaLabel={t3({
               en: "Open AI panel",
               fr: "Ouvrir le panneau IA",
               pt: "Abrir o painel de IA",
             })}
-          />
+          >
+            {t3({ en: "AI", fr: "IA", pt: "IA" })}
+          </Button>
         </div>
       </Show>
       <AlertProvider />

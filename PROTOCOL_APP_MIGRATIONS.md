@@ -415,10 +415,11 @@ read outside the package.** An input block is a pure function of the package's
 files and the app's code. It may rename a value or a key, or recompute a field
 from files already in the package. It may not add a fact those files do not
 hold, fill a null, drop a row, or read the database or live instance state. The
-boundary case is `base`: a v2 mirror written before PLAN_A5 stamps `base` on
-every count, and the count's real type (`uploaded`, `dhis2_element`, `sum`)
-lives only in the live dictionary, so no input block may resolve it.
-`PACKAGE_INDICATOR_TYPES` keeps `base` and the display projection strips it.
+boundary case is `base`: a v2 mirror written before the count types existed
+stamps `base` on every count, and the count's real type (`uploaded`,
+`dhis2_element`, `sum`) lives only in the live dictionary, so no input block may
+resolve it. `PACKAGE_INDICATOR_TYPES` keeps `base` and the display projection
+strips it.
 
 **Versioning.** There is no second version integer. An input block names the
 manifest version that first carries it; that version's manifest block is the

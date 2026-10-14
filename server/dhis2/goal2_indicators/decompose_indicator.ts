@@ -1,10 +1,10 @@
-// PLAN_A3 ruling 8: a DHIS2 indicator is decomposed into operands and an
+// A DHIS2 indicator is decomposed into operands and an
 // expression, never imported as values. The formula is accepted by WHITELIST:
 // `#{uid}` and `#{uid.coc}` terms, plain numeric literals, `+ - * /` and
 // parentheses, any whitespace between tokens. Everything else is refused with
 // the offending term, because a blacklist would miss the next form DHIS2 adds.
 // Pure over the four indicator fields; the caller checks each operand's
-// element (ruling 6) and creates nothing here.
+// element for eligibility and creates nothing here.
 
 import {
   type Dhis2IndicatorParse,

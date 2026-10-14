@@ -7,11 +7,11 @@ import { computeModuleInputKey, sha256HexOfFile } from "./input_key.ts";
 import { POPULATION_FILE_NAME, type RunInputHashes } from "./prepare_inputs.ts";
 import type { ResolvedRunModule } from "./resolve_modules.ts";
 
-// §3.7 memoized generation (PLAN_RESULTS_RUNS item 3, re-cut by Q-C). A
-// module reuses another run's outputs iff its inputKey, computed from the
-// actual inputs of THIS generation, equals that run's recorded key for the
-// same module. There is no "base run": generation is instance-level, so the
-// search is catalog-wide over every readable ready run, newest first.
+// Memoized generation: a module reuses another run's outputs iff its inputKey,
+// computed from the actual inputs of THIS generation, equals that run's
+// recorded key for the same module. There is no "base run": generation is
+// instance-level, so the search is catalog-wide over every readable ready run,
+// newest first.
 // Synthetic-backfill runs carry null keys and are never reuse sources.
 // Everything here fails closed: an unreadable manifest, a missing hash, a
 // since-deleted source, or a key mismatch only ever costs a re-run, never
@@ -137,7 +137,7 @@ function matchedOutputHashes(
 }
 
 // The module's declared inputs as {name, sha256} pairs: the inputKey
-// ingredients (§2.2). Assets are hashed at their SOURCE (pinned repo assets
+// ingredients. Assets are hashed at their SOURCE (pinned repo assets
 // carry their sha256; instance assets are hashed in the Assets dir), so the
 // key can be computed before anything is copied into the workspace. Every
 // upstream the module can read from contributes ALL its output hashes,
@@ -183,7 +183,7 @@ export async function computeModuleInputs(
       inputs.push({ name: `datasets/${source.datasetType}.csv`, sha256 });
     } else if (source.sourceType === "population") {
       // The person-years file is a real input: a population edit must re-run
-      // the module, and an unchanged store must not (PLAN_1b).
+      // the module, and an unchanged store must not.
       if (inputHashes.population === null) {
         throw new Error(
           `No population file in this run for module ${moduleId} (it needs the hmis dataset)`,
@@ -222,7 +222,7 @@ export function computeModuleKey(
 
 // The base-run entry this module may copy outputs from: same non-null
 // inputKey and a recorded hash for every declared results object (a
-// The reuse PLAN: the §3.7 UX first stage, shown as per-module reused /
+// The reuse PLAN: the first execution stage, shown as per-module reused /
 // will-run before execution starts. Pessimistic walk in dependency order: a
 // module is planned-reused only when every upstream is planned-reused (its
 // actual upstream bytes are then the matched run's bytes by construction)

@@ -126,7 +126,7 @@ function PackageBody(p: {
 }) {
   const progress = () => p.liveProgress() ?? p.run.progress;
 
-  // Guarded hard delete (fork ruling 3): ONE act (catalog row, files and
+  // Guarded hard delete: ONE act (catalog row, files and
   // cached results) with no archived state and no automatic GC. The server
   // refuses while a product points at the package or it is still generating;
   // the page states the reason rather than hiding the button, so an

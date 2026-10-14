@@ -21,7 +21,8 @@ export function ViewFiles(
   p: EditorComponentProps<
     {
       runId: string;
-      // Read plane: a manifest module id, as text (PLAN_1a §0 clause 3).
+      // Read plane: a manifest module id, as text; `ModuleId` is a
+      // generation-plane type.
       moduleId: string;
       moduleLabel: string;
     },

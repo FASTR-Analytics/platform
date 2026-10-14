@@ -9,6 +9,7 @@ import {
   MODULE_FAMILY_ORDER,
   type ModuleTier,
   type PackageScope,
+  type ResolvedView,
   type RunAuthoringContext,
   type ScopeId,
   t3,
@@ -46,7 +47,6 @@ import {
   explorePackageId,
   exploreQueries,
   exploreScopeId,
-  exploreViewChoices,
   setExploreFamily,
   setExploreModule,
   setExplorePackageId,
@@ -87,7 +87,8 @@ function modulesInFamily(
 // The stored choices resolved against the package: a choice the package
 // cannot answer falls back to the first offered without being overwritten.
 // The panes resolve through these, and so does the chat view's state, so the
-// model is told what is on screen.
+// model is told what is on screen; the view's settings come from the view
+// frame, which resolves them against the metric's possible values too.
 function resolveFamily(ctx: RunAuthoringContext): DatasetType | undefined {
   const families = familiesInPackage(ctx);
   return families.includes(exploreFamily()) ? exploreFamily() : families[0];
@@ -101,24 +102,23 @@ function resolveModule(
   return modules.find((m) => m.id === exploreModules()[family]) ?? modules[0];
 }
 
-function resolveSelection(ctx: RunAuthoringContext): ExploreSelection {
+function resolveSelection(
+  ctx: RunAuthoringContext,
+  resolved: ResolvedView | undefined,
+): ExploreSelection {
   const family = resolveFamily(ctx);
   const module = family === undefined ? undefined : resolveModule(ctx, family);
   const view = module === undefined || !moduleHasReadyMetric(module, ctx)
     ? undefined
     : pickModuleView(module.id, viewsForModule(module, ctx));
-  const key = module === undefined || view === undefined
-    ? undefined
-    : exploreViewKey(module.id, view.id);
   return {
     family,
     module,
     view,
-    type: view === undefined || key === undefined
+    type: module === undefined || view === undefined
       ? undefined
-      : pickViewType(view, key).type,
-    query: family === undefined ? undefined : exploreQueries()[family],
-    choices: key === undefined ? undefined : exploreViewChoices()[key],
+      : pickViewType(view, exploreViewKey(module.id, view.id)).type,
+    resolved,
   };
 }
 
@@ -157,9 +157,10 @@ function moduleEntries(modules: InstalledModuleSummary[]): ListEntry<string>[] {
 // Nothing here is written anywhere.
 //
 // The page sets the chat's `explore` view (S13): its pair is the resolved
-// package at the resolved scope, or ruling 7's reason while none is ready,
-// and its state is what the panes resolve on that pair, read live once the
-// package's authoring context is in.
+// package at the resolved scope, or an AIToolFailure naming why while none is
+// ready, and its state is what the panes resolve on that pair, read live once
+// the package's authoring context is in: the family, module, view and type
+// from the stored choices, and the settings from the view the frame resolved.
 export function Explore() {
   holdCopilotView();
   const packageId = createMemo((): string | undefined => {
@@ -183,6 +184,7 @@ export function Explore() {
   });
 
   const [ctx, setCtx] = createSignal<RunAuthoringContext>();
+  const [resolvedView, setResolvedView] = createSignal<ResolvedView>();
   const requireScope = () => {
     const runId = packageId();
     if (runId === undefined) {
@@ -197,7 +199,9 @@ export function Explore() {
     getRunId: () => requireScope().runId,
     getSelection: () => {
       const loaded = ctx();
-      return loaded === undefined ? undefined : resolveSelection(loaded);
+      return loaded === undefined
+        ? undefined
+        : resolveSelection(loaded, resolvedView());
     },
   };
   copilotViewController.setView("explore", undefined, context);
@@ -223,6 +227,7 @@ export function Explore() {
         <PackageExplorer
           scope={{ runId, scopeId: scopeId() }}
           onContext={setCtx}
+          onView={setResolvedView}
           controls={
             <div
               class="ui-gap-sm flex items-center"
@@ -255,9 +260,11 @@ export function Explore() {
 function PackageExplorer(p: {
   scope: PackageScope;
   controls: JSX.Element;
-  // The loaded authoring context, for the page's chat view state; undefined
-  // while it loads and once this explorer unmounts.
+  // The loaded authoring context and the view the frame resolved, for the
+  // page's chat view state; each undefined while it is not there and once
+  // its owner unmounts.
   onContext: (ctx: RunAuthoringContext | undefined) => void;
+  onView: (view: ResolvedView | undefined) => void;
 }) {
   // createQuery reads once, so the scope and its definition re-read it here:
   // the family tabs and the module select follow the scope's module list.
@@ -316,6 +323,7 @@ function PackageExplorer(p: {
                 family={f}
                 query={exploreQueries()[f]}
                 setQuery={(q) => setExploreQuery(f, q)}
+                onView={p.onView}
               />
             )}
           </Show>
@@ -335,6 +343,7 @@ function FamilyExplorer(p: {
   family: DatasetType;
   query: FamilyQuery | undefined;
   setQuery: (query: FamilyQuery) => void;
+  onView: (view: ResolvedView | undefined) => void;
 }) {
   const modules = createMemo(() => modulesInFamily(p.family, p.ctx));
   const module = createMemo(() => resolveModule(p.ctx, p.family));
@@ -359,6 +368,7 @@ function FamilyExplorer(p: {
           }
           query={p.query}
           setQuery={p.setQuery}
+          onView={p.onView}
         />
       )}
     </Show>

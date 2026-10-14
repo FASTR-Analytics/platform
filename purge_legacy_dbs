@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# FINAL, IRREVERSIBLE CLEANUP after the products restructure has settled
-# (PLAN_PRODUCTS_RESTRUCTURE step 14). Per instance it removes the two things
-# migration 201 deliberately left on disk:
+# FINAL, IRREVERSIBLE CLEANUP after the products restructure has settled.
+# Per instance it removes the two things migration 201 deliberately left on
+# disk:
 #
 #   1. every UUID-named Postgres database (the legacy project databases; also
 #      the long-standing orphaned UUID databases of abandoned projects),

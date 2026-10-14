@@ -4,8 +4,7 @@ import { _ASSETS_DIR_PATH, _MODULES_LOCAL_DIR } from "../exposed_env_vars.ts";
 import { githubFetch } from "../github/fetch_module.ts";
 import { MODULE_SOURCE } from "./module_source.ts";
 
-// Content-addressed cache of pinned modules-repo assets (PLAN_RESULTS_RUNS
-// item 2 ruling, 2026-07-13; re-cut 2026-08-03): a definition's
+// Content-addressed cache of pinned modules-repo assets: a definition's
 // {name, repoPath, sha256} entry is fetched from the modules repo at the SAME
 // gitRef the definition was resolved at: definition and data are read from
 // one commit and can never disagree, verified against sha256, and stored at

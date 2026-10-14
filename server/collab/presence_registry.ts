@@ -17,12 +17,11 @@ import {
 // scaling across instances is a later milestone (Valkey pub/sub).
 //
 // Presence is scoped to the PRODUCT a peer has open, the deck (`deckId`) or
-// report (`reportId`) it is editing, not to the connection at large
-// (PLAN_PRODUCTS_RESTRUCTURE D8: there is no instance-wide page-awareness
-// relay, no list-page cursors and no card presence avatars). A connection
-// that is not inside a product belongs to no presence group and neither sends
-// nor receives peer lists; opening one moves it, which broadcasts both the
-// group it left and the group it joined.
+// report (`reportId`) it is editing, not to the connection at large (there is
+// no instance-wide page-awareness relay, no list-page cursors and no card
+// presence avatars). A connection that is not inside a product belongs to no
+// presence group and neither sends nor receives peer lists; opening one moves
+// it, which broadcasts both the group it left and the group it joined.
 
 type Sender = {
   send: (data: string) => void;
@@ -286,7 +285,7 @@ function socketStanding(level: ProductLevel): "refused" | "viewer" | "editor" {
   return productLevelAtLeast(level, "view") ? "viewer" : "refused";
 }
 
-/** A product's access changed (PLAN_PRODUCT_OWNERSHIP §2.8): every
+/** A product's access changed: every
  *  connection that opened it and whose standing under `access` differs from
  *  the one it opened at is closed, so its reconnect opens it at the new
  *  level. A move between edit and own changes nothing the socket enforces. */

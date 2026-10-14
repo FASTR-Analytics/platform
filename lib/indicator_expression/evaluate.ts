@@ -3,10 +3,9 @@
 // =============================================================================
 //
 // The read path aggregates a calculated indicator's additive ingredients with
-// SUM and then applies its expression to the SUMS (PLAN_1a §0:
-// expression-over-sums, never sum-of-expressions). This is that application:
-// a slot record in, one number or null out. No SQL, no I/O, no catalog
-// lookups.
+// SUM and then applies its expression to the SUMS (expression-over-sums,
+// never sum-of-expressions). This is that application: a slot record in, one
+// number or null out. No SQL, no I/O, no catalog lookups.
 //
 // Semantics:
 //   - NULL propagates through every operator and through abs().

@@ -10,10 +10,9 @@ import {
 import { evictRunFromManifestCache } from "./manifest_cache.ts";
 import { runDirPath } from "./run_paths.ts";
 
-// Guarded hard delete of a results package (PLAN_RESULTS_RUNS Phase 3 fork
-// ruling 3): ONE act: catalog row, run directory, cached payloads. There is
-// no archived state and no automatic GC, so this is the only thing that ever
-// reclaims a run's disk.
+// Guarded hard delete of a results package: ONE act: catalog row, run
+// directory, cached payloads. There is no archived state and no automatic GC,
+// so this is the only thing that ever reclaims a run's disk.
 //
 // Order matters: the catalog row goes FIRST, inside its own guard (refused
 // while any product points at the run, while it is pinned, or while it is
@@ -51,7 +50,7 @@ export async function deleteRun(
   return { success: true };
 }
 
-// Disk reclamation, not correctness (Q-D ruling): TimCacheC entries carry a
+// Disk reclamation, not correctness: TimCacheC entries carry a
 // 15–30 day TTL and `get` compares version hashes, so a dead run's entries
 // are never served either way. The four caches below fold runId into their
 // UNIQUENESS hash, so they can be scanned by prefix.

@@ -40,7 +40,7 @@
 // 26. Fill missing timeseriesGrouping for timeseries configs from the
 //     bounded periodFilter's periodOption (hint-only; see block comment)
 // 27. specialScorecardTable → cfMode "indicator" (delete the flag); the
-//     scorecard table mode became the `indicator` CF source (PLAN_1d)
+//     scorecard table mode became the `indicator` CF source
 //
 // =============================================================================
 
@@ -202,8 +202,8 @@ export function transformConfigD(d: Record<string, unknown>): void {
   }
 
   // Block 23: Convert quarter_id bounds YYYY0Q (6-digit) → YYYYQ (5-digit).
-  // Targets bounded filters still tagged periodOption "quarter_id" (the tag exists
-  // in Phase 1, so this is unambiguous: relative filters had it stripped in
+  // Targets bounded filters still tagged periodOption "quarter_id" (only they
+  // carry the tag, so this is unambiguous: relative filters had it stripped in
   // Block 4). Idempotent: the >= 100000 guard skips already-5-digit values.
   if (pf?.periodOption === "quarter_id") {
     const toFiveDigitQuarter = (v: unknown): unknown =>
@@ -401,7 +401,7 @@ export function transformConfigS(
   // Block 17: Rename content "areas" → "lines-area"
   if (s.content === "areas") s.content = "lines-area";
 
-  // Block 27: the scorecard table mode → the `indicator` CF source (PLAN_1d).
+  // Block 27: the scorecard table mode → the `indicator` CF source.
   // A former scorecard ALWAYS gets the explicit source, whether or not any
   // displayed indicator carries a rule: it is what the figure meant, and a
   // cell whose indicator has no rule renders uncoloured, which is what the

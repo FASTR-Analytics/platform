@@ -16,10 +16,16 @@ import {
 import { createSignal, For, Show } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
 import { instanceState } from "~/state/instance/t1_store";
+import {
+  copilotViewController,
+  holdCopilotView,
+  productViewContext,
+} from "~/components/instance/copilot/mod.ts";
 import { LogoSectionEditor } from "./logo_section_editor";
 import { StylePreview, ThemePicker } from "./style_editor/mod.ts";
 
 export type SlideDeckSettingsProps = {
+  deckId: string;
   config: SlideDeckConfig;
   heading: string;
   nameLabel: string;
@@ -38,7 +44,15 @@ export type SlideDeckSettingsProps = {
 
 type Props = EditorComponentProps<SlideDeckSettingsProps, "AFTER_DELETE">;
 
+// The settings screen sets the chat's `deck_settings` view (S13) over the
+// deck's, so the deck tools refuse while the user is here.
 export function SlideDeckSettings(p: Props) {
+  holdCopilotView();
+  copilotViewController.setView(
+    "deck_settings",
+    { deckId: p.deckId },
+    productViewContext(p.deckId),
+  );
   const [tempConfig, setTempConfig] = createStore<SlideDeckConfig>(
     structuredClone(p.config),
   );

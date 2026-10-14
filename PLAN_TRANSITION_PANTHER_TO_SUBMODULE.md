@@ -1,5 +1,13 @@
 # PLAN: Transition panther from synced copies to a private submodule
 
+> **Phases 2 and 3 NEED REWRITING before they run.** Phase 3's app list no
+> longer matches panther's `sync-configs.json`. That file now also syncs
+> panterra, panquery, panviz, pansim, pan, wb-fastr-v2 and pubh5752, no longer
+> syncs summariser, who-climate-change or ai-server, and locks only wb-fastr and
+> who-abortion. Phase 2 assumes one wb-fastr checkout, but `wb-fastr` (locked)
+> and `wb-fastr-v2` are two worktrees of the same repo, each with its own sync
+> target, until the version 2 fleet deploy.
+
 ## Status
 
 - 2026-07-13: Concept proven end-to-end on panther-test (Phase 0 complete).

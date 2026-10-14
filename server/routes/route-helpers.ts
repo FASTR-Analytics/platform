@@ -49,8 +49,7 @@ export function defineRoute<K extends keyof typeof routeRegistry>(
   const route = routeRegistry[routeName];
   const handler = args[args.length - 1] as RouteHandler<K>;
   // A product or folder entry declares `access`, and that declaration IS its
-  // guard: the middleware is installed here so no handler checks access itself
-  // (PLAN_PRODUCTS_RESTRUCTURE §3.2).
+  // guard: the middleware is installed here so no handler checks access itself.
   const access = (route as { access?: ProductAccessLevel }).access;
   const middlewares = access === undefined
     ? args.slice(0, -1)

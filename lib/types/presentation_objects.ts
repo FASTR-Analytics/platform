@@ -70,7 +70,7 @@ export type ResultsValueInfoForPresentationObject = {
   // The metric's dataset family: selects which family's structure schema
   // labels its facility columns. Absent for iceh/unknown-family metrics.
   datasetFamily?: DatasetType;
-  // See ItemsHolderPresentationObject.runId (PLAN_RESULTS_RUNS §2.5).
+  // See ItemsHolderPresentationObject.runId.
   runId: string;
   // See ItemsHolderPresentationObject.scopeToken.
   scopeToken: string;
@@ -100,7 +100,7 @@ export type RunReplicantOptions =
     resultsObjectId: string;
     replicateBy: DisaggregationOption;
     fetchConfig: GenericLongFormFetchConfig;
-    // See ItemsHolderPresentationObject.runId (PLAN_RESULTS_RUNS §2.5).
+    // See ItemsHolderPresentationObject.runId.
     runId: string;
     // See ItemsHolderPresentationObject.scopeToken.
     scopeToken: string;

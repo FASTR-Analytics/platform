@@ -26,8 +26,7 @@ type Props = EditorComponentProps<{}, undefined>;
 // The ICEH imports surface: a Current card (running progress / needs_review
 // hold) plus a History table: ICEH's first-ever durable import history.
 // Deliberately smaller than the HMIS machine: no queue, no schedules, so no
-// tabs and no Future (PLAN_DHIS2_IMPORTER_CONSOLIDATION §2, "asymmetry by
-// design").
+// tabs and no Future.
 export function DatasetIcehImports(p: Props) {
   const { openEditor, EditorWrapper } = getEditorWrapper();
 

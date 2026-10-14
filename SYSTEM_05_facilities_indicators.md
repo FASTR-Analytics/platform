@@ -262,48 +262,48 @@ Three identity-space patterns. HFA and ICEH ids are immutable after create
 renamable through `updateIndicator` (below) and through the editor's id input on
 an existing indicator. Label edits are always safe everywhere.
 
-**HMIS** (PLAN_A5 §2, PLAN_A6 §2): the data rows of `dataset_hmis` are facts
-keyed by `data_id`, and the dictionary, `indicators` (`indicator_common_id`), is
-a layer of names and types over them. Nothing in the dictionary moves a data
-row. Four types, stored in `definition_type` under these code names: `uploaded`
-(an additive monthly series filled by file; its rows carry its `data_id`, an
-opaque key generated when the indicator is created, `u_` plus a UUID
-(`generateDataKey`, `lib/indicator_id.ts`), never typed, never shown and never
-matched against a file value: the CSV wizard maps each value the file's
-indicator column says onto an indicator and staging writes the rows under that
-indicator's key, S6), `dhis2_element` (a series the DHIS2 import fetches;
-`data_id` is the data element UID or `UID.COC` operand, DHIS2-shaped by CHECK;
-`dhis2_label` is what DHIS2 calls the element or operand, the route's own
-reading of live metadata when the picker creates the indicator
-(`dhis2ElementName`, one rule for the picker's rows and the stored label), never
-posted by a client and never edited: `updateIndicator` keeps it while the
-indicator stays a DHIS2 element under the same data id and clears it otherwise;
-NULL on every other type by CHECK (`indicators_dhis2_label_check`), on an
-element created by typing a UID, and on the four instances that ran 086 before
-the column existed; the display label is `indicator_common_label` throughout),
-`sum` (its members in `indicator_sum_members`, summed from the rows under their
-data ids at extract into one facility × month series that m001 and m002 adjust
-like any count; no sum inside a sum), and `calculated` (`expression`, a formula
-over indicators of any type and population terms, evaluated by m012 after
-adjustment and aggregation). The four words are the code names' labels
-(`indicatorTypeWord`); on screen a DHIS2 element's data id is its "DHIS2 id"
-(`dhis2IdLabel`), an Uploaded indicator's key is never shown (PLAN_A6 ruling 1:
-the HMIS Data page's Ledger table, its detail header, the manager's Defined-by
-column and the DHIS2 wizard's picker show the DHIS2 id for an element and
-nothing for an Uploaded indicator), and "data id" appears only in server error
-strings, which the client renders verbatim. Two generated columns nothing may
-write hold the two facts read off the type: `has_rows` (Uploaded or DHIS2
-element) and `is_count` (those plus Sum), the same predicates as lib's `hasRows`
-and `isCount`. `data_id` is `UNIQUE` (`indicators_data_id_key`) and required on
-every Uploaded and DHIS2 element row (`indicators_fields_check`); the junction's
-member FK reaches `(indicator_common_id, has_rows)`, so a sum can name only an
-indicator with rows and retyping a member out of those is refused while a sum
-names it; the member FK is NO ACTION, checked per row at the end of the
-statement, so `deleteIndicators` removes the sums' junction rows before the
-indicators. The indicator id is renamable and the junction follows it
-(`ON UPDATE CASCADE`); the data id is fixed once rows exist under it
-(`dataset_hmis_data_id_fkey`, `RESTRICT DEFERRABLE`, no update action; the
-ledger's `dataset_hmis_import_ledger_data_id_fkey` cascades). Every row has
+**HMIS**: the data rows of `dataset_hmis` are facts keyed by `data_id`, and the
+dictionary, `indicators` (`indicator_common_id`), is a layer of names and types
+over them. Nothing in the dictionary moves a data row. Four types, stored in
+`definition_type` under these code names: `uploaded` (an additive monthly series
+filled by file; its rows carry its `data_id`, an opaque key generated when the
+indicator is created, `u_` plus a UUID (`generateDataKey`,
+`lib/indicator_id.ts`), never typed, never shown and never matched against a
+file value: the CSV wizard maps each value the file's indicator column says onto
+an indicator and staging writes the rows under that indicator's key, S6),
+`dhis2_element` (a series the DHIS2 import fetches; `data_id` is the data
+element UID or `UID.COC` operand, DHIS2-shaped by CHECK; `dhis2_label` is what
+DHIS2 calls the element or operand, the route's own reading of live metadata
+when the picker creates the indicator (`dhis2ElementName`, one rule for the
+picker's rows and the stored label), never posted by a client and never edited:
+`updateIndicator` keeps it while the indicator stays a DHIS2 element under the
+same data id and clears it otherwise; NULL on every other type by CHECK
+(`indicators_dhis2_label_check`), on an element created by typing a UID, and on
+the four instances that ran 086 before the column existed; the display label is
+`indicator_common_label` throughout), `sum` (its members in
+`indicator_sum_members`, summed from the rows under their data ids at extract
+into one facility × month series that m001 and m002 adjust like any count; no
+sum inside a sum), and `calculated` (`expression`, a formula over indicators of
+any type and population terms, evaluated by m012 after adjustment and
+aggregation). The four words are the code names' labels (`indicatorTypeWord`);
+on screen a DHIS2 element's data id is its "DHIS2 id" (`dhis2IdLabel`), an
+Uploaded indicator's key is never shown (the HMIS Data page's Ledger table, its
+detail header, the manager's Defined-by column and the DHIS2 wizard's picker
+show the DHIS2 id for an element and nothing for an Uploaded indicator), and
+"data id" appears only in server error strings, which the client renders
+verbatim. Two generated columns nothing may write hold the two facts read off
+the type: `has_rows` (Uploaded or DHIS2 element) and `is_count` (those plus
+Sum), the same predicates as lib's `hasRows` and `isCount`. `data_id` is
+`UNIQUE` (`indicators_data_id_key`) and required on every Uploaded and DHIS2
+element row (`indicators_fields_check`); the junction's member FK reaches
+`(indicator_common_id, has_rows)`, so a sum can name only an indicator with rows
+and retyping a member out of those is refused while a sum names it; the member
+FK is NO ACTION, checked per row at the end of the statement, so
+`deleteIndicators` removes the sums' junction rows before the indicators. The
+indicator id is renamable and the junction follows it (`ON UPDATE CASCADE`); the
+data id is fixed once rows exist under it (`dataset_hmis_data_id_fkey`,
+`RESTRICT DEFERRABLE`, no update action; the ledger's
+`dataset_hmis_import_ledger_data_id_fkey` cascades). Every row has
 `include_in_analysis`: on means the extract carries it and every package
 analyses it; off means dictionary only, its data still imported and stored,
 still usable as a member or in a formula. The analysed set is stated once, in
@@ -323,64 +323,64 @@ indicators with rows, and every expression resolving against the dictionary the
 write would leave. The API's Uploaded definition carries no data id
 (`HmisIndicatorDefinitionInput`): the key is generated at insert and kept on
 update, and a key posted anyway is stripped by the route schema and dropped by
-the route's narrowing. `updateIndicator` accepts a new id (PLAN_A5 ruling 5): in
-the indicator's transaction it updates the row, rewrites every calculated
-expression that names the old id (`renameIdentifierInExpression`, whole
-identifiers and exact `[id]` only, the author's text otherwise kept, the new id
-written as the grammar requires; 086's `fastr_rename_identifier` is the same
-segment rule for its one rename, a calculated special to its suffix form, and
-substitutes the new id raw) and every schedule's `indicatorIds`; run and version
-rows are history and keep their pairs, which are data ids; stored figure configs
-are not rewritten. Renaming a special is allowed and takes the id out of the
-module scripts' inputs, as deleting it does. Refused: renaming to a reserved,
-taken or special-when-calculated id. Retyping never changes the key, except
-Uploaded to DHIS2 element, which takes the typed UID and so is refused while
-rows exist under the old key; a DHIS2 element retyped to Uploaded keeps its UID
-as its key, with rows; a Sum or Calculated retyped to Uploaded takes a generated
-key; a switch from Uploaded or DHIS2 element to Sum or Calculated is refused
-with rows or while a sum names the indicator (the only guard; a Sum or
-Calculated has no rows and no sum names it, so a switch away from them needs
-none). A DHIS2 id may change through `updateIndicator` while no rows exist under
-it; with rows it is fixed, and the error says to rename the indicator instead.
-The editor locks the input while the ledger reports rows under the data id, and
-while the ledger has not loaded. Deleting an indicator refuses with a listing
-when it has data (a sum is data, so the dependency on its members is strict),
-when a surviving sum names it, or when another indicator's expression still
-needs the id; the expression guard is exact rather than a direct-reference scan:
-it re-resolves every surviving definition against the post-delete dictionary, so
-an id used only deep inside a chain blocks the delete too. Creates are
-all-or-nothing (one transaction; the failing item is named in the error). Pinned
-by `server/tests/indicator_schema_test.ts` (the constraints, eighteen cases),
+the route's narrowing. `updateIndicator` accepts a new id: in the indicator's
+transaction it updates the row, rewrites every calculated expression that names
+the old id (`renameIdentifierInExpression`, whole identifiers and exact `[id]`
+only, the author's text otherwise kept, the new id written as the grammar
+requires; 086's `fastr_rename_identifier` is the same segment rule for its one
+rename, a calculated special to its suffix form, and substitutes the new id raw)
+and every schedule's `indicatorIds`; run and version rows are history and keep
+their pairs, which are data ids; stored figure configs are not rewritten.
+Renaming a special is allowed and takes the id out of the module scripts'
+inputs, as deleting it does. Refused: renaming to a reserved, taken or
+special-when-calculated id. Retyping never changes the key, except Uploaded to
+DHIS2 element, which takes the typed UID and so is refused while rows exist
+under the old key; a DHIS2 element retyped to Uploaded keeps its UID as its key,
+with rows; a Sum or Calculated retyped to Uploaded takes a generated key; a
+switch from Uploaded or DHIS2 element to Sum or Calculated is refused with rows
+or while a sum names the indicator (the only guard; a Sum or Calculated has no
+rows and no sum names it, so a switch away from them needs none). A DHIS2 id may
+change through `updateIndicator` while no rows exist under it; with rows it is
+fixed, and the error says to rename the indicator instead. The editor locks the
+input while the ledger reports rows under the data id, and while the ledger has
+not loaded. Deleting an indicator refuses with a listing when it has data (a sum
+is data, so the dependency on its members is strict), when a surviving sum names
+it, or when another indicator's expression still needs the id; the expression
+guard is exact rather than a direct-reference scan: it re-resolves every
+surviving definition against the post-delete dictionary, so an id used only deep
+inside a chain blocks the delete too. Creates are all-or-nothing (one
+transaction; the failing item is named in the error). Pinned by
+`server/tests/indicator_schema_test.ts` (the constraints, eighteen cases),
 `server/tests/indicator_rename_test.ts` (the rename, the data id rule, the type
 switches) and `server/tests/indicator_data_key_test.ts` (the key: required,
 generated, unique, never accepted from a client, kept across retypes).
 
-An import never creates an indicator (PLAN_A6 §2): the dictionary is authored in
-the manager, the Add indicator form for one and the DHIS2 select form (heading
-"Add indicators from DHIS2", opened by the manager's "Add from DHIS2" button;
+An import never creates an indicator: the dictionary is authored in the manager,
+the Add indicator form for one and the DHIS2 select form (heading "Add
+indicators from DHIS2", opened by the manager's "Add from DHIS2" button;
 distinct from the data import, "Import HMIS data from DHIS2") for many. The
-DHIS2 select form goes through the **naming step** (`applyIndicatorNaming`,
-PLAN_A6 ruling 7). A DHIS2 element or operand becomes a new DHIS2 element under
-the chosen id (proposed by `generateIndicatorId`, editable) carrying the UID as
-its data id; an existing id of any type is refused; one indicator carries one
-data id, so two elements cannot share a new id; a UID some indicator already
-holds creates nothing. A DHIS2 indicator decomposes (S7) into DHIS2 elements for
-its operands and a calculated `(numerator) / (denominator)` over their ids: its
-expression names each operand by `[data_id]` and the transaction rewrites every
-identifier to the indicator that element lands in (`renameIdentifiers`). Sums
-are not made in the naming step; they are made in the list. Everything the
-naming step creates has its checkbox on. Save from the DHIS2 select form posts
-to `/indicators-dhis2/create` (each DHIS2 indicator by its `uid`), which
-re-reads every element and indicator from DHIS2 and judges them itself (S7's
-verdict and decomposition, worded by `describeDhis2ElementRefusal` /
+DHIS2 select form goes through the **naming step** (`applyIndicatorNaming`). A
+DHIS2 element or operand becomes a new DHIS2 element under the chosen id
+(proposed by `generateIndicatorId`, editable) carrying the UID as its data id;
+an existing id of any type is refused; one indicator carries one data id, so two
+elements cannot share a new id; a UID some indicator already holds creates
+nothing. A DHIS2 indicator decomposes (S7) into DHIS2 elements for its operands
+and a calculated `(numerator) / (denominator)` over their ids: its expression
+names each operand by `[data_id]` and the transaction rewrites every identifier
+to the indicator that element lands in (`renameIdentifiers`). Sums are not made
+in the naming step; they are made in the list. Everything the naming step
+creates has its checkbox on. Save from the DHIS2 select form posts to
+`/indicators-dhis2/create` (each DHIS2 indicator by its `uid`), which re-reads
+every element and indicator from DHIS2 and judges them itself (S7's verdict and
+decomposition, worded by `describeDhis2ElementRefusal` /
 `describeDhis2ParseRefusal`) before `createIndicatorsFromDhis2` calls
 `applyIndicatorNaming`, so a refused element or indicator creates nothing.
 Pinned by `server/tests/indicator_naming_test.ts` on a throwaway database built
-from `_main_database.sql`. A new database has an empty dictionary (PLAN_A6
-ruling 10); the **special indicators**, `SPECIAL_INDICATORS` in
-`lib/special_indicators.ts`, stay a reserved list: the hand-kept count ids the
-registry module scripts read by literal id, which the manager's reference panel
-names, `getSpecialIndicatorTypeIssue` keeps a count, and `analysedIndicatorIds`
+from `_main_database.sql`. A new database has an empty dictionary; the **special
+indicators**, `SPECIAL_INDICATORS` in `lib/special_indicators.ts`, stay a
+reserved list: the hand-kept count ids the registry module scripts read by
+literal id, which the manager's reference panel names,
+`getSpecialIndicatorTypeIssue` keeps a count, and `analysedIndicatorIds`
 analyses whenever one exists. A team creates them in the manager like any
 indicator. `./validate_fresh_boot` boots an empty postgres through `dbStartUp`
 and asserts the empty dictionary. New ids are charset-checked (no `, ; : [ ]`
@@ -392,8 +392,7 @@ dhis2_label, members, expression, include_in_analysis, format_as, thresholds,
 direction, target, expected_low_counts`;
 `type` in the four code names, `dhis2_id` and `dhis2_label` written for a DHIS2
 element and blank for every other type, `members` semicolon-separated, `target`
-in stored units), a download format only: nothing reads it back (PLAN_A6 ruling
-8).
+in stored units), a download format only: nothing reads it back.
 
 The DHIS2 names are refreshed on demand, never on a schedule:
 `refreshDhis2Labels` (`POST /indicators-dhis2/refresh-labels`) re-reads every
@@ -419,54 +418,53 @@ download and Refresh DHIS2 names, in an overflow menu (panther's
 `ActionMenuButton`, `otherActionItems`), global admins only, the refresh gated
 on a stored DHIS2 connection like Add from DHIS2.
 
-Instance migration 087 (`087_indicator_data_key.sql`, PLAN_A6 rulings 1, 11, 12
-and 13) gives every Uploaded row a key: a row whose `data_id` was NULL takes a
-generated `u_` key and its `updated_at` moves; a row that already held a file
-code keeps it as its key, not matched against anything (where such an
-indicator's id differs from its old file code, its country re-maps that value by
-hand each import, the accepted cost of ruling 3, measured per instance before
-rollout). The CHECK then requires a key on every Uploaded row. The CSV staging
-result's `validation` loses `unknownIndicators` and gains `skippedByMapping`
-where it is stored (`dataset_hmis_versions.staging_result` and
-`dataset_hmis_import_runs.
-run_stats -> 'csvStagingResult'`, each UPDATE gated
-on the old key), and every queued or held CSV run is cancelled with a stated
-reason, a held run's surviving staging table dropped, since their configs have
-no mapping and a hold has no third action.
+Instance migration 087 (`087_indicator_data_key.sql`) gives every Uploaded row a
+key: a row whose `data_id` was NULL takes a generated `u_` key and its
+`updated_at` moves; a row that already held a file code keeps it as its key, not
+matched against anything (where such an indicator's id differs from its old file
+code, its country re-maps that value by hand each import, the accepted cost of
+never matching a file value against an Uploaded key, measured per instance
+before rollout). The CHECK then requires a key on every Uploaded row. The CSV
+staging result's `validation` loses `unknownIndicators` and gains
+`skippedByMapping` where it is stored (`dataset_hmis_versions.staging_result`
+and `dataset_hmis_import_runs.
+run_stats -> 'csvStagingResult'`, each UPDATE
+gated on the old key), and every queued or held CSV run is cancelled with a
+stated reason, a held run's surviving staging table dropped, since their configs
+have no mapping and a hold has no third action.
 
-Instance migration 086 (`086_indicators_one_table.sql`, PLAN_A5 ruling 8) makes
-the switch on every instance in one transaction, with nothing resolved by hand
-and **no data or ledger row touched**: the data and ledger key column is renamed
-`data_id` and keeps its values, which were the raw ids. A raw mapped to exactly
-one non-calculated common, which has no other mapping, folds (the common takes
-the raw id as its data id and becomes a DHIS2 element when the id is
-DHIS2-shaped, Uploaded otherwise); every other raw becomes an indicator of its
-own with the raw id as its data id, by the same shape rule (a DHIS2-shaped raw
-under an id generated from its label by the PL/pgSQL restatement of
-`generateIndicatorId`, pinned to the lib by
-`server/tests/indicator_migration_test.ts`; another raw under its own id when it
-passes the validator, else a generated one); every DHIS2 element so made keeps
-the raw's label as its `dhis2_label` beside the display label it already had
-(the folded common's own label, or the raw label for a new indicator; the column
-was added to 086 after 1.73.0 had shipped it to Mozambique and three testing
-instances, which hold NULL there and get the column and CHECK from 090); a
-non-calculated common whose raws did not fold becomes a sum over the indicators
-they became, its members written to the junction (a mapping onto a calculated
-common contributed nothing to the old extract and is dropped with the table); a
-calculated row under a special id is renamed to its suffix form (`anc1_2`),
-every expression naming it rewritten, and an Uploaded indicator with no data id
-inserted under the special id; `include_in_analysis` is TRUE for every row that
-was a common and FALSE for every indicator created from a raw, so the first
-package after the migration analyses exactly the series the last one did; the
-stored run, version, schedule and CSV JSON is rewritten (pairs, progress and
-stats keyed `dataId`; window selections to `indicatorIds` plus the persisted
-`dataIds`; the run and ledger `source` columns to `route`, the staging result's
-`sourceType` to `kind`, the CSV config's `mappings` to `columns` with its
-indicator column `data_id`; the retired `shadow` block of a run's stats, keyed
-by raw id and read by nothing, is dropped), the old default flag and the two old
-tables go, and the id table (which indicator holds each raw id) is raised as
-NOTICEs the app's runner suppresses. The older migrations 003, 056, 070 and 079
-are guarded so a fresh replay after 086's schema is a no-op.
+Instance migration 086 (`086_indicators_one_table.sql`) makes the switch on
+every instance in one transaction, with nothing resolved by hand and **no data
+or ledger row touched**: the data and ledger key column is renamed `data_id` and
+keeps its values, which were the raw ids. A raw mapped to exactly one
+non-calculated common, which has no other mapping, folds (the common takes the
+raw id as its data id and becomes a DHIS2 element when the id is DHIS2-shaped,
+Uploaded otherwise); every other raw becomes an indicator of its own with the
+raw id as its data id, by the same shape rule (a DHIS2-shaped raw under an id
+generated from its label by the PL/pgSQL restatement of `generateIndicatorId`,
+pinned to the lib by `server/tests/indicator_migration_test.ts`; another raw
+under its own id when it passes the validator, else a generated one); every
+DHIS2 element so made keeps the raw's label as its `dhis2_label` beside the
+display label it already had (the folded common's own label, or the raw label
+for a new indicator; the column was added to 086 after 1.73.0 had shipped it to
+Mozambique and three testing instances, which hold NULL there and get the column
+and CHECK from 090); a non-calculated common whose raws did not fold becomes a
+sum over the indicators they became, its members written to the junction (a
+mapping onto a calculated common contributed nothing to the old extract and is
+dropped with the table); a calculated row under a special id is renamed to its
+suffix form (`anc1_2`), every expression naming it rewritten, and an Uploaded
+indicator with no data id inserted under the special id; `include_in_analysis`
+is TRUE for every row that was a common and FALSE for every indicator created
+from a raw, so the first package after the migration analyses exactly the series
+the last one did; the stored run, version, schedule and CSV JSON is rewritten
+(pairs, progress and stats keyed `dataId`; window selections to `indicatorIds`
+plus the persisted `dataIds`; the run and ledger `source` columns to `route`,
+the staging result's `sourceType` to `kind`, the CSV config's `mappings` to
+`columns` with its indicator column `data_id`; the retired `shadow` block of a
+run's stats, keyed by raw id and read by nothing, is dropped), the old default
+flag and the two old tables go, and the id table (which indicator holds each raw
+id) is raised as NOTICEs the app's runner suppresses. The older migrations 003,
+056, 070 and 079 are guarded so a fresh replay after 086's schema is a no-op.
 `./validate_indicator_migration <main dump>...` restores each dump into a
 throwaway container, applies the pending migrations the way the runner does,
 prints that id table, and asserts the outcome (every raw became exactly one
@@ -575,11 +573,11 @@ shared by the client editor validator and the server dependency analyzer
 code hard-fail whole module runs. lib compiles into both runtimes: keep it pure
 (no Deno/UI imports). The persisted `has_syntax_error`/`code_consistent` flags
 are advisory metadata that the manager does not display (its Status and
-Consistent columns compute from the code) and that only the HFA assistant reads
-(`get_hfa_indicators`): the run's `hfa_indicators_snapshot.json` carries them
-and its reader (`hfaIndicatorRow`, `server/run_query/run_read.ts`) drops them,
-and bulk validation updates deliberately do NOT bump `updated_at` (a bump would
-move `hfaIndicatorsVersion`, the run's HFA staleness stamp, for an edit
+Consistent columns compute from the code) and that only the chat's HFA tools
+read (`get_hfa_indicators`): the run's `hfa_indicators_snapshot.json` carries
+them and its reader (`hfaIndicatorRow`, `server/run_query/run_read.ts`) drops
+them, and bulk validation updates deliberately do NOT bump `updated_at` (a bump
+would move `hfaIndicatorsVersion`, the run's HFA staleness stamp, for an edit
 generation ignores). Warnings (lone `=`) are a distinct severity and never
 persist as errors. The R-code lifecycle: instance edits → run capture (S6's
 run-capture seam) snapshots indicators+taxonomy+code → S8's module run builds a
@@ -661,7 +659,7 @@ pointers only. Consequences that follow from it and are ruled with it:
   - `uploaded` and `dhis2_element`: the rows under their data id at extract, and
     `sum`: the rows under its members' data ids summed at extract; the only
     types m001/m002 ever see, and the only types the HMIS extract carries (the
-    analysed ones, PLAN_A4 rulings 3 and 4).
+    analysed ones).
   - `calculated`: an ARBITRARY expression over other indicators of any type
     (`+ - * /`, parentheses, literals, `abs`/`coalesce`/`nullif`; chained by
     substitution, cycles and depth rejected). Never negotiable down to
@@ -1007,8 +1005,8 @@ layer.
   resolve refuses the save, as before. A flattened ingredient with no data is
   only a warning under the formula, and a checked calculated whose formula
   reaches an indicator with its checkbox off says so under the formula once and
-  saves (ruling 3). Counts have no status. The Status column is sortable. It is
-  not in the CSV download, which carries the dictionary's authored fields.
+  saves. Counts have no status. The Status column is sortable. It is not in the
+  CSV download, which carries the dictionary's authored fields.
 - Both indicator tables, the manager's and the import picker's, are searched
   through the `Table`'s own toolbar field: every typed word must appear in the
   id, label, DHIS2 name, type word or definition, ignoring case and accents.
@@ -1065,8 +1063,7 @@ layer.
   configuring; step 4 stays reachable to retry with a different strategy).
   In-flight imports render a progress view polling `getStructureUploadStatus`
   every 2 s, covering resumed and second-tab sessions. DHIS2 structure import is
-  **saved-only** (PLAN_DHIS2_CREDENTIAL_STORE_CONSOLIDATION Phase 2): step 1
-  confirms the instance's stored connection
+  **saved-only**: step 1 confirms the instance's stored connection
   (`structureStep1Dhis2_ConfirmConnection`, no credentials in the request body)
   and writes only a `{ url }` snapshot to `step_1_result`; staging and the
   org-unit browse route resolve the password from the encrypted store at fetch
@@ -1084,7 +1081,10 @@ layer.
   zero-permission too; the HMIS and HFA dictionary reads and every mutation are
   `can_configure_data`; config mutations `can_configure_settings`. Several
   manager UIs still gate their write buttons on `currentUserIsGlobalAdmin`
-  instead (Open items).
+  instead (Open items); the HFA indicators manager's indicator write controls
+  read it through one predicate, `canWriteHfaIndicators()`
+  (`data/hfa/indicators/write_gate.ts`), which the chat's HFA write tools refuse
+  under too (S13).
 - The HFA manager's unused-variables modal (`HfaUnusedVariablesModal`) lists,
   per time point, the survey variables no indicator code references. Each row
   has an Add button: the modal closes with that variable, and the manager opens
@@ -1127,8 +1127,11 @@ layer.
 - **Decision needed:** UI write-gates use `currentUserIsGlobalAdmin` while the
   server gates on `can_configure_data`, at nine sites: the HMIS indicators
   manager (`data/hmis/indicators/manager.tsx:557`, 652, 679), the HFA indicators
-  manager and its taxonomy managers (`data/hfa/indicators/manager.tsx:1074`,
-  1101, 1139, 1170; `data/hfa/indicators/categories_manager.tsx:86`, 256;
+  manager, whose three indicator write controls (the bulk delete, the row click
+  into the code editor and the toolbar) read `canWriteHfaIndicators()` in
+  `data/hfa/indicators/write_gate.ts`, the one predicate the chat's HFA write
+  tools refuse under too (S13), so this decision moves both at once, and its
+  taxonomy managers (`data/hfa/indicators/categories_manager.tsx:86`, 256;
   `data/hfa/indicators/service_categories_manager.tsx:19`;
   `data/hfa/indicators/variant_groups_manager.tsx:88`, 290), the geojson manager
   (`data/geojson/manager.tsx:113`, 149), the weights import
@@ -1145,19 +1148,18 @@ layer.
   translatable errs), not per-string patching.
 - Geojson hardening remainder (mostly closed: 100 MB pre-parse cap `14790e39`,
   SHA-256 session-cache keys `805f6b15`): `sampleValues` still returns ALL
-  distinct values unbounded; the served payload is whole and double-encoded
-  (also PLAN_3_GEOJSON_SNAPSHOT WS-EFFICIENCY); no deeper geometry validation
-  (lon/lat range, polygonal types, non-unique match values). Geojson reads
-  credentials only from the encrypted stored connection.
+  distinct values unbounded; the served payload is whole and double-encoded; no
+  deeper geometry validation (lon/lat range, polygonal types, non-unique match
+  values). Geojson reads credentials only from the encrypted stored connection.
 - `pt` is missing across most of this system's t3 literals (indicator managers,
   structure viewers, wizards), part of the batch-by-batch PT rollout.
-- **DHIS2 population writer** (from the retired PLAN_2): yearly population data
-  elements at admin org-unit levels written into the population store through
-  the analytics API, scheduled like HMIS imports (`import_hmis_data_dhis2/` is
-  the pattern), with a population-type choice in the naming step, and writes
-  validated as the CSV import's are (`server/db/instance/population.ts`: every
-  area path in the HMIS structure tables, every type known). Until it lands,
-  population rates are authored by hand over CSV-uploaded population.
+- **DHIS2 population writer**: yearly population data elements at admin org-unit
+  levels written into the population store through the analytics API, scheduled
+  like HMIS imports (`import_hmis_data_dhis2/` is the pattern), with a
+  population-type choice in the naming step, and writes validated as the CSV
+  import's are (`server/db/instance/population.ts`: every area path in the HMIS
+  structure tables, every type known). Until it lands, population rates are
+  authored by hand over CSV-uploaded population.
 - A `rate_per_1k` display format beside `rate_per_10k` (a DHIS2 indicator with
   factor 1000 decomposes to `number` with a note until then): touches the DB
   check, the manifest schema, the figure bundle, the value scale and four style
@@ -1178,21 +1180,21 @@ layer.
   `instanceState.currentUserIsGlobalAdmin`, the panel's gate, in place of the
   unconditional `onMount`.
 - **A manager comment ties the code editor to imported data.**
-  `data/hfa/indicators/manager.tsx:528-529` says the metadata-only fallback
+  `data/hfa/indicators/manager.tsx:541-542` says the metadata-only fallback
   applies "with no HFA data imported", but the test is `hfaDataAvailable()`
-  (254), `!!instanceState.hfaCacheHash`, which is empty only while no time point
-  exists (`server/db/instance/dataset_hfa.ts:34-44`). Make 528-529 read "The
+  (267), `!!instanceState.hfaCacheHash`, which is empty only while no time point
+  exists (`server/db/instance/dataset_hfa.ts:34-44`). Make 541-542 read "The
   code editor keys its code by time point; with no HFA time point defined, fall
   back to the metadata-only modal so labels/categories stay editable."
 - **Two comments misdescribe the stored validation flags.**
-  `data/hfa/indicators/indicator_code_editor.tsx:437-438` calls the flag
+  `data/hfa/indicators/indicator_code_editor.tsx:435-436` calls the flag
   display-only editor metadata, but the manager displays no flag
-  (`manager.tsx:285-377`, 956-1026) and the HFA assistant's tools read it
-  (`ai/tools.ts:208`, 221-222, 652-655). `manager.tsx:469` says SSE will trigger
+  (`manager.tsx:298-390`, 965-1035) and the chat's HFA tools read it
+  (`ai/tools.ts`, `get_hfa_indicators`). `manager.tsx:482` says SSE will trigger
   a refetch, but the write leaves `hfaIndicatorsVersion` unchanged
   (`server/db/instance/instance.ts:43-44`), so nothing refetches. Make the
-  parenthetical at 437-438 read "(main + variant snippets; the stored flag is
-  advisory metadata generation ignores)", and delete the comment at 469.
+  parenthetical at 435-436 read "(main + variant snippets; the stored flag is
+  advisory metadata generation ignores)", and delete the comment at 482.
 
 ### HFA variant groups: open questions
 

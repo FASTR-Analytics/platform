@@ -6,8 +6,7 @@
 // items, resultsValue projection, metadata, localization, and provenance.
 // Slides and reports store this instead of FigureInputs.
 //
-// Phase 2 (current): stored schemas use this bundle shape; boot-time backfill
-// converts old figureInputs/source rows; sentinel layer deleted.
+// A boot-time backfill converts old figureInputs/source rows.
 //
 // =============================================================================
 
@@ -23,7 +22,7 @@ import { ALL_INSTANCE_FISCAL_YEARS } from "./instance.ts";
 // Runtime locks: parse a Required<T> so a new field in the source type causes
 // a compile error (Required forces the literal) and a parse failure here.
 
-// P2: z.strictObject, stored shape; unknown keys in a stored sub-object would
+// z.strictObject, stored shape; unknown keys in a stored sub-object would
 // pass the skip-gate and be silently stripped on read (PROTOCOL_APP_MIGRATIONS
 // skip-gate gotcha). Strict mode catches that drift at boot.
 // geo.data stays z.unknown(): GeoJSON is an external stable spec, low drift risk.
@@ -46,7 +45,7 @@ export const indicatorMetadataSchema = z.strictObject({
 });
 // A stored figure freezes DISPLAY metadata only: the evaluation fields on a
 // catalog entry are deliberately absent from this type, so a bundle can never
-// carry them into the strictObject above (PLAN_1a §1.5).
+// carry them into the strictObject above.
 const _im: Required<IndicatorMetadataDisplay> = {
   id: "",
   label: "",

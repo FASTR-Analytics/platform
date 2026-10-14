@@ -1,5 +1,14 @@
 # PLAN_3: GeoJSON into the Run Package — the last artifact-render leak
 
+> **NEEDS REWRITING for version 2 before any step runs.** The plan is built on
+> projects and dashboards, which version 2 removes. Its read path resolves
+> `projects.run_id`, which is now `products.run_id` (one package per product).
+> Its WS-KEY backfill transforms `dashboards.geo_data` and the public
+> `/api/d/:slug` bundle, neither of which exists any more. Its wait on migration
+> 076 is over: 076 has run across the fleet. Nothing in it is built: `area_id`
+> is still the bare leaf name (`server/geojson/process_geojson.ts`), and the
+> auto-matcher is still duplicated in `upload_wizard/step_2.tsx`.
+
 Status: DRAFT for review. No implementation yet. Report-only until per-step
 go-ahead.
 

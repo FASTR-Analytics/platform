@@ -18,9 +18,9 @@ import { createSignal, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 
-// A user's scope access (PLAN_SCOPES §2.6). Shown to global admins only, the
-// guard on setUserScopeAccess (R25), and never for a global admin, who always
-// has every scope. The list is copied out of the store row so editing it
+// A user's scope access. Shown to global admins only, the guard on
+// setUserScopeAccess, and never for a global admin, who always has every
+// scope. The list is copied out of the store row so editing it
 // never touches T1.
 export function UserScopesCard(p: { user: OtherUser }) {
   const initial = (): ScopeAccess =>

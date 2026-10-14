@@ -37,8 +37,8 @@ export type ResultsValue = {
   valueProps: string[];
   valueFunc: ValueFunc;
   postAggregationExpression?: PostAggregationExpression;
-  // Declared catalog evaluation (PLAN_1a §1.6). Present only on metrics over
-  // an indicator_values results object: the fetch config sends these props as
+  // Declared catalog evaluation. Present only on metrics over an
+  // indicator_values results object: the fetch config sends these props as
   // SUM values, the server applies each indicator's catalog expression to the
   // aggregated row, and the items come back with a single `value` column:
   // which is why valueProps is ["value"] and no prop picker is offered.
@@ -81,8 +81,8 @@ export type ResultsValueForVisualization = {
   valueLabelReplacements?: Record<string, string>;
 };
 
-// Status comes from the attached run's finalize-computed availability stamps
-// (PLAN_RESULTS_RUNS §2.2): readers never re-derive availability.
+// Status comes from the attached run's finalize-computed availability stamps:
+// readers never re-derive availability.
 export type MetricStatus = "ready" | "unavailable";
 
 export type MetricWithStatus = ResultsValue & {
@@ -96,8 +96,8 @@ export type MetricWithStatus = ResultsValue & {
 // A package's module catalog entry as the client sees it (built from the run
 // manifest).
 //
-// `id` is a plain string, on the READ PLANE rule (PLAN_1a §0 clause 3): a
-// package's module ids come from its own manifest and are read as text.
+// `id` is a plain string, on the READ PLANE rule: a package's module ids come
+// from its own manifest and are read as text.
 // `ModuleId` is a generation-plane type: the wizard, module resolution and
 // the loader, and a package must stay readable when a module leaves the
 // registry.

@@ -45,7 +45,6 @@ import { routesPopulation } from "./server/routes/instance/population.ts";
 import { routesInstanceSSE } from "./server/routes/instance/instance-sse.ts";
 
 import { routesCollab } from "./server/routes/instance/collab.ts";
-import { routesInstanceAiProxy } from "./server/routes/instance/ai_proxy.ts";
 import { routesCopilotAiProxy } from "./server/routes/instance/copilot_ai_proxy.ts";
 import { routesAiFiles } from "./server/routes/instance/ai_files.ts";
 import { routesEmails } from "./server/routes/instance/emails.ts";
@@ -76,10 +75,10 @@ const runLogCleanup = () => {
 runLogCleanup();
 setInterval(runLogCleanup, 24 * 60 * 60 * 1000);
 
-// DHIS2 auto-pull (PLAN_DHIS2_IMPORTER Phase 4): ~60 s tick draining queued
-// runs FIFO and firing due schedules: a minute-level tick, NOT a
-// boot-anchored 24 h job like the log cleanup above (a daily tick would
-// usually miss a 01:15 Lagos window).
+// DHIS2 auto-pull: ~60 s tick draining queued runs FIFO and firing due
+// schedules: a minute-level tick, NOT a boot-anchored 24 h job like the
+// log cleanup above (a daily tick would usually miss a 01:15 Lagos
+// window).
 startDhis2ImportScheduler();
 
 // Version history: sweep editing-session accumulators into stored versions.
@@ -89,9 +88,9 @@ await connectValkey();
 
 const app = new Hono();
 
-// OAuth discovery for /mcp (PLAN_MCP_OAUTH). These are what a connector reads
-// BEFORE it has any credential, so they must sit ahead of the global Clerk
-// middleware: behind it they 401 and the Connect button spins forever.
+// OAuth discovery for /mcp. These are what a connector reads BEFORE it has
+// any credential, so they must sit ahead of the global Clerk middleware:
+// behind it they 401 and the Connect button spins forever.
 app.route("/", routesOAuthMetadata);
 
 // The unlisted /access-tokens SPA route (PAT panel) needs a pre-auth HTML
@@ -113,8 +112,8 @@ try {
   // In development, handled by Vite dev server
 }
 
-// The /mcp endpoint (PLAN_112) authenticates with PATs inside the panther
-// adapter: the global Clerk middleware and CORS headers must not touch it.
+// The /mcp endpoint authenticates with PATs inside the panther adapter: the
+// global Clerk middleware and CORS headers must not touch it.
 const isMcpPath = (path: string) => path === "/mcp" || path.startsWith("/mcp/");
 
 //@ts-ignore - Clerk middleware types not fully compatible with Hono
@@ -178,15 +177,14 @@ app.route("/", routesProductSlideDecks);
 app.route("/", routesProductSlides);
 app.route("/", routesProductReports);
 app.route("/ai", routesCopilotAiProxy);
-app.route("/ai-instance", routesInstanceAiProxy);
 app.route("/ai", routesAiFiles);
 app.route("/", routesCustomPrompts);
 app.route("/", routesWhatsNew);
 app.route("/", routesOnboarding);
 
-// The remote MCP endpoint (PLAN_112): URL + PAT header, nothing local. The
-// panther adapter handles auth (401/503), era routing, sessions, and
-// elicitation; Hono just hands it the raw Request.
+// The remote MCP endpoint: URL + PAT header, nothing local. The panther
+// adapter handles auth (401/503), era routing, sessions, and elicitation;
+// Hono just hands it the raw Request.
 // CORS headers for browser-origin MCP clients. This endpoint authenticates by
 // bearer token and carries NO ambient cookie credentials, so a wildcard origin
 // is safe, and `Access-Control-Allow-Credentials` is deliberately NOT set (a

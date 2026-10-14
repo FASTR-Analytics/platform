@@ -53,9 +53,8 @@ export async function ensureDatasetCsvTargetDir(
 // captured rows the pipeline needs (run input mirrors, script-generation
 // inputs, manifest datasets info). Capture is always the FULL dataset:
 // entire period range, all indicators, all admin areas, all facility
-// types/ownerships (PLAN_FULL_CAPTURE_GENERATION ruling 2026-08-03): the R
-// scripts need the full dataset to compute correctly, and subsetting is a
-// read-time query filter, never a generation input.
+// types/ownerships: the R scripts need the full dataset to compute correctly,
+// and subsetting is a read-time query filter, never a generation input.
 
 // The facilities_{hmis,hfa} column set: the run's facilities parquet is
 // built from these rows directly.
@@ -163,7 +162,7 @@ export async function computeDatasetHmisRunCapture(
 
     await ensureDatasetCsvTargetDir(csvTarget);
 
-    // The analysed set (PLAN_A4 ruling 3) decides what the extract carries;
+    // The analysed set decides what the extract carries;
     // the catalog below is built from the same list and the same set.
     const hmisIndicators = await getHmisIndicators(mainDb);
     const analysed = analysedIndicatorIds(hmisIndicators, POPULATION_TYPE_IDS);
@@ -211,8 +210,8 @@ COPY (${exportStatement}) TO '${csvTarget.postgresPath}' WITH (FORMAT CSV, HEADE
     // The mirror carries the analysed set: every analysed count, and every
     // calculated with its checkbox on, resolved: a calculated indicator's own row
     // is what makes the package standalone. The extract is the analysed
-    // counts, so those with rows (by data id, PLAN_A5 ruling 10) are
-    // exactly the ingredients any expression may draw on.
+    // counts, so those with rows (by data id) are exactly the ingredients any
+    // expression may draw on.
     const dataIdsWithRows = new Set(
       (
         await mainDb<{ data_id: string }[]>`
@@ -262,11 +261,11 @@ COPY (${exportStatement}) TO '${csvTarget.postgresPath}' WITH (FORMAT CSV, HEADE
   });
 }
 
-// The extract (PLAN_A4 ruling 4, PLAN_A5 ruling 10): every analysed
-// Uploaded or DHIS2 element from the rows under its data id, and every
-// analysed sum as SUM(count) over the rows under its members' data ids, per
-// facility x month, all emitted under indicator_common_id. Everything else
-// is a formula over these, computed downstream.
+// The extract: every analysed Uploaded or DHIS2 element from the rows under
+// its data id, and every analysed sum as SUM(count) over the rows under its
+// members' data ids, per facility x month, all emitted under
+// indicator_common_id. Everything else is a formula over these, computed
+// downstream.
 function getDatasetHmisExportStatement(
   structureSchema: StructureSchema,
   indicators: HmisIndicator[],
@@ -344,8 +343,8 @@ SELECT
 FROM aggregated
 INNER JOIN facilities_hmis f ON aggregated.facility_id = f.facility_id
 -- Deterministic row order (the GROUP BY key, so a total order): the extract's
--- bytes are a module inputKey ingredient (PLAN_RESULTS_RUNS §3.7), and
--- parallel hash aggregation makes unordered COPY output vary run to run.
+-- bytes are a module inputKey ingredient, and parallel hash aggregation makes
+-- unordered COPY output vary run to run.
 ORDER BY aggregated.facility_id, aggregated.indicator_common_id, aggregated.period_id
 `;
 

@@ -1,5 +1,5 @@
 // ============================================================================
-// HMIS CSV IMPORT RUN WORKER (PLAN_DHIS2_IMPORTER_CONSOLIDATION Phase A)
+// HMIS CSV IMPORT RUN WORKER
 //
 // Two legs, one worker: STAGE (stream the CSV into per-run staging tables,
 // evaluate the clean condition) and INTEGRATE (the single-transaction CSV
@@ -42,10 +42,10 @@ import { integrateStagedHmisCsvData } from "./integrate_staged.ts";
 
 let alreadyRunning = false;
 
-// The HMIS CSV clean condition (PLAN_A6 ruling 5): every validation drop
-// counter is zero AND at least one row staged. Rows skipped by the mapping
-// never gate: the user chose that at wizard time. A missing validation
-// block is treated as error, never as clean.
+// The HMIS CSV clean condition: every validation drop counter is zero AND at
+// least one row staged. Rows skipped by the mapping never gate: the user chose
+// that at wizard time. A missing validation block is treated as error, never as
+// clean.
 function isCleanStaging(result: DatasetCsvStagingResult): boolean {
   const v = result.validation;
   if (!v) {

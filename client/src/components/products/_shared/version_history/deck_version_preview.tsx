@@ -198,7 +198,7 @@ export function DeckVersionPreview(p: {
         initialLabel: `${v.label} (${
           new Date(v.createdAt).toLocaleDateString()
         })`,
-        // The copy lands beside the source product (D16: a new product needs a
+        // The copy lands beside the source product (a new product needs a
         // folder like createProduct does).
         save: (label: string) =>
           serverActions.copySlideDeckVersion({

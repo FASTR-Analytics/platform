@@ -110,8 +110,8 @@ strip/hydrate pipeline and no sentinel layer.
 
 The rename of _presentation object_ → _Visualization_ end-to-end
 (`PresentationObjectConfig` and its kin) is deliberately **not** part of this
-work. It is a separable mechanical pass (Phase 5, see Open items), so the PO
-names stay in code.
+work. It is a separable mechanical pass (see Open items), so the PO names stay
+in code.
 
 ### The bundle shape
 
@@ -143,17 +143,16 @@ FigureBundle = {
 };
 ```
 
-`scope` and `provenance.runId` record what the bundle was resolved under
-(PLAN_PRODUCTS_RESTRUCTURE D4): the package, and the hash of the scope's
-definition at that moment (`scopeDefinitionHash`, `lib/types/scope.ts`). The
-bundle records the hash and not the scope's id. `adminArea2` is the area the
-definition holds the figure's own family to (the HMIS section's for an HMIS
-metric, the HFA section's for an HFA one, null for ICEH, which has no
-geography), kept because the roll-up row label is rendered from the frozen
-bundle (below). Every assembly site stamps them from its container's
-`PackageScope` (the product's live `{ runId, scopeId }`, read from the T1
-products row by the deck and report editors) through
-`figureScopeStamp(scope, scopeToken, family)`
+`scope` and `provenance.runId` record what the bundle was resolved under: the
+package, and the hash of the scope's definition at that moment
+(`scopeDefinitionHash`, `lib/types/scope.ts`). The bundle records the hash and
+not the scope's id. `adminArea2` is the area the definition holds the figure's
+own family to (the HMIS section's for an HMIS metric, the HFA section's for an
+HFA one, null for ICEH, which has no geography), kept because the roll-up row
+label is rendered from the frozen bundle (below). Every assembly site stamps
+them from its container's `PackageScope` (the product's live
+`{ runId, scopeId }`, read from the T1 products row by the deck and report
+editors) through `figureScopeStamp(scope, scopeToken, family)`
 (`client/src/state/instance/t1_store.ts`), which takes the hash from the
 `scopeToken` of the payload the bundle is built from (the definition the server
 computed the rows under) and the area from the T1 scopes list, by the metric's
@@ -877,7 +876,7 @@ The architecture is documented above and in [S9](SYSTEM_09_viz_query_cache.md),
 [S12](SYSTEM_12_documents_sharing.md), [S2](SYSTEM_02_persistence.md). One slice
 is deferred:
 
-- **The Visualization rename** (Phase 5, optional). Rename presentation object →
+- **The Visualization rename** (optional). Rename presentation object →
   Visualization end-to-end: `PresentationObjectConfig`,
   `ItemsHolderPresentationObject`, `server_only_funcs_presentation_objects/`,
   and the dozens of files using those names. No behavior change: a large

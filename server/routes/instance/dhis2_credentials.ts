@@ -12,8 +12,7 @@ import { requireGlobalPermission } from "../../middleware/mod.ts";
 import { notifyInstanceConfigUpdatedFromDb } from "../../task_management/notify_instance_updated.ts";
 import { defineRoute } from "../route-helpers.ts";
 
-// Instance-wide stored DHIS2 credentials, shared by every DHIS2 flow
-// (PLAN_DHIS2_CREDENTIAL_STORE_CONSOLIDATION Phase 1).
+// Instance-wide stored DHIS2 credentials, shared by every DHIS2 flow.
 export const routesDhis2Credentials = new Hono();
 
 defineRoute(

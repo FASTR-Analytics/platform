@@ -10,13 +10,13 @@ import {
   getCsvStreamComponents,
 } from "../../server_only_funcs_csvs/get_csv_components_streaming_fast.ts";
 
-// The scan behind the wizard's mapping step (PLAN_A6 ruling 4): every
-// distinct value the file's indicator column says, derived from the cell
-// exactly as the stage leg derives it, with its row count, sorted by
-// descending row count. An empty cell is no value: staging drops that row
-// as missing a required field. Above the cap the scan refuses with the
-// count and the column, since a mapping the user cannot complete is worse
-// than a refusal and that many values almost always means the wrong column.
+// The scan behind the wizard's mapping step: every distinct value the file's
+// indicator column says, derived from the cell exactly as the stage leg derives
+// it, with its row count, sorted by descending row count. An empty cell is no
+// value: staging drops that row as missing a required field. Above the cap the
+// scan refuses with the count and the column, since a mapping the user cannot
+// complete is worse than a refusal and that many values almost always means the
+// wrong column.
 export async function scanHmisCsvIndicatorValues(args: {
   csvFilePath: string;
   columns: HmisCsvColumns;

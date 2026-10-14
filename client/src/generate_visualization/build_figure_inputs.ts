@@ -580,8 +580,8 @@ function withDateRange(
 }
 
 // The package catalog's own order, ids only: what every indicator axis sorts
-// by (PLAN_1a §1.9). Entries with no stamped order follow, by id, so a mixed
-// catalog is still deterministic.
+// by. Entries with no stamped order follow, by id, so a mixed catalog is
+// still deterministic.
 function buildIndicatorIdOrder(metadata: IndicatorMetadataDisplay[]): string[] {
   return [...metadata]
     .sort(

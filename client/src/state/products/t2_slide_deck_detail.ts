@@ -5,8 +5,8 @@ import { createReactiveCache } from "../_infra/reactive_cache";
 // A deck's own content (plan, config, slide ordering), versioned by THE
 // product stamp: `products.last_updated` is bumped by every content mutation
 // and every metadata write in the same transaction, and it arrives on the
-// product's `products_upserted` summary rather than a `last_updated` message
-// (PLAN_PRODUCTS_RESTRUCTURE D8). Per-entity (Variant B) invalidation.
+// product's `products_upserted` summary rather than a `last_updated` message.
+// Per-entity (Variant B) invalidation.
 const _SLIDE_DECK_DETAIL_CACHE = createReactiveCache<
   { productId: string },
   SlideDeckDetail

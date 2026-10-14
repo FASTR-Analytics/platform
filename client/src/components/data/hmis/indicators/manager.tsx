@@ -80,7 +80,7 @@ type Props = {
   close: (v: undefined) => void;
 };
 
-// The dictionary as one list (PLAN_A4 §2): every row is an indicator, the
+// The dictionary as one list: every row is an indicator, the
 // Type column says what fills it (DHIS2 element, Uploaded, Sum, Calculated),
 // and a special indicator (one the analysis modules read by name) carries
 // a badge. Every field, including include-in-analysis, is edited in the
@@ -140,8 +140,8 @@ export function IndicatorsManager(p: Props) {
     );
   });
 
-  // The dictionary download (PLAN_A6 ruling 8): the DHIS2 id of an element,
-  // blank for every other type.
+  // The dictionary download: the DHIS2 id of an element, blank for every
+  // other type, whose key is opaque.
   function handleDownloadCsv(list: HmisIndicator[]) {
     const rows = list.map((indicator) => [
       indicator.indicator_common_id,
@@ -396,7 +396,7 @@ function IndicatorsTable(p: {
       onRefreshDhis2Labels: () => p.handleRefreshDhis2Labels(p.indicators),
     });
 
-  // The DHIS2 data import for the rows in front of you (PLAN_A7 ruling 11):
+  // The DHIS2 data import for the rows in front of you:
   // the same wizard the imports view opens, preselected with the selection,
   // fetching its own data. It launches, queues or schedules as it does
   // there; the notice says where to follow the run.
@@ -731,7 +731,7 @@ function TickCell(p: { when: boolean }) {
   );
 }
 
-// The reference list (PLAN_A3 ruling 5): the special ids the analysis
+// The reference list: the special ids the analysis
 // modules read by name, and every reserved word no indicator id may be.
 function ReferenceListModal(p: AlertComponentProps<{}, undefined>) {
   return (

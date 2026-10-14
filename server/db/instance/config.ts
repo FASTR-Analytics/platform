@@ -52,7 +52,7 @@ export async function getStructureSchema(
   });
 }
 
-// The 3-way family selection used by query context / availability (ruling 4):
+// The 3-way family selection used by query context / availability:
 // hmis → HMIS schema, hfa → HFA schema, iceh/undefined → undefined (no
 // enabled facility columns; iceh_data has no facility dimension, so that
 // branch is defensive, not live).
@@ -178,10 +178,10 @@ export async function updateAdminAreaLabelsConfig(
   });
 }
 
-// The instance's AI context (PLAN_PRODUCTS_RESTRUCTURE D15): free prose an
-// admin writes on the settings page, carried into the copilot's system
-// prompt. ONE instance-level string, stored like every other instance_config
-// row: a plain string JSON-encoded into config_json_value.
+// The instance's AI context: free prose an admin writes on the settings page,
+// carried into the copilot's system prompt. ONE instance-level string, stored
+// like every other instance_config row: a plain string JSON-encoded into
+// config_json_value.
 // Absent = empty, never an error: a missing context must not break the prompt.
 export async function getAiContextConfig(
   mainDb: Sql,
@@ -221,11 +221,10 @@ export async function updateAiContextConfig(
   });
 }
 
-// The results-package wizard's instance defaults (PLAN_RESULTS_RUNS Phase 3
-// item 1, §3.5): the starting values an admin saved in the module-defaults
-// editor (S8). Absent, or stored under a shape an older build wrote,
-// degrades to "no defaults", which is exactly the empty wizard, so a bad
-// blob can never block generation.
+// The results-package wizard's instance defaults: the starting values an
+// admin saved in the module-defaults editor (S8). Absent, or stored under a
+// shape an older build wrote, degrades to "no defaults", which is exactly the
+// empty wizard, so a bad blob can never block generation.
 const EMPTY_RUN_GENERATION_DEFAULTS: RunGenerationDefaults = {
   step1: null,
   moduleIds: [],

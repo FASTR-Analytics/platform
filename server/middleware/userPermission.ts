@@ -51,14 +51,13 @@ function admit(c: Context, globalUser: GlobalUser): void {
 }
 
 /**
- * The approved-user guard: signed in AND `globalUser.approved`
- * (PLAN_PRODUCTS_RESTRUCTURE D2). It guards the run-keyed figure-data reads,
- * the authoring context, the ready-package list and the copilot proxies. The
- * collab socket applies the same two checks inline in
- * `routes/instance/collab.ts`, because a WebSocket upgrade must answer with a
- * close code, not a JSON 401. `requireGlobalPermission()` is not this: its
- * zero-permission form never checks `approved`, and its call sites keep their
- * semantics.
+ * The approved-user guard: signed in AND `globalUser.approved`. It guards the
+ * run-keyed figure-data reads, the authoring context, the ready-package list
+ * and the copilot proxies. The collab socket applies the same two checks
+ * inline in `routes/instance/collab.ts`, because a WebSocket upgrade must
+ * answer with a close code, not a JSON 401. `requireGlobalPermission()` is not
+ * this: its zero-permission form never checks `approved`, and its call sites
+ * keep their semantics.
  */
 export function requireApprovedUser() {
   return createMiddleware<{ Variables: GuardVariables }>(
@@ -109,11 +108,11 @@ function scopeIdsOf(value: unknown): ScopeId[] {
   });
 }
 
-// The route's targets come from the id fields the contract declares (§3.2)
-// and nowhere else: path product_id / folder_id and body productIds
-// (subjects), body targetProductId (a destination product), folderId and
-// parentId (folders; null = root), and scopeId. Only the folder routes
-// declare folder_id or parentId.
+// The route's targets come from the id fields the contract declares and nowhere
+// else: path product_id / folder_id and body productIds (subjects), body
+// targetProductId (a destination product), folderId and parentId (folders;
+// null = root), and scopeId. Only the folder routes declare folder_id or
+// parentId.
 async function resolveProductAccessTargets(
   c: Context,
 ): Promise<ProductAccessTargets> {
@@ -147,11 +146,10 @@ async function resolveProductAccessTargets(
 
 /**
  * The product and folder guard, installed by defineRoute for every registry
- * entry that declares `access` (PLAN_PRODUCTS_RESTRUCTURE §3.2). It resolves
- * the route's targets from the declared id fields and asks
- * productAccessPolicy once; a handler behind it never checks access itself.
- * The product id in the path is the authority: a future permission scheme
- * replaces the policy, never the handlers.
+ * entry that declares `access`. It resolves the route's targets from the
+ * declared id fields and asks productAccessPolicy once; a handler behind it
+ * never checks access itself. The product id in the path is the authority: a
+ * future permission scheme replaces the policy, never the handlers.
  */
 export function requireProductAccess(level: ProductAccessLevel) {
   return createMiddleware<{ Variables: GuardVariables }>(

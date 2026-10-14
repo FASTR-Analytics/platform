@@ -106,8 +106,8 @@ export const userRouteRegistry = {
     method: "POST",
     body: z.object({ email: z.string(), unlimited: z.boolean() }),
   }),
-  // Global admins only (PLAN_SCOPES R25), so a restricted user holding
-  // can_configure_users cannot lift their own restriction. Refused for a
+  // Global admins only, so a restricted user holding can_configure_users
+  // cannot lift their own restriction. Refused for a
   // global admin, who always has every scope.
   setUserScopeAccess: route({
     path: "/user/scope-access",

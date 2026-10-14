@@ -89,7 +89,7 @@ function nextScheduleOf(
 
 // The unified imports surface: a thin tab shell (Current / Future / History)
 // plus one wizard per import kind (DHIS2 runs, CSV file runs). The ledger
-// view is the HMIS Data page's Ledger tab (PLAN_A8).
+// view is the HMIS Data page's Ledger tab.
 // The shell owns all data plumbing (the runs, scheduling and
 // indicator-label reads, the poll loop, the SSE wake-up effect) so a run
 // keeps progressing even while the user sits on a different tab. Nothing
@@ -119,9 +119,8 @@ export function DatasetHmisImports(p: Props) {
   const [tab, setTab] = createSignal<TabId>("current");
 
   // The dictionary keyed by data id labels the run progress and the run
-  // detail, whose rows carry data ids (PLAN_A5 ruling 9). A
-  // display-only enrichment: blank until ready rather than gating the
-  // tables behind it.
+  // detail, whose rows carry data ids. A display-only enrichment: blank
+  // until ready rather than gating the tables behind it.
   const indicators = createQuery(() => serverActions.getIndicators({}));
   const byDataId = createMemo((): Map<string, HmisIndicator> => {
     const s = indicators.state();
@@ -149,7 +148,7 @@ export function DatasetHmisImports(p: Props) {
   });
 
   // The scheduler tick acts server-side while this page may sit idle: the
-  // SSE-pushed summary fields are the wake-up signal (review finding 6).
+  // SSE-pushed summary fields are the wake-up signal.
   createEffect(
     on(
       () => [

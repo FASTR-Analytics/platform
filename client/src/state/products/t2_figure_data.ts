@@ -24,15 +24,15 @@ import { serverActions } from "~/server_actions";
 import { getReplicantOptionsFromCacheOrFetch } from "./t2_replicant_options";
 
 // The DATA behind a figure, read under one PackageScope through the run-keyed
-// mount (PLAN_PRODUCTS_RESTRUCTURE D7): the metric's queryable shape
-// (`metric_info`) and its rows (`po_items`). A figure is `{ metricId, config }`
-// resolved under its container's pair (D3), so every surface that shows one
-// (a preset preview, an embedded figure, the Explore page) shares these
-// entries. Version key CONSTANT, identity in the UNIQUENESS key: a package is
-// immutable, so `(runId, definitionHash)` leads the key instead of versioning it,
-// and a late response cannot land under a key belonging to another package
-// or scope. The hash is resolved once, when the read starts, and a response is
-// stored only if the server computed it under that hash (answersKeyedScope).
+// mount: the metric's queryable shape (`metric_info`) and its rows
+// (`po_items`). A figure is `{ metricId, config }` resolved under its
+// container's pair, so every surface that shows one (a preset preview, an
+// embedded figure, the Explore page) shares these entries. Version key
+// CONSTANT, identity in the UNIQUENESS key: a package is immutable, so
+// `(runId, definitionHash)` leads the key instead of versioning it, and a late
+// response cannot land under a key belonging to another package or scope. The
+// hash is resolved once, when the read starts, and a response is stored only if
+// the server computed it under that hash (answersKeyedScope).
 
 export const _METRIC_INFO_CACHE = createReactiveCache<
   { scope: ResolvedPackageScope; metricId: string },

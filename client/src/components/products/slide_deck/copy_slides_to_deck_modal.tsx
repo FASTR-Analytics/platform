@@ -17,7 +17,7 @@ type Props = { sourceProductId: string; slideIds: string[] };
 
 type ReturnType = { newSlideIds: string[] } | undefined;
 
-// "Copy to deck…", the only cross-product figure reuse there is (D3: no figure
+// "Copy to deck…", the only cross-product figure reuse there is (no figure
 // library, so reuse is duplicate within a deck, duplicate the whole deck, and
 // this). Bundles are copied VERBATIM, so every copied figure lands stale when
 // the target deck serves from a different (package, scope) pair, which is why

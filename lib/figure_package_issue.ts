@@ -5,13 +5,13 @@ import type { DatasetType } from "./types/datasets.ts";
 import type { MetricWithStatus } from "./types/modules.ts";
 import type { RunManifest, RunPopulation } from "./types/run_manifest.ts";
 
-// Why one figure will not resolve under a package (PLAN_PRODUCTS_RESTRUCTURE
-// D4). Manifest lookups only, no data queries: every fact needed is stamped
-// at finalize, which is what lets the same rule run on the client against
-// the authoring context (a manifest projection) as on the server against the
-// manifest itself. Resolution order: a missing metric makes its availability
-// stamp and its dimensions unanswerable, so the first thing that fails is
-// what gets reported. null = the figure resolves.
+// Why one figure will not resolve under a package. Manifest lookups only, no
+// data queries: every fact needed is stamped at finalize, which is what lets
+// the same rule run on the client against the authoring context (a manifest
+// projection) as on the server against the manifest itself. Resolution order: a
+// missing metric makes its availability stamp and its dimensions unanswerable,
+// so the first thing that fails is what gets reported. null = the figure
+// resolves.
 
 export type FigurePackageIssue =
   | { kind: "metric_not_in_package"; metricId: string }

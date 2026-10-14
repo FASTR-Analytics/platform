@@ -1,7 +1,7 @@
-// Cross-flow DHIS2 credential types (PLAN_DHIS2_CREDENTIAL_STORE_
-// CONSOLIDATION). Every DHIS2 flow (structure import, indicators, geojson,
-// HMIS data) uses the one instance-wide stored connection, encrypted at rest
-// and set only in the Data page's DHIS2 connection row.
+// Cross-flow DHIS2 credential types. Every DHIS2 flow (structure import,
+// indicators, geojson, HMIS data) uses the one instance-wide stored
+// connection, encrypted at rest and set only in the Data page's DHIS2
+// connection row.
 
 export type Dhis2Credentials = {
   url: string;

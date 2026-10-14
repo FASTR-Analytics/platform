@@ -35,9 +35,9 @@ type Props = {
   setVizConfig: SetStoreFunction<VizConfig>;
 };
 
-// One view, by the indicators that have rows (PLAN_A4 ruling 8): sums have
-// no rows and do not appear; their totals are in packages. The page owns
-// the fetch and the store (PLAN_A8 ruling 10); this is the render over them.
+// One view, by the indicators that have rows: sums have no rows and do not
+// appear; their totals are in packages. The page owns the fetch and the
+// store; this is the render over them.
 export function DatasetDisplayPresentation(p: Props) {
   const filteredVizItems = createMemo(() => {
     const indicatorsToVizualize = p.vizConfig.indicators;
@@ -130,7 +130,7 @@ export function DatasetDisplayPresentation(p: Props) {
       }))
   );
 
-  // Presence, not magnitude (PLAN_A8 ruling 3): a cell is filled where the
+  // Presence, not magnitude: a cell is filled where the
   // indicator has at least one record in the period. Column ids are the
   // period ids as strings, the year being the month id's leading four digits.
   const presenceCells = createMemo(() => {

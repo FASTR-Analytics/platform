@@ -10,10 +10,9 @@ import type { ThresholdsRule } from "./types/conditional_formatting.ts";
 import type { IndicatorFormat } from "./types/indicators.ts";
 
 // The traffic-light threshold pair (direction + green + yellow, in DISPLAY
-// units) that pre-restructure packages and pre-P2 figure snapshots carry, as
-// the rule it always meant. This is the same conversion instance migration
-// 079 performs in SQL on the live dictionary; the two must agree (§5.7 / 5.8
-// of PLAN_1d verify both against the scorecard's truth table).
+// units) that pre-restructure packages and pre-bundle figure snapshots carry,
+// as the rule it always meant. This is the same conversion instance migration
+// 079 performs in SQL on the live dictionary; the two must agree.
 //
 //   higher_is_better {green, yellow} → cutoffs [yellow, green], buckets
 //     [red, yellow, green]; lower_is_better → cutoffs [green, yellow],

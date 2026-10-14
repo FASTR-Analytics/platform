@@ -24,7 +24,7 @@ export function Step1Metric(p: Props) {
 
   // Module ids on the read plane are plain strings from the manifest
   // ("primary" = every family's primary module, "all" = no filter): ModuleId
-  // is a generation-plane type (PLAN_1a §0 clause 3). A package without a
+  // is a generation-plane type. A package without a
   // primary module (built before one existed) opens on all modules.
   const [selectedModule, setSelectedModule] = createSignal<string>(
     metricsByModule().some((m) => m.tier === "primary") ? "primary" : "all",

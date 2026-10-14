@@ -45,6 +45,10 @@ export function ModuleVisualizations(p: {
         scope: p.scope,
         metric,
         configSnapshot: structuredClone(preset.config),
+        aiView: {
+          id: "viewing_package_figure" as const,
+          params: { figureId: preset.id },
+        },
         authoringContext: p.ctx,
         viewOnly: true,
       },

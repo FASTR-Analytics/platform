@@ -14,9 +14,9 @@ import { tryCatchDatabaseAsync } from "../utils.ts";
 import { isValidPeriodId } from "./dataset_hmis_import_runs.ts";
 import type { DBDatasetHmisScheduledImport } from "./_main_database_types.ts";
 
-// Scheduled DHIS2 imports (PLAN_DHIS2_IMPORTER Phase 4, C4): CRUD for the
-// schedule rows plus the compare-and-set primitives the ~60 s scheduler tick
-// uses (see server/worker_routines/import_hmis_data_dhis2/scheduler.ts).
+// Scheduled DHIS2 imports: CRUD for the schedule rows plus the compare-and-set
+// primitives the ~60 s scheduler tick uses (see
+// server/worker_routines/import_hmis_data_dhis2/scheduler.ts).
 // last_fired_at is the last HANDLED occurrence: launched, refused, or
 // missed, which doubles as the tick's idempotency token. Cadence phase
 // comes from the recurrence's own anchor, never from last_fired_at.
@@ -230,7 +230,7 @@ export type EnabledScheduledImportRow = {
   runAtMs: number | null;
   recurrence: Dhis2ScheduleRecurrence | null;
   createdBy: string;
-  // Occurrences before this instant are never due (review finding 1).
+  // Occurrences before this instant are never due.
   armedAtMs: number;
   lastFiredAtMs: number | null;
 };

@@ -1,7 +1,6 @@
-// Regression pin for the HFA rounds both AI surfaces list
-// (PLAN_COPILOT02_FIXES step 8, D32): the SPA copilot and /mcp derive the
-// taxonomy's time points from the instance's rounds through one function, so
-// a round without data is listed by neither.
+// Regression pin for the HFA rounds both AI surfaces list: the SPA copilot
+// and /mcp derive the taxonomy's time points from the instance's rounds
+// through one function, so a round without data is listed by neither.
 //
 //   deno test -A --no-check server/tests/hfa_time_points_for_ai_test.ts
 

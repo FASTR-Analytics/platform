@@ -1,4 +1,4 @@
-// Pins PLAN_A6 ruling 1: an Uploaded indicator's data id is an opaque key.
+// Pins that an Uploaded indicator's data id is an opaque key.
 // The table requires one; the key is generated as `u_` plus a UUID, outside
 // the DHIS2 shapes; two creates never share one; no path accepts a key from
 // a client (the route schema strips it, the route narrowing drops it, an

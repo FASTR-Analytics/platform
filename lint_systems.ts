@@ -1,11 +1,11 @@
 #!/usr/bin/env -S deno run --allow-read --allow-run
-// Systems-topology manifest lint (PLAN_SYSTEMS.md / PLAN_DOC_CONSOLIDATION.md).
+// Systems-topology manifest lint.
 //
 // Reads the `globs:` frontmatter from every SYSTEM_NN_*.md at the repo root
 // (SYSTEM_00_kernel.md holds the read-but-don't-own kernel files) and asserts
 // that every tracked .ts/.tsx file under server/, lib/, client/src/ (+ main.ts)
 // matches exactly ONE system. Reports orphans (0 systems) and double-claims
-// (>1). Custody files (PLAN_SYSTEMS §4.1) are single-owner by construction, so
+// (>1). Custody files (SYSTEMS.md §4.1) are single-owner by construction, so
 // they must never double-claim: their multi-system nature lives in prose.
 //
 // Run: deno run --allow-read --allow-run lint_systems.ts

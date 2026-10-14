@@ -484,7 +484,7 @@ const ROWS_AA2 = {
   rollupPosition: "top",
 } as const;
 
-// Level (R10)
+// Level
 
 Deno.test("level: m012 opens at admin area 2 under All data and 3 under an area, laid out", () => {
   const national = resolve(M012, "hmis");
@@ -586,7 +586,7 @@ Deno.test("level: a byLevel option whose metric the package lacks is not offered
   );
 });
 
-// Pin (R-pin, R8)
+// Pin
 
 Deno.test("pin: the m012 timeseries drops the area, the m011 admin-area-2 view pins it as the replicant", () => {
   const dropped = resolve(M012, "hmis", { type: "timeseries" });
@@ -642,7 +642,7 @@ Deno.test("pin: a required non-time facet is the replicant, an optional one a fi
   ]);
 });
 
-Deno.test("pin: a dimension over the cap has no value and no config (R13)", () => {
+Deno.test("pin: a dimension over the cap has no value and no config", () => {
   const view = resolve(M009_INEQ, "iceh", {
     possibleValues: { ...PV, strat: { status: "too_many_values" } },
   });
@@ -719,7 +719,7 @@ Deno.test("category: a non-indicator category offers the possible values and rea
   );
 });
 
-Deno.test("category: a pinned hfa_category facet narrows the HFA indicators (R16)", () => {
+Deno.test("category: a pinned hfa_category facet narrows the HFA indicators", () => {
   assertEquals(
     resolve(M010_ROUND, "hfa").category?.options.map((o) => o.id),
     ["hfa1"],
@@ -731,7 +731,7 @@ Deno.test("category: a pinned hfa_category facet narrows the HFA indicators (R16
   );
 });
 
-// Time (R9)
+// Time
 
 Deno.test("time: months laid out take the grain as the column and the window as the filter", () => {
   const query = {
@@ -749,7 +749,7 @@ Deno.test("time: months laid out take the grain as the column and the window as 
     "all",
   ]);
   // The required indicator dimension has no axis here, so it is pinned as
-  // the replicant (R-pin).
+  // the replicant.
   const config = deriveViewConfig(table, "en")?.config.d;
   assertEquals(config?.disaggregateBy, [
     ROWS_AA2,
@@ -852,7 +852,7 @@ Deno.test("time: an over-time type never derives over time points", () => {
   assertEquals(derive(binding, "hfa"), undefined);
 });
 
-// Style (R5) and values (R6)
+// Style and values
 
 Deno.test("style: borrowed from the first preset of the same type, else the defaults", () => {
   const table = derive(M012, "hmis")?.config;
@@ -1357,7 +1357,7 @@ Deno.test("type: the chosen type when the view offers it, else the first", () =>
   );
 });
 
-Deno.test("views: a view is offered only for metrics the package carries (R7)", () => {
+Deno.test("views: a view is offered only for metrics the package carries", () => {
   const m012 = { ...module("m012", "hmis") };
   assertEquals(viewsForModule(m012, CTX).map((v) => v.id), ["service_counts"]);
   const unavailable = context(

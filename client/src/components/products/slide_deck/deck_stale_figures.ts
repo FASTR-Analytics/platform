@@ -15,7 +15,7 @@ import { findStaleFiguresInLayout } from "~/generate_visualization/mod";
 import { updateFigureToScope } from "~/components/_shared/figure_editor/mod.ts";
 import { updateBlockInLayout } from "./slide_transforms/mod.ts";
 
-// Deck-level staleness (PLAN_PRODUCTS_RESTRUCTURE D4): which figures across
+// Deck-level staleness: which figures across
 // the deck were resolved under a pair other than the container's current
 // one. The deck header shows the count and offers one action to re-resolve
 // them all; each slide's own editor shows the same thing per figure block.

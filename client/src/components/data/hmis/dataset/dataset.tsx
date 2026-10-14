@@ -67,8 +67,8 @@ const FETCHING_DATA = () =>
     pt: "A obter dados...",
   });
 
-// The page owns every read and the view state (PLAN_A8 ruling 10): the two
-// tab bodies render over it, so a tab switch is never a fetch.
+// The page owns every read and the view state: the two tab bodies render
+// over it, so a tab switch is never a fetch.
 export function InstanceDatasetHmis(p: Props) {
   const { openEditor, EditorWrapper } = getEditorWrapper();
 
@@ -117,8 +117,7 @@ export function InstanceDatasetHmis(p: Props) {
 
   // The ledger is a full-table read (one row per data id × month): fetched
   // once on mount and again when the data version or the running-run flag
-  // changes (PLAN_A8 ruling 7). Stale rows stay visible until fresh ones
-  // arrive.
+  // changes. Stale rows stay visible until fresh ones arrive.
   const [ledger, setLedger] = createSignal<
     StateHolder<DatasetHmisImportLedgerItem[]>
   >({
@@ -153,7 +152,7 @@ export function InstanceDatasetHmis(p: Props) {
   );
 
   // The dictionary keyed by data id labels the ledger, a display-only
-  // enrichment read through the T2 cache (PLAN_A8 ruling 11).
+  // enrichment read through the T2 cache.
   const [indicators, setIndicators] = createSignal<HmisIndicator[]>([]);
   let indicatorsRequestId = 0;
   createEffect(() => {

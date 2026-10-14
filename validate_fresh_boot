@@ -1,8 +1,7 @@
 #!/bin/bash
 
-# Fresh-postgres boot gate (PLAN_A6 §5 gate 4): dbStartUp() against an empty
-# server must exit 0 and leave an empty dictionary, with none of the retired
-# indicator tables.
+# Fresh-postgres boot gate: dbStartUp() against an empty server must exit 0
+# and leave an empty dictionary, with none of the retired indicator tables.
 # Companion to ./validate_migrations (schema replay) and ./validate_queries
 # (the read path); this one runs the real boot path, base schema, migrations
 # and data transforms included, on a throwaway container.

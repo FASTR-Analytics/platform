@@ -14,11 +14,10 @@ import {
   _WEEKLY_TOKEN_LIMIT,
 } from "../exposed_env_vars.ts";
 
-// The ONE Anthropic /v1/messages passthrough, shared by the copilot proxy
-// (mounted at /ai) and the instance proxy (mounted at /ai-instance; powers the
-// HFA Indicator Manager assistant). Governance (daily-user + weekly-instance token
-// limits), usage logging, and the beta-header policy live here so the two
-// mounts cannot drift.
+// The Anthropic /v1/messages passthrough behind the copilot proxy (mounted
+// at /ai, copilot_ai_proxy.ts). Governance (daily-user + weekly-instance
+// token limits), usage logging, and the beta-header policy live here; the
+// mount stays logic-free.
 //
 // Responses are Anthropic-shaped (including errors), NOT the APIResponse
 // envelope: the browser Anthropic SDK parses them (see SYSTEM_13).

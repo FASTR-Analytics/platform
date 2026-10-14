@@ -26,7 +26,7 @@ import { StaleFigureBadge } from "~/components/_shared/figure_editor/mod.ts";
 import { applyInkTheme, type FigureInkTheme } from "~/generate_report/mod";
 
 // What the report editor hands each embed so it can judge and update its own
-// figure (PLAN_PRODUCTS_RESTRUCTURE D4). Absent on surfaces that only display
+// figure. Absent on surfaces that only display
 // (version previews), where no badge is shown.
 export type FigureStaleContext = {
   scope: PackageScope;

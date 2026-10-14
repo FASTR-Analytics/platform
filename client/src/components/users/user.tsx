@@ -28,6 +28,10 @@ import {
 } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
+import {
+  copilotViewController,
+  holdCopilotView,
+} from "~/components/instance/copilot/mod.ts";
 import { UserScopesCard } from "./user_scopes";
 
 type Props = {
@@ -38,8 +42,11 @@ type Props = {
 
 // The row is read live from T1 rather than snapshotted through the wrapper,
 // so an admin toggle or a permission change shows without a remount, and the
-// page closes itself when the row is removed.
+// page closes itself when the row is removed. The page sets the chat's `user`
+// view (S13), whose label names the page and never the email.
 export function User(p: Props) {
+  holdCopilotView();
+  copilotViewController.setView("user");
   const user = createMemo(() =>
     instanceState.users.find((u) => u.email === p.email)
   );

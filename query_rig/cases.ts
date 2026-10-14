@@ -1086,7 +1086,7 @@ const EXPLICIT_CASES: Case[] = [
     expect: { status: "ok", rows: [{ year: 2024, value: 25 }] },
   },
 
-  // ── Per-family structure schemas (PLAN_2 split) ───────────────────────────
+  // ── Per-family structure schemas ──────────────────────────────────────────
   // The fixture is HFA depth 2 / includeTypes ON while seedInstance seeds the
   // hmis row divergent (depth 4, flags inverted → includeTypes OFF). Each case
   // only passes if the engine resolved the HFA row.

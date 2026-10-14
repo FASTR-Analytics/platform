@@ -6,9 +6,8 @@ import {
 } from "./duckdb_executor.ts";
 
 // Builds the normalized query-store parquet for one results object from its
-// raw R output CSV: the finalize step of PLAN_RESULTS_RUNS §2.3. This is
-// the ONLY ingest, so the four normalizations below are stated here once and
-// nothing shadows them:
+// raw R output CSV, at finalize. This is the ONLY ingest, so the four
+// normalizations below are stated here once and nothing shadows them:
 //   1. 'NA' → NULL (unquoted only, matching Postgres COPY)
 //   2. schema = CSV headers ∩ declared columns, with DECLARED types (an
 //      undeclared header is a hard error; types are never inferred)
@@ -18,8 +17,8 @@ import {
 const SAFE_COLUMN_NAME = /^[a-z_][a-z0-9_]*$/;
 
 // The authored createTableStatementPossibleColumns vocabulary is closed:
-// TEXT / INTEGER / NUMERIC, each optionally NOT NULL. NUMERIC → DOUBLE by
-// decision (PLAN_RESULTS_RUNS §3.3).
+// TEXT / INTEGER / NUMERIC, each optionally NOT NULL. NUMERIC → DOUBLE: float
+// drift on large sums sits at the float floor, so exact DECIMAL is not needed.
 export function duckDbTypeForDeclaredColumnType(declared: string): string {
   const base = declared.replace(/\s+NOT\s+NULL\s*$/i, "").trim().toUpperCase();
   switch (base) {

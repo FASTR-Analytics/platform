@@ -9,7 +9,7 @@ import {
   _CLERK_SECRET_KEY,
 } from "./exposed_env_vars.ts";
 
-// The headless credential seam (PLAN_MCP_OAUTH). Headless clients: Claude
+// The headless credential seam. Headless clients: Claude
 // Code with a PAT, claude.ai with a Clerk OAuth grant: carry no cookies, so
 // their identity is resolved from the Authorization header alone.
 //

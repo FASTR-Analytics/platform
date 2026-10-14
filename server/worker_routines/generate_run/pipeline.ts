@@ -38,13 +38,12 @@ import {
 } from "./resolve_reuse.ts";
 import type { GenerateRunStartData } from "./types.ts";
 
-// The run pipeline (PLAN_RESULTS_RUNS items 2 + 3): prepare inputs → resolve
-// → reuse plan → execute/reuse in dependency order → ONE finalize → atomic
-// rename → ready → SSE. Whole-DAG with
-// abort-on-any-fail: no mid-run file is ever in a serving location, and a
+// The run pipeline: prepare inputs → resolve → reuse plan → execute/reuse in
+// dependency order → ONE finalize → atomic rename → ready → SSE. Whole-DAG
+// with abort-on-any-fail: no mid-run file is ever in a serving location, and a
 // failed generation never replaces the serving run.
 //
-// Memoized generation (§3.7): the reuse plan resolves as the first stage
+// Memoized generation: the reuse plan resolves as the first stage
 // after resolve: per-module reused / will-run pushed to the progress view
 // before anything executes. The plan is a pessimistic prediction; the loop
 // below makes the authoritative per-module decision from ACTUAL upstream
@@ -166,7 +165,7 @@ export async function runGenerationPipeline(
   progress.currentModuleId = null;
   await pushStage({ kind: "finalizing", moduleId: null });
 
-  // ONE finalize (§3.8): wholesale manifest + inputs capture via the package
+  // ONE finalize: wholesale manifest + inputs capture via the package
   // builder. The catalog is handed to the builder from THIS generation's
   // resolved definitions and the input mirrors were written by prepare.
   const { summary } = await buildRunPackageIntoTmp(

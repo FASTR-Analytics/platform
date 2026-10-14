@@ -7,8 +7,8 @@ import { route } from "../route-utils.ts";
 export const emailRecipientsSchema = z.array(z.email()).min(1).max(50);
 
 export const emailRouteRegistry = {
-  // The recipient roster on offer is the instance roster (PLAN_PRODUCTS_RESTRUCTURE
-  // D2, a named consequence of the permissive model).
+  // The recipient roster on offer is the instance roster, a consequence of
+  // the permissive access model: every approved user may send.
   sendSlideDeckEmail: route({
     path: "/emails/slide-deck",
     method: "POST",
@@ -22,8 +22,8 @@ export const emailRouteRegistry = {
   // A report goes as the file its format downloads as: the standalone .html
   // for html/fastr reports, the PDF for markdown, so the attachment carries
   // its own MIME type, unlike the deck route's fixed PDF. Approved-user
-  // access like the deck route (PLAN_PRODUCTS_RESTRUCTURE D2): the caller
-  // already holds the content it is sending.
+  // access like the deck route: the caller already holds the content it is
+  // sending.
   sendReportEmail: route({
     path: "/emails/report",
     method: "POST",

@@ -40,16 +40,15 @@ import { notifyInstanceRunsCatalogUpdated } from "../../task_management/notify_i
 import { launchRunGeneration } from "../../worker_routines/generate_run/mod.ts";
 import { defineRoute } from "../route-helpers.ts";
 
-// Results-package wizard + catalogue (PLAN_RESULTS_RUNS item 2, re-cut by
-// Phase 3 items 1 and 3): the instance defaults store, the wizard's
-// module-options read, launch, the catalogue listing (instance-T1's fetch
-// half: pulled on the runs_catalog_updated timestamp signal), the guarded
-// hard delete, the ready-run detail and the per-module script/log/file
-// reads. Instance-admin gated (can_configure_data) except the package reads,
-// which sit under the instance data bits (see below). The wizard is an ephemeral modal: nothing is
-// persisted server-side before launch, which takes the whole configuration
-// in its body and hands the run to the generate_run worker; further state
-// arrives over instance SSE (the catalogue).
+// Results-package wizard + catalogue: the instance defaults store, the wizard's
+// module-options read, launch, the catalogue listing (instance-T1's fetch half:
+// pulled on the runs_catalog_updated timestamp signal), the guarded hard
+// delete, the ready-run detail and the per-module script/log/file reads.
+// Instance-admin gated (can_configure_data) except the package reads, which sit
+// under the instance data bits (see below). The wizard is an ephemeral modal:
+// nothing is persisted server-side before launch, which takes the whole
+// configuration in its body and hands the run to the generate_run worker;
+// further state arrives over instance SSE (the catalogue).
 
 export const routesRunGeneration = new Hono();
 
@@ -170,11 +169,11 @@ defineRoute(
 
 // Script/logs/files read from runs/{runId}/outputs/{moduleId} by the shared
 // reader in server/runs/package_internals.ts, which also owns path safety.
-// Mounted ONCE, run-keyed, under the instance data bits (Tim's ruling
-// 2026-08-18): a package is instance-level data, so `can_view_data` reads
-// its script/files/detail (and the outputs download mount in
-// middleware/static.ts) and `can_view_logs` reads its logs: the same guard
-// whether the caller is the catalogue, an AI tool or MCP.
+// Mounted ONCE, run-keyed, under the instance data bits: a package is
+// instance-level data, so `can_view_data` reads its script/files/detail (and
+// the outputs download mount in middleware/static.ts) and `can_view_logs` reads
+// its logs: the same guard whether the caller is the catalogue, an AI tool or
+// MCP.
 
 defineRoute(
   routesRunGeneration,

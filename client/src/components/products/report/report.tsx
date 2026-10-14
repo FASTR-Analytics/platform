@@ -152,7 +152,7 @@ import { VersionHistoryEditor } from "~/components/products/_shared/version_hist
 type EmbedKind = "figure" | "image";
 type EmbedSelection = { kind: EmbedKind; id: string };
 
-// The report editor takes ONE thing: the product id (D16). Label, package and
+// The report editor takes ONE thing: the product id. Label, package and
 // scope are read LIVE from the T1 products row; a report IS its product, so
 // the product id is also the collab document id.
 type Props = EditorComponentProps<{ productId: string }, undefined>;
@@ -256,7 +256,7 @@ export function ReportEditor(p: Props) {
     );
   });
   // The lastUpdated we last saw from the server — round-tripped for optimistic
-  // concurrency (PLAN_REPORTS.md §4).
+  // concurrency.
   const [lastUpdated, setLastUpdated] = createSignal<string>("");
   const [showConflictBanner, setShowConflictBanner] = createSignal(false);
   const [saveError, setSaveError] = createSignal<string | undefined>();
@@ -317,7 +317,7 @@ export function ReportEditor(p: Props) {
     if (row === undefined && !loading) p.close(undefined);
   });
 
-  // ── Package and scope (D16, D4) ─────────────────────────────────────────────
+  // ── Package and scope ───────────────────────────────────────────────────────
   // The authoring context follows the LIVE pair and its scope's definition: a
   // reattach, a scope change or an edit to the scope's module list swaps the
   // metric and preset catalogue the wizard and the update actions author
@@ -361,7 +361,7 @@ export function ReportEditor(p: Props) {
     });
   }
 
-  // ── Stale figures (D4) ──────────────────────────────────────────────────────
+  // ── Stale figures ───────────────────────────────────────────────────────────
   const staleContext = () => {
     const pair = scope();
     const context = authoringContext();
@@ -435,7 +435,7 @@ export function ReportEditor(p: Props) {
     return resolveLogoUrl(imgFile);
   }
 
-  // Never rewind lastUpdated when out-of-order save responses resolve (M3).
+  // Never rewind lastUpdated when out-of-order save responses resolve.
   function bumpLastUpdated(ts: string) {
     setLastUpdated((prev) => (ts > prev ? ts : prev));
   }
@@ -552,10 +552,11 @@ export function ReportEditor(p: Props) {
       setBody(res.data.body);
       setLastUpdated(res.data.lastUpdated);
 
-      // Prune orphan registry entries at load (PLAN_REPORTS.md §11). The
-      // loosest scan ("any": both token syntaxes and anything looser) — a
-      // kept orphan is harmless, a missed reference deletes a figure. Only a
-      // user who can edit writes the prune back; a viewer's stays in memory.
+      // Prune orphan registry entries only at load, when no undo history can
+      // bring their tokens back. The loosest scan ("any": both token syntaxes
+      // and anything looser) — a kept orphan is harmless, a missed reference
+      // deletes a figure. Only a user who can edit writes the prune back; a
+      // viewer's stays in memory.
       const refs = referencedReportEmbedIds(res.data.body, "any");
       const prunedFigures = Object.fromEntries(
         Object.entries(res.data.figures).filter(([id]) => refs.figures.has(id)),
@@ -727,7 +728,7 @@ export function ReportEditor(p: Props) {
   });
 
   // Flush a pending debounced body save immediately (before unmount/accept) so a
-  // save in the autosave window is never dropped (H3).
+  // save in the autosave window is never dropped.
   function flushBodySave() {
     if (saveTimer) {
       clearTimeout(saveTimer);
@@ -1008,7 +1009,7 @@ export function ReportEditor(p: Props) {
 
   // ── toolbar / embed-editor actions ───────────────────────────────────────────
 
-  // The ONE figure-authoring path (D3): the product package's presets and
+  // The ONE figure-authoring path: the product package's presets and
   // the metric wizard, resolved under the product's pair.
   async function pickFigure() {
     const ctx = staleContext();
@@ -1072,7 +1073,7 @@ export function ReportEditor(p: Props) {
     const ctx = staleContext();
     if (!bundle || !ctx) return;
     // The metric comes from the product package's authoring context; a
-    // figure carried over from another package edits under this one (D4).
+    // figure carried over from another package edits under this one.
     const metric = ctx.context.metrics.find((m) => m.id === bundle.metricId);
     if (!metric) {
       await openAlert({
@@ -1119,6 +1120,10 @@ export function ReportEditor(p: Props) {
             scope: ctx.scope,
             metric,
             configSnapshot: structuredClone(bundle.config),
+            aiView: {
+              id: "editing_report_figure" as const,
+              params: { reportId: p.productId, figureId: sel.id },
+            },
             authoringContext: ctx.context,
             collabBinding,
             // The theme's chart colours, the ones this figure prints in.
@@ -1163,7 +1168,7 @@ export function ReportEditor(p: Props) {
   });
 
   // The File menu's whole-document actions (FASTR toolbar). Rename and
-  // duplicate are the SHARED product surfaces (D16), not report-only modals:
+  // duplicate are the SHARED product surfaces, not report-only modals:
   // the label lives on the product row, so the header follows the store and
   // nothing here has to be told about the new name. A copy lands in the
   // products list; the current report stays open.

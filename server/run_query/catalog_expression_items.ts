@@ -5,9 +5,8 @@
 // The engine aggregates a calculated indicator's additive ingredients with SUM
 // and returns them as ing1..ingN columns. This turns each such row into the
 // single `value` the figure layer expects, by applying that indicator's OWN
-// expression from the run catalog (PLAN_1a §0: expression-over-sums, never
-// sum-of-expressions, which is what makes the result exact at every
-// grouping).
+// expression from the run catalog (expression-over-sums, never
+// sum-of-expressions, which is what makes the result exact at every grouping).
 //
 // It runs over MAIN and ROLL-UP rows alike: a roll-up row is just another
 // aggregated row, and re-evaluating the formula on its summed ingredients is
@@ -33,8 +32,9 @@ import {
 
 // The declaration for a results object, from the metrics that read it.
 //
-// AUTHORING INVARIANT (the twin of §1.8's): every metric over a
-// catalog-evaluated results object must declare the SAME ingredient props.
+// AUTHORING INVARIANT (the twin of every such metric requiring
+// `indicator_common_id`): every metric over a catalog-evaluated results object
+// must declare the SAME ingredient props.
 // They describe one physical table, so a second metric declaring a different
 // set would make the guards and the evaluation disagree about what the columns
 // mean. Enforced here by rejecting a mismatch rather than silently taking the

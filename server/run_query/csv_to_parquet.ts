@@ -12,8 +12,8 @@ export type CsvColumn = {
 };
 
 // Builds one parquet file from one CSV with an explicit (never inferred)
-// schema: declared types are load-bearing for cross-run schema stability
-// (PLAN_RESULTS_RUNS §2.3). `columns` must match the CSV's column order.
+// schema: declared types are load-bearing for cross-run schema stability.
+// `columns` must match the CSV's column order.
 // `nullStrings` is caller-owned: raw R output uses 'NA'; a Postgres-sourced
 // export should use a dedicated sentinel so real '' and 'NA' text survive.
 // Quoted CSV values are never treated as null (matches Postgres COPY).

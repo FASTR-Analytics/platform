@@ -3,7 +3,13 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { del, get, legacyStripEphemeralMarkers, set } from "../deps.ts";
+import {
+  del,
+  demoteStaleCarriers,
+  get,
+  legacyStripEphemeralMarkers,
+  set,
+} from "../deps.ts";
 import type { ContentBlock, MessageParam } from "../deps.ts";
 import type { DisplayItem } from "./types.ts";
 
@@ -27,10 +33,10 @@ type PersistedConversation = {
   // library reading a record that carries it just ignores the field — no
   // version bump needed (each migration targets its own legacy signature).
   approvedTools?: string[];
-  // The request prefix the stored thinking blocks were minted under, written
-  // by a turn with appendOnlyTurns (hashRequestPrefix). Additive within v2
-  // like approvedTools: absent → unknown, and only an append-only turn
-  // reads it.
+  // The request prefix the stored thinking blocks were minted under
+  // (hashRequestPrefix), written by every turn. Additive within v2 like
+  // approvedTools: absent only on a record saved before the hash existed,
+  // which the next turn reads as a changed prefix.
   prefixHash?: string;
 };
 
@@ -68,6 +74,19 @@ function migrateV1(record: PersistedConversation): PersistedConversation {
   };
 }
 
+// A record saved before the release existed (no prefixHash) may end in a
+// failed turn's carrier, which rendered permanently would ride every later
+// request beside the retry's fresh digest. Like migrateV1 this targets its
+// own legacy signature: a record with a hash was saved after a release and
+// holds no such carrier.
+function demotePreReleaseCarriers(
+  record: PersistedConversation,
+): PersistedConversation {
+  if (record.prefixHash !== undefined) return record;
+  const messages = demoteStaleCarriers(record.messages);
+  return messages === record.messages ? record : { ...record, messages };
+}
+
 export async function loadConversation(
   conversationId: string,
 ): Promise<PersistedConversation | undefined> {
@@ -81,10 +100,9 @@ export async function loadConversation(
     // migration on a future format (version skew: rollback, or a lagging
     // consumer app on the same origin) would destructively strip literal
     // marker text the user typed.
-    if (record.formatVersion === undefined) {
-      return migrateV1(record);
-    }
-    return record;
+    return demotePreReleaseCarriers(
+      record.formatVersion === undefined ? migrateV1(record) : record,
+    );
   } catch (err) {
     console.error("Failed to load conversation:", err);
     return undefined;
@@ -110,8 +128,8 @@ export async function saveConversation(
       lastUpdated: new Date().toISOString(),
       formatVersion: CURRENT_FORMAT_VERSION,
       approvedTools,
+      prefixHash,
     };
-    if (prefixHash !== undefined) record.prefixHash = prefixHash;
     await set(`ai-conv/${conversationId}`, record);
   } catch (err) {
     console.error("Failed to save conversation:", err);

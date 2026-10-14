@@ -109,7 +109,6 @@ export type {
   TableColumn,
 } from "../_303_components/mod.ts";
 export { default as Anthropic } from "@anthropic-ai/sdk";
-export type { default as AnthropicType } from "@anthropic-ai/sdk";
 export { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 export { del, get, set } from "idb-keyval";
 export { default as MarkdownIt } from "markdown-it";
