@@ -18,6 +18,25 @@ fi
 ORIGINAL_VERSION=$(cat VERSION)
 echo "Current version: $ORIGINAL_VERSION"
 
+# report-forge is a git submodule. The image is built from its working tree
+# and the deploy commit records its HEAD, so both must be a commit its own
+# repository has: otherwise production runs code that is in no commit, and a
+# fresh clone cannot check the recorded commit out.
+if [ -d report-forge ]; then
+    if [ -n "$(git -C report-forge status --porcelain)" ]; then
+        echo "ERROR: report-forge has uncommitted changes. Commit and push them first."
+        exit 1
+    fi
+    if ! git -C report-forge fetch -q origin; then
+        echo "ERROR: could not reach report-forge's remote to check its commit is pushed."
+        exit 1
+    fi
+    if [ -z "$(git -C report-forge branch -r --contains HEAD)" ]; then
+        echo "ERROR: report-forge's commit is not on its remote. Push it first (git -C report-forge push)."
+        exit 1
+    fi
+fi
+
 # Ask if this is an ad-hoc deploy
 echo "Is this an ad-hoc/testing deploy? (y/n)"
 read -r ADHOC_DEPLOY

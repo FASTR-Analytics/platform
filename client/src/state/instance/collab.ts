@@ -614,6 +614,9 @@ type InternalReportSession = {
   onError?: (message: string, fatal?: boolean) => void;
   /** See InternalSlideSession.onLineageReset. */
   onLineageReset?: () => void;
+  /** A local edit the socket could not carry, not yet caught up by a
+   *  reconnect's two-way sync. */
+  unsent: boolean;
 };
 
 const reportSessions = new Map<string, InternalReportSession>();
@@ -626,6 +629,9 @@ export type ReportSession = {
   isReady: () => boolean;
   /** Ready AND the socket is currently open: see SlideSession.isLive. */
   isLive: () => boolean;
+  /** Whether a local edit has not reached the server: made while the socket
+   *  was down and not yet carried by a reconnect's catch-up. */
+  hasUnsentEdits: () => boolean;
   /** Diff full content onto the shared doc: first-sync merge only. */
   pushLocal: (content: ReportDocContent) => void;
   /** Diff the figure/image registries onto the shared doc. `opts` lets a host
@@ -678,10 +684,11 @@ function wireReportDoc(
     if (origin === SLIDE_REMOTE_ORIGIN) {
       return;
     }
-    sendCollab({
+    const sent = sendCollab({
       type: "report_update",
       data: { productId, reportId, update: bytesToBase64(update) },
     });
+    if (!sent) s.unsent = true;
   });
 
   awareness.on(
@@ -756,6 +763,7 @@ export function openReportSession(
     onRemote,
     onError,
     onLineageReset,
+    unsent: false,
   };
   reportSessions.set(reportId, s);
   wireReportDoc(s, doc, awareness);
@@ -773,6 +781,7 @@ export function openReportSession(
     },
     isReady: () => s.ready,
     isLive: () => s.ready && !!ws && ws.readyState === WebSocket.OPEN,
+    hasUnsentEdits: () => s.unsent,
     pushLocal: (content: ReportDocContent) => {
       if (!s.ready) {
         return;
@@ -812,6 +821,7 @@ function handleReportServerMessage(msg: CollabServerMessage): boolean {
       if (epoch !== undefined && s.epoch !== undefined && s.epoch !== epoch) {
         // Another lineage: adopt, never merge (see resetReportLineage).
         resetReportLineage(s, base64ToBytes(msg.data.update), epoch);
+        s.unsent = false;
         s.ready = true;
         s.onRemote();
         return true;
@@ -831,7 +841,7 @@ function handleReportServerMessage(msg: CollabServerMessage): boolean {
             base64ToBytes(msg.data.stateVector),
           );
           if (diff.length > 2) {
-            sendCollab({
+            const sent = sendCollab({
               type: "report_update",
               data: {
                 productId: s.productId,
@@ -839,6 +849,9 @@ function handleReportServerMessage(msg: CollabServerMessage): boolean {
                 update: bytesToBase64(diff),
               },
             });
+            if (sent) s.unsent = false;
+          } else {
+            s.unsent = false;
           }
         }
       } catch {

@@ -408,15 +408,22 @@ export function ReportEditor(p: Props) {
     const stale = staleFigures();
     if (!ctx || stale.length === 0) return;
     setUpdatingFigures(true);
-    const next = { ...figures() };
+    const updates: Record<string, FigureBlock> = {};
     const failures: string[] = [];
     for (const s of stale) {
       const res = await updateFigureToScope(ctx.scope, ctx.context, s.bundle);
       if (res.ok) {
-        next[s.figureId] = { type: "figure", bundle: res.bundle };
+        updates[s.figureId] = { type: "figure", bundle: res.bundle };
       } else {
         failures.push(res.reason);
       }
+    }
+    // Onto the registry as it is NOW: the updates awaited the network, and a
+    // figure inserted meanwhile (here or by a collaborator) must survive.
+    const current = figures();
+    const next = { ...current };
+    for (const [id, block] of Object.entries(updates)) {
+      if (current[id] !== undefined) next[id] = block;
     }
     setFigures(next);
     await persistFigures(next);
@@ -816,11 +823,14 @@ export function ReportEditor(p: Props) {
     } else if (!collabReady()) {
       // Collab never became ready: the REST autosave owns persistence.
       void flushBodySave();
-    } else if (s && !s.isLive() && canConfigure()) {
+    } else if (
+      s && !s.isLive() && s.hasUnsentEdits() && canConfigure()
+    ) {
       // Collab has edits the server never received (socket down, no reconnect
       // before close): best-effort REST flush of the shared doc's state, by a
-      // user who can edit. If another user's room is still live server-side,
-      // the chokepoint merges this instead of clobbering.
+      // user who can edit. Only then: the flush writes this client's whole
+      // document, so with nothing unsent it would only push a stale copy over
+      // what collaborators wrote while this socket was down.
       const content = materializeReport(s.doc);
       void serverActions.updateReportBody({
         product_id: p.productId,
@@ -882,10 +892,39 @@ export function ReportEditor(p: Props) {
     }
     // Ongoing remote updates: the body flows straight into the editor via the
     // yCollab binding (and back into the body signal via onBodyChange); only
-    // the registries need adopting here. reconcile-free set keeps unchanged
-    // block references intact (registry values come out of the doc by ref).
-    setFigures(docContent.figures);
-    setImages(docContent.images);
+    // the registries need adopting here. Reading the doc builds every figure
+    // block afresh, so an unchanged block keeps its previous object: a new
+    // object redraws its chart, and this runs on every remote keystroke.
+    setFigures((prev) => keepUnchangedBlocks(prev, docContent.figures));
+    setImages((prev) => keepUnchangedBlocks(prev, docContent.images));
+  }
+
+  // The canonical JSON of a block, computed once per object.
+  const blockJson = new WeakMap<object, string>();
+  function jsonOf(block: object): string {
+    let json = blockJson.get(block);
+    if (json === undefined) {
+      json = canonicalJson(block);
+      blockJson.set(block, json);
+    }
+    return json;
+  }
+  function keepUnchangedBlocks<T extends object>(
+    prev: Record<string, T>,
+    next: Record<string, T>,
+  ): Record<string, T> {
+    let same = Object.keys(prev).length === Object.keys(next).length;
+    const out: Record<string, T> = {};
+    for (const [id, block] of Object.entries(next)) {
+      const old = prev[id];
+      if (old !== undefined && jsonOf(old) === jsonOf(block)) {
+        out[id] = old;
+      } else {
+        out[id] = block;
+        same = false;
+      }
+    }
+    return same ? prev : out;
   }
 
   // ── persistence ────────────────────────────────────────────────────────────
@@ -1755,7 +1794,7 @@ function ReportPeerSelectionOverlay(p: {
       {
         el: document.querySelector('[data-report-cursor="code-pane"]'),
         find: (pane: Element, id: string) =>
-          pane.querySelector(`[data-embed-id="${id}"]`)
+          pane.querySelector(`[data-embed-id="${CSS.escape(id)}"]`)
             ?.getBoundingClientRect(),
       },
     ].filter((pane): pane is { el: Element; find: typeof pane.find } => {
