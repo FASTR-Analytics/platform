@@ -57,7 +57,10 @@ export function Toolbar(p: {
         {p.selectors}
         <div class="ui-gap-sm ml-auto flex items-center">{p.tools}</div>
       </div>
-      <div class="ui-gap-sm flex flex-wrap items-end">
+      <div
+        class="ui-gap-sm flex flex-wrap items-end"
+        data-tour="explore-filters"
+      >
         <Show
           when={(p.view.switch?.options.length ?? 0) > 1
             ? p.view.switch

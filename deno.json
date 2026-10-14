@@ -6,12 +6,17 @@
     "exclude": [
       "client/public/",
       "client/package-lock.json",
-      "server/tests/fixtures/fastr_pdf/",
-      "vendor/"
+      "vendor/",
+      "report-forge/harness/baseline/",
+      "report-forge/styles/report-forge.css",
+      "report-forge/styles/utilities.css",
+      "report-forge/ui/exports/vendor/",
+      "report-forge/tests/fixtures/",
+      "report-forge/playground/package-lock.json"
     ]
   },
   "lint": {
-    "exclude": ["client/"],
+    "exclude": ["client/", "report-forge/ui/exports/vendor/"],
     "rules": {
       "exclude": ["jsx-key"]
     }
@@ -63,10 +68,11 @@
     "build:client": "cd client && npm run build",
     "build:help-buttons": "deno run --allow-read --allow-write --allow-env --allow-run=deno build_help_buttons.ts",
     "build:server": "echo 'No server build steps'",
-    "typecheck": "deno fmt --check && deno check main.ts server/tests/*.ts && echo '✓ Server typecheck passed' && sh -c 'cd client && npm run typecheck' && echo '✓ Client typecheck passed\n\n' && deno task lint:systems && deno task lint:structure && deno task lint:text-sizes && deno task lint:sql-json",
-    "test": "BYPASS_AUTH= deno test -A --no-check --env-file --unstable-broadcast-channel server/tests/",
+    "typecheck": "deno fmt --check && deno check -c deno.json main.ts server/tests/*.ts report-forge/tests/*.ts report-forge/harness/*.ts && echo '✓ Server typecheck passed' && sh -c 'cd client && npm run typecheck' && echo '✓ Client typecheck passed\n\n' && deno task lint:systems && deno task lint:structure && deno task lint:text-sizes && deno task lint:sql-json && deno task lint:report-forge",
+    "test": "BYPASS_AUTH= deno test -c deno.json -A --no-check --env-file --unstable-broadcast-channel server/tests/ report-forge/tests/",
     "lint:systems": "deno run --allow-read --allow-run lint_systems.ts",
     "lint:structure": "deno run --allow-read lint_structure.ts",
+    "lint:report-forge": "deno run -c deno.json --allow-read report-forge/harness/lint_boundary.ts",
     "lint:text-sizes": "deno run --allow-read --allow-run lint_text_sizes.ts",
     "lint:sql-json": "deno run --allow-read --allow-run lint_sql_json.ts",
     "check": "deno check main.ts",

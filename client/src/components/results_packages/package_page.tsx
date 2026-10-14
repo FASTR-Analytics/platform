@@ -323,7 +323,10 @@ function PackageBody(p: {
   );
 
   const housekeeping = (
-    <div class="ui-gap-sm flex items-center">
+    <div
+      class="ui-gap-sm flex items-center"
+      data-tour="instance-results-packages-actions"
+    >
       <Switch>
         <Match when={isPinned()}>
           <Button

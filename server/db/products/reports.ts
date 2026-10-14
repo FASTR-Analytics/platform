@@ -5,11 +5,10 @@ import {
   type FastrReportTheme,
   type FigureBlock,
   getReportCustomStyle,
-  getReportFormat,
-  getReportHtmlStyle,
   getStartingBodyForReport,
   getStartingConfigForReport,
   type ImageBlock,
+  isRetiredReportFormat,
   parseJsonOrThrow,
   type ReportConfig,
   reportConfigSchema,
@@ -178,11 +177,11 @@ export function updateReportImages(
   );
 }
 
-// The body format and the report's STYLE are fixed at creation and a config
-// write cannot flip them: both are already encoded in the body a writer has
-// typed. (A fastr report's THEME is not a fixture. It carries no CSS in the
-// body, so the editor may change it at any time, and it rides in through the
-// incoming config like any other passthrough field.)
+// A config write cannot flip the stored format or the report's custom style
+// (the style changes only through setReportStyle). The THEME is not a
+// fixture: the body carries no CSS, so the editor may change it at any time,
+// and it rides in through the incoming config like any other passthrough
+// field.
 //
 // The stored config is read INSIDE the write transaction: a read-then-write
 // would let a concurrent style change slip between the two and be pinned
@@ -204,22 +203,17 @@ export async function updateReportConfig(
         throw new Error(REPORT_NOT_FOUND);
       }
       const storedConfig = parseReportConfig(stored.config);
-      const format = getReportFormat(storedConfig);
       const storedCustom = getReportCustomStyle(storedConfig);
       const next: ReportConfig = {
         ...config,
-        format,
+        ...(storedConfig.format === undefined
+          ? {}
+          : { format: storedConfig.format }),
         // Only setReportStyle retires the theme modal.
         ...(storedConfig.themeChosen === undefined
           ? {}
           : { themeChosen: storedConfig.themeChosen }),
-        ...(format === "html"
-          ? storedCustom
-            ? { customStyle: storedCustom }
-            : { htmlStyle: getReportHtmlStyle(storedConfig) }
-          : format === "fastr" && storedCustom
-          ? { customStyle: storedCustom }
-          : {}),
+        ...(storedCustom ? { customStyle: storedCustom } : {}),
       };
       const parsed = JSON.stringify(reportConfigSchema.parse(next));
       // Config is not in the collab doc: keep its state current.
@@ -231,11 +225,12 @@ export async function updateReportConfig(
   });
 }
 
-/** LOAD-BEARING: a fastr report's look is the ONE part of its style a write
- *  after creation may change, and it changes only through here. The style is
+/** LOAD-BEARING: a report's look is the ONE part of its style a write after
+ *  creation may change, and it changes only through here. The style is
  *  a resolved snapshot, never a client-supplied blob: the route checks the
  *  library row's visibility first (see reports.ts `setReportStyle`). */
-export const REPORT_NOT_FASTR = "Only a FASTR Markdown report can be re-themed";
+export const REPORT_NOT_FASTR =
+  "A report in a retired format cannot be re-themed";
 
 export async function setReportStyle(
   mainDb: Sql,
@@ -256,7 +251,7 @@ export async function setReportStyle(
         throw new Error(REPORT_NOT_FOUND);
       }
       const storedConfig = parseReportConfig(stored.config);
-      if (getReportFormat(storedConfig) !== "fastr") {
+      if (isRetiredReportFormat(storedConfig)) {
         throw new Error(REPORT_NOT_FASTR);
       }
       // Answering the modal is what retires it, whichever look was picked.
@@ -382,16 +377,14 @@ export async function stripPersistedBodyAuthorTombstones(
 
 // The report half of createProduct: runs INSIDE its transaction, after the
 // new `products` row exists.
-// Every new report is FASTR Markdown on the default theme. The older
-// `markdown` and `html` formats are still read and edited (reports predating
-// this, and reports restored from a version), but nothing mints one.
+// Every new report is FASTR Markdown on the default theme.
 export async function insertNewReportDetail(
   sql: Sql,
   productId: string,
   label: string,
 ): Promise<void> {
-  const config = reportConfigSchema.parse(getStartingConfigForReport("fastr"));
-  const body = getStartingBodyForReport(label, "fastr");
+  const config = reportConfigSchema.parse(getStartingConfigForReport());
+  const body = getStartingBodyForReport(label);
   await sql`
     INSERT INTO reports (id, body, figures, images, config)
     VALUES (${productId}, ${body}, '{}', '{}', ${JSON.stringify(config)})

@@ -14,6 +14,7 @@ import {
   buildDeckEditorPresentTour,
   buildDeckEditorSettingsTour,
   buildDeckEditorSlidesTour,
+  buildExploreTour,
   buildInstanceAssetsTour,
   buildInstanceDataTour,
   buildInstanceResultsPackagesCatalogueTour,
@@ -29,12 +30,14 @@ import {
   buildSlideContentTour,
   buildSlideCoverTour,
   buildSlideSectionTour,
+  buildVizEditorTour,
   tourLabels,
 } from "./tours";
 import { instanceState } from "~/state/instance/t1_store";
 import { canEditProduct } from "~/state/instance/product_access";
 import { copilotViewController } from "~/components/instance/copilot/mod.ts";
 import {
+  openVisualizationEditors,
   pendingTourReplay,
   productsExpandedFolders,
   setPendingTourReplay,
@@ -53,6 +56,12 @@ import {
 // "products", so the Products page predicate excludes the editing views; the
 // copilot's view controller, on which every editor sets its view, is what
 // tracks which editor is open.
+//
+// The manager is on ONE page at a time: the first predicate that holds, in the
+// order `pages` lists them. A tour whose page can never be the first to hold
+// never auto-starts, so two things that are on screen together share a page
+// and tell their tours apart with entry-level `when` gates (the deck's rail
+// and its open slide, below).
 
 const currentView = () => copilotViewController.current();
 // The slide tours walk the slide toolbar, which renders only for a user who
@@ -81,20 +90,30 @@ export function setupTours(opts: {
 
   const pages: Record<string, () => boolean> = {
     products: () => onTab("products")() && !isEditingView(),
+    explore: onTab("explore"),
     "instance-data": onTab("data"),
     "instance-results-packages": onTab("results_packages"),
     "instance-assets": onTab("assets"),
     "instance-users": onTab("users"),
-    // The deck's rail is on screen in both views (a slide is open beside it
-    // whenever the deck has one).
+    // Ahead of the product editors: the visualization editor opens over a
+    // slide or a report and leaves the copilot's view as it was.
+    "viz-editor": () => openVisualizationEditors() > 0,
+    // One page for the deck and its open slide: the rail is on screen in both
+    // views, and a slide is open beside it whenever the deck has one.
     "deck-editor": () =>
       currentView().id === "editing_slide_deck" ||
       currentView().id === "editing_slide",
-    "slide-cover": () => editingSlideOfType("cover"),
-    "slide-section": () => editingSlideOfType("section"),
-    "slide-content": () => editingSlideOfType("content"),
     "report-editor": () => currentView().id === "editing_report",
   };
+
+  // The slide tours are held back until the deck's own slide list has been
+  // toured, so a first visit is the deck's tour alone and the open slide's
+  // tour starts on a later slide. Late-bound: the gates below are read only
+  // after the manager exists.
+  let manager: SolidTourManagerController | undefined;
+  const seen = (tourId: string) => manager?.hasSeen(tourId) ?? false;
+  const slideTourDue = (type: SlideType) => () =>
+    editingSlideOfType(type) && seen("deck-editor-slides");
 
   const tours = [
     // Ordered before the products tours: on a brand-new user's first visit
@@ -114,6 +133,13 @@ export function setupTours(opts: {
       page: "products",
       when: productRowOnScreen,
       tour: buildProductsCardsTour(),
+    },
+    // Deferred until a package is ready: without one the page has nothing to
+    // point at.
+    {
+      page: "explore",
+      when: () => instanceState.readyPackages.length > 0,
+      tour: buildExploreTour(),
     },
     { page: "instance-data", tour: buildInstanceDataTour() },
     {
@@ -135,7 +161,8 @@ export function setupTours(opts: {
     },
     { page: "instance-assets", tour: buildInstanceAssetsTour() },
     { page: "instance-users", tour: buildInstanceUsersTour() },
-    // Inside a deck: toolbar, slides, present, history, then open Settings.
+    { page: "viz-editor", tour: buildVizEditorTour() },
+    // Inside a deck: toolbar, slides, present, history, then the Deck menu.
     // Array order is merge order, so the two parts that end inside a
     // full-region overlay come last (history hands back via its back button,
     // and settings is the very end of the run).
@@ -144,6 +171,24 @@ export function setupTours(opts: {
       page: "deck-editor",
       when: slideCardOnScreen,
       tour: buildDeckEditorSlidesTour(),
+    },
+    // Inside a slide: one tour per slide type, each running the first time the
+    // user opens a slide of that type once the deck's slide list has been
+    // toured.
+    {
+      page: "deck-editor",
+      when: slideTourDue("cover"),
+      tour: buildSlideCoverTour(),
+    },
+    {
+      page: "deck-editor",
+      when: slideTourDue("section"),
+      tour: buildSlideSectionTour(),
+    },
+    {
+      page: "deck-editor",
+      when: slideTourDue("content"),
+      tour: buildSlideContentTour(),
     },
     {
       page: "deck-editor",
@@ -158,11 +203,6 @@ export function setupTours(opts: {
       when: () => document.querySelector('[data-tour="deck-menu"]') !== null,
       tour: buildDeckEditorSettingsTour(),
     },
-    // Inside a slide: one tour per slide type, each running the first time the
-    // user edits a slide of that type.
-    { page: "slide-cover", tour: buildSlideCoverTour() },
-    { page: "slide-section", tour: buildSlideSectionTour() },
-    { page: "slide-content", tour: buildSlideContentTour() },
     // Inside a report: the walkthrough, then the figure step once one is
     // actually in the document, then history (which closes itself).
     { page: "report-editor", tour: buildReportEditorIntroTour() },
@@ -174,7 +214,7 @@ export function setupTours(opts: {
     { page: "report-editor", tour: buildReportEditorHistoryTour() },
   ];
 
-  const manager = createTourManager({
+  manager = createTourManager({
     storage: clerkOnboardingStorage,
     labels: tourLabels(),
     onEvent: reportTourEvent,
@@ -196,6 +236,15 @@ export function setupTours(opts: {
     ],
     tours,
   });
+  const started = manager;
+
+  // A replay that needs more than its tour's page: the slide tours share the
+  // deck editor's page, and must wait for a slide of their own type to open.
+  const replayReady: Record<string, () => boolean> = {
+    "slide-cover-intro": () => editingSlideOfType("cover"),
+    "slide-section-intro": () => editingSlideOfType("section"),
+    "slide-content-intro": () => editingSlideOfType("content"),
+  };
 
   // Replay chain. The catalogue modal calls the entry's navigate(), which
   // switches tab and, for the editor tours, asks the Products page to open a
@@ -217,9 +266,10 @@ export function setupTours(opts: {
       setPendingTourReplay(null);
       return;
     }
-    if (pages[page]()) {
+    const ready = replayReady[replay.tourId] ?? pages[page];
+    if (ready()) {
       setPendingTourReplay(null);
-      void manager.start(replay.tourId);
+      void started.start(replay.tourId);
       return;
     }
     if (replay.productId === undefined) {
@@ -235,5 +285,5 @@ export function setupTours(opts: {
     }
   });
 
-  return manager;
+  return started;
 }

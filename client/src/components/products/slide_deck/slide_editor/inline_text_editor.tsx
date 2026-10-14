@@ -51,7 +51,7 @@ import {
   untrack,
 } from "solid-js";
 import { Portal } from "solid-js/web";
-import { yCaretHygiene } from "~/components/_shared/mod.ts";
+import { yCaretHygiene } from "report-forge";
 import type { SlideSession } from "~/state/instance/collab";
 import {
   buildBlockGeometry,

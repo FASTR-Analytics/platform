@@ -1,3 +1,4 @@
+import { type SkippedRange } from "report-forge";
 import type { FigureBlock } from "lib";
 import type { ProposalPreview } from "panther";
 

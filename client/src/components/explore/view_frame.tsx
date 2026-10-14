@@ -199,11 +199,17 @@ function MetricFrame(
                 selectors={p.selectors}
                 tools={
                   <Show when={v().type.type === "table"}>
-                    <TableTools
-                      find={find()}
-                      onFind={setFind}
-                      onDownload={download()}
-                    />
+                    {/* Its own row of the same spacing, for the Explore tour. */}
+                    <div
+                      class="ui-gap-sm flex items-center"
+                      data-tour="explore-download"
+                    >
+                      <TableTools
+                        find={find()}
+                        onFind={setFind}
+                        onDownload={download()}
+                      />
+                    </div>
                   </Show>
                 }
                 view={v()}

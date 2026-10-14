@@ -151,7 +151,14 @@ export function ModuleView(p: {
 
 // It wraps because the selects have fixed widths.
 function SelectorsRow(p: { children: JSX.Element }) {
-  return <div class="ui-gap-sm flex flex-wrap items-center">{p.children}</div>;
+  return (
+    <div
+      class="ui-gap-sm flex flex-wrap items-center"
+      data-tour="explore-selectors"
+    >
+      {p.children}
+    </div>
+  );
 }
 
 // The no-view and no-metric states sit under the selectors row where the

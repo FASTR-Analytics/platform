@@ -1,7 +1,8 @@
 // The page map for the AI (get_report_pages): lay a FASTR Markdown report
-// out as the PDF's pages, in the editor's hidden frame (paginate_report.ts,
-// the same paged document the server prints), and describe what landed
-// where (lib/fastr_report_page_map.ts). Figures take the box their raster
+// out as the PDF's pages, in the editor's hidden frame (Report Forge's
+// paginator, the same paged document the server prints), and describe what
+// landed
+// where (report-forge/engine/fastr_report_page_map.ts). Figures take the box their raster
 // will have (the size cache, measured first) and images their natural size,
 // as in the editor, so the map is the PDF's pages give or take a fit.
 
@@ -10,9 +11,9 @@ import {
   fastrPageMapText,
   type ReportDetail,
 } from "lib";
-import { createReportPaginator } from "~/components/products/_shared/mod.ts";
+import { createReportPaginator, fastrPagedFooter } from "report-forge";
 import { createFigureSizeCache } from "~/generate_report/mod";
-import { fastrPagedFooter } from "~/exports/export_report_as_paged_pdf";
+import { reportDocumentOf } from "~/exports/export_report_as_html";
 
 const SIZE_WAIT_MS = 12_000;
 const LAYOUT_WAIT_MS = 25_000;
@@ -63,7 +64,7 @@ export async function describeReportPages(
           LAYOUT_WAIT_MS,
         );
         const paginator = createReportPaginator({
-          detail: () => detail,
+          document: () => reportDocumentOf(detail),
           footer: () => fastrPagedFooter(detail.label),
           figureSize: (id) => {
             const block = detail.figures[id];

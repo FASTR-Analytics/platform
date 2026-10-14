@@ -14,10 +14,8 @@
 // =============================================================================
 
 import {
-  FASTR_REPORT_THEMES,
-  getReportFormat,
+  isFastrReportTheme,
   listFastrContainerDefects,
-  REPORT_HTML_STYLES,
   reportConfigSchema,
   reportFiguresSchema,
   reportImagesSchema,
@@ -35,6 +33,14 @@ import {
   transformFigureBlock,
   transformFigureBlockToBundle,
 } from "./_figure_block.ts";
+
+// Whether a stored config still reads as the retired plain-markdown format:
+// everything that is not one of the two formats that ever replaced it. Kept
+// here, with the transform that depends on it, because the runtime no longer
+// knows about formats other than its own.
+function storedFormatIsMarkdown(config: { format?: unknown }): boolean {
+  return config.format !== "fastr" && config.format !== "html";
+}
 
 export async function migrateReports(
   tx: Sql,
@@ -79,7 +85,7 @@ export async function migrateReports(
       reportImagesSchema.safeParse(images).success &&
       !rawJsonNeedsForcedTransform(row.figures) &&
       !rawJsonNeedsFigureBlockTransform(row.figures) &&
-      getReportFormat(config) !== "markdown"
+      !storedFormatIsMarkdown(config)
     ) {
       continue;
     }
@@ -104,23 +110,13 @@ export async function migrateReports(
       }
     }
 
-    // Block 2: retired html style presets (2026-08-31 — the artistic set was
-    // replaced by the professional set). A stored value outside the current
-    // enum reads as "default" everywhere at runtime (getReportHtmlStyle is
-    // total), so drop the key instead of failing the boot validation. The
-    // skip gate above routes these rows here automatically: an invalid enum
-    // value fails safeParse, so no forced gate is needed.
-    if (
-      typeof config.htmlStyle === "string" &&
-      !(REPORT_HTML_STYLES as readonly string[]).includes(config.htmlStyle)
-    ) {
-      delete config.htmlStyle;
-    }
+    // Block 2 (retired html style presets, 2026-08-31) is gone with the
+    // html format itself (2026-10-13): reportConfigSchema no longer knows
+    // `htmlStyle`, so a stored value rides through its passthrough untouched.
 
     // Block 3: retired fastr themes (2026-09-03 — blueprint removed;
-    // 2026-09-21 — classic removed; 2026-09-29 — monochrome removed). Same
-    // mechanics as Block 2: an out-of-enum value fails safeParse and routes
-    // the row here; dropping the key falls the report back to the default
+    // 2026-09-21 — classic removed; 2026-09-29 — monochrome removed). An
+    // out-of-enum value fails safeParse and routes the row here; dropping the key falls the report back to the default
     // theme (the theme is a starting point, changeable in the editor).
     // Monochrome instead lands on minimal, the other greyscale theme, since
     // the default's blue would be a visible re-colour.
@@ -129,7 +125,7 @@ export async function migrateReports(
     }
     if (
       typeof config.fastrTheme === "string" &&
-      !(FASTR_REPORT_THEMES as readonly string[]).includes(config.fastrTheme)
+      !isFastrReportTheme(config.fastrTheme)
     ) {
       delete config.fastrTheme;
     }
@@ -138,9 +134,9 @@ export async function migrateReports(
     // format is retired: every report still on it becomes a FASTR Markdown
     // report on the `legacy` theme, which reproduces the panther markdown
     // look those reports render in today (the theme's own note in
-    // lib/types/report_fastr_themes.ts). The BODY is deliberately untouched.
+    // lib/report_legacy_theme.ts). The BODY is deliberately untouched.
     // A markdown body is ALREADY valid FASTR Markdown: embed tokens are the
-    // same (buildReportEmbedToken special-cases html alone), headings and
+    // same, headings and
     // sections are the same `#` scan, and both parsers are markdown-it with
     // the same options. So this is a config flip and nothing else, which is
     // also what makes it reversible: flipping `format` back restores the old
@@ -151,15 +147,15 @@ export async function migrateReports(
     // PROTOCOL_APP_MIGRATIONS.md). It is self-terminating: a converted row
     // reads as fastr on the next boot and is skipped like any other.
     //
-    // getReportFormat is TOTAL, so this also catches the oldest reports,
-    // which carry no `format` key at all (absent reads as markdown), and any
-    // row holding a format that no longer exists.
+    // storedFormatIsMarkdown is TOTAL, so this also catches the oldest
+    // reports, which carry no `format` key at all (absent reads as markdown),
+    // and any row holding a format that never existed.
     //
     // `themeChosen` is deliberately NOT written. Its absence is the mark of a
     // report that was never offered the theme modal, so a converted report is
     // not interrupted about a choice it was never given; the Page menu still
     // reaches the theme whenever its author wants a different one.
-    if (getReportFormat(config) === "markdown") {
+    if (storedFormatIsMarkdown(config)) {
       config.format = "fastr";
       config.fastrTheme = "legacy";
       // One body shape does NOT survive the move silently: a line that reads

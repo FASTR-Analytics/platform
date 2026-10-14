@@ -1,8 +1,6 @@
 export {
-  attachSelectionNameHover,
   CollabMarkdownEditor,
   darkMarkdownExtensions,
-  yCaretHygiene,
 } from "./collab_markdown_editor.tsx";
 export { FileUploadSelector } from "./file_upload_selector.tsx";
 export { createFigurePreview, fetchFigureInputs } from "./figure_preview.ts";
@@ -33,5 +31,9 @@ export {
   usageColumnHeader,
 } from "./product_count_badge.tsx";
 export { ScopeSelect, scopeSelectLabel } from "./scope_select.tsx";
-export { cleanupUppy, createUppyInstance } from "./uppy_file_upload.ts";
+export {
+  cleanupUppy,
+  createUppyInstance,
+  requestImageAssetUpload,
+} from "./uppy_file_upload.ts";
 export type { UppyFileUploadConfig } from "./uppy_file_upload.ts";

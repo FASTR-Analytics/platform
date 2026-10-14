@@ -27,7 +27,6 @@ import {
 } from "solid-js";
 import { copilotViewController, packageViewContext } from "./ai_views";
 import { setTurnRunning } from "./turn_guard";
-import type { EditingReportContext } from "./ai_views";
 import { setShowAi } from "~/state/t4_ui";
 import { serverActions } from "~/server_actions";
 import { AIDocumentList, useAIDocuments } from "./ai_documents/mod.ts";
@@ -309,15 +308,6 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
     }
   };
 
-  // The pane is view-agnostic; its one view-specific item is the action the
-  // report view supplies (ai_views.ts: getSaveStyleAction), so the pane
-  // imports nothing from components/products/.
-  function saveStyleAction(): (() => Promise<void>) | undefined {
-    const v = copilotViewController.current();
-    if (v.id !== "editing_report") return undefined;
-    return (v.context as EditingReportContext).getSaveStyleAction();
-  }
-
   // The pair the current view shows, for View AI tool output; undefined in a
   // view with no package, where the item is hidden.
   function viewPair(): ResolvedPackageScope | undefined {
@@ -331,7 +321,6 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
   }
 
   const menuItems = (): MenuItem[] => {
-    const saveStyle = saveStyleAction();
     const pair = viewPair();
     return [
       {
@@ -377,18 +366,6 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
         onClick: p.aiDocs.openSelector,
         disabled: isLoading(),
       },
-      ...(saveStyle === undefined ? [] : [
-        {
-          label: t3({
-            en: "Save this report's style…",
-            fr: "Enregistrer le style de ce rapport…",
-            pt: "Guardar o estilo deste relatório…",
-          }),
-          icon: "save",
-          onClick: saveStyle,
-          disabled: isLoading(),
-        } satisfies MenuItem,
-      ]),
       {
         type: "divider",
       },

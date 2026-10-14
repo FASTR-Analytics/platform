@@ -310,9 +310,9 @@ it reads the product tools, which read the folder's registry; `instance.tsx`
 alone imports it. The product half stays in
 `client/src/components/products/copilot/`: the product tools (`ai_tools/`), the
 slide conversion layer (`slide_ai/`), the two `_shared/` files both of those
-read (`content_validators.ts`, `format_figure_config_for_ai.ts`) and the
-save-style modal; its `mod.ts` exports the four tool builders and
-`SaveReportStyleModal`.
+read (`content_validators.ts`, `format_figure_config_for_ai.ts`); its `mod.ts`
+exports the four tool builders. (The save-style modal went with the html report
+format on 2026-10-13, S12.)
 
 One chat sits beside the whole shell. `instance.tsx` wraps `ShellEditorWrapper`
 in a `FrameRightResizable` whose panel is
@@ -584,10 +584,9 @@ report and ask about it while its writes refuse, `get_module_r_script` and
 `get_module_settings` refuse without `can_view_data` and `get_module_log`
 without `can_view_logs`, and a demotion reaches the next call. A tool outside
 the catalogue fails the assembly. Below edit level a product view's instructions
-carry the level line (above). The chat menu's "Save this report's style…" shows
-when the `editing_report` view's context supplies `getSaveStyleAction()`:
-`report.tsx` defines it for an html report the user can edit and leaves it
-undefined otherwise, so the pane imports nothing from `components/products/`.
+carry the level line (above). The chat menu has no view-specific items: its one
+such item, "Save this report's style…" for an html report, went with that format
+on 2026-10-13, so the pane imports nothing from `components/products/`.
 
 **The approval policy** is the chat's
 `{ requireForKind: "write", requireKind: true, exempt: COPILOT_APPROVAL_EXEMPT }`
@@ -617,94 +616,106 @@ The editing views' contexts carry the live-mutator closures the old union did,
 each beside the product's `getScope()` and `getRunId()`:
 `getTempSlide`/`setTempSlide` (slide editor),
 `getDeckConfig`/`getSlideIds`/`getSelectedSlideIds` (deck), and the report
-contract (`getBody`/`getFigures`/`getImages`/`getSelection`/`proposeEdit`/
+contract
+(`getLabel`/`getTemplate`/`getBody`/`getFigures`/`getImages`/`getSelection`/`proposeEdit`/
 `applyFigureUpdate`). See
 [ai_views.ts](client/src/components/instance/copilot/ai_views.ts).
 
 **Report edits are never silent**: they ride panther's approval lifecycle. The
-five staged text tools (`rewrite_report {body}`, `rewrite_section {newBody}`,
+five staged tools (`rewrite_report {body}`, `rewrite_section {newBody}`,
 `replace_text`, `insert_figure`, `replace_figure`) declare `approval.propose`
 ([report_editor.ts](client/src/components/products/copilot/ai_tools/tools/report_editor.ts)).
-They are **format-aware** (S12: a report body is FASTR Markdown, markdown or
-html, fixed at creation; the `editing_report` view params carry `format`,
-`htmlStyle` and the live-resolved `customStyle`, and
-`getEditingReportInstructions(label, format, htmlStyle, customStyle)`
-([lib/ai_tools/build_system_prompt.ts](lib/ai_tools/build_system_prompt.ts)) has
-an html and a FASTR Markdown authoring branch. Every non-default html style
-appends its `REPORT_STYLE_BRIEFS` entry or, for a CUSTOM style (S12's main-db
-library), the report's live-resolved brief: a prescriptive design language
-(fonts via `@import`, palette, structural devices, figure treatment; shared
-sanitizer constraints ride once at the end) that the model writes its own
-stylesheet from, led by a top-of-instructions banner and backstopped by
-`validateStyledReportHasStylesheet` on `rewrite_report`. The AI pane's kebab
-menu offers "Save this report's style..." inside an HTML report
-([save_report_style.tsx](client/src/components/products/copilot/save_report_style.tsx)):
-a one-shot Sonnet call on `/ai` distills the report's markup patterns into a
-preset-shaped brief + tile colors, while the report's actual `<style>` CSS is
-extracted EXACTLY in code and stored as the style's reference stylesheet,
-injected verbatim into the instructions as the CSS to reuse; all reviewed in the
-S12 style editor before it enters the library): tokens are built/parsed through
-the lib helpers, `get_report_editor` prints the format plus a headings index
-(1-based line + the exact section range and `wrapper <tag>`/`flat` mode from
-`lib/report_sections.ts`), `rewrite_section` splices that range (wrapper mode
-insists `newBody` starts with the wrapper tag), `insert_figure.afterHeading`
-lands after the heading's header block, and the validators
-([report_validators.ts](client/src/components/products/copilot/ai_tools/validators/report_validators.ts))
-reject wrong-syntax tokens (with the correct spelling), doctype/html/head/body
-wrappers and non-well-formed html (incl. unclosed elements) for whole bodies and
-section fragments, and, for `replace_text`, which may legitimately span tag
-boundaries, only an edit that ADDS defects (`newHtmlDefect` delta).
+There is ONE report format, FASTR Markdown (S12), so nothing here branches on a
+format any more. The html and plain-markdown formats were retired on 2026-10-13
+and took their AI surface with them: the html authoring branch of the
+instructions, the `REPORT_STYLE_BRIEFS` and the custom-style design briefs with
+the chat menu's "Save this report's style...", the stylesheet check on
+`rewrite_report`, the html well-formedness validators and the wrapper/flat
+section modes. The `editing_report` view params are the report's id alone (its
+label is read live through the context's `getLabel`), and its instructions are
+`getEditingReportInstructions(label, template)`
+([lib/ai_tools/build_system_prompt.ts](lib/ai_tools/build_system_prompt.ts)),
+the template being read live from the view context because it is chosen after
+the view is set. Tokens are built and parsed through the engine's helpers
+(`report-forge/engine/embeds.ts`). `get_report_editor` prints the body, a
+headings index (each top-level heading's 1-based line and the exact section
+range, from `report-forge/engine/report_sections.ts`), a one-line index of the
+figures, the image ids and the user's selection; `rewrite_section` splices that
+range; `insert_figure.afterHeading` lands on the line after the heading
+(`insertAfterReportHeading`). A proposed body is refused before anything is
+staged when it names an embed id the report does not have, writes an embed as an
+html `<img>` token (the message gives the correct spelling), exceeds the body
+cap or breaks one of the format's rules below.
 
 Nothing in the copilot MINTS a report: creation is the products page's
 `createProduct`, which always mints FASTR Markdown (S12). The copilot's report
 surface is therefore the open report alone, `editing_report`, and it includes
 `get_report_pages`: the draft or the live body laid out as the printed pages, so
 a rewrite can be checked against the page budget BEFORE it is proposed. The
-fastr write tools (`rewrite_report`, `rewrite_section`, `replace_text`) carry
-the literal-background gate delta-based (`validateFastrNewLiteralBackgrounds`):
-only literals whose value is not already in the current body trip it, so
+three text tools (`rewrite_report`, `rewrite_section`, `replace_text`) carry the
+literal-colour gate delta-based (`checkFastrNewLiteralBackgrounds`): only
+literals whose value is not already in the current body trip it, so
 user-sanctioned colours survive rewrites, and `allowLiteralColors` is the
 deliberate escape hatch for when the user asked for exact colours.
 
-`proposeEdit` stages the CodeMirror diff as the `customProposalUI`, an
-identical-body proposal short-circuits to panther's `{skip}` (a normal
-no-decision result), `stillValid` guards a stale accept against a torn-down
-editor, and `commit` rebases over concurrent collaborator edits (reporting
-skipped hunks); leaving the view auto-declines via `availableIn`.
-`applyFigureUpdate` is the stable-id figure path that persists directly and
-reports save failure (`update_report_figure`: no diff, the figure's body token
-doesn't change).
+**The text core of these tools is Report Forge's, not the copilot's.** The body
+half of `get_report_editor` and the three write tools run on the package's pure
+operations (`readReportText`, `rewriteReportBody`, `rewriteReportSection`,
+`replaceReportText` in
+[report-forge/ai/operations.ts](report-forge/ai/operations.ts)): each takes the
+current body and the model's arguments and returns the new body with its
+summary, or the message the model reads. The checks a proposed body must pass,
+and every message, live beside them as `check*` functions returning the message
+or undefined ([report-forge/ai/validators.ts](report-forge/ai/validators.ts)).
+The copilot keeps the tool names, zod schemas, descriptions and the approval
+flow
+([report_editor.ts](client/src/components/products/copilot/ai_tools/tools/report_editor.ts)),
+turns a refusal into an `AIToolFailure` and an unchanged body into `{skip}`, and
+owns everything about figures; `report_validators.ts` is now two throwing
+wrappers for the figure tools. The same core is offered to any other host as
+ready-made tools (`createReportTextTools`), so there is one implementation of
+each text edit; `report-forge/tests/ai_tools_test.ts` pins the messages.
 
-The **FASTR Markdown branch is the inverse of the html one**: there the model
-designs and CSS is its output; here the design already exists as a real theme
+`proposeEdit` stages the package's CodeMirror diff (`ReportMarkdownDiff`) as the
+`customProposalUI`, an identical-body proposal short-circuits to panther's
+`{skip}` (a normal no-decision result), `stillValid` guards a stale accept
+against a torn-down editor, and `commit` rebases over concurrent collaborator
+edits (reporting skipped hunks); leaving the view auto-declines via
+`availableIn`. `applyFigureUpdate` is the stable-id figure path that persists
+directly and reports save failure (`update_report_figure`: no diff, the figure's
+body token doesn't change).
+
+**The model never designs.** The retired html format had it write a stylesheet
+per report; in FASTR Markdown the design already exists as a real theme
 stylesheet, so the brief is `FASTR_MD_SYNTAX_DOC`
-([lib/fastr_markdown_spec.ts](lib/fastr_markdown_spec.ts), one file with two
-texts: the brief, and the `FASTR_BLOCK_SNIPPETS` the in-editor guide renders)
-plus an explicit "never write CSS, a `<style>` block or raw layout HTML; reach
-for a block instead": such markup would be INERT and would break the user's
-ability to re-theme. The brief deliberately never NAMES the theme, because the
-theme is changeable at any time (S12's theme modal) and a name in the view
-params would go stale. The brief rides `rewrite_report`'s description alone (in
-the request's tools array, cached once per conversation); the `editing_report`
-instructions point at it, so a FASTR report's first request carries the doc once
-(`server/tests/copilot_prompt_test.ts`). `validateFastrContainers`
-([report_validators.ts](client/src/components/products/copilot/ai_tools/validators/report_validators.ts))
-rejects an unbalanced or misspelt `:::` before staging (an unclosed container
-runs to EOF) and it checks the SPLICED result, not the fragment, so a locally
-balanced `newBody` that unbalances the document is still caught. The brief moved
-into `rewrite_report`'s description on 2026-09-23: with the chat's one-shot
+([report-forge/engine/fastr_markdown_spec.ts](report-forge/engine/fastr_markdown_spec.ts),
+the ONE reference: `rewrite_report`'s description and the package's own
+ready-made tools embed it, so they cannot drift) plus an explicit "never write
+CSS, a `<style>` block or raw layout HTML; reach for a block instead": such
+markup would be INERT and would break the user's ability to re-theme. The brief
+deliberately never NAMES the theme, because the theme is changeable at any time
+(S12's theme modal) and a name in the view params would go stale. The brief
+rides `rewrite_report`'s description alone (in the request's tools array, cached
+once per conversation); the `editing_report` instructions point at it, so a
+report's first request carries the doc once
+(`server/tests/copilot_prompt_test.ts`). `checkFastrContainers`
+([report-forge/ai/validators.ts](report-forge/ai/validators.ts)) rejects an
+unbalanced or misspelt `:::` before staging (an unclosed container runs to EOF)
+and it checks the SPLICED result, not the fragment, so a locally balanced
+`newBody` that unbalances the document is still caught. The brief moved into
+`rewrite_report`'s description on 2026-09-23: with the chat's one-shot
 `create_report` gone in v2, `rewrite_report` on a fresh report IS how a report
 gets written from a prompt, and the brief in the per-turn view section alone
 left the model writing plain markdown into FASTR reports (the lesson
 `create_report` had already learned on 2026-09-02). The contract is hard:
-`validateFastrRewriteUsesBlocks` refuses a FASTR body of twelve or more
+`checkFastrRewriteUsesBlocks` refuses a whole-body rewrite of twelve or more
 non-blank lines that uses no `:::` block unless the model passes `plain: true`,
 which it does only when the user asked for a plain document; `rewrite_section`'s
 description points at the same blocks for a section. Same day, at Nick's
 request: a stat is a tile of its own, never nested in a card or a column (the
-brief used to say a stat "reads well inside a card");
-`validateFastrStatPlacement` (over `listFastrNestedStats` in lib) refuses such a
-body on all three staged text tools.
+brief used to say a stat "reads well inside a card"); `checkFastrStatPlacement`
+(over `listFastrNestedStats` in the engine) refuses such a body on all three
+staged text tools.
 
 **Validate-before-commit.** `update_figure` (slide editor, deck level) and
 `update_report_figure` share one pipeline: `applyFigureConfigPatch` →
@@ -1127,8 +1138,9 @@ embed count is surfaced in the proposal summary). Remaining:
   `replace_slide` (destructive rebuild) can edit them. **[LOW]**
   `get_module_settings` formats only `parameterSelections`, omitting other
   `ModuleConfigSelections` fields its description implies. **[LOW]**
-  `sanitizeCaption` silently strips brackets/newlines from report captions with
-  no feedback (mangles e.g. "95% CI [0.4, 0.6]").
+  `sanitizeReportCaption` (`report-forge/engine/embeds.ts`) silently strips
+  brackets/newlines from report captions with no feedback (mangles e.g. "95% CI
+  [0.4, 0.6]").
 - **[MED, reuse/quality, not a bug] Unify the figure-RESOLUTION cores.** AI
   figure create/edit already share replicant validation (`assertReplicantValid`,
   applied uniformly, no flags). Still split: two functions do "config → fetch

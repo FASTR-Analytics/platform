@@ -59,7 +59,7 @@ list.)
 | `server/db/instance/run_generation.ts`                                  | S8    | S9, S3, S12       | catalogue, the pin, `attachedProducts`, `setProductRun`, the delete guard               |
 | `main.ts`                                                               | S1    | S2, S15, S12      | composition root (boot / cron / mounts)                                                 |
 | `client/src/components/instance/logged_in_wrapper.tsx`                  | S1    | S3, S14           | server-action transport + version flush + shell                                         |
-| `client/src/generate_report/**`                                         | S10   | S12               | report document model + HTML rendering: S10's pipeline, S12's formats                   |
+| `client/src/generate_report/**`                                         | S10   | S12               | report figure rasters and their ink: S10's drawing, for S12's Report Forge package      |
 | `lib/translate/t-func.ts`                                               | S14   | S9                | calendar semantics (two systems in one small file)                                      |
 | `server/routes/instance/users.ts` · `server/db/instance/users.ts`       | S1    | S15, S13          | guard rows + admin handlers + token governance                                          |
 | `server/routes/instance/instance.ts` · `server/db/instance/instance.ts` | S5    | S15, S6           | config routes + meta/disk + dataset versions                                            |
@@ -153,6 +153,7 @@ deno task lint:systems
 deno task lint:structure
 deno task lint:text-sizes
 deno task lint:sql-json
+deno task lint:report-forge
 ```
 
 Green = every tracked `.ts`/`.tsx` under `server/`, `lib/`, `client/src/` (+
@@ -160,6 +161,14 @@ Green = every tracked `.ts`/`.tsx` under `server/`, `lib/`, `client/src/` (+
 ORPHAN until a SYSTEM file's `globs:` claims it. The lint is chained into
 `deno task typecheck` (which the deploy script gates on), so an unclaimed file
 blocks deploy rather than accumulating silently.
+
+`report-forge/`, the report editor package, is a git submodule
+(`github.com/NicholasWillmott/report-forge`, private): a change to it is
+committed and pushed inside the folder, then this repo commits the moved
+pointer. It is outside those roots and is claimed by no manifest. It is reviewed
+with S12 and guarded by its own boundary lint, `deno task lint:report-forge`
+(`report-forge/harness/lint_boundary.ts`: nothing under the folder imports from
+outside it), which `deno task typecheck` runs last.
 
 `lint_structure.ts` (task `lint:structure`, chained into `deno task typecheck`
 after `lint:systems`) enforces the client tree rules of

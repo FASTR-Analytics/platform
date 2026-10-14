@@ -5,6 +5,7 @@ export {
 } from "./ai_views.ts";
 export type {
   CopilotViewState,
+  EditingReportContext,
   EditingSlideDeckContext,
   ExploreContext,
   PackagePageContext,

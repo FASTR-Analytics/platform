@@ -96,13 +96,16 @@ modal's Appearance section (`client/src/components/instance/profile.tsx`, a
   view. Of the roadtrip tour vars (`--roadtrip-*`) on `:root`, `--roadtrip-bg`
   and `--roadtrip-scrim-color` are `light-dark()` pairs; the rest are a z-index
   and two token references.
-- **HTML-rendered markdown that passes a document style** (the report preview
-  panes with `REPORT_MARKDOWN_STYLE`) colors text from inline `--md-*` vars
-  derived from the light document style: near-black on dark surfaces. Wrap the
-  mount in `.md-dark-adapt`, which re-points those vars to tokens under
-  `data-scheme="dark"` (and `system` while the OS is dark); used by the report
-  View pane and the version-history report preview. Markdown with no style (AI
-  chat) needs no wrapper.
+- **HTML-rendered markdown that passes a document style** colors text from
+  inline `--md-*` vars derived from the light document style: near-black on dark
+  surfaces. Wrap the mount in `.md-dark-adapt`, which re-points those vars to
+  tokens under `data-scheme="dark"` (and `system` while the OS is dark). Nothing
+  mounts it today: its users were the markdown-format report's View pane and
+  version preview, retired with that format on 2026-10-13 together with
+  `REPORT_MARKDOWN_STYLE`, and the rule stays in `app.css` for the next styled
+  markdown pane. A report is a light document in both schemes and draws its own
+  themed surface (Report Forge, S12). Markdown with no style (AI chat) needs no
+  wrapper.
 - **No inverted chrome.** Every header is a `HeadingBar` that follows the
   scheme. A top bar (the shell header, and the bar that opens a full-page view)
   is `<HeadingBar tonal>`; a page bar inside a page's content, under a top bar,
@@ -232,11 +235,11 @@ search box is plain body text ("123 indicators", "12 of 40"). Modal widths are
 ("Type"). `lint:text-sizes` (chained into `deno task typecheck`) fails on an
 arbitrary `text-[Npx]`, `text-md`, or an inline pixel font-size under
 `client/src`, `panther/_303_components` and `panther/_305_ai`. Document and
-canvas rendering is exempt by file in `lint_text_sizes.ts`: the report page
-surface (`products/report/live_preview_extension.tsx`, pinned to its PDF's
-typography) and the theme miniature (`products/report/fastr_theme_mock.tsx`).
-Add a file there only when its text is a rendering of a document or a canvas,
-not UI.
+canvas rendering is exempt by file in `lint_text_sizes.ts` (its `EXEMPT` map).
+The two files exempted so far, the report page surface and the theme miniature,
+moved into `report-forge/ui/` on 2026-10-13, which the lint does not scan; the
+map still names their old paths. Add a file there only when its text is a
+rendering of a document or a canvas, not UI.
 
 **Mono:** the face rule is PROTOCOL_UI_STYLING ("Type", Mono). In this app that
 means indicator, DHIS2, variable and category IDs, column names, formulas, file

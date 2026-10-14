@@ -272,7 +272,12 @@ export function InstanceResultsPackages() {
                 data-tour="instance-results-packages-header"
               >
                 <Show when={instanceState.currentUserIsGlobalAdmin}>
-                  <Button onClick={openScopes} outline iconName="filter">
+                  <Button
+                    data-tour="instance-results-packages-scopes"
+                    onClick={openScopes}
+                    outline
+                    iconName="filter"
+                  >
                     {t3({ en: "Scopes", fr: "Portées", pt: "Âmbitos" })}
                   </Button>
                 </Show>

@@ -1,16 +1,12 @@
 import { z } from "zod";
 import {
-  FASTR_REPORT_THEMES,
+  fastrReportThemeSchema,
   reportConfigSchema,
   reportFiguresSchema,
   reportImagesSchema,
   reportStyleBodySchema,
 } from "../../types/mod.ts";
 import type { ReportConfig, ReportDetail } from "../../types/reports.ts";
-import {
-  FASTR_WORD_RASTER_BLOCKS,
-  type FastrWordRasterBlock,
-} from "../../report_fastr_word.ts";
 import type { ReportCustomStyle } from "../../types/report_styles.ts";
 import type {
   ReportVersionDetail,
@@ -96,39 +92,15 @@ export const productReportRouteRegistry = {
     isStreaming: true,
   }),
 
-  // Pictures of a FASTR Markdown report's decorative blocks (cover, band,
-  // tiles, card, stat) for the Word export, with the measured place of every
-  // text element in each. The client sends the same standalone document the
-  // PDF prints, laid out for the Word frame, and the fence lines of the
-  // blocks; the server's headless Chrome measures and screenshots them
-  // (server/report_pdf/rasterize_blocks.ts). Streaming, like the PDF.
-  rasterizeReportBlocks: route({
-    path: "/products/:product_id/report/rasters",
-    method: "POST",
-    params: productIdParamsSchema,
-    body: z.object({
-      html: z.string().max(80_000_000),
-      blocks: z.array(z.object({
-        id: z.number().int().nonnegative(),
-        kind: z.enum(FASTR_WORD_RASTER_BLOCKS),
-      })).max(200),
-    }),
-    response: {} as { blocks: FastrWordRasterBlock[] },
-    access: "view",
-    isStreaming: true,
-  }),
-
-  // A FASTR Markdown report's look, changed after creation. Unlike an html
-  // report's style (fixed at creation because the body IS the design), a
-  // fastr body carries no CSS, so re-theming can never invalidate it. The
-  // custom style is named by ID and resolved server-side: the visibility
+  // A report's look, changed after creation. The body carries no CSS, so
+  // re-theming can never invalidate it. The custom style is named by ID and resolved server-side: the visibility
   // check and the snapshot are not the client's to assert.
   setReportStyle: route({
     path: "/products/:product_id/report/style",
     method: "PUT",
     params: productIdParamsSchema,
     body: z.object({
-      fastrTheme: z.enum(FASTR_REPORT_THEMES),
+      fastrTheme: fastrReportThemeSchema,
       // null clears a custom style back to the theme's own palette.
       customStyleId: z.string().nullable(),
     }),

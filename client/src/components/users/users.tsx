@@ -104,10 +104,7 @@ export function InstanceUsers(p: Props) {
             showCommingSoon={showCommingSoon}
             showHUsers={showHUsers}
             toolbarChildren={
-              <div
-                class="ui-gap-sm flex items-center"
-                data-tour="instance-users-header"
-              >
+              <div class="ui-gap-sm flex items-center">
                 <Show when={currentUserIsHUser()}>
                   <Button
                     onClick={() => setShowHUsers((v) => !v)}
@@ -127,9 +124,11 @@ export function InstanceUsers(p: Props) {
                       })}
                   </Button>
                 </Show>
-                <div class="ui-gap-sm flex items-center">
+                <div
+                  class="ui-gap-sm flex items-center"
+                  data-tour="instance-users-bulk"
+                >
                   <Button
-                    data-tour="instance-users-bulk"
                     onClick={downloadUsersCSV}
                     iconName="download"
                     outline

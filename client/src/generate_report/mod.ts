@@ -1,28 +1,24 @@
-export {
-  buildReportFigureMap,
-  buildReportImageMap,
-  figureInputsForDownload,
-  loadImageEntry,
-} from "./_report_export_maps";
-export {
-  replaceUnavailableMediaTokens,
-  unavailableItemMarkdown,
-} from "./_media_placeholder";
+export { figureInputsForDownload, loadImageEntry } from "./_report_export_maps";
+export { unavailableItemMarkdown } from "./_media_placeholder";
 export {
   applyInkTheme,
   createFigureRasterCache,
   createFigureSizeCache,
-  figureDarkInkForColors,
-  figureInkThemeForStyle,
   figureRasterKey,
-  GENERIC_DARK_INK,
-  GENERIC_LIGHT_INK,
 } from "./report_figure_raster";
 export type {
-  FigureInkTheme,
   FigureRasterCache,
   FigureSizeCache,
 } from "./report_figure_raster";
+// The document builder and the ink a figure takes are Report Forge's; they
+// are re-exported here so the app's figure code keeps one import.
+export {
+  figureDarkInkForColors,
+  figureLightInkForColors,
+  GENERIC_DARK_INK,
+  GENERIC_LIGHT_INK,
+} from "report-forge";
+export type { FigureInkTheme } from "report-forge";
 export {
   buildReportBodyNodes,
   FASTR_THEME_STYLE_ATTR,
@@ -37,6 +33,5 @@ export {
   stripLazyLoading,
   TRANSPARENT_PIXEL_SRC,
   wrapReportDocument,
-} from "./report_html";
-export type { FigureRasterState } from "./report_html";
-export { REPORT_MARKDOWN_STYLE } from "./report_markdown_style";
+} from "report-forge";
+export type { FigureRasterState } from "report-forge";

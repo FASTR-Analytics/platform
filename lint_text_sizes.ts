@@ -2,21 +2,27 @@
 // Text-size lint: every UI text size comes from the rem token scale.
 //
 // Scans the tracked .ts, .tsx and .css files under client/src,
-// panther/_303_components and panther/_305_ai and fails on an arbitrary
+// panther/_303_components, panther/_305_ai and Report Forge's UI and fails on an arbitrary
 // Tailwind text size (`text-[10px]`), the non-token class `text-md`, or an
 // inline font-size in px or pt. Canvas-rendered and document-rendered text
 // is exempt below.
 //
 // Run: deno task lint:text-sizes
 
-const ROOTS = ["client/src", "panther/_303_components", "panther/_305_ai"];
+const ROOTS = [
+  "client/src",
+  "panther/_303_components",
+  "panther/_305_ai",
+  "report-forge/ui",
+  "report-forge/styles/kit.css",
+];
 
 // Files whose text is a rendering of a document or a canvas, not UI, so a
 // pixel size is the contract (PROTOCOL_ALL_SIZING.md).
 const EXEMPT: Record<string, string> = {
-  "client/src/components/products/report/fastr_theme_mock.tsx":
+  "report-forge/ui/screen/fastr_theme_mock.tsx":
     "report theme miniature, drawn to a tile",
-  "client/src/components/products/report/live_preview_extension.tsx":
+  "report-forge/ui/editor/live_preview_extension.tsx":
     "the report page surface, pinned to its PDF's typography",
 };
 
@@ -29,7 +35,8 @@ type Hit = { file: string; line: number; message: string };
 
 async function trackedFiles(): Promise<string[]> {
   const out = await new Deno.Command("git", {
-    args: ["ls-files", "--", ...ROOTS],
+    // Report Forge is a submodule, whose files a plain ls-files leaves out.
+    args: ["ls-files", "--recurse-submodules", "--", ...ROOTS],
     stdout: "piped",
   }).output();
   return new TextDecoder()

@@ -8,6 +8,12 @@
 // a menu living inside that editor would close on its own first click.
 
 import {
+  MenuDivider,
+  MenuFlyout,
+  PopoverRow,
+  ToolbarPopover,
+} from "report-forge";
+import {
   getDefaultContentSlide,
   getDefaultCoverSlide,
   getDefaultSectionSlide,
@@ -25,13 +31,7 @@ import {
   TextArea,
 } from "panther";
 import { createSignal, For, type JSX, onCleanup, Show } from "solid-js";
-import {
-  manageAccessLabel,
-  MenuDivider,
-  MenuFlyout,
-  PopoverRow,
-  ToolbarPopover,
-} from "~/components/products/_shared/mod.ts";
+import { manageAccessLabel } from "~/components/products/_shared/mod.ts";
 import { instanceState } from "~/state/instance/t1_store";
 import { LogoSectionEditor } from "./logo_section_editor";
 import { ThemePicker } from "./style_editor/mod.ts";
@@ -144,7 +144,7 @@ export function AddSlideMenu(p: { onAdd: (slide: Slide) => void }) {
   return (
     <ToolbarPopover
       menu
-      tour="deck-add-slide"
+      attrs={{ "data-tour": "deck-add-slide" }}
       label={
         // Just the +, at the height of the text menus beside it; the name
         // is its tooltip and its accessible label.
@@ -218,7 +218,7 @@ export function DeckFileMenu(p: {
   return (
     <ToolbarPopover
       menu
-      tour="deck-file-menu"
+      attrs={{ "data-tour": "deck-file-menu" }}
       label={t3({ en: "File", fr: "Fichier", pt: "Ficheiro" })}
       title={t3({ en: "File", fr: "Fichier", pt: "Ficheiro" })}
     >
@@ -335,7 +335,7 @@ export function DeckMenu(p: Props) {
   return (
     <ToolbarPopover
       menu
-      tour="deck-menu"
+      attrs={{ "data-tour": "deck-menu" }}
       label={t3({ en: "Deck", fr: "Présentation", pt: "Apresentação" })}
       title={t3({
         en: "Deck settings",

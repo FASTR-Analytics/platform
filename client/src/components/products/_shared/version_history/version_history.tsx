@@ -1,7 +1,6 @@
 import {
   presenceColorForKey,
   type PresenceEntry,
-  type ReportFormat,
   t3,
   type VersionEditor,
 } from "lib";
@@ -47,9 +46,7 @@ type Props = EditorComponentProps<
     currentLabel: string;
     /** Report only: live body accessor for "Compare with current". */
     getCurrentBody?: () => string;
-    /** Report only: the report's body format (absent ⇒ markdown). */
-    reportFormat?: ReportFormat;
-    /** Report only, fastr format: the current theme stylesheet. */
+    /** Report only: the current theme stylesheet. */
     reportFastrThemeCss?: string;
     /** Report only: chart ink for dark styles (report_figure_raster). */
     figureInkTheme?: FigureInkTheme;
@@ -296,7 +293,6 @@ export function VersionHistoryEditor(p: Props) {
                 previousVersionId={previousVersionId(versionId)}
                 canRestore={canRestore()}
                 getCurrentBody={p.getCurrentBody}
-                format={p.reportFormat ?? "markdown"}
                 fastrThemeCss={p.reportFastrThemeCss}
                 figureInkTheme={p.figureInkTheme}
                 onRestored={() => p.close(undefined)}

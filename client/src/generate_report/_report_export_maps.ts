@@ -1,37 +1,4 @@
-import { type FigureInputs, type FigureMap, type ImageMap } from "panther";
-import type { FigureBlock, ImageBlock } from "lib";
-import { buildFigureInputs } from "~/generate_visualization/mod";
-import { resolveLogoUrl } from "~/generate_slide_deck/fastr_logos";
-
-// Build the FigureMap markdownTo{Pdf,Word}Browser expect: keyed by the literal
-// markdown src ("figure:<id>"), value = HYDRATED FigureInputs.
-export async function buildReportFigureMap(
-  figures: Record<string, FigureBlock>,
-): Promise<FigureMap> {
-  const map: FigureMap = new Map();
-  for (const [id, block] of Object.entries(figures)) {
-    if (!block.bundle) continue;
-    try {
-      map.set(`figure:${id}`, buildFigureInputs(block.bundle));
-    } catch {
-      // Skip a figure that fails to build; the exporter swaps its token for a
-      // visible placeholder rather than aborting the whole report.
-    }
-  }
-  return map;
-}
-
-export async function buildReportImageMap(
-  images: Record<string, ImageBlock>,
-): Promise<ImageMap> {
-  const map: ImageMap = new Map();
-  for (const [id, block] of Object.entries(images)) {
-    if (!block.imgFile) continue;
-    const entry = await loadImageEntry(resolveLogoUrl(block.imgFile));
-    if (entry) map.set(`image:${id}`, entry);
-  }
-  return map;
-}
+import { type FigureInputs } from "panther";
 
 export async function loadImageEntry(
   url: string,

@@ -1,10 +1,15 @@
 // =============================================================================
-// FASTR Markdown report TEMPLATES: the Google-Docs-style starting points a
-// new report is offered right after its theme is picked (theme_modal.tsx →
-// template_modal.tsx). A template is a skeleton BODY (real blocks, headings
-// in the right order, placeholder guidance in each slot) plus a brief for
-// the AI, which is told which template the report was started from so it
-// writes to that shape (build_system_prompt.ts, getEditingReportInstructions).
+// The platform's report TEMPLATES: the starting points a new report is
+// offered right after its theme is picked. They are the platform's own,
+// registered with the report engine (Report Forge) rather than built into
+// it, because what a FASTR report should start as is this app's to say: a
+// policy brief for a decision-maker, a long-form technical report, or a
+// blank page.
+//
+// A template is a skeleton BODY (real blocks, headings in the right order,
+// placeholder guidance in each slot) plus a brief for the AI, which is told
+// which template the report was started from so it writes to that shape
+// (getEditingReportInstructions reads it through fastrReportTemplateBrief).
 //
 // Placeholders are muted role marks, `[What goes here]{.muted}`: they read as
 // grey guidance on the page, a user types over them, and the AI brief names
@@ -12,28 +17,24 @@
 // cover's kicker, a stat's label) cannot carry a mark, so they use square
 // brackets alone.
 //
-// The chosen template is stored on the report's config (`template`); like the
-// theme it is metadata, never part of the body.
+// REGISTRATION ORDER IS LOAD-BEARING, as for the legacy theme
+// (report_legacy_theme.ts): a stored config naming a template fails
+// validation until this module has run, so lib/types/reports.ts, which owns
+// reportConfigSchema, imports this file itself.
 // =============================================================================
 
-import { t3 } from "./translate/mod.ts";
+import {
+  fastrTemplatePlaceholder,
+  registerFastrTemplate,
+} from "../report-forge/engine/fastr_report_templates.ts";
+import { t3 } from "./translate/t-func.ts";
 
-export const FASTR_REPORT_TEMPLATES = [
-  "policy_brief",
-  "long_form",
-  "empty",
-] as const;
-export type FastrReportTemplate = (typeof FASTR_REPORT_TEMPLATES)[number];
-
-export function isFastrReportTemplate(v: unknown): v is FastrReportTemplate {
-  return typeof v === "string" &&
-    (FASTR_REPORT_TEMPLATES as readonly string[]).includes(v);
-}
+// In the order the gallery lists them.
+export const REPORT_TEMPLATES = ["policy_brief", "long_form", "empty"] as const;
+export type ReportTemplate = (typeof REPORT_TEMPLATES)[number];
 
 // A placeholder line: grey guidance the user or the AI replaces.
-function ph(text: string): string {
-  return `[${text.replace(/[\[\]]/g, "")}]{.muted}`;
-}
+const ph = fastrTemplatePlaceholder;
 
 // Attribute text: quotes would end the value.
 function attr(text: string): string {
@@ -458,33 +459,26 @@ function longFormBody(title: string): string {
   ].join("\n");
 }
 
-// The body a template starts a report with, titled with the report's label.
-// Empty is a blank page, as in a word processor.
-export function fastrReportTemplateBody(
-  template: FastrReportTemplate,
-  title: string,
-): string {
-  const t = title.replace(/\n/g, " ").trim() || "Report";
-  switch (template) {
-    case "policy_brief":
-      return policyBriefBody(t);
-    case "long_form":
-      return longFormBody(t);
-    case "empty":
-      return "";
-  }
-}
+// Rides both structured briefs: how a model treats the skeleton's guidance.
+const PLACEHOLDERS_BRIEF =
+  "The template's skeleton marks every slot with placeholder guidance written as a muted mark, `[What goes here]{.muted}` (and square-bracketed text in attributes such as a cover's kicker or a stat's label). When you write into the report, REPLACE every placeholder with real content and drop the mark; never leave one behind, and never copy the guidance text itself into the report.";
 
-// English, model-facing: what the template MEANS, so the AI writes to its
-// shape. Rides the editing view's instructions (getEditingReportInstructions).
-export function fastrReportTemplateBrief(
-  template: FastrReportTemplate,
-): string {
-  const placeholders =
-    "The template's skeleton marks every slot with placeholder guidance written as a muted mark, `[What goes here]{.muted}` (and square-bracketed text in attributes such as a cover's kicker or a stat's label). When you write into the report, REPLACE every placeholder with real content and drop the mark; never leave one behind, and never copy the guidance text itself into the report.";
-  switch (template) {
-    case "policy_brief":
-      return `## This report is a POLICY BRIEF
+registerFastrTemplate("policy_brief", {
+  label: {
+    en: "Policy brief",
+    fr: "Note de politique",
+    pt: "Nota de política",
+  },
+  caption: {
+    en:
+      "Two to four pages for decision-makers: key messages, options, recommendations",
+    fr:
+      "Deux à quatre pages pour les décideurs : messages clés, options, recommandations",
+    pt:
+      "Duas a quatro páginas para decisores: mensagens-chave, opções, recomendações",
+  },
+  body: policyBriefBody,
+  brief: `## This report is a POLICY BRIEF
 
 The user started this report from the **Policy brief** template. A policy brief is written for a decision-maker who will read the first page and perhaps nothing else: it is SHORT (two to four printed pages), leads with its conclusions, and ends in actions.
 
@@ -499,9 +493,24 @@ Keep the template's shape and section order unless the user asks otherwise:
 
 No \`:::contents\` and no \`numbering=sections\`: a brief is not a book. Write in plain, direct sentences; cut anything the decision does not need.
 
-${placeholders}`;
-    case "long_form":
-      return `## This report is a LONG-FORM REPORT
+${PLACEHOLDERS_BRIEF}`,
+});
+
+registerFastrTemplate("long_form", {
+  label: {
+    en: "Long-form report",
+    fr: "Rapport complet",
+    pt: "Relatório longo",
+  },
+  caption: {
+    en: "A formal report: title page, contents, numbered sections, annex",
+    fr:
+      "Un rapport formel : page de titre, sommaire, sections numérotées, annexe",
+    pt:
+      "Um relatório formal: página de título, índice, secções numeradas, anexo",
+  },
+  body: longFormBody,
+  brief: `## This report is a LONG-FORM REPORT
 
 The user started this report from the **Long-form report** template: a formal, complete document (typically ten pages or more) that a technical reader works through and cites.
 
@@ -514,10 +523,19 @@ Keep the template's shape and section order unless the user asks otherwise:
 
 Add, split or rename findings subsections to fit the evidence; keep every section a page or so, as the page budget in the format guide describes.
 
-${placeholders}`;
-    case "empty":
-      return `## This report started from a blank page
+${PLACEHOLDERS_BRIEF}`,
+});
 
-The user chose the **Empty** template: there is no prescribed structure. Follow the user's lead on what the report is; when you write the whole report, compose it with the format's blocks as the format guide describes.`;
-  }
-}
+// A blank page, as in a word processor.
+registerFastrTemplate("empty", {
+  label: { en: "Empty", fr: "Vide", pt: "Vazio" },
+  caption: {
+    en: "A blank page",
+    fr: "Une page blanche",
+    pt: "Uma página em branco",
+  },
+  body: () => "",
+  brief: `## This report started from a blank page
+
+The user chose the **Empty** template: there is no prescribed structure. Follow the user's lead on what the report is; when you write the whole report, compose it with the format's blocks as the format guide describes.`,
+});

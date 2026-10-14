@@ -22,21 +22,15 @@ export * from "./resolve_effective_indicator_facts.ts";
 export * from "./indicator_value_scale.ts";
 export * from "./traffic_light_rule.ts";
 export * from "./resolve_figure_calendar.ts";
-export * from "./report_sections.ts";
 export * from "./run_progress.ts";
-export * from "./fastr_markdown_edits.ts";
+// The report engine (Report Forge) is its own package; lib re-exports it so
+// the app keeps one import for shared code.
+export * from "../report-forge/engine/mod.ts";
+// The platform's own report theme and templates, registered with the engine
+// on load.
+export * from "./report_legacy_theme.ts";
+export * from "./report_templates.ts";
 export * from "./slide_text_offsets.ts";
-export * from "./fastr_live_regions.ts";
-export * from "./fastr_markdown_blocks.ts";
-export * from "./fastr_markdown_spec.ts";
-export * from "./fastr_report_templates.ts";
-export * from "./report_fastr_css.ts";
-export * from "./report_fastr_markdown.ts";
-export * from "./report_fastr_paged.ts";
-export * from "./report_fastr_word.ts";
-export * from "./fastr_markdown_pages.ts";
-export * from "./fastr_report_page_map.ts";
-export * from "./report_document_shell.ts";
 export * from "./group_metrics.ts";
 export * from "./explore_query.ts";
 export * from "./explore_views.ts";

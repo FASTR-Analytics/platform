@@ -17,8 +17,6 @@ import type {
   ImageBlock,
   MetricWithStatus,
   PresentationObjectConfig,
-  ReportFormat,
-  ReportHtmlStyle,
   ResolvedPackageScope,
   RunCatalogStatus,
   RunProgress,
@@ -164,17 +162,12 @@ export type EditingSlideContext = EditingSlideDeckContext & {
 
 export type EditingReportParams = {
   reportId: string;
-  // Format and (html only) style, fixed at creation and known before setView.
-  format: ReportFormat;
-  htmlStyle?: ReportHtmlStyle;
-  // Custom style, resolved live-vs-snapshot by the report editor (S12).
-  customStyle?: { label: string; brief: string; referenceCss?: string | null };
 };
 // See ./types.ts for ReportEditProposal(Result) and ReportEditorSelection.
 export type EditingReportContext = PackageViewContext & {
   getLabel: () => string;
-  // The template the report was started from (fastr only), read live: it is
-  // chosen after the view is set, from the template modal.
+  // The template the report was started from, read live: it is chosen after
+  // the view is set, from the template modal.
   getTemplate: () => FastrReportTemplate | undefined;
   getBody: () => string;
   getFigures: () => Record<string, FigureBlock>;
@@ -182,10 +175,6 @@ export type EditingReportContext = PackageViewContext & {
   getSelection: () => ReportEditorSelection | undefined;
   proposeEdit: (proposal: ReportEditProposal) => ReportEditProposalResult;
   applyFigureUpdate: (figureId: string, block: FigureBlock) => Promise<boolean>;
-  // The chat menu's "Save this report's style…": the action for an html
-  // report the user can edit, undefined otherwise. The report supplies it,
-  // so the pane imports nothing from components/products/.
-  getSaveStyleAction: () => (() => Promise<void>) | undefined;
 };
 
 export type ReportParams = {
@@ -382,9 +371,6 @@ export const copilotViews = defineAIViews(
         `${
           getEditingReportInstructions(
             context.getLabel(),
-            params.format,
-            params.htmlStyle,
-            params.customStyle,
             context.getTemplate(),
           )
         }${productViewOnlyLine(params.reportId)}`,
