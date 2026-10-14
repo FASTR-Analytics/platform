@@ -1779,21 +1779,32 @@ edge as a band. The toolbar's selected-embed pill carries a Size control for it
 (`EmbedToolbarControls` in `report-forge/ui/screen/embed_controls.tsx` →
 `setEmbedWidth` → `updateEmbedLineAttrs`, which keeps
 `updateContainerFenceLine`'s byte-preserving guarantees on the embed line's
-`{…}` block). One table of shares (`fastrFigureShare`) and one height limit
-(`FASTR_FIGURE_PAGE_CEILING`, 0.85 of the page's content area) are read by all
-three sizers, the stylesheet (`--fm-fig-share`), the editor's page layout
-(`figureImageBox`) and the Word export; they used to carry three copies of the
-0.42. The ceiling is not a sizing rule: only a figure shaped taller than the
-page meets it, and it narrows, centred, rather than standing taller than a page,
-which no atomic block may. markdown-it has no attribute syntax, so the
-`fm_figures` core rule claims a trailing `{…}` text child and removes it.
-`width=wide` is still accepted and classed but renders at the text column: it
-used to overhang the column by up to 4rem a side, which on a paged sheet crosses
-the margin line and read as a mistake (Nick, 2026-09-10); the spec no longer
-offers it, so the AI stops asking for it. A sized figure's line is still the
-figure's: the editor's `ownsLine` (`body_editor.tsx`) takes the token plus its
-`{…}` block (`isFastrEmbedLine`), or deleting a sized figure would leave the
-block behind as literal text.
+`{…}` block). One table of shares (`fastrFigureShare`) and one height limit are
+read by all three sizers, the stylesheet (`--fm-fig-share`), the editor's page
+layout (`figureImageBox`) and the Word export; they used to carry three copies
+of the 0.42. The ceiling is not a sizing rule: only a figure shaped taller than
+the page meets it, and it narrows, centred, rather than standing taller than a
+page, which no atomic block may. Since 2026-10-14 the limit is the page area
+less a MEASURED figure reserve (a section heading over the figure plus the
+figure's frame and a caption line, `--fm-fig-reserve`, measured by print's
+runner and by the editor's `HeightOracle` from one probe), so a heading and a
+portrait figure always share a page; `FASTR_FIGURE_PAGE_CEILING` (0.85) is the
+fallback where nothing measures (Word, a plain .html). The contract is that
+constant's note in `fastr_markdown_blocks.ts`. Before it, the cap left room for
+the caption but not the heading: print moved the figure on and left the heading
+alone on a page, while the editor let the figure run past its page's foot, and
+the editor's next forced page start then added one more page. The page layout
+(`layoutFastrPages`) no longer lets a block that cannot continue inside run past
+a page when it fits one of its own: when it and its headings are taller than a
+page together, the headings stay and the block moves alone, as print moves it.
+markdown-it has no attribute syntax, so the `fm_figures` core rule claims a
+trailing `{…}` text child and removes it. `width=wide` is still accepted and
+classed but renders at the text column: it used to overhang the column by up to
+4rem a side, which on a paged sheet crosses the margin line and read as a
+mistake (Nick, 2026-09-10); the spec no longer offers it, so the AI stops asking
+for it. A sized figure's line is still the figure's: the editor's `ownsLine`
+(`body_editor.tsx`) takes the token plus its `{…}` block (`isFastrEmbedLine`),
+or deleting a sized figure would leave the block behind as literal text.
 
 **Escape hatch** (documented as theme-breaking, in the model's brief too): `bg=`
 emits an inline STANDARD declaration (never a custom property, which DOMPurify
