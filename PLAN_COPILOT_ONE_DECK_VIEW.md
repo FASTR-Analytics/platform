@@ -1,0 +1,386 @@
+# PLAN: One copilot view for the deck editor
+
+Status: written 2026-10-15. Nothing built.
+
+The deck editor has been one screen since 2026-09-22 (the rail on the left, the
+clicked slide open beside it), but the copilot still sees two places: a deck
+view and a slide view, the latter set by the slide editor on every mount.
+Because a deck with slides always has a slide open, the chat lives in the slide
+view, whose identity includes the slide id. A switch of the open slide is then
+"the user moved", and panther's gate refuses every view-limited call for the
+rest of the reply; the slide view's instructions still describe the retired
+full-page slide editor; and two tool sets edit the same slides by different
+rules. This plan makes the deck editor one copilot view, with the open slide as
+view state, and one set of slide tools, each addressing a slide by id and
+routing to the open slide's draft or to the stored slide.
+
+**Next step: Do 1.**
+
+Branch: `version2`. Repos touched: this app only. Read first: §0.
+
+## 0. How to work this plan
+
+Cadence, session shapes, the two-things rule and the step rules are
+[panther/protocols/PROTOCOL_ALL_PLANS.md](panther/protocols/PROTOCOL_ALL_PLANS.md);
+the app's bindings are [PROTOCOL_APP_PLANS.md](PROTOCOL_APP_PLANS.md). This plan
+binds them as follows.
+
+- Instruction: "Do the next step of PLAN_COPILOT_ONE_DECK_VIEW.md."
+- Branch: `version2`, not the `tim-branch` the app protocol names: version 2
+  lives on `version2` until PLAN_PRODUCTS_RESTRUCTURE replaces `main` with it. A
+  session confirms `git branch --show-current` prints `version2`.
+- Floor: `deno task typecheck`, `deno task test`, `./validate_protocols`,
+  `./run`. No step touches a migration, the query engine or help text, so no
+  conditional gate applies.
+- Build log: §8. Last step: 3.
+- A step reads, in order: `CLAUDE.md`, `SYSTEMS.md`,
+  [SYSTEM_13_ai_assistant.md](SYSTEM_13_ai_assistant.md),
+  [SYSTEM_12_documents_sharing.md](SYSTEM_12_documents_sharing.md), for step 3
+  also [SYSTEM_14_client_shell.md](SYSTEM_14_client_shell.md), then §2 and §3 of
+  this plan, the step's own section in §4, and §8.
+- The tree is shared with other workstreams. A session confirms `git status` is
+  clean before it starts and stages only the files its step names.
+
+## 1. The problem
+
+**Two views for one editor.** The slide editor holds the deck's view and sets
+`editing_slide` over it on every mount
+([slide_editor.tsx:589-607](client/src/components/products/slide_deck/slide_editor/slide_editor.tsx#L589-L607)),
+and the deck opens a slide whenever it has one
+([slide_deck.tsx:435-456](client/src/components/products/slide_deck/slide_deck.tsx#L435-L456)).
+So a deck with slides is always in `editing_slide`; `editing_slide_deck` is the
+view of an empty deck and nothing else.
+
+**A slide switch is a move.** The slide view's identity carries the slide id
+([copilot_catalogue.ts:294](lib/ai_tools/copilot_catalogue.ts#L294)). Panther's
+gate refuses every view-limited call once the live identity differs from the one
+the turn's last message carried
+([view_logic.ts:108-131](panther/_110_ai_types/view_logic.ts#L108-L131)), with a
+message that says the user moved and tells the model to wait for the user's next
+message ([view_logic.ts:141](panther/_110_ai_types/view_logic.ts#L141)). Run
+against the catalogue's own identities, a switch of the open slide from `a1b` to
+`b2c` refuses `create_slide` and `get_metric_data` alike. Three things switch
+the open slide during a reply: the user clicks another slide in the rail; the AI
+deletes the open slide, after which the deck opens its neighbour; and the first
+slide of an empty deck, which takes the chat from the deck view to the slide
+view. In each case the model is told it may not continue, and it tells the user
+to go to a "deck overview" that does not exist.
+
+**The slide view's instructions describe the retired editor.**
+[build_system_prompt.ts:277-321](client/src/components/instance/copilot/build_system_prompt.ts#L277-L321)
+is headed "Current Mode: Editing Slide", opens with "Primary Tools (for this
+slide)" and leads with `get_slide_editor` and `update_slide_editor`. The deck
+brief (slide types, block formats, text limits, never show the user a slide id)
+is sent only in `editing_slide_deck`
+([build_system_prompt.ts:236-275](client/src/components/instance/copilot/build_system_prompt.ts#L236-L275)),
+so a deck with slides never gets it. The workflow both views share
+([build_system_prompt.ts:226-234](client/src/components/instance/copilot/build_system_prompt.ts#L226-L234))
+never names `create_slide`, `delete_slides`, `duplicate_slides` or
+`move_slides`. The composer reads "Ask about this slide..."
+([chat_pane.tsx:85-89](client/src/components/instance/copilot/chat_pane.tsx#L85-L89)).
+This is the language of the reported chat: "single-slide editor", "full deck
+view".
+
+**Two tool sets edit the same slides.** Thirteen slide tools. The deck tools
+([slides.tsx](client/src/components/products/copilot/ai_tools/tools/slides.tsx))
+edit any slide by id through the REST routes; the editor tools
+([slide_editor.tsx](client/src/components/products/copilot/ai_tools/tools/slide_editor.tsx))
+edit only the open slide through its draft, and `update_figure` refuses a
+`slideId` that is not the open slide and tells the model to ask the user to open
+it
+([slide_editor.tsx:431-441](client/src/components/products/copilot/ai_tools/tools/slide_editor.tsx#L431-L441)).
+`update_slide_content`, `update_slide_header`, `modify_slide_layout` and
+`update_slide_editor` are the same three operations (header, blocks, layout)
+split by surface, and the layout-spec resolution is written twice. A REST write
+to the open slide reaches the editor only through the live room
+([server/routes/products/slides.ts:141](server/routes/products/slides.ts#L141));
+with collab down, the canvas keeps the old content, since the editor is keyed by
+slide id and deck config and never refetches.
+
+**The AI's delete of the open slide alerts the user.** The `delete_slides`
+commit calls the route directly
+([slides.tsx:606-607](client/src/components/products/copilot/ai_tools/tools/slides.tsx#L606-L607)).
+The server then closes the slide's room with a fatal error, which the mounted
+editor shows as an alert
+([slide_editor.tsx:645](client/src/components/products/slide_deck/slide_editor/slide_editor.tsx#L645)).
+The rail's own delete moves the editor off the slide before the request
+([slide_list.tsx:306](client/src/components/products/slide_deck/slide_list.tsx#L306)).
+
+## 2. The model
+
+Vocabulary, used throughout:
+
+- **The deck view**: `editing_slide_deck`, the one copilot view of the deck
+  editor, set once the deck has loaded and current until the editor unmounts or
+  a place inside the deck (settings, history, the figure editor) sets its own
+  over it.
+- **The open slide**: the slide the deck editor shows beside the rail; absent in
+  an empty deck.
+- **The draft**: the open slide's live store in the slide editor, which the
+  editor syncs to the collab room and saves over REST when the room is not
+  persisting.
+- **A stored slide**: any slide read and written through the REST routes with
+  the optimistic lock.
+- **The pair**: the deck's results package and scope, with the scope's
+  definition hash.
+
+The end state:
+
+- The deck view's identity is the deck and the pair. The open slide is view
+  state: it rides every message as a line, and changing it is not a move.
+- The deck context carries the open slide: `getOpenSlide()` returns one object
+  per slide editor mount (`slideId`, `getDraft`, `setDraft`) or undefined, and
+  `deleteSlides(ids)` runs the deck's own sequence (move the editor off a
+  deleted open slide, then the request). The slide editor sets no view; it hands
+  its draft to the deck through `onApi`.
+- Nine slide tools, one set: `get_deck`, `get_slide`, `create_slide`,
+  `update_slide`, `update_figure`, `replace_slide`, `delete_slides`,
+  `duplicate_slides`, `move_slides`. Every tool that names a slide takes
+  `slideId`. One routing rule: the open slide is read from and written to the
+  draft; any other slide is read and written as a stored slide.
+- One instructions text for the deck, which the model gets whether or not a
+  slide is open.
+
+## 3. Rulings
+
+- **R1 One view.** `editing_slide` is deleted from the catalogue, the registry,
+  the interactions, the placeholders, the tours and the draft card.
+  `editing_slide_figure` stays: the figure editor is its own place over the
+  deck, as settings and history are.
+- **R2 Identity and state.** `editing_slide_deck` keeps its identity parts
+  (`deck`, `pair`). Its state line is, in this order: `deckId: <id>`; the open
+  slide as `Open slide: <id> (<n> of <total>, <type>): "<title>"`, or
+  `Open slide: none (the deck has no slides)`; the selected slide ids when any.
+  The title is read from the draft, so an edit never leaves it stale.
+- **R3 The editor hands its draft up.** `SlideEditorApi` becomes
+  `{ slideId, flush, getDraft, setDraft }`; the deck keeps it in a signal and
+  `getOpenSlide()` returns it. The object is created once per mount, so a
+  handler that captured it compares it by reference before writing
+  (`getOpenSlide() !== captured` refuses with "The user switched slides; nothing
+  was applied."), which is the guarantee `assertSlideStillOpen` gives today.
+  `getDraft` returns the store; callers `unwrap` it. `setDraft` is the raw store
+  setter, not the notifying one: the AI's own edit is never reported as the
+  user's.
+- **R4 One routing rule, in one place.** `readSlideTarget(view, slideId)` checks
+  presence (`assertSlidesNotBusy`) and returns either
+  `{ kind: "open", open, slide }` from the draft or
+  `{ kind: "stored", slide, lastUpdated }` from `getSlide`.
+  `writeSlideTarget(view, target, updated)` reconciles into the draft after the
+  R3 check, or calls `updateSlide` with `expectedLastUpdated` and turns
+  `CONFLICT` into the existing re-read message. Every slide write goes through
+  these two functions; no handler reads `getOpenSlide()` itself.
+- **R5 `update_slide` replaces four tools.** `update_slide_content`,
+  `update_slide_header`, `modify_slide_layout` and `update_slide_editor` are
+  deleted. `update_slide` takes `slideId` and `update_slide_editor`'s per-type
+  discriminated union (`cover` fields; `section` fields; `content` with
+  `header`, `blockUpdates`, `layoutChange`, the last two mutually exclusive),
+  and its handler is `update_slide_editor`'s, over
+  `readSlideTarget`/`writeSlideTarget`. The layout-spec resolution exists once.
+- **R6 `get_slide_editor` is deleted.** `get_slide` reads the open slide from
+  the draft and any other slide as stored, through `readSlideTarget`.
+- **R7 `update_figure` takes `slideId`, required.** Its pipeline is unchanged;
+  the load and the save go through R4. The description no longer speaks of a
+  deck level or a slide editor.
+- **R8 `get_deck` marks the open slide.** `getDeckSummaryForAI` takes the open
+  slide (id and draft) and prints its line from the draft with `(open)` after
+  the id.
+- **R9 The AI deletes as the rail does.** `delete_slides`' commit calls the deck
+  context's `deleteSlides(ids)`. The deck owns that function: if the open slide
+  is among the ids it first selects the neighbour (the slide after the last
+  deleted one, else before the first, else none), computed over the deck's
+  `slideIds`; a refused flush returns the rail's "Delete cancelled." failure;
+  then it calls the route. The rail's `handleDelete` calls the same function
+  through a prop, and its own `neighbourOf` goes.
+- **R10 Structure writes leave the open slide alone.** `create_slide`,
+  `duplicate_slides` and `move_slides` never open a slide; the deck's own rule
+  (open the first slide when none is open) is the only one that moves the editor
+  on the AI's behalf.
+- **R11 Draft writes mark their echo keys** _(proposed)_. A write through the
+  draft marks `slide:<id>` and `product:<deckId>` as every stored write does, so
+  the collab checkpoint's SSE echo of the AI's own edit drops at drain. Within
+  the 30s TTL a collaborator's checkpoint on the same slide drops too, which the
+  workflow absorbs: the model re-reads a slide before editing it. This closes
+  the "Residual SSE self-echo under live collab" open item in S13.
+- **R12 One instructions text.** `getEditingSlideInstructions` is deleted.
+  `getEditingSlideDeckInstructions` is headed
+  `# Current View: Editing slide
+  deck`, so the heading and the view line name
+  the same thing, and carries: the deck's name and the package line; slide
+  types; content blocks; text length; communication style; a paragraph on the
+  open slide (the state line names it; an edit to it shows on the canvas at once
+  and saves automatically; an edit to any other slide is saved immediately;
+  never ask the user to open, close or switch a slide or a view); and the
+  workflow: `get_deck` first, `get_slide` before changing a slide,
+  `update_slide` for header, blocks and layout, `update_figure` to tweak a
+  figure, `replace_slide` to rebuild or change type, `create_slide`,
+  `delete_slides`, `duplicate_slides` and `move_slides` for the deck's
+  structure, `get_metric_data` before any `from_metric` block.
+- **R13 The composer reads "Ask about this slide deck..."** in the deck view.
+- **R14 No migration, no cache bump.** A conversation saved before this plan
+  names the old tools and view in its history text only; nothing reads those
+  names back.
+- **R15 No panther change.** The gate's unit, a view's identity, is right once
+  the open slide is state.
+- **R16 Files.** In `client/src/components/products/copilot/ai_tools/tools/`:
+  `slides.tsx` keeps the builder `getClientToolsForSlides` and the structure
+  tools (`get_deck`, `create_slide`, `replace_slide`, `delete_slides`,
+  `duplicate_slides`, `move_slides`); `get_slide.ts` stays; `update_slide.ts`
+  exports `createUpdateSlideTool`; `update_figure.ts` exports
+  `createUpdateFigureTool` and takes `replaceFigureBundleInLayout` with it;
+  `slide_target.ts` exports R4's two functions and the `SlideTarget` type;
+  `slide_editor.tsx` is deleted, and with it `getClientToolsForSlideEditor` from
+  `tools/mod.ts`, `products/copilot/mod.ts` and `copilot_tools.ts`.
+
+## 4. Steps
+
+### Step 1: The deck exposes the open slide
+
+**Surface.** `client/src/components/products/slide_deck/slide_deck.tsx`,
+`client/src/components/products/slide_deck/slide_editor/slide_editor.tsx`,
+`client/src/components/products/slide_deck/slide_list.tsx`,
+`client/src/components/instance/copilot/ai_views.ts`,
+`SYSTEM_12_documents_sharing.md`.
+
+**Deliverable.**
+
+- `ai_views.ts` exports `OpenSlide` (`slideId`, `getDraft`, `setDraft`) and
+  `EditingSlideDeckContext` gains `getOpenSlide` and `deleteSlides` (R3, R9).
+  `EditingSlideContext` still extends it and still carries `getTempSlide` and
+  `setTempSlide`, which the editor tools read until step 2.
+- The slide editor's `onApi` delivers R3's object; `slide_deck.tsx` holds it in
+  a signal, serves it from `deckContext.getOpenSlide`, and owns `deleteSlides`
+  (R9), passed to the rail as `onDeleteSlides`; the rail's `handleDelete` calls
+  it and `neighbourOf` leaves `slide_list.tsx`.
+- S12's "One screen" paragraph says what `onApi` carries and that the deck owns
+  the delete sequence for the rail and the copilot alike.
+
+**Not in this step.** Any tool, the catalogue, the view registry's views.
+
+**Gates.** The floor.
+
+**Ends with.** One commit.
+
+### Step 2: One set of slide tools
+
+**Surface.** `lib/ai_tools/copilot_catalogue.ts` (the tool tables only:
+`COPILOT_TOOL_VIEWS`, `COPILOT_TOOL_REQUIREMENTS`, `COPILOT_APPROVAL_EXEMPT`),
+`server/tests/copilot_catalogue_test.ts`,
+`client/src/components/products/copilot/ai_tools/tools/slides.tsx`,
+`client/src/components/products/copilot/ai_tools/tools/get_slide.ts`,
+`client/src/components/products/copilot/ai_tools/tools/update_slide.ts` (new),
+`client/src/components/products/copilot/ai_tools/tools/update_figure.ts` (new),
+`client/src/components/products/copilot/ai_tools/tools/slide_target.ts` (new),
+`client/src/components/products/copilot/ai_tools/tools/slide_editor.tsx`
+(deleted), `client/src/components/products/copilot/ai_tools/tools/mod.ts`,
+`client/src/components/products/copilot/mod.ts`,
+`client/src/components/instance/copilot_tools.ts`,
+`client/src/components/products/copilot/slide_ai/get_deck_summary.ts`,
+`client/src/components/instance/copilot/ai_views.ts`,
+`client/src/components/products/slide_deck/slide_editor/slide_editor.tsx`,
+`client/src/components/instance/copilot/build_system_prompt.ts`,
+`SYSTEM_13_ai_assistant.md`.
+
+**Deliverable.**
+
+- The catalogue's tool tables list the nine tools of §2 and no other slide tool;
+  `update_slide` is `product_edit` and approval-exempt, as the four it replaces
+  were; the test's groups and exemptions say the same. Both views still admit
+  the deck tools (`DECK_VIEWS` is unchanged until step 3).
+- R4 to R11 are in the code, laid out as R16 says. `get_deck`'s completion
+  message and every description name only tools that exist.
+- `EditingSlideContext` loses `getTempSlide` and `setTempSlide`; the slide
+  view's label reads `getOpenSlide()`; the editor's `setView` passes the deck's
+  context and nothing else.
+- Both instructions texts name `update_slide` and `get_slide` where they named
+  the deleted tools.
+- S13's prose on the tools, the gating, the contexts and validate-before-commit
+  describes the nine tools and the routing rule, and the collab self-echo open
+  item is deleted (R11).
+
+**Not in this step.** Deleting the slide view, the state line, the interactions,
+the placeholders, the tours, the draft card, merging the instructions.
+
+**Gates.** The floor, and G2 with the step-2 pattern (§5).
+
+**Ends with.** One commit.
+
+### Step 3: One view
+
+**Surface.** `lib/ai_tools/copilot_catalogue.ts` (`COPILOT_VIEW_IDS`,
+`COPILOT_PACKAGE_VIEWS`, `COPILOT_VIEW_IDENTITY_PARTS`, `DECK_VIEWS`,
+`SLIDE_VIEWS`), `server/tests/copilot_catalogue_test.ts`,
+`client/src/components/instance/copilot/ai_views.ts`,
+`client/src/components/instance/copilot/interactions.ts`,
+`client/src/components/instance/copilot/chat_pane.tsx`,
+`client/src/components/instance/copilot/tool_guard.ts`,
+`client/src/components/instance/copilot/build_system_prompt.ts`,
+`client/src/components/products/slide_deck/slide_editor/slide_editor.tsx`,
+`client/src/components/products/copilot/ai_tools/tools/drafts.tsx`,
+`client/src/components/products/copilot/ai_tools/tools/draft_slide_preview.tsx`,
+`client/src/onboarding/index.ts`, `SYSTEM_12_documents_sharing.md`,
+`SYSTEM_13_ai_assistant.md`.
+
+**Deliverable.**
+
+- R1, R2, R12 and R13 are in the code: the view, its params and context types,
+  `getEditingSlideInstructions`, the `restoreCopilotView` and `tool_guard`
+  cases, the placeholder entry and the test's rows for `editing_slide` are gone;
+  `DECK_VIEWS` is `["editing_slide_deck"]` and `SLIDE_VIEWS` is gone; the slide
+  editor neither holds nor sets a view.
+- `interactions.ts`: `edited_slide` and `selected_slides` are relevant in the
+  deck view alone, the former filtered on the deck's slide ids;
+  `edited_slide_locally` is relevant in the deck view, filtered on
+  `getOpenSlide()?.slideId`, and reads "The open slide's content changed
+  (re-read it with get_slide before editing it)".
+- `onboarding/index.ts`: `editingSlideOfType` and the tour manager's watch read
+  the open slide's type through `getOpenSlide()` on the deck view.
+- `drafts.tsx` and `draft_slide_preview.tsx` test the one view id.
+- S12 and S13 describe one deck view with the open slide as state; S13's
+  sync-site, state, interaction, card and gating paragraphs are rewritten.
+
+**Not in this step.** Anything in §6.
+
+**Gates.** The floor, G1, and G2 with the step-3 pattern (§5).
+
+**Ends with.** One commit. The review that passes this step deletes the plan
+file in its last commit.
+
+## 5. Gates catalogue
+
+- **The floor**, every step: `deno task typecheck`, `deno task test`,
+  `./validate_protocols`, `./run`.
+- **G1 The catalogue test** (`server/tests/copilot_catalogue_test.ts`, in
+  `deno task test`): from step 2, the tool groups are §2's nine; from step 3,
+  the views have no `editing_slide` and the identity parts of
+  `editing_slide_deck` are `deck` and `pair`.
+- **G2 No stale name**, run from the repo root, expected to print nothing:
+  - step 2:
+    `git grep -n -E "get_slide_editor|update_slide_editor|update_slide_content|update_slide_header|modify_slide_layout|getTempSlide|getClientToolsForSlideEditor" -- ':!panther/_*'`
+  - step 3:
+    `git grep -n -E "editing_slide\b|EditingSlideParams|EditingSlideContext|getEditingSlideInstructions|SLIDE_VIEWS" -- ':!panther/_*'`
+
+## 6. Out of scope
+
+- The slide and report style surface, image blocks and value ordering (S13 open
+  items): the read projection and the write schemas keep their fields.
+- A tool that opens a slide or navigates: the user moves, the state line tells
+  the model where.
+- The rail's optimistic order during an in-flight reorder: R9's neighbour reads
+  the deck's `slideIds`.
+- Per-tool identity parts in panther's gate (R15).
+- The collab layer and the REST routes: unchanged.
+
+## 7. Rollout and rollback
+
+Nothing ships from a step. After step 3's review passes, the change rides the
+next version 2 ad-hoc deploy to the v2 testing instances, which Tim runs. No
+migration and no cache prefix are involved, so rollback is the previous image
+tag. A conversation started before the deploy keeps the old tool and view names
+in its history text and continues under the new ones.
+
+## 8. Build log
+
+Append-only, newest last.
+
+| Step | Session | Row |
+| ---- | ------- | --- |
