@@ -7,8 +7,9 @@ import type {
 } from "./dataset_hfa_import.ts";
 import { CsvDetails, OptionalFacilityColumn } from "./instance.ts";
 
-// Which facility registry an import targets. Admin areas are shared; each
-// family has its own facilities table and its own import flow.
+// Which facility registry: each has its own facilities table and admin area
+// tree. HMIS facilities come from the structure import, HFA facilities from
+// each round's data import.
 export type FacilityFamily = "hmis" | "hfa";
 
 // The admin area levels below the country that data can be held at; the
@@ -41,12 +42,12 @@ export type StructureDhis2ConnectionSnapshot = {
 // ============================================================================
 
 // Pre-commit safety signal computed at staging: how many of the file's distinct
-// facility_ids already exist in the target family's backbone. Optional so an
-// upload attempt staged before this field existed still loads. The step-4 UI
-// shows it so an ID-system mismatch (0 existing) is visible before committing.
+// facility_ids already exist in the HMIS registry. Optional so an upload
+// attempt staged before this field existed still loads. The step-4 UI shows it
+// so an ID-system mismatch (0 existing) is visible before committing.
 // absentCount: registry facilities not in the file (replace_all deletes them);
-// absentWithDataCount: those that still have data (or HFA weights), which make
-// replace_all refuse.
+// absentWithDataCount: those that still have data, which make replace_all
+// refuse.
 export type StructureFacilityMatch = {
   totalStaged: number;
   existing: number;
@@ -68,8 +69,8 @@ export const _RECODABLE_FACILITY_COLUMNS: StructureRecodableColumn[] = [
   "facility_custom_4",
   "facility_custom_5",
 ];
-// column → facility_id → new value. Sparse: unassigned rows keep their
-// staged value. Scoped to one upload attempt; cleared on restage.
+// column → facility_id → new value. Sparse: a facility with no entry keeps its
+// file value.
 export type StructureRecodes = Partial<
   Record<StructureRecodableColumn, Record<string, string>>
 >;
@@ -103,14 +104,6 @@ export type StructureStagingResult = {
   // racing a restage fails loudly. Optional: stored results predate it.
   stagingNonce?: string;
   facilityMatch?: StructureFacilityMatch;
-  // Only present when an ODK questionnaire was supplied at step 1; one entry
-  // per mapped column that matched a select_one question. unresolvedValues =
-  // distinct codes not found in the choice list, capped at 10.
-  labelResolution?: {
-    column: string;
-    resolvedCount: number;
-    unresolvedValues: string[];
-  }[];
 };
 
 // ============================================================================
@@ -141,11 +134,9 @@ export type StructureUploadAttemptStatus =
 // ============================================================================
 
 export type StructureUploadAttemptDetailInitial = {
-  id: string;
   dateStarted: string;
   step: 0;
   status: StructureUploadAttemptStatus;
-  datasetFamily: FacilityFamily;
   sourceType: undefined;
   step1Result: undefined;
   step2Result: undefined;
@@ -155,17 +146,14 @@ export type StructureUploadAttemptDetailInitial = {
 
 export type StructureCsvStep1Result = {
   csv: CsvDetails;
-  xlsForm?: { fileName: string; filePath: string };
 };
 
 export type StructureUploadAttemptDetailCsv = {
-  id: string;
   dateStarted: string;
   step: 1 | 2 | 3 | 4;
   status: StructureUploadAttemptStatus;
-  datasetFamily: FacilityFamily;
   sourceType: "csv";
-  // Step 1: CSV upload details, plus optional ODK questionnaire
+  // Step 1: CSV upload details
   step1Result: StructureCsvStep1Result | undefined;
   // Step 2: CSV column mappings
   step2Result: StructureColumnMappings | undefined;
@@ -176,11 +164,9 @@ export type StructureUploadAttemptDetailCsv = {
 };
 
 export type StructureUploadAttemptDetailDhis2 = {
-  id: string;
   dateStarted: string;
   step: 1 | 2 | 3 | 4;
   status: StructureUploadAttemptStatus;
-  datasetFamily: FacilityFamily;
   sourceType: "dhis2";
   // Step 1: confirmed DHIS2 connection snapshot (no password)
   step1Result: StructureDhis2ConnectionSnapshot | undefined;

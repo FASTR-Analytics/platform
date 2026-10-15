@@ -1,12 +1,10 @@
 import { z } from "zod";
 import type {
   CsvDetails,
-  FacilityFamily,
   HfaFacilityWeightsImportResult,
   HfaRegistryFacility,
   HfaRegistrySaveResult,
   StructureDhis2OrgUnitMetadata,
-  StructureIntegrateStrategy,
   StructureIntegrateSummary,
   StructureStagedColumnValues,
   StructureStagedRecodeRows,
@@ -151,90 +149,74 @@ export const structureRouteRegistry = {
     path: "/structure/hfa_facility_weights",
     method: "DELETE",
   }),
+  // The HMIS facility import: one resumable attempt. HFA facilities come from
+  // each round's data import.
   addStructureUploadAttempt: route({
     path: "/structure/upload_attempt",
     method: "POST",
-    body: z.object({ datasetFamily: facilityFamilySchema }),
   }),
   getStructureUploadAttempt: route({
-    path: "/structure/upload_attempt/:family",
+    path: "/structure/upload_attempt",
     method: "GET",
-    params: z.object({ family: facilityFamilySchema }),
     response: {} as StructureUploadAttemptDetail,
   }),
   deleteStructureUploadAttempt: route({
-    path: "/structure/upload_attempt/:family",
+    path: "/structure/upload_attempt",
     method: "DELETE",
-    params: z.object({ family: facilityFamilySchema }),
   }),
   // Step 0
   structureStep0_SetSourceType: route({
-    path: "/structure/step0_set_source_type/:family",
+    path: "/structure/step0_set_source_type",
     method: "POST",
-    params: z.object({ family: facilityFamilySchema }),
     body: z.object({ sourceType: z.enum(["csv", "dhis2"]) }),
   }),
   // Step 1
   structureStep1Csv_UploadFile: route({
-    path: "/structure/step1_csv_upload_file/:family",
+    path: "/structure/step1_csv_upload_file",
     method: "POST",
-    params: z.object({ family: facilityFamilySchema }),
-    body: z.object({
-      assetFileName: z.string(),
-      xlsFormAssetFileName: z.string().optional(),
-    }),
+    body: z.object({ assetFileName: z.string() }),
   }),
   structureStep1Dhis2_ConfirmConnection: route({
-    path: "/structure/step1_dhis2_confirm_connection/:family",
+    path: "/structure/step1_dhis2_confirm_connection",
     method: "POST",
-    params: z.object({ family: facilityFamilySchema }),
   }),
   // Step 2
   structureStep2Csv_SetColumnMappings: route({
-    path: "/structure/step2_csv_set_column_mappings/:family",
+    path: "/structure/step2_csv_set_column_mappings",
     method: "POST",
-    params: z.object({ family: facilityFamilySchema }),
     body: z.object({ columnMappings: structureColumnMappingsSchema }),
   }),
   structureStep2Dhis2_GetOrgUnitsMetadata: route({
-    path: "/structure/step2_dhis2_get_org_units_metadata/:family",
+    path: "/structure/step2_dhis2_get_org_units_metadata",
     method: "GET",
-    params: z.object({ family: facilityFamilySchema }),
     response: {} as StructureDhis2OrgUnitMetadata,
   }),
   structureStep2Dhis2_SetOrgUnitSelection: route({
-    path: "/structure/step2_dhis2_set_org_unit_selection/:family",
+    path: "/structure/step2_dhis2_set_org_unit_selection",
     method: "POST",
-    params: z.object({ family: facilityFamilySchema }),
     body: z.object({ selectedLevels: z.array(z.number()) }),
   }),
   // Step 3
   structureStep3Csv_StageDataStreaming: route({
-    path: "/structure/step3_csv_stage_data_streaming/:family",
+    path: "/structure/step3_csv_stage_data_streaming",
     method: "POST",
-    params: z.object({ family: facilityFamilySchema }),
     isStreaming: true,
   }),
   structureStep3Dhis2_StageDataStreaming: route({
-    path: "/structure/step3_dhis2_stage_data_streaming/:family",
+    path: "/structure/step3_dhis2_stage_data_streaming",
     method: "POST",
-    params: z.object({ family: facilityFamilySchema }),
     isStreaming: true,
   }),
   // Review step (between staging and import)
   getStructureStagedColumnValues: route({
-    path: "/structure/staged_column_values/:family/:column",
+    path: "/structure/staged_column_values/:column",
     method: "GET",
-    params: z.object({
-      family: facilityFamilySchema,
-      column: structureRecodableColumnSchema,
-    }),
+    params: z.object({ column: structureRecodableColumnSchema }),
     response: {} as StructureStagedColumnValues,
   }),
   getStructureStagedRecodeRows: route({
-    path: "/structure/staged_recode_rows/:family",
+    path: "/structure/staged_recode_rows",
     method: "POST",
-    params: z.object({ family: facilityFamilySchema }),
     body: z.object({
       column: structureRecodableColumnSchema,
       values: z.array(z.string()),
@@ -247,9 +229,8 @@ export const structureRouteRegistry = {
     response: {} as StructureStagedRecodeRows,
   }),
   setStructureRecodes: route({
-    path: "/structure/set_recodes/:family",
+    path: "/structure/set_recodes",
     method: "POST",
-    params: z.object({ family: facilityFamilySchema }),
     body: z.object({
       recodes: structureRecodesSchema,
       stagingNonce: z.string(),
@@ -257,17 +238,15 @@ export const structureRouteRegistry = {
   }),
   // Step 4
   structureStep4_ImportData: route({
-    path: "/structure/step4_import_data/:family",
+    path: "/structure/step4_import_data",
     method: "POST",
-    params: z.object({ family: facilityFamilySchema }),
     body: z.object({ strategy: structureIntegrateStrategySchema }),
     response: {} as StructureIntegrateSummary,
   }),
   // Status
   getStructureUploadStatus: route({
-    path: "/structure/upload_status/:family",
+    path: "/structure/upload_status",
     method: "GET",
-    params: z.object({ family: facilityFamilySchema }),
     response: {} as {
       isActive: boolean;
       status: StructureUploadAttemptStatus;

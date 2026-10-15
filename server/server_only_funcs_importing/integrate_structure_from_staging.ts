@@ -7,6 +7,8 @@ import {
 } from "lib";
 import { escapeSqlString } from "../db/utils.ts";
 
+export const STRUCTURE_STAGING_TABLE = "temp_structure_staging_hmis";
+
 export interface IntegrateStructureResult {
   success: boolean;
   inserted: number;
@@ -23,9 +25,8 @@ interface AdminAreaCounts {
 }
 
 /**
- * Integrates structure data from a staging table into the family's admin-area
- * tree and facilities tables. Common logic for both CSV and DHIS2 import
- * workflows.
+ * Integrates structure data from a staging table into the HMIS admin-area tree
+ * and facilities table. Common logic for both CSV and DHIS2 import workflows.
  *
  * Column scope is the staging table's own columns (= what was mapped at step 2),
  * discovered here, never the instance's enabled-columns config. Admin areas are
@@ -35,12 +36,8 @@ export async function integrateStructureFromStaging(
   mainDb: Sql,
   stagingTableName: string,
   strategy: StructureIntegrateStrategy,
-  family: FacilityFamily,
   recodes: StructureRecodes,
 ): Promise<IntegrateStructureResult> {
-  const facilitiesTable = family === "hmis"
-    ? "facilities_hmis"
-    : "facilities_hfa";
   try {
     // Source of truth for column scope: the columns the file actually staged.
     const stagedColumns = await getStagedColumns(mainDb, stagingTableName);
@@ -76,12 +73,7 @@ export async function integrateStructureFromStaging(
     // Update-only: every staged facility_id must already exist, or its data is
     // silently dropped. Fail loudly before mutating anything.
     if (strategy.type === "update_existing_only") {
-      await assertAllStagedFacilitiesExist(
-        mainDb,
-        stagingTableName,
-        facilitiesTable,
-        family,
-      );
+      await assertAllStagedFacilitiesExist(mainDb, stagingTableName);
     }
 
     // The columns this file governs: admin placement (if mapped) + mapped metadata.
@@ -101,15 +93,10 @@ export async function integrateStructureFromStaging(
           // any write, with the absent rows locked, so a concurrent data or
           // weights import cannot reference one between the check and its
           // delete.
-          await assertAbsentFacilitiesUnreferenced(
-            sql,
-            stagingTableName,
-            family,
-          );
-          await insertAdminAreasFromStaging(sql, stagingTableName, family);
+          await assertAbsentFacilitiesUnreferenced(sql, stagingTableName);
+          await insertAdminAreasFromStaging(sql, stagingTableName);
           const result = await upsertFacilities(
             sql,
-            facilitiesTable,
             stagingTableName,
             writeColumns,
             recodeJoins,
@@ -119,18 +106,16 @@ export async function integrateStructureFromStaging(
           updated = result.updated;
           deleted = await deleteFacilitiesAbsentFromStaging(
             sql,
-            facilitiesTable,
             stagingTableName,
           );
-          await cleanupUnusedAdminAreas(sql, family);
+          await cleanupUnusedAdminAreas(sql, "hmis");
           break;
         }
 
         case "add_and_update": {
-          await insertAdminAreasFromStaging(sql, stagingTableName, family);
+          await insertAdminAreasFromStaging(sql, stagingTableName);
           const result = await upsertFacilities(
             sql,
-            facilitiesTable,
             stagingTableName,
             writeColumns,
             recodeJoins,
@@ -139,7 +124,7 @@ export async function integrateStructureFromStaging(
           inserted = result.inserted;
           updated = result.updated;
           // Updates can re-place existing facilities, leaving orphan admin areas.
-          await cleanupUnusedAdminAreas(sql, family);
+          await cleanupUnusedAdminAreas(sql, "hmis");
           break;
         }
 
@@ -147,19 +132,18 @@ export async function integrateStructureFromStaging(
           // Moving a facility to a new admin tuple needs the target admin rows
           // to exist first (FK), and may orphan the vacated ones afterward.
           if (stagedAdminAreas) {
-            await insertAdminAreasFromStaging(sql, stagingTableName, family);
+            await insertAdminAreasFromStaging(sql, stagingTableName);
           }
           if (writeColumns.length > 0) {
             updated = await updateExistingFacilities(
               sql,
-              facilitiesTable,
               stagingTableName,
               writeColumns,
               recodeJoins,
             );
           }
           if (stagedAdminAreas) {
-            await cleanupUnusedAdminAreas(sql, family);
+            await cleanupUnusedAdminAreas(sql, "hmis");
           }
           break;
         }
@@ -229,13 +213,11 @@ export async function getStagedColumns(
 async function assertAllStagedFacilitiesExist(
   sql: Sql,
   stagingTableName: string,
-  facilitiesTable: string,
-  family: FacilityFamily,
 ): Promise<void> {
   const unmatched = await sql.unsafe(`
     SELECT s.facility_id, COUNT(*) OVER () AS total_unmatched
     FROM (SELECT DISTINCT facility_id FROM ${stagingTableName}) s
-    LEFT JOIN ${facilitiesTable} f ON s.facility_id = f.facility_id
+    LEFT JOIN facilities_hmis f ON s.facility_id = f.facility_id
     WHERE f.facility_id IS NULL
     ORDER BY s.facility_id
     LIMIT 5
@@ -248,33 +230,24 @@ async function assertAllStagedFacilitiesExist(
   const more = totalUnmatched > unmatched.length
     ? `, … (${totalUnmatched} total)`
     : "";
-  const familyLabel = family === "hmis" ? "HMIS" : "HFA";
   throw new Error(
-    `${totalUnmatched} facility ID(s) in your file do not match any existing ${familyLabel} facility in the backbone, so their data would not be imported. Examples: ${sample}${more}. Check that the facility ID column is mapped to the column that holds the backbone's facility IDs, and that you are importing into the correct dataset (HMIS vs HFA).`,
+    `${totalUnmatched} facility ID(s) in your file do not match any existing HMIS facility in the backbone, so their data would not be imported. Examples: ${sample}${more}. Check that the facility ID column is mapped to the column that holds the backbone's facility IDs.`,
   );
 }
 
 /**
- * The facilities `replace_all` will delete: every row of the family's table
- * whose facility_id is not in the staging table, flagged `blocked` when
- * something still references it (dataset rows for both families, and HFA
- * sampling weights, which would otherwise vanish through their CASCADE FK).
- * One query feeds both the step-4 preview counts and the integrate refusal,
- * so what the user is shown is exactly what the import checks.
+ * The facilities `replace_all` will delete: every HMIS facility whose
+ * facility_id is not in the staging table, flagged `blocked` when dataset rows
+ * still reference it. One query feeds both the step-4 preview counts and the
+ * integrate refusal, so what the user is shown is exactly what the import
+ * checks.
  */
-export function absentFacilitiesSql(
-  stagingTableName: string,
-  family: FacilityFamily,
-): string {
-  const facilitiesTable = family === "hmis"
-    ? "facilities_hmis"
-    : "facilities_hfa";
-  const blocked = family === "hmis"
-    ? "EXISTS (SELECT 1 FROM dataset_hmis d WHERE d.facility_id = f.facility_id)"
-    : "EXISTS (SELECT 1 FROM hfa_data d WHERE d.facility_id = f.facility_id) OR EXISTS (SELECT 1 FROM hfa_facility_weights w WHERE w.facility_id = f.facility_id)";
+export function absentFacilitiesSql(stagingTableName: string): string {
   return `
-    SELECT f.facility_id, (${blocked}) AS blocked
-    FROM ${facilitiesTable} f
+    SELECT f.facility_id,
+      EXISTS (SELECT 1 FROM dataset_hmis d WHERE d.facility_id = f.facility_id)
+        AS blocked
+    FROM facilities_hmis f
     WHERE NOT EXISTS (
       SELECT 1 FROM ${stagingTableName} s WHERE s.facility_id = f.facility_id
     )
@@ -283,26 +256,21 @@ export function absentFacilitiesSql(
 
 /**
  * `replace_all` deletes the facilities absent from the file. If any of them
- * still has data (or HFA weights), the delete would fail at COMMIT with a raw
- * FK error, or silently cascade the weights away. Refuse with the blocked
- * count and sample ids, mirroring assertAllStagedFacilitiesExist.
+ * still has data, the delete would fail at COMMIT with a raw FK error. Refuse
+ * with the blocked count and sample ids, mirroring
+ * assertAllStagedFacilitiesExist.
  */
 async function assertAbsentFacilitiesUnreferenced(
   sql: Sql,
   stagingTableName: string,
-  family: FacilityFamily,
 ): Promise<void> {
-  const facilitiesTable = family === "hmis"
-    ? "facilities_hmis"
-    : "facilities_hfa";
   // FOR UPDATE conflicts with the KEY SHARE lock every FK insert takes on the
-  // referenced row, so a concurrent dataset or weights write on an absent
-  // facility waits for this transaction and then fails its FK, instead of
-  // landing between the check and the delete (where weights would cascade
-  // away silently). A separate statement: FOR UPDATE is not allowed with the
-  // window function in the sample query.
+  // referenced row, so a concurrent dataset write on an absent facility waits
+  // for this transaction and then fails its FK, instead of landing between the
+  // check and the delete. A separate statement: FOR UPDATE is not allowed with
+  // the window function in the sample query.
   await sql.unsafe(`
-    SELECT 1 FROM ${facilitiesTable} f
+    SELECT 1 FROM facilities_hmis f
     WHERE NOT EXISTS (
       SELECT 1 FROM ${stagingTableName} s WHERE s.facility_id = f.facility_id
     )
@@ -310,7 +278,7 @@ async function assertAbsentFacilitiesUnreferenced(
   `);
   const blocked = await sql.unsafe(`
     SELECT facility_id, COUNT(*) OVER () AS total_blocked
-    FROM (${absentFacilitiesSql(stagingTableName, family)}) a
+    FROM (${absentFacilitiesSql(stagingTableName)}) a
     WHERE blocked
     ORDER BY facility_id
     LIMIT 5
@@ -323,22 +291,17 @@ async function assertAbsentFacilitiesUnreferenced(
   const more = totalBlocked > blocked.length
     ? `, … (${totalBlocked} total)`
     : "";
-  const familyLabel = family === "hmis" ? "HMIS" : "HFA";
-  const references = family === "hmis"
-    ? "HMIS dataset records"
-    : "HFA dataset records or sampling weights";
   throw new Error(
-    `${totalBlocked} ${familyLabel} facility(ies) not in your file still have ${references}, so they cannot be deleted. Examples: ${sample}${more}. Keep them in your file, or delete their data first, then replace the facilities.`,
+    `${totalBlocked} HMIS facility(ies) not in your file still have HMIS dataset records, so they cannot be deleted. Examples: ${sample}${more}. Keep them in your file, or delete their data first, then replace the facilities.`,
   );
 }
 
 /**
- * Duplicate rows per facility_id are normal in survey exports: one row per
- * submission attempt, where only the consented one carries the metadata (type,
- * ownership, …) and the rest leave those cells blank. Ranking by file order
- * would then pick a blank row and silently drop metadata the file does contain,
- * so the surviving row is the one with the most non-empty mapped columns, with
- * file order as the tie-break.
+ * A file can repeat a facility_id with metadata cells (type, ownership, …)
+ * filled in one row and blank in another. Ranking by file order would then
+ * pick a blank row and silently drop metadata the file does contain, so the
+ * surviving row is the one with the most non-empty mapped columns, with file
+ * order as the tie-break.
  *
  * A whole row survives rather than a per-column coalesce: admin values are only
  * a valid hierarchy as a tuple, and duplicate rows can disagree about it.
@@ -421,7 +384,6 @@ function recodeJoinClauses(
  */
 async function upsertFacilities(
   sql: Sql,
-  facilitiesTable: string,
   stagingTableName: string,
   writeColumns: string[],
   recodeJoins: RecodeJoin[],
@@ -431,7 +393,7 @@ async function upsertFacilities(
   const beforeRows = await sql.unsafe(`
     SELECT COUNT(*)::int AS matched
     FROM (SELECT DISTINCT facility_id FROM ${stagingTableName}) s
-    JOIN ${facilitiesTable} f ON f.facility_id = s.facility_id
+    JOIN facilities_hmis f ON f.facility_id = s.facility_id
   `);
   const updated = beforeRows[0]?.matched ?? 0;
   const setClause = [
@@ -439,7 +401,7 @@ async function upsertFacilities(
     ...blankColumns.map((col) => `${col} = NULL`),
   ].join(",\n      ");
   const result = await sql.unsafe(`
-    INSERT INTO ${facilitiesTable} (${cols.join(", ")})
+    INSERT INTO facilities_hmis (${cols.join(", ")})
     SELECT ${cols.join(", ")}
     FROM (
       SELECT ${recodedSelectList(cols, recodeJoins)},
@@ -464,7 +426,6 @@ async function upsertFacilities(
  */
 async function updateExistingFacilities(
   sql: Sql,
-  facilitiesTable: string,
   stagingTableName: string,
   writeColumns: string[],
   recodeJoins: RecodeJoin[],
@@ -473,7 +434,7 @@ async function updateExistingFacilities(
     .map((col) => `${col} = s.${col}`)
     .join(",\n      ");
   const result = await sql.unsafe(`
-    UPDATE ${facilitiesTable}
+    UPDATE facilities_hmis
     SET ${setClause}
     FROM (
       SELECT ${
@@ -486,7 +447,7 @@ async function updateExistingFacilities(
       FROM ${stagingTableName}
       ${recodeJoinClauses(stagingTableName, recodeJoins)}
     ) s
-    WHERE ${facilitiesTable}.facility_id = s.facility_id
+    WHERE facilities_hmis.facility_id = s.facility_id
       AND s.rn = 1
   `);
   return result.count ?? 0;
@@ -495,16 +456,15 @@ async function updateExistingFacilities(
 /**
  * The delete half of replace_all: every facility not in the file. The
  * in-transaction pre-check (assertAbsentFacilitiesUnreferenced) has already
- * established nothing references these rows. Returns rows deleted. The
- * family's admin tree is not touched here: the post-delete cleanup sweeps it.
+ * established nothing references these rows. Returns rows deleted. The admin
+ * tree is not touched here: the post-delete cleanup sweeps it.
  */
 async function deleteFacilitiesAbsentFromStaging(
   sql: Sql,
-  facilitiesTable: string,
   stagingTableName: string,
 ): Promise<number> {
   const result = await sql.unsafe(`
-    DELETE FROM ${facilitiesTable} f
+    DELETE FROM facilities_hmis f
     WHERE NOT EXISTS (
       SELECT 1 FROM ${stagingTableName} s WHERE s.facility_id = f.facility_id
     )
@@ -518,15 +478,14 @@ async function deleteFacilitiesAbsentFromStaging(
 async function insertAdminAreasFromStaging(
   sql: Sql,
   stagingTableName: string,
-  family: FacilityFamily,
 ): Promise<AdminAreaCounts> {
-  console.log(`Processing ${family} admin areas from staging...`);
+  console.log("Processing HMIS admin areas from staging...");
 
-  // ON CONFLICT DO NOTHING: the family's tree may already carry these paths
-  // from earlier imports
+  // ON CONFLICT DO NOTHING: the tree may already carry these paths from
+  // earlier imports
   // Level 1
   const level1Result = await sql.unsafe(`
-    INSERT INTO admin_areas_${family}_1 (admin_area_1)
+    INSERT INTO admin_areas_hmis_1 (admin_area_1)
     SELECT DISTINCT admin_area_1
     FROM ${stagingTableName}
     ON CONFLICT DO NOTHING
@@ -536,7 +495,7 @@ async function insertAdminAreasFromStaging(
 
   // Level 2
   const level2Result = await sql.unsafe(`
-    INSERT INTO admin_areas_${family}_2 (admin_area_1, admin_area_2)
+    INSERT INTO admin_areas_hmis_2 (admin_area_1, admin_area_2)
     SELECT DISTINCT admin_area_1, admin_area_2
     FROM ${stagingTableName}
     ON CONFLICT (admin_area_2, admin_area_1) DO NOTHING
@@ -546,7 +505,7 @@ async function insertAdminAreasFromStaging(
 
   // Level 3
   const level3Result = await sql.unsafe(`
-    INSERT INTO admin_areas_${family}_3 (admin_area_1, admin_area_2, admin_area_3)
+    INSERT INTO admin_areas_hmis_3 (admin_area_1, admin_area_2, admin_area_3)
     SELECT DISTINCT admin_area_1, admin_area_2, admin_area_3
     FROM ${stagingTableName}
     ON CONFLICT (admin_area_3, admin_area_2, admin_area_1) DO NOTHING
@@ -556,7 +515,7 @@ async function insertAdminAreasFromStaging(
 
   // Level 4
   const level4Result = await sql.unsafe(`
-    INSERT INTO admin_areas_${family}_4 (admin_area_1, admin_area_2, admin_area_3, admin_area_4)
+    INSERT INTO admin_areas_hmis_4 (admin_area_1, admin_area_2, admin_area_3, admin_area_4)
     SELECT DISTINCT admin_area_1, admin_area_2, admin_area_3, admin_area_4
     FROM ${stagingTableName}
     ON CONFLICT (admin_area_4, admin_area_3, admin_area_2, admin_area_1) DO NOTHING

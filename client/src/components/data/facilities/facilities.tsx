@@ -116,9 +116,7 @@ export function Facilities(p: Props) {
       return;
     }
     try {
-      const res = await serverActions.getStructureUploadAttempt({
-        family: p.family,
-      });
+      const res = await serverActions.getStructureUploadAttempt({});
       if (res.success) {
         setUploadAttempt(res.data);
       } else {
@@ -132,7 +130,7 @@ export function Facilities(p: Props) {
   onMount(fetchUploadAttempt);
 
   const attemptCreateStructureUA = createButtonAction(
-    () => serverActions.addStructureUploadAttempt({ datasetFamily: p.family }),
+    () => serverActions.addStructureUploadAttempt({}),
     fetchUploadAttempt,
     openUploadAttempt,
   );
@@ -141,8 +139,7 @@ export function Facilities(p: Props) {
     const res = await openEditor({
       element: StructureUploadAttemptForm,
       props: {
-        family: p.family,
-        structureSchema: structureSchemaForFamily(p.family),
+        structureSchema: structureSchemaForFamily("hmis"),
         silentRefreshInstance: fetchUploadAttempt,
       },
     });
@@ -258,7 +255,6 @@ export function Facilities(p: Props) {
                       })}
                     </div>
                     <Switch>
-                      {/* Fetched per family, so any returned attempt is this family's. */}
                       <Match when={uploadAttempt()}>
                         <Button
                           onClick={openUploadAttempt}

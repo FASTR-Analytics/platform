@@ -82,23 +82,28 @@ run capture (S6's run-capture seam).
 
 ## Structure ELT (facility/admin import)
 
+The structure import writes the HMIS registry only. HFA facilities come from
+each round's data import ("HFA registry writes" below), so the import has no
+family parameter; the registry readers (`getStructureItems`, the exports,
+`listAdminArea2s`, `facilitiesTableForFacilityFamily`, the per-family structure
+schema) and `deleteFamilyFacilities` keep theirs.
+
 Unlike S6's worker-based dataset ingestion, the structure import runs
 **in-process on the HTTP request**: step-3 staging streams newline-JSON progress
 frames over the `streamResponse` sub-protocol; step-4 integrate is a plain JSON
 route. There is no worker, no Docker, and no SSE for progress.
 
-**Upload-attempt state machine** (`structure_upload_attempts`): one row per
-family (PK `dataset_family`, hmis|hfa). HMIS and HFA imports are fully
-independent. Steps: 0 choose source (HMIS only; HFA is created at step 1 with
-source pinned to csv) → 1 file/credentials → 2 column mappings / org-unit levels
-→ 3 stage → 4 review/recode values → 5 pick strategy + integrate. The **stored**
-`step` still tops out at 4: DB step 4 covers both client screens (see **Value
-recoding** below). `status_type` (configuring | importing | error) is the
-machine-readable discriminator used in WHERE clauses; the `status` JSON is the
-client-facing detail (`importing_dhis2` carries org-unit progress). Success at
-step 4 **deletes the row**; errors keep it for resume; delete-attempt is the
-universal recovery (deliberately allowed even while importing, for wedged
-attempts: the running stager's conditional writes then match nothing).
+**Upload-attempt state machine** (`structure_upload_attempts`): at most one row,
+keyed on `slot`, whose only value is `'single'` (CHECK). Steps: 0 choose source
+→ 1 file/credentials → 2 column mappings / org-unit levels → 3 stage → 4
+review/recode values → 5 pick strategy + integrate. The **stored** `step` still
+tops out at 4: DB step 4 covers both client screens (see **Value recoding**
+below). `status_type` (configuring | importing | error) is the machine-readable
+discriminator used in WHERE clauses; the `status` JSON is the client-facing
+detail (`importing_dhis2` carries org-unit progress). Success at step 4
+**deletes the row**; errors keep it for resume; delete-attempt is the universal
+recovery (deliberately allowed even while importing, for wedged attempts: the
+running stager's conditional writes then match nothing).
 
 **Claims.** Step-3 staging and step-4 integrate both claim the import slot with
 a race-free conditional UPDATE + rowcount check
@@ -113,36 +118,23 @@ the claim. Step-0/1/2 setters refuse while importing and null `step_3_result`
 re-upload/remap. No `pg_advisory_lock` guards the slot: acquire and release can
 land on different pooled connections and wedge.
 
-**Staging.** Fixed-name `UNLOGGED` table `temp_structure_staging_{family}`
-(per-family so HMIS/HFA can run concurrently), `rowid SERIAL` as the dedup
-tie-break (see **Duplicate rows** below), values inlined with `''`-doubling in
-10k-row (CSV) / 5k-row (DHIS2) batches. CSV cap: 100 MB. The table is dropped on
-staging error, after successful integration, and on attempt reset/delete.
+**Staging.** Fixed-name `UNLOGGED` table `temp_structure_staging_hmis`
+(`STRUCTURE_STAGING_TABLE`), `rowid SERIAL` as the dedup tie-break (see
+**Duplicate rows** below), values inlined with `''`-doubling in 10k-row (CSV) /
+5k-row (DHIS2) batches. CSV cap: 100 MB. The table is dropped on staging error,
+after successful integration, and on attempt reset/delete.
 `handleStagingSuccess` computes the **facilityMatch preview** (distinct staged
-ids LEFT JOINed against the target family's backbone →
-`{totalStaged, existing, newCount}`) into `step_3_result`; step 4 renders it and
-flags `existing === 0` as the Ghana-style ID-system-mismatch tell. Attempt reads
-at step 4 recompute the match live while the staging table still exists, so the
-numbers reflect finalize time, not staging time.
-
-**ODK label resolution (HFA CSV path).** Step 1 optionally accepts an ODK
-questionnaire (XLSForm) alongside the CSV, mirroring HFA ingestion's two-file
-step 1 (`survey`+`choices` sheets validated on save; `step_1_result` is
-`StructureCsvStep1Result` `{csv, xlsForm?}`. A bare `CsvDetails` row is
-normalized on read by `parseCsvStep1Result`). At staging, each mapped column
-except `facility_id` (admin areas included) is matched to a select_one question
-by the HFA header convention (the header itself as a question id, else its last
-`/` segment), and matching cell values are replaced by choice labels: **labels
-are stored in the facility columns, codes are discarded, no dictionary table**.
-Unresolved codes stay raw and are surfaced per column in the staging result
-(`labelResolution`: resolvedCount + up to 10 distinct unresolved values),
-rendered in the step-4 summary. No migration, no cache-shape change.
+ids LEFT JOINed against `facilities_hmis` → `{totalStaged, existing, newCount}`)
+into `step_3_result`; step 4 renders it and flags `existing === 0` as the
+Ghana-style ID-system-mismatch tell. Attempt reads at step 4 recompute the match
+live while the staging table still exists, so the numbers reflect finalize time,
+not staging time.
 
 **Value recoding (review step).** Facility columns are free text with no
-canonical list, and real HFA files classify many facilities as "Other". The
-review step between staging and integrate lets the user pick a staged column,
-check the values to reassign, and assign a target per facility (or in bulk,
-including a brand-new category). Assignments are per-facility and **sparse**:
+canonical list, and files often classify many facilities as "Other". The review
+step between staging and integrate lets the user pick a staged column, check the
+values to reassign, and assign a target per facility (or in bulk, including a
+brand-new category). Assignments are per-facility and **sparse**:
 `StructureRecodes = Partial<Record<StructureRecodableColumn, Record<facilityId,
 newValue>>>`,
 stored as JSON in `structure_upload_attempts.recodes` (migration 068);
@@ -161,10 +153,10 @@ assignments; `step_4_recode.tsx` reads them from these routes.
 
 Recodes are scoped to one attempt and die with the staging they describe:
 `recodes = NULL` rides along at every write that nulls or replaces
-`step_3_result` (seven, `handleStagingSuccess` included), and the save is a
-conditional UPDATE requiring `step_3_result->>'stagingNonce'` to still match the
-nonce the client authored against, so a save composed before a re-stage is
-rejected, never silently applied to different rows.
+`step_3_result` (seven, `handleStagingSuccess` included), and the save locks the
+attempt row and requires the stored staging result's `stagingNonce` to still
+match the nonce the client authored against, so a save composed before a
+re-stage is rejected, never silently applied to different rows.
 
 **Application is a projection overlay at integrate, never a staging mutation.**
 `buildRecodeJoins` emits one `LEFT JOIN (VALUES ...) ON facility_id` per recoded
@@ -182,13 +174,13 @@ Client-side the stepper runs 0–5 against a stored step that stops at 4, so a
 yanks a user who is on import (client 5) back to review, and attempts with
 nothing recodable land straight on import.
 
-**Duplicate rows.** Survey exports carry one row per submission attempt, so the
-same `facility_id` recurs with only the consented row's metadata cells filled.
-All three integrate strategies therefore keep the staged row with the **most
-non-empty mapped columns** (`buildDedupOrderClause`), `rowid` breaking ties.
-File order alone would pick a blank row and silently drop metadata the file does
-contain. A whole row survives rather than a per-column coalesce: admin values
-are only a valid hierarchy as a tuple, and duplicate rows can disagree about it.
+**Duplicate rows.** A file can repeat a `facility_id` with metadata cells filled
+in one row and blank in another. All three integrate strategies therefore keep
+the staged row with the **most non-empty mapped columns**
+(`buildDedupOrderClause`), `rowid` breaking ties. File order alone would pick a
+blank row and silently drop metadata the file does contain. A whole row survives
+rather than a per-column coalesce: admin values are only a valid hierarchy as a
+tuple, and duplicate rows can disagree about it.
 
 **Column scope contract.** Integration writes exactly the columns physically
 present in the staging table (discovered via information_schema), which staging
@@ -205,26 +197,28 @@ stored; no default in the UI: the destructive one must be opt-in):
 - `replace_all`: the file is the registry. Upsert deduped staged rows (unmapped
   optional columns set NULL on matched rows), then delete every facility absent
   from staging. Refused, inside the transaction and before any write, when an
-  absent facility still has dataset rows or HFA weights (`absentFacilitiesSql`,
-  shared with the step-4 preview counts `absentCount` / `absentWithDataCount` on
+  absent facility still has HMIS dataset rows (`absentFacilitiesSql`, shared
+  with the step-4 preview counts `absentCount` / `absentWithDataCount` on
   `StructureFacilityMatch`).
 - `add_and_update`: upsert; inserted/updated split via pre-count.
 - `update_existing_only`: pre-validates every staged id exists (rejects
   wholesale with samples); updates mapped columns only.
 
 All three run in one transaction, insert admin areas first with
-`ON CONFLICT DO NOTHING` (admin areas are shared across families), and finish
-with `cleanupUnusedAdminAreas` (level 4→1; "used" = referenced by either
-facilities table. Any future admin-area-keyed table must be added to its UNION).
-Blank mapped cells overwrite to blank (decided).
+`ON CONFLICT DO NOTHING` (the tree may already carry those paths), and finish
+with `cleanupUnusedAdminAreas` (level 4→1; "used" = referenced by the family's
+facilities table, the HFA registry writer calling it for `hfa`. Any future
+admin-area-keyed table must be added to it). Blank mapped cells overwrite to
+blank (decided). The step-4 route then reports the HMIS geojson `area_id`s the
+import orphaned.
 
 ## Facilities, admin areas, weights
 
 Facilities are split per family: `facilities_hmis` / `facilities_hfa` (migration
 047), each with `facility_id` PK, `admin_area_1..4`, and the optional free-text
 columns (`facility_name`, `facility_type`, `facility_ownership`,
-`facility_custom_1..5`), all plain text, no value dictionary (ODK codes are
-resolved to labels at staging, see Structure ELT). The 4-level admin-area model
+`facility_custom_1..5`), all plain text, no value dictionary (the HFA data
+import resolves ODK codes to labels, S6 "Staging"). The 4-level admin-area model
 is name-keyed and **per facility registry**: `admin_areas_{hmis,hfa}_1..4` rows
 are names, and the name is the join key everywhere (S9 maps, geojson `area_id`).
 Duplicate names within a level are therefore ambiguous. The wizard warns but
@@ -244,7 +238,7 @@ comments claim the names are load-bearing for a `SET CONSTRAINTS` call that
 **does not exist** in server code; integration pre-checks per facility and
 refuses instead. `hfa_facility_weights → facilities_hfa` is CASCADE-on-delete,
 which is why `deleteFamilyFacilities` refuses while any weights exist and
-`replace_all` refuses when an absent facility has them.
+`removeUnreferencedHfaFacilities` removes only facilities without them.
 
 **Weights** (`hfa_facility_weights`, facility × time_point): written ONLY by the
 weights import (`importHfaFacilityWeights`, the HFA weights page's wizard),
@@ -949,8 +943,8 @@ different levels cannot both see an empty store. Per-type delete
 **Reads.** `population_updated` SSE carries the level setting, the stored row
 count, the per-type coverage and the stamp (`InstancePopulationSummary`, spread
 into `InstanceState`; "has data" everywhere is `populationRowCount > 0`). The
-two HMIS structure write routes (`deleteFamilyFacilities` and
-`structureStep4_ImportData`, hmis family only) emit it too, since coverage is
+two HMIS structure write routes (`structureStep4_ImportData`, and
+`deleteFamilyFacilities` for the hmis family) emit it too, since coverage is
 measured against the structure. The manager page
 (`client/src/components/data/hmis/population/`) is laid out like the facilities
 and weights pages: heading bar with Download and the level as subheading, a
@@ -1023,9 +1017,9 @@ snapshot geojson as `{kind:"data"}` when available.
   labels. `adminDepth` gates which admin levels that registry exposes and
   parameterizes S6 ELT staging and S9 SQL; the flags drive which facility
   columns S6 ingests and S9 exposes. Label overrides are column-NAME labels
-  (there is no value-label mechanism: values arrive as labels because ODK codes
-  are resolved at staging, see Structure ELT), and they are deliberately OUT of
-  the cache hash (`hashStructureSchema` covers the include-flags only, so
+  (there is no value-label mechanism: HFA values arrive as labels because the
+  HFA data import resolves ODK codes, S6 "Staging"), and they are deliberately
+  OUT of the cache hash (`hashStructureSchema` covers the include-flags only, so
   renaming a label cannot bust a data cache). Written by `setStructureSchema`,
   which refuses a depth change while that family's facilities table is non-empty
   or while that family has a geojson map above the new depth (admin-area
@@ -1257,9 +1251,9 @@ layer.
   `data/hfa/indicators/service_categories_manager.tsx:19`;
   `data/hfa/indicators/variant_groups_manager.tsx:88`, 290), the geojson manager
   (`data/geojson/manager.tsx:113`, 149), the weights import
-  (`data/hfa/hfa_weights.tsx:104`), the facilities panel
-  (`data/facilities/facilities.tsx:208`) and the HFA registry's row edit
-  (`data/facilities/hfa_registry/table.tsx:173`), HFA time points
+  (`data/hfa/hfa_weights.tsx:105`), the facilities panel
+  (`data/facilities/facilities.tsx:204`) and the HFA registry's row edit
+  (`data/facilities/hfa_registry/table.tsx:189`), HFA time points
   (`data/hfa/_shared/time_points.tsx:234`), and S6's HMIS, HFA and ICEH dataset
   controls (`data/hmis/dataset/dataset.tsx:293`,
   `data/hfa/dataset/dataset.tsx:67`, `data/iceh/dataset/dataset.tsx:81`).
@@ -1295,11 +1289,11 @@ layer.
   a failed load leaves a reload as the only exit. Move Cancel out of the `Show`
   so it renders in the loading and error states too.
 - **The HMIS facilities page fetches the upload attempt for every viewer.**
-  `data/facilities/facilities.tsx:132` calls `getStructureUploadAttempt` on
+  `data/facilities/facilities.tsx:130` calls `getStructureUploadAttempt` on
   mount, for the HMIS family only (115-117), a `can_configure_data` route
-  (`server/routes/instance/structure.ts:294-295`), though only the admin-only
-  Imports panel reads the result (207); for a viewer without the bit the request
-  fails and the failure is swallowed (118-129). Fetch it from an effect on
+  (`server/routes/instance/structure.ts:280-281`), though only the admin-only
+  Imports panel reads the result (204); for a viewer without the bit the request
+  fails and the failure is swallowed (118-127). Fetch it from an effect on
   `instanceState.currentUserIsGlobalAdmin`, the panel's gate, in place of the
   unconditional `onMount`.
 - **A manager comment ties the code editor to imported data.**

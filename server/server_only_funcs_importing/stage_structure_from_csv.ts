@@ -1,7 +1,6 @@
 import { Sql } from "postgres";
 import {
   APIResponseWithData,
-  type FacilityFamily,
   getEnabledOptionalFacilityColumns,
   StructureColumnMappings,
   StructureStagingResult,
@@ -11,33 +10,19 @@ import {
   getCsvColumnIndex,
   getCsvStreamComponents,
 } from "../server_only_funcs_csvs/get_csv_components_streaming_fast.ts";
-import { parseXlsForm } from "../server_only_funcs_csvs/parse_xlsform.ts";
 import { escapeSqlString } from "../db/utils.ts";
 import { getStructureSchema } from "../db/instance/config.ts";
-
-type ColumnLabelResolver = {
-  column: string;
-  codeToLabel: Map<string, string>;
-  resolvedCount: number;
-  unresolvedValues: Set<string>;
-};
-
-const MAX_UNRESOLVED_VALUES_REPORTED = 10;
+import { STRUCTURE_STAGING_TABLE } from "./integrate_structure_from_staging.ts";
 
 export async function stageStructureFromCsv(
   mainDb: Sql,
-  family: FacilityFamily,
   csvFilePath: string,
   columnMappings: StructureColumnMappings,
-  xlsFormFilePath: string | undefined,
   onProgress?: (progress: number, message: string) => Promise<void>,
 ): Promise<APIResponseWithData<StructureStagingResult>> {
-  // Per-family staging table so HMIS and HFA imports can run concurrently
-  // without clobbering each other's staging data. Same-family double-staging is
-  // gated by the status_type='importing' check in the step-3 wrapper; the
-  // staging table is family-scoped so the residual race is benign (same attempt,
-  // same mappings → same result, deduped at integration).
-  const stagingTableName = `temp_structure_staging_${family}`;
+  // Double-staging is gated by the status_type='importing' claim in the step-3
+  // wrapper.
+  const stagingTableName = STRUCTURE_STAGING_TABLE;
 
   try {
     // ==================================================
@@ -62,8 +47,8 @@ export async function stageStructureFromCsv(
 
     if (onProgress) await onProgress(0.1, "Loading configuration...");
 
-    // The family's structure schema: admin depth + enabled optional columns
-    const resStructureSchema = await getStructureSchema(mainDb, family);
+    // The HMIS structure schema: admin depth + enabled optional columns
+    const resStructureSchema = await getStructureSchema(mainDb, "hmis");
     throwIfErrWithData(resStructureSchema);
     const maxAdminArea = resStructureSchema.data.adminDepth;
     const facilityConfig = resStructureSchema.data;
@@ -75,8 +60,7 @@ export async function stageStructureFromCsv(
     if (!resComponents.success) {
       return { success: false, err: resComponents.err };
     }
-    const { headers, encodedHeaderToIndexMap, processRows } =
-      resComponents.data;
+    const { encodedHeaderToIndexMap, processRows } = resComponents.data;
 
     // Helper to get column index with encodedHeaderToIndexMap and columnMappings in scope
     const getMappedColumnIndex = (
@@ -121,60 +105,6 @@ export async function stageStructureFromCsv(
         optionalIndexes.push({ column, index });
       }
     }
-
-    // ODK label resolution: for each mapped column (never facility_id) whose
-    // CSV header matches a select_one question in the questionnaire, replace
-    // ODK codes with choice labels while streaming. Keyed by CSV column index.
-    const labelResolvers = new Map<number, ColumnLabelResolver>();
-    if (xlsFormFilePath) {
-      const xlsForm = parseXlsForm(xlsFormFilePath);
-      const mappedColumns: { column: string; index: number }[] = [
-        ...adminIndexes.map((ai) => ({
-          column: `admin_area_${ai.level}`,
-          index: ai.index,
-        })),
-        ...optionalIndexes,
-      ];
-      for (const mc of mappedColumns) {
-        const rawHeader = headers[mc.index] ?? "";
-        // Same convention as HFA staging: the header is a question id, or an
-        // ODK question path whose last segment is the question id.
-        const lastSegment = rawHeader.includes("/")
-          ? rawHeader.substring(rawHeader.lastIndexOf("/") + 1)
-          : rawHeader;
-        const question = xlsForm.questions.get(rawHeader) ??
-          xlsForm.questions.get(lastSegment);
-        if (!question || question.type !== "select_one" || !question.listName) {
-          continue;
-        }
-        const choices = xlsForm.choiceLists.get(question.listName);
-        if (!choices) {
-          continue;
-        }
-        labelResolvers.set(mc.index, {
-          column: mc.column,
-          codeToLabel: new Map(choices.map((c) => [c.value, c.label])),
-          resolvedCount: 0,
-          unresolvedValues: new Set(),
-        });
-      }
-    }
-
-    const resolveLabel = (index: number, value: string): string => {
-      const resolver = labelResolvers.get(index);
-      if (!resolver || !value) {
-        return value;
-      }
-      const label = resolver.codeToLabel.get(value);
-      if (label === undefined) {
-        if (resolver.unresolvedValues.size < MAX_UNRESOLVED_VALUES_REPORTED) {
-          resolver.unresolvedValues.add(value);
-        }
-        return value;
-      }
-      resolver.resolvedCount++;
-      return label;
-    };
 
     // ==================================================
     // PHASE 2: Stream CSV to Staging Table
@@ -281,7 +211,7 @@ export async function stageStructureFromCsv(
               invalidRows++;
               return;
             }
-            adminValues.push(resolveLabel(ai.index, value));
+            adminValues.push(value);
           }
           for (let i = 1; i <= 4; i++) {
             if (i <= maxAdminArea) {
@@ -295,8 +225,7 @@ export async function stageStructureFromCsv(
         // Extract optional column values
         const optionalValues: string[] = [];
         for (const opt of optionalIndexes) {
-          const value = row[opt.index]?.trim() ?? "";
-          optionalValues.push(resolveLabel(opt.index, value));
+          optionalValues.push(row[opt.index]?.trim() ?? "");
         }
 
         // Build VALUES tuple
@@ -349,9 +278,7 @@ export async function stageStructureFromCsv(
       return { success: false, err: "No valid data rows found in CSV" };
     }
 
-    // Create index on staging table for better performance. Index names are
-    // schema-global, so base them on the per-family table name to avoid a
-    // collision when HMIS and HFA stage concurrently.
+    // Create index on staging table for better performance
     await mainDb.unsafe(
       `CREATE INDEX ${stagingTableName}_facility_idx ON ${stagingTableName} (facility_id)`,
     );
@@ -412,16 +339,6 @@ export async function stageStructureFromCsv(
       stagedAdminAreas: hasAdminMapped,
       stagingNonce: crypto.randomUUID(),
     };
-
-    if (xlsFormFilePath) {
-      stagingResult.labelResolution = [...labelResolvers.values()].map(
-        (resolver) => ({
-          column: resolver.column,
-          resolvedCount: resolver.resolvedCount,
-          unresolvedValues: [...resolver.unresolvedValues],
-        }),
-      );
-    }
 
     if (onProgress) {
       await onProgress(

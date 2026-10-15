@@ -1,12 +1,11 @@
-import { createSignal, Match, Show, Switch } from "solid-js";
-import { type FacilityFamily, type StructureCsvStep1Result, t3 } from "lib";
+import { createSignal, Match, Switch } from "solid-js";
+import { type StructureCsvStep1Result, t3 } from "lib";
 import { Button, createFormAction, StateHolderFormError } from "panther";
 import { serverActions } from "~/server_actions";
 import { FileUploadSelector } from "~/components/_shared/mod.ts";
 
 type Props = {
   step1Result: StructureCsvStep1Result | undefined;
-  family: FacilityFamily;
   silentFetch: () => Promise<void>;
 };
 
@@ -14,19 +13,11 @@ export function Step1_Csv(p: Props) {
   const [selectedFileName, setSelectedFileName] = createSignal<string>(
     p.step1Result?.csv.fileName ?? "",
   );
-  const [selectedXlsFormFileName, setSelectedXlsFormFileName] = createSignal<
-    string
-  >(p.step1Result?.xlsForm?.fileName ?? "");
   const [needsSaving, setNeedsSaving] = createSignal<boolean>(!p.step1Result);
 
   function updateSelectedFileName(fileName: string) {
     setNeedsSaving(true);
     setSelectedFileName(fileName);
-  }
-
-  function updateSelectedXlsFormFileName(fileName: string) {
-    setNeedsSaving(true);
-    setSelectedXlsFormFileName(fileName);
   }
 
   const save = createFormAction(async () => {
@@ -42,9 +33,7 @@ export function Step1_Csv(p: Props) {
       };
     }
     return serverActions.structureStep1Csv_UploadFile({
-      family: p.family,
       assetFileName: assetFileName,
-      xlsFormAssetFileName: selectedXlsFormFileName() || undefined,
     });
   }, p.silentFetch);
 
@@ -65,40 +54,6 @@ export function Step1_Csv(p: Props) {
         value={selectedFileName()}
         onChange={updateSelectedFileName}
       />
-      <Show when={p.family === "hfa"}>
-        <h3 class="ui-text-heading">
-          {t3({
-            en: "ODK questionnaire (XLSForm) — optional",
-            fr: "Questionnaire ODK (XLSForm) — facultatif",
-            pt: "Questionário ODK (XLSForm) — opcional",
-          })}
-        </h3>
-        <div class="text-base-content text-sm">
-          {t3({
-            en:
-              "If your facility columns contain ODK select_one codes, provide the questionnaire and the codes will be replaced with their labels during import.",
-            fr:
-              "Si vos colonnes d'établissement contiennent des codes select_one ODK, fournissez le questionnaire et les codes seront remplacés par leurs libellés lors de l'importation.",
-            pt:
-              "Se as suas colunas de estabelecimento contêm códigos select_one do ODK, forneça o questionário e os códigos serão substituídos pelas respetivas etiquetas durante a importação.",
-          })}
-        </div>
-        <FileUploadSelector
-          buttonLabel={t3({
-            en: "Upload new XLSForm file",
-            fr: "Téléverser un nouveau fichier XLSForm",
-            pt: "Carregar um novo ficheiro XLSForm",
-          })}
-          selectLabel={t3({
-            en: "Existing XLSForm file to use",
-            fr: "Fichier XLSForm existant à utiliser",
-            pt: "Ficheiro XLSForm existente a utilizar",
-          })}
-          filter={(a) => a.isXlsx}
-          value={selectedXlsFormFileName()}
-          onChange={updateSelectedXlsFormFileName}
-        />
-      </Show>
       <StateHolderFormError state={save.state()} />
       <div class="ui-gap-sm flex">
         <Switch>

@@ -3,10 +3,7 @@ import { createStore, unwrap } from "solid-js/store";
 import {
   type CsvDetails,
   encodeRawCsvHeader,
-  type FacilityFamily,
-  findEncodedCsvHeader,
   getEnabledOptionalFacilityColumns,
-  HFA_CORE_FACILITY_ID_COLUMN,
   type StructureColumnMappings,
   type StructureSchema,
   t3,
@@ -25,7 +22,6 @@ import { getStructureColumnLabel } from "./column_labels";
 type Props = {
   step1Result: CsvDetails;
   step2Result: StructureColumnMappings | undefined;
-  family: FacilityFamily;
   structureSchema: StructureSchema;
   silentFetch: () => Promise<void>;
 };
@@ -70,15 +66,7 @@ export function Step2_Csv(p: Props) {
           p.step2Result?.[col as keyof StructureColumnMappings] ?? "",
         ]),
       )
-      : {
-        ...Object.fromEntries(allColumns().map((col) => [col, ""])),
-        facility_id: p.family === "hfa"
-          ? findEncodedCsvHeader(
-            p.step1Result.headers,
-            HFA_CORE_FACILITY_ID_COLUMN,
-          )
-          : "",
-      },
+      : Object.fromEntries(allColumns().map((col) => [col, ""])),
   );
 
   const [needsSaving, setNeedsSaving] = createSignal<boolean>(!p.step2Result);
@@ -164,7 +152,6 @@ export function Step2_Csv(p: Props) {
     }
 
     return serverActions.structureStep2Csv_SetColumnMappings({
-      family: p.family,
       columnMappings,
     });
   }, p.silentFetch);

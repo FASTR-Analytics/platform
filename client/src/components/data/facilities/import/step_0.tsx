@@ -1,5 +1,5 @@
 import { createSignal } from "solid-js";
-import { type FacilityFamily, t3 } from "lib";
+import { t3 } from "lib";
 import {
   Button,
   createFormAction,
@@ -10,7 +10,6 @@ import { serverActions } from "~/server_actions";
 
 type Props = {
   sourceType: "csv" | "dhis2" | undefined;
-  family: FacilityFamily;
   silentFetch: () => Promise<void>;
 };
 
@@ -39,7 +38,6 @@ export function Step0(p: Props) {
       };
     }
     return serverActions.structureStep0_SetSourceType({
-      family: p.family,
       sourceType,
     });
   }, p.silentFetch);

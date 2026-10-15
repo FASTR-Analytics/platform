@@ -1,5 +1,4 @@
 import {
-  type FacilityFamily,
   NO_STORED_DHIS2_CONNECTION,
   type StructureDhis2ConnectionSnapshot,
   t3,
@@ -11,7 +10,6 @@ import { instanceState } from "~/state/instance/t1_store";
 
 type Props = {
   step1Result: StructureDhis2ConnectionSnapshot | undefined;
-  family: FacilityFamily;
   silentFetch: () => Promise<void>;
 };
 
@@ -19,10 +17,7 @@ type Props = {
 // stored connection, which is set only in the Data page's DHIS2 connection row.
 export function Step1_Dhis2(p: Props) {
   const confirm = createFormAction(
-    async () =>
-      await serverActions.structureStep1Dhis2_ConfirmConnection({
-        family: p.family,
-      }),
+    async () => await serverActions.structureStep1Dhis2_ConfirmConnection({}),
     async () => {
       await p.silentFetch();
     },

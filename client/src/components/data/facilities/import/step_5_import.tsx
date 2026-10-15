@@ -1,5 +1,4 @@
 import {
-  type FacilityFamily,
   type StructureIntegrateStrategy,
   type StructureIntegrateSummary,
   type StructureRecodes,
@@ -21,7 +20,6 @@ import { getStructureColumnLabel } from "./column_labels";
 type Props = {
   step3Result: StructureStagingResult;
   recodes: StructureRecodes | undefined;
-  family: FacilityFamily;
   structureSchema: StructureSchema;
   close: () => void;
   silentRefresUploadAttempt: () => Promise<void>;
@@ -40,13 +38,6 @@ export function Step5Import(p: Props) {
   const [importSummary, setImportSummary] = createSignal<
     StructureIntegrateSummary | undefined
   >(undefined);
-
-  // The orphan count is scoped to the family just imported, so the warning
-  // names that registry: otherwise an admin cannot tell which map to repair.
-  const registryLabel = () =>
-    p.family === "hmis"
-      ? t3({ en: "HMIS", fr: "SNIS", pt: "HMIS" })
-      : t3({ en: "HFA", fr: "Enquêtes FOSA", pt: "FOSA" });
 
   const strategyOptions: { value: IntentType; label: string }[] = [
     {
@@ -171,11 +162,11 @@ export function Step5Import(p: Props) {
       if (m.existing === 0) {
         return t3({
           en:
-            `None of the ${total} facilities in your file match an existing facility, so all of them would be added as NEW facilities. If you meant to update existing facilities, the facility ID column is probably mapped to the wrong column, or you picked the wrong dataset (HMIS vs HFA).`,
+            `None of the ${total} facilities in your file match an existing facility, so all of them would be added as NEW facilities. If you meant to update existing facilities, the facility ID column is probably mapped to the wrong column.`,
           fr:
-            `Aucun des ${total} établissements de votre fichier ne correspond à un établissement existant ; ils seraient donc tous ajoutés comme NOUVEAUX établissements. Si vous vouliez mettre à jour des établissements existants, la colonne d'identifiant est probablement mal associée, ou vous avez choisi le mauvais jeu de données (SNIS ou FOSA).`,
+            `Aucun des ${total} établissements de votre fichier ne correspond à un établissement existant ; ils seraient donc tous ajoutés comme NOUVEAUX établissements. Si vous vouliez mettre à jour des établissements existants, la colonne d'identifiant est probablement mal associée.`,
           pt:
-            `Nenhum dos ${total} estabelecimentos do seu ficheiro corresponde a um estabelecimento existente, pelo que seriam todos adicionados como NOVOS estabelecimentos. Se pretendia atualizar estabelecimentos existentes, a coluna do identificador está provavelmente mal associada, ou escolheu o conjunto de dados errado (SNIS ou FOSA).`,
+            `Nenhum dos ${total} estabelecimentos do seu ficheiro corresponde a um estabelecimento existente, pelo que seriam todos adicionados como NOVOS estabelecimentos. Se pretendia atualizar estabelecimentos existentes, a coluna do identificador está provavelmente mal associada.`,
         });
       }
       return t3({
@@ -191,11 +182,11 @@ export function Step5Import(p: Props) {
     if (m.newCount > 0) {
       return t3({
         en:
-          `${newCount} of ${total} facilities in your file do not match an existing facility — this import will be rejected. Check the facility ID column and the dataset (HMIS vs HFA).`,
+          `${newCount} of ${total} facilities in your file do not match an existing facility — this import will be rejected. Check the facility ID column.`,
         fr:
-          `${newCount} sur ${total} établissements de votre fichier ne correspondent à aucun établissement existant — l'importation sera rejetée. Vérifiez la colonne d'identifiant et le jeu de données (SNIS ou FOSA).`,
+          `${newCount} sur ${total} établissements de votre fichier ne correspondent à aucun établissement existant — l'importation sera rejetée. Vérifiez la colonne d'identifiant.`,
         pt:
-          `${newCount} de ${total} estabelecimentos do seu ficheiro não correspondem a nenhum estabelecimento existente — a importação será rejeitada. Verifique a coluna do identificador e o conjunto de dados (SNIS ou FOSA).`,
+          `${newCount} de ${total} estabelecimentos do seu ficheiro não correspondem a nenhum estabelecimento existente — a importação será rejeitada. Verifique a coluna do identificador.`,
       });
     }
     return t3({
@@ -271,7 +262,6 @@ export function Step5Import(p: Props) {
         };
       }
       const res = await serverActions.structureStep4_ImportData({
-        family: p.family,
         strategy: { type: t },
       });
       if (res.success === false) {
@@ -348,17 +338,17 @@ export function Step5Import(p: Props) {
                         toNum0(
                           orphans.reduce((sum, o) => sum + o.orphanedCount, 0),
                         )
-                      } ${registryLabel()} map boundaries no longer match an admin area — repair them in the map boundaries editor.`,
+                      } HMIS map boundaries no longer match an admin area — repair them in the map boundaries editor.`,
                       fr: `${
                         toNum0(
                           orphans.reduce((sum, o) => sum + o.orphanedCount, 0),
                         )
-                      } limites de carte ${registryLabel()} ne correspondent plus à aucune unité administrative — corrigez-les dans l'éditeur de limites de carte.`,
+                      } limites de carte SNIS ne correspondent plus à aucune unité administrative — corrigez-les dans l'éditeur de limites de carte.`,
                       pt: `${
                         toNum0(
                           orphans.reduce((sum, o) => sum + o.orphanedCount, 0),
                         )
-                      } limites de mapa ${registryLabel()} já não correspondem a nenhuma zona administrativa — corrija-as no editor de limites de mapa.`,
+                      } limites de mapa HMIS já não correspondem a nenhuma zona administrativa — corrija-as no editor de limites de mapa.`,
                     })}
                   </div>
                 </div>
@@ -440,11 +430,11 @@ export function Step5Import(p: Props) {
                       <div class="text-danger text-sm">
                         {t3({
                           en:
-                            "None of these facilities exist in the backbone yet. If you meant to update existing facilities, the facility ID column is probably mapped to the wrong column, or you picked the wrong dataset (HMIS vs HFA).",
+                            "None of these facilities exist in the backbone yet. If you meant to update existing facilities, the facility ID column is probably mapped to the wrong column.",
                           fr:
-                            "Aucun de ces établissements n'existe encore dans la structure. Si vous vouliez mettre à jour des établissements existants, la colonne d'identifiant est probablement mal associée, ou vous avez choisi le mauvais jeu de données (SNIS ou FOSA).",
+                            "Aucun de ces établissements n'existe encore dans la structure. Si vous vouliez mettre à jour des établissements existants, la colonne d'identifiant est probablement mal associée.",
                           pt:
-                            "Nenhum destes estabelecimentos existe ainda na estrutura. Se pretendia atualizar estabelecimentos existentes, a coluna do identificador está provavelmente mal associada, ou escolheu o conjunto de dados errado (SNIS ou FOSA).",
+                            "Nenhum destes estabelecimentos existe ainda na estrutura. Se pretendia atualizar estabelecimentos existentes, a coluna do identificador está provavelmente mal associada.",
                         })}
                       </div>
                     </Show>
@@ -452,75 +442,6 @@ export function Step5Import(p: Props) {
                 )}
               </Show>
             </div>
-
-            {/* ODK label resolution summary */}
-            <Show
-              when={p.step3Result.labelResolution &&
-                  p.step3Result.labelResolution.length > 0
-                ? p.step3Result.labelResolution
-                : undefined}
-              keyed
-            >
-              {(labelResolution) => (
-                <div class="ui-pad bg-base-200 rounded">
-                  <div class="ui-text-heading mb-3">
-                    {t3({
-                      en: "ODK codes replaced with labels",
-                      fr: "Codes ODK remplacés par des libellés",
-                      pt: "Códigos ODK substituídos por rótulos",
-                    })}
-                  </div>
-                  <div class="ui-spy-sm">
-                    <For each={labelResolution}>
-                      {(entry) => (
-                        <div class="text-sm">
-                          <span class="font-700">
-                            {getStructureColumnLabel(
-                              entry.column,
-                              p.structureSchema,
-                            )}
-                          </span>
-                          {": "}
-                          {t3({
-                            en: `${
-                              toNum0(entry.resolvedCount)
-                            } values replaced with labels`,
-                            fr: `${
-                              toNum0(entry.resolvedCount)
-                            } valeurs remplacées par des libellés`,
-                            pt: `${
-                              toNum0(entry.resolvedCount)
-                            } valores substituídos por rótulos`,
-                          })}
-                          <Show when={entry.unresolvedValues.length > 0}>
-                            {"; "}
-                            <span class="text-danger">
-                              {t3({
-                                en: `${
-                                  toNum0(entry.unresolvedValues.length)
-                                } values not in the questionnaire (kept as-is): ${
-                                  entry.unresolvedValues.join(", ")
-                                }`,
-                                fr: `${
-                                  toNum0(entry.unresolvedValues.length)
-                                } valeurs absentes du questionnaire (conservées telles quelles) : ${
-                                  entry.unresolvedValues.join(", ")
-                                }`,
-                                pt: `${
-                                  toNum0(entry.unresolvedValues.length)
-                                } valores ausentes do questionário (mantidos como estão): ${
-                                  entry.unresolvedValues.join(", ")
-                                }`,
-                              })}
-                            </span>
-                          </Show>
-                        </div>
-                      )}
-                    </For>
-                  </div>
-                </div>
-              )}
-            </Show>
 
             {/* Review-step recode summary */}
             <Show when={recodeSummary().length > 0}>

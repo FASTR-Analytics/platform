@@ -1,4 +1,4 @@
-import { type FacilityFamily, t3 } from "lib";
+import { t3 } from "lib";
 import {
   Button,
   createFormAction,
@@ -9,7 +9,6 @@ import {
 import { serverActions } from "~/server_actions";
 
 type Props = {
-  family: FacilityFamily;
   silentRefresUploadAttempt: () => Promise<void>;
   silentRefreshInstance: () => Promise<void>;
 };
@@ -20,7 +19,7 @@ export function Step3_Csv(p: Props) {
   const executeImport = createFormAction(
     async () => {
       const res = await serverActions.structureStep3Csv_StageDataStreaming(
-        { family: p.family },
+        {},
         onProgress,
       );
       if (res.success === false) {

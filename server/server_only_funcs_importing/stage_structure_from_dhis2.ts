@@ -2,7 +2,6 @@ import { Sql } from "postgres";
 import {
   APIResponseWithData,
   Dhis2Credentials,
-  type FacilityFamily,
   getEnabledOptionalFacilityColumns,
   StructureDhis2OrgUnitSelection,
   StructureStagingResult,
@@ -15,6 +14,7 @@ import {
 } from "../dhis2/goal1_org_units_v2/mod.ts";
 import { escapeSqlString } from "../db/utils.ts";
 import { getStructureSchema } from "../db/instance/config.ts";
+import { STRUCTURE_STAGING_TABLE } from "./integrate_structure_from_staging.ts";
 
 // Helper function to process a batch of org units during DHIS2 import
 async function processBatch(
@@ -138,19 +138,14 @@ async function processBatch(
 
 export async function stageStructureFromDhis2V2(
   mainDb: Sql,
-  family: FacilityFamily,
   credentials: Dhis2Credentials,
   selection: StructureDhis2OrgUnitSelection,
   onProgress?: (progress: number, message: string) => Promise<void>,
 ): Promise<APIResponseWithData<StructureStagingResult>> {
-  // Per-family staging table so HMIS and HFA imports can run concurrently
-  // without clobbering each other's staging data. Same-family double-staging is
-  // gated by the status_type='importing' check in the step-3 wrapper; the
-  // staging table is family-scoped so the residual race is benign (same attempt,
-  // same mappings → same result, deduped at integration). No advisory lock: the
-  // old pg_advisory_lock leaked because acquire and the finally-unlock ran on
+  // Double-staging is gated by the status_type='importing' claim in the step-3
+  // wrapper. No advisory lock: acquire and the finally-unlock would run on
   // different pooled mainDb connections, wedging the lock until restart.
-  const stagingTableName = `temp_structure_staging_${family}`;
+  const stagingTableName = STRUCTURE_STAGING_TABLE;
 
   try {
     // ==================================================
@@ -159,8 +154,8 @@ export async function stageStructureFromDhis2V2(
 
     if (onProgress) await onProgress(0.1, "Setting up staging environment...");
 
-    // The family's structure schema: admin depth + enabled optional columns
-    const resStructureSchema = await getStructureSchema(mainDb, family);
+    // The HMIS structure schema: admin depth + enabled optional columns
+    const resStructureSchema = await getStructureSchema(mainDb, "hmis");
     throwIfErrWithData(resStructureSchema);
     const maxAdminArea = resStructureSchema.data.adminDepth;
     const enabledOptionalColumns = getEnabledOptionalFacilityColumns(
@@ -373,9 +368,7 @@ export async function stageStructureFromDhis2V2(
       };
     }
 
-    // Create indexes on staging table for better performance. Index names are
-    // schema-global, so base them on the per-family table name to avoid a
-    // collision when HMIS and HFA stage concurrently.
+    // Create indexes on staging table for better performance
     await mainDb.unsafe(
       `CREATE INDEX ${stagingTableName}_facility_idx ON ${stagingTableName} (facility_id)`,
     );

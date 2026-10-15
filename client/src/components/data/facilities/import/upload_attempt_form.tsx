@@ -1,6 +1,5 @@
 import {
   _RECODABLE_FACILITY_COLUMNS,
-  type FacilityFamily,
   type StructureSchema,
   type StructureUploadAttemptDetail,
   t3,
@@ -64,7 +63,6 @@ function reviewApplies(sua: StructureUploadAttemptDetail): boolean {
 
 type Props = EditorComponentProps<
   {
-    family: FacilityFamily;
     structureSchema: StructureSchema;
     silentRefreshInstance: () => Promise<void>;
   },
@@ -83,9 +81,7 @@ export function StructureUploadAttemptForm(p: Props) {
   // Query state
   const uploadAttempt = createQuery(
     async () => {
-      const res = await serverActions.getStructureUploadAttempt({
-        family: p.family,
-      });
+      const res = await serverActions.getStructureUploadAttempt({});
       if (res.success === true) {
         batch(() => {
           // Fresh staging run = fresh review: reset the hoisted state and
@@ -122,13 +118,8 @@ export function StructureUploadAttemptForm(p: Props) {
     undefined,
   );
 
-  // HFA facilities only come from CSV, so the source-type step is skipped
-  const minStep = p.family === "hfa" ? 1 : 0;
-
   // Stepper state
   const stepper = getStepper(() => uploadAttempt.state(), {
-    initialStep: minStep,
-    minStep,
     maxStep: 5,
     getValidation: (currentStep, state) => {
       if (state.status !== "ready") {
@@ -144,9 +135,9 @@ export function StructureUploadAttemptForm(p: Props) {
       }
       if (currentStep === 1) {
         if (sua.sourceType && sua.step1Result) {
-          return { canGoPrev: currentStep > minStep, canGoNext: true };
+          return { canGoPrev: true, canGoNext: true };
         }
-        return { canGoPrev: currentStep > minStep, canGoNext: false };
+        return { canGoPrev: true, canGoNext: false };
       }
       if (currentStep === 2) {
         if (sua.sourceType && sua.step1Result && sua.step2Result) {
@@ -181,7 +172,7 @@ export function StructureUploadAttemptForm(p: Props) {
         fr: "Êtes-vous sûr de vouloir supprimer cette importation ?",
         pt: "Tem a certeza de que pretende eliminar esta importação?",
       }),
-      () => serverActions.deleteStructureUploadAttempt({ family: p.family }),
+      () => serverActions.deleteStructureUploadAttempt({}),
       () => p.close({ needsReload: true }),
     );
 
@@ -193,23 +184,17 @@ export function StructureUploadAttemptForm(p: Props) {
       panelChildren={
         <HeadingBar
           tonal
-          heading={p.family === "hmis"
-            ? t3({
-              en: "Import HMIS facilities",
-              fr: "Importation des établissements SNIS",
-              pt: "Importação de estabelecimentos SNIS",
-            })
-            : t3({
-              en: "Import HFA facilities",
-              fr: "Importation des établissements Enquêtes FOSA",
-              pt: "Importação de estabelecimentos FOSA",
-            })}
+          heading={t3({
+            en: "Import HMIS facilities",
+            fr: "Importation des établissements SNIS",
+            pt: "Importação de estabelecimentos SNIS",
+          })}
           onBack={() => p.close(undefined)}
         >
           <div class="ui-gap-sm flex flex-none items-center">
             <StepperNavigationVisual
               stepper={stepper}
-              stepLabelFormatter={(step) => `${step - minStep + 1}`}
+              stepLabelFormatter={(step) => `${step + 1}`}
             />
             <Button iconName="refresh" onClick={uploadAttempt.fetch} />
             <Button
@@ -299,7 +284,6 @@ export function StructureUploadAttemptForm(p: Props) {
                     keyedUploadAttempt.status.status === "importing_dhis2"}
                 >
                   <ImportInProgress
-                    family={p.family}
                     initialStatus={keyedUploadAttempt.status}
                     silentRefreshAttempt={uploadAttempt.silentFetch}
                   />
@@ -315,7 +299,6 @@ export function StructureUploadAttemptForm(p: Props) {
                     step3Result={keyedUploadAttempt
                       .step3Result as StructureStagingResult}
                     recodes={keyedUploadAttempt.recodes}
-                    family={p.family}
                     structureSchema={p.structureSchema}
                     close={() => p.close({ needsReload: true })}
                     silentRefresUploadAttempt={uploadAttempt.silentFetch}
@@ -332,7 +315,6 @@ export function StructureUploadAttemptForm(p: Props) {
                   <Step4Recode
                     ui={recodeUi}
                     setUi={setRecodeUi}
-                    family={p.family}
                     step3Result={keyedUploadAttempt
                       .step3Result as StructureStagingResult}
                     recodes={keyedUploadAttempt.recodes}
@@ -359,14 +341,12 @@ export function StructureUploadAttemptForm(p: Props) {
                   <Switch>
                     <Match when={keyedUploadAttempt.sourceType === "csv"}>
                       <Step3_Csv
-                        family={p.family}
                         silentRefresUploadAttempt={uploadAttempt.silentFetch}
                         silentRefreshInstance={p.silentRefreshInstance}
                       />
                     </Match>
                     <Match when={keyedUploadAttempt.sourceType === "dhis2"}>
                       <Step3_Dhis2
-                        family={p.family}
                         silentRefresUploadAttempt={uploadAttempt.silentFetch}
                         silentRefreshInstance={p.silentRefreshInstance}
                       />
@@ -387,7 +367,6 @@ export function StructureUploadAttemptForm(p: Props) {
                         step2Result={keyedUploadAttempt.step2Result as
                           | StructureColumnMappings
                           | undefined}
-                        family={p.family}
                         structureSchema={p.structureSchema}
                         silentFetch={uploadAttempt.silentFetch}
                       />
@@ -397,7 +376,6 @@ export function StructureUploadAttemptForm(p: Props) {
                         step2Result={keyedUploadAttempt.step2Result as
                           | StructureDhis2OrgUnitSelection
                           | undefined}
-                        family={p.family}
                         silentFetch={uploadAttempt.silentFetch}
                       />
                     </Match>
@@ -413,7 +391,6 @@ export function StructureUploadAttemptForm(p: Props) {
                         step1Result={keyedUploadAttempt.step1Result as
                           | StructureCsvStep1Result
                           | undefined}
-                        family={p.family}
                         silentFetch={uploadAttempt.silentFetch}
                       />
                     </Match>
@@ -422,7 +399,6 @@ export function StructureUploadAttemptForm(p: Props) {
                         step1Result={keyedUploadAttempt.step1Result as
                           | StructureDhis2ConnectionSnapshot
                           | undefined}
-                        family={p.family}
                         silentFetch={uploadAttempt.silentFetch}
                       />
                     </Match>
@@ -431,7 +407,6 @@ export function StructureUploadAttemptForm(p: Props) {
                 <Match when={stepper.currentStep() === 0}>
                   <Step0
                     sourceType={keyedUploadAttempt.sourceType}
-                    family={p.family}
                     silentFetch={uploadAttempt.silentFetch}
                   />
                 </Match>
@@ -445,7 +420,6 @@ export function StructureUploadAttemptForm(p: Props) {
 }
 
 type ImportInProgressProps = {
-  family: FacilityFamily;
   initialStatus: StructureUploadAttemptStatus;
   silentRefreshAttempt: () => Promise<void>;
 };
@@ -462,9 +436,7 @@ function ImportInProgress(p: ImportInProgressProps) {
         return;
       }
       pollInFlight = true;
-      const res = await serverActions.getStructureUploadStatus({
-        family: p.family,
-      });
+      const res = await serverActions.getStructureUploadStatus({});
       pollInFlight = false;
       if (!res.success) {
         return;

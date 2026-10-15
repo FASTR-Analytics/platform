@@ -269,12 +269,8 @@ defineRoute(
   "addStructureUploadAttempt",
   requireGlobalPermission("can_configure_data"),
   log("addStructureUploadAttempt"),
-  async (c, { body }) => {
-    const family = parseFacilityFamily(body.datasetFamily);
-    if (!family) {
-      return c.json({ success: false, err: "Family must be hmis or hfa" });
-    }
-    const res = await addStructureUploadAttempt(c.var.mainDb, family);
+  async (c) => {
+    const res = await addStructureUploadAttempt(c.var.mainDb);
     return c.json(res);
   },
 );
@@ -284,8 +280,8 @@ defineRoute(
   "getStructureUploadAttempt",
   requireGlobalPermission("can_configure_data"),
   log("getStructureUploadAttempt"),
-  async (c, { params }) => {
-    const res = await getStructureUploadAttempt(c.var.mainDb, params.family);
+  async (c) => {
+    const res = await getStructureUploadAttempt(c.var.mainDb);
     return c.json(res);
   },
 );
@@ -295,8 +291,8 @@ defineRoute(
   "deleteStructureUploadAttempt",
   requireGlobalPermission("can_configure_data"),
   log("deleteStructureUploadAttempt"),
-  async (c, { params }) => {
-    const res = await deleteStructureUploadAttempt(c.var.mainDb, params.family);
+  async (c) => {
+    const res = await deleteStructureUploadAttempt(c.var.mainDb);
     return c.json(res);
   },
 );
@@ -312,12 +308,10 @@ defineRoute(
   "structureStep1Csv_UploadFile",
   requireGlobalPermission("can_configure_data"),
   log("structureStep1Csv_UploadFile"),
-  async (c, { params, body }) => {
+  async (c, { body }) => {
     const res = await structureStep1Csv_UploadFile(
       c.var.mainDb,
-      params.family,
       body.assetFileName,
-      body.xlsFormAssetFileName,
     );
     return c.json(res);
   },
@@ -328,10 +322,9 @@ defineRoute(
   "structureStep2Csv_SetColumnMappings",
   requireGlobalPermission("can_configure_data"),
   log("structureStep2Csv_SetColumnMappings"),
-  async (c, { params, body }) => {
+  async (c, { body }) => {
     const res = await structureStep2Csv_SetColumnMappings(
       c.var.mainDb,
-      params.family,
       body.columnMappings,
     );
     return c.json(res);
@@ -343,14 +336,13 @@ defineRoute(
   "structureStep3Csv_StageDataStreaming",
   requireGlobalPermission("can_configure_data"),
   log("structureStep3Csv_StageDataStreaming"),
-  (c, { params }) => {
+  (c) => {
     return streamResponse(c, async (writer) => {
       await writer.progress(0, "Starting CSV staging...");
 
       // Call the streaming version with progress callback
       const res = await structureStep3Csv_StageDataStreaming(
         c.var.mainDb,
-        params.family,
         writer.progress.bind(writer),
       );
 
@@ -373,14 +365,13 @@ defineRoute(
   "structureStep3Dhis2_StageDataStreaming",
   requireGlobalPermission("can_configure_data"),
   log("structureStep3Dhis2_StageDataStreaming"),
-  (c, { params }) => {
+  (c) => {
     return streamResponse(c, async (writer) => {
       await writer.progress(0, "Starting DHIS2 staging...");
 
       // Call the function with progress callback
       const res = await structureStep3Dhis2_StageData(
         c.var.mainDb,
-        params.family,
         writer.progress.bind(writer),
       );
 
@@ -406,7 +397,6 @@ defineRoute(
   async (c, { params }) => {
     const res = await getStructureStagedColumnValues(
       c.var.mainDb,
-      params.family,
       params.column,
     );
     return c.json(res);
@@ -418,10 +408,9 @@ defineRoute(
   "getStructureStagedRecodeRows",
   requireGlobalPermission("can_configure_data"),
   log("getStructureStagedRecodeRows"),
-  async (c, { params, body }) => {
+  async (c, { body }) => {
     const res = await getStructureStagedRecodeRows(
       c.var.mainDb,
-      params.family,
       body.column,
       body.values,
       body.offset,
@@ -437,10 +426,9 @@ defineRoute(
   "setStructureRecodes",
   requireGlobalPermission("can_configure_data"),
   log("setStructureRecodes"),
-  async (c, { params, body }) => {
+  async (c, { body }) => {
     const res = await setStructureRecodes(
       c.var.mainDb,
-      params.family,
       body.recodes,
       body.stagingNonce,
     );
@@ -453,19 +441,15 @@ defineRoute(
   "structureStep4_ImportData",
   requireGlobalPermission("can_configure_data"),
   log("structureStep4_ImportData"),
-  async (c, { params, body }) => {
-    const res = await structureStep4_ImportData(
-      c.var.mainDb,
-      params.family,
-      body.strategy,
-    );
+  async (c, { body }) => {
+    const res = await structureStep4_ImportData(c.var.mainDb, body.strategy);
     if (res.success) {
       // Best-effort: the integrate has already committed, so a failure here
       // must not turn the response into an error
       try {
         const orphans = await countOrphanedGeoJsonAreaIds(
           c.var.mainDb,
-          params.family,
+          "hmis",
         );
         if (orphans.length > 0) {
           res.data = { ...res.data, orphanedGeojsonAreaIds: orphans };
@@ -482,11 +466,9 @@ defineRoute(
       );
       await notifyInstanceConfigUpdatedFromDb(c.var.mainDb);
       // Population coverage is measured against the HMIS structure.
-      if (params.family === "hmis") {
-        notifyInstancePopulationUpdated(
-          await getInstancePopulationSummary(c.var.mainDb),
-        );
-      }
+      notifyInstancePopulationUpdated(
+        await getInstancePopulationSummary(c.var.mainDb),
+      );
     }
     return c.json(res);
   },
@@ -497,10 +479,9 @@ defineRoute(
   "structureStep0_SetSourceType",
   requireGlobalPermission("can_configure_data"),
   log("structureStep0_SetSourceType"),
-  async (c, { params, body }) => {
+  async (c, { body }) => {
     const res = await structureStep0_SetSourceType(
       c.var.mainDb,
-      params.family,
       body.sourceType,
     );
     return c.json(res);
@@ -512,7 +493,7 @@ defineRoute(
   "structureStep1Dhis2_ConfirmConnection",
   requireGlobalPermission("can_configure_data"),
   log("structureStep1Dhis2_ConfirmConnection"),
-  async (c, { params }) => {
+  async (c) => {
     let credentials: Dhis2Credentials;
     try {
       credentials = await getStoredDhis2CredentialsDecrypted(c.var.mainDb);
@@ -533,11 +514,9 @@ defineRoute(
       return c.json({ success: false, err: t3(connectionTest.message) });
     }
 
-    const res = await structureStep1Dhis2_ConfirmConnection(
-      c.var.mainDb,
-      params.family,
-      { url: credentials.url },
-    );
+    const res = await structureStep1Dhis2_ConfirmConnection(c.var.mainDb, {
+      url: credentials.url,
+    });
 
     return c.json(res);
   },
@@ -548,10 +527,9 @@ defineRoute(
   "structureStep2Dhis2_SetOrgUnitSelection",
   requireGlobalPermission("can_configure_data"),
   log("structureStep2Dhis2_SetOrgUnitSelection"),
-  async (c, { params, body }) => {
+  async (c, { body }) => {
     const res = await structureStep2Dhis2_SetOrgUnitSelection(
       c.var.mainDb,
-      params.family,
       body,
     );
     return c.json(res);
@@ -563,8 +541,8 @@ defineRoute(
   "getStructureUploadStatus",
   requireGlobalPermission("can_configure_data"),
   log("getStructureUploadStatus"),
-  async (c, { params }) => {
-    const res = await getStructureUploadStatus(c.var.mainDb, params.family);
+  async (c) => {
+    const res = await getStructureUploadStatus(c.var.mainDb);
     return c.json(res);
   },
 );
@@ -574,10 +552,9 @@ defineRoute(
   "structureStep2Dhis2_GetOrgUnitsMetadata",
   requireGlobalPermission("can_configure_data"),
   log("structureStep2Dhis2_GetOrgUnitsMetadata"),
-  async (c, { params }) => {
+  async (c) => {
     const credentialsRes = await getStructureDhis2ResolvedCredentials(
       c.var.mainDb,
-      params.family,
     );
     if (!credentialsRes.success) {
       return c.json(credentialsRes);

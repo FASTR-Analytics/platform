@@ -534,8 +534,10 @@ CREATE INDEX idx_population_type_level ON population(population_type, admin_area
 -- FACILITY AND AA UPLOAD AND IMPORT TRACKING
 -- ============================================================================
 
+-- The HMIS facility import: at most one resumable attempt. HFA facilities come
+-- from each round's data import.
 CREATE TABLE structure_upload_attempts (
-  dataset_family text NOT NULL,  -- 'hmis' or 'hfa': one resumable import per registry
+  slot text NOT NULL DEFAULT 'single',
   date_started text NOT NULL,
   step integer NOT NULL,
   status text NOT NULL,  -- JSON: full status object
@@ -545,8 +547,8 @@ CREATE TABLE structure_upload_attempts (
   step_2_result text,  -- Column mappings OR DHIS2 org unit selection
   step_3_result text,  -- Staging result (table name, counts, validation info)
   recodes text,  -- JSON: review-step value recodes (column → facility_id → new value)
-  CONSTRAINT structure_upload_attempts_pkey PRIMARY KEY (dataset_family),
-  CONSTRAINT structure_upload_attempts_family_check CHECK (dataset_family IN ('hmis', 'hfa'))
+  CONSTRAINT structure_upload_attempts_pkey PRIMARY KEY (slot),
+  CONSTRAINT structure_upload_attempts_slot_check CHECK (slot = 'single')
 );
 
 -- ============================================================================

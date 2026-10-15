@@ -2,7 +2,6 @@ import {
   _RECODABLE_FACILITY_COLUMNS,
   type CsvDetails,
   encodeRawCsvHeader,
-  type FacilityFamily,
   type StructureColumnMappings,
   type StructureRecodableColumn,
   type StructureRecodes,
@@ -62,7 +61,6 @@ export function emptyRecodeUiState(): RecodeUiState {
 type Props = {
   ui: RecodeUiState;
   setUi: SetStoreFunction<RecodeUiState>;
-  family: FacilityFamily;
   step3Result: StructureStagingResult;
   recodes: StructureRecodes | undefined;
   structureSchema: StructureSchema;
@@ -98,7 +96,6 @@ export function Step4Recode(p: Props) {
     const runId = ++valuesRunId;
     setValuesState({ status: "loading", msg: t3(TC.fetchingData) });
     const res = await serverActions.getStructureStagedColumnValues({
-      family: p.family,
       column: col,
     });
     if (runId !== valuesRunId) return;
@@ -130,7 +127,6 @@ export function Step4Recode(p: Props) {
     const runId = ++rowsRunId;
     setRowsState({ status: "loading", msg: t3(TC.fetchingData) });
     const res = await serverActions.getStructureStagedRecodeRows({
-      family: p.family,
       column: col,
       values,
       offset: 0,
@@ -223,7 +219,6 @@ export function Step4Recode(p: Props) {
         };
       }
       return await serverActions.setStructureRecodes({
-        family: p.family,
         recodes: normalizeRecodes(unwrap(p.ui.assignments)),
         stagingNonce,
       });
