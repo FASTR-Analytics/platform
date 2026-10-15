@@ -1,25 +1,18 @@
-# PLAN: HFA facilities derived from survey rounds
-
-> **NEEDS REWRITING. Do not run any step as written.** The design resolves a
-> facility's between-round changes by rule (the latest round by `sort_order`
-> wins per column, §2.3) instead of surfacing them for the user to decide. The
-> rewrite keeps the goal: one upload per round, with the registry built from the
-> rounds. It must surface those changes, and it takes the inputs listed under
-> "Inputs to the L1 rework" in [HFA_WORK_CATALOGUE.md](HFA_WORK_CATALOGUE.md).
+# PLAN: HFA facilities imported by the round's data wizard
 
 **Status:** open, not started.
 
 **What this plan does.** The HFA facility registry (`facilities_hfa`) stops
-being imported through the structure wizard and becomes a table derived from
-what each survey round says about each facility. The HFA data import wizard
-gains a step that maps the file's facility columns (admin areas, name, type,
-ownership, customs). Each round's kept row writes one observation per facility.
-The registry is recomputed from the observations by a fixed rule: the latest
-round by `sort_order` wins per column, a persistent recode dictionary maps raw
-labels to canonical values, and per-facility overrides win over everything. The
-HFA branch of the structure import is deleted. Every downstream consumer of
-`facilities_hfa` (the run extract, the parquet snapshot, query-time
-disaggregation, weights, the facilities page) is untouched.
+being imported through the structure wizard. The HFA data import wizard maps the
+file's facility columns (admin areas, name, type, ownership, customs) from the
+same kept rows it imports data from, shows every difference between the file and
+the current registry before launch, and writes the facilities the user approved
+and the round's data in one transaction. One new table records whether each
+registry value came from a round or from the user, which sets the default for
+the next round's review. The structure wizard's HFA branch is deleted. The
+registry's schema and every consumer of it (the run extract, the parquet
+snapshot, query-time disaggregation, weights, scopes, maps) are untouched, and
+no registry content changes at deploy.
 
 **Next step:** Do 1
 
@@ -30,8 +23,8 @@ touched: the extract's shape and the m010 inputs do not change.
 
 **Read first:** `CLAUDE.md`, `SYSTEMS.md`, `SYSTEM_05_facilities_indicators.md`
 (Structure ELT; Facilities, admin areas, weights; HFA time points),
-`SYSTEM_06_ingestion.md` (HFA import runs; Integration; HFA follow-on work),
-then §2 and §3 here.
+`SYSTEM_06_ingestion.md` (HFA import runs; Integration; Client; HFA follow-on
+work), `HFA_WORK_CATALOGUE.md` ("Inputs to the L1 rework"), then §2 and §3 here.
 
 ## 0. How to work this plan
 
@@ -40,30 +33,32 @@ Cadence, session shapes, the two-things rule and the step rules are
 `PROTOCOL_APP_PLANS.md`. This plan binds them as follows.
 
 - Instruction: "Do the next step of PLAN_HFA_FACILITIES_FROM_ROUNDS.md."
-- Branch: `version2`. Confirm with `git branch --show-current`. Never create a
+- Branch: `version2`, overriding `PROTOCOL_APP_PLANS.md`'s `tim-branch`: version
+  2 work lands there. Confirm with `git branch --show-current`. Never create a
   branch.
 - Floor: `deno task typecheck`, `deno task test`, `./validate_protocols`,
   `./run`. Plus `./validate_migrations` for a step that touches a migration,
   `./validate_fresh_boot` for a step that touches `_main_database.sql`.
+- Migration numbers are assigned at the step from the highest file then present.
+  At the time of writing the highest is 211, so this plan says 212, 213 and 214.
 - Build log: §8. Last step: 5.
 - A step reads, in order: `CLAUDE.md`, `SYSTEMS.md`, the SYSTEM file for each
   area the step names, §2 and §3 here, the step's own section in §4, and §8.
 - Vocabulary, used exactly as defined here:
   - **Round**: a row of `hfa_time_points`. "Time point" in code.
-  - **Observation**: what one round's kept row says about one facility's
-    attributes. One row of `hfa_facility_observations`.
-  - **Registry**: `facilities_hfa`. Derived, never imported, never edited
-    directly.
-  - **Derivation**: the function that recomputes the registry from the
-    observations, the dictionary and the overrides.
-  - **Dictionary**: `hfa_facility_recodes`, a persistent per-column map from an
-    observed raw value to a canonical value.
-  - **Override**: `hfa_facility_overrides`, a per-facility per-column value that
-    wins over every observation.
-  - **Authored layer**: the dictionary and the overrides. Written only by users,
-    never by an import, and never deleted by one.
-  - **Referenced**: a facility id that some other table points at
-    (`hfa_facility_weights` today; the HMIS/HFA crosswalks of §6 later).
+  - **Registry**: `facilities_hfa` with `admin_areas_hfa_1..4`. Written by the
+    HFA data import and by the facilities page, never by the structure wizard.
+  - **Kept row**: the one file row per facility that survives the row filters
+    and the duplicate resolution. The data and the facility columns come from
+    the same kept row.
+  - **Facility columns**: the mapping from registry columns to file headers,
+    `HfaCsvMappingParams.facilityColumns`.
+  - **Change**: an existing facility whose kept-row value for a column differs
+    from its registry value. Admin areas change as one tuple.
+  - **Decision**: keep (the registry value stays) or take (the file value is
+    written), per change group with per-facility exceptions.
+  - **Source**: a row of `hfa_facility_sources`: which round, or the user, set a
+    facility's current value for a column group.
 
 ## 1. The problem
 
@@ -75,12 +70,12 @@ collected as questionnaire answers. The structure import's HFA branch was built
 around that fact:
 
 - It accepts the XLSForm so it can resolve ODK choice codes to labels
-  (`server/server_only_funcs_importing/stage_structure_from_csv.ts:125-161`).
+  (`server/server_only_funcs_importing/stage_structure_from_csv.ts:128-177`).
 - It dedups by the most-filled row because survey exports carry one row per
   submission attempt (`buildDedupOrderClause`,
-  `integrate_structure_from_staging.ts:344`).
+  `integrate_structure_from_staging.ts:350`).
 - It has a recode step because real files classify many facilities as "Other"
-  (`structure.ts:1005-1237`, `step_4_recode.tsx`).
+  (`server/db/instance/structure.ts:1018-1271`, `step_4_recode.tsx`).
 
 So today the user uploads the same file twice: once to the structure wizard,
 mapping the facility columns, and once to the HFA data wizard, mapping the id
@@ -91,285 +86,309 @@ import discarded.
 
 ### 1.2 What goes wrong
 
-- **The ordering trap.** The data import validates ids against the registry in
-  `stage_csv.ts:351-378` and holds in `needs_review` when any are missing
-  (`worker.ts:44-48`). The diagnostics carry a count only
-  (`lib/types/dataset_hfa_import.ts:107`), never the ids. The only remedy is to
-  leave the wizard, run the structure wizard on the same file, then discard and
-  restart the data import.
-- **Mixed provenance, silently overwritten.** The registry row holds imported
-  values and hand corrections in the same columns. `add_and_update` and
-  `replace_all` overwrite both. Nothing records where a value came from.
+- **The ordering trap.** The data import validates ids against the registry
+  (`stage_csv.ts`, the `validFacilities` table and the final join) and holds in
+  `needs_review` when any are missing (`worker.ts:43-49`), listing up to ten of
+  them (`lib/types/dataset_hfa_import.ts:107-110`). The only remedies are
+  Integrate anyway, which drops those facilities' data, or leaving the wizard,
+  running the structure wizard on the same file, then discarding and restarting
+  the data import.
+- **Changes land unseen.** `add_and_update` and `replace_all` overwrite every
+  mapped column of every matched facility. Nothing shows the user what a new
+  file changes, and nothing records where a value came from.
 - **Recodes die with the attempt.** `structure_upload_attempts.recodes` is
-  scoped to one staging and nulled at every re-stage. Harmonising "Other" is
-  repeated per round, by hand, and the second round can land on categories that
-  differ from the first.
-- **Re-import order is not neutral.** SYSTEM_06 "HFA follow-on work" plans a
-  Sierra Leone round 1 re-import after later rounds exist. With the structure
-  wizard, whichever file is imported last wins, regardless of which round it is.
+  nulled at every re-stage (seven sites in `structure.ts`). Harmonising "Other"
+  is repeated per round, by hand.
+- **The team's files need inputs the wizard lacks** (`HFA_WORK_CATALOGUE.md`,
+  "Inputs to the L1 rework"): Madagascar's `id_admin0` is blank in every row and
+  the structure stager drops a row with a blank mapped admin cell; Guinea's form
+  carries `id_admin1_corrected`, `id_admin2_corrected` and `id_fac_corrected`,
+  filled only when the pre-filled value is wrong, and a one-header-per-column
+  mapping cannot apply them; the facility id defaults to `id_fac_txt` by name
+  alone, which Madagascar has but leaves blank (`lib/utils.ts:39`); Mali's later
+  rounds carry new facility ids and 20 regions instead of 11, which today lands
+  with nothing shown.
 
 ### 1.3 What must not change
 
 The registry is analytically load-bearing. The run extract inner-joins
 `hfa_data` to `facilities_hfa` for admin areas
-(`server/runs/capture_inputs/hfa.ts:140-152`), m010 stratifies by them, and type
-and ownership disaggregation is a query-time join against the per-run parquet
+(`server/runs/capture_inputs/hfa.ts:150`), m010 stratifies by them, and type and
+ownership disaggregation is a query-time join against the per-run parquet
 snapshot of the registry
 (`server/server_only_funcs_presentation_objects/facility_context.ts`,
-`server/run_query/run_read.ts:199`). Every round in a package is therefore
-disaggregated by one current set of attributes, which is what makes a
-cross-round series comparable. The end state keeps one row per facility, in the
-same table, with the same columns.
+`server/run_query/run_read.ts`, `facilitiesTableForFamily`). Every round in a
+package is therefore disaggregated by one current set of attributes, which is
+what makes a cross-round series comparable. The end state keeps one row per
+facility, in the same table, with the same columns.
 
 ## 2. The model
 
 ### 2.1 In one sentence
 
-Facilities are what the surveys say they are; the most recent round wins; the
-user can override any facility and can map any label once.
+Each round's import maps the facility columns from its own file, shows the user
+every facility it would change, and writes the approved facilities and the data
+together; the registry remembers who set each value.
 
 ### 2.2 The tables
 
-```
-hfa_facility_observations          written by the HFA data import, per round
-  facility_id      TEXT NOT NULL
-  time_point       TEXT NOT NULL  FK hfa_time_points(label) ON UPDATE CASCADE ON DELETE CASCADE
-  admin_area_1..4  TEXT           (nullable; blank never stored, NULL means not collected or blank)
-  facility_name    TEXT
-  facility_type    TEXT
-  facility_ownership TEXT
-  facility_custom_1..5 TEXT
-  PRIMARY KEY (facility_id, time_point)
+```text
+facilities_hfa, admin_areas_hfa_1..4, hfa_data, hfa_facility_weights
+                                     unchanged
 
-hfa_facility_recodes               authored: the dictionary
-  column           TEXT NOT NULL  (an admin_area_N or an optional facility column)
-  raw_value        TEXT NOT NULL
-  canonical_value  TEXT NOT NULL
-  PRIMARY KEY (column, raw_value)
+hfa_facility_sources                 new: who set the current value
+  facility_id   TEXT NOT NULL  FK facilities_hfa(facility_id) ON DELETE CASCADE
+  column_group  TEXT NOT NULL  CHECK IN ('admin', 'facility_name', 'facility_type',
+                               'facility_ownership', 'facility_custom_1'..'facility_custom_5')
+  kind          TEXT NOT NULL  CHECK IN ('round', 'user')
+  time_point    TEXT           FK hfa_time_points(label) ON UPDATE CASCADE ON DELETE SET NULL
+                               (NOT NULL when written with kind 'round'; NULL after the round is deleted)
+  PRIMARY KEY (facility_id, column_group)
 
-hfa_facility_overrides             authored: per-facility values
-  facility_id      TEXT NOT NULL
-  column           TEXT NOT NULL
-  value            TEXT NOT NULL
-  PRIMARY KEY (facility_id, column)
-
-facilities_hfa                     derived. Schema unchanged.
+structure_upload_attempts            single-row, HMIS only (Step 5)
+  slot TEXT PRIMARY KEY DEFAULT 'single' CHECK (slot = 'single')
+  dataset_family dropped
 ```
 
-Observations have no FK to the registry: they precede it. Overrides have no FK
-either: an override for a facility that currently has no observations is kept,
-so a transient re-import cannot destroy authored work.
+A registry cell with no source row is of unknown origin: every cell of a
+registry imported before this plan. `admin` covers the whole admin tuple,
+because admin values are only a valid hierarchy as a tuple.
 
-### 2.3 The derivation
+### 2.3 Facility columns
 
-`deriveHfaFacilities(sql)` runs inside the same transaction as whatever changed
-its inputs, and is the only writer of `facilities_hfa` and of
-`admin_areas_hfa_1..4`. For every facility id with at least one observation:
+```ts
+facilityColumns: {
+  adminArea1: { value: string };
+  adminAreas: { level: 2 | 3 | 4; header: string; correctionHeader?: string }[];
+  optional: Partial<Record<OptionalFacilityColumn, { header: string; correctionHeader?: string }>>;
+};
+```
 
-1. **Admin tuple.** Take the admin columns from the latest round (by
-   `hfa_time_points.sort_order`) whose observation has every admin column at the
-   registry's `adminDepth` non-null. Admin values are only a valid hierarchy as
-   a tuple, so they are never mixed across rounds.
-2. **Each optional column.** Take the value from the latest round whose
-   observation has that column non-null. Columns are independent: a round that
-   did not collect ownership leaves ownership to an earlier round.
-3. **Dictionary.** For each column, replace the value by
-   `hfa_facility_recodes.canonical_value` where a row matches `(column, value)`.
-   Applied to admin columns and optional columns alike.
-4. **Override.** For each column with an override, the override wins. An admin
-   override is always the full tuple at the registry depth (enforced at save),
-   so step 1 and step 4 never mix.
-5. **Refuse** when a facility ends with no admin tuple (no round supplied a
-   complete one and there is no override). The refusal names the facility ids.
-   The registry's admin columns are NOT NULL and stay that way.
+Level 1 is the country and is never a column: the wizard pre-fills the value
+with the registry's current level-1 value when the registry is non-empty, else
+`getCountryLabel(countryIso3)`. Levels 2 to the HFA `adminDepth` are mapped all
+or none. Optional columns come from the HFA structure schema's enabled set. A
+correction column wins where its trimmed cell is non-blank. Every mapped header
+and correction header is resolved through the XLSForm by its own header, with
+the resolver lifted from the structure stager: a header matched to a
+`select_one` question by the HFA header convention has its codes replaced by
+choice labels, unresolved codes stay raw and are counted per column.
 
-Then: upsert the derived rows, delete registry rows for facility ids with no
-observation, insert admin areas with `ON CONFLICT DO NOTHING`, run
-`cleanupUnusedAdminAreas`, bump `structure_last_updated`, and notify the
-structure channel. Deleting a registry row that is **referenced** is refused
-before any write, with the ids and the table that references them. The operation
-that would have caused it (a round re-import with a stricter filter, a round
-delete) fails whole.
-
-Invariant, asserted by the derivation: every `(facility_id, time_point)` in
-`hfa_data` has an observation. The data import writes both from the same kept
-rows in one transaction, so the invariant holds by construction after Step 2 and
-by the migration of Step 1 before it.
+Defaults, in order: the latest complete run's mapping where the header exists in
+the new file (compared by raw header text, re-encoded against the new file),
+else the core header names matched ignoring case, else unmapped. Core names:
+levels 2, 3, 4 from `id_admin1_name`, `id_admin2_name`, `id_admin3_name`;
+`facility_name` from `id_fac_name`; `facility_type` from `id_fac_type`; a
+correction column from the mapped header with a trailing `_name` or `_txt`
+removed plus `_corrected`. Ownership has no core name. The facility id defaults
+to the first of `id_fac_txt`, `id_fac` that has a non-blank value, in the HFA
+data wizard and the weights wizard; the headers route reports which headers have
+values.
 
 ### 2.4 The data wizard
 
-Steps: upload, mappings, **facility columns**, duplicates (auto-skipped when
-none), review. The facility-columns step maps the admin columns (all or none, at
-the HFA registry's `adminDepth`) and each enabled optional facility column (the
-HFA structure schema's enabled set, as today's structure wizard step 2).
-Mappings are pre-filled from the latest complete run's mappings wherever the
-header still exists. Every mapped facility column is resolved through the
-XLSForm exactly as the structure stager does today: header matched to a
-`select_one` question by the HFA header convention, code replaced by choice
-label, unresolved codes kept raw and counted per column in the diagnostics.
+Steps: upload, mappings, facility columns, duplicates (auto-skipped when none),
+changes, review and launch. Every step is stateless until launch; every decision
+rides `HfaCsvMappingParams` and is re-validated by the stage leg exactly as the
+duplicate overrides are today.
 
-The review step shows the facility match (ids already in the registry versus
-new) computed statelessly by the duplicates preview, which already scans the
-ids. A file where nothing matches an existing registry is the ID-mismatch tell
-and is shown as such; it never blocks.
+- **Facility columns** renders the mapping of §2.3. Under each picker, from a
+  stateless preview over the kept rows: blank cells, distinct values, unresolved
+  codes with a sample, and for admin columns the values not in the registry.
+  Next is disabled while the registry is empty and the admin levels are
+  unmapped.
+- **Changes** shows the facility match (known, new, absent from this file) and,
+  per column, every change grouped as "current value to file value, N
+  facilities", with keep or take per group and per facility. It lists the admin
+  areas that would lose their last facility together with the scopes
+  (`hfa.adminArea2`) and geojson maps keyed on those names, the admin paths the
+  file introduces, and the new facilities with an incomplete admin tuple. The
+  per-facility "Other" reassignment lives here, for new and changed facilities,
+  with unmapped file columns such as `id_fac_type_other` shown as context,
+  because text questions are never staged. When the registry is non-empty and
+  nothing is known, launch requires an explicit confirmation that the ids are
+  new.
 
-The stage leg stages the kept row's facility columns into a per-run table. The
-integrate leg, inside the existing per-round replace transaction: DELETE
-observations for the round, INSERT from the staging table, write `hfa_data` and
-the dictionary as today, derive, flip complete. No `needs_review` hold for
-unknown facilities exists any more; the hold remains for rows with a missing
-facility id, resolved as today.
+```ts
+facilityChanges: {
+  column: "admin" | OptionalFacilityColumn;
+  from: string;          // the admin tuple joined at the registry depth
+  to: string;
+  decision: "keep" | "take";
+  exceptions: string[];  // facility ids decided the other way
+}[];
+recodes: Partial<Record<StructureRecodableColumn, Record<string, string>>>; // facility id to value
+```
 
-### 2.5 The facilities page, HFA tab
+### 2.5 Decisions and their defaults
 
-No import. The registry table as today, plus:
+For a registry cell with no source row, no default: the user must choose a rule
+for every column with changes before Next enables. Otherwise the default is:
+source kind `user`, keep; source round newer than the imported round, keep;
+source round older than or equal to the imported round, keep when the values are
+equal and take otherwise. A decision that agrees with the default is written as
+kind `round` with the imported round; a decision against it is written as kind
+`user`. New facilities are written with kind `round`. A recode is written as
+kind `user`. Recodes are pre-filled from the latest complete run where the
+facility id and the raw value match.
 
-- **Edit facility**: a modal per row showing, per column, the derived value, the
-  observed value in each round, the dictionary mapping if one applied, and an
-  override field. Saving an override re-derives.
-- **Categories**: per recodable column, the distinct observed raw values with
-  facility counts and a canonical target per value. Saving re-derives. This
-  replaces the structure wizard's per-attempt recode step, and persists.
-- The HFA "delete all facilities" action is gone. Deleting HFA data (per round,
-  existing) removes observations through the FK cascade and re-derives.
+### 2.6 The integrate leg
 
-### 2.6 Order of operations for a user
+Inside the existing per-round transaction, in this order: stamp the time point;
+delete the round's data and variables; lock the registry rows the decisions name
+`FOR UPDATE`; recompute the changes from the per-run facility staging table and
+fail with the ids when any (facility, column, from, to) differs from what the
+user was shown; insert admin areas 1..4 with `ON CONFLICT DO NOTHING`; upsert
+the new facilities and the taken changes, padding levels above `adminDepth` with
+the deepest value as the structure stager does; write the source rows; insert
+the variables, the values and the data; run `cleanupUnusedAdminAreas`; bump
+`structure_last_updated` only when a registry row or an admin area changed; flip
+complete. After commit, notify the structure channel when the registry changed,
+and record in the diagnostics the geojson area ids
+(`countOrphanedGeoJsonAreaIds(sql, "hfa")`) and the scopes whose
+`hfa.adminArea2` no longer matches an admin area. The order is forced by the
+schema: the facility FK on `hfa_data` is immediate, and the composite FK on
+`facilities_hfa` needs the admin rows first.
 
-Create the round, import its data (facilities appear), import its weights (which
-require the facilities). Weights stay a separate import: they come from the
-sampling frame, not the survey, and are facility by round.
+### 2.7 The facilities page, HFA tab
 
-### 2.7 Why this shape: the coming HMIS/HFA link
+No import entry. A searchable table over the registry with the source of each
+facility's admin tuple and type, a per-row edit that writes kind `user`, and
+"Remove facilities with no data and no weights", which shows the count first and
+removes only those rows. Delete facilities stays with its existing refusals.
 
-Within months the platform will link HMIS and HFA admin areas, facility types
-and, where possible, facilities, so that analyses can combine both families.
-Linking is a user-led or AI-led mapping that produces three authored artifacts:
-an admin-area crosswalk per level, a facility-type crosswalk (or one canonical
-type list both families map into), and a facility crosswalk keyed on both ids.
-None of them belong inside either registry row: they must survive re-imports on
-both sides and must never be touched by an import. That is exactly the
-authored-layer separation this plan introduces for HFA. The dictionary is the
-first half of the type link (raw label to canonical value); the crosswalks are
-further authored layers of the same kind; and the referenced-row rule in §2.3
-already covers them. A product's admin-area-2 scope is registry-agnostic and
-matched by name across both registries today, so a spelling difference between
-families already loses one family's results silently; the dictionary is where
-the HFA side of that gets fixed.
+### 2.8 Order of operations for a user
 
-The registry's existence as a table, keyed on the survey's immutable facility
-id, is what a crosswalk joins against, and that is the same in the imported and
-the derived design. Deriving changes who writes the attribute columns, not
-whether the join target exists.
+Create the round, import its data (facilities appear), import its weights, which
+come from the sampling frame in a separate file and need the facilities.
 
-### 2.8 Rejected alternatives
+### 2.9 Rejected alternatives
 
+- **A derived registry** (per-round observations, a rule, a dictionary and
+  overrides; the first draft of this plan). The rule resolves between-round
+  changes silently, a time-point reorder changes the registry with no import,
+  the automatic deletion of unobserved facilities collides with the weights
+  cascade, and the migration deletes unreferenced rows on every instance.
 - **Create new facilities from the data wizard, leave updates to the structure
-  wizard.** Freezes attributes at first sight (round 1 is the messiest), keeps
-  two writers and two mapping UIs for the same columns, and makes provenance
-  mixed with no record. A lateral move.
-- **Latest import wins.** Depends on upload order; breaks the planned round 1
-  re-import. Latest **round** by `sort_order` is order-neutral.
-- **First round wins.** Freezes the messiest data.
+  wizard.** Two writers, two mapping UIs, two dedup rules.
+- **A persistent recode dictionary keyed on the raw value.** Applied to admin
+  columns it renames homonyms under different parents; applied to "Other" it
+  cannot say what each facility is. Per-facility recodes with the file's context
+  columns, remembered as user sources, cover the real case.
 - **Per-round attributes at run time.** Would change the parquet the R code
-  reads, `facility_context`, maps and every disaggregation, and would make a
-  facility move between groups across a series. Rejected; per-round facts are
-  stored (observations) but one derived row is what runs see.
-- **Keep the structure import as a second writer for unsurveyed facilities.**
-  Ruled out: every HFA facility is always in a dataset. Nothing downstream reads
-  unsurveyed facilities (the extract starts from `hfa_data`, weights represent
-  not-in-sample as absence).
-- **The cheap fix** (a pre-launch facility check in the wizard listing the
-  missing ids). Removes the surprise, keeps everything in §1.2.
+  reads and move facilities between groups across a series.
+- **Weights mapped in the data wizard.** The data upload is the raw ODK export,
+  which carries no weights; weights stay a separate file (ruled, 2026-10-15).
 
 ## 3. Rulings
 
 Rulings marked _(proposed)_ were derived by the author of this file, not heard;
 they stand unless overruled here before `Do 1`.
 
-1. `facilities_hfa` keeps its schema and its name. Every consumer outside this
-   plan's surface is untouched.
-2. The three new tables are exactly §2.2. `hfa_facility_observations` never
-   stores a blank string; blank cells become NULL at staging.
-3. The derivation is §2.3, per column, latest round by `sort_order`, admin
-   columns as a tuple, dictionary then override, refuse on a facility with no
-   admin tuple, refuse on deleting a referenced registry row. _(proposed)_
-4. The derivation is the only writer of `facilities_hfa` and
-   `admin_areas_hfa_1..4` after Step 5. It runs inside the caller's transaction
-   after: the HFA data integrate leg, a round delete, an override save, a
-   dictionary save, HFA data deletion.
-5. The data import writes observations and `hfa_data` from the same kept rows in
-   one transaction. The invariant in §2.3 is asserted there.
-6. The dictionary applies to admin columns and to every optional facility column
-   except `facility_name` (renaming is not recoding, as the structure wizard
-   already rules). Overrides apply to every column including `facility_name`; an
-   admin override is the full tuple. _(proposed)_
-7. Overrides for a facility with no current observations are kept, not deleted.
-   _(proposed)_
-8. Label resolution through the XLSForm moves to a shared helper under
-   `server/server_only_funcs_csvs/` in Step 2 and is used by the HFA data
-   stager; Step 5 removes it from the structure stager. HMIS CSV structure
-   imports never took an XLSForm.
-9. Diagnostics: `nRowsInvalidFacilityNotFound` is removed from
-   `DatasetHfaCsvStagingResult`; `facilityMatch { known, new }` and
-   `labelResolution` (per column: resolved count, up to 10 distinct unresolved
-   values, the structure stager's shape) are added. Stored diagnostics on old
-   runs are rewritten in place by an instance migration, as migration 093 did
-   for renamed keys. The clean condition becomes
-   `nRowsInvalidMissingFacilityId = 0 AND nRowsTotal > 0`. _(proposed)_
-10. The wizard's facility-columns step is mandatory for the admin columns only
-    in effect: the derivation refuses a facility with no admin tuple from any
-    round, so a first round without admin columns fails at integration with the
-    ids named, not at the wizard. The wizard warns when admin columns are
-    unmapped. _(proposed)_
-11. Mappings pre-fill from the latest complete run's `csv_config.mappings` where
-    the header exists in the new file. Served by one new route.
-12. Migration for existing instances (Step 1): for every
-    `(facility_id, time_point)` in `hfa_data` or in `hfa_facility_weights`,
-    insert one observation copying the registry row's columns. Registry rows
-    with neither data nor weights are deleted (they cannot exist under §2.3). No
-    overrides are created: the derived registry equals the migrated one until a
-    round is re-imported with facility mappings. _(proposed)_
-13. The structure import loses its HFA branch and its family parameter in
-    Step 5. `structure_upload_attempts` becomes a single-row table (migration).
-    `deleteFamilyFacilities` accepts `hmis` only. The registry readers
-    (`getStructureItems`, exports, `structureSchema` per family,
-    `facilitiesTableForFacilityFamily`) keep their family parameter: the two
-    registries remain per family. The recode step stays for HMIS: it is
-    family-agnostic and HMIS type columns are free text too. _(proposed)_
-14. `validateHfaCsvRunConfig` stops requiring a non-empty HFA registry
-    (`dataset_hfa_import_runs.ts:130`) and validates the facility-column
-    mappings instead: headers exist, admin columns all-or-none at the registry
-    depth, optional columns within the enabled set.
-15. Weights are unchanged: separate import, facility by round, reject unknown
-    ids, populated after the round's data.
-16. Nothing in `wb-fastr-modules` changes. The extract SQL in
+1. `facilities_hfa`, `admin_areas_hfa_1..4`, `hfa_data` and
+   `hfa_facility_weights` keep their schemas and names. Every consumer outside
+   this plan's surface is untouched.
+2. The one new table is `hfa_facility_sources`, exactly §2.2. No observations,
+   dictionary or overrides tables.
+3. After Step 5 the only writers of `facilities_hfa` and `admin_areas_hfa_1..4`
+   are the HFA data import's integrate leg and the facilities page, both through
+   `server/db/instance/hfa_facilities.ts`, inside the caller's transaction, with
+   the stamp bumped only when something changed. _(proposed)_
+4. The facility columns are §2.3: level 1 a fixed value, levels 2 to
+   `adminDepth` all or none, optional columns within the enabled set, an
+   optional correction column per mapped column, every header resolved through
+   the XLSForm by a helper lifted from `stage_structure_from_csv.ts:128-177`
+   into `server/server_only_funcs_csvs/resolve_odk_labels.ts`. _(proposed)_
+5. Pre-fill is §2.3's order: latest complete run, core names, unmapped. The
+   facility id default is the first of `id_fac_txt`, `id_fac` with values, in
+   the data wizard and the weights wizard (catalogue Q9). _(proposed)_
+6. Changes are computed statelessly before launch and decided as §2.4, carried
+   in the launch payload, stored on the run row, and re-validated per (facility,
+   column, from, to) at staging and inside the integrate transaction with the
+   rows locked; any difference fails the run naming the ids. _(proposed)_
+7. Defaults are §2.5. A cell with no source has no default. _(proposed)_
+8. A new facility with an incomplete admin tuple holds the run in `needs_review`
+   with its ids; Integrate anyway drops its rows. An existing facility with an
+   incomplete file tuple keeps its registry tuple and shows no change. The hold
+   for rows with a missing facility id stays. The not-found counter, its sample,
+   the `validFacilities` staging table and the non-empty registry launch gate
+   (`dataset_hfa_import_runs.ts:128-135`) go. _(proposed)_
+9. Diagnostics gain `facilityMatch { known, new, absent }`, `facilityChanges`
+   (per column: changed, kept, taken), `labelResolution` (the structure stager's
+   shape), `facilitiesWithoutAdminTuple { count, sample }`,
+   `orphanedGeojsonAreaIds` and `orphanedScopeAreas`, all optional because old
+   runs lack them. The clean condition becomes
+   `nRowsInvalidMissingFacilityId = 0 AND facilitiesWithoutAdminTuple.count = 0 AND nRowsTotal > 0`.
+   Stored diagnostics lose `nRowsInvalidFacilityNotFound` and
+   `facilityNotFoundSample` through a `.ts` migration registered in
+   `TS_MIGRATIONS` (stored JSON is never touched in SQL); the same migration
+   cancels every run in `needs_review` with a message saying the release
+   superseded it and drops that run's staging tables. _(proposed)_
+10. The integrate leg is §2.6, in that order.
+11. "Other" reassignment is per facility, in the changes step, with unmapped
+    file columns as context; the HMIS structure wizard keeps its own review
+    step. The editor is shared between the two under
+    `client/src/components/data/_shared/`. _(proposed)_
+12. The facilities page HFA tab is §2.7. _(proposed)_
+13. Migrations: 212 creates `hfa_facility_sources`; 213 is the `.ts` migration
+    of ruling 9; 214 deletes the `hfa` row of `structure_upload_attempts`, drops
+    `temp_structure_staging_hfa`, re-keys the table on `slot` (a name no earlier
+    migration drops; 054 drops `id`) and drops `dataset_family`. No registry
+    content changes at deploy. _(proposed)_
+14. The structure import loses its HFA branch and its family parameter in Step
+    5: the XLSForm input, the label resolution and
+    `StructureCsvStep1Result.xlsForm` leave the structure path;
+    `deleteFamilyFacilities` keeps its family parameter and its refusals; the
+    registry readers (`getStructureItems`, exports, `structureSchema` per
+    family, `facilitiesTableForFacilityFamily`, `listAdminArea2s`) keep theirs.
+    The geojson orphan count moves out of the structure step-4 route into the
+    shared writer. _(proposed)_
+15. Weights are a separate import of a separate file, unchanged in shape,
+    imported after the round's data. Unknown facility ids are skipped and
+    reported with a count and a sample instead of rejecting the file; the import
+    refuses only when every id is unknown, and the message says that facilities
+    are created by the round's data import. _(proposed)_
+16. A time-point reorder, a time-point delete and an HFA data delete do not
+    touch the registry. A time-point delete sets `time_point` to NULL on its
+    source rows through the FK, which makes those cells default to take.
+    _(proposed)_
+17. Nothing in `wb-fastr-modules` changes. The extract SQL in
     `server/runs/capture_inputs/hfa.ts` is not touched.
-17. HMIS/HFA crosswalks are out of scope (§6). This plan only guarantees that a
-    derived registry row is never deleted while referenced, which is the rule a
-    crosswalk will rely on.
+18. HMIS/HFA crosswalks are out of scope (§6).
 
 ## 4. Steps
 
-### Step 1: schema, migration, derivation
+### Step 1: schema, types, the registry writer, the scan
 
 **Surface.**
 
 - `server/db/instance/_main_database.sql`
-- `server/db/migrations/instance/204_hfa_facility_observations.sql`
-- `server/db/instance/hfa_facilities.ts` (new: observations, overrides,
-  dictionary, `deriveHfaFacilities`, the referenced-row check)
-- `server/tests/hfa_facility_derivation_test.ts` (new)
-- `SYSTEM_05_facilities_indicators.md` (manifest: the two new files; prose: a
-  new "HFA registry derivation" section stating §2.2 and §2.3 as the
-  authoritative contract)
+- `server/db/migrations/instance/212_hfa_facility_sources.sql`
+- `server/db/instance/hfa_facilities.ts` (new: the registry reads and writes of
+  rulings 3, 6, 7, 12: compute changes against the registry, apply decisions and
+  new facilities with admin insert, padding, source rows, cleanup and the
+  conditional stamp; edit one facility; remove unreferenced facilities; orphan
+  reports)
+- `server/server_only_funcs_csvs/resolve_odk_labels.ts` (new; the structure
+  stager keeps its own copy until Step 5)
+- `server/server_only_funcs_csvs/scan_hfa_rows.ts` (kept-row facility values:
+  fixed level 1, correction columns, label resolution, headers with values)
+- `lib/types/dataset_hfa_import.ts` (`facilityColumns`, `facilityChanges`,
+  `recodes`, the previews, the diagnostics of ruling 9)
+- `lib/utils.ts` (core header names, candidate-list id default)
+- `server/tests/hfa_facility_changes_test.ts` (new)
+- `SYSTEM_05_facilities_indicators.md` (manifest: `hfa_facilities.ts`; prose: an
+  "HFA registry writes" section stating §2.2, §2.5 and §2.6 as the authoritative
+  contract)
+- `SYSTEM_06_ingestion.md` (manifest: the test)
 
-**Deliverable.** Rulings 1, 2, 3, 7, 12. The three tables exist in the base
-schema and the migration. The migration backfills observations per ruling 12 and
-deletes unreferenced registry rows. `deriveHfaFacilities` implements §2.3 and is
-exercised by the test against a scratch schema: latest round by `sort_order` per
-column, admin tuple never mixed, dictionary then override, refusal on a missing
-admin tuple, refusal on deleting a referenced row, overrides kept for a facility
-with no observations, the `hfa_data` invariant. Nothing calls the derivation yet
+**Deliverable.** Rulings 1, 2, 4, 5 (the constants), 7, 13 (migration 212). The
+table exists in the base schema and the migration. The writer implements §2.5
+and §2.6 and is exercised by the test against a scratch schema: changes grouped
+per column and tuple, defaults per source kind and round order, no default on an
+unknown source, decision mismatch refusal, admin inserted before the upsert,
+padding above depth, source rows written, cleanup, stamp bumped only on change,
+remove-unreferenced refusing nothing it should not. Nothing calls the writer yet
 except the test.
 
 **Not in this step.** Any import change. Any route. Any client.
@@ -379,166 +398,164 @@ except the test.
 
 **Ends with.** One commit.
 
-### Step 2: the import writes observations and derives
+### Step 2: the import writes the registry
 
 **Surface.**
 
-- `lib/types/dataset_hfa_import.ts`
-- `server/server_only_funcs_csvs/resolve_odk_labels.ts` (new; the label
-  resolution lifted from `stage_structure_from_csv.ts:125-161`, which keeps its
-  own copy until Step 5)
-- `server/server_only_funcs_csvs/scan_hfa_rows.ts`
 - `server/worker_routines/import_hfa_data_csv/stage_csv.ts`
 - `server/worker_routines/import_hfa_data_csv/integrate_staged.ts`
 - `server/worker_routines/import_hfa_data_csv/worker.ts`
 - `server/worker_routines/import_hfa_data_csv/instantiate_worker.ts`
-- `server/db/instance/dataset_hfa_import_runs.ts`
-- `server/db/instance/dataset_hfa.ts` (HFA data deletion re-derives)
-- `server/routes/instance/hfa_time_points.ts` (round delete re-derives)
-- `server/db/migrations/instance/205_hfa_run_diagnostics_facility_match.sql`
+- `server/db/instance/dataset_hfa_import_runs.ts` (launch validation of rulings
+  4, 6, 8; latest complete run's mappings)
+- `server/routes/instance/datasets.ts` (headers with values; the stateless
+  facility preview and changes preview; latest mappings; the structure notify
+  after a launch or a resumed review completes with a changed registry)
+- `lib/api-routes/instance/datasets.ts`
+- `server/db/migrations/instance/213_hfa_run_diagnostics_facility_changes.ts`
+- `server/db/migrations/runner.ts`
 - `client/src/components/data/hfa/imports/staging_summary.tsx`
 - `client/src/components/data/hfa/imports/needs_review_card.tsx`
-- `SYSTEM_06_ingestion.md` (manifest for the new file; prose: HFA import runs,
-  clean condition, integration contract, staging rules)
+- `server/tests/hfa_import_facilities_test.ts` (new)
+- `SYSTEM_06_ingestion.md` (manifest: the test; prose: HFA import runs, clean
+  condition, integration contract, staging rules, the label-resolution paragraph
+  moved here from S5 Structure ELT)
+- `SYSTEM_01_api_contract.md` (prose only if the registry contract text changes)
+- `HFA_WORK_CATALOGUE.md` (Q5 is superseded: the hold for unknown facilities no
+  longer exists; L1 points here)
 
-**Deliverable.** Rulings 4, 5, 8, 9, 14. `HfaCsvMappingParams` gains
-`facilityColumns` (admin columns, optional columns, by header). The stage leg
-resolves labels for every mapped facility column, stages the kept row's facility
-columns into a per-run table (blank to NULL), drops the `validFacilities` table
-and the not-found counter, and records `facilityMatch` and `labelResolution`.
-The integrate leg replaces the round's observations and calls the derivation
-inside the existing transaction; a derivation refusal fails the run with the ids
-in the error. The clean condition is ruling 9. Round delete and HFA data delete
-call the derivation in their transactions. Migration 205 strips the removed key
-from stored diagnostics. The staging summary shows the match and the label
-resolution.
+**Deliverable.** Rulings 6, 8, 9, 10, 13 (migration 213). The stage leg stages
+the kept row's facility values into a per-run table, validates the decisions
+against it, and records the diagnostics of ruling 9. The integrate leg runs §2.6
+through the Step 1 writer. The worker's clean condition is ruling 9's. Launch
+validation enforces rulings 4, 6 and 8 fully from this step: the only launcher
+between Step 2 and Step 3 is the test. The staging summary and the needs-review
+card render the new diagnostics and the dropped not-found block.
 
-**Not in this step.** The wizard step (the mappings are accepted from the launch
-input but no UI authors them yet; the launch validation accepts an empty
-`facilityColumns` so existing wizard launches still work until Step 3). Any
-structure import change.
+**Not in this step.** The wizard. Any structure import change.
 
-**Gates.** `./validate_migrations`. A committed harness
-`server/tests/hfa_import_observations_test.ts` that stages a small CSV plus
-XLSForm through `stageHfaCsvIntoTables` and `integrateStagedHfaData` against a
-scratch schema and asserts the observations, the derived registry and the
-diagnostics.
+**Gates.** `./validate_migrations`. The committed harness
+`server/tests/hfa_import_facilities_test.ts` stages a small CSV plus XLSForm
+through `stageHfaCsvIntoTables` and `integrateStagedHfaData` against a scratch
+schema and asserts the registry, the source rows, the data and the diagnostics,
+including a stale decision refusal and an incomplete-tuple hold.
 
-**Ends with.** Several commits, each green: the shared label helper; the types
-and migration; the stage leg; the integrate leg and the two re-deriving callers;
-the client summary.
+**Ends with.** Several commits, each green: the types and migration; the stage
+leg; the integrate leg; the routes; the client summary.
 
-### Step 3: the wizard's facility-columns step
+### Step 3: the wizard
 
 **Surface.**
 
 - `client/src/components/data/hfa/imports/wizard.tsx`
 - `client/src/components/data/hfa/imports/facility_columns_step.tsx` (new)
+- `client/src/components/data/hfa/imports/facility_changes_step.tsx` (new)
 - `client/src/components/data/hfa/imports/mod.ts`
-- `server/routes/instance/datasets.ts` (the latest-mappings route; the
-  duplicates preview returns `facilityMatch`)
-- `server/db/instance/dataset_hfa_import_runs.ts` (latest mappings read)
-- `lib/types/dataset_hfa_import.ts` (`HfaDuplicatePreview.facilityMatch`)
+- `client/src/components/data/_shared/recode_editor.tsx` (new; lifted from
+  `facilities/import/step_4_recode.tsx`, which becomes an adapter over it)
+- `client/src/components/data/_shared/mod.ts`
+- `client/src/components/data/facilities/import/step_4_recode.tsx`
+- `client/src/components/data/hfa/hfa_weights.tsx` (the id default of ruling 5)
 - `SYSTEM_06_ingestion.md` (manifest; Client prose for the HFA wizard)
+- `SYSTEM_05_facilities_indicators.md` (prose: the shared editor, the weights
+  wizard default)
 
-**Deliverable.** Rulings 10, 11. The step sits between mappings and duplicates,
-lists the admin columns at the HFA `adminDepth` and the enabled optional
-columns, pre-fills from the latest complete run, warns when admin columns are
-unmapped, and the review step shows the facility match with the ID-mismatch tell
-when `known = 0` and the registry is non-empty. Launch validation now enforces
-ruling 14 fully (the Step 2 allowance for an empty `facilityColumns` is
-removed).
+**Deliverable.** Rulings 5, 11 and §2.4. The two new steps sit between mappings
+and duplicates and between duplicates and review; pre-fill, per-column preview,
+grouped changes with keep or take, exceptions, the recode editor with context
+columns, the orphan line, the id-mismatch confirmation. Every pre-filled picker
+shows where its value came from until edited.
 
-**Not in this step.** The facilities page. Help buttons for the new step (added
-in Step 4 with the page's, so the help build runs once).
+**Not in this step.** The facilities page. Help buttons.
 
 **Gates.** Floor.
 
-**Ends with.** One commit.
+**Ends with.** Several commits, each green: the shared editor; the facility
+columns step; the changes step.
 
-### Step 4: the facilities page owns the authored layers
+### Step 4: the facilities page
 
 **Surface.**
 
 - `client/src/components/data/facilities/facilities.tsx`
-- `client/src/components/data/facilities/hfa_registry/**` (new: the edit modal
-  and the categories editor, with `mod.ts`)
+- `client/src/components/data/facilities/with_csv.tsx`
+- `client/src/components/data/facilities/hfa_registry/**` (new, with `mod.ts`:
+  the table, the row edit, the remove-unreferenced action)
 - `client/src/components/data/facilities/mod.ts`
 - `client/src/state/instance/t2_structure.ts`
 - `lib/types/structure.ts`
-- `server/routes/instance/structure.ts` (routes: facility detail with per-round
-  observations, save overrides, list column values, save dictionary)
+- `lib/api-routes/instance/structure.ts`
+- `server/routes/instance/structure.ts` (routes: registry rows with sources,
+  edit facility, remove unreferenced)
 - `server/db/instance/hfa_facilities.ts`
-- `lib/help/help_targets.generated.ts` via `deno task build:help-buttons` if
-  help buttons are added
 - `SYSTEM_05_facilities_indicators.md` (manifest; Client prose)
 
-**Deliverable.** Rulings 4, 6, 7 and §2.5. The HFA tab has no import entry and
-no delete-all; it has Edit facility and Categories. Both saves re-derive in
-their transaction and bump `structure_last_updated`. The HMIS tab is unchanged.
+**Deliverable.** Ruling 12 and §2.7. The HFA tab has no import entry; the HMIS
+tab is unchanged. Both saves run through the Step 1 writer and report orphaned
+geojson area ids and scope areas.
 
-**Not in this step.** Removing the structure wizard's HFA branch: the HFA tab
-stops linking to it, the code goes in Step 5.
+**Not in this step.** Removing the structure wizard's HFA branch: the tab stops
+linking to it, the code goes in Step 5.
 
-**Gates.** Floor. `deno task build:help-buttons` unchanged on a second run if
-help buttons were added.
+**Gates.** Floor.
 
-**Ends with.** Several commits, each green: routes and DB; the edit modal; the
-categories editor.
+**Ends with.** Several commits, each green: routes and DB; the table and edit;
+the remove action.
 
-### Step 5: the structure import is HMIS-only
+### Step 5: the structure import is HMIS-only, weights follow the data
 
 **Surface.**
 
 - `server/db/instance/structure.ts`
 - `server/routes/instance/structure.ts`
+- `lib/api-routes/instance/structure.ts`
 - `server/server_only_funcs_importing/stage_structure_from_csv.ts`
 - `server/server_only_funcs_importing/stage_structure_from_dhis2.ts`
 - `server/server_only_funcs_importing/integrate_structure_from_staging.ts`
 - `server/db/instance/_main_database.sql`
-- `server/db/migrations/instance/206_structure_upload_attempts_hmis_only.sql`
+- `server/db/migrations/instance/214_structure_upload_attempts_hmis_only.sql`
 - `lib/types/structure.ts`
 - `client/src/components/data/facilities/import/**`
 - `client/src/components/data/facilities/facilities.tsx`
-- `client/src/components/data/facilities/with_csv.tsx`
+- `server/db/instance/hfa_facility_weights.ts`
+- `client/src/components/data/hfa/hfa_weights.tsx`
 - `SYSTEM_05_facilities_indicators.md` (Structure ELT prose rewritten for one
-  family; ODK label resolution paragraph removed)
+  family; ODK label resolution paragraph removed; weights prose)
+- `SYSTEM_01_api_contract.md` (prose only if the registry contract text changes)
 
-**Deliverable.** Ruling 13. No code path can write `facilities_hfa` except
-`deriveHfaFacilities`. The import machinery has no family parameter; the
-registry readers keep theirs. `structure_upload_attempts` is single-row; the
-migration deletes any `hfa` row and drops the family column. The XLSForm input,
-the label resolution and `StructureCsvStep1Result.xlsForm` are gone from the
-structure path. `deleteFamilyFacilities` takes no family and acts on HMIS.
+**Deliverable.** Rulings 13 (migration 214), 14, 15. No code path writes
+`facilities_hfa` except the Step 1 writer. The import machinery has no family
+parameter; the registry readers keep theirs. `structure_upload_attempts` is
+single-row on `slot`. The XLSForm input, the label resolution and
+`StructureCsvStep1Result.xlsForm` are gone from the structure path. The weights
+import skips and reports unknown ids and names the order.
 
-**Not in this step.** Anything HFA-side; it is finished.
+**Not in this step.** Anything HFA-wizard-side; it is finished.
 
 **Gates.** `./validate_migrations`, `./validate_fresh_boot`.
 
 **Ends with.** Several commits, each green: the migration and schema; the server
-import machinery; the client import steps; the SYSTEM prose.
+import machinery; the client import steps; the weights; the SYSTEM prose.
 
 ## 5. Gates catalogue
 
-| Gate                                             | First reached                 |
-| ------------------------------------------------ | ----------------------------- |
-| `./validate_migrations`                          | Step 1                        |
-| `./validate_fresh_boot`                          | Step 1                        |
-| `server/tests/hfa_facility_derivation_test.ts`   | Step 1                        |
-| `server/tests/hfa_import_observations_test.ts`   | Step 2                        |
-| `deno task build:help-buttons` idempotent        | Step 4, if help buttons added |
-| Floor (typecheck, test, validate_protocols, run) | every step                    |
+| Gate                                             | First reached |
+| ------------------------------------------------ | ------------- |
+| `./validate_migrations`                          | Step 1        |
+| `./validate_fresh_boot`                          | Step 1        |
+| `server/tests/hfa_facility_changes_test.ts`      | Step 1        |
+| `server/tests/hfa_import_facilities_test.ts`     | Step 2        |
+| Floor (typecheck, test, validate_protocols, run) | every step    |
 
 ## 6. Out of scope
 
-- HMIS/HFA crosswalks for admin areas, facility types and facilities, and any
-  canonical instance-level type list shared by both families. Ruling 17 is the
-  only thing this plan does for them.
-- Per-round facility attributes at run time (rejected, §2.8).
+- HMIS/HFA crosswalks for admin areas, facility types and facilities.
+- Per-round facility attributes at run time (rejected, §2.9).
 - HMIS structure import behaviour, beyond losing its family parameter.
-- The HFA weights import and page.
+- Weights mapped from the data file (rejected, §2.9).
 - Removing dataset rows in-platform and the sentinel review UI (SYSTEM_06 "HFA
   follow-on work").
+- Help buttons for the new steps.
 - The Sierra Leone round 1 re-import itself (operational, §7 names it as the
   first use).
 
@@ -546,21 +563,25 @@ import machinery; the client import steps; the SYSTEM prose.
 
 Nothing ships before the Step 5 review passes. Then:
 
-1. `./deploy_testing`. Migrations 204 to 206 run. Existing HFA registries are
-   unchanged in content (ruling 12) except for unreferenced rows, which are
-   deleted; the deploy log records their count per instance.
-2. On the testing instance, re-import one existing round with facility mappings
-   and confirm the derived registry differs from the migrated one only where the
-   survey says something different. Rerun m010 and compare against the previous
-   package for that round: identical where the registry is identical.
-3. Release with `./deploy`. First operational use: the Sierra Leone round 1
-   re-import in SYSTEM_06 "HFA follow-on work", now with facility mappings,
-   whose six vaccine-indicator oracle values still apply.
+1. On the host, dump every instance's `main` database before the deploy
+   (`docker exec <country>-postgres pg_dump -U postgres -d main`, gzipped into a
+   directory named in the build log), because nothing in this repo takes a
+   backup (`SYSTEM_15_admin_ops.md`, "Backups").
+2. `./deploy_testing`. Migrations 212 to 214 run. No registry row changes; runs
+   held in `needs_review` are cancelled with a message; an in-progress HFA
+   structure attempt is discarded.
+3. On the testing instance, re-import one existing round with facility columns,
+   keep every change at the changes step, and confirm the registry is
+   byte-identical; rerun m010 and compare against the previous package for that
+   round: identical. Then take one change and confirm the new package differs
+   only there.
+4. Release with `./deploy`. First operational use: the Sierra Leone round 1
+   re-import in SYSTEM_06 "HFA follow-on work", data before weights, whose six
+   vaccine-indicator oracle values still apply.
 
-Rollback is a database restore to the pre-deploy backup plus a redeploy of the
-previous release. Migration 206 deletes `structure_upload_attempts` HFA rows and
-migration 204 deletes unreferenced registry rows, so the migrations are not
-reversible in place.
+Rollback: migrations 212 and 213 are additive apart from the cancelled held
+runs; 214 deletes the HFA attempt row and re-keys the table. Rollback is the
+step-1 dump restored plus a redeploy of the previous release.
 
 ## 8. Build log
 
