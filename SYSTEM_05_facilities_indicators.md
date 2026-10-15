@@ -151,7 +151,13 @@ facility columns **minus `facility_name`**, whose distinct values ≈ row count
 (renaming is not recoding). Three routes serve it:
 `getStructureStagedColumnValues` (distinct values + facility counts, flagged
 `truncated` above 200, accepted because real `facility_type` cardinality is
-tiny), `getStructureStagedRecodeRows`, and `setStructureRecodes`.
+tiny), `getStructureStagedRecodeRows`, and `setStructureRecodes`. The editor
+itself is `RecodeEditor` (`components/data/_shared/`, S6's manifest), shared
+with the HFA import wizard's changes step: a column picker, the column's values
+with counts, "Other"-like values checked once when nothing is assigned yet, a
+target per facility (an existing value or a new category), and file columns
+added as display-only context. The host supplies the values, the rows and the
+assignments; `step_4_recode.tsx` reads them from these routes.
 
 Recodes are scoped to one attempt and die with the staging they describe:
 `recodes = NULL` rides along at every write that nulls or replaces
@@ -243,15 +249,15 @@ which is why `deleteFamilyFacilities` refuses while any weights exist and
 **Weights** (`hfa_facility_weights`, facility × time_point): written ONLY by the
 structure-import UI's weights wizard, never by HFA data ingestion. Import is
 long-format (two user-mapped columns: facility id + weight, plus an optional
-stratum column, pre-ticked when the file has a `stratum` header; the facility
-id defaults to the first of `id_fac_txt` and `id_fac` that holds a value, which
-the headers route reports as `headersWithValues`), one time point
-per import, wholesale replace for that time point, positive weights only; a
-blank weight cell = not-in-sample (absence is the representation). Each weighted
-row stores its sampling stratum as trimmed text, NULL when the cell is blank or
-no stratum column was mapped (a CHECK rejects the empty string). The strata are
-stored and shown only: the run extract carries `weight` and not the stratum, so
-no module reads them. The export is wide: one column per time point, plus a
+stratum column, pre-ticked when the file has a `stratum` header; the facility id
+defaults to the first of `id_fac_txt` and `id_fac` that holds a value, which the
+headers route reports as `headersWithValues`), one time point per import,
+wholesale replace for that time point, positive weights only; a blank weight
+cell = not-in-sample (absence is the representation). Each weighted row stores
+its sampling stratum as trimmed text, NULL when the cell is blank or no stratum
+column was mapped (a CHECK rejects the empty string). The strata are stored and
+shown only: the run extract carries `weight` and not the stratum, so no module
+reads them. The export is wide: one column per time point, plus a
 `<label> stratum` column after each time point that holds any stratum.
 Duplicates and non-positive weights reject the whole file before the
 transaction; unknown facility ids reject it inside the transaction, before any

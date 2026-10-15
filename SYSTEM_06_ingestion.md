@@ -2,6 +2,7 @@
 system: 6
 name: Dataset Ingestion
 globs:
+  - client/src/components/data/_shared/**
   - client/src/components/data/hmis/_shared/mod.ts
   - client/src/components/data/hmis/_shared/period_selector/**
   - client/src/components/data/data.tsx
@@ -610,13 +611,40 @@ leaves the signal unchanged, and only the callback re-parses the new bytes).
   `import_information.tsx`, whose period-indicator list labels each data id
   through the dictionary and shows the key only under a DHIS2 element (its
   raw-metadata dump is the stored JSON as is).
-- **HFA** (`data/hfa/imports/`): Current card + History table, no tabs;
-  four-step wizard (upload both files → mappings + filters → duplicates →
-  review; Start only, refusal inline). The run row is HFA's only durable import
-  record. The staging summary has a Facilities block (match, changes per column,
-  new facilities without complete admin areas, unlabelled codes, orphaned map
-  areas and scope areas), and the needs-review card names both hold reasons and
-  says that integrating anyway leaves them out.
+- **HFA** (`data/hfa/imports/`): Current card + History table, no tabs; six-step
+  wizard (upload both files → mappings + filters → facility columns → duplicates
+  → changes → review; Start only, refusal inline). The run row is HFA's only
+  durable import record. Every facility read runs on the way forward (the
+  columns preview on each visit to its step and after each edit, the duplicates
+  scan on Next from the facility columns, the changes review on Next from the
+  duplicates), and an edit upstream drops the review, so no step shows reads of
+  stale choices. Pickers are pre-filled once the files are parsed: the facility
+  id from the latest complete run's column where this file has it with values,
+  else the first of `id_fac_txt`, `id_fac` with values; each facility column
+  from the latest complete run's header found by its raw text, else the
+  questionnaire's name ignoring case, its correction column the same way from
+  the column's name; level 1 from the registry's value, else the instance's
+  country. Each pre-filled picker says where its value came from until edited.
+  The facility columns step shows each mapped column's preview under its pickers
+  and refuses Next on the launch validation's facility-column rules. The changes
+  step (`facility_changes_step.tsx`, whose state the wizard owns through
+  `createHfaFacilityChangesState` so it survives moving between steps) shows the
+  match, each column's change groups in a searchable table with keep or take per
+  group, a group's facilities with their value's origin and keep or take each, a
+  required rule per column for cells of unknown origin, a confirmation that the
+  ids are new when the registry has facilities and the file knows none, the
+  admin areas the decisions would empty (with their scopes and maps, read again
+  whenever an admin decision changes) and the paths they add, and the shared
+  `RecodeEditor` (S5) over the new facilities and the taken changes, with the
+  file's other columns as context (each mapped recodable column's `_other`
+  column shown by default). Decisions are kept per group and facility, so a
+  reloaded review keeps every one still current. Leaving the step forward writes
+  them into the mappings, each group as its most common decision plus
+  exceptions, and drops recodes on cells the import does not write. The staging
+  summary has a Facilities block (match, changes per column, new facilities
+  without complete admin areas, unlabelled codes, orphaned map areas and scope
+  areas), and the needs-review card names both hold reasons and says that
+  integrating anyway leaves them out.
 - **ICEH** (`data/iceh/imports/`): the leaner twin, Current card plus History
   table; two-step wizard (upload zip + preview → review); needs_review cards
   show the skip counters/samples.

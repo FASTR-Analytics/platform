@@ -15,72 +15,48 @@ import {
 } from "lib";
 import {
   Button,
-  Checkbox,
   createFormAction,
-  Input,
-  Select,
   type StateHolder,
   StateHolderFormError,
-  StateHolderWrapper,
-  Table,
-  type TableColumn,
-  toNum0,
 } from "panther";
 import {
   batch,
   createEffect,
   createMemo,
   createSignal,
-  For,
   Match,
   Show,
   Switch,
 } from "solid-js";
 import { type SetStoreFunction, unwrap } from "solid-js/store";
 import { serverActions } from "~/server_actions";
+import {
+  currentRecodeColumn,
+  emptyRecodeEditorUi,
+  normalizeRecodes,
+  RecodeEditor,
+  type RecodeEditorUi,
+} from "../../_shared/mod.ts";
 import { getStructureColumnLabel } from "./column_labels";
 
 // No pagination: reassignment only makes sense for low-cardinality values, so
 // all affected rows load at once and the table scrolls in a capped container.
 const _ROW_LIMIT = 1000;
 
-// Mirrors lib/hfa_sentinel_classification.ts's "other" heuristic. Deliberately
-// not imported: this is a UI suggestion, not a classification.
-const OTHER_REGEX = /\bother\b|\bautre\b|\boutros?\b/i;
-
 // Hoisted into StructureUploadAttemptForm: the keyed StateHolderWrapper
 // remounts this whole step on every attempt refetch (including the one our
 // own save triggers), so working state held here would be wiped.
-export type RecodeUiState = {
+export type RecodeUiState = RecodeEditorUi & {
   stagingNonce: string | undefined; // state belongs to this staging run
-  column: StructureRecodableColumn | undefined;
-  checkedValues: string[]; // values marked for reassignment
-  autoChecked: boolean; // OTHER_REGEX suggestion applied once
   assignments: StructureRecodes; // working copy, incl. unsaved edits
-  customTargets: string[]; // user-added "new category" values
-  contextColumns: string[]; // encoded refs of extra file columns to display
 };
 
 export function emptyRecodeUiState(): RecodeUiState {
   return {
+    ...emptyRecodeEditorUi(),
     stagingNonce: undefined,
-    column: undefined,
-    checkedValues: [],
-    autoChecked: false,
     assignments: {},
-    customTargets: [],
-    contextColumns: [],
   };
-}
-
-export function normalizeRecodes(recodes: StructureRecodes): StructureRecodes {
-  const out: StructureRecodes = {};
-  for (const [col, map] of Object.entries(recodes)) {
-    if (map && Object.keys(map).length > 0) {
-      out[col as StructureRecodableColumn] = map;
-    }
-  }
-  return out;
 }
 
 type Props = {
@@ -104,23 +80,15 @@ export function Step4Recode(p: Props) {
     return _RECODABLE_FACILITY_COLUMNS.filter((c) => staged.includes(c));
   });
 
-  const column = (): StructureRecodableColumn | undefined => {
-    if (p.ui.column && columnOptions().includes(p.ui.column)) {
-      return p.ui.column;
-    }
-    return columnOptions().includes("facility_type")
-      ? "facility_type"
-      : columnOptions().at(0);
-  };
+  const column = () => currentRecodeColumn(p.ui.column, columnOptions());
 
-  const [newCategory, setNewCategory] = createSignal<string>("");
   const [needsSaving, setNeedsSaving] = createSignal<boolean>(
     JSON.stringify(normalizeRecodes(unwrap(p.ui.assignments))) !==
       JSON.stringify(normalizeRecodes(p.recodes ?? {})),
   );
 
-  // Distinct values of the selected column, with counts (with_csv.tsx pattern:
-  // createQuery is one-shot by design, these queries react to the column).
+  // with_csv.tsx pattern: createQuery is one-shot by design, these queries
+  // react to the column, the checked values and the context columns.
   const [valuesState, setValuesState] = createSignal<
     StateHolder<StructureStagedColumnValues>
   >({ status: "loading", msg: t3(TC.fetchingData) });
@@ -134,36 +102,21 @@ export function Step4Recode(p: Props) {
       column: col,
     });
     if (runId !== valuesRunId) return;
-    if (res.success === false) {
-      setValuesState({ status: "error", err: res.err });
-      return;
-    }
-    batch(() => {
-      if (!p.ui.autoChecked) {
-        const noSavedRecodes =
-          Object.keys(normalizeRecodes(p.recodes ?? {})).length === 0;
-        if (noSavedRecodes) {
-          const suggested = res.data.values
-            .map((v) => v.value)
-            .filter((v) => OTHER_REGEX.test(v));
-          if (suggested.length > 0) {
-            p.setUi("checkedValues", suggested);
-          }
-        }
-        p.setUi("autoChecked", true);
-      }
-      setValuesState({ status: "ready", data: res.data });
-    });
+    setValuesState(
+      res.success
+        ? { status: "ready", data: res.data }
+        : { status: "error", err: res.err },
+    );
   }
 
   createEffect(() => {
     const col = column();
-    if (!col) return;
-    attemptGetValues(col);
+    if (col) {
+      attemptGetValues(col);
+    }
   });
 
-  // Affected rows (deduped, integrate's winners), reacting to
-  // column/checkedValues/pageOffset.
+  // Affected rows (deduped, integrate's winners).
   const [rowsState, setRowsState] = createSignal<
     StateHolder<StructureStagedRecodeRows>
   >({ status: "loading", msg: t3(TC.fetchingData) });
@@ -185,89 +138,29 @@ export function Step4Recode(p: Props) {
       csvContextColumns: contextColumns.length > 0 ? contextColumns : undefined,
     });
     if (runId !== rowsRunId) return;
-    if (res.success === false) {
-      setRowsState({ status: "error", err: res.err });
-      return;
-    }
-    setRowsState({ status: "ready", data: res.data });
+    setRowsState(
+      res.success
+        ? { status: "ready", data: res.data }
+        : { status: "error", err: res.err },
+    );
   }
 
   createEffect(() => {
     const col = column();
     const values = [...p.ui.checkedValues];
     const contextColumns = [...p.ui.contextColumns];
-    if (!col || values.length === 0) return;
-    attemptGetRows(col, values, contextColumns);
+    if (col && values.length > 0) {
+      attemptGetRows(col, values, contextColumns);
+    }
   });
-
-  function onColumnChange(col: StructureRecodableColumn) {
-    batch(() => {
-      p.setUi("column", col);
-      p.setUi("checkedValues", []);
-    });
-  }
-
-  function toggleValue(value: string, on: boolean) {
-    const next = on
-      ? [...p.ui.checkedValues, value]
-      : p.ui.checkedValues.filter((v) => v !== value);
-    p.setUi("checkedValues", next);
-  }
-
-  const targetValues = createMemo<string[]>(() => {
-    const col = column();
-    const vs = valuesState();
-    const checkedValues = [...p.ui.checkedValues];
-    const customTargets = [...p.ui.customTargets];
-    const assignedTargets = col
-      ? Object.values(p.ui.assignments[col] ?? {})
-      : [];
-    const out = new Set<string>();
-    if (vs.status === "ready") {
-      for (const v of vs.data.values) {
-        if (v.value === "" || checkedValues.includes(v.value)) continue;
-        out.add(v.value);
-      }
-    }
-    for (const v of customTargets) {
-      out.add(v);
-    }
-    for (const v of assignedTargets) {
-      if (v) out.add(v);
-    }
-    return [...out];
-  });
-
-  // Option object identity must be stable across recomputes: Select renders
-  // options with a referentially-keyed <For>, so fresh objects for unchanged
-  // values would recreate every <option> element, and removing the selected
-  // option resets the native select back to its first entry.
-  const keepAsIsOption = {
-    value: "",
-    label: t3({
-      en: "— keep as is —",
-      fr: "— conserver tel quel —",
-      pt: "— manter como está —",
-    }),
-  };
-  const targetOptionCache = new Map<string, { value: string; label: string }>();
-  const targetSelectOptions = createMemo(() =>
-    targetValues().map((value) => {
-      let opt = targetOptionCache.get(value);
-      if (!opt) {
-        opt = { value, label: value };
-        targetOptionCache.set(value, opt);
-      }
-      return opt;
-    })
-  );
 
   // Unmapped file columns offerable as display-only context in the table
   const contextColumnOptions = createMemo(() => {
     const csvDetails = p.csvDetails;
     const columnMappings = p.columnMappings;
-    const contextColumns = [...p.ui.contextColumns];
-    if (!csvDetails || !columnMappings) return [];
+    if (!csvDetails || !columnMappings) {
+      return undefined;
+    }
     const mappedRefs = new Set(
       Object.values(columnMappings).filter(
         (v): v is string => typeof v === "string",
@@ -278,9 +171,7 @@ export function Step4Recode(p: Props) {
         value: encodeRawCsvHeader(i, header),
         label: header,
       }))
-      .filter(
-        (o) => !mappedRefs.has(o.value) && !contextColumns.includes(o.value),
-      );
+      .filter((o) => !mappedRefs.has(o.value));
   });
 
   function contextColumnLabel(ref: string): string {
@@ -293,34 +184,13 @@ export function Step4Recode(p: Props) {
     return ref;
   }
 
-  function addContextColumn(ref: string) {
-    if (!ref || p.ui.contextColumns.includes(ref)) return;
-    p.setUi("contextColumns", [...p.ui.contextColumns, ref]);
-  }
-
-  function removeContextColumn(ref: string) {
-    p.setUi(
-      "contextColumns",
-      p.ui.contextColumns.filter((r) => r !== ref),
-    );
-  }
-
-  function addCustomTarget() {
-    const v = newCategory().trim();
-    if (!v) return;
-    batch(() => {
-      if (!p.ui.customTargets.includes(v)) {
-        p.setUi("customTargets", [...p.ui.customTargets, v]);
-      }
-      setNewCategory("");
-    });
-  }
-
   // setStore with an object MERGES, so a copy-with-deleted-key would never
   // clear anything: deletion must be an explicit undefined write at the leaf.
-  function setAssignment(facilityId: string, value: string) {
-    const col = column();
-    if (!col) return;
+  function setAssignment(
+    col: StructureRecodableColumn,
+    facilityId: string,
+    value: string,
+  ) {
     batch(() => {
       if (value === "") {
         if (p.ui.assignments[col]) {
@@ -333,53 +203,8 @@ export function Step4Recode(p: Props) {
     });
   }
 
-  const assignedCount = () => {
-    const col = column();
-    return col ? Object.keys(p.ui.assignments[col] ?? {}).length : 0;
-  };
-
   const hasAnyAssignments = () =>
-    Object.values(p.ui.assignments).some(
-      (m) => m && Object.keys(m).length > 0,
-    );
-
-  function blankAwareLabel(value: string): string {
-    return value === ""
-      ? t3({ en: "(blank)", fr: "(vide)", pt: "(em branco)" })
-      : value;
-  }
-
-  function buildTableColumns(
-    responseColumns: string[],
-  ): TableColumn<Record<string, string>>[] {
-    return [
-      ...responseColumns.map(
-        (c): TableColumn<Record<string, string>> => ({
-          key: c,
-          header: getStructureColumnLabel(c, p.structureSchema),
-        }),
-      ),
-      ...p.ui.contextColumns.map(
-        (ref): TableColumn<Record<string, string>> => ({
-          key: ref,
-          header: contextColumnLabel(ref),
-          render: (row) => row[ref] ?? "",
-        }),
-      ),
-      {
-        key: "_assign",
-        header: t3({ en: "Assign to", fr: "Réassigner à", pt: "Reatribuir a" }),
-        render: (row) => (
-          <Select
-            size="sm"
-            value={p.ui.assignments[column()!]?.[row.facility_id] ?? ""}
-            options={[keepAsIsOption, ...targetSelectOptions()]}
-            onChange={(v) => setAssignment(row.facility_id, v)}
-          />
-        ),
-      },
-    ];
-  }
+    Object.keys(normalizeRecodes(p.ui.assignments)).length > 0;
 
   const save = createFormAction(
     async () => {
@@ -445,170 +270,18 @@ export function Step4Recode(p: Props) {
           </div>
         }
       >
-        <Select
-          value={column()}
-          options={columnOptions().map((c) => ({
-            value: c,
-            label: getStructureColumnLabel(c, p.structureSchema),
-          }))}
-          onChange={onColumnChange}
-          label={t3({ en: "Column", fr: "Colonne", pt: "Coluna" })}
+        <RecodeEditor
+          ui={p.ui}
+          onUiChange={(patch) => p.setUi(patch)}
+          columns={columnOptions()}
+          columnLabel={(c) => getStructureColumnLabel(c, p.structureSchema)}
+          values={valuesState()}
+          rows={rowsState()}
+          contextColumnOptions={contextColumnOptions()}
+          contextColumnLabel={contextColumnLabel}
+          assignments={p.ui.assignments}
+          onAssign={setAssignment}
         />
-
-        <StateHolderWrapper state={valuesState()}>
-          {(valuesData) => (
-            <div class="ui-pad bg-base-200 ui-spy-sm rounded">
-              <div class="ui-text-heading">
-                {t3({
-                  en: "Which values need reassigning?",
-                  fr: "Quelles valeurs faut-il réassigner ?",
-                  pt: "Que valores precisam de reatribuição?",
-                })}
-              </div>
-              <For each={valuesData.values}>
-                {(v) => (
-                  <div class="ui-gap-sm flex items-center">
-                    <Checkbox
-                      checked={p.ui.checkedValues.includes(v.value)}
-                      onChange={(on) => toggleValue(v.value, on)}
-                      label={
-                        <span>
-                          {blankAwareLabel(v.value)}{" "}
-                          <span class="text-base-content-muted font-mono text-sm">
-                            ({toNum0(v.count)})
-                          </span>
-                        </span>
-                      }
-                    />
-                  </div>
-                )}
-              </For>
-              <Show when={valuesData.truncated}>
-                <div class="text-danger text-sm">
-                  {t3({
-                    en:
-                      "This column has more than 200 distinct values — only the 200 most frequent are shown and selectable.",
-                    fr:
-                      "Cette colonne compte plus de 200 valeurs distinctes — seules les 200 plus fréquentes sont affichées et sélectionnables.",
-                    pt:
-                      "Esta coluna tem mais de 200 valores distintos — apenas os 200 mais frequentes são mostrados e selecionáveis.",
-                  })}
-                </div>
-              </Show>
-            </div>
-          )}
-        </StateHolderWrapper>
-
-        <Show
-          when={p.ui.checkedValues.length > 0}
-          fallback={
-            <div class="text-base-content-muted text-sm">
-              {t3({
-                en:
-                  "Check one or more values above to list the affected facilities.",
-                fr:
-                  "Cochez une ou plusieurs valeurs ci-dessus pour lister les établissements concernés.",
-                pt:
-                  "Marque um ou mais valores acima para listar os estabelecimentos afetados.",
-              })}
-            </div>
-          }
-        >
-          <div class="ui-gap-sm flex items-end">
-            <Input
-              value={newCategory()}
-              onChange={setNewCategory}
-              label={t3({
-                en: "New category",
-                fr: "Nouvelle catégorie",
-                pt: "Nova categoria",
-              })}
-              size="sm"
-            />
-            <Button size="sm" onClick={addCustomTarget}>
-              {t3({ en: "Add", fr: "Ajouter", pt: "Adicionar" })}
-            </Button>
-          </div>
-
-          <Show when={p.csvDetails}>
-            <div class="ui-gap-sm flex items-end">
-              <Select
-                size="sm"
-                value={undefined}
-                options={contextColumnOptions()}
-                onChange={addContextColumn}
-                label={t3({
-                  en: "Show a column from your file",
-                  fr: "Afficher une colonne de votre fichier",
-                  pt: "Mostrar uma coluna do seu ficheiro",
-                })}
-                placeholder={t3({
-                  en: "Choose a column...",
-                  fr: "Choisir une colonne...",
-                  pt: "Escolher uma coluna...",
-                })}
-              />
-              <For each={p.ui.contextColumns}>
-                {(ref) => (
-                  <Button
-                    size="sm"
-                    iconName="x"
-                    onClick={() => removeContextColumn(ref)}
-                  >
-                    {contextColumnLabel(ref)}
-                  </Button>
-                )}
-              </For>
-            </div>
-          </Show>
-
-          <StateHolderWrapper state={rowsState()}>
-            {(rowsData) => (
-              <div class="ui-spy-sm">
-                <Table
-                  data={rowsData.rows}
-                  columns={buildTableColumns(rowsData.columns)}
-                  keyField="facility_id"
-                  paddingY="compact"
-                  maxHeight="60vh"
-                />
-
-                <Show when={rowsData.total > rowsData.rows.length}>
-                  <div class="text-danger text-sm">
-                    {t3({
-                      en: `Only the first ${toNum0(rowsData.rows.length)} of ${
-                        toNum0(rowsData.total)
-                      } facilities are shown — uncheck some values to narrow the list.`,
-                      fr: `Seuls les ${
-                        toNum0(rowsData.rows.length)
-                      } premiers établissements sur ${
-                        toNum0(rowsData.total)
-                      } sont affichés — décochez des valeurs pour restreindre la liste.`,
-                      pt: `Apenas os primeiros ${
-                        toNum0(rowsData.rows.length)
-                      } de ${
-                        toNum0(rowsData.total)
-                      } estabelecimentos são mostrados — desmarque alguns valores para restringir a lista.`,
-                    })}
-                  </div>
-                </Show>
-                <div class="text-sm">
-                  {t3({
-                    en: `${toNum0(assignedCount())} of ${
-                      toNum0(rowsData.total)
-                    } facilities assigned`,
-                    fr: `${toNum0(assignedCount())} sur ${
-                      toNum0(rowsData.total)
-                    } établissements assignés`,
-                    pt: `${toNum0(assignedCount())} de ${
-                      toNum0(rowsData.total)
-                    } estabelecimentos atribuídos`,
-                  })}
-                </div>
-              </div>
-            )}
-          </StateHolderWrapper>
-        </Show>
 
         <Show when={!p.step3Result.stagingNonce}>
           <div class="text-danger text-sm">

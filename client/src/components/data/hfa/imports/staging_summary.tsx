@@ -1,18 +1,8 @@
-import {
-  type AdminAreaColumn,
-  type DatasetHfaCsvStagingResult,
-  type DisaggregationOption,
-  type HfaFacilityColumnGroup,
-  t3,
-} from "lib";
+import { type DatasetHfaCsvStagingResult, t3 } from "lib";
 import { plural, toNum0 } from "panther";
 import { For, Show } from "solid-js";
-import {
-  getAdminAreaLabel,
-  getAdminAreaLabelForLevel,
-  getDisplayDisaggregationLabel,
-} from "~/state/instance/_util_disaggregation_label";
-import { instanceState } from "~/state/instance/t1_store";
+import { getAdminAreaLabelForLevel } from "~/state/instance/_util_disaggregation_label";
+import { facilityColumnLabel } from "./facility_column_label.ts";
 
 type Props = {
   result: DatasetHfaCsvStagingResult;
@@ -252,32 +242,6 @@ export function HfaStagingSummary(p: Props) {
         </div>
       </div>
     </div>
-  );
-}
-
-function facilityColumnLabel(
-  column: HfaFacilityColumnGroup | AdminAreaColumn,
-): string {
-  if (column === "admin") {
-    return t3({
-      en: "Admin areas",
-      fr: "Unités administratives",
-      pt: "Zonas administrativas",
-    });
-  }
-  if (column === "facility_name") {
-    return instanceState.structureSchemaHfa?.labelNames ||
-      t3({
-        en: "Facility name",
-        fr: "Nom de l'établissement",
-        pt: "Nome do estabelecimento",
-      });
-  }
-  if (column === "admin_area_1") {
-    return t3(getAdminAreaLabel(1));
-  }
-  return t3(
-    getDisplayDisaggregationLabel(column satisfies DisaggregationOption, "hfa"),
   );
 }
 

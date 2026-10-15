@@ -1,12 +1,23 @@
 import {
+  _RECODABLE_FACILITY_COLUMNS,
+  decodeRawCsvHeader,
   encodeRawCsvHeader,
   findEncodedCsvHeader,
-  HFA_CORE_FACILITY_ID_COLUMN,
+  findFirstEncodedCsvHeaderWithValues,
+  getCountryLabel,
+  hashStructureSchema,
+  HFA_CORE_FACILITY_ID_COLUMNS,
   type HfaCsvMappingParams,
   type HfaDedupOverride,
   type HfaDuplicateGroup,
   type HfaDuplicatePreview,
+  type HfaFacilityColumnGroup,
+  type HfaFacilityColumns,
+  type HfaFacilityColumnsPreview,
+  type OptionalFacilityColumn,
+  type StructureRecodableColumn,
   t3,
+  TC,
 } from "lib";
 import {
   AlertComponentProps,
@@ -20,34 +31,144 @@ import {
   RadioGroup,
   Select,
   SelectSearch,
+  type StateHolder,
   StepperChipsWithTitles,
 } from "panther";
-import { createMemo, createSignal, For, Show } from "solid-js";
-import { createStore, unwrap } from "solid-js/store";
+import {
+  batch,
+  createEffect,
+  createMemo,
+  createSignal,
+  For,
+  on,
+  Show,
+  untrack,
+} from "solid-js";
+import { createStore, reconcile, unwrap } from "solid-js/store";
 import { serverActions } from "~/server_actions";
 import { FileUploadSelector } from "~/components/_shared/mod.ts";
-import { instanceState } from "~/state/instance/t1_store";
+import {
+  instanceState,
+  structureSchemaForFamily,
+} from "~/state/instance/t1_store";
+import { getStructureItemsFromCacheOrFetch } from "~/state/instance/t2_structure";
+import {
+  createHfaFacilityChangesState,
+  FacilityChangesStep,
+} from "./facility_changes_step.tsx";
+import { facilityColumnLabel } from "./facility_column_label.ts";
+import {
+  FacilityColumnsStep,
+  hfaFacilityColumnsProblem,
+  type HfaPrefills,
+  type HfaPrefillSource,
+  prefillHfaFacilityColumns,
+} from "./facility_columns_step.tsx";
 
 export type HfaWizardResult = { launched: true };
 
-type StepKind = "upload" | "mappings" | "duplicates" | "review";
+type StepKind =
+  | "upload"
+  | "mappings"
+  | "facilityColumns"
+  | "duplicates"
+  | "changes"
+  | "review";
 
-const STEPS: StepKind[] = ["upload", "mappings", "duplicates", "review"];
+const STEPS: StepKind[] = [
+  "upload",
+  "mappings",
+  "facilityColumns",
+  "duplicates",
+  "changes",
+  "review",
+];
+
+const EMPTY_FACILITY_COLUMNS: HfaFacilityColumns = {
+  adminArea1: { value: "" },
+  adminAreas: [],
+  optional: {},
+};
+
+type PrefillInputs = {
+  latest: HfaCsvMappingParams | null;
+  adminArea1: { value: string; source: HfaPrefillSource };
+};
+
+function registryIsEmpty(): boolean {
+  return (instanceState.structure?.hfa.facilities ?? 0) === 0;
+}
+
+// Level 1 is the registry's own value while it has facilities, else the
+// instance's country.
+async function getAdminArea1Prefill(): Promise<PrefillInputs["adminArea1"]> {
+  const country = {
+    value: getCountryLabel(instanceState.countryIso3 ?? ""),
+    source: "country" as const,
+  };
+  const lastUpdated = instanceState.structureLastUpdated;
+  if (registryIsEmpty() || !lastUpdated) {
+    return country;
+  }
+  const res = await getStructureItemsFromCacheOrFetch(
+    "hfa",
+    lastUpdated,
+    hashStructureSchema(structureSchemaForFamily("hfa")),
+  );
+  const value = res.success ? res.data.items.at(0)?.admin_area_1 : undefined;
+  return value ? { value, source: "registry" } : country;
+}
+
+async function getPrefillInputs(): Promise<PrefillInputs> {
+  const [latest, adminArea1] = await Promise.all([
+    serverActions.getDatasetHfaLatestMappings({}),
+    getAdminArea1Prefill(),
+  ]);
+  return { latest: latest.success ? latest.data : null, adminArea1 };
+}
+
+// The latest complete run's facility id column where this file has it with
+// values, else the first questionnaire id column with values.
+function prefillFacilityIdColumn(
+  rawHeaders: string[],
+  headersWithValues: string[],
+  latest: HfaCsvMappingParams | null,
+): { column: string; source: HfaPrefillSource } | undefined {
+  const fromLatest = latest
+    ? findEncodedCsvHeader(
+      rawHeaders,
+      decodeRawCsvHeader(latest.facilityIdColumn),
+    )
+    : "";
+  if (fromLatest && headersWithValues.includes(fromLatest)) {
+    return { column: fromLatest, source: "latest" };
+  }
+  const fromName = findFirstEncodedCsvHeaderWithValues(
+    rawHeaders,
+    HFA_CORE_FACILITY_ID_COLUMNS,
+    headersWithValues,
+  );
+  return fromName ? { column: fromName, source: "name" } : undefined;
+}
 
 // The HFA import wizard: a modal with client-local state: the file inputs are
 // ordinary instance assets (uploaded or picked), so nothing persists
-// server-side before launch. Launch inserts a
-// run row; abandoning this wizard is a no-op by construction.
+// server-side before launch. Launch inserts a run row; abandoning this wizard
+// is a no-op by construction.
 export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
   const [csvFileName, setCsvFileName] = createSignal<string>("");
   const [xlsFormFileName, setXlsFormFileName] = createSignal<string>("");
-  const [headers, setHeaders] = createSignal<string[]>([]);
+  const [rawHeaders, setRawHeaders] = createSignal<string[]>([]);
   const [parseError, setParseError] = createSignal<string>("");
   const [preview, setPreview] = createSignal<HfaDuplicatePreview | undefined>(
     undefined,
   );
-  const [previewError, setPreviewError] = createSignal<string>("");
+  const [stepError, setStepError] = createSignal<string>("");
   const [scanning, setScanning] = createSignal<boolean>(false);
+  const [prefills, setPrefills] = createSignal<HfaPrefills>({});
+  const [columnsPreview, setColumnsPreview] = createSignal<
+    StateHolder<HfaFacilityColumnsPreview>
+  >({ status: "loading", msg: t3(TC.fetchingData) });
 
   const [mappings, setMappings] = createStore<HfaCsvMappingParams>({
     facilityIdColumn: "",
@@ -55,22 +176,53 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
     rowFilters: [],
     dedupStrategy: "first",
     dedupOverrides: [],
-    facilityColumns: {
-      adminArea1: { value: "" },
-      adminAreas: [],
-      optional: {},
-    },
+    facilityColumns: structuredClone(EMPTY_FACILITY_COLUMNS),
     facilityChanges: [],
     recodes: {},
   });
+
+  const prefillInputs = getPrefillInputs();
+  // A new CSV is pre-filled once its headers are parsed; a new XLSForm keeps
+  // the column choices.
+  let columnsNeedPrefill = true;
+
+  const schema = () => structureSchemaForFamily("hfa");
+  const headers = createMemo(() =>
+    rawHeaders().map((v, i) => encodeRawCsvHeader(i, v))
+  );
+
+  // The scan every facility preview reads: the kept row of each facility,
+  // through the facility columns.
+  function scanBody() {
+    return {
+      csvFileName: csvFileName(),
+      xlsFormFileName: xlsFormFileName(),
+      facilityIdColumn: mappings.facilityIdColumn,
+      rowFilters: structuredClone(unwrap(mappings.rowFilters)),
+      dedupStrategy: mappings.dedupStrategy,
+      dedupOverrides: structuredClone(unwrap(mappings.dedupOverrides)),
+      facilityColumns: structuredClone(unwrap(mappings.facilityColumns)),
+    };
+  }
+
+  const changes = createHfaFacilityChangesState((args) =>
+    serverActions.previewDatasetHfaFacilityChanges({
+      ...untrack(scanBody),
+      timePoint: untrack(() => mappings.timePoint),
+      facilityChanges: args.decisions,
+      contextHeaders: args.contextHeaders,
+    })
+  );
 
   // Both files must be present before the headers can be parsed (the parse
   // call also validates the XLSForm's sheets).
   async function parseIfReady() {
     const csv = csvFileName();
     const xlsForm = xlsFormFileName();
-    setHeaders([]);
-    setParseError("");
+    batch(() => {
+      setRawHeaders([]);
+      setParseError("");
+    });
     if (!csv || !xlsForm) {
       return;
     }
@@ -78,40 +230,128 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
       csvFileName: csv,
       xlsFormFileName: xlsForm,
     });
+    const inputs = await prefillInputs;
     // A file changed while this parse was in flight: its headers belong to
     // files no longer selected, and the newer parse will supply the right ones.
     if (csv !== csvFileName() || xlsForm !== xlsFormFileName()) {
       return;
     }
-    if (res.success) {
-      setHeaders(res.data.headers.map((v, i) => encodeRawCsvHeader(i, v)));
-      if (mappings.facilityIdColumn === "") {
-        setMappings(
-          "facilityIdColumn",
-          findEncodedCsvHeader(res.data.headers, HFA_CORE_FACILITY_ID_COLUMN),
-        );
-      }
-    } else {
+    if (!res.success) {
       setParseError(res.err);
+      return;
     }
+    batch(() => {
+      setRawHeaders(res.data.headers);
+      let next: HfaPrefills = {};
+      if (mappings.facilityIdColumn === "") {
+        const id = prefillFacilityIdColumn(
+          res.data.headers,
+          res.data.headersWithValues,
+          inputs.latest,
+        );
+        if (id) {
+          setMappings("facilityIdColumn", id.column);
+          next.facility_id = id.source;
+        }
+      }
+      if (columnsNeedPrefill) {
+        columnsNeedPrefill = false;
+        const prefilled = prefillHfaFacilityColumns({
+          rawHeaders: res.data.headers,
+          latest: inputs.latest?.facilityColumns,
+          schema: schema(),
+          adminArea1: inputs.adminArea1,
+        });
+        setMappings("facilityColumns", reconcile(prefilled.facilityColumns));
+        next = { ...next, ...prefilled.prefills };
+      }
+      setPrefills((prev) => ({ ...prev, ...next }));
+    });
+  }
+
+  function clearPrefill(key: string) {
+    setPrefills((prev) => {
+      const { [key]: _, ...rest } = prev;
+      return rest;
+    });
+  }
+
+  let columnsRunId = 0;
+  async function fetchColumnsPreview() {
+    const runId = ++columnsRunId;
+    setColumnsPreview({ status: "loading", msg: t3(TC.fetchingData) });
+    const res = await serverActions.previewDatasetHfaFacilityColumns(
+      scanBody(),
+    );
+    if (runId !== columnsRunId) {
+      return;
+    }
+    setColumnsPreview(
+      res.success
+        ? { status: "ready", data: res.data }
+        : { status: "error", err: res.err },
+    );
   }
 
   // Editing the facility column or any filter invalidates the duplicate
-  // structure the picks were made against.
+  // structure the picks were made against, and every facility read after it.
   function resetDownstream() {
-    setPreview(undefined);
-    setPreviewError("");
-    setMappings("dedupOverrides", []);
+    batch(() => {
+      setPreview(undefined);
+      setStepError("");
+      setMappings("dedupOverrides", []);
+      changes.invalidate();
+    });
   }
 
   // A new CSV means new headers, so every column choice made against the old
   // ones is stale: clear them rather than launching with a dangling column.
   function resetColumnChoices() {
-    resetDownstream();
-    setMappings({ facilityIdColumn: "", rowFilters: [] });
+    columnsNeedPrefill = true;
+    batch(() => {
+      resetDownstream();
+      setPrefills({});
+      setMappings({
+        facilityIdColumn: "",
+        rowFilters: [],
+        facilityColumns: structuredClone(EMPTY_FACILITY_COLUMNS),
+      });
+      setMappings("recodes", reconcile({}));
+    });
   }
 
-  const csvHeaders = () => headers();
+  function setFacilityIdColumn(val: string) {
+    batch(() => {
+      resetDownstream();
+      clearPrefill("facility_id");
+      setMappings("facilityIdColumn", val);
+    });
+  }
+
+  function setFacilityColumns(next: HfaFacilityColumns, editedPicker: string) {
+    batch(() => {
+      setMappings("facilityColumns", reconcile(next));
+      clearPrefill(editedPicker);
+      changes.invalidate();
+    });
+    if (editedPicker !== "admin_area_1") {
+      void fetchColumnsPreview();
+    }
+  }
+
+  // setStore with an object MERGES, so a copy-with-deleted-key would never
+  // clear anything: deletion must be an explicit undefined write at the leaf.
+  function setRecode(
+    column: StructureRecodableColumn,
+    facilityId: string,
+    value: string,
+  ) {
+    if (value !== "") {
+      setMappings("recodes", column, { [facilityId]: value });
+    } else if (mappings.recodes[column]) {
+      setMappings("recodes", column, facilityId, undefined as never);
+    }
+  }
 
   const timePointOptions = () =>
     [...instanceState.hfaTimePoints]
@@ -128,11 +368,21 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
     mappings.timePoint !== "" &&
     mappings.rowFilters.every((f) => f.column !== "" && f.value.trim() !== "");
 
+  const facilityColumnsProblem = () =>
+    hfaFacilityColumnsProblem(
+      mappings.facilityColumns,
+      schema().adminDepth,
+      registryIsEmpty(),
+    );
+
   const stepperData = createMemo(() => ({
     uploadValid: csvFileName() !== "" &&
       xlsFormFileName() !== "" &&
-      headers().length > 0,
+      rawHeaders().length > 0,
     mappingsValid: mappingsComplete(),
+    facilityColumnsValid: facilityColumnsProblem() === undefined,
+    changesValid: changes.review() !== undefined &&
+      changes.problem() === undefined,
   }));
 
   const stepper = getStepper(stepperData, {
@@ -140,27 +390,41 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
     minStep: 0,
     maxStep: STEPS.length - 1,
     getValidation: (step, data) => {
-      const kind = STEPS[step];
-      if (kind === "upload") {
-        return { canGoPrev: false, canGoNext: data.uploadValid };
+      switch (STEPS[step]) {
+        case "upload":
+          return { canGoPrev: false, canGoNext: data.uploadValid };
+        case "mappings":
+          return { canGoPrev: true, canGoNext: data.mappingsValid };
+        case "facilityColumns":
+          return { canGoPrev: true, canGoNext: data.facilityColumnsValid };
+        case "duplicates":
+          return { canGoPrev: true, canGoNext: true };
+        case "changes":
+          return { canGoPrev: true, canGoNext: data.changesValid };
+        case "review":
+          return { canGoPrev: true, canGoNext: false };
       }
-      if (kind === "mappings") {
-        return { canGoPrev: true, canGoNext: data.mappingsValid };
-      }
-      if (kind === "duplicates") {
-        return { canGoPrev: true, canGoNext: true };
-      }
-      return { canGoPrev: true, canGoNext: false };
     },
   });
 
   const currentStepKind = () => STEPS[stepper.currentStep()];
   const isLastStep = () => currentStepKind() === "review";
 
+  // The kept rows depend on the duplicate picks made after this step, so the
+  // preview is read again on every visit.
+  createEffect(on(currentStepKind, (kind) => {
+    setStepError("");
+    if (kind === "facilityColumns") {
+      void untrack(fetchColumnsPreview);
+    }
+  }));
+
   const stepLabels = [
     t3({ en: "Upload", fr: "Téléversement", pt: "Carregamento" }),
     t3({ en: "Mappings", fr: "Correspondances", pt: "Correspondências" }),
+    t3({ en: "Facilities", fr: "Établissements", pt: "Estabelecimentos" }),
     t3({ en: "Duplicates", fr: "Doublons", pt: "Duplicados" }),
+    t3({ en: "Changes", fr: "Modifications", pt: "Alterações" }),
     t3({
       en: "Review & launch",
       fr: "Vérifier et lancer",
@@ -168,47 +432,85 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
     }),
   ];
 
-  async function goNextFromMappings() {
-    const csv = csvFileName();
-    if (!csv || scanning()) {
-      return;
-    }
+  async function scanDuplicates() {
     setScanning(true);
-    setPreviewError("");
+    setStepError("");
     const res = await serverActions.previewDatasetHfaDuplicates({
-      csvFileName: csv,
+      csvFileName: csvFileName(),
       facilityIdColumn: mappings.facilityIdColumn,
       rowFilters: structuredClone(unwrap(mappings.rowFilters)),
     });
-    setScanning(false);
-    if (!res.success) {
-      setPreviewError(res.err);
-      return;
-    }
-    setPreview(res.data);
-    stepper.goNext();
+    batch(() => {
+      setScanning(false);
+      if (!res.success) {
+        setStepError(res.err);
+        return;
+      }
+      setPreview(res.data);
+      stepper.goNext();
+    });
   }
 
-  // Chip clicks must never bypass the duplicates scan: without this handler
-  // the stepper chips call setCurrentStep directly, so clicking the
-  // "Duplicates" chip from the mappings step would skip goNextFromMappings
-  // and launch with unreviewed duplicates.
+  async function loadChanges() {
+    setScanning(true);
+    setStepError("");
+    const err = await changes.load(
+      structuredClone(unwrap(mappings.facilityColumns)),
+      rawHeaders(),
+    );
+    batch(() => {
+      setScanning(false);
+      if (err !== undefined) {
+        setStepError(err);
+        return;
+      }
+      stepper.goNext();
+    });
+  }
+
+  // The decisions ride the mappings from here: every change decided, and the
+  // recodes only on the cells the import writes from the file.
+  function commitChanges() {
+    batch(() => {
+      setMappings("facilityChanges", changes.decisions());
+      setMappings(
+        "recodes",
+        reconcile(changes.prunedRecodes(unwrap(mappings.recodes))),
+      );
+      stepper.goNext();
+    });
+  }
+
+  // The Next button's action for the current step. Facility reads run on the
+  // way forward, so a step is never shown over reads of stale choices.
+  function goNext() {
+    if (!stepper.canGoNext() || scanning()) {
+      return;
+    }
+    switch (currentStepKind()) {
+      case "facilityColumns":
+        void scanDuplicates();
+        return;
+      case "duplicates":
+        void loadChanges();
+        return;
+      case "changes":
+        commitChanges();
+        return;
+      default:
+        stepper.goNext();
+    }
+  }
+
+  // Chip clicks must never bypass a step's reads: only current+1 is ever
+  // clickable forward, so it runs exactly the Next button's action.
   function onStepClick(step: number) {
     const current = stepper.currentStep();
-    if (step === current) {
-      return;
-    }
     if (step < current) {
       stepper.setCurrentStep(step);
-      return;
+    } else if (step === current + 1) {
+      goNext();
     }
-    // Forward: only current+1 is ever clickable, so this is exactly the
-    // Next button's action for the current step.
-    if (currentStepKind() === "mappings") {
-      void goNextFromMappings();
-      return;
-    }
-    stepper.goNext();
   }
 
   function rulePick(group: HfaDuplicateGroup): number {
@@ -221,16 +523,22 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
     const withoutGroup = mappings.dedupOverrides.filter(
       (o) => o.facilityId !== group.facilityId,
     );
-    setMappings(
-      "dedupOverrides",
-      keepRow === rulePick(group)
-        ? withoutGroup
-        : [...withoutGroup, { facilityId: group.facilityId, keepRow }],
-    );
+    batch(() => {
+      changes.invalidate();
+      setMappings(
+        "dedupOverrides",
+        keepRow === rulePick(group)
+          ? withoutGroup
+          : [...withoutGroup, { facilityId: group.facilityId, keepRow }],
+      );
+    });
   }
 
   function setStrategy(dedupStrategy: "first" | "last") {
-    setMappings({ dedupStrategy, dedupOverrides: [] as HfaDedupOverride[] });
+    batch(() => {
+      changes.invalidate();
+      setMappings({ dedupStrategy, dedupOverrides: [] as HfaDedupOverride[] });
+    });
   }
 
   const submit = createFormAction(
@@ -259,6 +567,43 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
       p.close({ launched: true });
     },
   );
+
+  const mappedFacilityColumns = () => [
+    ...mappings.facilityColumns.adminAreas.map((a) => ({
+      label: facilityColumnLabel(`admin_area_${a.level}`),
+      headers: a,
+    })),
+    ...Object.entries(mappings.facilityColumns.optional).map((
+      [column, headers],
+    ) => ({
+      label: facilityColumnLabel(column as OptionalFacilityColumn),
+      headers,
+    })),
+  ];
+
+  const changeCounts = () => {
+    const counts = new Map<
+      HfaFacilityColumnGroup,
+      { taken: number; kept: number }
+    >();
+    for (const d of mappings.facilityChanges) {
+      const c = counts.get(d.column) ?? { taken: 0, kept: 0 };
+      const nOther = d.exceptions.length;
+      const nMain = d.facilityIds.length - nOther;
+      const taken = d.decision === "take" ? nMain : nOther;
+      counts.set(d.column, {
+        taken: c.taken + taken,
+        kept: c.kept + d.facilityIds.length - taken,
+      });
+    }
+    return [...counts].map(([column, c]) => ({ column, ...c }));
+  };
+
+  const nRecodes = () =>
+    _RECODABLE_FACILITY_COLUMNS.reduce(
+      (sum, c) => sum + Object.keys(mappings.recodes[c] ?? {}).length,
+      0,
+    );
 
   return (
     <ModalContainer
@@ -305,9 +650,7 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
           : [
             {
               label: t3({ en: "Next", fr: "Suivant", pt: "Seguinte" }),
-              onClick: currentStepKind() === "mappings"
-                ? goNextFromMappings
-                : stepper.goNext,
+              onClick: goNext,
               disabled: !stepper.canGoNext() || scanning(),
             },
           ]),
@@ -395,15 +738,29 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
                     pt:
                       "Selecione a coluna que contém os ID dos estabelecimentos",
                   })}
-                  options={getSelectOptions(csvHeaders())}
+                  options={getSelectOptions(headers())}
                   value={mappings.facilityIdColumn}
-                  onChange={(val) => {
-                    resetDownstream();
-                    setMappings("facilityIdColumn", val);
-                  }}
+                  onChange={setFacilityIdColumn}
                   fullWidth
                 />
               </div>
+              <Show when={prefills().facility_id}>
+                <div class="text-base-content-muted text-sm">
+                  {prefills().facility_id === "latest"
+                    ? t3({
+                      en: "From the latest import",
+                      fr: "De la dernière importation",
+                      pt: "Da última importação",
+                    })
+                    : t3({
+                      en: "The first questionnaire id column with values",
+                      fr:
+                        "La première colonne d'identifiant du questionnaire qui contient des valeurs",
+                      pt:
+                        "A primeira coluna de identificador do questionário com valores",
+                    })}
+                </div>
+              </Show>
             </div>
             <div>
               <h3 class="ui-text-heading mb-2">
@@ -424,7 +781,11 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
                   })}
                   options={timePointOptions()}
                   value={mappings.timePoint}
-                  onChange={(val) => setMappings("timePoint", val)}
+                  onChange={(val) =>
+                    batch(() => {
+                      changes.invalidate();
+                      setMappings("timePoint", val);
+                    })}
                   fullWidth
                 />
               </div>
@@ -453,7 +814,7 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
                     <div class="ui-gap-sm flex items-center">
                       <div class="w-80">
                         <SelectSearch
-                          options={getSelectOptions(csvHeaders())}
+                          options={getSelectOptions(headers())}
                           value={filter.column}
                           onChange={(val) => {
                             resetDownstream();
@@ -535,10 +896,22 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
                 </Button>
               </div>
             </div>
-            <Show when={previewError()}>
-              <div class="text-danger text-sm">{previewError()}</div>
-            </Show>
           </div>
+        </Show>
+
+        <Show when={currentStepKind() === "facilityColumns"}>
+          <FacilityColumnsStep
+            encodedHeaders={headers()}
+            schema={schema()}
+            facilityColumns={mappings.facilityColumns}
+            prefills={prefills()}
+            registryIsEmpty={registryIsEmpty()}
+            preview={columnsPreview()}
+            onChange={setFacilityColumns}
+          />
+          <Show when={facilityColumnsProblem()}>
+            {(problem) => <div class="text-danger text-sm">{problem()}</div>}
+          </Show>
         </Show>
 
         <Show when={currentStepKind() === "duplicates"}>
@@ -649,6 +1022,24 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
           </Show>
         </Show>
 
+        <Show when={currentStepKind() === "changes"}>
+          <FacilityChangesStep
+            state={changes}
+            facilityColumns={mappings.facilityColumns}
+            encodedHeaders={headers()}
+            facilityIdColumn={mappings.facilityIdColumn}
+            recodes={mappings.recodes}
+            onAssign={setRecode}
+          />
+          <Show when={changes.problem()}>
+            {(problem) => <div class="text-danger text-sm">{problem()}</div>}
+          </Show>
+        </Show>
+
+        <Show when={stepError()}>
+          <div class="text-danger text-sm">{stepError()}</div>
+        </Show>
+
         <Show when={currentStepKind() === "review"}>
           <div class="ui-spy-sm text-sm">
             <div class="flex items-baseline">
@@ -679,7 +1070,7 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
                   pt: "Colunas no ficheiro",
                 })}
               </div>
-              <div class="flex-1">{headers().length}</div>
+              <div class="flex-1">{rawHeaders().length}</div>
             </div>
             <div class="flex items-baseline">
               <div class="w-56 flex-none">
@@ -731,14 +1122,87 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
                   : ""}
               </div>
             </div>
+            <div class="flex items-baseline">
+              <div class="w-56 flex-none">
+                {facilityColumnLabel("admin_area_1")}
+              </div>
+              <div class="flex-1">
+                {mappings.facilityColumns.adminArea1.value}
+              </div>
+            </div>
+            <For each={mappedFacilityColumns()}>
+              {(c) => (
+                <div class="flex items-baseline">
+                  <div class="w-56 flex-none">{c.label}</div>
+                  <div class="flex-1 font-mono">
+                    {c.headers.header}
+                    {c.headers.correctionHeader
+                      ? ` (${
+                        t3({
+                          en: "corrected by",
+                          fr: "corrigée par",
+                          pt: "corrigida por",
+                        })
+                      } ${c.headers.correctionHeader})`
+                      : ""}
+                  </div>
+                </div>
+              )}
+            </For>
+            <Show when={changes.review()}>
+              {(review) => (
+                <div class="flex items-baseline">
+                  <div class="w-56 flex-none">
+                    {t3({
+                      en: "New facilities",
+                      fr: "Nouveaux établissements",
+                      pt: "Novos estabelecimentos",
+                    })}
+                  </div>
+                  <div class="flex-1">{review().preview.match.new}</div>
+                </div>
+              )}
+            </Show>
+            <For each={changeCounts()}>
+              {(c) => (
+                <div class="flex items-baseline">
+                  <div class="w-56 flex-none">
+                    {t3({
+                      en: `Changes: ${facilityColumnLabel(c.column)}`,
+                      fr: `Modifications : ${facilityColumnLabel(c.column)}`,
+                      pt: `Alterações: ${facilityColumnLabel(c.column)}`,
+                    })}
+                  </div>
+                  <div class="flex-1">
+                    {t3({
+                      en: `${c.taken} taken, ${c.kept} kept`,
+                      fr: `${c.taken} prises, ${c.kept} conservées`,
+                      pt: `${c.taken} aceites, ${c.kept} mantidas`,
+                    })}
+                  </div>
+                </div>
+              )}
+            </For>
+            <Show when={nRecodes() > 0}>
+              <div class="flex items-baseline">
+                <div class="w-56 flex-none">
+                  {t3({
+                    en: "Reassigned values",
+                    fr: "Valeurs réassignées",
+                    pt: "Valores reatribuídos",
+                  })}
+                </div>
+                <div class="flex-1">{nRecodes()}</div>
+              </div>
+            </Show>
             <div>
               {t3({
                 en:
-                  "This replaces all existing data for the selected time point. Staging validates every row; a fully clean file integrates automatically, while dropped rows hold the import for your review before anything is merged.",
+                  "This replaces all existing data for the selected time point and writes the new facilities and the changes you took to the HFA facility list. A file whose every row has a facility id, and whose new facilities all have complete admin areas, integrates automatically; otherwise the import waits for your review before anything is written.",
                 fr:
-                  "Ceci remplace toutes les données existantes du point temporel sélectionné. La préparation valide chaque ligne ; un fichier entièrement valide s'intègre automatiquement, tandis que des lignes rejetées mettent l'importation en attente de votre vérification avant toute fusion.",
+                  "Ceci remplace toutes les données existantes du point temporel sélectionné et écrit les nouveaux établissements et les modifications que vous avez prises dans la liste des établissements HFA. Un fichier dont chaque ligne a un identifiant d'établissement, et dont les nouveaux établissements ont tous des unités administratives complètes, s'intègre automatiquement ; sinon, l'importation attend votre vérification avant toute écriture.",
                 pt:
-                  "Isto substitui todos os dados existentes do ponto temporal selecionado. A preparação valida todas as linhas; um ficheiro totalmente válido integra-se automaticamente, enquanto linhas rejeitadas colocam a importação em espera para a sua revisão antes de qualquer fusão.",
+                  "Isto substitui todos os dados existentes do ponto temporal selecionado e escreve os novos estabelecimentos e as alterações que aceitou na lista de estabelecimentos HFA. Um ficheiro em que todas as linhas têm um identificador de estabelecimento, e cujos novos estabelecimentos têm todos zonas administrativas completas, integra-se automaticamente; caso contrário, a importação aguarda a sua revisão antes de qualquer escrita.",
               })}
             </div>
           </div>
