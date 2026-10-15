@@ -227,16 +227,6 @@ defineRoute(
   log("importHfaFacilityWeights"),
   async (c, { body }) => {
     const mainDb = c.var.mainDb;
-    const [{ count }] = await mainDb<{ count: number }[]>`
-      SELECT COUNT(*)::int AS count FROM facilities_hfa
-    `;
-    if (count === 0) {
-      return c.json({
-        success: false,
-        err:
-          "No HFA facilities found. Import HFA facilities before importing weights.",
-      });
-    }
     const res = await importHfaFacilityWeights(
       mainDb,
       body.assetFileName,

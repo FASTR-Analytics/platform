@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type {
   HfaFacilityColumnGroup,
+  HfaFacilityIdSample,
   HfaFacilitySource,
   HfaOrphanedScopeArea,
 } from "./dataset_hfa_import.ts";
@@ -263,9 +264,12 @@ export type HfaWeightsCoverage = {
   facilitiesWithDataAndWeight: number;
 };
 
+// facilitiesNotInRegistry: the weighted facility ids the HFA registry lacks,
+// skipped, in file order.
 export type HfaFacilityWeightsImportResult = {
   rowsImported: number;
   rowsSkippedNoWeight: number;
+  facilitiesNotInRegistry: HfaFacilityIdSample;
   timePointsCovered: string[];
   // Absent when the import mapped no stratum column.
   strata?: { count: number; rowsWithoutStratum: number };

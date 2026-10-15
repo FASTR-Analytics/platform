@@ -247,21 +247,27 @@ which is why `deleteFamilyFacilities` refuses while any weights exist and
 `replace_all` refuses when an absent facility has them.
 
 **Weights** (`hfa_facility_weights`, facility × time_point): written ONLY by the
-structure-import UI's weights wizard, never by HFA data ingestion. Import is
-long-format (two user-mapped columns: facility id + weight, plus an optional
-stratum column, pre-ticked when the file has a `stratum` header; the facility id
-defaults to the first of `id_fac_txt` and `id_fac` that holds a value, which the
-headers route reports as `headersWithValues`), one time point per import,
-wholesale replace for that time point, positive weights only; a blank weight
-cell = not-in-sample (absence is the representation). Each weighted row stores
-its sampling stratum as trimmed text, NULL when the cell is blank or no stratum
-column was mapped (a CHECK rejects the empty string). The strata are stored and
-shown only: the run extract carries `weight` and not the stratum, so no module
-reads them. The export is wide: one column per time point, plus a
-`<label> stratum` column after each time point that holds any stratum.
-Duplicates and non-positive weights reject the whole file before the
-transaction; unknown facility ids reject it inside the transaction, before any
-write.
+weights import (`importHfaFacilityWeights`, the HFA weights page's wizard),
+never by HFA data ingestion. A round's weights come from its sampling frame, a
+file of their own, imported after the round's data, whose import creates the
+facilities. Import is long-format (two user-mapped columns: facility id +
+weight, plus an optional stratum column, pre-ticked when the file has a
+`stratum` header; the facility id defaults to the first of `id_fac_txt` and
+`id_fac` that holds a value, which the headers route reports as
+`headersWithValues`), one time point per import, wholesale replace for that time
+point, positive weights only; a blank weight cell = not-in-sample (absence is
+the representation). Each weighted row stores its sampling stratum as trimmed
+text, NULL when the cell is blank or no stratum column was mapped (a CHECK
+rejects the empty string). The strata are stored and shown only: the run extract
+carries `weight` and not the stratum, so no module reads them. The export is
+wide: one column per time point, plus a `<label> stratum` column after each time
+point that holds any stratum. Duplicates and non-positive weights reject the
+whole file before the transaction. Inside it, a weighted facility id the HFA
+registry lacks is skipped and reported (`facilitiesNotInRegistry`: the count and
+the first 10 ids, in file order); the import refuses, before any write, only
+when none of the weighted ids is in the registry, and the message says to import
+the time point's data first. The wizard's upload step names that order, and its
+result lists the skipped ids.
 
 **`structure_last_updated`** (JSON ISO timestamp in `instance_config`) is the
 version key for the whole structure world: S6's HMIS/HFA captures record it in

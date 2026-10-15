@@ -18,10 +18,14 @@ import { tryCatchDatabaseAsync } from "../utils.ts";
 // in this round's sample: nothing is stored (absence is the representation).
 // A blank stratum cell on a weighted row stores NULL.
 // Import replaces all stored weights and strata for the selected time point
-// wholesale.
+// wholesale. A facility the HFA registry lacks is skipped and reported: the
+// weights come from the sampling frame, which can list facilities the round's
+// data does not, and facilities are created only by the data import.
 
 // Keep batches well under Postgres's 65,534-parameter limit (4 params per row)
 const UPSERT_BATCH_SIZE = 5000;
+
+const UNKNOWN_FACILITY_SAMPLE_SIZE = 10;
 
 export async function getHfaWeightsCoverage(
   mainDb: Sql,
@@ -278,34 +282,31 @@ export async function importHfaFacilityWeights(
         sql: Sql,
       ): Promise<APIResponseWithData<HfaFacilityWeightsImportResult>> => {
         // Existence check inside the write transaction, so a facility deleted
-        // between check and insert surfaces as this rejection, not a raw FK error
+        // between check and insert is skipped, not a raw FK error
         const knownFacilities = new Set(
           (await sql<
             { facility_id: string }[]
           >`SELECT facility_id FROM facilities_hfa`)
             .map((r) => r.facility_id),
         );
-        const unknownFacilities = [
-          ...new Set(
-            rows.filter((r) => !knownFacilities.has(r.facility_id)).map((r) =>
-              r.facility_id
-            ),
-          ),
-        ];
-        if (unknownFacilities.length > 0) {
+        const knownRows = rows.filter((r) =>
+          knownFacilities.has(r.facility_id)
+        );
+        const unknownFacilities = rows
+          .filter((r) => !knownFacilities.has(r.facility_id))
+          .map((r) => r.facility_id);
+        if (knownRows.length === 0) {
           return {
             success: false,
             err:
-              `${unknownFacilities.length} facility ID(s) not in the HFA registry. First: ${
-                unknownFacilities.slice(0, 10).join(", ")
-              }`,
+              `None of the ${rows.length} facility ID(s) with a weight is an HFA facility. HFA facilities are created by each time point's data import: import the time point's data first, then its weights.`,
           };
         }
 
         // Replace all weights for this time point
         await sql`DELETE FROM hfa_facility_weights WHERE time_point = ${timePoint}`;
-        for (let i = 0; i < rows.length; i += UPSERT_BATCH_SIZE) {
-          const batch = rows.slice(i, i + UPSERT_BATCH_SIZE);
+        for (let i = 0; i < knownRows.length; i += UPSERT_BATCH_SIZE) {
+          const batch = knownRows.slice(i, i + UPSERT_BATCH_SIZE);
           await sql`INSERT INTO hfa_facility_weights ${
             sql(batch, "facility_id", "time_point", "weight", "stratum")
           }`;
@@ -322,14 +323,18 @@ export async function importHfaFacilityWeights(
         return {
           success: true,
           data: {
-            rowsImported: rows.length,
+            rowsImported: knownRows.length,
             rowsSkippedNoWeight,
+            facilitiesNotInRegistry: {
+              count: unknownFacilities.length,
+              sample: unknownFacilities.slice(0, UNKNOWN_FACILITY_SAMPLE_SIZE),
+            },
             timePointsCovered: [timePoint],
             strata: stratumIndex === undefined ? undefined : {
               count: new Set(
-                rows.flatMap((r) => r.stratum === null ? [] : [r.stratum]),
+                knownRows.flatMap((r) => r.stratum === null ? [] : [r.stratum]),
               ).size,
-              rowsWithoutStratum: rows.filter((r) => r.stratum === null)
+              rowsWithoutStratum: knownRows.filter((r) => r.stratum === null)
                 .length,
             },
           },

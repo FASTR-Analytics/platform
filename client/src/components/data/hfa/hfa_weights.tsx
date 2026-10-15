@@ -345,11 +345,11 @@ function UploadStep(p: { onNext: (csv: WeightsCsvHeaders) => void }) {
       <div class="text-base-content-muted text-sm">
         {t3({
           en:
-            "Upload a CSV with a facility ID column and a weight column, and optionally a sampling stratum column. You will choose which columns to use in the next step. Each import covers one time point.",
+            "Upload a CSV with a facility ID column and a weight column, and optionally a sampling stratum column. You will choose which columns to use in the next step. Each import covers one time point. Import the time point's data first: the data import creates the facilities, and a weight for a facility that is not in the HFA facilities is skipped.",
           fr:
-            "Téléversez un CSV avec une colonne d'identifiant d'établissement et une colonne de pondération, et éventuellement une colonne de strate d'échantillonnage. Vous choisirez les colonnes à utiliser à l'étape suivante. Chaque importation couvre un point temporel.",
+            "Téléversez un CSV avec une colonne d'identifiant d'établissement et une colonne de pondération, et éventuellement une colonne de strate d'échantillonnage. Vous choisirez les colonnes à utiliser à l'étape suivante. Chaque importation couvre un point temporel. Importez d'abord les données du point temporel : l'importation des données crée les établissements, et une pondération pour un établissement absent des établissements Enquêtes FOSA est ignorée.",
           pt:
-            "Carregue um CSV com uma coluna de ID do estabelecimento e uma coluna de ponderação e, opcionalmente, uma coluna de estrato de amostragem. Escolherá as colunas a utilizar no passo seguinte. Cada importação cobre um ponto temporal.",
+            "Carregue um CSV com uma coluna de ID do estabelecimento e uma coluna de ponderação e, opcionalmente, uma coluna de estrato de amostragem. Escolherá as colunas a utilizar no passo seguinte. Cada importação cobre um ponto temporal. Importe primeiro os dados do ponto temporal: a importação de dados cria os estabelecimentos, e uma ponderação para um estabelecimento que não está nos estabelecimentos FOSA é ignorada.",
         })}
       </div>
       <FileUploadSelector
@@ -566,6 +566,11 @@ function DoneStep(
     onClose: () => void;
   },
 ) {
+  const skipped = () => p.result.facilitiesNotInRegistry;
+  const skippedIds = () =>
+    skipped().sample.join(", ") +
+    (skipped().count > skipped().sample.length ? ", …" : "");
+
   return (
     <div class="ui-spy">
       <div class="text-success font-700">
@@ -608,6 +613,32 @@ function DoneStep(
             </Show>
           </div>
         )}
+      </Show>
+      <Show when={skipped().count > 0}>
+        <div class="text-warning text-sm">
+          {t3({
+            en: `${toNum0(skipped().count)} ${
+              plural(skipped().count, {
+                one: "weight was skipped: its facility is",
+                other: "weights were skipped: their facilities are",
+              })
+            } not in the HFA facilities, which each time point's data import creates (${skippedIds()})`,
+            fr: `${toNum0(skipped().count)} ${
+              plural(skipped().count, {
+                one: "pondération ignorée : son établissement est absent",
+                other:
+                  "pondérations ignorées : leurs établissements sont absents",
+              })
+            } des établissements Enquêtes FOSA, que crée l'importation des données de chaque point temporel (${skippedIds()})`,
+            pt: `${toNum0(skipped().count)} ${
+              plural(skipped().count, {
+                one: "ponderação ignorada: o seu estabelecimento não está",
+                other:
+                  "ponderações ignoradas: os seus estabelecimentos não estão",
+              })
+            } nos estabelecimentos FOSA, que a importação de dados de cada ponto temporal cria (${skippedIds()})`,
+          })}
+        </div>
       </Show>
       <Show when={p.result.rowsSkippedNoWeight > 0}>
         <div class="text-base-content-muted text-sm">
