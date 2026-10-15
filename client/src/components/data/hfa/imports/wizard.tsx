@@ -310,6 +310,7 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
     columnsNeedPrefill = true;
     batch(() => {
       resetDownstream();
+      changes.reset();
       setPrefills({});
       setMappings({
         facilityIdColumn: "",
@@ -415,7 +416,7 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
   createEffect(on(currentStepKind, (kind) => {
     setStepError("");
     if (kind === "facilityColumns") {
-      void untrack(fetchColumnsPreview);
+      void fetchColumnsPreview();
     }
   }));
 
@@ -475,7 +476,12 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
       setMappings("facilityChanges", changes.decisions());
       setMappings(
         "recodes",
-        reconcile(changes.prunedRecodes(unwrap(mappings.recodes))),
+        reconcile(
+          changes.prunedRecodes(
+            unwrap(mappings.recodes),
+            unwrap(mappings.facilityColumns),
+          ),
+        ),
       );
       stepper.goNext();
     });

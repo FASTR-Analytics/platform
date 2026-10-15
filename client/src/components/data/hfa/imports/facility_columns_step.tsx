@@ -242,11 +242,14 @@ export function FacilityColumnsStep(p: Props) {
     p.onChange(next, pickerKey(column, correction));
   }
 
-  function previewOf(
-    preview: HfaFacilityColumnsPreview,
+  // The pickers stay mounted while the preview is read again after an edit;
+  // only the counts under them wait for it.
+  function columnPreview(
     column: MappedColumn,
   ): HfaFacilityColumnPreview | undefined {
-    return preview.columns.find((c) => c.column === column);
+    return p.preview.status === "ready"
+      ? p.preview.data.columns.find((c) => c.column === column)
+      : undefined;
   }
 
   return (
@@ -281,103 +284,101 @@ export function FacilityColumnsStep(p: Props) {
       </div>
       <StateHolderWrapper state={p.preview}>
         {(preview) => (
-          <div class="ui-spy">
-            <div class="text-sm">
-              {t3({
-                en: `${toNum0(preview.nFacilities)} ${
-                  plural(preview.nFacilities, {
-                    one: "facility",
-                    other: "facilities",
-                  })
-                } in the file after filtering and duplicates.`,
-                fr: `${toNum0(preview.nFacilities)} ${
-                  plural(preview.nFacilities, {
-                    one: "établissement",
-                    other: "établissements",
-                  })
-                } dans le fichier après filtrage et doublons.`,
-                pt: `${toNum0(preview.nFacilities)} ${
-                  plural(preview.nFacilities, {
-                    one: "estabelecimento",
-                    other: "estabelecimentos",
-                  })
-                } no ficheiro após filtragem e duplicados.`,
-              })}
-            </div>
-            <For each={mappedColumns()}>
-              {(column) => (
-                <div class="ui-pad ui-spy-sm rounded border">
-                  <div class="ui-gap flex items-start">
-                    <div class="w-80">
-                      <SelectSearch
-                        label={facilityColumnLabel(column)}
-                        options={headerOptions()}
-                        value={headersOf(column)?.header ?? ""}
-                        onChange={(header) =>
-                          setHeaders(
-                            column,
-                            header === "" ? undefined : {
-                              header,
-                              correctionHeader: headersOf(column)
-                                ?.correctionHeader,
-                            },
-                            false,
-                          )}
-                        fullWidth
-                      />
-                      <PrefillNote
-                        source={headersOf(column)
-                          ? p.prefills[pickerKey(column, false)]
-                          : undefined}
-                      />
-                    </div>
-                    <Show when={headersOf(column)}>
-                      {(headers) => (
-                        <div class="w-80">
-                          <SelectSearch
-                            label={t3({
-                              en: "Correction column",
-                              fr: "Colonne de correction",
-                              pt: "Coluna de correção",
-                            })}
-                            options={headerOptions()}
-                            value={headers().correctionHeader ?? ""}
-                            onChange={(correctionHeader) =>
-                              setHeaders(
-                                column,
-                                correctionHeader === ""
-                                  ? { header: headers().header }
-                                  : {
-                                    header: headers().header,
-                                    correctionHeader,
-                                  },
-                                true,
-                              )}
-                            fullWidth
-                          />
-                          <PrefillNote
-                            source={headers().correctionHeader
-                              ? p.prefills[pickerKey(column, true)]
-                              : undefined}
-                          />
-                        </div>
-                      )}
-                    </Show>
-                  </div>
-                  <Show when={headersOf(column) && previewOf(preview, column)}>
-                    {(columnPreview) => (
-                      <ColumnPreview
-                        preview={columnPreview()}
-                        showNotInRegistry={!p.registryIsEmpty}
-                      />
-                    )}
-                  </Show>
-                </div>
-              )}
-            </For>
+          <div class="text-sm">
+            {t3({
+              en: `${toNum0(preview.nFacilities)} ${
+                plural(preview.nFacilities, {
+                  one: "facility",
+                  other: "facilities",
+                })
+              } in the file after filtering and duplicates.`,
+              fr: `${toNum0(preview.nFacilities)} ${
+                plural(preview.nFacilities, {
+                  one: "établissement",
+                  other: "établissements",
+                })
+              } dans le fichier après filtrage et doublons.`,
+              pt: `${toNum0(preview.nFacilities)} ${
+                plural(preview.nFacilities, {
+                  one: "estabelecimento",
+                  other: "estabelecimentos",
+                })
+              } no ficheiro após filtragem e duplicados.`,
+            })}
           </div>
         )}
       </StateHolderWrapper>
+      <For each={mappedColumns()}>
+        {(column) => (
+          <div class="ui-pad ui-spy-sm rounded border">
+            <div class="ui-gap flex items-start">
+              <div class="w-80">
+                <SelectSearch
+                  label={facilityColumnLabel(column)}
+                  options={headerOptions()}
+                  value={headersOf(column)?.header ?? ""}
+                  onChange={(header) =>
+                    setHeaders(
+                      column,
+                      header === "" ? undefined : {
+                        header,
+                        correctionHeader: headersOf(column)
+                          ?.correctionHeader,
+                      },
+                      false,
+                    )}
+                  fullWidth
+                />
+                <PrefillNote
+                  source={headersOf(column)
+                    ? p.prefills[pickerKey(column, false)]
+                    : undefined}
+                />
+              </div>
+              <Show when={headersOf(column)}>
+                {(headers) => (
+                  <div class="w-80">
+                    <SelectSearch
+                      label={t3({
+                        en: "Correction column",
+                        fr: "Colonne de correction",
+                        pt: "Coluna de correção",
+                      })}
+                      options={headerOptions()}
+                      value={headers().correctionHeader ?? ""}
+                      onChange={(correctionHeader) =>
+                        setHeaders(
+                          column,
+                          correctionHeader === ""
+                            ? { header: headers().header }
+                            : {
+                              header: headers().header,
+                              correctionHeader,
+                            },
+                          true,
+                        )}
+                      fullWidth
+                    />
+                    <PrefillNote
+                      source={headers().correctionHeader
+                        ? p.prefills[pickerKey(column, true)]
+                        : undefined}
+                    />
+                  </div>
+                )}
+              </Show>
+            </div>
+            <Show when={headersOf(column) && columnPreview(column)}>
+              {(preview) => (
+                <ColumnPreview
+                  preview={preview()}
+                  showNotInRegistry={!p.registryIsEmpty}
+                />
+              )}
+            </Show>
+          </div>
+        )}
+      </For>
     </div>
   );
 }

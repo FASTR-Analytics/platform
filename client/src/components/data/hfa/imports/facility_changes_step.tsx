@@ -43,7 +43,7 @@ import {
   For,
   Show,
 } from "solid-js";
-import { createStore } from "solid-js/store";
+import { createStore, reconcile } from "solid-js/store";
 import {
   currentRecodeColumn,
   emptyRecodeEditorUi,
@@ -129,15 +129,21 @@ export function createHfaFacilityChangesState(fetchReview: HfaChangesFetch) {
   }
 
   // Each group as decided: the most common decision, and the members decided
-  // the other way. A partial encoding leaves out undecided members, for a
-  // preview; a launch encoding has none to leave out.
+  // the other way. Undecided members are left out, as are the members
+  // include() refuses; a launch encoding has neither.
   function encode(
     groups: HfaFacilityChangeGroup[],
+    include: (
+      change: HfaFacilityChange,
+      decision: HfaFacilityChangeDecision,
+    ) => boolean = () => true,
   ): HfaFacilityChangeGroupDecision[] {
     return groups.flatMap((group) => {
       const decided = group.facilities.flatMap((change) => {
         const decision = effective(group, change);
-        return decision ? [{ facilityId: change.facilityId, decision }] : [];
+        return decision && include(change, decision)
+          ? [{ facilityId: change.facilityId, decision }]
+          : [];
       });
       if (decided.length === 0) {
         return [];
@@ -159,15 +165,33 @@ export function createHfaFacilityChangesState(fetchReview: HfaChangesFetch) {
     });
   }
 
+  // Above the step, which every visit creates again, so a table's search and
+  // sort survive moving between steps.
+  const tableConfigs = new Map<string, TableConfig>();
+  function tableConfig(key: string): TableConfig {
+    let config = tableConfigs.get(key);
+    if (!config) {
+      config = createTableConfig();
+      tableConfigs.set(key, config);
+    }
+    return config;
+  }
+
   let fetchedAdmin = "";
   let fetchedContext = "";
   let adminRunId = 0;
   let contextRunId = 0;
 
+  // The changes route decides a member no decision names by its default, or
+  // takes it, so only the members decided otherwise are sent: a review just
+  // loaded with none is not read again.
   createEffect(() => {
     const r = review();
     const decisions = r
-      ? encode(r.preview.changes.filter((g) => g.column === "admin"))
+      ? encode(
+        r.preview.changes.filter((g) => g.column === "admin"),
+        (change, decision) => decision !== (change.defaultDecision ?? "take"),
+      )
       : [];
     const signature = JSON.stringify(decisions);
     if (!r || signature === fetchedAdmin) {
@@ -244,6 +268,20 @@ export function createHfaFacilityChangesState(fetchReview: HfaChangesFetch) {
     setReview(undefined);
   }
 
+  // A new file: nothing decided against the old one applies.
+  function reset() {
+    batch(() => {
+      setReview(undefined);
+      setUi(reconcile({
+        columnRules: {},
+        decisions: {},
+        idsConfirmedNew: false,
+        contextSeeded: false,
+        recode: emptyRecodeEditorUi(),
+      }));
+    });
+  }
+
   function needsIdConfirmation(r: HfaFacilityChangesReview): boolean {
     const m = r.preview.match;
     return m.known === 0 && m.absent > 0;
@@ -304,10 +342,16 @@ export function createHfaFacilityChangesState(fetchReview: HfaChangesFetch) {
     return ids;
   }
 
-  function prunedRecodes(recodes: StructureRecodes): StructureRecodes {
+  function prunedRecodes(
+    recodes: StructureRecodes,
+    facilityColumns: HfaFacilityColumns,
+  ): StructureRecodes {
     const out: StructureRecodes = {};
     for (const [column, map] of Object.entries(recodes)) {
       const col = column as StructureRecodableColumn;
+      if (facilityColumns.optional[col] === undefined) {
+        continue;
+      }
       const ids = recodableIds(col);
       const kept = Object.entries(map ?? {}).filter(([id]) => ids.has(id));
       if (kept.length > 0) {
@@ -326,6 +370,8 @@ export function createHfaFacilityChangesState(fetchReview: HfaChangesFetch) {
     effective,
     load,
     invalidate,
+    reset,
+    tableConfig,
     needsIdConfirmation,
     problem,
     decisions,
@@ -409,16 +455,6 @@ type Props = {
 // per facility, what the decisions do to the admin areas, and the
 // reassignment of new and changed values.
 export function FacilityChangesStep(p: Props) {
-  const tableConfigs = new Map<string, TableConfig>();
-  function tableConfig(key: string): TableConfig {
-    let config = tableConfigs.get(key);
-    if (!config) {
-      config = createTableConfig();
-      tableConfigs.set(key, config);
-    }
-    return config;
-  }
-
   const [openGroup, setOpenGroup] = createSignal<string>();
 
   function setDecisions(
@@ -502,8 +538,10 @@ export function FacilityChangesStep(p: Props) {
                   column={entry.column}
                   groups={entry.groups}
                   state={p.state}
-                  tableConfig={tableConfig(entry.column)}
-                  facilitiesTableConfig={tableConfig(`${entry.column}:open`)}
+                  tableConfig={p.state.tableConfig(entry.column)}
+                  facilitiesTableConfig={p.state.tableConfig(
+                    `${entry.column}:open`,
+                  )}
                   openGroup={openGroup()}
                   setOpenGroup={setOpenGroup}
                   groupDecision={groupDecision}
