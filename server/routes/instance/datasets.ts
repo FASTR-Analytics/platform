@@ -65,6 +65,7 @@ import {
   type HfaCsvMappingParams,
   type HfaFacilityRecodeRow,
   NO_STORED_DHIS2_CONNECTION,
+  type StructureSchema,
   throwIfErrWithData,
 } from "lib";
 
@@ -692,12 +693,12 @@ async function scanHfaFacilitiesForPreview(
     >
     & { csvFileName: string; xlsFormFileName: string },
   contextHeaders: string[],
-): Promise<HfaFileFacilityScan> {
+): Promise<{ scan: HfaFileFacilityScan; schema: StructureSchema }> {
   const csvFile = await resolveAssetFileOrThrow(body.csvFileName, null);
   const xlsFormFile = await resolveAssetFileOrThrow(body.xlsFormFileName, null);
   const resSchema = await getStructureSchema(mainDb, "hfa");
   throwIfErrWithData(resSchema);
-  return await scanHfaFileFacilities({
+  const scan = await scanHfaFileFacilities({
     csvFilePath: csvFile.filePath,
     mappings: body,
     facilityColumns: body.facilityColumns,
@@ -705,6 +706,7 @@ async function scanHfaFacilitiesForPreview(
     xlsForm: parseXlsForm(xlsFormFile.filePath),
     contextHeaders,
   });
+  return { scan, schema: resSchema.data };
 }
 
 defineRoute(
@@ -715,7 +717,11 @@ defineRoute(
   async (c, { body }) => {
     return c.json(
       await tryCatchDatabaseAsync(async () => {
-        const scan = await scanHfaFacilitiesForPreview(c.var.mainDb, body, []);
+        const { scan } = await scanHfaFacilitiesForPreview(
+          c.var.mainDb,
+          body,
+          [],
+        );
         return {
           success: true as const,
           data: summarizeHfaFacilityColumns({
@@ -741,7 +747,7 @@ defineRoute(
   async (c, { body }) => {
     return c.json(
       await tryCatchDatabaseAsync(async () => {
-        const scan = await scanHfaFacilitiesForPreview(
+        const { scan, schema } = await scanHfaFacilitiesForPreview(
           c.var.mainDb,
           body,
           body.contextHeaders,
@@ -749,6 +755,7 @@ defineRoute(
         const preview = await previewHfaFacilityChanges(c.var.mainDb, {
           file: scan.facilities,
           facilityColumns: body.facilityColumns,
+          schema,
           timePoint: body.timePoint.trim(),
           decisions: body.facilityChanges,
         });

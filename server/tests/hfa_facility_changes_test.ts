@@ -14,6 +14,7 @@ import {
   hfaCorrectionColumnName,
   type HfaFacilityChangeGroupDecision,
   type HfaFacilityColumns,
+  type StructureSchema,
 } from "lib";
 import { utils, write } from "xlsx/xlsx.mjs";
 import { getPgConnection } from "../db/postgres/connection_manager.ts";
@@ -55,7 +56,7 @@ await admin.unsafe(`CREATE DATABASE ${dbName}`);
 const db = getPgConnection(dbName, { max: 2 });
 await db.file(SCHEMA_PATH);
 
-const SCHEMA = {
+const SCHEMA: StructureSchema = {
   adminDepth: 3,
   includeNames: true,
   includeTypes: true,
@@ -244,6 +245,7 @@ Deno.test("changes are grouped per column and admin tuple, each facility with it
   const preview = await previewHfaFacilityChanges(db, {
     file: FILE,
     facilityColumns: COLUMNS,
+    schema: SCHEMA,
     timePoint: "R2",
     decisions: [],
   });
@@ -565,6 +567,7 @@ Deno.test("an area the decisions empty is reported with the scopes and the map t
   const preview = await previewHfaFacilityChanges(db, {
     file,
     facilityColumns: COLUMNS,
+    schema: SCHEMA,
     timePoint: "R2",
     decisions: [decision("admin", tuple("Kenema"), west, ["F3", "F4"], "take")],
   });
@@ -577,6 +580,7 @@ Deno.test("an area the decisions empty is reported with the scopes and the map t
   const kept = await previewHfaFacilityChanges(db, {
     file,
     facilityColumns: COLUMNS,
+    schema: SCHEMA,
     timePoint: "R2",
     decisions: [
       decision("admin", tuple("Kenema"), west, ["F3", "F4"], "take", ["F4"]),

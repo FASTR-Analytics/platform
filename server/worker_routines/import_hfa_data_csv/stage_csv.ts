@@ -5,14 +5,14 @@ import {
   classifyNumericSentinel,
   type DatasetHfaCsvStagingResult,
   type HfaCsvMappingParams,
-  type HfaFacilityChangeCounts,
   isReservedHfaId,
   parseNumericSentinels,
   throwIfErrWithData,
 } from "lib";
 import { getStructureSchema } from "../../db/instance/config.ts";
 import {
-  previewHfaFacilityChanges,
+  countHfaFacilityChanges,
+  readHfaFacilityChangeSet,
   resolveHfaChangeDecisions,
 } from "../../db/instance/hfa_facilities.ts";
 import {
@@ -334,38 +334,24 @@ CREATE UNLOGGED TABLE ${names.raw} (
   const rowsProcessed = facilityRowNumbers.size;
 
   const { facilities, labelResolution } = facilityCollector.finish(keptRows);
-  const facilityPreview = await previewHfaFacilityChanges(importDb, {
+  const { changeSet } = await readHfaFacilityChangeSet(importDb, {
     file: facilities,
     facilityColumns: mappings.facilityColumns,
+    schema: resSchema.data,
     timePoint: cleanedTimePoint,
-    decisions: mappings.facilityChanges,
   });
-  const resolvedDecisions = resolveHfaChangeDecisions(
-    facilityPreview.changes,
-    mappings.facilityChanges,
+  const facilityChanges = countHfaFacilityChanges(
+    changeSet.changes,
+    resolveHfaChangeDecisions(changeSet.changes, mappings.facilityChanges),
   );
-  const facilityChanges: HfaFacilityChangeCounts[] = [];
-  for (const group of facilityPreview.changes) {
-    let counts = facilityChanges.find((c) => c.column === group.column);
-    if (!counts) {
-      counts = { column: group.column, changed: 0, kept: 0, taken: 0 };
-      facilityChanges.push(counts);
-    }
-    for (const change of group.facilities) {
-      counts.changed++;
-      if (
-        resolvedDecisions.get(change.facilityId)?.get(group.column) === "take"
-      ) {
-        counts.taken++;
-      } else {
-        counts.kept++;
-      }
-    }
-  }
+  const withoutAdminTuple = changeSet.newFacilitiesWithoutAdminTuple;
 
   // known records what staging found in the registry, so integration can
   // tell a facility removed during a hold from one the file brought.
-  const newFacilityIds = new Set(facilityPreview.newFacilityIds);
+  const newFacilityIds = new Set([
+    ...changeSet.newFacilities.map((f) => f.facilityId),
+    ...withoutAdminTuple,
+  ]);
   await importDb.unsafe(`
 CREATE UNLOGGED TABLE ${names.facilities} (
   facility_id TEXT PRIMARY KEY,
@@ -549,8 +535,7 @@ SELECT COUNT(*)::int as count FROM ${importDb.unsafe(names.final)}`
     dateImported,
     assetFileName: csvFileName,
     nRowsInFile: totalRows,
-    nRowsValid: rowsProcessed -
-      facilityPreview.newFacilitiesWithoutAdminTuple.count,
+    nRowsValid: rowsProcessed - withoutAdminTuple.length,
     nRowsInvalidMissingFacilityId: missingFacilityIdCount,
     nRowsDuplicated: duplicateRowsCount,
     nRowsFilteredOut,
@@ -571,14 +556,17 @@ SELECT COUNT(*)::int as count FROM ${importDb.unsafe(names.final)}`
       DIAGNOSTIC_SAMPLE_SIZE,
     ),
     nSelectMultipleExpanded,
-    facilityMatch: facilityPreview.match,
+    facilityMatch: changeSet.match,
     facilityChanges,
     labelResolution: labelResolution.map((t) => ({
       column: t.column,
       resolvedCount: t.resolvedCount,
       unresolvedValues: t.unresolvedValues,
     })),
-    facilitiesWithoutAdminTuple: facilityPreview.newFacilitiesWithoutAdminTuple,
+    facilitiesWithoutAdminTuple: {
+      count: withoutAdminTuple.length,
+      sample: withoutAdminTuple.slice(0, DIAGNOSTIC_SAMPLE_SIZE),
+    },
   };
 }
 

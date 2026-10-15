@@ -9,6 +9,7 @@ import { plural, toNum0 } from "panther";
 import { For, Show } from "solid-js";
 import {
   getAdminAreaLabel,
+  getAdminAreaLabelForLevel,
   getDisplayDisaggregationLabel,
 } from "~/state/instance/_util_disaggregation_label";
 import { instanceState } from "~/state/instance/t1_store";
@@ -403,13 +404,13 @@ function HfaFacilitiesSummary(p: {
               <span class="text-base-content text-sm">
                 {t3({
                   en: `Map areas no facility is in: ${
-                    t3(getAdminAreaLabel(o.adminAreaLevel as 2 | 3 | 4))
+                    t3(getAdminAreaLabelForLevel(o.adminAreaLevel))
                   }`,
                   fr: `Zones de carte sans établissement : ${
-                    t3(getAdminAreaLabel(o.adminAreaLevel as 2 | 3 | 4))
+                    t3(getAdminAreaLabelForLevel(o.adminAreaLevel))
                   }`,
                   pt: `Zonas do mapa sem estabelecimento: ${
-                    t3(getAdminAreaLabel(o.adminAreaLevel as 2 | 3 | 4))
+                    t3(getAdminAreaLabelForLevel(o.adminAreaLevel))
                   }`,
                 })}
               </span>

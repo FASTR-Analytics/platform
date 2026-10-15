@@ -24,6 +24,7 @@ import {
   parseScopeDefinition,
   type StructureRecodableColumn,
   type StructureRecodes,
+  type StructureSchema,
   throwIfErrWithData,
 } from "lib";
 import type { HfaFileFacility } from "../../server_only_funcs_csvs/scan_hfa_rows.ts";
@@ -70,7 +71,7 @@ export type HfaFacilityChangeSet = {
   confirmations: { facilityId: string; column: HfaFacilityColumnGroup }[];
 };
 
-type ResolvedDecisions = Map<
+export type ResolvedDecisions = Map<
   string,
   Map<HfaFacilityColumnGroup, HfaFacilityChangeDecision>
 >;
@@ -363,6 +364,29 @@ export function resolveHfaChangeDecisions(
   return resolved;
 }
 
+export function countHfaFacilityChanges(
+  changes: HfaFacilityChangeGroup[],
+  resolved: ResolvedDecisions,
+): HfaFacilityChangeCounts[] {
+  const counts: HfaFacilityChangeCounts[] = [];
+  for (const group of changes) {
+    let c = counts.find((x) => x.column === group.column);
+    if (!c) {
+      c = { column: group.column, changed: 0, kept: 0, taken: 0 };
+      counts.push(c);
+    }
+    for (const change of group.facilities) {
+      c.changed++;
+      if (resolved.get(change.facilityId)?.get(group.column) === "take") {
+        c.taken++;
+      } else {
+        c.kept++;
+      }
+    }
+  }
+  return counts;
+}
+
 // A recode names a new facility, or a facility whose change in that column is
 // taken: those are the cells written from the file.
 function assertRecodesNameWrittenCells(
@@ -498,13 +522,17 @@ function projectHfaAdminAreas(args: {
 // Reads
 // ============================================================================
 
+function toHfaSchema(schema: StructureSchema): HfaSchema {
+  return {
+    adminDepth: schema.adminDepth,
+    enabled: getEnabledOptionalFacilityColumns(schema),
+  };
+}
+
 async function readHfaSchema(sql: Sql): Promise<HfaSchema> {
   const res = await getStructureSchema(sql, "hfa");
   throwIfErrWithData(res);
-  return {
-    adminDepth: res.data.adminDepth,
-    enabled: getEnabledOptionalFacilityColumns(res.data),
-  };
+  return toHfaSchema(res.data);
 }
 
 function mappedOptionalColumns(
@@ -675,19 +703,19 @@ export async function reportHfaRegistryOrphans(sql: Sql): Promise<{
   };
 }
 
-// The changes step's preview, read without locks. A change the request
-// carries no decision for counts as its default, and as taken where it has
-// none, for the areas lost and the paths introduced.
-export async function previewHfaFacilityChanges(
+// The file's changes against the whole registry, read without locks.
+export async function readHfaFacilityChangeSet(
   sql: Sql,
   input: {
     file: HfaFileFacility[];
     facilityColumns: HfaFacilityColumns;
+    schema: StructureSchema;
     timePoint: string;
-    decisions: HfaFacilityChangeGroupDecision[];
   },
-): Promise<HfaFacilityChangesPreview> {
-  const schema = await readHfaSchema(sql);
+): Promise<
+  { changeSet: HfaFacilityChangeSet; registryRows: HfaRegistryRow[] }
+> {
+  const schema = toHfaSchema(input.schema);
   const mappedOptional = mappedOptionalColumns(input.facilityColumns, schema);
   assertFileShape(input.file, schema.adminDepth);
   const registryRows = await sql<HfaRegistryRow[]>`
@@ -698,7 +726,29 @@ export async function previewHfaFacilityChanges(
     adminDepth: schema.adminDepth,
     timePoint: input.timePoint,
   });
-  const changeSet = computeHfaFacilityChanges(input.file, mappedOptional, ctx);
+  return {
+    changeSet: computeHfaFacilityChanges(input.file, mappedOptional, ctx),
+    registryRows,
+  };
+}
+
+// The changes step's preview, read without locks. A change the request
+// carries no decision for counts as its default, and as taken where it has
+// none, for the areas lost and the paths introduced.
+export async function previewHfaFacilityChanges(
+  sql: Sql,
+  input: {
+    file: HfaFileFacility[];
+    facilityColumns: HfaFacilityColumns;
+    schema: StructureSchema;
+    timePoint: string;
+    decisions: HfaFacilityChangeGroupDecision[];
+  },
+): Promise<HfaFacilityChangesPreview> {
+  const { changeSet, registryRows } = await readHfaFacilityChangeSet(
+    sql,
+    input,
+  );
 
   const decisionByKey = new Map(
     input.decisions.map((d) => [groupKey(d.column, d.from, d.to), {
@@ -734,7 +784,7 @@ export async function previewHfaFacilityChanges(
   }
   const projected = projectHfaAdminAreas({
     registry: registryRows,
-    adminDepth: schema.adminDepth,
+    adminDepth: input.schema.adminDepth,
     written,
   });
   const scopeAreas = projected.lost.some((l) => l.level === 2)
@@ -967,20 +1017,11 @@ export async function writeHfaFacilitiesFromImport(
     OptionalFacilityColumn,
     { facilityId: string; value: string }[]
   >();
-  const changeCounts: HfaFacilityChangeCounts[] = [];
   for (const group of changeSet.changes) {
-    let counts = changeCounts.find((c) => c.column === group.column);
-    if (!counts) {
-      counts = { column: group.column, changed: 0, kept: 0, taken: 0 };
-      changeCounts.push(counts);
-    }
     for (const change of group.facilities) {
-      counts.changed++;
       if (resolved.get(change.facilityId)?.get(group.column) !== "take") {
-        counts.kept++;
         continue;
       }
-      counts.taken++;
       if (group.column === "admin") {
         adminUpdates.push({
           facilityId: change.facilityId,
@@ -1028,7 +1069,7 @@ export async function writeHfaFacilitiesFromImport(
       adminUpdates.length > 0 ||
       [...optionalUpdates.values()].some((u) => u.length > 0),
     match: changeSet.match,
-    changeCounts,
+    changeCounts: countHfaFacilityChanges(changeSet.changes, resolved),
     facilitiesWithoutAdminTuple: idSample(
       changeSet.newFacilitiesWithoutAdminTuple,
     ),

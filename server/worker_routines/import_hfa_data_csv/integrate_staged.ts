@@ -123,6 +123,7 @@ export async function integrateStagedHfaData(args: {
 
     const diagnostics: DatasetHfaCsvStagingResult = {
       ...stagingResult,
+      nRowsValid: staged.length - registry.skippedFacilityIds.length,
       facilityMatch: registry.match,
       facilityChanges: registry.changeCounts,
       facilitiesWithoutAdminTuple: registry.facilitiesWithoutAdminTuple,

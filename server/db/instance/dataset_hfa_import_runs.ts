@@ -6,7 +6,6 @@ import {
   type DatasetHfaCsvStagingResult,
   decodeHfaAdminTuple,
   getEnabledOptionalFacilityColumns,
-  HFA_FACILITY_COLUMN_GROUPS,
   type HfaCsvMappingParams,
   type HfaCsvRunConfig,
   type HfaCsvRunLaunchInput,
@@ -187,9 +186,6 @@ function cleanHfaFacilityChanges(
   const groupKeys = new Set<string>();
   const decidedCells = new Set<string>();
   for (const d of facilityChanges) {
-    if (!HFA_FACILITY_COLUMN_GROUPS.includes(d.column)) {
-      throw new Error(`Unknown facility column ${d.column}.`);
-    }
     const mapped = d.column === "admin"
       ? adminMapped
       : facilityColumns.optional[d.column] !== undefined;
