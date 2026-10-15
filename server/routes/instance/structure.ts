@@ -39,6 +39,12 @@ import {
   testDHIS2Connection,
 } from "../../dhis2/goal1_org_units_v2/mod.ts";
 import { resolveAssetFilePath } from "../../db/instance/assets.ts";
+import {
+  getHfaRegistry,
+  getHfaUnreferencedFacilityCount,
+  saveHfaFacilityEdit,
+  saveHfaUnreferencedFacilitiesRemoval,
+} from "../../db/instance/hfa_facilities.ts";
 import { getCsvDetails } from "../../server_only_funcs_csvs/get_csv_components.ts";
 import { scanHfaHeadersWithValues } from "../../server_only_funcs_csvs/scan_hfa_rows.ts";
 import { log } from "../../middleware/logging.ts";
@@ -113,6 +119,64 @@ defineRoute(
           await getInstancePopulationSummary(c.var.mainDb),
         );
       }
+    }
+    return c.json(res);
+  },
+);
+
+//////////////////////
+//                  //
+//    HFA registry  //
+//                  //
+//////////////////////
+
+defineRoute(
+  routesStructure,
+  "getHfaRegistry",
+  requireGlobalPermission("can_view_data"),
+  log("getHfaRegistry"),
+  async (c) => {
+    return c.json(await getHfaRegistry(c.var.mainDb));
+  },
+);
+
+defineRoute(
+  routesStructure,
+  "editHfaFacility",
+  requireGlobalPermission("can_configure_data"),
+  log("editHfaFacility"),
+  async (c, { body }) => {
+    const res = await saveHfaFacilityEdit(c.var.mainDb, body);
+    if (res.success && res.data.nChanged > 0) {
+      notifyInstanceStructureUpdated(
+        await getInstanceStructureSummary(c.var.mainDb),
+      );
+    }
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesStructure,
+  "countUnreferencedHfaFacilities",
+  requireGlobalPermission("can_configure_data"),
+  log("countUnreferencedHfaFacilities"),
+  async (c) => {
+    return c.json(await getHfaUnreferencedFacilityCount(c.var.mainDb));
+  },
+);
+
+defineRoute(
+  routesStructure,
+  "removeUnreferencedHfaFacilities",
+  requireGlobalPermission("can_configure_data"),
+  log("removeUnreferencedHfaFacilities"),
+  async (c) => {
+    const res = await saveHfaUnreferencedFacilitiesRemoval(c.var.mainDb);
+    if (res.success && res.data.nChanged > 0) {
+      notifyInstanceStructureUpdated(
+        await getInstanceStructureSummary(c.var.mainDb),
+      );
     }
     return c.json(res);
   },

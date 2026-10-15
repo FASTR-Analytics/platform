@@ -28,7 +28,10 @@ import type {
   ItemsHolderDatasetHmisDisplay,
 } from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
-import { structureRecodesSchema } from "./structure.ts";
+import {
+  optionalFacilityColumnSchema,
+  structureRecodesSchema,
+} from "./structure.ts";
 
 // A window selects indicators; the server expands them to the data ids it
 // fetches at launch. A pairs selection names the (data id, month) pairs the
@@ -138,17 +141,6 @@ const hfaDedupOverridesSchema = z.array(
     keepRow: z.number().int().min(1),
   }),
 );
-
-const optionalFacilityColumnSchema = z.enum([
-  "facility_name",
-  "facility_type",
-  "facility_ownership",
-  "facility_custom_1",
-  "facility_custom_2",
-  "facility_custom_3",
-  "facility_custom_4",
-  "facility_custom_5",
-]);
 
 const hfaFacilityColumnHeadersSchema = z.object({
   header: z.string().min(1),

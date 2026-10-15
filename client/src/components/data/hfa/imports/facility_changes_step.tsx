@@ -13,7 +13,6 @@ import {
   type HfaFacilityColumnGroup,
   type HfaFacilityColumns,
   type HfaFacilityRecodeRow,
-  type HfaFacilitySource,
   type StructureRecodableColumn,
   type StructureRecodes,
   type StructureStagedColumnValues,
@@ -47,10 +46,11 @@ import { createStore, reconcile } from "solid-js/store";
 import {
   currentRecodeColumn,
   emptyRecodeEditorUi,
+  hfaFacilityColumnLabel,
+  hfaFacilitySourceLabel,
   RecodeEditor,
   type RecodeEditorUi,
 } from "../../_shared/mod.ts";
-import { facilityColumnLabel } from "./facility_column_label.ts";
 
 const MAX_RECODE_VALUES = 200;
 
@@ -301,7 +301,7 @@ export function createHfaFacilityChangesState(fetchReview: HfaChangesFetch) {
       ),
     ];
     if (undecided.length > 0) {
-      const columns = undecided.map(facilityColumnLabel).join(", ");
+      const columns = undecided.map(hfaFacilityColumnLabel).join(", ");
       return t3({
         en:
           `Choose what to do with the values of unknown origin in: ${columns}.`,
@@ -394,35 +394,6 @@ function formatChangeValue(
   return value === ""
     ? t3({ en: "(blank)", fr: "(vide)", pt: "(em branco)" })
     : value;
-}
-
-function sourceLabel(source: HfaFacilitySource | undefined): string {
-  if (!source) {
-    return t3({
-      en: "Unknown origin",
-      fr: "Origine inconnue",
-      pt: "Origem desconhecida",
-    });
-  }
-  if (source.kind === "user") {
-    return t3({
-      en: "Set by a user",
-      fr: "Défini par un utilisateur",
-      pt: "Definido por um utilizador",
-    });
-  }
-  const timePoint = source.timePoint;
-  return timePoint === null
-    ? t3({
-      en: "From a deleted time point",
-      fr: "D'un point temporel supprimé",
-      pt: "De um ponto temporal eliminado",
-    })
-    : t3({
-      en: `From time point ${timePoint}`,
-      fr: `Du point temporel ${timePoint}`,
-      pt: `Do ponto temporal ${timePoint}`,
-    });
 }
 
 function decisionItems() {
@@ -768,7 +739,7 @@ function ColumnChanges(p: {
           pt: "Origem do valor atual",
         }),
         searchable: false,
-        render: (r) => <span>{sourceLabel(r.change.source)}</span>,
+        render: (r) => <span>{hfaFacilitySourceLabel(r.change.source)}</span>,
       },
       {
         key: "decision",
@@ -794,19 +765,25 @@ function ColumnChanges(p: {
       <div class="ui-gap flex items-center justify-between">
         <h3 class="ui-text-heading">
           {t3({
-            en: `${facilityColumnLabel(p.column)}: ${toNum0(nFacilities())} ${
+            en: `${hfaFacilityColumnLabel(p.column)}: ${
+              toNum0(nFacilities())
+            } ${
               plural(nFacilities(), {
                 one: "facility changes",
                 other: "facilities change",
               })
             }`,
-            fr: `${facilityColumnLabel(p.column)} : ${toNum0(nFacilities())} ${
+            fr: `${hfaFacilityColumnLabel(p.column)} : ${
+              toNum0(nFacilities())
+            } ${
               plural(nFacilities(), {
                 one: "établissement change",
                 other: "établissements changent",
               })
             }`,
-            pt: `${facilityColumnLabel(p.column)}: ${toNum0(nFacilities())} ${
+            pt: `${hfaFacilityColumnLabel(p.column)}: ${
+              toNum0(nFacilities())
+            } ${
               plural(nFacilities(), {
                 one: "estabelecimento muda",
                 other: "estabelecimentos mudam",
@@ -912,7 +889,7 @@ function AdminImpactSummary(p: { state: HfaFacilityChangesState }) {
                 <For each={impact.adminAreasLost}>
                   {(lost) => (
                     <div>
-                      {facilityColumnLabel(`admin_area_${lost.level}`)}:{" "}
+                      {hfaFacilityColumnLabel(`admin_area_${lost.level}`)}:{" "}
                       {lost.name}
                       <Show when={lost.scopeLabels.length > 0}>
                         {t3({
@@ -1096,7 +1073,7 @@ function Recodes(p: {
           pt: "No ficheiro",
         });
       default:
-        return facilityColumnLabel(c as StructureRecodableColumn);
+        return hfaFacilityColumnLabel(c as StructureRecodableColumn);
     }
   }
 

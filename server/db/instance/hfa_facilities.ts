@@ -2,6 +2,7 @@ import type { Sql } from "postgres";
 import {
   _OPTIONAL_FACILITY_COLUMNS,
   _RECODABLE_FACILITY_COLUMNS,
+  type APIResponseWithData,
   decodeHfaAdminTuple,
   encodeHfaAdminTuple,
   type GeojsonOrphanedAreaIds,
@@ -20,6 +21,8 @@ import {
   type HfaFacilityMatch,
   type HfaFacilitySource,
   type HfaOrphanedScopeArea,
+  type HfaRegistryFacility,
+  type HfaRegistrySaveResult,
   type OptionalFacilityColumn,
   parseScopeDefinition,
   type StructureRecodableColumn,
@@ -29,6 +32,7 @@ import {
 } from "lib";
 import type { HfaFileFacility } from "../../server_only_funcs_csvs/scan_hfa_rows.ts";
 import { cleanupUnusedAdminAreas } from "../../server_only_funcs_importing/integrate_structure_from_staging.ts";
+import { tryCatchDatabaseAsync } from "../utils.ts";
 import { getStructureSchema } from "./config.ts";
 import { countOrphanedGeoJsonAreaIds } from "./geojson_maps.ts";
 
@@ -568,15 +572,11 @@ function assertFileShape(file: HfaFileFacility[], adminDepth: number): void {
   }
 }
 
-async function loadHfaRegistryContext(
+// The sources of the named facilities, or of every facility.
+async function loadHfaRegistrySources(
   sql: Sql,
-  args: {
-    registryRows: HfaRegistryRow[];
-    adminDepth: number;
-    timePoint: string;
-  },
-): Promise<HfaRegistryContext> {
-  const ids = args.registryRows.map((r) => r.facility_id);
+  facilityIds: string[] | undefined,
+): Promise<Map<string, Map<HfaFacilityColumnGroup, HfaFacilitySource>>> {
   const sourceRows = await sql<
     {
       facility_id: string;
@@ -587,7 +587,7 @@ async function loadHfaRegistryContext(
   >`
     SELECT facility_id, column_group, kind, time_point
     FROM hfa_facility_sources
-    WHERE facility_id = ANY(${ids})
+    ${facilityIds ? sql`WHERE facility_id = ANY(${facilityIds})` : sql``}
   `;
   const sources = new Map<
     string,
@@ -606,6 +606,21 @@ async function loadHfaRegistryContext(
         : { kind: "round", timePoint: s.time_point },
     );
   }
+  return sources;
+}
+
+async function loadHfaRegistryContext(
+  sql: Sql,
+  args: {
+    registryRows: HfaRegistryRow[];
+    adminDepth: number;
+    timePoint: string;
+  },
+): Promise<HfaRegistryContext> {
+  const sources = await loadHfaRegistrySources(
+    sql,
+    args.registryRows.map((r) => r.facility_id),
+  );
   const rounds = await sql<{ label: string; sort_order: number }[]>`
     SELECT label, sort_order FROM hfa_time_points
   `;
@@ -1204,4 +1219,71 @@ export async function removeUnreferencedHfaFacilities(
   `;
   await finishHfaRegistryWrite(sql, deleted.count > 0);
   return deleted.count;
+}
+
+// ============================================================================
+// The facilities page: each read or save in its own transaction, a save
+// reporting what it left orphaned
+// ============================================================================
+
+export async function getHfaRegistry(
+  mainDb: Sql,
+): Promise<APIResponseWithData<HfaRegistryFacility[]>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const schema = await readHfaSchema(mainDb);
+    const rows = await mainDb<HfaRegistryRow[]>`
+      SELECT ${mainDb(REGISTRY_COLUMNS)} FROM facilities_hfa
+      ORDER BY facility_id
+    `;
+    const sources = await loadHfaRegistrySources(mainDb, undefined);
+    return {
+      success: true,
+      data: rows.map((row) => ({
+        facilityId: row.facility_id,
+        admin: registryAdminTuple(row, schema.adminDepth),
+        optional: Object.fromEntries(
+          schema.enabled.map((col) => [col, row[col] ?? ""]),
+        ),
+        sources: Object.fromEntries(sources.get(row.facility_id) ?? []),
+      })),
+    };
+  });
+}
+
+async function saveWithOrphanReport(
+  mainDb: Sql,
+  write: (sql: Sql) => Promise<number>,
+): Promise<APIResponseWithData<HfaRegistrySaveResult>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const data = await mainDb.begin(async (sql) => {
+      const nChanged = await write(sql);
+      return { nChanged, ...(await reportHfaRegistryOrphans(sql)) };
+    });
+    return { success: true, data };
+  });
+}
+
+export async function saveHfaFacilityEdit(
+  mainDb: Sql,
+  edit: HfaFacilityEdit,
+): Promise<APIResponseWithData<HfaRegistrySaveResult>> {
+  return await saveWithOrphanReport(
+    mainDb,
+    async (sql) => (await editHfaFacility(sql, edit)).changed ? 1 : 0,
+  );
+}
+
+export async function getHfaUnreferencedFacilityCount(
+  mainDb: Sql,
+): Promise<APIResponseWithData<{ count: number }>> {
+  return await tryCatchDatabaseAsync(async () => ({
+    success: true,
+    data: { count: await countUnreferencedHfaFacilities(mainDb) },
+  }));
+}
+
+export async function saveHfaUnreferencedFacilitiesRemoval(
+  mainDb: Sql,
+): Promise<APIResponseWithData<HfaRegistrySaveResult>> {
+  return await saveWithOrphanReport(mainDb, removeUnreferencedHfaFacilities);
 }

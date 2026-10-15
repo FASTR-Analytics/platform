@@ -341,6 +341,16 @@ candidates, then re-checks in the delete, so a reference committed while the
 lock waited keeps its facility. `reportHfaRegistryOrphans` lists the geojson
 area ids and the scopes' HFA area 2s that no longer match the registry.
 
+**The facilities page's entry points** each run in their own transaction:
+`getHfaRegistry` (every facility at the HFA depth with its enabled columns and
+sources), `getHfaUnreferencedFacilityCount`, and the two saves,
+`saveHfaFacilityEdit` and `saveHfaUnreferencedFacilitiesRemoval`, which return
+`HfaRegistrySaveResult`: the facilities changed or removed and the orphan report
+taken inside the save's transaction. The routes (`getHfaRegistry`,
+`editHfaFacility`, `countUnreferencedHfaFacilities`,
+`removeUnreferencedHfaFacilities`) notify the structure channel when a save
+changed a facility.
+
 ## The four indicator dictionaries
 
 Three identity-space patterns. HFA and ICEH ids are immutable after create
@@ -1144,6 +1154,22 @@ layer.
   result the manager shows a notice naming HMIS data, Imports and the tab the
   wizard landed on (Current or Future). Nothing is carried between pages: the
   dataset sidebar's running and queued flags come from the SSE summary.
+- The facilities page (`data/facilities/facilities.tsx`) is one page per family.
+  The HMIS page shows the first rows of `getStructureItems` and the structure
+  wizard's Imports panel. The HFA page has no import entry: its panel says that
+  each time point's data import adds and updates the facilities, and holds
+  "Remove facilities with no data and no weights" (counted when clicked, the
+  confirmation naming the count) beside Delete facilities. Its content is
+  `HfaRegistryTable` (`data/facilities/hfa_registry/`): every facility, read
+  through `getHfaRegistry` again whenever the structure stamp, the HFA dataset
+  hash or the HFA schema moves (an import can change who set a value without
+  changing the value), searchable, with filters on the admin areas, the columns
+  and who set the admin areas and the type. A global admin's row click opens
+  `EditHfaFacility`: level 1 is shown, levels 2 to the depth and the enabled
+  columns are edited, each with who set it, and an area name the registry lacks
+  at its level is flagged before saving adds it. A save that leaves map areas or
+  scopes naming no admin area says so in an alert. The value-origin and column
+  labels are `data/_shared/`'s, shared with the HFA import wizard.
 - The structure wizard: server owns the step number (every save writes `step`;
   the client fetcher jumps the stepper on each silent refetch). Errors render as
   a dismissible banner over navigable steps (re-saving any step resets status to
@@ -1222,8 +1248,9 @@ layer.
   `data/hfa/indicators/service_categories_manager.tsx:19`;
   `data/hfa/indicators/variant_groups_manager.tsx:88`, 290), the geojson manager
   (`data/geojson/manager.tsx:113`, 149), the weights import
-  (`data/hfa/hfa_weights.tsx:104`), the facilities import panel
-  (`data/facilities/facilities.tsx:199`), HFA time points
+  (`data/hfa/hfa_weights.tsx:104`), the facilities panel
+  (`data/facilities/facilities.tsx:208`) and the HFA registry's row edit
+  (`data/facilities/hfa_registry/table.tsx:173`), HFA time points
   (`data/hfa/_shared/time_points.tsx:234`), and S6's HMIS, HFA and ICEH dataset
   controls (`data/hmis/dataset/dataset.tsx:293`,
   `data/hfa/dataset/dataset.tsx:67`, `data/iceh/dataset/dataset.tsx:81`).
@@ -1258,12 +1285,12 @@ layer.
   Back (`data/geojson/manager.tsx:52-60`) and the shell view covers the rail, so
   a failed load leaves a reload as the only exit. Move Cancel out of the `Show`
   so it renders in the loading and error states too.
-- **Facilities fetches the upload attempt for every viewer.**
-  `data/facilities/facilities.tsx:124-126` calls `getStructureUploadAttempt` on
-  mount, a `can_configure_data` route
-  (`server/routes/instance/structure.ts:220-221`), though only the admin-only
-  Imports panel reads the result (199); for a viewer without the bit the request
-  fails and the failure is swallowed (109-122). Fetch it from an effect on
+- **The HMIS facilities page fetches the upload attempt for every viewer.**
+  `data/facilities/facilities.tsx:129-133` calls `getStructureUploadAttempt` on
+  mount for the HMIS family, a `can_configure_data` route
+  (`server/routes/instance/structure.ts:294-295`), though only the admin-only
+  Imports panel reads the result (208); for a viewer without the bit the request
+  fails and the failure is swallowed (113-126). Fetch it from an effect on
   `instanceState.currentUserIsGlobalAdmin`, the panel's gate, in place of the
   unconditional `onMount`.
 - **A manager comment ties the code editor to imported data.**

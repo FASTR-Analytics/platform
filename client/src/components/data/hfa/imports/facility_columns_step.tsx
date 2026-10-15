@@ -16,6 +16,7 @@ import {
   type StructureSchema,
   t3,
 } from "lib";
+import { hfaFacilityColumnLabel } from "../../_shared/mod.ts";
 import {
   Input,
   plural,
@@ -26,7 +27,6 @@ import {
 } from "panther";
 import { For, Show } from "solid-js";
 import { unwrap } from "solid-js/store";
-import { facilityColumnLabel } from "./facility_column_label.ts";
 
 // Where a pre-filled picker's value came from, shown under the picker until
 // the user edits it.
@@ -267,7 +267,7 @@ export function FacilityColumnsStep(p: Props) {
       <div class="ui-spy-sm">
         <div class="w-96">
           <Input
-            label={facilityColumnLabel("admin_area_1")}
+            label={hfaFacilityColumnLabel("admin_area_1")}
             value={p.facilityColumns.adminArea1.value}
             onChange={(value) =>
               p.onChange(
@@ -314,7 +314,7 @@ export function FacilityColumnsStep(p: Props) {
             <div class="ui-gap flex items-start">
               <div class="w-80">
                 <SelectSearch
-                  label={facilityColumnLabel(column)}
+                  label={hfaFacilityColumnLabel(column)}
                   options={headerOptions()}
                   value={headersOf(column)?.header ?? ""}
                   onChange={(header) =>

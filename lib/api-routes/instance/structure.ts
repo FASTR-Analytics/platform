@@ -3,6 +3,8 @@ import type {
   CsvDetails,
   FacilityFamily,
   HfaFacilityWeightsImportResult,
+  HfaRegistryFacility,
+  HfaRegistrySaveResult,
   StructureDhis2OrgUnitMetadata,
   StructureIntegrateStrategy,
   StructureIntegrateSummary,
@@ -30,6 +32,17 @@ const structureColumnMappingsSchema = z.object({
   facility_custom_4: z.string().optional(),
   facility_custom_5: z.string().optional(),
 });
+
+export const optionalFacilityColumnSchema = z.enum([
+  "facility_name",
+  "facility_type",
+  "facility_ownership",
+  "facility_custom_1",
+  "facility_custom_2",
+  "facility_custom_3",
+  "facility_custom_4",
+  "facility_custom_5",
+]);
 
 const structureRecodableColumnSchema = z.enum([
   "facility_type",
@@ -84,6 +97,36 @@ export const structureRouteRegistry = {
       headers: string[];
       items: Record<string, string>[];
     },
+  }),
+  // The HFA registry with who set each value; one facility edited, every
+  // changed column group becoming the user's; and the facilities no data and
+  // no weights reference, counted and removed. A save reports the map areas
+  // and scope areas it left matching no admin area.
+  getHfaRegistry: route({
+    path: "/structure/hfa_registry",
+    method: "GET",
+    response: {} as HfaRegistryFacility[],
+  }),
+  editHfaFacility: route({
+    path: "/structure/hfa_registry/edit",
+    method: "POST",
+    body: z.object({
+      facilityId: z.string().min(1),
+      admin: z.array(z.string()).optional(),
+      optional: z.partialRecord(optionalFacilityColumnSchema, z.string())
+        .optional(),
+    }),
+    response: {} as HfaRegistrySaveResult,
+  }),
+  countUnreferencedHfaFacilities: route({
+    path: "/structure/hfa_registry/unreferenced",
+    method: "GET",
+    response: {} as { count: number },
+  }),
+  removeUnreferencedHfaFacilities: route({
+    path: "/structure/hfa_registry/remove_unreferenced",
+    method: "POST",
+    response: {} as HfaRegistrySaveResult,
   }),
   // headersWithValues: the encoded headers holding a non-blank cell.
   readWeightsCsvHeaders: route({

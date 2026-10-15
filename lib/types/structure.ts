@@ -1,4 +1,9 @@
 import { z } from "zod";
+import type {
+  HfaFacilityColumnGroup,
+  HfaFacilitySource,
+  HfaOrphanedScopeArea,
+} from "./dataset_hfa_import.ts";
 import { CsvDetails, OptionalFacilityColumn } from "./instance.ts";
 
 // Which facility registry an import targets. Admin areas are shared; each
@@ -297,4 +302,22 @@ export type StructureIntegrateSummary = {
   updated: number;
   deleted: number;
   orphanedGeojsonAreaIds?: GeojsonOrphanedAreaIds[];
+};
+
+// The facilities page's HFA registry: each facility's admin areas at the HFA
+// depth (level 1 first), its enabled columns ("" for an empty cell), and who
+// set each value, by column group.
+export type HfaRegistryFacility = {
+  facilityId: string;
+  admin: string[];
+  optional: Partial<Record<OptionalFacilityColumn, string>>;
+  sources: Partial<Record<HfaFacilityColumnGroup, HfaFacilitySource>>;
+};
+
+// What a save on the facilities page did: the facilities it changed or
+// removed, and the map areas and scope areas it left matching no admin area.
+export type HfaRegistrySaveResult = {
+  nChanged: number;
+  orphanedGeojsonAreaIds: GeojsonOrphanedAreaIds[];
+  orphanedScopeAreas: HfaOrphanedScopeArea[];
 };

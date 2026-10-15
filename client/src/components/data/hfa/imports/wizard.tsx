@@ -19,6 +19,7 @@ import {
   t3,
   TC,
 } from "lib";
+import { hfaFacilityColumnLabel } from "../../_shared/mod.ts";
 import {
   AlertComponentProps,
   Button,
@@ -56,7 +57,6 @@ import {
   createHfaFacilityChangesState,
   FacilityChangesStep,
 } from "./facility_changes_step.tsx";
-import { facilityColumnLabel } from "./facility_column_label.ts";
 import {
   FacilityColumnsStep,
   hfaFacilityColumnsProblem,
@@ -576,13 +576,13 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
 
   const mappedFacilityColumns = () => [
     ...mappings.facilityColumns.adminAreas.map((a) => ({
-      label: facilityColumnLabel(`admin_area_${a.level}`),
+      label: hfaFacilityColumnLabel(`admin_area_${a.level}`),
       headers: a,
     })),
     ...Object.entries(mappings.facilityColumns.optional).map((
       [column, headers],
     ) => ({
-      label: facilityColumnLabel(column as OptionalFacilityColumn),
+      label: hfaFacilityColumnLabel(column as OptionalFacilityColumn),
       headers,
     })),
   ];
@@ -1130,7 +1130,7 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
             </div>
             <div class="flex items-baseline">
               <div class="w-56 flex-none">
-                {facilityColumnLabel("admin_area_1")}
+                {hfaFacilityColumnLabel("admin_area_1")}
               </div>
               <div class="flex-1">
                 {mappings.facilityColumns.adminArea1.value}
@@ -1174,9 +1174,9 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
                 <div class="flex items-baseline">
                   <div class="w-56 flex-none">
                     {t3({
-                      en: `Changes: ${facilityColumnLabel(c.column)}`,
-                      fr: `Modifications : ${facilityColumnLabel(c.column)}`,
-                      pt: `Alterações: ${facilityColumnLabel(c.column)}`,
+                      en: `Changes: ${hfaFacilityColumnLabel(c.column)}`,
+                      fr: `Modifications : ${hfaFacilityColumnLabel(c.column)}`,
+                      pt: `Alterações: ${hfaFacilityColumnLabel(c.column)}`,
                     })}
                   </div>
                   <div class="flex-1">

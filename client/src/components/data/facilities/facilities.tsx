@@ -17,6 +17,10 @@ import {
   toNum0,
 } from "panther";
 import { createSignal, For, Match, onMount, Show, Switch } from "solid-js";
+import {
+  HfaRegistryTable,
+  removeUnreferencedHfaFacilities,
+} from "./hfa_registry/mod.ts";
 import { StructureUploadAttemptForm } from "./import/mod.ts";
 import { _SERVER_HOST, serverActions } from "~/server_actions";
 import {
@@ -121,8 +125,11 @@ export function Facilities(p: Props) {
     }
   }
 
+  // HFA facilities come from each round's data import, never from here.
   onMount(() => {
-    fetchUploadAttempt();
+    if (p.family === "hmis") {
+      fetchUploadAttempt();
+    }
   });
 
   const attemptCreateStructureUA = createButtonAction(
@@ -182,7 +189,9 @@ export function Facilities(p: Props) {
             onBack={() => p.close(undefined)}
             heading={familyLabel(p.family)}
           >
-            <Show when={csvDataIsReady()}>
+            <Show
+              when={p.family === "hfa" ? facilityCount() > 0 : csvDataIsReady()}
+            >
               <Button
                 iconName="download"
                 href={`${_SERVER_HOST}/structure/facilities/export/csv/${p.family}?t=${Date.now()}`}
@@ -198,37 +207,87 @@ export function Facilities(p: Props) {
           panelChildren={
             <Show when={instanceState.currentUserIsGlobalAdmin}>
               <div class="ui-pad ui-spy flex h-full w-64 flex-col overflow-auto">
-                <div class="ui-text-heading">
-                  {t3({ en: "Imports", fr: "Importations", pt: "Importações" })}
-                </div>
                 <Switch>
-                  {/* Fetched per family, so any returned attempt is this family's. */}
-                  <Match when={uploadAttempt()}>
-                    <Button
-                      onClick={openUploadAttempt}
-                      iconName="upload"
-                      fullWidth
-                    >
+                  <Match when={p.family === "hfa"}>
+                    <div class="text-base-content-muted text-sm">
                       {t3({
-                        en: "Resume importing",
-                        fr: "Reprendre l'importation",
-                        pt: "Retomar a importação",
+                        en:
+                          "HFA facilities are added and updated by each time point's data import. Click a facility to edit it.",
+                        fr:
+                          "Les établissements HFA sont ajoutés et mis à jour par l'importation des données de chaque point temporel. Cliquez sur un établissement pour le modifier.",
+                        pt:
+                          "Os estabelecimentos HFA são acrescentados e atualizados pela importação de dados de cada ponto temporal. Clique num estabelecimento para o editar.",
                       })}
-                    </Button>
+                    </div>
+                    <Show when={facilityCount() > 0}>
+                      <div class="ui-spy-sm">
+                        <div class="ui-text-heading">
+                          {t3({
+                            en: "Unused facilities",
+                            fr: "Établissements inutilisés",
+                            pt: "Estabelecimentos não utilizados",
+                          })}
+                        </div>
+                        <div class="text-base-content-muted text-sm">
+                          {t3({
+                            en:
+                              "Facilities with no data and no weights can be removed.",
+                            fr:
+                              "Les établissements sans données ni pondérations peuvent être supprimés.",
+                            pt:
+                              "Os estabelecimentos sem dados nem ponderações podem ser removidos.",
+                          })}
+                        </div>
+                        <Button
+                          onClick={() => void removeUnreferencedHfaFacilities()}
+                          intent="danger"
+                          outline
+                          iconName="trash"
+                          fullWidth
+                        >
+                          {t3({ en: "Remove", fr: "Supprimer", pt: "Remover" })}
+                        </Button>
+                      </div>
+                    </Show>
                   </Match>
-                  <Match when={true}>
-                    <Button
-                      onClick={attemptCreateStructureUA.click}
-                      state={attemptCreateStructureUA.state()}
-                      iconName="upload"
-                      fullWidth
-                    >
+                  <Match when={p.family === "hmis"}>
+                    <div class="ui-text-heading">
                       {t3({
-                        en: "Import facilities",
-                        fr: "Importer des établissements",
-                        pt: "Importar estabelecimentos",
+                        en: "Imports",
+                        fr: "Importations",
+                        pt: "Importações",
                       })}
-                    </Button>
+                    </div>
+                    <Switch>
+                      {/* Fetched per family, so any returned attempt is this family's. */}
+                      <Match when={uploadAttempt()}>
+                        <Button
+                          onClick={openUploadAttempt}
+                          iconName="upload"
+                          fullWidth
+                        >
+                          {t3({
+                            en: "Resume importing",
+                            fr: "Reprendre l'importation",
+                            pt: "Retomar a importação",
+                          })}
+                        </Button>
+                      </Match>
+                      <Match when={true}>
+                        <Button
+                          onClick={attemptCreateStructureUA.click}
+                          state={attemptCreateStructureUA.state()}
+                          iconName="upload"
+                          fullWidth
+                        >
+                          {t3({
+                            en: "Import facilities",
+                            fr: "Importer des établissements",
+                            pt: "Importar estabelecimentos",
+                          })}
+                        </Button>
+                      </Match>
+                    </Switch>
                   </Match>
                 </Switch>
                 <Show when={facilityCount() > 0}>
@@ -265,10 +324,17 @@ export function Facilities(p: Props) {
                 </div>
               }
             >
-              <StructureWithCsv
-                family={p.family}
-                onCsvReady={(csv) => setCsvDataIsReady(csv)}
-              />
+              <Switch>
+                <Match when={p.family === "hfa"}>
+                  <HfaRegistryTable />
+                </Match>
+                <Match when={p.family === "hmis"}>
+                  <StructureWithCsv
+                    family={p.family}
+                    onCsvReady={(csv) => setCsvDataIsReady(csv)}
+                  />
+                </Match>
+              </Switch>
             </Show>
           </div>
         </FrameRight>

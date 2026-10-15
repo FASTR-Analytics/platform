@@ -1,8 +1,8 @@
 import { type DatasetHfaCsvStagingResult, t3 } from "lib";
+import { hfaFacilityColumnLabel } from "../../_shared/mod.ts";
 import { plural, toNum0 } from "panther";
 import { For, Show } from "solid-js";
 import { getAdminAreaLabelForLevel } from "~/state/instance/_util_disaggregation_label";
-import { facilityColumnLabel } from "./facility_column_label.ts";
 
 type Props = {
   result: DatasetHfaCsvStagingResult;
@@ -318,9 +318,11 @@ function HfaFacilitiesSummary(p: {
             <div class="flex flex-col">
               <span class="text-base-content text-sm">
                 {t3({
-                  en: `Changes: ${facilityColumnLabel(counts.column)}`,
-                  fr: `Modifications : ${facilityColumnLabel(counts.column)}`,
-                  pt: `Alterações: ${facilityColumnLabel(counts.column)}`,
+                  en: `Changes: ${hfaFacilityColumnLabel(counts.column)}`,
+                  fr: `Modifications : ${
+                    hfaFacilityColumnLabel(counts.column)
+                  }`,
+                  pt: `Alterações: ${hfaFacilityColumnLabel(counts.column)}`,
                 })}
               </span>
               <span class="font-700">{toNum0(counts.changed)}</span>
@@ -346,13 +348,13 @@ function HfaFacilitiesSummary(p: {
               <span class="text-base-content text-sm">
                 {t3({
                   en: `Codes the XLSForm does not label: ${
-                    facilityColumnLabel(r.column)
+                    hfaFacilityColumnLabel(r.column)
                   }`,
                   fr: `Codes sans libellé dans le XLSForm : ${
-                    facilityColumnLabel(r.column)
+                    hfaFacilityColumnLabel(r.column)
                   }`,
                   pt: `Códigos sem etiqueta no XLSForm: ${
-                    facilityColumnLabel(r.column)
+                    hfaFacilityColumnLabel(r.column)
                   }`,
                 })}
               </span>
