@@ -372,6 +372,9 @@ CREATE UNLOGGED TABLE ${names.facilities} (
   facility TEXT NOT NULL,
   known BOOLEAN NOT NULL
 )`);
+  // postgres.js types a boolean[] parameter as one boolean ("cannot cast type
+  // boolean to boolean[]"), so the flags travel as text and are cast on the
+  // server.
   for (let i = 0; i < facilities.length; i += 1000) {
     const batch = facilities.slice(i, i + 1000);
     await importDb`
