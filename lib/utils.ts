@@ -38,6 +38,7 @@ export function encodeRawCsvHeader(
 
 export const HFA_CORE_FACILITY_ID_COLUMN = "id_fac_txt";
 export const HFA_CORE_WEIGHT_COLUMN = "wgt";
+export const HFA_CORE_STRATUM_COLUMN = "stratum";
 
 export function findEncodedCsvHeader(
   rawColHeaders: string[],

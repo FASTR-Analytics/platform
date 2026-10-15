@@ -241,12 +241,18 @@ which is why `deleteFamilyFacilities` refuses while any weights exist and
 
 **Weights** (`hfa_facility_weights`, facility × time_point): written ONLY by the
 structure-import UI's weights wizard, never by HFA data ingestion. Import is
-long-format (two user-mapped columns: facility id + weight), one time point per
-import, wholesale replace for that time point, positive weights only; a blank
-cell = not-in-sample (absence is the representation). The export is wide (one
-column per time point). Duplicates and non-positive weights reject the whole
-file before the transaction; unknown facility ids reject it inside the
-transaction, before any write.
+long-format (two user-mapped columns: facility id + weight, plus an optional
+stratum column, pre-ticked when the file has a `stratum` header), one time point
+per import, wholesale replace for that time point, positive weights only; a
+blank weight cell = not-in-sample (absence is the representation). Each weighted
+row stores its sampling stratum as trimmed text, NULL when the cell is blank or
+no stratum column was mapped (a CHECK rejects the empty string). The strata are
+stored and shown only: the run extract carries `weight` and not the stratum, so
+no module reads them. The export is wide: one column per time point, plus a
+`<label> stratum` column after each time point that holds any stratum.
+Duplicates and non-positive weights reject the whole file before the
+transaction; unknown facility ids reject it inside the transaction, before any
+write.
 
 **`structure_last_updated`** (JSON ISO timestamp in `instance_config`) is the
 version key for the whole structure world: S6's HMIS/HFA captures record it in
@@ -1135,7 +1141,7 @@ layer.
   `data/hfa/indicators/service_categories_manager.tsx:19`;
   `data/hfa/indicators/variant_groups_manager.tsx:88`, 290), the geojson manager
   (`data/geojson/manager.tsx:113`, 149), the weights import
-  (`data/hfa/hfa_weights.tsx:102`), the facilities import panel
+  (`data/hfa/hfa_weights.tsx:104`), the facilities import panel
   (`data/facilities/facilities.tsx:199`), HFA time points
   (`data/hfa/_shared/time_points.tsx:234`), and S6's HMIS, HFA and ICEH dataset
   controls (`data/hmis/dataset/dataset.tsx:293`,
@@ -1174,7 +1180,7 @@ layer.
 - **Facilities fetches the upload attempt for every viewer.**
   `data/facilities/facilities.tsx:124-126` calls `getStructureUploadAttempt` on
   mount, a `can_configure_data` route
-  (`server/routes/instance/structure.ts:219-220`), though only the admin-only
+  (`server/routes/instance/structure.ts:220-221`), though only the admin-only
   Imports panel reads the result (199); for a viewer without the bit the request
   fails and the failure is swallowed (109-122). Fetch it from an effect on
   `instanceState.currentUserIsGlobalAdmin`, the panel's gate, in place of the

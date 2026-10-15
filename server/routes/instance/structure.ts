@@ -168,6 +168,7 @@ defineRoute(
       body.assetFileName,
       body.facilityIdColumn,
       body.weightColumn,
+      body.stratumColumn,
       body.timePoint,
     );
     if (res.success) {

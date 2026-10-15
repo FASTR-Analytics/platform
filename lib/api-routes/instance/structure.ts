@@ -98,6 +98,7 @@ export const structureRouteRegistry = {
       assetFileName: z.string(),
       facilityIdColumn: z.string(),
       weightColumn: z.string(),
+      stratumColumn: z.string().optional(),
       timePoint: z.string(),
     }),
     response: {} as HfaFacilityWeightsImportResult,

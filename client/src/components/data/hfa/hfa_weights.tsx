@@ -3,6 +3,7 @@ import {
   encodeRawCsvHeader,
   findEncodedCsvHeader,
   HFA_CORE_FACILITY_ID_COLUMN,
+  HFA_CORE_STRATUM_COLUMN,
   HFA_CORE_WEIGHT_COLUMN,
   type HfaFacilityWeightsImportResult,
   t3,
@@ -10,6 +11,7 @@ import {
 } from "lib";
 import {
   Button,
+  Checkbox,
   createDeleteAction,
   createFormAction,
   Csv,
@@ -223,6 +225,8 @@ type WizardStep =
 type Mappings = {
   facilityIdColumn: string;
   weightColumn: string;
+  includeStratum: boolean;
+  stratumColumn: string;
   timePoint: string;
 };
 
@@ -335,11 +339,11 @@ function UploadStep(p: { onNext: (csv: CsvDetails) => void }) {
       <div class="text-base-content-muted text-sm">
         {t3({
           en:
-            "Upload a CSV with a facility ID column and a weight column. You will choose which columns to use in the next step. Each import covers one time point.",
+            "Upload a CSV with a facility ID column and a weight column, and optionally a sampling stratum column. You will choose which columns to use in the next step. Each import covers one time point.",
           fr:
-            "Téléversez un CSV avec une colonne d'identifiant d'établissement et une colonne de pondération. Vous choisirez les colonnes à utiliser à l'étape suivante. Chaque importation couvre un point temporel.",
+            "Téléversez un CSV avec une colonne d'identifiant d'établissement et une colonne de pondération, et éventuellement une colonne de strate d'échantillonnage. Vous choisirez les colonnes à utiliser à l'étape suivante. Chaque importation couvre un point temporel.",
           pt:
-            "Carregue um CSV com uma coluna de ID do estabelecimento e uma coluna de ponderação. Escolherá as colunas a utilizar no passo seguinte. Cada importação cobre um ponto temporal.",
+            "Carregue um CSV com uma coluna de ID do estabelecimento e uma coluna de ponderação e, opcionalmente, uma coluna de estrato de amostragem. Escolherá as colunas a utilizar no passo seguinte. Cada importação cobre um ponto temporal.",
         })}
       </div>
       <FileUploadSelector
@@ -382,6 +386,11 @@ function MapStep(p: {
       p.csvDetails.headers.map((h, i) => encodeRawCsvHeader(i, h)),
     );
 
+  const defaultStratumColumn = findEncodedCsvHeader(
+    p.csvDetails.headers,
+    HFA_CORE_STRATUM_COLUMN,
+  );
+
   const [mappings, setMappings] = createStore<Mappings>({
     facilityIdColumn: findEncodedCsvHeader(
       p.csvDetails.headers,
@@ -391,6 +400,8 @@ function MapStep(p: {
       p.csvDetails.headers,
       HFA_CORE_WEIGHT_COLUMN,
     ),
+    includeStratum: defaultStratumColumn !== "",
+    stratumColumn: defaultStratumColumn,
     timePoint: p.timePointOptions.length === 1
       ? p.timePointOptions[0].value
       : "",
@@ -418,6 +429,16 @@ function MapStep(p: {
         }),
       };
     }
+    if (m.includeStratum && !m.stratumColumn) {
+      return {
+        success: false,
+        err: t3({
+          en: "Select the stratum column",
+          fr: "Sélectionnez la colonne de strate",
+          pt: "Selecione a coluna de estrato",
+        }),
+      };
+    }
     if (!m.timePoint) {
       return {
         success: false,
@@ -432,6 +453,7 @@ function MapStep(p: {
       assetFileName: p.csvDetails.fileName,
       facilityIdColumn: m.facilityIdColumn,
       weightColumn: m.weightColumn,
+      stratumColumn: m.includeStratum ? m.stratumColumn : undefined,
       timePoint: m.timePoint,
     });
     if (res.success) p.onDone(res.data);
@@ -476,6 +498,29 @@ function MapStep(p: {
             </div>
           )}
         </For>
+        <div class="flex items-center gap-4">
+          <div class="w-48 flex-none">
+            <Checkbox
+              checked={mappings.includeStratum}
+              onChange={(v) => setMappings("includeStratum", v)}
+              label={t3({
+                en: "Stratum column",
+                fr: "Colonne de strate",
+                pt: "Coluna de estrato",
+              })}
+            />
+          </div>
+          <div class="flex-1">
+            <Show when={mappings.includeStratum}>
+              <SelectSearch
+                options={headerOptions()}
+                value={mappings.stratumColumn}
+                onChange={(v) => setMappings("stratumColumn", v)}
+                fullWidth
+              />
+            </Show>
+          </div>
+        </div>
         <div class="flex items-center gap-4">
           <div class="w-48 flex-none text-sm">
             {t3({
@@ -529,6 +574,34 @@ function DoneStep(
           }"`,
         })}
       </div>
+      <Show when={p.result.strata}>
+        {(strata) => (
+          <div class="text-base-content-muted text-sm">
+            {`${toNum0(strata().count)} ${
+              plural(strata().count, {
+                one: t3({ en: "stratum", fr: "strate", pt: "estrato" }),
+                other: t3({ en: "strata", fr: "strates", pt: "estratos" }),
+              })
+            }`}
+            <Show when={strata().rowsWithoutStratum > 0}>
+              {` · ${toNum0(strata().rowsWithoutStratum)} ${
+                plural(strata().rowsWithoutStratum, {
+                  one: t3({
+                    en: "weight with no stratum",
+                    fr: "pondération sans strate",
+                    pt: "ponderação sem estrato",
+                  }),
+                  other: t3({
+                    en: "weights with no stratum",
+                    fr: "pondérations sans strate",
+                    pt: "ponderações sem estrato",
+                  }),
+                })
+              }`}
+            </Show>
+          </div>
+        )}
+      </Show>
       <Show when={p.result.rowsSkippedNoWeight > 0}>
         <div class="text-base-content-muted text-sm">
           {`${toNum0(p.result.rowsSkippedNoWeight)} ${

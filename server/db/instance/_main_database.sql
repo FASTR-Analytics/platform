@@ -755,6 +755,9 @@ CREATE TABLE hfa_facility_weights (
   -- Strictly positive: design weights are >= 1 for any surveyed facility, and
   -- a 0 silently excludes the facility from all weighted estimates
   weight double precision NOT NULL CHECK (weight > 0),
+  -- The facility's sampling stratum in this round. NULL is "no stratum given",
+  -- never an empty string.
+  stratum text CHECK (stratum <> ''),
   PRIMARY KEY (facility_id, time_point),
   FOREIGN KEY (facility_id) REFERENCES facilities_hfa(facility_id) ON DELETE CASCADE,
   FOREIGN KEY (time_point) REFERENCES hfa_time_points(label) ON UPDATE CASCADE ON DELETE CASCADE

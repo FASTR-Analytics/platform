@@ -13,12 +13,14 @@ import {
 import { tryCatchDatabaseAsync } from "../utils.ts";
 
 // Import shape: long-format CSV, one row per facility.
-//   facility_id, <weight>   (two columns, any column names, mapped by user)
+//   facility_id, <weight>[, <stratum>]   (any column names, mapped by user)
 // One import = one time point. A blank weight cell means the facility is not
 // in this round's sample: nothing is stored (absence is the representation).
-// Import replaces all stored weights for the selected time point wholesale.
+// A blank stratum cell on a weighted row stores NULL.
+// Import replaces all stored weights and strata for the selected time point
+// wholesale.
 
-// Keep batches well under Postgres's 65,534-parameter limit (3 params per row)
+// Keep batches well under Postgres's 65,534-parameter limit (4 params per row)
 const UPSERT_BATCH_SIZE = 5000;
 
 export async function getHfaWeightsCoverage(
@@ -83,33 +85,60 @@ export async function getHfaFacilityWeightsItems(
     ).map((r) => r.facility_id);
 
     const weights = await mainDb<
-      { facility_id: string; time_point: string; weight: number }[]
+      {
+        facility_id: string;
+        time_point: string;
+        weight: number;
+        stratum: string | null;
+      }[]
     >`
-      SELECT facility_id, time_point, weight
+      SELECT facility_id, time_point, weight, stratum
       FROM hfa_facility_weights
     `;
 
-    const byFacility = new Map<string, Map<string, number>>();
+    const byFacility = new Map<
+      string,
+      Map<string, { weight: number; stratum: string | null }>
+    >();
+    const timePointsWithStrata = new Set<string>();
     for (const w of weights) {
       let row = byFacility.get(w.facility_id);
       if (!row) {
         row = new Map();
         byFacility.set(w.facility_id, row);
       }
-      row.set(w.time_point, Number(w.weight));
+      row.set(w.time_point, { weight: Number(w.weight), stratum: w.stratum });
+      if (w.stratum !== null) {
+        timePointsWithStrata.add(w.time_point);
+      }
     }
+
+    const columns = timePoints.flatMap((tp) => [
+      { header: tp, timePoint: tp, field: "weight" as const },
+      ...(timePointsWithStrata.has(tp)
+        ? [{
+          header: `${tp} stratum`,
+          timePoint: tp,
+          field: "stratum" as const,
+        }]
+        : []),
+    ]);
 
     const facilityIds = allFacilities.slice(0, limit ?? allFacilities.length);
     const items = facilityIds.map((facilityId) => {
       const item: Record<string, string> = { facility_id: facilityId };
-      for (const tp of timePoints) {
-        const w = byFacility.get(facilityId)?.get(tp);
-        item[tp] = w === undefined ? "" : String(w);
+      for (const col of columns) {
+        const value = byFacility.get(facilityId)?.get(col.timePoint)?.[
+          col.field
+        ];
+        item[col.header] = value === undefined || value === null
+          ? ""
+          : String(value);
       }
       return item;
     });
 
-    const headers = ["facility_id", ...timePoints];
+    const headers = ["facility_id", ...columns.map((col) => col.header)];
 
     return {
       success: true,
@@ -123,6 +152,7 @@ export async function importHfaFacilityWeights(
   assetFileName: string,
   facilityIdColumn: string,
   weightColumn: string,
+  stratumColumn: string | undefined,
   timePoint: string,
 ): Promise<APIResponseWithData<HfaFacilityWeightsImportResult>> {
   return await tryCatchDatabaseAsync(async () => {
@@ -144,9 +174,14 @@ export async function importHfaFacilityWeights(
     }
     const { encodedHeaderToIndexMap, processRows } = resCsv.data;
 
-    const mappings = { facilityIdColumn, weightColumn };
+    const mappings = {
+      facilityIdColumn,
+      weightColumn,
+      stratumColumn: stratumColumn ?? "",
+    };
     let facilityIdIndex: number;
     let weightIndex: number;
+    let stratumIndex: number | undefined;
     try {
       facilityIdIndex = getCsvColumnIndex(
         encodedHeaderToIndexMap,
@@ -158,6 +193,13 @@ export async function importHfaFacilityWeights(
         mappings,
         "weightColumn",
       );
+      stratumIndex = stratumColumn === undefined
+        ? undefined
+        : getCsvColumnIndex(
+          encodedHeaderToIndexMap,
+          mappings,
+          "stratumColumn",
+        );
     } catch (e) {
       return {
         success: false,
@@ -165,8 +207,12 @@ export async function importHfaFacilityWeights(
       };
     }
 
-    const rows: { facility_id: string; time_point: string; weight: number }[] =
-      [];
+    const rows: {
+      facility_id: string;
+      time_point: string;
+      weight: number;
+      stratum: string | null;
+    }[] = [];
     const seenFacilities = new Set<string>();
     const duplicateFacilities = new Set<string>();
     const invalidWeights: string[] = [];
@@ -191,7 +237,15 @@ export async function importHfaFacilityWeights(
         invalidWeights.push(`${facilityId}: ${weightRaw}`);
         return;
       }
-      rows.push({ facility_id: facilityId, time_point: timePoint, weight });
+      const stratum = stratumIndex === undefined
+        ? null
+        : row[stratumIndex]?.trim() || null;
+      rows.push({
+        facility_id: facilityId,
+        time_point: timePoint,
+        weight,
+        stratum,
+      });
     });
 
     if (invalidWeights.length > 0) {
@@ -253,7 +307,7 @@ export async function importHfaFacilityWeights(
         for (let i = 0; i < rows.length; i += UPSERT_BATCH_SIZE) {
           const batch = rows.slice(i, i + UPSERT_BATCH_SIZE);
           await sql`INSERT INTO hfa_facility_weights ${
-            sql(batch, "facility_id", "time_point", "weight")
+            sql(batch, "facility_id", "time_point", "weight", "stratum")
           }`;
         }
         await sql`
@@ -271,6 +325,13 @@ export async function importHfaFacilityWeights(
             rowsImported: rows.length,
             rowsSkippedNoWeight,
             timePointsCovered: [timePoint],
+            strata: stratumIndex === undefined ? undefined : {
+              count: new Set(
+                rows.flatMap((r) => r.stratum === null ? [] : [r.stratum]),
+              ).size,
+              rowsWithoutStratum: rows.filter((r) => r.stratum === null)
+                .length,
+            },
           },
         };
       },

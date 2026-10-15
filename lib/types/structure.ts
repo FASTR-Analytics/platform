@@ -241,11 +241,13 @@ export type StructureDhis2OrgUnitMetadata = {
 // ============================================================================
 
 // Import CSV is LONG format: two user-mapped columns (facility_id, weight),
-// one row per facility. The time point is chosen in the UI: one time point
-// per import. A blank weight cell = facility not in that round's sample;
-// skipped rather than stored (no surveyed-but-excluded case exists, so no
-// 0/NULL weights are ever stored). The EXPORT is wide:
-// facility_id, then one column per time point label.
+// plus an optional stratum column, one row per facility. The time point is
+// chosen in the UI: one time point per import. A blank weight cell = facility
+// not in that round's sample; skipped rather than stored (no
+// surveyed-but-excluded case exists, so no 0/NULL weights are ever stored). A
+// blank stratum cell on a weighted row stores NULL. The EXPORT is wide:
+// facility_id, then per time point a column named by its label and, when the
+// time point holds any stratum, a "<label> stratum" column after it.
 // Coverage is measured against facilities WITH DATA in the round: those are
 // the ones that enter the analysis (not-sampled facilities have no data rows
 // and need no weight). Partial coverage is the footgun to show.
@@ -260,6 +262,8 @@ export type HfaFacilityWeightsImportResult = {
   rowsImported: number;
   rowsSkippedNoWeight: number;
   timePointsCovered: string[];
+  // Absent when the import mapped no stratum column.
+  strata?: { count: number; rowsWithoutStratum: number };
 };
 
 // The three facility-import intents. facility_id is always the match key; the

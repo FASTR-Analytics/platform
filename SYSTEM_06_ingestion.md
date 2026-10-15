@@ -638,7 +638,7 @@ into its inputs plus the dataset version stamps the manifest records
   `server/routes/instance/datasets.ts:84-85`, 95-96, 549-550;
   `server/routes/instance/iceh.ts:26-27`) and whose write controls are
   admin-only (`data/facilities/facilities.tsx:199`,
-  `data/hmis/dataset/dataset.tsx:293`, `data/hfa/hfa_weights.tsx:102`,
+  `data/hmis/dataset/dataset.tsx:293`, `data/hfa/hfa_weights.tsx:104`,
   `data/hfa/dataset/dataset.tsx:67`, `data/iceh/dataset/dataset.tsx:81`). Push
   those rows only when `instanceState.currentUserIsGlobalAdmin` or
   `instanceState.currentUserPermissions.can_view_data` holds. Population stays:
