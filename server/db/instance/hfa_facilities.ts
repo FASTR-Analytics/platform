@@ -701,15 +701,19 @@ export async function previewHfaFacilityChanges(
   const changeSet = computeHfaFacilityChanges(input.file, mappedOptional, ctx);
 
   const decisionByKey = new Map(
-    input.decisions.map((d) => [groupKey(d.column, d.from, d.to), d]),
+    input.decisions.map((d) => [groupKey(d.column, d.from, d.to), {
+      members: new Set(d.facilityIds),
+      exceptions: new Set(d.exceptions),
+      decision: d.decision,
+    }]),
   );
   const decide = (
     group: HfaFacilityChangeGroup,
     change: HfaFacilityChange,
   ): HfaFacilityChangeDecision => {
     const d = decisionByKey.get(groupKey(group.column, group.from, group.to));
-    if (d?.facilityIds.includes(change.facilityId)) {
-      return d.exceptions.includes(change.facilityId)
+    if (d?.members.has(change.facilityId)) {
+      return d.exceptions.has(change.facilityId)
         ? opposite(d.decision)
         : d.decision;
     }
