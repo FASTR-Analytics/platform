@@ -489,9 +489,9 @@ the structure stamp, when a registry row changed); the orphan reports into the
 diagnostics; flip complete. No merge → **no phantom-value hazard** within a time
 point; other time points untouched (rounds). **No version records**. Staleness
 identity is a hash over `hfa_time_points` (label, sort_order, imported_at).
-Weights (`hfa_facility_weights`) are populated by the structure import (S5),
-never here; HFA data deletion preserves time points, weights, indicator code and
-the registry.
+Weights (`hfa_facility_weights`) are populated by the weights import
+(`importHfaFacilityWeights`, S5), never here; HFA data deletion preserves time
+points, weights, indicator code and the registry.
 
 **ICEH, cumulative per-indicator replace**: only indicators with valid data rows
 in the uploaded file are replaced (DELETE cascades to `iceh_data`, then
