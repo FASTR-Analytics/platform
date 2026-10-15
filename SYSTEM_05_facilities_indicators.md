@@ -341,12 +341,12 @@ candidates, then re-checks in the delete, so a reference committed while the
 lock waited keeps its facility. `reportHfaRegistryOrphans` lists the geojson
 area ids and the scopes' HFA area 2s that no longer match the registry.
 
-**The facilities page's entry points** each run in their own transaction:
+**The facilities page's entry points.** Two reads on the pool, no transaction:
 `getHfaRegistry` (every facility at the HFA depth with its enabled columns and
-sources), `getHfaUnreferencedFacilityCount`, and the two saves,
-`saveHfaFacilityEdit` and `saveHfaUnreferencedFacilitiesRemoval`, which return
-`HfaRegistrySaveResult`: the facilities changed or removed and the orphan report
-taken inside the save's transaction. The routes (`getHfaRegistry`,
+sources) and `getHfaUnreferencedFacilityCount`. Two saves, each in its own
+transaction: `saveHfaFacilityEdit` and `saveHfaUnreferencedFacilitiesRemoval`,
+which return `HfaRegistrySaveResult`: the facilities changed or removed and the
+orphan report taken inside the save's transaction. The routes (`getHfaRegistry`,
 `editHfaFacility`, `countUnreferencedHfaFacilities`,
 `removeUnreferencedHfaFacilities`) notify the structure channel when a save
 changed a facility.
@@ -1157,14 +1157,15 @@ layer.
 - The facilities page (`data/facilities/facilities.tsx`) is one page per family.
   The HMIS page shows the first rows of `getStructureItems` and the structure
   wizard's Imports panel. The HFA page has no import entry: its panel says that
-  each time point's data import adds and updates the facilities, and holds
-  "Remove facilities with no data and no weights" (counted when clicked, the
-  confirmation naming the count) beside Delete facilities. Its content is
-  `HfaRegistryTable` (`data/facilities/hfa_registry/`): every facility, read
-  through `getHfaRegistry` again whenever the structure stamp, the HFA dataset
-  hash or the HFA schema moves (an import can change who set a value without
-  changing the value), searchable, with filters on the admin areas, the columns
-  and who set the admin areas and the type. A global admin's row click opens
+  each time point's data import adds and updates the facilities, and holds an
+  "Unused facilities" section whose Remove button removes the facilities with no
+  data and no weights (counted when clicked, the confirmation naming the count),
+  above Delete facilities. Its content is `HfaRegistryTable`
+  (`data/facilities/hfa_registry/`): every facility, read through
+  `getHfaRegistry` again whenever the structure stamp, the HFA dataset hash or
+  the HFA schema moves (an import can change who set a value without changing
+  the value), searchable, with filters on the admin areas, the columns and who
+  set the admin areas and the type. A global admin's row click opens
   `EditHfaFacility`: level 1 is shown, levels 2 to the depth and the enabled
   columns are edited, each with who set it, and an area name the registry lacks
   at its level is flagged before saving adds it. A save that leaves map areas or

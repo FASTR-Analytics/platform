@@ -1222,8 +1222,8 @@ export async function removeUnreferencedHfaFacilities(
 }
 
 // ============================================================================
-// The facilities page: each read or save in its own transaction, a save
-// reporting what it left orphaned
+// The facilities page: reads on the pool, each save in its own transaction
+// and reporting what it left orphaned
 // ============================================================================
 
 export async function getHfaRegistry(
