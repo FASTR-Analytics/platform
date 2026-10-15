@@ -259,8 +259,9 @@ write.
 version key for the whole structure world: S6's HMIS/HFA captures record it in
 the run's dataset info, and the client facilities/weights caches key on it.
 Bumped by: step-4 integrate, `deleteFamilyFacilities` (one endpoint, per
-family), all weights mutations, and HFA time-point rename/delete (whose cascades
-reach the weights).
+family), all weights mutations, HFA time-point rename/delete (whose cascades
+reach the weights), and every HFA registry write that changed a row
+(`finishHfaRegistryWrite`, "HFA registry writes" below).
 
 ## HFA registry writes
 
