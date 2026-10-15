@@ -1,7 +1,11 @@
 import { getTruncatedString } from "@timroberton/panther";
 import { getReplicateByProp } from "./get_disaggregator_display_prop.ts";
 import { formatReplicantLabelForDisplay } from "./format_nigeria_admin_label.ts";
-import { PresentationObjectConfig } from "./types/mod.ts";
+import type {
+  AdminAreaLevel,
+  OptionalFacilityColumn,
+  PresentationObjectConfig,
+} from "./types/mod.ts";
 
 export function withReplicant(
   str: string,
@@ -40,12 +44,67 @@ export const HFA_CORE_FACILITY_ID_COLUMN = "id_fac_txt";
 export const HFA_CORE_WEIGHT_COLUMN = "wgt";
 export const HFA_CORE_STRATUM_COLUMN = "stratum";
 
+// The facility id column defaults to the first of these that holds a value:
+// the generic form has no id_fac_txt, and some rounds leave it blank.
+export const HFA_CORE_FACILITY_ID_COLUMNS = ["id_fac_txt", "id_fac"];
+
+// The questionnaire's names for the facility columns, matched ignoring case.
+// Level 1 is the country and never a column, so level 2 is the form's admin 1.
+// Ownership has no core name.
+export const HFA_CORE_ADMIN_AREA_COLUMNS: Record<AdminAreaLevel, string> = {
+  2: "id_admin1_name",
+  3: "id_admin2_name",
+  4: "id_admin3_name",
+};
+export const HFA_CORE_OPTIONAL_FACILITY_COLUMNS: Partial<
+  Record<OptionalFacilityColumn, string>
+> = {
+  facility_name: "id_fac_name",
+  facility_type: "id_fac_type",
+};
+
+// The questionnaire's name for a column's correction: id_admin1_name has
+// id_admin1_corrected, id_fac_type has id_fac_type_corrected.
+export function hfaCorrectionColumnName(rawColHeader: string): string {
+  return `${rawColHeader.replace(/_(name|txt)$/i, "")}_corrected`;
+}
+
 export function findEncodedCsvHeader(
   rawColHeaders: string[],
   colHeader: string,
 ): string {
   const i_colHeader = rawColHeaders.indexOf(colHeader);
   return i_colHeader === -1 ? "" : encodeRawCsvHeader(i_colHeader, colHeader);
+}
+
+export function findEncodedCsvHeaderIgnoringCase(
+  rawColHeaders: string[],
+  colHeader: string,
+): string {
+  const lower = colHeader.toLowerCase();
+  const i_colHeader = rawColHeaders.findIndex((h) => h.toLowerCase() === lower);
+  return i_colHeader === -1
+    ? ""
+    : encodeRawCsvHeader(i_colHeader, rawColHeaders[i_colHeader]);
+}
+
+// The first candidate that is a header of the file holding a non-blank value
+// in some row, as its encoded header, or "" when none does.
+export function findFirstEncodedCsvHeaderWithValues(
+  rawColHeaders: string[],
+  candidates: string[],
+  encodedHeadersWithValues: string[],
+): string {
+  const withValues = new Set(encodedHeadersWithValues);
+  for (const candidate of candidates) {
+    for (let i = 0; i < rawColHeaders.length; i++) {
+      const encoded = encodeRawCsvHeader(i, rawColHeaders[i]);
+      if (rawColHeaders[i] === candidate && withValues.has(encoded)) {
+        return encoded;
+      }
+    }
+  }
+  return "";
 }
 
 export function parseJsonOrUndefined<T>(

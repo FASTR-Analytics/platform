@@ -35,6 +35,7 @@ globs:
   - lib/types/structure.ts
   - server/db/instance/config.ts
   - server/db/instance/geojson_maps.ts
+  - server/db/instance/hfa_facilities.ts
   - server/db/instance/hfa_facility_weights.ts
   - server/db/instance/hfa_indicators.ts
   - server/db/instance/indicators.ts
@@ -260,6 +261,82 @@ the run's dataset info, and the client facilities/weights caches key on it.
 Bumped by: step-4 integrate, `deleteFamilyFacilities` (one endpoint, per
 family), all weights mutations, and HFA time-point rename/delete (whose cascades
 reach the weights).
+
+## HFA registry writes
+
+`server/db/instance/hfa_facilities.ts` holds the HFA registry's reads and
+writes: `facilities_hfa`, `admin_areas_hfa_1..4` and `hfa_facility_sources`.
+Every write runs inside the caller's transaction and bumps
+`structure_last_updated` only when a registry row or an admin area changed.
+Pinned by `server/tests/hfa_facility_changes_test.ts`.
+
+**Sources.** `hfa_facility_sources` holds one row per facility and column group:
+`admin` (the whole admin tuple, because admin values are only a valid hierarchy
+as a tuple) or one optional facility column. `kind` is `round`, with the
+`time_point` whose import set the value, or `user`. A cell with no row is of
+unknown origin, which is every cell of a registry imported before the table. The
+facility FK cascades on delete; the time point FK cascades a rename and sets
+`time_point` NULL when the round is deleted, so a reorder, a rename or a delete
+of a time point never touches the registry.
+
+**The file side.** An import reads each facility from its kept row (the one row
+per facility left by the row filters and the duplicate resolution, the row its
+data comes from) through `HfaFacilityColumns`: level 1 is one fixed value for
+every facility, levels 2 to the HFA admin depth are mapped all or none, and the
+optional columns are the HFA structure schema's enabled set. A mapped column may
+carry a correction column whose trimmed cell wins where it is non-blank. Each
+header is resolved through the XLSForm by its own name (the HFA header
+convention, `resolve_odk_labels.ts`): a header matching a `select_one` question
+has its codes replaced by choice labels, and a code the choice list lacks stays
+raw and is counted per column. `scanHfaFileFacilities` and
+`createHfaFacilityCollector` (`server_only_funcs_csvs/scan_hfa_rows.ts`) produce
+these `HfaFileFacility` rows, with label resolution run on the kept rows only.
+
+**Changes.** A change is an existing facility whose file value for a mapped
+column group differs from its registry value; a blank and a NULL registry value
+are equal. The admin tuple is compared at the registry depth, encoded as JSON
+(`encodeHfaAdminTuple`) so that no area name can make two tuples read the same.
+An incomplete file tuple is no change: the registry keeps its tuple. Changes are
+grouped per (column, registry value, file value). A file facility the registry
+lacks is new; a new facility with an incomplete tuple is not written, and the
+caller drops its data.
+
+**Defaults.** A cell with no source has no default. A `user` source keeps; a
+round newer than the imported round (by `sort_order`) keeps; an older or equal
+round, or a deleted round, takes the file value.
+
+**What a write records.** A take that agrees with the default, or that has no
+default, writes the round's source. A decision against the default writes the
+user's. A keep the default keeps leaves the source unchanged; a keep with no
+default writes the user's. An unchanged mapped cell whose default would not keep
+(no source, an older or equal round, a deleted round) gets the imported round as
+its source, since that round now vouches for the value. A new facility's mapped
+groups are the round's. A recode (column, facility id, value) names a new
+facility or a taken change, writes its value in place of the file's, and is the
+user's.
+
+**The import's write.** Decisions arrive as `HfaFacilityChangeGroupDecision`s:
+the group, every facility the user was shown in it, keep or take, and the
+exceptions decided the other way. `writeHfaFacilitiesFromImport` runs, in this
+order: lock the file's registry rows `FOR UPDATE`; recompute the changes and
+refuse, naming the facilities, when any (facility, column, from, to) differs
+from the decisions; insert the written admin paths at levels 1 to 4 with
+`ON CONFLICT DO NOTHING`; insert the new facilities and update the taken
+changes, levels above the admin depth repeating the deepest level; write the
+sources. The caller then inserts the round's data, whose facility FK is
+immediate, and calls `finishHfaRegistryWrite`, which runs
+`cleanupUnusedAdminAreas` and bumps the stamp when a registry row changed.
+`previewHfaFacilityChanges` computes the same changes without locks, plus the
+admin paths the file introduces and the area names no facility would carry after
+the decisions, each with the scopes (level 2, matched ignoring case, as the
+scoped view matches) and the geojson map that name it.
+
+**Other writes and reports.** `editHfaFacility` edits one facility; every column
+group whose value changes becomes the user's. `removeUnreferencedHfaFacilities`
+removes the facilities no data and no weights reference: it locks the
+candidates, then re-checks in the delete, so a reference committed while the
+lock waited keeps its facility. `reportHfaRegistryOrphans` lists the geojson
+area ids and the scopes' HFA area 2s that no longer match the registry.
 
 ## The four indicator dictionaries
 
@@ -770,11 +847,12 @@ mutations.
 `hfa_time_points` (label PK, `period_id` yyyymm, `sort_order`, `imported_at`)
 gate HFA data uploads and key the weights. Renames work by cascade alone here:
 every referencing table (`hfa_variables`, `hfa_variable_values`, `hfa_data`,
-`hfa_facility_weights`, `hfa_indicator_code`) FKs the label with
-`ON UPDATE CASCADE` (the HMIS indicator id renames through the junction's
-cascade plus explicit rewrites, above). Deletion cascades data/variables/weights
-in a single transactional DELETE (the cascades are the implementation: no
-explicit child deletes) but is RESTRICTed by indicator code, with a friendly
+`hfa_facility_weights`, `hfa_facility_sources`, `hfa_indicator_code`) FKs the
+label with `ON UPDATE CASCADE` (the HMIS indicator id renames through the
+junction's cascade plus explicit rewrites, above). Deletion cascades
+data/variables/weights in a single transactional DELETE (the cascades are the
+implementation: no explicit child deletes), sets the round's registry sources'
+`time_point` to NULL, and is RESTRICTed by indicator code, with a friendly
 pre-check. Creating a time point auto-carries indicator R code and variant R
 code forward from the previous latest round. Time-point routes notify the
 **datasets** SSE channel (they are upload-gating state), and rename/delete

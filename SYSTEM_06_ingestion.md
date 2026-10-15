@@ -46,6 +46,7 @@ globs:
   - server/tests/csv_stream_reader_test.ts
   - server/tests/dhis2_skip_and_record_test.ts
   - server/tests/hfa_csv_column_matching_test.ts
+  - server/tests/hfa_facility_changes_test.ts
   - server/tests/indicator_selection_expansion_test.ts
   - server/worker_routines/import_hfa_data_csv/**
   - server/worker_routines/import_hmis_data_csv/**
