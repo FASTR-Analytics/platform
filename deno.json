@@ -7,12 +7,7 @@
       "client/public/",
       "client/package-lock.json",
       "vendor/",
-      "report-forge/harness/baseline/",
-      "report-forge/styles/report-forge.css",
-      "report-forge/styles/utilities.css",
-      "report-forge/ui/exports/vendor/",
-      "report-forge/tests/fixtures/",
-      "report-forge/playground/package-lock.json"
+      "report-forge/"
     ]
   },
   "lint": {
