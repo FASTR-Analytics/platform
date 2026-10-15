@@ -110,7 +110,11 @@ export function Facilities(p: Props) {
     StructureUploadAttemptDetail | undefined
   >(undefined);
 
+  // HFA facilities come from each round's data import, never from here.
   async function fetchUploadAttempt() {
+    if (p.family !== "hmis") {
+      return;
+    }
     try {
       const res = await serverActions.getStructureUploadAttempt({
         family: p.family,
@@ -125,12 +129,7 @@ export function Facilities(p: Props) {
     }
   }
 
-  // HFA facilities come from each round's data import, never from here.
-  onMount(() => {
-    if (p.family === "hmis") {
-      fetchUploadAttempt();
-    }
-  });
+  onMount(fetchUploadAttempt);
 
   const attemptCreateStructureUA = createButtonAction(
     () => serverActions.addStructureUploadAttempt({ datasetFamily: p.family }),

@@ -3,6 +3,7 @@ import {
   type HfaRegistrySaveResult,
   type OptionalFacilityColumn,
   t3,
+  TC,
 } from "lib";
 import {
   AlertComponentProps,
@@ -67,7 +68,7 @@ export function EditHfaFacility(
       form
       onCancel={() => p.close(undefined)}
       actions={[{
-        label: t3({ en: "Save", fr: "Sauvegarder", pt: "Guardar" }),
+        label: t3(TC.save),
         onClick: save.click,
         state: save.state(),
       }]}

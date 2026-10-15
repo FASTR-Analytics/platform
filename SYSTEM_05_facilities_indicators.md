@@ -346,10 +346,10 @@ area ids and the scopes' HFA area 2s that no longer match the registry.
 sources) and `getHfaUnreferencedFacilityCount`. Two saves, each in its own
 transaction: `saveHfaFacilityEdit` and `saveHfaUnreferencedFacilitiesRemoval`,
 which return `HfaRegistrySaveResult`: the facilities changed or removed and the
-orphan report taken inside the save's transaction. The routes (`getHfaRegistry`,
-`editHfaFacility`, `countUnreferencedHfaFacilities`,
-`removeUnreferencedHfaFacilities`) notify the structure channel when a save
-changed a facility.
+orphan report taken inside the save's transaction, empty when nothing changed.
+The routes (`getHfaRegistry`, `editHfaFacility`,
+`countUnreferencedHfaFacilities`, `removeUnreferencedHfaFacilities`) notify the
+structure channel when a save changed a facility.
 
 ## The four indicator dictionaries
 
@@ -1162,15 +1162,17 @@ layer.
   data and no weights (counted when clicked, the confirmation naming the count),
   above Delete facilities. Its content is `HfaRegistryTable`
   (`data/facilities/hfa_registry/`): every facility, read through
-  `getHfaRegistry` again whenever the structure stamp, the HFA dataset hash or
-  the HFA schema moves (an import can change who set a value without changing
-  the value), searchable, with filters on the admin areas, the columns and who
-  set the admin areas and the type. A global admin's row click opens
-  `EditHfaFacility`: level 1 is shown, levels 2 to the depth and the enabled
-  columns are edited, each with who set it, and an area name the registry lacks
-  at its level is flagged before saving adds it. A save that leaves map areas or
-  scopes naming no admin area says so in an alert. The value-origin and column
-  labels are `data/_shared/`'s, shared with the HFA import wizard.
+  `getHfaRegistry` by the T2 cache `getHfaRegistryFromCacheOrFetch`
+  (`state/instance/t2_structure.ts`), keyed on the structure stamp, the HFA
+  dataset hash and the HFA schema hash (an import can change who set a value
+  without changing the value), searchable, with filters on the admin areas, the
+  columns and who set the admin areas and the type. A global admin's row click
+  opens `EditHfaFacility`: level 1 is shown, levels 2 to the depth and the
+  enabled columns are edited, each with who set it, and an area name the
+  registry lacks at its level is flagged before saving adds it. A save that
+  leaves map areas or scopes naming no admin area says so in an alert. The
+  value-origin and column labels are `data/_shared/`'s, shared with the HFA
+  import wizard.
 - The structure wizard: server owns the step number (every save writes `step`;
   the client fetcher jumps the stepper on each silent refetch). Errors render as
   a dismissible banner over navigable steps (re-saving any step resets status to
@@ -1287,11 +1289,11 @@ layer.
   a failed load leaves a reload as the only exit. Move Cancel out of the `Show`
   so it renders in the loading and error states too.
 - **The HMIS facilities page fetches the upload attempt for every viewer.**
-  `data/facilities/facilities.tsx:129-133` calls `getStructureUploadAttempt` on
-  mount for the HMIS family, a `can_configure_data` route
+  `data/facilities/facilities.tsx:132` calls `getStructureUploadAttempt` on
+  mount, for the HMIS family only (115-117), a `can_configure_data` route
   (`server/routes/instance/structure.ts:294-295`), though only the admin-only
-  Imports panel reads the result (208); for a viewer without the bit the request
-  fails and the failure is swallowed (113-126). Fetch it from an effect on
+  Imports panel reads the result (207); for a viewer without the bit the request
+  fails and the failure is swallowed (118-129). Fetch it from an effect on
   `instanceState.currentUserIsGlobalAdmin`, the panel's gate, in place of the
   unconditional `onMount`.
 - **A manager comment ties the code editor to imported data.**

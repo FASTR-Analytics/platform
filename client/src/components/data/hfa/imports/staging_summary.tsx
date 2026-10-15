@@ -1,8 +1,8 @@
 import { type DatasetHfaCsvStagingResult, t3 } from "lib";
-import { hfaFacilityColumnLabel } from "../../_shared/mod.ts";
 import { plural, toNum0 } from "panther";
 import { For, Show } from "solid-js";
 import { getAdminAreaLabelForLevel } from "~/state/instance/_util_disaggregation_label";
+import { hfaFacilityColumnLabel } from "../../_shared/mod.ts";
 
 type Props = {
   result: DatasetHfaCsvStagingResult;

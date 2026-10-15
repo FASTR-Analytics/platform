@@ -19,7 +19,6 @@ import {
   t3,
   TC,
 } from "lib";
-import { hfaFacilityColumnLabel } from "../../_shared/mod.ts";
 import {
   AlertComponentProps,
   Button,
@@ -64,6 +63,7 @@ import {
   type HfaPrefillSource,
   prefillHfaFacilityColumns,
 } from "./facility_columns_step.tsx";
+import { hfaFacilityColumnLabel } from "../../_shared/mod.ts";
 
 export type HfaWizardResult = { launched: true };
 

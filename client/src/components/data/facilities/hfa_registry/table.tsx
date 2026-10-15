@@ -13,13 +13,13 @@ import {
   Table,
   type TableColumn,
 } from "panther";
-import { createEffect, createSignal, on } from "solid-js";
-import { serverActions } from "~/server_actions";
+import { createEffect, createSignal } from "solid-js";
 import { getAdminAreaLabelForLevel } from "~/state/instance/_util_disaggregation_label";
 import {
   instanceState,
   structureSchemaForFamily,
 } from "~/state/instance/t1_store";
+import { getHfaRegistryFromCacheOrFetch } from "~/state/instance/t2_structure";
 import {
   hfaFacilityColumnLabel,
   hfaFacilitySourceLabel,
@@ -36,9 +36,18 @@ export function HfaRegistryTable() {
   const tableConfig = createTableConfig();
 
   let fetchRunId = 0;
-  async function fetchRegistry() {
+  async function fetchRegistry(
+    structureLastUpdated: string,
+    hfaCacheHash: string,
+    schemaHash: string,
+  ) {
     const runId = ++fetchRunId;
-    const res = await serverActions.getHfaRegistry({});
+    setRegistry({ status: "loading", msg: t3(TC.fetchingData) });
+    const res = await getHfaRegistryFromCacheOrFetch(
+      structureLastUpdated,
+      hfaCacheHash,
+      schemaHash,
+    );
     if (runId !== fetchRunId) {
       return;
     }
@@ -49,16 +58,23 @@ export function HfaRegistryTable() {
     );
   }
 
-  // An import can change who set a value without changing the value, which
-  // leaves the structure stamp alone but moves the HFA dataset hash.
-  createEffect(on(
-    () => [
-      instanceState.structureLastUpdated,
-      instanceState.hfaCacheHash,
-      hashStructureSchema(structureSchemaForFamily("hfa")),
-    ],
-    () => void fetchRegistry(),
-  ));
+  createEffect(() => {
+    const structureLastUpdated = instanceState.structureLastUpdated;
+    const hfaCacheHash = instanceState.hfaCacheHash;
+    const schemaHash = hashStructureSchema(structureSchemaForFamily("hfa"));
+    if (!structureLastUpdated) {
+      setRegistry({
+        status: "error",
+        err: t3({
+          en: "No structure data",
+          fr: "Aucune donnée de structure",
+          pt: "Nenhum dado de estrutura",
+        }),
+      });
+      return;
+    }
+    void fetchRegistry(structureLastUpdated, hfaCacheHash, schemaHash);
+  });
 
   const schema = () => structureSchemaForFamily("hfa");
   const enabled = () => getEnabledOptionalFacilityColumns(schema());
@@ -144,7 +160,7 @@ export function HfaRegistryTable() {
       element: EditHfaFacility,
       props: { facility, enabled: enabled(), areaNames },
     });
-    if (result && result.nChanged > 0) {
+    if (result) {
       await alertHfaRegistryOrphans(result);
     }
   }

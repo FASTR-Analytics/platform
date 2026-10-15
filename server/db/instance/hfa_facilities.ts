@@ -1257,7 +1257,9 @@ async function saveWithOrphanReport(
   return await tryCatchDatabaseAsync(async () => {
     const data = await mainDb.begin(async (sql) => {
       const nChanged = await write(sql);
-      return { nChanged, ...(await reportHfaRegistryOrphans(sql)) };
+      return nChanged === 0
+        ? { nChanged, orphanedGeojsonAreaIds: [], orphanedScopeAreas: [] }
+        : { nChanged, ...(await reportHfaRegistryOrphans(sql)) };
     });
     return { success: true, data };
   });

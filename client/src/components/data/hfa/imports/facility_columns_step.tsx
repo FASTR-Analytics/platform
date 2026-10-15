@@ -16,7 +16,6 @@ import {
   type StructureSchema,
   t3,
 } from "lib";
-import { hfaFacilityColumnLabel } from "../../_shared/mod.ts";
 import {
   Input,
   plural,
@@ -27,6 +26,7 @@ import {
 } from "panther";
 import { For, Show } from "solid-js";
 import { unwrap } from "solid-js/store";
+import { hfaFacilityColumnLabel } from "../../_shared/mod.ts";
 
 // Where a pre-filled picker's value came from, shown under the picker until
 // the user edits it.
