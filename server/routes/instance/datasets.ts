@@ -20,8 +20,11 @@ import {
   getDatasetHmisItemsForDisplay,
   getDatasetHmisScheduledImports,
   getInstanceDatasetsSummary,
+  getInstanceStructureSummary,
+  getLatestCompleteHfaMappings,
   getStoredDhis2CredentialsDecrypted,
   getStoredDhis2CredentialsInfo,
+  getStructureSchema,
   getVersionsForDatasetHmis,
   isDhis2CredentialsEncryptionKeyConfigured,
   launchDatasetHfaCsvImportRun,
@@ -29,20 +32,41 @@ import {
   launchDatasetHmisDhis2ImportRun,
   resolveDatasetHfaReview,
   resolveDatasetHmisCsvReview,
+  tryCatchDatabaseAsync,
   updateDatasetHmisScheduledImport,
 } from "../../db/mod.ts";
+import {
+  getHfaRegistryAdminAreaNames,
+  previewHfaFacilityChanges,
+} from "../../db/instance/hfa_facilities.ts";
+import { parseXlsForm } from "../../server_only_funcs_csvs/parse_xlsform.ts";
 import { getCsvDetails } from "../../server_only_funcs_csvs/get_csv_components.ts";
 import { getXlsxSheetNamesRaw } from "../../server_only_funcs_csvs/read_xlsx_raw.ts";
-import { scanHfaDuplicates } from "../../server_only_funcs_csvs/scan_hfa_rows.ts";
+import {
+  type HfaFileFacilityScan,
+  scanHfaDuplicates,
+  scanHfaFileFacilities,
+  scanHfaHeadersWithValues,
+  summarizeHfaFacilityColumns,
+} from "../../server_only_funcs_csvs/scan_hfa_rows.ts";
 import { scanHmisCsvIndicatorValues } from "../../worker_routines/import_hmis_data_csv/scan_indicator_values.ts";
 import { classifyElements } from "../../worker_routines/import_hmis_data_dhis2/dispatch.ts";
 import { resolveAssetFileOrThrow } from "../../db/instance/assets.ts";
 import { log } from "../../middleware/logging.ts";
 import { requireGlobalPermission } from "../../middleware/mod.ts";
-import { notifyInstanceDatasetsUpdated } from "../../task_management/notify_instance_updated.ts";
+import {
+  notifyInstanceDatasetsUpdated,
+  notifyInstanceStructureUpdated,
+} from "../../task_management/notify_instance_updated.ts";
 import { _FETCH_CACHE_DATASET_HFA_ITEMS } from "../caches/dataset.ts";
 import { defineRoute } from "../route-helpers.ts";
-import { NO_STORED_DHIS2_CONNECTION } from "lib";
+import {
+  _RECODABLE_FACILITY_COLUMNS,
+  type HfaCsvMappingParams,
+  type HfaFacilityRecodeRow,
+  NO_STORED_DHIS2_CONNECTION,
+  throwIfErrWithData,
+} from "lib";
 
 export const routesDatasets = new Hono();
 
@@ -641,9 +665,141 @@ defineRoute(
     if (!res.success) {
       return c.json(res);
     }
-    return c.json({ success: true, data: { headers: res.data.headers } });
+    return c.json(
+      await tryCatchDatabaseAsync(async () => ({
+        success: true as const,
+        data: {
+          headers: res.data.headers,
+          headersWithValues: await scanHfaHeadersWithValues(csvFilePath),
+        },
+      })),
+    );
   },
 );
+
+// The kept row of every facility in the named assets, read through the
+// facility columns. Stateless, like every wizard preview.
+async function scanHfaFacilitiesForPreview(
+  mainDb: Sql,
+  body:
+    & Pick<
+      HfaCsvMappingParams,
+      | "facilityIdColumn"
+      | "rowFilters"
+      | "dedupStrategy"
+      | "dedupOverrides"
+      | "facilityColumns"
+    >
+    & { csvFileName: string; xlsFormFileName: string },
+  contextHeaders: string[],
+): Promise<HfaFileFacilityScan> {
+  const csvFile = await resolveAssetFileOrThrow(body.csvFileName, null);
+  const xlsFormFile = await resolveAssetFileOrThrow(body.xlsFormFileName, null);
+  const resSchema = await getStructureSchema(mainDb, "hfa");
+  throwIfErrWithData(resSchema);
+  return await scanHfaFileFacilities({
+    csvFilePath: csvFile.filePath,
+    mappings: body,
+    facilityColumns: body.facilityColumns,
+    adminDepth: resSchema.data.adminDepth,
+    xlsForm: parseXlsForm(xlsFormFile.filePath),
+    contextHeaders,
+  });
+}
+
+defineRoute(
+  routesDatasets,
+  "previewDatasetHfaFacilityColumns",
+  requireGlobalPermission("can_configure_data"),
+  log("previewDatasetHfaFacilityColumns"),
+  async (c, { body }) => {
+    return c.json(
+      await tryCatchDatabaseAsync(async () => {
+        const scan = await scanHfaFacilitiesForPreview(c.var.mainDb, body, []);
+        return {
+          success: true as const,
+          data: summarizeHfaFacilityColumns({
+            scan,
+            facilityColumns: body.facilityColumns,
+            registryAdminNames: await getHfaRegistryAdminAreaNames(
+              c.var.mainDb,
+            ),
+          }),
+        };
+      }),
+    );
+  },
+);
+
+// The recode rows are the new facilities and those with a change in a
+// recodable column, the cells a recode may name.
+defineRoute(
+  routesDatasets,
+  "previewDatasetHfaFacilityChanges",
+  requireGlobalPermission("can_configure_data"),
+  log("previewDatasetHfaFacilityChanges"),
+  async (c, { body }) => {
+    return c.json(
+      await tryCatchDatabaseAsync(async () => {
+        const scan = await scanHfaFacilitiesForPreview(
+          c.var.mainDb,
+          body,
+          body.contextHeaders,
+        );
+        const preview = await previewHfaFacilityChanges(c.var.mainDb, {
+          file: scan.facilities,
+          facilityColumns: body.facilityColumns,
+          timePoint: body.timePoint.trim(),
+          decisions: body.facilityChanges,
+        });
+        const recodable = _RECODABLE_FACILITY_COLUMNS.filter((col) =>
+          body.facilityColumns.optional[col] !== undefined
+        );
+        const newIds = new Set(preview.newFacilityIds);
+        const changedIds = new Set(
+          preview.changes
+            .filter((g) => recodable.some((col) => col === g.column))
+            .flatMap((g) => g.facilities.map((f) => f.facilityId)),
+        );
+        const recodeRows: HfaFacilityRecodeRow[] = scan.facilities
+          .filter((f) =>
+            newIds.has(f.facilityId) || changedIds.has(f.facilityId)
+          )
+          .map((f) => ({
+            facilityId: f.facilityId,
+            isNew: newIds.has(f.facilityId),
+            values: Object.fromEntries(
+              recodable.map((col) => [col, f.optional[col] ?? ""]),
+            ),
+            context: f.context,
+          }));
+        return { success: true as const, data: { preview, recodeRows } };
+      }),
+    );
+  },
+);
+
+defineRoute(
+  routesDatasets,
+  "getDatasetHfaLatestMappings",
+  requireGlobalPermission("can_configure_data"),
+  async (c) => {
+    return c.json(await getLatestCompleteHfaMappings(c.var.mainDb));
+  },
+);
+
+// An HFA import writes the facility registry, so a run that completes with
+// the structure stamp moved also tells the structure channel.
+async function notifyHfaImportFinished(
+  mainDb: Sql,
+  structureLastUpdatedBefore: string | undefined,
+): Promise<void> {
+  notifyInstanceDatasetsUpdated(await getInstanceDatasetsSummary(mainDb));
+  const structure = await getInstanceStructureSummary(mainDb);
+  if (structure.structureLastUpdated !== structureLastUpdatedBefore) {
+    notifyInstanceStructureUpdated(structure);
+  }
+}
 
 // Stateless: streams the named asset through the wizard's filters and reports
 // the facilities left with several rows (the wizard's duplicates step).
@@ -677,14 +833,12 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("launchDatasetHfaCsvRun"),
   async (c, { body }) => {
+    const structureBefore = (await getInstanceStructureSummary(c.var.mainDb))
+      .structureLastUpdated;
     const res = await launchDatasetHfaCsvImportRun(c.var.mainDb, {
       input: body.config,
       triggeredBy: c.var.globalUser?.email ?? "unknown",
-      onComplete: async () => {
-        notifyInstanceDatasetsUpdated(
-          await getInstanceDatasetsSummary(c.var.mainDb),
-        );
-      },
+      onComplete: () => notifyHfaImportFinished(c.var.mainDb, structureBefore),
     });
     return c.json(res);
   },
@@ -706,14 +860,12 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("resolveDatasetHfaReview"),
   async (c, { body }) => {
+    const structureBefore = (await getInstanceStructureSummary(c.var.mainDb))
+      .structureLastUpdated;
     const res = await resolveDatasetHfaReview(c.var.mainDb, {
       runId: body.runId,
       action: body.action,
-      onComplete: async () => {
-        notifyInstanceDatasetsUpdated(
-          await getInstanceDatasetsSummary(c.var.mainDb),
-        );
-      },
+      onComplete: () => notifyHfaImportFinished(c.var.mainDb, structureBefore),
     });
     return c.json(res);
   },

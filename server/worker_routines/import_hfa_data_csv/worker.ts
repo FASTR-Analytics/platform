@@ -2,12 +2,14 @@
 // HFA CSV IMPORT RUN WORKER
 //
 // Two legs, one worker: STAGE (XLSForm parse + wide→long CSV stream into
-// per-run staging tables, evaluate the clean condition) and INTEGRATE (the
-// single-transaction per-time-point replace). Clean staging auto-integrates
-// unattended; dropped facility rows hold the run in needs_review WITH the
-// claim released (per-run staging tables are what make that safe); zero
-// staged rows fail loudly. A resumeFromStaging payload (needs_review resolved
-// with "Integrate anyway") skips straight to the integrate leg.
+// per-run staging tables, the facility values and decisions checked, evaluate
+// the clean condition) and INTEGRATE (the single-transaction registry write
+// and per-time-point replace). Clean staging auto-integrates unattended; rows
+// with no facility id, or new facilities with an incomplete admin tuple, hold
+// the run in needs_review WITH the claim released (per-run staging tables are
+// what make that safe); zero staged rows fail loudly. A resumeFromStaging
+// payload (needs_review resolved with "Integrate anyway") skips straight to
+// the integrate leg, which leaves those rows and facilities out.
 // ============================================================================
 
 import {
@@ -21,7 +23,11 @@ import {
   truncateWorkerError,
 } from "../worker_contract.ts";
 import type { ImportHfaDataCsvWorkerPayload } from "./instantiate_worker.ts";
-import { dropHfaStagingTables, stageHfaCsvIntoTables } from "./stage_csv.ts";
+import {
+  dropHfaStagingTables,
+  isCleanHfaStaging,
+  stageHfaCsvIntoTables,
+} from "./stage_csv.ts";
 import { integrateStagedHfaData } from "./integrate_staged.ts";
 
 (self as unknown as Worker).onmessage = (e) => {
@@ -35,18 +41,6 @@ import { integrateStagedHfaData } from "./integrate_staged.ts";
 (self as unknown as Worker).postMessage("READY");
 
 let alreadyRunning = false;
-
-// The HFA clean condition: no facility row was dropped, and something
-// staged. Duplicates do NOT gate: they are RESOLVED at wizard time by the
-// dedup strategy/overrides, so a nonzero count is normal. Filtered-out rows do
-// not gate either: row filters are user-authored intent.
-function isCleanStaging(result: DatasetHfaCsvStagingResult): boolean {
-  return (
-    result.nRowsInvalidMissingFacilityId === 0 &&
-    result.nRowsInvalidFacilityNotFound === 0 &&
-    result.nRowsTotal > 0
-  );
-}
 
 async function run(payload: ImportHfaDataCsvWorkerPayload) {
   if (alreadyRunning) {
@@ -101,15 +95,14 @@ async function run(payload: ImportHfaDataCsvWorkerPayload) {
         throw new Error(
           `No rows could be staged from the file (${stagingResult.nRowsInFile} rows read): ` +
             `${stagingResult.nRowsInvalidMissingFacilityId} with a missing facility id, ` +
-            `${stagingResult.nRowsInvalidFacilityNotFound} facilities not found, ` +
             `${stagingResult.nRowsFilteredOut} removed by the row filters. ` +
             `Check the facility id column and filters and try again.`,
         );
       }
 
-      if (!isCleanStaging(stagingResult)) {
-        // Dropped facility rows → hold for review and RELEASE the
-        // single-running slot. The per-run staging tables survive the hold.
+      if (!isCleanHfaStaging(stagingResult)) {
+        // Hold for review and RELEASE the single-running slot. The per-run
+        // staging tables survive the hold.
         const held = await mainDb`
           UPDATE hfa_import_runs
           SET status = 'needs_review', progress = NULL,
@@ -137,6 +130,7 @@ async function run(payload: ImportHfaDataCsvWorkerPayload) {
       importDb,
       mainDb,
       runId,
+      mappings: config.mappings,
       stagingResult,
       onProgress: (percent) => {
         writeProgress({ phase: "integrating", percent }, false);

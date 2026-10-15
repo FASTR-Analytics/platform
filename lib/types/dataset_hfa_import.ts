@@ -4,7 +4,12 @@ import {
   type AdminAreaColumn,
   type OptionalFacilityColumn,
 } from "./instance.ts";
-import type { AdminAreaLevel, GeojsonOrphanedAreaIds } from "./structure.ts";
+import type {
+  AdminAreaLevel,
+  GeojsonOrphanedAreaIds,
+  StructureRecodableColumn,
+  StructureRecodes,
+} from "./structure.ts";
 
 // ============================================================================
 // Wizard config types
@@ -21,12 +26,17 @@ export type HfaDedupOverride = {
   keepRow: number; // 1-based position of the data row in the file (computed, not a column)
 };
 
+// Every decision of the wizard rides here and is re-validated by the stage
+// leg. recodes replace the file's value for a new facility or a taken change.
 export type HfaCsvMappingParams = {
   facilityIdColumn: string;
   timePoint: string;
   rowFilters: HfaRowFilter[];
   dedupStrategy: "first" | "last";
   dedupOverrides: HfaDedupOverride[];
+  facilityColumns: HfaFacilityColumns;
+  facilityChanges: HfaFacilityChangeGroupDecision[];
+  recodes: StructureRecodes;
 };
 
 export type HfaDuplicateGroup = {
@@ -191,6 +201,21 @@ export type HfaOrphanedScopeArea = {
   adminArea2: string;
 };
 
+// The changes step's view of the file: the preview, plus each new or changed
+// facility's recodable file values and the context columns asked for, by
+// encoded header.
+export type HfaFacilityRecodeRow = {
+  facilityId: string;
+  isNew: boolean;
+  values: Partial<Record<StructureRecodableColumn, string>>;
+  context: Record<string, string>;
+};
+
+export type HfaFacilityChangesReview = {
+  preview: HfaFacilityChangesPreview;
+  recodeRows: HfaFacilityRecodeRow[];
+};
+
 export type HfaFacilityChangeCounts = {
   column: HfaFacilityColumnGroup;
   changed: number;
@@ -225,9 +250,10 @@ export type HfaCsvRunConfig = {
 // Import Run Types
 // ============================================================================
 
-// "needs_review" = staging dropped facility rows; the run holds with its
-// diagnostics and RELEASES the single-running slot until the user integrates
-// anyway or discards. No "queued". HFA refuses a second launch explicitly.
+// "needs_review" = rows with no facility id, or new facilities with an
+// incomplete admin tuple; the run holds with its diagnostics and RELEASES the
+// single-running slot until the user integrates anyway (which leaves those
+// out) or discards. No "queued". HFA refuses a second launch explicitly.
 export type HfaImportRunStatus =
   | "running"
   | "needs_review"
@@ -269,10 +295,6 @@ export type DatasetHfaCsvStagingResult = {
   nRowsInFile: number;
   nRowsValid: number;
   nRowsInvalidMissingFacilityId: number;
-  nRowsInvalidFacilityNotFound: number;
-  // At most 10 of the facility ids counted above, ascending. Absent on runs
-  // staged before the field existed.
-  facilityNotFoundSample?: string[];
   nRowsDuplicated: number;
   nRowsFilteredOut: number;
   dedupStrategy: "first" | "last";

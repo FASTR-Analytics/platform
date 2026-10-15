@@ -41,6 +41,26 @@ await db`
   INSERT INTO facilities_hfa (facility_id, admin_area_4, admin_area_3, admin_area_2, admin_area_1)
   VALUES ('F1', 'A4', 'A3', 'A2', 'A1')
 `;
+await db`
+  INSERT INTO hfa_time_points (label, period_id, sort_order)
+  VALUES ('Round 1', '202401', 1)
+`;
+await db`
+  INSERT INTO instance_config (config_key, config_json_value)
+  VALUES ('structure_schema_hfa', ${
+  JSON.stringify({
+    adminDepth: 1,
+    includeNames: false,
+    includeTypes: false,
+    includeOwnership: false,
+    includeCustom1: false,
+    includeCustom2: false,
+    includeCustom3: false,
+    includeCustom4: false,
+    includeCustom5: false,
+  })
+})
+`;
 
 const SURVEY = [
   ["type", "name", "label"],
@@ -88,6 +108,13 @@ async function runStageLeg(lines: string[]) {
       rowFilters: [],
       dedupStrategy: "first",
       dedupOverrides: [],
+      facilityColumns: {
+        adminArea1: { value: "A1" },
+        adminAreas: [],
+        optional: {},
+      },
+      facilityChanges: [],
+      recodes: {},
     },
     runId,
     onProgress: () => {},

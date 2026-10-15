@@ -1,6 +1,17 @@
-import { type DatasetHfaCsvStagingResult, t3 } from "lib";
+import {
+  type AdminAreaColumn,
+  type DatasetHfaCsvStagingResult,
+  type DisaggregationOption,
+  type HfaFacilityColumnGroup,
+  t3,
+} from "lib";
 import { plural, toNum0 } from "panther";
-import { Show } from "solid-js";
+import { For, Show } from "solid-js";
+import {
+  getAdminAreaLabel,
+  getDisplayDisaggregationLabel,
+} from "~/state/instance/_util_disaggregation_label";
+import { instanceState } from "~/state/instance/t1_store";
 
 type Props = {
   result: DatasetHfaCsvStagingResult;
@@ -98,22 +109,6 @@ export function HfaStagingSummary(p: Props) {
           <div class="flex flex-col">
             <span class="text-base-content text-sm">
               {t3({
-                en: "Invalid: Facility Not Found",
-                fr: "Invalide : établissement introuvable",
-                pt: "Inválido: estabelecimento não encontrado",
-              })}
-            </span>
-            <span class="font-700 text-danger">
-              {toNum0(p.result.nRowsInvalidFacilityNotFound)}
-            </span>
-            <SampleList
-              sample={p.result.facilityNotFoundSample}
-              total={p.result.nRowsInvalidFacilityNotFound}
-            />
-          </div>
-          <div class="flex flex-col">
-            <span class="text-base-content text-sm">
-              {t3({
                 en: "Duplicate Rows",
                 fr: "Lignes en double",
                 pt: "Linhas duplicadas",
@@ -167,6 +162,10 @@ export function HfaStagingSummary(p: Props) {
           </Show>
         </div>
       </div>
+
+      <Show when={p.result.facilityMatch} keyed>
+        {(match) => <HfaFacilitiesSummary result={p.result} match={match} />}
+      </Show>
 
       <div class="ui-pad bg-base-200 rounded">
         <h3 class="ui-text-heading mb-4">
@@ -250,6 +249,197 @@ export function HfaStagingSummary(p: Props) {
             </div>
           </Show>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function facilityColumnLabel(
+  column: HfaFacilityColumnGroup | AdminAreaColumn,
+): string {
+  if (column === "admin") {
+    return t3({
+      en: "Admin areas",
+      fr: "Unités administratives",
+      pt: "Zonas administrativas",
+    });
+  }
+  if (column === "facility_name") {
+    return instanceState.structureSchemaHfa?.labelNames ||
+      t3({
+        en: "Facility name",
+        fr: "Nom de l'établissement",
+        pt: "Nome do estabelecimento",
+      });
+  }
+  if (column === "admin_area_1") {
+    return t3(getAdminAreaLabel(1));
+  }
+  return t3(
+    getDisplayDisaggregationLabel(column satisfies DisaggregationOption, "hfa"),
+  );
+}
+
+// What the import did to the facility registry, from the facility columns.
+function HfaFacilitiesSummary(p: {
+  result: DatasetHfaCsvStagingResult;
+  match: NonNullable<DatasetHfaCsvStagingResult["facilityMatch"]>;
+}) {
+  const unresolved = () =>
+    (p.result.labelResolution ?? []).filter((r) =>
+      r.unresolvedValues.length > 0
+    );
+  return (
+    <div class="ui-pad bg-base-200 rounded">
+      <h3 class="ui-text-heading mb-4">
+        {t3({
+          en: "Facilities",
+          fr: "Établissements",
+          pt: "Estabelecimentos",
+        })}
+      </h3>
+      <div class="grid grid-cols-2 gap-4 lg:grid-cols-3">
+        <div class="flex flex-col">
+          <span class="text-base-content text-sm">
+            {t3({
+              en: "Already in the registry",
+              fr: "Déjà dans le registre",
+              pt: "Já no registo",
+            })}
+          </span>
+          <span class="font-700">{toNum0(p.match.known)}</span>
+        </div>
+        <div class="flex flex-col">
+          <span class="text-base-content text-sm">
+            {t3({ en: "New", fr: "Nouveaux", pt: "Novos" })}
+          </span>
+          <span class="font-700 text-primary">{toNum0(p.match.new)}</span>
+        </div>
+        <div class="flex flex-col">
+          <span class="text-base-content text-sm">
+            {t3({
+              en: "In the registry, not in this file",
+              fr: "Dans le registre, absents de ce fichier",
+              pt: "No registo, ausentes deste ficheiro",
+            })}
+          </span>
+          <span class="font-700">{toNum0(p.match.absent)}</span>
+        </div>
+        <Show
+          when={(p.result.facilitiesWithoutAdminTuple?.count ?? 0) > 0 &&
+            p.result.facilitiesWithoutAdminTuple}
+          keyed
+        >
+          {(missing) => (
+            <div class="flex flex-col">
+              <span class="text-base-content text-sm">
+                {t3({
+                  en: "New facilities without complete admin areas",
+                  fr:
+                    "Nouveaux établissements sans unités administratives complètes",
+                  pt:
+                    "Novos estabelecimentos sem zonas administrativas completas",
+                })}
+              </span>
+              <span class="font-700 text-danger">
+                {toNum0(missing.count)}
+              </span>
+              <SampleList sample={missing.sample} total={missing.count} />
+            </div>
+          )}
+        </Show>
+        <For each={p.result.facilityChanges ?? []}>
+          {(counts) => (
+            <div class="flex flex-col">
+              <span class="text-base-content text-sm">
+                {t3({
+                  en: `Changes: ${facilityColumnLabel(counts.column)}`,
+                  fr: `Modifications : ${facilityColumnLabel(counts.column)}`,
+                  pt: `Alterações: ${facilityColumnLabel(counts.column)}`,
+                })}
+              </span>
+              <span class="font-700">{toNum0(counts.changed)}</span>
+              <span class="text-base-content-muted text-sm">
+                {t3({
+                  en: `${toNum0(counts.taken)} taken from the file, ${
+                    toNum0(counts.kept)
+                  } kept`,
+                  fr: `${toNum0(counts.taken)} repris du fichier, ${
+                    toNum0(counts.kept)
+                  } conservés`,
+                  pt: `${toNum0(counts.taken)} retirados do ficheiro, ${
+                    toNum0(counts.kept)
+                  } mantidos`,
+                })}
+              </span>
+            </div>
+          )}
+        </For>
+        <For each={unresolved()}>
+          {(r) => (
+            <div class="flex flex-col">
+              <span class="text-base-content text-sm">
+                {t3({
+                  en: `Codes the XLSForm does not label: ${
+                    facilityColumnLabel(r.column)
+                  }`,
+                  fr: `Codes sans libellé dans le XLSForm : ${
+                    facilityColumnLabel(r.column)
+                  }`,
+                  pt: `Códigos sem etiqueta no XLSForm: ${
+                    facilityColumnLabel(r.column)
+                  }`,
+                })}
+              </span>
+              <span class="text-base-content-muted font-mono text-sm">
+                {r.unresolvedValues.join(", ")}
+              </span>
+            </div>
+          )}
+        </For>
+        <For each={p.result.orphanedGeojsonAreaIds ?? []}>
+          {(o) => (
+            <div class="flex flex-col">
+              <span class="text-base-content text-sm">
+                {t3({
+                  en: `Map areas no facility is in: ${
+                    t3(getAdminAreaLabel(o.adminAreaLevel as 2 | 3 | 4))
+                  }`,
+                  fr: `Zones de carte sans établissement : ${
+                    t3(getAdminAreaLabel(o.adminAreaLevel as 2 | 3 | 4))
+                  }`,
+                  pt: `Zonas do mapa sem estabelecimento: ${
+                    t3(getAdminAreaLabel(o.adminAreaLevel as 2 | 3 | 4))
+                  }`,
+                })}
+              </span>
+              <span class="font-700 text-danger">
+                {toNum0(o.orphanedCount)}
+              </span>
+            </div>
+          )}
+        </For>
+        <Show when={(p.result.orphanedScopeAreas ?? []).length > 0}>
+          <div class="flex flex-col">
+            <span class="text-base-content text-sm">
+              {t3({
+                en: "Scopes naming an area no facility is in",
+                fr: "Portées nommant une zone sans établissement",
+                pt: "Âmbitos que nomeiam uma zona sem estabelecimento",
+              })}
+            </span>
+            <For each={p.result.orphanedScopeAreas ?? []}>
+              {(s) => (
+                <span class="text-sm">
+                  {s.scopeLabel}
+                  <span class="text-base-content-muted ml-2 font-mono">
+                    {s.adminArea2}
+                  </span>
+                </span>
+              )}
+            </For>
+          </div>
+        </Show>
       </div>
     </div>
   );

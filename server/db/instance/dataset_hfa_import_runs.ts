@@ -1,17 +1,30 @@
 import { Sql } from "postgres";
 import {
+  _RECODABLE_FACILITY_COLUMNS,
   APIResponseNoData,
   APIResponseWithData,
   type DatasetHfaCsvStagingResult,
+  decodeHfaAdminTuple,
+  getEnabledOptionalFacilityColumns,
+  HFA_FACILITY_COLUMN_GROUPS,
   type HfaCsvMappingParams,
   type HfaCsvRunConfig,
   type HfaCsvRunLaunchInput,
+  type HfaFacilityChangeGroupDecision,
+  type HfaFacilityColumns,
   type HfaImportRunProgress,
   type HfaImportRunSummary,
+  type OptionalFacilityColumn,
   parseJsonOrThrow,
   parseJsonOrUndefined,
+  type StructureRecodableColumn,
+  type StructureRecodes,
+  type StructureSchema,
+  throwIfErrWithData,
 } from "lib";
 import { tryCatchDatabaseAsync } from "../utils.ts";
+import { getStructureSchema } from "./config.ts";
+import { getCsvStreamComponents } from "../../server_only_funcs_csvs/get_csv_components_streaming_fast.ts";
 import { instantiateImportHfaDataCsvWorker } from "../../worker_routines/import_hfa_data_csv/instantiate_worker.ts";
 import { dropHfaStagingTables } from "../../worker_routines/import_hfa_data_csv/stage_csv.ts";
 import { resolveAssetFileOrThrow } from "./assets.ts";
@@ -63,6 +76,28 @@ export async function getDatasetHfaImportRunSummaries(
   });
 }
 
+// The mappings of the latest complete run, which the wizard pre-fills from.
+export async function getLatestCompleteHfaMappings(
+  mainDb: Sql,
+): Promise<APIResponseWithData<HfaCsvMappingParams | null>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const row = (
+      await mainDb<{ csv_config: string }[]>`
+        SELECT csv_config FROM hfa_import_runs
+        WHERE status = 'complete'
+        ORDER BY id DESC
+        LIMIT 1
+      `
+    ).at(0);
+    return {
+      success: true,
+      data: row
+        ? parseJsonOrThrow<HfaCsvRunConfig>(row.csv_config).mappings
+        : null,
+    };
+  });
+}
+
 export async function hasRunningDatasetHfaImportRun(
   mainDb: Sql,
 ): Promise<boolean> {
@@ -86,10 +121,174 @@ async function assertHfaImportSlotFree(mainDb: Sql): Promise<void> {
   }
 }
 
-// The launch-time validations, all stateless: relocated from the deleted
-// step functions (create-attempt facility guard, step-1 XLSForm sheet check,
-// step-2 mapping cleaning + time-point existence). Returns the cleaned config
-// that gets stored on the run row.
+// Level 1 is one non-blank value. Levels 2 to the admin depth are mapped all
+// or none, and all when the registry is empty, since every facility is then
+// new and needs its tuple. Optional columns are the enabled set's.
+function cleanHfaFacilityColumns(
+  facilityColumns: HfaFacilityColumns,
+  schema: StructureSchema,
+  registryIsEmpty: boolean,
+): HfaFacilityColumns {
+  const adminArea1 = facilityColumns.adminArea1.value.trim();
+  if (!adminArea1) {
+    throw new Error("Give the admin area 1 (country) value.");
+  }
+  const levels: number[] = facilityColumns.adminAreas.map((a) => a.level);
+  const expected: number[] = [];
+  for (let level = 2; level <= schema.adminDepth; level++) {
+    expected.push(level);
+  }
+  const mappedAll = levels.length === expected.length &&
+    expected.every((level) => levels.includes(level));
+  if (levels.length > 0 && !mappedAll) {
+    throw new Error(
+      `Map every admin area level from 2 to ${schema.adminDepth}, or none.`,
+    );
+  }
+  if (registryIsEmpty && !mappedAll) {
+    throw new Error(
+      "The HFA registry is empty, so every facility is new: map every admin area level.",
+    );
+  }
+  const enabled = getEnabledOptionalFacilityColumns(schema);
+  const disabled = Object.keys(facilityColumns.optional).filter((c) =>
+    !enabled.includes(c as OptionalFacilityColumn)
+  );
+  if (disabled.length > 0) {
+    throw new Error(
+      `The HFA structure schema does not enable ${disabled.join(", ")}.`,
+    );
+  }
+  const headers = [
+    ...facilityColumns.adminAreas,
+    ...Object.values(facilityColumns.optional),
+  ];
+  if (headers.some((h) => h.correctionHeader === h.header)) {
+    throw new Error("A correction column must differ from its column.");
+  }
+  return {
+    adminArea1: { value: adminArea1 },
+    adminAreas: facilityColumns.adminAreas.toSorted((a, b) =>
+      a.level - b.level
+    ),
+    optional: facilityColumns.optional,
+  };
+}
+
+// Well-formed decisions only: whether they match the file and the registry is
+// re-checked at staging and again inside the integrate transaction.
+function cleanHfaFacilityChanges(
+  facilityChanges: HfaFacilityChangeGroupDecision[],
+  facilityColumns: HfaFacilityColumns,
+  adminDepth: number,
+): HfaFacilityChangeGroupDecision[] {
+  const adminMapped = adminDepth === 1 ||
+    facilityColumns.adminAreas.length > 0;
+  const groupKeys = new Set<string>();
+  const decidedCells = new Set<string>();
+  for (const d of facilityChanges) {
+    if (!HFA_FACILITY_COLUMN_GROUPS.includes(d.column)) {
+      throw new Error(`Unknown facility column ${d.column}.`);
+    }
+    const mapped = d.column === "admin"
+      ? adminMapped
+      : facilityColumns.optional[d.column] !== undefined;
+    if (!mapped) {
+      throw new Error(
+        `A change of ${d.column} is decided, but the import does not map it.`,
+      );
+    }
+    if (d.from === d.to) {
+      throw new Error(`A change of ${d.column} leaves "${d.from}" unchanged.`);
+    }
+    if (d.column === "admin") {
+      for (const tuple of [d.from, d.to]) {
+        if (decodeHfaAdminTuple(tuple).length !== adminDepth) {
+          throw new Error(
+            `An admin change names ${tuple}, which is not ${adminDepth} admin areas.`,
+          );
+        }
+      }
+    }
+    const key = JSON.stringify([d.column, d.from, d.to]);
+    if (groupKeys.has(key)) {
+      throw new Error(
+        `The change of ${d.column} from "${d.from}" to "${d.to}" is decided twice.`,
+      );
+    }
+    groupKeys.add(key);
+    for (const id of d.facilityIds) {
+      const cell = JSON.stringify([id, d.column]);
+      if (decidedCells.has(cell)) {
+        throw new Error(
+          `Facility "${id}" has two decided changes of ${d.column}.`,
+        );
+      }
+      decidedCells.add(cell);
+    }
+    const members = new Set(d.facilityIds);
+    if (
+      d.exceptions.some((id) => !members.has(id)) ||
+      new Set(d.exceptions).size !== d.exceptions.length
+    ) {
+      throw new Error(
+        `The exceptions to the change of ${d.column} from "${d.from}" to "${d.to}" must be distinct members of it.`,
+      );
+    }
+  }
+  return facilityChanges;
+}
+
+function cleanHfaRecodes(
+  recodes: StructureRecodes,
+  facilityColumns: HfaFacilityColumns,
+): StructureRecodes {
+  const cleaned: StructureRecodes = {};
+  for (const [column, map] of Object.entries(recodes)) {
+    const col = column as StructureRecodableColumn;
+    if (
+      !_RECODABLE_FACILITY_COLUMNS.includes(col) ||
+      facilityColumns.optional[col] === undefined
+    ) {
+      throw new Error(
+        `Recodes name the column ${column}, which the import does not map.`,
+      );
+    }
+    if (map && Object.keys(map).length > 0) {
+      cleaned[col] = map;
+    }
+  }
+  return cleaned;
+}
+
+// Every column the mappings name must be a header of the file.
+async function assertHeadersInFile(
+  csvFilePath: string,
+  mappings: HfaCsvMappingParams,
+): Promise<void> {
+  const res = await getCsvStreamComponents(csvFilePath, "allow-fewer-columns");
+  throwIfErrWithData(res);
+  const { encodedHeaderToIndexMap } = res.data;
+  const fc = mappings.facilityColumns;
+  const named = [
+    mappings.facilityIdColumn,
+    ...mappings.rowFilters.map((f) => f.column),
+    ...[...fc.adminAreas, ...Object.values(fc.optional)].flatMap((h) =>
+      h.correctionHeader ? [h.header, h.correctionHeader] : [h.header]
+    ),
+  ];
+  const missing = named.filter((h) => !encodedHeaderToIndexMap.has(h));
+  if (missing.length > 0) {
+    throw new Error(
+      `The file has no column ${missing.join(", ")}. Choose the columns again.`,
+    );
+  }
+}
+
+// The launch-time validations, all stateless: the XLSForm's sheets, the
+// mappings cleaned, the time point's existence, and the facility columns,
+// decisions and recodes well-formed. Returns the cleaned config that gets
+// stored on the run row.
 export async function validateHfaCsvRunConfig(
   mainDb: Sql,
   input: HfaCsvRunLaunchInput,
@@ -125,14 +324,22 @@ export async function validateHfaCsvRunConfig(
     overrideFacilities.add(o.facilityId);
   }
 
+  const resSchema = await getStructureSchema(mainDb, "hfa");
+  throwIfErrWithData(resSchema);
   const [{ count }] = await mainDb<{ count: number }[]>`
     SELECT COUNT(*)::int AS count FROM facilities_hfa
   `;
-  if (count === 0) {
-    throw new Error(
-      "No HFA facilities found. Import HFA facilities before importing data.",
-    );
-  }
+  const facilityColumns = cleanHfaFacilityColumns(
+    mappings.facilityColumns,
+    resSchema.data,
+    count === 0,
+  );
+  const facilityChanges = cleanHfaFacilityChanges(
+    mappings.facilityChanges,
+    facilityColumns,
+    resSchema.data.adminDepth,
+  );
+  const recodes = cleanHfaRecodes(mappings.recodes, facilityColumns);
 
   const timePointExists = await mainDb`
     SELECT 1 FROM hfa_time_points WHERE label = ${timePoint}
@@ -163,7 +370,11 @@ export async function validateHfaCsvRunConfig(
     rowFilters,
     dedupStrategy: mappings.dedupStrategy,
     dedupOverrides: mappings.dedupOverrides,
+    facilityColumns,
+    facilityChanges,
+    recodes,
   };
+  await assertHeadersInFile(csvFile.filePath, cleanedMappings);
   return {
     csvFileName: input.csvFileName,
     csvFilePin: csvFile.pin,

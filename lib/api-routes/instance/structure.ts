@@ -42,7 +42,7 @@ const structureRecodableColumnSchema = z.enum([
 ]);
 // z.partialRecord, NOT z.record: Zod 4 z.record with an enum key schema is
 // exhaustive and rejects sparse/empty payloads.
-const structureRecodesSchema = z.partialRecord(
+export const structureRecodesSchema = z.partialRecord(
   structureRecodableColumnSchema,
   z.record(z.string(), z.string().trim().min(1)),
 );

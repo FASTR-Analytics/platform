@@ -47,6 +47,7 @@ globs:
   - server/tests/dhis2_skip_and_record_test.ts
   - server/tests/hfa_csv_column_matching_test.ts
   - server/tests/hfa_facility_changes_test.ts
+  - server/tests/hfa_import_facilities_test.ts
   - server/tests/indicator_selection_expansion_test.ts
   - server/worker_routines/import_hfa_data_csv/**
   - server/worker_routines/import_hmis_data_csv/**
@@ -256,24 +257,59 @@ above is the authority on the shared mechanism; HFA differs only here:
   the hold AND at complete; rides the polled list, no detail route; a TEXT
   column parsed without a schema, so a renamed key is rewritten in place by an
   instance migration, as 093 did for `nDictionaryVariables` and
-  `nXlsFormQuestionsNotInCsv`), `n_rows_integrated`. The diagnostics carry
-  `facilityNotFoundSample`: at most 10 distinct facility ids, ascending, that
-  the file has and `facilities_hfa` lacks, read from the raw staging table
-  before the intermediates are dropped, `csvColsNotInXlsFormSample` (at most 10
-  headers other than the facility id column that match no question, file order)
-  and `xlsFormQuestionsNotInCsvSample` (at most 10 ids of staged-type questions
-  no column matched, form order). The staging summary lists each under its
-  count. The fields are optional, so a run staged before they existed shows the
-  counts alone.
-- **Clean condition**:
-  `nRowsInvalidMissingFacilityId +
-  nRowsInvalidFacilityNotFound = 0 AND nRowsTotal > 0`.
-  Duplicates and filtered-out rows never gate. Both are resolved by user intent
-  at wizard time. Nothing staged → loud `error`.
-- Launch re-validates statelessly: facilities exist, the time point exists, both
-  assets resolve (stamping the pins), the XLSForm has `survey`+`choices`, and
-  the mappings clean up (trimmed time point, non-blank filter values, no
-  duplicate override facility).
+  `nXlsFormQuestionsNotInCsv`, and 213 dropped `nRowsInvalidFacilityNotFound`
+  and `facilityNotFoundSample`), `n_rows_integrated` (the data rows the
+  integrate leg inserted). The diagnostics carry `csvColsNotInXlsFormSample` (at
+  most 10 headers other than the facility id column that match no question, file
+  order) and `xlsFormQuestionsNotInCsvSample` (at most 10 ids of staged-type
+  questions no column matched, form order), and the facility columns' outcome:
+  `facilityMatch` (known, new, and registry facilities absent from the file),
+  `facilityChanges` (per column group: changed, kept, taken), `labelResolution`,
+  `facilitiesWithoutAdminTuple` (new facilities whose file tuple is incomplete,
+  count and up to 10 ids), and, written at complete, `orphanedGeojsonAreaIds`
+  and `orphanedScopeAreas` (the HFA maps' area ids and the scopes' HFA area 2s
+  that match no registry area after the write). The staging summary lists each.
+  The fields are optional, so a run staged before they existed shows the counts
+  alone.
+- **The import writes the HFA registry.** The mappings carry `facilityColumns`,
+  the decided change groups (`facilityChanges`) and `recodes`, and every launch
+  carries them. The stage leg reads each kept row's facility values through the
+  facility columns, stages them into a per-run facilities table (with whether
+  the registry knew each facility), and recomputes the changes against the
+  registry: a decision that no longer matches the file and the registry in any
+  (facility, column, from, to) fails the run, naming the facilities. The
+  integrate leg writes the facilities in the same transaction as the data
+  (below). The writer and its rules are SYSTEM_05 "HFA registry writes".
+- **Clean condition** (`isCleanHfaStaging`):
+  `nRowsInvalidMissingFacilityId = 0 AND facilitiesWithoutAdminTuple.count = 0 AND nRowsTotal > 0`.
+  A held run's "Integrate anyway" leaves out the rows with no facility id and
+  the new facilities with an incomplete tuple, with their data. An existing
+  facility with an incomplete file tuple keeps its registry tuple and is no
+  hold. Duplicates and filtered-out rows never gate. Both are resolved by user
+  intent at wizard time. Nothing staged → loud `error`.
+- Launch re-validates statelessly: the time point exists, both assets resolve
+  (stamping the pins), the XLSForm has `survey`+`choices`, the mappings clean up
+  (trimmed time point, non-blank filter values, no duplicate override facility),
+  every column the mappings name is a header of the file, and the facility
+  columns, decisions and recodes are well-formed: a non-blank level-1 value;
+  levels 2 to the HFA admin depth mapped all or none, and all when the registry
+  is empty; optional columns within the HFA structure schema's enabled set; a
+  correction column different from its column; each change group decided once,
+  over a mapped column, with distinct members and exceptions among them, an
+  admin value being a tuple at the admin depth; recodes over mapped recodable
+  columns. An empty registry is no refusal: the import creates the facilities.
+- The wizard's stateless reads beside the duplicates preview:
+  `parseDatasetHfaCsvHeaders` also returns the encoded headers holding a
+  non-blank cell (`scanHfaHeadersWithValues`, for the facility id default),
+  `previewDatasetHfaFacilityColumns` summarizes each mapped column over the kept
+  rows (blank cells, distinct values, codes the XLSForm does not label, admin
+  values the registry lacks), `previewDatasetHfaFacilityChanges` returns the
+  changes preview with a recode row for each new facility and each facility with
+  a change in a recodable column (its recodable values and the context columns
+  asked for), and `getDatasetHfaLatestMappings` returns the latest complete
+  run's mappings to pre-fill from.
+- A launch or an "Integrate anyway" whose run moves `structure_last_updated`
+  also notifies the structure channel when the worker finishes.
 
 ## ICEH import runs
 
@@ -319,10 +355,11 @@ start.
 - Escaping is uniform: `''`-doubling only, through the shared `escapeSqlString`
   in `server/db/utils.ts` for HMIS, HFA and structure.
 - Row-level validation counts and samples drops (on the run row); reference
-  validation runs at staging, and the facility check again at integration
-  (facilities can be deleted between phases; the facility FKs are RESTRICT). The
-  file's indicator column is `data_id` in `HmisCsvColumns` and in every staging
-  table, and staging resolves nothing: each cell's value is derived by
+  validation runs at staging, and HMIS checks facilities again at integration
+  (facilities can be deleted between phases; the facility FKs are RESTRICT),
+  while HFA recomputes its facility changes there instead. The file's indicator
+  column is `data_id` in `HmisCsvColumns` and in every staging table, and
+  staging resolves nothing: each cell's value is derived by
   `csvIndicatorValueFromCell` (trimmed, the same derivation the scan uses) and
   looked up in the run's mapping, loaded into a per-run mapping table; a value
   mapped to a data id lands under it, a value mapped to null is counted in
@@ -369,8 +406,25 @@ start.
   questions of other types, staging aborts before any table is created, naming
   the first columns other than the facility id column that match no question and
   the first staged-type questions no column matched, so the worker's zero-rows
-  message (facility checks and filters) is reached only in the case it
-  describes. Pinned by `server/tests/hfa_csv_column_matching_test.ts`.
+  message (facility ids and filters) is reached only in the case it describes.
+  The header convention is `findXlsFormQuestionForHeader`
+  (`server_only_funcs_csvs/resolve_odk_labels.ts`), shared with the facility
+  columns' label resolution. Pinned by
+  `server/tests/hfa_csv_column_matching_test.ts`.
+- HFA facility columns: the stage leg and the two facility previews read each
+  facility from its kept row, the row its data comes from, through
+  `createHfaFacilityCollector` (`server_only_funcs_csvs/scan_hfa_rows.ts`).
+  Level 1 is the mapping's one value for every facility. A mapped column may
+  carry a correction column, whose trimmed cell wins where it is non-blank. Each
+  header, original or correction, is resolved through the XLSForm by its own
+  name: a header matching a `select_one` question has its codes replaced by
+  choice labels, and a code the choice list lacks stays raw and is counted per
+  registry column (`labelResolution`: codes resolved and up to 10 distinct
+  unresolved), over the kept rows only. Text questions are never staged as data,
+  so a column such as `id_fac_type_other` reaches the changes step only as a
+  context column of the recode rows. Pinned by
+  `server/tests/hfa_facility_changes_test.ts` and
+  `server/tests/hfa_import_facilities_test.ts`.
 - HFA row filtering + dedup (order fixed: **filter → review → resolve**; all
   fields in the run's mappings JSON): `rowFilters` (ANDed; trimmed-string
   `equals`/`not_equals` on the raw cell) drop rows before any duplicate
@@ -381,11 +435,12 @@ start.
   is nothing to resolve). Row numbers everywhere are the **1-based data-row
   position in the file** (header excluded), computed by
   `server_only_funcs_csvs/scan_hfa_rows.ts` (shared by the stage leg and the
-  stateless `previewDatasetHfaDuplicates` route), never read from a column. The
-  stage leg stamps `row_seq` into the raw temp table, materializes the resolved
-  keep-set into the per-run keep-rows table, and joins it; every override is
-  validated against the post-filter duplicate structure and a stale override
-  fails staging loudly, never a silent fallback.
+  stateless previews), never read from a column. The kept row is
+  `resolveHfaKeptRows`, shared by the stage leg and the previews. The stage leg
+  stamps `row_seq` into the raw temp table, materializes the resolved keep-set
+  into the per-run keep-rows table, and joins it; every override is validated
+  against the post-filter duplicate structure and a stale override fails staging
+  loudly, never a silent fallback.
 - ICEH stages no tables: the run worker's stage leg parses and validates the zip
   in memory; rows are written inside one transaction at integration.
 
@@ -419,15 +474,24 @@ crash truncates the UNLOGGED table. Then:
   version, and the crash / cancel / sweep paths reconcile version rows for DHIS2
   runs only. Post-commit: drop staging → notify.
 
-**HFA, full replace per time_point**: stamp `hfa_time_points.imported_at` (the
-time point must pre-exist), DELETE `hfa_data` + `hfa_variables` for that time
-point (FK cascades to values), insert dictionary (`variable_id`,
-`variable_label`, `variable_type`, then the per-variable values) + data from
-staging. No merge → **no phantom-value hazard** within a time point; other time
-points untouched (rounds). **No version records**. Staleness identity is a hash
-over `hfa_time_points` (label, sort_order, imported_at). Weights
-(`hfa_facility_weights`) are populated by the structure import (S5), never here;
-HFA data deletion preserves time points, weights, and indicator code.
+**HFA, full replace per time_point, with the registry write**: in one
+transaction, in this order (forced by the schema: the facility FK on `hfa_data`
+is immediate, and the composite FK on `facilities_hfa` needs the admin rows
+first): stamp `hfa_time_points.imported_at` (the time point must pre-exist);
+DELETE `hfa_data` + `hfa_variables` for that time point (FK cascades to values);
+`writeHfaFacilitiesFromImport` over the staged facilities (lock, recompute and
+match the decisions, admin areas, facilities, sources; a facility the stage leg
+found known that is now new with an incomplete tuple refuses the run, since its
+data would go unseen); insert the dictionary (`variable_id`, `variable_label`,
+`variable_type`, then the per-variable values) and the data, without the new
+facilities the writer left out; `finishHfaRegistryWrite` (admin-area cleanup and
+the structure stamp, when a registry row changed); the orphan reports into the
+diagnostics; flip complete. No merge → **no phantom-value hazard** within a time
+point; other time points untouched (rounds). **No version records**. Staleness
+identity is a hash over `hfa_time_points` (label, sort_order, imported_at).
+Weights (`hfa_facility_weights`) are populated by the structure import (S5),
+never here; HFA data deletion preserves time points, weights, indicator code and
+the registry.
 
 **ICEH, cumulative per-indicator replace**: only indicators with valid data rows
 in the uploaded file are replaced (DELETE cascades to `iceh_data`, then
@@ -549,7 +613,10 @@ leaves the signal unchanged, and only the callback re-parses the new bytes).
 - **HFA** (`data/hfa/imports/`): Current card + History table, no tabs;
   four-step wizard (upload both files → mappings + filters → duplicates →
   review; Start only, refusal inline). The run row is HFA's only durable import
-  record.
+  record. The staging summary has a Facilities block (match, changes per column,
+  new facilities without complete admin areas, unlabelled codes, orphaned map
+  areas and scope areas), and the needs-review card names both hold reasons and
+  says that integrating anyway leaves them out.
 - **ICEH** (`data/iceh/imports/`): the leaner twin, Current card plus History
   table; two-step wizard (upload zip + preview → review); needs_review cards
   show the skip counters/samples.

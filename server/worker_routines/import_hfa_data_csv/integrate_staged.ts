@@ -1,51 +1,44 @@
 import { Sql } from "postgres";
-import type { DatasetHfaCsvStagingResult } from "lib";
+import type { DatasetHfaCsvStagingResult, HfaCsvMappingParams } from "lib";
+import {
+  finishHfaRegistryWrite,
+  reportHfaRegistryOrphans,
+  writeHfaFacilitiesFromImport,
+} from "../../db/instance/hfa_facilities.ts";
+import type { HfaFileFacility } from "../../server_only_funcs_csvs/scan_hfa_rows.ts";
 import { dropHfaStagingTables, hfaStagingTableNames } from "./stage_csv.ts";
 
-// The integration internals relocated from the old integrate_hfa_data worker:
-// one transaction that stamps the time point and replaces its data +
-// dictionary wholesale. Semantics unchanged: only the table names (per-run),
-// the progress transport, and the in-transaction completion flip (see below)
-// differ. On success the run row is 'complete' when this returns.
+// One transaction that stamps the time point, writes the facilities the user
+// approved and replaces the round's data and dictionary wholesale. The order
+// is forced by the schema: the facility FK on hfa_data is immediate, and the
+// composite FK on facilities_hfa needs the admin rows first. The completion
+// flip comes last, so on success the run row is 'complete' when this returns.
 export async function integrateStagedHfaData(args: {
   importDb: Sql;
   mainDb: Sql;
   runId: number;
+  mappings: HfaCsvMappingParams;
   stagingResult: DatasetHfaCsvStagingResult;
   onProgress: (percent: number) => void;
 }): Promise<void> {
-  const { importDb, mainDb, runId, stagingResult, onProgress } = args;
+  const { importDb, mainDb, runId, mappings, stagingResult, onProgress } = args;
   const names = hfaStagingTableNames(runId);
   const timePoint = stagingResult.timePoint;
 
   const stagingTableCheck = await importDb<{ exists: boolean }[]>`
     SELECT EXISTS (
       SELECT FROM information_schema.tables
+      WHERE table_name = ${names.facilities}
+    ) AND EXISTS (
+      SELECT FROM information_schema.tables
       WHERE table_name = ${names.final}
     ) as exists
   `;
   if (!stagingTableCheck[0]?.exists) {
     throw new Error(
-      `Staging table ${names.final} not found — staging may have failed or been cleaned up. Start the import again.`,
+      `Staging tables for run ${runId} not found — staging may have failed or been cleaned up. Start the import again.`,
     );
   }
-
-  // Facilities can be deleted while a run holds in needs_review, so the staged
-  // set is re-validated against facilities_hfa immediately before the merge.
-  const invalidFacilities = await importDb`
-    SELECT DISTINCT s.facility_id
-    FROM ${importDb(names.final)} s
-    LEFT JOIN facilities_hfa f ON s.facility_id = f.facility_id
-    WHERE f.facility_id IS NULL
-  `;
-  if (invalidFacilities.length > 0) {
-    const facilityList = invalidFacilities.map((f) => f.facility_id).join(", ");
-    throw new Error(
-      `Cannot integrate: the following facilities in the staged data no longer exist: ${facilityList}. Start the import again.`,
-    );
-  }
-
-  onProgress(10);
 
   await importDb`ANALYZE ${importDb(names.final)}`;
 
@@ -69,7 +62,41 @@ export async function integrateStagedHfaData(args: {
     await sql`DELETE FROM hfa_data WHERE time_point = ${timePoint}`;
     await sql`DELETE FROM hfa_variables WHERE time_point = ${timePoint}`;
 
-    onProgress(30);
+    const staged = (
+      await sql<{ facility: string; known: boolean }[]>`
+        SELECT facility, known FROM ${
+        sql(names.facilities)
+      } ORDER BY facility_id
+      `
+    ).map((r) => ({
+      facility: JSON.parse(r.facility) as HfaFileFacility,
+      known: r.known,
+    }));
+    const registry = await writeHfaFacilitiesFromImport(sql, {
+      file: staged.map((r) => r.facility),
+      facilityColumns: mappings.facilityColumns,
+      timePoint,
+      decisions: mappings.facilityChanges,
+      recodes: mappings.recodes,
+    });
+    // A facility known at staging and removed from the registry during a
+    // hold would otherwise lose its data here unseen, as a new facility with
+    // no admin tuple.
+    const knownAtStaging = new Set(
+      staged.filter((r) => r.known).map((r) => r.facility.facilityId),
+    );
+    const removedDuringHold = registry.skippedFacilityIds.filter((id) =>
+      knownAtStaging.has(id)
+    );
+    if (removedDuringHold.length > 0) {
+      throw new Error(
+        `Facilities left the HFA registry after staging and the file has no complete admin areas for them: ${
+          removedDuringHold.slice(0, 10).join(", ")
+        }. Start the import again.`,
+      );
+    }
+
+    onProgress(40);
 
     await sql.unsafe(`
       INSERT INTO hfa_variables (time_point, variable_id, variable_label, variable_type)
@@ -82,12 +109,25 @@ export async function integrateStagedHfaData(args: {
 
     onProgress(50);
 
-    await sql.unsafe(`
+    const inserted = await sql`
       INSERT INTO hfa_data (facility_id, time_point, variable_id, value)
-      SELECT facility_id, time_point, variable_id, value FROM ${names.final}
-    `);
+      SELECT facility_id, time_point, variable_id, value FROM ${
+      sql(names.final)
+    }
+      WHERE facility_id <> ALL(${registry.skippedFacilityIds}::text[])
+    `;
 
     onProgress(80);
+
+    await finishHfaRegistryWrite(sql, registry.registryChanged);
+
+    const diagnostics: DatasetHfaCsvStagingResult = {
+      ...stagingResult,
+      facilityMatch: registry.match,
+      facilityChanges: registry.changeCounts,
+      facilitiesWithoutAdminTuple: registry.facilitiesWithoutAdminTuple,
+      ...(await reportHfaRegistryOrphans(sql)),
+    };
 
     // The completion flip lives INSIDE the merge transaction, conditional on
     // the run still being 'running', and comes LAST (so the run-row lock is
@@ -99,8 +139,8 @@ export async function integrateStagedHfaData(args: {
     const flipped = await sql`
       UPDATE hfa_import_runs
       SET status = 'complete', ended_at = now(), progress = NULL,
-        diagnostics = ${JSON.stringify(stagingResult)},
-        n_rows_integrated = ${stagingResult.nRowsTotal}
+        diagnostics = ${JSON.stringify(diagnostics)},
+        n_rows_integrated = ${inserted.count}
       WHERE id = ${runId} AND status = 'running'
     `;
     if (flipped.count === 0) {

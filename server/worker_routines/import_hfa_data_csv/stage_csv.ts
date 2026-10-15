@@ -5,10 +5,22 @@ import {
   classifyNumericSentinel,
   type DatasetHfaCsvStagingResult,
   type HfaCsvMappingParams,
+  type HfaFacilityChangeCounts,
   isReservedHfaId,
   parseNumericSentinels,
+  throwIfErrWithData,
 } from "lib";
-import { getHfaRowScanComponents } from "../../server_only_funcs_csvs/scan_hfa_rows.ts";
+import { getStructureSchema } from "../../db/instance/config.ts";
+import {
+  previewHfaFacilityChanges,
+  resolveHfaChangeDecisions,
+} from "../../db/instance/hfa_facilities.ts";
+import {
+  createHfaFacilityCollector,
+  getHfaRowScanComponents,
+  resolveHfaKeptRows,
+} from "../../server_only_funcs_csvs/scan_hfa_rows.ts";
+import { findXlsFormQuestionForHeader } from "../../server_only_funcs_csvs/resolve_odk_labels.ts";
 import {
   type ParsedXlsForm,
   parseXlsForm,
@@ -20,29 +32,28 @@ import {
 
 // Per-run staging tables: staging output must survive a needs_review hold
 // across other imports running in between, so every table carries a
-// _run_{runId} suffix. The three "final" tables feed the integrate leg; the
-// three intermediates are dropped as soon as staging finishes. This replaces
-// the fixed staging-table names, and is what makes releasing the single-running
-// slot on needs_review safe.
+// _run_{runId} suffix. The four "final" tables feed the integrate leg; the two
+// intermediates are dropped as soon as staging finishes. This is what makes
+// releasing the single-running slot on needs_review safe.
 
 const DIAGNOSTIC_SAMPLE_SIZE = 10;
 
 export function hfaStagingTableNames(runId: number): {
   raw: string;
-  validFacilities: string;
   keepRows: string;
   final: string;
   dictVars: string;
   dictValues: string;
+  facilities: string;
 } {
   const id = Math.floor(runId);
   return {
     raw: `uploaded_hfa_staging_raw_run_${id}`,
-    validFacilities: `uploaded_hfa_staging_validfac_run_${id}`,
     keepRows: `uploaded_hfa_staging_keeprows_run_${id}`,
     final: `uploaded_hfa_data_staging_ready_for_integration_run_${id}`,
     dictVars: `uploaded_hfa_dictionary_vars_staging_run_${id}`,
     dictValues: `uploaded_hfa_dictionary_values_staging_run_${id}`,
+    facilities: `uploaded_hfa_staging_facilities_run_${id}`,
   };
 }
 
@@ -52,9 +63,14 @@ export async function dropHfaStagingTables(
   args: { keepFinal: boolean },
 ): Promise<void> {
   const names = hfaStagingTableNames(runId);
-  const toDrop = [names.raw, names.validFacilities, names.keepRows];
+  const toDrop = [names.raw, names.keepRows];
   if (!args.keepFinal) {
-    toDrop.push(names.final, names.dictVars, names.dictValues);
+    toDrop.push(
+      names.final,
+      names.dictVars,
+      names.dictValues,
+      names.facilities,
+    );
   }
   for (const name of toDrop) {
     try {
@@ -65,13 +81,26 @@ export async function dropHfaStagingTables(
   }
 }
 
-// The staging internals relocated from the old stage_hfa_data_csv worker:
-// parse the XLSForm, stream the CSV wide→long with select_multiple expansion,
-// resolve duplicates, validate facilities, and build the data + dictionary
-// staging tables. Semantics unchanged; only the table names (per-run) and the
-// progress transport (callback instead of attempt-row writes) differ. Never
-// throws on dropped rows: the caller's clean-condition gate decides what a
-// nonzero drop count means.
+// The HFA clean condition: every row has a facility id, every new facility
+// has a complete admin tuple, and something staged. Duplicates do NOT gate:
+// they are RESOLVED at wizard time by the dedup strategy/overrides, so a
+// nonzero count is normal. Filtered-out rows do not gate either: row filters
+// are user-authored intent.
+export function isCleanHfaStaging(result: DatasetHfaCsvStagingResult): boolean {
+  return (
+    result.nRowsInvalidMissingFacilityId === 0 &&
+    (result.facilitiesWithoutAdminTuple?.count ?? 0) === 0 &&
+    result.nRowsTotal > 0
+  );
+}
+
+// Parses the XLSForm, streams the CSV wide→long with select_multiple
+// expansion, resolves duplicates, reads each kept row's facility values, checks
+// the decisions against the registry, and builds the data, dictionary and
+// facility staging tables. A decision that no longer matches the file and the
+// registry throws, naming the facilities. Never throws on rows with no
+// facility id or on new facilities with an incomplete admin tuple: the
+// caller's clean-condition gate decides what those counts mean.
 export async function stageHfaCsvIntoTables(args: {
   importDb: Sql;
   csvFilePath: string;
@@ -98,15 +127,29 @@ export async function stageHfaCsvIntoTables(args: {
   const dedupOverrides = mappings.dedupOverrides;
 
   const xlsForm = parseXlsForm(xlsFormFilePath);
+  const resSchema = await getStructureSchema(importDb, "hfa");
+  throwIfErrWithData(resSchema);
 
   // Streaming components (filter + row-number scan shared with the wizard's
-  // stateless duplicates preview route).
-  const { headers, facilityIdIndex, processFilteredRows } =
-    await getHfaRowScanComponents(
-      csvFilePath,
-      mappings.facilityIdColumn,
-      rowFilters,
-    );
+  // stateless previews).
+  const {
+    headers,
+    encodedHeaderToIndexMap,
+    facilityIdIndex,
+    processFilteredRows,
+  } = await getHfaRowScanComponents(
+    csvFilePath,
+    mappings.facilityIdColumn,
+    rowFilters,
+  );
+  const facilityCollector = createHfaFacilityCollector({
+    headers,
+    encodedHeaderToIndexMap,
+    facilityColumns: mappings.facilityColumns,
+    adminDepth: resSchema.data.adminDepth,
+    xlsForm,
+    contextHeaders: [],
+  });
 
   const {
     csvQuestionMappings,
@@ -222,6 +265,7 @@ CREATE UNLOGGED TABLE ${names.raw} (
       } else {
         facilityRowNumbers.set(facilityId, [rowNumber]);
       }
+      facilityCollector.add(row, rowNumber, facilityId);
 
       for (const mapping of csvQuestionMappings) {
         const valueRaw = row[mapping.csvIndex] || "";
@@ -274,32 +318,73 @@ CREATE UNLOGGED TABLE ${names.raw} (
   const missingFacilityIdCount = scanTotals.nRowsMissingFacilityId;
   const nRowsFilteredOut = scanTotals.nRowsFilteredOut;
 
-  // Validate overrides against the post-filter duplicate structure: a stale
-  // override (from an edited file or changed filters) fails staging loudly
-  // rather than silently falling back to the rule.
-  const overrideByFacility = new Map<string, number>();
-  for (const override of dedupOverrides) {
-    const rows = facilityRowNumbers.get(override.facilityId);
-    if (!rows || rows.length < 2 || !rows.includes(override.keepRow)) {
-      throw new Error(
-        `Duplicate-resolution override for facility "${override.facilityId}" (keep row ${override.keepRow}) no longer matches the file and filters. Start the import again and review the duplicates.`,
-      );
-    }
-    overrideByFacility.set(override.facilityId, override.keepRow);
-  }
-
-  // Resolve kept row per facility: override if present, else first/last in
-  // file order (row numbers are ascending per facility by construction)
+  const keptRows = resolveHfaKeptRows(
+    facilityRowNumbers,
+    dedupStrategy,
+    dedupOverrides,
+  );
   let survivingRows = 0;
-  const keepTuples: string[] = [];
-  for (const [facilityId, rows] of facilityRowNumbers) {
+  for (const rows of facilityRowNumbers.values()) {
     survivingRows += rows.length;
-    const keepRow = overrideByFacility.get(facilityId) ??
-      (dedupStrategy === "first" ? rows[0] : rows[rows.length - 1]);
-    keepTuples.push(`('${escapeSqlString(facilityId)}',${keepRow})`);
   }
+  const keepTuples = [...keptRows].map(([facilityId, keepRow]) =>
+    `('${escapeSqlString(facilityId)}',${keepRow})`
+  );
   const duplicateRowsCount = survivingRows - facilityRowNumbers.size;
   const rowsProcessed = facilityRowNumbers.size;
+
+  const { facilities, labelResolution } = facilityCollector.finish(keptRows);
+  const facilityPreview = await previewHfaFacilityChanges(importDb, {
+    file: facilities,
+    facilityColumns: mappings.facilityColumns,
+    timePoint: cleanedTimePoint,
+    decisions: mappings.facilityChanges,
+  });
+  const resolvedDecisions = resolveHfaChangeDecisions(
+    facilityPreview.changes,
+    mappings.facilityChanges,
+  );
+  const facilityChanges: HfaFacilityChangeCounts[] = [];
+  for (const group of facilityPreview.changes) {
+    let counts = facilityChanges.find((c) => c.column === group.column);
+    if (!counts) {
+      counts = { column: group.column, changed: 0, kept: 0, taken: 0 };
+      facilityChanges.push(counts);
+    }
+    for (const change of group.facilities) {
+      counts.changed++;
+      if (
+        resolvedDecisions.get(change.facilityId)?.get(group.column) === "take"
+      ) {
+        counts.taken++;
+      } else {
+        counts.kept++;
+      }
+    }
+  }
+
+  // known records what staging found in the registry, so integration can
+  // tell a facility removed during a hold from one the file brought.
+  const newFacilityIds = new Set(facilityPreview.newFacilityIds);
+  await importDb.unsafe(`
+CREATE UNLOGGED TABLE ${names.facilities} (
+  facility_id TEXT PRIMARY KEY,
+  facility TEXT NOT NULL,
+  known BOOLEAN NOT NULL
+)`);
+  for (let i = 0; i < facilities.length; i += 1000) {
+    const batch = facilities.slice(i, i + 1000);
+    await importDb`
+      INSERT INTO ${importDb(names.facilities)} (facility_id, facility, known)
+      SELECT * FROM unnest(
+        ${batch.map((f) => f.facilityId)}::text[],
+        ${batch.map((f) => JSON.stringify(f))}::text[],
+        ${
+      batch.map((f) => String(!newFacilityIds.has(f.facilityId)))
+    }::text[]::boolean[]
+      )
+    `;
+  }
 
   await importDb.unsafe(`
 CREATE UNLOGGED TABLE ${names.keepRows} (
@@ -315,21 +400,9 @@ CREATE UNLOGGED TABLE ${names.keepRows} (
     );
   }
 
-  onProgress(88);
-
-  // Validate facilities
-  await importDb.unsafe(`
-CREATE UNLOGGED TABLE ${names.validFacilities} AS
-SELECT DISTINCT facility_id FROM facilities_hfa
-WHERE EXISTS (
-  SELECT 1 FROM ${names.raw} t
-  WHERE t.facility_id = facilities_hfa.facility_id
-)`);
-
   onProgress(90);
 
-  // Final staging table with validated facilities, keeping only the resolved
-  // row per facility
+  // Final staging table: only the kept row per facility
   await importDb.unsafe(`
 CREATE TABLE ${names.final} AS
 SELECT
@@ -339,11 +412,7 @@ SELECT
   t.value
 FROM ${names.raw} t
 JOIN ${names.keepRows} k
-  ON k.facility_id = t.facility_id AND t.row_seq = k.keep_seq
-WHERE EXISTS (
-  SELECT 1 FROM ${names.validFacilities} vf
-  WHERE vf.facility_id = t.facility_id
-)`);
+  ON k.facility_id = t.facility_id AND t.row_seq = k.keep_seq`);
 
   await importDb.unsafe(`
 ALTER TABLE ${names.final}
@@ -470,39 +539,16 @@ CREATE UNLOGGED TABLE ${names.dictValues} (
 SELECT COUNT(*)::int as count FROM ${importDb.unsafe(names.final)}`
   )[0].count;
 
-  const invalidFacilityNotFoundCount = (
-    await importDb<{ count: number }[]>`
-SELECT COUNT(DISTINCT facility_id)::int as count
-FROM ${importDb.unsafe(names.raw)}
-WHERE NOT EXISTS (
-  SELECT 1 FROM ${importDb.unsafe(names.validFacilities)} vf
-  WHERE vf.facility_id = ${importDb.unsafe(names.raw)}.facility_id
-)`
-  )[0].count;
-
-  const facilityNotFoundSample = (
-    await importDb<{ facility_id: string }[]>`
-SELECT DISTINCT facility_id
-FROM ${importDb.unsafe(names.raw)}
-WHERE NOT EXISTS (
-  SELECT 1 FROM ${importDb.unsafe(names.validFacilities)} vf
-  WHERE vf.facility_id = ${importDb.unsafe(names.raw)}.facility_id
-)
-ORDER BY facility_id
-LIMIT ${DIAGNOSTIC_SAMPLE_SIZE}`
-  ).map((r) => r.facility_id);
-
-  // The intermediates are done; the three tables the integrate leg reads stay.
+  // The intermediates are done; the four tables the integrate leg reads stay.
   await dropHfaStagingTables(importDb, runId, { keepFinal: true });
 
   return {
     dateImported,
     assetFileName: csvFileName,
     nRowsInFile: totalRows,
-    nRowsValid: rowsProcessed - invalidFacilityNotFoundCount,
+    nRowsValid: rowsProcessed -
+      facilityPreview.newFacilitiesWithoutAdminTuple.count,
     nRowsInvalidMissingFacilityId: missingFacilityIdCount,
-    nRowsInvalidFacilityNotFound: invalidFacilityNotFoundCount,
-    facilityNotFoundSample,
     nRowsDuplicated: duplicateRowsCount,
     nRowsFilteredOut,
     dedupStrategy,
@@ -522,6 +568,14 @@ LIMIT ${DIAGNOSTIC_SAMPLE_SIZE}`
       DIAGNOSTIC_SAMPLE_SIZE,
     ),
     nSelectMultipleExpanded,
+    facilityMatch: facilityPreview.match,
+    facilityChanges,
+    labelResolution: labelResolution.map((t) => ({
+      column: t.column,
+      resolvedCount: t.resolvedCount,
+      unresolvedValues: t.unresolvedValues,
+    })),
+    facilitiesWithoutAdminTuple: facilityPreview.newFacilitiesWithoutAdminTuple,
   };
 }
 
@@ -539,9 +593,8 @@ type CsvQuestionMapping = {
   choices?: XlsFormChoice[];
 };
 
-// A header matches the question with its id, else the one question whose id
-// equals it ignoring case: a survey firm's export can re-case the form's names
-// (Guinea's SERV_08B for serv_08b). The variable id is the form's spelling.
+// A header matches its question by the HFA header convention
+// (findXlsFormQuestionForHeader). The variable id is the form's spelling.
 function matchCsvColumnsToXlsForm(
   headers: string[],
   facilityIdIndex: number,
@@ -551,31 +604,13 @@ function matchCsvColumnsToXlsForm(
   csvColsNotInXlsForm: string[];
   xlsFormQuestionsNotInCsv: string[];
 } {
-  const questionsByLowerId = new Map<string, XlsFormQuestion[]>();
-  for (const question of xlsForm.questions.values()) {
-    const key = question.questionId.toLowerCase();
-    questionsByLowerId.set(key, [
-      ...(questionsByLowerId.get(key) ?? []),
-      question,
-    ]);
-  }
-  const findQuestion = (questionId: string): XlsFormQuestion | undefined => {
-    const caseless = questionsByLowerId.get(questionId.toLowerCase()) ?? [];
-    return xlsForm.questions.get(questionId) ??
-      (caseless.length === 1 ? caseless[0] : undefined);
-  };
-
   const csvQuestionMappings: CsvQuestionMapping[] = [];
   const csvColsNotInXlsForm: string[] = [];
   const questionIdsInCsv = new Set<string>();
   const stagedHeaderByQuestionId = new Map<string, string>();
 
   headers.forEach((csvHeader, csvIndex) => {
-    // An ODK export header is the question's path through its groups,
-    // "section_a/subsection/question_id"; the last segment is the question id.
-    const question = findQuestion(
-      csvHeader.substring(csvHeader.lastIndexOf("/") + 1),
-    );
+    const question = findXlsFormQuestionForHeader(xlsForm, csvHeader);
     if (question) questionIdsInCsv.add(question.questionId);
     if (csvIndex === facilityIdIndex) return;
     if (!question) {

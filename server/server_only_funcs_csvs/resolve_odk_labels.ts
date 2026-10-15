@@ -2,24 +2,39 @@ import type { ParsedXlsForm, XlsFormQuestion } from "./parse_xlsform.ts";
 
 const MAX_UNRESOLVED_VALUES_REPORTED = 10;
 
+const questionsByLowerIdCache = new WeakMap<
+  ParsedXlsForm,
+  Map<string, XlsFormQuestion[]>
+>();
+
+function questionsByLowerId(
+  xlsForm: ParsedXlsForm,
+): Map<string, XlsFormQuestion[]> {
+  let index = questionsByLowerIdCache.get(xlsForm);
+  if (!index) {
+    index = new Map();
+    for (const question of xlsForm.questions.values()) {
+      const key = question.questionId.toLowerCase();
+      index.set(key, [...(index.get(key) ?? []), question]);
+    }
+    questionsByLowerIdCache.set(xlsForm, index);
+  }
+  return index;
+}
+
 // The HFA header convention: a header is a question id, or an ODK question
 // path whose last segment is one, matched exactly, else to the one question
 // whose id equals it ignoring case (a survey firm's export can re-case the
-// form's names).
+// form's names, as Guinea's SERV_08B for serv_08b).
 export function findXlsFormQuestionForHeader(
   xlsForm: ParsedXlsForm,
   rawHeader: string,
 ): XlsFormQuestion | undefined {
   const questionId = rawHeader.substring(rawHeader.lastIndexOf("/") + 1);
-  const exact = xlsForm.questions.get(questionId);
-  if (exact) {
-    return exact;
-  }
-  const lower = questionId.toLowerCase();
-  const caseless = [...xlsForm.questions.values()].filter((q) =>
-    q.questionId.toLowerCase() === lower
-  );
-  return caseless.length === 1 ? caseless[0] : undefined;
+  const caseless = questionsByLowerId(xlsForm).get(questionId.toLowerCase()) ??
+    [];
+  return xlsForm.questions.get(questionId) ??
+    (caseless.length === 1 ? caseless[0] : undefined);
 }
 
 // A code's choice label, or undefined for a code the choice list lacks.

@@ -55,6 +55,13 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
     rowFilters: [],
     dedupStrategy: "first",
     dedupOverrides: [],
+    facilityColumns: {
+      adminArea1: { value: "" },
+      adminAreas: [],
+      optional: {},
+    },
+    facilityChanges: [],
+    recodes: {},
   });
 
   // Both files must be present before the headers can be parsed (the parse

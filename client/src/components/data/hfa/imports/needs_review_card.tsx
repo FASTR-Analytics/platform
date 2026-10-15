@@ -14,9 +14,10 @@ type Props = {
   onChanged: () => Promise<void>;
 };
 
-// An HFA run holding in needs_review: staging dropped facility rows, so
-// nothing was merged. The user integrates the surviving rows anyway or
-// discards. The hold does NOT occupy the single-running slot.
+// An HFA run holding in needs_review: rows with no facility id, or new
+// facilities with no complete admin areas, so nothing was merged. The user
+// integrates anyway, which leaves those out, or discards. The hold does NOT
+// occupy the single-running slot.
 export function HfaNeedsReviewCard(p: Props) {
   const integrateAnyway = createButtonAction(
     () =>
@@ -59,11 +60,11 @@ export function HfaNeedsReviewCard(p: Props) {
       <div class="text-sm">
         {t3({
           en:
-            "Some facility rows were dropped during staging, so nothing has been merged yet. Review the results below, then integrate the surviving rows or discard the import.",
+            "Some rows have no facility id, or some new facilities have no complete admin areas, so nothing has been merged yet. Review the results below, then integrate anyway, which leaves those rows and facilities out, or discard the import.",
           fr:
-            "Des lignes d'établissements ont été rejetées pendant la préparation, rien n'a donc encore été fusionné. Vérifiez les résultats ci-dessous, puis intégrez les lignes retenues ou abandonnez l'importation.",
+            "Certaines lignes n'ont pas d'identifiant d'établissement, ou de nouveaux établissements n'ont pas d'unités administratives complètes, rien n'a donc encore été fusionné. Vérifiez les résultats ci-dessous, puis intégrez malgré tout, ce qui laisse de côté ces lignes et ces établissements, ou abandonnez l'importation.",
           pt:
-            "Algumas linhas de estabelecimentos foram rejeitadas durante a preparação, pelo que nada foi ainda fundido. Reveja os resultados abaixo e depois integre as linhas retidas ou descarte a importação.",
+            "Algumas linhas não têm identificador de estabelecimento, ou alguns novos estabelecimentos não têm zonas administrativas completas, pelo que nada foi ainda fundido. Reveja os resultados abaixo e depois integre mesmo assim, o que deixa de fora essas linhas e esses estabelecimentos, ou descarte a importação.",
         })}
       </div>
       <Show when={p.run.diagnostics} keyed>

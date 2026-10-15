@@ -4,10 +4,14 @@ import type {
   ItemsHolderDatasetHfaDisplay,
 } from "../../types/dataset_hfa.ts";
 import type {
+  HfaCsvMappingParams,
   HfaDuplicatePreview,
+  HfaFacilityChangesReview,
+  HfaFacilityColumnsPreview,
   HfaImportRunSummary,
 } from "../../types/dataset_hfa_import.ts";
 import {
+  adminAreaLevelSchema,
   datasetHmisWindowingSchema,
   structureSchemaSchema,
 } from "../../types/mod.ts";
@@ -24,6 +28,7 @@ import type {
   ItemsHolderDatasetHmisDisplay,
 } from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
+import { structureRecodesSchema } from "./structure.ts";
 
 // A window selects indicators; the server expands them to the data ids it
 // fetches at launch. A pairs selection names the (data id, month) pairs the
@@ -127,17 +132,71 @@ const hfaRowFilterSchema = z.object({
   value: z.string(),
 });
 
+const hfaDedupOverridesSchema = z.array(
+  z.object({
+    facilityId: z.string(),
+    keepRow: z.number().int().min(1),
+  }),
+);
+
+const optionalFacilityColumnSchema = z.enum([
+  "facility_name",
+  "facility_type",
+  "facility_ownership",
+  "facility_custom_1",
+  "facility_custom_2",
+  "facility_custom_3",
+  "facility_custom_4",
+  "facility_custom_5",
+]);
+
+const hfaFacilityColumnHeadersSchema = z.object({
+  header: z.string().min(1),
+  correctionHeader: z.string().min(1).optional(),
+});
+
+// z.partialRecord: a mapping names only the optional columns it maps.
+const hfaFacilityColumnsSchema = z.object({
+  adminArea1: z.object({ value: z.string() }),
+  adminAreas: z.array(
+    hfaFacilityColumnHeadersSchema.extend({ level: adminAreaLevelSchema }),
+  ),
+  optional: z.partialRecord(
+    optionalFacilityColumnSchema,
+    hfaFacilityColumnHeadersSchema,
+  ),
+});
+
+const hfaFacilityChangeGroupDecisionSchema = z.object({
+  column: z.union([z.literal("admin"), optionalFacilityColumnSchema]),
+  from: z.string(),
+  to: z.string(),
+  facilityIds: z.array(z.string().min(1)).min(1),
+  decision: z.enum(["keep", "take"]),
+  exceptions: z.array(z.string().min(1)),
+});
+
 const hfaCsvMappingParamsSchema = z.object({
   facilityIdColumn: z.string(),
   timePoint: z.string(),
   rowFilters: z.array(hfaRowFilterSchema),
   dedupStrategy: z.enum(["first", "last"]),
-  dedupOverrides: z.array(
-    z.object({
-      facilityId: z.string(),
-      keepRow: z.number().int().min(1),
-    }),
-  ),
+  dedupOverrides: hfaDedupOverridesSchema,
+  facilityColumns: hfaFacilityColumnsSchema,
+  facilityChanges: z.array(hfaFacilityChangeGroupDecisionSchema),
+  recodes: structureRecodesSchema,
+});
+
+// What the two facility previews read from the file: the kept row of each
+// facility, through the facility columns.
+const hfaFacilityScanSchema = z.object({
+  csvFileName: z.string(),
+  xlsFormFileName: z.string(),
+  facilityIdColumn: z.string(),
+  rowFilters: z.array(hfaRowFilterSchema),
+  dedupStrategy: z.enum(["first", "last"]),
+  dedupOverrides: hfaDedupOverridesSchema,
+  facilityColumns: hfaFacilityColumnsSchema,
 });
 
 // The HFA launch payload: two instance assets named by fileName plus the
@@ -319,7 +378,8 @@ export const datasetRouteRegistry = {
       csvFileName: z.string(),
       xlsFormFileName: z.string(),
     }),
-    response: {} as { headers: string[] },
+    // headersWithValues: the encoded headers holding a non-blank cell.
+    response: {} as { headers: string[]; headersWithValues: string[] },
   }),
   previewDatasetHfaDuplicates: route({
     path: "/datasets/hfa/runs/duplicate-preview",
@@ -330,6 +390,30 @@ export const datasetRouteRegistry = {
       rowFilters: z.array(hfaRowFilterSchema),
     }),
     response: {} as HfaDuplicatePreview,
+  }),
+  previewDatasetHfaFacilityColumns: route({
+    path: "/datasets/hfa/runs/facility-columns-preview",
+    method: "POST",
+    body: hfaFacilityScanSchema,
+    response: {} as HfaFacilityColumnsPreview,
+  }),
+  // The decisions carried set which admin areas count as lost; contextHeaders
+  // are the file columns the recode rows carry.
+  previewDatasetHfaFacilityChanges: route({
+    path: "/datasets/hfa/runs/facility-changes-preview",
+    method: "POST",
+    body: hfaFacilityScanSchema.extend({
+      timePoint: z.string(),
+      facilityChanges: z.array(hfaFacilityChangeGroupDecisionSchema),
+      contextHeaders: z.array(z.string()),
+    }),
+    response: {} as HfaFacilityChangesReview,
+  }),
+  // The mappings of the latest complete run, which the wizard pre-fills from.
+  getDatasetHfaLatestMappings: route({
+    path: "/datasets/hfa/runs/latest-mappings",
+    method: "GET",
+    response: {} as HfaCsvMappingParams | null,
   }),
   launchDatasetHfaCsvRun: route({
     path: "/datasets/hfa/runs",

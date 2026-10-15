@@ -280,18 +280,12 @@ facility FK cascades on delete; the time point FK cascades a rename and sets
 `time_point` NULL when the round is deleted, so a reorder, a rename or a delete
 of a time point never touches the registry.
 
-**The file side.** An import reads each facility from its kept row (the one row
-per facility left by the row filters and the duplicate resolution, the row its
-data comes from) through `HfaFacilityColumns`: level 1 is one fixed value for
+**The file side.** An import reads each facility from its kept row through
+`HfaFacilityColumns` (`HfaFileFacility` rows): level 1 is one fixed value for
 every facility, levels 2 to the HFA admin depth are mapped all or none, and the
-optional columns are the HFA structure schema's enabled set. A mapped column may
-carry a correction column whose trimmed cell wins where it is non-blank. Each
-header is resolved through the XLSForm by its own name (the HFA header
-convention, `resolve_odk_labels.ts`): a header matching a `select_one` question
-has its codes replaced by choice labels, and a code the choice list lacks stays
-raw and is counted per column. `scanHfaFileFacilities` and
-`createHfaFacilityCollector` (`server_only_funcs_csvs/scan_hfa_rows.ts`) produce
-these `HfaFileFacility` rows, with label resolution run on the kept rows only.
+optional columns are the HFA structure schema's enabled set. How the kept row's
+cells are read (correction columns, ODK label resolution) is S6 "Staging", the
+HFA facility columns bullet.
 
 **Changes.** A change is an existing facility whose file value for a mapped
 column group differs from its registry value; a blank and a NULL registry value
