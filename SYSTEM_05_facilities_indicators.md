@@ -243,7 +243,9 @@ which is why `deleteFamilyFacilities` refuses while any weights exist and
 **Weights** (`hfa_facility_weights`, facility × time_point): written ONLY by the
 structure-import UI's weights wizard, never by HFA data ingestion. Import is
 long-format (two user-mapped columns: facility id + weight, plus an optional
-stratum column, pre-ticked when the file has a `stratum` header), one time point
+stratum column, pre-ticked when the file has a `stratum` header; the facility
+id defaults to the first of `id_fac_txt` and `id_fac` that holds a value, which
+the headers route reports as `headersWithValues`), one time point
 per import, wholesale replace for that time point, positive weights only; a
 blank weight cell = not-in-sample (absence is the representation). Each weighted
 row stores its sampling stratum as trimmed text, NULL when the cell is blank or

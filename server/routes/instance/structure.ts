@@ -40,6 +40,7 @@ import {
 } from "../../dhis2/goal1_org_units_v2/mod.ts";
 import { resolveAssetFilePath } from "../../db/instance/assets.ts";
 import { getCsvDetails } from "../../server_only_funcs_csvs/get_csv_components.ts";
+import { scanHfaHeadersWithValues } from "../../server_only_funcs_csvs/scan_hfa_rows.ts";
 import { log } from "../../middleware/logging.ts";
 import { requireGlobalPermission } from "../../middleware/userPermission.ts";
 import {
@@ -142,7 +143,16 @@ defineRoute(
   async (c, { body }) => {
     const filePath = resolveAssetFilePath(body.assetFileName);
     const res = await getCsvDetails(filePath, body.assetFileName);
-    return c.json(res);
+    if (!res.success) {
+      return c.json(res);
+    }
+    return c.json({
+      success: true as const,
+      data: {
+        ...res.data,
+        headersWithValues: await scanHfaHeadersWithValues(filePath),
+      },
+    });
   },
 );
 

@@ -85,11 +85,12 @@ export const structureRouteRegistry = {
       items: Record<string, string>[];
     },
   }),
+  // headersWithValues: the encoded headers holding a non-blank cell.
   readWeightsCsvHeaders: route({
     path: "/structure/hfa_facility_weights/read_headers",
     method: "POST",
     body: z.object({ assetFileName: z.string() }),
-    response: {} as CsvDetails,
+    response: {} as CsvDetails & { headersWithValues: string[] },
   }),
   importHfaFacilityWeights: route({
     path: "/structure/hfa_facility_weights/import",

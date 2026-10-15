@@ -2,7 +2,8 @@ import {
   type CsvDetails,
   encodeRawCsvHeader,
   findEncodedCsvHeader,
-  HFA_CORE_FACILITY_ID_COLUMN,
+  findFirstEncodedCsvHeaderWithValues,
+  HFA_CORE_FACILITY_ID_COLUMNS,
   HFA_CORE_STRATUM_COLUMN,
   HFA_CORE_WEIGHT_COLUMN,
   type HfaFacilityWeightsImportResult,
@@ -217,9 +218,11 @@ function WeightsWithCsv(p: { onCsvReady?: (csv: Csv<any>) => void }) {
 
 // ─── Import wizard ────────────────────────────────────────────────────────────
 
+type WeightsCsvHeaders = CsvDetails & { headersWithValues: string[] };
+
 type WizardStep =
   | { step: "upload" }
-  | { step: "map"; csvDetails: CsvDetails }
+  | { step: "map"; csvDetails: WeightsCsvHeaders }
   | { step: "done"; result: HfaFacilityWeightsImportResult };
 
 type Mappings = {
@@ -282,7 +285,10 @@ function HfaWeightsImportForm(_p: { close: (p: unknown) => void }) {
           </Match>
           <Match when={wizard().step === "map"}>
             {(_) => {
-              const w = wizard() as { step: "map"; csvDetails: CsvDetails };
+              const w = wizard() as {
+                step: "map";
+                csvDetails: WeightsCsvHeaders;
+              };
               return (
                 <MapStep
                   csvDetails={w.csvDetails}
@@ -313,7 +319,7 @@ function HfaWeightsImportForm(_p: { close: (p: unknown) => void }) {
   );
 }
 
-function UploadStep(p: { onNext: (csv: CsvDetails) => void }) {
+function UploadStep(p: { onNext: (csv: WeightsCsvHeaders) => void }) {
   const [fileName, setFileName] = createSignal("");
 
   const readHeaders = createFormAction(async () => {
@@ -377,7 +383,7 @@ function UploadStep(p: { onNext: (csv: CsvDetails) => void }) {
 }
 
 function MapStep(p: {
-  csvDetails: CsvDetails;
+  csvDetails: WeightsCsvHeaders;
   timePointOptions: { value: string; label: string }[];
   onDone: (result: HfaFacilityWeightsImportResult) => void;
 }) {
@@ -392,9 +398,10 @@ function MapStep(p: {
   );
 
   const [mappings, setMappings] = createStore<Mappings>({
-    facilityIdColumn: findEncodedCsvHeader(
+    facilityIdColumn: findFirstEncodedCsvHeaderWithValues(
       p.csvDetails.headers,
-      HFA_CORE_FACILITY_ID_COLUMN,
+      HFA_CORE_FACILITY_ID_COLUMNS,
+      p.csvDetails.headersWithValues,
     ),
     weightColumn: findEncodedCsvHeader(
       p.csvDetails.headers,
