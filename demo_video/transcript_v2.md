@@ -7,8 +7,9 @@ suggested screen content, not narration.
 
 ![Title card](cards/card_00_title.png)
 
-_Screen: title card, then the schematic (today version) while the second
-sentence is read._
+_Screen: the title card for the first sentence, then the schematic (today
+version) from the second sentence: the three sources, the three stages, decks
+and reports, and the AI assistant appear roughly as they are named._
 
 _Video: [schematic_v1.mp4](schematic_v1.mp4) (today)_
 
@@ -16,9 +17,12 @@ _Video: [schematic_v1.mp4](schematic_v1.mp4) (today)_
 
 In this video, I'm going to show you the FASTR Analytics Platform, which we've
 built for collaborative analysis of health systems data, and for quick and easy
-generation of reports. I'm going to show you how you can import data, run
-analysis modules, create visualizations and reports, and use the built-in AI
-tools to interpret results, write text, and compile a slide deck from scratch.
+generation of reports. I'm going to show you how you can import data from
+different sources, such as DHIS2, health facility assessments and household
+surveys, and how you can run analysis modules on that data and use the results
+to create slide decks and reports. And I'm going to show you how you can use the
+built-in AI tools to interpret results, write text, and compile a slide deck
+from scratch.
 
 ## Part 1: Data
 
@@ -123,8 +127,9 @@ first, and you can accept or reject them.
 
 ![Part 6: Automation](cards/card_06_automation.png)
 
-_Screen: the scheduled DHIS2 import settings, then the schematic (future
-version), then the end card._
+_Screen: the schematic (future version) through the whole paragraph: scheduled
+imports, scheduled reports and alerts appear as they are named. Then the end
+card._
 
 _Video: [schematic_v2.mp4](schematic_v2.mp4) (future)_
 
