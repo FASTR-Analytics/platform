@@ -37,7 +37,7 @@ narration; a file used in more than one part is listed once.
 | `deck_edit`        | 26 s   | The ANC deck: click through four slides via the thumbnails; add a slide; insert a figure from the wizard; switch to a two-figure layout; File, Download (PowerPoint and PDF) |
 | `report`           | 8 s    | "V2 Presentation 1": scroll a page with figures and stat tiles; the Figures menu; File, Download as Word                                                                     |
 | `update_figures`   | 10 s   | A copy of the ANC deck in "Demo video", still on Demo 2: the Update all visualizations badge, click it, figures refresh, the label changes                                   |
-| `collab`           | 11 s   | Two windows side by side on one deck, both cursors visible, text typed in one appears in the other                                                                           |
+| `share`            | 6 s    | The ANC deck: File, Share…, then Manage access…, showing who can see and edit it                                                                                             |
 | `history`          | 8 s    | History: pick an earlier version, preview it                                                                                                                                 |
 | `ai_open`          | 15 s   | On Explore click the AI button, the panel slides in (context chip, suggested prompts); close it; open the ANC deck and open the panel again                                  |
 | `ai_question`      | 18 s   | Type prompt 1, send; the answer arrives with numbers and names the package and module; expand the data tool call; scroll the values it read                                  |
@@ -91,7 +91,7 @@ figure_editor
 deck_edit
 report
 update_figures
-collab
+share
 history
 ai_open
 ai_question
