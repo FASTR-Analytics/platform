@@ -14,7 +14,7 @@ rules. This plan makes the deck editor one copilot view, with the open slide as
 view state, and one set of slide tools, each addressing a slide by id and
 routing to the open slide's draft or to the stored slide.
 
-**Next step: Review 1.**
+**Next step: Fix 1.**
 
 Branch: `version2`. Repos touched: this app only. Read first: §0.
 
@@ -388,3 +388,6 @@ Append-only, newest last.
 | 1    | 2026-10-16 | Choice: the open slide (`currentSlideId`, the content fetch, the keyed mount, the follow-the-deck and tour-replay effects, `selectSlide`) moved from `SlideDeckEditorInner` up to `SlideDeckEditor`, where the deck view's context is built and set, so `getOpenSlide` and `deleteSlides` read it directly; the inner component takes them as props. `neighbourOf` is a module-level pure function over the deck's `slideIds`. |
 | 1    | 2026-10-16 | Fact: `./validate_protocols` prints "1 baseline entry no longer match"; HEAD before this step prints the same, so it is not this plan's.                                                                                                                                                                                                                                                                                       |
 | 1    | 2026-10-16 | Step 1 built.                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| 1    | 2026-10-16 | Finding (code): `client/src/components/products/slide_deck/slide_deck.tsx:641`, `neighbourOf`. `order.slice(0, order.findIndex(isGone))` ends before the first deleted id, so it holds no deleted id and its `.findLast((id) => !isGone(id))` is a predicate that cannot fail. Edit: `order.slice(0, order.findIndex(isGone)).at(-1)`. A harness over twelve delete sets agrees with the rail's old rule before and after.     |
+| 1    | 2026-10-16 | Finding (prose), fixed in this review's own commit ea8b4e21b: `SYSTEM_12_documents_sharing.md:534-535` read "a refused flush cancels the delete with "Delete cancelled.", and only then is the request sent", which placed the request after the cancel. Now: the request goes once the editor has moved; a refused flush cancels the delete and sends nothing.                                                                |
+| 1    | 2026-10-16 | Step 1 reviewed: 2 findings.                                                                                                                                                                                                                                                                                                                                                                                                   |
