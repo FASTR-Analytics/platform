@@ -78,7 +78,7 @@ export const copilotInteractions = defineAIInteractions({
     filter: (p, view) =>
       (view.params as EditingSlideParams).slideId === p.slideId,
     format: () =>
-      "The open slide's content changed (re-read with get_slide_editor before editing it)",
+      "The open slide's content changed (re-read with get_slide before editing it)",
   }),
   edited_report_locally: interaction<{ reportId: string }>({
     relevantIn: ["editing_report"],

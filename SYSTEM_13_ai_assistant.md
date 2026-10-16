@@ -311,7 +311,7 @@ alone imports it. The product half stays in
 `client/src/components/products/copilot/`: the product tools (`ai_tools/`), the
 slide conversion layer (`slide_ai/`), the two `_shared/` files both of those
 read (`content_validators.ts`, `format_figure_config_for_ai.ts`); its `mod.ts`
-exports the four tool builders. (The save-style modal went with the html report
+exports the five tool builders. (The save-style modal went with the html report
 format on 2026-10-13, S12.)
 
 One chat sits beside the whole shell. `instance.tsx` wraps `ShellEditorWrapper`
@@ -433,15 +433,15 @@ params are the serializable model-visible half (ids, and the report's format and
 style); context is the live payload (editor getters/setters plus, on every
 package view, `getScope()` and `getRunId()`) delivered to tool handlers
 opaquely. Labels are read live from the context, never captured into params: the
-deck's name (`getDeckLabel`), the open slide's title (`getSlideTitle` over
-`getTempSlide()`, which also gives the slide's type) and the report's name
-(`getLabel`), so a rename, a title edit or a type switch never leaves the view
-line, the instructions or a tool's read-back stale. Every view that shows
-something declares its `identity` through `copilotViewIdentity` (the entity ids,
-and for a package view the pair with its definition hash), so the engine refuses
-a view-limited call once the live identity differs from the one the turn last
-saw: a call planned for one slide does not run against the next, and a call
-planned before a reattach does not run against the new package.
+deck's name (`getDeckLabel`), the open slide's title (`getSlideTitle` over the
+open slide's draft, `getOpenSlide()`, which also gives the slide's type) and the
+report's name (`getLabel`), so a rename, a title edit or a type switch never
+leaves the view line, the instructions or a tool's read-back stale. Every view
+that shows something declares its `identity` through `copilotViewIdentity` (the
+entity ids, and for a package view the pair with its definition hash), so the
+engine refuses a view-limited call once the live identity differs from the one
+the turn last saw: a call planned for one slide does not run against the next,
+and a call planned before a reattach does not run against the new package.
 
 A place holds the view it covers and sets its own: `holdCopilotView()` (called
 synchronously in the place's component body) captures the controller's current
@@ -566,15 +566,18 @@ edits" defect is fixed in the general case: every persist-path write tool marks
 its `slide:` and `product:` echo keys via `markAIEdit` once its write has landed
 (a report tool marks its `product:` key after the accepted commit, or after a
 figure update saves), so the AI's own server writes are dropped at drain
-(TTL-scoped, either-order). The collab-checkpoint residual is in Open items. The
-controller is a module singleton whose log outlives a mount. The manager
-activates a conversation on every mount, which starts its digest at the log's
-end, so actions retained from before (the previous user's on a Clerk cross-tab
-user switch, this tab's while another tab owned the chat) never ride this chat's
-digest; the panel still calls `clearInteractionLog()` when the chat mounts,
-which drops them and, with them, the echo marks and any open AI-navigation
-window the previous user's chat left, which would otherwise drop or misattribute
-this user's first actions within their TTLs.
+(TTL-scoped, either-order). A write to the open slide's draft marks the same
+keys, since the room's checkpoint of it notifies `slides` and the deck's row as
+a stored write does; within the 30s TTL a collaborator's checkpoint of the same
+slide drops too, which the workflow absorbs, since the model re-reads a slide
+before it edits one. The controller is a module singleton whose log outlives a
+mount. The manager activates a conversation on every mount, which starts its
+digest at the log's end, so actions retained from before (the previous user's on
+a Clerk cross-tab user switch, this tab's while another tab owned the chat)
+never ride this chat's digest; the panel still calls `clearInteractionLog()`
+when the chat mounts, which drops them and, with them, the echo marks and any
+open AI-navigation window the previous user's chat left, which would otherwise
+drop or misattribute this user's first actions within their TTLs.
 
 ## Tools, view gating, and approval
 
@@ -588,9 +591,38 @@ Products page's `list_products`, the reference tools (methodology docs, info)
 and panther's one `ask_user_questions`. Every tool declares a `kind` (`"read"` /
 `"write"`); no tool is `"nav"`: a navigation tool or any AI-driven move is out
 of the chat's scope, so the user moves and the view line tells the model where.
-The deck writes go through the product routes (`createSlide`, `updateSlide`,
-`deleteSlides`, `duplicateSlides`, `moveSlides`), the slide editor's and the
-report's through the live view context. The Figure editor group
+The slide tools are nine, one set, admitted in the deck and slide views
+([slides.tsx](client/src/components/products/copilot/ai_tools/tools/slides.tsx)
+builds it): `get_deck`, `get_slide`, `create_slide`, `update_slide`,
+`update_figure`, `replace_slide`, `delete_slides`, `duplicate_slides` and
+`move_slides`. Every tool that names a slide takes its `slideId`, and one rule
+routes it
+([slide_target.ts](client/src/components/products/copilot/ai_tools/tools/slide_target.ts)):
+`readSlideTarget` reads the open slide (`getOpenSlide()` on the deck view's
+context) from the editor's draft, so the model sees what the canvas shows, saved
+or not, and any other slide as stored through `getSlide`, with the version its
+write is checked against; `writeSlideTarget` writes back where the read was,
+reconciling into the draft through the store's raw setter (the AI's edit is
+never reported as the user's) or calling `updateSlide` under the optimistic
+lock, whose `CONFLICT` becomes a re-read message. The write, not the read,
+refuses a slide another collaborator has open (`assertSlidesNotBusy`), so a read
+is never refused; it also refuses when the open slide the read saw is no longer
+open (the user switched slides) and when a slide read as stored has since been
+opened, so the open slide is only ever written through its draft. No handler
+reads `getOpenSlide()` for itself. `get_deck` prints the outline through
+`getDeckSummaryForAI`, the open slide's line from its draft and marked "(open)".
+`update_slide` changes a slide in place through a per-type union that must match
+the slide's type (a cover's or a section's fields; a content slide's header, and
+either `blockUpdates` or `layoutChange`, whose layout-spec resolution names the
+blocks it removes), `update_figure` tweaks one figure's config, and
+`replace_slide` rebuilds a slide or changes its type. The structure writes
+(`create_slide`, `duplicate_slides`, `move_slides`) go through the product
+routes and never open a slide: the deck's own rule (the first slide when none is
+open) is the only thing that moves the editor on the AI's behalf.
+`delete_slides` commits through the deck's `deleteSlides` (S12), the rail's own
+sequence, so a deleted open slide hands the editor to its neighbour before the
+request. The report's writes go through the live view context. The Figure editor
+group
 ([figure_editor.ts](client/src/components/products/copilot/ai_tools/tools/figure_editor.ts),
 in the inner set, admitted in the three figure views): `get_figure_editor`
 formats the draft with `formatFigureConfigForAI`, and `update_figure_editor`
@@ -647,31 +679,31 @@ on 2026-10-13, so the pane imports nothing from `components/products/`.
 `{ requireForKind: "write", requireKind: true, exempt: COPILOT_APPROVAL_EXEMPT }`
 (`panel.tsx`), so a write tool is either exempt, as the direct editor writes to
 what the user is looking at are (the catalogue's `COPILOT_APPROVAL_EXEMPT`: the
-deck's slide writes but deletion, the open slide's draft, a report's figure by
-stable id, the figure editor's draft and the HFA code editor's unsaved state),
-or declares its approval: `delete_slides` takes a modal approval with intent
-danger whose preview lists the slides by title and whose commit deletes and
-marks the echo keys, and the five staged report tools their diff.
-`validateAIChatConfig` runs on the assembled config in DEV, so a write tool with
-neither fails on page load.
+deck's slide writes but deletion, whether they land in the open slide's draft or
+a stored slide, a report's figure by stable id, the figure editor's draft and
+the HFA code editor's unsaved state), or declares its approval: `delete_slides`
+takes a modal approval with intent danger whose preview lists the slides by
+title and whose commit runs the deck's delete and marks the echo keys, and the
+five staged report tools their diff. `validateAIChatConfig` runs on the
+assembled config in DEV, so a write tool with neither fails on page load.
 
-**Gating is declarative.** Every product tool (deck, slide editor, report and
-the draft preview) is a standalone
+**Gating is declarative.** Every product tool (the slide tools, the report tools
+and the draft preview) is a standalone
 `createAITool({viewRegistry: copilotViews, availableIn: COPILOT_TOOL_VIEWS.<name>})`
 declaration, its views the catalogue's (`lib/ai_tools/copilot_catalogue.ts`), so
 no client tool carries a hand-typed view list: the engine refuses out-of-view
 _executions_ before the handler runs (all tools stay in the API request:
 definitions are cached prompt prefix), and it injects the live view state
 (params + context) into the handler, typed to the declared views. The ~23
-hand-rolled `aiContext()` mode guards are deleted. `get_slide` reads the open
-deck's slides by id from the deck and slide views
-([get_slide.ts](client/src/components/products/copilot/ai_tools/tools/get_slide.ts)).
+hand-rolled `aiContext()` mode guards are deleted.
 
 The editing views' contexts carry the live-mutator closures the old union did,
-each beside the product's `getScope()` and `getRunId()`:
-`getTempSlide`/`setTempSlide` (slide editor),
-`getDeckConfig`/`getSlideIds`/`getSelectedSlideIds` (deck), and the report
-contract
+each beside the product's `getScope()` and `getRunId()`: the deck's
+`getDeckConfig`/`getSlideIds`/`getSelectedSlideIds`, `getOpenSlide` (the open
+slide's id, its draft store and the store's raw setter, one object per editor
+mount, so a handler that captured it compares it by reference before writing)
+and `deleteSlides`, which the slide view carries too, since it is the deck's
+context itself; and the report contract
 (`getLabel`/`getTemplate`/`getBody`/`getFigures`/`getImages`/`getSelection`/`proposeEdit`/
 `applyFigureUpdate`). See
 [ai_views.ts](client/src/components/instance/copilot/ai_views.ts).
@@ -772,7 +804,7 @@ brief used to say a stat "reads well inside a card"); `checkFastrStatPlacement`
 (over `listFastrNestedStats` in the engine) refuses such a body on all three
 staged text tools.
 
-**Validate-before-commit.** `update_figure` (slide editor, deck level) and
+**Validate-before-commit.** `update_figure` (any slide, open or stored) and
 `update_report_figure` share one pipeline: `applyFigureConfigPatch` →
 `validateFigureConfigEdit` (pure config checks: slots, field liveness, roll-up
 structure, pre-write collision) → `validateMetricInputs` (live data) →
@@ -853,9 +885,8 @@ The architecture half of the schema story (the authoring recipe is
 ## The slide_ai conversion layer
 
 The S13-owned files in `client/src/components/products/copilot/slide_ai/`
-convert between AI input shapes and stored `Slide`/`FigureBundle` shapes;
-deck-level and editor-level tools call the same resolvers, so behavior is
-identical:
+convert between AI input shapes and stored `Slide`/`FigureBundle` shapes; every
+slide tool calls the same resolvers, whichever slide it writes:
 
 - [build_config_from_preset.ts](client/src/components/products/copilot/slide_ai/build_config_from_preset.ts)
   converts AiFigureFromMetric → `PresentationObjectConfig`: preset spread over
@@ -1116,13 +1147,6 @@ Remaining:
 - **[MED] Documents never invalidate on asset replace**: the per-browser
   IndexedDB `{assetFilename, anthropicFileId}` pairing keeps serving the old
   Anthropic file after the underlying instance asset is replaced.
-- **[LOW]** Residual SSE self-echo under live collab only (the general case was
-  fixed by `markAIEdit` echo keys on every persist-path write tool): collab
-  checkpoints persist AI `setTempSlide` edits and notify `slides`, echoing back
-  unmarked as "Edited slide X". Marking those keys would also suppress genuine
-  co-editor actions on the same slide, a design question (per-origin echo keys?
-  checkpoint-carried origin?), not a missing mark; predates the interactions
-  migration.
 
 **HFA tools (fixes are S5's to land; contract is S13's)**
 

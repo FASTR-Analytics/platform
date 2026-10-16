@@ -73,7 +73,6 @@ export const COPILOT_CHAT_WIDE_TOOLS = [
 ] as const;
 
 const DECK_VIEWS = ["editing_slide_deck", "editing_slide"] as const;
-const SLIDE_VIEWS = ["editing_slide"] as const;
 const REPORT_VIEWS = ["editing_report"] as const;
 const FIGURE_EDITOR_VIEWS = [
   "editing_slide_figure",
@@ -90,8 +89,7 @@ const HFA_EDITOR_VIEWS = ["hfa_indicator_editor"] as const;
 const PRODUCTS_VIEWS = ["products"] as const;
 
 // Each gated tool's `availableIn`, as literal tuples so a handler built with
-// the registry narrows its view to these. `update_figure` edits a slide's
-// figure from the slide editor and from the deck.
+// the registry narrows its view to these.
 export const COPILOT_TOOL_VIEWS = {
   get_available_metrics: COPILOT_PACKAGE_VIEWS,
   get_metric_data: COPILOT_PACKAGE_VIEWS,
@@ -102,16 +100,12 @@ export const COPILOT_TOOL_VIEWS = {
   get_deck: DECK_VIEWS,
   get_slide: DECK_VIEWS,
   create_slide: DECK_VIEWS,
+  update_slide: DECK_VIEWS,
+  update_figure: DECK_VIEWS,
   replace_slide: DECK_VIEWS,
-  update_slide_content: DECK_VIEWS,
-  update_slide_header: DECK_VIEWS,
-  modify_slide_layout: DECK_VIEWS,
   delete_slides: DECK_VIEWS,
   duplicate_slides: DECK_VIEWS,
   move_slides: DECK_VIEWS,
-  get_slide_editor: SLIDE_VIEWS,
-  update_slide_editor: SLIDE_VIEWS,
-  update_figure: DECK_VIEWS,
   show_draft_slide_to_user: COPILOT_PACKAGE_VIEWS,
   get_report_editor: REPORT_VIEWS,
   get_report_figure: REPORT_VIEWS,
@@ -168,16 +162,12 @@ export const COPILOT_TOOL_REQUIREMENTS = {
   get_deck: "none",
   get_slide: "none",
   create_slide: "product_edit",
+  update_slide: "product_edit",
+  update_figure: "product_edit",
   replace_slide: "product_edit",
-  update_slide_content: "product_edit",
-  update_slide_header: "product_edit",
-  modify_slide_layout: "product_edit",
   delete_slides: "product_edit",
   duplicate_slides: "product_edit",
   move_slides: "product_edit",
-  get_slide_editor: "none",
-  update_slide_editor: "product_edit",
-  update_figure: "product_edit",
   show_draft_slide_to_user: "none",
   get_report_editor: "none",
   get_report_figure: "none",
@@ -207,19 +197,16 @@ export const COPILOT_TOOL_REQUIREMENTS = {
 } as const satisfies Record<CopilotToolName, CopilotToolRequirement>;
 
 // The writes that apply directly to what the user is looking at: a deck's
-// slides (deleting them asks first), the open slide's draft, a report's
-// figure by stable id, the open figure editor's draft and the HFA code
-// editor's unsaved state. Every other write asks before it applies.
+// slides, stored or open in the editor (deleting them asks first), a
+// report's figure by stable id, the open figure editor's draft and the HFA
+// code editor's unsaved state. Every other write asks before it applies.
 export const COPILOT_APPROVAL_EXEMPT: CopilotGatedToolName[] = [
   "create_slide",
+  "update_slide",
+  "update_figure",
   "replace_slide",
-  "update_slide_content",
-  "update_slide_header",
-  "modify_slide_layout",
   "duplicate_slides",
   "move_slides",
-  "update_slide_editor",
-  "update_figure",
   "update_report_figure",
   "update_figure_editor",
   "update_hfa_indicator_editor",

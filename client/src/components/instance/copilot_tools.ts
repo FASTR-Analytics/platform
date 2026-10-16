@@ -17,7 +17,6 @@ import {
   getClientToolsForFigureEditor,
   getClientToolsForProducts,
   getClientToolsForReportEditor,
-  getClientToolsForSlideEditor,
   getClientToolsForSlides,
 } from "~/components/products/copilot/mod.ts";
 import {
@@ -57,7 +56,6 @@ const buildPackageTools: PackageToolsBuilder = (
   ),
   ...getClientToolsForModules(ctx.modules, ctx.metrics),
   ...getClientToolsForSlides(env, ctx.metrics),
-  ...getClientToolsForSlideEditor(env, ctx.metrics),
   ...getClientToolsForReportEditor(env, ctx.metrics),
   ...getClientToolsForFigureEditor(env, ctx.metrics),
   ...getClientToolsForDrafts(scope, ctx.metrics),

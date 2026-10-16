@@ -222,14 +222,12 @@ The user has the HFA indicator "${label}" open in the code editor. get_hfa_indic
 // ── Editing mode instructions ──
 
 // The deck workflow: the deck view's own, and the slide view's for the other
-// slides and the whole deck, since every deck tool runs there too.
+// slides and the whole deck, since every slide tool runs there too.
 const DECK_WORKFLOW = `1. Call get_deck FIRST to understand current structure
 2. Call get_slide before modifying any specific slide
 3. Choose the right tool for the job:
-   - **Tweak an existing figure** (replicant, filters, disaggregation, period, caption) → update_figure (pass slideId + blockId; inside the slide editor omit slideId, since there it edits only the open slide)
-   - **Swap a block for different content** (replace text, replace a chart with a different metric) → update_slide_content
-   - **Change layout** (add/remove blocks, rearrange, resize) → modify_slide_layout
-   - **Change header only** → update_slide_header
+   - **Tweak an existing figure** (replicant, filters, disaggregation, period, caption) → update_figure (slideId + blockId)
+   - **Change text, blocks or layout** (a title or header, replace a block's content, add/remove/rearrange/resize blocks) → update_slide
    - **Rebuild from scratch or change slide type** → replace_slide (last resort)
 4. Call get_metric_data before creating from_metric blocks to check available data`;
 
@@ -284,8 +282,8 @@ You're editing slide: "${slideLabel}" in deck: "${deckLabel}"
 
 ## Primary Tools (for this slide)
 
-**get_slide_editor** - Get the current content and structure of this slide. Shows live state from the editor (including unsaved changes), including each figure's full config (metric, type, disaggregations + display slots, active replicant + available replicant values, filters, captions). ALWAYS call this first.
-**update_slide_editor** - Modify this slide's content. For cover/section slides you can update text fields. For content slides you can update the header and individual blocks by ID.
+**get_slide** (with this slide's ID) - Get the current content and structure of this slide. Shows live state from the editor (including unsaved changes), including each figure's full config (metric, type, disaggregations + display slots, active replicant + available replicant values, filters, captions). ALWAYS call this first.
+**update_slide** (with this slide's ID) - Modify this slide's content. For cover/section slides you can update text fields. For content slides you can update the header and individual blocks by ID.
 
 ## What You Can Modify
 
@@ -296,9 +294,9 @@ You're editing slide: "${slideLabel}" in deck: "${deckLabel}"
 
 ## Workflow
 
-1. Call get_slide_editor FIRST to see current content and block IDs
+1. Call get_slide FIRST to see current content and block IDs
 2. Suggest changes based on what would improve the slide
-3. Use update_slide_editor to apply changes
+3. Use update_slide to apply changes
 4. Changes apply to the open slide at once and save automatically
 
 ## Other slides and the whole deck
@@ -315,7 +313,7 @@ Keep text concise and focused. Slides with figures should have less text. Use bu
 ## Important
 
 - Changes apply to the open slide at once and save automatically; there is no Save button
-- For content slides, use block IDs from get_slide_editor to target specific blocks
+- For content slides, use block IDs from get_slide to target specific blocks
 - IMPORTANT: Markdown tables are NOT allowed in text blocks. To display tabular data, use a from_metric block with a table-type preset.`;
 }
 

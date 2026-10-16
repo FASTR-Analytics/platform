@@ -1,4 +1,5 @@
 import { getSlideTitle, type Slide } from "lib";
+import type { OpenSlide } from "~/components/instance/copilot/mod.ts";
 import { getSlideFromCacheOrFetch } from "~/state/products/t2_slides";
 import { extractBlocksFromLayout } from "./extract_blocks_from_layout";
 
@@ -23,38 +24,37 @@ function getContentSummary(slide: Slide): string {
   return parts.length > 0 ? ` [${parts.join(", ")}]` : "";
 }
 
+function slideLine(slideId: string, marker: string, slide: Slide): string {
+  return `  ${slideId}${marker} (${slide.type}): "${getSlideTitle(slide)}"${
+    getContentSummary(slide)
+  }`;
+}
+
+// The open slide's line is read from its draft, so it matches the canvas,
+// and is marked "(open)".
 export async function getDeckSummaryForAI(
   productId: string,
   slideIds: string[],
+  openSlide: OpenSlide | undefined,
 ): Promise<string> {
-  const lines: string[] = [
+  const lineFor = async (slideId: string): Promise<string> => {
+    if (openSlide?.slideId === slideId) {
+      return slideLine(slideId, " (open)", openSlide.getDraft());
+    }
+    const res = await getSlideFromCacheOrFetch(productId, slideId);
+    return res.success
+      ? slideLine(slideId, "", res.data.slide)
+      : `  ${slideId}: [Failed to load: ${res.err}]`;
+  };
+  return [
     "CURRENT SLIDES",
     "=".repeat(80),
     "",
     `Total: ${slideIds.length}`,
     "",
-  ];
-
-  if (slideIds.length === 0) {
-    lines.push("No slides yet");
-  } else {
-    const slides = await Promise.all(
-      slideIds.map((slideId) => getSlideFromCacheOrFetch(productId, slideId)),
-    );
-    slides.forEach((res, i) => {
-      const slideId = slideIds[i];
-      if (!res.success) {
-        lines.push(`  ${slideId}: [Failed to load: ${res.err}]`);
-      } else {
-        const title = getSlideTitle(res.data.slide);
-        const contentSummary = getContentSummary(res.data.slide);
-        lines.push(
-          `  ${slideId} (${res.data.slide.type}): "${title}"${contentSummary}`,
-        );
-      }
-    });
-  }
-
-  lines.push("");
-  return lines.join("\n");
+    ...(slideIds.length === 0
+      ? ["No slides yet"]
+      : await Promise.all(slideIds.map(lineFor))),
+    "",
+  ].join("\n");
 }

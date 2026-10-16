@@ -42,15 +42,13 @@ const GROUPS = {
   deck_reads: ["get_deck", "get_slide"],
   deck_writes: [
     "create_slide",
+    "update_slide",
+    "update_figure",
     "replace_slide",
-    "update_slide_content",
-    "update_slide_header",
-    "modify_slide_layout",
     "delete_slides",
     "duplicate_slides",
     "move_slides",
   ],
-  slide_editor: ["get_slide_editor", "update_slide_editor", "update_figure"],
   drafts: ["show_draft_slide_to_user"],
   report_reads: ["get_report_editor", "get_report_figure", "get_report_pages"],
   report_writes: [
@@ -90,21 +88,19 @@ const PACKAGE_TOOL_GROUPS: Group[] = [
   "module_internals",
   "deck_reads",
   "deck_writes",
-  "slide_editor",
   "drafts",
   "report_reads",
   "report_writes",
   "figure_editor",
 ];
 
-// Each view, whether it has a package in view, its groups beyond chat-wide,
-// and the one tool named outside its group.
+// Each view, whether it has a package in view, and its groups beyond
+// chat-wide.
 const PRODUCT: Group[] = ["package_reads", "module_internals", "drafts"];
 const VIEWS: {
   id: string;
   hasPackage: boolean;
   groups: Group[];
-  tools?: string[];
 }[] = [
   { id: "products", hasPackage: false, groups: ["products"] },
   { id: "opening_product", hasPackage: true, groups: PRODUCT },
@@ -112,12 +108,11 @@ const VIEWS: {
     id: "editing_slide_deck",
     hasPackage: true,
     groups: [...PRODUCT, "deck_reads", "deck_writes"],
-    tools: ["update_figure"],
   },
   {
     id: "editing_slide",
     hasPackage: true,
-    groups: [...PRODUCT, "deck_reads", "deck_writes", "slide_editor"],
+    groups: [...PRODUCT, "deck_reads", "deck_writes"],
   },
   {
     id: "editing_slide_figure",
@@ -182,8 +177,7 @@ const viewsOf = (tool: string): readonly string[] =>
 
 function viewsAdmitting(tool: string): string[] {
   return VIEWS.filter((v) =>
-    v.groups.some((g) => (GROUPS[g] as readonly string[]).includes(tool)) ||
-    (v.tools ?? []).includes(tool)
+    v.groups.some((g) => (GROUPS[g] as readonly string[]).includes(tool))
   ).map((v) => v.id);
 }
 
@@ -240,13 +234,11 @@ Deno.test("a view with no package admits no package tool", () => {
 });
 
 Deno.test("the approval exemptions are exactly the direct-apply editor writes", () => {
-  // Deck writes apply directly, deleting slides asks; the slide editor's
-  // writes are live edits; the first five report writes take a diff; the
-  // figure editor's and the HFA editor's writes are live; HFA writes ask.
+  // Deck writes apply directly, deleting slides asks; the first five report
+  // writes take a diff; the figure editor's and the HFA editor's writes are
+  // live; HFA writes ask.
   const expected = [
     ...GROUPS.deck_writes.filter((t) => t !== "delete_slides"),
-    "update_slide_editor",
-    "update_figure",
     "update_report_figure",
     "update_figure_editor",
     "update_hfa_indicator_editor",
@@ -264,8 +256,6 @@ const REQUIREMENTS: Record<string, string> = Object.fromEntries([
   ...GROUPS.hfa_writes.map((t) => [t, "hfa_write"]),
   ["update_hfa_indicator_editor", "hfa_write"],
   ...GROUPS.deck_writes.map((t) => [t, "product_edit"]),
-  ["update_slide_editor", "product_edit"],
-  ["update_figure", "product_edit"],
   ...GROUPS.report_writes.map((t) => [t, "product_edit"]),
   ["update_figure_editor", "product_edit"],
 ]);

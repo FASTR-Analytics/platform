@@ -229,12 +229,6 @@ export type EditingSlideParams = {
   slideId: string;
   deckId: string;
 };
-// The slide editor sits beside the deck's slide rail, so this view carries
-// the deck's context too: every deck tool is available while a slide is open.
-export type EditingSlideContext = EditingSlideDeckContext & {
-  getTempSlide: () => Slide;
-  setTempSlide: SetStoreFunction<Slide>;
-};
 
 export type EditingReportParams = {
   reportId: string;
@@ -440,6 +434,12 @@ function productViewOnlyLine(productId: string): string {
     : `\n\n${PRODUCT_VIEW_ONLY_LINE}`;
 }
 
+// The open slide's title, read from its draft.
+function openSlideTitle(context: EditingSlideDeckContext): string {
+  const open = context.getOpenSlide();
+  return open === undefined ? "" : getSlideTitle(open.getDraft());
+}
+
 // The deck views' state: the ids the model correlates tool results by, and
 // the rail's selection.
 function deckViewState(ids: string, selectedSlideIds: string[]): string {
@@ -483,8 +483,8 @@ export const copilotViews = defineAIViews(
           context.getSelectedSlideIds(),
         ),
     }),
-    editing_slide: view<EditingSlideParams, EditingSlideContext>({
-      label: (_params, context) => getSlideTitle(context.getTempSlide()),
+    editing_slide: view<EditingSlideParams, EditingSlideDeckContext>({
+      label: (_params, context) => openSlideTitle(context),
       identity: (params, context) =>
         copilotViewIdentity("editing_slide", {
           deck: params.deckId,
@@ -494,7 +494,7 @@ export const copilotViews = defineAIViews(
       instructions: (params, context) =>
         `${
           getEditingSlideInstructions(
-            getSlideTitle(context.getTempSlide()),
+            openSlideTitle(context),
             context.getDeckLabel(),
           )
         }${productViewOnlyLine(params.deckId)}`,

@@ -137,7 +137,7 @@ type SlideEditorInnerProps = {
   // covers the slide pane beside the rail. Absent, it opens here.
   openHostEditor?: ReturnType<typeof getEditorWrapper>["openEditor"];
   // The deck the slide sits in, read live: the copilot's slide view carries
-  // the deck's tools too, since the deck's rail is always beside the slide.
+  // the deck's context, so the deck's tools run while a slide is open.
   deckContext: EditingSlideDeckContext;
   // What the deck may ask of the mounted editor, one object per mount: the
   // open slide's draft, which the copilot reads and writes through the deck,
@@ -586,27 +586,15 @@ export function SlideEditor(p: Props) {
   // could otherwise repeat the same alert).
   let collabErrorShown = false;
 
-  // The copilot's slide view over the deck's: the hold restores the deck view
-  // when this slide closes.
+  // The copilot's slide view over the deck's, with the deck's own context:
+  // the hold restores the deck view when this slide closes.
   holdCopilotView();
   onMount(() => {
     attemptGetPageInputs(unwrap(tempSlide));
     copilotViewController.setView(
       "editing_slide",
       { slideId: p.slideId, deckId: p.productId },
-      {
-        // The deck's live pair and run, through the deck's own context.
-        getScope: () => p.deckContext.getScope(),
-        getRunId: () => p.deckContext.getRunId(),
-        getTempSlide: () => tempSlide,
-        setTempSlide,
-        getDeckLabel: () => p.deckContext.getDeckLabel(),
-        getDeckConfig: () => p.deckContext.getDeckConfig(),
-        getSlideIds: () => p.deckContext.getSlideIds(),
-        getSelectedSlideIds: () => p.deckContext.getSelectedSlideIds(),
-        getOpenSlide: () => p.deckContext.getOpenSlide(),
-        deleteSlides: (slideIds) => p.deckContext.deleteSlides(slideIds),
-      },
+      p.deckContext,
     );
     p.onApi?.({
       slideId: p.slideId,
