@@ -194,10 +194,9 @@ body {
   gap: 10px;
 }
 .next {
-  border-style: dashed;
-  border-color: var(--teal);
-  color: var(--teal);
-  background: rgba(255, 255, 255, 0.7);
+  border: 3px dashed #8aa324;
+  color: var(--ink);
+  background: #f3f7d9;
 }
 .tag {
   display: inline-block;
@@ -211,9 +210,8 @@ body {
   margin-right: 6px;
 }
 .next .tag {
-  background: transparent;
-  border: 2px dashed var(--teal);
-  color: var(--teal);
+  background: var(--lime);
+  color: var(--ink);
 }
 .arrows {
   position: absolute;
