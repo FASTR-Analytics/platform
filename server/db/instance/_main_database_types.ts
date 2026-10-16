@@ -158,6 +158,7 @@ export type DBReportVersion = {
 // Upload attempts
 
 export type DBStructureUploadAttempt = {
+  slot: "single";
   date_started: string;
   step: number;
   status: string;

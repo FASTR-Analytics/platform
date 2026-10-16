@@ -26,8 +26,8 @@ import {
   Switch,
 } from "solid-js";
 import type {
+  CsvDetails,
   StructureColumnMappings,
-  StructureCsvStep1Result,
   StructureDhis2ConnectionSnapshot,
   StructureDhis2OrgUnitSelection,
   StructureStagingResult,
@@ -320,9 +320,7 @@ export function StructureUploadAttemptForm(p: Props) {
                     recodes={keyedUploadAttempt.recodes}
                     structureSchema={p.structureSchema}
                     csvDetails={keyedUploadAttempt.sourceType === "csv"
-                      ? (keyedUploadAttempt
-                        .step1Result as StructureCsvStep1Result)
-                        .csv
+                      ? keyedUploadAttempt.step1Result as CsvDetails
                       : undefined}
                     columnMappings={keyedUploadAttempt.sourceType === "csv"
                       ? (keyedUploadAttempt
@@ -361,9 +359,8 @@ export function StructureUploadAttemptForm(p: Props) {
                   <Switch>
                     <Match when={keyedUploadAttempt.sourceType === "csv"}>
                       <Step2_Csv
-                        step1Result={(keyedUploadAttempt
-                          .step1Result as StructureCsvStep1Result)
-                          .csv}
+                        step1Result={keyedUploadAttempt
+                          .step1Result as CsvDetails}
                         step2Result={keyedUploadAttempt.step2Result as
                           | StructureColumnMappings
                           | undefined}
@@ -389,7 +386,7 @@ export function StructureUploadAttemptForm(p: Props) {
                     <Match when={keyedUploadAttempt.sourceType === "csv"}>
                       <Step1_Csv
                         step1Result={keyedUploadAttempt.step1Result as
-                          | StructureCsvStep1Result
+                          | CsvDetails
                           | undefined}
                         silentFetch={uploadAttempt.silentFetch}
                       />

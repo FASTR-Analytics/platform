@@ -11,7 +11,6 @@ import {
   type OptionalFacilityColumn,
   parseJsonOrUndefined,
   StructureColumnMappings,
-  StructureCsvStep1Result,
   StructureDhis2ConnectionSnapshot,
   StructureDhis2OrgUnitSelection,
   type StructureFacilityMatch,
@@ -63,14 +62,11 @@ async function getRawUAOrThrow(
   return rawUA;
 }
 
-// Attempts created before the { csv } shape stored bare CsvDetails in
-// step_1_result; normalize them to it.
-function parseCsvStep1Result(raw: string): StructureCsvStep1Result {
-  const parsed = JSON.parse(raw) as StructureCsvStep1Result | CsvDetails;
-  if ("csv" in parsed) {
-    return parsed;
-  }
-  return { csv: parsed };
+// Attempts stored while step 1 also took an XLSForm hold the details under
+// `csv`.
+function parseCsvStep1Result(raw: string): CsvDetails {
+  const parsed = JSON.parse(raw) as CsvDetails | { csv: CsvDetails };
+  return "csv" in parsed ? parsed.csv : parsed;
 }
 
 ////////////////////////////////////////////////////////
@@ -462,9 +458,7 @@ export async function structureStep0_SetSourceType(
       WHERE status_type <> 'importing'
     `;
     if (updated.count === 0) {
-      throw new Error(
-        "A structure import is already in progress.",
-      );
+      throw new Error("A structure import is already in progress.");
     }
     return { success: true };
   });
@@ -492,9 +486,7 @@ export async function structureStep1Dhis2_ConfirmConnection(
       WHERE status_type <> 'importing'
     `;
     if (updated.count === 0) {
-      throw new Error(
-        "A structure import is already in progress.",
-      );
+      throw new Error("A structure import is already in progress.");
     }
     return { success: true };
   });
@@ -521,9 +513,7 @@ export async function structureStep2Dhis2_SetOrgUnitSelection(
       WHERE status_type <> 'importing'
     `;
     if (updated.count === 0) {
-      throw new Error(
-        "A structure import is already in progress.",
-      );
+      throw new Error("A structure import is already in progress.");
     }
     return { success: true };
   });
@@ -542,13 +532,11 @@ export async function structureStep1Csv_UploadFile(
     const resCsvDetails = await getCsvDetails(assetFilePath, assetFileName);
     throwIfErrWithData(resCsvDetails);
 
-    const step1Result: StructureCsvStep1Result = { csv: resCsvDetails.data };
-
     const updated = await mainDb`
       UPDATE structure_upload_attempts
       SET
         step = 2,
-        step_1_result = ${JSON.stringify(step1Result)},
+        step_1_result = ${JSON.stringify(resCsvDetails.data)},
         step_2_result = NULL,
         step_3_result = NULL,
         recodes = NULL,
@@ -557,9 +545,7 @@ export async function structureStep1Csv_UploadFile(
       WHERE status_type <> 'importing'
     `;
     if (updated.count === 0) {
-      throw new Error(
-        "A structure import is already in progress.",
-      );
+      throw new Error("A structure import is already in progress.");
     }
     return { success: true };
   });
@@ -617,9 +603,7 @@ export async function structureStep2Csv_SetColumnMappings(
       WHERE status_type <> 'importing'
     `;
     if (updated.count === 0) {
-      throw new Error(
-        "A structure import is already in progress.",
-      );
+      throw new Error("A structure import is already in progress.");
     }
 
     return { success: true };
@@ -787,7 +771,7 @@ export async function structureStep3Csv_StageDataStreaming(
 
     const resStaging = await stageStructureFromCsv(
       mainDb,
-      step1Result.csv.filePath,
+      step1Result.filePath,
       columnMappings,
       onProgress,
     );
@@ -1057,7 +1041,7 @@ async function joinCsvContextColumns(
   const columnMappings = JSON.parse(
     rawUA.step_2_result,
   ) as StructureColumnMappings;
-  const resComponents = await getCsvStreamComponents(step1Result.csv.filePath);
+  const resComponents = await getCsvStreamComponents(step1Result.filePath);
   if (!resComponents.success) {
     return resComponents;
   }

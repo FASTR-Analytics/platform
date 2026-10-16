@@ -144,17 +144,13 @@ export type StructureUploadAttemptDetailInitial = {
   recodes: undefined;
 };
 
-export type StructureCsvStep1Result = {
-  csv: CsvDetails;
-};
-
 export type StructureUploadAttemptDetailCsv = {
   dateStarted: string;
   step: 1 | 2 | 3 | 4;
   status: StructureUploadAttemptStatus;
   sourceType: "csv";
   // Step 1: CSV upload details
-  step1Result: StructureCsvStep1Result | undefined;
+  step1Result: CsvDetails | undefined;
   // Step 2: CSV column mappings
   step2Result: StructureColumnMappings | undefined;
   // Step 3: Staging result

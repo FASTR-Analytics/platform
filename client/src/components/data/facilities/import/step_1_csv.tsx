@@ -1,17 +1,17 @@
 import { createSignal, Match, Switch } from "solid-js";
-import { type StructureCsvStep1Result, t3 } from "lib";
+import { type CsvDetails, t3 } from "lib";
 import { Button, createFormAction, StateHolderFormError } from "panther";
 import { serverActions } from "~/server_actions";
 import { FileUploadSelector } from "~/components/_shared/mod.ts";
 
 type Props = {
-  step1Result: StructureCsvStep1Result | undefined;
+  step1Result: CsvDetails | undefined;
   silentFetch: () => Promise<void>;
 };
 
 export function Step1_Csv(p: Props) {
   const [selectedFileName, setSelectedFileName] = createSignal<string>(
-    p.step1Result?.csv.fileName ?? "",
+    p.step1Result?.fileName ?? "",
   );
   const [needsSaving, setNeedsSaving] = createSignal<boolean>(!p.step1Result);
 
