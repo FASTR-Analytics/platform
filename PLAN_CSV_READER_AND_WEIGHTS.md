@@ -103,12 +103,15 @@ and HFA CSV imports, structure staging, population and weights imports.
 ### 1.3 The weights import reports a symptom of the wrong column
 
 `server/db/instance/hfa_facility_weights.ts`: `importHfaFacilityWeights`
-(line 121) checks, in order, non-positive weights (line 197), facility ids on
-more than one row (line 206, a count only), no usable weight (line 213), and
-then, inside the write transaction, facility ids not in `facilities_hfa` (line
-241, the count and the first ten ids). A wrong facility ID column therefore
-usually fails on repeats first, with a message that names neither the ids nor
-the column.
+(line 154) checks, in order, non-positive weights (line 255), facility ids on
+more than one row (line 264, a count only), no usable weight (line 271), and
+then, inside the write transaction (line 280), facility ids not in
+`facilities_hfa`: it skips those and reports them in `facilitiesNotInRegistry`,
+refusing only when none of the weighted ids is an HFA facility (line 298), with
+a message saying to import the time point's data first. A wrong facility ID
+column therefore usually fails on repeats first, with a message that names
+neither the ids nor the column, and when it has no repeats, the refusal blames
+the import order, not the column.
 
 On Nigeria (running `main`) on 2026-10-08 a user picked the weights file's
 `facility_id` column: 3,974 distinct DHIS2-style codes, none of them an HFA
@@ -144,31 +147,40 @@ registry ids (`1` to `3989`), and neither message would have pointed there.
    `rowIndex` equal to its position, and the read takes under 10 s (about 0.25 s
    after the change, about 29 s before).
 3. **The weights import checks unknown ids first, and its messages say what to
-   fix** _(proposed)_. After the file is read, one transaction reads the
-   registry once and checks, in this order, before any write:
-   1. Unknown ids. With an empty registry: "There are no HFA facilities yet.
-      Import the HFA facilities before their weights." Otherwise:
-      `` `${nUnknown} of the ${nUsable} facility IDs in column "${header}" are not HFA facilities. First: ${first ten}. HFA facility IDs look like: ${three}. Check that you chose the right facility ID column.` ``,
+   fix** (ruled by Tim, 2026-10-16, replacing the proposed version, which
+   rejected a file with any unknown id: HFA facilities now come only from each
+   round's data import, and a round's sampling frame can list facilities its
+   data lacks, so the import skips those). After the file is read, one
+   transaction reads the registry once and checks, in this order, before any
+   write:
+   1. Unknown ids. When none of the usable rows' ids is an HFA facility, the
+      file is refused. With an empty registry: "There are no HFA facilities yet.
+      HFA facilities are created by each time point's data import: import the
+      time point's data first, then its weights." Otherwise:
+      `` `None of the ${nUsable} facility IDs in column "${header}" is an HFA facility. First: ${first ten}. HFA facility IDs look like: ${three}. Check that you chose the right facility ID column, and that this time point's data is imported.` ``,
       where `header` is the column's header text, `nUsable` counts the usable
-      rows and `three` is the first three registry ids in sort order.
+      rows and `three` is the first three registry ids in sort order. When only
+      some are unknown, they are skipped and reported in
+      `facilitiesNotInRegistry`, as now.
    2. Non-positive weights, message unchanged.
    3. Repeated ids:
       `` `${n} facility ID(s) appear more than once in the CSV. First: ${first ten}.` ``
    4. No usable weight, message unchanged.
 
-   The transaction then replaces the time point's weights as now. The checks
-   that ran before the transaction, and the second registry read, go. Messages
-   stay English-only, as every message of this importer is. Pinned by a new
-   database test, `server/tests/hfa_facility_weights_import_test.ts`, on a
-   throwaway database built from `_main_database.sql` as
-   `hfa_csv_column_matching_test.ts` builds one, with its CSVs written to
-   `_ASSETS_DIR_PATH` under unique names and removed afterwards, as
-   `scope_grants_routes_test.ts` does:
-   - an empty registry rejects with the empty-registry message;
+   The transaction then replaces the time point's weights with the known rows,
+   as now. The checks that ran before the transaction go. Messages stay
+   English-only, as every message of this importer is. Pinned by a new database
+   test, `server/tests/hfa_facility_weights_import_test.ts`, on a throwaway
+   database built from `_main_database.sql` as `hfa_csv_column_matching_test.ts`
+   builds one, with its CSVs written to `_ASSETS_DIR_PATH` under unique names
+   and removed afterwards, as `scope_grants_routes_test.ts` does:
+   - an empty registry rejects with the empty-registry message and writes
+     nothing;
    - with facilities `1`, `2`, `3`, a column whose ids are all unknown and
-     include a repeat rejects with the unknown-id message naming the column,
-     `3 of the 3` and `1, 2, 3`, and writes nothing;
-   - one unknown id among two known ones rejects with `1 of the 3`;
+     include a repeat rejects with the unknown-id message naming the column and
+     `1, 2, 3`, and writes nothing;
+   - one unknown id among two known ones imports the two and reports the unknown
+     one in `facilitiesNotInRegistry`;
    - known ids with one repeated rejects naming the repeated id;
    - a clean file with one blank weight imports the other rows and reports one
      skipped row.
@@ -228,12 +240,17 @@ paragraph's last sentence).
 
 - Ruling 3 in `importHfaFacilityWeights`, with its test file.
 - `SYSTEM_05_facilities_indicators.md`: the `globs` gain the test; the
-  **Weights** paragraph's last sentence becomes "After the file is read, one
-  transaction reads `facilities_hfa` once and rejects the whole file before any
-  write, checking in order: facility ids that are not HFA facilities (naming the
-  column, the first unknown ids and three registry ids), non-positive weights,
-  ids on more than one row (naming the first ten), and a file with no usable
-  weight. Pinned by `server/tests/hfa_facility_weights_import_test.ts`."
+  **Weights** paragraph's sentences on the checks, from "Duplicates and
+  non-positive weights" to "lists the skipped ids.", become "After the file is
+  read, one transaction reads `facilities_hfa` once and checks, in order, before
+  any write: whether any weighted id is an HFA facility (refusing when none is,
+  naming the column, the first ids and three registry ids, and saying to check
+  the column or import the time point's data first), non-positive weights, ids
+  on more than one row (naming the first ten), and a file with no usable weight.
+  Weighted ids the registry lacks are skipped and reported
+  (`facilitiesNotInRegistry`: the count and the first 10 ids, in file order).
+  The wizard's upload step names the order, and its result lists the skipped
+  ids. Pinned by `server/tests/hfa_facility_weights_import_test.ts`."
 
 **Not in this step.** The client weights wizard.
 
@@ -270,5 +287,6 @@ Rollback is `git revert` of the plan's commits on `version2`.
 
 ## 8. Build log
 
-| Step | Row |
-| ---- | --- |
+| Step | Row                                                                                                                                                                                                                            |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 2    | 2026-10-16: ruling 3, §1.3 and Step 2's Deliverable rewritten by Tim's ruling before `Do 1`, after the HFA facilities work (ef6fe401f) made the weights import skip and report unknown ids and refuse only when none is known. |
