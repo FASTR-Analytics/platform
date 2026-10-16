@@ -14,7 +14,7 @@ rules. This plan makes the deck editor one copilot view, with the open slide as
 view state, and one set of slide tools, each addressing a slide by id and
 routing to the open slide's draft or to the stored slide.
 
-**Next step: Review 1.**
+**Next step: Do 2.**
 
 Branch: `version2`. Repos touched: this app only. Read first: §0.
 
@@ -392,3 +392,4 @@ Append-only, newest last.
 | 1    | 2026-10-16 | Finding (prose), fixed in this review's own commit ea8b4e21b: `SYSTEM_12_documents_sharing.md:534-535` read "a refused flush cancels the delete with "Delete cancelled.", and only then is the request sent", which placed the request after the cancel. Now: the request goes once the editor has moved; a refused flush cancels the delete and sends nothing.                                                                |
 | 1    | 2026-10-16 | Step 1 reviewed: 2 findings.                                                                                                                                                                                                                                                                                                                                                                                                   |
 | 1    | 2026-10-16 | Step 1 fixed.                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| 1    | 2026-10-16 | Step 1 re-reviewed: pass.                                                                                                                                                                                                                                                                                                                                                                                                      |
