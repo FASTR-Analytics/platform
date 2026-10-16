@@ -6,11 +6,12 @@
 // that turns it into snippets/<take>.mp4).
 (async (page) => {
   const SNIPPET = "explore"; // explore | results_wizard | data | scheduled_import
-  const APP = "http://localhost:3000/";
+  // The demo instance. Sign in once in the Playwright browser window; each
+  // recording context inherits that session through the copied cookies.
+  const APP = "https://demo-v2-testing.fastr-analytics.org/";
 
   // Runs before the app: expands the nav rail (collapsed by default in a
-  // fresh profile), hides the onboarding tours (their seen-flags live in Clerk
-  // metadata, which the auth bypass has no user for), and draws a cursor that
+  // fresh profile), hides the onboarding tours, and draws a cursor that
   // follows the mouse, since headless video has none.
   const INIT = `(() => {
     try { localStorage.setItem('navCollapsed', 'false'); } catch {}
@@ -41,6 +42,7 @@
       size: { width: 1920, height: 1080 },
     },
   });
+  await ctx.addCookies(await page.context().cookies());
   await ctx.addInitScript(INIT);
   const p = await ctx.newPage();
   const dlg = () => p.getByRole("dialog");
