@@ -5,114 +5,115 @@ suggested screen content, not narration.
 
 ## Title card
 
-_Card: "The FASTR Analytics Platform". Then the schematic (version 1) builds in
-under the opening paragraph._
+_Screen: title card, then the schematic (today version) while the second
+sentence is read._
 
-Health systems data is scattered. Routine data sits in DHIS2, facility
-assessments in survey files, household surveys somewhere else again. Turning it
-into a report takes specialist analysts, weeks of work, and a lot of PowerPoint.
+In this video, I'm going to show you the FASTR Analytics Platform, which we've
+built for collaborative analysis of health systems data, and for quick and easy
+generation of reports. I'm going to show you how you can import data, run
+analysis modules, create visualizations and reports, and use the built-in AI
+tools to interpret results, write text, and compile a slide deck from scratch.
 
-The FASTR Analytics Platform brings the data, the analysis and the reporting
-into one place: collaborative analysis of health systems data, and quick and
-easy generation of reports. It works in three steps: bring your data in, run the
-FASTR analyses, and turn the results into decks and reports. An AI assistant
-helps at every step.
+## Part 1: Data
 
-## Part 1: All your data in one place
+_Screen: the Users page, then the Data page: a DHIS2 import choosing indicators
+and a period, then an HFA upload._
 
-_Screen: the Data page; a DHIS2 import choosing indicators and a period; an HFA
-upload with the facility list._
+To begin with, you can set up a platform by specifying the country and adding
+users with different levels of permission. You can then start to import data
+from different sources. For example, you can import HMIS data directly from a
+DHIS2 instance. To do this, you enter your credentials, choose the indicators
+you want to import, and for which period of time. You can also import other
+sources of data, for example health facility assessment data and household
+survey data.
 
-The platform takes data from the sources you already have. Routine HMIS data
-comes straight from DHIS2: connect once, choose your indicators and the period,
-and the platform pulls it in. Health facility assessment data comes in from the
-survey file, with the facility list and sampling weights, and household survey
-estimates alongside. Different types of data, in one place, ready to analyse
-together.
-
-## Part 2: Real analysis, not just a dashboard
+## Part 2: Analysis
 
 _Screen: the results package wizard with the module list, a run in progress,
-then the Explore tab switching between a chart, a map and a table._
+then the Explore tab._
 
-This isn't a dashboard. The platform runs the full FASTR methodology: it
-assesses and adjusts data quality, tracks service utilization, detects
-disruptions in service delivery with regression analysis, estimates coverage
-against population denominators, and calculates facility readiness from
-assessment data. Each analysis is a versioned module vetted by the FASTR team,
-and the whole pipeline runs in minutes. And every result can be explored
-straight away, by region and over time.
+Once you've imported data, you can run the analysis modules. There are different
+modules that let you do things like run data quality adjustments on routine
+data, run regression analysis to identify disruptions in service delivery,
+estimate coverage, and calculate facility readiness indicators from HFA data.
+The modules follow the FASTR methodology, and they take a few minutes to run.
+We've also built the platform to allow for custom analyses, so new and different
+analyses can be added over time. After you've run one or more modules, you can
+then visualize the results of those analyses. Each module comes with a set of
+default tables and figures, or you can create your own.
 
-## Part 3: Polished decks and reports, fast
+## Part 3: Decks and reports
 
-_Screen: a finished deck first, then the editor: adding a slide, dropping in a
-figure, switching theme, Present; a report on a template, exported to Word; the
-stale-figure badge and Update figures; two cursors editing one deck; version
-history._
+_Screen: the deck editor: adding a slide, dropping in a figure, choosing a
+theme, downloading; a report; the out-of-date badge and Update figures; two
+cursors editing one deck; version history._
 
-The results go into slide decks and reports. Working in a deck is similar to
-PowerPoint: you add slides and drop in figures and tables from your results, and
-they resize themselves to fit the layout. Choose a theme and the whole deck is
-styled, ready to present or export to PowerPoint or PDF. Reports do the same for
-longer documents, from a designed template out to PDF or Word.
+Next, you can bring together the results of your analysis in a report. One type
+of report you can make is a slide deck. Similar to working in PowerPoint, you
+can create slides and then add visualizations from your results to the slides.
+The figures and tables automatically resize, making it very simple to add
+content and lay out slides. You can download the deck as a PowerPoint or PDF
+file, or write a longer report and download it as a Word document.
 
-Importantly, when new data comes in, your decks and reports don't go stale: the
-platform shows which figures are out of date and updates them in one click. And
-several people can edit the same deck or report at the same time, similar to a
-Google Doc or a SharePoint file, with every version kept.
+Importantly, if the data in the platform is updated, you can update all the
+figures, allowing you to create, for example, a regular monthly report. A report
+can be seen and edited by multiple users, so a team can work together on a
+report similar to a Google Doc or a SharePoint file. Every version of the report
+is saved, so you can go back to an earlier version if you need to.
 
-## Part 4: An assistant that speeds up every step
+## Part 4: The AI assistant
 
-_Screen: the chat beside a deck; a question answered from the results; a draft
-figure card added to the deck; a deck built from a topic, slide by slide; the
-prompt library._
+_Screen: the chat beside a deck; a question answered from the results; a figure
+preview added to the deck; a deck built from a topic, slide by slide; the prompt
+library._
 
-Across the entire platform there is an AI assistant that knows which part of the
-platform you're working in, and answers questions by reading the results of your
-analyses. You can ask it directly: did antenatal care service delivery improve
-in the past year? Or ask it to interpret a figure in plain language.
+Now I'm going to show you the AI features of the platform and how you can use AI
+to generate visualizations and reports. Across the entire platform, there is an
+AI assistant that knows which part of the platform you're working in, and which
+can answer questions by looking at results from your analyses. You can ask it
+questions directly, such as, did antenatal care service delivery improve in the
+past year? Or you can ask it to create figures and tables, and to interpret
+those figures and tables.
 
-Ask it to create a visualization and it drafts the figure, shows you a preview,
-and you add it to your deck with one click.
+Perhaps the most useful function of the AI is that you can ask it to pull
+together different results from across your modules to create a coherent report
+that has a narrative arc to it, with different sections and key messages. If you
+give the AI a topic, it will look at all the available results on that topic and
+will review each of those results in detail. It will create a report outline and
+start to populate the report with different figures and accompanying text. As
+the AI is building the report, you can give it direction, asking it to expand on
+certain findings or fine-tune the text. You can also work on the report together
+with the AI by editing slides yourself. The AI will see the edits you've made
+and complement your efforts.
 
-Perhaps the most useful function is that you can ask it to pull together results
-from across your modules into a coherent report that has a narrative arc to it,
-with sections and key messages. Give it a topic, and it reviews every relevant
-result in detail, drafts an outline, and builds the deck slide by slide, with
-figures and accompanying text. As it works you can give it direction, asking it
-to expand on certain findings or fine-tune the text. You can also edit slides
-yourself as you go: the AI will see the edits you've made and complement your
-efforts.
+To make using the AI even easier, we've added a built-in prompt library to the
+platform. So rather than writing out long instructions, you can select a prompt
+from the library, and this will give the AI detailed instructions on how to
+generate a report and to quality check its own work.
 
-To make this even easier, there's a built-in prompt library. Rather than writing
-long instructions, you pick a prompt that tells the AI exactly how to build a
-report and quality-check its own work.
-
-## Part 5: Speed with rigour
+## Part 5: Guardrails
 
 _Screen: the assistant's data tool call expanded to show the results it read; a
 report edit proposed as a diff; the delete confirmation; version history with
 the AI's edits._
 
 I want to stress that the AI doesn't make up its own numbers or run its own
-analysis. Every figure and number it gives you comes from the results of the
-analysis modules, which have been thoroughly vetted by the FASTR team. This
-makes it reliable and consistent. And you stay in control: in a report, its
-edits come as changes you accept or reject; it asks before it deletes anything;
-and every change goes into the version history, so you can always go back.
+analysis. Rather, it works with the results of the analysis modules that have
+been thoroughly vetted by the FASTR team. This increases the reliability and
+consistency of the AI. When the AI edits a report, it shows you the changes
+first, and you can accept or reject them.
 
-## Part 6: Automation, now and next
+## Part 6: Automation
 
-_Screen: the scheduled DHIS2 import settings, then the schematic (version 2)
-with the future items appearing, then the end card._
+_Screen: the scheduled DHIS2 import settings, then the schematic (future
+version), then the end card._
 
-Finally, automation. Imports from DHIS2 can be scheduled, so new data arrives
-every month without anyone logging in. Next is scheduled reporting: the analysis
-re-runs on the new data, decks and reports update, and go out to the people who
-need them. Beyond that, we want the assistant to watch new data and raise an
-alert when it detects a disruption, and to link data across sources into one
-health systems report, across multiple domains, from start to finish.
+Finally, you can set the platform to import data from DHIS2 automatically, for
+example every month. In the future, we plan to extend this to scheduled
+reporting, so that when new data arrives, the analysis is re-run and the reports
+are updated and sent out. We also plan to have the AI look at new data as it
+arrives and send an alert if it detects a disruption.
 
-We're continually expanding and improving the platform, with the goal of
-building a robust analysis and reporting system that is as useful as possible
-for country teams. Thank you.
+We are really excited about these features of the platform. We're continually
+expanding and improving them with the goal of building a robust analysis and
+reporting system that is as useful as possible for country teams. Thank you.
