@@ -1,9 +1,9 @@
-// Screen recordings of the running app for the demo video, driven through the
-// Playwright MCP: pass this file as `filename` to browser_run_code_unsafe with
-// SNIPPET set to the take you want. The runner has no `require`, so the whole
-// script is one self-contained function. Output: a .webm under src/_rec/<take>/
-// (see PLAN_DEMO_VIDEO.md for the stack to start first and the ffmpeg step
-// that turns it into snippets/<take>.mp4).
+// Screen recordings of the demo instance for the demo video, driven through
+// the Playwright MCP: pass this file as `filename` to browser_run_code_unsafe
+// with SNIPPET set to the take you want. The runner has no `require`, so the
+// whole script is one self-contained function. The take lands as a .webm
+// under src/_rec/<take>/; ffmpeg with `-ss 2.0` (the page load) turns it into
+// snippets/<take>.mp4.
 (async (page) => {
   const SNIPPET = "explore"; // explore | results_wizard | data | scheduled_import
   // The demo instance. Sign in once in the Playwright browser window; each
