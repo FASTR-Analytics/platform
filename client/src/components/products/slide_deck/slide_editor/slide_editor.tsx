@@ -71,6 +71,7 @@ import {
   copilotViewController,
   type EditingSlideDeckContext,
   holdCopilotView,
+  type OpenSlide,
 } from "~/components/instance/copilot/mod.ts";
 import { VisualizationEditor } from "~/components/_shared/figure_editor/mod.ts";
 import type { VizFigureCollabBinding } from "~/components/_shared/figure_editor/mod.ts";
@@ -138,13 +139,14 @@ type SlideEditorInnerProps = {
   // The deck the slide sits in, read live: the copilot's slide view carries
   // the deck's tools too, since the deck's rail is always beside the slide.
   deckContext: EditingSlideDeckContext;
-  // What the deck may ask of the mounted editor: `flush` settles an unsaved
-  // draft before the deck swaps the slide out (false = the user chose to keep
-  // editing, so the swap is off).
+  // What the deck may ask of the mounted editor, one object per mount: the
+  // open slide's draft, which the copilot reads and writes through the deck,
+  // and `flush`, which settles an unsaved draft before the deck swaps the
+  // slide out (false = the user chose to keep editing, so the swap is off).
   onApi?: (api: SlideEditorApi | undefined) => void;
 };
 
-export type SlideEditorApi = { flush: () => Promise<boolean> };
+export type SlideEditorApi = OpenSlide & { flush: () => Promise<boolean> };
 
 // Mounted beside the deck's slide rail (slide_list.tsx), one instance per
 // open slide: the rail swaps it out by key, so a mount is "open" and a
@@ -602,9 +604,16 @@ export function SlideEditor(p: Props) {
         getDeckConfig: () => p.deckContext.getDeckConfig(),
         getSlideIds: () => p.deckContext.getSlideIds(),
         getSelectedSlideIds: () => p.deckContext.getSelectedSlideIds(),
+        getOpenSlide: () => p.deckContext.getOpenSlide(),
+        deleteSlides: (slideIds) => p.deckContext.deleteSlides(slideIds),
       },
     );
-    p.onApi?.({ flush });
+    p.onApi?.({
+      slideId: p.slideId,
+      flush,
+      getDraft: () => tempSlide,
+      setDraft: setTempSlide,
+    });
 
     // Bind this slide to a shared CRDT document for live co-editing.
     const s = openSlideSession(

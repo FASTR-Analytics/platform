@@ -31,7 +31,10 @@ import { CopySlidesToDeckModal } from "./copy_slides_to_deck_modal";
 import { SlideCard } from "./slide_card";
 import { PresenceAvatars } from "~/components/_shared/mod.ts";
 import { otherPeers } from "~/state/instance/collab";
-import { copilotViewController } from "~/components/instance/copilot/mod.ts";
+import {
+  copilotViewController,
+  type EditingSlideDeckContext,
+} from "~/components/instance/copilot/mod.ts";
 import { instanceState } from "~/state/instance/t1_store";
 import { canEditProduct } from "~/state/instance/product_access";
 import { UpdateAllFiguresButton } from "~/components/_shared/figure_editor/mod.ts";
@@ -62,11 +65,13 @@ type Props = {
   deckLabel: string;
   setSelectedSlideIds: (ids: string[]) => void;
   // The slide open in the editor beside the rail, and how the rail changes
-  // it: a plain click, a new or duplicated slide, the neighbour of a deleted
-  // one. Resolves false when the switch was refused (an unsaved draft the
-  // user chose to keep editing), and the rail leaves things as they are.
+  // it: a plain click, a new or duplicated slide. Resolves false when the
+  // switch was refused (an unsaved draft the user chose to keep editing), and
+  // the rail leaves things as they are.
   currentSlideId: string | undefined;
   onSelectSlide: (slideId: string | undefined) => Promise<boolean>;
+  // The deck's delete, which moves the editor off a deleted open slide first.
+  onDeleteSlides: EditingSlideDeckContext["deleteSlides"];
   // The editor (or its placeholder), filling the frame beside the rail.
   children: JSX.Element;
   // The toolbar row under the heading bar, where the open slide's editor
@@ -233,24 +238,6 @@ export function SlideList(p: Props) {
     void p.onSelectSlide(slideId);
   }
 
-  // The slide the editor should show once `ids` are gone: the one after the
-  // last of them, else the one before the first, else nothing.
-  function neighbourOf(ids: string[]): string | undefined {
-    const items = sortableSlideItems().map((i) => i.id);
-    const gone = new Set(ids);
-    const indexes = items
-      .map((id, i) => (gone.has(id) ? i : -1))
-      .filter((i) => i >= 0);
-    if (indexes.length === 0) return undefined;
-    for (let i = Math.max(...indexes) + 1; i < items.length; i++) {
-      if (!gone.has(items[i])) return items[i];
-    }
-    for (let i = Math.min(...indexes) - 1; i >= 0; i--) {
-      if (!gone.has(items[i])) return items[i];
-    }
-    return undefined;
-  }
-
   function syncSelectionWithSortableJS(selectedSet: Set<string>) {
     // Sync our selection state with SortableJS by manipulating the DOM
     document.querySelectorAll(".slide-card-wrapper").forEach((el) => {
@@ -297,28 +284,7 @@ export function SlideList(p: Props) {
 
     const deleteAction = createDeleteAction(
       confirmText,
-      async () => {
-        // The editor leaves a slide BEFORE the server closes its room, or
-        // the close would reach it as a fatal "this slide was deleted".
-        const current = p.currentSlideId;
-        if (current !== undefined && slideIdsToDelete.includes(current)) {
-          const moved = await p.onSelectSlide(neighbourOf(slideIdsToDelete));
-          if (!moved) {
-            return {
-              success: false as const,
-              err: t3({
-                en: "Delete cancelled.",
-                fr: "Suppression annulée.",
-                pt: "Eliminação cancelada.",
-              }),
-            };
-          }
-        }
-        return await serverActions.deleteSlides({
-          product_id: p.productId,
-          slideIds: slideIdsToDelete,
-        });
-      },
+      () => p.onDeleteSlides(slideIdsToDelete),
       () => {
         // Remove from local state immediately
         setSortableSlideItems((items) =>

@@ -20,6 +20,7 @@ export type {
   HfaIndicatorEditorPatch,
   HfaIndicatorEditorRound,
   HfaIndicatorsContext,
+  OpenSlide,
   PackagePageContext,
   PackageViewContext,
 } from "./ai_views.ts";

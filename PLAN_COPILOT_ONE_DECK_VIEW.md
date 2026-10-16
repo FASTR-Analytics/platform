@@ -14,7 +14,7 @@ rules. This plan makes the deck editor one copilot view, with the open slide as
 view state, and one set of slide tools, each addressing a slide by id and
 routing to the open slide's draft or to the stored slide.
 
-**Next step: Do 1.**
+**Next step: Review 1.**
 
 Branch: `version2`. Repos touched: this app only. Read first: §0.
 
@@ -382,5 +382,9 @@ in its history text and continues under the new ones.
 
 Append-only, newest last.
 
-| Step | Session | Row |
-| ---- | ------- | --- |
+| Step | Session    | Row                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| ---- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1    | 2026-10-16 | Deviation: `client/src/components/instance/copilot/mod.ts` is outside the surface. It exports `OpenSlide`, since `SlideEditorApi` is `OpenSlide & { flush }` and a type crosses folders only through `mod.ts` (lint:structure).                                                                                                                                                                                                |
+| 1    | 2026-10-16 | Choice: the open slide (`currentSlideId`, the content fetch, the keyed mount, the follow-the-deck and tour-replay effects, `selectSlide`) moved from `SlideDeckEditorInner` up to `SlideDeckEditor`, where the deck view's context is built and set, so `getOpenSlide` and `deleteSlides` read it directly; the inner component takes them as props. `neighbourOf` is a module-level pure function over the deck's `slideIds`. |
+| 1    | 2026-10-16 | Fact: `./validate_protocols` prints "1 baseline entry no longer match"; HEAD before this step prints the same, so it is not this plan's.                                                                                                                                                                                                                                                                                       |
+| 1    | 2026-10-16 | Step 1 built.                                                                                                                                                                                                                                                                                                                                                                                                                  |

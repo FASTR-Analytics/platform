@@ -4,7 +4,12 @@ import {
   defineAIViews,
   view,
 } from "panther";
-import type { AIViewController, AIViewState, AnyAIView } from "panther";
+import type {
+  AIViewController,
+  AIViewState,
+  AnyAIView,
+  APIResponseWithData,
+} from "panther";
 import {
   COPILOT_PACKAGE_VIEWS,
   type CopilotPackageViewId,
@@ -197,11 +202,27 @@ export type OpeningProductParams = {
 export type EditingSlideDeckParams = {
   deckId: string;
 };
+// The slide open beside the deck's rail: one object per slide editor mount,
+// so a handler that captured it and finds a different one after its awaits
+// knows the user switched slides. `getDraft` is the editor's live store
+// (callers unwrap it); `setDraft` is its raw setter, which reports nothing to
+// the copilot as the user's edit.
+export type OpenSlide = {
+  slideId: string;
+  getDraft: () => Slide;
+  setDraft: SetStoreFunction<Slide>;
+};
 export type EditingSlideDeckContext = PackageViewContext & {
   getDeckLabel: () => string;
   getDeckConfig: () => SlideDeckConfig;
   getSlideIds: () => string[];
   getSelectedSlideIds: () => string[];
+  getOpenSlide: () => OpenSlide | undefined;
+  // The deck's delete, as the rail runs it: the editor leaves a deleted open
+  // slide before the request.
+  deleteSlides: (
+    slideIds: string[],
+  ) => Promise<APIResponseWithData<{ deletedIds: string[] }>>;
 };
 
 export type EditingSlideParams = {

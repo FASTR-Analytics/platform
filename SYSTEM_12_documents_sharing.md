@@ -515,17 +515,24 @@ dropdown, `AddSlideMenu`, ahead of File); beneath it a full-width TOOLBAR ROW
 slide list, and the slide clicked in it is open beside it. `SlideList`
 ([slide_list.tsx](client/src/components/products/slide_deck/slide_list.tsx)) is
 that frame and takes the editor as its children; the deck component
-(`SlideDeckEditorInner`) owns `currentSlideId`, fetches the slide's content, and
-mounts the editor KEYED by slide id plus the deck config's JSON, so a click on
-another slide is a cleanup (the outgoing slide's collab session closes, an
-unsaved offline draft is flushed) and a fresh mount, while a refetch of an
-unchanged config remounts nothing. The rail follows the deck: the first slide
-opens when none is, the neighbour when the open one is gone; a new or duplicated
-slide opens; deleting the open slide moves the editor to its neighbour BEFORE
-the request, since the server closes the deleted slide's room with a fatal error
-that must never reach a mounted editor. The deck asks the editor to settle a
-draft before a swap (`onApi({ flush })`, the same conflict-modal path the old
-back button ran), and a refused flush leaves the open slide where it is. The
+(`SlideDeckEditor`) owns the open slide: `currentSlideId`, the fetch of its
+content, and the editor's mount, KEYED by slide id plus the deck config's JSON,
+so a click on another slide is a cleanup (the outgoing slide's collab session
+closes, an unsaved offline draft is flushed) and a fresh mount, while a refetch
+of an unchanged config remounts nothing. The rail follows the deck: the first
+slide opens when none is, the neighbour when the open one is gone; a new or
+duplicated slide opens. The editor hands the deck one object per mount through
+`onApi`: its slide id, `flush`, and its draft as the live store and the store's
+raw setter (`getDraft`, `setDraft`), which the deck serves to the copilot as
+`getOpenSlide()` on the deck view's context. The deck calls `flush` to settle a
+draft before a swap (the conflict-modal path), and a refused flush leaves the
+open slide where it is. The deck owns the delete sequence for the rail and the
+copilot alike (`deleteSlides`, the rail's `onDeleteSlides` and the deck view's
+`deleteSlides`): deleting the open slide first moves the editor to its neighbour
+in the deck's order (the slide after the last deleted one, else the one before
+the first, else none), since the server closes the deleted slide's room with a
+fatal error that must never reach a mounted editor; a refused flush cancels the
+delete with "Delete cancelled.", and only then is the request sent. The
 copilot's `editing_slide` view carries the deck's context too
 (`EditingSlideContext` extends the deck's), so every deck tool is available
 while a slide is open, and the deck's view state is what the editor returns to

@@ -177,6 +177,157 @@ export function SlideDeckEditor(p: Props) {
     }
   }
 
+  // ── The open slide (Google Slides: the rail on the left, one slide open
+  // beside it) ──────────────────────────────────────────────────────────────
+  // The deck owns it: the rail opens and deletes slides, the editor beside
+  // the rail is mounted for it, and the copilot reads and writes it. The
+  // editor is mounted per open slide, keyed, so a switch is a cleanup (the
+  // old slide's collab session closes, its draft flushed if collab was not
+  // persisting) and a fresh mount. The slide's content is fetched here before
+  // the mount.
+  const [currentSlideId, setCurrentSlideId] = createSignal<
+    string | undefined
+  >();
+  const [editorSlide, setEditorSlide] = createSignal<
+    { slideId: string; slide: Slide; lastUpdated: string } | undefined
+  >();
+  const [editorLoading, setEditorLoading] = createSignal(false);
+  const [openSlide, setOpenSlide] = createSignal<SlideEditorApi | undefined>();
+  let editorFetchId = 0;
+
+  // Settles the open slide's draft, then makes `slideId` the open one; false
+  // when the user kept an unsaved draft instead.
+  async function selectSlide(slideId: string | undefined): Promise<boolean> {
+    if (slideId === currentSlideId()) return true;
+    const open = openSlide();
+    if (open !== undefined && !(await open.flush())) return false;
+    // The outgoing editor goes NOW (its session closes synchronously), so a
+    // delete that follows never reaches it as a fatal room close. When the
+    // incoming slide is already in memory (the rail's cards render from the
+    // same cache, so it usually is) the swap happens in this same tick:
+    // otherwise the editor is gone for a frame or two, and the header's menu
+    // row, its pill and the save dot - all portaled out of the editor - blink
+    // out and back while the fetch resolves.
+    const ready = slideId === undefined
+      ? undefined
+      : peekSlide(p.productId, slideId);
+    setEditorSlide(
+      ready && slideId !== undefined
+        ? { slideId, slide: ready.slide, lastUpdated: ready.lastUpdated }
+        : undefined,
+    );
+    setCurrentSlideId(slideId);
+    return true;
+  }
+
+  // The deck's delete, for the rail and the copilot alike: the editor leaves
+  // a deleted open slide for its neighbour BEFORE the request, or the
+  // server's fatal close of the slide's room would reach it as an alert.
+  async function deleteSlides(ids: string[]) {
+    const current = currentSlideId();
+    if (current !== undefined && ids.includes(current)) {
+      if (!(await selectSlide(neighbourOf(slideIds(), ids)))) {
+        return {
+          success: false as const,
+          err: t3({
+            en: "Delete cancelled.",
+            fr: "Suppression annulée.",
+            pt: "Eliminação cancelada.",
+          }),
+        };
+      }
+    }
+    return await serverActions.deleteSlides({
+      product_id: p.productId,
+      slideIds: ids,
+    });
+  }
+
+  // The open slide follows the deck: the first slide when none is open, the
+  // neighbour when the open one is gone.
+  createEffect(
+    on(slideIds, (ids, prev) => {
+      const current = untrack(currentSlideId);
+      if (ids.length === 0) {
+        if (current !== undefined) void selectSlide(undefined);
+        return;
+      }
+      if (current !== undefined && ids.includes(current)) return;
+      const wasAt = current === undefined ? -1 : (prev ?? []).indexOf(current);
+      const next = wasAt >= 0 ? ids[Math.min(wasAt, ids.length - 1)] : ids[0];
+      void selectSlide(next);
+    }),
+  );
+
+  // Fetch the open slide's content for the editor's mount. Only on a switch
+  // (not on every SSE flip: the mounted editor syncs itself through collab),
+  // and only once the scope and authoring context are in hand.
+  createEffect(on(
+    // The pair by its run id, not by object: the T1 row re-derives the scope
+    // object on every product tick.
+    () => [currentSlideId(), scope()?.runId, authoringContext()] as const,
+    ([slideId, runId, context]) => {
+      const fetchId = ++editorFetchId;
+      if (slideId === undefined || runId === undefined || !context) {
+        setEditorSlide(undefined);
+        setEditorLoading(false);
+        return;
+      }
+      setEditorLoading(true);
+      void (async () => {
+        const res = await getSlideFromCacheOrFetch(p.productId, slideId);
+        if (fetchId !== editorFetchId) return;
+        setEditorLoading(false);
+        if (!res.success) {
+          setEditorSlide(undefined);
+          return;
+        }
+        setEditorSlide({
+          slideId,
+          slide: res.data.slide,
+          lastUpdated: res.data.lastUpdated,
+        });
+      })();
+    },
+  ));
+
+  // The deck config the editor was mounted with: a change of substance (the
+  // settings modal) remounts it, a refetch of the same config does not.
+  // Key-order blind: the optimistic config (a spread of the old one) and the
+  // server's (rebuilt in schema order) are the same deck, and must not
+  // remount the editor a second time when the refetch lands.
+  const deckConfigKey = createMemo(() => canonicalJson(deckConfig()));
+  const editorMount = createMemo(
+    () => {
+      const es = editorSlide();
+      return es === undefined
+        ? undefined
+        : { ...es, key: `${es.slideId}|${deckConfigKey()}` };
+    },
+    undefined,
+    { equals: (a, b) => a?.key === b?.key },
+  );
+
+  // Tour catalogue replay: once the deck has loaded, open its first slide of
+  // the requested type. Cleared before selecting; if no slide matches, nothing
+  // changes and the waiting tour times out quietly.
+  createEffect(() => {
+    const wanted = pendingSlideOpen();
+    if (!wanted || isLoading()) return;
+    const ids = [...slideIds()];
+    setPendingSlideOpen(null);
+    void (async () => {
+      for (const slideId of ids) {
+        const res = await getSlideFromCacheOrFetch(p.productId, slideId);
+        if (!res.success) continue;
+        if (res.data.slide.type === wanted) {
+          void selectSlide(slideId);
+          return;
+        }
+      }
+    })();
+  });
+
   // The copilot's deck view, set once the deck has loaded and carried by the
   // slide editor beside the rail, which holds it between slides. Read live:
   // a reattach moves the pair under the view.
@@ -187,6 +338,8 @@ export function SlideDeckEditor(p: Props) {
     getDeckConfig: () => deckConfig(),
     getSlideIds: () => slideIds(),
     getSelectedSlideIds: () => selectedSlideIds(),
+    getOpenSlide: () => openSlide(),
+    deleteSlides,
   };
 
   // A read that fails before the first success: the error replaces the
@@ -277,6 +430,12 @@ export function SlideDeckEditor(p: Props) {
           slideIds={slideIds()}
           isLoading={isLoading()}
           setSelectedSlideIds={setSelectedSlideIds}
+          currentSlideId={currentSlideId()}
+          selectSlide={selectSlide}
+          deleteSlides={deleteSlides}
+          editorMount={editorMount()}
+          editorLoading={editorLoading()}
+          onEditorApi={setOpenSlide}
           deckContext={deckContext}
           handleClose={handleClose}
         />
@@ -296,6 +455,15 @@ function SlideDeckEditorInner(p: {
   slideIds: string[];
   isLoading: boolean;
   setSelectedSlideIds: (ids: string[]) => void;
+  currentSlideId: string | undefined;
+  selectSlide: (slideId: string | undefined) => Promise<boolean>;
+  deleteSlides: EditingSlideDeckContext["deleteSlides"];
+  // The open slide's editor mount, keyed by slide and deck config.
+  editorMount:
+    | { slideId: string; slide: Slide; lastUpdated: string }
+    | undefined;
+  editorLoading: boolean;
+  onEditorApi: (api: SlideEditorApi | undefined) => void;
   deckContext: EditingSlideDeckContext;
   handleClose: () => Promise<void>;
 }) {
@@ -389,140 +557,9 @@ function SlideDeckEditorInner(p: {
     });
   }
 
-  // ── The open slide (Google Slides: the rail on the left, one slide open
-  // beside it) ──────────────────────────────────────────────────────────────
-  // The editor is mounted per open slide, keyed, so a switch is a cleanup
-  // (the old slide's collab session closes, its draft flushed if collab was
-  // not persisting) and a fresh mount. The slide's content is fetched here
-  // before the mount, as the full-page editor used to be handed it.
-  const [currentSlideId, setCurrentSlideId] = createSignal<
-    string | undefined
-  >();
-  const [editorSlide, setEditorSlide] = createSignal<
-    { slideId: string; slide: Slide; lastUpdated: string } | undefined
-  >();
-  const [editorLoading, setEditorLoading] = createSignal(false);
-  let editorApi: SlideEditorApi | undefined;
-  let editorFetchId = 0;
   const [toolbarHost, setToolbarHost] = createSignal<HTMLDivElement>();
   const [menuRowHost, setMenuRowHost] = createSignal<HTMLDivElement>();
   const [statusHost, setStatusHost] = createSignal<HTMLDivElement>();
-
-  // Settles the open slide's draft, then makes `slideId` the open one; false
-  // when the user kept an unsaved draft instead.
-  async function selectSlide(slideId: string | undefined): Promise<boolean> {
-    if (slideId === currentSlideId()) return true;
-    if (editorApi !== undefined && !(await editorApi.flush())) return false;
-    // The outgoing editor goes NOW (its session closes synchronously), so a
-    // delete that follows never reaches it as a fatal room close. When the
-    // incoming slide is already in memory (the rail's cards render from the
-    // same cache, so it usually is) the swap happens in this same tick:
-    // otherwise the editor is gone for a frame or two, and the header's menu
-    // row, its pill and the save dot - all portaled out of the editor - blink
-    // out and back while the fetch resolves.
-    const ready = slideId === undefined
-      ? undefined
-      : peekSlide(p.productId, slideId);
-    setEditorSlide(
-      ready && slideId !== undefined
-        ? { slideId, slide: ready.slide, lastUpdated: ready.lastUpdated }
-        : undefined,
-    );
-    setCurrentSlideId(slideId);
-    return true;
-  }
-
-  // The open slide follows the deck: the first slide when none is open, the
-  // neighbour when the open one is gone.
-  createEffect(
-    on(
-      () => p.slideIds,
-      (slideIds, prev) => {
-        const current = untrack(currentSlideId);
-        if (slideIds.length === 0) {
-          if (current !== undefined) void selectSlide(undefined);
-          return;
-        }
-        if (current !== undefined && slideIds.includes(current)) return;
-        const wasAt = current === undefined
-          ? -1
-          : (prev ?? []).indexOf(current);
-        const next = wasAt >= 0
-          ? slideIds[Math.min(wasAt, slideIds.length - 1)]
-          : slideIds[0];
-        void selectSlide(next);
-      },
-    ),
-  );
-
-  // Fetch the open slide's content for the editor's mount. Only on a switch
-  // (not on every SSE flip: the mounted editor syncs itself through collab),
-  // and only once the scope and authoring context are in hand.
-  createEffect(on(
-    // The pair by its run id, not by object: the T1 row re-derives the scope
-    // object on every product tick.
-    () => [currentSlideId(), p.scope?.runId, p.authoringContext] as const,
-    ([slideId, runId, authoringContext]) => {
-      const fetchId = ++editorFetchId;
-      if (slideId === undefined || runId === undefined || !authoringContext) {
-        setEditorSlide(undefined);
-        setEditorLoading(false);
-        return;
-      }
-      setEditorLoading(true);
-      void (async () => {
-        const res = await getSlideFromCacheOrFetch(p.productId, slideId);
-        if (fetchId !== editorFetchId) return;
-        setEditorLoading(false);
-        if (!res.success) {
-          setEditorSlide(undefined);
-          return;
-        }
-        setEditorSlide({
-          slideId,
-          slide: res.data.slide,
-          lastUpdated: res.data.lastUpdated,
-        });
-      })();
-    },
-  ));
-
-  // The deck config the editor was mounted with: a change of substance (the
-  // settings modal) remounts it, a refetch of the same config does not.
-  // Key-order blind: the optimistic config (a spread of the old one) and the
-  // server's (rebuilt in schema order) are the same deck, and must not
-  // remount the editor a second time when the refetch lands.
-  const deckConfigKey = createMemo(() => canonicalJson(p.deckConfig));
-  const editorKey = createMemo(
-    () => {
-      const es = editorSlide();
-      return es === undefined
-        ? undefined
-        : { ...es, key: `${es.slideId}|${deckConfigKey()}` };
-    },
-    undefined,
-    { equals: (a, b) => a?.key === b?.key },
-  );
-
-  // Tour catalogue replay: once the deck has loaded, open its first slide of
-  // the requested type. Cleared before selecting; if no slide matches, nothing
-  // changes and the waiting tour times out quietly.
-  createEffect(() => {
-    const wanted = pendingSlideOpen();
-    if (!wanted || p.isLoading) return;
-    const slideIds = [...p.slideIds];
-    setPendingSlideOpen(null);
-    void (async () => {
-      for (const slideId of slideIds) {
-        const res = await getSlideFromCacheOrFetch(p.productId, slideId);
-        if (!res.success) continue;
-        if (res.data.slide.type === wanted) {
-          void selectSlide(slideId);
-          return;
-        }
-      }
-    })();
-  });
 
   return (
     <HistoryEditorWrapper>
@@ -536,8 +573,9 @@ function SlideDeckEditorInner(p: {
             slideIds={p.slideIds}
             isLoading={p.isLoading}
             setSelectedSlideIds={p.setSelectedSlideIds}
-            currentSlideId={currentSlideId()}
-            onSelectSlide={selectSlide}
+            currentSlideId={p.currentSlideId}
+            onSelectSlide={p.selectSlide}
+            onDeleteSlides={p.deleteSlides}
             deckLabel={p.deckLabel}
             handleClose={p.handleClose}
             handleOpenSettings={handleOpenSettings}
@@ -553,10 +591,10 @@ function SlideDeckEditorInner(p: {
             onStatusHost={setStatusHost}
           >
             <Show
-              when={editorKey()}
+              when={p.editorMount}
               keyed
               fallback={
-                <Show when={editorLoading()}>
+                <Show when={p.editorLoading}>
                   <LoadingIndicator
                     msg={t3({
                       en: "Loading slide...",
@@ -581,9 +619,7 @@ function SlideDeckEditorInner(p: {
                   statusHost={statusHost()}
                   openHostEditor={openDeckEditor}
                   deckContext={p.deckContext}
-                  onApi={(api) => {
-                    editorApi = api;
-                  }}
+                  onApi={p.onEditorApi}
                   {...snapshotForSlideEditor({ deckConfig: p.deckConfig })}
                 />
               )}
@@ -593,4 +629,14 @@ function SlideDeckEditorInner(p: {
       </SettingsEditorWrapper>
     </HistoryEditorWrapper>
   );
+}
+
+// The slide to open once `gone` are deleted: the one after the last of them
+// in `order`, else the one before the first, else none.
+function neighbourOf(order: string[], gone: string[]): string | undefined {
+  const isGone = (id: string) => gone.includes(id);
+  const last = order.findLastIndex(isGone);
+  if (last === -1) return undefined;
+  return order.slice(last + 1).find((id) => !isGone(id)) ??
+    order.slice(0, order.findIndex(isGone)).findLast((id) => !isGone(id));
 }
