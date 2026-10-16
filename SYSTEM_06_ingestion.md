@@ -49,6 +49,7 @@ globs:
   - server/tests/hfa_csv_column_matching_test.ts
   - server/tests/hfa_facility_changes_test.ts
   - server/tests/hfa_import_facilities_test.ts
+  - server/tests/hfa_round_reimport_test.ts
   - server/tests/indicator_selection_expansion_test.ts
   - server/worker_routines/import_hfa_data_csv/**
   - server/worker_routines/import_hmis_data_csv/**
@@ -311,6 +312,16 @@ above is the authority on the shared mechanism; HFA differs only here:
   run's mappings to pre-fill from.
 - A launch or an "Integrate anyway" whose run moves `structure_last_updated`
   also notifies the structure channel when the worker finishes.
+- A whole round at registry scale is pinned by
+  `server/tests/hfa_round_reimport_test.ts`: 2,363 facilities in a registry
+  imported before sources existed, and a survey export with duplicate
+  submissions, ODK codes, a correction column, unresolved codes and renamed,
+  retyped and moved facilities. Through launch validation and the worker's two
+  legs, keeping every change leaves the registry byte-identical and leaves the
+  stamp alone; importing the round again with the defaults leaves the data, the
+  sources and the run extract m010 reads unchanged; taking one admin change
+  moves that facility alone, in the registry and in the extract; and the round's
+  weights then import, skipping the sampling frame's facilities the data lacks.
 
 ## ICEH import runs
 
