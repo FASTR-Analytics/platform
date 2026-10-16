@@ -48,7 +48,7 @@ pauses) and are gone.
   order the opening names things) and `schematic_v2.mp4` (future, 30 s, the
   automation items appear in the order Part 6 names them). Both hold their last
   frame; cut to length.
-- Shots: `demo_video/shots/<name>.mp4`, one per row of `shot_list.md`,
+- Shots: `demo_video/shots/<name>.mov`, one per row of `shot_list.md`,
   git-ignored like `audio/`. Any 16:9 size; the assembler scales. A shot used in
   more than one section is recorded once and cut more than once.
 - Sources: `demo_video/src/` holds the card and schematic pages, the assembler

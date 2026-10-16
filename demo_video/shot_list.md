@@ -22,30 +22,30 @@ narration; a file used in more than one part is listed once.
 
 | File                   | Target | What to do                                                                                                                                                                   |
 | ---------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `setup.mp4`            | 4 s    | Data page: open the HMIS Configuration row (admin area levels, facility columns)                                                                                             |
-| `add_user.mp4`         | 4 s    | Users page with the add-user dialog already open and covering the list; open the permission dropdown                                                                         |
-| `sources.mp4`          | 4 s    | Data page: glide down the HMIS, HFA and ICEH blocks with their Ready status                                                                                                  |
-| `dhis2_connection.mp4` | 5 s    | DHIS2 connection row: the credentials form (URL, username, masked password)                                                                                                  |
-| `dhis2_import.mp4`     | 16 s   | New DHIS2 import: tick five indicators quickly, Next; on the Time step click Recurring, choose Monthly and First Monday; Next; drag the slider; Cancel                       |
-| `hfa.mp4`              | 5 s    | HFA dataset page: time points, 239 indicators, the upload button                                                                                                             |
-| `iceh.mp4`             | 4 s    | ICEH equity data page                                                                                                                                                        |
-| `results_wizard.mp4`   | 19 s   | Results: open the wizard within two seconds, tick the three families, Next, tick the modules one by one (dependencies auto-tick), Next, hover Launch, Cancel                 |
-| `package_detail.mp4`   | 8 s    | Open the pinned package: its module list, versions, status                                                                                                                   |
-| `explore_hmis.mp4`     | 12 s   | Explore HMIS: the table, click Over time, scroll the chart grid, switch indicator or level once                                                                              |
-| `explore_dqa_hfa.mp4`  | 7 s    | Explore: switch module to Data quality assessment (coloured table), then the HFA tab                                                                                         |
-| `figure_editor.mp4`    | 7 s    | The figure editor: change chart type or disaggregation and watch it redraw                                                                                                   |
-| `deck_edit.mp4`        | 26 s   | The ANC deck: click through four slides via the thumbnails; add a slide; insert a figure from the wizard; switch to a two-figure layout; File, Download (PowerPoint and PDF) |
-| `report.mp4`           | 8 s    | "V2 Presentation 1": scroll a page with figures and stat tiles; the Figures menu; File, Download as Word                                                                     |
-| `update_figures.mp4`   | 10 s   | A copy of the ANC deck in "Demo video", still on Demo 2: the Update all visualizations badge, click it, figures refresh, the label changes                                   |
-| `collab.mp4`           | 11 s   | Two windows side by side on one deck, both cursors visible, text typed in one appears in the other                                                                           |
-| `history.mp4`          | 8 s    | History: pick an earlier version, preview it                                                                                                                                 |
-| `ai_open.mp4`          | 15 s   | On Explore click the AI button, the panel slides in (context chip, suggested prompts); close it; open the ANC deck and open the panel again                                  |
-| `ai_question.mp4`      | 18 s   | Type prompt 1, send; the answer arrives with numbers and names the package and module; expand the data tool call; scroll the values it read                                  |
-| `ai_figure.mp4`        | 8 s    | Type prompt 2, send; the figure card and the interpretation appear                                                                                                           |
-| `ai_build.mp4`         | whole  | New deck in "Demo video": type prompt 3, send, let it run; mid-build type prompt 4; later edit a slide title yourself while it works; let it finish. Record the whole build  |
-| `prompt_library.mp4`   | 22 s   | Open the prompt library, scroll the prompts, pick a report prompt, it fills the box, send                                                                                    |
-| `ai_edit_diff.mp4`     | 10 s   | Ask it to reword a paragraph; the diff appears; click Accept. Ask it to delete a slide; the confirmation; click Reject                                                       |
-| `closing_present.mp4`  | 12 s   | A finished deck in Present mode, advancing through four strong slides                                                                                                        |
+| `setup.mov`            | 4 s    | Data page: open the HMIS Configuration row (admin area levels, facility columns)                                                                                             |
+| `add_user.mov`         | 4 s    | Users page with the add-user dialog already open and covering the list; open the permission dropdown                                                                         |
+| `sources.mov`          | 4 s    | Data page: glide down the HMIS, HFA and ICEH blocks with their Ready status                                                                                                  |
+| `dhis2_connection.mov` | 5 s    | DHIS2 connection row: the credentials form (URL, username, masked password)                                                                                                  |
+| `dhis2_import.mov`     | 16 s   | New DHIS2 import: tick five indicators quickly, Next; on the Time step click Recurring, choose Monthly and First Monday; Next; drag the slider; Cancel                       |
+| `hfa.mov`              | 5 s    | HFA dataset page: time points, 239 indicators, the upload button                                                                                                             |
+| `iceh.mov`             | 4 s    | ICEH equity data page                                                                                                                                                        |
+| `results_wizard.mov`   | 19 s   | Results: open the wizard within two seconds, tick the three families, Next, tick the modules one by one (dependencies auto-tick), Next, hover Launch, Cancel                 |
+| `package_detail.mov`   | 8 s    | Open the pinned package: its module list, versions, status                                                                                                                   |
+| `explore_hmis.mov`     | 12 s   | Explore HMIS: the table, click Over time, scroll the chart grid, switch indicator or level once                                                                              |
+| `explore_dqa_hfa.mov`  | 7 s    | Explore: switch module to Data quality assessment (coloured table), then the HFA tab                                                                                         |
+| `figure_editor.mov`    | 7 s    | The figure editor: change chart type or disaggregation and watch it redraw                                                                                                   |
+| `deck_edit.mov`        | 26 s   | The ANC deck: click through four slides via the thumbnails; add a slide; insert a figure from the wizard; switch to a two-figure layout; File, Download (PowerPoint and PDF) |
+| `report.mov`           | 8 s    | "V2 Presentation 1": scroll a page with figures and stat tiles; the Figures menu; File, Download as Word                                                                     |
+| `update_figures.mov`   | 10 s   | A copy of the ANC deck in "Demo video", still on Demo 2: the Update all visualizations badge, click it, figures refresh, the label changes                                   |
+| `collab.mov`           | 11 s   | Two windows side by side on one deck, both cursors visible, text typed in one appears in the other                                                                           |
+| `history.mov`          | 8 s    | History: pick an earlier version, preview it                                                                                                                                 |
+| `ai_open.mov`          | 15 s   | On Explore click the AI button, the panel slides in (context chip, suggested prompts); close it; open the ANC deck and open the panel again                                  |
+| `ai_question.mov`      | 18 s   | Type prompt 1, send; the answer arrives with numbers and names the package and module; expand the data tool call; scroll the values it read                                  |
+| `ai_figure.mov`        | 8 s    | Type prompt 2, send; the figure card and the interpretation appear                                                                                                           |
+| `ai_build.mov`         | whole  | New deck in "Demo video": type prompt 3, send, let it run; mid-build type prompt 4; later edit a slide title yourself while it works; let it finish. Record the whole build  |
+| `prompt_library.mov`   | 22 s   | Open the prompt library, scroll the prompts, pick a report prompt, it fills the box, send                                                                                    |
+| `ai_edit_diff.mov`     | 10 s   | Ask it to reword a paragraph; the diff appears; click Accept. Ask it to delete a slide; the confirmation; click Reject                                                       |
+| `closing_present.mov`  | 12 s   | A finished deck in Present mode, advancing through four strong slides                                                                                                        |
 
 ## Prompts
 
@@ -76,28 +76,28 @@ Expand the data quality section with a regional comparison.
 ## Filenames
 
 ```
-setup.mp4
-add_user.mp4
-sources.mp4
-dhis2_connection.mp4
-dhis2_import.mp4
-hfa.mp4
-iceh.mp4
-results_wizard.mp4
-package_detail.mp4
-explore_hmis.mp4
-explore_dqa_hfa.mp4
-figure_editor.mp4
-deck_edit.mp4
-report.mp4
-update_figures.mp4
-collab.mp4
-history.mp4
-ai_open.mp4
-ai_question.mp4
-ai_figure.mp4
-ai_build.mp4
-prompt_library.mp4
-ai_edit_diff.mp4
-closing_present.mp4
+setup.mov
+add_user.mov
+sources.mov
+dhis2_connection.mov
+dhis2_import.mov
+hfa.mov
+iceh.mov
+results_wizard.mov
+package_detail.mov
+explore_hmis.mov
+explore_dqa_hfa.mov
+figure_editor.mov
+deck_edit.mov
+report.mov
+update_figures.mov
+collab.mov
+history.mov
+ai_open.mov
+ai_question.mov
+ai_figure.mov
+ai_build.mov
+prompt_library.mov
+ai_edit_diff.mov
+closing_present.mov
 ```
