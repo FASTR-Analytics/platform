@@ -99,28 +99,27 @@ import {
 // Solid cleans a node's children before its own cleanups, so nested places
 // unwind in order. The sync sites are the deck and report editors
 // (`opening_product` at mount, `editing_slide_deck` or `editing_report` once
-// loaded), Explore (`explore`), the
-// Results page (`results_packages`), the package page (`package`, set again
-// when the status changes), the Module defaults and Scopes views, the
-// Products, Data, Assets and Users pages and the user detail, the Data
-// switchboard's `openSubPage`, which sets `data_page` for every page it opens
-// and restores the view it covered when the page closes, and the places
-// inside products: deck settings (`deck_settings`), the version histories
-// (`deck_history`, `report_history`), the figure editor (the view its host
-// names in `aiView`, through `setFigureEditorView`), the results file
-// viewer (`results_file`) and the HFA indicators manager (`hfa_indicators`,
-// over the switchboard's `data_page`), whose code editor sets
-// `hfa_indicator_editor` once its draft store exists and whose Excel import
-// sets `hfa_indicator_import`.
+// loaded), Explore (`explore`), the Results page (`results_packages`), the
+// package page (`package`, set again when the status changes), the Module
+// defaults and Scopes views, the Products, Data, Assets and Users pages and
+// the user detail, the Data switchboard's `openSubPage`, which sets
+// `data_page` for every page it opens and restores the view it covered when
+// the page closes, and the places inside products: deck settings
+// (`deck_settings`), the version histories (`deck_history`,
+// `report_history`), the figure editor (the view its host names in `aiView`,
+// through `setFigureEditorView`), the results file viewer (`results_file`)
+// and the HFA indicators manager (`hfa_indicators`, over the switchboard's
+// `data_page`), whose code editor sets `hfa_indicator_editor` once its draft
+// store exists and whose Excel import sets `hfa_indicator_import`.
 //
 // What the model is told per view splits in two (append-only turns, E7):
 // `instructions` is the static guidance of the view, which rides a message
 // once per text; `state` is what changes without a navigation (the entity
 // ids, the deck's open slide and selected slide ids, the report editor's
-// selection preview) and rides every message. Below edit level a product view's instructions
-// carry PRODUCT_VIEW_ONLY_LINE, read live at send. instructionsDelivery stays
-// the default "ephemeral" everywhere: the `system` accessor is instance level
-// and takes no view argument.
+// selection preview) and rides every message. Below edit level a product
+// view's instructions carry PRODUCT_VIEW_ONLY_LINE, read live at send.
+// instructionsDelivery stays the default "ephemeral" everywhere: the `system`
+// accessor is instance level and takes no view argument.
 
 // Every package view's context: the pair the package tools run against,
 // with its scope's definition hash (the identity's pair part reads it), and
