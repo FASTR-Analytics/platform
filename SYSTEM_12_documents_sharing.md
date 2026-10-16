@@ -531,12 +531,12 @@ copilot alike (`deleteSlides`, the rail's `onDeleteSlides` and the deck view's
 `deleteSlides`): deleting the open slide first moves the editor to its neighbour
 in the deck's order (the slide after the last deleted one, else the one before
 the first, else none), since the server closes the deleted slide's room with a
-fatal error that must never reach a mounted editor; a refused flush cancels the
-delete with "Delete cancelled.", and only then is the request sent. The
-copilot's `editing_slide` view carries the deck's context too
-(`EditingSlideContext` extends the deck's), so every deck tool is available
-while a slide is open, and the deck's view state is what the editor returns to
-between slides.
+fatal error that must never reach a mounted editor, and sends the request only
+once the editor has moved; a refused flush cancels the delete with "Delete
+cancelled." and sends nothing. The copilot's `editing_slide` view carries the
+deck's context too (`EditingSlideContext` extends the deck's), so every deck
+tool is available while a slide is open, and the deck's view state is what the
+editor returns to between slides.
 
 **A slide switch must not move the header (2026-09-24).** The deck's header
 shows three things that belong to the OPEN SLIDE's editor and reach it by
