@@ -638,5 +638,5 @@ function neighbourOf(order: string[], gone: string[]): string | undefined {
   const last = order.findLastIndex(isGone);
   if (last === -1) return undefined;
   return order.slice(last + 1).find((id) => !isGone(id)) ??
-    order.slice(0, order.findIndex(isGone)).findLast((id) => !isGone(id));
+    order.slice(0, order.findIndex(isGone)).at(-1);
 }
