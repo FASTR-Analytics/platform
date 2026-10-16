@@ -363,36 +363,39 @@ The sequence is guarded to run ONCE per signed-in user id (the approval store
 re-fires the effect, which would otherwise re-open the modals). Posts are
 authored in the Admin-Website, fetched by `server/routes/instance/whats_new.ts`
 from status-api (60s in-memory cache, fail-silent, 30s backoff after a failed
-fetch) and pre-filtered server-side to
-`published && version <= _SERVER_VERSION && (!adminsOnly || isGlobalAdmin)` (the
-version gate is skipped when `SERVER_VERSION` is non-dotted, i.e. ad-hoc test
-deploys). Read-state is a per-post id set in
-`unsafeMetadata.whatsNewReadPostIds` (a post counts as read once opened, Skip or
-Done alike), pruned on write to the currently-eligible ids; users still carrying
-the superseded high-water `whatsNewSeenVersion` are migrated once by marking
-every post at or below it read. Brand-new users (detected as carrying neither
-`whatsNewReadPostIds` nor `whatsNewSeenVersion`) are baselined with everything
-marked read, so they get neither popup nor dot. The fetched posts also power a
-header bell (between the language menu and the profile icon; hidden when there
-are no posts) with a warning-coloured unread dot and a `WhatsNewFeedModal`
-history feed. The dot persists until every missed post has been opened. The feed
-does NOT bulk-acknowledge; it marks each post read as it is opened and flags the
-still-unread rows. The login popup (`whatsNewAutoShowPost`) only pushes a
-release NEWER than every version already acknowledged, so acknowledging one
-release never drags an older unread backlog into subsequent logins. Those stay
-behind the bell. Bell/feed state is keyed to the signed-in user id (module
-signals survive a same-tab user switch). The modal keeps every page mounted
-(inactive ones `invisible`) with a staggered load queue, so the element that
-downloaded the media is the one displayed; it supports arrow-key paging and
-Escape, shows a GIF's first frame under `prefers-reduced-motion` (play button
-opts back in), and closes with a `"skipped" | "completed"` outcome; open/outcome
-are recorded via `recordWhatsNewEvent` → the user-log pipeline as
-`whats_new_<event>:<postId>` rows (post id in the endpoint name so counts
-survive the 7-day rollup; surfaced per-post in the Admin-Website). Layouts are
-locked presets (`WHATS_NEW_LAYOUTS`, incl. a full-bleed `cover`), each page
-scaling its media via `mediaSize`. Types + `compareDottedVersions` live in
-`lib/types/whats_new.ts`. The two onboarding modals persist to Clerk
-`unsafeMetadata` only, with no localStorage writes.
+fetch) and pre-filtered server-side to `published && version <= _SERVER_VERSION`
+(the version gate is skipped when `SERVER_VERSION` is non-dotted, i.e. ad-hoc
+test deploys), then cut to the caller's audience by `whatsNewPostForAudience`:
+non-admins lose admins-only posts and admins-only pages, and a post left with no
+page is withheld. One post can so carry an admin version: admins see every page,
+everyone else the rest, under one post id and one read-state. Read-state is a
+per-post id set in `unsafeMetadata.whatsNewReadPostIds` (a post counts as read
+once opened, Skip or Done alike), pruned on write to the currently-eligible ids;
+users still carrying the superseded high-water `whatsNewSeenVersion` are
+migrated once by marking every post at or below it read. Brand-new users
+(detected as carrying neither `whatsNewReadPostIds` nor `whatsNewSeenVersion`)
+are baselined with everything marked read, so they get neither popup nor dot.
+The fetched posts also power a header bell (between the language menu and the
+profile icon; hidden when there are no posts) with a warning-coloured unread dot
+and a `WhatsNewFeedModal` history feed. The dot persists until every missed post
+has been opened. The feed does NOT bulk-acknowledge; it marks each post read as
+it is opened and flags the still-unread rows. The login popup
+(`whatsNewAutoShowPost`) only pushes a release NEWER than every version already
+acknowledged, so acknowledging one release never drags an older unread backlog
+into subsequent logins. Those stay behind the bell. Bell/feed state is keyed to
+the signed-in user id (module signals survive a same-tab user switch). The modal
+keeps every page mounted (inactive ones `invisible`) with a staggered load
+queue, so the element that downloaded the media is the one displayed; it
+supports arrow-key paging and Escape, shows a GIF's first frame under
+`prefers-reduced-motion` (play button opts back in), and closes with a
+`"skipped" | "completed"` outcome; open/outcome are recorded via
+`recordWhatsNewEvent` → the user-log pipeline as `whats_new_<event>:<postId>`
+rows (post id in the endpoint name so counts survive the 7-day rollup; surfaced
+per-post in the Admin-Website). Layouts are locked presets (`WHATS_NEW_LAYOUTS`,
+incl. a full-bleed `cover`), each page scaling its media via `mediaSize`.
+Types + `compareDottedVersions` live in `lib/types/whats_new.ts`. The two
+onboarding modals persist to Clerk `unsafeMetadata` only, with no localStorage
+writes.
 
 ## Help buttons (`lib/help/**`, `_shared/figure_editor/help_button.tsx`)
 
