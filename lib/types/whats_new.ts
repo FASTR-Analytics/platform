@@ -102,6 +102,10 @@ export type WhatsNewPage = {
   imageUrl?: string; // absolute URL on status-api; required for image presets
   mediaSize?: WhatsNewMediaSize; // default "full"
   layoutPreset: WhatsNewLayoutPreset;
+  // Shown to global admins only; everyone else gets the post without this
+  // page. Lets one post carry an admin version without a second post (which
+  // admins would also receive, and only one of which could auto-open).
+  adminsOnly?: boolean;
 };
 
 export type WhatsNewPost = {
@@ -117,6 +121,28 @@ export type WhatsNewPost = {
 };
 
 export type WhatsNewEvent = "seen" | "skipped" | "completed";
+
+// The post as this audience sees it: an admins-only post is withheld from
+// non-admins, and so are its admins-only pages. A post with no page left is
+// withheld too, rather than opening as an empty modal. Truthiness, not
+// `=== true`, so a malformed flag hides content instead of leaking it (the
+// post-level filter reads the flag the same way).
+export function whatsNewPostForAudience(
+  post: WhatsNewPost,
+  isAdmin: boolean,
+): WhatsNewPost | undefined {
+  if (isAdmin) {
+    return post;
+  }
+  if (post.adminsOnly) {
+    return undefined;
+  }
+  const pages = post.pages.filter((pg) => !pg.adminsOnly);
+  if (pages.length === 0) {
+    return undefined;
+  }
+  return pages.length === post.pages.length ? post : { ...post, pages };
+}
 
 // ─── Bell read-state ────────────────────────────────────────────────────
 // Tracked as a set of post ids (not a high-water version) so the unread dot
