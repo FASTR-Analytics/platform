@@ -81,9 +81,7 @@ export function getClientToolsForSlides(
       inProgressLabel: "Getting deck state...",
       completionMessage: () => {
         const view = copilotViewController.current();
-        if (view.id !== "editing_slide_deck" && view.id !== "editing_slide") {
-          return "Retrieved deck";
-        }
+        if (view.id !== "editing_slide_deck") return "Retrieved deck";
         return `Retrieved deck with ${view.context.getSlideIds().length} slide(s)`;
       },
     }),

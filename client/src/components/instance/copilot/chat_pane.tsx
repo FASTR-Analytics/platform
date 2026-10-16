@@ -81,11 +81,6 @@ const PLACEHOLDERS: Record<CopilotViewId, TranslatableString> = {
   products: ASK_ANYTHING,
   opening_product: { en: "Opening...", fr: "Ouverture...", pt: "A abrir..." },
   editing_slide_deck: ASK_DECK,
-  editing_slide: {
-    en: "Ask about this slide...",
-    fr: "Posez une question sur cette diapositive...",
-    pt: "Faça uma pergunta sobre este diapositivo...",
-  },
   editing_slide_figure: ASK_FIGURE,
   deck_settings: ASK_DECK,
   deck_history: ASK_DECK,

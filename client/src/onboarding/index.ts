@@ -63,7 +63,7 @@ const onView = (id: CopilotViewId) => () => currentView().id === id;
 const editingSlideOfType = (type: SlideType) => {
   const view = currentView();
   return (
-    view.id === "editing_slide" &&
+    view.id === "editing_slide_deck" &&
     view.context.getOpenSlide()?.getDraft().type === type &&
     canEditProduct(view.params.deckId)
   );
@@ -93,10 +93,7 @@ export function setupTours(opts: {
     // page reads the count the editor keeps while it is open for editing.
     "viz-editor": () =>
       opts.instanceVisible() && openVisualizationEditors() > 0,
-    // The deck's rail is on screen in both views (a slide is open beside it
-    // whenever the deck has one).
-    "deck-editor": () =>
-      onView("editing_slide_deck")() || onView("editing_slide")(),
+    "deck-editor": onView("editing_slide_deck"),
     "report-editor": onView("editing_report"),
   };
 
@@ -222,9 +219,10 @@ export function setupTours(opts: {
       () => {
         const view = currentView();
         return view.id === "editing_slide_deck"
-          ? view.context.getSlideIds().length
-          : view.id === "editing_slide"
-          ? view.context.getOpenSlide()?.getDraft().type
+          ? [
+            view.context.getSlideIds().length,
+            view.context.getOpenSlide()?.getDraft().type,
+          ]
           : view.id === "editing_report"
           ? Object.keys(view.context.getFigures()).length
           : 0;

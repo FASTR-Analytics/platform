@@ -34,7 +34,6 @@ function viewProductId(view: CopilotViewState): string | null {
     case "opening_product":
       return view.params.productId;
     case "editing_slide_deck":
-    case "editing_slide":
     case "editing_slide_figure":
     case "deck_settings":
     case "deck_history":

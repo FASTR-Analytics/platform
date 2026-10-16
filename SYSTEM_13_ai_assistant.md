@@ -432,16 +432,20 @@ module-level singleton `copilotViewController` (fallback `shell`). Per view,
 params are the serializable model-visible half (ids, and the report's format and
 style); context is the live payload (editor getters/setters plus, on every
 package view, `getScope()` and `getRunId()`) delivered to tool handlers
-opaquely. Labels are read live from the context, never captured into params: the
-deck's name (`getDeckLabel`), the open slide's title (`getSlideTitle` over the
-open slide's draft, `getOpenSlide()`, which also gives the slide's type) and the
-report's name (`getLabel`), so a rename, a title edit or a type switch never
-leaves the view line, the instructions or a tool's read-back stale. Every view
-that shows something declares its `identity` through `copilotViewIdentity` (the
-entity ids, and for a package view the pair with its definition hash), so the
-engine refuses a view-limited call once the live identity differs from the one
-the turn last saw: a call planned for one slide does not run against the next,
-and a call planned before a reattach does not run against the new package.
+opaquely. Labels and the state that names things are read live from the context,
+never captured into params: the deck's name (`getDeckLabel`), the open slide's
+id, type and title (`getOpenSlide()`, the title by `getSlideTitle` over its
+draft) and the report's name (`getLabel`), so a rename, a title edit or a type
+switch never leaves the view line, the state, the instructions or a tool's
+read-back stale. Every view that shows something declares its `identity` through
+`copilotViewIdentity` (the entity ids, and for a package view the pair with its
+definition hash), so the engine refuses a view-limited call once the live
+identity differs from the one the turn last saw: a call planned before a
+reattach does not run against the new package. The deck view's identity is the
+deck and its pair; the open slide is its state, not a part of it, so a switch of
+slides, the AI's delete of the open slide and the first slide of an empty deck
+opening are not moves, and every call of the turn stays valid, since every slide
+tool names its slide.
 
 A place holds the view it covers and sets its own: `holdCopilotView()` (called
 synchronously in the place's component body) captures the controller's current
@@ -452,15 +456,15 @@ editors: the deck and the report editor hold at mount and set `opening_product`
 (params: the product id; label: the product's name, read live), whose
 instructions tell the model the product is still loading or failed to load; the
 report sets `editing_report` after its first fetch succeeds, and the deck sets
-`editing_slide_deck` on its first successful fetch BEFORE its slide list mounts
-the open slide's editor, which holds the deck's view and sets `editing_slide`
-over it, so a slide switch restores the deck view between slides. A load that
-fails before that renders the error through `StateHolderWrapper` in place of the
-editor, writes nothing (no autosave, no room, no deck-config save) and leaves
-the controller on `opening_product`. The Results and Explore pages set their
-own: Explore (`components/explore/explore.tsx`) holds at mount and sets
-`explore`, whose `getScope` is the resolved package at the resolved scope or a
-refusal naming why while none is ready, and whose state names the family,
+`editing_slide_deck` on its first successful fetch and keeps it while slides
+open and close beside the rail: the slide editor sets no view, and hands the
+deck its draft (S12), which the view's context serves as `getOpenSlide()`. A
+load that fails before that renders the error through `StateHolderWrapper` in
+place of the editor, writes nothing (no autosave, no room, no deck-config save)
+and leaves the controller on `opening_product`. The Results and Explore pages
+set their own: Explore (`components/explore/explore.tsx`) holds at mount and
+sets `explore`, whose `getScope` is the resolved package at the resolved scope
+or a refusal naming why while none is ready, and whose state names the family,
 module, view and type the panes resolve (the same resolution functions) and the
 settings of the view the frame resolved (`resolveView`'s result in
 `MetricFrame`, reported up through `onView`: the metric, the switch option, the
@@ -517,16 +521,25 @@ the view line, the view's `state` and the interactions digest; a view's
 text is new to the conversation, so each is sent once per text; a message the
 model never answered loses its blocks, and a changed system-and-tools hash
 strips the stored thinking blocks once. Per view, `instructions` is the static
-guidance (the deck, slide and report briefs; below edit level a product view's
+guidance (the deck and report briefs; below edit level a product view's
 instructions carry the level line, read live, so the model is told not to call
 the editing tools, which refuse) and `state` is what changes without a
-navigation: the entity ids (deckId/slideId/reportId), the deck's selected slide
-ids, and the report editor's CodeMirror selection preview, a line or two. The
-chat's consumer blocks (`getEphemeralContext`) are the date block and the
-package block: the package's label and generation time, the scope with one line
-per dataset family (excluded, unlimited, or its limits), the datasets, the HMIS
-and ICEH indicator lists and the calendar, built by the pure `buildPackageBlock`
-in lib over values the panel resolves live from the current view's pair
+navigation: the entity ids (deckId, reportId), the deck's open slide
+(`Open slide: <id> (<n> of <total>, <type>): "<title>"`, the title read from its
+draft, or `Open slide: none` while none is open, with "(the deck has no slides)"
+when it has none) and its selected slide ids, and the report editor's CodeMirror
+selection preview, a few lines. The deck's instructions are one text whether or
+not a slide is open (`getEditingSlideDeckInstructions`): the deck's name and the
+package line, the slide types, the content blocks, the text length, never
+showing the user an id, the open slide (the state names it; an edit to it shows
+on the canvas at once and saves automatically, an edit to any other slide is
+saved immediately, and the model never asks the user to open, close or switch a
+slide or a view) and the workflow over the nine slide tools. The chat's consumer
+blocks (`getEphemeralContext`) are the date block and the package block: the
+package's label and generation time, the scope with one line per dataset family
+(excluded, unlimited, or its limits), the datasets, the HMIS and ICEH indicator
+lists and the calendar, built by the pure `buildPackageBlock` in lib over values
+the panel resolves live from the current view's pair
 (`buildCopilotPackageBlock`), so a move to another package, a reattach, a
 rescope or a scope edit puts the new package in front of the model once, on the
 message where it happened. The engine stores the sections as typed data on the
@@ -548,36 +561,41 @@ since every slide write bumps the deck's row; the report notifies
 optimistic-save timestamp fresh; both listeners are removed on cleanup), and the
 editors and selection UIs (`edited_*_locally`, `selected_slides`, and
 `draft_added_to_deck`, the accepted-draft signal the model would otherwise never
-hear, since the write's own SSE echo is marked as an AI edit). The local-edit
-lines carry the id of the slide or report that changed and a `filter` keeps only
-the one open at drain, so the digest names the open slide or report and never an
-author: a collaborator's edit to it invalidates the AI's read as the user's own
-does, and both read "The open slide's content changed" or "The report body
-changed". Every rail selection path notifies `selected_slides`: the click paths
-through `updateSelection`, the clear paths through `clearSelection`, whose line
-reads "Cleared the slide selection". Each editor filters `products_upserted` to
-its OWN product: another product changing is not its business. An entry is
-admitted (`relevantIn`, then `filter`) against the view the user is in when it
-is recorded, and its digest line names that view. The engine owns the
-transactional drain at turn creation (restored on a failed send, so entries are
-never lost or double-delivered) and the reduction pipeline (coalesce per id),
-plus a coalesced `__navigation` line. The old "SSE echoes the AI's own tool
-edits" defect is fixed in the general case: every persist-path write tool marks
-its `slide:` and `product:` echo keys via `markAIEdit` once its write has landed
-(a report tool marks its `product:` key after the accepted commit, or after a
-figure update saves), so the AI's own server writes are dropped at drain
-(TTL-scoped, either-order). A write to the open slide's draft marks the same
-keys, since the room's checkpoint of it notifies `slides` and the deck's row as
-a stored write does; within the 30s TTL a collaborator's checkpoint of the same
-slide drops too, which the workflow absorbs, since the model re-reads a slide
-before it edits one. The controller is a module singleton whose log outlives a
-mount. The manager activates a conversation on every mount, which starts its
-digest at the log's end, so actions retained from before (the previous user's on
-a Clerk cross-tab user switch, this tab's while another tab owned the chat)
-never ride this chat's digest; the panel still calls `clearInteractionLog()`
-when the chat mounts, which drops them and, with them, the echo marks and any
-open AI-navigation window the previous user's chat left, which would otherwise
-drop or misattribute this user's first actions within their TTLs.
+hear, since the write's own SSE echo is marked as an AI edit). The three slide
+interactions are admitted in the deck view alone: `edited_slide` for a slide of
+the deck, `selected_slides`, and `edited_slide_locally` for the open slide. The
+local-edit lines carry the id of the slide or report that changed and a `filter`
+keeps only the one open when the edit is recorded; neither names an author,
+since a collaborator's edit invalidates the AI's read as the user's own does.
+The report's reads "The report body changed"; the slide's names the slide ("The
+content of slide <id> changed while it was open"), one line per slide, because
+the deck view's line names only the deck and the user may have opened another
+slide by the next message. Every rail selection path notifies `selected_slides`:
+the click paths through `updateSelection`, the clear paths through
+`clearSelection`, whose line reads "Cleared the slide selection". Each editor
+filters `products_upserted` to its OWN product: another product changing is not
+its business. An entry is admitted (`relevantIn`, then `filter`) against the
+view the user is in when it is recorded, and its digest line names that view.
+The engine owns the transactional drain at turn creation (restored on a failed
+send, so entries are never lost or double-delivered) and the reduction pipeline
+(coalesce per id), plus a coalesced `__navigation` line. The old "SSE echoes the
+AI's own tool edits" defect is fixed in the general case: every persist-path
+write tool marks its `slide:` and `product:` echo keys via `markAIEdit` once its
+write has landed (a report tool marks its `product:` key after the accepted
+commit, or after a figure update saves), so the AI's own server writes are
+dropped at drain (TTL-scoped, either-order). A write to the open slide's draft
+marks the same keys, since the room's checkpoint of it notifies `slides` and the
+deck's row as a stored write does; within the 30s TTL a collaborator's
+checkpoint of the same slide drops too, which the workflow absorbs, since the
+model re-reads a slide before it edits one. The controller is a module singleton
+whose log outlives a mount. The manager activates a conversation on every mount,
+which starts its digest at the log's end, so actions retained from before (the
+previous user's on a Clerk cross-tab user switch, this tab's while another tab
+owned the chat) never ride this chat's digest; the panel still calls
+`clearInteractionLog()` when the chat mounts, which drops them and, with them,
+the echo marks and any open AI-navigation window the previous user's chat left,
+which would otherwise drop or misattribute this user's first actions within
+their TTLs.
 
 ## Tools, view gating, and approval
 
@@ -591,7 +609,7 @@ Products page's `list_products`, the reference tools (methodology docs, info)
 and panther's one `ask_user_questions`. Every tool declares a `kind` (`"read"` /
 `"write"`); no tool is `"nav"`: a navigation tool or any AI-driven move is out
 of the chat's scope, so the user moves and the view line tells the model where.
-The slide tools are nine, one set, admitted in the deck and slide views
+The slide tools are nine, one set, admitted in the deck view
 ([slides.tsx](client/src/components/products/copilot/ai_tools/tools/slides.tsx)
 builds it): `get_deck`, `get_slide`, `create_slide`, `update_slide`,
 `update_figure`, `replace_slide`, `delete_slides`, `duplicate_slides` and
@@ -647,14 +665,14 @@ its call ran in (panther's `AIViewSnapshot`, the id and identity) and renders
 under that identity's pair, with the pair's metrics from the T2 authoring
 context, so an old card keeps its package after a reattach; a card stored before
 the engine recorded the view renders under the current view's pair and offers no
-Add. The card offers "Add to this deck" from the deck and slide views when the
-open deck is on the draft's pair and the user can edit it, and is preview-only
-in a report, on another package and for a viewer. From either deck view on the
-draft's pair the card lays out under the open deck's config; elsewhere under the
-starting draft config. Add runs through `createButtonAction`, so a failed
-`createSlide` alerts; the button is disabled while the write runs and reads
-"Added to this deck" once it has landed, so one draft adds once, and the
-expanded view offers Add only while the card's button is enabled.
+Add. The card offers "Add to this deck" from the deck view when the open deck is
+on the draft's pair and the user can edit it, and is preview-only in a report,
+on another package and for a viewer. From the deck view on the draft's pair the
+card lays out under the open deck's config; elsewhere under the starting draft
+config. Add runs through `createButtonAction`, so a failed `createSlide` alerts;
+the button is disabled while the write runs and reads "Added to this deck" once
+it has landed, so one draft adds once, and the expanded view offers Add only
+while the card's button is enabled.
 
 **Refusals come from one table through one wrapper.** Every user registers the
 same tools, so the prompt cache survives every move; what a user may not do
@@ -702,8 +720,7 @@ each beside the product's `getScope()` and `getRunId()`: the deck's
 `getDeckConfig`/`getSlideIds`/`getSelectedSlideIds`, `getOpenSlide` (the open
 slide's id, its draft store and the store's raw setter, one object per editor
 mount, so a handler that captured it compares it by reference before writing)
-and `deleteSlides`, which the slide view carries too, since it is the deck's
-context itself; and the report contract
+and `deleteSlides`; and the report contract
 (`getLabel`/`getTemplate`/`getBody`/`getFigures`/`getImages`/`getSelection`/`proposeEdit`/
 `applyFigureUpdate`). See
 [ai_views.ts](client/src/components/instance/copilot/ai_views.ts).

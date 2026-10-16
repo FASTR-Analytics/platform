@@ -533,10 +533,11 @@ in the deck's order (the slide after the last deleted one, else the one before
 the first, else none), since the server closes the deleted slide's room with a
 fatal error that must never reach a mounted editor, and sends the request only
 once the editor has moved; a refused flush cancels the delete with "Delete
-cancelled." and sends nothing. The copilot's `editing_slide` view is declared
-over the deck's own context object (`EditingSlideDeckContext`, which the editor
-passes to `setView` unchanged), so every slide tool is available while a slide
-is open, and the deck's view state is what the editor returns to between slides.
+cancelled." and sends nothing. The copilot sees the deck as one view,
+`editing_slide_deck`, which the deck sets once it has loaded and the slide
+editor neither holds nor covers: the open slide is that view's state, so a
+switch of slides is not a move, and every slide tool runs whichever slide is
+open (S13).
 
 **A slide switch must not move the header (2026-09-24).** The deck's header
 shows three things that belong to the OPEN SLIDE's editor and reach it by
@@ -641,13 +642,11 @@ underneath, so its collab binding lives), naming the chat's
 ids (the report names `editing_report_figure`); every result resolves through
 `resolveFigureBundleInteractively` under the product's current pair, so editing
 a stale figure also brings it up to date. Local edits notify the AI
-(`edited_slide_locally`) and the editor holds the deck's view
-(`holdCopilotView`) and registers the `editing_slide` view's mutator context on
-the AI view controller (S13), so a slide switch restores the deck view between
-slides; the Products page opens the registry's editor directly through the
-shell's editor wrapper, and the one chat beside the shell (S13) follows the view
-the editor sets, so a slide editor opened inside a deck talks to the same chat
-as the deck.
+(`edited_slide_locally`), and the editor hands its draft to the deck through
+`onApi`, which the copilot reads and writes as the deck view's open slide; the
+editor sets no view of its own (S13). The Products page opens the registry's
+editor directly through the shell's editor wrapper, and the one chat beside the
+shell (S13) follows the view the deck sets.
 
 **Typing on the canvas.** Double-clicking a text block or a title primitive (or
 Enter with one selected) mounts

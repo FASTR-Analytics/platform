@@ -36,7 +36,7 @@ an approved gate): every page is keyed on the copilot's view controller, on
 which every tab page, full-page view and editor sets its view (S13): the
 Products, Explore, Data, Results, Assets and Users pages on `products`,
 `explore`, `data`, `results_packages`, `assets` and `users`, the deck editor on
-`editing_slide_deck` or `editing_slide`, and the report editor on
+`editing_slide_deck`, whose open slide is its state, and the report editor on
 `editing_report`. A tab page's predicate is therefore false under the editor or
 the full-page view that covers it, which has set its own view, and false while a
 product is still loading (`opening_product`). The one page not keyed on a view

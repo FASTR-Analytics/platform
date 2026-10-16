@@ -71,10 +71,9 @@ export function getClientToolsForDrafts(
           }
         }
         const view = copilotViewController.current();
-        const deckConfig =
-          view.id === "editing_slide_deck" || view.id === "editing_slide"
-            ? view.context.getDeckConfig()
-            : getStartingConfigForSlideDeck("Draft");
+        const deckConfig = view.id === "editing_slide_deck"
+          ? view.context.getDeckConfig()
+          : getStartingConfigForSlideDeck("Draft");
         const convertedSlide = await convertAiInputToSlide(
           scope,
           input.slide,

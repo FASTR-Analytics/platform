@@ -58,7 +58,6 @@ import {
   getAssetsInstructions,
   getDataPageInstructions,
   getEditingSlideDeckInstructions,
-  getEditingSlideInstructions,
   getFigureEditorInstructions,
   getHfaIndicatorEditorInstructions,
   getHfaIndicatorsInstructions,
@@ -91,10 +90,8 @@ import {
 // a title edit never leaves the view line stale.
 //
 // Every view that shows something declares its `identity` through
-// `copilotViewIdentity`: a view-limited call is refused once the live
-// identity differs from the one the turn last saw, so a move inside a view
-// (another slide of the same deck, a reattached product) refuses a call
-// planned for the old one.
+// `copilotViewIdentity` over the catalogue's parts, which say what a move is
+// (COPILOT_VIEW_IDENTITY_PARTS).
 //
 // The controller is a module singleton. A place holds the view it covers
 // (`holdCopilotView`, synchronously at mount) and sets its own once its state
@@ -102,7 +99,7 @@ import {
 // Solid cleans a node's children before its own cleanups, so nested places
 // unwind in order. The sync sites are the deck and report editors
 // (`opening_product` at mount, `editing_slide_deck` or `editing_report` once
-// loaded), the slide editor (`editing_slide`), Explore (`explore`), the
+// loaded), Explore (`explore`), the
 // Results page (`results_packages`), the package page (`package`, set again
 // when the status changes), the Module defaults and Scopes views, the
 // Products, Data, Assets and Users pages and the user detail, the Data
@@ -119,8 +116,8 @@ import {
 // What the model is told per view splits in two (append-only turns, E7):
 // `instructions` is the static guidance of the view, which rides a message
 // once per text; `state` is what changes without a navigation (the entity
-// ids, the deck's selected slide ids, the report editor's selection preview)
-// and rides every message. Below edit level a product view's instructions
+// ids, the deck's open slide and selected slide ids, the report editor's
+// selection preview) and rides every message. Below edit level a product view's instructions
 // carry PRODUCT_VIEW_ONLY_LINE, read live at send. instructionsDelivery stays
 // the default "ephemeral" everywhere: the `system` accessor is instance level
 // and takes no view argument.
@@ -223,11 +220,6 @@ export type EditingSlideDeckContext = PackageViewContext & {
   deleteSlides: (
     slideIds: string[],
   ) => Promise<APIResponseWithData<{ deletedIds: string[] }>>;
-};
-
-export type EditingSlideParams = {
-  slideId: string;
-  deckId: string;
 };
 
 export type EditingReportParams = {
@@ -434,18 +426,24 @@ function productViewOnlyLine(productId: string): string {
     : `\n\n${PRODUCT_VIEW_ONLY_LINE}`;
 }
 
-// The open slide's title, read from its draft.
-function openSlideTitle(context: EditingSlideDeckContext): string {
+// The open slide as the deck view's state names it: its id, where it sits,
+// its type and its title, read from the draft so an edit never leaves the
+// line stale. A deck with slides has none open while one loads.
+function openSlideLine(context: EditingSlideDeckContext): string {
+  const slideIds = context.getSlideIds();
   const open = context.getOpenSlide();
-  return open === undefined ? "" : getSlideTitle(open.getDraft());
-}
-
-// The deck views' state: the ids the model correlates tool results by, and
-// the rail's selection.
-function deckViewState(ids: string, selectedSlideIds: string[]): string {
-  return selectedSlideIds.length === 0
-    ? ids
-    : `${ids}\nSelected slide id(s): ${selectedSlideIds.join(", ")}`;
+  if (open === undefined) {
+    return slideIds.length === 0
+      ? "Open slide: none (the deck has no slides)"
+      : "Open slide: none";
+  }
+  const draft = open.getDraft();
+  const at = slideIds.indexOf(open.slideId);
+  const position = at === -1
+    ? "no longer in the deck"
+    : `${at + 1} of ${slideIds.length}`;
+  const title = getSlideTitle(draft).replace(/\s+/g, " ").trim();
+  return `Open slide: ${open.slideId} (${position}, ${draft.type}): "${title}"`;
 }
 
 export const copilotViews = defineAIViews(
@@ -463,9 +461,9 @@ export const copilotViews = defineAIViews(
         }),
       instructions: () => getOpeningProductInstructions(),
     }),
-    // The editing_* states each carry the entity IDS (deckId / slideId /
-    // reportId): ids are the model's cross-turn correlation handle (tools
-    // RETURN ids; labels are not unique).
+    // The editing_* states each carry the entity IDS (deckId, the open
+    // slide's id, reportId): ids are the model's cross-turn correlation
+    // handle (tools RETURN ids; labels are not unique).
     editing_slide_deck: view<EditingSlideDeckParams, EditingSlideDeckContext>({
       label: (_params, context) => context.getDeckLabel(),
       identity: (params, context) =>
@@ -477,32 +475,16 @@ export const copilotViews = defineAIViews(
         `${getEditingSlideDeckInstructions(context.getDeckLabel())}${
           productViewOnlyLine(params.deckId)
         }`,
-      state: (params, context) =>
-        deckViewState(
+      state: (params, context) => {
+        const selected = context.getSelectedSlideIds();
+        return [
           `deckId: ${params.deckId}`,
-          context.getSelectedSlideIds(),
-        ),
-    }),
-    editing_slide: view<EditingSlideParams, EditingSlideDeckContext>({
-      label: (_params, context) => openSlideTitle(context),
-      identity: (params, context) =>
-        copilotViewIdentity("editing_slide", {
-          deck: params.deckId,
-          slide: params.slideId,
-          pair: pairOf(context),
-        }),
-      instructions: (params, context) =>
-        `${
-          getEditingSlideInstructions(
-            openSlideTitle(context),
-            context.getDeckLabel(),
-          )
-        }${productViewOnlyLine(params.deckId)}`,
-      state: (params, context) =>
-        deckViewState(
-          `slideId: ${params.slideId} | deckId: ${params.deckId}`,
-          context.getSelectedSlideIds(),
-        ),
+          openSlideLine(context),
+          ...(selected.length === 0
+            ? []
+            : [`Selected slide id(s): ${selected.join(", ")}`]),
+        ].join("\n");
+      },
     }),
     editing_slide_figure: view<EditingSlideFigureParams, FigureEditorContext>({
       label: (_params, context) => context.getLabel(),
@@ -731,13 +713,6 @@ export function restoreCopilotView(state: CopilotViewState): void {
     case "editing_slide_deck":
       copilotViewController.setView(
         "editing_slide_deck",
-        state.params,
-        state.context,
-      );
-      return;
-    case "editing_slide":
-      copilotViewController.setView(
-        "editing_slide",
         state.params,
         state.context,
       );

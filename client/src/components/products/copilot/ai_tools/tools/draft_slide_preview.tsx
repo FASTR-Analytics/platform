@@ -95,19 +95,15 @@ function draftPair(
   return pair === undefined ? undefined : { pair, stored: false };
 }
 
-// The open deck, from the deck view or from one of its slides, when it sits
-// on the pair the draft was made under: the deck the card lays out for and
-// may add to. A report has no deck, and a deck on another package would lay
-// the draft out under a config its figures were not resolved for.
+// The open deck, when it sits on the pair the draft was made under: the deck
+// the card lays out for and may add to. A report has no deck, and a deck on
+// another package would lay the draft out under a config its figures were
+// not resolved for.
 function openDeckOnPair(
   draft: PackageScope,
-):
-  | Extract<CopilotViewState, { id: "editing_slide_deck" | "editing_slide" }>
-  | undefined {
+): Extract<CopilotViewState, { id: "editing_slide_deck" }> | undefined {
   const view = copilotViewController.current();
-  if (view.id !== "editing_slide_deck" && view.id !== "editing_slide") {
-    return undefined;
-  }
+  if (view.id !== "editing_slide_deck") return undefined;
   const pair = currentPair(view);
   return pair !== undefined && packageScopesEqual(pair, draft)
     ? view

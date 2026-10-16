@@ -69,8 +69,6 @@ import { buildLayoutContextMenu } from "./build_context_menu";
 import { InsertFigureModal } from "~/components/products/_shared/mod.ts";
 import {
   copilotViewController,
-  type EditingSlideDeckContext,
-  holdCopilotView,
   type OpenSlide,
 } from "~/components/instance/copilot/mod.ts";
 import { VisualizationEditor } from "~/components/_shared/figure_editor/mod.ts";
@@ -136,9 +134,6 @@ type SlideEditorInnerProps = {
   // included, as Settings and History are; this editor's own wrapper only
   // covers the slide pane beside the rail. Absent, it opens here.
   openHostEditor?: ReturnType<typeof getEditorWrapper>["openEditor"];
-  // The deck the slide sits in, read live: the copilot's slide view carries
-  // the deck's context, so the deck's tools run while a slide is open.
-  deckContext: EditingSlideDeckContext;
   // What the deck may ask of the mounted editor, one object per mount: the
   // open slide's draft, which the copilot reads and writes through the deck,
   // and `flush`, which settles an unsaved draft before the deck swaps the
@@ -586,16 +581,8 @@ export function SlideEditor(p: Props) {
   // could otherwise repeat the same alert).
   let collabErrorShown = false;
 
-  // The copilot's slide view over the deck's, with the deck's own context:
-  // the hold restores the deck view when this slide closes.
-  holdCopilotView();
   onMount(() => {
     attemptGetPageInputs(unwrap(tempSlide));
-    copilotViewController.setView(
-      "editing_slide",
-      { slideId: p.slideId, deckId: p.productId },
-      p.deckContext,
-    );
     p.onApi?.({
       slideId: p.slideId,
       flush,

@@ -221,20 +221,10 @@ The user has the HFA indicator "${label}" open in the code editor. get_hfa_indic
 
 // ── Editing mode instructions ──
 
-// The deck workflow: the deck view's own, and the slide view's for the other
-// slides and the whole deck, since every slide tool runs there too.
-const DECK_WORKFLOW = `1. Call get_deck FIRST to understand current structure
-2. Call get_slide before modifying any specific slide
-3. Choose the right tool for the job:
-   - **Tweak an existing figure** (replicant, filters, disaggregation, period, caption) → update_figure (slideId + blockId)
-   - **Change text, blocks or layout** (a title or header, replace a block's content, add/remove/rearrange/resize blocks) → update_slide
-   - **Rebuild from scratch or change slide type** → replace_slide (last resort)
-4. Call get_metric_data before creating from_metric blocks to check available data`;
-
 export function getEditingSlideDeckInstructions(deckLabel: string): string {
-  return `# Current Mode: Editing Slide Deck
+  return `# Current View: Editing slide deck
 
-You're editing: "${deckLabel}"
+You're editing the slide deck "${deckLabel}".
 
 Every figure in this deck resolves under the deck's own results package and
 scope; you do not choose the package, and no tool takes one.
@@ -267,54 +257,20 @@ Keep text concise and focused. Slides with figures should have less text. Use bu
 
 When talking to the user, never mention internal slide IDs or block IDs (e.g. 'a3k', 't2n') — these are meaningless to the user. Instead, refer to slides by their position (e.g. "slide 3"), title (e.g. "the ANC Coverage slide"), or type (e.g. "the cover slide"). Refer to blocks by their content (e.g. "the bar chart showing immunization rates", "the text block on the left"). Use IDs only in tool calls, never in your messages to the user.
 
-## Workflow
+## The Open Slide
 
-${DECK_WORKFLOW}`;
-}
-
-export function getEditingSlideInstructions(
-  slideLabel: string,
-  deckLabel: string,
-): string {
-  return `# Current Mode: Editing Slide
-
-You're editing slide: "${slideLabel}" in deck: "${deckLabel}"
-
-## Primary Tools (for this slide)
-
-**get_slide** (with this slide's ID) - Get the current content and structure of this slide. Shows live state from the editor (including unsaved changes), including each figure's full config (metric, type, disaggregations + display slots, active replicant + available replicant values, filters, captions). ALWAYS call this first.
-**update_slide** (with this slide's ID) - Modify this slide's content. For cover/section slides you can update text fields. For content slides you can update the header and individual blocks by ID.
-
-## What You Can Modify
-
-- **Cover slides:** title, subtitle, presenter, date
-- **Section slides:** sectionTitle, sectionSubtitle
-- **Content slides:** header, individual content blocks (via blockUpdates), or layout structure (via layoutChange — add/remove blocks, rearrange, change column widths)
-- **Existing figures:** edit a figure's config in place with update_figure (replicant, filters, disaggregation, date range, captions; chart type is not editable) — no need to recreate it
+The deck editor shows the deck's slides in a rail with one slide open beside it. The view state names the open slide, or says there is none. An edit to the open slide shows on the canvas at once and saves automatically; an edit to any other slide is saved immediately. Every slide tool takes a slideId and works on any slide of the deck, open or not, so never ask the user to open, close or switch a slide or a view.
 
 ## Workflow
 
-1. Call get_slide FIRST to see current content and block IDs
-2. Suggest changes based on what would improve the slide
-3. Use update_slide to apply changes
-4. Changes apply to the open slide at once and save automatically
-
-## Other slides and the whole deck
-
-${DECK_WORKFLOW}
-
-## Text Length Guidelines
-
-**Target: ~${SLIDE_TEXT_TOTAL_WORD_COUNT_TARGET} words per slide** (adjust down if slide has multiple figures)
-**Absolute maximum: ${SLIDE_TEXT_TOTAL_WORD_COUNT_MAX} words per slide**
-
-Keep text concise and focused. Slides with figures should have less text. Use bullet points, not paragraphs.
-
-## Important
-
-- Changes apply to the open slide at once and save automatically; there is no Save button
-- For content slides, use block IDs from get_slide to target specific blocks
-- IMPORTANT: Markdown tables are NOT allowed in text blocks. To display tabular data, use a from_metric block with a table-type preset.`;
+1. Call get_deck FIRST to understand the deck's structure
+2. Call get_slide before changing any slide: it shows the slide's content and block IDs (the open slide as the canvas shows it, unsaved changes included) and each figure's full config
+3. Choose the right tool for the job:
+   - **Change text, blocks or layout** (a cover's or section's fields, a content slide's header, a block's content, adding, removing, rearranging or resizing blocks) → update_slide
+   - **Tweak an existing figure** (replicant, filters, disaggregation, period, captions; not the chart type) → update_figure (slideId + blockId)
+   - **Rebuild a slide from scratch or change its type** → replace_slide (last resort)
+   - **Change the deck's structure** → create_slide, delete_slides, duplicate_slides, move_slides
+4. Call get_metric_data before creating any from_metric block, to check the data it needs is available`;
 }
 
 // The view states of the Results, Explore and Data pages: what the user is

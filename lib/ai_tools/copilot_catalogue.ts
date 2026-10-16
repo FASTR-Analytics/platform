@@ -15,7 +15,6 @@ export const COPILOT_VIEW_IDS = [
   "products",
   "opening_product",
   "editing_slide_deck",
-  "editing_slide",
   "editing_slide_figure",
   "deck_settings",
   "deck_history",
@@ -47,7 +46,6 @@ export type CopilotViewId = (typeof COPILOT_VIEW_IDS)[number];
 export const COPILOT_PACKAGE_VIEWS = [
   "opening_product",
   "editing_slide_deck",
-  "editing_slide",
   "editing_slide_figure",
   "deck_settings",
   "deck_history",
@@ -72,7 +70,7 @@ export const COPILOT_CHAT_WIDE_TOOLS = [
   "get_info",
 ] as const;
 
-const DECK_VIEWS = ["editing_slide_deck", "editing_slide"] as const;
+const DECK_VIEWS = ["editing_slide_deck"] as const;
 const REPORT_VIEWS = ["editing_report"] as const;
 const FIGURE_EDITOR_VIEWS = [
   "editing_slide_figure",
@@ -271,14 +269,15 @@ export type CopilotIdentityPart =
 
 // What identifies what each view shows. A view-limited call is refused once
 // the live identity differs from the one the turn last saw, so a move inside
-// a view (another slide of the same deck, a reattached product) refuses a
-// call planned for the old one. A view with no parts declares no identity:
+// a view (a reattached product, another figure in the figure editor) refuses
+// a call planned for the old one. The deck's open slide is the deck view's
+// state, not a part: the slide tools take a slide id, so a switch of the open
+// slide leaves every call valid. A view with no parts declares no identity:
 // its id is the whole of it.
 export const COPILOT_VIEW_IDENTITY_PARTS = {
   products: [],
   opening_product: ["product", "pair"],
   editing_slide_deck: ["deck", "pair"],
-  editing_slide: ["deck", "slide", "pair"],
   editing_slide_figure: ["deck", "slide", "figure", "pair"],
   deck_settings: ["deck", "pair"],
   deck_history: ["deck", "pair"],

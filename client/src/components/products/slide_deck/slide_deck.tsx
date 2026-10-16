@@ -328,9 +328,9 @@ export function SlideDeckEditor(p: Props) {
     })();
   });
 
-  // The copilot's deck view, set once the deck has loaded and carried by the
-  // slide editor beside the rail, which holds it between slides. Read live:
-  // a reattach moves the pair under the view.
+  // The copilot's deck view, set once the deck has loaded. Read live: a
+  // reattach moves the pair under the view, and the open slide is the view's
+  // state, so a switch of slides is no move.
   const deckContext: EditingSlideDeckContext = {
     getScope: requireScope,
     getRunId,
@@ -366,9 +366,6 @@ export function SlideDeckEditor(p: Props) {
         if (!aiContextSet) setLoadState({ status: "error", err: res.err });
         return;
       }
-      // The deck's view goes first: the batch below mounts the open slide's
-      // editor, which sets `editing_slide` over it. The other order left the
-      // deck view current with a slide open.
       if (!aiContextSet) {
         aiContextSet = true;
         setLoadState({ status: "ready", data: true });
@@ -436,7 +433,6 @@ export function SlideDeckEditor(p: Props) {
           editorMount={editorMount()}
           editorLoading={editorLoading()}
           onEditorApi={setOpenSlide}
-          deckContext={deckContext}
           handleClose={handleClose}
         />
       )}
@@ -464,7 +460,6 @@ function SlideDeckEditorInner(p: {
     | undefined;
   editorLoading: boolean;
   onEditorApi: (api: SlideEditorApi | undefined) => void;
-  deckContext: EditingSlideDeckContext;
   handleClose: () => Promise<void>;
 }) {
   const {
@@ -618,7 +613,6 @@ function SlideDeckEditorInner(p: {
                   menuRowHost={menuRowHost()}
                   statusHost={statusHost()}
                   openHostEditor={openDeckEditor}
-                  deckContext={p.deckContext}
                   onApi={p.onEditorApi}
                   {...snapshotForSlideEditor({ deckConfig: p.deckConfig })}
                 />

@@ -110,11 +110,6 @@ const VIEWS: {
     groups: [...PRODUCT, "deck_reads", "deck_writes"],
   },
   {
-    id: "editing_slide",
-    hasPackage: true,
-    groups: [...PRODUCT, "deck_reads", "deck_writes"],
-  },
-  {
     id: "editing_slide_figure",
     hasPackage: true,
     groups: [...PRODUCT, "figure_editor"],
@@ -327,7 +322,6 @@ const IDENTITY_PARTS: Record<string, string[]> = {
   editing_slide_deck: ["deck", "pair"],
   deck_settings: ["deck", "pair"],
   deck_history: ["deck", "pair"],
-  editing_slide: ["deck", "slide", "pair"],
   editing_slide_figure: ["deck", "slide", "figure", "pair"],
   editing_report: ["report", "pair"],
   report_history: ["report", "pair"],

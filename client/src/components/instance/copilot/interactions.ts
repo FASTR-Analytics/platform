@@ -1,10 +1,6 @@
 import { defineAIInteractions, interaction } from "panther";
 import type { ProductType } from "lib";
-import type {
-  EditingReportParams,
-  EditingSlideDeckContext,
-  EditingSlideParams,
-} from "./ai_views";
+import type { EditingReportParams, EditingSlideDeckContext } from "./ai_views";
 
 // The copilot's interaction registry: what the USER did since the last
 // message. Producers call `copilotViewController.notify(...)`: the deck and
@@ -19,26 +15,25 @@ import type {
 // Echo keys close the SSE self-echo loop: every persist-path write tool marks
 // the same keys via `copilotViewController.markAIEdit`, so the AI's own server
 // writes are dropped at drain instead of coming back as fake user actions.
+
+// One line per distinct slide.
+function oncePerSlide<T extends { slideId: string }>(entries: T[]): T[] {
+  const seen = new Set<string>();
+  return entries.filter((e) =>
+    seen.has(e.slideId) ? false : (seen.add(e.slideId), true)
+  );
+}
+
 export const copilotInteractions = defineAIInteractions({
   // SSE `last_updated("slides")`: any slides-table row change. One line per
-  // distinct slide, kept only when that slide is in the deck being edited (or
-  // IS the open slide).
+  // distinct slide, kept only when that slide is in the deck being edited.
   edited_slide: interaction<{ slideId: string }>({
-    relevantIn: ["editing_slide_deck", "editing_slide"],
-    filter: (p, view) => {
-      // Both views know the deck's slides; the slide view also IS one of them.
-      const ctx = view.context as EditingSlideDeckContext;
-      if (ctx.getSlideIds().includes(p.slideId)) return true;
-      if (view.id !== "editing_slide") return false;
-      const params = view.params as EditingSlideParams;
-      return params.slideId === p.slideId;
-    },
-    coalesce: (entries) => {
-      const seen = new Set<string>();
-      return entries.filter((e) =>
-        seen.has(e.slideId) ? false : (seen.add(e.slideId), true)
-      );
-    },
+    relevantIn: ["editing_slide_deck"],
+    filter: (p, view) =>
+      (view.context as EditingSlideDeckContext).getSlideIds().includes(
+        p.slideId,
+      ),
+    coalesce: oncePerSlide,
     format: (p) => `Edited slide ${p.slideId}`,
     echoKey: (p) => `slide:${p.slideId}`,
   }),
@@ -62,23 +57,25 @@ export const copilotInteractions = defineAIInteractions({
   // the view state (ai_views.ts); this reports the act of selecting since the
   // last message.
   selected_slides: interaction<{ slideIds: string[] }>({
-    relevantIn: ["editing_slide_deck", "editing_slide"],
+    relevantIn: ["editing_slide_deck"],
     format: (p) =>
       p.slideIds.length === 0
         ? "Cleared the slide selection"
         : `Selected slides: ${p.slideIds.join(", ")}`,
   }),
-  // The editors' own change signals carry the id of what changed and report
-  // only the slide or report open at drain: a line about a slide the user
-  // has since left would describe the wrong slide. No author is named: a
-  // collaborator's edit to the open one invalidates the AI's read just the
-  // same.
+  // The editors' own change signals carry the id of what changed and are
+  // kept only when it is the slide or report open as they are recorded. No
+  // author is named: a collaborator's edit invalidates the AI's read just the
+  // same. The slide's line names it, since the deck view's line names only
+  // the deck and the user may have opened another slide by the next message.
   edited_slide_locally: interaction<{ slideId: string }>({
-    relevantIn: ["editing_slide"],
+    relevantIn: ["editing_slide_deck"],
     filter: (p, view) =>
-      (view.params as EditingSlideParams).slideId === p.slideId,
-    format: () =>
-      "The open slide's content changed (re-read with get_slide before editing it)",
+      (view.context as EditingSlideDeckContext).getOpenSlide()?.slideId ===
+        p.slideId,
+    coalesce: oncePerSlide,
+    format: (p) =>
+      `The content of slide ${p.slideId} changed while it was open (re-read it with get_slide before editing it)`,
   }),
   edited_report_locally: interaction<{ reportId: string }>({
     relevantIn: ["editing_report"],
