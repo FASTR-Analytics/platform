@@ -1,5 +1,9 @@
 import { Hono } from "hono";
-import { compareDottedVersions, type WhatsNewPost } from "lib";
+import {
+  compareDottedVersions,
+  type WhatsNewPost,
+  whatsNewPostForAudience,
+} from "lib";
 import { AddLog } from "../../db/instance/user_logs.ts";
 import { requireGlobalPermission } from "../../middleware/userPermission.ts";
 import { _SERVER_VERSION } from "../../exposed_env_vars.ts";
@@ -87,12 +91,16 @@ defineRoute(
       return c.json({ success: true, data: [] });
     }
     const posts = await getPublishedPosts();
-    const eligible = posts.filter((p) =>
-      p.published &&
-      (!_VERSION_GATE_ACTIVE ||
-        compareDottedVersions(p.version, _SERVER_VERSION) <= 0) &&
-      (!p.adminsOnly || c.var.globalUser.isGlobalAdmin)
-    );
+    const isAdmin = c.var.globalUser.isGlobalAdmin;
+    // Audience filtering happens here, not in the client, so an admins-only
+    // page never reaches a non-admin's browser
+    const eligible = posts
+      .filter((p) =>
+        p.published &&
+        (!_VERSION_GATE_ACTIVE ||
+          compareDottedVersions(p.version, _SERVER_VERSION) <= 0)
+      )
+      .flatMap((p) => whatsNewPostForAudience(p, isAdmin) ?? []);
     return c.json({ success: true, data: eligible });
   },
 );

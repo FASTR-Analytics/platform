@@ -519,7 +519,7 @@ export default function Instance(p: Props) {
 }
 
 // What's New: the server returns only published posts eligible for this
-// instance (version <= server version, adminsOnly pre-filtered). Seen-state is
+// instance and audience (see whatsNewPostForAudience). Seen-state is
 // a high-water-mark version string in Clerk unsafeMetadata; brand-new users
 // are baselined without seeing a popup. Fetched posts also power the header
 // bell (unread dot + browsable feed). All module-level state is scoped to the
