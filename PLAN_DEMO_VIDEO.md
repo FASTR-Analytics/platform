@@ -4,8 +4,8 @@ Assemble the platform demo from Tim's narration, the title cards, the two
 schematic clips and Tim's screen recordings of the demo instance, into one mp4
 Tim finishes in Descript.
 
-**Next step: Step 0 (Tim records) and Step 1 (Do), in either order.** Tim sets
-this line as each step finishes. Step 3 deletes the file.
+**Next step: Review 2.** Tim sets this line as each step finishes. Step 3
+deletes the file.
 
 ## §0 Bindings
 
@@ -203,3 +203,24 @@ overwrites it.
   `shot_list.md`; the recording script and the four snippets are deleted; the
   assembler step is independent of the recordings and tested on synthetic
   sources.
+- 2026-10-16, Step 0 (Tim): 23 shots recorded as QuickTime `.mov`, 3456x2234
+  (the full Retina screen) with a 67 px black strip at the top where the menu
+  bar hides, 120 fps nominal. `deck_edit` came as `deck_edit_1` and
+  `deck_edit_2`. `collab` was not recorded: the team-editing sentence runs over
+  `deck_edit_1` and `history`. No shot shows File, Download, so the download
+  sentence runs over the `report` scroll. `dhis2_import` and `results_wizard`
+  press Start import and Launch generation (Tim overruled ruling 8 for his own
+  instance); the generation left a package named 2026-10-16. The Recurring
+  option was not recorded: Part 6 uses the Time step moment of `dhis2_import`.
+  `add_user` shows a colleague's profile; Tim says the email is no longer valid
+  and it stays as recorded.
+- 2026-10-16, Steps 1 and 2 built in one session: `src/assemble.ts` and
+  `src/cut_list.json`. The synthetic-source test of Step 1 was dropped because
+  the footage arrived before the assembler was written; the gate is the
+  assembler run on the real sources plus the `ffprobe` checks. Shots are cropped
+  to 3456x1944 at y=67 (`shotCrop`) before scaling; the `closing_present` cut
+  crops at y=147 to drop the browser's full-screen notice. The waiting stretches
+  of `ai_question`, `ai_figure` and `ai_edit_diff` are spliced out; `ai_build`
+  runs as five cuts at 1x, 8x, 8x, 6x and 1x. `rough_cut.mp4`: 397.10 s (393.15
+  s narration plus the end card), 1920x1080, h264, 30 fps, AAC; the frame at
+  each section start is its card. Step 2 built.
