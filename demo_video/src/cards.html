@@ -1,0 +1,63 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Cards</title>
+    <link rel="stylesheet" href="kit.css" />
+    <style>
+    .block {
+      position: absolute;
+      left: 120px;
+      top: 50%;
+      transform: translateY(-50%);
+      max-width: 1500px;
+    }
+    .block .eyebrow {
+      margin-bottom: 26px;
+    }
+    .block .title {
+      font-size: 124px;
+    }
+    .block.end .title {
+      color: var(--teal);
+    }
+    </style>
+  </head>
+  <body>
+    <div class="stage" id="stage">
+      <div class="c1"></div>
+      <div class="c2"></div>
+      <img class="logo" src="../../client/public/images/logo.png" />
+    </div>
+    <script type="module">
+    const GFF = "An initiative of the Global Financing Facility (GFF)";
+    const CARDS = [
+      { title: "The FASTR<br>Analytics Platform", caption: GFF },
+      { part: 1, title: "Data" },
+      { part: 2, title: "Analysis" },
+      { part: 3, title: "Decks and reports" },
+      { part: 4, title: "The AI assistant" },
+      { part: 5, title: "Guardrails" },
+      { part: 6, title: "Automation" },
+      { kind: "end", title: "fastr-analytics.org", caption: GFF },
+    ];
+    const q = new URLSearchParams(location.search);
+    const card = CARDS[Number(q.get("card") ?? 0)];
+    const stage = document.getElementById("stage");
+    const block = document.createElement("div");
+    block.className = "block" + (card.kind ? " " + card.kind : "");
+    block.innerHTML =
+      (card.part ? `<div class="eyebrow">Part ${card.part}</div>` : "") +
+      `<div class="title">${card.title}</div>`;
+    stage.appendChild(block);
+    if (card.caption) {
+      const caption = document.createElement("div");
+      caption.className = "caption";
+      caption.textContent = card.caption;
+      stage.appendChild(caption);
+    }
+    await document.fonts.ready;
+    document.body.dataset.ready = "1";
+    </script>
+  </body>
+</html>
