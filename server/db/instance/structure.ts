@@ -62,13 +62,6 @@ async function getRawUAOrThrow(
   return rawUA;
 }
 
-// Attempts stored while step 1 also took an XLSForm hold the details under
-// `csv`.
-function parseCsvStep1Result(raw: string): CsvDetails {
-  const parsed = JSON.parse(raw) as CsvDetails | { csv: CsvDetails };
-  return "csv" in parsed ? parsed.csv : parsed;
-}
-
 ////////////////////////////////////////////////////////
 //  ______  __                                        //
 // /      |/  |                                       //
@@ -360,9 +353,9 @@ export async function getStructureUploadAttempt(
           ...baseData,
           step: rawUA.step as 1 | 2 | 3 | 4,
           sourceType: "csv",
-          step1Result: rawUA.step_1_result
-            ? parseCsvStep1Result(rawUA.step_1_result)
-            : undefined,
+          step1Result: parseJsonOrUndefined(rawUA.step_1_result) as
+            | CsvDetails
+            | undefined,
           step2Result: parseJsonOrUndefined(rawUA.step_2_result) as
             | StructureColumnMappings
             | undefined,
@@ -764,7 +757,7 @@ export async function structureStep3Csv_StageDataStreaming(
     };
   }
   try {
-    const step1Result = parseCsvStep1Result(rawUA.step_1_result);
+    const step1Result = JSON.parse(rawUA.step_1_result) as CsvDetails;
     const columnMappings = JSON.parse(
       rawUA.step_2_result,
     ) as StructureColumnMappings;
@@ -1037,7 +1030,7 @@ async function joinCsvContextColumns(
       err: "Extra file columns are only available for CSV imports",
     };
   }
-  const step1Result = parseCsvStep1Result(rawUA.step_1_result);
+  const step1Result = JSON.parse(rawUA.step_1_result) as CsvDetails;
   const columnMappings = JSON.parse(
     rawUA.step_2_result,
   ) as StructureColumnMappings;
