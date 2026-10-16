@@ -5,8 +5,14 @@ suggested screen content, not narration.
 
 ## Title card
 
+![Title card](cards/card_00_title.png)
+
 _Screen: title card, then the schematic (today version) while the second
 sentence is read._
+
+_Video: [schematic_v1.mp4](schematic_v1.mp4) (today)_
+
+![Schematic, today](schematic_v1.png)
 
 In this video, I'm going to show you the FASTR Analytics Platform, which we've
 built for collaborative analysis of health systems data, and for quick and easy
@@ -15,6 +21,8 @@ analysis modules, create visualizations and reports, and use the built-in AI
 tools to interpret results, write text, and compile a slide deck from scratch.
 
 ## Part 1: Data
+
+![Part 1: Data](cards/card_01_data.png)
 
 _Screen: the Users page, then the Data page: a DHIS2 import choosing indicators
 and a period, then an HFA upload._
@@ -28,6 +36,8 @@ sources of data, for example health facility assessment data and household
 survey data.
 
 ## Part 2: Analysis
+
+![Part 2: Analysis](cards/card_02_analysis.png)
 
 _Screen: the results package wizard with the module list, a run in progress,
 then the Explore tab._
@@ -43,6 +53,8 @@ then visualize the results of those analyses. Each module comes with a set of
 default tables and figures, or you can create your own.
 
 ## Part 3: Decks and reports
+
+![Part 3: Decks and reports](cards/card_03_decks_reports.png)
 
 _Screen: the deck editor: adding a slide, dropping in a figure, choosing a
 theme, downloading; a report; the out-of-date badge and Update figures; two
@@ -62,6 +74,8 @@ report similar to a Google Doc or a SharePoint file. Every version of the report
 is saved, so you can go back to an earlier version if you need to.
 
 ## Part 4: The AI assistant
+
+![Part 4: The AI assistant](cards/card_04_ai_assistant.png)
 
 _Screen: the chat beside a deck; a question answered from the results; a figure
 preview added to the deck; a deck built from a topic, slide by slide; the prompt
@@ -93,6 +107,8 @@ generate a report and to quality check its own work.
 
 ## Part 5: Guardrails
 
+![Part 5: Guardrails](cards/card_05_guardrails.png)
+
 _Screen: the assistant's data tool call expanded to show the results it read; a
 report edit proposed as a diff; the delete confirmation; version history with
 the AI's edits._
@@ -105,8 +121,14 @@ first, and you can accept or reject them.
 
 ## Part 6: Automation
 
+![Part 6: Automation](cards/card_06_automation.png)
+
 _Screen: the scheduled DHIS2 import settings, then the schematic (future
 version), then the end card._
+
+_Video: [schematic_v2.mp4](schematic_v2.mp4) (future)_
+
+![Schematic, future](schematic_v2.png)
 
 Finally, you can set the platform to import data from DHIS2 automatically, for
 example every month. In the future, we plan to extend this to scheduled
@@ -117,3 +139,5 @@ arrives and send an alert if it detects a disruption.
 We are really excited about these features of the platform. We're continually
 expanding and improving them with the goal of building a robust analysis and
 reporting system that is as useful as possible for country teams. Thank you.
+
+![End card](cards/card_07_end.png)
