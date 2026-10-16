@@ -533,10 +533,10 @@ in the deck's order (the slide after the last deleted one, else the one before
 the first, else none), since the server closes the deleted slide's room with a
 fatal error that must never reach a mounted editor, and sends the request only
 once the editor has moved; a refused flush cancels the delete with "Delete
-cancelled." and sends nothing. The copilot's `editing_slide` view carries the
-deck's context too (`EditingSlideContext` extends the deck's), so every deck
-tool is available while a slide is open, and the deck's view state is what the
-editor returns to between slides.
+cancelled." and sends nothing. The copilot's `editing_slide` view is declared
+over the deck's own context object (`EditingSlideDeckContext`, which the editor
+passes to `setView` unchanged), so every slide tool is available while a slide
+is open, and the deck's view state is what the editor returns to between slides.
 
 **A slide switch must not move the header (2026-09-24).** The deck's header
 shows three things that belong to the OPEN SLIDE's editor and reach it by

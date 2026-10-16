@@ -609,20 +609,20 @@ refuses a slide another collaborator has open (`assertSlidesNotBusy`), so a read
 is never refused; it also refuses when the open slide the read saw is no longer
 open (the user switched slides) and when a slide read as stored has since been
 opened, so the open slide is only ever written through its draft. No handler
-reads `getOpenSlide()` for itself. `get_deck` prints the outline through
-`getDeckSummaryForAI`, the open slide's line from its draft and marked "(open)".
-`update_slide` changes a slide in place through a per-type union that must match
-the slide's type (a cover's or a section's fields; a content slide's header, and
-either `blockUpdates` or `layoutChange`, whose layout-spec resolution names the
-blocks it removes), `update_figure` tweaks one figure's config, and
-`replace_slide` rebuilds a slide or changes its type. The structure writes
-(`create_slide`, `duplicate_slides`, `move_slides`) go through the product
-routes and never open a slide: the deck's own rule (the first slide when none is
-open) is the only thing that moves the editor on the AI's behalf.
-`delete_slides` commits through the deck's `deleteSlides` (S12), the rail's own
-sequence, so a deleted open slide hands the editor to its neighbour before the
-request. The report's writes go through the live view context. The Figure editor
-group
+routes a slide by `getOpenSlide()` itself; `get_deck` reads it only to hand the
+open slide to `getDeckSummaryForAI`, which prints the outline with the open
+slide's line from its draft, marked "(open)". `update_slide` changes a slide in
+place through a per-type union that must match the slide's type (a cover's or a
+section's fields; a content slide's header, and either `blockUpdates` or
+`layoutChange`, whose layout-spec resolution names the blocks it removes),
+`update_figure` tweaks one figure's config, and `replace_slide` rebuilds a slide
+or changes its type. The structure writes (`create_slide`, `duplicate_slides`,
+`move_slides`) go through the product routes and never open a slide: the deck's
+own rule (the first slide when none is open) is the only thing that moves the
+editor on the AI's behalf. `delete_slides` commits through the deck's
+`deleteSlides` (S12), the rail's own sequence, so a deleted open slide hands the
+editor to its neighbour before the request. The report's writes go through the
+live view context. The Figure editor group
 ([figure_editor.ts](client/src/components/products/copilot/ai_tools/tools/figure_editor.ts),
 in the inner set, admitted in the three figure views): `get_figure_editor`
 formats the draft with `formatFigureConfigForAI`, and `update_figure_editor`
