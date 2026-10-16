@@ -40,11 +40,10 @@ on 2026-10-15 for the rows added then. Nothing was run in the app.
 
 ## Quick fixes
 
-Q1 to Q8 are under "Already done".
+Q1 to Q9 are under "Already done".
 
 | Id  | Issue                                                                                                                                                                                                                                 | Raised by                            | State in code                                                                                                                                                                                     |
 | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Q9  | The facility id default picks `id_fac_txt` when it is blank (Madagascar R1), so every row drops                                                                                                                                       | Angelica, 2026-10-07                 | Done. The HFA data and weights wizards default the facility id to the first of `id_fac_txt`, `id_fac` that holds a value (`HFA_CORE_FACILITY_ID_COLUMNS`)                                         |
 | Q10 | "Apply to all time points" in the indicator workbook import writes the code to one time point only, and fails with "Select at least one time point" when the workbook's column label ("Round 1" in the default file) matches no round | Viviane, 2026-10-15                  | `effectiveMapping` returns `[mapping[0]]` in "all" mode (`client/src/components/data/hfa/indicators/xlsx_upload_form.tsx:481-489`). Expand it to every platform time point                        |
 | Q11 | Summary indices such as `rowMeans(cbind(...), na.rm = TRUE)` show as errors                                                                                                                                                           | Viviane, 2026-10-15                  | `cbind` is not in `R_COMMON_FUNCTIONS` (`lib/hfa_r_code_analysis.ts:76`), and the tokenizer reads the named argument `na.rm` as a variable (`:282-290`)                                           |
 | Q12 | Messages in English in the French UI: indicator code errors and warnings, the "yes please delete" confirmation, the Explore page legend                                                                                               | Viviane, 2026-10-15; Tim, 2026-10-06 | Hard-coded English at `client/src/components/data/hfa/indicators/_shared/r_code_validator.ts:52` and `:143`; the phrase is compared at `xlsx_upload_form.tsx:492`. The Explore legend not checked |
@@ -95,17 +94,16 @@ Small code changes that need an answer first.
 
 ## Large, or needs a design decision
 
-| Id | Issue                                                                                   | Raised by                                                        | State in code                                                                                                                                                                                                                                                                                                           |
-| -- | --------------------------------------------------------------------------------------- | ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| L1 | The same file is uploaded twice, once for facilities and once for data                  | Safia, 2026-09-16; Tim, 2026-05-19                               | Done. The HFA data import maps the facility columns from the kept rows, shows every change before launch and writes the approved facilities with the data. The structure import is HMIS-only, and the weights import skips facilities the registry lacks (SYSTEM_05 "HFA registry writes", SYSTEM_06 "HFA import runs") |
-| L2 | Strata, confidence intervals, margins of error, significance tests, low-precision flags | Safia, 2025-09; Viviane, 2026-06; Tim, 2026-09-19 and 2026-10-04 | The weights import stores an optional stratum per facility and round. Nothing uses it: m010 computes weighted point estimates only, with no variance                                                                                                                                                                    |
-| L3 | Reports in Russian for Tajikistan                                                       | Ashley, 2026-09-11                                               | Languages are en, fr and pt                                                                                                                                                                                                                                                                                             |
-| L4 | Questionnaires that are not XLSForms: Word files, the Ipsos Excel format                | Ashley, Viviane and Safia, 2026-08 and 2026-09                   | The app requires `survey` and `choices` sheets. The converter is outside this repo                                                                                                                                                                                                                                      |
-| L5 | Carry annual items forward or backward across rounds, with a note                       | Safia, 2026-05-21; Viviane (sheet)                               | m010 carries a round with no values forward or backward (W4). Whether figures show a note: not checked                                                                                                                                                                                                                  |
-| L6 | Sample distribution table (facilities by type, region)                                  | Safia, 2025-09; Tim, 2026-10-04                                  | Not present                                                                                                                                                                                                                                                                                                             |
-| L7 | Immunization readiness module. Analysis of open-ended answers                           | Viviane and Safia, 2025                                          | Not present                                                                                                                                                                                                                                                                                                             |
-| L8 | Link HFA and HMIS facilities                                                            | Meghan (sheet, Medium)                                           | The two facility registries are independent by design (SYSTEM_05)                                                                                                                                                                                                                                                       |
-| L9 | Dotted-line, stacked bar and gauge charts                                               | Viviane (sheet, Medium)                                          | Not checked                                                                                                                                                                                                                                                                                                             |
+| Id | Issue                                                                                   | Raised by                                                        | State in code                                                                                                                                        |
+| -- | --------------------------------------------------------------------------------------- | ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| L2 | Strata, confidence intervals, margins of error, significance tests, low-precision flags | Safia, 2025-09; Viviane, 2026-06; Tim, 2026-09-19 and 2026-10-04 | The weights import stores an optional stratum per facility and round. Nothing uses it: m010 computes weighted point estimates only, with no variance |
+| L3 | Reports in Russian for Tajikistan                                                       | Ashley, 2026-09-11                                               | Languages are en, fr and pt                                                                                                                          |
+| L4 | Questionnaires that are not XLSForms: Word files, the Ipsos Excel format                | Ashley, Viviane and Safia, 2026-08 and 2026-09                   | The app requires `survey` and `choices` sheets. The converter is outside this repo                                                                   |
+| L5 | Carry annual items forward or backward across rounds, with a note                       | Safia, 2026-05-21; Viviane (sheet)                               | m010 carries a round with no values forward or backward (W4). Whether figures show a note: not checked                                               |
+| L6 | Sample distribution table (facilities by type, region)                                  | Safia, 2025-09; Tim, 2026-10-04                                  | Not present                                                                                                                                          |
+| L7 | Immunization readiness module. Analysis of open-ended answers                           | Viviane and Safia, 2025                                          | Not present                                                                                                                                          |
+| L8 | Link HFA and HMIS facilities                                                            | Meghan (sheet, Medium)                                           | The two facility registries are independent by design (SYSTEM_05)                                                                                    |
+| L9 | Dotted-line, stacked bar and gauge charts                                               | Viviane (sheet, Medium)                                          | Not checked                                                                                                                                          |
 
 ### Inputs to the L1 rework
 
@@ -207,10 +205,13 @@ Verified in code or commits:
 - Consent row filter at data import, and first, last or per-facility choice of
   duplicate row.
 - XLSForm optional at facility import, with codes resolved to labels. This
-  covers numeric facility types when the form is supplied.
+  covers numeric facility types when the form is supplied. Superseded on
+  2026-10-16 (`cddd0a649`): the facility import is HMIS-only and takes no
+  XLSForm; the HFA data import resolves the codes (L1).
 - "Replace all" facility import (2026-09-10, `12c28544b`), which solved the
   Sierra Leone duplicate facilities.
-- Facility-type "Other" recoding step at facility import.
+- Facility-type "Other" recoding step at facility import. For HFA facilities,
+  since 2026-10-15 the changes step of the data wizard (L1).
 - Variant groups, taken to be "extra category for some indicators".
 - Service categories as their own field, several per indicator.
 - Roll-up column ("All facilities") with start or end position. This covers
@@ -231,7 +232,8 @@ Verified in code or commits:
   a searchable `SelectSearch` (2026-10-01, `6a245e03f`).
 - Q6: the facility id picker pre-selects `id_fac_txt` and the weight picker
   pre-selects `wgt` when the file has those columns (2026-10-01, `0b5e216cb`).
-  The other core columns are under "Inputs to the L1 rework".
+  The facility id default was superseded on 2026-10-15 by Q9; the other core
+  columns are under "Inputs to the L1 rework".
 - Q4: a boolean module parameter is a Yes/No select labelled with the
   parameter's description, in every module's settings (2026-10-01, `426dc5f17`).
 - Q5: a held HFA data import lists up to 10 of the facility ids it could not
@@ -245,6 +247,15 @@ Verified in code or commits:
   case, stops with both names when two columns match one question, and the
   staging summary lists up to 10 of the unmatched columns and of the questions
   with no column (2026-10-07, `180e72bcc`).
+- Q9: the HFA data and weights wizards default the facility id to the first of
+  `id_fac_txt`, `id_fac` that holds a value (`HFA_CORE_FACILITY_ID_COLUMNS`), so
+  Madagascar R1's blank `id_fac_txt` no longer drops every row (2026-10-15,
+  `30de5caa8` for the weights wizard, `653a561a1` for the data wizard).
+- L1: the HFA data import maps the facility columns from the kept rows, shows
+  every change before launch and writes the approved facilities with the data;
+  the structure import is HMIS-only; the weights import skips facilities the
+  registry lacks (2026-10-15 to 2026-10-16, last commit `cddd0a649`; SYSTEM_05
+  "HFA registry writes", SYSTEM_06 "HFA import runs").
 
 From Tim's emails only, not re-verified:
 
