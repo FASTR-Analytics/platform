@@ -719,22 +719,22 @@ into its inputs plus the dataset version stamps the manifest records
   consuming panther's `_100_csv`/`_232_csv` (panther's modules are whole-string
   today. Adoption would mean adding streaming there first).
 - **The Indicators rows are offered to view-only users, whose pages then fail.**
-  Neither Indicators row is gated (`data/data.tsx:262-277`, 392-407) while the
-  tab admits `can_view_data` (`instance/instance.tsx:109-113`), and both pages'
+  Neither Indicators row is gated (`data/data.tsx:306-322`, 439-455) while the
+  tab admits `can_view_data` (`instance/instance.tsx:113-117`), and both pages'
   main reads require `can_configure_data`: `getIndicators`
-  (`server/routes/instance/indicators.ts:66-67`) and all 39 routes in
-  `server/routes/instance/hfa_indicators.ts` (`getHfaIndicators` at 506-508).
-  Push both rows only when `canConfigureData()` (`data.tsx:53-55`), the
-  predicate the DHIS2 row uses (237).
+  (`server/routes/instance/indicators.ts:66-67`) and all 40 routes in
+  `server/routes/instance/hfa_indicators.ts` (`getHfaIndicators` at 508-509).
+  Push both rows only when `canConfigureData()` (`data.tsx:82-84`), the
+  predicate the DHIS2 row uses (281).
 - **A user with `can_configure_data` but not `can_view_data` is offered five
   rows that show only an error.** Facilities (HMIS and HFA,
-  `data/data.tsx:135-169`), HMIS Data (278-283), Sampling weights (357-391), HFA
-  Data (408-413) and Equity data (419-430) open pages whose reads require
-  `can_view_data` (`server/routes/instance/structure.ts:80-81`, 128-129;
-  `server/routes/instance/datasets.ts:84-85`, 95-96, 549-550;
+  `data/data.tsx:177-212`), HMIS Data (323-329), Sampling weights (404-438), HFA
+  Data (456-461) and Equity data (468-477) open pages whose reads require
+  `can_view_data` (`server/routes/instance/structure.ts:87-88`, 135-136,
+  193-194; `server/routes/instance/datasets.ts:82-83`, 92-93, 557-558;
   `server/routes/instance/iceh.ts:26-27`) and whose write controls are
-  admin-only (`data/facilities/facilities.tsx:199`,
-  `data/hmis/dataset/dataset.tsx:293`, `data/hfa/hfa_weights.tsx:104`,
+  admin-only (`data/facilities/facilities.tsx:204`,
+  `data/hmis/dataset/dataset.tsx:292`, `data/hfa/hfa_weights.tsx:105`,
   `data/hfa/dataset/dataset.tsx:67`, `data/iceh/dataset/dataset.tsx:81`). Push
   those rows only when `instanceState.currentUserIsGlobalAdmin` or
   `instanceState.currentUserPermissions.can_view_data` holds. Population stays:
@@ -742,7 +742,7 @@ into its inputs plus the dataset version stamps the manifest records
   (`data/hmis/population/manager.tsx:32-34`, 93) and only its grid read needs
   `can_view_data` (`server/routes/instance/population.ts:39-40`). The ICEH
   section is then left with no row for such a user and keeps its heading, which
-  the Data tour targets (`onboarding/tours.ts:1051`).
+  the Data tour targets (`client/src/onboarding/tours.ts:1453-1454`).
 - **HMIS Data offers DHIS2 re-imports to users who cannot import.** "Retry
   failed pairs" (`data/hmis/dataset/ledger_table.tsx:189-204`) and the ledger
   detail's "Re-import this indicator"
