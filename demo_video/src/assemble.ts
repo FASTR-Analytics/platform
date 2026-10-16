@@ -1,22 +1,31 @@
-// Builds demo_video/rough_cut.mp4 from cut_list.json: every cut is encoded to
+// Builds demo_video/demo_video_16Oct2026.mp4 from cut_list.json: every cut is encoded to
 // an exact frame count, the last cut of a section is held to its narration
 // clip, sections and the end card are concatenated, and the narration plus a
 // silent tail are muxed in. Run from the repo root:
 //   deno run --allow-read --allow-write --allow-run demo_video/src/assemble.ts
+import { z } from "zod";
 
-type Cut = {
-  source: string;
-  in?: number;
-  duration: number;
-  speed?: number;
-  crop?: string;
-};
-type Section = { audio: string; cuts: Cut[] };
-type CutList = { shotCrop: string; sections: Section[]; end: Cut };
+const CutSchema = z.object({
+  source: z.string(),
+  in: z.number().nonnegative().optional(),
+  duration: z.number().positive(),
+  speed: z.number().positive().optional(),
+  crop: z.string().optional(),
+});
+const CutListSchema = z.object({
+  shotCrop: z.string(),
+  sections: z.array(
+    z.object({ audio: z.string(), cuts: z.array(CutSchema).nonempty() }),
+  ),
+  end: CutSchema,
+});
+type Cut = z.infer<typeof CutSchema>;
 
 const FPS = 30;
+const WIDTH = 1920;
+const HEIGHT = 1204;
 const ROOT = "demo_video";
-const OUT = `${ROOT}/rough_cut.mp4`;
+const OUT = `${ROOT}/demo_video_16Oct2026.mp4`;
 const END_SILENCE_PAD = 0.05;
 
 async function run(args: string[]): Promise<string> {
@@ -26,20 +35,40 @@ async function run(args: string[]): Promise<string> {
     stderr: "piped",
   }).output();
   if (code !== 0) {
-    throw new Error(
-      `${args.join(" ")}\n${new TextDecoder().decode(stderr)}`,
-    );
+    throw new Error(`${args.join(" ")}\n${new TextDecoder().decode(stderr)}`);
   }
   return new TextDecoder().decode(stdout);
 }
 
-async function probeDuration(path: string): Promise<number> {
+const durations = new Map<string, Promise<number>>();
+function probeDuration(path: string): Promise<number> {
+  let d = durations.get(path);
+  if (!d) {
+    d = run([
+      "ffprobe",
+      "-v",
+      "error",
+      "-show_entries",
+      "format=duration",
+      "-of",
+      "csv=p=0",
+      path,
+    ]).then((out) => Number(out.trim()));
+    durations.set(path, d);
+  }
+  return d;
+}
+
+async function probeFrames(path: string): Promise<number> {
   const out = await run([
     "ffprobe",
     "-v",
     "error",
+    "-select_streams",
+    "v:0",
+    "-count_packets",
     "-show_entries",
-    "format=duration",
+    "stream=nb_read_packets",
     "-of",
     "csv=p=0",
     path,
@@ -57,36 +86,40 @@ function videoFilter(cut: Cut, crop: string | undefined): string {
   if (speed !== 1) parts.push(`setpts=PTS/${speed}`);
   parts.push(
     `fps=${FPS}`,
-    "scale=1920:1080:force_original_aspect_ratio=decrease:flags=lanczos",
-    "pad=1920:1080:(ow-iw)/2:(oh-ih)/2",
+    `scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=decrease:flags=lanczos`,
+    `pad=${WIDTH}:${HEIGHT}:(ow-iw)/2:(oh-ih)/2`,
     "tpad=stop_mode=clone:stop=-1",
     "format=yuv420p",
   );
   return parts.join(",");
 }
 
+// A cut that reads past its source is an error, except the last cut of a
+// section, which is held on its final frame by design.
 async function encodeCut(
   cut: Cut,
   frames: number,
   crop: string | undefined,
+  held: boolean,
   out: string,
 ): Promise<void> {
   const src = `${ROOT}/${cut.source}`;
   const speed = cut.speed ?? 1;
   const span = (frames / FPS) * speed;
-  const input = isStill(cut.source)
-    ? ["-loop", "1", "-framerate", String(FPS), "-i", src]
-    : ["-ss", String(cut.in ?? 0), "-t", String(span + 1), "-i", src];
+  const start = cut.in ?? 0;
   if (!isStill(cut.source)) {
-    const available = await probeDuration(src) - (cut.in ?? 0);
+    const available = await probeDuration(src) - start;
     if (available + 0.05 < span) {
-      console.warn(
-        `  hold: ${cut.source} has ${available.toFixed(1)} s after ${
-          cut.in ?? 0
-        } s, cut needs ${span.toFixed(1)} s`,
-      );
+      const msg = `${cut.source} has ${
+        available.toFixed(1)
+      } s after ${start} s, cut needs ${span.toFixed(1)} s`;
+      if (!held) throw new Error(msg);
+      console.warn(`  hold: ${msg}`);
     }
   }
+  const input = isStill(cut.source)
+    ? ["-loop", "1", "-framerate", String(FPS), "-i", src]
+    : ["-ss", String(start), "-t", String(span + 1), "-i", src];
   await run([
     "ffmpeg",
     "-y",
@@ -108,11 +141,15 @@ async function encodeCut(
     String(FPS),
     out,
   ]);
+  const got = await probeFrames(out);
+  if (got !== frames) {
+    throw new Error(`${cut.source}: encoded ${got} frames, expected ${frames}`);
+  }
 }
 
 async function main(): Promise<void> {
-  const list: CutList = JSON.parse(
-    await Deno.readTextFile(`${ROOT}/src/cut_list.json`),
+  const list = CutListSchema.parse(
+    JSON.parse(await Deno.readTextFile(`${ROOT}/src/cut_list.json`)),
   );
   const work = await Deno.makeTempDir({ prefix: "rough_cut_" });
   const parts: string[] = [];
@@ -124,7 +161,8 @@ async function main(): Promise<void> {
   for (const [s, section] of list.sections.entries()) {
     const clipLength = await probeDuration(`${ROOT}/${section.audio}`);
     audioTotal += clipLength;
-    const sectionFrames = toFrames(clipLength);
+    // Section boundaries follow the cumulative audio, so rounding never drifts.
+    const sectionFrames = toFrames(audioTotal) - videoFrames;
     const planned = section.cuts.reduce((n, c) => n + toFrames(c.duration), 0);
     if (planned > sectionFrames) {
       throw new Error(
@@ -148,7 +186,7 @@ async function main(): Promise<void> {
           cut.speed ?? 1
         } -> ${frames} frames`,
       );
-      await encodeCut(cut, frames, cropFor(cut), out);
+      await encodeCut(cut, frames, cropFor(cut), last, out);
       parts.push(out);
       used += frames;
     }
@@ -156,7 +194,7 @@ async function main(): Promise<void> {
   }
   const endFrames = toFrames(list.end.duration);
   const endOut = `${work}/end.mp4`;
-  await encodeCut(list.end, endFrames, cropFor(list.end), endOut);
+  await encodeCut(list.end, endFrames, cropFor(list.end), false, endOut);
   parts.push(endOut);
   videoFrames += endFrames;
 
@@ -181,6 +219,10 @@ async function main(): Promise<void> {
     "copy",
     video,
   ]);
+  const videoGot = await probeFrames(video);
+  if (videoGot !== videoFrames) {
+    throw new Error(`concat: ${videoGot} frames, expected ${videoFrames}`);
+  }
 
   const audioInputs = list.sections.flatMap((
     s,

@@ -39,7 +39,7 @@ html,
 body {
   margin: 0;
   width: 1920px;
-  height: 1080px;
+  height: 1204px;
   overflow: hidden;
   font-family: "Inter", sans-serif;
   color: var(--body);
@@ -47,7 +47,7 @@ body {
 .stage {
   position: relative;
   width: 1920px;
-  height: 1080px;
+  height: 1204px;
   background: var(--field);
   overflow: hidden;
 }
@@ -218,7 +218,7 @@ body {
   left: 0;
   top: 0;
   width: 1920px;
-  height: 1080px;
+  height: 1204px;
   pointer-events: none;
 }
 .arrows path {

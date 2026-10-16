@@ -50,6 +50,16 @@
     [data-a] {
       opacity: 0;
     }
+    /* The layout was drawn on a 1080 px stage; the extra height sits
+       half above and half below it. */
+    .node,
+    .stagebox,
+    .band,
+    .chip,
+    .platform,
+    .arrows {
+      margin-top: 62px;
+    }
     </style>
   </head>
   <body>
@@ -88,8 +98,8 @@
       );
 
     // Each event lands a little before its words in the narration, read at
-    // about 150 words a minute: the today clip from the opening's second
-    // sentence, the future clip from "Finally".
+    // about 150 words a minute. The today clip starts 13 s into the opening,
+    // after the first sentence; the future clip 5 s into Part 6.
     const A = (el, start, dur, kind) =>
       anim(el, V2 ? 0 : start, V2 ? 0.01 : dur, kind);
 
@@ -99,27 +109,27 @@
       ["people", "Household surveys"],
     ];
     sources.forEach(([ic, l], i) =>
-      A(node(140, 372 + i * 120, 380, ic, l), 2.4 + i * 1.0, 0.5)
+      A(node(140, 372 + i * 120, 380, ic, l), 4.5 + i * 1.5, 0.5)
     );
     A(
       add(
         `<div class="platform"><div class="plabel">FASTR Analytics Platform</div></div>`,
       ),
-      5.8,
+      9.0,
       0.5,
     );
-    A(stagebox(680, "Data"), 6.2, 0.5, "pop");
-    A(stagebox(905, "Analysis"), 7.6, 0.5, "pop");
-    A(stagebox(1130, "Results"), 10.6, 0.5, "pop");
-    A(node(1440, 347, 360, "slides", "Slide decks"), 12.4, 0.5);
-    A(node(1440, 467, 360, "report", "Reports"), 12.7, 0.5);
+    A(stagebox(680, "Data"), 9.4, 0.5, "pop");
+    A(stagebox(905, "Analysis"), 11.5, 0.5, "pop");
+    A(stagebox(1130, "Results"), 14.0, 0.5, "pop");
+    A(node(1440, 347, 360, "slides", "Slide decks"), 16.5, 0.5);
+    A(node(1440, 467, 360, "report", "Reports"), 16.8, 0.5);
     A(
       add(
         `<div class="band" style="left:680px;top:600px;width:620px;height:72px">${
           icons.sparkle.replace("<svg", '<svg style="width:36px;height:36px"')
         }AI assistant</div>`,
       ),
-      15.0,
+      21.5,
       0.6,
     );
 
@@ -140,14 +150,14 @@
     sources.forEach((_, i) =>
       addArrow(
         arrow(522, 420 + i * 120, 676, 425 + i * 30, { bend: (i - 1) * -16 }),
-        5.9 + i * 0.1,
+        9.1 + i * 0.1,
         0.6,
       )
     );
-    addArrow(arrow(852, 455, 901, 455), 7.3, 0.3);
-    addArrow(arrow(1077, 455, 1126, 455), 10.3, 0.3);
-    addArrow(arrow(1302, 440, 1436, 395, { bend: -8 }), 12.0, 0.5);
-    addArrow(arrow(1302, 470, 1436, 515, { bend: 8 }), 12.0, 0.5);
+    addArrow(arrow(852, 455, 901, 455), 11.2, 0.3);
+    addArrow(arrow(1077, 455, 1126, 455), 13.7, 0.3);
+    addArrow(arrow(1302, 440, 1436, 395, { bend: -8 }), 16.1, 0.5);
+    addArrow(arrow(1302, 470, 1436, 515, { bend: 8 }), 16.1, 0.5);
 
     if (V2) {
       anim(chip(140, 760, "clock", "Scheduled imports", false), 2.5, 0.5);
@@ -160,7 +170,7 @@
       );
     }
 
-    const DURATION = V2 ? 30 : 24;
+    const DURATION = 30;
     window.setTime = (t) => {
       setTime(t);
       for (const h of heads) {

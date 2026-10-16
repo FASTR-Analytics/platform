@@ -4,8 +4,8 @@ Assemble the platform demo from Tim's narration, the title cards, the two
 schematic clips and Tim's screen recordings of the demo instance, into one mp4
 Tim finishes in Descript.
 
-**Next step: Review 2.** Tim sets this line as each step finishes. Step 3
-deletes the file.
+**Next step: Step 3.** Tim sets this line as each step finishes. Step 3 deletes
+the file.
 
 ## §0 Bindings
 
@@ -224,3 +224,22 @@ overwrites it.
   runs as five cuts at 1x, 8x, 8x, 6x and 1x. `rough_cut.mp4`: 397.10 s (393.15
   s narration plus the end card), 1920x1080, h264, 30 fps, AAC; the frame at
   each section start is its card. Step 2 built.
+- 2026-10-16, Step 2 reviewed: 4 findings, all in `src/assemble.ts`. (1) A cut
+  reading past its source only warned, and ffmpeg exits 0 on an in-point past
+  the end, so the concat would come out short: now it throws unless the cut is a
+  section's held last cut, and every encoded part is frame-counted. (2) The cut
+  list was parsed as `any`: now a zod schema. (3) Per-section frame rounding
+  drifted against the concatenated audio: section boundaries now follow the
+  cumulative audio. (4) `ffprobe` ran once per cut: memoised.
+- 2026-10-16, Step 2 fixed, and recut at Tim's direction, in one session. The
+  frame is 1920x1204: the shots are 3456x2167 after the menu-bar strip, and
+  1920x1080 cropped their bottom; the cards and schematics were re-rendered at
+  1204 (kit.css, schematic.html). The today schematic runs 30 s, not 24: it
+  starts 13 s into the opening and ended 7 s before the clip. `clip-5` and
+  `clip-7` were re-recorded by Tim as `clip5_revised.wav` (96.3 s) and
+  `clip7_revised2.wav` (47.9 s, ends on "country teams."); the §1 table is
+  superseded. The AI build is five cuts (prompt, retrievals at 16x, the cover
+  filling, the thumbnails at 11x, the slide walk-through at 0.6x). The output is
+  `demo_video_16Oct2026.mp4`: 375.43 s, 1920x1204, h264, 30 fps, AAC, the frame
+  at each section start its card. `clip7only.wav` at the repo root is Tim's and
+  untracked.

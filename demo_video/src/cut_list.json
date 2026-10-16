@@ -1,114 +1,305 @@
 {
-  "shotCrop": "3456:1944:0:67",
+  "shotCrop": "3456:2167:0:67",
   "sections": [
     {
       "audio": "audio/clip-1.wav",
       "cuts": [
-        { "source": "cards/card_00_title.png", "duration": 3 },
-        { "source": "shots/explore_hmis.mov", "in": 5.5, "duration": 4 },
-        { "source": "shots/closing_present.mov", "in": 6.0, "duration": 3 },
-        { "source": "shots/report.mov", "in": 4.0, "duration": 3 },
-        { "source": "schematic_v1.mp4", "duration": 24 }
+        {
+          "source": "cards/card_00_title.png",
+          "duration": 3
+        },
+        {
+          "source": "shots/explore_hmis.mov",
+          "in": 5.0,
+          "duration": 4
+        },
+        {
+          "source": "shots/closing_present.mov",
+          "in": 6.5,
+          "duration": 3
+        },
+        {
+          "source": "shots/report.mov",
+          "in": 5.0,
+          "duration": 3
+        },
+        {
+          "source": "schematic_v1.mp4",
+          "duration": 30
+        }
       ]
     },
     {
       "audio": "audio/clip-2.wav",
       "cuts": [
-        { "source": "cards/card_01_data.png", "duration": 3 },
-        { "source": "shots/setup.mov", "in": 6.0, "duration": 4 },
-        { "source": "shots/add_user.mov", "in": 2.0, "duration": 4 },
-        { "source": "shots/sources.mov", "in": 1.5, "duration": 4 },
-        { "source": "shots/dhis2_connection.mov", "in": 2.0, "duration": 5 },
-        { "source": "shots/dhis2_import.mov", "in": 1.5, "duration": 8 },
-        { "source": "shots/dhis2_import.mov", "in": 15.5, "duration": 2 },
-        { "source": "shots/hfa.mov", "in": 1.5, "duration": 5 },
-        { "source": "shots/iceh.mov", "in": 2.5, "duration": 3.5 }
+        {
+          "source": "cards/card_01_data.png",
+          "duration": 3
+        },
+        {
+          "source": "shots/setup.mov",
+          "in": 7.0,
+          "duration": 4
+        },
+        {
+          "source": "shots/add_user.mov",
+          "in": 2.0,
+          "duration": 4
+        },
+        {
+          "source": "shots/sources.mov",
+          "in": 1.5,
+          "duration": 3.5
+        },
+        {
+          "source": "shots/dhis2_connection.mov",
+          "in": 3.0,
+          "duration": 5
+        },
+        {
+          "source": "shots/dhis2_import.mov",
+          "in": 1.0,
+          "duration": 6
+        },
+        {
+          "source": "shots/dhis2_import.mov",
+          "in": 8.0,
+          "duration": 4.5
+        },
+        {
+          "source": "shots/hfa.mov",
+          "in": 1.5,
+          "duration": 5
+        },
+        {
+          "source": "shots/iceh.mov",
+          "in": 2.2,
+          "duration": 3.5
+        }
       ]
     },
     {
       "audio": "audio/clip-3.wav",
       "cuts": [
-        { "source": "cards/card_02_analysis.png", "duration": 3 },
-        { "source": "shots/results_wizard.mov", "in": 1.0, "duration": 19 },
-        { "source": "shots/results_wizard.mov", "in": 19.6, "duration": 4 },
-        { "source": "shots/package_detail.mov", "in": 1.8, "duration": 6 },
-        { "source": "shots/explore_hmis.mov", "in": 0, "duration": 9.6 },
-        { "source": "shots/explore_dqa_hfa.mov", "in": 1.5, "duration": 7 },
-        { "source": "shots/figure_editor.mov", "in": 2.5, "duration": 5 }
+        {
+          "source": "cards/card_02_analysis.png",
+          "duration": 3
+        },
+        {
+          "source": "shots/results_wizard.mov",
+          "in": 1.5,
+          "duration": 14.5
+        },
+        {
+          "source": "shots/results_wizard.mov",
+          "in": 16.0,
+          "duration": 7.6
+        },
+        {
+          "source": "shots/package_detail.mov",
+          "in": 1.8,
+          "duration": 6
+        },
+        {
+          "source": "shots/explore_hmis.mov",
+          "in": 0,
+          "duration": 9.6
+        },
+        {
+          "source": "shots/explore_dqa_hfa.mov",
+          "in": 2.0,
+          "duration": 7
+        },
+        {
+          "source": "shots/figure_editor.mov",
+          "in": 2.5,
+          "duration": 6
+        }
       ]
     },
     {
       "audio": "audio/clip-4.wav",
       "cuts": [
-        { "source": "cards/card_03_decks_reports.png", "duration": 3 },
-        { "source": "shots/deck_edit_2.mov", "in": 0, "duration": 7 },
-        { "source": "shots/deck_edit_2.mov", "in": 22.5, "duration": 3 },
-        { "source": "shots/deck_edit_2.mov", "in": 34.5, "duration": 4 },
-        { "source": "shots/deck_edit_1.mov", "in": 33.5, "duration": 7 },
-        { "source": "shots/report.mov", "in": 1.8, "duration": 9 },
-        { "source": "shots/update_figures.mov", "in": 2.0, "duration": 6.5 },
-        { "source": "shots/update_figures.mov", "in": 11.0, "duration": 3.5 },
-        { "source": "shots/deck_edit_1.mov", "in": 24.5, "duration": 5.5 },
-        { "source": "shots/history.mov", "in": 1.0, "duration": 5.5 },
-        { "source": "shots/history.mov", "in": 6.5, "duration": 6 }
+        {
+          "source": "cards/card_03_decks_reports.png",
+          "duration": 3
+        },
+        {
+          "source": "shots/deck_edit_2.mov",
+          "in": 0,
+          "duration": 7
+        },
+        {
+          "source": "shots/deck_edit_2.mov",
+          "in": 22.0,
+          "duration": 3
+        },
+        {
+          "source": "shots/deck_edit_2.mov",
+          "in": 34.0,
+          "duration": 7
+        },
+        {
+          "source": "shots/deck_edit_1.mov",
+          "in": 33.0,
+          "duration": 6
+        },
+        {
+          "source": "shots/report.mov",
+          "in": 1.5,
+          "duration": 9.5
+        },
+        {
+          "source": "shots/update_figures.mov",
+          "in": 2.0,
+          "duration": 6.5
+        },
+        {
+          "source": "shots/update_figures.mov",
+          "in": 11.0,
+          "duration": 3.5
+        },
+        {
+          "source": "shots/deck_edit_1.mov",
+          "in": 23.0,
+          "duration": 5.5
+        },
+        {
+          "source": "shots/history.mov",
+          "in": 3.0,
+          "duration": 5.5
+        },
+        {
+          "source": "shots/history.mov",
+          "in": 8.5,
+          "duration": 3.4
+        }
       ]
     },
     {
-      "audio": "audio/clip-5.wav",
+      "audio": "audio/clip5_revised.wav",
       "cuts": [
-        { "source": "cards/card_04_ai_assistant.png", "duration": 3 },
-        { "source": "shots/ai_open.mov", "in": 0, "duration": 6 },
-        { "source": "shots/ai_open.mov", "in": 6.0, "duration": 10.4 },
-        { "source": "shots/ai_question.mov", "in": 0.5, "duration": 6 },
-        { "source": "shots/ai_question.mov", "in": 28.0, "duration": 4 },
-        { "source": "shots/ai_figure.mov", "in": 1.5, "duration": 4 },
-        { "source": "shots/ai_figure.mov", "in": 14.8, "duration": 3 },
-        { "source": "shots/ai_build.mov", "in": 0, "duration": 17 },
+        {
+          "source": "cards/card_04_ai_assistant.png",
+          "duration": 3
+        },
+        {
+          "source": "shots/ai_open.mov",
+          "in": 0,
+          "duration": 6
+        },
+        {
+          "source": "shots/ai_open.mov",
+          "in": 7.0,
+          "duration": 7
+        },
+        {
+          "source": "shots/ai_question.mov",
+          "in": 0.5,
+          "duration": 6
+        },
+        {
+          "source": "shots/ai_question.mov",
+          "in": 31.5,
+          "duration": 4
+        },
+        {
+          "source": "shots/ai_figure.mov",
+          "in": 1.5,
+          "duration": 4
+        },
+        {
+          "source": "shots/ai_figure.mov",
+          "in": 15.3,
+          "duration": 7
+        },
+        {
+          "source": "shots/ai_build.mov",
+          "in": 0,
+          "duration": 3
+        },
         {
           "source": "shots/ai_build.mov",
           "in": 17,
-          "duration": 12,
-          "speed": 8
+          "duration": 6,
+          "speed": 16
         },
         {
           "source": "shots/ai_build.mov",
-          "in": 113,
-          "duration": 7,
-          "speed": 8
+          "in": 144,
+          "duration": 9
         },
         {
           "source": "shots/ai_build.mov",
-          "in": 169,
-          "duration": 10,
-          "speed": 6
+          "in": 153,
+          "duration": 8,
+          "speed": 11
         },
-        { "source": "shots/ai_build.mov", "in": 229, "duration": 16 },
-        { "source": "shots/prompt_library.mov", "in": 0.5, "duration": 16.6 }
+        {
+          "source": "shots/ai_build.mov",
+          "in": 247,
+          "duration": 14.6,
+          "speed": 0.6
+        },
+        {
+          "source": "shots/prompt_library.mov",
+          "in": 0.5,
+          "duration": 16.6
+        }
       ]
     },
     {
       "audio": "audio/clip-6.wav",
       "cuts": [
-        { "source": "cards/card_05_guardrails.png", "duration": 3 },
-        { "source": "shots/ai_question.mov", "in": 9.5, "duration": 10 },
-        { "source": "shots/ai_question.mov", "in": 31.5, "duration": 7 },
-        { "source": "shots/ai_edit_diff.mov", "in": 13.5, "duration": 8 }
+        {
+          "source": "cards/card_05_guardrails.png",
+          "duration": 3
+        },
+        {
+          "source": "shots/ai_question.mov",
+          "in": 9.5,
+          "duration": 10
+        },
+        {
+          "source": "shots/ai_question.mov",
+          "in": 31.5,
+          "duration": 7
+        },
+        {
+          "source": "shots/ai_edit_diff.mov",
+          "in": 13.5,
+          "duration": 8
+        }
       ]
     },
     {
-      "audio": "audio/clip-7.wav",
+      "audio": "audio/clip7_revised2.wav",
       "cuts": [
-        { "source": "cards/card_06_automation.png", "duration": 3 },
-        { "source": "shots/dhis2_import.mov", "in": 4.5, "duration": 4 },
-        { "source": "schematic_v2.mp4", "duration": 30 },
+        {
+          "source": "cards/card_06_automation.png",
+          "duration": 3
+        },
+        {
+          "source": "shots/dhis2_import.mov",
+          "in": 5.8,
+          "duration": 2
+        },
+        {
+          "source": "schematic_v2.mp4",
+          "duration": 30
+        },
         {
           "source": "shots/closing_present.mov",
           "in": 2.6,
-          "duration": 7,
-          "crop": "3456:1944:0:147"
+          "duration": 11.6,
+          "speed": 0.6,
+          "crop": "3456:2087:0:147"
         }
       ]
     }
   ],
-  "end": { "source": "cards/card_07_end.png", "duration": 4 }
+  "end": {
+    "source": "cards/card_07_end.png",
+    "duration": 4
+  }
 }
