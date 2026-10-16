@@ -23,12 +23,13 @@ narration; a file used in more than one part is listed once.
 | File               | Target | What to do                                                                                                                                                                   |
 | ------------------ | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `setup`            | 4 s    | Data page: open the HMIS Configuration row (admin area levels, facility columns)                                                                                             |
-| `add_user`         | 4 s    | Users page with the add-user dialog already open and covering the list; open the permission dropdown                                                                         |
+| `add_user`         | 4 s    | Your own or a dummy user's profile page, never a colleague's (the email shows): tick a few permissions                                                                       |
 | `sources`          | 4 s    | Data page: glide down the HMIS, HFA and ICEH blocks with their Ready status                                                                                                  |
 | `dhis2_connection` | 5 s    | DHIS2 connection row: the credentials form (URL, username, masked password)                                                                                                  |
 | `dhis2_import`     | 16 s   | New DHIS2 import: tick five indicators quickly, Next; on the Time step click Recurring, choose Monthly and First Monday; Next; drag the slider; Cancel                       |
 | `hfa`              | 5 s    | HFA dataset page: time points, 239 indicators, the upload button                                                                                                             |
 | `iceh`             | 4 s    | ICEH equity data page                                                                                                                                                        |
+| `recurring`        | 5 s    | New DHIS2 import already on the Time step: click Recurring, choose Monthly and First Monday                                                                                  |
 | `results_wizard`   | 19 s   | Results: open the wizard within two seconds, tick the three families, Next, tick the modules one by one (dependencies auto-tick), Next, hover Launch, Cancel                 |
 | `package_detail`   | 8 s    | Open the pinned package: its module list, versions, status                                                                                                                   |
 | `explore_hmis`     | 12 s   | Explore HMIS: the table, click Over time, scroll the chart grid, switch indicator or level once                                                                              |
@@ -83,6 +84,7 @@ dhis2_connection
 dhis2_import
 hfa
 iceh
+recurring
 results_wizard
 package_detail
 explore_hmis
