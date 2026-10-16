@@ -70,7 +70,6 @@ const TEMPLATE_ENV: ClientAIToolEnv = {
   ...TEMPLATE_MODULE_ENV,
   getItems: templateThrow,
   getResultsValueInfo: templateThrow,
-  getSlide: templateThrow,
   getReplicantOptions: templateThrow,
   getDimensionLabelConfig: templateThrow,
 };

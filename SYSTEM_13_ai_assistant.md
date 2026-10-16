@@ -86,7 +86,7 @@ produce are **S10/S12**; the query pipeline the data tools call is **S9**.
    and prompt never diverge. The SPA binds one env per inner tool set
    (`createCopilotAIToolEnv(pair)`, cache-backed over the run-keyed package
    routes; `ClientAIToolEnv` adds the module script/logs/settings getters and
-   the product-content getters) and registers outer tools bound per call to the
+   the figure-shaping helpers) and registers outer tools bound per call to the
    pair of the view the call runs in
    ([bind_package_tools.ts](client/src/components/instance/copilot/bind_package_tools.ts),
    panther's `bindAIToolToView`): the inner builder in

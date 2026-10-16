@@ -8,14 +8,12 @@ import type {
   InstalledModuleWithConfigSelections,
   PackageScope,
   RunReplicantOptions,
-  SlideWithMeta,
 } from "lib";
 import { serverActions } from "~/server_actions";
 import {
   _PO_ITEMS_CACHE,
   getResultsValueInfoForPresentationObjectFromCacheOrFetch,
 } from "~/state/products/t2_figure_data";
-import { getSlideFromCacheOrFetch } from "~/state/products/t2_slides";
 import { getReplicantOptionsFromCacheOrFetch } from "~/state/products/t2_replicant_options";
 import { poItemsQueue } from "~/state/_infra/request_queue";
 import { instanceState, resolveScope } from "~/state/instance/t1_store";
@@ -23,9 +21,8 @@ import { instanceState, resolveScope } from "~/state/instance/t1_store";
 // The SPA's injection of the shared AI-tool environment (lib/ai_tools/env.ts):
 // cache-backed getters over the run-keyed package routes (so chat tool calls
 // share cache entries with the interactive UI), plus the SPA-only getters the
-// client tools need: module internals (script, logs, settings), product
-// content (slides) and figure-shaping helpers (replicant options, dimension
-// labels).
+// client tools need: module internals (script, logs, settings) and
+// figure-shaping helpers (replicant options, dimension labels).
 //
 // One env per inner tool set, built for the pair the call's view shows
 // (bind_package_tools.ts): the package tools the chat registers are outer
@@ -49,10 +46,6 @@ export type ModuleInternalsEnv = {
 };
 
 export type ClientAIToolEnv = AIToolEnv & ModuleInternalsEnv & {
-  getSlide: (
-    productId: string,
-    slideId: string,
-  ) => Promise<APIResponseWithData<SlideWithMeta>>;
   getReplicantOptions: (
     metricId: string,
     replicateBy: DisaggregationOption,
@@ -106,8 +99,6 @@ export function createCopilotAIToolEnv(scope: PackageScope): ClientAIToolEnv {
     },
     getResultsValueInfo: (metricId) =>
       getResultsValueInfoForPresentationObjectFromCacheOrFetch(scope, metricId),
-    getSlide: (productId, slideId) =>
-      getSlideFromCacheOrFetch(productId, slideId),
     getReplicantOptions: (metricId, replicateBy, fetchConfig) =>
       getReplicantOptionsFromCacheOrFetch(
         scope,

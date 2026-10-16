@@ -17,7 +17,10 @@ type DeckView = {
 
 // Where a tool read a slide, which is where it writes it back: the open
 // slide through the editor's draft, any other slide as stored, with the
-// version its write is checked against. `slide` is the tool's own copy.
+// version its write is checked against. The open slide's `slide` is the live
+// draft, unwrapped, which a handler reads and never mutates: the nodes its
+// update leaves alone stay the store's own, so the reconcile on write keeps
+// what the user typed into them while the handler awaited.
 export type SlideTarget =
   | { kind: "open"; slideId: string; open: OpenSlide; slide: Slide }
   | { kind: "stored"; slideId: string; slide: Slide; lastUpdated: string };
@@ -34,7 +37,7 @@ export async function readSlideTarget(
       kind: "open",
       slideId,
       open,
-      slide: structuredClone(unwrap(open.getDraft())),
+      slide: unwrap(open.getDraft()),
     };
   }
   const res = await serverActions.getSlide({
