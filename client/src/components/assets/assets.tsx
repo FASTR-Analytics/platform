@@ -23,7 +23,7 @@ import {
 } from "~/components/instance/copilot/mod.ts";
 import {
   AssetSharingForm,
-  PrivateUploadForm,
+  UploadAssetsForm,
   userDisplayName,
 } from "./asset_sharing.tsx";
 
@@ -65,45 +65,43 @@ function formatDate(timestamp: number): string {
 export function InstanceAssets() {
   holdCopilotView();
   copilotViewController.setView("assets");
+  // Uppy carries the transfer and shows its progress; the files and who may
+  // see them are picked in UploadAssetsForm. Privacy rides in each file's TUS
+  // metadata ("public" or "private" plus viewers), so the server applies it
+  // before the file lands.
   let uppy: Uppy | undefined = undefined;
-  // A second instance for private uploads, opened only after the viewers are
-  // chosen. Privacy rides in each file's TUS metadata, set as the file is
-  // added (the modal-open clear would wipe anything set earlier), so the
-  // server applies it before the file lands.
-  let privateUppy: Uppy | undefined = undefined;
-  let privateViewerEmails: string[] = [];
 
   onMount(() => {
-    uppy = createUppyInstance({
-      triggerId: "#select-file-button",
-      maxNumberOfFiles: 0,
-    });
-    privateUppy = createUppyInstance({
-      triggerId: "#private-upload-trigger",
-      maxNumberOfFiles: 0,
-    });
-    privateUppy.on("file-added", (file) => {
-      privateUppy?.setFileMeta(file.id, {
-        fastrVisibility: "private",
-        fastrViewers: privateViewerEmails.join(","),
-      });
-    });
+    uppy = createUppyInstance({ maxNumberOfFiles: 0 });
   });
 
   onCleanup(() => {
     cleanupUppy(uppy);
-    cleanupUppy(privateUppy);
   });
 
-  async function startPrivateUpload() {
+  async function startUpload() {
     const res = await openComponent({
-      element: PrivateUploadForm,
+      element: UploadAssetsForm,
       props: undefined,
     });
-    if (!res || !privateUppy) return;
-    privateViewerEmails = res.viewerEmails;
+    if (!res || !uppy) return;
+    // Opening the progress dialog clears Uppy's files, so it opens first.
     // deno-lint-ignore no-explicit-any
-    (privateUppy.getPlugin("Dashboard") as any)?.openModal();
+    await (uppy.getPlugin("Dashboard") as any)?.openModal();
+    const meta = res.isPrivate
+      ? {
+        fastrVisibility: "private",
+        fastrViewers: res.viewerEmails.join(","),
+      }
+      : { fastrVisibility: "public" };
+    for (const file of res.files) {
+      try {
+        uppy.addFile({ name: file.name, type: file.type, data: file, meta });
+      } catch {
+        // Uppy reports a refused file (a duplicate) in its own dialog.
+      }
+    }
+    void uppy.upload();
   }
 
   async function editSharing(asset: AssetInfo) {
@@ -138,7 +136,7 @@ export function InstanceAssets() {
           isAdmin={instanceState.currentUserIsGlobalAdmin}
           onDelete={attemptDeleteAssetFile}
           onEditSharing={editSharing}
-          onPrivateUpload={startPrivateUpload}
+          onUpload={startUpload}
         />
       </div>
     </FrameTop>
@@ -172,7 +170,7 @@ function AssetTable(p: {
   isAdmin: boolean;
   onDelete: (fileName: string) => void;
   onEditSharing: (asset: AssetInfo) => void;
-  onPrivateUpload: () => void;
+  onUpload: () => void;
 }) {
   const assetsTable = createTableConfig({
     sort: { key: "fileName", direction: "asc" },
@@ -419,14 +417,11 @@ function AssetTable(p: {
         search: true,
         children: (
           <div class="ui-gap-sm flex items-center">
-            <Button outline iconName="eyeOff" onClick={p.onPrivateUpload}>
-              {t3({
-                en: "Upload private",
-                fr: "Téléverser en privé",
-                pt: "Carregar em privado",
-              })}
-            </Button>
-            <Button id="select-file-button" iconName="upload">
+            <Button
+              id="select-file-button"
+              iconName="upload"
+              onClick={p.onUpload}
+            >
               {t3({ en: "Upload", fr: "Téléverser", pt: "Carregar" })}
             </Button>
           </div>

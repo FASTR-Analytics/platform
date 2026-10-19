@@ -136,7 +136,8 @@ in `lib/types/assets.ts`.
   viewers and `ownerIsUser`.
 - **Set at upload.** The TUS `Upload-Metadata` carries `fastrVisibility`
   (`private`/`public`) and `fastrViewers` (comma-joined emails); the assets
-  page's "Upload private" sets them per file. Private rows are written before
+  page's upload dialog sets them on every file (`public` for "Everyone",
+  `private` plus the chosen viewers otherwise). Private rows are written before
   the file is renamed into place, so it is never servable as public. No
   visibility field = keep what the file already has (the wizards' uploaders and
   the report editor's image upload), so a re-upload never widens a private file.
@@ -181,10 +182,13 @@ in `lib/types/assets.ts`.
   with a filterable type column (CSV/Excel/Image/ZIP/Other), size/modified/owner
   columns, a "Who can see it" column, per-row sharing (`AssetSharingForm` in
   `assets/asset_sharing.tsx`), download (root-path `GET`, S1 static serve) and
-  delete, and an "Upload private" button (`PrivateUploadForm` picks the viewers
-  first); the sharing and delete buttons mirror the server's ownership and
-  private-asset rules. The page holds and sets the chat's `assets` view at mount
-  (S13), whose instructions name the page and nothing of its contents.
+  delete, and one Upload button: `UploadAssetsForm` asks who can see the files
+  (Everyone, or only the uploader and the people they choose) above a drop zone,
+  and dropping or choosing files closes it and hands them to the page's one Uppy
+  instance, which opens only to show progress; the sharing and delete buttons
+  mirror the server's ownership and private-asset rules. The page holds and sets
+  the chat's `assets` view at mount (S13), whose instructions name the page and
+  nothing of its contents.
 
 ## Contract
 

@@ -2,11 +2,12 @@ import { type AssetPrivacy, type OtherUser, t3, TC } from "lib";
 import {
   type AlertComponentProps,
   createFormAction,
+  Icon,
   ModalContainer,
   MultiSelectSearch,
   RadioGroup,
 } from "panther";
-import { createMemo, createSignal, Show } from "solid-js";
+import { createSignal, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 
@@ -57,55 +58,10 @@ const PRIVATE_EXPLAINER = {
     "Um ficheiro privado fica oculto para todos exceto para si e para as pessoas que escolher, incluindo os administradores. Os relatórios, apresentações ou importações que o utilizem não funcionarão para mais ninguém.",
 };
 
-// Before a private upload: who will be able to see the files. Returns the
-// chosen viewers; the caller attaches them to the upload's metadata.
-export function PrivateUploadForm(
-  p: AlertComponentProps<void, { viewerEmails: string[] }>,
-) {
-  const [viewers, setViewers] = createSignal<string[]>([]);
-  return (
-    <ModalContainer
-      title={t3({
-        en: "Upload private files",
-        fr: "Téléverser des fichiers privés",
-        pt: "Carregar ficheiros privados",
-      })}
-      width="md"
-      onCancel={() => p.close(undefined)}
-      actions={[{
-        label: t3({
-          en: "Choose files",
-          fr: "Choisir les fichiers",
-          pt: "Escolher ficheiros",
-        }),
-        onClick: () => p.close({ viewerEmails: viewers() }),
-      }]}
-    >
-      <div class="ui-spy">
-        <p class="text-base-content-muted text-sm">{t3(PRIVATE_EXPLAINER)}</p>
-        <ViewerPicker values={viewers()} onChange={setViewers} />
-      </div>
-    </ModalContainer>
-  );
-}
-
 type Visibility = "everyone" | "private";
 
-// Change who can see an existing file (its owner only; the server enforces).
-export function AssetSharingForm(
-  p: AlertComponentProps<
-    { fileName: string; privacy: AssetPrivacy | null },
-    undefined
-  >,
-) {
-  const [visibility, setVisibility] = createSignal<Visibility>(
-    p.privacy ? "private" : "everyone",
-  );
-  const [viewers, setViewers] = createSignal<string[]>(
-    p.privacy?.viewerEmails ?? [],
-  );
-
-  const options = createMemo(() => [
+function visibilityOptions() {
+  return [
     {
       value: "everyone" as const,
       label: t3({
@@ -122,7 +78,121 @@ export function AssetSharingForm(
         pt: "Apenas eu e as pessoas que escolher",
       }),
     },
-  ]);
+  ];
+}
+
+export type AssetUploadChoice = {
+  files: File[];
+  isPrivate: boolean;
+  viewerEmails: string[];
+};
+
+// The one way to upload assets: who will see the files, then a drop zone at
+// the bottom. Dropping or choosing files closes the dialog with them; the
+// caller hands them to the upload, privacy riding in each file's metadata.
+export function UploadAssetsForm(
+  p: AlertComponentProps<void, AssetUploadChoice>,
+) {
+  const [visibility, setVisibility] = createSignal<Visibility>("everyone");
+  const [viewers, setViewers] = createSignal<string[]>([]);
+  const [dragging, setDragging] = createSignal(false);
+  let input: HTMLInputElement | undefined;
+
+  function take(list: FileList | null | undefined) {
+    const files = list ? [...list] : [];
+    if (files.length === 0) return;
+    const isPrivate = visibility() === "private";
+    p.close({ files, isPrivate, viewerEmails: isPrivate ? viewers() : [] });
+  }
+
+  return (
+    <ModalContainer
+      title={t3({
+        en: "Upload files",
+        fr: "Téléverser des fichiers",
+        pt: "Carregar ficheiros",
+      })}
+      width="md"
+      onCancel={() => p.close(undefined)}
+    >
+      <div class="ui-spy">
+        <RadioGroup
+          label={t3({
+            en: "Who can see these files",
+            fr: "Qui peut voir ces fichiers",
+            pt: "Quem pode ver estes ficheiros",
+          })}
+          value={visibility()}
+          options={visibilityOptions()}
+          onChange={setVisibility}
+        />
+        <Show when={visibility() === "private"}>
+          <p class="text-base-content-muted text-sm">
+            {t3(PRIVATE_EXPLAINER)}
+          </p>
+          <ViewerPicker values={viewers()} onChange={setViewers} />
+        </Show>
+        <div
+          role="button"
+          tabindex="0"
+          class="ui-pad-lg ui-focusable flex cursor-pointer flex-col items-center gap-2 rounded border-2 border-dashed text-center transition-colors"
+          classList={{
+            "border-primary bg-primary-subtle": dragging(),
+            "hover:border-primary": !dragging(),
+          }}
+          onClick={() => input?.click()}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              input?.click();
+            }
+          }}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setDragging(true);
+          }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setDragging(false);
+            take(e.dataTransfer?.files);
+          }}
+        >
+          <Icon iconName="upload" />
+          <div>
+            {t3({
+              en: "Drag and drop files here, or click to choose",
+              fr:
+                "Glissez-déposez des fichiers ici, ou cliquez pour les choisir",
+              pt: "Arraste e largue ficheiros aqui, ou clique para escolher",
+            })}
+          </div>
+          <input
+            ref={input}
+            type="file"
+            multiple
+            class="hidden"
+            onChange={(e) => take(e.currentTarget.files)}
+          />
+        </div>
+      </div>
+    </ModalContainer>
+  );
+}
+
+// Change who can see an existing file (its owner only; the server enforces).
+export function AssetSharingForm(
+  p: AlertComponentProps<
+    { fileName: string; privacy: AssetPrivacy | null },
+    undefined
+  >,
+) {
+  const [visibility, setVisibility] = createSignal<Visibility>(
+    p.privacy ? "private" : "everyone",
+  );
+  const [viewers, setViewers] = createSignal<string[]>(
+    p.privacy?.viewerEmails ?? [],
+  );
 
   const save = createFormAction(
     async () =>
@@ -153,7 +223,7 @@ export function AssetSharingForm(
         <div class="font-mono text-sm">{p.fileName}</div>
         <RadioGroup
           value={visibility()}
-          options={options()}
+          options={visibilityOptions()}
           onChange={setVisibility}
         />
         <Show when={visibility() === "private"}>
