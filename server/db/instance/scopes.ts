@@ -4,6 +4,7 @@ import {
   ALL_DATA_SCOPE_ID,
   type APIResponseNoData,
   type APIResponseWithData,
+  parseJsonOrUndefined,
   parseScopeDefinition,
   type Scope,
   type ScopeDefinition,
@@ -155,7 +156,15 @@ function rowToScope(row: DBScope): Scope {
     definition,
     definitionHash: scopeDefinitionHash(definition),
     lastUpdated: row.last_updated,
+    migratedFrom: migratedFromOf(row.migrated_from),
   };
+}
+
+function migratedFromOf(raw: string | null): string[] | null {
+  const parsed = parseJsonOrUndefined<unknown>(raw);
+  return Array.isArray(parsed)
+    ? parsed.filter((label): label is string => typeof label === "string")
+    : null;
 }
 
 // Labels are how a product picks a scope, so two scopes never share one.

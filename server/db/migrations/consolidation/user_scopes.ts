@@ -16,8 +16,10 @@
 // setProductScope would move them, so their figures keep the project's limits.
 // A non-admin whose every project with data was limited becomes restricted
 // (users.all_scopes = FALSE) and holds those projects' scopes; anyone on an
-// unlimited project stays unrestricted. A scope 204 seeded (no creator) that
-// ends up with no product and no user is deleted. The staging tables are
+// unlimited project stays unrestricted. Every scope the update made (no
+// creator: created here or seeded by 204) records the projects it came from in
+// scopes.migrated_from, which the client shows as its "Migrated" badge. A
+// scope 204 seeded that ends up with no product and no user is deleted. The staging tables are
 // dropped at the end.
 //
 // =============================================================================
@@ -145,6 +147,20 @@ export async function applyLegacyUserScopes(tx: Sql): Promise<void> {
         created.push(base);
       }
       scopeOfProject.set(window.projectId, scopeId);
+    }
+
+    const projectsOfScope = new Map<string, string[]>();
+    for (const [projectId, scopeId] of scopeOfProject) {
+      projectsOfScope.set(scopeId, [
+        ...(projectsOfScope.get(scopeId) ?? []),
+        limited.get(projectId)!.label,
+      ]);
+    }
+    for (const [scopeId, labels] of projectsOfScope) {
+      await tx`
+        UPDATE scopes SET migrated_from = ${JSON.stringify(labels.toSorted())}
+        WHERE id = ${scopeId} AND created_by IS NULL
+      `;
     }
 
     const stamp = new Date().toISOString();

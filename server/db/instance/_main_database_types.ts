@@ -96,6 +96,7 @@ export type DBScope = {
   created_by: string | null;
   created_at: string;
   last_updated: string;
+  migrated_from: string | null;
 };
 
 export type DBSlideDeck = {

@@ -782,6 +782,19 @@ async function assertAccessCarried(db: Sql): Promise<void> {
       .then((r) => r[0].n === 0),
     "no scope is created when the area already has one",
   );
+  const provenance = await db<
+    { label: string; migrated_from: string | null }[]
+  >`
+    SELECT label, migrated_from FROM scopes ORDER BY label`;
+  check(
+    JSON.stringify(provenance) === JSON.stringify([
+      { label: "AA2-X", migrated_from: JSON.stringify(["Project One"]) },
+      { label: "All data", migrated_from: null },
+    ]),
+    `the area scope records the project it came from; All data records none (got ${
+      JSON.stringify(provenance)
+    })`,
+  );
 }
 
 async function replayLiveInstance(): Promise<void> {
@@ -1147,6 +1160,22 @@ async function replayUserScopes(): Promise<void> {
         products.find((p) => p.label === "Two Zones")?.scope_id === "all-data",
       `each limited project's product moves onto its scope; the unlimited project's stays on all-data (got ${
         JSON.stringify(products)
+      })`,
+    );
+    const sources = await db<{ label: string; migrated_from: string | null }[]>`
+      SELECT label, migrated_from FROM scopes
+      WHERE label LIKE '%(migrated%' ORDER BY label`;
+    check(
+      JSON.stringify(sources.map((r) => [r.label, r.migrated_from])) ===
+        JSON.stringify([
+          ["ANC Workshop (migrated)", JSON.stringify(["ANC Workshop"])],
+          [
+            "North West Zone (migrated)",
+            JSON.stringify(["Kaduna State Project"]),
+          ],
+        ]),
+      `each created scope records the projects it came from (got ${
+        JSON.stringify(sources)
       })`,
     );
     const staging = await db<{ a: string | null; b: string | null }[]>`

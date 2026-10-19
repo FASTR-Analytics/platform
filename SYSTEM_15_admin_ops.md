@@ -65,8 +65,10 @@ view through `openShellEditor`. The button is shown only when
 `instanceState.currentUserIsGlobalAdmin` is true, the same rule the three scope
 routes enforce with `requireAdmin`. The page sets the chat's `scopes` view (S13)
 while it is open. `ScopesPage` (`scopes.tsx`) is a `Table` over
-`instanceState.scopes` with one row per scope, "All data" included: the label,
-one column per family (HMIS, HFA, ICEH) saying "Excluded", "No limits" or the
+`instanceState.scopes` with one row per scope, "All data" included: the label
+(with a "Migrated" badge when `scope.migratedFrom` is set: the update that
+retired projects made it, and hovering names the projects it came from), one
+column per family (HMIS, HFA, ICEH) saying "Excluded", "No limits" or the
 section's limits in a few words, and a Usage column showing the number of
 products that carry it as a badge (`ProductCountBadge`, shared with the results
 packages table, S8; nothing for none), counted in one pass over

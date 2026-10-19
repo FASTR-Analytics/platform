@@ -143,7 +143,8 @@ CREATE TABLE scopes (
   definition text NOT NULL,
   created_by text,                     -- email, NULL on a seeded row
   created_at text NOT NULL,
-  last_updated text NOT NULL
+  last_updated text NOT NULL,
+  migrated_from text                   -- JSON array of project labels, NULL unless the update made it
 );
 
 -- Labels are how a product picks a scope, so they are unique per instance,

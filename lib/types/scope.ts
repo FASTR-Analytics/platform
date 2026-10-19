@@ -144,6 +144,9 @@ export type Scope = {
   definition: ScopeDefinition;
   definitionHash: string;
   lastUpdated: string;
+  // The projects the update that retired projects made this scope from;
+  // null on a scope a person made.
+  migratedFrom: string[] | null;
 };
 
 // crypto.subtle is async and the hash is needed synchronously on both tiers

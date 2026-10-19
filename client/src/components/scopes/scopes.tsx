@@ -8,6 +8,7 @@ import {
   t3,
 } from "lib";
 import {
+  Badge,
   Button,
   createTableConfig,
   type EditorComponentProps,
@@ -17,8 +18,9 @@ import {
   plural,
   Table,
   type TableColumn,
+  Tooltip,
 } from "panther";
-import { createMemo } from "solid-js";
+import { createMemo, Show } from "solid-js";
 import {
   ProductCountBadge,
   scopeDisplayLabel,
@@ -38,6 +40,7 @@ type ScopeRow = {
   hfa: string;
   iceh: string;
   productCount: number;
+  migratedFrom: string[] | null;
 };
 
 type Props = EditorComponentProps<Record<never, never>, undefined>;
@@ -80,6 +83,14 @@ export function ScopesPage(p: Props) {
       key: "label",
       header: t3({ en: "Label", fr: "Libellé", pt: "Etiqueta" }),
       sortable: true,
+      render: (row) => (
+        <div class="ui-gap-sm flex flex-wrap items-center">
+          <span>{row.label}</span>
+          <Show when={row.migratedFrom}>
+            {(projects) => <MigratedBadge projects={projects()} />}
+          </Show>
+        </div>
+      ),
     },
     { key: "hmis", header: getModuleFamilyLabel("hmis") },
     { key: "hfa", header: getModuleFamilyLabel("hfa") },
@@ -134,6 +145,28 @@ export function ScopesPage(p: Props) {
         }}
       />
     </FrameTop>
+  );
+}
+
+// A scope the update that retired projects made from their data windows
+// (217_legacy_user_scopes); the hover names the projects.
+function MigratedBadge(p: { projects: string[] }) {
+  const list = () => p.projects.join(", ");
+  return (
+    <Tooltip
+      content={t3({
+        en:
+          `Made automatically when this instance moved from projects to folders. It keeps the data limits of: ${list()}. Users who were only on these projects were given this scope, and those projects' reports and decks use it.`,
+        fr:
+          `Créée automatiquement lorsque cette instance est passée des projets aux dossiers. Elle conserve les limites de données de : ${list()}. Les utilisateurs qui n'étaient que dans ces projets ont reçu cette portée, et les rapports et présentations de ces projets l'utilisent.`,
+        pt:
+          `Criado automaticamente quando esta instância passou de projetos para pastas. Mantém os limites de dados de: ${list()}. Os utilizadores que estavam apenas nestes projetos receberam este âmbito, e os relatórios e apresentações desses projetos usam-no.`,
+      })}
+    >
+      <Badge intent="neutral">
+        {t3({ en: "Migrated", fr: "Migrée", pt: "Migrado" })}
+      </Badge>
+    </Tooltip>
   );
 }
 
@@ -214,5 +247,6 @@ function toRow(scope: Scope, counts: Map<ScopeId, number>): ScopeRow {
     hfa: describeSection(scope.definition.hfa),
     iceh: describeSection(scope.definition.iceh),
     productCount: counts.get(scope.id) ?? 0,
+    migratedFrom: scope.migratedFrom,
   };
 }
