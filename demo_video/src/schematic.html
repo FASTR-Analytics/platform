@@ -1,65 +1,65 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
   <head>
     <meta charset="utf-8" />
     <title>Schematic</title>
     <link rel="stylesheet" href="kit.css" />
     <style>
-    .platform {
-      position: absolute;
-      left: 640px;
-      top: 320px;
-      width: 720px;
-      height: 420px;
-      box-sizing: border-box;
-      border-radius: 28px;
-      background: rgba(255, 255, 255, 0.55);
-      border: 2px solid var(--card-border);
-    }
-    .platform .plabel {
-      position: absolute;
-      left: 40px;
-      top: 26px;
-      color: var(--teal);
-      font-size: 22px;
-      font-weight: 700;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-    }
-    .node {
-      height: 96px;
-      font-size: 30px;
-    }
-    .chip {
-      height: 60px;
-      font-size: 26px;
-      padding: 0 24px 0 16px;
-      gap: 14px;
-      border-radius: 30px;
-    }
-    .chip svg {
-      width: 34px;
-      height: 34px;
-    }
-    .node.next {
-      border: 3px dashed #8aa324;
-      color: var(--ink);
-      background: #f3f7d9;
-      box-shadow: none;
-    }
-    [data-a] {
-      opacity: 0;
-    }
-    /* The layout was drawn on a 1080 px stage; the extra height sits
-       half above and half below it. */
-    .node,
-    .stagebox,
-    .band,
-    .chip,
-    .platform,
-    .arrows {
-      margin-top: 62px;
-    }
+      .platform {
+        position: absolute;
+        left: 640px;
+        top: 320px;
+        width: 720px;
+        height: 420px;
+        box-sizing: border-box;
+        border-radius: 28px;
+        background: rgba(255, 255, 255, 0.55);
+        border: 2px solid var(--card-border);
+      }
+      .platform .plabel {
+        position: absolute;
+        left: 40px;
+        top: 26px;
+        color: var(--teal);
+        font-size: 22px;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+      .node {
+        height: 96px;
+        font-size: 30px;
+      }
+      .chip {
+        height: 60px;
+        font-size: 26px;
+        padding: 0 24px 0 16px;
+        gap: 14px;
+        border-radius: 30px;
+      }
+      .chip svg {
+        width: 34px;
+        height: 34px;
+      }
+      .node.next {
+        border: 3px dashed #8aa324;
+        color: var(--ink);
+        background: #f3f7d9;
+        box-shadow: none;
+      }
+      [data-a] {
+        opacity: 0;
+      }
+      /* The layout was drawn on a 1080 px stage; the extra height sits
+         half above and half below it. */
+      .node,
+      .stagebox,
+      .band,
+      .chip,
+      .platform,
+      .arrows {
+        margin-top: 62px;
+      }
     </style>
   </head>
   <body>
@@ -70,128 +70,142 @@
       <svg class="arrows" id="arrows"></svg>
     </div>
     <script type="module">
-    import { anim, arrow, icons, setTime } from "./kit.js";
-    const q = new URLSearchParams(location.search);
-    const V2 = q.get("v") === "2";
-    const stage = document.getElementById("stage");
-    const add = (html) => {
-      stage.insertAdjacentHTML("beforeend", html);
-      return stage.lastElementChild;
-    };
-    const node = (x, y, w, icon, label, cls = "") =>
-      add(
-        `<div class="node ${cls}" style="left:${x}px;top:${y}px;width:${w}px">${
-          icons[icon]
-        }<span>${label}</span></div>`,
+      import { anim, arrow, icons, setTime } from "./kit.js";
+      const q = new URLSearchParams(location.search);
+      const V2 = q.get("v") === "2";
+      const stage = document.getElementById("stage");
+      const add = (html) => {
+        stage.insertAdjacentHTML("beforeend", html);
+        return stage.lastElementChild;
+      };
+      const node = (x, y, w, icon, label, cls = "") =>
+        add(
+          `<div class="node ${cls}" style="left:${x}px;top:${y}px;width:${w}px">${
+            icons[icon]
+          }<span>${label}</span></div>`,
+        );
+      const stagebox = (x, label) =>
+        add(
+          `<div class="stagebox" style="left:${x}px;top:400px;width:170px;height:110px">${label}</div>`,
+        );
+      const chip = (x, y, icon, text, next) =>
+        add(
+          `<div class="chip ${
+            next ? "next" : ""
+          }" style="left:${x}px;top:${y}px"><span class="tag">${
+            next ? "Future" : "Now"
+          }</span>${icons[icon]}<span>${text}</span></div>`,
+        );
+
+      // Each event lands a little before its words in the narration, read at
+      // about 150 words a minute. The today clip starts 13 s into the opening,
+      // after the first sentence; the future clip 5 s into Part 6.
+      const A = (el, start, dur, kind) =>
+        anim(el, V2 ? 0 : start, V2 ? 0.01 : dur, kind);
+
+      const sources = [
+        ["database", "DHIS2"],
+        ["clipboard", "Facility assessments"],
+        ["people", "Household surveys"],
+      ];
+      sources.forEach(([ic, l], i) =>
+        A(node(140, 372 + i * 120, 380, ic, l), 4.5 + i * 1.5, 0.5)
       );
-    const stagebox = (x, label) =>
-      add(
-        `<div class="stagebox" style="left:${x}px;top:400px;width:170px;height:110px">${label}</div>`,
-      );
-    const chip = (x, y, icon, text, next) =>
-      add(
-        `<div class="chip ${
-          next ? "next" : ""
-        }" style="left:${x}px;top:${y}px"><span class="tag">${
-          next ? "Future" : "Now"
-        }</span>${icons[icon]}<span>${text}</span></div>`,
-      );
-
-    // Each event lands a little before its words in the narration, read at
-    // about 150 words a minute. The today clip starts 13 s into the opening,
-    // after the first sentence; the future clip 5 s into Part 6.
-    const A = (el, start, dur, kind) =>
-      anim(el, V2 ? 0 : start, V2 ? 0.01 : dur, kind);
-
-    const sources = [
-      ["database", "DHIS2"],
-      ["clipboard", "Facility assessments"],
-      ["people", "Household surveys"],
-    ];
-    sources.forEach(([ic, l], i) =>
-      A(node(140, 372 + i * 120, 380, ic, l), 4.5 + i * 1.5, 0.5)
-    );
-    A(
-      add(
-        `<div class="platform"><div class="plabel">FASTR Analytics Platform</div></div>`,
-      ),
-      9.0,
-      0.5,
-    );
-    A(stagebox(680, "Data"), 9.4, 0.5, "pop");
-    A(stagebox(905, "Analysis"), 11.5, 0.5, "pop");
-    A(stagebox(1130, "Results"), 14.0, 0.5, "pop");
-    A(node(1440, 347, 360, "slides", "Slide decks"), 16.5, 0.5);
-    A(node(1440, 467, 360, "report", "Reports"), 16.8, 0.5);
-    A(
-      add(
-        `<div class="band" style="left:680px;top:600px;width:620px;height:72px">${
-          icons.sparkle.replace("<svg", '<svg style="width:36px;height:36px"')
-        }AI assistant</div>`,
-      ),
-      21.5,
-      0.6,
-    );
-
-    const svg = document.getElementById("arrows");
-    const heads = [];
-    const addArrow = (a, start, dur) => {
-      svg.insertAdjacentHTML("beforeend", a.path + a.head);
-      const head = svg.lastElementChild;
-      const path = head.previousElementSibling;
-      anim(path, V2 ? 0 : start, V2 ? 0.01 : dur, "draw");
-      head.style.opacity = "0";
-      heads.push({
-        head,
-        start: V2 ? 0 : start + dur * 0.8,
-        dur: V2 ? 0.01 : dur * 0.3,
-      });
-    };
-    sources.forEach((_, i) =>
-      addArrow(
-        arrow(522, 420 + i * 120, 676, 425 + i * 30, { bend: (i - 1) * -16 }),
-        9.1 + i * 0.1,
-        0.6,
-      )
-    );
-    addArrow(arrow(852, 455, 901, 455), 11.2, 0.3);
-    addArrow(arrow(1077, 455, 1126, 455), 13.7, 0.3);
-    addArrow(arrow(1302, 440, 1436, 395, { bend: -8 }), 16.1, 0.5);
-    addArrow(arrow(1302, 470, 1436, 515, { bend: 8 }), 16.1, 0.5);
-
-    if (V2) {
-      anim(chip(140, 760, "clock", "Scheduled imports", false), 2.5, 0.5);
-      anim(chip(1440, 613, "clock", "Scheduled reports", true), 9.5, 0.5, "pop");
-      anim(
-        chip(1440, 693, "bell", "Alerts on disruptions", true),
-        23.5,
+      A(
+        add(
+          `<div class="platform"><div class="plabel">FASTR Analytics Platform</div></div>`,
+        ),
+        9.0,
         0.5,
-        "pop",
       );
-    }
+      A(stagebox(680, "Data"), 9.4, 0.5, "pop");
+      A(stagebox(905, "Analysis"), 11.5, 0.5, "pop");
+      A(stagebox(1130, "Results"), 14.0, 0.5, "pop");
+      A(node(1440, 347, 360, "slides", "Slide decks"), 16.5, 0.5);
+      A(node(1440, 467, 360, "report", "Reports"), 16.8, 0.5);
+      A(
+        add(
+          `<div class="band" style="left:680px;top:600px;width:620px;height:72px">${
+            icons.sparkle.replace(
+              "<svg",
+              '<svg style="width:36px;height:36px"',
+            )
+          }AI assistant</div>`,
+        ),
+        21.5,
+        0.6,
+      );
 
-    const DURATION = 30;
-    window.setTime = (t) => {
-      setTime(t);
-      for (const h of heads) {
-        h.head.style.opacity = String(
-          Math.max(0, Math.min(1, (t - h.start) / h.dur)),
+      const svg = document.getElementById("arrows");
+      const heads = [];
+      const addArrow = (a, start, dur) => {
+        svg.insertAdjacentHTML("beforeend", a.path + a.head);
+        const head = svg.lastElementChild;
+        const path = head.previousElementSibling;
+        anim(path, V2 ? 0 : start, V2 ? 0.01 : dur, "draw");
+        head.style.opacity = "0";
+        heads.push({
+          head,
+          start: V2 ? 0 : start + dur * 0.8,
+          dur: V2 ? 0.01 : dur * 0.3,
+        });
+      };
+      sources.forEach((_, i) =>
+        addArrow(
+          arrow(522, 420 + i * 120, 676, 425 + i * 30, {
+            bend: (i - 1) * -16,
+          }),
+          9.1 + i * 0.1,
+          0.6,
+        )
+      );
+      addArrow(arrow(852, 455, 901, 455), 11.2, 0.3);
+      addArrow(arrow(1077, 455, 1126, 455), 13.7, 0.3);
+      addArrow(arrow(1302, 440, 1436, 395, { bend: -8 }), 16.1, 0.5);
+      addArrow(arrow(1302, 470, 1436, 515, { bend: 8 }), 16.1, 0.5);
+
+      if (V2) {
+        anim(
+          chip(140, 760, "clock", "Scheduled imports", false),
+          2.5,
+          0.5,
+        );
+        anim(
+          chip(1440, 613, "clock", "Scheduled reports", true),
+          9.5,
+          0.5,
+          "pop",
+        );
+        anim(
+          chip(1440, 693, "bell", "Alerts on disruptions", true),
+          23.5,
+          0.5,
+          "pop",
         );
       }
-    };
-    window.DURATION = DURATION;
-    await document.fonts.ready;
-    document.body.dataset.ready = "1";
-    if (q.has("t")) window.setTime(Number(q.get("t")));
-    else {
-      const t0 = performance.now();
-      const step = () => {
-        const t = (performance.now() - t0) / 1000;
-        window.setTime(Math.min(t, DURATION));
-        if (t < DURATION) requestAnimationFrame(step);
+
+      const DURATION = 30;
+      window.setTime = (t) => {
+        setTime(t);
+        for (const h of heads) {
+          h.head.style.opacity = String(
+            Math.max(0, Math.min(1, (t - h.start) / h.dur)),
+          );
+        }
       };
-      requestAnimationFrame(step);
-    }
+      window.DURATION = DURATION;
+      await document.fonts.ready;
+      document.body.dataset.ready = "1";
+      if (q.has("t")) window.setTime(Number(q.get("t")));
+      else {
+        const t0 = performance.now();
+        const step = () => {
+          const t = (performance.now() - t0) / 1000;
+          window.setTime(Math.min(t, DURATION));
+          if (t < DURATION) requestAnimationFrame(step);
+        };
+        requestAnimationFrame(step);
+      }
     </script>
   </body>
 </html>
