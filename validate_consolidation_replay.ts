@@ -31,13 +31,12 @@
 //       ALTER fails at 016.
 //   (d) The fresh path: the base plus the whole instance directory, applied
 //       by the runner in one pass, converges on the same schema as (a).
-//   (e) Project windows into scopes: a user on only a state-limited project
-//       (no admin_area_2) is restricted to a "<zone> (migrated)" scope, a
-//       user on only an indicator-limited workshop to a "<project>
-//       (migrated)" scope holding those indicators, each project's products
-//       move onto its scope, and a user also on a several-zone project,
-//       which limits nothing, and an admin stay unrestricted. In (a), Project One's members are
-//       restricted to the area scope 204 already made, and nothing is
+//   (e) Project windows into scopes: a state-limited project (no
+//       admin_area_2) gets a "<zone> (migrated)" scope, an indicator-limited
+//       workshop a "<project> (migrated)" scope holding those indicators, each
+//       project's products move onto its scope, a several-zone project
+//       limits nothing, and no user is restricted. In (a), Project One's
+//       window reuses the area scope 204 already made, and nothing is
 //       created.
 //
 // Before (a) runs the migrations, the read-only dry-run
@@ -767,12 +766,12 @@ async function assertAccessCarried(db: Sql): Promise<void> {
   check(
     JSON.stringify(outcome) === JSON.stringify({
       "admin@example.org": "all",
-      "editor@example.org": AA2,
-      "noflags@example.org": AA2,
+      "editor@example.org": "all",
+      "noflags@example.org": "all",
       "norole@example.org": "all",
-      "viewer@example.org": AA2,
+      "viewer@example.org": "all",
     }),
-    `Project One's members (any flag) are restricted to the area scope 204 made; the admin and the user with no project stay unrestricted (got ${
+    `no user is restricted: Project One's members keep all scopes (got ${
       JSON.stringify(outcome)
     })`,
   );
@@ -858,14 +857,8 @@ async function replayLiveInstance(): Promise<void> {
     "dry-run counts the two non-admins with no report or deck flags on a migrated project, and no shared labels",
   );
   check(
-    JSON.stringify(dryRun.restrictedUsers) === JSON.stringify([
-      { email: "editor@example.org", projects: ["Project One"] },
-      { email: "noflags@example.org", projects: ["Project One"] },
-      { email: "viewer@example.org", projects: ["Project One"] },
-    ]),
-    `dry-run names the users 217 restricts and their projects (got ${
-      JSON.stringify(dryRun.restrictedUsers)
-    })`,
+    dryRun.windowScopes === 1,
+    `dry-run counts Project One's window as one scope (got ${dryRun.windowScopes})`,
   );
   check(
     dryRun.extraDropped.userAuthoredVisualizations === 2 &&
@@ -1122,10 +1115,10 @@ async function replayUserScopes(): Promise<void> {
       JSON.stringify(outcome) === JSON.stringify({
         "boss@example.org": "all",
         "mixed@example.org": "all",
-        "state@example.org": "North West Zone (migrated)",
-        "trainee@example.org": "ANC Workshop (migrated)",
+        "state@example.org": "all",
+        "trainee@example.org": "all",
       }),
-      `the state-only user holds the created zone scope and the trainee the workshop's; the user also on a several-zone project and the admin stay unrestricted (got ${
+      `no user is restricted, even those only on limited projects (got ${
         JSON.stringify(outcome)
       })`,
     );

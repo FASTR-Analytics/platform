@@ -1552,23 +1552,6 @@ export function buildInstanceResultsPackagesTour(): TourDefinition {
         }),
         placement: "bottom",
       },
-      {
-        id: "scopes",
-        target: tourTarget("instance-results-packages-scopes"),
-        title: t3({ en: "Scopes", fr: "Portées", pt: "Âmbitos" }),
-        body: t3({
-          en:
-            "A scope sets which part of a package a slide deck or report may show: for example one region, certain years, or certain modules and indicators. Create and change scopes here. The scope called All data is always there and limits nothing. On the Users page, a user can also be limited to certain scopes.",
-          fr:
-            "Une portée détermine quelle partie d'un paquet une présentation ou un rapport peut afficher : par exemple une région, certaines années, ou certains modules et indicateurs. Créez et modifiez les portées ici. La portée appelée « All data » est toujours présente et ne limite rien. Sur la page Utilisateurs, un utilisateur peut aussi être limité à certaines portées.",
-          pt:
-            "Um âmbito define que parte de um pacote uma apresentação ou um relatório pode mostrar: por exemplo uma região, certos anos, ou certos módulos e indicadores. Crie e altere âmbitos aqui. O âmbito chamado «All data» existe sempre e não limita nada. Na página Utilizadores, um utilizador também pode ser limitado a certos âmbitos.",
-        }),
-        placement: "bottom",
-        // The button is for administrators only.
-        when: isGlobalAdmin,
-        ...SKIP_IF_MISSING,
-      },
     ],
   };
 }

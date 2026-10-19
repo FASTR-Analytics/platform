@@ -17,6 +17,13 @@ export const cacheMiddleware = async (c: Context, next: Next) => {
     return;
   }
 
+  // A handler that already marked its response per-user (the private-asset
+  // serve in static.ts) keeps that: the extension rules below would make a
+  // private image publicly cacheable.
+  if (c.res.headers.get("Cache-Control")?.includes("private")) {
+    return;
+  }
+
   // The SPA shell is unhashed, so freshness must be explicit: with no
   // directive a browser MAY reuse a stale copy heuristically
   // (RFC 9111 §4.2.2), and a stale shell references the previous build's

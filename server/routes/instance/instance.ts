@@ -58,7 +58,7 @@ defineRoute(
   requireGlobalPermission(),
   log("getInstanceDetail"),
   async (c) => {
-    const res = await getInstanceDetail(c.var.mainDb);
+    const res = await getInstanceDetail(c.var.mainDb, c.var.globalUser);
     return c.json(res);
   },
 );

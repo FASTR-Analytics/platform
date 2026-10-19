@@ -26,7 +26,6 @@ import {
 import { ResultsPackageWizard } from "./wizard/mod.ts";
 import { ResultsPackagePage } from "./package_page";
 import { ModuleDefaultsEditor } from "./module_defaults";
-import { ScopesPage } from "~/components/scopes/mod.ts";
 import {
   ProductCountBadge,
   usageColumnHeader,
@@ -171,13 +170,6 @@ export function InstanceResultsPackages() {
     });
   }
 
-  async function openScopes(): Promise<void> {
-    await openShellEditor({
-      element: ScopesPage,
-      props: {},
-    });
-  }
-
   const emptyMessage = () =>
     t3({
       en: "No results packages yet.",
@@ -270,16 +262,6 @@ export function InstanceResultsPackages() {
                 class="ui-gap-sm flex items-center"
                 data-tour="instance-results-packages-header"
               >
-                <Show when={instanceState.currentUserIsGlobalAdmin}>
-                  <Button
-                    data-tour="instance-results-packages-scopes"
-                    onClick={openScopes}
-                    outline
-                    iconName="filter"
-                  >
-                    {t3({ en: "Scopes", fr: "Portées", pt: "Âmbitos" })}
-                  </Button>
-                </Show>
                 <Button
                   data-tour="instance-results-packages-defaults"
                   onClick={openModuleDefaults}

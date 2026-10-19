@@ -4,10 +4,12 @@ name: Assets & Upload
 globs:
   - client/src/components/_shared/file_upload_selector.tsx
   - client/src/components/_shared/uppy_file_upload.ts
+  - client/src/components/assets/asset_sharing.tsx
   - client/src/components/assets/assets.tsx
   - client/src/components/assets/mod.ts
   - lib/types/assets.ts
   - server/db/instance/assets.ts
+  - server/middleware/asset_visibility.ts
   - server/routes/instance/assets.ts
   - server/routes/instance/upload.ts
 docs_absorbed:
@@ -27,11 +29,12 @@ and images placed in decks and reports), data-file extensions
 (`.csv`/`.xlsx`/`.xls`/`.zip`: import-wizard inputs live here, raw
 facility-level health data) require `can_view_data` OR `can_configure_data` (the
 assets page's own gate; admins pass), and everything else is behind bare
-`requireGlobalPermission()`. Asset _names_ stay visible to all authenticated
-users (the SSE starting payload). Only the bytes are gated. What consumers
-**do** with an uploaded file is theirs: the dataset import wizards are S6;
-structure/geojson/HFA-weights uploads are S5; report images and embeds are S12;
-batch user upload is S15; module runs read `assetsToImport` (e.g.
+`requireGlobalPermission()`. A **private** asset is gated ahead of all three
+tiers (see Private assets below). Public asset _names_ stay visible to all
+authenticated users (the SSE starting payload). Only the bytes are gated. What
+consumers **do** with an uploaded file is theirs: the dataset import wizards are
+S6; structure/geojson/HFA-weights uploads are S5; report images and embeds are
+S12; batch user upload is S15; module runs read `assetsToImport` (e.g.
 `population.csv`) out of the assets dir at execution time (S8). S13's AI
 documents do **not** pass through here. They multipart-POST to the S13-owned
 `/ai/files` proxy. The `upload.ts` routes are raw Hono by design (custom TUS
@@ -52,12 +55,12 @@ A minimal implementation of the TUS 1.0.0 resumable protocol (extensions:
 | `OPTIONS /upload(/:id)` | none                                | CORS preflight, advertises the extensions      |
 
 State is an **in-memory `Map`** of
-`{ id, filename, size, offset, createdAt,
-metadata, uploaderEmail }`; bytes
-stream into `<_ASSETS_DIR_PATH>/.tus-uploads/<uuid>`. A server restart forgets
-the map. The client's next HEAD gets a 404 and Uppy restarts the upload from
-zero (graceful, not resumed). Uploads older than 24 h are swept, but only map
-entries, and only when a new POST arrives (Open items).
+`{ id, filename, size, offset, createdAt, metadata, uploaderEmail,
+uploaderIsGlobalAdmin, visibility }`;
+bytes stream into `<_ASSETS_DIR_PATH>/.tus-uploads/<uuid>`. A server restart
+forgets the map. The client's next HEAD gets a 404 and Uppy restarts the upload
+from zero (graceful, not resumed). Uploads older than 24 h are swept, but only
+map entries, and only when a new POST arrives (Open items).
 
 **The HEAD-via-GET quirk (load-bearing).** The resume check is registered with
 `.get()`, NOT `.on("HEAD", …)`: Hono's dispatch converts HEAD to GET before
@@ -111,8 +114,54 @@ always want current bytes.
 
 **Delete authorization** is ownership-based: a non-admin may delete only assets
 whose `asset_metadata.uploader_email` matches them (assets with no metadata row
-are admin-delete-only); admins delete anything. Deletion removes the file
-(missing file tolerated) then the metadata rows.
+are admin-delete-only); admins delete anything, except a private asset, which
+only its manager may delete (below). Deletion removes the file (missing file
+tolerated), then the metadata and privacy rows.
+
+## Private assets
+
+An asset can be private: visible only to its owner and the viewers they chose.
+Admins get no bypass, except for an asset whose owner account has been deleted,
+which admins can see and take over so it is never stranded. The one rule is
+`canUserSeeAsset` (and `canUserManagePrivateAsset` for change/delete/ overwrite)
+in `lib/types/assets.ts`.
+
+- **Storage.** `private_assets (file_name, owner_email)` plus
+  `private_asset_viewers (file_name, email)` (migration 218, the same tables an
+  instance that ran main's private-assets migration already holds, adopted
+  unchanged). `owner_email` has no FK to `users` on purpose: a cascade would
+  silently make the file public. Viewers are FK'd and cascade away when their
+  user is deleted. An email rename (`rename_user_email.ts`) carries both the
+  ownership and the viewer rows across. `AssetInfo.privacy` carries owner,
+  viewers and `ownerIsUser`.
+- **Set at upload.** The TUS `Upload-Metadata` carries `fastrVisibility`
+  (`private`/`public`) and `fastrViewers` (comma-joined emails); the assets
+  page's "Upload private" sets them per file. Private rows are written before
+  the file is renamed into place, so it is never servable as public. No
+  visibility field = keep what the file already has (the wizards' uploaders and
+  the report editor's image upload), so a re-upload never widens a private file.
+- **Changed later** by the owner via `updateAssetVisibility`
+  (`POST /assets/visibility`); a public file's uploader (or an admin, for a
+  "system" file) may make it private. Viewers must be users on this instance;
+  unknown emails and the owner are dropped.
+- **Enforced at:** the static serve (a private-asset middleware ahead of the
+  image tier; it checks every spelling serveStatic may resolve, answers 404 to
+  anyone not permitted, `Cache-Control: private, no-store`, which
+  `cacheMiddleware` leaves in place); the asset list (`getAssetsForUser` in
+  `getInstanceDetail`, so the SSE starting payload, the `/mcp` grounding and
+  `getAssets`; the `assets_updated` broadcast is filtered per connection in
+  `createInstanceSseFilter`); delete; same-name overwrite
+  (`canUserUploadOverAsset`, at POST and again at completion); and every by-name
+  read on a user's behalf: `requireVisibleAssets`
+  (`server/middleware/asset_visibility.ts`) on the HMIS CSV, HFA CSV and ICEH
+  zip wizard/launch routes, the geojson analyze/save, population preview/import,
+  HFA weights read/import, structure step 1 and batch user upload routes, and an
+  inline check on the AI files proxy.
+- **Not enforced** for module runs' `assetsToImport` (a run reads its fixed
+  input names with no user context), for deferred reads of an import run or
+  structure upload attempt already launched on a permitted user's behalf, or for
+  a private image already embedded in a report or deck: other viewers simply get
+  a broken image.
 
 ## Client primitives
 
@@ -130,10 +179,12 @@ are admin-delete-only); admins delete anything. Deletion removes the file
   name select immediately). Used by the S5/S6/S12 wizards.
 - **`assets/assets.tsx`** is the Assets admin page: one table of every asset
   with a filterable type column (CSV/Excel/Image/ZIP/Other), size/modified/owner
-  columns, per-row download (root-path `GET`, S1 static serve) and delete;
-  delete buttons and the admin-only bulk delete mirror the server's ownership
-  rule. The page holds and sets the chat's `assets` view at mount (S13), whose
-  instructions name the page and nothing of its contents.
+  columns, a "Who can see it" column, per-row sharing (`AssetSharingForm` in
+  `assets/asset_sharing.tsx`), download (root-path `GET`, S1 static serve) and
+  delete, and an "Upload private" button (`PrivateUploadForm` picks the viewers
+  first); the sharing and delete buttons mirror the server's ownership and
+  private-asset rules. The page holds and sets the chat's `assets` view at mount
+  (S13), whose instructions name the page and nothing of its contents.
 
 ## Contract
 
@@ -156,12 +207,12 @@ ownership annotation, not a registry.
   and only on a new POST; temp files from crashed/restarted servers have no map
   entry and accumulate in `.tus-uploads` forever. Sweep the directory by mtime
   instead.
-- **Any user can overwrite any asset.** RULED accepted, with no versioning:
-  completion `rename`s over an existing same-named file, last write wins, and
-  the ownership upsert transfers delete rights to the overwriter. Launched
-  import runs are protected by the byte pin; pre-launch, wizards re-parse on
-  every upload. Files that feed module runs (`population.csv`) remain the known
-  sharp corner.
+- **Any user can overwrite any asset** (except a private one: only its manager
+  may). RULED accepted, with no versioning: completion `rename`s over an
+  existing same-named file, last write wins, and the ownership upsert transfers
+  delete rights to the overwriter. Launched import runs are protected by the
+  byte pin; pre-launch, wizards re-parse on every upload. Files that feed module
+  runs (`population.csv`) remain the known sharp corner.
 - **Same-name-overwrite residual windows: RULED accepted.** The byte pin covers
   launch→spawn only; the wizard-session window, the spawn→worker-open window,
   and bare-auth upload overwriting a read-gated file are all accepted residual

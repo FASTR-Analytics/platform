@@ -163,11 +163,11 @@ products one project folder at a time. Those products are ownerless; migration
 project's products and its non-admin members' report and deck levels, and 216
 makes those products general access `none` with the recorded grants
 (`server/db/migrations/consolidation/access.ts`). The same snapshot records each
-project's region, and 217 restricts a non-admin whose every project with data
-was held to one admin area 2 (a project area, or a windowing that resolves to
-one zone) to that zone's scope, reusing the scope that already filters it or
-creating "<zone> (migrated)", and moves those projects' products onto it
-(`consolidation/user_scopes.ts`). `setProductAccess`
+project's data window (zone, indicators, start year), and 217 turns each limited
+project's window into a scope, reusing one that already filters the same way or
+creating "<zone> (migrated)" / "<project> (migrated)" (recorded in
+`scopes.migrated_from`), and moves that project's products onto it; it restricts
+no user (`consolidation/user_scopes.ts`). `setProductAccess`
 (`PUT
 /products/:product_id/access`, `edit`) replaces a product's general access
 and grants, and `setProductOwner` (`PUT /products/:product_id/owner`, `own`)

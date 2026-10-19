@@ -4,6 +4,7 @@ import {
   APIResponseWithData,
   type DatasetType,
   type FacilityFamily,
+  type GlobalUser,
   type InstanceDatasetsSummary,
   InstanceDetail,
   type InstanceIndicatorsSummary,
@@ -19,7 +20,7 @@ import {
 } from "../../exposed_env_vars.ts";
 import { detectHasAnyRows, tryCatchDatabaseAsync } from "./../utils.ts";
 import type { DBUser } from "./_main_database_types.ts";
-import { getAssetsForInstance } from "./assets.ts";
+import { getAssetsForUser } from "./assets.ts";
 import { getGeoJsonMapSummaries } from "./geojson_maps.ts";
 import {
   getAdminAreaLabelsConfig,
@@ -255,8 +256,11 @@ export async function getInstanceDatasetsSummary(
   };
 }
 
+// The asset list is the caller's: private assets they cannot see are left
+// out (getAssetsForUser).
 export async function getInstanceDetail(
   mainDb: Sql,
+  globalUser: GlobalUser,
 ): Promise<APIResponseWithData<InstanceDetail>> {
   return await tryCatchDatabaseAsync(async () => {
     // The per-family structure schemas. A missing row (near-zero probability,
@@ -298,7 +302,7 @@ export async function getInstanceDetail(
       `
     ).at(0)?.total_count ?? 0;
 
-    const resAssets = await getAssetsForInstance(mainDb);
+    const resAssets = await getAssetsForUser(mainDb, globalUser);
     if (resAssets.success === false) {
       return resAssets;
     }

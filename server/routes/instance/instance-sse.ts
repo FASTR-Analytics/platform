@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import {
+  canUserSeeAsset,
   type Folder,
   type GlobalUser,
   type InstanceSseMessage,
@@ -66,6 +67,10 @@ export type InstanceSseFilterResult = {
 //   - Folders: the folder list (visibleFolderIds: those holding a held
 //     product, or that the connection created) is recomputed on every
 //     product or folder message and sent when it changes.
+//   - Assets: the `assets_updated` broadcast is the full list with each
+//     asset's privacy; a connection gets only the assets its user may see
+//     (canUserSeeAsset, off the live admin flag), as buildInstanceState
+//     applies to the starting payload.
 //   - Grants: a RESTRICTED connection's scopes are cut to the granted ones.
 //   - A change to the connection's own scope access or admin flag ends the
 //     stream.
@@ -140,6 +145,14 @@ export function createInstanceSseFilter(
     }
     if (msg.type === "run_progress" || msg.type === "r_script") {
       return canSeeRunMessages ? pass(msg) : drop;
+    }
+    if (msg.type === "assets_updated") {
+      return pass({
+        type: "assets_updated",
+        data: msg.data.filter((a) =>
+          canUserSeeAsset(a.privacy, viewer.email, viewer.isGlobalAdmin)
+        ),
+      });
     }
     const productPlane = msg.type === "products_upserted" ||
       msg.type === "products_deleted" ||

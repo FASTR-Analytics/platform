@@ -7,20 +7,19 @@
 // (204) and user_scopes (205) exist.
 //
 // Each limited project's window is a scope definition. Every distinct
-// definition that a project with products or a restricted user needs gets one
-// scope: the existing scope that filters the same way (same definition hash;
+// definition that a project with products needs, or a project some member was
+// on with no unlimited project beside it, gets one scope: the existing scope that filters the same way (same definition hash;
 // 204 seeds one per area) or, failing that, a new one labelled "<zone>
 // (migrated)" when it limits geography alone and "<project> (migrated)"
 // otherwise, so admins can tell the created ones apart and no two scopes filter
 // the same way. A limited project's products move onto its scope, as
 // setProductScope would move them, so their figures keep the project's limits.
-// A non-admin whose every project with data was limited becomes restricted
-// (users.all_scopes = FALSE) and holds those projects' scopes; anyone on an
-// unlimited project stays unrestricted. Every scope the update made (no
+// No user is restricted: every user keeps all scopes ("All data"), and an
+// admin may attach these scopes to users later. Every scope the update made (no
 // creator: created here or seeded by 204) records the projects it came from in
 // scopes.migrated_from, which the client shows as its "Migrated" badge. A
-// scope 204 seeded that ends up with no product and no user is deleted. The staging tables are
-// dropped at the end.
+// scope 204 seeded that ends up with no product, no user and no project is
+// deleted. The staging tables are dropped at the end.
 //
 // =============================================================================
 
@@ -107,7 +106,8 @@ export async function applyLegacyUserScopes(tx: Sql): Promise<void> {
       }
     }
 
-    // Who becomes restricted: every project they were on with data limited.
+    // The projects of a member who was on limited projects only: their window
+    // is what that member saw, so it gets a scope even with no products.
     const memberRows = await tx<{ email: string; project_id: string }[]>`
       SELECT m.email, m.project_id
       FROM legacy_user_projects m JOIN users u ON u.email = m.email
@@ -120,7 +120,7 @@ export async function applyLegacyUserScopes(tx: Sql): Promise<void> {
         project_id,
       ]);
     }
-    const restricted = [...projectsByUser].filter(([, ids]) =>
+    const onlyLimited = [...projectsByUser.values()].filter((ids) =>
       ids.every((id) => limited.has(id))
     );
 
@@ -128,10 +128,10 @@ export async function applyLegacyUserScopes(tx: Sql): Promise<void> {
       SELECT product_id, project_id FROM legacy_project_window_products
     `;
 
-    // One scope per distinct definition a product or a restricted user needs.
+    // One scope per distinct definition those projects need.
     const needed = new Set([
       ...productRows.map((r) => r.project_id),
-      ...restricted.flatMap(([, ids]) => ids),
+      ...onlyLimited.flat(),
     ]);
     const byHash = await scopesByHash(tx);
     const scopeOfProject = new Map<string, string>();
@@ -176,27 +176,11 @@ export async function applyLegacyUserScopes(tx: Sql): Promise<void> {
       `;
     }
 
-    if (restricted.length > 0) {
-      const emails = restricted.map(([email]) => email);
-      await tx`UPDATE users SET all_scopes = FALSE WHERE email = ANY(${emails})`;
-      const grants = restricted.flatMap(([email, ids]) =>
-        [...new Set(ids.map((id) => scopeOfProject.get(id)!))].map((
-          scopeId,
-        ) => ({ email, scopeId }))
-      );
-      await tx`
-        INSERT INTO user_scopes (email, scope_id)
-        SELECT * FROM unnest(
-          ${grants.map((g) => g.email)}::text[],
-          ${grants.map((g) => g.scopeId)}::text[]
-        )
-        ON CONFLICT DO NOTHING
-      `;
-    }
-
+    const inUse = [...new Set(scopeOfProject.values())];
     const removed = await tx<{ label: string }[]>`
       DELETE FROM scopes s
       WHERE s.id <> 'all-data' AND s.created_by IS NULL
+        AND s.id <> ALL(${inUse}::text[])
         AND NOT EXISTS (SELECT 1 FROM products p WHERE p.scope_id = s.id)
         AND NOT EXISTS (SELECT 1 FROM user_scopes us WHERE us.scope_id = s.id)
       RETURNING s.label
@@ -204,9 +188,9 @@ export async function applyLegacyUserScopes(tx: Sql): Promise<void> {
 
     console.log(
       `[migration] 217 scopes: ${limited.size} limited project(s); ` +
-        `${new Set(scopeOfProject.values()).size} scope(s) in use, ` +
+        `${inUse.length} scope(s) in use, ` +
         `${created.length} created (${created.join(", ") || "none"}); ` +
-        `${moves.length} product(s) moved; ${restricted.length} user(s) restricted; ` +
+        `${moves.length} product(s) moved; ` +
         `${removed.length} unused seeded scope(s) removed (${
           removed.map((r) => r.label).join(", ") || "none"
         })`,

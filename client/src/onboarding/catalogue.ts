@@ -19,6 +19,7 @@ export type InstanceTab =
   | "explore"
   | "data"
   | "results_packages"
+  | "scopes"
   | "assets"
   | "users";
 
@@ -632,12 +633,11 @@ export function getTourCatalogue(
         pt: "Pacotes de resultados",
       }),
       description: t3({
-        en:
-          "What a results package is, generating one, module defaults and scopes.",
+        en: "What a results package is, generating one, and module defaults.",
         fr:
-          "Ce qu'est un paquet de résultats, en générer un, les paramètres par défaut des modules et les portées.",
+          "Ce qu'est un paquet de résultats, en générer un, et les paramètres par défaut des modules.",
         pt:
-          "O que é um pacote de resultados, gerar um, as predefinições dos módulos e os âmbitos.",
+          "O que é um pacote de resultados, gerar um, e as predefinições dos módulos.",
       }),
       // Mirrors the instance shell's own gate for this tab.
       available: () => admin() || perms().can_configure_data,

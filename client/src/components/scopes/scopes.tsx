@@ -11,9 +11,7 @@ import {
   Badge,
   Button,
   createTableConfig,
-  type EditorComponentProps,
   FrameTop,
-  HeadingBar,
   openComponent,
   plural,
   Table,
@@ -43,12 +41,11 @@ type ScopeRow = {
   migratedFrom: string[] | null;
 };
 
-type Props = EditorComponentProps<Record<never, never>, undefined>;
-
-// Scopes are created, edited and deleted here, by global admins only (the
-// scope routes are guarded the same way). A product picks one by label. The
-// reserved "All data" scope is listed and opens read-only.
-export function ScopesPage(p: Props) {
+// The Scopes tab: scopes are created, edited and deleted here, by global
+// admins only (the tab and the scope routes are guarded the same way). A
+// product picks one by label. The reserved "All data" scope is listed and
+// opens read-only.
+export function InstanceScopes() {
   holdCopilotView();
   copilotViewController.setView("scopes");
 
@@ -105,16 +102,7 @@ export function ScopesPage(p: Props) {
   ];
 
   return (
-    <FrameTop
-      pad="md"
-      panelChildren={
-        <HeadingBar
-          tonal
-          onBack={() => p.close(undefined)}
-          heading={t3({ en: "Scopes", fr: "Portées", pt: "Âmbitos" })}
-        />
-      }
-    >
+    <FrameTop pad="md">
       <Table
         data={rows()}
         columns={columns}
@@ -156,11 +144,11 @@ function MigratedBadge(p: { projects: string[] }) {
     <Tooltip
       content={t3({
         en:
-          `Made automatically when this instance moved from projects to folders. It keeps the data limits of: ${list()}. Users who were only on these projects were given this scope, and those projects' reports and decks use it.`,
+          `Made automatically when this instance moved from projects to folders. It keeps the data limits of: ${list()}. Those projects' reports and decks use it; it can be attached to users on the Users page.`,
         fr:
-          `Créée automatiquement lorsque cette instance est passée des projets aux dossiers. Elle conserve les limites de données de : ${list()}. Les utilisateurs qui n'étaient que dans ces projets ont reçu cette portée, et les rapports et présentations de ces projets l'utilisent.`,
+          `Créée automatiquement lorsque cette instance est passée des projets aux dossiers. Elle conserve les limites de données de : ${list()}. Les rapports et présentations de ces projets l'utilisent ; elle peut être attribuée à des utilisateurs depuis la page Utilisateurs.`,
         pt:
-          `Criado automaticamente quando esta instância passou de projetos para pastas. Mantém os limites de dados de: ${list()}. Os utilizadores que estavam apenas nestes projetos receberam este âmbito, e os relatórios e apresentações desses projetos usam-no.`,
+          `Criado automaticamente quando esta instância passou de projetos para pastas. Mantém os limites de dados de: ${list()}. Os relatórios e apresentações desses projetos usam-no; pode ser atribuído a utilizadores na página Utilizadores.`,
       })}
     >
       <Badge intent="neutral">

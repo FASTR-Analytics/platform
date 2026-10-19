@@ -564,7 +564,7 @@ stay correct), never inline a permission string elsewhere.
 | -------------- | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
 | `_BYPASS_AUTH` | `BYPASS_AUTH` env, dev only (`&& !_IS_PRODUCTION`) | synthetic full-access dev user; Clerk disabled entirely                                                        |
 | `_OPEN_ACCESS` | `OPEN_ACCESS` env                                  | every authenticated email treated as approved global admin                                                     |
-| `is_admin`     | `users.is_admin` column                            | global admin, bypasses all permission checks                                                                   |
+| `is_admin`     | `users.is_admin` column                            | global admin, bypasses all permission checks except a private asset's (S4)                                     |
 | `H_USERS`      | hardcoded `lib/h_users.ts` (9 emails)              | `unlimitedAi`; the only callers of `setUserUnlimitedAi` / `setUserContactPerson`; seeded as admin rows at init |
 | granular       | `users` permission columns                         | normal least-privilege path                                                                                    |
 

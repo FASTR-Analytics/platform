@@ -49,6 +49,7 @@ const USERS_FK_CHILDREN = [
   { table: "ai_usage_logs", column: "user_email" },
   { table: "custom_prompts", column: "created_by" },
   { table: "asset_metadata", column: "uploader_email" },
+  { table: "private_asset_viewers", column: "email" },
   { table: "user_scopes", column: "email" },
 ] as const;
 
@@ -117,6 +118,10 @@ export async function renameUserEmailInMainDb(
       await sql`DELETE FROM ai_limit_hits WHERE user_email = ${oldEmail}`;
       await sql`UPDATE custom_prompts SET created_by = ${newEmail} WHERE created_by = ${oldEmail}`;
       await sql`UPDATE asset_metadata SET uploader_email = ${newEmail} WHERE uploader_email = ${oldEmail}`;
+      // owner_email has no FK (survives the owner's deletion), so it is not in
+      // USERS_FK_CHILDREN, but a rename must still carry ownership across.
+      await sql`UPDATE private_assets SET owner_email = ${newEmail} WHERE owner_email = ${oldEmail}`;
+      await sql`UPDATE private_asset_viewers SET email = ${newEmail} WHERE email = ${oldEmail}`;
       await sql`UPDATE user_scopes SET email = ${newEmail} WHERE email = ${oldEmail}`;
       const owned = await sql<{ id: string }[]>`
         UPDATE products SET owner = ${newEmail} WHERE owner = ${oldEmail}

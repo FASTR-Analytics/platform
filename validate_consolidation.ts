@@ -125,7 +125,6 @@ export type InstanceReport = {
   totalUsers: number;
   usersWithNoProductAccess: number;
   sharedLabelProjects: ProjectRef[];
-  restrictedUsers: { email: string; projects: string[] }[];
   windowScopes: number;
 };
 
@@ -159,7 +158,6 @@ function emptyReport(instance: string): InstanceReport {
     totalUsers: 0,
     usersWithNoProductAccess: 0,
     sharedLabelProjects: [],
-    restrictedUsers: [],
     windowScopes: 0,
   };
 }
@@ -433,11 +431,10 @@ export async function dryRunInstance(
       }
     }
 
-    // The scope carry-over (consolidation/user_scopes.ts): a non-admin
-    // whose every project with data was limited is restricted to those
-    // projects' scopes; each distinct window a planned product or a
-    // restricted user needs is one scope (reused when one already filters
-    // the same way, which this read-only count cannot see).
+    // The scope carry-over (consolidation/user_scopes.ts), which restricts no
+    // user: each distinct window that a planned product needs, or that a
+    // member on limited projects only saw, is one scope (reused when one
+    // already filters the same way, which this read-only count cannot see).
     const members = await mainDb<{ email: string; project_id: string }[]>`
       SELECT r.email, r.project_id
       FROM project_user_roles r JOIN users u ON u.email = r.email
@@ -450,22 +447,15 @@ export async function dryRunInstance(
         OR r.can_configure_data OR r.can_view_data OR r.can_view_metrics
         OR r.can_view_logs OR r.can_view_script_code)
     `;
-    const labelOf = new Map(projects.map((p) => [p.id, p.label]));
     const byUser = new Map<string, string[]>();
     for (const { email, project_id } of members) {
       const window = windowByProject.get(project_id);
       if (window === undefined || window.kind === "none") continue;
       byUser.set(email, [...(byUser.get(email) ?? []), project_id]);
     }
-    const restricted = [...byUser].filter(([, ids]) =>
+    const onlyLimited = [...byUser.values()].filter((ids) =>
       ids.every((id) => windowByProject.get(id)?.kind === "limited")
     );
-    report.restrictedUsers = restricted
-      .map(([email, ids]) => ({
-        email,
-        projects: ids.map((id) => labelOf.get(id) ?? id).sort(),
-      }))
-      .sort((a, b) => a.email.localeCompare(b.email));
     const withProducts = new Set(
       report.plans.filter((plan) => plan.products.length > 0).map((plan) =>
         plan.projectId
@@ -473,7 +463,7 @@ export async function dryRunInstance(
     );
     const needed = new Set([
       ...withProducts,
-      ...restricted.flatMap(([, ids]) => ids),
+      ...onlyLimited.flat(),
     ]);
     report.windowScopes = new Set(
       [...windowByProject].flatMap(([id, window]) =>
@@ -521,9 +511,9 @@ function addReviews(report: InstanceReport): void {
       `${report.usersWithNoProductAccess} non-admin user(s) with no report or deck access on any migrated project can open none of the moved products`,
     );
   }
-  if (report.windowScopes > 0 || report.restrictedUsers.length > 0) {
+  if (report.windowScopes > 0) {
     report.reviews.push(
-      `${report.windowScopes} scope(s) carry projects' data windows (zone, indicators, start year; a new one is "<zone|project> (migrated)"), and ${report.restrictedUsers.length} user(s) become restricted to their projects' scopes`,
+      `${report.windowScopes} scope(s) carry projects' data windows (zone, indicators, start year; a new one is "<zone|project> (migrated)"); no user is restricted`,
     );
   }
   if (report.sharedLabelProjects.length > 0) {
@@ -767,7 +757,6 @@ function printFleetSummary(reports: InstanceReport[]): boolean {
       acc.publicDash += report.extraDropped.publicDashboards;
       acc.noAccess += report.usersWithNoProductAccess;
       acc.sharedLabel += report.sharedLabelProjects.length;
-      acc.restricted += report.restrictedUsers.length;
       acc.windowScopes += report.windowScopes;
       acc.central += report.centralReporting.length;
       acc.pending += report.pendingDeletion.length;
@@ -781,7 +770,6 @@ function printFleetSummary(reports: InstanceReport[]): boolean {
       publicDash: 0,
       noAccess: 0,
       sharedLabel: 0,
-      restricted: 0,
       windowScopes: 0,
       central: 0,
       pending: 0,
@@ -804,7 +792,6 @@ function printFleetSummary(reports: InstanceReport[]): boolean {
   console.log(`    users with no product access:    ${totals.noAccess}`);
   console.log(`    projects sharing a label:        ${totals.sharedLabel}`);
   console.log(`    window scopes (up to):           ${totals.windowScopes}`);
-  console.log(`    users restricted to scopes:      ${totals.restricted}`);
   console.log(`    central-reporting projects:      ${totals.central}`);
   console.log(`    pending_deletion, not migrated:  ${totals.pending}`);
 

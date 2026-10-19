@@ -43,6 +43,7 @@ import { WhatsNewFeedModal, WhatsNewModal } from "./whats_new_modal";
 import { serverActions } from "~/server_actions";
 import { Explore } from "~/components/explore/mod.ts";
 import { InstanceAssets } from "~/components/assets/mod.ts";
+import { InstanceScopes } from "~/components/scopes/mod.ts";
 import { InstanceData } from "~/components/data/mod.ts";
 import { Products } from "~/components/products/mod.ts";
 import { InstanceResultsPackages } from "~/components/results_packages/mod.ts";
@@ -110,6 +111,14 @@ function navItems(): ListItem<InstanceTab>[] {
       iconName: "package",
     });
   }
+  // Scopes are global admins' to manage, as the scope routes require.
+  if (instanceState.currentUserIsGlobalAdmin) {
+    items.push({
+      id: "scopes",
+      label: t3({ en: "Scopes", fr: "Portées", pt: "Âmbitos" }),
+      iconName: "filter",
+    });
+  }
   if (
     instanceState.currentUserIsGlobalAdmin ||
     instanceState.currentUserPermissions.can_view_data ||
@@ -160,6 +169,7 @@ export default function Instance(p: Props) {
     }
     if (t === "data" && !canData) return "products";
     if (t === "results_packages" && !canConfigureData()) return "products";
+    if (t === "scopes" && !admin) return "products";
     if (t === "users" && !canUsers) return "products";
     return t;
   };
@@ -472,6 +482,12 @@ export default function Instance(p: Props) {
                     when={tab() === "results_packages" && canConfigureData()}
                   >
                     <InstanceResultsPackages />
+                  </Match>
+                  <Match
+                    when={tab() === "scopes" &&
+                      instanceState.currentUserIsGlobalAdmin}
+                  >
+                    <InstanceScopes />
                   </Match>
                   <Match when={tab() === "assets"}>
                     <InstanceAssets />

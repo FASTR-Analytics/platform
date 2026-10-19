@@ -45,7 +45,7 @@ export async function buildInstanceStateWithoutProducts(
   mainDb: Sql,
   globalUser: GlobalUser,
 ): Promise<BuildResult> {
-  const res = await getInstanceDetail(mainDb);
+  const res = await getInstanceDetail(mainDb, globalUser);
   if (!res.success) {
     return { success: false, err: res.err };
   }

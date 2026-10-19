@@ -24,6 +24,7 @@ import { createMemo, createSignal, type JSX, Show } from "solid-js";
 import { AddUserForm } from "./add_user_form";
 import { BatchUploadUsersForm } from "./batch_upload_users_form";
 import { BulkEditPermissionsForm } from "./bulk_edit_permissions_form";
+import { BulkEditScopesForm } from "./bulk_edit_scopes_form";
 import { User } from "./user";
 import { BulkAction, createTableConfig, Table, TableColumn } from "panther";
 import { serverActions } from "~/server_actions";
@@ -459,6 +460,23 @@ function UserTable(p: {
     await deleteAction.click();
   }
 
+  // Global admins always have every scope, and a non-admin may not change
+  // their own (the route refuses both), so neither is sent.
+  async function handleBulkEditScopes(selectedUsers: UserTableData[]) {
+    const admins = selectedUsers.filter((u) => u.isGlobalAdmin);
+    const emails = selectedUsers
+      .filter((u) => !u.isGlobalAdmin)
+      .map((u) => u.email)
+      .filter((email) =>
+        instanceState.currentUserIsGlobalAdmin ||
+        email !== instanceState.currentUserEmail
+      );
+    await openComponent({
+      element: BulkEditScopesForm,
+      props: { emails, skippedAdmins: admins.length },
+    });
+  }
+
   async function handleBulkEditPermissions(selectedUsers: UserTableData[]) {
     const emails = selectedUsers.map((u) => u.email);
     await openComponent({
@@ -520,6 +538,22 @@ function UserTable(p: {
           onClick: handleBulkEditPermissions,
         },
       ]
+      : []),
+    // Scope access: a global admin, or a holder of can_configure_users who
+    // is not limited to scopes themselves (bulkSetUserScopeAccess).
+    ...(canConfigureUsers() &&
+        (instanceState.currentUserIsGlobalAdmin ||
+          instanceState.currentUserScopeAccess.all)
+      ? [{
+        label: t3({
+          en: "Edit scopes",
+          fr: "Modifier les portées",
+          pt: "Editar âmbitos",
+        }),
+        intent: "primary" as const,
+        outline: true,
+        onClick: handleBulkEditScopes,
+      }]
       : []),
     {
       label: t3({
