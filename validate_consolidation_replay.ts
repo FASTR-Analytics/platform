@@ -31,11 +31,12 @@
 //       ALTER fails at 016.
 //   (d) The fresh path: the base plus the whole instance directory, applied
 //       by the runner in one pass, converges on the same schema as (a).
-//   (e) Project regions into user scopes: a user on only a state-limited
-//       project (no admin_area_2) is restricted to a "<zone> (migrated)"
-//       scope created once, that project's products move onto it, and a
-//       user also on a several-zone project, which counts as national, and
-//       an admin stay unrestricted. In (a), Project One's members are
+//   (e) Project windows into scopes: a user on only a state-limited project
+//       (no admin_area_2) is restricted to a "<zone> (migrated)" scope, a
+//       user on only an indicator-limited workshop to a "<project>
+//       (migrated)" scope holding those indicators, each project's products
+//       move onto its scope, and a user also on a several-zone project,
+//       which limits nothing, and an admin stay unrestricted. In (a), Project One's members are
 //       restricted to the area scope 204 already made, and nothing is
 //       created.
 //
@@ -845,11 +846,11 @@ async function replayLiveInstance(): Promise<void> {
   );
   check(
     JSON.stringify(dryRun.restrictedUsers) === JSON.stringify([
-      { email: "editor@example.org", zones: [AA2] },
-      { email: "noflags@example.org", zones: [AA2] },
-      { email: "viewer@example.org", zones: [AA2] },
+      { email: "editor@example.org", projects: ["Project One"] },
+      { email: "noflags@example.org", projects: ["Project One"] },
+      { email: "viewer@example.org", projects: ["Project One"] },
     ]),
-    `dry-run names the users 217 restricts and their zones (got ${
+    `dry-run names the users 217 restricts and their projects (got ${
       JSON.stringify(dryRun.restrictedUsers)
     })`,
   );
@@ -1002,17 +1003,18 @@ async function replayFreshPath(): Promise<void> {
   );
 }
 
-// ── (e) Project regions into user scopes ─────────────────────────────────────
+// ── (e) Project windows into scopes ──────────────────────────────────────────
 
 const PZ1 = "0b000000-0000-4000-8000-000000000001";
 const PZ2 = "0b000000-0000-4000-8000-000000000002";
+const PZ3 = "0b000000-0000-4000-8000-000000000003";
 
 function windowingInfo(windowing: Record<string, unknown>): string {
   return JSON.stringify({ windowing });
 }
 
 async function replayUserScopes(): Promise<void> {
-  console.log("\n=== (e) Project regions into user scopes ===");
+  console.log("\n=== (e) Project windows into scopes ===");
   await createDatabase("main_zones");
   await withDb("main_zones", async (db) => {
     await loadLegacyFile(db, LEGACY_MAIN_BASE);
@@ -1025,15 +1027,18 @@ async function replayUserScopes(): Promise<void> {
     await db`INSERT INTO runs (id, label, status, provenance, pinned) VALUES
       (${RUN_PIN}, 'Pinned package', 'ready', '{}', TRUE)`;
     await db`INSERT INTO users (email, is_admin) VALUES
-      ('state@example.org', FALSE), ('mixed@example.org', FALSE), ('boss@example.org', TRUE)`;
+      ('state@example.org', FALSE), ('mixed@example.org', FALSE), ('boss@example.org', TRUE),
+      ('trainee@example.org', FALSE)`;
     await db`INSERT INTO projects (id, label, ai_context, status, run_id, admin_area_2, is_central_reporting) VALUES
       (${PZ1}, 'Kaduna State Project', '', 'ready', NULL, NULL, FALSE),
-      (${PZ2}, 'Two Zones', '', 'ready', NULL, NULL, FALSE)`;
+      (${PZ2}, 'Two Zones', '', 'ready', NULL, NULL, FALSE),
+      (${PZ3}, 'ANC Workshop', '', 'ready', NULL, NULL, FALSE)`;
     await db`INSERT INTO project_user_roles (email, project_id, role, can_view_reports, can_view_slide_decks) VALUES
       ('state@example.org', ${PZ1}, 'viewer', TRUE, TRUE),
       ('mixed@example.org', ${PZ1}, 'viewer', TRUE, TRUE),
       ('mixed@example.org', ${PZ2}, 'viewer', TRUE, TRUE),
-      ('boss@example.org', ${PZ1}, 'editor', TRUE, TRUE)`;
+      ('boss@example.org', ${PZ1}, 'editor', TRUE, TRUE),
+      ('trainee@example.org', ${PZ3}, 'viewer', TRUE, TRUE)`;
   });
 
   await createDatabase(PZ1);
@@ -1071,6 +1076,20 @@ async function replayUserScopes(): Promise<void> {
       })
     }`;
   });
+  await createDatabase(PZ3, PZ1);
+  await withDb(PZ3, async (db) => {
+    await db`UPDATE datasets SET info = ${
+      windowingInfo({
+        start: 202001,
+        end: 202606,
+        indicatorType: "common",
+        takeAllIndicators: false,
+        commonIndicatorsToInclude: ["anc4", "anc1"],
+        takeAllAdminArea2s: true,
+        adminArea2sToInclude: [],
+      })
+    }`;
+  });
 
   await withDb("main_zones", async (db) => {
     await runMigrationsInDir(db, INSTANCE_DIR, TS_MIGRATIONS, "replay");
@@ -1091,34 +1110,48 @@ async function replayUserScopes(): Promise<void> {
         "boss@example.org": "all",
         "mixed@example.org": "all",
         "state@example.org": "North West Zone (migrated)",
+        "trainee@example.org": "ANC Workshop (migrated)",
       }),
-      `the state-only user holds the created zone scope; the user also on a several-zone (national) project and the admin stay unrestricted (got ${
+      `the state-only user holds the created zone scope and the trainee the workshop's; the user also on a several-zone project and the admin stay unrestricted (got ${
         JSON.stringify(outcome)
       })`,
     );
-    const created = await db<{ id: string; definition: string }[]>`
-      SELECT id, definition FROM scopes WHERE label LIKE '%(migrated%'`;
+    const created = await db<
+      { id: string; label: string; definition: string }[]
+    >`
+      SELECT id, label, definition FROM scopes WHERE label LIKE '%(migrated%' ORDER BY label`;
+    const workshop = created.find((c) => c.label === "ANC Workshop (migrated)");
+    const zone = created.find((c) => c.label === "North West Zone (migrated)");
+    const workshopDef = workshop && parseScopeDefinition(workshop.definition);
     check(
-      created.length === 1 &&
-        scopeAreasOf(parseScopeDefinition(created[0].definition)).hmis ===
-          "North West Zone",
-      "exactly one scope is created, held to the state's zone",
+      created.length === 2 && zone !== undefined &&
+        scopeAreasOf(parseScopeDefinition(zone.definition)).hmis ===
+          "North West Zone" &&
+        workshopDef !== undefined && workshopDef.hmis.include &&
+        JSON.stringify(workshopDef.hmis.indicators) ===
+          JSON.stringify(["anc1", "anc4"]) &&
+        workshopDef.hmis.adminArea2 === null,
+      `two scopes are created: the state's zone, and the workshop's indicators (got ${
+        JSON.stringify(created.map((c) => c.label))
+      })`,
     );
     const products = await db<{ label: string; scope_id: string }[]>`
       SELECT f.label, p.scope_id FROM products p
       JOIN folders f ON f.id = p.folder_id ORDER BY f.label`;
     check(
-      products.length === 2 &&
+      products.length === 3 &&
         products.find((p) => p.label === "Kaduna State Project")?.scope_id ===
-          created[0]?.id &&
+          zone?.id &&
+        products.find((p) => p.label === "ANC Workshop")?.scope_id ===
+          workshop?.id &&
         products.find((p) => p.label === "Two Zones")?.scope_id === "all-data",
-      `the state project's product moves onto the zone scope; the national project's stays on all-data (got ${
+      `each limited project's product moves onto its scope; the unlimited project's stays on all-data (got ${
         JSON.stringify(products)
       })`,
     );
     const staging = await db<{ a: string | null; b: string | null }[]>`
-      SELECT to_regclass('legacy_user_project_zones')::text AS a,
-             to_regclass('legacy_project_zone_products')::text AS b`;
+      SELECT to_regclass('legacy_project_windows')::text AS a,
+             to_regclass('legacy_project_window_products')::text AS b`;
     check(
       staging[0].a === null && staging[0].b === null,
       "the user-scope staging tables are dropped",

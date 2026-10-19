@@ -9,7 +9,8 @@ import { assertEquals } from "@std/assert";
 import {
   type AccessProject,
   matchProjectRoots,
-  projectRegion,
+  type ProjectWindow,
+  projectWindow,
 } from "../db/migrations/consolidation/access.ts";
 
 function project(
@@ -97,76 +98,124 @@ const allOf = {
   adminArea3sToInclude: [],
 };
 
-Deno.test("a project area is its zone, data or not", () => {
-  assertEquals(projectRegion("South West Zone", []), {
-    kind: "zone",
-    zone: "South West Zone",
-  });
+function hmis(windowing: Record<string, unknown>) {
+  return { datasetType: "hmis", windowing: { ...allOf, ...windowing } };
+}
+
+function limited(
+  hmisPart: { adminArea2?: string; indicators?: string[]; start?: number },
+  hfaArea: string | null,
+): ProjectWindow {
+  return {
+    kind: "limited",
+    definition: {
+      hmis: {
+        include: true,
+        modules: null,
+        indicators: hmisPart.indicators ?? null,
+        adminArea2: hmisPart.adminArea2 ?? null,
+        years: hmisPart.start === undefined
+          ? null
+          : { start: hmisPart.start, end: 9999 },
+      },
+      hfa: {
+        include: true,
+        modules: null,
+        indicators: null,
+        adminArea2: hfaArea,
+        timePoints: null,
+        categories: null,
+        serviceCategories: null,
+      },
+      iceh: { include: true, modules: null, indicators: null, years: null },
+    },
+  };
+}
+
+Deno.test("a project area holds both families, data or not", () => {
+  assertEquals(
+    projectWindow("South West Zone", [], 2020),
+    limited({ adminArea2: "South West Zone" }, "South West Zone"),
+  );
 });
 
-Deno.test("a project with no data has no region", () => {
-  assertEquals(projectRegion(null, []), { kind: "none" });
+Deno.test("a project with no data has no window", () => {
+  assertEquals(projectWindow(null, [], 2020), { kind: "none" });
 });
 
 Deno.test("a state window resolves to the state's zone", () => {
   assertEquals(
-    projectRegion(null, [{
-      datasetType: "hmis",
-      windowing: {
-        ...allOf,
+    projectWindow(null, [
+      hmis({
         takeAllAdminArea3s: false,
         adminArea3sToInclude: [
           "kd Kaduna State|||North West Zone",
           "kn Kano State|||North West Zone",
         ],
-      },
-    }]),
-    { kind: "zone", zone: "North West Zone" },
+      }),
+    ], 2020),
+    limited({ adminArea2: "North West Zone" }, "North West Zone"),
   );
 });
 
-Deno.test("one listed zone is that zone; several are national", () => {
-  const zones = (list: string[]) =>
-    projectRegion(null, [{
-      datasetType: "hmis",
-      windowing: {
-        ...allOf,
+Deno.test("several zones limit no geography", () => {
+  assertEquals(
+    projectWindow(null, [
+      hmis({ takeAllAdminArea2s: false, adminArea2sToInclude: ["A", "B"] }),
+    ], 2020),
+    { kind: "national" },
+  );
+});
+
+Deno.test("indicators and a later start year carry over", () => {
+  assertEquals(
+    projectWindow(null, [
+      hmis({
+        start: 202205,
         takeAllAdminArea2s: false,
-        adminArea2sToInclude: list,
-      },
-    }]);
-  assertEquals(zones(["Cabo Delgado"]), { kind: "zone", zone: "Cabo Delgado" });
-  assertEquals(zones(["A", "B"]), { kind: "national" });
+        adminArea2sToInclude: ["A", "B"],
+        takeAllIndicators: false,
+        indicatorType: "common",
+        commonIndicatorsToInclude: ["anc4", "anc1", "anc1"],
+      }),
+    ], 2020),
+    limited({ indicators: ["anc1", "anc4"], start: 2022 }, null),
+  );
 });
 
-Deno.test("indicator and year windows alone are national", () => {
+Deno.test("a window starting in the first data year limits no years", () => {
   assertEquals(
-    projectRegion(null, [{
-      datasetType: "hmis",
-      windowing: {
-        ...allOf,
-        start: 202401,
-        takeAllIndicators: false,
-        commonIndicatorsToInclude: ["anc1"],
-      },
-    }]),
+    projectWindow(null, [hmis({ start: 202001 })], 2020),
+    { kind: "national" },
+  );
+  assertEquals(
+    projectWindow(null, [hmis({ start: 202401 })], null),
     { kind: "national" },
   );
 });
 
-Deno.test("an unwindowed HFA dataset beside a state window is national", () => {
+Deno.test("raw-indicator lists have no scope dimension", () => {
   assertEquals(
-    projectRegion(null, [
-      {
-        datasetType: "hmis",
-        windowing: {
-          ...allOf,
-          takeAllAdminArea3s: false,
-          adminArea3sToInclude: ["ba Bauchi State|||North East Zone"],
-        },
-      },
-      { datasetType: "hfa", windowing: null },
-    ]),
+    projectWindow(null, [
+      hmis({
+        takeAllIndicators: false,
+        indicatorType: "raw",
+        indicatorsToInclude: ["x"],
+      }),
+    ], 2020),
     { kind: "national" },
+  );
+});
+
+Deno.test("an HFA dataset keeps HFA whole beside an HMIS zone", () => {
+  assertEquals(
+    projectWindow(null, [
+      hmis({
+        takeAllAdminArea3s: false,
+        adminArea3sToInclude: ["ba Bauchi State|||North East Zone"],
+      }),
+      { datasetType: "hfa", windowing: null },
+    ], 2020),
+    limited({ adminArea2: "North East Zone" }, null),
   );
 });

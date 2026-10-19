@@ -20,19 +20,20 @@
 // project still ambiguous is logged and its products keep general access
 // 'view'.
 //
-// It also records each project's region and who was on it, for
-// 217_legacy_user_scopes: a user whose every project with data was held to
-// one admin area 2 becomes restricted to that area's scope
-// (projectRegion below says what counts). Two more staging tables:
-// legacy_user_project_zones (one row per member and project, zone NULL for a
-// national project) and legacy_project_zone_products (the products of a
-// zone-held project whose folder was matched).
+// It also records each project's data window as a scope definition, and who
+// was on it, for 217_legacy_user_scopes (projectWindow below says what
+// counts). Three more staging tables: legacy_project_windows (one row per
+// migrated project with data, definition NULL for an unlimited one),
+// legacy_user_projects (its non-admin members) and
+// legacy_project_window_products (the products of a limited project whose
+// folder was matched).
 //
 // TRANSACTION: `tx` is the migration transaction. Source project pools are
 // opened fresh per project, read only, and ended in a `finally`.
 //
 // =============================================================================
 
+import type { ScopeDefinition } from "lib";
 import type { Sql } from "postgres";
 import { getPgConnection } from "../../postgres/connection_manager.ts";
 import { projectDatabaseExists, readProjects } from "./execute.ts";
@@ -49,17 +50,21 @@ export type AccessProject = {
   keptRootIds: Set<string>;
 };
 
-// A project's geography for the scope carry-over. `none` is a project that
-// never had data added, which neither restricts nor frees a user. A project
-// is held to a zone when its admin_area_2 is set, or when every HMIS window
-// limits geography and all of them resolve to the same single zone (a state
-// entry is "state|||zone"). Anything wider, including a several-zone list,
-// which no one scope can hold, is national. Indicator, year and facility
-// windows are analysis setup and are ignored.
-export type ProjectRegion =
+// A project's data window, as the scope that holds the same data, for the
+// scope carry-over. `none` is a project that never had data added, which
+// neither restricts nor frees a user; `national` limited nothing a scope can
+// hold. Otherwise the definition carries, on HMIS: the zone (the project's
+// admin_area_2, or a window whose zone or state list resolves to one zone; a
+// state entry is "state|||zone"; several zones are not one scope's area), the
+// common-indicator list, and the start year when the window starts after the
+// instance's first year of data (end 9999: a window's end was only its import
+// date). HFA takes the project's admin_area_2, or the HMIS zone when the
+// project had no HFA dataset to see whole; ICEH is whole. Facility filters and
+// raw-indicator lists have no scope dimension and are ignored.
+export type ProjectWindow =
   | { kind: "none" }
   | { kind: "national" }
-  | { kind: "zone"; zone: string };
+  | { kind: "limited"; definition: ScopeDefinition };
 
 export type DatasetWindowing = { datasetType: string; windowing: unknown };
 
@@ -69,37 +74,79 @@ function stringList(value: unknown): string[] {
     : [];
 }
 
-function windowZones(windowing: unknown): string[] | null {
-  if (windowing === null || typeof windowing !== "object") return null;
-  const w = windowing as Record<string, unknown>;
+function windowZone(w: Record<string, unknown>): string | null {
   const states = stringList(w.adminArea3sToInclude);
-  if (w.takeAllAdminArea3s === false && states.length > 0) {
-    return states.map((s) => s.slice(s.lastIndexOf("|||") + 3));
-  }
-  const zones = stringList(w.adminArea2sToInclude);
-  if (w.takeAllAdminArea2s === false && zones.length > 0) return zones;
-  return null;
+  const zones = w.takeAllAdminArea3s === false && states.length > 0
+    ? states.map((s) => s.slice(s.lastIndexOf("|||") + 3))
+    : w.takeAllAdminArea2s === false
+    ? stringList(w.adminArea2sToInclude)
+    : [];
+  const distinct = new Map(zones.map((z) => [z.toUpperCase(), z]));
+  return distinct.size === 1 ? [...distinct.values()][0] : null;
 }
 
-export function projectRegion(
+export function projectWindow(
   adminArea2: string | null,
   datasets: DatasetWindowing[],
-): ProjectRegion {
-  if (adminArea2 !== null && adminArea2 !== "") {
-    return { kind: "zone", zone: adminArea2 };
+  firstDataYear: number | null,
+): ProjectWindow {
+  const area = adminArea2 === "" ? null : adminArea2;
+  if (area === null && datasets.length === 0) return { kind: "none" };
+  const raw = datasets.find((d) => d.datasetType === "hmis")?.windowing;
+  const w = raw !== null && typeof raw === "object"
+    ? raw as Record<string, unknown>
+    : null;
+  const hmisZone = area ?? (w === null ? null : windowZone(w));
+  const indicators = w !== null && w.takeAllIndicators === false &&
+      (w.indicatorType ?? "common") === "common"
+    ? [...new Set(stringList(w.commonIndicatorsToInclude))].toSorted()
+    : [];
+  const start = w === null ? NaN : Number(String(w.start ?? "").slice(0, 4));
+  const years = Number.isInteger(start) && start >= 1000 && start <= 9999 &&
+      firstDataYear !== null && start > firstDataYear
+    ? { start, end: 9999 }
+    : null;
+  const hasHfa = datasets.some((d) => d.datasetType === "hfa");
+  const hfaZone = area ?? (hasHfa ? null : hmisZone);
+  if (
+    hmisZone === null && indicators.length === 0 && years === null &&
+    hfaZone === null
+  ) {
+    return { kind: "national" };
   }
-  if (datasets.length === 0) return { kind: "none" };
-  const zones = new Map<string, string>();
-  for (const dataset of datasets) {
-    const listed = dataset.datasetType === "hmis"
-      ? windowZones(dataset.windowing)
-      : null;
-    if (listed === null) return { kind: "national" };
-    for (const zone of listed) zones.set(zone.toUpperCase(), zone);
-  }
-  return zones.size === 1
-    ? { kind: "zone", zone: [...zones.values()][0] }
-    : { kind: "national" };
+  return {
+    kind: "limited",
+    definition: {
+      hmis: {
+        include: true,
+        modules: null,
+        indicators: indicators.length > 0 ? indicators : null,
+        adminArea2: hmisZone,
+        years,
+      },
+      hfa: {
+        include: true,
+        modules: null,
+        indicators: null,
+        adminArea2: hfaZone,
+        timePoints: null,
+        categories: null,
+        serviceCategories: null,
+      },
+      iceh: { include: true, modules: null, indicators: null, years: null },
+    },
+  };
+}
+
+// The first year of HMIS data on the instance, which a window starting in it
+// does not limit.
+export async function readFirstDataYear(db: Sql): Promise<number | null> {
+  if (!(await tableExists(db, "dataset_hmis"))) return null;
+  const rows = await db<{ first: number | null }[]>`
+    SELECT MIN(period_id)::int AS first FROM dataset_hmis
+  `;
+  const first = rows[0]?.first;
+  return first === null || first === undefined ? null : Math.floor(first / 100);
 }
 
 // The windowing each dataset of a legacy project database was built with.
@@ -122,6 +169,31 @@ export async function readDatasetWindowings(
     }
     return { datasetType: row.dataset_type, windowing };
   });
+}
+
+// The staging 217_legacy_user_scopes reads and drops; it creates them too,
+// so a database that never ran the snapshot passes through.
+export async function createWindowStaging(tx: Sql): Promise<void> {
+  await tx`
+    CREATE TABLE IF NOT EXISTS legacy_project_windows (
+      project_id text PRIMARY KEY NOT NULL,
+      label text NOT NULL,
+      definition text
+    )
+  `;
+  await tx`
+    CREATE TABLE IF NOT EXISTS legacy_user_projects (
+      email text NOT NULL,
+      project_id text NOT NULL,
+      PRIMARY KEY (email, project_id)
+    )
+  `;
+  await tx`
+    CREATE TABLE IF NOT EXISTS legacy_project_window_products (
+      product_id text PRIMARY KEY NOT NULL,
+      project_id text NOT NULL
+    )
+  `;
 }
 
 type RoleRow = {
@@ -193,21 +265,7 @@ export async function snapshotProjectAccess(tx: Sql): Promise<void> {
       PRIMARY KEY (product_id, email)
     )
   `;
-  await tx`
-    CREATE TABLE IF NOT EXISTS legacy_user_project_zones (
-      email text NOT NULL,
-      project_id text NOT NULL,
-      zone text,
-      PRIMARY KEY (email, project_id)
-    )
-  `;
-  await tx`
-    CREATE TABLE IF NOT EXISTS legacy_project_zone_products (
-      product_id text PRIMARY KEY NOT NULL,
-      project_id text NOT NULL,
-      zone text NOT NULL
-    )
-  `;
+  await createWindowStaging(tx);
   if (!(await tableExists(tx, "project_user_roles"))) {
     return;
   }
@@ -229,7 +287,8 @@ export async function snapshotProjectAccess(tx: Sql): Promise<void> {
   const claimed = new Set<string>();
   const keptIdsByProject = new Map<string, string[]>();
   const legacyCountByProject = new Map<string, number>();
-  const regionByProject = new Map<string, ProjectRegion>();
+  const windowByProject = new Map<string, ProjectWindow>();
+  const firstDataYear = await readFirstDataYear(tx);
   for (const project of projects) {
     const projectDb = getPgConnection(project.id, { max: 2 });
     try {
@@ -248,11 +307,12 @@ export async function snapshotProjectAccess(tx: Sql): Promise<void> {
       }
       keptIdsByProject.set(project.id, kept);
       legacyCountByProject.set(project.id, decks.length + reports.length);
-      regionByProject.set(
+      windowByProject.set(
         project.id,
-        projectRegion(
+        projectWindow(
           project.admin_area_2,
           await readDatasetWindowings(projectDb),
+          firstDataYear,
         ),
       );
     } finally {
@@ -296,12 +356,19 @@ export async function snapshotProjectAccess(tx: Sql): Promise<void> {
 
   for (const project of projects) {
     const tag = `project ${project.id} ("${project.label}")`;
-    const region = regionByProject.get(project.id) ?? { kind: "none" };
-    if (region.kind !== "none" && !project.is_central_reporting) {
-      const zone = region.kind === "zone" ? region.zone : null;
+    const window = windowByProject.get(project.id) ?? { kind: "none" };
+    if (window.kind !== "none" && !project.is_central_reporting) {
+      const definition = window.kind === "limited"
+        ? JSON.stringify(window.definition)
+        : null;
       await tx`
-        INSERT INTO legacy_user_project_zones (email, project_id, zone)
-        SELECT r.email, r.project_id, ${zone}
+        INSERT INTO legacy_project_windows (project_id, label, definition)
+        VALUES (${project.id}, ${project.label}, ${definition})
+        ON CONFLICT DO NOTHING
+      `;
+      await tx`
+        INSERT INTO legacy_user_projects (email, project_id)
+        SELECT r.email, r.project_id
         FROM project_user_roles r JOIN users u ON u.email = r.email
         WHERE r.project_id = ${project.id} AND NOT u.is_admin
           -- the old rule for being on a project: any permission flag
@@ -344,11 +411,10 @@ export async function snapshotProjectAccess(tx: Sql): Promise<void> {
       SELECT unnest(${products.map((p) => p.id)}::text[])
       ON CONFLICT DO NOTHING
     `;
-    if (region.kind === "zone") {
+    if (window.kind === "limited" && !project.is_central_reporting) {
       await tx`
-        INSERT INTO legacy_project_zone_products (product_id, project_id, zone)
-        SELECT unnest(${products.map((p) => p.id)}::text[]), ${project.id},
-               ${region.zone}
+        INSERT INTO legacy_project_window_products (product_id, project_id)
+        SELECT unnest(${products.map((p) => p.id)}::text[]), ${project.id}
         ON CONFLICT DO NOTHING
       `;
     }

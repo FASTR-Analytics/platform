@@ -63,10 +63,12 @@ import {
   seedTakenIds,
 } from "./server/db/migrations/consolidation/execute.ts";
 import {
-  type ProjectRegion,
-  projectRegion,
+  type ProjectWindow,
+  projectWindow,
   readDatasetWindowings,
+  readFirstDataYear,
 } from "./server/db/migrations/consolidation/access.ts";
+import { scopeDefinitionHash } from "lib";
 
 // ── Config ───────────────────────────────────────────────────────────────────
 
@@ -123,7 +125,8 @@ export type InstanceReport = {
   totalUsers: number;
   usersWithNoProductAccess: number;
   sharedLabelProjects: ProjectRef[];
-  restrictedUsers: { email: string; zones: string[] }[];
+  restrictedUsers: { email: string; projects: string[] }[];
+  windowScopes: number;
 };
 
 export type PlannedCounts = {
@@ -157,6 +160,7 @@ function emptyReport(instance: string): InstanceReport {
     usersWithNoProductAccess: 0,
     sharedLabelProjects: [],
     restrictedUsers: [],
+    windowScopes: 0,
   };
 }
 
@@ -363,7 +367,8 @@ export async function dryRunInstance(
     }
 
     const takenIds = await seedTakenIds(mainDb);
-    const regionByProject = new Map<string, ProjectRegion>();
+    const windowByProject = new Map<string, ProjectWindow>();
+    const firstDataYear = await readFirstDataYear(mainDb);
 
     for (const project of projects) {
       if (project.status !== "ready") {
@@ -404,11 +409,12 @@ export async function dryRunInstance(
         });
         report.plans.push(plan);
         if (!project.is_central_reporting) {
-          regionByProject.set(
+          windowByProject.set(
             project.id,
-            projectRegion(
+            projectWindow(
               project.admin_area_2,
               await readDatasetWindowings(projectDb),
+              firstDataYear,
             ),
           );
         }
@@ -427,8 +433,11 @@ export async function dryRunInstance(
       }
     }
 
-    // The user-scope carry-over (consolidation/user_scopes.ts): a non-admin
-    // whose every project with data was held to one zone is restricted.
+    // The scope carry-over (consolidation/user_scopes.ts): a non-admin
+    // whose every project with data was limited is restricted to those
+    // projects' scopes; each distinct window a planned product or a
+    // restricted user needs is one scope (reused when one already filters
+    // the same way, which this read-only count cannot see).
     const members = await mainDb<{ email: string; project_id: string }[]>`
       SELECT r.email, r.project_id
       FROM project_user_roles r JOIN users u ON u.email = r.email
@@ -441,20 +450,38 @@ export async function dryRunInstance(
         OR r.can_configure_data OR r.can_view_data OR r.can_view_metrics
         OR r.can_view_logs OR r.can_view_script_code)
     `;
-    const byUser = new Map<string, { national: boolean; zones: Set<string> }>();
+    const labelOf = new Map(projects.map((p) => [p.id, p.label]));
+    const byUser = new Map<string, string[]>();
     for (const { email, project_id } of members) {
-      const region = regionByProject.get(project_id);
-      if (region === undefined || region.kind === "none") continue;
-      const user = byUser.get(email) ??
-        { national: false, zones: new Set<string>() };
-      if (region.kind === "national") user.national = true;
-      else user.zones.add(region.zone);
-      byUser.set(email, user);
+      const window = windowByProject.get(project_id);
+      if (window === undefined || window.kind === "none") continue;
+      byUser.set(email, [...(byUser.get(email) ?? []), project_id]);
     }
-    report.restrictedUsers = [...byUser]
-      .filter(([, user]) => !user.national && user.zones.size > 0)
-      .map(([email, user]) => ({ email, zones: [...user.zones].sort() }))
+    const restricted = [...byUser].filter(([, ids]) =>
+      ids.every((id) => windowByProject.get(id)?.kind === "limited")
+    );
+    report.restrictedUsers = restricted
+      .map(([email, ids]) => ({
+        email,
+        projects: ids.map((id) => labelOf.get(id) ?? id).sort(),
+      }))
       .sort((a, b) => a.email.localeCompare(b.email));
+    const withProducts = new Set(
+      report.plans.filter((plan) => plan.products.length > 0).map((plan) =>
+        plan.projectId
+      ),
+    );
+    const needed = new Set([
+      ...withProducts,
+      ...restricted.flatMap(([, ids]) => ids),
+    ]);
+    report.windowScopes = new Set(
+      [...windowByProject].flatMap(([id, window]) =>
+        window.kind === "limited" && needed.has(id)
+          ? [scopeDefinitionHash(window.definition)]
+          : []
+      ),
+    ).size;
   } finally {
     await mainDb.end().catch(() => {});
   }
@@ -494,12 +521,9 @@ function addReviews(report: InstanceReport): void {
       `${report.usersWithNoProductAccess} non-admin user(s) with no report or deck access on any migrated project can open none of the moved products`,
     );
   }
-  if (report.restrictedUsers.length > 0) {
-    const zones = [...new Set(report.restrictedUsers.flatMap((u) => u.zones))];
+  if (report.windowScopes > 0 || report.restrictedUsers.length > 0) {
     report.reviews.push(
-      `${report.restrictedUsers.length} user(s) become restricted to their projects' zone scope(s): ${
-        zones.map((z) => `"${z}"`).join(", ")
-      } (a zone with no scope yet gets "<zone> (migrated)")`,
+      `${report.windowScopes} scope(s) carry projects' data windows (zone, indicators, start year; a new one is "<zone|project> (migrated)"), and ${report.restrictedUsers.length} user(s) become restricted to their projects' scopes`,
     );
   }
   if (report.sharedLabelProjects.length > 0) {
@@ -744,6 +768,7 @@ function printFleetSummary(reports: InstanceReport[]): boolean {
       acc.noAccess += report.usersWithNoProductAccess;
       acc.sharedLabel += report.sharedLabelProjects.length;
       acc.restricted += report.restrictedUsers.length;
+      acc.windowScopes += report.windowScopes;
       acc.central += report.centralReporting.length;
       acc.pending += report.pendingDeletion.length;
       return acc;
@@ -757,6 +782,7 @@ function printFleetSummary(reports: InstanceReport[]): boolean {
       noAccess: 0,
       sharedLabel: 0,
       restricted: 0,
+      windowScopes: 0,
       central: 0,
       pending: 0,
     },
@@ -777,7 +803,8 @@ function printFleetSummary(reports: InstanceReport[]): boolean {
   );
   console.log(`    users with no product access:    ${totals.noAccess}`);
   console.log(`    projects sharing a label:        ${totals.sharedLabel}`);
-  console.log(`    users restricted to zone scopes: ${totals.restricted}`);
+  console.log(`    window scopes (up to):           ${totals.windowScopes}`);
+  console.log(`    users restricted to scopes:      ${totals.restricted}`);
   console.log(`    central-reporting projects:      ${totals.central}`);
   console.log(`    pending_deletion, not migrated:  ${totals.pending}`);
 

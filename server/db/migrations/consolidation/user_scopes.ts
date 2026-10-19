@@ -1,171 +1,204 @@
 // =============================================================================
-// CARRY PROJECT REGIONS INTO USER SCOPES
+// CARRY PROJECT DATA WINDOWS INTO SCOPES
 // =============================================================================
 //
 // The body of migration 217_legacy_user_scopes. It applies what
-// 201_project_access_snapshot recorded (access.ts) once scopes (204) and
-// user_scopes (205) exist. A non-admin whose every project with data was held
-// to one admin area 2 becomes restricted (users.all_scopes = FALSE) and holds
-// one scope per zone they had; anyone on a national project is left
-// unrestricted. A zone reuses the scope that already filters exactly that
-// zone and nothing else (204 seeds one per area), and a zone with none gets
-// one, created once and labelled "<zone> (migrated)", so no two scopes filter
-// the same way and admins can tell the created ones apart. The products of a
-// zone-held project with a restricted member move off 'all-data' onto that
-// zone's scope, as setProductScope would move them, so the restricted members
-// still see them. The staging tables are dropped at the end.
+// 201_project_access_snapshot recorded (access.ts, projectWindow) once scopes
+// (204) and user_scopes (205) exist.
+//
+// Each limited project's window is a scope definition. Every distinct
+// definition that a project with products or a restricted user needs gets one
+// scope: the existing scope that filters the same way (same definition hash;
+// 204 seeds one per area) or, failing that, a new one labelled "<zone>
+// (migrated)" when it limits geography alone and "<project> (migrated)"
+// otherwise, so admins can tell the created ones apart and no two scopes filter
+// the same way. A limited project's products move onto its scope, as
+// setProductScope would move them, so their figures keep the project's limits.
+// A non-admin whose every project with data was limited becomes restricted
+// (users.all_scopes = FALSE) and holds those projects' scopes; anyone on an
+// unlimited project stays unrestricted. A scope 204 seeded (no creator) that
+// ends up with no product and no user is deleted. The staging tables are
+// dropped at the end.
 //
 // =============================================================================
 
 import {
-  geographyOnlyScopeDefinition,
   parseScopeDefinition,
+  type ScopeDefinition,
   scopeDefinitionHash,
   scopeDefinitionSchema,
 } from "lib";
 import type { Sql } from "postgres";
+import { createWindowStaging } from "./access.ts";
 
-// The geography-only scope for each zone, keyed by upper-cased zone, earliest
-// first. A definition that no longer parses is not a candidate.
-async function zoneScopes(tx: Sql): Promise<Map<string, string>> {
+type Window = { projectId: string; label: string; definition: ScopeDefinition };
+
+// The zone a definition limits when geography is all it limits.
+function zoneOnly(definition: ScopeDefinition): string | null {
+  const { hmis, hfa } = definition;
+  if (!hmis.include || !hfa.include) return null;
+  return hmis.indicators === null && hmis.years === null &&
+      hmis.adminArea2 !== null && hmis.adminArea2 === hfa.adminArea2
+    ? hmis.adminArea2
+    : null;
+}
+
+// Every scope by definition hash, earliest first. A definition that no longer
+// parses is not a candidate.
+async function scopesByHash(tx: Sql): Promise<Map<string, string>> {
   const rows = await tx<{ id: string; definition: string }[]>`
     SELECT id, definition FROM scopes ORDER BY created_at, id
   `;
-  const byZone = new Map<string, string>();
+  const byHash = new Map<string, string>();
   for (const row of rows) {
-    let definition;
     try {
-      definition = parseScopeDefinition(row.definition);
+      const hash = scopeDefinitionHash(parseScopeDefinition(row.definition));
+      if (!byHash.has(hash)) byHash.set(hash, row.id);
     } catch {
       continue;
     }
-    const zone = definition.hmis.include ? definition.hmis.adminArea2 : null;
-    if (
-      zone !== null &&
-      !byZone.has(zone.toUpperCase()) &&
-      scopeDefinitionHash(definition) ===
-        scopeDefinitionHash(geographyOnlyScopeDefinition(zone))
-    ) {
-      byZone.set(zone.toUpperCase(), row.id);
-    }
   }
-  return byZone;
+  return byHash;
 }
 
-// "<zone> (migrated)", numbered when a scope already carries that label
-// (labels are unique case-insensitively).
-async function createZoneScope(tx: Sql, zone: string): Promise<string> {
+// Labels are unique case-insensitively, so a taken one is numbered.
+async function createScope(
+  tx: Sql,
+  base: string,
+  definition: ScopeDefinition,
+): Promise<string> {
   const taken = new Set(
     (await tx<{ label: string }[]>`SELECT label FROM scopes`).map((r) =>
       r.label.toLowerCase()
     ),
   );
-  let label = `${zone} (migrated)`;
+  let label = `${base} (migrated)`;
   for (let n = 2; taken.has(label.toLowerCase()); n++) {
-    label = `${zone} (migrated ${n})`;
+    label = `${base} (migrated ${n})`;
   }
   const id = crypto.randomUUID();
   const stamp = new Date().toISOString();
-  const definition = JSON.stringify(
-    scopeDefinitionSchema.parse(geographyOnlyScopeDefinition(zone)),
-  );
   await tx`
     INSERT INTO scopes (id, label, definition, created_by, created_at, last_updated)
-    VALUES (${id}, ${label}, ${definition}, NULL, ${stamp}, ${stamp})
+    VALUES (${id}, ${label}, ${
+    JSON.stringify(scopeDefinitionSchema.parse(definition))
+  }, NULL, ${stamp}, ${stamp})
   `;
   return id;
 }
 
 export async function applyLegacyUserScopes(tx: Sql): Promise<void> {
-  await tx`
-    CREATE TABLE IF NOT EXISTS legacy_user_project_zones (
-      email text NOT NULL,
-      project_id text NOT NULL,
-      zone text,
-      PRIMARY KEY (email, project_id)
-    )
-  `;
-  await tx`
-    CREATE TABLE IF NOT EXISTS legacy_project_zone_products (
-      product_id text PRIMARY KEY NOT NULL,
-      project_id text NOT NULL,
-      zone text NOT NULL
-    )
-  `;
+  await createWindowStaging(tx);
+  const windowRows = await tx<
+    { project_id: string; label: string; definition: string | null }[]
+  >`SELECT project_id, label, definition FROM legacy_project_windows ORDER BY label, project_id`;
 
-  const rows = await tx<
-    { email: string; project_id: string; zone: string | null }[]
-  >`
-    SELECT z.email, z.project_id, z.zone
-    FROM legacy_user_project_zones z JOIN users u ON u.email = z.email
-    WHERE NOT u.is_admin
-  `;
-  const byUser = new Map<string, { national: boolean; zones: Set<string> }>();
-  for (const row of rows) {
-    const user = byUser.get(row.email) ??
-      { national: false, zones: new Set<string>() };
-    if (row.zone === null) user.national = true;
-    else user.zones.add(row.zone);
-    byUser.set(row.email, user);
-  }
-  const restricted = [...byUser].filter(([, user]) =>
-    !user.national && user.zones.size > 0
-  );
-
-  if (restricted.length > 0) {
-    const scopeByZone = await zoneScopes(tx);
-    const created: string[] = [];
-    for (const [, user] of restricted) {
-      for (const zone of user.zones) {
-        if (!scopeByZone.has(zone.toUpperCase())) {
-          scopeByZone.set(zone.toUpperCase(), await createZoneScope(tx, zone));
-          created.push(zone);
-        }
+  if (windowRows.length > 0) {
+    const limited = new Map<string, Window>();
+    for (const row of windowRows) {
+      if (row.definition !== null) {
+        limited.set(row.project_id, {
+          projectId: row.project_id,
+          label: row.label,
+          definition: parseScopeDefinition(row.definition),
+        });
       }
     }
-    const scopeOf = (zone: string) => scopeByZone.get(zone.toUpperCase())!;
 
-    const emails = restricted.map(([email]) => email);
-    await tx`UPDATE users SET all_scopes = FALSE WHERE email = ANY(${emails})`;
-    const grants = restricted.flatMap(([email, user]) =>
-      [...user.zones].map((zone) => ({ email, scopeId: scopeOf(zone) }))
+    // Who becomes restricted: every project they were on with data limited.
+    const memberRows = await tx<{ email: string; project_id: string }[]>`
+      SELECT m.email, m.project_id
+      FROM legacy_user_projects m JOIN users u ON u.email = m.email
+      WHERE NOT u.is_admin
+    `;
+    const projectsByUser = new Map<string, string[]>();
+    for (const { email, project_id } of memberRows) {
+      projectsByUser.set(email, [
+        ...(projectsByUser.get(email) ?? []),
+        project_id,
+      ]);
+    }
+    const restricted = [...projectsByUser].filter(([, ids]) =>
+      ids.every((id) => limited.has(id))
     );
-    await tx`
-      INSERT INTO user_scopes (email, scope_id)
-      SELECT * FROM unnest(
-        ${grants.map((g) => g.email)}::text[],
-        ${grants.map((g) => g.scopeId)}::text[]
-      )
-      ON CONFLICT DO NOTHING
+
+    const productRows = await tx<{ product_id: string; project_id: string }[]>`
+      SELECT product_id, project_id FROM legacy_project_window_products
     `;
 
-    const moves = await tx<{ product_id: string; zone: string }[]>`
-      SELECT p.product_id, p.zone FROM legacy_project_zone_products p
-      WHERE p.project_id IN (
-        SELECT project_id FROM legacy_user_project_zones
-        WHERE email = ANY(${emails})
-      )
-    `;
+    // One scope per distinct definition a product or a restricted user needs.
+    const needed = new Set([
+      ...productRows.map((r) => r.project_id),
+      ...restricted.flatMap(([, ids]) => ids),
+    ]);
+    const byHash = await scopesByHash(tx);
+    const scopeOfProject = new Map<string, string>();
+    const created: string[] = [];
+    for (const window of limited.values()) {
+      if (!needed.has(window.projectId)) continue;
+      const hash = scopeDefinitionHash(window.definition);
+      let scopeId = byHash.get(hash);
+      if (scopeId === undefined) {
+        const base = zoneOnly(window.definition) ?? window.label;
+        scopeId = await createScope(tx, base, window.definition);
+        byHash.set(hash, scopeId);
+        created.push(base);
+      }
+      scopeOfProject.set(window.projectId, scopeId);
+    }
+
     const stamp = new Date().toISOString();
-    const moved = moves.length === 0 ? [] : await tx<{ id: string }[]>`
-      UPDATE products SET scope_id = m.scope_id, last_updated = ${stamp}
-      FROM unnest(
-        ${moves.map((m) => m.product_id)}::text[],
-        ${moves.map((m) => scopeOf(m.zone))}::text[]
-      ) AS m(id, scope_id)
-      WHERE products.id = m.id AND products.scope_id = 'all-data'
-      RETURNING products.id
+    const moves = productRows.filter((r) => scopeOfProject.has(r.project_id));
+    if (moves.length > 0) {
+      await tx`
+        UPDATE products SET scope_id = m.scope_id, last_updated = ${stamp}
+        FROM unnest(
+          ${moves.map((m) => m.product_id)}::text[],
+          ${moves.map((m) => scopeOfProject.get(m.project_id)!)}::text[]
+        ) AS m(id, scope_id)
+        WHERE products.id = m.id
+      `;
+    }
+
+    if (restricted.length > 0) {
+      const emails = restricted.map(([email]) => email);
+      await tx`UPDATE users SET all_scopes = FALSE WHERE email = ANY(${emails})`;
+      const grants = restricted.flatMap(([email, ids]) =>
+        [...new Set(ids.map((id) => scopeOfProject.get(id)!))].map((
+          scopeId,
+        ) => ({ email, scopeId }))
+      );
+      await tx`
+        INSERT INTO user_scopes (email, scope_id)
+        SELECT * FROM unnest(
+          ${grants.map((g) => g.email)}::text[],
+          ${grants.map((g) => g.scopeId)}::text[]
+        )
+        ON CONFLICT DO NOTHING
+      `;
+    }
+
+    const removed = await tx<{ label: string }[]>`
+      DELETE FROM scopes s
+      WHERE s.id <> 'all-data' AND s.created_by IS NULL
+        AND NOT EXISTS (SELECT 1 FROM products p WHERE p.scope_id = s.id)
+        AND NOT EXISTS (SELECT 1 FROM user_scopes us WHERE us.scope_id = s.id)
+      RETURNING s.label
     `;
 
     console.log(
-      `[migration] 217 user scopes: ${restricted.length} user(s) restricted to ` +
-        `${new Set(grants.map((g) => g.scopeId)).size} zone scope(s), ` +
+      `[migration] 217 scopes: ${limited.size} limited project(s); ` +
+        `${new Set(scopeOfProject.values()).size} scope(s) in use, ` +
         `${created.length} created (${created.join(", ") || "none"}); ` +
-        `${moved.length} product(s) moved onto their zone's scope`,
+        `${moves.length} product(s) moved; ${restricted.length} user(s) restricted; ` +
+        `${removed.length} unused seeded scope(s) removed (${
+          removed.map((r) => r.label).join(", ") || "none"
+        })`,
     );
   }
 
   await tx`
-    DROP TABLE IF EXISTS legacy_user_project_zones, legacy_project_zone_products
+    DROP TABLE IF EXISTS legacy_project_windows, legacy_user_projects,
+      legacy_project_window_products
   `;
 }
