@@ -32,6 +32,7 @@ import {
   targetRowIndex,
 } from "./_shared/mod.ts";
 import type { ProductTreeRow } from "./_shared/mod.ts";
+import { ProductLevelBadge } from "./product_level_badge";
 import { PRODUCT_TYPE_REGISTRY } from "./product_types";
 
 // Hand-built rather than assembled from panther's `Table`: the sanctioned
@@ -486,6 +487,7 @@ export function ListView(p: Props) {
             "text-base-content-muted",
           )}
           <div class="min-w-0">{product().label}</div>
+          <ProductLevelBadge product={product()} />
           <Show when={product().defaultAccess === "none"}>
             <span
               class="text-base-content-muted flex h-[1lh] w-4 flex-none items-center"
