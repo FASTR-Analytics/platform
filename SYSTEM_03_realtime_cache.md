@@ -122,30 +122,30 @@ RESTRICTED one, whose `currentUserScopeAccess.all` is false, S15 "Scope access",
 holds its grants) and on which `productLevelFor` gives at least `view`, the one
 predicate `holdsProductLevel` in `server/auth/product_access.ts` (S12
 "Contract"). A global admin's plane is whole. `buildInstanceState` cuts the
-`starting` payload with `restrictProductPlane`: the visible products; every
-folder for an unrestricted connection, since folders carry no level, and for a
-restricted one the folders whose subtree holds a visible product
-(`visibleFolderIds`); every scope, or a restricted connection's granted ones;
-and the slide stamps of visible decks, read with their deck by
-`listSlideLastUpdated`, so no query names a slide. The forward loop is
-`createInstanceSseFilter` (`instance-sse.ts`), which holds the rules above and
-these, with no query: a visible upserted row is forwarded and its product
-remembered as held; a held row that is no longer visible (rescoped out of a
-grant, or its level lowered to `none`) is rewritten as `products_deleted` and
-remembered as withdrawn; a row neither visible nor held is dropped. A withdrawn
-product that becomes visible again ends the stream, because its slide stamps
-were withheld while it was hidden; the reconnect's `starting` carries fresh
-ones. A product the connection never held arrives as an ordinary upsert, since
-the client holds no stamps for it. A `last_updated` passes when its deck
-(`productId`) is held. For a restricted connection `scopes_updated` is cut to
-the granted scopes, and the folder list is recomputed from what it holds on
-every product or folder message and sent as `folders_updated` when it changes. A
-restricted user's stored data bits never open the generation stream. A
-`users_updated` that changes the connection's own scope access or admin flag
-ends the stream after forwarding it; the client reconnects and the new
-`starting` is built under the new access. The filter and `restrictProductPlane`
-are pinned by `server/tests/instance_sse_filter_test.ts`. No other message on
-the channel is filtered per user.
+`starting` payload with `restrictProductPlane`: the visible products; the
+folders whose subtree holds a visible product or that the connection created
+(`visibleFolderIds`), so a folder with nothing the user can see is not shown;
+every scope, or a restricted connection's granted ones; and the slide stamps of
+visible decks, read with their deck by `listSlideLastUpdated`, so no query names
+a slide. The forward loop is `createInstanceSseFilter` (`instance-sse.ts`),
+which holds the rules above and these, with no query: a visible upserted row is
+forwarded and its product remembered as held; a held row that is no longer
+visible (rescoped out of a grant, or its level lowered to `none`) is rewritten
+as `products_deleted` and remembered as withdrawn; a row neither visible nor
+held is dropped. A withdrawn product that becomes visible again ends the stream,
+because its slide stamps were withheld while it was hidden; the reconnect's
+`starting` carries fresh ones. A product the connection never held arrives as an
+ordinary upsert, since the client holds no stamps for it. A `last_updated`
+passes when its deck (`productId`) is held. For a restricted connection
+`scopes_updated` is cut to the granted scopes. For every connection that is not
+a global admin the folder list is recomputed from what it holds on every product
+or folder message and sent as `folders_updated` when it changes. A restricted
+user's stored data bits never open the generation stream. A `users_updated` that
+changes the connection's own scope access or admin flag ends the stream after
+forwarding it; the client reconnects and the new `starting` is built under the
+new access. The filter and `restrictProductPlane` are pinned by
+`server/tests/instance_sse_filter_test.ts`. No other message on the channel is
+filtered per user.
 
 `BroadcastChannel` in Deno is in-process: it fans out across the main thread and
 all Web Workers in the same process, which is how a background worker's progress

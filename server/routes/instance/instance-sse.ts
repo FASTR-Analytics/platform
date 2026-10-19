@@ -63,9 +63,10 @@ export type InstanceSseFilterResult = {
 //     held is dropped. A withdrawn product that becomes visible again ends
 //     the stream, since its slide stamps were withheld meanwhile. A slide
 //     stamp passes when its deck is held.
-//   - Grants: a RESTRICTED connection's scopes are cut to the granted ones,
-//     and its folder list is recomputed on every product or folder message
-//     and sent when it changes.
+//   - Folders: the folder list (visibleFolderIds: those holding a held
+//     product, or that the connection created) is recomputed on every
+//     product or folder message and sent when it changes.
+//   - Grants: a RESTRICTED connection's scopes are cut to the granted ones.
 //   - A change to the connection's own scope access or admin flag ends the
 //     stream.
 export type InstanceSseFilterStart = Pick<
@@ -99,8 +100,7 @@ export function createInstanceSseFilter(
   let sentFolders = JSON.stringify(start.folders);
 
   function folderMessage(): InstanceSseMessage[] {
-    if (viewer.scopeAccess.all) return [];
-    const ids = visibleFolderIds(allFolders, [...held.values()]);
+    const ids = visibleFolderIds(allFolders, [...held.values()], viewer.email);
     const folders = allFolders.filter((f) => ids.has(f.id));
     const json = JSON.stringify(folders);
     if (json === sentFolders) return [];
@@ -188,7 +188,6 @@ export function createInstanceSseFilter(
         return { messages: [msg, ...folderMessage()], close: false };
       }
       case "folders_updated": {
-        if (viewer.scopeAccess.all) return pass(msg);
         allFolders = msg.data.folders;
         return { messages: folderMessage(), close: false };
       }
@@ -284,9 +283,9 @@ routesInstanceSSE.get(
 
         // Every logged-in user, approved or not, reaches this endpoint
         // (requireGlobalPermission()); createInstanceSseFilter holds the
-        // per-message rules. Only a restricted connection needs the full
-        // folder list.
-        const allFoldersRes = instanceState.currentUserScopeAccess.all
+        // per-message rules. A global admin's messages pass whole, so only
+        // everyone else needs the full folder list.
+        const allFoldersRes = instanceState.currentUserIsGlobalAdmin
           ? undefined
           : await listFolders(mainDb);
         const forwardable = createInstanceSseFilter(instanceState, {

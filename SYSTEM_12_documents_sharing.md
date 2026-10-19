@@ -454,12 +454,16 @@ is the `scopeToken` of the payload the bundle was built from, and only the area
 (`components/_shared/scope_select.tsx`) is the one control that picks a scope,
 by label, in the order the list arrives: "All data" first, as an ordinary
 option. It is used by the create dialog, `PackageScopeModal`, the duplicate
-modal, Explore (S11) and the package page (S8).
-`components/_shared/package_label.ts` names things: `scopeLabel(scopeId)` (the
-scope's label, "Unlisted scope" for an id the list lacks) and
-`figureScopeLabel(stamp)` for a stored bundle, which records a hash and no id:
-the label of a scope whose definition still hashes the same, else the bundle's
-area, else "An earlier scope definition". `packageScopeCaption` and
+modal, Explore (S11) and the package page (S8). The three that attach a scope to
+a product offer `pickableScopes`: every scope to a global admin, the granted
+ones to a restricted user (all its T1 list holds), and "All data" alone to any
+other user, plus a product's current scope so the control still shows it.
+Explore and the package page only read, so they pass `anyScope` and list every
+scope the connection holds. `components/_shared/package_label.ts` names things:
+`scopeLabel(scopeId)` (the scope's label, "Unlisted scope" for an id the list
+lacks) and `figureScopeLabel(stamp)` for a stored bundle, which records a hash
+and no id: the label of a scope whose definition still hashes the same, else the
+bundle's area, else "An earlier scope definition". `packageScopeCaption` and
 `PackageScopeChip` show "package · scope" from those.
 
 ## Slide decks

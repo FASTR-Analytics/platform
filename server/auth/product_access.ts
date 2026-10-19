@@ -100,15 +100,22 @@ export function holdsProductLevel(
     productLevelAtLeast(productLevelFor(access, user), required);
 }
 
-// A folder is visible when its subtree holds a visible product, so the
-// visible set is every folder on the path from such a product to the root.
+// What a connection that is not a global admin sees of the folders: a folder
+// whose subtree holds a product it can see, or one it created (so a new,
+// empty folder stays with its maker). The visible set is every folder on the
+// path from such a product or folder to the root.
 export function visibleFolderIds(
-  folders: Pick<Folder, "id" | "parentId">[],
+  folders: Pick<Folder, "id" | "parentId" | "createdBy">[],
   visibleProductFolderIds: (string | null)[],
+  viewerEmail: string,
 ): Set<string> {
   const parentOf = new Map(folders.map((f) => [f.id, f.parentId]));
   const visible = new Set<string>();
-  for (const start of visibleProductFolderIds) {
+  const starts = [
+    ...visibleProductFolderIds,
+    ...folders.filter((f) => f.createdBy === viewerEmail).map((f) => f.id),
+  ];
+  for (const start of starts) {
     let id = start;
     while (id !== null && parentOf.has(id) && !visible.has(id)) {
       visible.add(id);
@@ -126,15 +133,22 @@ async function visibleFolderIdsForUser(
   scopeIds: ScopeUuid[],
 ): Promise<Set<string>> {
   const [folders, products] = await Promise.all([
-    mainDb<{ id: string; parent_id: string | null }[]>`
-      SELECT id, parent_id FROM folders
+    mainDb<
+      { id: string; parent_id: string | null; created_by: string | null }[]
+    >`
+      SELECT id, parent_id, created_by FROM folders
     `,
     getProductLevelRowsInScopes(mainDb, scopeIds, user.email),
   ]);
   return visibleFolderIds(
-    folders.map((f) => ({ id: f.id, parentId: f.parent_id })),
+    folders.map((f) => ({
+      id: f.id,
+      parentId: f.parent_id,
+      createdBy: f.created_by,
+    })),
     products
       .filter((row) => holdsProductLevel(user, row.scopeId, row.access, "view"))
       .map((row) => row.folderId),
+    user.email,
   );
 }

@@ -238,10 +238,10 @@ export async function buildInstanceState(
 type ProductPlane = Pick<InstanceState, "products" | "folders" | "scopes">;
 
 // The share of the product plane a connection can see: the products it holds
-// view on, by scope and level. Folders carry no level, so an unrestricted
-// connection keeps every folder and a restricted one those whose subtree holds
-// a visible product; a restricted connection keeps only its granted scopes. A
-// global admin's plane is whole.
+// view on, by scope and level, and the folders visibleFolderIds keeps for it
+// (those holding a visible product, or that it created); a restricted
+// connection also keeps only its granted scopes. A global admin's plane is
+// whole.
 export function restrictProductPlane(
   viewer: Pick<GlobalUser, "email" | "isGlobalAdmin" | "scopeAccess">,
   plane: ProductPlane,
@@ -250,16 +250,18 @@ export function restrictProductPlane(
   const products = plane.products.filter((p) =>
     holdsProductLevel(viewer, p.scopeId, p, "view")
   );
-  const access = viewer.scopeAccess;
-  if (access.all) return { ...plane, products };
-  const granted: ReadonlySet<ScopeId> = new Set(access.scopeIds);
   const folderIds = visibleFolderIds(
     plane.folders,
     products.map((p) => p.folderId),
+    viewer.email,
   );
+  const folders = plane.folders.filter((f) => folderIds.has(f.id));
+  const access = viewer.scopeAccess;
+  if (access.all) return { ...plane, products, folders };
+  const granted: ReadonlySet<ScopeId> = new Set(access.scopeIds);
   return {
     products,
-    folders: plane.folders.filter((f) => folderIds.has(f.id)),
+    folders,
     scopes: plane.scopes.filter((s) => granted.has(s.id)),
   };
 }
