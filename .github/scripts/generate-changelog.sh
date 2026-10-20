@@ -7,10 +7,37 @@ cd "$REPO_DIR"
 
 ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:?ANTHROPIC_API_KEY is required}"
 BEFORE="${BEFORE_SHA:-}"
+LOG_BASE_OVERRIDE="${LOG_BASE_OVERRIDE:-}"
 
 # ---------------------------------------------------------------------------
 # 1. Detect what changed
 # ---------------------------------------------------------------------------
+
+# Manual runs (workflow_dispatch) summarise commit messages since LOG_BASE
+# instead of a diff: used for a release whose diff is far too large to read,
+# such as a branch replacing main.
+if [ -n "$LOG_BASE_OVERRIDE" ]; then
+    if ! git merge-base --is-ancestor "$LOG_BASE_OVERRIDE" HEAD 2>/dev/null; then
+        echo "LOG_BASE_OVERRIDE '$LOG_BASE_OVERRIDE' is not an ancestor of HEAD."
+        exit 1
+    fi
+    echo "Manual run, summarising commit messages since: $LOG_BASE_OVERRIDE"
+    export CHANGELOG_INPUT=log
+    VERSION_CHANGED=false
+    git log --no-merges --format='* %s%n%b' "$LOG_BASE_OVERRIDE"..HEAD \
+        --invert-grep --extended-regexp \
+        --grep '^(Ad-hoc deploy|Deploy version|chore: update CHANGELOG)' \
+        > /tmp/changelog_diff.txt
+    LOG_BYTES="$(wc -c < /tmp/changelog_diff.txt)"
+    echo "Commit log: $LOG_BYTES bytes"
+    if [ "$LOG_BYTES" -gt 600000 ]; then
+        echo "Commit log exceeds 600KB, too large for one request. Use a later LOG_BASE."
+        exit 1
+    fi
+    SOURCE_CHANGED=true
+    [ "$LOG_BYTES" -gt 0 ] || SOURCE_CHANGED=false
+else
+export CHANGELOG_INPUT=diff
 
 if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
     echo "First push to branch: no before SHA. Skipping."
@@ -51,6 +78,8 @@ SOURCE_CHANGED=false
 if [ "$(wc -c < /tmp/changelog_diff.txt)" -gt 0 ]; then
     SOURCE_CHANGED=true
 fi
+
+fi  # end LOG_BASE_OVERRIDE
 
 if [ "$VERSION_CHANGED" = "false" ] && [ "$SOURCE_CHANGED" = "false" ]; then
     echo "Nothing relevant changed. Skipping."
@@ -109,10 +138,20 @@ else
     python3 << PYEOF
 import json, os
 diff = open('/tmp/changelog_diff.txt', 'r', errors='replace').read()
+if os.environ.get('CHANGELOG_INPUT') == 'log':
+    source_block = (
+        "Commit messages for the whole release (subject line, then body):\n\`\`\`\n" + diff + "\n\`\`\`\n\n"
+        "Many commits are refactors, plan reviews or doc edits, and later commits often revise earlier ones. "
+        "Describe the release's net changes, each once, not each commit.\n\n"
+    )
+    max_scale = 4
+else:
+    source_block = "Source diff:\n\`\`\`diff\n" + diff + "\n\`\`\`\n\n"
+    max_scale = 1
 prompt = (
     "You are writing release notes for FASTR Analytics, a data analysis platform used by "
     "health data analysts who are not technical.\n\n"
-    "Source diff:\n\`\`\`diff\n" + diff + "\n\`\`\`\n\n"
+    + source_block +
     "Output ONLY lines for changes a non-technical user would directly notice or benefit from "
     "(new features, fixed issues, improved workflows, new export options, visual changes, etc.).\n\n"
     "Format. Each line must be exactly:\n"
@@ -131,7 +170,7 @@ prompt = (
 )
 body = {
     'model': 'claude-opus-4-6',
-    'max_tokens': 1024,
+    'max_tokens': 1024 * max_scale,
     'messages': [{'role': 'user', 'content': prompt}]
 }
 json.dump(body, open('/tmp/user_request.json', 'w'))
@@ -157,10 +196,20 @@ print(resp['content'][0]['text'].strip())
     python3 << PYEOF
 import json, os
 diff = open('/tmp/changelog_diff.txt', 'r', errors='replace').read()
+if os.environ.get('CHANGELOG_INPUT') == 'log':
+    source_block = (
+        "Commit messages for the whole release (subject line, then body):\n\`\`\`\n" + diff + "\n\`\`\`\n\n"
+        "Many commits are refactors, plan reviews or doc edits, and later commits often revise earlier ones. "
+        "Describe the release's net changes, each once, not each commit.\n\n"
+    )
+    max_scale = 4
+else:
+    source_block = "Source diff:\n\`\`\`diff\n" + diff + "\n\`\`\`\n\n"
+    max_scale = 1
 prompt = (
     "You are writing release notes for FASTR Analytics admins: people who manage instances "
     "but are not necessarily technical.\n\n"
-    "Source diff:\n\`\`\`diff\n" + diff + "\n\`\`\`\n\n"
+    + source_block +
     "Output lines for admin-relevant changes: new capabilities, configuration options, fixed issues, "
     "performance improvements, and anything that affects how the platform behaves or is managed.\n\n"
     "Format. Each line must be exactly:\n"
@@ -179,7 +228,7 @@ prompt = (
 )
 body = {
     'model': 'claude-opus-4-6',
-    'max_tokens': 2048,
+    'max_tokens': 2048 * max_scale,
     'messages': [{'role': 'user', 'content': prompt}]
 }
 json.dump(body, open('/tmp/admin_request.json', 'w'))

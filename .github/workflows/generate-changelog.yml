@@ -10,6 +10,11 @@ on:
       - "client/src/**/*.ts"
       - "lib/**/*.ts"
       - "VERSION"
+  workflow_dispatch:
+    inputs:
+      log_base:
+        description: "Commit SHA to summarise commit messages from (base..HEAD), for releases too large to diff"
+        required: true
 
 permissions:
   contents: write
@@ -28,4 +33,5 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           BEFORE_SHA: ${{ github.event.before }}
+          LOG_BASE_OVERRIDE: ${{ inputs.log_base }}
         run: bash .github/scripts/generate-changelog.sh

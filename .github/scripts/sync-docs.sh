@@ -25,6 +25,10 @@ if [ -n "$DIFF_BASE_OVERRIDE" ]; then
     DIFF_BASE="$DIFF_BASE_OVERRIDE"
     echo "Manual run, diffing against override: $DIFF_BASE"
 else
+if [ -n "${DIFF_HEAD_OVERRIDE:-}" ]; then
+    echo "DIFF_HEAD_OVERRIDE needs DIFF_BASE_OVERRIDE."
+    exit 1
+fi
 
 # Only run for deploy commits (same convention as generate-changelog.sh)
 COMMIT_MSG="$(git log -1 --format=%s)"
@@ -49,23 +53,35 @@ fi
 
 fi  # end DIFF_BASE_OVERRIDE
 
+DIFF_HEAD="${DIFF_HEAD_OVERRIDE:-HEAD}"
+if ! git cat-file -e "$DIFF_HEAD" 2>/dev/null; then
+    echo "DIFF_HEAD_OVERRIDE '$DIFF_HEAD' not found in history."
+    exit 1
+fi
+
 # Filter to doc-relevant paths: exclude clearly-internal infrastructure that
 # cannot affect admin/user docs (DB layer, middleware, task scheduling). Keeps
 # client/src, server/routes, server/worker_routines, server/dhis2, lib/*: all of
 # which can carry user-facing or admin behaviour. The chunker (below) guarantees
 # correctness even when the filter keeps more than strictly needed.
-git diff "$DIFF_BASE"..HEAD -- \
+git diff "$DIFF_BASE".."$DIFF_HEAD" -- \
     'server/**/*.ts' 'client/src/**/*.tsx' 'client/src/**/*.ts' 'lib/**/*.ts' \
     ':!deno.lock' ':!lib/translate/ui_strings.ts' \
     ':!server/db/**' ':!server/middleware/**' ':!server/task_management/**' \
     > /tmp/sync_docs_diff.txt 2>/dev/null || true
 
-# Cap the total diff at MAX_CHUNKS * CHUNK_BYTES (see Python below) so very large
-# releases are bounded rather than silently dropped mid-review.
-python3 -c "
-data = open('/tmp/sync_docs_diff.txt','rb').read()
-open('/tmp/sync_docs_diff.txt','wb').write(data[:1800000])
-"
+# Refuse a diff over 1.8MB (6 chunks, under MAX_CHUNKS below) rather than truncate
+# it: a truncated diff silently drops most of the release. Split a large range
+# into manual runs with diff_base and diff_head instead.
+if [ "$(wc -c < /tmp/sync_docs_diff.txt)" -gt 1800000 ]; then
+    MSG="Diff is $(wc -c < /tmp/sync_docs_diff.txt) bytes, over the 1.8MB limit. Run manually with diff_base/diff_head ranges."
+    if [ -n "$DIFF_BASE_OVERRIDE" ]; then
+        echo "ERROR: $MSG"
+        exit 1
+    fi
+    echo "::warning::$MSG Skipping."
+    exit 0
+fi
 
 if [ "$(wc -c < /tmp/sync_docs_diff.txt)" -eq 0 ]; then
     echo "No source file changes. Skipping."

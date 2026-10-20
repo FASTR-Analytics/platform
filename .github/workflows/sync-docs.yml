@@ -15,6 +15,9 @@ on:
       diff_base:
         description: "Commit SHA to diff against (defaults to previous deploy commit)"
         required: false
+      diff_head:
+        description: "Commit SHA to diff up to (defaults to HEAD); splits a large range across runs"
+        required: false
 
 permissions:
   contents: read
@@ -44,4 +47,5 @@ jobs:
           SENDGRID_FROM_EMAIL: ${{ secrets.SENDGRID_FROM_EMAIL }}
           BEFORE_SHA: ${{ github.event.before }}
           DIFF_BASE_OVERRIDE: ${{ inputs.diff_base }}
+          DIFF_HEAD_OVERRIDE: ${{ inputs.diff_head }}
         run: bash .github/scripts/sync-docs.sh
