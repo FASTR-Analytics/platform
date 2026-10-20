@@ -54,6 +54,18 @@ export function ShellEditorWrapper(p: { children: JSX.Element }) {
 // the same way.
 export const _PRODUCT_QUERY_PARAM = "product";
 
+// The reports and decks this user created since the page loaded. Leaving one
+// of them while it still holds nothing offers to delete it (the made-it-by-
+// accident case); an older empty one never asks. Read once, on leaving, so
+// not a signal.
+const productsCreatedThisVisit = new Set<string>();
+export function markProductCreatedThisVisit(productId: string) {
+  productsCreatedThisVisit.add(productId);
+}
+export function wasProductCreatedThisVisit(productId: string): boolean {
+  return productsCreatedThisVisit.has(productId);
+}
+
 // The product explorer's open folders.
 function readStoredIds(key: string): ReadonlySet<string> {
   try {

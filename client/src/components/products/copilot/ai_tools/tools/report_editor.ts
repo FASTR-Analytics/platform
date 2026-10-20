@@ -121,18 +121,8 @@ export function getClientToolsForReportEditor(
             ...figureIds.map((id) => formatFigureIndexLine(id, figs[id])),
           ]
           : [`## Figures: none`];
-        const template = ctx.getTemplate();
         return readReportText(ctx.getBody(), {
           title: ctx.getLabel(),
-          headerLines: template === undefined ? [] : [
-            `Template: ${
-              template === "policy_brief"
-                ? "Policy brief"
-                : template === "long_form"
-                ? "Long-form report"
-                : "Empty"
-            } (write to its shape; see the template section in your instructions)`,
-          ],
           figureLines: figureSection,
           embeds: { figures: figureIds, images: imgIds },
           selection: ctx.getSelection(),

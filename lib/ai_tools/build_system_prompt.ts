@@ -9,10 +9,6 @@ import { describeIndicatorFacts } from "./format_metric_data_for_ai.ts";
 import type { InfoCatalogTopic } from "./info_catalog.ts";
 import type { ScopeDefinition } from "../types/scope.ts";
 import { MODULE_FAMILY_ORDER } from "../group_metrics.ts";
-import {
-  type FastrReportTemplate,
-  fastrReportTemplateBrief,
-} from "../../report-forge/engine/fastr_report_templates.ts";
 
 // The shared halves of the AI system prompt: what both surfaces (the SPA
 // copilot and the /mcp get_overview) ground the model with. Each surface
@@ -491,10 +487,25 @@ Before writing any interpretation, settle which way is good for the indicator.
 // instance/copilot/build_system_prompt.ts); the report EDITING brief stays here
 // because the server test suite covers it.
 
+// Appended to the editing brief while the report is still untouched. Its
+// text never changes, so it rides the conversation once; the moment the body
+// holds anything the instructions drop it and the model edits directly.
+const STARTING_A_REPORT = `## Starting this report: brief, outline, then draft
+
+This report is still EMPTY (a title at most). When the user asks you to write it (or to draft, start or fill it), do not draft straight away. Work through these steps, one message each:
+
+1. **Brief.** Ask at most three short questions in ONE message, skipping any the user's request already answers: who the report is for, how long it should be (a short brief of two to four pages, or a full report), and which indicators, areas or period it should focus on. Offer a sensible default for each so the user can just say "go with your suggestions".
+2. **Look at the data.** With the answers, call get_available_metrics, then get_metric_data for the candidate indicators, so the outline rests on real numbers. Do not write to the report yet.
+3. **Outline.** Propose the outline in chat, not in the report: each section's heading, one line on what it says, the indicators and figures it will use (by metric and preset), and the headline numbers you found. Then ask the user to approve it or change it, and WAIT. Revise it as often as they ask.
+4. **Draft.** Once the user approves, write the whole report in ONE rewrite_report (after checking it with get_report_pages), following the outline. Once the user accepts it, add the outline's figures with insert_figure, each after its section's heading. Do not ask the brief again once it has been answered in this conversation.
+
+If the user explicitly says to skip the questions or the outline ("just write it"), go straight to the draft.`;
+
 export function getEditingReportInstructions(
   reportLabel: string,
-  // The template the user started the report from, if any.
-  template?: FastrReportTemplate,
+  // The report still holds nothing anyone wrote (isUntouchedReport): asked
+  // to write it, the model agrees a brief and an outline before drafting.
+  opts: { untouched?: boolean } = {},
 ): string {
   const common = `## How editing works
 
@@ -513,7 +524,7 @@ export function getEditingReportInstructions(
 The user is editing a long-form report written in **FASTR Markdown** — ordinary markdown plus a small set of \`:::\` blocks — with embedded live figures. The user hand-edits this document, so keep the source clean and readable.
 
 **Whenever you write or restructure this report (rewrite_report, or a rewrite_section that adds new material), build it from the format's \`:::\` blocks** — open with a \`:::cover\` (choosing a \`layout\`), add a \`:::contents\` line when the report is long, put the headline numbers in a \`:::tiles\` row of \`:::stat\` blocks, mark the turning points with \`:::band\` — with the shape the "Composing a report" guidance in rewrite_report's description gives. Do this on the first write, without being asked: a plain run of headings and paragraphs wastes the format. Write plain only when the user asks for something plain.
-${template ? `\n${fastrReportTemplateBrief(template)}\n` : ""}
+${opts.untouched ? `\n${STARTING_A_REPORT}\n` : ""}
 ${common}
 
 ## Writing FASTR Markdown for this report

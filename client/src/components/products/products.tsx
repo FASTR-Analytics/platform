@@ -40,6 +40,7 @@ import {
 } from "~/state/instance/product_access";
 import {
   _PRODUCT_QUERY_PARAM,
+  markProductCreatedThisVisit,
   openShellEditor,
   pendingEditorOpen,
   productsExpandedFolders,
@@ -294,7 +295,9 @@ export function Products() {
       element: CreateProductModal,
       props: { type, title: PRODUCT_TYPE_REGISTRY[type].createLabel() },
     });
-    if (created) await openCreatedProduct(created);
+    if (!created) return;
+    markProductCreatedThisVisit(created.productId);
+    await openCreatedProduct(created);
   }
 
   async function openSettings(product: ProductSummary) {

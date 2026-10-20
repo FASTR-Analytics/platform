@@ -64,6 +64,7 @@ import { InstanceMetaForm } from "./instance_meta_form";
 import { ProfileForm } from "./profile";
 import { TourCatalogueModal } from "~/onboarding/tour_catalogue_modal";
 import { setupTours } from "~/onboarding";
+import { setupAiNudge } from "~/onboarding/ai_nudge";
 import type { InstanceTab } from "~/onboarding/catalogue";
 
 // The Instance Information button (versions icon) is hidden for now; flip
@@ -178,6 +179,7 @@ export default function Instance(p: Props) {
   const tourManager = setupTours({
     instanceVisible: () => instanceState.currentUserApproved,
   });
+  const aiNudge = setupAiNudge();
 
   // post-login modals: wait until user is approved. Runs ONCE per signed-in
   // user: the approval store re-fires the effect, which would otherwise
@@ -516,15 +518,22 @@ export default function Instance(p: Props) {
             onClick={() => setShowAi(true)}
             intent="primary"
             flushEdge="right"
-            // iconName="chevronLeft"
+            iconName="sparkles"
             ariaLabel={t3({
               en: "Open AI panel",
               fr: "Ouvrir le panneau IA",
               pt: "Abrir o painel de IA",
             })}
           >
-            {t3({ en: "AI", fr: "IA", pt: "IA" })}
+            {t3({ en: "Ask AI", fr: "Demander à l'IA", pt: "Perguntar à IA" })}
           </Button>
+          {/* Until the panel has been opened once (onboarding/ai_nudge.ts). */}
+          <Show when={aiNudge.pulse()}>
+            <span class="pointer-events-none absolute -top-1 left-0 flex h-3 w-3">
+              <span class="bg-warning absolute inline-flex h-full w-full rounded-full opacity-75 motion-safe:animate-ping" />
+              <span class="bg-warning ring-base-100 relative inline-flex h-3 w-3 rounded-full ring-2" />
+            </span>
+          </Show>
         </div>
       </Show>
       <AlertProvider />

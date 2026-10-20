@@ -8,6 +8,7 @@ import type { CopilotViewId, SlideType } from "lib";
 import { clerkOnboardingStorage } from "./storage";
 import { reportTourEvent } from "./telemetry";
 import {
+  buildAiIntroTour,
   buildDeckEditorHistoryTour,
   buildDeckEditorIntroTour,
   buildDeckEditorPresentTour,
@@ -121,6 +122,14 @@ export function setupTours(opts: {
       page: "products",
       when: productRowOnScreen,
       tour: buildProductsCardsTour(),
+    },
+    // Last on the landing tab: it ends inside the AI panel, which it opens.
+    // Every approved user gets it once, existing users included, so it is
+    // its own tour rather than steps of the welcome.
+    {
+      page: "products",
+      when: () => instanceState.currentUserApproved,
+      tour: buildAiIntroTour(),
     },
     // Deferred until a package is ready: without one the page has nothing to
     // point at.

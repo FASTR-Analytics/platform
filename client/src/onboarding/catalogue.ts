@@ -7,6 +7,7 @@ import {
   setPendingEditorOpen,
   setPendingSlideOpen,
   setPendingVisualizationOpen,
+  setShowAi,
 } from "~/state/t4_ui";
 import { getSlideDeckDetailFromCacheOrFetch } from "~/state/products/t2_slide_deck_detail";
 import { getSlideFromCacheOrFetch } from "~/state/products/t2_slides";
@@ -602,6 +603,30 @@ export function getTourCatalogue(
       }),
       available: () => true,
       navigate: openTabOnly("products"),
+    },
+    {
+      id: "ai-intro",
+      area: "instance",
+      label: t3({
+        en: "The AI assistant",
+        fr: "L'assistant IA",
+        pt: "O assistente de IA",
+      }),
+      description: t3({
+        en:
+          "Opening the AI assistant, asking it questions, what it can do for you and where its prompt library is.",
+        fr:
+          "Ouvrir l'assistant IA, lui poser des questions, ce qu'il peut faire pour vous et où trouver sa bibliothèque de prompts.",
+        pt:
+          "Abrir o assistente de IA, fazer-lhe perguntas, o que pode fazer por si e onde está a biblioteca de prompts.",
+      }),
+      available: () => instanceState.currentUserApproved,
+      // The panel closes first, so the run starts on the Ask AI button.
+      navigate: (openTab) => {
+        setShowAi(false);
+        openTab("products");
+        return Promise.resolve({});
+      },
     },
     {
       id: "explore-intro",

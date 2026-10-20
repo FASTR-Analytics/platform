@@ -50,10 +50,7 @@ Deno.test("buildSystemPrompt keeps the date and the catalogue when asked, as get
 });
 
 Deno.test("the FASTR editing instructions do not carry the syntax doc", () => {
-  const instructions = getEditingReportInstructions(
-    "Quarterly review",
-    "fastr",
-  );
+  const instructions = getEditingReportInstructions("Quarterly review");
   assert(!instructions.includes(FASTR_MD_SYNTAX_DOC));
   assertStringIncludes(instructions, "rewrite_report's description");
   assertStringIncludes(

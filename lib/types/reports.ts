@@ -7,22 +7,16 @@
 // engine's: report-forge/engine/embeds.ts.
 // =============================================================================
 
-import {
-  type FastrReportTemplate,
-  isFastrReportTemplate,
-} from "../../report-forge/engine/fastr_report_templates.ts";
 import { z } from "zod";
 import {
   type FastrReportTheme,
   isFastrReportTheme,
 } from "../../report-forge/engine/report_fastr_themes.ts";
-// For their side effect: the `legacy` theme and the report templates are
-// the platform's own and exist only once these have run. The schemas below
-// validate against the engine's registries, so the registrations must come
-// first; importing them here makes that true for every caller. See each
-// file's own note.
+// For its side effect: the `legacy` theme is the platform's own and exists
+// only once this has run. The schemas below validate against the engine's
+// registry, so the registration must come first; importing it here makes that
+// true for every caller. See the file's own note.
 import "../report_legacy_theme.ts";
-import "../report_templates.ts";
 import { reportStyleColorsSchema } from "./report_styles.ts";
 import type { ImageBlock } from "./slides.ts";
 import type { FigureBlock } from "./_figure_bundle.ts";
@@ -77,12 +71,6 @@ export type ReportConfig = {
   // true. Absent on every older report, so none of them is interrupted by a
   // modal about a choice they were never offered.
   themeChosen?: boolean;
-  // The template the report was started from (the theme picker's second
-  // step, offered after the theme while the body is still the new-report
-  // seed). Metadata for the AI, which is told what kind of document it is
-  // writing; the body carries the template's skeleton, never a reference to
-  // it.
-  template?: FastrReportTemplate;
 };
 
 // A theme id the engine knows: its ten built-ins plus `legacy`
@@ -94,13 +82,9 @@ export const fastrReportThemeSchema = z.string().refine(isFastrReportTheme, {
   message: "Unknown report theme",
 });
 
-// The same for the template a report was started from.
-const fastrReportTemplateSchema = z.string().refine(isFastrReportTemplate, {
-  message: "Unknown report template",
-});
-
-// passthrough: a stored config may still carry keys of the retired formats
-// (htmlStyle); they ride along untouched.
+// passthrough: a stored config may still carry keys of retired features (the
+// html format's htmlStyle, the starting template's `template`); they ride
+// along untouched and nothing reads them.
 export const reportConfigSchema = z
   .object({
     version: z.number().optional(),
@@ -108,7 +92,6 @@ export const reportConfigSchema = z
     customStyle: reportCustomStyleSnapshotSchema.optional(),
     fastrTheme: fastrReportThemeSchema.optional(),
     themeChosen: z.boolean().optional(),
-    template: fastrReportTemplateSchema.optional(),
   })
   .passthrough();
 
@@ -154,18 +137,24 @@ export function getFastrReportTheme(
   return isFastrReportTheme(v) ? v : "default";
 }
 
-// Total, same rationale as isRetiredReportFormat. undefined = no template
-// chosen.
-export function getFastrReportTemplate(
-  config: ReportConfig | null | undefined,
-): FastrReportTemplate | undefined {
-  const v = config?.template;
-  return isFastrReportTemplate(v) ? v : undefined;
-}
-
 // A new report starts with just its title.
 export function getStartingBodyForReport(label: string): string {
   return `# ${label}\n\n`;
+}
+
+// Whether a report still holds nothing anyone wrote: a body that is empty or
+// a single title line (whatever the title now says), with no figure or image.
+// The AI starts such a report with questions and an outline, and leaving one
+// just created offers to delete it.
+export function isUntouchedReport(r: {
+  body: string;
+  figures: Record<string, unknown>;
+  images: Record<string, unknown>;
+}): boolean {
+  const text = r.body.trim();
+  return (text.length === 0 || /^#\s[^\n]*$/.test(text)) &&
+    Object.keys(r.figures).length === 0 &&
+    Object.keys(r.images).length === 0;
 }
 
 // ── Embed registry write-validation ──────────────────────────────────────────

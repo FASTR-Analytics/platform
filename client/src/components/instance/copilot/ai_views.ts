@@ -16,9 +16,9 @@ import {
   type CopilotPair,
   type CopilotViewId,
   copilotViewIdentity,
-  type FastrReportTemplate,
   getEditingReportInstructions,
   getSlideTitle,
+  isUntouchedReport,
   productLevelAtLeast,
   productScope,
 } from "lib";
@@ -227,9 +227,6 @@ export type EditingReportParams = {
 // See ./types.ts for ReportEditProposal(Result) and ReportEditorSelection.
 export type EditingReportContext = PackageViewContext & {
   getLabel: () => string;
-  // The template the report was started from, read live: it is chosen after
-  // the view is set, from the template modal.
-  getTemplate: () => FastrReportTemplate | undefined;
   getBody: () => string;
   getFigures: () => Record<string, FigureBlock>;
   getImages: () => Record<string, ImageBlock>;
@@ -530,10 +527,13 @@ export const copilotViews = defineAIViews(
         }),
       instructions: (params, context) =>
         `${
-          getEditingReportInstructions(
-            context.getLabel(),
-            context.getTemplate(),
-          )
+          getEditingReportInstructions(context.getLabel(), {
+            untouched: isUntouchedReport({
+              body: context.getBody(),
+              figures: context.getFigures(),
+              images: context.getImages(),
+            }),
+          })
         }${productViewOnlyLine(params.reportId)}`,
       state: (params, context) => {
         const ids = `reportId: ${params.reportId}`;

@@ -157,12 +157,38 @@ export function getStartingConfigForSlideDeck(label: string): SlideDeckConfig {
   };
 }
 
+const DEFAULT_COVER_TITLE = { en: "Title", fr: "Titre", pt: "Título" };
+const DEFAULT_COVER_SUBTITLE = {
+  en: "Subtitle",
+  fr: "Sous-titre",
+  pt: "Subtítulo",
+};
+
 export function getDefaultCoverSlide(): CoverSlide {
   return {
     type: "cover",
-    title: t3({ en: "Title", fr: "Titre", pt: "Título" }),
-    subtitle: t3({ en: "Subtitle", fr: "Sous-titre", pt: "Subtítulo" }),
+    title: t3(DEFAULT_COVER_TITLE),
+    subtitle: t3(DEFAULT_COVER_SUBTITLE),
   };
+}
+
+// Whether a deck's slides still hold nothing anyone wrote: none at all (the
+// theme question never answered), or the one cover the first answer adds,
+// with its title and subtitle as they came in any language and nothing else
+// typed on it. Leaving a deck just created in this state offers to delete it.
+export function isUntouchedDeck(slides: readonly Slide[]): boolean {
+  if (slides.length === 0) return true;
+  if (slides.length !== 1) return false;
+  const s = slides[0];
+  if (s.type !== "cover") return false;
+  const blank = (v: string | undefined) => (v ?? "").trim() === "";
+  const isDefault = (
+    v: string | undefined,
+    d: { en: string; fr: string; pt: string },
+  ) => blank(v) || [d.en, d.fr, d.pt].includes((v ?? "").trim());
+  return isDefault(s.title, DEFAULT_COVER_TITLE) &&
+    isDefault(s.subtitle, DEFAULT_COVER_SUBTITLE) &&
+    blank(s.presenter) && blank(s.date);
 }
 
 export function getDefaultSectionSlide(): SectionSlide {

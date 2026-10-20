@@ -28,7 +28,6 @@ globs:
   - lib/types/slides.ts
   - lib/slide_text_offsets.ts
   - lib/report_legacy_theme.ts
-  - lib/report_templates.ts
   - server/db/instance/report_styles.ts
   - server/db/instance/scopes.ts
   - server/db/products/**
@@ -977,17 +976,16 @@ Its parts:
   `lib/mod.ts` re-exports `report-forge/engine/mod.ts`, so the server and the
   client's `lib` import reach every engine name.
 - `report-forge/ui/`: `screen/` (the mounted `ReportForge`, the toolbar, the
-  outline, the theme modal and template gallery, the image and logo pickers, the
-  selected-embed controls, the download dialog, the accept/reject diff),
-  `editor/` (the CodeMirror layer: `body_editor.tsx`,
-  `live_preview_extension.tsx`, the fence decoration, the rebase of a proposed
-  edit), `exports/` (the standalone `.html`, the paged document the PDF is
-  printed from, Word, font inlining, a vendored Paged.js), `kit/` (its own
-  buttons, menus, modals and icons, so the package needs none of panther's),
-  `collab.ts` (caret hygiene and the selection name hover, which the app's other
-  collaborative text editors import too, S16), `paginator.ts`, `report_html.ts`,
-  `figure_ink.ts` and `toolbar_primitives.tsx` (which the slide deck's header
-  and toolbar also build from).
+  outline, the theme modal, the image and logo pickers, the selected-embed
+  controls, the download dialog, the accept/reject diff), `editor/` (the
+  CodeMirror layer: `body_editor.tsx`, `live_preview_extension.tsx`, the fence
+  decoration, the rebase of a proposed edit), `exports/` (the standalone
+  `.html`, the paged document the PDF is printed from, Word, font inlining, a
+  vendored Paged.js), `kit/` (its own buttons, menus, modals and icons, so the
+  package needs none of panther's), `collab.ts` (caret hygiene and the selection
+  name hover, which the app's other collaborative text editors import too, S16),
+  `paginator.ts`, `report_html.ts`, `figure_ink.ts` and `toolbar_primitives.tsx`
+  (which the slide deck's header and toolbar also build from).
 - `report-forge/server/`: the Deno headless-Chrome PDF printer.
 - `report-forge/ai/`: the text-editing tool operations the copilot's report
   tools run on (S13).
@@ -1029,12 +1027,11 @@ host hands it, prop by prop.
   being answered), goes through `setReportStyle`, whose response carries the
   STORED config the host repaints from, since the snapshot is resolved on the
   server and re-reading the report would race the products SSE. A plain theme
-  switch or a template choice is an optimistic `updateReportConfig` of the whole
-  stored config, reverted on failure. Either rejects with the server's reason,
-  which the editor shows. Once a report's picker has been answered, re-selecting
-  the palette it already carries does not call `setReportStyle`, so an edited
-  library row reaches that report only when its look is changed to something
-  else and back.
+  switch is an optimistic `updateReportConfig` of the whole stored config,
+  reverted on failure. Either rejects with the server's reason, which the editor
+  shows. Once a report's picker has been answered, re-selecting the palette it
+  already carries does not call `setReportStyle`, so an edited library row
+  reaches that report only when its look is changed to something else and back.
 - `images` / `onImagesChange`: the image registry; a change is stored and
   persisted (`persistImages`).
 - `title`: the product label. `lastSaved`: the clock time of the last REST save.
@@ -1177,13 +1174,11 @@ not by the compiler.
 [report-forge/engine/report_fastr_css.ts](report-forge/engine/report_fastr_css.ts)):
 ONE structure sheet plus a per-theme token block. Themes are a registry
 (`registerFastrTheme`, `fastrThemeIds()`, `fastrThemeTokens(theme)`,
-`isFastrReportTheme`), and so are templates (`registerFastrTemplate`,
-`fastrTemplateIds()`, `isFastrReportTemplate`;
-`report-forge/tests/fastr_registry_test.ts` pins both). The platform has **11**
-themes: the engine's ten built-ins (`FASTR_REPORT_THEMES`: default, minimal,
-corporate, ministry, executive, clinical, editorial, swiss, bauhaus,
-broadsheet), plus **`legacy`**, which is the platform's own and is registered
-when [lib/report_legacy_theme.ts](lib/report_legacy_theme.ts) loads.
+`isFastrReportTheme`; `report-forge/tests/fastr_registry_test.ts` pins it). The
+platform has **11** themes: the engine's ten built-ins (`FASTR_REPORT_THEMES`:
+default, minimal, corporate, ministry, executive, clinical, editorial, swiss,
+bauhaus, broadsheet), plus **`legacy`**, which is the platform's own and is
+registered when [lib/report_legacy_theme.ts](lib/report_legacy_theme.ts) loads.
 `lib/types/reports.ts` imports that file itself, so the registration has always
 run before `reportConfigSchema` validates a stored theme (the schema is a
 membership test against the registry, and an unknown id must keep failing it:
@@ -2209,40 +2204,25 @@ press rebuilds the widget. The AI brief documents the block but forbids
 inventing ids: the user places logos. A natural cover opening ANY page is flush
 to the sheet's top in the editor as it is in print (`openPage`, no `isFirst`),
 where it used to sit under a band of top margin after a page break. TEMPLATES
-(2026-09-23): on a report whose body is still a title line alone, the theme
-modal is step 1 of 2 (`offerTemplates`): Next applies the theme and step 2 is a
-template gallery (`report-forge/ui/screen/template_gallery.tsx`, Back returns,
-Skip keeps the theme and the title): Policy brief, Long-form report and Empty,
-each tile the template's real first page rendered under the look just chosen
-(`FastrTemplateMock`). The package ships NO templates (2026-10-14): these three
-are the platform's own, registered from
-[lib/report_templates.ts](lib/report_templates.ts) (`REPORT_TEMPLATES`) into the
-registry in `report-forge/engine/fastr_report_templates.ts`, and
-`lib/types/reports.ts` imports that file so a stored `config.template` can never
-be validated before the registration. A host with no templates gets no step 2.
-The skeletons carry placeholder guidance written as muted marks
-(`[What goes here]{.muted}`, bracketed text in attributes); the chosen body goes
-in through `applyRebasedBody` (one transaction, so collaborators and undo see
-it), only while the body is still the seed, and the choice reaches the host as
-`settings.template`, which it stores as `config.template`. The AI's editing
-instructions append `fastrReportTemplateBrief` for that template (shape, section
-order, the placeholder convention), read live from the view context's
-`getTemplate`, and `get_report_editor` names it. LINE BREAKS IN BLOCKS
-(2026-09-23): in a paragraph island inside a card, column, callout, band, quote
-or cover, Enter (and Shift+Enter) inserts a newline in the same text, a `<br>`
-under `breaks: true`, instead of closing the island; steps keep Enter for a new
-step and top-level prose keeps it for a new paragraph. The newline goes in as a
-text node (Chrome's insertText turns it into markup textContent drops), a
-trailing one is not committed until text follows (a blank last line would end
-the paragraph), and a rebuilt island re-opens with the caret at its source
-offset rather than at the end. COLUMNS (2026-09-24): a column's first block
-never carries its own top margin, and a `:::columns` row with ANY coloured
-direct child (tone other than default, or a literal bg) is rendered
-`fm-columns--panels`, where every column takes the panel inset; colouring one
-column used to pad it alone and drop its heading, so its text no longer lined up
-with the plain column beside it. Inserted columns (the Widgets picker,
-right-click add) are a `###` heading over a text line, the same two text boxes
-the AI writes. A headingless column grows a ghost "Heading…"
+were REMOVED (2026-10-20): the theme modal is one step again, the engine has no
+template registry, and a stored `config.template` from before rides the
+passthrough config unread. A new report starts as its title line; the AI turns
+an untouched one (`isUntouchedReport`) into a draft through a brief and an
+outline instead (S13). LINE BREAKS IN BLOCKS (2026-09-23): in a paragraph island
+inside a card, column, callout, band, quote or cover, Enter (and Shift+Enter)
+inserts a newline in the same text, a `<br>` under `breaks: true`, instead of
+closing the island; steps keep Enter for a new step and top-level prose keeps it
+for a new paragraph. The newline goes in as a text node (Chrome's insertText
+turns it into markup textContent drops), a trailing one is not committed until
+text follows (a blank last line would end the paragraph), and a rebuilt island
+re-opens with the caret at its source offset rather than at the end. COLUMNS
+(2026-09-24): a column's first block never carries its own top margin, and a
+`:::columns` row with ANY coloured direct child (tone other than default, or a
+literal bg) is rendered `fm-columns--panels`, where every column takes the panel
+inset; colouring one column used to pad it alone and drop its heading, so its
+text no longer lined up with the plain column beside it. Inserted columns (the
+Widgets picker, right-click add) are a `###` heading over a text line, the same
+two text boxes the AI writes. A headingless column grows a ghost "Heading…"
 (`attachColumnHeadingGhost`), like a missing kicker, while its region is active.
 Typing into it and pressing Enter (or leaving it) inserts a `###` line under the
 `:::col` fence; a heading inside a block emptied of its words (with or without

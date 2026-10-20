@@ -721,7 +721,7 @@ each beside the product's `getScope()` and `getRunId()`: the deck's
 slide's id, its draft store and the store's raw setter, one object per editor
 mount, so a handler that captured it compares it by reference before writing)
 and `deleteSlides`; and the report contract
-(`getLabel`/`getTemplate`/`getBody`/`getFigures`/`getImages`/`getSelection`/`proposeEdit`/
+(`getLabel`/`getBody`/`getFigures`/`getImages`/`getSelection`/`proposeEdit`/
 `applyFigureUpdate`). See
 [ai_views.ts](client/src/components/instance/copilot/ai_views.ts).
 
@@ -737,10 +737,16 @@ the chat menu's "Save this report's style...", the stylesheet check on
 `rewrite_report`, the html well-formedness validators and the wrapper/flat
 section modes. The `editing_report` view params are the report's id alone (its
 label is read live through the context's `getLabel`), and its instructions are
-`getEditingReportInstructions(label, template)`
-([lib/ai_tools/build_system_prompt.ts](lib/ai_tools/build_system_prompt.ts)),
-the template being read live from the view context because it is chosen after
-the view is set. Tokens are built and parsed through the engine's helpers
+`getEditingReportInstructions(label, { untouched })`
+([lib/ai_tools/build_system_prompt.ts](lib/ai_tools/build_system_prompt.ts)).
+`untouched` is `isUntouchedReport` over the live body, figures and images (a
+title line alone, no embeds): while it holds, the instructions carry "Starting
+this report", which has the model ask a brief (at most three questions, one
+message), read the data, propose a data-grounded outline in chat and wait for
+approval, then write the draft in one `rewrite_report` and add the outline's
+figures with `insert_figure` after it is accepted. The text changes once the
+body holds anything, so the next message carries the plain editing brief. Tokens
+are built and parsed through the engine's helpers
 (`report-forge/engine/embeds.ts`). `get_report_editor` prints the body, a
 headings index (each top-level heading's 1-based line and the exact section
 range, from `report-forge/engine/report_sections.ts`), a one-line index of the

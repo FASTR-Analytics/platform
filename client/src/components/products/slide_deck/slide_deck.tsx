@@ -1,6 +1,7 @@
 import {
   canonicalJson,
   getStartingConfigForSlideDeck,
+  isUntouchedDeck,
   type PackageScope,
   productScope,
   type ProductSummary,
@@ -59,7 +60,10 @@ import { pendingSlideOpen, setPendingSlideOpen } from "~/state/t4_ui";
 import { setCollabAvatar, setCollabView } from "~/state/instance/collab";
 import { clerk } from "~/state/_infra/clerk";
 import { VersionHistoryEditor } from "~/components/products/_shared/version_history/mod.ts";
-import { ProductSettings } from "~/components/products/_shared/mod.ts";
+import {
+  closeOrDiscardEmptyProduct,
+  ProductSettings,
+} from "~/components/products/_shared/mod.ts";
 
 type Props = EditorComponentProps<{ productId: string }, undefined>;
 
@@ -101,7 +105,22 @@ export function SlideDeckEditor(p: Props) {
   );
 
   async function handleClose() {
-    p.close(undefined);
+    await closeOrDiscardEmptyProduct({
+      productId: p.productId,
+      kind: "slide_deck",
+      // The open slide is read from its draft, which may hold typing not yet
+      // saved; any other slide from the cache the rail renders from.
+      untouched: async () => {
+        const ids = slideIds();
+        if (ids.length > 1) return false;
+        if (ids.length === 0) return isUntouchedDeck([]);
+        const open = openSlide();
+        if (open?.slideId === ids[0]) return isUntouchedDeck([open.getDraft()]);
+        const res = await getSlideFromCacheOrFetch(p.productId, ids[0]);
+        return res.success && isUntouchedDeck([res.data.slide]);
+      },
+      close: () => p.close(undefined),
+    });
   }
 
   const [slideIds, setSlideIds] = createSignal<string[]>([]);

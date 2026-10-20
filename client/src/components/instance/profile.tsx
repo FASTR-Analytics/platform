@@ -12,13 +12,12 @@ import {
   KEY_COLOR_THEMES,
   ModalContainer,
   openComponent,
-  StateHolderWrapper,
   TextArea,
 } from "panther";
 import { ChangeEmailModal } from "./change_email_modal";
 import { confirmReloadUnderTurn } from "./copilot/mod.ts";
 import { serverActions } from "~/server_actions";
-import { createSignal, onCleanup, Show } from "solid-js";
+import { createSignal, type JSX, onCleanup, Show } from "solid-js";
 
 // The one panther dark palette: same source as the CSS pairs and the canvas
 // dark companion.
@@ -49,6 +48,78 @@ function openClerkUserProfile() {
         },
       }
       : undefined,
+  );
+}
+
+// What one row of the usage section shows. undefined while it loads: the
+// row keeps its final size, so the modal never grows when the numbers land.
+type UsageFigures = { used: number; limit: number | null };
+
+function UsageMeter(p: {
+  label: string;
+  figures: UsageFigures | undefined;
+  unlimitedText: string;
+}) {
+  const pct = () => {
+    const f = p.figures;
+    if (f === undefined || f.limit === null || f.limit <= 0) return null;
+    return Math.min(100, Math.round((f.used / f.limit) * 100));
+  };
+  return (
+    <div class="flex min-w-0 flex-col gap-1.5">
+      <div class="text-base-content text-sm">{p.label}</div>
+      <div class="bg-base-200 h-2 w-full overflow-hidden rounded-full">
+        <Show when={pct()} keyed>
+          {(v) => (
+            <div
+              class="h-full rounded-full transition-all"
+              classList={{ "bg-warning": v >= 80, "bg-primary": v < 80 }}
+              style={{ width: `${v}%` }}
+            />
+          )}
+        </Show>
+      </div>
+      <div class="text-base-content-muted flex h-5 items-center text-sm">
+        <Show
+          when={p.figures}
+          keyed
+          fallback={
+            <div class="bg-base-200 h-3 w-32 rounded motion-safe:animate-pulse" />
+          }
+        >
+          {(f) =>
+            f.limit === null
+              ? `${f.used.toLocaleString()} · ${p.unlimitedText}`
+              : `${f.used.toLocaleString()} / ${f.limit.toLocaleString()} ${
+                t3({ en: "tokens", fr: "tokens", pt: "tokens" })
+              } (${pct()}%)`}
+        </Show>
+      </div>
+    </div>
+  );
+}
+
+// A labelled line of a section: the label on the left, its value or control
+// on the right, wrapping under it on a narrow modal.
+function SettingRow(p: { label: string; children: JSX.Element }) {
+  return (
+    <div class="flex min-h-10 flex-wrap items-center gap-x-4 gap-y-2 py-2">
+      <div class="text-base-content w-32 flex-none text-sm">{p.label}</div>
+      <div class="flex min-w-0 flex-1 items-center justify-end gap-2">
+        {p.children}
+      </div>
+    </div>
+  );
+}
+
+function SettingSection(p: { label: string; children: JSX.Element }) {
+  return (
+    <section>
+      <div class="ui-text-overline text-base-content-muted pb-1">
+        {p.label}
+      </div>
+      <div class="divide-y">{p.children}</div>
+    </section>
   );
 }
 
@@ -120,10 +191,76 @@ export function ProfileForm(
     if (await confirmReloadUnderTurn()) await action();
   }
 
+  // The name and email show at once from the Clerk session and are replaced
+  // by the users table's copy when it arrives (the same values in practice),
+  // so nothing in the modal waits on the fetch.
+  const user = () => {
+    const st = userDetails.state();
+    return st.status === "ready" ? st.data : undefined;
+  };
+  const fullName = () => {
+    const u = user();
+    const parts = u
+      ? [u.firstName, u.lastName]
+      : [clerk.user?.firstName, clerk.user?.lastName];
+    return parts.filter(Boolean).join(" ") || "—";
+  };
+  const email = () =>
+    user()?.email ?? clerk.user?.primaryEmailAddress?.emailAddress ?? "";
+  const initials = () =>
+    fullName()
+      .split(/\s+/)
+      .map((w) => w[0] ?? "")
+      .join("")
+      .slice(0, 2)
+      .toUpperCase();
+
+  const usage = () => {
+    const st = aiUsage.state();
+    return st.status === "ready" ? st.data : undefined;
+  };
+  const todayFigures = (): UsageFigures | undefined => {
+    const u = usage();
+    return u && {
+      used: u.tokensUsedToday,
+      limit: u.isUnlimited ? null : u.dailyTokenLimit,
+    };
+  };
+  const weekFigures = (): UsageFigures | undefined => {
+    const u = usage();
+    return u && { used: u.tokensUsedThisWeek, limit: u.weeklyTokenLimit };
+  };
+  const usageError = () => {
+    const st = aiUsage.state();
+    return st.status === "error" ? st.err : undefined;
+  };
+
+  const [organisation, setOrganisation] = createSignal(
+    (clerk.user?.unsafeMetadata?.organisation as string | undefined) ?? "",
+  );
+  const [editingOrganisation, setEditingOrganisation] = createSignal(false);
+  const saveOrganisation = createButtonAction(async () => {
+    await clerk.user?.update({
+      unsafeMetadata: {
+        ...clerk.user.unsafeMetadata,
+        organisation: organisation(),
+      },
+    });
+    setEditingOrganisation(false);
+    return { success: true };
+  });
+
+  const manageAccountLabel = t3({
+    en: "Manage account",
+    fr: "Gérer le compte",
+    pt: "Gerir a conta",
+  });
+
   return (
     <ModalContainer
       title={t3({ en: "Your profile", fr: "Votre profil", pt: "O seu perfil" })}
       width="lg"
+      spy="lg"
       actions={[
         {
           label: t3({
@@ -141,375 +278,235 @@ export function ProfileForm(
         },
       ]}
     >
-      <StateHolderWrapper state={userDetails.state()}>
-        {(keyedUser) => {
-          const [organisation, setOrganisation] = createSignal(
-            (clerk.user?.unsafeMetadata?.organisation as string | undefined) ??
-              "",
-          );
+      {/* Who: the avatar slot is always there, initials until a photo. */}
+      <div class="flex items-center gap-4">
+        <button
+          type="button"
+          class="hover:ring-primary bg-base-200 text-base-content-muted font-700 flex h-16 w-16 flex-none cursor-pointer items-center justify-center overflow-hidden rounded-full ring-2 ring-transparent transition"
+          onClick={() => openClerkUserProfile()}
+          title={manageAccountLabel}
+        >
+          <Show when={clerk.user?.imageUrl} keyed fallback={initials()}>
+            {(src) => <img src={src} alt={fullName()} class="h-full w-full" />}
+          </Show>
+        </button>
+        <div class="flex min-w-0 flex-col gap-0.5">
+          <div class="font-700 text-base-content truncate text-base">
+            {fullName()}
+          </div>
+          <div class="text-base-content-muted truncate text-sm">{email()}</div>
+          <button
+            type="button"
+            class="text-primary w-fit cursor-pointer text-xs hover:underline"
+            onClick={() => openClerkUserProfile()}
+          >
+            {manageAccountLabel}
+          </button>
+        </div>
+      </div>
 
-          const [editingOrganisation, setEditingOrganisation] = createSignal(
-            false,
-          );
+      <SettingSection label={t3({ en: "Account", fr: "Compte", pt: "Conta" })}>
+        <SettingRow
+          label={t3({
+            en: "Organisation",
+            fr: "Organisation",
+            pt: "Organização",
+          })}
+        >
+          <Show
+            when={editingOrganisation()}
+            fallback={
+              <>
+                <span class="text-base-content-muted min-w-0 flex-1 truncate text-right text-sm">
+                  {organisation() ||
+                    t3({
+                      en: "Not set",
+                      fr: "Non défini",
+                      pt: "Não definido",
+                    })}
+                </span>
+                <Button
+                  onClick={() => setEditingOrganisation(true)}
+                  outline
+                  size="sm"
+                  iconName="pencil"
+                >
+                  {t3({ en: "Edit", fr: "Modifier", pt: "Editar" })}
+                </Button>
+              </>
+            }
+          >
+            <TextArea
+              value={organisation()}
+              onChange={setOrganisation}
+              placeholder={t3({
+                en: "Organisation name",
+                fr: "Nom de l'organisation",
+                pt: "Nome da organização",
+              })}
+              fullWidth
+              rows={1}
+              size="sm"
+              autoFocus
+            />
+            <Button
+              onClick={saveOrganisation.click}
+              state={saveOrganisation.state()}
+              intent="primary"
+              outline
+              size="sm"
+            >
+              {t3({ en: "Save", fr: "Enregistrer", pt: "Guardar" })}
+            </Button>
+            <Button
+              onClick={() => setEditingOrganisation(false)}
+              intent="neutral"
+              outline
+              size="sm"
+            >
+              {t3({ en: "Cancel", fr: "Annuler", pt: "Cancelar" })}
+            </Button>
+          </Show>
+        </SettingRow>
+        <SettingRow
+          label={t3({ en: "Email", fr: "E-mail", pt: "E-mail" })}
+        >
+          <span class="text-base-content-muted min-w-0 flex-1 truncate text-right text-sm">
+            {email()}
+          </span>
+          <Button
+            onClick={() =>
+              afterTurnGuard(() =>
+                openComponent({
+                  element: ChangeEmailModal,
+                  props: { currentEmail: email() },
+                })
+              )}
+            disabled={user() === undefined}
+            outline
+            size="sm"
+            iconName="pencil"
+          >
+            {t3({
+              en: "Change email",
+              fr: "Changer d'e-mail",
+              pt: "Alterar e-mail",
+            })}
+          </Button>
+        </SettingRow>
+      </SettingSection>
 
-          const saveOrganisation = createButtonAction(async () => {
-            await clerk.user?.update({
-              unsafeMetadata: {
-                ...clerk.user.unsafeMetadata,
-                organisation: organisation(),
+      <SettingSection
+        label={t3({ en: "Preferences", fr: "Préférences", pt: "Preferências" })}
+      >
+        <SettingRow
+          label={t3({ en: "Appearance", fr: "Apparence", pt: "Aparência" })}
+        >
+          <ButtonGroup
+            items={[
+              {
+                id: "system" as const,
+                label: t3({ en: "System", fr: "Système", pt: "Sistema" }),
               },
-            });
-            setEditingOrganisation(false);
-            return { success: true };
-          });
+              {
+                id: "light" as const,
+                label: t3({ en: "Light", fr: "Clair", pt: "Claro" }),
+              },
+              {
+                id: "dark" as const,
+                label: t3({ en: "Dark", fr: "Sombre", pt: "Escuro" }),
+              },
+            ]}
+            value={schemePref()}
+            onChange={(v) => v && setScheme(v)}
+          />
+        </SettingRow>
+      </SettingSection>
 
-          return (
-            <>
-              {/* Hero */}
-              <div class="flex flex-col items-center gap-3 border-b pt-2 pb-6">
-                {clerk.user?.imageUrl && (
-                  <button
-                    type="button"
-                    class="hover:ring-primary cursor-pointer rounded-full ring-2 ring-transparent transition"
-                    onClick={() => openClerkUserProfile()}
-                    title={t3({
-                      en: "Manage account",
-                      fr: "Gérer le compte",
-                      pt: "Gerir a conta",
-                    })}
-                  >
-                    <img
-                      src={clerk.user.imageUrl}
-                      alt={keyedUser.firstName ?? ""}
-                      class="h-20 w-20 rounded-full"
-                    />
-                  </button>
-                )}
-                <div class="flex flex-col items-center gap-1">
-                  <div class="font-700 text-base-content text-base">
-                    {[keyedUser.firstName, keyedUser.lastName]
-                      .filter(Boolean)
-                      .join(" ") || "—"}
-                  </div>
-                  <div class="text-base-content-muted text-sm">
-                    {keyedUser.email}
-                  </div>
-                  <button
-                    type="button"
-                    class="text-primary mt-1 cursor-pointer text-xs hover:underline"
-                    onClick={() => openClerkUserProfile()}
-                  >
-                    {t3({
-                      en: "Manage account",
-                      fr: "Gérer le compte",
-                      pt: "Gerir a conta",
-                    })}
-                  </button>
-                </div>
-              </div>
+      <SettingSection
+        label={t3({
+          en: "AI usage",
+          fr: "Utilisation de l'IA",
+          pt: "Utilização de IA",
+        })}
+      >
+        <div class="grid grid-cols-1 gap-x-6 gap-y-3 py-2 sm:grid-cols-2">
+          <UsageMeter
+            label={t3({ en: "Today", fr: "Aujourd'hui", pt: "Hoje" })}
+            figures={todayFigures()}
+            unlimitedText={t3({
+              en: "tokens today · Unlimited",
+              fr: "tokens aujourd'hui · Illimité",
+              pt: "tokens hoje · Ilimitado",
+            })}
+          />
+          <UsageMeter
+            label={t3({
+              en: "This week (whole country)",
+              fr: "Cette semaine (tout le pays)",
+              pt: "Esta semana (todo o país)",
+            })}
+            figures={weekFigures()}
+            unlimitedText={t3({
+              en: "tokens this week · Unlimited",
+              fr: "tokens cette semaine · Illimité",
+              pt: "tokens esta semana · Ilimitado",
+            })}
+          />
+        </div>
+        <Show when={usageError()} keyed>
+          {(err) => <div class="text-danger py-1 text-sm">{err}</div>}
+        </Show>
+      </SettingSection>
 
-              {/* Organisation */}
-              <Card
-                header={t3({
-                  en: "Organisation",
-                  fr: "Organisation",
-                  pt: "Organização",
-                })}
-              >
-                <div class="ui-spy-sm">
-                  <Show
-                    when={editingOrganisation()}
-                    fallback={
-                      <div class="flex items-center gap-2">
-                        <span class="text-base-content-muted flex-1 text-sm">
-                          {organisation() || (
-                            <span class="text-base-content-muted">
-                              {t3({
-                                en: "Not set",
-                                fr: "Non défini",
-                                pt: "Não definido",
-                              })}
-                            </span>
-                          )}
-                        </span>
-                        <Button
-                          onClick={() => setEditingOrganisation(true)}
-                          outline
-                          size="sm"
-                          iconName="pencil"
-                        >
-                          {t3({ en: "Edit", fr: "Modifier", pt: "Editar" })}
-                        </Button>
-                      </div>
-                    }
-                  >
-                    <div class="flex items-center gap-2">
-                      <TextArea
-                        value={organisation()}
-                        onChange={setOrganisation}
-                        placeholder={t3({
-                          en: "Organisation name",
-                          fr: "Nom de l'organisation",
-                          pt: "Nome da organização",
-                        })}
-                        fullWidth
-                        rows={1}
-                        size="sm"
-                        autoFocus
-                      />
-                      <Button
-                        onClick={saveOrganisation.click}
-                        state={saveOrganisation.state()}
-                        intent="primary"
-                        outline
-                      >
-                        {t3({ en: "Save", fr: "Enregistrer", pt: "Guardar" })}
-                      </Button>
-                      <Button
-                        onClick={() => setEditingOrganisation(false)}
-                        intent="neutral"
-                        outline
-                      >
-                        {t3({ en: "Cancel", fr: "Annuler", pt: "Cancelar" })}
-                      </Button>
-                    </div>
-                  </Show>
-                </div>
-              </Card>
-
-              {/* Email address */}
-              <Card
-                header={t3({
-                  en: "Email address",
-                  fr: "Adresse e-mail",
-                  pt: "Endereço de e-mail",
-                })}
-              >
-                <div class="ui-spy-sm">
-                  <div class="flex items-center gap-2">
-                    <span class="text-base-content-muted flex-1 text-sm">
-                      {keyedUser.email}
-                    </span>
-                    <Button
-                      onClick={() =>
-                        afterTurnGuard(() =>
-                          openComponent({
-                            element: ChangeEmailModal,
-                            props: { currentEmail: keyedUser.email },
-                          })
-                        )}
-                      outline
-                      size="sm"
-                      iconName="pencil"
-                    >
-                      {t3({
-                        en: "Change email",
-                        fr: "Changer d'e-mail",
-                        pt: "Alterar e-mail",
-                      })}
-                    </Button>
-                  </div>
-                </div>
-              </Card>
-
-              {/* Appearance */}
-              <Card
-                header={t3({
-                  en: "Appearance",
-                  fr: "Apparence",
-                  pt: "Aparência",
-                })}
-              >
-                <div class="ui-spy-sm">
-                  <ButtonGroup
-                    items={[
-                      {
-                        id: "system" as const,
-                        label: t3({
-                          en: "System",
-                          fr: "Système",
-                          pt: "Sistema",
-                        }),
-                      },
-                      {
-                        id: "light" as const,
-                        label: t3({ en: "Light", fr: "Clair", pt: "Claro" }),
-                      },
-                      {
-                        id: "dark" as const,
-                        label: t3({ en: "Dark", fr: "Sombre", pt: "Escuro" }),
-                      },
-                    ]}
-                    value={schemePref()}
-                    onChange={(v) => v && setScheme(v)}
-                  />
-                </div>
-              </Card>
-
-              {/* AI usage */}
-              <Card
-                header={t3({
-                  en: "AI usage today",
-                  fr: "Utilisation IA aujourd'hui",
-                  pt: "Utilização de IA hoje",
-                })}
-              >
-                <div class="ui-spy-sm">
-                  <StateHolderWrapper state={aiUsage.state()}>
-                    {(usage) => {
-                      const pct =
-                        !usage.isUnlimited && usage.dailyTokenLimit !== null
-                          ? Math.min(
-                            100,
-                            Math.round(
-                              (usage.tokensUsedToday /
-                                usage.dailyTokenLimit) *
-                                100,
-                            ),
-                          )
-                          : null;
-                      return (
-                        <div class="flex flex-col gap-2">
-                          {pct !== null && (
-                            <div class="bg-base-200 h-2 w-full overflow-hidden rounded-full">
-                              <div
-                                class={`h-full rounded-full transition-all ${
-                                  pct >= 80 ? "bg-warning" : "bg-primary"
-                                }`}
-                                style={{ width: `${pct}%` }}
-                              />
-                            </div>
-                          )}
-                          <div class="text-base-content-muted text-sm">
-                            {usage.isUnlimited
-                              ? (
-                                t3({
-                                  en: "Unlimited",
-                                  fr: "Illimité",
-                                  pt: "Ilimitado",
-                                })
-                              )
-                              : (
-                                <>
-                                  {usage.tokensUsedToday.toLocaleString()}{" "}
-                                  {usage.dailyTokenLimit !== null
-                                    ? `/ ${usage.dailyTokenLimit.toLocaleString()} ${
-                                      t3({
-                                        en: "tokens",
-                                        fr: "tokens",
-                                        pt: "tokens",
-                                      })
-                                    } (${pct}%)`
-                                    : t3({
-                                      en: "tokens used today · Unlimited",
-                                      fr:
-                                        "tokens utilisés aujourd'hui · Illimité",
-                                      pt: "tokens utilizados hoje · Ilimitado",
-                                    })}
-                                </>
-                              )}
-                          </div>
-                        </div>
-                      );
-                    }}
-                  </StateHolderWrapper>
-                </div>
-              </Card>
-
-              {/* AI usage this week */}
-              <Card
-                header={t3({
-                  en: "AI usage this week (country)",
-                  fr: "Utilisation IA cette semaine (pays)",
-                  pt: "Utilização de IA esta semana (país)",
-                })}
-              >
-                <div class="ui-spy-sm">
-                  <StateHolderWrapper state={aiUsage.state()}>
-                    {(usage) => {
-                      const pct = usage.weeklyTokenLimit !== null
-                        ? Math.min(
-                          100,
-                          Math.round(
-                            (usage.tokensUsedThisWeek /
-                              usage.weeklyTokenLimit) *
-                              100,
-                          ),
-                        )
-                        : null;
-                      return (
-                        <div class="flex flex-col gap-2">
-                          {pct !== null && (
-                            <div class="bg-base-200 h-2 w-full overflow-hidden rounded-full">
-                              <div
-                                class={`h-full rounded-full transition-all ${
-                                  pct >= 80 ? "bg-warning" : "bg-primary"
-                                }`}
-                                style={{ width: `${pct}%` }}
-                              />
-                            </div>
-                          )}
-                          <div class="text-base-content-muted text-sm">
-                            {usage.tokensUsedThisWeek.toLocaleString()}{" "}
-                            {usage.weeklyTokenLimit !== null
-                              ? `/ ${usage.weeklyTokenLimit.toLocaleString()} ${
-                                t3({ en: "tokens", fr: "tokens", pt: "tokens" })
-                              } (${pct}%)`
-                              : t3({
-                                en: "tokens used this week · Unlimited",
-                                fr: "tokens utilisés cette semaine · Illimité",
-                                pt: "tokens utilizados esta semana · Ilimitado",
-                              })}
-                          </div>
-                        </div>
-                      );
-                    }}
-                  </StateHolderWrapper>
-                </div>
-              </Card>
-
-              {/* Cache management */}
-              <Card
-                header={t3({
-                  en: "Cache management",
-                  fr: "Gestion du cache",
-                  pt: "Gestão da cache",
-                })}
-                headerRight={
-                  <div class="ui-gap-sm flex">
-                    <Button
-                      onClick={() => afterTurnGuard(clearCache.click)}
-                      state={clearCache.state()}
-                      outline
-                      iconName="trash"
-                    >
-                      {t3({
-                        en: "Clear data cache",
-                        fr: "Vider le cache de données",
-                        pt: "Limpar a cache de dados",
-                      })}
-                    </Button>
-                    <Button
-                      onClick={() => afterTurnGuard(clearAiChat.click)}
-                      state={clearAiChat.state()}
-                      outline
-                      iconName="trash"
-                    >
-                      {t3({
-                        en: "Clear AI chat history",
-                        fr: "Vider l'historique IA",
-                        pt: "Limpar o histórico de conversas de IA",
-                      })}
-                    </Button>
-                  </div>
-                }
-              >
-                <div class="ui-spy-sm">{null}</div>
-              </Card>
-            </>
-          );
-        }}
-      </StateHolderWrapper>
+      <SettingSection
+        label={t3({
+          en: "Troubleshooting",
+          fr: "Dépannage",
+          pt: "Resolução de problemas",
+        })}
+      >
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-2 py-2">
+          <div class="text-base-content-muted min-w-0 flex-1 text-sm">
+            {t3({
+              en:
+                "If something looks out of date or the AI is stuck, clearing these reloads the page.",
+              fr:
+                "Si quelque chose semble périmé ou si l'IA est bloquée, vider ces données recharge la page.",
+              pt:
+                "Se algo parecer desatualizado ou a IA estiver bloqueada, limpar estes dados recarrega a página.",
+            })}
+          </div>
+          <div class="ui-gap-sm flex flex-none">
+            <Button
+              onClick={() => afterTurnGuard(clearCache.click)}
+              state={clearCache.state()}
+              outline
+              size="sm"
+              iconName="trash"
+            >
+              {t3({
+                en: "Clear data cache",
+                fr: "Vider le cache de données",
+                pt: "Limpar a cache de dados",
+              })}
+            </Button>
+            <Button
+              onClick={() => afterTurnGuard(clearAiChat.click)}
+              state={clearAiChat.state()}
+              outline
+              size="sm"
+              iconName="trash"
+            >
+              {t3({
+                en: "Clear AI chat history",
+                fr: "Vider l'historique IA",
+                pt: "Limpar o histórico de conversas de IA",
+              })}
+            </Button>
+          </div>
+        </div>
+      </SettingSection>
     </ModalContainer>
   );
 }

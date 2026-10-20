@@ -3,6 +3,7 @@ export {
   generateUniqueBlockId,
 } from "./id_generation.ts";
 export { DuplicateProductsModal } from "./duplicate_products_modal.tsx";
+export { closeOrDiscardEmptyProduct } from "./leave_empty_product.tsx";
 export {
   generalLabel,
   moveToRootLabel,

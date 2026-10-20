@@ -1409,6 +1409,119 @@ export function buildInstanceWelcomeTour(): TourDefinition {
   };
 }
 
+// The AI assistant: the Ask AI button at the right edge, then the panel it
+// opens. Runs on the Products page for every user once, after the welcome
+// for a new one. The first step waits for the click; the panel's anchors
+// mount after it, so each of those waits and is skipped rather than ending
+// the run (the chat is held by one tab, and another tab's notice has none of
+// them). A user who already has the panel open starts at its second step.
+
+const COPILOT_CHAT = tourTarget("copilot-chat");
+
+export function buildAiIntroTour(): TourDefinition {
+  return {
+    id: "ai-intro",
+    steps: [
+      {
+        id: "open",
+        target: "#copilot-opener",
+        title: t3({
+          en: "Meet your AI assistant",
+          fr: "Découvrez votre assistant IA",
+          pt: "Conheça o seu assistente de IA",
+        }),
+        body: t3({
+          en:
+            "The AI assistant can answer questions about your results and help you write reports and slides. Click Ask AI to open it.",
+          fr:
+            "L'assistant IA répond à vos questions sur les résultats et vous aide à rédiger des rapports et des présentations. Cliquez sur Demander à l'IA pour l'ouvrir.",
+          pt:
+            "O assistente de IA responde a perguntas sobre os seus resultados e ajuda-o a escrever relatórios e apresentações. Clique em Perguntar à IA para o abrir.",
+        }),
+        placement: "left",
+        advanceOn: "click",
+        when: onScreen("#copilot-opener"),
+      },
+      {
+        id: "ask",
+        target: `${COPILOT_CHAT} textarea`,
+        title: t3({
+          en: "Ask in plain words",
+          fr: "Demandez simplement",
+          pt: "Pergunte por palavras simples",
+        }),
+        body: t3({
+          en:
+            'Type a question or a request here. It knows which page you are on and what is open, so "summarise this report" or "how has ANC1 changed this year?" just works.',
+          fr:
+            "Saisissez une question ou une demande ici. Il sait sur quelle page vous êtes et ce qui est ouvert : « résume ce rapport » ou « comment la CPN1 a-t-elle évolué cette année ? » fonctionnent directement.",
+          pt:
+            'Escreva aqui uma pergunta ou um pedido. Ele sabe em que página está e o que está aberto, por isso "resume este relatório" ou "como evoluiu a CPN1 este ano?" funcionam diretamente.',
+        }),
+        placement: "left",
+        ...SKIP_IF_MISSING,
+      },
+      {
+        id: "abilities",
+        target: COPILOT_CHAT,
+        title: t3({
+          en: "What it can do",
+          fr: "Ce qu'il sait faire",
+          pt: "O que pode fazer",
+        }),
+        body: t3({
+          en:
+            "It reads your results and explains the indicators, and in a report or slide deck it drafts and edits for you. Every change it proposes is shown to you first, to accept or reject.",
+          fr:
+            "Il lit vos résultats et explique les indicateurs, et dans un rapport ou une présentation il rédige et modifie pour vous. Chaque modification qu'il propose vous est d'abord montrée, pour l'accepter ou la refuser.",
+          pt:
+            "Lê os seus resultados e explica os indicadores e, num relatório ou numa apresentação, redige e edita por si. Cada alteração que propõe é-lhe mostrada primeiro, para aceitar ou rejeitar.",
+        }),
+        placement: "left",
+        ...SKIP_IF_MISSING,
+      },
+      {
+        id: "menu",
+        target: tourTarget("copilot-menu"),
+        title: t3({
+          en: "Prompt library and more",
+          fr: "Bibliothèque de prompts et plus",
+          pt: "Biblioteca de prompts e mais",
+        }),
+        body: t3({
+          en:
+            "This menu holds the prompt library (ready-made requests you can reuse, and your own saved ones), your past conversations, and files you can include.",
+          fr:
+            "Ce menu contient la bibliothèque de prompts (des demandes toutes faites à réutiliser, et celles que vous avez enregistrées), vos conversations passées et les fichiers que vous pouvez joindre.",
+          pt:
+            "Este menu contém a biblioteca de prompts (pedidos prontos a reutilizar e os que guardou), as suas conversas anteriores e os ficheiros que pode incluir.",
+        }),
+        placement: "bottom",
+        ...SKIP_IF_MISSING,
+      },
+      {
+        id: "close",
+        target: tourTarget("copilot-close"),
+        title: t3({
+          en: "Hide it or make it wider",
+          fr: "Le masquer ou l'élargir",
+          pt: "Ocultar ou alargar",
+        }),
+        body: t3({
+          en:
+            "This arrow hides the panel, and Ask AI brings it back. Drag the panel's left edge to make it wider.",
+          fr:
+            "Cette flèche masque le panneau, et Demander à l'IA le fait revenir. Faites glisser le bord gauche du panneau pour l'élargir.",
+          pt:
+            "Esta seta oculta o painel, e Perguntar à IA volta a abri-lo. Arraste a margem esquerda do painel para o alargar.",
+        }),
+        placement: "bottom",
+        ...SKIP_IF_MISSING,
+      },
+    ],
+  };
+}
+
 export function buildInstanceDataTour(): TourDefinition {
   return {
     id: "instance-data-intro",

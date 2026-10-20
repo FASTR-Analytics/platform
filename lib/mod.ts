@@ -26,10 +26,8 @@ export * from "./run_progress.ts";
 // The report engine (Report Forge) is its own package; lib re-exports it so
 // the app keeps one import for shared code.
 export * from "../report-forge/engine/mod.ts";
-// The platform's own report theme and templates, registered with the engine
-// on load.
+// The platform's own report theme, registered with the engine on load.
 export * from "./report_legacy_theme.ts";
-export * from "./report_templates.ts";
 export * from "./slide_text_offsets.ts";
 export * from "./group_metrics.ts";
 export * from "./explore_query.ts";

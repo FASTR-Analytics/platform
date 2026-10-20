@@ -502,18 +502,23 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
   return (
     <div class="flex h-full w-full flex-col">
       <HeadingBar tonal heading={t3({ en: "AI", fr: "IA", pt: "IA" })}>
+        {/* The wrappers carry the AI tour's anchors (onboarding/tours.ts). */}
         <div class="ui-gap-sm flex items-center">
-          <ActionMenuButton items={menuItems} intent="base-300" />
-          <Button
-            onClick={() => setShowAi(false)}
-            intent="base-300"
-            iconName="chevronRight"
-            ariaLabel={t3({
-              en: "Hide AI panel",
-              fr: "Masquer le panneau IA",
-              pt: "Ocultar o painel de IA",
-            })}
-          />
+          <div data-tour="copilot-menu">
+            <ActionMenuButton items={menuItems} intent="base-300" />
+          </div>
+          <div data-tour="copilot-close">
+            <Button
+              onClick={() => setShowAi(false)}
+              intent="base-300"
+              iconName="chevronRight"
+              ariaLabel={t3({
+                en: "Hide AI panel",
+                fr: "Masquer le panneau IA",
+                pt: "Ocultar o painel de IA",
+              })}
+            />
+          </div>
         </div>
       </HeadingBar>
 
@@ -523,7 +528,7 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
         onRemovePending={p.aiDocs.removePendingAttachment}
       />
 
-      <div class="flex-1 overflow-hidden">
+      <div class="flex-1 overflow-hidden" data-tour="copilot-chat">
         <AIChat
           chat={p.chat}
           placeholder={placeholder()}

@@ -8,11 +8,11 @@ import {
   type FigureBundle,
   findReportBodyText,
   findReportFigureConfigMap,
-  getFastrReportTemplate,
   getFastrReportTheme,
   getReportCustomStyle,
   type ImageBlock,
   isRetiredReportFormat,
+  isUntouchedReport,
   materializeReport,
   type PackageScope,
   productScope,
@@ -87,7 +87,10 @@ import {
   type ReportSession,
   setCollabView,
 } from "~/state/instance/collab";
-import { ProductTitle } from "~/components/products/_shared/mod.ts";
+import {
+  closeOrDiscardEmptyProduct,
+  ProductTitle,
+} from "~/components/products/_shared/mod.ts";
 import { registerReportPageLayout } from "~/exports/export_report_as_paged_pdf";
 import { reportExportHostOf } from "~/exports/export_report_as_html";
 import {
@@ -236,7 +239,6 @@ export function ReportEditor(p: Props) {
     theme: fastrTheme(),
     colors: fastrColors(),
     paletteId: customStyle()?.id,
-    template: getFastrReportTemplate(config()),
     themeChosen: config().themeChosen,
   }));
   // The theme's series palette for every figure the report embeds; a custom
@@ -676,7 +678,6 @@ export function ReportEditor(p: Props) {
         getScope: requireScope,
         getRunId,
         getLabel: () => label(),
-        getTemplate: () => getFastrReportTemplate(config()),
         getBody: () => body(),
         getFigures: () => figures(),
         getImages: () => images(),
@@ -1363,9 +1364,8 @@ export function ReportEditor(p: Props) {
 
   // The report's look changed in the editor. Applying a style (or answering
   // the theme picker for the first time) goes through setReportStyle, which
-  // resolves the style snapshot server-side; a plain theme switch or a
-  // template choice is a config write. Rejects with the server's reason, and
-  // Report Forge shows it.
+  // resolves the style snapshot server-side; a plain theme switch is a
+  // config write. Rejects with the server's reason, and Report Forge shows it.
   //
   // The report carries a SNAPSHOT of its style, so a style edited in the
   // library reaches the report only when it is applied again. The picker
@@ -1396,15 +1396,11 @@ export function ReportEditor(p: Props) {
       bumpLastUpdated(res.data.lastUpdated);
       return;
     }
-    if (next.theme === cur.theme && next.template === cur.template) return;
+    if (next.theme === cur.theme) return;
     // Optimistic, reverted on failure. Safe on a live report because the
     // theme is not in the body: nothing the user typed can be invalidated,
     // and every peer picks the new theme up on their next load.
-    const wanted: ReportConfig = {
-      ...stored,
-      fastrTheme: next.theme,
-      ...(next.template === undefined ? {} : { template: next.template }),
-    };
+    const wanted: ReportConfig = { ...stored, fastrTheme: next.theme };
     setConfig(wanted);
     setSaveStatus("saving");
     const res = await serverActions.updateReportConfig({
@@ -1662,7 +1658,18 @@ export function ReportEditor(p: Props) {
     <Button
       id="report-back-button"
       iconName="chevronLeft"
-      onClick={() => p.close(undefined)}
+      onClick={() =>
+        void closeOrDiscardEmptyProduct({
+          productId: p.productId,
+          kind: "report",
+          untouched: () =>
+            isUntouchedReport({
+              body: body(),
+              figures: figures(),
+              images: images(),
+            }),
+          close: () => p.close(undefined),
+        })}
     />
   );
   // pl-1: the title's rename hover reaches 4px left of its text, and the bar
