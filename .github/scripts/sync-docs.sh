@@ -229,27 +229,47 @@ def call_api(prompt):
             'content-type': 'application/json',
         },
     )
-    text_parts, stop_reason = [], None
-    try:
-        with urllib.request.urlopen(req, timeout=1800) as resp:
-            for raw_line in resp:
-                line = raw_line.decode('utf-8').strip()
-                if not line.startswith('data: '):
-                    continue
-                event = json.loads(line[len('data: '):])
-                etype = event.get('type')
-                if etype == 'content_block_delta':
-                    delta = event.get('delta', {})
-                    if delta.get('type') == 'text_delta':
-                        text_parts.append(delta['text'])
-                elif etype == 'message_delta':
-                    stop_reason = event.get('delta', {}).get('stop_reason')
-                elif etype == 'error':
-                    print(f"API stream error: {event}")
-                    sys.exit(1)
-    except urllib.error.HTTPError as e:
-        print(f"API request failed: {e.code} {e.read().decode('utf-8', errors='replace')[:1000]}")
-        sys.exit(1)
+    # A stream that drops mid-response (no stop_reason), a stream error event
+    # such as overloaded, or a 429/5xx is transient: retry the chunk rather
+    # than lose the whole run. Any other HTTP error is fatal.
+    import time, http.client
+    ATTEMPTS = 3
+    for attempt in range(1, ATTEMPTS + 1):
+        text_parts, stop_reason, failure = [], None, None
+        try:
+            with urllib.request.urlopen(req, timeout=1800) as resp:
+                for raw_line in resp:
+                    line = raw_line.decode('utf-8').strip()
+                    if not line.startswith('data: '):
+                        continue
+                    event = json.loads(line[len('data: '):])
+                    etype = event.get('type')
+                    if etype == 'content_block_delta':
+                        delta = event.get('delta', {})
+                        if delta.get('type') == 'text_delta':
+                            text_parts.append(delta['text'])
+                    elif etype == 'message_delta':
+                        stop_reason = event.get('delta', {}).get('stop_reason')
+                    elif etype == 'error':
+                        failure = f"stream error: {event}"
+                        break
+        except urllib.error.HTTPError as e:
+            detail = f"{e.code} {e.read().decode('utf-8', errors='replace')[:1000]}"
+            if e.code != 429 and e.code < 500:
+                print(f"API request failed: {detail}")
+                sys.exit(1)
+            failure = f"HTTP {detail}"
+        except (urllib.error.URLError, http.client.HTTPException, OSError) as e:
+            failure = f"connection error: {e}"
+        if failure is None and stop_reason is None:
+            failure = "stream ended without a stop_reason"
+        if failure is None:
+            break
+        print(f"  Attempt {attempt}/{ATTEMPTS} failed: {failure}")
+        if attempt == ATTEMPTS:
+            print("ERROR: API call failed on every attempt.")
+            sys.exit(1)
+        time.sleep(30 * attempt)
 
     text = ''.join(text_parts).strip()
     print(f"  Response: {len(text)} chars, stop_reason={stop_reason}")
