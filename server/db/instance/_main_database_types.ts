@@ -96,6 +96,7 @@ export type DBScope = {
   created_by: string | null;
   created_at: string;
   last_updated: string;
+  migrated_from: string | null;
 };
 
 export type DBSlideDeck = {
@@ -258,4 +259,17 @@ export type DBIcehImportRun = {
   n_rows_integrated: number | null;
   started_at: string | Date;
   ended_at: string | Date | null;
+};
+
+// owner_email has no FK to users: it outlives a deleted owner (see
+// server/db/instance/assets.ts).
+export type DBPrivateAsset = {
+  file_name: string;
+  owner_email: string;
+  created_at: string;
+};
+
+export type DBPrivateAssetViewer = {
+  file_name: string;
+  email: string;
 };

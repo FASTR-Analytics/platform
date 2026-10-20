@@ -6,6 +6,7 @@ globs:
   - client/src/components/users/mod.ts
   - client/src/components/users/batch_upload_users_form.tsx
   - client/src/components/users/bulk_edit_permissions_form.tsx
+  - client/src/components/users/bulk_edit_scopes_form.tsx
   - client/src/components/instance/change_email_modal.tsx
   - client/src/components/instance/feedback_form.tsx
   - client/src/components/instance/instance_meta_form.tsx
@@ -59,14 +60,15 @@ to the registry.
 
 `components/scopes/` is where a global admin creates, edits and deletes scopes
 (the entity, its routes and its hash are S12 "Scopes"; what a definition filters
-is S9 "The scoped view"). It is not a tab: a "Scopes" button on the Results page
-(`results_packages.tsx`, S8), beside "Module defaults", opens it as a full-page
-view through `openShellEditor`. The button is shown only when
+is S9 "The scoped view"). It is the "Scopes" tab on the side rail
+(`instance.tsx`), after Results, shown only when
 `instanceState.currentUserIsGlobalAdmin` is true, the same rule the three scope
 routes enforce with `requireAdmin`. The page sets the chat's `scopes` view (S13)
-while it is open. `ScopesPage` (`scopes.tsx`) is a `Table` over
-`instanceState.scopes` with one row per scope, "All data" included: the label,
-one column per family (HMIS, HFA, ICEH) saying "Excluded", "No limits" or the
+while it is open. `InstanceScopes` (`scopes.tsx`) is a `Table` over
+`instanceState.scopes` with one row per scope, "All data" included: the label
+(with a "Migrated" badge when `scope.migratedFrom` is set: the update that
+retired projects made it, and hovering names the projects it came from), one
+column per family (HMIS, HFA, ICEH) saying "Excluded", "No limits" or the
 section's limits in a few words, and a Usage column showing the number of
 products that carry it as a badge (`ProductCountBadge`, shared with the results
 packages table, S8; nothing for none), counted in one pass over
@@ -300,9 +302,14 @@ failures surface as user-facing route errors with GB figures.
   headers; server validates emails, optional replace-all), H_USERS-only
   unlimited-AI/contact-person sections. One bulk tri-state editor
   (`unchanged → true → false`, posting only changed keys) covers the instance
-  flags. The page holds and sets the chat's `users` view at mount and the user
-  detail (opened over the shell) `user` (S13); each view's label and
-  instructions name the page and never the roster or the email.
+  flags. "Edit scopes" (`bulk_edit_scopes_form.tsx`) writes one scope access,
+  "All data" or a scope list, to every selected user through
+  `bulkSetUserScopeAccess`: shown to a global admin and to an unrestricted
+  holder of `can_configure_users`; the route refuses a restricted caller and a
+  non-admin naming themselves, so no one lifts their own restriction, and skips
+  selected global admins. The page holds and sets the chat's `users` view at
+  mount and the user detail (opened over the shell) `user` (S13); each view's
+  label and instructions name the page and never the roster or the email.
 - **Self-profile** (`profile.tsx`): AI usage bars; the organisation is written
   **directly to Clerk `unsafeMetadata`**, a second persistence plane outside
   serverActions/Postgres. Clear data cache, Clear AI chat history, Sign out and

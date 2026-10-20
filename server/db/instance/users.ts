@@ -177,6 +177,56 @@ export async function setUserScopeAccess(
   });
 }
 
+// setUserScopeAccess for several users in one transaction. Global admins
+// among them are skipped, not refused, and counted.
+export async function bulkSetUserScopeAccess(
+  mainDb: Sql,
+  emails: string[],
+  access: ScopeAccess,
+): Promise<APIResponseWithData<{ updated: number; skippedAdmins: number }>> {
+  const scopeIds = access.all ? [] : [...new Set(access.scopeIds)];
+  return await tryCatchDatabaseAsync(async () => {
+    const result = await mainDb.begin(async (sql) => {
+      const rows = await sql<Pick<DBUser, "email" | "is_admin">[]>`
+        SELECT email, is_admin FROM users WHERE email = ANY(${emails})
+        FOR UPDATE
+      `;
+      const known = await sql<{ id: ScopeUuid }[]>`
+        SELECT id FROM scopes WHERE id = ANY(${scopeIds}) FOR SHARE
+      `;
+      if (known.length !== scopeIds.length) {
+        return SCOPE_NOT_FOUND;
+      }
+      const targets = rows.filter((r) => !r.is_admin).map((r) => r.email);
+      if (targets.length > 0) {
+        await sql`
+          UPDATE users SET all_scopes = ${access.all}
+          WHERE email = ANY(${targets})
+        `;
+        await sql`DELETE FROM user_scopes WHERE email = ANY(${targets})`;
+        if (scopeIds.length > 0) {
+          await sql`
+            INSERT INTO user_scopes ${
+            sql(
+              targets.flatMap((email) =>
+                scopeIds.map((scope_id) => ({ email, scope_id }))
+              ),
+            )
+          }
+          `;
+        }
+      }
+      return {
+        updated: targets.length,
+        skippedAdmins: rows.length - targets.length,
+      };
+    });
+    return typeof result === "string"
+      ? { success: false, err: result }
+      : { success: true, data: result };
+  });
+}
+
 export async function addUsers(
   mainDb: Sql,
   emails: string[],

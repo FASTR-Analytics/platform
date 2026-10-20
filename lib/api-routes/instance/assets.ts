@@ -13,4 +13,14 @@ export const assetRouteRegistry = {
     method: "POST",
     body: z.object({ assetFileNames: z.array(z.string()) }),
   }),
+  // Owner-only (see updateAssetVisibility in server/db/instance/assets.ts).
+  updateAssetVisibility: route({
+    path: "/assets/visibility",
+    method: "POST",
+    body: z.object({
+      fileName: z.string(),
+      isPrivate: z.boolean(),
+      viewerEmails: z.array(z.string()),
+    }),
+  }),
 } as const;

@@ -114,6 +114,19 @@ export const userRouteRegistry = {
     method: "POST",
     body: z.object({ email: z.string(), scopeAccess: scopeAccessSchema }),
   }),
+  // The batch form: replaces the scope access of every named user, skipping
+  // global admins (who always have every scope). A global admin, or a holder
+  // of can_configure_users who is not restricted and is not among the named
+  // users, so no one can lift their own restriction.
+  bulkSetUserScopeAccess: route({
+    path: "/user/scope-access/bulk",
+    method: "POST",
+    body: z.object({
+      emails: z.array(z.string()),
+      scopeAccess: scopeAccessSchema,
+    }),
+    response: {} as { updated: number; skippedAdmins: number },
+  }),
   setUserContactPerson: route({
     path: "/user/contact-person",
     method: "POST",

@@ -4,7 +4,9 @@ import Tus from "@uppy/tus";
 import { _SERVER_HOST } from "~/server_actions";
 
 export type UppyFileUploadConfig = {
-  triggerId: string;
+  // The element that opens Uppy's dialog; omitted when the caller opens it
+  // and adds the files itself.
+  triggerId?: string;
   onModalClosed?: () => void;
   maxNumberOfFiles?: number;
   autoProceed?: boolean;

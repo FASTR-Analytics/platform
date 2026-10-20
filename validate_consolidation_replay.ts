@@ -18,8 +18,10 @@
 //       its sub-folders nested inside, every id collision re-minted with
 //       the full reference surface rewritten, every figure bundle on all
 //       four surfaces stamped with the owning project's run and scope, the
-//       ai_context blobs concatenated, and a schema byte-identical to the
-//       base.
+//       ai_context blobs concatenated, every moved product private with
+//       each non-admin member granted per product type from the project's
+//       report and deck flags (none on the central-reporting project), and a
+//       schema byte-identical to the base.
 //   (b) A legacy database whose users carry the default_project_* flags,
 //       whose logs carry project_id and whose aggregate rows differ only by
 //       project_id comes out of 202 with users and logs preserved and the
@@ -29,6 +31,13 @@
 //       ALTER fails at 016.
 //   (d) The fresh path: the base plus the whole instance directory, applied
 //       by the runner in one pass, converges on the same schema as (a).
+//   (e) Project windows into scopes: a state-limited project (no
+//       admin_area_2) gets a "<zone> (migrated)" scope, an indicator-limited
+//       workshop a "<project> (migrated)" scope holding those indicators, each
+//       project's products move onto its scope, a several-zone project
+//       limits nothing, and no user is restricted. In (a), Project One's
+//       window reuses the area scope 204 already made, and nothing is
+//       created.
 //
 // Before (a) runs the migrations, the read-only dry-run
 // (validate_consolidation.ts) plans the same seeded instance; its FAIL,
@@ -58,6 +67,7 @@ const LEGACY_PROJECT_MIGRATIONS = "server/db/migrations/project";
 const CONSOLIDATION_FILES = [
   "000_legacy_project_shell.sql",
   "201_consolidate_projects.ts",
+  "201_project_access_snapshot.ts",
   "202_drop_project_layer.sql",
 ];
 
@@ -369,16 +379,20 @@ async function seedLegacyMain(db: Sql): Promise<void> {
     (${RUN_PIN}, 'Pinned package', 'ready', '{}', TRUE),
     (${RUN_P1}, 'Older package', 'ready', '{}', FALSE)`;
   await db`INSERT INTO users (email, is_admin) VALUES
-    ('viewer@example.org', FALSE), ('editor@example.org', FALSE), ('norole@example.org', FALSE)`;
+    ('viewer@example.org', FALSE), ('editor@example.org', FALSE), ('norole@example.org', FALSE),
+    ('noflags@example.org', FALSE), ('admin@example.org', TRUE)`;
   await db`INSERT INTO projects (id, label, ai_context, status, run_id, admin_area_2, is_central_reporting) VALUES
     (${P1}, 'Project One', '  Context for project one  ', 'ready', ${RUN_P1}, ${AA2}, FALSE),
     (${P2}, 'Project Two', '', 'ready', NULL, NULL, TRUE),
     (${P3}, 'Project Three', 'Gone', 'pending_deletion', ${RUN_P1}, NULL, FALSE),
     (${P4}, 'Project Four', '', 'copying', NULL, NULL, FALSE)`;
-  await db`INSERT INTO project_user_roles (email, project_id, role) VALUES
-    ('viewer@example.org', ${P1}, 'viewer'),
-    ('editor@example.org', ${P1}, 'editor'),
-    ('editor@example.org', ${P2}, 'viewer')`;
+  await db`INSERT INTO project_user_roles
+    (email, project_id, role, can_view_reports, can_configure_reports, can_view_slide_decks, can_configure_slide_decks, can_view_data) VALUES
+    ('viewer@example.org', ${P1}, 'viewer', TRUE, FALSE, TRUE, FALSE, FALSE),
+    ('editor@example.org', ${P1}, 'editor', TRUE, TRUE, TRUE, FALSE, FALSE),
+    ('editor@example.org', ${P2}, 'viewer', TRUE, FALSE, TRUE, FALSE, FALSE),
+    ('noflags@example.org', ${P1}, 'viewer', FALSE, FALSE, FALSE, FALSE, TRUE),
+    ('admin@example.org', ${P1}, 'editor', TRUE, TRUE, TRUE, TRUE, TRUE)`;
   await db`INSERT INTO dashboard_slugs (slug, project_id, dashboard_id) VALUES ('dash-one', ${P1}, 'db1')`;
   await db`INSERT INTO instance_config (config_key, config_json_value) VALUES
     ('ai_context', ${JSON.stringify("Existing instance context")})`;
@@ -690,6 +704,98 @@ async function assertConsolidated(db: Sql): Promise<void> {
   check(applied.length === 3, "000, 201 and 202 recorded in schema_migrations");
 }
 
+async function assertAccessCarried(db: Sql): Promise<void> {
+  const products = await db<
+    { id: string; type: string; run_id: string; default_access: string }[]
+  >`SELECT id, type, run_id, default_access FROM products`;
+  check(
+    products.length === 8 &&
+      products.every((p) => p.default_access === "none"),
+    "every moved product is private (general access 'none'), the central-reporting project's included",
+  );
+  const grants = await db<
+    { product_id: string; email: string; level: string }[]
+  >`SELECT product_id, email, level FROM product_access`;
+  const actual = grants.map((g) => `${g.product_id} ${g.email} ${g.level}`)
+    .sort();
+  const expected = [
+    "d1 editor@example.org view",
+    "d1 viewer@example.org view",
+    "d2 editor@example.org view",
+    "d2 viewer@example.org view",
+    "r1 editor@example.org edit",
+    "r1 viewer@example.org view",
+    "r2 editor@example.org edit",
+    "r2 viewer@example.org view",
+  ];
+  check(
+    JSON.stringify(actual) === JSON.stringify(expected),
+    `Project One's members are granted per type from their flags; no grant for the admin, the flagless member or the central-reporting project (got ${
+      JSON.stringify(actual)
+    })`,
+  );
+  const staging = await db<
+    { grants: string | null; products: string | null }[]
+  >`
+    SELECT to_regclass('legacy_product_grants')::text AS grants,
+           to_regclass('legacy_project_products')::text AS products`;
+  check(
+    staging[0].grants === null && staging[0].products === null,
+    "the access staging tables are dropped",
+  );
+  const applied = await db<{ migration_id: string }[]>`
+    SELECT migration_id FROM schema_migrations
+    WHERE migration_id IN ('201_project_access_snapshot', '216_legacy_product_access', '217_legacy_user_scopes')`;
+  check(
+    applied.length === 3,
+    "201_project_access_snapshot, 216 and 217 recorded in schema_migrations",
+  );
+
+  const scoped = await db<
+    { email: string; all_scopes: boolean; labels: string | null }[]
+  >`
+    SELECT u.email, u.all_scopes,
+           string_agg(s.label, ',' ORDER BY s.label) AS labels
+    FROM users u
+    LEFT JOIN user_scopes us ON us.email = u.email
+    LEFT JOIN scopes s ON s.id = us.scope_id
+    GROUP BY u.email, u.all_scopes ORDER BY u.email`;
+  const outcome = Object.fromEntries(
+    scoped.map((u) => [u.email, u.all_scopes ? "all" : u.labels ?? ""]),
+  );
+  check(
+    JSON.stringify(outcome) === JSON.stringify({
+      "admin@example.org": "all",
+      "editor@example.org": "all",
+      "noflags@example.org": "all",
+      "norole@example.org": "all",
+      "viewer@example.org": "all",
+    }),
+    `no user is restricted: Project One's members keep all scopes (got ${
+      JSON.stringify(outcome)
+    })`,
+  );
+  check(
+    await db<{ n: number }[]>`
+      SELECT COUNT(*)::int AS n FROM scopes WHERE label LIKE '%(migrated%'`
+      .then((r) => r[0].n === 0),
+    "no scope is created when the area already has one",
+  );
+  const provenance = await db<
+    { label: string; migrated_from: string | null }[]
+  >`
+    SELECT label, migrated_from FROM scopes ORDER BY label`;
+  check(
+    JSON.stringify(provenance) === JSON.stringify([
+      { label: "AA2-X", migrated_from: JSON.stringify(["Project One"]) },
+      { label: "All data", migrated_from: null },
+    ]),
+    `the area scope records the project it came from; All data records none (got ${
+      JSON.stringify(provenance)
+    })`,
+  );
+}
+
 async function replayLiveInstance(): Promise<void> {
   console.log(
     "\n=== (a) Live instance: base, migrations, two template-identical projects ===",
@@ -746,10 +852,13 @@ async function replayLiveInstance(): Promise<void> {
     "dry-run lists the pending_deletion, central-reporting and run_id NULL projects and the pin",
   );
   check(
-    dryRun.viewerOnlyUsers.length === 1 &&
-      dryRun.viewerOnlyUsers[0] === "viewer@example.org" &&
-      dryRun.usersWithNoProjectRole === 1,
-    "dry-run names the viewer-only user and counts the user with no project role",
+    dryRun.usersWithNoProductAccess === 2 &&
+      dryRun.sharedLabelProjects.length === 0,
+    "dry-run counts the two non-admins with no report or deck flags on a migrated project, and no shared labels",
+  );
+  check(
+    dryRun.windowScopes === 1,
+    `dry-run counts Project One's window as one scope (got ${dryRun.windowScopes})`,
   );
   check(
     dryRun.extraDropped.userAuthoredVisualizations === 2 &&
@@ -761,6 +870,7 @@ async function replayLiveInstance(): Promise<void> {
   await withDb("main", async (db) => {
     await runMigrationsInDir(db, INSTANCE_DIR, TS_MIGRATIONS, "replay");
     await assertConsolidated(db);
+    await assertAccessCarried(db);
     const actual = {
       products: await count(db, "products"),
       slideDecks: await count(db, "slide_decks"),
@@ -899,6 +1009,178 @@ async function replayFreshPath(): Promise<void> {
   );
 }
 
+// ── (e) Project windows into scopes ──────────────────────────────────────────
+
+const PZ1 = "0b000000-0000-4000-8000-000000000001";
+const PZ2 = "0b000000-0000-4000-8000-000000000002";
+const PZ3 = "0b000000-0000-4000-8000-000000000003";
+
+function windowingInfo(windowing: Record<string, unknown>): string {
+  return JSON.stringify({ windowing });
+}
+
+async function replayUserScopes(): Promise<void> {
+  console.log("\n=== (e) Project windows into scopes ===");
+  await createDatabase("main_zones");
+  await withDb("main_zones", async (db) => {
+    await loadLegacyFile(db, LEGACY_MAIN_BASE);
+    await runMigrationsInDir(
+      db,
+      await preConsolidationMigrationDir(),
+      {},
+      "instance",
+    );
+    await db`INSERT INTO runs (id, label, status, provenance, pinned) VALUES
+      (${RUN_PIN}, 'Pinned package', 'ready', '{}', TRUE)`;
+    await db`INSERT INTO users (email, is_admin) VALUES
+      ('state@example.org', FALSE), ('mixed@example.org', FALSE), ('boss@example.org', TRUE),
+      ('trainee@example.org', FALSE)`;
+    await db`INSERT INTO projects (id, label, ai_context, status, run_id, admin_area_2, is_central_reporting) VALUES
+      (${PZ1}, 'Kaduna State Project', '', 'ready', NULL, NULL, FALSE),
+      (${PZ2}, 'Two Zones', '', 'ready', NULL, NULL, FALSE),
+      (${PZ3}, 'ANC Workshop', '', 'ready', NULL, NULL, FALSE)`;
+    await db`INSERT INTO project_user_roles (email, project_id, role, can_view_reports, can_view_slide_decks) VALUES
+      ('state@example.org', ${PZ1}, 'viewer', TRUE, TRUE),
+      ('mixed@example.org', ${PZ1}, 'viewer', TRUE, TRUE),
+      ('mixed@example.org', ${PZ2}, 'viewer', TRUE, TRUE),
+      ('boss@example.org', ${PZ1}, 'editor', TRUE, TRUE),
+      ('trainee@example.org', ${PZ3}, 'viewer', TRUE, TRUE)`;
+  });
+
+  await createDatabase(PZ1);
+  await withDb(PZ1, async (db) => {
+    await loadLegacyFile(db, LEGACY_PROJECT_BASE);
+    await runMigrationsInDir(
+      db,
+      await legacyProjectMigrationDir(),
+      {},
+      "project",
+    );
+    await db`INSERT INTO slide_decks (id, label, plan, config, last_updated, folder_id) VALUES
+      ('k1', 'Kaduna deck', NULL, NULL, ${T}, NULL)`;
+    await db`INSERT INTO datasets (dataset_type, info, last_updated) VALUES ('hmis', ${
+      windowingInfo({
+        start: 202001,
+        end: 202606,
+        takeAllIndicators: true,
+        takeAllAdminArea2s: true,
+        adminArea2sToInclude: [],
+        takeAllAdminArea3s: false,
+        adminArea3sToInclude: ["kd Kaduna State|||North West Zone"],
+      })
+    }, ${T})`;
+  });
+  await createDatabase(PZ2, PZ1);
+  await withDb(PZ2, async (db) => {
+    await db`UPDATE datasets SET info = ${
+      windowingInfo({
+        start: 202001,
+        end: 202606,
+        takeAllIndicators: true,
+        takeAllAdminArea2s: false,
+        adminArea2sToInclude: ["North West Zone", "North East Zone"],
+      })
+    }`;
+  });
+  await createDatabase(PZ3, PZ1);
+  await withDb(PZ3, async (db) => {
+    await db`UPDATE datasets SET info = ${
+      windowingInfo({
+        start: 202001,
+        end: 202606,
+        indicatorType: "common",
+        takeAllIndicators: false,
+        commonIndicatorsToInclude: ["anc4", "anc1"],
+        takeAllAdminArea2s: true,
+        adminArea2sToInclude: [],
+      })
+    }`;
+  });
+
+  await withDb("main_zones", async (db) => {
+    await runMigrationsInDir(db, INSTANCE_DIR, TS_MIGRATIONS, "replay");
+    const users = await db<
+      { email: string; all_scopes: boolean; labels: string | null }[]
+    >`
+      SELECT u.email, u.all_scopes,
+             string_agg(s.label, ',' ORDER BY s.label) AS labels
+      FROM users u
+      LEFT JOIN user_scopes us ON us.email = u.email
+      LEFT JOIN scopes s ON s.id = us.scope_id
+      GROUP BY u.email, u.all_scopes ORDER BY u.email`;
+    const outcome = Object.fromEntries(
+      users.map((u) => [u.email, u.all_scopes ? "all" : u.labels ?? ""]),
+    );
+    check(
+      JSON.stringify(outcome) === JSON.stringify({
+        "boss@example.org": "all",
+        "mixed@example.org": "all",
+        "state@example.org": "all",
+        "trainee@example.org": "all",
+      }),
+      `no user is restricted, even those only on limited projects (got ${
+        JSON.stringify(outcome)
+      })`,
+    );
+    const created = await db<
+      { id: string; label: string; definition: string }[]
+    >`
+      SELECT id, label, definition FROM scopes WHERE label LIKE '%(migrated%' ORDER BY label`;
+    const workshop = created.find((c) => c.label === "ANC Workshop (migrated)");
+    const zone = created.find((c) => c.label === "North West Zone (migrated)");
+    const workshopDef = workshop && parseScopeDefinition(workshop.definition);
+    check(
+      created.length === 2 && zone !== undefined &&
+        scopeAreasOf(parseScopeDefinition(zone.definition)).hmis ===
+          "North West Zone" &&
+        workshopDef !== undefined && workshopDef.hmis.include &&
+        JSON.stringify(workshopDef.hmis.indicators) ===
+          JSON.stringify(["anc1", "anc4"]) &&
+        workshopDef.hmis.adminArea2 === null,
+      `two scopes are created: the state's zone, and the workshop's indicators (got ${
+        JSON.stringify(created.map((c) => c.label))
+      })`,
+    );
+    const products = await db<{ label: string; scope_id: string }[]>`
+      SELECT f.label, p.scope_id FROM products p
+      JOIN folders f ON f.id = p.folder_id ORDER BY f.label`;
+    check(
+      products.length === 3 &&
+        products.find((p) => p.label === "Kaduna State Project")?.scope_id ===
+          zone?.id &&
+        products.find((p) => p.label === "ANC Workshop")?.scope_id ===
+          workshop?.id &&
+        products.find((p) => p.label === "Two Zones")?.scope_id === "all-data",
+      `each limited project's product moves onto its scope; the unlimited project's stays on all-data (got ${
+        JSON.stringify(products)
+      })`,
+    );
+    const sources = await db<{ label: string; migrated_from: string | null }[]>`
+      SELECT label, migrated_from FROM scopes
+      WHERE label LIKE '%(migrated%' ORDER BY label`;
+    check(
+      JSON.stringify(sources.map((r) => [r.label, r.migrated_from])) ===
+        JSON.stringify([
+          ["ANC Workshop (migrated)", JSON.stringify(["ANC Workshop"])],
+          [
+            "North West Zone (migrated)",
+            JSON.stringify(["Kaduna State Project"]),
+          ],
+        ]),
+      `each created scope records the projects it came from (got ${
+        JSON.stringify(sources)
+      })`,
+    );
+    const staging = await db<{ a: string | null; b: string | null }[]>`
+      SELECT to_regclass('legacy_project_windows')::text AS a,
+             to_regclass('legacy_project_window_products')::text AS b`;
+    check(
+      staging[0].a === null && staging[0].b === null,
+      "the user-scope staging tables are dropped",
+    );
+  });
+}
+
 // ── Main ─────────────────────────────────────────────────────────────────────
 
 await replayLiveInstance();
@@ -906,6 +1188,7 @@ await buildReference();
 await replayLogsMerge();
 await replayNegativeControls();
 await replayFreshPath();
+await replayUserScopes();
 
 console.log("");
 if (failures.length > 0) {

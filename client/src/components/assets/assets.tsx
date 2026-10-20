@@ -4,12 +4,14 @@ import {
   createDeleteAction,
   createTableConfig,
   FrameTop,
+  Icon,
+  openComponent,
   plural,
   Table,
   type TableColumn,
 } from "panther";
 import { createMemo, onCleanup, onMount, Show } from "solid-js";
-import { AssetInfo, t3, TC } from "lib";
+import { AssetInfo, canUserManagePrivateAsset, t3, TC } from "lib";
 import { serverActions } from "~/server_actions";
 import { _SERVER_HOST } from "~/server_actions";
 import { cleanupUppy, createUppyInstance } from "~/components/_shared/mod.ts";
@@ -19,6 +21,11 @@ import {
   copilotViewController,
   holdCopilotView,
 } from "~/components/instance/copilot/mod.ts";
+import {
+  AssetSharingForm,
+  UploadAssetsForm,
+  userDisplayName,
+} from "./asset_sharing.tsx";
 
 type FileType = "csv" | "excel" | "image" | "zip" | "other";
 
@@ -58,18 +65,51 @@ function formatDate(timestamp: number): string {
 export function InstanceAssets() {
   holdCopilotView();
   copilotViewController.setView("assets");
+  // Uppy carries the transfer and shows its progress; the files and who may
+  // see them are picked in UploadAssetsForm. Privacy rides in each file's TUS
+  // metadata ("public" or "private" plus viewers), so the server applies it
+  // before the file lands.
   let uppy: Uppy | undefined = undefined;
 
   onMount(() => {
-    uppy = createUppyInstance({
-      triggerId: "#select-file-button",
-      maxNumberOfFiles: 0,
-    });
+    uppy = createUppyInstance({ maxNumberOfFiles: 0 });
   });
 
   onCleanup(() => {
     cleanupUppy(uppy);
   });
+
+  async function startUpload() {
+    const res = await openComponent({
+      element: UploadAssetsForm,
+      props: undefined,
+    });
+    if (!res || !uppy) return;
+    // Opening the progress dialog clears Uppy's files, so it opens first.
+    // deno-lint-ignore no-explicit-any
+    await (uppy.getPlugin("Dashboard") as any)?.openModal();
+    const meta = res.isPrivate
+      ? {
+        fastrVisibility: "private",
+        fastrViewers: res.viewerEmails.join(","),
+      }
+      : { fastrVisibility: "public" };
+    for (const file of res.files) {
+      try {
+        uppy.addFile({ name: file.name, type: file.type, data: file, meta });
+      } catch {
+        // Uppy reports a refused file (a duplicate) in its own dialog.
+      }
+    }
+    void uppy.upload();
+  }
+
+  async function editSharing(asset: AssetInfo) {
+    await openComponent({
+      element: AssetSharingForm,
+      props: { fileName: asset.fileName, privacy: asset.privacy },
+    });
+  }
 
   async function attemptDeleteAssetFile(assetFileName: string) {
     const deleteAction = createDeleteAction(
@@ -95,10 +135,33 @@ export function InstanceAssets() {
           currentUserEmail={instanceState.currentUserEmail}
           isAdmin={instanceState.currentUserIsGlobalAdmin}
           onDelete={attemptDeleteAssetFile}
+          onEditSharing={editSharing}
+          onUpload={startUpload}
         />
       </div>
     </FrameTop>
   );
+}
+
+// Who may change a file's visibility: a private file's manager; a public
+// file's uploader, or an admin for a file with no uploader (mirrors the
+// server's updateAssetVisibility).
+function canEditSharing(asset: AssetInfo, email: string, isAdmin: boolean) {
+  if (asset.privacy) {
+    return canUserManagePrivateAsset(asset.privacy, email, isAdmin);
+  }
+  return asset.uploaderEmail === email ||
+    (asset.uploaderEmail === null && isAdmin);
+}
+
+function visibilityLabel(asset: AssetInfo): string {
+  const privacy = asset.privacy;
+  if (!privacy) return "";
+  const names = privacy.viewerEmails.map((email) => {
+    const u = instanceState.users.find((x) => x.email === email);
+    return u ? userDisplayName(u) : email;
+  });
+  return names.join("\n");
 }
 
 function AssetTable(p: {
@@ -106,6 +169,8 @@ function AssetTable(p: {
   currentUserEmail: string;
   isAdmin: boolean;
   onDelete: (fileName: string) => void;
+  onEditSharing: (asset: AssetInfo) => void;
+  onUpload: () => void;
 }) {
   const assetsTable = createTableConfig({
     sort: { key: "fileName", direction: "asc" },
@@ -176,13 +241,65 @@ function AssetTable(p: {
       ),
     },
     {
+      key: "privacy",
+      header: t3({
+        en: "Who can see it",
+        fr: "Qui peut le voir",
+        pt: "Quem o pode ver",
+      }),
+      sortable: true,
+      searchable: false,
+      sortValue: (asset) =>
+        asset.privacy ? 1 + asset.privacy.viewerEmails.length : 0,
+      render: (asset) => (
+        <Show
+          when={asset.privacy}
+          fallback={
+            <span class="text-base-content-muted">
+              {t3({ en: "Everyone", fr: "Tout le monde", pt: "Todos" })}
+            </span>
+          }
+        >
+          {(privacy) => (
+            <span
+              class="ui-gap-sm flex items-center"
+              title={visibilityLabel(asset)}
+            >
+              <span class="relative inline-flex h-[1.25em] w-[1.25em] flex-none">
+                <Icon iconName="eyeOff" />
+              </span>
+              {privacy().viewerEmails.length === 0
+                ? t3({
+                  en: "Private: only the owner",
+                  fr: "Privé : propriétaire seulement",
+                  pt: "Privado: apenas o proprietário",
+                })
+                : t3({
+                  en: `Private: owner + ${privacy().viewerEmails.length}`,
+                  fr: `Privé : propriétaire + ${privacy().viewerEmails.length}`,
+                  pt:
+                    `Privado: proprietário + ${privacy().viewerEmails.length}`,
+                })}
+            </span>
+          )}
+        </Show>
+      ),
+    },
+    {
       key: "actions",
       header: "",
       alignH: "right",
       pullInY: true,
       render: (asset) => {
-        const canDelete = p.isAdmin ||
-          asset.uploaderEmail === p.currentUserEmail;
+        // A private file: its manager only (admins get no bypass), as on
+        // the server's deleteAssets.
+        const canDelete = asset.privacy
+          ? canUserManagePrivateAsset(
+            asset.privacy,
+            p.currentUserEmail,
+            p.isAdmin,
+          )
+          : p.isAdmin || asset.uploaderEmail === p.currentUserEmail;
         // Data-file bytes are served only to data-permitted users (S1's
         // static tier): hide the button rather than let the browser save a
         // 403 body to disk.
@@ -192,6 +309,24 @@ function AssetTable(p: {
           instanceState.currentUserPermissions.can_configure_data;
         return (
           <div class="flex items-center justify-end">
+            <Show
+              when={canEditSharing(asset, p.currentUserEmail, p.isAdmin)}
+            >
+              <Button
+                intent="base-100"
+                size="sm"
+                iconName="users"
+                ariaLabel={t3({
+                  en: "Who can see it",
+                  fr: "Qui peut le voir",
+                  pt: "Quem o pode ver",
+                })}
+                onClick={(e: MouseEvent) => {
+                  e.stopPropagation();
+                  p.onEditSharing(asset);
+                }}
+              />
+            </Show>
             <Show when={canDownload}>
               <Button
                 intent="base-100"
@@ -281,9 +416,15 @@ function AssetTable(p: {
       toolbar={{
         search: true,
         children: (
-          <Button id="select-file-button" iconName="upload">
-            {t3({ en: "Upload", fr: "Téléverser", pt: "Carregar" })}
-          </Button>
+          <div class="ui-gap-sm flex items-center">
+            <Button
+              id="select-file-button"
+              iconName="upload"
+              onClick={p.onUpload}
+            >
+              {t3({ en: "Upload", fr: "Téléverser", pt: "Carregar" })}
+            </Button>
+          </div>
         ),
       }}
     />

@@ -2,9 +2,11 @@ import { dirname, join } from "@std/path";
 import { Sql } from "postgres";
 import { _INSTANCE_LANGUAGE } from "../../exposed_env_vars.ts";
 import { consolidateProjects } from "./instance/201_consolidate_projects.ts";
+import { snapshotProjectAccess } from "./instance/201_project_access_snapshot.ts";
 import { backfillSlideCounts } from "./instance/208_slide_count_backfill.ts";
 import { hfaRunDiagnosticsFacilityChanges } from "./instance/213_hfa_run_diagnostics_facility_changes.ts";
 import { structureAttemptCsvDetails } from "./instance/215_structure_attempt_csv_details.ts";
+import { applyLegacyUserScopes } from "./instance/217_legacy_user_scopes.ts";
 
 // A TypeScript migration runs inside the migration transaction and throws on
 // failure, never Deno.exit, so this runner stays the single rollback and
@@ -17,9 +19,11 @@ export type TsMigration = (tx: Sql) => Promise<void>;
 // filenames.
 export const TS_MIGRATIONS: Record<string, TsMigration> = {
   "201_consolidate_projects": consolidateProjects,
+  "201_project_access_snapshot": snapshotProjectAccess,
   "208_slide_count_backfill": backfillSlideCounts,
   "213_hfa_run_diagnostics_facility_changes": hfaRunDiagnosticsFacilityChanges,
   "215_structure_attempt_csv_details": structureAttemptCsvDetails,
+  "217_legacy_user_scopes": applyLegacyUserScopes,
 };
 
 interface MigrationFile {

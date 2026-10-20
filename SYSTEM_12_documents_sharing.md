@@ -43,6 +43,7 @@ globs:
   - server/tests/product_access_db_test.ts
   - server/tests/product_access_routes_test.ts
   - server/tests/product_level_test.ts
+  - server/tests/project_access_match_test.ts
   - server/tests/scope_grants_routes_test.ts
   - server/tests/scope_routes_test.ts
   - server/tests/report_config_test.ts
@@ -156,15 +157,24 @@ subfolders at that moment, and only raises: general access becomes the higher of
 its value and the chosen one, each person's grant the higher of theirs and the
 chosen level, and a person who owns a product is skipped for it. Nothing is
 removed and nothing is inherited, so a product created in or moved into the
-folder later gets nothing. It is how admins give a team access to the
-consolidated products, which migration 210 left ownerless at `view`, one project
-folder at a time. `setProductAccess` (`PUT
-/products/:product_id/access`,
-`edit`) replaces a product's general access and grants, and `setProductOwner`
-(`PUT /products/:product_id/owner`, `own`) transfers it. An editor may remove
-their own grant or lower the general access below their own level; the owner and
-the admins always keep access. None of the three bumps `last_updated` or records
-a version edit: each re-broadcasts the summaries it changed.
+folder later gets nothing. It is how admins widen access to the consolidated
+products one project folder at a time. Those products are ownerless; migration
+201_project_access_snapshot records, before 202 drops the project layer, each
+project's products and its non-admin members' report and deck levels, and 216
+makes those products general access `none` with the recorded grants
+(`server/db/migrations/consolidation/access.ts`). The same snapshot records each
+project's data window (zone, indicators, start year), and 217 turns each limited
+project's window into a scope, reusing one that already filters the same way or
+creating "<zone> (migrated)" / "<project> (migrated)" (recorded in
+`scopes.migrated_from`), and moves that project's products onto it; it restricts
+no user (`consolidation/user_scopes.ts`). `setProductAccess`
+(`PUT
+/products/:product_id/access`, `edit`) replaces a product's general access
+and grants, and `setProductOwner` (`PUT /products/:product_id/owner`, `own`)
+transfers it. An editor may remove their own grant or lower the general access
+below their own level; the owner and the admins always keep access. None of the
+three bumps `last_updated` or records a version edit: each re-broadcasts the
+summaries it changed.
 
 **Access in the client.** `productLevel(productId)` derives the connection's own
 level from the product's summary in `instanceState.products` with
@@ -172,9 +182,11 @@ level from the product's summary in `instanceState.products` with
 every gate follows a level change live; an id not in the store is `none`.
 `productSummaryLevel(product)` is the same derivation for a caller that already
 holds the summary, so a walk over the products list (the list's drag gate, the
-copy-to-deck picker) does not look each product up again. `canEditProduct` is
-`edit` or above and `canOwnProduct` is `own`. Every affordance follows this
-table:
+copy-to-deck picker, the list's level badge) does not look each product up
+again. `canEditProduct` is `edit` or above and `canOwnProduct` is `own`. Each
+list row shows the user's level as a badge (`product_level_badge.tsx`: Owner,
+Editor or Viewer), drawn for no global admin, who holds every product. Every
+affordance follows this table:
 
 | Needs  | Affordances                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -442,12 +454,16 @@ is the `scopeToken` of the payload the bundle was built from, and only the area
 (`components/_shared/scope_select.tsx`) is the one control that picks a scope,
 by label, in the order the list arrives: "All data" first, as an ordinary
 option. It is used by the create dialog, `PackageScopeModal`, the duplicate
-modal, Explore (S11) and the package page (S8).
-`components/_shared/package_label.ts` names things: `scopeLabel(scopeId)` (the
-scope's label, "Unlisted scope" for an id the list lacks) and
-`figureScopeLabel(stamp)` for a stored bundle, which records a hash and no id:
-the label of a scope whose definition still hashes the same, else the bundle's
-area, else "An earlier scope definition". `packageScopeCaption` and
+modal, Explore (S11) and the package page (S8). The three that attach a scope to
+a product offer `pickableScopes`: every scope to a global admin, the granted
+ones to a restricted user (all its T1 list holds), and "All data" alone to any
+other user, plus a product's current scope so the control still shows it.
+Explore and the package page only read, so they pass `anyScope` and list every
+scope the connection holds. `components/_shared/package_label.ts` names things:
+`scopeLabel(scopeId)` (the scope's label, "Unlisted scope" for an id the list
+lacks) and `figureScopeLabel(stamp)` for a stored bundle, which records a hash
+and no id: the label of a scope whose definition still hashes the same, else the
+bundle's area, else "An earlier scope definition". `packageScopeCaption` and
 `PackageScopeChip` show "package · scope" from those.
 
 ## Slide decks

@@ -19,6 +19,7 @@ import {
   addUsers,
   ADMIN_FLAG_NEEDS_ADMIN,
   batchUploadUsers,
+  bulkSetUserScopeAccess,
   bulkUpdateUserPermissions,
   createPersonalAccessToken,
   deleteUser,
@@ -63,6 +64,7 @@ import {
   COLLAB_CLOSE_UNAUTHORIZED,
 } from "./collab.ts";
 import { defineRoute } from "../route-helpers.ts";
+import { requireVisibleAssets } from "../../middleware/asset_visibility.ts";
 
 export const routesUsers = new Hono();
 
@@ -241,6 +243,7 @@ defineRoute(
   routesUsers,
   "batchUploadUsers",
   requireGlobalPermission("can_configure_users"),
+  requireVisibleAssets("asset_file_name"),
   log("batchUploadUsers"),
   async (c, { body }) => {
     if (!body.asset_file_name || typeof body.asset_file_name !== "string") {
@@ -338,6 +341,39 @@ defineRoute(
     const res = await setUserScopeAccess(
       c.var.mainDb,
       body.email,
+      body.scopeAccess,
+    );
+    if (res.success) {
+      await broadcastRosterAndCloseStaleCollab(c.var.mainDb);
+    }
+    return c.json(res);
+  },
+);
+
+const SCOPE_ACCESS_RESTRICTED_CALLER =
+  "A user limited to certain scopes cannot change scope access";
+const SCOPE_ACCESS_OWN = "You cannot change your own scope access";
+
+defineRoute(
+  routesUsers,
+  "bulkSetUserScopeAccess",
+  requireGlobalPermission("can_configure_users"),
+  log("bulkSetUserScopeAccess"),
+  async (c, { body }) => {
+    const caller = c.var.globalUser;
+    if (!caller.isGlobalAdmin) {
+      if (!caller.scopeAccess.all) {
+        c.status(403);
+        return c.json({ success: false, err: SCOPE_ACCESS_RESTRICTED_CALLER });
+      }
+      if (body.emails.includes(caller.email)) {
+        c.status(403);
+        return c.json({ success: false, err: SCOPE_ACCESS_OWN });
+      }
+    }
+    const res = await bulkSetUserScopeAccess(
+      c.var.mainDb,
+      body.emails,
       body.scopeAccess,
     );
     if (res.success) {

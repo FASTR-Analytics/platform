@@ -403,8 +403,8 @@ set only while rows exist) and advances on the row click that opens the page,
 its second waits for the status bar's usage row (`-usage`) and its third names
 pin and delete on the heading bar's housekeeping group (`-actions`); it
 auto-starts only while a row is rendered, not merely in the DOM, since an open
-page hides the list under the shell wrapper. The intro tour's last step is the
-Scopes button (`-scopes`), for global admins.
+page hides the list under the shell wrapper. The intro tour's last step is
+Module defaults (`-defaults`); scopes moved to their own rail tab (S15).
 
 **Bulk delete** (`results_packages/results_packages.tsx`, the listing's row
 checkboxes and their one bulk action) is the bulk form of the guarded delete:
@@ -769,13 +769,13 @@ wizard as instance defaults > definition defaults
 (`results_packages/wizard/wizard.tsx` via `getMergedModuleConfigSelections`).
 Its **sole writer** is the module-defaults editor
 (`results_packages/module_defaults.tsx`, opened from the Results packages
-surface, whose toolbar also holds the global admin's "Scopes" button, S15); the
-wizard only reads it and has no "save as instance defaults" action (ruled): a
-save built from only the modules selected for one generation would silently drop
-curated defaults for every other module. The editor lives on the Results surface
-rather than instance Settings because both routes are `can_configure_data` while
-Settings is `can_configure_settings`: the other placement would render UI backed
-by 403ing routes.
+surface; scopes have their own rail tab, S15); the wizard only reads it and has
+no "save as instance defaults" action (ruled): a save built from only the
+modules selected for one generation would silently drop curated defaults for
+every other module. The editor lives on the Results surface rather than instance
+Settings because both routes are `can_configure_data` while Settings is
+`can_configure_settings`: the other placement would render UI backed by 403ing
+routes.
 
 **Definitions are never stored.** The editor resolves them live on open via
 `getRunGenerationModuleOptions`, the same read the wizard uses, so drift is

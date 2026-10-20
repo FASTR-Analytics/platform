@@ -185,6 +185,7 @@ Deno.test("scopes and slide stamps are cut to the grants", () => {
         definition: ALL_DATA_SCOPE_DEFINITION,
         definitionHash: "h",
         lastUpdated: "t",
+        migratedFrom: null,
       })),
     },
   });
@@ -267,7 +268,7 @@ function levelsFilter() {
     },
   );
   assertEquals(plane.products.map((p) => p.id), ["shared"]);
-  assertEquals(plane.folders, FOLDERS);
+  assertEquals(plane.folders, []);
   const start: InstanceSseFilterStart = {
     currentUserEmail: VIEWER,
     currentUserApproved: true,
@@ -277,7 +278,7 @@ function levelsFilter() {
     products: plane.products,
     folders: plane.folders,
   };
-  return createInstanceSseFilter(start, { allFolders: [] });
+  return createInstanceSseFilter(start, { allFolders: FOLDERS });
 }
 
 const upsert = (p: ProductSummary): InstanceSseMessage => ({
@@ -300,18 +301,55 @@ Deno.test("a product held at none is withheld until a grant, and leaves with it"
   assertEquals(filter(stamp("shared")).messages, [stamp("shared")]);
 
   const granted = upsert(product("hidden", GRANTED, "root-a", GRANTED_VIEW));
-  assertEquals(filter(granted), { messages: [granted], close: false });
+  assertEquals(filter(granted), {
+    messages: [granted, {
+      type: "folders_updated",
+      data: { folders: [folder("root-a", null)] },
+    }],
+    close: false,
+  });
   assertEquals(filter(stamp("hidden")).messages, [stamp("hidden")]);
 
   const revoked = filter(upsert(product("hidden", GRANTED, "root-a", PRIVATE)));
   assertEquals(revoked, {
-    messages: [{ type: "products_deleted", data: { ids: ["hidden"] } }],
+    messages: [
+      { type: "products_deleted", data: { ids: ["hidden"] } },
+      { type: "folders_updated", data: { folders: [] } },
+    ],
     close: false,
   });
   assertEquals(filter(stamp("hidden")).messages, []);
 
   const regranted = filter(granted);
   assertEquals(regranted.close, true);
+});
+
+Deno.test("an unrestricted viewer sees only folders it holds something in, or made", () => {
+  const mine = { ...folder("mine", null), createdBy: VIEWER };
+  const plane = restrictProductPlane(
+    { email: VIEWER, isGlobalAdmin: false, scopeAccess: ALL_SCOPES },
+    {
+      products: [
+        product("hidden", GRANTED, "root-a", PRIVATE),
+        product("shared", GRANTED, "child-a", GRANTED_VIEW),
+      ],
+      folders: [...FOLDERS, mine],
+      scopes: [],
+    },
+  );
+  assertEquals(plane.folders.map((f) => f.id), ["root-a", "child-a", "mine"]);
+});
+
+Deno.test("a global admin's plane keeps every folder", () => {
+  const plane = restrictProductPlane(
+    { email: VIEWER, isGlobalAdmin: true, scopeAccess: ALL_SCOPES },
+    {
+      products: [product("hidden", GRANTED, "root-a", PRIVATE)],
+      folders: FOLDERS,
+      scopes: [],
+    },
+  );
+  assertEquals(plane.folders, FOLDERS);
 });
 
 Deno.test("a change to the connection's own admin flag ends the stream", () => {

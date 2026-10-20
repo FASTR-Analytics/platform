@@ -18,10 +18,12 @@
 //   FAIL    the migration would abort here. Blocks the deploy. Exit 1.
 //   REVIEW  a count Tim must read and accept before deploying: the
 //           visualizations and dashboards that get deleted, the users who
-//           become full editors, the central-reporting projects that become
-//           ordinary visible folders and the pending_deletion projects that
-//           are not migrated. None of these stop the migration; all of them
-//           are irreversible once it runs.
+//           can open none of the moved products, the projects whose
+//           products stay visible to everyone because their folder cannot be
+//           told apart, the central-reporting projects that become admin-only
+//           folders and the pending_deletion projects that are not migrated.
+//           None of these stop the migration; all of them are irreversible
+//           once it runs.
 //
 // Usage:
 //   ./validate_consolidation.ts                       every running instance
@@ -60,6 +62,13 @@ import {
   REQUIRED_SOURCE_MIGRATION,
   seedTakenIds,
 } from "./server/db/migrations/consolidation/execute.ts";
+import {
+  type ProjectWindow,
+  projectWindow,
+  readDatasetWindowings,
+  readFirstDataYear,
+} from "./server/db/migrations/consolidation/access.ts";
+import { scopeDefinitionHash } from "lib";
 
 // ── Config ───────────────────────────────────────────────────────────────────
 
@@ -114,8 +123,9 @@ export type InstanceReport = {
   extraDropped: ExtraDroppedCounts;
   dashboardSlugs: number;
   totalUsers: number;
-  viewerOnlyUsers: string[];
-  usersWithNoProjectRole: number;
+  usersWithNoProductAccess: number;
+  sharedLabelProjects: ProjectRef[];
+  windowScopes: number;
 };
 
 export type PlannedCounts = {
@@ -146,8 +156,9 @@ function emptyReport(instance: string): InstanceReport {
     extraDropped: { userAuthoredVisualizations: 0, publicDashboards: 0 },
     dashboardSlugs: 0,
     totalUsers: 0,
-    viewerOnlyUsers: [],
-    usersWithNoProjectRole: 0,
+    usersWithNoProductAccess: 0,
+    sharedLabelProjects: [],
+    windowScopes: 0,
   };
 }
 
@@ -308,32 +319,41 @@ export async function dryRunInstance(
       }
     }
 
-    // Users: the blast radius of every approved user becoming a full editor.
+    // Users: moved products become private to their project's members
+    // (consolidation/access.ts), granted from the report and deck flags, so a
+    // non-admin with none of those flags on a migrated project can open none
+    // of them.
     const userRows = await mainDb<{ count: number }[]>`
       SELECT COUNT(*)::int AS count FROM users
     `;
     report.totalUsers = userRows[0].count;
-    const viewerOnly = await mainDb<{ email: string }[]>`
-      SELECT u.email FROM users u
-      WHERE EXISTS (
-        SELECT 1 FROM project_user_roles r
-        WHERE r.email = u.email AND r.role = 'viewer'
-      )
-      AND NOT EXISTS (
-        SELECT 1 FROM project_user_roles r
-        WHERE r.email = u.email AND r.role = 'editor'
-      )
-      ORDER BY u.email
-    `;
-    report.viewerOnlyUsers = viewerOnly.map((row) => row.email);
-    const noRole = await mainDb<{ count: number }[]>`
+    const noAccess = await mainDb<{ count: number }[]>`
       SELECT COUNT(*)::int AS count FROM users u
-      WHERE NOT EXISTS (
+      WHERE NOT u.is_admin AND NOT EXISTS (
         SELECT 1 FROM project_user_roles r
-        WHERE r.email = u.email AND r.role IN ('viewer', 'editor')
+        JOIN projects p ON p.id = r.project_id
+        WHERE r.email = u.email AND p.status = 'ready'
+          AND NOT p.is_central_reporting
+          AND (r.can_view_reports OR r.can_configure_reports
+            OR r.can_view_slide_decks OR r.can_configure_slide_decks)
       )
     `;
-    report.usersWithNoProjectRole = noRole[0].count;
+    report.usersWithNoProductAccess = noAccess[0].count;
+    // A ready project sharing its label with another may not be matched to
+    // its folder; the access snapshot then leaves its products visible to
+    // everyone (it tells most apart by the ids 201 keeps).
+    const labelCounts = new Map<string, number>();
+    for (const project of projects) {
+      if (project.status === "ready") {
+        labelCounts.set(
+          project.label,
+          (labelCounts.get(project.label) ?? 0) + 1,
+        );
+      }
+    }
+    report.sharedLabelProjects = projects
+      .filter((p) => p.status === "ready" && labelCounts.get(p.label)! > 1)
+      .map((p) => ({ id: p.id, label: p.label }));
 
     // Public dashboards also have a main-DB slug row; counted here so the
     // number survives even when a project DB is unreachable.
@@ -345,6 +365,8 @@ export async function dryRunInstance(
     }
 
     const takenIds = await seedTakenIds(mainDb);
+    const windowByProject = new Map<string, ProjectWindow>();
+    const firstDataYear = await readFirstDataYear(mainDb);
 
     for (const project of projects) {
       if (project.status !== "ready") {
@@ -384,6 +406,16 @@ export async function dryRunInstance(
           takenIds,
         });
         report.plans.push(plan);
+        if (!project.is_central_reporting) {
+          windowByProject.set(
+            project.id,
+            projectWindow(
+              project.admin_area_2,
+              await readDatasetWindowings(projectDb),
+              firstDataYear,
+            ),
+          );
+        }
         const extra = await countExtraDropped(projectDb);
         report.extraDropped.userAuthoredVisualizations +=
           extra.userAuthoredVisualizations;
@@ -398,6 +430,48 @@ export async function dryRunInstance(
         await projectDb.end().catch(() => {});
       }
     }
+
+    // The scope carry-over (consolidation/user_scopes.ts), which restricts no
+    // user: each distinct window that a planned product needs, or that a
+    // member on limited projects only saw, is one scope (reused when one
+    // already filters the same way, which this read-only count cannot see).
+    const members = await mainDb<{ email: string; project_id: string }[]>`
+      SELECT r.email, r.project_id
+      FROM project_user_roles r JOIN users u ON u.email = r.email
+      WHERE NOT u.is_admin AND (r.can_configure_settings OR r.can_create_backups
+        OR r.can_restore_backups OR r.can_configure_modules
+        OR r.can_run_modules OR r.can_configure_users
+        OR r.can_configure_visualizations OR r.can_view_visualizations
+        OR r.can_configure_reports OR r.can_view_reports
+        OR r.can_configure_slide_decks OR r.can_view_slide_decks
+        OR r.can_configure_data OR r.can_view_data OR r.can_view_metrics
+        OR r.can_view_logs OR r.can_view_script_code)
+    `;
+    const byUser = new Map<string, string[]>();
+    for (const { email, project_id } of members) {
+      const window = windowByProject.get(project_id);
+      if (window === undefined || window.kind === "none") continue;
+      byUser.set(email, [...(byUser.get(email) ?? []), project_id]);
+    }
+    const onlyLimited = [...byUser.values()].filter((ids) =>
+      ids.every((id) => windowByProject.get(id)?.kind === "limited")
+    );
+    const withProducts = new Set(
+      report.plans.filter((plan) => plan.products.length > 0).map((plan) =>
+        plan.projectId
+      ),
+    );
+    const needed = new Set([
+      ...withProducts,
+      ...onlyLimited.flat(),
+    ]);
+    report.windowScopes = new Set(
+      [...windowByProject].flatMap(([id, window]) =>
+        window.kind === "limited" && needed.has(id)
+          ? [scopeDefinitionHash(window.definition)]
+          : []
+      ),
+    ).size;
   } finally {
     await mainDb.end().catch(() => {});
   }
@@ -432,14 +506,21 @@ async function countExtraDropped(projectDb: Sql): Promise<ExtraDroppedCounts> {
 }
 
 function addReviews(report: InstanceReport): void {
-  if (report.viewerOnlyUsers.length > 0) {
+  if (report.usersWithNoProductAccess > 0) {
     report.reviews.push(
-      `${report.viewerOnlyUsers.length} viewer-only user(s) become full editors of every product`,
+      `${report.usersWithNoProductAccess} non-admin user(s) with no report or deck access on any migrated project can open none of the moved products`,
     );
   }
-  if (report.usersWithNoProjectRole > 0) {
+  if (report.windowScopes > 0) {
     report.reviews.push(
-      `${report.usersWithNoProjectRole} user(s) with no project role become full editors of every product`,
+      `${report.windowScopes} scope(s) carry projects' data windows (zone, indicators, start year; a new one is "<zone|project> (migrated)"); no user is restricted`,
+    );
+  }
+  if (report.sharedLabelProjects.length > 0) {
+    report.reviews.push(
+      `${report.sharedLabelProjects.length} ready project(s) share a label; any whose folder cannot be told apart keep products visible to everyone: ${
+        report.sharedLabelProjects.map((p) => `"${p.label}"`).join(", ")
+      }`,
     );
   }
   if (report.pendingDeletion.length > 0) {
@@ -449,7 +530,7 @@ function addReviews(report: InstanceReport): void {
   }
   if (report.centralReporting.length > 0) {
     report.reviews.push(
-      `${report.centralReporting.length} central-reporting project(s) become ordinary folders visible to every approved user`,
+      `${report.centralReporting.length} central-reporting project(s) become folders only global admins can open`,
     );
   }
   if (report.dbAbsent.length > 0) {
@@ -604,9 +685,8 @@ function printInstanceReport(report: InstanceReport): void {
 
   console.log(
     `  users:           ${report.totalUsers} total, ` +
-      `${report.viewerOnlyUsers.length} viewer-only, ` +
-      `${report.usersWithNoProjectRole} with no project role; ` +
-      "all become full editors",
+      `${report.usersWithNoProductAccess} non-admin with no product access; ` +
+      "moved products become private to their project's members",
   );
 
   for (const review of report.reviews) {
@@ -675,8 +755,9 @@ function printFleetSummary(reports: InstanceReport[]): boolean {
       acc.userViz += report.extraDropped.userAuthoredVisualizations;
       acc.dash += dropped.dashboards;
       acc.publicDash += report.extraDropped.publicDashboards;
-      acc.viewerOnly += report.viewerOnlyUsers.length;
-      acc.noRole += report.usersWithNoProjectRole;
+      acc.noAccess += report.usersWithNoProductAccess;
+      acc.sharedLabel += report.sharedLabelProjects.length;
+      acc.windowScopes += report.windowScopes;
       acc.central += report.centralReporting.length;
       acc.pending += report.pendingDeletion.length;
       return acc;
@@ -687,8 +768,9 @@ function printFleetSummary(reports: InstanceReport[]): boolean {
       userViz: 0,
       dash: 0,
       publicDash: 0,
-      viewerOnly: 0,
-      noRole: 0,
+      noAccess: 0,
+      sharedLabel: 0,
+      windowScopes: 0,
       central: 0,
       pending: 0,
     },
@@ -707,8 +789,9 @@ function printFleetSummary(reports: InstanceReport[]): boolean {
   console.log(
     `    dashboards DELETED:              ${totals.dash} (${totals.publicDash} public)`,
   );
-  console.log(`    viewer-only users -> editors:    ${totals.viewerOnly}`);
-  console.log(`    no-project-role users -> editors: ${totals.noRole}`);
+  console.log(`    users with no product access:    ${totals.noAccess}`);
+  console.log(`    projects sharing a label:        ${totals.sharedLabel}`);
+  console.log(`    window scopes (up to):           ${totals.windowScopes}`);
   console.log(`    central-reporting projects:      ${totals.central}`);
   console.log(`    pending_deletion, not migrated:  ${totals.pending}`);
 
