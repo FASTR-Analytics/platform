@@ -22,6 +22,13 @@ if ! git cat-file -e "$BEFORE" 2>/dev/null; then
     exit 0
 fi
 
+# A force-push that replaces the branch leaves BEFORE reachable (e.g. via an
+# archive branch) but unrelated, so the diff would span the whole rewrite.
+if ! git merge-base --is-ancestor "$BEFORE" HEAD; then
+    echo "Before SHA is not an ancestor of HEAD (force-push). Skipping."
+    exit 0
+fi
+
 # Did VERSION change?
 VERSION_CHANGED=false
 if git diff "$BEFORE"..HEAD -- VERSION | grep -q "^+[^+]"; then
