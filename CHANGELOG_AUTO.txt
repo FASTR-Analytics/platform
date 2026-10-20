@@ -1,137 +1,137 @@
-[TBD] [user] [added] - AI assistant is now available on every page from a side panel
-[TBD] [user] [added] - Drag and drop products and folders in the product explorer
-[TBD] [user] [added] - Manage access to decks and reports with owner, editor, and viewer roles
-[TBD] [user] [added] - Explore page with interactive data tables, charts, and maps for every module
-[TBD] [user] [added] - Named scopes with geography, time, and data limits to control what users see
-[TBD] [user] [added] - Product explorer shows folders as an expandable tree like a file browser
-[TBD] [user] [added] - Results packages open on their own page with default visualizations
-[TBD] [user] [added] - HFA data import now updates the facility registry automatically from survey files
-[TBD] [user] [added] - Review facility changes between survey rounds before importing
-[TBD] [user] [added] - Store sampling stratum alongside HFA facility weights
-[TBD] [user] [added] - Filter HFA indicators by category, sub-category, type, and status
-[TBD] [user] [added] - Search HFA indicators and variables with accent and word-order tolerance
-[TBD] [user] [added] - Unused variables modal now has an Add button to create an indicator directly
-[TBD] [user] [added] - HFA import wizard shows a facility columns and changes review step
-[TBD] [user] [added] - Dark mode support with a refreshed visual theme
-[TBD] [user] [added] - Theme customization for surface color, brand color, corner radius, and text size
-[TBD] [user] [added] - Generation progress bar shows each stage of results package creation
-[TBD] [user] [added] - Cap results package labels at 20 characters with date as default
-[TBD] [user] [added] - Bulk access control for all products in a folder at once
-[TBD] [user] [added] - Copy slides between decks to reuse visualizations
-[TBD] [user] [added] - General folder groups loose products in the explorer
-[TBD] [user] [added] - Filter assets by type in one unified table instead of separate tabs
-[TBD] [user] [added] - Filter results packages, users, and assets tables by column values
-[TBD] [user] [added] - Search across results, assets, and users tables
-[TBD] [user] [added] - Click any table row to open its detail (packages, data, users)
-[TBD] [user] [added] - Scope editor with a year range slider instead of text boxes
-[TBD] [user] [added] - Scopes can limit HFA data by category and service category
-[TBD] [user] [added] - Population coverage details shown on the results package page
-[TBD] [user] [added] - Boolean module parameters now use a clear Yes/No selector
-[TBD] [user] [added] - Word export renders report content as editable text instead of images
-[TBD] [user] [changed] - Figures are now called "visualizations" throughout the platform
-[TBD] [user] [changed] - Data page shows all sections on one scrollable page instead of tabs
-[TBD] [user] [changed] - Side navigation replaces the top tab bar for main sections
-[TBD] [user] [changed] - Reports now use one unified FASTR format
-[TBD] [user] [changed] - Editors open as full-page views with a back button
-[TBD] [user] [changed] - Package page shows module tabs by family instead of a flat gallery
-[TBD] [user] [changed] - File column pickers in import wizards are now searchable
-[TBD] [user] [changed] - Facility ID and weight columns auto-select for standard survey files
-[TBD] [user] [changed] - Consistent text sizes and spacing across the entire interface
-[TBD] [user] [changed] - White logo appears in the header when using dark mode
-[TBD] [user] [changed] - AI assistant follows you across pages in one continuous conversation
-[TBD] [user] [changed] - Products sort with clickable column headers and reversible direction
-[TBD] [user] [changed] - Scope picker replaced typed year inputs with a visual slider
-[TBD] [user] [changed] - Report download now offers PDF, Word, and HTML from the File menu
-[TBD] [user] [changed] - Users table shows each user's scope access directly
-[TBD] [user] [changed] - HFA indicator actions moved to a compact toolbar menu
-[TBD] [user] [changed] - Viewers see read-only editors without write controls
-[TBD] [user] [changed] - New products default to the "All data" scope
-[TBD] [user] [changed] - Deleted indicators show referencing code as a warning before confirming
-[TBD] [user] [fixed] - Fixed French methodology documents showing garbled characters in AI assistant
-[TBD] [user] [fixed] - Fixed report intro tour failing on every new report
-[TBD] [user] [fixed] - Fixed slide tours not starting automatically
-[TBD] [user] [fixed] - Fixed AI assistant losing context when switching between slides
-[TBD] [user] [fixed] - Fixed collaborator keystrokes causing all charts to redraw
-[TBD] [user] [fixed] - Fixed viewer receiving permission errors when opening shared documents
-[TBD] [user] [fixed] - Fixed HFA import failing when column names differ in case from the form
-[TBD] [user] [fixed] - Fixed import wizard showing wrong error when no columns match
-[TBD] [user] [fixed] - Fixed HFA wizard skipping the duplicates step without explanation
-[TBD] [user] [fixed] - Fixed DHIS2 formula errors showing cryptic IDs with no remedy
-[TBD] [user] [fixed] - Fixed scope labels with accents or special characters bypassing uniqueness checks
-[TBD] [user] [fixed] - Fixed HFA weights import rejecting files with unknown facility IDs
-[TBD] [user] [fixed] - Fixed held import showing only a count instead of listing missing facility IDs
-[TBD] [user] [fixed] - Fixed AI chat continuing to show old slides after switching
-[TBD] [user] [fixed] - Fixed expired GitHub token breaking results package generation
-[TBD] [user] [fixed] - Fixed search not matching accented names or words in different order
-[TBD] [user] [fixed] - Fixed French zero-count labels using wrong singular/plural form
-[TBD] [user] [fixed] - Fixed maps not loading until a setting was changed
-[TBD] [user] [fixed] - Fixed collaborator cursors lingering after they left
-[TBD] [admin] [added] - Products now have owners, access levels, and sharing controls
-[TBD] [admin] [added] - Manage access dialog for setting product permissions and transferring ownership
-[TBD] [admin] [added] - Bulk access controls for raising permissions across entire folders
-[TBD] [admin] [added] - Named scopes with geography, time, module, and indicator filters per dataset family
-[TBD] [admin] [added] - Users can be restricted to specific scopes by admins
-[TBD] [admin] [added] - Scopes editor with per-family tabs for HMIS, HFA, and ICEH limits
-[TBD] [admin] [added] - Drag-and-drop for moving products and folders in the product explorer
-[TBD] [admin] [added] - Product explorer now shows a folder tree instead of one folder at a time
-[TBD] [admin] [added] - General folder groups root-level products automatically
-[TBD] [admin] [added] - Explore page with data tables, charts, and maps for every analysis module
-[TBD] [admin] [added] - Results packages open on their own page with module tabs and default visualizations
-[TBD] [admin] [added] - HFA data import now creates and updates the facility registry automatically
-[TBD] [admin] [added] - HFA import wizard shows facility changes for review before importing
-[TBD] [admin] [added] - HFA sampling weights can include stratum information
-[TBD] [admin] [added] - HFA indicator table now has column filters for category, status, and type
-[TBD] [admin] [added] - Side navigation rail replaces the top tab bar
-[TBD] [admin] [added] - AI assistant follows you across the entire platform in one persistent chat
-[TBD] [admin] [added] - AI assistant shows what it sees via a sent-context debug option
-[TBD] [admin] [added] - One browser tab owns the AI chat at a time with hand-over support
-[TBD] [admin] [added] - Report editor extracted into a reusable package (Report Forge)
-[TBD] [admin] [added] - Word export now produces editable text instead of screenshots
-[TBD] [admin] [added] - Theme customization with brand colours, corner radius, density, and text size
-[TBD] [admin] [added] - Dark mode support with matching shell and editor headers
-[TBD] [admin] [added] - Generation progress bar shows each pipeline stage in real time
-[TBD] [admin] [added] - Results package labels capped at 20 characters, defaulting to today's date
-[TBD] [admin] [added] - Unused HFA variables modal now has an Add button to create an indicator
-[TBD] [admin] [changed] - Figures renamed to "visualizations" throughout the interface
-[TBD] [admin] [changed] - Structure import is now HMIS-only; HFA facilities come from data imports
-[TBD] [admin] [changed] - Data page redesigned as a single scrolling page with row-based sections
-[TBD] [admin] [changed] - Assets page uses one table with a Type filter instead of separate tabs
-[TBD] [admin] [changed] - Scopes moved from a dedicated tab to the Results page
-[TBD] [admin] [changed] - New products start private; existing products default to view access
-[TBD] [admin] [changed] - Tonal header bars and inset rail items across the platform
-[TBD] [admin] [changed] - Base text size standardized to 14px throughout the interface
-[TBD] [admin] [changed] - All heading and body text sizes follow a consistent scale
-[TBD] [admin] [changed] - Tables keep their sort, filters, search, and scroll when data refreshes
-[TBD] [admin] [changed] - Searchable column pickers for HFA file imports
-[TBD] [admin] [changed] - HFA facility and weight columns pre-selected for standard questionnaire files
-[TBD] [admin] [changed] - Scope year ranges use a slider instead of typed inputs
-[TBD] [admin] [changed] - Boolean module parameters shown as Yes/No dropdown instead of checkbox
-[TBD] [admin] [changed] - Users table now shows each user's scope assignments
-[TBD] [admin] [changed] - "All data" scope shown in the user's language everywhere
-[TBD] [admin] [changed] - Docker builds are faster; configuration changes no longer reinstall dependencies
-[TBD] [admin] [changed] - Old HTML and plain markdown report formats retired; all reports use FASTR format
-[TBD] [admin] [fixed] - Viewers can no longer trigger edits through collaboration sync
-[TBD] [admin] [fixed] - AI methodology documents with French or accented characters now display correctly
-[TBD] [admin] [fixed] - AI chat no longer loads remote images from user text
-[TBD] [admin] [fixed] - Scope edits no longer cause figures to show incorrect staleness
-[TBD] [admin] [fixed] - Expired GitHub token no longer breaks module resolution and package generation
-[TBD] [admin] [fixed] - Deleting a scope now properly closes affected collaboration sessions
-[TBD] [admin] [fixed] - Restricted users cannot grant themselves admin access
-[TBD] [admin] [fixed] - Onboarding tours no longer stall or silently skip for view-only users
-[TBD] [admin] [fixed] - Report intro tour works correctly with FASTR format reports
-[TBD] [admin] [fixed] - HFA imports now match columns case-insensitively
-[TBD] [admin] [fixed] - HFA imports show specific error messages for mismatched files
-[TBD] [admin] [fixed] - DHIS2 formula IDs identified before import with clear fix instructions
-[TBD] [admin] [fixed] - CSV import errors on the first data row are now properly reported
-[TBD] [admin] [fixed] - Scope labels with special Unicode characters no longer bypass uniqueness checks
-[TBD] [admin] [fixed] - Choosing the current language in the menu now properly saves the preference
-[TBD] [admin] [fixed] - Collaboration cursors no longer linger after peers leave
-[TBD] [admin] [fixed] - Search throughout the platform now ignores accents and matches words in any order
-[TBD] [admin] [fixed] - French and Portuguese zero-count labels now use correct grammar
-[TBD] [admin] [internal] - Major codebase restructure: projects replaced by products with folders
-[TBD] [admin] [internal] - Client file tree reorganized with enforced structure rules
-[TBD] [admin] [internal] - Report editor separated into independent Report Forge package
-[TBD] [admin] [internal] - Comprehensive HFA round re-import tested at registry scale
+[2.0.0] [user] [added] - AI assistant is now available on every page from a side panel
+[2.0.0] [user] [added] - Drag and drop products and folders in the product explorer
+[2.0.0] [user] [added] - Manage access to decks and reports with owner, editor, and viewer roles
+[2.0.0] [user] [added] - Explore page with interactive data tables, charts, and maps for every module
+[2.0.0] [user] [added] - Named scopes with geography, time, and data limits to control what users see
+[2.0.0] [user] [added] - Product explorer shows folders as an expandable tree like a file browser
+[2.0.0] [user] [added] - Results packages open on their own page with default visualizations
+[2.0.0] [user] [added] - HFA data import now updates the facility registry automatically from survey files
+[2.0.0] [user] [added] - Review facility changes between survey rounds before importing
+[2.0.0] [user] [added] - Store sampling stratum alongside HFA facility weights
+[2.0.0] [user] [added] - Filter HFA indicators by category, sub-category, type, and status
+[2.0.0] [user] [added] - Search HFA indicators and variables with accent and word-order tolerance
+[2.0.0] [user] [added] - Unused variables modal now has an Add button to create an indicator directly
+[2.0.0] [user] [added] - HFA import wizard shows a facility columns and changes review step
+[2.0.0] [user] [added] - Dark mode support with a refreshed visual theme
+[2.0.0] [user] [added] - Theme customization for surface color, brand color, corner radius, and text size
+[2.0.0] [user] [added] - Generation progress bar shows each stage of results package creation
+[2.0.0] [user] [added] - Cap results package labels at 20 characters with date as default
+[2.0.0] [user] [added] - Bulk access control for all products in a folder at once
+[2.0.0] [user] [added] - Copy slides between decks to reuse visualizations
+[2.0.0] [user] [added] - General folder groups loose products in the explorer
+[2.0.0] [user] [added] - Filter assets by type in one unified table instead of separate tabs
+[2.0.0] [user] [added] - Filter results packages, users, and assets tables by column values
+[2.0.0] [user] [added] - Search across results, assets, and users tables
+[2.0.0] [user] [added] - Click any table row to open its detail (packages, data, users)
+[2.0.0] [user] [added] - Scope editor with a year range slider instead of text boxes
+[2.0.0] [user] [added] - Scopes can limit HFA data by category and service category
+[2.0.0] [user] [added] - Population coverage details shown on the results package page
+[2.0.0] [user] [added] - Boolean module parameters now use a clear Yes/No selector
+[2.0.0] [user] [added] - Word export renders report content as editable text instead of images
+[2.0.0] [user] [changed] - Figures are now called "visualizations" throughout the platform
+[2.0.0] [user] [changed] - Data page shows all sections on one scrollable page instead of tabs
+[2.0.0] [user] [changed] - Side navigation replaces the top tab bar for main sections
+[2.0.0] [user] [changed] - Reports now use one unified FASTR format
+[2.0.0] [user] [changed] - Editors open as full-page views with a back button
+[2.0.0] [user] [changed] - Package page shows module tabs by family instead of a flat gallery
+[2.0.0] [user] [changed] - File column pickers in import wizards are now searchable
+[2.0.0] [user] [changed] - Facility ID and weight columns auto-select for standard survey files
+[2.0.0] [user] [changed] - Consistent text sizes and spacing across the entire interface
+[2.0.0] [user] [changed] - White logo appears in the header when using dark mode
+[2.0.0] [user] [changed] - AI assistant follows you across pages in one continuous conversation
+[2.0.0] [user] [changed] - Products sort with clickable column headers and reversible direction
+[2.0.0] [user] [changed] - Scope picker replaced typed year inputs with a visual slider
+[2.0.0] [user] [changed] - Report download now offers PDF, Word, and HTML from the File menu
+[2.0.0] [user] [changed] - Users table shows each user's scope access directly
+[2.0.0] [user] [changed] - HFA indicator actions moved to a compact toolbar menu
+[2.0.0] [user] [changed] - Viewers see read-only editors without write controls
+[2.0.0] [user] [changed] - New products default to the "All data" scope
+[2.0.0] [user] [changed] - Deleted indicators show referencing code as a warning before confirming
+[2.0.0] [user] [fixed] - Fixed French methodology documents showing garbled characters in AI assistant
+[2.0.0] [user] [fixed] - Fixed report intro tour failing on every new report
+[2.0.0] [user] [fixed] - Fixed slide tours not starting automatically
+[2.0.0] [user] [fixed] - Fixed AI assistant losing context when switching between slides
+[2.0.0] [user] [fixed] - Fixed collaborator keystrokes causing all charts to redraw
+[2.0.0] [user] [fixed] - Fixed viewer receiving permission errors when opening shared documents
+[2.0.0] [user] [fixed] - Fixed HFA import failing when column names differ in case from the form
+[2.0.0] [user] [fixed] - Fixed import wizard showing wrong error when no columns match
+[2.0.0] [user] [fixed] - Fixed HFA wizard skipping the duplicates step without explanation
+[2.0.0] [user] [fixed] - Fixed DHIS2 formula errors showing cryptic IDs with no remedy
+[2.0.0] [user] [fixed] - Fixed scope labels with accents or special characters bypassing uniqueness checks
+[2.0.0] [user] [fixed] - Fixed HFA weights import rejecting files with unknown facility IDs
+[2.0.0] [user] [fixed] - Fixed held import showing only a count instead of listing missing facility IDs
+[2.0.0] [user] [fixed] - Fixed AI chat continuing to show old slides after switching
+[2.0.0] [user] [fixed] - Fixed expired GitHub token breaking results package generation
+[2.0.0] [user] [fixed] - Fixed search not matching accented names or words in different order
+[2.0.0] [user] [fixed] - Fixed French zero-count labels using wrong singular/plural form
+[2.0.0] [user] [fixed] - Fixed maps not loading until a setting was changed
+[2.0.0] [user] [fixed] - Fixed collaborator cursors lingering after they left
+[2.0.0] [admin] [added] - Products now have owners, access levels, and sharing controls
+[2.0.0] [admin] [added] - Manage access dialog for setting product permissions and transferring ownership
+[2.0.0] [admin] [added] - Bulk access controls for raising permissions across entire folders
+[2.0.0] [admin] [added] - Named scopes with geography, time, module, and indicator filters per dataset family
+[2.0.0] [admin] [added] - Users can be restricted to specific scopes by admins
+[2.0.0] [admin] [added] - Scopes editor with per-family tabs for HMIS, HFA, and ICEH limits
+[2.0.0] [admin] [added] - Drag-and-drop for moving products and folders in the product explorer
+[2.0.0] [admin] [added] - Product explorer now shows a folder tree instead of one folder at a time
+[2.0.0] [admin] [added] - General folder groups root-level products automatically
+[2.0.0] [admin] [added] - Explore page with data tables, charts, and maps for every analysis module
+[2.0.0] [admin] [added] - Results packages open on their own page with module tabs and default visualizations
+[2.0.0] [admin] [added] - HFA data import now creates and updates the facility registry automatically
+[2.0.0] [admin] [added] - HFA import wizard shows facility changes for review before importing
+[2.0.0] [admin] [added] - HFA sampling weights can include stratum information
+[2.0.0] [admin] [added] - HFA indicator table now has column filters for category, status, and type
+[2.0.0] [admin] [added] - Side navigation rail replaces the top tab bar
+[2.0.0] [admin] [added] - AI assistant follows you across the entire platform in one persistent chat
+[2.0.0] [admin] [added] - AI assistant shows what it sees via a sent-context debug option
+[2.0.0] [admin] [added] - One browser tab owns the AI chat at a time with hand-over support
+[2.0.0] [admin] [added] - Report editor extracted into a reusable package (Report Forge)
+[2.0.0] [admin] [added] - Word export now produces editable text instead of screenshots
+[2.0.0] [admin] [added] - Theme customization with brand colours, corner radius, density, and text size
+[2.0.0] [admin] [added] - Dark mode support with matching shell and editor headers
+[2.0.0] [admin] [added] - Generation progress bar shows each pipeline stage in real time
+[2.0.0] [admin] [added] - Results package labels capped at 20 characters, defaulting to today's date
+[2.0.0] [admin] [added] - Unused HFA variables modal now has an Add button to create an indicator
+[2.0.0] [admin] [changed] - Figures renamed to "visualizations" throughout the interface
+[2.0.0] [admin] [changed] - Structure import is now HMIS-only; HFA facilities come from data imports
+[2.0.0] [admin] [changed] - Data page redesigned as a single scrolling page with row-based sections
+[2.0.0] [admin] [changed] - Assets page uses one table with a Type filter instead of separate tabs
+[2.0.0] [admin] [changed] - Scopes moved from a dedicated tab to the Results page
+[2.0.0] [admin] [changed] - New products start private; existing products default to view access
+[2.0.0] [admin] [changed] - Tonal header bars and inset rail items across the platform
+[2.0.0] [admin] [changed] - Base text size standardized to 14px throughout the interface
+[2.0.0] [admin] [changed] - All heading and body text sizes follow a consistent scale
+[2.0.0] [admin] [changed] - Tables keep their sort, filters, search, and scroll when data refreshes
+[2.0.0] [admin] [changed] - Searchable column pickers for HFA file imports
+[2.0.0] [admin] [changed] - HFA facility and weight columns pre-selected for standard questionnaire files
+[2.0.0] [admin] [changed] - Scope year ranges use a slider instead of typed inputs
+[2.0.0] [admin] [changed] - Boolean module parameters shown as Yes/No dropdown instead of checkbox
+[2.0.0] [admin] [changed] - Users table now shows each user's scope assignments
+[2.0.0] [admin] [changed] - "All data" scope shown in the user's language everywhere
+[2.0.0] [admin] [changed] - Docker builds are faster; configuration changes no longer reinstall dependencies
+[2.0.0] [admin] [changed] - Old HTML and plain markdown report formats retired; all reports use FASTR format
+[2.0.0] [admin] [fixed] - Viewers can no longer trigger edits through collaboration sync
+[2.0.0] [admin] [fixed] - AI methodology documents with French or accented characters now display correctly
+[2.0.0] [admin] [fixed] - AI chat no longer loads remote images from user text
+[2.0.0] [admin] [fixed] - Scope edits no longer cause figures to show incorrect staleness
+[2.0.0] [admin] [fixed] - Expired GitHub token no longer breaks module resolution and package generation
+[2.0.0] [admin] [fixed] - Deleting a scope now properly closes affected collaboration sessions
+[2.0.0] [admin] [fixed] - Restricted users cannot grant themselves admin access
+[2.0.0] [admin] [fixed] - Onboarding tours no longer stall or silently skip for view-only users
+[2.0.0] [admin] [fixed] - Report intro tour works correctly with FASTR format reports
+[2.0.0] [admin] [fixed] - HFA imports now match columns case-insensitively
+[2.0.0] [admin] [fixed] - HFA imports show specific error messages for mismatched files
+[2.0.0] [admin] [fixed] - DHIS2 formula IDs identified before import with clear fix instructions
+[2.0.0] [admin] [fixed] - CSV import errors on the first data row are now properly reported
+[2.0.0] [admin] [fixed] - Scope labels with special Unicode characters no longer bypass uniqueness checks
+[2.0.0] [admin] [fixed] - Choosing the current language in the menu now properly saves the preference
+[2.0.0] [admin] [fixed] - Collaboration cursors no longer linger after peers leave
+[2.0.0] [admin] [fixed] - Search throughout the platform now ignores accents and matches words in any order
+[2.0.0] [admin] [fixed] - French and Portuguese zero-count labels now use correct grammar
+[2.0.0] [admin] [internal] - Major codebase restructure: projects replaced by products with folders
+[2.0.0] [admin] [internal] - Client file tree reorganized with enforced structure rules
+[2.0.0] [admin] [internal] - Report editor separated into independent Report Forge package
+[2.0.0] [admin] [internal] - Comprehensive HFA round re-import tested at registry scale
 [1.76.2] [user] [fixed] - Clearer error messages when CSV columns don't match survey questions
 [1.76.2] [user] [fixed] - File upload errors now surface correctly instead of being silently ignored
 [1.76.2] [admin] [fixed] - CSV upload errors now always surface correctly instead of being silently ignored
