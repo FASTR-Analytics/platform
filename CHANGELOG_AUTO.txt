@@ -1,3 +1,9 @@
+[TBD] [user] [added] - New "Results file data" download option for visualizations
+[TBD] [user] [added] - New "JSON definition" download option for visualizations
+[TBD] [user] [changed] - Download format option renamed from "Visualization" to "Image"
+[TBD] [admin] [internal] - Reorganized visualization editor components for better maintainability
+[TBD] [admin] [added] - Dark mode syntax highlighting for HTML-format reports
+[TBD] [admin] [improved] - Collaborative editing cursor stability during active sessions
 [TBD] [user] [changed] - Pop-up dialogs now have a more consistent button layout
 [TBD] [user] [changed] - HFA indicator IDs are now assigned automatically instead of manually
 [TBD] [user] [removed] - Indicator ID column removed from the HFA indicators table
