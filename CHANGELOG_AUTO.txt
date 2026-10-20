@@ -1,3 +1,21 @@
+[TBD] [user] [added] - "Ask AI" button now pulses until first opened
+[TBD] [user] [added] - Guided tour introduces the AI assistant to all users
+[TBD] [user] [added] - Empty reports or slide decks offer to be deleted when leaving
+[TBD] [user] [changed] - "Ask AI" button now shows a sparkle icon and clearer label
+[TBD] [user] [changed] - AI asks clarifying questions and proposes an outline before drafting a new report
+[TBD] [user] [changed] - Profile modal redesigned with cleaner layout and grouped sections
+[TBD] [user] [changed] - AI usage now shows today and this week side by side with progress bars
+[TBD] [user] [changed] - Profile loads instantly instead of waiting for account details
+[TBD] [user] [added] - Troubleshooting section in profile explains when to clear caches
+[TBD] [admin] [added] - AI assistant now walks users through a brief and outline before drafting an empty report
+[TBD] [admin] [added] - Pulsing indicator on the Ask AI button until a user opens the AI panel for the first time
+[TBD] [admin] [added] - Guided tour introducing the AI assistant to all users
+[TBD] [admin] [added] - Leaving a newly created empty report or slide deck now offers to delete it
+[TBD] [admin] [changed] - Profile modal redesigned with cleaner layout and grouped sections
+[TBD] [admin] [changed] - AI usage now shows daily and weekly token meters side by side in the profile
+[TBD] [admin] [changed] - Ask AI button now shows a sparkle icon and updated label
+[TBD] [admin] [changed] - Report template selection step has been removed from report creation
+[TBD] [admin] [internal] - Report starting templates removed; AI handles document structure conversationally instead
 [2.0.0] [user] [added] - AI assistant is now available on every page from a side panel
 [2.0.0] [user] [added] - Drag and drop products and folders in the product explorer
 [2.0.0] [user] [added] - Manage access to decks and reports with owner, editor, and viewer roles
