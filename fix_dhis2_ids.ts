@@ -94,7 +94,7 @@ try {
     console.log(
       `Import run ${runId} queued over ${
         selection.indicatorIds.join(", ")
-      }, ${selection.startPeriod} to ${selection.endPeriod}; the server starts it within a minute, and this waits for it to end`,
+      }, ${selection.startPeriod} to ${selection.endPeriod}; the server starts it within a minute of no other import running or queued before it, and this waits for it to end`,
     );
     const run = await waitForDhis2IdFixBackfill(mainDb, runId);
     console.log(
