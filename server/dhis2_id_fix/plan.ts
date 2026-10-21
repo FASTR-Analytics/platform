@@ -194,17 +194,16 @@ export function planDhis2IdFix(
     }
   }
 
-  const elements = facts.indicators
-    .filter((i) => i.definition.type === "dhis2_element")
-    .sort((a, b) => byCodeUnit(a.indicator_common_id, b.indicator_common_id));
   const broken: {
     indicator: HmisIndicator;
     dataId: string;
     diagnosis: Diagnosis;
   }[] = [];
+  let elementsChecked = 0;
   let healthy = 0;
-  for (const indicator of elements) {
+  for (const indicator of facts.indicators) {
     if (indicator.definition.type !== "dhis2_element") continue;
+    elementsChecked++;
     const dataId = indicator.definition.data_id;
     const route = facts.routes[dataId];
     if (route === undefined) {
@@ -220,6 +219,9 @@ export function planDhis2IdFix(
       diagnosis: diagnose(facts, dataId, route),
     });
   }
+  broken.sort((a, b) =>
+    byCodeUnit(a.indicator.indicator_common_id, b.indicator.indicator_common_id)
+  );
 
   const elementName = (operand: Dhis2ParsedOperand): string => {
     const element = facts.elements[operand.data_element_id];
@@ -351,7 +353,7 @@ export function planDhis2IdFix(
   return {
     dhis2Url: facts.dhis2Url,
     plannedAt,
-    elementsChecked: elements.length,
+    elementsChecked,
     elementsHealthy: healthy,
     createdElements,
     actions,

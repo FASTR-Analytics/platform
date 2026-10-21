@@ -117,10 +117,15 @@ function facts(partial: Partial<Dhis2IdFixFacts>): Dhis2IdFixFacts {
   };
 }
 
-function actionOf(actions: Dhis2IdFixAction[], id: string): Dhis2IdFixAction {
+function actionOf<K extends Dhis2IdFixAction["outcome"]>(
+  actions: Dhis2IdFixAction[],
+  id: string,
+  outcome: K,
+): Extract<Dhis2IdFixAction, { outcome: K }> {
   const action = actions.find((a) => a.indicatorId === id);
   if (action === undefined) throw new Error(`No action for ${id}`);
-  return action;
+  assertEquals(action.outcome, outcome);
+  return action as Extract<Dhis2IdFixAction, { outcome: K }>;
 }
 
 Deno.test("shape: single, sum, and everything else as other", () => {
@@ -201,13 +206,12 @@ Deno.test("a refused formula and a refused operand: to_uploaded with the reason"
     }),
     AT,
   );
-  assertEquals(actionOf(plan.actions, "annual").outcome, "to_uploaded");
   assertEquals(
-    (actionOf(plan.actions, "annual") as { reason: string }).reason,
+    actionOf(plan.actions, "annual", "to_uploaded").reason,
     "its formula is refused: it is annualized",
   );
   assertEquals(
-    (actionOf(plan.actions, "orphan") as { reason: string }).reason,
+    actionOf(plan.actions, "orphan", "to_uploaded").reason,
     `its operand ${B} is refused: its data element no longer exists on the DHIS2 server`,
   );
   assertEquals(plan.createdElements, []);
@@ -228,7 +232,7 @@ Deno.test("single operand nobody holds: retarget to it with its DHIS2 name", () 
     }),
     AT,
   );
-  assertEquals(actionOf(plan.actions, "anc1"), {
+  assertEquals(actionOf(plan.actions, "anc1", "retarget"), {
     indicatorId: "anc1",
     dataId: F1,
     rows: { count: 10, firstPeriodId: 202301, lastPeriodId: 202310 },
@@ -236,7 +240,7 @@ Deno.test("single operand nobody holds: retarget to it with its DHIS2 name", () 
     newDataId: A,
     dhis2Label: "ANC first visit",
   });
-  assertEquals(actionOf(plan.actions, "births_f"), {
+  assertEquals(actionOf(plan.actions, "births_f", "retarget"), {
     indicatorId: "births_f",
     dataId: F2,
     rows: { count: 0, firstPeriodId: null, lastPeriodId: null },
@@ -262,16 +266,12 @@ Deno.test("single operand another indicator holds: to_sum with that one member, 
     AT,
   );
   assertEquals(plan.elementsHealthy, 1);
-  assertEquals(actionOf(plan.actions, "anc_formula").outcome, "to_sum");
-  assertEquals(
-    (actionOf(plan.actions, "anc_formula") as { members: string[] }).members,
-    ["anc_total"],
-  );
-  assertEquals(
-    (actionOf(plan.actions, "repeat_formula") as { members: string[] })
-      .members,
-    ["legacy_b"],
-  );
+  assertEquals(actionOf(plan.actions, "anc_formula", "to_sum").members, [
+    "anc_total",
+  ]);
+  assertEquals(actionOf(plan.actions, "repeat_formula", "to_sum").members, [
+    "legacy_b",
+  ]);
   assertEquals(plan.createdElements, []);
 });
 
@@ -287,10 +287,11 @@ Deno.test("sum shape: to_sum over holders and created elements, created after th
     }),
     AT,
   );
-  assertEquals(
-    (actionOf(plan.actions, "anc_all") as { members: string[] }).members,
-    ["anc_first_visit_repeat", "anc_total", "live_births_female"],
-  );
+  assertEquals(actionOf(plan.actions, "anc_all", "to_sum").members, [
+    "anc_first_visit_repeat",
+    "anc_total",
+    "live_births_female",
+  ]);
   assertEquals(plan.createdElements, [
     {
       indicatorId: "anc_first_visit_repeat",
@@ -325,7 +326,7 @@ Deno.test("other shape: to_calculated with the renamed expression and the factor
     }),
     AT,
   );
-  assertEquals(actionOf(plan.actions, "coverage"), {
+  assertEquals(actionOf(plan.actions, "coverage", "to_calculated"), {
     indicatorId: "coverage",
     dataId: F1,
     rows: { count: 0, firstPeriodId: null, lastPeriodId: null },
@@ -333,18 +334,14 @@ Deno.test("other shape: to_calculated with the renamed expression and the factor
     expression: "(anc_total / anc_first_visit_repeat)",
     formatAs: "percent",
   });
+  const perThousand = actionOf(plan.actions, "per_thousand", "to_calculated");
   assertEquals(
-    (actionOf(plan.actions, "per_thousand") as { expression: string })
-      .expression,
+    perThousand.expression,
     "((anc_total / anc_first_visit_repeat) * 1000)",
   );
+  assertEquals(perThousand.formatAs, "number");
   assertEquals(
-    (actionOf(plan.actions, "per_thousand") as { formatAs: string }).formatAs,
-    "number",
-  );
-  assertEquals(
-    (actionOf(plan.actions, "difference") as { expression: string })
-      .expression,
+    actionOf(plan.actions, "difference", "to_calculated").expression,
     "((anc_total - anc_first_visit_repeat) / 1)",
   );
   assertEquals(plan.createdElements.map((c) => c.dataId), [B]);
@@ -363,12 +360,12 @@ Deno.test("a sum and a ratio sharing an operand create it once", () => {
     AT,
   );
   assertEquals(plan.createdElements.map((c) => c.dataId), [A, B, C]);
+  assertEquals(actionOf(plan.actions, "anc_all", "to_sum").members, [
+    "anc_first_visit",
+    "anc_first_visit_repeat",
+  ]);
   assertEquals(
-    (actionOf(plan.actions, "anc_all") as { members: string[] }).members,
-    ["anc_first_visit", "anc_first_visit_repeat"],
-  );
-  assertEquals(
-    (actionOf(plan.actions, "ratio") as { expression: string }).expression,
+    actionOf(plan.actions, "ratio", "to_calculated").expression,
     "(anc_first_visit / live_births)",
   );
 });
@@ -390,15 +387,14 @@ Deno.test("a single and a sum over one operand: the single retargets, the sum na
     }),
     AT,
   );
-  assertEquals(actionOf(plan.actions, "m_single").outcome, "retarget");
-  assertEquals(
-    (actionOf(plan.actions, "z_single") as { members: string[] }).members,
-    ["m_single"],
-  );
-  assertEquals(
-    (actionOf(plan.actions, "a_sum") as { members: string[] }).members,
-    ["anc_first_visit_repeat", "m_single"],
-  );
+  assertEquals(actionOf(plan.actions, "m_single", "retarget").newDataId, A);
+  assertEquals(actionOf(plan.actions, "z_single", "to_sum").members, [
+    "m_single",
+  ]);
+  assertEquals(actionOf(plan.actions, "a_sum", "to_sum").members, [
+    "anc_first_visit_repeat",
+    "m_single",
+  ]);
   assertEquals(plan.createdElements.map((c) => c.dataId), [B]);
 });
 
@@ -419,9 +415,12 @@ Deno.test("special ids: single retargets, sum becomes a Sum, other stays a count
     }),
     AT,
   );
-  assertEquals(actionOf(plan.actions, "anc1").outcome, "retarget");
-  assertEquals(actionOf(plan.actions, "delivery").outcome, "to_sum");
-  assertEquals(actionOf(plan.actions, "opd"), {
+  assertEquals(actionOf(plan.actions, "anc1", "retarget").newDataId, A);
+  assertEquals(actionOf(plan.actions, "delivery", "to_sum").members, [
+    "anc_first_visit_repeat",
+    "live_births",
+  ]);
+  assertEquals(actionOf(plan.actions, "opd", "to_uploaded"), {
     indicatorId: "opd",
     dataId: F3,
     rows: { count: 0, firstPeriodId: null, lastPeriodId: null },
