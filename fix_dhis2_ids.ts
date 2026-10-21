@@ -14,7 +14,8 @@ import {
 
 // Repairs, in place, the DHIS2 element indicators whose DHIS2 id DHIS2 has
 // as a formula, as nothing, or as an element it cannot serve as a monthly
-// count, and deletes the error ledger rows without records under every
+// count, folds an element written with its default combo onto the bare
+// element, and deletes the error ledger rows without records under every
 // indicator that is Uploaded once the repair is done. Runs inside the
 // instance's app container, which holds the database connection and the
 // credentials key; locally, with `--env-file`. Nothing is passed as an
@@ -40,6 +41,10 @@ function describeAction(action: Dhis2IdFixAction): string {
       return `${action.indicatorId}: to_calculated ${action.expression} as ${action.formatAs}, ${rows} deleted`;
     case "to_uploaded":
       return `${action.indicatorId}: to_uploaded (${action.reason}), ${rows} kept`;
+    case "duplicate":
+      return `${action.indicatorId}: duplicate of ${action.holder} (${action.holderDataId}), references move to it${
+        action.includeHolderInAnalysis ? " and it joins the analysis" : ""
+      }, ${rows} deleted`;
   }
 }
 

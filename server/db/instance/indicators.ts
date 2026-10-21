@@ -1096,8 +1096,9 @@ export async function updateIndicator(
 }
 
 // Every calculated expression naming the old id, and every schedule selection
-// listing it, rewritten to the new id.
-async function renameReferences(
+// listing it, rewritten to the new id; a selection that already lists the new
+// id lists it once.
+export async function renameReferences(
   sql: Sql,
   from: string,
   to: string,
@@ -1131,7 +1132,7 @@ async function renameReferences(
         id: row.id,
         selection: JSON.stringify({
           ...selection,
-          indicatorIds: ids.map((id) => id === from ? to : id),
+          indicatorIds: [...new Set(ids.map((id) => id === from ? to : id))],
         }),
       }]
       : [];

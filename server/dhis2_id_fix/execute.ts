@@ -4,21 +4,26 @@
 // and rolls the whole apply back.
 
 import type { Sql } from "postgres";
-import { parseJsonOrThrow } from "lib";
+import { type HmisIndicatorDefinition, parseJsonOrThrow } from "lib";
 import {
   checkDefinitionsResolve,
+  getHmisIndicators,
   type IndicatorInsert,
   insertIndicators,
+  renameReferences,
   writeMembers,
 } from "../db/instance/indicators.ts";
 import { assertNoRunningDatasetHmisImportRun } from "../db/instance/dataset_hmis_import_runs.ts";
-import { readStaleLedgerCounts } from "./gather.ts";
+import { readRowSpans, readStaleLedgerCounts } from "./gather.ts";
 import {
   type Dhis2IdFixAction,
+  type Dhis2IdFixOutcome,
   type Dhis2IdFixPlan,
+  type Dhis2IdFixRowSpan,
   type Dhis2IdFixStaleLedgerRows,
   type Dhis2IdFixSumRewrite,
   rewriteSumMembers,
+  sumMemberChanges,
 } from "./plan.ts";
 
 export type Dhis2IdFixActionResult = {
@@ -108,29 +113,38 @@ function fail(message: string): never {
   throw new PreconditionFailed(message);
 }
 
-async function holderOf(sql: Sql, dataId: string): Promise<string | null> {
-  const rows = await sql<{ indicator_common_id: string }[]>`
-    SELECT indicator_common_id FROM indicators WHERE data_id = ${dataId}
-  `;
-  return rows.at(0)?.indicator_common_id ?? null;
-}
+// The live state the preconditions read, through the same reads the planner's
+// facts come from, once for the whole plan.
+type LiveState = {
+  definitions: Map<string, HmisIndicatorDefinition>;
+  holders: Map<string, string>;
+  rows: Record<string, Dhis2IdFixRowSpan>;
+  staleLedger: Record<string, number>;
+};
 
-async function definitionOf(
+async function readLiveState(
   sql: Sql,
-  indicatorId: string,
-): Promise<{ definition_type: string; data_id: string | null } | undefined> {
-  const rows = await sql<{ definition_type: string; data_id: string | null }[]>`
-    SELECT definition_type, data_id FROM indicators
-    WHERE indicator_common_id = ${indicatorId}
-  `;
-  return rows.at(0);
-}
-
-async function rowCount(sql: Sql, dataId: string): Promise<number> {
-  const rows = await sql<{ count: number }[]>`
-    SELECT COUNT(*)::int AS count FROM dataset_hmis WHERE data_id = ${dataId}
-  `;
-  return rows[0].count;
+  plan: Dhis2IdFixPlan,
+): Promise<LiveState> {
+  const indicators = await getHmisIndicators(sql);
+  return {
+    definitions: new Map(
+      indicators.map((i) => [i.indicator_common_id, i.definition]),
+    ),
+    holders: new Map(
+      indicators.flatMap((i) =>
+        i.definition.type === "uploaded" ||
+          i.definition.type === "dhis2_element"
+          ? [[i.definition.data_id, i.indicator_common_id]]
+          : []
+      ),
+    ),
+    rows: await readRowSpans(sql, plan.actions.map((a) => a.dataId)),
+    staleLedger: await readStaleLedgerCounts(
+      sql,
+      plan.staleLedgerRows.map((s) => s.dataId),
+    ),
+  };
 }
 
 async function checkPreconditions(
@@ -149,75 +163,76 @@ async function checkPreconditions(
       }`,
     );
   }
+  const live = await readLiveState(sql, plan);
   for (const action of plan.actions) {
-    const current = await definitionOf(sql, action.indicatorId);
+    const current = live.definitions.get(action.indicatorId);
     if (
-      current === undefined || current.definition_type !== "dhis2_element" ||
-      current.data_id !== action.dataId
+      current?.type !== "dhis2_element" || current.data_id !== action.dataId
     ) {
       fail(
         `${action.indicatorId} is no longer a DHIS2 element under ${action.dataId}`,
       );
     }
-    const count = await rowCount(sql, action.dataId);
+    const count = live.rows[action.dataId]?.count ?? 0;
     if (count !== action.rows.count) {
       fail(
         `${action.indicatorId} has ${count} rows, the plan counted ${action.rows.count}`,
       );
     }
     if (action.outcome === "retarget") {
-      const holder = await holderOf(sql, action.newDataId);
-      if (holder !== null) {
+      const holder = live.holders.get(action.newDataId);
+      if (holder !== undefined) {
         fail(`${action.newDataId} is now held by ${holder}`);
+      }
+    }
+    if (action.outcome === "duplicate") {
+      const holder = live.holders.get(action.holderDataId);
+      if (holder !== action.holder) {
+        fail(
+          `${action.holderDataId} is held by ${
+            holder ?? "no indicator"
+          }, the plan's holder is ${action.holder}`,
+        );
       }
     }
   }
   for (const created of plan.createdElements) {
-    const holder = await holderOf(sql, created.dataId);
-    if (holder !== null) fail(`${created.dataId} is now held by ${holder}`);
-    const taken = await sql<{ indicator_common_id: string }[]>`
-      SELECT indicator_common_id FROM indicators
-      WHERE indicator_common_id = ${created.indicatorId}
-    `;
-    if (taken.length > 0) fail(`Indicator id ${created.indicatorId} is taken`);
+    const holder = live.holders.get(created.dataId);
+    if (holder !== undefined) {
+      fail(`${created.dataId} is now held by ${holder}`);
+    }
+    if (live.definitions.has(created.indicatorId)) {
+      fail(`Indicator id ${created.indicatorId} is taken`);
+    }
   }
-  const retyped = new Map(
-    plan.actions
-      .filter((a) => a.outcome === "to_sum" || a.outcome === "to_calculated")
-      .map((a) => [a.indicatorId, a]),
-  );
+  const changes = sumMemberChanges(plan.actions);
   for (const rewrite of plan.sumRewrites) {
-    await checkSumRewrite(sql, rewrite, retyped);
+    checkSumRewrite(rewrite, changes, live);
   }
   const toUploaded = new Map(
     plan.actions
       .filter((a) => a.outcome === "to_uploaded")
       .map((a) => [a.indicatorId, a.dataId]),
   );
-  const liveStale = await readStaleLedgerCounts(
-    sql,
-    plan.staleLedgerRows.map((s) => s.dataId),
-  );
   for (const stale of plan.staleLedgerRows) {
-    await checkStaleLedgerRows(sql, stale, toUploaded, liveStale);
+    checkStaleLedgerRows(stale, toUploaded, live);
   }
 }
 
 // The indicator is Uploaded under the data id, or becomes so by an action
 // of this plan, and the stale rows are the ones the plan counted.
-async function checkStaleLedgerRows(
-  sql: Sql,
+function checkStaleLedgerRows(
   stale: Dhis2IdFixStaleLedgerRows,
   toUploaded: Map<string, string>,
-  liveStale: Record<string, number>,
-): Promise<void> {
-  const current = await definitionOf(sql, stale.indicatorId);
-  const uploaded = current?.definition_type === "uploaded" &&
+  live: LiveState,
+): void {
+  const current = live.definitions.get(stale.indicatorId);
+  const uploaded = current?.type === "uploaded" &&
     current.data_id === stale.dataId;
   if (!uploaded && toUploaded.get(stale.indicatorId) !== stale.dataId) {
     fail(`${stale.indicatorId} is not Uploaded under ${stale.dataId}`);
   }
-  const count = liveStale[stale.dataId] ?? 0;
+  const count = live.staleLedger[stale.dataId] ?? 0;
   if (count !== stale.count) {
     fail(
       `${stale.indicatorId} has ${count} stale ledger rows, the plan counted ${stale.count}`,
@@ -239,26 +254,23 @@ async function deleteStaleLedgerRows(
 }
 
 // The rewrite recomputed from the Sum's live members must be the plan's.
-async function checkSumRewrite(
-  sql: Sql,
+function checkSumRewrite(
   rewrite: Dhis2IdFixSumRewrite,
-  retyped: Map<string, Dhis2IdFixAction>,
-): Promise<void> {
-  const sum = await definitionOf(sql, rewrite.sumId);
-  if (sum?.definition_type !== "sum") {
+  changes: Map<string, Dhis2IdFixOutcome>,
+  live: LiveState,
+): void {
+  const sum = live.definitions.get(rewrite.sumId);
+  if (sum?.type !== "sum") {
     fail(`${rewrite.sumId} is no longer a Sum`);
   }
-  const current = await sql<{ member_id: string }[]>`
-    SELECT member_id FROM indicator_sum_members WHERE sum_id = ${rewrite.sumId}
-  `;
-  const live = rewriteSumMembers(current.map((r) => r.member_id), retyped);
+  const rewritten = rewriteSumMembers(sum.members, changes);
   if (
-    live === undefined ||
-    JSON.stringify(live) !== JSON.stringify(rewrite.members)
+    rewritten === undefined ||
+    JSON.stringify(rewritten) !== JSON.stringify(rewrite.members)
   ) {
     fail(
       `Sum ${rewrite.sumId} no longer names the members the plan read: its rewrite would be [${
-        (live ?? current.map((r) => r.member_id)).join(", ")
+        (rewritten ?? sum.members).join(", ")
       }], the plan's is [${rewrite.members.join(", ")}]`,
     );
   }
@@ -352,6 +364,20 @@ async function applyAction(
         SET definition_type = 'uploaded', dhis2_label = NULL,
           updated_at = CURRENT_TIMESTAMP
         WHERE indicator_common_id = ${action.indicatorId}
+      `;
+      break;
+    case "duplicate":
+      await renameReferences(sql, action.indicatorId, action.holder);
+      if (action.includeHolderInAnalysis) {
+        await sql`
+          UPDATE indicators
+          SET include_in_analysis = TRUE, updated_at = CURRENT_TIMESTAMP
+          WHERE indicator_common_id = ${action.holder}
+        `;
+      }
+      result.rowsDeleted = await deleteRowsAndLedger(sql, action.dataId);
+      await sql`
+        DELETE FROM indicators WHERE indicator_common_id = ${action.indicatorId}
       `;
       break;
   }

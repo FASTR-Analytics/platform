@@ -1,6 +1,7 @@
 // Pins the apply of the DHIS2 id repair on a throwaway database built from
 // _main_database.sql on the dev postgres (the .env the test task loads),
-// dropped afterwards: each outcome's writes, the Sum rewrites, the stale
+// dropped afterwards: each outcome's writes, a duplicate's references and
+// deletion, the Sum rewrites, the stale
 // ledger rows, the minted version row, the preconditions that roll the whole
 // apply back, the dictionary stamp, and the plan-file comparison `apply`
 // refuses on.
@@ -43,6 +44,8 @@ const F1 = "FormulaAa01";
 const F2 = "FormulaBb02";
 const NF = "NotFound001";
 const U = "UploadedU01";
+const DEFAULT_COC = "DefaultCoc1";
+const DUP = `${A}.${DEFAULT_COC}`;
 
 const FORMULA: ElementRoute = { kind: "unknown", reason: "dhis2_indicator" };
 const NOT_FOUND: ElementRoute = { kind: "unknown", reason: "not_found" };
@@ -64,6 +67,7 @@ await db.file(SCHEMA_PATH);
 async function seed(): Promise<void> {
   await db`DELETE FROM dataset_hmis_import_ledger`;
   await db`DELETE FROM dataset_hmis`;
+  await db`DELETE FROM dataset_hmis_scheduled_imports`;
   await db`DELETE FROM dataset_hmis_import_runs`;
   await db`DELETE FROM indicator_sum_members`;
   await db`DELETE FROM indicators`;
@@ -194,7 +198,7 @@ async function facts(
     & Pick<Dhis2IdFixFacts, "routes" | "formulas">
     & Partial<Pick<Dhis2IdFixFacts, "elements">>,
 ): Promise<Dhis2IdFixFacts> {
-  const keys = [A, B, F1, F2, NF, U];
+  const keys = [A, B, F1, F2, NF, U, DUP];
   return {
     dhis2Url: URL_STORED,
     indicators: await getHmisIndicators(db),
@@ -529,6 +533,118 @@ Deno.test("stale ledger rows: a refused dvs element is retyped and the error row
 
   const second = planDhis2IdFix(await refusedFacts(), AT);
   assertEquals(second.actions, []);
+  assertEquals(second.staleLedgerRows, []);
+});
+
+Deno.test("duplicate: references move to the holder, the holder joins the analysis, the duplicate goes with its rows and ledger rows into the version row; a changed holder rolls the apply back", async () => {
+  await seed();
+  await element("anc_bare", A, { include: false });
+  await rows(A, [202301, 202302]);
+  await element("anc_default", DUP);
+  await rows(DUP, [202301, 202302, 202303]);
+  await ledgerError(DUP, 202304);
+  await element("other", B);
+  await rows(B, [202301]);
+  await sum("anc1", ["anc_default", "other"]);
+  await sum("both", ["anc_bare", "anc_default"]);
+  await db`
+    INSERT INTO indicators
+      (indicator_common_id, indicator_common_label, definition_type, expression)
+    VALUES ('share', 'Share', 'calculated', 'anc_default / other')
+  `;
+  await db`
+    INSERT INTO dataset_hmis_scheduled_imports
+      (kind, enabled, selection, run_at, created_by)
+    VALUES ('one_shot', TRUE, ${
+    JSON.stringify({ indicatorIds: ["anc_default", "anc_bare"], monthsBack: 3 })
+  }, now(), 'test')
+  `;
+  const duplicateFacts = () =>
+    facts({
+      routes: {
+        [A]: DVS,
+        [B]: { kind: "dvs", dataElementId: B, coc: undefined },
+        [DUP]: { kind: "dvs", dataElementId: A, coc: DEFAULT_COC },
+      },
+      formulas: {},
+      elements: {
+        [A]: {
+          name: "ANC first visit",
+          categoryCombo: {
+            id: "CcDefault01",
+            name: "default",
+            isDefault: true,
+            categoryOptionCombos: [{ id: DEFAULT_COC, name: "default" }],
+          },
+          verdict: { accepted: true },
+        },
+        [B]: { name: "ANC first visit (repeat)", verdict: { accepted: true } },
+      },
+    });
+  const plan = planDhis2IdFix(await duplicateFacts(), AT);
+  assertEquals(plan.actions, [{
+    indicatorId: "anc_default",
+    dataId: DUP,
+    rows: { count: 3, firstPeriodId: 202301, lastPeriodId: 202303 },
+    outcome: "duplicate",
+    holder: "anc_bare",
+    holderDataId: A,
+    includeHolderInAnalysis: true,
+  }]);
+  assertEquals(plan.sumRewrites, [
+    { sumId: "anc1", members: ["anc_bare", "other"] },
+    { sumId: "both", members: ["anc_bare"] },
+  ]);
+
+  await db`UPDATE indicators SET indicator_common_id = 'anc_bare_2' WHERE indicator_common_id = 'anc_bare'`;
+  const moved = await snapshot();
+  await assertRejects(
+    () => applyDhis2IdFix(db, plan),
+    Error,
+    `${A} is held by anc_bare_2, the plan's holder is anc_bare`,
+  );
+  assertEquals(await snapshot(), moved);
+  await db`UPDATE indicators SET indicator_common_id = 'anc_bare' WHERE indicator_common_id = 'anc_bare_2'`;
+
+  const result = await applyDhis2IdFix(db, plan);
+  assertEquals(result.versionId, 2);
+  assertEquals(result.actions, [{
+    indicatorId: "anc_default",
+    outcome: "duplicate",
+    rowsMoved: 0,
+    rowsDeleted: 3,
+  }]);
+  assertEquals(result.sumsRewritten, ["anc1", "both"]);
+  assertEquals(
+    (await db`
+      SELECT 1 FROM indicators WHERE indicator_common_id = 'anc_default'
+    `).length,
+    0,
+  );
+  assertEquals(await periodsUnder("dataset_hmis", DUP), []);
+  assertEquals(await periodsUnder("dataset_hmis_import_ledger", DUP), []);
+  assertEquals(await periodsUnder("dataset_hmis", A), [202301, 202302]);
+  assertEquals(await membersOf("anc1"), ["anc_bare", "other"]);
+  assertEquals(await membersOf("both"), ["anc_bare"]);
+  assertEquals((await indicatorRow("share")).expression, "anc_bare / other");
+  assertEquals((await indicatorRow("anc_bare")).include_in_analysis, true);
+  const schedules = await db<{ selection: string }[]>`
+    SELECT selection FROM dataset_hmis_scheduled_imports
+  `;
+  assertEquals(JSON.parse(schedules[0].selection), {
+    indicatorIds: ["anc_bare"],
+    monthsBack: 3,
+  });
+  const minted = (await versions()).at(-1)!;
+  assertEquals(minted.n_rows_total_imported, -3);
+  assertEquals(
+    JSON.parse(minted.staging_result ?? "null").indicators,
+    ["anc_default"],
+  );
+
+  const second = planDhis2IdFix(await duplicateFacts(), AT);
+  assertEquals(second.actions, []);
+  assertEquals(second.sumRewrites, []);
   assertEquals(second.staleLedgerRows, []);
 });
 

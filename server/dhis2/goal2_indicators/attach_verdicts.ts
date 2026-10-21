@@ -93,12 +93,12 @@ export function foldDefaultCombos(
   elementsById: ReadonlyMap<string, Pick<DHIS2DataElement, "categoryCombo">>,
 ): Dhis2IndicatorParse {
   if (!parse.accepted) return parse;
-  const isDefaultCombo = (operand: Dhis2ParsedOperand): boolean => {
-    const coc = operand.category_option_combo_id;
-    const combo = elementsById.get(operand.data_element_id)?.categoryCombo;
-    return coc !== undefined && combo?.isDefault === true &&
-      (combo.categoryOptionCombos ?? []).some((c) => c.id === coc);
-  };
+  const isDefaultCombo = (operand: Dhis2ParsedOperand): boolean =>
+    operand.category_option_combo_id !== undefined &&
+    isDefaultComboOf(
+      elementsById.get(operand.data_element_id),
+      operand.category_option_combo_id,
+    );
   if (!parse.operands.some(isDefaultCombo)) return parse;
   const mapping: Record<string, string> = {};
   const seen = new Set<string>();
@@ -122,6 +122,17 @@ export function foldDefaultCombos(
       renameIdentifiers(parseIndicatorExpression(parse.expression), mapping),
     ),
   };
+}
+
+// The default category combo has that one combo, so `uid.coc` with it names
+// the same series as bare `uid`.
+export function isDefaultComboOf(
+  element: Pick<DHIS2DataElement, "categoryCombo"> | undefined,
+  coc: string,
+): boolean {
+  const combo = element?.categoryCombo;
+  return combo?.isDefault === true &&
+    (combo.categoryOptionCombos ?? []).some((c) => c.id === coc);
 }
 
 async function getDataElementsByIds(

@@ -191,12 +191,13 @@ element, and `accepted` = the parse accepted and every operand accepted. Operand
 elements not already in `known` are fetched by chunked `id:in:[...]` filters
 (100 per request) with the default field list, one round of requests for the
 whole result set. Once the elements are known, `foldDefaultCombos` (pure) folds
-every `uid.coc` operand whose combo is its element's default combo onto the bare
-`uid`, in operands and expression alike: the default category combo has that one
-combo, so both forms name the same series, and the fold keeps the picker and the
-DHIS2 id repair from creating a second element beside the bare one. A formula
-naming both forms then counts the element twice, as DHIS2 does. The three search
-routes return these shapes (`Dhis2DataElementSearchItem`,
+every `uid.coc` operand whose combo is its element's default combo
+(`isDefaultComboOf`, which the DHIS2 id repair's planner also reads) onto the
+bare `uid`, in operands and expression alike: the default category combo has
+that one combo, so both forms name the same series, and the fold keeps the
+picker and the DHIS2 id repair from creating a second element beside the bare
+one. A formula naming both forms then counts the element twice, as DHIS2 does.
+The three search routes return these shapes (`Dhis2DataElementSearchItem`,
 `Dhis2IndicatorSearchItem`); the combined search passes its own data-element
 results as `known`. Pinned by `server/tests/dhis2_element_eligibility_test.ts`
 and `server/tests/dhis2_decompose_indicator_test.ts` (the parse and the fold).

@@ -22,6 +22,7 @@ import {
   renameIdentifiers,
   writeIndicatorExpression,
 } from "lib";
+import { isDefaultComboOf } from "../dhis2/goal2_indicators/attach_verdicts.ts";
 import type { ElementRoute } from "../worker_routines/import_hmis_data_dhis2/dispatch.ts";
 
 export type Dhis2IdFixRowSpan = {
@@ -80,14 +81,26 @@ export type Dhis2IdFixOutcome =
     expression: string;
     formatAs: IndicatorFormat;
   }
-  | { outcome: "to_uploaded"; reason: string };
+  | { outcome: "to_uploaded"; reason: string }
+  // An element `uid.coc` whose combo is `uid`'s default one, beside the
+  // `holder` of `holderDataId` (bare `uid`): the same series twice. Every
+  // reference moves to the holder and the duplicate goes with its rows.
+  // `includeHolderInAnalysis` is set when the duplicate is analysed and the
+  // holder is not, so the series stays in the analysis.
+  | {
+    outcome: "duplicate";
+    holder: string;
+    holderDataId: string;
+    includeHolderInAnalysis: boolean;
+  };
 
 export type Dhis2IdFixAction =
   & { indicatorId: string; dataId: string; rows: Dhis2IdFixRowSpan }
   & Dhis2IdFixOutcome;
 
 // `sumRewrites` is one entry per Sum of the dictionary that names an
-// indicator a to_sum or to_calculated action retypes, with that Sum's whole
+// indicator a to_sum, to_calculated or duplicate action replaces, with that
+// Sum's whole
 // member list as it will be after every action, so two actions touching the
 // same Sum cannot disagree. An empty list is a Sum the apply must refuse.
 // `staleLedgerRows` is one entry per indicator that is Uploaded after the
@@ -147,9 +160,9 @@ export function readDhis2FormulaShape(
     : { kind: "other" };
 }
 
-// A Sum's members once the retyped indicators among them are gone: a
-// to_sum's members stand in for it, a to_calculated is dropped. Undefined
-// when the Sum names none of them.
+// A Sum's members once the indicators `sumMemberChanges` lists are gone: a
+// to_sum's members or a duplicate's holder stand in for it, a to_calculated
+// is dropped. Undefined when the Sum names none of them.
 export function rewriteSumMembers(
   members: string[],
   retyped: ReadonlyMap<string, Dhis2IdFixOutcome>,
@@ -165,13 +178,34 @@ export function rewriteSumMembers(
     touched = true;
     if (outcome.outcome === "to_sum") {
       for (const inner of outcome.members) next.add(inner);
+    } else if (outcome.outcome === "duplicate") {
+      next.add(outcome.holder);
     }
   }
   return touched ? [...next].sort(byCodeUnit) : undefined;
 }
 
+export function sumMemberChanges(
+  actions: Dhis2IdFixAction[],
+): Map<string, Dhis2IdFixOutcome> {
+  return new Map(
+    actions
+      .filter((a) =>
+        a.outcome === "to_sum" || a.outcome === "to_calculated" ||
+        a.outcome === "duplicate"
+      )
+      .map((a) => [a.indicatorId, a]),
+  );
+}
+
 type Diagnosis =
   | { kind: "uploaded"; reason: string }
+  | {
+    kind: "default_combo";
+    elementId: string;
+    label: string;
+    refusal: string | undefined;
+  }
   | {
     kind: "formula";
     shape: Dhis2FormulaShape;
@@ -182,7 +216,8 @@ type Diagnosis =
 
 // A `dvs` element is healthy when the picker would accept it today; one the
 // picker refuses fails every run as a dead id does. An operand takes its
-// element's verdict.
+// element's verdict, and one written with its element's default combo is the
+// element under a second data id.
 function diagnoseElement(
   facts: Dhis2IdFixFacts,
   dataId: string,
@@ -192,12 +227,22 @@ function diagnoseElement(
   if (element === undefined) {
     throw new Error(`No element in the facts for DHIS2 element ${dataId}`);
   }
-  return element.verdict.accepted ? undefined : {
-    kind: "uploaded",
-    reason: `DHIS2 cannot serve it monthly: ${
+  const refusal = element.verdict.accepted
+    ? undefined
+    : `DHIS2 cannot serve it monthly: ${
       describeDhis2ElementRefusal(element.verdict.refusal).en
-    }`,
-  };
+    }`;
+  if (route.coc !== undefined && isDefaultComboOf(element, route.coc)) {
+    return {
+      kind: "default_combo",
+      elementId: route.dataElementId,
+      label: dhis2ElementName(element, route.dataElementId),
+      refusal,
+    };
+  }
+  return refusal === undefined
+    ? undefined
+    : { kind: "uploaded", reason: refusal };
 }
 
 function diagnoseUnknown(
@@ -247,6 +292,11 @@ export function planDhis2IdFix(
     facts.indicators.map((i) => i.indicator_common_id),
   );
   const holders = new Map<string, string>();
+  const analysed = new Set(
+    facts.indicators.filter((i) => i.include_in_analysis).map((i) =>
+      i.indicator_common_id
+    ),
+  );
   let maxSortOrder = 0;
   for (const i of facts.indicators) {
     maxSortOrder = Math.max(maxSortOrder, i.sort_order);
@@ -315,11 +365,39 @@ export function planDhis2IdFix(
     return indicatorId;
   };
 
+  // A default-combo element nobody holds the bare id of retargets to it and
+  // keeps its rows; beside a holder it is a duplicate. Decided before the
+  // formula retargets, so an element already importing the series keeps it
+  // over a formula's rows. A refused one with no holder is Uploaded, since a
+  // retarget would leave an element the next plan refuses.
+  const outcomes = new Map<string, Dhis2IdFixOutcome>();
+  for (const b of broken) {
+    const d = b.diagnosis;
+    if (d.kind !== "default_combo") continue;
+    const id = b.indicator.indicator_common_id;
+    const holder = holders.get(d.elementId);
+    if (holder !== undefined) {
+      outcomes.set(id, {
+        outcome: "duplicate",
+        holder,
+        holderDataId: d.elementId,
+        includeHolderInAnalysis: analysed.has(id) && !analysed.has(holder),
+      });
+    } else if (d.refusal !== undefined) {
+      outcomes.set(id, { outcome: "to_uploaded", reason: d.refusal });
+    } else {
+      holders.set(d.elementId, id);
+      outcomes.set(id, {
+        outcome: "retarget",
+        newDataId: d.elementId,
+        dhis2Label: d.label,
+      });
+    }
+  }
   // Retargets first, so a single-operand formula keeps its rows under the
   // operand instead of a sum or ratio formula processed earlier creating an
   // element for the same operand. Among several single-operand formulas over
   // one operand, the first by indicator id retargets and the rest name it.
-  const outcomes = new Map<string, Dhis2IdFixOutcome>();
   for (const b of broken) {
     const d = b.diagnosis;
     if (d.kind !== "formula" || d.shape.kind !== "single") continue;
@@ -334,8 +412,8 @@ export function planDhis2IdFix(
   }
   for (const b of broken) {
     const id = b.indicator.indicator_common_id;
-    if (outcomes.has(id)) continue;
     const d = b.diagnosis;
+    if (outcomes.has(id) || d.kind === "default_combo") continue;
     if (d.kind === "uploaded") {
       outcomes.set(id, { outcome: "to_uploaded", reason: d.reason });
       continue;
@@ -387,16 +465,11 @@ export function planDhis2IdFix(
     ...outcomes.get(b.indicator.indicator_common_id)!,
   }));
 
-  const retyped = new Map<string, Dhis2IdFixOutcome>();
-  for (const a of actions) {
-    if (a.outcome === "to_sum" || a.outcome === "to_calculated") {
-      retyped.set(a.indicatorId, a);
-    }
-  }
+  const changes = sumMemberChanges(actions);
   const sumRewrites: Dhis2IdFixSumRewrite[] = [];
   for (const i of facts.indicators) {
     if (i.definition.type !== "sum") continue;
-    const members = rewriteSumMembers(i.definition.members, retyped);
+    const members = rewriteSumMembers(i.definition.members, changes);
     if (members !== undefined) {
       sumRewrites.push({ sumId: i.indicator_common_id, members });
     }

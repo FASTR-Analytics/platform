@@ -1,7 +1,8 @@
 // Pins the pure planner of the DHIS2 id repair: the outcome of each broken
-// DHIS2 element, the verdict a dvs element must pass, created elements and
-// their ids, the retarget-first rule, the rewrite of Sums that name a
-// retyped indicator, the stale ledger rows, and the action order.
+// DHIS2 element, the verdict a dvs element must pass, a default-combo
+// element as a retarget or a duplicate, created elements and their ids, the
+// retarget-first rule, the rewrite of Sums that name a retyped or duplicate
+// indicator, the stale ledger rows, and the action order.
 //
 //   deno test -A --env-file server/tests/dhis2_id_fix_plan_test.ts
 
@@ -232,6 +233,204 @@ Deno.test("a dvs element the picker refuses: to_uploaded with the refusal, rows 
         "DHIS2 cannot serve it monthly: its data sets are Quarterly; none is monthly",
     },
   ]);
+  assertEquals(plan.createdElements, []);
+});
+
+Deno.test("a default-combo element beside its bare element is a duplicate (Nigeria's two): every Sum takes the holder in its place, and the holder joins the analysis only for an analysed duplicate", () => {
+  const LATE = "PV88LZCbiSF";
+  const BEFORE = "OZH9GfZqZ7q";
+  const DEFAULT = "Y2SrnZVI87k";
+  const GA2 = "GaTwentyAa2";
+  const GA3 = "GaTwentyAa3";
+  const defaultCombo = {
+    id: "bjDvmb4bfuf",
+    name: "default",
+    isDefault: true,
+    categoryOptionCombos: [{ id: DEFAULT, name: "default" }],
+  };
+  const dvs = (element: string, coc?: string): ElementRoute => ({
+    kind: "dvs",
+    dataElementId: element,
+    coc,
+  });
+  const named = (name: string) => ({
+    name,
+    categoryCombo: defaultCombo,
+    verdict: ACCEPTED,
+  });
+  const plan = planDhis2IdFix(
+    facts({
+      indicators: [
+        element("anc_1st_visit_ga_20wks_2", GA2),
+        element("anc_1st_visit_ga_20wks_3", GA3),
+        {
+          ...element("antenatal_1st_booking_visit_20_weeks_or_later", LATE),
+          include_in_analysis: false,
+        },
+        element("antenatal_1st_booking_visit_before_20_weeks", BEFORE),
+        element(
+          "antenatal_1st_booking_visit_20_weeks_or_later_default",
+          `${LATE}.${DEFAULT}`,
+        ),
+        {
+          ...element(
+            "antenatal_1st_booking_visit_before_20_weeks_default",
+            `${BEFORE}.${DEFAULT}`,
+          ),
+          include_in_analysis: false,
+        },
+        indicator("anc1", {
+          type: "sum",
+          members: [
+            "anc_1st_visit_ga_20wks_2",
+            "anc_1st_visit_ga_20wks_3",
+            "antenatal_1st_booking_visit_20_weeks_or_later_default",
+            "antenatal_1st_booking_visit_before_20_weeks_default",
+          ],
+        }),
+      ],
+      routes: {
+        [GA2]: dvs(GA2),
+        [GA3]: dvs(GA3),
+        [LATE]: dvs(LATE),
+        [BEFORE]: dvs(BEFORE),
+        [`${LATE}.${DEFAULT}`]: dvs(LATE, DEFAULT),
+        [`${BEFORE}.${DEFAULT}`]: dvs(BEFORE, DEFAULT),
+      },
+      elements: {
+        [GA2]: named("ANC 1st visit GA 20wks (2)"),
+        [GA3]: named("ANC 1st visit GA 20wks (3)"),
+        [LATE]: named("Antenatal 1st booking visit 20 weeks or later"),
+        [BEFORE]: named("Antenatal 1st booking visit before 20 weeks"),
+      },
+      rows: {
+        [`${LATE}.${DEFAULT}`]: {
+          count: 168893,
+          firstPeriodId: 202001,
+          lastPeriodId: 202610,
+        },
+      },
+    }),
+    AT,
+  );
+  assertEquals(plan.elementsChecked, 6);
+  assertEquals(plan.elementsHealthy, 4);
+  assertEquals(plan.actions, [
+    {
+      indicatorId: "antenatal_1st_booking_visit_20_weeks_or_later_default",
+      dataId: `${LATE}.${DEFAULT}`,
+      rows: { count: 168893, firstPeriodId: 202001, lastPeriodId: 202610 },
+      outcome: "duplicate",
+      holder: "antenatal_1st_booking_visit_20_weeks_or_later",
+      holderDataId: LATE,
+      includeHolderInAnalysis: true,
+    },
+    {
+      indicatorId: "antenatal_1st_booking_visit_before_20_weeks_default",
+      dataId: `${BEFORE}.${DEFAULT}`,
+      rows: { count: 0, firstPeriodId: null, lastPeriodId: null },
+      outcome: "duplicate",
+      holder: "antenatal_1st_booking_visit_before_20_weeks",
+      holderDataId: BEFORE,
+      includeHolderInAnalysis: false,
+    },
+  ]);
+  assertEquals(plan.sumRewrites, [{
+    sumId: "anc1",
+    members: [
+      "anc_1st_visit_ga_20wks_2",
+      "anc_1st_visit_ga_20wks_3",
+      "antenatal_1st_booking_visit_20_weeks_or_later",
+      "antenatal_1st_booking_visit_before_20_weeks",
+    ],
+  }]);
+  assertEquals(plan.createdElements, []);
+});
+
+Deno.test("a default-combo element nobody holds the bare id of retargets to it, ahead of a formula over the same element; refused, it is Uploaded; a non-default combo stays; a Sum left empty is still listed for the apply to refuse", () => {
+  const DEFAULT = "DefaultCoc1";
+  const defaultCombo = {
+    id: "CcDefault01",
+    name: "default",
+    isDefault: true,
+    categoryOptionCombos: [{ id: DEFAULT, name: "default" }],
+  };
+  const plan = planDhis2IdFix(
+    facts({
+      indicators: [
+        element("a_formula", F1),
+        element("anc_default", `${A}.${DEFAULT}`),
+        element("births_f", `${C}.${COC}`),
+        element("halved", F2),
+        element("tb_default", `${B}.${DEFAULT}`),
+        indicator("only_halved", { type: "sum", members: ["halved"] }),
+      ],
+      routes: {
+        [F1]: FORMULA,
+        [`${A}.${DEFAULT}`]: { kind: "dvs", dataElementId: A, coc: DEFAULT },
+        [`${C}.${COC}`]: { kind: "dvs", dataElementId: C, coc: COC },
+        [F2]: FORMULA,
+        [`${B}.${DEFAULT}`]: { kind: "dvs", dataElementId: B, coc: DEFAULT },
+      },
+      formulas: {
+        [F1]: formula(`#{${A}}`),
+        [F2]: formula(`#{${A}}`, { denominator: "2" }),
+      },
+      elements: {
+        [A]: {
+          name: "ANC first visit",
+          categoryCombo: defaultCombo,
+          verdict: ACCEPTED,
+        },
+        [B]: {
+          name: "TB outcomes",
+          categoryCombo: defaultCombo,
+          verdict: {
+            accepted: false,
+            refusal: { kind: "period_type", value: "Quarterly" },
+          },
+        },
+        [C]: {
+          name: "Live births",
+          categoryCombo: {
+            id: "CcXxxxxxxx1",
+            name: "Sex",
+            categoryOptionCombos: [{ id: COC, name: "Female" }],
+          },
+          verdict: ACCEPTED,
+        },
+      },
+    }),
+    AT,
+  );
+  assertEquals(plan.elementsChecked, 5);
+  assertEquals(plan.elementsHealthy, 1);
+  assertEquals(plan.actions.map((a) => a.indicatorId), [
+    "a_formula",
+    "anc_default",
+    "halved",
+    "tb_default",
+  ]);
+  assertEquals(actionOf(plan.actions, "anc_default", "retarget"), {
+    indicatorId: "anc_default",
+    dataId: `${A}.${DEFAULT}`,
+    rows: { count: 0, firstPeriodId: null, lastPeriodId: null },
+    outcome: "retarget",
+    newDataId: A,
+    dhis2Label: "ANC first visit",
+  });
+  assertEquals(actionOf(plan.actions, "a_formula", "to_sum").members, [
+    "anc_default",
+  ]);
+  assertEquals(
+    actionOf(plan.actions, "halved", "to_calculated").expression,
+    "(anc_default / 2)",
+  );
+  assertEquals(
+    actionOf(plan.actions, "tb_default", "to_uploaded").reason,
+    "DHIS2 cannot serve it monthly: its data sets are Quarterly; none is monthly",
+  );
+  assertEquals(plan.sumRewrites, [{ sumId: "only_halved", members: [] }]);
   assertEquals(plan.createdElements, []);
 });
 
