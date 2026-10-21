@@ -1,0 +1,601 @@
+{
+  "label": {
+    "en": "M4. Coverage estimates",
+    "fr": "M4. Estimations de couverture",
+    "pt": "M4. Estimativas de cobertura"
+  },
+  "prerequisites": [
+    "m002"
+  ],
+  "scriptGenerationType": "template",
+  "dataSources": [
+    {
+      "sourceType": "results_object",
+      "replacementString": "M2_adjusted_data_national.csv",
+      "resultsObjectId": "M2_adjusted_data_national.csv",
+      "moduleId": "m002"
+    },
+    {
+      "sourceType": "results_object",
+      "replacementString": "M2_adjusted_data_admin_area.csv",
+      "resultsObjectId": "M2_adjusted_data_admin_area.csv",
+      "moduleId": "m002"
+    }
+  ],
+  "configRequirements": {
+    "parameters": [
+      {
+        "replacementString": "SELECTED_COUNT_VARIABLE",
+        "description": {
+          "en": "Count value to use",
+          "fr": "Valeur de comptage à utiliser",
+          "pt": "Valor de contagem a utilizar"
+        },
+        "input": {
+          "inputType": "select",
+          "valueType": "string",
+          "options": [
+            {
+              "value": "count_final_none",
+              "label": "Count (unadjusted)"
+            },
+            {
+              "value": "count_final_outliers",
+              "label": "Count (adjusted for outliers)"
+            },
+            {
+              "value": "count_final_completeness",
+              "label": "Count (adjusted for completeness)"
+            },
+            {
+              "value": "count_final_both",
+              "label": "Count (adjusted for outliers and completeness)"
+            }
+          ],
+          "defaultValue": "count_final_outliers"
+        }
+      },
+      {
+        "replacementString": "ANALYSIS_LEVEL",
+        "description": {
+          "en": "Level to calculate coverage for",
+          "fr": "Niveau pour calculer la couverture",
+          "pt": "Nível para calcular a cobertura"
+        },
+        "input": {
+          "inputType": "select",
+          "valueType": "string",
+          "options": [
+            {
+              "value": "NATIONAL_ONLY",
+              "label": "National only"
+            },
+            {
+              "value": "NATIONAL_PLUS_AA2",
+              "label": "National and admin area 2"
+            },
+            {
+              "value": "NATIONAL_PLUS_AA2_AA3",
+              "label": "National, admin area 2, and admin area 3"
+            }
+          ],
+          "defaultValue": "NATIONAL_PLUS_AA2"
+        }
+      },
+      {
+        "replacementString": "PREGNANCY_LOSS_RATE",
+        "description": {
+          "en": "Pregnancy loss rate",
+          "fr": "Taux de perte de grossesse",
+          "pt": "Taxa de perda de gravidez"
+        },
+        "input": {
+          "inputType": "number",
+          "defaultValue": "0.03"
+        }
+      },
+      {
+        "replacementString": "TWIN_RATE",
+        "description": {
+          "en": "Twin rate",
+          "fr": "Taux de jumeaux",
+          "pt": "Taxa de gémeos"
+        },
+        "input": {
+          "inputType": "number",
+          "defaultValue": "0.015"
+        }
+      },
+      {
+        "replacementString": "STILLBIRTH_RATE",
+        "description": {
+          "en": "Stillbirth rate",
+          "fr": "Taux de mortinatalité",
+          "pt": "Taxa de nados-mortos"
+        },
+        "input": {
+          "inputType": "number",
+          "defaultValue": "0.02"
+        }
+      },
+      {
+        "replacementString": "P1_NMR",
+        "description": {
+          "en": "Neonatal mortality rate",
+          "fr": "Taux de mortalité néonatale",
+          "pt": "Taxa de mortalidade neonatal"
+        },
+        "input": {
+          "inputType": "number",
+          "defaultValue": "0.039"
+        }
+      },
+      {
+        "replacementString": "P2_PNMR",
+        "description": {
+          "en": "Postneonatal mortality rate",
+          "fr": "Taux de mortalité postnéonatale",
+          "pt": "Taxa de mortalidade pós-neonatal"
+        },
+        "input": {
+          "inputType": "number",
+          "defaultValue": "0.028"
+        }
+      },
+      {
+        "replacementString": "INFANT_MORTALITY_RATE",
+        "description": {
+          "en": "Infant mortality rate",
+          "fr": "Taux de mortalité infantile",
+          "pt": "Taxa de mortalidade infantil"
+        },
+        "input": {
+          "inputType": "number",
+          "defaultValue": "0.067"
+        }
+      },
+      {
+        "replacementString": "UNDER5_MORTALITY_RATE",
+        "description": {
+          "en": "Under 5 mortality rate",
+          "fr": "Taux de mortalité des moins de 5 ans",
+          "pt": "Taxa de mortalidade de menores de 5 anos"
+        },
+        "input": {
+          "inputType": "number",
+          "defaultValue": "0.103"
+        }
+      }
+    ]
+  },
+  "assetsToImport": [
+    {
+      "name": "survey_data_unified.csv",
+      "repoPath": "survey_data_unified.csv",
+      "sha256": "5c6bc30b467b8f7b4db3b715329d3ba44f20d8e596f336f6c9e8f36e0e25dc87"
+    },
+    {
+      "name": "population_estimates_only.csv",
+      "repoPath": "population_estimates_only.csv",
+      "sha256": "640d2bf27258943f6422e228a396e15fdd1bd1c7e690221875bb700d42a756c4"
+    }
+  ],
+  "resultsObjects": [
+    {
+      "id": "M4_coverage_estimation.csv",
+      "createTableStatementPossibleColumns": {
+        "indicator_common_id": "TEXT NOT NULL",
+        "year": "INTEGER NOT NULL",
+        "coverage_original_estimate": "NUMERIC",
+        "coverage_avgsurveyprojection": "NUMERIC",
+        "coverage_cov": "NUMERIC"
+      }
+    },
+    {
+      "id": "M4_coverage_estimation_admin_area_2.csv",
+      "createTableStatementPossibleColumns": {
+        "admin_area_2": "TEXT NOT NULL",
+        "indicator_common_id": "TEXT NOT NULL",
+        "year": "INTEGER NOT NULL",
+        "coverage_cov": "NUMERIC"
+      }
+    },
+    {
+      "id": "M4_coverage_estimation_admin_area_3.csv",
+      "createTableStatementPossibleColumns": {
+        "admin_area_3": "TEXT NOT NULL",
+        "indicator_common_id": "TEXT NOT NULL",
+        "year": "INTEGER NOT NULL",
+        "coverage_cov": "NUMERIC"
+      }
+    },
+    {
+      "id": "M4_selected_denominator_per_indicator.csv",
+      "createTableStatementPossibleColumns": {
+        "indicator_common_id": "TEXT NOT NULL",
+        "denominator_national": "TEXT NOT NULL",
+        "denominator_admin2": "TEXT NOT NULL",
+        "denominator_admin3": "TEXT NOT NULL"
+      }
+    }
+  ],
+  "metrics": [
+    {
+      "id": "m4-01-01",
+      "label": {
+        "en": "Coverage calculated from HMIS data",
+        "fr": "Couverture calculée à partir des données HMIS",
+        "pt": "Cobertura calculada a partir dos dados do HMIS"
+      },
+      "variantLabel": {
+        "en": "National",
+        "fr": "National",
+        "pt": "Nacional"
+      },
+      "valueProps": [
+        "coverage_original_estimate",
+        "coverage_avgsurveyprojection",
+        "coverage_cov"
+      ],
+      "valueFunc": "AVG",
+      "formatAs": "percent",
+      "requiredDisaggregationOptions": [
+        "indicator_common_id",
+        "year"
+      ],
+      "valueLabelReplacements": {
+        "coverage_original_estimate": "Survey-based estimate (when available)",
+        "coverage_avgsurveyprojection": "Projected survey estimate (when survey data is missing)",
+        "coverage_cov": "Coverage calculated from HMIS data"
+      },
+      "postAggregationExpression": null,
+      "catalogExpressionEvaluation": null,
+      "resultsObjectId": "M4_coverage_estimation.csv",
+      "aiDescription": {
+        "summary": {
+          "en": "Health service coverage estimates at national level, comparing HMIS-derived coverage with survey-based benchmarks.",
+          "fr": "Estimations de couverture des services de santé au niveau national, comparant la couverture dérivée du HMIS avec les repères d'enquête.",
+          "pt": "Estimativas de cobertura dos serviços de saúde ao nível nacional, comparando a cobertura derivada do HMIS com as referências baseadas em inquéritos."
+        },
+        "methodology": {
+          "en": "AVG of three coverage types: (1) original survey estimates when available, (2) projected survey estimates using HMIS trends, (3) HMIS-derived coverage calculated as service volumes divided by population denominators. Denominators selected based on minimizing error against survey benchmarks.",
+          "fr": "Moyenne de trois types de couverture: (1) estimations d'enquête originales, (2) estimations d'enquête projetées utilisant les tendances HMIS, (3) couverture dérivée du HMIS.",
+          "pt": "Média de três tipos de cobertura: (1) estimativas de inquérito originais quando disponíveis, (2) estimativas de inquérito projetadas utilizando as tendências do HMIS, (3) cobertura derivada do HMIS calculada como volumes de serviços divididos pelos denominadores da população. Os denominadores são selecionados de forma a minimizar o erro face às referências dos inquéritos."
+        },
+        "interpretation": {
+          "en": "Three values provide complementary perspectives: survey estimates are gold standard but sparse; projected estimates fill gaps using HMIS trends; HMIS-derived estimates enable annual monitoring. Large gaps between HMIS and survey coverage suggest data quality issues or denominator problems.",
+          "fr": "Trois valeurs fournissent des perspectives complémentaires: les estimations d'enquête sont l'étalon-or mais rares; les estimations projetées comblent les lacunes.",
+          "pt": "Os três valores fornecem perspetivas complementares: as estimativas de inquérito são o padrão de referência mas escassas; as estimativas projetadas preenchem as lacunas utilizando as tendências do HMIS; as estimativas derivadas do HMIS permitem a monitorização anual. Grandes diferenças entre a cobertura do HMIS e a dos inquéritos sugerem problemas de qualidade dos dados ou problemas com os denominadores."
+        },
+        "typicalRange": {
+          "en": "0-100% for coverage. Maternal services typically 40-80%; vaccination 60-95%; varies by country context.",
+          "fr": "0-100% pour la couverture. Services maternels généralement 40-80%; vaccination 60-95%; varie selon le contexte.",
+          "pt": "0-100% para a cobertura. Serviços maternos geralmente 40-80%; vacinação 60-95%; varia consoante o contexto do país."
+        },
+        "caveats": {
+          "en": "Denominator selection is critical - inappropriate denominators can produce implausible coverage >100%. Projection assumes HMIS trends reflect true coverage changes. Survey timing and HMIS data quality affect comparability.",
+          "fr": "La sélection du dénominateur est critique - les dénominateurs inappropriés peuvent produire une couverture >100%. La projection suppose que les tendances HMIS reflètent les vrais changements.",
+          "pt": "A seleção do denominador é crítica - denominadores inadequados podem produzir uma cobertura implausível >100%. A projeção pressupõe que as tendências do HMIS refletem as verdadeiras alterações na cobertura. O momento dos inquéritos e a qualidade dos dados do HMIS afetam a comparabilidade."
+        },
+        "disaggregationGuidance": {
+          "en": "Always disaggregate by indicator_common_id and year (both required). Compare the three coverage types to assess HMIS-survey concordance. Time series reveals coverage trends and data quality evolution.",
+          "fr": "Toujours désagréger par indicator_common_id et year (tous deux requis). Comparer les trois types de couverture pour évaluer la concordance HMIS-enquête.",
+          "pt": "Desagregar sempre por indicator_common_id e year (ambos obrigatórios). Comparar os três tipos de cobertura para avaliar a concordância entre o HMIS e os inquéritos. As séries temporais revelam as tendências de cobertura e a evolução da qualidade dos dados."
+        }
+      },
+      "importantNotes": null,
+      "vizPresets": [
+        {
+          "id": "coverage-timeseries",
+          "label": {
+            "en": "Coverage timeseries (national)",
+            "fr": "Séries temporelles de couverture (national)",
+            "pt": "Séries temporais de cobertura (nacional)"
+          },
+          "description": {
+            "en": "National coverage timeseries with survey benchmarks",
+            "fr": "Séries temporelles de couverture nationale avec repères d'enquête",
+            "pt": "Séries temporais de cobertura nacional com referências de inquérito"
+          },
+          "importantNotes": null,
+          "allowedFilters": [],
+          "createDefaultVisualizationOnInstall": "3e3230cb-ad9e-48b9-b3ce-7bd01255d20b",
+          "config": {
+            "d": {
+              "type": "timeseries",
+              "timeseriesGrouping": "year",
+              "valuesDisDisplayOpt": "series",
+              "disaggregateBy": [
+                {
+                  "disOpt": "indicator_common_id",
+                  "disDisplayOpt": "replicant"
+                }
+              ],
+              "filterBy": [],
+              "selectedReplicantValue": "anc1"
+            },
+            "s": {
+              "content": "lines",
+              "specialCoverageChart": true
+            },
+            "t": {
+              "caption": {
+                "en": "Coverage estimates for REPLICANT",
+                "fr": "Estimations de couverture pour REPLICANT",
+                "pt": "Estimativas de cobertura para REPLICANT"
+              },
+              "captionRelFontSize": null,
+              "subCaption": {
+                "en": "DATE_RANGE\nDISCLAIMER: These results use routine data to provide rigorous, but not official estimates. They should be interpreted considering any data quality or representation limitations, including data quality findings and any other country specific factors.",
+                "fr": "PLAGE_DE_DATES\nAVERTISSEMENT : Ces résultats utilisent des données de routine pour fournir des estimations rigoureuses mais non officielles. Ils doivent être interprétés en tenant compte des limitations de qualité des données ou de représentativité, y compris les résultats d'évaluation de la qualité des données et tout autre facteur spécifique au pays.",
+                "pt": "INTERVALO_DE_DATAS\nAVISO: Estes resultados utilizam dados de rotina para fornecer estimativas rigorosas, mas não oficiais. Devem ser interpretados tendo em conta quaisquer limitações de qualidade dos dados ou de representatividade, incluindo as conclusões sobre a qualidade dos dados e quaisquer outros fatores específicos do país."
+              },
+              "subCaptionRelFontSize": null,
+              "footnote": {
+                "en": "Estimating service coverage from administrative data can provide more timely information on coverage trends, or highlight data quality concerns. Numerators are the volumes reported in HMIS, adjusted for data quality. Denominators are selected from UN projections, survey estimates, or derived from HMIS volume for related indicators. National projections are made by applying HMIS trends to the most recent survey data. Subnational estimates are more sensitive to poor data quality, and projections from surveys are not calculated.\n\nMICS data courtesy of UNICEF. Multiple Indicator Cluster Surveys (various rounds) New York City, New York.\n\nDHS data courtesy of ICF. Demographic and Health Surveys (various rounds). Rockville, Maryland.",
+                "fr": "L'estimation de la couverture des services à partir des données administratives peut fournir des informations plus rapides sur les tendances de couverture, ou mettre en évidence des problèmes de qualité des données. Les numérateurs sont les volumes déclarés dans le HMIS, ajustés pour la qualité des données. Les dénominateurs sont sélectionnés à partir des projections de l'ONU, des estimations d'enquête, ou dérivés du volume HMIS pour les indicateurs liés. Les projections nationales sont réalisées en appliquant les tendances HMIS aux données d'enquête les plus récentes. Les estimations sous-nationales sont plus sensibles à la mauvaise qualité des données, et les projections à partir des enquêtes ne sont pas calculées.\n\nDonnées MICS avec l'aimable autorisation de l'UNICEF. Enquêtes par grappes à indicateurs multiples (divers cycles). New York, New York.\n\nDonnées EDS avec l'aimable autorisation d'ICF. Enquêtes démographiques et de santé (divers cycles). Rockville, Maryland.",
+                "pt": "A estimativa da cobertura dos serviços a partir de dados administrativos pode fornecer informação mais atempada sobre as tendências de cobertura, ou evidenciar preocupações com a qualidade dos dados. Os numeradores são os volumes reportados no SIS, ajustados para a qualidade dos dados. Os denominadores são selecionados a partir das projeções da ONU, de estimativas de inquéritos, ou derivados do volume do SIS para indicadores relacionados. As projeções nacionais são feitas aplicando as tendências do SIS aos dados de inquérito mais recentes. As estimativas subnacionais são mais sensíveis à fraca qualidade dos dados, e as projeções a partir de inquéritos não são calculadas.\n\nDados MICS por cortesia da UNICEF. Inquéritos de Indicadores Múltiplos (várias rondas). Nova Iorque, Nova Iorque.\n\nDados DHS por cortesia da ICF. Inquéritos Demográficos e de Saúde (várias rondas). Rockville, Maryland."
+              },
+              "footnoteRelFontSize": null
+            }
+          }
+        }
+      ],
+      "hide": false
+    },
+    {
+      "id": "m4-02-01",
+      "label": {
+        "en": "Coverage calculated from HMIS data",
+        "fr": "Couverture calculée à partir des données HMIS",
+        "pt": "Cobertura calculada a partir dos dados do HMIS"
+      },
+      "variantLabel": {
+        "en": "Admin Area 2",
+        "fr": "Zone administrative 2",
+        "pt": "Área Administrativa 2"
+      },
+      "valueProps": [
+        "coverage_cov"
+      ],
+      "valueFunc": "AVG",
+      "formatAs": "percent",
+      "requiredDisaggregationOptions": [
+        "indicator_common_id",
+        "admin_area_2",
+        "year"
+      ],
+      "valueLabelReplacements": {
+        "coverage_cov": "Coverage calculated from HMIS data"
+      },
+      "postAggregationExpression": null,
+      "catalogExpressionEvaluation": null,
+      "resultsObjectId": "M4_coverage_estimation_admin_area_2.csv",
+      "aiDescription": {
+        "summary": {
+          "en": "HMIS-derived health service coverage at admin area 2 (province/state) level.",
+          "fr": "Couverture des services de santé dérivée du HMIS au niveau de la zone administrative 2 (province/état).",
+          "pt": "Cobertura dos serviços de saúde derivada do HMIS ao nível da área administrativa 2 (província/estado)."
+        },
+        "methodology": {
+          "en": "AVG of coverage calculated as HMIS service volumes divided by subnational population denominators. Uses nationally-selected denominator with subnational fallback if national-only denominator chosen.",
+          "fr": "Moyenne de la couverture calculée comme volumes de services HMIS divisés par dénominateurs de population sous-nationale.",
+          "pt": "Média da cobertura calculada como volumes de serviços do HMIS divididos pelos denominadores da população subnacional. Utiliza o denominador selecionado a nível nacional, recorrendo ao subnacional caso seja escolhido um denominador apenas nacional."
+        },
+        "interpretation": {
+          "en": "Enables subnational coverage monitoring and equity analysis. Compare across regions to identify geographic disparities. Coverage >100% indicates denominator or data quality issues.",
+          "fr": "Permet la surveillance de la couverture sous-nationale et l'analyse de l'équité. Comparer entre régions pour identifier les disparités géographiques.",
+          "pt": "Permite a monitorização da cobertura subnacional e a análise da equidade. Comparar entre regiões para identificar disparidades geográficas. Uma cobertura >100% indica problemas no denominador ou na qualidade dos dados."
+        },
+        "typicalRange": {
+          "en": "0-100%. Regional variation expected; coverage gaps often larger in remote/underserved areas.",
+          "fr": "0-100%. Variation régionale attendue; écarts de couverture souvent plus grands dans les zones éloignées.",
+          "pt": "0-100%. Variação regional esperada; lacunas de cobertura frequentemente maiores em zonas remotas/desfavorecidas."
+        },
+        "caveats": {
+          "en": "Subnational denominators may be less reliable than national. Migration and population estimates affect accuracy. Some denominators only available at national level.",
+          "fr": "Les dénominateurs sous-nationaux peuvent être moins fiables que nationaux. Les estimations de migration et population affectent la précision.",
+          "pt": "Os denominadores subnacionais podem ser menos fiáveis do que os nacionais. As estimativas de migração e população afetam a precisão. Alguns denominadores apenas estão disponíveis a nível nacional."
+        },
+        "disaggregationGuidance": {
+          "en": "Always disaggregate by indicator_common_id, admin_area_2, and year (all required). Map visualization effectively shows geographic coverage patterns. Time series reveals regional improvement or deterioration.",
+          "fr": "Toujours désagréger par indicator_common_id, admin_area_2 et year (tous requis). La visualisation cartographique montre efficacement les modèles de couverture géographique.",
+          "pt": "Desagregar sempre por indicator_common_id, admin_area_2 e year (todos obrigatórios). A visualização cartográfica mostra eficazmente os padrões geográficos de cobertura. As séries temporais revelam a melhoria ou deterioração regional."
+        }
+      },
+      "importantNotes": null,
+      "vizPresets": [
+        {
+          "id": "coverage-timeseries",
+          "label": {
+            "en": "Coverage timeseries by Admin Area 2",
+            "fr": "Séries temporelles de couverture par Zone administrative 2",
+            "pt": "Séries temporais de cobertura por Área Administrativa 2"
+          },
+          "description": {
+            "en": "Coverage trends over time by admin area 2",
+            "fr": "Tendances de couverture dans le temps par zone administrative 2",
+            "pt": "Tendências de cobertura ao longo do tempo por área administrativa 2"
+          },
+          "importantNotes": null,
+          "allowedFilters": [
+            "admin_area_2"
+          ],
+          "createDefaultVisualizationOnInstall": "a7727717-92d9-4676-b533-9b98be426a81",
+          "config": {
+            "d": {
+              "type": "timeseries",
+              "timeseriesGrouping": "year",
+              "valuesDisDisplayOpt": "series",
+              "disaggregateBy": [
+                {
+                  "disOpt": "indicator_common_id",
+                  "disDisplayOpt": "series"
+                },
+                {
+                  "disOpt": "admin_area_2",
+                  "disDisplayOpt": "cell"
+                }
+              ],
+              "filterBy": []
+            },
+            "s": {
+              "content": "lines",
+              "decimalPlaces": 1
+            },
+            "t": {
+              "caption": {
+                "en": "Coverage estimates",
+                "fr": "Estimations de couverture",
+                "pt": "Estimativas de cobertura"
+              },
+              "captionRelFontSize": null,
+              "subCaption": {
+                "en": "DATE_RANGE\nDISCLAIMER: These results use routine data to provide rigorous, but not official estimates. They should be interpreted considering any data quality or representation limitations, including data quality findings and any other country specific factors.",
+                "fr": "PLAGE_DE_DATES\nAVERTISSEMENT : Ces résultats utilisent des données de routine pour fournir des estimations rigoureuses mais non officielles. Ils doivent être interprétés en tenant compte des limitations de qualité des données ou de représentativité, y compris les résultats d'évaluation de la qualité des données et tout autre facteur spécifique au pays.",
+                "pt": "INTERVALO_DE_DATAS\nAVISO: Estes resultados utilizam dados de rotina para fornecer estimativas rigorosas, mas não oficiais. Devem ser interpretados tendo em conta quaisquer limitações de qualidade dos dados ou de representatividade, incluindo as conclusões sobre a qualidade dos dados e quaisquer outros fatores específicos do país."
+              },
+              "subCaptionRelFontSize": null,
+              "footnote": {
+                "en": "Estimating service coverage from administrative data can provide more timely information on coverage trends, or highlight data quality concerns. Numerators are the volumes reported in HMIS, adjusted for data quality. Denominators are selected from UN projections, survey estimates, or derived from HMIS volume for related indicators. National projections are made by applying HMIS trends to the most recent survey data. Subnational estimates are more sensitive to poor data quality, and projections from surveys are not calculated.\n\nMICS data courtesy of UNICEF. Multiple Indicator Cluster Surveys (various rounds) New York City, New York.\n\nDHS data courtesy of ICF. Demographic and Health Surveys (various rounds). Rockville, Maryland.",
+                "fr": "L'estimation de la couverture des services à partir des données administratives peut fournir des informations plus rapides sur les tendances de couverture, ou mettre en évidence des problèmes de qualité des données. Les numérateurs sont les volumes déclarés dans le HMIS, ajustés pour la qualité des données. Les dénominateurs sont sélectionnés à partir des projections de l'ONU, des estimations d'enquête, ou dérivés du volume HMIS pour les indicateurs liés. Les projections nationales sont réalisées en appliquant les tendances HMIS aux données d'enquête les plus récentes. Les estimations sous-nationales sont plus sensibles à la mauvaise qualité des données, et les projections à partir des enquêtes ne sont pas calculées.\n\nDonnées MICS avec l'aimable autorisation de l'UNICEF. Enquêtes par grappes à indicateurs multiples (divers cycles). New York, New York.\n\nDonnées EDS avec l'aimable autorisation d'ICF. Enquêtes démographiques et de santé (divers cycles). Rockville, Maryland.",
+                "pt": "A estimativa da cobertura dos serviços a partir de dados administrativos pode fornecer informação mais atempada sobre as tendências de cobertura, ou evidenciar preocupações com a qualidade dos dados. Os numeradores são os volumes reportados no SIS, ajustados para a qualidade dos dados. Os denominadores são selecionados a partir das projeções da ONU, de estimativas de inquéritos, ou derivados do volume do SIS para indicadores relacionados. As projeções nacionais são feitas aplicando as tendências do SIS aos dados de inquérito mais recentes. As estimativas subnacionais são mais sensíveis à fraca qualidade dos dados, e as projeções a partir de inquéritos não são calculadas.\n\nDados MICS por cortesia da UNICEF. Inquéritos de Indicadores Múltiplos (várias rondas). Nova Iorque, Nova Iorque.\n\nDados DHS por cortesia da ICF. Inquéritos Demográficos e de Saúde (várias rondas). Rockville, Maryland."
+              },
+              "footnoteRelFontSize": null
+            }
+          }
+        },
+        {
+          "id": "coverage-bar",
+          "label": {
+            "en": "Coverage bar chart by Admin Area 2",
+            "fr": "Diagramme à barres de couverture par Zone administrative 2",
+            "pt": "Gráfico de barras de cobertura por Área Administrativa 2"
+          },
+          "description": {
+            "en": "Bar chart comparing coverage across Admin Areas 2",
+            "fr": "Diagramme à barres comparant la couverture entre Zones administratives 2",
+            "pt": "Gráfico de barras comparando a cobertura entre Áreas Administrativas 2"
+          },
+          "importantNotes": null,
+          "allowedFilters": [
+            "admin_area_2"
+          ],
+          "createDefaultVisualizationOnInstall": "d452dfcf-2cc9-4c7f-bfb0-bf5b8ab6433d",
+          "config": {
+            "d": {
+              "type": "chart",
+              "valuesDisDisplayOpt": "indicator",
+              "disaggregateBy": [
+                {
+                  "disOpt": "indicator_common_id",
+                  "disDisplayOpt": "replicant"
+                },
+                {
+                  "disOpt": "admin_area_2",
+                  "disDisplayOpt": "indicator"
+                },
+                {
+                  "disOpt": "year",
+                  "disDisplayOpt": "cell"
+                }
+              ],
+              "filterBy": [],
+              "selectedReplicantValue": "anc1"
+            },
+            "s": {
+              "colorScale": "single-grey",
+              "decimalPlaces": 1,
+              "sortIndicatorValues": "descending"
+            },
+            "t": {
+              "caption": {
+                "en": "Sub-national level coverage estimates, REPLICANT",
+                "fr": "Estimations de couverture au niveau sous-national, REPLICANT",
+                "pt": "Estimativas de cobertura ao nível subnacional, REPLICANT"
+              },
+              "captionRelFontSize": null,
+              "subCaption": {
+                "en": "DATE_RANGE",
+                "fr": "PLAGE_DE_DATES",
+                "pt": "INTERVALO_DE_DATAS"
+              },
+              "subCaptionRelFontSize": null,
+              "footnote": {
+                "en": "Estimating service coverage from administrative data can provide more timely information on coverage trends, or highlight data quality concerns. Numerators are the volumes reported in HMIS, adjusted for data quality. Denominators are selected from UN projections, survey estimates, or derived from HMIS volume for related indicators. National projections are made by applying HMIS trends to the most recent survey data. Subnational estimates are more sensitive to poor data quality, and projections from surveys are not calculated.\n\nMICS data courtesy of UNICEF. Multiple Indicator Cluster Surveys (various rounds) New York City, New York.\n\nDHS data courtesy of ICF. Demographic and Health Surveys (various rounds). Rockville, Maryland.",
+                "fr": "L'estimation de la couverture des services à partir des données administratives peut fournir des informations plus rapides sur les tendances de couverture, ou mettre en évidence des problèmes de qualité des données. Les numérateurs sont les volumes déclarés dans le HMIS, ajustés pour la qualité des données. Les dénominateurs sont sélectionnés à partir des projections de l'ONU, des estimations d'enquête, ou dérivés du volume HMIS pour les indicateurs liés. Les projections nationales sont réalisées en appliquant les tendances HMIS aux données d'enquête les plus récentes. Les estimations sous-nationales sont plus sensibles à la mauvaise qualité des données, et les projections à partir des enquêtes ne sont pas calculées.\n\nDonnées MICS avec l'aimable autorisation de l'UNICEF. Enquêtes par grappes à indicateurs multiples (divers cycles). New York, New York.\n\nDonnées EDS avec l'aimable autorisation d'ICF. Enquêtes démographiques et de santé (divers cycles). Rockville, Maryland.",
+                "pt": "A estimativa da cobertura dos serviços a partir de dados administrativos pode fornecer informação mais atempada sobre as tendências de cobertura, ou evidenciar preocupações com a qualidade dos dados. Os numeradores são os volumes reportados no SIS, ajustados para a qualidade dos dados. Os denominadores são selecionados a partir das projeções da ONU, de estimativas de inquéritos, ou derivados do volume do SIS para indicadores relacionados. As projeções nacionais são feitas aplicando as tendências do SIS aos dados de inquérito mais recentes. As estimativas subnacionais são mais sensíveis à fraca qualidade dos dados, e as projeções a partir de inquéritos não são calculadas.\n\nDados MICS por cortesia da UNICEF. Inquéritos de Indicadores Múltiplos (várias rondas). Nova Iorque, Nova Iorque.\n\nDados DHS por cortesia da ICF. Inquéritos Demográficos e de Saúde (várias rondas). Rockville, Maryland."
+              },
+              "footnoteRelFontSize": null
+            }
+          }
+        }
+      ],
+      "hide": false
+    },
+    {
+      "id": "m4-03-01",
+      "label": {
+        "en": "Coverage calculated from HMIS data",
+        "fr": "Couverture calculée à partir des données HMIS",
+        "pt": "Cobertura calculada a partir dos dados do HMIS"
+      },
+      "variantLabel": {
+        "en": "Admin Area 3",
+        "fr": "Zone administrative 3",
+        "pt": "Área Administrativa 3"
+      },
+      "valueProps": [
+        "coverage_cov"
+      ],
+      "valueFunc": "AVG",
+      "formatAs": "percent",
+      "requiredDisaggregationOptions": [
+        "indicator_common_id",
+        "admin_area_3",
+        "year"
+      ],
+      "valueLabelReplacements": {
+        "coverage_cov": "Coverage calculated from HMIS data"
+      },
+      "postAggregationExpression": null,
+      "catalogExpressionEvaluation": null,
+      "resultsObjectId": "M4_coverage_estimation_admin_area_3.csv",
+      "aiDescription": {
+        "summary": {
+          "en": "HMIS-derived health service coverage at admin area 3 (district) level.",
+          "fr": "Couverture des services de santé dérivée du HMIS au niveau de la zone administrative 3 (district).",
+          "pt": "Cobertura dos serviços de saúde derivada do HMIS ao nível da área administrativa 3 (distrito)."
+        },
+        "methodology": {
+          "en": "AVG of district-level coverage calculated as HMIS service volumes divided by district population denominators. Finest geographic resolution for coverage monitoring.",
+          "fr": "Moyenne de la couverture au niveau du district calculée comme volumes de services HMIS divisés par dénominateurs de population du district.",
+          "pt": "Média da cobertura ao nível do distrito calculada como volumes de serviços do HMIS divididos pelos denominadores da população do distrito. Resolução geográfica mais fina para a monitorização da cobertura."
+        },
+        "interpretation": {
+          "en": "Enables district-level targeting and operational planning. Useful for identifying micro-level coverage gaps. Interpret with caution if sample sizes small.",
+          "fr": "Permet le ciblage au niveau du district et la planification opérationnelle. Utile pour identifier les lacunes de couverture au micro-niveau.",
+          "pt": "Permite a focalização ao nível do distrito e o planeamento operacional. Útil para identificar lacunas de cobertura ao micro-nível. Interpretar com cautela se as dimensões das amostras forem pequenas."
+        },
+        "typicalRange": {
+          "en": "0-100%. Greater variation expected than higher geographic levels due to smaller denominators and sample sizes.",
+          "fr": "0-100%. Plus grande variation attendue que les niveaux géographiques supérieurs en raison de plus petits dénominateurs.",
+          "pt": "0-100%. Maior variação esperada do que nos níveis geográficos superiores devido a denominadores e dimensões de amostra mais pequenos."
+        },
+        "caveats": {
+          "en": "District-level denominators may have substantial uncertainty. Population mobility and small sample sizes increase volatility. Only available when ANALYSIS_LEVEL includes admin_area_3.",
+          "fr": "Les dénominateurs au niveau du district peuvent avoir une incertitude substantielle. Disponible uniquement lorsque ANALYSIS_LEVEL inclut admin_area_3.",
+          "pt": "Os denominadores ao nível do distrito podem ter incerteza substancial. A mobilidade populacional e as dimensões reduzidas das amostras aumentam a volatilidade. Disponível apenas quando ANALYSIS_LEVEL inclui admin_area_3."
+        },
+        "disaggregationGuidance": {
+          "en": "Always disaggregate by indicator_common_id, admin_area_3, and year (all required). Consider aggregating to admin_area_2 if district-level estimates appear unstable.",
+          "fr": "Toujours désagréger par indicator_common_id, admin_area_3 et year (tous requis). Considérer l'agrégation à admin_area_2 si les estimations au niveau district semblent instables.",
+          "pt": "Desagregar sempre por indicator_common_id, admin_area_3 e year (todos obrigatórios). Considerar a agregação para admin_area_2 se as estimativas ao nível do distrito parecerem instáveis."
+        }
+      },
+      "importantNotes": null,
+      "vizPresets": [],
+      "hide": false
+    }
+  ]
+}

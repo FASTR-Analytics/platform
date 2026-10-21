@@ -147,40 +147,49 @@ resolves them all or fails; `server/tests/run_generation_module_options_test.ts`
 pins that against the local checkout. The registry lists m001, m002, m005, m006,
 m009, m010, m011 and m012; m003 and m004 are retired and their directories
 deleted from the modules repo, and a package generated with them is still
-readable. A figure stored with an m003 metric lives on through
-`lib/retired_metrics.ts`: a frozen table of the thirteen metrics as m003 last
-shipped them (ids, labels and preset texts), each with the metric that answers
-the same question in a current package and the config rewrite that carries a
-figure across. m3-01-01, the service volume on one of four adjustment bases,
-becomes m12-01-01 when the figure filtered to one basis (the filter goes: the
-package's own basis is the value) and m2-02-01 when it compared bases (the four
-props are the same); m3-02-01 to m3-05-01, the disruptions chart at the national
-level and at admin areas 2 to 4, becomes the band chart of the same level,
-m11-01-01 to m11-01-04, with `specialDisruptionsChart` swapped for
-`specialDisruptionsChartV2` and `content: "lines"`, and no value filter while
-the mode is on, since the band needs all four props; m3-0x-02, the percentage
-difference per level, becomes m11-02-01 at any level, the level staying a
-disaggregation; m3-0x-03, the actual and expected pair, becomes m11-02-02 with
-`count_sum` and `count_expect_sum` renamed to `observed` and `expected`. A value
-filter is renamed prop by prop and loses props the successor lacks. A caption,
-subcaption or footnote that still reads as the retired preset wrote it, in any
-language, is replaced by the successor preset's text in the figure's own
-language, or cleared where the successor has none; a translation the successor
-lacks and a user's own words are kept. `resolveFigureMetric(metrics, figure)` is
-the one lookup every update, edit and copilot path runs (S10 "The captured pair
-and staleness"): the figure's own metric when the package carries it, else the
-successor with the carried config, else `absent`, naming the retired metric and
-its successor's module so the badge can say what is missing.
-`server/tests/retired_metrics_test.ts` pins the table against
-`server/tests/fixtures/m003_definition.json` (m003 at the commit before its
-deletion) and, under `FASTR_MODULES_LOCAL_DIR`, against the successor
-definitions: every m003 preset carries to a config the successor serves (metric
-present, its required dimensions grouped, its results object offering every
-requested dimension, a fetch config that builds, the band chart's four props in
-order) and reads as the successor's own preset would (its style, its texts, and
-its layout where the two agree). The registry's label is the only name a
-generating or failed run has, since neither holds a manifest; every other fact
-about a module travels with the definition.
+readable. A figure stored with an m003 or m004 metric lives on through
+`lib/retired_metrics.ts`: a frozen table of the thirteen m003 and three m004
+metrics as they last shipped (ids, labels and preset texts), each with the
+metric that answers the same question in a current package and the config
+rewrite that carries a figure across. m3-01-01, the service volume on one of
+four adjustment bases, becomes m12-01-01 when the figure filtered to one basis
+(the filter goes: the package's own basis is the value) and m2-02-01 when it
+compared bases (the four props are the same); m3-02-01 to m3-05-01, the
+disruptions chart at the national level and at admin areas 2 to 4, becomes the
+band chart of the same level, m11-01-01 to m11-01-04, with
+`specialDisruptionsChart` swapped for `specialDisruptionsChartV2` and
+`content: "lines"`, and no value filter while the mode is on, since the band
+needs all four props; m3-0x-02, the percentage difference per level, becomes
+m11-02-01 at any level, the level staying a disaggregation; m3-0x-03, the actual
+and expected pair, becomes m11-02-02 with `count_sum` and `count_expect_sum`
+renamed to `observed` and `expected`. A value filter is renamed prop by prop and
+loses props the successor lacks. m4-01-01, the national coverage estimate on
+three estimation bases, becomes m6-01-01, whose footnote has one more sentence;
+m4-02-01 and m4-03-01, the HMIS coverage at admin areas 2 and 3, become m6-02-02
+and m6-03-02, which ship no presets, so a carried figure keeps its texts.
+m8-01-01, the retired scorecard, has no successor: its figures stay as stored
+and cannot update. A caption, subcaption or footnote that still reads as the
+retired preset wrote it, in any language, is replaced by the successor preset's
+text in the figure's own language, or cleared where the successor has none; a
+translation the successor lacks and a user's own words are kept.
+`resolveFigureMetric(metrics, figure)` is the one lookup every update, edit and
+copilot path runs (S10 "The captured pair and staleness"): the figure's own
+metric when the package carries it, else the successor with the carried config,
+else `absent`, naming the retired metric and its successor's module so the badge
+can say what is missing. `server/tests/retired_metrics_test.ts` pins the table
+against `server/tests/fixtures/m003_definition.json` and `m004_definition.json`
+(each module at the commit before its deletion) and, under
+`FASTR_MODULES_LOCAL_DIR`, against the successor definitions: every retired
+preset carries to a config the successor serves (metric present, its required
+dimensions grouped, its results object offering every requested dimension, a
+fetch config that builds, the band chart's four props in order) and reads as the
+successor's own preset would (its style, its texts, and its layout where the two
+agree). `sweep_retired_figures.ts` (repo root) is the table's check against
+stored data: a read-only pass over every instance's stored figures that carries
+each retired one and runs the same checks, reporting per instance and across the
+fleet. The registry's label is the only name a generating or failed run has,
+since neither holds a manifest; every other fact about a module travels with the
+definition.
 
 **Three presentation facts are declared by every module and never inferred**:
 `family` (`hmis`, `hfa` or `iceh`, the dataset family whose results the module

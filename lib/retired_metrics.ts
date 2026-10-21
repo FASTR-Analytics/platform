@@ -4,8 +4,8 @@ import type { FigureBundle } from "./types/_figure_bundle.ts";
 import type { PresentationObjectConfig } from "./types/_presentation_object_config.ts";
 import type { MetricWithStatus } from "./types/modules.ts";
 
-// Metrics of modules that left the registry while figures built on them live
-// on in stored documents. A stored figure is `{ metricId, config }` frozen with
+// Metrics of modules that left the registry (m003 and m004) while figures
+// built on them live on in stored documents. A stored figure is `{ metricId, config }` frozen with
 // its data, so a retired id keeps rendering; what it cannot do is UPDATE to a
 // package that lacks its module. Each entry names the metric that answers the
 // same question in a current package and how a config carries across: the
@@ -352,6 +352,85 @@ function m003LevelMetrics(level: 1 | 2 | 3 | 4): RetiredMetric[] {
   ];
 }
 
+const M004_LABEL: TranslatableString = {
+  en: "M4. Coverage estimates",
+  fr: "M4. Estimations de couverture",
+  pt: "M4. Estimativas de cobertura",
+};
+
+const COVERAGE_LABEL: TranslatableString = {
+  en: "Coverage calculated from HMIS data",
+  fr: "Couverture calculée à partir des données HMIS",
+  pt: "Cobertura calculada a partir dos dados do HMIS",
+};
+
+// m4-01-01, the national coverage estimate on three estimation bases, is
+// m6-01-01 with one more sentence in its footnote. The subnational pair,
+// HMIS-derived coverage alone, is m006's HMIS-only pair, which ships no
+// presets, so a carried figure keeps its texts.
+const M6_COVERAGE_NATIONAL: Successor = {
+  metricId: "m6-01-01",
+  moduleId: "m006",
+  valueProps: {
+    coverage_original_estimate: "coverage_original_estimate",
+    coverage_avgsurveyprojection: "coverage_avgsurveyprojection",
+    coverage_cov: "coverage_cov",
+  },
+  texts: [
+    {
+      from: {
+        en:
+          "Estimating service coverage from administrative data can provide more timely information on coverage trends, or highlight data quality concerns. Numerators are the volumes reported in HMIS, adjusted for data quality. Denominators are selected from UN projections, survey estimates, or derived from HMIS volume for related indicators. National projections are made by applying HMIS trends to the most recent survey data. Subnational estimates are more sensitive to poor data quality, and projections from surveys are not calculated.\n\nMICS data courtesy of UNICEF. Multiple Indicator Cluster Surveys (various rounds) New York City, New York.\n\nDHS data courtesy of ICF. Demographic and Health Surveys (various rounds). Rockville, Maryland.",
+        fr:
+          "L'estimation de la couverture des services à partir des données administratives peut fournir des informations plus rapides sur les tendances de couverture, ou mettre en évidence des problèmes de qualité des données. Les numérateurs sont les volumes déclarés dans le HMIS, ajustés pour la qualité des données. Les dénominateurs sont sélectionnés à partir des projections de l'ONU, des estimations d'enquête, ou dérivés du volume HMIS pour les indicateurs liés. Les projections nationales sont réalisées en appliquant les tendances HMIS aux données d'enquête les plus récentes. Les estimations sous-nationales sont plus sensibles à la mauvaise qualité des données, et les projections à partir des enquêtes ne sont pas calculées.\n\nDonnées MICS avec l'aimable autorisation de l'UNICEF. Enquêtes par grappes à indicateurs multiples (divers cycles). New York, New York.\n\nDonnées EDS avec l'aimable autorisation d'ICF. Enquêtes démographiques et de santé (divers cycles). Rockville, Maryland.",
+        pt:
+          "A estimativa da cobertura dos serviços a partir de dados administrativos pode fornecer informação mais atempada sobre as tendências de cobertura, ou evidenciar preocupações com a qualidade dos dados. Os numeradores são os volumes reportados no SIS, ajustados para a qualidade dos dados. Os denominadores são selecionados a partir das projeções da ONU, de estimativas de inquéritos, ou derivados do volume do SIS para indicadores relacionados. As projeções nacionais são feitas aplicando as tendências do SIS aos dados de inquérito mais recentes. As estimativas subnacionais são mais sensíveis à fraca qualidade dos dados, e as projeções a partir de inquéritos não são calculadas.\n\nDados MICS por cortesia da UNICEF. Inquéritos de Indicadores Múltiplos (várias rondas). Nova Iorque, Nova Iorque.\n\nDados DHS por cortesia da ICF. Inquéritos Demográficos e de Saúde (várias rondas). Rockville, Maryland.",
+      },
+      to: {
+        en:
+          "Estimating service coverage from administrative data can provide more timely information on coverage trends, or highlight data quality concerns. Numerators are the volumes reported in HMIS, adjusted for data quality. Denominators are selected from UN projections, survey estimates, or derived from HMIS volume for related indicators. National projections are made by applying HMIS trends to the most recent survey data. Subnational estimates are more sensitive to poor data quality, and projections from surveys are not calculated.\n\nMICS data courtesy of UNICEF. Multiple Indicator Cluster Surveys (various rounds) New York City, New York.\n\nDHS data courtesy of ICF. Demographic and Health Surveys (various rounds). Rockville, Maryland.\n\nData for the current year reflect the period available at the time of analysis; population figures have been scaled to match the corresponding duration.",
+        fr:
+          "L'estimation de la couverture des services à partir des données administratives peut fournir des informations plus rapides sur les tendances de couverture, ou mettre en évidence des problèmes de qualité des données. Les numérateurs sont les volumes déclarés dans le HMIS, ajustés pour la qualité des données. Les dénominateurs sont sélectionnés à partir des projections de l'ONU, des estimations d'enquête, ou dérivés du volume HMIS pour les indicateurs liés. Les projections nationales sont réalisées en appliquant les tendances HMIS aux données d'enquête les plus récentes. Les estimations sous-nationales sont plus sensibles à la mauvaise qualité des données, et les projections à partir des enquêtes ne sont pas calculées.\n\nDonnées MICS avec l'aimable autorisation de l'UNICEF. Enquêtes par grappes à indicateurs multiples (divers cycles). New York, New York.\n\nDonnées EDS avec l'aimable autorisation d'ICF. Enquêtes démographiques et de santé (divers cycles). Rockville, Maryland.\n\nLes données de l'année en cours reflètent la période disponible au moment de l'analyse ; les chiffres de population ont été ajustés pour correspondre à la durée correspondante.",
+        pt:
+          "A estimativa da cobertura dos serviços a partir de dados administrativos pode fornecer informação mais atempada sobre as tendências de cobertura, ou evidenciar preocupações com a qualidade dos dados. Os numeradores são os volumes reportados no SIS, ajustados para a qualidade dos dados. Os denominadores são selecionados a partir das projeções da ONU, de estimativas de inquéritos, ou derivados do volume do SIS para indicadores relacionados. As projeções nacionais são feitas aplicando as tendências do SIS aos dados de inquérito mais recentes. As estimativas subnacionais são mais sensíveis à fraca qualidade dos dados, e as projeções a partir de inquéritos não são calculadas.\n\nDados MICS por cortesia da UNICEF. Inquéritos de Indicadores Múltiplos (várias rondas). Nova Iorque, Nova Iorque.\n\nDados DHS por cortesia da ICF. Inquéritos Demográficos e de Saúde (várias rondas). Rockville, Maryland.\n\nOs dados do ano em curso refletem o período disponível no momento da análise; os valores da população foram ajustados para corresponder à duração correspondente.",
+      },
+    },
+  ],
+};
+
+function m6CoverageHmis(level: 2 | 3): Successor {
+  return {
+    metricId: `m6-0${level}-02`,
+    moduleId: "m006",
+    valueProps: { coverage_cov: "coverage_cov" },
+    texts: [],
+  };
+}
+
+const M004_LEVEL_LABEL: Record<1 | 2 | 3, TranslatableString> = {
+  1: LEVEL_LABEL[1],
+  2: {
+    en: "Admin Area 2",
+    fr: "Zone administrative 2",
+    pt: "Área Administrativa 2",
+  },
+  3: {
+    en: "Admin Area 3",
+    fr: "Zone administrative 3",
+    pt: "Área Administrativa 3",
+  },
+};
+
+function m004Metric(level: 1 | 2 | 3, successor: Successor): RetiredMetric {
+  return {
+    id: `m4-0${level}-01`,
+    moduleId: "m004",
+    moduleLabel: M004_LABEL,
+    label: withVariant(COVERAGE_LABEL, M004_LEVEL_LABEL[level]),
+    successor: () => successor,
+  };
+}
+
 export const RETIRED_METRICS: readonly RetiredMetric[] = [
   {
     id: "m3-01-01",
@@ -371,6 +450,9 @@ export const RETIRED_METRICS: readonly RetiredMetric[] = [
   ...m003LevelMetrics(2),
   ...m003LevelMetrics(3),
   ...m003LevelMetrics(4),
+  m004Metric(1, M6_COVERAGE_NATIONAL),
+  m004Metric(2, m6CoverageHmis(2)),
+  m004Metric(3, m6CoverageHmis(3)),
 ];
 
 export function retiredMetric(metricId: string): RetiredMetric | undefined {

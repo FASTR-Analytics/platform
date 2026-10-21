@@ -13,6 +13,7 @@ import {
   getFetchConfigFromPresentationObjectConfig,
   type Language,
   type MetricDefinitionGithub,
+  type ModuleDefinitionGithub,
   moduleDefinitionGithubSchema,
   type PresentationObjectConfig,
   presentationObjectConfigSchema,
@@ -33,19 +34,36 @@ import {
 const MODULES_DIR = Deno.env.get("FASTR_MODULES_LOCAL_DIR");
 const LANGUAGES: Language[] = ["en", "fr", "pt"];
 
-// m003 as the modules repo last built it, before its deletion, with the
-// presentation facts the manifest transform stamps on a blob written before
-// the definition declared them.
-const M003 = moduleDefinitionGithubSchema.parse({
-  ...JSON.parse(
-    await Deno.readTextFile(
-      new URL("./fixtures/m003_definition.json", import.meta.url),
+// m003 and m004 as the modules repo last built them, before their deletion,
+// with the presentation facts the manifest transform stamps on a blob written
+// before the definition declared them.
+async function retiredDefinition(
+  file: string,
+  sortOrder: number,
+): Promise<ModuleDefinitionGithub> {
+  return moduleDefinitionGithubSchema.parse({
+    ...JSON.parse(
+      await Deno.readTextFile(new URL(`./fixtures/${file}`, import.meta.url)),
     ),
-  ),
-  family: "hmis",
-  tier: "secondary",
-  sortOrder: 6,
-});
+    family: "hmis",
+    tier: "secondary",
+    sortOrder,
+  });
+}
+
+const RETIRED_MODULES: { id: string; definition: ModuleDefinitionGithub }[] = [
+  {
+    id: "m003",
+    definition: await retiredDefinition("m003_definition.json", 6),
+  },
+  {
+    id: "m004",
+    definition: await retiredDefinition("m004_definition.json", 7),
+  },
+];
+const RETIRED_DEFINITION_METRICS = RETIRED_MODULES.flatMap((m) =>
+  m.definition.metrics
+);
 
 type Preset = MetricDefinitionGithub["vizPresets"][number];
 
@@ -58,10 +76,21 @@ function presetOf(
   return preset;
 }
 
-function m003Metric(metricId: string): MetricDefinitionGithub {
-  const metric = M003.metrics.find((m) => m.id === metricId);
-  assert(metric !== undefined, `m003 has no metric ${metricId}`);
+function retiredDefinitionMetric(metricId: string): MetricDefinitionGithub {
+  const metric = RETIRED_DEFINITION_METRICS.find((m) => m.id === metricId);
+  assert(metric !== undefined, `no retired module has metric ${metricId}`);
   return metric;
+}
+
+// A style without the keys a successor preset chooses for the figures it
+// inserts: a carried figure keeps its own choice of those.
+function withoutKeys(
+  style: PresentationObjectConfig["s"],
+  keys: readonly string[],
+): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(style).filter(([key]) => !keys.includes(key)),
+  );
 }
 
 // The config a preset inserted as a figure, resolved in a language.
@@ -93,8 +122,11 @@ function succeed(figure: StoredFigure) {
 // the retired layout (indicators across, areas down) by design.
 type Pair = {
   from: [metricId: string, presetId: string];
-  to: [metricId: string, presetId: string];
+  // No preset id when the successor ships none: the carried figure keeps its
+  // texts and only the data checks apply.
+  to: [metricId: string, presetId: string | null];
   sameLayout: boolean;
+  successorStyle?: (keyof PresentationObjectConfig["s"])[];
 };
 
 const PAIRS: Pair[] = [
@@ -206,6 +238,22 @@ const PAIRS: Pair[] = [
     to: ["m11-02-01", "disruption-table-admin-area-4"],
     sameLayout: true,
   },
+  {
+    from: ["m4-01-01", "coverage-timeseries"],
+    to: ["m6-01-01", "coverage-timeseries"],
+    sameLayout: true,
+    successorStyle: ["showDataLabels"],
+  },
+  {
+    from: ["m4-02-01", "coverage-timeseries"],
+    to: ["m6-02-02", null],
+    sameLayout: false,
+  },
+  {
+    from: ["m4-02-01", "coverage-bar"],
+    to: ["m6-02-02", null],
+    sameLayout: false,
+  },
 ];
 
 const BAND_CHART_METRICS = ["m3-02-01", "m3-03-01", "m3-04-01", "m3-05-01"];
@@ -222,34 +270,39 @@ function oneDateRangeToken(text: string): string {
 
 // Pure checks
 
-Deno.test("retired: every m003 metric has an entry named as its definition named it, and nothing else does", () => {
-  for (const m of M003.metrics) {
-    const retired = retiredMetric(m.id);
-    assert(retired !== undefined, `${m.id} has no entry`);
-    assertEquals(retired.moduleId, "m003");
-    for (const language of LANGUAGES) {
-      const variant = m.variantLabel === null
-        ? ""
-        : ` (${resolveTS(m.variantLabel, language)})`;
-      assertEquals(
-        resolveTS(retired.label, language),
-        `${resolveTS(m.label, language)}${variant}`,
-        `${m.id} label in ${language}`,
-      );
-      assertEquals(
-        resolveTS(retired.moduleLabel, language),
-        resolveTS(M003.label, language),
-      );
+Deno.test("retired: every metric of a retired module has an entry named as its definition named it, and nothing else does", () => {
+  for (const { id: moduleId, definition } of RETIRED_MODULES) {
+    for (const m of definition.metrics) {
+      const retired = retiredMetric(m.id);
+      assert(retired !== undefined, `${m.id} has no entry`);
+      assertEquals(retired.moduleId, moduleId);
+      for (const language of LANGUAGES) {
+        const variant = m.variantLabel === null
+          ? ""
+          : ` (${resolveTS(m.variantLabel, language)})`;
+        assertEquals(
+          resolveTS(retired.label, language),
+          `${resolveTS(m.label, language)}${variant}`,
+          `${m.id} label in ${language}`,
+        );
+        assertEquals(
+          resolveTS(retired.moduleLabel, language),
+          resolveTS(definition.label, language),
+        );
+      }
     }
   }
-  const ids = new Set(M003.metrics.map((m) => m.id));
+  const ids = new Set(RETIRED_DEFINITION_METRICS.map((m) => m.id));
   for (const retired of RETIRED_METRICS) {
-    assert(ids.has(retired.id), `${retired.id} is not an m003 metric`);
+    assert(
+      ids.has(retired.id),
+      `${retired.id} is not a retired module's metric`,
+    );
   }
 });
 
 Deno.test("retired: every preset of every retired metric carries to a config the schema accepts", () => {
-  for (const m of M003.metrics) {
+  for (const m of RETIRED_DEFINITION_METRICS) {
     for (const preset of m.vizPresets) {
       for (const language of LANGUAGES) {
         const succession = succeed(
@@ -266,12 +319,12 @@ Deno.test("retired: every preset of every retired metric carries to a config the
   }
   assertEquals(
     PAIRS.length,
-    M003.metrics.reduce((n, m) => n + m.vizPresets.length, 0),
+    RETIRED_DEFINITION_METRICS.reduce((n, m) => n + m.vizPresets.length, 0),
   );
 });
 
 Deno.test("retired: the figure's own metric wins when the package still carries it", () => {
-  const m = m003Metric("m3-02-01");
+  const m = retiredDefinitionMetric("m3-02-01");
   const config = presetConfig(presetOf(m, "disruption-chart"), "en");
   const own = { id: "m3-02-01" };
   const successor = { id: "m11-01-01" };
@@ -285,7 +338,7 @@ Deno.test("retired: the figure's own metric wins when the package still carries 
 });
 
 Deno.test("retired: a package with the successor resolves to it with the carried config", () => {
-  const m = m003Metric("m3-02-01");
+  const m = retiredDefinitionMetric("m3-02-01");
   const config = presetConfig(presetOf(m, "disruption-chart"), "en");
   const successor = { id: "m11-01-01" };
   const resolution = resolveFigureMetric(
@@ -299,7 +352,7 @@ Deno.test("retired: a package with the successor resolves to it with the carried
 });
 
 Deno.test("retired: a package with neither names the successor; an unknown metric names nothing", () => {
-  const m = m003Metric("m3-03-02");
+  const m = retiredDefinitionMetric("m3-03-02");
   const config = presetConfig(
     presetOf(m, "disruption-differences-table"),
     "en",
@@ -318,7 +371,7 @@ Deno.test("retired: a package with neither names the successor; an unknown metri
 
 Deno.test("retired: the disruptions chart becomes the band chart with no value filter", () => {
   for (const metricId of BAND_CHART_METRICS) {
-    for (const preset of m003Metric(metricId).vizPresets) {
+    for (const preset of retiredDefinitionMetric(metricId).vizPresets) {
       const config = presetConfig(preset, "en");
       assertEquals(config.s.specialDisruptionsChart, true);
       const { config: carried } = succeed(
@@ -337,7 +390,7 @@ Deno.test("retired: the disruptions chart becomes the band chart with no value f
 });
 
 Deno.test("retired: a disruptions chart with its mode off keeps the mode off and renames its value filter", () => {
-  const m = m003Metric("m3-03-01");
+  const m = retiredDefinitionMetric("m3-03-01");
   const config = presetConfig(presetOf(m, "disruption-chart"), "en");
   const { config: carried } = succeed(
     stored("m3-03-01", {
@@ -356,7 +409,7 @@ Deno.test("retired: a disruptions chart with its mode off keeps the mode off and
 });
 
 Deno.test("retired: m3-01-01 goes to the indicator value for one basis and to the adjusted data for several or none", () => {
-  const m = m003Metric("m3-01-01");
+  const m = retiredDefinitionMetric("m3-01-01");
   const monthly = presetConfig(presetOf(m, "volume-monthly"), "en");
   assertEquals(monthly.d.valuesFilter, ["count_final_both"]);
   const one = succeed(stored("m3-01-01", monthly));
@@ -386,7 +439,7 @@ Deno.test("retired: m3-01-01 goes to the indicator value for one basis and to th
 
 Deno.test("retired: the observed and expected pair renames its value filter and drops a prop the successor lacks", () => {
   const config = presetConfig(
-    presetOf(m003Metric("m3-02-01"), "disruption-chart"),
+    presetOf(retiredDefinitionMetric("m3-02-01"), "disruption-chart"),
     "en",
   );
   const pair = succeed(
@@ -408,7 +461,10 @@ Deno.test("retired: the observed and expected pair renames its value filter and 
 });
 
 Deno.test("retired: a user's own text is kept, a preset's text is replaced in the figure's language", () => {
-  const preset = presetOf(m003Metric("m3-02-01"), "disruption-chart");
+  const preset = presetOf(
+    retiredDefinitionMetric("m3-02-01"),
+    "disruption-chart",
+  );
   const fr = presetConfig(preset, "fr");
   const carried = succeed(stored("m3-02-01", fr, "fr")).config;
   assertEquals(
@@ -455,7 +511,8 @@ Deno.test({
       MODULES_DIR ?? "",
     );
     const metrics = metricsWithStatusOf(definitions);
-    const successorPreset = (pair: Pair): Preset => {
+    const successorPreset = (pair: Pair): Preset | undefined => {
+      if (pair.to[1] === null) return undefined;
       const metric = [...definitions.values()].flatMap((d) => d.metrics).find((
         m,
       ) => m.id === pair.to[0]);
@@ -467,7 +524,10 @@ Deno.test({
       "every carried preset resolves to a ready successor the package can serve",
       () => {
         for (const pair of PAIRS) {
-          const preset = presetOf(m003Metric(pair.from[0]), pair.from[1]);
+          const preset = presetOf(
+            retiredDefinitionMetric(pair.from[0]),
+            pair.from[1],
+          );
           for (const language of LANGUAGES) {
             const where = `${pair.from.join("/")} in ${language}`;
             const resolution = resolveFigureMetric(
@@ -530,10 +590,11 @@ Deno.test({
       () => {
         for (const pair of PAIRS) {
           const retiredPreset = presetOf(
-            m003Metric(pair.from[0]),
+            retiredDefinitionMetric(pair.from[0]),
             pair.from[1],
           );
           const successor = successorPreset(pair);
+          if (successor === undefined) continue;
           for (const language of LANGUAGES) {
             const where = `${pair.from.join("/")} in ${language}`;
             const carried = succeed(
@@ -544,7 +605,12 @@ Deno.test({
               ),
             ).config;
             const expected = presetConfig(successor, language);
-            assertEquals(carried.s, expected.s, `${where}: style`);
+            const ownChoice = pair.successorStyle ?? [];
+            assertEquals(
+              withoutKeys(carried.s, ownChoice),
+              withoutKeys(expected.s, ownChoice),
+              `${where}: style`,
+            );
             for (
               const field of ["caption", "subCaption", "footnote"] as const
             ) {
