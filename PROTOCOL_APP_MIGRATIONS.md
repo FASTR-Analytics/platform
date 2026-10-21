@@ -14,6 +14,9 @@ Two types of migrations:
 - **SQL migrations**: table/column structure changes
 - **JSON data transforms**: transforming JSON data stored in columns
 
+A data change a migration cannot make is a repair, built and retired as
+[Repairs](#repairs-data-changes-a-migration-cannot-make) says.
+
 ---
 
 ## Principles
@@ -687,6 +690,39 @@ The rules that make it safe:
   function the migration executes and the gate only reports
   (`server/db/migrations/consolidation/plan.ts`). What is gated is then the
   thing that runs.
+
+---
+
+## Repairs: data changes a migration cannot make
+
+A migration runs at boot on every instance and needs nothing outside the
+database. Some data changes cannot be one: they need live outside data (an
+instance's DHIS2 metadata), or a decision per instance that someone reads first.
+Those are repairs: a root script an operator runs inside an instance's app
+container. A repair writes to production around the app's routes, guards and
+logging, so it is planned, built and retired by these rules.
+
+- **A plan file for as long as the code exists.** A repair is built and rolled
+  out under its own `PLAN_*.md` (PROTOCOL_APP_PLANS). When the rollout that can
+  run now is done, that plan is deleted, and a fresh `PLAN_CLEANUP_*` plan for
+  the repair is already queued, written no later than that deleting commit. No
+  part-done rollout plan stays behind.
+- **The cleanup plan says when it runs.** It opens with the moment to run it and
+  the gates that must all hold before it starts, each a fact with the command
+  that checks it, such as every instance the repair has yet to reach being on a
+  release that carries it. It holds only what remains: those instances, a last
+  sweep that finds nothing anywhere, and the retirement commit, which deletes
+  the script, its module, its tests, its Dockerfile and task entries, the SYSTEM
+  prose and manifest lines that describe it, and the cleanup plan itself.
+- **Plan, read, apply.** `plan` writes a JSON file listing every write the apply
+  makes, and the operator reads it. `apply` reads that file, recomputes the plan
+  from live state, refuses on any difference, and runs one transaction that
+  re-checks every precondition under a lock. A named dump of `main` comes before
+  each apply, and a second `plan` that lists nothing comes after.
+- **Through the app.** A repair writes through the app's own functions where
+  they exist, and adds no column, export or message for its own sake.
+- **No product dependency.** No text a user sees names a repair. A message for a
+  condition a repair fixes points to what a user can do in the app.
 
 ---
 
