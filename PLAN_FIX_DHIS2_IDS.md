@@ -184,6 +184,11 @@ SYSTEM_05's manifest), SYSTEM_05 ("The DHIS2 id repair").
   exits 0; a refused launch (a run in progress, no connection, an empty
   selection) prints the reason and exits 1. The header comment of
   `fix_dhis2_ids.ts` names the three commands.
+- The run finishes in the script's process, so the server never sees it: the
+  wizard's launch passes an `onComplete` that refreshes the dataset summaries
+  for connected clients (`server/routes/instance/datasets.ts:165`), and the
+  script cannot send that. The script says so on exit, and §7 restarts the
+  container after each backfill, the step the apply already takes.
 
 **Not in this step.** Any route or allowlist change: the headless surface stays
 package reads; the wizard is untouched.
@@ -275,11 +280,12 @@ action count: a dump, `apply` on Tim's word after he has read the plan file,
 `docker restart`, `plan` again to zero. Then, per instance whose applied plan
 deleted rows, `backfill` from that file:
 `ssh wb-server 'docker exec -i <instance> deno run -A fix_dhis2_ids.ts backfill' < rollout_logs/dhis2_ids_<instance>.json`,
-one at a time, for `cameroun`, `tchad`, `madagascar`, `mozambique`,
-`burkinafaso`, `somalia` (its morning plan file, run again now that 2.0.4 reads
-its 2.43 export), and `malawi` after its own apply. `nigeria`'s plan lists its
-two duplicates (ruling 3) and needs no backfill: the holders already hold every
-month. Rollback per instance is the dump, as above.
+one at a time, each followed by `docker restart <instance>` so connected clients
+refetch the dataset summaries, for `cameroun`, `tchad`, `madagascar`,
+`mozambique`, `burkinafaso`, `somalia` (its morning plan file, run again now
+that 2.0.4 reads its 2.43 export), and `malawi` after its own apply. `nigeria`'s
+plan lists its two duplicates (ruling 3) and needs no backfill: the holders
+already hold every month. Rollback per instance is the dump, as above.
 
 ## 8. Build log
 
