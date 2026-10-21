@@ -6,7 +6,12 @@ reviewed on 2026-10-21; step 4, the rollout, remains. Closed in error later that
 day: the rollout order below had omitted `madagascar`, whose five broken ids a
 dry run found on 2026-10-21 (recorded in PLAN_CHECK_TYPED_DHIS2_ID), and no
 sweep had confirmed the other instances. Reopened the same day with the sweep as
-the first thing step 4 does. The goal is every production instance.
+the first thing step 4 does. The goal is every production instance. Amended late
+on 2026-10-21, after the rollout over seven more instances, with steps 5 to 8:
+the rollout showed three gaps the repair leaves open (an element DHIS2 has but
+cannot serve monthly, which fails every run exactly as a dead id does; a
+`uid.coc` element that duplicates a bare element it was created beside; and the
+backfill that only the browser wizard could launch).
 
 Steps 1 to 3 are built and reviewed. The planner, the gatherer, the executor and
 the root script `fix_dhis2_ids.ts` (`server/dhis2_id_fix/`, pinned by
@@ -17,9 +22,13 @@ the run detail, the import wizard's Review step, the refresh-names modal and the
 ledger messages is described in SYSTEM_06's dispatcher bullet. The standing docs
 describe the code, so this file keeps only what the rollout needs.
 
-**Next step: Do 4.** Each session sets this line in its final commit. Its values
-are `Do N`, `Review N` and `Fix N`. The session that finishes step 4 deletes
-this file.
+**Next step: Do 5.** Each session sets this line in its final commit. Its values
+are `Do N`, `Review N` and `Fix N`. Last step: 8. The session that finishes step
+8 deletes this file. Floor at the end of every code step: `deno task typecheck`,
+`deno task test`, `./validate_protocols`. Build log: §8. A code step reads, in
+order: `CLAUDE.md`, SYSTEM_05 ("The DHIS2 id repair"), SYSTEM_06 (the dispatcher
+bullet), SYSTEM_07 (decomposition, data value sets), §3, its own section in §4,
+and §8.
 
 Branch: `main` (PROTOCOL_APP_PLANS names `tim-branch`; this plan overrides it
 because `main` is the release branch and Tim commits to the current branch).
@@ -31,6 +40,42 @@ DHIS2 id repair"), [PROTOCOL_ACCESS_DBS.md](PROTOCOL_ACCESS_DBS.md) (Safety).
 
 ---
 
+## 3. Rulings for steps 5 to 8
+
+Decided by Tim on 2026-10-21 in the form "do all three"; the wording of each is
+_(proposed)_ and stands unless overruled here before `Do 5`.
+
+1. _(proposed)_ A DHIS2 element DHIS2 has but cannot serve as an additive
+   monthly count (its eligibility verdict is refused: aggregation type not SUM,
+   value type not a count, or no monthly data set) is retyped Uploaded with the
+   refusal as its reason, rows kept. This is the rule the picker applies on the
+   way in (`getDhis2ElementVerdict`), applied to what is already stored, on
+   every DHIS2 release alike: on 2.38 such an element fails every run
+   (Mauritanie's eleven), and on a later release it is asked for monthly and
+   returns nothing.
+2. _(proposed)_ A to_uploaded deletes its data id's ledger rows with status
+   `error` and no records: they describe fetches of a route the indicator no
+   longer has, and the ledger detail shows them as errors forever otherwise. The
+   plan also lists the same rows under every Uploaded indicator the dictionary
+   already holds, and the apply deletes those, so the four instances repaired on
+   2.0.1 and Mauritanie's `delivery` are cleaned by the next apply.
+3. _(proposed)_ A DHIS2 element whose data id is `uid.coc` with `coc` the
+   default combo of `uid` is the bare element. Where another indicator holds
+   bare `uid`, the `uid.coc` indicator is a duplicate: every Sum naming it takes
+   the holder in its place, and it is deleted with its rows and ledger rows,
+   counted in the negative version row. Where none does, it is retargeted to
+   `uid`: data id, rows and ledger rows rekeyed, as a retarget does today.
+4. _(proposed)_ `backfill` launches one manual DHIS2 import run from an applied
+   plan file, inside the container like `plan` and `apply`: the selection is a
+   window over every to_sum and to_calculated action that deleted rows and every
+   rewritten Sum, from the earliest deleted month to the latest; `triggered_by`
+   is `dhis2-id-repair`. It is the wizard's launch without the wizard: the
+   headless token path reaches only package reads, by design, and the launch
+   function (`launchDatasetHmisDhis2ImportRun`,
+   `server/db/instance/dataset_hmis_import_runs.ts:338`) spawns the worker in
+   the calling process, so the script stays alive until the worker reports
+   completion and then prints the run's counts.
+
 ## 4. Steps
 
 ### Step 4: the rollout
@@ -40,6 +85,124 @@ instance as §7 says, one at a time, each on Tim's word after he has read that
 instance's plan file. The session records each instance's action counts, the
 minted version id and the second plan's zero in §8, then deletes this file in
 its last commit.
+
+Done for sierraleone, somalia, nigeria, ethiopia, cameroun, tchad, madagascar,
+mozambique, burkinafaso and mauritanie (§8). Malawi waits on its DHIS2 server
+and is taken by step 8's rollout; rca on its upgrade.
+
+### Step 5: an element DHIS2 cannot serve monthly is retyped, and dead ledger rows go
+
+**Surface.** `server/dhis2_id_fix/gather.ts`, `server/dhis2_id_fix/plan.ts`,
+`server/dhis2_id_fix/execute.ts`, `server/dhis2_id_fix/mod.ts`,
+`fix_dhis2_ids.ts` (the summary lines),
+`server/tests/dhis2_id_fix_plan_test.ts`,
+`server/tests/dhis2_id_fix_execute_test.ts`, SYSTEM_05 ("The DHIS2 id repair").
+
+**Deliverable.** Ruling 1 and ruling 2.
+
+- The gatherer fetches every DHIS2 element of the dictionary the dispatcher
+  routes `dvs` (today only the operands' elements are fetched,
+  `gather.ts:82-95`), by id in chunks of 100 with the picker's field list, and
+  records each one's verdict (`getDhis2ElementVerdict`) in the facts, keyed by
+  data element id, beside the name and category combo it already records.
+- The planner no longer counts a `dvs` route as healthy on sight
+  (`plan.ts:235`): an element whose verdict is refused is broken with outcome
+  `to_uploaded` and the reason
+  `DHIS2 cannot serve it monthly: <describeDhis2ElementRefusal>.en`; an element
+  whose verdict is accepted is healthy. An operand `uid.coc` takes its element's
+  verdict.
+- The plan carries `staleLedgerRows`: one entry per Uploaded indicator of the
+  dictionary whose data id has ledger rows with status `error` and
+  `n_records = 0`, with the count; `diffDhis2IdFixPlans` compares it.
+- The apply deletes those rows, and the same rows for every `to_uploaded`
+  action, inside the one transaction; nothing else about the ledger changes.
+  `updated_at` moves only on rows the apply retypes.
+- The summary prints each retype's reason and the stale-row count.
+
+**Not in this step.** Duplicate `uid.coc` elements (step 6); the backfill (step
+7); any change to the picker, which already refuses these on the way in.
+
+**Gates.** The two tests extended: a `dvs` element with a refused verdict
+becomes `to_uploaded` with the reason and keeps its rows; one with an accepted
+verdict stays healthy; `staleLedgerRows` lists exactly the error rows without
+records and the apply deletes them and no `ready` row; a verdict that changes
+between plan and apply is drift.
+
+**Ends with.** One commit.
+
+### Step 6: a default-combo element beside its bare element is folded
+
+**Surface.** `server/dhis2_id_fix/plan.ts`, `server/dhis2_id_fix/execute.ts`,
+`fix_dhis2_ids.ts` (the summary lines),
+`server/tests/dhis2_id_fix_plan_test.ts`,
+`server/tests/dhis2_id_fix_execute_test.ts`, SYSTEM_05 ("The DHIS2 id repair").
+
+**Deliverable.** Ruling 3, over the category combos step 5's fetch already puts
+in the facts.
+
+- A `dvs` element whose data id is `uid.coc`, where the element's category combo
+  `isDefault` and lists `coc`, is broken. With a holder of bare `uid` in the
+  dictionary its outcome is `duplicate` carrying `holder`: `sumRewrites` names
+  the holder where the duplicate stood, and the apply deletes the duplicate's
+  rows and ledger rows, then the indicator row, after re-checking that the
+  holder still holds `uid`; the deleted rows join the negative version row.
+  Without a holder its outcome is `retarget` to bare `uid` with the element's
+  name, through the existing retarget path.
+- Nigeria's two (`antenatal_1st_booking_visit_20_weeks_or_later_default`,
+  `antenatal_1st_booking_visit_before_20_weeks_default`, §7) are the shape the
+  plan test pins: `anc1` ends up over `anc_1st_visit_ga_20wks_2`,
+  `anc_1st_visit_ga_20wks_3`, `antenatal_1st_booking_visit_20_weeks_or_later`
+  and `antenatal_1st_booking_visit_before_20_weeks`.
+
+**Not in this step.** Elements created by the picker in future (the
+decomposition's fold already prevents them); the backfill (step 7).
+
+**Gates.** The plan test pins both shapes and a Sum left empty refused; the
+execute test pins the delete, the rewrite, the version row and the rollback when
+the holder has changed.
+
+**Ends with.** One commit.
+
+### Step 7: `backfill` launches the import the repair needs
+
+**Surface.** `server/dhis2_id_fix/backfill.ts` (new; the manifest's
+`server/dhis2_id_fix/**` claims it), `server/dhis2_id_fix/mod.ts`,
+`fix_dhis2_ids.ts`, `server/tests/dhis2_id_fix_backfill_test.ts` (new, added to
+SYSTEM_05's manifest), SYSTEM_05 ("The DHIS2 id repair").
+
+**Deliverable.** Ruling 4.
+
+- `backfillSelection(plan)` (pure, exported) builds the window selection from a
+  plan file: `indicatorIds` are every `to_sum` and `to_calculated` action whose
+  `rows.count > 0`, plus every `sumRewrites` entry's `sumId`; `startPeriod` and
+  `endPeriod` are the earliest `firstPeriodId` and latest `lastPeriodId` among
+  those actions. A plan with none of them is refused with a message.
+- `deno run -A fix_dhis2_ids.ts backfill < plan.json` reads the stored URL,
+  launches through `launchDatasetHmisDhis2ImportRun` with `trigger: "manual"`
+  and `triggeredBy: "dhis2-id-repair"`, prints the run id, waits for
+  `onComplete`, then prints the run row's succeeded and failed pair counts and
+  exits 0; a refused launch (a run in progress, no connection, an empty
+  selection) prints the reason and exits 1. The header comment of
+  `fix_dhis2_ids.ts` names the three commands.
+
+**Not in this step.** Any route or allowlist change: the headless surface stays
+package reads; the wizard is untouched.
+
+**Gates.** The new test pins `backfillSelection` on a plan with the four
+outcomes and a rewrite, on a plan with nothing to backfill, and on the window
+bounds. `deno task typecheck` covers the script.
+
+**Ends with.** One commit.
+
+### Step 8: the second rollout
+
+Not code. As §7's second rollout says: Tim releases and upgrades the fleet; the
+sweep on the new image over every production instance on it; per instance with
+actions, dump, apply on Tim's word after he has read the plan file, restart,
+second plan; `backfill` from each applied plan file where the plan deleted rows.
+The session records each instance in §8. The reviewer that passes step 7 cuts
+this file to step 8 and §7; the session that finishes step 8 moves rca's line to
+SYSTEM_05's Open items and deletes this file in its last commit.
 
 ## 7. Rollout and rollback
 
@@ -101,6 +264,23 @@ Rollback is the dump: the schema does not change, so restoring `main` from step
 2 (the drop-and-pipe part of `restore_main`, without the image change) puts the
 instance back exactly. The deleted rows have no other copy.
 
+### The second rollout (steps 5 to 7)
+
+Ships with the release after step 7's review. Tim runs `./deploy` and moves the
+fleet with `wb c update server=<old> --server <new>`, `wb pull`,
+`wb run server=<new>`. Then the sweep above with the new image tag in the grep,
+over every production instance (the four repaired on 2.0.1 included: their dead
+ledger rows are what ruling 2 lists). Per instance with actions, in ascending
+action count: a dump, `apply` on Tim's word after he has read the plan file,
+`docker restart`, `plan` again to zero. Then, per instance whose applied plan
+deleted rows, `backfill` from that file:
+`ssh wb-server 'docker exec -i <instance> deno run -A fix_dhis2_ids.ts backfill' < rollout_logs/dhis2_ids_<instance>.json`,
+one at a time, for `cameroun`, `tchad`, `madagascar`, `mozambique`,
+`burkinafaso`, `somalia` (its morning plan file, run again now that 2.0.4 reads
+its 2.43 export), and `malawi` after its own apply. `nigeria`'s plan lists its
+two duplicates (ruling 3) and needs no backfill: the holders already hold every
+month. Rollback per instance is the dump, as above.
+
 ## 8. Build log
 
 | When       | Step | Row                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
@@ -123,3 +303,4 @@ instance back exactly. The deleted rows have no other copy.
 | 2026-10-21 | 4    | `burkinafaso` (2.0.4): plan 132 elements, 46 healthy, 86 actions (41 to_sum, 12 to_calculated, 10 retarget, 23 to_uploaded), 127 created elements, 5 Sum rewrites. Dump `rollout_logs/burkinafaso_main_2026-10-21.sql.gz` (128 MB). Apply: 4,145,137 rows deleted, 540,839 moved, dataset version 25 minted. Container restarted. Second plan: 183 elements, 183 healthy, 0 actions. Backfill still to run in the wizard: the 41 Sums and 12 calculated over the spans the plan file lists, 2021-01 to 2026-06 at the widest; seven created elements carry a combo UID in label and id and are renamed in the manager.                                                                                                                                                                                                                                                                                                        |
 | 2026-10-21 | 4    | `mauritanie` (2.0.4): plan 29 elements, 28 healthy, 1 action (`delivery` to_uploaded, not in DHIS2, no rows). Dump `rollout_logs/mauritanie_main_2026-10-21.sql.gz` (3 MB). The apply waited on a manual import run of Tim's (run 5, 2.38.7 server) until he cancelled it. Apply: 0 rows deleted, 0 moved, no version minted. Container restarted. Second plan: 28 elements, 28 healthy, 0 actions. No backfill. `malawi` remains: its DHIS2 answers 502, a watcher plans and applies it when the server is back.                                                                                                                                                                                                                                                                                                                                                                                                             |
 | 2026-10-21 | 4    | `mauritanie` follow-up: run 6 after the repair still failed 132 pairs, eleven ids over twelve months, nine TB outcome operands DHIS2 collects only quarterly and two elements in no data set; the 2.38 server serves values only by data set, so nothing can fetch them monthly. The repair never looked at them: it classifies ids DHIS2 has as a formula or nothing, not elements DHIS2 has but cannot serve monthly, which the picker refuses on the way in. Tim ran `rollout_logs/mauritanie_retype_ineligible.sql` on his word: the eleven became Uploaded with their rows kept, and their empty error ledger rows and `delivery`'s twelve were deleted (144). The 84 stale 409 rows from before 2.0.3 are overwritten by run 6 as it reaches them. Open: the planner retypes a monthly-ineligible element as Uploaded with its refusal as the reason, then every instance is planned again.                             |
+| 2026-10-21 | 4    | Amended on Tim's word with §3 (rulings 1 to 4, proposed) and steps 5 to 8, after the rollout over seven more instances showed three gaps: Mauritanie's eleven elements DHIS2 cannot serve monthly, which the repair never looked at and Tim retyped by hand; Nigeria's two default-combo duplicates; and the backfill, which only the wizard could launch. Next step `Do 5`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
