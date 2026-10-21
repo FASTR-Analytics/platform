@@ -25,7 +25,10 @@
 import postgres from "postgres";
 import type { Sql } from "postgres";
 import {
+  type DisaggregationOption,
+  FACILITY_ROLLUP_COLUMNS,
   figurePackageIssueForMetrics,
+  getDisaggregationAllowedPresentationOptions,
   getFetchConfigFromPresentationObjectConfig,
   type Language,
   type MetricWithStatus,
@@ -116,6 +119,9 @@ export type DatabaseSweep = {
   retired: Map<string, Map<string, number>>;
   // metric ids neither retired nor in the definitions → count
   unknown: Map<string, number>;
+  // retired figures whose carry is served only by a package with these
+  // facility columns enabled, which the definitions never carry → count
+  facilityDependent: Map<string, number>;
   failures: SweepFailure[];
   unreadable: (FigureRef & { reason: string })[];
 };
@@ -165,23 +171,57 @@ function firstIssue(
     : `${issue.path.join(".")}: ${issue.message}`;
 }
 
+type RetiredCheck = {
+  successorId: string | undefined;
+  // The facility columns the figure groups or filters by. A package offers
+  // them only when the instance enables them, so the check serves the figure
+  // under a successor widened with them.
+  facilityColumns: DisaggregationOption[];
+  reason: string | undefined;
+};
+
+function isFacilityColumn(option: DisaggregationOption): boolean {
+  return (FACILITY_ROLLUP_COLUMNS as readonly string[]).includes(option);
+}
+
+function withFacilityColumns(
+  metric: MetricWithStatus,
+  columns: DisaggregationOption[],
+): MetricWithStatus {
+  return {
+    ...metric,
+    disaggregationOptions: [
+      ...metric.disaggregationOptions,
+      ...columns.map((value) => ({
+        value,
+        isRequired: false,
+        allowedPresentationOptions: getDisaggregationAllowedPresentationOptions(
+          value,
+        ),
+      })),
+    ],
+  };
+}
+
 // The carried config of a retired figure, checked as retired_metrics_test.ts
 // checks the presets. `successorId` is known once the stored config parses.
 function checkRetiredFigure(
   retired: RetiredMetric,
   stored: StoredBundle,
-  metrics: readonly MetricWithStatus[],
-): { successorId: string | undefined; reason: string | undefined } {
+  metrics: MetricWithStatus[],
+): RetiredCheck {
   const parsed = presentationObjectConfigSchema.safeParse(stored.config);
   if (!parsed.success) {
     return {
       successorId: undefined,
+      facilityColumns: [],
       reason: `the stored config does not parse (${firstIssue(parsed.error)})`,
     };
   }
   if (!isLanguage(stored.language)) {
     return {
       successorId: retired.successor(parsed.data).metricId,
+      facilityColumns: [],
       reason: `the bundle's language is ${JSON.stringify(stored.language)}`,
     };
   }
@@ -190,8 +230,9 @@ function checkRetiredFigure(
     parsed.data,
     stored.language,
   );
-  const fail = (reason: string) => ({
+  const fail = (reason: string): RetiredCheck => ({
     successorId: succession.metricId,
+    facilityColumns: [],
     reason,
   });
   const carried = presentationObjectConfigSchema.safeParse(succession.config);
@@ -208,8 +249,26 @@ function checkRetiredFigure(
   if (resolution.kind !== "succeeded") {
     return fail(`${succession.metricId} is not in the local definitions`);
   }
-  const { metric, config } = resolution;
-  const issue = figurePackageIssueForMetrics(metric.id, config, metrics, null);
+  const { config } = resolution;
+  const first = figurePackageIssueForMetrics(
+    resolution.metric.id,
+    config,
+    metrics,
+    null,
+  );
+  const facilityColumns = first?.kind === "dimensions_not_in_package" &&
+      first.disaggregationOptions.every(isFacilityColumn)
+    ? first.disaggregationOptions
+    : [];
+  const metric = facilityColumns.length === 0
+    ? resolution.metric
+    : withFacilityColumns(resolution.metric, facilityColumns);
+  const served = facilityColumns.length === 0
+    ? metrics
+    : metrics.map((m) => (m.id === metric.id ? metric : m));
+  const issue = facilityColumns.length === 0
+    ? first
+    : figurePackageIssueForMetrics(metric.id, config, served, null);
   if (issue !== null) {
     return fail(`package issue: ${JSON.stringify(issue)}`);
   }
@@ -244,7 +303,7 @@ function checkRetiredFigure(
       return fail("the band chart keeps a value filter");
     }
   }
-  return { successorId: metric.id, reason: undefined };
+  return { successorId: metric.id, facilityColumns, reason: undefined };
 }
 
 function count(map: Map<string, number>, key: string): void {
@@ -255,13 +314,14 @@ function count(map: Map<string, number>, key: string): void {
 // deck of large bundles never sits in memory at once.
 export async function sweepDatabase(
   sql: Sql,
-  metrics: readonly MetricWithStatus[],
+  metrics: MetricWithStatus[],
 ): Promise<DatabaseSweep> {
   const known = new Set(metrics.map((m) => m.id));
   const sweep: DatabaseSweep = {
     figures: 0,
     retired: new Map(),
     unknown: new Map(),
+    facilityDependent: new Map(),
     failures: [],
     unreadable: [],
   };
@@ -287,7 +347,7 @@ export async function sweepDatabase(
           sweep.figures += 1;
           const retired = retiredMetric(stored.metricId);
           if (retired !== undefined) {
-            const { successorId, reason } = checkRetiredFigure(
+            const { successorId, facilityColumns, reason } = checkRetiredFigure(
               retired,
               stored,
               metrics,
@@ -296,6 +356,9 @@ export async function sweepDatabase(
               new Map<string, number>();
             count(bySuccessor, successorId ?? "?");
             sweep.retired.set(retired.id, bySuccessor);
+            if (facilityColumns.length > 0) {
+              count(sweep.facilityDependent, facilityColumns.join(", "));
+            }
             if (reason !== undefined) {
               sweep.failures.push({
                 ...ref,
@@ -326,10 +389,10 @@ function retiredLines(retired: Map<string, Map<string, number>>): string[] {
     );
 }
 
-function unknownLines(unknown: Map<string, number>): string[] {
-  return [...unknown.entries()]
+function countLines(counts: Map<string, number>): string[] {
+  return [...counts.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([metricId, n]) => `  ${metricId.padEnd(24)} ${n}`);
+    .map(([key, n]) => `  ${key.padEnd(24)} ${n}`);
 }
 
 export function formatDatabaseSweep(
@@ -342,9 +405,13 @@ export function formatDatabaseSweep(
     ...retiredLines(sweep.retired),
   ];
   if (sweep.retired.size === 0) lines.push("  (none)");
+  if (sweep.facilityDependent.size > 0) {
+    lines.push("  served only with these facility columns enabled:");
+    lines.push(...countLines(sweep.facilityDependent));
+  }
   if (sweep.unknown.size > 0) {
     lines.push("  neither retired nor in the definitions:");
-    lines.push(...unknownLines(sweep.unknown));
+    lines.push(...countLines(sweep.unknown));
   }
   for (const f of sweep.failures) {
     lines.push(
@@ -373,6 +440,7 @@ export function formatFleetSummary(
 ): string[] {
   const retired = new Map<string, Map<string, number>>();
   const unknown = new Map<string, number>();
+  const facilityDependent = new Map<string, number>();
   let figures = 0;
   let failures = 0;
   for (const { sweep } of sweeps) {
@@ -384,6 +452,7 @@ export function formatFleetSummary(
       retired.set(metricId, merged);
     }
     mergeCounts(unknown, sweep.unknown);
+    mergeCounts(facilityDependent, sweep.facilityDependent);
   }
   const lines = [
     `== ${sweeps.length} instances: ${figures} stored figures, ${failures} failing`,
@@ -391,9 +460,13 @@ export function formatFleetSummary(
     ...retiredLines(retired),
   ];
   if (retired.size === 0) lines.push("  (none)");
+  if (facilityDependent.size > 0) {
+    lines.push("  served only with these facility columns enabled:");
+    lines.push(...countLines(facilityDependent));
+  }
   if (unknown.size > 0) {
     lines.push("  neither retired nor in the definitions:");
-    lines.push(...unknownLines(unknown));
+    lines.push(...countLines(unknown));
   }
   return lines;
 }
@@ -510,7 +583,7 @@ async function withTunnel<T>(
 
 async function sweepInstance(
   instance: Instance,
-  metrics: readonly MetricWithStatus[],
+  metrics: MetricWithStatus[],
 ): Promise<DatabaseSweep> {
   const sql = postgres({
     host: instance.host,
