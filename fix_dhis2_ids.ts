@@ -44,8 +44,9 @@ function describeAction(action: Dhis2IdFixAction): string {
 }
 
 function summarise(plan: Dhis2IdFixPlan): string[] {
+  const staleRows = plan.staleLedgerRows.reduce((n, s) => n + s.count, 0);
   return [
-    `${plan.dhis2Url}: ${plan.elementsChecked} DHIS2 elements checked, ${plan.elementsHealthy} healthy, ${plan.actions.length} to repair`,
+    `${plan.dhis2Url}: ${plan.elementsChecked} DHIS2 elements checked, ${plan.elementsHealthy} healthy, ${plan.actions.length} to repair, ${staleRows} stale ledger rows to delete`,
     ...plan.createdElements.map((c) =>
       `create ${c.indicatorId} (${c.label}) for ${c.dataId}`
     ),

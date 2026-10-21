@@ -12,6 +12,7 @@ import {
   writeMembers,
 } from "../db/instance/indicators.ts";
 import { assertNoRunningDatasetHmisImportRun } from "../db/instance/dataset_hmis_import_runs.ts";
+import { readStaleLedgerCounts } from "./gather.ts";
 import {
   type Dhis2IdFixAction,
   type Dhis2IdFixPlan,
@@ -114,6 +115,17 @@ async function holderOf(sql: Sql, dataId: string): Promise<string | null> {
   return rows.at(0)?.indicator_common_id ?? null;
 }
 
+async function definitionOf(
+  sql: Sql,
+  indicatorId: string,
+): Promise<{ definition_type: string; data_id: string | null } | undefined> {
+  const rows = await sql<{ definition_type: string; data_id: string | null }[]>`
+    SELECT definition_type, data_id FROM indicators
+    WHERE indicator_common_id = ${indicatorId}
+  `;
+  return rows.at(0);
+}
+
 async function rowCount(sql: Sql, dataId: string): Promise<number> {
   const rows = await sql<{ count: number }[]>`
     SELECT COUNT(*)::int AS count FROM dataset_hmis WHERE data_id = ${dataId}
@@ -138,12 +150,7 @@ async function checkPreconditions(
     );
   }
   for (const action of plan.actions) {
-    const current = (await sql<
-      { definition_type: string; data_id: string | null }[]
-    >`
-      SELECT definition_type, data_id FROM indicators
-      WHERE indicator_common_id = ${action.indicatorId}
-    `).at(0);
+    const current = await definitionOf(sql, action.indicatorId);
     if (
       current === undefined || current.definition_type !== "dhis2_element" ||
       current.data_id !== action.dataId
@@ -187,8 +194,12 @@ async function checkPreconditions(
       .filter((a) => a.outcome === "to_uploaded")
       .map((a) => [a.indicatorId, a.dataId]),
   );
+  const liveStale = await readStaleLedgerCounts(
+    sql,
+    plan.staleLedgerRows.map((s) => s.dataId),
+  );
   for (const stale of plan.staleLedgerRows) {
-    await checkStaleLedgerRows(sql, stale, toUploaded);
+    await checkStaleLedgerRows(sql, stale, toUploaded, liveStale);
   }
 }
 
@@ -198,20 +209,15 @@ async function checkStaleLedgerRows(
   sql: Sql,
   stale: Dhis2IdFixStaleLedgerRows,
   toUploaded: Map<string, string>,
+  liveStale: Record<string, number>,
 ): Promise<void> {
-  const current = (await sql<{ definition_type: string; data_id: string }[]>`
-    SELECT definition_type, data_id FROM indicators
-    WHERE indicator_common_id = ${stale.indicatorId}
-  `).at(0);
+  const current = await definitionOf(sql, stale.indicatorId);
   const uploaded = current?.definition_type === "uploaded" &&
     current.data_id === stale.dataId;
   if (!uploaded && toUploaded.get(stale.indicatorId) !== stale.dataId) {
     fail(`${stale.indicatorId} is not Uploaded under ${stale.dataId}`);
   }
-  const count = (await sql<{ count: number }[]>`
-    SELECT COUNT(*)::int AS count FROM dataset_hmis_import_ledger
-    WHERE data_id = ${stale.dataId} AND status = 'error' AND n_records = 0
-  `)[0].count;
+  const count = liveStale[stale.dataId] ?? 0;
   if (count !== stale.count) {
     fail(
       `${stale.indicatorId} has ${count} stale ledger rows, the plan counted ${stale.count}`,
@@ -238,10 +244,7 @@ async function checkSumRewrite(
   rewrite: Dhis2IdFixSumRewrite,
   retyped: Map<string, Dhis2IdFixAction>,
 ): Promise<void> {
-  const sum = (await sql<{ definition_type: string }[]>`
-    SELECT definition_type FROM indicators
-    WHERE indicator_common_id = ${rewrite.sumId}
-  `).at(0);
+  const sum = await definitionOf(sql, rewrite.sumId);
   if (sum?.definition_type !== "sum") {
     fail(`${rewrite.sumId} is no longer a Sum`);
   }
