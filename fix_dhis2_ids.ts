@@ -8,6 +8,7 @@ import {
   type Dhis2IdFixPlan,
   diffDhis2IdFixPlans,
   gatherDhis2IdFixFacts,
+  launchDhis2IdFixBackfill,
   planDhis2IdFix,
   readDhis2IdFixPlanFile,
 } from "./server/dhis2_id_fix/mod.ts";
@@ -21,10 +22,11 @@ import {
 // credentials key; locally, with `--env-file`. Nothing is passed as an
 // argument.
 //
-//   deno run -A fix_dhis2_ids.ts plan > plan.json     the dry run, read it
-//   deno run -A fix_dhis2_ids.ts apply < plan.json    exit 2 if it has drifted
+//   deno run -A fix_dhis2_ids.ts plan > plan.json       the dry run, read it
+//   deno run -A fix_dhis2_ids.ts apply < plan.json      exit 2 if it has drifted
+//   deno run -A fix_dhis2_ids.ts backfill < plan.json   import what it emptied
 
-const USAGE = "Usage: deno run -A fix_dhis2_ids.ts plan | apply";
+const USAGE = "Usage: deno run -A fix_dhis2_ids.ts plan | apply | backfill";
 
 function describeAction(action: Dhis2IdFixAction): string {
   const rows = action.rows.count === 0
@@ -75,7 +77,7 @@ async function readStdin(): Promise<string> {
 }
 
 const command = Deno.args[0];
-if (command !== "plan" && command !== "apply") {
+if (command !== "plan" && command !== "apply" && command !== "backfill") {
   console.error(USAGE);
   Deno.exit(1);
 }
@@ -83,7 +85,28 @@ if (command !== "plan" && command !== "apply") {
 const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
 let exitCode = 0;
 try {
-  if (command === "plan") {
+  if (command === "backfill") {
+    const backfill = await launchDhis2IdFixBackfill(
+      mainDb,
+      readDhis2IdFixPlanFile(await readStdin()),
+    );
+    const { indicatorIds, startPeriod, endPeriod } = backfill.selection;
+    console.log(
+      `Import run ${backfill.runId} launched over ${
+        indicatorIds.join(", ")
+      }, ${startPeriod} to ${endPeriod}; waiting for it to finish`,
+    );
+    const run = await backfill.finished;
+    console.log(
+      `Import run ${run.runId}: ${run.status}, ${run.succeededPairs} pairs succeeded, ${run.failedPairs} failed${
+        run.error === null ? "" : `: ${run.error}`
+      }`,
+    );
+    console.log(
+      "The server did not see this run finish: restart the container so connected clients refetch the dataset summaries.",
+    );
+    exitCode = run.status === "complete" ? 0 : 1;
+  } else if (command === "plan") {
     const plan = planDhis2IdFix(
       await gatherDhis2IdFixFacts(mainDb),
       new Date().toISOString(),
