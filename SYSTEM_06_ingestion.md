@@ -45,6 +45,7 @@ globs:
   - server/tests/csv_header_preselect_test.ts
   - server/tests/csv_mapping_staging_test.ts
   - server/tests/csv_stream_reader_test.ts
+  - server/tests/dhis2_pull_route_test.ts
   - server/tests/dhis2_skip_and_record_test.ts
   - server/tests/hfa_csv_column_matching_test.ts
   - server/tests/hfa_facility_changes_test.ts
