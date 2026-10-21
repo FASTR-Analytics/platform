@@ -120,11 +120,11 @@ Endpoints are grouped by goal, each folder with a `mod.ts` barrel;
 
 | Folder                   | Goal                                                                             | Key functions                                                                                                                                                                      |
 | ------------------------ | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `common/`                | fetcher + retry + validation                                                     | `fetchFromDHIS2`, `getDHIS2`, `withRetry`, `validateDhis2Connection`                                                                                                               |
+| `common/`                | fetcher + retry + validation + version                                           | `fetchFromDHIS2`, `getDHIS2`, `withRetry`, `validateDhis2Connection`, `getDhis2Version`, `parseDhis2Release`                                                                       |
 | `goal1_org_units_v2/`    | org-unit hierarchy metadata and paged units                                      | `getOrgUnitMetadata` (levels + counts + roots, parallel), `getOrgUnitNamesAtLevel`, `pageOrgUnitPathsAtLevel` (one page of units with paths per yield), `testDHIS2Connection`      |
 | `goal2_indicators/`      | indicator / data-element discovery, element eligibility, indicator decomposition | `get/search{Indicators,DataElements}FromDHIS2`, `searchAllIndicatorsAndDataElements`, `getDhis2ElementVerdict`, `parseDhis2Indicator`, `withElementVerdicts`, `withDecompositions` |
 | `goal4_geojson/`         | boundary import for maps                                                         | `fetchOrgUnitsMetadataForLevel`, `fetchGeometryCountForLevel`, `fetchOrgUnitsGeoJsonForLevel`, session caches                                                                      |
-| `goal5_data_value_sets/` | reported values + metadata id-existence                                          | `getDataValueSetsFromDHIS2`, `getExistingMetadataIds`, `getOrgUnitIdsAtLevel`                                                                                                      |
+| `goal5_data_value_sets/` | reported values + metadata id-existence + monthly data sets                      | `getDataValueSetsFromDHIS2`, `getExistingMetadataIds`, `getMonthlyDataSetIdByElement`, `getOrgUnitIdsAtLevel`                                                                      |
 
 (`goal1`'s `_v2` suffix is vestigial: no v1 survives.)
 
@@ -195,13 +195,20 @@ passes its own data-element results as `known`. Pinned by
 `server/tests/dhis2_element_eligibility_test.ts` and
 `server/tests/dhis2_decompose_indicator_test.ts`.
 
-**Data value sets.** `getDataValueSetsFromDHIS2` pulls one data element for one
+**Data value sets.** `getDataValueSetsFromDHIS2` pulls one selector
+(`Dhis2ValueSelector`: `dataElement=`, which the export reads from DHIS2 2.39,
+or `dataSet=`, every element of the set, for an earlier release whose export
+ignores `dataElement=` and answers 409 E2001 on the empty selection) for one
 `period=` token (passed through untranslated: the DHIS2 server reads it in its
 own calendar) under the given org units with `children=true`, so one root pull
 covers a country and a level-2 pull covers one subtree. A body with no
-`dataValues` key is a legitimate empty month. `getExistingMetadataIds` answers
-which of a list of ids exist on `dataElements`, `indicators` or
-`categoryOptionCombos` (chunked `id:in` filters, 100 per request);
+`dataValues` key is a legitimate empty month. The choice of selector is S6's
+(the dispatcher reads the version through `common/system_info.ts`).
+`getExistingMetadataIds` answers which of a list of ids exist on `dataElements`,
+`indicators` or `categoryOptionCombos` (chunked `id:in` filters, 100 per
+request); `getMonthlyDataSetIdByElement` names the first monthly data set each
+element is collected in, through goal 2's `toDataSetElements` and
+`monthlyDataSetId` (the same field the eligibility check reads);
 `getOrgUnitIdsAtLevel` lists the ids at one hierarchy level. There is no
 analytics fetcher: the importer never asks DHIS2 to evaluate a formula.
 
@@ -299,11 +306,12 @@ en/fr/pt.
   `indicators_dhis2` (`searchDhis2All`, `createIndicatorsFromDhis2`).
 - **S6 HMIS dataset import**: `launchDatasetHmisDhis2Run` checks that a
   connection is stored (`getStoredDhis2CredentialsInfo`) without validating it,
-  then the import run worker's dispatcher uses goal 5
+  then the import run worker's dispatcher uses `getDhis2Version` and goal 5
   (`getDataValueSetsFromDHIS2`, `getExistingMetadataIds`,
-  `getOrgUnitIdsAtLevel`) for classification + country pulls. The worker's
-  semantics (dispatcher classification, per-pair integration, skip-and-record,
-  the subtree split) are S6's documentation.
+  `getMonthlyDataSetIdByElement`, `getOrgUnitIdsAtLevel`) for classification
+  - country pulls. The worker's semantics (dispatcher classification, the
+    selector by version, per-pair integration, skip-and-record, the subtree
+    split) are S6's documentation.
 
 ## Traps
 

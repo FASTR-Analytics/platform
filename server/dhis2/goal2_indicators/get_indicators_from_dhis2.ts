@@ -39,21 +39,23 @@ type DataElementWire = {
     | null
     | undefined;
   dataElementGroups: IdNameWire[] | null | undefined;
-  dataSetElements:
-    | Array<{
-      dataSet:
-        | {
-          id: string | null | undefined;
-          periodType: string | null | undefined;
-        }
-        | null
-        | undefined;
-    }>
-    | null
-    | undefined;
+  dataSetElements: DataSetElementsWire;
   created: string | null | undefined;
   lastUpdated: string | null | undefined;
 };
+
+export type DataSetElementsWire =
+  | Array<{
+    dataSet:
+      | {
+        id: string | null | undefined;
+        periodType: string | null | undefined;
+      }
+      | null
+      | undefined;
+  }>
+  | null
+  | undefined;
 
 type IndicatorWire = {
   id: string | null | undefined;
@@ -141,15 +143,22 @@ function toDataElement(w: DataElementWire): DHIS2DataElement[] {
       ),
     },
     dataElementGroups: idNames(w.dataElementGroups),
-    dataSetElements: (w.dataSetElements ?? []).map((dse) => ({
-      dataSet: dse.dataSet == null ? undefined : {
-        id: dse.dataSet.id ?? undefined,
-        periodType: dse.dataSet.periodType ?? undefined,
-      },
-    })),
+    dataSetElements: toDataSetElements(w.dataSetElements),
     created: w.created ?? undefined,
     lastUpdated: w.lastUpdated ?? undefined,
   }];
+}
+
+// Shared with goal 5's data-set lookup, which reads the same field.
+export function toDataSetElements(
+  wire: DataSetElementsWire,
+): NonNullable<DHIS2DataElement["dataSetElements"]> {
+  return (wire ?? []).map((dse) => ({
+    dataSet: dse.dataSet == null ? undefined : {
+      id: dse.dataSet.id ?? undefined,
+      periodType: dse.dataSet.periodType ?? undefined,
+    },
+  }));
 }
 
 // An indicator type without a numeric factor is no type at all: the

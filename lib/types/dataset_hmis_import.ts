@@ -183,9 +183,10 @@ export type Dhis2FetchErrorKind = "permanent" | "transient";
 // with their own data. Lives in the run's run_stats blob. One entry per pair
 // that reached a fetch: ids the dispatcher refused (classification.unknownIds
 // and dhis2IndicatorIds) never fetch and appear only there and in the ledger.
-// One dataValueSets pull covers every pair sharing its data element and
-// month: each covered pair carries the covering pull's request count and
-// wall time (duplicated, not divided).
+// One dataValueSets pull covers every pair sharing its selector (data
+// element, or data set on a release before 2.39) and month: each covered
+// pair carries the covering pull's request count and wall time (duplicated,
+// not divided).
 export type Dhis2PairFetchStat = {
   dataId: string;
   periodId: number;
@@ -410,7 +411,16 @@ export type DatasetHmisImportRunDetail = DatasetHmisImportRunSummary & {
   csvStagingResult?: DatasetCsvStagingResult;
 };
 
+// What a run's dataValueSets pulls select: the data element from DHIS2
+// 2.39, whose export reads dataElement=; the monthly data set the element is
+// collected in on an earlier release, whose export ignores dataElement=.
+export type Dhis2PullBy = "dataElement" | "dataSet";
+
 export type DatasetHmisImportRunStats = {
+  // The version DHIS2 reported at run start and the selector it decided.
+  // Absent on runs recorded before 2026-10-21.
+  dhis2Version?: string;
+  pullBy?: Dhis2PullBy;
   classification: {
     dvsBareElements: number;
     dvsOperands: number;
@@ -421,6 +431,10 @@ export type DatasetHmisImportRunStats = {
     // permanent ledger errors carrying the remedy, no fetch, existing data
     // kept.
     dhis2IndicatorIds: string[];
+    // By data set only: data ids whose element is collected in no monthly
+    // data set, so no pull can select it. Permanent ledger errors, no fetch.
+    // Absent on runs recorded before 2026-10-21.
+    noMonthlyDataSetIds?: string[];
   };
   pairFetchStats: Dhis2PairFetchStat[];
   // Removed 2026-07-24: older stored run_stats blobs may carry a `shadow`

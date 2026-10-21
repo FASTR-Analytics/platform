@@ -3,12 +3,12 @@ import {
   getDHIS2,
   validateDhis2Connection,
 } from "../common/base_fetcher.ts";
+import { getDhis2Version } from "../common/system_info.ts";
 import { getOrgUnitLevels } from "./get_metadata.ts";
 import type { TranslatableString } from "lib";
 
 // Unvalidated JSON from an external server: every field may be missing or
 // null.
-type SystemInfoResponse = { version: string | null | undefined };
 type OrgUnitCountResponse = {
   pager: { total: number | null | undefined } | null | undefined;
 };
@@ -30,10 +30,7 @@ export async function testDHIS2Connection(
   }
 
   try {
-    const systemInfo = await getDHIS2<SystemInfoResponse>(
-      "/api/system/info.json",
-      options,
-    );
+    const version = await getDhis2Version(options);
 
     const testParams = new URLSearchParams();
     testParams.set("fields", "id");
@@ -59,7 +56,7 @@ export async function testDHIS2Connection(
       details: {
         orgUnitCount: testOrgUnits.pager?.total ?? undefined,
         levels: levels.length,
-        version: systemInfo.version ?? undefined,
+        version,
       },
     };
   } catch (error) {

@@ -17,6 +17,17 @@ const COUNT_VALUE_TYPES: readonly string[] = [
 
 const MONTHLY_PERIOD_TYPE = "Monthly";
 
+// The first monthly data set the element is collected in: what a
+// dataValueSets export by data set names (goal 5), on the releases whose
+// export cannot select a data element.
+export function monthlyDataSetId(
+  dataSetElements: DHIS2DataElement["dataSetElements"],
+): string | undefined {
+  return (dataSetElements ?? []).find((dse) =>
+    dse.dataSet?.periodType === MONTHLY_PERIOD_TYPE
+  )?.dataSet?.id;
+}
+
 export function getDhis2ElementVerdict(
   element: DHIS2DataElement,
 ): Dhis2ElementVerdict {
