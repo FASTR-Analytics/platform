@@ -1,3 +1,25 @@
+[2.0.4] [user] [added] - Retired metrics automatically carry over to their successor in visualizations
+[2.0.4] [user] [added] - Clear error message when a visualization's metric belongs to a retired module
+[2.0.4] [user] [added] - View full error details for failed DHIS2 import pairs via a "View error" button
+[2.0.4] [user] [added] - DHIS2 version and data pull method shown in import run details
+[2.0.4] [user] [added] - Warning when selected indicators have no monthly data set in older DHIS2 versions
+[2.0.4] [user] [fixed] - Visualizations with too many data points now show a helpful error instead of failing silently
+[2.0.4] [user] [fixed] - Updating all stale visualizations in a slide deck now works correctly on the open slide
+[2.0.4] [user] [fixed] - Stale visualization count updates immediately after editing a figure in the open slide
+[2.0.4] [user] [changed] - Editing a figure from a retired metric uses apply/cancel instead of live co-editing
+[2.0.4] [admin] [added] - DHIS2 imports now support older releases (before 2.39) by fetching values by data set instead of data element
+[2.0.4] [admin] [added] - DHIS2 import run details now show the detected DHIS2 version and pull method used
+[2.0.4] [admin] [added] - DHIS2 import errors now have a "View error" button to see the full error detail
+[2.0.4] [admin] [added] - DHIS2 imports detect indicators collected in no monthly data set and report them clearly
+[2.0.4] [admin] [added] - DHIS2 indicators that are constants (no data elements) are now refused with a clear explanation
+[2.0.4] [admin] [changed] - Figures using metrics from retired modules automatically carry over to their successor metrics
+[2.0.4] [admin] [changed] - Editing a figure whose metric was retired opens the successor metric's configuration
+[2.0.4] [admin] [changed] - The "Update all figures" action in slide decks now correctly updates the currently open slide in real time
+[2.0.4] [admin] [changed] - Stale figure count in slide decks updates immediately when editing figures on the open slide
+[2.0.4] [admin] [fixed] - Visualizations requesting too many data points now show a clear error instead of failing silently
+[2.0.4] [admin] [fixed] - DHIS2 indicator operands using the default category combo are now correctly treated as the base data element
+[2.0.4] [admin] [fixed] - Live co-editing is properly disabled when editing a figure carried to a successor metric
+[2.0.4] [admin] [fixed] - Slide deck reattach no longer briefly unmounts the editor when the authoring context reloads
 [2.0.3] [user] [changed] - "Indicator values" module renamed to "Service utilization"
 [2.0.3] [admin] [changed] - Module "Indicator values" renamed to "Service utilization"
 [2.0.3] [user] [changed] - "Default visualizations" renamed to "presets" throughout the platform
