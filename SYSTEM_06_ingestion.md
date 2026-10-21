@@ -207,10 +207,10 @@ This section is the authority. Every HMIS import, DHIS2 or CSV, is a row in
   which keeps each indicator's id; nothing in the app repairs one, since an
   indicator with data can be neither deleted nor given a new DHIS2 id (S5). The
   client's `dhis2IdRepairNote` (`hmis/_shared/indicator_display.ts`) carries the
-  note verbatim and is shown under both lists in the run detail and the import
-  wizard's Review step, and under the formula list in the Refresh DHIS2 names
-  modal (S5); every refused pair's ledger message ends with the same two
-  sentences. The run detail's two banners list
+  note verbatim and is shown above both lists in the run detail, under both
+  lists in the import wizard's Review step, and under the formula list in the
+  Refresh DHIS2 names modal (S5); every refused pair's ledger message ends with
+  the same two sentences. The run detail's two banners list
   `classification.dhis2IndicatorIds` and `classification.unknownIds`, each with
   the note and each id as `indicator id · label (UID)` through the dictionary
   keyed by data id (`dataIdWithIndicator`), bare where no indicator carries it.
