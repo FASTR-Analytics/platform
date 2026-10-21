@@ -1,5 +1,7 @@
-[TBD] [user] [changed] - "Default visualizations" renamed to "presets" throughout the platform
-[TBD] [admin] [changed] - "Default visualizations" renamed to "presets" throughout the platform
+[2.0.3] [user] [changed] - "Indicator values" module renamed to "Service utilization"
+[2.0.3] [admin] [changed] - Module "Indicator values" renamed to "Service utilization"
+[2.0.3] [user] [changed] - "Default visualizations" renamed to "presets" throughout the platform
+[2.0.3] [admin] [changed] - "Default visualizations" renamed to "presets" throughout the platform
 [2.0.2] [user] [added] - Bulk delete for scopes from the scopes list
 [2.0.2] [user] [changed] - "All data" scope now shown as a fixed panel above the scopes table
 [2.0.2] [user] [added] - New disruption chart metrics at sub-district geographic levels
