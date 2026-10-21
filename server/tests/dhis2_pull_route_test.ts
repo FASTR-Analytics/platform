@@ -8,7 +8,10 @@
 import { assertEquals } from "@std/assert";
 import { parseDhis2Release } from "../dhis2/common/system_info.ts";
 import { monthlyDataSetId } from "../dhis2/goal2_indicators/element_eligibility.ts";
-import type { DHIS2DataValue } from "../dhis2/goal5_data_value_sets/mod.ts";
+import {
+  dataValuesWithSetDefaults,
+  type DHIS2DataValue,
+} from "../dhis2/goal5_data_value_sets/mod.ts";
 import {
   buildPullTasks,
   type DvsCoveredPair,
@@ -103,6 +106,40 @@ Deno.test("by data set: elements sharing a set share one pull; an element withou
     without.flatMap((t) => t.coveredPairs.map((c) => c.dataId)),
     ["a", "a.coc", "a"],
   );
+});
+
+Deno.test("a field the export states once for the set is folded onto every value that lacks it", () => {
+  const bare = {
+    dataElement: ELEMENT_A,
+    period: undefined,
+    orgUnit: undefined,
+    categoryOptionCombo: COC,
+    attributeOptionCombo: undefined,
+    value: "3",
+    lastUpdated: undefined,
+    deleted: false,
+  };
+  const own: DHIS2DataValue = {
+    ...bare,
+    period: "202312",
+    orgUnit: "Fac2",
+    attributeOptionCombo: "AocBbbbbbb1",
+  };
+  const values = dataValuesWithSetDefaults({
+    period: "202401",
+    orgUnit: "Root0000001",
+    attributeOptionCombo: "AocAaaaaaa1",
+    dataValues: [bare, own],
+  });
+  assertEquals(values[0], {
+    ...bare,
+    period: "202401",
+    orgUnit: "Root0000001",
+    attributeOptionCombo: "AocAaaaaaa1",
+  });
+  assertEquals(values[1], own);
+  assertEquals(dataValuesWithSetDefaults({ dataValues: [bare] }), [bare]);
+  assertEquals(dataValuesWithSetDefaults({ dataValues: undefined }), []);
 });
 
 Deno.test("a data-set pull is reduced per element: each pair takes only its element's values", () => {

@@ -208,15 +208,21 @@ ignores `dataElement=` and answers 409 E2001 on the empty selection) for one
 `period=` token (passed through untranslated: the DHIS2 server reads it in its
 own calendar) under the given org units with `children=true`, so one root pull
 covers a country and a level-2 pull covers one subtree. A body with no
-`dataValues` key is a legitimate empty month. The choice of selector is S6's
-(the dispatcher reads the version through `common/system_info.ts`).
-`getExistingMetadataIds` answers which of a list of ids exist on `dataElements`,
-`indicators` or `categoryOptionCombos` (chunked `id:in` filters, 100 per
-request); `getMonthlyDataSetIdByElement` names the first monthly data set each
-element is collected in, through goal 2's `toDataSetElements` and
-`monthlyDataSetId` (the same field the eligibility check reads);
-`getOrgUnitIdsAtLevel` lists the ids at one hierarchy level. There is no
-analytics fetcher: the importer never asks DHIS2 to evaluate a formula.
+`dataValues` key is a legitimate empty month. The export may state `period`,
+`orgUnit` or `attributeOptionCombo` once at the top of the set and leave it off
+each value (DHIS2 2.43 does so for a single-period pull, which failed every pair
+of Somalia's imports from 2026-10-07 until the fold landed);
+`dataValuesWithSetDefaults` (pure) folds those onto every value that lacks them,
+and the fetcher returns the values so folded, the one shape the worker's period
+check and the reduce read. The choice of selector is S6's (the dispatcher reads
+the version through `common/system_info.ts`). `getExistingMetadataIds` answers
+which of a list of ids exist on `dataElements`, `indicators` or
+`categoryOptionCombos` (chunked `id:in` filters, 100 per request);
+`getMonthlyDataSetIdByElement` names the first monthly data set each element is
+collected in, through goal 2's `toDataSetElements` and `monthlyDataSetId` (the
+same field the eligibility check reads); `getOrgUnitIdsAtLevel` lists the ids at
+one hierarchy level. There is no analytics fetcher: the importer never asks
+DHIS2 to evaluate a formula.
 
 **Geojson: metadata-vs-heavy split.** Analyze-side,
 `fetchOrgUnitsMetadataForLevel` pulls geometry-less org-unit metadata

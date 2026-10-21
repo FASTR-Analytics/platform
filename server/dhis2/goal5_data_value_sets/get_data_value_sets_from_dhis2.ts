@@ -18,9 +18,28 @@ export type DHIS2DataValue = {
   deleted: boolean | null | undefined;
 };
 
+// The export may state a field once for the whole set and leave it off each
+// value: DHIS2 2.43 answers a single-period pull with a top-level `period`
+// and no `period` on any value. `dataValuesWithSetDefaults` is the one
+// place that shape is folded back onto the values.
 export type DHIS2DataValueSetsResponse = {
+  dataSet?: string | null;
+  period?: string | null;
+  orgUnit?: string | null;
+  attributeOptionCombo?: string | null;
   dataValues: DHIS2DataValue[] | null | undefined;
 };
+
+export function dataValuesWithSetDefaults(
+  res: DHIS2DataValueSetsResponse,
+): DHIS2DataValue[] {
+  return (res.dataValues ?? []).map((v) => ({
+    ...v,
+    period: v.period ?? res.period,
+    orgUnit: v.orgUnit ?? res.orgUnit,
+    attributeOptionCombo: v.attributeOptionCombo ?? res.attributeOptionCombo,
+  }));
+}
 
 type IdRow = { id: string | null | undefined };
 
@@ -43,7 +62,8 @@ export type Dhis2ValueSelector = {
 // engine costs minutes-to-hours. children=true descends from the given org
 // units to facility level. A month with no data legitimately returns a body
 // with no dataValues key: that is an unambiguous empty, not a failure
-// (unlike analytics' missing "rows").
+// (unlike analytics' missing "rows"). The values come back with every
+// set-level field folded onto them.
 //
 // Selection is period=: an opaque token the DHIS2 server interprets in ITS
 // OWN calendar, the same contract as analytics `pe:`. This is the only form
@@ -60,7 +80,7 @@ export async function getDataValueSetsFromDHIS2(
     period: string;
   },
   options: FetchOptions,
-): Promise<DHIS2DataValueSetsResponse> {
+): Promise<DHIS2DataValue[]> {
   const searchParams = new URLSearchParams();
   searchParams.append(params.selector.kind, params.selector.id);
   for (const orgUnit of params.orgUnits) {
@@ -68,10 +88,12 @@ export async function getDataValueSetsFromDHIS2(
   }
   searchParams.set("children", "true");
   searchParams.set("period", params.period);
-  return await getDHIS2<DHIS2DataValueSetsResponse>(
-    "/api/dataValueSets.json",
-    options,
-    searchParams,
+  return dataValuesWithSetDefaults(
+    await getDHIS2<DHIS2DataValueSetsResponse>(
+      "/api/dataValueSets.json",
+      options,
+      searchParams,
+    ),
   );
 }
 

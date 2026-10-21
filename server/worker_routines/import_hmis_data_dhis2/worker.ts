@@ -569,7 +569,7 @@ async function run(std: RunWorkerMessage) {
         acc.requests++;
         const requestStartMs = Date.now();
         try {
-          const res = await getDataValueSetsFromDHIS2(
+          return await getDataValueSetsFromDHIS2(
             {
               selector,
               orgUnits,
@@ -598,7 +598,6 @@ async function run(std: RunWorkerMessage) {
               },
             },
           );
-          return res.dataValues ?? [];
         } finally {
           const requestMs = Date.now() - requestStartMs;
           acc.totalFetchMs += requestMs;
