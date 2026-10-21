@@ -181,11 +181,12 @@ This section is the authority. Every HMIS import, DHIS2 or CSV, is a row in
   each time the step opens, through the stateless
   `classifyDatasetHmisDhis2Selection` (the stored connection, `classifyElements`
   with one attempt and a 15 s budget per call), and lists the formula ids and
-  the not-found ids as the dispatcher bullet below describes, each with its
-  remedy. It is a preview: it never blocks the launch, a connection or DHIS2
-  error is one line in place of the lists, and the run's own classification is
-  the one that counts. A pairs selection (retry failed, re-import) is not asked,
-  since its wizard has no description to read the data ids from.
+  the not-found ids as the dispatcher bullet below describes, each list ending
+  with the repair note. It is a preview: it never blocks the launch, a
+  connection or DHIS2 error is one line in place of the lists, and the run's own
+  classification is the one that counts. A pairs selection (retry failed,
+  re-import) is not asked, since its wizard has no description to read the data
+  ids from.
 - The worker classifies every data id of the run from DHIS2 metadata
   (dispatcher, `dispatch.ts`) and has one fetch route: bare data elements and
   operands → dataValueSets country-pulls (the values facilities reported, no
@@ -199,26 +200,19 @@ This section is the authority. Every HMIS import, DHIS2 or CSV, is a row in
   no data element or operand at all. Every message that names a formula id calls
   it a "DHIS2 formula" and says once that DHIS2 calls it an indicator; the
   internal names keep DHIS2's word: `run_stats` rows store `dhis2IndicatorIds`,
-  and the dispatcher's reason `dhis2_indicator` matches it. The remedy for a
-  formula id is: "To fix it: in the indicator list, use Add from DHIS2, search
-  the formula by name and save it. The app creates one DHIS2 element per data
-  element in the formula and one calculated indicator for the formula itself.
-  Then change the old indicator's type to Uploaded and turn off its Include in
-  analysis: it keeps the values it already holds, and no DHIS2 import fetches it
-  again. Delete it instead if it holds no data." The remedy for a not-found id
-  is: "If it holds no data, fix its DHIS2 id or delete the indicator. If it
-  holds data, change its type to Uploaded: it keeps its data, and no DHIS2
-  import fetches it again." Retyping to Uploaded is the remedy because an
+  and the dispatcher's reason `dhis2_indicator` matches it. Both kinds of id
+  carry one repair note, whose authoritative wording is: "Ask the FASTR team to
+  run the DHIS2 id repair. It keeps the data already imported." The repair is
+  S5's `fix_dhis2_ids.ts`, run by the team inside the instance's container,
+  which keeps each indicator's id; nothing in the app repairs one, since an
   indicator with data can be neither deleted nor given a new DHIS2 id (S5). The
-  client's `dhis2FormulaRemedy` and `dhis2NotFoundRemedy`
-  (`hmis/_shared/indicator_display.ts`) carry these verbatim and are shown in
-  the run detail and the import wizard's Review step, and the formula remedy in
-  the Refresh DHIS2 names modal (S5). A refused formula pair's ledger message
-  carries the formula remedy's steps in one sentence; a not-found pair's ends
-  with the not-found remedy's steps, introduced by "To fix this, open the
-  indicator list." The run detail's two banners list
+  client's `dhis2IdRepairNote` (`hmis/_shared/indicator_display.ts`) carries the
+  note verbatim and is shown under both lists in the run detail and the import
+  wizard's Review step, and under the formula list in the Refresh DHIS2 names
+  modal (S5); every refused pair's ledger message ends with the same two
+  sentences. The run detail's two banners list
   `classification.dhis2IndicatorIds` and `classification.unknownIds`, each with
-  its remedy and each id as `indicator id · label (UID)` through the dictionary
+  the note and each id as `indicator id · label (UID)` through the dictionary
   keyed by data id (`dataIdWithIndicator`), bare where no indicator carries it.
   A response containing any period other than the requested one fails the pull
   loudly (permanent). The evidence base (verdicts E1–E13, incl. the calendar

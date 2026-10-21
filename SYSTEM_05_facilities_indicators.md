@@ -511,12 +511,12 @@ explanation and the count of elements to read, the Refresh button waiting on the
 one request with its spinner, then the counts in its place and a warning callout
 for each list, the formulas above the not-found, each id shown as
 `indicator id · label (UID)` (`dataIdWithIndicator`, through one map by
-indicator id over the list the manager passes in) and the formulas with S6's
-formula remedy. The manager's toolbar keeps the daily actions as buttons (Sort,
-Add from DHIS2, Create new) and puts the occasional ones, the dictionary
-download and Refresh DHIS2 names, in an overflow menu (panther's
-`ActionMenuButton`, `otherActionItems`), global admins only, the refresh gated
-on a stored DHIS2 connection like Add from DHIS2.
+indicator id over the list the manager passes in) and the formulas with the
+DHIS2 id repair note (S6's wording). The manager's toolbar keeps the daily
+actions as buttons (Sort, Add from DHIS2, Create new) and puts the occasional
+ones, the dictionary download and Refresh DHIS2 names, in an overflow menu
+(panther's `ActionMenuButton`, `otherActionItems`), global admins only, the
+refresh gated on a stored DHIS2 connection like Add from DHIS2.
 
 The DHIS2 id repair (`server/dhis2_id_fix/`, run by the root script
 `fix_dhis2_ids.ts` inside an instance's app container, which holds the database

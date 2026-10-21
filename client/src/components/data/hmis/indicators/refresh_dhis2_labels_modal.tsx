@@ -9,7 +9,7 @@ import { type Dhis2LabelRefresh, type HmisIndicator, t3 } from "lib";
 import { serverActions } from "~/server_actions";
 import {
   dataIdWithIndicator,
-  dhis2FormulaRemedy,
+  dhis2IdRepairNote,
 } from "~/components/data/hmis/_shared/mod.ts";
 
 // The DHIS2 name refresh, explained before it runs and reported after: one
@@ -135,7 +135,7 @@ function Result(p: { result: Dhis2LabelRefresh; indicators: HmisIndicator[] }) {
           <For each={listed(p.result.formulas)}>
             {(line) => <div>{line}</div>}
           </For>
-          <div>{dhis2FormulaRemedy()}</div>
+          <div>{dhis2IdRepairNote()}</div>
         </Callout>
       </Show>
       <Show when={p.result.notFound.length > 0}>

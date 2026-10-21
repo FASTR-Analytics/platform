@@ -23,8 +23,7 @@ import { createMemo, For, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import {
   dataIdWithIndicator,
-  dhis2FormulaRemedy,
-  dhis2NotFoundRemedy,
+  dhis2IdRepairNote,
   indicatorNameText,
   indicatorsByDataId,
 } from "~/components/data/hmis/_shared/mod.ts";
@@ -423,7 +422,7 @@ export function Dhis2RunDetail(
                           "Os seus IDs DHIS2 não correspondem a nenhum elemento de dados nem operando no DHIS2, pelo que todos os meses selecionados de cada um falharam sem obtenção e falharão em todas as importações até ser corrigido.",
                       })}
                     </div>
-                    <div>{dhis2NotFoundRemedy()}</div>
+                    <div>{dhis2IdRepairNote()}</div>
                     {idList(unknownIds)}
                   </div>
                 </Show>
@@ -449,7 +448,7 @@ export function Dhis2RunDetail(
                           "Uma fórmula DHIS2 é aquilo a que o DHIS2 chama um indicador, e a importação lê apenas elementos de dados, pelo que todos os meses selecionados de cada um destes falharam sem obtenção e continuarão a falhar; os dados já importados são mantidos.",
                       })}
                     </div>
-                    <div>{dhis2FormulaRemedy()}</div>
+                    <div>{dhis2IdRepairNote()}</div>
                     {idList(dhis2IndicatorIds)}
                   </div>
                 </Show>

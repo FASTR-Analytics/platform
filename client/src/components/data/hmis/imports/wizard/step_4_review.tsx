@@ -4,9 +4,8 @@ import { createMemo, For, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import {
   dataIdWithIndicator,
-  dhis2FormulaRemedy,
   dhis2IdLabel,
-  dhis2NotFoundRemedy,
+  dhis2IdRepairNote,
   indicatorsByDataId,
 } from "~/components/data/hmis/_shared/mod.ts";
 import { IdListLine } from "./id_list_line";
@@ -195,7 +194,7 @@ function SelectionClassification(p: {
                 summary={formulaSummary(result.formulaIds.length)}
                 class="text-danger"
               />
-              <div>{dhis2FormulaRemedy()}</div>
+              <div>{dhis2IdRepairNote()}</div>
             </div>
           </Show>
           <Show when={result.notFoundIds.length > 0}>
@@ -205,7 +204,7 @@ function SelectionClassification(p: {
                 summary={notFoundSummary(result.notFoundIds.length)}
                 class="text-danger"
               />
-              <div>{dhis2NotFoundRemedy()}</div>
+              <div>{dhis2IdRepairNote()}</div>
             </div>
           </Show>
         </>

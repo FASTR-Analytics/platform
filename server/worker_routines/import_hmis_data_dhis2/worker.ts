@@ -445,7 +445,7 @@ async function run(std: RunWorkerMessage) {
 
     // Refused ids get no fetch: every pair becomes a permanent,
     // ledger-visible error so stale config is loud. A DHIS2 formula keeps its
-    // existing data. The authoritative wording of both remedies is the
+    // existing data. The authoritative wording of the repair note is the
     // dispatcher bullet of SYSTEM_06_ingestion.md.
     const failEveryPairOf = async (id: string, message: string) => {
       for (const pair of allPairs.filter((p) => p.dataId === id)) {
@@ -456,19 +456,16 @@ async function run(std: RunWorkerMessage) {
       await failEveryPairOf(
         id,
         `Not found in DHIS2: "${id}" matches no data element or operand ` +
-          `(data element . category option combo). To fix this, open the indicator list. ` +
-          `If this indicator holds no data, fix the id or delete the indicator. If it holds ` +
-          `data, change its type to Uploaded: it keeps its data, and no DHIS2 import fetches it again.`,
+          `(data element . category option combo). Ask the FASTR team to run the ` +
+          `DHIS2 id repair. It keeps the data already imported.`,
       );
     }
     for (const id of dhis2IndicatorIds) {
       await failEveryPairOf(
         id,
         `"${id}" is a DHIS2 formula (what DHIS2 calls an indicator), which this importer ` +
-          `does not fetch: only data elements and operands are imported as values. Its ` +
-          `existing data is kept. To fix this, in the indicator list use Add from DHIS2 to ` +
-          `search the formula by name and save it, then change this indicator's type to ` +
-          `Uploaded and turn off its Include in analysis, or delete it if it holds no data.`,
+          `does not fetch: only data elements and operands are imported as values. ` +
+          `Ask the FASTR team to run the DHIS2 id repair. It keeps the data already imported.`,
       );
     }
 
