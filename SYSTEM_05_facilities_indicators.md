@@ -554,21 +554,6 @@ negative `dataset_hmis_versions` row for all the deleted rows, and
 touched row's `updated_at` moves, so the dictionary stamps change; the realtime
 summaries need a container restart.
 
-Per instance, in order: `plan` saved to a git-ignored file
-(`ssh wb-server 'docker exec <instance> deno run -A fix_dhis2_ids.ts plan' > rollout_logs/dhis2_ids_<instance>.json`)
-and read by Tim before anything runs; a named dump of `main` the way
-`restore_main` expects one; `apply` fed that file
-(`ssh wb-server 'docker exec -i <instance> deno run -A fix_dhis2_ids.ts apply' < rollout_logs/dhis2_ids_<instance>.json`),
-which exits 2 on drift and refuses while an import run is running;
-`docker restart <instance>`, so every connected client refetches the dictionary
-and the dataset summaries; a wizard import of the created elements and of the
-members of each `to_sum` and `to_calculated` over the months the plan listed as
-deleted (a selection expands a Sum to its members, so selecting the repaired
-indicator fetches the created elements); `plan` again, which must list zero
-actions. Rollback is the dump: the schema does not change, so restoring `main`
-(the drop-and-pipe part of `restore_main`, without the image change) puts the
-instance back exactly, and the deleted rows have no other copy.
-
 Instance migration 087 (`087_indicator_data_key.sql`) gives every Uploaded row a
 key: a row whose `data_id` was NULL takes a generated `u_` key and its
 `updated_at` moves; a row that already held a file code keeps it as its key, not
@@ -1367,15 +1352,6 @@ layer.
   (`server/db/instance/instance.ts:43-44`), so nothing refetches. Make the
   parenthetical at 435-436 read "(main + variant snippets; the stored flag is
   advisory metadata generation ignores)", and delete the comment at 482.
-- **DHIS2 id repair backfills still to run in the wizard**, over the months the
-  repair deleted: `somalia` (`opd` and `sam` over 2020-01 to 2026-06, and the
-  six `couple_years` ingredients over 2020-01 to 2021-12), `nigeria` (`anc1` and
-  `delivery` over 2020-01 to 2026-03; 2026-04 to 2026-10 was fetched on
-  2026-10-21), `ethiopia` (`MTCT-during pregnancy, L&D and PNC` over 2014-11 to
-  2018-12, Ethiopian calendar).
-- `rca` (1.76.2 on 2026-10-21) gets the DHIS2 id repair after its upgrade. The
-  ask is "Run the DHIS2 id repair on rca"; the session follows the procedure
-  under "The DHIS2 id repair", plan file read by Tim before apply.
 
 ### HFA variant groups: open questions
 
