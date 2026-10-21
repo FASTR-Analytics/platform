@@ -42,6 +42,7 @@ globs:
   - server/db/instance/instance.ts
   - server/db/instance/population.ts
   - server/db/instance/structure.ts
+  - server/dhis2_id_fix/**
   - server/geojson/**
   - server/routes/instance/geojson_maps.ts
   - server/routes/instance/hfa_indicators.ts
@@ -51,6 +52,7 @@ globs:
   - server/routes/instance/population.ts
   - server/routes/instance/structure.ts
   - server/server_only_funcs_importing/**
+  - server/tests/dhis2_id_fix_plan_test.ts
   - server/tests/indicator_analysed_set_test.ts
   - server/tests/indicator_data_key_test.ts
   - server/tests/indicator_id_test.ts

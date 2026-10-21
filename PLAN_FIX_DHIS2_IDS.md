@@ -14,9 +14,9 @@ against DHIS2, writes a plan file (the dry run), and applies exactly that file
 once Tim has read it. The four texts that carry the old remedy are cut to one
 sentence.
 
-**Next step: Do 1.** Each session sets this line in its final commit. Its values
-are `Do N`, `Review N` and `Fix N`. The review that passes step 3 cuts this file
-to §7 and step 4; the session that finishes step 4 deletes it.
+**Next step: Review 1.** Each session sets this line in its final commit. Its
+values are `Do N`, `Review N` and `Fix N`. The review that passes step 3 cuts
+this file to §7 and step 4; the session that finishes step 4 deletes it.
 
 Branch: `main`. Repos touched: this app only.
 
@@ -376,5 +376,10 @@ instance back exactly. The deleted rows have no other copy.
 
 ## 8. Build log
 
-| When | Step | Row |
-| ---- | ---- | --- |
+| When       | Step | Row                                                                                                                                                                                                                                                                                                                                                                                                               |
+| ---------- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-10-21 | 1    | Deviation from ruling 3: the Sum rewrites are one plan-level list (`sumRewrites`, one entry per Sum with its whole new member list) rather than carried by each action, because two actions can touch the same Sum and per-action lists could disagree. An empty list is for the apply to refuse.                                                                                                                 |
+| 2026-10-21 | 1    | Choice the rulings did not cover: retargets are decided before every other outcome, so a single-operand formula keeps its rows under the operand even when a sum or ratio formula over the same operand sorts earlier; among several single-operand formulas over one operand, the first by id retargets and the rest name it.                                                                                    |
+| 2026-10-21 | 1    | `planDhis2IdFix(facts, plannedAt)` takes the time as an argument so the planner is pure; the gatherer passes the clock.                                                                                                                                                                                                                                                                                           |
+| 2026-10-21 | 1    | Floor: `deno task typecheck` fails at `deno fmt --check` on `demo_video/src/cards.html` and `demo_video/src/schematic.html`, committed unformatted in e773b4fc7, outside this plan's surface. Every later link of the chain (server check, client typecheck, the six lints) was run on its own and passes. `deno task test` 686 passed, `./validate_protocols` passes, `./run` boots and answers `/health_check`. |
+| 2026-10-21 | 1    | Step 1 built                                                                                                                                                                                                                                                                                                                                                                                                      |
