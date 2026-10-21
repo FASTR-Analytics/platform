@@ -3,6 +3,7 @@ system: 8
 name: Results Packages & Module Execution
 globs:
   - client/src/state/instance/t2_runs.ts
+  - client/src/components/_shared/delete_each_in_turn.ts
   - client/src/components/results_packages/**
   - lib/figure_package_issue.ts
   - lib/run_progress.ts
@@ -409,12 +410,14 @@ Module defaults (`-defaults`); scopes moved to their own rail tab (S15).
 **Bulk delete** (`results_packages/results_packages.tsx`, the listing's row
 checkboxes and their one bulk action) is the bulk form of the guarded delete:
 the user ticks packages in the catalogue, the confirm lists them by label, then
-the SAME single `deleteRun` route is called for each in turn. No batch route:
-the guard is already per-package and atomic, each delete pushes the catalogue
-nonce so the list shrinks live, and a guard refusal (pinned, in use, still
-generating) is reported by label in the confirm form's error while the rest
-still go. There is no rule-based prune and no "delete all": the pin is removed
-only by the explicit unpin on the package page.
+the SAME single `deleteRun` route is called for each in turn by
+`deleteEachInTurn` (`components/_shared/delete_each_in_turn.ts`, owned here and
+shared with the scopes table, S15). No batch route: the guard is already
+per-package and atomic, each delete pushes the catalogue nonce so the list
+shrinks live, and a guard refusal (pinned, in use, still generating) is reported
+by label in the confirm form's error while the rest still go. There is no
+rule-based prune and no "delete all": the pin is removed only by the explicit
+unpin on the package page.
 
 ## The pinned package
 

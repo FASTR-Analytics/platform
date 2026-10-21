@@ -6,10 +6,13 @@ import {
   type ScopeDefinition,
   type ScopeId,
   t3,
+  TC,
 } from "lib";
 import {
   Badge,
+  type BulkAction,
   Button,
+  createDeleteAction,
   createTableConfig,
   FrameTop,
   openComponent,
@@ -20,10 +23,12 @@ import {
 } from "panther";
 import { createMemo, Show } from "solid-js";
 import {
+  deleteEachInTurn,
   ProductCountBadge,
   scopeDisplayLabel,
   usageColumnHeader,
 } from "~/components/_shared/mod.ts";
+import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import {
   copilotViewController,
@@ -53,15 +58,13 @@ export function InstanceScopes() {
     sort: { key: "label", direction: "asc" },
   });
 
-  const rows = createMemo(() => {
-    const counts = productCountsByScope();
-    return instanceState.scopes.map((scope) => toRow(scope, counts));
-  });
+  const counts = createMemo(() => productCountsByScope());
+  const rows = createMemo(() =>
+    instanceState.scopes.map((scope) => toRow(scope, counts()))
+  );
 
   function openEditor(scope: Scope | undefined) {
-    const productCount = scope === undefined
-      ? 0
-      : productCountsByScope().get(scope.id) ?? 0;
+    const productCount = scope === undefined ? 0 : counts().get(scope.id) ?? 0;
     if (scope?.id === ALL_DATA_SCOPE_ID) {
       void openComponent({
         element: AllDataScopeView,
@@ -74,6 +77,42 @@ export function InstanceScopes() {
       props: { scope, productCount },
     });
   }
+
+  async function handleBulkDelete(selected: ScopeRow[]): Promise<void> {
+    const deleteAction = createDeleteAction(
+      {
+        text: plural(selected.length, {
+          one: t3({
+            en: "Are you sure you want to delete this scope?",
+            fr: "Êtes-vous sûr de vouloir supprimer cette portée ?",
+            pt: "Tem a certeza de que pretende eliminar este âmbito?",
+          }),
+          other: t3({
+            en: "Are you sure you want to delete these scopes?",
+            fr: "Êtes-vous sûr de vouloir supprimer ces portées ?",
+            pt: "Tem a certeza de que pretende eliminar estes âmbitos?",
+          }),
+        }),
+        itemList: selected.map((scope) => scope.label),
+      },
+      () =>
+        deleteEachInTurn(
+          selected,
+          (scope) => scope.label,
+          (scope) => serverActions.deleteScope({ scope_id: scope.id }),
+        ),
+    );
+    await deleteAction.click();
+  }
+
+  const bulkActions: BulkAction<ScopeRow>[] = [
+    {
+      label: t3(TC.delete),
+      intent: "danger",
+      outline: true,
+      onClick: handleBulkDelete,
+    },
+  ];
 
   const columns: TableColumn<ScopeRow>[] = [
     {
@@ -115,6 +154,7 @@ export function InstanceScopes() {
         })}
         onRowClick={(row) =>
           openEditor(instanceState.scopes.find((s) => s.id === row.id))}
+        bulkActions={bulkActions}
         itemLabel={{
           one: t3({ en: "scope", fr: "portée", pt: "âmbito" }),
           other: t3({ en: "scopes", fr: "portées", pt: "âmbitos" }),

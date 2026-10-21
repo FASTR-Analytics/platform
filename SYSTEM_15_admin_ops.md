@@ -72,11 +72,15 @@ column per family (HMIS, HFA, ICEH) saying "Excluded", "No limits" or the
 section's limits in a few words, and a Usage column showing the number of
 products that carry it as a badge (`ProductCountBadge`, shared with the results
 packages table, S8; nothing for none), counted in one pass over
-`instanceState.products`. A row opens `ScopeEditor` (`scope_editor.tsx`) in a
-modal; "New scope" opens it with every family included and nothing limited. The
-reserved "All data" row opens `AllDataScopeView` instead: a read-only statement
-of what the scope is, with no Save and no Delete, since the routes refuse both
-(S12).
+`instanceState.products`. Each row has a checkbox, and the one bulk action,
+Delete, is the bulk form of the guarded delete: the confirm lists the ticked
+scopes by label, then `deleteScope` is called for each in turn through
+`deleteEachInTurn` (S8 "Bulk delete"), so a scope a product carries, or the
+reserved one, is refused by label while the rest go. A row opens `ScopeEditor`
+(`scope_editor.tsx`) in a modal; "New scope" opens it with every family included
+and nothing limited. The reserved "All data" row opens `AllDataScopeView`
+instead: a read-only statement of what the scope is, with no Save and no Delete,
+since the routes refuse both (S12).
 
 The editor has the label above three tabs, HMIS, HFA and ICEH, one per section
 of the definition. Each tab opens with an "Include" checkbox (the component
