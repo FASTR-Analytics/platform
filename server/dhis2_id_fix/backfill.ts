@@ -1,7 +1,7 @@
 // The import an applied plan leaves to do: one manual DHIS2 import run over
-// every indicator whose rows the apply deleted and every Sum it rewrote,
-// launched the way the import wizard launches one. The worker runs in the
-// calling process, so the caller waits for it.
+// every Sum and calculated indicator whose rows the apply deleted and every
+// Sum it rewrote, launched the way the import wizard launches one. The worker
+// runs in the calling process, so the caller waits for it.
 
 import type { Sql } from "postgres";
 import {
