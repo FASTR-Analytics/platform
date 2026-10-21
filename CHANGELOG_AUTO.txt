@@ -1,3 +1,7 @@
+[TBD] [user] [fixed] - Stale import error records are now automatically cleaned up
+[TBD] [admin] [added] - DHIS2 ID repair now cleans up stale import ledger entries
+[TBD] [admin] [added] - DHIS2 elements with incompatible period types are now detected and converted to manual upload
+[TBD] [admin] [internal] - Retired module migration expanded to cover additional modules
 [2.0.4] [user] [added] - Retired metrics automatically carry over to their successor in visualizations
 [2.0.4] [user] [added] - Clear error message when a visualization's metric belongs to a retired module
 [2.0.4] [user] [added] - View full error details for failed DHIS2 import pairs via a "View error" button
