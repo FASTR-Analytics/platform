@@ -1,13 +1,19 @@
-[TBD] [user] [fixed] - Duplicate indicators from DHIS2 default category combos are now automatically detected and merged
-[TBD] [user] [fixed] - Scheduled imports no longer list duplicate indicators after cleanup
-[TBD] [user] [fixed] - Analysis settings preserved when merging duplicate indicators
-[TBD] [admin] [added] - Duplicate DHIS2 indicators using default combos are now automatically detected and merged
-[TBD] [admin] [fixed] - Schedule selections no longer list an indicator twice after renaming
-[TBD] [admin] [changed] - DHIS2 ID repair plan now consolidates duplicate default-combo elements with their bare counterparts
-[TBD] [user] [fixed] - Stale import error records are now automatically cleaned up
-[TBD] [admin] [added] - DHIS2 ID repair now cleans up stale import ledger entries
-[TBD] [admin] [added] - DHIS2 elements with incompatible period types are now detected and converted to manual upload
-[TBD] [admin] [internal] - Retired module migration expanded to cover additional modules
+[2.0.5] [user] [added] - After applying a DHIS2 ID repair, data is automatically re-imported to fill gaps
+[2.0.5] [user] [fixed] - Special indicators now keep their data correctly during DHIS2 ID repair
+[2.0.5] [admin] [added] - DHIS2 ID repair can now automatically backfill data after applying a fix plan
+[2.0.5] [admin] [changed] - DHIS2 ID repair handles special indicators as Sums instead of duplicates
+[2.0.5] [admin] [changed] - Reference renaming now processes all duplicates in one batch for consistency
+[2.0.5] [admin] [fixed] - Stored DHIS2 connection is verified before backfill to prevent mismatched imports
+[2.0.5] [user] [fixed] - Duplicate indicators from DHIS2 default category combos are now automatically detected and merged
+[2.0.5] [user] [fixed] - Scheduled imports no longer list duplicate indicators after cleanup
+[2.0.5] [user] [fixed] - Analysis settings preserved when merging duplicate indicators
+[2.0.5] [admin] [added] - Duplicate DHIS2 indicators using default combos are now automatically detected and merged
+[2.0.5] [admin] [fixed] - Schedule selections no longer list an indicator twice after renaming
+[2.0.5] [admin] [changed] - DHIS2 ID repair plan now consolidates duplicate default-combo elements with their bare counterparts
+[2.0.5] [user] [fixed] - Stale import error records are now automatically cleaned up
+[2.0.5] [admin] [added] - DHIS2 ID repair now cleans up stale import ledger entries
+[2.0.5] [admin] [added] - DHIS2 elements with incompatible period types are now detected and converted to manual upload
+[2.0.5] [admin] [internal] - Retired module migration expanded to cover additional modules
 [2.0.4] [user] [added] - Retired metrics automatically carry over to their successor in visualizations
 [2.0.4] [user] [added] - Clear error message when a visualization's metric belongs to a retired module
 [2.0.4] [user] [added] - View full error details for failed DHIS2 import pairs via a "View error" button
