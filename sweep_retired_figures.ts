@@ -32,6 +32,7 @@ import {
   type Language,
   type MetricWithStatus,
   presentationObjectConfigSchema,
+  requestedDisaggregationOptions,
   resolveFigureMetric,
   type RetiredMetric,
   retiredMetric,
@@ -226,7 +227,10 @@ function checkRetiredFigure(
       `the carried config does not parse (${firstIssue(carried.error)})`,
     );
   }
-  const resolution = resolveFigureMetric(metrics, {
+  const facilityColumns = requestedDisaggregationOptions(succession.config)
+    .filter(isFacilityColumn);
+  const served = facilityColumns.length === 0 ? metrics : withFacility;
+  const resolution = resolveFigureMetric(served, {
     metricId: retired.id,
     config: parsed.data,
     localization: { language: stored.language },
@@ -234,23 +238,8 @@ function checkRetiredFigure(
   if (resolution.kind !== "succeeded") {
     return fail(`${succession.metricId} is not in the local definitions`);
   }
-  const { config } = resolution;
-  const first = figurePackageIssueForMetrics(
-    resolution.metric.id,
-    config,
-    metrics,
-    null,
-  );
-  const facilityColumns = first?.kind === "dimensions_not_in_package" &&
-      first.disaggregationOptions.every(isFacilityColumn)
-    ? first.disaggregationOptions
-    : [];
-  const served = facilityColumns.length === 0 ? metrics : withFacility;
-  const metric = served.find((m) => m.id === resolution.metric.id) ??
-    resolution.metric;
-  const issue = facilityColumns.length === 0
-    ? first
-    : figurePackageIssueForMetrics(metric.id, config, served, null);
+  const { metric, config } = resolution;
+  const issue = figurePackageIssueForMetrics(metric.id, config, served, null);
   if (issue !== null) {
     return fail(`package issue: ${JSON.stringify(issue)}`);
   }
