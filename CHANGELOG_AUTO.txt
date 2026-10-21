@@ -1,3 +1,9 @@
+[TBD] [user] [fixed] - Duplicate indicators from DHIS2 default category combos are now automatically detected and merged
+[TBD] [user] [fixed] - Scheduled imports no longer list duplicate indicators after cleanup
+[TBD] [user] [fixed] - Analysis settings preserved when merging duplicate indicators
+[TBD] [admin] [added] - Duplicate DHIS2 indicators using default combos are now automatically detected and merged
+[TBD] [admin] [fixed] - Schedule selections no longer list an indicator twice after renaming
+[TBD] [admin] [changed] - DHIS2 ID repair plan now consolidates duplicate default-combo elements with their bare counterparts
 [TBD] [user] [fixed] - Stale import error records are now automatically cleaned up
 [TBD] [admin] [added] - DHIS2 ID repair now cleans up stale import ledger entries
 [TBD] [admin] [added] - DHIS2 elements with incompatible period types are now detected and converted to manual upload
