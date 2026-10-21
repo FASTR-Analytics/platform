@@ -550,9 +550,9 @@ id: the decomposition's expression over the holders, the factor's format, rows
 and ledger rows deleted), `duplicate` (a default-combo element under any other
 id beside the holder of bare `uid`: every Sum naming it names the holder
 instead, every calculated expression and schedule selection naming it is
-rewritten to the holder by the rename's own `renameReferences`, once for every
-duplicate of the plan, the holder is ticked for analysis when the duplicate was
-and it was not, and the duplicate's rows, ledger rows and indicator row are
+rewritten to the holder by the rename's own `renameReferences`, called once with
+all the plan's duplicates, the holder is ticked for analysis when the duplicate
+was and it was not, and the duplicate's rows, ledger rows and indicator row are
 deleted), or `to_uploaded` (not in DHIS2, a refused verdict with the refusal as
 the reason, a refused decomposition, a special id with a non-count shape, or a
 default-combo element with a refused verdict and no holder, which a retarget
