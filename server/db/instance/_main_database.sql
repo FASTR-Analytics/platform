@@ -34,6 +34,7 @@ CREATE TABLE runs (
   status text NOT NULL DEFAULT 'generating',
   provenance text NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  ended_at TIMESTAMPTZ,
   created_by text,
   summary text,
   progress text,

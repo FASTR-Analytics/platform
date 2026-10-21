@@ -17,6 +17,7 @@ const RUN: RunListingItem = {
   status: "ready",
   provenance: "wizard",
   createdAt: "2026-08-19T10:00:00.000Z",
+  endedAt: "2026-08-19T10:12:00.000Z",
   createdBy: null,
   summary: null,
   progress: null,

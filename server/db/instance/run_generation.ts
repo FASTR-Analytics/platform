@@ -32,6 +32,7 @@ type RunListingRow = {
   status: string;
   provenance: string;
   created_at: Date;
+  ended_at: Date | null;
   created_by: string | null;
   summary: string | null;
   progress: string | null;
@@ -58,6 +59,7 @@ function toRunListingItem(row: RunListingRow): RunListingItem {
     status: row.status as RunCatalogStatus,
     provenance: row.provenance as RunProvenance,
     createdAt: row.created_at.toISOString(),
+    endedAt: row.ended_at?.toISOString() ?? null,
     createdBy: row.created_by,
     summary,
     progress,
@@ -73,7 +75,8 @@ export async function listRunCatalog(
   try {
     const [rows, products] = await Promise.all([
       mainDb<RunListingRow[]>`
-SELECT id, label, status, provenance, created_at, created_by, summary, progress
+SELECT id, label, status, provenance, created_at, ended_at, created_by, summary,
+  progress
 FROM runs
 ORDER BY created_at DESC
 `,
@@ -246,7 +249,8 @@ export async function getRunListingItem(
   try {
     const row = (
       await mainDb<RunListingRow[]>`
-SELECT r.id, r.label, r.status, r.provenance, r.created_at, r.created_by,
+SELECT r.id, r.label, r.status, r.provenance, r.created_at, r.ended_at,
+  r.created_by,
   r.summary, r.progress
 FROM runs r
 WHERE r.id = ${runId}
@@ -436,6 +440,7 @@ export async function publishReadyRun(
   await mainDb`
 UPDATE runs SET
   status = 'ready',
+  ended_at = NOW(),
   summary = ${JSON.stringify(args.summary)},
   progress = ${JSON.stringify(args.progress)}
 WHERE id = ${args.runId}
@@ -475,7 +480,8 @@ SELECT progress FROM runs WHERE id = ${runId}
   }
   progress.errorDetail = errorDetail;
   const updated = await mainDb<{ id: string }[]>`
-UPDATE runs SET status = 'failed', progress = ${JSON.stringify(progress)}
+UPDATE runs SET status = 'failed', ended_at = NOW(),
+  progress = ${JSON.stringify(progress)}
 WHERE id = ${runId} AND status = 'generating'
 RETURNING id
 `;

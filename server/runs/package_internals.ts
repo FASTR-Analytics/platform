@@ -13,7 +13,7 @@ import {
   _MODULE_SCRIPT_FILE_NAME,
 } from "../exposed_env_vars.ts";
 import { getRunManifestCached } from "./manifest_cache.ts";
-import { isRunIdShape, runDirPath } from "./run_paths.ts";
+import { isRunIdShape, runDirPath, runTmpDirPath } from "./run_paths.ts";
 
 // Reading a package's INTERNALS: the generated R script, the execution log,
 // and the raw output files under runs/{runId}/outputs/{moduleId}.
@@ -37,9 +37,12 @@ import { isRunIdShape, runDirPath } from "./run_paths.ts";
 // makes it path-safe; the registry never was.
 const MODULE_ID_SHAPE = /^[a-z0-9_-]{1,64}$/;
 
+// `inProgress` reads the generating run's workspace (runs/.tmp-{runId}),
+// where a module's log is written live until the atomic rename.
 function resolveOutputsDir(
   runId: string,
   moduleId: string,
+  inProgress = false,
 ): { success: true; dir: string } | { success: false; err: string } {
   if (!isRunIdShape(runId)) {
     return { success: false, err: "Invalid results package id" };
@@ -47,7 +50,8 @@ function resolveOutputsDir(
   if (!MODULE_ID_SHAPE.test(moduleId)) {
     return { success: false, err: "Invalid module id" };
   }
-  return { success: true, dir: join(runDirPath(runId), "outputs", moduleId) };
+  const runDir = inProgress ? runTmpDirPath(runId) : runDirPath(runId);
+  return { success: true, dir: join(runDir, "outputs", moduleId) };
 }
 
 // The file-name half of the guard. Every current caller passes a constant, so
@@ -67,8 +71,9 @@ async function readOutputText(
   moduleId: string,
   fileName: string,
   absentMessage: string,
+  inProgress = false,
 ): Promise<APIResponseWithData<string>> {
-  const resolved = resolveOutputsDir(runId, moduleId);
+  const resolved = resolveOutputsDir(runId, moduleId, inProgress);
   if (resolved.success === false) {
     return resolved;
   }
@@ -107,15 +112,27 @@ export async function readRunModuleScript(
     : { success: true, data: { script: res.data } };
 }
 
+// A generating run's log is read from its workspace, so the package page can
+// follow a module while it runs. The workspace is tried first: if the rename
+// lands between the two reads, the second finds the log in its final place.
 export async function readRunModuleLogs(
   runId: string,
   moduleId: string,
 ): Promise<APIResponseWithData<{ logs: string }>> {
-  const res = await readOutputText(
+  const absentMessage =
+    "No execution log in this results package for this module.";
+  const live = await readOutputText(
     runId,
     moduleId,
     _MODULE_LOG_FILE_NAME,
-    "No execution log in this results package for this module.",
+    absentMessage,
+    true,
+  );
+  const res = live.success ? live : await readOutputText(
+    runId,
+    moduleId,
+    _MODULE_LOG_FILE_NAME,
+    absentMessage,
   );
   return res.success === false
     ? res
