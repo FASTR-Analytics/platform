@@ -111,6 +111,19 @@ export async function resolveFigureBundleInteractively(
       return { ok: false, reason: itemsRes.err };
     }
     const ih = itemsRes.data.ih;
+    if (ih.status === "too_many_items") {
+      return {
+        ok: false,
+        reason: t3({
+          en:
+            "This visualization asks for too many data points under the current package, scope and filters. Narrow its filters or disaggregations.",
+          fr:
+            "Cette visualisation demande trop de points de données avec le paquet, la portée et les filtres actuels. Réduisez ses filtres ou ses désagrégations.",
+          pt:
+            "Esta visualização pede demasiados pontos de dados com o pacote, âmbito e filtros atuais. Reduza os seus filtros ou desagregações.",
+        }),
+      };
+    }
     if (ih.status !== "ok") {
       return {
         ok: false,
@@ -118,7 +131,7 @@ export async function resolveFigureBundleInteractively(
           en:
             "No data available for this visualization with the current package, scope and filters.",
           fr:
-            "Aucune donnée disponible pour cette visualisation avec le package, la portée et les filtres actuels.",
+            "Aucune donnée disponible pour cette visualisation avec le paquet, la portée et les filtres actuels.",
           pt:
             "Não há dados disponíveis para esta visualização com o pacote, âmbito e filtros atuais.",
         }),
