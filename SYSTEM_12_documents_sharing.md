@@ -508,9 +508,11 @@ takes `{ productId }`: label, package and scope come from `productById` on the
 T1 store, the authoring context from S9's immutable
 `t2_run_authoring_context.ts` keyed by the LIVE pair, so a reattach or rescope
 (from the header chip, the Products page or a collaborator) moves figure data,
-metrics and presets together and lights the stale badges without a remount; a
-product deleted under an open editor closes it. The header shows the
-`PackageScopeChip` ("package · scope" in the package accent from `app.css`),
+metrics and presets together and lights the stale badges without a remount: the
+previous context stands until the next lands, since the open slide's editor is
+mounted only with one, so a figure edit applied across the swap lands under the
+new package; a product deleted under an open editor closes it. The header shows
+the `PackageScopeChip` ("package · scope" in the package accent from `app.css`),
 which for an editor opens `PackageScopeModal` with a count of the figures the
 candidate pair would leave stale; Present and History are buttons on the bar,
 and the deck's File menu holds Download, Share, `ProductSettings` for name and

@@ -23,7 +23,6 @@ import {
   type ReportDocContent,
   type ReportStyleColors,
   type ResolvedPackageScope,
-  resolveFigureMetric,
   type RunAuthoringContext,
   t3,
 } from "lib";
@@ -120,7 +119,7 @@ import {
   resolveFigureBundleInteractively,
 } from "~/generate_visualization/mod";
 import {
-  describeFigureMetricAbsence,
+  resolveFigureMetricOrAlert,
   UpdateAllFiguresButton,
   updateFigureToScope,
   VisualizationEditor,
@@ -1118,14 +1117,12 @@ export function ReportEditor(p: Props) {
     // figure carried over from another package edits under this one, and a
     // figure of a retired metric edits as its successor, with its config
     // carried across.
-    const resolution = resolveFigureMetric(ctx.context.metrics, bundle);
-    if (resolution.kind === "absent") {
-      await openAlert({
-        text: describeFigureMetricAbsence(resolution, ctx.scope.runId),
-        intent: "danger",
-      });
-      return;
-    }
+    const resolution = await resolveFigureMetricOrAlert(
+      ctx.context.metrics,
+      bundle,
+      ctx.scope.runId,
+    );
+    if (!resolution) return;
     const { metric, config: editConfig } = resolution;
     // Live co-editing: bind the modal to this figure's config IN the shared
     // report doc. Only when the session is live and the figure edits as its
@@ -1180,21 +1177,19 @@ export function ReportEditor(p: Props) {
       // Re-resolve under the product's CURRENT pair and its package's
       // context, read now, so applying an edit to a stale figure also brings
       // it up to date and a reattach while the editor was open resolves under
-      // the new package.
-      const after = staleContext();
-      if (!after) return;
-      const live = resolveFigureMetric(after.context.metrics, {
-        metricId: metric.id,
-        config: result.updated.config,
-        localization: bundle.localization,
-      });
-      if (live.kind === "absent") {
-        await openAlert({
-          text: describeFigureMetricAbsence(live, after.scope.runId),
-          intent: "danger",
-        });
-        return;
-      }
+      // the new package; while that package's context still loads, under the
+      // pair the editor opened with, which the badge then reports as stale.
+      const after = staleContext() ?? ctx;
+      const live = await resolveFigureMetricOrAlert(
+        after.context.metrics,
+        {
+          metricId: metric.id,
+          config: result.updated.config,
+          localization: bundle.localization,
+        },
+        after.scope.runId,
+      );
+      if (!live) return;
       const rebuilt = await resolveFigureBundleInteractively(
         after.scope,
         live.metric,
@@ -1204,6 +1199,9 @@ export function ReportEditor(p: Props) {
         await openAlert({ text: rebuilt.reason, intent: "danger" });
         return;
       }
+      // The registry push skips the config of the figure being edited, so
+      // the id clears before the write.
+      setEditingFigureId(undefined);
       await updateFigure(sel.id, { type: "figure", bundle: rebuilt.bundle });
     } finally {
       setEditingFigureId(undefined);

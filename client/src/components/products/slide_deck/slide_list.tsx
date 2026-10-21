@@ -496,7 +496,7 @@ export function SlideList(p: Props) {
       [...p.slideIds],
       { runId: scope.runId, scopeId: scope.scopeId },
       context,
-      p.openSlide,
+      () => p.openSlide,
     );
     await rescanStaleFigures(scope, [...p.slideIds], p.openSlide);
     setUpdatingFigures(false);

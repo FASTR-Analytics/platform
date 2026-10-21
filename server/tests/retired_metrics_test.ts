@@ -13,7 +13,6 @@ import {
   getFetchConfigFromPresentationObjectConfig,
   type Language,
   type MetricDefinitionGithub,
-  type MetricWithStatus,
   moduleDefinitionGithubSchema,
   type PresentationObjectConfig,
   presentationObjectConfigSchema,
@@ -81,13 +80,11 @@ function stored(
 function succeed(figure: StoredFigure) {
   const retired = retiredMetric(figure.metricId);
   assert(retired !== undefined, `${figure.metricId} is not retired`);
-  const succession = succeedRetiredFigure(
+  return succeedRetiredFigure(
     retired,
     figure.config,
     figure.localization.language,
   );
-  assert(succession !== undefined, `${figure.metricId} has no successor`);
-  return succession;
 }
 
 // Every m003 preset and the successor preset a user inserting it today would
@@ -276,8 +273,8 @@ Deno.test("retired: every preset of every retired metric carries to a config the
 Deno.test("retired: the figure's own metric wins when the package still carries it", () => {
   const m = m003Metric("m3-02-01");
   const config = presetConfig(presetOf(m, "disruption-chart"), "en");
-  const own = { id: "m3-02-01" } as MetricWithStatus;
-  const successor = { id: "m11-01-01" } as MetricWithStatus;
+  const own = { id: "m3-02-01" };
+  const successor = { id: "m11-01-01" };
   const resolution = resolveFigureMetric(
     [successor, own],
     stored("m3-02-01", config),
@@ -290,7 +287,7 @@ Deno.test("retired: the figure's own metric wins when the package still carries 
 Deno.test("retired: a package with the successor resolves to it with the carried config", () => {
   const m = m003Metric("m3-02-01");
   const config = presetConfig(presetOf(m, "disruption-chart"), "en");
-  const successor = { id: "m11-01-01" } as MetricWithStatus;
+  const successor = { id: "m11-01-01" };
   const resolution = resolveFigureMetric(
     [successor],
     stored("m3-02-01", config),
@@ -459,16 +456,10 @@ Deno.test({
     );
     const metrics = metricsWithStatusOf(definitions);
     const successorPreset = (pair: Pair): Preset => {
-      const [moduleId] = [...definitions.entries()].find(([, def]) =>
-        def.metrics.some((m) =>
-          m.id === pair.to[0]
-        )
-      ) ?? [];
-      assert(moduleId !== undefined, `no module carries ${pair.to[0]}`);
-      const metric = definitions.get(moduleId)?.metrics.find((m) =>
-        m.id === pair.to[0]
-      );
-      assert(metric !== undefined);
+      const metric = [...definitions.values()].flatMap((d) => d.metrics).find((
+        m,
+      ) => m.id === pair.to[0]);
+      assert(metric !== undefined, `no module carries ${pair.to[0]}`);
       return presetOf(metric, pair.to[1]);
     };
 

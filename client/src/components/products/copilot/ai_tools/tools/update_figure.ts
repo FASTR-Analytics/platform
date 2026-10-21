@@ -7,7 +7,6 @@ import {
   type MetricWithStatus,
   type PeriodBounds,
   periodFilterHasBounds,
-  resolveFigureMetric,
   type ResultsValueInfoForPresentationObject,
   validateMetricInputs,
 } from "lib";
@@ -24,10 +23,7 @@ import {
 import { copilotViews } from "~/components/instance/copilot/mod.ts";
 import type { ClientAIToolEnv } from "~/components/instance/copilot/mod.ts";
 import { extractBlocksFromLayout } from "../../slide_ai/mod.ts";
-import {
-  figureMetricAbsenceForAI,
-  figureMetricNoteForAI,
-} from "../../_shared/mod.ts";
+import { editFigureMetricForAI } from "../../_shared/mod.ts";
 import {
   readSlideTarget,
   slideTargetOutcome,
@@ -109,12 +105,8 @@ export function createUpdateFigureTool(
         throw new AIToolFailure(`Block "${input.blockId}" is not a figure.`);
       }
       const bundle = found.block.bundle;
-
-      const resolution = resolveFigureMetric(metrics, bundle);
-      if (resolution.kind === "absent") {
-        throw new AIToolFailure(figureMetricAbsenceForAI(resolution));
-      }
-      const { metric, config: storedConfig } = resolution;
+      const { lines: moved, metric, config: storedConfig } =
+        editFigureMetricForAI(metrics, bundle);
 
       // Pre-flight for a stored defect this tool cannot repair (the figure
       // patch schema carries no timeseriesGrouping): a grouping-less
@@ -195,9 +187,8 @@ export function createUpdateFigureTool(
         : undefined;
       await validateMetricInputs(env, metric.id, filters, periodFilter);
 
-      const note = figureMetricNoteForAI(resolution);
       const report = [
-        ...(note === undefined ? [] : [note]),
+        ...moved,
         ...describeFigureConfigPatchEffect(
           storedConfig,
           input.patch,

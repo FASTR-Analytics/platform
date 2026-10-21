@@ -750,12 +750,13 @@ are built and parsed through the engine's helpers
 (`report-forge/engine/embeds.ts`). `get_report_editor` prints the body, a
 headings index (each top-level heading's 1-based line and the exact section
 range, from `report-forge/engine/report_sections.ts`), a one-line index of the
-figures, the image ids and the user's selection; `rewrite_section` splices that
-range; `insert_figure.afterHeading` lands on the line after the heading
-(`insertAfterReportHeading`). A proposed body is refused before anything is
-staged when it names an embed id the report does not have, writes an embed as an
-html `<img>` token (the message gives the correct spelling), exceeds the body
-cap or breaks one of the format's rules below.
+figures (one that reads as a retired metric's successor, or has no metric in the
+package, says so beside its stored id), the image ids and the user's selection;
+`rewrite_section` splices that range; `insert_figure.afterHeading` lands on the
+line after the heading (`insertAfterReportHeading`). A proposed body is refused
+before anything is staged when it names an embed id the report does not have,
+writes an embed as an html `<img>` token (the message gives the correct
+spelling), exceeds the body cap or breaks one of the format's rules below.
 
 Nothing in the copilot MINTS a report: creation is the products page's
 `createProduct`, which always mints FASTR Markdown (S12). The copilot's report

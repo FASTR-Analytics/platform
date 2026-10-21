@@ -48,9 +48,9 @@ import {
 } from "~/components/instance/copilot/mod.ts";
 import { resolveFigureFromMetric } from "../../slide_ai/mod.ts";
 import {
-  figureMetricAbsenceForAI,
-  figureMetricNoteForAI,
+  editFigureMetricForAI,
   formatFigureConfigForAI,
+  readFigureMetricForAI,
 } from "../../_shared/mod.ts";
 import { validateMetricInputs } from "lib";
 import type {
@@ -87,11 +87,23 @@ function refusedTextEdit(
   throw new AIToolFailure(edit.error);
 }
 
-// One cheap index line per figure for get_report_editor: pure, no fetch.
-function formatFigureIndexLine(id: string, fig: FigureBlock): string {
+// One cheap index line per figure for get_report_editor: pure, no fetch. The
+// metric is the one the figure reads as, so the model never takes a retired
+// id for a live one.
+function formatFigureIndexLine(
+  id: string,
+  fig: FigureBlock,
+  metrics: readonly MetricWithStatus[],
+): string {
   if (!fig.bundle) return `- figure:${id} — (no data)`;
-  const cfg = fig.bundle.config;
-  const parts = [`figure:${id}`, fig.bundle.metricId, cfg.d.type];
+  const r = resolveFigureMetric(metrics, fig.bundle);
+  const metricPart = r.kind === "current"
+    ? r.metric.id
+    : r.kind === "succeeded"
+    ? `${fig.bundle.metricId} (retired; reads as ${r.metric.id})`
+    : `${fig.bundle.metricId} (not in this package)`;
+  const cfg = r.kind === "absent" ? fig.bundle.config : r.config;
+  const parts = [`figure:${id}`, metricPart, cfg.d.type];
   if (cfg.t.caption) parts.push(`"${cfg.t.caption}"`);
   const replicateBy = getReplicateByProp(cfg);
   if (replicateBy) {
@@ -123,7 +135,9 @@ export function getClientToolsForReportEditor(
         const figureSection = figureIds.length
           ? [
             `## Figures (call get_report_figure for full config; update_report_figure to edit in place):`,
-            ...figureIds.map((id) => formatFigureIndexLine(id, figs[id])),
+            ...figureIds.map((id) =>
+              formatFigureIndexLine(id, figs[id], metrics)
+            ),
           ]
           : [`## Figures: none`];
         return readReportText(ctx.getBody(), {
@@ -171,17 +185,17 @@ export function getClientToolsForReportEditor(
           );
         }
         const bundle = fig.bundle;
-        const resolution = resolveFigureMetric(metrics, bundle);
-        const note = resolution.kind === "absent"
-          ? figureMetricAbsenceForAI(resolution)
-          : figureMetricNoteForAI(resolution);
+        const { lines, metric, config } = readFigureMetricForAI(
+          metrics,
+          bundle,
+        );
         const text = await formatFigureConfigForAI(
           env,
-          resolution.kind === "absent" ? undefined : resolution.metric,
-          resolution.kind === "absent" ? bundle.config : resolution.config,
+          metric,
+          config,
           bundle.dateRange,
         );
-        return note === undefined ? text : `${note}\n${text}`;
+        return [...lines, text].join("\n");
       },
       inProgressLabel: "Reading figure...",
       completionMessage: "Read figure",
@@ -247,11 +261,8 @@ export function getClientToolsForReportEditor(
           );
         }
         const bundle = fig.bundle;
-        const resolution = resolveFigureMetric(metrics, bundle);
-        if (resolution.kind === "absent") {
-          throw new AIToolFailure(figureMetricAbsenceForAI(resolution));
-        }
-        const { metric, config: storedConfig } = resolution;
+        const { lines: moved, metric, config: storedConfig } =
+          editFigureMetricForAI(metrics, bundle);
 
         // Pre-flight for a stored defect this tool cannot repair (the figure
         // patch schema carries no timeseriesGrouping): see update_figure.
@@ -324,9 +335,8 @@ export function getClientToolsForReportEditor(
           : undefined;
         await validateMetricInputs(env, metric.id, filters, periodFilter);
 
-        const note = figureMetricNoteForAI(resolution);
         const report = [
-          ...(note === undefined ? [] : [note]),
+          ...moved,
           ...describeFigureConfigPatchEffect(
             storedConfig,
             input.patch,

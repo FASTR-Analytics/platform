@@ -1,10 +1,9 @@
 import type { ContentBlock, MetricWithStatus, Slide } from "lib";
-import { getDataFromConfig, resolveFigureMetric } from "lib";
+import { getDataFromConfig } from "lib";
 import type { LayoutNode } from "panther";
 import {
-  figureMetricAbsenceForAI,
-  figureMetricNoteForAI,
   formatFigureConfigForAI,
+  readFigureMetricForAI,
 } from "../_shared/mod.ts";
 import {
   layoutNodeToStructure,
@@ -94,13 +93,11 @@ export async function simplifySlideForAI(
         // Figure block
         if (block.bundle) {
           const bundle = block.bundle;
-          const resolution = resolveFigureMetric(metrics ?? [], bundle);
-          const absent = resolution.kind === "absent";
-          const note = absent
-            ? figureMetricAbsenceForAI(resolution)
-            : figureMetricNoteForAI(resolution);
-          const metric = absent ? undefined : resolution.metric;
-          const config = absent ? bundle.config : resolution.config;
+          const { lines, metric, config } = readFigureMetricForAI(
+            metrics ?? [],
+            bundle,
+          );
+          const metricId = metric?.id ?? bundle.metricId;
           let cfg: string;
           try {
             cfg = await formatFigureConfigForAI(
@@ -111,27 +108,23 @@ export async function simplifySlideForAI(
             );
           } catch (err) {
             cfg =
-              `Figure (metric: ${bundle.metricId}, type: ${bundle.config.d.type}) — config unavailable: ${err}`;
+              `Figure (metric: ${metricId}, type: ${config.d.type}) — config unavailable: ${err}`;
           }
           let data: string;
           try {
             data = await getDataFromConfig(
               env,
-              metric?.id ?? bundle.metricId,
+              metricId,
               metrics ?? [],
               config,
             );
           } catch (err) {
             data = `(data unavailable: ${err})`;
           }
-          const lines = [
-            "Figure",
-            ...(note === undefined ? [] : [note]),
-            cfg,
-            "",
-            data,
-          ];
-          return { id, summary: lines.join("\n") };
+          return {
+            id,
+            summary: ["Figure", ...lines, cfg, "", data].join("\n"),
+          };
         } else {
           return { id, summary: "Figure (no data)" };
         }

@@ -18,7 +18,6 @@ import {
   materializeSlide,
   PAGE_HEIGHT_DU,
   PAGE_WIDTH_DU,
-  resolveFigureMetric,
   t3,
 } from "lib";
 import type { FigureBundle } from "lib";
@@ -47,6 +46,7 @@ import {
   StateHolder,
 } from "panther";
 import {
+  batch,
   createEffect,
   createMemo,
   createSignal,
@@ -73,7 +73,7 @@ import {
   type OpenSlide,
 } from "~/components/instance/copilot/mod.ts";
 import {
-  describeFigureMetricAbsence,
+  resolveFigureMetricOrAlert,
   VisualizationEditor,
 } from "~/components/_shared/figure_editor/mod.ts";
 import type { VizFigureCollabBinding } from "~/components/_shared/figure_editor/mod.ts";
@@ -1002,17 +1002,12 @@ export function SlideEditor(p: Props) {
       // figure carried over from another package edits under this one, and a
       // figure of a retired metric edits as its successor, with its config
       // carried across.
-      const resolution = resolveFigureMetric(
+      const resolution = await resolveFigureMetricOrAlert(
         p.authoringContext.metrics,
         bundle,
+        p.scope.runId,
       );
-      if (resolution.kind === "absent") {
-        await openAlert({
-          text: describeFigureMetricAbsence(resolution, p.scope.runId),
-          intent: "danger",
-        });
-        return;
-      }
+      if (!resolution) return;
       const { metric, config: editConfig } = resolution;
 
       const applyFigureBundle = (bundle: FigureBundle) =>
@@ -1073,18 +1068,16 @@ export function SlideEditor(p: Props) {
         // applying an edit to a stale figure also brings it up to date and a
         // reattach while the editor was open resolves under the new package.
         if (result?.updated) {
-          const after = resolveFigureMetric(p.authoringContext.metrics, {
-            metricId: metric.id,
-            config: result.updated.config,
-            localization: bundle.localization,
-          });
-          if (after.kind === "absent") {
-            await openAlert({
-              text: describeFigureMetricAbsence(after, p.scope.runId),
-              intent: "danger",
-            });
-            return;
-          }
+          const after = await resolveFigureMetricOrAlert(
+            p.authoringContext.metrics,
+            {
+              metricId: metric.id,
+              config: result.updated.config,
+              localization: bundle.localization,
+            },
+            p.scope.runId,
+          );
+          if (!after) return;
           const rebuilt = await resolveFigureBundleInteractively(
             p.scope,
             after.metric,
@@ -1094,7 +1087,14 @@ export function SlideEditor(p: Props) {
             await openAlert({ text: rebuilt.reason, intent: "danger" });
             return;
           }
-          applyFigureBundle(rebuilt.bundle);
+          // One push: the editing id's clear and the new bundle reach the
+          // tracking effect together. A push with the id still set skips the
+          // figure's config and caches the bundle reference, so the carried
+          // config would never reach the doc.
+          batch(() => {
+            setEditingFigureBlockId(undefined);
+            applyFigureBundle(rebuilt.bundle);
+          });
         }
       } finally {
         setEditingFigureBlockId(undefined);

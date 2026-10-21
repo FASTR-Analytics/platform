@@ -45,7 +45,7 @@ export type RetiredMetric = Readonly<{
   moduleId: string;
   moduleLabel: TranslatableString;
   label: TranslatableString;
-  successor: (config: PresentationObjectConfig) => Successor | undefined;
+  successor: (config: PresentationObjectConfig) => Successor;
 }>;
 
 const M003_LABEL: TranslatableString = {
@@ -330,8 +330,8 @@ function m003Metric(
 
 // m3-02 to m3-05 were one metric trio per admin level, numbered from the
 // national level (1) to admin area 4.
-function m003LevelMetrics(group: 2 | 3 | 4 | 5): RetiredMetric[] {
-  const level = (group - 1) as 1 | 2 | 3 | 4;
+function m003LevelMetrics(level: 1 | 2 | 3 | 4): RetiredMetric[] {
+  const group = level + 1;
   const variant = LEVEL_LABEL[level];
   return [
     m003Metric(
@@ -367,10 +367,10 @@ export const RETIRED_METRICS: readonly RetiredMetric[] = [
         ? M12_INDICATOR_VALUE
         : M2_VOLUME_BY_ADJUSTMENT,
   },
+  ...m003LevelMetrics(1),
   ...m003LevelMetrics(2),
   ...m003LevelMetrics(3),
   ...m003LevelMetrics(4),
-  ...m003LevelMetrics(5),
 ];
 
 export function retiredMetric(metricId: string): RetiredMetric | undefined {
@@ -390,9 +390,8 @@ export function succeedRetiredFigure(
   retired: RetiredMetric,
   config: PresentationObjectConfig,
   language: Language,
-): FigureSuccession | undefined {
+): FigureSuccession {
   const successor = retired.successor(config);
-  if (successor === undefined) return undefined;
   return {
     metricId: successor.metricId,
     moduleId: successor.moduleId,
@@ -447,15 +446,17 @@ function swapTexts(
   };
 }
 
-export type FigureMetricResolution =
+export type FigureMetricResolution<
+  M extends { id: string } = MetricWithStatus,
+> =
   | {
     kind: "current";
-    metric: MetricWithStatus;
+    metric: M;
     config: PresentationObjectConfig;
   }
   | {
     kind: "succeeded";
-    metric: MetricWithStatus;
+    metric: M;
     config: PresentationObjectConfig;
     retired: RetiredMetric;
   }
@@ -465,7 +466,7 @@ export type FigureMetricResolution =
     retired:
       | {
         metric: RetiredMetric;
-        successor: { metricId: string; moduleId: string } | undefined;
+        successor: { metricId: string; moduleId: string };
       }
       | undefined;
   };
@@ -478,12 +479,12 @@ export type StoredFigure = Pick<FigureBundle, "metricId" | "config"> & {
 
 // The metric a stored figure resolves to in a package: its own when the
 // package carries it, else its successor with the config carried across, else
-// nothing, with what can be said about why. The one lookup every update,
-// edit and AI path runs.
-export function resolveFigureMetric(
-  metrics: readonly MetricWithStatus[],
+// nothing, naming the retired metric and its successor when there is one. The
+// one lookup every update, edit and AI path runs; it reads a metric's id only.
+export function resolveFigureMetric<M extends { id: string }>(
+  metrics: readonly M[],
   figure: StoredFigure,
-): FigureMetricResolution {
+): FigureMetricResolution<M> {
   const current = metrics.find((m) => m.id === figure.metricId);
   if (current !== undefined) {
     return { kind: "current", metric: current, config: figure.config };
@@ -497,10 +498,8 @@ export function resolveFigureMetric(
     figure.config,
     figure.localization.language,
   );
-  const successor = succession === undefined
-    ? undefined
-    : metrics.find((m) => m.id === succession.metricId);
-  if (succession !== undefined && successor !== undefined) {
+  const successor = metrics.find((m) => m.id === succession.metricId);
+  if (successor !== undefined) {
     return {
       kind: "succeeded",
       metric: successor,
@@ -513,7 +512,7 @@ export function resolveFigureMetric(
     metricId: figure.metricId,
     retired: {
       metric: retired,
-      successor: succession === undefined ? undefined : {
+      successor: {
         metricId: succession.metricId,
         moduleId: succession.moduleId,
       },

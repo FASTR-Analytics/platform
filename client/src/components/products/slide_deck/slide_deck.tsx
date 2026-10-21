@@ -412,11 +412,16 @@ export function SlideDeckEditor(p: Props) {
   // reattach, a scope change or an edit to the scope's module list swaps the
   // metric and preset catalogue the insert-figure wizard and the update
   // actions author against. Immutable by identity, so this is a cache hit
-  // after the first read of any given package under a definition.
+  // after the first read of any given package under a definition. The
+  // previous context stands until the next lands: the open slide's editor
+  // is mounted only with a context, so blanking it would unmount the editor
+  // under an open figure modal, whose apply then has nowhere to write.
   createEffect(() => {
     const resolved = resolvedScope();
-    setAuthoringContext(undefined);
-    if (resolved === undefined) return;
+    if (resolved === undefined) {
+      setAuthoringContext(undefined);
+      return;
+    }
     const controller = new AbortController();
     onCleanup(() => controller.abort());
     void (async () => {

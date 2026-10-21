@@ -95,10 +95,21 @@ export async function updateAllDeckFigures(
   slideIds: readonly string[],
   scope: PackageScope,
   authoringContext: RunAuthoringContext,
-  open: OpenSlide | undefined,
+  getOpen: () => OpenSlide | undefined,
 ): Promise<UpdateAllResult> {
   const failures: UpdateAllResult["failures"] = [];
   let updated = 0;
+  // Read again before every write: a rail click or a slide-type switch
+  // during the reads unmounts the editor whose draft was read, and the open
+  // slide is only ever written through its draft.
+  const openSlideChanged = t3({
+    en:
+      "The open slide changed while its visualizations were being updated. Update again.",
+    fr:
+      "La diapositive ouverte a changé pendant la mise à jour de ses visualisations. Relancez la mise à jour.",
+    pt:
+      "O diapositivo aberto mudou enquanto as suas visualizações eram atualizadas. Atualize de novo.",
+  });
 
   const resolveAll = async (
     slideId: string,
@@ -117,6 +128,7 @@ export async function updateAllDeckFigures(
   };
 
   for (const slideId of slideIds) {
+    const open = getOpen();
     if (open !== undefined && slideId === open.slideId) {
       const draft = unwrap(open.getDraft());
       if (draft.type !== "content") continue;
@@ -125,12 +137,17 @@ export async function updateAllDeckFigures(
         findStaleFiguresInLayout(draft.layout, resolveScope(scope)),
       );
       if (resolved.size === 0) continue;
+      const live = unwrap(open.getDraft());
+      if (getOpen() !== open || live.type !== "content") {
+        failures.push({ slideId, reason: openSlideChanged });
+        continue;
+      }
       // The path set the slide editor's own figure writes use: a fresh
       // reference on the path, which the CRDT sync sees and the editor
       // pushes to the room, or saves when it next flushes.
       (open.setDraft as SetStoreFunction<ContentSlide>)(
         "layout",
-        replaceFigureBundles(draft.layout, resolved),
+        replaceFigureBundles(live.layout, resolved),
       );
       updated += resolved.size;
       continue;
@@ -147,6 +164,10 @@ export async function updateAllDeckFigures(
       findStaleFiguresInLayout(res.data.slide.layout, resolveScope(scope)),
     );
     if (resolved.size === 0) continue;
+    if (getOpen()?.slideId === slideId) {
+      failures.push({ slideId, reason: openSlideChanged });
+      continue;
+    }
 
     const nextSlide: Slide = {
       ...res.data.slide,
