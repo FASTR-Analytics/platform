@@ -533,13 +533,13 @@ distinct operands at factor 1, or a single operand another indicator holds: a
 Sum over the holders, with a DHIS2 element created, unticked, for each operand
 nobody holds, rows and ledger rows deleted), `to_calculated` (any other accepted
 shape, not a special id: the decomposition's expression over the holders, the
-factor's format, rows deleted), or `to_uploaded` (not in DHIS2, a refused
-decomposition, or a special id with a non-count shape: rows and key kept,
-frozen). Retargets are decided first, so a single-operand formula keeps its
-rows. A Sum that names a `to_sum` indicator takes its members in its place and
-one that names a `to_calculated` indicator drops it (the member FK pins members
-to `has_rows`). `plan` writes the whole plan as JSON, one action per broken
-element with every value the apply writes; `apply` reads one from stdin,
+factor's format, rows and ledger rows deleted), or `to_uploaded` (not in DHIS2,
+a refused decomposition, or a special id with a non-count shape: rows and key
+kept, frozen). Retargets are decided first, so a single-operand formula keeps
+its rows. A Sum that names a `to_sum` indicator takes its members in its place
+and one that names a `to_calculated` indicator drops it (the member FK pins
+members to `has_rows`). `plan` writes the whole plan as JSON, one action per
+broken element with every value the apply writes; `apply` reads one from stdin,
 recomputes it from live state, refuses on any difference (exit 2), and otherwise
 runs `applyDhis2IdFix`: one transaction holding a `SHARE ROW EXCLUSIVE` lock on
 `indicators`, every precondition re-checked inside it (no running import run,
