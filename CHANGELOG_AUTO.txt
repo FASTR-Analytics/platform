@@ -1,3 +1,5 @@
+[TBD] [user] [changed] - "Default visualizations" renamed to "presets" throughout the platform
+[TBD] [admin] [changed] - "Default visualizations" renamed to "presets" throughout the platform
 [2.0.2] [user] [added] - Bulk delete for scopes from the scopes list
 [2.0.2] [user] [changed] - "All data" scope now shown as a fixed panel above the scopes table
 [2.0.2] [user] [added] - New disruption chart metrics at sub-district geographic levels
