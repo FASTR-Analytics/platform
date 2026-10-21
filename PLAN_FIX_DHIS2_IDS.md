@@ -10,9 +10,9 @@ element written with its default combo folds onto the bare element) and the
 `backfill` command to every production instance.
 
 **Next step: Do 8.** Each session sets this line in its final commit. Last step:
-8. The session that finishes step 8 adds to SYSTEM_05's Open items the instances
-still on 1.76.2, each swept and repaired after its upgrade, and deletes this
-file in its last commit.
+8. The session that finishes step 8 deletes this file in its last commit. The
+instances still on 1.76.2 and the repair's retirement are queued in
+PLAN_CLEANUP_DHIS2_ID_REPAIR.md.
 
 Branch: `main`. Repos touched: this app only.
 
