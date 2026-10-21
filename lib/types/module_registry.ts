@@ -76,9 +76,9 @@ export const MODULE_REGISTRY = [
   {
     id: "m012",
     label: {
-      en: "Indicator values",
-      fr: "Valeurs des indicateurs",
-      pt: "Valores dos indicadores",
+      en: "Service utilization",
+      fr: "Utilisation des services",
+      pt: "Utilização dos serviços",
     },
     prerequisites: ["m002"],
     github: { owner: "FASTR-Analytics", repo: "modules", path: "m012" },

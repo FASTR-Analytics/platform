@@ -950,7 +950,7 @@ generation at the first `COPY`. Beside the packages live only `.tmp-{runId}`
 `.duckdb-spill`, and loose scratch files (ICEH xlsx). Nothing enumerates the
 directory as a homogeneous set: every consumer addresses a named entry.
 
-## m012: indicator values
+## m012: service utilization
 
 `m012` is an ordinary `template` R module (ruled): a static, reviewable
 `script.R` in wb-fastr-modules, executed by `runRScript` like every other
@@ -1059,11 +1059,11 @@ window: one area with a stray year cannot shrink the others.
 
 **m012 works on the intersection, and only m012** (ruled). A cell the store does
 not cover has `NA` in its population slot after the pivot, so the row rule
-("m012: indicator values") drops it for every indicator whose expression needs
-that slot: kept, it would sum numerator and population over different cells at
-every grouping. Indicators whose expression never reaches a population slot keep
-every row. m001 and m002 read the extract, which has no population filter, and
-are untouched.
+("m012: service utilization") drops it for every indicator whose expression
+needs that slot: kept, it would sum numerator and population over different
+cells at every grouping. Indicators whose expression never reaches a population
+slot keep every row. m001 and m002 read the extract, which has no population
+filter, and are untouched.
 
 **Only three failures** (ruled). Two are what the indicator manager already
 shows as "Population data missing" (S5): population active and the level unset,
