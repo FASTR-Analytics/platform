@@ -292,7 +292,7 @@ export async function getInstanceIndicatorDetails(
 // being written, so a cycle is judged against the state the write would
 // produce; `rename` is the id change the write makes, applied to the
 // dictionary and to every stored expression before anything is judged.
-async function checkDefinitionsResolve(
+export async function checkDefinitionsResolve(
   mainDb: Sql,
   pendingDefinitions: Map<string, HmisIndicatorDefinitionInput>,
   rename?: { from: string; to: string },
@@ -489,7 +489,7 @@ export type NewIndicator = {
 // What an insert writes: a posted indicator plus the DHIS2 label, which no
 // client posts. The naming step supplies the server's reading of DHIS2's
 // name for each element it creates; every other create writes NULL.
-type IndicatorInsert = NewIndicator & { dhis2_label: string | null };
+export type IndicatorInsert = NewIndicator & { dhis2_label: string | null };
 
 // The pre-checks every create shares: each id through the validator (a
 // reserved word refused, a special id accepted for a count and refused for
@@ -572,7 +572,7 @@ async function checkIndicatorWrites(
   );
 }
 
-async function writeMembers(
+export async function writeMembers(
   sql: Sql,
   sumId: string,
   members: string[],
@@ -590,7 +590,7 @@ async function writeMembers(
 // (every later statement fails with "transaction is aborted"), so per-item
 // catch-and-continue can never deliver partial success. The rethrow
 // decorates the error with the item that caused it.
-async function insertIndicators(
+export async function insertIndicators(
   sql: Sql,
   indicators: IndicatorInsert[],
 ): Promise<void> {

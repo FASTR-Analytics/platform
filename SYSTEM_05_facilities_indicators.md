@@ -52,6 +52,7 @@ globs:
   - server/routes/instance/population.ts
   - server/routes/instance/structure.ts
   - server/server_only_funcs_importing/**
+  - server/tests/dhis2_id_fix_execute_test.ts
   - server/tests/dhis2_id_fix_plan_test.ts
   - server/tests/indicator_analysed_set_test.ts
   - server/tests/indicator_data_key_test.ts
