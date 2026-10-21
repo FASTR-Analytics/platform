@@ -11,10 +11,12 @@ import {
   Show,
   StableWeightText,
   t3,
+  TextArea,
 } from "../../deps.ts";
-import type {
-  AskUserQuestionsAnswer,
-  AskUserQuestionsInput,
+import {
+  type AskUserQuestionsAnswer,
+  type AskUserQuestionsInput,
+  OWN_ANSWER_PREFIX,
 } from "../../_core/ask_user_questions_types.ts";
 
 type Props = {
@@ -26,6 +28,11 @@ type Props = {
 export function AskUserQuestionsRenderer(p: Props) {
   const [selected, setSelected] = createSignal<string[]>([]);
   const [submitted, setSubmitted] = createSignal(false);
+  // The user's own answer: always offered after the model's options, so a
+  // question never forces a choice the user does not mean. Single-select
+  // makes it exclusive with the options; multi-select adds it to them.
+  const [otherOn, setOtherOn] = createSignal(false);
+  const [otherText, setOtherText] = createSignal("");
 
   // Deliberately NO onCleanup cancel (decision log #6): unmount is inert —
   // a pane hidden in a tab/<Show> leaves the question pending and
@@ -34,7 +41,8 @@ export function AskUserQuestionsRenderer(p: Props) {
 
   const options = () => Array.isArray(p.input?.options) ? p.input.options : [];
 
-  const allAnswered = () => selected().length > 0;
+  const allAnswered = () =>
+    otherOn() ? otherText().trim().length > 0 : selected().length > 0;
 
   function handleSelect(label: string) {
     if (submitted()) return;
@@ -47,6 +55,17 @@ export function AskUserQuestionsRenderer(p: Props) {
       }
     } else {
       setSelected([label]);
+      setOtherOn(false);
+    }
+  }
+
+  function handleSelectOther() {
+    if (submitted()) return;
+    if (p.input.allowMultiple) {
+      setOtherOn(!otherOn());
+    } else {
+      setSelected([]);
+      setOtherOn(true);
     }
   }
 
@@ -57,7 +76,10 @@ export function AskUserQuestionsRenderer(p: Props) {
   function handleSubmit() {
     if (!allAnswered() || submitted()) return;
     setSubmitted(true);
-    const answer = p.input.allowMultiple ? selected() : selected()[0];
+    const own = otherOn() ? [`${OWN_ANSWER_PREFIX}${otherText().trim()}`] : [];
+    const answer = p.input.allowMultiple
+      ? [...selected(), ...own]
+      : own[0] ?? selected()[0];
     p.onSubmit(answer);
   }
 
@@ -118,6 +140,51 @@ export function AskUserQuestionsRenderer(p: Props) {
             </button>
           )}
         </For>
+        <button
+          type="button"
+          disabled={submitted()}
+          onClick={handleSelectOther}
+          classList={{
+            "w-full rounded border px-3 py-2 text-left": true,
+            "border-primary bg-primary-subtle": otherOn(),
+            " ui-hoverable-base-100": !otherOn() && !submitted(),
+            " opacity-60": !otherOn() && submitted(),
+            "cursor-pointer": !submitted(),
+            "cursor-default": submitted(),
+          }}
+        >
+          <StableWeightText
+            class={otherOn() ? "text-sm font-700" : "text-sm"}
+            text={t3({
+              en: "Other (write your own answer)",
+              fr: "Autre (écrivez votre propre réponse)",
+              pt: "Outra (escreva a sua própria resposta)",
+            })}
+          />
+        </button>
+        <Show when={otherOn()}>
+          <TextArea
+            value={otherText()}
+            onChange={setOtherText}
+            placeholder={t3({
+              en: "Type your answer...",
+              fr: "Saisissez votre réponse...",
+              pt: "Escreva a sua resposta...",
+            })}
+            rows={2}
+            size="sm"
+            fullWidth
+            autoFocus
+            disabled={submitted()}
+            // Enter sends, as in the chat box; Shift+Enter is a new line.
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                handleSubmit();
+              }
+            }}
+          />
+        </Show>
       </div>
       <Show when={!submitted()}>
         <div class="mt-3 flex items-center gap-3">

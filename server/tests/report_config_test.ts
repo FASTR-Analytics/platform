@@ -150,6 +150,7 @@ Deno.test("the AI agrees a brief and an outline only on an untouched report", as
   const fresh = getEditingReportInstructions("R", { untouched: true });
   assertStringIncludes(fresh, "## Starting this report: brief, outline");
   assertStringIncludes(fresh, "WAIT");
+  assertStringIncludes(fresh, '"Yes, write it", "No", "Keep planning"');
   assertStringIncludes(fresh, "get_available_metrics");
   const written = getEditingReportInstructions("R", { untouched: false });
   assert(!written.includes("Starting this report"));

@@ -741,12 +741,14 @@ label is read live through the context's `getLabel`), and its instructions are
 ([lib/ai_tools/build_system_prompt.ts](lib/ai_tools/build_system_prompt.ts)).
 `untouched` is `isUntouchedReport` over the live body, figures and images (a
 title line alone, no embeds): while it holds, the instructions carry "Starting
-this report", which has the model ask a brief (at most three questions, one
-message), read the data, propose a data-grounded outline in chat and wait for
-approval, then write the draft in one `rewrite_report` and add the outline's
-figures with `insert_figure` after it is accepted. The text changes once the
-body holds anything, so the next message carries the plain editing brief. Tokens
-are built and parsed through the engine's helpers
+this report", which has the model ask a brief (at most three
+`ask_user_questions` cards, one at a time), read the data, propose a
+data-grounded outline in chat and ask "Yes, write it" / "No" / "Keep planning"
+in a card (Keep planning, or a typed answer, revises the outline and asks again;
+No writes nothing), then write the draft in one `rewrite_report` and add the
+outline's figures with `insert_figure` after it is accepted. The text changes
+once the body holds anything, so the next message carries the plain editing
+brief. Tokens are built and parsed through the engine's helpers
 (`report-forge/engine/embeds.ts`). `get_report_editor` prints the body, a
 headings index (each top-level heading's 1-based line and the exact section
 range, from `report-forge/engine/report_sections.ts`), a one-line index of the
