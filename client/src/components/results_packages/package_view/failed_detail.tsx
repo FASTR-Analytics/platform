@@ -9,7 +9,7 @@ import {
 import { ViewFiles } from "./view_files";
 import { ViewLogs } from "./view_logs";
 import { ViewScript } from "./view_script";
-import type { OpenEditor } from "./visualizations";
+import type { OpenEditor } from "./presets";
 
 type Viewer = typeof ViewScript | typeof ViewLogs | typeof ViewFiles;
 

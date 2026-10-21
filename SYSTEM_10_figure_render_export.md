@@ -810,13 +810,6 @@ download modal. Deck/report exports pass the raw DB label to `pdf.save`/`saveAs`
   field is AI-editable today). If a per-cell formatter is ever added,
   `getTableExportAoa` hand-builds its cell infos and would need to source them
   from panther, the way it now sources header labels.
-- Should M3's expected-volume model emit a negative predicted service volume at
-  all? A negative predicted count is physically impossible, so arguably it
-  should be floored in the R script (`wb-fastr-modules`, m003) rather than
-  rendered. A domain call, not a render one. `"auto-zero"` makes the chart
-  correct either way, which is why it is not blocking. If it is ever floored
-  upstream, `m3-0x-01`/`m3-0x-03`'s entries in
-  `ALLOW_NEGATIVE_SCALE_VALUES_METRICS` become belt-and-braces.
 - The three slide-deck exporters triplicate the fetch/convert loop (~150
   duplicated lines; the two PDF variants differ only in their tail). Extract one
   shared iterator.

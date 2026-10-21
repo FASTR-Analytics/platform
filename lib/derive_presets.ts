@@ -40,7 +40,7 @@ export function deriveConfigFromVizPreset(
   });
 }
 
-export type DerivedDefaultVisualization = {
+export type DerivedPreset = {
   id: string;
   metricId: string;
   label: string;
@@ -48,20 +48,19 @@ export type DerivedDefaultVisualization = {
   config: PresentationObjectConfig;
 };
 
-// One module's default visualizations: every metric preset carrying
-// createDefaultVisualizationOnInstall, in catalog order, sortOrder counted
-// per module (exactly what installModule materialized as rows before 5b).
-export function deriveDefaultVisualizationsForModule(
+// Every preset of a module's metrics, in catalog order, sortOrder counted per
+// module. The id is the metric's and the preset's, which the modules build
+// keeps unique within a metric.
+export function derivePresetsForModule(
   metrics: { id: string; vizPresets: VizPreset[] }[],
   language: Language,
-): DerivedDefaultVisualization[] {
-  const results: DerivedDefaultVisualization[] = [];
+): DerivedPreset[] {
+  const results: DerivedPreset[] = [];
   let sortOrder = 0;
   for (const metric of metrics) {
     for (const preset of metric.vizPresets) {
-      if (!preset.createDefaultVisualizationOnInstall) continue;
       results.push({
-        id: preset.createDefaultVisualizationOnInstall,
+        id: `${metric.id}/${preset.id}`,
         metricId: metric.id,
         label: resolveTS(preset.label, language),
         sortOrder: sortOrder++,

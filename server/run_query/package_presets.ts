@@ -1,26 +1,25 @@
 import { z } from "zod";
 import {
-  type DerivedDefaultVisualization,
-  deriveDefaultVisualizationsForModule,
+  type DerivedPreset,
+  derivePresetsForModule,
   type RunManifest,
   vizPresetInstalled,
 } from "lib";
 import { _INSTANCE_LANGUAGE } from "../exposed_env_vars.ts";
 
-// Presets are pure projections of a package's manifest: every metric preset
-// carrying createDefaultVisualizationOnInstall, derived per read with no
-// stored rows. They serve getRunAuthoringContext.presets.
+// Presets are pure projections of a package's manifest: every metric preset,
+// derived per read with no stored rows. They serve getRunAuthoringContext.presets.
 
 // Runs are immutable → derive at most once per runId (mirrors manifest_cache).
 const MAX_CACHED_RUNS = 20;
-const DERIVED_CACHE = new Map<string, DerivedDefaultVisualization[]>();
+const DERIVED_CACHE = new Map<string, DerivedPreset[]>();
 
-export function deriveVirtualDefaults(
+export function derivePackagePresets(
   manifest: RunManifest,
-): DerivedDefaultVisualization[] {
+): DerivedPreset[] {
   const hit = DERIVED_CACHE.get(manifest.runId);
   if (hit) return hit;
-  const derived: DerivedDefaultVisualization[] = [];
+  const derived: DerivedPreset[] = [];
   for (const mod of manifest.modules) {
     const metrics = manifest.metrics
       .filter((m) => m.module_id === mod.id)
@@ -31,7 +30,7 @@ export function deriveVirtualDefaults(
           : [],
       }));
     derived.push(
-      ...deriveDefaultVisualizationsForModule(metrics, _INSTANCE_LANGUAGE),
+      ...derivePresetsForModule(metrics, _INSTANCE_LANGUAGE),
     );
   }
   DERIVED_CACHE.set(manifest.runId, derived);

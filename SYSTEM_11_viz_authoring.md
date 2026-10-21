@@ -9,7 +9,7 @@ globs:
   - client/src/state/instance/_util_disaggregation_label.ts
   - client/src/state/t4_explore.ts
   - lib/convert_visualization_type.ts
-  - lib/derive_default_visualizations.ts
+  - lib/derive_presets.ts
   - lib/disaggregation_labels.ts
   - lib/explore_query.ts
   - lib/explore_views.ts
@@ -85,20 +85,19 @@ resolves the metric's queryable shape (`resultsValueInfo`, S9's scope-keyed
 Three hosts open it: `slide_editor/slide_editor.tsx` (edits
 `figureBlock.bundle.config`, then re-queries items and rebuilds the bundle),
 `report/report.tsx` (rebuilds the figure block), and the package page's module
-pane (`ModuleVisualizations` in
-`results_packages/package_view/visualizations.tsx`, S8), which opens it
-`viewOnly`: no collab binding, Back is the only way out, and the draft never
-leaves the editor. Every host passes the pair as a plain value and panther's
-`openEditor` stores the props once, so the pair is fixed for the editor's life,
-which is what the figure views' identity needs. The editor is a place of the
-chat (S13): the outer wrapper holds the view it opens over, and the inner editor
-sets the view the host names in the required `aiView` prop
+pane (`ModuleVisualizations` in `results_packages/package_view/presets.tsx`,
+S8), which opens it `viewOnly`: no collab binding, Back is the only way out, and
+the draft never leaves the editor. Every host passes the pair as a plain value
+and panther's `openEditor` stores the props once, so the pair is fixed for the
+editor's life, which is what the figure views' identity needs. The editor is a
+place of the chat (S13): the outer wrapper holds the view it opens over, and the
+inner editor sets the view the host names in the required `aiView` prop
 (`editing_slide_figure` with the deck, slide and block ids,
 `editing_report_figure` with the report and figure ids, `viewing_package_figure`
-with the default visualization's id), through `setFigureEditorView`, once the
-draft exists, with a context that exposes the pair, the metric and the draft
-live (`getDraftConfig` reads the store, `applyDraftConfig` reconciles a config
-into it, so an AI write lands like a user's edit: it marks the draft for Apply,
+with the preset's id), through `setFigureEditorView`, once the draft exists,
+with a context that exposes the pair, the metric and the draft live
+(`getDraftConfig` reads the store, `applyDraftConfig` reconciles a config into
+it, so an AI write lands like a user's edit: it marks the draft for Apply,
 re-previews, and streams into the host doc under live co-editing); its
 instructions name the figure by the `label` prop. The two Figure editor tools,
 `get_figure_editor` and `update_figure_editor`, read and write that draft (S13).
@@ -205,9 +204,9 @@ cannot drift. A preview renders through the one shared helper,
 the scope-keyed `state/products/t2_figure_data.ts` (S9) and assembles them with
 `makeFigureBundleFromFetchedData(scope, ...)` + `buildFigureInputs`, so
 reopening a preset under the same `(runId, definitionHash)` is a cache hit and a
-preset is never a row. The package page's default-visualization cards (S8)
-render through the same helper, so a default seen there and later inserted under
-the same pair is one cache entry. Custom configs go through
+preset is never a row. The package page's preset cards (S8) render through the
+same helper, so a default seen there and later inserted under the same pair is
+one cache entry. Custom configs go through
 `getStartingConfigForPresentationObject` (type defaults from `VIZ_TYPE_CONFIG`,
 display slots assigned via `getNextAvailableDisaggregationDisplayOption`). **The
 wizard never persists**. It closes with

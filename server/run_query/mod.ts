@@ -10,7 +10,7 @@ export {
   duckDbTypeForDeclaredColumnType,
   writeNormalizedResultsObjectParquet,
 } from "./write_results_object_parquet.ts";
-export { deriveVirtualDefaults } from "./virtual_defaults.ts";
+export { derivePackagePresets } from "./package_presets.ts";
 export { buildRunAuthoringContext } from "./authoring_context.ts";
 export {
   computeRunReplicantOptions,

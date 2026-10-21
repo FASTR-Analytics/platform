@@ -80,8 +80,8 @@ list and the package page), the launch wizard `results_packages/wizard/**` (an
 ephemeral modal, the Upload-CSV pattern), and the T2 run-detail cache
 `state/instance/t2_runs.ts`. `results_packages/package_view/**` is what a
 package CONTAINS, as the package page renders it (`family_pane.tsx`,
-`module_pane.tsx`, `visualizations.tsx`, `status.tsx`,
-`view_{script,logs,files}.tsx`). External: wb-fastr-modules repo, Docker images.
+`module_pane.tsx`, `presets.tsx`, `status.tsx`, `view_{script,logs,files}.tsx`).
+External: wb-fastr-modules repo, Docker images.
 
 ## Contract
 
@@ -115,13 +115,13 @@ below are their file-level twins):
   `routes/instance/run_generation.ts`) under the INSTANCE data bits
   (`can_view_data`; `can_view_logs` for logs), and one surface, the package page
   (`results_packages/package_page.tsx`, its panes under `package_view/`),
-  renders a package's contents: its modules' default visualizations, settings,
-  scripts, logs and files; the Explore tab (S11) reads a ready package's metrics
-  at a scope. AI tools take a run RESOLVER, never a runId from the model: the
-  package page sets the chat's `package` view (S13) with the page's package at
-  the page scope, and its state names the status, stage, error, progress and
-  open module, so a generating or failed package's script and log reads work
-  while its package reads refuse; the Results page sets `results_packages`.
+  renders a package's contents: its modules' presets, settings, scripts, logs
+  and files; the Explore tab (S11) reads a ready package's metrics at a scope.
+  AI tools take a run RESOLVER, never a runId from the model: the package page
+  sets the chat's `package` view (S13) with the page's package at the page
+  scope, and its state names the status, stage, error, progress and open module,
+  so a generating or failed package's script and log reads work while its
+  package reads refuse; the Results page sets `results_packages`.
 - **Retention.** No automatic or time-based GC, ever. Reclamation is ONLY the
   catalogue's guarded hard delete (row + dir), refused while referenced or
   generating.
@@ -142,11 +142,11 @@ each entry is `{ id, label, prerequisites, github: { owner, repo, path } }`.
 Every entry must resolve under the strict GitHub schema, since the wizard read
 resolves them all or fails; `server/tests/run_generation_module_options_test.ts`
 pins that against the local checkout. The registry lists m001, m002, m005, m006,
-m009, m010, m011 and m012; m003 and m004 are retired from this app (their
-directories stay frozen in the modules repo, and a package generated with them
-is still readable). The registry's label is the only name a generating or failed
-run has, since neither holds a manifest; every other fact about a module travels
-with the definition.
+m009, m010, m011 and m012; m003 and m004 are retired and their directories
+deleted from the modules repo, and a package generated with them is still
+readable. The registry's label is the only name a generating or failed run has,
+since neither holds a manifest; every other fact about a module travels with the
+definition.
 
 **Three presentation facts are declared by every module and never inferred**:
 `family` (`hmis`, `hfa` or `iceh`, the dataset family whose results the module
@@ -198,9 +198,9 @@ definitions carrying one parse fine, the field is ignored). sha256 is the
 integrity check and the cache key.
 `getModuleDefinitionDetail(id, language, pinnedGitRef)` translates
 label/metrics/`configRequirements` via `resolveTS` and returns
-`ModuleDefinitionDetail & { gitRef }`. (Default visualizations are not derived
-or stored here: they are virtual projections of the manifest presets of the run
-a product points at, `lib/derive_default_visualizations.ts`.)
+`ModuleDefinitionDetail & { gitRef }`. (Presets are not derived or stored here:
+they are projections of the manifest presets of the run a product points at,
+`lib/derive_presets.ts`.)
 
 ## Module settings and the run-keyed mounts
 
@@ -241,8 +241,8 @@ Update re-resolves the figure, and when it cannot, `lib/figure_package_issue.ts`
 says why: metric absent, metric stamped unavailable, or a requested
 disaggregation the results object does not offer, reported in that order, with
 no data queries. `figurePackageIssueForMetrics` answers it from the authoring
-context the client holds. Virtual defaults are excluded by construction: they
-are projections of whichever package the product points at.
+context the client holds. Presets are excluded by construction: they are
+projections of whichever package the product points at.
 
 **Exploring a package is ONE capability, mounted ONCE** (ruled). Every read of
 what a package contains (`getRunDetail` with per-module settings and files,
@@ -288,12 +288,12 @@ beside the selected module's pane (`package_view/module_pane.tsx`), which shows
 one module whole: the page scope select (the shared `ScopeSelect`; the page
 starts on "All data", the choice is shared by every tab and module and is never
 stored, and a chosen scope that is deleted falls back to "All data"), the
-module's default visualizations (`package_view/visualizations.tsx`: the entries
-of `RunAuthoringContext.presets` whose metric the module produced, in preset
-order, each rendered through S11's shared `_shared/figure_preview.ts` helper
-under the page scope; a default whose metric is stamped unavailable shows the
-stamped reason in place of a figure and is not clickable; clicking a card opens
-S11's `VisualizationEditor` as a viewer (`viewOnly`, naming the chat's
+module's presets (`package_view/presets.tsx`: the entries of
+`RunAuthoringContext.presets` whose metric the module produced, in preset order,
+each rendered through S11's shared `_shared/figure_preview.ts` helper under the
+page scope; a preset whose metric is stamped unavailable shows the stamped
+reason in place of a figure and is not clickable; clicking a card opens S11's
+`VisualizationEditor` as a viewer (`viewOnly`, naming the chat's
 `viewing_package_figure` view with the default's id in `aiView`, S13; its
 Download's results file viewer sets `results_file`) through the page's own
 editor wrapper, with the default's metric and config, the page scope and the
@@ -373,9 +373,9 @@ wrapper (`openShellEditor`) with the run id. The page reads its row live from
 `instanceState.runsCatalog`, waits for a freshly launched run's row to land (the
 wizard opens the page before the catalogue refetch), and closes itself once a
 row it has shown is removed. It owns its own editor wrapper, one level below the
-shell's, for the script, logs, files and default visualization viewers. The
-LISTING is instance-T1 as a nonce pull: `runs_catalog_updated` broadcasts a
-data-free nonce, and each entitled client refetches `listRunCatalog` into
+shell's, for the script, logs, files and preset viewers. The LISTING is
+instance-T1 as a nonce pull: `runs_catalog_updated` broadcasts a data-free
+nonce, and each entitled client refetches `listRunCatalog` into
 `InstanceState.runsCatalog` (per-request guard; SYSTEM_03 †). The nonce is
 signalled by the in-process catalogue mutations: launch (success and the
 row-created-then-failed path), guarded delete, pin/unpin, the generate-run
@@ -1183,10 +1183,9 @@ hard delete already refuses any run a product points at.
   always reads `getRunDetail` (`results_packages/package_page.tsx:212-217`), a
   `can_view_data` route (`server/routes/instance/run_generation.ts:214-215`),
   and any failure renders the whole body as the error (219-225, 313-322),
-  default visualizations included. Read the detail only when
-  `canViewPackageContents()` (`results_packages/package_view/status.tsx:21-26`),
-  pass it to `FamilyTabs` and `FamilyPane` as optional
-  (`results_packages/package_page.tsx:355`;
+  presets included. Read the detail only when `canViewPackageContents()`
+  (`results_packages/package_view/status.tsx:21-26`), pass it to `FamilyTabs`
+  and `FamilyPane` as optional (`results_packages/package_page.tsx:355`;
   `results_packages/package_view/family_pane.tsx:24`, 72), and wrap the module
   pane's Settings (`results_packages/package_view/module_pane.tsx:67-94`) and
   Output files (116-161) in `<Show when={canViewPackageContents()}>`.
@@ -1198,12 +1197,12 @@ hard delete already refuses any run a product points at.
   family or module the scope excludes, the server's predicate is `FALSE`
   (`server/run_query/run_read.ts:830-837`), so every card reads "No data
   available" in red (`_shared/figure_preview.ts:33-47`;
-  `results_packages/package_view/visualizations.tsx:158-162`), while Explore at
-  the same pair hides those modules. Also read the context under the page scope
-  in `FamilyTabs` (`package_page.tsx:353-389`), keep the tabs and module lists
-  from the All-data one, and in `ModulePane` show "Outside this scope" (fr "Hors
-  de cette portée", pt "Fora deste âmbito") in place of `ModuleVisualizations`
-  when the scoped context lacks the module.
+  `results_packages/package_view/presets.tsx:158-162`), while Explore at the
+  same pair hides those modules. Also read the context under the page scope in
+  `FamilyTabs` (`package_page.tsx:353-389`), keep the tabs and module lists from
+  the All-data one, and in `ModulePane` show "Outside this scope" (fr "Hors de
+  cette portée", pt "Fora deste âmbito") in place of `ModuleVisualizations` when
+  the scoped context lacks the module.
 - **The Delete comment omits pinned and describes a button the page replaces.**
   `results_packages/package_page.tsx:121-126` says the server refuses while a
   product points at the package or it is still generating, and that the page

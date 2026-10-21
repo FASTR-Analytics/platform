@@ -9,7 +9,7 @@ import {
 import { type ListEntry, SelectList } from "panther";
 import { createMemo, Show } from "solid-js";
 import { ModulePane } from "./module_pane";
-import type { OpenEditor } from "./visualizations";
+import type { OpenEditor } from "./presets";
 
 // One family tab of a READY package: the family's modules as a list, the
 // primary first and the supporting analyses under a header, beside the

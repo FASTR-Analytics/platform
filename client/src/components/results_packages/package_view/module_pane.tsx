@@ -16,10 +16,10 @@ import {
 } from "./status";
 import { ViewLogs } from "./view_logs";
 import { ViewScript } from "./view_script";
-import { ModuleVisualizations, type OpenEditor } from "./visualizations";
+import { ModulePresets, type OpenEditor } from "./presets";
 
 // One module of a READY package, whole: the page scope select, the module's
-// default visualizations under that scope, then its settings, Script and
+// presets under that scope, then its settings, Script and
 // Logs viewers and output files from the T2 detail. The module is named from
 // the package's own manifest, so one that has left the registry still reads
 // as itself.
@@ -59,7 +59,7 @@ export function ModulePane(p: {
         onChange={p.onChangeScope}
         anyScope
       />
-      <ModuleVisualizations
+      <ModulePresets
         presets={presets()}
         ctx={p.ctx}
         scope={p.scope}

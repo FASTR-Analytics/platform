@@ -13,7 +13,7 @@ import {
 import { getPresentationObjectItemsFromCacheOrFetch } from "~/state/products/t2_figure_data";
 
 // The one fetch-and-build path for a figure that is not a row: a preset
-// in the insert-figure wizard, a default visualization on the package page.
+// in the insert-figure wizard, a preset card on the package page.
 // It reads through the scope-keyed items cache, so the same (pair, metric,
 // config) seen on any surface is one cache entry.
 export async function fetchFigureInputs(

@@ -35,7 +35,6 @@ function preset(
     description: { en: "", fr: "" },
     importantNotes: null,
     allowedFilters: [],
-    createDefaultVisualizationOnInstall: null,
     config: {
       d: {
         type,

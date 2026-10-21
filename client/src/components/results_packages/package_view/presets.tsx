@@ -1,5 +1,5 @@
 import {
-  type DerivedDefaultVisualization,
+  type DerivedPreset,
   type MetricWithStatus,
   type PackageScope,
   type PresentationObjectConfig,
@@ -20,22 +20,22 @@ import { createFigurePreview } from "~/components/_shared/mod.ts";
 // viewer open into.
 export type OpenEditor = ReturnType<typeof getEditorWrapper>["openEditor"];
 
-// One module's default visualizations (the entries of the package's
+// One module's presets (the entries of the package's
 // `RunAuthoringContext.presets` whose metric the module produced, in preset
-// order), rendered under the page scope. A default whose metric is stamped
+// order), rendered under the page scope. A preset whose metric is stamped
 // unavailable shows the stamped reason and is not clickable.
 //
-// Clicking a card puts the default in the figure editor as a viewer: the
+// Clicking a card puts the preset in the figure editor as a viewer: the
 // user can disaggregate it differently to look at, and closing returns
 // nothing. The page keeps no draft and nothing is written anywhere.
-export function ModuleVisualizations(p: {
-  presets: DerivedDefaultVisualization[];
+export function ModulePresets(p: {
+  presets: DerivedPreset[];
   ctx: RunAuthoringContext;
   scope: PackageScope;
   openEditor: OpenEditor;
 }) {
-  function openDefault(
-    preset: DerivedDefaultVisualization,
+  function openPreset(
+    preset: DerivedPreset,
     metric: MetricWithStatus,
   ): void {
     void p.openEditor({
@@ -61,9 +61,9 @@ export function ModuleVisualizations(p: {
       fallback={
         <div class="text-base-content-muted text-sm">
           {t3({
-            en: "This module has no default visualizations",
-            fr: "Ce module n'a aucune visualisation par défaut",
-            pt: "Este módulo não tem visualizações predefinidas",
+            en: "This module has no presets",
+            fr: "Ce module n'a aucun préréglage",
+            pt: "Este módulo não tem predefinições",
           })}
         </div>
       }
@@ -71,11 +71,11 @@ export function ModuleVisualizations(p: {
       <div class="ui-gap grid grid-cols-[repeat(auto-fill,minmax(20rem,1fr))]">
         <For each={p.presets}>
           {(preset) => (
-            <DefaultVisualizationCard
+            <PresetCard
               preset={preset}
               metric={p.ctx.metrics.find((m) => m.id === preset.metricId)}
               scope={p.scope}
-              onOpen={(metric) => openDefault(preset, metric)}
+              onOpen={(metric) => openPreset(preset, metric)}
             />
           )}
         </For>
@@ -84,8 +84,8 @@ export function ModuleVisualizations(p: {
   );
 }
 
-function DefaultVisualizationCard(p: {
-  preset: DerivedDefaultVisualization;
+function PresetCard(p: {
+  preset: DerivedPreset;
   metric: MetricWithStatus | undefined;
   scope: PackageScope;
   onOpen: (metric: MetricWithStatus) => void;
