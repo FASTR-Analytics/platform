@@ -1,7 +1,7 @@
 # PLAN: repair the DHIS2 element indicators whose DHIS2 id is a formula or nothing, in place, by a planned and reviewed script
 
 Status: OPEN. Written 2026-10-20 from a read-only pass over every production
-instance. Rulings proposed. Not started.
+instance. Rulings decided with Tim on 2026-10-21. Not started.
 
 Five instances hold DHIS2 element indicators whose DHIS2 id DHIS2 has as a
 formula (what DHIS2 calls an indicator) or as nothing at all. The importer
@@ -148,17 +148,18 @@ database connection and the key (`Dockerfile:60-66`), the way `mint_pat.ts` runs
 - The **plan** is the JSON the script's `plan` command writes: the instance's
   DHIS2 URL, the time, the number of elements checked and found healthy, the
   created elements, and one action per broken element with every value the apply
-  will write. `apply` recomputes the plan from live state and refuses unless it
-  is identical.
+  will write, including the new member list of every Sum that names it. `apply`
+  recomputes the plan from live state and refuses unless it is identical.
 
 ## 3. Rulings
 
-All proposed unless marked otherwise.
+Decided.
 
 1. **In place.** A broken element is repaired under its own indicator id.
    Nothing is created under a new id except created elements; no indicator is
-   deleted; no product, schedule, sum membership of another indicator, label,
-   include flag, direction, sort order or expected-low-counts flag changes.
+   deleted; no product, schedule, label, include flag, direction, sort order or
+   expected-low-counts flag changes. The only change to another indicator is the
+   member rewrite of a Sum that names a repaired one (ruling 3).
 2. **Live classification through the existing code.** The route of each data id
    comes from `classifyElements`; a formula is read by `getIndicatorsFromDHIS2`
    and decomposed by `withDecompositions`; operand names come from
@@ -181,6 +182,13 @@ All proposed unless marked otherwise.
      `[operand]` renamed to its holder's or created element's id
      (`renameIdentifiers`), `format_as` from the decomposition, `thresholds` and
      `target` null, `expected_low_counts` false.
+   - A Sum may name only indicators with rows
+     (`indicator_sum_members_member_fkey`, `_main_database.sql:505-513`), so a
+     Sum that names a `to_sum` indicator gets that indicator's members in its
+     place, which keeps the Sum's values, and a Sum that names a `to_calculated`
+     indicator loses it, because it was adding a ratio as a count. `retarget`
+     and `to_uploaded` keep rows, so a Sum naming one is untouched. The action
+     carries the new member list of each Sum it rewrites.
 4. **Created elements.** Id from `generateIndicatorId` with the operand's DHIS2
    name as the label, the data id as the fallback, and the dictionary's ids plus
    the ids created earlier in the same plan as taken; label and `dhis2_label`
@@ -204,7 +212,8 @@ All proposed unless marked otherwise.
    against the live tables, any failure rolling the whole apply back: each
    indicator still a DHIS2 element under the planned data id with the planned
    row count; each retarget target and each created data id without a holder;
-   each created id free; no import run running
+   each created id free; each Sum the action rewrites still naming the indicator
+   with the members the plan read; no import run running
    (`assertNoRunningDatasetHmisImportRun`, for the version-mint collision reason
    stated at `dataset_hmis.ts:111-118`); the stored DHIS2 URL equal to the
    plan's. The data-id FK is set deferred for the transaction so a retarget can
@@ -261,8 +270,9 @@ All proposed unless marked otherwise.
   formula in the same plan (one created element); an operand held by an Uploaded
   indicator; a special id with each shape; id generation colliding with a
   dictionary id and with an earlier created id; a factor of 100 and of 1000 read
-  as other; a not-found id; a refused formula; a healthy element producing no
-  action; action order by indicator id.
+  as other; a not-found id; a refused formula; a `to_sum` and a `to_calculated`
+  indicator that another Sum names (member rewrite and removal); a healthy
+  element producing no action; action order by indicator id.
 - **Not in this step.** Any DHIS2 or database read; the executor; the script.
 - **Gates.** `deno test -A --env-file server/tests/dhis2_id_fix_plan_test.ts`.
 - **Ends with.** One commit.
@@ -279,11 +289,12 @@ All proposed unless marked otherwise.
   and ledger rows and proves: a retarget moves every row and ledger row and the
   indicator's key and label; a to_sum creates the elements, deletes the rows and
   ledger rows, writes the members and mints one version with the deleted count;
-  a to_calculated writes the renamed expression and format; a to_uploaded keeps
-  rows and key; one failed precondition (a row count that moved, a created id
-  taken, a running run) rolls back every write of the apply; the dictionary
-  stamp (`getIndicatorsVersion`) changes. The script's `apply` refuses a plan
-  that differs from the recomputed one.
+  a to_sum that another Sum names rewrites that Sum's members; a to_calculated
+  writes the renamed expression and format and is removed from a Sum that named
+  it; a to_uploaded keeps rows and key; one failed precondition (a row count
+  that moved, a created id taken, a running run) rolls back every write of the
+  apply; the dictionary stamp (`getIndicatorsVersion`) changes. The script's
+  `apply` refuses a plan that differs from the recomputed one.
 - **Not in this step.** The texts; the docs beyond the new paragraph and the
   manifest.
 - **Gates.**
@@ -342,7 +353,7 @@ this file in its last commit.
 ## 7. Rollout and rollback
 
 Ships with the next release through `./deploy`. Then, per instance, in this
-order: a testing instance, `somalia`, `sierraleone`, `nigeria`, `ethiopia`, and
+order: a testing instance, `sierraleone`, `somalia`, `nigeria`, `ethiopia`, and
 `rca` after its upgrade.
 
 1. `ssh wb-server 'docker exec <instance> deno run -A fix_dhis2_ids.ts plan' > rollout_logs/dhis2_ids_<instance>.json`
