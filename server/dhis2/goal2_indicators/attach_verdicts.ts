@@ -82,12 +82,11 @@ export async function withDecompositions(
   });
 }
 
-// An operand `uid.coc` whose combo is the element's default combo is the
-// element itself: the default category combo has that one combo, so both
-// forms name the same series. The fold keeps the bare id for both, so a
-// formula written with the default combo creates no second element beside
-// the bare one, and a formula naming both forms counts the element twice,
-// as DHIS2 does.
+// An operand `uid.coc` whose combo is its element's default one
+// (`isDefaultComboOf`) is the element itself. The fold keeps the bare id for
+// both, so a formula written with the default combo creates no second
+// element beside the bare one, and a formula naming both forms counts the
+// element twice, as DHIS2 does.
 export function foldDefaultCombos(
   parse: Dhis2IndicatorParse,
   elementsById: ReadonlyMap<string, Pick<DHIS2DataElement, "categoryCombo">>,

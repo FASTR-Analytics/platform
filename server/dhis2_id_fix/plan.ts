@@ -100,9 +100,9 @@ export type Dhis2IdFixAction =
 
 // `sumRewrites` is one entry per Sum of the dictionary that names an
 // indicator a to_sum, to_calculated or duplicate action replaces, with that
-// Sum's whole
-// member list as it will be after every action, so two actions touching the
-// same Sum cannot disagree. An empty list is a Sum the apply must refuse.
+// Sum's whole member list as it will be after every action, so two actions
+// touching the same Sum cannot disagree. An empty list is a Sum the apply
+// must refuse.
 // `staleLedgerRows` is one entry per indicator that is Uploaded after the
 // apply (the dictionary's Uploaded indicators and every to_uploaded action)
 // whose data id has stale ledger rows, so the file states every row the

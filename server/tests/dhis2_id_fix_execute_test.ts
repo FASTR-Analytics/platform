@@ -1,10 +1,9 @@
 // Pins the apply of the DHIS2 id repair on a throwaway database built from
 // _main_database.sql on the dev postgres (the .env the test task loads),
 // dropped afterwards: each outcome's writes, a duplicate's references and
-// deletion, the Sum rewrites, the stale
-// ledger rows, the minted version row, the preconditions that roll the whole
-// apply back, the dictionary stamp, and the plan-file comparison `apply`
-// refuses on.
+// deletion, the Sum rewrites, the stale ledger rows, the minted version row,
+// the preconditions that roll the whole apply back, the dictionary stamp, and
+// the plan-file comparison `apply` refuses on.
 //
 //   deno test -A --env-file server/tests/dhis2_id_fix_execute_test.ts
 

@@ -456,9 +456,10 @@ export async function applyDhis2IdFix(
         expected_low_counts: false,
       })),
     );
-    // A Sum may name only indicators with rows (the member FK cascades the
-    // has_rows flag into a CHECK), so every Sum stops naming a retyped
-    // indicator before that indicator is retyped.
+    // A Sum may name only an indicator that exists and has rows (the member
+    // FK cascades the has_rows flag into a CHECK and blocks a delete), so
+    // every Sum stops naming an indicator an action retypes or deletes before
+    // the actions run.
     for (const rewrite of plan.sumRewrites) {
       await writeMembers(sql, rewrite.sumId, rewrite.members);
       await sql`
