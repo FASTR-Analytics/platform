@@ -50,6 +50,9 @@ function summarise(plan: Dhis2IdFixPlan): string[] {
     ...plan.sumRewrites.map((s) =>
       `rewrite Sum ${s.sumId} to ${s.members.join(" + ")}`
     ),
+    ...plan.staleLedgerRows.map((s) =>
+      `delete ${s.count} stale ledger rows of ${s.indicatorId} (${s.dataId})`
+    ),
   ];
 }
 
@@ -99,6 +102,7 @@ try {
       for (const sumId of result.sumsRewritten) {
         console.log(`Sum ${sumId}: members rewritten`);
       }
+      console.log(`${result.staleLedgerRowsDeleted} stale ledger rows deleted`);
       console.log(
         result.versionId === null
           ? "No rows deleted, no version minted"

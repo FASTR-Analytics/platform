@@ -1,13 +1,15 @@
-// The facts the planner reads, gathered from the dictionary, the rows and
-// live DHIS2 with the importer's own classification and decomposition code.
-// The stored credentials are decrypted here, so this runs only where the
-// app's encryption key is: inside the instance's app container.
+// The facts the planner reads, gathered from the dictionary, the rows, the
+// ledger and live DHIS2 with the importer's own classification, the
+// picker's verdict and the decomposition code. The stored credentials are
+// decrypted here, so this runs only where the app's encryption key is:
+// inside the instance's app container.
 
 import type { Sql } from "postgres";
 import { type DHIS2DataElement, type DHIS2Indicator } from "lib";
 import {
   type FetchOptions,
   getDataElementsFromDHIS2,
+  getDhis2ElementVerdict,
   getIndicatorsFromDHIS2,
   parseDhis2Indicator,
   withDecompositions,
@@ -55,6 +57,20 @@ export async function readRowSpans(
   }]));
 }
 
+// The ledger rows that record a failed fetch of a pair that never imported.
+export async function readStaleLedgerCounts(
+  mainDb: Sql,
+  dataIds: string[],
+): Promise<Record<string, number>> {
+  const rows = await mainDb<{ data_id: string; count: number }[]>`
+    SELECT data_id, COUNT(*)::int AS count
+    FROM dataset_hmis_import_ledger
+    WHERE data_id = ANY(${dataIds}) AND status = 'error' AND n_records = 0
+    GROUP BY data_id
+  `;
+  return Object.fromEntries(rows.map((r) => [r.data_id, r.count]));
+}
+
 export async function gatherDhis2IdFixFacts(
   mainDb: Sql,
 ): Promise<Dhis2IdFixFacts> {
@@ -62,7 +78,13 @@ export async function gatherDhis2IdFixFacts(
   const dataIds = indicators.flatMap((i) =>
     i.definition.type === "dhis2_element" ? [i.definition.data_id] : []
   );
+  const keyedDataIds = indicators.flatMap((i) =>
+    i.definition.type === "dhis2_element" || i.definition.type === "uploaded"
+      ? [i.definition.data_id]
+      : []
+  );
   const rows = await readRowSpans(mainDb, dataIds);
+  const staleLedger = await readStaleLedgerCounts(mainDb, keyedDataIds);
 
   const credentials = await getStoredDhis2CredentialsDecrypted(mainDb);
   const options: FetchOptions = { dhis2Credentials: credentials };
@@ -77,8 +99,12 @@ export async function gatherDhis2IdFixFacts(
     (filter) =>
       getIndicatorsFromDHIS2(options, { filter: [filter], paging: false }),
   );
-  // The operands' elements are fetched once, for the names the plan writes,
-  // and handed to the decomposition so it does not fetch them again.
+  // The elements under every `dvs` data id, for their verdicts, and the
+  // operands' elements, for the names the plan writes, are fetched once and
+  // handed to the decomposition so it does not fetch them again.
+  const dvsElementIds = [...routes.values()].flatMap((route) =>
+    route.kind === "dvs" ? [route.dataElementId] : []
+  );
   const operandElementIds = dhis2Indicators.flatMap((indicator) => {
     const parse = parseDhis2Indicator({
       numerator: indicator.numerator,
@@ -89,7 +115,7 @@ export async function gatherDhis2IdFixFacts(
     return parse.accepted ? parse.operands.map((o) => o.data_element_id) : [];
   });
   const elements: DHIS2DataElement[] = await fetchByIds(
-    operandElementIds,
+    [...dvsElementIds, ...operandElementIds],
     (filter) =>
       getDataElementsFromDHIS2(options, { filter: [filter], paging: false }),
   );
@@ -111,7 +137,9 @@ export async function gatherDhis2IdFixFacts(
       elements.map((e) => [e.id, {
         name: e.name,
         categoryCombo: e.categoryCombo,
+        verdict: getDhis2ElementVerdict(e),
       }]),
     ),
+    staleLedger,
   };
 }

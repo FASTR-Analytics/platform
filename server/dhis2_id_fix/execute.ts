@@ -15,6 +15,7 @@ import { assertNoRunningDatasetHmisImportRun } from "../db/instance/dataset_hmis
 import {
   type Dhis2IdFixAction,
   type Dhis2IdFixPlan,
+  type Dhis2IdFixStaleLedgerRows,
   type Dhis2IdFixSumRewrite,
   rewriteSumMembers,
 } from "./plan.ts";
@@ -30,6 +31,7 @@ export type Dhis2IdFixApplyResult = {
   versionId: number | null;
   actions: Dhis2IdFixActionResult[];
   sumsRewritten: string[];
+  staleLedgerRowsDeleted: number;
 };
 
 // The file `apply` was given against the plan recomputed from live state,
@@ -89,6 +91,12 @@ export function diffDhis2IdFixPlans(
     given.sumRewrites,
     recomputed.sumRewrites,
     (s) => s.sumId,
+  );
+  compare(
+    "stale ledger rows",
+    given.staleLedgerRows,
+    recomputed.staleLedgerRows,
+    (s) => s.indicatorId,
   );
   return differences;
 }
@@ -174,6 +182,54 @@ async function checkPreconditions(
   for (const rewrite of plan.sumRewrites) {
     await checkSumRewrite(sql, rewrite, retyped);
   }
+  const toUploaded = new Map(
+    plan.actions
+      .filter((a) => a.outcome === "to_uploaded")
+      .map((a) => [a.indicatorId, a.dataId]),
+  );
+  for (const stale of plan.staleLedgerRows) {
+    await checkStaleLedgerRows(sql, stale, toUploaded);
+  }
+}
+
+// The indicator is Uploaded under the data id, or becomes so by an action
+// of this plan, and the stale rows are the ones the plan counted.
+async function checkStaleLedgerRows(
+  sql: Sql,
+  stale: Dhis2IdFixStaleLedgerRows,
+  toUploaded: Map<string, string>,
+): Promise<void> {
+  const current = (await sql<{ definition_type: string; data_id: string }[]>`
+    SELECT definition_type, data_id FROM indicators
+    WHERE indicator_common_id = ${stale.indicatorId}
+  `).at(0);
+  const uploaded = current?.definition_type === "uploaded" &&
+    current.data_id === stale.dataId;
+  if (!uploaded && toUploaded.get(stale.indicatorId) !== stale.dataId) {
+    fail(`${stale.indicatorId} is not Uploaded under ${stale.dataId}`);
+  }
+  const count = (await sql<{ count: number }[]>`
+    SELECT COUNT(*)::int AS count FROM dataset_hmis_import_ledger
+    WHERE data_id = ${stale.dataId} AND status = 'error' AND n_records = 0
+  `)[0].count;
+  if (count !== stale.count) {
+    fail(
+      `${stale.indicatorId} has ${count} stale ledger rows, the plan counted ${stale.count}`,
+    );
+  }
+}
+
+async function deleteStaleLedgerRows(
+  sql: Sql,
+  stale: Dhis2IdFixStaleLedgerRows[],
+): Promise<number> {
+  if (stale.length === 0) return 0;
+  const deleted = await sql`
+    DELETE FROM dataset_hmis_import_ledger
+    WHERE data_id = ANY(${stale.map((s) => s.dataId)})
+      AND status = 'error' AND n_records = 0
+  `;
+  return deleted.count;
 }
 
 // The rewrite recomputed from the Sum's live members must be the plan's.
@@ -385,6 +441,10 @@ export async function applyDhis2IdFix(
     for (const action of plan.actions) {
       actions.push(await applyAction(sql, action));
     }
+    const staleLedgerRowsDeleted = await deleteStaleLedgerRows(
+      sql,
+      plan.staleLedgerRows,
+    );
     const rowsDeleted = actions.reduce((n, a) => n + a.rowsDeleted, 0);
     const versionId = rowsDeleted > 0
       ? await mintDeletionVersion(
@@ -398,6 +458,7 @@ export async function applyDhis2IdFix(
       versionId,
       actions,
       sumsRewritten: plan.sumRewrites.map((s) => s.sumId),
+      staleLedgerRowsDeleted,
     };
   });
 }
@@ -409,7 +470,7 @@ export function isDhis2IdFixPlanFile(value: unknown): value is Dhis2IdFixPlan {
     typeof v.elementsChecked === "number" &&
     typeof v.elementsHealthy === "number" &&
     Array.isArray(v.createdElements) && Array.isArray(v.actions) &&
-    Array.isArray(v.sumRewrites);
+    Array.isArray(v.sumRewrites) && Array.isArray(v.staleLedgerRows);
 }
 
 export function readDhis2IdFixPlanFile(text: string): Dhis2IdFixPlan {

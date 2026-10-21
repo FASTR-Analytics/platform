@@ -1,14 +1,16 @@
 // The pure planner of the DHIS2 id repair. It reads facts the gatherer
 // collected (the dictionary, the row spans, the dispatcher's route per DHIS2
-// element, the decomposed formulas and their operands' elements) and returns
-// the plan the apply writes. No read and no write here, so `apply` can
-// recompute the plan from live facts and compare it to the file it was given.
+// element, every DHIS2 element's verdict, the decomposed formulas and their
+// operands' elements, the stale ledger rows) and returns the plan the apply
+// writes. No read and no write here, so `apply` can recompute the plan from
+// live facts and compare it to the file it was given.
 
 import {
   describeDhis2ElementRefusal,
   describeDhis2ParseRefusal,
   type DHIS2DataElement,
   dhis2ElementName,
+  type Dhis2ElementVerdict,
   type Dhis2IndicatorDecomposition,
   type Dhis2ParsedOperand,
   type ExpressionNode,
@@ -28,16 +30,20 @@ export type Dhis2IdFixRowSpan = {
   lastPeriodId: number | null;
 };
 
-export type Dhis2IdFixElement = Pick<
-  DHIS2DataElement,
-  "name" | "categoryCombo"
->;
+// A DHIS2 data element as the picker reads it, with the picker's verdict:
+// an additive monthly count, or why it is not.
+export type Dhis2IdFixElement =
+  & Pick<DHIS2DataElement, "name" | "categoryCombo">
+  & { verdict: Dhis2ElementVerdict };
 
-// Keyed by data id (`rows`, `routes`, `formulas`) or by data element id
-// (`elements`). `routes` covers every DHIS2 element of the dictionary;
-// `formulas` covers every data id routed `dhis2_indicator`; `elements` covers
-// every accepted operand's element. A data id with no rows is absent from
-// `rows`.
+// Keyed by data id (`rows`, `routes`, `formulas`, `staleLedger`) or by data
+// element id (`elements`). `routes` covers every DHIS2 element of the
+// dictionary; `formulas` covers every data id routed `dhis2_indicator`;
+// `elements` covers every data id routed `dvs` (by its element) and every
+// accepted operand's element; `staleLedger` counts the ledger rows with
+// status `error` and no records under every Uploaded and DHIS2 element data
+// id. A data id with no rows is absent from `rows`, one with no stale ledger
+// rows from `staleLedger`.
 export type Dhis2IdFixFacts = {
   dhis2Url: string;
   indicators: HmisIndicator[];
@@ -45,6 +51,7 @@ export type Dhis2IdFixFacts = {
   routes: Record<string, ElementRoute>;
   formulas: Record<string, Dhis2IndicatorDecomposition>;
   elements: Record<string, Dhis2IdFixElement>;
+  staleLedger: Record<string, number>;
 };
 
 export type Dhis2IdFixCreatedElement = {
@@ -55,6 +62,15 @@ export type Dhis2IdFixCreatedElement = {
 };
 
 export type Dhis2IdFixSumRewrite = { sumId: string; members: string[] };
+
+// Ledger rows with status `error` and no records under an indicator that is
+// Uploaded once the apply is done: they describe fetches of a route the
+// indicator no longer has, and the apply deletes them.
+export type Dhis2IdFixStaleLedgerRows = {
+  indicatorId: string;
+  dataId: string;
+  count: number;
+};
 
 export type Dhis2IdFixOutcome =
   | { outcome: "retarget"; newDataId: string; dhis2Label: string }
@@ -74,6 +90,10 @@ export type Dhis2IdFixAction =
 // indicator a to_sum or to_calculated action retypes, with that Sum's whole
 // member list as it will be after every action, so two actions touching the
 // same Sum cannot disagree. An empty list is a Sum the apply must refuse.
+// `staleLedgerRows` is one entry per indicator that is Uploaded after the
+// apply (the dictionary's Uploaded indicators and every to_uploaded action)
+// whose data id has stale ledger rows, so the file states every row the
+// apply deletes.
 export type Dhis2IdFixPlan = {
   dhis2Url: string;
   plannedAt: string;
@@ -82,6 +102,7 @@ export type Dhis2IdFixPlan = {
   createdElements: Dhis2IdFixCreatedElement[];
   actions: Dhis2IdFixAction[];
   sumRewrites: Dhis2IdFixSumRewrite[];
+  staleLedgerRows: Dhis2IdFixStaleLedgerRows[];
 };
 
 export type Dhis2FormulaShape =
@@ -159,12 +180,32 @@ type Diagnosis =
     operands: Map<string, Dhis2ParsedOperand>;
   };
 
-function diagnose(
+// A `dvs` element is healthy when the picker would accept it today; one the
+// picker refuses fails every run as a dead id does. An operand takes its
+// element's verdict.
+function diagnoseElement(
   facts: Dhis2IdFixFacts,
   dataId: string,
-  route: ElementRoute,
+  route: Extract<ElementRoute, { kind: "dvs" }>,
+): Diagnosis | undefined {
+  const element = facts.elements[route.dataElementId];
+  if (element === undefined) {
+    throw new Error(`No element in the facts for DHIS2 element ${dataId}`);
+  }
+  return element.verdict.accepted ? undefined : {
+    kind: "uploaded",
+    reason: `DHIS2 cannot serve it monthly: ${
+      describeDhis2ElementRefusal(element.verdict.refusal).en
+    }`,
+  };
+}
+
+function diagnoseUnknown(
+  facts: Dhis2IdFixFacts,
+  dataId: string,
+  route: Extract<ElementRoute, { kind: "unknown" }>,
 ): Diagnosis {
-  if (route.kind === "unknown" && route.reason === "not_found") {
+  if (route.reason === "not_found") {
     return { kind: "uploaded", reason: "not in DHIS2" };
   }
   const formula = facts.formulas[dataId];
@@ -232,15 +273,14 @@ export function planDhis2IdFix(
     if (route === undefined) {
       throw new Error(`No route in the facts for DHIS2 element ${dataId}`);
     }
-    if (route.kind === "dvs") {
+    const diagnosis = route.kind === "dvs"
+      ? diagnoseElement(facts, dataId, route)
+      : diagnoseUnknown(facts, dataId, route);
+    if (diagnosis === undefined) {
       healthy++;
       continue;
     }
-    broken.push({
-      indicator,
-      dataId,
-      diagnosis: diagnose(facts, dataId, route),
-    });
+    broken.push({ indicator, dataId, diagnosis });
   }
   broken.sort((a, b) =>
     byCodeUnit(a.indicator.indicator_common_id, b.indicator.indicator_common_id)
@@ -363,6 +403,21 @@ export function planDhis2IdFix(
   }
   sumRewrites.sort((a, b) => byCodeUnit(a.sumId, b.sumId));
 
+  const uploadedAfter: { indicatorId: string; dataId: string }[] = [
+    ...facts.indicators.flatMap((i) =>
+      i.definition.type === "uploaded"
+        ? [{ indicatorId: i.indicator_common_id, dataId: i.definition.data_id }]
+        : []
+    ),
+    ...actions.filter((a) => a.outcome === "to_uploaded"),
+  ];
+  const staleLedgerRows: Dhis2IdFixStaleLedgerRows[] = uploadedAfter
+    .flatMap(({ indicatorId, dataId }) => {
+      const count = facts.staleLedger[dataId] ?? 0;
+      return count > 0 ? [{ indicatorId, dataId, count }] : [];
+    })
+    .sort((a, b) => byCodeUnit(a.indicatorId, b.indicatorId));
+
   return {
     dhis2Url: facts.dhis2Url,
     plannedAt,
@@ -371,5 +426,6 @@ export function planDhis2IdFix(
     createdElements,
     actions,
     sumRewrites,
+    staleLedgerRows,
   };
 }

@@ -523,36 +523,52 @@ The DHIS2 id repair (`server/dhis2_id_fix/`, run by the root script
 `fix_dhis2_ids.ts` inside an instance's app container, which holds the database
 connection and the credentials key) repairs in place the DHIS2 elements whose
 data id DHIS2 has as a formula or as nothing, which the importer refuses on
-every run (S6). `gatherDhis2IdFixFacts` reads the dictionary, the row span under
-each element, the dispatcher's route per data id (`classifyElements`), each
-formula decomposed by `withDecompositions`, and the operands' elements for their
-names; `planDhis2IdFix` is pure over those facts and gives each broken element
-one outcome under its own indicator id: `retarget` (a single-operand formula
-whose operand no indicator holds: the data id becomes the operand's, rows and
-ledger rows rekeyed, `dhis2_label` the operand's name), `to_sum` (a `+` chain of
-distinct operands at factor 1, or a single operand another indicator holds: a
-Sum over the holders, with a DHIS2 element created, unticked, for each operand
-nobody holds, rows and ledger rows deleted), `to_calculated` (any other accepted
-shape, not a special id: the decomposition's expression over the holders, the
-factor's format, rows and ledger rows deleted), or `to_uploaded` (not in DHIS2,
-a refused decomposition, or a special id with a non-count shape: rows and key
-kept, frozen). Retargets are decided first, so a single-operand formula keeps
-its rows. A Sum that names a `to_sum` indicator takes its members in its place
-and one that names a `to_calculated` indicator drops it (the member FK pins
-members to `has_rows`). `plan` writes the whole plan as JSON, one action per
-broken element with every value the apply writes; `apply` reads one from stdin,
-recomputes it from live state, refuses on any difference (exit 2), and otherwise
-runs `applyDhis2IdFix`: one transaction holding a `SHARE ROW EXCLUSIVE` lock on
-`indicators`, every precondition re-checked inside it (no running import run,
-the stored URL, each indicator still an element under its data id with the
-planned row count, each target and created data id unheld, each created id free,
-each rewritten Sum's live members giving the plan's rewrite and leaving at least
-one member), the data-id FK deferred so a retarget moves the key before its
+every run (S6), and those DHIS2 has but cannot serve as an additive monthly
+count, which fail every run the same way (on 2.38 nothing can select them, on a
+later release they are asked for monthly and return nothing).
+`gatherDhis2IdFixFacts` reads the dictionary, the row span under each element,
+the stale ledger rows (status `error`, no records) under each Uploaded and DHIS2
+element data id, the dispatcher's route per data id (`classifyElements`), each
+formula decomposed by `withDecompositions`, and the elements under every `dvs`
+data id and every operand, fetched once by id with the picker's field list, each
+with its name and the picker's verdict (`getDhis2ElementVerdict`);
+`planDhis2IdFix` is pure over those facts. A `dvs` element whose verdict is
+accepted is healthy; an operand takes its element's verdict. Each broken element
+gets one outcome under its own indicator id: `retarget` (a single-operand
+formula whose operand no indicator holds: the data id becomes the operand's,
+rows and ledger rows rekeyed, `dhis2_label` the operand's name), `to_sum` (a `+`
+chain of distinct operands at factor 1, or a single operand another indicator
+holds: a Sum over the holders, with a DHIS2 element created, unticked, for each
+operand nobody holds, rows and ledger rows deleted), `to_calculated` (any other
+accepted shape, not a special id: the decomposition's expression over the
+holders, the factor's format, rows and ledger rows deleted), or `to_uploaded`
+(not in DHIS2, a refused verdict with the refusal as the reason, a refused
+decomposition, or a special id with a non-count shape: rows and key kept,
+frozen). Retargets are decided first, so a single-operand formula keeps its
+rows. A Sum that names a `to_sum` indicator takes its members in its place and
+one that names a `to_calculated` indicator drops it (the member FK pins members
+to `has_rows`). `plan` writes the whole plan as JSON: one action per broken
+element with every value the apply writes, the created elements, the Sum
+rewrites, and `staleLedgerRows`, one entry per indicator that is Uploaded after
+the apply (the dictionary's Uploaded indicators and every `to_uploaded` action)
+whose data id has ledger rows with status `error` and no records, which describe
+fetches of a route the indicator no longer has and would show as errors forever;
+`apply` reads one from stdin, recomputes it from live state, refuses on any
+difference (exit 2), and otherwise runs `applyDhis2IdFix`: one transaction
+holding a `SHARE ROW EXCLUSIVE` lock on `indicators`, every precondition
+re-checked inside it (no running import run, the stored URL, each indicator
+still an element under its data id with the planned row count, each target and
+created data id unheld, each created id free, each rewritten Sum's live members
+giving the plan's rewrite and leaving at least one member, each stale-ledger
+entry's indicator Uploaded under its data id or retyped so by the plan with the
+planned count), the data-id FK deferred so a retarget moves the key before its
 rows, the ledger rows of a retarget copied aside and rewritten under the new key
-because that FK is not deferrable, the Sum rewrites before the retypes, one
-negative `dataset_hmis_versions` row for all the deleted rows, and
-`checkDefinitionsResolve` over the dictionary as written before commit. Every
-touched row's `updated_at` moves, so the dictionary stamps change; the realtime
+because that FK is not deferrable, the Sum rewrites before the retypes, the
+stale ledger rows deleted after them, one negative `dataset_hmis_versions` row
+for all the deleted data rows, and `checkDefinitionsResolve` over the dictionary
+as written before commit. Every retyped, retargeted, created or rewritten row's
+`updated_at` moves, so the dictionary stamps change; a stale-ledger delete under
+an indicator the apply does not retype touches no indicator row. The realtime
 summaries need a container restart.
 
 Instance migration 087 (`087_indicator_data_key.sql`) gives every Uploaded row a

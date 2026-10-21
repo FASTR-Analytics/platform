@@ -1,8 +1,9 @@
 // Pins the apply of the DHIS2 id repair on a throwaway database built from
 // _main_database.sql on the dev postgres (the .env the test task loads),
-// dropped afterwards: each outcome's writes, the Sum rewrites, the minted
-// version row, the preconditions that roll the whole apply back, the
-// dictionary stamp, and the plan-file comparison `apply` refuses on.
+// dropped afterwards: each outcome's writes, the Sum rewrites, the stale
+// ledger rows, the minted version row, the preconditions that roll the whole
+// apply back, the dictionary stamp, and the plan-file comparison `apply`
+// refuses on.
 //
 //   deno test -A --env-file server/tests/dhis2_id_fix_execute_test.ts
 
@@ -26,6 +27,7 @@ import {
   planDhis2IdFix,
   readDhis2IdFixPlanFile,
   readRowSpans,
+  readStaleLedgerCounts,
 } from "../dhis2_id_fix/mod.ts";
 import type { ElementRoute } from "../worker_routines/import_hmis_data_dhis2/dispatch.ts";
 
@@ -40,6 +42,7 @@ const B = "ElemBbbbbb2";
 const F1 = "FormulaAa01";
 const F2 = "FormulaBb02";
 const NF = "NotFound001";
+const U = "UploadedU01";
 
 const FORMULA: ElementRoute = { kind: "unknown", reason: "dhis2_indicator" };
 const NOT_FOUND: ElementRoute = { kind: "unknown", reason: "not_found" };
@@ -111,6 +114,14 @@ async function element(
   `;
 }
 
+async function uploaded(id: string, dataId: string): Promise<void> {
+  await db`
+    INSERT INTO indicators
+      (indicator_common_id, indicator_common_label, definition_type, data_id)
+    VALUES (${id}, ${`Label ${id}`}, 'uploaded', ${dataId})
+  `;
+}
+
 async function sum(id: string, members: string[]): Promise<void> {
   await db`
     INSERT INTO indicators
@@ -147,6 +158,18 @@ async function ledgerError(dataId: string, period: number): Promise<void> {
   `;
 }
 
+// A pair that imported once and failed on a later run keeps its counts.
+async function ledgerErrorAfterImport(
+  dataId: string,
+  period: number,
+): Promise<void> {
+  await db`
+    INSERT INTO dataset_hmis_import_ledger
+      (data_id, period_id, n_records, sum_count, route, status, error, imported_at, version_id)
+    VALUES (${dataId}, ${period}, 1, 5, 'dhis2', 'error', 'refused', now(), 1)
+  `;
+}
+
 function formula(
   numerator: string,
   options: { denominator?: string; factor?: number } = {},
@@ -167,15 +190,19 @@ function formula(
 }
 
 async function facts(
-  partial: Pick<Dhis2IdFixFacts, "routes" | "formulas">,
+  partial:
+    & Pick<Dhis2IdFixFacts, "routes" | "formulas">
+    & Partial<Pick<Dhis2IdFixFacts, "elements">>,
 ): Promise<Dhis2IdFixFacts> {
+  const keys = [A, B, F1, F2, NF, U];
   return {
     dhis2Url: URL_STORED,
     indicators: await getHmisIndicators(db),
-    rows: await readRowSpans(db, [A, B, F1, F2, NF]),
+    rows: await readRowSpans(db, keys),
+    staleLedger: await readStaleLedgerCounts(db, keys),
     elements: {
-      [A]: { name: "ANC first visit" },
-      [B]: { name: "ANC first visit (repeat)" },
+      [A]: { name: "ANC first visit", verdict: { accepted: true } },
+      [B]: { name: "ANC first visit (repeat)", verdict: { accepted: true } },
     },
     ...partial,
   };
@@ -259,6 +286,7 @@ Deno.test("retarget moves the key, the label, every row and every ledger row; no
       rowsDeleted: 0,
     }],
     sumsRewritten: [],
+    staleLedgerRowsDeleted: 0,
   });
   const row = await indicatorRow("anc1");
   assertEquals(row.definition_type, "dhis2_element");
@@ -399,6 +427,109 @@ Deno.test("to_uploaded keeps the key, the rows and the ledger", async () => {
     202301,
     202302,
   ]);
+});
+
+Deno.test("stale ledger rows: a refused dvs element is retyped and the error rows without records under it and under every Uploaded indicator go; ready rows, imported pairs and the Uploaded stamps stay", async () => {
+  await seed();
+  await uploaded("legacy", U);
+  await rows(U, [202301]);
+  await ledgerError(U, 202302);
+  await ledgerError(U, 202303);
+  await ledgerErrorAfterImport(U, 202304);
+  await element("quarterly", A, { label: "Quarterly" });
+  await rows(A, [202301, 202302]);
+  await ledgerError(A, 202303);
+  await element("healthy", B);
+  await ledgerError(B, 202301);
+  const legacyStamp = async () =>
+    (await db<{ updated_at: string }[]>`
+      SELECT updated_at::text FROM indicators WHERE indicator_common_id = 'legacy'
+    `)[0].updated_at;
+  const refusedFacts = () =>
+    facts({
+      routes: {
+        [A]: DVS,
+        [B]: { kind: "dvs", dataElementId: B, coc: undefined },
+      },
+      formulas: {},
+      elements: {
+        [A]: {
+          name: "TB outcomes",
+          verdict: {
+            accepted: false,
+            refusal: { kind: "period_type", value: "Quarterly" },
+          },
+        },
+        [B]: { name: "ANC first visit (repeat)", verdict: { accepted: true } },
+      },
+    });
+  const plan = planDhis2IdFix(await refusedFacts(), AT);
+  assertEquals(plan.elementsHealthy, 1);
+  assertEquals(plan.actions.map((a) => [a.indicatorId, a.outcome]), [[
+    "quarterly",
+    "to_uploaded",
+  ]]);
+  assertEquals(plan.staleLedgerRows, [
+    { indicatorId: "legacy", dataId: U, count: 2 },
+    { indicatorId: "quarterly", dataId: A, count: 1 },
+  ]);
+
+  const accepted = planDhis2IdFix(
+    await facts({
+      routes: {
+        [A]: DVS,
+        [B]: { kind: "dvs", dataElementId: B, coc: undefined },
+      },
+      formulas: {},
+    }),
+    AT,
+  );
+  const drift = diffDhis2IdFixPlans(plan, accepted);
+  assertEquals(drift.length, 3);
+  assert(drift[0].startsWith("elementsHealthy: the plan says 1"));
+  assertEquals(drift[1], "action quarterly: in the plan, not in live state");
+  assertEquals(
+    drift[2],
+    "stale ledger rows quarterly: in the plan, not in live state",
+  );
+
+  await ledgerError(U, 202305);
+  await assertRejects(
+    () => applyDhis2IdFix(db, plan),
+    Error,
+    "legacy has 3 stale ledger rows, the plan counted 2",
+  );
+  await db`DELETE FROM dataset_hmis_import_ledger WHERE data_id = ${U} AND period_id = 202305`;
+  await db`UPDATE indicators SET definition_type = 'dhis2_element' WHERE indicator_common_id = 'legacy'`;
+  await assertRejects(
+    () => applyDhis2IdFix(db, plan),
+    Error,
+    `legacy is not Uploaded under ${U}`,
+  );
+  await db`UPDATE indicators SET definition_type = 'uploaded' WHERE indicator_common_id = 'legacy'`;
+  const stampBefore = await legacyStamp();
+
+  const result = await applyDhis2IdFix(db, plan);
+  assertEquals(result.versionId, null);
+  assertEquals(result.staleLedgerRowsDeleted, 3);
+  const row = await indicatorRow("quarterly");
+  assertEquals(row.definition_type, "uploaded");
+  assertEquals(row.data_id, A);
+  assertEquals(await periodsUnder("dataset_hmis", A), [202301, 202302]);
+  assertEquals(await periodsUnder("dataset_hmis_import_ledger", A), [
+    202301,
+    202302,
+  ]);
+  assertEquals(await periodsUnder("dataset_hmis_import_ledger", U), [
+    202301,
+    202304,
+  ]);
+  assertEquals(await periodsUnder("dataset_hmis_import_ledger", B), [202301]);
+  assertEquals(await legacyStamp(), stampBefore);
+
+  const second = planDhis2IdFix(await refusedFacts(), AT);
+  assertEquals(second.actions, []);
+  assertEquals(second.staleLedgerRows, []);
 });
 
 async function planWithCreatedElement(): Promise<Dhis2IdFixPlan> {

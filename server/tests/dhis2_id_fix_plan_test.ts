@@ -1,12 +1,14 @@
 // Pins the pure planner of the DHIS2 id repair: the outcome of each broken
-// DHIS2 element, created elements and their ids, the retarget-first rule,
-// the rewrite of Sums that name a retyped indicator, and the action order.
+// DHIS2 element, the verdict a dvs element must pass, created elements and
+// their ids, the retarget-first rule, the rewrite of Sums that name a
+// retyped indicator, the stale ledger rows, and the action order.
 //
 //   deno test -A --env-file server/tests/dhis2_id_fix_plan_test.ts
 
 import { assertEquals, assertThrows } from "@std/assert";
 import type {
   Dhis2ElementRefusal,
+  Dhis2ElementVerdict,
   Dhis2IndicatorDecomposition,
   HmisIndicator,
   HmisIndicatorDefinition,
@@ -34,6 +36,7 @@ const AT = "2026-10-21T10:00:00.000Z";
 const FORMULA: ElementRoute = { kind: "unknown", reason: "dhis2_indicator" };
 const NOT_FOUND: ElementRoute = { kind: "unknown", reason: "not_found" };
 const DVS: ElementRoute = { kind: "dvs", dataElementId: A, coc: undefined };
+const ACCEPTED: Dhis2ElementVerdict = { accepted: true };
 
 function indicator(
   id: string,
@@ -103,8 +106,8 @@ function facts(partial: Partial<Dhis2IdFixFacts>): Dhis2IdFixFacts {
     routes: {},
     formulas: {},
     elements: {
-      [A]: { name: "ANC first visit" },
-      [B]: { name: "ANC first visit (repeat)" },
+      [A]: { name: "ANC first visit", verdict: ACCEPTED },
+      [B]: { name: "ANC first visit (repeat)", verdict: ACCEPTED },
       [C]: {
         name: "Live births",
         categoryCombo: {
@@ -112,8 +115,10 @@ function facts(partial: Partial<Dhis2IdFixFacts>): Dhis2IdFixFacts {
           name: "Sex",
           categoryOptionCombos: [{ id: COC, name: "Female" }],
         },
+        verdict: ACCEPTED,
       },
     },
+    staleLedger: {},
     ...partial,
   };
 }
@@ -168,8 +173,100 @@ Deno.test("a healthy element is counted and gets no action", () => {
   assertEquals(plan.actions, []);
   assertEquals(plan.createdElements, []);
   assertEquals(plan.sumRewrites, []);
+  assertEquals(plan.staleLedgerRows, []);
   assertEquals(plan.plannedAt, AT);
   assertEquals(plan.dhis2Url, "https://dhis2.example.org");
+});
+
+Deno.test("a dvs element the picker refuses: to_uploaded with the refusal, rows kept; an operand takes its element's verdict", () => {
+  const refused = (refusal: Dhis2ElementRefusal): Dhis2ElementVerdict => ({
+    accepted: false,
+    refusal,
+  });
+  const plan = planDhis2IdFix(
+    facts({
+      indicators: [
+        element("quarterly", A),
+        element("births_f", `${C}.${COC}`),
+        element("held", B),
+      ],
+      routes: {
+        [A]: DVS,
+        [`${C}.${COC}`]: { kind: "dvs", dataElementId: C, coc: COC },
+        [B]: { kind: "dvs", dataElementId: B, coc: undefined },
+      },
+      elements: {
+        [A]: {
+          name: "TB outcomes",
+          verdict: refused({ kind: "period_type", value: "Quarterly" }),
+        },
+        [B]: { name: "ANC first visit (repeat)", verdict: ACCEPTED },
+        [C]: {
+          name: "Live births",
+          verdict: refused({ kind: "aggregation_type", value: "AVERAGE" }),
+        },
+      },
+      rows: {
+        [A]: { count: 36, firstPeriodId: 202301, lastPeriodId: 202512 },
+      },
+    }),
+    AT,
+  );
+  assertEquals(plan.elementsChecked, 3);
+  assertEquals(plan.elementsHealthy, 1);
+  assertEquals(plan.actions, [
+    {
+      indicatorId: "births_f",
+      dataId: `${C}.${COC}`,
+      rows: { count: 0, firstPeriodId: null, lastPeriodId: null },
+      outcome: "to_uploaded",
+      reason:
+        "DHIS2 cannot serve it monthly: its aggregation type is AVERAGE, not SUM",
+    },
+    {
+      indicatorId: "quarterly",
+      dataId: A,
+      rows: { count: 36, firstPeriodId: 202301, lastPeriodId: 202512 },
+      outcome: "to_uploaded",
+      reason:
+        "DHIS2 cannot serve it monthly: its data sets are Quarterly; none is monthly",
+    },
+  ]);
+  assertEquals(plan.createdElements, []);
+});
+
+Deno.test("stale ledger rows: one entry per Uploaded indicator and per to_uploaded action with stale rows, by indicator id", () => {
+  const plan = planDhis2IdFix(
+    facts({
+      indicators: [
+        indicator("zulu_legacy", { type: "uploaded", data_id: "u_zulu" }),
+        indicator("clean_legacy", { type: "uploaded", data_id: "u_clean" }),
+        element("anc_total", A),
+        element("gone", NF),
+        element("single", F1),
+        indicator("legacy_b", { type: "uploaded", data_id: B }),
+      ],
+      routes: { [A]: DVS, [NF]: NOT_FOUND, [F1]: FORMULA },
+      formulas: { [F1]: formula(`#{${C}}`) },
+      staleLedger: {
+        u_zulu: 12,
+        [A]: 3,
+        [NF]: 7,
+        [F1]: 2,
+        [B]: 1,
+      },
+    }),
+    AT,
+  );
+  assertEquals(plan.actions.map((a) => [a.indicatorId, a.outcome]), [
+    ["gone", "to_uploaded"],
+    ["single", "retarget"],
+  ]);
+  assertEquals(plan.staleLedgerRows, [
+    { indicatorId: "gone", dataId: NF, count: 7 },
+    { indicatorId: "legacy_b", dataId: B, count: 1 },
+    { indicatorId: "zulu_legacy", dataId: "u_zulu", count: 12 },
+  ]);
 });
 
 Deno.test("not found: to_uploaded, rows kept and spanned", () => {
@@ -263,6 +360,7 @@ Deno.test("a default-combo operand is its element: retarget to the bare id under
         isDefault: true,
         categoryOptionCombos: [{ id: DEFAULT, name: "default" }],
       },
+      verdict: ACCEPTED,
     },
   };
   const decomposition = formula(`#{${A}.${DEFAULT}}`);
@@ -478,8 +576,8 @@ Deno.test("created ids avoid the dictionary's ids and each other", () => {
       routes: { [F1]: FORMULA },
       formulas: { [F1]: formula(`#{${A}} + #{${B}}`) },
       elements: {
-        [A]: { name: "ANC first visit" },
-        [B]: { name: "ANC first visit" },
+        [A]: { name: "ANC first visit", verdict: ACCEPTED },
+        [B]: { name: "ANC first visit", verdict: ACCEPTED },
       },
     }),
     AT,
@@ -588,5 +686,18 @@ Deno.test("incomplete facts throw instead of planning", () => {
       ),
     Error,
     `No element in the facts for operand ${A}`,
+  );
+  assertThrows(
+    () =>
+      planDhis2IdFix(
+        facts({
+          indicators: [element("anc_total", A)],
+          routes: { [A]: DVS },
+          elements: {},
+        }),
+        AT,
+      ),
+    Error,
+    `No element in the facts for DHIS2 element ${A}`,
   );
 });
