@@ -4,7 +4,11 @@
 // and rolls the whole apply back.
 
 import type { Sql } from "postgres";
-import { type HmisIndicatorDefinition, parseJsonOrThrow } from "lib";
+import {
+  type HmisIndicatorDefinition,
+  NO_STORED_DHIS2_CONNECTION,
+  parseJsonOrThrow,
+} from "lib";
 import {
   checkDefinitionsResolve,
   getHmisIndicators,
@@ -14,6 +18,7 @@ import {
   writeMembers,
 } from "../db/instance/indicators.ts";
 import { assertNoRunningDatasetHmisImportRun } from "../db/instance/dataset_hmis_import_runs.ts";
+import { getStoredDhis2CredentialsInfo } from "../db/instance/instance_dhis2_credentials.ts";
 import { readRowSpans, readStaleLedgerCounts } from "./gather.ts";
 import {
   type Dhis2IdFixAction,
@@ -113,6 +118,22 @@ function fail(message: string): never {
   throw new PreconditionFailed(message);
 }
 
+// The stored DHIS2 connection is the one the plan was made against.
+export async function assertPlanConnection(
+  sql: Sql,
+  plan: Dhis2IdFixPlan,
+): Promise<void> {
+  const stored = await getStoredDhis2CredentialsInfo(sql);
+  if (stored === null) fail(NO_STORED_DHIS2_CONNECTION.en);
+  if (stored.url !== plan.dhis2Url) {
+    fail(
+      `The stored DHIS2 URL is ${JSON.stringify(stored.url)}, the plan's is ${
+        JSON.stringify(plan.dhis2Url)
+      }`,
+    );
+  }
+}
+
 // The live state the preconditions read, through the same reads the planner's
 // facts come from, once for the whole plan.
 type LiveState = {
@@ -152,17 +173,7 @@ async function checkPreconditions(
   plan: Dhis2IdFixPlan,
 ): Promise<void> {
   await assertNoRunningDatasetHmisImportRun(sql);
-  const stored = await sql<{ url: string }[]>`
-    SELECT url FROM instance_dhis2_credentials
-  `;
-  const url = stored.at(0)?.url;
-  if (url !== plan.dhis2Url) {
-    fail(
-      `The stored DHIS2 URL is ${JSON.stringify(url)}, the plan's is ${
-        JSON.stringify(plan.dhis2Url)
-      }`,
-    );
-  }
+  await assertPlanConnection(sql, plan);
   const live = await readLiveState(sql, plan);
   for (const action of plan.actions) {
     const current = live.definitions.get(action.indicatorId);

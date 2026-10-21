@@ -1,27 +1,24 @@
 // The import an applied plan leaves to do: one manual DHIS2 import run over
 // every Sum and calculated indicator whose rows the apply deleted and every
-// Sum it rewrote, launched the way the import wizard launches one. The worker
-// runs in the calling process, so the caller waits for it.
+// Sum it rewrote, queued as the import wizard queues one. The server's
+// scheduler starts it, so the run lives in the server's process: the app's
+// Cancel reaches it and connected clients hear when it starts and ends.
 
 import type { Sql } from "postgres";
-import {
-  type DatasetHmisImportRunStatus,
-  type Dhis2WindowSelectionInput,
-  NO_STORED_DHIS2_CONNECTION,
+import type {
+  DatasetHmisImportRunDetail,
+  Dhis2WindowSelectionInput,
 } from "lib";
-import { launchDatasetHmisDhis2ImportRun } from "../db/instance/dataset_hmis_import_runs.ts";
-import { getStoredDhis2CredentialsInfo } from "../db/instance/instance_dhis2_credentials.ts";
+import {
+  enqueueDatasetHmisImportRun,
+  getDatasetHmisImportRunDetail,
+} from "../db/instance/dataset_hmis_import_runs.ts";
+import { assertPlanConnection } from "./execute.ts";
 import type { Dhis2IdFixPlan } from "./plan.ts";
 
 export const DHIS2_ID_FIX_BACKFILL_TRIGGERED_BY = "dhis2-id-repair";
 
-export type Dhis2IdFixBackfillRun = {
-  runId: number;
-  status: DatasetHmisImportRunStatus;
-  succeededPairs: number;
-  failedPairs: number;
-  error: string | null;
-};
+const RUN_POLL_INTERVAL_MS = 10_000;
 
 // The window runs from the earliest to the latest month the emptied
 // indicators held, so it refetches everything they lost.
@@ -50,67 +47,36 @@ export function backfillSelection(
   };
 }
 
-async function readRun(
-  mainDb: Sql,
-  runId: number,
-): Promise<Dhis2IdFixBackfillRun> {
-  const rows = await mainDb<
-    {
-      status: DatasetHmisImportRunStatus;
-      succeeded_pairs: number;
-      failed_pairs: number;
-      error: string | null;
-    }[]
-  >`
-    SELECT status, succeeded_pairs, failed_pairs, error
-    FROM dataset_hmis_import_runs WHERE id = ${runId}
-  `;
-  const row = rows.at(0);
-  if (row === undefined) throw new Error(`Import run ${runId} not found`);
-  return {
-    runId,
-    status: row.status,
-    succeededPairs: row.succeeded_pairs,
-    failedPairs: row.failed_pairs,
-    error: row.error,
-  };
-}
-
 // Refused, by a throw, when the plan has nothing to backfill, when the stored
-// connection is missing or is not the plan's, or when the launch is (a run in
-// progress, no DHIS2-shaped facilities). `finished` settles once the worker
-// has ended, by completing or by failing.
-export async function launchDhis2IdFixBackfill(
+// connection is missing or is not the plan's, or when the selection is
+// (an indicator gone, no DHIS2-shaped facilities).
+export async function queueDhis2IdFixBackfill(
   mainDb: Sql,
   plan: Dhis2IdFixPlan,
-): Promise<{
-  runId: number;
-  selection: Dhis2WindowSelectionInput;
-  finished: Promise<Dhis2IdFixBackfillRun>;
-}> {
+): Promise<{ runId: number; selection: Dhis2WindowSelectionInput }> {
   const selection = backfillSelection(plan);
-  const stored = await getStoredDhis2CredentialsInfo(mainDb);
-  if (stored === null) throw new Error(NO_STORED_DHIS2_CONNECTION.en);
-  if (stored.url !== plan.dhis2Url) {
-    throw new Error(
-      `The stored DHIS2 URL is ${JSON.stringify(stored.url)}, the plan's is ${
-        JSON.stringify(plan.dhis2Url)
-      }`,
-    );
-  }
-  const ended = Promise.withResolvers<void>();
-  const launched = await launchDatasetHmisDhis2ImportRun(mainDb, {
-    dhis2Url: stored.url,
+  await assertPlanConnection(mainDb, plan);
+  const queued = await enqueueDatasetHmisImportRun(mainDb, {
+    dhis2Url: plan.dhis2Url,
     selection,
-    trigger: "manual",
     triggeredBy: DHIS2_ID_FIX_BACKFILL_TRIGGERED_BY,
-    onComplete: () => ended.resolve(),
   });
-  if (!launched.success) throw new Error(launched.err);
-  const runId = launched.data.runId;
-  return {
-    runId,
-    selection,
-    finished: ended.promise.then(() => readRun(mainDb, runId)),
-  };
+  if (!queued.success) throw new Error(queued.err);
+  return { runId: queued.data.runId, selection };
+}
+
+// The run once it is neither queued nor running: complete, error (a refusal
+// at start included) or cancelled.
+export async function waitForDhis2IdFixBackfill(
+  mainDb: Sql,
+  runId: number,
+): Promise<DatasetHmisImportRunDetail> {
+  while (true) {
+    const read = await getDatasetHmisImportRunDetail(mainDb, runId);
+    if (!read.success) throw new Error(read.err);
+    if (read.data.status !== "queued" && read.data.status !== "running") {
+      return read.data;
+    }
+    await new Promise((resolve) => setTimeout(resolve, RUN_POLL_INTERVAL_MS));
+  }
 }

@@ -2,8 +2,8 @@
 // _main_database.sql on the dev postgres (the .env the test task loads),
 // dropped afterwards: each outcome's writes, a duplicate's references and
 // deletion, the Sum rewrites, the stale ledger rows, the minted version row,
-// the preconditions that roll the whole apply back, the dictionary stamp, and
-// the plan-file comparison `apply` refuses on.
+// the preconditions that roll the whole apply back, the dictionary stamp, the
+// plan-file comparison `apply` refuses on, and the backfill's queued run.
 //
 //   deno test -A --env-file server/tests/dhis2_id_fix_execute_test.ts
 
@@ -25,9 +25,11 @@ import {
   type Dhis2IdFixPlan,
   diffDhis2IdFixPlans,
   planDhis2IdFix,
+  queueDhis2IdFixBackfill,
   readDhis2IdFixPlanFile,
   readRowSpans,
   readStaleLedgerCounts,
+  waitForDhis2IdFixBackfill,
 } from "../dhis2_id_fix/mod.ts";
 import type { ElementRoute } from "../worker_routines/import_hmis_data_dhis2/dispatch.ts";
 
@@ -835,6 +837,76 @@ Deno.test("the plan-file comparison ignores plannedAt and names every difference
     () => readDhis2IdFixPlanFile(JSON.stringify({ actions: [] })),
     Error,
     "not a plan file",
+  );
+});
+
+Deno.test("backfill: one manual run queued for the server over the emptied Sum and the rewritten Sum, refused for another server's plan; the wait returns the run once it has ended", async () => {
+  await seed();
+  await db`
+    INSERT INTO facilities_hmis
+      (facility_id, admin_area_4, admin_area_3, admin_area_2, admin_area_1)
+    VALUES ('FacAaaaaaa1', 'a4', 'a3', 'a2', 'a1')
+  `;
+  await element("anc_total", A);
+  await element("anc_all", F1);
+  await rows(F1, [202301, 202302]);
+  await sum("outer", ["anc_all", "anc_total"]);
+  const plan = planDhis2IdFix(
+    await facts({
+      routes: { [A]: DVS, [F1]: FORMULA },
+      formulas: { [F1]: formula(`#{${A}} + #{${B}}`) },
+    }),
+    AT,
+  );
+  await applyDhis2IdFix(db, plan);
+
+  await assertRejects(
+    () =>
+      queueDhis2IdFixBackfill(db, {
+        ...plan,
+        dhis2Url: "https://other.example.org",
+      }),
+    Error,
+    "The stored DHIS2 URL",
+  );
+  const { runId, selection } = await queueDhis2IdFixBackfill(db, plan);
+  assertEquals(selection, {
+    kind: "window",
+    indicatorIds: ["anc_all", "outer"],
+    startPeriod: 202301,
+    endPeriod: 202302,
+  });
+  const queued = await db<
+    {
+      status: string;
+      trigger: string;
+      triggered_by: string;
+      dhis2_url: string;
+      selection: string;
+      total_pairs: number;
+    }[]
+  >`
+    SELECT status, trigger, triggered_by, dhis2_url, selection, total_pairs
+    FROM dataset_hmis_import_runs
+  `;
+  assertEquals(queued.length, 1);
+  assertEquals(queued[0].status, "queued");
+  assertEquals(queued[0].trigger, "manual");
+  assertEquals(queued[0].triggered_by, "dhis2-id-repair");
+  assertEquals(queued[0].dhis2_url, URL_STORED);
+  assertEquals(JSON.parse(queued[0].selection).dataIds.toSorted(), [A, B]);
+  assertEquals(queued[0].total_pairs, 4);
+
+  await db`
+    UPDATE dataset_hmis_import_runs
+    SET status = 'complete', succeeded_pairs = 3, failed_pairs = 1,
+      ended_at = now()
+    WHERE id = ${runId}
+  `;
+  const ended = await waitForDhis2IdFixBackfill(db, runId);
+  assertEquals(
+    [ended.id, ended.status, ended.succeededPairs, ended.failedPairs],
+    [runId, "complete", 3, 1],
   );
 });
 

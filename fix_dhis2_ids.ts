@@ -8,9 +8,10 @@ import {
   type Dhis2IdFixPlan,
   diffDhis2IdFixPlans,
   gatherDhis2IdFixFacts,
-  launchDhis2IdFixBackfill,
   planDhis2IdFix,
+  queueDhis2IdFixBackfill,
   readDhis2IdFixPlanFile,
+  waitForDhis2IdFixBackfill,
 } from "./server/dhis2_id_fix/mod.ts";
 
 // Repairs, in place, the DHIS2 element indicators whose DHIS2 id DHIS2 has
@@ -86,24 +87,20 @@ const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
 let exitCode = 0;
 try {
   if (command === "backfill") {
-    const backfill = await launchDhis2IdFixBackfill(
+    const { runId, selection } = await queueDhis2IdFixBackfill(
       mainDb,
       readDhis2IdFixPlanFile(await readStdin()),
     );
-    const { indicatorIds, startPeriod, endPeriod } = backfill.selection;
     console.log(
-      `Import run ${backfill.runId} launched over ${
-        indicatorIds.join(", ")
-      }, ${startPeriod} to ${endPeriod}; waiting for it to finish`,
+      `Import run ${runId} queued over ${
+        selection.indicatorIds.join(", ")
+      }, ${selection.startPeriod} to ${selection.endPeriod}; the server starts it within a minute, and this waits for it to end`,
     );
-    const run = await backfill.finished;
+    const run = await waitForDhis2IdFixBackfill(mainDb, runId);
     console.log(
-      `Import run ${run.runId}: ${run.status}, ${run.succeededPairs} pairs succeeded, ${run.failedPairs} failed${
-        run.error === null ? "" : `: ${run.error}`
+      `Import run ${run.id}: ${run.status}, ${run.succeededPairs} pairs succeeded, ${run.failedPairs} failed${
+        run.error === undefined ? "" : `: ${run.error}`
       }`,
-    );
-    console.log(
-      "The server did not see this run finish: restart the container so connected clients refetch the dataset summaries.",
     );
     exitCode = run.status === "complete" ? 0 : 1;
   } else if (command === "plan") {
