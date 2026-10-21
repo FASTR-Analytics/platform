@@ -1,12 +1,12 @@
-[TBD] [user] [added] - Bulk delete for scopes from the scopes list
-[TBD] [user] [changed] - "All data" scope now shown as a fixed panel above the scopes table
-[TBD] [user] [added] - New disruption chart metrics at sub-district geographic levels
-[TBD] [user] [added] - Percent-change chart now supports an additional metric
-[TBD] [user] [changed] - Deeper geographic levels available when exploring disruption data
-[TBD] [admin] [added] - Bulk delete is now available for scopes
-[TBD] [admin] [changed] - "All data" scope shown as a fixed panel above the scopes table
-[TBD] [admin] [added] - New disruption analysis metrics available at sub-district levels
-[TBD] [admin] [added] - Percent-change chart now supports an additional metric
+[2.0.2] [user] [added] - Bulk delete for scopes from the scopes list
+[2.0.2] [user] [changed] - "All data" scope now shown as a fixed panel above the scopes table
+[2.0.2] [user] [added] - New disruption chart metrics at sub-district geographic levels
+[2.0.2] [user] [added] - Percent-change chart now supports an additional metric
+[2.0.2] [user] [changed] - Deeper geographic levels available when exploring disruption data
+[2.0.2] [admin] [added] - Bulk delete is now available for scopes
+[2.0.2] [admin] [changed] - "All data" scope shown as a fixed panel above the scopes table
+[2.0.2] [admin] [added] - New disruption analysis metrics available at sub-district levels
+[2.0.2] [admin] [added] - Percent-change chart now supports an additional metric
 [2.0.1] [user] [changed] - DHIS2 import error messages now direct you to contact the FASTR team for repairs instead of listing manual fix steps
 [2.0.1] [admin] [changed] - DHIS2 import errors now direct you to contact the FASTR team for repairs instead of listing manual fix steps
 [2.0.1] [admin] [added] - FASTR team can now run an automated DHIS2 id repair that fixes broken indicator IDs while preserving imported data
