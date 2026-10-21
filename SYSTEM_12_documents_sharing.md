@@ -187,22 +187,22 @@ list row shows the user's level as a badge (`product_level_badge.tsx`: Owner,
 Editor or Viewer), drawn for no global admin, who holds every product. Every
 affordance follows this table:
 
-| Needs  | Affordances                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `view` | Open, Present, Download…, Share… and Email this file…, History, Restore as copy, Copy to deck… (its picker lists only decks the user can edit), Duplicate and Make a copy…, the copilot's read tools and draft previews (every user registers the same tools; a write refuses below `edit` at the call, S13)                                                                                                                                                                     |
-| `edit` | Add slide, Duplicate slide, Delete slide, the rail's reorder, every content write in both editors, Update all figures, the figure editor, the Deck menu (theme, logos, footer, all deck settings), the report's theme and page setup, Name and folder… and Rename…, the package and scope chip, Restore, Save this report's style…, the draft preview's Add to deck, Manage access…, the copilot's write tools (registered for every user, refused below this level at the call) |
-| `own`  | Delete, Transfer ownership…                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| Needs  | Affordances                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `view` | Open, Present, Download…, Share… and Email this file…, History, Restore as copy, Copy to deck… (its picker lists only decks the user can edit), Duplicate and Make a copy…, the copilot's read tools and draft previews (every user registers the same tools; a write refuses below `edit` at the call, S13)                                                                                                                                                                            |
+| `edit` | Add slide, Duplicate slide, Delete slide, the rail's reorder, every content write in both editors, Update all visualizations, the figure editor, the Deck menu (theme, logos, footer, all deck settings), the report's theme and page setup, Name and folder… and Rename…, the package and scope chip, Restore, Save this report's style…, the draft preview's Add to deck, Manage access…, the copilot's write tools (registered for every user, refused below this level at the call) |
+| `own`  | Delete, Transfer ownership…                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 
 A viewer's editors open read-only: the deck hides Add slide, the Deck menu,
-Update all figures and the slide card's menu, the rail does not reorder, and the
-slide canvas takes no divider drag, block swap or context menu; the report's
-body editor is read-only, and a FASTR report the user cannot write shows its
-File menu alone in the menu row (`ReportFileMenu`: Download…, Email this file…,
-Make a copy…). A product row in the list shows a lock icon when its general
-access is `none`. Folder and create affordances keep `currentUserApproved`,
-since folders carry no level. The `products_upserted` handler fires the stamp
-listener only for a product whose stamp moved, so an access re-broadcast reaches
-the store and no listener.
+Update all visualizations and the slide card's menu, the rail does not reorder,
+and the slide canvas takes no divider drag, block swap or context menu; the
+report's body editor is read-only, and a FASTR report the user cannot write
+shows its File menu alone in the menu row (`ReportFileMenu`: Download…, Email
+this file…, Make a copy…). A product row in the list shows a lock icon when its
+general access is `none`. Folder and create affordances keep
+`currentUserApproved`, since folders carry no level. The `products_upserted`
+handler fires the stamp listener only for a product whose stamp moved, so an
+access re-broadcast reaches the store and no listener.
 
 **The access dialog.** `ProductAccessModal` (`_shared/product_access_modal.tsx`)
 is behind "Manage access…" in the product menu, the deck's File menu and the
@@ -637,14 +637,22 @@ stamped with the product's pair, a figure block whose bundle was resolved under
 another pair shows S11's stale badge among its toolbar controls when selected
 (S10 "The captured pair and staleness"). The deck header's "Update all
 visualizations" button counts and re-resolves the stale figures across every
-slide through `deck_stale_figures.ts`, which walks the per-slide cache, swaps
-bundles with `slide_transforms/update_block_in_layout.ts` (the one structural
-walk the slide editor's own block edits use, so every write carries a fresh
-reference for the CRDT sync) and writes each updated slide back through
-`updateSlide` with its `expectedLastUpdated`. Slide-type switching keeps a
-per-type cache so switching back restores prior state (same idiom per-block for
-block-type switches). The layout tree is manipulated exclusively through panther
-node ops via `buildLayoutContextMenu`
+slide through `deck_stale_figures.ts`, which reads the open slide from its
+editor's draft and every other slide from the per-slide cache, swaps bundles
+with `slide_transforms/update_block_in_layout.ts` (the one structural walk the
+slide editor's own block edits use, so every write carries a fresh reference for
+the CRDT sync), path-sets the open slide's new layout into its draft (the editor
+pushes it to the room, or saves it when it next flushes) and writes each other
+slide back through `updateSlide` with its `expectedLastUpdated`. The open slide
+goes through its draft for the reason the copilot's slide tools do (S13): the
+draft runs ahead of the stored row until the room checkpoints, so a write of the
+stored row would merge an older slide over what the user is typing. The count
+walks the open slide's draft through its store before its first await, so the
+header follows a figure the user updates on the canvas as soon as it is written,
+and re-runs only when a figure block of the draft changes, never on a keystroke.
+Slide-type switching keeps a per-type cache so switching back restores prior
+state (same idiom per-block for block-type switches). The layout tree is
+manipulated exclusively through panther node ops via `buildLayoutContextMenu`
 ([slide_editor/build_context_menu.ts](client/src/components/products/slide_deck/slide_editor/build_context_menu.ts)):
 split/add/move/delete/convert, reachable from both the panel button and canvas
 right-click. Figure blocks have ONE authoring path: insert and replace open
@@ -655,13 +663,16 @@ only covers the slide pane beside the rail, and the slide stays mounted
 underneath, so its collab binding lives), naming the chat's
 `editing_slide_figure` view in its `aiView` prop with the deck, slide and block
 ids (the report names `editing_report_figure`); every result resolves through
-`resolveFigureBundleInteractively` under the product's current pair, so editing
-a stale figure also brings it up to date. Local edits notify the AI
-(`edited_slide_locally`), and the editor hands its draft to the deck through
-`onApi`, which the copilot reads and writes as the deck view's open slide; the
-editor sets no view of its own (S13). The Products page opens the registry's
-editor directly through the shell's editor wrapper, and the one chat beside the
-shell (S13) follows the view the deck sets.
+`resolveFigureBundleInteractively` under the product's pair and authoring
+context as they stand when the editor closes, with the metric resolved again
+there (`resolveFigureMetric`, S10 "The captured pair and staleness"), so editing
+a stale figure also brings it up to date, a reattach while the editor is open
+lands under the new package, and a figure of a retired metric is stored as its
+successor. Local edits notify the AI (`edited_slide_locally`), and the editor
+hands its draft to the deck through `onApi`, which the copilot reads and writes
+as the deck view's open slide; the editor sets no view of its own (S13). The
+Products page opens the registry's editor directly through the shell's editor
+wrapper, and the one chat beside the shell (S13) follows the view the deck sets.
 
 **Typing on the canvas.** Double-clicking a text block or a title primitive (or
 Enter with one selected) mounts
@@ -1086,17 +1097,17 @@ Around the editor the host draws the title bar, a panther `HeadingBar` inside
 `FrameTop`: the back button, `ProductTitle` (the name, renamed in place), the
 `PackageScopeChip` (which for an editor opens `PackageScopeModal` with a count
 of the figures the candidate pair would leave stale), presence avatars, the save
-indicator, "Update all figures" with the stale count (re-resolving through one
-`persistFigures` write), History, a Download button only where the editor shows
-no File menu (a reader), and the AI button. The menu row and the formatting pill
-under it are Report Forge's, the first rows of the content area. The header's
-pieces are built ONCE, into consts passed by reference: panther's `FrameTop`
-reads `panelChildren` twice (a `Show`'s `when`, then its child), `HeadingBar`
-reads its slots the same way, and an inline JSX prop compiles to a getter, so an
-inline piece is built twice over and its refs run twice. The host also owns the
-live cursors (`report/cursors.tsx`, S16), the peer selection overlay, the
-version history editor and the copilot view registration (`editing_report`,
-S13).
+indicator, "Update all visualizations" with the stale count (re-resolving
+through one `persistFigures` write), History, a Download button only where the
+editor shows no File menu (a reader), and the AI button. The menu row and the
+formatting pill under it are Report Forge's, the first rows of the content area.
+The header's pieces are built ONCE, into consts passed by reference: panther's
+`FrameTop` reads `panelChildren` twice (a `Show`'s `when`, then its child),
+`HeadingBar` reads its slots the same way, and an inline JSX prop compiles to a
+getter, so an inline piece is built twice over and its refs run twice. The host
+also owns the live cursors (`report/cursors.tsx`, S16), the peer selection
+overlay, the version history editor and the copilot view registration
+(`editing_report`, S13).
 
 **The compiled document.** One builder stands behind every surface that shows a
 report as markup, in
@@ -2809,15 +2820,6 @@ interpolation in every route.
   figure return without a word (`report.tsx:1803-1805`, 1937-1942). Keep the
   error in a signal beside `authoringContext` and show it in the deck's slide
   area and as an alert from those report actions.
-- **The report writes an edited figure back under the pair it opened with.**
-  `handleEdit` captures `staleContext()` before opening the editor
-  (`products/report/report.tsx:1984`) and re-resolves the result under that
-  `ctx.scope` (2048-2052), so a reattach or rescope while the editor is open
-  writes the figure under the old pair, against the comment at 2046-2047; the
-  slide host resolves under its live `p.scope`
-  (`products/slide_deck/slide_editor/slide_editor.tsx:1081-1085`). Resolve under
-  the live pair `scope()` (`report.tsx:226-229`) read after the editor closes,
-  returning when it is undefined.
 - **The slide editor's own editor wrapper is dead.** Its one render site always
   passes `openHostEditor` (`products/slide_deck/slide_deck.tsx:582`), so the
   fallback to the local wrapper
@@ -2826,9 +2828,3 @@ interpolation in every route.
   holds a view. Make `openHostEditor` required (137), call it at 1056, delete
   the local wrapper, and drop "Absent, it opens here" from the comment at
   133-136.
-- **The docs quote the bulk update's old label.** The button reads "Update all
-  visualizations (N)" (`_shared/figure_editor/stale_figure_badge.tsx:185-189`),
-  but this file calls it "Update all figures" in the permissions table (197),
-  the paragraph under it (201) and the report editor (1883), as do
-  SYSTEM_11_viz_authoring.md (51) and SYSTEM_10_figure_render_export.md
-  (351-352). Make each "Update all visualizations".

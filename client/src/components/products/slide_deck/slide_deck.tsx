@@ -451,6 +451,7 @@ export function SlideDeckEditor(p: Props) {
           deleteSlides={deleteSlides}
           editorMount={editorMount()}
           editorLoading={editorLoading()}
+          openSlide={openSlide()}
           onEditorApi={setOpenSlide}
           handleClose={handleClose}
         />
@@ -478,6 +479,8 @@ function SlideDeckEditorInner(p: {
     | { slideId: string; slide: Slide; lastUpdated: string }
     | undefined;
   editorLoading: boolean;
+  // The mounted editor's handle, once it has reported one.
+  openSlide: SlideEditorApi | undefined;
   onEditorApi: (api: SlideEditorApi | undefined) => void;
   handleClose: () => Promise<void>;
 }) {
@@ -589,6 +592,7 @@ function SlideDeckEditorInner(p: {
             setSelectedSlideIds={p.setSelectedSlideIds}
             currentSlideId={p.currentSlideId}
             onSelectSlide={p.selectSlide}
+            openSlide={p.openSlide}
             onDeleteSlides={p.deleteSlides}
             deckLabel={p.deckLabel}
             handleClose={p.handleClose}
