@@ -39,10 +39,7 @@ export type DeckStaleFigure = {
   bundle: FigureBundle;
 };
 
-// The open slide's stale figures, read through its store. Synchronous, so a
-// tracking caller follows the draft's figure blocks and nothing else it
-// holds: the walk reads each block's bundle and the pair it records, never
-// the text beside it.
+// Synchronous, for the reason on collectDeckStaleFigures.
 function openSlideStaleFigures(
   open: OpenSlide,
   scope: PackageScope,
@@ -61,7 +58,9 @@ export async function collectDeckStaleFigures(
 ): Promise<DeckStaleFigure[]> {
   const out: DeckStaleFigure[] = [];
   // The open slide first, before any await, so an effect that calls this
-  // tracks the draft's figure blocks.
+  // tracks its draft: the layout's node tree and each figure block's bundle,
+  // never the text beside it, so a keystroke or a divider drag re-runs
+  // nothing.
   if (open !== undefined && slideIds.includes(open.slideId)) {
     for (const stale of openSlideStaleFigures(open, scope)) {
       out.push({ slideId: open.slideId, ...stale });

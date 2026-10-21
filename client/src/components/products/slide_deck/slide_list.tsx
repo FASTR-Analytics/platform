@@ -443,11 +443,11 @@ export function SlideList(p: Props) {
 
   // ── Stale figures ───────────────────────────────────────────────────────────
   // Recomputed whenever the deck's slide set changes, the container is
-  // reattached or rescoped, or a figure block of the open slide's draft
-  // changes. The slides are already in the per-slide cache (the cards render
-  // from it), so this is a walk, not a fetch storm. The walk awaits per
-  // slide, so a monotonic scan id keeps an older re-run from committing its
-  // count last.
+  // reattached or rescoped, or the open slide's draft changes a figure block
+  // or its layout tree (what collectDeckStaleFigures tracks). The slides are
+  // already in the per-slide cache (the cards render from it), so this is a
+  // walk, not a fetch storm. The walk awaits per slide, so a monotonic scan
+  // id keeps an older re-run from committing its count last.
   const [staleCount, setStaleCount] = createSignal(0);
   const [updatingFigures, setUpdatingFigures] = createSignal(false);
   let staleScanId = 0;
@@ -478,8 +478,7 @@ export function SlideList(p: Props) {
       setStaleCount(0);
       return;
     }
-    // The open slide is walked before the first await, through its store, so
-    // this effect tracks its figure blocks.
+    // Tracks the open slide's draft: collectDeckStaleFigures.
     void rescanStaleFigures(
       { runId: scope.runId, scopeId: scope.scopeId },
       slideIds,

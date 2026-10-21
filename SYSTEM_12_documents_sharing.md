@@ -649,10 +649,11 @@ draft runs ahead of the stored row until the room checkpoints, so a write of the
 stored row would merge an older slide over what the user is typing. The count
 walks the open slide's draft through its store before its first await, so the
 header follows a figure the user updates on the canvas as soon as it is written,
-and re-runs only when a figure block of the draft changes, never on a keystroke.
-Slide-type switching keeps a per-type cache so switching back restores prior
-state (same idiom per-block for block-type switches). The layout tree is
-manipulated exclusively through panther node ops via `buildLayoutContextMenu`
+and re-runs when a figure block or the layout's node tree changes, never on a
+keystroke or a divider drag. Slide-type switching keeps a per-type cache so
+switching back restores prior state (same idiom per-block for block-type
+switches). The layout tree is manipulated exclusively through panther node ops
+via `buildLayoutContextMenu`
 ([slide_editor/build_context_menu.ts](client/src/components/products/slide_deck/slide_editor/build_context_menu.ts)):
 split/add/move/delete/convert, reachable from both the panel button and canvas
 right-click. Figure blocks have ONE authoring path: insert and replace open

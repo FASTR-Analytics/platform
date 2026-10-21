@@ -94,8 +94,6 @@ export async function simplifySlideForAI(
         // Figure block
         if (block.bundle) {
           const bundle = block.bundle;
-          // The figure's own metric, or the successor of a retired one with
-          // the config carried across: what an edit would act on.
           const resolution = resolveFigureMetric(metrics ?? [], bundle);
           const absent = resolution.kind === "absent";
           const note = absent

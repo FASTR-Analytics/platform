@@ -574,6 +574,8 @@ Deno.test({
               );
             }
             if (pair.sameLayout) {
+              // The selected replicant is the figure's own choice of area or
+              // indicator; the successor preset's default is not a better one.
               const { selectedReplicantValue: _a, ...carriedD } = carried.d;
               const { selectedReplicantValue: _b, ...expectedD } = expected.d;
               assertEquals(carriedD, expectedD, `${where}: data config`);

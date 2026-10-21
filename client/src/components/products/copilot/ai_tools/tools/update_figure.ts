@@ -110,8 +110,6 @@ export function createUpdateFigureTool(
       }
       const bundle = found.block.bundle;
 
-      // The figure's own metric, or the successor of a retired one with the
-      // config carried across, as every edit path resolves it.
       const resolution = resolveFigureMetric(metrics, bundle);
       if (resolution.kind === "absent") {
         throw new AIToolFailure(figureMetricAbsenceForAI(resolution));

@@ -154,8 +154,9 @@ the same question in a current package and the config rewrite that carries a
 figure across. m3-01-01, the service volume on one of four adjustment bases,
 becomes m12-01-01 when the figure filtered to one basis (the filter goes: the
 package's own basis is the value) and m2-02-01 when it compared bases (the four
-props are the same); m3-0x-01, the disruptions chart, becomes the band chart of
-the same level, m11-01-0x, with `specialDisruptionsChart` swapped for
+props are the same); m3-02-01 to m3-05-01, the disruptions chart at the national
+level and at admin areas 2 to 4, becomes the band chart of the same level,
+m11-01-01 to m11-01-04, with `specialDisruptionsChart` swapped for
 `specialDisruptionsChartV2` and `content: "lines"`, and no value filter while
 the mode is on, since the band needs all four props; m3-0x-02, the percentage
 difference per level, becomes m11-02-01 at any level, the level staying a
@@ -1172,8 +1173,10 @@ hard delete already refuses any run a product points at.
 - **Naming drift:** the worker preambles differ in their `console.error` prefix.
 - **Two copies of the registry label lookup**: `moduleLabel` in
   `client/src/components/results_packages/package_view/status.tsx` is lib's
-  `moduleRegistryLabel` (`lib/types/module_registry.ts`) again. Have its ten
-  importers import the lib one and delete it.
+  `moduleRegistryLabel` (`lib/types/module_registry.ts`) again. Have its three
+  importers (`status_bar.tsx`, `failed_detail.tsx`, and the wizard's
+  `step_3_confirm.tsx` through `package_view/mod.ts`) import the lib one and
+  delete it.
 - **Read-path mirror tolerance, two files**: `readInputRows` (`run_read.ts`)
   yields `[]` for any mirror absent from `manifest.inputFiles`, which for the
   two HFA variant snapshots (`hfa_indicator_variant_groups_snapshot.json`,

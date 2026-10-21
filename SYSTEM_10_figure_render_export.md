@@ -353,9 +353,10 @@ opens on the successor with the carried config, without a live collab binding,
 since the editor would otherwise adopt the stored config from the shared doc)
 and answers the copilot's figure tools (S13) as its successor, and is stored as
 such on the next write. A failure shows its reason on the figure and leaves the
-old bundle in place. That reason is one rule shared with the server,
-`lib/figure_package_issue.ts` (S8): metric absent (naming the retired module and
-the successor's module when the metric is a retired one), then metric
+old bundle in place. That reason is the lookup's own when the figure has no
+metric in the package (`describeFigureMetricAbsence`, beside the badge: the bare
+id, or the retired metric with its module and its successor's module), else one
+rule shared with the server, `lib/figure_package_issue.ts` (S8): metric
 unavailable, then a requested disaggregation the package's results object lacks;
 below it, the read's own statuses (too many data points, no data). The deck and
 report editors (S12) count stale figures and offer "Update all visualizations".
