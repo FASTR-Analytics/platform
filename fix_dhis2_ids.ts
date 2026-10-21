@@ -10,6 +10,7 @@ import {
   gatherDhis2IdFixFacts,
   planDhis2IdFix,
   queueDhis2IdFixBackfill,
+  readDhis2IdFixBackfillFile,
   readDhis2IdFixPlanFile,
   waitForDhis2IdFixBackfill,
 } from "./server/dhis2_id_fix/mod.ts";
@@ -89,7 +90,7 @@ try {
   if (command === "backfill") {
     const { runId, selection } = await queueDhis2IdFixBackfill(
       mainDb,
-      readDhis2IdFixPlanFile(await readStdin()),
+      readDhis2IdFixBackfillFile(await readStdin()),
     );
     console.log(
       `Import run ${runId} queued over ${

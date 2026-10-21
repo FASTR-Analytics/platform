@@ -1,5 +1,6 @@
-// Pins the backfill's selection from an applied plan file: which indicators
-// it names, the window it spans, and the plan it refuses.
+// Pins the backfill's reading of an applied plan file and its selection:
+// the fields it requires, which indicators it names, the window it spans, and
+// the plan it refuses.
 //
 //   deno test -A --env-file server/tests/dhis2_id_fix_backfill_test.ts
 
@@ -8,6 +9,7 @@ import {
   backfillSelection,
   type Dhis2IdFixAction,
   type Dhis2IdFixPlan,
+  readDhis2IdFixBackfillFile,
 } from "../dhis2_id_fix/mod.ts";
 
 function plan(
@@ -152,4 +154,38 @@ Deno.test("a plan that emptied no Sum or calculated indicator is refused, a rewr
     ],
     [{ sumId: "outer", members: ["anc1"] }],
   ));
+});
+
+Deno.test("the backfill reads a plan file by the fields it uses, so a file written before the plan gained a field still serves; anything else is refused", () => {
+  const applied = {
+    dhis2Url: "https://dhis2.example.org",
+    plannedAt: "2026-10-21T10:00:00.000Z",
+    elementsChecked: 1,
+    elementsHealthy: 0,
+    createdElements: [],
+    actions: [{
+      indicatorId: "anc_all",
+      dataId: "FormulaBb02",
+      rows: span(30, 202201, 202606),
+      outcome: "to_sum",
+      members: ["anc_first_visit"],
+    }],
+    sumRewrites: [],
+  };
+  const read = readDhis2IdFixBackfillFile(JSON.stringify(applied));
+  assertEquals(read.dhis2Url, "https://dhis2.example.org");
+  assertEquals(backfillSelection(read).indicatorIds, ["anc_all"]);
+  for (
+    const text of [
+      JSON.stringify({ ...applied, sumRewrites: undefined }),
+      JSON.stringify({ actions: [], sumRewrites: [] }),
+      JSON.stringify([]),
+    ]
+  ) {
+    assertThrows(
+      () => readDhis2IdFixBackfillFile(text),
+      Error,
+      "not a plan file",
+    );
+  }
 });

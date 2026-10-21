@@ -121,7 +121,7 @@ function fail(message: string): never {
 // The stored DHIS2 connection is the one the plan was made against.
 export async function assertPlanConnection(
   sql: Sql,
-  plan: Dhis2IdFixPlan,
+  plan: Pick<Dhis2IdFixPlan, "dhis2Url">,
 ): Promise<void> {
   const stored = await getStoredDhis2CredentialsInfo(sql);
   if (stored === null) fail(NO_STORED_DHIS2_CONNECTION.en);

@@ -5,9 +5,10 @@
 // Cancel reaches it and connected clients hear when it starts and ends.
 
 import type { Sql } from "postgres";
-import type {
-  DatasetHmisImportRunDetail,
-  Dhis2WindowSelectionInput,
+import {
+  type DatasetHmisImportRunDetail,
+  type Dhis2WindowSelectionInput,
+  parseJsonOrThrow,
 } from "lib";
 import {
   enqueueDatasetHmisImportRun,
@@ -20,10 +21,33 @@ export const DHIS2_ID_FIX_BACKFILL_TRIGGERED_BY = "dhis2-id-repair";
 
 const RUN_POLL_INTERVAL_MS = 10_000;
 
+// What the backfill reads of an applied plan file, and all it requires of
+// one, so a file written before the plan gained a field still serves.
+export type Dhis2IdFixBackfillInput = Pick<
+  Dhis2IdFixPlan,
+  "dhis2Url" | "actions" | "sumRewrites"
+>;
+
+export function readDhis2IdFixBackfillFile(
+  text: string,
+): Dhis2IdFixBackfillInput {
+  const parsed = parseJsonOrThrow<unknown>(text);
+  const v = typeof parsed === "object" && parsed !== null
+    ? parsed as Record<string, unknown>
+    : {};
+  if (
+    typeof v.dhis2Url !== "string" || !Array.isArray(v.actions) ||
+    !Array.isArray(v.sumRewrites)
+  ) {
+    throw new Error("The input is not a plan file written by `plan`");
+  }
+  return parsed as Dhis2IdFixBackfillInput;
+}
+
 // The window runs from the earliest to the latest month the emptied
 // indicators held, so it refetches everything they lost.
 export function backfillSelection(
-  plan: Dhis2IdFixPlan,
+  plan: Pick<Dhis2IdFixBackfillInput, "actions" | "sumRewrites">,
 ): Dhis2WindowSelectionInput {
   const emptied = plan.actions.filter((a) =>
     (a.outcome === "to_sum" || a.outcome === "to_calculated") &&
@@ -52,7 +76,7 @@ export function backfillSelection(
 // (an indicator gone, no DHIS2-shaped facilities).
 export async function queueDhis2IdFixBackfill(
   mainDb: Sql,
-  plan: Dhis2IdFixPlan,
+  plan: Dhis2IdFixBackfillInput,
 ): Promise<{ runId: number; selection: Dhis2WindowSelectionInput }> {
   const selection = backfillSelection(plan);
   await assertPlanConnection(mainDb, plan);
