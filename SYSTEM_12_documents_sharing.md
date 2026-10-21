@@ -2831,3 +2831,13 @@ interpolation in every route.
   holds a view. Make `openHostEditor` required (137), call it at 1056, delete
   the local wrapper, and drop "Absent, it opens here" from the comment at
   133-136.
+- **The deck's figure actions can pair the new scope with the previous package's
+  catalogue.** `scope()` follows the product row at once
+  (`slide_deck/slide_deck.tsx:78-81`) while `authoringContext` lands after an
+  await and stands at the previous package's until then (420-432), so a badge
+  update or a figure Apply in that window resolves the metric against the
+  previous catalogue and builds under the new pair; the server's read refuses a
+  metric the new package lacks and the edit is dropped with its alert. The
+  report pairs the two in `staleContext`. Hold `{ scope, context }` together in
+  the deck, set when the context lands, and pass that pair to the editor's
+  update and edit paths, keeping the live `scope` for rendering and staleness.
