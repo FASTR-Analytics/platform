@@ -3,9 +3,11 @@
 Status: OPEN. Written 2026-10-21 from the code and from the repair rollout of
 PLAN_FIX_DHIS2_IDS, which found formula ids and dead ids in five production
 dictionaries (four repaired so far, `rca` pending its upgrade); a dry run of the
-same repair the same day found five more in Madagascar's. Rulings proposed, not
-yet decided. Premise and proposal were reviewed by two independent agents before
-`Do 1`; their findings are applied below.
+same repair the same day found five more in Madagascar's, and a run in
+Mauritania found eleven elements DHIS2 has but the picker would refuse. Ruling 4
+decided with Tim on 2026-10-21; the rest proposed. Premise and proposal were
+reviewed by two independent agents before `Do 1`; their findings are applied
+below.
 
 The dictionary editor lets a user type any DHIS2-shaped id into a DHIS2 element
 indicator that has no rows, and the server checks only the shape. A DHIS2
@@ -14,9 +16,10 @@ saved, can never import, and surfaces only after the save: at the import
 wizard's Review step, in the run detail's banners, in the Refresh DHIS2 names
 modal, and as permanent ledger errors. This plan makes the create and update
 paths ask DHIS2 what a typed or changed id is, through the stored connection,
-and refuse a formula or nothing with the wizard's wording; the picker's route
-stops trusting the client for an operand's category option combo. Nothing else
-about the editor, the picker or the repair changes.
+and refuse a formula, nothing, or an element the picker would refuse (not SUM,
+not a count, no monthly data set), with the wizard's and the picker's wording;
+the picker's route stops trusting the client for an operand's category option
+combo. Nothing else about the editor, the picker or the repair changes.
 
 **Next step: Do 1.** Each session sets this line in its final commit. Its values
 are `Do N`, `Review N` and `Fix N`. The session that passes step 1's review
@@ -57,9 +60,14 @@ Cadence, session shapes, the two-things rule and the step rules are
   **classifier** is `classifyElements`
   (`server/worker_routines/import_hmis_data_dhis2/dispatch.ts`), whose answer
   per id is `dvs` (a data element or operand DHIS2 has, the operand's combo
-  included), `unknown/dhis2_indicator` (a formula) or `unknown/not_found`. A
-  **verdict** is the classifier's answer folded to `element`, `formula` or
-  `not_found`.
+  included), `unknown/dhis2_indicator` (a formula) or `unknown/not_found`. The
+  **picker's verdict** is `getDhis2ElementVerdict`
+  (`server/dhis2/goal2_indicators/element_eligibility.ts`): accepted when the
+  element's aggregation type is SUM, its value type is a count and a monthly
+  data set collects it, refused otherwise with a reason
+  `describeDhis2ElementRefusal` words. A **verdict** is what the check answers
+  per id: `element` (a data element or operand DHIS2 has and the picker
+  accepts), `formula`, `not_found`, or `refused` carrying the picker's refusal.
 
 ## 1. The problem
 
@@ -102,38 +110,48 @@ Cadence, session shapes, the two-things rule and the step rules are
 ## 2. The model
 
 A typed id is confirmed with DHIS2 before the write, by the same classifier the
-run and the wizard use, so the three agree on what an id is. One route-side
-function turns a list of ids into verdicts through the stored connection; the
-wizard's Review-step route and the indicator routes both call it. The DB layer
-owns the rule (when an id is typed, what verdict refuses it, the wording) and
-receives the verdict function as a parameter, so the rule is tested on the
-throwaway database without DHIS2 and the route is the only place that holds the
-stored connection. A refusal is an ordinary `{ success: false, err }` the editor
+run and the wizard use and the same verdict the picker applies, so a hand-typed
+id can only ever be one the picker would have created. One route-side function
+turns a list of ids into verdicts through the stored connection, on top of the
+classifier call the wizard's Review-step route shares. The DB layer owns the
+rule (when an id is typed, what verdict refuses it, the wording) and receives
+the verdict function as a parameter, so the rule is tested on the throwaway
+database without DHIS2 and the route is the only place that holds the stored
+connection. A refusal is an ordinary `{ success: false, err }` the editor
 already shows. An id that is not typed, which is every edit of a label, a flag
 or a locked id, never asks DHIS2, so DHIS2 being unreachable blocks only the
 saving of a new element id, which could never import anyway.
 
 ## 3. Rulings
 
-1. _(proposed)_ **One verdict function, shared.**
-   `dhis2IdVerdicts(mainDb: Sql,
-   dataIds: string[]): Promise<Map<string, Dhis2IdVerdict>>`,
+1. _(proposed)_ **Two route-side functions, the classifier call shared.** Both
    exported from `server/routes/instance/indicators_dhis2.ts` (the route file
-   that already reads the stored connection for the dictionary), reads the
-   credentials through `getStoredDhis2CredentialsDecrypted` inside its body,
-   calls `classifyElements` with `retryOptions: { maxAttempts: 1 }` and
+   that already reads the stored connection for the dictionary).
+   `dhis2IdRoutes(mainDb: Sql, dataIds: string[]): Promise<Map<string,
+   ElementRoute>>`
+   reads the credentials through `getStoredDhis2CredentialsDecrypted` inside its
+   body and calls `classifyElements` with `retryOptions: { maxAttempts: 1 }` and
    `timeout:
-   15000` (the wizard's budget, stated once), and maps `dvs` to
-   `element`, `unknown/dhis2_indicator` to `formula` and `unknown/not_found` to
-   `not_found`. `classifyDatasetHmisDhis2Selection` calls it and splits the map
-   into its two arrays, behaviour unchanged.
+   15000` (the wizard's budget, stated once);
+   `classifyDatasetHmisDhis2Selection` calls it and splits the map into its two
+   arrays, behaviour unchanged.
+   `dhis2IdVerdicts(mainDb: Sql, dataIds: string[]): Promise<Map<string,
+   Dhis2IdVerdict>>`
+   calls it, fetches the data elements of the `dvs` routes with the picker's
+   field list (`getDataElementsFromDHIS2`, `id:in` chunks of 100, the same
+   options), and answers per id: `formula` and `not_found` from the route;
+   otherwise `refused` with the picker's refusal when `getDhis2ElementVerdict`
+   refuses the element or `operandComboMissing` (ruling 7) finds the operand's
+   combo unlisted (`element_not_found` is the refusal for an element the fetch
+   did not return); otherwise `element`.
 2. _(proposed)_ **The check lives in the DB layer, injected.**
    `createIndicators` and `updateIndicator` take a required
    `checkDhis2Ids: (dataIds: string[]) =>
    Promise<Map<string, Dhis2IdVerdict>>`;
-   `Dhis2IdVerdict = "element" |
-   "formula" | "not_found"` is declared in
-   `server/db/instance/indicators.ts`. The route passes
+   `Dhis2IdVerdict = { kind: "element" } | { kind: "formula" } | { kind:
+   "not_found" } | { kind: "refused"; refusal: Dhis2ElementRefusal }`
+   is declared in `server/db/instance/indicators.ts`, with `Dhis2ElementRefusal`
+   the refusal half of lib's `Dhis2ElementVerdict`. The route passes
    `(ids) => dhis2IdVerdicts(c.var.mainDb, ids)`; tests pass a stub. Required,
    not optional, so no caller can forget it. `createIndicatorsFromDhis2` keeps
    its own verdicts and does not take it.
@@ -145,14 +163,23 @@ saving of a new element id, which could never import anyway.
    transaction, so a locally refused save never asks DHIS2 and a save asks at
    most once. An unchanged id is never asked about, so a locked id and every
    other field edit stay independent of DHIS2.
-4. _(proposed)_ **A formula and nothing are refused; an operand is checked
-   whole.** The classifier already requires the operand's data element and its
-   category option combo to exist. The error is the wizard's sentence, without
-   the repair note, since nothing was saved:
-   `DHIS2 id "<id>" points to a DHIS2
-   formula (what DHIS2 calls an indicator), which a DHIS2 import does not fetch`
-   and `DHIS2 id "<id>" points to nothing in DHIS2`. In a batch, the first
-   refused id names the indicator the way `checkIndicatorWrites` does
+4. _(decided)_ **A typed id must pass the picker's verdict.** A formula and
+   nothing are refused, and so is an element DHIS2 has but the picker would
+   refuse: aggregation type not SUM (DHIS2 itself does not add its values across
+   facilities or months), value type not a count, or no monthly data set
+   (Mauritania's eleven, which fail every run on a 2.38 server and return
+   nothing monthly on a later one). An operand is checked whole: its element's
+   verdict and its combo listed by the element. The error for a formula or
+   nothing is the wizard's sentence, without the repair note, since nothing was
+   saved:
+   `DHIS2 id "<id>" points to a DHIS2 formula (what DHIS2 calls an
+   indicator), which a DHIS2 import does not fetch`
+   and `DHIS2 id "<id>" points
+   to nothing in DHIS2`; for a refused element it
+   is `DHIS2 id "<id>" cannot be
+   imported:` followed by
+   `describeDhis2ElementRefusal(refusal).en`, the picker's own text. In a batch,
+   the first refused id names the indicator the way `checkIndicatorWrites` does
    (`<indicator id>: <error>`).
 5. _(proposed)_ **No answer is a refusal.** When the check throws (no stored
    connection, unreachable, timeout, bad credentials), the typed id is not
@@ -165,17 +192,18 @@ saving of a new element id, which could never import anyway.
 6. _(proposed)_ **The ids the check accepts are the ids the dispatcher
    fetches.** No stored flag, no cached verdict: the classifier is asked each
    time an id is typed, as the run asks each time it starts.
-7. _(proposed)_ **The picker's route checks the operand's combo.** In
-   `createIndicatorsFromDhis2`'s route, an operand whose combo is not among the
-   fetched element's `categoryCombo.categoryOptionCombos` is refused with ruling
-   4's "points to nothing in DHIS2" sentence, before the write, through a pure
+7. _(proposed)_ **Both routes check the operand's combo.** A pure
    `operandComboMissing(element, dataId)` beside `getDhis2OperandVerdict` in
-   `server/dhis2/goal2_indicators/element_eligibility.ts`. No DHIS2 call: the
-   element's combos are already in hand.
+   `server/dhis2/goal2_indicators/element_eligibility.ts` says whether an
+   operand's combo is missing from the element's
+   `categoryCombo.categoryOptionCombos`. `createIndicatorsFromDhis2`'s route
+   refuses such an operand with ruling 4's "points to nothing in DHIS2" sentence
+   before the write, from the elements it already fetched; `dhis2IdVerdicts`
+   answers `refused` for it (ruling 1). No extra DHIS2 call in either.
 8. _(proposed)_ **The editor says what happens.** The unlocked caption gains one
-   sentence: DHIS2 is asked on save that the id is a data element or operand. No
-   client-side pre-check, no spinner: the save action already waits on the route
-   and shows its error.
+   sentence: DHIS2 is asked on save that the id is a data element or operand the
+   picker would accept. No client-side pre-check, no spinner: the save action
+   already waits on the route and shows its error.
 
 ## 4. Steps
 
@@ -183,10 +211,11 @@ saving of a new element id, which could never import anyway.
 
 **Surface.**
 
-- `server/routes/instance/indicators_dhis2.ts`: `dhis2IdVerdicts` (ruling 1);
-  the operand-combo refusal in the create route (ruling 7).
+- `server/routes/instance/indicators_dhis2.ts`: `dhis2IdRoutes` and
+  `dhis2IdVerdicts` (ruling 1); the operand-combo refusal in the create route
+  (ruling 7).
 - `server/routes/instance/datasets.ts`: `classifyDatasetHmisDhis2Selection`
-  calls `dhis2IdVerdicts` (ruling 1).
+  calls `dhis2IdRoutes` (ruling 1).
 - `server/db/instance/indicators.ts`: the `Dhis2IdVerdict` type and the
   `checkDhis2Ids` parameter; `createIndicators` and `updateIndicator` apply
   rulings 3 to 5; the refusal messages.
@@ -205,10 +234,12 @@ saving of a new element id, which could never import anyway.
   database pattern of `indicator_data_key_test.ts`, with a stub check that
   records the ids it was asked and answers from a map. Pins: a create with a
   formula id is refused with ruling 4's sentence and nothing is inserted; a
-  create with an unknown id likewise; an operand is passed whole to the check; a
-  batch with a locally refused item never asks; Uploaded, Sum and Calculated
-  definitions are not asked; an update that keeps the id asks nothing; an update
-  that changes the id of a rowless element asks and is refused on `formula`; an
+  create with an unknown id likewise; a create whose element the picker refuses
+  (no monthly data set) is refused with ruling 4's "cannot be imported" sentence
+  and the refusal's text; an operand is passed whole to the check; a batch with
+  a locally refused item never asks; Uploaded, Sum and Calculated definitions
+  are not asked; an update that keeps the id asks nothing; an update that
+  changes the id of a rowless element asks and is refused on `formula`; an
   Uploaded indicator whose key is a UID, with rows under it, retyped to DHIS2
   element under the same UID asks and is refused on `not_found`; a check that
   throws refuses with ruling 5's sentence and leaves the row as it was.
@@ -256,13 +287,11 @@ before it is saved".
 - A data element deleted in DHIS2 after the id was saved. No check at save time
   can see it; the wizard's Review step and the ledger report it, and the repair
   turns it Uploaded with its rows kept.
-- A data element in no monthly data set, which a DHIS2 release before 2.39
-  cannot export (`classification.noMonthlyDataSetIds`, S6). The classifier
-  accepts it, the ledger reports it, and the picker's monthly-data-set verdict
-  stays the only guard.
-- The picker's other verdicts (`getDhis2ElementVerdict`: aggregation type, value
-  type, a monthly data set). A typed id is confirmed to be a data element or
-  operand, not re-judged for eligibility; that judgement stays the picker's.
+- An element that passes the verdict at save and is later changed in DHIS2
+  (moved out of its monthly data set, retyped, re-aggregated). No check at save
+  time can see it; the run reports it (`classification.noMonthlyDataSetIds` on a
+  release before 2.39, empty months on a later one) and the repair retypes it
+  Uploaded with its rows kept (PLAN_FIX_DHIS2_IDS ruling 1).
 - The Refresh DHIS2 names modal, which updates labels, reports formula and
   not-found ids, and never changes an id.
 
