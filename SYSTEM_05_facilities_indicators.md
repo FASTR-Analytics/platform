@@ -2,6 +2,7 @@
 system: 5
 name: Facilities & Indicators
 globs:
+  - fix_dhis2_ids.ts
   - client/src/components/data/hfa/indicators/**
   - client/src/components/data/hmis/_shared/indicator_display.ts
   - client/src/components/data/hmis/_shared/type_badge.tsx
@@ -516,6 +517,42 @@ Add from DHIS2, Create new) and puts the occasional ones, the dictionary
 download and Refresh DHIS2 names, in an overflow menu (panther's
 `ActionMenuButton`, `otherActionItems`), global admins only, the refresh gated
 on a stored DHIS2 connection like Add from DHIS2.
+
+The DHIS2 id repair (`server/dhis2_id_fix/`, run by the root script
+`fix_dhis2_ids.ts` inside an instance's app container, which holds the database
+connection and the credentials key) repairs in place the DHIS2 elements whose
+data id DHIS2 has as a formula or as nothing, which the importer refuses on
+every run (S6). `gatherDhis2IdFixFacts` reads the dictionary, the row span under
+each element, the dispatcher's route per data id (`classifyElements`), each
+formula decomposed by `withDecompositions`, and the operands' elements for their
+names; `planDhis2IdFix` is pure over those facts and gives each broken element
+one outcome under its own indicator id: `retarget` (a single-operand formula
+whose operand no indicator holds: the data id becomes the operand's, rows and
+ledger rows rekeyed, `dhis2_label` the operand's name), `to_sum` (a `+` chain of
+distinct operands at factor 1, or a single operand another indicator holds: a
+Sum over the holders, with a DHIS2 element created, unticked, for each operand
+nobody holds, rows and ledger rows deleted), `to_calculated` (any other accepted
+shape, not a special id: the decomposition's expression over the holders, the
+factor's format, rows deleted), or `to_uploaded` (not in DHIS2, a refused
+decomposition, or a special id with a non-count shape: rows and key kept,
+frozen). Retargets are decided first, so a single-operand formula keeps its
+rows. A Sum that names a `to_sum` indicator takes its members in its place and
+one that names a `to_calculated` indicator drops it (the member FK pins members
+to `has_rows`). `plan` writes the whole plan as JSON, one action per broken
+element with every value the apply writes; `apply` reads one from stdin,
+recomputes it from live state, refuses on any difference (exit 2), and otherwise
+runs `applyDhis2IdFix`: one transaction holding a `SHARE ROW EXCLUSIVE` lock on
+`indicators`, every precondition re-checked inside it (no running import run,
+the stored URL, each indicator still an element under its data id with the
+planned row count, each target and created data id unheld, each created id free,
+each rewritten Sum's live members giving the plan's rewrite and leaving at least
+one member), the data-id FK deferred so a retarget moves the key before its
+rows, the ledger rows of a retarget copied aside and rewritten under the new key
+because that FK is not deferrable, the Sum rewrites before the retypes, one
+negative `dataset_hmis_versions` row for all the deleted rows, and
+`checkDefinitionsResolve` over the dictionary as written before commit. Every
+touched row's `updated_at` moves, so the dictionary stamps change; the realtime
+summaries need a container restart.
 
 Instance migration 087 (`087_indicator_data_key.sql`) gives every Uploaded row a
 key: a row whose `data_id` was NULL takes a generated `u_` key and its
