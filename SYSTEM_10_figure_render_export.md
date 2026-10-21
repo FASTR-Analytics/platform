@@ -387,16 +387,16 @@ checks in
 the single home for mode gating (its per-metric `canUse*` arrays decide whether
 the editor shows a mode's toggle). Dispatch priority in
 `getStyleFromPresentationObject`: coverage → percent-change → disruptions →
-disruptions-v2 → standard. Every mode is a hardcoded rendering of a specific
-constant-format metric; "colour each value by its own indicator's rule" is NOT a
-mode but the `indicator` conditional-formatting source (below).
+disruptions-v2 → standard. Every mode is a hardcoded rendering of the metrics
+the table names; "colour each value by its own indicator's rule" is NOT a mode
+but the `indicator` conditional-formatting source (below).
 
 | Mode           | Flag (`config.s`)           | Gate (`d.type`) | Metrics                  | Builder behavior                                                                                                             |
 | -------------- | --------------------------- | --------------- | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
 | Coverage       | `specialCoverageChart`      | timeseries      | m4-01-01, m6-01/02/03-01 | hardcoded series colors (black / red / grey), forced points with `toPct0` last-value labels                                  |
-| Percent change | `specialBarChart`           | timeseries      | m3-01-01                 | red/green bar coloring + signed value labels from period-to-period diff vs `specialBarChartDiffThreshold` (default 0.1)      |
+| Percent change | `specialBarChart`           | timeseries      | m12-01-01, m3-01-01      | red/green bar coloring + signed value labels from period-to-period diff vs `specialBarChartDiffThreshold` (default 0.1)      |
 | Disruptions    | `specialDisruptionsChart`   | timeseries      | m3-02/03/04/05-01        | red/green diff areas, solid-vs-dashed lines distinguishing the two series                                                    |
-| Disruptions V2 | `specialDisruptionsChartV2` | timeseries      | m11-01-01/02             | grey credible band + green/red exceedance via panther `areas.diff.pairs` on the wide 4-series shape (`_6_disruptions_v2.ts`) |
+| Disruptions V2 | `specialDisruptionsChartV2` | timeseries      | m11-01-01/02/03/04       | grey credible band + green/red exceedance via panther `areas.diff.pairs` on the wide 4-series shape (`_6_disruptions_v2.ts`) |
 
 Legacy `diffAreas` configs are converted to `specialDisruptionsChart` by the
 po_config data transform (Block 9, S2's machinery); no render or UI adapter
@@ -496,11 +496,13 @@ Which one a consumer wants is decided by WHAT it is doing, never by a flag:
 
 Surfaces that legitimately take `axisFormat` alone: the four special chart modes
 (`_2_coverage.ts`, `_3_percent_change.ts`, `_4_disruptions.ts`,
-`_6_disruptions_v2.ts`), because every metric gated into them (m3/m4/m6/m11) is
-constant-format, so `axisFormat` equals the declaration. Pie slice labels are
-also not per-value (a slice label is `label share%`, a fraction of the pie's
-denominator, never a raw value), and the doughnut centre label is formatted
-inside panther from the slice sum.
+`_6_disruptions_v2.ts`). The coverage and disruptions metrics gated into them
+(m4/m6/m11) are constant-format, so `axisFormat` equals the declaration; the
+percent-change chart (m3, m12) formats its value axis as the standard builder
+does, from the same collapse, and its change labels are always a percent. Pie
+slice labels are also not per-value (a slice label is `label share%`, a fraction
+of the pie's denominator, never a raw value), and the doughnut centre label is
+formatted inside panther from the slice sum.
 
 Consumers re-check the RESOLVED format, not stored flags: `forceYMax1` applies
 `max: 1` only when `axisFormat` is percent (`_1_standard.ts` ×2,

@@ -29,8 +29,10 @@ export function getStyleFromPresentationObject(
   chartPalette?: FastrChartPalette,
 ): CustomFigureStyleOptions {
   const calendar = resolveFigureCalendar(config, localization);
-  // The special chart modes are all constant-format metrics (m3/m4/m6/m11), so
-  // their declaration IS the axis format and nothing they draw is per-value.
+  // The special chart modes read the collapsed axis format alone: the coverage
+  // and disruptions metrics (m4/m6/m11) are constant-format, so it is their
+  // declaration, and the percent-change chart (m3, m12) formats its axis as the
+  // standard builder does while its change labels are always a percent.
   const formatAs = facts.axisFormat;
   if (isSpecialCoverageChartActive(config)) {
     return buildCoverageChartStyle(

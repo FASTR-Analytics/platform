@@ -12,7 +12,7 @@ carry. Step 2, once no instance can be rolled back to version 1, deletes the
 four frozen module directories from wb-fastr-modules and everything that exists
 only to skip them.
 
-**Next step: Do 1.** Each session sets this line in its final commit. Its values
+**Next step: Do 2.** Each session sets this line in its final commit. Its values
 are `Do N`, `Review N` and `Fix N`. The review that passes step 2 deletes this
 file.
 
@@ -318,5 +318,6 @@ modules commit is not pushed.
 
 ## 8. Build log
 
-| Step | Row |
-| ---- | --- |
+| Step | Row                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | 2026-10-21: landed at Tim's request outside a plan session, beside the restoration of m003's other presets. The four band metrics come from one factory, `m011/_band_chart.ts`, and every band preset is an install default, which overrules ruling 4's null. m11-02-01 and m11-02-02 (the % difference tables and maps, and the observed and expected pair) sit on a new deepest-grain file and are bound as m011 "Service disruption" and listed unbound; m2-02-01 and the m012 presets land beside them. App: the percent-change, V2 and negative-scale lists, the bindings, the fixtures and SYSTEM prose. Step 2 unchanged. |

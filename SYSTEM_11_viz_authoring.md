@@ -498,36 +498,42 @@ type, the replicant where the metric requires it, else a filter), "Facilities
 with adequate data quality" and "Mean data quality score" (a table of areas by
 period; over time as one line; a map). m002 "Adjustment impact" (a switch over
 the outlier, completeness and combined adjustments; a table of areas by
-indicator; over time; a map under one indicator, a filter). m011 "Observed and
-expected services" (over time only, the national metric or the admin-area-2
-metric by the level, the area pinned as the replicant, the four values as lines
-under the disruptions chart style). m005 "Denominator values" (a table of
-denominators by year), "Denominator values by area" (a table of areas by year,
-at admin area 2 or 3, under one denominator, the replicant) and "Coverage by
-denominator type" (a table of denominator types by indicator at one year,
-national or by level with the area the replicant; over time with the types as
-lines, one pane per indicator). m006 "Coverage over time" (over time only,
-national or by level with the area the replicant, the three estimates as lines
-under the coverage chart style) and "Coverage by area" (a table of areas by
-indicator at one year, the HMIS coverage value only; a chart of bars by area
-under one indicator, the replicant, at one year; a map of the same).
-`UNBOUND_METRICS` holds m6-02-02 and m6-03-02, whose one value is the HMIS
-coverage of m6-02-01 and m6-03-01. m010 "Indicators by survey round" (a table of
-HFA indicators by round, under one HFA category, a filter, with the category
-narrowing the indicator options), "Indicators by area" (a table of areas by
-indicator at one round, under one category; a map under one indicator, the
-replicant, at one round) and "Indicators by variant item" (a table of indicators
-by variant item at one round, under one category), each with a switch over the
-observed values and the values carried forward from the round that last measured
-them, the tables coloured by the HFA threshold style; "Don't-know and missing
-rates" (a table of indicators by round under one category, a switch over the two
-rates, the default style). m009 "Coverage by population group" (a table of
-population groups by indicator at one year, under one stratifier, a filter; the
-equiplot, indicators on the axis with the groups as series at one year; over
-time with the groups as lines, one pane per indicator) and "Inequality measures"
-(a table of indicators by the four measures at one year, under one stratifier,
-the replicant; a chart of the concentration index by indicator at one year; over
-time as the concentration index, one line per indicator).
+indicator; over time; a map under one indicator, a filter) and "Volume by
+adjustment type" (over time only, the four adjustment bases as lines, one pane
+per indicator). m011 "Observed and expected services" (over time only, the
+national metric or the admin area 2, 3 or 4 metric by the level, the area pinned
+as the replicant, the four values as lines under the disruptions chart style)
+and "Service disruption" (a table of areas at the level by indicator, the
+percentage difference between observed and expected services coloured by the
+preset's thresholds; a map under one indicator, the replicant). m005
+"Denominator values" (a table of denominators by year), "Denominator values by
+area" (a table of areas by year, at admin area 2 or 3, under one denominator,
+the replicant) and "Coverage by denominator type" (a table of denominator types
+by indicator at one year, national or by level with the area the replicant; over
+time with the types as lines, one pane per indicator). m006 "Coverage over time"
+(over time only, national or by level with the area the replicant, the three
+estimates as lines under the coverage chart style) and "Coverage by area" (a
+table of areas by indicator at one year, the HMIS coverage value only; a chart
+of bars by area under one indicator, the replicant, at one year; a map of the
+same). `UNBOUND_METRICS` holds m6-02-02 and m6-03-02, whose one value is the
+HMIS coverage of m6-02-01 and m6-03-01, and m11-02-02, the observed and expected
+pair whose difference "Service disruption" reads. m010 "Indicators by survey
+round" (a table of HFA indicators by round, under one HFA category, a filter,
+with the category narrowing the indicator options), "Indicators by area" (a
+table of areas by indicator at one round, under one category; a map under one
+indicator, the replicant, at one round) and "Indicators by variant item" (a
+table of indicators by variant item at one round, under one category), each with
+a switch over the observed values and the values carried forward from the round
+that last measured them, the tables coloured by the HFA threshold style;
+"Don't-know and missing rates" (a table of indicators by round under one
+category, a switch over the two rates, the default style). m009 "Coverage by
+population group" (a table of population groups by indicator at one year, under
+one stratifier, a filter; the equiplot, indicators on the axis with the groups
+as series at one year; over time with the groups as lines, one pane per
+indicator) and "Inequality measures" (a table of indicators by the four measures
+at one year, under one stratifier, the replicant; a chart of the concentration
+index by indicator at one year; over time as the concentration index, one line
+per indicator).
 
 `lib/explore_query.ts` holds the state the page keeps and the resolution over
 it. A `FamilyQuery` (`level`, `indicators`, `period`, `grain`) is shared by a
