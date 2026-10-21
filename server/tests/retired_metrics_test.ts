@@ -270,6 +270,36 @@ function oneDateRangeToken(text: string): string {
 
 // Pure checks
 
+Deno.test("retired: an m3-01-01 figure grouped or filtered by a facility column goes to m2-02-01 with its filter", () => {
+  const base = presetConfig(
+    presetOf(retiredDefinitionMetric("m3-01-01"), "volume-monthly"),
+    "en",
+  );
+  const grouped: PresentationObjectConfig = {
+    ...base,
+    d: {
+      ...base.d,
+      disaggregateBy: [
+        ...base.d.disaggregateBy,
+        { disOpt: "facility_type", disDisplayOpt: "series" },
+      ],
+    },
+  };
+  const filtered: PresentationObjectConfig = {
+    ...base,
+    d: {
+      ...base.d,
+      filterBy: [{ disOpt: "facility_ownership", values: ["public"] }],
+    },
+  };
+  assertEquals(succeed(stored("m3-01-01", base)).metricId, "m12-01-01");
+  for (const config of [grouped, filtered]) {
+    const succession = succeed(stored("m3-01-01", config));
+    assertEquals(succession.metricId, "m2-02-01");
+    assertEquals(succession.config.d.valuesFilter, base.d.valuesFilter);
+  }
+});
+
 Deno.test("retired: every metric of a retired module has an entry named as its definition named it, and nothing else does", () => {
   for (const { id: moduleId, definition } of RETIRED_MODULES) {
     for (const m of definition.metrics) {
@@ -519,6 +549,31 @@ Deno.test({
       assert(metric !== undefined, `no module carries ${pair.to[0]}`);
       return presetOf(metric, pair.to[1]);
     };
+
+    await t.step(
+      "every successor is a metric of the definitions with every renamed prop",
+      () => {
+        const probe = presetConfig(
+          presetOf(retiredDefinitionMetric("m4-02-01"), "coverage-timeseries"),
+          "en",
+        );
+        for (const retired of RETIRED_METRICS) {
+          const successor = retired.successor(probe);
+          const metric = metrics.find((m) => m.id === successor.metricId);
+          assert(
+            metric !== undefined,
+            `${retired.id}: ${successor.metricId} is not in the definitions`,
+          );
+          assertEquals(metric.moduleId, successor.moduleId, retired.id);
+          for (const prop of Object.values(successor.valueProps)) {
+            assert(
+              metric.valueProps.includes(prop),
+              `${retired.id}: ${metric.id} lacks ${prop}`,
+            );
+          }
+        }
+      },
+    );
 
     await t.step(
       "every carried preset resolves to a ready successor the package can serve",

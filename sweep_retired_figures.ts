@@ -28,7 +28,6 @@ import {
   type DisaggregationOption,
   FACILITY_ROLLUP_COLUMNS,
   figurePackageIssueForMetrics,
-  getDisaggregationAllowedPresentationOptions,
   getFetchConfigFromPresentationObjectConfig,
   type Language,
   type MetricWithStatus,
@@ -39,6 +38,7 @@ import {
   succeedRetiredFigure,
 } from "lib";
 import {
+  EVERY_FACILITY_COLUMN,
   loadModuleDefinitions,
   metricsWithStatusOf,
 } from "./server/tests/_module_definitions.ts";
@@ -174,8 +174,9 @@ function firstIssue(
 type RetiredCheck = {
   successorId: string | undefined;
   // The facility columns the figure groups or filters by. A package offers
-  // them only when the instance enables them, so the check serves the figure
-  // under a successor widened with them.
+  // them only when the instance enables them and the results object has
+  // facility_id, so the check serves the figure under the metrics of a
+  // package with every facility column enabled.
   facilityColumns: DisaggregationOption[];
   reason: string | undefined;
 };
@@ -184,31 +185,15 @@ function isFacilityColumn(option: DisaggregationOption): boolean {
   return (FACILITY_ROLLUP_COLUMNS as readonly string[]).includes(option);
 }
 
-function withFacilityColumns(
-  metric: MetricWithStatus,
-  columns: DisaggregationOption[],
-): MetricWithStatus {
-  return {
-    ...metric,
-    disaggregationOptions: [
-      ...metric.disaggregationOptions,
-      ...columns.map((value) => ({
-        value,
-        isRequired: false,
-        allowedPresentationOptions: getDisaggregationAllowedPresentationOptions(
-          value,
-        ),
-      })),
-    ],
-  };
-}
-
 // The carried config of a retired figure, checked as retired_metrics_test.ts
 // checks the presets. `successorId` is known once the stored config parses.
+// `metrics` are the definitions' metrics with no facility column,
+// `withFacility` the same with every facility column enabled.
 function checkRetiredFigure(
   retired: RetiredMetric,
   stored: StoredBundle,
   metrics: MetricWithStatus[],
+  withFacility: MetricWithStatus[],
 ): RetiredCheck {
   const parsed = presentationObjectConfigSchema.safeParse(stored.config);
   if (!parsed.success) {
@@ -260,12 +245,9 @@ function checkRetiredFigure(
       first.disaggregationOptions.every(isFacilityColumn)
     ? first.disaggregationOptions
     : [];
-  const metric = facilityColumns.length === 0
-    ? resolution.metric
-    : withFacilityColumns(resolution.metric, facilityColumns);
-  const served = facilityColumns.length === 0
-    ? metrics
-    : metrics.map((m) => (m.id === metric.id ? metric : m));
+  const served = facilityColumns.length === 0 ? metrics : withFacility;
+  const metric = served.find((m) => m.id === resolution.metric.id) ??
+    resolution.metric;
   const issue = facilityColumns.length === 0
     ? first
     : figurePackageIssueForMetrics(metric.id, config, served, null);
@@ -315,6 +297,7 @@ function count(map: Map<string, number>, key: string): void {
 export async function sweepDatabase(
   sql: Sql,
   metrics: MetricWithStatus[],
+  withFacility: MetricWithStatus[],
 ): Promise<DatabaseSweep> {
   const known = new Set(metrics.map((m) => m.id));
   const sweep: DatabaseSweep = {
@@ -351,6 +334,7 @@ export async function sweepDatabase(
               retired,
               stored,
               metrics,
+              withFacility,
             );
             const bySuccessor = sweep.retired.get(retired.id) ??
               new Map<string, number>();
@@ -584,6 +568,7 @@ async function withTunnel<T>(
 async function sweepInstance(
   instance: Instance,
   metrics: MetricWithStatus[],
+  withFacility: MetricWithStatus[],
 ): Promise<DatabaseSweep> {
   const sql = postgres({
     host: instance.host,
@@ -595,7 +580,7 @@ async function sweepInstance(
     onnotice: () => {},
   });
   try {
-    return await sweepDatabase(sql, metrics);
+    return await sweepDatabase(sql, metrics, withFacility);
   } finally {
     await sql.end();
   }
@@ -607,13 +592,15 @@ async function main(): Promise<void> {
   const outFlag = Deno.args.indexOf("--out");
   const outPath = outFlag === -1 ? undefined : Deno.args[outFlag + 1];
   const named = Deno.args.filter((a, i) =>
-    !a.startsWith("--") && i !== outFlag + 1
+    !a.startsWith("--") && (outFlag === -1 || i !== outFlag + 1)
   );
   const modulesDir = Deno.env.get("FASTR_MODULES_LOCAL_DIR");
   if (modulesDir === undefined) {
     throw new Error("FASTR_MODULES_LOCAL_DIR is not set");
   }
-  const metrics = metricsWithStatusOf(await loadModuleDefinitions(modulesDir));
+  const definitions = await loadModuleDefinitions(modulesDir);
+  const metrics = metricsWithStatusOf(definitions);
+  const withFacility = metricsWithStatusOf(definitions, EVERY_FACILITY_COLUMN);
   const instances = named.length > 0 ? named : await listRunningInstances();
   if (outPath !== undefined) await Deno.writeTextFile(outPath, "");
   // Printed and appended to the file as each instance finishes, so a failure
@@ -633,7 +620,7 @@ async function main(): Promise<void> {
     try {
       const sweep = await withTunnel(
         name,
-        (conn) => sweepInstance(conn, metrics),
+        (conn) => sweepInstance(conn, metrics, withFacility),
       );
       sweeps.push({ name, sweep });
       await say(formatDatabaseSweep(name, sweep));

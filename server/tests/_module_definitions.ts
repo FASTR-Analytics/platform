@@ -6,6 +6,7 @@ import {
   MODULE_REGISTRY,
   type ModuleDefinitionGithub,
   moduleDefinitionGithubSchema,
+  type StructureColumns,
 } from "lib";
 import { deriveAvailableDisaggregationOptions } from "../runs/disaggregation_availability.ts";
 
@@ -29,10 +30,11 @@ export async function loadModuleDefinitions(
 
 // The disaggregation options a metric's results object offers, from the
 // columns its definition declares, as finalize would stamp them for a package
-// with no facility columns enabled.
+// with the given facility columns enabled (none by default).
 export function availableOptionsOf(
   definition: ModuleDefinitionGithub,
   metric: MetricDefinitionGithub,
+  facilityColumns?: StructureColumns,
 ): DisaggregationOption[] {
   const ro = definition.resultsObjects.find((r) =>
     r.id === metric.resultsObjectId
@@ -41,18 +43,34 @@ export function availableOptionsOf(
     ro === undefined || ro.createTableStatementPossibleColumns === false
       ? []
       : Object.keys(ro.createTableStatementPossibleColumns);
-  return deriveAvailableDisaggregationOptions(new Set(columns), undefined);
+  return deriveAvailableDisaggregationOptions(
+    new Set(columns),
+    facilityColumns,
+  );
 }
+
+// Every facility column enabled: the widest package an instance can build.
+export const EVERY_FACILITY_COLUMN: StructureColumns = {
+  includeNames: false,
+  includeTypes: true,
+  includeOwnership: true,
+  includeCustom1: true,
+  includeCustom2: true,
+  includeCustom3: true,
+  includeCustom4: true,
+  includeCustom5: true,
+};
 
 // Every metric of the definitions as the authoring context carries it, each
 // ready, labelled in English, with the options its results object's columns
 // give and no presets.
 export function metricsWithStatusOf(
   definitions: ModuleDefinitions,
+  facilityColumns?: StructureColumns,
 ): MetricWithStatus[] {
   return [...definitions.entries()].flatMap(([moduleId, def]) =>
     def.metrics.map((m): MetricWithStatus => {
-      const available = availableOptionsOf(def, m);
+      const available = availableOptionsOf(def, m, facilityColumns);
       return {
         id: m.id,
         moduleId,

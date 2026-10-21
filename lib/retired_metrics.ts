@@ -1,4 +1,5 @@
 import type { TranslatableString } from "@timroberton/panther";
+import { FACILITY_ROLLUP_COLUMNS } from "./rollup.ts";
 import type { Language } from "./translate/mod.ts";
 import type { FigureBundle } from "./types/_figure_bundle.ts";
 import type { PresentationObjectConfig } from "./types/_presentation_object_config.ts";
@@ -62,7 +63,9 @@ const DATE_RANGE: TranslatableString = {
 
 // m3-01-01 summed one of four adjustment bases per figure. A figure showing
 // one basis becomes the indicator value on the package's own basis (m012); a
-// figure comparing bases keeps the four props on the adjusted data (m002).
+// figure comparing bases keeps the four props on the adjusted data (m002), as
+// does one grouped or filtered by a facility column, which only the adjusted
+// data's results object carries (it alone has facility_id).
 const M12_INDICATOR_VALUE: Successor = {
   metricId: "m12-01-01",
   moduleId: "m012",
@@ -442,7 +445,7 @@ export const RETIRED_METRICS: readonly RetiredMetric[] = [
       pt: "Número de serviços notificados, por tipo de ajuste",
     },
     successor: (config) =>
-      config.d.valuesFilter?.length === 1
+      config.d.valuesFilter?.length === 1 && !usesFacilityColumn(config)
         ? M12_INDICATOR_VALUE
         : M2_VOLUME_BY_ADJUSTMENT,
   },
@@ -454,6 +457,12 @@ export const RETIRED_METRICS: readonly RetiredMetric[] = [
   m004Metric(2, m6CoverageHmis(2)),
   m004Metric(3, m6CoverageHmis(3)),
 ];
+
+function usesFacilityColumn(config: PresentationObjectConfig): boolean {
+  const facility: readonly string[] = FACILITY_ROLLUP_COLUMNS;
+  return config.d.disaggregateBy.some((e) => facility.includes(e.disOpt)) ||
+    config.d.filterBy.some((f) => facility.includes(f.disOpt));
+}
 
 export function retiredMetric(metricId: string): RetiredMetric | undefined {
   return RETIRED_METRICS.find((m) => m.id === metricId);
