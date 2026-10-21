@@ -14,6 +14,7 @@ import {
   FrameTop,
   getEditorWrapper,
   HeadingBar,
+  openAlert,
   StateHolderWrapper,
   Table,
   type TableColumn,
@@ -39,6 +40,14 @@ function errorKindLabel(kind: Dhis2FetchErrorKind | undefined): string {
     return t3({ en: "Server", fr: "Serveur", pt: "Servidor" });
   }
   return "";
+}
+
+function errorDetailLabel(): string {
+  return t3({
+    en: "Error detail",
+    fr: "Détail de l'erreur",
+    pt: "Detalhe do erro",
+  });
 }
 
 // The per-run error surface: everything the system recorded about one run
@@ -82,6 +91,22 @@ export function Dhis2RunDetail(
     const indicator = byDataId().get(dataId);
     return indicator ? indicatorNameText(indicator) : "";
   };
+  // The table truncates the error; the dialog shows all of it, under the
+  // pair it belongs to.
+  function viewPairError(s: Dhis2PairFetchStat) {
+    void openAlert({
+      title: errorDetailLabel(),
+      text: () => (
+        <div class="ui-spy-sm">
+          <div>
+            {dataIdWithIndicator(s.dataId, byDataId().get(s.dataId))},{" "}
+            {formatPeriod(s.periodId, "year-month", getCalendar())}
+          </div>
+          <div class="whitespace-pre-wrap wrap-break-word">{s.error ?? ""}</div>
+        </div>
+      ),
+    });
+  }
   const idList = (ids: string[]) => (
     <div class="ui-spy-sm">
       <For each={ids}>
@@ -134,15 +159,24 @@ export function Dhis2RunDetail(
       },
       {
         key: "error",
-        header: t3({
-          en: "Error detail",
-          fr: "Détail de l'erreur",
-          pt: "Detalhe do erro",
-        }),
+        header: errorDetailLabel(),
         render: (s) => (
-          <span class="block max-w-md truncate" title={s.error}>
-            {s.error ?? ""}
-          </span>
+          <span class="block max-w-md truncate">{s.error ?? ""}</span>
+        ),
+      },
+      {
+        key: "view",
+        header: "",
+        alignH: "right",
+        pullInY: true,
+        render: (s) => (
+          <Button
+            size="sm"
+            outline
+            onClick={() => viewPairError(s)}
+          >
+            {t3({ en: "View error", fr: "Voir l'erreur", pt: "Ver o erro" })}
+          </Button>
         ),
       },
     ];
