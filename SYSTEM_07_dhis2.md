@@ -333,3 +333,12 @@ en/fr/pt.
 - Classify retries off `DHIS2FetchError.status` instead of message substrings,
   and decide whether the exhaustion error should preserve the structured fields.
 - Cruft: retire the `goal1_..._v2` suffix (no v1 exists).
+- The chunked `id:in:[...]` fetch exists three times
+  (`goal2_indicators/attach_verdicts.ts`, `routes/instance/indicators_dhis2.ts`,
+  `dhis2_id_fix/gather.ts`), and `withDecompositions` keeps the elements it
+  fetches, so the DHIS2 id repair's gatherer parses every formula itself to
+  collect the operand element ids, fetches those elements for their names and
+  hands them in as `known`, after which `withDecompositions` parses each formula
+  again. One exported helper here that fetches elements by id, and a
+  decomposition that returns the elements it read, remove both the three copies
+  and the second parse.
