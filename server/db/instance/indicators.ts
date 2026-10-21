@@ -1087,7 +1087,7 @@ export async function updateIndicator(
       `;
       await writeMembers(sql, newId, d.members);
       if (rename !== undefined) {
-        await renameReferences(sql, rename.from, rename.to);
+        await renameReferences(sql, new Map([[rename.from, rename.to]]));
       }
     });
 
@@ -1095,14 +1095,16 @@ export async function updateIndicator(
   });
 }
 
-// Every calculated expression naming the old id, and every schedule selection
-// listing it, rewritten to the new id; a selection that already lists the new
-// id lists it once.
+// Every calculated expression naming an old id, and every schedule selection
+// listing one, rewritten to its new id, keyed old to new; a selection that
+// already lists a new id lists it once.
 export async function renameReferences(
   sql: Sql,
-  from: string,
-  to: string,
+  renames: ReadonlyMap<string, string>,
 ): Promise<void> {
+  if (renames.size === 0) {
+    return;
+  }
   const calculated = await sql<
     { indicator_common_id: string; expression: string }[]
   >`
@@ -1110,7 +1112,11 @@ export async function renameReferences(
     WHERE definition_type = 'calculated' AND expression IS NOT NULL
   `;
   for (const row of calculated) {
-    const rewritten = renameIdentifierInExpression(row.expression, from, to);
+    const rewritten = [...renames].reduce(
+      (expression, [from, to]) =>
+        renameIdentifierInExpression(expression, from, to),
+      row.expression,
+    );
     if (rewritten === row.expression) continue;
     await sql`
       UPDATE indicators
@@ -1127,12 +1133,14 @@ export async function renameReferences(
       row.selection,
     );
     const ids = selection?.indicatorIds;
-    return Array.isArray(ids) && ids.includes(from)
+    const renamedId = (id: unknown) =>
+      typeof id === "string" ? renames.get(id) : undefined;
+    return Array.isArray(ids) && ids.some((id) => renamedId(id) !== undefined)
       ? [{
         id: row.id,
         selection: JSON.stringify({
           ...selection,
-          indicatorIds: [...new Set(ids.map((id) => id === from ? to : id))],
+          indicatorIds: [...new Set(ids.map((id) => renamedId(id) ?? id))],
         }),
       }]
       : [];

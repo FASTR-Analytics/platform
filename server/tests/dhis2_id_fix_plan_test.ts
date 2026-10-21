@@ -236,7 +236,8 @@ Deno.test("a dvs element the picker refuses: to_uploaded with the refusal, rows 
   assertEquals(plan.createdElements, []);
 });
 
-Deno.test("a default-combo element beside its bare element is a duplicate (Nigeria's two): every Sum takes the holder in its place, and the holder joins the analysis only for an analysed duplicate", () => {
+Deno.test("a default-combo element beside its bare element is a duplicate (Nigeria's two): every Sum takes the holder in its place, and the holder joins the analysis only for an analysed duplicate; under a special id it is a Sum over the holder", () => {
+  const PENTA = "PentaDoses1";
   const LATE = "PV88LZCbiSF";
   const BEFORE = "OZH9GfZqZ7q";
   const DEFAULT = "Y2SrnZVI87k";
@@ -268,6 +269,8 @@ Deno.test("a default-combo element beside its bare element is a duplicate (Niger
           include_in_analysis: false,
         },
         element("antenatal_1st_booking_visit_before_20_weeks", BEFORE),
+        element("penta_doses", PENTA),
+        element("penta1", `${PENTA}.${DEFAULT}`),
         element(
           "antenatal_1st_booking_visit_20_weeks_or_later_default",
           `${LATE}.${DEFAULT}`,
@@ -294,6 +297,8 @@ Deno.test("a default-combo element beside its bare element is a duplicate (Niger
         [GA3]: dvs(GA3),
         [LATE]: dvs(LATE),
         [BEFORE]: dvs(BEFORE),
+        [PENTA]: dvs(PENTA),
+        [`${PENTA}.${DEFAULT}`]: dvs(PENTA, DEFAULT),
         [`${LATE}.${DEFAULT}`]: dvs(LATE, DEFAULT),
         [`${BEFORE}.${DEFAULT}`]: dvs(BEFORE, DEFAULT),
       },
@@ -302,6 +307,7 @@ Deno.test("a default-combo element beside its bare element is a duplicate (Niger
         [GA3]: named("ANC 1st visit GA 20wks (3)"),
         [LATE]: named("Antenatal 1st booking visit 20 weeks or later"),
         [BEFORE]: named("Antenatal 1st booking visit before 20 weeks"),
+        [PENTA]: named("Penta doses given"),
       },
       rows: {
         [`${LATE}.${DEFAULT}`]: {
@@ -313,8 +319,8 @@ Deno.test("a default-combo element beside its bare element is a duplicate (Niger
     }),
     AT,
   );
-  assertEquals(plan.elementsChecked, 6);
-  assertEquals(plan.elementsHealthy, 4);
+  assertEquals(plan.elementsChecked, 8);
+  assertEquals(plan.elementsHealthy, 5);
   assertEquals(plan.actions, [
     {
       indicatorId: "antenatal_1st_booking_visit_20_weeks_or_later_default",
@@ -333,6 +339,13 @@ Deno.test("a default-combo element beside its bare element is a duplicate (Niger
       holder: "antenatal_1st_booking_visit_before_20_weeks",
       holderDataId: BEFORE,
       includeHolderInAnalysis: false,
+    },
+    {
+      indicatorId: "penta1",
+      dataId: `${PENTA}.${DEFAULT}`,
+      rows: { count: 0, firstPeriodId: null, lastPeriodId: null },
+      outcome: "to_sum",
+      members: ["penta_doses"],
     },
   ]);
   assertEquals(plan.sumRewrites, [{

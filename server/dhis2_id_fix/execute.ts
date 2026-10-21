@@ -367,7 +367,6 @@ async function applyAction(
       `;
       break;
     case "duplicate":
-      await renameReferences(sql, action.indicatorId, action.holder);
       if (action.includeHolderInAnalysis) {
         await sql`
           UPDATE indicators
@@ -467,6 +466,14 @@ export async function applyDhis2IdFix(
         WHERE indicator_common_id = ${rewrite.sumId}
       `;
     }
+    await renameReferences(
+      sql,
+      new Map(
+        plan.actions.flatMap((a): [string, string][] =>
+          a.outcome === "duplicate" ? [[a.indicatorId, a.holder]] : []
+        ),
+      ),
+    );
     const actions: Dhis2IdFixActionResult[] = [];
     for (const action of plan.actions) {
       actions.push(await applyAction(sql, action));

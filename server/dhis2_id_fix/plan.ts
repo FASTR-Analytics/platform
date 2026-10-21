@@ -165,12 +165,12 @@ export function readDhis2FormulaShape(
 // is dropped. Undefined when the Sum names none of them.
 export function rewriteSumMembers(
   members: string[],
-  retyped: ReadonlyMap<string, Dhis2IdFixOutcome>,
+  changes: ReadonlyMap<string, Dhis2IdFixOutcome>,
 ): string[] | undefined {
   const next = new Set<string>();
   let touched = false;
   for (const member of members) {
-    const outcome = retyped.get(member);
+    const outcome = changes.get(member);
     if (outcome === undefined) {
       next.add(member);
       continue;
@@ -366,17 +366,21 @@ export function planDhis2IdFix(
   };
 
   // A default-combo element nobody holds the bare id of retargets to it and
-  // keeps its rows; beside a holder it is a duplicate. Decided before the
-  // formula retargets, so an element already importing the series keeps it
-  // over a formula's rows. A refused one with no holder is Uploaded, since a
-  // retarget would leave an element the next plan refuses.
+  // keeps its rows; beside a holder it is a duplicate, except under a special
+  // id, which the module scripts read by id and so stays a count: a Sum over
+  // the holder. Decided before the formula retargets, so an element already
+  // importing the series keeps it over a formula's rows. A refused one with
+  // no holder is Uploaded, since a retarget would leave an element the next
+  // plan refuses.
   const outcomes = new Map<string, Dhis2IdFixOutcome>();
   for (const b of broken) {
     const d = b.diagnosis;
     if (d.kind !== "default_combo") continue;
     const id = b.indicator.indicator_common_id;
     const holder = holders.get(d.elementId);
-    if (holder !== undefined) {
+    if (holder !== undefined && isSpecialIndicatorId(id)) {
+      outcomes.set(id, { outcome: "to_sum", members: [holder] });
+    } else if (holder !== undefined) {
       outcomes.set(id, {
         outcome: "duplicate",
         holder,
