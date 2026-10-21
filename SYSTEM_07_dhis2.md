@@ -163,15 +163,16 @@ numeric literals (`[0-9]+(\.[0-9]+)?`), `+ - * /`, unary minus, parentheses and
 any whitespace; the indicator is not `annualized`; the factor is 1 (`number`),
 100 (`percent`), 10000 (`rate_per_10k`) or 1000 (`number`, the expression
 multiplied by 1000 and a three-language `note` in the result, because there is
-no `rate_per_1k` format); and the distinct operand count is at most
-`MAX_INDICATOR_EXPRESSION_INGREDIENTS`. Everything else is refused with the
-offending construct as the user would recognise it in the formula: three-part
-and wildcard operands (`#{uid.coc.aoc}`, `#{uid.*.aoc}`), item modifiers
-(`.periodOffset(-1)`), `N{}` `D{}` `A{}` `I{}` `R{}` `OUG{}` `C{}`, `[days]`,
-operators outside the four (`^ % > == && ||`), functions (`if`, `isNull`,
-`d2:zing`), a malformed formula (a `syntax` refusal with the token it stopped
-at). A blacklist would miss the next form DHIS2 adds. The accepted result's
-`expression` is written in the app's own grammar through
+no `rate_per_1k` format); the formula names at least one operand (a constant
+such as `-1 / 1` is refused as `no_operands`); and the distinct operand count is
+at most `MAX_INDICATOR_EXPRESSION_INGREDIENTS`. Everything else is refused with
+the offending construct as the user would recognise it in the formula:
+three-part and wildcard operands (`#{uid.coc.aoc}`, `#{uid.*.aoc}`), item
+modifiers (`.periodOffset(-1)`), `N{}` `D{}` `A{}` `I{}` `R{}` `OUG{}` `C{}`,
+`[days]`, operators outside the four (`^ % > == && ||`), functions (`if`,
+`isNull`, `d2:zing`), a malformed formula (a `syntax` refusal with the token it
+stopped at). A blacklist would miss the next form DHIS2 adds. The accepted
+result's `expression` is written in the app's own grammar through
 `writeIndicatorExpression`, fully parenthesised as
 `((numerator) / (denominator))`, with each operand as the identifier `data_id`,
 bracket-quoted (`[uid]`, `[uid.coc]`) unless the uid matches
@@ -189,11 +190,16 @@ each indicator: the parse, each operand with its own verdict judged through its
 element, and `accepted` = the parse accepted and every operand accepted. Operand
 elements not already in `known` are fetched by chunked `id:in:[...]` filters
 (100 per request) with the default field list, one round of requests for the
-whole result set. The three search routes return these shapes
-(`Dhis2DataElementSearchItem`, `Dhis2IndicatorSearchItem`); the combined search
-passes its own data-element results as `known`. Pinned by
-`server/tests/dhis2_element_eligibility_test.ts` and
-`server/tests/dhis2_decompose_indicator_test.ts`.
+whole result set. Once the elements are known, `foldDefaultCombos` (pure) folds
+every `uid.coc` operand whose combo is its element's default combo onto the bare
+`uid`, in operands and expression alike: the default category combo has that one
+combo, so both forms name the same series, and the fold keeps the picker and the
+DHIS2 id repair from creating a second element beside the bare one. A formula
+naming both forms then counts the element twice, as DHIS2 does. The three search
+routes return these shapes (`Dhis2DataElementSearchItem`,
+`Dhis2IndicatorSearchItem`); the combined search passes its own data-element
+results as `known`. Pinned by `server/tests/dhis2_element_eligibility_test.ts`
+and `server/tests/dhis2_decompose_indicator_test.ts` (the parse and the fold).
 
 **Data value sets.** `getDataValueSetsFromDHIS2` pulls one selector
 (`Dhis2ValueSelector`: `dataElement=`, which the export reads from DHIS2 2.39,

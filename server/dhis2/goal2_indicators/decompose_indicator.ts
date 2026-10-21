@@ -75,6 +75,9 @@ export function parseDhis2Indicator(indicator: {
     ...numerator.operands,
     ...denominator.operands,
   ]);
+  if (operands.length === 0) {
+    return refuse({ kind: "no_operands" });
+  }
   if (operands.length > MAX_INDICATOR_EXPRESSION_INGREDIENTS) {
     return refuse({
       kind: "too_many_operands",

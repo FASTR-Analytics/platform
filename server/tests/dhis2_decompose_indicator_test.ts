@@ -2,12 +2,18 @@
 // accepted by whitelist (`#{uid}` / `#{uid.coc}`, numeric literals, + - * /,
 // parentheses, whitespace), its factor maps to a display format, and every
 // other form is refused with the offending term. The expression it emits must
-// re-parse in the app's own grammar.
+// re-parse in the app's own grammar. Also pins foldDefaultCombos: an operand
+// written with its element's default combo is the element itself.
 //
 //   deno test -A --env-file server/tests/dhis2_decompose_indicator_test.ts
 
 import { assert, assertEquals } from "@std/assert";
-import { collectIdentifiers, parseIndicatorExpression } from "lib";
+import {
+  collectIdentifiers,
+  type DHIS2DataElement,
+  parseIndicatorExpression,
+} from "lib";
+import { foldDefaultCombos } from "../dhis2/goal2_indicators/attach_verdicts.ts";
 import { parseDhis2Indicator } from "../dhis2/goal2_indicators/decompose_indicator.ts";
 
 const A = "AbCdEfGhIj1";
@@ -244,4 +250,46 @@ Deno.test("decomposition: more operands than an expression may carry is refused"
     accepted(ids.slice(0, 7).map((id) => `#{${id}}`).join(" + "), `#{${B}}`)
       .accepted,
   );
+});
+
+Deno.test("decomposition: a formula naming no data element is refused as a constant", () => {
+  assertEquals(refused("-1", "1"), { kind: "no_operands" });
+  assertEquals(refused("100", "(2 + 3)"), { kind: "no_operands" });
+});
+
+Deno.test("fold: an operand written with its element's default combo becomes the element", () => {
+  const combo = (
+    isDefault: boolean,
+    cocs: string[],
+  ): Pick<DHIS2DataElement, "categoryCombo"> => ({
+    categoryCombo: {
+      id: "CcCcCcCcCc1",
+      name: isDefault ? "default" : "Age",
+      isDefault,
+      categoryOptionCombos: cocs.map((id) => ({ id, name: "default" })),
+    },
+  });
+  const parse = accepted(`#{${A}.${COC}} + #{${B}.${COC}}`, `#{${A}}`);
+
+  const folded = foldDefaultCombos(
+    parse,
+    new Map([[A, combo(true, [COC])], [B, combo(false, [COC])]]),
+  );
+  assert(folded.accepted);
+  assertEquals(folded.operands, [
+    { data_id: A, data_element_id: A },
+    {
+      data_id: `${B}.${COC}`,
+      data_element_id: B,
+      category_option_combo_id: COC,
+    },
+  ]);
+  assertEquals(folded.expression, `(([${A}] + [${B}.${COC}]) / [${A}])`);
+
+  const unlisted = foldDefaultCombos(
+    parse,
+    new Map([[A, combo(true, ["OtherCoc001"])]]),
+  );
+  assertEquals(unlisted, parse);
+  assertEquals(foldDefaultCombos(parse, new Map()), parse);
 });

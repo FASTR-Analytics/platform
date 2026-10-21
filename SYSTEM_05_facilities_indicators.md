@@ -465,22 +465,23 @@ DHIS2 element or operand becomes a new DHIS2 element under the chosen id
 an existing id of any type is refused; one indicator carries one data id, so two
 elements cannot share a new id; a UID some indicator already holds creates
 nothing. A DHIS2 indicator decomposes (S7) into DHIS2 elements for its operands
-and a calculated `(numerator) / (denominator)` over their ids: its expression
-names each operand by `[data_id]` and the transaction rewrites every identifier
-to the indicator that element lands in (`renameIdentifiers`). Sums are not made
-in the naming step; they are made in the list. Everything the naming step
-creates has its checkbox on. Save from the DHIS2 select form posts to
-`/indicators-dhis2/create` (each DHIS2 indicator by its `uid`), which re-reads
-every element and indicator from DHIS2 and judges them itself (S7's verdict and
-decomposition, worded by `describeDhis2ElementRefusal` /
-`describeDhis2ParseRefusal`) before `createIndicatorsFromDhis2` calls
-`applyIndicatorNaming`, so a refused element or indicator creates nothing.
-Pinned by `server/tests/indicator_naming_test.ts` on a throwaway database built
-from `_main_database.sql`. A new database has an empty dictionary; the **special
-indicators**, `SPECIAL_INDICATORS` in `lib/special_indicators.ts`, stay a
-reserved list: the hand-kept count ids the registry module scripts read by
-literal id, which the manager's reference panel names,
-`getSpecialIndicatorTypeIssue` keeps a count, and `analysedIndicatorIds`
+(an operand written with its element's default combo is the bare element, S7's
+`foldDefaultCombos`) and a calculated `(numerator) / (denominator)` over their
+ids: its expression names each operand by `[data_id]` and the transaction
+rewrites every identifier to the indicator that element lands in
+(`renameIdentifiers`). Sums are not made in the naming step; they are made in
+the list. Everything the naming step creates has its checkbox on. Save from the
+DHIS2 select form posts to `/indicators-dhis2/create` (each DHIS2 indicator by
+its `uid`), which re-reads every element and indicator from DHIS2 and judges
+them itself (S7's verdict and decomposition, worded by
+`describeDhis2ElementRefusal` / `describeDhis2ParseRefusal`) before
+`createIndicatorsFromDhis2` calls `applyIndicatorNaming`, so a refused element
+or indicator creates nothing. Pinned by `server/tests/indicator_naming_test.ts`
+on a throwaway database built from `_main_database.sql`. A new database has an
+empty dictionary; the **special indicators**, `SPECIAL_INDICATORS` in
+`lib/special_indicators.ts`, stay a reserved list: the hand-kept count ids the
+registry module scripts read by literal id, which the manager's reference panel
+names, `getSpecialIndicatorTypeIssue` keeps a count, and `analysedIndicatorIds`
 analyses whenever one exists. A team creates them in the manager like any
 indicator. `./validate_fresh_boot` boots an empty postgres through `dbStartUp`
 and asserts the empty dictionary. New ids are charset-checked (no `, ; : [ ]`

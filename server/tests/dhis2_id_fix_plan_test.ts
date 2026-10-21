@@ -11,6 +11,7 @@ import type {
   HmisIndicator,
   HmisIndicatorDefinition,
 } from "lib";
+import { foldDefaultCombos } from "../dhis2/goal2_indicators/attach_verdicts.ts";
 import { parseDhis2Indicator } from "../dhis2/goal2_indicators/decompose_indicator.ts";
 import {
   type Dhis2IdFixAction,
@@ -248,6 +249,43 @@ Deno.test("single operand nobody holds: retarget to it with its DHIS2 name", () 
     newDataId: `${C}.${COC}`,
     dhis2Label: "Live births - Female",
   });
+  assertEquals(plan.createdElements, []);
+});
+
+Deno.test("a default-combo operand is its element: retarget to the bare id under the element's name", () => {
+  const DEFAULT = "DefaultCoc1";
+  const elements = {
+    [A]: {
+      name: "ANC first visit",
+      categoryCombo: {
+        id: "CcDefault01",
+        name: "default",
+        isDefault: true,
+        categoryOptionCombos: [{ id: DEFAULT, name: "default" }],
+      },
+    },
+  };
+  const decomposition = formula(`#{${A}.${DEFAULT}}`);
+  const plan = planDhis2IdFix(
+    facts({
+      indicators: [element("anc1", F1)],
+      routes: { [F1]: FORMULA },
+      formulas: {
+        [F1]: {
+          ...decomposition,
+          parse: foldDefaultCombos(
+            decomposition.parse,
+            new Map(Object.entries(elements)),
+          ),
+        },
+      },
+      elements,
+    }),
+    AT,
+  );
+  const action = actionOf(plan.actions, "anc1", "retarget");
+  assertEquals(action.newDataId, A);
+  assertEquals(action.dhis2Label, "ANC first visit");
   assertEquals(plan.createdElements, []);
 });
 
