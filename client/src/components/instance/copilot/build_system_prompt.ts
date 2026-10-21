@@ -157,10 +157,10 @@ export function getUsersInstructions(): string {
 The user is on the Users page, which lists the instance's users and their permissions. You are told nothing of the roster: no names, no emails. ${NO_PACKAGE_LINE}`;
 }
 
-// The figure editor's three views: what is being edited or shown, by the
-// metric label its host passes, and what the two figure editor tools do to
-// the draft.
-export type FigureEditorHost = "slide" | "report" | "package";
+// The figure editor's four views: what is being edited or shown, by the
+// label its host passes, and what the two figure editor tools do to the
+// draft.
+export type FigureEditorHost = "slide" | "report" | "visualization" | "package";
 
 const FIGURE_EDITOR_TOOLS_LINES =
   `get_figure_editor reads the draft as it stands in the editor (metric, type, disaggregations and their display slots, filters, the replicant, the period and the captions). update_figure_editor changes the draft in place: pass only the fields to change; the change shows in the editor at once. The chart type can be changed here, which is the one place it can.`;
@@ -178,6 +178,10 @@ The user is editing the figure "${label}" of the open slide in the figure editor
       return `# Current View: Figure editor (report)
 
 The user is editing the figure "${label}" of the open report in the figure editor. ${FIGURE_EDITOR_TOOLS_LINES} The user keeps the result with the editor's Apply button or discards it with Cancel; under live co-editing every change streams into the report as it is made. The figure resolves under the report's results package and scope.`;
+    case "visualization":
+      return `# Current View: Saved visualization
+
+The user is editing the saved visualization "${label}", a product of its own that holds this one figure. ${FIGURE_EDITOR_TOOLS_LINES} There is no Apply: every change is saved and shared with anyone else editing it as it is made. The figure resolves under the visualization's own results package and scope. Only this visualization is in view: no other product, slide deck or report can be read or changed from here.`;
     case "package":
       return `# Current View: Figure viewer (package)
 

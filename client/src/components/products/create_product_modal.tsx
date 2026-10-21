@@ -1,4 +1,10 @@
-import { ALL_DATA_SCOPE_ID, type ProductType, type ScopeId, t3 } from "lib";
+import {
+  ALL_DATA_SCOPE_ID,
+  type APIResponseWithData,
+  type EmptyCreatableProductType,
+  type ScopeId,
+  t3,
+} from "lib";
 import {
   type AlertComponentProps,
   createFormAction,
@@ -10,12 +16,18 @@ import { ScopeSelect, scopeSelectLabel } from "~/components/_shared/mod.ts";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 
+// `create` makes an empty deck or report on the chosen pair. `pick` only
+// returns the pair: a visualization is created after its first figure is
+// chosen and resolved under it (createVisualizationInteractively).
 type Props = {
-  type: ProductType;
+  mode: { kind: "create"; type: EmptyCreatableProductType } | { kind: "pick" };
   title: string;
 };
 
-type ReturnType = { productId: string } | undefined;
+type ReturnType =
+  | { kind: "created"; productId: string }
+  | { kind: "picked"; runId: string; scopeId: ScopeId }
+  | undefined;
 
 // A new product names its package and its scope before it exists: the row
 // needs both at insert. The package starts on the pin and the scope on "All
@@ -41,7 +53,9 @@ export function CreateProductModal(p: AlertComponentProps<Props, ReturnType>) {
   );
 
   const save = createFormAction(
-    async (e: MouseEvent) => {
+    async (
+      e: MouseEvent,
+    ): Promise<APIResponseWithData<NonNullable<ReturnType>>> => {
       e.preventDefault();
       const chosenRunId = runId();
       const chosenScopeId = scopeId();
@@ -55,15 +69,31 @@ export function CreateProductModal(p: AlertComponentProps<Props, ReturnType>) {
           }),
         };
       }
-      return await serverActions.createProduct({
-        type: p.type,
+      if (p.mode.kind === "pick") {
+        return {
+          success: true as const,
+          data: {
+            kind: "picked" as const,
+            runId: chosenRunId,
+            scopeId: chosenScopeId,
+          },
+        };
+      }
+      const res = await serverActions.createProduct({
+        type: p.mode.type,
         folderId: null,
         runId: chosenRunId,
         scopeId: chosenScopeId,
       });
+      return res.success
+        ? {
+          success: true as const,
+          data: { kind: "created" as const, productId: res.data.productId },
+        }
+        : res;
     },
-    (data) => {
-      p.close({ productId: data.productId });
+    (data: NonNullable<ReturnType>) => {
+      p.close(data);
     },
   );
 
@@ -73,7 +103,9 @@ export function CreateProductModal(p: AlertComponentProps<Props, ReturnType>) {
       form
       onCancel={() => p.close(undefined)}
       actions={[{
-        label: t3({ en: "Create", fr: "Créer", pt: "Criar" }),
+        label: p.mode.kind === "pick"
+          ? t3({ en: "Next", fr: "Suivant", pt: "Seguinte" })
+          : t3({ en: "Create", fr: "Créer", pt: "Criar" }),
         onClick: save.click,
         state: save.state(),
       }]}

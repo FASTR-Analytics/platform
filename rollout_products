@@ -292,7 +292,7 @@ REMOTE
     # The one-transaction rule the DDL cannot express: every registry row has
     # the detail row its type names.
     check_zero "$INSTANCE" "products without a detail row" \
-        "SELECT count(*) FROM products p WHERE (p.type = 'slide_deck' AND NOT EXISTS (SELECT 1 FROM slide_decks d WHERE d.id = p.id)) OR (p.type = 'report' AND NOT EXISTS (SELECT 1 FROM reports r WHERE r.id = p.id))"
+        "SELECT count(*) FROM products p WHERE (p.type = 'slide_deck' AND NOT EXISTS (SELECT 1 FROM slide_decks d WHERE d.id = p.id)) OR (p.type = 'report' AND NOT EXISTS (SELECT 1 FROM reports r WHERE r.id = p.id)) OR (p.type = 'visualization' AND NOT EXISTS (SELECT 1 FROM visualizations v WHERE v.id = p.id))"
 
     echo "$INSTANCE COMPLETE: migrated and post-checked against the gated plan."
     COMPLETED+=("$INSTANCE")

@@ -21,7 +21,7 @@ import {
 } from "lib";
 import { tryCatchDatabaseAsync } from "../utils.ts";
 import {
-  carryReportCrdtStamps,
+  carryDocCrdtStamps,
   REPORT_NOT_FOUND,
   touchProduct,
 } from "./_product_row.ts";
@@ -217,7 +217,7 @@ export async function updateReportConfig(
       };
       const parsed = JSON.stringify(reportConfigSchema.parse(next));
       // Config is not in the collab doc: keep its state current.
-      await carryReportCrdtStamps(sql, [productId], lastUpdated);
+      await carryDocCrdtStamps(sql, [productId], lastUpdated);
       await touchProduct(sql, productId, "report", lastUpdated);
       await sql`UPDATE reports SET config = ${parsed} WHERE id = ${productId}`;
     });
@@ -266,7 +266,7 @@ export async function setReportStyle(
         delete next.customStyle;
       }
       written = reportConfigSchema.parse(next) as ReportConfig;
-      await carryReportCrdtStamps(sql, [productId], lastUpdated);
+      await carryDocCrdtStamps(sql, [productId], lastUpdated);
       await touchProduct(sql, productId, "report", lastUpdated);
       await sql`UPDATE reports SET config = ${
         JSON.stringify(written)

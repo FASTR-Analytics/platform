@@ -1,9 +1,9 @@
 import { useSearchParams } from "@solidjs/router";
 import {
+  type EmptyCreatableProductType,
   type Folder,
   productLevelAtLeast,
   type ProductSummary,
-  type ProductType,
   t3,
 } from "lib";
 import {
@@ -55,6 +55,7 @@ import { DuplicateProductsModal } from "./_shared/mod.ts";
 import { PackageScopeModal } from "./_shared/mod.ts";
 import { ProductAccessModal } from "./_shared/mod.ts";
 import { CreateProductModal } from "./create_product_modal";
+import { createVisualizationInteractively } from "./create_visualization";
 import { EditFolderModal } from "./edit_folder_modal";
 import { buildFolderMenu } from "./folder_menu";
 import {
@@ -290,13 +291,26 @@ export function Products() {
     }
   }
 
-  async function createProduct(type: ProductType) {
+  async function createProduct(type: EmptyCreatableProductType) {
     const created = await openComponent({
       element: CreateProductModal,
-      props: { type, title: PRODUCT_TYPE_REGISTRY[type].createLabel() },
+      props: {
+        mode: { kind: "create" as const, type },
+        title: PRODUCT_TYPE_REGISTRY[type].createLabel(),
+      },
     });
-    if (!created) return;
+    if (created?.kind !== "created") return;
     markProductCreatedThisVisit(created.productId);
+    await openCreatedProduct(created);
+  }
+
+  // A visualization is created with its first figure (never empty), so it is
+  // not marked as created this visit: there is nothing to discard on leave.
+  async function createVisualization() {
+    const created = await createVisualizationInteractively(
+      PRODUCT_TYPE_REGISTRY.visualization.createLabel(),
+    );
+    if (!created) return;
     await openCreatedProduct(created);
   }
 
@@ -494,6 +508,12 @@ export function Products() {
           disabled: !canCreateProduct(),
           onClick: () => void createProduct("report"),
         },
+        {
+          label: PRODUCT_TYPE_REGISTRY.visualization.createLabel(),
+          icon: PRODUCT_TYPE_REGISTRY.visualization.icon,
+          disabled: !canCreateProduct(),
+          onClick: () => void createVisualization(),
+        },
         { type: "divider" },
         {
           label: t3({
@@ -528,11 +548,11 @@ export function Products() {
           <div class="text-base-content-muted text-sm">
             {t3({
               en:
-                "No products yet. A product is a slide deck or a report; create one and the editor opens straight away.",
+                "No products yet. A product is a slide deck, a report or a visualization; create one and the editor opens straight away.",
               fr:
-                "Aucun produit pour le moment. Un produit est une présentation ou un rapport ; créez-en un et l'éditeur s'ouvre immédiatement.",
+                "Aucun produit pour le moment. Un produit est une présentation, un rapport ou une visualisation ; créez-en un et l'éditeur s'ouvre immédiatement.",
               pt:
-                "Ainda não há produtos. Um produto é uma apresentação ou um relatório; crie um e o editor abre de imediato.",
+                "Ainda não há produtos. Um produto é uma apresentação, um relatório ou uma visualização; crie um e o editor abre de imediato.",
             })}
           </div>
         </Match>

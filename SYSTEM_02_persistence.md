@@ -337,20 +337,21 @@ server has verified-current schema and stored-JSON shapes. The sequence:
 4. **Instance data transforms.** `INSTANCE_DATA_TRANSFORMS`, each a
    `(tx, countryIso3) => Promise<MigrationStats>` run in its own transaction, in
    this order: `instance_config`, `runs_summary`, `runs_progress`,
-   `slide_deck_config`, `slide_config`, `reports`; any failure exits.
-   `countryIso3` is `_INSTANCE_COUNTRY_ISO3`, which the figure-block sweeps need
-   and a boot sweep cannot read from the live instance store. `runs_summary`
-   strips the `backfillSourceProjectId` and `attachTargetProjectIds` keys from
-   `runs.summary`, gated by a raw key scan because `RunSummary` has no schema.
-   `runs_progress` adds `stage: { kind: "ended" }` to a `runs.progress` written
-   before the stage existed (S8 "The stage"), gated by a raw key scan because
-   `stage` is required; a row that cannot be parsed or validated is logged and
-   skipped. The three product transforms bump the owning `products.last_updated`
-   on every row they rewrite (`slide_config` also bumps `slides.last_updated`),
-   and their figure-block conversions stamp each bundle with the owning
-   product's `run_id` and the area of its scope (`slide_config` and `reports`
-   join `scopes` on `products.scope_id` and read the area from the stored
-   definition with `adminArea2OfStoredScope`).
+   `slide_deck_config`, `slide_config`, `reports`, `visualizations`; any failure
+   exits. `countryIso3` is `_INSTANCE_COUNTRY_ISO3`, which the figure-block
+   sweeps need and a boot sweep cannot read from the live instance store.
+   `runs_summary` strips the `backfillSourceProjectId` and
+   `attachTargetProjectIds` keys from `runs.summary`, gated by a raw key scan
+   because `RunSummary` has no schema. `runs_progress` adds
+   `stage: { kind: "ended" }` to a `runs.progress` written before the stage
+   existed (S8 "The stage"), gated by a raw key scan because `stage` is
+   required; a row that cannot be parsed or validated is logged and skipped. The
+   three product transforms bump the owning `products.last_updated` on every row
+   they rewrite (`slide_config` also bumps `slides.last_updated`), and their
+   figure-block conversions stamp each bundle with the owning product's `run_id`
+   and the area of its scope (`slide_config` and `reports` join `scopes` on
+   `products.scope_id` and read the area from the stored definition with
+   `adminArea2OfStoredScope`).
 5. **Runs.** The tmp-dir sweep, the DuckDB spill reset, the interrupted
    generation flip and the run-manifest transform run last; they are S8's
    ([SYSTEM_08](SYSTEM_08_results_packages.md)).

@@ -10,6 +10,7 @@ import {
   TC,
 } from "lib";
 import { AlertComponentProps, createQuery, StateHolderWrapper } from "panther";
+import type { JSX } from "solid-js";
 import type { Awareness } from "y-protocols/awareness";
 import type * as Y from "yjs";
 import { getResultsValueInfoForPresentationObjectFromCacheOrFetch } from "~/state/products/t2_figure_data";
@@ -44,7 +45,7 @@ export type VizFigureCollabBinding = {
   /** Identity of the host doc whose room checkpoints these edits: the editor
    *  reads docSaveFailing for THIS doc, since the host editor's own indicator
    *  is covered while the editor is open. */
-  hostDoc: { docType: "slide" | "report"; docId: string };
+  hostDoc: { docType: "slide" | "report" | "visualization"; docId: string };
   /** The figConfig Y.Map in the host doc (slide node / report figure entry),
    *  or undefined if the figure isn't decomposed (no live co-editing then). */
   getConfigMap: () => Y.Map<unknown> | undefined;
@@ -88,6 +89,15 @@ export type VisualizationEditorProps = {
    *  An accessor, so a collaborator re-theming the report while the editor
    *  is open re-colours it. */
   chartPalette?: () => FastrChartPalette | undefined;
+  /** A host whose document IS this figure (a visualization product) puts its
+   *  own chrome in the editor's header: `title` replaces the label and
+   *  `actions` lead the right-hand buttons. Built once by the host. */
+  productChrome?: VizEditorProductChrome;
+};
+
+export type VizEditorProductChrome = {
+  title: JSX.Element;
+  actions: JSX.Element;
 };
 
 // The editor holds the chat view it opens over at mount; the inner editor
@@ -122,6 +132,7 @@ export function VisualizationEditor(
           collabBinding={p.collabBinding}
           viewOnly={p.viewOnly}
           chartPalette={p.chartPalette}
+          productChrome={p.productChrome}
           onClose={p.close}
         />
       )}

@@ -31,6 +31,7 @@ type FigureEditorViewState = Extract<
     id:
       | "editing_slide_figure"
       | "editing_report_figure"
+      | "editing_visualization"
       | "viewing_package_figure";
   }
 >;

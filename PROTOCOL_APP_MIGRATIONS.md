@@ -115,17 +115,19 @@ if work is needed.
 
 The functions are wired into `INSTANCE_DATA_TRANSFORMS` in
 `server/db_startup.ts` and run in its order: `instance_config`, `runs_summary`,
-`runs_progress`, `slide_deck_config`, `slide_config`, `reports`. Each has the
-signature `(tx: Sql, countryIso3: string) => Promise<MigrationStats>`; a
-function that does not need the country may declare `tx` alone. `tx` is the
-function's own transaction on `main`. `countryIso3` is the instance country,
-which the figure-block sweeps stamp into backfilled bundles.
+`runs_progress`, `slide_deck_config`, `slide_config`, `reports`,
+`visualizations`. Each has the signature
+`(tx: Sql, countryIso3: string) => Promise<MigrationStats>`; a function that
+does not need the country may declare `tx` alone. `tx` is the function's own
+transaction on `main`. `countryIso3` is the instance country, which the
+figure-block sweeps stamp into backfilled bundles.
 
-A transform for product JSON (a deck config, a slide, a report column) goes in
-the product's existing function: `slide_deck_config.ts`, `slide_config.ts` or
-`reports.ts`. A new product type or a new stored column that no function reads
-gets its own function, appended to `INSTANCE_DATA_TRANSFORMS` after the
-functions whose output it reads.
+A transform for product JSON (a deck config, a slide, a report column, a
+visualization's bundle) goes in the product's existing function:
+`slide_deck_config.ts`, `slide_config.ts`, `reports.ts` or `visualizations.ts`.
+A new product type or a new stored column that no function reads gets its own
+function, appended to `INSTANCE_DATA_TRANSFORMS` after the functions whose
+output it reads.
 
 ### Writing a Migration Function
 

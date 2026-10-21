@@ -107,7 +107,8 @@ import {
 // the page closes, and the places inside products: deck settings
 // (`deck_settings`), the version histories (`deck_history`,
 // `report_history`), the figure editor (the view its host names in `aiView`,
-// through `setFigureEditorView`), the results file viewer (`results_file`)
+// through `setFigureEditorView`; a saved visualization's editor names
+// `editing_visualization`), the results file viewer (`results_file`)
 // and the HFA indicators manager (`hfa_indicators`, over the switchboard's
 // `data_page`), whose code editor sets `hfa_indicator_editor` once its draft
 // store exists and whose Excel import sets `hfa_indicator_import`.
@@ -260,12 +261,17 @@ export type EditingReportFigureParams = {
 export type ViewingPackageFigureParams = {
   figureId: string;
 };
+// A saved visualization IS its product: its one figure has no id of its own.
+export type EditingVisualizationParams = {
+  productId: string;
+};
 
 // The view a figure editor's host names in the editor's `aiView` prop: which
-// of the three figure views, with the params its identity needs.
+// of the four figure views, with the params its identity needs.
 export type FigureEditorView =
   | { id: "editing_slide_figure"; params: EditingSlideFigureParams }
   | { id: "editing_report_figure"; params: EditingReportFigureParams }
+  | { id: "editing_visualization"; params: EditingVisualizationParams }
   | { id: "viewing_package_figure"; params: ViewingPackageFigureParams };
 
 // The figure editor sets the view its host named. A switch, for the reason
@@ -285,6 +291,13 @@ export function setFigureEditorView(
     case "editing_report_figure":
       copilotViewController.setView(
         "editing_report_figure",
+        view.params,
+        context,
+      );
+      return;
+    case "editing_visualization":
+      copilotViewController.setView(
+        "editing_visualization",
         view.params,
         context,
       );
@@ -562,6 +575,21 @@ export const copilotViews = defineAIViews(
       instructions: (_params, context) =>
         getFigureEditorInstructions(context.getLabel(), "report"),
     }),
+    editing_visualization: view<
+      EditingVisualizationParams,
+      FigureEditorContext
+    >({
+      label: (_params, context) => context.getLabel(),
+      identity: (params, context) =>
+        copilotViewIdentity("editing_visualization", {
+          product: params.productId,
+          pair: pairOf(context),
+        }),
+      instructions: (params, context) =>
+        `${getFigureEditorInstructions(context.getLabel(), "visualization")}${
+          productViewOnlyLine(params.productId)
+        }`,
+    }),
     results_file: view<ResultsFileParams, PackageViewContext>({
       label: (params) => `${params.moduleId} / ${params.resultsObjectId}`,
       identity: (params, context) =>
@@ -754,6 +782,13 @@ export function restoreCopilotView(state: CopilotViewState): void {
     case "editing_report_figure":
       copilotViewController.setView(
         "editing_report_figure",
+        state.params,
+        state.context,
+      );
+      return;
+    case "editing_visualization":
+      copilotViewController.setView(
+        "editing_visualization",
         state.params,
         state.context,
       );

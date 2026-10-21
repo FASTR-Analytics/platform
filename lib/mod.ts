@@ -53,3 +53,4 @@ export * from "./collab/crdt_util.ts";
 export * from "./collab/figure_config_crdt.ts";
 export * from "./collab/report_crdt.ts";
 export * from "./collab/slide_crdt.ts";
+export * from "./collab/visualization_crdt.ts";

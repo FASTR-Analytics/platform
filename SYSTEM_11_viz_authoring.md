@@ -34,8 +34,11 @@ docs_absorbed:
 # S11: Visualization Authoring UI
 
 The embedded figure editor, the insert-figure wizard, and the figure-config
-semantics in `lib/`. A visualization is a figure inside a product: there is no
-visualization product, no library and no standalone editor.
+semantics in `lib/`. A visualization is a figure inside a product: a slide, a
+report, or a visualization product, which holds exactly one figure and is edited
+full-page in this same editor (S12 owns the product, S16 its room). There is no
+library of figures shared between products: a figure is always stored inside the
+one product that holds it.
 
 ## Scope
 
@@ -79,32 +82,39 @@ dependency list; do not add one.
 [_shared/figure_editor/visualization_editor.tsx](client/src/components/_shared/figure_editor/visualization_editor.tsx)
 takes
 `{ label, scope, metric, configSnapshot, aiView, authoringContext,
-collabBinding? }`,
+collabBinding?, viewOnly?, chartPalette?, productChrome? }`,
 resolves the metric's queryable shape (`resultsValueInfo`, S9's scope-keyed
-`t2_figure_data.ts`) under the pair, and mounts `VisualizationEditorInner`.
-Three hosts open it: `slide_editor/slide_editor.tsx` (edits
+`t2_figure_data.ts`) under the pair, and mounts `VisualizationEditorInner`. Four
+hosts open it: `slide_editor/slide_editor.tsx` (edits
 `figureBlock.bundle.config`, then re-queries items and rebuilds the bundle),
-`report/report.tsx` (rebuilds the figure block), and the package page's module
-pane (`ModuleVisualizations` in
+`report/report.tsx` (rebuilds the figure block), the visualization product's
+editor (`products/visualization/visualization.tsx`, S12), which renders it
+full-page as the product itself rather than through `openEditor`, and the
+package page's module pane (`ModuleVisualizations` in
 `results_packages/package_view/visualizations.tsx`, S8), which opens it
 `viewOnly`: no collab binding, Back is the only way out, and the draft never
-leaves the editor. Every host passes the pair as a plain value and panther's
-`openEditor` stores the props once, so the pair is fixed for the editor's life,
-which is what the figure views' identity needs. The editor is a place of the
-chat (S13): the outer wrapper holds the view it opens over, and the inner editor
-sets the view the host names in the required `aiView` prop
+leaves the editor. Every host passes the pair as a plain value and the editor
+reads it once, so the pair is fixed for the editor's life, which is what the
+figure views' identity needs; the visualization product's editor remounts it
+(keyed) when its pair changes. `productChrome` (`{ title, actions }`, built once
+by the host) is how that host puts its product title and its own buttons in the
+editor's header; `label` is read live, so a rename reaches the header and the
+chat's label. Under a live binding the editor ships local edits only while
+`canEdit()` holds, so a viewer's local draft never reaches the room. The editor
+is a place of the chat (S13): the outer wrapper holds the view it opens over,
+and the inner editor sets the view the host names in the required `aiView` prop
 (`editing_slide_figure` with the deck, slide and block ids,
-`editing_report_figure` with the report and figure ids, `viewing_package_figure`
-with the default visualization's id), through `setFigureEditorView`, once the
-draft exists, with a context that exposes the pair, the metric and the draft
-live (`getDraftConfig` reads the store, `applyDraftConfig` reconciles a config
-into it, so an AI write lands like a user's edit: it marks the draft for Apply,
-re-previews, and streams into the host doc under live co-editing); its
-instructions name the figure by the `label` prop. The two Figure editor tools,
-`get_figure_editor` and `update_figure_editor`, read and write that draft (S13).
-The results file viewer the editor's Download opens (`view_results_object.tsx`)
-holds the figure view and sets `results_file` from its props, with the same
-pair.
+`editing_report_figure` with the report and figure ids, `editing_visualization`
+with the visualization product's id, `viewing_package_figure` with the default
+visualization's id), through `setFigureEditorView`, once the draft exists, with
+a context that exposes the pair, the metric and the draft live (`getDraftConfig`
+reads the store, `applyDraftConfig` reconciles a config into it, so an AI write
+lands like a user's edit: it marks the draft for Apply, re-previews, and streams
+into the host doc under live co-editing); its instructions name the figure by
+the `label` prop. The two Figure editor tools, `get_figure_editor` and
+`update_figure_editor`, read and write that draft (S13). The results file viewer
+the editor's Download opens (`view_results_object.tsx`) holds the figure view
+and sets `results_file` from its props, with the same pair.
 
 **Snapshot isolation.** The draft is
 `createStore(structuredClone(p.configSnapshot))`, so editor writes never reach

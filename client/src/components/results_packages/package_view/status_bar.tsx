@@ -182,9 +182,9 @@ export function StatusBar(p: {
           fallback={
             <span class="text-base-content-muted">
               {t3({
-                en: "No deck or report",
-                fr: "Aucune présentation ni aucun rapport",
-                pt: "Nenhuma apresentação nem relatório",
+                en: "No product",
+                fr: "Aucun produit",
+                pt: "Nenhum produto",
               })}
             </span>
           }

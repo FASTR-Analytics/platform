@@ -22,13 +22,14 @@
 
 import * as Y from "yjs";
 import type { ReportDetail } from "../types/reports.ts";
-import type { FigureBlock, FigureBundle } from "../types/_figure_bundle.ts";
+import type { FigureBlock } from "../types/_figure_bundle.ts";
 import { setOpaque, syncText } from "./crdt_util.ts";
 import {
-  materializeFigureConfig,
-  seedFigureConfigMap,
-  syncFigureConfigToMap,
-} from "./figure_config_crdt.ts";
+  buildFigureEntry,
+  findFigureEntryConfigMap,
+  readFigureEntry,
+  syncFigureEntry,
+} from "./figure_entry_crdt.ts";
 
 /** The slice of a report that lives in (and is persisted from) the shared doc. */
 export type ReportDocContent = Pick<
@@ -40,49 +41,8 @@ const BODY_KEY = "body";
 const FIGURES_KEY = "figures";
 const IMAGES_KEY = "images";
 
-// A report figure registry entry is decomposed like a slide figure node: the
-// bundle's `config` becomes a co-editable Y.Map ("figConfig") and the heavy
-// remainder rides opaque ("figData"). Legacy entries stored the whole FigureBlock
-// as a plain object; that is honored on read and converted on the next sync.
-const FIG_CONFIG_KEY = "figConfig";
-const FIG_DATA_KEY = "figData";
-
-/** Build a decomposed figure entry Y.Map from a FigureBlock. */
-function buildFigureEntry(block: FigureBlock): Y.Map<unknown> {
-  const entry = new Y.Map<unknown>();
-  if (block.bundle !== undefined) {
-    const { config, ...figData } = block.bundle;
-    const cfgMap = new Y.Map<unknown>();
-    seedFigureConfigMap(cfgMap, config);
-    entry.set(FIG_CONFIG_KEY, cfgMap);
-    entry.set(FIG_DATA_KEY, figData);
-  }
-  return entry;
-}
-
-/** Read a figure registry entry (decomposed Y.Map, else legacy plain object). */
-function readFigureEntry(entry: unknown): FigureBlock {
-  if (entry instanceof Y.Map) {
-    const cfgMap = entry.get(FIG_CONFIG_KEY);
-    if (cfgMap instanceof Y.Map) {
-      const figData = (entry.get(FIG_DATA_KEY) as Record<string, unknown>) ??
-        {};
-      return {
-        type: "figure",
-        bundle: {
-          ...figData,
-          config: materializeFigureConfig(cfgMap),
-        } as FigureBundle,
-      };
-    }
-    return { type: "figure" };
-  }
-  return entry as FigureBlock;
-}
-
-// Fast path (see slide_crdt): skip re-serializing a figure entry whose bundle
-// object reference is unchanged since the last sync.
-const lastFigureBundleRef = new WeakMap<Y.Map<unknown>, unknown>();
+// A report figure registry entry is decomposed like a slide figure node: see
+// figure_entry_crdt.ts.
 
 /** Seed an (assumed empty) Y.Doc from report content. */
 export function seedReportDoc(doc: Y.Doc, content: ReportDocContent): void {
@@ -130,12 +90,9 @@ export function findReportFigureConfigMap(
   doc: Y.Doc,
   figureId: string,
 ): Y.Map<unknown> | undefined {
-  const entry = doc.getMap<unknown>(FIGURES_KEY).get(figureId);
-  if (!(entry instanceof Y.Map)) {
-    return undefined;
-  }
-  const cfg = entry.get(FIG_CONFIG_KEY);
-  return cfg instanceof Y.Map ? cfg : undefined;
+  return findFigureEntryConfigMap(
+    doc.getMap<unknown>(FIGURES_KEY).get(figureId),
+  );
 }
 
 /** Options for a registry sync: lets a host with an open figure-editor modal
@@ -200,42 +157,6 @@ function syncFigureRegistry(
       opts?.skipFigureConfigForFigureIds?.has(id) ?? false,
     );
   }
-}
-
-function syncFigureEntry(
-  entry: Y.Map<unknown>,
-  block: FigureBlock,
-  skipConfig: boolean,
-): void {
-  const bundle = block.bundle;
-  if (bundle === undefined) {
-    for (const k of [FIG_CONFIG_KEY, FIG_DATA_KEY]) {
-      if (entry.has(k)) {
-        entry.delete(k);
-      }
-    }
-    lastFigureBundleRef.delete(entry);
-    return;
-  }
-  if (lastFigureBundleRef.get(entry) === bundle) {
-    return;
-  }
-  const { config, ...figData } = bundle;
-  // Honor the skip only when there IS a figConfig map for the modal to own:
-  // see the same guard in slide_crdt.ts syncFigureNode. Without a map, writing
-  // figData alone makes readFigureEntry report a bundle-less figure, so the
-  // checkpoint stores an empty one and stamps crdt_state trusted.
-  const existingConfig = entry.get(FIG_CONFIG_KEY);
-  if (!skipConfig || !(existingConfig instanceof Y.Map)) {
-    let cfgMap = existingConfig;
-    if (!(cfgMap instanceof Y.Map)) {
-      cfgMap = new Y.Map<unknown>();
-      entry.set(FIG_CONFIG_KEY, cfgMap);
-    }
-    syncFigureConfigToMap(cfgMap as Y.Map<unknown>, config);
-  }
-  setOpaque(entry, FIG_DATA_KEY, figData);
-  lastFigureBundleRef.set(entry, bundle);
 }
 
 /** Diff full report content onto the doc (minimal mergeable ops). Idempotent:

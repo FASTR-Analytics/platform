@@ -86,15 +86,26 @@ function PresenceToastHost() {
 
 // ── Join/leave detection ──────────────────────────────────────────────────────
 
-type ScopeKind = "deck" | "report";
+type ScopeKind = "deck" | "report" | "visualization";
 type Scope = { key: string; kind: ScopeKind } | null;
+type ScopeView = {
+  deckId?: string;
+  reportId?: string;
+  visualizationId?: string;
+};
 
-function scopeFromView(view: { deckId?: string; reportId?: string }): Scope {
+function scopeFromView(view: ScopeView): Scope {
   if (view.deckId) {
     return { key: `deck:${view.deckId}`, kind: "deck" };
   }
   if (view.reportId) {
     return { key: `report:${view.reportId}`, kind: "report" };
+  }
+  if (view.visualizationId) {
+    return {
+      key: `visualization:${view.visualizationId}`,
+      kind: "visualization",
+    };
   }
   return null;
 }
@@ -102,6 +113,9 @@ function scopeFromView(view: { deckId?: string; reportId?: string }): Scope {
 function inScope(peer: PresenceEntry, scope: NonNullable<Scope>): boolean {
   if (scope.kind === "deck") {
     return `deck:${peer.deckId}` === scope.key;
+  }
+  if (scope.kind === "visualization") {
+    return `visualization:${peer.visualizationId}` === scope.key;
   }
   return `report:${peer.reportId}` === scope.key;
 }
@@ -112,6 +126,13 @@ function joinedLabel(kind: ScopeKind): string {
       en: "joined this deck",
       fr: "a rejoint ce diaporama",
       pt: "entrou nesta apresentação",
+    });
+  }
+  if (kind === "visualization") {
+    return t3({
+      en: "joined this visualization",
+      fr: "a rejoint cette visualisation",
+      pt: "entrou nesta visualização",
     });
   }
   return t3({
@@ -127,6 +148,13 @@ function leftLabel(kind: ScopeKind): string {
       en: "left this deck",
       fr: "a quitté ce diaporama",
       pt: "saiu desta apresentação",
+    });
+  }
+  if (kind === "visualization") {
+    return t3({
+      en: "left this visualization",
+      fr: "a quitté cette visualisation",
+      pt: "saiu desta visualização",
     });
   }
   return t3({
@@ -157,7 +185,7 @@ function clearPendingLeaves(): void {
 export function notifyPresenceToasts(
   peers: PresenceEntry[],
   selfConnectionId: string | null,
-  view: { deckId?: string; reportId?: string },
+  view: ScopeView,
 ): void {
   const scope = scopeFromView(view);
   if (!scope) {

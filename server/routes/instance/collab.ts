@@ -67,6 +67,19 @@ import {
   unsubscribeReport,
 } from "../../collab/report_rooms.ts";
 import {
+  applyVisualizationUpdate,
+  prepareVisualizationCheckpoint,
+  relayVisualizationAwareness,
+  subscribeVisualization,
+  unsubscribeVisualization,
+  type VisualizationRoomDeps,
+} from "../../collab/visualization_rooms.ts";
+import {
+  getVisualizationCrdtState,
+  getVisualizationDetail,
+  saveVisualizationCheckpoint,
+} from "../../db/products/visualizations.ts";
+import {
   noteVersionRoomEmpty,
   recordVersionEdit,
 } from "../../collab/version_capture.ts";
@@ -158,7 +171,8 @@ function isAllowedWsOrigin(
 /**
  * The instance collaboration WebSocket.
  *
- * Carries presence plus the two CRDT document families (slide_* / report_*).
+ * Carries presence plus the three CRDT document families (slide_* / report_* /
+ * visualization_*).
  * Admission is origin plus Clerk plus approved and resolves BEFORE the upgrade
  * so the socket can never become an unauthenticated channel. Every document
  * message names its product, which keys the room. Subscribe and presence need
@@ -459,6 +473,46 @@ routesCollab.get(
       };
     }
 
+    // DB-backed room dependencies for one visualization product (see
+    // depsForReport). Not versioned: no onEdit/onEmpty.
+    function depsForVisualization(productId: string): VisualizationRoomDeps {
+      const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
+      return {
+        load: async () => {
+          const res = await getVisualizationDetail(mainDb, productId);
+          if (!res.success) {
+            return null;
+          }
+          const crdtRes = await getVisualizationCrdtState(mainDb, productId);
+          const crdtState = crdtRes.success ? crdtRes.data.state : null;
+          return { content: { bundle: res.data.bundle }, crdtState };
+        },
+        save: async (content, crdtState) => {
+          // Collab is authoritative → checkpoint overwrites bundle + CRDT
+          // state. The policy (transient drop, parse, trust) is the room's.
+          const prepared = prepareVisualizationCheckpoint(content.bundle);
+          if ("permanent" in prepared) {
+            console.error(
+              `[collab] visualization checkpoint validation failed for ${productId}`,
+            );
+            return { ok: false, permanent: true };
+          }
+          const res = await saveVisualizationCheckpoint(
+            mainDb,
+            productId,
+            prepared.stored,
+            crdtState,
+            prepared.trusted,
+          );
+          if (!res.success) {
+            return { ok: false };
+          }
+          await notifyInstanceProductsUpserted(mainDb, [productId]);
+          return { ok: true, lastUpdated: res.data.lastUpdated };
+        },
+      };
+    }
+
     return {
       onOpen: (_evt, ws) => {
         roomConn = {
@@ -533,7 +587,8 @@ routesCollab.get(
             // the registry owns both, since only it knows the previous view.
             // A peer never joins the presence of a product it cannot see.
             const view = msg.data;
-            const productId = view.deckId ?? view.reportId;
+            const productId = view.deckId ?? view.reportId ??
+              view.visualizationId;
             const seq = ++presenceSeq;
             if (productId === undefined || holds(productId, "view")) {
               updateConnectionPresence(connectionId, view);
@@ -639,6 +694,63 @@ routesCollab.get(
               relayReportAwareness(
                 msg.data.productId,
                 msg.data.reportId,
+                roomConn,
+                msg.data.update,
+              );
+            }
+            break;
+          case "visualization_subscribe":
+            if (roomConn) {
+              const conn = roomConn;
+              const { productId, visualizationId, stateVector } = msg.data;
+              void whenViewable(
+                productId,
+                () => ({
+                  type: "visualization_error",
+                  data: {
+                    visualizationId,
+                    message: NO_PRODUCT_ACCESS,
+                    fatal: true,
+                  },
+                }),
+                () =>
+                  void subscribeVisualization(
+                    productId,
+                    visualizationId,
+                    conn,
+                    stateVector,
+                    depsForVisualization(productId),
+                  ),
+              );
+            }
+            break;
+          case "visualization_update":
+            if (roomConn && holds(msg.data.productId, "view")) {
+              applyVisualizationUpdate(
+                msg.data.productId,
+                msg.data.visualizationId,
+                roomConn,
+                msg.data.update,
+              );
+              if (roomConn.canEdit(msg.data.productId)) {
+                markConnectionEditing(connectionId);
+              }
+            }
+            break;
+          case "visualization_unsubscribe":
+            if (roomConn) {
+              unsubscribeVisualization(
+                msg.data.productId,
+                msg.data.visualizationId,
+                roomConn,
+              );
+            }
+            break;
+          case "visualization_awareness_update":
+            if (roomConn && holds(msg.data.productId, "edit")) {
+              relayVisualizationAwareness(
+                msg.data.productId,
+                msg.data.visualizationId,
                 roomConn,
                 msg.data.update,
               );

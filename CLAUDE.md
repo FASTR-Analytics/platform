@@ -2,8 +2,9 @@
 
 FASTR Analytics Platform: a Deno/Hono server and SolidJS client that ingests
 health facility data and runs versioned R analysis modules into immutable
-results packages. Products (slide decks and reports, kept in nested folders)
-render figures from one package each at one scope. One instance per country.
+results packages. Products (slide decks, reports and saved visualizations, kept
+in nested folders) render figures from one package each at one scope. One
+instance per country.
 
 ## Formatting: `deno fmt`, the whole repo
 

@@ -107,10 +107,10 @@ CREATE TABLE instance_config (
 -- PRODUCTS AND FOLDERS
 -- ============================================================================
 
--- A product is a slide deck or a report. `products` is the registry every
--- cross-type operation goes through (list, folder move, delete, package
--- reattach, "in use by"); the per-type detail tables hang off it by the same
--- id. `last_updated` is THE product version: every content mutation and every
+-- A product is a slide deck, a report or a visualization. `products` is the
+-- registry every cross-type operation goes through (list, folder move, delete,
+-- package reattach, "in use by"); the per-type detail tables hang off it by
+-- the same id. `last_updated` is THE product version: every content mutation and every
 -- metadata write bumps it in the same transaction. Folders nest through
 -- `parent_id` (an adjacency list; no stored path, no depth cap, acyclic by
 -- server enforcement). `created_by` and `created_at` are provenance, not
@@ -168,7 +168,7 @@ CREATE INDEX idx_user_scopes_scope_id ON user_scopes(scope_id);
 -- dump the same schema.
 CREATE TABLE products (
   id text PRIMARY KEY NOT NULL,        -- 4-char nanoid (legacy 3-char kept)
-  type text NOT NULL CHECK (type IN ('slide_deck', 'report')),
+  type text NOT NULL CHECK (type IN ('slide_deck', 'report', 'visualization')),
   label text NOT NULL,
   folder_id text REFERENCES folders(id) ON DELETE SET NULL,
   run_id text NOT NULL REFERENCES runs(id),  -- no cascade: the delete-run guard
@@ -235,6 +235,18 @@ CREATE TABLE reports (
   crdt_state text,
   crdt_state_last_updated text,
   body_authors text,
+  FOREIGN KEY (id, type) REFERENCES products(id, type) ON DELETE CASCADE
+);
+
+-- A visualization is one saved figure: its FigureBundle as JSON text
+-- (figureBundleSchema), resolved client-side under the product's pair and kept
+-- as a snapshot like a report's figures. Not versioned.
+CREATE TABLE visualizations (
+  id text PRIMARY KEY NOT NULL,
+  type text NOT NULL DEFAULT 'visualization' CHECK (type = 'visualization'),
+  bundle text NOT NULL,
+  crdt_state text,
+  crdt_state_last_updated text,
   FOREIGN KEY (id, type) REFERENCES products(id, type) ON DELETE CASCADE
 );
 

@@ -105,3 +105,28 @@ Deno.test("a product on a package that is no longer ready names its run id", () 
     "package: not ready (run run_gone)",
   );
 });
+
+Deno.test("a saved visualization is never listed to the model", () => {
+  const visualization: ProductSummary = {
+    ...product({ id: "p_viz", label: "ANC coverage map" }),
+    type: "visualization",
+  };
+  const text = formatProductsListForAI({
+    products: [visualization, product({ id: "p_report" })],
+    folders: [],
+    readyPackages: READY,
+    scopes: SCOPES,
+    user: USER,
+  });
+  assertStringIncludes(text, "PRODUCTS (1)");
+  assert(!text.includes("p_viz"));
+  assert(!text.includes("ANC coverage map"));
+  const onlyVisualizations = formatProductsListForAI({
+    products: [visualization],
+    folders: [],
+    readyPackages: READY,
+    scopes: SCOPES,
+    user: USER,
+  });
+  assert(onlyVisualizations.startsWith("No products."));
+});

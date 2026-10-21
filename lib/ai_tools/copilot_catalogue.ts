@@ -21,6 +21,7 @@ export const COPILOT_VIEW_IDS = [
   "report_history",
   "editing_report",
   "editing_report_figure",
+  "editing_visualization",
   "results_file",
   "explore",
   "results_packages",
@@ -52,6 +53,7 @@ export const COPILOT_PACKAGE_VIEWS = [
   "report_history",
   "editing_report",
   "editing_report_figure",
+  "editing_visualization",
   "results_file",
   "explore",
   "package",
@@ -75,8 +77,26 @@ const REPORT_VIEWS = ["editing_report"] as const;
 const FIGURE_EDITOR_VIEWS = [
   "editing_slide_figure",
   "editing_report_figure",
+  "editing_visualization",
   "viewing_package_figure",
 ] as const;
+// The draft-slide card ("Add to this deck") everywhere a package is in view
+// except a saved visualization's editor: the copilot there edits that one
+// figure and reaches nothing else.
+const DRAFT_VIEWS = [
+  "opening_product",
+  "editing_slide_deck",
+  "editing_slide_figure",
+  "deck_settings",
+  "deck_history",
+  "report_history",
+  "editing_report",
+  "editing_report_figure",
+  "results_file",
+  "explore",
+  "package",
+  "viewing_package_figure",
+] as const satisfies readonly CopilotPackageViewId[];
 const HFA_VIEWS = [
   "hfa_indicators",
   "hfa_indicator_editor",
@@ -104,7 +124,7 @@ export const COPILOT_TOOL_VIEWS = {
   delete_slides: DECK_VIEWS,
   duplicate_slides: DECK_VIEWS,
   move_slides: DECK_VIEWS,
-  show_draft_slide_to_user: COPILOT_PACKAGE_VIEWS,
+  show_draft_slide_to_user: DRAFT_VIEWS,
   get_report_editor: REPORT_VIEWS,
   get_report_figure: REPORT_VIEWS,
   get_report_pages: REPORT_VIEWS,
@@ -284,6 +304,7 @@ export const COPILOT_VIEW_IDENTITY_PARTS = {
   report_history: ["report", "pair"],
   editing_report: ["report", "pair"],
   editing_report_figure: ["report", "figure", "pair"],
+  editing_visualization: ["product", "pair"],
   results_file: ["resultsObject", "pair"],
   explore: ["pair"],
   results_packages: [],

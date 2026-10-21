@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { PRODUCT_TYPES } from "../../types/products.ts";
+import { EMPTY_CREATABLE_PRODUCT_TYPES } from "../../types/products.ts";
 import { scopeIdSchema } from "../../types/scope.ts";
 import { type ProductAccessLevel, route } from "../route-utils.ts";
 
@@ -20,15 +20,16 @@ export const productAccessBodySchema = z.object({
 // and ./reports.ts and carry no label, folder, delete or duplicate of their
 // own. Every entry declares `access`; defineRoute installs the guard from it.
 export const productRouteRegistry = {
-  // The caller names the package and the scope (a create dialog asks for
-  // both); the server mints the label. Fails typed
+  // An empty deck or report (a visualization is createVisualization). The
+  // caller names the package and the scope (a create dialog asks for both);
+  // the server mints the label. Fails typed
   // (PACKAGE_OR_SCOPE_UNAVAILABLE) when the package is not ready or either
   // row is gone.
   createProduct: route({
     path: "/products",
     method: "POST",
     body: z.object({
-      type: z.enum(PRODUCT_TYPES),
+      type: z.enum(EMPTY_CREATABLE_PRODUCT_TYPES),
       folderId: z.uuid().nullable(),
       runId: z.string(),
       scopeId: scopeIdSchema,

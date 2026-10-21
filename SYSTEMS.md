@@ -124,27 +124,31 @@ Every doc has one home along two axes, construction (HOW) vs architecture
 - `CLAUDE.md`: the index pointing at all of it.
 
 **Vocabulary.** The nouns every doc and every new identifier uses: **product**
-(a slide deck or a report: one row in `products`, one id namespace), **folder**
-(a node in the nested products tree; `parent_id` NULL is the root), **package**
-(a results package: a `runs` row plus its run directory; "run" stays the
-internal name), **pin** (the instance's pinned package), **scope** (a named row
-in `scopes`: a label and a definition of what a read may take from a package,
-one section per dataset family, each excluded or included with that family's
-limits; a product carries exactly one by id, every read names one, and the
-reserved scope "All data", id `all-data`, includes every family and limits
-nothing), **figure** (`{ metricId, config }` resolved under a (package, scope)
-pair and stored as a `FigureBundle` inside a product), **preset** (a default
-visualization derived from a package's manifest, not a stored thing) and
+(a slide deck, a report or a visualization: one row in `products`, one id
+namespace), **folder** (a node in the nested products tree; `parent_id` NULL is
+the root), **package** (a results package: a `runs` row plus its run directory;
+"run" stays the internal name), **pin** (the instance's pinned package),
+**scope** (a named row in `scopes`: a label and a definition of what a read may
+take from a package, one section per dataset family, each excluded or included
+with that family's limits; a product carries exactly one by id, every read names
+one, and the reserved scope "All data", id `all-data`, includes every family and
+limits nothing), **figure** (`{ metricId, config }` resolved under a (package,
+scope) pair and stored as a `FigureBundle` inside a product), **preset** (a
+default visualization derived from a package's manifest, not a stored thing) and
 **authoring context** (what an author needs from a package to build figures:
 metrics, modules, indicators, taxonomy, presets). UI strings use the same nouns
 with one substitution: a figure is a **visualization** on screen, in every
 language and in every surface (slide and report editors, badges, downloads,
 tours), because "figures" reads as numbers to this app's users and the same
 object will appear standalone in the Explore tab. "Figure" stays the code,
-storage, route and AI-tool name. "Project", "dashboard" and the deleted
-standalone visualization product name nothing in this app; do not reintroduce
-them. `PresentationObjectConfig` remains the figure-config TYPE name; renaming
-the PO vocabulary in code is a separate refactor.
+storage, route and AI-tool name. A **visualization product**
+(`type =
+'visualization'`) is one saved figure that is a product of its own
+(S12); its routes and tables say "visualization" because that is the product's
+name, and what it holds is still a figure. "Project" and "dashboard" name
+nothing in this app; do not reintroduce them. `PresentationObjectConfig` remains
+the figure-config TYPE name; renaming the PO vocabulary in code is a separate
+refactor.
 
 ## Running the lints
 

@@ -7,10 +7,13 @@ import { type ProductType } from "lib";
  *  only in lockstep with that set. */
 export const SLIDE_DECK_NOT_FOUND = "Slide deck not found";
 export const REPORT_NOT_FOUND = "Report not found";
+// Not versioned, so version capture never matches this one.
+export const VISUALIZATION_NOT_FOUND = "Visualization not found";
 
 const NOT_FOUND_BY_TYPE: Record<ProductType, string> = {
   slide_deck: SLIDE_DECK_NOT_FOUND,
   report: REPORT_NOT_FOUND,
+  visualization: VISUALIZATION_NOT_FOUND,
 };
 
 // The one registry write every detail mutation makes, first in its
@@ -38,18 +41,18 @@ export async function touchProduct(
   }
 }
 
-// A product-level write that changes NOTHING inside a report's collab doc
-// (label, folder, scope, config, theme) carries the report's CRDT stamp
-// forward to the product's new last_updated. The persisted Yjs state is
-// trusted only while the two stamps match, so without this every such write
-// left the state "stale", the next room open re-seeded a fresh lineage of
-// the same text, and a client reconnecting with the old lineage merged the
-// two: the whole body twice. Runs BEFORE touchProduct in the same
+// A product-level write that changes NOTHING inside a report's or a
+// visualization's collab doc (label, folder, scope, config, theme) carries the
+// doc's CRDT stamp forward to the product's new last_updated. The persisted
+// Yjs state is trusted only while the two stamps match, so without this every
+// such write left the state "stale", the next room open re-seeded a fresh
+// lineage of the same text, and a client reconnecting with the old lineage
+// merged the two: the whole body twice. Runs BEFORE touchProduct in the same
 // transaction (it compares against the product's CURRENT stamp); a stamp
 // already stale, or a deck id, matches no row and stays as it is. Only
-// body, figure and image writes outside a room should invalidate the state,
-// and those never call this.
-export async function carryReportCrdtStamps(
+// body, figure, image and bundle writes outside a room should invalidate the
+// state, and those never call this.
+export async function carryDocCrdtStamps(
   sql: Sql,
   productIds: readonly string[],
   lastUpdated: string,
@@ -65,5 +68,14 @@ export async function carryReportCrdtStamps(
       AND p.id = r.id
       AND r.crdt_state IS NOT NULL
       AND r.crdt_state_last_updated = p.last_updated
+  `;
+  await sql`
+    UPDATE visualizations v
+    SET crdt_state_last_updated = ${lastUpdated}
+    FROM products p
+    WHERE v.id = ANY(${[...productIds]})
+      AND p.id = v.id
+      AND v.crdt_state IS NOT NULL
+      AND v.crdt_state_last_updated = p.last_updated
   `;
 }

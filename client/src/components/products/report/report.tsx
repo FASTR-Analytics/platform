@@ -657,7 +657,7 @@ export function ReportEditor(p: Props) {
           if (row === undefined) return;
           copilotViewController.notify("product_updated", {
             productId: p.productId,
-            type: row.type,
+            type: "report",
             label: row.label,
           });
         },

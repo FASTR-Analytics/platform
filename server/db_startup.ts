@@ -24,6 +24,7 @@ import type { MigrationStats } from "./db/migrations/data_transforms/po_config.t
 import { migrateSlideDeckConfigs } from "./db/migrations/data_transforms/slide_deck_config.ts";
 import { migrateSlideConfigs } from "./db/migrations/data_transforms/slide_config.ts";
 import { migrateReports } from "./db/migrations/data_transforms/reports.ts";
+import { migrateVisualizations } from "./db/migrations/data_transforms/visualizations.ts";
 import { migrateInstanceConfigs } from "./db/migrations/data_transforms/instance_config.ts";
 import { migrateRunsSummaries } from "./db/migrations/data_transforms/runs_summary.ts";
 import { migrateRunsProgress } from "./db/migrations/data_transforms/runs_progress.ts";
@@ -213,6 +214,7 @@ const INSTANCE_DATA_TRANSFORMS: { name: string; fn: InstanceMigrationFn }[] = [
   { name: "slide_deck_config", fn: migrateSlideDeckConfigs },
   { name: "slide_config", fn: migrateSlideConfigs },
   { name: "reports", fn: migrateReports },
+  { name: "visualizations", fn: migrateVisualizations },
 ];
 
 async function runInstanceDataTransforms(mainDb: Sql): Promise<void> {

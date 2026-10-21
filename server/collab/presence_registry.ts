@@ -16,10 +16,10 @@ import {
 // (matches the in-process BroadcastChannel assumption elsewhere); horizontal
 // scaling across instances is a later milestone (Valkey pub/sub).
 //
-// Presence is scoped to the PRODUCT a peer has open, the deck (`deckId`) or
-// report (`reportId`) it is editing, not to the connection at large (there is
-// no instance-wide page-awareness relay, no list-page cursors and no card
-// presence avatars). A connection that is not inside a product belongs to no
+// Presence is scoped to the PRODUCT a peer has open, the deck (`deckId`),
+// report (`reportId`) or visualization (`visualizationId`) it is editing, not
+// to the connection at large (there is no instance-wide page-awareness relay,
+// no list-page cursors and no card presence avatars). A connection that is not inside a product belongs to no
 // presence group and neither sends nor receives peer lists; opening one moves
 // it, which broadcasts both the group it left and the group it joined.
 
@@ -63,7 +63,7 @@ const productGroups = new Map<string, Set<string>>();
 /** The product this peer has open, or null when it is inside none. A client is
  *  only ever in one editor, so the two fields never both carry a value. */
 function productIdFor(entry: PresenceEntry): string | null {
-  return entry.deckId ?? entry.reportId ?? null;
+  return entry.deckId ?? entry.reportId ?? entry.visualizationId ?? null;
 }
 
 function joinGroup(productId: string, connectionId: string): void {
@@ -132,6 +132,7 @@ export function updateConnectionPresence(
     selectedBlockId: view.selectedBlockId,
     selectedTextTarget: view.selectedTextTarget,
     reportId: view.reportId,
+    visualizationId: view.visualizationId,
     editingFigureId: view.editingFigureId,
     idle: view.idle,
     // Server-owned (markConnectionEditing): a view update must not clear it.

@@ -3,12 +3,26 @@
 
 import type { PackageScope, ScopeId } from "./scope.ts";
 
-export type ProductType = "slide_deck" | "report";
-
+// The union derives from the tuple, so a type cannot exist without being
+// listed (createProduct's enum and every Record<ProductType> read this).
 export const PRODUCT_TYPES = [
   "slide_deck",
   "report",
+  "visualization",
+] as const;
+
+export type ProductType = (typeof PRODUCT_TYPES)[number];
+
+// The types a user creates empty and fills in the editor. A visualization is
+// created with its first figure already resolved (createVisualization), so it
+// never exists empty.
+export const EMPTY_CREATABLE_PRODUCT_TYPES = [
+  "slide_deck",
+  "report",
 ] as const satisfies readonly ProductType[];
+
+export type EmptyCreatableProductType =
+  (typeof EMPTY_CREATABLE_PRODUCT_TYPES)[number];
 
 export type Folder = {
   id: string;
@@ -88,6 +102,9 @@ export type ProductSummary =
   | (ProductBase & ProductAccess & {
     type: "report";
     hasEmbeds: boolean;
+  })
+  | (ProductBase & ProductAccess & {
+    type: "visualization";
   });
 
 export function productScope(product: ProductBase): PackageScope {

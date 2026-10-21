@@ -4,8 +4,9 @@
 //
 // Transport: ONE instance-wide WebSocket at GET /collab, separate from the
 // one-way server to client SSE channel. It carries low-frequency presence
-// (who is where, idle/editing state) plus two CRDT document-sync families,
-// slide_* and report_*, kept as separate message sets so each family's wire
+// (who is where, idle/editing state) plus three CRDT document-sync families,
+// slide_*, report_* and visualization_*, kept as separate message sets so each
+// family's wire
 // format stays byte-stable across deploys. Every document message names the
 // PRODUCT the document belongs to: rooms are keyed `productId::docType::docId`
 // and presence is keyed by product, so a per-subscribe permission check has
@@ -40,6 +41,8 @@ export type PresenceEntry = {
   selectedTextTarget?: string;
   /** Set ⇔ the peer has that report open in the report editor. */
   reportId?: string;
+  /** Set ⇔ the peer has that visualization open in its editor. */
+  visualizationId?: string;
   /** Set ⇔ the peer has the figure editor open on a figure embedded in the
    *  slide/report they are in (the slide layout-block id or the report figure
    *  registry id). Contextualized by `slideId`/`reportId`. */
@@ -61,6 +64,7 @@ export type PresenceView = {
   selectedBlockId?: string;
   selectedTextTarget?: string;
   reportId?: string;
+  visualizationId?: string;
   editingFigureId?: string;
   idle?: boolean;
 };
@@ -104,6 +108,24 @@ export type CollabClientMessage =
   | {
     type: "report_awareness_update";
     data: { productId: string; reportId: string; update: string };
+  }
+  // Visualization CRDT sync (parallel family: see the report note). A
+  // visualization IS its product, so `productId` equals `visualizationId`.
+  | {
+    type: "visualization_subscribe";
+    data: { productId: string; visualizationId: string; stateVector: string };
+  }
+  | {
+    type: "visualization_update";
+    data: { productId: string; visualizationId: string; update: string };
+  }
+  | {
+    type: "visualization_unsubscribe";
+    data: { productId: string; visualizationId: string };
+  }
+  | {
+    type: "visualization_awareness_update";
+    data: { productId: string; visualizationId: string; update: string };
   }
   // Client-side liveness probe. The SERVER side of dead-peer detection is
   // Deno's built-in protocol ping (idleTimeout: see routes/instance/collab.ts), but
@@ -158,6 +180,7 @@ const presenceViewSchema = z.object({
   selectedBlockId: elementIdSchema.optional(),
   selectedTextTarget: elementIdSchema.optional(),
   reportId: collabIdSchema.optional(),
+  visualizationId: collabIdSchema.optional(),
   editingFigureId: elementIdSchema.optional(),
   idle: z.boolean().optional(),
 });
@@ -224,6 +247,37 @@ export const collabClientMessageSchema: z.ZodType<CollabClientMessage> = z
         update: awarenessUpdateSchema,
       }),
     }),
+    z.object({
+      type: z.literal("visualization_subscribe"),
+      data: z.object({
+        productId: collabIdSchema,
+        visualizationId: collabIdSchema,
+        stateVector: stateVectorSchema,
+      }),
+    }),
+    z.object({
+      type: z.literal("visualization_update"),
+      data: z.object({
+        productId: collabIdSchema,
+        visualizationId: collabIdSchema,
+        update: docUpdateSchema,
+      }),
+    }),
+    z.object({
+      type: z.literal("visualization_unsubscribe"),
+      data: z.object({
+        productId: collabIdSchema,
+        visualizationId: collabIdSchema,
+      }),
+    }),
+    z.object({
+      type: z.literal("visualization_awareness_update"),
+      data: z.object({
+        productId: collabIdSchema,
+        visualizationId: collabIdSchema,
+        update: awarenessUpdateSchema,
+      }),
+    }),
     z.object({ type: z.literal("ping") }),
   ]);
 
@@ -286,12 +340,34 @@ export type CollabServerMessage =
     data: { reportId: string; message: string; fatal?: boolean };
   }
   | { type: "report_awareness"; data: { reportId: string; update: string } }
+  // Visualization CRDT sync (parallel family: see the client message note).
+  | {
+    type: "visualization_sync";
+    data: {
+      visualizationId: string;
+      update: string;
+      stateVector: string;
+      epoch?: string;
+    };
+  }
+  | {
+    type: "visualization_update";
+    data: { visualizationId: string; update: string };
+  }
+  | {
+    type: "visualization_error";
+    data: { visualizationId: string; message: string; fatal?: boolean };
+  }
+  | {
+    type: "visualization_awareness";
+    data: { visualizationId: string; update: string };
+  }
   // Checkpoint health for a live room: `failing: true` when the room's
   // persistence saves are erroring (edits live only in the room doc until it
   // recovers), `failing: false` on recovery. Sent to every room member on each
   // transition, and to late joiners of a currently-failing room after their
   // sync. Generic across the families: docType is the room's family
-  // ("slide" | "report").
+  // ("slide" | "report" | "visualization").
   | {
     type: "doc_save_state";
     data: { docType: string; docId: string; failing: boolean };

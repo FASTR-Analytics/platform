@@ -19,6 +19,7 @@ import { folderRouteRegistry } from "./products/folders.ts";
 import { productSlideDeckRouteRegistry } from "./products/slide-decks.ts";
 import { productSlideRouteRegistry } from "./products/slides.ts";
 import { productReportRouteRegistry } from "./products/reports.ts";
+import { productVisualizationRouteRegistry } from "./products/visualizations.ts";
 import { customPromptRouteRegistry } from "./instance/custom_prompts.ts";
 import { whatsNewRouteRegistry } from "./instance/whats_new.ts";
 import { onboardingRouteRegistry } from "./instance/onboarding.ts";
@@ -48,6 +49,7 @@ export const routeRegistryIndividualCount =
   Object.keys(productSlideDeckRouteRegistry).length +
   Object.keys(productSlideRouteRegistry).length +
   Object.keys(productReportRouteRegistry).length +
+  Object.keys(productVisualizationRouteRegistry).length +
   Object.keys(customPromptRouteRegistry).length +
   Object.keys(whatsNewRouteRegistry).length +
   Object.keys(onboardingRouteRegistry).length;
@@ -75,6 +77,7 @@ export const routeRegistry = {
   ...productSlideDeckRouteRegistry,
   ...productSlideRouteRegistry,
   ...productReportRouteRegistry,
+  ...productVisualizationRouteRegistry,
   ...customPromptRouteRegistry,
   ...whatsNewRouteRegistry,
   ...onboardingRouteRegistry,

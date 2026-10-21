@@ -12,16 +12,18 @@ globs:
   - lib/types/versions.ts
   - server/routes/instance/collab.ts
   - server/tests/collab_lineage_test.ts
+  - server/tests/visualization_crdt_test.ts
 ---
 
 # S16: Realtime Collaboration & Version History
 
-_Google-Docs-style real-time co-editing for slide decks and reports, including
-the figures embedded in them (WebSocket transport, server-authoritative Yjs
-rooms, presence, live cursors), plus the version-history layer built on top:
-editing-session capture, per-character / per-slide / per-element attribution,
-and restore._ Reviewed against code (absorbs DOC_SLIDE_COLLAB,
-DOC_SLIDE_COLLAB_FEATURES, DOC_VIZ_COLLAB, DOC_VERSION_HISTORY).
+_Google-Docs-style real-time co-editing for slide decks, reports and
+visualization products, including the figures embedded in decks and reports
+(WebSocket transport, server-authoritative Yjs rooms, presence, live cursors),
+plus the version-history layer built on top: editing-session capture,
+per-character / per-slide / per-element attribution, and restore._ Reviewed
+against code (absorbs DOC_SLIDE_COLLAB, DOC_SLIDE_COLLAB_FEATURES,
+DOC_VIZ_COLLAB, DOC_VERSION_HISTORY).
 
 ## Scope
 
@@ -31,9 +33,10 @@ See the `globs:` frontmatter (the lint-enforced manifest) and the S16 row in
 - **Transport & rooms**: `server/routes/instance/collab.ts` (the one
   instance-wide WS endpoint, `GET /collab`), `server/collab/doc_rooms.ts` (the
   generic master-copy room core: seed, relay, debounced checkpoint, chokepoint),
-  the two product-keyed bindings `slide_rooms.ts` / `report_rooms.ts`, and
-  `server/collab/presence_registry.ts`.
-- **CRDT model**: `lib/collab/{crdt_util,report_crdt,slide_crdt}.ts`,
+  the three product-keyed bindings `slide_rooms.ts` / `report_rooms.ts` /
+  `visualization_rooms.ts`, and `server/collab/presence_registry.ts`.
+- **CRDT model**:
+  `lib/collab/{crdt_util,figure_entry_crdt,report_crdt,slide_crdt,visualization_crdt}.ts`,
   `lib/types/collab.ts` (the WS message protocol), client
   `state/instance/collab.ts` (one WS manager per signed-in approved user, the
   T1-adjacent store, PROTOCOL_APP_STATE.md).
@@ -41,8 +44,10 @@ See the `globs:` frontmatter (the lint-enforced manifest) and the S16 row in
   `PresentationObjectConfig ⇄ Y.Map` bridge: per-field LWW for the `d`/`s` form
   config, `Y.Text` for the three captions) binds the `figConfig` Y.Map nested in
   a slide or report doc's figure node (the heavy bundle data rides beside it as
-  an opaque `figData`). Figures have no room type of their own: the figure
-  editor modal binds to the host doc's map live via a `collabBinding`.
+  an opaque `figData`). A figure inside a deck or a report has no room of its
+  own: the figure editor modal binds to the host doc's map live via a
+  `collabBinding`. A visualization product IS one figure, so its doc is that
+  figure entry and the editor binds to it the same way.
 - **Version history**: `server/collab/{version_tracker,version_capture}.ts`, the
   attribution ledgers `authorship.ts` (per-character report bodies, with
   tombstones) + `deck_session_ledger.ts` (per-slide / per-element decks),
@@ -172,16 +177,18 @@ URL is self-reported).
   sizes, `avatarUrl` restricted to bounded https URLs) before any handler
   touches it.
 - Message protocol ([lib/types/collab.ts](lib/types/collab.ts)):
-  - client → server: `presence_update`, `{slide,report}_subscribe` / `_update` /
-    `_unsubscribe` (each carrying `productId`), `awareness_update`,
-    `report_awareness_update`, and `ping` (liveness probe, below).
+  - client → server: `presence_update`, `{slide,report,visualization}_subscribe`
+    / `_update` / `_unsubscribe` (each carrying `productId`),
+    `awareness_update`, `report_awareness_update`,
+    `visualization_awareness_update`, and `ping` (liveness probe, below).
   - server → client: `hello` (connectionId), `presence_state` (full peer list),
-    `{slide,report}_sync` / `_update` / `_error`, `awareness` /
-    `report_awareness`, `doc_save_state` (room checkpoint health; `docType` is
-    `"slide"` or `"report"`), `pong`, and a connection-level `error` (oversized
-    or invalid frame). The `*_error` messages carry an optional `fatal` flag:
-    fatal ⇔ the document/room is gone (deleted, replaced, not found) and the
-    session must stop editing; non-fatal = per-operation rejection.
+    `{slide,report,visualization}_sync` / `_update` / `_error`, `awareness` /
+    `report_awareness` / `visualization_awareness`, `doc_save_state` (room
+    checkpoint health; `docType` is `"slide"`, `"report"` or `"visualization"`),
+    `pong`, and a connection-level `error` (oversized or invalid frame). The
+    `*_error` messages carry an optional `fatal` flag: fatal ⇔ the document/room
+    is gone (deleted, replaced, not found) and the session must stop editing;
+    non-fatal = per-operation rejection.
 - Dead-peer detection is asymmetric by platform necessity:
   - **Server side is the runtime's.** Deno pings every client at the protocol
     level and closes unresponsive connections (`idleTimeout: 30`, pinned
@@ -347,24 +354,46 @@ holds per-id figure entries **decomposed exactly like slide figures**
 (`figConfig` Y.Map + opaque `figData`); `doc.getMap("images")` holds opaque
 per-id `ImageBlock` entries (LWW via `setOpaque`; shared helpers in
 [crdt_util.ts](lib/collab/crdt_util.ts)). `label` and `config` stay out of the
-doc (separate routes/UI).
+doc (separate routes/UI). The figure entry helpers (build, read, sync, the
+fast-path bundle reference) live in
+[figure_entry_crdt.ts](lib/collab/figure_entry_crdt.ts), shared with the
+visualization doc.
+
+### Visualization product ⇄ Y.Doc
+
+[lib/collab/visualization_crdt.ts](lib/collab/visualization_crdt.ts): the doc is
+ONE figure entry at `doc.getMap("figure")`, the same shape as a report registry
+entry (`figConfig` Y.Map + opaque `figData`), plus the lineage epoch. The label
+stays out (the rename route). `materializeVisualization` throws on a doc with no
+figure (a permanent checkpoint failure). `syncVisualizationFigData` writes a
+freshly resolved bundle's data half and leaves the co-edited config to the
+editor; it and the full `syncVisualizationToDoc` compare the data without
+`snapshotAt`, which every resolve restamps, so merely opening a visualization
+(each editor pushes its first coherent bundle) writes nothing, checkpoints
+nothing and leaves the product's place in the list alone.
 
 ### Visualization config ⇄ Y.Map
 
 [lib/collab/figure_config_crdt.ts](lib/collab/figure_config_crdt.ts): one
 co-editable config Y.Map: scalars per-field LWW, the three captions as Y.Text.
 It binds only the `figConfig` map nested in a slide or report doc's figure node,
-so a figure persists and is versioned with its host document. Per-user undo
-comes from a local-origin `Y.UndoManager`.
+or the visualization doc's one entry, so a figure persists (and in a deck or a
+report is versioned) with its host document. Per-user undo comes from a
+local-origin `Y.UndoManager`.
 
 ## Server rooms: authoritative doc, relay, checkpoint
 
 The room mechanics are generic
 ([server/collab/doc_rooms.ts](server/collab/doc_rooms.ts), parameterized by a
-`DocRoomAdapter` + injected `DocRoomDeps`) and shared by the two thin bindings
-[slide_rooms.ts](server/collab/slide_rooms.ts) and
-[report_rooms.ts](server/collab/report_rooms.ts). One room per
-`(productId, docType, docId)`; described here in slide terms:
+`DocRoomAdapter` + injected `DocRoomDeps`) and shared by the three thin bindings
+[slide_rooms.ts](server/collab/slide_rooms.ts),
+[report_rooms.ts](server/collab/report_rooms.ts) and
+[visualization_rooms.ts](server/collab/visualization_rooms.ts) (no lifecycle
+hooks and no version deps: visualizations are not versioned; its checkpoint
+policy, `prepareVisualizationCheckpoint`, drops mid-edit transients with
+`dropStorageInvalidTransientsInFigureBlock`, parses with `figureBundleSchema`
+and trusts the state only when the doc materializes to exactly what is stored).
+One room per `(productId, docType, docId)`; described here in slide terms:
 
 - **Open**: first `slide_subscribe` creates the room. It restores the exact
   prior Y.Doc from `slides.crdt_state` when that state is _current_
@@ -526,11 +555,27 @@ best-effort REST flush of the doc state by a user who can edit (`canConfigure`);
 live → the room finalizes). AI edits need no busy-guard: they apply through the
 proposing user's own live session and merge via CRDT.
 
+### Visualization editor
+
+[visualization/visualization.tsx](client/src/components/products/visualization/visualization.tsx)
+opens a visualization session (`openVisualizationSession` in
+`state/instance/collab.ts`, the report session's twin over the `visualization_*`
+family: the client doc starts EMPTY and takes the room's content at the first
+sync, so there is no first-sync merge) and sets presence `visualizationId`. It
+mounts the figure editor (below) only once the session syncs, binding it to the
+doc's `figConfig` map with the session's own awareness; `onCoherentBundle`
+writes `pushFigData` (data only) for a user who can edit, and Back writes the
+final rebuild with `pushBundle`. No sync within about 4s mounts the editor
+without a binding (Apply/Cancel, saved over REST through the room if one
+appears) and never remounts it live. A lineage reset or a pair change remounts
+the editor on the new doc or pair. A fatal room error alerts and closes;
+`COLLAB_NO_EDIT_PERMISSION` follows the report's stale-auth rule.
+
 ### Figure editor
 
 [figure_editor.tsx](client/src/components/_shared/figure_editor/figure_editor.tsx)
-co-edits a figure inside its host slide or report session. The host passes a
-`VizFigureCollabBinding`
+co-edits a figure inside its host slide, report or visualization session. The
+host passes a `VizFigureCollabBinding`
 ([figure_editor/visualization_editor.tsx](client/src/components/_shared/figure_editor/visualization_editor.tsx)):
 the figure's `figConfig` Y.Map, the host session's awareness, `isLive`,
 `canEdit`, a local origin, the host doc identity (so the editor reads
@@ -685,7 +730,8 @@ appears only once text exists.
 
 - Columns on the main DB (migration `200_products.sql`, mirrored in
   `_main_database.sql`): `crdt_state` (base64 full Yjs state) +
-  `crdt_state_last_updated` on `slides` and `reports`; `reports.body_authors` +
+  `crdt_state_last_updated` on `slides` and `reports`, and on `visualizations`
+  (migration `220_visualizations.sql`); `reports.body_authors` +
   `report_versions.body_authors`; `slide_deck_versions.slide_editors`; the
   `report_versions` / `slide_deck_versions` tables.
 - **Staleness rule**: the CRDT state is only trusted when
@@ -695,11 +741,11 @@ appears only once text exists.
   from content. (With the `apply*ToLiveRoom` chokepoints, non-collab writes
   during a live room go through the room anyway.) A product-level write that
   changes nothing in the doc (rename, folder move, scope, `updateReportConfig`,
-  `setReportStyle`) CARRIES the report's stamp forward with the product's new
-  `last_updated` (`carryReportCrdtStamps`, first in the same transaction), since
-  2026-09-23: before that, changing a theme or a label with no room live (or
-  with a clean room, which finalize does not re-checkpoint) left the state stale
-  for no reason.
+  `setReportStyle`) CARRIES the report's (and a visualization's) stamp forward
+  with the product's new `last_updated` (`carryDocCrdtStamps`, first in the same
+  transaction), since 2026-09-23: before that, changing a theme or a label with
+  no room live (or with a clean room, which finalize does not re-checkpoint)
+  left the state stale for no reason.
 - **Lineage epoch** (2026-09-23): a re-seeded room holds a FRESH doc of the same
   text, i.e. a new Yjs lineage; a client still holding the old lineage (its
   socket reconnecting after the room finalized) used to merge the sync into its

@@ -3,6 +3,7 @@ import {
   bytesToBase64,
   type CollabClientMessage,
   type CollabServerMessage,
+  type FigureBundle,
   parseJsonOrThrow,
   type PresenceEntry,
   type PresenceView,
@@ -14,6 +15,8 @@ import {
   syncReportToDoc,
   type SyncSlideOpts,
   syncSlideToDoc,
+  syncVisualizationFigData,
+  syncVisualizationToDoc,
 } from "lib";
 import * as Y from "yjs";
 import {
@@ -30,8 +33,8 @@ import { notifyCollabConnection } from "./connection_banner";
 import { canEditProduct } from "./product_access";
 
 // Client manager for the instance-wide collaboration WebSocket (GET /collab):
-// presence, idle detection, and the two CRDT session families the server
-// serves (slide / report) with reconnect catch-up. Mirrors the SSE manager
+// presence, idle detection, and the three CRDT session families the server
+// serves (slide / report / visualization) with reconnect catch-up. Mirrors the SSE manager
 // (t1_sse.tsx): a single module-level connection, exponential-backoff
 // reconnect that never gives up, and a reactive store consumers read from.
 // The `peers` list is per CONNECTION and includes self; UI reads it through
@@ -95,10 +98,12 @@ export function otherPeers(): PresenceEntry[] {
 
 /** Other people currently inside one product: the socket is instance-wide,
  *  so every header filters the roster down to its own product (presence is
- *  keyed by PRODUCT, and a product id IS its deck/report id). */
+ *  keyed by PRODUCT, and a product id IS its deck/report/visualization id). */
 export function peersInProduct(productId: string): PresenceEntry[] {
   return otherPeers().filter(
-    (p) => p.deckId === productId || p.reportId === productId,
+    (p) =>
+      p.deckId === productId || p.reportId === productId ||
+      p.visualizationId === productId,
   );
 }
 
@@ -151,7 +156,7 @@ function setDocSaveFailing(
 /** Reactive: true while the server room for this document reports failing
  *  checkpoint saves (edits relay live but nothing persists until recovery). */
 export function docSaveFailing(
-  docType: "slide" | "report",
+  docType: "slide" | "report" | "visualization",
   docId: string,
 ): boolean {
   return saveFailingKeys().has(`${docType}::${docId}`);
@@ -196,6 +201,7 @@ let view: {
   selectedBlockId?: string;
   selectedTextTarget?: string;
   reportId?: string;
+  visualizationId?: string;
   editingFigureId?: string;
 } = {};
 
@@ -889,6 +895,284 @@ function handleReportServerMessage(msg: CollabServerMessage): boolean {
   return false;
 }
 
+// ── Visualization CRDT sessions ──────────────────────────────────────────────
+// Mirrors the report sessions above, over the visualization_* message family.
+// The figure editor co-edits the doc's figConfig map directly (its collab
+// binding); the host pushes freshly resolved data with pushFigData and the
+// editor's final rebuild with pushBundle.
+
+type InternalVisualizationSession = {
+  productId: string;
+  visualizationId: string;
+  doc: Y.Doc;
+  awareness: Awareness;
+  ready: boolean;
+  /** See InternalSlideSession.epoch. */
+  epoch?: string;
+  onRemote: () => void;
+  /** See InternalSlideSession.onError. */
+  onError?: (message: string, fatal?: boolean) => void;
+  /** See InternalSlideSession.onLineageReset. */
+  onLineageReset?: () => void;
+  /** See InternalReportSession.unsent. */
+  unsent: boolean;
+};
+
+const visualizationSessions = new Map<string, InternalVisualizationSession>();
+
+/** Handle to a live visualization document, returned by
+ *  openVisualizationSession. */
+export type VisualizationSession = {
+  doc: Y.Doc;
+  /** Yjs awareness: carries local + remote caption carets and pointers. */
+  awareness: Awareness;
+  isReady: () => boolean;
+  /** Ready AND the socket is currently open: see SlideSession.isLive. */
+  isLive: () => boolean;
+  /** See ReportSession.hasUnsentEdits. */
+  hasUnsentEdits: () => boolean;
+  /** Write a freshly resolved bundle's data half onto the shared doc, leaving
+   *  the co-edited config to the figure editor. */
+  pushFigData: (bundle: FigureBundle) => void;
+  /** Diff a whole bundle (config and data) onto the shared doc. */
+  pushBundle: (bundle: FigureBundle) => void;
+  close: () => void;
+};
+
+function subscribeVisualizationOnSocket(s: InternalVisualizationSession): void {
+  sendCollab({
+    type: "visualization_subscribe",
+    data: {
+      productId: s.productId,
+      visualizationId: s.visualizationId,
+      stateVector: bytesToBase64(Y.encodeStateVector(s.doc)),
+    },
+  });
+}
+
+function destroyVisualizationSession(s: InternalVisualizationSession): void {
+  visualizationSessions.delete(s.visualizationId);
+  setDocSaveFailing("visualization", s.visualizationId, false);
+  teardownDoc(s.doc, s.awareness, "visualization");
+}
+
+// See wireSlideDoc.
+function wireVisualizationDoc(
+  s: InternalVisualizationSession,
+  doc: Y.Doc,
+  awareness: Awareness,
+): void {
+  const { productId, visualizationId } = s;
+  doc.on("update", (update: Uint8Array, origin: unknown) => {
+    // Updates applied from the server must not be shipped back.
+    if (origin === SLIDE_REMOTE_ORIGIN) {
+      return;
+    }
+    const sent = sendCollab({
+      type: "visualization_update",
+      data: { productId, visualizationId, update: bytesToBase64(update) },
+    });
+    if (!sent) s.unsent = true;
+  });
+
+  awareness.on(
+    "update",
+    (
+      changes: { added: number[]; updated: number[]; removed: number[] },
+      origin: unknown,
+    ) => {
+      if (isLocalOnlyAwarenessOrigin(origin)) {
+        return;
+      }
+      const changed = [
+        ...changes.added,
+        ...changes.updated,
+        ...changes.removed,
+      ];
+      const update = encodeAwarenessUpdate(awareness, changed);
+      sendCollab({
+        type: "visualization_awareness_update",
+        data: { productId, visualizationId, update: bytesToBase64(update) },
+      });
+    },
+  );
+}
+
+// See resetSlideLineage: the visualization editor remounts the figure editor
+// on the new doc through onLineageReset (its key is the doc's guid).
+function resetVisualizationLineage(
+  s: InternalVisualizationSession,
+  update: Uint8Array,
+  epoch: string,
+): void {
+  console.warn(
+    `Collab: visualization ${s.visualizationId} room re-seeded (lineage ${s.epoch} → ${epoch}); adopting the server's document`,
+  );
+  const old = { doc: s.doc, awareness: s.awareness };
+  const doc = new Y.Doc();
+  Y.applyUpdate(doc, update, SLIDE_REMOTE_ORIGIN);
+  const awareness = new Awareness(doc);
+  applySessionUser(awareness);
+  s.doc = doc;
+  s.awareness = awareness;
+  s.epoch = epoch;
+  wireVisualizationDoc(s, doc, awareness);
+  teardownDoc(old.doc, old.awareness, "visualization");
+  s.onLineageReset?.();
+}
+
+/** A visualization IS its product, so `productId` equals `visualizationId`;
+ *  both ride so the families share one wire shape. The doc starts empty and
+ *  takes the room's content at the first sync. */
+export function openVisualizationSession(
+  productId: string,
+  visualizationId: string,
+  onRemote: () => void,
+  onError?: (message: string, fatal?: boolean) => void,
+  onLineageReset?: () => void,
+): VisualizationSession {
+  const prior = visualizationSessions.get(visualizationId);
+  if (prior) {
+    destroyVisualizationSession(prior);
+  }
+
+  const doc = new Y.Doc();
+  const awareness = new Awareness(doc);
+  applySessionUser(awareness);
+  const s: InternalVisualizationSession = {
+    productId,
+    visualizationId,
+    doc,
+    awareness,
+    ready: false,
+    onRemote,
+    onError,
+    onLineageReset,
+    unsent: false,
+  };
+  visualizationSessions.set(visualizationId, s);
+  wireVisualizationDoc(s, doc, awareness);
+
+  // Subscribe now if connected; otherwise socket.onopen re-subscribes all.
+  subscribeVisualizationOnSocket(s);
+
+  return {
+    // Getters: see the slide handle.
+    get doc() {
+      return s.doc;
+    },
+    get awareness() {
+      return s.awareness;
+    },
+    isReady: () => s.ready,
+    isLive: () => s.ready && !!ws && ws.readyState === WebSocket.OPEN,
+    hasUnsentEdits: () => s.unsent,
+    pushFigData: (bundle: FigureBundle) => {
+      if (!s.ready) {
+        return;
+      }
+      s.doc.transact(() => syncVisualizationFigData(s.doc, bundle));
+    },
+    pushBundle: (bundle: FigureBundle) => {
+      if (!s.ready) {
+        return;
+      }
+      s.doc.transact(() => syncVisualizationToDoc(s.doc, { bundle }));
+    },
+    close: () => closeVisualizationSession(visualizationId),
+  };
+}
+
+export function closeVisualizationSession(visualizationId: string): void {
+  const s = visualizationSessions.get(visualizationId);
+  if (!s) {
+    return;
+  }
+  sendCollab({
+    type: "visualization_unsubscribe",
+    data: { productId: s.productId, visualizationId },
+  });
+  destroyVisualizationSession(s);
+}
+
+function handleVisualizationServerMessage(msg: CollabServerMessage): boolean {
+  if (msg.type === "visualization_sync") {
+    const s = visualizationSessions.get(msg.data.visualizationId);
+    if (s) {
+      // Sync resets save health; the server re-sends failing state right after
+      // when the room is still failing.
+      setDocSaveFailing("visualization", msg.data.visualizationId, false);
+      const epoch = msg.data.epoch;
+      if (epoch !== undefined && s.epoch !== undefined && s.epoch !== epoch) {
+        // Another lineage: adopt, never merge (see resetVisualizationLineage).
+        resetVisualizationLineage(s, base64ToBytes(msg.data.update), epoch);
+        s.unsent = false;
+        s.ready = true;
+        s.onRemote();
+        return true;
+      }
+      if (epoch !== undefined) {
+        s.epoch = epoch;
+      }
+      Y.applyUpdate(s.doc, base64ToBytes(msg.data.update), SLIDE_REMOTE_ORIGIN);
+      s.ready = true;
+      // Two-way sync: push anything the server is missing (see the report
+      // path: only a user who can edit answers).
+      try {
+        if (msg.data.stateVector && canEditProduct(s.productId)) {
+          const diff = Y.encodeStateAsUpdate(
+            s.doc,
+            base64ToBytes(msg.data.stateVector),
+          );
+          if (diff.length > 2) {
+            const sent = sendCollab({
+              type: "visualization_update",
+              data: {
+                productId: s.productId,
+                visualizationId: msg.data.visualizationId,
+                update: bytesToBase64(diff),
+              },
+            });
+            if (sent) s.unsent = false;
+          } else {
+            s.unsent = false;
+          }
+        }
+      } catch {
+        // Skip the catch-up; the next local edit's push re-syncs anyway.
+      }
+      s.onRemote();
+    }
+    return true;
+  }
+  if (msg.type === "visualization_update") {
+    const s = visualizationSessions.get(msg.data.visualizationId);
+    if (s) {
+      Y.applyUpdate(s.doc, base64ToBytes(msg.data.update), SLIDE_REMOTE_ORIGIN);
+      s.onRemote();
+    }
+    return true;
+  }
+  if (msg.type === "visualization_error") {
+    visualizationSessions
+      .get(msg.data.visualizationId)
+      ?.onError?.(msg.data.message, msg.data.fatal);
+    return true;
+  }
+  if (msg.type === "visualization_awareness") {
+    const s = visualizationSessions.get(msg.data.visualizationId);
+    if (s) {
+      applyAwarenessUpdate(
+        s.awareness,
+        base64ToBytes(msg.data.update),
+        AWARENESS_REMOTE_ORIGIN,
+      );
+    }
+    return true;
+  }
+  return false;
+}
+
 function handleSlideServerMessage(msg: CollabServerMessage): boolean {
   if (msg.type === "slide_sync") {
     const s = slideSessions.get(msg.data.slideId);
@@ -1056,6 +1340,9 @@ function openSocket(): void {
     for (const s of reportSessions.values()) {
       subscribeReportOnSocket(s);
     }
+    for (const s of visualizationSessions.values()) {
+      subscribeVisualizationOnSocket(s);
+    }
   };
 
   socket.onmessage = (event) => {
@@ -1092,6 +1379,10 @@ function openSocket(): void {
         applySessionUser(s.awareness);
         pruneGoneAwareness(s.awareness, live);
       }
+      for (const s of visualizationSessions.values()) {
+        applySessionUser(s.awareness);
+        pruneGoneAwareness(s.awareness, live);
+      }
       // "Alice joined this deck" toasts: scoped to the doc I'm currently in.
       notifyPresenceToasts(msg.data.peers, collabStore.connectionId, view);
     } else if (msg.type === "doc_save_state") {
@@ -1100,8 +1391,10 @@ function openSocket(): void {
       setDocSaveFailing(msg.data.docType, msg.data.docId, msg.data.failing);
     } else if (msg.type === "pong") {
       // Liveness only: receipt was already recorded above.
-    } else if (!handleSlideServerMessage(msg)) {
-      handleReportServerMessage(msg);
+    } else if (
+      !handleSlideServerMessage(msg) && !handleReportServerMessage(msg)
+    ) {
+      handleVisualizationServerMessage(msg);
     }
   };
 
@@ -1336,6 +1629,9 @@ export function disconnectCollab(): void {
   for (const s of [...reportSessions.values()]) {
     destroyReportSession(s);
   }
+  for (const s of [...visualizationSessions.values()]) {
+    destroyVisualizationSession(s);
+  }
   hardClose();
   resetPresenceToasts();
   notifyCollabConnection("idle");
@@ -1360,6 +1656,7 @@ export function setCollabView(next: {
   selectedBlockId?: string;
   selectedTextTarget?: string;
   reportId?: string;
+  visualizationId?: string;
   editingFigureId?: string;
 }): void {
   view = next;

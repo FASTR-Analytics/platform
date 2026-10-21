@@ -88,6 +88,7 @@ import {
 import { setOpenVisualizationEditors } from "~/state/t4_ui";
 import type {
   FigureEditorResult,
+  VizEditorProductChrome,
   VizFigureCollabBinding,
 } from "./visualization_editor";
 import { PresentationObjectEditorPanel } from "./editor_panel";
@@ -123,12 +124,15 @@ type InnerProps = {
   viewOnly?: boolean;
   /** The host document's chart palette (VisualizationEditorProps). */
   chartPalette?: () => FastrChartPalette | undefined;
+  /** The host product's header chrome (VisualizationEditorProps). */
+  productChrome?: VizEditorProductChrome;
   onClose: (result: FigureEditorResult) => void;
 };
 
 export function VisualizationEditorInner(p: InnerProps) {
   const metric = p.metric;
-  const label = p.label;
+  // Read live: a product host renames its figure while the editor is open.
+  const label = () => p.label;
   // The pair every read resolves under: the host's at open, since openEditor
   // stores the props once.
   const scope = (): PackageScope => ({
@@ -180,7 +184,7 @@ export function VisualizationEditorInner(p: InnerProps) {
   // like a user's edit: it marks the draft for Apply, re-previews, and streams
   // into the host doc under live co-editing.
   setFigureEditorView(p.aiView, {
-    getLabel: () => label,
+    getLabel: label,
     getScope: () => resolveScope(scope()),
     getRunId: () => scope().runId,
     getMetric: () => metric,
@@ -569,7 +573,10 @@ export function VisualizationEditorInner(p: InnerProps) {
     // it would push the whole (possibly diverged) local config on socket
     // reconnect, clobbering peers' offline-window edits (2-way diff, not a
     // merge). Offline edits stay unshipped, same tradeoff as close().
-    if (untrack(isCollabLive)) pushConfig(unwrap(tempConfig));
+    // A viewer's local draft is never shipped: the room would refuse it.
+    if (untrack(isCollabLive) && untrack(() => collabTarget()?.canEdit())) {
+      pushConfig(unwrap(tempConfig));
+    }
   });
 
   onCleanup(() => {
@@ -661,7 +668,7 @@ export function VisualizationEditorInner(p: InnerProps) {
     // download option yields white until panther offers a transparent flag.)
     const canvas = getFigureAsCanvas(figureInputs, FIGURE_EXPORT_WIDTH_PX);
     const replicateBy = getReplicateByProp(tempConfig);
-    const fileStem = label.replaceAll(" ", "_").trim();
+    const fileStem = label().replaceAll(" ", "_").trim();
     const res = await openComponent({
       element: DownloadPresentationObject,
       props: {
@@ -689,7 +696,7 @@ export function VisualizationEditorInner(p: InnerProps) {
       // An embedded figure has no id of its own, so its definition is the
       // draft plus the pair it resolves under.
       const jsonDef = {
-        label,
+        label: label(),
         metricId: metric.id,
         runId: downloadScope.runId,
         scopeId: downloadScope.scopeId,
@@ -816,9 +823,15 @@ export function VisualizationEditorInner(p: InnerProps) {
               </Show>
             </div>
             <div class="ui-text-heading flex flex-1 items-center truncate">
-              <span class="font-400">{label}</span>
+              <Show
+                when={p.productChrome}
+                fallback={<span class="font-400">{label()}</span>}
+              >
+                {p.productChrome?.title}
+              </Show>
             </div>
             <div class="ui-gap-sm flex items-center">
+              {p.productChrome?.actions}
               <Show when={isCollabLive()}>
                 <Show
                   when={!saveFailing()}

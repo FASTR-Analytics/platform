@@ -1,5 +1,5 @@
-// The product plane's harness: the product, folder, slide-deck, slide and
-// report routes exercised through the real registry, defineRoute, the access
+// The product plane's harness: the product, folder, slide-deck, slide,
+// report and visualization routes exercised through the real registry, defineRoute, the access
 // guard and the DB layer against the dev database. The Clerk leg simulates
 // only clerkMiddleware's output contract, as pat_identity_parity_test.ts does;
 // everything downstream is the real code.
@@ -13,12 +13,17 @@ import {
   ALL_DATA_SCOPE_DEFINITION,
   ALL_SCOPES,
   type ContentSlide,
+  DEFAULT_S_CONFIG,
+  DEFAULT_T_CONFIG,
+  type FigureBundle,
   geographyOnlyScopeDefinition,
   getStartingConfigForSlideDeck,
   type GlobalUser,
+  presentationObjectConfigSchema,
   type ProductSummary,
   type ScopeId,
   type SlideDeckConfig,
+  type VisualizationDetail,
 } from "lib";
 import { getPgConnectionFromCacheOrNew } from "../db/mod.ts";
 import {
@@ -39,6 +44,7 @@ import { routesProducts } from "../routes/products/products.ts";
 import { routesProductReports } from "../routes/products/reports.ts";
 import { routesProductSlideDecks } from "../routes/products/slide_decks.ts";
 import { routesProductSlides } from "../routes/products/slides.ts";
+import { routesProductVisualizations } from "../routes/products/visualizations.ts";
 import { buildInstanceState } from "../task_management/build_instance_state.ts";
 
 const APPROVED_EMAIL = "products-test-approved@example.com";
@@ -72,6 +78,7 @@ function productApp(email: string | null): Hono {
   app.route("/", routesProductSlideDecks);
   app.route("/", routesProductSlides);
   app.route("/", routesProductReports);
+  app.route("/", routesProductVisualizations);
   return app;
 }
 
@@ -164,6 +171,9 @@ SELECT id FROM runs WHERE status = 'ready' AND NOT pinned ORDER BY created_at DE
 `
   ).at(0);
   if (otherReady === undefined) {
+    // Closed before failing: the pool would otherwise outlive this test and
+    // trip the next test's resource sanitizer.
+    await closeAllConnections();
     throw new Error("The dev instance needs a second ready package.");
   }
   const failedRunId = crypto.randomUUID();
@@ -753,6 +763,304 @@ SELECT id FROM runs WHERE status = 'ready' AND NOT pinned ORDER BY created_at DE
       await mainDb`DELETE FROM folders WHERE id = ANY(${createdFolderIds})`;
     }
     await mainDb`DELETE FROM scopes WHERE id IN (${allScopeId}, ${areaScopeId})`;
+    await mainDb`DELETE FROM runs WHERE id = ${failedRunId}`;
+    await mainDb`DELETE FROM users WHERE email = ${APPROVED_EMAIL}`;
+    await closeAllConnections();
+  }
+});
+
+// A stored figure as the client resolves one, under the run it names.
+function visualizationBundle(runId: string, value: number): FigureBundle {
+  return {
+    config: presentationObjectConfigSchema.parse({
+      d: {
+        type: "table",
+        valuesDisDisplayOpt: "col",
+        disaggregateBy: [{ disOpt: "admin_area_2", disDisplayOpt: "row" }],
+        filterBy: [],
+        periodFilter: { filterType: "last_n_months", nMonths: 12 },
+      },
+      s: DEFAULT_S_CONFIG,
+      t: DEFAULT_T_CONFIG,
+    }),
+    items: [{ admin_area_2: "Kano", value }],
+    resultsValue: { formatAs: "percent", valueProps: ["value"] },
+    indicatorMetadata: [],
+    localization: {
+      language: "en",
+      calendar: "gregorian",
+      countryIso3: "NGA",
+      fiscalYear: "none",
+    },
+    metricId: "m1-01-01",
+    scope: { definitionHash: "h", adminArea2: null },
+    snapshotAt: "2026-10-21T00:00:00.000Z",
+    provenance: { runId },
+  };
+}
+
+Deno.test("visualization routes: create with its figure, read, update, cross-type 404, stamps, duplicate, delete", async () => {
+  if (_BYPASS_AUTH) {
+    throw new Error(
+      "BYPASS_AUTH is set: the product routes harness must exercise the real auth branches. Unset it and re-run.",
+    );
+  }
+
+  const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
+  const pinRes = await getPinnedRunId(mainDb);
+  if (!pinRes.success) throw new Error(pinRes.err);
+  const pinnedRunId = pinRes.data;
+  if (pinnedRunId === null) {
+    throw new Error("The dev instance has no pinned package; pin one first.");
+  }
+  const failedRunId = crypto.randomUUID();
+  await mainDb`
+    INSERT INTO users (email, is_admin) VALUES (${APPROVED_EMAIL}, FALSE)
+    ON CONFLICT DO NOTHING
+  `;
+  await mainDb`
+    INSERT INTO runs (id, label, status, provenance)
+    VALUES (${failedRunId}, 'visualization harness failed run', 'failed', 'wizard')
+  `;
+  const scope = await createScope(mainDb, {
+    label: `Harness viz ${crypto.randomUUID().slice(0, 8)}`,
+    definition: ALL_DATA_SCOPE_DEFINITION,
+    createdBy: APPROVED_EMAIL,
+  });
+  if (!scope.success) throw new Error(scope.err);
+  const scopeId = scope.data.scopeId;
+
+  const app = productApp(APPROVED_EMAIL);
+  const createdProductIds: string[] = [];
+
+  try {
+    // Unauthenticated and unapproved callers are refused like createProduct.
+    const createBody = {
+      folderId: null,
+      runId: pinnedRunId,
+      scopeId,
+      label: "ANC coverage",
+      bundle: visualizationBundle(pinnedRunId, 0.5),
+    };
+    assertEquals(
+      (await call(
+        productApp(null),
+        "POST",
+        "/products/visualization",
+        createBody,
+      ))
+        .status,
+      401,
+    );
+    assertEquals(
+      (await call(
+        productApp(UNAPPROVED_EMAIL),
+        "POST",
+        "/products/visualization",
+        createBody,
+      )).status,
+      403,
+    );
+
+    // A visualization is not created empty through the generic route.
+    assertEquals(
+      (await call(app, "POST", "/products", {
+        type: "visualization",
+        folderId: null,
+        runId: pinnedRunId,
+        scopeId,
+      })).status,
+      400,
+    );
+
+    // Refused: a run that is not ready, a bundle resolved under another run,
+    // and a bundle the schema rejects. Nothing is inserted.
+    const before = (
+      await mainDb<{ n: number }[]>`
+        SELECT count(*)::int AS n FROM products WHERE type = 'visualization'
+      `
+    )[0].n;
+    const notReady = await call(app, "POST", "/products/visualization", {
+      ...createBody,
+      runId: failedRunId,
+      bundle: visualizationBundle(failedRunId, 0.5),
+    });
+    assertEquals(notReady.body.success, false);
+    const mismatch = await call(app, "POST", "/products/visualization", {
+      ...createBody,
+      bundle: visualizationBundle(failedRunId, 0.5),
+    });
+    assertEquals(mismatch.body.success, false);
+    const invalid = await call(app, "POST", "/products/visualization", {
+      ...createBody,
+      bundle: { ...createBody.bundle, items: "nope" },
+    });
+    assertEquals(invalid.status, 400);
+    const after = (
+      await mainDb<{ n: number }[]>`
+        SELECT count(*)::int AS n FROM products WHERE type = 'visualization'
+      `
+    )[0].n;
+    assertEquals(after, before);
+
+    // Create: the caller's label, a 4-char id, the pair named, the bundle
+    // stored, and a summary of its own type that only its creator can see.
+    const viz = await ok<{ productId: string }>(
+      app,
+      "POST",
+      "/products/visualization",
+      createBody,
+    );
+    createdProductIds.push(viz.productId);
+    assert(ID_ALPHABET.test(viz.productId), viz.productId);
+    const state = await buildInstanceState(
+      mainDb,
+      testGlobalUser(APPROVED_EMAIL, true),
+    );
+    if (!state.success) throw new Error(state.err);
+    const summary = state.data.products.find((x) => x.id === viz.productId);
+    assertEquals(summary?.type, "visualization");
+    assertEquals(summary?.label, "ANC coverage");
+    assertEquals(summary?.runId, pinnedRunId);
+    assertEquals(summary?.scopeId, scopeId);
+    assertEquals(summary?.owner, APPROVED_EMAIL);
+    assertEquals(summary?.defaultAccess, "none");
+
+    const detail = await ok<VisualizationDetail>(
+      app,
+      "GET",
+      `/products/${viz.productId}/visualization`,
+    );
+    assertEquals(detail.bundle, createBody.bundle);
+    assertEquals(detail.label, "ANC coverage");
+
+    // Update with no room live: a direct write; an invalid bundle is a 400.
+    const updated = visualizationBundle(pinnedRunId, 0.75);
+    await ok(app, "PUT", `/products/${viz.productId}/visualization`, {
+      bundle: updated,
+    });
+    const reread = await ok<VisualizationDetail>(
+      app,
+      "GET",
+      `/products/${viz.productId}/visualization`,
+    );
+    assertEquals(reread.bundle.items, [{ admin_area_2: "Kano", value: 0.75 }]);
+    assertEquals(
+      (await call(app, "PUT", `/products/${viz.productId}/visualization`, {
+        bundle: { ...updated, metricId: 7 },
+      })).status,
+      400,
+    );
+
+    // Cross-type: a report route on a visualization and the reverse are 404s.
+    const report = await ok<{ productId: string }>(app, "POST", "/products", {
+      type: "report",
+      folderId: null,
+      runId: pinnedRunId,
+      scopeId,
+    });
+    createdProductIds.push(report.productId);
+    assertEquals(
+      (await call(app, "GET", `/products/${viz.productId}/report`)).status,
+      404,
+    );
+    assertEquals(
+      (await call(app, "GET", `/products/${report.productId}/visualization`))
+        .status,
+      404,
+    );
+    const reportUntouched = (
+      await mainDb<{ last_updated: string }[]>`
+        SELECT last_updated FROM products WHERE id = ${report.productId}
+      `
+    )[0];
+    assertEquals(
+      (await call(app, "PUT", `/products/${report.productId}/visualization`, {
+        bundle: updated,
+      })).status,
+      404,
+    );
+    assertEquals(
+      (
+        await mainDb<{ last_updated: string }[]>`
+          SELECT last_updated FROM products WHERE id = ${report.productId}
+        `
+      )[0],
+      reportUntouched,
+    );
+
+    // A rename changes nothing in the collab doc, so a current CRDT state
+    // stays current; a bundle write outside a room makes it stale.
+    const stamp = (
+      await mainDb<{ last_updated: string }[]>`
+        SELECT last_updated FROM products WHERE id = ${viz.productId}
+      `
+    )[0].last_updated;
+    await mainDb`
+      UPDATE visualizations
+      SET crdt_state = 'AAA=', crdt_state_last_updated = ${stamp}
+      WHERE id = ${viz.productId}
+    `;
+    await ok(app, "PUT", `/products/${viz.productId}/label`, {
+      label: "ANC coverage (renamed)",
+    });
+    const carried = (
+      await mainDb<{ crdt: string | null; product: string }[]>`
+        SELECT v.crdt_state_last_updated AS crdt, p.last_updated AS product
+        FROM visualizations v JOIN products p ON p.id = v.id
+        WHERE v.id = ${viz.productId}
+      `
+    )[0];
+    assertEquals(carried.crdt, carried.product);
+    assertNotEquals(carried.product, stamp);
+    await ok(app, "PUT", `/products/${viz.productId}/visualization`, {
+      bundle: updated,
+    });
+    const staled = (
+      await mainDb<{ crdt: string | null; product: string }[]>`
+        SELECT v.crdt_state_last_updated AS crdt, p.last_updated AS product
+        FROM visualizations v JOIN products p ON p.id = v.id
+        WHERE v.id = ${viz.productId}
+      `
+    )[0];
+    assertNotEquals(staled.crdt, staled.product);
+
+    // Duplicate copies the bundle and not the CRDT state.
+    const copy = await ok<{ productId: string }>(
+      app,
+      "POST",
+      `/products/${viz.productId}/duplicate`,
+      { scopeId },
+    );
+    createdProductIds.push(copy.productId);
+    const copyDetail = await ok<VisualizationDetail>(
+      app,
+      "GET",
+      `/products/${copy.productId}/visualization`,
+    );
+    assertEquals(copyDetail.bundle, updated);
+    const copyCrdt = (
+      await mainDb<{ crdt_state: string | null }[]>`
+        SELECT crdt_state FROM visualizations WHERE id = ${copy.productId}
+      `
+    )[0];
+    assertEquals(copyCrdt.crdt_state, null);
+
+    // Delete cascades the detail rows.
+    await ok(app, "DELETE", "/products", { productIds: createdProductIds });
+    const remaining = (
+      await mainDb<{ n: number }[]>`
+        SELECT count(*)::int AS n FROM visualizations
+        WHERE id = ANY(${createdProductIds})
+      `
+    )[0].n;
+    assertEquals(remaining, 0);
+    createdProductIds.length = 0;
+  } finally {
+    if (createdProductIds.length > 0) {
+      await mainDb`DELETE FROM products WHERE id = ANY(${createdProductIds})`;
+    }
+    await mainDb`DELETE FROM scopes WHERE id = ${scopeId}`;
     await mainDb`DELETE FROM runs WHERE id = ${failedRunId}`;
     await mainDb`DELETE FROM users WHERE email = ${APPROVED_EMAIL}`;
     await closeAllConnections();

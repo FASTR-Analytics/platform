@@ -1,6 +1,8 @@
 import { Sql } from "postgres";
 import {
   type APIResponseWithData,
+  type EmptyCreatableProductType,
+  type FigureBundle,
   PRODUCT_LEVELS,
   type ProductAccess,
   type ProductBase,
@@ -26,7 +28,11 @@ import {
   insertNewSlideDeckDetail,
 } from "./slide_decks.ts";
 import { duplicateReportDetail, insertNewReportDetail } from "./reports.ts";
-import { carryReportCrdtStamps } from "./_product_row.ts";
+import {
+  duplicateVisualizationDetail,
+  insertNewVisualizationDetail,
+} from "./visualizations.ts";
+import { carryDocCrdtStamps } from "./_product_row.ts";
 
 /** LOAD-BEARING message: version capture (NOT_FOUND_ERRORS in
  *  server/collab/version_capture.ts) matches it EXACTLY to tell "row is gone
@@ -57,6 +63,11 @@ const NEW_PRODUCT_LABELS: Record<ProductType, TranslatableString> = {
     en: "Untitled report",
     fr: "Rapport sans titre",
     pt: "Relatório sem título",
+  },
+  visualization: {
+    en: "Untitled visualization",
+    fr: "Visualisation sans titre",
+    pt: "Visualização sem título",
   },
 };
 
@@ -107,6 +118,11 @@ const SUMMARY_BY_TYPE: Record<
     ...access,
     type: "report",
     hasEmbeds: row.has_embeds ?? false,
+  }),
+  visualization: (base, _row, access) => ({
+    ...base,
+    ...access,
+    type: "visualization",
   }),
 };
 
@@ -213,22 +229,62 @@ export async function getProduct(
 }
 
 const INSERT_DETAIL_BY_TYPE: Record<
-  ProductType,
+  EmptyCreatableProductType,
   (sql: Sql, productId: string, label: string) => Promise<void>
 > = {
   slide_deck: insertNewSlideDeckDetail,
   report: insertNewReportDetail,
 };
 
+type NewProductRow = {
+  type: ProductType;
+  label: string;
+  folderId: string | null;
+  runId: string;
+  scopeId: ScopeId;
+  createdBy: string;
+};
+
 // The registry row and its detail row go in ONE transaction, since the schema
 // does not enforce that the detail row exists. The caller names the package and
 // the scope; the ready gate and both existence checks are INSIDE the insert, so
-// there is no read-then-write window. The server mints the label in the
-// instance language. The creator owns the product and nobody else can see it.
+// there is no read-then-write window. The creator owns the product and nobody
+// else can see it. False = the package is not ready or either row is gone.
+async function insertProductWithDetail(
+  mainDb: Sql,
+  productId: string,
+  lastUpdated: string,
+  row: NewProductRow,
+  insertDetail: (sql: Sql) => Promise<void>,
+): Promise<boolean> {
+  return await mainDb.begin(async (sql) => {
+    const rows = await sql<{ id: string }[]>`
+      INSERT INTO products
+        (id, type, label, folder_id, run_id, scope_id, created_by, created_at,
+         last_updated, owner, default_access)
+      SELECT
+        ${productId}, ${row.type}, ${row.label}, ${row.folderId},
+        r.id, s.id, ${row.createdBy}, ${lastUpdated}, ${lastUpdated},
+        ${row.createdBy}, 'none'
+      FROM runs r, scopes s
+      WHERE r.id = ${row.runId} AND r.status = 'ready'
+        AND s.id = ${row.scopeId}
+      RETURNING id
+    `;
+    if (rows.length === 0) {
+      return false;
+    }
+    await insertDetail(sql);
+    return true;
+  });
+}
+
+// An empty deck or report. The server mints the label in the instance
+// language.
 export async function createProduct(
   mainDb: Sql,
   args: {
-    type: ProductType;
+    type: EmptyCreatableProductType;
     folderId: string | null;
     runId: string;
     scopeId: ScopeId;
@@ -239,28 +295,53 @@ export async function createProduct(
     const productId = await generateUniqueProductId(mainDb);
     const lastUpdated = new Date().toISOString();
     const label = t3(NEW_PRODUCT_LABELS[args.type]);
+    const inserted = await insertProductWithDetail(
+      mainDb,
+      productId,
+      lastUpdated,
+      { ...args, label },
+      (sql) => INSERT_DETAIL_BY_TYPE[args.type](sql, productId, label),
+    );
+    if (!inserted) {
+      return { success: false, err: PACKAGE_OR_SCOPE_UNAVAILABLE };
+    }
+    return { success: true, data: { productId, lastUpdated } };
+  });
+}
 
-    const inserted = await mainDb.begin(async (sql) => {
-      const rows = await sql<{ id: string }[]>`
-        INSERT INTO products
-          (id, type, label, folder_id, run_id, scope_id, created_by, created_at,
-           last_updated, owner, default_access)
-        SELECT
-          ${productId}, ${args.type}, ${label}, ${args.folderId},
-          r.id, s.id, ${args.createdBy}, ${lastUpdated}, ${lastUpdated},
-          ${args.createdBy}, 'none'
-        FROM runs r, scopes s
-        WHERE r.id = ${args.runId} AND r.status = 'ready'
-          AND s.id = ${args.scopeId}
-        RETURNING id
-      `;
-      if (rows.length === 0) {
-        return false;
-      }
-      await INSERT_DETAIL_BY_TYPE[args.type](sql, productId, label);
-      return true;
-    });
-
+// A visualization arrives with its first figure already resolved under the
+// pair, so it never exists empty. The label is the caller's (the metric's
+// label) when given, else minted like createProduct's.
+export async function createVisualization(
+  mainDb: Sql,
+  args: {
+    folderId: string | null;
+    runId: string;
+    scopeId: ScopeId;
+    createdBy: string;
+    label: string | undefined;
+    bundle: FigureBundle;
+  },
+): Promise<APIResponseWithData<{ productId: string; lastUpdated: string }>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const productId = await generateUniqueProductId(mainDb);
+    const lastUpdated = new Date().toISOString();
+    const label = args.label?.trim() ||
+      t3(NEW_PRODUCT_LABELS.visualization);
+    const inserted = await insertProductWithDetail(
+      mainDb,
+      productId,
+      lastUpdated,
+      {
+        type: "visualization",
+        label,
+        folderId: args.folderId,
+        runId: args.runId,
+        scopeId: args.scopeId,
+        createdBy: args.createdBy,
+      },
+      (sql) => insertNewVisualizationDetail(sql, productId, args.bundle),
+    );
     if (!inserted) {
       return { success: false, err: PACKAGE_OR_SCOPE_UNAVAILABLE };
     }
@@ -278,8 +359,8 @@ export async function updateProductLabel(
   return await tryCatchDatabaseAsync(async () => {
     const lastUpdated = new Date().toISOString();
     const rows = await mainDb.begin(async (sql) => {
-      // The label is not in a report's collab doc: keep its state current.
-      await carryReportCrdtStamps(sql, [productId], lastUpdated);
+      // The label is not in a collab doc: keep the doc's state current.
+      await carryDocCrdtStamps(sql, [productId], lastUpdated);
       return await sql<{ type: ProductType }[]>`
         UPDATE products
         SET label = ${label.trim()}, last_updated = ${lastUpdated}
@@ -304,7 +385,7 @@ export async function moveProductsToFolder(
   return await tryCatchDatabaseAsync(async () => {
     const lastUpdated = new Date().toISOString();
     const rows = await mainDb.begin(async (sql) => {
-      await carryReportCrdtStamps(sql, productIds, lastUpdated);
+      await carryDocCrdtStamps(sql, productIds, lastUpdated);
       return await sql<{ id: string }[]>`
         UPDATE products
         SET folder_id = ${folderId}, last_updated = ${lastUpdated}
@@ -364,7 +445,7 @@ export async function setProductScope(
   return await tryCatchDatabaseAsync(async () => {
     const lastUpdated = new Date().toISOString();
     const rows = await mainDb.begin(async (sql) => {
-      await carryReportCrdtStamps(sql, [productId], lastUpdated);
+      await carryDocCrdtStamps(sql, [productId], lastUpdated);
       return await sql`
         UPDATE products
         SET scope_id = ${scopeId}, last_updated = ${lastUpdated}
@@ -393,6 +474,7 @@ const DUPLICATE_DETAIL_BY_TYPE: Record<
 > = {
   slide_deck: duplicateSlideDeckDetail,
   report: duplicateReportDetail,
+  visualization: duplicateVisualizationDetail,
 };
 
 // The Q2 to Q3 workflow's first half: the copy clones run_id VERBATIM

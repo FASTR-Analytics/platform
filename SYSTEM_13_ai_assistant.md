@@ -494,15 +494,15 @@ sets `deck_settings` and the version history (`VersionHistoryEditor`) sets
 refusal naming why once the row is gone); the figure editor (S11) holds in
 `VisualizationEditor` and sets, from `VisualizationEditorInner` once the draft
 exists, the view its host names in the required `aiView` prop
-(`editing_slide_figure`, `editing_report_figure`, `viewing_package_figure`, each
-with the params its identity needs) through `setFigureEditorView`, with a
-`FigureEditorContext` of the pair, the metric and the draft (`getDraftConfig`,
-`applyDraftConfig`), and instructions naming the figure by its label
-(`getFigureEditorInstructions`); the results file viewer sets `results_file`
-from its props with the same pair, and instructions naming the module and the
-results object. The HFA indicators manager (S5) holds the switchboard's
-`data_page` and sets `hfa_indicators`, whose state is the open tab and whose
-instructions are the HFA guidance S5 keeps in
+(`editing_slide_figure`, `editing_report_figure`, `editing_visualization`,
+`viewing_package_figure`, each with the params its identity needs) through
+`setFigureEditorView`, with a `FigureEditorContext` of the pair, the metric and
+the draft (`getDraftConfig`, `applyDraftConfig`), and instructions naming the
+figure by its label (`getFigureEditorInstructions`); the results file viewer
+sets `results_file` from its props with the same pair, and instructions naming
+the module and the results object. The HFA indicators manager (S5) holds the
+switchboard's `data_page` and sets `hfa_indicators`, whose state is the open tab
+and whose instructions are the HFA guidance S5 keeps in
 `components/data/hfa/indicators/ai/instructions.ts`, supplied through the view's
 context (`getGuidance`) and framed by `getHfaIndicatorsInstructions`, so the
 registry imports nothing from `components/data/`; its code editor holds in
@@ -642,7 +642,7 @@ editor on the AI's behalf. `delete_slides` commits through the deck's
 editor to its neighbour before the request. The report's writes go through the
 live view context. The Figure editor group
 ([figure_editor.ts](client/src/components/products/copilot/ai_tools/tools/figure_editor.ts),
-in the inner set, admitted in the three figure views): `get_figure_editor`
+in the inner set, admitted in the four figure views): `get_figure_editor`
 formats the draft with `formatFigureConfigForAI`, and `update_figure_editor`
 runs `update_figure`'s validate-before-commit pipeline over the draft (apply the
 patch, validate the edit, validate the metric inputs, resolve the bundle, check
@@ -660,19 +660,36 @@ through the pure `formatProductsListForAI`
 ([lib/ai_tools/format_products_list_for_ai.ts](lib/ai_tools/format_products_list_for_ai.ts),
 pinned by `server/tests/format_products_list_for_ai_test.ts`); the model never
 opens or creates a product, since no tool navigates, and a draft slide goes only
-into a deck on the pair it was drafted under. The preview card stores the view
-its call ran in (panther's `AIViewSnapshot`, the id and identity) and renders
-under that identity's pair, with the pair's metrics from the T2 authoring
-context, so an old card keeps its package after a reattach; a card stored before
-the engine recorded the view renders under the current view's pair and offers no
-Add. The card offers "Add to this deck" from the deck view when the open deck is
-on the draft's pair and the user can edit it, and is preview-only in a report,
-on another package and for a viewer. From the deck view on the draft's pair the
-card lays out under the open deck's config; elsewhere under the starting draft
-config. Add runs through `createButtonAction`, so a failed `createSlide` alerts;
-the button is disabled while the write runs and reads "Added to this deck" once
-it has landed, so one draft adds once, and the expanded view offers Add only
-while the card's button is enabled.
+into a deck on the pair it was drafted under.
+
+**Saved visualizations are out of reach except from their own editor.** A
+visualization product (S12) is never listed: `formatProductsListForAI` filters
+the type out before it counts, so the model cannot learn one exists, and the
+`product_updated` interaction's type excludes it, so no editor can report one
+changing. No deck, report or draft tool reads one. Inside its own editor the
+view is `editing_visualization` (params: the product id; identity: the product
+and the pair; instructions:
+`getFigureEditorInstructions(label,
+"visualization")`, which says edits stream
+and save with no Apply and that nothing else is in view, plus the view-only line
+below edit level). It is a package view, so it admits the package reads and the
+read-only module internals, plus the two Figure editor tools; it is the one
+package view that does not admit `show_draft_slide_to_user` (the catalogue's
+`DRAFT_VIEWS`), so nothing drafted there can land in a deck. `tool_guard.ts`
+reads its product id, so a viewer is refused `update_figure_editor`. The preview
+card stores the view its call ran in (panther's `AIViewSnapshot`, the id and
+identity) and renders under that identity's pair, with the pair's metrics from
+the T2 authoring context, so an old card keeps its package after a reattach; a
+card stored before the engine recorded the view renders under the current view's
+pair and offers no Add. The card offers "Add to this deck" from the deck view
+when the open deck is on the draft's pair and the user can edit it, and is
+preview-only in a report, on another package and for a viewer. From the deck
+view on the draft's pair the card lays out under the open deck's config;
+elsewhere under the starting draft config. Add runs through
+`createButtonAction`, so a failed `createSlide` alerts; the button is disabled
+while the write runs and reads "Added to this deck" once it has landed, so one
+draft adds once, and the expanded view offers Add only while the card's button
+is enabled.
 
 **Refusals come from one table through one wrapper.** Every user registers the
 same tools, so the prompt cache survives every move; what a user may not do

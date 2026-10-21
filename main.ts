@@ -56,6 +56,7 @@ import { routesFolders } from "./server/routes/products/folders.ts";
 import { routesProductSlideDecks } from "./server/routes/products/slide_decks.ts";
 import { routesProductSlides } from "./server/routes/products/slides.ts";
 import { routesProductReports } from "./server/routes/products/reports.ts";
+import { routesProductVisualizations } from "./server/routes/products/visualizations.ts";
 
 // Public routes (no auth)
 import { routesOAuthMetadata } from "./server/routes/public/oauth_metadata.ts";
@@ -176,6 +177,7 @@ app.route("/", routesFolders);
 app.route("/", routesProductSlideDecks);
 app.route("/", routesProductSlides);
 app.route("/", routesProductReports);
+app.route("/", routesProductVisualizations);
 app.route("/ai", routesCopilotAiProxy);
 app.route("/ai", routesAiFiles);
 app.route("/", routesCustomPrompts);

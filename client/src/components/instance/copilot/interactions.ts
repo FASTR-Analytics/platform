@@ -40,10 +40,12 @@ export const copilotInteractions = defineAIInteractions({
   // SSE `products_upserted` for the open product only (its editor filters).
   // A deck's row bumps on every slide write AND on a rename, reattach or
   // scope change; a report's on every body save. A collaborator can change
-  // the product under the user, so it is reported in every view.
+  // the product under the user, so it is reported in every view. Never a
+  // saved visualization: the copilot sees one only from its own editor, so
+  // the type excludes it and a notify for one does not compile.
   product_updated: interaction<{
     productId: string;
-    type: ProductType;
+    type: Exclude<ProductType, "visualization">;
     label: string;
   }>({
     coalesce: (entries) => entries.slice(0, 1),

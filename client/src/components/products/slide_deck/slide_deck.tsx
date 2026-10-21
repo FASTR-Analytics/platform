@@ -157,7 +157,7 @@ export function SlideDeckEditor(p: Props) {
       if (row === undefined) return;
       copilotViewController.notify("product_updated", {
         productId: p.productId,
-        type: row.type,
+        type: "slide_deck",
         label: row.label,
       });
     });

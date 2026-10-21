@@ -15,9 +15,11 @@ globs:
   - client/src/components/products/_shared/*.tsx
   - client/src/components/products/report/**
   - client/src/components/products/slide_deck/**
+  - client/src/components/products/visualization/**
   - client/src/state/products/t2_report_detail.ts
   - client/src/state/products/t2_slide_deck_detail.ts
   - client/src/state/products/t2_slides.ts
+  - client/src/state/products/t2_visualization_detail.ts
   - lib/types/_slide_config.ts
   - lib/types/_slide_deck_config.ts
   - lib/types/_slide_deck_themes.ts
@@ -26,6 +28,7 @@ globs:
   - lib/types/report_styles.ts
   - lib/types/scope.ts
   - lib/types/slides.ts
+  - lib/types/visualizations.ts
   - lib/slide_text_offsets.ts
   - lib/report_legacy_theme.ts
   - server/db/instance/report_styles.ts
@@ -55,13 +58,13 @@ docs_absorbed:
 
 # S12: Documents & Sharing
 
-The two product types (slide decks and reports), their folders, and the SendGrid
-email egress. A report's body is FASTR Markdown, a designed document format, and
-it is the only format: plain markdown and html reports predate it and both are
-retired (see "Reports"). The report editor is Report Forge, a self-contained
-package in `report-forge/` that this app hosts. The figure and deck
-render/export engines are S10's; S12 owns the artifacts, their storage, the
-report editor package and the export _triggers_.
+The three product types (slide decks, reports and visualizations), their
+folders, and the SendGrid email egress. A report's body is FASTR Markdown, a
+designed document format, and it is the only format: plain markdown and html
+reports predate it and both are retired (see "Reports"). The report editor is
+Report Forge, a self-contained package in `report-forge/` that this app hosts.
+The figure and deck render/export engines are S10's; S12 owns the artifacts,
+their storage, the report editor package and the export _triggers_.
 
 ## Scope
 
@@ -70,10 +73,12 @@ The `globs:` frontmatter above is the lint-enforced manifest
 `components/products/slide_deck/**` (the copilot's `slide_ai/` is S13's),
 `components/products/report/**` (the HOST of the report editor: `report.tsx`,
 the live-cursor layer, the asset picker, the share modal and the style editor),
-`state/products/{t2_slides,t2_slide_deck_detail,t2_report_detail}.ts`
-(`t2_images.ts` is S10's). Server: CRUD for both product families + folders,
-`routes/instance/emails.ts`, `server/utils/id_generation.ts` (one 4-char
-generator, table-aware). The product plane: `server/db/products/**`,
+`components/products/visualization/**` (the visualization product's editor
+shell) and `components/products/create_visualization.ts` (its create flow),
+`state/products/{t2_slides,t2_slide_deck_detail,t2_report_detail,t2_visualization_detail}.ts`
+(`t2_images.ts` is S10's). Server: CRUD for the three product families +
+folders, `routes/instance/emails.ts`, `server/utils/id_generation.ts` (one
+4-char generator, table-aware). The product plane: `server/db/products/**`,
 `server/routes/products/**` and their two harnesses (below; the registries are
 S1's `lib/api-routes/products/*`); on the client, the Products page and its
 surfaces (`client/src/components/products/**`: the explorer page, the pure
@@ -82,10 +87,11 @@ builders, the folder and move modals, the type registry `product_types.ts`,
 `product_settings.tsx` for name and folder, `create_product_modal.tsx` for the
 package and scope a new product names, `package_scope_chip.tsx` and
 `package_scope_modal.tsx` for the pair, the duplicate modal,
-`_shared/package_label.ts`, `_shared/scope_select.tsx`) and the two editors
-(`slide_deck/**`, `report/**`), which take `{ productId }` and read label,
-package and scope live from the T1 products row. Lib: slide/report types, plus
-the product contracts (`lib/types/products.ts`: `ProductType`, `Folder`,
+`_shared/package_label.ts`, `_shared/scope_select.tsx`) and the three editors
+(`slide_deck/**`, `report/**`, `visualization/**`), which take `{ productId }`
+and read label, package and scope live from the T1 products row. Lib:
+slide/report/visualization types (`lib/types/visualizations.ts`), plus the
+product contracts (`lib/types/products.ts`: `ProductType`, `Folder`,
 `ProductBase`, `ProductSummary`; `lib/types/scope.ts`: `ScopeDefinition`,
 `scopeDefinitionHash`, `Scope`, `PackageScope`, `ResolvedPackageScope`) that
 describe the products registry below. The scope entity is this system's too:
@@ -101,14 +107,14 @@ manifest because the lint does not walk it, the report editor package
 
 Two harnesses cover the product plane, both against the dev database.
 `server/tests/products_routes_test.ts` drives the product, folder, slide-deck,
-slide and report routes through the real registry, access guard and DB layer.
-`server/tests/consolidated_products_test.ts` proves the products that migration
-201 consolidated, and skips when none exist (they are the ones with no
-`created_by`): every stored figure bundle on the four surfaces (slides, report
-figures, and the two version tables read through the same figure-block upgrade
-the restore paths run) parses under the strict schema, so each carries its
-package and scope, and a report version and a deck version restore through the
-real routes, on copies.
+slide, report and visualization routes through the real registry, access guard
+and DB layer. `server/tests/consolidated_products_test.ts` proves the products
+that migration 201 consolidated, and skips when none exist (they are the ones
+with no `created_by`): every stored figure bundle on the four surfaces (slides,
+report figures, and the two version tables read through the same figure-block
+upgrade the restore paths run) parses under the strict schema, so each carries
+its package and scope, and a report version and a deck version restore through
+the real routes, on copies.
 
 ## Contract
 
@@ -264,13 +270,14 @@ compares two levels. The level a route declares, `ProductAccessLevel`, is
 
 **The layer** (`server/db/products/**`): every function takes `mainDb` and keys
 off the registry. `products.ts` holds the cross-type surface: one summary query
-for both types (`listProducts` / `getProductSummaries`, the registry row plus
+for every type (`listProducts` / `getProductSummaries`, the registry row plus
 `firstSlideId` for a deck and `hasEmbeds` for a report, computed in SQL so no
 body crosses the DB boundary, plus the product's `ProductAccess`: `owner` and
 `defaultAccess` from the row, and `grants`, ordered by email, from one more
 SELECT over `product_access` for the ids in hand, merged in TypeScript; no
 detail payload carries access); `createProduct` inserts the registry row and the
-detail row in one transaction (a new deck is minted EMPTY with
+detail row in one transaction (decks and reports only; a visualization is
+`createVisualization`, "Visualizations" below; a new deck is minted EMPTY with
 `themeChosen: false`; the config write that first answers the theme question,
 the first-open wizard in practice, makes the deck's cover in the same
 transaction, under a row lock, and only while the deck has no slides: see
@@ -278,19 +285,19 @@ transaction, under a row lock, and only while the deck has no slides: see
 does), takes `runId` and `scopeId` from the caller, checks inside the insert
 that the run is `ready` and that both rows exist, and returns the typed
 `PACKAGE_OR_SCOPE_UNAVAILABLE` when nothing qualifies. Every product insert
-(`createProduct`, `duplicateProduct`, `copyReportFromVersion`,
-`copySlideDeckFromVersion`) writes the actor as `owner` and `default_access`
-`none`, and no grant is copied; `updateProductLabel`, `moveProductsToFolder`,
-`setProductScope` (takes a `scopeId`, and the scope's existence is checked in
-the UPDATE: an unknown scope is `SCOPE_NOT_FOUND`, a 404 through `_respond.ts`);
-`deleteProducts` is one `DELETE
-... WHERE id = ANY` on the registry, with the
-batch's slide ids pre-read inside the transaction for the room closers;
-`duplicateProduct` clones `run_id` through `INSERT ... SELECT`, takes `scopeId`
-from the body (the duplicate modal's "keep" sends each source's own; an unknown
-scope is `SCOPE_NOT_FOUND`) and copies the detail through a per-type
-`Record<ProductType, fn>`. The access functions, also in `products.ts`, never
-bump `last_updated`, since the content did not change. `setProductAccess`
+(`createProduct`, `createVisualization`, `duplicateProduct`,
+`copyReportFromVersion`, `copySlideDeckFromVersion`) writes the actor as `owner`
+and `default_access` `none`, and no grant is copied; `updateProductLabel`,
+`moveProductsToFolder`, `setProductScope` (takes a `scopeId`, and the scope's
+existence is checked in the UPDATE: an unknown scope is `SCOPE_NOT_FOUND`, a 404
+through `_respond.ts`); `deleteProducts` is one `DELETE
+... WHERE id = ANY` on
+the registry, with the batch's slide ids pre-read inside the transaction for the
+room closers; `duplicateProduct` clones `run_id` through `INSERT ... SELECT`,
+takes `scopeId` from the body (the duplicate modal's "keep" sends each source's
+own; an unknown scope is `SCOPE_NOT_FOUND`) and copies the detail through a
+per-type `Record<ProductType, fn>`. The access functions, also in `products.ts`,
+never bump `last_updated`, since the content did not change. `setProductAccess`
 replaces the general access and the whole grant list in one transaction, and
 `setProductOwner` sets the owner, turns the previous owner, if any, into an
 `edit` grantee and drops the new owner's grant, so the owner is never a grantee;
@@ -2699,20 +2706,70 @@ suppressed while it applies. `ReportForgeApi.proposeEdit` offers the same
 dialog-then-apply in one call for a host with no approval engine; this app does
 not call it, because panther's approval lifecycle owns the decision.
 
-## FigureBundle: the two storage surfaces
+## Visualizations
+
+A visualization product is one saved figure (`type = 'visualization'`), the
+standalone visualization v1 had inside a project, rebuilt as a product: it lives
+in folders, has an owner and grants, and is attached to one package at one scope
+like a deck or a report. Its detail table `visualizations` holds the `bundle` (a
+`FigureBundle` as JSON text, parsed by `figureBundleSchema`) and the collab
+columns `crdt_state` / `crdt_state_last_updated`; migration 220 added it and
+admitted the type in the `products.type` CHECK.
+
+- **Never empty.** It is created with its figure. `createProduct` takes only the
+  empty-creatable types (`EMPTY_CREATABLE_PRODUCT_TYPES`, deck and report);
+  `createVisualization` (`POST /products/visualization`, edit, the guard reading
+  `folderId` and `scopeId` from the body as for `createProduct`) takes the pair,
+  an optional label and the bundle the client resolved under that pair, refuses
+  a bundle whose `provenance.runId` is not the named run, and inserts the
+  registry row and the detail row in one transaction through the same ready gate
+  (`insertProductWithDetail`, shared with `createProduct`). The client flow
+  (`createVisualizationInteractively`) is the create dialog in pick mode (it
+  returns the pair instead of creating), then the insert-figure wizard (S11),
+  then `resolveFigureBundleInteractively`; a cancel anywhere creates nothing.
+  The label defaults to the metric's.
+- **Reads and writes.** `getVisualizationDetail` (view) returns
+  `VisualizationDetail = { id, label, bundle, lastUpdated }`.
+  `updateVisualization` (edit) is the non-collab save: through the live room
+  first (`applyVisualizationToLiveRoom`, `save_failed` refuses without a direct
+  write), else a parsed direct write that bumps the product alone and so leaves
+  the CRDT state stale. Label, folder, package, scope, access, duplicate (copies
+  the bundle, never `crdt_state`) and delete are the shared product routes. The
+  summary arm `{ type: "visualization" }` carries no per-type flag.
+- **The editor** (`products/visualization/visualization.tsx`) is the figure
+  editor itself, full-page (S11), co-edited live in the visualization's own room
+  (S16). It waits for the room's first sync (about 4s, then it mounts without a
+  binding and Back saves over REST), mounts the editor on the doc's bundle, and
+  remounts it when the pair, the doc's lineage or the live mode changes; a
+  remount under a new pair re-fetches, and its first coherent bundle writes the
+  new pair's data into the room. A visualization nobody opens after a reattach
+  keeps its old snapshot, as a deck's or a report's figure does. Its header is
+  the editor's, with the product title, the pair chip, presence and a menu
+  (manage access, make a copy) passed in as `productChrome`. A metric the
+  package no longer has shows the stored snapshot and the reason.
+- **Not versioned, not emailed.** There is no version history (no `VersionKind`;
+  `PRODUCT_VERSION_KIND` maps the type to null, so a rename or delete records no
+  version edit) and no share-by-email route.
+- **Kept from the AI.** The copilot reaches a visualization only from its own
+  editor (`editing_visualization`, S13): `list_products` never lists one and the
+  `product_updated` interaction cannot name one.
+
+## FigureBundle: the three storage surfaces
 
 This is S12's slice of the FigureBundle refactor; the full architecture (bundle
 shape, `buildFigureInputs`, the invariants, localization) lives in
-[SYSTEM_10](SYSTEM_10_figure_render_export.md). S12 owns the two surfaces that
+[SYSTEM_10](SYSTEM_10_figure_render_export.md). S12 owns the three surfaces that
 **store** bundles and the export paths that **render** them.
 
-- **What is stored.** Both surfaces embed the strict
+- **What is stored.** Every surface embeds the strict
   `FigureBlock = { type: "figure", bundle?: FigureBundle }`
-  ([lib/types/_figure_bundle.ts](lib/types/_figure_bundle.ts)). Slides carry it
-  inside the layout tree ([_slide_config.ts](lib/types/_slide_config.ts));
-  reports in the `figures` registry ([reports.ts](lib/types/reports.ts), one
-  shared block schema). The strict schema is what lets the migration skip-gate
-  catch legacy blocks (S2).
+  ([lib/types/_figure_bundle.ts](lib/types/_figure_bundle.ts)), or for a
+  visualization its bundle alone. Slides carry it inside the layout tree
+  ([_slide_config.ts](lib/types/_slide_config.ts)); reports in the `figures`
+  registry ([reports.ts](lib/types/reports.ts), one shared block schema);
+  visualizations in `visualizations.bundle`. The strict schema is what lets the
+  migration skip-gate catch legacy blocks (S2); the `visualizations` sweep
+  (`data_transforms/visualizations.ts`) runs the same figure-block transforms.
 - **Capture-on-write.** Each surface assembles a bundle from the live build
   inputs: `config` + frozen `items` + the `resultsValue` projection +
   `indicatorMetadata` + `dateRange` + `geo` + **`localization` = the instance
@@ -2725,10 +2782,11 @@ shape, `buildFigureInputs`, the invariants, localization) lives in
   `buildFigureInputs(bundle, deckStyle?)`. The export path "just works" because
   the bundle carries its own `localization`.
 - **No sentinel layer.** Bundles carry no `undefined` values, so no
-  encode/decode wrapper sits between a bundle and its JSON column on either
+  encode/decode wrapper sits between a bundle and its JSON column on any
   surface: the **reports** registries validate through
-  `reportFiguresSchema`/`reportImagesSchema` and the **slides** bodies through
-  `slideConfigSchema` (see Slide decks above).
+  `reportFiguresSchema`/`reportImagesSchema`, the **slides** bodies through
+  `slideConfigSchema` (see Slide decks above) and a **visualization's** bundle
+  through `figureBundleSchema`.
 
 ## Caches & the notify triangle
 

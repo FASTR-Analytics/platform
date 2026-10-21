@@ -3,6 +3,7 @@ import type { EditorComponentProps, IconName } from "panther";
 import type { JSX } from "solid-js";
 import { ReportEditor } from "./report/mod.ts";
 import { SlideDeckEditor } from "./slide_deck/mod.ts";
+import { VisualizationProductEditor } from "./visualization/mod.ts";
 
 // The one place the client knows what a product type IS. Every per-type
 // dispatch reads this object, never a switch with a default, so adding a type
@@ -37,5 +38,17 @@ export const PRODUCT_TYPE_REGISTRY: Record<ProductType, ProductTypeDefinition> =
       editor: ReportEditor,
       createLabel: () =>
         t3({ en: "New report", fr: "Nouveau rapport", pt: "Novo relatório" }),
+    },
+    visualization: {
+      label: () =>
+        t3({ en: "Visualization", fr: "Visualisation", pt: "Visualização" }),
+      icon: "chart",
+      editor: VisualizationProductEditor,
+      createLabel: () =>
+        t3({
+          en: "New visualization",
+          fr: "Nouvelle visualisation",
+          pt: "Nova visualização",
+        }),
     },
   };

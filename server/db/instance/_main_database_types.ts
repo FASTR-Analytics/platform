@@ -142,6 +142,14 @@ export type DBReport = {
   body_authors: string | null;
 };
 
+export type DBVisualization = {
+  id: string;
+  type: "visualization";
+  bundle: string;
+  crdt_state: string | null;
+  crdt_state_last_updated: string | null;
+};
+
 export type DBReportVersion = {
   id: string;
   report_id: string;

@@ -7,3 +7,4 @@ export * from "./move_slides.ts";
 export * from "./copy_slides.ts";
 export * from "./reports.ts";
 export * from "./versions.ts";
+export * from "./visualizations.ts";
