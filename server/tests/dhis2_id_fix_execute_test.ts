@@ -25,6 +25,7 @@ import {
   diffDhis2IdFixPlans,
   planDhis2IdFix,
   readDhis2IdFixPlanFile,
+  readRowSpans,
 } from "../dhis2_id_fix/mod.ts";
 import type { ElementRoute } from "../worker_routines/import_hmis_data_dhis2/dispatch.ts";
 
@@ -171,19 +172,7 @@ async function facts(
   return {
     dhis2Url: URL_STORED,
     indicators: await getHmisIndicators(db),
-    rows: Object.fromEntries(
-      (await db<
-        { data_id: string; count: number; first: number; last: number }[]
-      >`
-        SELECT data_id, COUNT(*)::int AS count,
-          MIN(period_id) AS first, MAX(period_id) AS last
-        FROM dataset_hmis GROUP BY data_id
-      `).map((r) => [r.data_id, {
-        count: r.count,
-        firstPeriodId: r.first,
-        lastPeriodId: r.last,
-      }]),
-    ),
+    rows: await readRowSpans(db, [A, B, F1, F2, NF]),
     elements: {
       [A]: { name: "ANC first visit" },
       [B]: { name: "ANC first visit (repeat)" },
@@ -493,6 +482,18 @@ Deno.test("a failed precondition rolls back every write of the apply", async () 
   const result = await applyDhis2IdFix(db, plan);
   assertEquals(result.actions.map((a) => a.outcome), ["retarget", "to_sum"]);
   assertEquals(await membersOf("anc_all"), ["anc1", "anc_total"]);
+});
+
+Deno.test("a failure after a write rolls the written actions back", async () => {
+  const plan = await planWithCreatedElement();
+  await sum("late", ["anc_all"]);
+  const before = await snapshot();
+  await assertRejects(
+    () => applyDhis2IdFix(db, plan),
+    Error,
+    "indicator_sum_members_member_has_rows_check",
+  );
+  assertEquals(await snapshot(), before);
 });
 
 Deno.test("a created id that is taken, or a Sum left without members, rolls the apply back", async () => {

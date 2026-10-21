@@ -35,7 +35,7 @@ async function fetchByIds<T>(
   return results.flat();
 }
 
-async function readRowSpans(
+export async function readRowSpans(
   mainDb: Sql,
   dataIds: string[],
 ): Promise<Record<string, Dhis2IdFixRowSpan>> {

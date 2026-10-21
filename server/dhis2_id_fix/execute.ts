@@ -12,10 +12,11 @@ import {
   writeMembers,
 } from "../db/instance/indicators.ts";
 import { assertNoRunningDatasetHmisImportRun } from "../db/instance/dataset_hmis_import_runs.ts";
-import type {
-  Dhis2IdFixAction,
-  Dhis2IdFixPlan,
-  Dhis2IdFixSumRewrite,
+import {
+  type Dhis2IdFixAction,
+  type Dhis2IdFixPlan,
+  type Dhis2IdFixSumRewrite,
+  rewriteSumMembers,
 } from "./plan.ts";
 
 export type Dhis2IdFixActionResult = {
@@ -191,27 +192,14 @@ async function checkSumRewrite(
   const current = await sql<{ member_id: string }[]>`
     SELECT member_id FROM indicator_sum_members WHERE sum_id = ${rewrite.sumId}
   `;
-  const members = new Set<string>();
-  let touched = false;
-  for (const { member_id } of current) {
-    const action = retyped.get(member_id);
-    if (action === undefined) {
-      members.add(member_id);
-      continue;
-    }
-    touched = true;
-    if (action.outcome === "to_sum") {
-      for (const m of action.members) members.add(m);
-    }
-  }
-  const live = [...members].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+  const live = rewriteSumMembers(current.map((r) => r.member_id), retyped);
   if (
-    !touched ||
+    live === undefined ||
     JSON.stringify(live) !== JSON.stringify(rewrite.members)
   ) {
     fail(
       `Sum ${rewrite.sumId} no longer names the members the plan read: its rewrite would be [${
-        live.join(", ")
+        (live ?? current.map((r) => r.member_id)).join(", ")
       }], the plan's is [${rewrite.members.join(", ")}]`,
     );
   }
@@ -237,7 +225,7 @@ async function retarget(
   action: Extract<Dhis2IdFixAction, { outcome: "retarget" }>,
 ): Promise<number> {
   await sql`
-    CREATE TEMP TABLE dhis2_id_fix_ledger ON COMMIT DROP AS
+    CREATE TEMP TABLE dhis2_id_fix_ledger AS
     SELECT * FROM dataset_hmis_import_ledger WHERE data_id = ${action.dataId}
   `;
   await sql`DELETE FROM dataset_hmis_import_ledger WHERE data_id = ${action.dataId}`;

@@ -126,6 +126,29 @@ export function readDhis2FormulaShape(
     : { kind: "other" };
 }
 
+// A Sum's members once the retyped indicators among them are gone: a
+// to_sum's members stand in for it, a to_calculated is dropped. Undefined
+// when the Sum names none of them.
+export function rewriteSumMembers(
+  members: string[],
+  retyped: ReadonlyMap<string, Dhis2IdFixOutcome>,
+): string[] | undefined {
+  const next = new Set<string>();
+  let touched = false;
+  for (const member of members) {
+    const outcome = retyped.get(member);
+    if (outcome === undefined) {
+      next.add(member);
+      continue;
+    }
+    touched = true;
+    if (outcome.outcome === "to_sum") {
+      for (const inner of outcome.members) next.add(inner);
+    }
+  }
+  return touched ? [...next].sort(byCodeUnit) : undefined;
+}
+
 type Diagnosis =
   | { kind: "uploaded"; reason: string }
   | {
@@ -333,20 +356,10 @@ export function planDhis2IdFix(
   const sumRewrites: Dhis2IdFixSumRewrite[] = [];
   for (const i of facts.indicators) {
     if (i.definition.type !== "sum") continue;
-    if (!i.definition.members.some((m) => retyped.has(m))) continue;
-    const members = new Set<string>();
-    for (const m of i.definition.members) {
-      const outcome = retyped.get(m);
-      if (outcome === undefined) {
-        members.add(m);
-      } else if (outcome.outcome === "to_sum") {
-        for (const inner of outcome.members) members.add(inner);
-      }
+    const members = rewriteSumMembers(i.definition.members, retyped);
+    if (members !== undefined) {
+      sumRewrites.push({ sumId: i.indicator_common_id, members });
     }
-    sumRewrites.push({
-      sumId: i.indicator_common_id,
-      members: [...members].sort(byCodeUnit),
-    });
   }
   sumRewrites.sort((a, b) => byCodeUnit(a.sumId, b.sumId));
 
