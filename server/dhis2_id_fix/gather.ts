@@ -57,7 +57,7 @@ export async function readRowSpans(
   }]));
 }
 
-// The ledger rows that record a failed fetch of a pair that never imported.
+// The ledger rows that record a failed fetch of a pair holding no records.
 export async function readStaleLedgerCounts(
   mainDb: Sql,
   dataIds: string[],
