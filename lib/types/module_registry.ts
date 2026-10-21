@@ -1,3 +1,5 @@
+import { t3 } from "../translate/t-func.ts";
+
 // Generation-plane only: which modules the wizard offers and where their
 // definitions live. The label is the only name a generating or failed run
 // has (neither holds a manifest); everything else about a module, including
@@ -98,4 +100,12 @@ export function getValidatedModuleId(id: string): ModuleId {
   const entry = MODULE_REGISTRY.find((m) => m.id === id);
   if (!entry) throw new Error(`Unknown module id: ${id}`);
   return entry.id;
+}
+
+// The registry label, the one name a module has outside a manifest: a
+// generating or failed run's chips, a figure whose metric's module is absent
+// from the package. An id the registry lacks is shown as it is.
+export function moduleRegistryLabel(moduleId: string): string {
+  const entry = MODULE_REGISTRY.find((m) => m.id === moduleId);
+  return entry === undefined ? moduleId : t3(entry.label);
 }

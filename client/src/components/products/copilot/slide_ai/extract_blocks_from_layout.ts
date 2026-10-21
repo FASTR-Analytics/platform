@@ -1,7 +1,11 @@
 import type { ContentBlock, MetricWithStatus, Slide } from "lib";
-import { getDataFromConfig } from "lib";
+import { getDataFromConfig, resolveFigureMetric } from "lib";
 import type { LayoutNode } from "panther";
-import { formatFigureConfigForAI } from "../_shared/mod.ts";
+import {
+  figureMetricAbsenceForAI,
+  figureMetricNoteForAI,
+  formatFigureConfigForAI,
+} from "../_shared/mod.ts";
 import {
   layoutNodeToStructure,
   type LayoutStructure,
@@ -90,13 +94,21 @@ export async function simplifySlideForAI(
         // Figure block
         if (block.bundle) {
           const bundle = block.bundle;
-          const metric = (metrics ?? []).find((m) => m.id === bundle.metricId);
+          // The figure's own metric, or the successor of a retired one with
+          // the config carried across: what an edit would act on.
+          const resolution = resolveFigureMetric(metrics ?? [], bundle);
+          const absent = resolution.kind === "absent";
+          const note = absent
+            ? figureMetricAbsenceForAI(resolution)
+            : figureMetricNoteForAI(resolution);
+          const metric = absent ? undefined : resolution.metric;
+          const config = absent ? bundle.config : resolution.config;
           let cfg: string;
           try {
             cfg = await formatFigureConfigForAI(
               env,
               metric,
-              bundle.config,
+              config,
               bundle.dateRange,
             );
           } catch (err) {
@@ -107,14 +119,21 @@ export async function simplifySlideForAI(
           try {
             data = await getDataFromConfig(
               env,
-              bundle.metricId,
+              metric?.id ?? bundle.metricId,
               metrics ?? [],
-              bundle.config,
+              config,
             );
           } catch (err) {
             data = `(data unavailable: ${err})`;
           }
-          return { id, summary: `Figure\n${cfg}\n\n${data}` };
+          const lines = [
+            "Figure",
+            ...(note === undefined ? [] : [note]),
+            cfg,
+            "",
+            data,
+          ];
+          return { id, summary: lines.join("\n") };
         } else {
           return { id, summary: "Figure (no data)" };
         }

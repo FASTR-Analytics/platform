@@ -23,6 +23,7 @@ import {
   type ReportDocContent,
   type ReportStyleColors,
   type ResolvedPackageScope,
+  resolveFigureMetric,
   type RunAuthoringContext,
   t3,
 } from "lib";
@@ -119,6 +120,7 @@ import {
   resolveFigureBundleInteractively,
 } from "~/generate_visualization/mod";
 import {
+  describeFigureMetricAbsence,
   UpdateAllFiguresButton,
   updateFigureToScope,
   VisualizationEditor,
@@ -1113,42 +1115,45 @@ export function ReportEditor(p: Props) {
     const ctx = staleContext();
     if (!bundle || !ctx) return;
     // The metric comes from the product package's authoring context; a
-    // figure carried over from another package edits under this one.
-    const metric = ctx.context.metrics.find((m) => m.id === bundle.metricId);
-    if (!metric) {
+    // figure carried over from another package edits under this one, and a
+    // figure of a retired metric edits as its successor, with its config
+    // carried across.
+    const resolution = resolveFigureMetric(ctx.context.metrics, bundle);
+    if (resolution.kind === "absent") {
       await openAlert({
-        text: t3({
-          en: "This visualization's metric is not in the product's package",
-          fr:
-            "L'indicateur de cette visualisation n'est pas dans le paquet du produit",
-          pt: "A métrica desta visualização não está no pacote do produto",
-        }),
+        text: describeFigureMetricAbsence(resolution, ctx.scope.runId),
         intent: "danger",
       });
       return;
     }
+    const { metric, config: editConfig } = resolution;
     // Live co-editing: bind the modal to this figure's config IN the shared
-    // report doc. Only when the session is live; else the modal keeps its classic
-    // Apply/Cancel flow (graceful degradation).
+    // report doc. Only when the session is live and the figure edits as its
+    // own metric: the editor adopts the doc's config over its snapshot, and
+    // the doc holds the stored config, so a figure carried to a successor
+    // edits the carried config with Apply/Cancel, and the apply writes the new
+    // bundle into the doc. Otherwise the modal keeps its classic Apply/Cancel
+    // flow (graceful degradation).
     const s0 = session();
     const figureOrigin = {}; // per-open origin for the modal's undo tracking
-    const collabBinding: VizFigureCollabBinding | undefined = s0 && s0.isLive()
-      ? {
-        figureId: sel.id,
-        hostDoc: { docType: "report", docId: p.productId },
-        getConfigMap: () => {
-          const ss = session();
-          return ss ? findReportFigureConfigMap(ss.doc, sel.id) : undefined;
-        },
-        awareness: s0.awareness,
-        isLive: () => session()?.isLive() ?? false,
-        canEdit: () => canConfigure() && !collabFatal(),
-        localOrigin: figureOrigin,
-        onCoherentBundle: (b: FigureBundle) => {
-          void updateFigure(sel.id, { type: "figure", bundle: b });
-        },
-      }
-      : undefined;
+    const collabBinding: VizFigureCollabBinding | undefined =
+      s0 && s0.isLive() && resolution.kind === "current"
+        ? {
+          figureId: sel.id,
+          hostDoc: { docType: "report", docId: p.productId },
+          getConfigMap: () => {
+            const ss = session();
+            return ss ? findReportFigureConfigMap(ss.doc, sel.id) : undefined;
+          },
+          awareness: s0.awareness,
+          isLive: () => session()?.isLive() ?? false,
+          canEdit: () => canConfigure() && !collabFatal(),
+          localOrigin: figureOrigin,
+          onCoherentBundle: (b: FigureBundle) => {
+            void updateFigure(sel.id, { type: "figure", bundle: b });
+          },
+        }
+        : undefined;
 
     setEditingFigureId(sel.id);
     try {
@@ -1159,7 +1164,7 @@ export function ReportEditor(p: Props) {
             label: metric.label,
             scope: ctx.scope,
             metric,
-            configSnapshot: structuredClone(bundle.config),
+            configSnapshot: structuredClone(editConfig),
             aiView: {
               id: "editing_report_figure" as const,
               params: { reportId: p.productId, figureId: sel.id },
@@ -1172,12 +1177,28 @@ export function ReportEditor(p: Props) {
         }),
       );
       if (!result?.updated) return;
-      // Re-resolve under the product's CURRENT pair, so applying an edit to a
-      // stale figure also brings it up to date.
+      // Re-resolve under the product's CURRENT pair and its package's
+      // context, read now, so applying an edit to a stale figure also brings
+      // it up to date and a reattach while the editor was open resolves under
+      // the new package.
+      const after = staleContext();
+      if (!after) return;
+      const live = resolveFigureMetric(after.context.metrics, {
+        metricId: metric.id,
+        config: result.updated.config,
+        localization: bundle.localization,
+      });
+      if (live.kind === "absent") {
+        await openAlert({
+          text: describeFigureMetricAbsence(live, after.scope.runId),
+          intent: "danger",
+        });
+        return;
+      }
       const rebuilt = await resolveFigureBundleInteractively(
-        ctx.scope,
-        metric,
-        result.updated.config,
+        after.scope,
+        live.metric,
+        live.config,
       );
       if (!rebuilt.ok) {
         await openAlert({ text: rebuilt.reason, intent: "danger" });

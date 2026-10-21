@@ -340,16 +340,25 @@ layout and a report's figure registry with it. Nothing rewrites a stored bundle
 behind the user: mixed-package documents are a visible state, and reattaching or
 rescoping never blocks and has no pre-flight. The affordance is S11's
 `StaleFigureBadge` (`components/_shared/figure_editor/stale_figure_badge.tsx`);
-its update action re-resolves `{ metricId, config }` under the container's
-current pair through `resolveFigureBundleInteractively` (the human path: a
-stored replicant value missing under the new package is auto-defaulted, never
-thrown on), with the metric taken from the target package's authoring context
-(S9's `t2_run_authoring_context.ts`), and a failure shows its reason on the
-figure and leaves the old bundle in place. That reason is one rule shared with
-the server, `lib/figure_package_issue.ts` (S8): metric absent, then metric
-unavailable, then a requested disaggregation the package's results object lacks.
-The deck and report editors (S12) count stale figures and offer "Update all
-figures".
+its update action, `updateFigureToScope`, re-resolves `{ metricId, config }`
+under the container's current pair through `resolveFigureBundleInteractively`
+(the human path: a stored replicant value missing under the new package is
+auto-defaulted, never thrown on), with the metric taken from the target
+package's authoring context (S9's `t2_run_authoring_context.ts`) through
+`resolveFigureMetric` (`lib/retired_metrics.ts`, S8): the figure's own metric
+when the package carries it, else the successor of a retired one with the config
+carried across, else nothing. Every path that acts on a stored figure's metric
+resolves it there, so a figure of a retired metric updates, edits (S11's editor
+opens on the successor with the carried config, without a live collab binding,
+since the editor would otherwise adopt the stored config from the shared doc)
+and answers the copilot's figure tools (S13) as its successor, and is stored as
+such on the next write. A failure shows its reason on the figure and leaves the
+old bundle in place. That reason is one rule shared with the server,
+`lib/figure_package_issue.ts` (S8): metric absent (naming the retired module and
+the successor's module when the metric is a retired one), then metric
+unavailable, then a requested disaggregation the package's results object lacks;
+below it, the read's own statuses (too many data points, no data). The deck and
+report editors (S12) count stale figures and offer "Update all visualizations".
 
 ### Sample sizes in table headers (`s.showNValues`)
 

@@ -828,16 +828,23 @@ brief used to say a stat "reads well inside a card"); `checkFastrStatPlacement`
 staged text tools.
 
 **Validate-before-commit.** `update_figure` (any slide, open or stored) and
-`update_report_figure` share one pipeline: `applyFigureConfigPatch` →
-`validateFigureConfigEdit` (pure config checks: slots, field liveness, roll-up
-structure, pre-write collision) → `validateMetricInputs` (live data) →
-`describeFigureConfigPatchEffect` (the per-field leave-one-out change report in
-the success message), _before_ any store write, so a throw provably means
-"nothing changed". Pure config checks live beside the pipeline in
-`client/src/generate_visualization/` (S10's glob, deliberately: they are S13
-machinery); the fetched-data check (`validateMetricInputs`, the SPA's fetching
-wrapper around `validateMetricInputsAgainstValueInfo`, the check `/mcp` runs
-inside `getMetricDataForAI`) lives in `lib/ai_tools/content_validators.ts`. The
+`update_report_figure` share one pipeline, run on the metric and config
+`resolveFigureMetric` gives the stored figure (S10 "The captured pair and
+staleness": its own metric, or a retired metric's successor with the config
+carried across, so an edit of such a figure stores it as its successor and
+reports the move in its success message; a figure with neither refuses, naming
+the retired module and the missing successor), the same resolution `get_slide`
+and `get_report_figure` print above a figure whose metric is not the package's
+own: `applyFigureConfigPatch` → `validateFigureConfigEdit` (pure config checks:
+slots, field liveness, roll-up structure, pre-write collision) →
+`validateMetricInputs` (live data) → `describeFigureConfigPatchEffect` (the
+per-field leave-one-out change report in the success message), _before_ any
+store write, so a throw provably means "nothing changed". Pure config checks
+live beside the pipeline in `client/src/generate_visualization/` (S10's glob,
+deliberately: they are S13 machinery); the fetched-data check
+(`validateMetricInputs`, the SPA's fetching wrapper around
+`validateMetricInputsAgainstValueInfo`, the check `/mcp` runs inside
+`getMetricDataForAI`) lives in `lib/ai_tools/content_validators.ts`. The
 accepted-but-inert-patch rule (Type 1 / Type 2) is stated once, in
 [PROTOCOL_APP_AI_TOOLS.md](PROTOCOL_APP_AI_TOOLS.md).
 

@@ -48,8 +48,8 @@ The `globs:` frontmatter above is the lint-enforced manifest
 - the three panel tabs and their sub-panels; `replicate_by_options.tsx`;
   `conditional_formatting_editor.tsx` + `conditional_formatting_store.ts`) and
   `stale_figure_badge.tsx` (the per-figure stale badge, its "Update to
-  <package>" action and the "Update all figures" header button, the contract
-  being S10's "The captured pair and staleness").
+  <package>" action and the "Update all visualizations" header button, the
+  contract being S10's "The captured pair and staleness").
   `components/products/_shared/insert_figure/**` (the insert-figure wizard and
   the preset gallery it renders, below). `components/explore/**` (the instance
   Explore tab's page, S14 mounts it: "The Explore page" below). The figure

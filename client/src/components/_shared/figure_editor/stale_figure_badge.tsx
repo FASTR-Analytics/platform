@@ -1,8 +1,11 @@
 import {
   type FigureBundle,
+  type FigureMetricResolution,
   type FigurePackageIssue,
   figurePackageIssueForMetrics,
+  moduleRegistryLabel,
   type PackageScope,
+  resolveFigureMetric,
   type RunAuthoringContext,
   t3,
 } from "lib";
@@ -23,35 +26,76 @@ import {
 // is no pre-flight anywhere: the per-figure badge is the report.
 
 // Re-resolve one figure under the container's pair: the whole of the update
-// action. The metric comes from the target package's authoring context, and
-// that lookup is the "metric not in this package" check. The resolution is
-// the interactive one (a replicant missing under the new package is
-// auto-defaulted), never the strict AI one.
+// action. The metric comes from the target package's authoring context: the
+// figure's own, or the successor of a retired one with the config carried
+// across (lib/retired_metrics.ts), and that lookup is the "metric not in
+// this package" check. The resolution is the interactive one (a replicant
+// missing under the new package is auto-defaulted), never the strict AI one.
 export async function updateFigureToScope(
   scope: PackageScope,
   authoringContext: RunAuthoringContext,
   bundle: FigureBundle,
 ): Promise<ResolveFigureResult> {
-  const metric = authoringContext.metrics.find((m) => m.id === bundle.metricId);
-  if (metric === undefined) {
+  const resolution = resolveFigureMetric(authoringContext.metrics, bundle);
+  if (resolution.kind === "absent") {
     return {
       ok: false,
-      reason: describePackageIssue(
-        { kind: "metric_not_in_package", metricId: bundle.metricId },
-        scope.runId,
-      ),
+      reason: describeFigureMetricAbsence(resolution, scope.runId),
     };
   }
   const issue = figurePackageIssueForMetrics(
-    bundle.metricId,
-    bundle.config,
+    resolution.metric.id,
+    resolution.config,
     authoringContext.metrics,
     authoringContext.population,
   );
   if (issue !== null) {
     return { ok: false, reason: describePackageIssue(issue, scope.runId) };
   }
-  return resolveFigureBundleInteractively(scope, metric, bundle.config);
+  return resolveFigureBundleInteractively(
+    scope,
+    resolution.metric,
+    resolution.config,
+  );
+}
+
+// Why a stored figure has no metric in the package: the metric is absent, or
+// it was retired with its module and its successor is absent too, or it was
+// retired and nothing succeeded it.
+export function describeFigureMetricAbsence(
+  absence: Extract<FigureMetricResolution, { kind: "absent" }>,
+  runId: string,
+): string {
+  const pkg = packageLabel(runId);
+  if (absence.retired === undefined) {
+    return t3({
+      en: `Metric "${absence.metricId}" is not in ${pkg}`,
+      fr: `L'indicateur "${absence.metricId}" n'est pas dans ${pkg}`,
+      pt: `A métrica "${absence.metricId}" não está em ${pkg}`,
+    });
+  }
+  const metric = t3(absence.retired.metric.label);
+  const module = t3(absence.retired.metric.moduleLabel);
+  const successor = absence.retired.successor;
+  if (successor === undefined) {
+    return t3({
+      en:
+        `"${metric}" belongs to the retired module "${module}" and has no replacement. Replace this visualization.`,
+      fr:
+        `"${metric}" appartient au module retiré "${module}" et n'a pas de remplaçant. Remplacez cette visualisation.`,
+      pt:
+        `"${metric}" pertence ao módulo retirado "${module}" e não tem substituto. Substitua esta visualização.`,
+    });
+  }
+  const successorModule = moduleRegistryLabel(successor.moduleId);
+  return t3({
+    en:
+      `"${metric}" belongs to the retired module "${module}". Its replacement, ${successor.metricId} in "${successorModule}", is not in ${pkg}.`,
+    fr:
+      `"${metric}" appartient au module retiré "${module}". Son remplaçant, ${successor.metricId} dans "${successorModule}", n'est pas dans ${pkg}.`,
+    pt:
+      `"${metric}" pertence ao módulo retirado "${module}". O seu substituto, ${successor.metricId} em "${successorModule}", não está em ${pkg}.`,
+  });
 }
 
 function describePackageIssue(

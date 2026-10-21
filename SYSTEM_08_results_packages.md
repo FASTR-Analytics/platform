@@ -6,6 +6,7 @@ globs:
   - client/src/components/_shared/delete_each_in_turn.ts
   - client/src/components/results_packages/**
   - lib/figure_package_issue.ts
+  - lib/retired_metrics.ts
   - lib/run_progress.ts
   - lib/types/_module_definition_github.ts
   - lib/types/_module_definition_installed.ts
@@ -19,8 +20,10 @@ globs:
   - server/routes/instance/run_generation.ts
   - server/runs/*.ts
   - server/server_only_funcs/**
+  - server/tests/_module_definitions.ts
   - server/tests/m012_expression_parity_test.ts
   - server/tests/population_coverage_issue_test.ts
+  - server/tests/retired_metrics_test.ts
   - server/tests/run_generation_module_options_test.ts
   - server/tests/run_input_transform_test.ts
   - server/tests/run_manifest_transform_test.ts
@@ -144,9 +147,39 @@ resolves them all or fails; `server/tests/run_generation_module_options_test.ts`
 pins that against the local checkout. The registry lists m001, m002, m005, m006,
 m009, m010, m011 and m012; m003 and m004 are retired and their directories
 deleted from the modules repo, and a package generated with them is still
-readable. The registry's label is the only name a generating or failed run has,
-since neither holds a manifest; every other fact about a module travels with the
-definition.
+readable. A figure stored with an m003 metric lives on through
+`lib/retired_metrics.ts`: a frozen table of the thirteen metrics as m003 last
+shipped them (ids, labels and preset texts), each with the metric that answers
+the same question in a current package and the config rewrite that carries a
+figure across. m3-01-01, the service volume on one of four adjustment bases,
+becomes m12-01-01 when the figure filtered to one basis (the filter goes: the
+package's own basis is the value) and m2-02-01 when it compared bases (the four
+props are the same); m3-0x-01, the disruptions chart, becomes the band chart of
+the same level, m11-01-0x, with `specialDisruptionsChart` swapped for
+`specialDisruptionsChartV2` and `content: "lines"`, and no value filter while
+the mode is on, since the band needs all four props; m3-0x-02, the percentage
+difference per level, becomes m11-02-01 at any level, the level staying a
+disaggregation; m3-0x-03, the actual and expected pair, becomes m11-02-02 with
+`count_sum` and `count_expect_sum` renamed to `observed` and `expected`. A value
+filter is renamed prop by prop and loses props the successor lacks. A caption,
+subcaption or footnote that still reads as the retired preset wrote it, in any
+language, is replaced by the successor preset's text in the figure's own
+language, or cleared where the successor has none; a translation the successor
+lacks and a user's own words are kept. `resolveFigureMetric(metrics, figure)` is
+the one lookup every update, edit and copilot path runs (S10 "The captured pair
+and staleness"): the figure's own metric when the package carries it, else the
+successor with the carried config, else `absent`, naming the retired metric and
+its successor's module so the badge can say what is missing.
+`server/tests/retired_metrics_test.ts` pins the table against
+`server/tests/fixtures/m003_definition.json` (m003 at the commit before its
+deletion) and, under `FASTR_MODULES_LOCAL_DIR`, against the successor
+definitions: every m003 preset carries to a config the successor serves (metric
+present, its required dimensions grouped, its results object offering every
+requested dimension, a fetch config that builds, the band chart's four props in
+order) and reads as the successor's own preset would (its style, its texts, and
+its layout where the two agree). The registry's label is the only name a
+generating or failed run has, since neither holds a manifest; every other fact
+about a module travels with the definition.
 
 **Three presentation facts are declared by every module and never inferred**:
 `family` (`hmis`, `hfa` or `iceh`, the dataset family whose results the module
@@ -237,12 +270,13 @@ users: bare id, label and creation time, none of the catalogue's generation
 telemetry). A repoint never blocks and has no compatibility pre-flight: an
 incompatible package is still attachable, and each figure whose captured package
 or scope differs from the product's shows its own stale badge (S11). Pressing
-Update re-resolves the figure, and when it cannot, `lib/figure_package_issue.ts`
-says why: metric absent, metric stamped unavailable, or a requested
-disaggregation the results object does not offer, reported in that order, with
-no data queries. `figurePackageIssueForMetrics` answers it from the authoring
-context the client holds. Presets are excluded by construction: they are
-projections of whichever package the product points at.
+Update re-resolves the figure, under the metric `resolveFigureMetric` finds for
+it (its own, or a retired metric's successor, "Loading" above), and when it
+cannot, `lib/figure_package_issue.ts` says why: metric absent, metric stamped
+unavailable, or a requested disaggregation the results object does not offer,
+reported in that order, with no data queries. `figurePackageIssueForMetrics`
+answers it from the authoring context the client holds. Presets are excluded by
+construction: they are projections of whichever package the product points at.
 
 **Exploring a package is ONE capability, mounted ONCE** (ruled). Every read of
 what a package contains (`getRunDetail` with per-module settings and files,
@@ -1137,9 +1171,9 @@ hard delete already refuses any run a product points at.
   (`server/server_only_funcs/get_script_with_parameters*.ts`).
 - **Naming drift:** the worker preambles differ in their `console.error` prefix.
 - **Two copies of the registry label lookup**: `moduleLabel` in
-  `client/src/components/results_packages/package_view/status.tsx` and the
-  private `moduleLabel` in `lib/run_progress.ts` are the same four lines. Export
-  the lib one and have the client import it.
+  `client/src/components/results_packages/package_view/status.tsx` is lib's
+  `moduleRegistryLabel` (`lib/types/module_registry.ts`) again. Have its ten
+  importers import the lib one and delete it.
 - **Read-path mirror tolerance, two files**: `readInputRows` (`run_read.ts`)
   yields `[]` for any mirror absent from `manifest.inputFiles`, which for the
   two HFA variant snapshots (`hfa_indicator_variant_groups_snapshot.json`,

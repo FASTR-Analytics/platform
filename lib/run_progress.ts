@@ -1,6 +1,6 @@
 import { getModuleFamilyLabel } from "./group_metrics.ts";
 import { t3 } from "./translate/mod.ts";
-import { MODULE_REGISTRY, type RunProgress } from "./types/mod.ts";
+import { moduleRegistryLabel, type RunProgress } from "./types/mod.ts";
 
 // The generation fraction, derived from the stage alone so it is monotonic
 // whatever the reuse plan pre-marks: prepare is one step, resolve plus plan
@@ -67,7 +67,7 @@ export function runStageLabel(progress: RunProgress): string {
         pt: "A verificar pacotes anteriores por resultados reutilizáveis",
       });
     case "module": {
-      const module = moduleLabel(stage.moduleId);
+      const module = moduleRegistryLabel(stage.moduleId);
       return progress.moduleStatus[stage.moduleId] === "reused"
         ? t3({
           en: `Reusing outputs for ${module}`,
@@ -88,7 +88,7 @@ export function runStageLabel(progress: RunProgress): string {
           pt: "A construir o pacote",
         });
       }
-      const module = moduleLabel(stage.moduleId);
+      const module = moduleRegistryLabel(stage.moduleId);
       return t3({
         en: `Building parquet for ${module}`,
         fr: `Construction du parquet de ${module}`,
@@ -100,9 +100,4 @@ export function runStageLabel(progress: RunProgress): string {
     case "ended":
       return t3({ en: "Complete", fr: "Terminé", pt: "Concluído" });
   }
-}
-
-function moduleLabel(moduleId: string): string {
-  const entry = MODULE_REGISTRY.find((m) => m.id === moduleId);
-  return entry === undefined ? moduleId : t3(entry.label);
 }

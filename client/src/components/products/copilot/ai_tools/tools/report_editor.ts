@@ -26,6 +26,7 @@ import {
   type PeriodBounds,
   periodFilterHasBounds,
   replaceReportEmbedTokens,
+  resolveFigureMetric,
   type ResultsValueInfoForPresentationObject,
   rewriteReportEmbedToken,
 } from "lib";
@@ -46,7 +47,11 @@ import {
   copilotViews,
 } from "~/components/instance/copilot/mod.ts";
 import { resolveFigureFromMetric } from "../../slide_ai/mod.ts";
-import { formatFigureConfigForAI } from "../../_shared/mod.ts";
+import {
+  figureMetricAbsenceForAI,
+  figureMetricNoteForAI,
+  formatFigureConfigForAI,
+} from "../../_shared/mod.ts";
 import { validateMetricInputs } from "lib";
 import type {
   ClientAIToolEnv,
@@ -166,13 +171,17 @@ export function getClientToolsForReportEditor(
           );
         }
         const bundle = fig.bundle;
-        const metric = metrics.find((m) => m.id === bundle.metricId);
-        return await formatFigureConfigForAI(
+        const resolution = resolveFigureMetric(metrics, bundle);
+        const note = resolution.kind === "absent"
+          ? figureMetricAbsenceForAI(resolution)
+          : figureMetricNoteForAI(resolution);
+        const text = await formatFigureConfigForAI(
           env,
-          metric,
-          bundle.config,
+          resolution.kind === "absent" ? undefined : resolution.metric,
+          resolution.kind === "absent" ? bundle.config : resolution.config,
           bundle.dateRange,
         );
+        return note === undefined ? text : `${note}\n${text}`;
       },
       inProgressLabel: "Reading figure...",
       completionMessage: "Read figure",
@@ -238,18 +247,19 @@ export function getClientToolsForReportEditor(
           );
         }
         const bundle = fig.bundle;
-        const metric = metrics.find((m) => m.id === bundle.metricId);
-        if (!metric) {
-          throw new AIToolFailure(
-            `Metric "${bundle.metricId}" not found in this product's results package.`,
-          );
+        // The figure's own metric, or the successor of a retired one with the
+        // config carried across, as every edit path resolves it.
+        const resolution = resolveFigureMetric(metrics, bundle);
+        if (resolution.kind === "absent") {
+          throw new AIToolFailure(figureMetricAbsenceForAI(resolution));
         }
+        const { metric, config: storedConfig } = resolution;
 
         // Pre-flight for a stored defect this tool cannot repair (the figure
         // patch schema carries no timeseriesGrouping): see update_figure.
         if (
-          bundle.config.d.type === "timeseries" &&
-          !bundle.config.d.timeseriesGrouping
+          storedConfig.d.type === "timeseries" &&
+          !storedConfig.d.timeseriesGrouping
         ) {
           throw new AIToolFailure(
             "This figure's stored config is a timeseries with no period grouping, which cannot render. It cannot be repaired here — the figure must be recreated via replace_figure. No changes were applied.",
@@ -273,7 +283,7 @@ export function getClientToolsForReportEditor(
           const infoRes =
             await getResultsValueInfoForPresentationObjectFromCacheOrFetch(
               view.context.getScope(),
-              bundle.metricId,
+              metric.id,
             );
           if (infoRes.success) {
             dataBounds = infoRes.data.periodBounds;
@@ -289,13 +299,13 @@ export function getClientToolsForReportEditor(
 
         // Validate UP FRONT (a throw must mean "nothing changed"); commit once valid.
         const newConfig = applyFigureConfigPatch(
-          bundle.config,
+          storedConfig,
           input.patch,
           metric,
           dataBounds,
         );
         validateFigureConfigEdit(
-          bundle.config,
+          storedConfig,
           newConfig,
           input.patch,
           metric,
@@ -314,19 +324,18 @@ export function getClientToolsForReportEditor(
             max: newConfig.d.periodFilter.max,
           }
           : undefined;
-        await validateMetricInputs(
-          env,
-          bundle.metricId,
-          filters,
-          periodFilter,
-        );
+        await validateMetricInputs(env, metric.id, filters, periodFilter);
 
-        const report = describeFigureConfigPatchEffect(
-          bundle.config,
-          input.patch,
-          metric,
-          dataBounds,
-        );
+        const note = figureMetricNoteForAI(resolution);
+        const report = [
+          ...(note === undefined ? [] : [note]),
+          ...describeFigureConfigPatchEffect(
+            storedConfig,
+            input.patch,
+            metric,
+            dataBounds,
+          ),
+        ];
 
         const newBundle = await resolveBundleFromMetricAndConfig(
           view.context.getScope(),

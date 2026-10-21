@@ -18,6 +18,7 @@ import {
   materializeSlide,
   PAGE_HEIGHT_DU,
   PAGE_WIDTH_DU,
+  resolveFigureMetric,
   t3,
 } from "lib";
 import type { FigureBundle } from "lib";
@@ -71,7 +72,10 @@ import {
   copilotViewController,
   type OpenSlide,
 } from "~/components/instance/copilot/mod.ts";
-import { VisualizationEditor } from "~/components/_shared/figure_editor/mod.ts";
+import {
+  describeFigureMetricAbsence,
+  VisualizationEditor,
+} from "~/components/_shared/figure_editor/mod.ts";
 import type { VizFigureCollabBinding } from "~/components/_shared/figure_editor/mod.ts";
 import {
   findStaleFiguresInLayout,
@@ -991,48 +995,54 @@ export function SlideEditor(p: Props) {
     const block = found.node.data;
     if (block.type !== "figure" || !block.bundle) return;
 
-    const { metricId, config: bundleConfig } = block.bundle;
+    const bundle = unwrap(block.bundle);
 
     try {
       // The metric comes from the product package's authoring context; a
-      // figure carried over from another package edits under this one.
-      const metric = p.authoringContext.metrics.find((m) => m.id === metricId);
-      if (!metric) {
+      // figure carried over from another package edits under this one, and a
+      // figure of a retired metric edits as its successor, with its config
+      // carried across.
+      const resolution = resolveFigureMetric(
+        p.authoringContext.metrics,
+        bundle,
+      );
+      if (resolution.kind === "absent") {
         await openAlert({
-          text: t3({
-            en: "This visualization's metric is not in the product's package",
-            fr:
-              "L'indicateur de cette visualisation n'est pas dans le paquet du produit",
-            pt: "A métrica desta visualização não está no pacote do produto",
-          }),
+          text: describeFigureMetricAbsence(resolution, p.scope.runId),
           intent: "danger",
         });
         return;
       }
+      const { metric, config: editConfig } = resolution;
 
       const applyFigureBundle = (bundle: FigureBundle) =>
         setFigureBlockBundle(blockId, bundle);
 
       // Live co-editing: bind the modal to this figure's config IN the shared
-      // slide doc. Only when the session is live; otherwise the modal keeps its
-      // classic Apply/Cancel flow (graceful degradation: WS down / not ready).
+      // slide doc. Only when the session is live and the figure edits as its
+      // own metric: the editor adopts the doc's config over its snapshot, and
+      // the doc holds the stored config, so a figure carried to a successor
+      // edits the carried config with Apply/Cancel, and the apply writes the
+      // new bundle into the doc. Otherwise the modal keeps its classic
+      // Apply/Cancel flow (graceful degradation: WS down / not ready).
       const s = session();
       const figureOrigin = {}; // per-open origin for the modal's undo tracking
-      const collabBinding: VizFigureCollabBinding | undefined = s && s.isLive()
-        ? {
-          figureId: blockId,
-          hostDoc: { docType: "slide", docId: p.slideId },
-          getConfigMap: () => {
-            const ss = session();
-            return ss ? findSlideFigureConfigMap(ss.doc, blockId) : undefined;
-          },
-          awareness: s.awareness,
-          isLive: () => session()?.isLive() ?? false,
-          canEdit,
-          localOrigin: figureOrigin,
-          onCoherentBundle: applyFigureBundle,
-        }
-        : undefined;
+      const collabBinding: VizFigureCollabBinding | undefined =
+        s && s.isLive() && resolution.kind === "current"
+          ? {
+            figureId: blockId,
+            hostDoc: { docType: "slide", docId: p.slideId },
+            getConfigMap: () => {
+              const ss = session();
+              return ss ? findSlideFigureConfigMap(ss.doc, blockId) : undefined;
+            },
+            awareness: s.awareness,
+            isLive: () => session()?.isLive() ?? false,
+            canEdit,
+            localOrigin: figureOrigin,
+            onCoherentBundle: applyFigureBundle,
+          }
+          : undefined;
 
       setEditingFigureBlockId(blockId);
       try {
@@ -1043,7 +1053,7 @@ export function SlideEditor(p: Props) {
               label: metric.label,
               scope: p.scope,
               metric,
-              configSnapshot: structuredClone(unwrap(bundleConfig)),
+              configSnapshot: structuredClone(editConfig),
               aiView: {
                 id: "editing_slide_figure" as const,
                 params: {
@@ -1059,13 +1069,26 @@ export function SlideEditor(p: Props) {
         );
 
         // On close, rebuild once from the final config (fresh items) under
-        // the product's CURRENT pair, so applying an edit to a stale figure
-        // also brings it up to date.
+        // the product's CURRENT pair and its package's context, read now, so
+        // applying an edit to a stale figure also brings it up to date and a
+        // reattach while the editor was open resolves under the new package.
         if (result?.updated) {
+          const after = resolveFigureMetric(p.authoringContext.metrics, {
+            metricId: metric.id,
+            config: result.updated.config,
+            localization: bundle.localization,
+          });
+          if (after.kind === "absent") {
+            await openAlert({
+              text: describeFigureMetricAbsence(after, p.scope.runId),
+              intent: "danger",
+            });
+            return;
+          }
           const rebuilt = await resolveFigureBundleInteractively(
             p.scope,
-            metric,
-            result.updated.config,
+            after.metric,
+            after.config,
           );
           if (!rebuilt.ok) {
             await openAlert({ text: rebuilt.reason, intent: "danger" });

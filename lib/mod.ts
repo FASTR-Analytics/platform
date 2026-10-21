@@ -7,6 +7,7 @@ export * from "./convert_period_value.ts";
 export * from "./period_id_for_date.ts";
 export * from "./derive_presets.ts";
 export * from "./figure_package_issue.ts";
+export * from "./retired_metrics.ts";
 export * from "./convert_visualization_type.ts";
 export * from "./disaggregation_labels.ts";
 export * from "./hfa_indicator_labels.ts";
