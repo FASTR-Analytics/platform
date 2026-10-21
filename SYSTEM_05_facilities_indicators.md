@@ -598,11 +598,12 @@ earliest month those actions held to the latest. A plan with no such action, a
 stored connection that is missing or is not the plan's (`assertPlanConnection`,
 the check the apply makes), and a selection the app refuses (an indicator gone,
 no DHIS2-shaped facilities) are refused with the reason. The server's scheduler
-starts the queued run within a minute, in the server's process, so the app's
-Cancel reaches it and connected clients hear when it starts and ends; the script
-polls the run (`waitForDhis2IdFixBackfill`, through
-`getDatasetHmisImportRunDetail`) until it is neither queued nor running, prints
-its status and pair counts, and exits 1 unless it completed.
+starts the queued run in the server's process, at its first minute tick with no
+import running and none queued before it, so the app's Cancel reaches it and
+connected clients hear when it starts and ends; the script polls the run
+(`waitForDhis2IdFixBackfill`, through `getDatasetHmisImportRunDetail`) until it
+is neither queued nor running, prints its status and pair counts, and exits 1
+unless it completed.
 
 Instance migration 087 (`087_indicator_data_key.sql`) gives every Uploaded row a
 key: a row whose `data_id` was NULL takes a generated `u_` key and its
