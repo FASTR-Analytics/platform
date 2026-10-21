@@ -525,7 +525,7 @@ export default function Instance(p: Props) {
               pt: "Abrir o painel de IA",
             })}
           >
-            {t3({ en: "Ask AI", fr: "Demander à l'IA", pt: "Perguntar à IA" })}
+            {t3({ en: "AI", fr: "IA", pt: "IA" })}
           </Button>
           {/* Until the panel has been opened once (onboarding/ai_nudge.ts). */}
           <Show when={aiNudge.pulse()}>
