@@ -13,9 +13,12 @@ import {
 } from "./server/dhis2_id_fix/mod.ts";
 
 // Repairs, in place, the DHIS2 element indicators whose DHIS2 id DHIS2 has
-// as a formula or as nothing. Runs inside the instance's app container,
-// which holds the database connection and the credentials key; locally,
-// with `--env-file`. Nothing is passed as an argument.
+// as a formula, as nothing, or as an element it cannot serve as a monthly
+// count, and deletes the error ledger rows without records under every
+// indicator that is Uploaded once the repair is done. Runs inside the
+// instance's app container, which holds the database connection and the
+// credentials key; locally, with `--env-file`. Nothing is passed as an
+// argument.
 //
 //   deno run -A fix_dhis2_ids.ts plan > plan.json     the dry run, read it
 //   deno run -A fix_dhis2_ids.ts apply < plan.json    exit 2 if it has drifted

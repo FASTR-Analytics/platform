@@ -1,7 +1,7 @@
 // The apply of the DHIS2 id repair: one transaction per instance that
-// re-checks every precondition against the live tables, writes the plan's
-// actions, and resolves the dictionary as written before commit. Any
-// failure throws and rolls the whole apply back.
+// re-checks every precondition against the live tables, writes the plan,
+// and resolves the dictionary as written before commit. Any failure throws
+// and rolls the whole apply back.
 
 import type { Sql } from "postgres";
 import { parseJsonOrThrow } from "lib";
