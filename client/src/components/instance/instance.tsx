@@ -17,7 +17,6 @@ import {
   FrameRightResizable,
   FrameTop,
   HeadingBar,
-  Icon,
   type ListItem,
   MenuButton,
   type MenuItem,
@@ -214,10 +213,48 @@ export default function Instance(p: Props) {
   }
 
   async function openProfile() {
-    await openComponent({
-      element: ProfileForm,
-      props: { attemptSignOut: p.attemptSignOut },
-    });
+    await openComponent({ element: ProfileForm, props: {} });
+  }
+
+  // The account menu under the top bar's profile icon: who is signed in,
+  // the profile, and Sign out. Read at open time, so a rename shows at once.
+  // Signing out reloads the page, which loses an AI turn in flight, so it
+  // asks first while one runs (S13's turn guard).
+  function profileMenuItems(): MenuItem[] {
+    const name = [clerk.user?.firstName, clerk.user?.lastName]
+      .filter(Boolean)
+      .join(" ");
+    const email = instanceState.currentUserEmail;
+    return [
+      {
+        type: "header",
+        label: name || email,
+        sublabel: name ? email : undefined,
+      },
+      { type: "divider" },
+      {
+        label: t3({
+          en: "Your profile",
+          fr: "Votre profil",
+          pt: "O seu perfil",
+        }),
+        icon: "userCircle",
+        onClick: () => void openProfile(),
+      },
+      { type: "divider" },
+      {
+        label: t3({
+          en: "Sign out",
+          fr: "Se déconnecter",
+          pt: "Terminar sessão",
+        }),
+        icon: "arrowLeft",
+        intent: "danger",
+        onClick: async () => {
+          if (await confirmReloadUnderTurn()) await p.attemptSignOut();
+        },
+      },
+    ];
   }
 
   async function openTheme() {
@@ -382,15 +419,18 @@ export default function Instance(p: Props) {
           </div>
         </Show>
       </Show>
-      <div
-        class="ui-hoverable-base-300 ui-gap-sm ui-pad-sm flex items-center rounded"
+      <MenuButton
         data-tour="instance-topbar-profile"
-        onClick={openProfile}
-      >
-        <span class="text-primary inline-block w-5">
-          <Icon iconName="userCircle" />
-        </span>
-      </div>
+        iconName="userCircle"
+        items={profileMenuItems}
+        position="bottom-end"
+        intent="base-300"
+        ariaLabel={t3({
+          en: "Your account",
+          fr: "Votre compte",
+          pt: "A sua conta",
+        })}
+      />
     </div>
   );
   const header = (

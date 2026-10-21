@@ -16,6 +16,7 @@ export {
   type MenuItem,
   type MenuItemClickable,
   type MenuItemDivider,
+  type MenuItemHeader,
   type MenuItemWithSubmenu,
   PopoverMenuProvider,
   type PopoverPosition,
