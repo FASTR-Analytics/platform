@@ -105,6 +105,8 @@ export type RunListingItem = {
   status: RunCatalogStatus;
   provenance: RunProvenance;
   createdAt: string;
+  // NULL while generating, and on runs that ended before it was recorded.
+  endedAt: string | null;
   createdBy: string | null;
   summary: RunSummary | null;
   progress: RunProgress | null;

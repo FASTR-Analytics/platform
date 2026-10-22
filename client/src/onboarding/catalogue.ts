@@ -621,7 +621,7 @@ export function getTourCatalogue(
           "Abrir o assistente de IA, fazer-lhe perguntas, o que pode fazer por si e onde está a biblioteca de prompts.",
       }),
       available: () => instanceState.currentUserApproved,
-      // The panel closes first, so the run starts on the Ask AI button.
+      // The panel closes first, so the run starts on the AI button.
       navigate: (openTab) => {
         setShowAi(false);
         openTab("products");

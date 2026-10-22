@@ -2,7 +2,7 @@ import { createEffect, createSignal } from "solid-js";
 import { showAi } from "~/state/t4_ui";
 import { clerkOnboardingStorage } from "./storage";
 
-// The Ask AI button pulses until the user has opened the AI panel once. The
+// The AI button pulses until the user has opened the AI panel once. The
 // flag rides the tours' own Clerk record, so it follows the user across
 // devices, and is written on the first open, wherever that happens (the AI
 // tour's click included). Called once from the instance shell, after sign-in,

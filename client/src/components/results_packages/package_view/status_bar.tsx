@@ -11,11 +11,19 @@ import {
   runStageLabel,
   t3,
 } from "lib";
-import { ProgressBar } from "panther";
-import { createMemo, For, type JSX, Show } from "solid-js";
+import { openComponent, ProgressBar } from "panther";
+import {
+  createMemo,
+  createSignal,
+  For,
+  type JSX,
+  onCleanup,
+  Show,
+} from "solid-js";
 import { PRODUCT_TYPE_REGISTRY } from "~/components/products/mod.ts";
 import { getAdminAreaLabelForLevel } from "~/state/instance/_util_disaggregation_label";
-import { moduleLabel, ModuleProgressChip } from "./status";
+import { canViewPackageLogs, moduleLabel, ModuleProgressChip } from "./status";
+import { ModuleLogsModal } from "./view_logs";
 
 type ModuleChip = {
   id: string;
@@ -97,6 +105,14 @@ export function StatusBar(p: {
     });
   });
 
+  // A pending module has no log yet, so its chip is not a button.
+  function openLogs(mod: ModuleChip): void {
+    void openComponent({
+      element: ModuleLogsModal,
+      props: { runId: p.run.id, moduleId: mod.id, moduleLabel: mod.label },
+    });
+  }
+
   return (
     <div class="ui-pad ui-spy-sm border-b text-sm">
       <Show when={p.run.status === "generating" && bar() !== undefined}>
@@ -106,6 +122,11 @@ export function StatusBar(p: {
           progressFrom0To100={bar()?.percent ?? 0}
           progressMsg={bar()?.label}
         />
+      </Show>
+      <Show when={p.run.status === "generating" || p.run.endedAt !== null}>
+        <Row label={t3({ en: "Run time", fr: "Durée", pt: "Duração" })}>
+          <RunTime createdAt={p.run.createdAt} endedAt={p.run.endedAt} />
+        </Row>
       </Show>
       <Show when={groups().length > 0}>
         <Row label={t3({ en: "Modules", fr: "Modules", pt: "Módulos" })}>
@@ -124,6 +145,10 @@ export function StatusBar(p: {
                         label={mod.label}
                         status={mod.status}
                         active={mod.active}
+                        onClick={canViewPackageLogs() &&
+                            mod.status !== "pending"
+                          ? () => openLogs(mod)
+                          : undefined}
                       />
                     )}
                   </For>
@@ -201,6 +226,35 @@ function Row(p: {
       <div class="min-w-0 flex-1">{p.children}</div>
     </div>
   );
+}
+
+// How long the run took, or while it generates (no `endedAt` yet) how long it
+// has been going, ticking once a second. The run row is inserted at launch, so
+// `createdAt` is the start, queue time included. Clamped at zero against
+// client clock skew.
+function RunTime(p: { createdAt: string; endedAt: string | null }) {
+  const [now, setNow] = createSignal(Date.now());
+  const timer = setInterval(() => setNow(Date.now()), 1000);
+  onCleanup(() => clearInterval(timer));
+  const seconds = () => {
+    const end = p.endedAt === null ? now() : new Date(p.endedAt).getTime();
+    return Math.max(
+      0,
+      Math.floor((end - new Date(p.createdAt).getTime()) / 1000),
+    );
+  };
+  return <span class="tabular-nums">{formatElapsed(seconds())}</span>;
+}
+
+function formatElapsed(totalSeconds: number): string {
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  const min = t3({ en: "m", fr: "min", pt: "min" });
+  const pad = (n: number) => String(n).padStart(2, "0");
+  if (h > 0) return `${h}h ${pad(m)}${min} ${pad(s)}s`;
+  if (m > 0) return `${m}${min} ${pad(s)}s`;
+  return `${s}s`;
 }
 
 // The manifest's population stamp (SYSTEM_08 "population.csv"): what the

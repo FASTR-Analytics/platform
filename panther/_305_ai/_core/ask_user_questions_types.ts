@@ -31,3 +31,8 @@ export type AskUserQuestionsInput = z.infer<
 >;
 
 export type AskUserQuestionsAnswer = string | string[];
+
+// Marks an answer the user typed instead of picking one of the options, so the
+// model reads it as the user's own words rather than as an option label.
+export const OWN_ANSWER_PREFIX =
+  "The user's own answer (not one of your options): ";
