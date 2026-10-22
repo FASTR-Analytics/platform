@@ -103,7 +103,7 @@ export function buildHfaWorkbookBlob(args: {
     "subCategoryId",
     "serviceCategoryId",
     "shortLabel",
-    "definition",
+    "label",
     "type",
     "aggregation",
     "variantGroupId",
@@ -531,12 +531,8 @@ export function detectHfaWorkbookShape(
       err: 'Indicators sheet: missing "indicatorId" column.',
     };
   }
-  const definitionMissing = missingTextColumn(
-    indicatorsAoa,
-    "Indicators",
-    "definition",
-  );
-  if (definitionMissing) return definitionMissing;
+  const labelMissing = missingTextColumn(indicatorsAoa, "Indicators", "label");
+  if (labelMissing) return labelMissing;
 
   // Detect code columns in the order they appear.
   // New format: r_code__<label>  →  label embedded
@@ -768,7 +764,7 @@ export function detectHfaWorkbookShape(
       subCategoryId,
       serviceCategoryIds,
       shortLabel: pickText(row, "shortLabel", language),
-      definition: pickText(row, "definition", language),
+      definition: pickText(row, "label", language),
       type,
       aggregation,
       variantGroupId,

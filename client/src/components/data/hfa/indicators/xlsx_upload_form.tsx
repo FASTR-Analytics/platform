@@ -364,18 +364,18 @@ function PickStep(p: {
               fr: "séparés par | pour plusieurs",
               pt: "separados por | para vários",
             })}
-            ), shortLabel, definition, type, aggregation, r_code__&lt;time
-            point&gt;, r_filter_code__&lt;time point&gt;, …
+            ), shortLabel, label, type, aggregation, r_code__&lt;time point&gt;,
+            r_filter_code__&lt;time point&gt;, …
           </li>
         </ul>
         <div class="mt-2">
           {t3({
             en:
-              "A text column (label, shortLabel, definition) can instead be given per language, as label_en, label_fr and label_pt. The import takes the instance language's column and falls back to English.",
+              "A text column (label, shortLabel) can instead be given per language, as label_en, label_fr and label_pt. The import takes the instance language's column and falls back to English.",
             fr:
-              "Une colonne de texte (label, shortLabel, definition) peut aussi être fournie par langue : label_en, label_fr et label_pt. L'importation prend la colonne de la langue de l'instance et se rabat sur l'anglais.",
+              "Une colonne de texte (label, shortLabel) peut aussi être fournie par langue : label_en, label_fr et label_pt. L'importation prend la colonne de la langue de l'instance et se rabat sur l'anglais.",
             pt:
-              "Uma coluna de texto (label, shortLabel, definition) pode em vez disso ser dada por idioma: label_en, label_fr e label_pt. A importação usa a coluna do idioma da instância e recorre ao inglês.",
+              "Uma coluna de texto (label, shortLabel) pode em vez disso ser dada por idioma: label_en, label_fr e label_pt. A importação usa a coluna do idioma da instância e recorre ao inglês.",
           })}
         </div>
       </div>

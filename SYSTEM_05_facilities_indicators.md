@@ -712,17 +712,17 @@ before at least one time point exists, so both import buttons are gated on time
 points (not on imported data; a data-less time point is fine, validation just
 reports missing survey variables until data lands), and later time points
 inherit the code via the create-time carry-forward. Every text column (`label`
-on the taxonomy sheets, `shortLabel` and `definition` on Indicators) is written
-once or once per language (`label_en`, `label_fr`, `label_pt`); the parser takes
-the **instance** language's column (`instanceState.instanceLanguage`, never the
-user's display language), then English, then the single column, so one default
-file serves every instance and an untranslated cell shows English. A required
-text field whose column is present in none of its forms is rejected at the
-header, so a misnamed column cannot import blank labels. The export writes the
-single-column form. The default file carries one labeled code column
-(`r_code__Round 1`), so with N time points the reconcile step offers
-apply-to-all / apply-to-one. Pinned by
-`server/tests/hfa_workbook_text_columns_test.ts`.
+on every sheet, plus `shortLabel` on Indicators; the Indicators `label` is the
+long label the app stores as `definition`) is written once or once per language
+(`label_en`, `label_fr`, `label_pt`); the parser takes the **instance**
+language's column (`instanceState.instanceLanguage`, never the user's display
+language), then English, then the single column, so one default file serves
+every instance and an untranslated cell shows English. A required text field
+whose column is present in none of its forms is rejected at the header, so a
+misnamed column cannot import blank labels. The export writes the single-column
+form. The default file carries one labeled code column (`r_code__Round 1`), so
+with N time points the reconcile step offers apply-to-all / apply-to-one. Pinned
+by `server/tests/hfa_workbook_text_columns_test.ts`.
 
 **HFA variant groups** let one indicator carry a per-item response-option
 breakdown ("provides vaccination" × {campaign, routine, both}) without the items

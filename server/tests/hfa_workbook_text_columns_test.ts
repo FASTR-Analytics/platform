@@ -42,9 +42,9 @@ const PER_LANGUAGE = workbook({
       "shortLabel_en",
       "shortLabel_fr",
       "shortLabel_pt",
-      "definition_en",
-      "definition_fr",
-      "definition_pt",
+      "label_en",
+      "label_fr",
+      "label_pt",
       "type",
       "aggregation",
       "r_code__Round 1",
@@ -99,8 +99,8 @@ Deno.test("per-language columns: a missing language column falls back to English
       [
         "indicatorId",
         "categoryId",
-        "definition_en",
-        "definition_fr",
+        "label_en",
+        "label_fr",
         "type",
         "aggregation",
         "r_code__Round 1",
@@ -123,7 +123,7 @@ Deno.test("single text columns still import for every instance language", () => 
         "indicatorId",
         "categoryId",
         "shortLabel",
-        "definition",
+        "label",
         "type",
         "aggregation",
         "r_code__Round 1",
@@ -141,13 +141,13 @@ Deno.test("single text columns still import for every instance language", () => 
 });
 
 Deno.test("a required text column present in no form is rejected at the header", () => {
-  const noDefinition = workbook({
+  const oldExportColumn = workbook({
     Categories: [["id", "label_en"], ["shocks", "Shocks"]],
     Indicators: [
       [
         "indicatorId",
         "categoryId",
-        "label_en",
+        "definition",
         "type",
         "aggregation",
         "r_code__Round 1",
@@ -155,14 +155,14 @@ Deno.test("a required text column present in no form is rejected at the header",
       ["ind001", "shocks", "Shock EN", ...INDICATOR_TAIL],
     ],
   });
-  const err = detectErr(noDefinition, "en");
+  const err = detectErr(oldExportColumn, "en");
   assertStringIncludes(err, "Indicators sheet");
-  assertStringIncludes(err, '"definition_en"');
+  assertStringIncludes(err, '"label_en"');
 
   const noCategoryLabel = workbook({
     Categories: [["id", "name"], ["shocks", "Shocks"]],
     Indicators: [
-      ["indicatorId", "definition", "type", "aggregation", "r_code__Round 1"],
+      ["indicatorId", "label", "type", "aggregation", "r_code__Round 1"],
       ["ind001", "Shock", ...INDICATOR_TAIL],
     ],
   });
