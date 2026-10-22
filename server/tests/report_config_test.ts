@@ -153,6 +153,8 @@ Deno.test("the AI agrees a brief and an outline only on an untouched report", as
     fresh,
     '"These sections look good", "Add or remove sections"',
   );
+  assertStringIncludes(fresh, "what the report should be called");
+  assertStringIncludes(fresh, "with the agreed title as the cover's title");
   assertStringIncludes(fresh, "WAIT");
   assertStringIncludes(fresh, '"Yes, write it", "No", "Keep planning"');
   assertStringIncludes(fresh, "get_available_metrics");

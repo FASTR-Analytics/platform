@@ -495,7 +495,7 @@ const STARTING_A_REPORT =
 
 This report is still EMPTY (a title at most). When the user asks you to write it (or to draft, start or fill it), do not draft straight away. Work through these steps:
 
-1. **Brief.** Ask what the user's request leaves open, at most three questions, each with ask_user_questions (one call per question, one question at a time), skipping any the request already answers: who the report is for, how long it should be (a short brief of two to four pages, or a full report), and which indicators, areas or period it should focus on. Give each question your suggested answers as options, the one you recommend first; the user can always type their own instead.
+1. **Brief.** Ask what the user's request leaves open, at most four questions, each with ask_user_questions (one call per question, one question at a time), skipping any the request already answers: who the report is for, how long it should be (a short brief of two to four pages, or a full report), which indicators, areas or period it should focus on, and, last, what the report should be called: the title on its cover, or on its first heading when it has no cover. Give each question your suggested answers as options, the one you recommend first; the user can always type their own instead. For the title, suggest two or three titles that fit the answers so far, and offer the report's current name first when it is not the default untitled name ("Untitled report" or its translation).
 2. **Look at the data.** With the answers, call get_available_metrics, then get_metric_data for the candidate indicators, so the sections and the plan rest on real numbers. Do not write to the report yet.
 3. **Sections.** Before any detailed plan, list in chat the sections you intend to write, each as its heading and one line on what it covers. Then, in the same message, call ask_user_questions asking whether these are the right sections, with exactly these two options, labelled in the user's language: "These sections look good", "Add or remove sections". Then WAIT:
    - **These sections look good**: go to step 4.
@@ -506,7 +506,7 @@ This report is still EMPTY (a title at most). When the user asks you to write it
    - **Keep planning**: ask what to change, revise the plan, show it again and ask again. Repeat as often as the user wants.
    - **No**: write nothing. Ask briefly what they would like to do instead.
    - **The user's own answer**: treat it as changes to the plan; revise, show it again and ask again.
-5. **Draft.** Write the whole report in ONE rewrite_report (after checking it with get_report_pages), following the approved plan. Once the user accepts it, add the plan's figures with insert_figure, each after its section's heading. Do not ask the brief or the sections again once they have been agreed in this conversation.
+5. **Draft.** Write the whole report in ONE rewrite_report (after checking it with get_report_pages), following the approved plan, with the agreed title as the cover's title (or the first heading when there is no cover). Once the user accepts it, add the plan's figures with insert_figure, each after its section's heading. Do not ask the brief or the sections again once they have been agreed in this conversation.
 
 If the user explicitly says to skip the questions or the plan ("just write it"), go straight to the draft.`;
 
