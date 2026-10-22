@@ -1,3 +1,9 @@
+[2.0.6] [user] [added] - Indicator spreadsheet now supports per-language text columns
+[2.0.6] [user] [changed] - Spreadsheet "definition" column renamed to "label"
+[2.0.6] [user] [added] - Import instructions now explain per-language column options
+[2.0.6] [admin] [added] - HFA indicator spreadsheet now supports per-language text columns
+[2.0.6] [admin] [changed] - HFA spreadsheet "definition" column renamed to "label"
+[2.0.6] [admin] [changed] - Import uses instance language column with English fallback
 [2.0.5] [user] [added] - After applying a DHIS2 ID repair, data is automatically re-imported to fill gaps
 [2.0.5] [user] [fixed] - Special indicators now keep their data correctly during DHIS2 ID repair
 [2.0.5] [admin] [added] - DHIS2 ID repair can now automatically backfill data after applying a fix plan
