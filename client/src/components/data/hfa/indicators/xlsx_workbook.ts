@@ -12,6 +12,7 @@ import {
   type HfaIndicatorVariantItem,
   type HfaWorkbookImport,
   isReservedHfaId,
+  type Language,
   nextHfaIndicatorId,
   parseMultiMembershipValues,
   serialiseMultiMembershipValues,
@@ -233,11 +234,45 @@ function sheetToObjects(aoa: string[][]): Record<string, string>[] {
   return rows;
 }
 
+// A text column is written once (`label`) or once per language (`label_en`,
+// `label_fr`, `label_pt`). The import reads the instance language's column,
+// then English, then the single column, so one default workbook serves every
+// instance and a cell left untranslated shows English rather than failing.
+const LANGUAGES: readonly Language[] = ["en", "fr", "pt"];
+
+function pickText(
+  row: Record<string, string>,
+  field: string,
+  language: Language,
+): string {
+  return row[`${field}_${language}`] || row[`${field}_en`] || row[field] || "";
+}
+
+function missingTextColumn(
+  aoa: string[][] | undefined,
+  sheetName: string,
+  field: string,
+): { ok: false; err: string } | null {
+  if (!aoa || aoa.length === 0) return null;
+  const headers = (aoa[0] ?? []).map((h) => String(h ?? "").trim());
+  const accepted = [field, ...LANGUAGES.map((l) => `${field}_${l}`)];
+  if (accepted.some((name) => headers.includes(name))) return null;
+  return {
+    ok: false,
+    err: `${sheetName} sheet: missing "${field}" column (one of ${
+      accepted.map((n) => `"${n}"`).join(", ")
+    }).`,
+  };
+}
+
 // `existingIndicatorIds` are the instance's stored ids: a row with a blank
 // indicatorId is assigned the next free id after those and the sheet's own.
+// `language` is the instance language, which selects the per-language text
+// columns.
 export function detectHfaWorkbookShape(
   arrayBuffer: ArrayBuffer,
   existingIndicatorIds: Iterable<string>,
+  language: Language,
 ): DetectResult {
   let wb;
   try {
@@ -273,12 +308,14 @@ export function detectHfaWorkbookShape(
   }
 
   // Categories
+  const catMissing = missingTextColumn(categoriesAoa, "Categories", "label");
+  if (catMissing) return catMissing;
   const catRows = sheetToObjects(categoriesAoa ?? []);
   const categories: WorkbookShape["categories"] = [];
   const categoryIds = new Set<string>();
   for (let i = 0; i < catRows.length; i++) {
     const id = catRows[i].id ?? "";
-    const label = catRows[i].label ?? "";
+    const label = pickText(catRows[i], "label", language);
     if (!id) {
       return { ok: false, err: `Categories sheet, row ${i + 2}: missing id.` };
     }
@@ -299,13 +336,19 @@ export function detectHfaWorkbookShape(
   }
 
   // Sub-categories
+  const subMissing = missingTextColumn(
+    subCategoriesAoa,
+    "Sub-categories",
+    "label",
+  );
+  if (subMissing) return subMissing;
   const subRows = sheetToObjects(subCategoriesAoa ?? []);
   const subCategories: WorkbookShape["subCategories"] = [];
   const subCategoryParent = new Map<string, string>();
   for (let i = 0; i < subRows.length; i++) {
     const id = subRows[i].id ?? "";
     const categoryId = subRows[i].categoryId ?? "";
-    const label = subRows[i].label ?? "";
+    const label = pickText(subRows[i], "label", language);
     if (!id) {
       return {
         ok: false,
@@ -343,12 +386,18 @@ export function detectHfaWorkbookShape(
   }
 
   // Service categories (optional sheet)
+  const svcMissing = missingTextColumn(
+    serviceCategoriesAoa,
+    "Service categories",
+    "label",
+  );
+  if (svcMissing) return svcMissing;
   const svcRows = sheetToObjects(serviceCategoriesAoa ?? []);
   const serviceCategories: WorkbookShape["serviceCategories"] = [];
   const validServiceCategoryIds = new Set<string>();
   for (let i = 0; i < svcRows.length; i++) {
     const id = svcRows[i].id ?? "";
-    const label = svcRows[i].label ?? "";
+    const label = pickText(svcRows[i], "label", language);
     if (!id) {
       return {
         ok: false,
@@ -380,12 +429,18 @@ export function detectHfaWorkbookShape(
   }
 
   // Variant groups (optional sheet)
+  const vgMissing = missingTextColumn(
+    variantGroupsAoa,
+    "Variant groups",
+    "label",
+  );
+  if (vgMissing) return vgMissing;
   const vgRows = sheetToObjects(variantGroupsAoa ?? []);
   const variantGroups: WorkbookShape["variantGroups"] = [];
   const variantGroupIds = new Set<string>();
   for (let i = 0; i < vgRows.length; i++) {
     const id = vgRows[i].id ?? "";
-    const label = vgRows[i].label ?? "";
+    const label = pickText(vgRows[i], "label", language);
     if (!id) {
       return {
         ok: false,
@@ -409,13 +464,19 @@ export function detectHfaWorkbookShape(
   }
 
   // Variant items (optional sheet)
+  const viMissing = missingTextColumn(
+    variantItemsAoa,
+    "Variant items",
+    "label",
+  );
+  if (viMissing) return viMissing;
   const viRows = sheetToObjects(variantItemsAoa ?? []);
   const variantItems: WorkbookShape["variantItems"] = [];
   const variantItemGroup = new Map<string, string>();
   for (let i = 0; i < viRows.length; i++) {
     const id = viRows[i].id ?? "";
     const groupId = viRows[i].groupId ?? "";
-    const label = viRows[i].label ?? "";
+    const label = pickText(viRows[i], "label", language);
     if (!id) {
       return {
         ok: false,
@@ -470,6 +531,12 @@ export function detectHfaWorkbookShape(
       err: 'Indicators sheet: missing "indicatorId" column.',
     };
   }
+  const definitionMissing = missingTextColumn(
+    indicatorsAoa,
+    "Indicators",
+    "definition",
+  );
+  if (definitionMissing) return definitionMissing;
 
   // Detect code columns in the order they appear.
   // New format: r_code__<label>  →  label embedded
@@ -700,8 +767,8 @@ export function detectHfaWorkbookShape(
       categoryId,
       subCategoryId,
       serviceCategoryIds,
-      shortLabel: (row.shortLabel ?? "").trim(),
-      definition: (row.definition ?? "").trim(),
+      shortLabel: pickText(row, "shortLabel", language),
+      definition: pickText(row, "definition", language),
       type,
       aggregation,
       variantGroupId,

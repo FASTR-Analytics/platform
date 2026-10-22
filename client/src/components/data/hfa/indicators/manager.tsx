@@ -712,6 +712,7 @@ export function HfaIndicatorsManager(p: Props) {
       element: HfaIndicatorsXlsxUploadForm,
       props: {
         source,
+        instanceLanguage: instanceState.instanceLanguage,
         timePoints,
         variableIds: variableIds(),
         existingIndicatorIds: st.status === "ready"
