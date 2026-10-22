@@ -1,14 +1,3 @@
-[TBD] [user] [changed] - "AI" button now labeled "Ask AI"
-[TBD] [user] [changed] - Profile icon opens your profile directly instead of a dropdown menu
-[TBD] [user] [added] - Sign out button now appears inside your profile dialog
-[TBD] [user] [changed] - AI report-writing workflow simplified with fewer planning steps
-[TBD] [user] [changed] - Run time display removed from results package status bar
-[TBD] [user] [changed] - Module progress chips in status bar are no longer clickable
-[TBD] [admin] [changed] - Profile and sign-out moved into a single profile dialog
-[TBD] [admin] [changed] - AI button now labeled "Ask AI" instead of "AI"
-[TBD] [admin] [changed] - AI report-writing workflow simplified to brief, outline, then draft
-[TBD] [admin] [changed] - Run time display removed from results package status bar
-[TBD] [admin] [changed] - Module progress chips in status bar are no longer clickable
 [2.0.6] [user] [added] - Indicator spreadsheet now supports per-language text columns
 [2.0.6] [user] [changed] - Spreadsheet "definition" column renamed to "label"
 [2.0.6] [user] [added] - Import instructions now explain per-language column options
