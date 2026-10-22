@@ -1,7 +1,7 @@
 import { clearAiChatCache, clearDataCache } from "~/state/clear_caches";
 import { darkMode, schemePref, setScheme } from "~/state/t4_ui";
 import { clerk } from "~/state/_infra/clerk";
-import { t3 } from "lib";
+import { t3, TC } from "lib";
 import {
   type AlertComponentProps,
   Button,
@@ -123,8 +123,14 @@ function SettingSection(p: { label: string; children: JSX.Element }) {
   );
 }
 
-// Sign out lives in the top bar's account menu (instance.tsx), not here.
-export function ProfileForm(p: AlertComponentProps<object, undefined>) {
+export function ProfileForm(
+  p: AlertComponentProps<
+    {
+      attemptSignOut: () => Promise<void>;
+    },
+    undefined
+  >,
+) {
   const userDetails = createQuery(
     () => serverActions.getCurrentUser({}),
     t3({
@@ -255,7 +261,22 @@ export function ProfileForm(p: AlertComponentProps<object, undefined>) {
       title={t3({ en: "Your profile", fr: "Votre profil", pt: "O seu perfil" })}
       width="lg"
       spy="lg"
-      onClose={{ kind: "done", onClick: () => p.close(undefined) }}
+      actions={[
+        {
+          label: t3({
+            en: "Sign out",
+            fr: "Se déconnecter",
+            pt: "Terminar sessão",
+          }),
+          onClick: () => afterTurnGuard(p.attemptSignOut),
+          outline: true,
+          iconName: "arrowLeft",
+        },
+        {
+          label: t3(TC.done),
+          onClick: () => p.close(undefined),
+        },
+      ]}
     >
       {/* Who: the avatar slot is always there, initials until a photo. */}
       <div class="flex items-center gap-4">

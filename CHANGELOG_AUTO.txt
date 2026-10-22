@@ -1,18 +1,3 @@
-[TBD] [user] [added] - Account menu with profile and sign out under profile icon
-[TBD] [user] [added] - Run time displayed in results package status bar
-[TBD] [user] [added] - Click a module chip to view its execution log
-[TBD] [user] [added] - Live log viewing with refresh for in-progress modules
-[TBD] [user] [changed] - "Ask AI" button renamed to "AI"
-[TBD] [user] [changed] - Sign out moved from profile dialog to account menu
-[TBD] [user] [changed] - AI report assistant now asks about the report title during setup
-[TBD] [user] [changed] - AI report writing follows a clearer step-by-step process with section approval
-[TBD] [admin] [added] - Profile icon now opens an account menu with sign-out option
-[TBD] [admin] [changed] - Sign out moved from profile dialog to top bar account menu
-[TBD] [admin] [added] - Results package status bar now shows run time with live countdown
-[TBD] [admin] [added] - Clicking a module chip in the status bar opens its execution log
-[TBD] [admin] [added] - Module logs can be refreshed live while a run is generating
-[TBD] [admin] [changed] - AI button label shortened from "Ask AI" to "AI"
-[TBD] [admin] [changed] - AI report writing now asks for a title and confirms sections step by step
 [2.0.6] [user] [added] - Indicator spreadsheet now supports per-language text columns
 [2.0.6] [user] [changed] - Spreadsheet "definition" column renamed to "label"
 [2.0.6] [user] [added] - Import instructions now explain per-language column options

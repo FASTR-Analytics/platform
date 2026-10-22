@@ -1409,7 +1409,7 @@ export function buildInstanceWelcomeTour(): TourDefinition {
   };
 }
 
-// The AI assistant: the AI button at the right edge, then the panel it
+// The AI assistant: the Ask AI button at the right edge, then the panel it
 // opens. Runs on the Products page for every user once, after the welcome
 // for a new one. The first step waits for the click; the panel's anchors
 // mount after it, so each of those waits and is skipped rather than ending
@@ -1432,11 +1432,11 @@ export function buildAiIntroTour(): TourDefinition {
         }),
         body: t3({
           en:
-            "The AI assistant can answer questions about your results and help you write reports and slides. Click the AI button to open it.",
+            "The AI assistant can answer questions about your results and help you write reports and slides. Click Ask AI to open it.",
           fr:
-            "L'assistant IA répond à vos questions sur les résultats et vous aide à rédiger des rapports et des présentations. Cliquez sur le bouton IA pour l'ouvrir.",
+            "L'assistant IA répond à vos questions sur les résultats et vous aide à rédiger des rapports et des présentations. Cliquez sur Demander à l'IA pour l'ouvrir.",
           pt:
-            "O assistente de IA responde a perguntas sobre os seus resultados e ajuda-o a escrever relatórios e apresentações. Clique no botão IA para o abrir.",
+            "O assistente de IA responde a perguntas sobre os seus resultados e ajuda-o a escrever relatórios e apresentações. Clique em Perguntar à IA para o abrir.",
         }),
         placement: "left",
         advanceOn: "click",
@@ -1509,11 +1509,11 @@ export function buildAiIntroTour(): TourDefinition {
         }),
         body: t3({
           en:
-            "This arrow hides the panel, and the AI button brings it back. Drag the panel's left edge to make it wider.",
+            "This arrow hides the panel, and Ask AI brings it back. Drag the panel's left edge to make it wider.",
           fr:
-            "Cette flèche masque le panneau, et le bouton IA le fait revenir. Faites glisser le bord gauche du panneau pour l'élargir.",
+            "Cette flèche masque le panneau, et Demander à l'IA le fait revenir. Faites glisser le bord gauche du panneau pour l'élargir.",
           pt:
-            "Esta seta oculta o painel, e o botão IA volta a abri-lo. Arraste a margem esquerda do painel para o alargar.",
+            "Esta seta oculta o painel, e Perguntar à IA volta a abri-lo. Arraste a margem esquerda do painel para o alargar.",
         }),
         placement: "bottom",
         ...SKIP_IF_MISSING,

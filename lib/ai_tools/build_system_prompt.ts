@@ -490,25 +490,16 @@ Before writing any interpretation, settle which way is good for the indicator.
 // Appended to the editing brief while the report is still untouched. Its
 // text never changes, so it rides the conversation once; the moment the body
 // holds anything the instructions drop it and the model edits directly.
-const STARTING_A_REPORT =
-  `## Starting this report: brief, sections, plan, then draft
+const STARTING_A_REPORT = `## Starting this report: brief, outline, then draft
 
-This report is still EMPTY (a title at most). When the user asks you to write it (or to draft, start or fill it), do not draft straight away. Work through these steps:
+This report is still EMPTY (a title at most). When the user asks you to write it (or to draft, start or fill it), do not draft straight away. Work through these steps, one message each:
 
-1. **Brief.** Ask what the user's request leaves open, at most four questions, each with ask_user_questions (one call per question, one question at a time), skipping any the request already answers: who the report is for, how long it should be (a short brief of two to four pages, or a full report), which indicators, areas or period it should focus on, and, last, what the report should be called: the title on its cover, or on its first heading when it has no cover. Give each question your suggested answers as options, the one you recommend first; the user can always type their own instead. For the title, suggest two or three titles that fit the answers so far, and offer the report's current name first when it is not the default untitled name ("Untitled report" or its translation).
-2. **Look at the data.** With the answers, call get_available_metrics, then get_metric_data for the candidate indicators, so the sections and the plan rest on real numbers. Do not write to the report yet.
-3. **Sections.** Before any detailed plan, list in chat the sections you intend to write, each as its heading and one line on what it covers. Then, in the same message, call ask_user_questions asking whether these are the right sections, with exactly these two options, labelled in the user's language: "These sections look good", "Add or remove sections". Then WAIT:
-   - **These sections look good**: go to step 4.
-   - **Add or remove sections**: ask which sections to add or remove, show the revised list and ask again the same way. Repeat until the user is happy.
-   - **The user's own answer**: treat it as the additions and removals; show the revised list and ask again.
-4. **Final plan.** For the agreed sections, propose the full plan in chat, not in the report: each section's heading, what it says, the indicators and figures it will use (by metric and preset), and the headline numbers you found. Then, in the same message, call ask_user_questions asking whether to write it, with exactly these three options, labelled in the user's language: "Yes, write it", "No", "Keep planning". Then WAIT:
-   - **Yes, write it**: go to step 5.
-   - **Keep planning**: ask what to change, revise the plan, show it again and ask again. Repeat as often as the user wants.
-   - **No**: write nothing. Ask briefly what they would like to do instead.
-   - **The user's own answer**: treat it as changes to the plan; revise, show it again and ask again.
-5. **Draft.** Write the whole report in ONE rewrite_report (after checking it with get_report_pages), following the approved plan, with the agreed title as the cover's title (or the first heading when there is no cover). Once the user accepts it, add the plan's figures with insert_figure, each after its section's heading. Do not ask the brief or the sections again once they have been agreed in this conversation.
+1. **Brief.** Ask at most three short questions in ONE message, skipping any the user's request already answers: who the report is for, how long it should be (a short brief of two to four pages, or a full report), and which indicators, areas or period it should focus on. Offer a sensible default for each so the user can just say "go with your suggestions".
+2. **Look at the data.** With the answers, call get_available_metrics, then get_metric_data for the candidate indicators, so the outline rests on real numbers. Do not write to the report yet.
+3. **Outline.** Propose the outline in chat, not in the report: each section's heading, one line on what it says, the indicators and figures it will use (by metric and preset), and the headline numbers you found. Then ask the user to approve it or change it, and WAIT. Revise it as often as they ask.
+4. **Draft.** Once the user approves, write the whole report in ONE rewrite_report (after checking it with get_report_pages), following the outline. Once the user accepts it, add the outline's figures with insert_figure, each after its section's heading. Do not ask the brief again once it has been answered in this conversation.
 
-If the user explicitly says to skip the questions or the plan ("just write it"), go straight to the draft.`;
+If the user explicitly says to skip the questions or the outline ("just write it"), go straight to the draft.`;
 
 export function getEditingReportInstructions(
   reportLabel: string,

@@ -108,29 +108,7 @@ const MODULE_PROGRESS_INTENT: Record<RunModuleProgressStatus, Intent> = {
 
 // `active` is the caller's word that the pipeline is on this module now,
 // whatever its status: a reused module's copy pulses like a running script.
-// With `onClick` the chip is a button (the status bar opens the module's log).
 export function ModuleProgressChip(p: {
-  label: string;
-  status: RunModuleProgressStatus;
-  active: boolean;
-  onClick?: () => void;
-}) {
-  return (
-    <Show when={p.onClick} keyed fallback={<ModuleProgressBadge {...p} />}>
-      {(onClick) => (
-        <button
-          type="button"
-          class="cursor-pointer rounded-full hover:opacity-80"
-          onClick={onClick}
-        >
-          <ModuleProgressBadge {...p} />
-        </button>
-      )}
-    </Show>
-  );
-}
-
-function ModuleProgressBadge(p: {
   label: string;
   status: RunModuleProgressStatus;
   active: boolean;

@@ -741,26 +741,22 @@ label is read live through the context's `getLabel`), and its instructions are
 ([lib/ai_tools/build_system_prompt.ts](lib/ai_tools/build_system_prompt.ts)).
 `untouched` is `isUntouchedReport` over the live body, figures and images (a
 title line alone, no embeds): while it holds, the instructions carry "Starting
-this report", which has the model ask a brief (at most three
-`ask_user_questions` cards, one at a time), read the data, list the sections it
-means to write and ask "These sections look good" / "Add or remove sections"
-(revising the list until agreed), then propose the full data-grounded plan and
-ask "Yes, write it" / "No" / "Keep planning" (Keep planning, or a typed answer,
-revises the plan and asks again; No writes nothing), then write the draft in one
-`rewrite_report` and add the plan's figures with `insert_figure` after it is
-accepted. The text changes once the body holds anything, so the next message
-carries the plain editing brief. Tokens are built and parsed through the
-engine's helpers (`report-forge/engine/embeds.ts`). `get_report_editor` prints
-the body, a headings index (each top-level heading's 1-based line and the exact
-section range, from `report-forge/engine/report_sections.ts`), a one-line index
-of the figures (one that reads as a retired metric's successor, or has no metric
-in the package, says so beside its stored id), the image ids and the user's
-selection; `rewrite_section` splices that range; `insert_figure.afterHeading`
-lands on the line after the heading (`insertAfterReportHeading`). A proposed
-body is refused before anything is staged when it names an embed id the report
-does not have, writes an embed as an html `<img>` token (the message gives the
-correct spelling), exceeds the body cap or breaks one of the format's rules
-below.
+this report", which has the model ask a brief (at most three questions, one
+message), read the data, propose a data-grounded outline in chat and wait for
+approval, then write the draft in one `rewrite_report` and add the outline's
+figures with `insert_figure` after it is accepted. The text changes once the
+body holds anything, so the next message carries the plain editing brief. Tokens
+are built and parsed through the engine's helpers
+(`report-forge/engine/embeds.ts`). `get_report_editor` prints the body, a
+headings index (each top-level heading's 1-based line and the exact section
+range, from `report-forge/engine/report_sections.ts`), a one-line index of the
+figures (one that reads as a retired metric's successor, or has no metric in the
+package, says so beside its stored id), the image ids and the user's selection;
+`rewrite_section` splices that range; `insert_figure.afterHeading` lands on the
+line after the heading (`insertAfterReportHeading`). A proposed body is refused
+before anything is staged when it names an embed id the report does not have,
+writes an embed as an html `<img>` token (the message gives the correct
+spelling), exceeds the body cap or breaks one of the format's rules below.
 
 Nothing in the copilot MINTS a report: creation is the products page's
 `createProduct`, which always mints FASTR Markdown (S12). The copilot's report
