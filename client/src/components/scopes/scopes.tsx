@@ -6,10 +6,13 @@ import {
   type ScopeDefinition,
   type ScopeId,
   t3,
+  TC,
 } from "lib";
 import {
   Badge,
+  type BulkAction,
   Button,
+  createDeleteAction,
   createTableConfig,
   FrameTop,
   openComponent,
@@ -20,16 +23,18 @@ import {
 } from "panther";
 import { createMemo, Show } from "solid-js";
 import {
+  deleteEachInTurn,
   ProductCountBadge,
   scopeDisplayLabel,
   usageColumnHeader,
 } from "~/components/_shared/mod.ts";
+import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import {
   copilotViewController,
   holdCopilotView,
 } from "~/components/instance/copilot/mod.ts";
-import { AllDataScopeView, ScopeEditor } from "./scope_editor";
+import { ScopeEditor } from "./scope_editor";
 
 type ScopeRow = {
   id: ScopeId;
@@ -43,8 +48,8 @@ type ScopeRow = {
 
 // The Scopes tab: scopes are created, edited and deleted here, by global
 // admins only (the tab and the scope routes are guarded the same way). A
-// product picks one by label. The reserved "All data" scope is listed and
-// opens read-only.
+// product picks one by label. The reserved "All data" scope is a fixed
+// statement above the table, which lists the others.
 export function InstanceScopes() {
   holdCopilotView();
   copilotViewController.setView("scopes");
@@ -53,27 +58,58 @@ export function InstanceScopes() {
     sort: { key: "label", direction: "asc" },
   });
 
-  const rows = createMemo(() => {
-    const counts = productCountsByScope();
-    return instanceState.scopes.map((scope) => toRow(scope, counts));
-  });
+  const counts = createMemo(() => productCountsByScope());
+  const rows = createMemo(() =>
+    instanceState.scopes
+      .filter((scope) => scope.id !== ALL_DATA_SCOPE_ID)
+      .map((scope) => toRow(scope, counts()))
+  );
 
   function openEditor(scope: Scope | undefined) {
-    const productCount = scope === undefined
-      ? 0
-      : productCountsByScope().get(scope.id) ?? 0;
-    if (scope?.id === ALL_DATA_SCOPE_ID) {
-      void openComponent({
-        element: AllDataScopeView,
-        props: { scope, productCount },
-      });
-      return;
-    }
     void openComponent({
       element: ScopeEditor,
-      props: { scope, productCount },
+      props: {
+        scope,
+        productCount: scope === undefined ? 0 : counts().get(scope.id) ?? 0,
+      },
     });
   }
+
+  async function handleBulkDelete(selected: ScopeRow[]): Promise<void> {
+    const deleteAction = createDeleteAction(
+      {
+        text: plural(selected.length, {
+          one: t3({
+            en: "Are you sure you want to delete this scope?",
+            fr: "Êtes-vous sûr de vouloir supprimer cette portée ?",
+            pt: "Tem a certeza de que pretende eliminar este âmbito?",
+          }),
+          other: t3({
+            en: "Are you sure you want to delete these scopes?",
+            fr: "Êtes-vous sûr de vouloir supprimer ces portées ?",
+            pt: "Tem a certeza de que pretende eliminar estes âmbitos?",
+          }),
+        }),
+        itemList: selected.map((scope) => scope.label),
+      },
+      () =>
+        deleteEachInTurn(
+          selected,
+          (scope) => scope.label,
+          (scope) => serverActions.deleteScope({ scope_id: scope.id }),
+        ),
+    );
+    await deleteAction.click();
+  }
+
+  const bulkActions: BulkAction<ScopeRow>[] = [
+    {
+      label: t3(TC.delete),
+      intent: "danger",
+      outline: true,
+      onClick: handleBulkDelete,
+    },
+  ];
 
   const columns: TableColumn<ScopeRow>[] = [
     {
@@ -103,36 +139,71 @@ export function InstanceScopes() {
 
   return (
     <FrameTop pad="md">
-      <Table
-        data={rows()}
-        columns={columns}
-        config={scopesTable}
-        keyField="id"
-        noRowsMessage={t3({
-          en: "No scopes",
-          fr: "Aucune portée",
-          pt: "Sem âmbitos",
-        })}
-        onRowClick={(row) =>
-          openEditor(instanceState.scopes.find((s) => s.id === row.id))}
-        itemLabel={{
-          one: t3({ en: "scope", fr: "portée", pt: "âmbito" }),
-          other: t3({ en: "scopes", fr: "portées", pt: "âmbitos" }),
-        }}
-        toolbar={{
-          search: true,
-          children: (
-            <Button onClick={() => openEditor(undefined)} iconName="plus">
-              {t3({
-                en: "New scope",
-                fr: "Nouvelle portée",
-                pt: "Novo âmbito",
-              })}
-            </Button>
-          ),
-        }}
-      />
+      <div class="ui-gap flex h-full w-full flex-col">
+        <AllDataScopePanel
+          productCount={counts().get(ALL_DATA_SCOPE_ID) ?? 0}
+        />
+        <div class="min-h-0 flex-1">
+          <Table
+            data={rows()}
+            columns={columns}
+            config={scopesTable}
+            keyField="id"
+            noRowsMessage={t3({
+              en: "No scopes",
+              fr: "Aucune portée",
+              pt: "Sem âmbitos",
+            })}
+            onRowClick={(row) =>
+              openEditor(instanceState.scopes.find((s) => s.id === row.id))}
+            bulkActions={bulkActions}
+            itemLabel={{
+              one: t3({ en: "scope", fr: "portée", pt: "âmbito" }),
+              other: t3({ en: "scopes", fr: "portées", pt: "âmbitos" }),
+            }}
+            toolbar={{
+              search: true,
+              children: (
+                <Button onClick={() => openEditor(undefined)} iconName="plus">
+                  {t3({
+                    en: "New scope",
+                    fr: "Nouvelle portée",
+                    pt: "Novo âmbito",
+                  })}
+                </Button>
+              ),
+            }}
+          />
+        </div>
+      </div>
     </FrameTop>
+  );
+}
+
+// The reserved scope, above the table rather than in it: the routes refuse
+// to edit or delete it, so it is neither a row to open nor one to select,
+// and it stays first whatever the sort or search.
+function AllDataScopePanel(p: { productCount: number }) {
+  return (
+    <div class="ui-gap ui-pad-x ui-pad-y-sm bg-base-100 flex flex-none flex-wrap items-center rounded border text-sm">
+      <span class="font-700">{t3(TC.allData)}</span>
+      <Badge intent="primary" variant="solid">
+        {t3({ en: "Built in", fr: "Intégrée", pt: "Incorporado" })}
+      </Badge>
+      <span class="text-base-content-muted">
+        {t3({
+          en:
+            "Includes HMIS, HFA and ICEH data and limits nothing. It cannot be edited or deleted.",
+          fr:
+            "Inclut les données HMIS, HFA et ICEH et ne limite rien. Ne peut être ni modifiée ni supprimée.",
+          pt:
+            "Inclui os dados HMIS, HFA e ICEH e não limita nada. Não pode ser editado nem eliminado.",
+        })}
+      </span>
+      <div class="ml-auto">
+        <ProductCountBadge count={p.productCount} />
+      </div>
+    </div>
   );
 }
 

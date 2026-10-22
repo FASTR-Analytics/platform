@@ -2,6 +2,7 @@ import {
   type DatasetHmisImportRunSummary,
   type Dhis2FetchErrorKind,
   type Dhis2PairFetchStat,
+  type Dhis2PullBy,
   type Dhis2RunPairInput,
   getCalendar,
   t3,
@@ -14,6 +15,7 @@ import {
   FrameTop,
   getEditorWrapper,
   HeadingBar,
+  openAlert,
   StateHolderWrapper,
   Table,
   type TableColumn,
@@ -23,8 +25,7 @@ import { createMemo, For, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import {
   dataIdWithIndicator,
-  dhis2FormulaRemedy,
-  dhis2NotFoundRemedy,
+  dhis2IdRepairNote,
   indicatorNameText,
   indicatorsByDataId,
 } from "~/components/data/hmis/_shared/mod.ts";
@@ -40,6 +41,32 @@ function errorKindLabel(kind: Dhis2FetchErrorKind | undefined): string {
     return t3({ en: "Server", fr: "Serveur", pt: "Servidor" });
   }
   return "";
+}
+
+function pullByText(version: string, pullBy: Dhis2PullBy | undefined): string {
+  if (pullBy === "dataSet") {
+    return t3({
+      en:
+        `DHIS2 ${version}: values pulled by data set, since a release before 2.39 cannot serve a single data element.`,
+      fr:
+        `DHIS2 ${version} : valeurs récupérées par ensemble de données, car une version antérieure à 2.39 ne peut pas servir un seul élément de données.`,
+      pt:
+        `DHIS2 ${version}: valores obtidos por conjunto de dados, porque uma versão anterior à 2.39 não consegue servir um único elemento de dados.`,
+    });
+  }
+  return t3({
+    en: `DHIS2 ${version}: values pulled by data element.`,
+    fr: `DHIS2 ${version} : valeurs récupérées par élément de données.`,
+    pt: `DHIS2 ${version}: valores obtidos por elemento de dados.`,
+  });
+}
+
+function errorDetailLabel(): string {
+  return t3({
+    en: "Error detail",
+    fr: "Détail de l'erreur",
+    pt: "Detalhe do erro",
+  });
 }
 
 // The per-run error surface: everything the system recorded about one run
@@ -83,6 +110,22 @@ export function Dhis2RunDetail(
     const indicator = byDataId().get(dataId);
     return indicator ? indicatorNameText(indicator) : "";
   };
+  // The table truncates the error; the dialog shows all of it, under the
+  // pair it belongs to.
+  function viewPairError(s: Dhis2PairFetchStat) {
+    void openAlert({
+      title: errorDetailLabel(),
+      text: () => (
+        <div class="ui-spy-sm">
+          <div>
+            {dataIdWithIndicator(s.dataId, byDataId().get(s.dataId))},{" "}
+            {formatPeriod(s.periodId, "year-month", getCalendar())}
+          </div>
+          <div class="whitespace-pre-wrap wrap-break-word">{s.error ?? ""}</div>
+        </div>
+      ),
+    });
+  }
   const idList = (ids: string[]) => (
     <div class="ui-spy-sm">
       <For each={ids}>
@@ -135,15 +178,24 @@ export function Dhis2RunDetail(
       },
       {
         key: "error",
-        header: t3({
-          en: "Error detail",
-          fr: "Détail de l'erreur",
-          pt: "Detalhe do erro",
-        }),
+        header: errorDetailLabel(),
         render: (s) => (
-          <span class="block max-w-md truncate" title={s.error}>
-            {s.error ?? ""}
-          </span>
+          <span class="block max-w-md truncate">{s.error ?? ""}</span>
+        ),
+      },
+      {
+        key: "view",
+        header: "",
+        alignH: "right",
+        pullInY: true,
+        render: (s) => (
+          <Button
+            size="sm"
+            outline
+            onClick={() => viewPairError(s)}
+          >
+            {t3({ en: "View error", fr: "Voir l'erreur", pt: "Ver o erro" })}
+          </Button>
         ),
       },
     ];
@@ -297,6 +349,8 @@ export function Dhis2RunDetail(
               keyedDetail.runStats?.classification.unknownIds ?? [];
             const dhis2IndicatorIds =
               keyedDetail.runStats?.classification.dhis2IndicatorIds ?? [];
+            const noMonthlyDataSetIds =
+              keyedDetail.runStats?.classification.noMonthlyDataSetIds ?? [];
             const failedPairStats = (keyedDetail.runStats?.pairFetchStats ?? [])
               .filter((s) => !s.success)
               .map((s) => ({ ...s, key: `${s.dataId}|${s.periodId}` }));
@@ -385,6 +439,13 @@ export function Dhis2RunDetail(
                     </div>
                   )}
                 </Show>
+                <Show when={keyedDetail.runStats?.dhis2Version} keyed>
+                  {(version) => (
+                    <div class="text-sm">
+                      {pullByText(version, keyedDetail.runStats?.pullBy)}
+                    </div>
+                  )}
+                </Show>
                 <Show
                   when={keyedDetail.runStats === undefined &&
                     keyedDetail.status !== "running"}
@@ -423,7 +484,7 @@ export function Dhis2RunDetail(
                           "Os seus IDs DHIS2 não correspondem a nenhum elemento de dados nem operando no DHIS2, pelo que todos os meses selecionados de cada um falharam sem obtenção e falharão em todas as importações até ser corrigido.",
                       })}
                     </div>
-                    <div>{dhis2NotFoundRemedy()}</div>
+                    <div>{dhis2IdRepairNote()}</div>
                     {idList(unknownIds)}
                   </div>
                 </Show>
@@ -449,8 +510,34 @@ export function Dhis2RunDetail(
                           "Uma fórmula DHIS2 é aquilo a que o DHIS2 chama um indicador, e a importação lê apenas elementos de dados, pelo que todos os meses selecionados de cada um destes falharam sem obtenção e continuarão a falhar; os dados já importados são mantidos.",
                       })}
                     </div>
-                    <div>{dhis2FormulaRemedy()}</div>
+                    <div>{dhis2IdRepairNote()}</div>
                     {idList(dhis2IndicatorIds)}
+                  </div>
+                </Show>
+
+                <Show when={noMonthlyDataSetIds.length > 0}>
+                  <div class="border-danger bg-danger-subtle ui-pad ui-spy-sm rounded border">
+                    <div class="ui-text-heading">
+                      {t3({
+                        en:
+                          "Some selected indicators are collected in no monthly data set",
+                        fr:
+                          "Certains indicateurs sélectionnés ne sont collectés dans aucun ensemble de données mensuel",
+                        pt:
+                          "Alguns indicadores selecionados não são recolhidos em nenhum conjunto de dados mensal",
+                      })}
+                    </div>
+                    <div>
+                      {t3({
+                        en:
+                          "This DHIS2 release serves values only by data set, and no monthly data set collects these elements, so every selected month of each failed without a fetch and will keep failing; data already imported is kept. Ask the DHIS2 administrator which monthly data set collects them.",
+                        fr:
+                          "Cette version de DHIS2 ne sert les valeurs que par ensemble de données, et aucun ensemble de données mensuel ne collecte ces éléments : chaque mois sélectionné de chacun a donc échoué sans récupération et continuera d'échouer ; les données déjà importées sont conservées. Demandez à l'administrateur DHIS2 quel ensemble de données mensuel les collecte.",
+                        pt:
+                          "Esta versão do DHIS2 serve valores apenas por conjunto de dados, e nenhum conjunto de dados mensal recolhe estes elementos, pelo que todos os meses selecionados de cada um falharam sem obtenção e continuarão a falhar; os dados já importados são mantidos. Pergunte ao administrador do DHIS2 que conjunto de dados mensal os recolhe.",
+                      })}
+                    </div>
+                    {idList(noMonthlyDataSetIds)}
                   </div>
                 </Show>
 

@@ -292,7 +292,7 @@ export async function getInstanceIndicatorDetails(
 // being written, so a cycle is judged against the state the write would
 // produce; `rename` is the id change the write makes, applied to the
 // dictionary and to every stored expression before anything is judged.
-async function checkDefinitionsResolve(
+export async function checkDefinitionsResolve(
   mainDb: Sql,
   pendingDefinitions: Map<string, HmisIndicatorDefinitionInput>,
   rename?: { from: string; to: string },
@@ -489,7 +489,7 @@ export type NewIndicator = {
 // What an insert writes: a posted indicator plus the DHIS2 label, which no
 // client posts. The naming step supplies the server's reading of DHIS2's
 // name for each element it creates; every other create writes NULL.
-type IndicatorInsert = NewIndicator & { dhis2_label: string | null };
+export type IndicatorInsert = NewIndicator & { dhis2_label: string | null };
 
 // The pre-checks every create shares: each id through the validator (a
 // reserved word refused, a special id accepted for a count and refused for
@@ -572,7 +572,7 @@ async function checkIndicatorWrites(
   );
 }
 
-async function writeMembers(
+export async function writeMembers(
   sql: Sql,
   sumId: string,
   members: string[],
@@ -590,7 +590,7 @@ async function writeMembers(
 // (every later statement fails with "transaction is aborted"), so per-item
 // catch-and-continue can never deliver partial success. The rethrow
 // decorates the error with the item that caused it.
-async function insertIndicators(
+export async function insertIndicators(
   sql: Sql,
   indicators: IndicatorInsert[],
 ): Promise<void> {
@@ -1087,7 +1087,7 @@ export async function updateIndicator(
       `;
       await writeMembers(sql, newId, d.members);
       if (rename !== undefined) {
-        await renameReferences(sql, rename.from, rename.to);
+        await renameReferences(sql, new Map([[rename.from, rename.to]]));
       }
     });
 
@@ -1095,13 +1095,16 @@ export async function updateIndicator(
   });
 }
 
-// Every calculated expression naming the old id, and every schedule selection
-// listing it, rewritten to the new id.
-async function renameReferences(
+// Every calculated expression naming an old id, and every schedule selection
+// listing one, rewritten to its new id, keyed old to new; a selection that
+// already lists a new id lists it once.
+export async function renameReferences(
   sql: Sql,
-  from: string,
-  to: string,
+  renames: ReadonlyMap<string, string>,
 ): Promise<void> {
+  if (renames.size === 0) {
+    return;
+  }
   const calculated = await sql<
     { indicator_common_id: string; expression: string }[]
   >`
@@ -1109,7 +1112,11 @@ async function renameReferences(
     WHERE definition_type = 'calculated' AND expression IS NOT NULL
   `;
   for (const row of calculated) {
-    const rewritten = renameIdentifierInExpression(row.expression, from, to);
+    const rewritten = [...renames].reduce(
+      (expression, [from, to]) =>
+        renameIdentifierInExpression(expression, from, to),
+      row.expression,
+    );
     if (rewritten === row.expression) continue;
     await sql`
       UPDATE indicators
@@ -1126,12 +1133,14 @@ async function renameReferences(
       row.selection,
     );
     const ids = selection?.indicatorIds;
-    return Array.isArray(ids) && ids.includes(from)
+    const renamedId = (id: unknown) =>
+      typeof id === "string" ? renames.get(id) : undefined;
+    return Array.isArray(ids) && ids.some((id) => renamedId(id) !== undefined)
       ? [{
         id: row.id,
         selection: JSON.stringify({
           ...selection,
-          indicatorIds: ids.map((id) => id === from ? to : id),
+          indicatorIds: [...new Set(ids.map((id) => renamedId(id) ?? id))],
         }),
       }]
       : [];

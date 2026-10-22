@@ -1,7 +1,10 @@
 import type { ContentBlock, MetricWithStatus, Slide } from "lib";
 import { getDataFromConfig } from "lib";
 import type { LayoutNode } from "panther";
-import { formatFigureConfigForAI } from "../_shared/mod.ts";
+import {
+  formatFigureConfigForAI,
+  readFigureMetricForAI,
+} from "../_shared/mod.ts";
 import {
   layoutNodeToStructure,
   type LayoutStructure,
@@ -90,31 +93,38 @@ export async function simplifySlideForAI(
         // Figure block
         if (block.bundle) {
           const bundle = block.bundle;
-          const metric = (metrics ?? []).find((m) => m.id === bundle.metricId);
+          const { lines, metric, config } = readFigureMetricForAI(
+            metrics ?? [],
+            bundle,
+          );
+          const metricId = metric?.id ?? bundle.metricId;
           let cfg: string;
           try {
             cfg = await formatFigureConfigForAI(
               env,
               metric,
-              bundle.config,
+              config,
               bundle.dateRange,
             );
           } catch (err) {
             cfg =
-              `Figure (metric: ${bundle.metricId}, type: ${bundle.config.d.type}) — config unavailable: ${err}`;
+              `Figure (metric: ${metricId}, type: ${config.d.type}) — config unavailable: ${err}`;
           }
           let data: string;
           try {
             data = await getDataFromConfig(
               env,
-              bundle.metricId,
+              metricId,
               metrics ?? [],
-              bundle.config,
+              config,
             );
           } catch (err) {
             data = `(data unavailable: ${err})`;
           }
-          return { id, summary: `Figure\n${cfg}\n\n${data}` };
+          return {
+            id,
+            summary: ["Figure", ...lines, cfg, "", data].join("\n"),
+          };
         } else {
           return { id, summary: "Figure (no data)" };
         }

@@ -185,7 +185,7 @@ The user is editing the saved visualization "${label}", a product of its own tha
     case "package":
       return `# Current View: Figure viewer (package)
 
-The user is looking at the package's default visualization "${label}" in the figure viewer, which belongs to no product: the draft is for looking at, and closing the viewer keeps nothing. ${FIGURE_EDITOR_TOOLS_LINES} The figure resolves under the package page's package and scope.`;
+The user is looking at the package's preset "${label}" in the figure viewer, which belongs to no product: the draft is for looking at, and closing the viewer keeps nothing. ${FIGURE_EDITOR_TOOLS_LINES} The figure resolves under the package page's package and scope.`;
   }
 }
 

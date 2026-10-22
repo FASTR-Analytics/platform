@@ -770,12 +770,14 @@ carries the plain editing brief. Tokens are built and parsed through the
 engine's helpers (`report-forge/engine/embeds.ts`). `get_report_editor` prints
 the body, a headings index (each top-level heading's 1-based line and the exact
 section range, from `report-forge/engine/report_sections.ts`), a one-line index
-of the figures, the image ids and the user's selection; `rewrite_section`
-splices that range; `insert_figure.afterHeading` lands on the line after the
-heading (`insertAfterReportHeading`). A proposed body is refused before anything
-is staged when it names an embed id the report does not have, writes an embed as
-an html `<img>` token (the message gives the correct spelling), exceeds the body
-cap or breaks one of the format's rules below.
+of the figures (one that reads as a retired metric's successor, or has no metric
+in the package, says so beside its stored id), the image ids and the user's
+selection; `rewrite_section` splices that range; `insert_figure.afterHeading`
+lands on the line after the heading (`insertAfterReportHeading`). A proposed
+body is refused before anything is staged when it names an embed id the report
+does not have, writes an embed as an html `<img>` token (the message gives the
+correct spelling), exceeds the body cap or breaks one of the format's rules
+below.
 
 Nothing in the copilot MINTS a report: creation is the products page's
 `createProduct`, which always mints FASTR Markdown (S12). The copilot's report
@@ -848,7 +850,14 @@ brief used to say a stat "reads well inside a card"); `checkFastrStatPlacement`
 staged text tools.
 
 **Validate-before-commit.** `update_figure` (any slide, open or stored) and
-`update_report_figure` share one pipeline: `applyFigureConfigPatch` →
+`update_report_figure` share one pipeline, run on the metric and config
+`resolveFigureMetric` gives the stored figure (S10 "The captured pair and
+staleness": its own metric, or a retired metric's successor with the config
+carried across, so an edit of such a figure stores it as its successor and
+reports the move in its success message; a figure with neither refuses, naming
+the retired module and the missing successor when the metric is a retired one,
+else the bare id), the same resolution `get_slide` and `get_report_figure` print
+above a figure whose metric is not the package's own: `applyFigureConfigPatch` →
 `validateFigureConfigEdit` (pure config checks: slots, field liveness, roll-up
 structure, pre-write collision) → `validateMetricInputs` (live data) →
 `describeFigureConfigPatchEffect` (the per-field leave-one-out change report in

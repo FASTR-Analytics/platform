@@ -7,7 +7,7 @@ import {
   getRunDatasetsFromManifest,
   type RunReadContext,
 } from "./run_read.ts";
-import { deriveVirtualDefaults } from "./virtual_defaults.ts";
+import { derivePackagePresets } from "./package_presets.ts";
 
 // The RunAuthoringContext contract is documented on the type
 // (lib/types/run_authoring_context.ts). This is its one builder: the manifest
@@ -43,7 +43,7 @@ export async function buildRunAuthoringContext(
     hmisIndicators: manifest.hmisIndicators,
     icehIndicators,
     hfaTaxonomy,
-    presets: deriveVirtualDefaults(manifest).filter((p) =>
+    presets: derivePackagePresets(manifest).filter((p) =>
       metricIds.has(p.metricId)
     ),
     population: manifest.population,

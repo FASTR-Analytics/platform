@@ -9,7 +9,7 @@ globs:
   - client/src/state/instance/_util_disaggregation_label.ts
   - client/src/state/t4_explore.ts
   - lib/convert_visualization_type.ts
-  - lib/derive_default_visualizations.ts
+  - lib/derive_presets.ts
   - lib/disaggregation_labels.ts
   - lib/explore_query.ts
   - lib/explore_views.ts
@@ -51,8 +51,8 @@ The `globs:` frontmatter above is the lint-enforced manifest
 - the three panel tabs and their sub-panels; `replicate_by_options.tsx`;
   `conditional_formatting_editor.tsx` + `conditional_formatting_store.ts`) and
   `stale_figure_badge.tsx` (the per-figure stale badge, its "Update to
-  <package>" action and the "Update all figures" header button, the contract
-  being S10's "The captured pair and staleness").
+  <package>" action and the "Update all visualizations" header button, the
+  contract being S10's "The captured pair and staleness").
   `components/products/_shared/insert_figure/**` (the insert-figure wizard and
   the preset gallery it renders, below). `components/explore/**` (the instance
   Explore tab's page, S14 mounts it: "The Explore page" below). The figure
@@ -90,31 +90,31 @@ hosts open it: `slide_editor/slide_editor.tsx` (edits
 `report/report.tsx` (rebuilds the figure block), the visualization product's
 editor (`products/visualization/visualization.tsx`, S12), which renders it
 full-page as the product itself rather than through `openEditor`, and the
-package page's module pane (`ModuleVisualizations` in
-`results_packages/package_view/visualizations.tsx`, S8), which opens it
-`viewOnly`: no collab binding, Back is the only way out, and the draft never
-leaves the editor. Every host passes the pair as a plain value and the editor
-reads it once, so the pair is fixed for the editor's life, which is what the
-figure views' identity needs; the visualization product's editor remounts it
-(keyed) when its pair changes. `productChrome` (`{ title, actions }`, built once
-by the host) is how that host puts its product title and its own buttons in the
-editor's header; `label` is read live, so a rename reaches the header and the
-chat's label. Under a live binding the editor ships local edits only while
-`canEdit()` holds, so a viewer's local draft never reaches the room. The editor
-is a place of the chat (S13): the outer wrapper holds the view it opens over,
-and the inner editor sets the view the host names in the required `aiView` prop
-(`editing_slide_figure` with the deck, slide and block ids,
-`editing_report_figure` with the report and figure ids, `editing_visualization`
-with the visualization product's id, `viewing_package_figure` with the default
-visualization's id), through `setFigureEditorView`, once the draft exists, with
-a context that exposes the pair, the metric and the draft live (`getDraftConfig`
-reads the store, `applyDraftConfig` reconciles a config into it, so an AI write
-lands like a user's edit: it marks the draft for Apply, re-previews, and streams
-into the host doc under live co-editing); its instructions name the figure by
-the `label` prop. The two Figure editor tools, `get_figure_editor` and
-`update_figure_editor`, read and write that draft (S13). The results file viewer
-the editor's Download opens (`view_results_object.tsx`) holds the figure view
-and sets `results_file` from its props, with the same pair.
+package page's module pane (`ModulePresets` in
+`results_packages/package_view/presets.tsx`, S8), which opens it `viewOnly`: no
+collab binding, Back is the only way out, and the draft never leaves the editor.
+Every host passes the pair as a plain value and the editor reads it once, so the
+pair is fixed for the editor's life, which is what the figure views' identity
+needs; the visualization product's editor remounts it (keyed) when its pair
+changes. `productChrome` (`{ title, actions }`, built once by the host) is how
+that host puts its product title and its own buttons in the editor's header;
+`label` is read live, so a rename reaches the header and the chat's label. Under
+a live binding the editor ships local edits only while `canEdit()` holds, so a
+viewer's local draft never reaches the room. The editor is a place of the chat
+(S13): the outer wrapper holds the view it opens over, and the inner editor sets
+the view the host names in the required `aiView` prop (`editing_slide_figure`
+with the deck, slide and block ids, `editing_report_figure` with the report and
+figure ids, `editing_visualization` with the visualization product's id,
+`viewing_package_figure` with the preset's id), through `setFigureEditorView`,
+once the draft exists, with a context that exposes the pair, the metric and the
+draft live (`getDraftConfig` reads the store, `applyDraftConfig` reconciles a
+config into it, so an AI write lands like a user's edit: it marks the draft for
+Apply, re-previews, and streams into the host doc under live co-editing); its
+instructions name the figure by the `label` prop. The two Figure editor tools,
+`get_figure_editor` and `update_figure_editor`, read and write that draft (S13).
+The results file viewer the editor's Download opens (`view_results_object.tsx`)
+holds the figure view and sets `results_file` from its props, with the same
+pair.
 
 **Snapshot isolation.** The draft is
 `createStore(structuredClone(p.configSnapshot))`, so editor writes never reach
@@ -215,9 +215,9 @@ cannot drift. A preview renders through the one shared helper,
 the scope-keyed `state/products/t2_figure_data.ts` (S9) and assembles them with
 `makeFigureBundleFromFetchedData(scope, ...)` + `buildFigureInputs`, so
 reopening a preset under the same `(runId, definitionHash)` is a cache hit and a
-preset is never a row. The package page's default-visualization cards (S8)
-render through the same helper, so a default seen there and later inserted under
-the same pair is one cache entry. Custom configs go through
+preset is never a row. The package page's preset cards (S8) render through the
+same helper, so a default seen there and later inserted under the same pair is
+one cache entry. Custom configs go through
 `getStartingConfigForPresentationObject` (type defaults from `VIZ_TYPE_CONFIG`,
 display slots assigned via `getNextAvailableDisaggregationDisplayOption`). **The
 wizard never persists**. It closes with
@@ -508,36 +508,42 @@ type, the replicant where the metric requires it, else a filter), "Facilities
 with adequate data quality" and "Mean data quality score" (a table of areas by
 period; over time as one line; a map). m002 "Adjustment impact" (a switch over
 the outlier, completeness and combined adjustments; a table of areas by
-indicator; over time; a map under one indicator, a filter). m011 "Observed and
-expected services" (over time only, the national metric or the admin-area-2
-metric by the level, the area pinned as the replicant, the four values as lines
-under the disruptions chart style). m005 "Denominator values" (a table of
-denominators by year), "Denominator values by area" (a table of areas by year,
-at admin area 2 or 3, under one denominator, the replicant) and "Coverage by
-denominator type" (a table of denominator types by indicator at one year,
-national or by level with the area the replicant; over time with the types as
-lines, one pane per indicator). m006 "Coverage over time" (over time only,
-national or by level with the area the replicant, the three estimates as lines
-under the coverage chart style) and "Coverage by area" (a table of areas by
-indicator at one year, the HMIS coverage value only; a chart of bars by area
-under one indicator, the replicant, at one year; a map of the same).
-`UNBOUND_METRICS` holds m6-02-02 and m6-03-02, whose one value is the HMIS
-coverage of m6-02-01 and m6-03-01. m010 "Indicators by survey round" (a table of
-HFA indicators by round, under one HFA category, a filter, with the category
-narrowing the indicator options), "Indicators by area" (a table of areas by
-indicator at one round, under one category; a map under one indicator, the
-replicant, at one round) and "Indicators by variant item" (a table of indicators
-by variant item at one round, under one category), each with a switch over the
-observed values and the values carried forward from the round that last measured
-them, the tables coloured by the HFA threshold style; "Don't-know and missing
-rates" (a table of indicators by round under one category, a switch over the two
-rates, the default style). m009 "Coverage by population group" (a table of
-population groups by indicator at one year, under one stratifier, a filter; the
-equiplot, indicators on the axis with the groups as series at one year; over
-time with the groups as lines, one pane per indicator) and "Inequality measures"
-(a table of indicators by the four measures at one year, under one stratifier,
-the replicant; a chart of the concentration index by indicator at one year; over
-time as the concentration index, one line per indicator).
+indicator; over time; a map under one indicator, a filter) and "Volume by
+adjustment type" (over time only, the four adjustment bases as lines, one pane
+per indicator). m011 "Observed and expected services" (over time only, the
+national metric or the admin area 2, 3 or 4 metric by the level, the area pinned
+as the replicant, the four values as lines under the disruptions chart style)
+and "Service disruption" (a table of areas at the level by indicator, the
+percentage difference between observed and expected services coloured by the
+preset's thresholds; a map under one indicator, the replicant). m005
+"Denominator values" (a table of denominators by year), "Denominator values by
+area" (a table of areas by year, at admin area 2 or 3, under one denominator,
+the replicant) and "Coverage by denominator type" (a table of denominator types
+by indicator at one year, national or by level with the area the replicant; over
+time with the types as lines, one pane per indicator). m006 "Coverage over time"
+(over time only, national or by level with the area the replicant, the three
+estimates as lines under the coverage chart style) and "Coverage by area" (a
+table of areas by indicator at one year, the HMIS coverage value only; a chart
+of bars by area under one indicator, the replicant, at one year; a map of the
+same). `UNBOUND_METRICS` holds m6-02-02 and m6-03-02, whose one value is the
+HMIS coverage of m6-02-01 and m6-03-01, and m11-02-02, the observed and expected
+pair whose difference "Service disruption" reads. m010 "Indicators by survey
+round" (a table of HFA indicators by round, under one HFA category, a filter,
+with the category narrowing the indicator options), "Indicators by area" (a
+table of areas by indicator at one round, under one category; a map under one
+indicator, the replicant, at one round) and "Indicators by variant item" (a
+table of indicators by variant item at one round, under one category), each with
+a switch over the observed values and the values carried forward from the round
+that last measured them, the tables coloured by the HFA threshold style;
+"Don't-know and missing rates" (a table of indicators by round under one
+category, a switch over the two rates, the default style). m009 "Coverage by
+population group" (a table of population groups by indicator at one year, under
+one stratifier, a filter; the equiplot, indicators on the axis with the groups
+as series at one year; over time with the groups as lines, one pane per
+indicator) and "Inequality measures" (a table of indicators by the four measures
+at one year, under one stratifier, the replicant; a chart of the concentration
+index by indicator at one year; over time as the concentration index, one line
+per indicator).
 
 `lib/explore_query.ts` holds the state the page keeps and the resolution over
 it. A `FamilyQuery` (`level`, `indicators`, `period`, `grain`) is shared by a

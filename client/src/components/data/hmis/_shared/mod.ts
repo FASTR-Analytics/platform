@@ -1,11 +1,10 @@
 export {
   dataIdWithIndicator,
   definedByText,
-  dhis2FormulaRemedy,
   dhis2IdLabel,
+  dhis2IdRepairNote,
   dhis2LabelHeading,
   dhis2LabelOf,
-  dhis2NotFoundRemedy,
   indicatorFormatWord,
   indicatorNameText,
   indicatorsByDataId,

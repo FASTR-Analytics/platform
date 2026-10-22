@@ -11,7 +11,10 @@
 // run from DHIS2 metadata: data elements and operands are
 // fetched from dataValueSets (the values facilities reported, with no
 // DHIS2-side formula), the importer's only route; a DHIS2 indicator or any
-// id DHIS2 does not know is a permanent ledger error with no fetch. Data is
+// id DHIS2 does not know is a permanent ledger error with no fetch. A pull
+// selects by data element on DHIS2 2.39 and later, and by the element's
+// monthly data set on an earlier release, whose export ignores dataElement=
+// (the version DHIS2 reports at run start decides). Data is
 // selected by the instance-calendar PERIOD ID, an opaque token the DHIS2
 // server interprets in its own calendar, and the app never converts
 // calendars or dates anywhere in this path (lab E13: a calendar-configured
@@ -38,11 +41,13 @@ import type {
   Dhis2Credentials,
   Dhis2FetchErrorKind,
   Dhis2PairFetchStat,
+  Dhis2PullBy,
   Dhis2RunPair,
   Dhis2RunSelection,
   PeriodIndicatorStat,
 } from "lib";
 import type { FetchOptions } from "../../dhis2/common/base_fetcher.ts";
+import { getDhis2Version } from "../../dhis2/common/system_info.ts";
 import {
   createThrottledProgressWriter,
   PROGRESS_WRITE_INTERVAL_MS,
@@ -50,10 +55,15 @@ import {
 } from "../worker_contract.ts";
 import {
   getDataValueSetsFromDHIS2,
+  getMonthlyDataSetIdByElement,
   getOrgUnitIdsAtLevel,
 } from "../../dhis2/goal5_data_value_sets/mod.ts";
-import type { DHIS2DataValue } from "../../dhis2/goal5_data_value_sets/mod.ts";
+import type {
+  DHIS2DataValue,
+  Dhis2ValueSelector,
+} from "../../dhis2/goal5_data_value_sets/mod.ts";
 import {
+  buildPullTasks,
   classifyElements,
   defaultShouldRetry,
   describeFetchError,
@@ -62,6 +72,8 @@ import {
   type ElementRoute,
   isSplittableDvsError,
   pairKey,
+  pullByForVersion,
+  type PullTask,
   reduceDvsValues,
 } from "./dispatch.ts";
 
@@ -90,15 +102,6 @@ const DVS_TIMEOUT_MS = 300_000;
 type RunWorkerMessage = {
   runId: number;
   selection: Dhis2RunSelection;
-};
-
-type DvsTask = {
-  dataElementId: string;
-  // One pull = one month: the fetch unit matches the import unit.
-  periodId: number;
-  // Every data id this pull covers for that month: operands sharing a data
-  // element share one pull.
-  coveredPairs: DvsCoveredPair[];
 };
 
 type FetchAccumulator = {
@@ -149,9 +152,12 @@ async function run(std: RunWorkerMessage) {
   // catch path can persist whatever was known when the run died.
   let statsInputs:
     | {
+      dhis2Version: string;
+      pullBy: Dhis2PullBy;
       routes: Map<string, ElementRoute>;
       unknownIds: string[];
       dhis2IndicatorIds: string[];
+      noMonthlyDataSetIds: string[];
     }
     | null = null;
   const buildRunStatsJson = (): string | null => {
@@ -159,6 +165,8 @@ async function run(std: RunWorkerMessage) {
       return null;
     }
     const runStats: DatasetHmisImportRunStats = {
+      dhis2Version: statsInputs.dhis2Version,
+      pullBy: statsInputs.pullBy,
       classification: {
         dvsBareElements: countRoutes(
           statsInputs.routes,
@@ -170,6 +178,7 @@ async function run(std: RunWorkerMessage) {
         ),
         unknownIds: statsInputs.unknownIds,
         dhis2IndicatorIds: statsInputs.dhis2IndicatorIds,
+        noMonthlyDataSetIds: statsInputs.noMonthlyDataSetIds,
       },
       pairFetchStats,
     };
@@ -415,6 +424,16 @@ async function run(std: RunWorkerMessage) {
       retryOptions: { maxAttempts: 3, initialDelayMs: 1000, maxDelayMs: 30000 },
     };
 
+    const dhis2Version = await getDhis2Version(metadataFetchOptions);
+    const pullBy = pullByForVersion(dhis2Version);
+    if (dhis2Version === undefined || pullBy === undefined) {
+      throw new Error(
+        `DHIS2 reported no readable version (${
+          JSON.stringify(dhis2Version)
+        }): cannot choose how to select values`,
+      );
+    }
+
     const distinctDataIds = Array.from(
       new Set(allPairs.map((p) => p.dataId)),
     );
@@ -438,14 +457,34 @@ async function run(std: RunWorkerMessage) {
     const dvsPairs = allPairs.filter(
       (p) => routes.get(p.dataId)?.kind === "dvs",
     );
+    const dvsElementIds = Array.from(
+      new Set(
+        dvsPairs.flatMap((p) => {
+          const route = routes.get(p.dataId);
+          return route?.kind === "dvs" ? [route.dataElementId] : [];
+        }),
+      ),
+    );
+    const dataSetByElement = pullBy === "dataSet"
+      ? await getMonthlyDataSetIdByElement(dvsElementIds, metadataFetchOptions)
+      : new Map<string, string>();
+    const noMonthlyDataSetIds = pullBy === "dataSet"
+      ? distinctDataIds.filter((id) => {
+        const route = routes.get(id);
+        return route?.kind === "dvs" &&
+          !dataSetByElement.has(route.dataElementId);
+      })
+      : [];
     console.log(
-      `Run ${runId} classification: ${dvsPairs.length} dvs pairs, ` +
-        `${unknownIds.length} unknown ids, ${dhis2IndicatorIds.length} DHIS2 indicators`,
+      `Run ${runId} classification: DHIS2 ${dhis2Version}, pulls by ${pullBy}, ` +
+        `${dvsPairs.length} dvs pairs, ${unknownIds.length} unknown ids, ` +
+        `${dhis2IndicatorIds.length} DHIS2 indicators, ` +
+        `${noMonthlyDataSetIds.length} in no monthly data set`,
     );
 
     // Refused ids get no fetch: every pair becomes a permanent,
     // ledger-visible error so stale config is loud. A DHIS2 formula keeps its
-    // existing data. The authoritative wording of both remedies is the
+    // existing data. The authoritative wording of the repair note is the
     // dispatcher bullet of SYSTEM_06_ingestion.md.
     const failEveryPairOf = async (id: string, message: string) => {
       for (const pair of allPairs.filter((p) => p.dataId === id)) {
@@ -456,19 +495,25 @@ async function run(std: RunWorkerMessage) {
       await failEveryPairOf(
         id,
         `Not found in DHIS2: "${id}" matches no data element or operand ` +
-          `(data element . category option combo). To fix this, open the indicator list. ` +
-          `If this indicator holds no data, fix the id or delete the indicator. If it holds ` +
-          `data, change its type to Uploaded: it keeps its data, and no DHIS2 import fetches it again.`,
+          `(data element . category option combo). Ask the FASTR team to run the ` +
+          `DHIS2 id repair. It keeps the data already imported.`,
       );
     }
     for (const id of dhis2IndicatorIds) {
       await failEveryPairOf(
         id,
         `"${id}" is a DHIS2 formula (what DHIS2 calls an indicator), which this importer ` +
-          `does not fetch: only data elements and operands are imported as values. Its ` +
-          `existing data is kept. To fix this, in the indicator list use Add from DHIS2 to ` +
-          `search the formula by name and save it, then change this indicator's type to ` +
-          `Uploaded and turn off its Include in analysis, or delete it if it holds no data.`,
+          `does not fetch: only data elements and operands are imported as values. ` +
+          `Ask the FASTR team to run the DHIS2 id repair. It keeps the data already imported.`,
+      );
+    }
+    for (const id of noMonthlyDataSetIds) {
+      await failEveryPairOf(
+        id,
+        `"${id}" is collected in no monthly data set in DHIS2, and this DHIS2 release ` +
+          `(${dhis2Version}) serves values only by data set, so nothing can select it. ` +
+          `Ask the DHIS2 administrator which monthly data set collects it. ` +
+          `It keeps the data already imported.`,
       );
     }
 
@@ -487,57 +532,20 @@ async function run(std: RunWorkerMessage) {
       return level2OrgUnitIdsPromise;
     };
 
-    statsInputs = { routes, unknownIds, dhis2IndicatorIds };
+    statsInputs = {
+      dhis2Version,
+      pullBy,
+      routes,
+      unknownIds,
+      dhis2IndicatorIds,
+      noMonthlyDataSetIds,
+    };
 
     // ┌─────────────────────────────────────────────────────────────────────┐
     // │ PHASE 3: BUILD FETCH TASKS                                          │
     // └─────────────────────────────────────────────────────────────────────┘
 
-    const tasks: DvsTask[] = [];
-
-    // Group DVS pairs by data element: data ids sharing a data element
-    // (its operands) share pulls.
-    const byElement = new Map<
-      string,
-      {
-        dataIds: Array<{ dataId: string; coc: string | undefined }>;
-        periodsByDataId: Map<string, Set<number>>;
-      }
-    >();
-    for (const pair of dvsPairs) {
-      const route = routes.get(pair.dataId);
-      if (route?.kind !== "dvs") continue;
-      let group = byElement.get(route.dataElementId);
-      if (!group) {
-        group = { dataIds: [], periodsByDataId: new Map() };
-        byElement.set(route.dataElementId, group);
-      }
-      if (!group.periodsByDataId.has(pair.dataId)) {
-        group.dataIds.push({ dataId: pair.dataId, coc: route.coc });
-        group.periodsByDataId.set(pair.dataId, new Set());
-      }
-      group.periodsByDataId.get(pair.dataId)!.add(pair.periodId);
-    }
-    for (const [dataElementId, group] of byElement) {
-      const allPeriods = Array.from(
-        new Set(
-          Array.from(group.periodsByDataId.values()).flatMap((s) =>
-            Array.from(s)
-          ),
-        ),
-      ).sort((a, b) => a - b);
-      for (const periodId of allPeriods) {
-        const coveredPairs: DvsTask["coveredPairs"] = [];
-        for (const covered of group.dataIds) {
-          if (group.periodsByDataId.get(covered.dataId)!.has(periodId)) {
-            coveredPairs.push({ ...covered, periodId });
-          }
-        }
-        if (coveredPairs.length > 0) {
-          tasks.push({ dataElementId, periodId, coveredPairs });
-        }
-      }
-    }
+    const tasks = buildPullTasks(dvsPairs, routes, pullBy, dataSetByElement);
 
     // ┌─────────────────────────────────────────────────────────────────────┐
     // │ PHASE 4: FETCH + INTEGRATE (per pair, pooled)                       │
@@ -546,12 +554,12 @@ async function run(std: RunWorkerMessage) {
     progressPhase = "fetching";
     updateProgress(true);
 
-    // dataValueSets pull, one element × one month, selected by the
+    // dataValueSets pull, one selector × one month, selected by the
     // instance-calendar period token: no date conversion anywhere. On
     // size/timeout, split by level-2 subtree: never fail a pair on size
     // without having tried the split.
     const fetchDvsValues = async (
-      dataElementId: string,
+      selector: Dhis2ValueSelector,
       periodId: number,
       orgUnits: string[],
       allowOrgSplit: boolean,
@@ -561,9 +569,9 @@ async function run(std: RunWorkerMessage) {
         acc.requests++;
         const requestStartMs = Date.now();
         try {
-          const res = await getDataValueSetsFromDHIS2(
+          return await getDataValueSetsFromDHIS2(
             {
-              dataElement: dataElementId,
+              selector,
               orgUnits,
               period: String(periodId),
             },
@@ -590,7 +598,6 @@ async function run(std: RunWorkerMessage) {
               },
             },
           );
-          return res.dataValues ?? [];
         } finally {
           const requestMs = Date.now() - requestStartMs;
           acc.totalFetchMs += requestMs;
@@ -605,12 +612,12 @@ async function run(std: RunWorkerMessage) {
           const level2 = await getLevel2OrgUnitIds();
           if (level2.length > 0) {
             console.log(
-              `DVS pull ${dataElementId}/${periodId} too large country-wide — splitting across ${level2.length} level-2 subtrees`,
+              `DVS pull ${selector.kind} ${selector.id}/${periodId} too large country-wide — splitting across ${level2.length} level-2 subtrees`,
             );
             const all: DHIS2DataValue[] = [];
             for (const orgUnit of level2) {
               const part = await fetchDvsValues(
-                dataElementId,
+                selector,
                 periodId,
                 [orgUnit],
                 false,
@@ -630,7 +637,7 @@ async function run(std: RunWorkerMessage) {
       periodId: covered.periodId,
     });
 
-    const runDvsTask = async (task: DvsTask): Promise<void> => {
+    const runDvsTask = async (task: PullTask): Promise<void> => {
       for (const covered of task.coveredPairs) {
         activePairs.set(pairKey(covered), toPair(covered));
       }
@@ -640,7 +647,7 @@ async function run(std: RunWorkerMessage) {
       let values: DHIS2DataValue[];
       try {
         values = await fetchDvsValues(
-          task.dataElementId,
+          task.selector,
           task.periodId,
           rootOrgUnitIds,
           true,
@@ -677,7 +684,7 @@ async function run(std: RunWorkerMessage) {
       );
       if (unexpectedPeriod !== undefined) {
         const message =
-          `dataValueSets response for element ${task.dataElementId}, period=${task.periodId} ` +
+          `dataValueSets response for ${task.selector.kind} ${task.selector.id}, period=${task.periodId} ` +
           `contained values at period "${unexpectedPeriod.period}" — treating as a failed fetch.`;
         for (const covered of task.coveredPairs) {
           const pair = toPair(covered);

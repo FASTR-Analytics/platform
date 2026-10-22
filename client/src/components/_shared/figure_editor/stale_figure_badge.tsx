@@ -1,12 +1,17 @@
 import {
   type FigureBundle,
+  type FigureMetricResolution,
   type FigurePackageIssue,
   figurePackageIssueForMetrics,
+  type MetricWithStatus,
+  moduleRegistryLabel,
   type PackageScope,
+  resolveFigureMetric,
   type RunAuthoringContext,
+  type StoredFigure,
   t3,
 } from "lib";
-import { Button } from "panther";
+import { Button, openAlert } from "panther";
 import { createSignal, Show } from "solid-js";
 import { figureScopeLabel, packageLabel } from "../mod.ts";
 import { getAdminAreaLabelForLevel } from "~/state/instance/_util_disaggregation_label";
@@ -23,35 +28,81 @@ import {
 // is no pre-flight anywhere: the per-figure badge is the report.
 
 // Re-resolve one figure under the container's pair: the whole of the update
-// action. The metric comes from the target package's authoring context, and
-// that lookup is the "metric not in this package" check. The resolution is
-// the interactive one (a replicant missing under the new package is
-// auto-defaulted), never the strict AI one.
+// action. The metric comes from the target package's authoring context: the
+// figure's own, or the successor of a retired one with the config carried
+// across (lib/retired_metrics.ts), and that lookup is the "metric not in
+// this package" check. The resolution is the interactive one (a replicant
+// missing under the new package is auto-defaulted), never the strict AI one.
 export async function updateFigureToScope(
   scope: PackageScope,
   authoringContext: RunAuthoringContext,
   bundle: FigureBundle,
 ): Promise<ResolveFigureResult> {
-  const metric = authoringContext.metrics.find((m) => m.id === bundle.metricId);
-  if (metric === undefined) {
+  const resolution = resolveFigureMetric(authoringContext.metrics, bundle);
+  if (resolution.kind === "absent") {
     return {
       ok: false,
-      reason: describePackageIssue(
-        { kind: "metric_not_in_package", metricId: bundle.metricId },
-        scope.runId,
-      ),
+      reason: describeFigureMetricAbsence(resolution, scope.runId),
     };
   }
   const issue = figurePackageIssueForMetrics(
-    bundle.metricId,
-    bundle.config,
+    resolution.metric.id,
+    resolution.config,
     authoringContext.metrics,
     authoringContext.population,
   );
   if (issue !== null) {
     return { ok: false, reason: describePackageIssue(issue, scope.runId) };
   }
-  return resolveFigureBundleInteractively(scope, metric, bundle.config);
+  return resolveFigureBundleInteractively(
+    scope,
+    resolution.metric,
+    resolution.config,
+  );
+}
+
+// The resolution an editor acts on, or undefined once the user has been told
+// why the figure has no metric in the package.
+export async function resolveFigureMetricOrAlert(
+  metrics: readonly MetricWithStatus[],
+  figure: StoredFigure,
+  runId: string,
+): Promise<Exclude<FigureMetricResolution, { kind: "absent" }> | undefined> {
+  const resolution = resolveFigureMetric(metrics, figure);
+  if (resolution.kind !== "absent") return resolution;
+  await openAlert({
+    text: describeFigureMetricAbsence(resolution, runId),
+    intent: "danger",
+  });
+  return undefined;
+}
+
+// Why a stored figure has no metric in the package: the metric is absent, or
+// it was retired with its module and its successor is absent too.
+function describeFigureMetricAbsence(
+  absence: Extract<FigureMetricResolution, { kind: "absent" }>,
+  runId: string,
+): string {
+  const pkg = packageLabel(runId);
+  if (absence.retired === undefined) {
+    return t3({
+      en: `Metric "${absence.metricId}" is not in ${pkg}`,
+      fr: `L'indicateur "${absence.metricId}" n'est pas dans ${pkg}`,
+      pt: `A métrica "${absence.metricId}" não está em ${pkg}`,
+    });
+  }
+  const metric = t3(absence.retired.metric.label);
+  const module = t3(absence.retired.metric.moduleLabel);
+  const successor = absence.retired.successor;
+  const successorModule = moduleRegistryLabel(successor.moduleId);
+  return t3({
+    en:
+      `"${metric}" belongs to the retired module "${module}". Its replacement, ${successor.metricId} in "${successorModule}", is not in ${pkg}.`,
+    fr:
+      `"${metric}" appartient au module retiré "${module}". Son remplaçant, ${successor.metricId} dans "${successorModule}", n'est pas dans ${pkg}.`,
+    pt:
+      `"${metric}" pertence ao módulo retirado "${module}". O seu substituto, ${successor.metricId} em "${successorModule}", não está em ${pkg}.`,
+  });
 }
 
 function describePackageIssue(
@@ -60,11 +111,10 @@ function describePackageIssue(
 ): string {
   const pkg = packageLabel(runId);
   if (issue.kind === "metric_not_in_package") {
-    return t3({
-      en: `Metric "${issue.metricId}" is not in ${pkg}`,
-      fr: `L'indicateur "${issue.metricId}" n'est pas dans ${pkg}`,
-      pt: `A métrica "${issue.metricId}" não está em ${pkg}`,
-    });
+    return describeFigureMetricAbsence(
+      { kind: "absent", metricId: issue.metricId, retired: undefined },
+      runId,
+    );
   }
   if (issue.kind === "metric_unavailable") {
     const because = issue.reason === null ? "" : `: ${issue.reason}`;

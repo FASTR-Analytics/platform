@@ -64,6 +64,7 @@ COPY panther panther
 COPY server server
 COPY client_dist client_dist
 COPY main.ts main.ts
+COPY fix_dhis2_ids.ts fix_dhis2_ids.ts
 
 # ==============================================================================
 # Environment Variables

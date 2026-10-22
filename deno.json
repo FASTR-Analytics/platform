@@ -63,7 +63,7 @@
     "build:client": "cd client && npm run build",
     "build:help-buttons": "deno run --allow-read --allow-write --allow-env --allow-run=deno build_help_buttons.ts",
     "build:server": "echo 'No server build steps'",
-    "typecheck": "deno fmt --check && deno check -c deno.json main.ts server/tests/*.ts report-forge/tests/*.ts report-forge/harness/*.ts && echo '✓ Server typecheck passed' && sh -c 'cd client && npm run typecheck' && echo '✓ Client typecheck passed\n\n' && deno task lint:systems && deno task lint:structure && deno task lint:text-sizes && deno task lint:sql-json && deno task lint:plan-citations && deno task lint:report-forge",
+    "typecheck": "deno fmt --check && deno check -c deno.json main.ts fix_dhis2_ids.ts sweep_retired_figures.ts server/tests/*.ts report-forge/tests/*.ts report-forge/harness/*.ts && echo '✓ Server typecheck passed' && sh -c 'cd client && npm run typecheck' && echo '✓ Client typecheck passed\n\n' && deno task lint:systems && deno task lint:structure && deno task lint:text-sizes && deno task lint:sql-json && deno task lint:plan-citations && deno task lint:report-forge",
     "test": "BYPASS_AUTH= deno test -c deno.json -A --no-check --env-file --unstable-broadcast-channel server/tests/ report-forge/tests/",
     "lint:systems": "deno run --allow-read --allow-run lint_systems.ts",
     "lint:structure": "deno run --allow-read lint_structure.ts",

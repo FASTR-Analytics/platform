@@ -201,6 +201,17 @@ export const EXPLORE_VIEWS: Record<string, ExploreViewBinding[]> = {
       category: "indicator_common_id",
       types: [AREA_BY_CATEGORY, OVER_TIME, MAP],
     },
+    {
+      id: "volume_by_adjustment",
+      label: {
+        en: "Volume by adjustment type",
+        fr: "Volume par type d'ajustement",
+        pt: "Volume por tipo de ajuste",
+      },
+      metric: { id: "m2-02-01" },
+      category: "indicator_common_id",
+      types: [OVER_TIME],
+    },
   ],
   m005: [
     {
@@ -408,9 +419,27 @@ export const EXPLORE_VIEWS: Record<string, ExploreViewBinding[]> = {
         fr: "Services observés et attendus",
         pt: "Serviços observados e esperados",
       },
-      metric: { byLevel: { national: "m11-01-01", admin_area_2: "m11-01-02" } },
+      metric: {
+        byLevel: {
+          national: "m11-01-01",
+          admin_area_2: "m11-01-02",
+          admin_area_3: "m11-01-03",
+          admin_area_4: "m11-01-04",
+        },
+      },
       category: "indicator_common_id",
       types: [OVER_TIME],
+    },
+    {
+      id: "service_disruption",
+      label: {
+        en: "Service disruption",
+        fr: "Perturbation des services",
+        pt: "Perturbação dos serviços",
+      },
+      metric: { id: "m11-02-01" },
+      category: "indicator_common_id",
+      types: [AREA_BY_CATEGORY, MAP],
     },
   ],
   m012: [
@@ -440,6 +469,11 @@ export const UNBOUND_METRICS: { metricId: string; reason: string }[] = [
     metricId: "m6-03-02",
     reason:
       "Coverage (HMIS only) at admin area 3: its one value is the coverage_cov prop of m6-03-01, which coverage_by_area reads.",
+  },
+  {
+    metricId: "m11-02-02",
+    reason:
+      "Observed and expected services at any level: the band-chart metrics show the pair over time, and service_disruption reads their difference.",
   },
 ];
 

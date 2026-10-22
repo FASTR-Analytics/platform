@@ -27,7 +27,6 @@ import {
   TabsNavigation,
 } from "panther";
 import { type Accessor, createSignal, Match, Show, Switch } from "solid-js";
-import { scopeDisplayLabel } from "~/components/_shared/mod.ts";
 import { serverActions } from "~/server_actions";
 import { instanceState, resolveScope } from "~/state/instance/t1_store";
 import { getRunAuthoringContextFromCacheOrFetch } from "~/state/instance/t2_run_authoring_context";
@@ -42,34 +41,6 @@ type Props = {
   scope: Scope | undefined;
   productCount: number;
 };
-
-// "All data" is the one reserved scope: the routes refuse to edit or delete
-// it, so it opens as a statement of what it is.
-export function AllDataScopeView(
-  p: AlertComponentProps<{ scope: Scope; productCount: number }, undefined>,
-) {
-  return (
-    <ModalContainer
-      title={scopeDisplayLabel(p.scope)}
-      width="md"
-      onClose={{ kind: "close", onClick: () => p.close(undefined) }}
-    >
-      <div class="ui-spy">
-        <div>
-          {t3({
-            en:
-              "This scope is built in. It includes HMIS, HFA and ICEH data and limits nothing. It cannot be edited or deleted.",
-            fr:
-              "Cette portée est intégrée. Elle inclut les données HMIS, HFA et ICEH et ne limite rien. Elle ne peut être ni modifiée ni supprimée.",
-            pt:
-              "Este âmbito é incorporado. Inclui os dados HMIS, HFA e ICEH e não limita nada. Não pode ser editado nem eliminado.",
-          })}
-        </div>
-        <ProductCountLine productCount={p.productCount} reserved />
-      </div>
-    </ModalContainer>
-  );
-}
 
 export function ScopeEditor(
   p: AlertComponentProps<Props, undefined>,
@@ -164,7 +135,7 @@ export function ScopeEditor(
           fullWidth
         />
         <Show when={p.scope !== undefined}>
-          <ProductCountLine productCount={p.productCount} reserved={false} />
+          <ProductCountLine productCount={p.productCount} />
         </Show>
         <div class="text-base-content-muted text-sm">
           {t3({
@@ -761,35 +732,23 @@ function SectionTab(p: {
   );
 }
 
-function ProductCountLine(p: { productCount: number; reserved: boolean }) {
+function ProductCountLine(p: { productCount: number }) {
   return (
     <div class="text-base-content-muted text-sm">
-      <Switch>
-        <Match when={p.productCount === 0}>
-          {t3({
-            en: "No product carries this scope.",
-            fr: "Aucun produit ne porte cette portée.",
-            pt: "Nenhum produto tem este âmbito.",
-          })}
-        </Match>
-        <Match when={p.productCount > 0 && p.reserved}>
-          {t3({
-            en: `${p.productCount} product(s) carry this scope.`,
-            fr: `${p.productCount} produit(s) portent cette portée.`,
-            pt: `${p.productCount} produto(s) têm este âmbito.`,
-          })}
-        </Match>
-        <Match when={p.productCount > 0 && !p.reserved}>
-          {t3({
-            en:
-              `${p.productCount} product(s) carry this scope, so it cannot be deleted. Changing what it limits marks every visualization in them as out of date.`,
-            fr:
-              `${p.productCount} produit(s) portent cette portée, elle ne peut donc pas être supprimée. Modifier ce qu'elle limite marque chaque visualisation de ces produits comme obsolète.`,
-            pt:
-              `${p.productCount} produto(s) têm este âmbito, pelo que não pode ser eliminado. Alterar o que ele limita marca todas as visualizações desses produtos como desatualizadas.`,
-          })}
-        </Match>
-      </Switch>
+      {p.productCount === 0
+        ? t3({
+          en: "No product carries this scope.",
+          fr: "Aucun produit ne porte cette portée.",
+          pt: "Nenhum produto tem este âmbito.",
+        })
+        : t3({
+          en:
+            `${p.productCount} product(s) carry this scope, so it cannot be deleted. Changing what it limits marks every visualization in them as out of date.`,
+          fr:
+            `${p.productCount} produit(s) portent cette portée, elle ne peut donc pas être supprimée. Modifier ce qu'elle limite marque chaque visualisation de ces produits comme obsolète.`,
+          pt:
+            `${p.productCount} produto(s) têm este âmbito, pelo que não pode ser eliminado. Alterar o que ele limita marca todas as visualizações desses produtos como desatualizadas.`,
+        })}
     </div>
   );
 }

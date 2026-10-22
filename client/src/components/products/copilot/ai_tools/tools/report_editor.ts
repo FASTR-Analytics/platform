@@ -26,6 +26,7 @@ import {
   type PeriodBounds,
   periodFilterHasBounds,
   replaceReportEmbedTokens,
+  resolveFigureMetric,
   type ResultsValueInfoForPresentationObject,
   rewriteReportEmbedToken,
 } from "lib";
@@ -46,7 +47,11 @@ import {
   copilotViews,
 } from "~/components/instance/copilot/mod.ts";
 import { resolveFigureFromMetric } from "../../slide_ai/mod.ts";
-import { formatFigureConfigForAI } from "../../_shared/mod.ts";
+import {
+  editFigureMetricForAI,
+  formatFigureConfigForAI,
+  readFigureMetricForAI,
+} from "../../_shared/mod.ts";
 import { validateMetricInputs } from "lib";
 import type {
   ClientAIToolEnv,
@@ -82,11 +87,23 @@ function refusedTextEdit(
   throw new AIToolFailure(edit.error);
 }
 
-// One cheap index line per figure for get_report_editor: pure, no fetch.
-function formatFigureIndexLine(id: string, fig: FigureBlock): string {
+// One cheap index line per figure for get_report_editor: pure, no fetch. The
+// metric is the one the figure reads as, so the model never takes a retired
+// id for a live one.
+function formatFigureIndexLine(
+  id: string,
+  fig: FigureBlock,
+  metrics: readonly MetricWithStatus[],
+): string {
   if (!fig.bundle) return `- figure:${id} — (no data)`;
-  const cfg = fig.bundle.config;
-  const parts = [`figure:${id}`, fig.bundle.metricId, cfg.d.type];
+  const r = resolveFigureMetric(metrics, fig.bundle);
+  const metricPart = r.kind === "current"
+    ? r.metric.id
+    : r.kind === "succeeded"
+    ? `${fig.bundle.metricId} (retired; reads as ${r.metric.id})`
+    : `${fig.bundle.metricId} (not in this package)`;
+  const cfg = r.kind === "absent" ? fig.bundle.config : r.config;
+  const parts = [`figure:${id}`, metricPart, cfg.d.type];
   if (cfg.t.caption) parts.push(`"${cfg.t.caption}"`);
   const replicateBy = getReplicateByProp(cfg);
   if (replicateBy) {
@@ -118,7 +135,9 @@ export function getClientToolsForReportEditor(
         const figureSection = figureIds.length
           ? [
             `## Figures (call get_report_figure for full config; update_report_figure to edit in place):`,
-            ...figureIds.map((id) => formatFigureIndexLine(id, figs[id])),
+            ...figureIds.map((id) =>
+              formatFigureIndexLine(id, figs[id], metrics)
+            ),
           ]
           : [`## Figures: none`];
         return readReportText(ctx.getBody(), {
@@ -166,13 +185,17 @@ export function getClientToolsForReportEditor(
           );
         }
         const bundle = fig.bundle;
-        const metric = metrics.find((m) => m.id === bundle.metricId);
-        return await formatFigureConfigForAI(
+        const { lines, metric, config } = readFigureMetricForAI(
+          metrics,
+          bundle,
+        );
+        const text = await formatFigureConfigForAI(
           env,
           metric,
-          bundle.config,
+          config,
           bundle.dateRange,
         );
+        return [...lines, text].join("\n");
       },
       inProgressLabel: "Reading figure...",
       completionMessage: "Read figure",
@@ -238,18 +261,14 @@ export function getClientToolsForReportEditor(
           );
         }
         const bundle = fig.bundle;
-        const metric = metrics.find((m) => m.id === bundle.metricId);
-        if (!metric) {
-          throw new AIToolFailure(
-            `Metric "${bundle.metricId}" not found in this product's results package.`,
-          );
-        }
+        const { lines: moved, metric, config: storedConfig } =
+          editFigureMetricForAI(metrics, bundle);
 
         // Pre-flight for a stored defect this tool cannot repair (the figure
         // patch schema carries no timeseriesGrouping): see update_figure.
         if (
-          bundle.config.d.type === "timeseries" &&
-          !bundle.config.d.timeseriesGrouping
+          storedConfig.d.type === "timeseries" &&
+          !storedConfig.d.timeseriesGrouping
         ) {
           throw new AIToolFailure(
             "This figure's stored config is a timeseries with no period grouping, which cannot render. It cannot be repaired here — the figure must be recreated via replace_figure. No changes were applied.",
@@ -273,7 +292,7 @@ export function getClientToolsForReportEditor(
           const infoRes =
             await getResultsValueInfoForPresentationObjectFromCacheOrFetch(
               view.context.getScope(),
-              bundle.metricId,
+              metric.id,
             );
           if (infoRes.success) {
             dataBounds = infoRes.data.periodBounds;
@@ -289,13 +308,13 @@ export function getClientToolsForReportEditor(
 
         // Validate UP FRONT (a throw must mean "nothing changed"); commit once valid.
         const newConfig = applyFigureConfigPatch(
-          bundle.config,
+          storedConfig,
           input.patch,
           metric,
           dataBounds,
         );
         validateFigureConfigEdit(
-          bundle.config,
+          storedConfig,
           newConfig,
           input.patch,
           metric,
@@ -314,19 +333,17 @@ export function getClientToolsForReportEditor(
             max: newConfig.d.periodFilter.max,
           }
           : undefined;
-        await validateMetricInputs(
-          env,
-          bundle.metricId,
-          filters,
-          periodFilter,
-        );
+        await validateMetricInputs(env, metric.id, filters, periodFilter);
 
-        const report = describeFigureConfigPatchEffect(
-          bundle.config,
-          input.patch,
-          metric,
-          dataBounds,
-        );
+        const report = [
+          ...moved,
+          ...describeFigureConfigPatchEffect(
+            storedConfig,
+            input.patch,
+            metric,
+            dataBounds,
+          ),
+        ];
 
         const newBundle = await resolveBundleFromMetricAndConfig(
           view.context.getScope(),

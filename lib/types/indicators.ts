@@ -401,6 +401,7 @@ export type Dhis2IndicatorParseRefusal =
   | { kind: "empty"; side: "numerator" | "denominator" }
   | { kind: "term"; side: "numerator" | "denominator"; term: string }
   | { kind: "syntax"; side: "numerator" | "denominator"; term: string }
+  | { kind: "no_operands" }
   | { kind: "too_many_operands"; count: number; max: number };
 
 // A parsed DHIS2 indicator: its operands, the calculated's expression in the
@@ -536,6 +537,12 @@ export function describeDhis2ParseRefusal(
         pt: `o seu ${
           side(refusal.side).pt
         } não pôde ser lido em ${refusal.term}`,
+      };
+    case "no_operands":
+      return {
+        en: "it names no data element, so it is a constant",
+        fr: "il ne nomme aucun élément de données, c'est donc une constante",
+        pt: "não nomeia nenhum elemento de dados, pelo que é uma constante",
       };
     case "too_many_operands":
       return {

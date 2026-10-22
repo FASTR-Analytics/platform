@@ -2,6 +2,7 @@
 system: 5
 name: Facilities & Indicators
 globs:
+  - fix_dhis2_ids.ts
   - client/src/components/data/hfa/indicators/**
   - client/src/components/data/hmis/_shared/indicator_display.ts
   - client/src/components/data/hmis/_shared/type_badge.tsx
@@ -42,6 +43,7 @@ globs:
   - server/db/instance/instance.ts
   - server/db/instance/population.ts
   - server/db/instance/structure.ts
+  - server/dhis2_id_fix/**
   - server/geojson/**
   - server/routes/instance/geojson_maps.ts
   - server/routes/instance/hfa_indicators.ts
@@ -51,6 +53,9 @@ globs:
   - server/routes/instance/population.ts
   - server/routes/instance/structure.ts
   - server/server_only_funcs_importing/**
+  - server/tests/dhis2_id_fix_backfill_test.ts
+  - server/tests/dhis2_id_fix_execute_test.ts
+  - server/tests/dhis2_id_fix_plan_test.ts
   - server/tests/indicator_analysed_set_test.ts
   - server/tests/indicator_data_key_test.ts
   - server/tests/indicator_id_test.ts
@@ -461,22 +466,23 @@ DHIS2 element or operand becomes a new DHIS2 element under the chosen id
 an existing id of any type is refused; one indicator carries one data id, so two
 elements cannot share a new id; a UID some indicator already holds creates
 nothing. A DHIS2 indicator decomposes (S7) into DHIS2 elements for its operands
-and a calculated `(numerator) / (denominator)` over their ids: its expression
-names each operand by `[data_id]` and the transaction rewrites every identifier
-to the indicator that element lands in (`renameIdentifiers`). Sums are not made
-in the naming step; they are made in the list. Everything the naming step
-creates has its checkbox on. Save from the DHIS2 select form posts to
-`/indicators-dhis2/create` (each DHIS2 indicator by its `uid`), which re-reads
-every element and indicator from DHIS2 and judges them itself (S7's verdict and
-decomposition, worded by `describeDhis2ElementRefusal` /
-`describeDhis2ParseRefusal`) before `createIndicatorsFromDhis2` calls
-`applyIndicatorNaming`, so a refused element or indicator creates nothing.
-Pinned by `server/tests/indicator_naming_test.ts` on a throwaway database built
-from `_main_database.sql`. A new database has an empty dictionary; the **special
-indicators**, `SPECIAL_INDICATORS` in `lib/special_indicators.ts`, stay a
-reserved list: the hand-kept count ids the registry module scripts read by
-literal id, which the manager's reference panel names,
-`getSpecialIndicatorTypeIssue` keeps a count, and `analysedIndicatorIds`
+(an operand written with its element's default combo is the bare element, S7's
+`foldDefaultCombos`) and a calculated `(numerator) / (denominator)` over their
+ids: its expression names each operand by `[data_id]` and the transaction
+rewrites every identifier to the indicator that element lands in
+(`renameIdentifiers`). Sums are not made in the naming step; they are made in
+the list. Everything the naming step creates has its checkbox on. Save from the
+DHIS2 select form posts to `/indicators-dhis2/create` (each DHIS2 indicator by
+its `uid`), which re-reads every element and indicator from DHIS2 and judges
+them itself (S7's verdict and decomposition, worded by
+`describeDhis2ElementRefusal` / `describeDhis2ParseRefusal`) before
+`createIndicatorsFromDhis2` calls `applyIndicatorNaming`, so a refused element
+or indicator creates nothing. Pinned by `server/tests/indicator_naming_test.ts`
+on a throwaway database built from `_main_database.sql`. A new database has an
+empty dictionary; the **special indicators**, `SPECIAL_INDICATORS` in
+`lib/special_indicators.ts`, stay a reserved list: the hand-kept count ids the
+registry module scripts read by literal id, which the manager's reference panel
+names, `getSpecialIndicatorTypeIssue` keeps a count, and `analysedIndicatorIds`
 analyses whenever one exists. A team creates them in the manager like any
 indicator. `./validate_fresh_boot` boots an empty postgres through `dbStartUp`
 and asserts the empty dictionary. New ids are charset-checked (no `, ; : [ ]`
@@ -507,12 +513,99 @@ explanation and the count of elements to read, the Refresh button waiting on the
 one request with its spinner, then the counts in its place and a warning callout
 for each list, the formulas above the not-found, each id shown as
 `indicator id · label (UID)` (`dataIdWithIndicator`, through one map by
-indicator id over the list the manager passes in) and the formulas with S6's
-formula remedy. The manager's toolbar keeps the daily actions as buttons (Sort,
-Add from DHIS2, Create new) and puts the occasional ones, the dictionary
-download and Refresh DHIS2 names, in an overflow menu (panther's
-`ActionMenuButton`, `otherActionItems`), global admins only, the refresh gated
-on a stored DHIS2 connection like Add from DHIS2.
+indicator id over the list the manager passes in) and the formulas with the
+DHIS2 id repair note (S6's wording). The manager's toolbar keeps the daily
+actions as buttons (Sort, Add from DHIS2, Create new) and puts the occasional
+ones, the dictionary download and Refresh DHIS2 names, in an overflow menu
+(panther's `ActionMenuButton`, `otherActionItems`), global admins only, the
+refresh gated on a stored DHIS2 connection like Add from DHIS2.
+
+The DHIS2 id repair (`server/dhis2_id_fix/`, run by the root script
+`fix_dhis2_ids.ts` inside an instance's app container, which holds the database
+connection and the credentials key) repairs in place the DHIS2 elements whose
+data id DHIS2 has as a formula or as nothing, which the importer refuses on
+every run (S6); those DHIS2 has but cannot serve as an additive monthly count,
+which fail every run the same way (on 2.38 nothing can select them, on a later
+release they are asked for monthly and return nothing); and those whose data id
+is `uid.coc` with `coc` the default combo of `uid`, which name the series of
+bare `uid` under a second data id. `gatherDhis2IdFixFacts` reads the dictionary,
+the row span under each element, the stale ledger rows (status `error`, no
+records) under each Uploaded and DHIS2 element data id, the dispatcher's route
+per data id (`classifyElements`), each formula decomposed by
+`withDecompositions`, and the elements under every `dvs` data id and every
+operand, fetched once by id with the picker's field list, each with its name,
+its category combo and the picker's verdict (`getDhis2ElementVerdict`);
+`planDhis2IdFix` is pure over those facts. A `dvs` element whose verdict is
+accepted and whose combo is not its element's default one (`isDefaultComboOf`,
+S7) is healthy; an operand takes its element's verdict. Each broken element gets
+one outcome under its own indicator id: `retarget` (a single-operand formula
+whose operand no indicator holds, or a default-combo element whose bare `uid` no
+indicator holds: the data id becomes the operand's or `uid`, rows and ledger
+rows rekeyed, `dhis2_label` the element's name), `to_sum` (a `+` chain of
+distinct operands at factor 1, a single operand another indicator holds, or a
+default-combo element under a special id beside the holder of bare `uid`, which
+the module scripts read by id and so stays a count: a Sum over the holders, with
+a DHIS2 element created, unticked, for each operand nobody holds, rows and
+ledger rows deleted), `to_calculated` (any other accepted shape, not a special
+id: the decomposition's expression over the holders, the factor's format, rows
+and ledger rows deleted), `duplicate` (a default-combo element under any other
+id beside the holder of bare `uid`: every Sum naming it names the holder
+instead, every calculated expression and schedule selection naming it is
+rewritten to the holder by the rename's own `renameReferences`, called once with
+all the plan's duplicates, the holder is ticked for analysis when the duplicate
+was and it was not, and the duplicate's rows, ledger rows and indicator row are
+deleted), or `to_uploaded` (not in DHIS2, a refused verdict with the refusal as
+the reason, a refused decomposition, a special id with a non-count shape, or a
+default-combo element with a refused verdict and no holder, which a retarget
+would leave refused: rows and key kept, frozen). Default-combo elements are
+decided first, so an element already importing the series keeps it over a
+formula's rows; formula retargets next, so a single-operand formula keeps its
+rows. A Sum that names a `to_sum` indicator takes its members in its place, one
+that names a `duplicate` takes its holder, and one that names a `to_calculated`
+indicator drops it (the member FK pins members to `has_rows`). `plan` writes the
+whole plan as JSON: one action per broken element with every value the apply
+writes, the created elements, the Sum rewrites, and `staleLedgerRows`, one entry
+per indicator that is Uploaded after the apply (the dictionary's Uploaded
+indicators and every `to_uploaded` action) whose data id has ledger rows with
+status `error` and no records, which describe fetches of a route the indicator
+no longer has and would show as errors forever; `apply` reads one from stdin,
+recomputes it from live state, refuses on any difference (exit 2), and otherwise
+runs `applyDhis2IdFix`: one transaction holding a `SHARE ROW EXCLUSIVE` lock on
+`indicators`, every precondition re-checked inside it against one read of the
+live state through the reads the facts come from (`getHmisIndicators`,
+`readRowSpans`, `readStaleLedgerCounts`): no running import run, the stored URL,
+each indicator still an element under its data id with the planned row count,
+each target and created data id unheld, each duplicate's holder still holding
+bare `uid`, each created id free, each rewritten Sum's live members giving the
+plan's rewrite and leaving at least one member, each stale-ledger entry's
+indicator Uploaded under its data id or retyped so by the plan with the planned
+count. Then the data-id FK deferred so a retarget moves the key before its rows,
+the ledger rows of a retarget copied aside and rewritten under the new key
+because that FK is not deferrable, the Sum rewrites before the retypes and
+deletions, the stale ledger rows deleted after them, one negative
+`dataset_hmis_versions` row for all the deleted data rows, duplicates' included,
+and `checkDefinitionsResolve` over the dictionary as written before commit.
+Every retyped, retargeted, created, rewritten or ticked row's `updated_at`
+moves, and a deleted duplicate changes the row count, so the dictionary stamps
+change; a stale-ledger delete under an indicator the apply does not retype
+touches no indicator row. The realtime summaries need a container restart.
+`backfill` reads an applied plan file from stdin by the three fields it uses
+(`readDhis2IdFixBackfillFile`: the URL, the actions and the Sum rewrites, so a
+file written before the plan gained a field still serves) and queues the import
+the apply leaves to do (`queueDhis2IdFixBackfill`): one manual DHIS2 import run,
+triggered by `dhis2-id-repair`, through the wizard's own
+`enqueueDatasetHmisImportRun`, over the window selection `backfillSelection`
+(pure) builds: every `to_sum` and `to_calculated` action that deleted rows and
+every rewritten Sum, from the earliest month those actions held to the latest. A
+plan with no such action, a stored connection that is missing or is not the
+plan's (`assertPlanConnection`, the check the apply makes), and a selection the
+app refuses (an indicator gone, no DHIS2-shaped facilities) are refused with the
+reason. The server's scheduler starts the queued run in the server's process, at
+its first minute tick with no import running and none queued before it, so the
+app's Cancel reaches it and connected clients hear when it starts and ends; the
+script polls the run (`waitForDhis2IdFixBackfill`, through
+`getDatasetHmisImportRunDetail`) until it is neither queued nor running, prints
+its status and pair counts, and exits 1 unless it completed.
 
 Instance migration 087 (`087_indicator_data_key.sql`) gives every Uploaded row a
 key: a row whose `data_id` was NULL takes a generated `u_` key and its

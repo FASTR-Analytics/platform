@@ -1,5 +1,5 @@
 import { ADMIN_LEVELS, type AdminLevel } from "./rollup.ts";
-import { deriveConfigFromVizPreset } from "./derive_default_visualizations.ts";
+import { deriveConfigFromVizPreset } from "./derive_presets.ts";
 import { getDisaggregationAllowedPresentationOptions } from "./disaggregation_labels.ts";
 import {
   EXPLORE_LEVELS,

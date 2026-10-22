@@ -340,16 +340,26 @@ layout and a report's figure registry with it. Nothing rewrites a stored bundle
 behind the user: mixed-package documents are a visible state, and reattaching or
 rescoping never blocks and has no pre-flight. The affordance is S11's
 `StaleFigureBadge` (`components/_shared/figure_editor/stale_figure_badge.tsx`);
-its update action re-resolves `{ metricId, config }` under the container's
-current pair through `resolveFigureBundleInteractively` (the human path: a
-stored replicant value missing under the new package is auto-defaulted, never
-thrown on), with the metric taken from the target package's authoring context
-(S9's `t2_run_authoring_context.ts`), and a failure shows its reason on the
-figure and leaves the old bundle in place. That reason is one rule shared with
-the server, `lib/figure_package_issue.ts` (S8): metric absent, then metric
-unavailable, then a requested disaggregation the package's results object lacks.
-The deck and report editors (S12) count stale figures and offer "Update all
-figures".
+its update action, `updateFigureToScope`, re-resolves `{ metricId, config }`
+under the container's current pair through `resolveFigureBundleInteractively`
+(the human path: a stored replicant value missing under the new package is
+auto-defaulted, never thrown on), with the metric taken from the target
+package's authoring context (S9's `t2_run_authoring_context.ts`) through
+`resolveFigureMetric` (`lib/retired_metrics.ts`, S8): the figure's own metric
+when the package carries it, else the successor of a retired one with the config
+carried across, else nothing. Every path that acts on a stored figure's metric
+resolves it there, so a figure of a retired metric updates, edits (S11's editor
+opens on the successor with the carried config, without a live collab binding,
+since the editor would otherwise adopt the stored config from the shared doc)
+and answers the copilot's figure tools (S13) as its successor, and is stored as
+such on the next write. A failure shows its reason on the figure and leaves the
+old bundle in place. That reason is the lookup's own when the figure has no
+metric in the package (`describeFigureMetricAbsence`, beside the badge: the bare
+id, or the retired metric with its module and its successor's module), else one
+rule shared with the server, `lib/figure_package_issue.ts` (S8): metric
+unavailable, then a requested disaggregation the package's results object lacks;
+below it, the read's own statuses (too many data points, no data). The deck and
+report editors (S12) count stale figures and offer "Update all visualizations".
 
 ### Sample sizes in table headers (`s.showNValues`)
 
@@ -387,16 +397,16 @@ checks in
 the single home for mode gating (its per-metric `canUse*` arrays decide whether
 the editor shows a mode's toggle). Dispatch priority in
 `getStyleFromPresentationObject`: coverage → percent-change → disruptions →
-disruptions-v2 → standard. Every mode is a hardcoded rendering of a specific
-constant-format metric; "colour each value by its own indicator's rule" is NOT a
-mode but the `indicator` conditional-formatting source (below).
+disruptions-v2 → standard. Every mode is a hardcoded rendering of the metrics
+the table names; "colour each value by its own indicator's rule" is NOT a mode
+but the `indicator` conditional-formatting source (below).
 
 | Mode           | Flag (`config.s`)           | Gate (`d.type`) | Metrics                  | Builder behavior                                                                                                             |
 | -------------- | --------------------------- | --------------- | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
 | Coverage       | `specialCoverageChart`      | timeseries      | m4-01-01, m6-01/02/03-01 | hardcoded series colors (black / red / grey), forced points with `toPct0` last-value labels                                  |
-| Percent change | `specialBarChart`           | timeseries      | m3-01-01                 | red/green bar coloring + signed value labels from period-to-period diff vs `specialBarChartDiffThreshold` (default 0.1)      |
+| Percent change | `specialBarChart`           | timeseries      | m12-01-01, m3-01-01      | red/green bar coloring + signed value labels from period-to-period diff vs `specialBarChartDiffThreshold` (default 0.1)      |
 | Disruptions    | `specialDisruptionsChart`   | timeseries      | m3-02/03/04/05-01        | red/green diff areas, solid-vs-dashed lines distinguishing the two series                                                    |
-| Disruptions V2 | `specialDisruptionsChartV2` | timeseries      | m11-01-01/02             | grey credible band + green/red exceedance via panther `areas.diff.pairs` on the wide 4-series shape (`_6_disruptions_v2.ts`) |
+| Disruptions V2 | `specialDisruptionsChartV2` | timeseries      | m11-01-01/02/03/04       | grey credible band + green/red exceedance via panther `areas.diff.pairs` on the wide 4-series shape (`_6_disruptions_v2.ts`) |
 
 Legacy `diffAreas` configs are converted to `specialDisruptionsChart` by the
 po_config data transform (Block 9, S2's machinery); no render or UI adapter
@@ -496,11 +506,13 @@ Which one a consumer wants is decided by WHAT it is doing, never by a flag:
 
 Surfaces that legitimately take `axisFormat` alone: the four special chart modes
 (`_2_coverage.ts`, `_3_percent_change.ts`, `_4_disruptions.ts`,
-`_6_disruptions_v2.ts`), because every metric gated into them (m3/m4/m6/m11) is
-constant-format, so `axisFormat` equals the declaration. Pie slice labels are
-also not per-value (a slice label is `label share%`, a fraction of the pie's
-denominator, never a raw value), and the doughnut centre label is formatted
-inside panther from the slice sum.
+`_6_disruptions_v2.ts`). The coverage and disruptions metrics gated into them
+(m4/m6/m11) are constant-format, so `axisFormat` equals the declaration; the
+percent-change chart (m3, m12) formats its value axis as the standard builder
+does, from the same collapse, and its change labels are always a percent. Pie
+slice labels are also not per-value (a slice label is `label share%`, a fraction
+of the pie's denominator, never a raw value), and the doughnut centre label is
+formatted inside panther from the slice sum.
 
 Consumers re-check the RESOLVED format, not stored flags: `forceYMax1` applies
 `max: 1` only when `axisFormat` is percent (`_1_standard.ts` ×2,
@@ -808,13 +820,6 @@ download modal. Deck/report exports pass the raw DB label to `pdf.save`/`saveAs`
   field is AI-editable today). If a per-cell formatter is ever added,
   `getTableExportAoa` hand-builds its cell infos and would need to source them
   from panther, the way it now sources header labels.
-- Should M3's expected-volume model emit a negative predicted service volume at
-  all? A negative predicted count is physically impossible, so arguably it
-  should be floored in the R script (`wb-fastr-modules`, m003) rather than
-  rendered. A domain call, not a render one. `"auto-zero"` makes the chart
-  correct either way, which is why it is not blocking. If it is ever floored
-  upstream, `m3-0x-01`/`m3-0x-03`'s entries in
-  `ALLOW_NEGATIVE_SCALE_VALUES_METRICS` become belt-and-braces.
 - The three slide-deck exporters triplicate the fetch/convert loop (~150
   duplicated lines; the two PDF variants differ only in their tail). Extract one
   shared iterator.

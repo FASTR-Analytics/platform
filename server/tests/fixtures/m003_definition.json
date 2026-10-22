@@ -1,0 +1,2415 @@
+{
+  "label": {
+    "en": "M3. Service utilization",
+    "fr": "M3. Utilisation des services",
+    "pt": "M3. Utilização dos serviços"
+  },
+  "prerequisites": [
+    "m001",
+    "m002"
+  ],
+  "scriptGenerationType": "template",
+  "dataSources": [
+    {
+      "sourceType": "dataset",
+      "replacementString": "PROJECT_DATA_HMIS",
+      "datasetType": "hmis"
+    },
+    {
+      "sourceType": "results_object",
+      "replacementString": "M1_output_outliers.csv",
+      "resultsObjectId": "M1_output_outliers.csv",
+      "moduleId": "m001"
+    },
+    {
+      "sourceType": "results_object",
+      "replacementString": "M2_adjusted_data_admin_area.csv",
+      "resultsObjectId": "M2_adjusted_data_admin_area.csv",
+      "moduleId": "m002"
+    },
+    {
+      "sourceType": "results_object",
+      "replacementString": "M2_adjusted_data.csv",
+      "resultsObjectId": "M2_adjusted_data.csv",
+      "moduleId": "m002"
+    }
+  ],
+  "configRequirements": {
+    "parameters": [
+      {
+        "replacementString": "SELECTEDCOUNT",
+        "description": {
+          "en": "Count variable to use for modeling",
+          "fr": "Variable de comptage à utiliser pour la modélisation",
+          "pt": "Variável de contagem a utilizar para a modelação"
+        },
+        "input": {
+          "inputType": "select",
+          "valueType": "string",
+          "options": [
+            {
+              "value": "count_final_none",
+              "label": "Count (unadjusted)"
+            },
+            {
+              "value": "count_final_outliers",
+              "label": "Count (adjusted for outliers)"
+            },
+            {
+              "value": "count_final_completeness",
+              "label": "Count (adjusted for completeness)"
+            },
+            {
+              "value": "count_final_both",
+              "label": "Count (adjusted for outliers and completeness)"
+            }
+          ],
+          "defaultValue": "count_final_outliers"
+        }
+      },
+      {
+        "replacementString": "VISUALIZATIONCOUNT",
+        "description": {
+          "en": "Count variable to use for visualization",
+          "fr": "Variable de comptage à utiliser pour la visualisation",
+          "pt": "Variável de contagem a utilizar para a visualização"
+        },
+        "input": {
+          "inputType": "select",
+          "valueType": "string",
+          "options": [
+            {
+              "value": "count_final_none",
+              "label": "Count (unadjusted)"
+            },
+            {
+              "value": "count_final_outliers",
+              "label": "Count (adjusted for outliers)"
+            },
+            {
+              "value": "count_final_completeness",
+              "label": "Count (adjusted for completeness)"
+            },
+            {
+              "value": "count_final_both",
+              "label": "Count (adjusted for outliers and completeness)"
+            }
+          ],
+          "defaultValue": "count_final_outliers"
+        }
+      },
+      {
+        "replacementString": "RUN_DISTRICT_MODEL",
+        "description": {
+          "en": "Run district-level model (admin_area_3)",
+          "fr": "Exécuter le modèle au niveau du district (admin_area_3)",
+          "pt": "Executar o modelo ao nível do distrito (admin_area_3)"
+        },
+        "input": {
+          "inputType": "select",
+          "valueType": "number",
+          "options": [
+            {
+              "value": "TRUE",
+              "label": "Yes"
+            },
+            {
+              "value": "FALSE",
+              "label": "No"
+            }
+          ],
+          "defaultValue": "FALSE"
+        }
+      },
+      {
+        "replacementString": "MADS_THRESHOLD",
+        "description": {
+          "en": "Threshold for MAD-based control limits",
+          "fr": "Seuil pour les limites de contrôle basées sur MAD",
+          "pt": "Limiar para os limites de controlo baseados no MAD"
+        },
+        "input": {
+          "inputType": "number",
+          "defaultValue": "1.5"
+        }
+      },
+      {
+        "replacementString": "SMOOTH_K",
+        "description": {
+          "en": "Smoothing window (k)",
+          "fr": "Fenêtre de lissage (k)",
+          "pt": "Janela de suavização (k)"
+        },
+        "input": {
+          "inputType": "number",
+          "defaultValue": "7"
+        }
+      },
+      {
+        "replacementString": "DIP_THRESHOLD",
+        "description": {
+          "en": "Dip threshold (proportion of expected)",
+          "fr": "Seuil de baisse (proportion de l'attendu)",
+          "pt": "Limiar de queda (proporção do esperado)"
+        },
+        "input": {
+          "inputType": "number",
+          "defaultValue": "0.9"
+        }
+      },
+      {
+        "replacementString": "DIFFPERCENT",
+        "description": {
+          "en": "Difference percent threshold for visualization",
+          "fr": "Seuil de pourcentage de différence pour la visualisation",
+          "pt": "Limiar de percentagem de diferença para a visualização"
+        },
+        "input": {
+          "inputType": "number",
+          "defaultValue": "10"
+        }
+      }
+    ]
+  },
+  "assetsToImport": [],
+  "resultsObjects": [
+    {
+      "id": "M3_service_utilization.csv",
+      "createTableStatementPossibleColumns": {
+        "facility_id": "TEXT NOT NULL",
+        "admin_area_4": "TEXT NOT NULL",
+        "admin_area_3": "TEXT NOT NULL",
+        "admin_area_2": "TEXT NOT NULL",
+        "period_id": "INTEGER NOT NULL",
+        "quarter_id": "INTEGER NOT NULL",
+        "year": "INTEGER NOT NULL",
+        "indicator_common_id": "TEXT NOT NULL",
+        "count_final_none": "NUMERIC",
+        "count_final_outliers": "NUMERIC",
+        "count_final_completeness": "NUMERIC",
+        "count_final_both": "NUMERIC"
+      }
+    },
+    {
+      "id": "M3_disruptions_analysis_admin_area_1.csv",
+      "createTableStatementPossibleColumns": {
+        "admin_area_1": "TEXT NOT NULL",
+        "indicator_common_id": "TEXT NOT NULL",
+        "period_id": "INTEGER NOT NULL",
+        "quarter_id": "INTEGER NOT NULL",
+        "year": "INTEGER NOT NULL",
+        "count_sum": "NUMERIC",
+        "count_expect_sum": "NUMERIC",
+        "count_expected_if_above_diff_threshold": "NUMERIC"
+      }
+    },
+    {
+      "id": "M3_disruptions_analysis_admin_area_2.csv",
+      "createTableStatementPossibleColumns": {
+        "admin_area_2": "TEXT NOT NULL",
+        "indicator_common_id": "TEXT NOT NULL",
+        "period_id": "INTEGER NOT NULL",
+        "quarter_id": "INTEGER NOT NULL",
+        "year": "INTEGER NOT NULL",
+        "count_sum": "NUMERIC",
+        "count_expect_sum": "NUMERIC",
+        "count_expected_if_above_diff_threshold": "NUMERIC"
+      }
+    },
+    {
+      "id": "M3_disruptions_analysis_admin_area_3.csv",
+      "createTableStatementPossibleColumns": {
+        "admin_area_2": "TEXT NOT NULL",
+        "admin_area_3": "TEXT NOT NULL",
+        "indicator_common_id": "TEXT NOT NULL",
+        "period_id": "INTEGER NOT NULL",
+        "quarter_id": "INTEGER NOT NULL",
+        "year": "INTEGER NOT NULL",
+        "count_sum": "NUMERIC",
+        "count_expect_sum": "NUMERIC",
+        "count_expected_if_above_diff_threshold": "NUMERIC"
+      }
+    },
+    {
+      "id": "M3_disruptions_analysis_admin_area_4.csv",
+      "createTableStatementPossibleColumns": {
+        "admin_area_2": "TEXT NOT NULL",
+        "admin_area_3": "TEXT NOT NULL",
+        "admin_area_4": "TEXT NOT NULL",
+        "indicator_common_id": "TEXT NOT NULL",
+        "period_id": "INTEGER NOT NULL",
+        "quarter_id": "INTEGER NOT NULL",
+        "year": "INTEGER NOT NULL",
+        "count_sum": "NUMERIC",
+        "count_expect_sum": "NUMERIC",
+        "count_expected_if_above_diff_threshold": "NUMERIC"
+      }
+    },
+    {
+      "id": "M3_chartout.csv",
+      "createTableStatementPossibleColumns": false
+    },
+    {
+      "id": "M3_all_indicators_shortfalls_admin_area_1.csv",
+      "createTableStatementPossibleColumns": false
+    },
+    {
+      "id": "M3_all_indicators_shortfalls_admin_area_2.csv",
+      "createTableStatementPossibleColumns": false
+    },
+    {
+      "id": "M3_all_indicators_shortfalls_admin_area_3.csv",
+      "createTableStatementPossibleColumns": false
+    },
+    {
+      "id": "M3_all_indicators_shortfalls_admin_area_4.csv",
+      "createTableStatementPossibleColumns": false
+    }
+  ],
+  "metrics": [
+    {
+      "id": "m3-01-01",
+      "label": {
+        "en": "Number of services reported, by adjustment type",
+        "fr": "Nombre de services déclarés, par type d'ajustement",
+        "pt": "Número de serviços notificados, por tipo de ajuste"
+      },
+      "variantLabel": null,
+      "valueProps": [
+        "count_final_none",
+        "count_final_outliers",
+        "count_final_completeness",
+        "count_final_both"
+      ],
+      "valueFunc": "SUM",
+      "formatAs": "number",
+      "requiredDisaggregationOptions": [
+        "indicator_common_id"
+      ],
+      "valueLabelReplacements": {
+        "count_final_none": "Number of services reported",
+        "count_final_outliers": "Number of services after outlier adjustment",
+        "count_final_completeness": "Number of services after completeness adjustment",
+        "count_final_both": "Number of services after both outlier and completeness adjustment"
+      },
+      "postAggregationExpression": null,
+      "catalogExpressionEvaluation": null,
+      "resultsObjectId": "M3_service_utilization.csv",
+      "aiDescription": {
+        "summary": {
+          "en": "Total service volumes across four data quality adjustment scenarios: unadjusted, outlier-adjusted, completeness-adjusted, and both adjustments combined.",
+          "fr": "Volumes totaux de services à travers quatre scénarios d'ajustement de qualité: non ajusté, ajusté pour aberrants, ajusté pour complétude, et les deux ajustements combinés.",
+          "pt": "Volumes totais de serviços em quatro cenários de ajuste de qualidade dos dados: não ajustado, ajustado para valores atípicos, ajustado para a completude e os dois ajustes combinados."
+        },
+        "methodology": {
+          "en": "SUM of service counts under each adjustment type. Four values are presented: (1) raw reported volumes, (2) outlier-adjusted volumes, (3) completeness-adjusted volumes, (4) fully-adjusted volumes with both corrections applied.",
+          "fr": "Somme des comptes de services sous chaque type d'ajustement. Quatre valeurs sont présentées: (1) volumes bruts déclarés, (2) volumes ajustés pour aberrants, (3) volumes ajustés pour complétude, (4) volumes totalement ajustés avec les deux corrections appliquées.",
+          "pt": "SOMA das contagens de serviços em cada tipo de ajuste. São apresentados quatro valores: (1) volumes brutos notificados, (2) volumes ajustados para valores atípicos, (3) volumes ajustados para a completude, (4) volumes totalmente ajustados com as duas correções aplicadas."
+        },
+        "interpretation": {
+          "en": "Comparing the four adjustment types reveals the impact of data quality corrections on service totals. Large differences between unadjusted and adjusted values indicate significant data quality issues. Users can select which adjustment scenario to use for subsequent analysis based on their data quality tolerance.",
+          "fr": "La comparaison des quatre types d'ajustement révèle l'impact des corrections de qualité des données sur les totaux de services. De grandes différences entre les valeurs non ajustées et ajustées indiquent des problèmes de qualité des données importants. Les utilisateurs peuvent sélectionner le scénario d'ajustement à utiliser pour l'analyse ultérieure en fonction de leur tolérance à la qualité des données.",
+          "pt": "A comparação dos quatro tipos de ajuste revela o impacto das correções de qualidade dos dados nos totais de serviços. Grandes diferenças entre os valores não ajustados e ajustados indicam problemas significativos de qualidade dos dados. Os utilizadores podem selecionar o cenário de ajuste a utilizar na análise subsequente em função da sua tolerância à qualidade dos dados."
+        },
+        "typicalRange": {
+          "en": "Varies by service type and dataset quality. Completeness adjustment typically increases totals; outlier adjustment may increase or decrease totals.",
+          "fr": "Varie selon le type de service et la qualité du jeu de données. L'ajustement de complétude augmente généralement les totaux; l'ajustement des valeurs aberrantes peut augmenter ou diminuer les totaux.",
+          "pt": "Varia consoante o tipo de serviço e a qualidade do conjunto de dados. O ajuste de completude aumenta geralmente os totais; o ajuste de valores atípicos pode aumentar ou diminuir os totais."
+        },
+        "caveats": {
+          "en": "The appropriate adjustment type depends on analytical goals. Conservative analyses may prefer minimal adjustment; comprehensive coverage estimates may require full adjustment. Maternal/neonatal/under-5 deaths are excluded from all adjustments.",
+          "fr": "Le type d'ajustement approprié dépend des objectifs analytiques. Les analyses conservatrices peuvent préférer un ajustement minimal; les estimations de couverture complète peuvent nécessiter un ajustement complet. Les décès maternels/néonatals/moins de 5 ans sont exclus de tous les ajustements.",
+          "pt": "O tipo de ajuste apropriado depende dos objetivos analíticos. As análises conservadoras podem preferir um ajuste mínimo; as estimativas de cobertura abrangentes podem exigir um ajuste completo. Os óbitos maternos/neonatais/de menores de 5 anos são excluídos de todos os ajustes."
+        },
+        "disaggregationGuidance": {
+          "en": "Always disaggregate by indicator_common_id (required) to see adjustment impact per service. Time series reveals if data quality improves over time. Regional disaggregation shows geographic variation in adjustment needs.",
+          "fr": "Toujours désagréger par indicator_common_id (requis) pour voir l'impact de l'ajustement par service. Les séries temporelles révèlent si la qualité des données s'améliore au fil du temps. La désagrégation régionale montre la variation géographique des besoins d'ajustement.",
+          "pt": "Desagregar sempre por indicator_common_id (obrigatório) para ver o impacto do ajuste por serviço. As séries temporais revelam se a qualidade dos dados melhora ao longo do tempo. A desagregação regional mostra a variação geográfica das necessidades de ajuste."
+        }
+      },
+      "importantNotes": {
+        "en": "The intention of the first four visualization presets (volume-monthly, volume-quarterly, volume-annual, volume-subnational) is that only one of the values is selected: count_final_none, count_final_outliers, count_final_completeness, or count_final_both. You should use valuesFilter to select it (i.e. filter so it is only one value). To determine which to use, run get_module_settings for module id 'm003' and see what value is set for 'Count variable to use for visualization', which should be the default value that you use (although the user may ask for a different one, which you can use instead). If the user wants to compare different adjustments, you should use preset dq-comparison.",
+        "fr": "L'intention des quatre premiers préréglages de visualisation (volume-monthly, volume-quarterly, volume-annual, volume-subnational) est qu'une seule des valeurs soit sélectionnée : count_final_none, count_final_outliers, count_final_completeness, ou count_final_both. Vous devez utiliser valuesFilter pour la sélectionner (c'est-à-dire filtrer pour n'avoir qu'une seule valeur). Pour déterminer laquelle utiliser, exécutez get_module_settings pour le module 'm003' et consultez la valeur définie pour 'Count variable to use for visualization', qui devrait être la valeur par défaut que vous utilisez (bien que l'utilisateur puisse en demander une différente, que vous pouvez utiliser à la place). Si l'utilisateur souhaite comparer différents ajustements, vous devez utiliser le préréglage dq-comparison.",
+        "pt": "A intenção dos quatro primeiros predefinições de visualização (volume-monthly, volume-quarterly, volume-annual, volume-subnational) é que apenas um dos valores seja selecionado: count_final_none, count_final_outliers, count_final_completeness ou count_final_both. Deve utilizar valuesFilter para o selecionar (ou seja, filtrar para ter apenas um valor). Para determinar qual utilizar, execute get_module_settings para o módulo 'm003' e consulte o valor definido para 'Count variable to use for visualization', que deverá ser o valor predefinido que utiliza (embora o utilizador possa pedir um diferente, que pode utilizar em alternativa). Se o utilizador pretender comparar diferentes ajustes, deve utilizar a predefinição dq-comparison."
+      },
+      "vizPresets": [
+        {
+          "id": "volume-monthly",
+          "label": {
+            "en": "Service volume over time (monthly)",
+            "fr": "Volume de services dans le temps (mensuel)",
+            "pt": "Volume de serviços ao longo do tempo (mensal)"
+          },
+          "description": {
+            "en": "Line chart showing monthly service volume by indicator",
+            "fr": "Graphique linéaire montrant le volume de services mensuel par indicateur",
+            "pt": "Gráfico de linhas que mostra o volume de serviços mensal por indicador"
+          },
+          "importantNotes": null,
+          "allowedFilters": [
+            "indicator_common_id"
+          ],
+          "createDefaultVisualizationOnInstall": "45f2bcd8-879d-4423-a4b0-a84127e168bf",
+          "config": {
+            "d": {
+              "type": "timeseries",
+              "timeseriesGrouping": "period_id",
+              "valuesDisDisplayOpt": "series",
+              "valuesFilter": [
+                "count_final_both"
+              ],
+              "disaggregateBy": [
+                {
+                  "disOpt": "indicator_common_id",
+                  "disDisplayOpt": "cell"
+                }
+              ],
+              "filterBy": []
+            },
+            "s": {
+              "content": "lines"
+            },
+            "t": {
+              "caption": {
+                "en": "Service utilization over time",
+                "fr": "Utilisation des services dans le temps",
+                "pt": "Utilização dos serviços ao longo do tempo"
+              },
+              "captionRelFontSize": null,
+              "subCaption": {
+                "en": "DATE_RANGE",
+                "fr": "PLAGE_DE_DATES",
+                "pt": "INTERVALO_DE_DATAS"
+              },
+              "subCaptionRelFontSize": null,
+              "footnote": {
+                "en": "Yearly volume is adjusted for both outliers and completeness.",
+                "fr": "Le volume annuel est ajusté à la fois pour les valeurs aberrantes et la complétude.",
+                "pt": "O volume anual é ajustado tanto para valores atípicos como para a completude."
+              },
+              "footnoteRelFontSize": null
+            }
+          }
+        },
+        {
+          "id": "volume-quarterly",
+          "label": {
+            "en": "Volume quarterly change",
+            "fr": "Variation trimestrielle du volume",
+            "pt": "Variação trimestral do volume"
+          },
+          "description": {
+            "en": "Bar chart showing quarterly volume with quarter-on-quarter change",
+            "fr": "Diagramme à barres montrant le volume trimestriel avec variation trimestre par trimestre",
+            "pt": "Gráfico de barras que mostra o volume trimestral com variação trimestre a trimestre"
+          },
+          "importantNotes": null,
+          "allowedFilters": [
+            "indicator_common_id"
+          ],
+          "createDefaultVisualizationOnInstall": null,
+          "config": {
+            "d": {
+              "type": "timeseries",
+              "timeseriesGrouping": "quarter_id",
+              "valuesDisDisplayOpt": "series",
+              "valuesFilter": [
+                "count_final_outliers"
+              ],
+              "disaggregateBy": [
+                {
+                  "disOpt": "indicator_common_id",
+                  "disDisplayOpt": "row"
+                }
+              ],
+              "filterBy": [],
+              "periodFilter": {
+                "filterType": "last_n_months",
+                "nMonths": 12
+              }
+            },
+            "s": {
+              "specialBarChart": true,
+              "specialBarChartDataLabels": "all-values"
+            },
+            "t": {
+              "caption": {
+                "en": "Service volume by quarter & quarter-on-quarter change",
+                "fr": "Volume de services par trimestre et variation trimestre par trimestre",
+                "pt": "Volume de serviços por trimestre e variação trimestre a trimestre"
+              },
+              "captionRelFontSize": null,
+              "subCaption": {
+                "en": "DATE_RANGE",
+                "fr": "PLAGE_DE_DATES",
+                "pt": "INTERVALO_DE_DATAS"
+              },
+              "subCaptionRelFontSize": null,
+              "footnote": {
+                "en": "Service volume is adjusted for outliers.",
+                "fr": "Le volume de services est ajusté pour les valeurs aberrantes.",
+                "pt": "O volume de serviços é ajustado para valores atípicos."
+              },
+              "footnoteRelFontSize": null
+            }
+          }
+        },
+        {
+          "id": "volume-annual",
+          "label": {
+            "en": "Volume annual change",
+            "fr": "Variation annuelle du volume",
+            "pt": "Variação anual do volume"
+          },
+          "description": {
+            "en": "Bar chart showing annual volume with year-on-year change",
+            "fr": "Diagramme à barres montrant le volume annuel avec variation d'une année sur l'autre",
+            "pt": "Gráfico de barras que mostra o volume anual com variação de um ano para o outro"
+          },
+          "importantNotes": null,
+          "allowedFilters": [
+            "indicator_common_id"
+          ],
+          "createDefaultVisualizationOnInstall": null,
+          "config": {
+            "d": {
+              "type": "timeseries",
+              "timeseriesGrouping": "year",
+              "valuesDisDisplayOpt": "series",
+              "valuesFilter": [
+                "count_final_outliers"
+              ],
+              "disaggregateBy": [
+                {
+                  "disOpt": "indicator_common_id",
+                  "disDisplayOpt": "row"
+                }
+              ],
+              "filterBy": []
+            },
+            "s": {
+              "specialBarChart": true,
+              "specialBarChartDataLabels": "all-values"
+            },
+            "t": {
+              "caption": {
+                "en": "Service volume by year & year-on-year change",
+                "fr": "Volume de services par année et variation d'une année sur l'autre",
+                "pt": "Volume de serviços por ano e variação de um ano para o outro"
+              },
+              "captionRelFontSize": null,
+              "subCaption": {
+                "en": "DATE_RANGE",
+                "fr": "PLAGE_DE_DATES",
+                "pt": "INTERVALO_DE_DATAS"
+              },
+              "subCaptionRelFontSize": null,
+              "footnote": {
+                "en": "Service volume is adjusted for outliers.",
+                "fr": "Le volume de services est ajusté pour les valeurs aberrantes.",
+                "pt": "O volume de serviços é ajustado para valores atípicos."
+              },
+              "footnoteRelFontSize": null
+            }
+          }
+        },
+        {
+          "id": "volume-subnational",
+          "label": {
+            "en": "Volume annual change by Admin Area 2",
+            "fr": "Variation annuelle du volume par Zone administrative 2",
+            "pt": "Variação anual do volume por Área administrativa 2"
+          },
+          "description": {
+            "en": "Bar chart showing annual volume change by indicator and admin area",
+            "fr": "Diagramme à barres montrant la variation annuelle du volume par indicateur et zone administrative",
+            "pt": "Gráfico de barras que mostra a variação anual do volume por indicador e área administrativa"
+          },
+          "importantNotes": null,
+          "allowedFilters": [
+            "indicator_common_id",
+            "admin_area_2"
+          ],
+          "createDefaultVisualizationOnInstall": "20658bc8-2b24-4adc-8090-407c6e34f22a",
+          "config": {
+            "d": {
+              "type": "timeseries",
+              "timeseriesGrouping": "year",
+              "valuesDisDisplayOpt": "series",
+              "valuesFilter": [
+                "count_final_outliers"
+              ],
+              "disaggregateBy": [
+                {
+                  "disOpt": "indicator_common_id",
+                  "disDisplayOpt": "row"
+                },
+                {
+                  "disOpt": "admin_area_2",
+                  "disDisplayOpt": "col"
+                }
+              ],
+              "filterBy": []
+            },
+            "s": {
+              "specialBarChart": true,
+              "specialBarChartDataLabels": "all-values"
+            },
+            "t": {
+              "caption": {
+                "en": "Service volume by year & year-on-year change",
+                "fr": "Volume de services par année et variation d'une année sur l'autre",
+                "pt": "Volume de serviços por ano e variação de um ano para o outro"
+              },
+              "captionRelFontSize": null,
+              "subCaption": {
+                "en": "DATE_RANGE",
+                "fr": "PLAGE_DE_DATES",
+                "pt": "INTERVALO_DE_DATAS"
+              },
+              "subCaptionRelFontSize": null,
+              "footnote": {
+                "en": "Yearly volume is adjusted for outliers.",
+                "fr": "Le volume annuel est ajusté pour les valeurs aberrantes.",
+                "pt": "O volume anual é ajustado para valores atípicos."
+              },
+              "footnoteRelFontSize": null
+            }
+          }
+        },
+        {
+          "id": "dq-comparison",
+          "label": {
+            "en": "Data quality adjustment comparison",
+            "fr": "Comparaison des ajustements de qualité des données",
+            "pt": "Comparação dos ajustes de qualidade dos dados"
+          },
+          "description": {
+            "en": "Line chart comparing volume under different adjustment scenarios",
+            "fr": "Graphique linéaire comparant le volume selon différents scénarios d'ajustement",
+            "pt": "Gráfico de linhas que compara o volume segundo diferentes cenários de ajuste"
+          },
+          "importantNotes": null,
+          "allowedFilters": [
+            "indicator_common_id"
+          ],
+          "createDefaultVisualizationOnInstall": "508f17cc-fbfd-4585-a2e8-8242234898c3",
+          "config": {
+            "d": {
+              "type": "timeseries",
+              "timeseriesGrouping": "year",
+              "valuesDisDisplayOpt": "series",
+              "disaggregateBy": [
+                {
+                  "disOpt": "indicator_common_id",
+                  "disDisplayOpt": "col"
+                }
+              ],
+              "filterBy": []
+            },
+            "s": {
+              "colorScale": "custom",
+              "customSeriesStyles": [
+                {
+                  "color": "#00897b",
+                  "strokeWidth": 5,
+                  "lineStyle": "solid"
+                },
+                {
+                  "color": "#757575",
+                  "strokeWidth": 5,
+                  "lineStyle": "solid"
+                },
+                {
+                  "color": "#8e24aa",
+                  "strokeWidth": 5,
+                  "lineStyle": "solid"
+                },
+                {
+                  "color": "#7cb342",
+                  "strokeWidth": 5,
+                  "lineStyle": "solid"
+                }
+              ]
+            },
+            "t": {
+              "caption": {
+                "en": "Change in volume due to data quality adjustments",
+                "fr": "Variation du volume due aux ajustements de qualité des données",
+                "pt": "Variação do volume devida aos ajustes de qualidade dos dados"
+              },
+              "captionRelFontSize": null,
+              "subCaption": {
+                "en": "DATE_RANGE",
+                "fr": "PLAGE_DE_DATES",
+                "pt": "INTERVALO_DE_DATAS"
+              },
+              "subCaptionRelFontSize": null,
+              "footnote": null,
+              "footnoteRelFontSize": null
+            }
+          }
+        }
+      ],
+      "hide": false
+    },
+    {
+      "id": "m3-02-01",
+      "label": {
+        "en": "Disruptions and surpluses",
+        "fr": "Perturbations et excédents",
+        "pt": "Perturbações e excedentes"
+      },
+      "variantLabel": {
+        "en": "National",
+        "fr": "National",
+        "pt": "Nacional"
+      },
+      "valueProps": [
+        "count_sum",
+        "count_expected_if_above_diff_threshold"
+      ],
+      "valueFunc": "SUM",
+      "formatAs": "number",
+      "requiredDisaggregationOptions": [
+        "indicator_common_id"
+      ],
+      "valueLabelReplacements": {
+        "count_sum": "Actual service volume",
+        "count_expected_if_above_diff_threshold": "Expected service volume"
+      },
+      "postAggregationExpression": null,
+      "catalogExpressionEvaluation": null,
+      "resultsObjectId": "M3_disruptions_analysis_admin_area_1.csv",
+      "aiDescription": {
+        "summary": {
+          "en": "Comparison of actual reported service volumes against model-predicted expected volumes at national level.",
+          "fr": "Comparaison des volumes de services réels déclarés par rapport aux volumes attendus prédits par modèle au niveau national.",
+          "pt": "Comparação dos volumes de serviços reais notificados com os volumes esperados previstos pelo modelo a nível nacional."
+        },
+        "methodology": {
+          "en": "SUM of actual reported counts vs SUM of expected counts from robust regression models. Expected volumes are calculated using panel regression with time trends, seasonal patterns, and disruption flags. Only periods with differences exceeding the configured threshold are included.",
+          "fr": "Somme des comptes réels déclarés vs somme des comptes attendus des modèles de régression robustes. Les volumes attendus sont calculés en utilisant la régression de panel avec des tendances temporelles, des modèles saisonniers et des indicateurs de perturbation. Seules les périodes avec des différences dépassant le seuil configuré sont incluses.",
+          "pt": "SOMA das contagens reais notificadas vs SOMA das contagens esperadas a partir de modelos de regressão robustos. Os volumes esperados são calculados utilizando regressão de painel com tendências temporais, padrões sazonais e indicadores de perturbação. São incluídos apenas os períodos com diferenças que excedem o limiar configurado."
+        },
+        "interpretation": {
+          "en": "Deviations between actual and expected volumes indicate potential service disruptions or anomalies. Periods where actual falls below expected suggest service delivery problems; actual above expected may indicate data quality issues, campaigns, or genuine increases in demand.",
+          "fr": "Les écarts entre volumes réels et attendus indiquent des perturbations potentielles de services ou des anomalies. Les périodes où le réel est inférieur à l'attendu suggèrent des problèmes de prestation de services; le réel supérieur à l'attendu peut indiquer des problèmes de qualité des données, des campagnes ou de véritables augmentations de la demande.",
+          "pt": "Os desvios entre os volumes reais e esperados indicam potenciais perturbações dos serviços ou anomalias. Os períodos em que o real fica abaixo do esperado sugerem problemas na prestação de serviços; o real acima do esperado pode indicar problemas de qualidade dos dados, campanhas ou aumentos genuínos da procura."
+        },
+        "typicalRange": {
+          "en": "Expected volumes should closely track actual volumes in stable periods. Deviations during crises, campaigns, or data system changes are normal.",
+          "fr": "Les volumes attendus devraient suivre de près les volumes réels pendant les périodes stables. Les écarts pendant les crises, les campagnes ou les changements du système de données sont normaux.",
+          "pt": "Os volumes esperados devem acompanhar de perto os volumes reais nos períodos estáveis. Os desvios durante crises, campanhas ou alterações do sistema de dados são normais."
+        },
+        "caveats": {
+          "en": "Model quality depends on sufficient historical data and stable baseline periods. Expected values are only shown when difference exceeds the configured DIFFPERCENT threshold (default 10%), so small deviations are filtered out.",
+          "fr": "La qualité du modèle dépend de données historiques suffisantes et de périodes de référence stables. Les valeurs attendues ne sont affichées que lorsque la différence dépasse le seuil DIFFPERCENT configuré (10% par défaut), donc les petits écarts sont filtrés.",
+          "pt": "A qualidade do modelo depende de dados históricos suficientes e de períodos de referência estáveis. Os valores esperados só são apresentados quando a diferença excede o limiar DIFFPERCENT configurado (10% por predefinição), pelo que os pequenos desvios são filtrados."
+        },
+        "disaggregationGuidance": {
+          "en": "Always disaggregate by indicator_common_id (required) to see service-specific patterns. Time series visualization is essential for identifying disruption periods and recovery trends.",
+          "fr": "Toujours désagréger par indicator_common_id (requis) pour voir les modèles spécifiques au service. La visualisation en séries temporelles est essentielle pour identifier les périodes de perturbation et les tendances de récupération.",
+          "pt": "Desagregar sempre por indicator_common_id (obrigatório) para ver os padrões específicos de cada serviço. A visualização em séries temporais é essencial para identificar os períodos de perturbação e as tendências de recuperação."
+        }
+      },
+      "importantNotes": null,
+      "vizPresets": [
+        {
+          "id": "disruption-chart",
+          "label": {
+            "en": "Disruptions and surpluses (national)",
+            "fr": "Perturbations et excédents (national)",
+            "pt": "Perturbações e excedentes (nacional)"
+          },
+          "description": {
+            "en": "Area chart showing actual vs expected service volume nationally",
+            "fr": "Graphique en aires montrant le volume de services réel vs attendu au niveau national",
+            "pt": "Gráfico de áreas que mostra o volume de serviços real vs esperado a nível nacional"
+          },
+          "importantNotes": null,
+          "allowedFilters": [
+            "indicator_common_id"
+          ],
+          "createDefaultVisualizationOnInstall": "e51a15fd-acfc-4da9-8797-b462b9626cff",
+          "config": {
+            "d": {
+              "type": "timeseries",
+              "timeseriesGrouping": "period_id",
+              "valuesDisDisplayOpt": "series",
+              "disaggregateBy": [
+                {
+                  "disOpt": "indicator_common_id",
+                  "disDisplayOpt": "cell"
+                }
+              ],
+              "filterBy": []
+            },
+            "s": {
+              "specialDisruptionsChart": true
+            },
+            "t": {
+              "caption": {
+                "en": "Disruptions and surpluses in service volume, nationally",
+                "fr": "Perturbations et excédents du volume de services, au niveau national",
+                "pt": "Perturbações e excedentes no volume de serviços, a nível nacional"
+              },
+              "captionRelFontSize": null,
+              "subCaption": {
+                "en": "DATE_RANGE",
+                "fr": "PLAGE_DE_DATES",
+                "pt": "INTERVALO_DE_DATAS"
+              },
+              "subCaptionRelFontSize": null,
+              "footnote": {
+                "en": "This graph quantifies changes in service volume compared to historical trends and accounting for seasonality. These signals should be triangulated to other data and contextual knowledge to determine if the results are an artifact of data quality. Unexpected volume changes are estimated by comparing the observed volume to the expected volume based on historical trends and seasonality. Previous large unexpected changes in the historical data are removed. This analysis is an interrupted time series regression with facility-level fixed effects.",
+                "fr": "Ce graphique quantifie les changements du volume de services par rapport aux tendances historiques et en tenant compte de la saisonnalité. Ces signaux doivent être triangulés avec d'autres données et connaissances contextuelles pour déterminer si les résultats sont un artefact de la qualité des données. Les changements de volume inattendus sont estimés en comparant le volume observé au volume attendu basé sur les tendances historiques et la saisonnalité. Les grands changements inattendus précédents dans les données historiques sont supprimés. Cette analyse est une régression de séries temporelles interrompues avec effets fixes au niveau de l'établissement.",
+                "pt": "Este gráfico quantifica as alterações no volume de serviços em comparação com as tendências históricas e tendo em conta a sazonalidade. Estes sinais devem ser triangulados com outros dados e conhecimento contextual para determinar se os resultados são um artefacto da qualidade dos dados. As alterações de volume inesperadas são estimadas comparando o volume observado com o volume esperado com base nas tendências históricas e na sazonalidade. As grandes alterações inesperadas anteriores nos dados históricos são removidas. Esta análise é uma regressão de séries temporais interrompidas com efeitos fixos ao nível do estabelecimento."
+              },
+              "footnoteRelFontSize": null
+            }
+          }
+        }
+      ],
+      "hide": false
+    },
+    {
+      "id": "m3-02-02",
+      "label": {
+        "en": "Difference between actual and expected service volume (%)",
+        "fr": "Différence entre le volume de services réel et attendu (%)",
+        "pt": "Diferença entre o volume de serviços real e esperado (%)"
+      },
+      "variantLabel": {
+        "en": "National",
+        "fr": "National",
+        "pt": "Nacional"
+      },
+      "valueProps": [
+        "pct_diff"
+      ],
+      "valueFunc": "identity",
+      "formatAs": "percent",
+      "requiredDisaggregationOptions": [
+        "indicator_common_id"
+      ],
+      "valueLabelReplacements": {
+        "pct_diff": "Percent difference"
+      },
+      "postAggregationExpression": {
+        "ingredientValues": [
+          {
+            "prop": "count_sum",
+            "func": "SUM"
+          },
+          {
+            "prop": "count_expect_sum",
+            "func": "SUM"
+          }
+        ],
+        "expression": "pct_diff = (count_sum - count_expect_sum)/count_expect_sum"
+      },
+      "catalogExpressionEvaluation": null,
+      "resultsObjectId": "M3_disruptions_analysis_admin_area_1.csv",
+      "aiDescription": {
+        "summary": {
+          "en": "Percentage difference between actual and model-predicted service volumes at national level.",
+          "fr": "Différence en pourcentage entre les volumes de services réels et prédits par modèle au niveau national.",
+          "pt": "Diferença percentual entre os volumes de serviços reais e os previstos pelo modelo a nível nacional."
+        },
+        "methodology": {
+          "en": "Calculated as (actual - expected) / expected. Positive values indicate volumes above expected; negative values indicate shortfalls. Expected volumes come from robust panel regression models accounting for trends and seasonality.",
+          "fr": "Calculé comme (réel - attendu) / attendu. Les valeurs positives indiquent des volumes au-dessus de l'attendu; les valeurs négatives indiquent des déficits.",
+          "pt": "Calculado como (real - esperado) / esperado. Os valores positivos indicam volumes acima do esperado; os valores negativos indicam défices. Os volumes esperados provêm de modelos robustos de regressão de painel que têm em conta as tendências e a sazonalidade."
+        },
+        "interpretation": {
+          "en": "Negative values indicate service disruptions or underperformance relative to expected levels. Values below -20% warrant investigation. Positive values may reflect data quality issues, special campaigns, increased demand, or genuine service improvements. Use alongside control chart flags for context.",
+          "fr": "Les valeurs négatives indiquent des perturbations de services ou une sous-performance par rapport aux niveaux attendus. Les valeurs inférieures à -20% nécessitent une investigation. Les valeurs positives peuvent refléter des problèmes de qualité des données, des campagnes spéciales, une demande accrue ou de véritables améliorations de services. Utiliser avec les indicateurs de carte de contrôle pour le contexte.",
+          "pt": "Os valores negativos indicam perturbações dos serviços ou um desempenho inferior em relação aos níveis esperados. Os valores abaixo de -20% justificam investigação. Os valores positivos podem refletir problemas de qualidade dos dados, campanhas especiais, aumento da procura ou melhorias genuínas dos serviços. Utilizar em conjunto com os indicadores da carta de controlo para contexto."
+        },
+        "typicalRange": {
+          "en": "±10% is within normal variation; ±10-30% indicates moderate disruption; >30% deviation suggests major disruption or data issues.",
+          "fr": "±10% est dans la variation normale; ±10-30% indique une perturbation modérée; >30% d'écart suggère une perturbation majeure ou des problèmes de données.",
+          "pt": "±10% está dentro da variação normal; ±10-30% indica uma perturbação moderada; um desvio >30% sugere uma perturbação grave ou problemas de dados."
+        },
+        "caveats": {
+          "en": "Percentage differences can be misleading for indicators with small absolute volumes. Model predictions assume stable baseline patterns - structural changes in the health system may appear as disruptions.",
+          "fr": "Les différences en pourcentage peuvent être trompeuses pour les indicateurs avec de petits volumes absolus. Les prédictions du modèle supposent des modèles de base stables - les changements structurels du système de santé peuvent apparaître comme des perturbations.",
+          "pt": "As diferenças percentuais podem ser enganadoras para indicadores com pequenos volumes absolutos. As previsões do modelo pressupõem padrões de base estáveis - as alterações estruturais do sistema de saúde podem surgir como perturbações."
+        },
+        "disaggregationGuidance": {
+          "en": "Always disaggregate by indicator_common_id (required). Time series shows disruption evolution and recovery patterns. Consider using absolute differences (m3-02-01) alongside percentages for low-volume indicators.",
+          "fr": "Toujours désagréger par indicator_common_id (requis). Les séries temporelles montrent l'évolution de la perturbation et les modèles de récupération. Considérer l'utilisation des différences absolues (m3-02-01) aux côtés des pourcentages pour les indicateurs à faible volume.",
+          "pt": "Desagregar sempre por indicator_common_id (obrigatório). As séries temporais mostram a evolução da perturbação e os padrões de recuperação. Considerar a utilização das diferenças absolutas (m3-02-01) em conjunto com as percentagens para indicadores de baixo volume."
+        }
+      },
+      "importantNotes": null,
+      "vizPresets": [],
+      "hide": false
+    },
+    {
+      "id": "m3-02-03",
+      "label": {
+        "en": "Actual vs expected service volume",
+        "fr": "Volume de services réel vs attendu",
+        "pt": "Volume de serviços real vs esperado"
+      },
+      "variantLabel": {
+        "en": "National",
+        "fr": "National",
+        "pt": "Nacional"
+      },
+      "valueProps": [
+        "count_sum",
+        "count_expect_sum"
+      ],
+      "valueFunc": "SUM",
+      "formatAs": "number",
+      "requiredDisaggregationOptions": [
+        "indicator_common_id"
+      ],
+      "valueLabelReplacements": {
+        "count_sum": "Actual service volume",
+        "count_expect_sum": "Expected service volume"
+      },
+      "postAggregationExpression": null,
+      "catalogExpressionEvaluation": null,
+      "resultsObjectId": "M3_disruptions_analysis_admin_area_1.csv",
+      "aiDescription": {
+        "summary": {
+          "en": "Comparison of actual reported service volumes against model-predicted expected volumes at national level.",
+          "fr": "Comparaison des volumes de services réels déclarés par rapport aux volumes attendus prédits par modèle au niveau national.",
+          "pt": "Comparação dos volumes de serviços reais notificados com os volumes esperados previstos pelo modelo a nível nacional."
+        },
+        "methodology": {
+          "en": "SUM of actual reported counts vs SUM of expected counts from robust regression models. Expected volumes are calculated using panel regression with time trends, seasonal patterns, and disruption flags. The full expected series is reported for every period (no difference threshold is applied).",
+          "fr": "Somme des comptes réels déclarés vs somme des comptes attendus des modèles de régression robustes. Les volumes attendus sont calculés en utilisant la régression de panel avec des tendances temporelles, des modèles saisonniers et des indicateurs de perturbation. La série attendue complète est rapportée pour chaque période (aucun seuil de différence n'est appliqué).",
+          "pt": "SOMA das contagens reais notificadas vs SOMA das contagens esperadas a partir de modelos de regressão robustos. Os volumes esperados são calculados utilizando regressão de painel com tendências temporais, padrões sazonais e indicadores de perturbação. A série esperada completa é notificada para cada período (não é aplicado qualquer limiar de diferença)."
+        },
+        "interpretation": {
+          "en": "Deviations between actual and expected volumes indicate potential service disruptions or anomalies. Periods where actual falls below expected suggest service delivery problems; actual above expected may indicate data quality issues, campaigns, or genuine increases in demand.",
+          "fr": "Les écarts entre volumes réels et attendus indiquent des perturbations potentielles de services ou des anomalies. Les périodes où le réel est inférieur à l'attendu suggèrent des problèmes de prestation de services; le réel supérieur à l'attendu peut indiquer des problèmes de qualité des données, des campagnes ou de véritables augmentations de la demande.",
+          "pt": "Os desvios entre os volumes reais e esperados indicam potenciais perturbações dos serviços ou anomalias. Os períodos em que o real fica abaixo do esperado sugerem problemas na prestação de serviços; o real acima do esperado pode indicar problemas de qualidade dos dados, campanhas ou aumentos genuínos da procura."
+        },
+        "typicalRange": {
+          "en": "Expected volumes should closely track actual volumes in stable periods. Deviations during crises, campaigns, or data system changes are normal.",
+          "fr": "Les volumes attendus devraient suivre de près les volumes réels pendant les périodes stables. Les écarts pendant les crises, les campagnes ou les changements du système de données sont normaux.",
+          "pt": "Os volumes esperados devem acompanhar de perto os volumes reais nos períodos estáveis. Os desvios durante crises, campanhas ou alterações do sistema de dados são normais."
+        },
+        "caveats": {
+          "en": "Model quality depends on sufficient historical data and stable baseline periods. Unlike the disruptions-and-surpluses chart metric, the expected value is reported for every period regardless of the size of the difference.",
+          "fr": "La qualité du modèle dépend de données historiques suffisantes et de périodes de référence stables. Contrairement à la métrique du graphique des perturbations et excédents, la valeur attendue est rapportée pour chaque période quelle que soit la taille de la différence.",
+          "pt": "A qualidade do modelo depende de dados históricos suficientes e de períodos de referência estáveis. Ao contrário da métrica do gráfico de perturbações e excedentes, o valor esperado é notificado para cada período independentemente da dimensão da diferença."
+        },
+        "disaggregationGuidance": {
+          "en": "Always disaggregate by indicator_common_id (required) to see service-specific patterns. Time series visualization is essential for identifying disruption periods and recovery trends.",
+          "fr": "Toujours désagréger par indicator_common_id (requis) pour voir les modèles spécifiques au service. La visualisation en séries temporelles est essentielle pour identifier les périodes de perturbation et les tendances de récupération.",
+          "pt": "Desagregar sempre por indicator_common_id (obrigatório) para ver os padrões específicos de cada serviço. A visualização em séries temporais é essencial para identificar os períodos de perturbação e as tendências de recuperação."
+        }
+      },
+      "importantNotes": null,
+      "vizPresets": [],
+      "hide": false
+    },
+    {
+      "id": "m3-03-01",
+      "label": {
+        "en": "Disruptions and surpluses",
+        "fr": "Perturbations et excédents",
+        "pt": "Perturbações e excedentes"
+      },
+      "variantLabel": {
+        "en": "Admin area 2",
+        "fr": "Zone administrative 2",
+        "pt": "Área administrativa 2"
+      },
+      "valueProps": [
+        "count_sum",
+        "count_expected_if_above_diff_threshold"
+      ],
+      "valueFunc": "SUM",
+      "formatAs": "number",
+      "requiredDisaggregationOptions": [
+        "indicator_common_id",
+        "admin_area_2"
+      ],
+      "valueLabelReplacements": {
+        "count_sum": "Actual service volume",
+        "count_expected_if_above_diff_threshold": "Expected service volume"
+      },
+      "postAggregationExpression": null,
+      "catalogExpressionEvaluation": null,
+      "resultsObjectId": "M3_disruptions_analysis_admin_area_2.csv",
+      "aiDescription": {
+        "summary": {
+          "en": "Comparison of actual reported service volumes against model-predicted expected volumes at admin area 2 (province/state) level.",
+          "fr": "Comparaison des volumes de services réels contre volumes attendus au niveau de la zone administrative 2 (province/état).",
+          "pt": "Comparação dos volumes de serviços reais notificados com os volumes esperados previstos pelo modelo ao nível da área administrativa 2 (província/estado)."
+        },
+        "methodology": {
+          "en": "SUM of actual vs expected counts from area-specific robust regression models. Expected volumes account for local time trends and seasonal patterns. Only periods exceeding the difference threshold are shown.",
+          "fr": "Somme des comptes réels vs attendus des modèles de régression robustes spécifiques à la zone. Les volumes attendus tiennent compte des tendances temporelles locales et des modèles saisonniers. Seules les périodes dépassant le seuil de différence sont affichées.",
+          "pt": "SOMA das contagens reais vs esperadas a partir de modelos de regressão robustos específicos da área. Os volumes esperados têm em conta as tendências temporais locais e os padrões sazonais. São apresentados apenas os períodos que excedem o limiar de diferença."
+        },
+        "interpretation": {
+          "en": "Enables subnational identification of service disruptions. Compare across admin areas to identify geographic hotspots of service delivery problems. Areas with persistent negative deviations need targeted support.",
+          "fr": "Permet l'identification sous-nationale des perturbations de services. Comparer entre les zones administratives pour identifier les points chauds géographiques de problèmes de prestation de services. Les zones avec des écarts négatifs persistants nécessitent un soutien ciblé.",
+          "pt": "Permite a identificação subnacional das perturbações dos serviços. Comparar entre áreas administrativas para identificar os focos geográficos de problemas na prestação de serviços. As áreas com desvios negativos persistentes necessitam de apoio direcionado."
+        },
+        "typicalRange": {
+          "en": "Expected to closely match actual in stable regions. Deviations indicate local disruptions, data issues, or demand changes.",
+          "fr": "Attendu pour correspondre étroitement au réel dans les régions stables. Les écarts indiquent des perturbations locales, des problèmes de données ou des changements de la demande.",
+          "pt": "Espera-se que corresponda de perto ao real nas regiões estáveis. Os desvios indicam perturbações locais, problemas de dados ou alterações da procura."
+        },
+        "caveats": {
+          "en": "Smaller geographic areas may have more volatile patterns, making model predictions less reliable. Consider aggregating to higher levels if area-specific models perform poorly.",
+          "fr": "Les zones géographiques plus petites peuvent avoir des modèles plus volatils, rendant les prédictions du modèle moins fiables. Considérer l'agrégation à des niveaux supérieurs si les modèles spécifiques aux zones fonctionnent mal.",
+          "pt": "As áreas geográficas mais pequenas podem ter padrões mais voláteis, tornando as previsões do modelo menos fiáveis. Considerar a agregação a níveis superiores se os modelos específicos das áreas tiverem um desempenho fraco."
+        },
+        "disaggregationGuidance": {
+          "en": "Always disaggregate by indicator_common_id and admin_area_2 (both required). Time series reveals when and where disruptions occurred. Map visualization effectively shows geographic distribution of service gaps.",
+          "fr": "Toujours désagréger par indicator_common_id et admin_area_2 (tous deux requis). Les séries temporelles révèlent quand et où les perturbations se sont produites. La visualisation cartographique montre efficacement la distribution géographique des écarts de services.",
+          "pt": "Desagregar sempre por indicator_common_id e admin_area_2 (ambos obrigatórios). As séries temporais revelam quando e onde ocorreram as perturbações. A visualização cartográfica mostra eficazmente a distribuição geográfica das lacunas de serviços."
+        }
+      },
+      "importantNotes": null,
+      "vizPresets": [
+        {
+          "id": "disruption-chart",
+          "label": {
+            "en": "Disruptions and surpluses (multiple Admin Area 2, multiple indicators)",
+            "fr": "Perturbations et excédents (plusieurs Zones administratives 2, plusieurs indicateurs)",
+            "pt": "Perturbações e excedentes (várias Áreas administrativas 2, vários indicadores)"
+          },
+          "description": {
+            "en": "Area chart showing actual vs expected service volume, with multiple Admin Areas 2 and multiple indicators",
+            "fr": "Graphique en aires montrant le volume de services réel vs attendu, avec plusieurs Zones administratives 2 et plusieurs indicateurs",
+            "pt": "Gráfico de áreas que mostra o volume de serviços real vs esperado, com várias Áreas administrativas 2 e vários indicadores"
+          },
+          "importantNotes": null,
+          "allowedFilters": [
+            "indicator_common_id",
+            "admin_area_2"
+          ],
+          "createDefaultVisualizationOnInstall": "e1916b10-433a-4b19-b376-491a66b81f11",
+          "config": {
+            "d": {
+              "type": "timeseries",
+              "timeseriesGrouping": "period_id",
+              "valuesDisDisplayOpt": "series",
+              "disaggregateBy": [
+                {
+                  "disOpt": "indicator_common_id",
+                  "disDisplayOpt": "col"
+                },
+                {
+                  "disOpt": "admin_area_2",
+                  "disDisplayOpt": "row"
+                }
+              ],
+              "filterBy": []
+            },
+            "s": {
+              "specialDisruptionsChart": true
+            },
+            "t": {
+              "caption": {
+                "en": "Disruptions and surpluses in service volume, sub-nationally",
+                "fr": "Perturbations et excédents du volume de services, au niveau sous-national",
+                "pt": "Perturbações e excedentes no volume de serviços, a nível subnacional"
+              },
+              "captionRelFontSize": null,
+              "subCaption": {
+                "en": "DATE_RANGE",
+                "fr": "PLAGE_DE_DATES",
+                "pt": "INTERVALO_DE_DATAS"
+              },
+              "subCaptionRelFontSize": null,
+              "footnote": {
+                "en": "This graph quantifies changes in service volume compared to historical trends and accounting for seasonality. These signals should be triangulated to other data and contextual knowledge to determine if the results are an artifact of data quality. Unexpected volume changes are estimated by comparing the observed volume to the expected volume based on historical trends and seasonality. Previous large unexpected changes in the historical data are removed. This analysis is an interrupted time series regression with facility-level fixed effects.",
+                "fr": "Ce graphique quantifie les changements du volume de services par rapport aux tendances historiques et en tenant compte de la saisonnalité. Ces signaux doivent être triangulés avec d'autres données et connaissances contextuelles pour déterminer si les résultats sont un artefact de la qualité des données. Les changements de volume inattendus sont estimés en comparant le volume observé au volume attendu basé sur les tendances historiques et la saisonnalité. Les grands changements inattendus précédents dans les données historiques sont supprimés. Cette analyse est une régression de séries temporelles interrompues avec effets fixes au niveau de l'établissement.",
+                "pt": "Este gráfico quantifica as alterações no volume de serviços em comparação com as tendências históricas e tendo em conta a sazonalidade. Estes sinais devem ser triangulados com outros dados e conhecimento contextual para determinar se os resultados são um artefacto da qualidade dos dados. As alterações de volume inesperadas são estimadas comparando o volume observado com o volume esperado com base nas tendências históricas e na sazonalidade. As grandes alterações inesperadas anteriores nos dados históricos são removidas. Esta análise é uma regressão de séries temporais interrompidas com efeitos fixos ao nível do estabelecimento."
+              },
+              "footnoteRelFontSize": null
+            }
+          }
+        },
+        {
+          "id": "disruption-chart-single-admin-area-2",
+          "label": {
+            "en": "Disruptions and surpluses (single Admin Area 2, multiple indicators)",
+            "fr": "Perturbations et excédents (unique Zone administrative 2, plusieurs indicateurs)",
+            "pt": "Perturbações e excedentes (uma única Área administrativa 2, vários indicadores)"
+          },
+          "description": {
+            "en": "Area chart showing actual vs expected service volume, for a single Admin Area 2 and multiple indicators",
+            "fr": "Graphique en aires montrant le volume de services réel vs attendu, pour une unique Zone administrative 2 et plusieurs indicateurs",
+            "pt": "Gráfico de áreas que mostra o volume de serviços real vs esperado, para uma única Área administrativa 2 e vários indicadores"
+          },
+          "importantNotes": null,
+          "allowedFilters": [
+            "indicator_common_id"
+          ],
+          "createDefaultVisualizationOnInstall": "dee25984-afe7-4643-a823-fd0e26b3cbc0",
+          "config": {
+            "d": {
+              "type": "timeseries",
+              "timeseriesGrouping": "period_id",
+              "valuesDisDisplayOpt": "series",
+              "disaggregateBy": [
+                {
+                  "disOpt": "indicator_common_id",
+                  "disDisplayOpt": "cell"
+                },
+                {
+                  "disOpt": "admin_area_2",
+                  "disDisplayOpt": "replicant"
+                }
+              ],
+              "filterBy": [],
+              "selectedReplicantValue": ""
+            },
+            "s": {
+              "specialDisruptionsChart": true
+            },
+            "t": {
+              "caption": null,
+              "captionRelFontSize": null,
+              "subCaption": {
+                "en": "DATE_RANGE",
+                "fr": "PLAGE_DE_DATES",
+                "pt": "INTERVALO_DE_DATAS"
+              },
+              "subCaptionRelFontSize": null,
+              "footnote": null,
+              "footnoteRelFontSize": null
+            }
+          }
+        },
+        {
+          "id": "disruption-chart-single-indicator",
+          "label": {
+            "en": "Disruptions and surpluses (single indicator, multiple Admin Area 2)",
+            "fr": "Perturbations et excédents (unique indicateur, plusieurs Zones administratives 2)",
+            "pt": "Perturbações e excedentes (um único indicador, várias Áreas administrativas 2)"
+          },
+          "description": {
+            "en": "Area chart showing actual vs expected service volume, for a single indicator and multiple Admin Area 2",
+            "fr": "Graphique en aires montrant le volume de services réel vs attendu, pour un unique indicateur et plusieurs Zones administratives 2",
+            "pt": "Gráfico de áreas que mostra o volume de serviços real vs esperado, para um único indicador e várias Áreas administrativas 2"
+          },
+          "importantNotes": null,
+          "allowedFilters": [
+            "admin_area_2"
+          ],
+          "createDefaultVisualizationOnInstall": "d95a382e-557c-44da-92e9-63a7abd1c7df",
+          "config": {
+            "d": {
+              "type": "timeseries",
+              "timeseriesGrouping": "period_id",
+              "valuesDisDisplayOpt": "series",
+              "disaggregateBy": [
+                {
+                  "disOpt": "indicator_common_id",
+                  "disDisplayOpt": "replicant"
+                },
+                {
+                  "disOpt": "admin_area_2",
+                  "disDisplayOpt": "cell"
+                }
+              ],
+              "filterBy": [],
+              "selectedReplicantValue": "anc1"
+            },
+            "s": {
+              "specialDisruptionsChart": true
+            },
+            "t": {
+              "caption": null,
+              "captionRelFontSize": null,
+              "subCaption": {
+                "en": "DATE_RANGE",
+                "fr": "PLAGE_DE_DATES",
+                "pt": "INTERVALO_DE_DATAS"
+              },
+              "subCaptionRelFontSize": null,
+              "footnote": null,
+              "footnoteRelFontSize": null
+            }
+          }
+        }
+      ],
+      "hide": false
+    },
+    {
+      "id": "m3-03-02",
+      "label": {
+        "en": "Difference between actual and expected service volume (%)",
+        "fr": "Différence entre le volume de services réel et attendu (%)",
+        "pt": "Diferença entre o volume de serviços real e esperado (%)"
+      },
+      "variantLabel": {
+        "en": "Admin area 2",
+        "fr": "Zone administrative 2",
+        "pt": "Área administrativa 2"
+      },
+      "valueProps": [
+        "pct_diff"
+      ],
+      "valueFunc": "identity",
+      "formatAs": "percent",
+      "requiredDisaggregationOptions": [
+        "indicator_common_id",
+        "admin_area_2"
+      ],
+      "valueLabelReplacements": {
+        "pct_diff": "Percent difference"
+      },
+      "postAggregationExpression": {
+        "ingredientValues": [
+          {
+            "prop": "count_sum",
+            "func": "SUM"
+          },
+          {
+            "prop": "count_expect_sum",
+            "func": "SUM"
+          }
+        ],
+        "expression": "pct_diff = (count_sum - count_expect_sum)/count_expect_sum"
+      },
+      "catalogExpressionEvaluation": null,
+      "resultsObjectId": "M3_disruptions_analysis_admin_area_2.csv",
+      "aiDescription": {
+        "summary": {
+          "en": "Percentage difference between actual and expected service volumes at admin area 2 level.",
+          "fr": "Différence en pourcentage entre volumes réels et attendus au niveau de la zone administrative 2.",
+          "pt": "Diferença percentual entre os volumes de serviços reais e esperados ao nível da área administrativa 2."
+        },
+        "methodology": {
+          "en": "(actual - expected) / expected at subnational level. Quantifies service delivery gaps or surpluses for each province/state.",
+          "fr": "(réel - attendu) / attendu au niveau sous-national. Quantifie les écarts ou excédents de prestation de services.",
+          "pt": "(real - esperado) / esperado ao nível subnacional. Quantifica as lacunas ou excedentes na prestação de serviços para cada província/estado."
+        },
+        "interpretation": {
+          "en": "Negative values indicate regional shortfalls; positive values may indicate improved service delivery or data issues. Compare across regions to identify areas needing support.",
+          "fr": "Les valeurs négatives indiquent des déficits régionaux; les valeurs positives peuvent indiquer une amélioration de la prestation de services ou des problèmes de données. Comparer entre les régions pour identifier les zones nécessitant un soutien.",
+          "pt": "Os valores negativos indicam défices regionais; os valores positivos podem indicar uma melhoria na prestação de serviços ou problemas de dados. Comparar entre regiões para identificar as áreas que necessitam de apoio."
+        },
+        "typicalRange": {
+          "en": "±10-30% variation common; >30% deviation warrants investigation.",
+          "fr": "Variation de ±10-30% commune; écart >30% nécessite investigation.",
+          "pt": "Variação de ±10-30% comum; um desvio >30% justifica investigação."
+        },
+        "caveats": null,
+        "disaggregationGuidance": {
+          "en": "Always disaggregate by indicator_common_id and admin_area_2 (both required). Time series reveals disruption patterns over time.",
+          "fr": "Toujours désagréger par indicator_common_id et admin_area_2 (tous deux requis). Les séries temporelles révèlent les modèles de perturbation au fil du temps.",
+          "pt": "Desagregar sempre por indicator_common_id e admin_area_2 (ambos obrigatórios). As séries temporais revelam os padrões de perturbação ao longo do tempo."
+        }
+      },
+      "importantNotes": null,
+      "vizPresets": [
+        {
+          "id": "disruption-differences-table",
+          "label": {
+            "en": "Service disruption by Admin Area 2",
+            "fr": "Perturbation des services par Zone administrative 2",
+            "pt": "Perturbação dos serviços por Área administrativa 2"
+          },
+          "description": {
+            "en": "Table showing percentage difference between actual vs expected service volume, with multiple Admin Areas 2 and multiple indicators",
+            "fr": "Tableau montrant la différence en pourcentage entre le volume de services réel et attendu, avec plusieurs Zones administratives 2 et plusieurs indicateurs",
+            "pt": "Tabela que mostra a diferença percentual entre o volume de serviços real e esperado, com várias Áreas administrativas 2 e vários indicadores"
+          },
+          "importantNotes": null,
+          "allowedFilters": [
+            "indicator_common_id",
+            "admin_area_2"
+          ],
+          "createDefaultVisualizationOnInstall": "b93b6411-9c6a-410c-93d1-f878f866b5c1",
+          "config": {
+            "d": {
+              "type": "table",
+              "valuesDisDisplayOpt": "col",
+              "disaggregateBy": [
+                {
+                  "disOpt": "indicator_common_id",
+                  "disDisplayOpt": "col"
+                },
+                {
+                  "disOpt": "admin_area_2",
+                  "disDisplayOpt": "row"
+                }
+              ],
+              "filterBy": [],
+              "periodFilter": {
+                "filterType": "last_n_calendar_quarters",
+                "nQuarters": 1
+              }
+            },
+            "s": {
+              "cfMode": "thresholds",
+              "cfScalePaletteKind": "preset",
+              "cfScalePalettePreset": "",
+              "cfScaleCustomFrom": "",
+              "cfScaleCustomMid": "",
+              "cfScaleCustomTo": "",
+              "cfScaleReverse": false,
+              "cfScaleSteps": 0,
+              "cfScaleDomainKind": "auto",
+              "cfScaleDomainMin": 0,
+              "cfScaleDomainMax": 1,
+              "cfScaleNoDataColor": "",
+              "cfThresholdCutoffs": [
+                -0.2,
+                -0.1,
+                -0.05,
+                0.05,
+                0.1,
+                0.2
+              ],
+              "cfThresholdBuckets": [
+                {
+                  "color": "#e73535"
+                },
+                {
+                  "color": "#F7BCBC"
+                },
+                {
+                  "color": "#f8c4c4"
+                },
+                {
+                  "color": {
+                    "key": "base200"
+                  }
+                },
+                {
+                  "color": "#b4e3c8"
+                },
+                {
+                  "color": "#A9DFBF"
+                },
+                {
+                  "color": "#3ea46a"
+                }
+              ],
+              "cfThresholdDirection": "higher-is-better",
+              "cfThresholdNoDataColor": "#ffffff"
+            },
+            "t": {
+              "caption": null,
+              "captionRelFontSize": null,
+              "subCaption": {
+                "en": "DATE_RANGE",
+                "fr": "PLAGE_DE_DATES",
+                "pt": "INTERVALO_DE_DATAS"
+              },
+              "subCaptionRelFontSize": null,
+              "footnote": null,
+              "footnoteRelFontSize": null
+            }
+          }
+        },
+        {
+          "id": "disruption-differences-map-admin-area-2",
+          "label": {
+            "en": "Service disruption map by Admin Area 2",
+            "fr": "Carte des perturbations par Zone administrative 2",
+            "pt": "Mapa de perturbação dos serviços por Área administrativa 2"
+          },
+          "description": {
+            "en": "Map showing percentage difference between actual vs expected service volume by Admin Area 2",
+            "fr": "Carte montrant la différence en pourcentage entre le volume de services réel et attendu par Zone administrative 2",
+            "pt": "Mapa que mostra a diferença percentual entre o volume de serviços real e esperado por Área administrativa 2"
+          },
+          "importantNotes": null,
+          "allowedFilters": [],
+          "createDefaultVisualizationOnInstall": "5780650b-22e7-4d92-8239-8a1c51dbf0a5",
+          "config": {
+            "d": {
+              "type": "map",
+              "valuesDisDisplayOpt": "cell",
+              "disaggregateBy": [
+                {
+                  "disOpt": "admin_area_2",
+                  "disDisplayOpt": "mapArea"
+                },
+                {
+                  "disOpt": "indicator_common_id",
+                  "disDisplayOpt": "replicant"
+                }
+              ],
+              "filterBy": [],
+              "periodFilter": {
+                "filterType": "last_n_calendar_quarters",
+                "nQuarters": 1
+              },
+              "selectedReplicantValue": "anc1"
+            },
+            "s": {
+              "cfMode": "thresholds",
+              "cfScalePaletteKind": "preset",
+              "cfScalePalettePreset": "",
+              "cfScaleCustomFrom": "",
+              "cfScaleCustomMid": "",
+              "cfScaleCustomTo": "",
+              "cfScaleReverse": false,
+              "cfScaleSteps": 0,
+              "cfScaleDomainKind": "auto",
+              "cfScaleDomainMin": 0,
+              "cfScaleDomainMax": 1,
+              "cfScaleNoDataColor": "",
+              "cfThresholdCutoffs": [
+                -0.2,
+                -0.1,
+                -0.05,
+                0.05,
+                0.1,
+                0.2
+              ],
+              "cfThresholdBuckets": [
+                {
+                  "color": "#e73535"
+                },
+                {
+                  "color": "#F7BCBC"
+                },
+                {
+                  "color": "#f8c4c4"
+                },
+                {
+                  "color": {
+                    "key": "base200"
+                  }
+                },
+                {
+                  "color": "#b4e3c8"
+                },
+                {
+                  "color": "#A9DFBF"
+                },
+                {
+                  "color": "#3ea46a"
+                }
+              ],
+              "cfThresholdDirection": "higher-is-better",
+              "cfThresholdNoDataColor": "#ffffff"
+            },
+            "t": {
+              "caption": {
+                "en": "Service disruption",
+                "fr": "Perturbation des services",
+                "pt": "Perturbação dos serviços"
+              },
+              "captionRelFontSize": null,
+              "subCaption": {
+                "en": "Percentage difference between actual and expected service volume by Admin Area 2, DATE_RANGE",
+                "fr": "Différence en pourcentage entre le volume de services réel et attendu par Zone administrative 2, PLAGE_DE_DATES",
+                "pt": "Diferença percentual entre o volume de serviços real e esperado por Área administrativa 2, INTERVALO_DE_DATAS"
+              },
+              "subCaptionRelFontSize": null,
+              "footnote": {
+                "en": "Negative values indicate service delivery below expected levels. Expected values are based on pre-disruption trends.",
+                "fr": "Les valeurs négatives indiquent une prestation de services inférieure aux niveaux attendus. Les valeurs attendues sont basées sur les tendances pré-perturbation.",
+                "pt": "Os valores negativos indicam uma prestação de serviços abaixo dos níveis esperados. Os valores esperados baseiam-se nas tendências anteriores à perturbação."
+              },
+              "footnoteRelFontSize": null
+            }
+          }
+        }
+      ],
+      "hide": false
+    },
+    {
+      "id": "m3-03-03",
+      "label": {
+        "en": "Actual vs expected service volume",
+        "fr": "Volume de services réel vs attendu",
+        "pt": "Volume de serviços real vs esperado"
+      },
+      "variantLabel": {
+        "en": "Admin area 2",
+        "fr": "Zone administrative 2",
+        "pt": "Área administrativa 2"
+      },
+      "valueProps": [
+        "count_sum",
+        "count_expect_sum"
+      ],
+      "valueFunc": "SUM",
+      "formatAs": "number",
+      "requiredDisaggregationOptions": [
+        "indicator_common_id",
+        "admin_area_2"
+      ],
+      "valueLabelReplacements": {
+        "count_sum": "Actual service volume",
+        "count_expect_sum": "Expected service volume"
+      },
+      "postAggregationExpression": null,
+      "catalogExpressionEvaluation": null,
+      "resultsObjectId": "M3_disruptions_analysis_admin_area_2.csv",
+      "aiDescription": {
+        "summary": {
+          "en": "Comparison of actual reported service volumes against model-predicted expected volumes at admin area 2 (province/state) level.",
+          "fr": "Comparaison des volumes de services réels contre volumes attendus au niveau de la zone administrative 2 (province/état).",
+          "pt": "Comparação dos volumes de serviços reais notificados com os volumes esperados previstos pelo modelo ao nível da área administrativa 2 (província/estado)."
+        },
+        "methodology": {
+          "en": "SUM of actual vs expected counts from area-specific robust regression models. Expected volumes account for local time trends and seasonal patterns. The full expected series is reported for every period (no difference threshold is applied).",
+          "fr": "Somme des comptes réels vs attendus des modèles de régression robustes spécifiques à la zone. Les volumes attendus tiennent compte des tendances temporelles locales et des modèles saisonniers. La série attendue complète est rapportée pour chaque période (aucun seuil de différence n'est appliqué).",
+          "pt": "SOMA das contagens reais vs esperadas a partir de modelos de regressão robustos específicos da área. Os volumes esperados têm em conta as tendências temporais locais e os padrões sazonais. A série esperada completa é notificada para cada período (não é aplicado qualquer limiar de diferença)."
+        },
+        "interpretation": {
+          "en": "Enables subnational identification of service disruptions. Compare across admin areas to identify geographic hotspots of service delivery problems. Areas with persistent negative deviations need targeted support.",
+          "fr": "Permet l'identification sous-nationale des perturbations de services. Comparer entre les zones administratives pour identifier les points chauds géographiques de problèmes de prestation de services. Les zones avec des écarts négatifs persistants nécessitent un soutien ciblé.",
+          "pt": "Permite a identificação subnacional das perturbações dos serviços. Comparar entre áreas administrativas para identificar os focos geográficos de problemas na prestação de serviços. As áreas com desvios negativos persistentes necessitam de apoio direcionado."
+        },
+        "typicalRange": {
+          "en": "Expected to closely match actual in stable regions. Deviations indicate local disruptions, data issues, or demand changes.",
+          "fr": "Attendu pour correspondre étroitement au réel dans les régions stables. Les écarts indiquent des perturbations locales, des problèmes de données ou des changements de la demande.",
+          "pt": "Espera-se que corresponda de perto ao real nas regiões estáveis. Os desvios indicam perturbações locais, problemas de dados ou alterações da procura."
+        },
+        "caveats": {
+          "en": "Smaller geographic areas may have more volatile patterns, making model predictions less reliable. Consider aggregating to higher levels if area-specific models perform poorly.",
+          "fr": "Les zones géographiques plus petites peuvent avoir des modèles plus volatils, rendant les prédictions du modèle moins fiables. Considérer l'agrégation à des niveaux supérieurs si les modèles spécifiques aux zones fonctionnent mal.",
+          "pt": "As áreas geográficas mais pequenas podem ter padrões mais voláteis, tornando as previsões do modelo menos fiáveis. Considerar a agregação a níveis superiores se os modelos específicos das áreas tiverem um desempenho fraco."
+        },
+        "disaggregationGuidance": {
+          "en": "Always disaggregate by indicator_common_id and admin_area_2 (both required). Time series reveals when and where disruptions occurred. Map visualization effectively shows geographic distribution of service gaps.",
+          "fr": "Toujours désagréger par indicator_common_id et admin_area_2 (tous deux requis). Les séries temporelles révèlent quand et où les perturbations se sont produites. La visualisation cartographique montre efficacement la distribution géographique des écarts de services.",
+          "pt": "Desagregar sempre por indicator_common_id e admin_area_2 (ambos obrigatórios). As séries temporais revelam quando e onde ocorreram as perturbações. A visualização cartográfica mostra eficazmente a distribuição geográfica das lacunas de serviços."
+        }
+      },
+      "importantNotes": null,
+      "vizPresets": [],
+      "hide": false
+    },
+    {
+      "id": "m3-04-01",
+      "label": {
+        "en": "Disruptions and surpluses",
+        "fr": "Perturbations et excédents",
+        "pt": "Perturbações e excedentes"
+      },
+      "variantLabel": {
+        "en": "Admin area 3",
+        "fr": "Zone administrative 3",
+        "pt": "Área administrativa 3"
+      },
+      "valueProps": [
+        "count_sum",
+        "count_expected_if_above_diff_threshold"
+      ],
+      "valueFunc": "SUM",
+      "formatAs": "number",
+      "requiredDisaggregationOptions": [
+        "indicator_common_id",
+        "admin_area_3"
+      ],
+      "valueLabelReplacements": {
+        "count_sum": "Actual service volume",
+        "count_expected_if_above_diff_threshold": "Expected service volume"
+      },
+      "postAggregationExpression": null,
+      "catalogExpressionEvaluation": null,
+      "resultsObjectId": "M3_disruptions_analysis_admin_area_3.csv",
+      "aiDescription": {
+        "summary": {
+          "en": "Comparison of actual vs expected service volumes at admin area 3 (district) level.",
+          "fr": "Comparaison des volumes réels vs attendus au niveau de la zone administrative 3 (district).",
+          "pt": "Comparação dos volumes de serviços reais vs esperados ao nível da área administrativa 3 (distrito)."
+        },
+        "methodology": {
+          "en": "District-level disruption analysis using robust regression models. Enables fine-grained geographic targeting.",
+          "fr": "Analyse de perturbation au niveau du district utilisant des modèles de régression robustes. Permet un ciblage géographique précis.",
+          "pt": "Análise de perturbação ao nível do distrito utilizando modelos de regressão robustos. Permite um direcionamento geográfico preciso."
+        },
+        "interpretation": {
+          "en": "Identifies district-specific service delivery problems. Use for operational planning and targeted supervision.",
+          "fr": "Identifie les problèmes de prestation de services spécifiques au district. Utiliser pour la planification opérationnelle et la supervision ciblée.",
+          "pt": "Identifica problemas de prestação de serviços específicos do distrito. Utilizar para o planeamento operacional e a supervisão direcionada."
+        },
+        "typicalRange": {
+          "en": "Varies by district size. Expect similar patterns to admin area 2 but with more volatility.",
+          "fr": "Varie selon la taille du district. S'attendre à des modèles similaires à la zone administrative 2 mais avec plus de volatilité.",
+          "pt": "Varia consoante a dimensão do distrito. Esperar padrões semelhantes aos da área administrativa 2, mas com maior volatilidade."
+        },
+        "caveats": null,
+        "disaggregationGuidance": {
+          "en": "Always disaggregate by indicator_common_id and admin_area_3 (both required). Time series and maps reveal district-level patterns.",
+          "fr": "Toujours désagréger par indicator_common_id et admin_area_3 (tous deux requis). Les séries temporelles et cartes révèlent les modèles au niveau du district.",
+          "pt": "Desagregar sempre por indicator_common_id e admin_area_3 (ambos obrigatórios). As séries temporais e os mapas revelam os padrões ao nível do distrito."
+        }
+      },
+      "importantNotes": null,
+      "vizPresets": [
+        {
+          "id": "disruption-chart-single-admin-area-2-multiple-admin-area-3",
+          "label": {
+            "en": "Disruptions and surpluses (single Admin Area 2, multiple Admin Area 3, multiple indicators)",
+            "fr": "Perturbations et excédents (unique Zone administrative 2, plusieurs Zones administratives 3, plusieurs indicateurs)",
+            "pt": "Perturbações e excedentes (uma única Área administrativa 2, várias Áreas administrativas 3, vários indicadores)"
+          },
+          "description": {
+            "en": "Area chart showing actual vs expected service volume, for a single Admin Area 2, with multiple Admin Areas 3 and multiple indicators",
+            "fr": "Graphique en aires montrant le volume de services réel vs attendu, pour une unique Zone administrative 2, avec plusieurs Zones administratives 3 et plusieurs indicateurs",
+            "pt": "Gráfico de áreas que mostra o volume de serviços real vs esperado, para uma única Área administrativa 2, com várias Áreas administrativas 3 e vários indicadores"
+          },
+          "importantNotes": null,
+          "allowedFilters": [
+            "indicator_common_id",
+            "admin_area_3"
+          ],
+          "createDefaultVisualizationOnInstall": "68e1b077-eb96-427e-9254-ea6b4a871b5d",
+          "config": {
+            "d": {
+              "type": "timeseries",
+              "timeseriesGrouping": "period_id",
+              "valuesDisDisplayOpt": "series",
+              "disaggregateBy": [
+                {
+                  "disOpt": "indicator_common_id",
+                  "disDisplayOpt": "col"
+                },
+                {
+                  "disOpt": "admin_area_2",
+                  "disDisplayOpt": "replicant"
+                },
+                {
+                  "disOpt": "admin_area_3",
+                  "disDisplayOpt": "row"
+                }
+              ],
+              "filterBy": []
+            },
+            "s": {
+              "specialDisruptionsChart": true
+            },
+            "t": {
+              "caption": null,
+              "captionRelFontSize": null,
+              "subCaption": {
+                "en": "DATE_RANGE",
+                "fr": "PLAGE_DE_DATES",
+                "pt": "INTERVALO_DE_DATAS"
+              },
+              "subCaptionRelFontSize": null,
+              "footnote": null,
+              "footnoteRelFontSize": null
+            }
+          }
+        },
+        {
+          "id": "disruption-chart-single-admin-area-3",
+          "label": {
+            "en": "Disruptions and surpluses (single Admin Area 3, multiple indicators)",
+            "fr": "Perturbations et excédents (unique Zone administrative 3, plusieurs indicateurs)",
+            "pt": "Perturbações e excedentes (uma única Área administrativa 3, vários indicadores)"
+          },
+          "description": {
+            "en": "Area chart showing actual vs expected service volume, for a single Admin Area 3 and multiple indicators",
+            "fr": "Graphique en aires montrant le volume de services réel vs attendu, pour une unique Zone administrative 3 et plusieurs indicateurs",
+            "pt": "Gráfico de áreas que mostra o volume de serviços real vs esperado, para uma única Área administrativa 3 e vários indicadores"
+          },
+          "importantNotes": null,
+          "allowedFilters": [
+            "indicator_common_id"
+          ],
+          "createDefaultVisualizationOnInstall": "1870d8fa-b7ff-453f-8974-184282643bee",
+          "config": {
+            "d": {
+              "type": "timeseries",
+              "timeseriesGrouping": "period_id",
+              "valuesDisDisplayOpt": "series",
+              "disaggregateBy": [
+                {
+                  "disOpt": "indicator_common_id",
+                  "disDisplayOpt": "cell"
+                },
+                {
+                  "disOpt": "admin_area_3",
+                  "disDisplayOpt": "replicant"
+                }
+              ],
+              "filterBy": [],
+              "selectedReplicantValue": "anc1"
+            },
+            "s": {
+              "specialDisruptionsChart": true
+            },
+            "t": {
+              "caption": null,
+              "captionRelFontSize": null,
+              "subCaption": {
+                "en": "DATE_RANGE",
+                "fr": "PLAGE_DE_DATES",
+                "pt": "INTERVALO_DE_DATAS"
+              },
+              "subCaptionRelFontSize": null,
+              "footnote": null,
+              "footnoteRelFontSize": null
+            }
+          }
+        }
+      ],
+      "hide": false
+    },
+    {
+      "id": "m3-04-02",
+      "label": {
+        "en": "Difference between actual and expected service volume (%)",
+        "fr": "Différence entre le volume de services réel et attendu (%)",
+        "pt": "Diferença entre o volume de serviços real e esperado (%)"
+      },
+      "variantLabel": {
+        "en": "Admin area 3",
+        "fr": "Zone administrative 3",
+        "pt": "Área administrativa 3"
+      },
+      "valueProps": [
+        "pct_diff"
+      ],
+      "valueFunc": "identity",
+      "formatAs": "percent",
+      "requiredDisaggregationOptions": [
+        "indicator_common_id",
+        "admin_area_3"
+      ],
+      "valueLabelReplacements": {
+        "pct_diff": "Percent difference"
+      },
+      "postAggregationExpression": {
+        "ingredientValues": [
+          {
+            "prop": "count_sum",
+            "func": "SUM"
+          },
+          {
+            "prop": "count_expect_sum",
+            "func": "SUM"
+          }
+        ],
+        "expression": "pct_diff = (count_sum - count_expect_sum)/count_expect_sum"
+      },
+      "catalogExpressionEvaluation": null,
+      "resultsObjectId": "M3_disruptions_analysis_admin_area_3.csv",
+      "aiDescription": {
+        "summary": {
+          "en": "Percentage difference between actual and expected service volumes at district level.",
+          "fr": "Différence en pourcentage entre volumes réels et attendus au niveau du district.",
+          "pt": "Diferença percentual entre os volumes de serviços reais e esperados ao nível do distrito."
+        },
+        "methodology": {
+          "en": "(actual - expected) / expected at district level. Quantifies local service delivery performance.",
+          "fr": "(réel - attendu) / attendu au niveau du district. Quantifie la performance locale de prestation.",
+          "pt": "(real - esperado) / esperado ao nível do distrito. Quantifica o desempenho local da prestação de serviços."
+        },
+        "interpretation": {
+          "en": "Enables district-level performance monitoring. Prioritize districts with largest negative deviations.",
+          "fr": "Permet la surveillance de la performance au niveau du district. Prioriser les districts avec les plus grands écarts négatifs.",
+          "pt": "Permite a monitorização do desempenho ao nível do distrito. Priorizar os distritos com os maiores desvios negativos."
+        },
+        "typicalRange": {
+          "en": "±10-40% variation common at district level; >40% deviation warrants investigation.",
+          "fr": "Variation de ±10-40% commune au niveau du district; écart >40% nécessite investigation.",
+          "pt": "Variação de ±10-40% comum ao nível do distrito; um desvio >40% justifica investigação."
+        },
+        "caveats": null,
+        "disaggregationGuidance": {
+          "en": "Always disaggregate by indicator_common_id and admin_area_3 (both required). Compare with admin area 2 for context.",
+          "fr": "Toujours désagréger par indicator_common_id et admin_area_3 (tous deux requis). Comparer avec la zone administrative 2 pour le contexte.",
+          "pt": "Desagregar sempre por indicator_common_id e admin_area_3 (ambos obrigatórios). Comparar com a área administrativa 2 para contexto."
+        }
+      },
+      "importantNotes": null,
+      "vizPresets": [
+        {
+          "id": "disruption-differences-table-single-admin-area-2-multiple-admin-area-3",
+          "label": {
+            "en": "Service disruption by Admin Area 3",
+            "fr": "Perturbation des services par Zone administrative 3",
+            "pt": "Perturbação dos serviços por Área administrativa 3"
+          },
+          "description": {
+            "en": "Table showing percentage difference between actual vs expected service volume for a single Admin Area 2, with multiple Admin Areas 3 and multiple indicators",
+            "fr": "Tableau montrant la différence en pourcentage entre le volume de services réel et attendu pour une unique Zone administrative 2, avec plusieurs Zones administratives 3 et plusieurs indicateurs",
+            "pt": "Tabela que mostra a diferença percentual entre o volume de serviços real e esperado para uma única Área administrativa 2, com várias Áreas administrativas 3 e vários indicadores"
+          },
+          "importantNotes": null,
+          "allowedFilters": [
+            "indicator_common_id",
+            "admin_area_3"
+          ],
+          "createDefaultVisualizationOnInstall": "82a91435-b090-4bfe-8477-fe864095155e",
+          "config": {
+            "d": {
+              "type": "table",
+              "valuesDisDisplayOpt": "col",
+              "disaggregateBy": [
+                {
+                  "disOpt": "indicator_common_id",
+                  "disDisplayOpt": "col"
+                },
+                {
+                  "disOpt": "admin_area_2",
+                  "disDisplayOpt": "replicant"
+                },
+                {
+                  "disOpt": "admin_area_3",
+                  "disDisplayOpt": "row"
+                }
+              ],
+              "filterBy": [],
+              "periodFilter": {
+                "filterType": "last_n_calendar_quarters",
+                "nQuarters": 1
+              },
+              "selectedReplicantValue": ""
+            },
+            "s": {
+              "cfMode": "thresholds",
+              "cfScalePaletteKind": "preset",
+              "cfScalePalettePreset": "",
+              "cfScaleCustomFrom": "",
+              "cfScaleCustomMid": "",
+              "cfScaleCustomTo": "",
+              "cfScaleReverse": false,
+              "cfScaleSteps": 0,
+              "cfScaleDomainKind": "auto",
+              "cfScaleDomainMin": 0,
+              "cfScaleDomainMax": 1,
+              "cfScaleNoDataColor": "",
+              "cfThresholdCutoffs": [
+                -0.2,
+                -0.1,
+                -0.05,
+                0.05,
+                0.1,
+                0.2
+              ],
+              "cfThresholdBuckets": [
+                {
+                  "color": "#e73535"
+                },
+                {
+                  "color": "#F7BCBC"
+                },
+                {
+                  "color": "#f8c4c4"
+                },
+                {
+                  "color": {
+                    "key": "base200"
+                  }
+                },
+                {
+                  "color": "#b4e3c8"
+                },
+                {
+                  "color": "#A9DFBF"
+                },
+                {
+                  "color": "#3ea46a"
+                }
+              ],
+              "cfThresholdDirection": "higher-is-better",
+              "cfThresholdNoDataColor": "#ffffff"
+            },
+            "t": {
+              "caption": null,
+              "captionRelFontSize": null,
+              "subCaption": {
+                "en": "DATE_RANGE",
+                "fr": "PLAGE_DE_DATES",
+                "pt": "INTERVALO_DE_DATAS"
+              },
+              "subCaptionRelFontSize": null,
+              "footnote": null,
+              "footnoteRelFontSize": null
+            }
+          }
+        },
+        {
+          "id": "disruption-differences-map-admin-area-3",
+          "label": {
+            "en": "Service disruption map by Admin Area 3",
+            "fr": "Carte des perturbations par Zone administrative 3",
+            "pt": "Mapa de perturbação dos serviços por Área administrativa 3"
+          },
+          "description": {
+            "en": "Map showing percentage difference between actual vs expected service volume by Admin Area 3",
+            "fr": "Carte montrant la différence en pourcentage entre le volume de services réel et attendu par Zone administrative 3",
+            "pt": "Mapa que mostra a diferença percentual entre o volume de serviços real e esperado por Área administrativa 3"
+          },
+          "importantNotes": null,
+          "allowedFilters": [],
+          "createDefaultVisualizationOnInstall": "732d4f78-e53c-4c44-ac9f-234f616baa2c",
+          "config": {
+            "d": {
+              "type": "map",
+              "valuesDisDisplayOpt": "cell",
+              "disaggregateBy": [
+                {
+                  "disOpt": "admin_area_3",
+                  "disDisplayOpt": "mapArea"
+                },
+                {
+                  "disOpt": "indicator_common_id",
+                  "disDisplayOpt": "replicant"
+                }
+              ],
+              "filterBy": [],
+              "periodFilter": {
+                "filterType": "last_n_calendar_quarters",
+                "nQuarters": 1
+              },
+              "selectedReplicantValue": "anc1"
+            },
+            "s": {
+              "cfMode": "thresholds",
+              "cfScalePaletteKind": "preset",
+              "cfScalePalettePreset": "",
+              "cfScaleCustomFrom": "",
+              "cfScaleCustomMid": "",
+              "cfScaleCustomTo": "",
+              "cfScaleReverse": false,
+              "cfScaleSteps": 0,
+              "cfScaleDomainKind": "auto",
+              "cfScaleDomainMin": 0,
+              "cfScaleDomainMax": 1,
+              "cfScaleNoDataColor": "",
+              "cfThresholdCutoffs": [
+                -0.2,
+                -0.1,
+                -0.05,
+                0.05,
+                0.1,
+                0.2
+              ],
+              "cfThresholdBuckets": [
+                {
+                  "color": "#e73535"
+                },
+                {
+                  "color": "#F7BCBC"
+                },
+                {
+                  "color": "#f8c4c4"
+                },
+                {
+                  "color": {
+                    "key": "base200"
+                  }
+                },
+                {
+                  "color": "#b4e3c8"
+                },
+                {
+                  "color": "#A9DFBF"
+                },
+                {
+                  "color": "#3ea46a"
+                }
+              ],
+              "cfThresholdDirection": "higher-is-better",
+              "cfThresholdNoDataColor": "#ffffff"
+            },
+            "t": {
+              "caption": {
+                "en": "Service disruption",
+                "fr": "Perturbation des services",
+                "pt": "Perturbação dos serviços"
+              },
+              "captionRelFontSize": null,
+              "subCaption": {
+                "en": "Percentage difference between actual and expected service volume by Admin Area 3, DATE_RANGE",
+                "fr": "Différence en pourcentage entre le volume de services réel et attendu par Zone administrative 3, PLAGE_DE_DATES",
+                "pt": "Diferença percentual entre o volume de serviços real e esperado por Área administrativa 3, INTERVALO_DE_DATAS"
+              },
+              "subCaptionRelFontSize": null,
+              "footnote": {
+                "en": "Negative values indicate service delivery below expected levels. Expected values are based on pre-disruption trends.",
+                "fr": "Les valeurs négatives indiquent une prestation de services inférieure aux niveaux attendus. Les valeurs attendues sont basées sur les tendances pré-perturbation.",
+                "pt": "Os valores negativos indicam uma prestação de serviços abaixo dos níveis esperados. Os valores esperados baseiam-se nas tendências anteriores à perturbação."
+              },
+              "footnoteRelFontSize": null
+            }
+          }
+        }
+      ],
+      "hide": false
+    },
+    {
+      "id": "m3-04-03",
+      "label": {
+        "en": "Actual vs expected service volume",
+        "fr": "Volume de services réel vs attendu",
+        "pt": "Volume de serviços real vs esperado"
+      },
+      "variantLabel": {
+        "en": "Admin area 3",
+        "fr": "Zone administrative 3",
+        "pt": "Área administrativa 3"
+      },
+      "valueProps": [
+        "count_sum",
+        "count_expect_sum"
+      ],
+      "valueFunc": "SUM",
+      "formatAs": "number",
+      "requiredDisaggregationOptions": [
+        "indicator_common_id",
+        "admin_area_3"
+      ],
+      "valueLabelReplacements": {
+        "count_sum": "Actual service volume",
+        "count_expect_sum": "Expected service volume"
+      },
+      "postAggregationExpression": null,
+      "catalogExpressionEvaluation": null,
+      "resultsObjectId": "M3_disruptions_analysis_admin_area_3.csv",
+      "aiDescription": {
+        "summary": {
+          "en": "Comparison of actual vs expected service volumes at admin area 3 (district) level.",
+          "fr": "Comparaison des volumes réels vs attendus au niveau de la zone administrative 3 (district).",
+          "pt": "Comparação dos volumes de serviços reais vs esperados ao nível da área administrativa 3 (distrito)."
+        },
+        "methodology": {
+          "en": "District-level disruption analysis using robust regression models. Enables fine-grained geographic targeting.",
+          "fr": "Analyse de perturbation au niveau du district utilisant des modèles de régression robustes. Permet un ciblage géographique précis.",
+          "pt": "Análise de perturbação ao nível do distrito utilizando modelos de regressão robustos. Permite um direcionamento geográfico preciso."
+        },
+        "interpretation": {
+          "en": "Identifies district-specific service delivery problems. Use for operational planning and targeted supervision.",
+          "fr": "Identifie les problèmes de prestation de services spécifiques au district. Utiliser pour la planification opérationnelle et la supervision ciblée.",
+          "pt": "Identifica problemas de prestação de serviços específicos do distrito. Utilizar para o planeamento operacional e a supervisão direcionada."
+        },
+        "typicalRange": {
+          "en": "Varies by district size. Expect similar patterns to admin area 2 but with more volatility.",
+          "fr": "Varie selon la taille du district. S'attendre à des modèles similaires à la zone administrative 2 mais avec plus de volatilité.",
+          "pt": "Varia consoante a dimensão do distrito. Esperar padrões semelhantes aos da área administrativa 2, mas com maior volatilidade."
+        },
+        "caveats": null,
+        "disaggregationGuidance": {
+          "en": "Always disaggregate by indicator_common_id and admin_area_3 (both required). Time series and maps reveal district-level patterns.",
+          "fr": "Toujours désagréger par indicator_common_id et admin_area_3 (tous deux requis). Les séries temporelles et cartes révèlent les modèles au niveau du district.",
+          "pt": "Desagregar sempre por indicator_common_id e admin_area_3 (ambos obrigatórios). As séries temporais e os mapas revelam os padrões ao nível do distrito."
+        }
+      },
+      "importantNotes": null,
+      "vizPresets": [],
+      "hide": false
+    },
+    {
+      "id": "m3-05-01",
+      "label": {
+        "en": "Disruptions and surpluses",
+        "fr": "Perturbations et excédents",
+        "pt": "Perturbações e excedentes"
+      },
+      "variantLabel": {
+        "en": "Admin area 4",
+        "fr": "Zone administrative 4",
+        "pt": "Área administrativa 4"
+      },
+      "valueProps": [
+        "count_sum",
+        "count_expected_if_above_diff_threshold"
+      ],
+      "valueFunc": "SUM",
+      "formatAs": "number",
+      "requiredDisaggregationOptions": [
+        "indicator_common_id",
+        "admin_area_4"
+      ],
+      "valueLabelReplacements": {
+        "count_sum": "Actual service volume",
+        "count_expected_if_above_diff_threshold": "Expected service volume"
+      },
+      "postAggregationExpression": null,
+      "catalogExpressionEvaluation": null,
+      "resultsObjectId": "M3_disruptions_analysis_admin_area_4.csv",
+      "aiDescription": {
+        "summary": {
+          "en": "Comparison of actual vs expected service volumes at admin area 4 (sub-district) level.",
+          "fr": "Comparaison des volumes réels vs attendus au niveau de la zone administrative 4 (sous-district).",
+          "pt": "Comparação dos volumes de serviços reais vs esperados ao nível da área administrativa 4 (subdistrito)."
+        },
+        "methodology": {
+          "en": "Sub-district level disruption analysis. Only generated when RUN_ADMIN_AREA_4_ANALYSIS parameter is enabled.",
+          "fr": "Analyse de perturbation au niveau sous-district. Généré uniquement si le paramètre RUN_ADMIN_AREA_4_ANALYSIS est activé.",
+          "pt": "Análise de perturbação ao nível do subdistrito. Gerado apenas quando o parâmetro RUN_ADMIN_AREA_4_ANALYSIS está ativado."
+        },
+        "interpretation": {
+          "en": "Highest geographic resolution for disruption detection. Use for micro-level targeting and facility-level support.",
+          "fr": "Plus haute résolution géographique pour la détection de perturbations. Utiliser pour le ciblage micro-niveau et le soutien au niveau de l'établissement.",
+          "pt": "Resolução geográfica mais elevada para a deteção de perturbações. Utilizar para o direcionamento ao micronível e o apoio ao nível do estabelecimento."
+        },
+        "typicalRange": {
+          "en": "Highly variable by sub-district. Expect greater volatility than higher geographic levels.",
+          "fr": "Très variable selon le sous-district. S'attendre à plus de volatilité que les niveaux géographiques supérieurs.",
+          "pt": "Altamente variável consoante o subdistrito. Esperar maior volatilidade do que nos níveis geográficos superiores."
+        },
+        "caveats": null,
+        "disaggregationGuidance": {
+          "en": "Always disaggregate by indicator_common_id and admin_area_4 (both required). Only available when RUN_ADMIN_AREA_4_ANALYSIS enabled.",
+          "fr": "Toujours désagréger par indicator_common_id et admin_area_4 (tous deux requis). Disponible uniquement si RUN_ADMIN_AREA_4_ANALYSIS activé.",
+          "pt": "Desagregar sempre por indicator_common_id e admin_area_4 (ambos obrigatórios). Disponível apenas quando RUN_ADMIN_AREA_4_ANALYSIS está ativado."
+        }
+      },
+      "importantNotes": null,
+      "vizPresets": [
+        {
+          "id": "disruption-chart-single-admin-area-3-multiple-admin-area-4",
+          "label": {
+            "en": "Disruptions and surpluses (single Admin Area 3, multiple Admin Area 4, multiple indicators)",
+            "fr": "Perturbations et excédents (unique Zone administrative 3, plusieurs Zones administratives 4, plusieurs indicateurs)",
+            "pt": "Perturbações e excedentes (uma única Área administrativa 3, várias Áreas administrativas 4, vários indicadores)"
+          },
+          "description": {
+            "en": "Area chart showing actual vs expected service volume, for a single Admin Area 3, with multiple Admin Areas 4 and multiple indicators",
+            "fr": "Graphique en aires montrant le volume de services réel vs attendu, pour une unique Zone administrative 3, avec plusieurs Zones administratives 4 et plusieurs indicateurs",
+            "pt": "Gráfico de áreas que mostra o volume de serviços real vs esperado, para uma única Área administrativa 3, com várias Áreas administrativas 4 e vários indicadores"
+          },
+          "importantNotes": null,
+          "allowedFilters": [
+            "indicator_common_id",
+            "admin_area_4"
+          ],
+          "createDefaultVisualizationOnInstall": "d4e1fad8-d7f4-46b3-8d56-7ca6b42a5cad",
+          "config": {
+            "d": {
+              "type": "timeseries",
+              "timeseriesGrouping": "period_id",
+              "valuesDisDisplayOpt": "series",
+              "disaggregateBy": [
+                {
+                  "disOpt": "indicator_common_id",
+                  "disDisplayOpt": "col"
+                },
+                {
+                  "disOpt": "admin_area_3",
+                  "disDisplayOpt": "replicant"
+                },
+                {
+                  "disOpt": "admin_area_4",
+                  "disDisplayOpt": "row"
+                }
+              ],
+              "filterBy": []
+            },
+            "s": {
+              "specialDisruptionsChart": true
+            },
+            "t": {
+              "caption": null,
+              "captionRelFontSize": null,
+              "subCaption": {
+                "en": "DATE_RANGE",
+                "fr": "PLAGE_DE_DATES",
+                "pt": "INTERVALO_DE_DATAS"
+              },
+              "subCaptionRelFontSize": null,
+              "footnote": null,
+              "footnoteRelFontSize": null
+            }
+          }
+        },
+        {
+          "id": "disruption-chart-single-admin-area-4",
+          "label": {
+            "en": "Disruptions and surpluses (single Admin Area 4, multiple indicators)",
+            "fr": "Perturbations et excédents (unique Zone administrative 4, plusieurs indicateurs)",
+            "pt": "Perturbações e excedentes (uma única Área administrativa 4, vários indicadores)"
+          },
+          "description": {
+            "en": "Area chart showing actual vs expected service volume, for a single Admin Area 4 and multiple indicators",
+            "fr": "Graphique en aires montrant le volume de services réel vs attendu, pour une unique Zone administrative 4 et plusieurs indicateurs",
+            "pt": "Gráfico de áreas que mostra o volume de serviços real vs esperado, para uma única Área administrativa 4 e vários indicadores"
+          },
+          "importantNotes": null,
+          "allowedFilters": [
+            "indicator_common_id"
+          ],
+          "createDefaultVisualizationOnInstall": "8eb6e1d5-8bb7-48a1-a91a-9e6573ef8640",
+          "config": {
+            "d": {
+              "type": "timeseries",
+              "timeseriesGrouping": "period_id",
+              "valuesDisDisplayOpt": "series",
+              "disaggregateBy": [
+                {
+                  "disOpt": "indicator_common_id",
+                  "disDisplayOpt": "cell"
+                },
+                {
+                  "disOpt": "admin_area_4",
+                  "disDisplayOpt": "replicant"
+                }
+              ],
+              "filterBy": [],
+              "selectedReplicantValue": "anc1"
+            },
+            "s": {
+              "specialDisruptionsChart": true
+            },
+            "t": {
+              "caption": null,
+              "captionRelFontSize": null,
+              "subCaption": {
+                "en": "DATE_RANGE",
+                "fr": "PLAGE_DE_DATES",
+                "pt": "INTERVALO_DE_DATAS"
+              },
+              "subCaptionRelFontSize": null,
+              "footnote": null,
+              "footnoteRelFontSize": null
+            }
+          }
+        }
+      ],
+      "hide": false
+    },
+    {
+      "id": "m3-05-02",
+      "label": {
+        "en": "Difference between actual and expected service volume (%)",
+        "fr": "Différence entre le volume de services réel et attendu (%)",
+        "pt": "Diferença entre o volume de serviços real e esperado (%)"
+      },
+      "variantLabel": {
+        "en": "Admin area 4",
+        "fr": "Zone administrative 4",
+        "pt": "Área administrativa 4"
+      },
+      "valueProps": [
+        "pct_diff"
+      ],
+      "valueFunc": "identity",
+      "formatAs": "percent",
+      "requiredDisaggregationOptions": [
+        "indicator_common_id",
+        "admin_area_4"
+      ],
+      "valueLabelReplacements": {
+        "pct_diff": "Percent difference"
+      },
+      "postAggregationExpression": {
+        "ingredientValues": [
+          {
+            "prop": "count_sum",
+            "func": "SUM"
+          },
+          {
+            "prop": "count_expect_sum",
+            "func": "SUM"
+          }
+        ],
+        "expression": "pct_diff = (count_sum - count_expect_sum)/count_expect_sum"
+      },
+      "catalogExpressionEvaluation": null,
+      "resultsObjectId": "M3_disruptions_analysis_admin_area_4.csv",
+      "aiDescription": {
+        "summary": {
+          "en": "Percentage difference between actual and expected service volumes at sub-district level.",
+          "fr": "Différence en pourcentage entre volumes réels et attendus au niveau sous-district.",
+          "pt": "Diferença percentual entre os volumes de serviços reais e esperados ao nível do subdistrito."
+        },
+        "methodology": {
+          "en": "(actual - expected) / expected at sub-district level. Finest geographic granularity for performance assessment.",
+          "fr": "(réel - attendu) / attendu au niveau sous-district. Granularité géographique la plus fine pour l'évaluation.",
+          "pt": "(real - esperado) / esperado ao nível do subdistrito. Granularidade geográfica mais fina para a avaliação do desempenho."
+        },
+        "interpretation": {
+          "en": "Enables targeted facility-level interventions. Small sample sizes at this level may increase volatility.",
+          "fr": "Permet des interventions ciblées au niveau de l'établissement. Les petites tailles d'échantillon peuvent augmenter la volatilité.",
+          "pt": "Permite intervenções direcionadas ao nível do estabelecimento. As pequenas dimensões da amostra a este nível podem aumentar a volatilidade."
+        },
+        "typicalRange": {
+          "en": "±20-50% variation common; high volatility expected at this granular level.",
+          "fr": "Variation de ±20-50% commune; forte volatilité attendue à ce niveau granulaire.",
+          "pt": "Variação de ±20-50% comum; alta volatilidade esperada a este nível granular."
+        },
+        "caveats": null,
+        "disaggregationGuidance": {
+          "en": "Always disaggregate by indicator_common_id and admin_area_4 (both required). Interpret with caution due to small sample sizes.",
+          "fr": "Toujours désagréger par indicator_common_id et admin_area_4 (tous deux requis). Interpréter avec prudence en raison de petites tailles d'échantillon.",
+          "pt": "Desagregar sempre por indicator_common_id e admin_area_4 (ambos obrigatórios). Interpretar com cautela devido às pequenas dimensões da amostra."
+        }
+      },
+      "importantNotes": null,
+      "vizPresets": [
+        {
+          "id": "disruption-differences-table-single-admin-area-3-multiple-admin-area-4",
+          "label": {
+            "en": "Service disruption by Admin Area 4",
+            "fr": "Perturbation des services par Zone administrative 4",
+            "pt": "Perturbação dos serviços por Área administrativa 4"
+          },
+          "description": {
+            "en": "Table showing percentage difference between actual vs expected service volume for a single Admin Area 3, with multiple Admin Areas 4 and multiple indicators",
+            "fr": "Tableau montrant la différence en pourcentage entre le volume de services réel et attendu pour une unique Zone administrative 3, avec plusieurs Zones administratives 4 et plusieurs indicateurs",
+            "pt": "Tabela que mostra a diferença percentual entre o volume de serviços real e esperado para uma única Área administrativa 3, com várias Áreas administrativas 4 e vários indicadores"
+          },
+          "importantNotes": null,
+          "allowedFilters": [
+            "indicator_common_id",
+            "admin_area_4"
+          ],
+          "createDefaultVisualizationOnInstall": "45735c34-5dd4-43ee-baad-346c74751d4d",
+          "config": {
+            "d": {
+              "type": "table",
+              "valuesDisDisplayOpt": "col",
+              "disaggregateBy": [
+                {
+                  "disOpt": "indicator_common_id",
+                  "disDisplayOpt": "col"
+                },
+                {
+                  "disOpt": "admin_area_3",
+                  "disDisplayOpt": "replicant"
+                },
+                {
+                  "disOpt": "admin_area_4",
+                  "disDisplayOpt": "row"
+                }
+              ],
+              "filterBy": [],
+              "periodFilter": {
+                "filterType": "last_n_calendar_quarters",
+                "nQuarters": 1
+              },
+              "selectedReplicantValue": ""
+            },
+            "s": {
+              "cfMode": "thresholds",
+              "cfScalePaletteKind": "preset",
+              "cfScalePalettePreset": "",
+              "cfScaleCustomFrom": "",
+              "cfScaleCustomMid": "",
+              "cfScaleCustomTo": "",
+              "cfScaleReverse": false,
+              "cfScaleSteps": 0,
+              "cfScaleDomainKind": "auto",
+              "cfScaleDomainMin": 0,
+              "cfScaleDomainMax": 1,
+              "cfScaleNoDataColor": "",
+              "cfThresholdCutoffs": [
+                -0.2,
+                -0.1,
+                -0.05,
+                0.05,
+                0.1,
+                0.2
+              ],
+              "cfThresholdBuckets": [
+                {
+                  "color": "#e73535"
+                },
+                {
+                  "color": "#F7BCBC"
+                },
+                {
+                  "color": "#f8c4c4"
+                },
+                {
+                  "color": {
+                    "key": "base200"
+                  }
+                },
+                {
+                  "color": "#b4e3c8"
+                },
+                {
+                  "color": "#A9DFBF"
+                },
+                {
+                  "color": "#3ea46a"
+                }
+              ],
+              "cfThresholdDirection": "higher-is-better",
+              "cfThresholdNoDataColor": "#ffffff"
+            },
+            "t": {
+              "caption": null,
+              "captionRelFontSize": null,
+              "subCaption": {
+                "en": "DATE_RANGE",
+                "fr": "PLAGE_DE_DATES",
+                "pt": "INTERVALO_DE_DATAS"
+              },
+              "subCaptionRelFontSize": null,
+              "footnote": null,
+              "footnoteRelFontSize": null
+            }
+          }
+        }
+      ],
+      "hide": false
+    },
+    {
+      "id": "m3-05-03",
+      "label": {
+        "en": "Actual vs expected service volume",
+        "fr": "Volume de services réel vs attendu",
+        "pt": "Volume de serviços real vs esperado"
+      },
+      "variantLabel": {
+        "en": "Admin area 4",
+        "fr": "Zone administrative 4",
+        "pt": "Área administrativa 4"
+      },
+      "valueProps": [
+        "count_sum",
+        "count_expect_sum"
+      ],
+      "valueFunc": "SUM",
+      "formatAs": "number",
+      "requiredDisaggregationOptions": [
+        "indicator_common_id",
+        "admin_area_4"
+      ],
+      "valueLabelReplacements": {
+        "count_sum": "Actual service volume",
+        "count_expect_sum": "Expected service volume"
+      },
+      "postAggregationExpression": null,
+      "catalogExpressionEvaluation": null,
+      "resultsObjectId": "M3_disruptions_analysis_admin_area_4.csv",
+      "aiDescription": {
+        "summary": {
+          "en": "Comparison of actual vs expected service volumes at admin area 4 (sub-district) level.",
+          "fr": "Comparaison des volumes réels vs attendus au niveau de la zone administrative 4 (sous-district).",
+          "pt": "Comparação dos volumes de serviços reais vs esperados ao nível da área administrativa 4 (subdistrito)."
+        },
+        "methodology": {
+          "en": "Sub-district level disruption analysis. Only generated when RUN_ADMIN_AREA_4_ANALYSIS parameter is enabled.",
+          "fr": "Analyse de perturbation au niveau sous-district. Généré uniquement si le paramètre RUN_ADMIN_AREA_4_ANALYSIS est activé.",
+          "pt": "Análise de perturbação ao nível do subdistrito. Gerado apenas quando o parâmetro RUN_ADMIN_AREA_4_ANALYSIS está ativado."
+        },
+        "interpretation": {
+          "en": "Highest geographic resolution for disruption detection. Use for micro-level targeting and facility-level support.",
+          "fr": "Plus haute résolution géographique pour la détection de perturbations. Utiliser pour le ciblage micro-niveau et le soutien au niveau de l'établissement.",
+          "pt": "Resolução geográfica mais elevada para a deteção de perturbações. Utilizar para o direcionamento ao micronível e o apoio ao nível do estabelecimento."
+        },
+        "typicalRange": {
+          "en": "Highly variable by sub-district. Expect greater volatility than higher geographic levels.",
+          "fr": "Très variable selon le sous-district. S'attendre à plus de volatilité que les niveaux géographiques supérieurs.",
+          "pt": "Altamente variável consoante o subdistrito. Esperar maior volatilidade do que nos níveis geográficos superiores."
+        },
+        "caveats": null,
+        "disaggregationGuidance": {
+          "en": "Always disaggregate by indicator_common_id and admin_area_4 (both required). Only available when RUN_ADMIN_AREA_4_ANALYSIS enabled.",
+          "fr": "Toujours désagréger par indicator_common_id et admin_area_4 (tous deux requis). Disponible uniquement si RUN_ADMIN_AREA_4_ANALYSIS activé.",
+          "pt": "Desagregar sempre por indicator_common_id e admin_area_4 (ambos obrigatórios). Disponível apenas quando RUN_ADMIN_AREA_4_ANALYSIS está ativado."
+        }
+      },
+      "importantNotes": null,
+      "vizPresets": [],
+      "hide": false
+    }
+  ]
+}

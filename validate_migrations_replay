@@ -45,7 +45,7 @@ fail() {
     echo "║              MIGRATION REPLAY FAILED                        ║"
     echo "║                                                              ║"
     printf "║  %-60s║\n" "$1"
-    echo "╚══════════════════════════════════════════════════════════════╝\033[0m"
+    echo -e "╚══════════════════════════════════════════════════════════════╝\033[0m"
 }
 
 echo "Starting temporary postgres container..."
@@ -133,4 +133,4 @@ echo "║              MIGRATION REPLAY PASSED                        ║"
 echo "║                                                              ║"
 echo "║  Every fleet shape replayed with zero statement errors       ║"
 echo "║  Fresh boot exited 0                                         ║"
-echo "╚══════════════════════════════════════════════════════════════╝\033[0m"
+echo -e "╚══════════════════════════════════════════════════════════════╝\033[0m"

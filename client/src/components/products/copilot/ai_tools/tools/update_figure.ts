@@ -23,6 +23,7 @@ import {
 import { copilotViews } from "~/components/instance/copilot/mod.ts";
 import type { ClientAIToolEnv } from "~/components/instance/copilot/mod.ts";
 import { extractBlocksFromLayout } from "../../slide_ai/mod.ts";
+import { editFigureMetricForAI } from "../../_shared/mod.ts";
 import {
   readSlideTarget,
   slideTargetOutcome,
@@ -104,21 +105,16 @@ export function createUpdateFigureTool(
         throw new AIToolFailure(`Block "${input.blockId}" is not a figure.`);
       }
       const bundle = found.block.bundle;
-
-      const metric = metrics.find((m) => m.id === bundle.metricId);
-      if (!metric) {
-        throw new AIToolFailure(
-          `Metric "${bundle.metricId}" not found in this product's results package.`,
-        );
-      }
+      const { lines: moved, metric, config: storedConfig } =
+        editFigureMetricForAI(metrics, bundle);
 
       // Pre-flight for a stored defect this tool cannot repair (the figure
       // patch schema carries no timeseriesGrouping): a grouping-less
       // timeseries config (possible via 9 authored preset configs plus a
       // human type switch) would otherwise hit lib's plain Error mid-resolve.
       if (
-        bundle.config.d.type === "timeseries" &&
-        !bundle.config.d.timeseriesGrouping
+        storedConfig.d.type === "timeseries" &&
+        !storedConfig.d.timeseriesGrouping
       ) {
         throw new AIToolFailure(
           "This figure's stored config is a timeseries with no period grouping, which cannot render. It cannot be repaired here — the figure must be recreated via a from_metric block. No changes were applied.",
@@ -144,7 +140,7 @@ export function createUpdateFigureTool(
         const infoRes =
           await getResultsValueInfoForPresentationObjectFromCacheOrFetch(
             view.context.getScope(),
-            bundle.metricId,
+            metric.id,
           );
         if (infoRes.success) {
           dataBounds = infoRes.data.periodBounds;
@@ -161,13 +157,13 @@ export function createUpdateFigureTool(
       // Build + validate the patched config UP FRONT (a throw must mean
       // "nothing changed"); only re-resolve + commit once it's valid.
       const newConfig = applyFigureConfigPatch(
-        bundle.config,
+        storedConfig,
         input.patch,
         metric,
         dataBounds,
       );
       validateFigureConfigEdit(
-        bundle.config,
+        storedConfig,
         newConfig,
         input.patch,
         metric,
@@ -189,14 +185,17 @@ export function createUpdateFigureTool(
           max: newConfig.d.periodFilter.max,
         }
         : undefined;
-      await validateMetricInputs(env, bundle.metricId, filters, periodFilter);
+      await validateMetricInputs(env, metric.id, filters, periodFilter);
 
-      const report = describeFigureConfigPatchEffect(
-        bundle.config,
-        input.patch,
-        metric,
-        dataBounds,
-      );
+      const report = [
+        ...moved,
+        ...describeFigureConfigPatchEffect(
+          storedConfig,
+          input.patch,
+          metric,
+          dataBounds,
+        ),
+      ];
 
       const newBundle = await resolveBundleFromMetricAndConfig(
         view.context.getScope(),

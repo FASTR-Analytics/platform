@@ -242,7 +242,7 @@ export type ReportParams = {
 
 // A figure editor's view: the figure it edits or shows, by its metric, and
 // its draft config live, read and applied. `figureId` names the slide block,
-// the report figure or the package's default visualization.
+// the report figure or the package's preset.
 export type FigureEditorContext = PackageViewContext & {
   getLabel: () => string;
   getMetric: () => MetricWithStatus;

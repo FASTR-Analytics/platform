@@ -22,11 +22,13 @@ const PERIOD = 202401;
 
 const barePair: DvsCoveredPair = {
   dataId: "bare",
+  dataElementId: ELEMENT,
   coc: undefined,
   periodId: PERIOD,
 };
 const operandPair: DvsCoveredPair = {
   dataId: "operand",
+  dataElementId: ELEMENT,
   coc: COC_A,
   periodId: PERIOD,
 };

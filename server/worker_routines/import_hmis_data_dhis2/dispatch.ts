@@ -7,11 +7,15 @@ import {
   DHIS2_OPERAND_PATTERN,
   DHIS2_UID_PATTERN,
   type Dhis2FetchErrorKind,
+  type Dhis2PullBy,
+  type Dhis2RunPair,
 } from "lib";
 import type { DHIS2FetchError } from "../../dhis2/common/mod.ts";
 import type { FetchOptions } from "../../dhis2/common/base_fetcher.ts";
+import { parseDhis2Release } from "../../dhis2/common/system_info.ts";
 import {
   type DHIS2DataValue,
+  type Dhis2ValueSelector,
   getExistingMetadataIds,
 } from "../../dhis2/goal5_data_value_sets/mod.ts";
 
@@ -116,6 +120,86 @@ export function pairKey(p: { dataId: string; periodId: number }): string {
   return `${p.dataId}|${p.periodId}`;
 }
 
+// The dataValueSets export reads dataElement= from DHIS2 2.39. An earlier
+// release ignores it, resolves an empty selection and answers 409 E2001, so
+// there every pull names the monthly data set the element is collected in.
+// Undefined when the reported version cannot be read: the caller fails the
+// run rather than guess.
+const DATA_ELEMENT_SELECTOR_FROM_RELEASE = 39;
+
+export function pullByForVersion(
+  version: string | undefined,
+): Dhis2PullBy | undefined {
+  const release = parseDhis2Release(version);
+  if (release === undefined) {
+    return undefined;
+  }
+  return release >= DATA_ELEMENT_SELECTOR_FROM_RELEASE
+    ? "dataElement"
+    : "dataSet";
+}
+
+export type PullTask = {
+  selector: Dhis2ValueSelector;
+  // One pull = one month: the fetch unit matches the import unit.
+  periodId: number;
+  // Every data id this pull covers for that month: operands sharing a data
+  // element share one pull, and so do elements sharing a data set.
+  coveredPairs: DvsCoveredPair[];
+};
+
+// One task per pull: the pairs sharing a selector and a month, months in
+// order. By data set, a pair whose element is in no monthly data set has no
+// selector and no task: the caller already refused it.
+export function buildPullTasks(
+  pairs: Dhis2RunPair[],
+  routes: Map<string, ElementRoute>,
+  pullBy: Dhis2PullBy,
+  dataSetByElement: Map<string, string>,
+): PullTask[] {
+  const bySelector = new Map<string, Map<number, DvsCoveredPair[]>>();
+  for (const pair of pairs) {
+    const route = routes.get(pair.dataId);
+    if (route?.kind !== "dvs") {
+      continue;
+    }
+    const selectorId = pullBy === "dataElement"
+      ? route.dataElementId
+      : dataSetByElement.get(route.dataElementId);
+    if (selectorId === undefined) {
+      continue;
+    }
+    let byPeriod = bySelector.get(selectorId);
+    if (!byPeriod) {
+      byPeriod = new Map();
+      bySelector.set(selectorId, byPeriod);
+    }
+    let covered = byPeriod.get(pair.periodId);
+    if (!covered) {
+      covered = [];
+      byPeriod.set(pair.periodId, covered);
+    }
+    covered.push({
+      dataId: pair.dataId,
+      dataElementId: route.dataElementId,
+      coc: route.coc,
+      periodId: pair.periodId,
+    });
+  }
+  const tasks: PullTask[] = [];
+  for (const [id, byPeriod] of bySelector) {
+    const periods = Array.from(byPeriod.keys()).sort((a, b) => a - b);
+    for (const periodId of periods) {
+      tasks.push({
+        selector: { kind: pullBy, id },
+        periodId,
+        coveredPairs: byPeriod.get(periodId)!,
+      });
+    }
+  }
+  return tasks;
+}
+
 // Size/timeout never shrink on an identical retry: the caller splits by
 // org-unit subtree instead.
 export function isSplittableDvsError(message: string): boolean {
@@ -166,6 +250,9 @@ export const SKIPPED_VALUES_SAMPLE_CAP = 10;
 
 export type DvsCoveredPair = {
   dataId: string;
+  // The element whose values the pair takes: a pull by data set carries
+  // every element of the set.
+  dataElementId: string;
   coc: string | undefined;
   periodId: number;
 };
@@ -191,9 +278,11 @@ export function parseNonNegativeInteger(
   return Number.isInteger(n) && n >= 0 ? n : undefined;
 }
 
-// Client-side reduce of one dataValueSets pull (one data element, one month)
+// Client-side reduce of one dataValueSets pull (one selector, one month)
 // into every pair it covers: deleted values and facilities outside the run
-// scope are ignored; an operand's pair takes only its COC; accepted values
+// scope are ignored; a pair takes only its element's values (a pull by data
+// set carries every element of the set) and an operand's pair only its COC;
+// accepted values
 // are summed per facility across COC×AOC, so the sum is a non-negative
 // integer by construction and nothing truncates. A skipped value is counted
 // on the pair with a capped sample, and the pair still integrates: failing
@@ -221,7 +310,10 @@ export function reduceDvsValues(
     }
     const count = parseNonNegativeInteger(v.value);
     for (const covered of coveredPairs) {
-      if (covered.coc !== undefined && v.categoryOptionCombo !== covered.coc) {
+      if (
+        v.dataElement !== covered.dataElementId ||
+        (covered.coc !== undefined && v.categoryOptionCombo !== covered.coc)
+      ) {
         continue;
       }
       const key = pairKey(covered);

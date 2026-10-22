@@ -120,11 +120,11 @@ Endpoints are grouped by goal, each folder with a `mod.ts` barrel;
 
 | Folder                   | Goal                                                                             | Key functions                                                                                                                                                                      |
 | ------------------------ | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `common/`                | fetcher + retry + validation                                                     | `fetchFromDHIS2`, `getDHIS2`, `withRetry`, `validateDhis2Connection`                                                                                                               |
+| `common/`                | fetcher + retry + validation + version                                           | `fetchFromDHIS2`, `getDHIS2`, `withRetry`, `validateDhis2Connection`, `getDhis2Version`, `parseDhis2Release`                                                                       |
 | `goal1_org_units_v2/`    | org-unit hierarchy metadata and paged units                                      | `getOrgUnitMetadata` (levels + counts + roots, parallel), `getOrgUnitNamesAtLevel`, `pageOrgUnitPathsAtLevel` (one page of units with paths per yield), `testDHIS2Connection`      |
 | `goal2_indicators/`      | indicator / data-element discovery, element eligibility, indicator decomposition | `get/search{Indicators,DataElements}FromDHIS2`, `searchAllIndicatorsAndDataElements`, `getDhis2ElementVerdict`, `parseDhis2Indicator`, `withElementVerdicts`, `withDecompositions` |
 | `goal4_geojson/`         | boundary import for maps                                                         | `fetchOrgUnitsMetadataForLevel`, `fetchGeometryCountForLevel`, `fetchOrgUnitsGeoJsonForLevel`, session caches                                                                      |
-| `goal5_data_value_sets/` | reported values + metadata id-existence                                          | `getDataValueSetsFromDHIS2`, `getExistingMetadataIds`, `getOrgUnitIdsAtLevel`                                                                                                      |
+| `goal5_data_value_sets/` | reported values + metadata id-existence + monthly data sets                      | `getDataValueSetsFromDHIS2`, `getExistingMetadataIds`, `getMonthlyDataSetIdByElement`, `getOrgUnitIdsAtLevel`                                                                      |
 
 (`goal1`'s `_v2` suffix is vestigial: no v1 survives.)
 
@@ -163,15 +163,16 @@ numeric literals (`[0-9]+(\.[0-9]+)?`), `+ - * /`, unary minus, parentheses and
 any whitespace; the indicator is not `annualized`; the factor is 1 (`number`),
 100 (`percent`), 10000 (`rate_per_10k`) or 1000 (`number`, the expression
 multiplied by 1000 and a three-language `note` in the result, because there is
-no `rate_per_1k` format); and the distinct operand count is at most
-`MAX_INDICATOR_EXPRESSION_INGREDIENTS`. Everything else is refused with the
-offending construct as the user would recognise it in the formula: three-part
-and wildcard operands (`#{uid.coc.aoc}`, `#{uid.*.aoc}`), item modifiers
-(`.periodOffset(-1)`), `N{}` `D{}` `A{}` `I{}` `R{}` `OUG{}` `C{}`, `[days]`,
-operators outside the four (`^ % > == && ||`), functions (`if`, `isNull`,
-`d2:zing`), a malformed formula (a `syntax` refusal with the token it stopped
-at). A blacklist would miss the next form DHIS2 adds. The accepted result's
-`expression` is written in the app's own grammar through
+no `rate_per_1k` format); the formula names at least one operand (a constant
+such as `-1 / 1` is refused as `no_operands`); and the distinct operand count is
+at most `MAX_INDICATOR_EXPRESSION_INGREDIENTS`. Everything else is refused with
+the offending construct as the user would recognise it in the formula:
+three-part and wildcard operands (`#{uid.coc.aoc}`, `#{uid.*.aoc}`), item
+modifiers (`.periodOffset(-1)`), `N{}` `D{}` `A{}` `I{}` `R{}` `OUG{}` `C{}`,
+`[days]`, operators outside the four (`^ % > == && ||`), functions (`if`,
+`isNull`, `d2:zing`), a malformed formula (a `syntax` refusal with the token it
+stopped at). A blacklist would miss the next form DHIS2 adds. The accepted
+result's `expression` is written in the app's own grammar through
 `writeIndicatorExpression`, fully parenthesised as
 `((numerator) / (denominator))`, with each operand as the identifier `data_id`,
 bracket-quoted (`[uid]`, `[uid.coc]`) unless the uid matches
@@ -189,21 +190,40 @@ each indicator: the parse, each operand with its own verdict judged through its
 element, and `accepted` = the parse accepted and every operand accepted. Operand
 elements not already in `known` are fetched by chunked `id:in:[...]` filters
 (100 per request) with the default field list, one round of requests for the
-whole result set. The three search routes return these shapes
-(`Dhis2DataElementSearchItem`, `Dhis2IndicatorSearchItem`); the combined search
-passes its own data-element results as `known`. Pinned by
-`server/tests/dhis2_element_eligibility_test.ts` and
-`server/tests/dhis2_decompose_indicator_test.ts`.
+whole result set. Once the elements are known, `foldDefaultCombos` (pure) folds
+every `uid.coc` operand whose combo is its element's default combo
+(`isDefaultComboOf`, which the DHIS2 id repair's planner also reads) onto the
+bare `uid`, in operands and expression alike: the default category combo has
+that one combo, so both forms name the same series, and the fold keeps the
+picker and the DHIS2 id repair from creating a second element beside the bare
+one. A formula naming both forms then counts the element twice, as DHIS2 does.
+The three search routes return these shapes (`Dhis2DataElementSearchItem`,
+`Dhis2IndicatorSearchItem`); the combined search passes its own data-element
+results as `known`. Pinned by `server/tests/dhis2_element_eligibility_test.ts`
+and `server/tests/dhis2_decompose_indicator_test.ts` (the parse and the fold).
 
-**Data value sets.** `getDataValueSetsFromDHIS2` pulls one data element for one
+**Data value sets.** `getDataValueSetsFromDHIS2` pulls one selector
+(`Dhis2ValueSelector`: `dataElement=`, which the export reads from DHIS2 2.39,
+or `dataSet=`, every element of the set, for an earlier release whose export
+ignores `dataElement=` and answers 409 E2001 on the empty selection) for one
 `period=` token (passed through untranslated: the DHIS2 server reads it in its
 own calendar) under the given org units with `children=true`, so one root pull
 covers a country and a level-2 pull covers one subtree. A body with no
-`dataValues` key is a legitimate empty month. `getExistingMetadataIds` answers
+`dataValues` key is a legitimate empty month. The export may state `period`,
+`orgUnit` or `attributeOptionCombo` once at the top of the set and leave it off
+each value (DHIS2 2.43 does so for a single-period pull, which failed every pair
+of Somalia's imports from 2026-10-07 until the fold landed);
+`dataValuesWithSetDefaults` (pure) folds those onto every value that lacks them,
+and the fetcher returns the values so folded, the one shape the worker's period
+check and the reduce read. The choice of selector is S6's (the dispatcher reads
+the version through `common/system_info.ts`). `getExistingMetadataIds` answers
 which of a list of ids exist on `dataElements`, `indicators` or
 `categoryOptionCombos` (chunked `id:in` filters, 100 per request);
-`getOrgUnitIdsAtLevel` lists the ids at one hierarchy level. There is no
-analytics fetcher: the importer never asks DHIS2 to evaluate a formula.
+`getMonthlyDataSetIdByElement` names the first monthly data set each element is
+collected in, through goal 2's `toDataSetElements` and `monthlyDataSetId` (the
+same field the eligibility check reads); `getOrgUnitIdsAtLevel` lists the ids at
+one hierarchy level. There is no analytics fetcher: the importer never asks
+DHIS2 to evaluate a formula.
 
 **Geojson: metadata-vs-heavy split.** Analyze-side,
 `fetchOrgUnitsMetadataForLevel` pulls geometry-less org-unit metadata
@@ -299,11 +319,12 @@ en/fr/pt.
   `indicators_dhis2` (`searchDhis2All`, `createIndicatorsFromDhis2`).
 - **S6 HMIS dataset import**: `launchDatasetHmisDhis2Run` checks that a
   connection is stored (`getStoredDhis2CredentialsInfo`) without validating it,
-  then the import run worker's dispatcher uses goal 5
+  then the import run worker's dispatcher uses `getDhis2Version` and goal 5
   (`getDataValueSetsFromDHIS2`, `getExistingMetadataIds`,
-  `getOrgUnitIdsAtLevel`) for classification + country pulls. The worker's
-  semantics (dispatcher classification, per-pair integration, skip-and-record,
-  the subtree split) are S6's documentation.
+  `getMonthlyDataSetIdByElement`, `getOrgUnitIdsAtLevel`) for classification
+  - country pulls. The worker's semantics (dispatcher classification, the
+    selector by version, per-pair integration, skip-and-record, the subtree
+    split) are S6's documentation.
 
 ## Traps
 
@@ -333,3 +354,12 @@ en/fr/pt.
 - Classify retries off `DHIS2FetchError.status` instead of message substrings,
   and decide whether the exhaustion error should preserve the structured fields.
 - Cruft: retire the `goal1_..._v2` suffix (no v1 exists).
+- The chunked `id:in:[...]` fetch exists three times
+  (`goal2_indicators/attach_verdicts.ts`, `routes/instance/indicators_dhis2.ts`,
+  `dhis2_id_fix/gather.ts`), and `withDecompositions` keeps the elements it
+  fetches, so the DHIS2 id repair's gatherer parses every formula itself to
+  collect the operand element ids, fetches those elements for their names and
+  hands them in as `known`, after which `withDecompositions` parses each formula
+  again. One exported helper here that fetches elements by id, and a
+  decomposition that returns the elements it read, remove both the three copies
+  and the second parse.

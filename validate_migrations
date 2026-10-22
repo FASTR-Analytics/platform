@@ -38,7 +38,7 @@ fail() {
     echo "║              MIGRATION VALIDATION FAILED                     ║"
     echo "║                                                              ║"
     printf "║  %-60s║\n" "$1"
-    echo "╚══════════════════════════════════════════════════════════════╝\033[0m"
+    echo -e "╚══════════════════════════════════════════════════════════════╝\033[0m"
 }
 
 validate() {
@@ -106,4 +106,4 @@ echo "║              MIGRATION VALIDATION PASSED                     ║"
 echo "║                                                              ║"
 echo "║  Instance migrations ran successfully                        ║"
 echo "║  Schemas unchanged (all migrations idempotent)               ║"
-echo "╚══════════════════════════════════════════════════════════════╝\033[0m"
+echo -e "╚══════════════════════════════════════════════════════════════╝\033[0m"

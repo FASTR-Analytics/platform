@@ -35,7 +35,6 @@ function preset(
     description: { en: "", fr: "" },
     importantNotes: null,
     allowedFilters: [],
-    createDefaultVisualizationOnInstall: null,
     config: {
       d: {
         type,
@@ -157,6 +156,32 @@ const METRICS: MetricWithStatus[] = [
     moduleId: "m011",
     dims: ["indicator_common_id", "admin_area_2", ...HMIS_TIME],
     required: ["indicator_common_id", "admin_area_2"],
+    valueProps: ["observed", "expected", "ppi_lwr", "ppi_upr"],
+    formatAs: "number",
+    periodColumn: "period_id",
+    presets: [preset("timeseries", { specialDisruptionsChartV2: true })],
+  }),
+  metric({
+    id: "m11-01-03",
+    moduleId: "m011",
+    dims: ["indicator_common_id", "admin_area_2", "admin_area_3", ...HMIS_TIME],
+    required: ["indicator_common_id", "admin_area_3"],
+    valueProps: ["observed", "expected", "ppi_lwr", "ppi_upr"],
+    formatAs: "number",
+    periodColumn: "period_id",
+    presets: [preset("timeseries", { specialDisruptionsChartV2: true })],
+  }),
+  metric({
+    id: "m11-01-04",
+    moduleId: "m011",
+    dims: [
+      "indicator_common_id",
+      "admin_area_2",
+      "admin_area_3",
+      "admin_area_4",
+      ...HMIS_TIME,
+    ],
+    required: ["indicator_common_id", "admin_area_4"],
     valueProps: ["observed", "expected", "ppi_lwr", "ppi_upr"],
     formatAs: "number",
     periodColumn: "period_id",
@@ -538,7 +563,12 @@ Deno.test("level: a level the metric does not carry clamps to the shallowest off
 
 Deno.test("level: byLevel offers national only without a scope area, and the area pinned deeper or equal", () => {
   const national = resolve(M011, "hmis");
-  assertEquals(national.area?.levels, ["national", "admin_area_2"]);
+  assertEquals(national.area?.levels, [
+    "national",
+    "admin_area_2",
+    "admin_area_3",
+    "admin_area_4",
+  ]);
   assertEquals(national.area?.level, "national");
   assertEquals(national.metric.id, "m11-01-01");
   assertEquals(national.area?.dimension, undefined);
@@ -546,7 +576,11 @@ Deno.test("level: byLevel offers national only without a scope area, and the are
   assertEquals(national.pins, []);
 
   const scoped = resolve(M011, "hmis", { scopeArea: KANO });
-  assertEquals(scoped.area?.levels, ["admin_area_2"]);
+  assertEquals(scoped.area?.levels, [
+    "admin_area_2",
+    "admin_area_3",
+    "admin_area_4",
+  ]);
   assertEquals(scoped.metric.id, "m11-01-02");
   assertEquals(scoped.area?.placement, "pinned");
 

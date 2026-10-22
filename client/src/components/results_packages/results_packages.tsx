@@ -1,10 +1,4 @@
-import {
-  type APIResponseNoData,
-  type RunCatalogItem,
-  type RunProgress,
-  t3,
-  TC,
-} from "lib";
+import { type RunCatalogItem, type RunProgress, t3, TC } from "lib";
 import {
   type BulkAction,
   Button,
@@ -27,6 +21,7 @@ import { ResultsPackageWizard } from "./wizard/mod.ts";
 import { ResultsPackagePage } from "./package_page";
 import { ModuleDefaultsEditor } from "./module_defaults";
 import {
+  deleteEachInTurn,
   ProductCountBadge,
   usageColumnHeader,
 } from "~/components/_shared/mod.ts";
@@ -106,26 +101,6 @@ export function InstanceResultsPackages() {
     }
   }
 
-  // Bulk form of the guarded delete (SYSTEM_08 "Bulk delete"): the guard is
-  // per package, so the selection goes through the single route in turn. A
-  // refusal (pinned, in use, still generating) is reported by label and the
-  // rest still go; nothing is refetched, every delete shrinks the list over
-  // SSE.
-  async function deleteRuns(
-    runs: RunCatalogItem[],
-  ): Promise<APIResponseNoData> {
-    const refused: string[] = [];
-    for (const run of runs) {
-      const res = await serverActions.deleteRun({ run_id: run.id });
-      if (!res.success) {
-        refused.push(`${run.label}: ${res.err}`);
-      }
-    }
-    return refused.length === 0
-      ? { success: true }
-      : { success: false, err: refused.join("; ") };
-  }
-
   async function handleBulkDelete(selected: RunCatalogItem[]): Promise<void> {
     const deleteAction = createDeleteAction(
       {
@@ -149,7 +124,12 @@ export function InstanceResultsPackages() {
         }),
         itemList: selected.map((run) => run.label),
       },
-      () => deleteRuns(selected),
+      () =>
+        deleteEachInTurn(
+          selected,
+          (run) => run.label,
+          (run) => serverActions.deleteRun({ run_id: run.id }),
+        ),
     );
     await deleteAction.click();
   }

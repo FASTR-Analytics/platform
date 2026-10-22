@@ -17,15 +17,17 @@ import {
   type ExploreViewType,
   getDisaggregationAllowedPresentationOptions,
   type MetricDefinitionGithub,
-  type MetricWithStatus,
   MODULE_REGISTRY,
-  type ModuleDefinitionGithub,
-  moduleDefinitionGithubSchema,
   resolveView,
   type RunAuthoringContext,
   UNBOUND_METRICS,
 } from "lib";
-import { deriveAvailableDisaggregationOptions } from "../runs/disaggregation_availability.ts";
+import {
+  availableOptionsOf,
+  loadModuleDefinitions,
+  metricsWithStatusOf,
+  type ModuleDefinitions,
+} from "./_module_definitions.ts";
 
 const MODULES_DIR = Deno.env.get("FASTR_MODULES_LOCAL_DIR");
 
@@ -157,37 +159,12 @@ Deno.test("bindings: the over-time type is never bound on HFA", () => {
 
 // Checks against the module definitions
 
-type Definitions = Map<string, ModuleDefinitionGithub>;
-
-async function loadDefinitions(dir: string): Promise<Definitions> {
-  const out: Definitions = new Map();
-  for (const entry of MODULE_REGISTRY) {
-    const text = await Deno.readTextFile(`${dir}/${entry.id}/definition.json`);
-    out.set(entry.id, moduleDefinitionGithubSchema.parse(JSON.parse(text)));
-  }
-  return out;
-}
-
 function metricOf(
-  definitions: Definitions,
+  definitions: ModuleDefinitions,
   moduleId: string,
   metricId: string,
 ): MetricDefinitionGithub | undefined {
   return definitions.get(moduleId)?.metrics.find((m) => m.id === metricId);
-}
-
-function availableOptions(
-  definition: ModuleDefinitionGithub,
-  metric: MetricDefinitionGithub,
-): DisaggregationOption[] {
-  const ro = definition.resultsObjects.find((r) =>
-    r.id === metric.resultsObjectId
-  );
-  const columns =
-    ro === undefined || ro.createTableStatementPossibleColumns === false
-      ? []
-      : Object.keys(ro.createTableStatementPossibleColumns);
-  return deriveAvailableDisaggregationOptions(new Set(columns), undefined);
 }
 
 function isTimeBased(dim: DisaggregationOption): boolean {
@@ -196,7 +173,7 @@ function isTimeBased(dim: DisaggregationOption): boolean {
 
 // The authoring context the definitions describe, every metric ready, with
 // one dummy value in every dictionary so each pin resolves.
-function contextOf(definitions: Definitions): RunAuthoringContext {
+function contextOf(definitions: ModuleDefinitions): RunAuthoringContext {
   const modules = [...definitions.entries()].map(([id, def]) => ({
     id,
     label: def.label.en,
@@ -207,43 +184,11 @@ function contextOf(definitions: Definitions): RunAuthoringContext {
     lastRunAt: null,
     moduleDefinitionResultsObjectIds: def.resultsObjects.map((r) => r.id),
   }));
-  const metrics: MetricWithStatus[] = [...definitions.entries()].flatMap((
-    [moduleId, def],
-  ) =>
-    def.metrics.map((m): MetricWithStatus => {
-      const available = availableOptions(def, m);
-      return {
-        id: m.id,
-        moduleId,
-        status: "ready",
-        label: m.label.en,
-        formatAs: m.formatAs,
-        valueProps: m.valueProps,
-        valueFunc: m.valueFunc,
-        resultsObjectId: m.resultsObjectId,
-        mostGranularTimePeriodColumnInResultsFile:
-          available.includes("period_id")
-            ? "period_id"
-            : available.includes("quarter_id")
-            ? "quarter_id"
-            : available.includes("year")
-            ? "year"
-            : undefined,
-        disaggregationOptions: available.map((value) => ({
-          value,
-          isRequired: m.requiredDisaggregationOptions.includes(value),
-          allowedPresentationOptions:
-            getDisaggregationAllowedPresentationOptions(value),
-        })),
-        vizPresets: [],
-      };
-    })
-  );
   return {
     runId: "run",
     scopeToken: "token",
     modules,
-    metrics,
+    metrics: metricsWithStatusOf(definitions),
     datasets: [],
     hmisIndicators: [{ id: "x", label: "x" }],
     icehIndicators: [{ id: "x", label: "x", category: "x" }],
@@ -303,7 +248,7 @@ Deno.test({
   name: "bindings: against the module definitions",
   ignore: MODULES_DIR === undefined,
   async fn(t) {
-    const definitions = await loadDefinitions(MODULES_DIR ?? "");
+    const definitions = await loadModuleDefinitions(MODULES_DIR ?? "");
     const ctx = contextOf(definitions);
 
     await t.step("every bound module is a registry module", () => {
@@ -357,7 +302,7 @@ Deno.test({
           for (const id of boundMetricIds(binding.metric)) {
             const metric = metricOf(definitions, moduleId, id);
             if (metric === undefined) continue;
-            const available = availableOptions(def, metric);
+            const available = availableOptionsOf(def, metric);
             for (const dim of roles) {
               assert(
                 available.includes(dim),
@@ -486,7 +431,7 @@ Deno.test({
         for (const id of boundMetricIds(binding.metric)) {
           const metric = metricOf(definitions, moduleId, id);
           if (metric === undefined) continue;
-          const available = availableOptions(def, metric);
+          const available = availableOptionsOf(def, metric);
           assert(
             ["period_id", "quarter_id", "year"].some((c) =>
               available.includes(c as DisaggregationOption)

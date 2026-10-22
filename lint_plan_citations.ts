@@ -55,8 +55,10 @@ const STANDING_DOC =
 // Anywhere in a line, strings included: a plan or a review is a working file,
 // and a ruling cited in a script's output points into one as surely as a
 // comment does.
+// A name ending in `*` is a naming pattern (`PLAN_CLEANUP_*`), which a
+// standing doc may state.
 const ANYWHERE = [
-  /\b(PLAN|REVIEW)_[A-Z0-9]/,
+  /\b(PLAN|REVIEW)_[A-Z0-9][A-Z0-9_]*\b(?!\*)/,
   /\brulings? [DR]?\d/i,
   /\b(ruled|decided),? 20\d\d|\bTim's ruling|\(Tim,? 20\d\d/,
   /\bQ-[A-Z]\b/,

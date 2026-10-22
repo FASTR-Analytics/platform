@@ -34,6 +34,7 @@ import { otherPeers } from "~/state/instance/collab";
 import {
   copilotViewController,
   type EditingSlideDeckContext,
+  type OpenSlide,
 } from "~/components/instance/copilot/mod.ts";
 import { instanceState } from "~/state/instance/t1_store";
 import { canEditProduct } from "~/state/instance/product_access";
@@ -70,6 +71,9 @@ type Props = {
   // the rail leaves things as they are.
   currentSlideId: string | undefined;
   onSelectSlide: (slideId: string | undefined) => Promise<boolean>;
+  // The open slide's editor, once mounted: the stale count and the update
+  // read and write the open slide through its draft.
+  openSlide: OpenSlide | undefined;
   // The deck's delete, which moves the editor off a deleted open slide first.
   onDeleteSlides: EditingSlideDeckContext["deleteSlides"];
   // The editor (or its placeholder), filling the frame beside the rail.
@@ -438,18 +442,28 @@ export function SlideList(p: Props) {
   }
 
   // ── Stale figures ───────────────────────────────────────────────────────────
-  // Recomputed whenever the deck's slide set changes or the container is
-  // reattached or rescoped. The slides are already in the per-slide cache
-  // (the cards render from it), so this is a walk, not a fetch storm. The
-  // walk awaits per slide, so a monotonic scan id keeps an older re-run from
-  // committing its count last.
+  // Recomputed whenever the deck's slide set changes, the container is
+  // reattached or rescoped, or the open slide's draft changes a figure block
+  // or its layout tree (what collectDeckStaleFigures tracks). The slides are
+  // already in the per-slide cache (the cards render from it), so this is a
+  // walk, not a fetch storm. The walk awaits per slide, so a monotonic scan
+  // id keeps an older re-run from committing its count last.
   const [staleCount, setStaleCount] = createSignal(0);
   const [updatingFigures, setUpdatingFigures] = createSignal(false);
   let staleScanId = 0;
 
-  async function rescanStaleFigures(scope: PackageScope, slideIds: string[]) {
+  async function rescanStaleFigures(
+    scope: PackageScope,
+    slideIds: string[],
+    open: OpenSlide | undefined,
+  ) {
     const scanId = ++staleScanId;
-    const stale = await collectDeckStaleFigures(p.productId, slideIds, scope);
+    const stale = await collectDeckStaleFigures(
+      p.productId,
+      slideIds,
+      scope,
+      open,
+    );
     if (scanId !== staleScanId) return;
     setStaleCount(stale.length);
   }
@@ -464,9 +478,11 @@ export function SlideList(p: Props) {
       setStaleCount(0);
       return;
     }
+    // Tracks the open slide's draft: collectDeckStaleFigures.
     void rescanStaleFigures(
       { runId: scope.runId, scopeId: scope.scopeId },
       slideIds,
+      p.openSlide,
     );
   });
 
@@ -480,8 +496,9 @@ export function SlideList(p: Props) {
       [...p.slideIds],
       { runId: scope.runId, scopeId: scope.scopeId },
       context,
+      () => p.openSlide,
     );
-    await rescanStaleFigures(scope, [...p.slideIds]);
+    await rescanStaleFigures(scope, [...p.slideIds], p.openSlide);
     setUpdatingFigures(false);
     if (result.failures.length > 0) {
       await openAlert({
@@ -535,8 +552,12 @@ export function SlideList(p: Props) {
       props: {
         product,
         countStaleUnder: async (pair: PackageScope) =>
-          (await collectDeckStaleFigures(p.productId, [...p.slideIds], pair))
-            .length,
+          (await collectDeckStaleFigures(
+            p.productId,
+            [...p.slideIds],
+            pair,
+            p.openSlide,
+          )).length,
       },
     });
   }

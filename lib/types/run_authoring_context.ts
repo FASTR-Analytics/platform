@@ -1,4 +1,4 @@
-import type { DerivedDefaultVisualization } from "../derive_default_visualizations.ts";
+import type { DerivedPreset } from "../derive_presets.ts";
 import type { HfaTaxonomyForAI } from "./hfa_types.ts";
 import type { InstalledModuleSummary, MetricWithStatus } from "./modules.ts";
 import type { RunDataset } from "./run_datasets.ts";
@@ -6,8 +6,8 @@ import type { RunHmisIndicator, RunPopulation } from "./run_manifest.ts";
 
 // Everything an author needs FROM a package: which modules ran, which metrics
 // they produced and whether each is available, which datasets were captured,
-// the indicator vocabularies, and the presets (the default visualizations
-// derived from the manifest). A pure function of the run directory and the
+// the indicator vocabularies, and the presets (every metric preset, derived
+// from the manifest). A pure function of the run directory and the
 // scope definition it is read under, so keyed by `(runId, definition hash)`
 // the payload is immutable by identity and the client caches it without
 // revalidating.
@@ -35,7 +35,7 @@ export type RunAuthoringContext = {
   hfaTaxonomy: RunAuthoringContextHfaTaxonomy;
   // Presets are not products: no rows, no detail read. They render through
   // the run-keyed items read with their own config.
-  presets: DerivedDefaultVisualization[];
+  presets: DerivedPreset[];
   // The manifest's population stamp, verbatim: what the package's rate
   // indicators are aggregated at, for the badge's reason line.
   population: RunPopulation | null;

@@ -1,6 +1,7 @@
 export { ThresholdsPanel } from "./_shared/mod.ts";
 export { ReplicateByOptionsSelect } from "./replicate_by_options.tsx";
 export {
+  resolveFigureMetricOrAlert,
   StaleFigureBadge,
   UpdateAllFiguresButton,
   updateFigureToScope,

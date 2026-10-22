@@ -64,19 +64,25 @@ is S9 "The scoped view"). It is the "Scopes" tab on the side rail
 (`instance.tsx`), after Results, shown only when
 `instanceState.currentUserIsGlobalAdmin` is true, the same rule the three scope
 routes enforce with `requireAdmin`. The page sets the chat's `scopes` view (S13)
-while it is open. `InstanceScopes` (`scopes.tsx`) is a `Table` over
-`instanceState.scopes` with one row per scope, "All data" included: the label
-(with a "Migrated" badge when `scope.migratedFrom` is set: the update that
-retired projects made it, and hovering names the projects it came from), one
-column per family (HMIS, HFA, ICEH) saying "Excluded", "No limits" or the
-section's limits in a few words, and a Usage column showing the number of
-products that carry it as a badge (`ProductCountBadge`, shared with the results
-packages table, S8; nothing for none), counted in one pass over
-`instanceState.products`. A row opens `ScopeEditor` (`scope_editor.tsx`) in a
-modal; "New scope" opens it with every family included and nothing limited. The
-reserved "All data" row opens `AllDataScopeView` instead: a read-only statement
-of what the scope is, with no Save and no Delete, since the routes refuse both
-(S12).
+while it is open. `InstanceScopes` (`scopes.tsx`) is a fixed panel for the
+reserved "All data" scope above a `Table` over every other scope in
+`instanceState.scopes`. The panel (`AllDataScopePanel`) is the translated label,
+a "Built in" badge, one sentence saying the scope includes every family, limits
+nothing and can be neither edited nor deleted (the routes refuse both, S12), and
+its product count; it is not a row, so no sort, search or selection moves it,
+and nothing opens from it. The table has one row per scope: the label (with a
+"Migrated" badge when `scope.migratedFrom` is set: the update that retired
+projects made it, and hovering names the projects it came from), one column per
+family (HMIS, HFA, ICEH) saying "Excluded", "No limits" or the section's limits
+in a few words, and a Usage column showing the number of products that carry it
+as a badge (`ProductCountBadge`, shared with the results packages table, S8;
+nothing for none), counted in one pass over `instanceState.products`. Each row
+has a checkbox, and the one bulk action, Delete, is the bulk form of the guarded
+delete: the confirm lists the ticked scopes by label, then `deleteScope` is
+called for each in turn through `deleteEachInTurn` (S8 "Bulk delete"), so a
+scope a product carries is refused by label while the rest go. A row opens
+`ScopeEditor` (`scope_editor.tsx`) in a modal; "New scope" opens it with every
+family included and nothing limited.
 
 The editor has the label above three tabs, HMIS, HFA and ICEH, one per section
 of the definition. Each tab opens with an "Include" checkbox (the component

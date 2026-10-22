@@ -1,21 +1,75 @@
-[TBD] [user] [added] - "Ask AI" button now pulses until first opened
-[TBD] [user] [added] - Guided tour introduces the AI assistant to all users
-[TBD] [user] [added] - Empty reports or slide decks offer to be deleted when leaving
-[TBD] [user] [changed] - "Ask AI" button now shows a sparkle icon and clearer label
-[TBD] [user] [changed] - AI asks clarifying questions and proposes an outline before drafting a new report
-[TBD] [user] [changed] - Profile modal redesigned with cleaner layout and grouped sections
-[TBD] [user] [changed] - AI usage now shows today and this week side by side with progress bars
-[TBD] [user] [changed] - Profile loads instantly instead of waiting for account details
-[TBD] [user] [added] - Troubleshooting section in profile explains when to clear caches
-[TBD] [admin] [added] - AI assistant now walks users through a brief and outline before drafting an empty report
-[TBD] [admin] [added] - Pulsing indicator on the Ask AI button until a user opens the AI panel for the first time
-[TBD] [admin] [added] - Guided tour introducing the AI assistant to all users
-[TBD] [admin] [added] - Leaving a newly created empty report or slide deck now offers to delete it
-[TBD] [admin] [changed] - Profile modal redesigned with cleaner layout and grouped sections
-[TBD] [admin] [changed] - AI usage now shows daily and weekly token meters side by side in the profile
-[TBD] [admin] [changed] - Ask AI button now shows a sparkle icon and updated label
-[TBD] [admin] [changed] - Report template selection step has been removed from report creation
-[TBD] [admin] [internal] - Report starting templates removed; AI handles document structure conversationally instead
+[2.0.5] [user] [added] - After applying a DHIS2 ID repair, data is automatically re-imported to fill gaps
+[2.0.5] [user] [fixed] - Special indicators now keep their data correctly during DHIS2 ID repair
+[2.0.5] [admin] [added] - DHIS2 ID repair can now automatically backfill data after applying a fix plan
+[2.0.5] [admin] [changed] - DHIS2 ID repair handles special indicators as Sums instead of duplicates
+[2.0.5] [admin] [changed] - Reference renaming now processes all duplicates in one batch for consistency
+[2.0.5] [admin] [fixed] - Stored DHIS2 connection is verified before backfill to prevent mismatched imports
+[2.0.5] [user] [fixed] - Duplicate indicators from DHIS2 default category combos are now automatically detected and merged
+[2.0.5] [user] [fixed] - Scheduled imports no longer list duplicate indicators after cleanup
+[2.0.5] [user] [fixed] - Analysis settings preserved when merging duplicate indicators
+[2.0.5] [admin] [added] - Duplicate DHIS2 indicators using default combos are now automatically detected and merged
+[2.0.5] [admin] [fixed] - Schedule selections no longer list an indicator twice after renaming
+[2.0.5] [admin] [changed] - DHIS2 ID repair plan now consolidates duplicate default-combo elements with their bare counterparts
+[2.0.5] [user] [fixed] - Stale import error records are now automatically cleaned up
+[2.0.5] [admin] [added] - DHIS2 ID repair now cleans up stale import ledger entries
+[2.0.5] [admin] [added] - DHIS2 elements with incompatible period types are now detected and converted to manual upload
+[2.0.5] [admin] [internal] - Retired module migration expanded to cover additional modules
+[2.0.4] [user] [added] - Retired metrics automatically carry over to their successor in visualizations
+[2.0.4] [user] [added] - Clear error message when a visualization's metric belongs to a retired module
+[2.0.4] [user] [added] - View full error details for failed DHIS2 import pairs via a "View error" button
+[2.0.4] [user] [added] - DHIS2 version and data pull method shown in import run details
+[2.0.4] [user] [added] - Warning when selected indicators have no monthly data set in older DHIS2 versions
+[2.0.4] [user] [fixed] - Visualizations with too many data points now show a helpful error instead of failing silently
+[2.0.4] [user] [fixed] - Updating all stale visualizations in a slide deck now works correctly on the open slide
+[2.0.4] [user] [fixed] - Stale visualization count updates immediately after editing a figure in the open slide
+[2.0.4] [user] [changed] - Editing a figure from a retired metric uses apply/cancel instead of live co-editing
+[2.0.4] [admin] [added] - DHIS2 imports now support older releases (before 2.39) by fetching values by data set instead of data element
+[2.0.4] [admin] [added] - DHIS2 import run details now show the detected DHIS2 version and pull method used
+[2.0.4] [admin] [added] - DHIS2 import errors now have a "View error" button to see the full error detail
+[2.0.4] [admin] [added] - DHIS2 imports detect indicators collected in no monthly data set and report them clearly
+[2.0.4] [admin] [added] - DHIS2 indicators that are constants (no data elements) are now refused with a clear explanation
+[2.0.4] [admin] [changed] - Figures using metrics from retired modules automatically carry over to their successor metrics
+[2.0.4] [admin] [changed] - Editing a figure whose metric was retired opens the successor metric's configuration
+[2.0.4] [admin] [changed] - The "Update all figures" action in slide decks now correctly updates the currently open slide in real time
+[2.0.4] [admin] [changed] - Stale figure count in slide decks updates immediately when editing figures on the open slide
+[2.0.4] [admin] [fixed] - Visualizations requesting too many data points now show a clear error instead of failing silently
+[2.0.4] [admin] [fixed] - DHIS2 indicator operands using the default category combo are now correctly treated as the base data element
+[2.0.4] [admin] [fixed] - Live co-editing is properly disabled when editing a figure carried to a successor metric
+[2.0.4] [admin] [fixed] - Slide deck reattach no longer briefly unmounts the editor when the authoring context reloads
+[2.0.3] [user] [changed] - "Indicator values" module renamed to "Service utilization"
+[2.0.3] [admin] [changed] - Module "Indicator values" renamed to "Service utilization"
+[2.0.3] [user] [changed] - "Default visualizations" renamed to "presets" throughout the platform
+[2.0.3] [admin] [changed] - "Default visualizations" renamed to "presets" throughout the platform
+[2.0.2] [user] [added] - Bulk delete for scopes from the scopes list
+[2.0.2] [user] [changed] - "All data" scope now shown as a fixed panel above the scopes table
+[2.0.2] [user] [added] - New disruption chart metrics at sub-district geographic levels
+[2.0.2] [user] [added] - Percent-change chart now supports an additional metric
+[2.0.2] [user] [changed] - Deeper geographic levels available when exploring disruption data
+[2.0.2] [admin] [added] - Bulk delete is now available for scopes
+[2.0.2] [admin] [changed] - "All data" scope shown as a fixed panel above the scopes table
+[2.0.2] [admin] [added] - New disruption analysis metrics available at sub-district levels
+[2.0.2] [admin] [added] - Percent-change chart now supports an additional metric
+[2.0.1] [user] [changed] - DHIS2 import error messages now direct you to contact the FASTR team for repairs instead of listing manual fix steps
+[2.0.1] [admin] [changed] - DHIS2 import errors now direct you to contact the FASTR team for repairs instead of listing manual fix steps
+[2.0.1] [admin] [added] - FASTR team can now run an automated DHIS2 id repair that fixes broken indicator IDs while preserving imported data
+[2.0.1] [user] [added] - "Ask AI" button now pulses until first opened
+[2.0.1] [user] [added] - Guided tour introduces the AI assistant to all users
+[2.0.1] [user] [added] - Empty reports or slide decks offer to be deleted when leaving
+[2.0.1] [user] [changed] - "Ask AI" button now shows a sparkle icon and clearer label
+[2.0.1] [user] [changed] - AI asks clarifying questions and proposes an outline before drafting a new report
+[2.0.1] [user] [changed] - Profile modal redesigned with cleaner layout and grouped sections
+[2.0.1] [user] [changed] - AI usage now shows today and this week side by side with progress bars
+[2.0.1] [user] [changed] - Profile loads instantly instead of waiting for account details
+[2.0.1] [user] [added] - Troubleshooting section in profile explains when to clear caches
+[2.0.1] [admin] [added] - AI assistant now walks users through a brief and outline before drafting an empty report
+[2.0.1] [admin] [added] - Pulsing indicator on the Ask AI button until a user opens the AI panel for the first time
+[2.0.1] [admin] [added] - Guided tour introducing the AI assistant to all users
+[2.0.1] [admin] [added] - Leaving a newly created empty report or slide deck now offers to delete it
+[2.0.1] [admin] [changed] - Profile modal redesigned with cleaner layout and grouped sections
+[2.0.1] [admin] [changed] - AI usage now shows daily and weekly token meters side by side in the profile
+[2.0.1] [admin] [changed] - Ask AI button now shows a sparkle icon and updated label
+[2.0.1] [admin] [changed] - Report template selection step has been removed from report creation
+[2.0.1] [admin] [internal] - Report starting templates removed; AI handles document structure conversationally instead
 [2.0.0] [user] [added] - AI assistant is now available on every page from a side panel
 [2.0.0] [user] [added] - Drag and drop products and folders in the product explorer
 [2.0.0] [user] [added] - Manage access to decks and reports with owner, editor, and viewer roles

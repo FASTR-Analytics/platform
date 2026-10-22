@@ -6,8 +6,8 @@
 // Goal 2: indicator and data-element discovery for the dictionary.
 // Goal 4: org-unit boundaries (GeoJSON) for maps.
 // Goal 5: dataValueSets (the values facilities reported, the HMIS import's
-//         only fetch route) plus the metadata id-existence helpers the import
-//         dispatcher classifies with.
+//         only fetch route, by data element or by data set) plus the metadata
+//         helpers the import dispatcher classifies with.
 
 export * from "./common/mod.ts";
 export * from "./goal1_org_units_v2/mod.ts";
