@@ -10,6 +10,7 @@ import {
   type ScopeAccess,
   type ScopeUuid,
   type UserPermission,
+  UserProfile,
 } from "lib";
 import { tryCatchDatabaseAsync } from "./../utils.ts";
 import { resolveAssetFilePath } from "./assets.ts";
@@ -40,6 +41,26 @@ export async function syncUserName(
     SET first_name = ${firstName}, last_name = ${lastName}
     WHERE email = ${email}
       AND (first_name, last_name) IS DISTINCT FROM (${firstName}, ${lastName})
+    RETURNING email
+  `;
+  return updated.length > 0;
+}
+
+// The user's own profile words. A blank is stored as null, so "not set" has
+// one spelling. Returns true when a row changed, so a no-op write (the fleet
+// sync landing on an instance that already has it) notifies nobody.
+export async function updateUserProfile(
+  mainDb: Sql,
+  email: string,
+  profile: UserProfile,
+): Promise<boolean> {
+  const organisation = profile.organisation?.trim() || null;
+  const role = profile.role?.trim() || null;
+  const updated = await mainDb`
+    UPDATE users
+    SET organisation = ${organisation}, role = ${role}
+    WHERE email = ${email}
+      AND (organisation, role) IS DISTINCT FROM (${organisation}, ${role})
     RETURNING email
   `;
   return updated.length > 0;
@@ -92,6 +113,8 @@ export function otherUserFromRow(
     isGlobalAdmin,
     firstName: row.first_name ?? undefined,
     lastName: row.last_name ?? undefined,
+    organisation: row.organisation ?? undefined,
+    role: row.role ?? undefined,
     unlimitedAi: row.unlimited_ai,
     isContactPerson: row.is_contact_person,
     scopeAccess: scopeAccessFromRow(

@@ -6,7 +6,7 @@ globs:
   - client/src/components/instance/whats_new_modal.tsx
   - client/src/components/instance/instance.tsx
   - client/src/components/instance/mod.ts
-  - client/src/components/instance/organisation_modal.tsx
+  - client/src/components/instance/profile_prompt_modal.tsx
   - client/src/components/instance/theme_modal.tsx
   - client/src/index.tsx
   - client/src/onboarding/**
@@ -357,15 +357,18 @@ the window listeners are never attached.
 ## Onboarding modals
 
 An effect in `components/instance/instance.tsx` (after approval + Clerk user)
-opens `OrganisationModal` when `unsafeMetadata.organisation` is unset (it writes
-that key; skippable), then `WhatsNewModal`, a multi-page release-notes popup.
-The sequence is guarded to run ONCE per signed-in user id (the approval store
-re-fires the effect, which would otherwise re-open the modals). Posts are
-authored in the Admin-Website, fetched by `server/routes/instance/whats_new.ts`
-from status-api (60s in-memory cache, fail-silent, 30s backoff after a failed
-fetch) and pre-filtered server-side to `published && version <= _SERVER_VERSION`
-(the version gate is skipped when `SERVER_VERSION` is non-dotted, i.e. ad-hoc
-test deploys), then cut to the caller's audience by `whatsNewPostForAudience`:
+opens `ProfilePromptModal` when the user's row holds neither an organisation nor
+a role (`promptForProfile`: it asks for both, skippable, and writes them through
+`updateMyProfile`; an organisation still sitting in Clerk `unsafeMetadata` from
+before the profile columns existed seeds the row instead and the key is
+dropped), then `WhatsNewModal`, a multi-page release-notes popup. The sequence
+is guarded to run ONCE per signed-in user id (the approval store re-fires the
+effect, which would otherwise re-open the modals). Posts are authored in the
+Admin-Website, fetched by `server/routes/instance/whats_new.ts` from status-api
+(60s in-memory cache, fail-silent, 30s backoff after a failed fetch) and
+pre-filtered server-side to `published && version <= _SERVER_VERSION` (the
+version gate is skipped when `SERVER_VERSION` is non-dotted, i.e. ad-hoc test
+deploys), then cut to the caller's audience by `whatsNewPostForAudience`:
 non-admins lose admins-only posts and admins-only pages, and a post left with no
 page is withheld. One post can so carry an admin version: admins see every page,
 everyone else the rest, under one post id and one read-state. Read-state is a
@@ -434,13 +437,6 @@ language's own anchor). The recipe and its traps are
   out.
 - Help generator hygiene: `.mdx` pages are silently skipped by the walk;
   `getHelpTarget` in `lib/help/mod.ts` is an unused export.
-- **OrganisationModal shows nothing when its save fails.** `handleSave` lets a
-  failed Clerk write throw past `p.close`
-  (`instance/organisation_modal.tsx:10-25`), and the Save action carries no
-  state (42-48), so no error renders and the rejection goes unhandled. Build
-  Save with `createButtonAction` (closing on success), pass its `state` so
-  `ModalContainer` renders the error, and take `cancelDisabled` from its loading
-  state.
 - **Help requests never say where they were sent from.** `FeedbackForm` sends
   `p.context` (`instance/feedback_form.tsx:18`, 81) and the email renders it
   (`server/routes/instance/emails.ts:213-216`), but `openFeedback` passes only

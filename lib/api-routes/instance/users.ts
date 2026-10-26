@@ -26,6 +26,11 @@ const userPermissionsSchema = z
   )
   .partial();
 
+const userProfileSchema = z.object({
+  organisation: z.string().max(200).nullable(),
+  role: z.string().max(200).nullable(),
+});
+
 const scopeAccessSchema = z.discriminatedUnion("all", [
   z.object({ all: z.literal(true) }),
   z.object({ all: z.literal(false), scopeIds: z.array(scopeUuidSchema) }),
@@ -170,6 +175,21 @@ export const userRouteRegistry = {
       firstName: z.string().nullable(),
       lastName: z.string().nullable(),
     }),
+    response: {} as { changed: boolean },
+  }),
+  // The caller's own organisation and role: self-service, and pushed to the
+  // fleet so the profile follows the user as their name does.
+  updateMyProfile: route({
+    path: "/user/profile",
+    method: "POST",
+    body: userProfileSchema,
+  }),
+  // Applies a profile change pushed by the peer instance the user wrote it
+  // on. Fleet-internal and machine-only, as receiveUserNameSync is.
+  receiveUserProfileSync: route({
+    path: "/user/sync-profile",
+    method: "POST",
+    body: userProfileSchema.extend({ email: z.string() }),
     response: {} as { changed: boolean },
   }),
   // Personal access tokens: self-service, always scoped to the caller.

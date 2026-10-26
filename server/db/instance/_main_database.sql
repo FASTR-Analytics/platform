@@ -20,8 +20,11 @@ CREATE TABLE users (
   unlimited_ai boolean NOT NULL DEFAULT false,
   is_contact_person boolean NOT NULL DEFAULT false,
   -- FALSE = restricted to the scopes in user_scopes. Ignored for a global
-  -- admin. Last because migration 205 adds it to a live table.
-  all_scopes boolean NOT NULL DEFAULT TRUE
+  -- admin. After the permission bits because migration 205 adds it to a live
+  -- table; the profile columns follow it for the same reason (219).
+  all_scopes boolean NOT NULL DEFAULT TRUE,
+  organisation text,
+  role text
 );
 
 -- Results runs catalog.

@@ -36,7 +36,7 @@ import {
   Switch,
 } from "solid-js";
 import { clerk } from "~/state/_infra/clerk";
-import { OrganisationModal } from "./organisation_modal";
+import { ProfilePromptModal } from "./profile_prompt_modal";
 import { ThemeModal } from "./theme_modal";
 import { THEME_SWITCHER_ENABLED } from "~/state/t4_theme";
 import { WhatsNewFeedModal, WhatsNewModal } from "./whats_new_modal";
@@ -186,12 +186,31 @@ export default function Instance(p: Props) {
     if (postLoginRanForUserId === clerk.user.id) return;
     postLoginRanForUserId = clerk.user.id;
     (async () => {
-      if (!clerk.user!.unsafeMetadata?.organisation) {
-        await openComponent({ element: OrganisationModal, props: undefined });
-      }
+      await promptForProfile();
       await maybeShowWhatsNew();
     })();
   });
+
+  // The organisation once lived only in Clerk unsafeMetadata, where admins
+  // could not read it; a user who answered there is not asked again: their
+  // answer seeds the users table and the Clerk key is dropped.
+  async function promptForProfile(): Promise<void> {
+    const me = await serverActions.getCurrentUser({});
+    if (!me.success || me.data.organisation || me.data.role) return;
+    const { organisation: fromClerk, ...rest } = clerk.user!.unsafeMetadata;
+    if (typeof fromClerk === "string" && fromClerk.trim()) {
+      const saved = await serverActions.updateMyProfile({
+        organisation: fromClerk,
+        role: null,
+      });
+      if (saved.success) await clerk.user!.update({ unsafeMetadata: rest });
+      return;
+    }
+    await openComponent({
+      element: ProfilePromptModal,
+      props: { initial: { organisation: null, role: null } },
+    });
+  }
 
   // A language applies by full reload, which loses an AI turn in flight, so
   // the switch asks first while one runs (S13's turn guard). Choosing the

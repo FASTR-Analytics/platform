@@ -316,14 +316,16 @@ failures surface as user-facing route errors with GB figures.
   selected global admins. The page holds and sets the chat's `users` view at
   mount and the user detail (opened over the shell) `user` (S13); each view's
   label and instructions name the page and never the roster or the email.
-- **Self-profile** (`profile.tsx`): AI usage bars; the organisation is written
-  **directly to Clerk `unsafeMetadata`**, a second persistence plane outside
-  serverActions/Postgres. Clear data cache, Clear AI chat history, Sign out and
-  Change email each reload the page, so each asks first while an AI turn runs
-  (S13's `confirmReloadUnderTurn`). Change-email wizard
-  (`change_email_modal.tsx`): adds and code-verifies the address through the
-  Clerk JS SDK, runs S1's `renameUserEmailEverywhere` fleet rename, then flips
-  the Clerk primary and refreshes the session token.
+- **Self-profile** (`profile.tsx`): AI usage bars; the organisation and role
+  (`users.organisation`, `users.role`, migration 219) are the user's own words,
+  written through `updateMyProfile`, which notifies the roster and pushes the
+  change to every peer's `receiveUserProfileSync` the way a name change travels
+  (`pushToPeers`), and shown to admins as two Users-page columns. Clear data
+  cache, Clear AI chat history, Sign out and Change email each reload the page,
+  so each asks first while an AI turn runs (S13's `confirmReloadUnderTurn`).
+  Change-email wizard (`change_email_modal.tsx`): adds and code-verifies the
+  address through the Clerk JS SDK, runs S1's `renameUserEmailEverywhere` fleet
+  rename, then flips the Clerk primary and refreshes the session token.
 - **Feedback form** → S12's `sendHelpEmail` route (`requireGlobalPermission()`):
   SendGrid confirmation to the user + copies to `_FEEDBACK_EMAIL_RECIPIENTS`,
   `replyTo` the user.
