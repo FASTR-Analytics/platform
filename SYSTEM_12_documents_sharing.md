@@ -2185,29 +2185,34 @@ row, Google Docs' PILL: a rounded tinted strip of flat buttons in thin-divided
 groups (undo/redo, text style, bold/italic/underline, where underline is the
 mark attribute `[x]{underline}` since markdown has none, a − N + text-size
 stepper, which shows the RENDERED size measured at the caret when no explicit
-mark is set, highlight, link, text colour with its colour bar, lists and quote),
-dropdowns marked by a chevron. The toolbar row adapts to the last click: a
-selected embed's controls REPLACE the text controls (as selecting an image does
-in Google Docs), and a block segment (fence chip + the block's own attribute
-choices + a combined Background menu) APPENDS while the caret is inside a `:::`
-block. Background is ONE menu for both ground kinds (the theme's four tones as
-preset swatches on top beside a struck-through "none" chip, the literal colour
-grid + hex field below) and keeps them mutually exclusive in a single fence
-rewrite, because a literal wins over a tone in the renderer and a stale one must
-not linger; the Page menu embeds the same panel for the document background. The
-block segment offers NO page break control (2026-09-23): `break=before|after`
-stays a legacy attribute the paged sheet honours, but neither the toolbar nor
-the AI brief writes it; a page break is the `:::pagebreak` leaf. Nor does a
-`tiles` or `columns` GRID get the Background menu (a ground behind the whole row
-reads as a mistake; its cards and columns keep theirs). Two gestures treat a
-region as the unit it looks like (`insertBlockEdit`, `enterBesideRegionEdit` in
-the engine's `fastr_markdown_edits.ts`): a Widgets-menu block or table with the
-caret parked inside a region lands AFTER that whole top-level region, never
-inside it, and Enter on a parked caret opens a blank line beside the block,
-above it (the block moves down) or below when the caret stands at the region's
-very end, which is the only keyboard way past a stat row, a figure or a table at
-the end of a document. A LOGOS row (`:::logos{src="image:<id> …" align size}`, a
-leaf, 2026-09-24) holds its logos as entries of the report's IMAGE REGISTRY, the
+mark is set, highlight, link, text colour with its colour bar, lists and quote,
+and paragraph alignment: left / center / right / justify, written as `{align=…}`
+ending the paragraph's last line, read by the compiler's `fm_align` into
+`p.fm-align-*`, Word's paragraph alignment and the editor's `cm-fm-align-*` line
+classes; see `report-forge/engine/fastr_paragraph_align.ts` for the typing rules
+that keep the hidden suffix last), dropdowns marked by a chevron. The toolbar
+row adapts to the last click: a selected embed's controls REPLACE the text
+controls (as selecting an image does in Google Docs), and a block segment (fence
+chip + the block's own attribute choices + a combined Background menu) APPENDS
+while the caret is inside a `:::` block. Background is ONE menu for both ground
+kinds (the theme's four tones as preset swatches on top beside a struck-through
+"none" chip, the literal colour grid + hex field below) and keeps them mutually
+exclusive in a single fence rewrite, because a literal wins over a tone in the
+renderer and a stale one must not linger; the Page menu embeds the same panel
+for the document background. The block segment offers NO page break control
+(2026-09-23): `break=before|after` stays a legacy attribute the paged sheet
+honours, but neither the toolbar nor the AI brief writes it; a page break is the
+`:::pagebreak` leaf. Nor does a `tiles` or `columns` GRID get the Background
+menu (a ground behind the whole row reads as a mistake; its cards and columns
+keep theirs). Two gestures treat a region as the unit it looks like
+(`insertBlockEdit`, `enterBesideRegionEdit` in the engine's
+`fastr_markdown_edits.ts`): a Widgets-menu block or table with the caret parked
+inside a region lands AFTER that whole top-level region, never inside it, and
+Enter on a parked caret opens a blank line beside the block, above it (the block
+moves down) or below when the caret stands at the region's very end, which is
+the only keyboard way past a stat row, a figure or a table at the end of a
+document. A LOGOS row (`:::logos{src="image:<id> …" align size}`, a leaf,
+2026-09-24) holds its logos as entries of the report's IMAGE REGISTRY, the
 built-in FASTR logos included (`imgFile` = their app-root path, which the host's
 `assetUrl`, `resolveLogoUrl` in `generate_slide_deck/fastr_logos.ts`, resolves;
 every report image URL goes through it), so the editor, the orphan prune (the
