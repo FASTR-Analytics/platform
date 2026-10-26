@@ -59,10 +59,6 @@ export async function getStructureSchema(
   });
 }
 
-// The 3-way family selection used by query context / availability:
-// hmis → HMIS schema, hfa → HFA schema, iceh/undefined → undefined (no
-// enabled facility columns; iceh_data has no facility dimension, so that
-// branch is defensive, not live).
 // The schema under its row lock, for a transaction that writes it back from
 // this read. Throws when the row is missing: it is seeded at instance creation.
 export async function getStructureSchemaForUpdate(
@@ -76,6 +72,10 @@ export async function getStructureSchemaForUpdate(
   return config;
 }
 
+// The 3-way family selection used by query context / availability:
+// hmis → HMIS schema, hfa → HFA schema, iceh/undefined → undefined (no
+// enabled facility columns; iceh_data has no facility dimension, so that
+// branch is defensive, not live).
 export async function getStructureSchemaForDatasetFamily(
   mainDb: Sql,
   family: string | undefined,
