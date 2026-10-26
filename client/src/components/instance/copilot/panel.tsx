@@ -172,15 +172,24 @@ function CopilotChat(p: { scope: string; tools: AnyAITool[] }) {
   // and the panel's own cleanup stop its turn and await its save before the
   // lock is released, and Solid cleans the chat before this panel.
   let live: AIChatInstance | undefined;
-  const ownership = createTabOwner(p.scope, async () => {
-    live?.stopGeneration();
-    await live?.whenIdle();
-  });
+  const ownership = createTabOwner(
+    p.scope,
+    async () => {
+      live?.stopGeneration();
+      await live?.whenIdle();
+    },
+    () => live?.isLoading() ?? false,
+  );
 
   return (
     <Show
       when={ownership.owner()}
-      fallback={<OtherTabNotice onUseHere={ownership.takeOver} />}
+      fallback={
+        <OtherTabNotice
+          busy={ownership.ownerBusy()}
+          onUseHere={ownership.takeOver}
+        />
+      }
     >
       <AIChatProvider config={config}>
         <OwnedChat aiDocs={aiDocs} onChat={(chat) => (live = chat)} />
@@ -214,7 +223,7 @@ function OwnedChat(p: {
   return <ConsolidatedChatPane chat={chat} aiDocs={p.aiDocs} />;
 }
 
-function OtherTabNotice(p: { onUseHere: () => void }) {
+function OtherTabNotice(p: { busy: boolean; onUseHere: () => void }) {
   return (
     <div class="flex h-full w-full flex-col">
       <HeadingBar tonal heading={t3({ en: "AI", fr: "IA", pt: "IA" })}>
@@ -231,11 +240,20 @@ function OtherTabNotice(p: { onUseHere: () => void }) {
       </HeadingBar>
       <div class="ui-pad ui-gap flex flex-1 flex-col items-center justify-center text-center">
         <div>
-          {t3({
-            en: "The AI chat is open in another tab.",
-            fr: "Le chat IA est ouvert dans un autre onglet.",
-            pt: "O chat de IA está aberto noutro separador.",
-          })}
+          {p.busy
+            ? t3({
+              en:
+                "The AI is answering in another tab. Wait for it to finish, then try again.",
+              fr:
+                "L'IA répond dans un autre onglet. Attendez qu'elle ait terminé, puis réessayez.",
+              pt:
+                "A IA está a responder noutro separador. Aguarde que termine e tente novamente.",
+            })
+            : t3({
+              en: "The AI chat is open in another tab.",
+              fr: "Le chat IA est ouvert dans un autre onglet.",
+              pt: "O chat de IA está aberto noutro separador.",
+            })}
         </div>
         <Button intent="primary" onClick={p.onUseHere}>
           {t3({ en: "Use it here", fr: "L'utiliser ici", pt: "Usar aqui" })}

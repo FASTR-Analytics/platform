@@ -340,15 +340,17 @@ it holds it; another tab's panel shows the notice ("The AI chat is open in
 another tab.") and the Use it here button in the chat's place, and the button
 posts `takeover` on a `BroadcastChannel` of the lock's name, on which the owner
 stops its turn (`stopGeneration`), awaits the record's save (`whenIdle`),
-releases the lock, shows the notice and queues a new request; the browser grants
-the taker's pending request, releases a closed or crashed owner's lock by
-itself, releases at once a grant that lands after the panel's cleanup (the abort
-is ignored once a lock is granted), and without the Web Locks API (an insecure
-context) the tab is the owner at once. A store is therefore always built from a
-record no other live tab writes. The panel stops the chat's turn and awaits its
-save the same way when it unmounts (sign-out, a user switch, the instance-stream
-reset on approval or a change to the user's own scope access, which remounts the
-shell and with it the chat on the same thread). The panel creates the one engine
+releases the lock, shows the notice and queues a new request, unless its turn is
+running (`isLoading`), when it answers `busy` and keeps the chat and the taker's
+notice says the AI is answering in another tab; the browser grants the taker's
+pending request, releases a closed or crashed owner's lock by itself, releases
+at once a grant that lands after the panel's cleanup (the abort is ignored once
+a lock is granted), and without the Web Locks API (an insecure context) the tab
+is the owner at once. A store is therefore always built from a record no other
+live tab writes. The panel stops the chat's turn and awaits its save the same
+way when it unmounts (sign-out, a user switch, the instance-stream reset on
+approval or a change to the user's own scope access, which remounts the shell
+and with it the chat on the same thread). The panel creates the one engine
 instance (`createAIChat`, inside the provider once the lock is granted), keeps
 it to stop and await at a hand-over and at its own cleanup, and hands it to the
 pane, which hands it to `AIChat` as `chat`, so the pane and the chat share one
