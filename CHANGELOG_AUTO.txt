@@ -1,3 +1,23 @@
+[TBD] [user] [changed] - Ask AI button now appears at the bottom-right of the screen
+[TBD] [user] [changed] - Slide decks and reports are now created from the Products tab on the home screen
+[TBD] [user] [changed] - Report export now also offers an HTML file option
+[TBD] [user] [changed] - "Figures" renamed to "visualizations" throughout reports and slide decks
+[TBD] [user] [changed] - PPTX export option now labeled "PPTX with raster visualizations"
+[TBD] [user] [changed] - HFA indicator code no longer requires R programming knowledge
+[TBD] [user] [changed] - CSV data file no longer requires facility identifier in the first column
+[TBD] [user] [changed] - Include in analysis control is now a toggle instead of a checkbox
+[TBD] [user] [changed] - Indicator list section renamed to "Managing indicators" with clearer creation steps
+[TBD] [user] [changed] - You can now add DHIS2 indicators in addition to data elements from your DHIS2 server
+[TBD] [admin] [changed] - AI assistant now opens from a bottom-right button instead of the sidebar
+[TBD] [admin] [changed] - Slide decks and reports are created from a Products tab on the home screen
+[TBD] [admin] [changed] - Report export now also offers an HTML file option
+[TBD] [admin] [changed] - "Figures" renamed to "visualizations" throughout reports and slide decks
+[TBD] [admin] [changed] - Indicator "Include in analysis" is now a toggle instead of a checkbox
+[TBD] [admin] [changed] - "The indicator list" help section renamed to "Managing indicators"
+[TBD] [admin] [changed] - HFA indicator code no longer referred to as "R code"
+[TBD] [admin] [changed] - HFA CSV import no longer requires facility ID in the first column
+[TBD] [admin] [changed] - DHIS2 indicator import now supports DHIS2 indicators in addition to data elements
+[TBD] [admin] [changed] - Help text updated across multiple topics for clarity and accuracy
 [2.2.0] [user] [changed] - Indicator code editor now uses a simpler, dedicated expression language instead of R syntax
 [2.2.0] [user] [added] - Indicator code now supports IN and NOT IN for testing lists of values
 [2.2.0] [user] [added] - Indicator code now supports AND, OR, NOT keywords (case-insensitive) alongside & | ! symbols
