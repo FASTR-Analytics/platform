@@ -352,9 +352,8 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
     );
   }
 
-  // The headers the preview scan reads. The preview is fetched again when
-  // they change and not when anything else in the facility columns does: the
-  // country value and a custom column's label are not read by the scan.
+  // The headers the preview scan reads: the country value and a custom
+  // column's label are not among them.
   const scanHeadersKey = createMemo(() =>
     JSON.stringify({
       adminAreas: mappings.facilityColumns.adminAreas,
@@ -363,9 +362,6 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
       ) => [column, m.header, m.correctionHeader]),
     })
   );
-  createEffect(on(scanHeadersKey, () => {
-    void fetchColumnsPreview();
-  }, { defer: true }));
 
   // setStore with an object MERGES, so a copy-with-deleted-key would never
   // clear anything: deletion must be an explicit undefined write at the leaf.
@@ -438,11 +434,16 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
   const currentStepKind = () => STEPS[stepper.currentStep()];
   const isLastStep = () => currentStepKind() === "review";
 
-  // The kept rows depend on the duplicate picks made after this step, so the
-  // preview is read again on every visit.
-  createEffect(on(currentStepKind, (kind) => {
-    setStepError("");
-    if (kind === "facilityColumns") {
+  createEffect(on(currentStepKind, () => setStepError("")));
+
+  // The preview is read on every visit to the Facilities step, since the kept
+  // rows depend on the duplicate picks made after it, and again whenever the
+  // scanned headers change while on it.
+  const previewKey = createMemo(() =>
+    currentStepKind() === "facilityColumns" ? scanHeadersKey() : undefined
+  );
+  createEffect(on(previewKey, (key) => {
+    if (key !== undefined) {
       void fetchColumnsPreview();
     }
   }));
