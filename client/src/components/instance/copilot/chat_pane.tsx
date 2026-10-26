@@ -270,9 +270,10 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
       props: {
         initialValues: current,
         // max_tokens is exposed so the truncation notice's "increase max
-        // tokens in the AI settings" advice is actionable. The model list is
-        // panther's MODEL_OPTIONS: curated there, not per app.
-        adjustable: ["model", "max_tokens"],
+        // tokens in the AI settings" advice is actionable; effort so a user
+        // in a hurry (a live demo) can trade depth for speed. The model list
+        // is panther's MODEL_OPTIONS: curated there, not per app.
+        adjustable: ["model", "max_tokens", "effort"],
       },
     });
     if (result) {
