@@ -23,27 +23,34 @@ function structureSchemaConfigKey(family: FacilityFamily): string {
   return `structure_schema_${family}`;
 }
 
+async function selectStructureSchema(
+  sql: Sql,
+  family: FacilityFamily,
+  forUpdate: boolean,
+): Promise<StructureSchema | undefined> {
+  const rows = await sql<{ config_json_value: string }[]>`
+    SELECT config_json_value
+    FROM instance_config
+    WHERE config_key = ${structureSchemaConfigKey(family)}
+    ${forUpdate ? sql`FOR UPDATE` : sql``}
+  `;
+  return rows.length === 0
+    ? undefined
+    : structureSchemaSchema.parse(JSON.parse(rows[0].config_json_value));
+}
+
 export async function getStructureSchema(
   mainDb: Sql,
   family: FacilityFamily,
 ): Promise<APIResponseWithData<StructureSchema>> {
   return await tryCatchDatabaseAsync(async () => {
-    const result = await mainDb<{ config_json_value: string }[]>`
-      SELECT config_json_value
-      FROM instance_config
-      WHERE config_key = ${structureSchemaConfigKey(family)}
-    `;
-
-    if (result.length === 0) {
+    const config = await selectStructureSchema(mainDb, family, false);
+    if (!config) {
       return {
         success: false,
         err: `${structureSchemaConfigKey(family)} config not found`,
       };
     }
-
-    const config = structureSchemaSchema.parse(
-      JSON.parse(result[0].config_json_value),
-    );
 
     return {
       success: true,
@@ -56,6 +63,19 @@ export async function getStructureSchema(
 // hmis → HMIS schema, hfa → HFA schema, iceh/undefined → undefined (no
 // enabled facility columns; iceh_data has no facility dimension, so that
 // branch is defensive, not live).
+// The schema under its row lock, for a transaction that writes it back from
+// this read. Throws when the row is missing: it is seeded at instance creation.
+export async function getStructureSchemaForUpdate(
+  sql: Sql,
+  family: FacilityFamily,
+): Promise<StructureSchema> {
+  const config = await selectStructureSchema(sql, family, true);
+  if (!config) {
+    throw new Error(`${structureSchemaConfigKey(family)} config not found`);
+  }
+  return config;
+}
+
 export async function getStructureSchemaForDatasetFamily(
   mainDb: Sql,
   family: string | undefined,
@@ -93,17 +113,9 @@ export async function writeStructureSchema(
 ): Promise<APIResponseNoData> {
   const validated = structureSchemaSchema.parse(schema);
   const configKey = structureSchemaConfigKey(family);
-  const currentRows = await sql<{ config_json_value: string }[]>`
-    SELECT config_json_value FROM instance_config
-    WHERE config_key = ${configKey}
-  `;
-  const current = currentRows.length > 0
-    ? structureSchemaSchema.parse(
-      JSON.parse(currentRows[0].config_json_value),
-    )
-    : null;
+  const current = await selectStructureSchema(sql, family, false);
 
-  if (current !== null && current.adminDepth !== validated.adminDepth) {
+  if (current && current.adminDepth !== validated.adminDepth) {
     await sql`SELECT pg_advisory_xact_lock(${STRUCTURE_GEOJSON_ADVISORY_LOCK_KEY})`;
 
     const facilitiesTable = family === "hmis"
