@@ -1,3 +1,29 @@
+[TBD] [user] [added] - Create time points directly during data import
+[TBD] [user] [added] - Map custom facility columns during HFA import with labels
+[TBD] [user] [added] - Indicator code editor now shows accepted operators and functions
+[TBD] [user] [added] - Indicator code validates that only accepted functions are used
+[TBD] [user] [added] - Misspelled variable names now suggest the correct spelling
+[TBD] [user] [changed] - Delete confirmation phrase is now in your language
+[TBD] [user] [changed] - Simplified "No time points" message on data overview
+[TBD] [user] [changed] - HFA indicator type and aggregation labels are now translated
+[TBD] [user] [changed] - Spreadsheet import errors are now shown in your language
+[TBD] [user] [changed] - Indicator code syntax errors are now shown in your language
+[TBD] [user] [changed] - HFA categories and sub-categories now sort in their configured order in charts and tables
+[TBD] [user] [fixed] - "No data" message in dataset view is now translated
+[TBD] [admin] [added] - Create time points directly from the data import wizard
+[TBD] [admin] [added] - Custom facility columns can be added during HFA data import
+[TBD] [admin] [added] - Indicator code editor now shows accepted operators and functions
+[TBD] [admin] [added] - Indicator code validates that only accepted functions are used
+[TBD] [admin] [added] - Case-sensitive variable name suggestions in indicator code errors
+[TBD] [admin] [changed] - Delete confirmation phrase is now translated per language
+[TBD] [admin] [changed] - HFA indicator type and aggregation labels are now translated
+[TBD] [admin] [changed] - XLSX indicator workbook validation errors are now translated
+[TBD] [admin] [changed] - HFA categories, sub-categories, and variant items now sort in catalog order on chart axes
+[TBD] [admin] [changed] - ICEH strata now sort in catalog order on chart axes
+[TBD] [admin] [changed] - Simplified "No time points" message on the data overview page
+[TBD] [admin] [fixed] - R code validator now rejects unsupported functions before module run
+[TBD] [admin] [fixed] - Indicator XLSX import correctly applies one code column to all time points
+[TBD] [admin] [internal] - Run manifest updated to schema version 14
 [2.1.0] [user] [added] - Package picker now shows creation date and pinned status
 [2.1.0] [user] [added] - Role field added to your profile alongside organisation
 [2.1.0] [user] [added] - Organisation and Role columns visible on the Users page for admins
