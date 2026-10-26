@@ -2186,17 +2186,19 @@ groups (undo/redo, text style, bold/italic/underline, where underline is the
 mark attribute `[x]{underline}` since markdown has none, a − N + text-size
 stepper, which shows the RENDERED size measured at the caret when no explicit
 mark is set, highlight, link, text colour with its colour bar, lists and quote,
-and paragraph alignment: left / center / right / justify, written as `{align=…}`
-ending the paragraph's last line, read by the compiler's `fm_align` into
-`p.fm-align-*`, Word's paragraph alignment and the editor's `cm-fm-align-*` line
-classes; see `report-forge/engine/fastr_paragraph_align.ts` for the typing rules
-that keep the hidden suffix last), dropdowns marked by a chevron. The toolbar
-row adapts to the last click: a selected embed's controls REPLACE the text
-controls (as selecting an image does in Google Docs), and a block segment (fence
-chip + the block's own attribute choices + a combined Background menu) APPENDS
-while the caret is inside a `:::` block. Background is ONE menu for both ground
-kinds (the theme's four tones as preset swatches on top beside a struck-through
-"none" chip, the literal colour grid + hex field below) and keeps them mutually
+and paragraph and heading alignment: left / center / right / justify, written as
+`{align=…}` ending the paragraph's last line or the heading's line, read by the
+compiler's `fm_align` into `.fm-align-*` on the `<p>` or `<hN>`, Word's
+paragraph alignment and the editor's `cm-fm-align-*` line classes, and stripped
+from heading text for the outline, contents, anchors and the AI's section names;
+see `report-forge/engine/fastr_paragraph_align.ts` for the typing rules that
+keep the hidden suffix last), dropdowns marked by a chevron. The toolbar row
+adapts to the last click: a selected embed's controls REPLACE the text controls
+(as selecting an image does in Google Docs), and a block segment (fence chip +
+the block's own attribute choices + a combined Background menu) APPENDS while
+the caret is inside a `:::` block. Background is ONE menu for both ground kinds
+(the theme's four tones as preset swatches on top beside a struck-through "none"
+chip, the literal colour grid + hex field below) and keeps them mutually
 exclusive in a single fence rewrite, because a literal wins over a tone in the
 renderer and a stale one must not linger; the Page menu embeds the same panel
 for the document background. The block segment offers NO page break control
