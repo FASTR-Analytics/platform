@@ -337,10 +337,35 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
       clearPrefill(editedPicker);
       changes.invalidate();
     });
-    if (editedPicker !== "admin_area_1") {
-      void fetchColumnsPreview();
-    }
   }
+
+  function setFacilityColumnLabel(
+    column: OptionalFacilityColumn,
+    label: string,
+  ) {
+    setMappings(
+      "facilityColumns",
+      "optional",
+      column,
+      "label",
+      label.trim() ? label : undefined,
+    );
+  }
+
+  // The headers the preview scan reads. The preview is fetched again when
+  // they change and not when anything else in the facility columns does: the
+  // country value and a custom column's label are not read by the scan.
+  const scanHeadersKey = createMemo(() =>
+    JSON.stringify({
+      adminAreas: mappings.facilityColumns.adminAreas,
+      optional: Object.entries(mappings.facilityColumns.optional).map((
+        [column, m],
+      ) => [column, m.header, m.correctionHeader]),
+    })
+  );
+  createEffect(on(scanHeadersKey, () => {
+    void fetchColumnsPreview();
+  }, { defer: true }));
 
   // setStore with an object MERGES, so a copy-with-deleted-key would never
   // clear anything: deletion must be an explicit undefined write at the leaf.
@@ -944,6 +969,7 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
             registryIsEmpty={registryIsEmpty()}
             preview={columnsPreview()}
             onChange={setFacilityColumns}
+            onLabelChange={setFacilityColumnLabel}
           />
           <Show when={facilityColumnsProblem()}>
             {(problem) => <div class="text-danger text-sm">{problem()}</div>}

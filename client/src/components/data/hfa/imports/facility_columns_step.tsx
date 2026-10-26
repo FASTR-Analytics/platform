@@ -220,6 +220,7 @@ type Props = {
   registryIsEmpty: boolean;
   preview: StateHolder<HfaFacilityColumnsPreview>;
   onChange: (facilityColumns: HfaFacilityColumns, editedPicker: string) => void;
+  onLabelChange: (column: OptionalFacilityColumn, label: string) => void;
 };
 
 // The registry columns read from the file, each under its pickers with what
@@ -276,18 +277,6 @@ export function FacilityColumnsStep(p: Props) {
       delete next.optional[column as OptionalFacilityColumn];
     }
     p.onChange(next, pickerKey(column, correction));
-  }
-
-  function setLabel(column: OptionalFacilityColumn, label: string) {
-    const next = structuredClone(unwrap(p.facilityColumns));
-    const mapping = next.optional[column];
-    if (!mapping) return;
-    if (label.trim()) {
-      mapping.label = label;
-    } else {
-      delete mapping.label;
-    }
-    p.onChange(next, pickerKey(column, false));
   }
 
   // The pickers stay mounted while the preview is read again after an edit;
@@ -433,7 +422,7 @@ export function FacilityColumnsStep(p: Props) {
                   })}
                   value={headersOf(column)?.label ?? ""}
                   onChange={(label) =>
-                    setLabel(column as OptionalFacilityColumn, label)}
+                    p.onLabelChange(column as OptionalFacilityColumn, label)}
                   fullWidth
                 />
                 <div class="text-base-content-muted text-sm">
