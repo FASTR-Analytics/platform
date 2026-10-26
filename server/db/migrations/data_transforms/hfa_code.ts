@@ -10,9 +10,10 @@
 // other R it used (`&`, `|`, `!`, comparisons, arithmetic, quoted text) is
 // already the language. Text inside quotes is never rewritten.
 //
-// A rewritten row holds no `%in%`, so the forward rewrite is idempotent. The
-// reverse direction exists for a rollback to an image that reads R: it turns
-// every `IN (` back into `%in% c(`, which is exact for rows this rewrote.
+// A rewritten row holds no `%in% c(`, so the forward rewrite is idempotent.
+// The reverse direction exists for a rollback to an image that reads R: it
+// turns every `IN (` back into `%in% c(`, which gives a row this rewrote its
+// R back with the spacing around `%in% c(` normalised.
 //
 // =============================================================================
 
