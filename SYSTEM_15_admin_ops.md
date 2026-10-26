@@ -139,10 +139,10 @@ delete; migration 205). A global admin is unrestricted whatever the flag says.
 `{ all: false, scopeIds: ScopeUuid[] }`; `scopeAccessFromRow` builds it,
 `GlobalUser` and every roster row (`OtherUser`) carry it, and `canUseScope` asks
 it. A restricted user sees only products in their scopes, reads data only
-through them, has no Explore, no `/mcp`, no Results or Data page, and their
-`can_view_data`, `can_configure_data` and `can_view_logs` read as false. Where
-each rule is enforced: products and folders S1 (`productAccessPolicy`), data
-reads S8 "Scope access", the instance stream S3, collab S16.
+through them (Explore included), has no `/mcp`, no Results or Data page, and
+their `can_view_data`, `can_configure_data` and `can_view_logs` read as false.
+Where each rule is enforced: products and folders S1 (`productAccessPolicy`),
+data reads S8 "Scope access", the instance stream S3, collab S16.
 
 Only a global admin changes it, so a restricted user holding
 `can_configure_users` cannot lift their own restriction. That covers the admin

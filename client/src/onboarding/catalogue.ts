@@ -640,13 +640,10 @@ export function getTourCatalogue(
         pt:
           "Percorrer diretamente os resultados: escolher um pacote, um âmbito e o que ver.",
       }),
-      // Mirrors the instance shell's own gate for this tab, plus what the
-      // page needs before it shows anything.
-      available: () => instanceState.currentUserScopeAccess.all && hasPackage(),
-      unavailableReason: () =>
-        instanceState.currentUserScopeAccess.all
-          ? reasonNeedPackage()
-          : reasonNoPageAccess(),
+      // Every approved user has the tab; the page needs a package before it
+      // shows anything.
+      available: () => hasPackage(),
+      unavailableReason: () => reasonNeedPackage(),
       navigate: openTabOnly("explore"),
     },
     {

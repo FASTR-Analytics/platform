@@ -92,15 +92,14 @@ function navItems(): ListItem<InstanceTab>[] {
     },
   ];
   // Approved users only, like every tab: the whole nav sits behind
-  // currentUserApproved. A restricted user has no Explore; Results and Data
+  // currentUserApproved. Explore reads a package through a named scope, so a
+  // restricted user has it too, over their granted scopes; Results and Data
   // hide for them because their data bits read as false.
-  if (instanceState.currentUserScopeAccess.all) {
-    items.push({
-      id: "explore",
-      label: t3({ en: "Explore", fr: "Explorer", pt: "Explorar" }),
-      iconName: "chart",
-    });
-  }
+  items.push({
+    id: "explore",
+    label: t3({ en: "Explore", fr: "Explorer", pt: "Explorar" }),
+    iconName: "chart",
+  });
   if (canConfigureData()) {
     items.push({
       id: "results_packages",
@@ -165,9 +164,6 @@ export default function Instance(p: Props) {
     const perms = p_();
     const canData = admin || perms.can_view_data || perms.can_configure_data;
     const canUsers = admin || perms.can_configure_users || perms.can_view_users;
-    if (t === "explore" && !instanceState.currentUserScopeAccess.all) {
-      return "products";
-    }
     if (t === "data" && !canData) return "products";
     if (t === "results_packages" && !canConfigureData()) return "products";
     if (t === "scopes" && !admin) return "products";

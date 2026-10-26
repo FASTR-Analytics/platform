@@ -178,12 +178,15 @@ export function Explore() {
       ?.id;
   });
   // Explore reads through "All data" until a scope is chosen, and again
-  // whenever the chosen one is gone.
+  // whenever the chosen one is gone. A restricted user's list never holds
+  // "All data", so theirs opens on the first scope they hold.
   const scopeId = createMemo((): ScopeId => {
     const chosen = exploreScopeId();
-    return instanceState.scopes.some((s) => s.id === chosen)
-      ? chosen
-      : ALL_DATA_SCOPE_ID;
+    const scopes = instanceState.scopes;
+    if (scopes.some((s) => s.id === chosen)) return chosen;
+    return scopes.some((s) => s.id === ALL_DATA_SCOPE_ID) || scopes.length === 0
+      ? ALL_DATA_SCOPE_ID
+      : scopes[0].id;
   });
 
   const [ctx, setCtx] = createSignal<RunAuthoringContext>();

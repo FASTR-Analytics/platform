@@ -200,10 +200,9 @@ a permission-guarded derivation that selects Products / Explore / Results / Data
 / Assets / Users, in that nav order; Products (S12's `components/products/`) is
 first and the default, and Explore (S11's `components/explore/`, one package at
 one scope, a family's modules in a select, a module's views in a select with a
-type toggle, and a frame per view, S11 "The Explore page") needs approval and
-all-scope access (`currentUserScopeAccess.all`): a restricted user has no
-Explore tab. The tab id union is `InstanceTab` in `onboarding/catalogue.ts` and
-the shell imports it.
+type toggle, and a frame per view, S11 "The Explore page") needs approval only:
+a restricted user reads it through a scope they hold. The tab id union is
+`InstanceTab` in `onboarding/catalogue.ts` and the shell imports it.
 
 The shell is a `FrameRightResizable` whose panel is the AI chat (`CopilotPanel`,
 S13: one chat beside every tab page, full-page view and nested editor, mounted
