@@ -1,3 +1,7 @@
+[TBD] [user] [fixed] - Service categories dropdown no longer appears too narrow
+[TBD] [user] [fixed] - Structural variables no longer incorrectly shown as unused
+[TBD] [admin] [fixed] - Service categories dropdown no longer collapses too narrow
+[TBD] [admin] [fixed] - Structural variables no longer shown as unused in indicator manager
 [TBD] [user] [added] - Create time points directly during data import
 [TBD] [user] [added] - Map custom facility columns during HFA import with labels
 [TBD] [user] [added] - Indicator code editor now shows accepted operators and functions
