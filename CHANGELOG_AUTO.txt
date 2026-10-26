@@ -1,3 +1,24 @@
+[TBD] [user] [changed] - Indicator code editor now uses a simpler, dedicated expression language instead of R syntax
+[TBD] [user] [added] - Indicator code now supports IN and NOT IN for testing lists of values
+[TBD] [user] [added] - Indicator code now supports AND, OR, NOT keywords (case-insensitive) alongside & | ! symbols
+[TBD] [user] [added] - Indicator code now supports quoted text comparisons, e.g. sh_03 == "c"
+[TBD] [user] [changed] - Code editor labels updated from "R code" to "Indicator code" for clarity
+[TBD] [user] [changed] - Binary indicator hint changed from "should evaluate to TRUE/FALSE" to "should evaluate to yes/no"
+[TBD] [user] [changed] - Filter code hint changed from "should evaluate to TRUE/FALSE" to "should evaluate to yes/no"
+[TBD] [user] [changed] - Operator and syntax help text in the editor now shows the new language's operators instead of R functions
+[TBD] [user] [changed] - Warning counts in the indicator manager now labeled "type mismatch" instead of generic "warning"
+[TBD] [user] [fixed] - Existing indicator code using R-style %in% c(...) is automatically migrated to the new IN (...) syntax
+[TBD] [admin] [changed] - HFA indicator code now uses its own expression language instead of R syntax
+[TBD] [admin] [added] - HFA indicator code supports IN and NOT IN list tests (e.g. `x IN (1, 2)`)
+[TBD] [admin] [added] - HFA indicator code supports AND, OR, NOT keywords and comparison operators directly
+[TBD] [admin] [changed] - Editor labels updated from "R code" to "Indicator code" throughout the interface
+[TBD] [admin] [changed] - Binary indicator code hint now says "should evaluate to yes/no" instead of "TRUE/FALSE"
+[TBD] [admin] [changed] - Filter code hint now says "should evaluate to yes/no" instead of "TRUE/FALSE"
+[TBD] [admin] [changed] - Operator help text now shows available words and list syntax instead of R functions
+[TBD] [admin] [changed] - Functions like abs, is.na, pmax are no longer accepted in HFA indicator code
+[TBD] [admin] [changed] - Warning badge in indicator manager now reads "type mismatch" instead of "warning"
+[TBD] [admin] [internal] - Existing indicator code using R's %in% c(...) syntax is automatically migrated to IN (...)
+[TBD] [admin] [changed] - Reserved indicator ID error message simplified to explain the ID is already meaningful
 [TBD] [user] [fixed] - Service categories dropdown no longer appears too narrow
 [TBD] [user] [fixed] - Structural variables no longer incorrectly shown as unused
 [TBD] [admin] [fixed] - Service categories dropdown no longer collapses too narrow
