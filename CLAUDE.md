@@ -10,10 +10,11 @@ render figures from one package each at one scope. One instance per country.
 `deno fmt` is the one formatter for every file in the repo: `server/`, `lib/`,
 `client/`, the root scripts, and every `.md`. Its config is the `fmt` block in
 `deno.json`. The only exclusions are `vendor/`, `client/public/`,
-`client/package-lock.json`, and `server/tests/fixtures/fastr_pdf/`, whose report
+`client/package-lock.json`, `server/tests/fixtures/fastr_pdf/`, whose report
 markdown puts each `:::` directive on its own line, which the markdown wrap
-would join into paragraphs. There is no prettier, no editor formatter, and no
-per-directory style.
+would join into paragraphs, and `URGENT_BUG_CATALOGUE_EMAILS.md`, which is
+pasted into emails and must keep one line per paragraph. There is no prettier,
+no editor formatter, and no per-directory style.
 
 - `deno task typecheck` runs `deno fmt --check` first. An unformatted file fails
   the gate, so run `deno fmt` before you commit.
