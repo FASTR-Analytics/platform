@@ -8,6 +8,9 @@ package has been generated.
 
 Subject: Re: V2 bugs / IG demo
 
+(Also answers the two "Fwd: [FASTR] New Bug Report from asheffel@worldbank.org"
+threads Meghan forwarded on 2026-10-14 and 2026-10-21.)
+
 Hi Ashley,
 
 Thanks for the reports. Here is where each one stands:
@@ -35,7 +38,10 @@ Tim
 
 ## To Angelica: scopes, duplicate, profile, testing site
 
-Subject: Re: Scopes and users / Small platform bugs
+Subject: Re: Scopes and users- upcoming virtual workshops and mission
+
+(Also answers "Small platform bugs and suggestions- current version" and "V2
+testing site - upcoming workshops/trainings".)
 
 Hi Angelica,
 
