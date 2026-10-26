@@ -56,6 +56,7 @@ globs:
   - server/tests/dhis2_id_fix_backfill_test.ts
   - server/tests/dhis2_id_fix_execute_test.ts
   - server/tests/dhis2_id_fix_plan_test.ts
+  - server/tests/hfa_code_migration_test.ts
   - server/tests/hfa_indicator_code_test.ts
   - server/tests/hfa_r_emit_test.ts
   - server/tests/hfa_workbook_text_columns_test.ts
