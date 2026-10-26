@@ -11,9 +11,9 @@
 import { assertEquals } from "@std/assert";
 import { parseHfaIndicatorCode } from "lib";
 import {
-  migrateHfaCodeToLanguageLists,
+  hfaCodeInList,
   rewriteHfaListSyntax,
-} from "../db/migrations/data_transforms/hfa_code.ts";
+} from "../db/migrations/instance/220_hfa_code_in_list.ts";
 import { getPgConnection } from "../db/postgres/connection_manager.ts";
 
 const forward = (source: string) =>
@@ -128,10 +128,21 @@ Deno.test("the migration rewrites code, filter and variant code, and is idempote
       variant: ["q4 IN (3)"],
     };
 
-    await db.begin((tx) => migrateHfaCodeToLanguageLists(tx));
+    await db`UPDATE hfa_indicators SET updated_at = '2020-01-01'`;
+    const stamps = () =>
+      db<{ indicator_id: string; moved: boolean }[]>`
+        SELECT indicator_id, updated_at > '2020-01-01' AS moved
+        FROM hfa_indicators ORDER BY indicator_id
+      `.then((rows) => rows.map((r) => [r.indicator_id, r.moved]));
+
+    await db.begin((tx) => hfaCodeInList(tx));
     assertEquals(await read(), expected);
-    await db.begin((tx) => migrateHfaCodeToLanguageLists(tx));
+    assertEquals(await stamps(), [["ind001", true], ["ind002", false]]);
+
+    await db`UPDATE hfa_indicators SET updated_at = '2020-01-01'`;
+    await db.begin((tx) => hfaCodeInList(tx));
     assertEquals(await read(), expected);
+    assertEquals(await stamps(), [["ind001", false], ["ind002", false]]);
   } finally {
     await db.end();
     await admin.unsafe(`DROP DATABASE IF EXISTS ${dbName} WITH (FORCE)`);
