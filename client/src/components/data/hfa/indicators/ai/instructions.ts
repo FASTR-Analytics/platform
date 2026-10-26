@@ -15,12 +15,12 @@ export function getHfaIndicatorsGuidance(): string {
     "",
     "An INDICATOR is a derived measure computed from those variables. Each indicator has:",
     "- a SHORT label (brief, for dense chart contexts) and a LONG label / `definition` (the full descriptive text);",
-    "- per-round R CODE: `rCode` is an R expression evaluated PER FACILITY against that round's variables; optional `rFilterCode` is a boolean expression restricting which facilities are included (the denominator);",
+    "- per-round INDICATOR CODE: `rCode` is an expression in the platform's indicator code language, evaluated PER FACILITY against that round's variables; optional `rFilterCode` is a boolean expression restricting which facilities are included (the denominator);",
     "- a TYPE and an AGGREGATION, which together fix the measurement;",
     "- a category, optional sub-category (which must belong to that category), and zero or more service categories.",
     "",
     "### Choosing TYPE (what each facility's rCode yields)",
-    '- `binary`: the rCode yields a yes/no per facility (a condition that is TRUE/FALSE or 1/0), e.g. `service_x_available == 1`. Use it for "does this facility have / meet X".',
+    '- `binary`: the rCode yields a yes/no per facility (a condition that is yes/no, or a 0/1 variable), e.g. `service_x_available == 1`. Use it for "does this facility have / meet X".',
     "- `numeric`: the rCode yields a quantity per facility (a number), e.g. `num_beds` or `staff_doctors + staff_nurses`. Use it for counts or amounts.",
     "",
     "### Choosing AGGREGATION (how per-facility values combine across facilities)",
@@ -30,7 +30,7 @@ export function getHfaIndicatorsGuidance(): string {
     "### The dominant pattern",
     'Most HFA indicators are `binary` + `avg` = "percentage of facilities with [condition]". Reach for that unless the user clearly wants an average quantity (`numeric` + `avg`) or a grand total (`numeric` + `sum`). Never bake the measurement phrase ("% of facilities…") into the label: it is added automatically at render time.',
     "",
-    "## Writing r-code",
+    "## Writing indicator code",
     `- The code is the platform's own expression language, evaluated per facility. It accepts the operators ${
       HFA_CODE_SYMBOLS.join(" ")
     }, the words ${
@@ -39,7 +39,7 @@ export function getHfaIndicatorsGuidance(): string {
     '- Reference real survey variable ids. Use `get_hfa_variable_dictionary` to list variables (id, label, type); use `inspect_hfa_variable` to see a variable\'s coded response options, missingness, and the values actually present. Do this before comparing against a code (e.g. confirm `1` means "Yes").',
     "- For coded/select variables, compare to the code value (`q5 == 1`), not the label.",
     "- Keep the rCode IDENTICAL across rounds when the variable exists in every round (this is what `codeConsistent` checks); only differ a round when the survey actually changed that question.",
-    "- After creating or editing code, call `validate_hfa_indicators`; fix anything it flags: unknown variables, syntax, or a result-type mismatch (e.g. a `binary` indicator whose code isn't a TRUE/FALSE comparison). Generated indicators should validate clean before you consider them done.",
+    "- After creating or editing code, call `validate_hfa_indicators`; fix anything it flags: unknown variables, syntax, or a result-type mismatch (e.g. a `binary` indicator whose code isn't a yes/no condition). Generated indicators should validate clean before you consider them done.",
     "",
     "## Scope",
     "You cannot edit the taxonomy itself (creating or renaming categories): assign only to categories that already exist, and say so if asked to create one. Opening an indicator's row opens its code editor, a view of its own whose tools edit that one indicator's unsaved draft.",

@@ -406,11 +406,11 @@ function EditorInner(p: {
         success: false,
         err: t3({
           en:
-            `Filter code requires R code for time point "${filterOnly.timePoint}"`,
+            `Filter code requires indicator code for time point "${filterOnly.timePoint}"`,
           fr:
-            `Le code filtre nécessite un code R pour le point temporel « ${filterOnly.timePoint} »`,
+            `Le code filtre nécessite un code d'indicateur pour le point temporel « ${filterOnly.timePoint} »`,
           pt:
-            `O código de filtro requer código R para o ponto temporal "${filterOnly.timePoint}"`,
+            `O código de filtro requer código do indicador para o ponto temporal "${filterOnly.timePoint}"`,
         }),
       };
     }
@@ -420,11 +420,12 @@ function EditorInner(p: {
       return {
         success: false,
         err: t3({
-          en: "An indicator with variant code must also have overall R code",
+          en:
+            "An indicator with variant code must also have overall indicator code",
           fr:
-            "Un indicateur avec du code de variante doit aussi avoir un code R global",
+            "Un indicateur avec du code de variante doit aussi avoir un code d'indicateur global",
           pt:
-            "Um indicador com código de variante também deve ter código R global",
+            "Um indicador com código de variante também deve ter código global do indicador",
         }),
       };
     }
@@ -551,7 +552,9 @@ function EditorInner(p: {
     const available = new Set(tp?.variables.map((v) => v.variableId) ?? []);
     const issues: string[] = [];
     if (c.rFilterCode.trim() && !c.rCode.trim()) {
-      issues.push("rFilterCode: filter code requires R code for this round");
+      issues.push(
+        "rFilterCode: filter code requires indicator code for this round",
+      );
     }
     const fields: [string, string][] = [
       ["rCode", c.rCode],
@@ -930,20 +933,20 @@ function EditorInner(p: {
                 <div>
                   <TextArea
                     label={t3({
-                      en: `R code (${
+                      en: `Indicator code (${
                         state.type === "binary"
-                          ? "should evaluate to TRUE/FALSE"
-                          : "should evaluate to numeric"
+                          ? "should evaluate to yes/no"
+                          : "should evaluate to a number"
                       })`,
-                      fr: `Code R (${
+                      fr: `Code de l'indicateur (${
                         state.type === "binary"
-                          ? "doit évaluer à TRUE/FALSE"
-                          : "doit évaluer à numérique"
+                          ? "doit donner oui/non"
+                          : "doit donner un nombre"
                       })`,
-                      pt: `Código R (${
+                      pt: `Código do indicador (${
                         state.type === "binary"
-                          ? "deve avaliar para TRUE/FALSE"
-                          : "deve avaliar para numérico"
+                          ? "deve dar sim/não"
+                          : "deve dar um número"
                       })`,
                     })}
                     value={state.code[currentTpIndex()].rCode}
@@ -1027,11 +1030,9 @@ function EditorInner(p: {
                 <div>
                   <TextArea
                     label={t3({
-                      en:
-                        "Filter code (optional, should evaluate to TRUE/FALSE)",
-                      fr: "Code filtre (optionnel, doit évaluer à TRUE/FALSE)",
-                      pt:
-                        "Código de filtro (opcional, deve avaliar para TRUE/FALSE)",
+                      en: "Filter code (optional, should evaluate to yes/no)",
+                      fr: "Code filtre (optionnel, doit donner oui/non)",
+                      pt: "Código de filtro (opcional, deve dar sim/não)",
                     })}
                     value={state.code[currentTpIndex()].rFilterCode}
                     onChange={(v) => {
@@ -1048,11 +1049,12 @@ function EditorInner(p: {
                   >
                     <div class="text-danger font-700 mt-1 text-xs">
                       {t3({
-                        en: "Filter code requires R code for this time point",
+                        en:
+                          "Filter code requires indicator code for this time point",
                         fr:
-                          "Le code filtre nécessite un code R pour ce point temporel",
+                          "Le code filtre nécessite un code d'indicateur pour ce point temporel",
                         pt:
-                          "O código de filtro requer código R para este ponto temporal",
+                          "O código de filtro requer código do indicador para este ponto temporal",
                       })}
                     </div>
                   </Show>

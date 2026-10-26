@@ -1085,10 +1085,10 @@ guard. The five writes declare `approval.propose` with `presentation: "modal"`
 (panther owns the propose → modal → commit lifecycle); the editor write is
 exempt, since it lands in the open editor's unsaved draft, which the user saves
 or discards. The HFA guidance (the model, type and aggregation, how to write
-r-code, how to work) is `instructions.ts`'s `getHfaIndicatorsGuidance`, attached
-to the manager's view; it names no tool, since the registered tools describe
-themselves, and promises no diff. `validate_hfa_indicators` is a read: it
-computes each indicator's issues from main code and stores nothing, since the
+indicator code, how to work) is `instructions.ts`'s `getHfaIndicatorsGuidance`,
+attached to the manager's view; it names no tool, since the registered tools
+describe themselves, and promises no diff. `validate_hfa_indicators` is a read:
+it computes each indicator's issues from main code and stores nothing, since the
 manager recomputes status at render and the stored flags' only reader is
 `get_hfa_indicators` (`bulkUpdateHfaIndicatorValidation` serves the manager's
 Revalidate all alone). `create_hfa_indicators` reports what the batch route

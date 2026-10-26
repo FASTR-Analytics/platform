@@ -46,21 +46,24 @@ app.
 
 ## The indicator code language
 
-The "R code" of an indicator is the app's own expression language, written in R
-syntax. The server splices each snippet into a `case_when` branch over the
-per-facility wide frame, inside a `with(list(...))` that rebinds every
-referenced variable with its sentinel codes set to NA and rebinds `%in%` to be
-NA-safe (`server/server_only_funcs/get_script_with_parameters_hfa.ts`). The app
-parses the snippet itself: every bare identifier not in `R_KEYWORDS` or
-`R_COMMON_FUNCTIONS` (`lib/hfa_r_code_analysis.ts`) is a variable or indicator
-dependency, so that allowlist is the language definition. It drives the
-unknown-variable gate, the dependency graph, the response-status companion and
-the binary/numeric type inference. `AND` and `OR` are rewritten to `&` and `|`.
+An indicator's code is the platform's expression language, the one calculated
+HMIS indicators use (`lib/indicator_expression/parse.ts`). HFA code is that
+language without functions (`lib/hfa_indicator_code.ts`):
 
-The language is therefore: comparisons, `&`, `|`, `!`, arithmetic, `%in% c()`
-and a few per-facility functions. The default workbook's 475 indicators use only
-`==`, `!=`, `<=`, `&`, `|`, `%in% c(...)`, `+` and `*`. Any request to accept
-more R (Q11) is answered by this section, not by widening the allowlist.
+- numbers, survey variable and indicator ids, parentheses, and text in quotes
+  (`sh_03 == "c"`);
+- arithmetic `+ - * /`;
+- comparison `== != < > <= >=`;
+- `AND OR NOT`, in any case, with `& | !` meaning the same;
+- the list test `x IN (1, 2)`, negated as `x NOT IN (1, 2)`.
+
+The app parses each snippet into a syntax tree. The editor's errors, the
+unknown-variable check, the dependency graph, the response-status companion and
+the yes/no or number type check all read that tree. The server alone turns it
+into R, which it places in a `case_when` branch inside the sentinel bindings
+(`server/server_only_funcs/hfa_r_emit.ts`, `get_script_with_parameters_hfa.ts`).
+The default workbook's 475 indicators and every stored snippet in the field fit
+this language. A request for more (Q11) is answered by this section.
 
 ## Quick fixes
 
@@ -274,13 +277,13 @@ Verified in code or commits:
   whatever the column's embedded label (2026-10-26, `764c1e9f5`).
 - Q11, M11 and M16: indicator code is the platform's expression language (see
   "The indicator code language"), parsed into a syntax tree and emitted as R on
-  the server only; a word the language lacks is reported with its position, a
-  variable in the wrong case gets the matching id suggested, the editor lists
-  the operators and the list form under the code box and the AI guidance reads
-  the same constant; stored `%in% c(...)` code was migrated to `IN (...)`; no UI
-  text says R (2026-10-26, `2265e28ca`, `3c81f8a65`, then
-  PLAN_HFA_INDICATOR_CODE_LANGUAGE.md steps 1 to 4). Viviane's index is
-  `(a + b + c) / 3`.
+  the server only; a syntax error is reported with its position, a variable in
+  the wrong case gets the matching id suggested, the editor lists the operators
+  and the list form under the code box and the AI guidance reads the same
+  constants; stored `%in% c(...)` code was migrated to `IN (...)` (migration
+  220); no UI text says R (2026-10-27, `67bbce732`, `2c1aee45f`, `eec96a5a7`,
+  `22c05d704` and the commit that removed R from the UI text). Viviane's index
+  is `(a + b + c) / 3`.
 - U4: HFA tables and charts order indicators, categories, sub-categories and
   variant items by the instance's own order (workbook row order for indicators,
   the reorder handles for the taxonomies), and ICEH indicators and strata

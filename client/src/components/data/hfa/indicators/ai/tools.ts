@@ -335,7 +335,7 @@ export function buildHfaIndicatorTools() {
       name: "update_hfa_indicator_labels",
       availableIn: COPILOT_TOOL_VIEWS.update_hfa_indicator_labels,
       description:
-        "Set the short label and/or long label (definition) of existing HFA indicators, in a batch. Only the fields you provide change. The short label is used in dense chart contexts; the long label is the full descriptive text. Does NOT change measurement, categorisation, or r-code.",
+        "Set the short label and/or long label (definition) of existing HFA indicators, in a batch. Only the fields you provide change. The short label is used in dense chart contexts; the long label is the full descriptive text. Does NOT change measurement, categorisation, or indicator code.",
       kind: "write",
       inputSchema: z.object({
         updates: z.array(z.object({
@@ -695,7 +695,7 @@ export function buildHfaIndicatorTools() {
       name: "inspect_hfa_variable",
       availableIn: COPILOT_TOOL_VIEWS.inspect_hfa_variable,
       description:
-        "Inspect one or more HFA survey variables in depth: per round, the coded response options (value → label), how many facilities answered vs are missing, and the distinct values actually present in the data. Use this before writing r-code that compares against a variable's codes.",
+        "Inspect one or more HFA survey variables in depth: per round, the coded response options (value → label), how many facilities answered vs are missing, and the distinct values actually present in the data. Use this before writing indicator code that compares against a variable's codes.",
       kind: "read",
       inputSchema: z.object({
         variableIds: z.array(z.string()).min(1).describe(
@@ -754,7 +754,7 @@ export function buildHfaIndicatorTools() {
       name: "get_hfa_indicator_code",
       availableIn: COPILOT_TOOL_VIEWS.get_hfa_indicator_code,
       description:
-        "Read the per-round r-code (rCode and optional rFilterCode) of existing HFA indicators.",
+        "Read the per-round indicator code (rCode and optional rFilterCode) of existing HFA indicators.",
       kind: "read",
       inputSchema: z.object({
         indicatorIds: z.array(z.string()).min(1).optional().describe(
@@ -802,7 +802,7 @@ export function buildHfaIndicatorTools() {
       name: "validate_hfa_indicators",
       availableIn: COPILOT_TOOL_VIEWS.validate_hfa_indicators,
       description:
-        "Validate HFA indicators' r-code against the HFA survey dictionary. Writes nothing. Returns how many indicators were checked and, for each one with an issue, whether it has syntax / unknown-variable / result-type issues, whether its code is consistent across rounds, and the specific issues. Run it after creating or editing code, and to find indicators that need fixing.",
+        "Validate HFA indicators' indicator code against the HFA survey dictionary. Writes nothing. Returns how many indicators were checked and, for each one with an issue, whether it has syntax / unknown-variable / result-type issues, whether its code is consistent across rounds, and the specific issues. Run it after creating or editing code, and to find indicators that need fixing.",
       kind: "read",
       inputSchema: z.object({
         indicatorIds: z.array(z.string()).min(1).optional().describe(
@@ -852,9 +852,9 @@ export function buildHfaIndicatorTools() {
       },
       inProgressLabel: () =>
         t3({
-          en: "Validating HFA indicator r-code...",
-          fr: "Validation du code R des indicateurs HFA...",
-          pt: "A validar o código R dos indicadores HFA...",
+          en: "Validating HFA indicator indicator code...",
+          fr: "Validation du code des indicateurs HFA...",
+          pt: "A validar o código dos indicadores HFA...",
         }),
       completionMessage: (input) =>
         input.indicatorIds
@@ -875,7 +875,7 @@ export function buildHfaIndicatorTools() {
       name: "create_hfa_indicators",
       availableIn: COPILOT_TOOL_VIEWS.create_hfa_indicators,
       description:
-        'Create new HFA indicators from the survey dataset, in a batch. For each: a long label (definition), type + aggregation (usually binary+avg for "% of facilities" — see the modelling guidance), optional category/sub-category/service categories (must already exist), and per-round r-code. The app assigns each indicator\'s id and returns it; time points are validated and r-code is validated against the dictionary (including a result-type check).',
+        'Create new HFA indicators from the survey dataset, in a batch. For each: a long label (definition), type + aggregation (usually binary+avg for "% of facilities" — see the modelling guidance), optional category/sub-category/service categories (must already exist), and per-round indicator code. The app assigns each indicator\'s id and returns it; time points are validated and indicator code is validated against the dictionary (including a result-type check).',
       kind: "write",
       inputSchema: z.object({
         indicators: z.array(z.object({
@@ -893,7 +893,7 @@ export function buildHfaIndicatorTools() {
             rCode: z.string(),
             rFilterCode: z.string().optional(),
           })).optional().describe(
-            "Per-round r-code. Keep identical across rounds unless the survey changed.",
+            "Per-round indicator code. Keep identical across rounds unless the survey changed.",
           ),
         })).min(1),
       }),
@@ -1079,7 +1079,7 @@ export function buildHfaIndicatorTools() {
       name: "set_hfa_indicator_code",
       availableIn: COPILOT_TOOL_VIEWS.set_hfa_indicator_code,
       description:
-        "Set the per-round r-code of EXISTING HFA indicators (to fix or change how they are computed). Each entry replaces that indicator+round's rCode/rFilterCode; other rounds are kept. Validation (including the result-type check) is recomputed automatically.",
+        "Set the per-round indicator code of EXISTING HFA indicators (to fix or change how they are computed). Each entry replaces that indicator+round's rCode/rFilterCode; other rounds are kept. Validation (including the result-type check) is recomputed automatically.",
       kind: "write",
       inputSchema: z.object({
         updates: z.array(z.object({
@@ -1155,13 +1155,13 @@ export function buildHfaIndicatorTools() {
                 pt: "Atualizar o código dos indicadores HFA",
               }),
               description: t3({
-                en: `Update r-code for ${countIndicators(affected.size)}?`,
-                fr: `Mettre à jour le code R de ${
-                  countIndicators(affected.size)
-                } ?`,
-                pt: `Atualizar o código R de ${
+                en: `Update indicator code for ${
                   countIndicators(affected.size)
                 }?`,
+                fr: `Mettre à jour le code de ${
+                  countIndicators(affected.size)
+                } ?`,
+                pt: `Atualizar o código de ${countIndicators(affected.size)}?`,
               }),
               changes,
             },
@@ -1241,7 +1241,7 @@ export function buildHfaIndicatorTools() {
       name: "delete_hfa_indicators",
       availableIn: COPILOT_TOOL_VIEWS.delete_hfa_indicators,
       description:
-        "Permanently delete HFA indicators by indicator id (and their r-code). Use with care.",
+        "Permanently delete HFA indicators by indicator id (and their indicator code). Use with care.",
       kind: "write",
       inputSchema: z.object({ indicatorIds: z.array(z.string()).min(1) }),
       approval: {

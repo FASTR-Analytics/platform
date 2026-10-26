@@ -236,7 +236,7 @@ ${NO_PACKAGE_LINE}`;
 export function getHfaIndicatorEditorInstructions(label: string): string {
   return `# Current View: HFA indicator code editor
 
-The user has the HFA indicator "${label}" open in the code editor. get_hfa_indicator_editor reads the editor's unsaved state: the labels, type, aggregation, categories and the R code of every round, each round with the issues the editor's own validation finds. update_hfa_indicator_editor changes that state in place: pass only the fields to change; the change shows in the editor at once and stays unsaved until the user saves it (Save) or discards it (Cancel). The HFA reads (the survey dictionary, a variable's values, the taxonomy, other indicators and their code, validation) are available here; the batched HFA writes are not, since the user edits this one indicator in the editor. ${NO_PACKAGE_LINE}`;
+The user has the HFA indicator "${label}" open in the code editor. get_hfa_indicator_editor reads the editor's unsaved state: the labels, type, aggregation, categories and the indicator code of every round, each round with the issues the editor's own validation finds. update_hfa_indicator_editor changes that state in place: pass only the fields to change; the change shows in the editor at once and stays unsaved until the user saves it (Save) or discards it (Cancel). The HFA reads (the survey dictionary, a variable's values, the taxonomy, other indicators and their code, validation) are available here; the batched HFA writes are not, since the user edits this one indicator in the editor. ${NO_PACKAGE_LINE}`;
 }
 
 // ── Editing mode instructions ──

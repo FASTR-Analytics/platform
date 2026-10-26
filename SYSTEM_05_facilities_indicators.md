@@ -81,7 +81,7 @@ absorbs the structure-ELT mechanics of the retired DOC_IMPORT_PIPELINE.
 
 Boundaries: dataset stage→integrate is **S6** (it validates against S5's
 dictionaries and facilities); the DHIS2 HTTP adapter is **S7** (S5 calls it for
-org units); module runs that EXECUTE the HFA indicator R code and materialise
+org units); module runs that EXECUTE the HFA indicator code and materialise
 indicator ingredients (m012) are **S8**; the query pipeline that joins
 facilities/geojson at render time, and applies each indicator's catalog
 expression after aggregation, is **S9**. Indicator DEFINITIONS (an Uploaded or
@@ -683,7 +683,7 @@ ids** (`hfa_indicators.indicator_id`, e.g. `ind001`) and **variable ids**
 `variable_type`; `hfa_data` and `hfa_variable_values` key on the same column;
 e.g. `fin_01a_a`, or `{question}_{choice}` for an expanded `select_multiple`).
 The variable id is the column the HFA extract carries to R (`hfa.csv`
-`variable_id`, the `m010` pivot column) and the id that indicator R code
+`variable_id`, the `m010` pivot column) and the id that indicator code
 references; `isReservedHfaId` reserves it with the other columns the script
 owns. User-authored code snippets in `hfa_indicator_code` (per indicator_id ×
 time_point: `r_code` + optional `r_filter_code`, filter requires main code)
@@ -999,8 +999,8 @@ junction's cascade plus explicit rewrites, above). Deletion cascades
 data/variables/weights in a single transactional DELETE (the cascades are the
 implementation: no explicit child deletes), sets the round's registry sources'
 `time_point` to NULL, and is RESTRICTed by indicator code, with a friendly
-pre-check. Creating a time point auto-carries indicator R code and variant R
-code forward from the previous latest round. Time-point routes notify the
+pre-check. Creating a time point auto-carries indicator code and variant code
+forward from the previous latest round. Time-point routes notify the
 **datasets** SSE channel (they are upload-gating state), and rename/delete
 additionally bump `structure_last_updated` + notify structure because of the
 weights cascades.
@@ -1491,15 +1491,11 @@ raised by adversarial review of the shipped feature; none blocks it.
 - **Sentinel Layer 3b: per-indicator override + authoring gate** (L, app +
   wb-fastr-modules in lockstep). Layer 3a (the per-variable generator with
   scoped sentinel bindings) is shipped; 3b is the additive escape hatch plus
-  validation. Three parts: (1) a **per-indicator sentinel-treatment override
+  validation. Two parts: (1) a **per-indicator sentinel-treatment override
   column** in the indicator dictionary, which is what makes DK-rate indicators
   authorable at all: the scoped bindings NA-ify `-99` before any `x == -99`
   rCode could match; cheap now that the binding list is built per indicator. (2)
-  An **authoring gate for NA-swallowing constructs**: indicators are gated on
-  the result of their own expression, so an authored `ifelse` / `is.na` returns
-  a determinate value where a missing input should give NA. Both are accepted
-  functions and neither is used today, so the validator should warn. (3) An
-  **authoring-rule validation gate**: indicator R code must test positively for
+  An **authoring-rule validation gate**: indicator code must test positively for
   Yes (`x == 1`, `x >= 3`); negated tests (`x != 2`, `x <= 3`) misclassify DK
   under DK-as-No, and nothing enforces this today, so a mis-authored `!=`
   indicator silently inverts DK handling. The override column is the natural

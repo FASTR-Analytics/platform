@@ -604,19 +604,19 @@ function ReconcileStep(p: {
           success: false,
           err: t3({
             en:
-              `Filter code requires R code. Rows with filter code but no R code: ${
+              `Filter code requires indicator code. Rows with filter code but no indicator code: ${
                 filterOnly.map((c) => `${c.indicatorId} / ${c.timePoint}`).join(
                   "; ",
                 )
               }.`,
             fr:
-              `Le code filtre nécessite un code R. Lignes avec un code filtre mais sans code R : ${
+              `Le code filtre nécessite un code d'indicateur. Lignes avec un code filtre mais sans code d'indicateur : ${
                 filterOnly.map((c) => `${c.indicatorId} / ${c.timePoint}`).join(
                   "; ",
                 )
               }.`,
             pt:
-              `O código de filtro requer código R. Linhas com código de filtro mas sem código R: ${
+              `O código de filtro requer código do indicador. Linhas com código de filtro mas sem código do indicador: ${
                 filterOnly.map((c) => `${c.indicatorId} / ${c.timePoint}`).join(
                   "; ",
                 )
