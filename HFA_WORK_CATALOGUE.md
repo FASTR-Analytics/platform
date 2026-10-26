@@ -233,7 +233,7 @@ Verified in code or commits:
   pre-selects `wgt` when the file has those columns (2026-10-01, `0b5e216cb`).
   The facility id default was superseded on 2026-10-15 by Q9; the optional
   facility columns no longer have questionnaire-name guesses (2026-10-26,
-  `692cfb809`).
+  `e58a73fd8`).
 - Q4: a boolean module parameter is a Yes/No select labelled with the
   parameter's description, in every module's settings (2026-10-01, `426dc5f17`).
 - Q5: a held HFA data import lists up to 10 of the facility ids it could not
@@ -260,34 +260,34 @@ Verified in code or commits:
   but the wizard:
   - The Mappings step can add the time point it imports into, through the same
     form as the Time points page; the Data page hint no longer says the import
-    creates one (`da5aeab38`).
+    creates one (`47f8d67b0`).
   - The Facilities step offers all eight optional facility columns on every
     import, pre-filled from the latest import's own mapping; mapping a column
     the schema lacks switches it on, a custom column under the label the user
-    gives it, in the same transaction as the registry write (`692cfb809`). The
-    launch body keeps that label (`a0df990a8`), and the schema write merges onto
+    gives it, in the same transaction as the registry write (`e58a73fd8`). The
+    launch body keeps that label (`580e3296f`), and the schema write merges onto
     the row it locks so a concurrent configuration save is not reverted
-    (`f2087d8c2`). The registry write no longer takes an unread `columnsEnabled`
-    (`1d2bc16db`).
+    (`eddea1404`). The registry write no longer takes an unread `columnsEnabled`
+    (`4dac2af65`).
   - The wizard refetches the facility preview on the scanned headers only, and
-    only while on the Facilities step (`2a8bfc6a3`, `7ef3e798f`).
+    only while on the Facilities step (`72ba9952a`, `47342a834`).
 - Q10: "Apply to all time points" in the indicator workbook import writes the
   single code column, and its variant columns, to every platform time point,
-  whatever the column's embedded label (2026-10-26, `cbb578243`).
+  whatever the column's embedded label (2026-10-26, `764c1e9f5`).
 - Q11, M11 and M16: the indicator code accepts only the per-facility functions
   (`c`, `is.na`, `ifelse`, `pmin`, `pmax`, `abs`, `round`, `floor`, `ceiling`,
   `as.numeric`); any other call is reported as "not an accepted function" in the
   editor and refused at run generation, for main, filter and variant code; a
   variable in the wrong case gets the matching id suggested; the editor lists
   the operators and functions under the code box and the AI guidance names them,
-  all from the same constants (2026-10-26, `75689b229`, `a7b241434`). Viviane's
+  all from the same constants (2026-10-26, `2265e28ca`, `3c81f8a65`). Viviane's
   index is `(a + b + c) / 3`.
 - U4: HFA tables and charts order indicators, categories, sub-categories and
   variant items by the instance's own order (workbook row order for indicators,
   the reorder handles for the taxonomies), and ICEH indicators and strata
   likewise, instead of alphabetically; a sub-category or variant item ranks
   inside its parent's order; manifest schema v14 and figure cache "28" carry it
-  to existing packages (2026-10-26, `02ed99144`, `b2acc3e92`, `e9dd16d1f`).
+  to existing packages (2026-10-26, `9bbd10f8a`, `a312a1370`, `9f07ae6e4`).
   Per-figure manual order already worked everywhere but maps; sort by value is
   chart and pie only.
 - Q12: the indicator validator's errors and warnings, the Type column, the HFA
@@ -296,7 +296,7 @@ Verified in code or commits:
   ("oui supprimer", "sim eliminar") in the HFA, HMIS and ICEH delete forms and
   the workbook replace form; the parser names the right workbook row after a
   blank row, and an indicator after a blank row keeps its own code cells
-  (2026-10-26, `0324e799e`, `73ab53dbf`). The Explore carry-forward label was
+  (2026-10-26, `6cd36b495`, `963610320`). The Explore carry-forward label was
   already translated.
 - M19: the default indicator workbook on the resource hub carries `label_en`,
   `label_fr` and `label_pt` columns (Meghan, 2026-10-21), and the import reads
