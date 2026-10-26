@@ -1,5 +1,6 @@
 import {
   extractRIdentifiers,
+  HFA_STRUCTURAL_VARIABLE_IDS,
   type HfaDictionaryForValidation,
   type HfaIndicator,
   type HfaIndicatorCategory,
@@ -777,7 +778,10 @@ export function HfaIndicatorsManager(p: Props) {
         return {
           timePoint: tp.timePoint,
           unused: tp.variables
-            .filter((v) => !used.has(v.variableId))
+            .filter((v) =>
+              !used.has(v.variableId) &&
+              !HFA_STRUCTURAL_VARIABLE_IDS.has(v.variableId)
+            )
             .map((v) => ({
               variableId: v.variableId,
               variableLabel: v.variableLabel,
