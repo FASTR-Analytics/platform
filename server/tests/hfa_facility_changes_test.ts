@@ -17,6 +17,7 @@ import {
   type StructureSchema,
 } from "lib";
 import { utils, write } from "xlsx/xlsx.mjs";
+import { hfaFacilityColumnsSchema } from "../../lib/api-routes/instance/datasets.ts";
 import { getPgConnection } from "../db/postgres/connection_manager.ts";
 import {
   countUnreferencedHfaFacilities,
@@ -427,16 +428,18 @@ Deno.test("mapping columns the schema lacks switches them on, a custom one under
     ...f,
     optional: { ...f.optional, facility_custom_2: "Rural" },
   }));
+  // Through the launch route's body schema: the label must survive zod.
+  const facilityColumns = hfaFacilityColumnsSchema.parse({
+    ...COLUMNS,
+    optional: {
+      ...COLUMNS.optional,
+      facility_custom_2: { header: "Col 9: setting", label: "Setting" },
+    },
+  });
   const result = await db.begin(async (sql) =>
     await writeHfaFacilitiesFromImport(sql, {
       file,
-      facilityColumns: {
-        ...COLUMNS,
-        optional: {
-          ...COLUMNS.optional,
-          facility_custom_2: { header: "Col 9: setting", label: "Setting" },
-        },
-      },
+      facilityColumns,
       timePoint: "R2",
       decisions: [],
       recodes: {},
