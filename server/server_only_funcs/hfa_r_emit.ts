@@ -3,9 +3,9 @@ import { type ExpressionNode, HFA_CODE_NAME_PATTERN } from "lib";
 // HFA indicator code as the R the M10 script evaluates per facility. `AND OR
 // NOT` become `& | !` and `x IN (a, b)` becomes `x %in% c(a, b)`. Parentheses
 // are written only where R's precedence would otherwise regroup the code, so
-// code an analyst wrote in R's own shape emits unchanged. R differs from the
-// language in two places: `!` binds looser than a comparison, as in the
-// language, but `%in%` binds tighter than `*` and `/`, so an IN operand that
+// code an analyst wrote in R's own shape emits unchanged. R's precedence
+// matches the language's except for `%in%`, which binds tighter than `*` and
+// `/` where the language's IN sits with the comparisons, so an IN operand that
 // is arithmetic is parenthesised.
 export function emitHfaCodeAsR(node: ExpressionNode): string {
   return emit(node).text;

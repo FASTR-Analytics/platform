@@ -148,11 +148,10 @@ function countIndicators(n: number): string {
 
 // Mirrors the manager's "Revalidate all" computation (syntax + variable
 // existence → hasSyntaxError; identical non-empty rounds → codeConsistent), plus
-// two additions: an unknown time point also counts as a syntax error, and
-// advisory findings (lone-`=` warnings, the binary/numeric result-type check)
-// are surfaced in `issues` ONLY: they never flip hasSyntaxError, and, unlike
-// the editor (`hfa/indicator_code_editor.tsx:471-489`), it reads main code
-// only.
+// two additions: an unknown time point also counts as a syntax error, and the
+// advisory binary/numeric result-type check is surfaced in `issues` ONLY: it
+// never flips hasSyntaxError. Unlike the editor's save, which also validates
+// variant code, it reads main code only.
 function computeIndicatorValidation(
   code: CodeRound[],
   dict: HfaDictionaryForValidation,

@@ -776,8 +776,9 @@ that, variant authoring is invisible to the SSE→cache triangle and to the run'
 the platform's expression language (`lib/indicator_expression/parse.ts`, shared
 with calculated indicators) narrowed by `parseHfaIndicatorCode`: no calls, text
 only beside a comparison or in an `IN` list, and only names the generator can
-bind (`HFA_CODE_NAME_PATTERN`, so no `[bracketed]` form). It returns the AST and
-its identifiers, or a structured error that `describeHfaCodeError` turns into a
+bind (`HFA_CODE_NAME_PATTERN`: `[q_1]` is accepted, a name that needs the
+brackets, such as `[q_-99]`, is refused). It returns the AST and its
+identifiers, or a structured error that `describeHfaCodeError` turns into a
 translatable text. The vocabulary the editor's help line and the AI guidance
 state (`HFA_CODE_SYMBOLS`, `HFA_CODE_WORDS`, `HFA_CODE_LIST_EXAMPLE`) lives
 beside it. The client validator (`_shared/indicator_code_validator.ts`), the

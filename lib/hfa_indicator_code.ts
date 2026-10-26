@@ -83,8 +83,9 @@ export const HFA_CODE_LIST_EXAMPLE = "x IN (1, 2)";
 
 // The generator splices every variable and indicator id into R as a bare
 // symbol, in the code and in the sentinel bindings around it. So an id the
-// code names must be a syntactic R name (no `[bracketed]` form), and must not
-// be one of R's reserved words, which R reads as a constant or a keyword
+// code names must be a syntactic R name (`[q_1]` is accepted and emitted as
+// `q_1`; a name that needs the brackets, such as `[q_-99]`, is not), and must
+// not be one of R's reserved words, which R reads as a constant or a keyword
 // instead of the column.
 export const HFA_CODE_NAME_PATTERN = /^[A-Za-z][A-Za-z0-9_]*$/;
 const R_RESERVED_WORDS = new Set([
