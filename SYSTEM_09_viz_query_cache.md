@@ -428,8 +428,10 @@ REPLICANT_OPTIONS_QUERY_LIMIT`
 table; stacks with the period CTE when both are needed). Null/empty values fold
 onto `BLANK_SENTINEL` where the blank fold applies, and are dropped where it
 does not (below). Results are `{id, label}` pairs, with labels resolved
-server-side from the module's `IndicatorMetadata` (`labelMap`), falling back to
-the raw id.
+server-side from the module's `IndicatorMetadata` and then every
+`valueLabelReplacements` a metric on the results object declares
+(`valueLabelMapForRun`), falling back to the raw id, so a select never shows an
+id the figure beside it spells out.
 
 The cap counts NAMED values (`exceedsMaxReplicantOptions`), and the query budget
 is `MAX_REPLICANT_OPTIONS + 2` so the sentinel can neither displace a named

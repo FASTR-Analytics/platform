@@ -1059,6 +1059,34 @@ export async function getPresentationObjectItemsFromRun(
   return res;
 }
 
+// The labels a results object's values are shown under: the module's
+// indicator labels, then every value label a metric on that object declares
+// (`valueLabelReplacements`, e.g. m005's denominator ids), which the table
+// and the figure apply and which the pin and replicant selects therefore
+// apply too, so no select shows a raw id the figure beside it spells out.
+export function valueLabelMapForRun(
+  ctx: RunReadContext,
+  moduleId: string,
+  resultsObjectId: string,
+): Map<string, string> {
+  const labelMap = new Map(
+    getIndicatorMetadataFromRun(ctx, moduleId).map((m) => [m.id, m.label]),
+  );
+  for (const metric of ctx.manifest.metrics) {
+    if (
+      metric.results_object_id !== resultsObjectId ||
+      !metric.value_label_replacements
+    ) continue;
+    const replacements = z
+      .record(z.string(), z.string())
+      .parse(JSON.parse(metric.value_label_replacements));
+    for (const [id, label] of Object.entries(replacements)) {
+      labelMap.set(id, label);
+    }
+  }
+  return labelMap;
+}
+
 export async function getPossibleValuesFromRun(
   ctx: RunReadContext,
   resultsObjectId: string,
@@ -1124,7 +1152,7 @@ export async function getResultsValueInfoFromRun(
   const ro = findResultsObject(ctx.manifest, resultsObjectId);
 
   const indicatorMetadata = getIndicatorMetadataFromRun(ctx, moduleId);
-  const labelMap = new Map(indicatorMetadata.map((m) => [m.id, m.label]));
+  const labelMap = valueLabelMapForRun(ctx, moduleId, resultsObjectId);
 
   return await buildResultsValueInfo(
     metricId,
