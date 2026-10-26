@@ -15,12 +15,12 @@ Hi Ashley,
 
 Thanks for the reports. Here is where each one stands:
 
-- The "full deck view" message. That view does not exist. The assistant now
-  tells you to press the back button when you are in the deck's Settings or
-  History.
+- The "full deck view" message. No such view exists. The assistant now tells you
+  to press the back button when you are in the deck's Settings or History.
 - The second tab. "Use it here" in a second tab was stopping the prompt in the
   first. It now waits until the prompt has finished. Each person has one chat,
-  so one person cannot run two prompts at once. Other users are never affected.
+  so one person cannot run two prompts at once. Other people's prompts are not
+  blocked.
 - The figure edit errors. I could not open your screenshots, so I cannot say I
   have fixed what you saw. I went through every error the figure tools can give
   and fixed one that makes the assistant loop. Could you send the screenshots
@@ -47,22 +47,22 @@ Hi Angelica,
 
 Fixed:
 
-- Users limited to a scope now have Explore, over their scopes. If a scoped user
-  still cannot see a deck or report, check its scope: new ones are created on
-  "All data", which scoped users cannot see.
+- Users limited to a scope can now use Explore on the data in their scopes. If a
+  scoped user still cannot see a deck or report, check its scope: new ones are
+  created on "All data", which scoped users cannot see.
 - Duplicating now opens the copy.
 - Users are asked for their organisation and role on first login, can edit them
   in their profile, and both show on the Users page.
 
 The Products list already has a sortable "Last updated" column.
 
-"View as another user" we will not build. Faking another person's session
-touches every permission check in the platform, and a mistake there shows
-someone data they must not see. The reliable way to check a scope is to sign in
-with a test account that holds it.
+"View as another user" we will not build. Impersonating a user would go through
+every permission check in the platform, and an error in one would show someone
+data they must not see. The reliable way to check a scope is to sign in with a
+test account that holds it.
 
-The v2 testing site is retired. demo-fr has been version 2 since 20 October, so
-use that for Mali and Mauritania.
+The v2 testing site is retired. The demo-fr instance has run version 2 since 20
+October; use it for Mali and Mauritania.
 
 Tim
 
@@ -78,7 +78,8 @@ Reports can, which is why it works there.
 For this slide, insert a visualisation with a table layout for the coverage
 indicator, and put the three fixed columns in a text box beside it.
 
-Tables in slide text are on the list, but it is a large change.
+Tables in slide text are planned, but they need a large change to the slide
+editor.
 
 Tim
 
@@ -90,7 +91,8 @@ Hi Claire,
 
 1. The assistant cannot choose an adjustment. It is set once per results package
    when the package is generated. Ashley is right about the footnotes: they are
-   fixed text and do not read that setting. Fixing that is on the list.
+   fixed text and do not show the package's adjustment. Fixing that is on the
+   list.
 
 2. Switching coverage between the four adjustments needs the modules to
    calculate and store all four. Today they store one. That is module work.
@@ -98,8 +100,8 @@ Hi Claire,
 3. Since 2.0 every chart option is a card, 50 in all, and some are near
    duplicates. Which to drop is a judgement call, and I would like your view.
 
-4. The denominator labels are fixed: 27 ids had no label. They appear once a new
-   results package is generated.
+4. The denominator labels are fixed: 27 denominator ids had no label and now
+   have one. They appear once a new results package is generated.
 
 5. The survey source (DHS or MICS) is dropped by the module before it writes
    results, so the platform never sees it. Keeping it, and showing it on hover,
@@ -116,17 +118,18 @@ Dear Joshua,
 
 Thank you for the careful comparison.
 
-Outlier detection does re-run on the full series each time a package is
-generated, so individual months can change. It cannot move a whole series by 15
-to 75 percent.
+Outlier detection re-runs on the full series each time a package is generated,
+so individual months can change. It cannot move a whole series by 15 to 75
+percent.
 
 A shift of that size means the two packages were generated with different
-adjustment settings or from different data. Each package records both, so the
-two can be compared directly. Angelica is doing that.
+adjustment settings or from different data. Each package records its adjustment
+settings and its source data, so the two packages can be compared directly.
+Angelica is doing that.
 
 The "Fully immunized" to "Measles 1" change and the 2020 Penta 1 move are
-intended: version 2 of the coverage analysis renamed the indicator and uses a
-different denominator there.
+expected: version 2 of the coverage analysis renamed the indicator and uses a
+different denominator for it.
 
 Kind regards, Tim
 
