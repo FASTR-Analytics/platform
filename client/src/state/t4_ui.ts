@@ -180,7 +180,28 @@ export const [fitWithin, setFitWithin] = createSignal<
 // AI Settings
 // ============================================================================
 
-export const [showAi, setShowAi] = createSignal<boolean>(false);
+// Open until the user closes it, and then closed until they open it: the
+// panel's state outlives the page load, per browser, so the "Ask AI" button
+// is not the only way users ever meet the chat.
+const SHOW_AI_KEY = "showAi";
+function readStoredShowAi(): boolean {
+  try {
+    return localStorage.getItem(SHOW_AI_KEY) !== "false";
+  } catch {
+    return true;
+  }
+}
+export const [showAi, setShowAiInternal] = createSignal<boolean>(
+  readStoredShowAi(),
+);
+export function setShowAi(open: boolean) {
+  try {
+    localStorage.setItem(SHOW_AI_KEY, String(open));
+  } catch {
+    // Storage unavailable: the choice lasts the page.
+  }
+  setShowAiInternal(open);
+}
 
 // ============================================================================
 // Visualization editor

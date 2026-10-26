@@ -321,17 +321,18 @@ is beside every tab page, full-page view and nested editor; the slot is always
 passed and built once (every frame builds its panel once) and the chat inside
 mounts once the user is approved, so there is no chat before sign-in, for an
 unapproved user, or on `/access-tokens`, which is another route. The panel's one
-open state is `showAi` (T4): its own header button closes it and the opener
-(`#copilot-opener`, a button on the window's right edge outside the editor
-wrapper, shown while the panel is closed) opens it. The product opener
-(`openProduct` in `client/src/components/products/products.tsx`) opens the
-registry's editor directly; the editors set their views (below) and the chat
-follows. Threads and settings are the user's: the thread scope and the settings
-key are `copilot:<Clerk user id>` (`copilot:dev` under `VITE_BYPASS_AUTH`, where
-there is no Clerk user), read live from Clerk's listener and keyed on, so a
-cross-tab user switch without a reload stops the previous user's turn and opens
-the next user's threads; the thread list, New conversation and the last-active
-id follow the user through every view and tab, and the old per-product scopes
+open state is `showAi` (T4, in localStorage, open until the user closes it): its
+own header button closes it and the opener (`#copilot-opener`, a button on the
+window's right edge outside the editor wrapper, shown while the panel is closed)
+opens it. The product opener (`openProduct` in
+`client/src/components/products/products.tsx`) opens the registry's editor
+directly; the editors set their views (below) and the chat follows. Threads and
+settings are the user's: the thread scope and the settings key are
+`copilot:<Clerk user id>` (`copilot:dev` under `VITE_BYPASS_AUTH`, where there
+is no Clerk user), read live from Clerk's listener and keyed on, so a cross-tab
+user switch without a reload stops the previous user's turn and opens the next
+user's threads; the thread list, New conversation and the last-active id follow
+the user through every view and tab, and the old per-product scopes
 (`copilot:<productId>`) and the old settings key (`panther-ai-settings-copilot`)
 stay unlisted and unread. One browser tab owns the chat: the panel requests the
 Web Lock `copilot-owner/<scope>` when it mounts and mounts the chat only while

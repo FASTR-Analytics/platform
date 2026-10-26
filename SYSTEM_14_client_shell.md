@@ -292,24 +292,25 @@ then the signal: the rail's `navCollapsed`; the product explorer's three
 `productsGeneralClosed`, whether the user closed the General row, absent meaning
 open; `productsSort`, a `ListSort` (`SortMode = "name" |
 "recent"` plus a
-direction) from `lib/types/sort.ts`, one vocabulary for every list). The
+direction) from `lib/types/sort.ts`, one vocabulary for every list); and the AI
+panel's open state `showAi` (S13), open until the user closes it. The
 open-folder set and the sort are parsed defensively (malformed JSON reads as the
 default); the rest are unvalidated on read: they only feed comparisons, and a
 value from a build that spelled one differently degrades to "no match" rather
 than throwing. Plus the scheme preference (`scheme`, tri-state on panther's
 data-scheme contract, applied at module scope before first paint; a stored
 `darkMode` boolean is mapped on read when no `scheme` key is stored). In-memory
-only (deliberately not persisted): `fitWithin`, `showAi` (the AI panel's one
-open state, S13), `headerOrContent`, `policyHeaderOrContent`, the four request
-signals the tours and the deep link use (`pendingEditorOpen`,
-`pendingSlideOpen`, `pendingVisualizationOpen`, `pendingTourReplay`), the
-`openVisualizationEditors` count the visualization editor tour's page reads, and
-the shell's full-page wrapper (`openShellEditor`, `ShellEditorWrapper`: a
-module-level `getEditorWrapper()` so the frame pages that open views share the
-instance the shell renders, recreated on each shell mount so a same-tab user
-switch without a reload cannot resurface the previous user's open view). The
-rule these encode: **display-only preferences stay in T4: they never enter fetch
-configs or cache hashes** (the roll-up sentinel lesson, SYSTEM_09).
+only (deliberately not persisted): `fitWithin`, `headerOrContent`,
+`policyHeaderOrContent`, the four request signals the tours and the deep link
+use (`pendingEditorOpen`, `pendingSlideOpen`, `pendingVisualizationOpen`,
+`pendingTourReplay`), the `openVisualizationEditors` count the visualization
+editor tour's page reads, and the shell's full-page wrapper (`openShellEditor`,
+`ShellEditorWrapper`: a module-level `getEditorWrapper()` so the frame pages
+that open views share the instance the shell renders, recreated on each shell
+mount so a same-tab user switch without a reload cannot resurface the previous
+user's open view). The rule these encode: **display-only preferences stay in T4:
+they never enter fetch configs or cache hashes** (the roll-up sentinel lesson,
+SYSTEM_09).
 
 ## Theme prototype (`state/t4_theme.ts`, `components/instance/theme_modal.tsx`)
 
