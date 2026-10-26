@@ -181,7 +181,7 @@ export async function stageHfaCsvIntoTables(args: {
   // `and`/`or` operator aliases, R keywords, the functions the code accepts,
   // or with a column the module script owns (`weight`, `time_point`,
   // `facility_*`, ...). A variable id `and`/`c`/`if` would otherwise be
-  // silently rewritten, shadowed or dropped, and `weight`/`time_point` would
+  // silently rewritten or dropped, and `weight`/`time_point` would
   // collide with or shadow the script's own column (single source:
   // isReservedHfaId).
   const reservedCollisions = variableIds.filter(isReservedHfaId);

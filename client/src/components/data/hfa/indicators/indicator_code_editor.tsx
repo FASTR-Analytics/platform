@@ -979,9 +979,9 @@ function EditorInner(p: {
                       {HFA_CODE_FUNCTIONS.join(" ")}
                     </span>
                     {t3({
-                      en: ". Nothing else is accepted.",
-                      fr: ". Rien d'autre n'est accepté.",
-                      pt: ". Nada mais é aceite.",
+                      en: ". No other function is accepted.",
+                      fr: ". Aucune autre fonction n'est acceptée.",
+                      pt: ". Nenhuma outra função é aceite.",
                     })}
                   </div>
                   <Show

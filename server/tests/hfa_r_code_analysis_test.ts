@@ -1,5 +1,6 @@
 import { assertEquals } from "@std/assert";
 import { extractRIdentifiers, isReservedHfaId, unknownRFunctions } from "lib";
+import { extractDependenciesFromCode } from "../server_only_funcs/hfa_dependency_analyzer.ts";
 
 Deno.test("a call is not a variable reference", () => {
   assertEquals(
@@ -26,4 +27,15 @@ Deno.test("a variable may not be named after an accepted function", () => {
   assertEquals(isReservedHfaId("c"), true);
   assertEquals(isReservedHfaId("ifelse"), true);
   assertEquals(isReservedHfaId("sum"), false);
+});
+
+Deno.test("a rejected function in the filter is reported", () => {
+  const deps = extractDependenciesFromCode(
+    "a == 1",
+    "sum(b) > 0",
+    new Set(),
+    new Set(["a", "b"]),
+  );
+  assertEquals(deps.unknownFunctions, ["sum"]);
+  assertEquals(deps.filterVariableIds, ["b"]);
 });

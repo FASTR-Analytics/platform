@@ -108,6 +108,7 @@ export const HFA_CODE_OPERATORS = [
   "-",
   "*",
   "/",
+  "^",
   "%in%",
 ] as const;
 
@@ -157,8 +158,9 @@ const M10_STRUCTURAL_PREFIX_REGEX = /^(facility_|admin_area_|time_point)/i;
 //     `normalizeRLogicalOperators`, so a variable with that name becomes an
 //     operator.
 //   - R keywords are dropped from identifier extraction, so a variable with
-//     that exact name is silently ignored as a dependency; a variable named
-//     after an accepted function would shadow it inside the scoped bindings.
+//     that exact name is silently ignored as a dependency. The accepted
+//     functions are the language's vocabulary, listed under the code box, so
+//     a variable with one of those names is reserved to keep code readable.
 //   - The M10 structural column names above.
 // Applied at BOTH ends: indicator-id validation and survey-data import.
 export function isReservedHfaId(name: string): boolean {

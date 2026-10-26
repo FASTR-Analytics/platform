@@ -544,6 +544,13 @@ export function getScriptWithParametersHfa(
             `Unknown variables [${deps.unknownVariables.join(", ")}]`,
           );
         }
+        if (deps.unknownFunctions.length > 0) {
+          problems.push(
+            `Functions not accepted in indicator code [${
+              deps.unknownFunctions.join(", ")
+            }]`,
+          );
+        }
         const skippedDeps = deps.dependencies.filter(
           (d) => !orderedIndex.has(d),
         );
