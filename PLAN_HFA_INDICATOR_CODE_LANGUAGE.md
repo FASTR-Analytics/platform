@@ -1,6 +1,6 @@
 # PLAN: HFA indicator code is the platform's expression language, not R
 
-**Status:** open. **Next step:** `Do 1`.
+**Status:** open. **Next step:** `Review 1`.
 
 HFA indicator code is written by country analysts, parsed by the app, and
 spliced into an R `case_when` branch per facility. Today the surface is R text:
@@ -392,6 +392,11 @@ demand.
 
 ## 8. Build log
 
-| Step | Row                                                                                   |
-| ---- | ------------------------------------------------------------------------------------- |
-| 0    | Plan written 2026-10-26 after Q11 (`2265e28ca`, `3c81f8a65`) kept an R function list. |
+| Step | Row                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 0    | Plan written 2026-10-26 after Q11 (`2265e28ca`, `3c81f8a65`) kept an R function list.                                                                                                                                                                                                                                                                                                                                                |
+| 1    | Plan wrong (§1, §2): stored code is not only comparisons, logic, arithmetic and `%in%`. Mali's 46 filter rows compare text (`sh_03 != "z"`, `sh_03 %in% c("c", "d")`). The grammar gains text literals in double or single quotes, no escapes (a `string` node); without them those rows turn red after step 3. Production sweep of all 7201 HFA code rows: no other function than `c(`, no R keyword, no dotted or hyphenated name. |
+| 1    | Error kinds beyond §4's list, each a distinct message the editor needs: `empty_bracket` (`[]`), `unclosed_quote`, `doubled_operator` (`&&`, `\|\|`), `uncalled_function` (`abs` without parentheses), `missing_operand` (a value expected, as in `a ==` or `IN ()`). `expected` is kept for a missing `(` or `)`. The error also carries `token`, the text it is about, so a translation can quote it.                               |
+| 1    | `resolve.ts` accepts comparison, AND, OR and NOT as numbers but refuses text and `IN`: m012 evaluates the flattened text in R, which has no `IN`, and a calculated indicator is computed from counts. `writeIndicatorExpression` writes logic as `& \| !` so the text stays R-readable. 130 production HMIS expressions parse unchanged under the new grammar; `m012_expression_parity_test.ts` passes.                              |
+| 1    | Plan wrong (§2): the survey import does not reject variable ids that need brackets. It rejects only `isReservedHfaId`; an XLSForm name with `.` or `-`, or a `select_multiple` choice like `-99` (`q_-99`), passes. No production code names one, and the generator already splices variable ids bare into the sentinel bindings, so step 2's emitter throwing on a bracketed identifier matches what the generator can bind today.  |
+| 1    | Step 1 built.                                                                                                                                                                                                                                                                                                                                                                                                                        |

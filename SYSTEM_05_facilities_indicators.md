@@ -60,6 +60,7 @@ globs:
   - server/tests/hfa_workbook_text_columns_test.ts
   - server/tests/indicator_analysed_set_test.ts
   - server/tests/indicator_data_key_test.ts
+  - server/tests/indicator_expression_test.ts
   - server/tests/indicator_id_test.ts
   - server/tests/indicator_migration_test.ts
   - server/tests/indicator_naming_test.ts
@@ -812,8 +813,13 @@ determinate 0 while its per-variable status reads `missing`.
 **Calculated indicators** are defined by an expression over other indicators and
 population terms. There is no separate id grammar: an identifier is written bare
 when it matches `^[a-z][a-z0-9_]*$` and `[in brackets]` otherwise, so every
-indicator id is usable regardless of charset. A population term is the
-population type's id written bare (`anc1 / population_total`). `RESERVED_WORDS`
+indicator id is usable regardless of charset. The grammar
+(`lib/indicator_expression/parse.ts`, its header states it in full) is one
+language with HFA indicator code; a calculated indicator refuses its text
+literals and `IN`, since m012 evaluates the flattened text in R. Its words
+`and or not in` match in any case, so an indicator with one of those ids is
+written `[in]`, as `writeIdentifier` does. A population term is the population
+type's id written bare (`anc1 / population_total`). `RESERVED_WORDS`
 (`lib/types/indicators.ts`) is the union of the special ids, the six
 `POPULATION_TYPES` ids and the three function names.
 `getNewIndicatorIdIssue(id, type)` refuses a new indicator under one
@@ -869,19 +875,20 @@ pointers only. Consequences that follow from it and are ruled with it:
     types m001/m002 ever see, and the only types the HMIS extract carries (the
     analysed ones).
   - `calculated`: an ARBITRARY expression over other indicators of any type
-    (`+ - * /`, parentheses, literals, `abs`/`coalesce`/`nullif`; chained by
-    substitution, cycles and depth rejected). Never negotiable down to
-    numerator/denominator. It may divide by a population term
-    (`population_total`, the type id), person-years of that population, whose
-    grain is area×month, not facility×month: population lives in the instance
-    Population store (below) and is expanded stock→flow at run capture (S8), so
-    downstream it sums like any count. `format_as` is display-only and the sole
-    scale. There is no value-level multiplier (ruled: a value multiplier beside
-    a display scale double-counted (10,000 × per-10k), and the multipliers
-    migrated from m008 were its DENOMINATOR fractions, so a migrated rate was
-    off by 1/fraction², about 625× at 0.04); an Uploaded, DHIS2 element or Sum
-    is a count and is forced to `number` (the table's CHECK), a calculated one
-    chooses freely.
+    (`+ - * /`, parentheses, literals, `abs`/`coalesce`/`nullif`, and the
+    comparisons and `AND OR NOT` the grammar shares with HFA indicator code,
+    each a 1/0 number; chained by substitution, cycles and depth rejected).
+    Never negotiable down to numerator/denominator. It may divide by a
+    population term (`population_total`, the type id), person-years of that
+    population, whose grain is area×month, not facility×month: population lives
+    in the instance Population store (below) and is expanded stock→flow at run
+    capture (S8), so downstream it sums like any count. `format_as` is
+    display-only and the sole scale. There is no value-level multiplier (ruled:
+    a value multiplier beside a display scale double-counted (10,000 × per-10k),
+    and the multipliers migrated from m008 were its DENOMINATOR fractions, so a
+    migrated rate was off by 1/fraction², about 625× at 0.04); an Uploaded,
+    DHIS2 element or Sum is a count and is forced to `number` (the table's
+    CHECK), a calculated one chooses freely.
 
   **Generation decides what the numbers are made of; the query only aggregates
   and applies the formula.** At generation the expression is FLATTENED to
