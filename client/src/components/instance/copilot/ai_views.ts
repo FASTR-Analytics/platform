@@ -57,10 +57,12 @@ import {
   formatResultsPackagesState,
   getAssetsInstructions,
   getDataPageInstructions,
+  getDeckSettingsInstructions,
   getEditingSlideDeckInstructions,
   getFigureEditorInstructions,
   getHfaIndicatorEditorInstructions,
   getHfaIndicatorsInstructions,
+  getHistoryInstructions,
   getOpeningProductInstructions,
   getProductsInstructions,
   getResultsFileInstructions,
@@ -501,6 +503,8 @@ export const copilotViews = defineAIViews(
           deck: params.deckId,
           pair: pairOf(context),
         }),
+      instructions: (_params, context) =>
+        getDeckSettingsInstructions(context.getLabel()),
     }),
     deck_history: view<EditingSlideDeckParams, ProductViewContext>({
       label: (_params, context) => context.getLabel(),
@@ -509,6 +513,8 @@ export const copilotViews = defineAIViews(
           deck: params.deckId,
           pair: pairOf(context),
         }),
+      instructions: (_params, context) =>
+        getHistoryInstructions(context.getLabel(), "deck"),
     }),
     report_history: view<ReportParams, ProductViewContext>({
       label: (_params, context) => context.getLabel(),
@@ -517,6 +523,8 @@ export const copilotViews = defineAIViews(
           report: params.reportId,
           pair: pairOf(context),
         }),
+      instructions: (_params, context) =>
+        getHistoryInstructions(context.getLabel(), "report"),
     }),
     editing_report: view<EditingReportParams, EditingReportContext>({
       label: (_params, context) => context.getLabel(),

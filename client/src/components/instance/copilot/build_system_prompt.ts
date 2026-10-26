@@ -101,6 +101,26 @@ export function getOpeningProductInstructions(): string {
 The product is still loading, or it failed to load and the page shows the error. Do not call editing tools yet. Tell the user to wait a moment or, if the page shows an error, to close the product and open it again.`;
 }
 
+// The screens that cover a product editor: the package tools still run on
+// the product's package, but the product's editing tools refuse until the
+// user is back in the editor, so each names the step that gets them there.
+export function getDeckSettingsInstructions(label: string): string {
+  return `# Current View: Settings of the slide deck "${label}"
+
+The user is on the deck's settings screen (name, theme, logos, footer), which covers the deck. The deck's slide tools refuse here. To change slides, tell the user to close Settings with its back button to return to the deck; do not describe any other view. The package tools work as usual.`;
+}
+
+export function getHistoryInstructions(
+  label: string,
+  kind: "deck" | "report",
+): string {
+  const noun = kind === "deck" ? "slide deck" : "report";
+  const tools = kind === "deck" ? "slide tools" : "report editing tools";
+  return `# Current View: Version history of the ${noun} "${label}"
+
+The user is looking at the ${noun}'s version history, which covers the editor: a list of saved versions with a read-only preview, and restore buttons for users who can configure the ${noun}. The ${tools} refuse here. To edit the ${noun}, tell the user to close History with its back button to return to the editor; do not describe any other view. The package tools work as usual.`;
+}
+
 // The pages with no package in view: each names itself, so the model knows
 // what the user is looking at and that no package tool runs here.
 const NO_PACKAGE_LINE =

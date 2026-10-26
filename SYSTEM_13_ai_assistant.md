@@ -491,7 +491,9 @@ email. Inside products, deck settings (`SlideDeckSettings`, given the deck id)
 sets `deck_settings` and the version history (`VersionHistoryEditor`) sets
 `deck_history` or `report_history` by its `kind`, each with
 `productViewContext(productId)`, the product's live row as label and pair (a
-refusal naming why once the row is gone); the figure editor (S11) holds in
+refusal naming why once the row is gone) and instructions that name the screen
+and the step back to the editor (its back button), so the model never invents a
+view name for the user to find; the figure editor (S11) holds in
 `VisualizationEditor` and sets, from `VisualizationEditorInner` once the draft
 exists, the view its host names in the required `aiView` prop
 (`editing_slide_figure`, `editing_report_figure`, `viewing_package_figure`, each
