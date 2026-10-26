@@ -378,11 +378,17 @@ demand.
 - Nothing ships before the review of step 4 passes. Steps 1 to 4 are one deploy:
   step 3's migration runs on first boot and is idempotent (a row with no
   `%in% c(` is untouched; a rewritten row contains none).
-- After the deploy, by hand, outside this repo: change the 47 `%in% c(...)`
-  cells in `hfa_default_indicators.xlsx` on the resource hub to `IN (...)`,
-  since the import does not rewrite workbook code and those rows would show as
-  syntax errors until then; and edit the docs site page recorded in §8, then run
-  `deno task build:help-buttons` here and commit the regenerated file.
+- With the deploy, the default workbook on the resource hub
+  (`FASTR-Analytics/fastr-resource-hub`, `hfa_default_indicators.xlsx`, where
+  Tim has admin access) is rewritten by a script run from this repo's
+  scratchpad: the 47 `r_code__Round 1` cells of the form `x %in% c(...)` become
+  `x IN (...)` through the same pure rewrite function as the migration (step 3,
+  `data_transforms/hfa_code.ts`), and the workbook is committed and pushed to
+  that repo. Before the deploy the current platform rejects `IN`, so the push
+  waits for the release; after it, a fresh import of the old file shows those 47
+  rows as syntax errors until the push. The docs site page recorded in §8 is
+  edited by hand after the deploy, then `deno task build:help-buttons` is run
+  here and the regenerated file committed.
 - Rollback is a redeploy of the previous image. Migrated rows read `IN (...)`,
   which the previous validator reports as an unknown variable `IN` and the
   previous generator splices into R unchanged, so m010 fails on those indicators
