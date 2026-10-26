@@ -263,12 +263,17 @@ export type GlobalUser = {
   email: string;
   firstName: string;
   lastName: string;
+  // The user's own words, from their profile; null until they say.
+  organisation: string | null;
+  role: string | null;
   approved: boolean;
   isGlobalAdmin: boolean;
   thisUserPermissions: UserPermissions;
   unlimitedAi: boolean;
   scopeAccess: ScopeAccess;
 };
+
+export type UserProfile = Pick<GlobalUser, "organisation" | "role">;
 
 // The roster row carries the STORED permission bits; a restricted user's
 // effective bits are permissionsUnderScopeAccess of them.
@@ -277,6 +282,8 @@ export type OtherUser = {
   isGlobalAdmin: boolean;
   firstName?: string;
   lastName?: string;
+  organisation?: string;
+  role?: string;
   unlimitedAi: boolean;
   isContactPerson: boolean;
   scopeAccess: ScopeAccess;
@@ -372,6 +379,8 @@ export function createDevGlobalUser(
     email: "dev@offline.local",
     firstName: "Dev",
     lastName: "User",
+    organisation: null,
+    role: null,
     approved: true,
     isGlobalAdmin: true,
     thisUserPermissions: {

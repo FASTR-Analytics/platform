@@ -6,7 +6,7 @@ globs:
   - client/src/components/instance/whats_new_modal.tsx
   - client/src/components/instance/instance.tsx
   - client/src/components/instance/mod.ts
-  - client/src/components/instance/organisation_modal.tsx
+  - client/src/components/instance/profile_prompt_modal.tsx
   - client/src/components/instance/theme_modal.tsx
   - client/src/index.tsx
   - client/src/onboarding/**
@@ -200,10 +200,9 @@ a permission-guarded derivation that selects Products / Explore / Results / Data
 / Assets / Users, in that nav order; Products (S12's `components/products/`) is
 first and the default, and Explore (S11's `components/explore/`, one package at
 one scope, a family's modules in a select, a module's views in a select with a
-type toggle, and a frame per view, S11 "The Explore page") needs approval and
-all-scope access (`currentUserScopeAccess.all`): a restricted user has no
-Explore tab. The tab id union is `InstanceTab` in `onboarding/catalogue.ts` and
-the shell imports it.
+type toggle, and a frame per view, S11 "The Explore page") needs approval only:
+a restricted user reads it through a scope they hold. The tab id union is
+`InstanceTab` in `onboarding/catalogue.ts` and the shell imports it.
 
 The shell is a `FrameRightResizable` whose panel is the AI chat (`CopilotPanel`,
 S13: one chat beside every tab page, full-page view and nested editor, mounted
@@ -292,24 +291,25 @@ then the signal: the rail's `navCollapsed`; the product explorer's three
 `productsGeneralClosed`, whether the user closed the General row, absent meaning
 open; `productsSort`, a `ListSort` (`SortMode = "name" |
 "recent"` plus a
-direction) from `lib/types/sort.ts`, one vocabulary for every list). The
+direction) from `lib/types/sort.ts`, one vocabulary for every list); and the AI
+panel's open state `showAi` (S13), open until the user closes it. The
 open-folder set and the sort are parsed defensively (malformed JSON reads as the
 default); the rest are unvalidated on read: they only feed comparisons, and a
 value from a build that spelled one differently degrades to "no match" rather
 than throwing. Plus the scheme preference (`scheme`, tri-state on panther's
 data-scheme contract, applied at module scope before first paint; a stored
 `darkMode` boolean is mapped on read when no `scheme` key is stored). In-memory
-only (deliberately not persisted): `fitWithin`, `showAi` (the AI panel's one
-open state, S13), `headerOrContent`, `policyHeaderOrContent`, the four request
-signals the tours and the deep link use (`pendingEditorOpen`,
-`pendingSlideOpen`, `pendingVisualizationOpen`, `pendingTourReplay`), the
-`openVisualizationEditors` count the visualization editor tour's page reads, and
-the shell's full-page wrapper (`openShellEditor`, `ShellEditorWrapper`: a
-module-level `getEditorWrapper()` so the frame pages that open views share the
-instance the shell renders, recreated on each shell mount so a same-tab user
-switch without a reload cannot resurface the previous user's open view). The
-rule these encode: **display-only preferences stay in T4: they never enter fetch
-configs or cache hashes** (the roll-up sentinel lesson, SYSTEM_09).
+only (deliberately not persisted): `fitWithin`, `headerOrContent`,
+`policyHeaderOrContent`, the four request signals the tours and the deep link
+use (`pendingEditorOpen`, `pendingSlideOpen`, `pendingVisualizationOpen`,
+`pendingTourReplay`), the `openVisualizationEditors` count the visualization
+editor tour's page reads, and the shell's full-page wrapper (`openShellEditor`,
+`ShellEditorWrapper`: a module-level `getEditorWrapper()` so the frame pages
+that open views share the instance the shell renders, recreated on each shell
+mount so a same-tab user switch without a reload cannot resurface the previous
+user's open view). The rule these encode: **display-only preferences stay in T4:
+they never enter fetch configs or cache hashes** (the roll-up sentinel lesson,
+SYSTEM_09).
 
 ## Theme prototype (`state/t4_theme.ts`, `components/instance/theme_modal.tsx`)
 
@@ -357,15 +357,18 @@ the window listeners are never attached.
 ## Onboarding modals
 
 An effect in `components/instance/instance.tsx` (after approval + Clerk user)
-opens `OrganisationModal` when `unsafeMetadata.organisation` is unset (it writes
-that key; skippable), then `WhatsNewModal`, a multi-page release-notes popup.
-The sequence is guarded to run ONCE per signed-in user id (the approval store
-re-fires the effect, which would otherwise re-open the modals). Posts are
-authored in the Admin-Website, fetched by `server/routes/instance/whats_new.ts`
-from status-api (60s in-memory cache, fail-silent, 30s backoff after a failed
-fetch) and pre-filtered server-side to `published && version <= _SERVER_VERSION`
-(the version gate is skipped when `SERVER_VERSION` is non-dotted, i.e. ad-hoc
-test deploys), then cut to the caller's audience by `whatsNewPostForAudience`:
+opens `ProfilePromptModal` when the user's row holds neither an organisation nor
+a role (`promptForProfile`: it asks for both, skippable, and writes them through
+`updateMyProfile`; an organisation still sitting in Clerk `unsafeMetadata` from
+before the profile columns existed seeds the row instead and the key is
+dropped), then `WhatsNewModal`, a multi-page release-notes popup. The sequence
+is guarded to run ONCE per signed-in user id (the approval store re-fires the
+effect, which would otherwise re-open the modals). Posts are authored in the
+Admin-Website, fetched by `server/routes/instance/whats_new.ts` from status-api
+(60s in-memory cache, fail-silent, 30s backoff after a failed fetch) and
+pre-filtered server-side to `published && version <= _SERVER_VERSION` (the
+version gate is skipped when `SERVER_VERSION` is non-dotted, i.e. ad-hoc test
+deploys), then cut to the caller's audience by `whatsNewPostForAudience`:
 non-admins lose admins-only posts and admins-only pages, and a post left with no
 page is withheld. One post can so carry an admin version: admins see every page,
 everyone else the rest, under one post id and one read-state. Read-state is a
@@ -434,13 +437,6 @@ language's own anchor). The recipe and its traps are
   out.
 - Help generator hygiene: `.mdx` pages are silently skipped by the walk;
   `getHelpTarget` in `lib/help/mod.ts` is an unused export.
-- **OrganisationModal shows nothing when its save fails.** `handleSave` lets a
-  failed Clerk write throw past `p.close`
-  (`instance/organisation_modal.tsx:10-25`), and the Save action carries no
-  state (42-48), so no error renders and the rejection goes unhandled. Build
-  Save with `createButtonAction` (closing on success), pass its `state` so
-  `ModalContainer` renders the error, and take `cancelDisabled` from its loading
-  state.
 - **Help requests never say where they were sent from.** `FeedbackForm` sends
   `p.context` (`instance/feedback_form.tsx:18`, 81) and the email renders it
   (`server/routes/instance/emails.ts:213-216`), but `openFeedback` passes only

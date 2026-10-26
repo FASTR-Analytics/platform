@@ -248,38 +248,39 @@ reads saved visualizations (S13).
 
 ## The Explore page
 
-`components/explore/explore.tsx` renders one package at one scope for an
-approved user with all-scope access (a restricted user has no Explore tab): a
-compact `HeadingBar` whose tabs are the families the package has any module for,
-in `MODULE_FAMILY_ORDER`, with a package `Select` over
+`components/explore/explore.tsx` renders one package at one scope for every
+approved user (a restricted user reads through a scope they hold): a compact
+`HeadingBar` whose tabs are the families the package has any module for, in
+`MODULE_FAMILY_ORDER`, with a package `Select` over
 `instanceState.readyPackages` (opening on the pin, else the newest ready
 package) and the shared `ScopeSelect` over the T1 scopes list. Explore always
-reads through a named scope: it opens on "All data" (`exploreScopeId` starts as
-`ALL_DATA_SCOPE_ID`) and falls back to it when the chosen scope has been
-deleted. The admin level it offers and defaults to follows the area the scope
-holds the open family to (`scopeAreaForFamily`), so one scope can pin HMIS to an
-area and leave HFA national. Every selection lives in `state/t4_explore.ts`,
-module level so it outlives the page's mount: the family (`exploreFamily`), the
-module per family (`exploreModules`), the view per module (`exploreViews`) and
-the type per view (`exploreViewTypes`) persist in localStorage; the package, the
-scope (`exploreScopeId`), the per-family query (`exploreQueries`) and the
-per-view choices (`exploreViewChoices`) last the session, so a deleted package
-can never be a stored default. Each is resolved against the package on every
-read: a choice the package lacks falls back to the first offered (the package to
-the pin, else the newest ready one) without being overwritten. The authoring
-context is read through `t2_run_authoring_context`. The page sets the chat's
-`explore` view (S13): its pair is the resolved package at the resolved scope (or
-a refusal naming why while none is ready) and its state names the family,
-module, view and type the panes resolve, through the same functions
-(`resolveFamily`, `resolveModule`, `pickModuleView`, `pickViewType`), and the
-settings of the view the frame resolved: `MetricFrame` reports `resolveView`'s
-result up to the page through `onView`, the way `PackageExplorer` reports the
-authoring context through `onContext`, and `formatExploreState` (S13) prints its
-metric, switch option, level, each pin's value, the laid-out category's values
-and grain, each by the id a package tool takes, and the period by its choice's
-label, as the toolbar's select shows it, so the chat's package tools read what
-is on screen. The page writes nothing: no insert into a product, no persisted
-draft, no help buttons.
+reads through a named scope: it opens on "All data", or for a restricted user on
+the first scope they hold (`exploreScopeId` starts as `ALL_DATA_SCOPE_ID`) and
+falls back to it when the chosen scope has been deleted. The admin level it
+offers and defaults to follows the area the scope holds the open family to
+(`scopeAreaForFamily`), so one scope can pin HMIS to an area and leave HFA
+national. Every selection lives in `state/t4_explore.ts`, module level so it
+outlives the page's mount: the family (`exploreFamily`), the module per family
+(`exploreModules`), the view per module (`exploreViews`) and the type per view
+(`exploreViewTypes`) persist in localStorage; the package, the scope
+(`exploreScopeId`), the per-family query (`exploreQueries`) and the per-view
+choices (`exploreViewChoices`) last the session, so a deleted package can never
+be a stored default. Each is resolved against the package on every read: a
+choice the package lacks falls back to the first offered (the package to the
+pin, else the newest ready one) without being overwritten. The authoring context
+is read through `t2_run_authoring_context`. The page sets the chat's `explore`
+view (S13): its pair is the resolved package at the resolved scope (or a refusal
+naming why while none is ready) and its state names the family, module, view and
+type the panes resolve, through the same functions (`resolveFamily`,
+`resolveModule`, `pickModuleView`, `pickViewType`), and the settings of the view
+the frame resolved: `MetricFrame` reports `resolveView`'s result up to the page
+through `onView`, the way `PackageExplorer` reports the authoring context
+through `onContext`, and `formatExploreState` (S13) prints its metric, switch
+option, level, each pin's value, the laid-out category's values and grain, each
+by the id a package tool takes, and the period by its choice's label, as the
+toolbar's select shows it, so the chat's package tools read what is on screen.
+The page writes nothing: no insert into a product, no persisted draft, no help
+buttons.
 
 Under a family tab, `ModuleView` (`module_view.tsx`) fills the pane, and its
 first row in every state is the selectors row: a `SelectV2` over the family's

@@ -126,6 +126,8 @@ function testGlobalUser(email: string, approved: boolean): GlobalUser {
     email,
     firstName: "",
     lastName: "",
+    organisation: null,
+    role: null,
     approved,
     isGlobalAdmin: false,
     thisUserPermissions: {

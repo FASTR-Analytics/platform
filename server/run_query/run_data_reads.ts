@@ -31,7 +31,6 @@ import { RequestQueue } from "../utils/request_queue.ts";
 import { getCatalogEvaluationForResultsObject } from "./catalog_expression_items.ts";
 import {
   findMissingRequiredGroupBys,
-  getIndicatorMetadataFromRun,
   getModuleIdForMetricFromRun,
   getModuleIdForResultsObjectFromRun,
   getPossibleValuesFromRun,
@@ -41,6 +40,7 @@ import {
   getRunVersionInfo,
   moduleHasRun,
   type RunReadContext,
+  valueLabelMapForRun,
 } from "./run_read.ts";
 
 // The package-data reads the run-keyed instance routes serve
@@ -431,8 +431,11 @@ export async function computeRunReplicantOptions(
     fetchConfig: body.fetchConfig,
     ...getRunVersionInfo(runCtx),
   };
-  const indicatorMetadata = getIndicatorMetadataFromRun(runCtx, moduleId);
-  const labelMap = new Map(indicatorMetadata.map((m) => [m.id, m.label]));
+  const labelMap = valueLabelMapForRun(
+    runCtx,
+    moduleId,
+    body.resultsObjectId,
+  );
 
   // Resolve the period filter to exact bounds the same way the items
   // query does, so relative filters ("last N months") narrow the option

@@ -19,7 +19,11 @@ import {
   onCleanup,
   Show,
 } from "solid-js";
-import { ScopeSelect, scopeSelectLabel } from "~/components/_shared/mod.ts";
+import {
+  readyPackageOptionLabel,
+  ScopeSelect,
+  scopeSelectLabel,
+} from "~/components/_shared/mod.ts";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 
@@ -62,7 +66,10 @@ export function PackageScopeModal(p: AlertComponentProps<Props, ReturnType>) {
           }),
         },
       ]),
-      ...packages.map((pkg) => ({ value: pkg.id, label: pkg.label })),
+      ...packages.map((pkg) => ({
+        value: pkg.id,
+        label: readyPackageOptionLabel(pkg),
+      })),
     ];
   });
 

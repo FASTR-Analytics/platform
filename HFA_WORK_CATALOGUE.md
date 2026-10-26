@@ -6,7 +6,9 @@ the code. HMIS and ICEH items are excluded.
 **Compiled:** 2026-10-01, on branch `version2`. Updated 2026-10-08 from the
 thread "HFA data upload testing", and 2026-10-15 from the thread "FASTR
 platform - HFA weekly call", the "HFA work" messages to 2026-10-08 and Tim's
-notes from that day's HFA team meeting.
+notes from that day's HFA team meeting. Checked 2026-10-26 against the Gmail
+inbox, the HFA weekly-call thread to 2026-10-16 and Tim's atlas HFA notes:
+nothing new to add, M19 landed.
 
 **Keeping it current.** When an item lands, move its row to "Already done" with
 the date and the commit.
@@ -80,7 +82,6 @@ Small code changes that need an answer first.
 | M16 | Code written with the wrong case (`com_03c` for `COM_03C`) shows only "not found"                                                                                                                                                                          | Leenisha, 2026-10-15                                                    | Not checked                                                                                                                                                                                                                               |
 | M17 | After editing an indicator, going back loses the position in the indicator list                                                                                                                                                                            | Viviane, 2026-10-15                                                     | Not checked                                                                                                                                                                                                                               |
 | M18 | Admin-area and facility-type variables available as indicators without setup, or in the default workbook, under an "ID" category                                                                                                                           | Safia, 2026-10-14                                                       | Not checked                                                                                                                                                                                                                               |
-| M19 | A French version of the default indicator workbook                                                                                                                                                                                                         | Safia, 2026-10-14; Viviane, 2026-10-15                                  | Content, not code: the workbook is a file in the resource hub                                                                                                                                                                             |
 | M20 | Fix the default indicators that fail in every country, e.g. `sh_03` is one string variable but the default code uses `sh_03_c == 1`, and flag such failures                                                                                                | Viviane, 2026-10-15                                                     | Content fix in the default workbook. Flagging not checked                                                                                                                                                                                 |
 | M21 | Check that imported data values are among the XLSForm's response options                                                                                                                                                                                   | Tim, 2026-10-04                                                         | Not checked                                                                                                                                                                                                                               |
 | M22 | More colour options for heatmaps                                                                                                                                                                                                                           | Viviane, 2026-10-15                                                     | Not checked                                                                                                                                                                                                                               |
@@ -256,6 +257,10 @@ Verified in code or commits:
   the structure import is HMIS-only; the weights import skips facilities the
   registry lacks (2026-10-15 to 2026-10-16, last commit `cddd0a649`; SYSTEM_05
   "HFA registry writes", SYSTEM_06 "HFA import runs").
+- M19: the default indicator workbook on the resource hub carries `label_en`,
+  `label_fr` and `label_pt` columns (Meghan, 2026-10-21), and the import reads
+  the instance language's column, then English, then the single column
+  (2026-10-22, `299d5f771`, `4e4712a0c`).
 
 From Tim's emails only, not re-verified:
 

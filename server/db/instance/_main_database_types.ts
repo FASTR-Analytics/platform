@@ -21,6 +21,8 @@ export type DBUser = {
   unlimited_ai: boolean;
   is_contact_person: boolean;
   all_scopes: boolean;
+  organisation: string | null;
+  role: string | null;
 };
 
 export type UserLog = {

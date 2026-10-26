@@ -39,6 +39,7 @@ import {
   syncUserName,
   toggleAdmin,
   updateUserPermissions,
+  updateUserProfile,
 } from "../../db/mod.ts";
 import {
   _BYPASS_AUTH,
@@ -405,16 +406,13 @@ defineRoute(
 // Fleet name sync
 // ---------------------------------------------------------------------------
 
-/** Pushes a name change observed on this instance to every peer. Best-effort
- *  by design: a peer that is down, or runs an image without the route (404),
- *  is skipped silently, and its own syncUserName on the user's next visit
- *  there is the backstop. Production only, so a dev server holding a real
- *  STATUS_API_KEY can never write names into the live fleet. */
-async function pushUserNameToPeers(
-  email: string,
-  firstName: string | null,
-  lastName: string | null,
-): Promise<void> {
+/** Pushes a user change observed on this instance to every peer's fleet
+ *  route. Best-effort by design: a peer that is down, or runs an image
+ *  without the route (404), is skipped silently; for a name, the peer's own
+ *  syncUserName on the user's next visit there is the backstop, and for a
+ *  profile, the user's next save. Production only, so a dev server holding a
+ *  real STATUS_API_KEY can never write into the live fleet. */
+async function pushToPeers(path: string, body: object): Promise<void> {
   if (!_IS_PRODUCTION || !_STATUS_API_KEY) return;
   const queue = await fetchPeerIds();
   await Promise.all(
@@ -422,18 +420,15 @@ async function pushUserNameToPeers(
       let id: string | undefined;
       while ((id = queue.shift()) !== undefined) {
         try {
-          const response = await fetch(
-            `https://${id}.${FLEET_DOMAIN}/user/sync-name`,
-            {
-              method: "POST",
-              headers: {
-                "content-type": "application/json",
-                "status-api-key": _STATUS_API_KEY,
-              },
-              body: JSON.stringify({ email, firstName, lastName }),
-              signal: AbortSignal.timeout(10_000),
+          const response = await fetch(`https://${id}.${FLEET_DOMAIN}${path}`, {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+              "status-api-key": _STATUS_API_KEY,
             },
-          );
+            body: JSON.stringify(body),
+            signal: AbortSignal.timeout(10_000),
+          });
           await response.body?.cancel();
         } catch {
           // Best-effort: see the contract above.
@@ -441,6 +436,14 @@ async function pushUserNameToPeers(
       }
     }),
   );
+}
+
+function pushUserNameToPeers(
+  email: string,
+  firstName: string | null,
+  lastName: string | null,
+): Promise<void> {
+  return pushToPeers("/user/sync-name", { email, firstName, lastName });
 }
 
 // No log(): a machine call has no user row for the user_logs FK.
@@ -462,6 +465,48 @@ defineRoute(
       body.firstName || null,
       body.lastName || null,
     );
+    if (changed) {
+      notifyInstanceUsersUpdated(await getInstanceUsers(c.var.mainDb));
+    }
+    return c.json({ success: true, data: { changed } });
+  },
+);
+
+// ---------------------------------------------------------------------------
+// Profile: organisation and role
+// ---------------------------------------------------------------------------
+
+defineRoute(
+  routesUsers,
+  "updateMyProfile",
+  requireGlobalPermission(),
+  log("updateMyProfile"),
+  async (c, { body }) => {
+    const { email } = c.var.globalUser;
+    const changed = await updateUserProfile(c.var.mainDb, email, body);
+    if (changed) {
+      notifyInstanceUsersUpdated(await getInstanceUsers(c.var.mainDb));
+      await pushToPeers("/user/sync-profile", { email, ...body });
+    }
+    return c.json({ success: true });
+  },
+);
+
+// No log(): a machine call has no user row for the user_logs FK.
+defineRoute(
+  routesUsers,
+  "receiveUserProfileSync",
+  requireGlobalPermissionOrStatusKey({ requireAdmin: true }),
+  async (c, { body }) => {
+    // No globalUser = fleet-internal machine call, the only caller allowed:
+    // a profile is the user's own words, never an admin's.
+    if (c.var.globalUser) {
+      return c.json({ success: false, err: "Fleet-internal route" }, 403);
+    }
+    // No onward push, as for names: only the instance the user wrote on fans
+    // out, so a sync can never echo around the fleet.
+    const { email, ...profile } = body;
+    const changed = await updateUserProfile(c.var.mainDb, email, profile);
     if (changed) {
       notifyInstanceUsersUpdated(await getInstanceUsers(c.var.mainDb));
     }

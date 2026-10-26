@@ -1,3 +1,37 @@
+[2.1.0] [user] [added] - Package picker now shows creation date and pinned status
+[2.1.0] [user] [added] - Role field added to your profile alongside organisation
+[2.1.0] [user] [added] - Organisation and Role columns visible on the Users page for admins
+[2.1.0] [user] [added] - Insert menu on an open slide lets you add a new slide directly
+[2.1.0] [user] [added] - AI chat panel stays open across page loads once opened
+[2.1.0] [user] [added] - AI effort setting available to trade answer depth for speed
+[2.1.0] [user] [changed] - Explore tab now available to restricted-scope users over their granted scopes
+[2.1.0] [user] [changed] - Add slide button in deck toolbar now shows its label, not just an icon
+[2.1.0] [user] [changed] - Duplicating a product now opens the copy for editing automatically
+[2.1.0] [user] [changed] - Profile prompt at first login now asks for both organisation and role
+[2.1.0] [user] [changed] - AI chat warns you when another tab is actively generating a response
+[2.1.0] [user] [changed] - AI chat cannot be taken over from another tab mid-response
+[2.1.0] [user] [fixed] - Replicant and pin selectors now show the same labels as figures and tables
+[2.1.0] [user] [fixed] - Restricted users no longer land on a blank default scope in Explore
+[2.1.0] [admin] [added] - Users can now set their organisation and role in their profile
+[2.1.0] [admin] [added] - Organisation and Role columns visible on the Users page
+[2.1.0] [admin] [added] - Profile prompt now asks new users for organisation and role on first login
+[2.1.0] [admin] [changed] - Restricted users now have access to the Explore tab using their granted scopes
+[2.1.0] [admin] [changed] - Package picker now shows creation date and pinned status alongside package name
+[2.1.0] [admin] [changed] - AI chat panel stays open across page loads until manually closed
+[2.1.0] [admin] [changed] - AI chat prevents tab takeover while the AI is actively responding
+[2.1.0] [admin] [changed] - Duplicating a product now opens the copy for editing automatically
+[2.1.0] [admin] [added] - Insert menu on open slide now offers adding a new slide directly
+[2.1.0] [admin] [changed] - Add Slide button in deck header now shows its label, not just an icon
+[2.1.0] [admin] [added] - AI effort setting exposed so users can trade answer depth for speed
+[2.1.0] [admin] [improved] - AI copilot now gives correct guidance on deck settings and version history screens
+[2.1.0] [admin] [fixed] - Replicant and value labels now use display names consistently across figures and selectors
+[2.1.0] [admin] [changed] - User profile data syncs across all instances in the fleet automatically
+[2.0.6] [user] [added] - Indicator spreadsheet now supports per-language text columns
+[2.0.6] [user] [changed] - Spreadsheet "definition" column renamed to "label"
+[2.0.6] [user] [added] - Import instructions now explain per-language column options
+[2.0.6] [admin] [added] - HFA indicator spreadsheet now supports per-language text columns
+[2.0.6] [admin] [changed] - HFA spreadsheet "definition" column renamed to "label"
+[2.0.6] [admin] [changed] - Import uses instance language column with English fallback
 [2.0.5] [user] [added] - After applying a DHIS2 ID repair, data is automatically re-imported to fill gaps
 [2.0.5] [user] [fixed] - Special indicators now keep their data correctly during DHIS2 ID repair
 [2.0.5] [admin] [added] - DHIS2 ID repair can now automatically backfill data after applying a fix plan

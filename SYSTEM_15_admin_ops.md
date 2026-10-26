@@ -139,10 +139,10 @@ delete; migration 205). A global admin is unrestricted whatever the flag says.
 `{ all: false, scopeIds: ScopeUuid[] }`; `scopeAccessFromRow` builds it,
 `GlobalUser` and every roster row (`OtherUser`) carry it, and `canUseScope` asks
 it. A restricted user sees only products in their scopes, reads data only
-through them, has no Explore, no `/mcp`, no Results or Data page, and their
-`can_view_data`, `can_configure_data` and `can_view_logs` read as false. Where
-each rule is enforced: products and folders S1 (`productAccessPolicy`), data
-reads S8 "Scope access", the instance stream S3, collab S16.
+through them (Explore included), has no `/mcp`, no Results or Data page, and
+their `can_view_data`, `can_configure_data` and `can_view_logs` read as false.
+Where each rule is enforced: products and folders S1 (`productAccessPolicy`),
+data reads S8 "Scope access", the instance stream S3, collab S16.
 
 Only a global admin changes it, so a restricted user holding
 `can_configure_users` cannot lift their own restriction. That covers the admin
@@ -316,14 +316,16 @@ failures surface as user-facing route errors with GB figures.
   selected global admins. The page holds and sets the chat's `users` view at
   mount and the user detail (opened over the shell) `user` (S13); each view's
   label and instructions name the page and never the roster or the email.
-- **Self-profile** (`profile.tsx`): AI usage bars; the organisation is written
-  **directly to Clerk `unsafeMetadata`**, a second persistence plane outside
-  serverActions/Postgres. Clear data cache, Clear AI chat history, Sign out and
-  Change email each reload the page, so each asks first while an AI turn runs
-  (S13's `confirmReloadUnderTurn`). Change-email wizard
-  (`change_email_modal.tsx`): adds and code-verifies the address through the
-  Clerk JS SDK, runs S1's `renameUserEmailEverywhere` fleet rename, then flips
-  the Clerk primary and refreshes the session token.
+- **Self-profile** (`profile.tsx`): AI usage bars; the organisation and role
+  (`users.organisation`, `users.role`, migration 219) are the user's own words,
+  written through `updateMyProfile`, which notifies the roster and pushes the
+  change to every peer's `receiveUserProfileSync` the way a name change travels
+  (`pushToPeers`), and shown to admins as two Users-page columns. Clear data
+  cache, Clear AI chat history, Sign out and Change email each reload the page,
+  so each asks first while an AI turn runs (S13's `confirmReloadUnderTurn`).
+  Change-email wizard (`change_email_modal.tsx`): adds and code-verifies the
+  address through the Clerk JS SDK, runs S1's `renameUserEmailEverywhere` fleet
+  rename, then flips the Clerk primary and refreshes the session token.
 - **Feedback form** → S12's `sendHelpEmail` route (`requireGlobalPermission()`):
   SendGrid confirmation to the user + copies to `_FEEDBACK_EMAIL_RECIPIENTS`,
   `replyTo` the user.

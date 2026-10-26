@@ -96,6 +96,9 @@ type Props = {
   openVersionHistory: () => Promise<void>;
   deckConfig: SlideDeckConfig;
   patchDeckConfig: (patch: Partial<SlideDeckConfig>) => Promise<void>;
+  // The list's add-slide, handed up so the open slide's Insert menu (in the
+  // editor) adds a slide exactly as the header's Add slide does.
+  onAddSlideApi: (add: (slide: Slide) => Promise<void>) => void;
 };
 
 export function SlideList(p: Props) {
@@ -412,6 +415,7 @@ export function SlideList(p: Props) {
     return { toEnd: true };
   }
 
+  p.onAddSlideApi(addSlide);
   async function addSlide(slide: Slide) {
     const position = getInsertPosition();
     const afterSlideId = "after" in position ? position.after : null;

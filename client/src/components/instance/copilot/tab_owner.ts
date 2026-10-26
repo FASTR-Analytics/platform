@@ -11,11 +11,17 @@ import { type Accessor, createSignal, onCleanup } from "solid-js";
 // queues a new request, so the browser grants the taker's pending request
 // and this tab becomes the owner again when the taker closes. The browser
 // releases a closed or crashed owner's lock by itself, so a tab left waiting
-// becomes the owner with no message. Without the Web Locks API (an insecure
+// becomes the owner with no message. An owner in the middle of a turn
+// answers `busy` instead and keeps the chat: a take-over would stop the turn
+// under the user's feet, and the taker shows that the chat is answering
+// elsewhere until it asks again. Without the Web Locks API (an insecure
 // context) the tab is the owner at once.
 
 export type TabOwnership = {
   owner: Accessor<boolean>;
+  // The owner refused the last take-over because its turn is running; reset
+  // by the next request.
+  ownerBusy: Accessor<boolean>;
   takeOver: () => void;
 };
 
@@ -26,12 +32,14 @@ function isAbort(err: unknown): boolean {
 export function createTabOwner(
   scope: string,
   onHandOver: () => Promise<void>,
+  isBusy: () => boolean,
 ): TabOwnership {
   const [owner, setOwner] = createSignal(false);
+  const [ownerBusy, setOwnerBusy] = createSignal(false);
   const locks = navigator.locks;
   if (locks === undefined) {
     setOwner(true);
-    return { owner, takeOver: () => {} };
+    return { owner, ownerBusy, takeOver: () => {} };
   }
   const name = `copilot-owner/${scope}`;
   const channel = new BroadcastChannel(name);
@@ -77,7 +85,14 @@ export function createTabOwner(
   }
 
   channel.onmessage = (event: MessageEvent<unknown>) => {
-    if (event.data === "takeover") void handOver();
+    if (event.data === "takeover" && owner()) {
+      if (isBusy()) {
+        channel.postMessage("busy");
+        return;
+      }
+      void handOver();
+    }
+    if (event.data === "busy" && !owner()) setOwnerBusy(true);
   };
   request();
 
@@ -90,5 +105,12 @@ export function createTabOwner(
     }
   });
 
-  return { owner, takeOver: () => channel.postMessage("takeover") };
+  return {
+    owner,
+    ownerBusy,
+    takeOver: () => {
+      setOwnerBusy(false);
+      channel.postMessage("takeover");
+    },
+  };
 }

@@ -35,7 +35,7 @@ import {
   Switch,
 } from "solid-js";
 import { clerk } from "~/state/_infra/clerk";
-import { OrganisationModal } from "./organisation_modal";
+import { ProfilePromptModal } from "./profile_prompt_modal";
 import { ThemeModal } from "./theme_modal";
 import { THEME_SWITCHER_ENABLED } from "~/state/t4_theme";
 import { WhatsNewFeedModal, WhatsNewModal } from "./whats_new_modal";
@@ -91,15 +91,14 @@ function navItems(): ListItem<InstanceTab>[] {
     },
   ];
   // Approved users only, like every tab: the whole nav sits behind
-  // currentUserApproved. A restricted user has no Explore; Results and Data
+  // currentUserApproved. Explore reads a package through a named scope, so a
+  // restricted user has it too, over their granted scopes; Results and Data
   // hide for them because their data bits read as false.
-  if (instanceState.currentUserScopeAccess.all) {
-    items.push({
-      id: "explore",
-      label: t3({ en: "Explore", fr: "Explorer", pt: "Explorar" }),
-      iconName: "chart",
-    });
-  }
+  items.push({
+    id: "explore",
+    label: t3({ en: "Explore", fr: "Explorer", pt: "Explorar" }),
+    iconName: "chart",
+  });
   if (canConfigureData()) {
     items.push({
       id: "results_packages",
@@ -164,9 +163,6 @@ export default function Instance(p: Props) {
     const perms = p_();
     const canData = admin || perms.can_view_data || perms.can_configure_data;
     const canUsers = admin || perms.can_configure_users || perms.can_view_users;
-    if (t === "explore" && !instanceState.currentUserScopeAccess.all) {
-      return "products";
-    }
     if (t === "data" && !canData) return "products";
     if (t === "results_packages" && !canConfigureData()) return "products";
     if (t === "scopes" && !admin) return "products";
@@ -189,12 +185,31 @@ export default function Instance(p: Props) {
     if (postLoginRanForUserId === clerk.user.id) return;
     postLoginRanForUserId = clerk.user.id;
     (async () => {
-      if (!clerk.user!.unsafeMetadata?.organisation) {
-        await openComponent({ element: OrganisationModal, props: undefined });
-      }
+      await promptForProfile();
       await maybeShowWhatsNew();
     })();
   });
+
+  // The organisation once lived only in Clerk unsafeMetadata, where admins
+  // could not read it; a user who answered there is not asked again: their
+  // answer seeds the users table and the Clerk key is dropped.
+  async function promptForProfile(): Promise<void> {
+    const me = await serverActions.getCurrentUser({});
+    if (!me.success || me.data.organisation || me.data.role) return;
+    const { organisation: fromClerk, ...rest } = clerk.user!.unsafeMetadata;
+    if (typeof fromClerk === "string" && fromClerk.trim()) {
+      const saved = await serverActions.updateMyProfile({
+        organisation: fromClerk,
+        role: null,
+      });
+      if (saved.success) await clerk.user!.update({ unsafeMetadata: rest });
+      return;
+    }
+    await openComponent({
+      element: ProfilePromptModal,
+      props: { initial: { organisation: null, role: null } },
+    });
+  }
 
   // A language applies by full reload, which loses an AI turn in flight, so
   // the switch asks first while one runs (S13's turn guard). Choosing the

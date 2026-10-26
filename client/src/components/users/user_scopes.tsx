@@ -90,11 +90,11 @@ export function UserScopesCard(p: { user: OtherUser }) {
           <div class="text-base-content-muted text-sm">
             {t3({
               en:
-                "This user sees only products that carry one of these scopes, and reads data only through them. They have no Explore, and cannot view or configure data or view logs, whatever their permissions say.",
+                "This user sees only products that carry one of these scopes, and reads data only through them, in Explore too. They cannot view or configure data or view logs, whatever their permissions say.",
               fr:
-                "Cet utilisateur ne voit que les produits portant l'une de ces portées et ne lit les données qu'à travers elles. Il n'a pas accès à Explorer et ne peut ni consulter ni configurer les données, ni consulter les journaux, quels que soient ses droits.",
+                "Cet utilisateur ne voit que les produits portant l'une de ces portées et ne lit les données qu'à travers elles, y compris dans Explorer. Il ne peut ni consulter ni configurer les données, ni consulter les journaux, quels que soient ses droits.",
               pt:
-                "Este utilizador vê apenas os produtos com um destes âmbitos e lê dados apenas através deles. Não tem acesso a Explorar e não pode ver nem configurar dados nem ver registos, sejam quais forem as suas permissões.",
+                "Este utilizador vê apenas os produtos com um destes âmbitos e lê dados apenas através deles, também em Explorar. Não pode ver nem configurar dados nem ver registos, sejam quais forem as suas permissões.",
             })}
           </div>
         </Show>

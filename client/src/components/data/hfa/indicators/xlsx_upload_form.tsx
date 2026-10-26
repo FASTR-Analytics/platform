@@ -1,5 +1,5 @@
 import { createSignal, onMount } from "solid-js";
-import { t3, TC } from "lib";
+import { type Language, t3, TC } from "lib";
 import {
   Button,
   createFormAction,
@@ -38,6 +38,7 @@ const DEFAULT_INDICATORS_XLSX_URL =
 
 async function fetchDefaultWorkbookShape(
   existingIndicatorIds: string[],
+  language: Language,
 ): Promise<StateHolder<WorkbookShape>> {
   let buf: ArrayBuffer;
   try {
@@ -75,7 +76,7 @@ async function fetchDefaultWorkbookShape(
       }),
     };
   }
-  const detected = detectHfaWorkbookShape(buf, existingIndicatorIds);
+  const detected = detectHfaWorkbookShape(buf, existingIndicatorIds, language);
   return detected.ok
     ? { status: "ready", data: detected.shape }
     : { status: "error", err: detected.err };
@@ -87,6 +88,7 @@ type Props = EditorComponentProps<
     timePoints: string[];
     variableIds: string[];
     existingIndicatorIds: string[];
+    instanceLanguage: Language;
   },
   undefined
 >;
@@ -106,7 +108,11 @@ export function HfaIndicatorsXlsxUploadForm(p: Props) {
   async function pickFile() {
     const buf = await pickFileAsArrayBuffer([".xlsx"]);
     if (!buf) return;
-    const detected = detectHfaWorkbookShape(buf, p.existingIndicatorIds);
+    const detected = detectHfaWorkbookShape(
+      buf,
+      p.existingIndicatorIds,
+      p.instanceLanguage,
+    );
     if (!detected.ok) {
       // Surface parse error on pick: keep on pick step with error shown
       setParseErr(detected.err);
@@ -153,6 +159,7 @@ export function HfaIndicatorsXlsxUploadForm(p: Props) {
           <Match when={step().name === "pick" && p.source.kind === "default"}>
             <DefaultStep
               existingIndicatorIds={p.existingIndicatorIds}
+              instanceLanguage={p.instanceLanguage}
               uploadMode={uploadMode()}
               onUploadModeChange={setUploadMode}
               onContinue={(shape) => setStep({ name: "reconcile", shape })}
@@ -242,6 +249,7 @@ function categoryCount(shape: WorkbookShape): string {
 
 function DefaultStep(p: {
   existingIndicatorIds: string[];
+  instanceLanguage: Language;
   uploadMode: "replace" | "add";
   onUploadModeChange: (v: "replace" | "add") => void;
   onContinue: (shape: WorkbookShape) => void;
@@ -260,7 +268,12 @@ function DefaultStep(p: {
   );
   async function load() {
     setWorkbook(loadingState());
-    setWorkbook(await fetchDefaultWorkbookShape(p.existingIndicatorIds));
+    setWorkbook(
+      await fetchDefaultWorkbookShape(
+        p.existingIndicatorIds,
+        p.instanceLanguage,
+      ),
+    );
   }
   onMount(load);
 
@@ -351,10 +364,20 @@ function PickStep(p: {
               fr: "séparés par | pour plusieurs",
               pt: "separados por | para vários",
             })}
-            ), shortLabel, definition, type, aggregation, r_code__&lt;time
-            point&gt;, r_filter_code__&lt;time point&gt;, …
+            ), shortLabel, label, type, aggregation, r_code__&lt;time point&gt;,
+            r_filter_code__&lt;time point&gt;, …
           </li>
         </ul>
+        <div class="mt-2">
+          {t3({
+            en:
+              "A text column (label, shortLabel) can instead be given per language, as label_en, label_fr and label_pt. The import takes the instance language's column and falls back to English.",
+            fr:
+              "Une colonne de texte (label, shortLabel) peut aussi être fournie par langue : label_en, label_fr et label_pt. L'importation prend la colonne de la langue de l'instance et se rabat sur l'anglais.",
+            pt:
+              "Uma coluna de texto (label, shortLabel) pode em vez disso ser dada por idioma: label_en, label_fr e label_pt. A importação usa a coluna do idioma da instância e recorre ao inglês.",
+          })}
+        </div>
       </div>
       <ImportModeRadio
         uploadMode={p.uploadMode}

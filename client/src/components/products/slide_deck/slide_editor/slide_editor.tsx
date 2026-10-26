@@ -146,6 +146,8 @@ type SlideEditorInnerProps = {
   // and `flush`, which settles an unsaved draft before the deck swaps the
   // slide out (false = the user chose to keep editing, so the swap is off).
   onApi?: (api: SlideEditorApi | undefined) => void;
+  // The deck's add-slide, for the Insert menu; absent until the list mounts.
+  onAddSlide?: (slide: Slide) => Promise<void>;
 };
 
 export type SlideEditorApi = OpenSlide & { flush: () => Promise<boolean> };
@@ -1205,6 +1207,7 @@ export function SlideEditor(p: Props) {
           inlineApi={inlineApi()}
           onEditText={(target) => startInlineEdit(target)}
           onAddField={addTitleField}
+          onAddSlide={p.onAddSlide}
           onShowLayoutMenu={handleShowLayoutMenu}
           menuRowHost={p.menuRowHost}
           onBlockTypeChange={handleBlockTypeChange}
