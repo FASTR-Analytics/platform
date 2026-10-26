@@ -48,6 +48,7 @@ import {
   type InlineEditTarget,
   type InlineTextApi,
 } from "./inline_text_editor";
+import { NEW_SLIDE_KINDS } from "../_shared/mod.ts";
 import { SLIDE_TEXT_FIELDS, slideTextField } from "./slide_fields";
 
 type BlockType = "text" | "figure" | "image";
@@ -73,6 +74,8 @@ type Props = {
   onEditText: (target: InlineEditTarget) => void;
   /** Show an absent title field: seed it and start typing into it. */
   onAddField: (primitiveId: string) => void;
+  /** Add a slide after the open one, as the header's Add slide does. */
+  onAddSlide?: (slide: Slide) => Promise<void>;
   onShowLayoutMenu: (x: number, y: number) => void;
   // Where the deck wants the menu row (its header); absent, it renders here.
   menuRowHost?: HTMLElement;
@@ -523,6 +526,33 @@ export function SlideToolbar(p: Props) {
       >
         {(close) => (
           <div class="w-56">
+            <Show when={p.onAddSlide}>
+              {(addSlide) => (
+                <>
+                  <Caption>
+                    {t3({
+                      en: "New slide",
+                      fr: "Nouvelle diapositive",
+                      pt: "Novo diapositivo",
+                    })}
+                  </Caption>
+                  <For each={NEW_SLIDE_KINDS}>
+                    {(k) => (
+                      <PopoverRow
+                        active={false}
+                        onClick={() => {
+                          close();
+                          void addSlide()(k.make());
+                        }}
+                      >
+                        {k.label()}
+                      </PopoverRow>
+                    )}
+                  </For>
+                  <MenuDivider />
+                </>
+              )}
+            </Show>
             <Caption>
               {t3({
                 en: "Click text on the slide to edit it",

@@ -13,14 +13,7 @@ import {
   PopoverRow,
   ToolbarPopover,
 } from "report-forge";
-import {
-  getDefaultContentSlide,
-  getDefaultCoverSlide,
-  getDefaultSectionSlide,
-  type Slide,
-  type SlideDeckConfig,
-  t3,
-} from "lib";
+import { type Slide, type SlideDeckConfig, t3 } from "lib";
 import {
   Button,
   Checkbox,
@@ -33,6 +26,7 @@ import {
 import { createSignal, For, type JSX, onCleanup, Show } from "solid-js";
 import { manageAccessLabel } from "~/components/products/_shared/mod.ts";
 import { instanceState } from "~/state/instance/t1_store";
+import { NEW_SLIDE_KINDS } from "./_shared/mod.ts";
 import { LogoSectionEditor } from "./logo_section_editor";
 import { ThemePicker } from "./style_editor/mod.ts";
 
@@ -112,60 +106,19 @@ function FooterPanel(p: {
 // Add slide leads the menu row, the way Google Slides puts New slide first:
 // adding a slide is the deck's most common action.
 export function AddSlideMenu(p: { onAdd: (slide: Slide) => void }) {
-  const kinds = [
-    {
-      label: () =>
-        t3({
-          en: "Cover slide",
-          fr: "Diapositive de couverture",
-          pt: "Diapositivo de capa",
-        }),
-      make: getDefaultCoverSlide,
-    },
-    {
-      label: () =>
-        t3({
-          en: "Section slide",
-          fr: "Diapositive de section",
-          pt: "Diapositivo de secção",
-        }),
-      make: getDefaultSectionSlide,
-    },
-    {
-      label: () =>
-        t3({
-          en: "Content slide",
-          fr: "Diapositive de contenu",
-          pt: "Diapositivo de conteúdo",
-        }),
-      make: getDefaultContentSlide,
-    },
-  ];
   return (
     <ToolbarPopover
       menu
       attrs={{ "data-tour": "deck-add-slide" }}
       label={
-        // Just the +, at the height of the text menus beside it; the name
-        // is its tooltip and its accessible label.
-
-
-          <span
-            class="flex h-5 items-center"
-            title={t3({
-              en: "Add slide",
-              fr: "Ajouter une diapositive",
-              pt: "Adicionar diapositivo",
-            })}
-            aria-label={t3({
-              en: "Add slide",
-              fr: "Ajouter une diapositive",
-              pt: "Adicionar diapositivo",
-            })}
-          >
-            <Icon iconName="plus" class="h-4 w-4" />
-          </span>
-
+        <span class="flex h-5 items-center gap-1">
+          <Icon iconName="plus" class="h-4 w-4" />
+          {t3({
+            en: "Add slide",
+            fr: "Ajouter une diapositive",
+            pt: "Adicionar diapositivo",
+          })}
+        </span>
       }
       title={t3({
         en: "Add slide",
@@ -175,7 +128,7 @@ export function AddSlideMenu(p: { onAdd: (slide: Slide) => void }) {
     >
       {(close) => (
         <div class="flex w-56 flex-col">
-          <For each={kinds}>
+          <For each={NEW_SLIDE_KINDS}>
             {(k) => (
               <PopoverRow
                 active={false}

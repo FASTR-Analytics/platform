@@ -582,6 +582,9 @@ function SlideDeckEditorInner(p: {
   const [toolbarHost, setToolbarHost] = createSignal<HTMLDivElement>();
   const [menuRowHost, setMenuRowHost] = createSignal<HTMLDivElement>();
   const [statusHost, setStatusHost] = createSignal<HTMLDivElement>();
+  const [addSlide, setAddSlide] = createSignal<
+    (slide: Slide) => Promise<void>
+  >();
 
   return (
     <HistoryEditorWrapper>
@@ -612,6 +615,7 @@ function SlideDeckEditorInner(p: {
             onToolbarHost={setToolbarHost}
             onMenuRowHost={setMenuRowHost}
             onStatusHost={setStatusHost}
+            onAddSlideApi={(add) => setAddSlide(() => add)}
           >
             <Show
               when={p.editorMount}
@@ -640,6 +644,7 @@ function SlideDeckEditorInner(p: {
                   toolbarHost={toolbarHost()}
                   menuRowHost={menuRowHost()}
                   statusHost={statusHost()}
+                  onAddSlide={addSlide()}
                   openHostEditor={openDeckEditor}
                   onApi={p.onEditorApi}
                   {...snapshotForSlideEditor({ deckConfig: p.deckConfig })}
