@@ -12,15 +12,7 @@ the deploy remains. **Next step:** the manual work after the deploy, below.
 
 ## Manual work after the deploy
 
-1. Resource hub workbook. In `FASTR-Analytics/fastr-resource-hub`, change the 47
-   `r_code__Round 1` cells of `hfa_default_indicators.xlsx` that read
-   `x %in% c(...)` to `x IN (...)`. Run a script from this repo's scratchpad
-   that applies `rewriteHfaListSyntax(source, "r", "language")` from
-   `server/db/migrations/instance/220_hfa_code_in_list.ts`. Then commit and push
-   the workbook to that repo. The push waits for the deploy, because the
-   previous platform rejects `IN`. After the deploy and before the push, a fresh
-   import of the old file shows those 47 rows as syntax errors.
-2. Docs site page `ind-r-code` (admin-guide/indicators). Edit it with the title
+1. Docs site page `ind-r-code` (admin-guide/indicators). Edit it with the title
    and body below, then run `deno task build:help-buttons` here and commit the
    regenerated `lib/help/help_targets.generated.ts`.
 
