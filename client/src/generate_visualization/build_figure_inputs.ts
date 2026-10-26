@@ -70,7 +70,7 @@ export function buildFigureInputs(
   const indicatorLabelReplacements = indicatorMetadataToLabelMap(
     indicatorMetadata,
   );
-  const indicatorSortOrder = buildIndicatorIdOrder(indicatorMetadata);
+  const catalogIdOrder = buildCatalogIdOrder(indicatorMetadata);
 
   const effectiveFormat = resolveEffectiveIndicatorFactsFromItems({
     metricFormatAs: resultsValue.formatAs,
@@ -130,7 +130,7 @@ export function buildFigureInputs(
       effectiveConfig,
       effectiveValueProps,
       indicatorLabelReplacements,
-      indicatorSortOrder,
+      catalogIdOrder,
       localization,
       scope,
       items,
@@ -195,7 +195,7 @@ export function buildFigureInputs(
           effectiveConfig,
           effectiveValueProps,
           indicatorLabelReplacements,
-          indicatorSortOrder,
+          catalogIdOrder,
           localization,
           scope,
           items,
@@ -297,7 +297,7 @@ export function buildFigureInputs(
             effectiveConfig,
             effectiveValueProps,
             indicatorLabelReplacements,
-            indicatorSortOrder,
+            catalogIdOrder,
             localization,
             scope,
             items,
@@ -315,7 +315,7 @@ export function buildFigureInputs(
           effectiveConfig,
           effectiveValueProps,
           indicatorLabelReplacements,
-          indicatorSortOrder,
+          catalogIdOrder,
           localization,
           scope,
           items,
@@ -346,7 +346,7 @@ export function buildFigureInputs(
       effectiveConfig,
       effectiveValueProps,
       indicatorLabelReplacements,
-      indicatorSortOrder,
+      catalogIdOrder,
     );
     // panther expects numeric values for the color scale; items are string-typed
     // in the bundle, so parse numeric strings to numbers here.
@@ -421,7 +421,7 @@ export function buildFigureInputs(
       effectiveConfig,
       effectiveValueProps,
       indicatorLabelReplacements,
-      indicatorSortOrder,
+      catalogIdOrder,
       localization,
       scope,
       effectiveFormat.axisFormat,
@@ -579,10 +579,10 @@ function withDateRange(
     .replaceAll("INTERVALO_DE_DATAS", d);
 }
 
-// The package catalog's own order, ids only: what every indicator axis sorts
-// by. Entries with no stamped order follow, by id, so a mixed catalog is
+// The package catalog's own order, ids only: what every catalog-ordered axis
+// sorts by. Entries with no stamped order follow, by id, so a mixed catalog is
 // still deterministic.
-function buildIndicatorIdOrder(metadata: IndicatorMetadataDisplay[]): string[] {
+function buildCatalogIdOrder(metadata: IndicatorMetadataDisplay[]): string[] {
   return [...metadata]
     .sort(
       (a, b) =>

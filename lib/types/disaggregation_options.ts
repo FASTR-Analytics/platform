@@ -44,6 +44,23 @@ export const INDICATOR_DISAGGREGATION_OPTIONS = [
   "hfa_indicator",
   "iceh_indicator",
 ] as const satisfies readonly DisaggregationOption[];
+// The dimensions whose values are ids of the package catalog, which stamps
+// each with the instance's own order (HFA indicators in workbook order, the
+// HFA taxonomies and ICEH strata in their reorderable order): the axes that
+// sort by that order rather than by label.
+export const CATALOG_ORDERED_DISAGGREGATION_OPTIONS: ReadonlySet<string> =
+  new Set(
+    [
+      "indicator_common_id",
+      "hfa_indicator",
+      "hfa_variant_item",
+      "hfa_category",
+      "hfa_sub_category",
+      "hfa_service_category",
+      "iceh_indicator",
+      "strat",
+    ] satisfies DisaggregationOption[],
+  );
 // The period-VALUED display columns. Distinct from `periodOption`
 // (_metric_installed.ts), the queryable period formats: `month` is not a
 // format: it is a derived, zero-padded text column (see
