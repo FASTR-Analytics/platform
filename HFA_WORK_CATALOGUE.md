@@ -281,9 +281,9 @@ Verified in code or commits:
   the wrong case gets the matching id suggested, the editor lists the operators
   and the list form under the code box and the AI guidance reads the same
   constants; stored `%in% c(...)` code was migrated to `IN (...)` (migration
-  220); no UI text says R (2026-10-27, `67bbce732`, `2c1aee45f`, `eec96a5a7`,
-  `22c05d704` and the commit that removed R from the UI text). Viviane's index
-  is `(a + b + c) / 3`.
+  220); no UI text says R (2026-10-27, `67bbce732`, `cad852ede`, `2c1aee45f`,
+  `eec96a5a7`, `22c05d704`, `e89367558`, `b6e2617a7`). Viviane's index is
+  `(a + b + c) / 3`.
 - U4: HFA tables and charts order indicators, categories, sub-categories and
   variant items by the instance's own order (workbook row order for indicators,
   the reorder handles for the taxonomies), and ICEH indicators and strata
