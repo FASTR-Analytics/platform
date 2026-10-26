@@ -355,11 +355,21 @@ export function Products() {
     }
   }
 
+  // The copy lands beside its source, so its folder opens and the copy
+  // opens for editing, as a product this page just created does.
   async function handleDuplicate(product: ProductSummary) {
-    await openComponent({
+    const result = await openComponent({
       element: DuplicateProductsModal,
       props: { products: [product] },
     });
+    const copyId = result?.productIds[0];
+    if (copyId === undefined) return;
+    if (product.folderId === null) {
+      setProductsGeneralClosed(false);
+    } else {
+      setOpenFolderIds(new Set([...openFolderIds(), product.folderId]));
+    }
+    await openCreatedProduct({ productId: copyId });
   }
 
   async function handleDelete(product: ProductSummary) {
