@@ -63,9 +63,8 @@ Nothing was run in the app.
 
 ## Data and operations
 
-| Id | Item                                                                                                                                                                           | Raised by            | State                                                                                                                                                                 |
-| -- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| D2 | `demo-fr-v2-testing.fastr-analytics.org` shows "temporarily unavailable"; Angelica needs a French v2 site for the Mali training and the Mauritania workshop (2026-10-26 to 30) | Angelica, 2026-10-23 | Not a code item. 2.0.0 reached production on 2026-10-20, so `demo-fr` is now v2 and is the site to use. Change: reply, and retire or redirect the v2-testing hostname |
+| Id | Item | Raised by | State |
+| -- | ---- | --------- | ----- |
 
 ## Already done
 
@@ -99,4 +98,7 @@ Nothing was run in the app.
 - R10: AI settings expose effort (`5360692e1`).
 - D1: answered in Joshua's email; the settings and dataset diff between the two
   packages is Angelica's, from the two run manifests.
+- D2: the v2-testing instance is gone from the fleet (`servers.json` lists
+  `demo-fr` at 2.0.6 and no `demo-fr-v2-testing`); the hostname answers with the
+  fleet's landing page. Angelica's email says to use `demo-fr`.
 - D3: answered under B1 and in Ashley's email.
