@@ -145,20 +145,21 @@ What is done and will be in the next release:
 
 - Uploading facilities and survey data is one step. The data import wizard reads
   the facility id, admin areas, name and type from the survey file, shows every
-  new facility and every change before it starts, and writes them with the data.
-  There is no separate facility upload any more. A fresh country can create its
-  first round from inside the wizard, and name and type columns are offered on
-  every import.
+  new facility and every change before it starts, and saves the facilities
+  together with the survey data. There is no separate facility upload any more.
+  A fresh country can create its first round from inside the wizard, and name
+  and type columns are offered on every import.
 - "Apply to all time points" in the indicator workbook import now does what it
   says: one code column goes to every round, whatever the column is called.
-- Indicator code is the platform's own language, not R. It accepts comparisons
-  (== != < > <= >=), AND, OR, NOT, arithmetic, and a list test written as "x IN
-  (1, 2)". The accepted operators are listed under the code box. Anything else
-  is refused with a clear message, and a variable typed in the wrong case gets
-  the right one suggested. The old "%in% c(1, 2)" form in existing indicators
-  was converted automatically. The default workbook on the resource hub still
-  has 47 rows in the old form; I will send you the exact change, it is a find
-  and replace.
+- Indicator code now uses the platform's own expression syntax instead of R. It
+  accepts comparisons (== != < > <= >=), AND, OR, NOT, arithmetic, and a list
+  test written as "x IN (1, 2)". The accepted operators are listed under the
+  code box. Anything else is refused with a message that says what was not
+  understood, and if a variable name is typed in the wrong case, the message
+  suggests the correct spelling. Existing indicators in the platform were
+  converted automatically from the old "%in% c(1, 2)" form. The default workbook
+  on the resource hub is a separate file and still has 47 rows in the old form;
+  I will send you the exact change, which is a find and replace.
 - Tables and charts order HFA indicators the way the workbook orders them, and
   categories the way they are ordered in the category manager, instead of
   alphabetically.
@@ -192,14 +193,17 @@ Still to do, in the order I plan to take them:
    this already works once "Facility types" is switched on in the HFA
    configuration and the results package is regenerated.
 7. More colour scales for heatmap tables.
-8. A note on figures that use carried-forward values.
+8. A note on figures that use values carried forward from a previous round (used
+   when a round has no values for that indicator).
 9. A custom label and a stronger border for the "All facilities" column.
 10. Deleting one facility's rows for a round after an import.
 11. The AI assistant checks that the variables an indicator's code uses fit the
     indicator's label.
 12. A time point with a start month and an end month.
-13. A finite population correction column in the weights table, beside the
-    stratum. Strata are already stored but not yet used in the analysis.
+13. A column for the finite population correction (an adjustment to the weights
+    when the sample is a large share of all facilities) in the weights table,
+    beside the stratum. Strata are already stored but not yet used in the
+    analysis.
 14. Gauge charts and dotted lines.
 
 Larger pieces that need a decision or a design before I start: confidence
@@ -207,18 +211,18 @@ intervals and significance tests, the standard HFA report, recoding "Other"
 responses, detecting questionnaire changes between rounds, drafting notes from
 the questionnaire, questionnaires that are not XLSForms, Russian for Tajikistan,
 the sample distribution table, the immunisation readiness module, and linking
-HFA and HMIS facilities.
+HFA facilities to the facilities in the routine health information system
+(HMIS).
 
 Three questions from earlier are still open on your side:
 
-- What the standard defaults for the HFA module settings should be. Today
+- What should the standard defaults for the HFA module settings be? Today
   weights are off, "don't know" is treated as missing, and a failing indicator
-  does not stop the run. Once the weights setting goes, only the other two
-  remain.
-- Whether not applicable is coded -98 and -999998. The platform treats both as
-  question-specific values today.
-- Whether carrying an indicator forward from the previous round, which the
-  platform does when a round has no values for it, is what the team means by
-  cross-round carry-forward.
+  does not stop the run. Once the "Use sampling weights" setting is removed,
+  only the other two need defaults.
+- Is "not applicable" coded -98 or -999998 in your surveys? Today the platform
+  treats both as values specific to each question, not as missing.
+- When a round has no values for an indicator, the platform fills it from the
+  previous round. Is that what the team means by cross-round carry-forward?
 
 Tim
