@@ -833,11 +833,11 @@ export function detectHfaWorkbookShape(
     if (isReservedHfaId(indicatorId)) {
       return rowError(language, SHEET_INDICATORS, indRows[i].index, {
         en:
-          `indicatorId "${indicatorId}" is a reserved word (an R function or operator used in indicator code, or a column the analysis script generates). Choose a different id.`,
+          `indicatorId "${indicatorId}" is a reserved word (a word of the indicator code language, or a name the analysis script uses for its own columns). Choose a different id.`,
         fr:
-          `indicatorId « ${indicatorId} » est un mot réservé (une fonction ou un opérateur R utilisé dans le code des indicateurs, ou une colonne générée par le script d'analyse). Choisissez un autre id.`,
+          `indicatorId « ${indicatorId} » est un mot réservé (un mot du langage du code des indicateurs, ou un nom que le script d'analyse utilise pour ses propres colonnes). Choisissez un autre id.`,
         pt:
-          `indicatorId "${indicatorId}" é uma palavra reservada (uma função ou um operador do R usado no código dos indicadores, ou uma coluna gerada pelo script de análise). Escolha outro id.`,
+          `indicatorId "${indicatorId}" é uma palavra reservada (uma palavra da linguagem do código dos indicadores, ou um nome que o script de análise usa para as suas próprias colunas). Escolha outro id.`,
       });
     }
     if (usedIndicatorIds.has(indicatorId)) {

@@ -22,7 +22,7 @@ globs:
   - lib/hmis_indicator_catalog.ts
   - lib/traffic_light_rule.ts
   - lib/hfa_indicator_labels.ts
-  - lib/hfa_r_code_analysis.ts
+  - lib/hfa_indicator_code.ts
   - lib/indicator_expression/**
   - lib/indicator_id.ts
   - lib/population_coverage.ts
@@ -56,7 +56,8 @@ globs:
   - server/tests/dhis2_id_fix_backfill_test.ts
   - server/tests/dhis2_id_fix_execute_test.ts
   - server/tests/dhis2_id_fix_plan_test.ts
-  - server/tests/hfa_r_code_analysis_test.ts
+  - server/tests/hfa_indicator_code_test.ts
+  - server/tests/hfa_r_emit_test.ts
   - server/tests/hfa_workbook_text_columns_test.ts
   - server/tests/indicator_analysed_set_test.ts
   - server/tests/indicator_data_key_test.ts
@@ -682,11 +683,11 @@ ids** (`hfa_indicators.indicator_id`, e.g. `ind001`) and **variable ids**
 e.g. `fin_01a_a`, or `{question}_{choice}` for an expanded `select_multiple`).
 The variable id is the column the HFA extract carries to R (`hfa.csv`
 `variable_id`, the `m010` pivot column) and the id that indicator R code
-references; `M10_STRUCTURAL_NAMES` reserves it with the other columns the script
-owns. User-authored R snippets in `hfa_indicator_code` (per indicator_id ×
+references; `isReservedHfaId` reserves it with the other columns the script
+owns. User-authored code snippets in `hfa_indicator_code` (per indicator_id ×
 time_point: `r_code` + optional `r_filter_code`, filter requires main code)
 reference variables AND other indicators, both by id. Indicator ids are assigned
-by the app and never typed: `nextHfaIndicatorId` (`lib/hfa_r_code_analysis.ts`)
+by the app and never typed: `nextHfaIndicatorId` (`lib/hfa_indicator_code.ts`)
 takes the next `indNNN` after the highest stored one, skipping reserved words
 and survey variable ids (the id is interpolated as a bare R symbol, so it must
 not shadow a dataset column). The single create route assigns it on the server
@@ -771,28 +772,38 @@ edits do not touch any `updated_at`, so they are folded directly into
 that, variant authoring is invisible to the SSE→cache triangle and to the run's
 `hfaIndicatorsVersion` stamp.
 
-**HFA R-code analysis has ONE home**: `lib/hfa_r_code_analysis.ts` (the accepted
-functions and operators, `HFA_CODE_FUNCTIONS` and `HFA_CODE_OPERATORS`, which
-the editor's help line and the AI guidance also read; escaped-quote-safe
-string/comment stripping; identifier extraction, where an identifier followed by
-`(` is a call and `unknownRFunctions` lists the calls the language rejects),
-shared by the client editor validator and the server dependency analyzer
-(`server_only_funcs/hfa_dependency_analyzer.ts`). Never re-fork these. A fork
-(two whitelists, or a server that does not strip comments) makes editor-green
-code hard-fail whole module runs. lib compiles into both runtimes: keep it pure
-(no Deno/UI imports). The persisted `has_syntax_error`/`code_consistent` flags
-are advisory metadata that the manager does not display (its Status and
-Consistent columns compute from the code) and that only the chat's HFA tools
-read (`get_hfa_indicators`): the run's `hfa_indicators_snapshot.json` carries
-them and its reader (`hfaIndicatorRow`, `server/run_query/run_read.ts`) drops
-them, and bulk validation updates deliberately do NOT bump `updated_at` (a bump
-would move `hfaIndicatorsVersion`, the run's HFA staleness stamp, for an edit
-generation ignores). Warnings (lone `=`) are a distinct severity and never
-persist as errors. The R-code lifecycle: instance edits → run capture (S6's
-run-capture seam) snapshots indicators+taxonomy+code → S8's module run builds a
-cross-indicator dependency graph (topological sort, cycles rejected) and splices
-each round's code into `case_when` branches; `STOP_IF_INDICATOR_FAILS` (default
-TRUE) makes one invalid indicator kill the run.
+**HFA indicator code has ONE home**: `lib/hfa_indicator_code.ts`. The code is
+the platform's expression language (`lib/indicator_expression/parse.ts`, shared
+with calculated indicators) narrowed by `parseHfaIndicatorCode`: no calls, text
+only beside a comparison or in an `IN` list, and only names the generator can
+bind (`HFA_CODE_NAME_PATTERN`, so no `[bracketed]` form). It returns the AST and
+its identifiers, or a structured error that `describeHfaCodeError` turns into a
+translatable text. The vocabulary the editor's help line and the AI guidance
+state (`HFA_CODE_SYMBOLS`, `HFA_CODE_WORDS`, `HFA_CODE_LIST_EXAMPLE`) lives
+beside it. The client validator (`_shared/indicator_code_validator.ts`), the
+manager's unused-variable and deletion guards, the AI tools and the server
+dependency analyzer (`server_only_funcs/hfa_dependency_analyzer.ts`) all read
+this one parse, so editor-green code never hard-fails a run. No R text is ever
+parsed: R is emitted from the AST on the server only
+(`server_only_funcs/hfa_r_emit.ts`), `AND OR NOT` as `& | !`, `x IN (a, b)` as
+`x %in% c(a, b)`, with parentheses only where R's precedence would regroup the
+code (R's `%in%` binds tighter than `* /`). lib compiles into both runtimes:
+keep it pure (no Deno/UI imports). The result type (yes/no or number) is read
+off the AST's root and a mismatch with the indicator's `type` is reported to the
+AI tools only. The persisted `has_syntax_error`/`code_consistent` flags are
+advisory metadata that the manager does not display (its Status and Consistent
+columns compute from the code) and that only the chat's HFA tools read
+(`get_hfa_indicators`): the run's `hfa_indicators_snapshot.json` carries them
+and its reader (`hfaIndicatorRow`, `server/run_query/run_read.ts`) drops them,
+and bulk validation updates deliberately do NOT bump `updated_at` (a bump would
+move `hfaIndicatorsVersion`, the run's HFA staleness stamp, for an edit
+generation ignores). The code lifecycle: instance edits → run capture (S6's
+run-capture seam) snapshots indicators+taxonomy+code → S8's module run parses
+each snippet once, builds a cross-indicator dependency graph from the ASTs
+(topological sort, cycles rejected), and splices each round's emitted R into
+`case_when` branches; a snippet that does not parse is a generation error naming
+the indicator and round, like an unknown variable, and `STOP_IF_INDICATOR_FAILS`
+(default TRUE) makes one invalid indicator kill the run.
 
 An indicator is NA when its **own expression** evaluates to NA, not when an
 input is missing. R's `&`/`|` are three-valued, so a skip-logic "." on a
@@ -1346,7 +1357,7 @@ layer.
 - The named FK constraints from migration 048 are not used by any
   `SET CONSTRAINTS` call. The migration comments overstate; verify before
   relying on (or renaming) them.
-- `lib/hfa_r_code_analysis.ts` compiles into both the Deno server and the Vite
+- `lib/hfa_indicator_code.ts` compiles into both the Deno server and the Vite
   client. Keep it dependency-free.
 - Legacy HFA indicator ids that violate the regex would 400 on save (dev DB
   verified clean, 232/232; a violating id would already be breaking R

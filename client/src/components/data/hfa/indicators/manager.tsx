@@ -1,10 +1,10 @@
 import {
-  extractRIdentifiers,
   HFA_STRUCTURAL_VARIABLE_IDS,
   type HfaDictionaryForValidation,
   type HfaIndicator,
   type HfaIndicatorCategory,
   type HfaIndicatorCode,
+  hfaIndicatorCodeIdentifiers,
   type HfaIndicatorServiceCategory,
   type HfaIndicatorSubCategory,
   type HfaIndicatorVariantCode,
@@ -50,7 +50,10 @@ import { HfaCategoriesManager } from "./categories_manager";
 import { HfaServiceCategoriesManager } from "./service_categories_manager";
 import { HfaVariantGroupsManager } from "./variant_groups_manager";
 import { buildHfaWorkbookBlob } from "./xlsx_workbook";
-import { hasRCodeErrors, validateRCode } from "./_shared/mod.ts";
+import {
+  hasIndicatorCodeErrors,
+  validateIndicatorCode,
+} from "./_shared/mod.ts";
 import {
   HfaUnusedVariablesModal,
   type UnusedVariablesByTimePoint,
@@ -291,7 +294,6 @@ export function HfaIndicatorsManager(p: Props) {
     withCode: number;
     total: number;
     ready: number;
-    warning: number;
     error: number;
     consistent: boolean;
   };
@@ -327,7 +329,6 @@ export function HfaIndicatorsManager(p: Props) {
 
       const withCodeEntries = indCode.filter((c) => c.rCode.trim());
       let ready = 0;
-      let warning = 0;
       let error = 0;
       for (const c of withCodeEntries) {
         const tp = dict.timePoints.find((t) => t.timePoint === c.timePoint);
@@ -335,33 +336,25 @@ export function HfaIndicatorsManager(p: Props) {
           ? new Set(tp.variables.map((v) => v.variableId))
           : new Set<string>();
         let hasErr = false;
-        let hasWarn = false;
-        const rCodeResult = validateRCode(
+        const rCodeResult = validateIndicatorCode(
           c.rCode,
           availableVariableIds,
           otherIndicatorIds,
         );
-        if (hasRCodeErrors(rCodeResult)) {
+        if (hasIndicatorCodeErrors(rCodeResult)) {
           hasErr = true;
         }
-        if (rCodeResult.warnings.length > 0) {
-          hasWarn = true;
-        }
         if (c.rFilterCode?.trim()) {
-          const rFilterResult = validateRCode(
+          const rFilterResult = validateIndicatorCode(
             c.rFilterCode,
             availableVariableIds,
             otherIndicatorIds,
           );
-          if (hasRCodeErrors(rFilterResult)) {
+          if (hasIndicatorCodeErrors(rFilterResult)) {
             hasErr = true;
-          }
-          if (rFilterResult.warnings.length > 0) {
-            hasWarn = true;
           }
         }
         if (hasErr) error++;
-        else if (hasWarn) warning++;
         else ready++;
       }
 
@@ -382,7 +375,6 @@ export function HfaIndicatorsManager(p: Props) {
         withCode: withCodeEntries.length,
         total,
         ready,
-        warning,
         error,
         consistent,
       });
@@ -439,22 +431,22 @@ export function HfaIndicatorsManager(p: Props) {
           ? new Set(tp.variables.map((v) => v.variableId))
           : new Set<string>();
         if (c.rCode.trim()) {
-          const result = validateRCode(
+          const result = validateIndicatorCode(
             c.rCode,
             availableVariableIds,
             otherIndicatorIds,
           );
-          if (hasRCodeErrors(result)) {
+          if (hasIndicatorCodeErrors(result)) {
             hasSyntaxError = true;
           }
         }
         if (c.rFilterCode?.trim()) {
-          const result = validateRCode(
+          const result = validateIndicatorCode(
             c.rFilterCode,
             availableVariableIds,
             otherIndicatorIds,
           );
-          if (hasRCodeErrors(result)) {
+          if (hasIndicatorCodeErrors(result)) {
             hasSyntaxError = true;
           }
         }
@@ -593,8 +585,8 @@ export function HfaIndicatorsManager(p: Props) {
     for (const c of codeSt.data) {
       if (deleted.has(c.indicatorId)) continue;
       const identifiers = [
-        ...extractRIdentifiers(c.rCode),
-        ...(c.rFilterCode ? extractRIdentifiers(c.rFilterCode) : []),
+        ...hfaIndicatorCodeIdentifiers(c.rCode),
+        ...(c.rFilterCode ? hfaIndicatorCodeIdentifiers(c.rFilterCode) : []),
       ];
       if (identifiers.some((id) => deleted.has(id))) {
         referencing.add(c.indicatorId);
@@ -602,7 +594,7 @@ export function HfaIndicatorsManager(p: Props) {
     }
     for (const c of variantCodeSt.data) {
       if (deleted.has(c.indicatorId)) continue;
-      if (extractRIdentifiers(c.rCode).some((id) => deleted.has(id))) {
+      if (hfaIndicatorCodeIdentifiers(c.rCode).some((id) => deleted.has(id))) {
         referencing.add(c.indicatorId);
       }
     }
@@ -753,8 +745,8 @@ export function HfaIndicatorsManager(p: Props) {
       const used = usedByTimePoint.get(c.timePoint);
       if (!available || !used) continue;
       const identifiers = [
-        ...extractRIdentifiers(c.rCode),
-        ...(c.rFilterCode ? extractRIdentifiers(c.rFilterCode) : []),
+        ...hfaIndicatorCodeIdentifiers(c.rCode),
+        ...(c.rFilterCode ? hfaIndicatorCodeIdentifiers(c.rFilterCode) : []),
       ];
       for (const id of identifiers) {
         if (available.has(id)) used.add(id);
@@ -766,7 +758,7 @@ export function HfaIndicatorsManager(p: Props) {
       const available = availableByTimePoint.get(c.timePoint);
       const used = usedByTimePoint.get(c.timePoint);
       if (!available || !used) continue;
-      for (const id of extractRIdentifiers(c.rCode)) {
+      for (const id of hfaIndicatorCodeIdentifiers(c.rCode)) {
         if (available.has(id)) used.add(id);
       }
     }
@@ -856,9 +848,6 @@ export function HfaIndicatorsManager(p: Props) {
     return [
       ...(stats.ready > 0
         ? [t3({ en: "Ready", fr: "Prêt", pt: "Pronto" })]
-        : []),
-      ...(stats.warning > 0
-        ? [t3({ en: "Warning", fr: "Avertissement", pt: "Aviso" })]
         : []),
       ...(stats.error > 0
         ? [t3({ en: "Error", fr: "Erreur", pt: "Erro" })]
@@ -998,20 +987,8 @@ export function HfaIndicatorsManager(p: Props) {
                 })}
               </span>
             </Show>
-            <Show when={stats.warning > 0}>
-              <Show when={stats.ready > 0}>
-                <span>,</span>
-              </Show>
-              <span class="text-warning font-700">
-                {t3({
-                  en: `${stats.warning} warning`,
-                  fr: `${stats.warning} avertissement`,
-                  pt: `${stats.warning} aviso`,
-                })}
-              </span>
-            </Show>
             <Show when={stats.error > 0}>
-              <Show when={stats.ready > 0 || stats.warning > 0}>
+              <Show when={stats.ready > 0}>
                 <span>,</span>
               </Show>
               <span class="text-danger font-700">

@@ -1,7 +1,20 @@
-// Single source of truth for analysing user-authored HFA indicator R code.
-// Used by BOTH the client editor/validator and the server dependency analyzer,
-// so the editor's green/red status and the run-time unknown-variable check can
-// never disagree. Pure functions only: this compiles into Deno and Vite.
+// HFA indicator code: the per-facility expression an analyst writes for each
+// round, in the platform's expression language (lib/indicator_expression).
+// Single source for what HFA code may say, used by BOTH the client editor and
+// the server generator, so the editor's green/red status and the run-time
+// checks can never disagree. Pure functions only: this compiles into Deno and
+// Vite.
+
+import {
+  collectIdentifiers,
+  EXPRESSION_FUNCTION_NAMES,
+  EXPRESSION_KEYWORDS,
+  type ExpressionNode,
+  ExpressionSyntaxError,
+  type ExpressionSyntaxErrorKind,
+  parseIndicatorExpression,
+} from "./indicator_expression/mod.ts";
+import type { TranslatableString } from "./translate/types.ts";
 
 // Shape rule for an *authored HFA indicator* id (`HfaIndicator.indicatorId`):
 // starts with a letter, then letters/digits/underscores, max 64 chars. This is
@@ -51,13 +64,37 @@ export function composeHfaVariantColumnName(
   return `${parentIndicatorId}__${itemId}`;
 }
 
-const R_KEYWORDS = new Set([
+// The language as the editor's help line and the AI guidance state it.
+// `& | !` are accepted as AND OR NOT, and text is written in quotes.
+export const HFA_CODE_SYMBOLS = [
+  "==",
+  "!=",
+  "<",
+  ">",
+  "<=",
+  ">=",
+  "+",
+  "-",
+  "*",
+  "/",
+] as const;
+export const HFA_CODE_WORDS = ["AND", "OR", "NOT"] as const;
+export const HFA_CODE_LIST_EXAMPLE = "x IN (1, 2)";
+
+// The generator splices every variable and indicator id into R as a bare
+// symbol, in the code and in the sentinel bindings around it. So an id the
+// code names must be a syntactic R name (no `[bracketed]` form), and must not
+// be one of R's reserved words, which R reads as a constant or a keyword
+// instead of the column.
+export const HFA_CODE_NAME_PATTERN = /^[A-Za-z][A-Za-z0-9_]*$/;
+const R_RESERVED_WORDS = new Set([
   "TRUE",
   "FALSE",
   "NA",
   "NA_real_",
   "NA_integer_",
   "NA_character_",
+  "NA_complex_",
   "NULL",
   "Inf",
   "NaN",
@@ -69,66 +106,8 @@ const R_KEYWORDS = new Set([
   "function",
   "break",
   "next",
-  "return",
   "in",
 ]);
-
-// The indicator code language: a per-facility expression in R syntax, spliced
-// into a `case_when` branch over the wide frame. Only vectorised, elementwise,
-// NA-propagating functions belong here. A reducing function such as `sum` or
-// `mean` collapses across every facility and broadcasts one scalar to each
-// row, silently wrong, so it is rejected, as is any function not listed.
-// Single source for the validator, the server analyzer, the editor's help line
-// and the AI guidance.
-export const HFA_CODE_FUNCTIONS = [
-  "c",
-  "is.na",
-  "ifelse",
-  "pmin",
-  "pmax",
-  "abs",
-  "round",
-  "floor",
-  "ceiling",
-  "as.numeric",
-] as const;
-const HFA_CODE_FUNCTION_SET: ReadonlySet<string> = new Set(HFA_CODE_FUNCTIONS);
-
-export const HFA_CODE_OPERATORS = [
-  "==",
-  "!=",
-  "<",
-  ">",
-  "<=",
-  ">=",
-  "&",
-  "|",
-  "!",
-  "+",
-  "-",
-  "*",
-  "/",
-  "^",
-  "%in%",
-] as const;
-
-// Bareword logical operators accepted as aliases for R's vectorised `&`/`|`.
-// Single source of truth for both `normalizeRLogicalOperators` (which rewrites
-// them) and `isReservedHfaId` (which forbids them as variable ids).
-// Case-insensitive: the normaliser rewrites any case, so any case collides.
-const R_LOGICAL_OPERATOR_ALIASES = new Map<string, string>([
-  ["and", "&"],
-  ["or", "|"],
-]);
-export const HFA_CODE_OPERATOR_ALIASES = [...R_LOGICAL_OPERATOR_ALIASES.keys()]
-  .map((k) => k.toUpperCase());
-
-const R_LOGICAL_OPERATOR_REGEX = new RegExp(
-  `(^|[^A-Za-z0-9_.])(${
-    [...R_LOGICAL_OPERATOR_ALIASES.keys()].join("|")
-  })(?![A-Za-z0-9_.])`,
-  "gi",
-);
 
 // Column names the M10 script owns. `time_point` / `facility_*` / `admin_area_*`
 // are its facility columns, `variable_id` / `value` are what it pivots on, and
@@ -150,147 +129,226 @@ const M10_STRUCTURAL_NAMES = new Set([
 ]);
 const M10_STRUCTURAL_PREFIX_REGEX = /^(facility_|admin_area_|time_point)/i;
 
-// An id that cannot be used in HFA, neither as an authored indicator id
-// nor as a referenceable survey variable, because it collides with how
-// indicator R code is interpreted or with the module script's own columns, and
-// would silently break at run time:
-//   - `and`/`or` (any case) are rewritten to `&`/`|` by
-//     `normalizeRLogicalOperators`, so a variable with that name becomes an
-//     operator.
-//   - R keywords are dropped from identifier extraction, so a variable with
-//     that exact name is silently ignored as a dependency. The accepted
-//     functions are the language's vocabulary, listed under the code box, so
-//     a variable with one of those names is reserved to keep code readable.
-//   - The M10 structural column names above.
+// An id that cannot be used in HFA, neither as an authored indicator id nor as
+// a referenceable survey variable, because the code could not name it or the
+// module script would misread it:
+//   - the language's words (`and`, `or`, `not`, `in`, any case), which parse
+//     as operators, and its function names, which parse as calls;
+//   - R's reserved words, since the id is spliced into R bare;
+//   - the M10 structural column names above.
 // Applied at BOTH ends: indicator-id validation and survey-data import.
 export function isReservedHfaId(name: string): boolean {
   const trimmed = name.trim();
-  if (R_LOGICAL_OPERATOR_ALIASES.has(trimmed.toLowerCase())) {
-    return true;
-  }
-  if (M10_STRUCTURAL_NAMES.has(trimmed.toLowerCase())) {
-    return true;
-  }
-  if (M10_STRUCTURAL_PREFIX_REGEX.test(trimmed)) {
-    return true;
-  }
-  if (trimmed.toLowerCase().endsWith("__status")) {
-    return true;
-  }
-  return R_KEYWORDS.has(trimmed) || HFA_CODE_FUNCTION_SET.has(trimmed);
+  const lower = trimmed.toLowerCase();
+  return (EXPRESSION_KEYWORDS as readonly string[]).includes(lower) ||
+    (EXPRESSION_FUNCTION_NAMES as readonly string[]).includes(trimmed) ||
+    R_RESERVED_WORDS.has(trimmed) ||
+    M10_STRUCTURAL_NAMES.has(lower) ||
+    M10_STRUCTURAL_PREFIX_REGEX.test(trimmed) ||
+    lower.endsWith("__status");
 }
 
-// Char scanner (not regex): handles escaped quotes inside strings, and keeps
-// the newline that terminates a comment so line structure is preserved.
-export function stripRStringsAndComments(rCode: string): string {
-  let out = "";
-  let inString: '"' | "'" | null = null;
-  let inComment = false;
-  for (let i = 0; i < rCode.length; i++) {
-    const ch = rCode[i];
-    const prev = i > 0 ? rCode[i - 1] : "";
-    if (inComment) {
-      if (ch === "\n") {
-        inComment = false;
-        out += ch;
-      }
-      continue;
-    }
-    if (inString) {
-      if (ch === inString && prev !== "\\") {
-        inString = null;
-      }
-      continue;
-    }
-    if (ch === "#") {
-      inComment = true;
-      continue;
-    }
-    if (ch === '"' || ch === "'") {
-      inString = ch;
-      continue;
-    }
-    out += ch;
+export type HfaCodeError =
+  | { kind: ExpressionSyntaxErrorKind; at: number; token: string }
+  | { kind: "call"; name: string }
+  | { kind: "unsupported_name"; name: string }
+  | { kind: "text_operand"; text: string };
+
+export type HfaCodeParse =
+  | { ok: true; node: ExpressionNode; identifiers: string[] }
+  | { ok: false; error: HfaCodeError };
+
+// The language minus what HFA code cannot use: calls (the grammar keeps
+// `abs`, `coalesce`, `nullif` for calculated indicators), a name the
+// generator cannot bind, and text anywhere but beside `==`, `!=`, `<`, `>`,
+// `<=`, `>=` or in an IN test (R cannot add or negate text).
+export function parseHfaIndicatorCode(source: string): HfaCodeParse {
+  let node: ExpressionNode;
+  try {
+    node = parseIndicatorExpression(source);
+  } catch (e) {
+    if (!(e instanceof ExpressionSyntaxError)) throw e;
+    return { ok: false, error: { kind: e.kind, at: e.at, token: e.token } };
   }
-  return out;
+  const refused = findRefusedNode(node, undefined);
+  if (refused !== undefined) return { ok: false, error: refused };
+  const identifiers = collectIdentifiers(node);
+  const unbindable = identifiers.find((id) => !HFA_CODE_NAME_PATTERN.test(id));
+  if (unbindable !== undefined) {
+    return { ok: false, error: { kind: "unsupported_name", name: unbindable } };
+  }
+  return { ok: true, node, identifiers };
 }
 
-// Accept `AND`/`OR` (any case) as aliases for R's vectorised `&`/`|`, rewriting
-// them outside string literals and comments. Word boundaries treat `.` and
-// identifier characters as part of a word, so `factor`, `donor`, and a dataset
-// variable like `x.or` are left untouched. `&&`/`||` are deliberately NOT
-// rewritten: those are a distinct mistake the validator flags (a vectorised
-// case_when rejects them), and silently "fixing" them would hide the error.
-export function normalizeRLogicalOperators(rCode: string): string {
-  let out = "";
-  let codeRun = "";
-  let inString: '"' | "'" | null = null;
-  let inComment = false;
-
-  const flush = (): void => {
-    out += codeRun.replace(
-      R_LOGICAL_OPERATOR_REGEX,
-      (_m, pre: string, op: string) =>
-        pre + (R_LOGICAL_OPERATOR_ALIASES.get(op.toLowerCase()) ?? op),
-    );
-    codeRun = "";
+function findRefusedNode(
+  node: ExpressionNode,
+  parent: ExpressionNode["kind"] | undefined,
+): HfaCodeError | undefined {
+  const first = (children: ExpressionNode[]) => {
+    for (const child of children) {
+      const refused = findRefusedNode(child, node.kind);
+      if (refused !== undefined) return refused;
+    }
+    return undefined;
   };
-
-  for (let i = 0; i < rCode.length; i++) {
-    const ch = rCode[i];
-    const prev = i > 0 ? rCode[i - 1] : "";
-    if (inComment) {
-      out += ch;
-      if (ch === "\n") inComment = false;
-      continue;
-    }
-    if (inString) {
-      out += ch;
-      if (ch === inString && prev !== "\\") inString = null;
-      continue;
-    }
-    if (ch === "#") {
-      flush();
-      inComment = true;
-      out += ch;
-      continue;
-    }
-    if (ch === '"' || ch === "'") {
-      flush();
-      inString = ch;
-      out += ch;
-      continue;
-    }
-    codeRun += ch;
+  switch (node.kind) {
+    case "number":
+    case "identifier":
+      return undefined;
+    case "string":
+      return parent === "compare" || parent === "in"
+        ? undefined
+        : { kind: "text_operand", text: node.value };
+    case "call":
+      return { kind: "call", name: node.name };
+    case "negate":
+    case "not":
+      return first([node.operand]);
+    case "binary":
+    case "compare":
+    case "and":
+    case "or":
+      return first([node.left, node.right]);
+    case "in":
+      return first([node.operand, ...node.values]);
   }
-  flush();
-  return out;
 }
 
-// An identifier followed by `(` is a call; every other identifier is a
-// variable or indicator reference.
-const R_IDENTIFIER_REGEX = /\b([a-zA-Z_][a-zA-Z0-9._]*)\b(\s*\()?/g;
+// The identifiers the code names, for guards that only need its references
+// (unused variables, deletion warnings). Code that does not parse names
+// nothing here; the editor reports it as an error.
+export function hfaIndicatorCodeIdentifiers(source: string): string[] {
+  const parsed = parseHfaIndicatorCode(source);
+  return parsed.ok ? parsed.identifiers : [];
+}
 
-function splitRIdentifiers(
-  rCode: string,
-): { variables: string[]; calls: string[] } {
-  const cleaned = stripRStringsAndComments(normalizeRLogicalOperators(rCode));
-  const variables = new Set<string>();
-  const calls = new Set<string>();
-  for (const m of cleaned.matchAll(R_IDENTIFIER_REGEX)) {
-    const name = m[1];
-    if (R_KEYWORDS.has(name)) continue;
-    (m[2] ? calls : variables).add(name);
+// A yes/no condition or a number, read off the root node.
+export function hfaCodeResultType(node: ExpressionNode): "boolean" | "numeric" {
+  switch (node.kind) {
+    case "compare":
+    case "and":
+    case "or":
+    case "not":
+    case "in":
+      return "boolean";
+    default:
+      return "numeric";
   }
-  return { variables: [...variables].sort(), calls: [...calls].sort() };
 }
 
-export function extractRIdentifiers(rCode: string): string[] {
-  return splitRIdentifiers(rCode).variables;
-}
-
-export function unknownRFunctions(rCode: string): string[] {
-  return splitRIdentifiers(rCode).calls.filter(
-    (name) => !HFA_CODE_FUNCTION_SET.has(name),
-  );
+export function describeHfaCodeError(error: HfaCodeError): TranslatableString {
+  switch (error.kind) {
+    case "call":
+    case "unknown_function":
+    case "uncalled_function":
+    case "arity": {
+      const name = "name" in error ? error.name : error.token;
+      return {
+        en:
+          `'${name}' is a function, and functions are not part of indicator code`,
+        fr:
+          `« ${name} » est une fonction, et les fonctions ne font pas partie du code des indicateurs`,
+        pt:
+          `'${name}' é uma função, e as funções não fazem parte do código dos indicadores`,
+      };
+    }
+    case "unsupported_name":
+      return {
+        en:
+          `'${error.name}' cannot be used in indicator code: a name must start with a letter and hold only letters, digits and underscores`,
+        fr:
+          `« ${error.name} » ne peut pas être utilisé dans le code des indicateurs : un nom commence par une lettre et ne contient que des lettres, des chiffres et des tirets bas`,
+        pt:
+          `'${error.name}' não pode ser usado no código dos indicadores: um nome começa por uma letra e contém apenas letras, dígitos e sublinhados`,
+      };
+    case "text_operand":
+      return {
+        en:
+          `The text "${error.text}" can only be compared, with == != < > <= >= or IN`,
+        fr:
+          `Le texte « ${error.text} » ne peut qu'être comparé, avec == != < > <= >= ou IN`,
+        pt:
+          `O texto "${error.text}" só pode ser comparado, com == != < > <= >= ou IN`,
+      };
+  }
+  const position = error.at + 1;
+  const token = error.token;
+  switch (error.kind) {
+    case "empty":
+      return {
+        en: "The code is empty",
+        fr: "Le code est vide",
+        pt: "O código está vazio",
+      };
+    case "unexpected_char":
+      return {
+        en: `'${token}' at character ${position} is not part of indicator code`,
+        fr:
+          `« ${token} » au caractère ${position} ne fait pas partie du code des indicateurs`,
+        pt:
+          `'${token}' no carácter ${position} não faz parte do código dos indicadores`,
+      };
+    case "unclosed_bracket":
+      return {
+        en: `The '[' at character ${position} is never closed`,
+        fr: `Le « [ » au caractère ${position} n'est jamais fermé`,
+        pt: `O '[' no carácter ${position} nunca é fechado`,
+      };
+    case "empty_bracket":
+      return {
+        en: `Empty '[]' at character ${position}`,
+        fr: `« [] » vide au caractère ${position}`,
+        pt: `'[]' vazio no carácter ${position}`,
+      };
+    case "unclosed_quote":
+      return {
+        en: `The quote at character ${position} is never closed`,
+        fr: `Le guillemet au caractère ${position} n'est jamais fermé`,
+        pt: `As aspas no carácter ${position} nunca são fechadas`,
+      };
+    case "single_equals":
+      return {
+        en: `Single '=' at character ${position}: write '==' to compare`,
+        fr:
+          `« = » seul au caractère ${position} : écrivez « == » pour comparer`,
+        pt: `'=' isolado no carácter ${position}: escreva '==' para comparar`,
+      };
+    case "doubled_operator":
+      return {
+        en: `'${token}' at character ${position}: write '${token[0]}' or ${
+          token === "&&" ? "AND" : "OR"
+        }`,
+        fr: `« ${token} » au caractère ${position} : écrivez « ${
+          token[0]
+        } » ou ${token === "&&" ? "AND" : "OR"}`,
+        pt: `'${token}' no carácter ${position}: escreva '${token[0]}' ou ${
+          token === "&&" ? "AND" : "OR"
+        }`,
+      };
+    case "missing_operand":
+      return token === ""
+        ? {
+          en: "The code ends where a value is expected",
+          fr: "Le code s'arrête là où une valeur est attendue",
+          pt: "O código termina onde se espera um valor",
+        }
+        : {
+          en: `A value is expected at character ${position}, not '${token}'`,
+          fr:
+            `Une valeur est attendue au caractère ${position}, pas « ${token} »`,
+          pt: `Espera-se um valor no carácter ${position}, não '${token}'`,
+        };
+    case "expected":
+      return {
+        en: `'${token}' is expected at character ${position}`,
+        fr: `« ${token} » est attendu au caractère ${position}`,
+        pt: `'${token}' é esperado no carácter ${position}`,
+      };
+    case "trailing":
+      return {
+        en: `Unexpected '${token}' at character ${position}`,
+        fr: `« ${token} » inattendu au caractère ${position}`,
+        pt: `'${token}' inesperado no carácter ${position}`,
+      };
+  }
 }

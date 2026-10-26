@@ -99,7 +99,7 @@ Subject: HFA progress
 
 Hi Meghan,
 
-HFA progress, going into the next release:
+HFA work done over the past few days:
 
 - Facilities and data are uploaded in one wizard. It maps facility id, admin areas, name and type from the survey file, shows new facilities and changes before launch, and can create the first time point. There is no separate facility upload.
 - "Apply to all time points" in the workbook import writes the code column to every round.
@@ -109,7 +109,5 @@ HFA progress, going into the next release:
 - The unused-variables list skips the id_ and result variables.
 - The service-categories field in the code editor no longer overlaps the next field (Safia's "duplicated field").
 - The workbook import reads label_en, label_fr and label_pt.
-
-Next: search by variables in the code and a time-point filter on the indicator list; marking variables already used; flagging an indicator that fails in every round; reporting survey values outside the questionnaire's options (the cause of Safia's missing Guinea variables); dropping the "Use sampling weights" parameter; facility type on the Explore page; then the smaller figure items.
 
 Tim

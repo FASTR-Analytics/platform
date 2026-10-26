@@ -1,8 +1,9 @@
 import {
-  extractRIdentifiers,
+  describeHfaCodeError,
+  type ExpressionNode,
   type HfaIndicator,
   type HfaIndicatorCode,
-  unknownRFunctions,
+  parseHfaIndicatorCode,
 } from "lib";
 
 export type ExtractedDependencies = {
@@ -16,37 +17,83 @@ export type ExtractedDependencies = {
   filterVariableIds: string[];
   dependencies: string[];
   unknownVariables: string[];
-  unknownFunctions: string[];
 };
 
-export function extractDependenciesFromCode(
-  rCode: string,
-  rFilterCode: string | undefined,
+// One snippet parsed once per generation: its code and optional filter as
+// ASTs, or the reason it cannot run.
+export type SnippetAnalysis =
+  | {
+    ok: true;
+    code: ExpressionNode;
+    filter: ExpressionNode | undefined;
+    deps: ExtractedDependencies;
+  }
+  | { ok: false; problem: string };
+
+export type AnalyseSnippet = (snippet: HfaIndicatorCode) => SnippetAnalysis;
+
+// Memoised by snippet object, so the graph pass, its rebuild and the emit
+// pass share one parse.
+export function createSnippetAnalyser(
+  allIndicatorIds: Set<string>,
+  knownVariableIds: Set<string>,
+): AnalyseSnippet {
+  const cache = new Map<HfaIndicatorCode, SnippetAnalysis>();
+  return (snippet) => {
+    const cached = cache.get(snippet);
+    if (cached !== undefined) return cached;
+    const analysis = analyseSnippet(snippet, allIndicatorIds, knownVariableIds);
+    cache.set(snippet, analysis);
+    return analysis;
+  };
+}
+
+function analyseSnippet(
+  snippet: HfaIndicatorCode,
+  allIndicatorIds: Set<string>,
+  knownVariableIds: Set<string>,
+): SnippetAnalysis {
+  const code = parseHfaIndicatorCode(snippet.rCode.trim());
+  if (!code.ok) {
+    return {
+      ok: false,
+      problem: `Code does not parse: ${describeHfaCodeError(code.error).en}`,
+    };
+  }
+  const filterSource = snippet.rFilterCode?.trim() ?? "";
+  const filter = filterSource ? parseHfaIndicatorCode(filterSource) : undefined;
+  if (filter !== undefined && !filter.ok) {
+    return {
+      ok: false,
+      problem: `Filter does not parse: ${
+        describeHfaCodeError(filter.error).en
+      }`,
+    };
+  }
+  return {
+    ok: true,
+    code: code.node,
+    filter: filter?.node,
+    deps: classifyIdentifiers(
+      code.identifiers,
+      filter?.identifiers ?? [],
+      allIndicatorIds,
+      knownVariableIds,
+    ),
+  };
+}
+
+function classifyIdentifiers(
+  codeIdentifiers: string[],
+  filterIdentifiers: string[],
   allIndicatorIds: Set<string>,
   knownVariableIds: Set<string>,
 ): ExtractedDependencies {
-  const codeVars = new Set<string>();
-  const filterVars = new Set<string>();
-
-  const rCodeTrimmed = rCode.trim();
-  if (rCodeTrimmed) {
-    extractRIdentifiers(rCodeTrimmed).forEach((v) => codeVars.add(v));
-  }
-
-  const rFilterTrimmed = rFilterCode?.trim() ?? "";
-  if (rFilterTrimmed) {
-    extractRIdentifiers(rFilterTrimmed).forEach((v) => filterVars.add(v));
-  }
-
   const variableIds = new Set<string>();
   const codeVariableIds: string[] = [];
   const filterVariableIds: string[] = [];
   const dependencies = new Set<string>();
   const unknownVariables = new Set<string>();
-  const unknownFunctions = new Set([
-    ...unknownRFunctions(rCodeTrimmed),
-    ...unknownRFunctions(rFilterTrimmed),
-  ]);
 
   const classify = (variable: string, source: "code" | "filter"): void => {
     if (allIndicatorIds.has(variable)) {
@@ -63,8 +110,8 @@ export function extractDependenciesFromCode(
     }
   };
 
-  codeVars.forEach((v) => classify(v, "code"));
-  filterVars.forEach((v) => classify(v, "filter"));
+  codeIdentifiers.forEach((v) => classify(v, "code"));
+  filterIdentifiers.forEach((v) => classify(v, "filter"));
 
   return {
     variableIds: [...variableIds].sort(),
@@ -72,15 +119,22 @@ export function extractDependenciesFromCode(
     filterVariableIds: filterVariableIds.sort(),
     dependencies: [...dependencies].sort(),
     unknownVariables: [...unknownVariables].sort(),
-    unknownFunctions: [...unknownFunctions].sort(),
   };
+}
+
+// Why a snippet cannot run, or nothing: a parse failure, or names that are
+// neither a variable of the round nor an indicator.
+export function snippetProblems(analysis: SnippetAnalysis): string[] {
+  if (!analysis.ok) return [analysis.problem];
+  return analysis.deps.unknownVariables.length > 0
+    ? [`Unknown variables [${analysis.deps.unknownVariables.join(", ")}]`]
+    : [];
 }
 
 export function buildUnionDependencyGraph(
   indicators: HfaIndicator[],
   codeByIndicator: Map<string, HfaIndicatorCode[]>,
-  allIndicatorIds: Set<string>,
-  knownVariableIds: Set<string>,
+  analyse: AnalyseSnippet,
 ): {
   graph: Map<string, string[]>;
   dependenciesMap: Map<string, string[]>;
@@ -98,29 +152,15 @@ export function buildUnionDependencyGraph(
     for (const snippet of codeSnippets) {
       if (!snippet.rCode || snippet.rCode.trim() === "") continue;
 
-      const deps = extractDependenciesFromCode(
-        snippet.rCode,
-        snippet.rFilterCode,
-        allIndicatorIds,
-        knownVariableIds,
-      );
-
-      if (deps.unknownVariables.length > 0) {
+      const analysis = analyse(snippet);
+      for (const problem of snippetProblems(analysis)) {
         validationErrors.push(
-          `Indicator "${indicator.indicatorId}" (time_point "${snippet.timePoint}"): Unknown variables [${
-            deps.unknownVariables.join(", ")
-          }].`,
+          `Indicator "${indicator.indicatorId}" (time_point "${snippet.timePoint}"): ${problem}.`,
         );
       }
-      if (deps.unknownFunctions.length > 0) {
-        validationErrors.push(
-          `Indicator "${indicator.indicatorId}" (time_point "${snippet.timePoint}"): Functions not accepted in indicator code [${
-            deps.unknownFunctions.join(", ")
-          }].`,
-        );
+      if (analysis.ok) {
+        analysis.deps.dependencies.forEach((d) => unionDeps.add(d));
       }
-
-      deps.dependencies.forEach((d) => unionDeps.add(d));
     }
 
     dependenciesMap.set(indicator.indicatorId, [...unionDeps].sort());

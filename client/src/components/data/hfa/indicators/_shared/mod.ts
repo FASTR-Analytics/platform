@@ -1,6 +1,7 @@
 export {
-  checkRCodeResultType,
-  hasRCodeErrors,
-  validateRCode,
-} from "./r_code_validator.ts";
-export type { RCodeValidationResult } from "./r_code_validator.ts";
+  checkIndicatorCodeResultType,
+  EMPTY_INDICATOR_CODE_VALIDATION,
+  hasIndicatorCodeErrors,
+  validateIndicatorCode,
+} from "./indicator_code_validator.ts";
+export type { IndicatorCodeValidation } from "./indicator_code_validator.ts";

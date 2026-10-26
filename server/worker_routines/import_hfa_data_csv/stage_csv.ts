@@ -177,19 +177,14 @@ export async function stageHfaCsvIntoTables(args: {
     }
     return [questionId];
   });
-  // Reject variable ids that collide with how indicator code is interpreted:
-  // `and`/`or` operator aliases, R keywords, the functions the code accepts,
-  // or with a column the module script owns (`weight`, `time_point`,
-  // `facility_*`, ...). A variable id `and`/`c`/`if` would otherwise be
-  // silently rewritten or dropped, and `weight`/`time_point` would
-  // collide with or shadow the script's own column (single source:
-  // isReservedHfaId).
+  // Reject variable ids indicator code could not name or the module script
+  // would misread (single source: isReservedHfaId).
   const reservedCollisions = variableIds.filter(isReservedHfaId);
   if (reservedCollisions.length > 0) {
     throw new Error(
       `The variable id "${
         reservedCollisions[0]
-      }" is reserved (it collides with a function or operator used in indicator code, or with a column the analysis script generates). Rename the question in the XLSForm, and its column in the CSV, and re-upload.`,
+      }" is reserved (it is a word of the indicator code language, or a name the analysis script uses for its own columns). Rename the question in the XLSForm, and its column in the CSV, and re-upload.`,
     );
   }
 

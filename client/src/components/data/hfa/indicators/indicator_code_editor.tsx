@@ -1,9 +1,9 @@
 import {
   type APIResponseNoData,
   composeHfaIndicatorLabel,
-  HFA_CODE_FUNCTIONS,
-  HFA_CODE_OPERATOR_ALIASES,
-  HFA_CODE_OPERATORS,
+  HFA_CODE_LIST_EXAMPLE,
+  HFA_CODE_SYMBOLS,
+  HFA_CODE_WORDS,
   type HfaDictionaryForValidation,
   type HfaIndicator,
   type HfaIndicatorCategory,
@@ -38,10 +38,11 @@ import { createMemo, createSignal, For, Show } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
 import { serverActions } from "~/server_actions";
 import {
-  checkRCodeResultType,
-  hasRCodeErrors,
-  type RCodeValidationResult,
-  validateRCode,
+  checkIndicatorCodeResultType,
+  EMPTY_INDICATOR_CODE_VALIDATION,
+  hasIndicatorCodeErrors,
+  type IndicatorCodeValidation,
+  validateIndicatorCode,
 } from "./_shared/mod.ts";
 import {
   copilotViewController,
@@ -357,27 +358,20 @@ function EditorInner(p: {
     return new Set(dict.variables.map((v) => v.variableId));
   };
 
-  const emptyValidation: RCodeValidationResult = {
-    syntaxErrors: [],
-    unknownVariableErrors: [],
-    warnings: [],
-    referencedIds: [],
-  };
-
-  const currentRCodeValidation = (): RCodeValidationResult => {
+  const currentRCodeValidation = (): IndicatorCodeValidation => {
     const idx = currentTpIndex();
-    if (idx < 0) return emptyValidation;
-    return validateRCode(
+    if (idx < 0) return EMPTY_INDICATOR_CODE_VALIDATION;
+    return validateIndicatorCode(
       state.code[idx].rCode,
       availableVariableIds(),
       otherIndicatorIds,
     );
   };
 
-  const currentFilterValidation = (): RCodeValidationResult => {
+  const currentFilterValidation = (): IndicatorCodeValidation => {
     const idx = currentTpIndex();
-    if (idx < 0) return emptyValidation;
-    return validateRCode(
+    if (idx < 0) return EMPTY_INDICATOR_CODE_VALIDATION;
+    return validateIndicatorCode(
       state.code[idx].rFilterCode,
       availableVariableIds(),
       otherIndicatorIds,
@@ -447,23 +441,23 @@ function EditorInner(p: {
         ? new Set(tp.variables.map((v) => v.variableId))
         : new Set<string>();
       if (c.rCode.trim()) {
-        const result = validateRCode(
+        const result = validateIndicatorCode(
           c.rCode,
           availableVariableIds,
           otherIndicatorIds,
         );
-        if (hasRCodeErrors(result)) {
+        if (hasIndicatorCodeErrors(result)) {
           hasSyntaxError = true;
           break;
         }
       }
       if (c.rFilterCode.trim()) {
-        const result = validateRCode(
+        const result = validateIndicatorCode(
           c.rFilterCode,
           availableVariableIds,
           otherIndicatorIds,
         );
-        if (hasRCodeErrors(result)) {
+        if (hasIndicatorCodeErrors(result)) {
           hasSyntaxError = true;
           break;
         }
@@ -477,12 +471,12 @@ function EditorInner(p: {
         const availableVariableIds = tp
           ? new Set(tp.variables.map((v) => v.variableId))
           : new Set<string>();
-        const result = validateRCode(
+        const result = validateIndicatorCode(
           vc.rCode,
           availableVariableIds,
           allIndicatorIdsInclSelf,
         );
-        if (hasRCodeErrors(result)) {
+        if (hasIndicatorCodeErrors(result)) {
           hasSyntaxError = true;
           break;
         }
@@ -565,13 +559,12 @@ function EditorInner(p: {
     ];
     for (const [field, code] of fields) {
       if (!code.trim()) continue;
-      const r = validateRCode(code, available, otherIndicatorIds);
+      const r = validateIndicatorCode(code, available, otherIndicatorIds);
       for (const e of r.syntaxErrors) issues.push(`${field}: ${e}`);
       for (const e of r.unknownVariableErrors) issues.push(`${field}: ${e}`);
-      for (const w of r.warnings) issues.push(`${field}: WARNING: ${w}`);
     }
     if (c.rCode.trim()) {
-      for (const w of checkRCodeResultType(c.rCode, state.type)) {
+      for (const w of checkIndicatorCodeResultType(c.rCode, state.type)) {
         issues.push(`rCode: ${w}`);
       }
     }
@@ -969,26 +962,21 @@ function EditorInner(p: {
                       pt: "Operadores: ",
                     })}
                     <span class="font-mono">
-                      {[...HFA_CODE_OPERATORS, ...HFA_CODE_OPERATOR_ALIASES]
-                        .join(" ")}
+                      {[...HFA_CODE_SYMBOLS, ...HFA_CODE_WORDS].join(" ")}
                     </span>
+                    {". "}
+                    <span class="font-mono">{HFA_CODE_LIST_EXAMPLE}</span>
                     {t3({
-                      en: ". Functions: ",
-                      fr: ". Fonctions : ",
-                      pt: ". Funções: ",
-                    })}
-                    <span class="font-mono">
-                      {HFA_CODE_FUNCTIONS.join(" ")}
-                    </span>
-                    {t3({
-                      en: ". No other function is accepted.",
-                      fr: ". Aucune autre fonction n'est acceptée.",
-                      pt: ". Nenhuma outra função é aceite.",
+                      en:
+                        ' tests a list of values. Text is written in quotes, as in sh_03 == "c". Nothing else is accepted.',
+                      fr:
+                        " teste une liste de valeurs. Le texte s'écrit entre guillemets, comme dans sh_03 == \"c\". Rien d'autre n'est accepté.",
+                      pt:
+                        ' testa uma lista de valores. O texto escreve-se entre aspas, como em sh_03 == "c". Nada mais é aceite.',
                     })}
                   </div>
                   <Show
                     when={currentRCodeValidation().referencedIds.length > 0 ||
-                      currentRCodeValidation().warnings.length > 0 ||
                       currentRCodeValidation().unknownVariableErrors.length >
                         0 ||
                       currentRCodeValidation().syntaxErrors.length > 0}
@@ -1032,9 +1020,6 @@ function EditorInner(p: {
                           );
                         }}
                       </For>
-                      <For each={currentRCodeValidation().warnings}>
-                        {(w) => <div class="text-warning text-xs">{w}</div>}
-                      </For>
                     </div>
                   </Show>
                 </div>
@@ -1073,7 +1058,6 @@ function EditorInner(p: {
                   </Show>
                   <Show
                     when={currentFilterValidation().referencedIds.length > 0 ||
-                      currentFilterValidation().warnings.length > 0 ||
                       currentFilterValidation().unknownVariableErrors.length >
                         0 ||
                       currentFilterValidation().syntaxErrors.length > 0}
@@ -1117,9 +1101,6 @@ function EditorInner(p: {
                           );
                         }}
                       </For>
-                      <For each={currentFilterValidation().warnings}>
-                        {(w) => <div class="text-warning text-xs">{w}</div>}
-                      </For>
                     </div>
                   </Show>
                 </div>
@@ -1140,8 +1121,8 @@ function EditorInner(p: {
                       {(item) => {
                         const key = () =>
                           variantKey(selectedTimePoint(), item.id);
-                        const validation = (): RCodeValidationResult =>
-                          validateRCode(
+                        const validation = (): IndicatorCodeValidation =>
+                          validateIndicatorCode(
                             state.variantCode[key()] ?? "",
                             availableVariableIds(),
                             allIndicatorIdsInclSelf,
@@ -1161,8 +1142,7 @@ function EditorInner(p: {
                             />
                             <Show
                               when={validation().syntaxErrors.length > 0 ||
-                                validation().unknownVariableErrors.length > 0 ||
-                                validation().warnings.length > 0}
+                                validation().unknownVariableErrors.length > 0}
                             >
                               <div class="mt-1">
                                 <For each={validation().syntaxErrors}>
@@ -1180,11 +1160,6 @@ function EditorInner(p: {
                                 <For each={validation().unknownVariableErrors}>
                                   {(e) => (
                                     <div class="text-danger text-xs">{e}</div>
-                                  )}
-                                </For>
-                                <For each={validation().warnings}>
-                                  {(w) => (
-                                    <div class="text-warning text-xs">{w}</div>
                                   )}
                                 </For>
                               </div>

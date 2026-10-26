@@ -11,7 +11,7 @@ export * from "./retired_metrics.ts";
 export * from "./convert_visualization_type.ts";
 export * from "./disaggregation_labels.ts";
 export * from "./hfa_indicator_labels.ts";
-export * from "./hfa_r_code_analysis.ts";
+export * from "./hfa_indicator_code.ts";
 export * from "./hfa_sentinel_classification.ts";
 export * from "./format_nigeria_admin_label.ts";
 export * from "./normalize_po_config.ts";

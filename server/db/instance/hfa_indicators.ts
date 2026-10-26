@@ -584,7 +584,7 @@ async function assertVariantIntegrity(sql: Sql): Promise<void> {
     throw new Error(
       `Indicator "${
         variantOnly[0].indicator_id
-      }" has variant code but no overall R code — an indicator with variant code must have overall code`,
+      }" has variant code but no overall code — an indicator with variant code must have overall code`,
     );
   }
 }
@@ -1338,7 +1338,7 @@ export async function saveHfaIndicatorFull(
       return {
         success: false,
         err:
-          `Filter code requires R code for time point "${filterOnly.timePoint}"`,
+          `Filter code requires indicator code for time point "${filterOnly.timePoint}"`,
       };
     }
     const nonEmptyVariantCode = variantCode.filter((c) =>
@@ -1391,7 +1391,7 @@ export async function saveHfaIndicatorsCode(
         return {
           success: false,
           err:
-            `Filter code requires R code for "${indicator.indicatorId}" at time point "${filterOnly.timePoint}"`,
+            `Filter code requires indicator code for "${indicator.indicatorId}" at time point "${filterOnly.timePoint}"`,
         };
       }
     }

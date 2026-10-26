@@ -8,10 +8,10 @@ import {
 import { z } from "zod";
 import {
   COPILOT_TOOL_VIEWS,
-  extractRIdentifiers,
   type HfaDictionaryForValidation,
   type HfaIndicator,
   type HfaIndicatorCode,
+  hfaIndicatorCodeIdentifiers,
   type HfaIndicatorVariantCode,
   nextHfaIndicatorId,
   serialiseMultiMembershipValues,
@@ -24,9 +24,9 @@ import {
   getHfaDictionaryFromCacheOrFetch,
 } from "~/state/instance/t2_datasets";
 import {
-  checkRCodeResultType,
-  hasRCodeErrors,
-  validateRCode,
+  checkIndicatorCodeResultType,
+  hasIndicatorCodeErrors,
+  validateIndicatorCode,
 } from "../_shared/mod.ts";
 import { copilotViews } from "~/components/instance/copilot/mod.ts";
 
@@ -175,8 +175,12 @@ function computeIndicatorValidation(
     ];
     for (const [field, codeStr] of fields) {
       if (!codeStr.trim()) continue;
-      const r = validateRCode(codeStr, availableVariableIds, otherIndicatorIds);
-      if (hasRCodeErrors(r)) {
+      const r = validateIndicatorCode(
+        codeStr,
+        availableVariableIds,
+        otherIndicatorIds,
+      );
+      if (hasIndicatorCodeErrors(r)) {
         hasSyntaxError = true;
       }
       for (const e of r.syntaxErrors) {
@@ -185,12 +189,9 @@ function computeIndicatorValidation(
       for (const e of r.unknownVariableErrors) {
         issues.push(`${c.timePoint} ${field}: ${e}`);
       }
-      for (const w of r.warnings) {
-        issues.push(`${c.timePoint} ${field}: WARNING: ${w}`);
-      }
     }
     // Result-type only applies to the main rCode (the filter is always boolean).
-    for (const w of checkRCodeResultType(c.rCode, expectedType)) {
+    for (const w of checkIndicatorCodeResultType(c.rCode, expectedType)) {
       issues.push(`${c.timePoint} rCode: ${w}`);
     }
   }
@@ -1262,8 +1263,10 @@ export function buildHfaIndicatorTools() {
           for (const c of allCode) {
             if (deleted.has(c.indicatorId)) continue;
             const identifiers = [
-              ...extractRIdentifiers(c.rCode),
-              ...(c.rFilterCode ? extractRIdentifiers(c.rFilterCode) : []),
+              ...hfaIndicatorCodeIdentifiers(c.rCode),
+              ...(c.rFilterCode
+                ? hfaIndicatorCodeIdentifiers(c.rFilterCode)
+                : []),
             ];
             if (identifiers.some((id) => deleted.has(id))) {
               referencing.add(c.indicatorId);
@@ -1273,7 +1276,9 @@ export function buildHfaIndicatorTools() {
           // union as the manager's findReferencingIndicators.
           for (const c of allVariantCode) {
             if (deleted.has(c.indicatorId)) continue;
-            if (extractRIdentifiers(c.rCode).some((id) => deleted.has(id))) {
+            if (
+              hfaIndicatorCodeIdentifiers(c.rCode).some((id) => deleted.has(id))
+            ) {
               referencing.add(c.indicatorId);
             }
           }
