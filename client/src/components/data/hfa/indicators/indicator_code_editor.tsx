@@ -710,22 +710,24 @@ function EditorInner(p: {
                   }),
                 }]}
             />
-            <MultiSelect
-              label={t3({
-                en: "Service categories",
-                fr: "Catégories de service",
-                pt: "Categorias de serviço",
-              })}
-              values={state.serviceCategoryIds}
-              onChange={(v) => {
-                setState("serviceCategoryIds", v);
-                markDirty();
-              }}
-              options={p.serviceCategories.map((sc) => ({
-                value: sc.id,
-                label: sc.label,
-              }))}
-            />
+            <div class="min-w-[200px]">
+              <MultiSelect
+                label={t3({
+                  en: "Service categories",
+                  fr: "Catégories de service",
+                  pt: "Categorias de serviço",
+                })}
+                values={state.serviceCategoryIds}
+                onChange={(v) => {
+                  setState("serviceCategoryIds", v);
+                  markDirty();
+                }}
+                options={p.serviceCategories.map((sc) => ({
+                  value: sc.id,
+                  label: sc.label,
+                }))}
+              />
+            </div>
             <Select
               label={t3({
                 en: "Variant group",
