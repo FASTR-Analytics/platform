@@ -698,17 +698,20 @@ definitions verbatim (so existing parsers apply unchanged); pinned asset names +
 hashes; and the memoization fields (`inputKey` per module, content hashes per
 output file).
 
-**`manifestSchemaVersion` gates every read**, currently `13`
-(`RUN_MANIFEST_SCHEMA_VERSION`; v13 = every `modules[].moduleDefinition` blob
-declares `family`, `tier` and `sortOrder` (stamped for legacy blobs from
-`LEGACY_MODULE_PRESENTATION`) and `metrics[].datasetFamily` is the module's
-declared family, non-null, transform block 11; v12 = the
-`hfa_indicators_snapshot.json` mirror's rows carry `indicator_id` instead of
-`var_name`, input block 2; the manifest's own shape is unchanged and transform
-block 10 only stamps; v11 = `datasets[].info` holds exactly the keys
-`lib/types/run_datasets.ts` types for its family: the pre-1.72 HMIS stamp pair
-renamed `indicatorsVersion` / `countIndicatorsVersion`, and the keys nothing
-reads (`windowing`, `facilityColumnsConfig`, `maxAdminArea`,
+**`manifestSchemaVersion` gates every read**, currently `14`
+(`RUN_MANIFEST_SCHEMA_VERSION`; v14 = every `indicators[]` entry's `sort_order`
+is its rank within its own dimension, composed with the parent's rank for HFA
+sub-categories and variant items, recomputed by block 1 and stamped by block 12,
+with `PO_CACHE_VERSION` "28" since po_items carries the list; v13 = every
+`modules[].moduleDefinition` blob declares `family`, `tier` and `sortOrder`
+(stamped for legacy blobs from `LEGACY_MODULE_PRESENTATION`) and
+`metrics[].datasetFamily` is the module's declared family, non-null, transform
+block 11; v12 = the `hfa_indicators_snapshot.json` mirror's rows carry
+`indicator_id` instead of `var_name`, input block 2; the manifest's own shape is
+unchanged and transform block 10 only stamps; v11 = `datasets[].info` holds
+exactly the keys `lib/types/run_datasets.ts` types for its family: the pre-1.72
+HMIS stamp pair renamed `indicatorsVersion` / `countIndicatorsVersion`, and the
+keys nothing reads (`windowing`, `facilityColumnsConfig`, `maxAdminArea`,
 `calculatedIndicatorsVersion`, the HFA `_legacy` and `facilityColumnsHash`
 markers) dropped, transform block 9; v10 = the indicators mirror's `derived`
 rows read `calculated`, input block 1; the manifest's own shape is unchanged and

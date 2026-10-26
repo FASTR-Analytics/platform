@@ -102,7 +102,10 @@ import { TimCacheC } from "../../valkey/cache_class_C.ts";
 // "27" (2026-10-01): the scope's time, module and indicator parts filter. "26"
 // entries under a definition holding those parts were computed without them,
 // under the same hash.
-const PO_CACHE_VERSION = "27";
+// "28" (2026-10-26): manifest schema v14, where `indicators[]` sort_order is
+// the rank within the entry's dimension. po_items carries that list, and "27"
+// entries hold the per-parent order for HFA sub-categories and variant items.
+const PO_CACHE_VERSION = "28";
 
 // The immutable run id is the uniqueness scope for the four data caches, so two
 // products on the same run share entries. The scopeToken rides beside it: the
