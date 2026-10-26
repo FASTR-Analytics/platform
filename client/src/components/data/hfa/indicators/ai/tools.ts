@@ -802,7 +802,7 @@ export function buildHfaIndicatorTools() {
       name: "validate_hfa_indicators",
       availableIn: COPILOT_TOOL_VIEWS.validate_hfa_indicators,
       description:
-        "Validate HFA indicators' indicator code against the HFA survey dictionary. Writes nothing. Returns how many indicators were checked and, for each one with an issue, whether it has syntax / unknown-variable / result-type issues, whether its code is consistent across rounds, and the specific issues. Run it after creating or editing code, and to find indicators that need fixing.",
+        "Validate HFA indicators' code against the HFA survey dictionary. Writes nothing. Returns how many indicators were checked and, for each one with an issue, whether it has syntax / unknown-variable / result-type issues, whether its code is consistent across rounds, and the specific issues. Run it after creating or editing code, and to find indicators that need fixing.",
       kind: "read",
       inputSchema: z.object({
         indicatorIds: z.array(z.string()).min(1).optional().describe(
@@ -852,7 +852,7 @@ export function buildHfaIndicatorTools() {
       },
       inProgressLabel: () =>
         t3({
-          en: "Validating HFA indicator indicator code...",
+          en: "Validating HFA indicator code...",
           fr: "Validation du code des indicateurs HFA...",
           pt: "A validar o código dos indicadores HFA...",
         }),
