@@ -127,14 +127,16 @@ import {
 } from "~/components/_shared/figure_editor/mod.ts";
 import {
   DuplicateProductsModal,
+  type FigureSource,
   type FigureStaleContext,
-  InsertFigureModal,
   manageAccessLabel,
+  openFigurePicker,
   PackageScopeChip,
   PackageScopeModal,
   ProductAccessModal,
   ProductSettings,
   ReportFigureEmbed,
+  showFigureSourceMenu,
 } from "~/components/products/_shared/mod.ts";
 import type {
   ReportEditProposal,
@@ -1050,30 +1052,23 @@ export function ReportEditor(p: Props) {
 
   // ── toolbar / embed-editor actions ───────────────────────────────────────────
 
-  // The ONE figure-authoring path: the product package's presets and
-  // the metric wizard, resolved under the product's pair.
-  async function pickFigure() {
+  // The ONE figure-authoring path: a new figure from the metric wizard or a
+  // copy of a saved visualization, resolved under the product's pair.
+  async function pickFigure(source: FigureSource) {
     const ctx = staleContext();
     if (!ctx) return undefined;
     return await withPanesCovered(
-      openComponent({
-        element: InsertFigureModal,
-        props: {
-          scope: ctx.scope,
-          context: ctx.context,
-          preselectedMetricId: null,
-        },
-      }),
+      openFigurePicker(source, { scope: ctx.scope, context: ctx.context }),
     );
   }
 
   // Report Forge's "Insert > Visualization": make the figure here and hand
   // back its id and caption; the editor inserts the token and selects it.
-  async function insertFigure(): Promise<
+  async function insertFigure(source: FigureSource): Promise<
     { id: string; caption: string } | undefined
   > {
     const ctx = staleContext();
-    const picked = await pickFigure();
+    const picked = await pickFigure(source);
     if (!ctx || !picked) return undefined;
     const resolved = await resolveFigureBundleInteractively(
       ctx.scope,
@@ -1089,11 +1084,11 @@ export function ReportEditor(p: Props) {
     return { id, caption: picked.metric.label };
   }
 
-  async function replaceSelectedFigure() {
+  async function replaceSelectedFigure(source: FigureSource) {
     const sel = selectedEmbed();
     if (!sel || sel.kind !== "figure") return;
     const ctx = staleContext();
-    const picked = await pickFigure();
+    const picked = await pickFigure(source);
     if (!ctx || !picked) return;
     const resolved = await resolveFigureBundleInteractively(
       ctx.scope,
@@ -1328,7 +1323,8 @@ export function ReportEditor(p: Props) {
     rasterize: (id, ink, palette) =>
       reportExportHostOf(figures()).rasterizeFigure?.(id, ink, palette) ??
         Promise.resolve(undefined),
-    insert: insertFigure,
+    insert: () => insertFigure("new"),
+    insertExisting: () => insertFigure("existing"),
     controls: (id) => (
       <>
         <Show when={figures()[id]?.bundle !== undefined}>
@@ -1341,7 +1337,13 @@ export function ReportEditor(p: Props) {
             })}
           </ToolbarPillButton>
         </Show>
-        <ToolbarPillButton onClick={() => void replaceSelectedFigure()}>
+        <ToolbarPillButton
+          onClick={(e) =>
+            showFigureSourceMenu(
+              e,
+              (source) => void replaceSelectedFigure(source),
+            )}
+        >
           <Icon iconName="chart" class="h-4 w-4" />
           {t3({
             en: "Replace visualization",

@@ -51,5 +51,15 @@ export type {
   PreviewSurface,
   PreviewSurfaceEvent,
 } from "./scroll_sync.ts";
-export { InsertFigureModal } from "./insert_figure/mod.ts";
-export type { InsertFigureResult } from "./insert_figure/mod.ts";
+export {
+  figureSourceLabel,
+  figureSourceMenuItems,
+  InsertFigureModal,
+  openFigurePicker,
+  showFigureSourceMenu,
+} from "./insert_figure/mod.ts";
+export type {
+  FigurePickerProps,
+  FigureSource,
+  InsertFigureResult,
+} from "./insert_figure/mod.ts";

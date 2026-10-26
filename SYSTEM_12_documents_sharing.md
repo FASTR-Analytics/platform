@@ -2764,6 +2764,11 @@ admitted the type in the `products.type` CHECK.
 - **Not versioned, not emailed.** There is no version history (no `VersionKind`;
   `PRODUCT_VERSION_KIND` maps the type to null, so a rename or delete records no
   version edit) and no share-by-email route.
+- **Copied into decks and reports, never linked.** Every insert and replace
+  control in the deck and report editors offers "Existing visualization…" (S11's
+  picker): the saved figure's config is re-resolved under the host's pair and
+  stored as that host's own figure, so later edits to the visualization do not
+  reach it.
 - **Kept from the AI.** The copilot reaches a visualization only from its own
   editor (`editing_visualization`, S13): `list_products` never lists one and the
   `product_updated` interaction cannot name one.

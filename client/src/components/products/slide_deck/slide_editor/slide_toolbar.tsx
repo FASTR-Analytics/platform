@@ -42,6 +42,10 @@ import {
 import { Portal } from "solid-js/web";
 import type { SetStoreFunction } from "solid-js/store";
 import { StaleFigureBadge } from "~/components/_shared/figure_editor/mod.ts";
+import {
+  type FigureSource,
+  showFigureSourceMenu,
+} from "~/components/products/_shared/mod.ts";
 import { instanceState } from "~/state/instance/t1_store";
 import {
   INLINE_EDIT_KEEP_ATTR,
@@ -85,7 +89,7 @@ type Props = {
   staleContext: { scope: PackageScope; authoringContext: RunAuthoringContext };
   onFigureUpdated: (bundle: FigureBundle) => void;
   onEditVisualization: () => void;
-  onCreateVisualization: () => void;
+  onCreateVisualization: (source: FigureSource) => void;
 };
 
 const TEXT_BACKGROUNDS = [
@@ -1099,7 +1103,10 @@ function FigureControls(p: Props & { blockId: string; block: FigureBlock }) {
           })}
         </TextButton>
       </Show>
-      <TextButton onClick={() => p.onCreateVisualization()}>
+      <TextButton
+        onClick={(e) =>
+          showFigureSourceMenu(e, (source) => p.onCreateVisualization(source))}
+      >
         <Icon iconName="chart" class="h-4 w-4" />
         {hasBundle()
           ? t3({

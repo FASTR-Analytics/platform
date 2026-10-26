@@ -82,9 +82,9 @@ export function buildLayoutContextMenu<T>(
     if (callbacks.onSelectVisualization) {
       items.push({
         label: t3({
-          en: "Select visualization",
-          fr: "Sélectionner la visualisation",
-          pt: "Selecionar a visualização",
+          en: "Insert existing visualization",
+          fr: "Insérer une visualisation existante",
+          pt: "Inserir visualização existente",
         }),
         icon: "chart",
         onClick: () => callbacks.onSelectVisualization!(targetId),
@@ -93,9 +93,9 @@ export function buildLayoutContextMenu<T>(
     if (callbacks.onCreateVisualization) {
       items.push({
         label: t3({
-          en: "Create new visualization",
-          fr: "Créer une nouvelle visualisation",
-          pt: "Criar nova visualização",
+          en: "Insert new visualization",
+          fr: "Insérer une nouvelle visualisation",
+          pt: "Inserir nova visualização",
         }),
         icon: "plus",
         onClick: () => callbacks.onCreateVisualization!(targetId),
@@ -136,12 +136,24 @@ export function buildLayoutContextMenu<T>(
     if (callbacks.onCreateVisualization) {
       items.push({
         label: t3({
-          en: "Create new visualization",
-          fr: "Créer une nouvelle visualisation",
-          pt: "Criar nova visualização",
+          en: "Replace with new visualization",
+          fr: "Remplacer par une nouvelle visualisation",
+          pt: "Substituir por nova visualização",
         }),
         icon: "plus",
         onClick: () => callbacks.onCreateVisualization!(targetId),
+      });
+    }
+
+    if (callbacks.onSelectVisualization) {
+      items.push({
+        label: t3({
+          en: "Replace with existing visualization",
+          fr: "Remplacer par une visualisation existante",
+          pt: "Substituir por visualização existente",
+        }),
+        icon: "chart",
+        onClick: () => callbacks.onSelectVisualization!(targetId),
       });
     }
 

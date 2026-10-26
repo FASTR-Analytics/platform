@@ -226,6 +226,26 @@ and its two callers, the slide and report editors, build a figure block directly
 from their live pair and context; the Explore page is read-only and does not
 call it.
 
+**Insert existing.** Every insert or replace control in decks and reports offers
+two sources through one dropdown (`insert_figure/figure_source.ts`:
+`showFigureSourceMenu`, `figureSourceMenuItems`, and `openFigurePicker`, which
+opens the wizard for `"new"` or `InsertExistingFigureModal` for `"existing"`).
+The slide toolbar's insert/replace button and the report's Replace pill open the
+dropdown; the slide context menu lists both sources; Report Forge's Insert menu
+lists "New visualization…" and "Existing visualization…" when its figure host
+sets `insertExisting`. The existing picker
+(`insert_figure/insert_existing_figure.tsx`) lists the saved visualizations
+(S12's visualization products) the user can see, newest first, with a search,
+each previewed through `createFigurePreview` under the HOST's pair, so the card
+is what the insert will draw. One whose metric the host package lacks, or holds
+not ready, is listed and cannot be picked. Picking closes with the same
+`InsertFigureResult` (the host's metric, a clone of the saved config), so the
+host resolves and stores it exactly as a wizard figure: it is a copy, and later
+edits to the saved visualization do not reach it, nor edits to the copy the
+saved one. The picker says so in a notice above the gallery, and its button
+reads "Insert a copy". The picker is a person's surface only: no copilot tool
+reads saved visualizations (S13).
+
 ## The Explore page
 
 `components/explore/explore.tsx` renders one package at one scope for an

@@ -67,7 +67,10 @@ import {
 } from "solid-js/store";
 import { ConflictResolutionModal } from "./conflict_resolution_modal";
 import { buildLayoutContextMenu } from "./build_context_menu";
-import { InsertFigureModal } from "~/components/products/_shared/mod.ts";
+import {
+  type FigureSource,
+  openFigurePicker,
+} from "~/components/products/_shared/mod.ts";
 import {
   copilotViewController,
   type OpenSlide,
@@ -960,7 +963,11 @@ export function SlideEditor(p: Props) {
       },
       onCreateVisualization: async (blockId: string) => {
         setSelectedBlockId(blockId);
-        await handleCreateVisualization();
+        await handleCreateVisualization("new");
+      },
+      onSelectVisualization: async (blockId: string) => {
+        setSelectedBlockId(blockId);
+        await handleCreateVisualization("existing");
       },
       onRemoveVisualization: (blockId: string) => {
         if (tempSlide.type !== "content") return;
@@ -1109,21 +1116,18 @@ export function SlideEditor(p: Props) {
     }
   }
 
-  // The ONE figure-authoring path: the product package's presets and
-  // the metric wizard, resolved under the product's pair. Inserting into an
-  // empty block and replacing an existing figure are the same action.
-  async function handleCreateVisualization() {
+  // The ONE figure-authoring path: a new figure from the metric wizard or a
+  // copy of a saved visualization, resolved under the product's pair.
+  // Inserting into an empty block and replacing an existing figure are the
+  // same action.
+  async function handleCreateVisualization(source: FigureSource) {
     const blockId = selectedBlockId();
     if (!blockId || tempSlide.type !== "content") return;
 
     const result = await withCanvasCovered(
-      openComponent({
-        element: InsertFigureModal,
-        props: {
-          scope: p.scope,
-          context: p.authoringContext,
-          preselectedMetricId: null,
-        },
+      openFigurePicker(source, {
+        scope: p.scope,
+        context: p.authoringContext,
       }),
     );
     if (!result) return;
