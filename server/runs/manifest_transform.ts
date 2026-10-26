@@ -357,6 +357,10 @@ async function transformRunManifest(
   }
   m.manifestSchemaVersion = 13;
 
+  // 12. indicators[] sort_order is a dimension rank (block 1's recompute);
+  //     stamp only.
+  m.manifestSchemaVersion = 14;
+
   const validated = runManifestSchema.parse(m);
   // The schema deliberately accepts ANY integer version: it has to, so a
   // manifest from a newer server can be detected rather than rejected as

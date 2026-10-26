@@ -276,11 +276,10 @@ function getPeriodAxisSort(
 //   7. Everything else is alphabetical by displayed label, sentinel-pinned
 //      when the roll-up is active (the pins are id-keyed no-ops on axes
 //      without sentinel rows).
-// `catalogIdOrder` is the ATTACHED PACKAGE's catalog order: the ids of its
-// indicator catalog, in the order the instance's dictionary put them. It
-// replaces a hardcoded 14-id list that could only ever order the seeded
-// indicators, and it is unconditional: a package always carries a catalog,
-// so there is no vintage branch and no fallback.
+// `catalogIdOrder` is the ATTACHED PACKAGE's catalog: every entry's id in its
+// stamped order (HMIS dictionary order, HFA workbook and category-manager
+// order, ICEH_STRAT_INFO order). Unconditional: a package always carries a
+// catalog, so there is no fallback.
 export function getAxisSort(
   config: PresentationObjectConfig,
   axisProp: DisaggregationOption | "--v" | undefined,

@@ -46,8 +46,8 @@ export const INDICATOR_DISAGGREGATION_OPTIONS = [
 ] as const satisfies readonly DisaggregationOption[];
 // The dimensions whose values are ids of the package catalog, which stamps
 // each with the instance's own order (HFA indicators in workbook order, the
-// HFA taxonomies and ICEH strata in their reorderable order): the axes that
-// sort by that order rather than by label.
+// HFA taxonomies in their reorderable order, ICEH strata in ICEH_STRAT_INFO
+// order): the axes that sort by that order rather than by label.
 export const CATALOG_ORDERED_DISAGGREGATION_OPTIONS: ReadonlySet<string> =
   new Set(
     [
@@ -56,7 +56,6 @@ export const CATALOG_ORDERED_DISAGGREGATION_OPTIONS: ReadonlySet<string> =
       "hfa_variant_item",
       "hfa_category",
       "hfa_sub_category",
-      "hfa_service_category",
       "iceh_indicator",
       "strat",
     ] satisfies DisaggregationOption[],

@@ -59,7 +59,11 @@ import {
 // `family`, `tier` and `sortOrder` (stamped for legacy blobs from the frozen
 // LEGACY_MODULE_PRESENTATION map, block 11), and `metrics[].datasetFamily`
 // is the module's declared family, non-null.
-export const RUN_MANIFEST_SCHEMA_VERSION = 13;
+// 14: `indicators[]` entries' `sort_order` is the rank within the entry's own
+// dimension, composed with the parent's rank for HFA sub-categories and
+// variant items, whose stored order is per parent. Block 1's recompute
+// produces it; block 12 only stamps.
+export const RUN_MANIFEST_SCHEMA_VERSION = 14;
 
 // Typed against DatasetType so the enum cannot drift from the union.
 export const runDatasetFamilySchema: z.ZodType<DatasetType> = z.enum([
