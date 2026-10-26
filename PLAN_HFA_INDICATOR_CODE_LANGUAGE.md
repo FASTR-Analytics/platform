@@ -1,0 +1,397 @@
+# PLAN: HFA indicator code is the platform's expression language, not R
+
+**Status:** open. **Next step:** `Do 1`.
+
+HFA indicator code is written by country analysts, parsed by the app, and
+spliced into an R `case_when` branch per facility. Today the surface is R text:
+the app scans it with regexes, accepts an allowlist of R functions, and every
+label, help line, error and AI instruction calls it "R code". This plan makes
+HFA indicator code a second use of the expression language HMIS calculated
+indicators already have (`lib/indicator_expression/`): one grammar, one parser,
+parsed into an AST, with R emitted from the AST only on the server. The word R
+leaves the UI. Stored code is migrated so nothing existing turns red.
+
+- Branch: `main`.
+- Repos: this app only. Two things outside it are named in §7 and done by hand
+  after the last step: the 47 `%in% c(...)` rows in the default workbook on the
+  resource hub, and the "R code for extraction" page of the docs site that
+  `build_help_buttons.ts` reads.
+- Read first: `CLAUDE.md`, `SYSTEMS.md`, `SYSTEM_05_facilities_indicators.md`
+  (indicators, the R-code lifecycle, the id namespaces), `SYSTEM_08` for the run
+  generator, §2 and §3 here, the step's section in §4, then §8.
+
+## 0. How to work this plan
+
+Cadence, session shapes, the two-things rule and the step rules are
+`panther/protocols/PROTOCOL_ALL_PLANS.md`; the app bindings are
+`PROTOCOL_APP_PLANS.md`. This plan binds them as follows.
+
+- Instruction: "Do the next step of PLAN_HFA_INDICATOR_CODE_LANGUAGE.md."
+- Branch: `main` (Tim's standing instruction overrides the protocol's
+  `tim-branch`). Never create a branch.
+- Floor: `deno task typecheck`, `deno task test`, `./validate_protocols`. Step 3
+  also passes `./validate_migrations`.
+- Build log: §8. Last step: 4.
+- A step reads, in order: `CLAUDE.md`, `SYSTEMS.md`, the SYSTEM file for each
+  area the step names, §2 and §3 here, its own section in §4, and §8.
+- Reviews are independent: a Review session is a context that did not write the
+  step. One Fix and one re-review per step, as the protocol says.
+- Vocabulary: **code** is an HFA indicator's per-round expression (`rCode`,
+  `r_code`), **filter** its optional per-round filter (`rFilterCode`), and
+  **variant code** a per-item expression. **The language** is the grammar in
+  `lib/indicator_expression/parse.ts`. **Emit** is turning an AST into the R
+  text the m010 script runs.
+
+## 1. The problem
+
+- The app parses HFA code with regexes over R text
+  (`lib/hfa_r_code_analysis.ts`: `stripRStringsAndComments`,
+  `normalizeRLogicalOperators`, `extractRIdentifiers`, `unknownRFunctions`), and
+  the client validator
+  (`client/src/components/data/hfa/indicators/_shared/r_code_validator.ts`) adds
+  bracket counting, a lone-`=` warning and a heuristic result-type guess. Every
+  new word of the language is another regex on both sides.
+- The language definition is an allowlist of R function names
+  (`HFA_CODE_FUNCTIONS`). The analysts write comparisons, `&`, `|`, arithmetic
+  and `x %in% c(1, 2)`; the default workbook's 475 indicators use nothing else,
+  and the stored code in the field uses nothing else. Functions were never
+  needed; the allowlist exists because the surface was R.
+- The UI names it R: the editor label "R code (should evaluate to TRUE/FALSE)"
+  (`indicator_code_editor.tsx:940-950`), the filter-requires-R errors
+  (`:415-431`, `:1066-1068`, `xlsx_upload_form.tsx:607-613`), the AI guidance
+  and tool descriptions (`ai/instructions.ts:22,37-42`,
+  `ai/tools.ts:757,805,855-856,896,1082,1158-1159,1244`,
+  `ai/editor_tools.ts:39`, `copilot/build_system_prompt.ts:239`), the reserved
+  word texts (`xlsx_workbook.ts:836`,
+  `lib/api-routes/instance/hfa_indicators.ts:68`), and the help page
+  `ind-r-code` (`lib/help/help_targets.generated.ts:324`, generated from the
+  docs site).
+- HMIS calculated indicators already have the right thing: a tokenizer, a parser
+  and an AST in `lib/indicator_expression/parse.ts` (`+ - * /`, parentheses,
+  numbers, identifiers, `[bracketed ids]`, three calls), evaluated in TypeScript
+  (`evaluate.ts`) and typed and flattened by `resolve.ts`. HFA is a second,
+  worse idea of the same thing.
+- The server splices the R text verbatim into
+  `with(list(<sentinel bindings>), case_when(...))`
+  (`server/server_only_funcs/get_script_with_parameters_hfa.ts`,
+  `buildPerTimePointMutateExpression`, `buildPerTimePointStatusExpression`), and
+  the dependency analyzer
+  (`server/server_only_funcs/hfa_dependency_analyzer.ts`) re-extracts
+  identifiers with the same regexes.
+
+## 2. The model
+
+One language. Its grammar, after this plan:
+
+- A **number**, an **identifier** (a survey variable id or an indicator id;
+  `[in brackets]` when it does not match `BARE_IDENTIFIER_PATTERN`, as HMIS does
+  today), parentheses.
+- **Arithmetic** `+ - * /` and unary minus.
+- **Comparison** `== != < > <= >=`.
+- **Logic** `AND OR NOT`, written in any case, with `& | !` accepted as the same
+  operators.
+- **List test** `x IN (1, 2, 3)`, with `NOT IN` as its negation.
+- **Calls** `abs`, `coalesce`, `nullif`, as HMIS has today. HFA code refuses
+  calls (§3 R4): the grammar has them, the HFA validation walks the AST and
+  rejects a `call` node with "functions are not part of HFA indicator code".
+
+Precedence, loosest first: `OR`, `AND`, `NOT`, comparison and `IN`, `+ -`,
+`* /`, unary minus, primary.
+
+The AST gains nodes for comparison, and/or, not and in. `evaluate.ts` implements
+them with its existing NULL rules so HMIS can use them later without a second
+evaluator: a comparison yields 1, 0 or null; `AND`/`OR` are three-valued as in
+SQL and R; `IN` yields null when the left side is null. `resolve.ts`'s type rule
+treats them as numeric.
+
+HFA parses code with that parser, validates the AST (identifiers exist in the
+round, no calls, result type fits the indicator's `type`), and the server emits
+R from the AST: comparisons and arithmetic as themselves, `AND OR NOT` as
+`& | !`, `x IN (a, b)` as `x %in% c(a, b)`, a bracketed identifier as the bare R
+symbol (ids that need brackets are already rejected by `HFA_INDICATOR_ID_REGEX`
+and the survey import, so the emitter throws on one). The emitted text is what
+the sentinel bindings wrap, exactly as the raw text was.
+
+Stored code never changes shape: `hfa_indicator_code.r_code`, `r_filter_code`,
+`hfa_indicator_variant_code.r_code`, the `rCode` fields and the workbook's
+`r_code__<round>` headers keep their names (§3 R6). Their contents are migrated
+once from `%in% c(...)` to `IN (...)` (§3 R7).
+
+Nothing shown to a user says R. The field is "Indicator code"; the help line
+under it states the operators and the list form; the errors come from the
+parser's positions, translated.
+
+## 3. Rulings
+
+1. One grammar for HMIS and HFA, in `lib/indicator_expression/parse.ts`. No
+   second parser. _(Tim, 2026-10-26: "agree with 2".)_
+2. The HFA words are `AND`, `OR`, `NOT`, `IN`, case-insensitive, with `& | !`
+   accepted as the same operators. The list form is `x IN (1, 2)`. _(Tim: "why
+   can't we have our own operator"; spelling proposed.)_
+3. No R text is ever parsed again. `stripRStringsAndComments`,
+   `normalizeRLogicalOperators`, `extractRIdentifiers`, `unknownRFunctions`,
+   `HFA_CODE_FUNCTIONS`, `HFA_CODE_OPERATORS` and `HFA_CODE_OPERATOR_ALIASES`
+   are deleted with their consumers rewritten onto the AST. The client
+   validator's bracket scanner, `&&` check, lone-`=` warning and the
+   string-based result-type inference go with them: the parser reports an
+   unexpected `=`, `&&`, `||` or an unclosed bracket as a syntax error with a
+   position, and the result type is read off the AST's root node.
+4. HFA code accepts no calls. The parser keeps `abs`, `coalesce` and `nullif`
+   for HMIS; HFA validation rejects any `call` node. _(Tim: "DO THEY NEED ALL
+   THESE FUNCTIONS?")_
+5. R emission lives on the server only, in the HFA script generator's module
+   tree. `lib/` never produces R text. The dependency analyzer reads identifiers
+   from the AST (`collectIdentifiers`).
+6. No rename of stored columns, API fields, types or workbook headers: `r_code`,
+   `r_filter_code`, `rCode`, `rFilterCode`, `r_code__<round>`,
+   `r_filter_code__<round>`, `r_variant_code__...` stay. The prefix is history
+   the user never sees; renaming it is a migration across the DB, the routes,
+   the AI tools and every workbook in the field for no visible gain.
+   _(proposed)_
+7. Stored code is migrated by a `.ts` migration that rewrites `%in% c(...)` to
+   `IN (...)` in `hfa_indicator_code.r_code`, `hfa_indicator_code.r_filter_code`
+   and `hfa_indicator_variant_code.r_code`, then parses every row with the new
+   parser and logs the ids of rows that still fail (they stay as they are; the
+   editor shows the error). _(Tim: "agree with need migration".)_
+8. `isReservedHfaId` reserves the language's words (`and`, `or`, `not`, `in`,
+   any case) and the M10 structural names, nothing else: the function names are
+   rejected as calls anyway, and R keywords are no longer part of the surface.
+   _(proposed)_
+9. `lib/hfa_r_code_analysis.ts` is renamed `lib/hfa_indicator_code.ts` in step
+   2, keeping the id rules (`HFA_INDICATOR_ID_REGEX`, `nextHfaIndicatorId`,
+   `HFA_VARIANT_ITEM_ID_REGEX`, `composeHfaVariantColumnName`,
+   `isReservedHfaId`) and adding the HFA parse-and-validate entry point. The
+   SYSTEM_05 manifest moves with it. _(proposed)_
+10. The help page `ind-r-code` is regenerated from the docs site, which is not
+    this repo. The step that removes R from the UI records the page's new title
+    and text in §8 for the docs edit, and does not hand-edit the generated file.
+    _(proposed)_
+11. Error texts shown in the editor are translated with `t3` at the point the
+    validator builds them, as the current validator does since `6cd36b495`.
+    Parser messages (`ExpressionSyntaxError`) stay English inside `lib/` and are
+    mapped to translated texts by the HFA validator, keyed on a structured error
+    kind the parser exposes (step 1 adds `kind` and `at` to
+    `ExpressionSyntaxError`). _(proposed)_
+
+## 4. Steps
+
+### Step 1: The grammar
+
+**Surface.** `lib/indicator_expression/parse.ts`,
+`lib/indicator_expression/evaluate.ts`, `lib/indicator_expression/resolve.ts`,
+`server/tests/indicator_expression_test.ts` (new), the manifest line in
+`SYSTEM_05_facilities_indicators.md` for the new test, and the SYSTEM_05 prose
+paragraph that states the grammar (around line 893, "Calculated indicators are
+defined by an expression").
+
+**Deliverable.**
+
+- Tokens for `== != < > <= >= & | !` and the words `and or not in` in any case;
+  `IN (` list syntax. AST nodes `compare`, `and`, `or`, `not`, `in`, with the
+  precedence in §2.
+- `ExpressionSyntaxError` carries `kind` (one of: `empty`, `unexpected_char`,
+  `unclosed_bracket`, `unknown_function`, `arity`, `expected`, `trailing`,
+  `single_equals`) and `at`, so a consumer can translate without parsing the
+  message. A lone `=` and `&&`/`||` are syntax errors with their own kinds, not
+  warnings.
+- `collectIdentifiers` covers the new nodes.
+- `evaluate.ts` implements the new nodes with the NULL rules in §2.
+- `resolve.ts` accepts the new nodes as numeric.
+- `server/tests/indicator_expression_test.ts` pins: precedence
+  (`a OR b AND
+  NOT c == 1 + 2 * 3`), case-insensitive words, `&`/`|`/`!`
+  equivalence, `IN` and `NOT IN`, bracketed identifiers inside `IN`, every error
+  kind with its position, and evaluation of each new node including nulls.
+- Every existing HMIS expression parses to the same AST as before: pinned by the
+  existing `m012_expression_parity_test.ts` and
+  `dhis2_decompose_indicator_test.ts` staying green.
+
+**Not in this step.** Anything under `client/`, `server/server_only_funcs`, the
+HFA module, the UI texts.
+
+**Gates.** The floor.
+
+**Ends with.** One commit.
+
+### Step 2: HFA parses, validates and emits from the AST
+
+**Surface.** `lib/hfa_r_code_analysis.ts` (renamed to
+`lib/hfa_indicator_code.ts`), `lib/mod.ts` if it lists the file by name,
+`client/src/components/data/hfa/indicators/_shared/r_code_validator.ts`,
+`client/src/components/data/hfa/indicators/_shared/mod.ts`,
+`client/src/components/data/hfa/indicators/manager.tsx`,
+`client/src/components/data/hfa/indicators/indicator_code_editor.tsx`,
+`client/src/components/data/hfa/indicators/ai/tools.ts`,
+`client/src/components/data/hfa/indicators/ai/instructions.ts`,
+`client/src/components/data/hfa/indicators/xlsx_workbook.ts`,
+`lib/api-routes/instance/hfa_indicators.ts`,
+`server/db/instance/hfa_indicators.ts`,
+`server/worker_routines/import_hfa_data_csv/stage_csv.ts`,
+`server/server_only_funcs/hfa_dependency_analyzer.ts`,
+`server/server_only_funcs/get_script_with_parameters_hfa.ts`,
+`server/server_only_funcs/hfa_r_emit.ts` (new),
+`server/tests/hfa_r_code_analysis_test.ts` (renamed
+`server/tests/hfa_indicator_code_test.ts`), `server/tests/hfa_r_emit_test.ts`
+(new), `SYSTEM_05_facilities_indicators.md` (manifest and the "HFA R-code
+analysis has ONE home" and "R-code lifecycle" prose), `SYSTEM_08` prose on the
+HFA generator if it describes the splice.
+
+**Deliverable.**
+
+- `lib/hfa_indicator_code.ts` exports the id rules unchanged (R9),
+  `isReservedHfaId` per R8, and `parseHfaIndicatorCode(source)` returning either
+  `{ ok: true, node, identifiers }` or `{ ok: false, error }` where `error` is
+  the parser's structured error or `{ kind: "call", name, at }` for a call node
+  (R4). No R text helper remains (R3).
+- The client validator builds its result from `parseHfaIndicatorCode`: syntax
+  errors translated by `kind` (R11), unknown identifiers with the
+  case-insensitive suggestion as today, and the result type read from the root
+  node (`compare`/`and`/`or`/`not`/`in` → boolean; arithmetic or a bare
+  identifier or number → numeric). Its exported shape (`RCodeValidationResult`,
+  `validateRCode`, `hasRCodeErrors`, `checkRCodeResultType`) may be renamed with
+  its consumers, since all of them are in the surface.
+- The manager's unused-variables and deletion guards, and the AI tools'
+  validation, use the parser's identifiers.
+- `hfa_dependency_analyzer.ts` extracts dependencies from the AST and reports a
+  parse failure or a call as a validation error with the same shape its errors
+  have today.
+- `server/server_only_funcs/hfa_r_emit.ts` turns an AST into R text (§2) and
+  throws on a bracketed identifier. The generator parses each snippet once,
+  emits, and wraps the emitted text in the sentinel bindings exactly as it
+  wrapped the raw text; the response-status expression uses the same emitted
+  filter. A snippet that does not parse is a generation error naming the
+  indicator, the round and the error, as an unknown variable is today.
+- `isReservedHfaId` consumers (`stage_csv.ts`, `xlsx_workbook.ts`, the route and
+  db checks) keep working; their texts no longer say "R function".
+- `server/tests/hfa_r_emit_test.ts` pins: `a == 1 AND b IN (1, 2)` emits
+  `a == 1 & b %in% c(1, 2)`; `NOT x` emits `!x`; precedence is preserved by
+  parenthesising every binary node; a call is refused by
+  `parseHfaIndicatorCode`; the generator's full output for one indicator with
+  code and filter equals the pre-plan output for the same R-shaped input
+  (fixture the expected string).
+
+**Not in this step.** The migration (step 3), the UI labels and the AI prose
+that say "R" (step 4), except where a text sits inside a function this step
+rewrites.
+
+**Gates.** The floor.
+
+**Ends with.** Several commits, each green: the lib module and its test; the
+server emitter, generator and analyzer; the client validator and its consumers.
+
+### Step 3: Migrate stored code
+
+**Surface.** `server/db/migrations/instance/220_hfa_code_in_list.ts` (new),
+`server/db/migrations/data_transforms/hfa_code.ts` (new, the body),
+`server/db/migrations/runner.ts` (the `TS_MIGRATIONS` entry),
+`server/tests/hfa_code_migration_test.ts` (new), `PROTOCOL_APP_MIGRATIONS.md`
+only if its list of `.ts` migrations is enumerated there,
+`SYSTEM_05_facilities_indicators.md` manifest for the new files.
+
+**Deliverable.**
+
+- The migration rewrites, in one transaction, every `%in% c( ... )` to
+  `IN ( ... )` in the three code columns (R7), with the rewrite as a pure
+  function in `data_transforms/hfa_code.ts` that the test drives.
+- After the rewrite it parses every row with `parseHfaIndicatorCode` and prints
+  one line per row that still fails: table, indicator id, round, item id, error
+  kind. It does not alter those rows and does not fail the boot.
+- `server/tests/hfa_code_migration_test.ts` pins the rewrite on: a plain
+  `x %in% c(1, 2)`, nested parentheses inside the list, `%in%` with odd spacing,
+  a snippet with two lists, a snippet with none (unchanged), and a filter
+  column.
+
+**Not in this step.** `has_syntax_error` / `code_consistent` flags: the manager
+computes its columns from the code, and "Revalidate all" rewrites the flags on
+demand.
+
+**Gates.** The floor, plus `./validate_migrations`.
+
+**Ends with.** One commit.
+
+### Step 4: The word R leaves the UI
+
+**Surface.**
+`client/src/components/data/hfa/indicators/indicator_code_editor.tsx`,
+`client/src/components/data/hfa/indicators/xlsx_upload_form.tsx`,
+`client/src/components/data/hfa/indicators/xlsx_workbook.ts`,
+`client/src/components/data/hfa/indicators/ai/instructions.ts`,
+`client/src/components/data/hfa/indicators/ai/tools.ts`,
+`client/src/components/data/hfa/indicators/ai/editor_tools.ts`,
+`client/src/components/instance/copilot/build_system_prompt.ts`,
+`lib/api-routes/instance/hfa_indicators.ts`, `HFA_WORK_CATALOGUE.md` (the
+"indicator code language" section and the Q11 done entry),
+`SYSTEM_05_facilities_indicators.md` and `SYSTEM_13` prose that says "R code".
+
+**Deliverable.**
+
+- No user-visible string in `client/src`, `lib` or `server` says "R code", "code
+  R", "Código R", "r-code", "R function" or "R expression" for HFA. The field
+  label is "Indicator code (should evaluate to yes/no)" or "(should evaluate to
+  a number)" in en, fr and pt; the filter label and the filter-requires-code
+  errors match.
+- The help line under the code box reads, from constants the AI guidance also
+  reads: the operators `== != < > <= >= + - * /`, the words `AND OR NOT`, and
+  "`x IN (1, 2)` tests a list of values. Nothing else is accepted."
+- The AI guidance and every tool description describe the language in those
+  terms and show `IN (...)`, never `%in%`, `c(`, "R" or a function.
+- `HFA_WORK_CATALOGUE.md`'s language section describes the grammar as it now is,
+  and its Q11 entry points at this plan's commits.
+- §8 records the new title and body for the docs site's `ind-r-code` page (R10)
+  so the docs edit and `deno task build:help-buttons` can follow.
+- A grep for `\bR\b` across `client/src` and `lib` returns only comments on the
+  server-side emission and the m012/m010 script references.
+
+**Not in this step.** The docs site and the resource hub workbook (§7).
+
+**Gates.** The floor.
+
+**Ends with.** One commit.
+
+## 5. Gates catalogue
+
+| Gate                                        | First reached |
+| ------------------------------------------- | ------------- |
+| `deno task typecheck`                       | Step 1        |
+| `deno task test`                            | Step 1        |
+| `./validate_protocols`                      | Step 1        |
+| `server/tests/indicator_expression_test.ts` | Step 1        |
+| `server/tests/hfa_indicator_code_test.ts`   | Step 2        |
+| `server/tests/hfa_r_emit_test.ts`           | Step 2        |
+| `./validate_migrations`                     | Step 3        |
+| `server/tests/hfa_code_migration_test.ts`   | Step 3        |
+
+## 6. Out of scope
+
+- Renaming `r_code`, `rCode`, `r_code__<round>` or the editor's component names
+  (R6).
+- A non-R form for anything the HMIS evaluator already does (`abs`, `coalesce`,
+  `nullif`): they stay for HMIS and are refused for HFA.
+- Making HMIS calculated indicators use comparisons: the grammar allows it after
+  step 1, the HMIS editor does not advertise it, and nothing changes there.
+- The sentinel-binding and response-status design around the emitted expression
+  (SYSTEM_05 "Sentinel Layer 3b").
+- The docs site page and the resource hub workbook (§7).
+
+## 7. Rollout and rollback
+
+- Nothing ships before the review of step 4 passes. Steps 1 to 4 are one deploy:
+  step 3's migration runs on first boot and is idempotent (a row with no
+  `%in% c(` is untouched; a rewritten row contains none).
+- After the deploy, by hand, outside this repo: change the 47 `%in% c(...)`
+  cells in `hfa_default_indicators.xlsx` on the resource hub to `IN (...)`,
+  since the import does not rewrite workbook code and those rows would show as
+  syntax errors until then; and edit the docs site page recorded in §8, then run
+  `deno task build:help-buttons` here and commit the regenerated file.
+- Rollback is a redeploy of the previous image. Migrated rows read `IN (...)`,
+  which the previous validator reports as an unknown variable `IN` and the
+  previous generator splices into R unchanged, so m010 fails on those indicators
+  until the rows are rewritten back; the inverse rewrite is the same pure
+  function with the arguments swapped, kept in `data_transforms/hfa_code.ts` for
+  that purpose.
+
+## 8. Build log
+
+| Step | Row                                                                                   |
+| ---- | ------------------------------------------------------------------------------------- |
+| 0    | Plan written 2026-10-26 after Q11 (`2265e28ca`, `3c81f8a65`) kept an R function list. |
