@@ -349,7 +349,6 @@ Deno.test("the write places new facilities with their admin areas, pads above th
   await resetRegistry();
   const result = await importFile(TAKE_ALL);
   assertEquals(result.registryChanged, true);
-  assertEquals(result.columnsEnabled, []);
   assertEquals(result.skippedFacilityIds, ["F6"]);
   assertEquals(result.changeCounts, [
     { column: "admin", changed: 1, kept: 0, taken: 1 },
@@ -436,7 +435,7 @@ Deno.test("mapping columns the schema lacks switches them on, a custom one under
       facility_custom_2: { header: "Col 9: setting", label: "Setting" },
     },
   });
-  const result = await db.begin(async (sql) =>
+  await db.begin(async (sql) =>
     await writeHfaFacilitiesFromImport(sql, {
       file,
       facilityColumns,
@@ -445,7 +444,6 @@ Deno.test("mapping columns the schema lacks switches them on, a custom one under
       recodes: {},
     })
   );
-  assertEquals(result.columnsEnabled, ["facility_custom_2"]);
   const stored = JSON.parse(
     (await db<{ config_json_value: string }[]>`
       SELECT config_json_value FROM instance_config

@@ -300,11 +300,11 @@ every facility, levels 2 to the HFA admin depth are mapped all or none, and any
 of the eight optional columns may be mapped: the write switches on, in the HFA
 structure schema, the mapped columns it lacks (`enableMappedHfaColumns`, via
 `writeStructureSchema` in the same transaction), a custom column under the label
-the mapping carries, and reports them as `columnsEnabled` so the launch route
-tells the config channel. Nothing presumes the file's column names: the wizard
-pre-fills an optional column only from the latest import's own mapping. How the
-kept row's cells are read (correction columns, ODK label resolution) is S6
-"Staging", the HFA facility columns bullet.
+the mapping carries. The launch route snapshots the HFA schema before the run
+and tells the config channel when it differs on completion. Nothing presumes the
+file's column names: the wizard pre-fills an optional column only from the
+latest import's own mapping. How the kept row's cells are read (correction
+columns, ODK label resolution) is S6 "Staging", the HFA facility columns bullet.
 
 **Changes.** A change is an existing facility whose file value for a mapped
 column group differs from its registry value; a blank and a NULL registry value

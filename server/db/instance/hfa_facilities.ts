@@ -90,8 +90,6 @@ export type HfaSourceWrite = {
 
 export type HfaRegistryWriteResult = {
   registryChanged: boolean;
-  // Mapped columns the HFA structure schema lacked, switched on by this write.
-  columnsEnabled: OptionalFacilityColumn[];
   match: HfaFacilityMatch;
   changeCounts: HfaFacilityChangeCounts[];
   // New facilities whose file tuple is incomplete: not written, so the caller
@@ -557,19 +555,18 @@ function mappedOptionalColumns(
 }
 
 // Switches on, in the HFA structure schema, the mapped columns it lacks, each
-// custom one under the label the mapping carries. Returns the columns switched
-// on, so the launch route can tell the config channel.
+// custom one under the label the mapping carries.
 async function enableMappedHfaColumns(
   sql: Sql,
   schema: StructureSchema,
   facilityColumns: HfaFacilityColumns,
-): Promise<OptionalFacilityColumn[]> {
+): Promise<void> {
   const enabled = getEnabledOptionalFacilityColumns(schema);
   const missing = mappedOptionalColumns(facilityColumns).filter((c) =>
     !enabled.includes(c)
   );
   if (missing.length === 0) {
-    return [];
+    return;
   }
   const next = withOptionalFacilityColumnsEnabled(
     schema,
@@ -579,7 +576,6 @@ async function enableMappedHfaColumns(
     })),
   );
   throwIfErrNoData(await writeStructureSchema(sql, "hfa", next));
-  return missing;
 }
 
 function assertFileShape(file: HfaFileFacility[], adminDepth: number): void {
@@ -1106,17 +1102,12 @@ export async function writeHfaFacilitiesFromImport(
       timePoint: input.timePoint,
     }),
   );
-  const columnsEnabled = await enableMappedHfaColumns(
-    sql,
-    structureSchema,
-    input.facilityColumns,
-  );
+  await enableMappedHfaColumns(sql, structureSchema, input.facilityColumns);
 
   return {
     registryChanged: changeSet.newFacilities.length > 0 ||
       adminUpdates.length > 0 ||
       [...optionalUpdates.values()].some((u) => u.length > 0),
-    columnsEnabled,
     match: changeSet.match,
     changeCounts: countHfaFacilityChanges(changeSet.changes, resolved),
     facilitiesWithoutAdminTuple: idSample(
