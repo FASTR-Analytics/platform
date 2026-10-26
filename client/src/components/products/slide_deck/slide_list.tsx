@@ -776,11 +776,11 @@ export function SlideList(p: Props) {
               {canEdit()
                 ? t3({
                   en:
-                    'No slides yet. Ask the AI to create some slides, or click "+ Add slide" to create your own',
+                    'No slides yet. Ask the AI to create some slides, or click "Add slide" to create your own',
                   fr:
-                    "Aucune diapositive. Demandez à l'IA de créer des diapositives, ou cliquez sur « + Ajouter une diapositive » pour en créer vous-même",
+                    "Aucune diapositive. Demandez à l'IA de créer des diapositives, ou cliquez sur « Ajouter une diapositive » pour en créer vous-même",
                   pt:
-                    'Ainda não há diapositivos. Peça à IA para criar alguns diapositivos ou clique em "+ Adicionar diapositivo" para criar os seus',
+                    'Ainda não há diapositivos. Peça à IA para criar alguns diapositivos ou clique em "Adicionar diapositivo" para criar os seus',
                 })
                 : t3({
                   en: "This deck has no slides yet",

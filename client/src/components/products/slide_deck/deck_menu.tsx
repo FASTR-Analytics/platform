@@ -25,7 +25,6 @@ import {
   Button,
   Checkbox,
   getSelectOptions,
-  Icon,
   plural,
   Select,
   TextArea,
@@ -145,28 +144,11 @@ export function AddSlideMenu(p: { onAdd: (slide: Slide) => void }) {
     <ToolbarPopover
       menu
       attrs={{ "data-tour": "deck-add-slide" }}
-      label={
-        // Just the +, at the height of the text menus beside it; the name
-        // is its tooltip and its accessible label.
-
-
-          <span
-            class="flex h-5 items-center"
-            title={t3({
-              en: "Add slide",
-              fr: "Ajouter une diapositive",
-              pt: "Adicionar diapositivo",
-            })}
-            aria-label={t3({
-              en: "Add slide",
-              fr: "Ajouter une diapositive",
-              pt: "Adicionar diapositivo",
-            })}
-          >
-            <Icon iconName="plus" class="h-4 w-4" />
-          </span>
-
-      }
+      label={t3({
+        en: "Add slide",
+        fr: "Ajouter une diapositive",
+        pt: "Adicionar diapositivo",
+      })}
       title={t3({
         en: "Add slide",
         fr: "Ajouter une diapositive",

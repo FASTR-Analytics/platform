@@ -130,11 +130,11 @@ export function buildDeckEditorIntroTour(): TourDefinition {
         }),
         body: t3({
           en:
-            "The + button adds a slide. Choose a Cover slide to open the deck, a Section slide to introduce a new part, or a Content slide for visualizations, images and text.",
+            "The Add slide menu adds a slide. Choose a Cover slide to open the deck, a Section slide to introduce a new part, or a Content slide for visualizations, images and text.",
           fr:
-            "Le bouton + ajoute une diapositive. Choisissez une diapositive de couverture pour ouvrir la présentation, une diapositive de section pour introduire une nouvelle partie, ou une diapositive de contenu pour les visualisations, les images et le texte.",
+            "Le menu Ajouter une diapositive ajoute une diapositive. Choisissez une diapositive de couverture pour ouvrir la présentation, une diapositive de section pour introduire une nouvelle partie, ou une diapositive de contenu pour les visualisations, les images et le texte.",
           pt:
-            "O botão + adiciona um diapositivo. Escolha um diapositivo de capa para abrir a apresentação, um diapositivo de secção para introduzir uma nova parte, ou um diapositivo de conteúdo para visualizações, imagens e texto.",
+            "O menu Adicionar diapositivo adiciona um diapositivo. Escolha um diapositivo de capa para abrir a apresentação, um diapositivo de secção para introduzir uma nova parte, ou um diapositivo de conteúdo para visualizações, imagens e texto.",
         }),
         placement: "bottom",
       },
