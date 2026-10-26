@@ -1,54 +1,54 @@
-[TBD] [user] [changed] - Indicator code editor now uses a simpler, dedicated expression language instead of R syntax
-[TBD] [user] [added] - Indicator code now supports IN and NOT IN for testing lists of values
-[TBD] [user] [added] - Indicator code now supports AND, OR, NOT keywords (case-insensitive) alongside & | ! symbols
-[TBD] [user] [added] - Indicator code now supports quoted text comparisons, e.g. sh_03 == "c"
-[TBD] [user] [changed] - Code editor labels updated from "R code" to "Indicator code" for clarity
-[TBD] [user] [changed] - Binary indicator hint changed from "should evaluate to TRUE/FALSE" to "should evaluate to yes/no"
-[TBD] [user] [changed] - Filter code hint changed from "should evaluate to TRUE/FALSE" to "should evaluate to yes/no"
-[TBD] [user] [changed] - Operator and syntax help text in the editor now shows the new language's operators instead of R functions
-[TBD] [user] [changed] - Warning counts in the indicator manager now labeled "type mismatch" instead of generic "warning"
-[TBD] [user] [fixed] - Existing indicator code using R-style %in% c(...) is automatically migrated to the new IN (...) syntax
-[TBD] [admin] [changed] - HFA indicator code now uses its own expression language instead of R syntax
-[TBD] [admin] [added] - HFA indicator code supports IN and NOT IN list tests (e.g. `x IN (1, 2)`)
-[TBD] [admin] [added] - HFA indicator code supports AND, OR, NOT keywords and comparison operators directly
-[TBD] [admin] [changed] - Editor labels updated from "R code" to "Indicator code" throughout the interface
-[TBD] [admin] [changed] - Binary indicator code hint now says "should evaluate to yes/no" instead of "TRUE/FALSE"
-[TBD] [admin] [changed] - Filter code hint now says "should evaluate to yes/no" instead of "TRUE/FALSE"
-[TBD] [admin] [changed] - Operator help text now shows available words and list syntax instead of R functions
-[TBD] [admin] [changed] - Functions like abs, is.na, pmax are no longer accepted in HFA indicator code
-[TBD] [admin] [changed] - Warning badge in indicator manager now reads "type mismatch" instead of "warning"
-[TBD] [admin] [internal] - Existing indicator code using R's %in% c(...) syntax is automatically migrated to IN (...)
-[TBD] [admin] [changed] - Reserved indicator ID error message simplified to explain the ID is already meaningful
-[TBD] [user] [fixed] - Service categories dropdown no longer appears too narrow
-[TBD] [user] [fixed] - Structural variables no longer incorrectly shown as unused
-[TBD] [admin] [fixed] - Service categories dropdown no longer collapses too narrow
-[TBD] [admin] [fixed] - Structural variables no longer shown as unused in indicator manager
-[TBD] [user] [added] - Create time points directly during data import
-[TBD] [user] [added] - Map custom facility columns during HFA import with labels
-[TBD] [user] [added] - Indicator code editor now shows accepted operators and functions
-[TBD] [user] [added] - Indicator code validates that only accepted functions are used
-[TBD] [user] [added] - Misspelled variable names now suggest the correct spelling
-[TBD] [user] [changed] - Delete confirmation phrase is now in your language
-[TBD] [user] [changed] - Simplified "No time points" message on data overview
-[TBD] [user] [changed] - HFA indicator type and aggregation labels are now translated
-[TBD] [user] [changed] - Spreadsheet import errors are now shown in your language
-[TBD] [user] [changed] - Indicator code syntax errors are now shown in your language
-[TBD] [user] [changed] - HFA categories and sub-categories now sort in their configured order in charts and tables
-[TBD] [user] [fixed] - "No data" message in dataset view is now translated
-[TBD] [admin] [added] - Create time points directly from the data import wizard
-[TBD] [admin] [added] - Custom facility columns can be added during HFA data import
-[TBD] [admin] [added] - Indicator code editor now shows accepted operators and functions
-[TBD] [admin] [added] - Indicator code validates that only accepted functions are used
-[TBD] [admin] [added] - Case-sensitive variable name suggestions in indicator code errors
-[TBD] [admin] [changed] - Delete confirmation phrase is now translated per language
-[TBD] [admin] [changed] - HFA indicator type and aggregation labels are now translated
-[TBD] [admin] [changed] - XLSX indicator workbook validation errors are now translated
-[TBD] [admin] [changed] - HFA categories, sub-categories, and variant items now sort in catalog order on chart axes
-[TBD] [admin] [changed] - ICEH strata now sort in catalog order on chart axes
-[TBD] [admin] [changed] - Simplified "No time points" message on the data overview page
-[TBD] [admin] [fixed] - R code validator now rejects unsupported functions before module run
-[TBD] [admin] [fixed] - Indicator XLSX import correctly applies one code column to all time points
-[TBD] [admin] [internal] - Run manifest updated to schema version 14
+[2.2.0] [user] [changed] - Indicator code editor now uses a simpler, dedicated expression language instead of R syntax
+[2.2.0] [user] [added] - Indicator code now supports IN and NOT IN for testing lists of values
+[2.2.0] [user] [added] - Indicator code now supports AND, OR, NOT keywords (case-insensitive) alongside & | ! symbols
+[2.2.0] [user] [added] - Indicator code now supports quoted text comparisons, e.g. sh_03 == "c"
+[2.2.0] [user] [changed] - Code editor labels updated from "R code" to "Indicator code" for clarity
+[2.2.0] [user] [changed] - Binary indicator hint changed from "should evaluate to TRUE/FALSE" to "should evaluate to yes/no"
+[2.2.0] [user] [changed] - Filter code hint changed from "should evaluate to TRUE/FALSE" to "should evaluate to yes/no"
+[2.2.0] [user] [changed] - Operator and syntax help text in the editor now shows the new language's operators instead of R functions
+[2.2.0] [user] [changed] - Warning counts in the indicator manager now labeled "type mismatch" instead of generic "warning"
+[2.2.0] [user] [fixed] - Existing indicator code using R-style %in% c(...) is automatically migrated to the new IN (...) syntax
+[2.2.0] [admin] [changed] - HFA indicator code now uses its own expression language instead of R syntax
+[2.2.0] [admin] [added] - HFA indicator code supports IN and NOT IN list tests (e.g. `x IN (1, 2)`)
+[2.2.0] [admin] [added] - HFA indicator code supports AND, OR, NOT keywords and comparison operators directly
+[2.2.0] [admin] [changed] - Editor labels updated from "R code" to "Indicator code" throughout the interface
+[2.2.0] [admin] [changed] - Binary indicator code hint now says "should evaluate to yes/no" instead of "TRUE/FALSE"
+[2.2.0] [admin] [changed] - Filter code hint now says "should evaluate to yes/no" instead of "TRUE/FALSE"
+[2.2.0] [admin] [changed] - Operator help text now shows available words and list syntax instead of R functions
+[2.2.0] [admin] [changed] - Functions like abs, is.na, pmax are no longer accepted in HFA indicator code
+[2.2.0] [admin] [changed] - Warning badge in indicator manager now reads "type mismatch" instead of "warning"
+[2.2.0] [admin] [internal] - Existing indicator code using R's %in% c(...) syntax is automatically migrated to IN (...)
+[2.2.0] [admin] [changed] - Reserved indicator ID error message simplified to explain the ID is already meaningful
+[2.2.0] [user] [fixed] - Service categories dropdown no longer appears too narrow
+[2.2.0] [user] [fixed] - Structural variables no longer incorrectly shown as unused
+[2.2.0] [admin] [fixed] - Service categories dropdown no longer collapses too narrow
+[2.2.0] [admin] [fixed] - Structural variables no longer shown as unused in indicator manager
+[2.2.0] [user] [added] - Create time points directly during data import
+[2.2.0] [user] [added] - Map custom facility columns during HFA import with labels
+[2.2.0] [user] [added] - Indicator code editor now shows accepted operators and functions
+[2.2.0] [user] [added] - Indicator code validates that only accepted functions are used
+[2.2.0] [user] [added] - Misspelled variable names now suggest the correct spelling
+[2.2.0] [user] [changed] - Delete confirmation phrase is now in your language
+[2.2.0] [user] [changed] - Simplified "No time points" message on data overview
+[2.2.0] [user] [changed] - HFA indicator type and aggregation labels are now translated
+[2.2.0] [user] [changed] - Spreadsheet import errors are now shown in your language
+[2.2.0] [user] [changed] - Indicator code syntax errors are now shown in your language
+[2.2.0] [user] [changed] - HFA categories and sub-categories now sort in their configured order in charts and tables
+[2.2.0] [user] [fixed] - "No data" message in dataset view is now translated
+[2.2.0] [admin] [added] - Create time points directly from the data import wizard
+[2.2.0] [admin] [added] - Custom facility columns can be added during HFA data import
+[2.2.0] [admin] [added] - Indicator code editor now shows accepted operators and functions
+[2.2.0] [admin] [added] - Indicator code validates that only accepted functions are used
+[2.2.0] [admin] [added] - Case-sensitive variable name suggestions in indicator code errors
+[2.2.0] [admin] [changed] - Delete confirmation phrase is now translated per language
+[2.2.0] [admin] [changed] - HFA indicator type and aggregation labels are now translated
+[2.2.0] [admin] [changed] - XLSX indicator workbook validation errors are now translated
+[2.2.0] [admin] [changed] - HFA categories, sub-categories, and variant items now sort in catalog order on chart axes
+[2.2.0] [admin] [changed] - ICEH strata now sort in catalog order on chart axes
+[2.2.0] [admin] [changed] - Simplified "No time points" message on the data overview page
+[2.2.0] [admin] [fixed] - R code validator now rejects unsupported functions before module run
+[2.2.0] [admin] [fixed] - Indicator XLSX import correctly applies one code column to all time points
+[2.2.0] [admin] [internal] - Run manifest updated to schema version 14
 [2.1.0] [user] [added] - Package picker now shows creation date and pinned status
 [2.1.0] [user] [added] - Role field added to your profile alongside organisation
 [2.1.0] [user] [added] - Organisation and Role columns visible on the Users page for admins
