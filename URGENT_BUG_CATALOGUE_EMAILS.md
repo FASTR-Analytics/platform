@@ -103,7 +103,7 @@ HFA work done over the past few days:
 
 - Facilities and data are uploaded in one wizard. It maps facility id, admin areas, name and type from the survey file, shows new facilities and changes before launch, and can create the first time point. There is no separate facility upload.
 - "Apply to all time points" in the workbook import writes the code column to every round.
-- Indicator code is the platform's own expression language: comparisons, AND, OR, NOT, arithmetic and "x IN (1, 2)". Anything else is refused with a message, and a variable in the wrong case gets the right id suggested. Existing code was converted from "%in% c(...)" to "IN (...)", and the default workbook on the resource hub is updated the same way in the same release.
+- Indicator code: an unknown function is now named in the error instead of showing as a missing variable, a variable typed in the wrong case gets the right id suggested, and the accepted operators are listed under the code box.
 - Tables and charts order indicators in workbook order and categories in the category manager's order.
 - The indicator editor, the workbook import and the delete screens are translated.
 - The unused-variables list skips the id_ and result variables.
