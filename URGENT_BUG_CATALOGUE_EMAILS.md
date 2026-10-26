@@ -48,8 +48,10 @@ Fixed:
 
 The Products list already has a sortable "Last updated" column.
 
-"View as another user" is not built. For now, sign in with a test account that
-holds the scope.
+"View as another user" we will not build. Faking another person's session
+touches every permission check in the platform, and a mistake there shows
+someone data they must not see. The reliable way to check a scope is to sign in
+with a test account that holds it.
 
 The v2 testing site is retired. demo-fr has been version 2 since 20 October, so
 use that for Mali and Mauritania.
