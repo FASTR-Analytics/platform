@@ -348,6 +348,7 @@ Deno.test("the write places new facilities with their admin areas, pads above th
   await resetRegistry();
   const result = await importFile(TAKE_ALL);
   assertEquals(result.registryChanged, true);
+  assertEquals(result.columnsEnabled, []);
   assertEquals(result.skippedFacilityIds, ["F6"]);
   assertEquals(result.changeCounts, [
     { column: "admin", changed: 1, kept: 0, taken: 1 },
@@ -418,6 +419,51 @@ Deno.test("the write places new facilities with their admin areas, pads above th
     "F5 facility_type round R2",
   ]);
   assertEquals((await stamp()) !== undefined, true);
+});
+
+Deno.test("mapping columns the schema lacks switches them on, a custom one under its label", async () => {
+  await resetRegistry();
+  const file = FILE.filter((f) => f.facilityId === "F5").map((f) => ({
+    ...f,
+    optional: { ...f.optional, facility_custom_2: "Rural" },
+  }));
+  const result = await db.begin(async (sql) =>
+    await writeHfaFacilitiesFromImport(sql, {
+      file,
+      facilityColumns: {
+        ...COLUMNS,
+        optional: {
+          ...COLUMNS.optional,
+          facility_custom_2: { header: "Col 9: setting", label: "Setting" },
+        },
+      },
+      timePoint: "R2",
+      decisions: [],
+      recodes: {},
+    })
+  );
+  assertEquals(result.columnsEnabled, ["facility_custom_2"]);
+  const stored = JSON.parse(
+    (await db<{ config_json_value: string }[]>`
+      SELECT config_json_value FROM instance_config
+      WHERE config_key = 'structure_schema_hfa'
+    `)[0].config_json_value,
+  );
+  assertEquals(stored, {
+    ...SCHEMA,
+    includeCustom2: true,
+    labelCustom2: "Setting",
+  });
+  assertEquals(
+    (await db<{ v: string }[]>`
+      SELECT facility_custom_2 AS v FROM facilities_hfa WHERE facility_id = 'F5'
+    `)[0].v,
+    "Rural",
+  );
+  await db`
+    UPDATE instance_config SET config_json_value = ${JSON.stringify(SCHEMA)}
+    WHERE config_key = 'structure_schema_hfa'
+  `;
 });
 
 Deno.test("keeping every change leaves the registry and the stamp untouched", async () => {

@@ -61,14 +61,21 @@ export type HfaFacilityColumnHeaders = {
   correctionHeader?: string;
 };
 
+// A mapped optional column. label is the display label a custom column gets
+// when this import switches it on in the HFA structure schema; required then,
+// ignored for a column already on.
+export type HfaOptionalColumnMapping = HfaFacilityColumnHeaders & {
+  label?: string;
+};
+
 // The registry columns an HFA import reads from the same kept row as its
 // data. Level 1 is the country, one value for every facility. Levels 2 to the
-// HFA admin depth are mapped all or none. Optional columns come from the HFA
-// structure schema's enabled set.
+// HFA admin depth are mapped all or none. Any optional column may be mapped;
+// the registry write switches on those the HFA structure schema lacks.
 export type HfaFacilityColumns = {
   adminArea1: { value: string };
   adminAreas: (HfaFacilityColumnHeaders & { level: AdminAreaLevel })[];
-  optional: Partial<Record<OptionalFacilityColumn, HfaFacilityColumnHeaders>>;
+  optional: Partial<Record<OptionalFacilityColumn, HfaOptionalColumnMapping>>;
 };
 
 // What a change, a decision and a source cover. "admin" is the whole admin

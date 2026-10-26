@@ -1,11 +1,7 @@
 import { getTruncatedString } from "@timroberton/panther";
 import { getReplicateByProp } from "./get_disaggregator_display_prop.ts";
 import { formatReplicantLabelForDisplay } from "./format_nigeria_admin_label.ts";
-import type {
-  AdminAreaLevel,
-  OptionalFacilityColumn,
-  PresentationObjectConfig,
-} from "./types/mod.ts";
+import type { AdminAreaLevel, PresentationObjectConfig } from "./types/mod.ts";
 
 export function withReplicant(
   str: string,
@@ -59,13 +55,6 @@ export const HFA_CORE_ADMIN_AREA_COLUMNS: Record<AdminAreaLevel, string> = {
   3: "id_admin2_name",
   4: "id_admin3_name",
 };
-export const HFA_CORE_OPTIONAL_FACILITY_COLUMNS: Partial<
-  Record<OptionalFacilityColumn, string>
-> = {
-  facility_name: "id_fac_name",
-  facility_type: "id_fac_type",
-};
-
 // The questionnaire's name for a column's correction: id_admin1_name has
 // id_admin1_corrected, id_fac_type has id_fac_type_corrected.
 export function hfaCorrectionColumnName(rawColHeader: string): string {

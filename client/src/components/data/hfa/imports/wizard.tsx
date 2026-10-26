@@ -374,7 +374,7 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
   const facilityColumnsProblem = () =>
     hfaFacilityColumnsProblem(
       mappings.facilityColumns,
-      schema().adminDepth,
+      schema(),
       registryIsEmpty(),
     );
 

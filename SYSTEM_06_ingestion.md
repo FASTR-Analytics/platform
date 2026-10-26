@@ -308,11 +308,12 @@ above is the authority on the shared mechanism; HFA differs only here:
   every column the mappings name is a header of the file, and the facility
   columns, decisions and recodes are well-formed: a non-blank level-1 value;
   levels 2 to the HFA admin depth mapped all or none, and all when the registry
-  is empty; optional columns within the HFA structure schema's enabled set; a
-  correction column different from its column; each change group decided once,
-  over a mapped column, with distinct members and exceptions among them, an
-  admin value being a tuple at the admin depth; recodes over mapped recodable
-  columns. An empty registry is no refusal: the import creates the facilities.
+  is empty; a label for a mapped custom column the HFA structure schema has not
+  switched on; a correction column different from its column; each change group
+  decided once, over a mapped column, with distinct members and exceptions among
+  them, an admin value being a tuple at the admin depth; recodes over mapped
+  recodable columns. An empty registry is no refusal: the import creates the
+  facilities.
 - The wizard's stateless reads beside the duplicates preview:
   `parseDatasetHfaCsvHeaders` also returns the encoded headers holding a
   non-blank cell (`scanHfaHeadersWithValues`, for the facility id default),

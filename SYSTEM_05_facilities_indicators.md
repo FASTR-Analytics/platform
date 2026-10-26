@@ -296,10 +296,15 @@ of a time point never touches the registry.
 
 **The file side.** An import reads each facility from its kept row through
 `HfaFacilityColumns` (`HfaFileFacility` rows): level 1 is one fixed value for
-every facility, levels 2 to the HFA admin depth are mapped all or none, and the
-optional columns are the HFA structure schema's enabled set. How the kept row's
-cells are read (correction columns, ODK label resolution) is S6 "Staging", the
-HFA facility columns bullet.
+every facility, levels 2 to the HFA admin depth are mapped all or none, and any
+of the eight optional columns may be mapped: the write switches on, in the HFA
+structure schema, the mapped columns it lacks (`enableMappedHfaColumns`, via
+`writeStructureSchema` in the same transaction), a custom column under the label
+the mapping carries, and reports them as `columnsEnabled` so the launch route
+tells the config channel. Nothing presumes the file's column names: the wizard
+pre-fills an optional column only from the latest import's own mapping. How the
+kept row's cells are read (correction columns, ODK label resolution) is S6
+"Staging", the HFA facility columns bullet.
 
 **Changes.** A change is an existing facility whose file value for a mapped
 column group differs from its registry value; a blank and a NULL registry value
@@ -1124,11 +1129,13 @@ snapshot geojson as `{kind:"data"}` when available.
   HFA data import resolves ODK codes, S6 "Staging"), and they are deliberately
   OUT of the cache hash (`hashStructureSchema` covers the include-flags only, so
   renaming a label cannot bust a data cache). Written by `setStructureSchema`,
-  which refuses a depth change while that family's facilities table is non-empty
-  or while that family has a geojson map above the new depth (admin-area
-  emptiness is not checked: per family it is implied by the cleanup invariant).
-  The rows are seeded at instance creation and survive both delete paths, so
-  flags, labels and depth persist across a delete + re-import cycle.
+  from the configuration page and, for the HFA flags and custom labels, by the
+  HFA data import's registry write ("HFA registry writes"). It refuses a depth
+  change while that family's facilities table is non-empty or while that family
+  has a geojson map above the new depth (admin-area emptiness is not checked:
+  per family it is implied by the cleanup invariant). The rows are seeded at
+  instance creation and survive both delete paths, so flags, labels and depth
+  persist across a delete + re-import cycle.
 - `admin_area_labels`: display-only label overrides carrying an `(AAn)` suffix
   convention (space-prefixed) appended/stripped by
   `data/general/admin_area_labels.tsx`.
