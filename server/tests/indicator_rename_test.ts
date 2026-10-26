@@ -332,6 +332,10 @@ Deno.test("renamer: whole identifiers and exact [id] only, text kept, as 086 doe
     renameIdentifierInExpression("anc1 * 2", "anc", "x"),
     "anc1 * 2",
   );
+  assertEquals(
+    renameIdentifierInExpression('anc1 == "anc1"', "anc1", "x"),
+    'x == "anc1"',
+  );
 });
 
 Deno.test("cleanup: drop the throwaway database", async () => {

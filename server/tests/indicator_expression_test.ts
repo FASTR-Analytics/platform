@@ -7,11 +7,14 @@
 
 import { assertEquals, assertThrows } from "@std/assert";
 import {
+  buildExpressionDictionary,
   collectIdentifiers,
   evaluateIndicatorExpression,
   ExpressionSyntaxError,
   type ExpressionSyntaxErrorKind,
+  IndicatorExpressionError,
   parseIndicatorExpression,
+  resolveIndicatorExpression,
   writeIdentifier,
   writeIndicatorExpression,
 } from "lib";
@@ -245,4 +248,21 @@ Deno.test("a keyword-named identifier is written in brackets", () => {
   assertEquals(writeIdentifier("in"), "[in]");
   assertEquals(writeIdentifier("not"), "[not]");
   assertEquals(writeIdentifier("index"), "index");
+});
+
+Deno.test("a calculated indicator takes logic but refuses IN and text", () => {
+  const dictionary = buildExpressionDictionary([
+    { id: "a", type: "leaf", expression: null },
+    { id: "b", type: "leaf", expression: null },
+  ]);
+  const resolve = (source: string) =>
+    resolveIndicatorExpression({
+      ownId: "c",
+      source,
+      dictionary,
+      maxIngredients: 8,
+    });
+  assertEquals(resolve("a > 0 AND NOT b == 1").ingredientIds, ["a", "b"]);
+  assertThrows(() => resolve("a IN (1, 2)"), IndicatorExpressionError);
+  assertThrows(() => resolve(`a == "x"`), IndicatorExpressionError);
 });

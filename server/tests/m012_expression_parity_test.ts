@@ -47,7 +47,8 @@ function indicator(
 // Every construct of the expression language, each with a reason to drop a
 // row: a missing ingredient, a zero denominator, a nullif that fires, a
 // population the store does not cover, an ingredient with no rows at all,
-// and a coalesce that turns a missing ingredient into a kept row.
+// a coalesce that turns a missing ingredient into a kept row, and logic
+// whose three-valued OR keeps TRUE OR NA while AND drops NA AND TRUE.
 const INDICATORS: HmisIndicator[] = [
   indicator("anc1", { type: "uploaded", data_id: "anc1" }, 1),
   indicator("anc4", { type: "uploaded", data_id: "anc4" }, 2),
@@ -76,6 +77,10 @@ const INDICATORS: HmisIndicator[] = [
     type: "calculated",
     expression: "-anc1 + abs(anc4 - anc1)",
   }, 10),
+  indicator("anc4_logic", {
+    type: "calculated",
+    expression: "(anc4 > 0 OR anc1 > 5) AND NOT anc1 == 5",
+  }, 11),
 ];
 
 // `opd` has no rows; `penta1` has rows but none in the fixture's dataset.
@@ -356,6 +361,13 @@ Deno.test({
     // penta1 has no rows anywhere: the indicator is absent.
     assertEquals(cellsOf("penta1_share"), []);
     assertEquals(cellsOf("anc_gap"), ["A|202401", "A|202402", "A|202403"]);
+    assertEquals(cellsOf("anc4_logic"), [
+      "A|202401",
+      "A|202402",
+      "A|202403",
+      "B|202402",
+      "B|202403",
+    ]);
     // opd is unmapped: never in the output.
     assertEquals(cellsOf("opd"), []);
   },

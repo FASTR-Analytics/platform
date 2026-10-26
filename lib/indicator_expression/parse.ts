@@ -644,7 +644,8 @@ function writeStringLiteral(value: string): string {
 
 // One identifier renamed in an expression's TEXT, formatting kept: a bare
 // identifier stands alone between non-identifier characters, a bracketed
-// one is `[from]` exactly, and text inside other brackets is untouched.
+// one is `[from]` exactly, and text inside other brackets or inside quotes is
+// untouched.
 // Instance migration 086's fastr_rename_identifier is the same segment rule
 // for the one rename it makes (a special id to its bare suffix form), but
 // substitutes the new id raw; this one writes the replacement as the
@@ -659,11 +660,12 @@ export function renameIdentifierInExpression(
   const escaped = from.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const bare = new RegExp(`(?<![a-zA-Z0-9_])${escaped}(?![a-zA-Z0-9_])`, "g");
   return source
-    .split(/(\[[^\]]*\])/)
+    .split(/(\[[^\]]*\]|"[^"]*"|'[^']*')/)
     .map((segment) => {
       if (segment.startsWith("[")) {
         return segment === `[${from}]` ? `[${to}]` : segment;
       }
+      if (segment.startsWith('"') || segment.startsWith("'")) return segment;
       return segment.replace(bare, () => writeIdentifier(to));
     })
     .join("");
