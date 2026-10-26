@@ -10,7 +10,7 @@ Subject: Re: V2 bugs / IG demo
 
 Hi Ashley,
 
-Thanks for the reports. All of these are now fixed:
+Thanks for the reports. Here is where each one stands:
 
 - The "full deck view" message. That view does not exist. The assistant now
   tells you to press the back button when you are in the deck's Settings or
@@ -18,9 +18,11 @@ Thanks for the reports. All of these are now fixed:
 - The second tab. "Use it here" in a second tab was stopping the prompt in the
   first. It now waits until the prompt has finished. Each person has one chat,
   so one person cannot run two prompts at once. Other users are never affected.
-- The figure edit errors. The error messages now give the assistant exactly what
-  it needs, so it stops looping. If one comes back, expand the "Tool feedback"
-  line and send me the text.
+- The figure edit errors. I could not open your screenshots, so I cannot say I
+  have fixed what you saw. I went through every error the figure tools can give
+  and fixed one that makes the assistant loop. Could you send the screenshots
+  again, or next time expand the "Tool feedback" line under the assistant's
+  reply and send me its text? Then I can fix the exact one.
 - The package dropdown shows each package's date and marks the pinned one.
 - "Add slide" is written out next to the plus, and Insert also offers a new
   slide.
