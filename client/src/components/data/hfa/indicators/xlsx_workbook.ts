@@ -15,7 +15,9 @@ import {
   type Language,
   nextHfaIndicatorId,
   parseMultiMembershipValues,
+  pickLang,
   serialiseMultiMembershipValues,
+  type TranslatableString,
 } from "lib";
 
 const SHEET_CATEGORIES = "Categories";
@@ -208,7 +210,7 @@ export type WorkbookShape = {
 
 export type DetectResult =
   | { ok: true; shape: WorkbookShape }
-  | { ok: false; err: string };
+  | DetectError;
 
 function normalizeSheetName(name: string): string {
   return name.toLowerCase().replace(/[\s_-]/g, "");
@@ -248,21 +250,85 @@ function pickText(
   return row[`${field}_${language}`] || row[`${field}_en`] || row[field] || "";
 }
 
-function missingTextColumn(
-  aoa: string[][] | undefined,
-  sheetName: string,
+type DetectError = { ok: false; err: string };
+
+// Error texts keep the sheet names and column headers as the workbook spells
+// them, since the user has to find them there.
+function sheetError(
+  language: Language,
+  sheet: string,
+  problem: TranslatableString,
+): DetectError {
+  return {
+    ok: false,
+    err: pickLang(language, {
+      en: `${sheet} sheet: ${problem.en}`,
+      fr: `Feuille ${sheet} : ${problem.fr}`,
+      pt: `Folha ${sheet}: ${problem.pt}`,
+    }),
+  };
+}
+
+// `index` is the 0-based data row; the workbook's row number follows the
+// header row.
+function rowError(
+  language: Language,
+  sheet: string,
+  index: number,
+  problem: TranslatableString,
+): DetectError {
+  const row = index + 2;
+  return {
+    ok: false,
+    err: pickLang(language, {
+      en: `${sheet} sheet, row ${row}: ${problem.en}`,
+      fr: `Feuille ${sheet}, ligne ${row} : ${problem.fr}`,
+      pt: `Folha ${sheet}, linha ${row}: ${problem.pt}`,
+    }),
+  };
+}
+
+const missingValue = (field: string): TranslatableString => ({
+  en: `missing ${field}.`,
+  fr: `${field} manquant.`,
+  pt: `${field} em falta.`,
+});
+const duplicateId = (id: string): TranslatableString => ({
+  en: `duplicate id "${id}".`,
+  fr: `id « ${id} » en double.`,
+  pt: `id "${id}" duplicado.`,
+});
+const notInSheet = (
   field: string,
-): { ok: false; err: string } | null {
+  value: string,
+  sheet: string,
+): TranslatableString => ({
+  en: `${field} "${value}" is not in the ${sheet} sheet.`,
+  fr: `${field} « ${value} » n'est pas dans la feuille ${sheet}.`,
+  pt: `${field} "${value}" não está na folha ${sheet}.`,
+});
+const notFound = (field: string, value: string): TranslatableString => ({
+  en: `${field} "${value}" not found.`,
+  fr: `${field} « ${value} » introuvable.`,
+  pt: `${field} "${value}" não encontrado.`,
+});
+
+function missingTextColumn(
+  language: Language,
+  aoa: string[][] | undefined,
+  sheet: string,
+  field: string,
+): DetectError | null {
   if (!aoa || aoa.length === 0) return null;
   const headers = (aoa[0] ?? []).map((h) => String(h ?? "").trim());
   const accepted = [field, ...LANGUAGES.map((l) => `${field}_${l}`)];
   if (accepted.some((name) => headers.includes(name))) return null;
-  return {
-    ok: false,
-    err: `${sheetName} sheet: missing "${field}" column (one of ${
-      accepted.map((n) => `"${n}"`).join(", ")
-    }).`,
-  };
+  const list = accepted.map((n) => `"${n}"`).join(", ");
+  return sheetError(language, sheet, {
+    en: `missing "${field}" column (one of ${list}).`,
+    fr: `colonne « ${field} » manquante (l'une de ${list}).`,
+    pt: `coluna "${field}" em falta (uma de ${list}).`,
+  });
 }
 
 // `existingIndicatorIds` are the instance's stored ids: a row with a blank
@@ -278,11 +344,14 @@ export function detectHfaWorkbookShape(
   try {
     wb = read(arrayBuffer, { type: "array" });
   } catch (e) {
+    const reason = e instanceof Error ? e.message : String(e);
     return {
       ok: false,
-      err: `Could not read XLSX file: ${
-        e instanceof Error ? e.message : String(e)
-      }`,
+      err: pickLang(language, {
+        en: `Could not read the XLSX file: ${reason}`,
+        fr: `Impossible de lire le fichier XLSX : ${reason}`,
+        pt: `Não foi possível ler o ficheiro XLSX: ${reason}`,
+      }),
     };
   }
 
@@ -304,11 +373,23 @@ export function detectHfaWorkbookShape(
   }
 
   if (!indicatorsAoa) {
-    return { ok: false, err: 'Workbook is missing an "Indicators" sheet.' };
+    return {
+      ok: false,
+      err: pickLang(language, {
+        en: `Workbook is missing an "${SHEET_INDICATORS}" sheet.`,
+        fr: `Le classeur n'a pas de feuille « ${SHEET_INDICATORS} ».`,
+        pt: `O livro não tem uma folha "${SHEET_INDICATORS}".`,
+      }),
+    };
   }
 
   // Categories
-  const catMissing = missingTextColumn(categoriesAoa, "Categories", "label");
+  const catMissing = missingTextColumn(
+    language,
+    categoriesAoa,
+    SHEET_CATEGORIES,
+    "label",
+  );
   if (catMissing) return catMissing;
   const catRows = sheetToObjects(categoriesAoa ?? []);
   const categories: WorkbookShape["categories"] = [];
@@ -317,19 +398,13 @@ export function detectHfaWorkbookShape(
     const id = catRows[i].id ?? "";
     const label = pickText(catRows[i], "label", language);
     if (!id) {
-      return { ok: false, err: `Categories sheet, row ${i + 2}: missing id.` };
+      return rowError(language, SHEET_CATEGORIES, i, missingValue("id"));
     }
     if (!label) {
-      return {
-        ok: false,
-        err: `Categories sheet, row ${i + 2}: missing label.`,
-      };
+      return rowError(language, SHEET_CATEGORIES, i, missingValue("label"));
     }
     if (categoryIds.has(id)) {
-      return {
-        ok: false,
-        err: `Categories sheet, row ${i + 2}: duplicate id "${id}".`,
-      };
+      return rowError(language, SHEET_CATEGORIES, i, duplicateId(id));
     }
     categoryIds.add(id);
     categories.push({ id, label });
@@ -337,8 +412,9 @@ export function detectHfaWorkbookShape(
 
   // Sub-categories
   const subMissing = missingTextColumn(
+    language,
     subCategoriesAoa,
-    "Sub-categories",
+    SHEET_SUB_CATEGORIES,
     "label",
   );
   if (subMissing) return subMissing;
@@ -350,36 +426,29 @@ export function detectHfaWorkbookShape(
     const categoryId = subRows[i].categoryId ?? "";
     const label = pickText(subRows[i], "label", language);
     if (!id) {
-      return {
-        ok: false,
-        err: `Sub-categories sheet, row ${i + 2}: missing id.`,
-      };
+      return rowError(language, SHEET_SUB_CATEGORIES, i, missingValue("id"));
     }
     if (!categoryId) {
-      return {
-        ok: false,
-        err: `Sub-categories sheet, row ${i + 2}: missing categoryId.`,
-      };
+      return rowError(
+        language,
+        SHEET_SUB_CATEGORIES,
+        i,
+        missingValue("categoryId"),
+      );
     }
     if (!label) {
-      return {
-        ok: false,
-        err: `Sub-categories sheet, row ${i + 2}: missing label.`,
-      };
+      return rowError(language, SHEET_SUB_CATEGORIES, i, missingValue("label"));
     }
     if (subCategoryParent.has(id)) {
-      return {
-        ok: false,
-        err: `Sub-categories sheet, row ${i + 2}: duplicate id "${id}".`,
-      };
+      return rowError(language, SHEET_SUB_CATEGORIES, i, duplicateId(id));
     }
     if (!categoryIds.has(categoryId)) {
-      return {
-        ok: false,
-        err: `Sub-categories sheet, row ${
-          i + 2
-        }: categoryId "${categoryId}" is not in the Categories sheet.`,
-      };
+      return rowError(
+        language,
+        SHEET_SUB_CATEGORIES,
+        i,
+        notInSheet("categoryId", categoryId, SHEET_CATEGORIES),
+      );
     }
     subCategoryParent.set(id, categoryId);
     subCategories.push({ id, categoryId, label });
@@ -387,8 +456,9 @@ export function detectHfaWorkbookShape(
 
   // Service categories (optional sheet)
   const svcMissing = missingTextColumn(
+    language,
     serviceCategoriesAoa,
-    "Service categories",
+    SHEET_SERVICE_CATEGORIES,
     "label",
   );
   if (svcMissing) return svcMissing;
@@ -399,30 +469,30 @@ export function detectHfaWorkbookShape(
     const id = svcRows[i].id ?? "";
     const label = pickText(svcRows[i], "label", language);
     if (!id) {
-      return {
-        ok: false,
-        err: `Service categories sheet, row ${i + 2}: missing id.`,
-      };
+      return rowError(
+        language,
+        SHEET_SERVICE_CATEGORIES,
+        i,
+        missingValue("id"),
+      );
     }
     if (id.includes("|")) {
-      return {
-        ok: false,
-        err: `Service categories sheet, row ${
-          i + 2
-        }: id "${id}" cannot contain "|".`,
-      };
+      return rowError(language, SHEET_SERVICE_CATEGORIES, i, {
+        en: `id "${id}" cannot contain "|".`,
+        fr: `l'id « ${id} » ne peut pas contenir « | ».`,
+        pt: `o id "${id}" não pode conter "|".`,
+      });
     }
     if (!label) {
-      return {
-        ok: false,
-        err: `Service categories sheet, row ${i + 2}: missing label.`,
-      };
+      return rowError(
+        language,
+        SHEET_SERVICE_CATEGORIES,
+        i,
+        missingValue("label"),
+      );
     }
     if (validServiceCategoryIds.has(id)) {
-      return {
-        ok: false,
-        err: `Service categories sheet, row ${i + 2}: duplicate id "${id}".`,
-      };
+      return rowError(language, SHEET_SERVICE_CATEGORIES, i, duplicateId(id));
     }
     validServiceCategoryIds.add(id);
     serviceCategories.push({ id, label });
@@ -430,8 +500,9 @@ export function detectHfaWorkbookShape(
 
   // Variant groups (optional sheet)
   const vgMissing = missingTextColumn(
+    language,
     variantGroupsAoa,
-    "Variant groups",
+    SHEET_VARIANT_GROUPS,
     "label",
   );
   if (vgMissing) return vgMissing;
@@ -442,22 +513,13 @@ export function detectHfaWorkbookShape(
     const id = vgRows[i].id ?? "";
     const label = pickText(vgRows[i], "label", language);
     if (!id) {
-      return {
-        ok: false,
-        err: `Variant groups sheet, row ${i + 2}: missing id.`,
-      };
+      return rowError(language, SHEET_VARIANT_GROUPS, i, missingValue("id"));
     }
     if (!label) {
-      return {
-        ok: false,
-        err: `Variant groups sheet, row ${i + 2}: missing label.`,
-      };
+      return rowError(language, SHEET_VARIANT_GROUPS, i, missingValue("label"));
     }
     if (variantGroupIds.has(id)) {
-      return {
-        ok: false,
-        err: `Variant groups sheet, row ${i + 2}: duplicate id "${id}".`,
-      };
+      return rowError(language, SHEET_VARIANT_GROUPS, i, duplicateId(id));
     }
     variantGroupIds.add(id);
     variantGroups.push({ id, label });
@@ -465,8 +527,9 @@ export function detectHfaWorkbookShape(
 
   // Variant items (optional sheet)
   const viMissing = missingTextColumn(
+    language,
     variantItemsAoa,
-    "Variant items",
+    SHEET_VARIANT_ITEMS,
     "label",
   );
   if (viMissing) return viMissing;
@@ -478,44 +541,39 @@ export function detectHfaWorkbookShape(
     const groupId = viRows[i].groupId ?? "";
     const label = pickText(viRows[i], "label", language);
     if (!id) {
-      return {
-        ok: false,
-        err: `Variant items sheet, row ${i + 2}: missing id.`,
-      };
+      return rowError(language, SHEET_VARIANT_ITEMS, i, missingValue("id"));
     }
     if (!HFA_VARIANT_ITEM_ID_REGEX.test(id)) {
-      return {
-        ok: false,
-        err: `Variant items sheet, row ${
-          i + 2
-        }: id "${id}" must start with a lowercase letter and contain only lowercase letters, digits, and underscores (max 64 characters).`,
-      };
+      return rowError(language, SHEET_VARIANT_ITEMS, i, {
+        en:
+          `id "${id}" must start with a lowercase letter and contain only lowercase letters, digits, and underscores (max 64 characters).`,
+        fr:
+          `l'id « ${id} » doit commencer par une lettre minuscule et ne contenir que des lettres minuscules, des chiffres et des tirets bas (64 caractères max).`,
+        pt:
+          `o id "${id}" deve começar por uma letra minúscula e conter apenas letras minúsculas, dígitos e sublinhados (máx. 64 caracteres).`,
+      });
     }
     if (!groupId) {
-      return {
-        ok: false,
-        err: `Variant items sheet, row ${i + 2}: missing groupId.`,
-      };
+      return rowError(
+        language,
+        SHEET_VARIANT_ITEMS,
+        i,
+        missingValue("groupId"),
+      );
     }
     if (!label) {
-      return {
-        ok: false,
-        err: `Variant items sheet, row ${i + 2}: missing label.`,
-      };
+      return rowError(language, SHEET_VARIANT_ITEMS, i, missingValue("label"));
     }
     if (variantItemGroup.has(id)) {
-      return {
-        ok: false,
-        err: `Variant items sheet, row ${i + 2}: duplicate id "${id}".`,
-      };
+      return rowError(language, SHEET_VARIANT_ITEMS, i, duplicateId(id));
     }
     if (!variantGroupIds.has(groupId)) {
-      return {
-        ok: false,
-        err: `Variant items sheet, row ${
-          i + 2
-        }: groupId "${groupId}" is not in the Variant groups sheet.`,
-      };
+      return rowError(
+        language,
+        SHEET_VARIANT_ITEMS,
+        i,
+        notInSheet("groupId", groupId, SHEET_VARIANT_GROUPS),
+      );
     }
     variantItemGroup.set(id, groupId);
     variantItems.push({ id, groupId, label });
@@ -526,12 +584,18 @@ export function detectHfaWorkbookShape(
     String(h ?? "").trim()
   );
   if (!indHeaders.includes("indicatorId")) {
-    return {
-      ok: false,
-      err: 'Indicators sheet: missing "indicatorId" column.',
-    };
+    return sheetError(language, SHEET_INDICATORS, {
+      en: `missing "indicatorId" column.`,
+      fr: `colonne « indicatorId » manquante.`,
+      pt: `coluna "indicatorId" em falta.`,
+    });
   }
-  const labelMissing = missingTextColumn(indicatorsAoa, "Indicators", "label");
+  const labelMissing = missingTextColumn(
+    language,
+    indicatorsAoa,
+    SHEET_INDICATORS,
+    "label",
+  );
   if (labelMissing) return labelMissing;
 
   // Detect code columns in the order they appear.
@@ -589,21 +653,31 @@ export function detectHfaWorkbookShape(
     const rest = m[1];
     const itemId = knownItemIds.find((id) => rest.startsWith(`${id}__`));
     if (itemId === undefined) {
-      return {
-        ok: false,
-        err: `Indicators sheet: variant code column "${
+      return sheetError(language, SHEET_INDICATORS, {
+        en: `variant code column "${
           indHeaders[c]
-        }" does not start with an id from the Variant items sheet.`,
-      };
+        }" does not start with an id from the ${SHEET_VARIANT_ITEMS} sheet.`,
+        fr: `la colonne de code de variante « ${
+          indHeaders[c]
+        } » ne commence pas par un id de la feuille ${SHEET_VARIANT_ITEMS}.`,
+        pt: `a coluna de código de variante "${
+          indHeaders[c]
+        }" não começa por um id da folha ${SHEET_VARIANT_ITEMS}.`,
+      });
     }
     const label = rest.slice(itemId.length + 2);
     if (!label) {
-      return {
-        ok: false,
-        err: `Indicators sheet: variant code column "${
+      return sheetError(language, SHEET_INDICATORS, {
+        en: `variant code column "${
           indHeaders[c]
         }" is missing a time point label after the item id.`,
-      };
+        fr: `la colonne de code de variante « ${
+          indHeaders[c]
+        } » n'a pas de libellé de point temporel après l'id de l'élément.`,
+        pt: `a coluna de código de variante "${
+          indHeaders[c]
+        }" não tem etiqueta de ponto temporal após o id do item.`,
+      });
     }
     variantColumns.push({ itemId, label, headerIndex: c });
   }
@@ -613,11 +687,14 @@ export function detectHfaWorkbookShape(
     );
     for (const vc of variantColumns) {
       if (!mainLabels.has(vc.label)) {
-        return {
-          ok: false,
-          err:
-            `Indicators sheet: variant code column for item "${vc.itemId}" uses time point label "${vc.label}", which has no matching r_code__${vc.label} column.`,
-        };
+        return sheetError(language, SHEET_INDICATORS, {
+          en:
+            `variant code column for item "${vc.itemId}" uses time point label "${vc.label}", which has no matching r_code__${vc.label} column.`,
+          fr:
+            `la colonne de code de variante de l'élément « ${vc.itemId} » utilise le libellé de point temporel « ${vc.label} », sans colonne r_code__${vc.label} correspondante.`,
+          pt:
+            `a coluna de código de variante do item "${vc.itemId}" usa a etiqueta de ponto temporal "${vc.label}", sem coluna r_code__${vc.label} correspondente.`,
+        });
       }
     }
   }
@@ -642,14 +719,17 @@ export function detectHfaWorkbookShape(
     let type: "binary" | "numeric";
     if (typeLower === "boolean" || typeLower === "binary") type = "binary";
     else if (typeLower === "numeric") type = "numeric";
-    else {return {
-        ok: false,
-        err: `Indicators sheet, row ${
-          i + 2
-        }: type must be "binary"/"Boolean" or "numeric"/"Numeric", got "${
-          row.type ?? ""
-        }".`,
-      };}
+    else {
+      const got = row.type ?? "";
+      return rowError(language, SHEET_INDICATORS, i, {
+        en:
+          `type must be "binary"/"Boolean" or "numeric"/"Numeric", got "${got}".`,
+        fr:
+          `type doit être « binary »/« Boolean » ou « numeric »/« Numeric », reçu « ${got} ».`,
+        pt:
+          `type deve ser "binary"/"Boolean" ou "numeric"/"Numeric", recebido "${got}".`,
+      });
+    }
 
     const aggLower = (row.aggregation ?? "").toLowerCase();
     let aggregation: "sum" | "avg";
@@ -657,12 +737,14 @@ export function detectHfaWorkbookShape(
     else if (
       aggLower === "avg" || aggLower === "average" || aggLower === "mean"
     ) aggregation = "avg";
-    else {return {
-        ok: false,
-        err: `Indicators sheet, row ${
-          i + 2
-        }: aggregation must be "sum" or "avg", got "${row.aggregation ?? ""}".`,
-      };}
+    else {
+      const got = row.aggregation ?? "";
+      return rowError(language, SHEET_INDICATORS, i, {
+        en: `aggregation must be "sum" or "avg", got "${got}".`,
+        fr: `aggregation doit être « sum » ou « avg », reçu « ${got} ».`,
+        pt: `aggregation deve ser "sum" ou "avg", recebido "${got}".`,
+      });
+    }
 
     let indicatorId = (row.indicatorId ?? "").trim();
     if (!indicatorId) {
@@ -670,28 +752,31 @@ export function detectHfaWorkbookShape(
       takenIds.add(indicatorId);
     }
     if (!HFA_INDICATOR_ID_REGEX.test(indicatorId)) {
-      return {
-        ok: false,
-        err: `Indicators sheet, row ${
-          i + 2
-        }: Indicator ID "${indicatorId}" must start with a letter and contain only letters, digits, and underscores (max 64 characters).`,
-      };
+      return rowError(language, SHEET_INDICATORS, i, {
+        en:
+          `indicatorId "${indicatorId}" must start with a letter and contain only letters, digits, and underscores (max 64 characters).`,
+        fr:
+          `indicatorId « ${indicatorId} » doit commencer par une lettre et ne contenir que des lettres, des chiffres et des tirets bas (64 caractères max).`,
+        pt:
+          `indicatorId "${indicatorId}" deve começar por uma letra e conter apenas letras, dígitos e sublinhados (máx. 64 caracteres).`,
+      });
     }
     if (isReservedHfaId(indicatorId)) {
-      return {
-        ok: false,
-        err: `Indicators sheet, row ${
-          i + 2
-        }: Indicator ID "${indicatorId}" is a reserved word (an R function or operator used in indicator code, or a column the analysis script generates). Choose a different ID.`,
-      };
+      return rowError(language, SHEET_INDICATORS, i, {
+        en:
+          `indicatorId "${indicatorId}" is a reserved word (a function or operator of the indicator code, or a column the analysis script generates). Choose a different id.`,
+        fr:
+          `indicatorId « ${indicatorId} » est un mot réservé (une fonction ou un opérateur du code d'indicateur, ou une colonne générée par le script d'analyse). Choisissez un autre id.`,
+        pt:
+          `indicatorId "${indicatorId}" é uma palavra reservada (uma função ou operador do código de indicador, ou uma coluna gerada pelo script de análise). Escolha outro id.`,
+      });
     }
     if (usedIndicatorIds.has(indicatorId)) {
-      return {
-        ok: false,
-        err: `Indicators sheet, row ${
-          i + 2
-        }: duplicate indicator ID "${indicatorId}".`,
-      };
+      return rowError(language, SHEET_INDICATORS, i, {
+        en: `duplicate indicatorId "${indicatorId}".`,
+        fr: `indicatorId « ${indicatorId} » en double.`,
+        pt: `indicatorId "${indicatorId}" duplicado.`,
+      });
     }
     usedIndicatorIds.add(indicatorId);
 
@@ -704,58 +789,59 @@ export function detectHfaWorkbookShape(
 
     for (const scId of serviceCategoryIds) {
       if (!validServiceCategoryIds.has(scId)) {
-        return {
-          ok: false,
-          err: `Indicators sheet, row ${
-            i + 2
-          }: serviceCategoryId "${scId}" not found.`,
-        };
+        return rowError(
+          language,
+          SHEET_INDICATORS,
+          i,
+          notFound("serviceCategoryId", scId),
+        );
       }
     }
     if (categoryId && !categoryIds.has(categoryId)) {
-      return {
-        ok: false,
-        err: `Indicators sheet, row ${
-          i + 2
-        }: categoryId "${categoryId}" not found.`,
-      };
+      return rowError(
+        language,
+        SHEET_INDICATORS,
+        i,
+        notFound("categoryId", categoryId),
+      );
     }
     if (subCategoryId) {
       const parent = subCategoryParent.get(subCategoryId);
       if (parent === undefined) {
-        return {
-          ok: false,
-          err: `Indicators sheet, row ${
-            i + 2
-          }: subCategoryId "${subCategoryId}" not found.`,
-        };
+        return rowError(
+          language,
+          SHEET_INDICATORS,
+          i,
+          notFound("subCategoryId", subCategoryId),
+        );
       }
       if (!categoryId) {
-        return {
-          ok: false,
-          err: `Indicators sheet, row ${
-            i + 2
-          }: subCategoryId requires a categoryId.`,
-        };
+        return rowError(language, SHEET_INDICATORS, i, {
+          en: "subCategoryId requires a categoryId.",
+          fr: "subCategoryId exige un categoryId.",
+          pt: "subCategoryId exige um categoryId.",
+        });
       }
       if (parent !== categoryId) {
-        return {
-          ok: false,
-          err: `Indicators sheet, row ${
-            i + 2
-          }: subCategoryId "${subCategoryId}" belongs to category "${parent}".`,
-        };
+        return rowError(language, SHEET_INDICATORS, i, {
+          en:
+            `subCategoryId "${subCategoryId}" belongs to category "${parent}".`,
+          fr:
+            `subCategoryId « ${subCategoryId} » appartient à la catégorie « ${parent} ».`,
+          pt:
+            `subCategoryId "${subCategoryId}" pertence à categoria "${parent}".`,
+        });
       }
     }
 
     const variantGroupId = (row.variantGroupId ?? "").trim() || null;
     if (variantGroupId && !variantGroupIds.has(variantGroupId)) {
-      return {
-        ok: false,
-        err: `Indicators sheet, row ${
-          i + 2
-        }: variantGroupId "${variantGroupId}" is not in the Variant groups sheet.`,
-      };
+      return rowError(
+        language,
+        SHEET_INDICATORS,
+        i,
+        notInSheet("variantGroupId", variantGroupId, SHEET_VARIANT_GROUPS),
+      );
     }
 
     indicators.push({
@@ -790,14 +876,17 @@ export function detectHfaWorkbookShape(
       if (!positionVariantCode[k]) continue;
       const itemGroup = variantItemGroup.get(variantColumns[k].itemId);
       if (!variantGroupId || itemGroup !== variantGroupId) {
-        return {
-          ok: false,
-          err: `Indicators sheet, row ${i + 2}: variant code for item "${
-            variantColumns[k].itemId
-          }" but the indicator's variantGroupId is "${
-            variantGroupId ?? ""
-          }" — the item belongs to group "${itemGroup ?? ""}".`,
-        };
+        const itemId = variantColumns[k].itemId;
+        const groupOfIndicator = variantGroupId ?? "";
+        const groupOfItem = itemGroup ?? "";
+        return rowError(language, SHEET_INDICATORS, i, {
+          en:
+            `variant code for item "${itemId}", but the indicator's variantGroupId is "${groupOfIndicator}" and the item belongs to group "${groupOfItem}".`,
+          fr:
+            `code de variante pour l'élément « ${itemId} », mais le variantGroupId de l'indicateur est « ${groupOfIndicator} » et l'élément appartient au groupe « ${groupOfItem} ».`,
+          pt:
+            `código de variante para o item "${itemId}", mas o variantGroupId do indicador é "${groupOfIndicator}" e o item pertence ao grupo "${groupOfItem}".`,
+        });
       }
     }
     rawVariantCode.push(positionVariantCode);

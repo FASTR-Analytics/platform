@@ -510,7 +510,8 @@ function ReconcileStep(p: {
 
   const [replaceCheckText, setReplaceCheckText] = createSignal("");
   const replaceConfirmed = () =>
-    p.uploadMode !== "replace" || replaceCheckText() === "yes please delete";
+    p.uploadMode !== "replace" ||
+    replaceCheckText() === t3(TC.deleteConfirmPhrase);
 
   const doImport = createFormAction(
     async () => {
@@ -804,7 +805,7 @@ function ReconcileStep(p: {
             en: "To confirm, write",
             fr: "Pour confirmer, écrivez",
             pt: "Para confirmar, escreva",
-          })} <span class="font-700">yes please delete</span> {t3({
+          })} <span class="font-700">{t3(TC.deleteConfirmPhrase)}</span> {t3({
             en: "in the input box",
             fr: "dans le champ de saisie",
             pt: "no campo de introdução",

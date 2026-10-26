@@ -3,6 +3,7 @@ import {
   HFA_CODE_FUNCTIONS,
   normalizeRLogicalOperators,
   stripRStringsAndComments,
+  t3,
   unknownRFunctions,
 } from "lib";
 
@@ -56,8 +57,19 @@ export function validateRCode(
       const sameCase = knownIds.find((k) => k.toLowerCase() === lower);
       unknownVariableErrors.push(
         sameCase
-          ? `Variable '${id}' not found in this time point. Did you mean '${sameCase}'?`
-          : `Variable '${id}' not found in this time point`,
+          ? t3({
+            en:
+              `Variable '${id}' not found in this time point. Did you mean '${sameCase}'?`,
+            fr:
+              `Variable « ${id} » introuvable dans ce point temporel. Vouliez-vous dire « ${sameCase} » ?`,
+            pt:
+              `Variável '${id}' não encontrada neste ponto temporal. Queria dizer '${sameCase}'?`,
+          })
+          : t3({
+            en: `Variable '${id}' not found in this time point`,
+            fr: `Variable « ${id} » introuvable dans ce point temporel`,
+            pt: `Variável '${id}' não encontrada neste ponto temporal`,
+          }),
       );
     }
   }
@@ -96,31 +108,55 @@ function checkRSyntax(rCode: string): string[] {
     else if (ch === ")") {
       paren--;
       if (paren < 0) {
-        errors.push("Unmatched ')'");
+        errors.push(unmatched(")"));
         return errors;
       }
     } else if (ch === "[") bracket++;
     else if (ch === "]") {
       bracket--;
       if (bracket < 0) {
-        errors.push("Unmatched ']'");
+        errors.push(unmatched("]"));
         return errors;
       }
     } else if (ch === "{") brace++;
     else if (ch === "}") {
       brace--;
       if (brace < 0) {
-        errors.push("Unmatched '}'");
+        errors.push(unmatched("}"));
         return errors;
       }
     }
   }
 
-  if (inString) errors.push("Unterminated string literal");
-  if (paren > 0) errors.push(`Unclosed '(' (${paren})`);
-  if (bracket > 0) errors.push(`Unclosed '[' (${bracket})`);
-  if (brace > 0) errors.push(`Unclosed '{' (${brace})`);
+  if (inString) {
+    errors.push(
+      t3({
+        en: "Unterminated string literal",
+        fr: "Chaîne de caractères non terminée",
+        pt: "Cadeia de caracteres não terminada",
+      }),
+    );
+  }
+  if (paren > 0) errors.push(unclosed("(", paren));
+  if (bracket > 0) errors.push(unclosed("[", bracket));
+  if (brace > 0) errors.push(unclosed("{", brace));
   return errors;
+}
+
+function unmatched(close: string): string {
+  return t3({
+    en: `Unmatched '${close}'`,
+    fr: `« ${close} » sans ouverture`,
+    pt: `'${close}' sem abertura`,
+  });
+}
+
+function unclosed(open: string, count: number): string {
+  return t3({
+    en: `Unclosed '${open}' (${count})`,
+    fr: `« ${open} » non fermé (${count})`,
+    pt: `'${open}' não fechado (${count})`,
+  });
 }
 
 // `&&`/`||` pass R's parser but fail at run time: indicator code runs vectorised
@@ -131,24 +167,32 @@ function checkRSyntax(rCode: string): string[] {
 function checkVectorizedLogical(rCode: string): string[] {
   const stripped = stripRStringsAndComments(rCode);
   const errors: string[] = [];
-  if (stripped.includes("&&")) {
-    errors.push(
-      "Use '&' instead of '&&' — indicator code runs across all facilities at once, so '&&' will fail when the module runs.",
-    );
-  }
-  if (stripped.includes("||")) {
-    errors.push(
-      "Use '|' instead of '||' — indicator code runs across all facilities at once, so '||' will fail when the module runs.",
-    );
-  }
+  if (stripped.includes("&&")) errors.push(scalarOperator("&&", "&"));
+  if (stripped.includes("||")) errors.push(scalarOperator("||", "|"));
   return errors;
 }
 
+function scalarOperator(scalar: string, vectorised: string): string {
+  return t3({
+    en:
+      `Use '${vectorised}' instead of '${scalar}': indicator code runs across all facilities at once, so '${scalar}' will fail when the module runs.`,
+    fr:
+      `Utilisez « ${vectorised} » au lieu de « ${scalar} » : le code de l'indicateur s'exécute sur tous les établissements à la fois, donc « ${scalar} » échouera à l'exécution du module.`,
+    pt:
+      `Use '${vectorised}' em vez de '${scalar}': o código do indicador corre sobre todos os estabelecimentos de uma vez, por isso '${scalar}' falhará quando o módulo correr.`,
+  });
+}
+
 function checkFunctions(rCode: string): string[] {
+  const accepted = HFA_CODE_FUNCTIONS.join(", ");
   return unknownRFunctions(rCode).map((name) =>
-    `'${name}' is not an accepted function. The code accepts: ${
-      HFA_CODE_FUNCTIONS.join(", ")
-    }`
+    t3({
+      en:
+        `'${name}' is not an accepted function. The code accepts: ${accepted}`,
+      fr:
+        `« ${name} » n'est pas une fonction acceptée. Le code accepte : ${accepted}`,
+      pt: `'${name}' não é uma função aceite. O código aceita: ${accepted}`,
+    })
   );
 }
 
@@ -156,7 +200,14 @@ function checkLoneEquals(rCode: string): string[] {
   const stripped = stripRStringsAndComments(rCode);
   if (/(^|[^=!<>])=(?!=)/.test(stripped)) {
     return [
-      "Found '=' — if you meant equality comparison, use '=='. Ignore if this is a named argument or assignment.",
+      t3({
+        en:
+          "Found '=': if you meant an equality comparison, use '=='. Ignore if this is a named argument or an assignment.",
+        fr:
+          "« = » trouvé : pour une comparaison d'égalité, utilisez « == ». Ignorez s'il s'agit d'un argument nommé ou d'une affectation.",
+        pt:
+          "Encontrado '=': para uma comparação de igualdade, use '=='. Ignore se for um argumento nomeado ou uma atribuição.",
+      }),
     ];
   }
   return [];

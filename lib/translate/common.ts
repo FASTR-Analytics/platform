@@ -5,6 +5,13 @@ export const TC = {
   save: { en: "Save", fr: "Sauvegarder", pt: "Guardar" },
   download: { en: "Download", fr: "Télécharger", pt: "Transferir" },
   delete: { en: "Delete", fr: "Supprimer", pt: "Eliminar" },
+  // Typed by the user to confirm a destructive action, so each language gets
+  // a phrase its speakers can type.
+  deleteConfirmPhrase: {
+    en: "yes please delete",
+    fr: "oui supprimer",
+    pt: "sim eliminar",
+  },
   edit: { en: "Edit", fr: "Modifier", pt: "Editar" },
   done: { en: "Done", fr: "Terminé", pt: "Concluído" },
   update: { en: "Update", fr: "Mettre à jour", pt: "Atualizar" },

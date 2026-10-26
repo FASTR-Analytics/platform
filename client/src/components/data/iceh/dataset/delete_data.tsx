@@ -76,7 +76,7 @@ export function DeleteData(
     await deleteAction.click();
   }
 
-  const canDeleteAll = () => checkText() === "yes please delete";
+  const canDeleteAll = () => checkText() === t3(TC.deleteConfirmPhrase);
 
   return (
     <FrameTop
@@ -151,7 +151,7 @@ export function DeleteData(
               fr: "toutes les données ICEH",
               pt: "todos os dados ICEH",
             })}, {t3({ en: "write", fr: "écrivez", pt: "escreva" })}{" "}
-            <span class="font-700">yes please delete</span> {t3({
+            <span class="font-700">{t3(TC.deleteConfirmPhrase)}</span> {t3({
               en: "in the input box",
               fr: "dans le champ de saisie",
               pt: "no campo de introdução",

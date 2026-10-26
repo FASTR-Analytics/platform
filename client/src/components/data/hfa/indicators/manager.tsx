@@ -834,8 +834,14 @@ export function HfaIndicatorsManager(p: Props) {
   };
 
   const typeText = (ind: HfaIndicator): string =>
-    `${ind.type === "binary" ? "Boolean" : "Numeric"} (${
-      ind.aggregation === "sum" ? "Sum" : "Avg"
+    `${
+      ind.type === "binary"
+        ? t3({ en: "Boolean", fr: "Booléen", pt: "Booleano" })
+        : t3({ en: "Numeric", fr: "Numérique", pt: "Numérico" })
+    } (${
+      ind.aggregation === "sum"
+        ? t3({ en: "Sum", fr: "Somme", pt: "Soma" })
+        : t3({ en: "Avg", fr: "Moy.", pt: "Méd." })
     })`;
 
   // One value per state any of the indicator's time points is in, so the

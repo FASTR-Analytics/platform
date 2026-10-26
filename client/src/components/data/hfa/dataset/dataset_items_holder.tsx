@@ -45,7 +45,10 @@ export function DatasetItemsHolder(p: { cacheHash: string }) {
       return;
     }
     if (!res.data.rows || res.data.rows.length === 0) {
-      setItemsHolder({ status: "error", err: "No data" });
+      setItemsHolder({
+        status: "error",
+        err: t3({ en: "No data", fr: "Aucune donnée", pt: "Sem dados" }),
+      });
       return;
     }
     setItemsHolder({

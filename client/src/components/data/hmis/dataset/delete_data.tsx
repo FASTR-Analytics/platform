@@ -118,7 +118,7 @@ export function DeleteData(
             en: "If you want to delete this data, write",
             fr: "Pour supprimer ces données, écrivez",
             pt: "Se pretende eliminar estes dados, escreva",
-          })} <span class="font-700">yes please delete</span> {t3({
+          })} <span class="font-700">{t3(TC.deleteConfirmPhrase)}</span> {t3({
             en: "in the input box",
             fr: "dans le champ de saisie",
             pt: "na caixa de introdução",
@@ -131,7 +131,7 @@ export function DeleteData(
           <Button
             intent="danger"
             iconName="trash"
-            disabled={checkText() !== "yes please delete"}
+            disabled={checkText() !== t3(TC.deleteConfirmPhrase)}
             onClick={attemptDeleteData}
           >
             {t3(TC.delete)}

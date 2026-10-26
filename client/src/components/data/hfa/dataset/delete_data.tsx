@@ -31,8 +31,19 @@ export function DeleteData(
       : undefined;
     const deleteAction = createDeleteAction(
       timePoint
-        ? `Are you very sure you want to delete all data for time point "${timePoint}"?`
-        : "Are you very sure you want to delete all of your data?",
+        ? t3({
+          en:
+            `Are you very sure you want to delete all data for time point "${timePoint}"?`,
+          fr:
+            `Voulez-vous vraiment supprimer toutes les données du point temporel « ${timePoint} » ?`,
+          pt:
+            `Tem a certeza de que quer eliminar todos os dados do ponto temporal "${timePoint}"?`,
+        })
+        : t3({
+          en: "Are you very sure you want to delete all of your data?",
+          fr: "Voulez-vous vraiment supprimer toutes vos données ?",
+          pt: "Tem a certeza de que quer eliminar todos os seus dados?",
+        }),
       () => serverActions.deleteDatasetHfaData({ timePoint }),
       () => p.close(undefined),
     );
@@ -41,7 +52,7 @@ export function DeleteData(
   }
 
   const canDelete = () => {
-    if (checkText() !== "yes please delete") return false;
+    if (checkText() !== t3(TC.deleteConfirmPhrase)) return false;
     if (deleteMode() === "time_point" && !selectedTimePoint()) return false;
     return true;
   };
@@ -134,7 +145,7 @@ export function DeleteData(
             pt: "todos os dados",
           })}
         , {t3({ en: "write", fr: "écrivez", pt: "escreva" })}{" "}
-        <span class="font-700">yes please delete</span> {t3({
+        <span class="font-700">{t3(TC.deleteConfirmPhrase)}</span> {t3({
           en: "in the input box",
           fr: "dans le champ de saisie",
           pt: "no campo de introdução",
