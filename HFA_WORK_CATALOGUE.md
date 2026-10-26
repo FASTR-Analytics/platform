@@ -272,14 +272,15 @@ Verified in code or commits:
 - Q10: "Apply to all time points" in the indicator workbook import writes the
   single code column, and its variant columns, to every platform time point,
   whatever the column's embedded label (2026-10-26, `764c1e9f5`).
-- Q11, M11 and M16: the indicator code accepts only the per-facility functions
-  (`c`, `is.na`, `ifelse`, `pmin`, `pmax`, `abs`, `round`, `floor`, `ceiling`,
-  `as.numeric`); any other call is reported as "not an accepted function" in the
-  editor and refused at run generation, for main, filter and variant code; a
-  variable in the wrong case gets the matching id suggested; the editor lists
-  the operators and functions under the code box and the AI guidance names them,
-  all from the same constants (2026-10-26, `2265e28ca`, `3c81f8a65`). Viviane's
-  index is `(a + b + c) / 3`.
+- Q11, M11 and M16: indicator code is the platform's expression language (see
+  "The indicator code language"), parsed into a syntax tree and emitted as R on
+  the server only; a word the language lacks is reported with its position, a
+  variable in the wrong case gets the matching id suggested, the editor lists
+  the operators and the list form under the code box and the AI guidance reads
+  the same constant; stored `%in% c(...)` code was migrated to `IN (...)`; no UI
+  text says R (2026-10-26, `2265e28ca`, `3c81f8a65`, then
+  PLAN_HFA_INDICATOR_CODE_LANGUAGE.md steps 1 to 4). Viviane's index is
+  `(a + b + c) / 3`.
 - U4: HFA tables and charts order indicators, categories, sub-categories and
   variant items by the instance's own order (workbook row order for indicators,
   the reorder handles for the taxonomies), and ICEH indicators and strata
