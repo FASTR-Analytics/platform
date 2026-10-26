@@ -95,40 +95,21 @@ Kind regards, Tim
 
 ## To Meghan: where the HFA requests stand
 
-Subject: HFA: done and still to do
+Subject: HFA progress
 
 Hi Meghan,
 
-Where the HFA requests stand, against everything in the HFA threads, the wish list tracker and the testing notes from Safia, Viviane and Leenisha. Tell me if you know of one that is not here.
+HFA progress, going into the next release:
 
-In the next release:
-
-- Facilities and data in one wizard. The data import maps facility id, admin areas, name and type from the survey file, shows the new facilities and changes before launch, and writes them with the data. No separate facility upload. The wizard can create the first time point, and every optional facility column is offered on each import.
-- "Apply to all time points" in the workbook import writes the one code column to every round.
-- Indicator code is the platform's own expression language, parsed by the app and turned into R only inside the generated script. The syntax is comparisons, AND, OR, NOT, arithmetic and "x IN (1, 2)". Anything else is refused with a message, and a variable in the wrong case gets the right id suggested. Stored code was migrated from "%in% c(...)" to "IN (...)". The default workbook on the resource hub still has 47 cells in the old form: a find and replace of "%in% c(" with "IN (" in the r_code column.
-- Tables and charts order HFA indicators in workbook order and categories in the category manager's order, not alphabetically.
+- Facilities and data are uploaded in one wizard. It maps facility id, admin areas, name and type from the survey file, shows new facilities and changes before launch, and can create the first time point. There is no separate facility upload.
+- "Apply to all time points" in the workbook import writes the code column to every round.
+- Indicator code is the platform's own expression language: comparisons, AND, OR, NOT, arithmetic and "x IN (1, 2)". Anything else is refused with a message, and a variable in the wrong case gets the right id suggested. Existing code was migrated from "%in% c(...)" to "IN (...)". The default workbook on the resource hub needs the same find and replace in its r_code column, 47 cells.
+- Tables and charts order indicators in workbook order and categories in the category manager's order.
 - The indicator editor, the workbook import and the delete screens are translated.
-- The unused-variables list skips id_admin1, id_admin1_corrected, id_fac_type, id_resp_consent and result.
-- The service-categories field in the code editor no longer overlaps the variant-group select, which is what Safia reported as a duplicated field.
+- The unused-variables list skips the id_ and result variables.
+- The service-categories field in the code editor no longer overlaps the next field (Safia's "duplicated field").
 - The workbook import reads label_en, label_fr and label_pt.
 
-Next, in order:
-
-1. Indicator search matches the variables in the code; the list filters by time point.
-2. Variables already used in a time point are marked in the editor's variable list.
-3. An indicator whose code fails in every time point is flagged.
-4. Staging reports values outside the questionnaire's response options, and select-multiple codes the choice list lacks, which today are dropped silently. That is why Safia's Guinea variables never appeared as unused.
-5. The "Use sampling weights" parameter goes; m010 uses a weight when the row has one.
-6. Facility-type view on the Explore page. For figures, facility type is already offered once "Facility types" is on in the HFA configuration and the package is regenerated.
-7. More conditional-formatting palettes; a footnote on the carried-forward presets; a custom label and a border for the roll-up column; gauge and dotted-line charts.
-8. Delete one facility's rows for a time point; a time point with an end month; an FPC column beside the stratum in the weights table; the assistant checking variable labels against the indicator.
-
-Needing a decision or a design first: confidence intervals and significance tests, the standard HFA report, recoding "Other", questionnaire change detection between rounds, non-XLSForm questionnaires, Russian, the sample distribution table, the immunisation readiness module, and linking HFA and HMIS facilities.
-
-Questions for the HFA team, which I would like you to put to them:
-
-- The module defaults. Today "don't know" is treated as missing and a failing indicator does not stop the run. Are those the standard settings?
-- When a facility answers "not applicable" to a question, the analysis counts it as a "no". Should it instead leave that facility out of the denominator, as a filter does? Today the platform recognises the answer by its label but does nothing with it.
-- When a round has no values for an indicator, m010 fills it from the nearest measured round and records where it came from. Is that what Viviane's "cross-round carry-forward" means, or is something else wanted?
+Next: search by variables in the code and a time-point filter on the indicator list; marking variables already used; flagging an indicator that fails in every round; reporting survey values outside the questionnaire's options (the cause of Safia's missing Guinea variables); dropping the "Use sampling weights" parameter; facility type on the Explore page; then the smaller figure items.
 
 Tim
