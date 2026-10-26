@@ -64,11 +64,10 @@ more R (Q11) is answered by this section, not by widening the allowlist.
 
 ## Quick fixes
 
-Q1 to Q11 are under "Already done".
+Q1 to Q12 are under "Already done".
 
-| Id  | Issue                                | Raised by                            | State in code                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| --- | ------------------------------------ | ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Q12 | Messages in English in the French UI | Viviane, 2026-10-15; Tim, 2026-10-06 | Untranslated: every validator message (`client/src/components/data/hfa/indicators/_shared/r_code_validator.ts:52,91-114,128,133,143`), the Type column texts "Boolean"/"Numeric"/"Sum"/"Avg" (`manager.tsx:836-839`), the HFA delete confirm texts (`hfa/dataset/delete_data.tsx:34-35`), the "yes please delete" phrase shown and compared in English (`xlsx_upload_form.tsx:513,807`, `hfa/dataset/delete_data.tsx:44,137`, same literal in the HMIS and ICEH delete forms), and about 37 workbook parse errors in `xlsx_workbook.ts`. Already translated: "Select at least one time point", the Explore carry-forward label (`lib/explore_views.ts:98-102`), the map legend and the conditional-formatting legends |
+| Id | Issue | Raised by | State in code |
+| -- | ----- | --------- | ------------- |
 
 ## Waiting on the HFA team
 
@@ -291,6 +290,14 @@ Verified in code or commits:
   to existing packages (2026-10-26, `02ed99144`, `b2acc3e92`, `e9dd16d1f`).
   Per-figure manual order already worked everywhere but maps; sort by value is
   chart and pie only.
+- Q12: the indicator validator's errors and warnings, the Type column, the HFA
+  delete confirmations, the empty-dataset state and every workbook parse error
+  render in the instance language; the typed delete phrase is one shared text
+  ("oui supprimer", "sim eliminar") in the HFA, HMIS and ICEH delete forms and
+  the workbook replace form; the parser names the right workbook row after a
+  blank row, and an indicator after a blank row keeps its own code cells
+  (2026-10-26, `0324e799e`, `73ab53dbf`). The Explore carry-forward label was
+  already translated.
 - M19: the default indicator workbook on the resource hub carries `label_en`,
   `label_fr` and `label_pt` columns (Meghan, 2026-10-21), and the import reads
   the instance language's column, then English, then the single column
