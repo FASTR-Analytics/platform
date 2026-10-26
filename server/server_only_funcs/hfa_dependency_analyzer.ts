@@ -2,6 +2,7 @@ import {
   extractRIdentifiers,
   type HfaIndicator,
   type HfaIndicatorCode,
+  unknownRFunctions,
 } from "lib";
 
 export type ExtractedDependencies = {
@@ -15,6 +16,7 @@ export type ExtractedDependencies = {
   filterVariableIds: string[];
   dependencies: string[];
   unknownVariables: string[];
+  unknownFunctions: string[];
 };
 
 export function extractDependenciesFromCode(
@@ -41,6 +43,10 @@ export function extractDependenciesFromCode(
   const filterVariableIds: string[] = [];
   const dependencies = new Set<string>();
   const unknownVariables = new Set<string>();
+  const unknownFunctions = new Set([
+    ...unknownRFunctions(rCodeTrimmed),
+    ...unknownRFunctions(rFilterTrimmed),
+  ]);
 
   const classify = (variable: string, source: "code" | "filter"): void => {
     if (allIndicatorIds.has(variable)) {
@@ -66,6 +72,7 @@ export function extractDependenciesFromCode(
     filterVariableIds: filterVariableIds.sort(),
     dependencies: [...dependencies].sort(),
     unknownVariables: [...unknownVariables].sort(),
+    unknownFunctions: [...unknownFunctions].sort(),
   };
 }
 
@@ -102,6 +109,13 @@ export function buildUnionDependencyGraph(
         validationErrors.push(
           `Indicator "${indicator.indicatorId}" (time_point "${snippet.timePoint}"): Unknown variables [${
             deps.unknownVariables.join(", ")
+          }].`,
+        );
+      }
+      if (deps.unknownFunctions.length > 0) {
+        validationErrors.push(
+          `Indicator "${indicator.indicatorId}" (time_point "${snippet.timePoint}"): Functions not accepted in indicator code [${
+            deps.unknownFunctions.join(", ")
           }].`,
         );
       }

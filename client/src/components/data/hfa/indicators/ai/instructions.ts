@@ -1,3 +1,9 @@
+import {
+  HFA_CODE_FUNCTIONS,
+  HFA_CODE_OPERATOR_ALIASES,
+  HFA_CODE_OPERATORS,
+} from "lib";
+
 // The HFA indicator guidance the manager attaches to the chat's
 // `hfa_indicators` view through its context (S13 frames it as the view's
 // instructions). Instructional rather than a live indicator list: the model
@@ -29,6 +35,11 @@ export function getHfaIndicatorsGuidance(): string {
     'Most HFA indicators are `binary` + `avg` = "percentage of facilities with [condition]". Reach for that unless the user clearly wants an average quantity (`numeric` + `avg`) or a grand total (`numeric` + `sum`). Never bake the measurement phrase ("% of facilities…") into the label: it is added automatically at render time.',
     "",
     "## Writing r-code",
+    `- The code is the platform's own expression language in R syntax, evaluated per facility. It accepts the operators ${
+      [...HFA_CODE_OPERATORS, ...HFA_CODE_OPERATOR_ALIASES].join(" ")
+    } and only these functions: ${
+      HFA_CODE_FUNCTIONS.join(", ")
+    }. No other R function is accepted; a reducing function such as sum, mean or rowMeans would collapse across facilities. Write an index as arithmetic, e.g. \`(a + b + c) / 3\`.`,
     '- Reference real survey variable ids. Use `get_hfa_variable_dictionary` to list variables (id, label, type); use `inspect_hfa_variable` to see a variable\'s coded response options, missingness, and the values actually present. Do this before comparing against a code (e.g. confirm `1` means "Yes").',
     "- For coded/select variables, compare to the code value (`q5 == 1`), not the label.",
     "- Keep the rCode IDENTICAL across rounds when the variable exists in every round (this is what `codeConsistent` checks); only differ a round when the survey actually changed that question.",

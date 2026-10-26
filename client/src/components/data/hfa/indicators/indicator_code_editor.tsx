@@ -1,6 +1,9 @@
 import {
   type APIResponseNoData,
   composeHfaIndicatorLabel,
+  HFA_CODE_FUNCTIONS,
+  HFA_CODE_OPERATOR_ALIASES,
+  HFA_CODE_OPERATORS,
   type HfaDictionaryForValidation,
   type HfaIndicator,
   type HfaIndicatorCategory,
@@ -957,6 +960,30 @@ function EditorInner(p: {
                     height="120px"
                     mono
                   />
+                  <div class="text-base-content-muted mt-1 text-xs">
+                    {t3({
+                      en: "Operators: ",
+                      fr: "Opérateurs : ",
+                      pt: "Operadores: ",
+                    })}
+                    <span class="font-mono">
+                      {[...HFA_CODE_OPERATORS, ...HFA_CODE_OPERATOR_ALIASES]
+                        .join(" ")}
+                    </span>
+                    {t3({
+                      en: ". Functions: ",
+                      fr: ". Fonctions : ",
+                      pt: ". Funções: ",
+                    })}
+                    <span class="font-mono">
+                      {HFA_CODE_FUNCTIONS.join(" ")}
+                    </span>
+                    {t3({
+                      en: ". Nothing else is accepted.",
+                      fr: ". Rien d'autre n'est accepté.",
+                      pt: ". Nada mais é aceite.",
+                    })}
+                  </div>
                   <Show
                     when={currentRCodeValidation().referencedIds.length > 0 ||
                       currentRCodeValidation().warnings.length > 0 ||

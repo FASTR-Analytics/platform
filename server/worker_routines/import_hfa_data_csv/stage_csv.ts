@@ -177,12 +177,12 @@ export async function stageHfaCsvIntoTables(args: {
     }
     return [questionId];
   });
-  // Reject variable ids that collide with how indicator R code is interpreted:
-  // `and`/`or` operator aliases, R keywords, the common functions the
-  // identifier extractor filters, or with a column the module script owns
-  // (`weight`, `time_point`, `facility_*`, ...). A variable id `and`/`sum`/`if`
-  // would otherwise be silently rewritten or dropped, and `weight`/`time_point`
-  // would collide with or shadow the script's own column (single source:
+  // Reject variable ids that collide with how indicator code is interpreted:
+  // `and`/`or` operator aliases, R keywords, the functions the code accepts,
+  // or with a column the module script owns (`weight`, `time_point`,
+  // `facility_*`, ...). A variable id `and`/`c`/`if` would otherwise be
+  // silently rewritten, shadowed or dropped, and `weight`/`time_point` would
+  // collide with or shadow the script's own column (single source:
   // isReservedHfaId).
   const reservedCollisions = variableIds.filter(isReservedHfaId);
   if (reservedCollisions.length > 0) {

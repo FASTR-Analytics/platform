@@ -73,59 +73,43 @@ const R_KEYWORDS = new Set([
   "in",
 ]);
 
-const R_COMMON_FUNCTIONS = new Set([
+// The indicator code language: a per-facility expression in R syntax, spliced
+// into a `case_when` branch over the wide frame. Only vectorised, elementwise,
+// NA-propagating functions belong here. A reducing function such as `sum` or
+// `mean` collapses across every facility and broadcasts one scalar to each
+// row, silently wrong, so it is rejected, as is any function not listed.
+// Single source for the validator, the server analyzer, the editor's help line
+// and the AI guidance.
+export const HFA_CODE_FUNCTIONS = [
   "c",
-  "case_when",
-  "across",
-  "rowSums",
-  "rowMeans",
-  "str_detect",
-  "as",
-  "as.numeric",
-  "as.character",
-  "as.integer",
-  "as.logical",
-  "is",
   "is.na",
-  "is.null",
   "ifelse",
-  "sum",
-  "mean",
-  "min",
-  "max",
+  "pmin",
+  "pmax",
   "abs",
-  "sqrt",
-  "log",
-  "exp",
-  "grepl",
-  "nchar",
-  "substr",
-  "paste",
-  "paste0",
-  "length",
-  "which",
-  "any",
-  "all",
   "round",
-  "ceiling",
   "floor",
-  "trimws",
-  "gsub",
-  "sub",
-  "startsWith",
-  "endsWith",
-  "tolower",
-  "toupper",
-  "nrow",
-  "ncol",
-  "names",
-  "print",
-  "cat",
-  "seq",
-  "rep",
-  "seq_along",
-  "seq_len",
-]);
+  "ceiling",
+  "as.numeric",
+] as const;
+const HFA_CODE_FUNCTION_SET: ReadonlySet<string> = new Set(HFA_CODE_FUNCTIONS);
+
+export const HFA_CODE_OPERATORS = [
+  "==",
+  "!=",
+  "<",
+  ">",
+  "<=",
+  ">=",
+  "&",
+  "|",
+  "!",
+  "+",
+  "-",
+  "*",
+  "/",
+  "%in%",
+] as const;
 
 // Bareword logical operators accepted as aliases for R's vectorised `&`/`|`.
 // Single source of truth for both `normalizeRLogicalOperators` (which rewrites
@@ -135,6 +119,8 @@ const R_LOGICAL_OPERATOR_ALIASES = new Map<string, string>([
   ["and", "&"],
   ["or", "|"],
 ]);
+export const HFA_CODE_OPERATOR_ALIASES = [...R_LOGICAL_OPERATOR_ALIASES.keys()]
+  .map((k) => k.toUpperCase());
 
 const R_LOGICAL_OPERATOR_REGEX = new RegExp(
   `(^|[^A-Za-z0-9_.])(${
@@ -170,9 +156,9 @@ const M10_STRUCTURAL_PREFIX_REGEX = /^(facility_|admin_area_|time_point)/i;
 //   - `and`/`or` (any case) are rewritten to `&`/`|` by
 //     `normalizeRLogicalOperators`, so a variable with that name becomes an
 //     operator.
-//   - R keywords and the common functions `extractRIdentifiers` filters (exact
-//     case) are dropped from identifier extraction, so a variable with that
-//     exact name is silently ignored as a dependency and mis-spliced into R.
+//   - R keywords are dropped from identifier extraction, so a variable with
+//     that exact name is silently ignored as a dependency; a variable named
+//     after an accepted function would shadow it inside the scoped bindings.
 //   - The M10 structural column names above.
 // Applied at BOTH ends: indicator-id validation and survey-data import.
 export function isReservedHfaId(name: string): boolean {
@@ -189,7 +175,7 @@ export function isReservedHfaId(name: string): boolean {
   if (trimmed.toLowerCase().endsWith("__status")) {
     return true;
   }
-  return R_KEYWORDS.has(trimmed) || R_COMMON_FUNCTIONS.has(trimmed);
+  return R_KEYWORDS.has(trimmed) || HFA_CODE_FUNCTION_SET.has(trimmed);
 }
 
 // Char scanner (not regex): handles escaped quotes inside strings, and keeps
@@ -279,12 +265,30 @@ export function normalizeRLogicalOperators(rCode: string): string {
   return out;
 }
 
-export function extractRIdentifiers(rCode: string): string[] {
+// An identifier followed by `(` is a call; every other identifier is a
+// variable or indicator reference.
+const R_IDENTIFIER_REGEX = /\b([a-zA-Z_][a-zA-Z0-9._]*)\b(\s*\()?/g;
+
+function splitRIdentifiers(
+  rCode: string,
+): { variables: string[]; calls: string[] } {
   const cleaned = stripRStringsAndComments(normalizeRLogicalOperators(rCode));
-  const identifierPattern = /\b[a-zA-Z_][a-zA-Z0-9._]*\b/g;
-  const matches = [...cleaned.matchAll(identifierPattern)];
-  const variables = matches
-    .map((m) => m[0])
-    .filter((v) => !R_KEYWORDS.has(v) && !R_COMMON_FUNCTIONS.has(v));
-  return [...new Set(variables)].sort();
+  const variables = new Set<string>();
+  const calls = new Set<string>();
+  for (const m of cleaned.matchAll(R_IDENTIFIER_REGEX)) {
+    const name = m[1];
+    if (R_KEYWORDS.has(name)) continue;
+    (m[2] ? calls : variables).add(name);
+  }
+  return { variables: [...variables].sort(), calls: [...calls].sort() };
+}
+
+export function extractRIdentifiers(rCode: string): string[] {
+  return splitRIdentifiers(rCode).variables;
+}
+
+export function unknownRFunctions(rCode: string): string[] {
+  return splitRIdentifiers(rCode).calls.filter(
+    (name) => !HFA_CODE_FUNCTION_SET.has(name),
+  );
 }

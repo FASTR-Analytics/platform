@@ -56,6 +56,7 @@ globs:
   - server/tests/dhis2_id_fix_backfill_test.ts
   - server/tests/dhis2_id_fix_execute_test.ts
   - server/tests/dhis2_id_fix_plan_test.ts
+  - server/tests/hfa_r_code_analysis_test.ts
   - server/tests/hfa_workbook_text_columns_test.ts
   - server/tests/indicator_analysed_set_test.ts
   - server/tests/indicator_data_key_test.ts
@@ -769,8 +770,11 @@ edits do not touch any `updated_at`, so they are folded directly into
 that, variant authoring is invisible to the SSE→cache triangle and to the run's
 `hfaIndicatorsVersion` stamp.
 
-**HFA R-code analysis has ONE home**: `lib/hfa_r_code_analysis.ts` (function
-whitelist, escaped-quote-safe string/comment stripping, identifier extraction),
+**HFA R-code analysis has ONE home**: `lib/hfa_r_code_analysis.ts` (the accepted
+functions and operators, `HFA_CODE_FUNCTIONS` and `HFA_CODE_OPERATORS`, which
+the editor's help line and the AI guidance also read; escaped-quote-safe
+string/comment stripping; identifier extraction, where an identifier followed by
+`(` is a call and `unknownRFunctions` lists the calls the language rejects),
 shared by the client editor validator and the server dependency analyzer
 (`server_only_funcs/hfa_dependency_analyzer.ts`). Never re-fork these. A fork
 (two whitelists, or a server that does not strip comments) makes editor-green
@@ -1471,14 +1475,14 @@ raised by adversarial review of the shipped feature; none blocks it.
   authorable at all: the scoped bindings NA-ify `-99` before any `x == -99`
   rCode could match; cheap now that the binding list is built per indicator. (2)
   An **authoring gate for NA-swallowing constructs**: indicators are gated on
-  the result of their own expression, so an authored `ifelse` / `is.na` /
-  `grepl` returns a determinate value where a missing input should give NA. All
-  three are allowlisted and none is used today, so the validator should warn.
-  (3) An **authoring-rule validation gate**: indicator R code must test
-  positively for Yes (`x == 1`, `x >= 3`); negated tests (`x != 2`, `x <= 3`)
-  misclassify DK under DK-as-No, and nothing enforces this today, so a
-  mis-authored `!=` indicator silently inverts DK handling. The override column
-  is the natural home for the gate. Touches `HfaIndicator`/`HfaIndicatorCode`
+  the result of their own expression, so an authored `ifelse` / `is.na` returns
+  a determinate value where a missing input should give NA. Both are accepted
+  functions and neither is used today, so the validator should warn. (3) An
+  **authoring-rule validation gate**: indicator R code must test positively for
+  Yes (`x == 1`, `x >= 3`); negated tests (`x != 2`, `x <= 3`) misclassify DK
+  under DK-as-No, and nothing enforces this today, so a mis-authored `!=`
+  indicator silently inverts DK handling. The override column is the natural
+  home for the gate. Touches `HfaIndicator`/`HfaIndicatorCode`
   ([lib/types/hfa_types.ts](lib/types/hfa_types.ts)), the
   `hfa_indicators`/`hfa_indicator_code` schema,
   [server/db/instance/hfa_indicators.ts](server/db/instance/hfa_indicators.ts),

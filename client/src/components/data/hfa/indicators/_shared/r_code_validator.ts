@@ -1,7 +1,9 @@
 import {
   extractRIdentifiers,
+  HFA_CODE_FUNCTIONS,
   normalizeRLogicalOperators,
   stripRStringsAndComments,
+  unknownRFunctions,
 } from "lib";
 
 export type RCodeValidationResult = {
@@ -38,18 +40,24 @@ export function validateRCode(
   const syntaxErrors = [
     ...checkRSyntax(normalized),
     ...checkVectorizedLogical(normalized),
+    ...checkFunctions(normalized),
   ];
   const identifiers = extractRIdentifiers(normalized);
   const warnings: string[] = [...checkLoneEquals(normalized)];
   const unknownVariableErrors: string[] = [];
   const referencedIds: string[] = [];
+  const knownIds = [...availableVariableIds, ...otherIndicatorIds];
 
   for (const id of identifiers) {
     if (availableVariableIds.has(id) || otherIndicatorIds.has(id)) {
       referencedIds.push(id);
     } else {
+      const lower = id.toLowerCase();
+      const sameCase = knownIds.find((k) => k.toLowerCase() === lower);
       unknownVariableErrors.push(
-        `Variable '${id}' not found in this time point`,
+        sameCase
+          ? `Variable '${id}' not found in this time point. Did you mean '${sameCase}'?`
+          : `Variable '${id}' not found in this time point`,
       );
     }
   }
@@ -136,6 +144,14 @@ function checkVectorizedLogical(rCode: string): string[] {
   return errors;
 }
 
+function checkFunctions(rCode: string): string[] {
+  return unknownRFunctions(rCode).map((name) =>
+    `'${name}' is not an accepted function. The code accepts: ${
+      HFA_CODE_FUNCTIONS.join(", ")
+    }`
+  );
+}
+
 function checkLoneEquals(rCode: string): string[] {
   const stripped = stripRStringsAndComments(rCode);
   if (/(^|[^=!<>])=(?!=)/.test(stripped)) {
@@ -146,40 +162,12 @@ function checkLoneEquals(rCode: string): string[] {
   return [];
 }
 
-const BOOLEAN_FUNCS = new Set([
-  "is.na",
-  "is.null",
-  "grepl",
-  "str_detect",
-  "startsWith",
-  "endsWith",
-  "isTRUE",
-  "isFALSE",
-  "xor",
-]);
-const NUMERIC_FUNCS = new Set([
-  "sum",
-  "mean",
-  "min",
-  "max",
-  "abs",
-  "sqrt",
-  "log",
-  "exp",
-  "length",
-  "nchar",
-  "rowSums",
-  "rowMeans",
-  "round",
-  "ceiling",
-  "floor",
-  "which",
-  "ncol",
-  "nrow",
-]);
-// `as.numeric` / `as.integer` are deliberately NOT classified numeric: coercing a
-// comparison to 0/1 (`as.numeric(x == 1)`) is a standard way to write a *binary*
-// indicator, so treating them as numeric would mis-flag valid binary code.
+const BOOLEAN_FUNCS = new Set(["is.na"]);
+const NUMERIC_FUNCS = new Set(["abs", "round", "ceiling", "floor"]);
+// `as.numeric`, `pmin` and `pmax` are deliberately NOT classified numeric:
+// coercing a comparison to 0/1 (`as.numeric(x == 1)`, `pmax(a == 1, b == 1)`)
+// is a standard way to write a *binary* indicator, so treating them as numeric
+// would mis-flag valid binary code.
 
 // Strips redundant outer parentheses that wrap the whole expression, so
 // `(x == 1)` is analysed like `x == 1`.
