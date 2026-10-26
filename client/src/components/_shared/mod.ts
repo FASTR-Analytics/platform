@@ -23,6 +23,7 @@ export {
   figureScopeLabel,
   packageLabel,
   packageScopeCaption,
+  readyPackageOptionLabel,
   scopeDisplayLabel,
   scopeLabel,
 } from "./package_label.ts";

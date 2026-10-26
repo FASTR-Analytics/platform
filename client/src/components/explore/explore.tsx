@@ -53,7 +53,10 @@ import {
   setExploreQuery,
   setExploreScopeId,
 } from "~/state/t4_explore";
-import { ScopeSelect } from "~/components/_shared/mod.ts";
+import {
+  readyPackageOptionLabel,
+  ScopeSelect,
+} from "~/components/_shared/mod.ts";
 import {
   copilotViewController,
   type ExploreContext,
@@ -237,7 +240,7 @@ export function Explore() {
                 value={runId}
                 options={instanceState.readyPackages.map((pkg) => ({
                   value: pkg.id,
-                  label: pkg.label,
+                  label: readyPackageOptionLabel(pkg),
                 }))}
                 onChange={setExplorePackageId}
                 size="sm"

@@ -6,7 +6,11 @@ import {
   Select,
 } from "panther";
 import { createSignal } from "solid-js";
-import { ScopeSelect, scopeSelectLabel } from "~/components/_shared/mod.ts";
+import {
+  readyPackageOptionLabel,
+  ScopeSelect,
+  scopeSelectLabel,
+} from "~/components/_shared/mod.ts";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 
@@ -87,7 +91,7 @@ export function CreateProductModal(p: AlertComponentProps<Props, ReturnType>) {
           })}
           options={instanceState.readyPackages.map((pkg) => ({
             value: pkg.id,
-            label: pkg.label,
+            label: readyPackageOptionLabel(pkg),
           }))}
           value={runId()}
           onChange={setRunId}
