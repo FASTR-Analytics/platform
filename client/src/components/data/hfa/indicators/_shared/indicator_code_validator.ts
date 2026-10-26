@@ -72,8 +72,8 @@ export function validateIndicatorCode(
   return { syntaxErrors: [], unknownVariableErrors, referencedIds };
 }
 
-// Whether the code's result type fits the indicator's declared `type`, for
-// the AI's validation. Code that does not parse has no type; its syntax error
+// Whether the code's result type fits the indicator's declared `type`: a
+// warning in the manager and an issue in the AI's validation. Code that does not parse has no type; its syntax error
 // is reported by validateIndicatorCode.
 export function checkIndicatorCodeResultType(
   code: string,

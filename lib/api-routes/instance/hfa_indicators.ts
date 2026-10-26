@@ -65,7 +65,7 @@ const hfaIndicatorVariantCodeSchema = z.object({
 });
 
 const RESERVED_INDICATOR_ID_MESSAGE =
-  "Indicator ID is a reserved word (a word of the indicator code language, or a name the analysis script uses for its own columns). Choose a different ID";
+  "Indicator ID is reserved: indicator code or the analysis script already gives it a meaning. Choose a different ID";
 
 const hfaIndicatorIdShapeSchema = z
   .string()

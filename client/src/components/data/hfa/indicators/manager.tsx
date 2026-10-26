@@ -51,6 +51,7 @@ import { HfaServiceCategoriesManager } from "./service_categories_manager";
 import { HfaVariantGroupsManager } from "./variant_groups_manager";
 import { buildHfaWorkbookBlob } from "./xlsx_workbook";
 import {
+  checkIndicatorCodeResultType,
   hasIndicatorCodeErrors,
   validateIndicatorCode,
 } from "./_shared/mod.ts";
@@ -294,6 +295,7 @@ export function HfaIndicatorsManager(p: Props) {
     withCode: number;
     total: number;
     ready: number;
+    warning: number;
     error: number;
     consistent: boolean;
   };
@@ -329,6 +331,7 @@ export function HfaIndicatorsManager(p: Props) {
 
       const withCodeEntries = indCode.filter((c) => c.rCode.trim());
       let ready = 0;
+      let warning = 0;
       let error = 0;
       for (const c of withCodeEntries) {
         const tp = dict.timePoints.find((t) => t.timePoint === c.timePoint);
@@ -355,7 +358,9 @@ export function HfaIndicatorsManager(p: Props) {
           }
         }
         if (hasErr) error++;
-        else ready++;
+        else if (checkIndicatorCodeResultType(c.rCode, ind.type).length > 0) {
+          warning++;
+        } else ready++;
       }
 
       const nonEmpty = indCode.filter(
@@ -375,6 +380,7 @@ export function HfaIndicatorsManager(p: Props) {
         withCode: withCodeEntries.length,
         total,
         ready,
+        warning,
         error,
         consistent,
       });
@@ -849,6 +855,9 @@ export function HfaIndicatorsManager(p: Props) {
       ...(stats.ready > 0
         ? [t3({ en: "Ready", fr: "Prêt", pt: "Pronto" })]
         : []),
+      ...(stats.warning > 0
+        ? [t3({ en: "Warning", fr: "Avertissement", pt: "Aviso" })]
+        : []),
       ...(stats.error > 0
         ? [t3({ en: "Error", fr: "Erreur", pt: "Erro" })]
         : []),
@@ -987,8 +996,20 @@ export function HfaIndicatorsManager(p: Props) {
                 })}
               </span>
             </Show>
-            <Show when={stats.error > 0}>
+            <Show when={stats.warning > 0}>
               <Show when={stats.ready > 0}>
+                <span>,</span>
+              </Show>
+              <span class="text-warning font-700">
+                {t3({
+                  en: `${stats.warning} type mismatch`,
+                  fr: `${stats.warning} type incohérent`,
+                  pt: `${stats.warning} tipo incoerente`,
+                })}
+              </span>
+            </Show>
+            <Show when={stats.error > 0}>
+              <Show when={stats.ready > 0 || stats.warning > 0}>
                 <span>,</span>
               </Show>
               <span class="text-danger font-700">

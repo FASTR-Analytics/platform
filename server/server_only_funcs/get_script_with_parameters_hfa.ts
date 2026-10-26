@@ -15,6 +15,7 @@ import {
   type AnalyseSnippet,
   buildUnionDependencyGraph,
   createSnippetAnalyser,
+  type ExtractedDependencies,
   formatCycles,
   snippetProblems,
   topologicalSort,
@@ -170,7 +171,7 @@ function emitSnippet(
 ): {
   rCode: string;
   rFilterCode: string;
-  deps: Extract<ReturnType<AnalyseSnippet>, { ok: true }>["deps"];
+  deps: ExtractedDependencies;
 } {
   const analysis = analyse(snippet);
   if (!analysis.ok) {

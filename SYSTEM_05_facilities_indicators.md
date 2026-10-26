@@ -790,21 +790,22 @@ parsed: R is emitted from the AST on the server only
 `x %in% c(a, b)`, with parentheses only where R's precedence would regroup the
 code (R's `%in%` binds tighter than `* /`). lib compiles into both runtimes:
 keep it pure (no Deno/UI imports). The result type (yes/no or number) is read
-off the AST's root and a mismatch with the indicator's `type` is reported to the
-AI tools only. The persisted `has_syntax_error`/`code_consistent` flags are
-advisory metadata that the manager does not display (its Status and Consistent
-columns compute from the code) and that only the chat's HFA tools read
-(`get_hfa_indicators`): the run's `hfa_indicators_snapshot.json` carries them
-and its reader (`hfaIndicatorRow`, `server/run_query/run_read.ts`) drops them,
-and bulk validation updates deliberately do NOT bump `updated_at` (a bump would
-move `hfaIndicatorsVersion`, the run's HFA staleness stamp, for an edit
-generation ignores). The code lifecycle: instance edits → run capture (S6's
-run-capture seam) snapshots indicators+taxonomy+code → S8's module run parses
-each snippet once, builds a cross-indicator dependency graph from the ASTs
-(topological sort, cycles rejected), and splices each round's emitted R into
-`case_when` branches; a snippet that does not parse is a generation error naming
-the indicator and round, like an unknown variable, and `STOP_IF_INDICATOR_FAILS`
-(default TRUE) makes one invalid indicator kill the run.
+off the AST's root; a mismatch with the indicator's `type` is a "type mismatch"
+warning in the manager's Status column and an issue in the AI tools' validation.
+The persisted `has_syntax_error`/`code_consistent` flags are advisory metadata
+that the manager does not display (its Status and Consistent columns compute
+from the code) and that only the chat's HFA tools read (`get_hfa_indicators`):
+the run's `hfa_indicators_snapshot.json` carries them and its reader
+(`hfaIndicatorRow`, `server/run_query/run_read.ts`) drops them, and bulk
+validation updates deliberately do NOT bump `updated_at` (a bump would move
+`hfaIndicatorsVersion`, the run's HFA staleness stamp, for an edit generation
+ignores). The code lifecycle: instance edits → run capture (S6's run-capture
+seam) snapshots indicators+taxonomy+code → S8's module run parses each snippet
+once, builds a cross-indicator dependency graph from the ASTs (topological sort,
+cycles rejected), and splices each round's emitted R into `case_when` branches;
+a snippet that does not parse is a generation error naming the indicator and
+round, like an unknown variable, and `STOP_IF_INDICATOR_FAILS` (default TRUE)
+makes one invalid indicator kill the run.
 
 An indicator is NA when its **own expression** evaluates to NA, not when an
 input is missing. R's `&`/`|` are three-valued, so a skip-logic "." on a

@@ -184,7 +184,7 @@ export async function stageHfaCsvIntoTables(args: {
     throw new Error(
       `The variable id "${
         reservedCollisions[0]
-      }" is reserved (it is a word of the indicator code language, or a name the analysis script uses for its own columns). Rename the question in the XLSForm, and its column in the CSV, and re-upload.`,
+      }" is reserved: indicator code or the analysis script already gives it a meaning. Rename the question in the XLSForm, and its column in the CSV, and re-upload.`,
     );
   }
 
