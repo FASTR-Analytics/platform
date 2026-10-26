@@ -828,27 +828,31 @@ export function detectHfaWorkbookShape(
 // Phase 2: apply time point mapping to produce final code
 // ============================================================================
 
-// mapping[xlsxPosition] = platform time point label, or null to skip that position
+// mapping[xlsxPosition] = the platform time points that column's code goes to;
+// empty skips the position. A single code column applied to every time point
+// is a position with several targets.
+export type TimePointMapping = string[][];
+
 export function applyTimePointMapping(
   shape: WorkbookShape,
-  mapping: Array<string | null>,
+  mapping: TimePointMapping,
 ): HfaIndicatorCode[] {
   const code: HfaIndicatorCode[] = [];
   for (let i = 0; i < shape.indicators.length; i++) {
     const ind = shape.indicators[i];
     const posCode = shape.rawCode[i] ?? [];
     for (let k = 0; k < shape.xlsxCount; k++) {
-      const tp = mapping[k];
-      if (!tp) continue;
       const { rCode, rFilterCode } = posCode[k] ??
         { rCode: "", rFilterCode: "" };
       if (!rCode && !rFilterCode) continue;
-      code.push({
-        indicatorId: ind.indicatorId,
-        timePoint: tp,
-        rCode,
-        rFilterCode: rFilterCode || undefined,
-      });
+      for (const tp of mapping[k] ?? []) {
+        code.push({
+          indicatorId: ind.indicatorId,
+          timePoint: tp,
+          rCode,
+          rFilterCode: rFilterCode || undefined,
+        });
+      }
     }
   }
   return code;
@@ -856,17 +860,16 @@ export function applyTimePointMapping(
 
 // Variant columns carry embedded labels (detect rejects any without a matching
 // labeled r_code__ column), so they resolve through the same mapping via
-// label → platform time point. A label mapped to null (skipped) skips its
+// label → platform time points. A label mapped to nothing (skipped) skips its
 // variant cells too.
 export function applyVariantTimePointMapping(
   shape: WorkbookShape,
-  mapping: Array<string | null>,
+  mapping: TimePointMapping,
 ): HfaIndicatorVariantCode[] {
-  const labelToTp = new Map<string, string>();
+  const labelToTps = new Map<string, string[]>();
   for (let k = 0; k < shape.xlsxCount; k++) {
     const label = shape.xlsxLabels[k];
-    const tp = mapping[k];
-    if (label !== null && tp) labelToTp.set(label, tp);
+    if (label !== null) labelToTps.set(label, mapping[k] ?? []);
   }
   const variantCode: HfaIndicatorVariantCode[] = [];
   for (let i = 0; i < shape.indicators.length; i++) {
@@ -875,14 +878,14 @@ export function applyVariantTimePointMapping(
     for (let k = 0; k < shape.variantColumns.length; k++) {
       const rCode = posCode[k] ?? "";
       if (!rCode) continue;
-      const tp = labelToTp.get(shape.variantColumns[k].label);
-      if (!tp) continue;
-      variantCode.push({
-        indicatorId: ind.indicatorId,
-        timePoint: tp,
-        itemId: shape.variantColumns[k].itemId,
-        rCode,
-      });
+      for (const tp of labelToTps.get(shape.variantColumns[k].label) ?? []) {
+        variantCode.push({
+          indicatorId: ind.indicatorId,
+          timePoint: tp,
+          itemId: shape.variantColumns[k].itemId,
+          rCode,
+        });
+      }
     }
   }
   return variantCode;

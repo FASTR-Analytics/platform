@@ -24,6 +24,7 @@ import {
   applyTimePointMapping,
   applyVariantTimePointMapping,
   detectHfaWorkbookShape,
+  type TimePointMapping,
   type WorkbookShape,
 } from "./xlsx_workbook";
 import {
@@ -501,14 +502,10 @@ function ReconcileStep(p: {
       });
   };
 
-  const effectiveMapping = (): Array<string | null> => {
-    if (isAutoSingle) return [p.timePoints[0]];
-    if (isApplyOneOrAll && reconcileMode() === "all") {
-      return Array(N)
-        .fill(null)
-        .map(() => mapping[0]);
-    }
-    return [...mapping];
+  const effectiveMapping = (): TimePointMapping => {
+    if (isAutoSingle) return [[p.timePoints[0]]];
+    if (isApplyOneOrAll && reconcileMode() === "all") return [p.timePoints];
+    return mapping.map((tp) => (tp ? [tp] : []));
   };
 
   const [replaceCheckText, setReplaceCheckText] = createSignal("");
@@ -518,8 +515,8 @@ function ReconcileStep(p: {
   const doImport = createFormAction(
     async () => {
       const finalMapping = effectiveMapping();
-      const usedTps = new Set(finalMapping.filter(Boolean));
-      if (usedTps.size === 0) {
+      const mappedTps = finalMapping.flat();
+      if (mappedTps.length === 0) {
         return {
           success: false,
           err: t3({
@@ -530,7 +527,6 @@ function ReconcileStep(p: {
         };
       }
 
-      const mappedTps = finalMapping.filter((tp): tp is string => !!tp);
       const duplicateTp = mappedTps.find(
         (tp, i) => mappedTps.indexOf(tp) !== i,
       );
