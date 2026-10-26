@@ -393,9 +393,9 @@ export function InstanceData(p: Props) {
             pt: `${toNum0(timePoints)} pontos temporais`,
           })
           : t3({
-            en: "No time points (import data to create)",
-            fr: "Aucun point temporel (importer des données pour créer)",
-            pt: "Nenhum ponto temporal (importar dados para criar)",
+            en: "No time points",
+            fr: "Aucun point temporel",
+            pt: "Nenhum ponto temporal",
           }),
         status: timePoints > 0 ? "ready" : "missing",
         onClick: () =>

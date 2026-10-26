@@ -1,21 +1,16 @@
-import { t3, TC } from "lib";
+import { type HfaTimePoint, t3 } from "lib";
 import {
-  Button,
   createDeleteAction,
-  createFormAction,
   EditableList,
   FrameTop,
   HeadingBar,
-  Input,
   type ListItem,
-  MonthSelect,
   openAlert,
-  StateHolderFormError,
-  YearSelect,
 } from "panther";
 import { createSignal, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
+import { HfaTimePointForm } from "./time_point_form.tsx";
 
 type Props = {
   close: (v: undefined) => void;
@@ -43,11 +38,10 @@ export function InstanceHfaTimePoints(p: Props) {
 }
 
 export function HfaTimePointsEditor() {
-  // null = form closed; "" = adding; otherwise the label being edited
-  const [editing, setEditing] = createSignal<string | null>(null);
-  const [formLabel, setFormLabel] = createSignal("");
-  const [formYear, setFormYear] = createSignal("");
-  const [formMonth, setFormMonth] = createSignal("");
+  // null = form closed; no timePoint = adding
+  const [editing, setEditing] = createSignal<
+    { timePoint?: HfaTimePoint } | null
+  >(null);
 
   const sortedTimePoints = () =>
     [...instanceState.hfaTimePoints].sort((a, b) => a.sortOrder - b.sortOrder);
@@ -73,57 +67,13 @@ export function HfaTimePointsEditor() {
   };
 
   function openAdd() {
-    setEditing("");
-    setFormLabel("");
-    setFormYear("");
-    setFormMonth("");
+    setEditing({});
   }
 
   function openEdit(label: string) {
-    const tp = sortedTimePoints().find((t) => t.label === label);
-    if (!tp) return;
-    setEditing(label);
-    setFormLabel(tp.label);
-    setFormYear(tp.periodId.slice(0, 4));
-    setFormMonth(tp.periodId.slice(4, 6));
+    const timePoint = sortedTimePoints().find((t) => t.label === label);
+    if (timePoint) setEditing({ timePoint });
   }
-
-  const saveForm = createFormAction(async () => {
-    const label = formLabel().trim();
-    if (!label) {
-      return {
-        success: false,
-        err: t3({
-          en: "Label cannot be empty",
-          fr: "Le libellé ne peut pas être vide",
-          pt: "A etiqueta não pode estar vazia",
-        }),
-      };
-    }
-    if (!formYear() || !formMonth()) {
-      return {
-        success: false,
-        err: t3({
-          en: "You must select a year and month",
-          fr: "Vous devez sélectionner une année et un mois",
-          pt: "Tem de selecionar um ano e um mês",
-        }),
-      };
-    }
-    const periodId = `${formYear()}${formMonth()}`;
-    const oldLabel = editing();
-    const res = oldLabel === ""
-      ? await serverActions.createHfaTimePoint({ label, periodId })
-      : await serverActions.updateHfaTimePoint({
-        oldLabel: oldLabel!,
-        newLabel: label !== oldLabel ? label : undefined,
-        periodId,
-      });
-    if (res.success) {
-      setEditing(null);
-    }
-    return res;
-  });
 
   async function handleDelete(ids: string[]) {
     const label = ids[0];
@@ -139,7 +89,7 @@ export function HfaTimePointsEditor() {
       }),
       () => serverActions.deleteHfaTimePoint({ label }),
       () => {
-        if (editing() === label) {
+        if (editing()?.timePoint?.label === label) {
           setEditing(null);
         }
       },
@@ -163,56 +113,14 @@ export function HfaTimePointsEditor() {
 
   return (
     <div class="ui-spy max-w-3xl">
-      <Show when={editing() !== null}>
-        <div class="ui-spy rounded border p-4">
-          <div class="ui-text-heading">
-            {editing() === ""
-              ? t3({
-                en: "Add time point",
-                fr: "Ajouter un point temporel",
-                pt: "Adicionar ponto temporal",
-              })
-              : t3({
-                en: "Edit time point",
-                fr: "Modifier le point temporel",
-                pt: "Editar ponto temporal",
-              })}
-          </div>
-          <div class="flex items-end gap-4">
-            <div class="w-64">
-              <Input
-                label={t3({ en: "Label", fr: "Libellé", pt: "Etiqueta" })}
-                value={formLabel()}
-                onChange={setFormLabel}
-                fullWidth
-              />
-            </div>
-            <YearSelect
-              label={t3({ en: "Year", fr: "Année", pt: "Ano" })}
-              value={formYear()}
-              onChange={setFormYear}
-            />
-            <MonthSelect
-              label={t3({ en: "Month", fr: "Mois", pt: "Mês" })}
-              value={formMonth()}
-              onChange={setFormMonth}
-            />
-          </div>
-          <StateHolderFormError state={saveForm.state()} />
-          <div class="ui-gap-sm flex">
-            <Button
-              iconName="save"
-              intent="success"
-              state={saveForm.state()}
-              onClick={saveForm.click}
-            >
-              {t3(TC.save)}
-            </Button>
-            <Button intent="neutral" onClick={() => setEditing(null)}>
-              {t3(TC.cancel)}
-            </Button>
-          </div>
-        </div>
+      <Show when={editing()} keyed>
+        {(form) => (
+          <HfaTimePointForm
+            timePoint={form.timePoint}
+            onSaved={() => setEditing(null)}
+            onCancel={() => setEditing(null)}
+          />
+        )}
       </Show>
       <EditableList
         items={items()}
@@ -233,12 +141,11 @@ export function HfaTimePointsEditor() {
         onReorder={handleReorder}
         readOnly={!instanceState.currentUserIsGlobalAdmin}
         emptyMessage={t3({
-          en:
-            "No time points. Add a time point before importing HFA data or weights.",
+          en: "No time points. Add one here or in the data import.",
           fr:
-            "Aucun point temporel. Ajoutez un point temporel avant d'importer des données HFA ou des pondérations.",
+            "Aucun point temporel. Ajoutez-en un ici ou dans l'importation des données.",
           pt:
-            "Nenhum ponto temporal. Adicione um ponto temporal antes de importar dados HFA ou ponderações.",
+            "Nenhum ponto temporal. Adicione um aqui ou na importação de dados.",
         })}
         renderItem={(item) => (
           <div class="min-w-0 flex-1 rounded border px-3 py-2">

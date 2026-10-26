@@ -64,6 +64,7 @@ import {
   prefillHfaFacilityColumns,
 } from "./facility_columns_step.tsx";
 import { hfaFacilityColumnLabel } from "../../_shared/mod.ts";
+import { HfaTimePointForm } from "../_shared/mod.ts";
 
 export type HfaWizardResult = { launched: true };
 
@@ -165,6 +166,7 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
   );
   const [stepError, setStepError] = createSignal<string>("");
   const [scanning, setScanning] = createSignal<boolean>(false);
+  const [addingTimePoint, setAddingTimePoint] = createSignal<boolean>(false);
   const [prefills, setPrefills] = createSignal<HfaPrefills>({});
   const [columnsPreview, setColumnsPreview] = createSignal<
     StateHolder<HfaFacilityColumnsPreview>
@@ -776,25 +778,53 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
                   pt: "Ponto temporal",
                 })}
               </h3>
-              <div class="w-96">
-                <Select
-                  label={t3({
-                    en: "Select the time point this data belongs to",
-                    fr:
-                      "Sélectionnez le point temporel auquel ces données appartiennent",
-                    pt:
-                      "Selecione o ponto temporal a que estes dados pertencem",
-                  })}
-                  options={timePointOptions()}
-                  value={mappings.timePoint}
-                  onChange={(val) =>
-                    batch(() => {
-                      changes.invalidate();
-                      setMappings("timePoint", val);
+              <div class="flex items-end gap-4">
+                <div class="w-96">
+                  <Select
+                    label={t3({
+                      en: "Select the time point this data belongs to",
+                      fr:
+                        "Sélectionnez le point temporel auquel ces données appartiennent",
+                      pt:
+                        "Selecione o ponto temporal a que estes dados pertencem",
                     })}
-                  fullWidth
-                />
+                    options={timePointOptions()}
+                    value={mappings.timePoint}
+                    onChange={(val) =>
+                      batch(() => {
+                        changes.invalidate();
+                        setMappings("timePoint", val);
+                      })}
+                    fullWidth
+                  />
+                </div>
+                <Show when={!addingTimePoint()}>
+                  <Button
+                    iconName="plus"
+                    intent="neutral"
+                    onClick={() => setAddingTimePoint(true)}
+                  >
+                    {t3({
+                      en: "Add time point",
+                      fr: "Ajouter un point temporel",
+                      pt: "Adicionar ponto temporal",
+                    })}
+                  </Button>
+                </Show>
               </div>
+              <Show when={addingTimePoint()}>
+                <div class="mt-3 max-w-3xl">
+                  <HfaTimePointForm
+                    onSaved={(label) =>
+                      batch(() => {
+                        changes.invalidate();
+                        setMappings("timePoint", label);
+                        setAddingTimePoint(false);
+                      })}
+                    onCancel={() => setAddingTimePoint(false)}
+                  />
+                </div>
+              </Show>
             </div>
             <div>
               <h3 class="ui-text-heading mb-2">
