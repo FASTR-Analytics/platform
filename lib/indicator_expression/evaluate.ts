@@ -8,7 +8,7 @@
 // number or null out. No SQL, no I/O, no catalog lookups.
 //
 // Semantics:
-//   - NULL propagates through every operator and through abs().
+//   - NULL propagates through arithmetic, comparison, NOT and abs().
 //   - Division by zero yields NULL rather than Infinity/NaN: a zero
 //     denominator is "no rate here", not an error.
 //   - A non-finite result (an overflow from very large sums) yields NULL, so
