@@ -234,13 +234,15 @@ subfolders hold and that access is only raised.
 
 ## The products registry on `main`
 
-**A product has one name: `products.label`.** No detail row, no stored config
-and no snapshot carries a second copy, so no write to a product's contents can
-change what it is called. The two rename surfaces (the rail's inline title and
-File > "Name and folder…", both through `updateProductLabel`) are the only
-writers of it, and `touchProduct`'s optional `label` argument is passed by
-exactly one caller that is not a rename: `restoreSlideDeckStructure`, putting
-back the label the version row captured.
+**A product has one name: `products.label`.** No detail row and no stored config
+carries a second copy, so no write to a product's contents can change what it is
+called. The two rename surfaces (the editor header's inline title and File >
+"Name and folder…", both through `updateProductLabel`, which writes `products`
+directly) are the only writers of it. A version snapshot does capture the name
+of its day (`slide_deck_versions.label`, `report_versions.label`), and the two
+restores are the only callers of `touchProduct`'s optional `label` argument
+(`restoreSlideDeckStructure`, `restoreReportStructure`), putting that captured
+name back.
 
 `main` carries the products block (`_main_database.sql`, created on existing
 instances by `200_products.sql`): `folders` (nested through a nullable

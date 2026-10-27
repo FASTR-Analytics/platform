@@ -317,9 +317,8 @@ export async function migrateSlideDeckConfigs(
     // monochrome → minimal, 2026-09-29).
     applySlideDeckThemeToLegacyConfig(config);
 
-    // Block 8: Delete the deck's second name. A deck has one name,
-    // `products.label`; this copy only ever diverged from it, and every
-    // config write used to push it back over the real one.
+    // Block 8: Delete the deck's second name (SYSTEM_12). This copy only ever
+    // diverged from the real one, and every config write pushed it back.
     delete config.label;
 
     const validated = slideDeckConfigSchema.parse(config);

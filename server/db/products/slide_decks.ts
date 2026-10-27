@@ -14,7 +14,7 @@ import { generateUniqueSlideId } from "../../utils/id_generation.ts";
 import { SLIDE_DECK_NOT_FOUND, touchProduct } from "./_product_row.ts";
 
 // A deck written before the config column existed has none: it reads as the
-// starting config. The deck's name is never in here, only on `products`.
+// starting config.
 export function parseSlideDeckConfig(config: string | null): SlideDeckConfig {
   if (config) {
     return parseJsonOrThrow(config) as SlideDeckConfig;
@@ -83,9 +83,6 @@ export async function updateSlideDeckPlan(
   });
 }
 
-// A config write never carries the deck's name, so `touchProduct` takes no
-// label here: the name is `products.label` alone, and the two rename surfaces
-// are the only writers of it.
 // A new deck is minted with `themeChosen: false` and no slides. The write that
 // first answers the theme question (false -> true) also makes the deck's
 // cover, in the same transaction, so the deck's first slide is born in the
@@ -108,6 +105,7 @@ export async function updateSlideDeckConfig(
           SELECT config FROM slide_decks WHERE id = ${productId} FOR UPDATE
         `
       ).at(0);
+      // No label: a config write never carries the deck's name (SYSTEM_12).
       await touchProduct(sql, productId, "slide_deck", lastUpdated);
       await sql`
         UPDATE slide_decks
