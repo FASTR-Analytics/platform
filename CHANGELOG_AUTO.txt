@@ -1,3 +1,6 @@
+[TBD] [user] [fixed] - Fixed errors when loading data elements with broken dataset links
+[TBD] [admin] [fixed] - Resolved errors when DHIS2 has broken data set element records
+[TBD] [admin] [changed] - Data element data set information is now read from the data set side for improved reliability
 [TBD] [user] [changed] - Ask AI button now appears at the bottom-right of the screen
 [TBD] [user] [changed] - Slide decks and reports are now created from the Products tab on the home screen
 [TBD] [user] [changed] - Report export now also offers an HTML file option
