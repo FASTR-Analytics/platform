@@ -247,18 +247,27 @@ message. Both key the products T2 caches the editors read.
 
 **A stamp is for a row that still exists.** `notifyInstanceLastUpdated` means
 "re-read these rows", so only a row a client can still read may be named in one.
-The two writes that REMOVE slides stamp nothing for what they removed: the slide
-delete route names none of its `deletedIds`, and the version restore names only
-`plan.toInsert` and `plan.toUpdate`, never `plan.toDelete`. Both removals still
-reach every client, on `products_upserted`, in the deck summary's shrunken
-`slideIds`, and any editor open on a removed slide is told by `closeSlideRoom`.
-Stamping a deleted id instead made every client holding the deck fetch each
-removed slide and take a 404, because the rail still listed the id until the
-separate `products_upserted` landed, and it put a false "edited slide" line in
-the copilot's digest. Re-minting an id after a delete is safe without the stamp:
-every creator writes the new row with its own fresh `last_updated`, so a stale
-cache entry can never be served. `server/tests/slide_delete_no_stamp_test.ts`
-drives both routes and reads the hub's own channel.
+The two writes that remove slides from a deck that SURVIVES stamp nothing for
+what they removed: the slide delete route names none of its `deletedIds`, and
+the version restore names only `plan.toInsert` and `plan.toUpdate`, never
+`plan.toDelete`. A deck delete removes its slides too and stamps nothing for
+them either (`deleteProducts`). Both removals still reach every client, on
+`products_upserted`, in the deck summary's shrunken `slideIds`, and any editor
+open on a removed slide is told by `closeSlideRoom`. Stamping a deleted id
+instead made every client holding the deck fetch each removed slide and take a
+404, because the rail still listed the id until the separate `products_upserted`
+landed, and it put a false "edited slide" line in the copilot's digest.
+
+Re-minting an id after a delete is safe without the stamp, but not because the
+stamp is absent. Ids are unique over the LIVE rows only, so a removed id can
+come back in another deck, and a client is never sent a stamp for a deck it does
+not hold (`routes/instance/instance-sse.ts` drops a `last_updated` whose product
+the connection cannot see). What makes it safe is that the slide cache is keyed
+by `(productId, slideId)` and not by the id alone
+([t2_slides.ts](client/src/state/products/t2_slides.ts)), so a removed row's
+entry can never be read as its successor's.
+`server/tests/slide_delete_no_stamp_test.ts` drives both routes and reads the
+hub's own channel.
 
 **The mutation recipe** (see `server/routes/products/slides.ts` and
 `server/routes/products/folders.ts`, in registry/`defineRoute` style): after a

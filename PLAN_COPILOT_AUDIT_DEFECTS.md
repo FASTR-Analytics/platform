@@ -10,7 +10,7 @@ figures that count different populations without saying so. Every one is pinned
 to a file and a line below, and every mechanism here was verified in the code,
 not inferred from the symptom. This plan fixes them one at a time.
 
-**Next step:** `Do 1`
+**Next step:** `Do 4`
 
 - **Branch:** `main`
 - **Repos:** this app only.
@@ -664,6 +664,16 @@ Departures only, one line each, written when they happen.
   fields the step named, because `valueLabelReplacements` and the config's own
   records are `z.record`s too and would fail identically; one clone of all five
   costs no more than cloning `items` alone.
+- Step 3: the slide cache's uniqueness key gains the product id
+  (`client/src/state/products/t2_slides.ts`, outside the step's Surface). Not
+  stamping a removed id leaves this client's entry for that row reachable at the
+  old stamp, ids are unique over the live rows only, and a client is never sent
+  a stamp for a deck it does not hold, so the id alone would serve a removed
+  slide's content as its successor's. Step 3 opened that, so closing it is part
+  of the step.
+- Step 3: SYSTEM_12's two restatements of the slide-stamp recipe are corrected
+  (also outside the Surface), because they describe the contract the step
+  changed.
 - Step 2: `makeFigureBundleFromFetchedData` and `FetchedPOData` moved into
   `resolve_figure_from_metric.ts` rather than being imported from the sibling,
   which would have made the two files a cycle; `generate_visualization/mod.ts`

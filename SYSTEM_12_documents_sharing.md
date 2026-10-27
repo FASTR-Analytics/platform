@@ -364,9 +364,9 @@ a 404. In `routes/products/slides.ts` the move route is registered before the
 per-slide update: both match `PUT
 .../slides/move`, and Hono runs matching
 handlers in registration order. Every mutation re-reads the touched summaries
-through `notifyInstanceProductsUpserted` (S3), slide writes also stamp
-`notifyInstanceLastUpdated("slides", ...)`, and package or delete changes
-re-nonce the runs catalogue.
+through `notifyInstanceProductsUpserted` (S3), slide writes that leave their
+rows in place also stamp `notifyInstanceLastUpdated("slides", ...)`, never a
+removed id (S3), and package or delete changes re-nonce the runs catalogue.
 
 ### Scopes
 
@@ -2772,7 +2772,7 @@ slide), `slide_deck_detail` (per deck), `report_detail` (per report;
 `state/products/t2_report_detail.ts`). Every product mutation ends with
 `notifyInstanceProductsUpserted` (the per-row summary re-read, the only
 product-list message), which is also how a product's own `last_updated` reaches
-the client; slide writers add
+the client; a slide write that leaves its rows in place adds
 `notifyInstanceLastUpdated("slides", productId, ids, ts)` for the per-slide
 cache; deletes fire `notifyInstanceProductsDeleted`; folders re-broadcast the
 whole list through `notifyInstanceFoldersUpdated`. Because slide create, delete,
