@@ -19,9 +19,7 @@ function element(overrides: Partial<DHIS2DataElement>): DHIS2DataElement {
     displayName: "ANC 1st visit",
     aggregationType: "SUM",
     valueType: "INTEGER_ZERO_OR_POSITIVE",
-    dataSetElements: [{
-      dataSet: { id: "DsAbCdEfGh1", periodType: "Monthly" },
-    }],
+    dataSets: [{ id: "DsAbCdEfGh1", periodType: "Monthly" }],
     ...overrides,
   };
 }
@@ -126,7 +124,7 @@ Deno.test("eligibility: each non-monthly period type is refused", () => {
   ) {
     assertEquals(
       getDhis2ElementVerdict(
-        element({ dataSetElements: [{ dataSet: { periodType } }] }),
+        element({ dataSets: [{ id: "DsAbCdEfGh1", periodType }] }),
       ),
       { accepted: false, refusal: { kind: "period_type", value: periodType } },
     );
@@ -134,12 +132,14 @@ Deno.test("eligibility: each non-monthly period type is refused", () => {
 });
 
 Deno.test("eligibility: an element in no data set has no period and is refused", () => {
-  assertEquals(getDhis2ElementVerdict(element({ dataSetElements: [] })), {
+  assertEquals(getDhis2ElementVerdict(element({ dataSets: [] })), {
     accepted: false,
     refusal: { kind: "period_type", value: undefined },
   });
   assertEquals(
-    getDhis2ElementVerdict(element({ dataSetElements: undefined })),
+    getDhis2ElementVerdict(
+      element({ dataSets: [{ id: "DsAbCdEfGh1", periodType: undefined }] }),
+    ),
     {
       accepted: false,
       refusal: { kind: "period_type", value: undefined },
@@ -151,9 +151,9 @@ Deno.test("eligibility: one monthly data set among several is enough; none among
   assertEquals(
     getDhis2ElementVerdict(
       element({
-        dataSetElements: [
-          { dataSet: { periodType: "Quarterly" } },
-          { dataSet: { periodType: "Monthly" } },
+        dataSets: [
+          { id: "DsAbCdEfGh1", periodType: "Quarterly" },
+          { id: "DsAbCdEfGh2", periodType: "Monthly" },
         ],
       }),
     ),
@@ -162,9 +162,9 @@ Deno.test("eligibility: one monthly data set among several is enough; none among
   assertEquals(
     getDhis2ElementVerdict(
       element({
-        dataSetElements: [
-          { dataSet: { periodType: "Quarterly" } },
-          { dataSet: { periodType: "Yearly" } },
+        dataSets: [
+          { id: "DsAbCdEfGh1", periodType: "Quarterly" },
+          { id: "DsAbCdEfGh2", periodType: "Yearly" },
         ],
       }),
     ),

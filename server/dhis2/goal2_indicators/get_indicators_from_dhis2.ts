@@ -7,9 +7,11 @@
 import type {
   DHIS2CategoryOptionCombo,
   DHIS2DataElement,
+  DHIS2DataSetLink,
   DHIS2Indicator,
 } from "lib";
 import { FetchOptions, getDHIS2 } from "../common/base_fetcher.ts";
+import { getDataSetLinksByElement } from "./get_data_set_links_from_dhis2.ts";
 
 type IdNameWire = {
   id: string | null | undefined;
@@ -39,23 +41,9 @@ type DataElementWire = {
     | null
     | undefined;
   dataElementGroups: IdNameWire[] | null | undefined;
-  dataSetElements: DataSetElementsWire;
   created: string | null | undefined;
   lastUpdated: string | null | undefined;
 };
-
-export type DataSetElementsWire =
-  | Array<{
-    dataSet:
-      | {
-        id: string | null | undefined;
-        periodType: string | null | undefined;
-      }
-      | null
-      | undefined;
-  }>
-  | null
-  | undefined;
 
 type IndicatorWire = {
   id: string | null | undefined;
@@ -120,7 +108,10 @@ function toCategoryOptionCombo(
   }];
 }
 
-function toDataElement(w: DataElementWire): DHIS2DataElement[] {
+function toDataElement(
+  w: DataElementWire,
+  dataSetLinks: ReadonlyMap<string, DHIS2DataSetLink[]>,
+): DHIS2DataElement[] {
   if (w.id == null) {
     return [];
   }
@@ -143,22 +134,10 @@ function toDataElement(w: DataElementWire): DHIS2DataElement[] {
       ),
     },
     dataElementGroups: idNames(w.dataElementGroups),
-    dataSetElements: toDataSetElements(w.dataSetElements),
+    dataSets: dataSetLinks.get(w.id) ?? [],
     created: w.created ?? undefined,
     lastUpdated: w.lastUpdated ?? undefined,
   }];
-}
-
-// Shared with goal 5's data-set lookup, which reads the same field.
-export function toDataSetElements(
-  wire: DataSetElementsWire,
-): NonNullable<DHIS2DataElement["dataSetElements"]> {
-  return (wire ?? []).map((dse) => ({
-    dataSet: dse.dataSet == null ? undefined : {
-      id: dse.dataSet.id ?? undefined,
-      periodType: dse.dataSet.periodType ?? undefined,
-    },
-  }));
 }
 
 // An indicator type without a numeric factor is no type at all: the
@@ -190,7 +169,6 @@ function toIndicator(w: IndicatorWire): DHIS2Indicator[] {
 // Data elements
 // ============================================================================
 
-// dataSetElements[dataSet[periodType]] feeds the eligibility check.
 const DATA_ELEMENT_FIELDS = [
   "id",
   "name",
@@ -202,11 +180,15 @@ const DATA_ELEMENT_FIELDS = [
   "valueType",
   "categoryCombo[id,name,isDefault,categoryOptionCombos[id,name,displayName]]",
   "dataElementGroups[id,name]",
-  "dataSetElements[dataSet[id,periodType]]",
   "created",
   "lastUpdated",
 ] as const;
 
+// Each element's data sets come from the data-set side
+// (getDataSetLinksByElement) and are attached here, so every caller reads
+// them from the element: an element whose links were never read would be
+// indistinguishable from one in no data set, which the eligibility check
+// refuses.
 export async function getDataElementsFromDHIS2(
   options: FetchOptions,
   query: Query,
@@ -218,7 +200,12 @@ export async function getDataElementsFromDHIS2(
     options,
     buildParams(DATA_ELEMENT_FIELDS, query),
   );
-  return (response.dataElements ?? []).flatMap(toDataElement);
+  const wires = response.dataElements ?? [];
+  const dataSetLinks = await getDataSetLinksByElement(
+    options,
+    wires.flatMap((w) => (w.id == null ? [] : [w.id])),
+  );
+  return wires.flatMap((w) => toDataElement(w, dataSetLinks));
 }
 
 export function searchDataElementsFromDHIS2(

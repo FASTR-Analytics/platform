@@ -1,9 +1,10 @@
 import { FetchOptions, getDHIS2 } from "../common/base_fetcher.ts";
-import { monthlyDataSetId } from "../goal2_indicators/element_eligibility.ts";
 import {
-  type DataSetElementsWire,
-  toDataSetElements,
-} from "../goal2_indicators/get_indicators_from_dhis2.ts";
+  getMetadataRows,
+  type MetadataEndpoint,
+} from "../common/metadata_rows.ts";
+import { monthlyDataSetId } from "../goal2_indicators/element_eligibility.ts";
+import { getDataSetLinksByElement } from "../goal2_indicators/get_data_set_links_from_dhis2.ts";
 
 // Unvalidated JSON from an external server: every field may be missing or
 // null, whatever the DHIS2 docs promise.
@@ -97,34 +98,6 @@ export async function getDataValueSetsFromDHIS2(
   );
 }
 
-type MetadataEndpoint = "dataElements" | "indicators" | "categoryOptionCombos";
-
-// The rows of `ids` on a metadata endpoint, chunked id:in filters of 100.
-async function getMetadataRows<T extends IdRow>(
-  endpoint: MetadataEndpoint,
-  ids: string[],
-  fields: string,
-  options: FetchOptions,
-): Promise<T[]> {
-  const rows: T[] = [];
-  const distinct = Array.from(new Set(ids));
-  const CHUNK_SIZE = 100;
-  for (let i = 0; i < distinct.length; i += CHUNK_SIZE) {
-    const chunk = distinct.slice(i, i + CHUNK_SIZE);
-    const params = new URLSearchParams();
-    params.set("fields", fields);
-    params.set("filter", `id:in:[${chunk.join(",")}]`);
-    params.set("paging", "false");
-    const res = await getDHIS2<Record<string, T[] | null | undefined>>(
-      `/api/${endpoint}.json`,
-      options,
-      params,
-    );
-    rows.push(...(res[endpoint] ?? []));
-  }
-  return rows;
-}
-
 // Which of `ids` exist on a DHIS2 metadata endpoint. Drives the fetch
 // dispatcher's per-run classification: metadata is the source of truth, no
 // stored type field to drift.
@@ -133,12 +106,14 @@ export async function getExistingMetadataIds(
   ids: string[],
   options: FetchOptions,
 ): Promise<Set<string>> {
-  return new Set(
-    presentIds(await getMetadataRows<IdRow>(endpoint, ids, "id", options)),
+  const rows = await getMetadataRows<IdRow>(
+    endpoint,
+    { property: "id", values: ids },
+    "id",
+    options,
   );
+  return new Set(presentIds(rows));
 }
-
-type DataSetElementsRow = IdRow & { dataSetElements: DataSetElementsWire };
 
 // The monthly data set each element is collected in, for a release whose
 // export is served by data set. An element in no monthly data set is absent
@@ -147,17 +122,12 @@ export async function getMonthlyDataSetIdByElement(
   elementIds: string[],
   options: FetchOptions,
 ): Promise<Map<string, string>> {
-  const rows = await getMetadataRows<DataSetElementsRow>(
-    "dataElements",
-    elementIds,
-    "id,dataSetElements[dataSet[id,periodType]]",
-    options,
-  );
+  const links = await getDataSetLinksByElement(options, elementIds);
   const byElement = new Map<string, string>();
-  for (const row of rows) {
-    const dataSetId = monthlyDataSetId(toDataSetElements(row.dataSetElements));
-    if (row.id != null && dataSetId !== undefined) {
-      byElement.set(row.id, dataSetId);
+  for (const [elementId, dataSets] of links) {
+    const dataSetId = monthlyDataSetId(dataSets);
+    if (dataSetId !== undefined) {
+      byElement.set(elementId, dataSetId);
     }
   }
   return byElement;

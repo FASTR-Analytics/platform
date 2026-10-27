@@ -289,6 +289,10 @@ export interface DHIS2CategoryOptionCombo {
   displayName?: string;
 }
 
+// One data set a data element is collected in; `periodType` is undefined
+// when the server omits it.
+export type DHIS2DataSetLink = { id: string; periodType: string | undefined };
+
 export interface DHIS2DataElement {
   id: string;
   name: string;
@@ -308,14 +312,10 @@ export interface DHIS2DataElement {
     id: string;
     name: string;
   }>;
-  // The period type of each data set the element is collected in. An element
-  // in no data set has no period, so the eligibility check refuses it.
-  dataSetElements?: Array<{
-    dataSet?: {
-      id?: string;
-      periodType?: string;
-    };
-  }>;
+  // The data sets the element is collected in, in data set id order, read
+  // from the data-set side and attached by the fetcher. An element in no
+  // data set has no period, so the eligibility check refuses it.
+  dataSets: DHIS2DataSetLink[];
   created?: string;
   lastUpdated?: string;
 }

@@ -1,8 +1,12 @@
 // A DHIS2 data element may fill a base only when DHIS2's
 // own metadata says it is an additive monthly count. Pure: the caller fetches
-// the element (with dataSetElements[dataSet[periodType]]) and asks here.
+// the element (whose data sets the fetcher attaches) and asks here.
 
-import type { DHIS2DataElement, Dhis2ElementVerdict } from "lib";
+import type {
+  DHIS2DataElement,
+  DHIS2DataSetLink,
+  Dhis2ElementVerdict,
+} from "lib";
 
 // NUMBER is the DHIS2 editor's default value type and most real count
 // elements carry it; integrality is enforced per value at import.
@@ -19,13 +23,12 @@ const MONTHLY_PERIOD_TYPE = "Monthly";
 
 // The first monthly data set the element is collected in: what a
 // dataValueSets export by data set names (goal 5), on the releases whose
-// export cannot select a data element.
+// export cannot select a data element. The links are in data set id order,
+// so an element in several monthly sets always names the same one.
 export function monthlyDataSetId(
-  dataSetElements: DHIS2DataElement["dataSetElements"],
+  dataSets: readonly DHIS2DataSetLink[],
 ): string | undefined {
-  return (dataSetElements ?? []).find((dse) =>
-    dse.dataSet?.periodType === MONTHLY_PERIOD_TYPE
-  )?.dataSet?.id;
+  return dataSets.find((s) => s.periodType === MONTHLY_PERIOD_TYPE)?.id;
 }
 
 export function getDhis2ElementVerdict(
@@ -40,8 +43,8 @@ export function getDhis2ElementVerdict(
   ) {
     return refuse({ kind: "value_type", value: element.valueType });
   }
-  const periodTypes = (element.dataSetElements ?? [])
-    .map((dse) => dse.dataSet?.periodType)
+  const periodTypes = element.dataSets
+    .map((s) => s.periodType)
     .filter((p): p is string => p !== undefined);
   // An element collected in a monthly data set and also in a quarterly one
   // reports its monthly values under the monthly set, which is what the
