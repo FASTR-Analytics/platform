@@ -34,12 +34,16 @@ import { respond } from "./_respond.ts";
 
 export const routesProductSlides = new Hono();
 
-// Slides are a deck's content, so every write here notifies twice: the slide
-// rows carry their own `last_updated` version, and the deck is a product, so
-// its summary rides products_upserted. Every read and write is scoped by the
-// product in the path, so a slide id from another deck is a 404. Every
-// write is attributed to the deck's version session and the per-slide ledger
-// (S16), and the plain update goes through the live room when one exists.
+// Slides are a deck's content, so a write here notifies on both channels: the
+// slide rows carry their own `last_updated` version, and the deck is a
+// product, so its summary rides products_upserted. A DELETE notifies on
+// products_upserted only: a `last_updated` stamp is an instruction to
+// re-read the row it names, and a deleted row has nothing to re-read, so
+// stamping it made every client holding the deck fetch each deleted id and
+// take a 404. Every read and write is scoped by the product in the path, so a
+// slide id from another deck is a 404. Every write is attributed to the deck's
+// version session and the per-slide ledger (S16), and the plain update goes
+// through the live room when one exists.
 
 defineRoute(
   routesProductSlides,
@@ -213,12 +217,9 @@ defineRoute(
     for (const slideId of deletedIds) {
       recordSlideRemoved(params.product_id, slideId, editor.email);
     }
-    notifyInstanceLastUpdated(
-      "slides",
-      params.product_id,
-      deletedIds,
-      res.data.lastUpdated,
-    );
+    // No slide stamp: see the note at the top of this file. The deletion
+    // still reaches every client through products_upserted (the deck's
+    // `slideIds` shrink), and any open editor through closeSlideRoom above.
     await notifyInstanceProductsUpserted(c.var.mainDb, [params.product_id]);
     return respond(c, res);
   },

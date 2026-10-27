@@ -13,6 +13,7 @@ globs:
   - server/routes/instance/instance-sse.ts
   - server/task_management/build_instance_state.ts
   - server/tests/instance_sse_filter_test.ts
+  - server/tests/slide_delete_no_stamp_test.ts
   - server/task_management/notify_instance_updated.ts
   - server/utils/request_queue.ts
   - server/valkey/**
@@ -244,11 +245,26 @@ client store keeps the matching `instanceState.lastUpdated.{products,slides}`
 index: `products[id]` from each summary's own stamp, `slides[id]` from the
 message. Both key the products T2 caches the editors read.
 
+**A stamp is for a row that still exists.** `notifyInstanceLastUpdated` means
+"re-read these rows", so only a row a client can still read may be named in one.
+The two writes that REMOVE slides stamp nothing for what they removed: the slide
+delete route names none of its `deletedIds`, and the version restore names only
+`plan.toInsert` and `plan.toUpdate`, never `plan.toDelete`. Both removals still
+reach every client, on `products_upserted`, in the deck summary's shrunken
+`slideIds`, and any editor open on a removed slide is told by `closeSlideRoom`.
+Stamping a deleted id instead made every client holding the deck fetch each
+removed slide and take a 404, because the rail still listed the id until the
+separate `products_upserted` landed, and it put a false "edited slide" line in
+the copilot's digest. Re-minting an id after a delete is safe without the stamp:
+every creator writes the new row with its own fresh `last_updated`, so a stale
+cache entry can never be served. `server/tests/slide_delete_no_stamp_test.ts`
+drives both routes and reads the hub's own channel.
+
 **The mutation recipe** (see `server/routes/products/slides.ts` and
 `server/routes/products/folders.ts`, in registry/`defineRoute` style): after a
-successful write, (1) row-level: a slide write calls
-`notifyInstanceLastUpdated("slides", productId, ids, lastUpdated)` so clients
-invalidate those slides' caches; (2) product-level:
+successful write, (1) row-level: a slide write that leaves its rows in place
+calls `notifyInstanceLastUpdated("slides", productId, ids, lastUpdated)` so
+clients invalidate those slides' caches; (2) product-level:
 `await
 notifyInstanceProductsUpserted(mainDb, [productId])` re-reads and
 broadcasts the touched summaries, whose stamps version the product detail

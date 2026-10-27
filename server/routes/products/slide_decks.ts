@@ -362,9 +362,12 @@ defineRoute(
       }
     }
 
+    // The rows that still exist, so there is something to re-read: a stamp
+    // for a slide the restore removed would make every client holding the
+    // deck fetch a row that is gone. The removals ride products_upserted
+    // below, in the deck's shrunken `slideIds`.
     const touchedSlideIds = [
       ...new Set([
-        ...plan.toDelete,
         ...plan.toInsert.map((s) => s.id),
         ...plan.toUpdate.map((s) => s.id),
       ]),
