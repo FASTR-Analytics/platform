@@ -1,3 +1,10 @@
+[TBD] [user] [changed] - HFA weight import errors now show example facility IDs from both the file and the registry, making it easier to spot a wrong column choice
+[TBD] [user] [changed] - Duplicate facility ID errors now list the repeated IDs instead of only a count
+[TBD] [user] [fixed] - Importing weights when no HFA facilities exist yet now gives a clearer message explaining you need to import the time point's data first
+[TBD] [admin] [changed] - HFA weight import error messages now show example facility IDs from both the file and the registry, making it easier to spot a wrong column choice
+[TBD] [admin] [changed] - Duplicate facility IDs in weight files are now reported with the actual IDs listed, not just a count
+[TBD] [admin] [fixed] - HFA weight import now gives a clearer message when no HFA facilities exist yet, guiding you to import time point data first
+[TBD] [admin] [improved] - Faster and more reliable processing of large CSV file uploads
 [TBD] [user] [added] - DHIS2 now validates typed data element IDs on save
 [TBD] [user] [changed] - Clearer error messages when a DHIS2 ID cannot be imported
 [TBD] [user] [changed] - Tooltip for DHIS2 ID field explains the new save-time validation
