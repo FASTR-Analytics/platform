@@ -1012,11 +1012,18 @@ file too) are composed per view by the view registry
 tools ride the request's tools array, never a catalogue in the prompt
 (`server/tests/copilot_prompt_test.ts` pins the absence; `get_overview` is the
 one surface that asks `buildSystemPrompt` for a date and a catalogue). The
-`SHOW_SENT_CONTEXT` boolean in `state/t4_ui.ts` (a code boolean, off) makes each
-new user bubble the exact text sent, its context block then what was typed
-(panther `showSentContext`). The chat menu's View system prompt shows the blocks
-the next message would carry, through the instance's `getNextTurnPreview()`,
-then the system text; the debug panel
+`AI_DEBUG` flag in `state/t4_ui.ts` (localStorage `fastr:ai-debug` = `"1"`, read
+at page load, off by default) makes each new user bubble the exact text sent,
+its context block then what was typed (panther `showSentContext`), and installs
+`window.__copilot`
+([debug_api.ts](client/src/components/instance/copilot/debug_api.ts)) while this
+tab owns the chat: `requests()` holds every POST the SDK made to the proxy with
+its body as serialised (recorded in the SDK client's fetch wrapper, bounded to
+the last 100), which is what the model received; `nextTurn()`, `messages()`,
+`tools()`, `config()`, `view()`, `conversationId()` and `isLoading()` read the
+engine and the view controller live. The chat menu's View system prompt shows
+the blocks the next message would carry, through the instance's
+`getNextTurnPreview()`, then the system text; the debug panel
 ([ai_debug_panel.tsx](client/src/components/instance/copilot/ai_debug_panel.tsx))
 renders the metric-list formatter verbatim so a human sees exactly what the
 model sees. AI data payloads exclude the admin-area roll-up row (double-counting

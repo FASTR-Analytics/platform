@@ -28,7 +28,7 @@ import {
 import { clerk } from "~/state/_infra/clerk";
 import { instanceState } from "~/state/instance/t1_store";
 import { getRunAuthoringContextFromCacheOrFetch } from "~/state/instance/t2_run_authoring_context";
-import { setShowAi, SHOW_SENT_CONTEXT } from "~/state/t4_ui";
+import { AI_DEBUG, setShowAi } from "~/state/t4_ui";
 import { copilotViewController, packageViewContext } from "./ai_views";
 import {
   createCopilotSDKClient,
@@ -40,6 +40,7 @@ import {
   buildSystemPromptForContext,
 } from "./build_system_prompt";
 import { ConsolidatedChatPane } from "./chat_pane";
+import { installCopilotDebugApi } from "./debug_api";
 import { createTabOwner } from "./tab_owner";
 
 // The one chat beside the shell: the panel the shell's FrameRightResizable
@@ -151,7 +152,7 @@ function CopilotChat(p: { scope: string; tools: AnyAITool[] }) {
     scope: p.scope,
     system: systemPrompt,
     getEphemeralContext,
-    showSentContext: SHOW_SENT_CONTEXT,
+    showSentContext: AI_DEBUG,
     getDocumentRefs: aiDocs.getDocumentRefs,
     viewController: copilotViewController,
     // Every write asks before it applies unless the catalogue exempts it:
@@ -219,6 +220,10 @@ function OwnedChat(p: {
   onMount(() => {
     copilotViewController.clearInteractionLog();
   });
+
+  // The wire, for a tester (debug_api.ts): installed for the owning tab's
+  // chat and removed with it, so a hand-over never leaves a stale hook.
+  if (AI_DEBUG) onCleanup(installCopilotDebugApi(chat));
 
   return <ConsolidatedChatPane chat={chat} aiDocs={p.aiDocs} />;
 }
