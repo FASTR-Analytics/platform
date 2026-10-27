@@ -26,16 +26,6 @@
   },
   {
     "id": "raw-loading-signal",
-    "file": "client/src/components/instance/copilot/ai_prompt_library/save_to_prompt_library_modal.tsx",
-    "text": "const [isSaving, setIsSaving] = createSignal(false);"
-  },
-  {
-    "id": "raw-loading-signal",
-    "file": "client/src/components/instance/copilot/ai_prompt_library/save_to_prompt_library_modal.tsx",
-    "text": "const [error, setError] = createSignal(\"\");"
-  },
-  {
-    "id": "raw-loading-signal",
     "file": "client/src/components/instance/copilot/ai_prompt_library/prompt_library_modal.tsx",
     "text": "const [isLoading, setIsLoading] = createSignal(true);"
   },
