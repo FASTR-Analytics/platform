@@ -370,23 +370,22 @@ When this plan closes:
    after. Steps 2 and 6 land in client files no test can import; their gate is
    the floor, and each step's section says so and says why. A step never invents
    a function, a test runner or an export whose only purpose is to be testable.
-   _(proposed)_
 3. **The deck's single name is the product label, and `config.label` is
    removed.** Not kept as a mirror: a mirror leaves a write path from a config
-   into `products.label`, which is the defect. _(proposed)_
+   into `products.label`, which is the defect.
 4. **A bundle never aliases the rows it was built from.** The fix is in the
    bundle constructors, not in the schema and not in the editor that happens to
-   brand them. _(proposed)_
+   brand them.
 5. **The weekly country counter is a quota measure and keeps excluding unlimited
    users.** Step 6 changes the panel, the prose and `.env.example`, and does not
    touch either accounting site. This overrules the reading that the counter is
    a spend measure: spend is `ai_usage_logs`, and counting unlimited users into
    a quota they are exempt from would let one of them lock out every limited
-   user. _(proposed)_
+   user.
 6. **Step 5 ships prompt text, not a behavioural guarantee.** No test can prove
    the copilot never writes a false claim. The deliverable is the rule's
    presence in the shared base every view inherits; judging whether it works is
-   Tim's, in his own use. _(proposed)_
+   Tim's, in his own use.
 7. **Nothing ships.** No step runs `./deploy_testing` or `./deploy`.
 
 ---
