@@ -4,6 +4,8 @@ import type { InstanceState } from "../types/instance_sse.ts";
 import type { InstanceCalendar } from "../types/instance.ts";
 import type { PeriodBounds } from "../types/presentation_objects.ts";
 import type { RunHmisIndicator } from "../types/run_manifest.ts";
+import type { GeoJsonMapSummary } from "../types/geojson_maps.ts";
+import type { FacilityFamily } from "../types/structure.ts";
 import { inferPeriodFormatFromValue } from "../types/_metric_installed.ts";
 import { describeIndicatorFacts } from "./format_metric_data_for_ai.ts";
 import type { ScopeDefinition } from "../types/scope.ts";
@@ -165,6 +167,7 @@ export function buildInstanceContextSections(
         `- The HMIS facility registry uses levels down to admin_area_${hmisDepth}; the HFA registry down to admin_area_${hfaDepth}. Each registry's data only carries its own levels.`,
       );
     }
+    sections.push(...buildMapCoverageLines(instance.geojsonMaps));
   }
   sections.push("");
   const hasHmis = instance.datasetsWithData.includes("hmis");
@@ -188,6 +191,34 @@ export function buildInstanceContextSections(
     sections.push("");
   }
   return sections;
+}
+
+// A map figure renders only where the instance holds a boundary file for the
+// figure's registry at the figure's level, so the model is told the levels up
+// front and draws a table elsewhere instead of a map the resolver refuses.
+export function buildMapCoverageLines(maps: GeoJsonMapSummary[]): string[] {
+  if (maps.length === 0) {
+    return [
+      "- No boundary map files are uploaded, so no map figure can render: use tables.",
+    ];
+  }
+  const families: FacilityFamily[] = ["hmis", "hfa"];
+  const parts = families.flatMap((family) => {
+    const levels = maps
+      .filter((m) => m.family === family)
+      .map((m) => m.adminAreaLevel)
+      .toSorted((a, b) => a - b);
+    return levels.length === 0 ? [] : [
+      `${family.toUpperCase()} at ${
+        levels.map((l) => `admin_area_${l}`).join(", ")
+      }`,
+    ];
+  });
+  return [
+    `- Boundary map files exist for ${
+      parts.join("; ")
+    }. A map figure renders only at those levels for that registry; at any other level use a table.`,
+  ];
 }
 
 // ── Package grounding: what ONE results package holds ──

@@ -9,6 +9,7 @@
 import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import type { RunDataset, ScopeDefinition } from "lib";
 import {
+  buildMapCoverageLines,
   buildPackageBlock,
   buildSystemPrompt,
   FASTR_MD_SYNTAX_DOC,
@@ -148,4 +149,20 @@ Deno.test("the package block says when the scope is not listed", () => {
     "**Package:** 00000000-0000-4000-8000-000000000000\n**Scope:** not listed",
   );
   assert(!block.includes("generated"));
+});
+
+Deno.test("the map coverage line names each registry's levels, or says there are none", () => {
+  assertEquals(
+    buildMapCoverageLines([
+      { family: "hfa", adminAreaLevel: 4, uploadedAt: "2026-06-10" },
+      { family: "hmis", adminAreaLevel: 4, uploadedAt: "2026-10-26" },
+      { family: "hmis", adminAreaLevel: 3, uploadedAt: "2026-10-26" },
+    ]),
+    [
+      "- Boundary map files exist for HMIS at admin_area_3, admin_area_4; HFA at admin_area_4. A map figure renders only at those levels for that registry; at any other level use a table.",
+    ],
+  );
+  assertEquals(buildMapCoverageLines([]), [
+    "- No boundary map files are uploaded, so no map figure can render: use tables.",
+  ]);
 });
