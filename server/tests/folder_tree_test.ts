@@ -65,9 +65,13 @@ function product(
     defaultAccess: "view",
     grants: [],
   };
-  return type === "slide_deck"
-    ? { ...base, ...access, type, firstSlideId: null }
-    : { ...base, ...access, type, hasEmbeds: false };
+  if (type === "slide_deck") {
+    return { ...base, ...access, type, firstSlideId: null };
+  }
+  if (type === "visualization") {
+    return { ...base, ...access, type, resolvedUnder: null };
+  }
+  return { ...base, ...access, type, hasEmbeds: false };
 }
 
 // a > b > c, plus a sibling root d. "zebra" sorts last by path everywhere.

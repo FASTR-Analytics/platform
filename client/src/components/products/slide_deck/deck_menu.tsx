@@ -18,6 +18,7 @@ import {
   Button,
   Checkbox,
   getSelectOptions,
+  Icon,
   plural,
   Select,
   TextArea,

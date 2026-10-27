@@ -77,13 +77,16 @@ const COPY_SUFFIX: TranslatableString = {
   pt: "cópia",
 };
 
-// The registry row plus one existence flag per type. No detail-table content
+// The registry row plus one cheap slice per type. No detail-table content
 // crosses the DB boundary here: the summary is re-read and re-broadcast on
-// every products_upserted, and has_embeds is computed in SQL where the body
-// lives.
+// every products_upserted, has_embeds is computed in SQL where the body
+// lives, and a visualization's resolved pair is read from the two plain
+// columns its writers keep beside the bundle.
 type DBProductSummaryRow = DBProduct & {
   first_slide_id: string | null;
   has_embeds: boolean | null;
+  resolved_run_id: string | null;
+  resolved_definition_hash: string | null;
 };
 
 function rowToProductBase(row: DBProduct): ProductBase {
@@ -119,10 +122,17 @@ const SUMMARY_BY_TYPE: Record<
     type: "report",
     hasEmbeds: row.has_embeds ?? false,
   }),
-  visualization: (base, _row, access) => ({
+  visualization: (base, row, access) => ({
     ...base,
     ...access,
     type: "visualization",
+    resolvedUnder: row.resolved_run_id !== null &&
+        row.resolved_definition_hash !== null
+      ? {
+        runId: row.resolved_run_id,
+        definitionHash: row.resolved_definition_hash,
+      }
+      : null,
   }),
 };
 
@@ -175,9 +185,11 @@ async function selectProductSummaries(
         SELECT s.id FROM slides s
         WHERE s.slide_deck_id = p.id ORDER BY s.sort_order LIMIT 1
       ) AS first_slide_id,
-      (r.body LIKE '%](figure:%' OR r.body LIKE '%](image:%') AS has_embeds
+      (r.body LIKE '%](figure:%' OR r.body LIKE '%](image:%') AS has_embeds,
+      v.resolved_run_id, v.resolved_definition_hash
     FROM products p
     LEFT JOIN reports r ON r.id = p.id
+    LEFT JOIN visualizations v ON v.id = p.id
     ${productIds === null ? mainDb`` : mainDb`WHERE p.id = ANY(${productIds})`}
     ORDER BY p.last_updated DESC
   `;

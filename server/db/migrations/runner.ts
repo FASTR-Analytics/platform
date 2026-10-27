@@ -7,6 +7,7 @@ import { backfillSlideCounts } from "./instance/208_slide_count_backfill.ts";
 import { hfaRunDiagnosticsFacilityChanges } from "./instance/213_hfa_run_diagnostics_facility_changes.ts";
 import { structureAttemptCsvDetails } from "./instance/215_structure_attempt_csv_details.ts";
 import { applyLegacyUserScopes } from "./instance/217_legacy_user_scopes.ts";
+import { backfillVisualizationResolvedPair } from "./instance/222_visualizations_resolved_pair_backfill.ts";
 
 // A TypeScript migration runs inside the migration transaction and throws on
 // failure, never Deno.exit, so this runner stays the single rollback and
@@ -24,6 +25,8 @@ export const TS_MIGRATIONS: Record<string, TsMigration> = {
   "213_hfa_run_diagnostics_facility_changes": hfaRunDiagnosticsFacilityChanges,
   "215_structure_attempt_csv_details": structureAttemptCsvDetails,
   "217_legacy_user_scopes": applyLegacyUserScopes,
+  "222_visualizations_resolved_pair_backfill":
+    backfillVisualizationResolvedPair,
 };
 
 interface MigrationFile {

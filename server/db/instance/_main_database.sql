@@ -243,13 +243,20 @@ CREATE TABLE reports (
 
 -- A visualization is one saved figure: its FigureBundle as JSON text
 -- (figureBundleSchema), resolved client-side under the product's pair and kept
--- as a snapshot like a report's figures. Not versioned.
+-- as a snapshot like a report's figures. Not versioned. `resolved_run_id` and
+-- `resolved_definition_hash` copy the bundle's `provenance.runId` and
+-- `scope.definitionHash` out of the JSON, written with every bundle write, so
+-- the product summary can say what the snapshot was resolved under (its
+-- staleness) without reading the bundle. Migrations 221 and 222 add and fill
+-- them, so they come last.
 CREATE TABLE visualizations (
   id text PRIMARY KEY NOT NULL,
   type text NOT NULL DEFAULT 'visualization' CHECK (type = 'visualization'),
   bundle text NOT NULL,
   crdt_state text,
   crdt_state_last_updated text,
+  resolved_run_id text,
+  resolved_definition_hash text,
   FOREIGN KEY (id, type) REFERENCES products(id, type) ON DELETE CASCADE
 );
 

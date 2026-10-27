@@ -110,6 +110,7 @@ Deno.test("a saved visualization is never listed to the model", () => {
   const visualization: ProductSummary = {
     ...product({ id: "p_viz", label: "ANC coverage map" }),
     type: "visualization",
+    resolvedUnder: null,
   };
   const text = formatProductsListForAI({
     products: [visualization, product({ id: "p_report" })],

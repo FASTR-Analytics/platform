@@ -9,6 +9,18 @@ import {
 import { tryCatchDatabaseAsync } from "../utils.ts";
 import { touchProduct, VISUALIZATION_NOT_FOUND } from "./_product_row.ts";
 
+// The two columns every bundle write sets beside the bundle: what it was
+// resolved under, copied out of the JSON so the product summary reads its
+// staleness without the bundle (see the table's note in _main_database.sql).
+export function visualizationResolvedPair(
+  bundle: FigureBundle,
+): { resolved_run_id: string; resolved_definition_hash: string } {
+  return {
+    resolved_run_id: bundle.provenance.runId,
+    resolved_definition_hash: bundle.scope.definitionHash,
+  };
+}
+
 // A visualization's version is the product's stamp (as for a report); every
 // read that compares the CRDT stamp against it joins the registry.
 type VisualizationStampRow = {
@@ -57,12 +69,19 @@ export async function updateVisualizationBundle(
   bundle: FigureBundle,
 ): Promise<APIResponseWithData<{ lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
-    const stored = JSON.stringify(figureBundleSchema.parse(bundle));
+    const parsed = figureBundleSchema.parse(bundle);
     const lastUpdated = new Date().toISOString();
     await mainDb.begin(async (sql) => {
       await touchProduct(sql, productId, "visualization", lastUpdated);
       await sql`
-        UPDATE visualizations SET bundle = ${stored} WHERE id = ${productId}
+        UPDATE visualizations
+        SET ${
+        sql({
+          bundle: JSON.stringify(parsed),
+          ...visualizationResolvedPair(parsed),
+        })
+      }
+        WHERE id = ${productId}
       `;
     });
     return { success: true, data: { lastUpdated } };
@@ -113,9 +132,14 @@ export async function saveVisualizationCheckpoint(
       await touchProduct(sql, productId, "visualization", lastUpdated);
       await sql`
         UPDATE visualizations
-        SET bundle = ${JSON.stringify(bundle)},
-            crdt_state = ${crdtState},
-            crdt_state_last_updated = ${crdtTrusted ? lastUpdated : null}
+        SET ${
+        sql({
+          bundle: JSON.stringify(bundle),
+          ...visualizationResolvedPair(bundle),
+          crdt_state: crdtState,
+          crdt_state_last_updated: crdtTrusted ? lastUpdated : null,
+        })
+      }
         WHERE id = ${productId}
       `;
     });
@@ -130,9 +154,15 @@ export async function insertNewVisualizationDetail(
   productId: string,
   bundle: FigureBundle,
 ): Promise<void> {
-  const stored = JSON.stringify(figureBundleSchema.parse(bundle));
+  const parsed = figureBundleSchema.parse(bundle);
   await sql`
-    INSERT INTO visualizations (id, bundle) VALUES (${productId}, ${stored})
+    INSERT INTO visualizations ${
+    sql({
+      id: productId,
+      bundle: JSON.stringify(parsed),
+      ...visualizationResolvedPair(parsed),
+    })
+  }
   `;
 }
 
@@ -145,8 +175,9 @@ export async function duplicateVisualizationDetail(
   newProductId: string,
 ): Promise<void> {
   const rows = await sql`
-    INSERT INTO visualizations (id, bundle)
-    SELECT ${newProductId}, bundle
+    INSERT INTO visualizations
+      (id, bundle, resolved_run_id, resolved_definition_hash)
+    SELECT ${newProductId}, bundle, resolved_run_id, resolved_definition_hash
     FROM visualizations WHERE id = ${productId}
     RETURNING id
   `;

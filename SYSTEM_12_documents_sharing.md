@@ -41,6 +41,7 @@ globs:
   - server/tests/scope_definition_hash_test.ts
   - server/tests/consolidated_products_test.ts
   - server/tests/folder_tree_test.ts
+  - server/tests/visualization_stale_test.ts
   - server/tests/products_routes_test.ts
   - server/tests/product_access_db_test.ts
   - server/tests/product_access_routes_test.ts
@@ -2755,8 +2756,19 @@ admitted the type in the `products.type` CHECK.
   first (`applyVisualizationToLiveRoom`, `save_failed` refuses without a direct
   write), else a parsed direct write that bumps the product alone and so leaves
   the CRDT state stale. Label, folder, package, scope, access, duplicate (copies
-  the bundle, never `crdt_state`) and delete are the shared product routes. The
-  summary arm `{ type: "visualization" }` carries no per-type flag.
+  the bundle, never `crdt_state`) and delete are the shared product routes.
+- **Out of date.** The summary arm carries `resolvedUnder`, the pair the stored
+  bundle was resolved under, read from the two plain columns `resolved_run_id` /
+  `resolved_definition_hash` that every bundle write sets beside the bundle
+  (insert, update, checkpoint, duplicate, the boot transform; migrations 221 and
+  222 added and filled them), so the summary never reads the bundle.
+  `isVisualizationStale` compares it with the product's package and its scope's
+  current definition hash. A stale row in the products list shows an "Out of
+  date" badge (`products/visualization/stale_badge.tsx`): for a user who can
+  edit, a click re-resolves the figure under the product's pair with S11's
+  `updateFigureToScope` (the stale-figure badge's action, retired-metric
+  successors included) and saves it with `updateVisualization`; a failure is
+  alerted and the old snapshot kept. A viewer sees the badge only.
 - **The editor** (`products/visualization/visualization.tsx`) is the figure
   editor itself, full-page (S11), co-edited live in the visualization's own room
   (S16). It waits for the room's first sync (about 4s, then it mounts without a
@@ -2764,9 +2776,9 @@ admitted the type in the `products.type` CHECK.
   remounts it when the pair, the doc's lineage or the live mode changes; a
   remount under a new pair re-fetches, and its first coherent bundle writes the
   new pair's data into the room. A visualization nobody opens after a reattach
-  keeps its old snapshot, as a deck's or a report's figure does. Its header is
-  the editor's, with the product title, the pair chip, presence and a menu
-  (manage access, make a copy) passed in as `productChrome`. A metric the
+  keeps its old snapshot and shows as out of date in the list (above). Its
+  header is the editor's, with the product title, the pair chip, presence and a
+  menu (manage access, make a copy) passed in as `productChrome`. A metric the
   package no longer has shows the stored snapshot and the reason.
 - **Not versioned, not emailed.** There is no version history (no `VersionKind`;
   `PRODUCT_VERSION_KIND` maps the type to null, so a rename or delete records no

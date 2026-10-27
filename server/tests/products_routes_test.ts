@@ -831,6 +831,7 @@ Deno.test("visualization routes: create with its figure, read, update, cross-typ
   });
   if (!scope.success) throw new Error(scope.err);
   const scopeId = scope.data.scopeId;
+  let otherScopeId: string | undefined;
 
   const app = productApp(APPROVED_EMAIL);
   const createdProductIds: string[] = [];
@@ -927,6 +928,10 @@ Deno.test("visualization routes: create with its figure, read, update, cross-typ
     assertEquals(summary?.scopeId, scopeId);
     assertEquals(summary?.owner, APPROVED_EMAIL);
     assertEquals(summary?.defaultAccess, "none");
+    assertEquals(
+      summary?.type === "visualization" ? summary.resolvedUnder : undefined,
+      { runId: pinnedRunId, definitionHash: "h" },
+    );
 
     const detail = await ok<VisualizationDetail>(
       app,
@@ -1048,6 +1053,48 @@ Deno.test("visualization routes: create with its figure, read, update, cross-typ
     )[0];
     assertEquals(copyCrdt.crdt_state, null);
 
+    // The summary carries the pair each bundle was resolved under, through
+    // an update and a duplicate; a scope change leaves it behind (stale).
+    const resolvedPairs = async (ids: string[]) => {
+      const state = await buildInstanceState(
+        mainDb,
+        testGlobalUser(APPROVED_EMAIL, true),
+      );
+      if (!state.success) throw new Error(state.err);
+      return ids.map((id) => {
+        const row = state.data.products.find((x) => x.id === id);
+        return row?.type === "visualization" ? row.resolvedUnder : undefined;
+      });
+    };
+    await ok(app, "PUT", `/products/${viz.productId}/visualization`, {
+      bundle: {
+        ...updated,
+        scope: { definitionHash: "h2", adminArea2: null },
+      },
+    });
+    const copyOfUpdated = await ok<{ productId: string }>(
+      app,
+      "POST",
+      `/products/${viz.productId}/duplicate`,
+      { scopeId },
+    );
+    createdProductIds.push(copyOfUpdated.productId);
+    const second = await createScope(mainDb, {
+      label: `Harness viz other ${crypto.randomUUID().slice(0, 8)}`,
+      definition: ALL_DATA_SCOPE_DEFINITION,
+      createdBy: APPROVED_EMAIL,
+    });
+    if (!second.success) throw new Error(second.err);
+    otherScopeId = second.data.scopeId;
+    await ok(app, "PUT", `/products/${viz.productId}/scope`, {
+      scopeId: otherScopeId,
+    });
+    const expected = { runId: pinnedRunId, definitionHash: "h2" };
+    assertEquals(
+      await resolvedPairs([viz.productId, copyOfUpdated.productId]),
+      [expected, expected],
+    );
+
     // Delete cascades the detail rows.
     await ok(app, "DELETE", "/products", { productIds: createdProductIds });
     const remaining = (
@@ -1063,6 +1110,9 @@ Deno.test("visualization routes: create with its figure, read, update, cross-typ
       await mainDb`DELETE FROM products WHERE id = ANY(${createdProductIds})`;
     }
     await mainDb`DELETE FROM scopes WHERE id = ${scopeId}`;
+    if (otherScopeId !== undefined) {
+      await mainDb`DELETE FROM scopes WHERE id = ${otherScopeId}`;
+    }
     await mainDb`DELETE FROM runs WHERE id = ${failedRunId}`;
     await mainDb`DELETE FROM users WHERE email = ${APPROVED_EMAIL}`;
     await closeAllConnections();

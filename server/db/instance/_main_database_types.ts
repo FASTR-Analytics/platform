@@ -150,6 +150,8 @@ export type DBVisualization = {
   bundle: string;
   crdt_state: string | null;
   crdt_state_last_updated: string | null;
+  resolved_run_id: string | null;
+  resolved_definition_hash: string | null;
 };
 
 export type DBReportVersion = {

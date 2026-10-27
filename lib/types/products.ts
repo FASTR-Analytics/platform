@@ -105,7 +105,25 @@ export type ProductSummary =
   })
   | (ProductBase & ProductAccess & {
     type: "visualization";
+    // What its stored snapshot was resolved under; null only for a row no
+    // write has stamped. Compared with the product's pair and its scope's
+    // current definition hash, it says the snapshot is out of date
+    // (isVisualizationStale).
+    resolvedUnder: { runId: string; definitionHash: string } | null;
   });
+
+// A visualization whose snapshot was resolved under a package or a scope
+// definition other than the product's current ones. `currentDefinitionHash`
+// is the product's scope's hash now (resolvePackageScope).
+export function isVisualizationStale(
+  product: Extract<ProductSummary, { type: "visualization" }>,
+  currentDefinitionHash: string,
+): boolean {
+  const resolved = product.resolvedUnder;
+  return resolved !== null &&
+    (resolved.runId !== product.runId ||
+      resolved.definitionHash !== currentDefinitionHash);
+}
 
 export function productScope(product: ProductBase): PackageScope {
   return { runId: product.runId, scopeId: product.scopeId };

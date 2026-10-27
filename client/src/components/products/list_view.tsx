@@ -34,6 +34,7 @@ import {
 import type { ProductTreeRow } from "./_shared/mod.ts";
 import { ProductLevelBadge } from "./product_level_badge";
 import { PRODUCT_TYPE_REGISTRY } from "./product_types";
+import { VisualizationStaleBadge } from "./visualization/mod.ts";
 
 // Hand-built rather than assembled from panther's `Table`: the sanctioned
 // exception to PROTOCOL_UI_COMPONENTS rule 4, because the rows open
@@ -488,6 +489,7 @@ export function ListView(p: Props) {
           )}
           <div class="min-w-0">{product().label}</div>
           <ProductLevelBadge product={product()} />
+          <VisualizationStaleBadge product={product()} />
           <Show when={product().defaultAccess === "none"}>
             <span
               class="text-base-content-muted flex h-[1lh] w-4 flex-none items-center"

@@ -18,6 +18,7 @@
 
 import { figureBundleSchema } from "lib";
 import type { Sql } from "postgres";
+import { visualizationResolvedPair } from "../../products/visualizations.ts";
 import {
   type MigrationStats,
   rawJsonNeedsForcedTransform,
@@ -57,7 +58,8 @@ export async function migrateVisualizations(
 
     // Throws if the row is still invalid after every transform: the runner
     // then refuses to start the server.
-    const validated = JSON.stringify(figureBundleSchema.parse(block.bundle));
+    const parsed = figureBundleSchema.parse(block.bundle);
+    const validated = JSON.stringify(parsed);
 
     // Output identical to stored (a forced-scan false positive)? Skip the
     // write so the row doesn't churn last_updated on every boot.
@@ -66,7 +68,9 @@ export async function migrateVisualizations(
     }
 
     await tx`
-      UPDATE visualizations SET bundle = ${validated} WHERE id = ${row.id}
+      UPDATE visualizations
+      SET ${tx({ bundle: validated, ...visualizationResolvedPair(parsed) })}
+      WHERE id = ${row.id}
     `;
     await tx`UPDATE products SET last_updated = ${now} WHERE id = ${row.id}`;
     rowsTransformed++;
