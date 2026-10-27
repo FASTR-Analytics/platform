@@ -33,7 +33,7 @@ export { createCopilotAIToolEnv } from "./client_env.ts";
 export type { ClientAIToolEnv, ModuleInternalsEnv } from "./client_env.ts";
 export { bindPackageTools } from "./bind_package_tools.ts";
 export type { PackageToolsBuilder } from "./bind_package_tools.ts";
-export { SPA_INFO_TOPICS } from "./client_info_topics.ts";
+export { SPA_REFERENCE_DOCS } from "./client_reference_docs.ts";
 export type {
   ReportEditorSelection,
   ReportEditProposal,

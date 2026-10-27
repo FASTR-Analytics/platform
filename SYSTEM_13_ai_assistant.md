@@ -25,7 +25,7 @@ globs:
   - server/tests/mcp_context_cache_test.ts
   - server/tests/mcp_principal_key_test.ts
   - server/tests/mcp_tools_source_header_test.ts
-  - server/tests/methodology_docs_decode_test.ts
+  - server/tests/reference_docs_test.ts
 ---
 
 # S13: AI Copilot & Usage Governance
@@ -67,27 +67,48 @@ produce are **S10/S12**; the query pipeline the data tools call is **S9**.
    the SPA, personal access token at `/mcp`, whose actions dispatch in-process
    through the full PAT middleware chain, see S1) and can never do what the user
    can't. **Two classes of tool, one env seam**: `lib/ai_tools` holds exactly
-   the tools BOTH surfaces expose (metrics ×2, methodology docs ×2, `get_info`)
-   over `AIToolEnv`: a data source for ONE (package, scope) pair (items, value
-   info; no run id ever crosses the seam or appears in a schema). Shared tool
-   OUTPUT states only what both surfaces can act on: `from_metric` authoring
-   guidance is the SPA prompt's and block schema's contract, never a shared
-   formatter's; the metrics listing keeps its per-metric presets (grain,
-   filters, replicant requirement) as reference data about the metric, and lists
-   metrics in module order (`compareModules`: family, the primary module first,
-   then declared sort order) under one heading line per module, so both
-   `getSharedToolsForMetrics` callers pass the package's module summaries (the
-   SPA from the authoring context, MCP from `getModuleSummariesFromManifest`);
-   the copilot's `get_available_modules` lists modules in the same order with
-   their family and tier. `get_info` topics are inputs, split by location like
-   tools: `INFO_TOPICS` (lib, shared: `iceh`) and the client's `SPA_INFO_TOPICS`
-   (shared + the equity-profile report recipe); each surface passes its ONE list
-   to both `getSharedToolsForInfo` and `buildSystemPrompt`, so tool whitelist
-   and prompt never diverge. The SPA binds one env per inner tool set
-   (`createCopilotAIToolEnv(pair)`, cache-backed over the run-keyed package
-   routes; `ClientAIToolEnv` adds the module script/logs/settings getters and
-   the figure-shaping helpers) and registers outer tools bound per call to the
-   pair of the view the call runs in
+   the tools BOTH surfaces expose (metrics ×2, reference docs ×2) over
+   `AIToolEnv`: a data source for ONE (package, scope) pair (items, value info;
+   no run id ever crosses the seam or appears in a schema). Shared tool OUTPUT
+   states only what both surfaces can act on: `from_metric` authoring guidance
+   is the SPA prompt's and block schema's contract, never a shared formatter's;
+   the metrics listing keeps its per-metric presets (grain, filters, replicant
+   requirement) as reference data about the metric, and lists metrics in module
+   order (`compareModules`: family, the primary module first, then declared sort
+   order) under one heading line per module, so both `getSharedToolsForMetrics`
+   callers pass the package's module summaries (the SPA from the authoring
+   context, MCP from `getModuleSummariesFromManifest`); the copilot's
+   `get_available_modules` lists modules in the same order with their family and
+   tier. **The reference documents are one catalog behind one pair**
+   (`lib/ai_tools/tools_reference_docs.ts`): `get_reference_docs` lists every
+   document the surface exposes and `get_reference_doc({ id })` reads one, the
+   resolver picking the source by id. Two sources: the app's own documents,
+   served from `client/public/info/<id>.md` and declared as entries
+   (`REFERENCE_DOCS` in lib, shared: `iceh`; the client's `SPA_REFERENCE_DOCS`
+   adds the equity-profile report recipe, which presupposes the authoring
+   tools), and the FASTR methodology hub on GitHub, whose ids are paths under
+   its `methodology/` directory. The catalog is text, not parsed entries: one
+   line per app entry, its `readWhen` trigger in the line, then the hub's
+   `index.md` for the instance language (`fr/`, `pt/` when the mirror exists,
+   else English) verbatim, under one line saying its link targets are ids; the
+   read accepts any guarded `.md` path under the hub, since the index omits
+   chapters. An entry may declare the `dataset` it is about, and the list drops
+   it when the instance's `datasetsWithData` holds no such data
+   (`resolveInstanceState` per call on `/mcp`, the live store in the SPA); the
+   read serves every entry it was given. Hub reads go through the GitHub
+   contents API, unauthenticated, under its 60 requests per hour per IP, so
+   every hub read is memoised per process with a ten-minute TTL (a failed read
+   is dropped as it settles), and a hub failure degrades the list to the app
+   entries plus one line. The triggers ride the entries: the list tool's
+   description names every entry with its `readWhen`, so the model knows when to
+   read a document before its first call, and the system prompt's reference
+   section is one line pointing at the pair
+   (`server/tests/reference_docs_test.ts` pins the catalog text, the relevance
+   filter, the description and the base64 decode). The SPA binds one env per
+   inner tool set (`createCopilotAIToolEnv(pair)`, cache-backed over the
+   run-keyed package routes; `ClientAIToolEnv` adds the module
+   script/logs/settings getters and the figure-shaping helpers) and registers
+   outer tools bound per call to the pair of the view the call runs in
    ([bind_package_tools.ts](client/src/components/instance/copilot/bind_package_tools.ts),
    panther's `bindAIToolToView`): the inner builder in
    [copilot_tools.ts](client/src/components/instance/copilot_tools.ts)
@@ -99,25 +120,28 @@ produce are **S10/S12**; the query pipeline the data tools call is **S9**.
    unrestricted user: `resolvePackageContext` refuses a restricted one with a
    tool failure when it builds a context, and the routes refuse them "All data"
    on every read, since a restricted user cannot hold that scope) and exposes
-   only the shared tools + `get_overview`: 6 read-only tools, no writes, all six
-   listed under `# Available Tools` in the overview, which renders the same list
-   the server returns. Only `get_available_metrics` and `get_metric_data` read
-   the pin; the methodology tools and `get_info` read reference docs, and the
-   server's instructions, the overview and the endpoint's file comment say so.
-   **Interpretation context rides the grounding and the shared reads, not extra
-   tools**: `buildPackageGroundingSections` lists every HMIS indicator of the
-   package with its format, direction, thresholds, target and, for a calculated
-   indicator, its flattened formula (the manifest's `hmisIndicators`, in
-   dictionary order; the indicator's type is deliberately absent, an
-   implementation detail no reader needs), and `get_metric_data` fetches value
-   info beside the items and states the metric's full period coverage plus, per
-   indicator in the Dimension Summary, the same facts (`describeIndicatorFacts`:
-   direction on its own line item whatever the rule's shape, thresholds in
-   display units mirroring the scorecard's inclusive cutoff rule, target);
-   `buildPackageGroundingSections` states the package's calendar and period
-   coverage (finest physical time column; `/mcp` only, since the SPA holds no
-   manifest). Nothing about modules, provenance, or unavailable metrics goes
-   into the package grounding: it does not help read a metric (ruled). The
+   only the shared tools + `get_overview`: 5 read-only tools, no writes, all
+   five listed under `# Available Tools` in the overview, which renders the same
+   list the server returns. Only `get_available_metrics` and `get_metric_data`
+   read the pin; the reference tools read reference docs, and the server's
+   instructions, the overview and the endpoint's file comment say so. A renamed
+   tool is a rename and nothing else: a stored conversation's call to an old
+   name fails once with "Unknown tool" and the model re-lists, and a connected
+   MCP client keeps its cached tool list until it refreshes (USER_GUIDE_MCP's
+   troubleshooting says how). **Interpretation context rides the grounding and
+   the shared reads, not extra tools**: `buildPackageGroundingSections` lists
+   every HMIS indicator of the package with its format, direction, thresholds,
+   target and, for a calculated indicator, its flattened formula (the manifest's
+   `hmisIndicators`, in dictionary order; the indicator's type is deliberately
+   absent, an implementation detail no reader needs), and `get_metric_data`
+   fetches value info beside the items and states the metric's full period
+   coverage plus, per indicator in the Dimension Summary, the same facts
+   (`describeIndicatorFacts`: direction on its own line item whatever the rule's
+   shape, thresholds in display units mirroring the scorecard's inclusive cutoff
+   rule, target); `buildPackageGroundingSections` states the package's calendar
+   and period coverage (finest physical time column; `/mcp` only, since the SPA
+   holds no manifest). Nothing about modules, provenance, or unavailable metrics
+   goes into the package grounding: it does not help read a metric (ruled). The
    `package` and `explore` views are the narrowing: on those two pages the
    module and the package's status are what the user is looking at, so their
    view state names the open module, and the package page's its status, stage,
@@ -610,11 +634,11 @@ every pair and always registered with the API: the outer package tools
 (`bindPackageTools` over the inner builder: metrics, the module list, the
 editors, the figure editor and the draft preview, each bound per call to the
 inner set of the view's pair; the module internals, bound by its run id), the
-Products page's `list_products`, the reference tools (methodology docs, info)
-and panther's one `ask_user_questions`. Every tool declares a `kind` (`"read"` /
-`"write"`); no tool is `"nav"`: a navigation tool or any AI-driven move is out
-of the chat's scope, so the user moves and the view line tells the model where.
-The slide tools are nine, one set, admitted in the deck view
+Products page's `list_products`, the two reference tools and panther's one
+`ask_user_questions`. Every tool declares a `kind` (`"read"` / `"write"`); no
+tool is `"nav"`: a navigation tool or any AI-driven move is out of the chat's
+scope, so the user moves and the view line tells the model where. The slide
+tools are nine, one set, admitted in the deck view
 ([slides.tsx](client/src/components/products/copilot/ai_tools/tools/slides.tsx)
 builds it): `get_deck`, `get_slide`, `create_slide`, `update_slide`,
 `update_figure`, `replace_slide`, `delete_slides`, `duplicate_slides` and
@@ -957,8 +981,8 @@ slide tool calls the same resolvers, whichever slide it writes:
 ([build_system_prompt.ts](client/src/components/instance/copilot/build_system_prompt.ts)):
 instance/terminology section (country, admin-area labels, data sources) + data
 coverage + the instance-level `ai_context` (`buildAiContextSections`, the shared
-block `/mcp`'s `get_overview` also carries after its data coverage) +
-reference-doc catalog (`SPA_INFO_TOPICS`) + base instructions (the app's role,
+block `/mcp`'s `get_overview` also carries after its data coverage) + the
+one-line reference-docs pointer + base instructions (the app's role,
 read-data-first, no fabrication, ask when uncertain, indicator directionality).
 It is **instance level**: no date, no package section, no viewer sentence and no
 tool catalogue, so only an instance input changes it and one conversation keeps

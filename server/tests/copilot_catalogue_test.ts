@@ -23,12 +23,7 @@ import {
 } from "lib";
 
 const GROUPS = {
-  chat_wide: [
-    "ask_user_questions",
-    "get_methodology_docs_list",
-    "get_methodology_doc_content",
-    "get_info",
-  ],
+  chat_wide: ["ask_user_questions", "get_reference_docs", "get_reference_doc"],
   package_reads: [
     "get_available_metrics",
     "get_metric_data",

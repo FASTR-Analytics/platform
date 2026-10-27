@@ -7,7 +7,7 @@
 export * from "./env.ts";
 export * from "./copilot_catalogue.ts";
 export * from "./build_system_prompt.ts";
-export * from "./info_catalog.ts";
+export * from "./reference_catalog.ts";
 export * from "./source_header.ts";
 export * from "./content_validators.ts";
 export * from "./format_metric_data_for_ai.ts";
@@ -15,5 +15,4 @@ export * from "./format_metrics_list_for_ai.ts";
 export * from "./format_products_list_for_ai.ts";
 export * from "./hfa_time_points_for_ai.ts";
 export * from "./tools_metrics.ts";
-export * from "./tools_methodology_docs.ts";
-export * from "./tools_info.ts";
+export * from "./tools_reference_docs.ts";

@@ -65,9 +65,8 @@ export type CopilotPackageViewId = (typeof COPILOT_PACKAGE_VIEWS)[number];
 // it has no name in the set.
 export const COPILOT_CHAT_WIDE_TOOLS = [
   "ask_user_questions",
-  "get_methodology_docs_list",
-  "get_methodology_doc_content",
-  "get_info",
+  "get_reference_docs",
+  "get_reference_doc",
 ] as const;
 
 const DECK_VIEWS = ["editing_slide_deck"] as const;
@@ -148,9 +147,8 @@ export type CopilotToolRequirement =
 
 export const COPILOT_TOOL_REQUIREMENTS = {
   ask_user_questions: "none",
-  get_methodology_docs_list: "none",
-  get_methodology_doc_content: "none",
-  get_info: "none",
+  get_reference_docs: "none",
+  get_reference_doc: "none",
   get_available_metrics: "none",
   get_metric_data: "none",
   get_available_modules: "none",

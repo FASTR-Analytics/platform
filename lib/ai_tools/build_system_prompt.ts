@@ -6,7 +6,6 @@ import type { PeriodBounds } from "../types/presentation_objects.ts";
 import type { RunHmisIndicator } from "../types/run_manifest.ts";
 import { inferPeriodFormatFromValue } from "../types/_metric_installed.ts";
 import { describeIndicatorFacts } from "./format_metric_data_for_ai.ts";
-import type { InfoCatalogTopic } from "./info_catalog.ts";
 import type { ScopeDefinition } from "../types/scope.ts";
 import { MODULE_FAMILY_ORDER } from "../group_metrics.ts";
 
@@ -29,10 +28,6 @@ import { MODULE_FAMILY_ORDER } from "../group_metrics.ts";
 
 export type SystemPromptParts = {
   contextSection: string;
-  // The get_info topics THIS surface exposes: the same list its
-  // getSharedToolsForInfo was built with, so the prompt never names a topic
-  // the tool would refuse.
-  infoTopics: InfoCatalogTopic[];
   // "# Role and Purpose" body: what THIS surface's assistant is for.
   roleAndPurpose: string;
   // Core principles this surface adds after the four shared ones (the SPA
@@ -59,7 +54,6 @@ export function buildSystemPrompt(parts: SystemPromptParts): string {
   const dateHeader = parts.currentDate === undefined
     ? ""
     : `${buildDateBlock(parts.currentDate)}\n\n---\n\n`;
-  const referenceDocsSection = buildReferenceDocsSection(parts.infoTopics);
   const baseInstructions = getBaseInstructions(
     parts.roleAndPurpose,
     parts.extraCorePrinciples,
@@ -67,26 +61,14 @@ export function buildSystemPrompt(parts: SystemPromptParts): string {
   const toolsSection = parts.toolCatalog === undefined
     ? ""
     : `\n# Available Tools\n\n${parts.toolCatalog}\n`;
-  return `${dateHeader}${parts.contextSection}${referenceDocsSection}${baseInstructions}${toolsSection}`;
+  return `${dateHeader}${parts.contextSection}${REFERENCE_DOCS_SECTION}${baseInstructions}${toolsSection}`;
 }
 
-// ── Reference documentation catalog ──
-
-function buildReferenceDocsSection(topics: InfoCatalogTopic[]): string {
-  if (topics.length === 0) return "";
-  const sections: string[] = [];
-  sections.push("# Reference documentation");
-  sections.push("");
-  sections.push(
-    "Authoritative reference docs you can load on demand with the **get_info** tool. When a task relates to one of these topics, call get_info for that topic FIRST and follow it.",
-  );
-  sections.push("");
-  for (const t of topics) {
-    sections.push(`- **${t.topic}** — ${t.title}: ${t.description}`);
-  }
-  sections.push("");
-  return sections.join("\n");
-}
+// The documents themselves, and when to read each, ride the two reference
+// tools: the list tool's description names them, so the prompt only points
+// there.
+const REFERENCE_DOCS_SECTION =
+  "# Reference documentation\n\nAuthoritative reference documents (the app's own and the FASTR methodology hub's chapters) are listed by get_reference_docs and read by get_reference_doc. Read the relevant document FIRST when a task touches its subject, and follow it.\n\n";
 
 // ── Instance grounding: country, terminology, data sources ──
 

@@ -25,7 +25,6 @@ import {
 } from "lib";
 import { scopeDisplayLabel } from "~/components/_shared/mod.ts";
 import type { DataPageId } from "./ai_views";
-import { SPA_INFO_TOPICS } from "./client_info_topics";
 
 // The copilot's system prompt: the shared grounding blocks (lib/ai_tools/
 // build_system_prompt.ts) over the instance alone: country, terminology, data
@@ -50,7 +49,6 @@ export function buildSystemPromptForContext(instance: InstanceState): string {
   ];
   return buildSystemPrompt({
     contextSection: sections.join("\n"),
-    infoTopics: SPA_INFO_TOPICS,
     roleAndPurpose:
       "You are an AI assistant helping users explore, analyze and present the health data in this FASTR instance. The user moves through the app while you talk: each message tells you the current view, its state and, where one is in view, the results package and scope every read resolves under. You can query data, draft slides and figures, and help build the slide deck or report the user has open; a tool outside the current view refuses when called, so work with what the view offers.",
     extraCorePrinciples: [
@@ -124,7 +122,7 @@ The user is looking at the ${noun}'s version history, which covers the editor: a
 // The pages with no package in view: each names itself, so the model knows
 // what the user is looking at and that no package tool runs here.
 const NO_PACKAGE_LINE =
-  "No results package is in view here, so the package tools refuse; answer from the instance context, the methodology docs and get_info.";
+  "No results package is in view here, so the package tools refuse; answer from the instance context and the reference documents (get_reference_docs, get_reference_doc).";
 
 export function getProductsInstructions(): string {
   return `# Current View: Products

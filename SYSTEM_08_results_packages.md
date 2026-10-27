@@ -511,15 +511,16 @@ package and should not pin. Rulings, all deliberate:
 - **MCP reads the pin**. The `/mcp` surface is instance-level: its two metric
   tools, `get_available_metrics` and `get_metric_data`, read the pinned package
   under "All data" (`scopeId: "all-data"`) through the run-keyed instance
-  routes, gated on an approved user, and its methodology tools and `get_info`
-  read reference docs, not the package (S13); no package id appears in any tool
-  schema. It reads `getPinnedRunId` from the DB on EVERY call (never the 30 s
-  cached `InstanceState` copy), so a pin-move is visible on the next call; its
-  context cache is keyed `(token, runId)`. No pin is a typed state:
-  `get_overview` still answers (naming the fix: an admin with
-  `can_configure_data` pins one), the package tools fail with the same sentence.
-  Deploying to an instance with MCP users and no pin therefore takes their data
-  tools dark until someone pins. Prose in S13 principle 2.
+  routes, gated on an approved user, and its reference tools
+  (`get_reference_docs`, `get_reference_doc`) read reference docs, not the
+  package (S13); no package id appears in any tool schema. It reads
+  `getPinnedRunId` from the DB on EVERY call (never the 30 s cached
+  `InstanceState` copy), so a pin-move is visible on the next call; its context
+  cache is keyed `(token, runId)`. No pin is a typed state: `get_overview` still
+  answers (naming the fix: an admin with `can_configure_data` pins one), the
+  package tools fail with the same sentence. Deploying to an instance with MCP
+  users and no pin therefore takes their data tools dark until someone pins.
+  Prose in S13 principle 2.
 
 ## Scope
 

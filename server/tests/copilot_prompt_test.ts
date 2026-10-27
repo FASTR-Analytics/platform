@@ -17,7 +17,6 @@ import {
 
 const PARTS = {
   contextSection: "# Instance Information\n\n**Instance:** Test\n\n---\n\n",
-  infoTopics: [],
   roleAndPurpose: "You are the test assistant.",
   extraCorePrinciples: [],
 };
@@ -31,6 +30,15 @@ Deno.test("the chat's system prompt carries no date and no tool catalogue", () =
     prompt,
     "# Role and Purpose\n\nYou are the test assistant.",
   );
+});
+
+Deno.test("the system prompt points at the reference tools and names no document", () => {
+  const prompt = buildSystemPrompt(PARTS);
+  assertStringIncludes(
+    prompt,
+    "# Reference documentation\n\nAuthoritative reference documents (the app's own and the FASTR methodology hub's chapters) are listed by get_reference_docs and read by get_reference_doc.",
+  );
+  assert(!prompt.includes("iceh"));
 });
 
 Deno.test("buildSystemPrompt keeps the date and the catalogue when asked, as get_overview asks", () => {

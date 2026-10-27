@@ -7,9 +7,9 @@ hub. That is an implementation fact, not a model-facing distinction. Three tools
 do one job, and on `/mcp` `get_info` is a whole tool for one file. This plan
 replaces them with `get_reference_docs` and `get_reference_doc`.
 
-**Next step: Do 1.** Each session sets this line in its final commit. Its values
-are `Do N`, `Review N` and `Fix N`. Last step: 1. The session that passes step
-1's review deletes this file.
+**Next step: Review 1.** Each session sets this line in its final commit. Its
+values are `Do N`, `Review N` and `Fix N`. Last step: 1. The session that passes
+step 1's review deletes this file.
 
 Branch: `main`. Repos touched: this app; the resource hub's prompt library
 (`fastr-resource-hub`, `prompts.md` and `prompts_fr.md`) after every instance
@@ -136,7 +136,12 @@ Rollback is reverting the commit, and the hub edit with it.
 
 ## 8. Build log
 
-| When       | Step | Row                                                                                                                                                                                                                                                                                                              |
-| ---------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2026-08-19 | 0    | Smell recorded and the pair designed.                                                                                                                                                                                                                                                                            |
-| 2026-10-27 | 0    | Rewritten after three independent reviews: ruled; the catalog is text over the hub index; relevance by instance data on both surfaces; hub reads memoised and degraded per source; triggers on the entries and in the list tool's description; the hub prompt library and MCP client cache named in the rollout. |
+| When       | Step | Row                                                                                                                                                                                                                                                                                                                                                             |
+| ---------- | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-08-19 | 0    | Smell recorded and the pair designed.                                                                                                                                                                                                                                                                                                                           |
+| 2026-10-27 | 0    | Rewritten after three independent reviews: ruled; the catalog is text over the hub index; relevance by instance data on both surfaces; hub reads memoised and degraded per source; triggers on the entries and in the list tool's description; the hub prompt library and MCP client cache named in the rollout.                                                |
+| 2026-10-27 | 1    | Choice the rulings leave open: `get_reference_doc` serves every entry the surface was given, whether or not the instance holds the entry's dataset; only the list filters by `datasetsWithData`, since the read is harmless and the description names the entry.                                                                                                |
+| 2026-10-27 | 1    | Choice: `client_info_topics.ts` is renamed `client_reference_docs.ts` (`SPA_REFERENCE_DOCS`) and `info_catalog.ts` is renamed `reference_catalog.ts` (`REFERENCE_DOCS`, `ReferenceDocEntry`), so no identifier keeps "info"; the decode test is renamed `reference_docs_test.ts` and also pins the catalog text, the relevance filter and the list description. |
+| 2026-10-27 | 1    | Fact: USER_GUIDE_MCP's troubleshooting entry on a client's cached tool list (ruling 7) is written without the old names, so the deliverable's grep stays clean; it says the table above is the current list. The grep excludes this plan file, which names the old tools in §1.                                                                                 |
+| 2026-10-27 | 1    | Fact: `./validate_protocols` reports two baseline entries that no longer match before this step; none of the baseline's files is on this step's surface.                                                                                                                                                                                                        |
+| 2026-10-27 | 1    | Step 1 built. Floor green; `./mcp_probe local --list` prints five tools; `get_reference_docs`, `get_reference_doc` (`iceh`, `08_survey_hfa.md`, a missing chapter, a traversal) probed through `/mcp`.                                                                                                                                                          |
