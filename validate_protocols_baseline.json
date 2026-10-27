@@ -73,10 +73,5 @@
     "id": "raw-loading-signal",
     "file": "client/src/routes/access_tokens.tsx",
     "text": "const [mintError, setMintError] = createSignal<string | null>(null);"
-  },
-  {
-    "id": "async-effect-race",
-    "file": "client/src/components/instance/copilot/ai_documents/ai_documents_store.ts",
-    "text": "async effect writes state after await, no out-of-order guard"
   }
 ]
