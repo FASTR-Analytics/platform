@@ -28,7 +28,6 @@ const userPermissionsSchema = z
 
 const userProfileSchema = z.object({
   organisation: z.string().max(200).nullable(),
-  role: z.string().max(200).nullable(),
 });
 
 const scopeAccessSchema = z.discriminatedUnion("all", [
@@ -177,8 +176,8 @@ export const userRouteRegistry = {
     }),
     response: {} as { changed: boolean },
   }),
-  // The caller's own organisation and role: self-service, and pushed to the
-  // fleet so the profile follows the user as their name does.
+  // The caller's own organisation: self-service, and pushed to the fleet so
+  // the profile follows the user as their name does.
   updateMyProfile: route({
     path: "/user/profile",
     method: "POST",

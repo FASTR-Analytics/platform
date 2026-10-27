@@ -35,7 +35,7 @@ Fixed:
 
 - Users limited to a scope can now use Explore on the data in their scopes. If a scoped user still cannot see a deck or report, check its scope: new ones are created on "All data", which scoped users cannot see.
 - Duplicating now opens the copy.
-- Users are asked for their organisation and role on first login, can edit them in their profile, and both show on the Users page.
+- Users can set their organisation in their profile, and it shows on the Users page.
 
 The Products list already has a sortable "Last updated" column.
 

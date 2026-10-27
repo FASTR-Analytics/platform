@@ -184,7 +184,6 @@ type UserData = {
   firstName?: string;
   lastName?: string;
   organisation?: string;
-  role?: string;
   isContactPerson: boolean;
   scopeAccess: ScopeAccess;
 } & Record<UserPermission, boolean>;
@@ -369,15 +368,6 @@ function UserTable(p: {
       render: (user) =>
         user.organisation
           ? <span>{user.organisation}</span>
-          : <span class="text-base-content-muted">—</span>,
-    },
-    {
-      key: "role",
-      header: t3({ en: "Role", fr: "Rôle", pt: "Função" }),
-      sortable: true,
-      render: (user) =>
-        user.role
-          ? <span>{user.role}</span>
           : <span class="text-base-content-muted">—</span>,
     },
     {

@@ -6,7 +6,6 @@ globs:
   - client/src/components/instance/whats_new_modal.tsx
   - client/src/components/instance/instance.tsx
   - client/src/components/instance/mod.ts
-  - client/src/components/instance/profile_prompt_modal.tsx
   - client/src/components/instance/theme_modal.tsx
   - client/src/index.tsx
   - client/src/onboarding/**
@@ -357,20 +356,17 @@ the window listeners are never attached.
 ## Onboarding modals
 
 An effect in `components/instance/instance.tsx` (after approval + Clerk user)
-opens `ProfilePromptModal` when the user's row holds neither an organisation nor
-a role (`promptForProfile`: it asks for both, skippable, and writes them through
-`updateMyProfile`; an organisation still sitting in Clerk `unsafeMetadata` from
-before the profile columns existed seeds the row instead and the key is
-dropped), then `WhatsNewModal`, a multi-page release-notes popup. The sequence
-is guarded to run ONCE per signed-in user id (the approval store re-fires the
-effect, which would otherwise re-open the modals). Posts are authored in the
-Admin-Website, fetched by `server/routes/instance/whats_new.ts` from status-api
-(60s in-memory cache, fail-silent, 30s backoff after a failed fetch) and
-pre-filtered server-side to `published && version <= _SERVER_VERSION` (the
-version gate is skipped when `SERVER_VERSION` is non-dotted, i.e. ad-hoc test
-deploys), then cut to the caller's audience by `whatsNewPostForAudience`:
-non-admins lose admins-only posts and admins-only pages, and a post left with no
-page is withheld. One post can so carry an admin version: admins see every page,
+opens `WhatsNewModal`, a multi-page release-notes popup. It is guarded to run
+ONCE per signed-in user id (the approval store re-fires the effect, which would
+otherwise re-open the modal). Nothing else is asked at login: the organisation
+is edited from the profile only (S15). Posts are authored in the Admin-Website,
+fetched by `server/routes/instance/whats_new.ts` from status-api (60s in-memory
+cache, fail-silent, 30s backoff after a failed fetch) and pre-filtered
+server-side to `published && version <= _SERVER_VERSION` (the version gate is
+skipped when `SERVER_VERSION` is non-dotted, i.e. ad-hoc test deploys), then cut
+to the caller's audience by `whatsNewPostForAudience`: non-admins lose
+admins-only posts and admins-only pages, and a post left with no page is
+withheld. One post can so carry an admin version: admins see every page,
 everyone else the rest, under one post id and one read-state. Read-state is a
 per-post id set in `unsafeMetadata.whatsNewReadPostIds` (a post counts as read
 once opened, Skip or Done alike), pruned on write to the currently-eligible ids;

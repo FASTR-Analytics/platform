@@ -235,84 +235,20 @@ export function ProfileForm(
     return st.status === "error" ? st.err : undefined;
   };
 
-  // Organisation and role are the user's own words in the users table
-  // (updateMyProfile), edited one at a time in place.
-  const [editingField, setEditingField] = createSignal<
-    "organisation" | "role" | null
-  >(null);
+  // The organisation is the user's own words in the users table
+  // (updateMyProfile), edited in place.
+  const [editingOrganisation, setEditingOrganisation] = createSignal(false);
   const [draft, setDraft] = createSignal("");
-  const startEdit = (field: "organisation" | "role") => {
-    setDraft(user()?.[field] ?? "");
-    setEditingField(field);
+  const startEdit = () => {
+    setDraft(user()?.organisation ?? "");
+    setEditingOrganisation(true);
   };
-  const saveProfile = createButtonAction(
+  const saveOrganisation = createButtonAction(
+    () => serverActions.updateMyProfile({ organisation: draft() }),
     async () => {
-      const field = editingField();
-      const current = user();
-      if (!field || !current) return { success: true };
-      return await serverActions.updateMyProfile({
-        organisation: current.organisation,
-        role: current.role,
-        [field]: draft(),
-      });
-    },
-    async () => {
-      setEditingField(null);
+      setEditingOrganisation(false);
       await userDetails.silentFetch();
     },
-  );
-  const profileRow = (
-    field: "organisation" | "role",
-    label: string,
-    placeholder: string,
-  ) => (
-    <SettingRow label={label}>
-      <Show
-        when={editingField() === field}
-        fallback={
-          <>
-            <span class="text-base-content-muted min-w-0 flex-1 truncate text-right text-sm">
-              {user()?.[field] ||
-                t3({ en: "Not set", fr: "Non défini", pt: "Não definido" })}
-            </span>
-            <Button
-              onClick={() => startEdit(field)}
-              outline
-              size="sm"
-              iconName="pencil"
-            >
-              {t3({ en: "Edit", fr: "Modifier", pt: "Editar" })}
-            </Button>
-          </>
-        }
-      >
-        <Input
-          value={draft()}
-          onChange={setDraft}
-          placeholder={placeholder}
-          fullWidth
-          size="sm"
-          autoFocus
-        />
-        <Button
-          onClick={saveProfile.click}
-          state={saveProfile.state()}
-          intent="primary"
-          outline
-          size="sm"
-        >
-          {t3({ en: "Save", fr: "Enregistrer", pt: "Guardar" })}
-        </Button>
-        <Button
-          onClick={() => setEditingField(null)}
-          intent="neutral"
-          outline
-          size="sm"
-        >
-          {t3({ en: "Cancel", fr: "Annuler", pt: "Cancelar" })}
-        </Button>
-      </Show>
-    </SettingRow>
   );
 
   const manageAccountLabel = t3({
@@ -371,24 +307,58 @@ export function ProfileForm(
       </div>
 
       <SettingSection label={t3({ en: "Account", fr: "Compte", pt: "Conta" })}>
-        {profileRow(
-          "organisation",
-          t3({ en: "Organisation", fr: "Organisation", pt: "Organização" }),
-          t3({
-            en: "Organisation name",
-            fr: "Nom de l'organisation",
-            pt: "Nome da organização",
-          }),
-        )}
-        {profileRow(
-          "role",
-          t3({ en: "Role", fr: "Rôle", pt: "Função" }),
-          t3({
-            en: "e.g. M&E officer, Ministry of Health",
-            fr: "p. ex. chargé de S&E, ministère de la Santé",
-            pt: "p. ex. técnico de M&A, Ministério da Saúde",
-          }),
-        )}
+        <SettingRow
+          label={t3({
+            en: "Organisation",
+            fr: "Organisation",
+            pt: "Organização",
+          })}
+        >
+          <Show
+            when={editingOrganisation()}
+            fallback={
+              <>
+                <span class="text-base-content-muted min-w-0 flex-1 truncate text-right text-sm">
+                  {user()?.organisation ||
+                    t3({ en: "Not set", fr: "Non défini", pt: "Não definido" })}
+                </span>
+                <Button onClick={startEdit} outline size="sm" iconName="pencil">
+                  {t3({ en: "Edit", fr: "Modifier", pt: "Editar" })}
+                </Button>
+              </>
+            }
+          >
+            <Input
+              value={draft()}
+              onChange={setDraft}
+              placeholder={t3({
+                en: "Organisation name",
+                fr: "Nom de l'organisation",
+                pt: "Nome da organização",
+              })}
+              fullWidth
+              size="sm"
+              autoFocus
+            />
+            <Button
+              onClick={saveOrganisation.click}
+              state={saveOrganisation.state()}
+              intent="primary"
+              outline
+              size="sm"
+            >
+              {t3({ en: "Save", fr: "Enregistrer", pt: "Guardar" })}
+            </Button>
+            <Button
+              onClick={() => setEditingOrganisation(false)}
+              intent="neutral"
+              outline
+              size="sm"
+            >
+              {t3({ en: "Cancel", fr: "Annuler", pt: "Cancelar" })}
+            </Button>
+          </Show>
+        </SettingRow>
         <SettingRow
           label={t3({ en: "Email", fr: "E-mail", pt: "E-mail" })}
         >
