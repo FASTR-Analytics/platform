@@ -6,7 +6,7 @@ greyed "Add" button and a red developer diagnostic ("L'opérande N2iwSIPkiKg ne
 peut pas être ajouté : son type d'agrégation est AVERAGE_SUM_ORG_UNIT, pas
 SUM"). She reads it as the instance being broken.
 
-**Next step: Do 1.** Branch `main`. Repo: this app. Read first: `CLAUDE.md`,
+**Next step: Do 2.** Branch `main`. Repo: this app. Read first: `CLAUDE.md`,
 `SYSTEMS.md`, [SYSTEM_07_dhis2.md](SYSTEM_07_dhis2.md),
 [SYSTEM_05_facilities_indicators.md](SYSTEM_05_facilities_indicators.md). Start
 when: nothing; the plan stands alone.
