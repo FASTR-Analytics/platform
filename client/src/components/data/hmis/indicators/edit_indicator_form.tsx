@@ -767,7 +767,7 @@ export function EditIndicatorForm(
       })
       : t3({
         en:
-          "The DHIS2 data element UID or UID.COC operand the import fetches. Its rows are stored under this id. On save, DHIS2 is asked that the id is a data element or operand that Add from DHIS2 would accept.",
+          "The DHIS2 data element UID or UID.COC operand the import fetches. Its rows are stored under this id. On save, DHIS2 is asked to confirm that the id is a data element or operand that Add from DHIS2 would accept.",
         fr:
           "L'UID d'élément de données ou l'opérande UID.COC que l'importation récupère. Ses lignes sont conservées sous cet identifiant. À l'enregistrement, DHIS2 est interrogé pour confirmer que l'identifiant est un élément de données ou un opérande qu'Ajouter depuis DHIS2 accepterait.",
         pt:

@@ -10,7 +10,7 @@ plan makes the create and update paths confirm a typed or changed id with DHIS2
 before the write, under the picker's own verdict, and closes the operand combo
 hole in the picker's route.
 
-**Next step: Fix 1.** Each session sets this line in its final commit. Its
+**Next step: Review 1.** Each session sets this line in its final commit. Its
 values are `Do N`, `Review N` and `Fix N`. Last step: 1. The session that passes
 step 1's review deletes this file.
 
@@ -188,3 +188,4 @@ cache shape change. Rollback is reverting the step's commit.
 | 2026-10-27 | 1    | Review finding: `client/src/components/data/hmis/indicators/edit_indicator_form.tsx` line 770, the unlocked caption's English reads "DHIS2 is asked that the id is a data element or operand", which is a request, not a confirmation, while the French and Portuguese say "asked to confirm that"; edit: "On save, DHIS2 is asked to confirm that the id is a data element or operand that Add from DHIS2 would accept."                                |
 | 2026-10-27 | 1    | Review finding: `server/db/instance/indicators.ts` line 666, `typedDhis2IdError`'s throw message quotes every typed id after the singular "DHIS2 id", so a batch of two reads `DHIS2 could not confirm DHIS2 id "A", "B": ...`; edit: `DHIS2 could not confirm DHIS2 ${typed.length === 1 ? "id" : "ids"} ${quoted}: ...`, and the throw case in `server/tests/indicator_dhis2_id_check_test.ts` line 244 posts two elements and asserts `ids "A", "B"`. |
 | 2026-10-27 | 1    | Step 1 reviewed: 2 findings.                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| 2026-10-27 | 1    | Step 1 fixed: the caption says DHIS2 is asked to confirm the id; the throw message says "ids" for a batch, and the test posts a batch of two.                                                                                                                                                                                                                                                                                                            |

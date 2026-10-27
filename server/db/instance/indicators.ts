@@ -663,9 +663,9 @@ async function typedDhis2IdError(
   try {
     verdicts = await check(typed.map((t) => t.data_id));
   } catch (error) {
-    return `DHIS2 could not confirm DHIS2 id ${quoted}: ${
-      error instanceof Error ? error.message : String(error)
-    }`;
+    return `DHIS2 could not confirm DHIS2 ${
+      typed.length === 1 ? "id" : "ids"
+    } ${quoted}: ${error instanceof Error ? error.message : String(error)}`;
   }
   for (const t of typed) {
     const verdict = verdicts.get(t.data_id);

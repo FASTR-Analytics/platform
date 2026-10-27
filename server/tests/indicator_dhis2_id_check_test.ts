@@ -234,14 +234,23 @@ Deno.test("check: a throw refuses the save and says DHIS2 could not confirm the 
   await reset();
   const check: Dhis2ElementIdCheck = () =>
     Promise.reject(new Error("No stored DHIS2 credentials."));
-  const res = await createIndicators(db, [
+  const one = await createIndicators(db, [
     indicator("uploaded", { type: "uploaded" }),
     element("anc1", ANC1),
   ], check);
-  assert(!res.success);
+  assert(!one.success);
   assertEquals(
-    res.err,
+    one.err,
     `DHIS2 could not confirm DHIS2 id "${ANC1}": No stored DHIS2 credentials.`,
+  );
+  const two = await createIndicators(db, [
+    element("anc1", ANC1),
+    element("anc4", ANC4),
+  ], check);
+  assert(!two.success);
+  assertEquals(
+    two.err,
+    `DHIS2 could not confirm DHIS2 ids "${ANC1}", "${ANC4}": No stored DHIS2 credentials.`,
   );
   assertEquals(await ids(), []);
 });
