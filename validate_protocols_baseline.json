@@ -21,11 +21,6 @@
   },
   {
     "id": "raw-loading-signal",
-    "file": "client/src/components/instance/copilot/ai_prompt_library/prompt_library_modal.tsx",
-    "text": "const [isLoading, setIsLoading] = createSignal(true);"
-  },
-  {
-    "id": "raw-loading-signal",
     "file": "client/src/components/instance/copilot/tab_owner.ts",
     "text": "const [ownerBusy, setOwnerBusy] = createSignal(false);"
   },

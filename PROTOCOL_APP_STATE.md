@@ -335,6 +335,13 @@ options + defaults (`results_packages/wizard/wizard.tsx`, read once per open,
 client-local until launch), and the `instance/logged_in_wrapper.tsx` bootstrap
 fetches (GlobalUser, InstanceMeta, needed before SSE connects).
 
+Custom AI prompts (`copilot/ai_prompt_library/`) are the one T3 read whose
+mutations refetch. There is no `notifyInstance*` for them and no SSE event, so
+the create, update and delete actions and the save-to-library modal each call
+the `createQuery`'s `silentFetch`. That is the exception the T2 ban on
+post-mutation refetches leaves open: with no version key to flip, nothing else
+would bring the list up to date.
+
 Run-keyed: a package's script / log bytes and a failed run's file listing
 (`results_packages/package_view/view_{script,logs,files}.tsx`).
 

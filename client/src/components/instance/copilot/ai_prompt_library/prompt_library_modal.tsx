@@ -1,19 +1,21 @@
-import { createMemo, createSignal, For, onMount, Show } from "solid-js";
+import { createMemo, createSignal, For, Show } from "solid-js";
 import {
   AlertComponentProps,
   CollapsibleSection,
+  createDeleteAction,
+  createQuery,
   foldString,
   Icon,
   Input,
-  LoadingIndicator,
   matchesSearch,
   ModalContainer,
   openComponent,
-  openConfirm,
   searchTokens,
+  type StateHolder,
+  StateHolderWrapper,
   TextArea,
 } from "panther";
-import { getLanguage, t3, TC } from "lib";
+import { type APIResponseWithData, getLanguage, t3 } from "lib";
 import type {
   FlattenedPrompt,
   ParseResult,
@@ -31,6 +33,43 @@ import {
 
 type Props = {};
 
+const PROMPT_HUB_BASE =
+  "https://raw.githubusercontent.com/FASTR-Analytics/fastr-resource-hub/refs/heads/main";
+
+// Never reports failure: a fetch or parse failure IS a parse result carrying
+// the message the browse pane shows, so the custom prompts still render.
+async function fetchPromptLibrary(): Promise<APIResponseWithData<ParseResult>> {
+  const cacheBust = `?t=${Date.now()}`;
+  try {
+    let markdown: string | undefined;
+    if (getLanguage() === "fr") {
+      const frRes = await fetch(
+        `${PROMPT_HUB_BASE}/prompts_fr.md${cacheBust}`,
+        { cache: "no-store" },
+      );
+      if (frRes.ok) markdown = await frRes.text();
+    }
+    if (!markdown) {
+      const enRes = await fetch(`${PROMPT_HUB_BASE}/prompts.md${cacheBust}`, {
+        cache: "no-store",
+      });
+      if (!enRes.ok) throw new Error("Failed to load prompts");
+      markdown = await enRes.text();
+    }
+    return { success: true, data: parsePromptsMarkdown(markdown) };
+  } catch (err) {
+    console.error("Failed to load prompt library:", err);
+    return {
+      success: true,
+      data: {
+        categories: [],
+        status: "error",
+        message: "Failed to load prompt library",
+      },
+    };
+  }
+}
+
 export type PromptLibraryResult =
   | {
     action: "run_current" | "run_new";
@@ -41,13 +80,34 @@ export type PromptLibraryResult =
 export function PromptLibraryModal(
   p: AlertComponentProps<Props, PromptLibraryResult>,
 ) {
-  const [isLoading, setIsLoading] = createSignal(true);
-  const [parseResult, setParseResult] = createSignal<ParseResult>({
-    categories: [],
-    status: "error",
-    message: "Loading...",
+  const library = createQuery(() => fetchPromptLibrary());
+  // Custom prompts have no SSE event, so the four mutations below refetch.
+  const custom = createQuery(() => serverActions.getCustomPrompts({}));
+
+  // One holder over both feeds: it gates the body and the footer, while the
+  // search memos read each query so they stay reactive.
+  const content = createMemo<StateHolder<true>>(() => {
+    const lib = library.state();
+    const cus = custom.state();
+    if (lib.status === "loading" || cus.status === "loading") {
+      return {
+        status: "loading",
+        msg: t3({
+          en: "Loading prompts...",
+          fr: "Chargement des prompts...",
+          pt: "A carregar prompts...",
+        }),
+      };
+    }
+    if (lib.status === "error") {
+      return { status: "error", err: lib.err };
+    }
+    if (cus.status === "error") {
+      return { status: "error", err: cus.err };
+    }
+    return { status: "ready", data: true };
   });
-  const [customPrompts, setCustomPrompts] = createSignal<CustomPrompt[]>([]);
+
   const [searchText, setSearchText] = createSignal("");
   const [selectedPrompt, setSelectedPrompt] = createSignal<
     FlattenedPrompt | null
@@ -59,23 +119,36 @@ export function PromptLibraryModal(
   // A prompt is searched by its title, content and category together. The
   // folded text is built once per prompt list, not per keystroke.
   const tokens = createMemo(() => searchTokens(searchText()));
-  const libraryCategories = createMemo(() =>
-    parseResult().categories.map((cat) => ({
+  const libraryCategories = createMemo(() => {
+    const st = library.state();
+    if (st.status !== "ready") {
+      return [];
+    }
+    return st.data.categories.map((cat) => ({
       cat,
       prompts: cat.prompts.map((prompt) => ({
         prompt,
         folded: foldString([prompt.title, prompt.content, cat.title].join(" ")),
       })),
-    }))
-  );
-  const searchableCustomPrompts = createMemo(() =>
-    customPrompts().map((prompt) => ({
+    }));
+  });
+  // The parse status line, shown when nothing at all matched.
+  const parseMessage = () => {
+    const st = library.state();
+    return st.status === "ready" ? st.data.message : "";
+  };
+  const searchableCustomPrompts = createMemo(() => {
+    const st = custom.state();
+    if (st.status !== "ready") {
+      return [];
+    }
+    return st.data.map((prompt) => ({
       prompt,
       folded: foldString(
         [prompt.name, prompt.content, prompt.category].join(" "),
       ),
-    }))
-  );
+    }));
+  });
   const matchingCustomPrompts = createMemo(() =>
     searchableCustomPrompts()
       .filter((entry) => matchesSearch(entry.folded, tokens()))
@@ -102,49 +175,6 @@ export function PromptLibraryModal(
   const countryCustomPrompts = createMemo(() =>
     matchingCustomPrompts().filter((pr) => pr.scope === "country")
   );
-
-  async function loadCustomPrompts() {
-    const res = await serverActions.getCustomPrompts({});
-    if (res.success && res.data) {
-      setCustomPrompts(res.data);
-    }
-  }
-
-  onMount(async () => {
-    const base =
-      `https://raw.githubusercontent.com/FASTR-Analytics/fastr-resource-hub/refs/heads/main`;
-    const cacheBust = `?t=${Date.now()}`;
-    await Promise.all([
-      (async () => {
-        try {
-          let markdown: string | undefined;
-          if (getLanguage() === "fr") {
-            const frRes = await fetch(`${base}/prompts_fr.md${cacheBust}`, {
-              cache: "no-store",
-            });
-            if (frRes.ok) markdown = await frRes.text();
-          }
-          if (!markdown) {
-            const enRes = await fetch(`${base}/prompts.md${cacheBust}`, {
-              cache: "no-store",
-            });
-            if (!enRes.ok) throw new Error("Failed to load prompts");
-            markdown = await enRes.text();
-          }
-          setParseResult(parsePromptsMarkdown(markdown));
-        } catch (err) {
-          console.error("Failed to load prompt library:", err);
-          setParseResult({
-            categories: [],
-            status: "error",
-            message: "Failed to load prompt library",
-          });
-        }
-      })(),
-      loadCustomPrompts(),
-    ]);
-    setIsLoading(false);
-  });
 
   const handleSelectPrompt = (prompt: PromptItem, category: string) => {
     setSelectedPrompt({ ...prompt, category });
@@ -183,7 +213,7 @@ export function PromptLibraryModal(
       props: { initialContent: editedContent() },
     });
     if (result?.saved) {
-      await loadCustomPrompts();
+      await custom.silentFetch();
     }
   };
 
@@ -196,7 +226,7 @@ export function PromptLibraryModal(
       props: { initialContent: "" },
     });
     if (result?.saved) {
-      await loadCustomPrompts();
+      await custom.silentFetch();
     }
   };
 
@@ -209,37 +239,20 @@ export function PromptLibraryModal(
       props: { initialContent: prompt.content, existingPrompt: prompt },
     });
     if (result?.saved) {
-      await loadCustomPrompts();
-    }
-  };
-
-  const handleDeleteCustomPrompt = async (prompt: CustomPrompt) => {
-    const confirmed = await openConfirm({
-      title: t3({
-        en: "Delete prompt",
-        fr: "Supprimer le prompt",
-        pt: "Eliminar prompt",
-      }),
-      text: t3({
-        en: `Are you sure you want to delete "${prompt.name}"?`,
-        fr: `Êtes-vous sûr de vouloir supprimer « ${prompt.name} » ?`,
-        pt: `Tem a certeza de que pretende eliminar "${prompt.name}"?`,
-      }),
-      intent: "danger",
-      confirmButtonLabel: t3(TC.delete),
-    });
-    if (!confirmed) return;
-    const res = await serverActions.deleteCustomPrompt({ id: prompt.id });
-    if (res.success) {
-      await loadCustomPrompts();
+      await custom.silentFetch();
     }
   };
 
   const footer = () => {
-    if (isLoading()) {
+    const status = content().status;
+    if (status === "loading") {
       return {};
     }
     const onCancel = () => p.close(undefined);
+    // Nothing to run or create against a failed load: Cancel is the way out.
+    if (status === "error") {
+      return { onCancel };
+    }
     if (!selectedPrompt()) {
       return {
         onCancel,
@@ -311,46 +324,36 @@ export function PromptLibraryModal(
       scroll="content"
       {...footer()}
     >
-      <Show when={isLoading()}>
-        <div>
-          <LoadingIndicator
-            msg={t3({
-              en: "Loading prompts...",
-              fr: "Chargement des prompts...",
-              pt: "A carregar prompts...",
-            })}
-          />
-        </div>
-      </Show>
-
-      <Show when={!isLoading()}>
-        <Show
-          when={selectedPrompt()}
-          fallback={
-            <BrowsePhase
-              searchText={searchText()}
-              onSearchChange={setSearchText}
-              filteredCategories={filteredCategories()}
-              parseResult={parseResult()}
-              onSelectPrompt={handleSelectPrompt}
-              myCustomPrompts={myCustomPrompts()}
-              countryCustomPrompts={countryCustomPrompts()}
-              onSelectCustomPrompt={handleSelectCustomPrompt}
-              onEditCustomPrompt={handleEditCustomPrompt}
-              onDeleteCustomPrompt={handleDeleteCustomPrompt}
-              currentUserEmail={currentUserEmail()}
-            />
-          }
-        >
-          {(prompt) => (
-            <EditPhase
-              prompt={prompt()}
-              editedContent={editedContent()}
-              onContentChange={setEditedContent}
-            />
-          )}
-        </Show>
-      </Show>
+      <StateHolderWrapper state={content()}>
+        {() => (
+          <Show
+            when={selectedPrompt()}
+            fallback={
+              <BrowsePhase
+                searchText={searchText()}
+                onSearchChange={setSearchText}
+                filteredCategories={filteredCategories()}
+                parseMessage={parseMessage()}
+                onSelectPrompt={handleSelectPrompt}
+                myCustomPrompts={myCustomPrompts()}
+                countryCustomPrompts={countryCustomPrompts()}
+                onSelectCustomPrompt={handleSelectCustomPrompt}
+                onEditCustomPrompt={handleEditCustomPrompt}
+                onPromptDeleted={() => void custom.silentFetch()}
+                currentUserEmail={currentUserEmail()}
+              />
+            }
+          >
+            {(prompt) => (
+              <EditPhase
+                prompt={prompt()}
+                editedContent={editedContent()}
+                onContentChange={setEditedContent}
+              />
+            )}
+          </Show>
+        )}
+      </StateHolderWrapper>
     </ModalContainer>
   );
 }
@@ -359,13 +362,13 @@ type BrowsePhaseProps = {
   searchText: string;
   onSearchChange: (v: string) => void;
   filteredCategories: PromptCategory[];
-  parseResult: ParseResult;
+  parseMessage: string;
   onSelectPrompt: (prompt: PromptItem, category: string) => void;
   myCustomPrompts: CustomPrompt[];
   countryCustomPrompts: CustomPrompt[];
   onSelectCustomPrompt: (prompt: CustomPrompt) => void;
   onEditCustomPrompt: (prompt: CustomPrompt) => void;
-  onDeleteCustomPrompt: (prompt: CustomPrompt) => void;
+  onPromptDeleted: () => void;
   currentUserEmail: string;
 };
 
@@ -416,7 +419,7 @@ function BrowsePhase(p: BrowsePhaseProps) {
                       prompt={prompt}
                       onSelect={() => p.onSelectCustomPrompt(prompt)}
                       onEdit={() => p.onEditCustomPrompt(prompt)}
-                      onDelete={() => p.onDeleteCustomPrompt(prompt)}
+                      onDeleted={p.onPromptDeleted}
                       canEdit={true}
                     />
                   )}
@@ -452,7 +455,7 @@ function BrowsePhase(p: BrowsePhaseProps) {
                       prompt={prompt}
                       onSelect={() => p.onSelectCustomPrompt(prompt)}
                       onEdit={() => p.onEditCustomPrompt(prompt)}
-                      onDelete={() => p.onDeleteCustomPrompt(prompt)}
+                      onDeleted={p.onPromptDeleted}
                       canEdit={prompt.createdBy === p.currentUserEmail}
                     />
                   )}
@@ -519,7 +522,7 @@ function BrowsePhase(p: BrowsePhaseProps) {
             p.countryCustomPrompts.length === 0}
         >
           <div class="text-base-content-muted mt-4">
-            <div class="text-xs">{p.parseResult.message}</div>
+            <div class="text-xs">{p.parseMessage}</div>
           </div>
         </Show>
       </div>
@@ -531,9 +534,22 @@ function CustomPromptItem(p: {
   prompt: CustomPrompt;
   onSelect: () => void;
   onEdit: () => void;
-  onDelete: () => void;
+  onDeleted: () => void;
   canEdit: boolean;
 }) {
+  const deletePrompt = createDeleteAction(
+    {
+      text: t3({
+        en: "Delete this prompt?",
+        fr: "Supprimer ce prompt ?",
+        pt: "Eliminar este prompt?",
+      }),
+      itemList: [p.prompt.name],
+    },
+    () => serverActions.deleteCustomPrompt({ id: p.prompt.id }),
+    p.onDeleted,
+  );
+
   return (
     <div class="hover:bg-base-100-hover group flex w-full items-start px-3 py-2">
       <button
@@ -567,7 +583,7 @@ function CustomPromptItem(p: {
             title={t3({ en: "Delete", fr: "Supprimer", pt: "Eliminar" })}
             onClick={(e) => {
               e.stopPropagation();
-              p.onDelete();
+              void deletePrompt.click();
             }}
             class="text-base-content-muted hover:text-danger rounded p-1"
           >
