@@ -1,3 +1,27 @@
+[TBD] [user] [changed] - Profile no longer asks for your role after login
+[TBD] [user] [changed] - Removed "Role" column from the Users admin table
+[TBD] [user] [fixed] - GeoJSON edit modal now shows clear error when data fails to load
+[TBD] [user] [fixed] - GeoJSON upload wizard shows error instead of empty mapping table when admin areas fail to load
+[TBD] [user] [fixed] - Report editor now shows a loading indicator while opening
+[TBD] [user] [fixed] - Slide editor now shows an error message when a slide fails to load
+[TBD] [user] [fixed] - AI copilot no longer creates maps for admin levels with no boundary file uploaded
+[TBD] [user] [fixed] - AI copilot now catches figures that would fail to display before saving them
+[TBD] [user] [fixed] - Prompt library modal shows proper loading and error states
+[TBD] [user] [fixed] - Saving a custom prompt now shows inline errors instead of silent failures
+[TBD] [user] [fixed] - Version history no longer loads discarded figure previews unnecessarily
+[TBD] [user] [fixed] - Deleting a custom prompt now shows a confirmation dialog with the prompt name
+[TBD] [admin] [changed] - Users page no longer shows a "Role" column
+[TBD] [admin] [changed] - New users are no longer prompted to enter role after approval
+[TBD] [admin] [changed] - Profile settings now only show Organisation, not Role
+[TBD] [admin] [fixed] - GeoJSON edit modal now shows proper error when data fails to load
+[TBD] [admin] [fixed] - GeoJSON upload wizard shows error if admin areas fail to load
+[TBD] [admin] [fixed] - Slide editor now shows an error message when a slide fails to load
+[TBD] [admin] [fixed] - Report editor shows a loading indicator while opening
+[TBD] [admin] [fixed] - AI copilot maps now fail clearly when boundary files are missing
+[TBD] [admin] [fixed] - AI copilot map figures now validate before saving
+[TBD] [admin] [fixed] - Access token creation now shows inline errors instead of failing silently
+[TBD] [admin] [fixed] - Prompt library loading errors no longer block custom prompts
+[TBD] [admin] [internal] - AI reference documents system replaces previous info topics approach
 [TBD] [user] [changed] - HFA weight import errors now show example facility IDs from both the file and the registry, making it easier to spot a wrong column choice
 [TBD] [user] [changed] - Duplicate facility ID errors now list the repeated IDs instead of only a count
 [TBD] [user] [fixed] - Importing weights when no HFA facilities exist yet now gives a clearer message explaining you need to import the time point's data first
