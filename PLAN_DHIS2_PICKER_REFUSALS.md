@@ -25,8 +25,9 @@ when: nothing; the plan stands alone.
   (`client/src/components/data/hmis/indicators/dhis2_indicator_select_form.tsx`).
   _Refused row_: a search result whose element verdict or decomposition is not
   accepted. _Role_: which side of the DHIS2 formula an operand is on, numerator
-  or denominator. _Diagnostic_: the existing refusal wording
-  (`describeDhis2ElementRefusal`, `describeDhis2ParseRefusal`,
+  or denominator. _Label_: the element's own DHIS2 name as
+  `dhis2ElementName(element, data_id)` writes it. _Diagnostic_: the existing
+  refusal wording (`describeDhis2ElementRefusal`, `describeDhis2ParseRefusal`,
   `describeDhis2IdRefusal` in `lib/types/indicators.ts`), which names UIDs and
   DHIS2 metadata fields and stays as the save route's and the id repair's
   wording. _Import sentence_: the new wording a refused row shows.
@@ -45,71 +46,89 @@ when: nothing; the plan stands alone.
   "Operand <UID> cannot be added: its aggregation type is AVERAGE_SUM_ORG_UNIT,
   not SUM". It was written for the save route and the id repair, where naming
   the UID and the field is right.
-- An operand carries no role
+- An operand carries neither a role nor a label
   ([indicators.ts:399-403](lib/types/indicators.ts#L399-L403)), so the picker
-  cannot say "its denominator" and falls back to the UID.
+  can say neither "its denominator" nor the element's own DHIS2 name, and falls
+  back to the UID.
+- The picker orders the causes itself
+  ([:113-136](client/src/components/data/hmis/indicators/dhis2_indicator_select_form.tsx#L113-L136)),
+  so the wording and the choice of which cause to show live in the client.
 - `parseDhis2Indicator` refuses an annualized indicator before it reads the
   formula
   ([decompose_indicator.ts:56-58](server/dhis2/goal2_indicators/decompose_indicator.ts#L56-L58)),
   so an annualized coverage indicator reports "it is annualized" when the reason
-  the user needs is that it divides by a population.
+  the user needs is that its denominator is not a monthly count.
 
 ## §2 The model
 
-A refused row has no button. Its line is muted text: one import sentence that
-says this type of indicator cannot be imported, that the platform only imports
-monthly counts from DHIS2, and which part of this indicator is not one, by role.
-No UID, no DHIS2 field name, no element name. The parse always reads the formula
-and records each operand's role and whether the indicator is annualized; the
-decomposition is accepted only when the parse accepted, the indicator is not
-annualized, and every operand is accepted. The save route and the id repair keep
-the diagnostic.
+A refused row has no button. Its line is muted text: one sentence saying the
+indicator cannot be imported and why, in the user's words. It names the part at
+fault by role and by the element's own DHIS2 name, and, when only the
+denominator is at fault, it names the numerator as the thing to add instead. No
+UID, no DHIS2 metadata field name, no DHIS2 period word. One pure function in
+`lib` owns the sentence and the order of causes, and returns nothing when there
+is nothing to refuse, so the picker asks rather than decides. The parse always
+reads the formula; `annualized` is not a parse concern but a fact about the
+indicator, which the decomposition carries. Each operand carries its role and
+its label. The save route and the id repair keep the diagnostic.
 
 ## §3 Rulings
 
 1. A refused row shows no "Add" button. Decided.
 2. A refused row's line is `text-base-content-muted`, never `text-danger`.
    Decided.
-3. The import sentence, in en, fr and pt. Every indicator row starts "This type
-   of indicator cannot be imported. The platform only imports monthly counts
-   from DHIS2, and" followed by the first cause that applies, in this order: a
-   refused operand, then annualized, then the parse refusal. Decided:
+3. The import sentence, in en, fr and pt. Every indicator row starts "This
+   indicator cannot be imported:" followed by the first cause that applies, in
+   this order. Decided.
 
-   | Cause                                                                       | Sentence                                                                                                   |
-   | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-   | denominator operand: `aggregation_type`, or `period_type` yearly or no set  | this indicator divides by a population figure, which DHIS2 holds as one value per year.                    |
-   | numerator operand: the same refusals                                        | this indicator's numerator is a yearly figure, not a monthly count.                                        |
-   | operand `period_type` with any other value (quarterly, weekly, six-monthly) | this indicator uses data that DHIS2 collects {period types}, not monthly.                                  |
-   | operand `value_type`                                                        | this indicator uses a percentage or a ratio, which is not a count.                                         |
-   | `annualized`, operands accepted                                             | this indicator is annualized: DHIS2 scales each month up to a yearly rate, which the platform does not do. |
-   | parse `term` or `syntax`                                                    | this indicator's formula uses DHIS2 functions or constants, which the platform does not read.              |
-   | parse `factor`                                                              | this indicator's factor is not 1, 100, 1000 or 10000, so the platform has no format for it.                |
-   | operand `element_not_found`, `combo_not_found`, `default_combo`             | one of this indicator's elements no longer exists in DHIS2.                                                |
+   | Cause                                                     | Sentence                                                                                                                   |
+   | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+   | operand `aggregation_type`, `value_type` or `period_type` | its {numerator / denominator}, "{label}", is not a monthly count, and the platform only imports monthly counts from DHIS2. |
+   | the indicator is annualized                               | it is annualized: DHIS2 scales each month up to a yearly rate, which the platform does not do.                             |
+   | operand `element_not_found` or `combo_not_found`          | its {numerator / denominator}, "{label}", no longer exists in DHIS2.                                                       |
+   | parse `term` or `syntax`                                  | its formula uses DHIS2 functions or constants the platform does not read.                                                  |
+   | parse `factor`                                            | its factor is not 1, 100, 1000 or 10000.                                                                                   |
+   | parse `empty`                                             | its {numerator / denominator} is empty.                                                                                    |
+   | parse `no_operands`                                       | its formula names no data element.                                                                                         |
+   | parse `too_many_operands`                                 | its formula names more than {max} data elements.                                                                           |
 
-4. _(proposed)_ An operand on both sides takes the numerator wording. Parse
-   `empty` and `no_operands` read "this indicator's formula names no data
-   element."; `too_many_operands` reads "this indicator's formula names more
-   than {max} data elements."
-5. _(proposed)_ A data element row starts "This data element cannot be imported.
-   The platform only imports monthly counts from DHIS2, and" with the same
-   causes worded for the element: "this element is a population figure, which
-   DHIS2 holds as one value per year." / "DHIS2 collects it {period types}, not
-   monthly." / "it is a percentage or a ratio, not a count." The `formula`,
-   `element_not_found` and combo kinds cannot reach a search result and take the
-   diagnostic.
-6. The parse never refuses on `annualized`; it reports it. The decomposition,
-   the save route and the id repair refuse on it with the existing words ("it is
-   annualized"). Decided.
-7. Nothing ships. Tim deploys.
+4. When the first row's refused operands are all on the denominator and every
+   numerator operand is accepted, the sentence ends with a second one: "Add its
+   numerator, "{label}", as a data element instead." That label is the
+   numerator's own; the second sentence is written only when the numerator is
+   one operand. An operand on both sides counts as the numerator. Decided.
+5. `{label}` is `dhis2ElementName(element, data_id)`, which the search-result
+   shaping already computes for the picker's element rows, and the operand's
+   `data_id` when the element is not on the server. `getDhis2OperandVerdict`
+   never returns `formula`, and `foldDefaultCombos` removes every
+   `default_combo` before the operands are judged, so neither kind can reach an
+   indicator row; the import describer groups them with the "no longer exists"
+   sentence to stay total, with a one-line comment giving that reason. Decided.
+6. A data element row shows one sentence, whichever eligibility rule refused it:
+   "This data element cannot be imported: it is not a monthly count, and the
+   platform only imports monthly counts from DHIS2." A COC row under a refused
+   element shows the same sentence. Decided.
+7. `annualized` leaves the parse entirely. `parseDhis2Indicator` neither takes
+   nor reports it, and the decomposition carries it. The save route and the id
+   repair refuse on it with the existing words ("it is annualized"), checked
+   after the parse and before the operands, so the id repair's reason for an
+   annualized formula becomes `it is annualized` in place of
+   `its formula is refused: it is annualized`. Decided.
+8. `Dhis2IndicatorDecomposition.accepted` is deleted. Nothing reads it: the
+   picker and the save route each re-derive the answer from `parse` and
+   `operands`, and after this plan the picker asks the import describer.
+   Decided.
+9. Nothing ships. Tim deploys.
 
 ## §4 Steps
 
-### Step 1: The contract carries the role and the annualized flag, and the import sentences exist
+### Step 1: The contract carries the role, the label and the annualized flag, and the import sentences exist
 
 **Surface.** `lib/types/indicators.ts`,
 `server/dhis2/goal2_indicators/decompose_indicator.ts`,
 `server/dhis2/goal2_indicators/attach_verdicts.ts`,
 `server/db/instance/indicators.ts`, `server/dhis2_id_fix/plan.ts`,
+`server/dhis2_id_fix/gather.ts`,
 `server/tests/dhis2_decompose_indicator_test.ts`,
 `server/tests/dhis2_id_fix_plan_test.ts`,
 `server/tests/indicator_naming_test.ts`, `SYSTEM_07_dhis2.md`,
@@ -120,33 +139,35 @@ the diagnostic.
 - `Dhis2ParsedOperand` gains `side: "numerator" | "denominator" | "both"`.
   `parseDhis2Indicator` sets it per operand; `dedupeOperands` merges an operand
   seen on both sides to `both`. `foldDefaultCombos` keeps the merged side.
-- `Dhis2IndicatorParseRefusal` loses `annualized`. The accepted
-  `Dhis2IndicatorParse` gains `annualized: boolean`. `parseDhis2Indicator` reads
-  the formula whatever the flag.
-- `Dhis2IndicatorDecomposition.accepted` is
-  `parse.accepted && !parse.annualized
-  && every operand accepted`
-  (`withDecompositions`).
+- `Dhis2DecompositionOperand` gains `label: string`:
+  `dhis2ElementName(element, data_id)` in `withDecompositions`, the operand's
+  `data_id` when the element is not in `elementsById`.
+- `parseDhis2Indicator` loses its `annualized` input and
+  `Dhis2IndicatorParseRefusal` loses its `annualized` kind.
+  `Dhis2IndicatorDecomposition` gains `annualized: boolean`, set by
+  `withDecompositions` from the indicator, and loses `accepted` (ruling 8).
+  `dhis2_id_fix/gather.ts` drops the field from its own parse call.
 - `createIndicatorsFromDhis2` refuses an annualized decomposition with
-  `DHIS2 indicator <uid> cannot be decomposed: it is annualized`, checked after
-  the parse and before the operands. `diagnoseUnknown` (or whichever function in
-  `plan.ts` reads `formula.parse`) reports
-  `its formula is refused: it is
-  annualized` for an annualized parse, after
-  the operand check; the test's expected strings are unchanged.
+  `DHIS2 indicator <uid> cannot be decomposed: it is annualized`, after the
+  parse check and before the operands. `diagnoseUnknown` reports
+  `it is annualized` in the same place.
 - `describeDhis2IndicatorImportRefusal(decomposition)` and
-  `describeDhis2ElementImportRefusal(refusal)` in `lib/types/indicators.ts`
-  return the import sentences of rulings 3, 4 and 5 as `TranslatableString`, en,
-  fr, pt. The period-type cause lists the DHIS2 period type words the verdict
-  carries. Both are exported from `lib`.
+  `describeDhis2ElementImportRefusal(verdict)` in `lib/types/indicators.ts`
+  return `TranslatableString | undefined`, the sentences of rulings 3 to 6 in
+  en, fr and pt, and `undefined` when there is nothing to refuse. The indicator
+  one owns the order of causes. Both are exported from `lib`.
 - `dhis2_decompose_indicator_test.ts` pins: the side per operand, `both` on a
-  repeated operand, `annualized: true` on an accepted parse, and one sentence
-  per row of ruling 3 and 4 through `describeDhis2IndicatorImportRefusal`, in
-  en.
+  repeated operand, that an annualized indicator's formula parses like any
+  other, and one sentence per row of rulings 3, 4 and 6 through the two
+  describers, in en.
+- `dhis2_id_fix_plan_test.ts`'s `formula` helper sets `annualized` on the
+  decomposition, and its annualized case expects `it is annualized`.
+  `indicator_naming_test.ts`'s `decomposition` helper does the same. Both
+  helpers drop `accepted`.
 - `SYSTEM_07_dhis2.md` "Indicator decomposition" and "Search-result shaping"
-  state the side, the annualized flag and where the decomposition is judged.
-  `SYSTEM_05_facilities_indicators.md` names the two import-sentence functions
-  beside the diagnostic ones and says which caller uses which.
+  state the side, the label, the annualized flag and where the decomposition is
+  judged. `SYSTEM_05_facilities_indicators.md` names the two import-sentence
+  functions beside the diagnostic ones and says which caller uses which.
 
 **Not in this step.** The picker. Any change to `getDhis2ElementVerdict` or to
 which indicators are accepted.
@@ -163,12 +184,13 @@ which indicators are accepted.
 
 **Deliverable.**
 
-- `indicatorRefusal` and `elementRefusal` return
+- `indicatorRefusal` and `elementRefusal` become one call each to
   `t3(describeDhis2IndicatorImportRefusal(...))` and
-  `t3(describeDhis2ElementImportRefusal(...))`. The diagnostic imports are gone
-  from the file.
+  `t3(describeDhis2ElementImportRefusal(...))`. The cause ordering and the
+  diagnostic imports leave the file.
 - A refused indicator row, element row and COC operand row renders no
-  `addButton`; the row's line is `text-base-content-muted mt-1 text-xs`.
+  `addButton`, so `addButton` no longer takes a refusal and no longer disables
+  on one; the row's line is `text-base-content-muted mt-1 text-xs`.
 - The file's header comment says a refused row carries the import sentence in
   the user's words.
 - `SYSTEM_05_facilities_indicators.md`, where it describes the DHIS2 select
