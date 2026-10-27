@@ -263,8 +263,26 @@ The flow:
 9. Increment amount is `inputTokens + outputTokens` only. Cache tokens are
    logged but never counted against limits (an implicit policy; Open items). The
    daily increment runs even for `unlimitedAi` users (tracked, never enforced);
-   the weekly increment is skipped for them. Be deliberate about which counters
-   unlimited users should affect.
+   the weekly increment is skipped for them. The asymmetry is the point, not an
+   oversight: the daily counter is PER USER, so counting an unlimited user costs
+   nobody else and keeps the number honest if the flag is later cleared mid-day,
+   while the weekly counter is SHARED and gates every limited user, so the same
+   increment would spend their quota. Counting unlimited users in while the
+   weekly gate still exempts them (`:82`) would let one of them lock out
+   everyone else, and "unlimited" would come to mean "unbounded for me, and it
+   shrinks everyone else's pool". The weekly counter is therefore a QUOTA
+   measure, not a spend measure: it is written only when `_WEEKLY_TOKEN_LIMIT`
+   is set, it excludes cache tokens, and its only readers are the gate, the
+   profile panel and the health route, each printing it beside the limit. Real
+   spend is `ai_usage_logs`, written unconditionally for every user and every
+   token kind.
+
+   The profile panel must therefore not imply the two figures are comparable:
+   its rows read "Today (you)" and "This week (country quota)", and the week row
+   tells a user whose own use is not counted that it is not
+   ([profile.tsx](client/src/components/instance/profile.tsx)). Without that, an
+   unlimited user sees their own day at more than double the whole country's
+   week, which as displayed is impossible.
 
 **Governance storage.** Daily counter = columns on `users`
 ([users.ts:279-311](server/db/instance/users.ts#L279-L311), S1 seam): the read

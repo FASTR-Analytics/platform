@@ -59,6 +59,11 @@ function UsageMeter(p: {
   label: string;
   figures: UsageFigures | undefined;
   unlimitedText: string;
+  // Who the figure counts, when that is not simply "you". The two meters count
+  // different populations under different conditions, so a row that leaves
+  // this user's own use out has to say so: otherwise one user's day reading
+  // larger than the whole country's week looks impossible.
+  note?: string;
 }) {
   const pct = () => {
     const f = p.figures;
@@ -95,6 +100,9 @@ function UsageMeter(p: {
               } (${pct()}%)`}
         </Show>
       </div>
+      <Show when={p.note} keyed>
+        {(note) => <div class="text-base-content-muted text-xs">{note}</div>}
+      </Show>
     </div>
   );
 }
@@ -423,7 +431,11 @@ export function ProfileForm(
       >
         <div class="grid grid-cols-1 gap-x-6 gap-y-3 py-2 sm:grid-cols-2">
           <UsageMeter
-            label={t3({ en: "Today", fr: "Aujourd'hui", pt: "Hoje" })}
+            label={t3({
+              en: "Today (you)",
+              fr: "Aujourd'hui (vous)",
+              pt: "Hoje (você)",
+            })}
             figures={todayFigures()}
             unlimitedText={t3({
               en: "tokens today · Unlimited",
@@ -433,9 +445,9 @@ export function ProfileForm(
           />
           <UsageMeter
             label={t3({
-              en: "This week (whole country)",
-              fr: "Cette semaine (tout le pays)",
-              pt: "Esta semana (todo o país)",
+              en: "This week (country quota)",
+              fr: "Cette semaine (quota du pays)",
+              pt: "Esta semana (quota do país)",
             })}
             figures={weekFigures()}
             unlimitedText={t3({
@@ -443,6 +455,16 @@ export function ProfileForm(
               fr: "tokens cette semaine · Illimité",
               pt: "tokens esta semana · Ilimitado",
             })}
+            note={usage()?.isUnlimited
+              ? t3({
+                en:
+                  "Your own use is not counted here: an unlimited account does not spend the country's quota.",
+                fr:
+                  "Votre propre utilisation n'est pas comptée ici : un compte illimité n'entame pas le quota du pays.",
+                pt:
+                  "A sua própria utilização não é contada aqui: uma conta ilimitada não consome a quota do país.",
+              })
+              : undefined}
           />
         </div>
         <Show when={usageError()} keyed>
