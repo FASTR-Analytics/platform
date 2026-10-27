@@ -608,7 +608,7 @@ SELECT id FROM runs WHERE status = 'ready' AND NOT pinned ORDER BY created_at DE
       "PUT",
       `/products/${report.productId}/slide-deck/config`,
       {
-        config: getStartingConfigForSlideDeck("Overwritten"),
+        config: getStartingConfigForSlideDeck(),
       },
     );
     assertEquals(crossType.status, 404);

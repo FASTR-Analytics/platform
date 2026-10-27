@@ -94,7 +94,6 @@ export type LogosConfig = {
 };
 
 export type SlideDeckConfig = {
-  label: string;
   selectedReplicantValue: undefined | string;
   logos: LogosConfig;
   globalFooterText: string | undefined;
@@ -138,9 +137,8 @@ export function createDeckStyleContext(
   };
 }
 
-export function getStartingConfigForSlideDeck(label: string): SlideDeckConfig {
+export function getStartingConfigForSlideDeck(): SlideDeckConfig {
   return {
-    label,
     selectedReplicantValue: undefined,
     logos: {
       availableCustom: [],

@@ -146,7 +146,7 @@ export function SlideDeckEditor(p: Props) {
   const [isLoading, setIsLoading] = createSignal(true);
   const [selectedSlideIds, setSelectedSlideIds] = createSignal<string[]>([]);
   const [deckConfig, setDeckConfig] = createSignal<SlideDeckConfig>(
-    getStartingConfigForSlideDeck(deckLabel()),
+    getStartingConfigForSlideDeck(),
   );
   // The product run's authoring context: immutable T2, keyed by the LIVE
   // runId, so a reattach re-resolves it instead of reusing the old package's.
@@ -546,11 +546,7 @@ function SlideDeckEditorInner(p: {
           fr: "Paramètres de la présentation",
           pt: "Definições da apresentação",
         }),
-        nameLabel: t3({
-          en: "Slide deck name",
-          fr: "Nom de la présentation",
-          pt: "Nome da apresentação",
-        }),
+        deckLabel: p.deckLabel,
         showPageNumbersSuffix: t3({
           en: "(except on cover and section slides)",
           fr: "(sauf sur les diapositives de couverture et de section)",

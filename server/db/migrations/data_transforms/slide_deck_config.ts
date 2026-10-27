@@ -15,6 +15,7 @@
 // 5. Add fontFamily default
 // 6. Migrate logo sizing numbers → semantic keys (size/spacing)
 // 7. Collapse the six style fields into one theme id; resolve retired theme ids
+// 8. Delete the deck's second name (`label`); `products.label` is the only one
 //
 // =============================================================================
 
@@ -145,7 +146,13 @@ export async function migrateSlideDeckConfigs(
     // valid while quietly stripping the style the deck was actually saved in.
     if (
       slideDeckConfigSchema.safeParse(config).success &&
-      !rawJsonNeedsDeckThemeTransform(row.config)
+      !rawJsonNeedsDeckThemeTransform(row.config) &&
+      // Block 8 DELETES `label`, and zod strips it silently, so a row still
+      // carrying it would pass this gate and keep a second, diverged name
+      // forever. Read off the parsed object: the key is top-level, and a
+      // substring test on the raw JSON would match a nested one and re-write
+      // the row on every boot.
+      !("label" in config)
     ) {
       continue;
     }
@@ -309,6 +316,11 @@ export async function migrateSlideDeckConfigs(
     // resolves the stored id (a retired theme moves to its successor:
     // monochrome → minimal, 2026-09-29).
     applySlideDeckThemeToLegacyConfig(config);
+
+    // Block 8: Delete the deck's second name. A deck has one name,
+    // `products.label`; this copy only ever diverged from it, and every
+    // config write used to push it back over the real one.
+    delete config.label;
 
     const validated = slideDeckConfigSchema.parse(config);
 

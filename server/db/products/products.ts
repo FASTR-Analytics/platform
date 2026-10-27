@@ -387,7 +387,6 @@ const DUPLICATE_DETAIL_BY_TYPE: Record<
     sql: Sql,
     productId: string,
     newProductId: string,
-    label: string,
     lastUpdated: string,
   ) => Promise<void>
 > = {
@@ -438,7 +437,6 @@ export async function duplicateProduct(
         sql,
         productId,
         newProductId,
-        label,
         lastUpdated,
       );
     });

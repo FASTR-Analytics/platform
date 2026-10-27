@@ -105,7 +105,7 @@ The product is still loading, or it failed to load and the page shows the error.
 export function getDeckSettingsInstructions(label: string): string {
   return `# Current View: Settings of the slide deck "${label}"
 
-The user is on the deck's settings screen (name, theme, logos, footer), which covers the deck. The deck's slide tools refuse here. To change slides, tell the user to close Settings with its back button to return to the deck; do not describe any other view. The package tools work as usual.`;
+The user is on the deck's settings screen (theme, logos, footer), which covers the deck. The deck's name is not on it: renaming is File > "Name and folder" or the title in the products list. The deck's slide tools refuse here. To change slides, tell the user to close Settings with its back button to return to the deck; do not describe any other view. The package tools work as usual.`;
 }
 
 export function getHistoryInstructions(

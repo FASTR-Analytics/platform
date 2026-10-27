@@ -180,13 +180,7 @@ export async function updateSlideDeckConfig(
   return await tryCatchDatabaseAsync(async () => {
     const lastUpdated = new Date().toISOString();
     await mainDb.begin(async (sql) => {
-      await touchProduct(
-        sql,
-        productId,
-        "slide_deck",
-        lastUpdated,
-        config.label,
-      );
+      await touchProduct(sql, productId, "slide_deck", lastUpdated);
       await sql`
         UPDATE slide_decks
         SET config = ${JSON.stringify(slideDeckConfigSchema.parse(config))}

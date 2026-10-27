@@ -39,6 +39,7 @@ globs:
   - server/tests/consolidated_products_test.ts
   - server/tests/folder_tree_test.ts
   - server/tests/products_routes_test.ts
+  - server/tests/deck_label_single_source_test.ts
   - server/tests/product_access_db_test.ts
   - server/tests/product_access_routes_test.ts
   - server/tests/product_level_test.ts
@@ -102,6 +103,9 @@ manifest because the lint does not walk it, the report editor package
 Two harnesses cover the product plane, both against the dev database.
 `server/tests/products_routes_test.ts` drives the product, folder, slide-deck,
 slide and report routes through the real registry, access guard and DB layer.
+`server/tests/deck_label_single_source_test.ts` pins the one name: a renamed
+deck keeps its name across a config write, a duplicate and a restore-as-copy,
+and no stored deck config carries a `label` key.
 `server/tests/consolidated_products_test.ts` proves the products that migration
 201 consolidated, and skips when none exist (they are the ones with no
 `created_by`): every stored figure bundle on the four surfaces (slides, report
@@ -230,6 +234,14 @@ subfolders hold and that access is only raised.
 
 ## The products registry on `main`
 
+**A product has one name: `products.label`.** No detail row, no stored config
+and no snapshot carries a second copy, so no write to a product's contents can
+change what it is called. The two rename surfaces (the rail's inline title and
+File > "Name and folder…", both through `updateProductLabel`) are the only
+writers of it, and `touchProduct`'s optional `label` argument is passed by
+exactly one caller that is not a rename: `restoreSlideDeckStructure`, putting
+back the label the version row captured.
+
 `main` carries the products block (`_main_database.sql`, created on existing
 instances by `200_products.sql`): `folders` (nested through a nullable
 `parent_id` self-reference), `products` (id, `type` in {`slide_deck`, `report`},
@@ -322,7 +334,7 @@ reparents child folders and products one level and returns `freedProductIds`.
 (`copySlidesToSlideDeck`, the cross-deck reuse path: configs copied verbatim,
 scoped by the source product), `reports.ts` and `versions.ts` hold the per-type
 detail: every slide read and write is scoped by `product_id` AND `slide_id`, the
-label lives on `products` and the detail reads join it, and the version
+label lives on `products` alone and the detail reads join it, and the version
 functions carry the `SlideDeck` stem on the `slide_deck_versions` table
 (`insertSlideDeckVersion`, `latestSlideDeckVersionHash`,
 `copySlideDeckFromVersion`). Every detail mutation opens its transaction with
@@ -468,11 +480,12 @@ bundle's area, else "An earlier scope definition". `packageScopeCaption` and
 ## Slide decks
 
 **Data model.** A `slide_decks` detail row keyed by the product id (free-text
-`plan` for the AI planning scratchpad, JSON `config` = deck style; the label
-lives on `products`) + one row per slide (JSON `config` = one `Slide`, integer
-`sort_order`; FK cascade on product delete). Slide ids are short nanoids,
-instance-wide unique. `getSlideDeckDetail` returns only ordered `slideIds`;
-slide bodies fetch per-slide through `_SLIDE_CACHE`
+`plan` for the AI planning scratchpad, JSON `config` = deck style and nothing
+else; the name lives on `products`, and `updateSlideDeckConfig` stamps without a
+label so a config write can never rename the deck) + one row per slide (JSON
+`config` = one `Slide`, integer `sort_order`; FK cascade on product delete).
+Slide ids are short nanoids, instance-wide unique. `getSlideDeckDetail` returns
+only ordered `slideIds`; slide bodies fetch per-slide through `_SLIDE_CACHE`
 (`state/products/t2_slides.ts`, versioned by `lastUpdated.slides[id]`). Sort
 orders are **gap-numbered** (append = max+10, insert = target±5) with
 `reSequence` (`ROW_NUMBER()*10`) run inside the create/delete/duplicate
@@ -605,10 +618,13 @@ keyed slide editor. The menu is rendered by `SlideList`, never by
 `SlideToolbar`, for that same reason: a menu inside the keyed editor would close
 on its own first click. The full settings screen (`SlideDeckSettings`, with the
 delete action) is still there, one row down the menu as "All deck settings";
-name and folder sits in File. The settings screen takes the deck id and sets the
-chat's `deck_settings` view over the deck's (S13; its context is the product's
-live row through `productViewContext`), so the deck tools refuse while the user
-is there; History sets `deck_history` the same way (S16).
+name and folder sits in File. The settings screen NAMES the deck without owning
+the name: it takes the product label as `deckLabel` and prints it in its
+heading, and its Save writes the config alone, so sitting on this screen and
+saving cannot rename the deck. The settings screen takes the deck id and sets
+the chat's `deck_settings` view over the deck's (S13; its context is the
+product's live row through `productViewContext`), so the deck tools refuse while
+the user is there; History sets `deck_history` the same way (S16).
 
 **The slide editor**
 ([slide_editor/slide_editor.tsx](client/src/components/products/slide_deck/slide_editor/slide_editor.tsx))
@@ -2800,20 +2816,6 @@ interpolation in every route.
   typewise; ties into the tighten-to-schema follow-on.
 - **Barrel bypass**: `slide_list.tsx` imports the vendored SortableJS wrapper
   via a deep `../../../../panther/...` path instead of `"panther"`.
-- **A deck rename is reverted by the next Deck-menu change (MED).** Renaming
-  writes `products.label` only (`products/_shared/product_title.tsx:28-36`,
-  `products/_shared/product_settings.tsx:51-56`, through
-  `server/db/products/products.ts:273-295`), the deck detail returns the stored
-  config with its stale `label` copy (`server/db/products/slide_decks.ts:66`),
-  `patchDeckConfig` sends the whole config
-  (`products/slide_deck/slide_deck.tsx:130-138`), and `updateSlideDeckConfig`
-  writes `config.label` back to `products.label` (`slide_decks.ts:114-120`).
-  Make `slide_decks.ts:66` lay the live label over the stored config:
-
-  ```ts
-  config: { ...parseSlideDeckConfig(deck.config, deck.label), label: deck.label },
-  ```
-
 - **A failed authoring-context read leaves the deck's slide area blank and the
   report's figure actions silent.** Both editors drop the failure
   (`products/slide_deck/slide_deck.tsx:204-208`,

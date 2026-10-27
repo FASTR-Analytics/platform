@@ -755,7 +755,6 @@ export async function copySlideDeckFromVersion(
     const config = upgradeSnapshotDeckConfig(
       parseJsonOrThrow<SlideDeckConfig>(version.slide_deck_config),
     );
-    config.label = args.label.trim();
     const slides = parseJsonOrThrow<SlideDeckVersionSlide[]>(version.slides)
       .slice()
       .sort((a, b) => a.sortOrder - b.sortOrder);

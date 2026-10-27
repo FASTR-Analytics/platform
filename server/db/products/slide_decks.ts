@@ -13,16 +13,13 @@ import { tryCatchDatabaseAsync } from "../utils.ts";
 import { generateUniqueSlideId } from "../../utils/id_generation.ts";
 import { SLIDE_DECK_NOT_FOUND, touchProduct } from "./_product_row.ts";
 
-// The deck's label lives on `products`; the config's own copy of it is only a
-// starting value for decks written before the config existed.
-export function parseSlideDeckConfig(
-  config: string | null,
-  label: string,
-): SlideDeckConfig {
+// A deck written before the config column existed has none: it reads as the
+// starting config. The deck's name is never in here, only on `products`.
+export function parseSlideDeckConfig(config: string | null): SlideDeckConfig {
   if (config) {
     return parseJsonOrThrow(config) as SlideDeckConfig;
   }
-  return getStartingConfigForSlideDeck(label);
+  return getStartingConfigForSlideDeck();
 }
 
 export async function getSlideDeckDetail(
@@ -63,7 +60,7 @@ export async function getSlideDeckDetail(
         id: deck.id,
         label: deck.label,
         plan: deck.plan ?? "",
-        config: parseSlideDeckConfig(deck.config, deck.label),
+        config: parseSlideDeckConfig(deck.config),
         slideIds,
         lastUpdated: deck.last_updated,
       },
@@ -86,9 +83,9 @@ export async function updateSlideDeckPlan(
   });
 }
 
-// The deck config carries its own label field, which the editor's title box
-// writes, so this is also a label write and the registry's copy is the
-// authoritative one.
+// A config write never carries the deck's name, so `touchProduct` takes no
+// label here: the name is `products.label` alone, and the two rename surfaces
+// are the only writers of it.
 // A new deck is minted with `themeChosen: false` and no slides. The write that
 // first answers the theme question (false -> true) also makes the deck's
 // cover, in the same transaction, so the deck's first slide is born in the
@@ -111,13 +108,7 @@ export async function updateSlideDeckConfig(
           SELECT config FROM slide_decks WHERE id = ${productId} FOR UPDATE
         `
       ).at(0);
-      await touchProduct(
-        sql,
-        productId,
-        "slide_deck",
-        lastUpdated,
-        config.label,
-      );
+      await touchProduct(sql, productId, "slide_deck", lastUpdated);
       await sql`
         UPDATE slide_decks
         SET config = ${JSON.stringify(slideDeckConfigSchema.parse(config))}
@@ -159,11 +150,10 @@ export async function updateSlideDeckConfig(
 export async function insertNewSlideDeckDetail(
   sql: Sql,
   productId: string,
-  label: string,
 ): Promise<void> {
   // A new deck is asked for its theme the first time it is opened.
   const config = slideDeckConfigSchema.parse({
-    ...getStartingConfigForSlideDeck(label),
+    ...getStartingConfigForSlideDeck(),
     themeChosen: false,
   });
   await sql`
@@ -181,7 +171,6 @@ export async function duplicateSlideDeckDetail(
   sql: Sql,
   productId: string,
   newProductId: string,
-  label: string,
   lastUpdated: string,
 ): Promise<void> {
   const deck = (
@@ -193,8 +182,7 @@ export async function duplicateSlideDeckDetail(
     throw new Error(SLIDE_DECK_NOT_FOUND);
   }
 
-  const config = parseSlideDeckConfig(deck.config, label);
-  config.label = label;
+  const config = parseSlideDeckConfig(deck.config);
   await sql`
     INSERT INTO slide_decks (id, plan, config)
     VALUES (

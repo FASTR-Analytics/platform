@@ -13,7 +13,7 @@ import {
   Select,
   TextArea,
 } from "panther";
-import { createSignal, For, Show } from "solid-js";
+import { For, Show } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
 import { instanceState } from "~/state/instance/t1_store";
 import {
@@ -28,7 +28,7 @@ export type SlideDeckSettingsProps = {
   deckId: string;
   config: SlideDeckConfig;
   heading: string;
-  nameLabel: string;
+  deckLabel: string;
   showPageNumbersSuffix?: string;
   saveConfig: (
     config: SlideDeckConfig,
@@ -56,7 +56,6 @@ export function SlideDeckSettings(p: Props) {
   const [tempConfig, setTempConfig] = createStore<SlideDeckConfig>(
     structuredClone(p.config),
   );
-  const [editingName, setEditingName] = createSignal(false);
 
   function addCustomLogo() {
     setTempConfig("logos", "availableCustom", (prev) => [...prev, ""]);
@@ -136,30 +135,7 @@ export function SlideDeckSettings(p: Props) {
           heading={
             <div class="flex items-center gap-2">
               <span>{p.heading}:</span>
-              <Show when={!editingName()}>
-                <span class="font-400">{tempConfig.label}</span>
-                <Button
-                  iconName="pencil"
-                  intent="neutral"
-                  size="sm"
-                  outline
-                  onBackground="base-300"
-                  onClick={() => setEditingName(true)}
-                />
-              </Show>
-              <Show when={editingName()}>
-                <input
-                  type="text"
-                  class="font-400 bg-base-100 rounded border px-2 py-1 text-base"
-                  value={tempConfig.label}
-                  onInput={(e) => setTempConfig("label", e.currentTarget.value)}
-                  onBlur={() => setEditingName(false)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") setEditingName(false);
-                  }}
-                  autofocus
-                />
-              </Show>
+              <span class="font-400">{p.deckLabel}</span>
             </div>
           }
         >
