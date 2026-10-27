@@ -45,8 +45,8 @@ async function readRows(
   return rows;
 }
 
-// Spans several 2 MB chunks, so the callback's error has to cross a chunk
-// boundary's await.
+// Spans several 2 MB chunks, so a throw in the first chunk leaves chunks that
+// must not be read or delivered.
 function largeCsvLines(nRows: number): string[] {
   const lines = ["id,facility,value"];
   for (let i = 0; i < nRows; i++) {

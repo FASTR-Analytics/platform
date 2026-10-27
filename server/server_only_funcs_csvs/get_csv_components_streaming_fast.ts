@@ -126,9 +126,8 @@ export async function getCsvStreamComponents(
         }
       };
 
-      // One sequential loop: read a chunk, cut it at the last newline outside
-      // quotes, parse the cut text, await the callback per row. A callback
-      // that throws rejects this promise through that one await chain.
+      // No queue: a detached consumer loop's rejection has no handler while
+      // the reader awaits the next chunk.
       const processRows = async (
         callback: (
           row: string[],
