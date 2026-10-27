@@ -1,3 +1,30 @@
+[2.4.0] [user] [changed] - DHIS2 import errors now show clearer, plain-language explanations
+[2.4.0] [user] [changed] - Ineligible DHIS2 items hide the add button instead of showing a disabled one
+[2.4.0] [user] [changed] - DHIS2 import warnings appear in muted text instead of alarming red
+[2.4.0] [user] [changed] - DHIS2 category option combos now show import eligibility messages
+[2.4.0] [user] [changed] - AI usage profile now labels daily meter as "Today (you)"
+[2.4.0] [user] [changed] - Weekly AI usage meter relabeled to "This week (country quota)"
+[2.4.0] [user] [added] - Note explains unlimited accounts don't consume the country's AI quota
+[2.4.0] [user] [fixed] - Slide deck name no longer resets when changing deck settings like theme or logos
+[2.4.0] [user] [changed] - Deck name removed from settings screen; rename via File menu or deck header instead
+[2.4.0] [user] [fixed] - AI assistant gives more accurate claims about data trends and thresholds
+[2.4.0] [user] [fixed] - AI assistant correctly identifies partial time periods like year-to-date
+[2.4.0] [user] [fixed] - AI assistant no longer fabricates changes to reports or slides it didn't make
+[2.4.0] [user] [fixed] - Report figures referenced in non-standard markdown formats now display correctly
+[2.4.0] [user] [fixed] - Annualized DHIS2 indicators now show a clear explanation of why they cannot be imported
+[2.4.0] [admin] [changed] - DHIS2 import: clearer refusal messages explain why an indicator or data element cannot be imported
+[2.4.0] [admin] [changed] - DHIS2 import: annualized indicators are now explicitly refused with a plain explanation
+[2.4.0] [admin] [changed] - AI usage profile: daily meter now labeled "Today (you)" for clarity
+[2.4.0] [admin] [changed] - AI usage profile: weekly meter now labeled "This week (country quota)"
+[2.4.0] [admin] [added] - AI usage profile: unlimited accounts see a note explaining their use does not count against the country quota
+[2.4.0] [admin] [changed] - Slide deck name is no longer editable from the deck settings screen; use File menu or the deck header instead
+[2.4.0] [admin] [fixed] - Slide deck name no longer risks drifting out of sync between settings and the product registry
+[2.4.0] [admin] [fixed] - Deleting slides no longer causes unnecessary refetch errors on other connected clients
+[2.4.0] [admin] [fixed] - Restoring a slide deck version no longer stamps removed slides, preventing fetch errors
+[2.4.0] [admin] [improved] - AI copilot now required to verify every claim against actual data before writing it
+[2.4.0] [admin] [improved] - AI copilot must label partial periods and never fabricate trends or state changes
+[2.4.0] [admin] [fixed] - Report editor AI tools now correctly identify which figures are visible in the document
+[2.4.0] [admin] [fixed] - Rare issue where two slide decks could show each other's content after a slide ID was reused
 [2.3.2] [user] [fixed] - Slides with too many chart panels no longer overflow the page
 [2.3.2] [user] [fixed] - Chart sorting now respects your chosen indicator value order
 [2.3.2] [admin] [fixed] - Copilot now warns when a new slide overflows the page
