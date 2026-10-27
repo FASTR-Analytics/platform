@@ -15,6 +15,8 @@ import {
   buildReportEmbedToken,
   collapseFastrBlankRuns,
   COPILOT_TOOL_VIEWS,
+  FASTR_PAGE_TEMPLATE_TOOL_DESCRIPTION,
+  fastrPageTemplateLookup,
   type FastrReportTheme,
   fastrThemeIds,
   type FigureBlock,
@@ -425,6 +427,25 @@ export function getClientToolsForReportEditor(
           (imgFile) => resolveLogoUrl(imgFile),
         );
       },
+    }),
+
+    // The page templates' slots and examples, on demand, so the format
+    // guide carries one line per layout rather than every layout's spec.
+    createAITool({
+      viewRegistry: copilotViews,
+      name: "get_page_template",
+      description: FASTR_PAGE_TEMPLATE_TOOL_DESCRIPTION,
+      inputSchema: z.object({
+        layout: z.string().optional().describe(
+          "The layout, e.g. story, summary, findings.",
+        ),
+      }),
+      availableIn: COPILOT_TOOL_VIEWS.get_page_template,
+      kind: "read",
+      inProgressLabel: "Reading the page template...",
+      completionMessage: "Read the page template",
+      handler: (input) =>
+        Promise.resolve(fastrPageTemplateLookup(input.layout)),
     }),
 
     createAITool({

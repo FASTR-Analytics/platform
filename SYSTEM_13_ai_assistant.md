@@ -794,12 +794,15 @@ Nothing in the copilot MINTS a report: creation is the products page's
 `createProduct`, which always mints FASTR Markdown (S12). The copilot's report
 surface is therefore the open report alone, `editing_report`, and it includes
 `get_report_pages`: the draft or the live body laid out as the printed pages, so
-a rewrite can be checked against the page budget BEFORE it is proposed. The
-three text tools (`rewrite_report`, `rewrite_section`, `replace_text`) carry the
-literal-colour gate delta-based (`checkFastrNewLiteralBackgrounds`): only
-literals whose value is not already in the current body trip it, so
-user-sanctioned colours survive rewrites, and `allowLiteralColors` is the
-deliberate escape hatch for when the user asked for exact colours.
+a rewrite can be checked against the page budget BEFORE it is proposed, and
+`get_page_template`: one page template's slots, limits and example (Report
+Forge's `fastrPageTemplateLookup`), so the format guide lists each layout in a
+line and the model looks a layout up before it writes one. The three text tools
+(`rewrite_report`, `rewrite_section`, `replace_text`) carry the literal-colour
+gate delta-based (`checkFastrNewLiteralBackgrounds`): only literals whose value
+is not already in the current body trip it, so user-sanctioned colours survive
+rewrites, and `allowLiteralColors` is the deliberate escape hatch for when the
+user asked for exact colours.
 
 **The text core of these tools is Report Forge's, not the copilot's.** The body
 half of `get_report_editor` and the three write tools run on the package's pure

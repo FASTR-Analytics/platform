@@ -50,7 +50,12 @@ const GROUPS = {
     "move_slides",
   ],
   drafts: ["show_draft_slide_to_user"],
-  report_reads: ["get_report_editor", "get_report_figure", "get_report_pages"],
+  report_reads: [
+    "get_report_editor",
+    "get_report_figure",
+    "get_report_pages",
+    "get_page_template",
+  ],
   report_writes: [
     "rewrite_report",
     "rewrite_section",
