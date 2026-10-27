@@ -15,13 +15,12 @@ import {
 } from "lib";
 import type { FetchOptions } from "../common/base_fetcher.ts";
 import { parseDhis2Indicator } from "./decompose_indicator.ts";
-import { getDataElementsFromDHIS2 } from "./get_indicators_from_dhis2.ts";
+import { getDataElementsByIds } from "./get_indicators_from_dhis2.ts";
 import {
   getDhis2ElementVerdict,
   getDhis2OperandVerdict,
+  isDefaultComboOf,
 } from "./element_eligibility.ts";
-
-const ID_FILTER_CHUNK_SIZE = 100;
 
 export function withElementVerdicts(
   elements: DHIS2DataElement[],
@@ -68,6 +67,7 @@ export async function withDecompositions(
         ...operand,
         verdict: getDhis2OperandVerdict(
           elementsById.get(operand.data_element_id),
+          operand.data_id,
         ),
       }))
       : [];
@@ -86,7 +86,8 @@ export async function withDecompositions(
 // (`isDefaultComboOf`) is the element itself. The fold keeps the bare id for
 // both, so a formula written with the default combo creates no second
 // element beside the bare one, and a formula naming both forms counts the
-// element twice, as DHIS2 does.
+// element twice, as DHIS2 does. It runs before the operands are judged,
+// so the operand verdict's default-combo refusal never reaches a formula.
 export function foldDefaultCombos(
   parse: Dhis2IndicatorParse,
   elementsById: ReadonlyMap<string, Pick<DHIS2DataElement, "categoryCombo">>,
@@ -121,34 +122,4 @@ export function foldDefaultCombos(
       renameIdentifiers(parseIndicatorExpression(parse.expression), mapping),
     ),
   };
-}
-
-// The default category combo has that one combo, so `uid.coc` with it names
-// the same series as bare `uid`.
-export function isDefaultComboOf(
-  element: Pick<DHIS2DataElement, "categoryCombo"> | undefined,
-  coc: string,
-): boolean {
-  const combo = element?.categoryCombo;
-  return combo?.isDefault === true &&
-    (combo.categoryOptionCombos ?? []).some((c) => c.id === coc);
-}
-
-async function getDataElementsByIds(
-  options: FetchOptions,
-  ids: string[],
-): Promise<DHIS2DataElement[]> {
-  const chunks: string[][] = [];
-  for (let i = 0; i < ids.length; i += ID_FILTER_CHUNK_SIZE) {
-    chunks.push(ids.slice(i, i + ID_FILTER_CHUNK_SIZE));
-  }
-  const results = await Promise.all(
-    chunks.map((chunk) =>
-      getDataElementsFromDHIS2(options, {
-        filter: [`id:in:[${chunk.join(",")}]`],
-        paging: false,
-      })
-    ),
-  );
-  return results.flat();
 }

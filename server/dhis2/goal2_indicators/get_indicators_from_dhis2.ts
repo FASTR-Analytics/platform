@@ -208,6 +208,36 @@ export async function getDataElementsFromDHIS2(
   return wires.flatMap((w) => toDataElement(w, dataSetLinks));
 }
 
+// DHIS2 caps a filter's value list, so a lookup by id goes in chunks of
+// 100, concatenated.
+const ID_FILTER_CHUNK_SIZE = 100;
+
+async function fetchByIds<T>(
+  ids: readonly string[],
+  fetch: (filter: string) => Promise<T[]>,
+): Promise<T[]> {
+  const unique = [...new Set(ids)];
+  const chunks: string[][] = [];
+  for (let i = 0; i < unique.length; i += ID_FILTER_CHUNK_SIZE) {
+    chunks.push(unique.slice(i, i + ID_FILTER_CHUNK_SIZE));
+  }
+  const results = await Promise.all(
+    chunks.map((chunk) => fetch(`id:in:[${chunk.join(",")}]`)),
+  );
+  return results.flat();
+}
+
+export function getDataElementsByIds(
+  options: FetchOptions,
+  ids: readonly string[],
+): Promise<DHIS2DataElement[]> {
+  return fetchByIds(
+    ids,
+    (filter) =>
+      getDataElementsFromDHIS2(options, { filter: [filter], paging: false }),
+  );
+}
+
 export function searchDataElementsFromDHIS2(
   options: FetchOptions,
   query: string,
@@ -251,6 +281,17 @@ export async function getIndicatorsFromDHIS2(
     buildParams(INDICATOR_FIELDS, query),
   );
   return (response.indicators ?? []).flatMap(toIndicator);
+}
+
+export function getIndicatorsByIds(
+  options: FetchOptions,
+  ids: readonly string[],
+): Promise<DHIS2Indicator[]> {
+  return fetchByIds(
+    ids,
+    (filter) =>
+      getIndicatorsFromDHIS2(options, { filter: [filter], paging: false }),
+  );
 }
 
 export function searchIndicatorsFromDHIS2(

@@ -365,16 +365,25 @@ export interface DHIS2Indicator {
 // Element eligibility and indicator decomposition
 // ============================================================================
 
-// Why a DHIS2 data element cannot fill a DHIS2 element indicator: it must be
-// an additive monthly count by DHIS2's own metadata. `value` is what the metadata said; undefined
-// when the field was absent (a period type is absent when the element is in
-// no data set). `element_not_found` is for an operand whose element the
-// server no longer has.
+// Why an element id (a data element UID or a `UID.COC` operand) cannot fill
+// a DHIS2 element indicator: the element must be an additive monthly count
+// by DHIS2's own metadata, and an operand's combo must be one the element
+// lists and not its default one, which names the bare element's series.
+// `value` is what the metadata said for the three metadata refusals,
+// undefined when the field was absent (a period type is absent when the
+// element is in no data set); the combo for `combo_not_found`; the bare
+// element id for `default_combo`. `element_not_found` is an id the server
+// has no data element for, whether it never did or no longer does;
+// `formula` is a bare UID the server has as a DHIS2 formula (what DHIS2
+// calls an indicator), which is never imported as values.
 export type Dhis2ElementRefusal =
   | { kind: "aggregation_type"; value: string | undefined }
   | { kind: "value_type"; value: string | undefined }
   | { kind: "period_type"; value: string | undefined }
-  | { kind: "element_not_found" };
+  | { kind: "element_not_found" }
+  | { kind: "formula" }
+  | { kind: "combo_not_found"; value: string }
+  | { kind: "default_combo"; value: string };
 
 export type Dhis2ElementVerdict =
   | { accepted: true }
@@ -479,11 +488,51 @@ export function describeDhis2ElementRefusal(
         };
     case "element_not_found":
       return {
-        en: "its data element no longer exists on the DHIS2 server",
-        fr: "son élément de données n'existe plus sur le serveur DHIS2",
-        pt: "o seu elemento de dados já não existe no servidor DHIS2",
+        en: "its data element is not on the DHIS2 server",
+        fr: "son élément de données n'est pas sur le serveur DHIS2",
+        pt: "o seu elemento de dados não está no servidor DHIS2",
+      };
+    case "formula":
+      return {
+        en:
+          "DHIS2 has it as a DHIS2 formula (what DHIS2 calls an indicator), not as a data element",
+        fr:
+          "DHIS2 l'a comme formule DHIS2 (ce que DHIS2 appelle un indicateur), pas comme élément de données",
+        pt:
+          "o DHIS2 tem-no como fórmula DHIS2 (o que o DHIS2 chama indicador), não como elemento de dados",
+      };
+    case "combo_not_found":
+      return {
+        en: `its data element has no category option combo ${refusal.value}`,
+        fr:
+          `son élément de données n'a pas de combinaison d'options de catégorie ${refusal.value}`,
+        pt:
+          `o seu elemento de dados não tem a combinação de opções de categoria ${refusal.value}`,
+      };
+    case "default_combo":
+      return {
+        en:
+          `its combo is the data element's default one, which names the same series as the bare id ${refusal.value}; use that id`,
+        fr:
+          `sa combinaison est celle par défaut de l'élément de données, qui nomme la même série que l'identifiant seul ${refusal.value} ; utilisez cet identifiant`,
+        pt:
+          `a sua combinação é a predefinida do elemento de dados, que nomeia a mesma série que o ID simples ${refusal.value}; use esse ID`,
       };
   }
+}
+
+// The one message for an element id refused at a save: the DB layer's typed
+// ids and the DHIS2 select form's elements and operands share it.
+export function describeDhis2IdRefusal(
+  dataId: string,
+  refusal: Dhis2ElementRefusal,
+): TranslatableString {
+  const text = describeDhis2ElementRefusal(refusal);
+  return {
+    en: `DHIS2 id "${dataId}" cannot be imported: ${text.en}`,
+    fr: `L'identifiant DHIS2 "${dataId}" ne peut pas être importé : ${text.fr}`,
+    pt: `O ID DHIS2 "${dataId}" não pode ser importado: ${text.pt}`,
+  };
 }
 
 export function describeDhis2ParseRefusal(

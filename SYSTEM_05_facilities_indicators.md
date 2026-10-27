@@ -62,6 +62,7 @@ globs:
   - server/tests/hfa_workbook_text_columns_test.ts
   - server/tests/indicator_analysed_set_test.ts
   - server/tests/indicator_data_key_test.ts
+  - server/tests/indicator_dhis2_id_check_test.ts
   - server/tests/indicator_expression_test.ts
   - server/tests/indicator_id_test.ts
   - server/tests/indicator_migration_test.ts
@@ -383,38 +384,39 @@ indicator is created, `u_` plus a UUID (`generateDataKey`,
 file value: the CSV wizard maps each value the file's indicator column says onto
 an indicator and staging writes the rows under that indicator's key, S6),
 `dhis2_element` (a series the DHIS2 import fetches; `data_id` is the data
-element UID or `UID.COC` operand, DHIS2-shaped by CHECK; `dhis2_label` is what
-DHIS2 calls the element or operand, the route's own reading of live metadata
-when the picker creates the indicator (`dhis2ElementName`, one rule for the
-picker's rows and the stored label), never posted by a client and never edited:
-`updateIndicator` keeps it while the indicator stays a DHIS2 element under the
-same data id and clears it otherwise; NULL on every other type by CHECK
-(`indicators_dhis2_label_check`), on an element created by typing a UID, and on
-the four instances that ran 086 before the column existed; the display label is
-`indicator_common_label` throughout), `sum` (its members in
-`indicator_sum_members`, summed from the rows under their data ids at extract
-into one facility × month series that m001 and m002 adjust like any count; no
-sum inside a sum), and `calculated` (`expression`, a formula over indicators of
-any type and population terms, evaluated by m012 after adjustment and
-aggregation). The four words are the code names' labels (`indicatorTypeWord`);
-on screen a DHIS2 element's data id is its "DHIS2 id" (`dhis2IdLabel`), an
-Uploaded indicator's key is never shown (the HMIS Data page's Ledger table, its
-detail header, the manager's Defined-by column and the DHIS2 wizard's picker
-show the DHIS2 id for an element and nothing for an Uploaded indicator), and
-"data id" appears only in server error strings, which the client renders
-verbatim. Two generated columns nothing may write hold the two facts read off
-the type: `has_rows` (Uploaded or DHIS2 element) and `is_count` (those plus
-Sum), the same predicates as lib's `hasRows` and `isCount`. `data_id` is
-`UNIQUE` (`indicators_data_id_key`) and required on every Uploaded and DHIS2
-element row (`indicators_fields_check`); the junction's member FK reaches
-`(indicator_common_id, has_rows)`, so a sum can name only an indicator with rows
-and retyping a member out of those is refused while a sum names it; the member
-FK is NO ACTION, checked per row at the end of the statement, so
-`deleteIndicators` removes the sums' junction rows before the indicators. The
-indicator id is renamable and the junction follows it (`ON UPDATE CASCADE`); the
-data id is fixed once rows exist under it (`dataset_hmis_data_id_fkey`,
-`RESTRICT DEFERRABLE`, no update action; the ledger's
-`dataset_hmis_import_ledger_data_id_fkey` cascades). Every row has
+element UID or `UID.COC` operand, DHIS2-shaped by CHECK and, when typed rather
+than picked, confirmed with DHIS2 before the write under the picker's own
+verdict, below; `dhis2_label` is what DHIS2 calls the element or operand, the
+route's own reading of live metadata when the picker creates the indicator
+(`dhis2ElementName`, one rule for the picker's rows and the stored label), never
+posted by a client and never edited: `updateIndicator` keeps it while the
+indicator stays a DHIS2 element under the same data id and clears it otherwise;
+NULL on every other type by CHECK (`indicators_dhis2_label_check`), on an
+element created by typing a UID, and on the four instances that ran 086 before
+the column existed; the display label is `indicator_common_label` throughout),
+`sum` (its members in `indicator_sum_members`, summed from the rows under their
+data ids at extract into one facility × month series that m001 and m002 adjust
+like any count; no sum inside a sum), and `calculated` (`expression`, a formula
+over indicators of any type and population terms, evaluated by m012 after
+adjustment and aggregation). The four words are the code names' labels
+(`indicatorTypeWord`); on screen a DHIS2 element's data id is its "DHIS2 id"
+(`dhis2IdLabel`), an Uploaded indicator's key is never shown (the HMIS Data
+page's Ledger table, its detail header, the manager's Defined-by column and the
+DHIS2 wizard's picker show the DHIS2 id for an element and nothing for an
+Uploaded indicator), and "data id" appears only in server error strings, which
+the client renders verbatim. Two generated columns nothing may write hold the
+two facts read off the type: `has_rows` (Uploaded or DHIS2 element) and
+`is_count` (those plus Sum), the same predicates as lib's `hasRows` and
+`isCount`. `data_id` is `UNIQUE` (`indicators_data_id_key`) and required on
+every Uploaded and DHIS2 element row (`indicators_fields_check`); the junction's
+member FK reaches `(indicator_common_id, has_rows)`, so a sum can name only an
+indicator with rows and retyping a member out of those is refused while a sum
+names it; the member FK is NO ACTION, checked per row at the end of the
+statement, so `deleteIndicators` removes the sums' junction rows before the
+indicators. The indicator id is renamable and the junction follows it
+(`ON UPDATE CASCADE`); the data id is fixed once rows exist under it
+(`dataset_hmis_data_id_fkey`, `RESTRICT DEFERRABLE`, no update action; the
+ledger's `dataset_hmis_import_ledger_data_id_fkey` cascades). Every row has
 `include_in_analysis`: on means the extract carries it and every package
 analyses it; off means dictionary only, its data still imported and stored,
 still usable as a member or in a formula. The analysed set is stated once, in
@@ -454,17 +456,43 @@ rows and no sum names it, so a switch away from them needs none). A DHIS2 id may
 change through `updateIndicator` while no rows exist under it; with rows it is
 fixed, and the error says to rename the indicator instead. The editor locks the
 input while the ledger reports rows under the data id, and while the ledger has
-not loaded. Deleting an indicator refuses with a listing when it has data (a sum
-is data, so the dependency on its members is strict), when a surviving sum names
-it, or when another indicator's expression still needs the id; the expression
-guard is exact rather than a direct-reference scan: it re-resolves every
-surviving definition against the post-delete dictionary, so an id used only deep
-inside a chain blocks the delete too. Creates are all-or-nothing (one
-transaction; the failing item is named in the error). Pinned by
-`server/tests/indicator_schema_test.ts` (the constraints, eighteen cases),
-`server/tests/indicator_rename_test.ts` (the rename, the data id rule, the type
-switches) and `server/tests/indicator_data_key_test.ts` (the key: required,
-generated, unique, never accepted from a client, kept across retypes).
+not loaded; unlocked, its caption says DHIS2 is asked on save. A **typed id**,
+every DHIS2 element's data id in a create and, in an update, one that differs
+from the stored data id or lands on an indicator that was not a DHIS2 element,
+is confirmed with DHIS2 before the write: `createIndicators` and
+`updateIndicator` take a required `Dhis2ElementIdCheck`, a function from ids to
+verdicts that the route builds over the stored connection
+(`readDhis2ElementIds`, S7, one attempt, 15 s), and ask it once per save, only
+when there is at least one typed id, after every local refusal and before the
+transaction. Every typed id must pass the picker's verdict (S7's
+`getDhis2OperandVerdict`: a SUM count in a monthly data set, an operand under a
+listed, non-default combo), so a hand-typed id can only ever be one the picker
+would have created; a refused id, a DHIS2 formula (what DHIS2 calls an
+indicator) and an id DHIS2 has nothing for are refused with the one message
+`DHIS2 id "<id>" cannot be imported:` and the refusal's text
+(`describeDhis2IdRefusal`), the first refused id in a batch naming its
+indicator. No answer is a refusal: a throw (no stored connection, unreachable,
+timeout, bad credentials) and a missing verdict refuse the save with a message
+that says DHIS2 could not confirm the id and why, caught in the DB function so
+the database wrapper does not report a DHIS2 outage as a database error. An id
+that is not typed never asks, so DHIS2 being unreachable blocks only the saving
+of a new element id, and an instance with no stored connection cannot type one,
+the gate Add from DHIS2 already has. Nothing is stored and nothing is cached; an
+element changed or deleted in DHIS2 after the save is the import's to report
+(S6). The DB layer owns the rule and the wording and is pinned on the throwaway
+database with a recording stub
+(`server/tests/indicator_dhis2_id_check_test.ts`). Deleting an indicator refuses
+with a listing when it has data (a sum is data, so the dependency on its members
+is strict), when a surviving sum names it, or when another indicator's
+expression still needs the id; the expression guard is exact rather than a
+direct-reference scan: it re-resolves every surviving definition against the
+post-delete dictionary, so an id used only deep inside a chain blocks the delete
+too. Creates are all-or-nothing (one transaction; the failing item is named in
+the error). Pinned by `server/tests/indicator_schema_test.ts` (the constraints,
+eighteen cases), `server/tests/indicator_rename_test.ts` (the rename, the data
+id rule, the type switches) and `server/tests/indicator_data_key_test.ts` (the
+key: required, generated, unique, never accepted from a client, kept across
+retypes), each passing a check that accepts every id.
 
 An import never creates an indicator: the dictionary is authored in the manager,
 the Add indicator form for one and the DHIS2 select form (heading "Add
@@ -484,12 +512,14 @@ rewrites every identifier to the indicator that element lands in
 the list. Everything the naming step creates has its checkbox on. Save from the
 DHIS2 select form posts to `/indicators-dhis2/create` (each DHIS2 indicator by
 its `uid`), which re-reads every element and indicator from DHIS2 and judges
-them itself (S7's verdict and decomposition, worded by
-`describeDhis2ElementRefusal` / `describeDhis2ParseRefusal`) before
-`createIndicatorsFromDhis2` calls `applyIndicatorNaming`, so a refused element
-or indicator creates nothing. Pinned by `server/tests/indicator_naming_test.ts`
-on a throwaway database built from `_main_database.sql`. A new database has an
-empty dictionary; the **special indicators**, `SPECIAL_INDICATORS` in
+them itself (S7's `readDhis2ElementIds` for the elements, with its verdict per
+id, and the decomposition for the indicators, worded by `describeDhis2IdRefusal`
+/ `describeDhis2ParseRefusal`) before `createIndicatorsFromDhis2` calls
+`applyIndicatorNaming`, so a refused element or indicator creates nothing. The
+route's verdicts are its own, not the typed-id check's, which the picker's path
+never runs. Pinned by `server/tests/indicator_naming_test.ts` on a throwaway
+database built from `_main_database.sql`. A new database has an empty
+dictionary; the **special indicators**, `SPECIAL_INDICATORS` in
 `lib/special_indicators.ts`, stay a reserved list: the hand-kept count ids the
 registry module scripts read by literal id, which the manager's reference panel
 names, `getSpecialIndicatorTypeIssue` keeps a count, and `analysedIndicatorIds`
@@ -508,27 +538,29 @@ in stored units), a download format only: nothing reads it back.
 
 The DHIS2 names are refreshed on demand, never on a schedule:
 `refreshDhis2Labels` (`POST /indicators-dhis2/refresh-labels`) re-reads every
-DHIS2 element by UID from live metadata with the same chunked fetch and the same
-`dhis2ElementName` rule as the create route, and `setDhis2Labels` writes the
-names that differ (DHIS2 elements only, by indicator id, `updated_at` moving on
-those rows so the dictionary stamp changes), reporting the refreshed and
-unchanged counts and two lists of indicator ids among the elements the
-data-element read did not find: `formulas`, whose UID DHIS2 has as a DHIS2
-formula (what DHIS2 calls an indicator; one `getExistingMetadataIds` call over
-`indicators`), and `notFound`, which DHIS2 has nothing for. Both keep their
-stored names, and nothing records which list an element fell in: the
-classification stays live, as the import dispatcher's does (S6). Display labels
-are never touched. The client runs it from `RefreshDhis2LabelsModal`: the
-explanation and the count of elements to read, the Refresh button waiting on the
-one request with its spinner, then the counts in its place and a warning callout
-for each list, the formulas above the not-found, each id shown as
-`indicator id · label (UID)` (`dataIdWithIndicator`, through one map by
-indicator id over the list the manager passes in) and the formulas with the
-DHIS2 id repair note (S6's wording). The manager's toolbar keeps the daily
-actions as buttons (Sort, Add from DHIS2, Create new) and puts the occasional
-ones, the dictionary download and Refresh DHIS2 names, in an overflow menu
-(panther's `ActionMenuButton`, `otherActionItems`), global admins only, the
-refresh gated on a stored DHIS2 connection like Add from DHIS2.
+DHIS2 element by data id through `readDhis2ElementIds` (S7, the read the
+typed-id check and the create route share) with the same `dhis2ElementName` rule
+as the create route, and `setDhis2Labels` writes the names that differ (DHIS2
+elements only, by indicator id, `updated_at` moving on those rows so the
+dictionary stamp changes; every element the server has is named, whatever its
+verdict, since the refresh changes labels and never ids), reporting the
+refreshed and unchanged counts and two lists of indicator ids among the elements
+the read did not find: `formulas`, whose verdict is the read's `formula` refusal
+(a bare UID DHIS2 has as a DHIS2 formula, what DHIS2 calls an indicator), and
+`notFound`, which DHIS2 has nothing for. Both keep their stored names, and
+nothing records which list an element fell in: the classification stays live, as
+the import dispatcher's does (S6). Display labels are never touched. The client
+runs it from `RefreshDhis2LabelsModal`: the explanation and the count of
+elements to read, the Refresh button waiting on the one request with its
+spinner, then the counts in its place and a warning callout for each list, the
+formulas above the not-found, each id shown as `indicator id · label (UID)`
+(`dataIdWithIndicator`, through one map by indicator id over the list the
+manager passes in) and the formulas with the DHIS2 id repair note (S6's
+wording). The manager's toolbar keeps the daily actions as buttons (Sort, Add
+from DHIS2, Create new) and puts the occasional ones, the dictionary download
+and Refresh DHIS2 names, in an overflow menu (panther's `ActionMenuButton`,
+`otherActionItems`), global admins only, the refresh gated on a stored DHIS2
+connection like Add from DHIS2.
 
 The DHIS2 id repair (`server/dhis2_id_fix/`, run by the root script
 `fix_dhis2_ids.ts` inside an instance's app container, which holds the database

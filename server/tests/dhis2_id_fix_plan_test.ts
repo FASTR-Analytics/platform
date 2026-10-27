@@ -522,7 +522,7 @@ Deno.test("a refused formula and a refused operand: to_uploaded with the reason"
   );
   assertEquals(
     actionOf(plan.actions, "orphan", "to_uploaded").reason,
-    `its operand ${B} is refused: its data element no longer exists on the DHIS2 server`,
+    `its operand ${B} is refused: its data element is not on the DHIS2 server`,
   );
   assertEquals(plan.createdElements, []);
 });

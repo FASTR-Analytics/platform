@@ -29,10 +29,16 @@ import { indicatorRouteRegistry } from "../../lib/api-routes/instance/indicators
 import { getPgConnection } from "../db/postgres/connection_manager.ts";
 import {
   createIndicators,
+  type Dhis2ElementIdCheck,
   getHmisIndicators,
   type NewIndicator,
   updateIndicator,
 } from "../db/instance/indicators.ts";
+
+// Every typed DHIS2 id is accepted: the check itself is pinned by
+// indicator_dhis2_id_check_test.ts.
+const ACCEPT_ALL: Dhis2ElementIdCheck = (ids) =>
+  Promise.resolve(new Map(ids.map((id) => [id, { accepted: true }])));
 import { narrowIndicatorDefinition } from "../routes/instance/indicators.ts";
 
 const SCHEMA_PATH =
@@ -137,7 +143,7 @@ Deno.test("a create generates each Uploaded indicator's key; two creates never s
   const res = await createIndicators(db, [
     indicator("opd", { type: "uploaded" }),
     indicator("ipd", { type: "uploaded" }),
-  ]);
+  ], ACCEPT_ALL);
   assert(res.success, res.success ? "" : res.err);
   const d = await dictionary();
   const opd = keyOf(d.get("opd")!);
@@ -176,13 +182,14 @@ Deno.test("no path accepts a client-supplied Uploaded key: the route schema stri
   await reset();
   const created = await createIndicators(db, [
     indicator("opd", { type: "uploaded" }),
-  ]);
+  ], ACCEPT_ALL);
   assert(created.success, created.success ? "" : created.err);
   const before = keyOf((await dictionary()).get("opd")!);
   const updated = await updateIndicator(
     db,
     "opd",
     indicator("opd_visits", { type: "uploaded" }, "OPD visits"),
+    ACCEPT_ALL,
   );
   assert(updated.success, updated.success ? "" : updated.err);
   const after = (await dictionary()).get("opd_visits")!;
@@ -195,13 +202,14 @@ Deno.test("retyping keeps the key: a DHIS2 element made Uploaded keeps its UID, 
   const created = await createIndicators(db, [
     indicator("anc1", { type: "dhis2_element", data_id: ELEMENT }),
     indicator("opd", { type: "uploaded" }),
-  ]);
+  ], ACCEPT_ALL);
   assert(created.success, created.success ? "" : created.err);
   await seedRows(ELEMENT);
   const toUploaded = await updateIndicator(
     db,
     "anc1",
     indicator("anc1", { type: "uploaded" }),
+    ACCEPT_ALL,
   );
   assert(toUploaded.success, toUploaded.success ? "" : toUploaded.err);
   assertEquals((await dictionary()).get("anc1")!.definition, {
@@ -212,6 +220,7 @@ Deno.test("retyping keeps the key: a DHIS2 element made Uploaded keeps its UID, 
     db,
     "anc1",
     indicator("anc1", { type: "dhis2_element", data_id: ELEMENT }),
+    ACCEPT_ALL,
   );
   assert(backToElement.success, backToElement.success ? "" : backToElement.err);
 
@@ -221,6 +230,7 @@ Deno.test("retyping keeps the key: a DHIS2 element made Uploaded keeps its UID, 
     db,
     "opd",
     indicator("opd", { type: "dhis2_element", data_id: "KlMnOpQrSt2" }),
+    ACCEPT_ALL,
   );
   assert(!withRows.success);
   assertStringIncludes(
@@ -232,6 +242,7 @@ Deno.test("retyping keeps the key: a DHIS2 element made Uploaded keeps its UID, 
     db,
     "opd",
     indicator("opd", { type: "dhis2_element", data_id: "KlMnOpQrSt2" }),
+    ACCEPT_ALL,
   );
   assert(withoutRows.success, withoutRows.success ? "" : withoutRows.err);
   assertEquals((await dictionary()).get("opd")!.definition, {
@@ -247,18 +258,20 @@ Deno.test("a retype from Sum or Calculated to Uploaded generates a key", async (
     indicator("anc1", { type: "dhis2_element", data_id: ELEMENT }),
     indicator("total", { type: "sum", members: ["anc1"] }),
     indicator("share", { type: "calculated", expression: "anc1 / 2" }),
-  ]);
+  ], ACCEPT_ALL);
   assert(created.success, created.success ? "" : created.err);
   const fromSum = await updateIndicator(
     db,
     "total",
     indicator("total", { type: "uploaded" }),
+    ACCEPT_ALL,
   );
   assert(fromSum.success, fromSum.success ? "" : fromSum.err);
   const fromCalculated = await updateIndicator(
     db,
     "share",
     indicator("share", { type: "uploaded" }),
+    ACCEPT_ALL,
   );
   assert(
     fromCalculated.success,

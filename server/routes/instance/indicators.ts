@@ -1,15 +1,19 @@
 import { Hono } from "hono";
+import type { Sql } from "postgres";
 import { type HmisIndicatorDefinitionInput, isHmisIndicatorType } from "lib";
 import {
   createIndicators,
   deleteIndicators,
+  type Dhis2ElementIdCheck,
   getInstanceIndicatorDetails,
   getInstanceIndicatorsSummary,
+  getStoredDhis2CredentialsDecrypted,
   type NewIndicator,
   reorderHmisIndicators,
   setIndicatorsIncludeInAnalysis,
   updateIndicator,
 } from "../../db/mod.ts";
+import { readDhis2ElementIds } from "../../dhis2/mod.ts";
 import { log } from "../../middleware/logging.ts";
 import { requireGlobalPermission } from "../../middleware/mod.ts";
 import { notifyInstanceIndicatorsUpdated } from "../../task_management/notify_instance_updated.ts";
@@ -60,6 +64,20 @@ function toNewIndicator(raw: Record<string, unknown>): NewIndicator {
   };
 }
 
+// The DB layer asks this only for a typed DHIS2 element id, so the stored
+// connection is resolved on demand: an instance without one can still save
+// everything else. One attempt and a 15 s budget: the editor waits on it.
+function dhis2ElementIdCheck(mainDb: Sql): Dhis2ElementIdCheck {
+  return async (ids) => {
+    const reading = await readDhis2ElementIds({
+      dhis2Credentials: await getStoredDhis2CredentialsDecrypted(mainDb),
+      retryOptions: { maxAttempts: 1 },
+      timeout: 15000,
+    }, ids);
+    return reading.verdicts;
+  };
+}
+
 // GET /indicators - The dictionary: every indicator
 defineRoute(
   routesIndicators,
@@ -86,7 +104,11 @@ defineRoute(
       return c.json({ success: false, err: (err as Error).message });
     }
 
-    const res = await createIndicators(c.var.mainDb, indicators);
+    const res = await createIndicators(
+      c.var.mainDb,
+      indicators,
+      dhis2ElementIdCheck(c.var.mainDb),
+    );
     if (res.success) {
       notifyInstanceIndicatorsUpdated(
         await getInstanceIndicatorsSummary(c.var.mainDb),
@@ -114,6 +136,7 @@ defineRoute(
       c.var.mainDb,
       body.old_indicator_common_id,
       indicator,
+      dhis2ElementIdCheck(c.var.mainDb),
     );
     if (res.success) {
       notifyInstanceIndicatorsUpdated(

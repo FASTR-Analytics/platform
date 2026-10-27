@@ -213,23 +213,31 @@ This section is the authority. Every HMIS import, DHIS2 or CSV, is a row in
   naming the DHIS2 administrator's remedy, data kept. Every other id gets no
   fetch and a permanent ledger error: a DHIS2 formula (what DHIS2 calls an
   indicator; its existing data stays), or a data id that matches no data element
-  or operand at all. Every message that names a formula id calls it a "DHIS2
-  formula" and says once that DHIS2 calls it an indicator; the internal names
-  keep DHIS2's word: `run_stats` rows store `dhis2IndicatorIds`, and the
-  dispatcher's reason `dhis2_indicator` matches it. Both kinds of id carry one
-  repair note, whose authoritative wording is: "Ask the FASTR team to run the
-  DHIS2 id repair. It keeps the data already imported." The repair is S5's
-  `fix_dhis2_ids.ts`, run by the team inside the instance's container, which
-  keeps each indicator's id; nothing in the app repairs one, since an indicator
-  with data can be neither deleted nor given a new DHIS2 id (S5). The client's
-  `dhis2IdRepairNote` (`hmis/_shared/indicator_display.ts`) carries the note
-  verbatim and is shown above both lists in the run detail, under both lists in
-  the import wizard's Review step, and under the formula list in the Refresh
-  DHIS2 names modal (S5); every refused pair's ledger message ends with the same
-  two sentences. The run detail's banners list
-  `classification.dhis2IndicatorIds` and `classification.unknownIds`, each with
-  the note, and `classification.noMonthlyDataSetIds` with its own remedy, each
-  id as `indicator id · label (UID)` through the dictionary keyed by data id
+  or operand at all. A data id can reach these buckets only from the stored
+  dictionary or from a change on the DHIS2 side: a typed DHIS2 element id is
+  refused at save time unless DHIS2 confirms it as an element or operand the
+  picker would accept (S5, `Dhis2ElementIdCheck`), so a formula id, an unknown
+  id, a non-monthly element and an unlisted combo are never saved by hand; the
+  run's classification still decides, because an element can be retyped,
+  re-aggregated or moved out of its monthly data set after the save, and the
+  DHIS2 id repair fixes the ids stored before the check existed. Every message
+  that names a formula id calls it a "DHIS2 formula" and says once that DHIS2
+  calls it an indicator; the internal names keep DHIS2's word: `run_stats` rows
+  store `dhis2IndicatorIds`, and the dispatcher's reason `dhis2_indicator`
+  matches it. Both kinds of id carry one repair note, whose authoritative
+  wording is: "Ask the FASTR team to run the DHIS2 id repair. It keeps the data
+  already imported." The repair is S5's `fix_dhis2_ids.ts`, run by the team
+  inside the instance's container, which keeps each indicator's id; nothing in
+  the app repairs one, since an indicator with data can be neither deleted nor
+  given a new DHIS2 id (S5). The client's `dhis2IdRepairNote`
+  (`hmis/_shared/indicator_display.ts`) carries the note verbatim and is shown
+  above both lists in the run detail, under both lists in the import wizard's
+  Review step, and under the formula list in the Refresh DHIS2 names modal (S5);
+  every refused pair's ledger message ends with the same two sentences. The run
+  detail's banners list `classification.dhis2IndicatorIds` and
+  `classification.unknownIds`, each with the note, and
+  `classification.noMonthlyDataSetIds` with its own remedy, each id as
+  `indicator id · label (UID)` through the dictionary keyed by data id
   (`dataIdWithIndicator`), bare where no indicator carries it; a line above them
   states the DHIS2 version and the selector the run used. The pull-route
   contract is pinned by `server/tests/dhis2_pull_route_test.ts`. A response

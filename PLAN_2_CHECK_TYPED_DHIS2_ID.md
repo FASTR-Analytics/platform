@@ -10,9 +10,9 @@ plan makes the create and update paths confirm a typed or changed id with DHIS2
 before the write, under the picker's own verdict, and closes the operand combo
 hole in the picker's route.
 
-**Next step: Do 1.** Each session sets this line in its final commit. Its values
-are `Do N`, `Review N` and `Fix N`. Last step: 1. The session that passes step
-1's review deletes this file.
+**Next step: Review 1.** Each session sets this line in its final commit. Its
+values are `Do N`, `Review N` and `Fix N`. Last step: 1. The session that passes
+step 1's review deletes this file.
 
 **Start when** `test ! -e PLAN_1_FIX_DHIS2_DATASET_LINKS.md` prints nothing on
 `main`. The check fetches elements with the picker's field list, which on
@@ -176,7 +176,12 @@ cache shape change. Rollback is reverting the step's commit.
 
 ## 8. Build log
 
-| When       | Step | Row                                                                                                                                                                                                                                                                                                     |
-| ---------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2026-10-21 | 0    | Plan written.                                                                                                                                                                                                                                                                                           |
-| 2026-10-27 | 0    | Rewritten after three independent reviews: the run classifier replaced by the refresh-labels fetch pattern, one verdict vocabulary in lib, the combo rules folded into the operand verdict, the default-combo refusal added, the start gate on PLAN_1, the references to the deleted repair plan fixed. |
+| When       | Step | Row                                                                                                                                                                                                                                                                                                                                                                                                |
+| ---------- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-10-21 | 0    | Plan written.                                                                                                                                                                                                                                                                                                                                                                                      |
+| 2026-10-27 | 0    | Rewritten after three independent reviews: the run classifier replaced by the refresh-labels fetch pattern, one verdict vocabulary in lib, the combo rules folded into the operand verdict, the default-combo refusal added, the start gate on PLAN_1, the references to the deleted repair plan fixed.                                                                                            |
+| 2026-10-27 | 1    | Ruling 2 names two new refusal kinds; ruling 3's default-combo refusal names the bare UID, which neither kind can carry, so a third kind, `default_combo` with the bare id as its value, is added beside `formula` and `combo_not_found`.                                                                                                                                                          |
+| 2026-10-27 | 1    | Two files outside the Surface changed, each by one line the step forced: `server/dhis2_id_fix/plan.ts` imports `isDefaultComboOf` from `element_eligibility.ts`, where it moved so the operand verdict can use it without a cycle with `attach_verdicts.ts`; `server/tests/dhis2_id_fix_plan_test.ts` asserts the widened `element_not_found` wording.                                             |
+| 2026-10-27 | 1    | The route's chunked by-id fetch moved into goal 2 as `getDataElementsByIds` and `getIndicatorsByIds`, which `attach_verdicts.ts` and the reader share; the route keeps no copy, so S7's open item on the three copies now names the gatherer's one.                                                                                                                                                |
+| 2026-10-27 | 1    | `readDhis2ElementIds` was run against the public DHIS2 2.40.12 play server with one id of each kind: a SUM monthly element accepted, its operand under a listed combo accepted, an unlisted combo `combo_not_found`, a DHIS2 formula `formula`, an unknown UID and an operand of it `element_not_found`, a default-combo operand `default_combo` naming the bare id; 1.6 s for the three requests. |
+| 2026-10-27 | 1    | Step 1 built.                                                                                                                                                                                                                                                                                                                                                                                      |
