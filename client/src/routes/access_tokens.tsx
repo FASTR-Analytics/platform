@@ -8,7 +8,7 @@ import {
   Table,
   type TableColumn,
 } from "panther";
-import { createSignal, Show } from "solid-js";
+import { batch, createSignal, Show } from "solid-js";
 import type { PersonalAccessTokenSummary } from "lib";
 import { LoggedInWrapper } from "~/components/instance/mod.ts";
 import { serverActions } from "~/server_actions";
@@ -51,9 +51,6 @@ function AccessTokensPanel(p: { email: string }) {
   const mint = createFormAction(
     async () => {
       const trimmed = label().trim();
-      if (trimmed === "") {
-        return { success: false as const, err: "A label is required" };
-      }
       const res = await serverActions.createPersonalAccessToken({
         label: trimmed,
       });
@@ -65,9 +62,11 @@ function AccessTokensPanel(p: { email: string }) {
         : res;
     },
     async (fresh: { label: string; token: string }) => {
-      setFreshToken(fresh);
-      setCopied(false);
-      setLabel("");
+      batch(() => {
+        setFreshToken(fresh);
+        setCopied(false);
+        setLabel("");
+      });
       await tokensQuery.silentFetch();
     },
   );

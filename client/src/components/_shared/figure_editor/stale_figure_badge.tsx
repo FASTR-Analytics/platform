@@ -17,7 +17,7 @@ import {
   openAlert,
   StateHolderFormError,
 } from "panther";
-import { createSignal, Show } from "solid-js";
+import { Show } from "solid-js";
 import { figureScopeLabel, packageLabel } from "../mod.ts";
 import { getAdminAreaLabelForLevel } from "~/state/instance/_util_disaggregation_label";
 import {

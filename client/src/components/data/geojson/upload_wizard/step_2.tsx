@@ -6,7 +6,7 @@ import {
   Select,
   StateHolderFormError,
 } from "panther";
-import { createMemo, Show } from "solid-js";
+import { batch, createMemo, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { getAdminAreaLabel } from "~/state/instance/_util_disaggregation_label";
 import { structureSchemaForFamily } from "~/state/instance/t1_store";
@@ -59,10 +59,12 @@ export function Step2(p: Props) {
         level: state.adminAreaLevel(),
       }),
     (options: Array<{ value: string; label: string }>) => {
-      state.setAdminAreaOptions(options);
-      state.setAdminAreaNames(options.map((o) => o.value));
-      buildAutoMapping();
-      state.setStep(3);
+      batch(() => {
+        state.setAdminAreaOptions(options);
+        state.setAdminAreaNames(options.map((o) => o.value));
+        buildAutoMapping();
+        state.setStep(3);
+      });
     },
   );
 
