@@ -1,3 +1,12 @@
+[TBD] [user] [added] - DHIS2 now validates typed data element IDs on save
+[TBD] [user] [changed] - Clearer error messages when a DHIS2 ID cannot be imported
+[TBD] [user] [changed] - Tooltip for DHIS2 ID field explains the new save-time validation
+[TBD] [admin] [added] - DHIS2 element IDs are now validated against the DHIS2 server on save
+[TBD] [admin] [added] - Operands using an element's default combo are now rejected with guidance to use the bare ID
+[TBD] [admin] [added] - Operands referencing a combo not listed by the element are now rejected
+[TBD] [admin] [added] - DHIS2 formulas (what DHIS2 calls indicators) are now detected and rejected as element IDs
+[TBD] [admin] [changed] - Clearer error messages when a DHIS2 element ID cannot be imported
+[TBD] [admin] [changed] - Tooltip for the DHIS2 ID field now explains that the ID is verified on save
 [TBD] [user] [fixed] - Fixed errors when loading data elements with broken dataset links
 [TBD] [admin] [fixed] - Resolved errors when DHIS2 has broken data set element records
 [TBD] [admin] [changed] - Data element data set information is now read from the data set side for improved reliability
