@@ -13,8 +13,9 @@
 //
 // Slide-level edits are recorded against their DECK (whole-deck versions, like
 // Google Slides). Report `config` (display prefs) and deck `plan` (AI text)
-// are deliberately NOT part of version content. A deck or report IS its
-// product, so every document id here is a product id.
+// are deliberately NOT part of version content. A visualization's version is
+// its label and its bundle. Every document IS its product, so every document
+// id here is a product id.
 //
 // The version data + hash builders are exported for the restore routes, which
 // write safety/restored versions directly (they bypass the tracker so a
@@ -25,6 +26,7 @@ import {
   type AuthorRun,
   canonicalJson,
   type FigureBlock,
+  type FigureBundle,
   type GlobalUser,
   H_USERS,
   type ImageBlock,
@@ -45,17 +47,24 @@ import { drainDeckLedger, restoreDeckLedger } from "./deck_session_ledger.ts";
 import { isRoomOpen } from "./doc_rooms.ts";
 import { flushReportRoom } from "./report_rooms.ts";
 import { flushSlideRoom } from "./slide_rooms.ts";
-import { REPORT_NOT_FOUND } from "../db/products/_product_row.ts";
-import { SLIDE_DECK_NOT_FOUND } from "../db/products/_product_row.ts";
+import { flushVisualizationRoom } from "./visualization_rooms.ts";
+import {
+  REPORT_NOT_FOUND,
+  SLIDE_DECK_NOT_FOUND,
+  VISUALIZATION_NOT_FOUND,
+} from "../db/products/_product_row.ts";
 import { stripPersistedBodyAuthorTombstones } from "../db/products/reports.ts";
 import { getSlideDeckDetail } from "../db/products/slide_decks.ts";
 import {
   insertReportVersion,
   insertSlideDeckVersion,
+  insertVisualizationVersion,
   latestReportVersionHash,
   latestSlideDeckVersionHash,
+  latestVisualizationVersionHash,
   loadReportVersionData as readReportVersionData,
   loadSlideDeckVersionData as readSlideDeckVersionData,
+  loadVisualizationVersionData as readVisualizationVersionData,
 } from "../db/products/versions.ts";
 import {
   createVersionTracker,
@@ -91,6 +100,21 @@ export type SlideDeckVersionData = {
   slides: SlideDeckVersionSlide[];
 };
 
+export type VisualizationVersionData = {
+  label: string;
+  bundle: FigureBundle;
+};
+
+/** The dedup hash leaves out the bundle's `snapshotAt`: every data refetch
+ *  stamps a new one, and a refetch that brings the same rows changes nothing
+ *  a version should show. */
+export function visualizationContentHash(
+  data: VisualizationVersionData,
+): string {
+  const { snapshotAt: _snapshotAt, ...bundle } = data.bundle;
+  return hashVersionData({ label: data.label, bundle });
+}
+
 /** Content hash for dedup: canonicalJson kills key-order nondeterminism across
  *  the different write paths that can produce the same content. */
 export function hashVersionData(data: unknown): string {
@@ -106,6 +130,7 @@ export function hashVersionData(data: unknown): string {
 const NOT_FOUND_ERRORS = new Set([
   REPORT_NOT_FOUND,
   SLIDE_DECK_NOT_FOUND,
+  VISUALIZATION_NOT_FOUND,
 ]);
 
 function throwUnlessNotFound(err: string): null {
@@ -173,10 +198,35 @@ export async function loadSlideDeckVersionData(
   return res.data;
 }
 
+/** The visualization's current label and bundle, its live room flushed first
+ *  (see loadReportVersionData: a failed flush throws). */
+export async function loadVisualizationVersionData(
+  productId: string,
+): Promise<VisualizationVersionData | null> {
+  if (!await flushVisualizationRoom(productId, productId)) {
+    throw new Error(
+      `Visualization ${productId} has a live room whose checkpoint is failing — deferring version capture`,
+    );
+  }
+  const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
+  const res = await readVisualizationVersionData(mainDb, productId);
+  if (!res.success) {
+    return throwUnlessNotFound(res.err);
+  }
+  return res.data;
+}
+
 async function loadPayload(
   kind: VersionKind,
   docId: string,
 ): Promise<VersionPayload | null> {
+  if (kind === "visualization") {
+    const data = await loadVisualizationVersionData(docId);
+    if (data === null) {
+      return null;
+    }
+    return { contentHash: visualizationContentHash(data), data };
+  }
   if (kind === "report") {
     const data = await loadReportVersionData(docId);
     if (data === null) {
@@ -198,7 +248,9 @@ async function latestHash(
   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
   const res = kind === "report"
     ? await latestReportVersionHash(mainDb, docId)
-    : await latestSlideDeckVersionHash(mainDb, docId);
+    : kind === "deck"
+    ? await latestSlideDeckVersionHash(mainDb, docId)
+    : await latestVisualizationVersionHash(mainDb, docId);
   return res.success ? res.data.hash : null;
 }
 
@@ -210,6 +262,18 @@ async function writeVersion(
   createdAt: string,
 ): Promise<boolean> {
   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
+  if (kind === "visualization") {
+    const data = payload.data as VisualizationVersionData;
+    const res = await insertVisualizationVersion(mainDb, {
+      productId: docId,
+      createdAt,
+      label: data.label,
+      bundle: data.bundle,
+      editors,
+      contentHash: payload.contentHash,
+    });
+    return res.success;
+  }
   if (kind === "report") {
     const data = payload.data as ReportVersionData;
     const res = await insertReportVersion(mainDb, {
@@ -291,6 +355,12 @@ async function writeVersion(
   return true;
 }
 
+const EDIT_SESSION_LOG: Record<VersionKind, string> = {
+  report: "reportEditSession",
+  deck: "deckEditSession",
+  visualization: "visualizationEditSession",
+};
+
 const tracker = createVersionTracker({
   now: () => Date.now(),
   loadPayload,
@@ -308,7 +378,7 @@ const tracker = createVersionTracker({
       AddLog(
         mainDb,
         editor.email,
-        kind === "report" ? "reportEditSession" : "deckEditSession",
+        EDIT_SESSION_LOG[kind],
         "200",
         JSON.stringify({ docId }),
       ).then((res) => {

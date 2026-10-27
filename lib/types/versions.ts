@@ -1,8 +1,8 @@
-import type { FigureBlock } from "./_figure_bundle.ts";
+import type { FigureBlock, FigureBundle } from "./_figure_bundle.ts";
 import type { ImageBlock, Slide, SlideDeckConfig } from "./slides.ts";
 
 // =============================================================================
-// Version history (reports + slide decks)
+// Version history (reports, slide decks and visualizations)
 // =============================================================================
 //
 // One version = one editing session's end state (full content snapshot) plus
@@ -130,4 +130,18 @@ export type SlideDeckVersionDetail = SlideDeckVersionSummary & {
   deckConfig: SlideDeckConfig;
   slides: SlideDeckVersionSlide[];
   slideEditors: SlideDeckSlideEditors | null;
+};
+
+export type VisualizationVersionSummary = {
+  id: string;
+  createdAt: string;
+  editors: VersionEditor[];
+  sizeBytes: number;
+  restoredFromVersionId: string | null;
+};
+
+/** A visualization as a version froze it: its name and its one figure. */
+export type VisualizationVersionDetail = VisualizationVersionSummary & {
+  label: string;
+  bundle: FigureBundle;
 };

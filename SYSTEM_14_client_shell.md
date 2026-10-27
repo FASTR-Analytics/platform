@@ -292,7 +292,7 @@ then the signal: the rail's `navCollapsed`; the product explorer's three
 open; `productsSort`, a `ListSort` (`SortMode = "name" |
 "recent"` plus a
 direction) from `lib/types/sort.ts`, one vocabulary for every list); and the AI
-panel's open state `showAi` (S13), open until the user closes it. The
+panel's open state `showAi` (S13), closed until the user opens it. The
 open-folder set and the sort are parsed defensively (malformed JSON reads as the
 default); the rest are unvalidated on read: they only feed comparisons, and a
 value from a build that spelled one differently degrades to "no match" rather

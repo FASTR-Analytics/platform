@@ -4,6 +4,8 @@ import {
   applySlideDeckThemeToLegacyConfig,
   type AuthorRun,
   type FigureBlock,
+  type FigureBundle,
+  figureBundleSchema,
   type ImageBlock,
   liveAuthorRunLen,
   parseJsonOrThrow,
@@ -20,6 +22,8 @@ import {
   type SlideDeckVersionSlide,
   type SlideDeckVersionSummary,
   type VersionEditor,
+  type VisualizationVersionDetail,
+  type VisualizationVersionSummary,
 } from "lib";
 import {
   type FigureBlockMut,
@@ -31,6 +35,7 @@ import { tryCatchDatabaseAsync } from "../utils.ts";
 import {
   type DBReportVersion,
   type DBSlideDeckVersion,
+  type DBVisualizationVersion,
 } from "../instance/_main_database_types.ts";
 import {
   generateUniqueProductId,
@@ -40,6 +45,10 @@ import { touchProduct } from "./_product_row.ts";
 import { getSlides, mintSlideIds, reSequence } from "./slides.ts";
 import { getSlideDeckDetail } from "./slide_decks.ts";
 import { getReportBodyAuthors, getReportDetail } from "./reports.ts";
+import {
+  getVisualizationDetail,
+  visualizationResolvedPair,
+} from "./visualizations.ts";
 
 // Newest N versions kept per document; pruned in the writer after each insert.
 const VERSIONS_KEEP = 100;
@@ -78,6 +87,13 @@ function upgradeSnapshotDeckConfig(config: SlideDeckConfig): SlideDeckConfig {
     config as unknown as Record<string, unknown>,
   );
   return config;
+}
+
+// A visualization snapshot is one figure, upgraded as a report's figures are.
+function upgradeSnapshotBundle(bundle: FigureBundle): FigureBundle {
+  const block: FigureBlockMut = { type: "figure", bundle };
+  transformFigureBlock(block);
+  return block.bundle as FigureBundle;
 }
 
 function upgradeSnapshotSlideConfig<T>(config: T): T {
@@ -804,6 +820,235 @@ export async function copySlideDeckFromVersion(
       ),
     ]);
 
+    return { success: true, data: { productId: newProductId, lastUpdated } };
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Visualization versions
+// ---------------------------------------------------------------------------
+
+// What a visualization version freezes, read from the live rows.
+export async function loadVisualizationVersionData(
+  mainDb: Sql,
+  productId: string,
+): Promise<APIResponseWithData<{ label: string; bundle: FigureBundle }>> {
+  const res = await getVisualizationDetail(mainDb, productId);
+  if (!res.success) {
+    return res;
+  }
+  return {
+    success: true,
+    data: { label: res.data.label, bundle: res.data.bundle },
+  };
+}
+
+export async function insertVisualizationVersion(
+  mainDb: Sql,
+  args: {
+    productId: string;
+    createdAt: string;
+    label: string;
+    bundle: FigureBundle;
+    editors: VersionEditor[];
+    contentHash: string;
+    restoredFromVersionId?: string | null;
+  },
+): Promise<APIResponseWithData<{ versionId: string }>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const versionId = crypto.randomUUID();
+    await mainDb`
+      INSERT INTO visualization_versions
+        (id, visualization_id, created_at, label, bundle, editors, content_hash, restored_from_version_id)
+      VALUES (
+        ${versionId},
+        ${args.productId},
+        ${args.createdAt},
+        ${args.label},
+        ${JSON.stringify(args.bundle)},
+        ${JSON.stringify(args.editors)},
+        ${args.contentHash},
+        ${args.restoredFromVersionId ?? null}
+      )
+    `;
+    await mainDb`
+      DELETE FROM visualization_versions
+      WHERE visualization_id = ${args.productId} AND id NOT IN (
+        SELECT id FROM visualization_versions
+        WHERE visualization_id = ${args.productId}
+        ORDER BY created_at DESC, id DESC
+        LIMIT ${VERSIONS_KEEP}
+      )
+    `;
+    return { success: true, data: { versionId } };
+  });
+}
+
+export async function latestVisualizationVersionHash(
+  mainDb: Sql,
+  productId: string,
+): Promise<APIResponseWithData<{ hash: string | null }>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const row = (
+      await mainDb<{ content_hash: string }[]>`
+        SELECT content_hash FROM visualization_versions
+        WHERE visualization_id = ${productId}
+        ORDER BY created_at DESC, id DESC
+        LIMIT 1
+      `
+    ).at(0);
+    return { success: true, data: { hash: row?.content_hash ?? null } };
+  });
+}
+
+export async function listVisualizationVersions(
+  mainDb: Sql,
+  productId: string,
+): Promise<APIResponseWithData<VisualizationVersionSummary[]>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const rows = await mainDb<
+      (
+        & Pick<
+          DBVisualizationVersion,
+          "id" | "created_at" | "editors" | "restored_from_version_id"
+        >
+        & { size_bytes: number }
+      )[]
+    >`
+      SELECT id, created_at, editors, restored_from_version_id,
+        octet_length(bundle) AS size_bytes
+      FROM visualization_versions
+      WHERE visualization_id = ${productId}
+      ORDER BY created_at DESC, id DESC
+    `;
+    return {
+      success: true,
+      data: rows.map((r) => ({
+        id: r.id,
+        createdAt: r.created_at,
+        editors: parseJsonOrThrow<VersionEditor[]>(r.editors),
+        sizeBytes: Number(r.size_bytes),
+        restoredFromVersionId: r.restored_from_version_id,
+      })),
+    };
+  });
+}
+
+export async function getVisualizationVersion(
+  mainDb: Sql,
+  productId: string,
+  versionId: string,
+): Promise<APIResponseWithData<VisualizationVersionDetail>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const row = (
+      await mainDb<DBVisualizationVersion[]>`
+        SELECT * FROM visualization_versions
+        WHERE id = ${versionId} AND visualization_id = ${productId}
+      `
+    ).at(0);
+    if (!row) {
+      throw new Error(VERSION_NOT_FOUND);
+    }
+    return {
+      success: true,
+      data: {
+        id: row.id,
+        createdAt: row.created_at,
+        editors: parseJsonOrThrow<VersionEditor[]>(row.editors),
+        sizeBytes: utf8Bytes(row.bundle),
+        restoredFromVersionId: row.restored_from_version_id,
+        label: row.label,
+        bundle: upgradeSnapshotBundle(
+          parseJsonOrThrow<FigureBundle>(row.bundle),
+        ),
+      },
+    };
+  });
+}
+
+/** Overwrite a visualization's label and bundle with a version snapshot
+ *  (restore, no-room path). The bundle is parsed here; bumping the product
+ *  alone leaves the CRDT state stale, so the next room open re-seeds. */
+export async function restoreVisualizationContent(
+  mainDb: Sql,
+  productId: string,
+  content: { label: string; bundle: FigureBundle },
+): Promise<APIResponseWithData<{ lastUpdated: string }>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const lastUpdated = new Date().toISOString();
+    const parsed = figureBundleSchema.parse(content.bundle);
+    await mainDb.begin(async (sql) => {
+      await touchProduct(
+        sql,
+        productId,
+        "visualization",
+        lastUpdated,
+        content.label,
+      );
+      await sql`
+        UPDATE visualizations
+        SET ${
+        sql({
+          bundle: JSON.stringify(parsed),
+          ...visualizationResolvedPair(parsed),
+        })
+      }
+        WHERE id = ${productId}
+      `;
+    });
+    return { success: true, data: { lastUpdated } };
+  });
+}
+
+/** "Restore as copy": a brand-new visualization PRODUCT from a version
+ *  snapshot, on the source product's pair. Owner and access as
+ *  copyReportFromVersion. */
+export async function copyVisualizationFromVersion(
+  mainDb: Sql,
+  args: {
+    productId: string;
+    versionId: string;
+    label: string;
+    folderId: string | null;
+    createdBy: string;
+  },
+): Promise<APIResponseWithData<{ productId: string; lastUpdated: string }>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const version = (
+      await mainDb<DBVisualizationVersion[]>`
+        SELECT * FROM visualization_versions
+        WHERE id = ${args.versionId} AND visualization_id = ${args.productId}
+      `
+    ).at(0);
+    if (!version) {
+      throw new Error(VERSION_NOT_FOUND);
+    }
+    const bundle = figureBundleSchema.parse(
+      upgradeSnapshotBundle(parseJsonOrThrow<FigureBundle>(version.bundle)),
+    );
+    const newProductId = await generateUniqueProductId(mainDb);
+    const lastUpdated = new Date().toISOString();
+    await mainDb.begin((sql) => [
+      sql`
+        INSERT INTO products
+          (id, type, label, folder_id, run_id, scope_id, created_by, created_at,
+           last_updated, owner, default_access)
+        SELECT
+          ${newProductId}, 'visualization', ${args.label.trim()}, ${args.folderId},
+          run_id, scope_id, ${args.createdBy}, ${lastUpdated}, ${lastUpdated},
+          ${args.createdBy}, 'none'
+        FROM products WHERE id = ${args.productId}
+      `,
+      sql`
+        INSERT INTO visualizations ${
+        sql({
+          id: newProductId,
+          bundle: JSON.stringify(bundle),
+          ...visualizationResolvedPair(bundle),
+        })
+      }
+      `,
+    ]);
     return { success: true, data: { productId: newProductId, lastUpdated } };
   });
 }

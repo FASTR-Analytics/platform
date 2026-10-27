@@ -23,7 +23,7 @@
 
 import type { VersionEditor } from "lib";
 
-export type VersionKind = "report" | "deck";
+export type VersionKind = "report" | "deck" | "visualization";
 
 /** Opaque snapshot: the tracker only compares `contentHash`; `data` is passed
  *  through to writeVersion untouched. */

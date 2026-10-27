@@ -13,7 +13,7 @@ import {
   HeadingBar,
   StateHolderWrapper,
 } from "panther";
-import { createSignal, For, Show } from "solid-js";
+import { createSignal, For, Match, Show, Switch } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { canEditProduct } from "~/state/instance/product_access";
 import { PresenceAvatars } from "~/components/_shared/mod.ts";
@@ -25,11 +25,12 @@ import {
 import { DeckVersionPreview } from "./deck_version_preview";
 import { editorDisplayName } from "./diff_segments";
 import { ReportVersionPreview } from "./report_version_preview";
+import { VisualizationVersionPreview } from "./visualization_version_preview";
 import type { FigureInkTheme } from "~/generate_report/mod";
 
-export type VersionHistoryKind = "report" | "deck";
+export type VersionHistoryKind = "report" | "deck" | "visualization";
 
-// Unified list-row shape: report and deck summaries share everything the list
+// Unified list-row shape: every kind's summaries share everything the list
 // renders; deck rows additionally carry slideCount.
 type VersionRow = {
   id: string;
@@ -42,8 +43,7 @@ type VersionRow = {
 
 type DayGroup = { day: string; rows: VersionRow[] };
 
-// `docId` is the product id: a deck's or a report's versions hang off its
-// product row.
+// `docId` is the product id: every kind's versions hang off its product row.
 type Props = EditorComponentProps<
   {
     kind: VersionHistoryKind;
@@ -55,6 +55,8 @@ type Props = EditorComponentProps<
     reportFastrThemeCss?: string;
     /** Report only: chart ink for dark styles (report_figure_raster). */
     figureInkTheme?: FigureInkTheme;
+    /** Called after a restore, before the panel closes. */
+    onRestored?: () => void;
   },
   undefined
 >;
@@ -62,9 +64,9 @@ type Props = EditorComponentProps<
 // Google-Docs-style version history panel: versions (one per editing session,
 // captured server-side) grouped by day on the left, a read-only preview of the
 // selected version on the right, with restore / restore-as-copy for users who
-// can configure the document. It sets the chat's `deck_history` or
-// `report_history` view (S13) over the editor's, so the editing tools refuse
-// while the user looks at history.
+// can configure the document. It sets the chat's `deck_history`,
+// `report_history` or `visualization_history` view (S13) over the editor's,
+// so the editing tools refuse while the user looks at history.
 export function VersionHistoryEditor(p: Props) {
   holdCopilotView();
   if (p.kind === "deck") {
@@ -73,10 +75,16 @@ export function VersionHistoryEditor(p: Props) {
       { deckId: p.docId },
       productViewContext(p.docId),
     );
-  } else {
+  } else if (p.kind === "report") {
     copilotViewController.setView(
       "report_history",
       { reportId: p.docId },
+      productViewContext(p.docId),
+    );
+  } else {
+    copilotViewController.setView(
+      "visualization_history",
+      { productId: p.docId },
       productViewContext(p.docId),
     );
   }
@@ -84,6 +92,11 @@ export function VersionHistoryEditor(p: Props) {
     async () => {
       if (p.kind === "report") {
         return await serverActions.listReportVersions({ product_id: p.docId });
+      }
+      if (p.kind === "visualization") {
+        return await serverActions.listVisualizationVersions({
+          product_id: p.docId,
+        });
       }
       return await serverActions.listSlideDeckVersions({ product_id: p.docId });
     },
@@ -100,6 +113,11 @@ export function VersionHistoryEditor(p: Props) {
   >(undefined);
 
   const canRestore = () => canEditProduct(p.docId);
+
+  function restored() {
+    p.onRestored?.();
+    p.close(undefined);
+  }
 
   // Contributor chips: deterministic color from the email (same recipe as
   // live presence); names via editorDisplayName (live record preferred).
@@ -296,29 +314,38 @@ export function VersionHistoryEditor(p: Props) {
           }
         >
           {(versionId) => (
-            <Show
-              when={p.kind === "report"}
-              fallback={
+            <Switch>
+              <Match when={p.kind === "report"}>
+                <ReportVersionPreview
+                  productId={p.docId}
+                  versionId={versionId}
+                  previousVersionId={previousVersionId(versionId)}
+                  canRestore={canRestore()}
+                  getCurrentBody={p.getCurrentBody}
+                  fastrThemeCss={p.reportFastrThemeCss}
+                  figureInkTheme={p.figureInkTheme}
+                  onRestored={restored}
+                />
+              </Match>
+              <Match when={p.kind === "deck"}>
                 <DeckVersionPreview
                   productId={p.docId}
                   versionId={versionId}
                   previousVersionId={previousVersionId(versionId)}
                   canRestore={canRestore()}
-                  onRestored={() => p.close(undefined)}
+                  onRestored={restored}
                 />
-              }
-            >
-              <ReportVersionPreview
-                productId={p.docId}
-                versionId={versionId}
-                previousVersionId={previousVersionId(versionId)}
-                canRestore={canRestore()}
-                getCurrentBody={p.getCurrentBody}
-                fastrThemeCss={p.reportFastrThemeCss}
-                figureInkTheme={p.figureInkTheme}
-                onRestored={() => p.close(undefined)}
-              />
-            </Show>
+              </Match>
+              <Match when={p.kind === "visualization"}>
+                <VisualizationVersionPreview
+                  productId={p.docId}
+                  versionId={versionId}
+                  previousVersionId={previousVersionId(versionId)}
+                  canRestore={canRestore()}
+                  onRestored={restored}
+                />
+              </Match>
+            </Switch>
           )}
         </Show>
       </FrameLeft>

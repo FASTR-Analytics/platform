@@ -15,6 +15,7 @@ import {
   Button,
   type EditorComponentProps,
   FrameTop,
+  getEditorWrapper,
   HeadingBar,
   openAlert,
   openComponent,
@@ -57,6 +58,7 @@ import {
   ProductTitle,
   ReportFigureEmbed,
 } from "~/components/products/_shared/mod.ts";
+import { VersionHistoryEditor } from "~/components/products/_shared/version_history/mod.ts";
 import { holdCopilotView } from "~/components/instance/copilot/mod.ts";
 
 // The saved visualization's editor: one figure that IS its product, edited
@@ -72,6 +74,10 @@ type Props = EditorComponentProps<{ productId: string }, undefined>;
 // How long the editor waits for the room's first sync before it mounts
 // without live co-editing (the Apply/Cancel flow, saved over REST).
 const LIVE_SYNC_WAIT_MS = 4000;
+
+// How long a restore waits for the room to relay the restored doc before the
+// editor remounts anyway.
+const RESTORE_UPDATE_WAIT_MS = 3000;
 
 type Mode = "pending" | "live" | "offline";
 
@@ -96,6 +102,9 @@ export function VisualizationProductEditor(p: Props) {
   // The copilot sets no view while this loads: the covered view stays, and
   // the figure editor sets `editing_visualization` once it mounts.
   holdCopilotView();
+  // The version history opens over the editor, which stays mounted under it.
+  const { openEditor: openInnerEditor, EditorWrapper: InnerEditorWrapper } =
+    getEditorWrapper();
 
   const [loadState, setLoadState] = createSignal<StateHolder<true>>({
     status: "loading",
@@ -295,6 +304,47 @@ export function VisualizationProductEditor(p: Props) {
     p.close(undefined);
   }
 
+  async function openHistory() {
+    await openInnerEditor({
+      element: VersionHistoryEditor,
+      props: {
+        kind: "visualization" as const,
+        docId: p.productId,
+        currentLabel: label(),
+        onRestored: () => void remountOnRestored(),
+      },
+    });
+  }
+
+  // A restore replaced the content under the editor, which read its config
+  // at mount, so it remounts on the restored content; its first fetch then
+  // brings the restored figure up to the product's pair. Live, the room
+  // relays the restore as a doc update that can land after the restore's
+  // answer, so the remount waits for it. Offline, the row is read again.
+  async function remountOnRestored() {
+    const s = session();
+    if (mode() === "live" && s) {
+      const doc = s.doc;
+      const remount = () => {
+        doc.off("update", remount);
+        clearTimeout(timer);
+        setLineage((n) => n + 1);
+      };
+      const timer = setTimeout(remount, RESTORE_UPDATE_WAIT_MS);
+      doc.on("update", remount);
+      return;
+    }
+    const res = await serverActions.getVisualizationDetail({
+      product_id: p.productId,
+    });
+    if (!res.success) {
+      await openAlert({ text: res.err, intent: "danger" });
+      return;
+    }
+    setStored(res.data.bundle);
+    setLineage((n) => n + 1);
+  }
+
   async function openPackageScope() {
     const row = product();
     if (!row) return;
@@ -360,6 +410,14 @@ export function VisualizationProductEditor(p: Props) {
         onClick={canEdit() ? () => void openPackageScope() : undefined}
       />
       <PresenceAvatars peers={peersInProduct(p.productId)} size="sm" />
+      <Button
+        id="visualization-history-button"
+        outline
+        iconName="rotate"
+        onClick={() => void openHistory()}
+      >
+        {t3({ en: "History", fr: "Historique", pt: "Histórico" })}
+      </Button>
       <Button iconName="moreVertical" outline onClick={openMenu} />
     </div>
   );
@@ -379,48 +437,50 @@ export function VisualizationProductEditor(p: Props) {
   );
 
   return (
-    <Show
-      when={editorInputs()}
-      keyed
-      fallback={
-        <FrameTop panelChildren={loadingHeader}>
-          <StateHolderWrapper state={loadState()} loadingAndErrorPad="md">
-            {() => (
-              <div class="ui-pad text-base-content-muted text-sm">
-                {t3(TC.loading)}
-              </div>
+    <InnerEditorWrapper>
+      <Show
+        when={editorInputs()}
+        keyed
+        fallback={
+          <FrameTop panelChildren={loadingHeader}>
+            <StateHolderWrapper state={loadState()} loadingAndErrorPad="md">
+              {() => (
+                <div class="ui-pad text-base-content-muted text-sm">
+                  {t3(TC.loading)}
+                </div>
+              )}
+            </StateHolderWrapper>
+          </FrameTop>
+        }
+      >
+        {(inputs) => (
+          <Show
+            when={inputs.metric}
+            fallback={<MissingMetric inputs={inputs} onBack={p.close} />}
+          >
+            {(metric) => (
+              <VisualizationEditor
+                label={label()}
+                scope={inputs.scope}
+                metric={metric()}
+                configSnapshot={structuredClone(inputs.bundle.config)}
+                aiView={{
+                  id: "editing_visualization" as const,
+                  params: { productId: p.productId },
+                }}
+                authoringContext={inputs.context}
+                collabBinding={inputs.session
+                  ? bindingFor(inputs.session)
+                  : undefined}
+                viewOnly={!canEdit()}
+                productChrome={chrome}
+                close={(result) => void handleClose(inputs, result)}
+              />
             )}
-          </StateHolderWrapper>
-        </FrameTop>
-      }
-    >
-      {(inputs) => (
-        <Show
-          when={inputs.metric}
-          fallback={<MissingMetric inputs={inputs} onBack={p.close} />}
-        >
-          {(metric) => (
-            <VisualizationEditor
-              label={label()}
-              scope={inputs.scope}
-              metric={metric()}
-              configSnapshot={structuredClone(inputs.bundle.config)}
-              aiView={{
-                id: "editing_visualization" as const,
-                params: { productId: p.productId },
-              }}
-              authoringContext={inputs.context}
-              collabBinding={inputs.session
-                ? bindingFor(inputs.session)
-                : undefined}
-              viewOnly={!canEdit()}
-              productChrome={chrome}
-              close={(result) => void handleClose(inputs, result)}
-            />
-          )}
-        </Show>
-      )}
-    </Show>
+          </Show>
+        )}
+      </Show>
+    </InnerEditorWrapper>
   );
 }
 

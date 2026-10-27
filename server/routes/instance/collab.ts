@@ -474,7 +474,7 @@ routesCollab.get(
     }
 
     // DB-backed room dependencies for one visualization product (see
-    // depsForReport). Not versioned: no onEdit/onEmpty.
+    // depsForReport).
     function depsForVisualization(productId: string): VisualizationRoomDeps {
       const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
       return {
@@ -510,6 +510,9 @@ routesCollab.get(
           await notifyInstanceProductsUpserted(mainDb, [productId]);
           return { ok: true, lastUpdated: res.data.lastUpdated };
         },
+        onEdit: (editor) =>
+          recordVersionEdit("visualization", productId, editor),
+        onEmpty: () => noteVersionRoomEmpty("visualization", productId),
       };
     }
 

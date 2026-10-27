@@ -7,7 +7,6 @@ import { type ProductType } from "lib";
  *  only in lockstep with that set. */
 export const SLIDE_DECK_NOT_FOUND = "Slide deck not found";
 export const REPORT_NOT_FOUND = "Report not found";
-// Not versioned, so version capture never matches this one.
 export const VISUALIZATION_NOT_FOUND = "Visualization not found";
 
 const NOT_FOUND_BY_TYPE: Record<ProductType, string> = {

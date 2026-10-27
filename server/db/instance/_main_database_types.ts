@@ -168,6 +168,17 @@ export type DBReportVersion = {
   body_authors: string | null;
 };
 
+export type DBVisualizationVersion = {
+  id: string;
+  visualization_id: string;
+  created_at: string;
+  label: string;
+  bundle: string;
+  editors: string;
+  content_hash: string;
+  restored_from_version_id: string | null;
+};
+
 // Upload attempts
 
 export type DBStructureUploadAttempt = {

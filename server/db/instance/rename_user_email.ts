@@ -12,6 +12,7 @@ import type {
   DBReportVersion,
   DBSlideDeckVersion,
   DBUser,
+  DBVisualizationVersion,
 } from "./_main_database_types.ts";
 
 // =============================================================================
@@ -302,6 +303,28 @@ async function renameEmailInVersionRows(
           slide_editors = ${
       slideEditors ? JSON.stringify(slideEditors.dse) : null
     }
+      WHERE id = ${row.id}
+    `;
+  }
+
+  const visualizationRows = await sql<
+    Pick<DBVisualizationVersion, "id" | "editors">[]
+  >`
+    SELECT id, editors FROM visualization_versions
+    WHERE editors LIKE ${pattern}
+  `;
+  for (const row of visualizationRows) {
+    const editors = renameEmailInVersionEditors(
+      parseJsonOrThrow<VersionEditor[]>(row.editors),
+      oldEmail,
+      newEmail,
+    );
+    if (!editors.changed) {
+      continue;
+    }
+    await sql`
+      UPDATE visualization_versions
+      SET editors = ${JSON.stringify(editors.editors)}
       WHERE id = ${row.id}
     `;
   }

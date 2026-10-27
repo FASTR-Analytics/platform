@@ -24,7 +24,10 @@ import {
   type ScopeId,
   type SlideDeckConfig,
   type VisualizationDetail,
+  type VisualizationVersionDetail,
+  type VisualizationVersionSummary,
 } from "lib";
+import { flushAllVersions } from "../collab/version_capture.ts";
 import { getPgConnectionFromCacheOrNew } from "../db/mod.ts";
 import {
   deleteRunCatalogRow,
@@ -1114,6 +1117,190 @@ Deno.test("visualization routes: create with its figure, read, update, cross-typ
       await mainDb`DELETE FROM scopes WHERE id = ${otherScopeId}`;
     }
     await mainDb`DELETE FROM runs WHERE id = ${failedRunId}`;
+    await mainDb`DELETE FROM users WHERE email = ${APPROVED_EMAIL}`;
+    await closeAllConnections();
+  }
+});
+
+Deno.test("visualization versions: capture, dedup, list, read, restore with a safety version, restore as copy, cascade", async () => {
+  if (_BYPASS_AUTH) {
+    throw new Error(
+      "BYPASS_AUTH is set: the product routes harness must exercise the real auth branches. Unset it and re-run.",
+    );
+  }
+
+  const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
+  const pinRes = await getPinnedRunId(mainDb);
+  if (!pinRes.success) throw new Error(pinRes.err);
+  const pinnedRunId = pinRes.data;
+  if (pinnedRunId === null) {
+    throw new Error("The dev instance has no pinned package; pin one first.");
+  }
+  await mainDb`
+    INSERT INTO users (email, is_admin) VALUES (${APPROVED_EMAIL}, FALSE)
+    ON CONFLICT DO NOTHING
+  `;
+  const scope = await createScope(mainDb, {
+    label: `Harness viz versions ${crypto.randomUUID().slice(0, 8)}`,
+    definition: ALL_DATA_SCOPE_DEFINITION,
+    createdBy: APPROVED_EMAIL,
+  });
+  if (!scope.success) throw new Error(scope.err);
+  const scopeId = scope.data.scopeId;
+
+  const app = productApp(APPROVED_EMAIL);
+  const createdProductIds: string[] = [];
+  const versionsOf = (id: string) =>
+    ok<VisualizationVersionSummary[]>(
+      app,
+      "GET",
+      `/products/${id}/visualization/versions`,
+    );
+  const versionOf = (id: string, versionId: string) =>
+    ok<VisualizationVersionDetail>(
+      app,
+      "GET",
+      `/products/${id}/visualization/versions/${versionId}`,
+    );
+  const detailOf = (id: string) =>
+    ok<VisualizationDetail>(app, "GET", `/products/${id}/visualization`);
+
+  try {
+    // The creation is the first edit: its session's flush is version one,
+    // the figure as it was made, attributed to its creator.
+    const first = visualizationBundle(pinnedRunId, 0.5);
+    const viz = await ok<{ productId: string }>(
+      app,
+      "POST",
+      "/products/visualization",
+      {
+        folderId: null,
+        runId: pinnedRunId,
+        scopeId,
+        label: "ANC coverage",
+        bundle: first,
+      },
+    );
+    createdProductIds.push(viz.productId);
+    assertEquals(await versionsOf(viz.productId), []);
+    await flushAllVersions();
+    const [v1] = await versionsOf(viz.productId);
+    assertEquals(v1.editors.map((e) => e.email), [APPROVED_EMAIL]);
+    assertEquals(v1.restoredFromVersionId, null);
+    const v1Detail = await versionOf(viz.productId, v1.id);
+    assertEquals(v1Detail.label, "ANC coverage");
+    assertEquals(v1Detail.bundle, first);
+
+    // An update is a version; one that only restamps snapshotAt is not.
+    const second = visualizationBundle(pinnedRunId, 0.75);
+    await ok(app, "PUT", `/products/${viz.productId}/visualization`, {
+      bundle: second,
+    });
+    await flushAllVersions();
+    assertEquals((await versionsOf(viz.productId)).length, 2);
+    await ok(app, "PUT", `/products/${viz.productId}/visualization`, {
+      bundle: { ...second, snapshotAt: "2026-10-27T00:00:00.000Z" },
+    });
+    await flushAllVersions();
+    assertEquals((await versionsOf(viz.productId)).length, 2);
+
+    // A rename is a version: the label is part of it.
+    await ok(app, "PUT", `/products/${viz.productId}/label`, {
+      label: "ANC coverage (renamed)",
+    });
+    await flushAllVersions();
+    const afterRename = await versionsOf(viz.productId);
+    assertEquals(afterRename.length, 3);
+    assertEquals(
+      (await versionOf(viz.productId, afterRename[0].id)).label,
+      "ANC coverage (renamed)",
+    );
+
+    // Restore with an edit still in its session: the edit is kept as a
+    // safety version, then the restored state is a version of its own.
+    await ok(app, "PUT", `/products/${viz.productId}/visualization`, {
+      bundle: visualizationBundle(pinnedRunId, 0.9),
+    });
+    await ok(
+      app,
+      "POST",
+      `/products/${viz.productId}/visualization/versions/${v1.id}/restore`,
+    );
+    const restoredDetail = await detailOf(viz.productId);
+    assertEquals(restoredDetail.label, "ANC coverage");
+    assertEquals(restoredDetail.bundle, first);
+    const afterRestore = await versionsOf(viz.productId);
+    assertEquals(afterRestore.length, 5);
+    assertEquals(afterRestore[0].restoredFromVersionId, v1.id);
+    const safety = await versionOf(viz.productId, afterRestore[1].id);
+    assertEquals(safety.bundle.items, [{ admin_area_2: "Kano", value: 0.9 }]);
+    assertEquals(safety.editors.map((e) => e.email), [APPROVED_EMAIL]);
+    // The restore drained the open session: nothing is left to flush.
+    await flushAllVersions();
+    assertEquals((await versionsOf(viz.productId)).length, 5);
+
+    // Restore as copy: a new visualization on the source's pair, owned by
+    // the caller, holding the version's figure; the source is untouched.
+    const v2 = afterRename[1];
+    const copy = await ok<{ productId: string }>(
+      app,
+      "POST",
+      `/products/${viz.productId}/visualization/versions/${v2.id}/copy`,
+      { label: "ANC coverage (copy)", folderId: null },
+    );
+    createdProductIds.push(copy.productId);
+    const copyDetail = await detailOf(copy.productId);
+    assertEquals(copyDetail.label, "ANC coverage (copy)");
+    assertEquals(copyDetail.bundle, second);
+    const state = await buildInstanceState(
+      mainDb,
+      testGlobalUser(APPROVED_EMAIL, true),
+    );
+    if (!state.success) throw new Error(state.err);
+    const copySummary = state.data.products.find((x) =>
+      x.id === copy.productId
+    );
+    assertEquals(copySummary?.type, "visualization");
+    assertEquals(copySummary?.runId, pinnedRunId);
+    assertEquals(copySummary?.scopeId, scopeId);
+    assertEquals(copySummary?.owner, APPROVED_EMAIL);
+    assertEquals(
+      copySummary?.type === "visualization"
+        ? copySummary.resolvedUnder
+        : undefined,
+      { runId: pinnedRunId, definitionHash: "h" },
+    );
+    assertEquals((await detailOf(viz.productId)).bundle, first);
+
+    // A version is read only through its own visualization.
+    assertEquals(
+      (await call(
+        app,
+        "GET",
+        `/products/${copy.productId}/visualization/versions/${v1.id}`,
+      )).body.success,
+      false,
+    );
+
+    // Delete cascades the versions.
+    await ok(app, "DELETE", "/products", { productIds: createdProductIds });
+    const remaining = (
+      await mainDb<{ n: number }[]>`
+        SELECT count(*)::int AS n FROM visualization_versions
+        WHERE visualization_id = ANY(${createdProductIds})
+      `
+    )[0].n;
+    assertEquals(remaining, 0);
+    createdProductIds.length = 0;
+  } finally {
+    await flushAllVersions();
+    if (createdProductIds.length > 0) {
+      await mainDb`DELETE FROM products WHERE id = ANY(${createdProductIds})`;
+    }
+    await mainDb`DELETE FROM scopes WHERE id = ${scopeId}`;
+    // Each flush logs its session as usage without awaiting the write: let
+    // the writes land before the user row (and, by cascade, its logs) goes.
+    await new Promise((r) => setTimeout(r, 200));
     await mainDb`DELETE FROM users WHERE email = ${APPROVED_EMAIL}`;
     await closeAllConnections();
   }

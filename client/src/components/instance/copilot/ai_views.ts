@@ -108,7 +108,7 @@ import {
 // `data_page` for every page it opens and restores the view it covered when
 // the page closes, and the places inside products: deck settings
 // (`deck_settings`), the version histories (`deck_history`,
-// `report_history`), the figure editor (the view its host names in `aiView`,
+// `report_history`, `visualization_history`), the figure editor (the view its host names in `aiView`,
 // through `setFigureEditorView`; a saved visualization's editor names
 // `editing_visualization`), the results file viewer (`results_file`)
 // and the HFA indicators manager (`hfa_indicators`, over the switchboard's
@@ -539,6 +539,18 @@ export const copilotViews = defineAIViews(
       instructions: (_params, context) =>
         getHistoryInstructions(context.getLabel(), "report"),
     }),
+    visualization_history: view<EditingVisualizationParams, ProductViewContext>(
+      {
+        label: (_params, context) => context.getLabel(),
+        identity: (params, context) =>
+          copilotViewIdentity("visualization_history", {
+            product: params.productId,
+            pair: pairOf(context),
+          }),
+        instructions: (_params, context) =>
+          getHistoryInstructions(context.getLabel(), "visualization"),
+      },
+    ),
     editing_report: view<EditingReportParams, EditingReportContext>({
       label: (_params, context) => context.getLabel(),
       identity: (params, context) =>
@@ -776,6 +788,13 @@ export function restoreCopilotView(state: CopilotViewState): void {
     case "report_history":
       copilotViewController.setView(
         "report_history",
+        state.params,
+        state.context,
+      );
+      return;
+    case "visualization_history":
+      copilotViewController.setView(
+        "visualization_history",
         state.params,
         state.context,
       );

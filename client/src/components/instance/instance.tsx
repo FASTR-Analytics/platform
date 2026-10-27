@@ -49,8 +49,10 @@ import { InstanceResultsPackages } from "~/components/results_packages/mod.ts";
 import { InstanceUsers } from "~/components/users/mod.ts";
 import { instanceState } from "~/state/instance/t1_store";
 import {
+  aiOpenerBottom,
   darkMode,
   navCollapsed,
+  setAiOpenerBottom,
   setNavCollapsed,
   setShowAi,
   ShellEditorWrapper,
@@ -225,6 +227,44 @@ export default function Instance(p: Props) {
         if (changed) window.location.reload();
       },
     };
+  }
+
+  // The AI opener drags up and down the right edge. A press that moves
+  // less than a few px is still a click; past that it is a drag, and the
+  // click that ends it does not open the panel. Window listeners rather than
+  // pointer capture, so the button still receives its own click.
+  let openerDragged = false;
+  function startOpenerDrag(e: PointerEvent) {
+    if (e.button !== 0) return;
+    const startY = e.clientY;
+    const startBottom = Math.min(aiOpenerBottom(), window.innerHeight - 56);
+    openerDragged = false;
+    const move = (ev: PointerEvent) => {
+      const dy = ev.clientY - startY;
+      if (!openerDragged && Math.abs(dy) < 5) return;
+      openerDragged = true;
+      const bottom = Math.min(
+        window.innerHeight - 56,
+        Math.max(8, startBottom - dy),
+      );
+      setAiOpenerBottom(bottom, false);
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
+      if (!openerDragged) return;
+      setAiOpenerBottom(aiOpenerBottom(), true);
+      // The click that ends the drag (when it ends on the button) is
+      // dispatched before this runs; a drag that ends off the button gets no
+      // click, and must not swallow the next real one.
+      setTimeout(() => {
+        openerDragged = false;
+      }, 0);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", up);
   }
 
   async function openProfile() {
@@ -567,10 +607,21 @@ export default function Instance(p: Props) {
         </ShellEditorWrapper>
       </FrameRightResizable>
       <Show when={instanceState.currentUserApproved && !showAi()}>
-        <div class="fixed right-0 bottom-20 z-20">
+        <div
+          class="fixed right-0 z-20 touch-none"
+          // Kept on screen whatever the window's height since it was set.
+          style={{
+            bottom: `clamp(8px, ${aiOpenerBottom()}px, calc(100vh - 56px))`,
+          }}
+          onPointerDown={startOpenerDrag}
+        >
           <Button
             id="copilot-opener"
-            onClick={() => setShowAi(true)}
+            onClick={() => {
+              // The press that ended a drag is not a click.
+              if (openerDragged) return;
+              setShowAi(true);
+            }}
             intent="primary"
             flushEdge="right"
             iconName="sparkles"

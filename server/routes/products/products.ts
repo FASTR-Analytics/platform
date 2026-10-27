@@ -54,12 +54,10 @@ const CLOSE_PRODUCT_ROOM: Record<ProductType, (productId: string) => void> = {
     ),
 };
 
-// null = the type is not versioned (a visualization): no version session to
-// record a rename into or to drain on delete.
-const PRODUCT_VERSION_KIND: Record<ProductType, VersionKind | null> = {
+const PRODUCT_VERSION_KIND: Record<ProductType, VersionKind> = {
   slide_deck: "deck",
   report: "report",
-  visualization: null,
+  visualization: "visualization",
 };
 
 // The cross-type product surface: label, folder, package, scope, duplicate
@@ -104,14 +102,11 @@ defineRoute(
     }
     // The label is part of every version snapshot, so a rename is an edit of
     // the product's document like any other.
-    const versionKind = PRODUCT_VERSION_KIND[res.data.type];
-    if (versionKind !== null) {
-      recordVersionEdit(
-        versionKind,
-        params.product_id,
-        editorFromGlobalUser(c.var.globalUser),
-      );
-    }
+    recordVersionEdit(
+      PRODUCT_VERSION_KIND[res.data.type],
+      params.product_id,
+      editorFromGlobalUser(c.var.globalUser),
+    );
     await notifyInstanceProductsUpserted(c.var.mainDb, [params.product_id]);
     return respond(c, {
       success: true,
@@ -161,10 +156,7 @@ defineRoute(
     const deletedIds: string[] = [];
     for (const { id, type } of res.data.deleted) {
       CLOSE_PRODUCT_ROOM[type](id);
-      const versionKind = PRODUCT_VERSION_KIND[type];
-      if (versionKind !== null) {
-        drainVersionEditors(versionKind, id);
-      }
+      drainVersionEditors(PRODUCT_VERSION_KIND[type], id);
       deletedIds.push(id);
     }
     notifyInstanceProductsDeleted(deletedIds);

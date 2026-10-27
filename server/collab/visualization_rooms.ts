@@ -9,9 +9,10 @@
 // takes first equals the visualization id; both ride so the families share
 // one shape.
 //
-// Unlike reports, a visualization room has NO authorship ledger and NO
-// version tracking: visualizations are not versioned, so the adapter omits
-// onDocCreated/onDocClosed and the deps omit onEdit/onEmpty.
+// Unlike reports, a visualization room has NO authorship ledger: a version
+// names the session's editors but not who changed what, so the adapter omits
+// onDocCreated/onDocClosed. The deps' onEdit/onEmpty feed the version
+// tracker as a report room's do.
 
 import {
   dropStorageInvalidTransientsInFigureBlock,
@@ -21,6 +22,7 @@ import {
   seedVisualizationDoc,
   storedMatchesDoc,
   syncVisualizationToDoc,
+  type VersionEditor,
   type VisualizationDocContent,
 } from "lib";
 import {
@@ -165,17 +167,20 @@ export function closeVisualizationRoom(
 }
 
 /** Route a non-collab bundle save (the update HTTP route) through a live
- *  room, if one exists. See LiveRoomApplyResult: on `save_failed` the caller
+ *  room, if one exists. `editor` attributes the write to version history;
+ *  a restore omits it. See LiveRoomApplyResult: on `save_failed` the caller
  *  must NOT fall back to a direct DB write. */
 export function applyVisualizationToLiveRoom(
   productId: string,
   visualizationId: string,
   content: VisualizationDocContent,
+  editor?: VersionEditor,
 ): Promise<LiveRoomApplyResult> {
   return applyToLiveRoom(
     productId,
     DOC_TYPE,
     visualizationId,
     (doc) => syncVisualizationToDoc(doc, content),
+    editor,
   );
 }

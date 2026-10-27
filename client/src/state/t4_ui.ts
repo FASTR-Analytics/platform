@@ -180,15 +180,17 @@ export const [fitWithin, setFitWithin] = createSignal<
 // AI Settings
 // ============================================================================
 
-// Open until the user closes it, and then closed until they open it: the
-// panel's state outlives the page load, per browser, so the "Ask AI" button
-// is not the only way users ever meet the chat.
+// Closed until the user opens it, and then open until they close it: the
+// panel's state outlives the page load, per browser. It starts closed so a
+// new user meets the chat through the "Ask AI" button, which pulses until
+// first used and which the AI tour's first step asks them to click
+// (onboarding/ai_nudge.ts, onboarding/tours.ts).
 const SHOW_AI_KEY = "showAi";
 function readStoredShowAi(): boolean {
   try {
-    return localStorage.getItem(SHOW_AI_KEY) !== "false";
+    return localStorage.getItem(SHOW_AI_KEY) === "true";
   } catch {
-    return true;
+    return false;
   }
 }
 export const [showAi, setShowAiInternal] = createSignal<boolean>(
@@ -201,6 +203,32 @@ export function setShowAi(open: boolean) {
     // Storage unavailable: the choice lasts the page.
   }
   setShowAiInternal(open);
+}
+
+// Where the AI opener sits on the window's right edge: its distance from the
+// bottom, in px. The user drags it up and down; the spot is kept per browser.
+const AI_OPENER_BOTTOM_KEY = "aiOpenerBottom";
+const AI_OPENER_BOTTOM_DEFAULT = 80;
+function readStoredAiOpenerBottom(): number {
+  try {
+    const v = Number(localStorage.getItem(AI_OPENER_BOTTOM_KEY));
+    return Number.isFinite(v) && v > 0 ? v : AI_OPENER_BOTTOM_DEFAULT;
+  } catch {
+    return AI_OPENER_BOTTOM_DEFAULT;
+  }
+}
+export const [aiOpenerBottom, setAiOpenerBottomInternal] = createSignal<
+  number
+>(readStoredAiOpenerBottom());
+// `persist` false while the drag runs, true once, where it is let go.
+export function setAiOpenerBottom(px: number, persist: boolean) {
+  setAiOpenerBottomInternal(px);
+  if (!persist) return;
+  try {
+    localStorage.setItem(AI_OPENER_BOTTOM_KEY, String(Math.round(px)));
+  } catch {
+    // Storage unavailable: the spot lasts the page.
+  }
 }
 
 // ============================================================================

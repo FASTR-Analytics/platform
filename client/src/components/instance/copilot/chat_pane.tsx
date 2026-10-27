@@ -88,6 +88,7 @@ const PLACEHOLDERS: Record<CopilotViewId, TranslatableString> = {
   editing_report: ASK_REPORT,
   editing_report_figure: ASK_FIGURE,
   editing_visualization: ASK_FIGURE,
+  visualization_history: ASK_FIGURE,
   results_file: ASK_PACKAGE,
   explore: ASK_DATA,
   results_packages: ASK_ANYTHING,

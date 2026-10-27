@@ -2780,9 +2780,14 @@ admitted the type in the `products.type` CHECK.
   header is the editor's, with the product title, the pair chip, presence and a
   menu (manage access, make a copy) passed in as `productChrome`. A metric the
   package no longer has shows the stored snapshot and the reason.
-- **Not versioned, not emailed.** There is no version history (no `VersionKind`;
-  `PRODUCT_VERSION_KIND` maps the type to null, so a rename or delete records no
-  version edit) and no share-by-email route.
+- **Versioned, not emailed.** It has its own version history (S16): one version
+  per editing session holding its label and bundle, in `visualization_versions`,
+  with list, read, restore and restore-as-copy routes under
+  `/products/:product_id/visualization/versions` and a History button in its
+  editor. A restored version's figure keeps the pair it was drawn from, so it
+  can show as out of date until an editor opens it. The figures in decks and
+  reports keep their own history with their host document. There is no
+  share-by-email route.
 - **Copied into decks and reports, never linked.** Every insert and replace
   control in the deck and report editors offers "Existing visualization…" (S11's
   picker): the saved figure's config is re-resolved under the host's pair and

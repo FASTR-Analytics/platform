@@ -110,12 +110,17 @@ export function getDeckSettingsInstructions(label: string): string {
 The user is on the deck's settings screen (name, theme, logos, footer), which covers the deck. The deck's slide tools refuse here. To change slides, tell the user to close Settings with its back button to return to the deck; do not describe any other view. The package tools work as usual.`;
 }
 
+const HISTORY_NOUNS = {
+  deck: { noun: "slide deck", tools: "slide tools" },
+  report: { noun: "report", tools: "report editing tools" },
+  visualization: { noun: "visualization", tools: "figure editor tools" },
+};
+
 export function getHistoryInstructions(
   label: string,
-  kind: "deck" | "report",
+  kind: keyof typeof HISTORY_NOUNS,
 ): string {
-  const noun = kind === "deck" ? "slide deck" : "report";
-  const tools = kind === "deck" ? "slide tools" : "report editing tools";
+  const { noun, tools } = HISTORY_NOUNS[kind];
   return `# Current View: Version history of the ${noun} "${label}"
 
 The user is looking at the ${noun}'s version history, which covers the editor: a list of saved versions with a read-only preview, and restore buttons for users who can configure the ${noun}. The ${tools} refuse here. To edit the ${noun}, tell the user to close History with its back button to return to the editor; do not describe any other view. The package tools work as usual.`;

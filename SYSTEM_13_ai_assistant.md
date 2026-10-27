@@ -321,18 +321,18 @@ is beside every tab page, full-page view and nested editor; the slot is always
 passed and built once (every frame builds its panel once) and the chat inside
 mounts once the user is approved, so there is no chat before sign-in, for an
 unapproved user, or on `/access-tokens`, which is another route. The panel's one
-open state is `showAi` (T4, in localStorage, open until the user closes it): its
-own header button closes it and the opener (`#copilot-opener`, a button on the
-window's right edge outside the editor wrapper, shown while the panel is closed)
-opens it. The product opener (`openProduct` in
-`client/src/components/products/products.tsx`) opens the registry's editor
-directly; the editors set their views (below) and the chat follows. Threads and
-settings are the user's: the thread scope and the settings key are
-`copilot:<Clerk user id>` (`copilot:dev` under `VITE_BYPASS_AUTH`, where there
-is no Clerk user), read live from Clerk's listener and keyed on, so a cross-tab
-user switch without a reload stops the previous user's turn and opens the next
-user's threads; the thread list, New conversation and the last-active id follow
-the user through every view and tab, and the old per-product scopes
+open state is `showAi` (T4, in localStorage, closed until the user opens it,
+then remembered): its own header button closes it and the opener
+(`#copilot-opener`, a button on the window's right edge outside the editor
+wrapper, shown while the panel is closed) opens it. The product opener
+(`openProduct` in `client/src/components/products/products.tsx`) opens the
+registry's editor directly; the editors set their views (below) and the chat
+follows. Threads and settings are the user's: the thread scope and the settings
+key are `copilot:<Clerk user id>` (`copilot:dev` under `VITE_BYPASS_AUTH`, where
+there is no Clerk user), read live from Clerk's listener and keyed on, so a
+cross-tab user switch without a reload stops the previous user's turn and opens
+the next user's threads; the thread list, New conversation and the last-active
+id follow the user through every view and tab, and the old per-product scopes
 (`copilot:<productId>`) and the old settings key (`panther-ai-settings-copilot`)
 stay unlisted and unread. One browser tab owns the chat: the panel requests the
 Web Lock `copilot-owner/<scope>` when it mounts and mounts the chat only while
@@ -492,11 +492,11 @@ sets `assets`, the Users page `users` and the user detail `user`, each with
 instructions that name the page and nothing of its contents: no roster, no
 email. Inside products, deck settings (`SlideDeckSettings`, given the deck id)
 sets `deck_settings` and the version history (`VersionHistoryEditor`) sets
-`deck_history` or `report_history` by its `kind`, each with
-`productViewContext(productId)`, the product's live row as label and pair (a
-refusal naming why once the row is gone) and instructions that name the screen
-and the step back to the editor (its back button), so the model never invents a
-view name for the user to find; the figure editor (S11) holds in
+`deck_history`, `report_history` or `visualization_history` by its `kind`, each
+with `productViewContext(productId)`, the product's live row as label and pair
+(a refusal naming why once the row is gone) and instructions that name the
+screen and the step back to the editor (its back button), so the model never
+invents a view name for the user to find; the figure editor (S11) holds in
 `VisualizationEditor` and sets, from `VisualizationEditorInner` once the draft
 exists, the view its host names in the required `aiView` prop
 (`editing_slide_figure`, `editing_report_figure`, `editing_visualization`,
@@ -681,20 +681,23 @@ below edit level). It is a package view, so it admits the package reads and the
 read-only module internals, plus the two Figure editor tools; it is the one
 package view that does not admit `show_draft_slide_to_user` (the catalogue's
 `DRAFT_VIEWS`), so nothing drafted there can land in a deck. `tool_guard.ts`
-reads its product id, so a viewer is refused `update_figure_editor`. The preview
-card stores the view its call ran in (panther's `AIViewSnapshot`, the id and
-identity) and renders under that identity's pair, with the pair's metrics from
-the T2 authoring context, so an old card keeps its package after a reattach; a
-card stored before the engine recorded the view renders under the current view's
-pair and offers no Add. The card offers "Add to this deck" from the deck view
-when the open deck is on the draft's pair and the user can edit it, and is
-preview-only in a report, on another package and for a viewer. From the deck
-view on the draft's pair the card lays out under the open deck's config;
-elsewhere under the starting draft config. Add runs through
-`createButtonAction`, so a failed `createSlide` alerts; the button is disabled
-while the write runs and reads "Added to this deck" once it has landed, so one
-draft adds once, and the expanded view offers Add only while the card's button
-is enabled.
+reads its product id, so a viewer is refused `update_figure_editor`. Its version
+history sets `visualization_history` (params and identity as the editor's;
+instructions `getHistoryInstructions(label, "visualization")`), which admits
+only the package reads and the module internals: neither the Figure editor tools
+nor `show_draft_slide_to_user`. The preview card stores the view its call ran in
+(panther's `AIViewSnapshot`, the id and identity) and renders under that
+identity's pair, with the pair's metrics from the T2 authoring context, so an
+old card keeps its package after a reattach; a card stored before the engine
+recorded the view renders under the current view's pair and offers no Add. The
+card offers "Add to this deck" from the deck view when the open deck is on the
+draft's pair and the user can edit it, and is preview-only in a report, on
+another package and for a viewer. From the deck view on the draft's pair the
+card lays out under the open deck's config; elsewhere under the starting draft
+config. Add runs through `createButtonAction`, so a failed `createSlide` alerts;
+the button is disabled while the write runs and reads "Added to this deck" once
+it has landed, so one draft adds once, and the expanded view offers Add only
+while the card's button is enabled.
 
 **Refusals come from one table through one wrapper.** Every user registers the
 same tools, so the prompt cache survives every move; what a user may not do

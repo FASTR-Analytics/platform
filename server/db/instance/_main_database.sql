@@ -243,12 +243,12 @@ CREATE TABLE reports (
 
 -- A visualization is one saved figure: its FigureBundle as JSON text
 -- (figureBundleSchema), resolved client-side under the product's pair and kept
--- as a snapshot like a report's figures. Not versioned. `resolved_run_id` and
--- `resolved_definition_hash` copy the bundle's `provenance.runId` and
--- `scope.definitionHash` out of the JSON, written with every bundle write, so
--- the product summary can say what the snapshot was resolved under (its
--- staleness) without reading the bundle. Migrations 221 and 222 add and fill
--- them, so they come last.
+-- as a snapshot like a report's figures, versioned in visualization_versions.
+-- `resolved_run_id` and `resolved_definition_hash` copy the bundle's
+-- `provenance.runId` and `scope.definitionHash` out of the JSON, written with
+-- every bundle write, so the product summary can say what the snapshot was
+-- resolved under (its staleness) without reading the bundle. Migrations 221
+-- and 222 add and fill them, so they come last.
 CREATE TABLE visualizations (
   id text PRIMARY KEY NOT NULL,
   type text NOT NULL DEFAULT 'visualization' CHECK (type = 'visualization'),
@@ -294,6 +294,21 @@ CREATE TABLE slide_deck_versions (
 );
 
 CREATE INDEX idx_slide_deck_versions_slide_deck ON slide_deck_versions(slide_deck_id, created_at DESC);
+
+-- A visualization's versions, as report_versions: the label and the bundle as
+-- they stood at the end of an editing session.
+CREATE TABLE visualization_versions (
+  id text PRIMARY KEY NOT NULL,
+  visualization_id text NOT NULL REFERENCES visualizations(id) ON DELETE CASCADE,
+  created_at text NOT NULL,
+  label text NOT NULL,
+  bundle text NOT NULL,
+  editors text NOT NULL DEFAULT '[]',
+  content_hash text NOT NULL,
+  restored_from_version_id text
+);
+
+CREATE INDEX idx_visualization_versions_visualization ON visualization_versions(visualization_id, created_at DESC);
 
 -- ============================================================================
 -- ADMINISTRATIVE STRUCTURE

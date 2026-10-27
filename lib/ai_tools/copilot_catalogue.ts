@@ -22,6 +22,7 @@ export const COPILOT_VIEW_IDS = [
   "editing_report",
   "editing_report_figure",
   "editing_visualization",
+  "visualization_history",
   "results_file",
   "explore",
   "results_packages",
@@ -54,6 +55,7 @@ export const COPILOT_PACKAGE_VIEWS = [
   "editing_report",
   "editing_report_figure",
   "editing_visualization",
+  "visualization_history",
   "results_file",
   "explore",
   "package",
@@ -81,8 +83,8 @@ const FIGURE_EDITOR_VIEWS = [
   "viewing_package_figure",
 ] as const;
 // The draft-slide card ("Add to this deck") everywhere a package is in view
-// except a saved visualization's editor: the copilot there edits that one
-// figure and reaches nothing else.
+// except a saved visualization's editor and its history: the copilot there
+// edits or looks at that one figure and reaches nothing else.
 const DRAFT_VIEWS = [
   "opening_product",
   "editing_slide_deck",
@@ -305,6 +307,7 @@ export const COPILOT_VIEW_IDENTITY_PARTS = {
   editing_report: ["report", "pair"],
   editing_report_figure: ["report", "figure", "pair"],
   editing_visualization: ["product", "pair"],
+  visualization_history: ["product", "pair"],
   results_file: ["resultsObject", "pair"],
   explore: ["pair"],
   results_packages: [],

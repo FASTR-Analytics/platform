@@ -389,8 +389,9 @@ The room mechanics are generic
 [slide_rooms.ts](server/collab/slide_rooms.ts),
 [report_rooms.ts](server/collab/report_rooms.ts) and
 [visualization_rooms.ts](server/collab/visualization_rooms.ts) (no lifecycle
-hooks and no version deps: visualizations are not versioned; its checkpoint
-policy, `prepareVisualizationCheckpoint`, drops mid-edit transients with
+hooks, since there is no authorship ledger, but the same `onEdit`/`onEmpty`
+version deps as a report room; its checkpoint policy,
+`prepareVisualizationCheckpoint`, drops mid-edit transients with
 `dropStorageInvalidTransientsInFigureBlock`, parses with `figureBundleSchema`
 and trusts the state only when the doc materializes to exactly what is stored).
 One room per `(productId, docType, docId)`; described here in slide terms:
@@ -733,7 +734,8 @@ appears only once text exists.
   `crdt_state_last_updated` on `slides` and `reports`, and on `visualizations`
   (migration `220_visualizations.sql`); `reports.body_authors` +
   `report_versions.body_authors`; `slide_deck_versions.slide_editors`; the
-  `report_versions` / `slide_deck_versions` tables.
+  `report_versions` / `slide_deck_versions` / `visualization_versions` tables
+  (the last from migration `223_visualization_versions.sql`).
 - **Staleness rule**: the CRDT state is only trusted when
   `crdt_state_last_updated === last_updated`. The checkpoint stamps them equal;
   a non-collab write to what the doc HOLDS (body, figures, images) bumps
@@ -928,12 +930,14 @@ fires, and it is still what informs everyone _outside_ the room.
 
 ## Version history
 
-Google-Docs-style version history for reports and slide decks: a browsable list
-of versions at timestamps showing which users edited in each window, with
-preview, compare (reports), restore, and restore-as-copy. Versions are **whole
-documents**: a full report (body + figure/image registries) or a full deck (deck
-config + every slide), one per _editing session_, not per keystroke or per CRDT
-operation.
+Google-Docs-style version history for reports, slide decks and saved
+visualizations: a browsable list of versions at timestamps showing which users
+edited in each window, with preview, compare (reports), restore, and
+restore-as-copy. Versions are **whole documents**: a full report (body +
+figure/image registries), a full deck (deck config + every slide) or a
+visualization (label + bundle), one per _editing session_, not per keystroke or
+per CRDT operation. The figures inside decks and reports are versioned with
+their host document, never on their own.
 
 ### Storage
 
@@ -956,6 +960,15 @@ routes).
   nondeterminism across write paths). A session whose end state hashes equal to
   the _newest_ stored version writes nothing. (`body_authors` / `slide_editors`
   are NOT part of the hash: dedup is about content, not attribution.)
+- **Visualizations**: `visualization_versions` (migration
+  `223_visualization_versions.sql`): `label, bundle`, `editors`, `content_hash`,
+  `created_at`, `restored_from_version_id`, with no attribution column (a
+  visualization room keeps no authorship ledger, so a version names its
+  session's editors only). Its hash (`visualizationContentHash`) leaves out the
+  bundle's `snapshotAt`, which every data refetch renews, so a refetch that
+  brings the same rows is no change. A snapshot keeps the pair its figure was
+  resolved under; reads run it through `transformFigureBlock` and restore and
+  copy parse it with `figureBundleSchema`.
 - **Retention**: newest 100 per document, pruned in the writer after each insert
   ([server/db/products/versions.ts](server/db/products/versions.ts));
   `ON DELETE CASCADE` removes versions with their parent document.
@@ -1014,8 +1027,12 @@ the HTTP routes, including client-side AI tools):
 - **Direct route writes**: `recordVersionEdit(kind, docId, editor)` after
   success, identity from `c.var.globalUser`. Slides:
   create/delete/duplicate/move + the updateSlide fallback; decks: config;
-  reports: body/figures/images fallbacks; both: the shared `updateProductLabel`
-  route, keyed by the row's `type`, since the label is part of every snapshot.
+  reports: body/figures/images fallbacks; visualizations: create (it is born
+  with its figure), the `updateVisualization` fallback and a restore-as-copy;
+  all: the shared `updateProductLabel` route, keyed by the row's `type`
+  (`PRODUCT_VERSION_KIND`), since the label is part of every snapshot.
+  Visualization rooms and `applyVisualizationToLiveRoom` feed `onEdit` as the
+  report's do.
 - **Restore routes do NOT record**: they write versions explicitly (below).
 
 ### Per-character authorship (report bodies)
@@ -1120,8 +1137,9 @@ slide-level `removed` bucket.
 ### Read + restore APIs
 
 Registry entries in
-[lib/api-routes/products/reports.ts](lib/api-routes/products/reports.ts) and
-[slide-decks.ts](lib/api-routes/products/slide-decks.ts); handlers in the
+[lib/api-routes/products/reports.ts](lib/api-routes/products/reports.ts),
+[slide-decks.ts](lib/api-routes/products/slide-decks.ts) and
+[visualizations.ts](lib/api-routes/products/visualizations.ts); handlers in the
 matching S12 route files under `/products/:product_id/...`. Reads declare
 `access: "view"`, restore and copy `access: "edit"` (the one product guard, S1).
 List summaries compute sizes/counts in SQL and never ship snapshot content.
@@ -1149,6 +1167,12 @@ Step ② by kind:
   update (not part of the room doc). A failed label write fails the request
   (partial restore is reported, never masked). No room ⇒ `restoreReportContent`,
   one UPDATE whose `last_updated` bump auto-invalidates stored `crdt_state`.
+- **Visualization**: as the report, through `applyVisualizationToLiveRoom` (no
+  editor) when a room is live, label by direct update; no room ⇒
+  `restoreVisualizationContent`, which writes the label, the bundle and its
+  resolved-pair columns in one transaction. The restored figure keeps the pair
+  it was resolved under, so it can show as out of date (S12) until an editor
+  opens it.
 - **Deck**: `planSlideDeckRestore(currentIds, snapshotSlides)` (pure) partitions
   into `toDelete` / `toInsert` / `toUpdate`; then `remapCollidingSlideIds`
   replaces any `toInsert` id that a slide in ANOTHER deck now holds (3-char ids
@@ -1171,10 +1195,11 @@ Step ② by kind:
   wholesale, since the config re-apply floods them with unknown-deleter
   tombstones that must not leak into the next session's version.
 
-**Restore-as-copy**: `copyReportFromVersion` / `copySlideDeckFromVersion` create
-a brand-new document from the snapshot (decks get FRESH slide ids, since the
-originals may still exist). Zero-risk path; no room interaction. Deck copy
-validates every config first and inserts deck + slides in ONE transaction.
+**Restore-as-copy**: `copyReportFromVersion` / `copySlideDeckFromVersion` /
+`copyVisualizationFromVersion` create a brand-new document from the snapshot
+(decks get FRESH slide ids, since the originals may still exist). Zero-risk
+path; no room interaction. Deck copy validates every config first and inserts
+deck + slides in ONE transaction.
 
 **Room hygiene on delete**: the delete routes discard live rooms via the binding
 wrappers `closeSlideRoom` / `closeReportRoom` (over `closeRoomsForDoc`). Without
@@ -1202,10 +1227,11 @@ attribution sweep run: `renameUserEmailInProducts`
 ([rename_user_email.ts](server/db/instance/rename_user_email.ts)) rewrites
 `products.created_by`, `folders.created_by`, `reports.body_authors`
 (compare-and-set on `products.last_updated` and the crdt stamp) and the editors
-and authors on `report_versions` / `slide_deck_versions`, in one transaction.
-The order means a checkpoint that flushes mid-rename already writes the new
-email, so losing the `body_authors` compare-and-set is harmless. A failed sweep
-fails the rename; a retry skips the flipped users row and re-runs the sweep.
+and authors on `report_versions` / `slide_deck_versions` and the editors on
+`visualization_versions`, in one transaction. The order means a checkpoint that
+flushes mid-rename already writes the new email, so losing the `body_authors`
+compare-and-set is harmless. A failed sweep fails the rename; a retry skips the
+flipped users row and re-runs the sweep.
 
 ### UI
 
@@ -1215,13 +1241,13 @@ the left (pinned "Current version" row, contributor chips via
 `PresenceAvatars` + `presenceColorForKey(email)`, names preferring the live
 instance roster (`instanceState.users`) over the stored capture-time name,
 "Restored" badge, slide counts), preview on the right. It holds the chat view it
-opens over and sets `deck_history` or `report_history` by its `kind` (S13), with
-the product's live row as context (`productViewContext`), so the deck and report
-tools refuse while the user looks at history and a report rewrite proposed
-before cannot commit under it (`stillValid`). The version list is a plain
-one-shot fetch refreshed by its own Refresh button, deliberately not tied to the
-`last_updated` cache triangle (a version insert never bumps `last_updated`, by
-design).
+opens over and sets `deck_history`, `report_history` or `visualization_history`
+by its `kind` (S13), with the product's live row as context
+(`productViewContext`), so the deck and report tools refuse while the user looks
+at history and a report rewrite proposed before cannot commit under it
+(`stillValid`). The version list is a plain one-shot fetch refreshed by its own
+Refresh button, deliberately not tied to the `last_updated` cache triangle (a
+version insert never bumps `last_updated`, by design).
 
 - **Report**: opens on **"Edits in this session"**, the diff of the selected
   version against the version immediately before it (the oldest diffs against an
@@ -1257,12 +1283,22 @@ design).
   after Alice edited it reads "removed by Bob B", not "removed by one of: Alice,
   Bob". Element attribution exists only for collab edits (the observer lives on
   the room doc); REST-path slide saves fall back to the slide-level editors.
+- **Visualization** (`visualization_version_preview.tsx`): "Edits in this
+  session" shows a rename and the figure before and after (against the previous
+  version, `canonicalJson` without `snapshotAt`), noting when the two were drawn
+  from different packages or scopes; Preview shows the version's figure. The
+  history opens over the editor, which stays mounted under it, so after a
+  restore the shell (`products/visualization/visualization.tsx`, through the
+  panel's `onRestored`) remounts the figure editor: live, once the room relays
+  the restored doc (or after 3 s); offline, on the re-read row. The remounted
+  editor re-resolves the figure under the product's current pair.
 
 Footer: **Restore as copy** for anyone who can see the product (name prompt; the
 copy is a new product in the source's folder, owned by whoever made it), and
 **Restore** behind `canEditProduct(productId)` (confirm explains the safety
-version). The panel takes `{ kind, docId }` where `docId` is the product id.
-Entry points: the History button in the report and deck headers.
+version). The panel takes `{ kind, docId }` where `docId` is the product id, and
+an optional `onRestored` called before it closes. Entry points: the History
+button in the report, deck and visualization headers.
 
 ### Known tradeoffs (v1)
 
