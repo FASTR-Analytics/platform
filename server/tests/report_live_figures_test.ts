@@ -4,29 +4,20 @@
 //   deno test -A --no-check server/tests/report_live_figures_test.ts
 
 import { assertEquals } from "@std/assert";
-import {
-  buildReportEmbedToken,
-  type FigureBlock,
-  reportLiveFigures,
-} from "lib";
+import { buildReportEmbedToken, reportLiveFigures } from "lib";
 
 const LIVE_TABLE = "5eea3e02-0000-4000-8000-000000000001";
 const LIVE_SERIES = "6553e24d-0000-4000-8000-000000000002";
 const ORPHAN = "7c0d9a1f-0000-4000-8000-000000000003";
 const IMAGE = "a1b2c3d4-0000-4000-8000-000000000004";
 
-// Only the keys this helper reads matter; the bundle is opaque to it.
-const block = (
-  caption: string,
-): FigureBlock => ({
-  type: "figure",
-  bundle: { caption },
-} as unknown as FigureBlock);
+// The helper reads no part of an entry, so the fixture is the caption alone.
+const block = (caption: string) => ({ caption });
 
 // The run's own shape: `replace_figure` swapped the orphan's token for a fresh
 // id and left its registry entry behind, carrying the caption the user asked
 // to keep, so the index offered three figures for a two-figure report.
-const REGISTRY: Record<string, FigureBlock> = {
+const REGISTRY = {
   [ORPHAN]: block("REPORT FIGURE CAPTION"),
   [LIVE_TABLE]: block("Immunization Indicators (Feb-Apr 2025)"),
   [LIVE_SERIES]: block("ANC4 National Coverage Trend"),
@@ -55,7 +46,7 @@ Deno.test("an unreferenced figure is not a live figure", () => {
 });
 
 Deno.test("an image token never makes a figure live", () => {
-  const withImageId: Record<string, FigureBlock> = {
+  const withImageId = {
     ...REGISTRY,
     [IMAGE]: block("Same id as the image"),
   };

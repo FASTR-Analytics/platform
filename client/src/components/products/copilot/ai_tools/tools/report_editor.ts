@@ -79,11 +79,7 @@ function embedIdsOf(ctx: EditingReportContext): ReportEmbedIds {
   };
 }
 
-// The figures the reader can see, which is every figure these tools offer,
-// read or write. A registered figure the body no longer embeds is nobody's:
-// indexing it cost the model a turn, because its index line carried the
-// caption the user had asked to keep, so the model aimed at the orphan and was
-// refused.
+// The figures the reader can see: lib/report_live_figures.ts.
 function liveFiguresOf(
   ctx: EditingReportContext,
 ): Record<string, FigureBlock> {
@@ -159,7 +155,6 @@ export function getClientToolsForReportEditor(
         const ctx = view.context;
         const figs = liveFiguresOf(ctx);
         const figureIds = Object.keys(figs);
-        const imgIds = Object.keys(ctx.getImages());
         const figureSection = figureIds.length
           ? [
             `## Figures (call get_report_figure for full config; update_report_figure to edit in place):`,
@@ -171,7 +166,9 @@ export function getClientToolsForReportEditor(
         return readReportText(ctx.getBody(), {
           title: ctx.getLabel(),
           figureLines: figureSection,
-          embeds: { figures: figureIds, images: imgIds },
+          // The ids a PROPOSED body may embed, which is the full registry,
+          // not the index above: `figureLines` is what the model reads.
+          embeds: embedIdsOf(ctx),
           selection: ctx.getSelection(),
         }).text;
       },
@@ -423,7 +420,7 @@ export function getClientToolsForReportEditor(
           : {
             ...res.data,
             body: ctx.getBody(),
-            figures: ctx.getFigures(),
+            figures: liveFiguresOf(ctx),
             images: ctx.getImages(),
             config: { ...res.data.config, fastrTheme: theme },
           };

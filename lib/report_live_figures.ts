@@ -1,5 +1,4 @@
-import type { FigureBlock } from "./types/mod.ts";
-import { findReportEmbeds } from "../report-forge/engine/mod.ts";
+import { referencedReportEmbedIds } from "../report-forge/engine/mod.ts";
 
 // One notion of "a figure the reader can see": registered in the report AND
 // embedded by a `figure:<id>` token in the body. The two sets drift, because
@@ -15,15 +14,14 @@ import { findReportEmbeds } from "../report-forge/engine/mod.ts";
 //
 // Insertion order is the registry's, not the body's: the index the model reads
 // is stable across edits that only move a token.
-export function reportLiveFigures(
+//
+// Generic in the entry: nothing here reads the block, so a caller is never
+// pushed into a cast to satisfy it.
+export function reportLiveFigures<T>(
   body: string,
-  figures: Record<string, FigureBlock>,
-): Record<string, FigureBlock> {
-  const embedded = new Set(
-    findReportEmbeds(body)
-      .filter((r) => r.kind === "figure")
-      .map((r) => r.id),
-  );
+  figures: Record<string, T>,
+): Record<string, T> {
+  const embedded = referencedReportEmbedIds(body).figures;
   return Object.fromEntries(
     Object.entries(figures).filter(([id]) => embedded.has(id)),
   );
