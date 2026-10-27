@@ -1,8 +1,10 @@
 # PLAN_6: the open platform items from the inbox
 
-One item per section: what to build, where, the gate, and what it waits on. The
-commit that lands an item deletes its section. Delete the file with the last
-one. Repos: this app, `wb-fastr-modules` (edit the sources, `deno task
+One item per section: what to build, where, the gate, and what it waits on.
+Instruction to an agent: "Do item N of PLAN_6_INBOX_BUGS.md." Items 2 to 5 are
+ready now; items 1 and 6 wait on the people named. Branch: `main`. The commit
+that lands an item deletes its section. Delete the file with the last one.
+Repos: this app, `wb-fastr-modules` (edit the sources, `deno task
 build`
 regenerates each `definition.json`, push in lockstep with schema changes) and
 panther (edit in the panther repo, typecheck, commit app changes, then
