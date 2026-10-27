@@ -790,17 +790,21 @@ export function EditIndicatorForm(
       width="xl"
       form
       onCancel={() => p.close(undefined)}
-      footer={deleteAction && (
-        <Button
-          type="button"
-          outline
-          intent="danger"
-          iconName="trash"
-          onClick={() => deleteAction.click()}
-        >
-          {t3(TC.delete)}
-        </Button>
-      )}
+      footer={
+        <Show when={deleteAction} keyed>
+          {(del) => (
+            <Button
+              type="button"
+              outline
+              intent="danger"
+              iconName="trash"
+              onClick={() => del.click()}
+            >
+              {t3(TC.delete)}
+            </Button>
+          )}
+        </Show>
+      }
       actions={[{
         label: t3({ en: "Save", fr: "Sauvegarder", pt: "Guardar" }),
         onClick: save.click,

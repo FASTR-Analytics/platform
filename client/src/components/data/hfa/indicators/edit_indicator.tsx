@@ -17,7 +17,7 @@ import {
   Select,
   TextArea,
 } from "panther";
-import { createSignal } from "solid-js";
+import { createSignal, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 
 export function EditHfaIndicator(
@@ -113,17 +113,21 @@ export function EditHfaIndicator(
         })}
       form
       onCancel={() => p.close(undefined)}
-      footer={deleteIndicator && (
-        <Button
-          type="button"
-          outline
-          intent="danger"
-          iconName="trash"
-          onClick={() => deleteIndicator(() => p.close(undefined))}
-        >
-          {t3(TC.delete)}
-        </Button>
-      )}
+      footer={
+        <Show when={deleteIndicator} keyed>
+          {(del) => (
+            <Button
+              type="button"
+              outline
+              intent="danger"
+              iconName="trash"
+              onClick={() => del(() => p.close(undefined))}
+            >
+              {t3(TC.delete)}
+            </Button>
+          )}
+        </Show>
+      }
       actions={[{
         label: t3({ en: "Save", fr: "Sauvegarder", pt: "Guardar" }),
         onClick: save.click,

@@ -1,35 +1,5 @@
 [
   {
-    "id": "jsx-and-and",
-    "file": "client/src/components/products/_shared/version_history/report_version_preview.tsx",
-    "text": "old={ch.oldVal && ("
-  },
-  {
-    "id": "jsx-and-and",
-    "file": "client/src/components/products/_shared/version_history/report_version_preview.tsx",
-    "text": "neu={ch.newVal && ("
-  },
-  {
-    "id": "jsx-and-and",
-    "file": "client/src/components/products/_shared/version_history/report_version_preview.tsx",
-    "text": "old={ch.oldVal && ("
-  },
-  {
-    "id": "jsx-and-and",
-    "file": "client/src/components/products/_shared/version_history/report_version_preview.tsx",
-    "text": "neu={ch.newVal && ("
-  },
-  {
-    "id": "jsx-and-and",
-    "file": "client/src/components/data/hmis/indicators/edit_indicator_form.tsx",
-    "text": "footer={deleteAction && ("
-  },
-  {
-    "id": "jsx-and-and",
-    "file": "client/src/components/data/hfa/indicators/edit_indicator.tsx",
-    "text": "footer={deleteIndicator && ("
-  },
-  {
     "id": "raw-loading-signal",
     "file": "client/src/components/products/slide_deck/slide_deck.tsx",
     "text": "const [isLoading, setIsLoading] = createSignal(true);"
