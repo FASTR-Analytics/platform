@@ -83,6 +83,12 @@ const CHECKS: Check[] = [
     hitText: "effect body opens with a conditional",
   },
   {
+    // The error half is an enumerated prefix list, not `\\w*[Ee]rr(?:or)?`.
+    // The wider form surfaces about a dozen more sites, ten of them genuine
+    // (the share and download modals, the feedback form, and the HMIS, HFA and
+    // ICEH import wizards); widening the check without rewriting those first
+    // would only grow the baseline, which holds reviewed exceptions and not
+    // debt.
     id: "raw-loading-signal",
     tier: 2,
     rule: "STATE 9: raw loading/error signals instead of StateHolder",
