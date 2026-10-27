@@ -265,6 +265,9 @@ function diagnoseUnknown(
       }`,
     };
   }
+  if (formula.annualized) {
+    return { kind: "uploaded", reason: "it is annualized" };
+  }
   for (const operand of formula.operands) {
     if (!operand.verdict.accepted) {
       return {

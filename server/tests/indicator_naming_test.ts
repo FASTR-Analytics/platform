@@ -94,19 +94,17 @@ function element(
 function decomposition(
   formula: { numerator: string; denominator: string; factor: number },
   verdicts: Record<string, Dhis2ElementVerdict> = {},
+  annualized = false,
 ): Dhis2IndicatorDecomposition {
-  const parse = parseDhis2Indicator({ ...formula, annualized: false });
+  const parse = parseDhis2Indicator(formula);
   const operands = parse.accepted
     ? parse.operands.map((o) => ({
       ...o,
       verdict: verdicts[o.data_id] ?? ACCEPTED,
+      label: dhis2LabelFor(o.data_id),
     }))
     : [];
-  return {
-    accepted: parse.accepted && operands.every((o) => o.verdict.accepted),
-    parse,
-    operands,
-  };
+  return { parse, operands, annualized };
 }
 
 const RATE = {
@@ -255,6 +253,26 @@ Deno.test("dhis2: a refused formula creates nothing", async () => {
   assert(!res.success);
   assertStringIncludes(res.err, "cannot be decomposed");
   assertStringIncludes(res.err, "OUG{abcdefghij1}");
+  assertEquals((await dictionary()).size, 0);
+});
+
+Deno.test("dhis2: an annualized indicator creates nothing", async () => {
+  await reset();
+  const res = await createIndicatorsFromDhis2(db, {
+    elements: [
+      element(ANC4_ELEMENT, "anc4"),
+      element(ANC1_ELEMENT, "anc1"),
+      element(ANC1_OPERAND, "anc1_repeat"),
+    ],
+    indicators: [{
+      uid: DHIS2_INDICATOR,
+      indicator_id: "anc4_rate",
+      label: "ANC 4 rate",
+      decomposition: decomposition(RATE, {}, true),
+    }],
+  });
+  assert(!res.success);
+  assertStringIncludes(res.err, "it is annualized");
   assertEquals((await dictionary()).size, 0);
 });
 

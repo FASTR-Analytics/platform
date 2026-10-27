@@ -1,5 +1,5 @@
 import { capitalizeFirstLetter } from "@timroberton/panther";
-import type { TranslatableString } from "../translate/types.ts";
+import type { Language, TranslatableString } from "../translate/types.ts";
 import type {
   ThresholdDirection,
   ThresholdsRule,
@@ -393,19 +393,32 @@ export type Dhis2DataElementSearchItem = DHIS2DataElement & {
   verdict: Dhis2ElementVerdict;
 };
 
+// Which side of a DHIS2 indicator's formula an operand is on. An operand the
+// numerator and the denominator share is `both`.
+export type Dhis2OperandSide = "numerator" | "denominator" | "both";
+
+export function mergeDhis2OperandSides(
+  a: Dhis2OperandSide,
+  b: Dhis2OperandSide,
+): Dhis2OperandSide {
+  return a === b ? a : "both";
+}
+
 // One `#{uid}` or `#{uid.coc}` term of a DHIS2 indicator formula. `data_id`
 // is the term's id as a DHIS2 element's data id (`uid` or `uid.coc`), which
-// is also the identifier the decomposed expression names it by.
+// is also the identifier the decomposed expression names it by. `side` is
+// where the formula uses it, so a refusal can name the part at fault by its
+// role.
 export type Dhis2ParsedOperand = {
   data_id: string;
   data_element_id: string;
   category_option_combo_id?: string;
+  side: Dhis2OperandSide;
 };
 
 // Why an indicator formula is outside the whitelist. `term` is the offending
 // text where there is one (a syntax refusal carries the token it stopped at).
 export type Dhis2IndicatorParseRefusal =
-  | { kind: "annualized" }
   | { kind: "factor"; value: number | undefined }
   | { kind: "empty"; side: "numerator" | "denominator" }
   | { kind: "term"; side: "numerator" | "denominator"; term: string }
@@ -429,17 +442,21 @@ export type Dhis2IndicatorParse =
   }
   | { accepted: false; refusal: Dhis2IndicatorParseRefusal };
 
+// `label` is what DHIS2 calls the operand (`dhis2ElementName`), the operand's
+// own data id when the element is not on the server.
 export type Dhis2DecompositionOperand = Dhis2ParsedOperand & {
   verdict: Dhis2ElementVerdict;
+  label: string;
 };
 
-// The parse plus each operand's eligibility verdict, checked through its element
-// on the live server. `accepted` is the whole-indicator answer: the parse
-// accepted and every operand accepted.
+// The parse plus each operand's eligibility verdict, checked through its
+// element on the live server, and whether DHIS2 annualizes the indicator,
+// which the formula does not say. A caller reads the whole-indicator answer
+// off the parse, the operands and `annualized` together.
 export type Dhis2IndicatorDecomposition = {
-  accepted: boolean;
   parse: Dhis2IndicatorParse;
   operands: Dhis2DecompositionOperand[];
+  annualized: boolean;
 };
 
 export type Dhis2IndicatorSearchItem = DHIS2Indicator & {
@@ -543,12 +560,6 @@ export function describeDhis2ParseRefusal(
       ? { en: "numerator", fr: "numérateur", pt: "numerador" }
       : { en: "denominator", fr: "dénominateur", pt: "denominador" };
   switch (refusal.kind) {
-    case "annualized":
-      return {
-        en: "it is annualized",
-        fr: "il est annualisé",
-        pt: "é anualizado",
-      };
     case "factor":
       return {
         en: `its factor is ${
@@ -603,6 +614,195 @@ export function describeDhis2ParseRefusal(
           `tem ${refusal.count} operandos distintos; no máximo ${refusal.max} são suportados`,
       };
   }
+}
+
+// ----------------------------------------------------------------------------
+// The import sentences: why a DHIS2 row cannot be imported, in the user's
+// words. No UID, no DHIS2 metadata field name, no DHIS2 period word. The
+// order of the causes lives here, so the picker asks rather than decides,
+// and `undefined` means there is nothing to refuse.
+// ----------------------------------------------------------------------------
+
+// A sentence is composed from its parts in every language, so each part
+// spells every language out where `TranslatableString` leaves Portuguese
+// optional.
+type EveryLanguage = Record<Language, string>;
+
+// An operand on both sides of the formula is named as the numerator's: it is
+// the count the user would import on its own.
+function operandRoleWord(side: Dhis2OperandSide): EveryLanguage {
+  return side === "denominator"
+    ? { en: "denominator", fr: "dénominateur", pt: "denominador" }
+    : { en: "numerator", fr: "numérateur", pt: "numerador" };
+}
+
+function isNotAMonthlyCount(refusal: Dhis2ElementRefusal): boolean {
+  return refusal.kind === "aggregation_type" ||
+    refusal.kind === "value_type" ||
+    refusal.kind === "period_type";
+}
+
+function notAMonthlyCountCause(
+  side: Dhis2OperandSide,
+  label: string,
+): EveryLanguage {
+  const role = operandRoleWord(side);
+  return {
+    en:
+      `its ${role.en}, "${label}", is not a monthly count, and the platform only imports monthly counts from DHIS2.`,
+    fr:
+      `son ${role.fr}, "${label}", n'est pas un dénombrement mensuel, et la plateforme n'importe que des dénombrements mensuels depuis DHIS2.`,
+    pt:
+      `o seu ${role.pt}, "${label}", não é uma contagem mensal, e a plataforma só importa contagens mensais do DHIS2.`,
+  };
+}
+
+function noLongerExistsCause(
+  side: Dhis2OperandSide,
+  label: string,
+): EveryLanguage {
+  const role = operandRoleWord(side);
+  return {
+    en: `its ${role.en}, "${label}", no longer exists in DHIS2.`,
+    fr: `son ${role.fr}, "${label}", n'existe plus dans DHIS2.`,
+    pt: `o seu ${role.pt}, "${label}", já não existe no DHIS2.`,
+  };
+}
+
+function parseImportCause(
+  refusal: Dhis2IndicatorParseRefusal,
+): EveryLanguage {
+  switch (refusal.kind) {
+    case "term":
+    case "syntax":
+      return {
+        en:
+          "its formula uses DHIS2 functions or constants the platform does not read.",
+        fr:
+          "sa formule utilise des fonctions ou des constantes DHIS2 que la plateforme ne lit pas.",
+        pt:
+          "a sua fórmula utiliza funções ou constantes do DHIS2 que a plataforma não lê.",
+      };
+    case "factor":
+      return {
+        en: "its factor is not 1, 100, 1000 or 10000.",
+        fr: "son facteur n'est pas 1, 100, 1000 ou 10000.",
+        pt: "o seu fator não é 1, 100, 1000 ou 10000.",
+      };
+    case "empty": {
+      const role = operandRoleWord(refusal.side);
+      return {
+        en: `its ${role.en} is empty.`,
+        fr: `son ${role.fr} est vide.`,
+        pt: `o seu ${role.pt} está vazio.`,
+      };
+    }
+    case "no_operands":
+      return {
+        en: "its formula names no data element.",
+        fr: "sa formule ne nomme aucun élément de données.",
+        pt: "a sua fórmula não nomeia nenhum elemento de dados.",
+      };
+    case "too_many_operands":
+      return {
+        en: `its formula names more than ${refusal.max} data elements.`,
+        fr: `sa formule nomme plus de ${refusal.max} éléments de données.`,
+        pt: `a sua fórmula nomeia mais de ${refusal.max} elementos de dados.`,
+      };
+  }
+}
+
+function indicatorImportSentence(
+  cause: EveryLanguage,
+  hint?: EveryLanguage,
+): TranslatableString {
+  const tail = (text: string | undefined): string =>
+    text === undefined ? "" : ` ${text}`;
+  return {
+    en: `This indicator cannot be imported: ${cause.en}${tail(hint?.en)}`,
+    fr: `Cet indicateur ne peut pas être importé : ${cause.fr}${
+      tail(hint?.fr)
+    }`,
+    pt: `Este indicador não pode ser importado: ${cause.pt}${tail(hint?.pt)}`,
+  };
+}
+
+// A coverage indicator whose only fault is a denominator that is not a count
+// still has a numerator the user can import, so the sentence names it. Only
+// a single-operand numerator can be named that way.
+function addTheNumeratorInstead(
+  operands: Dhis2DecompositionOperand[],
+): EveryLanguage | undefined {
+  const refusedOutsideTheDenominator = operands.some((o) =>
+    !o.verdict.accepted && o.side !== "denominator"
+  );
+  if (refusedOutsideTheDenominator) return undefined;
+  const numerator = operands.filter((o) => o.side !== "denominator");
+  if (numerator.length !== 1) return undefined;
+  const label = numerator[0].label;
+  return {
+    en: `Add its numerator, "${label}", as a data element instead.`,
+    fr: `Ajoutez plutôt son numérateur, "${label}", comme élément de données.`,
+    pt:
+      `Adicione em vez disso o seu numerador, "${label}", como elemento de dados.`,
+  };
+}
+
+export function describeDhis2IndicatorImportRefusal(
+  decomposition: Dhis2IndicatorDecomposition,
+): TranslatableString | undefined {
+  const { parse, operands, annualized } = decomposition;
+  const refused = operands.flatMap((o) =>
+    o.verdict.accepted ? [] : [{ operand: o, refusal: o.verdict.refusal }]
+  );
+  const notACount = refused.find((o) => isNotAMonthlyCount(o.refusal));
+  if (notACount !== undefined) {
+    return indicatorImportSentence(
+      notAMonthlyCountCause(notACount.operand.side, notACount.operand.label),
+      addTheNumeratorInstead(operands),
+    );
+  }
+  if (annualized) {
+    return indicatorImportSentence({
+      en:
+        "it is annualized: DHIS2 scales each month up to a yearly rate, which the platform does not do.",
+      fr:
+        "il est annualisé : DHIS2 ramène chaque mois à un taux annuel, ce que la plateforme ne fait pas.",
+      pt:
+        "é anualizado: o DHIS2 converte cada mês numa taxa anual, o que a plataforma não faz.",
+    });
+  }
+  // `formula` and `default_combo` cannot reach an indicator row:
+  // `getDhis2OperandVerdict` never answers `formula`, and the default combos
+  // are folded onto the bare element before the operands are judged. They are
+  // grouped with the missing operand so the sentence is total.
+  const missing = refused[0];
+  if (missing !== undefined) {
+    return indicatorImportSentence(
+      noLongerExistsCause(missing.operand.side, missing.operand.label),
+    );
+  }
+  if (!parse.accepted) {
+    return indicatorImportSentence(parseImportCause(parse.refusal));
+  }
+  return undefined;
+}
+
+// One sentence whichever eligibility rule refused the element: its
+// aggregation type, its value type and its data sets' period are the same
+// fact to the person importing it.
+export function describeDhis2ElementImportRefusal(
+  verdict: Dhis2ElementVerdict,
+): TranslatableString | undefined {
+  if (verdict.accepted) return undefined;
+  return {
+    en:
+      "This data element cannot be imported: it is not a monthly count, and the platform only imports monthly counts from DHIS2.",
+    fr:
+      "Cet élément de données ne peut pas être importé : il n'est pas un dénombrement mensuel, et la plateforme n'importe que des dénombrements mensuels depuis DHIS2.",
+    pt:
+      "Este elemento de dados não pode ser importado: não é uma contagem mensal, e a plataforma só importa contagens mensais do DHIS2.",
+  };
 }
 
 // ============================================================================

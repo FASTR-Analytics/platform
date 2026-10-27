@@ -527,10 +527,23 @@ DHIS2 select form posts to `/indicators-dhis2/create` (each DHIS2 indicator by
 its `uid`), which re-reads every element and indicator from DHIS2 and judges
 them itself (S7's `readDhis2ElementIds` for the elements, with its verdict per
 id, and the decomposition for the indicators, worded by `describeDhis2IdRefusal`
-/ `describeDhis2ParseRefusal`) before `createIndicatorsFromDhis2` calls
-`applyIndicatorNaming`, so a refused element or indicator creates nothing. The
-route's verdicts are its own, not the typed-id check's, which the picker's path
-never runs. Pinned by `server/tests/indicator_naming_test.ts` on a throwaway
+/ `describeDhis2ParseRefusal`, an annualized indicator refused in its own words
+after the parse and before the operands) before `createIndicatorsFromDhis2`
+calls `applyIndicatorNaming`, so a refused element or indicator creates nothing.
+The route's verdicts are its own, not the typed-id check's, which the picker's
+path never runs. **Two wordings, two callers.** The diagnostics
+(`describeDhis2ElementRefusal`, `describeDhis2ParseRefusal`,
+`describeDhis2IdRefusal`) name the UID and the DHIS2 metadata field, and belong
+to the save route and the DHIS2 id repair, which report what the server
+answered. The **import sentences** (`describeDhis2IndicatorImportRefusal` over a
+decomposition, `describeDhis2ElementImportRefusal` over an element verdict, both
+in `lib/types/indicators.ts`) are what the picker shows a person searching: one
+sentence saying the row cannot be imported and why, naming the part at fault by
+its role and by DHIS2's own name for it, with no UID, no metadata field name and
+no DHIS2 period word, and `undefined` when there is nothing to refuse. The
+indicator one owns the order of the causes and, when only the denominator is at
+fault and the numerator is one operand, names that numerator as the thing to add
+instead. Pinned by `server/tests/indicator_naming_test.ts` on a throwaway
 database built from `_main_database.sql`. A new database has an empty
 dictionary; the **special indicators**, `SPECIAL_INDICATORS` in
 `lib/special_indicators.ts`, stay a reserved list: the hand-kept count ids the

@@ -1,14 +1,16 @@
 // Shapes search results for the dictionary: each data element carries its
-// element verdict and each indicator its decomposition,
-// with every operand judged through its element on the live server.
+// element verdict and each indicator its decomposition, with every operand
+// judged through its element on the live server and named as DHIS2 names it.
 
 import {
   type DHIS2DataElement,
   type Dhis2DataElementSearchItem,
+  dhis2ElementName,
   type DHIS2Indicator,
   type Dhis2IndicatorParse,
   type Dhis2IndicatorSearchItem,
   type Dhis2ParsedOperand,
+  mergeDhis2OperandSides,
   parseIndicatorExpression,
   renameIdentifiers,
   writeIndicatorExpression,
@@ -43,7 +45,6 @@ export async function withDecompositions(
     parseDhis2Indicator({
       numerator: indicator.numerator,
       denominator: indicator.denominator,
-      annualized: indicator.annualized,
       factor: indicator.indicatorType?.factor,
     })
   );
@@ -63,20 +64,23 @@ export async function withDecompositions(
   return indicators.map((indicator, i) => {
     const parse = foldDefaultCombos(parses[i], elementsById);
     const operands = parse.accepted
-      ? parse.operands.map((operand) => ({
-        ...operand,
-        verdict: getDhis2OperandVerdict(
-          elementsById.get(operand.data_element_id),
-          operand.data_id,
-        ),
-      }))
+      ? parse.operands.map((operand) => {
+        const element = elementsById.get(operand.data_element_id);
+        return {
+          ...operand,
+          verdict: getDhis2OperandVerdict(element, operand.data_id),
+          label: element === undefined
+            ? operand.data_id
+            : dhis2ElementName(element, operand.data_id),
+        };
+      })
       : [];
     return {
       ...indicator,
       decomposition: {
-        accepted: parse.accepted && operands.every((o) => o.verdict.accepted),
         parse,
         operands,
+        annualized: indicator.annualized === true,
       },
     };
   });
@@ -88,6 +92,7 @@ export async function withDecompositions(
 // element beside the bare one, and a formula naming both forms counts the
 // element twice, as DHIS2 does. It runs before the operands are judged,
 // so the operand verdict's default-combo refusal never reaches a formula.
+// Folding two forms into one operand merges the sides they were named on.
 export function foldDefaultCombos(
   parse: Dhis2IndicatorParse,
   elementsById: ReadonlyMap<string, Pick<DHIS2DataElement, "categoryCombo">>,
@@ -101,18 +106,26 @@ export function foldDefaultCombos(
     );
   if (!parse.operands.some(isDefaultCombo)) return parse;
   const mapping: Record<string, string> = {};
-  const seen = new Set<string>();
+  const positionByDataId = new Map<string, number>();
   const operands: Dhis2ParsedOperand[] = [];
   for (const operand of parse.operands) {
     const folded = isDefaultCombo(operand)
       ? {
         data_id: operand.data_element_id,
         data_element_id: operand.data_element_id,
+        side: operand.side,
       }
       : operand;
     mapping[operand.data_id] = folded.data_id;
-    if (seen.has(folded.data_id)) continue;
-    seen.add(folded.data_id);
+    const position = positionByDataId.get(folded.data_id);
+    if (position !== undefined) {
+      operands[position] = {
+        ...operands[position],
+        side: mergeDhis2OperandSides(operands[position].side, folded.side),
+      };
+      continue;
+    }
+    positionByDataId.set(folded.data_id, operands.length);
     operands.push(folded);
   }
   return {

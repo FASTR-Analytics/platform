@@ -205,23 +205,24 @@ select form's create route and the label refresh.
 
 **Indicator decomposition** (`goal2_indicators/decompose_indicator.ts`, pure). A
 DHIS2 indicator is never imported as values;
-`parseDhis2Indicator({ numerator, denominator, annualized, factor })` turns it
-into operands and an expression, or refuses it. The formula is accepted by
-WHITELIST: `#{uid}` and `#{uid.coc}` terms (each part a DHIS2 UID), plain
-numeric literals (`[0-9]+(\.[0-9]+)?`), `+ - * /`, unary minus, parentheses and
-any whitespace; the indicator is not `annualized`; the factor is 1 (`number`),
-100 (`percent`), 10000 (`rate_per_10k`) or 1000 (`number`, the expression
-multiplied by 1000 and a three-language `note` in the result, because there is
-no `rate_per_1k` format); the formula names at least one operand (a constant
-such as `-1 / 1` is refused as `no_operands`); and the distinct operand count is
-at most `MAX_INDICATOR_EXPRESSION_INGREDIENTS`. Everything else is refused with
-the offending construct as the user would recognise it in the formula:
-three-part and wildcard operands (`#{uid.coc.aoc}`, `#{uid.*.aoc}`), item
-modifiers (`.periodOffset(-1)`), `N{}` `D{}` `A{}` `I{}` `R{}` `OUG{}` `C{}`,
-`[days]`, operators outside the four (`^ % > == && ||`), functions (`if`,
-`isNull`, `d2:zing`), a malformed formula (a `syntax` refusal with the token it
-stopped at). A blacklist would miss the next form DHIS2 adds. The accepted
-result's `expression` is written in the app's own grammar through
+`parseDhis2Indicator({ numerator, denominator, factor })` turns it into operands
+and an expression, or refuses it. Whether DHIS2 annualizes the indicator is not
+a fact about the formula and is not read here: the decomposition carries it. The
+formula is accepted by WHITELIST: `#{uid}` and `#{uid.coc}` terms (each part a
+DHIS2 UID), plain numeric literals (`[0-9]+(\.[0-9]+)?`), `+ - * /`, unary
+minus, parentheses and any whitespace; the factor is 1 (`number`), 100
+(`percent`), 10000 (`rate_per_10k`) or 1000 (`number`, the expression multiplied
+by 1000 and a three-language `note` in the result, because there is no
+`rate_per_1k` format); the formula names at least one operand (a constant such
+as `-1 / 1` is refused as `no_operands`); and the distinct operand count is at
+most `MAX_INDICATOR_EXPRESSION_INGREDIENTS`. Everything else is refused with the
+offending construct as the user would recognise it in the formula: three-part
+and wildcard operands (`#{uid.coc.aoc}`, `#{uid.*.aoc}`), item modifiers
+(`.periodOffset(-1)`), `N{}` `D{}` `A{}` `I{}` `R{}` `OUG{}` `C{}`, `[days]`,
+operators outside the four (`^ % > == && ||`), functions (`if`, `isNull`,
+`d2:zing`), a malformed formula (a `syntax` refusal with the token it stopped
+at). A blacklist would miss the next form DHIS2 adds. The accepted result's
+`expression` is written in the app's own grammar through
 `writeIndicatorExpression`, fully parenthesised as
 `((numerator) / (denominator))`, with each operand as the identifier `data_id`,
 bracket-quoted (`[uid]`, `[uid.coc]`) unless the uid matches
@@ -230,29 +231,38 @@ bracket-quoted (`[uid]`, `[uid.coc]`) unless the uid matches
 with `parseIndicatorExpression` and the naming step can rename those identifiers
 to the indicator ids the elements land in with `renameIdentifiers`. Operands are
 deduped by `data_id` in first- appearance order across numerator then
-denominator.
+denominator, and each carries the `side` the formula names it on: `numerator`,
+`denominator`, or `both` for one both sides name, which the dedupe merges. A
+refusal naming the part at fault reads the side, so an operand's role never has
+to be re-derived from the formula.
 
 **Search-result shaping** (`goal2_indicators/attach_verdicts.ts`).
 `withElementVerdicts(elements)` attaches a `verdict` to each data element.
 `withDecompositions(options, indicators, known?)` attaches a `decomposition` to
 each indicator: the parse, each operand with its own verdict judged through its
 element and its combo (`getDhis2OperandVerdict`, so an operand whose combo its
-element does not list is refused), and `accepted` = the parse accepted and every
-operand accepted. Operand elements not already in `known` are fetched by
-`getDataElementsByIds` with the default field list, one round of requests for
-the whole result set. Once the elements are known and before the operands are
-judged, `foldDefaultCombos` (pure) folds every `uid.coc` operand whose combo is
-its element's default combo (`isDefaultComboOf`, which the DHIS2 id repair's
-planner also reads) onto the bare `uid`, in operands and expression alike: the
-default category combo has that one combo, so both forms name the same series,
-and the fold keeps the picker and the DHIS2 id repair from creating a second
-element beside the bare one, and the operand verdict's default-combo refusal
-from ever reaching a formula. A formula naming both forms then counts the
-element twice, as DHIS2 does. The three search routes return these shapes
-(`Dhis2DataElementSearchItem`, `Dhis2IndicatorSearchItem`); the combined search
-passes its own data-element results as `known`. Pinned by
-`server/tests/dhis2_element_eligibility_test.ts` and
-`server/tests/dhis2_decompose_indicator_test.ts` (the parse and the fold).
+element does not list is refused) and with its `label`, what DHIS2 calls it
+(`dhis2ElementName`, the operand's own data id when the element is not on the
+server), and `annualized` from the indicator. There is no whole-indicator
+`accepted` flag: a caller judges the decomposition itself, the picker through
+S5's `describeDhis2IndicatorImportRefusal` and the save route by refusing a
+refused parse, an annualized indicator and a refused operand in turn. Operand
+elements not already in `known` are fetched by `getDataElementsByIds` with the
+default field list, one round of requests for the whole result set. Once the
+elements are known and before the operands are judged, `foldDefaultCombos`
+(pure) folds every `uid.coc` operand whose combo is its element's default combo
+(`isDefaultComboOf`, which the DHIS2 id repair's planner also reads) onto the
+bare `uid`, in operands and expression alike: the default category combo has
+that one combo, so both forms name the same series, and the fold keeps the
+picker and the DHIS2 id repair from creating a second element beside the bare
+one, and the operand verdict's default-combo refusal from ever reaching a
+formula. A formula naming both forms then counts the element twice, as DHIS2
+does, and folding two forms into one operand merges the sides they were named
+on. The three search routes return these shapes (`Dhis2DataElementSearchItem`,
+`Dhis2IndicatorSearchItem`); the combined search passes its own data-element
+results as `known`. Pinned by `server/tests/dhis2_element_eligibility_test.ts`
+and `server/tests/dhis2_decompose_indicator_test.ts` (the parse, the sides, the
+fold and the import sentences).
 
 **Data value sets.** `getDataValueSetsFromDHIS2` pulls one selector
 (`Dhis2ValueSelector`: `dataElement=`, which the export reads from DHIS2 2.39,

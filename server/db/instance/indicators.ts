@@ -926,13 +926,20 @@ export async function createIndicatorsFromDhis2(
   }
   const calculated: IndicatorNamingInput["calculated"] = [];
   for (const indicator of input.indicators) {
-    const { parse, operands } = indicator.decomposition;
+    const { parse, operands, annualized } = indicator.decomposition;
     if (!parse.accepted) {
       return {
         success: false,
         err: `DHIS2 indicator ${indicator.uid} cannot be decomposed: ${
           t3(describeDhis2ParseRefusal(parse.refusal))
         }`,
+      };
+    }
+    if (annualized) {
+      return {
+        success: false,
+        err:
+          `DHIS2 indicator ${indicator.uid} cannot be decomposed: it is annualized`,
       };
     }
     for (const operand of operands) {

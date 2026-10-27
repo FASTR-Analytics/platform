@@ -183,15 +183,15 @@ function formula(
     numerator,
     denominator: options.denominator ?? "1",
     factor: options.factor ?? 1,
-    annualized: false,
   });
   const operands = parse.accepted
     ? parse.operands.map((o) => ({
       ...o,
       verdict: { accepted: true as const },
+      label: o.data_id,
     }))
     : [];
-  return { accepted: parse.accepted, parse, operands };
+  return { parse, operands, annualized: false };
 }
 
 async function facts(

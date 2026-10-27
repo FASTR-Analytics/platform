@@ -3,8 +3,9 @@
 // `#{uid}` and `#{uid.coc}` terms, plain numeric literals, `+ - * /` and
 // parentheses, any whitespace between tokens. Everything else is refused with
 // the offending term, because a blacklist would miss the next form DHIS2 adds.
-// Pure over the four indicator fields; the caller checks each operand's
-// element for eligibility and creates nothing here.
+// Pure over the formula and the factor; whether DHIS2 annualizes the
+// indicator is not a fact about the formula and is not read here. The caller
+// checks each operand's element for eligibility and creates nothing here.
 
 import {
   type Dhis2IndicatorParse,
@@ -13,13 +14,16 @@ import {
   type ExpressionNode,
   type IndicatorFormat,
   MAX_INDICATOR_EXPRESSION_INGREDIENTS,
+  mergeDhis2OperandSides,
   writeIndicatorExpression,
 } from "lib";
 
 type Side = "numerator" | "denominator";
 
+type ParsedOperandId = Omit<Dhis2ParsedOperand, "side">;
+
 type Token =
-  | { kind: "operand"; operand: Dhis2ParsedOperand; text: string }
+  | { kind: "operand"; operand: ParsedOperandId; text: string }
   | { kind: "number"; value: number; raw: string; text: string }
   | { kind: "punct"; value: "+" | "-" | "*" | "/" | "(" | ")"; text: string };
 
@@ -50,12 +54,8 @@ const FACTOR_FORMATS: Record<number, IndicatorFormat> = {
 export function parseDhis2Indicator(indicator: {
   numerator?: string;
   denominator?: string;
-  annualized?: boolean;
   factor?: number;
 }): Dhis2IndicatorParse {
-  if (indicator.annualized === true) {
-    return refuse({ kind: "annualized" });
-  }
   const factor = indicator.factor;
   const formatAs = factor === undefined ? undefined : FACTOR_FORMATS[factor];
   if (factor === undefined || formatAs === undefined) {
@@ -144,7 +144,7 @@ function parseSide(source: string, side: Side): SideResult {
     };
   }
   const operands = tokenized.tokens.flatMap((t) =>
-    t.kind === "operand" ? [t.operand] : []
+    t.kind === "operand" ? [{ ...t.operand, side }] : []
   );
   return {
     accepted: true,
@@ -233,8 +233,9 @@ function tokenize(source: string): TokenizeResult {
 }
 
 // `uid` or `uid.coc`, each part a DHIS2 UID. Three-part operands and the `*`
-// wildcard fail the UID pattern and are refused as the whole term.
-function parseOperand(inner: string): Dhis2ParsedOperand | undefined {
+// wildcard fail the UID pattern and are refused as the whole term. The side
+// is the parsing side's to add.
+function parseOperand(inner: string): ParsedOperandId | undefined {
   const parts = inner.split(".");
   if (parts.length === 1 && UID_PATTERN.test(parts[0])) {
     return { data_id: parts[0], data_element_id: parts[0] };
@@ -338,13 +339,20 @@ function parseTokens(tokens: Token[]): ParseResult {
   return result;
 }
 
+// An operand both sides name is one operand on `both` sides, in the place the
+// numerator first named it.
 function dedupeOperands(operands: Dhis2ParsedOperand[]): Dhis2ParsedOperand[] {
-  const seen = new Set<string>();
-  return operands.filter((o) => {
-    if (seen.has(o.data_id)) return false;
-    seen.add(o.data_id);
-    return true;
-  });
+  const byDataId = new Map<string, Dhis2ParsedOperand>();
+  for (const operand of operands) {
+    const seen = byDataId.get(operand.data_id);
+    byDataId.set(
+      operand.data_id,
+      seen === undefined
+        ? operand
+        : { ...seen, side: mergeDhis2OperandSides(seen.side, operand.side) },
+    );
+  }
+  return [...byDataId.values()];
 }
 
 function refuse(refusal: Dhis2IndicatorParseRefusal): Dhis2IndicatorParse {
