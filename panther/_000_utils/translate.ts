@@ -3,13 +3,11 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-export type Language = "en" | "fr" | "pt";
+export type Language = "en" | "fr" | "pt" | "th";
 
-export type TranslatableString = {
-  en: string;
-  fr: string;
-  pt?: string;
-};
+export type TranslatableString<L extends Language = Language> =
+  & Record<L | "en", string>
+  & Partial<Record<Language, string>>;
 
 const _LANGUAGE: { lang: Language } = { lang: "en" };
 
@@ -21,19 +19,17 @@ export function getLanguage(): Language {
   return _LANGUAGE.lang;
 }
 
-export function t3(val: TranslatableString): string {
-  return resolveTS(val, _LANGUAGE.lang);
+export function createTranslator<L extends Language>() {
+  function resolveTS(val: TranslatableString<L>, lang: Language): string {
+    return val[lang] || val.en;
+  }
+  function t3(val: TranslatableString<L>): string {
+    return resolveTS(val, _LANGUAGE.lang);
+  }
+  return { t3, resolveTS };
 }
 
-export function resolveTS(val: TranslatableString, lang: Language): string {
-  if (lang === "pt") {
-    return val.pt || val.en;
-  }
-  if (lang === "fr") {
-    return val.fr || val.en;
-  }
-  return val.en;
-}
+export const { t3, resolveTS } = createTranslator<Language>();
 
 export type PluralForms<T> = { one: T; other: T };
 
@@ -45,6 +41,7 @@ const _PLURAL_LOCALE: Record<Language, string> = {
   en: "en",
   fr: "fr",
   pt: "pt-PT",
+  th: "th",
 };
 
 const _PLURAL_RULES = new Map<Language, Intl.PluralRules>();

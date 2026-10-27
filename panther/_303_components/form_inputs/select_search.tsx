@@ -38,7 +38,7 @@ type SelectSearchProps<T extends string> = {
 // destroy the ordering the user navigates by, so the selection is scrolled
 // into view instead, which is what a native <select> does.
 export function SelectSearch<T extends string>(p: SelectSearchProps<T>) {
-  const panel = createComboBoxPanel();
+  const panel = createComboBoxPanel({ width: "trigger" });
   let listRef: HTMLDivElement | undefined;
   let selectedRowRef: HTMLDivElement | undefined;
   let closedLabelRef: HTMLSpanElement | undefined;
@@ -183,6 +183,7 @@ export function SelectSearch<T extends string>(p: SelectSearchProps<T>) {
               en: "No matching options",
               fr: "Aucune option correspondante",
               pt: "Sem opções correspondentes",
+              th: "ไม่มีตัวเลือกที่ตรงกัน",
             })}
           </div>
         </Show>

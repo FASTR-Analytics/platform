@@ -30,7 +30,12 @@ export function ToolSuccessRenderer(p: {
       <Show when={expanded()}>
         <div class="ml-5 mt-1">
           <div class="text-success-subtle-content mb-1 text-xs font-700">
-            {t3({ en: "Result:", fr: "Résultat :", pt: "Resultado:" })}
+            {t3({
+              en: "Result:",
+              fr: "Résultat :",
+              pt: "Resultado:",
+              th: "ผลลัพธ์:",
+            })}
           </div>
           <div class="text-success-subtle-content bg-success-subtle whitespace-pre-wrap rounded p-2 font-mono text-xs">
             {p.item.result}

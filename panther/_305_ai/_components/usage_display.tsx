@@ -32,9 +32,10 @@ export function UsageDisplay(p: Props) {
               <div class="text-base-content-muted flex items-center gap-2 text-xs font-mono">
                 <span>
                   {formatTokenCount(usage().input_tokens)}{" "}
-                  {t3({ en: "in", fr: "entrée", pt: "entrada" })} /{" "}
+                  {t3({ en: "in", fr: "entrée", pt: "entrada", th: "เข้า" })} /
+                  {" "}
                   {formatTokenCount(usage().output_tokens)}{" "}
-                  {t3({ en: "out", fr: "sortie", pt: "saída" })}
+                  {t3({ en: "out", fr: "sortie", pt: "saída", th: "ออก" })}
                 </span>
                 <Show when={cost()}>
                   <span>• {formatCost(cost()!.totalCost)}</span>
@@ -44,18 +45,33 @@ export function UsageDisplay(p: Props) {
             <Match when={!p.compact}>
               <div class="ui-pad bg-base-200 rounded text-xs font-mono">
                 <div class="mb-1 font-700">
-                  {t3({ en: "Usage", fr: "Utilisation", pt: "Utilização" })}
+                  {t3({
+                    en: "Usage",
+                    fr: "Utilisation",
+                    pt: "Utilização",
+                    th: "การใช้งาน",
+                  })}
                 </div>
                 <div class="ui-gap-sm flex flex-wrap">
                   <div>
                     <span class="text-base-content-muted">
-                      {t3({ en: "Input:", fr: "Entrée :", pt: "Entrada:" })}
+                      {t3({
+                        en: "Input:",
+                        fr: "Entrée :",
+                        pt: "Entrada:",
+                        th: "อินพุต:",
+                      })}
                     </span>{" "}
                     {formatTokenCount(usage().input_tokens)}
                   </div>
                   <div>
                     <span class="text-base-content-muted">
-                      {t3({ en: "Output:", fr: "Sortie :", pt: "Saída:" })}
+                      {t3({
+                        en: "Output:",
+                        fr: "Sortie :",
+                        pt: "Saída:",
+                        th: "เอาต์พุต:",
+                      })}
                     </span>{" "}
                     {formatTokenCount(usage().output_tokens)}
                   </div>
@@ -66,6 +82,7 @@ export function UsageDisplay(p: Props) {
                           en: "Cache write:",
                           fr: "Écriture cache :",
                           pt: "Escrita de cache:",
+                          th: "เขียนแคช:",
                         })}
                       </span>{" "}
                       {formatTokenCount(usage().cache_creation_input_tokens!)}
@@ -78,6 +95,7 @@ export function UsageDisplay(p: Props) {
                           en: "Cache read:",
                           fr: "Lecture cache :",
                           pt: "Leitura de cache:",
+                          th: "อ่านแคช:",
                         })}
                       </span>{" "}
                       {formatTokenCount(usage().cache_read_input_tokens!)}
@@ -86,8 +104,12 @@ export function UsageDisplay(p: Props) {
                 </div>
                 <Show when={cost()}>
                   <div class="text-primary mt-2 font-700">
-                    {t3({ en: "Cost:", fr: "Coût :", pt: "Custo:" })}{" "}
-                    {formatCost(cost()!.totalCost)}
+                    {t3({
+                      en: "Cost:",
+                      fr: "Coût :",
+                      pt: "Custo:",
+                      th: "ค่าใช้จ่าย:",
+                    })} {formatCost(cost()!.totalCost)}
                   </div>
                 </Show>
               </div>

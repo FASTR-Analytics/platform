@@ -68,6 +68,20 @@ const MONTHS_THREE_CHARS_BY_LANG: Record<Language, string[]> = {
     "Nov",
     "Dez",
   ],
+  th: [
+    "ม.ค.",
+    "ก.พ.",
+    "มี.ค.",
+    "เม.ย.",
+    "พ.ค.",
+    "มิ.ย.",
+    "ก.ค.",
+    "ส.ค.",
+    "ก.ย.",
+    "ต.ค.",
+    "พ.ย.",
+    "ธ.ค.",
+  ],
 };
 
 export function get_MONTHS_THREE_CHARS(calendar?: CalendarType) {
@@ -94,6 +108,7 @@ const QUARTERS_TWO_CHARS_BY_LANG: Record<Language, string[]> = {
   en: ["Q1", "Q2", "Q3", "Q4"],
   fr: ["T1", "T2", "T3", "T4"],
   pt: ["T1", "T2", "T3", "T4"],
+  th: ["Q1", "Q2", "Q3", "Q4"],
 };
 
 export function get_QUARTERS_TWO_CHARS() {
@@ -124,6 +139,7 @@ const FY_PREFIX_BY_LANG: Record<Language, string> = {
   en: "FY",
   fr: "EF",
   pt: "AF",
+  th: "FY",
 };
 
 export function isFiscalYearQuarterAxis(

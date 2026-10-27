@@ -69,17 +69,27 @@ export function AIChatSettingsPanel(p: Props) {
   );
 
   const EFFORT_LABELS: Record<EffortLevel, string> = {
-    low: t3({ en: "Low", fr: "Faible", pt: "Baixo" }),
-    medium: t3({ en: "Medium", fr: "Moyen", pt: "Médio" }),
-    high: t3({ en: "High", fr: "Élevé", pt: "Alto" }),
-    xhigh: t3({ en: "Extra high", fr: "Très élevé", pt: "Muito alto" }),
-    max: t3({ en: "Max", fr: "Max", pt: "Máx" }),
+    low: t3({ en: "Low", fr: "Faible", pt: "Baixo", th: "ต่ำ" }),
+    medium: t3({ en: "Medium", fr: "Moyen", pt: "Médio", th: "ปานกลาง" }),
+    high: t3({ en: "High", fr: "Élevé", pt: "Alto", th: "สูง" }),
+    xhigh: t3({
+      en: "Extra high",
+      fr: "Très élevé",
+      pt: "Muito alto",
+      th: "สูงมาก",
+    }),
+    max: t3({ en: "Max", fr: "Max", pt: "Máx", th: "สูงสุด" }),
   };
 
   const effortOptions = () => [
     {
       value: "" as const,
-      label: t3({ en: "Default", fr: "Par défaut", pt: "Padrão" }),
+      label: t3({
+        en: "Default",
+        fr: "Par défaut",
+        pt: "Padrão",
+        th: "ค่าเริ่มต้น",
+      }),
     },
     ...getSupportedEffortLevels(model()).map((level) => ({
       value: level,
@@ -93,11 +103,17 @@ export function AIChatSettingsPanel(p: Props) {
         en: "AI settings",
         fr: "Paramètres IA",
         pt: "Definições de IA",
+        th: "การตั้งค่า AI",
       })}
       width="sm"
       onCancel={() => p.close(undefined)}
       actions={[{
-        label: t3({ en: "Apply", fr: "Appliquer", pt: "Aplicar" }),
+        label: t3({
+          en: "Apply",
+          fr: "Appliquer",
+          pt: "Aplicar",
+          th: "นำไปใช้",
+        }),
         onClick: () =>
           p.close({
             model: model(),
@@ -119,7 +135,7 @@ export function AIChatSettingsPanel(p: Props) {
     >
       <Show when={fields.has("model")}>
         <Select
-          label={t3({ en: "Model", fr: "Modèle", pt: "Modelo" })}
+          label={t3({ en: "Model", fr: "Modèle", pt: "Modelo", th: "โมเดล" })}
           value={model()}
           options={modelOptions}
           onChange={setModel}
@@ -131,7 +147,12 @@ export function AIChatSettingsPanel(p: Props) {
           getSupportedEffortLevels(model()).length > 0}
       >
         <Select
-          label={t3({ en: "Effort", fr: "Effort", pt: "Esforço" })}
+          label={t3({
+            en: "Effort",
+            fr: "Effort",
+            pt: "Esforço",
+            th: "ระดับความพยายาม",
+          })}
           value={effort()}
           options={effortOptions()}
           onChange={setEffort}
@@ -144,6 +165,7 @@ export function AIChatSettingsPanel(p: Props) {
             en: "Temperature",
             fr: "Température",
             pt: "Temperatura",
+            th: "อุณหภูมิ",
           })}
           value={temperature()}
           onChange={setTemperature}
@@ -160,6 +182,7 @@ export function AIChatSettingsPanel(p: Props) {
             en: "Max tokens",
             fr: "Tokens maximum",
             pt: "Tokens máximos",
+            th: "โทเค็นสูงสุด",
           })}
           value={maxTokens()}
           onChange={(v) => setMaxTokens(Math.round(v))}

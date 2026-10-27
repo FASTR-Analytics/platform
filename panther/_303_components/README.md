@@ -113,12 +113,23 @@ owns its inset and its stack spacing: `pad` / `spy` (a `PadSize`:
 `"none" | "sm" | "md" | "lg"`, default none) on the content slot, `panelPad` /
 `panelSpy` on the panel slot, so no padding `<div>` sits between a Frame and its
 content. Side frames own their panel/content divider (never add that edge's
-border yourself). Horizontal `TabsNavigation` is a `FrameTop` panel in its own
-right (it carries its own `ui-pad-x` and bottom border; no wrapper); inside
-padded content pass `noPad`; `size="sm"` is independent of placement.
-`CollapsibleSection`'s body takes `pad` and `spy` (default none) and its header
-row `headerPad` (default `md`). Steppers: `getStepper` with
-`StepperChipsWithTitles` or `StepperNavigationVisual`.
+border yourself). A resizable panel's width is bounded by its container: it may
+fill the container, leaving the content beside it none, but never runs past it,
+and a container narrower than `minWidth` holds a panel as wide as the container.
+`FrameThreeColumnResizable` is the exception: its two panels each leave the
+centre pane at least one grab strip, because two handles on the same pixel would
+stack and strand the frame where no drag could move it. The panel keeps the
+width it was given until it is first dragged, rather than growing and shrinking
+with its container before then; a drag in the default mode sets a share of the
+container that the panel keeps through later resizes, and a drag under
+`preventPanelResizeOnParentResize` sets a width in pixels. `resetKey`, on
+`FrameThreeColumnResizable`, returns its panels to their starting widths in
+pixels. Horizontal `TabsNavigation` is a `FrameTop` panel in its own right (it
+carries its own `ui-pad-x` and bottom border; no wrapper); inside padded content
+pass `noPad`; `size="sm"` is independent of placement. `CollapsibleSection`'s
+body takes `pad` and `spy` (default none) and its header row `headerPad`
+(default `md`). Steppers: `getStepper` with `StepperChipsWithTitles` or
+`StepperNavigationVisual`.
 
 `SelectList` / `TabsNavigation` / `ButtonGroup` share one `items`/`value`/
 `onChange` contract (swap = rename); `EditableList` adds add/delete/reorder; the

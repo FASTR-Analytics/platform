@@ -116,6 +116,7 @@ export function CopyToClipboardButton(p: CopyToClipboardButtonProps) {
           en: "Copy to clipboard",
           fr: "Copier dans le presse-papiers",
           pt: "Copiar para a área de transferência",
+          th: "คัดลอกไปยังคลิปบอร์ด",
         })}
     >
       {p.children}

@@ -45,7 +45,7 @@ export function TableFromCsv(p: Props) {
       data-align={p.alignText}
     >
       <table class="ui-text-small border-separate border-spacing-0 font-mono">
-        <thead class="bg-base-100 sticky top-0 z-50">
+        <thead class="bg-base-100 sticky top-0 z-20">
           <tr class="">
             <Show when={rowHeaders()}>
               <th class="bg-base-100 sticky left-0 top-0 z-10 border-b border-r px-3 py-2">

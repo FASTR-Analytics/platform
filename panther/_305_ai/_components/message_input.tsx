@@ -38,6 +38,7 @@ export function MessageInput(p: Props) {
               en: "Type your message... (Shift+Enter for new line)",
               fr: "Tapez votre message... (Maj+Entrée pour un saut de ligne)",
               pt: "Escreva a sua mensagem... (Shift+Enter para nova linha)",
+              th: "พิมพ์ข้อความของคุณ... (Shift+Enter เพื่อขึ้นบรรทัดใหม่)",
             })}
           height={p.height ?? "100px"}
           // mono
@@ -53,11 +54,12 @@ export function MessageInput(p: Props) {
           disabled={p.disabled}
           intent="primary"
         >
-          {p.submitLabel ?? t3({ en: "Submit", fr: "Envoyer", pt: "Enviar" })}
+          {p.submitLabel ??
+            t3({ en: "Submit", fr: "Envoyer", pt: "Enviar", th: "ส่ง" })}
         </Button>
         <Show when={p.isGenerating && p.onStop}>
           <Button onClick={() => p.onStop!()} intent="neutral">
-            {t3({ en: "Stop", fr: "Arrêter", pt: "Parar" })}
+            {t3({ en: "Stop", fr: "Arrêter", pt: "Parar", th: "หยุด" })}
           </Button>
         </Show>
       </div>

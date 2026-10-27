@@ -51,9 +51,11 @@ import { HeaderGlyph } from "./header_glyph.tsx";
 import { Button, Checkbox, Input } from "../../form_inputs/mod.ts";
 import { EmptyState } from "../../display/mod.ts";
 
-// Shared by every control in a header cell so they are the same height.
+// Shared by every control in a header cell so they are the same height. A
+// header never wraps: Thai breaks between syllables, so a wrapping label in a
+// narrow column becomes one syllable per line.
 const HEADER_BUTTON =
-  "inline-flex items-center gap-1 rounded px-1.5 py-1 uppercase ui-hoverable-base-200 ui-focusable";
+  "inline-flex items-center gap-1 rounded px-1.5 py-1 uppercase whitespace-nowrap ui-hoverable-base-200 ui-focusable";
 
 function getJustify(alignH?: TableColumn<unknown>["alignH"]): string {
   switch (alignH) {
@@ -209,8 +211,8 @@ export function Table<
 
   const itemLabel = () =>
     p.itemLabel ?? {
-      one: t3({ en: "item", fr: "élément", pt: "item" }),
-      other: t3({ en: "items", fr: "éléments", pt: "itens" }),
+      one: t3({ en: "item", fr: "élément", pt: "item", th: "รายการ" }),
+      other: t3({ en: "items", fr: "éléments", pt: "itens", th: "รายการ" }),
     };
 
   // Check if selection should be enabled
@@ -229,13 +231,15 @@ export function Table<
     const v = visibleRows().length;
     return v === n
       ? `${n} ${label}`
-      : `${v} ${t3({ en: "of", fr: "sur", pt: "de" })} ${n} ${label}`;
+      : `${v} ${
+        t3({ en: "of", fr: "sur", pt: "de", th: "จาก" })
+      } ${n} ${label}`;
   };
 
   const searchPlaceholder = () => {
     const search = toolbar()?.search;
     return (typeof search === "object" ? search.placeholder : undefined) ??
-      t3({ en: "Search", fr: "Rechercher", pt: "Pesquisar" });
+      t3({ en: "Search", fr: "Rechercher", pt: "Pesquisar", th: "ค้นหา" });
   };
 
   const padding = createMemo(() =>
@@ -344,7 +348,7 @@ export function Table<
                               when={column.sortable}
                               fallback={
                                 <span
-                                  class={`px-1.5 py-1 ${
+                                  class={`px-1.5 py-1 whitespace-nowrap ${
                                     getCellAlignment(column.alignH)
                                   } ${margins().label}`}
                                 >
@@ -401,6 +405,7 @@ export function Table<
                             en: "No data available",
                             fr: "Aucune donnée disponible",
                             pt: "Sem dados disponíveis",
+                            th: "ไม่มีข้อมูล",
                           })}
                       />
                     </td>
@@ -416,6 +421,7 @@ export function Table<
                           en: "No rows match your search",
                           fr: "Aucune ligne ne correspond à votre recherche",
                           pt: "Nenhuma linha corresponde à sua pesquisa",
+                          th: "ไม่มีแถวที่ตรงกับคำค้นหา",
                         })}
                       >
                         <Button
@@ -427,6 +433,7 @@ export function Table<
                             en: "Clear search",
                             fr: "Effacer la recherche",
                             pt: "Limpar pesquisa",
+                            th: "ล้างคำค้นหา",
                           })}
                         </Button>
                       </EmptyState>
@@ -443,6 +450,7 @@ export function Table<
                           en: "No rows match the current filters",
                           fr: "Aucune ligne ne correspond aux filtres",
                           pt: "Nenhuma linha corresponde aos filtros",
+                          th: "ไม่มีแถวที่ตรงกับตัวกรองปัจจุบัน",
                         })}
                       >
                         <Button
@@ -454,6 +462,7 @@ export function Table<
                             en: "Clear filters",
                             fr: "Effacer les filtres",
                             pt: "Limpar filtros",
+                            th: "ล้างตัวกรอง",
                           })}
                         </Button>
                       </EmptyState>

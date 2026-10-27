@@ -57,6 +57,7 @@ export function SelectList<T extends string = string, M = never>(
                 en: "No options available",
                 fr: "Aucune option disponible",
                 pt: "Sem opções disponíveis",
+                th: "ไม่มีตัวเลือก",
               })}
           </div>
         }

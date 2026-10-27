@@ -31,7 +31,12 @@ export function ToolErrorRenderer(p: {
         <div class="ml-5 mt-1 space-y-2">
           <div>
             <div class="mb-1 text-xs font-700">
-              {t3({ en: "Error:", fr: "Erreur :", pt: "Erro:" })}
+              {t3({
+                en: "Error:",
+                fr: "Erreur :",
+                pt: "Erro:",
+                th: "ข้อผิดพลาด:",
+              })}
             </div>
             <div class="text-xs">{p.item.errorDetails}</div>
           </div>
@@ -43,6 +48,7 @@ export function ToolErrorRenderer(p: {
                   en: "Stack trace:",
                   fr: "Trace de la pile :",
                   pt: "Rastreio da pilha:",
+                  th: "สแตกเทรซ:",
                 })}
               </div>
               <pre class="text-danger-subtle-content bg-danger-subtle overflow-x-auto whitespace-pre-wrap rounded p-2 font-mono text-xs">

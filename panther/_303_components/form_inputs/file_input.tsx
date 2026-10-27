@@ -51,6 +51,7 @@ export function FileInput(p: FileInputProps) {
             en: "Choose file",
             fr: "Choisir un fichier",
             pt: "Escolher ficheiro",
+            th: "เลือกไฟล์",
           })}
         </Button>
         <div
@@ -64,6 +65,7 @@ export function FileInput(p: FileInputProps) {
             en: "No file selected",
             fr: "Aucun fichier sélectionné",
             pt: "Nenhum ficheiro selecionado",
+            th: "ยังไม่ได้เลือกไฟล์",
           })}
         </div>
       </div>

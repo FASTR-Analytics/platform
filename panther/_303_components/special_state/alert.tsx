@@ -240,7 +240,12 @@ function DialogLayer(p: { entry: DialogEntry }) {
                     intent={entry.input.intent}
                     actions={[{
                       label: entry.input.closeButtonLabel ??
-                        t3({ en: "Close", fr: "Fermer", pt: "Fechar" }),
+                        t3({
+                          en: "Close",
+                          fr: "Fermer",
+                          pt: "Fechar",
+                          th: "ปิด",
+                        }),
                       intent: entry.input.intent,
                       onClick: () => {
                         entry.resolve();
@@ -259,7 +264,12 @@ function DialogLayer(p: { entry: DialogEntry }) {
                     onCancel={() => cancel(entry)}
                     actions={[{
                       label: entry.input.confirmButtonLabel ??
-                        t3({ en: "Confirm", fr: "Confirmer", pt: "Confirmar" }),
+                        t3({
+                          en: "Confirm",
+                          fr: "Confirmer",
+                          pt: "Confirmar",
+                          th: "ยืนยัน",
+                        }),
                       intent: entry.input.intent,
                       onClick: () => {
                         entry.resolve(true);
@@ -338,7 +348,7 @@ function PromptDialog(
       onCancel={() => cancel(p.entry)}
       actions={[{
         label: p.entry.input.saveButtonLabel ??
-          t3({ en: "Confirm", fr: "Confirmer", pt: "Confirmar" }),
+          t3({ en: "Confirm", fr: "Confirmer", pt: "Confirmar", th: "ยืนยัน" }),
         intent: p.entry.input.intent,
         onClick: () => {
           p.entry.resolve(promptInput());

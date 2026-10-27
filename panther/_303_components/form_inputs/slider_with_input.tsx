@@ -30,11 +30,11 @@ type SliderWithInputProps = {
 
 function countDecimals(value: number): number {
   if (Math.floor(value) === value) return 0;
-  const str = value.toString();
-  if (str.includes("e-")) {
-    return parseInt(str.split("e-")[1], 10);
-  }
-  return str.split(".")[1]?.length || 0;
+  // An exponential string carries places in both halves: 1.2e-7 is
+  // 0.00000012, so the mantissa's own place adds to the exponent.
+  const [mantissa, exponent] = value.toString().split("e-");
+  const fraction = mantissa.split(".")[1]?.length ?? 0;
+  return exponent ? fraction + parseInt(exponent, 10) : fraction;
 }
 
 export function SliderWithInput(p: SliderWithInputProps) {
@@ -47,7 +47,10 @@ export function SliderWithInput(p: SliderWithInputProps) {
 
   const multiplier = () => p.inputMultiplier ?? 1;
   const step = () => p.step ?? 1;
-  const inputStep = () => step() * multiplier();
+  // Rounded to 12 significant digits: the raw product carries binary noise
+  // (0.07 * 100 is 7.000000000000001), whose 15 decimal places would then be
+  // the field's. Twelve keeps every step a person writes.
+  const inputStep = () => Number((step() * multiplier()).toPrecision(12));
   const decimalPlaces = () => countDecimals(inputStep());
 
   const numericValue = () => {

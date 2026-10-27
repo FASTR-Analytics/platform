@@ -65,11 +65,13 @@ export function createAskUserQuestionsTool(): AIToolWithMetadata<
       en: "Waiting for your response...",
       fr: "En attente de votre réponse...",
       pt: "A aguardar a sua resposta...",
+      th: "กำลังรอคำตอบของคุณ...",
     }),
     successMessage: t3({
       en: "User responded to question",
       fr: "L'utilisateur a répondu à la question",
       pt: "O utilizador respondeu à pergunta",
+      th: "ผู้ใช้ตอบคำถามแล้ว",
     }),
   });
   // Engine-managed card mechanism (decision log #6): the card is excluded

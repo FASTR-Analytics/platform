@@ -91,7 +91,12 @@ export function Input(p: Props) {
                 p.size === "sm" ? "ui-form-text-size-sm" : "ui-form-text-size",
                 "ui-hoverable-base-100 text-base-content-muted absolute inset-y-0 right-[0.5em] z-20 my-auto flex h-[1.5em] w-[1.5em] items-center justify-center rounded",
               ].join(" ")}
-              aria-label={t3({ en: "Clear", fr: "Effacer", pt: "Limpar" })}
+              aria-label={t3({
+                en: "Clear",
+                fr: "Effacer",
+                pt: "Limpar",
+                th: "ล้าง",
+              })}
               onMouseDown={(e) => e.preventDefault()}
               onClick={clear}
             >

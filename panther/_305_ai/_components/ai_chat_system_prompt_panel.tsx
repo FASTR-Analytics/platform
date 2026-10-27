@@ -22,6 +22,7 @@ export function AIChatSystemPromptPanel(p: Props) {
         en: "System prompt",
         fr: "Prompt système",
         pt: "Prompt do sistema",
+        th: "พรอมต์ระบบ",
       })}
       width="lg"
       scroll="content"

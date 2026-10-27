@@ -19,7 +19,7 @@ export function PresenceGrid(p: PresenceGridProps) {
   );
 
   const noData = () =>
-    t3({ en: "no data", fr: "aucune donnée", pt: "sem dados" });
+    t3({ en: "no data", fr: "aucune donnée", pt: "sem dados", th: "ไม่มีข้อมูล" });
 
   const swatchWidth = () =>
     p.cellWidth === "stretch" ? "w-full min-w-4" : "w-4";

@@ -44,6 +44,12 @@ export function createFilteredOptions<T extends string>(
 }
 
 const MARGIN_PX = 8;
+// Panel and trigger count as the same width within this much. anchor-size()
+// and getBoundingClientRect disagree in the last fraction, and a fitContent
+// trigger fits the selected label where the panel fits the widest row, so the
+// two land a pixel apart on padding alone. Below the tolerance there is no
+// overhang worth drawing a border along.
+const FLUSH_TOLERANCE_PX = 2;
 const HEIGHT_CAP_PX = 400;
 const MIN_HEIGHT_PX = 120;
 
@@ -52,16 +58,23 @@ export type ComboBoxPanelController = {
   anchorName: string;
   open: () => boolean;
   side: () => "bottom" | "top";
+  // Which edges of trigger and panel line up. Always "start" for a
+  // trigger-width panel; a content-width one flips to "end" when it would
+  // otherwise cross the right edge of the viewport.
+  align: () => "start" | "end";
+  // The panel is within FLUSH_TOLERANCE_PX of the trigger's width, so the two
+  // can be drawn as one unit with the meeting border dropped.
+  flush: () => boolean;
+  width: "trigger" | "content";
   panelMaxHeight: () => number;
   query: () => string;
   openPanel: () => void;
   closePanel: () => void;
   handleBlur: (e: FocusEvent) => void;
-  handleKeyDown: (
-    e: KeyboardEvent & { currentTarget: HTMLElement },
-  ) => void;
+  handleKeyDown: (e: KeyboardEvent) => void;
   handleInput: (value: string) => void;
   setWrapperRef: (el: HTMLDivElement) => void;
+  setInputRef: (el: HTMLInputElement) => void;
   setPanelRef: (el: HTMLDivElement) => void;
 };
 
@@ -77,15 +90,18 @@ export type ComboBoxPanelController = {
 // that must land before the panel's first render (the multi peer snapshots its
 // selection there so rows don't reorder mid-toggle).
 export function createComboBoxPanel(
-  opts?: { onOpen?: () => void },
+  opts: { width: "trigger" | "content"; onOpen?: () => void },
 ): ComboBoxPanelController {
   const id = createUniqueId();
   const anchorName = `--combo-box-anchor-${id}`;
   let wrapperRef: HTMLDivElement | undefined;
+  let inputRef: HTMLInputElement | undefined;
   let panelRef: HTMLDivElement | undefined;
 
   const [open, setOpen] = createSignal<boolean>(false);
   const [side, setSide] = createSignal<"bottom" | "top">("bottom");
+  const [align, setAlign] = createSignal<"start" | "end">("start");
+  const [flush, setFlush] = createSignal<boolean>(true);
   const [panelMaxHeight, setPanelMaxHeight] = createSignal<number>(
     HEIGHT_CAP_PX,
   );
@@ -112,11 +128,41 @@ export function createComboBoxPanel(
     batch(() => {
       setSide(chosenSide);
       setPanelMaxHeight(maxHeight);
+      setAlign("start");
+      setFlush(true);
       setQuery("");
-      opts?.onOpen?.();
+      opts.onOpen?.();
       setOpen(true);
     });
     panelRef?.showPopover();
+    // The width of a content-width panel is decided by CSS, so it can only be
+    // read once the panel is laid out. One frame, one re-layout, and then the
+    // side, the alignment and the joint are all pinned for as long as the
+    // panel is open: nothing may flip or jump while the user types.
+    if (opts.width === "content") {
+      requestAnimationFrame(measureWidth);
+    }
+  }
+
+  function measureWidth() {
+    if (!open() || !panelRef || !wrapperRef) {
+      return;
+    }
+    const trigger = wrapperRef.getBoundingClientRect();
+    const panel = panelRef.getBoundingClientRect();
+    batch(() => {
+      setFlush(panel.width - trigger.width <= FLUSH_TOLERANCE_PX);
+      const overflowsRight = panel.right > globalThis.innerWidth - MARGIN_PX;
+      // Only worth flipping if the panel then reaches the trigger's right
+      // edge. A panel already capped by max-width does not: end alignment
+      // would shift it off the trigger altogether, leaving the squared corner
+      // marking a joint that is not there, where start alignment at least
+      // keeps its left edge on the trigger and clips only the row tails.
+      const fitsEndAligned = trigger.right - panel.width >= MARGIN_PX;
+      if (overflowsRight && fitsEndAligned) {
+        setAlign("end");
+      }
+    });
   }
 
   function closePanel() {
@@ -145,9 +191,10 @@ export function createComboBoxPanel(
     closePanel();
   }
 
-  function handleKeyDown(
-    e: KeyboardEvent & { currentTarget: HTMLElement },
-  ) {
+  // Bound with a native on:keydown, not Solid's onKeyDown: keydown is a
+  // delegated event, so a Solid handler already runs at the document beside
+  // AlertProvider's own keydown listener and cannot stop it.
+  function handleKeyDown(e: KeyboardEvent) {
     if (!open()) {
       return;
     }
@@ -163,7 +210,7 @@ export function createComboBoxPanel(
       // input emits no input events and cannot re-fire focus while it still
       // holds it — keeping focus here leaves a keyboard user with no way to
       // reopen the panel short of reaching for the pointer.
-      e.currentTarget.blur();
+      inputRef?.blur();
       return;
     }
     if (e.key === "Enter") {
@@ -193,6 +240,9 @@ export function createComboBoxPanel(
     anchorName,
     open,
     side,
+    align,
+    flush,
+    width: opts.width,
     panelMaxHeight,
     query,
     openPanel,
@@ -201,6 +251,7 @@ export function createComboBoxPanel(
     handleKeyDown,
     handleInput,
     setWrapperRef: (el) => wrapperRef = el,
+    setInputRef: (el) => inputRef = el,
     setPanelRef: (el) => panelRef = el,
   };
 }
@@ -251,6 +302,7 @@ export function ComboBoxFrame(p: ComboBoxFrameProps) {
         style={{ "anchor-name": panel().anchorName } as JSX.CSSProperties}
       >
         <input
+          ref={panel().setInputRef}
           id={panel().id}
           type="text"
           role="combobox"
@@ -269,7 +321,12 @@ export function ComboBoxFrame(p: ComboBoxFrameProps) {
           value={panel().open() ? panel().query() : ""}
           placeholder={panel().open()
             ? p.displayText ??
-              t3({ en: "Search...", fr: "Rechercher...", pt: "Pesquisar..." })
+              t3({
+                en: "Search...",
+                fr: "Rechercher...",
+                pt: "Pesquisar...",
+                th: "ค้นหา...",
+              })
             : p.displayText
             ? ""
             : p.placeholder ??
@@ -277,11 +334,12 @@ export function ComboBoxFrame(p: ComboBoxFrameProps) {
                 en: "Select...",
                 fr: "Sélectionner...",
                 pt: "Selecionar...",
+                th: "เลือก...",
               })}
           onFocus={panel().openPanel}
           onPointerDown={panel().openPanel}
           onBlur={panel().handleBlur}
-          onKeyDown={panel().handleKeyDown}
+          on:keydown={panel().handleKeyDown}
           onInput={(e) => panel().handleInput(e.currentTarget.value)}
           onMouseEnter={(e) => p.onTriggerMouseEnter?.(e)}
           onMouseLeave={hideTooltip}
@@ -315,12 +373,26 @@ type ComboBoxPopoverProps = {
   children: JSX.Element;
 };
 
+// A content-width panel is at least the trigger, grows to its widest row, and
+// stops at the viewport less the margin the side and height measurements
+// already keep. Rows stay truncated for the case where that cap bites.
+function widthStyle(width: "trigger" | "content"): Record<string, string> {
+  if (width === "trigger") {
+    return { "width": "anchor-size(width)" };
+  }
+  return {
+    "min-width": "anchor-size(width)",
+    "width": "max-content",
+    "max-width": `calc(100vw - ${MARGIN_PX * 2}px)`,
+  };
+}
+
 // The anchored top-layer surface: a manual popover pinned to the trigger's
-// anchor at the trigger's width, whose inner panel squares off the corners
-// where it meets the trigger. ComboBoxFrame renders it under its input; a
-// trigger that is not that input renders it directly. The controller decides
-// the side and the height cap. mousedown is prevented so a click inside the
-// panel never moves focus off the trigger.
+// anchor at the width the controller asks for, whose inner panel squares off
+// the corners where it meets the trigger. ComboBoxFrame renders it under its
+// input; a trigger that is not that input renders it directly. The controller
+// decides the side, the alignment and the height cap. mousedown is prevented
+// so a click inside the panel never moves focus off the trigger.
 export function ComboBoxPopover(p: ComboBoxPopoverProps) {
   const panel = () => p.panel;
 
@@ -329,11 +401,11 @@ export function ComboBoxPopover(p: ComboBoxPopoverProps) {
       ref={panel().setPanelRef}
       popover="manual"
       class="ui-popover"
-      data-position={panel().side() === "bottom" ? "bottom-start" : "top-start"}
+      data-position={`${panel().side()}-${panel().align()}`}
       data-pinned="true"
       style={{
         "position-anchor": panel().anchorName,
-        "width": "anchor-size(width)",
+        ...widthStyle(panel().width),
       } as JSX.CSSProperties}
       onMouseDown={(e) => e.preventDefault()}
     >
@@ -343,9 +415,18 @@ export function ComboBoxPopover(p: ComboBoxPopoverProps) {
             [popover] color: CanvasText, which .ui-popover does not reset, so
             without it rows render in the system colour, not the token. */
         }
+        {
+          /* The joint with the trigger. Flush, the two are one unit: the
+            meeting border is dropped and both meeting corners squared. Wider,
+            the panel keeps its own border and squares only the corner on the
+            aligned side, so the far corner stays rounded rather than leaving a
+            borderless edge hanging past the trigger. */
+        }
         <div
-          class="bg-base-100 text-base-content flex w-full flex-col overflow-hidden rounded border shadow-floating data-[side=bottom]:rounded-t-none data-[side=bottom]:border-t-0 data-[side=top]:rounded-b-none data-[side=top]:border-b-0"
-          data-side={panel().side()}
+          class="bg-base-100 text-base-content flex w-full flex-col overflow-hidden rounded border shadow-floating data-[joint=bottom-flush]:rounded-t-none data-[joint=bottom-flush]:border-t-0 data-[joint=top-flush]:rounded-b-none data-[joint=top-flush]:border-b-0 data-[joint=bottom-start]:rounded-tl-none data-[joint=bottom-end]:rounded-tr-none data-[joint=top-start]:rounded-bl-none data-[joint=top-end]:rounded-br-none"
+          data-joint={panel().flush()
+            ? `${panel().side()}-flush`
+            : `${panel().side()}-${panel().align()}`}
           style={{ "max-height": `${panel().panelMaxHeight()}px` }}
         >
           {p.children}

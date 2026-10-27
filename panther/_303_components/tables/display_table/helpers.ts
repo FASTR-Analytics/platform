@@ -8,7 +8,9 @@ import type { TableConfigState } from "./table_config.ts";
 
 export function compareValues(a: unknown, b: unknown): number {
   if (typeof a === "string" && typeof b === "string") {
-    return a.toLowerCase().localeCompare(b.toLowerCase());
+    return a.toLowerCase().localeCompare(b.toLowerCase(), undefined, {
+      numeric: true,
+    });
   }
 
   if (typeof a === "number" && typeof b === "number") {
@@ -19,7 +21,7 @@ export function compareValues(a: unknown, b: unknown): number {
     return a.getTime() - b.getTime();
   }
 
-  return String(a).localeCompare(String(b));
+  return String(a).localeCompare(String(b), undefined, { numeric: true });
 }
 
 export function sortData<T extends AnyRow>(

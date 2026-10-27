@@ -86,7 +86,12 @@ export function StateHolderWrapper<T>(p: StateHolderWrapperProps<T>) {
       <Match when={p.state.status === "error"}>
         <div class={[messagePad(), "ui-spy"].filter(Boolean).join(" ")}>
           <div class="text-danger">
-            {t3({ en: "Error: ", fr: "Erreur : ", pt: "Erro: " })}
+            {t3({
+              en: "Error: ",
+              fr: "Erreur : ",
+              pt: "Erro: ",
+              th: "ข้อผิดพลาด: ",
+            })}
             {(p.state as { err: string }).err}
           </div>
           <div class="ui-gap-sm flex">
@@ -186,7 +191,12 @@ export function StateHolderWrapper<T>(p: StateHolderWrapperProps<T>) {
             fallback={(err) => (
               <div class={messagePad()}>
                 <div class="text-danger">
-                  {t3({ en: "Error: ", fr: "Erreur : ", pt: "Erro: " })}
+                  {t3({
+                    en: "Error: ",
+                    fr: "Erreur : ",
+                    pt: "Erro: ",
+                    th: "ข้อผิดพลาด: ",
+                  })}
                   {err instanceof Error ? err.message : String(err)}
                 </div>
               </div>

@@ -8,26 +8,41 @@ Deno-built PDFs resolve through the same language global). For sentence case of
 UI strings see `PROTOCOL_UI_STYLING.md`.
 
 ```typescript
-type Language = "en" | "fr" | "pt";
-type TranslatableString = { en: string; fr: string; pt?: string };
+type Language = "en" | "fr" | "pt" | "th";
+type TranslatableString<L extends Language = Language> =
+  & Record<L | "en", string>
+  & Partial<Record<Language, string>>;
 
 setLanguage(lang) / getLanguage()   // current language (process-global)
+createTranslator<L>()               // { t3, resolveTS } over TranslatableString<L>
 t3(ts): string                      // resolve ts to the current language
 resolveTS(ts, lang): string         // resolve ts to an explicit language
 ```
 
+Panther's own `t3` and `resolveTS` are `createTranslator<Language>()`: every
+language required. An app declares the languages it supports once, in its own
+lib, and uses that pair everywhere:
+
+```typescript
+// lib/language.ts
+export type TS = TranslatableString<"en" | "th">;
+export const { t3, resolveTS } = createTranslator<"en" | "th">();
+```
+
 ## Rules
 
-1. **User-facing strings are `TranslatableString`**: `{ en, fr, pt? }`, never a
-   bare string literal shown to a user. `en` and `fr` are required; `pt` is
-   optional.
+1. **User-facing strings are `TranslatableString<L>`**, never a bare string
+   literal shown to a user. An app's `t3` is `createTranslator<its languages>()`
+   in its own lib, so a literal missing one of the app's languages is a type
+   error. A bare `TranslatableString` means every language, and is what the kit
+   itself uses: a file that imports `t3` from panther gets the strict check.
 2. **Resolve with `t3`**: `t3(ts)` returns the string for the current language.
 3. **`t3` takes a `TranslatableString`, not a string**: it is not the app-level
    `t("…")` key helper (see below). Passing a bare string is a type error.
 4. **Explicit language → `resolveTS`**: use `resolveTS(ts, lang)` when output
    must be a specific language regardless of the global (e.g. rendering a doc in
    a chosen language).
-5. **Missing French/Portuguese falls back to English**: both `t3` and
+5. **A language the app did not require falls back to English**: both `t3` and
    `resolveTS` return `ts.en` when the requested language's entry is missing or
    empty. Rely on this; don't pre-check.
 6. **Locale formatting via `Record<Language, T>` lookup**: for number/date/
@@ -48,12 +63,12 @@ resolveTS(ts, lang): string         // resolve ts to an explicit language
 // ❌ DON'T: hardcoded, untranslatable
 const label = "Loading…";
 
-// ✅ DO (pt is optional: falls back to en when omitted)
-const label = t3({ en: "Loading…", fr: "Chargement…", pt: "A carregar…" });
+// ✅ DO: every language the app declared, through the app's own t3
+const label = t3({ en: "Loading…", th: "กำลังโหลด…" });
 ```
 
-**Why:** Every user-facing string must exist in English and French (Portuguese
-where the app supports it); `t3` is the one resolution point.
+**Why:** Every user-facing string must exist in every language the app supports,
+and the type says which; `t3` is the one resolution point.
 
 ### t3 vs the app-level t()
 
@@ -62,7 +77,7 @@ where the app supports it); `t3` is the one resolution point.
 t3("Save");
 
 // ✅ DO: t3 resolves a TranslatableString
-t3({ en: "Save", fr: "Enregistrer", pt: "Guardar" });
+t3({ en: "Save", th: "บันทึก" });
 ```
 
 **Why:** Panther provides `t3` over `TranslatableString`. Some apps define their
@@ -73,10 +88,10 @@ own `t("key")` over a translation table: that's an app convention, distinct from
 
 ```typescript
 // ✅ Ambient (current global language): typical case
-t3({ en: "Total", fr: "Total" });
+t3({ en: "Total", th: "รวม" });
 
 // ✅ Explicit language: when the global can't be trusted (e.g. dual-language output)
-resolveTS({ en: "Total", fr: "Total" }, "fr");
+resolveTS({ en: "Total", th: "รวม" }, "th");
 ```
 
 ### Formatting branches
@@ -87,6 +102,7 @@ const QUARTER_PREFIX_BY_LANG: Record<Language, string> = {
   en: "Q",
   fr: "T",
   pt: "T",
+  th: "Q",
 };
 const quarter = `${QUARTER_PREFIX_BY_LANG[getLanguage()]}${q}`;
 ```
@@ -100,26 +116,26 @@ locale logic, not translatable content.
 
 ```typescript
 // App start, or before a server render pass
-setLanguage(
-  userLocale === "fr" ? "fr" : userLocale === "pt" ? "pt" : "en",
-);
+setLanguage(userLocale === "th" ? "th" : "en");
 ```
 
 ### Resolve in UI and on the server
 
 ```typescript
 // UI label
-<Button>{t3({ en: "Apply", fr: "Appliquer" })}</Button>;
+<Button>{t3({ en: "Apply", th: "นำไปใช้" })}</Button>;
 
 // Server-rendered figure title (Deno): same primitive
-const title = t3({ en: "Coverage by region", fr: "Couverture par région" });
+const title = t3({ en: "Coverage by region", th: "ความครอบคลุมตามภูมิภาค" });
 ```
 
 ## Checklist
 
-- [ ] No bare user-facing string literals: all are `TranslatableString`
+- [ ] No bare user-facing string literals: all are `TranslatableString<L>`
+- [ ] The app's `t3` and `resolveTS` come from `createTranslator<L>()` in its
+      own lib, never from panther's barrel
 - [ ] Strings resolved via `t3` (ambient) or `resolveTS` (explicit language)
-- [ ] `t3` is called with `{ en, fr, pt? }`, never a bare string
+- [ ] `t3` is called with every language the app declared, never a bare string
 - [ ] `Record<Language, T>` lookups (via `getLanguage()`) used only for
       formatting differences, not whole strings
 - [ ] `setLanguage()` called once at entry; no assumption of concurrent

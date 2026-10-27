@@ -32,7 +32,7 @@ export function openProposalPreview(
     text: () => <ProposalPreviewBody preview={preview} />,
     intent: preview.intent === "danger" ? "danger" : "primary",
     confirmButtonLabel: preview.confirmLabel ??
-      t3({ en: "Accept", fr: "Accepter", pt: "Aceitar" }),
+      t3({ en: "Accept", fr: "Accepter", pt: "Aceitar", th: "ยอมรับ" }),
   });
 }
 
@@ -80,7 +80,7 @@ export function ProposalPreviewBody(p: { preview: ProposalPreview }) {
           <div class="grid grid-cols-2 gap-2">
             <div>
               <div class="text-base-content-muted mb-1 text-xs font-700">
-                {t3({ en: "Before", fr: "Avant", pt: "Antes" })}
+                {t3({ en: "Before", fr: "Avant", pt: "Antes", th: "ก่อน" })}
               </div>
               <div class="bg-base-200 whitespace-pre-wrap rounded p-2 font-mono text-xs">
                 {diff.before}
@@ -88,7 +88,7 @@ export function ProposalPreviewBody(p: { preview: ProposalPreview }) {
             </div>
             <div>
               <div class="text-base-content-muted mb-1 text-xs font-700">
-                {t3({ en: "After", fr: "Après", pt: "Depois" })}
+                {t3({ en: "After", fr: "Après", pt: "Depois", th: "หลัง" })}
               </div>
               <div class="bg-base-200 whitespace-pre-wrap rounded p-2 font-mono text-xs">
                 {diff.after}
@@ -142,6 +142,7 @@ export function ApprovalPendingRenderer(p: {
             en: "Don't ask again in this conversation",
             fr: "Ne plus demander dans cette conversation",
             pt: "Não perguntar novamente nesta conversa",
+            th: "ไม่ต้องถามอีกในบทสนทนานี้",
           })}
         </label>
       </Show>
@@ -158,14 +159,14 @@ export function ApprovalPendingRenderer(p: {
             decide(true)}
         >
           {p.item.preview.confirmLabel ??
-            t3({ en: "Accept", fr: "Accepter", pt: "Aceitar" })}
+            t3({ en: "Accept", fr: "Accepter", pt: "Aceitar", th: "ยอมรับ" })}
         </Button>
         <Button
           intent="neutral"
           disabled={decided()}
           onClick={() => decide(false)}
         >
-          {t3({ en: "Decline", fr: "Refuser", pt: "Recusar" })}
+          {t3({ en: "Decline", fr: "Refuser", pt: "Recusar", th: "ปฏิเสธ" })}
         </Button>
       </div>
     </div>
@@ -180,20 +181,32 @@ function decisionLabel(
 ): string {
   switch (decision) {
     case "approved":
-      return t3({ en: "Approved", fr: "Approuvé", pt: "Aprovado" });
+      return t3({
+        en: "Approved",
+        fr: "Approuvé",
+        pt: "Aprovado",
+        th: "อนุมัติแล้ว",
+      });
     case "declined":
-      return t3({ en: "Declined", fr: "Refusé", pt: "Recusado" });
+      return t3({
+        en: "Declined",
+        fr: "Refusé",
+        pt: "Recusado",
+        th: "ปฏิเสธแล้ว",
+      });
     case "auto_approved":
       return t3({
         en: "Auto-approved",
         fr: "Approuvé automatiquement",
         pt: "Aprovado automaticamente",
+        th: "อนุมัติอัตโนมัติ",
       });
     case "auto_declined":
       return t3({
         en: "Not applied",
         fr: "Non appliqué",
         pt: "Não aplicado",
+        th: "ไม่ได้นำไปใช้",
       });
   }
 }
