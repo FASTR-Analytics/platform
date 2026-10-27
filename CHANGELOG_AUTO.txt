@@ -1,66 +1,66 @@
-[TBD] [user] [changed] - Profile no longer asks for your role after login
-[TBD] [user] [changed] - Removed "Role" column from the Users admin table
-[TBD] [user] [fixed] - GeoJSON edit modal now shows clear error when data fails to load
-[TBD] [user] [fixed] - GeoJSON upload wizard shows error instead of empty mapping table when admin areas fail to load
-[TBD] [user] [fixed] - Report editor now shows a loading indicator while opening
-[TBD] [user] [fixed] - Slide editor now shows an error message when a slide fails to load
-[TBD] [user] [fixed] - AI copilot no longer creates maps for admin levels with no boundary file uploaded
-[TBD] [user] [fixed] - AI copilot now catches figures that would fail to display before saving them
-[TBD] [user] [fixed] - Prompt library modal shows proper loading and error states
-[TBD] [user] [fixed] - Saving a custom prompt now shows inline errors instead of silent failures
-[TBD] [user] [fixed] - Version history no longer loads discarded figure previews unnecessarily
-[TBD] [user] [fixed] - Deleting a custom prompt now shows a confirmation dialog with the prompt name
-[TBD] [admin] [changed] - Users page no longer shows a "Role" column
-[TBD] [admin] [changed] - New users are no longer prompted to enter role after approval
-[TBD] [admin] [changed] - Profile settings now only show Organisation, not Role
-[TBD] [admin] [fixed] - GeoJSON edit modal now shows proper error when data fails to load
-[TBD] [admin] [fixed] - GeoJSON upload wizard shows error if admin areas fail to load
-[TBD] [admin] [fixed] - Slide editor now shows an error message when a slide fails to load
-[TBD] [admin] [fixed] - Report editor shows a loading indicator while opening
-[TBD] [admin] [fixed] - AI copilot maps now fail clearly when boundary files are missing
-[TBD] [admin] [fixed] - AI copilot map figures now validate before saving
-[TBD] [admin] [fixed] - Access token creation now shows inline errors instead of failing silently
-[TBD] [admin] [fixed] - Prompt library loading errors no longer block custom prompts
-[TBD] [admin] [internal] - AI reference documents system replaces previous info topics approach
-[TBD] [user] [changed] - HFA weight import errors now show example facility IDs from both the file and the registry, making it easier to spot a wrong column choice
-[TBD] [user] [changed] - Duplicate facility ID errors now list the repeated IDs instead of only a count
-[TBD] [user] [fixed] - Importing weights when no HFA facilities exist yet now gives a clearer message explaining you need to import the time point's data first
-[TBD] [admin] [changed] - HFA weight import error messages now show example facility IDs from both the file and the registry, making it easier to spot a wrong column choice
-[TBD] [admin] [changed] - Duplicate facility IDs in weight files are now reported with the actual IDs listed, not just a count
-[TBD] [admin] [fixed] - HFA weight import now gives a clearer message when no HFA facilities exist yet, guiding you to import time point data first
-[TBD] [admin] [improved] - Faster and more reliable processing of large CSV file uploads
-[TBD] [user] [added] - DHIS2 now validates typed data element IDs on save
-[TBD] [user] [changed] - Clearer error messages when a DHIS2 ID cannot be imported
-[TBD] [user] [changed] - Tooltip for DHIS2 ID field explains the new save-time validation
-[TBD] [admin] [added] - DHIS2 element IDs are now validated against the DHIS2 server on save
-[TBD] [admin] [added] - Operands using an element's default combo are now rejected with guidance to use the bare ID
-[TBD] [admin] [added] - Operands referencing a combo not listed by the element are now rejected
-[TBD] [admin] [added] - DHIS2 formulas (what DHIS2 calls indicators) are now detected and rejected as element IDs
-[TBD] [admin] [changed] - Clearer error messages when a DHIS2 element ID cannot be imported
-[TBD] [admin] [changed] - Tooltip for the DHIS2 ID field now explains that the ID is verified on save
-[TBD] [user] [fixed] - Fixed errors when loading data elements with broken dataset links
-[TBD] [admin] [fixed] - Resolved errors when DHIS2 has broken data set element records
-[TBD] [admin] [changed] - Data element data set information is now read from the data set side for improved reliability
-[TBD] [user] [changed] - Ask AI button now appears at the bottom-right of the screen
-[TBD] [user] [changed] - Slide decks and reports are now created from the Products tab on the home screen
-[TBD] [user] [changed] - Report export now also offers an HTML file option
-[TBD] [user] [changed] - "Figures" renamed to "visualizations" throughout reports and slide decks
-[TBD] [user] [changed] - PPTX export option now labeled "PPTX with raster visualizations"
-[TBD] [user] [changed] - HFA indicator code no longer requires R programming knowledge
-[TBD] [user] [changed] - CSV data file no longer requires facility identifier in the first column
-[TBD] [user] [changed] - Include in analysis control is now a toggle instead of a checkbox
-[TBD] [user] [changed] - Indicator list section renamed to "Managing indicators" with clearer creation steps
-[TBD] [user] [changed] - You can now add DHIS2 indicators in addition to data elements from your DHIS2 server
-[TBD] [admin] [changed] - AI assistant now opens from a bottom-right button instead of the sidebar
-[TBD] [admin] [changed] - Slide decks and reports are created from a Products tab on the home screen
-[TBD] [admin] [changed] - Report export now also offers an HTML file option
-[TBD] [admin] [changed] - "Figures" renamed to "visualizations" throughout reports and slide decks
-[TBD] [admin] [changed] - Indicator "Include in analysis" is now a toggle instead of a checkbox
-[TBD] [admin] [changed] - "The indicator list" help section renamed to "Managing indicators"
-[TBD] [admin] [changed] - HFA indicator code no longer referred to as "R code"
-[TBD] [admin] [changed] - HFA CSV import no longer requires facility ID in the first column
-[TBD] [admin] [changed] - DHIS2 indicator import now supports DHIS2 indicators in addition to data elements
-[TBD] [admin] [changed] - Help text updated across multiple topics for clarity and accuracy
+[2.3.0] [user] [changed] - Profile no longer asks for your role after login
+[2.3.0] [user] [changed] - Removed "Role" column from the Users admin table
+[2.3.0] [user] [fixed] - GeoJSON edit modal now shows clear error when data fails to load
+[2.3.0] [user] [fixed] - GeoJSON upload wizard shows error instead of empty mapping table when admin areas fail to load
+[2.3.0] [user] [fixed] - Report editor now shows a loading indicator while opening
+[2.3.0] [user] [fixed] - Slide editor now shows an error message when a slide fails to load
+[2.3.0] [user] [fixed] - AI copilot no longer creates maps for admin levels with no boundary file uploaded
+[2.3.0] [user] [fixed] - AI copilot now catches figures that would fail to display before saving them
+[2.3.0] [user] [fixed] - Prompt library modal shows proper loading and error states
+[2.3.0] [user] [fixed] - Saving a custom prompt now shows inline errors instead of silent failures
+[2.3.0] [user] [fixed] - Version history no longer loads discarded figure previews unnecessarily
+[2.3.0] [user] [fixed] - Deleting a custom prompt now shows a confirmation dialog with the prompt name
+[2.3.0] [admin] [changed] - Users page no longer shows a "Role" column
+[2.3.0] [admin] [changed] - New users are no longer prompted to enter role after approval
+[2.3.0] [admin] [changed] - Profile settings now only show Organisation, not Role
+[2.3.0] [admin] [fixed] - GeoJSON edit modal now shows proper error when data fails to load
+[2.3.0] [admin] [fixed] - GeoJSON upload wizard shows error if admin areas fail to load
+[2.3.0] [admin] [fixed] - Slide editor now shows an error message when a slide fails to load
+[2.3.0] [admin] [fixed] - Report editor shows a loading indicator while opening
+[2.3.0] [admin] [fixed] - AI copilot maps now fail clearly when boundary files are missing
+[2.3.0] [admin] [fixed] - AI copilot map figures now validate before saving
+[2.3.0] [admin] [fixed] - Access token creation now shows inline errors instead of failing silently
+[2.3.0] [admin] [fixed] - Prompt library loading errors no longer block custom prompts
+[2.3.0] [admin] [internal] - AI reference documents system replaces previous info topics approach
+[2.3.0] [user] [changed] - HFA weight import errors now show example facility IDs from both the file and the registry, making it easier to spot a wrong column choice
+[2.3.0] [user] [changed] - Duplicate facility ID errors now list the repeated IDs instead of only a count
+[2.3.0] [user] [fixed] - Importing weights when no HFA facilities exist yet now gives a clearer message explaining you need to import the time point's data first
+[2.3.0] [admin] [changed] - HFA weight import error messages now show example facility IDs from both the file and the registry, making it easier to spot a wrong column choice
+[2.3.0] [admin] [changed] - Duplicate facility IDs in weight files are now reported with the actual IDs listed, not just a count
+[2.3.0] [admin] [fixed] - HFA weight import now gives a clearer message when no HFA facilities exist yet, guiding you to import time point data first
+[2.3.0] [admin] [improved] - Faster and more reliable processing of large CSV file uploads
+[2.3.0] [user] [added] - DHIS2 now validates typed data element IDs on save
+[2.3.0] [user] [changed] - Clearer error messages when a DHIS2 ID cannot be imported
+[2.3.0] [user] [changed] - Tooltip for DHIS2 ID field explains the new save-time validation
+[2.3.0] [admin] [added] - DHIS2 element IDs are now validated against the DHIS2 server on save
+[2.3.0] [admin] [added] - Operands using an element's default combo are now rejected with guidance to use the bare ID
+[2.3.0] [admin] [added] - Operands referencing a combo not listed by the element are now rejected
+[2.3.0] [admin] [added] - DHIS2 formulas (what DHIS2 calls indicators) are now detected and rejected as element IDs
+[2.3.0] [admin] [changed] - Clearer error messages when a DHIS2 element ID cannot be imported
+[2.3.0] [admin] [changed] - Tooltip for the DHIS2 ID field now explains that the ID is verified on save
+[2.3.0] [user] [fixed] - Fixed errors when loading data elements with broken dataset links
+[2.3.0] [admin] [fixed] - Resolved errors when DHIS2 has broken data set element records
+[2.3.0] [admin] [changed] - Data element data set information is now read from the data set side for improved reliability
+[2.3.0] [user] [changed] - Ask AI button now appears at the bottom-right of the screen
+[2.3.0] [user] [changed] - Slide decks and reports are now created from the Products tab on the home screen
+[2.3.0] [user] [changed] - Report export now also offers an HTML file option
+[2.3.0] [user] [changed] - "Figures" renamed to "visualizations" throughout reports and slide decks
+[2.3.0] [user] [changed] - PPTX export option now labeled "PPTX with raster visualizations"
+[2.3.0] [user] [changed] - HFA indicator code no longer requires R programming knowledge
+[2.3.0] [user] [changed] - CSV data file no longer requires facility identifier in the first column
+[2.3.0] [user] [changed] - Include in analysis control is now a toggle instead of a checkbox
+[2.3.0] [user] [changed] - Indicator list section renamed to "Managing indicators" with clearer creation steps
+[2.3.0] [user] [changed] - You can now add DHIS2 indicators in addition to data elements from your DHIS2 server
+[2.3.0] [admin] [changed] - AI assistant now opens from a bottom-right button instead of the sidebar
+[2.3.0] [admin] [changed] - Slide decks and reports are created from a Products tab on the home screen
+[2.3.0] [admin] [changed] - Report export now also offers an HTML file option
+[2.3.0] [admin] [changed] - "Figures" renamed to "visualizations" throughout reports and slide decks
+[2.3.0] [admin] [changed] - Indicator "Include in analysis" is now a toggle instead of a checkbox
+[2.3.0] [admin] [changed] - "The indicator list" help section renamed to "Managing indicators"
+[2.3.0] [admin] [changed] - HFA indicator code no longer referred to as "R code"
+[2.3.0] [admin] [changed] - HFA CSV import no longer requires facility ID in the first column
+[2.3.0] [admin] [changed] - DHIS2 indicator import now supports DHIS2 indicators in addition to data elements
+[2.3.0] [admin] [changed] - Help text updated across multiple topics for clarity and accuracy
 [2.2.0] [user] [changed] - Indicator code editor now uses a simpler, dedicated expression language instead of R syntax
 [2.2.0] [user] [added] - Indicator code now supports IN and NOT IN for testing lists of values
 [2.2.0] [user] [added] - Indicator code now supports AND, OR, NOT keywords (case-insensitive) alongside & | ! symbols
