@@ -160,12 +160,14 @@ flipped version signal.
 
 **App override of the panther base pattern: never refetch after a mutation.**
 Panther's canonical actions pass `query.silentFetch` as a success callback; this
-app forbids post-mutation `silentFetch()` / `fetch()` / manual `refresh()`
-absolutely. Server route handlers already call `notifyInstance*(...)`; SSE flips
-the version key; the watching `createEffect` re-runs; the cache misses. A manual
-refetch duplicates work and races SSE. If you want to "refresh" a `createQuery`
-after a mutation, that view is long-lived enough that it must become a live
-read. Convert it.
+app forbids post-mutation `silentFetch()` / `fetch()` / manual `refresh()`, with
+one exception named in the T3 section: a read with no `notifyInstance*` and no
+SSE event behind it, where no version key exists to flip. Everywhere else,
+server route handlers already call `notifyInstance*(...)`; SSE flips the version
+key; the watching `createEffect` re-runs; the cache misses. A manual refetch
+duplicates work and races SSE. If you want to "refresh" a `createQuery` after a
+mutation, that view is long-lived enough that it must become a live read.
+Convert it.
 
 ### Variant A vs Variant B
 
@@ -336,11 +338,11 @@ client-local until launch), and the `instance/logged_in_wrapper.tsx` bootstrap
 fetches (GlobalUser, InstanceMeta, needed before SSE connects).
 
 Custom AI prompts (`copilot/ai_prompt_library/`) are the one T3 read whose
-mutations refetch. There is no `notifyInstance*` for them and no SSE event, so
-the create, update and delete actions and the save-to-library modal each call
-the `createQuery`'s `silentFetch`. That is the exception the T2 ban on
-post-mutation refetches leaves open: with no version key to flip, nothing else
-would bring the list up to date.
+mutations refetch, and the one exception the T2 override above names: there is
+no `notifyInstance*` for them and no SSE event, so no version key exists to flip
+and nothing else would bring the list up to date. The create, update and delete
+actions and the save-to-library modal each call the `createQuery`'s
+`silentFetch`.
 
 Run-keyed: a package's script / log bytes and a failed run's file listing
 (`results_packages/package_view/view_{script,logs,files}.tsx`).
