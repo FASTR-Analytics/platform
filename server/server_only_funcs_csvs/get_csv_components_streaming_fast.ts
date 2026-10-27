@@ -16,6 +16,16 @@ export type StreamingCsvComponents = {
 
 export type CsvColumnValidation = "strict" | "allow-fewer-columns";
 
+const CHUNK_SIZE = 2 * 1024 * 1024;
+
+function parseCsvRows(text: string): string[][] {
+  return Papa.parse<string[]>(text, {
+    skipEmptyLines: true,
+    dynamicTyping: false,
+    header: false,
+  }).data;
+}
+
 export async function getCsvStreamComponents(
   assetFilePath: string,
   columnValidation: CsvColumnValidation = "strict",
@@ -98,7 +108,27 @@ export async function getCsvStreamComponents(
         encodedHeaderToIndexMap.set(encodedHeader, i);
       });
 
-      // Process rows function that streams through the file
+      const checkColumnCount = (row: string[], rowIndex: number) => {
+        if (columnValidation === "allow-fewer-columns") {
+          if (row.length > headers.length) {
+            throw new Error(
+              `Row ${
+                rowIndex + 2
+              } has ${row.length} columns but header only has ${headers.length} columns`,
+            );
+          }
+        } else if (row.length !== headers.length) {
+          throw new Error(
+            `Row ${
+              rowIndex + 2
+            } has ${row.length} columns but header has ${headers.length} columns`,
+          );
+        }
+      };
+
+      // One sequential loop: read a chunk, cut it at the last newline outside
+      // quotes, parse the cut text, await the callback per row. A callback
+      // that throws rejects this promise through that one await chain.
       const processRows = async (
         callback: (
           row: string[],
@@ -108,11 +138,6 @@ export async function getCsvStreamComponents(
       ): Promise<void> => {
         const localFile = await Deno.open(assetFilePath, { read: true });
 
-        const CHUNK_SIZE = 2 * 1024 * 1024; // 2MB chunks
-        const MAX_QUEUE_SIZE = 50000; // pause reading when queue holds 50k rows
-        const RESUME_THRESHOLD = 10000; // resume when queue drops below 10k
-        const BATCH_SIZE = 1000; // rows handed to the consumer per batch
-
         if (!_IS_PRODUCTION) {
           console.log(
             `[CSV Streaming] Starting to process file: ${assetFilePath}`,
@@ -120,67 +145,30 @@ export async function getCsvStreamComponents(
         }
 
         try {
-          const rowQueue: { row: string[]; rowIndex: number }[] = [];
           let rowIndex = -1;
           let isFirstRow = true;
-          let parsingComplete = false;
-          let processingError: Error | null = null;
-          let isPaused = false;
           let leftoverBuffer = "";
-          let chunksRead = 0;
           let totalBytesRead = 0;
-          let rowsProcessed = 0;
 
-          const processQueue = async () => {
-            while (rowQueue.length > 0 || !parsingComplete) {
-              if (processingError) {
-                throw processingError;
-              }
-
-              if (rowQueue.length === 0) {
-                await new Promise((resolve) => setTimeout(resolve, 1));
+          const deliverRows = async (text: string) => {
+            for (const row of parseCsvRows(text)) {
+              if (isFirstRow) {
+                isFirstRow = false;
                 continue;
               }
-
-              // Process in batches
-              const batch: typeof rowQueue = [];
-              const batchSize = Math.min(BATCH_SIZE, rowQueue.length);
-
-              for (let i = 0; i < batchSize; i++) {
-                batch.push(rowQueue.shift()!);
-              }
-
-              if (isPaused && rowQueue.length < RESUME_THRESHOLD) {
-                isPaused = false;
-              }
-
-              try {
-                // Process batch
-                for (const item of batch) {
-                  await callback(item.row, item.rowIndex, totalBytesRead);
-                  rowsProcessed++;
-
-                  // Log progress every 100000 rows
-                  if (!_IS_PRODUCTION && rowsProcessed % 100000 === 0) {
-                    console.log(
-                      `[CSV Streaming] Processed ${rowsProcessed} rows`,
-                    );
-                  }
-                }
-              } catch (e) {
-                processingError = e as Error;
-                throw e;
+              rowIndex++;
+              checkColumnCount(row, rowIndex);
+              await callback(row, rowIndex, totalBytesRead);
+              if (!_IS_PRODUCTION && (rowIndex + 1) % 100000 === 0) {
+                console.log(`[CSV Streaming] Processed ${rowIndex + 1} rows`);
               }
             }
           };
 
-          // Start queue processor
-          const queuePromise = processQueue();
-
-          // Read and parse file in chunks. One persistent decoder in stream
-          // mode: a multibyte UTF-8 sequence split across a chunk boundary
-          // must be held back until its remaining bytes arrive, not emitted
-          // as U+FFFD replacement characters.
+          // One persistent decoder in stream mode: a multibyte UTF-8 sequence
+          // split across a chunk boundary must be held back until its
+          // remaining bytes arrive, not emitted as U+FFFD replacement
+          // characters.
           const buffer = new Uint8Array(CHUNK_SIZE);
           const decoder = new TextDecoder();
 
@@ -194,214 +182,52 @@ export async function getCsvStreamComponents(
           // so only the newly decoded chunk needs scanning.
           let inQuotes = false;
 
-          try {
-            while (true) {
-              // Wait if queue is full
-              while (rowQueue.length >= MAX_QUEUE_SIZE && !processingError) {
-                isPaused = true;
-                await new Promise((resolve) => setTimeout(resolve, 1));
+          while (true) {
+            const bytesRead = await localFile.read(buffer);
+            if (!bytesRead) {
+              // Flush the streaming decoder (emits any held-back partial
+              // sequence as U+FFFD: at true EOF that's genuinely bad data)
+              leftoverBuffer += decoder.decode();
+              if (leftoverBuffer) {
+                await deliverRows(leftoverBuffer);
               }
+              break;
+            }
 
-              if (processingError) {
-                break;
-              }
+            totalBytesRead += bytesRead;
+            const chunk = decoder.decode(buffer.subarray(0, bytesRead), {
+              stream: true,
+            });
 
-              const bytesRead = await localFile.read(buffer);
-              if (!bytesRead || bytesRead === 0) {
-                // Flush the streaming decoder (emits any held-back partial
-                // sequence as U+FFFD: at true EOF that's genuinely bad data)
-                leftoverBuffer += decoder.decode();
-                // Process any remaining data
-                if (leftoverBuffer) {
-                  if (!_IS_PRODUCTION) {
-                    console.log(
-                      `[CSV Streaming] Processing leftover buffer (${leftoverBuffer.length} chars)`,
-                    );
-                  }
-
-                  Papa.parse<string[]>(leftoverBuffer, {
-                    skipEmptyLines: true,
-                    dynamicTyping: false,
-                    header: false,
-                    complete: (results) => {
-                      for (const row of results.data) {
-                        if (isFirstRow) {
-                          isFirstRow = false;
-                          continue;
-                        }
-
-                        rowIndex++;
-
-                        if (columnValidation === "allow-fewer-columns") {
-                          // Allow rows with fewer columns (missing trailing values)
-                          // but not rows with more columns than headers
-                          if (row.length > headers.length) {
-                            processingError = new Error(
-                              `Row ${
-                                rowIndex + 2
-                              } has ${row.length} columns but header only has ${headers.length} columns`,
-                            );
-                            return;
-                          }
-                        } else {
-                          // Strict validation: row must have exact same number of columns
-                          if (row.length !== headers.length) {
-                            processingError = new Error(
-                              `Row ${
-                                rowIndex + 2
-                              } has ${row.length} columns but header has ${headers.length} columns`,
-                            );
-                            return;
-                          }
-                        }
-
-                        rowQueue.push({ row, rowIndex });
-                      }
-                    },
-                    error: (error: any) => {
-                      processingError = new Error(
-                        `CSV parsing error at row ${rowIndex + 2}: ${
-                          error.message || error
-                        }`,
-                      );
-                    },
-                  });
-                }
-                break;
-              }
-
-              chunksRead++;
-              totalBytesRead += bytesRead;
-
-              // Log chunk reading every 100 chunks
-              if (
-                !_IS_PRODUCTION &&
-                (chunksRead % 100 === 0 ||
-                  totalBytesRead % (100 * 1024 * 1024) < CHUNK_SIZE)
-              ) {
-                console.log(
-                  `[CSV Streaming] Read chunk #${chunksRead} (total: ${
-                    (
-                      totalBytesRead /
-                      1024 /
-                      1024
-                    ).toFixed(2)
-                  }MB)`,
-                );
-              }
-
-              const chunk = decoder.decode(buffer.slice(0, bytesRead), {
-                stream: true,
-              });
-
-              let lastSafeNewline = -1;
-              for (let i = 0; i < chunk.length; i++) {
-                const code = chunk.charCodeAt(i);
-                if (code === 34) {
-                  inQuotes = !inQuotes;
-                } else if (code === 10 && !inQuotes) {
-                  lastSafeNewline = i;
-                }
-              }
-
-              const dataToProcess = leftoverBuffer + chunk;
-
-              if (lastSafeNewline === -1) {
-                leftoverBuffer = dataToProcess;
-                continue;
-              }
-
-              const boundary = leftoverBuffer.length + lastSafeNewline;
-              const completeData = dataToProcess.slice(0, boundary);
-              leftoverBuffer = dataToProcess.slice(boundary + 1);
-
-              Papa.parse<string[]>(completeData, {
-                skipEmptyLines: true,
-                dynamicTyping: false,
-                header: false,
-                complete: (results) => {
-                  for (const row of results.data) {
-                    if (isFirstRow) {
-                      isFirstRow = false;
-                      continue;
-                    }
-
-                    rowIndex++;
-
-                    if (columnValidation === "allow-fewer-columns") {
-                      // Allow rows with fewer columns (missing trailing values)
-                      // but not rows with more columns than headers
-                      if (row.length > headers.length) {
-                        processingError = new Error(
-                          `Row ${
-                            rowIndex + 2
-                          } has ${row.length} columns but header only has ${headers.length} columns`,
-                        );
-                        return;
-                      }
-                    } else {
-                      // Strict validation: row must have exact same number of columns
-                      if (row.length !== headers.length) {
-                        processingError = new Error(
-                          `Row ${
-                            rowIndex + 2
-                          } has ${row.length} columns but header has ${headers.length} columns`,
-                        );
-                        return;
-                      }
-                    }
-
-                    rowQueue.push({ row, rowIndex });
-                  }
-                },
-                error: (error: any) => {
-                  processingError = new Error(
-                    `CSV parsing error at row ${rowIndex + 2}: ${
-                      error.message || error
-                    }`,
-                  );
-                },
-              });
-
-              if (processingError) {
-                break;
+            let lastSafeNewline = -1;
+            for (let i = 0; i < chunk.length; i++) {
+              const code = chunk.charCodeAt(i);
+              if (code === 34) {
+                inQuotes = !inQuotes;
+              } else if (code === 10 && !inQuotes) {
+                lastSafeNewline = i;
               }
             }
-          } catch (innerError) {
-            throw innerError;
-          }
 
-          parsingComplete = true;
-          if (!_IS_PRODUCTION) {
-            console.log(
-              `[CSV Streaming] File reading complete. Waiting for queue to finish processing...`,
-            );
-          }
-          await queuePromise;
-          // The queue loop returns without reading processingError when it
-          // finds the queue empty after parsing completes, so a parser error
-          // with no row left to process surfaces only here.
-          if (processingError) {
-            throw processingError;
+            const dataToProcess = leftoverBuffer + chunk;
+
+            if (lastSafeNewline === -1) {
+              leftoverBuffer = dataToProcess;
+              continue;
+            }
+
+            const boundary = leftoverBuffer.length + lastSafeNewline;
+            leftoverBuffer = dataToProcess.slice(boundary + 1);
+            await deliverRows(dataToProcess.slice(0, boundary));
           }
 
           if (!_IS_PRODUCTION) {
             console.log(
-              `[CSV Streaming] Complete! Total rows processed: ${rowsProcessed}`,
+              `[CSV Streaming] Complete! Total rows processed: ${rowIndex + 1}`,
             );
           }
-          try {
-            localFile.close();
-          } catch {
-            // File might already be closed by the reader
-          }
-        } catch (e) {
-          try {
-            localFile.close();
-          } catch {
-            // File might already be closed by the reader
-          }
-          throw e;
+        } finally {
+          localFile.close();
         }
       };
 

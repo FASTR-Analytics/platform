@@ -10,9 +10,9 @@ before it checks that any id exists, so a wrong facility ID column is reported
 as "7 facility ID(s) appear more than once", with no ids and no hint that the
 column is wrong.
 
-**Next step: Do 1.** Each session sets this line in its final commit. Its values
-are `Do N`, `Review N` and `Fix N`. Last step: 2. The review that passes step 2
-deletes this file.
+**Next step: Review 1.** Each session sets this line in its final commit. Its
+values are `Do N`, `Review N` and `Fix N`. Last step: 2. The review that passes
+step 2 deletes this file.
 
 Branch: `main`. Repos touched: this app only.
 
@@ -168,3 +168,6 @@ data changes shape. Rollback is `git revert` of the plan's commits.
 | ---------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | 2026-10-16 | 2    | The unknown-id rule rewritten by Tim before `Do 1`, after the HFA facilities work (ef6fe401f) made the weights import skip and report unknown ids and refuse only when none is known.                                                                                                                  |
 | 2026-10-27 | 0    | Rewritten after three independent reviews: the two reader patches replaced by one sequential loop with no queue (all three measured it); the weight checks ordered ahead of the unknown-id check; the branch is `main` since version2 replaced it; the stale twin-plan and panther references removed. |
+| 2026-10-27 | 1    | Measured on 500,000 rows (14.9 MB) on this machine: the queue took 9.3 s with a synchronous callback and 19.4 s with a 5 ms wait every 10,000 rows; the sequential loop takes 0.16 s and 0.54 s. The plan's 25 s was another machine's figure.                                                         |
+| 2026-10-27 | 1    | Papa's `error` option is a FileReader hook and never fires for string input, so the "CSV parsing error at row" path was unreachable and is gone. Papa's per-row `errors` array is ignored as before. The dev-only chunk-count and leftover-buffer logs went with the loop that produced them.          |
+| 2026-10-27 | 1    | Step 1 built.                                                                                                                                                                                                                                                                                          |

@@ -403,11 +403,17 @@ start.
   `server/tests/csv_mapping_staging_test.ts` on the real stage leg and the real
   scan.
 - CSV parsing goes through `getCsvStreamComponents`
-  (`get_csv_components_streaming_fast.ts`): streaming, 2 MB chunks,
-  quote-parity-aware chunk boundaries (quoted fields with embedded newlines
-  survive chunking); a row with more columns than the header (under `strict`, a
-  different count) rejects the stream naming the row, whichever row it is,
-  pinned by `server/tests/csv_stream_reader_test.ts`.
+  (`get_csv_components_streaming_fast.ts`): one sequential loop over 2 MB
+  chunks, each cut at its last newline outside quotes (quoted fields with
+  embedded newlines survive chunking), parsed, and delivered row by row in file
+  order with the callback awaited per row, so the next chunk is read only after
+  the chunk's rows are consumed; there is no queue. A callback that throws
+  rejects the stream with its own error and no later row is delivered, which is
+  what lets a worker's stage leg fail through its own catch when a database
+  insert fails. A row with more columns than the header (under `strict`, a
+  different count) rejects the stream naming the row, whichever row it is.
+  `server/tests/csv_stream_reader_test.ts` pins the column check, the rejection,
+  and 500,000 rows arriving complete and in order in under 10 seconds.
 - HMIS-DHIS2 semantics (run worker, the pure reduce in `dispatch.ts`, pinned by
   `server/tests/dhis2_skip_and_record_test.ts`): a facility value is accepted
   only as a non-negative integer (numeric parse, so a NUMBER-typed "12.0" counts
