@@ -540,19 +540,20 @@ decomposition, `describeDhis2ElementImportRefusal` over an element verdict, both
 in `lib/types/indicators.ts`) are what the picker shows a person searching: one
 sentence saying the row cannot be imported and why, naming the part at fault by
 its role and by DHIS2's own name for it, with no metadata field name and no
-DHIS2 period word, and `undefined` when there is nothing to refuse. The one id a
-sentence can show is an operand's own data id, in the sentence for an element
-DHIS2 no longer has, where the server answered no name to call it by. The
-indicator one owns the order of the causes and, when only the denominator is at
-fault and the numerator is one operand, names that numerator as the thing to add
-instead. The import sentences are pinned by
-`server/tests/dhis2_decompose_indicator_test.ts`; the save route's own judging
-by `server/tests/indicator_naming_test.ts` on a throwaway database built from
-`_main_database.sql`. A new database has an empty dictionary; the **special
-indicators**, `SPECIAL_INDICATORS` in `lib/special_indicators.ts`, stay a
-reserved list: the hand-kept count ids the registry module scripts read by
-literal id, which the manager's reference panel names,
-`getSpecialIndicatorTypeIssue` keeps a count, and `analysedIndicatorIds`
+DHIS2 period word, and `undefined` when there is nothing to refuse. An id
+reaches a sentence only where DHIS2 left nothing else to call the part by: the
+operand's own data id when the server does not have its element, and the combo's
+own UID inside the label when the element exists but no longer lists that combo,
+both of them `dhis2ElementName`'s own fallbacks. The indicator one owns the
+order of the causes and, when only the denominator is at fault and the numerator
+is one operand, names that numerator as the thing to add instead. The import
+sentences are pinned by `server/tests/dhis2_decompose_indicator_test.ts`; the
+save route's own judging by `server/tests/indicator_naming_test.ts` on a
+throwaway database built from `_main_database.sql`. A new database has an empty
+dictionary; the **special indicators**, `SPECIAL_INDICATORS` in
+`lib/special_indicators.ts`, stay a reserved list: the hand-kept count ids the
+registry module scripts read by literal id, which the manager's reference panel
+names, `getSpecialIndicatorTypeIssue` keeps a count, and `analysedIndicatorIds`
 analyses whenever one exists. A team creates them in the manager like any
 indicator. `./validate_fresh_boot` boots an empty postgres through `dbStartUp`
 and asserts the empty dictionary. New ids are charset-checked (no `, ; : [ ]`
