@@ -1,10 +1,7 @@
-// Pins the HFA weights import's checks, in the order they run, whose contract
-// is the Weights paragraph of SYSTEM_05_facilities_indicators.md: weights
-// first (the weight column is independent of the facility column), then the
-// unknown-id refusal that names the column as the wizard shows it, then
-// repeated ids. Runs the real import on a throwaway database built from
-// _main_database.sql on the dev postgres (the .env the test task loads),
-// dropped afterwards.
+// Pins the HFA weights import's checks in the order they run, whose contract
+// is the Weights paragraph of SYSTEM_05_facilities_indicators.md. Runs the
+// real import on a throwaway database built from _main_database.sql on the
+// dev postgres (the .env the test task loads), dropped afterwards.
 //
 //   deno test -A --env-file server/tests/hfa_facility_weights_import_test.ts
 
@@ -41,6 +38,7 @@ await db`
   VALUES ('Round 1', '202401', 1)
 `;
 
+// Unsorted, so the message's three example ids pin the registry read's ORDER BY.
 const REGISTRY = ["F05", "F01", "F04", "F02", "F03"];
 
 async function seedRegistry() {

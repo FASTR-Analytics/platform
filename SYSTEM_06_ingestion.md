@@ -740,7 +740,8 @@ into its inputs plus the dataset version stamps the manifest records
   (mixed crash durability).
 - `getCsvDetails` (both CSV families' header parse) reads the whole file into
   memory for headers; the streaming variant's header read is one 64 KB
-  `file.read()` (wide XLSForm exports / short reads → confusing failure).
+  `file.read()`, and a header row wider than that is truncated silently (a
+  10,000-column header parses as 8,331 headers), as is a short read.
 - Ethiopian-calendar period math (`periodIdForDate`,
   `lib/period_id_for_date.ts`, used by the DHIS2 wizard, the import scheduler
   and the scope editor's year slider) assumes 12 months (no Pagume);
