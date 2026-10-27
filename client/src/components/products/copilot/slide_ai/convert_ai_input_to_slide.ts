@@ -34,16 +34,24 @@ import { createIdGeneratorForLayout } from "~/components/products/_shared/mod.ts
  *
  * Figures resolve under the caller's PackageScope: the deck the slide is
  * destined for.
+ *
+ * `overflow` is the page-level overflow of the layout kept. Optimizing at the
+ * canonical render frame makes it the verdict the page holder re-measures for
+ * its badge, so a caller that writes the slide for the model reports it: the
+ * model cannot see the badge.
  */
 export async function convertAiInputToSlide(
   scope: PackageScope,
   slideInput: AiSlideInput,
   metrics: MetricWithStatus[],
   deckConfig: SlideDeckConfig,
-): Promise<Slide> {
+): Promise<{ slide: Slide; overflow: boolean }> {
   // Cover and section pass through unchanged
   if (slideInput.type === "cover" || slideInput.type === "section") {
-    return slideConfigSchema.parse(slideInput) as Slide;
+    return {
+      slide: slideConfigSchema.parse(slideInput) as Slide,
+      overflow: false,
+    };
   }
 
   // Content slide - resolve figures and optimize layout
@@ -137,11 +145,14 @@ export async function convertAiInputToSlide(
 
   const layoutWithMeta = restoreMetadata(result.best.layout, bundleMap);
 
-  return slideConfigSchema.parse({
-    type: "content",
-    header: slideInput.header,
-    layout: layoutWithMeta,
-  }) as Slide;
+  return {
+    slide: slideConfigSchema.parse({
+      type: "content",
+      header: slideInput.header,
+      layout: layoutWithMeta,
+    }) as Slide,
+    overflow: result.best.score.overflow === 1,
+  };
 }
 
 type BundleMap = Map<string, FigureBundle | undefined>;

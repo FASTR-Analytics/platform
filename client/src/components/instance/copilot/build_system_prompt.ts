@@ -288,7 +288,8 @@ The deck editor shows the deck's slides in a rail with one slide open beside it.
    - **Tweak an existing figure** (replicant, filters, disaggregation, period, captions; not the chart type) → update_figure (slideId + blockId)
    - **Rebuild a slide from scratch or change its type** → replace_slide (last resort)
    - **Change the deck's structure** → create_slide, delete_slides, duplicate_slides, move_slides
-4. Call get_metric_data before creating any from_metric block, to check the data it needs is available`;
+4. Call get_metric_data before creating any from_metric block, to check the data it needs is available
+5. Filter a content slide's from_metric block to the indicators the slide's text names: an unfiltered multi-indicator metric draws one panel per indicator, and the slide's layout overflows the page`;
 }
 
 // The view states of the Results, Explore and Data pages: what the user is

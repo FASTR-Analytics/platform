@@ -663,13 +663,24 @@ place through a per-type union that must match the slide's type (a cover's or a
 section's fields; a content slide's header, and either `blockUpdates` or
 `layoutChange`, whose layout-spec resolution names the blocks it removes),
 `update_figure` tweaks one figure's config, and `replace_slide` rebuilds a slide
-or changes its type. The structure writes (`create_slide`, `duplicate_slides`,
-`move_slides`) go through the product routes and never open a slide: the deck's
-own rule (the first slide when none is open) is the only thing that moves the
-editor on the AI's behalf. `delete_slides` commits through the deck's
-`deleteSlides` (S12), the rail's own sequence, so a deleted open slide hands the
-editor to its neighbour before the request. The report's writes go through the
-live view context. The Figure editor group
+or changes its type. The two writes that run the page optimizer (`create_slide`
+and `replace_slide`) write the slide as asked and, when the layout they kept
+overflows the page (`convertAiInputToSlide`'s `overflow`, the optimizer's
+page-level `score.overflow`; the optimizer runs at the canonical render frame,
+so it is the verdict the page holder re-measures at render and draws its "Layout
+overflow" badge from), append one sentence to their result naming the slide's
+figure block ids and the fix: filter the indicator dimension, or choose a preset
+with fewer rows, through `update_figure`. Text blocks autofit, so the figure
+blocks are the cause; a slide with no figure block reports the overflow alone.
+Nothing throws: the user can see the badge and fix the slide by hand, and the
+model has a line to act on in the same turn. The structure writes
+(`create_slide`, `duplicate_slides`, `move_slides`) go through the product
+routes and never open a slide: the deck's own rule (the first slide when none is
+open) is the only thing that moves the editor on the AI's behalf.
+`delete_slides` commits through the deck's `deleteSlides` (S12), the rail's own
+sequence, so a deleted open slide hands the editor to its neighbour before the
+request. The report's writes go through the live view context. The Figure editor
+group
 ([figure_editor.ts](client/src/components/products/copilot/ai_tools/tools/figure_editor.ts),
 in the inner set, admitted in the three figure views): `get_figure_editor`
 formats the draft with `formatFigureConfigForAI`, and `update_figure_editor`
@@ -969,7 +980,9 @@ slide tool calls the same resolvers, whichever slide it writes:
   converts AiSlideInput → stored `Slide` under a `PackageScope`: resolve blocks,
   `optimizePageLayout` at the canonical page frame, re-attach bundles, and
   `slideConfigSchema.parse` the result (validate-at-construction, the
-  add-to-deck ZodError lesson).
+  add-to-deck ZodError lesson). It returns `{ slide, overflow }`, the kept
+  layout's page-level overflow beside the slide; the draft tools ignore it, the
+  deck writes report it.
 - [get_slide_with_updated_blocks.ts](client/src/components/products/copilot/slide_ai/get_slide_with_updated_blocks.ts)
   is targeted block replacement preserving what the AI schema can't express
   (text styles, node-level layout overrides);

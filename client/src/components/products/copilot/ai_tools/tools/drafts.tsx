@@ -74,7 +74,7 @@ export function getClientToolsForDrafts(
         const deckConfig = view.id === "editing_slide_deck"
           ? view.context.getDeckConfig()
           : getStartingConfigForSlideDeck("Draft");
-        const convertedSlide = await convertAiInputToSlide(
+        const { slide: convertedSlide } = await convertAiInputToSlide(
           scope,
           input.slide,
           metrics,
