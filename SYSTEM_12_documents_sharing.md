@@ -235,10 +235,13 @@ subfolders hold and that access is only raised.
 ## The products registry on `main`
 
 **A product has one name: `products.label`.** No detail row and no stored config
-carries a second copy, so no write to a product's contents can change what it is
-called. The two rename surfaces (the editor header's inline title and File >
-"Name and folder…") reach it through `updateProductLabel`, which writes
-`products` directly. A version snapshot does capture the name of its day
+carries a second copy, so an ordinary content write carries no name at all; only
+a version restore writes one, and only the name the version captured. The two
+rename surfaces reach it through `updateProductLabel`, which writes `products`
+directly: the editor header's inline title (`ProductTitle`, in both editors) and
+the product settings modal (`ProductSettings`), reached from the deck's File >
+"Name and folder…", the report's File > "Rename…" and the products list's row
+menu. A version snapshot does capture the name of its day
 (`slide_deck_versions.label`, `report_versions.label`), and three restore paths
 put that captured name back: `restoreSlideDeckStructure` and
 `restoreReportContent`, the only two callers of `touchProduct`'s optional
