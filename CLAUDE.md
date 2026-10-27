@@ -37,7 +37,7 @@ no editor formatter, and no per-directory style.
   plans ([PROTOCOL_APP_PLANS.md](PROTOCOL_APP_PLANS.md)), and the verification
   loop ([PROTOCOL_APP_DEVELOPMENT.md](PROTOCOL_APP_DEVELOPMENT.md)).
 - `panther/protocols/` holds the cross-project conventions those build on,
-  including how a multi-session plan is written and run
+  including how a plan is written and run
   ([PROTOCOL_ALL_PLANS.md](panther/protocols/PROTOCOL_ALL_PLANS.md)).
 - `PLAN_*.md` files are open work.
 - Setup is in [README.md](README.md), tasks in `deno.json`, and every
