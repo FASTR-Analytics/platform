@@ -696,6 +696,16 @@ ${FASTR_MD_SYNTAX_DOC}`,
                 { id: newId, caption: overrideCaption },
               ),
           );
+          // Liveness is what the DOCUMENT resolves (reportLiveFigures), while
+          // this rewrite is the canonical token's: a figure embedded as a
+          // titled, reference or angle-bracket destination is live and not
+          // rewritable here, and without this the body comes back unchanged
+          // and the model hears only "IDENTICAL to the current body".
+          if (swapped.count === 0) {
+            throw new AIToolFailure(
+              `Figure "${input.figureId}" is embedded in a form this tool cannot rewrite (not \`![caption](figure:<id>)\`). Change the figure in place with update_report_figure, or rewrite that embed as a token with replace_text first.`,
+            );
+          }
           const embedCount = swapped.count;
           const newBody = swapped.body;
           validateReportBodyLength(newBody);

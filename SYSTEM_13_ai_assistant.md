@@ -1272,6 +1272,34 @@ tail). The HFA whole-object read-modify-write finding was **rejected**: it
 matches the app-wide last-write-wins model (see the HFA tools section).
 Remaining:
 
+**Report figure references (fixes in `report-forge/`, the submodule)**
+
+Both are gaps between what `fastrBodyReferences` reports and what the document
+resolves, so they land in the shared reader, not here. Its own contract comment
+(`report_fastr_markdown.ts:733-735`) says "Every figure:/image: the document
+will try to resolve", which is what `reportLiveFigures` relies on.
+
+- **[MED] A raw-HTML `<img src="figure:<id>">` is resolved by the document and
+  is not reported as a reference.** `html: true` is set, the compiler leaves
+  author HTML as written, and `REPORT_PURIFY_CONFIG.ALLOWED_URI_REGEXP`
+  whitelists the `figure:` scheme, so `materializeReportEmbeds` rasterises it
+  exactly like a token's. The figure tools therefore refuse to index, read or
+  lay out a figure the reader can see. Such bodies are expected to exist:
+  `checkReportTokensResolve` refuses an HTML embed only on the delta,
+  deliberately leaving one already in the user's document alone. Edit: in
+  `report_fastr_markdown.ts`, walk `html_inline` and `html_block` content for an
+  `<img>` `src` and feed it to the same `embed` helper.
+- **[LOW] `bg=figure:<id>` is reported as a figure reference and renders
+  nothing.** `fastrBodyReferences` calls `embed(v, line)` on every
+  `bg`/`background` value and `EMBED_REF_RE` accepts `figure|image`, but the
+  renderer's `EMBED_BG_RE` accepts `image:` only, so the value is dropped. That
+  makes a figure live that is on no page: the orphan failure mode from the other
+  side. Only reachable from a hand-typed body, because `checkFastrContainers`
+  refuses the attribute on the AI write path. Edit: in
+  `report_fastr_markdown.ts`, guard that call with
+  `if (v.trim().startsWith("image:"))`, which also makes the code agree with its
+  own doc comment.
+
 **Governance policy (decisions, not bugs)**
 
 - **[MED] Cache tokens excluded from limit counting** while panther now
