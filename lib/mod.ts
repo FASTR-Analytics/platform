@@ -29,6 +29,7 @@ export * from "./run_progress.ts";
 export * from "../report-forge/engine/mod.ts";
 // The platform's own report theme, registered with the engine on load.
 export * from "./report_legacy_theme.ts";
+export * from "./report_live_figures.ts";
 export * from "./slide_text_offsets.ts";
 export * from "./group_metrics.ts";
 export * from "./explore_query.ts";

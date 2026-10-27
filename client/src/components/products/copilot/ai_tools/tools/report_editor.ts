@@ -18,7 +18,6 @@ import {
   type FastrReportTheme,
   fastrThemeIds,
   type FigureBlock,
-  findReportEmbeds,
   getFastrReportTheme,
   getReplicateByProp,
   insertAfterReportHeading,
@@ -26,6 +25,7 @@ import {
   type PeriodBounds,
   periodFilterHasBounds,
   replaceReportEmbedTokens,
+  reportLiveFigures,
   resolveFigureMetric,
   type ResultsValueInfoForPresentationObject,
   rewriteReportEmbedToken,
@@ -70,11 +70,39 @@ import {
 // figures.
 
 // The ids a proposed body may embed: the report's own figures and images.
+// The FULL registry, deliberately, not `reportLiveFigures`: a proposed body may
+// re-embed a still-registered id that the current body does not reference.
 function embedIdsOf(ctx: EditingReportContext): ReportEmbedIds {
   return {
     figures: Object.keys(ctx.getFigures()),
     images: Object.keys(ctx.getImages()),
   };
+}
+
+// The figures the reader can see, which is every figure these tools offer,
+// read or write. A registered figure the body no longer embeds is nobody's:
+// indexing it cost the model a turn, because its index line carried the
+// caption the user had asked to keep, so the model aimed at the orphan and was
+// refused.
+function liveFiguresOf(
+  ctx: EditingReportContext,
+): Record<string, FigureBlock> {
+  return reportLiveFigures(ctx.getBody(), ctx.getFigures());
+}
+
+function liveFigureOrRefuse(
+  ctx: EditingReportContext,
+  figureId: string,
+): FigureBlock {
+  const live = liveFiguresOf(ctx);
+  const fig = live[figureId];
+  if (!fig) {
+    const ids = Object.keys(live).join(", ") || "(none)";
+    throw new AIToolFailure(
+      `No figure with id "${figureId}" in this report's body. Figure ids: ${ids}. Call get_report_editor.`,
+    );
+  }
+  return fig;
 }
 
 // A text edit the package refused. A body that broke a rule is a tool
@@ -129,7 +157,7 @@ export function getClientToolsForReportEditor(
       kind: "read",
       handler: async (_input, view) => {
         const ctx = view.context;
-        const figs = ctx.getFigures();
+        const figs = liveFiguresOf(ctx);
         const figureIds = Object.keys(figs);
         const imgIds = Object.keys(ctx.getImages());
         const figureSection = figureIds.length
@@ -172,13 +200,7 @@ export function getClientToolsForReportEditor(
       kind: "read",
       handler: async (input, view) => {
         const ctx = view.context;
-        const fig = ctx.getFigures()[input.figureId];
-        if (!fig) {
-          const ids = Object.keys(ctx.getFigures()).join(", ") || "(none)";
-          throw new AIToolFailure(
-            `No figure with id "${input.figureId}". Figure ids: ${ids}.`,
-          );
-        }
+        const fig = liveFigureOrRefuse(ctx, input.figureId);
         if (!fig.bundle) {
           throw new AIToolFailure(
             `Figure "${input.figureId}" has no resolved data yet and can't be read.`,
@@ -228,25 +250,10 @@ export function getClientToolsForReportEditor(
       kind: "write",
       handler: async (input, view) => {
         const ctx = view.context;
-        const fig = ctx.getFigures()[input.figureId];
-        if (!fig) {
-          const ids = Object.keys(ctx.getFigures()).join(", ") || "(none)";
-          throw new AIToolFailure(
-            `No figure with id "${input.figureId}". Figure ids: ${ids}.`,
-          );
-        }
+        const fig = liveFigureOrRefuse(ctx, input.figureId);
         if (!fig.bundle) {
           throw new AIToolFailure(
             `Figure "${input.figureId}" has no resolved data yet and can't be edited.`,
-          );
-        }
-        if (
-          !findReportEmbeds(ctx.getBody()).some(
-            (r) => r.kind === "figure" && r.id === input.figureId,
-          )
-        ) {
-          throw new AIToolFailure(
-            `Figure "${input.figureId}" is registered but its token isn't in the report body. Call get_report_editor.`,
           );
         }
         // metricId/type are not in the patch schema (silently stripped), so an
@@ -664,20 +671,7 @@ ${FASTR_MD_SYNTAX_DOC}`,
       approval: {
         propose: async (input, view) => {
           const ctx = view.context;
-          if (!ctx.getFigures()[input.figureId]) {
-            throw new AIToolFailure(
-              `No figure with id "${input.figureId}" in this report. Call get_report_editor to see figure ids.`,
-            );
-          }
-          if (
-            !findReportEmbeds(ctx.getBody()).some(
-              (r) => r.kind === "figure" && r.id === input.figureId,
-            )
-          ) {
-            throw new AIToolFailure(
-              `Figure "${input.figureId}" is registered but its token isn't in the body. Call get_report_editor.`,
-            );
-          }
+          liveFigureOrRefuse(ctx, input.figureId);
           const figureBlock = await resolveFigureFromMetric(
             view.context.getScope(),
             input.figure,
