@@ -124,6 +124,11 @@ export function SlideDeckEditor(p: Props) {
   }
 
   const [slideIds, setSlideIds] = createSignal<string[]>([]);
+  // Deliberately not a StateHolder. It means "the first deck fetch landed",
+  // and the whole point is that the header, the toolbar and the rail mount
+  // BEFORE it does: the rail draws its own loading state in place of the
+  // cards, so a wrapper over this would hide the chrome the user needs. The
+  // error path is loadState's, below.
   const [isLoading, setIsLoading] = createSignal(true);
   const [selectedSlideIds, setSelectedSlideIds] = createSignal<string[]>([]);
   const [deckConfig, setDeckConfig] = createSignal<SlideDeckConfig>(
