@@ -45,9 +45,8 @@ import {
 const FIGURE_SOURCE_NOTE =
   "\n\nContent blocks are either:\n- from_metric: a figure built from a metric + one of its presets. IMPORTANT: always call get_metric_data FIRST to see available disaggregations, filters and time ranges. The figure resolves under the deck's results package and scope.\n- text: markdown content with autofit. IMPORTANT: Markdown tables are NOT allowed. To display tabular data, use a from_metric block with a table-type preset.";
 
-// A slide whose layout overflows draws a "Layout overflow" badge on the deck's
-// canvas, which the model never sees, so the write says so in its result. Text
-// blocks autofit, so the figure blocks are both the cause and the fix.
+// Text blocks autofit, so a page that overflows overflows on its figures: they
+// are both the cause named and the fix offered.
 function withOverflowNote(
   result: string,
   slide: Slide,

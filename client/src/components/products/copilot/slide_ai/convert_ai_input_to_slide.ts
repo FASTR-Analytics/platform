@@ -35,10 +35,12 @@ import { createIdGeneratorForLayout } from "~/components/products/_shared/mod.ts
  * Figures resolve under the caller's PackageScope: the deck the slide is
  * destined for.
  *
- * `overflow` is the page-level overflow of the layout kept. Optimizing at the
- * canonical render frame makes it the verdict the page holder re-measures for
- * its badge, so a caller that writes the slide for the model reports it: the
- * model cannot see the badge.
+ * `overflow` is the page-level overflow the optimizer scored for the layout it
+ * kept, which a caller that writes the slide for the model reports: the model
+ * cannot see the canvas badge. It is sound and incomplete. The optimizer scores
+ * the whole page box while the render gives the layout the page minus its
+ * header and footer, so a layout it calls overflowing overflows at render too,
+ * and one the header's height pushes over the edge scores 0.
  */
 export async function convertAiInputToSlide(
   scope: PackageScope,
@@ -127,7 +129,9 @@ export async function convertAiInputToSlide(
 
   // Optimize layout
   const rc = createCanvasRenderContextBrowser();
-  // Optimize at the canonical render frame so "fits at layout" == "fits at render".
+  // The canonical render frame, so text and figures are measured at the size
+  // they are drawn. The box is still the whole page: the render gives the
+  // layout the page minus its header and footer.
   const bounds = new RectCoordsDims([
     0,
     0,

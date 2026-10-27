@@ -666,14 +666,16 @@ section's fields; a content slide's header, and either `blockUpdates` or
 or changes its type. The two writes that run the page optimizer (`create_slide`
 and `replace_slide`) write the slide as asked and, when the layout they kept
 overflows the page (`convertAiInputToSlide`'s `overflow`, the optimizer's
-page-level `score.overflow`; the optimizer runs at the canonical render frame,
-so it is the verdict the page holder re-measures at render and draws its "Layout
-overflow" badge from), append one sentence to their result naming the slide's
-figure block ids and the fix: filter the indicator dimension, or choose a preset
-with fewer rows, through `update_figure`. Text blocks autofit, so the figure
-blocks are the cause; a slide with no figure block reports the overflow alone.
-Nothing throws: the user can see the badge and fix the slide by hand, and the
-model has a line to act on in the same turn. The structure writes
+page-level `score.overflow`), append one sentence to their result naming the
+slide's figure block ids and the fix: filter the indicator dimension, or choose
+a preset with fewer rows, through `update_figure`. Text blocks autofit, so the
+figure blocks are the cause; a slide with no figure block reports the overflow
+alone. Nothing throws: the user can see the canvas badge and fix the slide by
+hand, and the model has a line to act on in the same turn. The flag is sound and
+incomplete: the optimizer scores the whole page box while the render gives the
+layout that box minus its header and footer, so a layout it calls overflowing
+always draws the badge, while a slide the header's height pushes over the edge
+is written with no word to the model (Open items). The structure writes
 (`create_slide`, `duplicate_slides`, `move_slides`) go through the product
 routes and never open a slide: the deck's own rule (the first slide when none is
 open) is the only thing that moves the editor on the AI's behalf.
@@ -1231,6 +1233,16 @@ Remaining:
 
 **Client copilot**
 
+- **[MED] The slide optimizer sizes layouts against the whole page.**
+  `convert_ai_input_to_slide.ts` hands `optimizePageLayout` the full
+  `PAGE_WIDTH_DU` x `PAGE_HEIGHT_DU` box, which pads it by the content padding
+  alone, while the render gives the layout that box minus the measured header
+  and footer (`panther/_121_page/_internal/freeform/content.ts`). A content
+  slide with a header is laid out against roughly 80 DU more height than it has,
+  so a figure-heavy slide is optimized to fit and then squeezed on the canvas,
+  and the overflow the AI slide writes report misses exactly those slides. The
+  page optimizer measuring the page's own header and footer is the fix, and it
+  is panther's to make.
 - **[MED] Documents never invalidate on asset replace**: the per-browser
   IndexedDB `{assetFilename, anthropicFileId}` pairing keeps serving the old
   Anthropic file after the underlying instance asset is replaced.
