@@ -404,19 +404,21 @@ export function ReportEditor(p: Props) {
   }
   // The figure the editor's widgets draw: the report's own block, with its
   // staleness badge. Report Forge knows a figure only by its id.
-  const FigureView = (fp: FigureViewProps) => (
-    <Show when={figures()[fp.id]}>
-      {(fig) => (
-        <ReportFigureEmbed
-          figure={fig()}
-          stale={figureStale(fp.id)}
-          onMeasured={fp.onMeasured}
-          inkFor={fp.inkFor}
-          chartPalette={fp.chartPalette}
-        />
-      )}
-    </Show>
-  );
+  function FigureView(fp: FigureViewProps) {
+    return (
+      <Show when={figures()[fp.id]}>
+        {(fig) => (
+          <ReportFigureEmbed
+            figure={fig()}
+            stale={figureStale(fp.id)}
+            onMeasured={fp.onMeasured}
+            inkFor={fp.inkFor}
+            chartPalette={fp.chartPalette}
+          />
+        )}
+      </Show>
+    );
+  }
   const [updatingFigures, setUpdatingFigures] = createSignal(false);
 
   // Re-resolve them all. Per-figure failures keep the old bundle and are
@@ -1514,165 +1516,169 @@ export function ReportEditor(p: Props) {
 
   // A reader's File menu: the whole-document operations their level allows,
   // built from Report Forge's own toolbar parts so it matches the editor's.
-  const ReaderFileMenu = () => (
-    <HeaderRows>
-      <MenuRow ref={() => {}}>
-        <ToolbarPopover
-          menu
-          label={t3({ en: "File", fr: "Fichier", pt: "Ficheiro" })}
-          title={t3({ en: "File", fr: "Fichier", pt: "Ficheiro" })}
-        >
-          {(close) => (
-            <div class="ui-spy-sm flex w-56 flex-col">
-              <PopoverRow
-                active={false}
-                onClick={() => {
-                  forge?.openDownload();
-                  close();
-                }}
-              >
-                {t3({
-                  en: "Download…",
-                  fr: "Télécharger…",
-                  pt: "Transferir…",
-                })}
-              </PopoverRow>
-              <PopoverRow
-                active={false}
-                onClick={() => {
-                  void emailReport();
-                  close();
-                }}
-              >
-                {t3({
-                  en: "Email this file…",
-                  fr: "Envoyer par email…",
-                  pt: "Enviar por email…",
-                })}
-              </PopoverRow>
-              <MenuDivider />
-              <Show when={canConfigure()}>
+  function ReaderFileMenu() {
+    return (
+      <HeaderRows>
+        <MenuRow ref={() => {}}>
+          <ToolbarPopover
+            menu
+            label={t3({ en: "File", fr: "Fichier", pt: "Ficheiro" })}
+            title={t3({ en: "File", fr: "Fichier", pt: "Ficheiro" })}
+          >
+            {(close) => (
+              <div class="ui-spy-sm flex w-56 flex-col">
                 <PopoverRow
                   active={false}
                   onClick={() => {
-                    void openProductSettings();
+                    forge?.openDownload();
                     close();
                   }}
                 >
                   {t3({
-                    en: "Rename…",
-                    fr: "Renommer…",
-                    pt: "Mudar o nome…",
+                    en: "Download…",
+                    fr: "Télécharger…",
+                    pt: "Transferir…",
                   })}
                 </PopoverRow>
                 <PopoverRow
                   active={false}
                   onClick={() => {
-                    void openAccess();
+                    void emailReport();
                     close();
                   }}
                 >
-                  {manageAccessLabel()}
+                  {t3({
+                    en: "Email this file…",
+                    fr: "Envoyer par email…",
+                    pt: "Enviar por email…",
+                  })}
                 </PopoverRow>
-              </Show>
-              <PopoverRow
-                active={false}
-                onClick={() => {
-                  void duplicateReport();
-                  close();
-                }}
-              >
-                {t3({
+                <MenuDivider />
+                <Show when={canConfigure()}>
+                  <PopoverRow
+                    active={false}
+                    onClick={() => {
+                      void openProductSettings();
+                      close();
+                    }}
+                  >
+                    {t3({
+                      en: "Rename…",
+                      fr: "Renommer…",
+                      pt: "Mudar o nome…",
+                    })}
+                  </PopoverRow>
+                  <PopoverRow
+                    active={false}
+                    onClick={() => {
+                      void openAccess();
+                      close();
+                    }}
+                  >
+                    {manageAccessLabel()}
+                  </PopoverRow>
+                </Show>
+                <PopoverRow
+                  active={false}
+                  onClick={() => {
+                    void duplicateReport();
+                    close();
+                  }}
+                >
+                  {t3({
+                    en: "Make a copy…",
+                    fr: "Créer une copie…",
+                    pt: "Criar uma cópia…",
+                  })}
+                </PopoverRow>
+              </div>
+            )}
+          </ToolbarPopover>
+        </MenuRow>
+      </HeaderRows>
+    );
+  }
+
+  // The content area: Report Forge, or the notice a retired report opens to.
+  function MainArea() {
+    return (
+      <>
+        <Show when={retiredFormat()}>
+          <div class="ui-pad text-base-content-muted text-sm">
+            {t3({
+              en:
+                "This report was written in the HTML format, which has been retired. It can no longer be opened or edited.",
+              fr:
+                "Ce rapport a été rédigé au format HTML, qui a été retiré. Il ne peut plus être ouvert ni modifié.",
+              pt:
+                "Este relatório foi escrito no formato HTML, que foi descontinuado. Já não pode ser aberto nem editado.",
+            })}
+          </div>
+        </Show>
+        <Show when={fileMenuAloneShown()}>
+          <ReaderFileMenu />
+        </Show>
+        <Show when={!retiredFormat()}>
+          <ReportForge
+            title={label()}
+            body={body()}
+            onBodyChange={handleBodyChange}
+            settings={settings()}
+            onSettingsChange={handleSettingsChange}
+            images={images()}
+            onImagesChange={handleImagesChange}
+            canEdit={canEditBody()}
+            lastSaved={lastSavedAt()}
+            imageHost={imageHost}
+            figures={figureHost}
+            palettes={palettes}
+            renderPdf={renderPdf}
+            collab={bodyCollab()}
+            menuItems={[
+              {
+                menu: "file",
+                label: t3({
+                  en: "Email this file…",
+                  fr: "Envoyer par email…",
+                  pt: "Enviar por email…",
+                }),
+                onClick: () => void emailReport(),
+              },
+              {
+                menu: "file",
+                dividerBefore: true,
+                label: t3({
+                  en: "Rename…",
+                  fr: "Renommer…",
+                  pt: "Mudar o nome…",
+                }),
+                onClick: () => void openProductSettings(),
+              },
+              {
+                menu: "file",
+                label: manageAccessLabel(),
+                onClick: () => void openAccess(),
+              },
+              {
+                menu: "file",
+                label: t3({
                   en: "Make a copy…",
                   fr: "Créer une copie…",
                   pt: "Criar uma cópia…",
-                })}
-              </PopoverRow>
-            </div>
-          )}
-        </ToolbarPopover>
-      </MenuRow>
-    </HeaderRows>
-  );
-
-  // The content area: Report Forge, or the notice a retired report opens to.
-  const MainArea = () => (
-    <>
-      <Show when={retiredFormat()}>
-        <div class="ui-pad text-base-content-muted text-sm">
-          {t3({
-            en:
-              "This report was written in the HTML format, which has been retired. It can no longer be opened or edited.",
-            fr:
-              "Ce rapport a été rédigé au format HTML, qui a été retiré. Il ne peut plus être ouvert ni modifié.",
-            pt:
-              "Este relatório foi escrito no formato HTML, que foi descontinuado. Já não pode ser aberto nem editado.",
-          })}
-        </div>
-      </Show>
-      <Show when={fileMenuAloneShown()}>
-        <ReaderFileMenu />
-      </Show>
-      <Show when={!retiredFormat()}>
-        <ReportForge
-          title={label()}
-          body={body()}
-          onBodyChange={handleBodyChange}
-          settings={settings()}
-          onSettingsChange={handleSettingsChange}
-          images={images()}
-          onImagesChange={handleImagesChange}
-          canEdit={canEditBody()}
-          lastSaved={lastSavedAt()}
-          imageHost={imageHost}
-          figures={figureHost}
-          palettes={palettes}
-          renderPdf={renderPdf}
-          collab={bodyCollab()}
-          menuItems={[
-            {
-              menu: "file",
-              label: t3({
-                en: "Email this file…",
-                fr: "Envoyer par email…",
-                pt: "Enviar por email…",
-              }),
-              onClick: () => void emailReport(),
-            },
-            {
-              menu: "file",
-              dividerBefore: true,
-              label: t3({
-                en: "Rename…",
-                fr: "Renommer…",
-                pt: "Mudar o nome…",
-              }),
-              onClick: () => void openProductSettings(),
-            },
-            {
-              menu: "file",
-              label: manageAccessLabel(),
-              onClick: () => void openAccess(),
-            },
-            {
-              menu: "file",
-              label: t3({
-                en: "Make a copy…",
-                fr: "Créer une copie…",
-                pt: "Criar uma cópia…",
-              }),
-              onClick: () => void duplicateReport(),
-            },
-          ]}
-          banner={banners}
-          outlineClosed={reportOutlineClosed()}
-          onOutlineClosedChange={setReportOutlineClosed}
-          onSelectedEmbedChange={setSelectedEmbed}
-          ref={(api) => (forge = api)}
-        />
-      </Show>
-    </>
-  );
+                }),
+                onClick: () => void duplicateReport(),
+              },
+            ]}
+            banner={banners}
+            outlineClosed={reportOutlineClosed()}
+            onOutlineClosedChange={setReportOutlineClosed}
+            onSelectedEmbedChange={setSelectedEmbed}
+            ref={(api) => (forge = api)}
+          />
+        </Show>
+      </>
+    );
+  }
 
   // Every piece of the header is built ONCE and passed by reference:
   // panther's FrameTop reads `panelChildren` twice (a Show's `when`, then its

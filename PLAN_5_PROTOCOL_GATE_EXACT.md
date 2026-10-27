@@ -9,9 +9,9 @@ positives, kept only because a name-based check cannot tell a dirty flag from an
 in-flight flag. This plan replaces the regex table with one TypeScript AST walk,
 makes every mechanical check exact, and fixes what the exact gate then reports.
 
-**Next step: Do 1.** Each session sets this line in its final commit. Its values
-are `Do N`, `Review N` and `Fix N`. Last step: 4. The review that passes step 4
-deletes this file.
+**Next step: Review 1.** Each session sets this line in its final commit. Its
+values are `Do N`, `Review N` and `Fix N`. Last step: 4. The review that passes
+step 4 deletes this file.
 
 Branch: `main`. Repos touched: this app only.
 
@@ -225,6 +225,8 @@ the regex gate.
 
 ## 8. Build log
 
-| When       | Step | Row                                                                                                                                                                                                                  |
-| ---------- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2026-10-27 | 0    | Written after PLAN_5_PROTOCOL_CONFORMANCE closed. That plan fixed `jsx-and-and`'s line-break blindness and widened `raw-loading-signal` by name; the review that passed it showed the approach itself was the limit. |
+| When       | Step | Row                                                                                                                                                                                                                                                                                                                                                                                            |
+| ---------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-10-27 | 0    | Written after PLAN_5_PROTOCOL_CONFORMANCE closed. That plan fixed `jsx-and-and`'s line-break blindness and widened `raw-loading-signal` by name; the review that passed it showed the approach itself was the limit.                                                                                                                                                                           |
+| 2026-10-27 | 1    | Ruling 10 cost two sites the mechanical rewrite missed and the typecheck caught: `...state.adminAreaOptions()` in `step_3.tsx` (the spread's dot) and `{state\n.dhis2ConnectionUrl()}` in `step_4.tsx` (the line break `deno fmt` wrote). Both now read `p.state`.                                                                                                                             |
+| 2026-10-27 | 1    | Step 1 built. Both rulings are read-form changes only, proven rather than assumed: the geojson diff touches nothing but `state.` to `p.state.`, and `p.state` is a once-built object literal in the wizard body, so reading it per use is identical to reading it once; and each of the five converted components' JSX body is byte-identical to its arrow form once whitespace is normalised. |
