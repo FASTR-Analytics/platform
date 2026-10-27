@@ -1,7 +1,9 @@
 import {
   Button,
+  createFormAction,
   createQuery,
   Input,
+  StateHolderFormError,
   StateHolderWrapper,
   Table,
   type TableColumn,
@@ -38,8 +40,6 @@ function AccessTokensPanel(p: { email: string }) {
   );
 
   const [label, setLabel] = createSignal("");
-  const [minting, setMinting] = createSignal(false);
-  const [mintError, setMintError] = createSignal<string | null>(null);
   const [freshToken, setFreshToken] = createSignal<
     {
       label: string;
@@ -48,26 +48,29 @@ function AccessTokensPanel(p: { email: string }) {
   >(null);
   const [copied, setCopied] = createSignal(false);
 
-  async function mint(): Promise<void> {
-    const trimmed = label().trim();
-    if (trimmed === "" || minting()) {
-      return;
-    }
-    setMinting(true);
-    setMintError(null);
-    const res = await serverActions.createPersonalAccessToken({
-      label: trimmed,
-    });
-    setMinting(false);
-    if (!res.success) {
-      setMintError(res.err);
-      return;
-    }
-    setFreshToken({ label: trimmed, token: res.data.token });
-    setCopied(false);
-    setLabel("");
-    tokensQuery.silentFetch();
-  }
+  const mint = createFormAction(
+    async () => {
+      const trimmed = label().trim();
+      if (trimmed === "") {
+        return { success: false as const, err: "A label is required" };
+      }
+      const res = await serverActions.createPersonalAccessToken({
+        label: trimmed,
+      });
+      return res.success
+        ? {
+          success: true as const,
+          data: { label: trimmed, token: res.data.token },
+        }
+        : res;
+    },
+    async (fresh: { label: string; token: string }) => {
+      setFreshToken(fresh);
+      setCopied(false);
+      setLabel("");
+      await tokensQuery.silentFetch();
+    },
+  );
 
   async function revoke(pat: PersonalAccessTokenSummary): Promise<void> {
     if (
@@ -156,15 +159,15 @@ function AccessTokensPanel(p: { email: string }) {
         </div>
         <Button
           intent="primary"
-          onClick={mint}
-          disabled={minting() || label().trim() === ""}
+          onClick={mint.click}
+          state={mint.state()}
+          disabled={mint.state().status === "loading" ||
+            label().trim() === ""}
         >
           Create token
         </Button>
       </div>
-      <Show when={mintError()}>
-        {(err) => <p class="text-danger mb-4 text-sm">{err()}</p>}
-      </Show>
+      <StateHolderFormError state={mint.state()} />
 
       <Show when={freshToken()}>
         {(fresh) => (

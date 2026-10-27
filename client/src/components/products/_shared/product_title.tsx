@@ -1,4 +1,5 @@
 import { t3 } from "lib";
+import { createButtonAction } from "panther";
 import { createSignal, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { canEditProduct } from "~/state/instance/product_access";
@@ -12,8 +13,12 @@ import { canEditProduct } from "~/state/instance/product_access";
 export function ProductTitle(p: { productId: string; label: string }) {
   const [editing, setEditing] = createSignal(false);
   const [draft, setDraft] = createSignal("");
-  const [saving, setSaving] = createSignal(false);
   let input: HTMLInputElement | undefined;
+
+  const save = createButtonAction((label: string) =>
+    serverActions.updateProductLabel({ product_id: p.productId, label })
+  );
+  const saving = () => save.state().status === "loading";
 
   function start() {
     if (!canEditProduct(p.productId) || saving()) return;
@@ -25,14 +30,12 @@ export function ProductTitle(p: { productId: string; label: string }) {
     });
   }
 
-  async function commit() {
+  function commit() {
     if (!editing()) return;
     const label = draft().trim();
     setEditing(false);
     if (label.length === 0 || label === p.label) return;
-    setSaving(true);
-    await serverActions.updateProductLabel({ product_id: p.productId, label });
-    setSaving(false);
+    void save.click(label);
   }
 
   return (
@@ -69,11 +72,11 @@ export function ProductTitle(p: { productId: string; label: string }) {
         }}
         value={draft()}
         onInput={(e) => setDraft(e.currentTarget.value)}
-        onBlur={() => void commit()}
+        onBlur={commit}
         onKeyDown={(e) => {
           if (e.key === "Enter") {
             e.preventDefault();
-            void commit();
+            commit();
           } else if (e.key === "Escape") {
             e.preventDefault();
             setEditing(false);

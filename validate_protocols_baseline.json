@@ -6,33 +6,8 @@
   },
   {
     "id": "raw-loading-signal",
-    "file": "client/src/components/products/slide_deck/slide_deck.tsx",
-    "text": "const [editorLoading, setEditorLoading] = createSignal(false);"
-  },
-  {
-    "id": "raw-loading-signal",
-    "file": "client/src/components/products/_shared/product_title.tsx",
-    "text": "const [saving, setSaving] = createSignal(false);"
-  },
-  {
-    "id": "raw-loading-signal",
-    "file": "client/src/components/products/report/report.tsx",
-    "text": "const [saveError, setSaveError] = createSignal<string | undefined>();"
-  },
-  {
-    "id": "raw-loading-signal",
     "file": "client/src/components/instance/copilot/tab_owner.ts",
     "text": "const [ownerBusy, setOwnerBusy] = createSignal(false);"
-  },
-  {
-    "id": "raw-loading-signal",
-    "file": "client/src/components/_shared/figure_editor/stale_figure_badge.tsx",
-    "text": "const [busy, setBusy] = createSignal(false);"
-  },
-  {
-    "id": "raw-loading-signal",
-    "file": "client/src/components/data/geojson/upload_wizard/step_2.tsx",
-    "text": "const [adminAreasLoading, setAdminAreasLoading] = createSignal(false);"
   },
   {
     "id": "raw-loading-signal",
@@ -68,10 +43,5 @@
     "id": "raw-loading-signal",
     "file": "client/src/components/data/facilities/import/step_2_dhis2.tsx",
     "text": "const [needsSaving, setNeedsSaving] = createSignal<boolean>(!p.step2Result);"
-  },
-  {
-    "id": "raw-loading-signal",
-    "file": "client/src/routes/access_tokens.tsx",
-    "text": "const [mintError, setMintError] = createSignal<string | null>(null);"
   }
 ]

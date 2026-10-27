@@ -1,11 +1,12 @@
 import { ALL_ADMIN_AREA_LEVELS, t3 } from "lib";
 import {
   Button,
+  createButtonAction,
   createFormAction,
   Select,
   StateHolderFormError,
 } from "panther";
-import { createMemo, createSignal, Show } from "solid-js";
+import { createMemo, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { getAdminAreaLabel } from "~/state/instance/_util_disaggregation_label";
 import { structureSchemaForFamily } from "~/state/instance/t1_store";
@@ -17,8 +18,6 @@ type Props = {
 
 export function Step2(p: Props) {
   const { state } = p;
-
-  const [adminAreasLoading, setAdminAreasLoading] = createSignal(false);
 
   const propertyOptions = createMemo(() => {
     const result = state.analysisResult();
@@ -36,19 +35,6 @@ export function Step2(p: Props) {
     return result.sampleValues[prop] ?? [];
   });
 
-  async function fetchAdminAreas() {
-    setAdminAreasLoading(true);
-    const res = await serverActions.getAdminAreaOptionsForLevel({
-      family: state.family,
-      level: state.adminAreaLevel(),
-    });
-    if (res.success) {
-      state.setAdminAreaOptions(res.data);
-      state.setAdminAreaNames(res.data.map((o) => o.value));
-    }
-    setAdminAreasLoading(false);
-  }
-
   function buildAutoMapping() {
     const names = state.adminAreaNames();
     const geoVals = geoJsonValues();
@@ -63,11 +49,22 @@ export function Step2(p: Props) {
     state.setGeoToAdmin(mapping);
   }
 
-  async function goToMappingStepFile() {
-    await fetchAdminAreas();
-    buildAutoMapping();
-    state.setStep(3);
-  }
+  // The admin areas are what the auto-mapping matches against, so a failed
+  // fetch must not advance the step: it used to, and the user met an empty
+  // mapping table with no reason given.
+  const goToMappingStepFile = createButtonAction(
+    () =>
+      serverActions.getAdminAreaOptionsForLevel({
+        family: state.family,
+        level: state.adminAreaLevel(),
+      }),
+    (options: Array<{ value: string; label: string }>) => {
+      state.setAdminAreaOptions(options);
+      state.setAdminAreaNames(options.map((o) => o.value));
+      buildAutoMapping();
+      state.setStep(3);
+    },
+  );
 
   // DHIS2: fetch and analyze selected level
   const dhis2LevelOptions = createMemo(() => {
@@ -354,18 +351,13 @@ export function Step2(p: Props) {
 
         <div class="ui-gap-sm flex">
           <Button
-            onClick={goToMappingStepFile}
-            disabled={!state.selectedProp() || adminAreasLoading() ||
-              noLevelsAvailable()}
+            onClick={goToMappingStepFile.click}
+            state={goToMappingStepFile.state()}
+            disabled={!state.selectedProp() || noLevelsAvailable() ||
+              goToMappingStepFile.state().status === "loading"}
             intent="primary"
           >
-            {adminAreasLoading()
-              ? t3({
-                en: "Loading...",
-                fr: "Chargement...",
-                pt: "A carregar...",
-              })
-              : t3({ en: "Next", fr: "Suivant", pt: "Seguinte" })}
+            {t3({ en: "Next", fr: "Suivant", pt: "Seguinte" })}
           </Button>
           <Button intent="neutral" onClick={() => state.setStep(1)}>
             {t3({ en: "Back", fr: "Retour", pt: "Voltar" })}

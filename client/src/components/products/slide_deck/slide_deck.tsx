@@ -31,10 +31,12 @@ import {
   createEffect,
   createMemo,
   createSignal,
+  Match,
   on,
   onCleanup,
   onMount,
   Show,
+  Switch,
   untrack,
 } from "solid-js";
 import { serverActions } from "~/server_actions";
@@ -66,6 +68,18 @@ import {
 } from "~/components/products/_shared/mod.ts";
 
 type Props = EditorComponentProps<{ productId: string }, undefined>;
+
+type EditorSlide = { slideId: string; slide: Slide; lastUpdated: string };
+
+// A function, not a constant: t3 reads the app language, which a module-level
+// value would freeze at import.
+function loadingSlideMsg(): string {
+  return t3({
+    en: "Loading slide...",
+    fr: "Chargement de la diapositive...",
+    pt: "A carregar diapositivo...",
+  });
+}
 
 // The deck editor takes ONE thing: the product id. Label, package and
 // scope are read LIVE from the T1 products row, so a reattach or scope change
@@ -212,10 +226,12 @@ export function SlideDeckEditor(p: Props) {
   const [currentSlideId, setCurrentSlideId] = createSignal<
     string | undefined
   >();
+  // undefined = no slide is open (an empty deck, or no package yet).
+  // Otherwise the open slide's content, loading while its fetch is in flight
+  // and error when it failed: a failure used to leave the pane blank.
   const [editorSlide, setEditorSlide] = createSignal<
-    { slideId: string; slide: Slide; lastUpdated: string } | undefined
+    StateHolder<EditorSlide> | undefined
   >();
-  const [editorLoading, setEditorLoading] = createSignal(false);
   const [openSlide, setOpenSlide] = createSignal<SlideEditorApi | undefined>();
   let editorFetchId = 0;
 
@@ -237,7 +253,14 @@ export function SlideDeckEditor(p: Props) {
       : peekSlide(p.productId, slideId);
     setEditorSlide(
       ready && slideId !== undefined
-        ? { slideId, slide: ready.slide, lastUpdated: ready.lastUpdated }
+        ? {
+          status: "ready",
+          data: {
+            slideId,
+            slide: ready.slide,
+            lastUpdated: ready.lastUpdated,
+          },
+        }
         : undefined,
     );
     setCurrentSlideId(slideId);
@@ -294,23 +317,31 @@ export function SlideDeckEditor(p: Props) {
       const fetchId = ++editorFetchId;
       if (slideId === undefined || runId === undefined || !context) {
         setEditorSlide(undefined);
-        setEditorLoading(false);
         return;
       }
-      setEditorLoading(true);
+      // The slide the rail already had in memory stays on screen while its
+      // read confirms it: blanking it would unmount the editor, and with it
+      // the header rows portaled out of it, for a frame or two.
+      setEditorSlide((prev) =>
+        prev?.status === "ready" && prev.data.slideId === slideId
+          ? prev
+          : { status: "loading", msg: loadingSlideMsg() }
+      );
       void (async () => {
         const res = await getSlideFromCacheOrFetch(p.productId, slideId);
         if (fetchId !== editorFetchId) return;
-        setEditorLoading(false);
-        if (!res.success) {
-          setEditorSlide(undefined);
-          return;
-        }
-        setEditorSlide({
-          slideId,
-          slide: res.data.slide,
-          lastUpdated: res.data.lastUpdated,
-        });
+        setEditorSlide(
+          res.success
+            ? {
+              status: "ready",
+              data: {
+                slideId,
+                slide: res.data.slide,
+                lastUpdated: res.data.lastUpdated,
+              },
+            }
+            : { status: "error", err: res.err },
+        );
       })();
     },
   ));
@@ -323,10 +354,10 @@ export function SlideDeckEditor(p: Props) {
   const deckConfigKey = createMemo(() => canonicalJson(deckConfig()));
   const editorMount = createMemo(
     () => {
-      const es = editorSlide();
-      return es === undefined
-        ? undefined
-        : { ...es, key: `${es.slideId}|${deckConfigKey()}` };
+      const st = editorSlide();
+      return st?.status === "ready"
+        ? { ...st.data, key: `${st.data.slideId}|${deckConfigKey()}` }
+        : undefined;
     },
     undefined,
     { equals: (a, b) => a?.key === b?.key },
@@ -460,7 +491,7 @@ export function SlideDeckEditor(p: Props) {
           selectSlide={selectSlide}
           deleteSlides={deleteSlides}
           editorMount={editorMount()}
-          editorLoading={editorLoading()}
+          editorState={editorSlide()}
           openSlide={openSlide()}
           onEditorApi={setOpenSlide}
           handleClose={handleClose}
@@ -485,10 +516,9 @@ function SlideDeckEditorInner(p: {
   selectSlide: (slideId: string | undefined) => Promise<boolean>;
   deleteSlides: EditingSlideDeckContext["deleteSlides"];
   // The open slide's editor mount, keyed by slide and deck config.
-  editorMount:
-    | { slideId: string; slide: Slide; lastUpdated: string }
-    | undefined;
-  editorLoading: boolean;
+  editorMount: (EditorSlide & { key: string }) | undefined;
+  // The open slide's read, for the states the mount cannot show.
+  editorState: StateHolder<EditorSlide> | undefined;
   // The mounted editor's handle, once it has reported one.
   openSlide: SlideEditorApi | undefined;
   onEditorApi: (api: SlideEditorApi | undefined) => void;
@@ -626,16 +656,21 @@ function SlideDeckEditorInner(p: {
               when={p.editorMount}
               keyed
               fallback={
-                <Show when={p.editorLoading}>
-                  <LoadingIndicator
-                    msg={t3({
-                      en: "Loading slide...",
-                      fr: "Chargement de la diapositive...",
-                      pt: "A carregar diapositivo...",
-                    })}
-                    pad="md"
-                  />
-                </Show>
+                <Switch>
+                  <Match when={p.editorState?.status === "loading"}>
+                    <LoadingIndicator msg={loadingSlideMsg()} pad="md" />
+                  </Match>
+                  <Match
+                    when={p.editorState?.status === "error"
+                      ? p.editorState.err
+                      : undefined}
+                    keyed
+                  >
+                    {(err) => (
+                      <div class="ui-pad text-danger text-sm">{err}</div>
+                    )}
+                  </Match>
+                </Switch>
               }
             >
               {(es) => (

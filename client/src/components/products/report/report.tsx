@@ -161,6 +161,12 @@ type EmbedSelection = { kind: EmbedKind; id: string };
 // the product id is also the collab document id.
 type Props = EditorComponentProps<{ productId: string }, undefined>;
 
+type ReportSaveState =
+  | { status: "saved" }
+  | { status: "unsaved" }
+  | { status: "saving" }
+  | { status: "error"; err: string };
+
 const AUTOSAVE_MS = 800;
 
 export function ReportEditor(p: Props) {
@@ -265,11 +271,15 @@ export function ReportEditor(p: Props) {
   // concurrency.
   const [lastUpdated, setLastUpdated] = createSignal<string>("");
   const [showConflictBanner, setShowConflictBanner] = createSignal(false);
-  const [saveError, setSaveError] = createSignal<string | undefined>();
-  // Autosave indicator. "unsaved" = an edit is pending in the debounce window.
-  const [saveStatus, setSaveStatus] = createSignal<
-    "saved" | "unsaved" | "saving" | "error"
-  >("saved");
+  // Autosave indicator. "unsaved" = an edit is pending in the debounce
+  // window; a failure carries its own message, shown under the header.
+  const [saveState, setSaveState] = createSignal<ReportSaveState>({
+    status: "saved",
+  });
+  const saveErrorMessage = () => {
+    const st = saveState();
+    return st.status === "error" ? st.err : undefined;
+  };
   const [lastSavedAt, setLastSavedAt] = createSignal<string>("");
   // The embed selected in the editor (Report Forge owns the selection; this
   // mirrors it for presence and the figure actions).
@@ -497,7 +507,7 @@ export function ReportEditor(p: Props) {
         dot: "bg-warning",
       };
     }
-    switch (saveStatus()) {
+    switch (saveState().status) {
       case "saving":
         return {
           text: t3({ en: "Saving…", fr: "Enregistrement…", pt: "A guardar…" }),
@@ -876,7 +886,7 @@ export function ReportEditor(p: Props) {
       // it still equals the content this editor loaded: pushing over a
       // diverged doc would force it to our draft and delete another user's
       // edits. If peers got there first, adopt their state.
-      const hasPendingLocal = saveStatus() !== "saved" ||
+      const hasPendingLocal = saveState().status !== "saved" ||
         saveTimer !== undefined;
       if (
         hasPendingLocal &&
@@ -941,11 +951,11 @@ export function ReportEditor(p: Props) {
     setLastSavedAt(
       new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     );
-    setSaveStatus("saved");
+    setSaveState({ status: "saved" });
   }
 
   async function persistBody(nextBody: string) {
-    setSaveStatus("saving");
+    setSaveState({ status: "saving" });
     const res = await serverActions.updateReportBody({
       product_id: p.productId,
       body: nextBody,
@@ -955,11 +965,9 @@ export function ReportEditor(p: Props) {
     if (res.success) {
       bumpLastUpdated(res.data.lastUpdated);
       if (res.data.conflicted) setShowConflictBanner(true);
-      setSaveError(undefined);
       markSaved();
     } else {
-      setSaveError(res.err);
-      setSaveStatus("error");
+      setSaveState({ status: "error", err: res.err });
     }
   }
 
@@ -975,7 +983,7 @@ export function ReportEditor(p: Props) {
     // Live collab: edits stream into the shared doc via yCollab and the room
     // checkpoints them: the REST autosave stays off (see collabReady note).
     if (collabReady()) return;
-    setSaveStatus("unsaved");
+    setSaveState({ status: "unsaved" });
     if (saveTimer) clearTimeout(saveTimer);
     saveTimer = setTimeout(() => void persistBody(nextBody), AUTOSAVE_MS);
   }
@@ -1000,7 +1008,7 @@ export function ReportEditor(p: Props) {
       );
       return true;
     }
-    setSaveStatus("saving");
+    setSaveState({ status: "saving" });
     const res = await serverActions.updateReportFigures({
       product_id: p.productId,
       figures: next,
@@ -1010,8 +1018,7 @@ export function ReportEditor(p: Props) {
       markSaved();
       return true;
     }
-    setSaveError(res.err);
-    setSaveStatus("error");
+    setSaveState({ status: "error", err: res.err });
     return false;
   }
 
@@ -1030,7 +1037,7 @@ export function ReportEditor(p: Props) {
       );
       return;
     }
-    setSaveStatus("saving");
+    setSaveState({ status: "saving" });
     const res = await serverActions.updateReportImages({
       product_id: p.productId,
       images: next,
@@ -1039,8 +1046,7 @@ export function ReportEditor(p: Props) {
       bumpLastUpdated(res.data.lastUpdated);
       markSaved();
     } else {
-      setSaveError(res.err);
-      setSaveStatus("error");
+      setSaveState({ status: "error", err: res.err });
     }
   }
 
@@ -1425,14 +1431,14 @@ export function ReportEditor(p: Props) {
     // and every peer picks the new theme up on their next load.
     const wanted: ReportConfig = { ...stored, fastrTheme: next.theme };
     setConfig(wanted);
-    setSaveStatus("saving");
+    setSaveState({ status: "saving" });
     const res = await serverActions.updateReportConfig({
       product_id: p.productId,
       config: wanted,
     });
     if (!res.success) {
       setConfig(stored);
-      setSaveStatus("error");
+      setSaveState({ status: "error", err: res.err });
       throw new Error(res.err);
     }
     bumpLastUpdated(res.data.lastUpdated);
@@ -1500,8 +1506,8 @@ export function ReportEditor(p: Props) {
           </Button>
         </div>
       </Show>
-      <Show when={saveError()}>
-        <div class="text-danger ui-pad text-xs">{saveError()}</div>
+      <Show when={saveErrorMessage()} keyed>
+        {(err) => <div class="text-danger ui-pad text-xs">{err}</div>}
       </Show>
     </>
   );
@@ -1726,7 +1732,7 @@ export function ReportEditor(p: Props) {
           class="h-1.5 w-1.5 flex-none rounded-full"
           classList={{
             [saveIndicator().dot]: true,
-            "animate-pulse": saveStatus() === "saving",
+            "animate-pulse": saveState().status === "saving",
           }}
         />
         <span>{saveIndicator().text}</span>
