@@ -44,11 +44,9 @@ export async function resolveBundleFromMetricAndConfig(
   }
 
   // AI tool handlers pass live Solid store objects (the metrics store, preset
-  // configs). Deep-copy to plain data first: Solid stamps symbol keys onto the
-  // raw targets, which zod's record parsing surfaces via Reflect.ownKeys and
-  // then crashes formatting ("Cannot convert a Symbol value to a string"):
-  // unwrap() alone is not enough, the raw objects keep the symbol keys. A
-  // bundle destined for storage must also not alias live store objects.
+  // configs), and everything below reads this metric and config as plain data.
+  // Why a proxy or a symbol-branded object is not plain data, and why unwrap()
+  // alone is not enough: "A bundle owns its data" in SYSTEM_10.
   metric = structuredClone(unwrap(metric));
   config = structuredClone(unwrap(config));
 

@@ -1381,15 +1381,14 @@ embed count is surfaced in the proposal summary). Remaining:
   [0.4, 0.6]").
 - **[MED, reuse/quality, not a bug] Unify the figure-RESOLUTION cores.** AI
   figure create/edit already share replicant validation (`assertReplicantValid`,
-  applied uniformly, no flags). Still split: two functions do "config → fetch
-  items → capture geo → assemble FigureBundle" with different item-fetch
-  mechanics: `resolveFigureBundleFromMetric` (caller precomputes the
-  fetchConfig) and `resolveFigureBundleInteractively` (items fetch auto-defaults
-  the replicant), plus a third assembler, `makeFigureBundleFromFetchedData`.
-  Goal: one `resolveFigureBundle(source, config)` used by every
-  create/edit/render path, with the metric-vs-PO difference reduced to how the
-  source is produced. The friction to design around is the two item-fetch routes
-  (`_PO_ITEMS_CACHE` with a precomputed fetchConfig vs
+  applied uniformly, no flags). Assembly is already unified: both
+  `resolveFigureBundleFromMetric` (caller precomputes the fetchConfig) and
+  `resolveFigureBundleInteractively` (items fetch auto-defaults the replicant)
+  build through `makeFigureBundleFromFetchedData`. What is still split is the
+  item fetch in front of it. Goal: one `resolveFigureBundle(source, config)`
+  used by every create/edit/render path, with the metric-vs-PO difference
+  reduced to how the source is produced. The friction to design around is the
+  two item-fetch routes (`_PO_ITEMS_CACHE` with a precomputed fetchConfig vs
   `getPresentationObjectItemsFromCacheOrFetch`, which runs
   `resolveDefaultReplicant`). Higher blast radius (the figure editor, slide
   decks and reports all render through the PO core), so it wants its own scoped

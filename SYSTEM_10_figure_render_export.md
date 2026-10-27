@@ -273,11 +273,10 @@ read or write the global `t3`/`getCalendar`/`getLanguage` singletons.
 GeoJSON in the bundle. `{kind:"level", level, family?}` carries no geometry:
 `buildFigureInputs` re-derives it from the sync cache (`getGeoJsonSync`) at
 render, and `family` picks the `hmis` or `hfa` registry, absent meaning `hmis`.
-Both in-app bundle builders (`resolve_bundle_from_metric_and_config.ts`,
-`resolve_figure_from_metric.ts`) write `data` whenever the sync cache holds the
-geometry and fall back to `level` only when it does not, so the split is
-cache-warm against cache-cold, not in-app against export; a `level` bundle
-renders only where the sync cache is populated.
+`makeFigureBundleFromFetchedData`, the one in-app bundle builder, writes `data`
+whenever the sync cache holds the geometry and falls back to `level` only when
+it does not, so the split is cache-warm against cache-cold, not in-app against
+export; a `level` bundle renders only where the sync cache is populated.
 
 The `resolve_figure_from_metric` resolver:
 `generate_visualization/resolve_figure_from_metric.ts` (+
@@ -289,12 +288,16 @@ snapshot-a-figure-into-FigureBlock core consumed by the report editor
 ### A bundle owns its data
 
 `makeFigureBundleFromFetchedData` (in `resolve_figure_from_metric.ts`) is the
-ONE place a bundle is assembled from fetched data, and
-`resolveFigureBundleFromMetric` builds through it rather than repeating the
-fields. It deep-copies everything it writes except `geo`: `config`, `items`,
-`resultsValue`, `indicatorMetadata` and `dateRange` are
+one place a bundle that is validated, stored or shared is assembled from fetched
+data, and `resolveFigureBundleFromMetric` builds through it rather than
+repeating the fields. It deep-copies everything it writes except `geo`:
+`config`, `items`, `resultsValue`, `indicatorMetadata` and `dateRange` are
 `structuredClone(unwrap(...))` of what the caller handed over, never aliases of
-it.
+it. The Explore data table
+([data_table.tsx](client/src/components/explore/data_table/data_table.tsx))
+builds a transient render-only bundle of its own from the grid-items read; it is
+never validated or stored, and folding it in is S13's figure-resolution reuse
+item, not part of this contract.
 
 That is load-bearing, not hygiene. The items cache
 (`state/_infra/reactive_cache.ts`) serves its row objects BY REFERENCE, and
@@ -303,15 +306,21 @@ When a bundle lands in a store (the slide editor's `tempSlide`, whose
 `trackStore` effect walks every nested child), Solid's `wrap` defines
 `Symbol(solid-proxy)` on the RAW object it reads, and that brand is permanent:
 `unwrap` swaps proxy children for their targets, it never deletes a symbol key.
-A branded object then fails every `z.record` in `figureBundleSchema`
-(`jsonArrayItemSchema`, `valueLabelReplacements`, the config's own records),
-because `z.record` enumerates `Reflect.ownKeys` and rejects a non-string key,
-while a `z.strictObject` uses `for...in` and never sees it. So one aliased,
-branded cache row made every later bundle off that cache entry invalid ("Invalid
-figure bundle at \"items.0.Symbol(solid-proxy)\"") until the fetch config
-changed. Copying in the constructor is what makes that unreachable, which is why
-the fix is here and not in the schema or in the editor that happened to do the
-branding.
+
+A branded object fails a `z.record` in the zod the CLIENT bundles (4.3.6): its
+record parse enumerates `Reflect.ownKeys` with no enumerability filter and
+rejects a non-string key (`client/node_modules/zod/v4/core/schemas.js:1361`), so
+`jsonArrayItemSchema`, `valueLabelReplacements` and the config's own records all
+reject it, while a `z.strictObject` uses `for...in` and never sees it. That is
+how one aliased, branded cache row made every later bundle off that cache entry
+invalid ("Invalid figure bundle at \"items.0.Symbol(solid-proxy)\"") until the
+fetch config changed. From zod 4.4.3 on, which is what `deno.lock` pins for the
+server, the record parse skips non-enumerable keys and Solid's brand is
+non-enumerable, so the SYMPTOM is contingent on the client's pin
+(`client/package.json` asks for `^4.3.6`). The aliasing is not: a bundle that is
+validated, stored or shared owns its data whichever zod the client bundles,
+which is why the fix is in the constructor and not in the schema or in the
+editor that happened to do the branding.
 
 `geo` is the deliberate exception: `geo.data` is the instance's whole boundary
 file, shared by every figure at that level, and `geoRefSchema` types it

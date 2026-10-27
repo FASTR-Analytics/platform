@@ -121,7 +121,8 @@ export type FetchedPOData = {
   effectiveConfig: PresentationObjectConfig;
 };
 
-// The ONE place a FigureBundle is assembled from fetched data.
+// The one place a FigureBundle that is validated, stored or shared is assembled
+// from fetched data.
 export function makeFigureBundleFromFetchedData(
   scope: PackageScope,
   data: FetchedPOData,
@@ -133,13 +134,10 @@ export function makeFigureBundleFromFetchedData(
   // A bundle OWNS the data it carries. Callers hand over the items cache's own
   // row objects (it serves them by reference) and live store objects (the
   // metrics store, a preset config), and a bundle that reaches a Solid store is
-  // walked by that store's proxy, which defines `Symbol(solid-proxy)` on the
-  // RAW object it reads. The brand is permanent: `unwrap` swaps proxy children
-  // for their targets, it never deletes a symbol key. A branded object then
-  // fails every `z.record` in the bundle schema (`jsonArrayItemSchema`,
-  // `valueLabelReplacements`, the config's own records), because `z.record`
-  // enumerates `Reflect.ownKeys` and rejects a key that is not a string, so one
-  // branded cache row makes every later bundle off that entry invalid.
+  // walked by that store's proxy, which brands the RAW object it reads with a
+  // symbol key that cannot be removed. Why that breaks validation, and why the
+  // copy belongs here rather than in the schema: "A bundle owns its data" in
+  // SYSTEM_10.
   const owned = structuredClone(unwrap({
     config: effectiveConfig,
     items: ih.items,
