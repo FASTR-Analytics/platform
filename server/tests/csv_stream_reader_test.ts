@@ -1,7 +1,8 @@
 // Pins getCsvStreamComponents: the column-count check on whichever row
 // fails it, the first data row included; a callback that throws rejects
 // the stream with its own error and no later row is delivered; 500,000 rows
-// arrive complete, in file order, each rowIndex its position. No database;
+// arrive complete, in file order, each rowIndex its position; a file of blank
+// lines fails instead of hanging on the header read. No database;
 // the reader imports exposed_env_vars, so it runs with the .env the test
 // task loads.
 //
@@ -92,6 +93,11 @@ Deno.test("allow-fewer-columns: a row with fewer columns than the header is deli
     "1",
     "2",
   ]]);
+});
+
+Deno.test("a file of blank lines fails with an empty header instead of hanging", async () => {
+  const res = await getCsvStreamComponents(await writeCsv(["", "", ""]));
+  assertEquals(res, { success: false, err: "CSV header row is empty" });
 });
 
 Deno.test("a callback that throws rejects the stream with its own error and stops delivery", async () => {

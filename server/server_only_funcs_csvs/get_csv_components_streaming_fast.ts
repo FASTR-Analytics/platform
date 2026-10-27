@@ -54,43 +54,25 @@ export async function getCsvStreamComponents(
     }
 
     try {
-      // Read more to ensure we get headers even with very wide CSVs
-      const headerBuffer = new Uint8Array(65536); // 64KB for headers
-      const bytesRead = await file.read(headerBuffer);
-      if (!bytesRead || bytesRead === 0) {
-        throw new Error("CSV file is empty");
+      let headerChunk: string;
+      try {
+        // 64 KB, so a very wide header still fits in the first read
+        const headerBuffer = new Uint8Array(65536);
+        const bytesRead = await file.read(headerBuffer);
+        if (!bytesRead) {
+          throw new Error("CSV file is empty");
+        }
+        headerChunk = new TextDecoder().decode(
+          headerBuffer.subarray(0, bytesRead),
+        );
+      } finally {
+        file.close();
       }
 
-      file.close();
-
-      const headerChunk = new TextDecoder().decode(
-        headerBuffer.slice(0, bytesRead),
-      );
-
-      // Get headers from the initial chunk
-      const rawHeaders = await new Promise<string[]>((res, rej) => {
-        let headers: string[] | null = null;
-        Papa.parse<string[]>(headerChunk, {
-          skipEmptyLines: true,
-          dynamicTyping: false,
-          header: false,
-          step: (results: Papa.ParseStepResult<string[]>, parser) => {
-            if (headers === null) {
-              headers = results.data;
-              if (headers.length === 0) {
-                parser.abort();
-                rej(new Error("CSV header row is empty"));
-              } else {
-                parser.abort();
-                res(headers);
-              }
-            }
-          },
-          error: (error: any) => {
-            rej(new Error(`CSV parsing error: ${error.message || error}`));
-          },
-        });
-      });
+      const [rawHeaders] = parseCsvRows(headerChunk);
+      if (!rawHeaders) {
+        throw new Error("CSV header row is empty");
+      }
 
       // Clean headers by removing ":::" suffix and trimming
       const headers = rawHeaders.map((header) => {
@@ -238,7 +220,6 @@ export async function getCsvStreamComponents(
 
       return { success: true, data: components };
     } catch (e) {
-      file.close();
       return {
         success: false,
         err: e instanceof Error ? e.message : `Unexpected error: ${String(e)}`,
