@@ -980,11 +980,13 @@ slide tool calls the same resolvers, whichever slide it writes:
   lenient auto-default.
 - [convert_ai_input_to_slide.ts](client/src/components/products/copilot/slide_ai/convert_ai_input_to_slide.ts)
   converts AiSlideInput → stored `Slide` under a `PackageScope`: resolve blocks,
-  `optimizePageLayout` at the canonical page frame, re-attach bundles, and
-  `slideConfigSchema.parse` the result (validate-at-construction, the
+  run a provisional slide through `convertSlideToPageInputs` so the optimizer
+  gets the page's chrome, style and items exactly as the renderer draws them,
+  `optimizePageLayout` at the canonical page frame, restore the blocks by id,
+  and `slideConfigSchema.parse` the result (validate-at-construction, the
   add-to-deck ZodError lesson). It returns `{ slide, overflow }`, the kept
-  layout's page-level overflow beside the slide; the draft tools ignore it, the
-  deck writes report it.
+  layout's page-level overflow beside the slide, the same flag the deck's page
+  holder badges; the draft tools ignore it, the deck writes report it.
 - [get_slide_with_updated_blocks.ts](client/src/components/products/copilot/slide_ai/get_slide_with_updated_blocks.ts)
   is targeted block replacement preserving what the AI schema can't express
   (text styles, node-level layout overrides);
@@ -1233,20 +1235,6 @@ Remaining:
 
 **Client copilot**
 
-- **[MED] The slide optimizer sizes layouts against the whole page.**
-  `convert_ai_input_to_slide.ts` hands `optimizePageLayout` the full
-  `PAGE_WIDTH_DU` x `PAGE_HEIGHT_DU` box, which pads it by the content padding
-  alone, while the render gives the layout that box minus the measured header
-  and footer (`panther/_121_page/_internal/freeform/content.ts`). A content
-  slide with a header is laid out against roughly 80 DU more height than it has,
-  so a figure-heavy slide is optimized to fit and then squeezed on the canvas,
-  and the overflow the AI slide writes report misses exactly those slides. The
-  page optimizer measuring the page's own header and footer is the fix, and it
-  is panther's to make. The same file also optimizes items it builds itself (a
-  text block as a bare `{ markdown }`) while the render builds them through
-  `convertBlockToPageContentItem` with the deck's font and size, so text is
-  measured at panther's default size; one builder has to serve both before the
-  two verdicts can agree.
 - **[MED] Documents never invalidate on asset replace**: the per-browser
   IndexedDB `{assetFilename, anthropicFileId}` pairing keeps serving the old
   Anthropic file after the underlying instance asset is replaced.
