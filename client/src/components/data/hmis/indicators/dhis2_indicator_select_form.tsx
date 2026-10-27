@@ -1,13 +1,14 @@
-// Add indicators from DHIS2: search data elements and DHIS2 indicators,
-// refuse the ineligible ones in the list with the reason, then name what the
-// selection becomes and save it in one transaction. An
+// Add indicators from DHIS2: search data elements and DHIS2 indicators, then
+// name what the selection becomes and save it in one transaction. An
 // element or operand becomes a DHIS2 element indicator carrying its UID as
 // its DHIS2 id; a DHIS2 indicator is decomposed into its operands and a
 // calculated over the indicators they become. The server re-reads every
-// element and indicator and judges them itself.
+// element and indicator and judges them itself. A row that cannot be imported
+// has no button and carries the import sentence in the user's words, which
+// `lib` writes and orders; this file only asks for it.
 import {
-  describeDhis2ElementRefusal,
-  describeDhis2ParseRefusal,
+  describeDhis2ElementImportRefusal,
+  describeDhis2IndicatorImportRefusal,
   type DHIS2CategoryOptionCombo,
   type Dhis2DataElementSearchItem,
   dhis2ElementName,
@@ -100,40 +101,15 @@ function itemName(item: SelectedItem): string {
 }
 
 function elementRefusal(de: Dhis2DataElementSearchItem): string | undefined {
-  if (de.verdict.accepted) return undefined;
-  return `${
-    t3({
-      en: "Cannot be added:",
-      fr: "Ne peut pas être ajouté :",
-      pt: "Não pode ser adicionado:",
-    })
-  } ${t3(describeDhis2ElementRefusal(de.verdict.refusal))}`;
+  const sentence = describeDhis2ElementImportRefusal(de.verdict);
+  return sentence === undefined ? undefined : t3(sentence);
 }
 
 function indicatorRefusal(
   indicator: Dhis2IndicatorSearchItem,
 ): string | undefined {
-  const { parse, operands } = indicator.decomposition;
-  if (!parse.accepted) {
-    return `${
-      t3({
-        en: "Cannot be decomposed:",
-        fr: "Ne peut pas être décomposé :",
-        pt: "Não pode ser decomposto:",
-      })
-    } ${t3(describeDhis2ParseRefusal(parse.refusal))}`;
-  }
-  const refused = operands.find((o) => !o.verdict.accepted);
-  if (refused !== undefined && !refused.verdict.accepted) {
-    return `${
-      t3({
-        en: `Operand ${refused.data_id} cannot be added:`,
-        fr: `L'opérande ${refused.data_id} ne peut pas être ajouté :`,
-        pt: `O operando ${refused.data_id} não pode ser adicionado:`,
-      })
-    } ${t3(describeDhis2ElementRefusal(refused.verdict.refusal))}`;
-  }
-  return undefined;
+  const sentence = describeDhis2IndicatorImportRefusal(indicator.decomposition);
+  return sentence === undefined ? undefined : t3(sentence);
 }
 
 function kindLabel(kind: SelectedItem["kind"]): string {
@@ -381,14 +357,14 @@ export function Dhis2IndicatorSelectForm(p: Props) {
     );
   }
 
-  function addButton(item: SelectedItem, refusal: string | undefined) {
+  function addButton(item: SelectedItem) {
     const id = itemId(item);
     return (
       <Button
         onClick={() => addToSelection(item)}
         iconName="plus"
         intent="base-100"
-        disabled={isItemSelected(id) || refusal !== undefined}
+        disabled={isItemSelected(id)}
       >
         {isItemSelected(id)
           ? t3({ en: "Added", fr: "Ajouté", pt: "Adicionado" })
@@ -573,10 +549,9 @@ export function Dhis2IndicatorSelectForm(p: Props) {
                               <span class="text-base-content flex-none font-mono text-xs">
                                 {indicator.id}
                               </span>
-                              {addButton(
-                                { kind: "indicator", indicator },
-                                refusal,
-                              )}
+                              <Show when={refusal === undefined}>
+                                {addButton({ kind: "indicator", indicator })}
+                              </Show>
                             </div>
                             <Show
                               when={refusal}
@@ -588,7 +563,7 @@ export function Dhis2IndicatorSelectForm(p: Props) {
                               }
                             >
                               {(text) => (
-                                <div class="text-danger mt-1 text-xs">
+                                <div class="text-base-content-muted mt-1 text-xs">
                                   {text()}
                                 </div>
                               )}
@@ -637,14 +612,13 @@ export function Dhis2IndicatorSelectForm(p: Props) {
                                 <span class="text-base-content flex-none font-mono text-xs">
                                   {de.id}
                                 </span>
-                                {addButton(
-                                  { kind: "element", element: de },
-                                  refusal,
-                                )}
+                                <Show when={refusal === undefined}>
+                                  {addButton({ kind: "element", element: de })}
+                                </Show>
                               </div>
                               <Show when={refusal}>
                                 {(text) => (
-                                  <div class="text-danger mt-1 text-xs">
+                                  <div class="text-base-content-muted mt-1 text-xs">
                                     {text()}
                                   </div>
                                 )}
@@ -657,27 +631,38 @@ export function Dhis2IndicatorSelectForm(p: Props) {
                               <div class="bg-base-200 border-t">
                                 <For each={getCOCs(de)}>
                                   {(coc) => (
-                                    <div class="ui-gap-sm ui-pad-sm flex items-center border-b pl-10 last:border-b-0">
-                                      <span class="flex-none">
-                                        <Badge intent="neutral">
-                                          {t3({
-                                            en: "COC",
-                                            fr: "COC",
-                                            pt: "COC",
+                                    <div class="ui-pad-sm border-b pl-10 last:border-b-0">
+                                      <div class="ui-gap-sm flex items-center">
+                                        <span class="flex-none">
+                                          <Badge intent="neutral">
+                                            {t3({
+                                              en: "COC",
+                                              fr: "COC",
+                                              pt: "COC",
+                                            })}
+                                          </Badge>
+                                        </span>
+                                        <span class="font-400 flex-1 truncate">
+                                          {cocName(coc)}
+                                        </span>
+                                        <span class="text-base-content flex-none font-mono text-xs">
+                                          {operandId(de.id, coc)}
+                                        </span>
+                                        <Show when={refusal === undefined}>
+                                          {addButton({
+                                            kind: "operand",
+                                            element: de,
+                                            coc,
                                           })}
-                                        </Badge>
-                                      </span>
-                                      <span class="font-400 flex-1 truncate">
-                                        {cocName(coc)}
-                                      </span>
-                                      <span class="text-base-content flex-none font-mono text-xs">
-                                        {operandId(de.id, coc)}
-                                      </span>
-                                      {addButton({
-                                        kind: "operand",
-                                        element: de,
-                                        coc,
-                                      }, refusal)}
+                                        </Show>
+                                      </div>
+                                      <Show when={refusal}>
+                                        {(text) => (
+                                          <div class="text-base-content-muted mt-1 text-xs">
+                                            {text()}
+                                          </div>
+                                        )}
+                                      </Show>
                                     </div>
                                   )}
                                 </For>

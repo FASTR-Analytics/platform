@@ -510,29 +510,33 @@ retypes), each passing a check that accepts every id.
 An import never creates an indicator: the dictionary is authored in the manager,
 the Add indicator form for one and the DHIS2 select form (heading "Add
 indicators from DHIS2", opened by the manager's "Add from DHIS2" button;
-distinct from the data import, "Import HMIS data from DHIS2") for many. The
-DHIS2 select form goes through the **naming step** (`applyIndicatorNaming`). A
-DHIS2 element or operand becomes a new DHIS2 element under the chosen id
-(proposed by `generateIndicatorId`, editable) carrying the UID as its data id;
-an existing id of any type is refused; one indicator carries one data id, so two
-elements cannot share a new id; a UID some indicator already holds creates
-nothing. A DHIS2 indicator decomposes (S7) into DHIS2 elements for its operands
-(an operand written with its element's default combo is the bare element, S7's
-`foldDefaultCombos`) and a calculated `(numerator) / (denominator)` over their
-ids: its expression names each operand by `[data_id]` and the transaction
-rewrites every identifier to the indicator that element lands in
-(`renameIdentifiers`). Sums are not made in the naming step; they are made in
-the list. Everything the naming step creates has its checkbox on. Save from the
-DHIS2 select form posts to `/indicators-dhis2/create` (each DHIS2 indicator by
-its `uid`), which re-reads every element and indicator from DHIS2 and judges
-them itself (S7's `readDhis2ElementIds` for the elements, with its verdict per
-id, and the decomposition for the indicators, worded by `describeDhis2IdRefusal`
-/ `describeDhis2ParseRefusal`, an annualized indicator refused in its own words
-after the parse and before the operands) before `createIndicatorsFromDhis2`
-calls `applyIndicatorNaming`, so a refused element or indicator creates nothing.
-The route's verdicts are its own, not the typed-id check's, which the picker's
-path never runs. **Two wordings, two callers.** The diagnostics
-(`describeDhis2ElementRefusal`, `describeDhis2ParseRefusal`,
+distinct from the data import, "Import HMIS data from DHIS2") for many. In the
+select form's results, a row that cannot be imported, an indicator, a data
+element or a category-option-combo row under a refused element, has no "Add"
+button at all and carries the import sentence as muted text under its name: a
+row that can never be added never looks like one that can, and nothing on it
+reads as an error. The DHIS2 select form goes through the **naming step**
+(`applyIndicatorNaming`). A DHIS2 element or operand becomes a new DHIS2 element
+under the chosen id (proposed by `generateIndicatorId`, editable) carrying the
+UID as its data id; an existing id of any type is refused; one indicator carries
+one data id, so two elements cannot share a new id; a UID some indicator already
+holds creates nothing. A DHIS2 indicator decomposes (S7) into DHIS2 elements for
+its operands (an operand written with its element's default combo is the bare
+element, S7's `foldDefaultCombos`) and a calculated
+`(numerator) / (denominator)` over their ids: its expression names each operand
+by `[data_id]` and the transaction rewrites every identifier to the indicator
+that element lands in (`renameIdentifiers`). Sums are not made in the naming
+step; they are made in the list. Everything the naming step creates has its
+checkbox on. Save from the DHIS2 select form posts to `/indicators-dhis2/create`
+(each DHIS2 indicator by its `uid`), which re-reads every element and indicator
+from DHIS2 and judges them itself (S7's `readDhis2ElementIds` for the elements,
+with its verdict per id, and the decomposition for the indicators, worded by
+`describeDhis2IdRefusal` / `describeDhis2ParseRefusal`, an annualized indicator
+refused in its own words after the parse and before the operands) before
+`createIndicatorsFromDhis2` calls `applyIndicatorNaming`, so a refused element
+or indicator creates nothing. The route's verdicts are its own, not the typed-id
+check's, which the picker's path never runs. **Two wordings, two callers.** The
+diagnostics (`describeDhis2ElementRefusal`, `describeDhis2ParseRefusal`,
 `describeDhis2IdRefusal`) name the UID and the DHIS2 metadata field, and belong
 to the save route and the DHIS2 id repair, which report what the server
 answered. The **import sentences** (`describeDhis2IndicatorImportRefusal` over a
