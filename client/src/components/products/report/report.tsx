@@ -209,14 +209,17 @@ export function ReportEditor(p: Props) {
     }
   }
 
-  const [isLoading, setIsLoading] = createSignal(true);
-  // A detail read that fails at mount: the error replaces the editor, nothing
-  // is written and the copilot stays on `opening_product`. Loading itself is
-  // `isLoading`, so this is ready or error; `true` is the data because the
-  // wrapper's ready branch needs truthy data.
+  // The mount detail read. A read that fails replaces the main area with the
+  // error, nothing is written and the copilot stays on `opening_product`.
+  // `true` is the data because the wrapper's ready branch needs truthy data,
+  // and everything the editor renders from is in its own signals.
   const [loadState, setLoadState] = createSignal<StateHolder<true>>({
-    status: "ready",
-    data: true,
+    status: "loading",
+    msg: t3({
+      en: "Loading report...",
+      fr: "Chargement du rapport...",
+      pt: "A carregar o relatório...",
+    }),
   });
   const [body, setBody] = createSignal("");
   // A report still stored in a format that no longer has an editor: it opens
@@ -313,11 +316,13 @@ export function ReportEditor(p: Props) {
 
   const canConfigure = () => canEditProduct(p.productId);
 
-  // A deleted product closes the editor: its row leaves T1.
+  // A deleted product closes the editor: its row leaves T1. Only once the
+  // detail read has landed: before that the row may simply not be in the
+  // store yet, and a failed read must leave its error on screen.
   createEffect(() => {
     const row = product();
-    const loading = isLoading();
-    if (row === undefined && !loading) p.close(undefined);
+    const status = loadState().status;
+    if (row === undefined && status === "ready") p.close(undefined);
   });
 
   // ── Package and scope ───────────────────────────────────────────────────────
@@ -664,7 +669,7 @@ export function ReportEditor(p: Props) {
         },
       );
     }
-    setIsLoading(false);
+    setLoadState({ status: "ready", data: true });
 
     // A retired report loaded nothing and mounts no editor: the copilot gets
     // no report view, or its tools would read an empty document and stage a
@@ -1214,11 +1219,11 @@ export function ReportEditor(p: Props) {
   // waiting tour starts the next time the user opens one themselves.
   createEffect(() => {
     const wanted = pendingVisualizationOpen();
-    const loading = isLoading();
+    const status = loadState().status;
     const contextReady = staleContext() !== undefined;
     const registry = figures();
     const mayEdit = canConfigure();
-    if (!wanted || loading || !contextReady) return;
+    if (!wanted || status !== "ready" || !contextReady) return;
     const figureId = Object.keys(registry).find((id) => registry[id]?.bundle);
     setPendingVisualizationOpen(false);
     if (figureId === undefined || !mayEdit) return;
@@ -1262,8 +1267,7 @@ export function ReportEditor(p: Props) {
   // Report Forge's menu row for a user who can write the body, and alone in a
   // row of this app's for one who cannot (a viewer, or a dead room), for whom
   // the editor draws no menus.
-  const fileMenuAloneShown = () =>
-    !isLoading() && !retiredFormat() && !canEditBody();
+  const fileMenuAloneShown = () => !retiredFormat() && !canEditBody();
 
   async function openVersionHistory() {
     await withPanesCovered(
@@ -1603,7 +1607,7 @@ export function ReportEditor(p: Props) {
       <Show when={fileMenuAloneShown()}>
         <ReaderFileMenu />
       </Show>
-      <Show when={!isLoading() && !retiredFormat()}>
+      <Show when={!retiredFormat()}>
         <ReportForge
           title={label()}
           body={body()}
@@ -1767,7 +1771,7 @@ export function ReportEditor(p: Props) {
   return (
     <InnerEditorWrapper>
       <FrameTop panelChildren={headerPanel}>
-        <StateHolderWrapper state={loadState()}>
+        <StateHolderWrapper state={loadState()} loadingAndErrorPad="md">
           {() => <MainArea />}
         </StateHolderWrapper>
       </FrameTop>
