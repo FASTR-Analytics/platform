@@ -18,6 +18,7 @@ import {
   type FastrReportTheme,
   fastrThemeIds,
   type FigureBlock,
+  findReportEmbeds,
   getFastrReportTheme,
   getReplicateByProp,
   insertAfterReportHeading,
@@ -669,6 +670,32 @@ ${FASTR_MD_SYNTAX_DOC}`,
         propose: async (input, view) => {
           const ctx = view.context;
           liveFigureOrRefuse(ctx, input.figureId);
+          // Liveness is what the DOCUMENT resolves (reportLiveFigures), while
+          // this rewrite is the canonical token's, so a figure embedded as a
+          // titled, reference or angle-bracket destination is live and not
+          // rewritable here. Without this the body comes back unchanged and the
+          // model hears only "IDENTICAL to the current body".
+          const refuseUnrewritable = (): never => {
+            throw new AIToolFailure(
+              `Figure "${input.figureId}" is embedded in a form this tool cannot rewrite (not the plain \`![caption](figure:<id>)\` token). Rewrite that embed as \`${
+                buildReportEmbedToken("figure", input.figureId, "<caption>")
+              }\` with replace_text, then call replace_figure again. update_report_figure works on the embed as it stands, but only for this figure's config (replicant, filters, disaggregation, period, captions): it cannot change the metric or chart type.`,
+            );
+          };
+          const rewritable = (body: string) =>
+            findReportEmbeds(body).some(
+              (r) => r.kind === "figure" && r.id === input.figureId,
+            );
+          // Refused before the figure is resolved, which costs a package query:
+          // whether the body can be rewritten depends only on the body and the
+          // id. This read is not the proposal's base, so it may precede the
+          // await.
+          if (!rewritable(ctx.getBody())) refuseUnrewritable();
+          const figureBlock = await resolveFigureFromMetric(
+            view.context.getScope(),
+            input.figure,
+            metrics,
+          );
           const newId = crypto.randomUUID();
           const overrideCaption = input.caption !== undefined
             ? input.caption.replace(/\s+/g, " ").trim()
@@ -681,6 +708,11 @@ ${FASTR_MD_SYNTAX_DOC}`,
           // the tool input has no occurrence selector, so the count is surfaced
           // in the summary and the user sees the full rewrite in the
           // accept/reject diff.
+          //
+          // The body is read HERE, after the await: `proposeEdit`'s base is
+          // `body()` at that call, so an await between this read and it makes
+          // the proposal's diff, and its rebase on accept, revert whatever was
+          // typed meanwhile.
           const swapped = replaceReportEmbedTokens(
             ctx.getBody(),
             "figure",
@@ -691,25 +723,9 @@ ${FASTR_MD_SYNTAX_DOC}`,
                 { id: newId, caption: overrideCaption },
               ),
           );
-          // Before the figure is resolved, which costs a package query: whether
-          // the body can be rewritten depends only on the body and the id.
-          // Liveness is what the DOCUMENT resolves (reportLiveFigures), while
-          // this rewrite is the canonical token's, so a figure embedded as a
-          // titled, reference or angle-bracket destination is live and not
-          // rewritable here. Without this the body comes back unchanged and the
-          // model hears only "IDENTICAL to the current body".
-          if (swapped.count === 0) {
-            throw new AIToolFailure(
-              `Figure "${input.figureId}" is embedded in a form this tool cannot rewrite (not the plain \`![caption](figure:<id>)\` token). Rewrite that embed as \`${
-                buildReportEmbedToken("figure", input.figureId, "<caption>")
-              }\` with replace_text, then call replace_figure again. update_report_figure works on the embed as it stands, but only for this figure's config (replicant, filters, period, captions): it cannot change the metric or chart type.`,
-            );
-          }
-          const figureBlock = await resolveFigureFromMetric(
-            view.context.getScope(),
-            input.figure,
-            metrics,
-          );
+          // A token that vanished under the await: without this it falls into
+          // proposeEdit's "IDENTICAL to the current body" skip.
+          if (swapped.count === 0) refuseUnrewritable();
           const embedCount = swapped.count;
           const newBody = swapped.body;
           validateReportBodyLength(newBody);
