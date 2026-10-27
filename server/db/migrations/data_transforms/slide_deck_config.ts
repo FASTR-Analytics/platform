@@ -15,7 +15,7 @@
 // 5. Add fontFamily default
 // 6. Migrate logo sizing numbers → semantic keys (size/spacing)
 // 7. Collapse the six style fields into one theme id; resolve retired theme ids
-// 8. Delete the deck's second name (`label`); `products.label` is the only one
+// 8. Delete the deck's second name (`label`)
 //
 // =============================================================================
 

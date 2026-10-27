@@ -237,12 +237,14 @@ subfolders hold and that access is only raised.
 **A product has one name: `products.label`.** No detail row and no stored config
 carries a second copy, so no write to a product's contents can change what it is
 called. The two rename surfaces (the editor header's inline title and File >
-"Name and folder…", both through `updateProductLabel`, which writes `products`
-directly) are the only writers of it. A version snapshot does capture the name
-of its day (`slide_deck_versions.label`, `report_versions.label`), and the two
-restores are the only callers of `touchProduct`'s optional `label` argument
-(`restoreSlideDeckStructure`, `restoreReportStructure`), putting that captured
-name back.
+"Name and folder…") reach it through `updateProductLabel`, which writes
+`products` directly. A version snapshot does capture the name of its day
+(`slide_deck_versions.label`, `report_versions.label`), and three restore paths
+put that captured name back: `restoreSlideDeckStructure` and
+`restoreReportContent`, the only two callers of `touchProduct`'s optional
+`label` argument, and the report restore's in-room branch, which calls
+`updateProductLabel` itself because the label is not part of the collab room's
+doc.
 
 `main` carries the products block (`_main_database.sql`, created on existing
 instances by `200_products.sql`): `folders` (nested through a nullable
