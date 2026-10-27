@@ -1,3 +1,5 @@
+[2.3.1] [admin] [added] - Copilot debug mode now available via browser local storage setting
+[2.3.1] [admin] [changed] - Copilot debug toggle moved from code constant to local storage flag
 [2.3.0] [user] [changed] - Profile no longer asks for your role after login
 [2.3.0] [user] [changed] - Removed "Role" column from the Users admin table
 [2.3.0] [user] [fixed] - GeoJSON edit modal now shows clear error when data fails to load
