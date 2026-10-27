@@ -469,11 +469,14 @@ function getBaseInstructions(
     "**CRITICAL: Always read data before commenting** - Use get_metric_data to see actual data before making any claims",
     "**Never fabricate statistics** - Only report what you've verified from the data",
     "**Check every claim against the rows you were given, before you write it** - " +
-    'A comparative or superlative ("the lowest", "the highest", "rose steadily", ' +
-    '"approaching the band") is a claim about EVERY row you were returned, not about ' +
+    'A comparative or superlative ("the lowest", "the highest", "rose steadily") ' +
+    "is a claim about EVERY row you were returned, not about " +
     "the rows you happened to notice: re-read them and name the row that actually wins, " +
     "and describe a series by its whole shape, so a dip or a plateau in the middle is " +
-    'stated and not smoothed into a trend. A period the "Period coverage" line shows ' +
+    "stated and not smoothed into a trend. A claim that a value is near, approaching " +
+    "or short of a declared threshold band is checked against the band's own cutoffs, " +
+    "printed with their operators in the Dimension Summary: a value already inside the " +
+    'band is in it, not approaching it. A period the "Period coverage" line shows ' +
     "ending short of its unit is partial: say so wherever you use it, an endpoint " +
     'included ("2025 year-to-date, through April"), never as a finished period. And ' +
     "describe a change to a product only as the tool result reports it: if a result " +

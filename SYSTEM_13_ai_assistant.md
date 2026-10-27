@@ -1049,35 +1049,38 @@ when uncertain, indicator directionality).
 
 The claim standard (`getBaseInstructions` in
 [lib/ai_tools/build_system_prompt.ts](lib/ai_tools/build_system_prompt.ts),
-pinned by `server/tests/copilot_prompt_test.ts`) covers the three shapes a model
-gets wrong while reading its own tool results correctly: a comparative or
-superlative is a claim about EVERY row returned, so it is re-read before it is
-written and a series is described by its whole shape rather than smoothed into a
-trend; a period that `get_metric_data`'s "Period coverage" line shows ending
-short of its unit is labelled partial wherever it is used, an endpoint included;
-and a change to a product is described only as the tool result reports it, so
-nothing is narrated as having drifted from a state no result shows. It lives in
-the shared base and not in either brief, so one edit reaches every view and
-`/mcp`, and the deck and report briefs cannot drift apart. It is prompt text,
-not a guarantee: nothing in code validates a claim.
+pinned by `server/tests/copilot_prompt_test.ts`) covers the shapes a model gets
+wrong while reading its own tool results correctly: a comparative or superlative
+is a claim about EVERY row returned, so it is re-read before it is written and a
+series is described by its whole shape rather than smoothed into a trend; a
+claim that a value is near a declared threshold band is checked against the
+band's own cutoffs, which the Dimension Summary prints with their operators, so
+a value already inside the band is not "approaching" it; a period that
+`get_metric_data`'s "Period coverage" line shows ending short of its unit is
+labelled partial wherever it is used, an endpoint included; and a change to a
+product is described only as the tool result reports it, so nothing is narrated
+as having drifted from a state no result shows. It lives in the shared base and
+not in either brief, so one edit reaches every view and `/mcp`, and the deck and
+report briefs cannot drift apart. It is prompt text, not a guarantee: nothing in
+code validates a claim.
 
-It is **instance level**: no date, no package section, no viewer sentence and no
-tool catalogue, so only an instance input changes it and one conversation keeps
-one prompt through every view and package. What used to ride it rides elsewhere:
-the date and the package in view are the consumer blocks above (the package
-block holds the package label and generation time, the scope's label and one
-line per dataset family saying what its section does: excluded, included with no
-limits, or limited to an area, years, time points, modules, indicators, HFA
-categories and HFA service categories, each listed in full, with the rule that a
-limit applies only to a table that has a column for it; then the package's
-datasets, indicator lists and calendar); the level line rides a product view's
-instructions below edit; the per-view instructions (still exported from this
-file, with short primary-tool pointers; the Products, Data page, Assets, Users
-and user detail views name their page, the figure views the figure by its label
-and its host, and the results file view its module and object) and the view
-states of the Results, Explore and Data pages (`formatExploreState`,
-`formatPackageState`, `formatResultsPackagesState` and `formatDataState`, this
-file too) are composed per view by the view registry
+The prompt is **instance level**: no date, no package section, no viewer
+sentence and no tool catalogue, so only an instance input changes it and one
+conversation keeps one prompt through every view and package. What used to ride
+it rides elsewhere: the date and the package in view are the consumer blocks
+above (the package block holds the package label and generation time, the
+scope's label and one line per dataset family saying what its section does:
+excluded, included with no limits, or limited to an area, years, time points,
+modules, indicators, HFA categories and HFA service categories, each listed in
+full, with the rule that a limit applies only to a table that has a column for
+it; then the package's datasets, indicator lists and calendar); the level line
+rides a product view's instructions below edit; the per-view instructions (still
+exported from this file, with short primary-tool pointers; the Products, Data
+page, Assets, Users and user detail views name their page, the figure views the
+figure by its label and its host, and the results file view its module and
+object) and the view states of the Results, Explore and Data pages
+(`formatExploreState`, `formatPackageState`, `formatResultsPackagesState` and
+`formatDataState`, this file too) are composed per view by the view registry
 ([ai_views.ts](client/src/components/instance/copilot/ai_views.ts)); and the
 tools ride the request's tools array, never a catalogue in the prompt
 (`server/tests/copilot_prompt_test.ts` pins the absence; `get_overview` is the

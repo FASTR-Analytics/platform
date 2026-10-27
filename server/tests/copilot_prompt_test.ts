@@ -57,6 +57,15 @@ Deno.test("every prompt states the standard a written claim must meet", () => {
   assertStringIncludes(prompt, "about EVERY row you were returned");
   assertStringIncludes(prompt, "name the row that actually wins");
   assertStringIncludes(prompt, "a dip or a plateau in the middle is stated");
+  // A threshold band is checked against its own cutoffs, not against rows.
+  assertStringIncludes(
+    prompt,
+    "checked against the band's own cutoffs, printed with their operators in the Dimension Summary",
+  );
+  assertStringIncludes(
+    prompt,
+    "a value already inside the band is in it, not approaching it",
+  );
   // A partial period is labelled partial wherever it is used.
   assertStringIncludes(
     prompt,
