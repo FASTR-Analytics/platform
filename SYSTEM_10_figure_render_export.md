@@ -286,6 +286,38 @@ snapshot-a-figure-into-FigureBlock core consumed by the report editor
 (`report/report.tsx`) and the slide editor; the same-named file under
 `products/copilot/slide_ai/` is a thin S13 AI adapter that delegates to it.
 
+### A bundle owns its data
+
+`makeFigureBundleFromFetchedData` (in `resolve_figure_from_metric.ts`) is the
+ONE place a bundle is assembled from fetched data, and
+`resolveFigureBundleFromMetric` builds through it rather than repeating the
+fields. It deep-copies everything it writes except `geo`: `config`, `items`,
+`resultsValue`, `indicatorMetadata` and `dateRange` are
+`structuredClone(unwrap(...))` of what the caller handed over, never aliases of
+it.
+
+That is load-bearing, not hygiene. The items cache
+(`state/_infra/reactive_cache.ts`) serves its row objects BY REFERENCE, and
+callers also pass live Solid store objects (the metrics store, a preset config).
+When a bundle lands in a store (the slide editor's `tempSlide`, whose
+`trackStore` effect walks every nested child), Solid's `wrap` defines
+`Symbol(solid-proxy)` on the RAW object it reads, and that brand is permanent:
+`unwrap` swaps proxy children for their targets, it never deletes a symbol key.
+A branded object then fails every `z.record` in `figureBundleSchema`
+(`jsonArrayItemSchema`, `valueLabelReplacements`, the config's own records),
+because `z.record` enumerates `Reflect.ownKeys` and rejects a non-string key,
+while a `z.strictObject` uses `for...in` and never sees it. So one aliased,
+branded cache row made every later bundle off that cache entry invalid ("Invalid
+figure bundle at \"items.0.Symbol(solid-proxy)\"") until the fetch config
+changed. Copying in the constructor is what makes that unreachable, which is why
+the fix is here and not in the schema or in the editor that happened to do the
+branding.
+
+`geo` is the deliberate exception: `geo.data` is the instance's whole boundary
+file, shared by every figure at that level, and `geoRefSchema` types it
+`z.unknown()`, so it is never enumerated as a record. A copy per bundle build
+would cost the editor's live preview for nothing.
+
 ## Special chart modes: the style pipeline
 
 `buildFigureInputs` derives every figure's `style` through one dispatcher,

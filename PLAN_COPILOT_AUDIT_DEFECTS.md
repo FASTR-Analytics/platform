@@ -660,4 +660,12 @@ docs. The floor's client typecheck and `deno fmt --check` cover it.
 
 Departures only, one line each, written when they happen.
 
-- (none yet)
+- Step 2: the constructor owns `config` and `resultsValue` as well as the three
+  fields the step named, because `valueLabelReplacements` and the config's own
+  records are `z.record`s too and would fail identically; one clone of all five
+  costs no more than cloning `items` alone.
+- Step 2: `makeFigureBundleFromFetchedData` and `FetchedPOData` moved into
+  `resolve_figure_from_metric.ts` rather than being imported from the sibling,
+  which would have made the two files a cycle; `generate_visualization/mod.ts`
+  moved the two export lines, which is outside the step's Surface and
+  unavoidable when a symbol moves between files in that folder.

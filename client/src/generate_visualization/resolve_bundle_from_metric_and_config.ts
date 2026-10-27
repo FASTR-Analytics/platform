@@ -1,7 +1,6 @@
 import type {
   DatasetType,
   FigureBundle,
-  ItemsHolderPresentationObject,
   MetricWithStatus,
   PackageScope,
   PresentationObjectConfig,
@@ -13,17 +12,16 @@ import { unwrap } from "solid-js/store";
 import { assertReplicantValid } from "./assert_replicant_valid";
 import { buildFigureInputs } from "./build_figure_inputs";
 import { getAdminAreaLevelFromMapConfig } from "./get_admin_area_level_from_config";
-import { resolveFigureBundleFromMetric } from "./resolve_figure_from_metric";
+import {
+  makeFigureBundleFromFetchedData,
+  resolveFigureBundleFromMetric,
+} from "./resolve_figure_from_metric";
 import {
   geoJsonFamilyFor,
   getGeoJsonSync,
   preloadGeoJson,
 } from "~/state/instance/t2_geojson";
-import {
-  figureScopeStamp,
-  getSnapshotInstanceLocalization,
-  getSnapshotInstanceState,
-} from "~/state/instance/t1_store";
+import { getSnapshotInstanceState } from "~/state/instance/t1_store";
 import { getPresentationObjectItemsFromCacheOrFetch } from "~/state/products/t2_figure_data";
 
 // Unified figure resolver: given a metric + a full config, validate the
@@ -213,52 +211,4 @@ export async function resolveFigureBundleInteractively(
   } catch (e) {
     return { ok: false, reason: e instanceof Error ? e.message : String(e) };
   }
-}
-
-// Non-fetch bundle assembly for callers that already hold fetched items (the
-// embedded editor's live preview and coherent-bundle push, the editors' apply
-// paths, the preset gallery). `scope` is the pair those items were fetched
-// under, passed by the caller rather than read from any ambient store.
-export type FetchedPOData = {
-  resultsValue: Pick<
-    ResultsValue,
-    | "id"
-    | "formatAs"
-    | "valueProps"
-    | "valueLabelReplacements"
-    | "datasetFamily"
-  >;
-  ih: Extract<ItemsHolderPresentationObject, { status: "ok" }>;
-  effectiveConfig: PresentationObjectConfig;
-};
-
-export function makeFigureBundleFromFetchedData(
-  scope: PackageScope,
-  data: FetchedPOData,
-): FigureBundle {
-  const { resultsValue, ih, effectiveConfig } = data;
-  const mapLevel = getAdminAreaLevelFromMapConfig(effectiveConfig);
-  const geoFamily = geoJsonFamilyFor(resultsValue.datasetFamily);
-  const geoJson = mapLevel ? getGeoJsonSync(geoFamily, mapLevel) : undefined;
-  return {
-    config: effectiveConfig,
-    items: ih.items,
-    resultsValue: {
-      formatAs: resultsValue.formatAs,
-      valueProps: resultsValue.valueProps,
-      valueLabelReplacements: resultsValue.valueLabelReplacements,
-    },
-    indicatorMetadata: ih.indicatorMetadata,
-    dateRange: ih.dateRange,
-    geo: mapLevel
-      ? (geoJson
-        ? { kind: "data" as const, data: geoJson }
-        : { kind: "level" as const, level: mapLevel, family: geoFamily })
-      : undefined,
-    localization: getSnapshotInstanceLocalization(),
-    metricId: resultsValue.id,
-    scope: figureScopeStamp(scope, ih.scopeToken, resultsValue.datasetFamily),
-    snapshotAt: new Date().toISOString(),
-    provenance: { runId: scope.runId },
-  };
 }

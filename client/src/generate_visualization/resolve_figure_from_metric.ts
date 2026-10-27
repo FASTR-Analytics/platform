@@ -2,11 +2,14 @@ import type {
   DatasetType,
   FigureBundle,
   GenericLongFormFetchConfig,
+  ItemsHolderPresentationObject,
   PackageScope,
   PresentationObjectConfig,
+  ResultsValue,
   ResultsValueForVisualization,
 } from "lib";
 import { figureBundleSchema } from "lib";
+import { unwrap } from "solid-js/store";
 import { _PO_ITEMS_CACHE } from "~/state/products/t2_figure_data";
 import { serverActions } from "~/server_actions";
 import { poItemsQueue } from "~/state/_infra/request_queue";
@@ -76,29 +79,11 @@ export async function resolveFigureBundleFromMetric(
     throw new Error("No data available or too many items");
   }
 
-  const mapLevel = getAdminAreaLevelFromMapConfig(config);
-  const geoFamily = geoJsonFamilyFor(datasetFamily);
-  let geo: FigureBundle["geo"];
-  if (mapLevel) {
-    const geoJson = getGeoJsonSync(geoFamily, mapLevel);
-    geo = geoJson
-      ? { kind: "data", data: geoJson }
-      : { kind: "level", level: mapLevel, family: geoFamily };
-  }
-
-  const bundle: FigureBundle = {
-    config,
-    items: itemsHolder.items,
-    resultsValue: resultsValueForViz,
-    indicatorMetadata: itemsHolder.indicatorMetadata,
-    dateRange: itemsHolder.dateRange,
-    geo,
-    localization: getSnapshotInstanceLocalization(),
-    metricId,
-    scope: figureScopeStamp(scope, itemsHolder.scopeToken, datasetFamily),
-    snapshotAt: new Date().toISOString(),
-    provenance: { runId: scope.runId },
-  };
+  const bundle = makeFigureBundleFromFetchedData(scope, {
+    resultsValue: { id: metricId, ...resultsValueForViz, datasetFamily },
+    ih: itemsHolder,
+    effectiveConfig: config,
+  });
 
   // Validate at construction so the render (buildFigureInputs) and save
   // (slideConfigSchema.parse) paths can never disagree: a schema-invalid bundle
@@ -117,4 +102,70 @@ export async function resolveFigureBundleFromMetric(
     );
   }
   return bundle;
+}
+
+// Non-fetch bundle assembly for callers that already hold fetched items (the
+// embedded editor's live preview and coherent-bundle push, the editors' apply
+// paths, the preset gallery). `scope` is the pair those items were fetched
+// under, passed by the caller rather than read from any ambient store.
+export type FetchedPOData = {
+  resultsValue: Pick<
+    ResultsValue,
+    | "id"
+    | "formatAs"
+    | "valueProps"
+    | "valueLabelReplacements"
+    | "datasetFamily"
+  >;
+  ih: Extract<ItemsHolderPresentationObject, { status: "ok" }>;
+  effectiveConfig: PresentationObjectConfig;
+};
+
+// The ONE place a FigureBundle is assembled from fetched data.
+export function makeFigureBundleFromFetchedData(
+  scope: PackageScope,
+  data: FetchedPOData,
+): FigureBundle {
+  const { resultsValue, ih, effectiveConfig } = data;
+  const mapLevel = getAdminAreaLevelFromMapConfig(effectiveConfig);
+  const geoFamily = geoJsonFamilyFor(resultsValue.datasetFamily);
+  const geoJson = mapLevel ? getGeoJsonSync(geoFamily, mapLevel) : undefined;
+  // A bundle OWNS the data it carries. Callers hand over the items cache's own
+  // row objects (it serves them by reference) and live store objects (the
+  // metrics store, a preset config), and a bundle that reaches a Solid store is
+  // walked by that store's proxy, which defines `Symbol(solid-proxy)` on the
+  // RAW object it reads. The brand is permanent: `unwrap` swaps proxy children
+  // for their targets, it never deletes a symbol key. A branded object then
+  // fails every `z.record` in the bundle schema (`jsonArrayItemSchema`,
+  // `valueLabelReplacements`, the config's own records), because `z.record`
+  // enumerates `Reflect.ownKeys` and rejects a key that is not a string, so one
+  // branded cache row makes every later bundle off that entry invalid.
+  const owned = structuredClone(unwrap({
+    config: effectiveConfig,
+    items: ih.items,
+    resultsValue: {
+      formatAs: resultsValue.formatAs,
+      valueProps: resultsValue.valueProps,
+      valueLabelReplacements: resultsValue.valueLabelReplacements,
+    },
+    indicatorMetadata: ih.indicatorMetadata,
+    dateRange: ih.dateRange,
+  }));
+  return {
+    ...owned,
+    // The one field held by reference: `geo.data` is the instance's whole
+    // boundary file, megabytes of it, shared by every figure at that level and
+    // never read as a record (`geoRefSchema` types it `z.unknown()`), so a copy
+    // per bundle build would cost the editor's live preview for nothing.
+    geo: mapLevel
+      ? (geoJson
+        ? { kind: "data" as const, data: geoJson }
+        : { kind: "level" as const, level: mapLevel, family: geoFamily })
+      : undefined,
+    localization: getSnapshotInstanceLocalization(),
+    metricId: resultsValue.id,
+    scope: figureScopeStamp(scope, ih.scopeToken, resultsValue.datasetFamily),
+    snapshotAt: new Date().toISOString(),
+    provenance: { runId: scope.runId },
+  };
 }

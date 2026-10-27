@@ -1,16 +1,18 @@
 export { buildFigureInputs } from "./build_figure_inputs";
 export { assertReplicantValid } from "./assert_replicant_valid";
-export { resolveFigureBundleFromMetric } from "./resolve_figure_from_metric";
-export type { MetricInputsForBundle } from "./resolve_figure_from_metric";
 export {
   makeFigureBundleFromFetchedData,
+  resolveFigureBundleFromMetric,
+} from "./resolve_figure_from_metric";
+export type {
+  FetchedPOData,
+  MetricInputsForBundle,
+} from "./resolve_figure_from_metric";
+export {
   resolveBundleFromMetricAndConfig,
   resolveFigureBundleInteractively,
 } from "./resolve_bundle_from_metric_and_config";
-export type {
-  FetchedPOData,
-  ResolveFigureResult,
-} from "./resolve_bundle_from_metric_and_config";
+export type { ResolveFigureResult } from "./resolve_bundle_from_metric_and_config";
 export {
   findStaleFiguresInLayout,
   findStaleFiguresInReport,
