@@ -10,8 +10,7 @@ import {
   type MeasuredLayoutNode,
   measureLayout,
   type MergedFreeformStyle,
-  Padding,
-  RectCoordsDims,
+  type RectCoordsDims,
   renderContainerStyle,
   type RenderContext,
   walkLayout,
@@ -21,8 +20,6 @@ import { renderItem } from "./item_renderer.ts";
 import type { FreeformPageInputs, PageContentItem } from "../../types.ts";
 
 export type MeasuredContent = {
-  rcdContentOuter: RectCoordsDims;
-  rcdContentInner: RectCoordsDims;
   mLayout: MeasuredLayoutNode<PageContentItem>;
   overflow: boolean;
   gaps: LayoutGap[];
@@ -30,23 +27,10 @@ export type MeasuredContent = {
 
 export function measureContent(
   rc: RenderContext,
-  rcdOuter: RectCoordsDims,
+  rcdContentInner: RectCoordsDims,
   inputs: FreeformPageInputs,
   s: MergedFreeformStyle,
-  headerHeight: number,
-  footerHeight: number,
 ): MeasuredContent {
-  const padContent = new Padding(s.content.padding);
-
-  const rcdContentOuter = new RectCoordsDims([
-    rcdOuter.x(),
-    rcdOuter.y() + headerHeight,
-    rcdOuter.w(),
-    rcdOuter.h() - headerHeight - footerHeight,
-  ]);
-
-  const rcdContentInner = rcdContentOuter.getPadded(padContent);
-
   const layoutStyle: LayoutStyleConfig = {
     gapX: s.content.gapX,
     gapY: s.content.gapY,
@@ -66,8 +50,6 @@ export function measureContent(
   );
 
   return {
-    rcdContentOuter,
-    rcdContentInner,
     mLayout: result.measured,
     overflow: result.overflow,
     gaps: result.gaps,
@@ -76,9 +58,9 @@ export function measureContent(
 
 export function renderContent(
   rc: RenderContext,
-  measured: MeasuredContent,
+  mLayout: MeasuredLayoutNode<PageContentItem>,
 ): void {
-  walkLayout(measured.mLayout, (node) => {
+  walkLayout(mLayout, (node) => {
     renderContainerStyle(rc, node);
     if (node.type === "item") {
       renderItem(rc, node);

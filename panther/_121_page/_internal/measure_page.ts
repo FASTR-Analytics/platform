@@ -8,13 +8,14 @@ import {
   ImageRenderer,
   type MergedSplitConfig,
   type PageBackgroundStyle,
-  RectCoordsDims,
+  type RectCoordsDims,
   type RenderContext,
 } from "../deps.ts";
 import type { MeasuredImage, MeasuredText } from "../deps.ts";
 import { measureCover } from "./cover/measure_cover.ts";
 import { measureFreeform } from "./freeform/measure_freeform.ts";
 import { measureSection } from "./section/measure_section.ts";
+import { computeSplitBounds } from "./split_bounds.ts";
 import type { MeasuredPage, PageInputs } from "../types.ts";
 
 export function measurePage(
@@ -132,84 +133,5 @@ function getSplitConfig(
       return pageStyle.getMergedSectionStyle().split;
     case "freeform":
       return pageStyle.getMergedFreeformStyle().split;
-  }
-}
-
-function computeSplitBounds(
-  fullBounds: RectCoordsDims,
-  splitConfig: MergedSplitConfig,
-): { splitBounds: RectCoordsDims; contentBounds: RectCoordsDims } {
-  const pct = splitConfig.sizeAsPct;
-  switch (splitConfig.placement) {
-    case "left": {
-      const splitW = fullBounds.w() * pct;
-      return {
-        splitBounds: new RectCoordsDims([
-          fullBounds.x(),
-          fullBounds.y(),
-          splitW,
-          fullBounds.h(),
-        ]),
-        contentBounds: new RectCoordsDims([
-          fullBounds.x() + splitW,
-          fullBounds.y(),
-          fullBounds.w() - splitW,
-          fullBounds.h(),
-        ]),
-      };
-    }
-    case "right": {
-      const splitW = fullBounds.w() * pct;
-      return {
-        splitBounds: new RectCoordsDims([
-          fullBounds.x() + fullBounds.w() - splitW,
-          fullBounds.y(),
-          splitW,
-          fullBounds.h(),
-        ]),
-        contentBounds: new RectCoordsDims([
-          fullBounds.x(),
-          fullBounds.y(),
-          fullBounds.w() - splitW,
-          fullBounds.h(),
-        ]),
-      };
-    }
-    case "top": {
-      const splitH = fullBounds.h() * pct;
-      return {
-        splitBounds: new RectCoordsDims([
-          fullBounds.x(),
-          fullBounds.y(),
-          fullBounds.w(),
-          splitH,
-        ]),
-        contentBounds: new RectCoordsDims([
-          fullBounds.x(),
-          fullBounds.y() + splitH,
-          fullBounds.w(),
-          fullBounds.h() - splitH,
-        ]),
-      };
-    }
-    case "bottom": {
-      const splitH = fullBounds.h() * pct;
-      return {
-        splitBounds: new RectCoordsDims([
-          fullBounds.x(),
-          fullBounds.y() + fullBounds.h() - splitH,
-          fullBounds.w(),
-          splitH,
-        ]),
-        contentBounds: new RectCoordsDims([
-          fullBounds.x(),
-          fullBounds.y(),
-          fullBounds.w(),
-          fullBounds.h() - splitH,
-        ]),
-      };
-    }
-    case "none":
-      throw new Error("computeSplitBounds called with placement 'none'");
   }
 }

@@ -12,7 +12,11 @@ import {
   type RenderContext,
 } from "../../deps.ts";
 import { RectCoordsDims as RCD } from "../../deps.ts";
-import type { FreeformPageInputs, PagePrimitive } from "../../types.ts";
+import type {
+  FreeformPageInputs,
+  HeaderFooterInputs,
+  PagePrimitive,
+} from "../../types.ts";
 
 export type MeasuredFooter = {
   mFooter?: MeasuredText;
@@ -23,7 +27,7 @@ export type MeasuredFooter = {
 export function measureFooter(
   rc: RenderContext,
   rcdOuter: RectCoordsDims,
-  inputs: FreeformPageInputs,
+  inputs: HeaderFooterInputs,
   s: MergedFreeformStyle,
 ): MeasuredFooter | undefined {
   if (

@@ -11,8 +11,9 @@ import type {
   RenderContext,
 } from "../../deps.ts";
 import { measureContent } from "./content.ts";
-import { buildFooterPrimitives, measureFooter } from "./footer.ts";
-import { buildHeaderPrimitives, measureHeader } from "./header.ts";
+import { measureContentBox } from "./content_box.ts";
+import { buildFooterPrimitives, type MeasuredFooter } from "./footer.ts";
+import { buildHeaderPrimitives, type MeasuredHeader } from "./header.ts";
 import type {
   FreeformPageInputs,
   MeasuredFreeformPage,
@@ -28,23 +29,14 @@ export function measureFreeform(
   measuredSplitImage: MeasuredImage | undefined,
   mWatermark: MeasuredText | undefined,
 ): MeasuredFreeformPage {
-  // Measure header
-  const header = measureHeader(rc, rcdOuter, inputs, style);
-
-  // Measure footer
-  const footer = measureFooter(rc, rcdOuter, inputs, style);
-
-  // Measure content (needs to know header and footer heights)
-  const content = measureContent(
-    rc,
-    rcdOuter,
+  const box = measureContentBox(rc, rcdOuter, inputs, style);
+  const content = measureContent(rc, box.rcdContentInner, inputs, style);
+  const primitives = buildFreeformPrimitives(
+    box.header,
+    box.footer,
     inputs,
     style,
-    header?.rcdHeaderOuter.h() ?? 0,
-    footer?.rcdFooterOuter.h() ?? 0,
   );
-
-  const primitives = buildFreeformPrimitives(header, footer, inputs, style);
 
   return {
     type: "freeform",
@@ -56,18 +48,18 @@ export function measureFreeform(
     measuredSplitImage,
     mWatermark,
     primitives,
-    header,
-    footer,
-    rcdContentOuter: content.rcdContentOuter,
-    rcdContentInner: content.rcdContentInner,
+    header: box.header,
+    footer: box.footer,
+    rcdContentOuter: box.rcdContentOuter,
+    rcdContentInner: box.rcdContentInner,
     mLayout: content.mLayout,
     gaps: content.gaps,
   };
 }
 
 function buildFreeformPrimitives(
-  header: ReturnType<typeof measureHeader>,
-  footer: ReturnType<typeof measureFooter>,
+  header: MeasuredHeader | undefined,
+  footer: MeasuredFooter | undefined,
   inputs: FreeformPageInputs,
   s: MergedFreeformStyle,
 ): PagePrimitive[] {
