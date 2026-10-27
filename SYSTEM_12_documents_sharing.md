@@ -491,12 +491,15 @@ bundle's area, else "An earlier scope definition". `packageScopeCaption` and
 else; the name lives on `products`, and `updateSlideDeckConfig` stamps without a
 label so a config write can never rename the deck) + one row per slide (JSON
 `config` = one `Slide`, integer `sort_order`; FK cascade on product delete).
-Slide ids are short nanoids, instance-wide unique. `getSlideDeckDetail` returns
-only ordered `slideIds`; slide bodies fetch per-slide through `_SLIDE_CACHE`
-(`state/products/t2_slides.ts`, versioned by `lastUpdated.slides[id]`). Sort
-orders are **gap-numbered** (append = max+10, insert = target±5) with
-`reSequence` (`ROW_NUMBER()*10`) run inside the create/delete/duplicate
-transactions; `moveSlides`
+Slide ids are short nanoids, unique over the live rows only
+(`generateUniqueSlideId` checks the `slides` table, so a deleted id can be
+re-minted), which is why `_SLIDE_CACHE` is keyed by `(productId,
+slideId)`.
+`getSlideDeckDetail` returns only ordered `slideIds`; slide bodies fetch
+per-slide through `_SLIDE_CACHE` (`state/products/t2_slides.ts`, versioned by
+`lastUpdated.slides[id]`). Sort orders are **gap-numbered** (append = max+10,
+insert = target±5) with `reSequence` (`ROW_NUMBER()*10`) run inside the
+create/delete/duplicate transactions; `moveSlides`
 ([db/products/move_slides.ts](server/db/products/move_slides.ts)) is
 **within-deck reorder only**; `copySlidesToSlideDeck` is the cross-deck reuse
 path.

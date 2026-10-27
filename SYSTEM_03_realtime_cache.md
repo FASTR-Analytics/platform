@@ -136,15 +136,17 @@ as `products_deleted` and remembered as withdrawn; a row neither visible nor
 held is dropped. A withdrawn product that becomes visible again ends the stream,
 because its slide stamps were withheld while it was hidden; the reconnect's
 `starting` carries fresh ones. A product the connection never held arrives as an
-ordinary upsert, since the client holds no stamps for it. A `last_updated`
-passes when its deck (`productId`) is held. For a restricted connection
-`scopes_updated` is cut to the granted scopes. For every connection that is not
-a global admin the folder list is recomputed from what it holds on every product
-or folder message and sent as `folders_updated` when it changes. A restricted
-user's stored data bits never open the generation stream. A `users_updated` that
-changes the connection's own scope access or admin flag ends the stream after
-forwarding it; the client reconnects and the new `starting` is built under the
-new access. The filter and `restrictProductPlane` are pinned by
+ordinary upsert; the client holds no stamps for it, except for a slide id
+re-minted there, which the `(productId, slideId)` cache key handles (see "A
+stamp is for a row that still exists"). A `last_updated` passes when its deck
+(`productId`) is held. For a restricted connection `scopes_updated` is cut to
+the granted scopes. For every connection that is not a global admin the folder
+list is recomputed from what it holds on every product or folder message and
+sent as `folders_updated` when it changes. A restricted user's stored data bits
+never open the generation stream. A `users_updated` that changes the
+connection's own scope access or admin flag ends the stream after forwarding it;
+the client reconnects and the new `starting` is built under the new access. The
+filter and `restrictProductPlane` are pinned by
 `server/tests/instance_sse_filter_test.ts`. No other message on the channel is
 filtered per user.
 
@@ -250,13 +252,15 @@ message. Both key the products T2 caches the editors read.
 The two writes that remove slides from a deck that SURVIVES stamp nothing for
 what they removed: the slide delete route names none of its `deletedIds`, and
 the version restore names only `plan.toInsert` and `plan.toUpdate`, never
-`plan.toDelete`. A deck delete removes its slides too and stamps nothing for
-them either (`deleteProducts`). Both removals still reach every client, on
-`products_upserted`, in the deck summary's shrunken `slideIds`, and any editor
-open on a removed slide is told by `closeSlideRoom`. Stamping a deleted id
-instead made every client holding the deck fetch each removed slide and take a
-404, because the rail still listed the id until the separate `products_upserted`
-landed, and it put a false "edited slide" line in the copilot's digest.
+`plan.toDelete`. Both removals still reach every client, on `products_upserted`,
+in the deck summary's shrunken `slideIds`, and any editor open on a removed
+slide is told by `closeSlideRoom`. A deck delete removes its slides too and
+stamps nothing for them either (`deleteProducts`); it reaches clients as
+`products_deleted`, with no surviving summary to shrink, and `closeSlideRoom`
+tells every editor open on one of its slides. Stamping a deleted id instead made
+every client holding the deck fetch each removed slide and take a 404, because
+the rail still listed the id until the separate `products_upserted` landed, and
+it put a false "edited slide" line in the copilot's digest.
 
 Re-minting an id after a delete is safe without the stamp, but not because the
 stamp is absent. Ids are unique over the LIVE rows only, so a removed id can
