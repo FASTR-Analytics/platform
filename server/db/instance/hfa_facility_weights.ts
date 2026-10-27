@@ -25,7 +25,12 @@ import { tryCatchDatabaseAsync } from "../utils.ts";
 // Keep batches well under Postgres's 65,534-parameter limit (4 params per row)
 const UPSERT_BATCH_SIZE = 5000;
 
-const UNKNOWN_FACILITY_SAMPLE_SIZE = 10;
+const ID_SAMPLE_SIZE = 10;
+const REGISTRY_EXAMPLE_SIZE = 3;
+
+function idSample(ids: Iterable<string>): string {
+  return [...ids].slice(0, ID_SAMPLE_SIZE).join(", ");
+}
 
 export async function getHfaWeightsCoverage(
   mainDb: Sql,
@@ -218,7 +223,7 @@ export async function importHfaFacilityWeights(
       stratum: string | null;
     }[] = [];
     const seenFacilities = new Set<string>();
-    const duplicateFacilities = new Set<string>();
+    const repeatedFacilities = new Set<string>();
     const invalidWeights: string[] = [];
     let rowsSkippedNoWeight = 0;
 
@@ -226,7 +231,7 @@ export async function importHfaFacilityWeights(
       const facilityId = row[facilityIdIndex]?.trim() ?? "";
       if (!facilityId) return;
       if (seenFacilities.has(facilityId)) {
-        duplicateFacilities.add(facilityId);
+        repeatedFacilities.add(facilityId);
         return;
       }
       seenFacilities.add(facilityId);
@@ -252,6 +257,8 @@ export async function importHfaFacilityWeights(
       });
     });
 
+    // The weight checks run before the facility-id checks: the two columns
+    // are independent, and the unknown-id message counts usable rows.
     if (invalidWeights.length > 0) {
       return {
         success: false,
@@ -259,13 +266,6 @@ export async function importHfaFacilityWeights(
           `${invalidWeights.length} cell(s) are invalid (weight must be a positive number, or blank for not-in-sample). First examples: ${
             invalidWeights.slice(0, 5).join("; ")
           }`,
-      };
-    }
-    if (duplicateFacilities.size > 0) {
-      return {
-        success: false,
-        err:
-          `${duplicateFacilities.size} facility ID(s) appear more than once in the CSV.`,
       };
     }
     if (rows.length === 0) {
@@ -281,25 +281,39 @@ export async function importHfaFacilityWeights(
       async (
         sql: Sql,
       ): Promise<APIResponseWithData<HfaFacilityWeightsImportResult>> => {
-        // Existence check inside the write transaction, so a facility deleted
-        // between check and insert is skipped, not a raw FK error
-        const knownFacilities = new Set(
-          (await sql<
-            { facility_id: string }[]
-          >`SELECT facility_id FROM facilities_hfa`)
-            .map((r) => r.facility_id),
-        );
+        const registryIds = (await sql<{ facility_id: string }[]>`
+          SELECT facility_id FROM facilities_hfa ORDER BY facility_id
+        `).map((r) => r.facility_id);
+        const knownFacilities = new Set(registryIds);
         const knownRows = rows.filter((r) =>
           knownFacilities.has(r.facility_id)
         );
         const unknownFacilities = rows
           .filter((r) => !knownFacilities.has(r.facility_id))
           .map((r) => r.facility_id);
+        // A wrong facility ID column shows up here, as every id unknown, so
+        // the message names the column and shows both sides' ids.
         if (knownRows.length === 0) {
           return {
             success: false,
+            err: registryIds.length === 0
+              ? "There are no HFA facilities yet, so no weight can be stored. HFA facilities are created by each time point's data import: import the time point's data first, then its weights."
+              : `None of the ${rows.length} facility ID(s) with a weight in "${facilityIdColumn}" is an HFA facility. The file's first IDs: ${
+                idSample(unknownFacilities)
+              }. HFA facility IDs look like: ${
+                registryIds.slice(0, REGISTRY_EXAMPLE_SIZE).join(", ")
+              }. Check that the facility ID column is right, or import the time point's data first if this round's facilities are not imported yet.`,
+          };
+        }
+        if (repeatedFacilities.size > 0) {
+          return {
+            success: false,
             err:
-              `None of the ${rows.length} facility ID(s) with a weight is an HFA facility. HFA facilities are created by each time point's data import: import the time point's data first, then its weights.`,
+              `${repeatedFacilities.size} facility ID(s) appear more than once in the CSV${
+                repeatedFacilities.size > ID_SAMPLE_SIZE
+                  ? ` (first ${ID_SAMPLE_SIZE} shown)`
+                  : ""
+              }: ${idSample(repeatedFacilities)}.`,
           };
         }
 
@@ -327,7 +341,7 @@ export async function importHfaFacilityWeights(
             rowsSkippedNoWeight,
             facilitiesNotInRegistry: {
               count: unknownFacilities.length,
-              sample: unknownFacilities.slice(0, UNKNOWN_FACILITY_SAMPLE_SIZE),
+              sample: unknownFacilities.slice(0, ID_SAMPLE_SIZE),
             },
             timePointsCovered: [timePoint],
             strata: stratumIndex === undefined ? undefined : {

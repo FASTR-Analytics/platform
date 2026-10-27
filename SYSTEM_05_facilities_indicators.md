@@ -57,6 +57,7 @@ globs:
   - server/tests/dhis2_id_fix_execute_test.ts
   - server/tests/dhis2_id_fix_plan_test.ts
   - server/tests/hfa_code_migration_test.ts
+  - server/tests/hfa_facility_weights_import_test.ts
   - server/tests/hfa_indicator_code_test.ts
   - server/tests/hfa_r_emit_test.ts
   - server/tests/hfa_workbook_text_columns_test.ts
@@ -266,13 +267,25 @@ text, NULL when the cell is blank or no stratum column was mapped (a CHECK
 rejects the empty string). The strata are stored and shown only: the run extract
 carries `weight` and not the stratum, so no module reads them. The export is
 wide: one column per time point, plus a `<label> stratum` column after each time
-point that holds any stratum. Duplicates and non-positive weights reject the
-whole file before the transaction. Inside it, a weighted facility id the HFA
-registry lacks is skipped and reported (`facilitiesNotInRegistry`: the count and
-the first 10 ids, in file order); the import refuses, before any write, only
-when none of the weighted ids is in the registry, and the message says to import
-the time point's data first. The wizard's upload step names that order, and its
-result lists the skipped ids.
+point that holds any stratum. The import's checks run in one order, every one
+before any write, and the wizard shows the server's message verbatim: a weight
+that is not a positive number refuses, naming the first five `id: value` pairs;
+a file with no usable weight (blank cells only, or no data rows) refuses; then,
+inside the write transaction, the registry is read once, sorted by facility id,
+and when none of the weighted ids is in it the import refuses naming the
+facility ID column as the wizard shows it (`Col N: header`), the file's first 10
+ids and the registry's first 3, and says to check the column or import the time
+point's data first (with an empty registry, only to import the data first),
+because a wrong facility ID column shows up as every id unknown; then a facility
+id on more than one row refuses, naming the first 10 repeated ids. The weight
+checks run before the id checks because the two columns are independent and the
+unknown-id message counts usable rows (a non-blank id, seen for the first time,
+with a positive weight). A weighted facility id the registry lacks, when others
+are known, is skipped and reported (`facilitiesNotInRegistry`: the count and the
+first 10 ids, in file order). The wizard's upload step names the
+data-then-weights order, and its result lists the skipped ids. Pinned by
+`server/tests/hfa_facility_weights_import_test.ts` on a throwaway database; the
+partial-unknown case by `server/tests/hfa_round_reimport_test.ts`.
 
 **`structure_last_updated`** (JSON ISO timestamp in `instance_config`) is the
 version key for the whole structure world: S6's HMIS/HFA captures record it in
