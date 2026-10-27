@@ -669,11 +669,6 @@ ${FASTR_MD_SYNTAX_DOC}`,
         propose: async (input, view) => {
           const ctx = view.context;
           liveFigureOrRefuse(ctx, input.figureId);
-          const figureBlock = await resolveFigureFromMetric(
-            view.context.getScope(),
-            input.figure,
-            metrics,
-          );
           const newId = crypto.randomUUID();
           const overrideCaption = input.caption !== undefined
             ? input.caption.replace(/\s+/g, " ").trim()
@@ -696,16 +691,25 @@ ${FASTR_MD_SYNTAX_DOC}`,
                 { id: newId, caption: overrideCaption },
               ),
           );
+          // Before the figure is resolved, which costs a package query: whether
+          // the body can be rewritten depends only on the body and the id.
           // Liveness is what the DOCUMENT resolves (reportLiveFigures), while
-          // this rewrite is the canonical token's: a figure embedded as a
+          // this rewrite is the canonical token's, so a figure embedded as a
           // titled, reference or angle-bracket destination is live and not
-          // rewritable here, and without this the body comes back unchanged
-          // and the model hears only "IDENTICAL to the current body".
+          // rewritable here. Without this the body comes back unchanged and the
+          // model hears only "IDENTICAL to the current body".
           if (swapped.count === 0) {
             throw new AIToolFailure(
-              `Figure "${input.figureId}" is embedded in a form this tool cannot rewrite (not \`![caption](figure:<id>)\`). Change the figure in place with update_report_figure, or rewrite that embed as a token with replace_text first.`,
+              `Figure "${input.figureId}" is embedded in a form this tool cannot rewrite (not the plain \`![caption](figure:<id>)\` token). Rewrite that embed as \`${
+                buildReportEmbedToken("figure", input.figureId, "<caption>")
+              }\` with replace_text, then call replace_figure again. update_report_figure works on the embed as it stands, but only for this figure's config (replicant, filters, period, captions): it cannot change the metric or chart type.`,
             );
           }
+          const figureBlock = await resolveFigureFromMetric(
+            view.context.getScope(),
+            input.figure,
+            metrics,
+          );
           const embedCount = swapped.count;
           const newBody = swapped.body;
           validateReportBodyLength(newBody);
