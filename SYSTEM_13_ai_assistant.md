@@ -1242,7 +1242,11 @@ Remaining:
   so a figure-heavy slide is optimized to fit and then squeezed on the canvas,
   and the overflow the AI slide writes report misses exactly those slides. The
   page optimizer measuring the page's own header and footer is the fix, and it
-  is panther's to make.
+  is panther's to make. The same file also optimizes items it builds itself (a
+  text block as a bare `{ markdown }`) while the render builds them through
+  `convertBlockToPageContentItem` with the deck's font and size, so text is
+  measured at panther's default size; one builder has to serve both before the
+  two verdicts can agree.
 - **[MED] Documents never invalidate on asset replace**: the per-browser
   IndexedDB `{assetFilename, anthropicFileId}` pairing keeps serving the old
   Anthropic file after the underlying instance asset is replaced.
