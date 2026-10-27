@@ -1,4 +1,5 @@
 import type {
+  DatasetType,
   FigureBundle,
   ItemsHolderPresentationObject,
   MetricWithStatus,
@@ -10,12 +11,18 @@ import { getFetchConfigFromPresentationObjectConfig, t3 } from "lib";
 import { AIToolFailure } from "panther";
 import { unwrap } from "solid-js/store";
 import { assertReplicantValid } from "./assert_replicant_valid";
+import { buildFigureInputs } from "./build_figure_inputs";
 import { getAdminAreaLevelFromMapConfig } from "./get_admin_area_level_from_config";
 import { resolveFigureBundleFromMetric } from "./resolve_figure_from_metric";
-import { geoJsonFamilyFor, getGeoJsonSync } from "~/state/instance/t2_geojson";
+import {
+  geoJsonFamilyFor,
+  getGeoJsonSync,
+  preloadGeoJson,
+} from "~/state/instance/t2_geojson";
 import {
   figureScopeStamp,
   getSnapshotInstanceLocalization,
+  getSnapshotInstanceState,
 } from "~/state/instance/t1_store";
 import { getPresentationObjectItemsFromCacheOrFetch } from "~/state/products/t2_figure_data";
 
@@ -65,8 +72,9 @@ export async function resolveBundleFromMetricAndConfig(
 
   // Strict replicant validation (shared with the from_visualization AI path).
   await assertReplicantValid(scope, metric, config);
+  await assertMapBoundariesAvailable(metric.datasetFamily, config);
 
-  return resolveFigureBundleFromMetric(
+  const bundle = await resolveFigureBundleFromMetric(
     scope,
     {
       metricId: metric.id,
@@ -81,6 +89,61 @@ export async function resolveBundleFromMetricAndConfig(
     },
     config,
   );
+  assertBundleRenders(bundle);
+  return bundle;
+}
+
+// A map draws the boundary file the instance holds for the figure's registry
+// at the figure's level. The sync cache is empty until the preload lands, so
+// the instance's map list decides, and a listed file is awaited into the
+// cache so the bundle embeds its geometry.
+async function assertMapBoundariesAvailable(
+  datasetFamily: DatasetType | undefined,
+  config: PresentationObjectConfig,
+): Promise<void> {
+  const level = getAdminAreaLevelFromMapConfig(config);
+  if (level === undefined) return;
+  const family = geoJsonFamilyFor(datasetFamily);
+  const maps = getSnapshotInstanceState().geojsonMaps.filter((m) =>
+    m.family === family
+  );
+  const map = maps.find((m) => m.adminAreaLevel === level);
+  const registry = family.toUpperCase();
+  if (map === undefined) {
+    const levels = maps
+      .map((m) => m.adminAreaLevel)
+      .toSorted((a, b) => a - b)
+      .map((l) => `admin_area_${l}`);
+    throw new AIToolFailure(
+      `No boundary map file is uploaded for the ${registry} registry at admin_area_${level}, so this map cannot render. ` +
+        (levels.length > 0
+          ? `Map files exist at ${
+            levels.join(", ")
+          }: use one of those levels, or a table.`
+          : "This registry has no map files: use a table."),
+    );
+  }
+  await preloadGeoJson([map]);
+  if (getGeoJsonSync(family, level) === undefined) {
+    throw new AIToolFailure(
+      `The ${registry} boundary map at admin_area_${level} could not be loaded, so this map cannot render.`,
+    );
+  }
+}
+
+// The renderer's own derivation, run before the commit: a bundle it rejects
+// would otherwise be stored, shown as "could not be displayed", and reported
+// as a success.
+function assertBundleRenders(bundle: FigureBundle): void {
+  try {
+    buildFigureInputs(bundle);
+  } catch (e) {
+    throw new AIToolFailure(
+      `The figure cannot be rendered: ${
+        e instanceof Error ? e.message : String(e)
+      } No changes were applied.`,
+    );
+  }
 }
 
 // The human counterpart of the resolver above: a stale figure's "Update to
