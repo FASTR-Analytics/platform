@@ -7,6 +7,8 @@ import {
   caseHint,
   findNonPeriod,
   foldName,
+  isOutsideSafeRange,
+  LongTableValidationError,
   validateLongTableSchema,
 } from "./deps.ts";
 import type {
@@ -18,6 +20,7 @@ import {
   createInstance,
   describeStatement,
   parentDirectory,
+  readIntegerBounds,
   readParquet,
   readTimeValues,
   validateParquetPath,
@@ -76,6 +79,7 @@ export async function openLongTable(
     await connection.run(
       createViewSql(resolved, resolveColumns(schema, sources)),
     );
+    await checkIntegerRange(connection, schema, sources);
     await checkTimeColumn(connection, schema);
     // Nothing the open set may be changed afterwards: without this a holder
     // of the connection could raise the memory limit or the thread count.
@@ -108,6 +112,45 @@ function closeQuietly(
     instance.closeSync();
   } catch {
     // dropped: see above
+  }
+}
+
+// Only BIGINT and UBIGINT can hold an integer a JSON cell cannot carry; every
+// narrower type fits. A declared-integer column is read as a number, so such
+// a cell would be a silent rounding of an id: the file is refused here
+// instead, once, and the caller is told to declare the column text.
+// `describeLongTable` describes such a column as text, so an inferred schema
+// never reaches this.
+const WIDE_INTEGER_TYPES = new Set(["BIGINT", "UBIGINT"]);
+
+async function checkIntegerRange(
+  connection: DuckDBConnection,
+  schema: LongTableSchema,
+  sources: Map<string, ColumnSource>,
+): Promise<void> {
+  const wide = schema.columns
+    .filter((c) =>
+      c.type === "integer" &&
+      WIDE_INTEGER_TYPES.has(
+        (sources.get(foldName(c.name))?.rawType ?? "").toUpperCase(),
+      )
+    )
+    .map((c) => c.name);
+  if (wide.length === 0) {
+    return;
+  }
+  const bounds = await readIntegerBounds(
+    connection,
+    wide,
+    quoteIdentifier(LONG_TABLE_VIEW),
+  );
+  for (const column of wide) {
+    const bad = bounds.get(column)?.find(isOutsideSafeRange);
+    if (bad !== undefined) {
+      throw new LongTableValidationError(
+        `Column "${column}" is declared integer but holds ${bad}, outside the safe integer range; declare it text`,
+      );
+    }
   }
 }
 

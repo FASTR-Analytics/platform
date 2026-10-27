@@ -21,6 +21,7 @@ export {
   getValueOutputName,
   inferLongTableSchema,
   isIngredientOnly,
+  isOutsideSafeRange,
   LongTableValidationError,
   normalizeLongTableQuery,
   parseExpression,
@@ -29,6 +30,7 @@ export {
   SAMPLE_N_PREFIX,
   TIME_VALUES_LIMIT,
   toLongTableCell,
+  validateColumnName,
   validateLongTableQuery,
   validateLongTableSchema,
 } from "../_014_long_table/mod.ts";

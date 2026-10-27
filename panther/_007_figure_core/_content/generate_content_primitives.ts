@@ -54,10 +54,25 @@ export type ContentPrimitiveGenerationParams = {
   dataLabelsTextStyle: TextInfoUnkeyed;
   boundsUbSeriesVals?: (number | undefined)[][];
   boundsLbSeriesVals?: (number | undefined)[][];
-  // Unbalanced indicator membership: global storage index → position ordinal
-  // within this pane's visible subset. Omitted = balanced (identity).
-  positionOrdinals?: (number | undefined)[];
+  // This unit's slot order: the global indicator index at each slot.
+  slotOrder: number[];
 };
+
+// The inverse of slotOrder: global storage index → position ordinal, undefined
+// for an indicator this unit does not show.
+function buildPositionOrdinals(
+  slotOrder: number[],
+  nVals: number,
+): (number | undefined)[] {
+  const ordinals: (number | undefined)[] = Array.from(
+    { length: nVals },
+    () => undefined,
+  );
+  slotOrder.forEach((globalIdx, ordinal) => {
+    ordinals[globalIdx] = ordinal;
+  });
+  return ordinals;
+}
 
 export function generateContentPrimitives(
   params: ContentPrimitiveGenerationParams,
@@ -76,7 +91,10 @@ export function generateContentPrimitives(
     orientation,
     transformedData: d,
     contentStyle: s,
+    slotOrder,
   } = params;
+
+  const positionOrdinals = buildPositionOrdinals(slotOrder, nVals);
 
   const mapped = calculateMappedCoordinates(
     seriesVals,
@@ -87,7 +105,7 @@ export function generateContentPrimitives(
     valueRange,
     valueClearance,
     orientation,
-    params.positionOrdinals,
+    positionOrdinals,
   );
 
   const nSeries = mapped.length;
@@ -102,7 +120,7 @@ export function generateContentPrimitives(
       valueRange,
       valueClearance,
       orientation,
-      params.positionOrdinals,
+      positionOrdinals,
     )
     : undefined;
 
@@ -116,7 +134,7 @@ export function generateContentPrimitives(
       valueRange,
       valueClearance,
       orientation,
-      params.positionOrdinals,
+      positionOrdinals,
     )
     : undefined;
 
@@ -125,6 +143,7 @@ export function generateContentPrimitives(
     subChartRcd,
     subChartInfo,
     nVals,
+    slotOrder,
     nSeries,
     orientation,
     categoryIncrement,

@@ -41,8 +41,9 @@ export function measureXAxis(
   gridStyle: MergedGridStyle,
   i_pane: number,
   laneCount: number,
-  // This pane's visible indicator subset (unbalanced membership); text axis
-  // only. See measureXTextAxis for the extent/layout split.
+  // This pane's indicator order (a subset under unbalanced membership, a
+  // permutation under a value sort); text axis only. See measureXTextAxis for
+  // the extent/layout split.
   visibleIndicatorHeaders?: HeaderItem[],
   // Proportional band layout: the uniform slot width (slotT); text axis only.
   proportionalSlotWidth?: number,

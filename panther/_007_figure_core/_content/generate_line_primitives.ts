@@ -38,7 +38,7 @@ export function generateLinePrimitives(
     (_, i) => buildSeriesInfo(ctx, i, mapped),
   );
 
-  for (let i_val = 0; i_val < ctx.nVals; i_val++) {
+  for (const i_val of ctx.slotOrder) {
     for (let i_series = 0; i_series < ctx.nSeries; i_series++) {
       const mappedVal = mapped[i_series][i_val];
 
@@ -81,14 +81,7 @@ export function generateLinePrimitives(
 
       if (labelOwner[i_series][i_val] === "lines") {
         const dl = lineStyle.dataLabel;
-        const valueInfo = buildValueInfo(
-          seriesInfo,
-          mappedVal.val,
-          i_val,
-          ctx.valueRange.minVal,
-          ctx.valueRange.maxVal,
-          ctx.indicatorHeaders?.[i_val],
-        );
+        const valueInfo = buildValueInfo(ctx, seriesInfo, mappedVal.val, i_val);
         const labelStr = s.lines.textFormatter !== "none"
           ? s.lines.textFormatter(valueInfo)
           : String(mappedVal.val);

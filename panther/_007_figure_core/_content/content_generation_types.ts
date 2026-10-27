@@ -57,6 +57,10 @@ export type ContentGenerationContext = {
     laneHeader: HeaderItem;
   };
   nVals: number;
+  // This unit's slot order: the global indicator index at each slot. The
+  // identity when the chart is balanced and unsorted; a subset under
+  // unbalanced membership; a permutation under a value sort.
+  slotOrder: number[];
   nSeries: number;
   orientation: "vertical" | "horizontal";
   categoryIncrement: number;
@@ -90,21 +94,19 @@ export function buildSeriesInfo(
 }
 
 export function buildValueInfo(
+  ctx: ContentGenerationContext,
   seriesInfo: ChartSeriesInfo,
   val: number,
   i_val: number,
-  valueMin: number,
-  valueMax: number,
-  indicatorHeader: HeaderItem | undefined,
 ): ChartValueInfo {
   return {
     ...seriesInfo,
     val,
     i_val,
-    isFirstVal: i_val === 0,
-    isLastVal: i_val === seriesInfo.nVals - 1,
-    valueMin,
-    valueMax,
-    indicatorHeader,
+    isFirstVal: i_val === ctx.slotOrder[0],
+    isLastVal: i_val === ctx.slotOrder[ctx.slotOrder.length - 1],
+    valueMin: ctx.valueRange.minVal,
+    valueMax: ctx.valueRange.maxVal,
+    indicatorHeader: ctx.indicatorHeaders?.[i_val],
   };
 }

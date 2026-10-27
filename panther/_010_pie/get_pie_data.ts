@@ -57,8 +57,8 @@ function transformPieData(d: PieDataJson): PieDataTransformed {
     collectHeaders(jsonArray, seriesProp, valueProps),
     labelReplacements,
   );
-  // sortSeriesValues reorders by data, so a configured header sort would be
-  // overwritten — skip it, mirroring ChartOV's sortIndicatorValues.
+  // sortSeriesValues reorders the global slice order by data, so a configured
+  // header sort would be overwritten — skip it.
   const seriesHeaders = sortSeriesValues && sortSeriesValues !== "none"
     ? seriesHeadersRaw
     : sortHeaderItems(seriesHeadersRaw, sort?.series);

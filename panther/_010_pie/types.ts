@@ -54,9 +54,9 @@ export type PieJsonDataConfig = {
   };
   // Reorders the GLOBAL series axis by each series' summed value across every
   // cell. Named after the axis it reorders, like sortIndicatorValues on
-  // ChartOV — but keyed on global sums rather than one reference cell, because
-  // a pie has no "first series" to key on. Global order keeps one legend and a
-  // stable color identity; per-cell orders would break both.
+  // ChartOV — but global where ChartOV's is per pane, because slices are the
+  // series axis: global order keeps one legend and a stable color identity;
+  // per-cell orders would break both.
   sortSeriesValues?: "ascending" | "descending" | "none";
   // Collapses every series whose share of the GLOBAL sum across every cell is
   // below `threshold` into one synthetic slice (id "--other", display label

@@ -28,14 +28,7 @@ export function resolveDataLabelOwnership(
         continue;
       }
 
-      const valueInfo = buildValueInfo(
-        seriesInfo,
-        val,
-        i_val,
-        ctx.valueRange.minVal,
-        ctx.valueRange.maxVal,
-        ctx.indicatorHeaders?.[i_val],
-      );
+      const valueInfo = buildValueInfo(ctx, seriesInfo, val, i_val);
 
       const pointStyle = s.points.getStyle(valueInfo);
       if (pointStyle.show && pointStyle.dataLabel.show) {

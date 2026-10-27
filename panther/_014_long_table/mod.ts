@@ -51,6 +51,7 @@ export {
   inferLongTableSchema,
   resolveDimension,
   TIME_VALUES_LIMIT,
+  validateColumnName,
   validateLongTableSchema,
 } from "./schema.ts";
 export {
@@ -87,5 +88,5 @@ export type {
 export { evaluateExpression } from "./_expression/evaluate.ts";
 export type { ExpressionValues } from "./_expression/evaluate.ts";
 export { resolvePeriodFilter } from "./period_filter.ts";
-export { toLongTableCell } from "./cell.ts";
+export { isOutsideSafeRange, toLongTableCell } from "./cell.ts";
 export { compareOptionValues } from "./sort.ts";

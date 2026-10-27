@@ -67,6 +67,7 @@ export function measureDataLabelEndClearance(p: {
   startClearance: number;
   categoryIncrement: number;
   nVals: number;
+  slotOrder: number[];
   subChartInfo: ContentGenerationContext["subChartInfo"];
   seriesHeaders: HeaderItem[];
   indicatorHeaders?: HeaderItem[];
@@ -84,6 +85,7 @@ export function measureDataLabelEndClearance(p: {
     subChartRcd: new RectCoordsDims({ x: 0, y: 0, w: 0, h: 0 }),
     subChartInfo: p.subChartInfo,
     nVals: p.nVals,
+    slotOrder: p.slotOrder,
     nSeries: p.seriesVals.length,
     orientation: p.orientation,
     categoryIncrement: p.categoryIncrement,
@@ -129,14 +131,7 @@ export function measureDataLabelEndClearance(p: {
       }
 
       const seriesInfo = seriesInfos[i_series];
-      const valueInfo = buildValueInfo(
-        seriesInfo,
-        val,
-        i_val,
-        minVal,
-        maxVal,
-        p.indicatorHeaders?.[i_val],
-      );
+      const valueInfo = buildValueInfo(ctx, seriesInfo, val, i_val);
 
       if (owner === "points") {
         const pointStyle = s.points.getStyle(valueInfo);

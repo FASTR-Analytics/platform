@@ -126,7 +126,14 @@ export type DerivedDimension =
 
 export type DescribedColumn = {
   name: string;
-  type: LongTableColumnType | "boolean" | "date" | "timestamp" | "unsupported";
+  type:
+    | LongTableColumnType
+    | "boolean"
+    | "date"
+    | "timestamp"
+    | "time"
+    | "uuid"
+    | "unsupported";
   rawType: string;
   sample?: (string | number)[];
 };

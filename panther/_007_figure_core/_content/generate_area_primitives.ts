@@ -62,7 +62,7 @@ export function generateAreaPrimitives(
     }
   > = new Map();
 
-  for (let i_val = 0; i_val < ctx.nVals; i_val++) {
+  for (const i_val of ctx.slotOrder) {
     for (let i_series = 0; i_series < ctx.nSeries; i_series++) {
       const mappedVal = mapped[i_series][i_val];
       if (mappedVal === undefined) continue;
@@ -226,7 +226,7 @@ function generateDiffPairPrimitives(
   let prevMappedValA: MappedValueCoordinate | undefined = undefined;
   let prevMappedValB: MappedValueCoordinate | undefined = undefined;
 
-  for (let i_val = 0; i_val < seriesA.length; i_val++) {
+  for (const i_val of ctx.slotOrder) {
     const mappedValA = seriesA[i_val];
     const mappedValB = seriesB[i_val];
     if (mappedValA === undefined || mappedValB === undefined) {

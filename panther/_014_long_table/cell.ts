@@ -20,10 +20,7 @@ export function toLongTableCell(
     return Number.isFinite(value) ? value : null;
   }
   if (typeof value === "bigint") {
-    if (
-      value > BigInt(Number.MAX_SAFE_INTEGER) ||
-      value < BigInt(Number.MIN_SAFE_INTEGER)
-    ) {
+    if (isOutsideSafeRange(value)) {
       throw new Error(
         `Column "${column}" holds ${value}, outside the safe integer range`,
       );
@@ -35,6 +32,14 @@ export function toLongTableCell(
     return Number.isFinite(n) ? n : null;
   }
   throw new Error(`Column "${column}" holds an unsupported ${describe(value)}`);
+}
+
+// A value a JSON cell cannot carry exactly. The engine checks the bounds of
+// a declared-integer column at open and describes an integer column past them
+// as text, so a read never reaches the throw above.
+export function isOutsideSafeRange(value: bigint): boolean {
+  return value > BigInt(Number.MAX_SAFE_INTEGER) ||
+    value < BigInt(Number.MIN_SAFE_INTEGER);
 }
 
 function hasToDouble(value: object): value is { toDouble: () => number } {

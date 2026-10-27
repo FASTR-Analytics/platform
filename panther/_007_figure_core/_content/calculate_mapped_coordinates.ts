@@ -14,13 +14,12 @@ export type MappedValueCoordinate =
   }
   | undefined;
 
-// positionOrdinals (unbalanced indicator membership): maps a value's dense
-// storage index to its position ordinal within the pane's visible subset.
-// Storage index stays global for every data lookup; only the position along
-// the category axis uses the ordinal. Omitted (balanced) = identity. A
-// defined value whose storage index has no ordinal is masked and renders
-// nothing (by construction visibility covers every defined value/bound, so
-// this only guards inconsistent hand-built masks).
+// positionOrdinals: the inverse of the unit's slotOrder, mapping a value's
+// dense storage index to its position ordinal. Storage index stays global for
+// every data lookup; only the position along the category axis uses the
+// ordinal. A defined value whose storage index has no ordinal is masked and
+// renders nothing (by construction visibility covers every defined
+// value/bound, so this only guards inconsistent hand-built masks).
 export function calculateMappedCoordinates(
   seriesVals: (number | undefined)[][],
   plotAreaRcd: RectCoordsDims,
@@ -30,7 +29,7 @@ export function calculateMappedCoordinates(
   valueRange: ValueRange,
   valueClearance: OverhangClearance,
   orientation: "vertical" | "horizontal" = "vertical",
-  positionOrdinals?: (number | undefined)[],
+  positionOrdinals: (number | undefined)[],
 ): MappedValueCoordinate[][] {
   const { maxVal, minVal } = valueRange;
 
@@ -43,7 +42,7 @@ export function calculateMappedCoordinates(
           return undefined;
         }
 
-        const i_pos = positionOrdinals ? positionOrdinals[i_val] : i_val;
+        const i_pos = positionOrdinals[i_val];
         if (i_pos === undefined) {
           return undefined;
         }
@@ -73,7 +72,7 @@ export function calculateMappedCoordinates(
         return undefined;
       }
 
-      const i_pos = positionOrdinals ? positionOrdinals[i_val] : i_val;
+      const i_pos = positionOrdinals[i_val];
       if (i_pos === undefined) {
         return undefined;
       }

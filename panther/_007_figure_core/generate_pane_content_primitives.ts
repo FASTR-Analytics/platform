@@ -102,49 +102,46 @@ export function generatePaneContentPrimitives<TData>(
     ? paneBands.bandIndices
     : visibleLanesOfPane ?? laneHeaders.map((_, i) => i);
 
-  // Unbalanced indicator membership: this pane's visible subset of the text
-  // axis. Positions (slots, ticks, grid lines) use the subset; every data
-  // lookup (dense loops, i_val, info callbacks) keeps the GLOBAL index.
+  // This pane's indicator order along the text axis (a subset under
+  // unbalanced membership, a permutation under a value sort). Positions
+  // (slots, ticks, grid lines) follow it; every data lookup (dense loops,
+  // i_val, info callbacks) keeps the GLOBAL index.
   const visibleIndicators = config.dataProps.visibleIndicatorsByPane?.[i_pane];
   const textAxisHeaders = xAxisConfig.type === "text"
     ? xAxisConfig.indicatorHeaders
     : yAxisConfig.type === "text"
     ? yAxisConfig.indicatorHeaders
     : undefined;
-  let positionOrdinals: (number | undefined)[] | undefined;
-  let visibleTextAxisHeaders: typeof textAxisHeaders;
-  if (visibleIndicators !== undefined && textAxisHeaders !== undefined) {
-    const ordinals: (number | undefined)[] = textAxisHeaders.map(() =>
-      undefined
-    );
-    visibleIndicators.forEach((globalIdx, ordinal) => {
-      ordinals[globalIdx] = ordinal;
-    });
-    positionOrdinals = ordinals;
-    visibleTextAxisHeaders = visibleIndicators.map((i) => textAxisHeaders[i]);
-  }
+  const visibleTextAxisHeaders =
+    visibleIndicators !== undefined && textAxisHeaders !== undefined
+      ? visibleIndicators.map((i) => textAxisHeaders[i])
+      : undefined;
   const nVisibleTextIndicators = visibleTextAxisHeaders?.length;
 
-  // Proportional band layout: per-BAND ordinal maps, visible headers, slot
+  // Proportional band layout: per-BAND slot orders, visible headers, slot
   // counts, and extents (parallel to paneBands.bandIndices). These refine
-  // the per-pane subset above — each band draws only its own slots at its
+  // the per-pane order above — each band draws only its own slots at its
   // own extent; data lookups keep the GLOBAL index.
   const perBand = paneBands && textAxisHeaders !== undefined
-    ? paneBands.visibleIndicators.map((vis, bandOrdinal) => {
-      const ordinals: (number | undefined)[] = textAxisHeaders.map(() =>
-        undefined
-      );
-      vis.forEach((globalIdx, ordinal) => {
-        ordinals[globalIdx] = ordinal;
-      });
-      return {
-        positionOrdinals: ordinals,
-        visibleHeaders: vis.map((i) => textAxisHeaders[i]),
-        nSlots: vis.length,
-        extent: paneBands.bandExtents[bandOrdinal],
-      };
-    })
+    ? paneBands.visibleIndicators.map((vis, bandOrdinal) => ({
+      visibleHeaders: vis.map((i) => textAxisHeaders[i]),
+      nSlots: vis.length,
+      extent: paneBands.bandExtents[bandOrdinal],
+    }))
     : undefined;
+
+  // The slot order of one subchart's unit: its band's under proportional
+  // layout, else the pane's, else the identity. Measurement and generation
+  // both take it, so the style funcs see the same isFirstVal / isLastVal.
+  const slotOrderFor = (i_tier: number, i_lane: number, nVals: number) => {
+    if (paneBands) {
+      const ordinal = paneBands.bandIndices.indexOf(
+        paneBands.bandAxis === "tier" ? i_tier : i_lane,
+      );
+      if (ordinal >= 0) return paneBands.visibleIndicators[ordinal];
+    }
+    return visibleIndicators ?? Array.from({ length: nVals }, (_, i) => i);
+  };
 
   // Overhang clearances: inset the scale axis's value range
   // within each plot area so extreme tick labels and edge data labels stay
@@ -197,6 +194,7 @@ export function generatePaneContentPrimitives<TData>(
               startClearance: start,
               categoryIncrement: 0,
               nVals: yCfg.nVals,
+              slotOrder: slotOrderFor(i_tier, i_lane, yCfg.nVals),
               subChartInfo: subChartInfoFor(i_tier, i_lane),
               seriesHeaders: config.dataProps.seriesHeaders,
               indicatorHeaders: config.dataProps.indicatorHeaders,
@@ -249,6 +247,7 @@ export function generatePaneContentPrimitives<TData>(
               startClearance: start,
               categoryIncrement: xCfg.categoryIncrement,
               nVals: xCfg.nVals,
+              slotOrder: slotOrderFor(i_tier, i_lane, xCfg.nVals),
               subChartInfo: subChartInfoFor(i_tier, i_lane),
               seriesHeaders: config.dataProps.seriesHeaders,
               indicatorHeaders: config.dataProps.indicatorHeaders,
@@ -514,7 +513,7 @@ export function generatePaneContentPrimitives<TData>(
             dataLabelsTextStyle: baseStyle.text.dataLabels,
             boundsUbSeriesVals: chartData.bounds?.ub[i_pane][i_tier][i_lane],
             boundsLbSeriesVals: chartData.bounds?.lb[i_pane][i_tier][i_lane],
-            positionOrdinals: band?.positionOrdinals ?? positionOrdinals,
+            slotOrder: slotOrderFor(i_tier, i_lane, nVals),
           }),
         );
       }
