@@ -8,14 +8,13 @@ type Props = {
 };
 
 export function Step0(p: Props) {
-  const { state } = p;
   const [localSource, setLocalSource] = createSignal<"file" | "dhis2">(
-    state.source(),
+    p.state.source(),
   );
 
   function handleContinue() {
-    state.setSource(localSource());
-    state.setStep(1);
+    p.state.setSource(localSource());
+    p.state.setStep(1);
   }
 
   return (
@@ -89,7 +88,7 @@ export function Step0(p: Props) {
         <Button onClick={handleContinue} intent="primary">
           {t3({ en: "Continue", fr: "Continuer", pt: "Continuar" })}
         </Button>
-        <Button intent="neutral" onClick={() => state.close(undefined)}>
+        <Button intent="neutral" onClick={() => p.state.close(undefined)}>
           {t3({ en: "Cancel", fr: "Annuler", pt: "Cancelar" })}
         </Button>
       </div>

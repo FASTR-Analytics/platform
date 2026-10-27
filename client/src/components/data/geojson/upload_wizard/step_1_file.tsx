@@ -9,11 +9,9 @@ type Props = {
 };
 
 export function Step1File(p: Props) {
-  const { state } = p;
-
   const analyzeAction = createFormAction(
     async () => {
-      const fileName = state.selectedFileName();
+      const fileName = p.state.selectedFileName();
       if (!fileName) {
         return {
           success: false,
@@ -28,11 +26,11 @@ export function Step1File(p: Props) {
         assetFileName: fileName,
       });
       if (res.success) {
-        state.setAnalysisResult(res.data);
+        p.state.setAnalysisResult(res.data);
         if (res.data.properties.length > 0) {
-          state.setSelectedProp(res.data.properties[0]);
+          p.state.setSelectedProp(res.data.properties[0]);
         }
-        state.setStep(2);
+        p.state.setStep(2);
       }
       return res;
     },
@@ -62,8 +60,8 @@ export function Step1File(p: Props) {
         })}
         filter={(a) =>
           a.fileName.endsWith(".geojson") || a.fileName.endsWith(".json")}
-        value={state.selectedFileName()}
-        onChange={state.setSelectedFileName}
+        value={p.state.selectedFileName()}
+        onChange={p.state.setSelectedFileName}
       />
 
       <StateHolderFormError state={analyzeAction.state()} />
@@ -72,12 +70,12 @@ export function Step1File(p: Props) {
         <Button
           onClick={analyzeAction.click}
           state={analyzeAction.state()}
-          disabled={!state.selectedFileName()}
+          disabled={!p.state.selectedFileName()}
           intent="primary"
         >
           {t3({ en: "Analyze", fr: "Analyser", pt: "Analisar" })}
         </Button>
-        <Button intent="neutral" onClick={() => state.setStep(0)}>
+        <Button intent="neutral" onClick={() => p.state.setStep(0)}>
           {t3({ en: "Back", fr: "Retour", pt: "Voltar" })}
         </Button>
       </div>

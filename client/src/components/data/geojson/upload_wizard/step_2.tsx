@@ -17,10 +17,8 @@ type Props = {
 };
 
 export function Step2(p: Props) {
-  const { state } = p;
-
   const propertyOptions = createMemo(() => {
-    const result = state.analysisResult();
+    const result = p.state.analysisResult();
     if (!result) return [];
     return result.properties.map((prop) => ({
       value: prop,
@@ -29,14 +27,14 @@ export function Step2(p: Props) {
   });
 
   const geoJsonValues = createMemo(() => {
-    const result = state.analysisResult();
-    const prop = state.selectedProp();
+    const result = p.state.analysisResult();
+    const prop = p.state.selectedProp();
     if (!result || !prop) return [];
     return result.sampleValues[prop] ?? [];
   });
 
   function buildAutoMapping() {
-    const names = state.adminAreaNames();
+    const names = p.state.adminAreaNames();
     const geoVals = geoJsonValues();
     const mapping: Record<string, string> = {};
     const nameLower = new Map(names.map((n) => [n.toLowerCase(), n]));
@@ -46,7 +44,7 @@ export function Step2(p: Props) {
         mapping[geoVal] = match;
       }
     }
-    state.setGeoToAdmin(mapping);
+    p.state.setGeoToAdmin(mapping);
   }
 
   // The admin areas are what the auto-mapping matches against, so a failed
@@ -55,22 +53,22 @@ export function Step2(p: Props) {
   const goToMappingStepFile = createButtonAction(
     () =>
       serverActions.getAdminAreaOptionsForLevel({
-        family: state.family,
-        level: state.adminAreaLevel(),
+        family: p.state.family,
+        level: p.state.adminAreaLevel(),
       }),
     (options: Array<{ value: string; label: string }>) => {
       batch(() => {
-        state.setAdminAreaOptions(options);
-        state.setAdminAreaNames(options.map((o) => o.value));
+        p.state.setAdminAreaOptions(options);
+        p.state.setAdminAreaNames(options.map((o) => o.value));
         buildAutoMapping();
-        state.setStep(3);
+        p.state.setStep(3);
       });
     },
   );
 
   // DHIS2: fetch and analyze selected level
   const dhis2LevelOptions = createMemo(() => {
-    return state.dhis2Levels().map((l) => ({
+    return p.state.dhis2Levels().map((l) => ({
       value: String(l.level),
       label: `${l.name} (${l.orgUnitCount} org units)`,
     }));
@@ -78,15 +76,15 @@ export function Step2(p: Props) {
 
   const analyzeAction = createFormAction(
     async () => {
-      const dhis2Level = state.selectedDhis2Level();
+      const dhis2Level = p.state.selectedDhis2Level();
       if (dhis2Level === null) {
         return { success: false, err: "Select a DHIS2 level" };
       }
 
       // Fetch admin area options
       const aaRes = await serverActions.getAdminAreaOptionsForLevel({
-        family: state.family,
-        level: state.adminAreaLevel(),
+        family: p.state.family,
+        level: p.state.adminAreaLevel(),
       });
       if (!aaRes.success) {
         return {
@@ -94,8 +92,8 @@ export function Step2(p: Props) {
           err: aaRes.err ?? "Failed to fetch admin areas",
         };
       }
-      state.setAdminAreaOptions(aaRes.data);
-      state.setAdminAreaNames(aaRes.data.map((o) => o.value));
+      p.state.setAdminAreaOptions(aaRes.data);
+      p.state.setAdminAreaNames(aaRes.data.map((o) => o.value));
 
       // Analyze DHIS2 GeoJSON
       const analyzeRes = await serverActions.dhis2AnalyzeGeoJson({
@@ -119,18 +117,18 @@ export function Step2(p: Props) {
         };
       }
 
-      state.setAnalysisResult({
+      p.state.setAnalysisResult({
         properties: analyzeRes.data.properties,
         sampleValues: analyzeRes.data.sampleValues,
         featureCount: analyzeRes.data.featureCount,
       });
-      state.setDhis2Features(analyzeRes.data.dhis2Features);
+      p.state.setDhis2Features(analyzeRes.data.dhis2Features);
 
       // Set default property and auto-map
       const defaultProp = analyzeRes.data.properties.includes("name")
         ? "name"
         : analyzeRes.data.properties[0];
-      state.setSelectedProp(defaultProp);
+      p.state.setSelectedProp(defaultProp);
 
       const aaNames = aaRes.data.map((o) => o.value);
       const nameLower = new Map(aaNames.map((n) => [n.toLowerCase(), n]));
@@ -142,9 +140,9 @@ export function Step2(p: Props) {
           mapping[geoVal] = match;
         }
       }
-      state.setGeoToAdmin(mapping);
+      p.state.setGeoToAdmin(mapping);
 
-      state.setStep(3);
+      p.state.setStep(3);
       return { success: true };
     },
     () => {},
@@ -153,7 +151,7 @@ export function Step2(p: Props) {
   const levelOptions = createMemo(() =>
     ALL_ADMIN_AREA_LEVELS
       .filter(
-        (level) => level <= structureSchemaForFamily(state.family).adminDepth,
+        (level) => level <= structureSchemaForFamily(p.state.family).adminDepth,
       )
       .map((level) => ({
         value: String(level),
@@ -173,12 +171,12 @@ export function Step2(p: Props) {
   });
 
   const canAnalyzeDhis2 = createMemo(() => {
-    return state.selectedDhis2Level() !== null && !noLevelsAvailable();
+    return p.state.selectedDhis2Level() !== null && !noLevelsAvailable();
   });
 
   return (
     <Show
-      when={state.source() === "file"}
+      when={p.state.source() === "file"}
       fallback={
         <div class="ui-spy">
           <div class="ui-spy-sm">
@@ -217,8 +215,8 @@ export function Step2(p: Props) {
             >
               <Select
                 options={levelOptions()}
-                value={String(state.adminAreaLevel())}
-                onChange={(v) => state.setAdminAreaLevel(parseInt(v))}
+                value={String(p.state.adminAreaLevel())}
+                onChange={(v) => p.state.setAdminAreaLevel(parseInt(v))}
                 fullWidth
               />
             </Show>
@@ -230,11 +228,11 @@ export function Step2(p: Props) {
             </label>
             <Select
               options={dhis2LevelOptions()}
-              value={state.selectedDhis2Level() !== null
-                ? String(state.selectedDhis2Level())
+              value={p.state.selectedDhis2Level() !== null
+                ? String(p.state.selectedDhis2Level())
                 : ""}
               onChange={(v) =>
-                state.setSelectedDhis2Level(v ? parseInt(v) : null)}
+                p.state.setSelectedDhis2Level(v ? parseInt(v) : null)}
               placeholder={t3({
                 en: "Select DHIS2 level...",
                 fr: "Sélectionner le niveau DHIS2...",
@@ -259,7 +257,7 @@ export function Step2(p: Props) {
                 pt: "Obter e analisar",
               })}
             </Button>
-            <Button intent="neutral" onClick={() => state.setStep(1)}>
+            <Button intent="neutral" onClick={() => p.state.setStep(1)}>
               {t3({ en: "Back", fr: "Retour", pt: "Voltar" })}
             </Button>
           </div>
@@ -275,7 +273,7 @@ export function Step2(p: Props) {
               pt: "Passo 2: Configurar",
             })}
           </div>
-          <Show when={state.analysisResult()} keyed>
+          <Show when={p.state.analysisResult()} keyed>
             {(result) => (
               <div class="text-base-content-muted text-sm">
                 {result.featureCount} {t3({
@@ -302,8 +300,8 @@ export function Step2(p: Props) {
           >
             <Select
               options={levelOptions()}
-              value={String(state.adminAreaLevel())}
-              onChange={(v) => state.setAdminAreaLevel(parseInt(v))}
+              value={String(p.state.adminAreaLevel())}
+              onChange={(v) => p.state.setAdminAreaLevel(parseInt(v))}
               fullWidth
             />
           </Show>
@@ -319,13 +317,13 @@ export function Step2(p: Props) {
           </label>
           <Select
             options={propertyOptions()}
-            value={state.selectedProp()}
-            onChange={(v) => state.setSelectedProp(v)}
+            value={p.state.selectedProp()}
+            onChange={(v) => p.state.setSelectedProp(v)}
             fullWidth
           />
         </div>
 
-        <Show when={state.selectedProp()}>
+        <Show when={p.state.selectedProp()}>
           <div class="ui-spy-sm">
             <label class="text-sm">
               {t3({
@@ -355,13 +353,13 @@ export function Step2(p: Props) {
           <Button
             onClick={goToMappingStepFile.click}
             state={goToMappingStepFile.state()}
-            disabled={!state.selectedProp() || noLevelsAvailable() ||
+            disabled={!p.state.selectedProp() || noLevelsAvailable() ||
               goToMappingStepFile.state().status === "loading"}
             intent="primary"
           >
             {t3({ en: "Next", fr: "Suivant", pt: "Seguinte" })}
           </Button>
-          <Button intent="neutral" onClick={() => state.setStep(1)}>
+          <Button intent="neutral" onClick={() => p.state.setStep(1)}>
             {t3({ en: "Back", fr: "Retour", pt: "Voltar" })}
           </Button>
         </div>

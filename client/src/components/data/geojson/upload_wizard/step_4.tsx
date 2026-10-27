@@ -18,26 +18,26 @@ type SaveCounts = {
 };
 
 export function Step4(p: Props) {
-  const { state } = p;
-
   const [saveCounts, setSaveCounts] = createSignal<SaveCounts | undefined>(
     undefined,
   );
 
   const geoJsonValues = createMemo(() => {
-    const result = state.analysisResult();
-    const prop = state.selectedProp();
+    const result = p.state.analysisResult();
+    const prop = p.state.selectedProp();
     if (!result || !prop) return [];
     return result.sampleValues[prop] ?? [];
   });
 
-  const mappedCount = createMemo(() => Object.keys(state.geoToAdmin()).length);
+  const mappedCount = createMemo(() =>
+    Object.keys(p.state.geoToAdmin()).length
+  );
   const unmappedCount = createMemo(() =>
     geoJsonValues().length - mappedCount()
   );
 
   const duplicateNames = createMemo(() => {
-    const options = state.adminAreaOptions();
+    const options = p.state.adminAreaOptions();
     const valueCounts = new Map<string, number>();
     for (const opt of options) {
       valueCounts.set(opt.value, (valueCounts.get(opt.value) ?? 0) + 1);
@@ -49,7 +49,7 @@ export function Step4(p: Props) {
 
   const saveAction = createFormAction(
     async () => {
-      const mapping = state.geoToAdmin();
+      const mapping = p.state.geoToAdmin();
       if (Object.keys(mapping).length === 0) {
         return {
           success: false,
@@ -61,14 +61,14 @@ export function Step4(p: Props) {
         };
       }
 
-      const adminAreaLevel = parseAdminAreaLevel(state.adminAreaLevel());
+      const adminAreaLevel = parseAdminAreaLevel(p.state.adminAreaLevel());
 
-      if (state.source() === "file") {
+      if (p.state.source() === "file") {
         const res = await serverActions.saveGeoJsonMap({
-          family: state.family,
+          family: p.state.family,
           adminAreaLevel,
-          assetFileName: state.selectedFileName(),
-          areaMatchProp: state.selectedProp(),
+          assetFileName: p.state.selectedFileName(),
+          areaMatchProp: p.state.selectedProp(),
           areaMapping: mapping,
         });
 
@@ -77,16 +77,16 @@ export function Step4(p: Props) {
         }
         return res;
       } else {
-        const dhis2Level = state.selectedDhis2Level();
+        const dhis2Level = p.state.selectedDhis2Level();
         if (dhis2Level === null) {
           return { success: false, err: "DHIS2 level not found" };
         }
 
         const res = await serverActions.dhis2SaveGeoJsonMap({
           dhis2Level,
-          family: state.family,
+          family: p.state.family,
           adminAreaLevel,
-          areaMatchProp: state.selectedProp(),
+          areaMatchProp: p.state.selectedProp(),
           areaMapping: mapping,
         });
 
@@ -100,9 +100,9 @@ export function Step4(p: Props) {
   );
 
   const dhis2LevelName = createMemo(() => {
-    const level = state.selectedDhis2Level();
+    const level = p.state.selectedDhis2Level();
     if (level === null) return "";
-    const found = state.dhis2Levels().find((l) => l.level === level);
+    const found = p.state.dhis2Levels().find((l) => l.level === level);
     return found ? found.name : `Level ${level}`;
   });
 
@@ -150,7 +150,7 @@ export function Step4(p: Props) {
             )}
           </Show>
           <div>
-            <Button intent="primary" onClick={() => state.close(undefined)}>
+            <Button intent="primary" onClick={() => p.state.close(undefined)}>
               {t3({ en: "Done", fr: "Terminé", pt: "Concluído" })}
             </Button>
           </div>
@@ -169,15 +169,15 @@ export function Step4(p: Props) {
         </div>
 
         <div class="text-base-content-muted ui-spy-sm text-sm">
-          <Show when={state.source() === "file"}>
+          <Show when={p.state.source() === "file"}>
             <div>
               {t3({ en: "Source", fr: "Source", pt: "Fonte" })}:{" "}
-              {state.selectedFileName()}
+              {p.state.selectedFileName()}
             </div>
           </Show>
-          <Show when={state.source() === "dhis2"}>
+          <Show when={p.state.source() === "dhis2"}>
             <div>
-              {t3({ en: "Source", fr: "Source", pt: "Fonte" })}: DHIS2 ({state
+              {t3({ en: "Source", fr: "Source", pt: "Fonte" })}: DHIS2 ({p.state
                 .dhis2ConnectionUrl()})
             </div>
             <div>
@@ -193,14 +193,14 @@ export function Step4(p: Props) {
               en: "Admin area level",
               fr: "Niveau administratif",
               pt: "Nível de zona administrativa",
-            })}: AA{state.adminAreaLevel()}
+            })}: AA{p.state.adminAreaLevel()}
           </div>
           <div>
             {t3({
               en: "Match property",
               fr: "Propriété de correspondance",
               pt: "Propriedade de correspondência",
-            })}: {state.selectedProp()}
+            })}: {p.state.selectedProp()}
           </div>
           <div>
             {t3({
@@ -260,7 +260,7 @@ export function Step4(p: Props) {
           >
             {t3({ en: "Save", fr: "Enregistrer", pt: "Guardar" })}
           </Button>
-          <Button intent="neutral" onClick={() => state.setStep(3)}>
+          <Button intent="neutral" onClick={() => p.state.setStep(3)}>
             {t3({ en: "Back", fr: "Retour", pt: "Voltar" })}
           </Button>
         </div>
