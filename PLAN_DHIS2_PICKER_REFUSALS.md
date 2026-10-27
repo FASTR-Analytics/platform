@@ -131,6 +131,7 @@ its label. The save route and the id repair keep the diagnostic.
 `server/dhis2_id_fix/gather.ts`,
 `server/tests/dhis2_decompose_indicator_test.ts`,
 `server/tests/dhis2_id_fix_plan_test.ts`,
+`server/tests/dhis2_id_fix_execute_test.ts`,
 `server/tests/indicator_naming_test.ts`, `SYSTEM_07_dhis2.md`,
 `SYSTEM_05_facilities_indicators.md`.
 
@@ -211,3 +212,13 @@ which indicators are accepted.
 - The wording of the save route's and the id repair's diagnostics.
 
 ## §6 Log
+
+1. Step 1 added `server/tests/dhis2_id_fix_execute_test.ts` to its own Surface:
+   its `formula` helper builds a `Dhis2IndicatorDecomposition` literal, so
+   dropping `accepted` and adding `annualized` and each operand's `label` failed
+   `deno check` until that helper was updated with the others.
+2. Step 1 dropped the planned decompose-test case "an annualized indicator's
+   formula parses like any other" as a separate case: with `annualized` out of
+   the parse's input there is nothing to vary, so the case compared one call
+   with itself. The fact is pinned where the flag can be set, on the
+   decomposition the import sentence reads.

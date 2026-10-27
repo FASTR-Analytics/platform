@@ -96,15 +96,6 @@ Deno.test("decomposition: each operand carries the side the formula names it on"
   ]);
 });
 
-Deno.test("decomposition: an annualized indicator's formula parses like any other", () => {
-  const annualized = parseDhis2Indicator({
-    numerator: `#{${A}}`,
-    denominator: `#{${B}}`,
-    factor: 100,
-  });
-  assertEquals(annualized, accepted(`#{${A}}`, `#{${B}}`));
-});
-
 Deno.test("decomposition: any whitespace between tokens is accepted", () => {
   const result = accepted(
     `\n\t#{${A}}   +\r\n#{${B}}\t`,
@@ -389,9 +380,15 @@ Deno.test("import sentence: an operand on both sides is the numerator the senten
   );
 });
 
-Deno.test("import sentence: an annualized indicator says what annualizing does", () => {
+Deno.test("import sentence: an annualized indicator's formula parses like any other, and the sentence says what annualizing does", () => {
+  const annualized = decomposition(parse(`#{${A}}`, `#{${B}}`), {
+    annualized: true,
+  });
+  assert(annualized.parse.accepted);
+  assertEquals(annualized.parse.operands.map((o) => o.data_id), [A, B]);
+  assertEquals(annualized.parse.expression, `([${A}] / [${B}])`);
   assertEquals(
-    sentence(parse(`#{${A}}`, `#{${B}}`), { annualized: true }),
+    describeDhis2IndicatorImportRefusal(annualized)?.en,
     "This indicator cannot be imported: it is annualized: DHIS2 scales each month up to a yearly rate, which the platform does not do.",
   );
 });
