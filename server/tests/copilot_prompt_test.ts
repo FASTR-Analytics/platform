@@ -42,6 +42,41 @@ Deno.test("the system prompt points at the reference tools and names no document
   assert(!prompt.includes("iceh"));
 });
 
+// The three shapes a run of the testing script caught the copilot writing:
+// a superlative read off the rows it noticed rather than all of them, a series
+// described as a steady rise through a year it fell, and a change narrated from
+// a state no tool result reported. The rule lives in the shared base, so every
+// view and /mcp inherit it from one edit.
+Deno.test("every prompt states the standard a written claim must meet", () => {
+  const prompt = buildSystemPrompt(PARTS);
+  assertStringIncludes(
+    prompt,
+    "**Check every claim against the rows you were given, before you write it**",
+  );
+  // A comparative or superlative is about every row returned.
+  assertStringIncludes(prompt, "about EVERY row you were returned");
+  assertStringIncludes(prompt, "name the row that actually wins");
+  assertStringIncludes(prompt, "a dip or a plateau in the middle is stated");
+  // A partial period is labelled partial wherever it is used.
+  assertStringIncludes(
+    prompt,
+    'A period the "Period coverage" line shows ending short of its unit is partial',
+  );
+  assertStringIncludes(prompt, "never as a finished period");
+  // A change is described only as the tool result reports it.
+  assertStringIncludes(
+    prompt,
+    "describe a change to a product only as the tool result reports it",
+  );
+  assertStringIncludes(
+    prompt,
+    "never offer to restore a state no tool result shows",
+  );
+  // It is in the shared base, not an extra principle a view passes in, so it
+  // survives a view that passes none.
+  assertEquals(PARTS.extraCorePrinciples.length, 0);
+});
+
 Deno.test("buildSystemPrompt keeps the date and the catalogue when asked, as get_overview asks", () => {
   const prompt = buildSystemPrompt({
     ...PARTS,

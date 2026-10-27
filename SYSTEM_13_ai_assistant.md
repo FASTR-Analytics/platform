@@ -1026,7 +1026,23 @@ instance/terminology section (country, admin-area labels, data sources) + data
 coverage + the instance-level `ai_context` (`buildAiContextSections`, the shared
 block `/mcp`'s `get_overview` also carries after its data coverage) + the
 one-line reference-docs pointer + base instructions (the app's role,
-read-data-first, no fabrication, ask when uncertain, indicator directionality).
+read-data-first, no fabrication, the standard a written claim must meet, ask
+when uncertain, indicator directionality).
+
+The claim standard (`getBaseInstructions` in
+[lib/ai_tools/build_system_prompt.ts](lib/ai_tools/build_system_prompt.ts),
+pinned by `server/tests/copilot_prompt_test.ts`) covers the three shapes a model
+gets wrong while reading its own tool results correctly: a comparative or
+superlative is a claim about EVERY row returned, so it is re-read before it is
+written and a series is described by its whole shape rather than smoothed into a
+trend; a period that `get_metric_data`'s "Period coverage" line shows ending
+short of its unit is labelled partial wherever it is used, an endpoint included;
+and a change to a product is described only as the tool result reports it, so
+nothing is narrated as having drifted from a state no result shows. It lives in
+the shared base and not in either brief, so one edit reaches every view and
+`/mcp`, and the deck and report briefs cannot drift apart. It is prompt text,
+not a guarantee: nothing in code validates a claim.
+
 It is **instance level**: no date, no package section, no viewer sentence and no
 tool catalogue, so only an instance input changes it and one conversation keeps
 one prompt through every view and package. What used to ride it rides elsewhere:
