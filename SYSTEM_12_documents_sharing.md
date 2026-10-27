@@ -2841,3 +2841,36 @@ interpolation in every route.
   report pairs the two in `staleContext`. Hold `{ scope, context }` together in
   the deck, set when the context lands, and pass that pair to the editor's
   update and edit paths, keeping the live `scope` for rendering and staleness.
+- **A markdown table in slide text breaks the slide.** The slide markdown
+  measurer throws on a table item in both arms
+  (`panther/_105_markdown/_internal/measure_items.ts:164` in `getItemMargins`,
+  `:195` in `measureItem`; the first is the one that fires). Measurement does
+  not surface it: `autofit.ts`'s `getHeightAtScale` swallows the throw and
+  returns a line-count estimate. Render does, uncaught through all of
+  `_121_page/`, landing at `page_holder.tsx:335-344`, so the slide is replaced
+  by
+  `Config error - Bad chart config: table items should not be measured
+  directly`.
+  PDF and PPTX export hit the same throw and fail the whole export. That is why
+  the copilot refuses tables (`validateNoMarkdownTables`, four call sites:
+  `slides.tsx:57`, `update_slide.ts:164` and `:248`, `drafts.tsx:60`, plus four
+  prompt lines at `slides.tsx:45`, `drafts.tsx:42`, `update_slide.ts:65`,
+  `instance/copilot/build_system_prompt.ts:265`). The fix is in panther: a
+  `table` variant on `MeasuredMarkdownItem` measured and rendered through the
+  table renderer (`convertMarkdownTableToTableData` exists and
+  `MarkdownRenderer`'s own `getMinComfortableWidth` already measures table
+  cells, which is why the width pass never throws), a matching arm in
+  `render_markdown.ts`, which has no table handling either, and a `table` case
+  in `_122_pptx/text_to_pptx.ts`'s three-case switch. Not an app-side split of
+  the block into text and table nodes: that breaks the one-block-one-node model
+  the slide editor's hit targets and autofit rely on. The open design question
+  is which autofit owns the block: the table renderer runs its own shrink-to-fit
+  with its own legibility floor and `cramped` flag, so the markdown scale must
+  be threaded into the table's text style and the table's own search suppressed,
+  or markdown's binary search re-runs the table's whole fit search per candidate
+  scale. A block holding a table stays side-panel edited either way:
+  `lib/slide_text_offsets.ts:125-128` keeps `table_open` unsupported, as it does
+  for fences, and the sentence above about blocks holding tables not being
+  canvas-editable stays true. Note this does not serve the reported use case on
+  its own, which was a four-column table whose last column is a live
+  platform-calculated coverage value.

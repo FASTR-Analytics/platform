@@ -633,3 +633,70 @@ changed something.
   says "Nothing here is written anywhere", but the family, module, view and type
   choices persist to localStorage (`state/t4_explore.ts:43-74`). Delete the
   sentence; `t4_explore.ts:12-19` says what persists.
+- **Coverage footnotes state an adjustment basis the package may not have
+  used.** The m006 coverage presets carry `FOOTNOTE_COVERAGE_BASE` /
+  `FOOTNOTE_COVERAGE_WITH_CURRENT_YEAR` (modules `_shared/text_presets.ts`),
+  whose "adjusted for data quality" clause is fixed wording, while the basis is
+  a per-run module parameter (`SELECTED_COUNT_VARIABLE` on m005, four options;
+  `SELECTEDCOUNT` on m012, four, and on m011, two). Resolve it at render from a
+  bundle field, the way `withDateRange` resolves `DATE_RANGE`
+  (`build_figure_inputs.ts:555-580`): a sentence substituted at preset
+  derivation (`lib/derive_presets.ts:34-36`) goes stale the moment a figure is
+  repointed to a package with another basis, which is the reported failure. The
+  basis is declared, not inferred: read the metric's own module's parameter,
+  else its prerequisite's (m006 has no count parameter and reads m005's). Three
+  languages must be authored, keyed off the option `value`: option labels are
+  English-only (`_module_definition_github.ts:80`). Lockstep: the bundle schema
+  and its test, the items payload, `PO_CACHE_VERSION`, and
+  `lib/retired_metrics.ts:370-402`, which holds the same six strings as frozen
+  `from`/`to` matchers and stops matching if the modules wording moves alone.
+  Note that the footnote lives in `config.t.footnote` inside each stored bundle,
+  so every deck and report already built keeps the old sentence unless a
+  slide_config and reports sweep rewrites it; that sweep is the open decision.
+- **Coverage cannot be compared across the four adjustment bases.** m005 runs
+  its coverage chain on the one `count_final_*` column the package selected
+  (`m005/script.R:271`, the single `count` column from there down), and m006's
+  three estimation columns are three estimation types on that one basis. m002's
+  "Adjustment impact" switch is not the pattern to copy: `resolveView`
+  (`lib/explore_query.ts:451-474`) resolves the `switch` and `byLevel` arms in
+  mutually exclusive branches, so a binding carrying both would silently drop
+  the switch, and m006's bindings are per-level. The shape that fits is m005
+  running its three driver blocks (`script.R:1563-2067`) once per basis, a new
+  results object per level in m005 and m006 carrying `coverage_<basis>` value
+  props, six new metrics over them, existing results objects and figures
+  untouched, and Explore showing the bases as series from value props (a
+  non-table type with `series: "unit"` and no `values` forces exactly one value
+  prop). Gate to design against: `explore_views_test.ts:445-460` requires every
+  new non-hidden metric to be bound in `EXPLORE_VIEWS` or listed in
+  `UNBOUND_METRICS` with a reason. The cost is four runs of the heaviest module,
+  with no runtime stated in its header today to multiply.
+- **The survey source cannot reach a per-point label.** m005 now writes `source`
+  and `source_detail`, so m006's `survey_raw_source` fills, but the coverage
+  `textFormatter` (`get_style_from_po/_2_coverage.ts:41-51`) receives
+  `ChartValueInfo` only: numbers, plus `{id, label}` headers, with no per-point
+  payload slot and no row reference. Carrying an annotation column is a new
+  concept at three layers, not one: the fetch config and SQL select list
+  (`GenericLongFormFetchConfig` names only value props and group-bys), the
+  figure data config, and the per-point info type. Neither apparent escape hatch
+  works: `func: "identity"` is set per metric, not per column, and becomes
+  `SUM(varchar)` under roll-up; panther's `uncertainty` slot is numeric and the
+  app never sets it. Hover is not the alternative: panther has no chart
+  hit-testing at all, and every export path (PPTX, both deck PDFs, the report
+  PDF, even the HTML report) ships figures as static canvases or PNGs.
+- **Fifty preset cards, 23 of them in five twin sets.** Every preset is a card
+  (`derive_presets.ts:54-71` iterates `vizPresets` with no predicate;
+  `package_view/presets.tsx:72-81` renders them all, with no "show more"
+  affordance anywhere). The twins: m011's `observed-expected-ci` and disruption
+  tables repeated per admin level (13 presets, 4 shapes), m006's admin-2/admin-3
+  pairs (5 → 2), one "indicator x admin_area_2" table shape copied across m001,
+  m002, m011 and m012, m001's five table/map pairs, and m010's four
+  carry-forward twins (4 → 2). Deleting a twin is not free: Explore borrows
+  style from the metric's first preset **of the matching type**
+  (`explore_query.ts:687-703`), so dropping any m001 `*-map`, each the sole map
+  preset of its metric, silently moves that metric's Explore map to
+  `DEFAULT_S_CONFIG`. Hiding rather than deleting means an optional flag on both
+  preset schemas, which both live in this repo
+  (`_module_definition_github.ts:299-310`, `_metric_installed.ts:305-318`), plus
+  the modules repo's vendored copy via `./vendor_schema` and the metric sources;
+  additive is safe on read, and a flag that changes which presets are derived
+  needs the cache-prefix bump.
