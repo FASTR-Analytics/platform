@@ -245,9 +245,12 @@ calendar apply by full reload, nothing re-renders reactively**. Calendar
 `lib/translate/` is the app's whole translation surface over panther's
 primitives:
 
-- **`t-func.ts`**: re-exports `t3`/`setLanguage`/`getLanguage` from
-  `@timroberton/panther`; owns `LANGUAGE_STORAGE_KEY`, the app's **calendar
-  singleton** (`setCalendar`/`getCalendar`, default `"gregorian"`), and
+- **`t-func.ts`**: builds the app's `t3`/`resolveTS` with panther's
+  `createTranslator<RequiredLanguage>()`, so a string missing French is a type
+  error and Portuguese is optional; wraps panther's `setLanguage`/`getLanguage`
+  so both speak the app's `Language` (panther's own includes Thai); owns
+  `LANGUAGE_STORAGE_KEY`, the app's **calendar singleton**
+  (`setCalendar`/`getCalendar`, default `"gregorian"`), and
   `pickLang(language, ts)`, an explicit-language resolver used only by the
   viz-generation pipeline (`build_figure_inputs`, conditional formatting), not
   shell UI.
@@ -256,8 +259,11 @@ primitives:
   `national`, `columns`, `rows`, `loading`, `loadingFiles`, `loadingAssets`,
   `fetchingData`, `general`, `label`, `folder`, `mustEnterName`, and four
   `disaggregation_disabled_*` messages), all with `pt` entries.
-- **`types.ts` / `mod.ts`**: re-export `TranslatableString`, `Language`,
-  `resolveTS` from panther.
+- **`types.ts` / `mod.ts`**: `LANGUAGES` and the app's `Language` (`en`, `fr`,
+  `pt`), `RequiredLanguage` (`en`, `fr`) and `TranslatableString`, panther's
+  generic type over the required pair. Nothing in the app imports a language
+  type or translator from panther's barrel: those require every panther
+  language.
 
 There is no translation build step and no string-key table: translations are
 **inline `{ en, fr, pt? }` literals at the call site** (241 client files call

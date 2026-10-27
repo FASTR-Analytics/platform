@@ -14,7 +14,7 @@ import {
   GenericLongFormFetchConfig,
   PeriodBounds,
 } from "./presentation_objects.ts";
-import type { Language } from "@timroberton/panther";
+import type { Language } from "../translate/types.ts";
 
 // ============================================================================
 // API Response Types

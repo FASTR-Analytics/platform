@@ -1,6 +1,6 @@
 import { AIToolFailure, createAITool } from "@timroberton/panther";
-import type { Language } from "@timroberton/panther";
 import { z } from "zod";
+import type { Language } from "../translate/types.ts";
 import type { DatasetType } from "../types/datasets.ts";
 import type { ServerActionTransport } from "../server_actions/transport.ts";
 import type { ReferenceDocEntry } from "./reference_catalog.ts";

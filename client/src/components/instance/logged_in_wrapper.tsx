@@ -4,12 +4,12 @@ import { clearDataCache } from "~/state/clear_caches";
 import {
   createDevGlobalUser,
   GlobalUser,
+  type Language,
   LANGUAGE_STORAGE_KEY,
   setLanguage,
   t3,
   TC,
 } from "lib";
-import type { Language } from "panther";
 import { createQuery, StateHolderWrapper } from "panther";
 import { createSignal, JSX, onCleanup, onMount, Show } from "solid-js";
 import { _SERVER_HOST, serverActions } from "~/server_actions";

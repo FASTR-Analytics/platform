@@ -1,6 +1,5 @@
-import type { TranslatableString } from "@timroberton/panther";
 import { FACILITY_ROLLUP_COLUMNS } from "./rollup.ts";
-import type { Language } from "./translate/mod.ts";
+import type { Language, TranslatableString } from "./translate/mod.ts";
 import type { FigureBundle } from "./types/_figure_bundle.ts";
 import type { PresentationObjectConfig } from "./types/_presentation_object_config.ts";
 import type { MetricWithStatus } from "./types/modules.ts";

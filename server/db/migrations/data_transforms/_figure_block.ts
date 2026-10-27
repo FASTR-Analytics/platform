@@ -27,16 +27,13 @@ import {
   getRollupPosition,
   INDICATOR_FORMAT_METRIC_IDS,
   isRollupActive,
+  type Language,
   presentationObjectConfigSchema,
   ROLLUP_PIN_IDS,
   scopeDefinitionHash,
   trafficLightThresholdsToRule,
 } from "lib";
-import {
-  getPeriodIdFromTime,
-  type Language,
-  type PeriodType,
-} from "@timroberton/panther";
+import { getPeriodIdFromTime, type PeriodType } from "@timroberton/panther";
 import {
   _INSTANCE_CALENDAR,
   _INSTANCE_LANGUAGE,

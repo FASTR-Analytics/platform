@@ -12,6 +12,7 @@ import {
   figurePackageIssueForMetrics,
   getFetchConfigFromPresentationObjectConfig,
   type Language,
+  LANGUAGES,
   type MetricDefinitionGithub,
   type ModuleDefinitionGithub,
   moduleDefinitionGithubSchema,
@@ -32,7 +33,6 @@ import {
 } from "./_module_definitions.ts";
 
 const MODULES_DIR = Deno.env.get("FASTR_MODULES_LOCAL_DIR");
-const LANGUAGES: Language[] = ["en", "fr", "pt"];
 
 // m003 and m004 as the modules repo last built them, before their deletion,
 // with the presentation facts the manifest transform stamps on a blob written

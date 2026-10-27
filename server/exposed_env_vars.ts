@@ -2,10 +2,10 @@ import {
   ALL_INSTANCE_FISCAL_YEARS,
   InstanceCalendar,
   InstanceFiscalYear,
+  type Language,
   setCalendar,
   setLanguage,
 } from "lib";
-import type { Language } from "@timroberton/panther";
 
 ///////////////////////////////////////////////////////////////////////////////
 // Environment Indicator

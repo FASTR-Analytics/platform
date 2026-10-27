@@ -5,6 +5,7 @@ import {
   type ExploreViewBinding,
   type ExploreViewTypeId,
   type FamilyQuery,
+  getLanguage,
   type MetricWithStatus,
   type PackageScope,
   type ResolvedView,
@@ -15,7 +16,7 @@ import {
   scopeAreaForFamily,
   type ViewChoices,
 } from "lib";
-import { FrameTop, getLanguage, StateHolderWrapper } from "panther";
+import { FrameTop, StateHolderWrapper } from "panther";
 import {
   createEffect,
   createMemo,

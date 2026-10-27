@@ -1,4 +1,4 @@
-import { type Language, type LegendInput } from "panther";
+import { type LegendInput } from "panther";
 import {
   _CF_GREEN,
   _CF_RED,
@@ -6,6 +6,7 @@ import {
   type FastrChartPalette,
   type FigureLocalization,
   type IndicatorFormat,
+  type Language,
   PeriodOption,
   pickLang,
   PresentationObjectConfig,

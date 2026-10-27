@@ -17,6 +17,7 @@ import type { ResultsValueForVisualization } from "./modules.ts";
 import { presentationObjectConfigSchema } from "./_presentation_object_config.ts";
 import { thresholdsRuleSchema } from "./conditional_formatting.ts";
 import { ALL_INSTANCE_FISCAL_YEARS } from "./instance.ts";
+import { LANGUAGES } from "../translate/types.ts";
 
 // ── Sub-schemas (matching existing lib types exactly) ────────────────────────
 // Runtime locks: parse a Required<T> so a new field in the source type causes
@@ -94,7 +95,7 @@ export const geoRefSchema = z.discriminatedUnion("kind", [
 // a stored bundle always carries a definite string: no silent omission.
 
 export const figureLocalizationSchema = z.strictObject({
-  language: z.enum(["en", "fr", "pt"]),
+  language: z.enum(LANGUAGES),
   calendar: z.enum(["gregorian", "ethiopian"]),
   countryIso3: z.string(),
   // Defaulted rather than required so bundles stored before this field existed

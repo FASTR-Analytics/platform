@@ -1,7 +1,6 @@
 import {
   buildAutoFormatter,
   type FigureValuesColorFunc,
-  type Language,
   type LegendInput,
   type LegendItem,
   resolveAutoScaleLegend,
@@ -16,6 +15,7 @@ import {
   type DisplayedRule,
   type EffectiveIndicatorFacts,
   type IndicatorFormat,
+  type Language,
   legendBucketOrder,
   thresholdBoundary,
   thresholdBucketIndex,

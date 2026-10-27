@@ -13,6 +13,7 @@ import {
   type HfaWorkbookImport,
   isReservedHfaId,
   type Language,
+  LANGUAGES,
   nextHfaIndicatorId,
   parseMultiMembershipValues,
   pickLang,
@@ -245,8 +246,6 @@ function sheetToObjects(aoa: string[][]): SheetRow[] {
 // `label_fr`, `label_pt`). The import reads the instance language's column,
 // then English, then the single column, so one default workbook serves every
 // instance and a cell left untranslated shows English rather than failing.
-const LANGUAGES: readonly Language[] = ["en", "fr", "pt"];
-
 function pickText(
   row: Record<string, string>,
   field: string,
