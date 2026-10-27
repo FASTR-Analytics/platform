@@ -88,6 +88,26 @@ Deno.test("the order is the registry's, not the body's", () => {
   );
 });
 
+// The document resolves an embed written any markdown way, so a scan for the
+// canonical token text alone would refuse to index, read or lay out a figure
+// the reader can see. These three forms render and the token scan misses them.
+Deno.test("a figure referenced any way the document resolves is live", () => {
+  for (
+    const body of [
+      `![cap](figure:${LIVE_TABLE})`,
+      `![cap](figure:${LIVE_TABLE} "a title")`,
+      `![cap][ref]\n\n[ref]: figure:${LIVE_TABLE}`,
+      `![cap](<figure:${LIVE_TABLE}>)`,
+    ]
+  ) {
+    assertEquals(
+      Object.keys(reportLiveFigures(body, REGISTRY)),
+      [LIVE_TABLE],
+      body,
+    );
+  }
+});
+
 Deno.test("an embedded figure twice over is listed once", () => {
   const twice = [
     buildReportEmbedToken("figure", LIVE_TABLE, "First"),

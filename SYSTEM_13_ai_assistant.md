@@ -832,21 +832,29 @@ user-sanctioned colours survive rewrites, and `allowLiteralColors` is the
 deliberate escape hatch for when the user asked for exact colours.
 
 **A figure tool sees what the reader sees.** Every report figure tool, read or
-write, resolves its figure through `reportLiveFigures`
+write, and the page map, resolve their figures through `reportLiveFigures`
 ([lib/report_live_figures.ts](lib/report_live_figures.ts)): registered in the
-report AND embedded by a `figure:<id>` token in the body. `get_report_editor`
-indexes those only, `get_report_figure` refuses an id outside them and lists
-only live ids in its message, and `update_report_figure` and `replace_figure`
-need no separate "registered but its token isn't in the body" branch, because
-the one lookup is that check. The registry and the body do drift:
-`replace_figure` swaps a body token for a fresh id and leaves the old entry
-registered, and unreferenced entries are pruned at LOAD, never in session, so an
-editor undo can bring a token back (S12). An orphan is not the model's to see.
-Indexing it cost a turn: its line carried the caption the user had asked to
-keep, so a model aiming at "the figure with that caption" picked the orphan and
-was refused. `embedIdsOf`, the allowed-id set for a PROPOSED body, keeps reading
-the full registry, because a proposed body may re-embed a still-registered id.
-`server/tests/report_live_figures_test.ts` pins the helper.
+report AND referenced by the body. References come off the RENDERER's tokens
+(`fastrBodyReferences`), not a scan for the canonical token text, for the same
+reason `checkReportTokensResolve` does: the document resolves an embed written
+any markdown way (a title after the destination, a reference link, an
+angle-bracket destination), and a figure the reader can see must not be one the
+tools refuse to index, read or lay out. `get_report_editor` indexes those only,
+`get_report_figure` refuses an id outside them and lists only live ids in its
+message, `update_report_figure` and `replace_figure` need no separate
+"registered but its token isn't in the body" branch because the one lookup is
+that check, and `get_report_pages` lays out those only, so the paginator stops
+measuring a raster box for every orphan and waiting out `SIZE_WAIT_MS` on sizes
+that never land. The registry and the body do drift: `replace_figure` swaps a
+body token for a fresh id and leaves the old entry registered, and unreferenced
+entries are pruned at LOAD, never in session, so an editor undo can bring a
+token back (S12). An orphan is not the model's to see. Indexing it cost a turn:
+its line carried the caption the user had asked to keep, so a model aiming at
+"the figure with that caption" picked the orphan and was refused. `embedIdsOf`,
+the allowed-id set for a PROPOSED body and what `readReportText` is handed as
+`embeds`, keeps reading the full registry, because a proposed body may re-embed
+a still-registered id. `server/tests/report_live_figures_test.ts` pins the
+helper.
 
 **The text core of these tools is Report Forge's, not the copilot's.** The body
 half of `get_report_editor` and the three write tools run on the package's pure
