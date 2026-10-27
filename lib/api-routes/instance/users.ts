@@ -26,6 +26,16 @@ const userPermissionsSchema = z
   )
   .partial();
 
+// Named, unlike the other route-local response shapes in this file: the AI
+// panel holds it in a signal that starts null, which needs the type by name.
+export type AiUsage = {
+  tokensUsedToday: number;
+  dailyTokenLimit: number | null;
+  isUnlimited: boolean;
+  tokensUsedThisWeek: number;
+  weeklyTokenLimit: number | null;
+};
+
 const userProfileSchema = z.object({
   organisation: z.string().max(200).nullable(),
 });
@@ -97,13 +107,7 @@ export const userRouteRegistry = {
   getAiUsage: route({
     path: "/user/ai-usage",
     method: "GET",
-    response: {} as {
-      tokensUsedToday: number;
-      dailyTokenLimit: number | null;
-      isUnlimited: boolean;
-      tokensUsedThisWeek: number;
-      weeklyTokenLimit: number | null;
-    },
+    response: {} as AiUsage,
   }),
   setUserUnlimitedAi: route({
     path: "/user/unlimited-ai",
