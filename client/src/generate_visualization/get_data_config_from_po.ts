@@ -504,20 +504,13 @@ function getChartJsonDataConfig(
     laneProp,
     tierProp,
     sort: {
-      // The bars axis rides one seam: panther honours sort.indicator only
-      // when sortIndicatorValues is undefined. "none" means the dimension's
-      // natural order, so it maps to undefined + the
-      // dispatcher's sort; asc/desc (an explicit value ranking) pass through
-      // below and panther ignores sort.indicator entirely.
       indicator: getAxisSort(config, indicatorPropRaw, catalogIdOrder),
       series: getAxisSort(config, seriesProp, catalogIdOrder),
       lane: getAxisSort(config, laneProp, catalogIdOrder),
       tier: getAxisSort(config, tierProp, catalogIdOrder),
       pane: getAxisSort(config, paneProp, catalogIdOrder),
     },
-    sortIndicatorValues: config.s.sortIndicatorValues === "none"
-      ? undefined
-      : config.s.sortIndicatorValues,
+    sortIndicatorValues: config.s.sortIndicatorValues,
     labelReplacements: buildLabelReplacements(
       resultsValue,
       config,
