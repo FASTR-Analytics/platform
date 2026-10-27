@@ -181,7 +181,8 @@ export default function Instance(p: Props) {
   // user: the approval store re-fires the effect, which would otherwise
   // re-open the modals and displace whatever the alert slot holds.
   createEffect(() => {
-    if (!instanceState.currentUserApproved) return;
+    const approved = instanceState.currentUserApproved;
+    if (!approved) return;
     if (!clerk.user) return;
     if (postLoginRanForUserId === clerk.user.id) return;
     postLoginRanForUserId = clerk.user.id;

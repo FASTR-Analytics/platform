@@ -30,31 +30,6 @@
     "text": "footer={deleteIndicator && ("
   },
   {
-    "id": "guard-before-deps",
-    "file": "client/src/components/products/_shared/report_figure_embed.tsx",
-    "text": "effect body opens with a conditional"
-  },
-  {
-    "id": "guard-before-deps",
-    "file": "client/src/components/instance/instance.tsx",
-    "text": "effect body opens with a conditional"
-  },
-  {
-    "id": "guard-before-deps",
-    "file": "client/src/components/instance/whats_new_modal.tsx",
-    "text": "effect body opens with a conditional"
-  },
-  {
-    "id": "guard-before-deps",
-    "file": "client/src/components/instance/whats_new_modal.tsx",
-    "text": "effect body opens with a conditional"
-  },
-  {
-    "id": "guard-before-deps",
-    "file": "client/src/components/instance/whats_new_modal.tsx",
-    "text": "effect body opens with a conditional"
-  },
-  {
     "id": "raw-loading-signal",
     "file": "client/src/components/products/slide_deck/slide_deck.tsx",
     "text": "const [isLoading, setIsLoading] = createSignal(true);"

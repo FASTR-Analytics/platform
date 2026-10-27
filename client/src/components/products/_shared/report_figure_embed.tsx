@@ -112,7 +112,9 @@ export function ReportFigureEmbed(p: Props): JSX.Element {
   };
 
   createEffect(() => {
-    if (hydrated().ok) p.onMeasured?.();
+    const ok = hydrated().ok;
+    const onMeasured = p.onMeasured;
+    if (ok) onMeasured?.();
   });
 
   return (
