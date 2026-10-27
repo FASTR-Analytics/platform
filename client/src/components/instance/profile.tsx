@@ -434,7 +434,7 @@ export function ProfileForm(
             label={t3({
               en: "Today (you)",
               fr: "Aujourd'hui (vous)",
-              pt: "Hoje (você)",
+              pt: "Hoje (o seu uso)",
             })}
             figures={todayFigures()}
             unlimitedText={t3({
@@ -455,7 +455,10 @@ export function ProfileForm(
               fr: "tokens cette semaine · Illimité",
               pt: "tokens esta semana · Ilimitado",
             })}
-            note={usage()?.isUnlimited
+            // Only when there IS a country quota: with WEEKLY_TOKEN_LIMIT
+            // unset nobody's use is counted, so saying this user's is not
+            // would imply everyone else's is.
+            note={usage()?.isUnlimited && weekFigures()?.limit !== null
               ? t3({
                 en:
                   "Your own use is not counted here: an unlimited account does not spend the country's quota.",

@@ -272,10 +272,10 @@ The flow:
    everyone else, and "unlimited" would come to mean "unbounded for me, and it
    shrinks everyone else's pool". The weekly counter is therefore a QUOTA
    measure, not a spend measure: it is written only when `_WEEKLY_TOKEN_LIMIT`
-   is set, it excludes cache tokens, and its only readers are the gate, the
-   profile panel and the health route, each printing it beside the limit. Real
-   spend is `ai_usage_logs`, written unconditionally for every user and every
-   token kind.
+   is set, it excludes cache tokens, and its only readers are the gate, whose
+   429 names no number, and the two surfaces that print it beside the limit, the
+   profile panel and the health route. Real spend is `ai_usage_logs`, written
+   unconditionally for every user and every token kind.
 
    The profile panel must therefore not imply the two figures are comparable:
    its rows read "Today (you)" and "This week (country quota)", and the week row
