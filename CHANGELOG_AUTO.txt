@@ -1,3 +1,8 @@
+[2.3.2] [user] [fixed] - Slides with too many chart panels no longer overflow the page
+[2.3.2] [user] [fixed] - Chart sorting now respects your chosen indicator value order
+[2.3.2] [admin] [fixed] - Copilot now warns when a new slide overflows the page
+[2.3.2] [admin] [improved] - Copilot filters figures to named indicators, preventing page overflow
+[2.3.2] [admin] [fixed] - Chart bar sorting now correctly respects the configured sort order
 [2.3.1] [admin] [added] - Copilot debug mode now available via browser local storage setting
 [2.3.1] [admin] [changed] - Copilot debug toggle moved from code constant to local storage flag
 [2.3.0] [user] [changed] - Profile no longer asks for your role after login
