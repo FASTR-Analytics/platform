@@ -1,5 +1,35 @@
 [
   {
+    "id": "jsx-and-and",
+    "file": "client/src/components/products/_shared/version_history/report_version_preview.tsx",
+    "text": "old={ch.oldVal && ("
+  },
+  {
+    "id": "jsx-and-and",
+    "file": "client/src/components/products/_shared/version_history/report_version_preview.tsx",
+    "text": "neu={ch.newVal && ("
+  },
+  {
+    "id": "jsx-and-and",
+    "file": "client/src/components/products/_shared/version_history/report_version_preview.tsx",
+    "text": "old={ch.oldVal && ("
+  },
+  {
+    "id": "jsx-and-and",
+    "file": "client/src/components/products/_shared/version_history/report_version_preview.tsx",
+    "text": "neu={ch.newVal && ("
+  },
+  {
+    "id": "jsx-and-and",
+    "file": "client/src/components/data/hmis/indicators/edit_indicator_form.tsx",
+    "text": "footer={deleteAction && ("
+  },
+  {
+    "id": "jsx-and-and",
+    "file": "client/src/components/data/hfa/indicators/edit_indicator.tsx",
+    "text": "footer={deleteIndicator && ("
+  },
+  {
     "id": "guard-before-deps",
     "file": "client/src/components/products/_shared/report_figure_embed.tsx",
     "text": "effect body opens with a conditional"
@@ -31,6 +61,31 @@
   },
   {
     "id": "raw-loading-signal",
+    "file": "client/src/components/products/slide_deck/slide_deck.tsx",
+    "text": "const [editorLoading, setEditorLoading] = createSignal(false);"
+  },
+  {
+    "id": "raw-loading-signal",
+    "file": "client/src/components/products/_shared/product_title.tsx",
+    "text": "const [saving, setSaving] = createSignal(false);"
+  },
+  {
+    "id": "raw-loading-signal",
+    "file": "client/src/components/products/report/report.tsx",
+    "text": "const [isLoading, setIsLoading] = createSignal(true);"
+  },
+  {
+    "id": "raw-loading-signal",
+    "file": "client/src/components/products/report/report.tsx",
+    "text": "const [saveError, setSaveError] = createSignal<string | undefined>();"
+  },
+  {
+    "id": "raw-loading-signal",
+    "file": "client/src/components/instance/copilot/ai_prompt_library/save_to_prompt_library_modal.tsx",
+    "text": "const [isSaving, setIsSaving] = createSignal(false);"
+  },
+  {
+    "id": "raw-loading-signal",
     "file": "client/src/components/instance/copilot/ai_prompt_library/save_to_prompt_library_modal.tsx",
     "text": "const [error, setError] = createSignal(\"\");"
   },
@@ -41,13 +96,18 @@
   },
   {
     "id": "raw-loading-signal",
-    "file": "client/src/components/products/report/report.tsx",
-    "text": "const [isLoading, setIsLoading] = createSignal(true);"
+    "file": "client/src/components/instance/copilot/tab_owner.ts",
+    "text": "const [ownerBusy, setOwnerBusy] = createSignal(false);"
   },
   {
     "id": "raw-loading-signal",
-    "file": "client/src/components/instance/organisation_modal.tsx",
-    "text": "const [loading, setLoading] = createSignal(false);"
+    "file": "client/src/components/_shared/figure_editor/stale_figure_badge.tsx",
+    "text": "const [busy, setBusy] = createSignal(false);"
+  },
+  {
+    "id": "raw-loading-signal",
+    "file": "client/src/components/data/geojson/upload_wizard/step_2.tsx",
+    "text": "const [adminAreasLoading, setAdminAreasLoading] = createSignal(false);"
   },
   {
     "id": "raw-loading-signal",
@@ -60,13 +120,48 @@
     "text": "const [error, setError] = createSignal<string | null>(null);"
   },
   {
+    "id": "raw-loading-signal",
+    "file": "client/src/components/data/general/admin_area_labels.tsx",
+    "text": "const [needsSaving, setNeedsSaving] = createSignal(false);"
+  },
+  {
+    "id": "raw-loading-signal",
+    "file": "client/src/components/data/hfa/indicators/indicator_code_editor.tsx",
+    "text": "const [needsSaving, setNeedsSaving] = createSignal(false);"
+  },
+  {
+    "id": "raw-loading-signal",
+    "file": "client/src/components/data/facilities/import/step_1_csv.tsx",
+    "text": "const [needsSaving, setNeedsSaving] = createSignal<boolean>(!p.step1Result);"
+  },
+  {
+    "id": "raw-loading-signal",
+    "file": "client/src/components/data/facilities/import/step_0.tsx",
+    "text": "const [needsSaving, setNeedsSaving] = createSignal<boolean>(!p.sourceType);"
+  },
+  {
+    "id": "raw-loading-signal",
+    "file": "client/src/components/data/facilities/import/step_2_csv.tsx",
+    "text": "const [needsSaving, setNeedsSaving] = createSignal<boolean>(!p.step2Result);"
+  },
+  {
+    "id": "raw-loading-signal",
+    "file": "client/src/components/data/facilities/import/step_4_recode.tsx",
+    "text": "const [needsSaving, setNeedsSaving] = createSignal<boolean>("
+  },
+  {
+    "id": "raw-loading-signal",
+    "file": "client/src/components/data/facilities/import/step_2_dhis2.tsx",
+    "text": "const [needsSaving, setNeedsSaving] = createSignal<boolean>(!p.step2Result);"
+  },
+  {
+    "id": "raw-loading-signal",
+    "file": "client/src/routes/access_tokens.tsx",
+    "text": "const [mintError, setMintError] = createSignal<string | null>(null);"
+  },
+  {
     "id": "async-effect-race",
     "file": "client/src/components/instance/copilot/ai_documents/ai_documents_store.ts",
     "text": "async effect writes state after await, no out-of-order guard"
-  },
-  {
-    "id": "guard-before-deps",
-    "file": "client/src/components/products/report/body_editor.tsx",
-    "text": "effect body opens with a conditional"
   }
 ]

@@ -23,6 +23,10 @@ type Check = {
   rule: string;
   regex: RegExp;
   tsxOnly?: boolean;
+  // Scanned against the whole file text rather than line by line, so a match
+  // may span the line break `deno fmt` inserts.
+  multiline?: boolean;
+  hitText?: string;
 };
 
 const CHECKS: Check[] = [
@@ -59,8 +63,9 @@ const CHECKS: Check[] = [
     id: "jsx-and-and",
     tier: 2,
     rule: "SOLIDJS 6: `cond && <JSX>` instead of <Show>",
-    regex: /&& ?\(?</,
+    regex: /&& ?\(?\s*</,
     tsxOnly: true,
+    multiline: true,
   },
   {
     id: "jsx-map",
@@ -74,12 +79,15 @@ const CHECKS: Check[] = [
     tier: 2,
     rule: "SOLIDJS 3: effect opens with a guard before reading all deps",
     regex: /createEffect\((?:async )?\(\) => \{\s*\n\s*if \(/,
+    multiline: true,
+    hitText: "effect body opens with a conditional",
   },
   {
     id: "raw-loading-signal",
     tier: 2,
-    rule: "STATE 8: raw loading/error signals instead of StateHolder",
-    regex: /const \[(?:is)?[Ll]oading|const \[(?:fetch|load)?[Ee]rror,/,
+    rule: "STATE 9: raw loading/error signals instead of StateHolder",
+    regex:
+      /const \[\w*(?:[Ll]oading|[Ss]aving|[Bb]usy)\b|const \[(?:fetch|load|save|mint)?[Ee]rror,/,
   },
 ];
 
@@ -117,13 +125,13 @@ for await (const file of walk(ROOT)) {
 
   for (const check of CHECKS) {
     if (check.tsxOnly && !file.endsWith(".tsx")) continue;
-    if (check.id === "guard-before-deps") {
+    if (check.multiline) {
       for (const m of text.matchAll(new RegExp(check.regex, "g"))) {
         const line = text.slice(0, m.index).split("\n").length;
         hitsByCheck.get(check.id)!.push({
           file: rel,
           line,
-          text: "effect body opens with a conditional",
+          text: check.hitText ?? lines[line - 1].trim(),
         });
       }
       continue;
@@ -139,7 +147,7 @@ for await (const file of walk(ROOT)) {
     });
   }
 
-  // STATE 11: async effect writes state after await with no out-of-order guard
+  // STATE 12: async effect writes state after await with no out-of-order guard
   for (const m of text.matchAll(/createEffect\(async \(\) => \{/g)) {
     const tail = text.slice(m.index);
     const block = tail.slice(0, findBlockEnd(tail));
@@ -166,7 +174,7 @@ const tier2Groups: Array<{ id: string; rule: string; hits: Hit[] }> = CHECKS
   .map((c) => ({ id: c.id, rule: c.rule, hits: hitsByCheck.get(c.id)! }));
 tier2Groups.push({
   id: "async-effect-race",
-  rule: "STATE 11: guard overlapping async effects",
+  rule: "STATE 12: guard overlapping async effects",
   hits: raceHits,
 });
 
