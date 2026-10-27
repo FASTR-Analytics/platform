@@ -83,7 +83,7 @@ function. The element-side wire code for the field goes.
    generalised from goal 5's `getMetadataRows` over endpoint and filter
    property, used by the links function and `getExistingMetadataIds`. The three
    `fetchByIds` copies stay with the open item.
-5. _(proposed)_ The app type's field becomes
+5. _(decided with Tim, 2026-10-27)_ The app type's field becomes
    `dataSets: { id: string; periodType: string | undefined }[]`, required, since
    the fetcher always attaches it; the verdict and `monthlyDataSetId` drop their
    `?? []`. Cost: `lib/types/indicators.ts`, `element_eligibility.ts`, and the
@@ -92,12 +92,11 @@ function. The element-side wire code for the field goes.
 6. `/api/dataSets` lists only the data sets the connection's user may read,
    where the element-side nested read did not filter. SYSTEM_07 states it: a set
    the user cannot read is, from now on, no set.
-7. The proof on DHIS2 2.38 is an env-gated live test in the new test file,
-   ignored unless the DHIS2 variables are set (the precedent is
-   `retired_metrics_test.ts`), asserting data-set-side links equal element-side
-   links for a sample. The implementer runs it against a local
-   `dhis2/core:2.38.7` (as commit 674def551 did) and the 2.40 play server and
-   records both runs in §8. No step runs in a production container.
+7. The filter is proven on every release the fleet runs (§8): an env-gated live
+   test in the new test file, ignored unless the DHIS2 variables are set (the
+   precedent is `retired_metrics_test.ts`), pins that data-set-side links equal
+   element-side links for a sample, and the implementer runs it against the
+   public 2.40 play server. No step runs in a production container.
 
 ## 4. Steps
 
@@ -151,6 +150,7 @@ nothing stored changes.
 
 ## 8. Build log
 
-| When       | Step | Row                                                                                                                                                                                                                                                                                                                                              |
-| ---------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 2026-10-27 | 0    | Rewritten after three independent reviews: all six callers named, the links function placed in goal 2 over one shared chunked fetch, the reduction's contract and the selector's order ruled, the element-side wire code deleted, step 2 dropped as circular with the cleanup plan, the production harnesses replaced by an env-gated live test. |
+| When       | Step | Row                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| ---------- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-10-27 | 0    | Rewritten after three independent reviews: all six callers named, the links function placed in goal 2 over one shared chunked fetch, the reduction's contract and the selector's order ruled, the element-side wire code deleted, step 2 dropped as circular with the cleanup plan, the production harnesses replaced by an env-gated live test.                                                                                                                                                            |
+| 2026-10-27 | 0    | The data-set-side request (`fields=id,periodType,dataSetElements[dataElement[id]]`, `filter=dataSetElements.dataElement.id:in:[...]`, `paging=false`) proven with the Sierra Leone demo database on DHIS2 2.38.7 and 2.39.10 (local Docker) and on the public play servers 2.40.12, 2.41.10, 2.42.7, 2.43.2 and 2.44-dev: an unknown id returns no set, two known ids return exactly the sets element-side membership names, each answer carries the whole set, and a 100-id chunk answers within a second. |
