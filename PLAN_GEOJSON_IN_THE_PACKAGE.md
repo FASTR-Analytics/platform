@@ -44,11 +44,15 @@ system and cannot be qualified from inside this repo (§1.3, §5).
   step names, §2 and §3 of this plan, the step's own section in §4, and §6.
 - **A new file is claimed in the same step.** `lint:systems` fails until the new
   file appears in exactly one SYSTEM file's `globs` manifest, and the manifests
-  list `lib/` and `client/src/state/` files one by one rather than by wildcard.
-  Four files are new across this plan: `lib/geojson_area_match.ts` and
-  `server/geojson/types.ts` (step 2),
-  `client/src/state/instance/t2_run_geojson.ts` (step 4),
-  `client/src/generate_visualization/map_coverage.ts` (step 5).
+  list `lib/`, `client/src/state/` and `server/tests/` files one by one rather
+  than by wildcard. Seven files are new across this plan, each with its owner:
+  `lib/geojson_area_match.ts`, `server/geojson/types.ts` and
+  `server/tests/geojson_area_match_test.ts` in SYSTEM_05 (step 2);
+  `server/tests/geojson_serving_test.ts` in SYSTEM_05 (step 3);
+  `client/src/state/instance/t2_run_geojson.ts` in SYSTEM_09, beside the
+  run-keyed cache it mirrors, `t2_run_authoring_context.ts`, and
+  `server/tests/geojson_capture_test.ts` in SYSTEM_08 (step 4);
+  `client/src/generate_visualization/map_coverage.ts` in SYSTEM_10 (step 5).
 - **Last step:** 5.
 - **Log:** §6.
 - **Vocabulary, defined once:**
@@ -160,7 +164,7 @@ grey, and the data side cannot be qualified from inside this repo:
   drop `admin_area_2` from their admin3 outputs, which is why the scoped read
   has a derived-filter branch at all
   ([run_read.ts:896-930](server/run_query/run_read.ts#L896-L930)).
-- [SYSTEM_08:577-584](SYSTEM_08_results_packages.md#L577-L584) already rules the
+- [SYSTEM_08:581-590](SYSTEM_08_results_packages.md#L581-L590) already rules the
   resulting fold an accepted latent, "measured nil in prod today", whose fix is
   "stopping the m005 and m006 R scripts dropping `admin_area_2`, a modules
   lockstep this design otherwise avoids". That lockstep is its own proposed plan
@@ -218,7 +222,7 @@ route returns it inside the JSON envelope
 ([geojson_maps.ts:217-230](server/routes/instance/geojson_maps.ts#L217-L230)),
 so the whole GeoJSON string is re-escaped as a JSON string field and the client
 parses the envelope and then parses the string
-([t2_geojson.ts:100-104](client/src/state/instance/t2_geojson.ts#L100-L104)).
+([t2_geojson.ts:100-105](client/src/state/instance/t2_geojson.ts#L100-L105)).
 Cameroon level 3 is ~20 MB.
 
 Nothing compresses it: there is no compression middleware in `main.ts`. Nothing
@@ -370,9 +374,10 @@ missing values.
    The count is shown, and shown prominently below 70%. Mid-rollout partial
    coverage is legitimate.
 9. **Unavailability is typed at the source and localized at the display.**
-   `buildFigureInputs` returns a reason, not a sentence; the component that
-   shows it writes the words. The three `t2_figure_data` strings are already
-   localized display strings and only lose the dead prefix.
+   `buildFigureInputs` returns a reason, not a sentence; the display path that
+   shows it, a component or the preview helper, writes the words. The three
+   `t2_figure_data` strings are already localized display strings and only lose
+   the dead prefix.
 10. **Nothing ships.** No step runs `./deploy_testing` or `./deploy`.
 11. _(proposed)_ **The duplicate-name warning is informational, not blocking.**
     An import that creates duplicate leaf names still commits: the names come
@@ -441,14 +446,17 @@ missing values.
 **Deliverable.**
 
 - A `FigureUnavailable` discriminated union in `lib/types/_figure_bundle.ts`
-  beside the bundle it describes, with the one state that exists today:
+  beside the bundle it describes, with two members:
   `{ kind: "no_boundaries", family: FacilityFamily, level: number, source:
-  "instance" | "package" }`.
+  "instance" | "package" }`
+  and `{ kind: "boundaries_loading", family: FacilityFamily, level: number }`.
   Reasons carry data, never a sentence. This step only ever constructs
-  `source: "instance"`, because there is no package plane until step 4; the
-  field is declared here rather than added there so the three display sites are
-  written once, against both wordings (ruling 14). `family` is read the way the
-  thrown string reads it today, from `geo.family` defaulting to `hmis`
+  `no_boundaries` with `source: "instance"`, because there is no package plane
+  until step 4 and nothing here can tell bytes in flight from no file; the
+  `package` source and the `boundaries_loading` member are declared here rather
+  than added there so the three display sites are written once, against all
+  three wordings (ruling 14). `family` is read the way the thrown string reads
+  it today, from `geo.family` defaulting to `hmis`
   ([build_figure_inputs.ts:335-337](client/src/generate_visualization/build_figure_inputs.ts#L335-L337));
   ruling 13 is why that carrier survives step 4.
 - `buildFigureInputs` returns
@@ -465,7 +473,8 @@ missing values.
   localized line from the reason, in the three languages the repo uses, with the
   registry and level interpolated: the `instance` wording says the files are not
   uploaded for that registry and level, the `package` wording says this results
-  package was generated without them and a regeneration captures them.
+  package was generated without them and a regeneration captures them, and the
+  `boundaries_loading` wording is a neutral loading line that names no action.
   `report_figure_raster.ts`, `export_report_as_html.ts` and
   `convert_slide_to_page_inputs.ts` degrade on `ok: false` explicitly: the first
   two have no unavailable branch at all today, and the third returns
@@ -506,19 +515,26 @@ client file, and `deno task test` runs `server/tests/` and
 `client/src/components/data/geojson/upload_wizard/step_3.tsx`,
 `client/src/components/data/geojson/upload_wizard/wizard.tsx`,
 `client/src/components/data/geojson/edit_modal.tsx`,
+`client/src/components/data/facilities/import/step_5_import.tsx`,
 `server/tests/geojson_area_match_test.ts` (new),
-[SYSTEM_05_facilities_indicators.md](SYSTEM_05_facilities_indicators.md).
+[SYSTEM_05_facilities_indicators.md](SYSTEM_05_facilities_indicators.md),
+[SYSTEM_07_dhis2.md](SYSTEM_07_dhis2.md).
 
 **Deliverable.**
 
-- `lib/geojson_area_match.ts` exports `normalizeAreaName` (NFC, trim, collapse
-  internal whitespace including non-breaking space, case-fold, strip combining
-  marks) and `autoMapAreaNames(sourceNames, adminAreaNames)` returning the
-  mapping plus the source names it could not place. It lives in `lib/` so the
-  test below can reach it: `deno task test` runs `server/tests/` and
-  `report-forge/tests/`, which cannot import the `~` alias. The save path does
-  not call it and does not change: `processFeatures` looks the raw source name
-  up in the mapping it was handed
+- `lib/geojson_area_match.ts` exports `normalizeAreaName` (NFD, strip combining
+  marks, trim, collapse internal whitespace including non-breaking space,
+  case-fold: in that order, so an accented and an unaccented spelling match,
+  which is the repo's rule for matching names, the one scope labels and the
+  indicator search already apply) and
+  `autoMapAreaNames(sourceNames,
+  adminAreaNames)` returning the mapping plus
+  the source names it could not place. The mapping is a proposal the wizard
+  shows before anything is saved, so folding accents can only add a candidate
+  the user then sees. It lives in `lib/` so the test below can reach it:
+  `deno task test` runs `server/tests/` and `report-forge/tests/`, which cannot
+  import the `~` alias. The save path does not call it and does not change:
+  `processFeatures` looks the raw source name up in the mapping it was handed
   ([process_geojson.ts:123](server/geojson/process_geojson.ts#L123)), so
   normalization is an authoring-time concern and only new saves and remaps see
   the better matching.
@@ -526,12 +542,14 @@ client file, and `deno task test` runs `server/tests/` and
   are gone.
 - The raw parsed feature types are declared once, in `server/geojson/types.ts`;
   `process_geojson.ts` and `server/dhis2/goal4_geojson/types.ts` import them.
-  The dhis2 module depends on the geojson module, not the reverse.
-  `GeoJsonFeature` is identical in both and moves as is; the two
-  `GeoJsonFeatureCollection`s are not (the dhis2 one is strict because its
-  fetcher has already checked `type` and `features`), so the shared file
-  declares the loose one and the dhis2 file keeps its checked alias over the
-  shared feature type.
+  The dhis2 module depends on the geojson module, not the reverse. SYSTEM_07
+  describes the adapter as self-contained
+  ([SYSTEM_07:17-21](SYSTEM_07_dhis2.md#L17-L21)); one line there names this
+  type import as the exception. `GeoJsonFeature` is identical in both and moves
+  as is; the two `GeoJsonFeatureCollection`s are not (the dhis2 one is strict
+  because its fetcher has already checked `type` and `features`), so the shared
+  file declares the loose one and the dhis2 file keeps its checked alias over
+  the shared feature type.
 - `getAdminAreaOptionsForLevel` returns, alongside the options, the duplicate
   groups for that family and level: each repeated leaf name with the parent
   paths that carry it. Level 2 stops using `SELECT DISTINCT` and dedupes in
@@ -545,8 +563,13 @@ client file, and `deno task test` runs `server/tests/` and
 - The wizard shows those groups above the mapping table: the names, their
   parents, and the consequence stated plainly, that one boundary and one value
   are all these areas can have until they are renamed.
-- The structure import summary carries the same duplicate count per level, and
-  step 4 of the structure wizard shows it.
+- The structure import summary carries the same duplicate count per level, added
+  in `server/routes/instance/structure.ts` beside the orphan count it already
+  attaches after the commit
+  ([structure.ts:454-459](server/routes/instance/structure.ts#L454-L459)), and
+  the structure wizard's import step shows it where it shows the orphan count:
+  `step_5_import.tsx`, the client's step 5 for the server's step 4
+  ([step_5_import.tsx:272-274](client/src/components/data/facilities/import/step_5_import.tsx#L272-L274)).
 - SYSTEM_05's "The wizard warns but cannot fix" becomes a description of what
   the code now does, and names where the warning is raised.
 
@@ -555,10 +578,11 @@ UID (§5). Changing what a save stores: `processFeatures` still writes the
 mapping it is handed.
 
 **Gates.** The floor, plus `server/tests/geojson_area_match_test.ts`: the
-normalizer's cases (NFD accent, non-breaking space, mixed case, Turkish dotless
-i left unmatched rather than mismatched), and a duplicate-group read against
-seeded `admin_areas_hmis_2` and `admin_areas_hmis_3` rows, which must fail
-before the read exists.
+normalizer's cases (an NFD and an NFC spelling of one accented name match each
+other, `Boké` matches `Boke`, non-breaking space, mixed case, Turkish dotless i
+left unmatched rather than mismatched), and a duplicate-group read against
+seeded `admin_areas_hmis_2` and `admin_areas_hmis_3` rows on a throwaway
+database, which must fail before the read exists.
 
 **Ends with** two commits: the shared matcher and the type unification, then the
 duplicate-name surfacing.
@@ -571,6 +595,7 @@ duplicate-name surfacing.
 
 **Surface.** `lib/api-routes/instance/geojson_maps.ts`,
 `server/routes/instance/geojson_maps.ts`, `server/db/instance/geojson_maps.ts`,
+`lib/server_actions/try_catch_server.ts`, `lib/server_actions/mod.ts`,
 `client/src/state/instance/t2_geojson.ts`,
 `client/src/components/data/geojson/edit_modal.tsx`,
 `server/tests/geojson_serving_test.ts` (new),
@@ -585,23 +610,33 @@ duplicate-name surfacing.
   `Content-Encoding: gzip` when the request accepts it, compressed from the
   stored text in the handler. A request whose `:uploaded_at` does not match the
   row's is a 404, not a redirect: the client always has the current value.
-  `cacheMiddleware` never sees a registry route ([main.ts:163](main.ts#L163)
-  against [:220](main.ts#L220)), so the handler's header is what the client
-  receives.
-- The registry entry declares `isStreaming: true` and no `response`. That is the
-  existing mechanism for a handler that returns a plain `Response`
-  ([route-helpers.ts:33-34](server/routes/route-helpers.ts#L33-L34)); `route()`
-  types every declared response as an envelope
-  ([route-utils.ts:50-51](lib/api-routes/route-utils.ts#L50-L51)), so there is
-  no raw-response variant to add and none is added. The generated client action
-  for a streaming route runs `consumeStream`, which parses newline-delimited
-  JSON, so nothing calls it: the entry exists for the path, the permission
-  middleware and the route tracker.
-- The envelope route is gone, not kept alongside. `t2_geojson.loadMap` fetches
-  the new URL directly, off `getServerActionTransport()` for `baseUrl`,
-  `getHeaders()` and `credentials`, and parses once. It encodes the
-  `uploaded_at` segment itself with `encodeURIComponent`, which
-  `buildRequestParams` used to do
+  `cacheMiddleware` never sees a route registered on a router
+  ([main.ts:163](main.ts#L163) against [:220](main.ts#L220)), so the handler's
+  header is what the client receives. The response is built by a pure function
+  of the stored text, the stamp and the request's `Accept-Encoding`, which is
+  what the gate exercises.
+- The route is registered raw on `routesGeoJsonMaps`, guarded by
+  `requireGlobalPermission()` and logged, the way the CSV exports in
+  `structure.ts` and `population.ts` are
+  ([structure.ts:588-592](server/routes/instance/structure.ts#L588-L592)), and
+  joins SYSTEM_01's off-registry inventory
+  ([SYSTEM_01:264-283](SYSTEM_01_api_contract.md#L264-L283)) with its reason: a
+  raw GeoJSON body, not an envelope. The `getGeoJsonForLevel` registry entry is
+  deleted rather than redeclared: `isStreaming: true` is the NDJSON protocol
+  ([SYSTEM_01:223-244](SYSTEM_01_api_contract.md#L223-L244)) and would generate
+  a client action that runs `consumeStream` over a GeoJSON body.
+- `t2_geojson.loadMap` fetches the new URL through a raw-response variant of
+  `tryCatchServer`'s request loop, extracted in
+  `lib/server_actions/try_catch_server.ts` so both share one policy:
+  `refreshSession()` before each attempt, the same two retries with backoff for
+  a `GET`, the same 401 handling
+  ([try_catch_server.ts:20-70](lib/server_actions/try_catch_server.ts#L20-L70)).
+  A direct `fetch` would lose that, and `preloadGeoJson` only logs a failure
+  ([t2_geojson.ts:53-58](client/src/state/instance/t2_geojson.ts#L53-L58)), so
+  one transient error on a 20 MB fetch would leave the map "not uploaded" until
+  the next push or reconnect. It parses once. It encodes the `uploaded_at`
+  segment itself with `encodeURIComponent`, which `buildRequestParams` used to
+  do
   ([create_server_action.ts:80](lib/server_actions/create_server_action.ts#L80)):
   the value is an ISO timestamp and carries `:`.
 - `edit_modal.tsx` follows the same URL for both of its reads: the remap table's
@@ -618,18 +653,23 @@ duplicate-name surfacing.
   and `manager.tsx` is not in this step's surface because it does not change.
 - The database read for the serving path returns the text and `uploaded_at`
   without building an envelope around a 20 MB string.
-- SYSTEM_01 records the raw-body route as an exception to the envelope contract
-  and why. SYSTEM_05 records the content-addressed URL and that the IDB cache
-  stays for the parse (ruling 6).
+- SYSTEM_01's off-registry inventory gains the route's row, and its client
+  section names the shared raw-response loop. SYSTEM_05 records the
+  content-addressed URL and that the IDB cache stays for the parse (ruling 6).
 
 **Not in this step.** Storing the column gzipped, which changes the column type
 and needs a migration. Off-main-thread parsing and polygon simplification (§5).
 The run-keyed routes, which are step 4.
 
-**Gates.** The floor, plus `server/tests/geojson_serving_test.ts`: a seeded
-`geojson_maps` row served at its `uploaded_at` returns the exact stored bytes,
-the immutable header and, with `Accept-Encoding: gzip`, a gzipped body that
-inflates to those bytes; a stale `uploaded_at` 404s.
+**Gates.** The floor, plus `server/tests/geojson_serving_test.ts`, on a
+throwaway database built the way `hfa_import_facilities_test.ts` builds its own:
+the serving read over a seeded `geojson_maps` row returns its text and stamp,
+and the response builder over that read returns the exact stored bytes, the
+three headers and, with `Accept-Encoding: gzip`, a gzipped body that inflates to
+those bytes; a stale `uploaded_at` is a 404. The route is not driven through a
+Hono app: every guard binds `c.var.mainDb` to the dev database
+([userPermission.ts:47-50](server/middleware/userPermission.ts#L47-L50)), and
+the dev instance's `geojson_maps` is not a fixture.
 
 **Ends with** one commit.
 
@@ -641,6 +681,7 @@ inflates to those bytes; a stale `uploaded_at` 404s.
 [SYSTEM_11_viz_authoring.md](SYSTEM_11_viz_authoring.md),
 [SYSTEM_13_ai_assistant.md](SYSTEM_13_ai_assistant.md),
 [SYSTEM_01_api_contract.md](SYSTEM_01_api_contract.md),
+[SYSTEM_03_realtime_cache.md](SYSTEM_03_realtime_cache.md),
 [SYSTEM_09_viz_query_cache.md](SYSTEM_09_viz_query_cache.md).
 
 **Surface.** `lib/types/run_manifest.ts`,
@@ -658,17 +699,20 @@ inflates to those bytes; a stale `uploaded_at` 404s.
 `client/src/generate_slide_deck/convert_slide_to_page_inputs.ts`,
 `client/src/generate_report/report_figure_raster.ts`,
 `client/src/exports/export_report_as_html.ts`,
+`client/src/components/_shared/figure_preview.ts`,
 `client/src/components/explore/figure_view.tsx`,
 `client/src/components/_shared/figure_editor/figure_editor.tsx`,
 `lib/ai_tools/build_system_prompt.ts`,
 `client/src/components/instance/copilot/build_system_prompt.ts`,
-`server/mcp/context_cache.ts`, `lib/types/_figure_bundle.ts`,
-`server/tests/run_manifest_transform_test.ts`,
+`server/mcp/context_cache.ts`, `server/tests/copilot_prompt_test.ts`,
+`lib/types/_figure_bundle.ts`, `server/tests/run_manifest_transform_test.ts`,
 `server/tests/geojson_capture_test.ts` (new),
 [SYSTEM_08_results_packages.md](SYSTEM_08_results_packages.md),
 [SYSTEM_10_figure_render_export.md](SYSTEM_10_figure_render_export.md),
 [SYSTEM_11_viz_authoring.md](SYSTEM_11_viz_authoring.md),
 [SYSTEM_13_ai_assistant.md](SYSTEM_13_ai_assistant.md),
+[SYSTEM_03_realtime_cache.md](SYSTEM_03_realtime_cache.md),
+[SYSTEM_09_viz_query_cache.md](SYSTEM_09_viz_query_cache.md),
 [SYSTEM_01_api_contract.md](SYSTEM_01_api_contract.md).
 
 **Deliverable.**
@@ -719,10 +763,13 @@ inflates to those bytes; a stale `uploaded_at` 404s.
     captured file with `Content-Encoding: gzip`,
     `Content-Type: application/geo+json` and
     `Cache-Control: private, max-age=31536000, immutable`, and 404s when the run
-    or the file is absent. The registry entry is `isStreaming: true` with no
-    `response`, exactly as step 3's instance route. The file read lives in
-    `server/runs/package_internals.ts`, which owns path safety for every
-    caller-supplied run id, and is exported through `server/runs/mod.ts`.
+    or the file is absent. It is registered raw on `routesRunGeneration`,
+    guarded and logged, exactly as step 3's instance route is on its router, and
+    joins SYSTEM_01's off-registry inventory beside it; the stamp route stays a
+    registry entry because it returns an envelope and the store calls its
+    generated action. The file read lives in `server/runs/package_internals.ts`,
+    which owns path safety for every caller-supplied run id, and is exported
+    through `server/runs/mod.ts`.
 - `RunAuthoringContext` is unchanged, so its type, its server builder and the
   client cache name stay as they are. `t2_run_authoring_context.ts` starts the
   store's stamp read for the pair's `runId` whenever a context is read, so every
@@ -730,32 +777,42 @@ inflates to those bytes; a stale `uploaded_at` 404s.
   page, the copilot) holds the stamp before it builds a prompt or a figure.
 - A run-geo store in `client/src/state/instance/t2_run_geojson.ts`, keyed
   `(runId, family, level)`, mirrors `t2_geojson`'s shape: memory plus IDB, a
-  version signal so a tracked read re-runs when the stamp or the data lands. It
-  holds each run's stamp with its fetch state beside the data, because the stamp
-  is what tells "this package has no boundaries at that level" from "they have
-  not arrived yet" and from "I have never heard of this run", and it fetches
-  that stamp itself the first time any read names a `runId` it does not hold
-  (§2.4). It exposes `ensureRunGeoJson(runId, family, level)`, an awaitable read
-  that resolves once the sync read would answer anything but `loading`, for the
-  callers below that build after an await. Its eviction mirrors
-  `evictDeletedGeoJsonLevels`: on the `runs_catalog_updated` SSE case
-  ([t1_sse.tsx:256-258](client/src/state/instance/t1_sse.tsx#L256-L258)), beside
-  the geojson case at :262-266, it drops every entry whose `runId` is not in
-  `instanceState.readyPackages`, memory and IDB together. That is exactly a
-  deleted run: a run that backs no product but is open in explore, on the
-  package page, or behind a stale figure is still ready and keeps its entry.
-  Without the rule a user who opens five packages accumulates five parsed
-  copies, ten megabytes each at admin area 3, on top of the instance store's
-  own. `clearDataCache` in `clear_caches.ts` clears the store's memory the way
-  it clears `t2_geojson`'s; its IDB keys are already swept there.
+  version signal so a tracked read re-runs when the stamp or the data lands. Its
+  IDB keys are `run_geojson:{runId}:{family}:{level}`, a prefix of its own,
+  because `evictDeletedGeoJsonLevels` deletes every `geojson:` key it does not
+  list on each maps push
+  ([t2_geojson.ts:128-136](client/src/state/instance/t2_geojson.ts#L128-L136)).
+  It holds each run's stamp with its fetch state beside the data, because the
+  stamp is what tells "this package has no boundaries at that level" from "they
+  have not arrived yet" and from "I have never heard of this run", and it
+  fetches that stamp itself the first time any read names a `runId` it does not
+  hold (§2.4). It exposes `ensureRunGeoJson(runId, family, level)`, an awaitable
+  read that resolves once the sync read would answer anything but `loading`, for
+  the callers below that build after an await. Its eviction mirrors
+  `evictDeletedGeoJsonLevels` and runs where the ready-packages list is actually
+  stored: in the effect of `t1_sse.tsx` that fetches it after a
+  `runs_catalog_updated` push, right after `updateInstanceReadyPackages` lands,
+  in the approved branch and in the unapproved one that stores `[]`
+  ([t1_sse.tsx:387-397](client/src/state/instance/t1_sse.tsx#L387-L397)). The
+  SSE case itself ([:256-258](client/src/state/instance/t1_sse.tsx#L256-L258))
+  only bumps the nonce that effect follows, so at the case the deleted run is
+  still listed. It drops every entry whose `runId` is not in the list just
+  stored, memory and IDB together. That is exactly a deleted run: a run that
+  backs no product but is open in explore, on the package page, or behind a
+  stale figure is still ready and keeps its entry. Without the rule a user who
+  opens five packages accumulates five parsed copies, ten megabytes each at
+  admin area 3, on top of the instance store's own. `clearDataCache` in
+  `clear_caches.ts` clears the store's memory the way it clears `t2_geojson`'s;
+  its IDB keys are already swept there.
 - Its sync read, the one `resolveGeoJson` calls with `bundle.provenance.runId`,
   returns the four states of §2.4: `ready` with the data, `loading`,
-  `not_in_package`, `run_unknown`. `resolveGeoJson` renders on `ready`, reads
-  the instance store on `run_unknown`, and returns the unavailable reason on the
-  other two, with `source: "package"` for `not_in_package` and
-  `source: "instance"` when the instance read then comes up empty too (ruling
-  14). The states live in the store and not in the caller because
-  `buildFigureInputs` never sees the container's scope (§2.4).
+  `not_in_package`, `run_unknown`. `resolveGeoJson` renders on `ready`; returns
+  `boundaries_loading` on `loading`, so the frames before the bytes land never
+  tell the user to upload or regenerate; returns `no_boundaries` with
+  `source: "package"` on `not_in_package`; and reads the instance store on
+  `run_unknown`, returning `no_boundaries` with `source: "instance"` when that
+  comes up empty too (ruling 14). The states live in the store and not in the
+  caller because `buildFigureInputs` never sees the container's scope (§2.4).
 - `makeFigureBundleFromFetchedData` loses the `{kind:"data"}` branch (ruling
   12): a new bundle stores `{kind:"level", level, family}` whenever the config
   has a map level, and no `geo` otherwise. The `getGeoJsonSync` call and the
@@ -780,14 +837,28 @@ inflates to those bytes; a stale `uploaded_at` 404s.
   figure branch of `convertSlideToPageInputs`
   ([convert_slide_to_page_inputs.ts:569-573](client/src/generate_slide_deck/convert_slide_to_page_inputs.ts#L569-L573)),
   the one path behind slide thumbnails, the presenter, the three deck exports,
-  the editor's page build and the copilot's drafts; `rasterize` in
+  the editor's page build and the copilot's drafts; `rasterize` and `measure` in
   `report_figure_raster.ts`
-  ([:147-150](client/src/generate_report/report_figure_raster.ts#L147-L150));
-  and `rasterizeFigure` in `export_report_as_html.ts`
-  ([:46-50](client/src/exports/export_report_as_html.ts#L46-L50)). Today a
-  `data` bundle carries its geometry into those paths; with `level` the only
-  shape, a deck exported before the bytes land would otherwise export every map
-  as a placeholder, and a thumbnail would stay one until its slide next changed.
+  ([:147-150](client/src/generate_report/report_figure_raster.ts#L147-L150),
+  [:265-268](client/src/generate_report/report_figure_raster.ts#L265-L268)), the
+  second because a failed measure is stored as `false` for the content key and
+  never re-measured
+  ([:285-303](client/src/generate_report/report_figure_raster.ts#L285-L303));
+  `rasterizeFigure` in `export_report_as_html.ts`
+  ([:46-50](client/src/exports/export_report_as_html.ts#L46-L50));
+  `fetchFigureInputs` in `figure_preview.ts`, which builds the transient bundle
+  after the items await
+  ([figure_preview.ts:24-65](client/src/components/_shared/figure_preview.ts#L24-L65))
+  and whose two consumers besides explore, the insert wizard's preset cards and
+  the package page's preset gallery, track nothing; and the editor's download
+  path
+  ([figure_editor.tsx:665](client/src/components/_shared/figure_editor/figure_editor.tsx#L665)).
+  Today a `data` bundle carries its geometry into those paths; with `level` the
+  only shape, a deck exported before the bytes land would otherwise export every
+  map as a placeholder, a thumbnail would stay one until its slide next changed,
+  a report would lay its new maps out as unmeasurable until the editor
+  remounted, and every map preset card on a cold package would show the loading
+  line and never rebuild.
 - `figure_view.tsx` tracks the run-geo store's read for `p.scope.runId` in the
   preview's source, where it tracks `getGeoJsonSync` today
   ([figure_view.tsx:32-40](client/src/components/explore/figure_view.tsx#L32-L40)),
@@ -801,16 +872,23 @@ inflates to those bytes; a stale `uploaded_at` 404s.
   `buildFigureInputs`, which tracks the resolver's version signal on its own.
 - The copilot's map-level line becomes a package fact. `PackageGrounding`
   ([build_system_prompt.ts:229-242](lib/ai_tools/build_system_prompt.ts#L229-L242))
-  gains an optional `mapLevels: GeoJsonMapSummary[]`, and
-  `buildPackageGroundingSections` emits `buildMapCoverageLines` from it, where
-  `buildInstanceContextSections` emits it from `instance.geojsonMaps` today
-  ([:170](lib/ai_tools/build_system_prompt.ts#L170)). The SPA fills it in
+  gains a required `mapLevels: GeoJsonMapSummary[]`, and
+  `buildPackageGroundingSections` emits `buildMapCoverageLines` from it;
+  `buildInstanceContextSections` stops emitting it
+  ([:170](lib/ai_tools/build_system_prompt.ts#L170) goes), since that function
+  feeds both the SPA prompt and the MCP prompt
+  ([mcp_tools.ts:95](server/mcp/mcp_tools.ts#L95)) and the SPA would otherwise
+  carry the line twice. One rule fills it on both surfaces: the package's stamp
+  when non-null, else the instance's `geojsonMaps`. The SPA fills it in
   `buildCopilotPackageBlock`
   ([build_system_prompt.ts:65-85](client/src/components/instance/copilot/build_system_prompt.ts#L65-L85))
-  from the store's stamp for `scope.runId` when it holds a non-null one, else
-  from `instance.geojsonMaps`; the MCP fills it in `context_cache.ts`
-  ([:295-300](server/mcp/context_cache.ts#L295-L300)) from
-  `manifest.geojsonMaps`, and omits it when that is `null`.
+  from the store's stamp for `scope.runId`; the MCP fills it in
+  `context_cache.ts` ([:295-300](server/mcp/context_cache.ts#L295-L300)) from
+  `manifest.geojsonMaps`, falling back to the instance state it already
+  resolves. The two `PackageGrounding` literals in
+  `server/tests/copilot_prompt_test.ts`
+  ([:146](server/tests/copilot_prompt_test.ts#L146),
+  [:184](server/tests/copilot_prompt_test.ts#L184)) gain the field.
 - SYSTEM_08 records the new input files, the v15 stamp and its block, and the
   two run-keyed routes. SYSTEM_10 records the four resolve states and what each
   renders, next to the staleness contract they interact with, because a stale
@@ -822,23 +900,37 @@ inflates to those bytes; a stale `uploaded_at` 404s.
   data" paragraph loses its `geo` exception, because there is no longer a
   megabyte-scale field held by reference. SYSTEM_11's paragraph on the explore
   preview's boundary read names the run-geo store. SYSTEM_13 records that the
-  map-level line rides the package block. SYSTEM_01 records the new routes.
+  map-level line rides the package block. SYSTEM_03's list of
+  `runs_catalog_updated` consumers and its `clearDataCache` paragraph gain the
+  store ([SYSTEM_03:202-210](SYSTEM_03_realtime_cache.md#L202-L210),
+  [:462-466](SYSTEM_03_realtime_cache.md#L462-L466)). SYSTEM_09 claims the store
+  in its manifest and describes it beside `t2_run_authoring_context.ts`
+  ([SYSTEM_09:852](SYSTEM_09_viz_query_cache.md#L852)). SYSTEM_01 records the
+  stamp route and adds the bytes route to the off-registry inventory.
 
 **Not in this step.** Re-capturing geometry into stored bundles, or stripping
 `geo.data` out of the ones that carry it (§5). Deleting the `data` variant from
 `geoRefSchema`. Coverage, which is step 5.
 
-**Gates.** The floor, plus `server/tests/geojson_capture_test.ts`, on a
-throwaway database built the way `hfa_import_facilities_test.ts` builds its own:
-`prepareRunInputs` over seeded `geojson_maps` rows with no family selected
+**Gates.** The floor, plus `server/tests/geojson_capture_test.ts`, in two parts.
+On a throwaway database built the way `hfa_import_facilities_test.ts` builds its
+own: `prepareRunInputs` over seeded `geojson_maps` rows with no family selected
 writes one gzipped file per row whose inflated bytes equal the stored text and
-lists each in `extraInputFiles`; `computeModuleInputs` over a module declaring a
-dataset source yields the same inputs with and without the rows; the bytes route
-serves a captured file with the three headers and 404s for a level the package
-lacks; the stamp route returns the list for a captured package and `null` for
-one transformed from v14. Plus `server/tests/run_manifest_transform_test.ts`
-extended: a v14 manifest transforms to v15 with `geojsonMaps: null`, and the
-block is idempotent.
+lists each in `extraInputFiles`, and `computeModuleInputs` over a module
+declaring a dataset source yields the same inputs with and without the rows.
+Through a Hono app carrying the clerk leg of `products_routes_test.ts` against
+the dev database, because every guard binds `c.var.mainDb` there
+([userPermission.ts:47-50](server/middleware/userPermission.ts#L47-L50)), with
+the approved `users` row created and removed as that test does, over a scratch
+package written under `_RUNS_DIR_PATH` (the only root `runDirPath` resolves,
+[run_paths.ts:20-22](server/runs/run_paths.ts#L20-L22); precedent
+[hfa_round_reimport_test.ts:496](server/tests/hfa_round_reimport_test.ts#L496))
+and removed in `finally`: the bytes route serves the captured file with the
+three headers and 404s for a level the package lacks, and the stamp route
+returns the list for that package and `null` for one written at v14 and
+transformed. Plus `server/tests/run_manifest_transform_test.ts` extended: a v14
+manifest transforms to v15 with `geojsonMaps: null`, and the block is
+idempotent.
 
 **Ends with** four commits: capture plus the manifest version; the two run-keyed
 routes; the store, the client repoint and the deletion of the embed branch; the
@@ -876,7 +968,12 @@ awaits in the after-await consumers and the copilot's package-level line.
   result rather than rendering an empty country; every other share renders
   (ruling 8). The reason union gains
   `{ kind: "no_area_matches", dataAreas,
-  boundaries }`.
+  boundaries }`. This is the one change
+  this step makes to a rendered product: a stored map figure, of either geo
+  shape, whose areas match no boundary shows the unavailable line in decks,
+  reports and exports where it drew an empty country, which ruling 8 sanctions
+  and ruling 7 does not cover, because it is not the count that shows but the
+  figure that stops. SYSTEM_10 records it beside the resolve states.
 - The figure editor and the explore view show the counts under the figure, and
   below 70% matched the line is prominent.
 - Nothing in a rendered product page, an export or a raster path shows the
