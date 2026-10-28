@@ -2,7 +2,6 @@ import {
   deriveConfigFromVizPreset,
   type DisaggregationOption,
   FILTER_ONLY_DISAGGREGATION_OPTIONS,
-  getLanguage,
   getStartingConfigForPresentationObject,
   type MetricWithStatus,
   type PackageScope,
@@ -20,6 +19,7 @@ import {
   StepperChipsWithTitles,
 } from "panther";
 import { createMemo, createSignal, Match, Switch } from "solid-js";
+import { getSnapshotInstanceLocalization } from "~/state/instance/t1_store";
 import { CUSTOM_OPTION, type PresetOption } from "./preset_preview";
 import { Step1Metric } from "./step_1_metric";
 import { Step2Preset } from "./step_2_preset";
@@ -66,6 +66,12 @@ export function InsertFigureModal(
   // previews and the inserted figure read from this one list. The metrics may
   // come from a Solid store, and zod chokes on the symbol keys a store leaves
   // on its raw objects, so each preset is cloned to plain data first.
+  //
+  // The preset's caption resolves in the INSTANCE language, not the viewer's
+  // session language: it becomes part of the figure, which renders every other
+  // string from the bundle's own localization (SYSTEM_10). Resolving it here
+  // with getLanguage() is what gave a figure a French caption and an English
+  // legend.
   const presetOptions = createMemo((): PresetOption[] => {
     const metric = selectedMetric();
     if (!metric) return [];
@@ -75,7 +81,10 @@ export function InsertFigureModal(
         id: plain.id,
         label: t3(plain.label),
         description: t3(plain.description),
-        config: deriveConfigFromVizPreset(plain, getLanguage()),
+        config: deriveConfigFromVizPreset(
+          plain,
+          getSnapshotInstanceLocalization().language,
+        ),
       };
     });
   });
