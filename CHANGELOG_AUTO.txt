@@ -1,3 +1,12 @@
+[2.4.1] [user] [fixed] - Figures now keep their original language when updated to a new data package
+[2.4.1] [user] [fixed] - Figure legends and captions no longer mix languages (e.g., French caption with English legend)
+[2.4.1] [user] [added] - Portuguese translations added for "All areas" labels in figures
+[2.4.1] [user] [added] - Portuguese translations supported for custom value labels in chart legends and axes
+[2.4.1] [admin] [fixed] - Figures now keep the language they were created in when edited or updated
+[2.4.1] [admin] [fixed] - Inserting a figure no longer mixes languages between caption and legend
+[2.4.1] [admin] [added] - Portuguese translation support for area rollup labels in figures
+[2.4.1] [admin] [added] - Value label replacements in module definitions now support multiple languages
+[2.4.1] [admin] [fixed] - Updating a figure to a new package no longer changes its language
 [2.4.0] [user] [changed] - DHIS2 import errors now show clearer, plain-language explanations
 [2.4.0] [user] [changed] - Ineligible DHIS2 items hide the add button instead of showing a disabled one
 [2.4.0] [user] [changed] - DHIS2 import warnings appear in muted text instead of alarming red
