@@ -241,9 +241,14 @@ definitions carrying one parse fine, the field is ignored). sha256 is the
 integrity check and the cache key.
 `getModuleDefinitionDetail(id, language, pinnedGitRef)` translates
 label/metrics/`configRequirements` via `resolveTS` and returns
-`ModuleDefinitionDetail & { gitRef }`. (Presets are not derived or stored here:
-they are projections of the manifest presets of the run a product points at,
-`lib/derive_presets.ts`.)
+`ModuleDefinitionDetail & { gitRef }`. Both callers pass `_INSTANCE_LANGUAGE`,
+which is why the installed shapes hold plain strings: a metric's `label`,
+`variantLabel`, `importantNotes` and every entry of its `valueLabelReplacements`
+(the legend and header text for a value prop or a value) are authored as
+`TranslatableString` in the repo and resolved here, so a package carries the
+instance's language and nothing downstream re-resolves them. (Presets are not
+derived or stored here: they are projections of the manifest presets of the run
+a product points at, `lib/derive_presets.ts`.)
 
 ## Module settings and the run-keyed mounts
 

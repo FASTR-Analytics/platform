@@ -287,10 +287,26 @@
         "indicator_common_id"
       ],
       "valueLabelReplacements": {
-        "count_final_none": "Number of services reported",
-        "count_final_outliers": "Number of services after outlier adjustment",
-        "count_final_completeness": "Number of services after completeness adjustment",
-        "count_final_both": "Number of services after both outlier and completeness adjustment"
+        "count_final_none": {
+          "en": "Number of services reported",
+          "fr": "Nombre de services déclarés",
+          "pt": "Número de serviços notificados"
+        },
+        "count_final_outliers": {
+          "en": "Number of services after outlier adjustment",
+          "fr": "Nombre de services après ajustement des valeurs aberrantes",
+          "pt": "Número de serviços após o ajuste de valores atípicos"
+        },
+        "count_final_completeness": {
+          "en": "Number of services after completeness adjustment",
+          "fr": "Nombre de services après ajustement de la complétude",
+          "pt": "Número de serviços após o ajuste da completude"
+        },
+        "count_final_both": {
+          "en": "Number of services after both outlier and completeness adjustment",
+          "fr": "Nombre de services après ajustement des valeurs aberrantes et de la complétude",
+          "pt": "Número de serviços após o ajuste de valores atípicos e da completude"
+        }
       },
       "postAggregationExpression": null,
       "catalogExpressionEvaluation": null,
@@ -675,8 +691,16 @@
         "indicator_common_id"
       ],
       "valueLabelReplacements": {
-        "count_sum": "Actual service volume",
-        "count_expected_if_above_diff_threshold": "Expected service volume"
+        "count_sum": {
+          "en": "Actual service volume",
+          "fr": "Volume de services réel",
+          "pt": "Volume de serviços real"
+        },
+        "count_expected_if_above_diff_threshold": {
+          "en": "Expected service volume",
+          "fr": "Volume de services attendu",
+          "pt": "Volume de serviços esperado"
+        }
       },
       "postAggregationExpression": null,
       "catalogExpressionEvaluation": null,
@@ -794,7 +818,11 @@
         "indicator_common_id"
       ],
       "valueLabelReplacements": {
-        "pct_diff": "Percent difference"
+        "pct_diff": {
+          "en": "Percent difference",
+          "fr": "Différence en pourcentage",
+          "pt": "Diferença em percentagem"
+        }
       },
       "postAggregationExpression": {
         "ingredientValues": [
@@ -869,8 +897,16 @@
         "indicator_common_id"
       ],
       "valueLabelReplacements": {
-        "count_sum": "Actual service volume",
-        "count_expect_sum": "Expected service volume"
+        "count_sum": {
+          "en": "Actual service volume",
+          "fr": "Volume de services réel",
+          "pt": "Volume de serviços real"
+        },
+        "count_expect_sum": {
+          "en": "Expected service volume",
+          "fr": "Volume de services attendu",
+          "pt": "Volume de serviços esperado"
+        }
       },
       "postAggregationExpression": null,
       "catalogExpressionEvaluation": null,
@@ -934,8 +970,16 @@
         "admin_area_2"
       ],
       "valueLabelReplacements": {
-        "count_sum": "Actual service volume",
-        "count_expected_if_above_diff_threshold": "Expected service volume"
+        "count_sum": {
+          "en": "Actual service volume",
+          "fr": "Volume de services réel",
+          "pt": "Volume de serviços real"
+        },
+        "count_expected_if_above_diff_threshold": {
+          "en": "Expected service volume",
+          "fr": "Volume de services attendu",
+          "pt": "Volume de serviços esperado"
+        }
       },
       "postAggregationExpression": null,
       "catalogExpressionEvaluation": null,
@@ -1163,7 +1207,11 @@
         "admin_area_2"
       ],
       "valueLabelReplacements": {
-        "pct_diff": "Percent difference"
+        "pct_diff": {
+          "en": "Percent difference",
+          "fr": "Différence en pourcentage",
+          "pt": "Diferença em percentagem"
+        }
       },
       "postAggregationExpression": {
         "ingredientValues": [
@@ -1444,8 +1492,16 @@
         "admin_area_2"
       ],
       "valueLabelReplacements": {
-        "count_sum": "Actual service volume",
-        "count_expect_sum": "Expected service volume"
+        "count_sum": {
+          "en": "Actual service volume",
+          "fr": "Volume de services réel",
+          "pt": "Volume de serviços real"
+        },
+        "count_expect_sum": {
+          "en": "Expected service volume",
+          "fr": "Volume de services attendu",
+          "pt": "Volume de serviços esperado"
+        }
       },
       "postAggregationExpression": null,
       "catalogExpressionEvaluation": null,
@@ -1509,8 +1565,16 @@
         "admin_area_3"
       ],
       "valueLabelReplacements": {
-        "count_sum": "Actual service volume",
-        "count_expected_if_above_diff_threshold": "Expected service volume"
+        "count_sum": {
+          "en": "Actual service volume",
+          "fr": "Volume de services réel",
+          "pt": "Volume de serviços real"
+        },
+        "count_expected_if_above_diff_threshold": {
+          "en": "Expected service volume",
+          "fr": "Volume de services attendu",
+          "pt": "Volume de serviços esperado"
+        }
       },
       "postAggregationExpression": null,
       "catalogExpressionEvaluation": null,
@@ -1678,7 +1742,11 @@
         "admin_area_3"
       ],
       "valueLabelReplacements": {
-        "pct_diff": "Percent difference"
+        "pct_diff": {
+          "en": "Percent difference",
+          "fr": "Différence en pourcentage",
+          "pt": "Diferença em percentagem"
+        }
       },
       "postAggregationExpression": {
         "ingredientValues": [
@@ -1964,8 +2032,16 @@
         "admin_area_3"
       ],
       "valueLabelReplacements": {
-        "count_sum": "Actual service volume",
-        "count_expect_sum": "Expected service volume"
+        "count_sum": {
+          "en": "Actual service volume",
+          "fr": "Volume de services réel",
+          "pt": "Volume de serviços real"
+        },
+        "count_expect_sum": {
+          "en": "Expected service volume",
+          "fr": "Volume de services attendu",
+          "pt": "Volume de serviços esperado"
+        }
       },
       "postAggregationExpression": null,
       "catalogExpressionEvaluation": null,
@@ -2025,8 +2101,16 @@
         "admin_area_4"
       ],
       "valueLabelReplacements": {
-        "count_sum": "Actual service volume",
-        "count_expected_if_above_diff_threshold": "Expected service volume"
+        "count_sum": {
+          "en": "Actual service volume",
+          "fr": "Volume de services réel",
+          "pt": "Volume de serviços real"
+        },
+        "count_expected_if_above_diff_threshold": {
+          "en": "Expected service volume",
+          "fr": "Volume de services attendu",
+          "pt": "Volume de serviços esperado"
+        }
       },
       "postAggregationExpression": null,
       "catalogExpressionEvaluation": null,
@@ -2194,7 +2278,11 @@
         "admin_area_4"
       ],
       "valueLabelReplacements": {
-        "pct_diff": "Percent difference"
+        "pct_diff": {
+          "en": "Percent difference",
+          "fr": "Différence en pourcentage",
+          "pt": "Diferença em percentagem"
+        }
       },
       "postAggregationExpression": {
         "ingredientValues": [
@@ -2373,8 +2461,16 @@
         "admin_area_4"
       ],
       "valueLabelReplacements": {
-        "count_sum": "Actual service volume",
-        "count_expect_sum": "Expected service volume"
+        "count_sum": {
+          "en": "Actual service volume",
+          "fr": "Volume de services réel",
+          "pt": "Volume de serviços real"
+        },
+        "count_expect_sum": {
+          "en": "Expected service volume",
+          "fr": "Volume de services attendu",
+          "pt": "Volume de serviços esperado"
+        }
       },
       "postAggregationExpression": null,
       "catalogExpressionEvaluation": null,
