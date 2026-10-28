@@ -793,11 +793,11 @@ says so beside its stored id), the image ids and the user's selection;
 line after the heading (`insertAfterReportHeading`). A proposed body is refused
 before anything is staged when it names an embed id the report does not have,
 writes an embed as an html `<img>` token (the message gives the correct
-spelling), exceeds the body cap or breaks one of the format's rules below. A
-whole-report rewrite is also refused when a main (`#`) section after the first
-has no `:::pagebreak` directly above it (`checkFastrSectionBreaks`; not for
-`plain: true`, and never for section edits, so an older report without breaks
-stays editable).
+spelling), exceeds the body cap or breaks one of the format's rules below.
+Sections flow: nothing asks for a `:::pagebreak` above a section (a rule that
+did, 2026-10-26 to 2026-10-28, left most pages of a short report half empty),
+and the page map flags a page a break or a page template leaves under 65% full
+instead.
 
 Nothing in the copilot MINTS a report: creation is the products page's
 `createProduct`, which always mints FASTR Markdown (S12). The copilot's report
