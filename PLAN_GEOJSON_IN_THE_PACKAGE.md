@@ -47,7 +47,7 @@ system and cannot be qualified from inside this repo (§1.3, §5).
   list `lib/` and `client/src/state/` files one by one rather than by wildcard.
   Four files are new across this plan: `lib/geojson_area_match.ts` and
   `server/geojson/types.ts` (step 2),
-  `client/src/state/products/t2_run_geojson.ts` (step 4),
+  `client/src/state/instance/t2_run_geojson.ts` (step 4),
   `client/src/generate_visualization/map_coverage.ts` (step 5).
 - **Last step:** 5.
 - **Log:** §6.
@@ -78,9 +78,11 @@ system and cannot be qualified from inside this repo (§1.3, §5).
 
 ### 1.1 Geometry never enters the package
 
-`prepare_inputs` captures datasets, facilities, indicators, population, assets
-and the calendar into `inputs/`
-([prepare_inputs.ts:158-306](server/worker_routines/generate_run/prepare_inputs.ts#L158-L306)).
+`prepare_inputs` captures datasets, facilities, indicators and population into
+`inputs/`
+([prepare_inputs.ts:140-308](server/worker_routines/generate_run/prepare_inputs.ts#L140-L308)),
+and the package builder pins the declared assets beside them
+([build_run_package.ts:184-228](server/runs/build_run_package.ts#L184-L228)).
 Geometry is absent. The render path reads it live instead: `resolveGeoJson`
 returns the bundle's own `geo.data` when it has one and otherwise reads the
 instance store
@@ -95,7 +97,7 @@ in it. What the render path does instead is 1.2.
 
 `makeFigureBundleFromFetchedData` is the one place a stored bundle is assembled,
 and it has one branch
-([resolve_figure_from_metric.ts:157-162](client/src/generate_visualization/resolve_figure_from_metric.ts#L157-L162)):
+([resolve_figure_from_metric.ts:168-172](client/src/generate_visualization/resolve_figure_from_metric.ts#L168-L172)):
 
 - **Cache-warm it writes `{kind:"data", data}`**, the instance's whole boundary
   file copied into the bundle. Measured on the dev instance: `geojson_maps`
@@ -107,7 +109,7 @@ and it has one branch
   map figure puts ten megabytes in a Postgres text column, in every version row
   that snapshots it, and in the Yjs document every collaborator syncs. `geo` is
   the one field the constructor does not even deep-copy, for exactly this reason
-  ([SYSTEM_10:325-328](SYSTEM_10_figure_render_export.md#L325-L328)).
+  ([SYSTEM_10:344-347](SYSTEM_10_figure_render_export.md#L344-L347)).
 - **Cache-cold it writes `{kind:"level", level, family}`**, no geometry at all.
   That bundle re-resolves from the live instance store on every render
   ([build_figure_inputs.ts:491-503](client/src/generate_visualization/build_figure_inputs.ts#L491-L503))
@@ -220,9 +222,10 @@ parses the envelope and then parses the string
 Cameroon level 3 is ~20 MB.
 
 Nothing compresses it: there is no compression middleware in `main.ts`. Nothing
-caches it either: the path is not under `/api/` and does not end in `.json`, so
-no branch of `cacheMiddleware` matches and the response carries no
-`Cache-Control` at all ([cache.ts:38-67](server/middleware/cache.ts#L38-L67)).
+caches it either: `cacheMiddleware` is registered after every registry router
+([main.ts:220](main.ts#L220) against [:163](main.ts#L163)), so a registry
+handler's response ends the chain before the middleware runs, and the response
+carries no `Cache-Control` at all.
 
 ### 1.7 `[INFO]` is a dead convention and users read it
 
@@ -245,12 +248,12 @@ Underneath the prefix is the real defect: an expected, actionable state is
 carried as a thrown `Error` with a human string, so no caller can tell it from a
 bug. Nothing in the repo matches the prefix, so no caller tries: every call site
 either catches the exception and degrades
-([report_figure_raster.ts:157](client/src/generate_report/report_figure_raster.ts#L157),
+([report_figure_raster.ts:173-175](client/src/generate_report/report_figure_raster.ts#L173-L175),
 [:285](client/src/generate_report/report_figure_raster.ts#L285),
 [convert_slide_to_page_inputs.ts:570](client/src/generate_slide_deck/convert_slide_to_page_inputs.ts#L570)),
 or catches it and shows `e.message` verbatim
-([figure_preview.ts:56-62](client/src/components/_shared/figure_preview.ts#L56-L62),
-[figure_editor.tsx:1063-1069](client/src/components/_shared/figure_editor/figure_editor.tsx#L1063-L1069)),
+([figure_preview.ts:65-71](client/src/components/_shared/figure_preview.ts#L65-L71),
+[figure_editor.tsx:1076-1082](client/src/components/_shared/figure_editor/figure_editor.tsx#L1076-L1082)),
 or does not catch at all
 ([export_report_as_html.ts:50](client/src/exports/export_report_as_html.ts#L50)).
 A string is the whole contract.
@@ -272,10 +275,11 @@ missing values.
    stamps the manifest with what it wrote: family, level, feature count, and the
    instance row's `uploaded_at`. A package generated before this exists carries
    `null`, forever.
-2. **The product plane reads the package.** A product-scoped route resolves
-   `products.run_id`, serves the captured file, and is immutable-cached. The
-   client keys its run-geo store by `runId`, which every bundle carries as
-   `provenance.runId`.
+2. **The product plane reads the package by run.** Two run-keyed routes beside
+   the other package reads serve the manifest's geojson stamp and the captured
+   file, the file immutable-cached. The client keys its run-geo store by
+   `runId`, which every bundle carries as `provenance.runId`, so a figure
+   reaches its own package whether or not that package is still its product's.
 3. **A bundle names its geometry, it does not carry it.** The `{kind:"data"}`
    branch of bundle assembly goes; a new bundle stores
    `{kind:"level", level,
@@ -288,25 +292,32 @@ missing values.
    fallback is conditional on the answer, never unconditional: an unconditional
    instance read would render the instance's boundaries during the window before
    the package's arrive, which is the live pointer again, silently and for a
-   frame. Keyed by the bundle's own `provenance.runId`:
+   frame. The store fetches a run's stamp itself, keyed by `runId`, the first
+   time anything asks about that run, so no state depends on which page asked
+   or on whether a product's authoring context has landed. Keyed by the bundle's
+   own `provenance.runId`:
    - **ready** - the data is in the store. Render it.
-   - **loading** - the run's stamp lists `(family, level)` and the bytes are in
-     flight. Unavailable for now; the version signal re-runs the read when they
-     land, exactly as `getGeoJsonSync` does today.
+   - **loading** - the run's stamp is in flight, or it lists `(family, level)`
+     and the bytes are in flight. Unavailable for now; the version signal
+     re-runs the read when either lands, exactly as `getGeoJsonSync` does
+     today. Every transition from here is forward: a figure never draws one
+     plane and then the other.
    - **not in this package** - the run's stamp is loaded and does not list
      `(family, level)`. The geometry was not there at generation; the action is
      to regenerate, not to upload (§2.6, ruling 14).
-   - **run unknown** - no stamp for that `runId`, because the package predates
-     capture or because the bundle is stale: `isFigureBundleStale` compares
+   - **run unknown** - the stamp read has completed and found nothing to
+     resolve against: the manifest's stamp is `null`, because the package
+     predates capture, or the read fails, because the run is gone. A stale
+     bundle's run can be gone: `isFigureBundleStale` compares
      `provenance.runId` against the container's, reattach never blocks
-     ([products.ts:69-78](lib/api-routes/products/products.ts#L69-L78)), and the
-     old run may already be deleted, since `deleteRun` is refused only while a
-     product still points at it
-     ([run_generation.ts:123](server/db/instance/run_generation.ts#L123)). Read
-     the instance plane, which is today's behaviour for a `level` bundle, and
-     the next regeneration or re-resolve heals it.
+     ([products.ts:69-78](lib/api-routes/products/products.ts#L69-L78)), and
+     `deleteRun` refuses a run only while it is generating, pinned, or a
+     product points at it
+     ([run_generation.ts:121-123](server/db/instance/run_generation.ts#L121-L123)).
+     Read the instance plane, which is today's behaviour for a `level` bundle,
+     and the next regeneration or re-resolve heals it.
 
-   The store owns this because it holds both the stamps it preloaded and the
+   The store owns this because it holds both the stamps it fetched and the
    data. `buildFigureInputs` cannot answer it: it takes a bundle, a deck style
    and a palette, and never the container's scope, so a rule phrased as "is this
    the product's current run" would have to be plumbed through ten call sites to
@@ -375,11 +386,14 @@ missing values.
     needs the run-geo store populated to render, which is the same condition
     `getGeoJsonSync` already imposes on a `level` bundle today, with the same
     version-signal re-render behind it. A stale map figure, one whose
-    `provenance.runId` is not its product's current run, draws the instance's
-    current boundaries until it is re-resolved (§2.4, "run unknown"), where a
-    stale `data` bundle today draws its own frozen copy. That is the one place
-    this ruling is a behaviour loss, and it is bounded by the stale badge the
-    figure already carries. Nothing server-side is affected: `buildFigureInputs`
+    `provenance.runId` is not its product's current run, draws its own
+    package's boundaries for as long as that package exists, because the store
+    and the routes are keyed by run and not by product (§2.2); only once the
+    run is deleted does it draw the instance's current boundaries until it is
+    re-resolved (§2.4, "run unknown"), where a stale `data` bundle today draws
+    its own frozen copy. That deleted-run case is the one place this ruling is
+    a behaviour loss, and it is bounded by the stale badge the figure already
+    carries. Nothing server-side is affected: `buildFigureInputs`
     has no caller under `server/` or `report-forge/`, and the PDF path prints
     client-produced HTML
     ([reports.ts:80-92](lib/api-routes/products/reports.ts#L80-L92)).
@@ -445,9 +459,9 @@ missing values.
 - All ten call sites handle the result. They are, by file: two in
   `report_figure_raster.ts` (150, 268), one each in `export_report_as_html.ts`
   (50), `convert_slide_to_page_inputs.ts` (570), `report_figure_embed.tsx` (68),
-  `data_table.tsx` (250), `figure_preview.ts` (56) and
-  `resolve_bundle_from_metric_and_config.ts` (135), and two in
-  `figure_editor.tsx` (653, 1057). The three that display a message
+  `data_table.tsx` (250), `figure_preview.ts` (65) and
+  `resolve_bundle_from_metric_and_config.ts` (138), and two in
+  `figure_editor.tsx` (665, 1070). The three that display a message
   (`report_figure_embed.tsx`, `figure_preview.ts`, `figure_editor.tsx`) render a
   localized line from the reason, in the three languages the repo uses, with the
   registry and level interpolated: the `instance` wording says the files are not
@@ -571,9 +585,10 @@ duplicate-name surfacing.
   `Cache-Control: private, max-age=31536000, immutable`, and
   `Content-Encoding: gzip` when the request accepts it, compressed from the
   stored text in the handler. A request whose `:uploaded_at` does not match the
-  row's is a 404, not a redirect: the client always has the current value. The
-  `private` directive also makes `cacheMiddleware` leave the response alone
-  ([cache.ts:20-24](server/middleware/cache.ts#L20-L24)).
+  row's is a 404, not a redirect: the client always has the current value.
+  `cacheMiddleware` never sees a registry route ([main.ts:163](main.ts#L163)
+  against [:220](main.ts#L220)), so the handler's header is what the client
+  receives.
 - The registry entry declares `isStreaming: true` and no `response`. That is the
   existing mechanism for a handler that returns a plain `Response`
   ([route-helpers.ts:33-34](server/routes/route-helpers.ts#L33-L34)); `route()`
@@ -610,7 +625,7 @@ duplicate-name surfacing.
 
 **Not in this step.** Storing the column gzipped, which changes the column type
 and needs a migration. Off-main-thread parsing and polygon simplification (§5).
-The product-scoped route, which is step 4.
+The run-keyed routes, which are step 4.
 
 **Gates.** The floor, plus `server/tests/geojson_serving_test.ts`: a seeded
 `geojson_maps` row served at its `uploaded_at` returns the exact stored bytes,
