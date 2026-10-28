@@ -11,6 +11,7 @@ import { AIToolFailure, createAITool } from "panther";
 import { z } from "zod";
 import {
   AiFigureConfigPatchSchema,
+  type AiFigureFromMetric,
   AiFigureFromMetricSchema,
   buildReportEmbedToken,
   collapseFastrBlankRuns,
@@ -21,6 +22,7 @@ import {
   fastrThemeIds,
   type FigureBlock,
   findReportEmbeds,
+  getDataFromConfig,
   getFastrReportTheme,
   getReplicateByProp,
   insertAfterReportHeading,
@@ -87,6 +89,95 @@ function refusedTextEdit(
 ): { skip: string } {
   if (edit.unchanged) return { skip: edit.error };
   throw new AIToolFailure(edit.error);
+}
+
+// Figures a draft adds: each a metric plus a preset, named by a short key the
+// body embeds as `![caption](figure:<key>)`. rewrite_report swaps each key for
+// a fresh id, so a whole report and its figures are one diff, and the draft
+// get_report_pages lays out has the figures it will print with.
+const NEW_FIGURE_KEY_RE = /^[a-z][a-z0-9-]{0,39}$/;
+
+const newFiguresSchema = z.array(z.object({
+  key: z.string().regex(NEW_FIGURE_KEY_RE).describe(
+    "A short lowercase name for this figure, e.g. trend or by-region. The body embeds it as ![caption](figure:<key>).",
+  ),
+  figure: AiFigureFromMetricSchema,
+})).optional();
+
+type NewFigure = { key: string; figure: AiFigureFromMetric };
+
+async function resolveNewFigures(
+  ctx: EditingReportContext,
+  newFigures: NewFigure[] | undefined,
+  metrics: MetricWithStatus[],
+): Promise<Map<string, FigureBlock>> {
+  const out = new Map<string, FigureBlock>();
+  if (!newFigures || newFigures.length === 0) return out;
+  const taken = new Set(Object.keys(ctx.getFigures()));
+  for (const f of newFigures) {
+    if (taken.has(f.key)) {
+      throw new AIToolFailure(
+        `Two new figures share the key "${f.key}", or it is already a figure id: give each new figure a key of its own.`,
+      );
+    }
+    taken.add(f.key);
+  }
+  const blocks = await Promise.all(newFigures.map(async (f) => {
+    try {
+      return await resolveFigureFromMetric(ctx.getScope(), f.figure, metrics);
+    } catch (e) {
+      throw new AIToolFailure(
+        `New figure "${f.key}": ${e instanceof Error ? e.message : String(e)}`,
+      );
+    }
+  }));
+  newFigures.forEach((f, i) => out.set(f.key, blocks[i]));
+  return out;
+}
+
+// What each new figure will show, as the data excerpt get_metric_data gives
+// for the same query: the prose around a figure has to quote ITS period and
+// areas, not a number read earlier for another one.
+const FIGURE_DATA_MAX_CHARS = 4000;
+
+async function describeNewFigureData(
+  env: ClientAIToolEnv,
+  metrics: MetricWithStatus[],
+  figures: Map<string, FigureBlock>,
+): Promise<string> {
+  const parts = await Promise.all(
+    [...figures].map(async ([key, block]) => {
+      const bundle = block.bundle;
+      if (!bundle) return `### figure:${key}\n(no data)`;
+      let data: string;
+      try {
+        data = await getDataFromConfig(
+          env,
+          bundle.metricId,
+          metrics,
+          bundle.config,
+        );
+      } catch (e) {
+        data = `(could not read its data: ${
+          e instanceof Error ? e.message : String(e)
+        })`;
+      }
+      if (data.length > FIGURE_DATA_MAX_CHARS) {
+        data = `${
+          data.slice(0, FIGURE_DATA_MAX_CHARS)
+        }\n… (cut; call get_metric_data for the rest)`;
+      }
+      const caption = bundle.config.t.caption;
+      return `### figure:${key}${
+        caption ? ` ("${caption}")` : ""
+      } · ${bundle.config.d.type}\n${data}`;
+    }),
+  );
+  return `## What each new figure shows
+
+Every number the prose quotes about a figure must match it: the same period, the same areas, the same values. Where the text was written from other data, rewrite it from these.
+
+${parts.join("\n\n")}`;
 }
 
 // One cheap index line per figure for get_report_editor: pure, no fetch. The
@@ -383,10 +474,13 @@ export function getClientToolsForReportEditor(
       viewRegistry: copilotViews,
       name: "get_report_pages",
       description:
-        `Lay this FASTR Markdown report out as its printed pages (A4 unless the report says otherwise; the pages the PDF and the editor show) and return the page map: every page's fill, the blocks that landed on it with each one's share of the page, and the problems: a page left short because its next block moved whole to the following page, and a last page that is a stub. Call it with no arguments for the report as it stands (live editor state), or pass \`markdown\` to check a draft BEFORE proposing it (rewrite_report). Fix what it flags with the page budget in the format guide, then check again; a report whose pages are set is the deliverable.`,
+        `Lay this FASTR Markdown report out as its printed pages (A4 unless the report says otherwise; the pages the PDF and the editor show) and return the page map: every page's fill, the blocks that landed on it with each one's share of the page, and the problems: a page left short because its next block moved whole to the following page, a page holding only the spill of the section before it, two figures back to back, and a last page that is a stub. Call it with no arguments for the report as it stands (live editor state), or pass \`markdown\` to check a draft BEFORE proposing it (rewrite_report), with the same \`newFigures\` the draft will be proposed with: the figures are laid out at their real size, and the reply ends with the data each new figure shows, so the prose can be checked against it. Fix what it flags with the page budget in the format guide, then check again; a report whose pages are set is the deliverable.`,
       inputSchema: z.object({
         markdown: z.string().optional().describe(
-          "A draft body in FASTR Markdown to lay out instead of the current one (no figures needed).",
+          "A draft body in FASTR Markdown to lay out instead of the current one. It may embed the report's existing figures and the keys of newFigures.",
+        ),
+        newFigures: newFiguresSchema.describe(
+          "With markdown: the figures the draft adds, exactly as you will pass them to rewrite_report.",
         ),
         // The themes are a registry (the engine's own plus this app's
         // `legacy`), so the list is read here, when the tool is built.
@@ -407,25 +501,33 @@ export function getClientToolsForReportEditor(
         const ctx = view.context;
         const theme: FastrReportTheme = input.theme ??
           getFastrReportTheme(res.data.config);
-        const detail = input.markdown !== undefined
-          ? {
-            ...res.data,
-            body: collapseFastrBlankRuns(input.markdown),
-            figures: {},
-            images: {},
-            config: { ...res.data.config, fastrTheme: theme },
-          }
-          : {
-            ...res.data,
-            body: ctx.getBody(),
-            figures: ctx.getFigures(),
-            images: ctx.getImages(),
-            config: { ...res.data.config, fastrTheme: theme },
-          };
-        return await describeReportPages(
+        if (input.markdown === undefined && input.newFigures?.length) {
+          throw new AIToolFailure(
+            "newFigures goes with markdown: pass the draft that embeds them.",
+          );
+        }
+        const added = await resolveNewFigures(ctx, input.newFigures, metrics);
+        // A draft keeps the report's own figures and images: the ones it
+        // still embeds print at their real size, as they will.
+        const detail = {
+          ...res.data,
+          body: input.markdown !== undefined
+            ? collapseFastrBlankRuns(input.markdown)
+            : ctx.getBody(),
+          figures: { ...ctx.getFigures(), ...Object.fromEntries(added) },
+          images: ctx.getImages(),
+          config: { ...res.data.config, fastrTheme: theme },
+        };
+        const pages = await describeReportPages(
           detail,
           (imgFile) => resolveLogoUrl(imgFile),
         );
+        if (added.size === 0) return pages;
+        return `${pages}\n\n${await describeNewFigureData(
+          env,
+          metrics,
+          added,
+        )}`;
       },
     }),
 
@@ -460,7 +562,7 @@ export function getClientToolsForReportEditor(
       description:
         `Propose a full rewrite of the report body, written in FASTR Markdown. The user reviews a diff and accepts or rejects — nothing is applied silently. Keep all existing figure/image tokens you want to retain; you may only reference figure/image ids that already exist.
 
-The body MUST be built from the format's \`:::\` blocks — a plain run of headings and paragraphs is rejected unless you pass plain: true, which you do only when the user asked for a plain document. Before proposing, lay the draft out with get_report_pages (pass it as \`markdown\`) and fix every page it flags. The format:
+The body MUST be built from the format's \`:::\` blocks — a plain run of headings and paragraphs is rejected unless you pass plain: true, which you do only when the user asked for a plain document. A draft that adds figures carries them in \`newFigures\` (a metric plus a preset each, as insert_figure takes) and embeds each as \`![caption](figure:<key>)\` where it belongs, so the report and its figures are one change. Before proposing, lay the draft out with get_report_pages (pass it as \`markdown\`, with the same \`newFigures\`), fix every page it flags, and make the prose agree with the data it reports for each new figure. The format:
 
 ${FASTR_MD_SYNTAX_DOC}`,
       inputSchema: z.object({
@@ -471,20 +573,47 @@ ${FASTR_MD_SYNTAX_DOC}`,
         plain: z.boolean().optional().describe(
           "Set true ONLY when the user explicitly asked for a plain document with none of the format's blocks. Without it, a body that uses no blocks is rejected.",
         ),
+        newFigures: newFiguresSchema.describe(
+          "The figures this draft adds, each embedded in the body as ![caption](figure:<key>). Each becomes a figure of the report when the user accepts.",
+        ),
       }),
       availableIn: COPILOT_TOOL_VIEWS.rewrite_report,
       kind: "write",
       approval: {
         propose: async (input, view) => {
           const ctx = view.context;
-          const edit = rewriteReportBody(
-            ctx.getBody(),
-            input,
-            embedIdsOf(ctx),
+          const added = await resolveNewFigures(
+            ctx,
+            input.newFigures,
+            metrics,
           );
+          const own = embedIdsOf(ctx);
+          const edit = rewriteReportBody(ctx.getBody(), input, {
+            figures: [...own.figures, ...added.keys()],
+            images: own.images,
+          });
           if (!edit.ok) return refusedTextEdit(edit);
+          let newBody = edit.newBody;
+          const addFigures: Record<string, FigureBlock> = {};
+          for (const [key, block] of added) {
+            const id = crypto.randomUUID();
+            const swapped = replaceReportEmbedTokens(
+              newBody,
+              "figure",
+              key,
+              (ref) => rewriteReportEmbedToken(ref, { id }),
+            );
+            if (swapped.count === 0) {
+              throw new AIToolFailure(
+                `New figure "${key}" is never embedded: add ![caption](figure:${key}) where it belongs, or drop it from newFigures.`,
+              );
+            }
+            newBody = swapped.body;
+            addFigures[id] = block;
+          }
           const prep = ctx.proposeEdit({
-            newBody: edit.newBody,
+            newBody,
+            addFigures: added.size > 0 ? addFigures : undefined,
             summary: edit.summary,
           });
           if ("skip" in prep) return prep;
