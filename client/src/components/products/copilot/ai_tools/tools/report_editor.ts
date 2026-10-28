@@ -180,6 +180,37 @@ Every number the prose quotes about a figure must match it: the same period, the
 ${parts.join("\n\n")}`;
 }
 
+// The problems the page map finds in a body about to be proposed, or
+// undefined when its pages are set. A model told to check its draft with
+// get_report_pages still proposed ones with a near-empty page before a
+// template and a one-paragraph last page (2026-10-28), so a whole-report
+// rewrite is laid out once more at the proposal itself. A layout that
+// cannot run does not hold the proposal up.
+async function pageProblemsOf(
+  ctx: EditingReportContext,
+  reportId: string,
+  draft: { body: string; figures: Record<string, FigureBlock> },
+): Promise<string | undefined> {
+  const res = await getReportDetailFromCacheOrFetch(reportId);
+  if (!res.success) return undefined;
+  let pages: string;
+  try {
+    pages = await describeReportPages(
+      {
+        ...res.data,
+        body: draft.body,
+        figures: { ...ctx.getFigures(), ...draft.figures },
+        images: ctx.getImages(),
+      },
+      (imgFile) => resolveLogoUrl(imgFile),
+    );
+  } catch {
+    return undefined;
+  }
+  const at = pages.indexOf("\nProblems:\n");
+  return at < 0 ? undefined : pages.slice(at + 1);
+}
+
 // One cheap index line per figure for get_report_editor: pure, no fetch. The
 // metric is the one the figure reads as, so the model never takes a retired
 // id for a live one.
@@ -576,6 +607,9 @@ ${FASTR_MD_SYNTAX_DOC}`,
         newFigures: newFiguresSchema.describe(
           "The figures this draft adds, each embedded in the body as ![caption](figure:<key>). Each becomes a figure of the report when the user accepts.",
         ),
+        acceptPageProblems: z.boolean().optional().describe(
+          "The draft is laid out before it is proposed, and one whose pages have problems (a short or overfull page, a stub last page, an over-long caption) is refused with the list. Set true ONLY after such a refusal, for a problem you cannot fix, and tell the user which remain.",
+        ),
       }),
       availableIn: COPILOT_TOOL_VIEWS.rewrite_report,
       kind: "write",
@@ -610,6 +644,17 @@ ${FASTR_MD_SYNTAX_DOC}`,
             }
             newBody = swapped.body;
             addFigures[id] = block;
+          }
+          if (input.acceptPageProblems !== true) {
+            const problems = await pageProblemsOf(ctx, view.params.reportId, {
+              body: newBody,
+              figures: addFigures,
+            });
+            if (problems !== undefined) {
+              throw new AIToolFailure(
+                `Not proposed: the draft's pages have problems the reader would see.\n\n${problems}\n\nFix them (get_report_pages checks a draft) and re-propose. Only if one cannot be fixed, re-propose with acceptPageProblems: true and tell the user which remain.`,
+              );
+            }
           }
           const prep = ctx.proposeEdit({
             newBody,

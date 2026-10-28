@@ -1355,24 +1355,24 @@ new child, not at the cloned box), keep-with-next on headings, orphans/widows 3,
 explicit breaks from `:::pagebreak` (its marker is out of the flow, pinned to
 the page's top corner: pushed to the next page by a margin it would break after
 itself and print a blank page) and `break=before|after`, section counters on the
-renderer-stamped `fm-numbered` class, TOC page numbers via `target-counter`) and
-the in-document runner (`fastrPagedRunnerJs`), which releases blocks taller than
-a page before pagination (they split as a last resort and are reported), repairs
-Paged.js's keep-with-next flags, redirects a break that lands inside a whole
-block to the block itself (and back over its heading), repeats table header rows
-on continuations, paints the document ground on every sheet, and publishes a
-`FastrPagedResult` in SOURCE LINES on `window.__fmPaged`.
-`report-forge/engine/report_document_shell.ts` holds the document wrapper so the
-Deno render test builds byte-identical documents. A paged document takes the
-theme sheet with `omitPrintRules` (`BROWSER_PRINT_CSS` is the .html download's
-browser print: Paged.js applies `@media print` while laying out, Chrome again
-when printing the fixed pages, and its callout keep-together and cover padding
-fought the paged sheet; found 2026-09-08 when a long callout refused to flow).
-Side margins are zero on the page and live on the content wrapper: Paged.js
-treats any content wider than its box as overflow, and bands must bleed to the
-paper edge. The browser builds the document (`buildPagedReportHtml` in
-`report-forge/ui/exports/paged_pdf.ts`: `buildStandaloneReportHtml` with `paged`
-and the fonts inlined as data URLs by
+renderer-stamped `fm-numbered--sec`/`--sub` classes, TOC page numbers via
+`target-counter`) and the in-document runner (`fastrPagedRunnerJs`), which
+releases blocks taller than a page before pagination (they split as a last
+resort and are reported), repairs Paged.js's keep-with-next flags, redirects a
+break that lands inside a whole block to the block itself (and back over its
+heading), repeats table header rows on continuations, paints the document ground
+on every sheet, and publishes a `FastrPagedResult` in SOURCE LINES on
+`window.__fmPaged`. `report-forge/engine/report_document_shell.ts` holds the
+document wrapper so the Deno render test builds byte-identical documents. A
+paged document takes the theme sheet with `omitPrintRules` (`BROWSER_PRINT_CSS`
+is the .html download's browser print: Paged.js applies `@media print` while
+laying out, Chrome again when printing the fixed pages, and its callout
+keep-together and cover padding fought the paged sheet; found 2026-09-08 when a
+long callout refused to flow). Side margins are zero on the page and live on the
+content wrapper: Paged.js treats any content wider than its box as overflow, and
+bands must bleed to the paper edge. The browser builds the document
+(`buildPagedReportHtml` in `report-forge/ui/exports/paged_pdf.ts`:
+`buildStandaloneReportHtml` with `paged` and the fonts inlined as data URLs by
 `report-forge/ui/exports/inline_theme_fonts.ts`, so the printing server needs no
 network) and hands it to the host's `renderPdf`, which POSTs it to the streaming
 `renderReportPdf` route (`view` access on the product, logged; `CHROME_PATH`
@@ -2278,8 +2278,12 @@ is the only way to reach a saved custom style), the background panel (tones,
 literal colours and a PHOTO ground, `bg=image:<id>` with its overlay, the image
 picked or uploaded through the host's `imageHost` and registered in the image
 registry so the body-scan prune keeps it), a NUMBERED SECTIONS toggle
-(`numbering=sections` → `fm-doc--numbered`, a CSS counter on `body > h2/h3`
-ONLY, since a heading inside a block is not a section; the editor's own heading
+(`numbering=sections` → `fm-doc--numbered`, a CSS counter on the top-level
+headings the renderer ranks `fm-numbered--sec`/`--sub` ONLY, since a heading
+inside a block is not a section; the ranks follow the level the document writes
+its sections at (`fastrSectionLevel`: `#` in AI-written reports, `##` in older
+ones, which once left a `#` report numbering only its page templates), and a
+page template's heading is a section whatever its tag; the editor's own heading
 lines are cm-lines rather than real headings and a viewport-scoped counter would
 renumber on scroll, so `buildSurfaceLines` computes the same numbers doc-wide as
 widgets, and docGroundPlugin deliberately keeps `fm-doc*` classes off the
