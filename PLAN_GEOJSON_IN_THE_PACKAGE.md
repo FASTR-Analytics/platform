@@ -1,17 +1,21 @@
 # PLAN_GEOJSON_IN_THE_PACKAGE: boundaries become part of the package
 
-Geometry is the one generation input the results-runs build never captured.
-Every map figure resolves its boundaries from the live instance tables at build
-time, so re-importing a boundary file silently changes or breaks figures already
-authored, a package copied to another instance renders with that instance's
-boundaries or none, and a bundle frozen before the boundaries loaded freezes a
-live pointer instead of data. Around that leak sit five smaller defects in the
-same surface, each pinned below: a duplicate-name trap the UI hides, two copies
-of an unnormalized name matcher, a serving path that serializes 20 MB twice and
-cannot be cached, a dead `[INFO]` string convention users now read verbatim, and
-no coverage figure anywhere a map renders. This plan fixes all six. It does not
-change the admin-area key, which is a name everywhere in the system and cannot
-be qualified from inside this repo (§1.3, §5).
+Geometry is the one generation input the results-runs build never captured, so a
+stored figure has only two ways to hold it and both are wrong. Cache-warm, it
+embeds a verbatim copy of the instance's whole boundary file, 10,009,310 bytes
+for this dev instance's admin-area-3 map, into `reports.figures` and into the
+slide CRDT every collaborator syncs. Cache-cold, it stores a pointer into the
+live instance tables, which re-resolves forever after, so re-importing a
+boundary file changes those figures with no version bump and a package copied to
+another instance renders with the receiving instance's boundaries or none.
+Around that leak sit five smaller defects in the same surface, each pinned
+below: a duplicate-name trap the UI hides, two copies of an unnormalized name
+matcher, a serving path that serializes 20 MB twice and cannot be cached, a dead
+`[INFO]` string convention users now read verbatim, and no coverage figure
+anywhere a map renders. This plan fixes all six by putting the geometry in the
+package and having a bundle name it there instead of carrying it or pointing
+live. It does not change the admin-area key, which is a name everywhere in the
+system and cannot be qualified from inside this repo (§1.3, §5).
 
 **Next step:** `Do 1`
 
@@ -38,6 +42,13 @@ be qualified from inside this repo (§1.3, §5).
   step.
 - **A step reads, in order:** `CLAUDE.md`, `SYSTEMS.md`, the SYSTEM file each
   step names, §2 and §3 of this plan, the step's own section in §4, and §6.
+- **A new file is claimed in the same step.** `lint:systems` fails until the new
+  file appears in exactly one SYSTEM file's `globs` manifest, and the manifests
+  list `lib/` and `client/src/state/` files one by one rather than by wildcard.
+  Four files are new across this plan: `lib/geojson_area_match.ts` and
+  `server/geojson/types.ts` (step 2),
+  `client/src/state/products/t2_run_geojson.ts` (step 4),
+  `client/src/generate_visualization/map_coverage.ts` (step 5).
 - **Last step:** 5.
 - **Log:** §6.
 - **Vocabulary, defined once:**
@@ -77,26 +88,58 @@ instance store
 whose entries come from `/geojson-maps/level/:family/:level`
 ([t2_geojson.ts:83-110](client/src/state/instance/t2_geojson.ts#L83-L110)).
 
-Three consequences, none of which a regeneration or a cache key can reach,
-because nothing records which boundaries a figure was built from:
+The package is therefore not self-describing: everything else a figure needs is
+in it. What the render path does instead is 1.2.
 
-- An admin re-importing or editing a boundary file changes every figure that
-  re-resolves, with no version bump and no staleness signal. Figure staleness
-  keys on `(runId, scope definitionHash)`; boundaries are in neither.
-- A package that arrives from elsewhere renders against the receiving instance's
-  boundaries. Packages do travel: `manifest_cache.ts` documents a package
-  arriving "by rsync, by backup restore, or copied from another instance"
+### 1.2 A bundle holds geometry two ways, and both are wrong
+
+`makeFigureBundleFromFetchedData` is the one place a stored bundle is assembled,
+and it has one branch
+([resolve_figure_from_metric.ts:157-162](client/src/generate_visualization/resolve_figure_from_metric.ts#L157-L162)):
+
+- **Cache-warm it writes `{kind:"data", data}`**, the instance's whole boundary
+  file copied into the bundle. Measured on the dev instance: `geojson_maps`
+  holds 235,283 bytes at admin area 2 and 10,009,310 bytes at admin area 3, per
+  family. A bundle is stored verbatim, with no pruning, into `reports.figures`
+  ([reports.ts:156-163](server/db/products/reports.ts#L156-L163)) and into the
+  slide CRDT's opaque `figData` half, which is the bundle minus `config`
+  ([slide_crdt.ts:74-80](lib/collab/slide_crdt.ts#L74-L80)), so one admin-area-3
+  map figure puts ten megabytes in a Postgres text column, in every version row
+  that snapshots it, and in the Yjs document every collaborator syncs. `geo` is
+  the one field the constructor does not even deep-copy, for exactly this reason
+  ([SYSTEM_10:325-328](SYSTEM_10_figure_render_export.md#L325-L328)).
+- **Cache-cold it writes `{kind:"level", level, family}`**, no geometry at all.
+  That bundle re-resolves from the live instance store on every render
+  ([build_figure_inputs.ts:491-503](client/src/generate_visualization/build_figure_inputs.ts#L491-L503))
+  forever after. The window is real: `preloadGeoJson` runs on SSE connect
+  ([t1_sse.tsx:197](client/src/state/instance/t1_sse.tsx#L197)) and a
+  ten-megabyte file does not land instantly.
+
+Neither shape records which boundaries the figure was built from, so no
+regeneration and no cache key can reach what follows. Two of these are the
+cache-cold shape's:
+
+- An admin re-importing or editing a boundary file changes every `level` figure,
+  with no version bump and no staleness signal. Figure staleness keys on
+  `(runId, scope definitionHash)`; boundaries are in neither.
+- A package that arrives from elsewhere renders its `level` figures against the
+  receiving instance's boundaries. Packages do travel: `manifest_cache.ts`
+  documents a package arriving "by rsync, by backup restore, or copied from
+  another instance"
   ([manifest_cache.ts:22-24](server/runs/manifest_cache.ts#L22-L24)).
-- The package is not self-describing. Everything else a figure needs is in it.
 
-### 1.2 Capture can freeze a live pointer
+And one is the cache-warm shape's, which freezing does not cure:
 
-`makeFigureBundleFromFetchedData` is the one place a stored bundle is assembled.
-When the boundaries for the map's family and level are not in the sync cache
-yet, it stores `{kind:"level", level, family}` instead of the data
-([resolve_figure_from_metric.ts:157-162](client/src/generate_visualization/resolve_figure_from_metric.ts#L157-L162)).
-That bundle then resolves live forever after, which is 1.1 with no frozen copy
-at all. One producer, one branch.
+- Two figures on one package disagree. A `data` figure authored before a
+  boundary re-import holds the old geometry and one authored after holds the
+  new, and a deck shows both side by side with nothing saying why.
+
+Neither shape names the package. Capturing the geometry into the run directory
+(§2.1) makes a third shape available that is wrong in neither way, because a
+ready run directory never changes: a bundle that names `(family, level)` and
+resolves against its own `provenance.runId` is frozen without carrying ten
+megabytes. That is the shape this plan moves to, and it is why step 4 deletes
+the `data` branch rather than the `level` branch (ruling 12).
 
 ### 1.3 The area key is a bare leaf name on both sides, and this plan cannot change it
 
@@ -200,7 +243,17 @@ contract.
 
 Underneath the prefix is the real defect: an expected, actionable state is
 carried as a thrown `Error` with a human string, so no caller can tell it from a
-bug, and the one export path that handles it does so by matching text.
+bug. Nothing in the repo matches the prefix, so no caller tries: every call site
+either catches the exception and degrades
+([report_figure_raster.ts:157](client/src/generate_report/report_figure_raster.ts#L157),
+[:285](client/src/generate_report/report_figure_raster.ts#L285),
+[convert_slide_to_page_inputs.ts:570](client/src/generate_slide_deck/convert_slide_to_page_inputs.ts#L570)),
+or catches it and shows `e.message` verbatim
+([figure_preview.ts:56-62](client/src/components/_shared/figure_preview.ts#L56-L62),
+[figure_editor.tsx:1063-1069](client/src/components/_shared/figure_editor/figure_editor.tsx#L1063-L1069)),
+or does not catch at all
+([export_report_as_html.ts:50](client/src/exports/export_report_as_html.ts#L50)).
+A string is the whole contract.
 
 ### 1.8 No coverage figure anywhere a map renders
 
@@ -223,10 +276,17 @@ missing values.
    `products.run_id`, serves the captured file, and is immutable-cached. The
    client keys its run-geo store by `runId`, which every bundle carries as
    `provenance.runId`.
-3. **A bundle never freezes a pointer.** The `{kind:"level"}` branch of bundle
-   assembly goes; a bundle either carries the geometry or carries no `geo`.
+3. **A bundle names its geometry, it does not carry it.** The `{kind:"data"}`
+   branch of bundle assembly goes; a new bundle stores
+   `{kind:"level", level,
+   family}` and resolves it against its own
+   `provenance.runId`. That is not the live pointer of 1.2, because a ready run
+   directory never changes. Bundles already stored keep whatever they hold and
+   are never rewritten (§5), so the ten-megabyte copies drain only as their
+   figures are re-resolved.
 4. **A package without captured geometry falls back to the instance plane**,
-   which is today's behaviour, and the next regeneration heals it.
+   which is today's behaviour for a `level` bundle, and the next regeneration
+   heals it.
 5. **The instance plane serves bytes, not an envelope**: a content-addressed URL
    per `uploaded_at`, a raw gzipped body, `private, immutable`.
 6. **Unavailable is a value, not a thrown string.** `buildFigureInputs` returns
@@ -278,6 +338,25 @@ missing values.
     An import that creates duplicate leaf names still commits: the names come
     from the facility file and refusing them would block the import of a real
     country. The wizard's warning likewise does not prevent a save.
+12. **A new bundle names the geometry; `{kind:"data"}` is what goes.** The
+    reverse (keeping `data`, deleting `level`) would leave the ten-megabyte
+    per-figure copies of 1.2 in place and make the capture dead weight for every
+    figure authored on the authoring instance. Deleting `data` instead costs
+    this: a new bundle is no longer readable outside this app, and a map figure
+    needs the run-geo store populated to render, which is the same condition
+    `getGeoJsonSync` already imposes on a `level` bundle today, with the same
+    version-signal re-render behind it. Nothing server-side is affected:
+    `buildFigureInputs` has no caller under `server/` or `report-forge/`, and
+    the PDF path prints client-produced HTML
+    ([reports.ts:80-92](lib/api-routes/products/reports.ts#L80-L92)).
+13. **A bundle records the geojson family in its own right.** `geo.family` is
+    today the only record of which registry's boundaries a figure draws:
+    `FigureBundle.resultsValue` carries `formatAs`, `valueProps` and
+    `valueLabelReplacements` and drops `datasetFamily`
+    ([_figure_bundle.ts:67-77](lib/types/_figure_bundle.ts#L67-L77)). Ruling 12
+    keeps `geo` as the carrier, so the family stays where it is and no stored
+    shape gains a field. A design that dropped `geo` entirely would have to add
+    `datasetFamily` to the stored `resultsValue` subset; this plan does not.
 
 ---
 
@@ -296,6 +375,7 @@ missing values.
 `client/src/state/products/t2_figure_data.ts`,
 `client/src/generate_report/report_figure_raster.ts`,
 `client/src/exports/export_report_as_html.ts`,
+`client/src/generate_slide_deck/convert_slide_to_page_inputs.ts`,
 `client/src/components/products/_shared/report_figure_embed.tsx`,
 `client/src/components/explore/data_table/data_table.tsx`,
 `client/src/components/_shared/figure_preview.ts`,
@@ -309,17 +389,28 @@ missing values.
 - A `FigureUnavailable` discriminated union in `lib/types/_figure_bundle.ts`
   beside the bundle it describes, with the one state that exists today:
   `{ kind: "no_boundaries", family: FacilityFamily, level: number }`. Reasons
-  carry data, never a sentence.
+  carry data, never a sentence. `family` is read the way the thrown string reads
+  it today, from `geo.family` defaulting to `hmis`
+  ([build_figure_inputs.ts:335-337](client/src/generate_visualization/build_figure_inputs.ts#L335-L337));
+  ruling 13 is why that carrier survives step 4.
 - `buildFigureInputs` returns
   `{ ok: true; inputs: FigureInputs } | { ok: false; unavailable: FigureUnavailable }`.
   The map branch returns the `no_boundaries` reason instead of throwing. Every
   other throw in the function stays a throw: those are bugs.
-- All nine call sites handle the result. The three that display a message
+- All ten call sites handle the result. They are, by file: two in
+  `report_figure_raster.ts` (150, 268), one each in `export_report_as_html.ts`
+  (50), `convert_slide_to_page_inputs.ts` (570), `report_figure_embed.tsx` (68),
+  `data_table.tsx` (250), `figure_preview.ts` (56) and
+  `resolve_bundle_from_metric_and_config.ts` (135), and two in
+  `figure_editor.tsx` (653, 1057). The three that display a message
   (`report_figure_embed.tsx`, `figure_preview.ts`, `figure_editor.tsx`) render a
   localized line from the reason, in the three languages the repo uses, with the
-  registry and level interpolated. `report_figure_raster.ts` and
-  `export_report_as_html.ts` degrade on `ok: false` explicitly rather than by
-  catching a string.
+  registry and level interpolated. `report_figure_raster.ts`,
+  `export_report_as_html.ts` and `convert_slide_to_page_inputs.ts` degrade on
+  `ok: false` explicitly: the first two have no unavailable branch at all today,
+  and the third returns `makePlaceholderTextItem` from a bare `catch`.
+  `resolve_bundle_from_metric_and_config.ts` raises its `AIToolFailure` from the
+  reason rather than from `e.message`.
 - The `[INFO]` prefix is deleted from the three `t2_figure_data.ts` strings.
   Nothing keys off the prefix, so this is the whole change there.
 - No string in the repo matches `[INFO]`.
@@ -353,6 +444,7 @@ client file, and `deno task test` runs `server/tests/` and
 `client/src/components/data/geojson/upload_wizard/step_2.tsx`,
 `client/src/components/data/geojson/upload_wizard/step_3.tsx`,
 `client/src/components/data/geojson/upload_wizard/wizard.tsx`,
+`client/src/components/data/geojson/edit_modal.tsx`,
 `server/tests/geojson_area_match_test.ts` (new),
 [SYSTEM_05_facilities_indicators.md](SYSTEM_05_facilities_indicators.md).
 
@@ -361,19 +453,34 @@ client file, and `deno task test` runs `server/tests/` and
 - `lib/geojson_area_match.ts` exports `normalizeAreaName` (NFC, trim, collapse
   internal whitespace including non-breaking space, case-fold, strip combining
   marks) and `autoMapAreaNames(sourceNames, adminAreaNames)` returning the
-  mapping plus the source names it could not place. It lives in `lib/` because
-  the save path and the wizard must normalize identically.
+  mapping plus the source names it could not place. It lives in `lib/` so the
+  test below can reach it: `deno task test` runs `server/tests/` and
+  `report-forge/tests/`, which cannot import the `~` alias. The save path does
+  not call it and does not change: `processFeatures` looks the raw source name
+  up in the mapping it was handed
+  ([process_geojson.ts:123](server/geojson/process_geojson.ts#L123)), so
+  normalization is an authoring-time concern and only new saves and remaps see
+  the better matching.
 - Both branches of `step_2.tsx` call `autoMapAreaNames`. The two inline loops
   are gone.
 - The raw parsed feature types are declared once, in `server/geojson/types.ts`;
   `process_geojson.ts` and `server/dhis2/goal4_geojson/types.ts` import them.
   The dhis2 module depends on the geojson module, not the reverse.
+  `GeoJsonFeature` is identical in both and moves as is; the two
+  `GeoJsonFeatureCollection`s are not (the dhis2 one is strict because its
+  fetcher has already checked `type` and `features`), so the shared file
+  declares the loose one and the dhis2 file keeps its checked alias over the
+  shared feature type.
 - `getAdminAreaOptionsForLevel` returns, alongside the options, the duplicate
   groups for that family and level: each repeated leaf name with the parent
-  paths that carry it. Level 2 stops using `SELECT DISTINCT`, so a name shared
-  by two level-1 parents is reported rather than silently folded; the options
-  themselves stay one per distinct name, because the area key cannot distinguish
-  them (ruling 1).
+  paths that carry it. Level 2 stops using `SELECT DISTINCT` and dedupes in
+  TypeScript instead, so a name shared by two level-1 parents is reported rather
+  than silently folded; the options themselves stay one per distinct name at
+  every level, because the area key cannot distinguish them (ruling 1).
+- Its response shape therefore changes from `Array<{value, label}>` to the
+  options plus the groups, which `edit_modal.tsx` consumes as well as the wizard
+  ([edit_modal.tsx:84](client/src/components/data/geojson/edit_modal.tsx#L84)).
+  The modal shows the same groups above its remap table.
 - The wizard shows those groups above the mapping table: the names, their
   parents, and the consequence stated plainly, that one boundary and one value
   are all these areas can have until they are renamed.
@@ -404,7 +511,7 @@ duplicate-name surfacing.
 **Surface.** `lib/api-routes/instance/geojson_maps.ts`,
 `server/routes/instance/geojson_maps.ts`, `server/db/instance/geojson_maps.ts`,
 `client/src/state/instance/t2_geojson.ts`,
-`client/src/generate_report/_report_export_maps.ts`,
+`client/src/components/data/geojson/edit_modal.tsx`,
 `server/tests/geojson_serving_test.ts` (new),
 [SYSTEM_01_api_contract.md](SYSTEM_01_api_contract.md),
 [SYSTEM_05_facilities_indicators.md](SYSTEM_05_facilities_indicators.md).
@@ -416,10 +523,32 @@ duplicate-name surfacing.
   `Cache-Control: private, max-age=31536000, immutable`, and
   `Content-Encoding: gzip` when the request accepts it, compressed from the
   stored text in the handler. A request whose `:uploaded_at` does not match the
-  row's is a 404, not a redirect: the client always has the current value.
+  row's is a 404, not a redirect: the client always has the current value. The
+  `private` directive also makes `cacheMiddleware` leave the response alone
+  ([cache.ts:20-24](server/middleware/cache.ts#L20-L24)).
+- The registry entry declares `isStreaming: true` and no `response`. That is the
+  existing mechanism for a handler that returns a plain `Response`
+  ([route-helpers.ts:33-34](server/routes/route-helpers.ts#L33-L34)); `route()`
+  types every declared response as an envelope
+  ([route-utils.ts:50-51](lib/api-routes/route-utils.ts#L50-L51)), so there is
+  no raw-response variant to add and none is added. The generated client action
+  for a streaming route runs `consumeStream`, which parses newline-delimited
+  JSON, so nothing calls it: the entry exists for the path, the permission
+  middleware and the route tracker.
 - The envelope route is gone, not kept alongside. `t2_geojson.loadMap` fetches
-  the new URL directly, with the transport's credentials, and parses once.
-  `_report_export_maps.ts` follows the same URL shape.
+  the new URL directly, off `getServerActionTransport()` for `baseUrl`,
+  `getHeaders()` and `credentials`, and parses once. It encodes the
+  `uploaded_at` segment itself with `encodeURIComponent`, which
+  `buildRequestParams` used to do
+  ([create_server_action.ts:80](lib/server_actions/create_server_action.ts#L80)):
+  the value is an ISO timestamp and carries `:`.
+- `edit_modal.tsx` follows the same URL for both of its reads: the remap table's
+  feature grouping
+  ([edit_modal.tsx:83](client/src/components/data/geojson/edit_modal.tsx#L83))
+  and the download button
+  ([edit_modal.tsx:215](client/src/components/data/geojson/edit_modal.tsx#L215)),
+  which blobs the response text instead of `res.data.geojson`. Both need the
+  `uploaded_at` the modal's caller already holds from the map summaries.
 - The database read for the serving path returns the text and `uploaded_at`
   without building an envelope around a 20 MB string.
 - SYSTEM_01 records the raw-body route as an exception to the envelope contract
@@ -455,6 +584,7 @@ inflates to those bytes; a stale `uploaded_at` 404s.
 `client/src/state/products/t2_run_geojson.ts` (new),
 `client/src/generate_visualization/build_figure_inputs.ts`,
 `client/src/generate_visualization/resolve_figure_from_metric.ts`,
+`client/src/generate_visualization/resolve_bundle_from_metric_and_config.ts`,
 `lib/types/_figure_bundle.ts`, `server/tests/run_manifest_transform_test.ts`,
 `server/tests/geojson_capture_test.ts` (new),
 [SYSTEM_08_results_packages.md](SYSTEM_08_results_packages.md),
@@ -465,13 +595,23 @@ inflates to those bytes; a stale `uploaded_at` 404s.
 
 - `prepare_inputs` writes one `inputs/geojson/{family}_level_{N}.geojson.gz` per
   `geojson_maps` row, gzipped from the stored text, and records each in
-  `extraInputFiles`.
+  `extraInputFiles`. Measured cost on the dev instance's four rows: 20.5 MB
+  plain, so roughly 2 MB gzipped added to every run package from here on,
+  permanently, since a package is never pruned. `input_transform.ts` reads
+  mirrors by exact file name
+  ([input_transform.ts:126](server/runs/input_transform.ts#L126)), so a new
+  `inputs/` entry it does not name is inert to it.
 - `RUN_MANIFEST_SCHEMA_VERSION` is 15 and the manifest carries
   `geojsonMaps: { family, adminAreaLevel, featureCount, uploadedAt }[] | null`:
   a list for a package generated with capture, `null` for every earlier package
   (ruling 4). A transform block appended at the end of `manifest_transform.ts`
   stamps 15 and carries the field forward as `null`, checking its own
-  precondition and idempotent.
+  precondition and idempotent. `geojson_maps` has no `feature_count` column
+  ([010_add_geojson_maps.sql](server/db/migrations/instance/010_add_geojson_maps.sql),
+  [076:267](server/db/migrations/instance/076_structure_family_split.sql#L267)),
+  so the count comes from one `JSON.parse` of the stored text per row during the
+  capture that already reads it. No new column: the stamp is a generation-time
+  fact and belongs in the manifest.
 - The capture does not disturb module memoization: reuse keys hash each module's
   own declared sources
   ([resolve_reuse.ts:150-209](server/worker_routines/generate_run/resolve_reuse.ts#L150-L209)),
@@ -488,23 +628,41 @@ inflates to those bytes; a stale `uploaded_at` 404s.
   own comment requires on a shape change.
 - A run-geo store keyed `(runId, family, level)` preloads from that stamp when a
   product's authoring context loads, and mirrors `t2_geojson`'s shape: memory
-  plus IDB, a version signal so a tracked read re-runs when the data lands.
+  plus IDB, a version signal so a tracked read re-runs when the data lands. It
+  also mirrors its eviction: `t2_geojson` has `evictDeletedGeoJsonLevels`, and
+  this store drops every entry whose `runId` no longer backs a product in
+  `instanceState.products`, memory and IDB together. Without that rule a user
+  who opens five packages accumulates five parsed copies, ten megabytes each at
+  admin area 3, on top of the instance store's own.
 - `resolveGeoJson` reads the run-geo store with `bundle.provenance.runId`, which
   every bundle carries, and falls back to the instance store when the package's
   stamp is `null`. The fallback is the documented behaviour for pre-capture
   packages, not a transitional state.
-- `makeFigureBundleFromFetchedData` loses the `{kind:"level"}` branch: a bundle
-  carries `geo.data` or no `geo`. `geoRefSchema` keeps the `level` variant,
-  because bundles already stored carry it and a stored bundle is never
-  rewritten.
+- `makeFigureBundleFromFetchedData` loses the `{kind:"data"}` branch (ruling
+  12): a new bundle stores `{kind:"level", level, family}` whenever the config
+  has a map level, and no `geo` otherwise. The sync-cache read and the
+  cache-warm-versus-cache-cold split in that constructor go with it, so the
+  function no longer touches `t2_geojson` at all. `geoRefSchema` keeps the
+  `data` variant, because bundles already stored carry it and a stored bundle is
+  never rewritten.
+- `assertMapBoundariesAvailable` asserts against the package, not the instance:
+  it reads the authoring context's `geojsonMaps` stamp for the figure's family
+  and level and awaits the run-geo store, where today it reads
+  `instanceState.geojsonMaps` and awaits `preloadGeoJson`
+  ([resolve_bundle_from_metric_and_config.ts:96-128](client/src/generate_visualization/resolve_bundle_from_metric_and_config.ts#L96-L128)).
+  Its two `AIToolFailure` messages keep their wording, with the alternative
+  levels read from the stamp. A pre-capture package (stamp `null`) keeps the
+  instance read, the same fallback `resolveGeoJson` takes.
 - SYSTEM_08 records the new input files, the v15 stamp and its block, and the
-  product-scoped serving route. SYSTEM_10 records that the product plane reads
-  the package and the instance plane is the fallback. SYSTEM_01 records the new
-  route.
+  product-scoped serving route. SYSTEM_10's "Geo" section is rewritten: a new
+  bundle names its geometry and resolves it against its own package, the `data`
+  variant is read-only history, and the "A bundle owns its data" paragraph loses
+  its `geo` exception, because there is no longer a megabyte-scale field held by
+  reference. SYSTEM_01 records the new route.
 
-**Not in this step.** Re-capturing geometry into stored bundles, which no step
-does (ruling 1 and §5). Deleting the `level` variant from `geoRefSchema`.
-Coverage, which is step 5.
+**Not in this step.** Re-capturing geometry into stored bundles, or stripping
+`geo.data` out of the ones that carry it (§5). Deleting the `data` variant from
+`geoRefSchema`. Coverage, which is step 5.
 
 **Gates.** The floor, plus `server/tests/geojson_capture_test.ts`: a generation
 over seeded `geojson_maps` rows writes one gzipped file per row whose inflated
@@ -515,7 +673,7 @@ transforms to v15 with `geojsonMaps: null`, and the block is idempotent.
 
 **Ends with** three commits: capture plus the manifest version, the serving
 route plus the authoring-context stamp, then the client repoint and the deletion
-of the freeze branch.
+of the embed branch.
 
 ### Step 5 - coverage where a figure is authored
 
@@ -536,6 +694,15 @@ of the freeze branch.
 - `map_coverage.ts` computes, from the transformed map data, how many distinct
   data areas have a matching boundary, how many boundaries carry no value, and
   the matched share. It reads panther's output and adds no panther edit.
+- The transform runs ONCE. `buildFigureInputs`' map branch calls
+  `getMapDataTransformed` itself and puts the `MapDataTransformed` in
+  `FigureInputs.data`, which the map variant already accepts
+  ([types.ts:25](panther/_010_maps/types.ts#L25)), and panther's own call
+  short-circuits on `isTransformed`
+  ([get_map_data.ts:16-19](panther/_010_maps/get_map_data.ts#L16-L19)).
+  Computing coverage over `MapDataJson` and handing panther the JSON form would
+  walk every feature and every row twice per build, and `buildFigureInputs`
+  re-runs on every keystroke in the editor over up to 10,325 level-4 areas.
 - A map with zero matched areas returns the `no_boundaries`-style unavailable
   result rather than rendering an empty country; every other share renders
   (ruling 8). The reason union gains
@@ -573,13 +740,17 @@ files.
   map them separately and both would still store the same `area_id` and receive
   the same value, because the area key is a name. It delivers nothing until the
   key changes, and belongs to that work.
-- **Rewriting stored bundles.** A frozen bundle carries its items and its
-  geometry together and renders consistently; there is nothing to re-key (ruling
-  1). Reaching them would mean a transform over `slides.config`,
-  `reports.figures`, `report_versions.figures`, `slide_deck_versions.slides` and
-  two Yjs `crdt_state` documents, where `geo` sits inside the opaque `figData`
-  half ([slide_crdt.ts:64-68](lib/collab/slide_crdt.ts#L64-L68)), plus a
-  `content_hash` recompute on both version tables.
+- **Rewriting stored bundles**, including stripping the `geo.data` copies that
+  1.2 measures. A bundle that carries its geometry renders consistently and
+  there is nothing to re-key (ruling 1), so the copies are dead weight, not a
+  defect in what renders, and they drain as their figures are re-resolved under
+  ruling 12. Reaching them deliberately would mean a transform over
+  `slides.config`, `reports.figures`, `report_versions.figures`,
+  `slide_deck_versions.slides` and two Yjs `crdt_state` documents, where `geo`
+  sits inside the opaque `figData` half
+  ([slide_crdt.ts:64-68](lib/collab/slide_crdt.ts#L64-L68)), plus a
+  `content_hash` recompute on both version tables. It is its own plan, and it is
+  only worth writing once ruling 12 has stopped new ones arriving.
 - **Storing `geojson_maps.geojson` compressed**, which changes the column type.
 - **Off-main-thread parsing, polygon simplification, the AA4 background worker
   with SSE progress, and `step_3` row virtualization** (measured: DRC 10,325
