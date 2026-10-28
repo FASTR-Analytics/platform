@@ -121,7 +121,11 @@ function getRollupRowLabel(
   const ctx = getRollupLabelContext(config);
   if (ctx?.kind === "pinned" && ctx.value) {
     return `${resolveAdminAreaLabel(ctx.value, countryIso3)} — ${
-      pickLang(language, { en: "All areas", fr: "Toutes les zones" })
+      pickLang(language, {
+        en: "All areas",
+        fr: "Toutes les zones",
+        pt: "Todas as áreas",
+      })
     }`;
   }
   if (ctx?.kind === "all_facilities") {
@@ -141,7 +145,11 @@ function getRollupRowLabel(
   // preview labels the row correctly outside any authoring shell.
   if (scope.adminArea2 !== null) {
     return `${resolveAdminAreaLabel(scope.adminArea2, countryIso3)} — ${
-      pickLang(language, { en: "All areas", fr: "Toutes les zones" })
+      pickLang(language, {
+        en: "All areas",
+        fr: "Toutes les zones",
+        pt: "Todas as áreas",
+      })
     }`;
   }
   return pickLang(language, TC.national);
