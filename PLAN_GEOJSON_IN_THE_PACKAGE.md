@@ -284,13 +284,42 @@ missing values.
    directory never changes. Bundles already stored keep whatever they hold and
    are never rewritten (§5), so the ten-megabyte copies drain only as their
    figures are re-resolved.
-4. **A package without captured geometry falls back to the instance plane**,
-   which is today's behaviour for a `level` bundle, and the next regeneration
-   heals it.
+4. **Resolution asks the run-geo store, which answers in four states**, and the
+   fallback is conditional on the answer, never unconditional: an unconditional
+   instance read would render the instance's boundaries during the window before
+   the package's arrive, which is the live pointer again, silently and for a
+   frame. Keyed by the bundle's own `provenance.runId`:
+   - **ready** - the data is in the store. Render it.
+   - **loading** - the run's stamp lists `(family, level)` and the bytes are in
+     flight. Unavailable for now; the version signal re-runs the read when they
+     land, exactly as `getGeoJsonSync` does today.
+   - **not in this package** - the run's stamp is loaded and does not list
+     `(family, level)`. The geometry was not there at generation; the action is
+     to regenerate, not to upload (§2.6, ruling 14).
+   - **run unknown** - no stamp for that `runId`, because the package predates
+     capture or because the bundle is stale: `isFigureBundleStale` compares
+     `provenance.runId` against the container's, reattach never blocks
+     ([products.ts:69-78](lib/api-routes/products/products.ts#L69-L78)), and the
+     old run may already be deleted, since `deleteRun` is refused only while a
+     product still points at it
+     ([run_generation.ts:123](server/db/instance/run_generation.ts#L123)). Read
+     the instance plane, which is today's behaviour for a `level` bundle, and
+     the next regeneration or re-resolve heals it.
+
+   The store owns this because it holds both the stamps it preloaded and the
+   data. `buildFigureInputs` cannot answer it: it takes a bundle, a deck style
+   and a palette, and never the container's scope, so a rule phrased as "is this
+   the product's current run" would have to be plumbed through ten call sites to
+   say what the store already knows.
 5. **The instance plane serves bytes, not an envelope**: a content-addressed URL
    per `uploaded_at`, a raw gzipped body, `private, immutable`.
-6. **Unavailable is a value, not a thrown string.** `buildFigureInputs` returns
-   a typed result for the states a user can act on and throws only on bugs.
+6. **Unavailable is a value, not a thrown string, and it names the plane it
+   asked.** `buildFigureInputs` returns a typed result for the states a user can
+   act on and throws only on bugs. A missing boundary is one of two different
+   facts with two different actions: the instance has no file for this registry
+   and level (upload one), or the package was generated without it (regenerate),
+   and after §2.4 the second can be true while the instance holds a file
+   uploaded since. The reason carries which, so the display can say which.
 7. **Duplicate leaf names are stated where they are created and where they
    bite**: the structure import's summary and the geojson wizard both name the
    colliding areas and say what the consequence is.
@@ -345,9 +374,14 @@ missing values.
     this: a new bundle is no longer readable outside this app, and a map figure
     needs the run-geo store populated to render, which is the same condition
     `getGeoJsonSync` already imposes on a `level` bundle today, with the same
-    version-signal re-render behind it. Nothing server-side is affected:
-    `buildFigureInputs` has no caller under `server/` or `report-forge/`, and
-    the PDF path prints client-produced HTML
+    version-signal re-render behind it. A stale map figure, one whose
+    `provenance.runId` is not its product's current run, draws the instance's
+    current boundaries until it is re-resolved (§2.4, "run unknown"), where a
+    stale `data` bundle today draws its own frozen copy. That is the one place
+    this ruling is a behaviour loss, and it is bounded by the stale badge the
+    figure already carries. Nothing server-side is affected: `buildFigureInputs`
+    has no caller under `server/` or `report-forge/`, and the PDF path prints
+    client-produced HTML
     ([reports.ts:80-92](lib/api-routes/products/reports.ts#L80-L92)).
 13. **A bundle records the geojson family in its own right.** `geo.family` is
     today the only record of which registry's boundaries a figure draws:
@@ -357,6 +391,13 @@ missing values.
     keeps `geo` as the carrier, so the family stays where it is and no stored
     shape gains a field. A design that dropped `geo` entirely would have to add
     `datasetFamily` to the stored `resultsValue` subset; this plan does not.
+14. **An unavailable reason says which plane came up empty.** Before step 4
+    there is one plane, so step 1's reason is always `source: "instance"` and
+    the wording is today's. Step 4 adds the package plane and the "not in this
+    package" state of §2.4, whose action is a regeneration; wording that case as
+    "not yet uploaded" would send the user to the maps page to upload a file
+    that may already be there. The display reads the field; the resolver never
+    writes a sentence (ruling 9).
 
 ---
 
@@ -388,9 +429,13 @@ missing values.
 
 - A `FigureUnavailable` discriminated union in `lib/types/_figure_bundle.ts`
   beside the bundle it describes, with the one state that exists today:
-  `{ kind: "no_boundaries", family: FacilityFamily, level: number }`. Reasons
-  carry data, never a sentence. `family` is read the way the thrown string reads
-  it today, from `geo.family` defaulting to `hmis`
+  `{ kind: "no_boundaries", family: FacilityFamily, level: number, source:
+  "instance" | "package" }`.
+  Reasons carry data, never a sentence. This step only ever constructs
+  `source: "instance"`, because there is no package plane until step 4; the
+  field is declared here rather than added there so the three display sites are
+  written once, against both wordings (ruling 14). `family` is read the way the
+  thrown string reads it today, from `geo.family` defaulting to `hmis`
   ([build_figure_inputs.ts:335-337](client/src/generate_visualization/build_figure_inputs.ts#L335-L337));
   ruling 13 is why that carrier survives step 4.
 - `buildFigureInputs` returns
@@ -405,10 +450,13 @@ missing values.
   `figure_editor.tsx` (653, 1057). The three that display a message
   (`report_figure_embed.tsx`, `figure_preview.ts`, `figure_editor.tsx`) render a
   localized line from the reason, in the three languages the repo uses, with the
-  registry and level interpolated. `report_figure_raster.ts`,
-  `export_report_as_html.ts` and `convert_slide_to_page_inputs.ts` degrade on
-  `ok: false` explicitly: the first two have no unavailable branch at all today,
-  and the third returns `makePlaceholderTextItem` from a bare `catch`.
+  registry and level interpolated: the `instance` wording says the files are not
+  uploaded for that registry and level, the `package` wording says this results
+  package was generated without them and a regeneration captures them.
+  `report_figure_raster.ts`, `export_report_as_html.ts` and
+  `convert_slide_to_page_inputs.ts` degrade on `ok: false` explicitly: the first
+  two have no unavailable branch at all today, and the third returns
+  `makePlaceholderTextItem` from a bare `catch`.
   `resolve_bundle_from_metric_and_config.ts` raises its `AIToolFailure` from the
   reason rather than from `e.message`.
 - The `[INFO]` prefix is deleted from the three `t2_figure_data.ts` strings.
@@ -548,7 +596,12 @@ duplicate-name surfacing.
   and the download button
   ([edit_modal.tsx:215](client/src/components/data/geojson/edit_modal.tsx#L215)),
   which blobs the response text instead of `res.data.geojson`. Both need the
-  `uploaded_at` the modal's caller already holds from the map summaries.
+  `uploaded_at`, and the modal reads it itself from `instanceState.geojsonMaps`
+  for its own family and level, the way the manager does
+  ([manager.tsx:63](client/src/components/data/geojson/manager.tsx#L63)). No new
+  prop: `Props` stays `family`, `adminAreaLevel`, `close`
+  ([edit_modal.tsx:18-22](client/src/components/data/geojson/edit_modal.tsx#L18-L22))
+  and `manager.tsx` is not in this step's surface because it does not change.
 - The database read for the serving path returns the text and `uploaded_at`
   without building an envelope around a 20 MB string.
 - SYSTEM_01 records the raw-body route as an exception to the envelope contract
@@ -629,22 +682,33 @@ inflates to those bytes; a stale `uploaded_at` 404s.
 - A run-geo store keyed `(runId, family, level)` preloads from that stamp when a
   product's authoring context loads, and mirrors `t2_geojson`'s shape: memory
   plus IDB, a version signal so a tracked read re-runs when the data lands. It
-  also mirrors its eviction: `t2_geojson` has `evictDeletedGeoJsonLevels`, and
-  this store drops every entry whose `runId` no longer backs a product in
-  `instanceState.products`, memory and IDB together. Without that rule a user
-  who opens five packages accumulates five parsed copies, ten megabytes each at
-  admin area 3, on top of the instance store's own.
-- `resolveGeoJson` reads the run-geo store with `bundle.provenance.runId`, which
-  every bundle carries, and falls back to the instance store when the package's
-  stamp is `null`. The fallback is the documented behaviour for pre-capture
-  packages, not a transitional state.
+  retains each run's stamp beside the data, because the stamp is what tells
+  "this package has no boundaries at that level" from "they have not arrived
+  yet" and from "I have never heard of this run". It also mirrors `t2_geojson`'s
+  eviction: `evictDeletedGeoJsonLevels` has its counterpart here, dropping every
+  entry whose `runId` no longer backs a product in `instanceState.products`,
+  memory and IDB together. Without that rule a user who opens five packages
+  accumulates five parsed copies, ten megabytes each at admin area 3, on top of
+  the instance store's own.
+- Its sync read, the one `resolveGeoJson` calls with `bundle.provenance.runId`,
+  returns the four states of §2.4: `ready` with the data, `loading`,
+  `not_in_package`, `run_unknown`. `resolveGeoJson` renders on `ready`, reads
+  the instance store on `run_unknown`, and returns the unavailable reason on the
+  other two, with `source: "package"` for `not_in_package` and
+  `source: "instance"` when the instance read then comes up empty too (ruling
+  14). The states live in the store and not in the caller because
+  `buildFigureInputs` never sees the container's scope (§2.4).
 - `makeFigureBundleFromFetchedData` loses the `{kind:"data"}` branch (ruling
   12): a new bundle stores `{kind:"level", level, family}` whenever the config
-  has a map level, and no `geo` otherwise. The sync-cache read and the
+  has a map level, and no `geo` otherwise. The `getGeoJsonSync` call and the
   cache-warm-versus-cache-cold split in that constructor go with it, so the
-  function no longer touches `t2_geojson` at all. `geoRefSchema` keeps the
-  `data` variant, because bundles already stored carry it and a stored bundle is
-  never rewritten.
+  function no longer reads the sync cache. Its `t2_geojson` import stays, for
+  `geoJsonFamilyFor`
+  ([resolve_figure_from_metric.ts:17](client/src/generate_visualization/resolve_figure_from_metric.ts#L17)),
+  which is what stamps the family the `level` ref now carries
+  ([:132](client/src/generate_visualization/resolve_figure_from_metric.ts#L132)).
+  `geoRefSchema` keeps the `data` variant, because bundles already stored carry
+  it and a stored bundle is never rewritten.
 - `assertMapBoundariesAvailable` asserts against the package, not the instance:
   it reads the authoring context's `geojsonMaps` stamp for the figure's family
   and level and awaits the run-geo store, where today it reads
@@ -654,11 +718,14 @@ inflates to those bytes; a stale `uploaded_at` 404s.
   levels read from the stamp. A pre-capture package (stamp `null`) keeps the
   instance read, the same fallback `resolveGeoJson` takes.
 - SYSTEM_08 records the new input files, the v15 stamp and its block, and the
-  product-scoped serving route. SYSTEM_10's "Geo" section is rewritten: a new
-  bundle names its geometry and resolves it against its own package, the `data`
-  variant is read-only history, and the "A bundle owns its data" paragraph loses
-  its `geo` exception, because there is no longer a megabyte-scale field held by
-  reference. SYSTEM_01 records the new route.
+  product-scoped serving route. SYSTEM_10 records the four resolve states and
+  what each renders, next to the staleness contract they interact with, because
+  a stale map figure now draws the instance's boundaries and that is the one
+  behaviour this step changes for an existing document. SYSTEM_10's "Geo"
+  section is rewritten: a new bundle names its geometry and resolves it against
+  its own package, the `data` variant is read-only history, and the "A bundle
+  owns its data" paragraph loses its `geo` exception, because there is no longer
+  a megabyte-scale field held by reference. SYSTEM_01 records the new route.
 
 **Not in this step.** Re-capturing geometry into stored bundles, or stripping
 `geo.data` out of the ones that carry it (§5). Deleting the `data` variant from
