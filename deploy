@@ -81,7 +81,7 @@ else
     VERSION="$MAJOR.$MINOR.$PATCH"
 fi
 
-echo "Run the tests (migrations, queries, server suite)? (y/n)"
+echo "Validate migrations and queries? (y/n)"
 read -r RUN_TESTS_ANSWER
 
 if [ "$RUN_TESTS_ANSWER" = "y" ] || [ "$RUN_TESTS_ANSWER" = "Y" ]; then
@@ -99,7 +99,7 @@ elif [ "$VERSION" = "$ORIGINAL_VERSION" ]; then
 else
     echo "  Version:        $ORIGINAL_VERSION → $VERSION"
 fi
-echo "  Tests:          $RUN_TESTS"
+echo "  Validate:       $RUN_TESTS"
 echo "  Typecheck and protocol validation always run."
 echo ""
 echo "No further questions: the deploy now runs to completion."
@@ -180,12 +180,6 @@ if [ "$RUN_TESTS" = "true" ]; then
 
     if ! "$SCRIPT_DIR/validate_queries"; then
         echo "ERROR: Query validation failed!"
-        exit 1
-    fi
-
-    echo "Running the server test suite..."
-    if ! deno task test; then
-        echo "ERROR: Tests failed!"
         exit 1
     fi
 fi

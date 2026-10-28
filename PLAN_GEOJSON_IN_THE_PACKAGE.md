@@ -293,35 +293,35 @@ missing values.
    instance read would render the instance's boundaries during the window before
    the package's arrive, which is the live pointer again, silently and for a
    frame. The store fetches a run's stamp itself, keyed by `runId`, the first
-   time anything asks about that run, so no state depends on which page asked
-   or on whether a product's authoring context has landed. Keyed by the bundle's
+   time anything asks about that run, so no state depends on which page asked or
+   on whether a product's authoring context has landed. Keyed by the bundle's
    own `provenance.runId`:
    - **ready** - the data is in the store. Render it.
    - **loading** - the run's stamp is in flight, or it lists `(family, level)`
      and the bytes are in flight. Unavailable for now; the version signal
-     re-runs the read when either lands, exactly as `getGeoJsonSync` does
-     today. Every transition from here is forward: a figure never draws one
-     plane and then the other.
+     re-runs the read when either lands, exactly as `getGeoJsonSync` does today.
+     Every transition from here is forward: a figure never draws one plane and
+     then the other.
    - **not in this package** - the run's stamp is loaded and does not list
      `(family, level)`. The geometry was not there at generation; the action is
      to regenerate, not to upload (§2.6, ruling 14).
-   - **run unknown** - the stamp read has completed and found nothing to
-     resolve against: the manifest's stamp is `null`, because the package
-     predates capture, or the read fails, because the run is gone. A stale
-     bundle's run can be gone: `isFigureBundleStale` compares
-     `provenance.runId` against the container's, reattach never blocks
+   - **run unknown** - the stamp read has completed and found nothing to resolve
+     against: the manifest's stamp is `null`, because the package predates
+     capture, or the read fails, because the run is gone. A stale bundle's run
+     can be gone: `isFigureBundleStale` compares `provenance.runId` against the
+     container's, reattach never blocks
      ([products.ts:69-78](lib/api-routes/products/products.ts#L69-L78)), and
-     `deleteRun` refuses a run only while it is generating, pinned, or a
-     product points at it
+     `deleteRun` refuses a run only while it is generating, pinned, or a product
+     points at it
      ([run_generation.ts:121-123](server/db/instance/run_generation.ts#L121-L123)).
      Read the instance plane, which is today's behaviour for a `level` bundle,
      and the next regeneration or re-resolve heals it.
 
-   The store owns this because it holds both the stamps it fetched and the
-   data. `buildFigureInputs` cannot answer it: it takes a bundle, a deck style
-   and a palette, and never the container's scope, so a rule phrased as "is this
-   the product's current run" would have to be plumbed through ten call sites to
-   say what the store already knows.
+   The store owns this because it holds both the stamps it fetched and the data.
+   `buildFigureInputs` cannot answer it: it takes a bundle, a deck style and a
+   palette, and never the container's scope, so a rule phrased as "is this the
+   product's current run" would have to be plumbed through ten call sites to say
+   what the store already knows.
 5. **The instance plane serves bytes, not an envelope**: a content-addressed URL
    per `uploaded_at`, a raw gzipped body, `private, immutable`.
 6. **Unavailable is a value, not a thrown string, and it names the plane it
@@ -386,17 +386,16 @@ missing values.
     needs the run-geo store populated to render, which is the same condition
     `getGeoJsonSync` already imposes on a `level` bundle today, with the same
     version-signal re-render behind it. A stale map figure, one whose
-    `provenance.runId` is not its product's current run, draws its own
-    package's boundaries for as long as that package exists, because the store
-    and the routes are keyed by run and not by product (§2.2); only once the
-    run is deleted does it draw the instance's current boundaries until it is
+    `provenance.runId` is not its product's current run, draws its own package's
+    boundaries for as long as that package exists, because the store and the
+    routes are keyed by run and not by product (§2.2); only once the run is
+    deleted does it draw the instance's current boundaries until it is
     re-resolved (§2.4, "run unknown"), where a stale `data` bundle today draws
-    its own frozen copy. That deleted-run case is the one place this ruling is
-    a behaviour loss, and it is bounded by the stale badge the figure already
-    carries. Nothing server-side is affected: `buildFigureInputs`
-    has no caller under `server/` or `report-forge/`, and the PDF path prints
-    client-produced HTML
-    ([reports.ts:80-92](lib/api-routes/products/reports.ts#L80-L92)).
+    its own frozen copy. That deleted-run case is the one place this ruling is a
+    behaviour loss, and it is bounded by the stale badge the figure already
+    carries. Nothing server-side is affected: `buildFigureInputs` has no caller
+    under `server/` or `report-forge/`, and the PDF path prints client-produced
+    HTML ([reports.ts:80-92](lib/api-routes/products/reports.ts#L80-L92)).
 13. **A bundle records the geojson family in its own right.** `geo.family` is
     today the only record of which registry's boundaries a figure draws:
     `FigureBundle.resultsValue` carries `formatAs`, `valueProps` and
@@ -639,24 +638,37 @@ inflates to those bytes; a stale `uploaded_at` 404s.
 **Reads:** [SYSTEM_08_results_packages.md](SYSTEM_08_results_packages.md),
 [PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md),
 [SYSTEM_10_figure_render_export.md](SYSTEM_10_figure_render_export.md),
+[SYSTEM_11_viz_authoring.md](SYSTEM_11_viz_authoring.md),
+[SYSTEM_13_ai_assistant.md](SYSTEM_13_ai_assistant.md),
 [SYSTEM_01_api_contract.md](SYSTEM_01_api_contract.md),
 [SYSTEM_09_viz_query_cache.md](SYSTEM_09_viz_query_cache.md).
 
 **Surface.** `lib/types/run_manifest.ts`,
 `server/worker_routines/generate_run/prepare_inputs.ts`,
 `server/runs/build_run_package.ts`, `server/runs/manifest_transform.ts`,
-`server/runs/run_paths.ts`, `lib/types/run_authoring_context.ts`,
-`server/run_query/authoring_context.ts`, `lib/api-routes/products/products.ts`,
-`server/routes/products/products.ts`,
+`server/runs/run_paths.ts`, `server/runs/package_internals.ts`,
+`server/runs/mod.ts`, `lib/api-routes/instance/run_generation.ts`,
+`server/routes/instance/run_generation.ts`,
+`client/src/state/instance/t2_run_geojson.ts` (new),
 `client/src/state/instance/t2_run_authoring_context.ts`,
-`client/src/state/products/t2_run_geojson.ts` (new),
+`client/src/state/instance/t1_sse.tsx`, `client/src/state/clear_caches.ts`,
 `client/src/generate_visualization/build_figure_inputs.ts`,
 `client/src/generate_visualization/resolve_figure_from_metric.ts`,
 `client/src/generate_visualization/resolve_bundle_from_metric_and_config.ts`,
-`lib/types/_figure_bundle.ts`, `server/tests/run_manifest_transform_test.ts`,
+`client/src/generate_slide_deck/convert_slide_to_page_inputs.ts`,
+`client/src/generate_report/report_figure_raster.ts`,
+`client/src/exports/export_report_as_html.ts`,
+`client/src/components/explore/figure_view.tsx`,
+`client/src/components/_shared/figure_editor/figure_editor.tsx`,
+`lib/ai_tools/build_system_prompt.ts`,
+`client/src/components/instance/copilot/build_system_prompt.ts`,
+`server/mcp/context_cache.ts`, `lib/types/_figure_bundle.ts`,
+`server/tests/run_manifest_transform_test.ts`,
 `server/tests/geojson_capture_test.ts` (new),
 [SYSTEM_08_results_packages.md](SYSTEM_08_results_packages.md),
 [SYSTEM_10_figure_render_export.md](SYSTEM_10_figure_render_export.md),
+[SYSTEM_11_viz_authoring.md](SYSTEM_11_viz_authoring.md),
+[SYSTEM_13_ai_assistant.md](SYSTEM_13_ai_assistant.md),
 [SYSTEM_01_api_contract.md](SYSTEM_01_api_contract.md).
 
 **Deliverable.**
@@ -685,26 +697,57 @@ inflates to those bytes; a stale `uploaded_at` 404s.
   ([resolve_reuse.ts:150-209](server/worker_routines/generate_run/resolve_reuse.ts#L150-L209)),
   and a geojson file is nobody's declared source. The step asserts this in its
   test rather than claiming it.
-- `GET /products/:product_id/geojson/:family/:level` resolves `products.run_id`,
-  streams the captured file with `Content-Encoding: gzip`,
-  `Content-Type: application/geo+json` and
-  `Cache-Control: private, max-age=31536000, immutable`, and 404s when the
-  package has no such file. `access: "view"`, like every other product route, so
-  package geometry follows the package's own access rule.
-- `RunAuthoringContext` carries the manifest's `geojsonMaps` stamp verbatim, and
-  the client cache name bumps to `run_authoring_context_v5`, which that file's
-  own comment requires on a shape change.
-- A run-geo store keyed `(runId, family, level)` preloads from that stamp when a
-  product's authoring context loads, and mirrors `t2_geojson`'s shape: memory
-  plus IDB, a version signal so a tracked read re-runs when the data lands. It
-  retains each run's stamp beside the data, because the stamp is what tells
-  "this package has no boundaries at that level" from "they have not arrived
-  yet" and from "I have never heard of this run". It also mirrors `t2_geojson`'s
-  eviction: `evictDeletedGeoJsonLevels` has its counterpart here, dropping every
-  entry whose `runId` no longer backs a product in `instanceState.products`,
-  memory and IDB together. Without that rule a user who opens five packages
-  accumulates five parsed copies, ten megabytes each at admin area 3, on top of
-  the instance store's own.
+- Two run-keyed routes beside the other package reads in
+  `lib/api-routes/instance/run_generation.ts`, both `requireApprovedUser()` like
+  `getRunAuthoringContext`
+  ([run_generation.ts:366-369](server/routes/instance/run_generation.ts#L366-L369)).
+  That is stricter than today's instance route by `approved`, which its
+  `requireGlobalPermission()` never checks
+  ([userPermission.ts:58-60](server/middleware/userPermission.ts#L58-L60)), and
+  affects no caller: every product surface already requires an approved user,
+  and the SSE preload stays on the instance route. Neither route takes a scope:
+  geometry carries no data values, and `getRunModuleWithConfigSelections` is the
+  precedent for a scope-less manifest read
+  ([run_generation.ts:223-238](server/routes/instance/run_generation.ts#L223-L238)).
+  - `GET /run_generation/run/:run_id/geojson` returns the manifest's
+    `geojsonMaps` stamp verbatim, `null` included, through
+    `getRunManifestForRun`
+    ([run_read.ts:150-164](server/run_query/run_read.ts#L150-L164)), whose
+    `isRunIdShape` check and manifest-cache read it inherits; a run that is gone
+    is that function's failure envelope.
+  - `GET /run_generation/run/:run_id/geojson/:family/:level` streams the
+    captured file with `Content-Encoding: gzip`,
+    `Content-Type: application/geo+json` and
+    `Cache-Control: private, max-age=31536000, immutable`, and 404s when the run
+    or the file is absent. The registry entry is `isStreaming: true` with no
+    `response`, exactly as step 3's instance route. The file read lives in
+    `server/runs/package_internals.ts`, which owns path safety for every
+    caller-supplied run id, and is exported through `server/runs/mod.ts`.
+- `RunAuthoringContext` is unchanged, so its type, its server builder and the
+  client cache name stay as they are. `t2_run_authoring_context.ts` starts the
+  store's stamp read for the pair's `runId` whenever a context is read, so every
+  surface that authors against a package (a deck, a report, explore, the package
+  page, the copilot) holds the stamp before it builds a prompt or a figure.
+- A run-geo store in `client/src/state/instance/t2_run_geojson.ts`, keyed
+  `(runId, family, level)`, mirrors `t2_geojson`'s shape: memory plus IDB, a
+  version signal so a tracked read re-runs when the stamp or the data lands. It
+  holds each run's stamp with its fetch state beside the data, because the stamp
+  is what tells "this package has no boundaries at that level" from "they have
+  not arrived yet" and from "I have never heard of this run", and it fetches
+  that stamp itself the first time any read names a `runId` it does not hold
+  (§2.4). It exposes `ensureRunGeoJson(runId, family, level)`, an awaitable read
+  that resolves once the sync read would answer anything but `loading`, for the
+  callers below that build after an await. Its eviction mirrors
+  `evictDeletedGeoJsonLevels`: on the `runs_catalog_updated` SSE case
+  ([t1_sse.tsx:256-258](client/src/state/instance/t1_sse.tsx#L256-L258)), beside
+  the geojson case at :262-266, it drops every entry whose `runId` is not in
+  `instanceState.readyPackages`, memory and IDB together. That is exactly a
+  deleted run: a run that backs no product but is open in explore, on the
+  package page, or behind a stale figure is still ready and keeps its entry.
+  Without the rule a user who opens five packages accumulates five parsed
+  copies, ten megabytes each at admin area 3, on top of the instance store's
+  own. `clearDataCache` in `clear_caches.ts` clears the store's memory the way
+  it clears `t2_geojson`'s; its IDB keys are already swept there.
 - Its sync read, the one `resolveGeoJson` calls with `bundle.provenance.runId`,
   returns the four states of §2.4: `ready` with the data, `loading`,
   `not_in_package`, `run_unknown`. `resolveGeoJson` renders on `ready`, reads
@@ -719,43 +762,87 @@ inflates to those bytes; a stale `uploaded_at` 404s.
   cache-warm-versus-cache-cold split in that constructor go with it, so the
   function no longer reads the sync cache. Its `t2_geojson` import stays, for
   `geoJsonFamilyFor`
-  ([resolve_figure_from_metric.ts:17](client/src/generate_visualization/resolve_figure_from_metric.ts#L17)),
+  ([resolve_figure_from_metric.ts:18](client/src/generate_visualization/resolve_figure_from_metric.ts#L18)),
   which is what stamps the family the `level` ref now carries
-  ([:132](client/src/generate_visualization/resolve_figure_from_metric.ts#L132)).
+  ([:142](client/src/generate_visualization/resolve_figure_from_metric.ts#L142)).
   `geoRefSchema` keeps the `data` variant, because bundles already stored carry
   it and a stored bundle is never rewritten.
 - `assertMapBoundariesAvailable` asserts against the package, not the instance:
-  it reads the authoring context's `geojsonMaps` stamp for the figure's family
-  and level and awaits the run-geo store, where today it reads
+  it awaits the store's stamp for `scope.runId` and then `ensureRunGeoJson` for
+  the figure's family and level, where today it reads
   `instanceState.geojsonMaps` and awaits `preloadGeoJson`
-  ([resolve_bundle_from_metric_and_config.ts:96-128](client/src/generate_visualization/resolve_bundle_from_metric_and_config.ts#L96-L128)).
+  ([resolve_bundle_from_metric_and_config.ts:95-131](client/src/generate_visualization/resolve_bundle_from_metric_and_config.ts#L95-L131)).
   Its two `AIToolFailure` messages keep their wording, with the alternative
   levels read from the stamp. A pre-capture package (stamp `null`) keeps the
   instance read, the same fallback `resolveGeoJson` takes.
+- The consumers that build a figure after an await, where a sync read tracks
+  nothing, await `ensureRunGeoJson` for each map bundle before they build: the
+  figure branch of `convertSlideToPageInputs`
+  ([convert_slide_to_page_inputs.ts:569-573](client/src/generate_slide_deck/convert_slide_to_page_inputs.ts#L569-L573)),
+  the one path behind slide thumbnails, the presenter, the three deck exports,
+  the editor's page build and the copilot's drafts; `rasterize` in
+  `report_figure_raster.ts`
+  ([:147-150](client/src/generate_report/report_figure_raster.ts#L147-L150));
+  and `rasterizeFigure` in `export_report_as_html.ts`
+  ([:46-50](client/src/exports/export_report_as_html.ts#L46-L50)). Today a
+  `data` bundle carries its geometry into those paths; with `level` the only
+  shape, a deck exported before the bytes land would otherwise export every map
+  as a placeholder, and a thumbnail would stay one until its slide next changed.
+- `figure_view.tsx` tracks the run-geo store's read for `p.scope.runId` in the
+  preview's source, where it tracks `getGeoJsonSync` today
+  ([figure_view.tsx:32-40](client/src/components/explore/figure_view.tsx#L32-L40)),
+  so the explore preview still rebuilds when the boundaries land.
+  `figure_editor.tsx` loses its `getGeoJsonSync` read, the `geoJson` it writes
+  into the items holder and the `geoJson?` field
+  ([figure_editor.tsx:264-274](client/src/components/_shared/figure_editor/figure_editor.tsx#L264-L274),
+  [:199](client/src/components/_shared/figure_editor/figure_editor.tsx#L199),
+  [:83](client/src/components/_shared/figure_editor/figure_editor.tsx#L83)):
+  nothing reads that field, and the editor's preview memo builds through
+  `buildFigureInputs`, which tracks the resolver's version signal on its own.
+- The copilot's map-level line becomes a package fact. `PackageGrounding`
+  ([build_system_prompt.ts:229-242](lib/ai_tools/build_system_prompt.ts#L229-L242))
+  gains an optional `mapLevels: GeoJsonMapSummary[]`, and
+  `buildPackageGroundingSections` emits `buildMapCoverageLines` from it, where
+  `buildInstanceContextSections` emits it from `instance.geojsonMaps` today
+  ([:170](lib/ai_tools/build_system_prompt.ts#L170)). The SPA fills it in
+  `buildCopilotPackageBlock`
+  ([build_system_prompt.ts:65-85](client/src/components/instance/copilot/build_system_prompt.ts#L65-L85))
+  from the store's stamp for `scope.runId` when it holds a non-null one, else
+  from `instance.geojsonMaps`; the MCP fills it in `context_cache.ts`
+  ([:295-300](server/mcp/context_cache.ts#L295-L300)) from
+  `manifest.geojsonMaps`, and omits it when that is `null`.
 - SYSTEM_08 records the new input files, the v15 stamp and its block, and the
-  product-scoped serving route. SYSTEM_10 records the four resolve states and
-  what each renders, next to the staleness contract they interact with, because
-  a stale map figure now draws the instance's boundaries and that is the one
-  behaviour this step changes for an existing document. SYSTEM_10's "Geo"
-  section is rewritten: a new bundle names its geometry and resolves it against
-  its own package, the `data` variant is read-only history, and the "A bundle
-  owns its data" paragraph loses its `geo` exception, because there is no longer
-  a megabyte-scale field held by reference. SYSTEM_01 records the new route.
+  two run-keyed routes. SYSTEM_10 records the four resolve states and what each
+  renders, next to the staleness contract they interact with, because a stale
+  map figure whose run is deleted now draws the instance's boundaries and that
+  is the one behaviour this step changes for an existing document, and records
+  the awaited read the after-await consumers make. SYSTEM_10's "Geo" section is
+  rewritten: a new bundle names its geometry and resolves it against its own
+  package, the `data` variant is read-only history, and the "A bundle owns its
+  data" paragraph loses its `geo` exception, because there is no longer a
+  megabyte-scale field held by reference. SYSTEM_11's paragraph on the explore
+  preview's boundary read names the run-geo store. SYSTEM_13 records that the
+  map-level line rides the package block. SYSTEM_01 records the new routes.
 
 **Not in this step.** Re-capturing geometry into stored bundles, or stripping
 `geo.data` out of the ones that carry it (§5). Deleting the `data` variant from
 `geoRefSchema`. Coverage, which is step 5.
 
-**Gates.** The floor, plus `server/tests/geojson_capture_test.ts`: a generation
-over seeded `geojson_maps` rows writes one gzipped file per row whose inflated
-bytes equal the stored text, stamps the manifest, and leaves every module's
-`inputKey` unchanged from a run without the rows. Plus
-`server/tests/run_manifest_transform_test.ts` extended: a v14 manifest
-transforms to v15 with `geojsonMaps: null`, and the block is idempotent.
+**Gates.** The floor, plus `server/tests/geojson_capture_test.ts`, on a
+throwaway database built the way `hfa_import_facilities_test.ts` builds its own:
+`prepareRunInputs` over seeded `geojson_maps` rows with no family selected
+writes one gzipped file per row whose inflated bytes equal the stored text and
+lists each in `extraInputFiles`; `computeModuleInputs` over a module declaring a
+dataset source yields the same inputs with and without the rows; the bytes route
+serves a captured file with the three headers and 404s for a level the package
+lacks; the stamp route returns the list for a captured package and `null` for
+one transformed from v14. Plus `server/tests/run_manifest_transform_test.ts`
+extended: a v14 manifest transforms to v15 with `geojsonMaps: null`, and the
+block is idempotent.
 
-**Ends with** three commits: capture plus the manifest version, the serving
-route plus the authoring-context stamp, then the client repoint and the deletion
-of the embed branch.
+**Ends with** four commits: capture plus the manifest version; the two run-keyed
+routes; the store, the client repoint and the deletion of the embed branch; the
+awaits in the after-await consumers and the copilot's package-level line.
 
 ### Step 5 - coverage where a figure is authored
 
