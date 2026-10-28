@@ -25,6 +25,7 @@ import {
 import type {
   DatasetType,
   FigureBlock,
+  FigureLocalization,
   HfaIndicatorCategory,
   HfaIndicatorServiceCategory,
   HfaIndicatorSubCategory,
@@ -248,6 +249,9 @@ export type FigureEditorContext = PackageViewContext & {
   getLabel: () => string;
   getMetric: () => MetricWithStatus;
   getDraftConfig: () => PresentationObjectConfig;
+  /** The edited figure's own localization, so a bundle the chat resolves to
+   *  preview a patch labels it exactly as the figure does. */
+  getLocalization: () => FigureLocalization;
   applyDraftConfig: (config: PresentationObjectConfig) => void;
 };
 export type EditingSlideFigureParams = {

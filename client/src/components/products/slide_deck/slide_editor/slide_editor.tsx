@@ -1,4 +1,7 @@
-import { resolveScope } from "~/state/instance/t1_store";
+import {
+  getSnapshotInstanceLocalization,
+  resolveScope,
+} from "~/state/instance/t1_store";
 import { trackStore } from "@solid-primitives/deep";
 import type {
   ContentBlock,
@@ -1051,6 +1054,7 @@ export function SlideEditor(p: Props) {
               scope: p.scope,
               metric,
               configSnapshot: structuredClone(editConfig),
+              localization: bundle.localization,
               aiView: {
                 id: "editing_slide_figure" as const,
                 params: {
@@ -1084,6 +1088,7 @@ export function SlideEditor(p: Props) {
             p.scope,
             after.metric,
             after.config,
+            bundle.localization,
           );
           if (!rebuilt.ok) {
             await openAlert({ text: rebuilt.reason, intent: "danger" });
@@ -1134,6 +1139,7 @@ export function SlideEditor(p: Props) {
       p.scope,
       result.metric,
       result.config,
+      getSnapshotInstanceLocalization(),
     );
     if (!resolved.ok) {
       await openAlert({ text: resolved.reason, intent: "danger" });

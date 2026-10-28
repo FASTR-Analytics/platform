@@ -354,6 +354,7 @@ export function getClientToolsForReportEditor(
           view.context.getScope(),
           metric,
           newConfig,
+          bundle.localization,
         );
         assertNoSlotCollision(
           newConfig,

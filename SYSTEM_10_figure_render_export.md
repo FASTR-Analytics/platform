@@ -198,10 +198,10 @@ The elegant consequence the whole design turns on:
 > A snapshot is literally "capture the current build inputs into a bundle." One
 > build function, two item sources: **live query** vs **baked items**.
 
-| Caller                                                                                  | Surface                    | Items               | Localization source                                                   |
-| --------------------------------------------------------------------------------------- | -------------------------- | ------------------- | --------------------------------------------------------------------- |
-| `figure_editor.tsx` (the live FigureInputs memo), `insert_figure/preset_preview.tsx`    | **Live editor draft**      | live query          | `getSnapshotInstanceLocalization()`, a **transient** bundle each tick |
-| `convert_slide_to_page_inputs.ts`, `report_figure_embed.tsx`, `exports/**`, AI previews | **stored Figure / export** | baked in the bundle | `bundle.localization` (frozen)                                        |
+| Caller                                                                                  | Surface                    | Items               | Localization source                                       |
+| --------------------------------------------------------------------------------------- | -------------------------- | ------------------- | --------------------------------------------------------- |
+| `figure_editor.tsx` (the live FigureInputs memo), `insert_figure/preset_preview.tsx`    | **Live editor draft**      | live query          | the edited figure's own, a **transient** bundle each tick |
+| `convert_slide_to_page_inputs.ts`, `report_figure_embed.tsx`, `exports/**`, AI previews | **stored Figure / export** | baked in the bundle | `bundle.localization` (frozen)                            |
 
 So the live editor and every stored figure run **identical code**, and a figure
 renders identically to the draft it was captured from when the two pairs match:
@@ -229,10 +229,28 @@ bundle exactly like `config` and `items`, and `buildFigureInputs` resolves
 **all** figure text/dates from `bundle.localization` only. It must **never**
 read or write the global `t3`/`getCalendar`/`getLanguage` singletons.
 
-- **What is captured = the INSTANCE locale**, not the per-user UI toggle:
-  `getSnapshotInstanceLocalization()` (`client/src/state/instance/t1_store.ts`)
-  returns `{language, calendar, countryIso3, fiscalYear}` read from the instance
-  state. Figures are instance-language artifacts.
+- **What a NEW figure captures = the INSTANCE locale**, not the per-user UI
+  toggle: `getSnapshotInstanceLocalization()`
+  (`client/src/state/instance/t1_store.ts`) returns
+  `{language, calendar, countryIso3, fiscalYear}` read from the instance state.
+  Figures are instance-language artifacts. The instance read belongs to the
+  create and preview call sites only: the insert wizard and its previews, the
+  explore view, the package's preset viewer, the AI's `from_metric` create.
+- **An EXISTING figure carries its own locale forward.**
+  `makeFigureBundleFromFetchedData` takes `localization` as an argument and
+  reads no store, so every rebuild of a stored figure (the editor's coherent
+  bundle and its close, "Update to \<package\>", `update_figure`,
+  `update_report_figure`) passes that figure's `bundle.localization` back in.
+  Rebuilding is for data and config; it is not a reason to relabel a figure, and
+  before this was threaded an edit made after `INSTANCE_LANGUAGE` changed would
+  flip a figure's legend while its stored caption stayed put.
+- **A preset's caption resolves in the figure's language, not the viewer's.**
+  `deriveConfigFromVizPreset` collapses the preset's `TranslatableString`
+  captions to the plain strings the config stores, so the language it is given
+  is baked in: the insert wizard and the explore view pass the instance's, the
+  same one the figure's bundle will carry. (Captions are user content from the
+  moment the author edits them, so they are never re-resolved; only this
+  pre-fill has a language to choose.)
 - **The threaded reads** (all app-side; panther unchanged): every language read
   in the build path is an explicit `pickLang(bundle.localization.language,
   …)`
@@ -260,8 +278,9 @@ read or write the global `t3`/`getCalendar`/`getLanguage` singletons.
   second line of defence that protects already-stored bundles.
 - **Figures are always instance-language.** A Senegal figure carries French
   legends whatever the author's session language; the EN/FR UI toggle is
-  **chrome-only** (menus/buttons). The live editor preview uses instance
-  language too (WYSIWYG: preview == capture == what every viewer sees).
+  **chrome-only** (menus/buttons). The live editor preview uses the edited
+  figure's own language, which for a new figure is the instance's (WYSIWYG:
+  preview == capture == what every viewer sees).
 - **Why frozen-in-bundle and not "pass current env":** export surfaces (PDF,
   PPTX, emailed decks) have _no_ ambient env to read, so the bundle must carry
   its own. Making it always-frozen (rather than per-surface A/B) is the simpler,

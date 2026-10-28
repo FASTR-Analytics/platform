@@ -1,6 +1,7 @@
 import type {
   DatasetType,
   FigureBundle,
+  FigureLocalization,
   GenericLongFormFetchConfig,
   ItemsHolderPresentationObject,
   PackageScope,
@@ -15,11 +16,7 @@ import { serverActions } from "~/server_actions";
 import { poItemsQueue } from "~/state/_infra/request_queue";
 import { getAdminAreaLevelFromMapConfig } from "./get_admin_area_level_from_config";
 import { geoJsonFamilyFor, getGeoJsonSync } from "~/state/instance/t2_geojson";
-import {
-  figureScopeStamp,
-  getSnapshotInstanceLocalization,
-  resolveScope,
-} from "~/state/instance/t1_store";
+import { figureScopeStamp, resolveScope } from "~/state/instance/t1_store";
 
 // Plain-inputs resolver: takes the metric data already resolved by the caller
 // (AI adapter in components/products/copilot/slide_ai). No AI types imported here.
@@ -41,6 +38,7 @@ export async function resolveFigureBundleFromMetric(
   scope: PackageScope,
   inputs: MetricInputsForBundle,
   config: PresentationObjectConfig,
+  localization: FigureLocalization,
 ): Promise<FigureBundle> {
   const {
     metricId,
@@ -79,11 +77,15 @@ export async function resolveFigureBundleFromMetric(
     throw new Error("No data available or too many items");
   }
 
-  const bundle = makeFigureBundleFromFetchedData(scope, {
-    resultsValue: { id: metricId, ...resultsValueForViz, datasetFamily },
-    ih: itemsHolder,
-    effectiveConfig: config,
-  });
+  const bundle = makeFigureBundleFromFetchedData(
+    scope,
+    {
+      resultsValue: { id: metricId, ...resultsValueForViz, datasetFamily },
+      ih: itemsHolder,
+      effectiveConfig: config,
+    },
+    localization,
+  );
 
   // Validate at construction so the render (buildFigureInputs) and save
   // (slideConfigSchema.parse) paths can never disagree: a schema-invalid bundle
@@ -123,9 +125,17 @@ export type FetchedPOData = {
 
 // The one place a FigureBundle that is validated, stored or shared is assembled
 // from fetched data.
+//
+// `localization` is the caller's, never read from the instance store here: a
+// figure that already exists hands back its own `bundle.localization`, so
+// rebuilding it (an edit, "Update to <package>", an AI tool) cannot silently
+// relabel it in a language the instance has switched to since. Only a figure
+// being created for the first time, and a transient preview of one, passes
+// `getSnapshotInstanceLocalization()`.
 export function makeFigureBundleFromFetchedData(
   scope: PackageScope,
   data: FetchedPOData,
+  localization: FigureLocalization,
 ): FigureBundle {
   const { resultsValue, ih, effectiveConfig } = data;
   const mapLevel = getAdminAreaLevelFromMapConfig(effectiveConfig);
@@ -160,7 +170,7 @@ export function makeFigureBundleFromFetchedData(
         ? { kind: "data" as const, data: geoJson }
         : { kind: "level" as const, level: mapLevel, family: geoFamily })
       : undefined,
-    localization: getSnapshotInstanceLocalization(),
+    localization,
     metricId: resultsValue.id,
     scope: figureScopeStamp(scope, ih.scopeToken, resultsValue.datasetFamily),
     snapshotAt: new Date().toISOString(),

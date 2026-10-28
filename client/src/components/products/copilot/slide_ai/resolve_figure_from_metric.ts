@@ -7,6 +7,7 @@ import type {
 import { validateMetricInputs } from "lib";
 import { resolveBundleFromMetricAndConfig } from "~/generate_visualization/mod";
 import { createCopilotAIToolEnv } from "~/components/instance/copilot/mod.ts";
+import { getSnapshotInstanceLocalization } from "~/state/instance/t1_store";
 import { buildConfigFromPreset } from "./build_config_from_preset";
 
 // AI adapter: builds the config from the preset + AI overrides, runs AI-specific
@@ -37,6 +38,7 @@ export async function resolveFigureFromMetric(
     scope,
     resultsValue,
     config,
+    getSnapshotInstanceLocalization(),
   );
   return { type: "figure", bundle };
 }

@@ -101,6 +101,7 @@ import { ReportEditorCursors } from "./cursors";
 import { addLastUpdatedListener } from "~/state/instance/t1_sse";
 import {
   createResolvedScope,
+  getSnapshotInstanceLocalization,
   instanceState,
   productById,
   resolveScope,
@@ -1092,6 +1093,7 @@ export function ReportEditor(p: Props) {
       ctx.scope,
       picked.metric,
       picked.config,
+      getSnapshotInstanceLocalization(),
     );
     if (!resolved.ok) {
       await openAlert({ text: resolved.reason, intent: "danger" });
@@ -1112,6 +1114,7 @@ export function ReportEditor(p: Props) {
       ctx.scope,
       picked.metric,
       picked.config,
+      getSnapshotInstanceLocalization(),
     );
     if (!resolved.ok) {
       await openAlert({ text: resolved.reason, intent: "danger" });
@@ -1175,6 +1178,7 @@ export function ReportEditor(p: Props) {
             scope: ctx.scope,
             metric,
             configSnapshot: structuredClone(editConfig),
+            localization: bundle.localization,
             aiView: {
               id: "editing_report_figure" as const,
               params: { reportId: p.productId, figureId: sel.id },
@@ -1207,6 +1211,7 @@ export function ReportEditor(p: Props) {
         after.scope,
         live.metric,
         live.config,
+        bundle.localization,
       );
       if (!rebuilt.ok) {
         await openAlert({ text: rebuilt.reason, intent: "danger" });

@@ -15,6 +15,7 @@ import {
 import { For, Match, Show, Switch } from "solid-js";
 import { VisualizationEditor } from "~/components/_shared/figure_editor/mod.ts";
 import { createFigurePreview } from "~/components/_shared/mod.ts";
+import { getSnapshotInstanceLocalization } from "~/state/instance/t1_store";
 
 // The package page's editor wrapper, which the viewers and the figure
 // viewer open into.
@@ -45,6 +46,7 @@ export function ModulePresets(p: {
         scope: p.scope,
         metric,
         configSnapshot: structuredClone(preset.config),
+        localization: getSnapshotInstanceLocalization(),
         aiView: {
           id: "viewing_package_figure" as const,
           params: { figureId: preset.id },

@@ -1,6 +1,7 @@
 import type {
   DatasetType,
   FigureBundle,
+  FigureLocalization,
   MetricWithStatus,
   PackageScope,
   PresentationObjectConfig,
@@ -38,6 +39,7 @@ export async function resolveBundleFromMetricAndConfig(
   scope: PackageScope | undefined,
   metric: MetricWithStatus,
   config: PresentationObjectConfig,
+  localization: FigureLocalization,
 ): Promise<FigureBundle> {
   if (scope === undefined) {
     throw new AIToolFailure("No results package to resolve under");
@@ -84,6 +86,7 @@ export async function resolveBundleFromMetricAndConfig(
       fetchConfig: resFetch.data,
     },
     config,
+    localization,
   );
   assertBundleRenders(bundle);
   return bundle;
@@ -159,6 +162,7 @@ export async function resolveFigureBundleInteractively(
   scope: PackageScope,
   metric: ResultsValue,
   config: PresentationObjectConfig,
+  localization: FigureLocalization,
 ): Promise<ResolveFigureResult> {
   try {
     const itemsRes = await getPresentationObjectItemsFromCacheOrFetch(
@@ -200,11 +204,15 @@ export async function resolveFigureBundleInteractively(
       ok: true,
       // The effective config, not the one passed in: it carries the replicant
       // the read auto-defaulted to, so the bundle and its data agree.
-      bundle: makeFigureBundleFromFetchedData(scope, {
-        resultsValue: metric,
-        effectiveConfig: itemsRes.data.config,
-        ih,
-      }),
+      bundle: makeFigureBundleFromFetchedData(
+        scope,
+        {
+          resultsValue: metric,
+          effectiveConfig: itemsRes.data.config,
+          ih,
+        },
+        localization,
+      ),
     };
   } catch (e) {
     return { ok: false, reason: e instanceof Error ? e.message : String(e) };

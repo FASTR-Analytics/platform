@@ -59,10 +59,13 @@ export async function updateFigureToScope(
   if (issue !== null) {
     return { ok: false, reason: describePackageIssue(issue, scope.runId) };
   }
+  // The figure keeps the language it was created in: a new package is not a
+  // reason to relabel it.
   return resolveFigureBundleInteractively(
     scope,
     resolution.metric,
     resolution.config,
+    bundle.localization,
   );
 }
 
