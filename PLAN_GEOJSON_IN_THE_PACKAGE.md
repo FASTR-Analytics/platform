@@ -627,8 +627,8 @@ duplicate-name surfacing.
   without their `log()`: `preloadGeoJson` runs on every SSE connect
   ([t1_sse.tsx:197](client/src/state/instance/t1_sse.tsx#L197)) and fetches it
   for every map level its memory and IDB caches miss
-  ([t2_geojson.ts:88-99](client/src/state/instance/t2_geojson.ts#L88-L99)), and
-  SYSTEM_17 names `getGeoJsonForLevel` among the per-render fetches whose
+  ([t2_geojson.ts:88-100](client/src/state/instance/t2_geojson.ts#L88-L100)),
+  and SYSTEM_17 names `getGeoJsonForLevel` among the per-render fetches whose
   logging was removed for that reason
   ([SYSTEM_17:89-94](SYSTEM_17_logging.md#L89-L94)). It joins SYSTEM_01's
   off-registry inventory
@@ -802,13 +802,14 @@ the dev instance's `geojson_maps` is not a fixture.
   (`Promise.all`) and resolves only once both are held, so every surface that
   authors against a package (a deck, a report, explore, the package page, the
   copilot) holds the stamp before it builds a prompt, and the deck's editor
-  before it builds a figure; a report's embeds build off `figures()` with no
-  context gate
-  ([report.tsx:412-414](client/src/components/products/report/report.tsx#L412-L414))
-  and take the store's `loading` state until the stamp lands. The stamp read
-  resolves to its state on a failed fetch (§2.4, "run unknown") and never
-  rejects: the deck, the report and the copilot await this call inside
-  `void (async` with no catch
+  before it builds a figure; the deck's rail thumbnails
+  ([slide_card.tsx:59-63](client/src/components/products/slide_deck/slide_card.tsx#L59-L63))
+  and a report's embeds
+  ([report.tsx:410-414](client/src/components/products/report/report.tsx#L410-L414))
+  build off their bundles with no context gate and take the store's `loading`
+  state until the stamp lands. The stamp read resolves to its state on a failed
+  fetch (§2.4, "run unknown") and never rejects: the deck, the report and the
+  copilot await this call inside `void (async` with no catch
   ([slide_deck.tsx:463-467](client/src/components/products/slide_deck/slide_deck.tsx#L463-L467)),
   and a generated action never rejects either. Starting the stamp read without
   awaiting it would not do: the copilot marks its package loaded the moment the
