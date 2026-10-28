@@ -595,12 +595,13 @@ duplicate-name surfacing.
 
 **Surface.** `lib/api-routes/instance/geojson_maps.ts`,
 `server/routes/instance/geojson_maps.ts`, `server/db/instance/geojson_maps.ts`,
-`lib/server_actions/try_catch_server.ts`, `lib/server_actions/mod.ts`,
+`lib/server_actions/try_catch_server.ts`,
 `client/src/state/instance/t2_geojson.ts`,
 `client/src/components/data/geojson/edit_modal.tsx`,
 `server/tests/geojson_serving_test.ts` (new),
 [SYSTEM_01_api_contract.md](SYSTEM_01_api_contract.md),
-[SYSTEM_05_facilities_indicators.md](SYSTEM_05_facilities_indicators.md).
+[SYSTEM_05_facilities_indicators.md](SYSTEM_05_facilities_indicators.md),
+[SYSTEM_17_logging.md](SYSTEM_17_logging.md).
 
 **Deliverable.**
 
@@ -613,13 +614,21 @@ duplicate-name surfacing.
   `cacheMiddleware` never sees a route registered on a router
   ([main.ts:163](main.ts#L163) against [:220](main.ts#L220)), so the handler's
   header is what the client receives. The response is built by a pure function
-  of the stored text, the stamp and the request's `Accept-Encoding`, which is
-  what the gate exercises.
+  of the stored text, the row's stamp, the request's `:uploaded_at` segment and
+  its `Accept-Encoding`, which is what the gate exercises. The segment is
+  compared against `uploaded_at.toISOString()`, the string the summaries hand
+  the client ([geojson_maps.ts:28](server/db/instance/geojson_maps.ts#L28)),
+  never against the `timestamptz` value: Postgres keeps microseconds and the
+  client's string is millisecond-truncated.
 - The route is registered raw on `routesGeoJsonMaps`, guarded by
-  `requireGlobalPermission()` and logged, the way the CSV exports in
-  `structure.ts` and `population.ts` are
-  ([structure.ts:588-592](server/routes/instance/structure.ts#L588-L592)), and
-  joins SYSTEM_01's off-registry inventory
+  `requireGlobalPermission()` and unlogged, registered the way the CSV exports
+  in `structure.ts` and `population.ts` are
+  ([structure.ts:588-592](server/routes/instance/structure.ts#L588-L592)) but
+  without their `log()`: `preloadGeoJson` fires it per map level on every SSE
+  connect, and SYSTEM_17 names `getGeoJsonForLevel` among the per-render fetches
+  whose logging was removed for that reason
+  ([SYSTEM_17:89-94](SYSTEM_17_logging.md#L89-L94)). It joins SYSTEM_01's
+  off-registry inventory
   ([SYSTEM_01:264-283](SYSTEM_01_api_contract.md#L264-L283)) with its reason: a
   raw GeoJSON body, not an envelope. The `getGeoJsonForLevel` registry entry is
   deleted rather than redeclared: `isStreaming: true` is the NDJSON protocol
@@ -653,9 +662,11 @@ duplicate-name surfacing.
   and `manager.tsx` is not in this step's surface because it does not change.
 - The database read for the serving path returns the text and `uploaded_at`
   without building an envelope around a 20 MB string.
-- SYSTEM_01's off-registry inventory gains the route's row, and its client
-  section names the shared raw-response loop. SYSTEM_05 records the
-  content-addressed URL and that the IDB cache stays for the parse (ruling 6).
+- SYSTEM_01's off-registry inventory gains the route's row ("guarded,
+  unlogged"), and its client section names the shared raw-response loop.
+  SYSTEM_05 records the content-addressed URL and that the IDB cache stays for
+  the parse (ruling 6). SYSTEM_17's per-render list names the raw route in place
+  of `getGeoJsonForLevel`.
 
 **Not in this step.** Storing the column gzipped, which changes the column type
 and needs a migration. Off-main-thread parsing and polygon simplification (§5).
@@ -688,7 +699,8 @@ the dev instance's `geojson_maps` is not a fixture.
 `server/worker_routines/generate_run/prepare_inputs.ts`,
 `server/runs/build_run_package.ts`, `server/runs/manifest_transform.ts`,
 `server/runs/run_paths.ts`, `server/runs/package_internals.ts`,
-`server/runs/mod.ts`, `lib/api-routes/instance/run_generation.ts`,
+`server/runs/mod.ts`, `server/worker_routines/generate_run/pipeline.ts`,
+`lib/api-routes/instance/run_generation.ts`,
 `server/routes/instance/run_generation.ts`,
 `client/src/state/instance/t2_run_geojson.ts` (new),
 `client/src/state/instance/t2_run_authoring_context.ts`,
@@ -706,6 +718,7 @@ the dev instance's `geojson_maps` is not a fixture.
 `client/src/components/instance/copilot/build_system_prompt.ts`,
 `server/mcp/context_cache.ts`, `server/tests/copilot_prompt_test.ts`,
 `lib/types/_figure_bundle.ts`, `server/tests/run_manifest_transform_test.ts`,
+`server/tests/run_input_transform_test.ts`,
 `server/tests/geojson_capture_test.ts` (new),
 [SYSTEM_08_results_packages.md](SYSTEM_08_results_packages.md),
 [SYSTEM_10_figure_render_export.md](SYSTEM_10_figure_render_export.md),
@@ -735,7 +748,16 @@ the dev instance's `geojson_maps` is not a fixture.
   [076:267](server/db/migrations/instance/076_structure_family_split.sql#L267)),
   so the count comes from one `JSON.parse` of the stored text per row during the
   capture that already reads it. No new column: the stamp is a generation-time
-  fact and belongs in the manifest.
+  fact and belongs in the manifest. The stamp exists only in
+  `PreparedRunInputs`, so `pipeline.ts` passes it into `RunBuildOptions` beside
+  `extraInputFiles`
+  ([pipeline.ts:171-183](server/worker_routines/generate_run/pipeline.ts#L171-L183))
+  and `build_run_package.ts` writes it into the manifest literal
+  ([build_run_package.ts:250-282](server/runs/build_run_package.ts#L250-L282)).
+  The `RunManifest`-typed scratch manifests in `run_manifest_transform_test.ts`
+  and `run_input_transform_test.ts`
+  ([run_input_transform_test.ts:17-40](server/tests/run_input_transform_test.ts#L17-L40))
+  gain `geojsonMaps: null`, or the server check in the typecheck gate fails.
 - The capture does not disturb module memoization: reuse keys hash each module's
   own declared sources
   ([resolve_reuse.ts:150-209](server/worker_routines/generate_run/resolve_reuse.ts#L150-L209)),
@@ -764,17 +786,28 @@ the dev instance's `geojson_maps` is not a fixture.
     `Content-Type: application/geo+json` and
     `Cache-Control: private, max-age=31536000, immutable`, and 404s when the run
     or the file is absent. It is registered raw on `routesRunGeneration`,
-    guarded and logged, exactly as step 3's instance route is on its router, and
-    joins SYSTEM_01's off-registry inventory beside it; the stamp route stays a
-    registry entry because it returns an envelope and the store calls its
-    generated action. The file read lives in `server/runs/package_internals.ts`,
-    which owns path safety for every caller-supplied run id, and is exported
-    through `server/runs/mod.ts`.
+    guarded by `requireApprovedUser()` and unlogged for step 3's reason (a
+    per-page-load fetch is never logged), exactly as step 3's instance route is
+    on its router, and joins SYSTEM_01's off-registry inventory beside it; the
+    stamp route stays a registry entry because it returns an envelope and the
+    store calls its generated action. The file read lives in
+    `server/runs/package_internals.ts`, which owns path safety for every
+    caller-supplied run id, and is exported through `server/runs/mod.ts`.
 - `RunAuthoringContext` is unchanged, so its type, its server builder and the
-  client cache name stay as they are. `t2_run_authoring_context.ts` starts the
-  store's stamp read for the pair's `runId` whenever a context is read, so every
-  surface that authors against a package (a deck, a report, explore, the package
-  page, the copilot) holds the stamp before it builds a prompt or a figure.
+  client cache name stay as they are. `getRunAuthoringContextFromCacheOrFetch`
+  awaits the store's stamp read for the pair's `runId` alongside its own read
+  (`Promise.all`) and resolves only once both are held, so every surface that
+  authors against a package (a deck, a report, explore, the package page, the
+  copilot) holds the stamp before it builds a prompt or a figure. Starting the
+  stamp read without awaiting it would not do: the copilot marks its package
+  loaded the moment the context resolves and builds the package block per
+  message from it
+  ([panel.tsx:95-99](client/src/components/instance/copilot/panel.tsx#L95-L99),
+  [:134-144](client/src/components/instance/copilot/panel.tsx#L134-L144)), so a
+  context served from IDB would ground the first message on the instance's
+  levels and the next message on the package's, and the block rides again
+  whenever its text changes
+  ([:127-133](client/src/components/instance/copilot/panel.tsx#L127-L133)).
 - A run-geo store in `client/src/state/instance/t2_run_geojson.ts`, keyed
   `(runId, family, level)`, mirrors `t2_geojson`'s shape: memory plus IDB, a
   version signal so a tracked read re-runs when the stamp or the data lands. Its
@@ -786,13 +819,25 @@ the dev instance's `geojson_maps` is not a fixture.
   stamp is what tells "this package has no boundaries at that level" from "they
   have not arrived yet" and from "I have never heard of this run", and it
   fetches that stamp itself the first time any read names a `runId` it does not
-  hold (§2.4). It exposes `ensureRunGeoJson(runId, family, level)`, an awaitable
-  read that resolves once the sync read would answer anything but `loading`, for
-  the callers below that build after an await. Its eviction mirrors
-  `evictDeletedGeoJsonLevels` and runs where the ready-packages list is actually
-  stored: in the effect of `t1_sse.tsx` that fetches it after a
-  `runs_catalog_updated` push, right after `updateInstanceReadyPackages` lands,
-  in the approved branch and in the unapproved one that stores `[]`
+  hold (§2.4). A fetched stamp, `null` included, is written to IDB under
+  `run_geojson:{runId}:stamp` and read from there first, immutable for the
+  reason the authoring context is
+  ([t2_run_authoring_context.ts:12-16](client/src/state/instance/t2_run_authoring_context.ts#L12-L16)),
+  so a page load on a known run never waits a round trip for it; a failed read
+  is not cached, and eviction drops the stamp with the run's data. It exposes
+  `ensureRunGeoJson(runId, family, level)`, an awaitable read that resolves once
+  the sync read would answer anything but `loading`, for the callers below that
+  build after an await; on `run_unknown` it also awaits `preloadGeoJson([map])`
+  for the instance's listed `(family, level)` before resolving, the call
+  `assertMapBoundariesAvailable` makes today
+  ([resolve_bundle_from_metric_and_config.ts:125](client/src/generate_visualization/resolve_bundle_from_metric_and_config.ts#L125)),
+  so on a pre-capture package, which is every package until it is regenerated,
+  the fallback plane's bytes are in hand too and an export does not build
+  placeholders. Its eviction mirrors `evictDeletedGeoJsonLevels` and runs where
+  the ready-packages list is actually stored: in the effect of `t1_sse.tsx` that
+  fetches it after a `runs_catalog_updated` push, right after
+  `updateInstanceReadyPackages` lands, in the approved branch and in the
+  unapproved one that stores `[]`
   ([t1_sse.tsx:387-397](client/src/state/instance/t1_sse.tsx#L387-L397)). The
   SSE case itself ([:256-258](client/src/state/instance/t1_sse.tsx#L256-L258))
   only bumps the nonce that effect follows, so at the case the deleted run is
@@ -891,9 +936,11 @@ the dev instance's `geojson_maps` is not a fixture.
   [:184](server/tests/copilot_prompt_test.ts#L184)) gain the field.
 - SYSTEM_08 records the new input files, the v15 stamp and its block, and the
   two run-keyed routes. SYSTEM_10 records the four resolve states and what each
-  renders, next to the staleness contract they interact with, because a stale
-  map figure whose run is deleted now draws the instance's boundaries and that
-  is the one behaviour this step changes for an existing document, and records
+  renders, next to the staleness contract they interact with, because the
+  deleted-run case of ruling 12 applies to every bundle resolved after this
+  step; no bundle stored before it changes what it draws, since a `data` bundle
+  keeps its copy and a `level` bundle sits on a pre-capture package whose `null`
+  stamp takes the `run_unknown` fallback, which is today's read. It also records
   the awaited read the after-await consumers make. SYSTEM_10's "Geo" section is
   rewritten: a new bundle names its geometry and resolves it against its own
   package, the `data` variant is read-only history, and the "A bundle owns its
@@ -916,10 +963,19 @@ the dev instance's `geojson_maps` is not a fixture.
 On a throwaway database built the way `hfa_import_facilities_test.ts` builds its
 own: `prepareRunInputs` over seeded `geojson_maps` rows with no family selected
 writes one gzipped file per row whose inflated bytes equal the stored text and
-lists each in `extraInputFiles`, and `computeModuleInputs` over a module
-declaring a dataset source yields the same inputs with and without the rows.
-Through a Hono app carrying the clerk leg of `products_routes_test.ts` against
-the dev database, because every guard binds `c.var.mainDb` there
+lists each in `extraInputFiles`, and `inputHashes` from two `prepareRunInputs`
+calls, one over the seeded rows and one over none, are deep-equal:
+`RunInputHashes` is the whole input `computeModuleInputs` takes
+([resolve_reuse.ts:146-151](server/worker_routines/generate_run/resolve_reuse.ts#L146-L151)),
+so the capture is outside every reuse key. `computeModuleInputs` itself cannot
+run here: with no family selected `inputHashes.datasets` is empty and it throws
+for any module declaring a dataset source
+([resolve_reuse.ts:176-182](server/worker_routines/generate_run/resolve_reuse.ts#L176-L182)).
+The `.tmp-{runId}` directories `prepareRunInputs` writes under `_RUNS_DIR_PATH`
+([prepare_inputs.ts:109](server/worker_routines/generate_run/prepare_inputs.ts#L109))
+are removed in `finally`. Through a Hono app carrying the clerk leg of
+`products_routes_test.ts` against the dev database, because every guard binds
+`c.var.mainDb` there
 ([userPermission.ts:47-50](server/middleware/userPermission.ts#L47-L50)), with
 the approved `users` row created and removed as that test does, over a scratch
 package written under `_RUNS_DIR_PATH` (the only root `runDirPath` resolves,
