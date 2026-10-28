@@ -624,9 +624,12 @@ duplicate-name surfacing.
   `requireGlobalPermission()` and unlogged, registered the way the CSV exports
   in `structure.ts` and `population.ts` are
   ([structure.ts:588-592](server/routes/instance/structure.ts#L588-L592)) but
-  without their `log()`: `preloadGeoJson` fires it per map level on every SSE
-  connect, and SYSTEM_17 names `getGeoJsonForLevel` among the per-render fetches
-  whose logging was removed for that reason
+  without their `log()`: `preloadGeoJson` runs on every SSE connect
+  ([t1_sse.tsx:197](client/src/state/instance/t1_sse.tsx#L197)) and fetches it
+  for every map level its memory and IDB caches miss
+  ([t2_geojson.ts:88-99](client/src/state/instance/t2_geojson.ts#L88-L99)), and
+  SYSTEM_17 names `getGeoJsonForLevel` among the per-render fetches whose
+  logging was removed for that reason
   ([SYSTEM_17:89-94](SYSTEM_17_logging.md#L89-L94)). It joins SYSTEM_01's
   off-registry inventory
   ([SYSTEM_01:264-283](SYSTEM_01_api_contract.md#L264-L283)) with its reason: a
@@ -753,7 +756,7 @@ the dev instance's `geojson_maps` is not a fixture.
   `extraInputFiles`
   ([pipeline.ts:171-183](server/worker_routines/generate_run/pipeline.ts#L171-L183))
   and `build_run_package.ts` writes it into the manifest literal
-  ([build_run_package.ts:250-282](server/runs/build_run_package.ts#L250-L282)).
+  ([build_run_package.ts:249-282](server/runs/build_run_package.ts#L249-L282)).
   The `RunManifest`-typed scratch manifests in `run_manifest_transform_test.ts`
   and `run_input_transform_test.ts`
   ([run_input_transform_test.ts:17-40](server/tests/run_input_transform_test.ts#L17-L40))
@@ -798,10 +801,18 @@ the dev instance's `geojson_maps` is not a fixture.
   awaits the store's stamp read for the pair's `runId` alongside its own read
   (`Promise.all`) and resolves only once both are held, so every surface that
   authors against a package (a deck, a report, explore, the package page, the
-  copilot) holds the stamp before it builds a prompt or a figure. Starting the
-  stamp read without awaiting it would not do: the copilot marks its package
-  loaded the moment the context resolves and builds the package block per
-  message from it
+  copilot) holds the stamp before it builds a prompt, and the deck's editor
+  before it builds a figure; a report's embeds build off `figures()` with no
+  context gate
+  ([report.tsx:412-414](client/src/components/products/report/report.tsx#L412-L414))
+  and take the store's `loading` state until the stamp lands. The stamp read
+  resolves to its state on a failed fetch (§2.4, "run unknown") and never
+  rejects: the deck, the report and the copilot await this call inside
+  `void (async` with no catch
+  ([slide_deck.tsx:463-467](client/src/components/products/slide_deck/slide_deck.tsx#L463-L467)),
+  and a generated action never rejects either. Starting the stamp read without
+  awaiting it would not do: the copilot marks its package loaded the moment the
+  context resolves and builds the package block per message from it
   ([panel.tsx:95-99](client/src/components/instance/copilot/panel.tsx#L95-L99),
   [:134-144](client/src/components/instance/copilot/panel.tsx#L134-L144)), so a
   context served from IDB would ground the first message on the instance's
@@ -856,8 +867,12 @@ the dev instance's `geojson_maps` is not a fixture.
   tell the user to upload or regenerate; returns `no_boundaries` with
   `source: "package"` on `not_in_package`; and reads the instance store on
   `run_unknown`, returning `no_boundaries` with `source: "instance"` when that
-  comes up empty too (ruling 14). The states live in the store and not in the
-  caller because `buildFigureInputs` never sees the container's scope (§2.4).
+  comes up empty too (ruling 14). A `data` geo still returns its own `geo.data`
+  first, as today
+  ([build_figure_inputs.ts:496](client/src/generate_visualization/build_figure_inputs.ts#L496));
+  only the constructor's branch goes. The states live in the store and not in
+  the caller because `buildFigureInputs` never sees the container's scope
+  (§2.4).
 - `makeFigureBundleFromFetchedData` loses the `{kind:"data"}` branch (ruling
   12): a new bundle stores `{kind:"level", level, family}` whenever the config
   has a map level, and no `geo` otherwise. The `getGeoJsonSync` call and the
@@ -963,17 +978,23 @@ the dev instance's `geojson_maps` is not a fixture.
 On a throwaway database built the way `hfa_import_facilities_test.ts` builds its
 own: `prepareRunInputs` over seeded `geojson_maps` rows with no family selected
 writes one gzipped file per row whose inflated bytes equal the stored text and
-lists each in `extraInputFiles`, and `inputHashes` from two `prepareRunInputs`
-calls, one over the seeded rows and one over none, are deep-equal:
-`RunInputHashes` is the whole input `computeModuleInputs` takes
-([resolve_reuse.ts:146-151](server/worker_routines/generate_run/resolve_reuse.ts#L146-L151)),
+lists each in `extraInputFiles`, and `inputHashes` and `scriptInputs` from two
+`prepareRunInputs` calls, one over the seeded rows and one over none, are
+deep-equal: those are the only two fields of `PreparedRunInputs` that reach a
+reuse key, `inputHashes` through `computeModuleInputs`
+([pipeline.ts:122](server/worker_routines/generate_run/pipeline.ts#L122)) and
+`scriptInputs` through the `scriptText` that `resolveRunModules` generates
+([resolve_modules.ts:91-96](server/worker_routines/generate_run/resolve_modules.ts#L91-L96))
+and `computeModuleKey` hashes
+([resolve_reuse.ts:212-218](server/worker_routines/generate_run/resolve_reuse.ts#L212-L218)),
 so the capture is outside every reuse key. `computeModuleInputs` itself cannot
 run here: with no family selected `inputHashes.datasets` is empty and it throws
 for any module declaring a dataset source
 ([resolve_reuse.ts:176-182](server/worker_routines/generate_run/resolve_reuse.ts#L176-L182)).
 The `.tmp-{runId}` directories `prepareRunInputs` writes under `_RUNS_DIR_PATH`
-([prepare_inputs.ts:109](server/worker_routines/generate_run/prepare_inputs.ts#L109))
-are removed in `finally`. Through a Hono app carrying the clerk leg of
+([prepare_inputs.ts:109](server/worker_routines/generate_run/prepare_inputs.ts#L109),
+[run_paths.ts:24-26](server/runs/run_paths.ts#L24-L26)) are removed in
+`finally`. Through a Hono app carrying the clerk leg of
 `products_routes_test.ts` against the dev database, because every guard binds
 `c.var.mainDb` there
 ([userPermission.ts:47-50](server/middleware/userPermission.ts#L47-L50)), with
