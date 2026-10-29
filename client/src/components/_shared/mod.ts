@@ -4,7 +4,11 @@ export {
 } from "./collab_markdown_editor.tsx";
 export { deleteEachInTurn } from "./delete_each_in_turn.ts";
 export { FileUploadSelector } from "./file_upload_selector.tsx";
-export { createFigurePreview, fetchFigureInputs } from "./figure_preview.ts";
+export {
+  createFigurePreview,
+  describeFigureUnavailable,
+  fetchFigureInputs,
+} from "./figure_preview.ts";
 export {
   acceptZonePointer,
   createPointerBroadcast,

@@ -179,12 +179,23 @@ past the skip-gate).
 ### `buildFigureInputs`: one transform, two item sources
 
 [client/src/generate_visualization/build_figure_inputs.ts](client/src/generate_visualization/build_figure_inputs.ts).
-Signature `buildFigureInputs(bundle, deckStyle?): FigureInputs`. It does three
-things in one pass: the data transform (`getTimeseriesDataTransformed` + the
-`get*JsonDataConfig` builders), style derivation, and geo resolution. It then
-branches on `effectiveConfig.d.type` (timeseries / table / chart / map / pie).
-It **throws** on bad input (callers catch). Timeseries and pie transform their
-data eagerly (`get*DataTransformed`) so transform-time throws (e.g. pie's
+Signature `buildFigureInputs(bundle, deckStyle?, chartPalette?)`, returning
+`{ ok: true, inputs: FigureInputs } | { ok: false, unavailable: FigureUnavailable }`.
+It does three things in one pass: the data transform
+(`getTimeseriesDataTransformed` + the `get*JsonDataConfig` builders), style
+derivation, and geo resolution. It then branches on `effectiveConfig.d.type`
+(timeseries / table / chart / map / pie). A state the user can act on is the
+`ok: false` result, never a throw: `FigureUnavailable`
+([lib/types/\_figure_bundle.ts](lib/types/_figure_bundle.ts)) carries data and
+no sentence, and today one state is built, a map whose boundaries are not in the
+instance's store (`no_boundaries`, `source: "instance"`, with the family and
+level). The display writes the words: `describeFigureUnavailable` in
+`components/_shared/figure_preview.ts` is the one localized wording, used by the
+report embed, the explore preview and the figure editor; the raster, the HTML
+export and the slide converter degrade to their placeholder or `missing` state;
+the AI tool path raises its `AIToolFailure` from the reason. Everything else is
+a bug and **throws** (callers catch). Timeseries and pie transform their data
+eagerly (`get*DataTransformed`) so transform-time throws (e.g. pie's
 negative-value rejection) surface inside the caller's catch rather than at
 measure time in panther; the other types pass `{jsonArray, jsonDataConfig}`
 untransformed. Pie never passes an explicit legend: CF is unwired for slices
@@ -771,8 +782,8 @@ renders `_SLIDE_BACKGROUND_COLOR` = `_NIGERIA_GREEN`, not the success token, an
 Open item). Image blocks await `getImgFromCacheOrFetch`: no `imgFile` →
 `{spacer:true}`, fetch failure → a placeholder text item rendering the shared
 localized `unavailableItemMarkdown()`. Figure blocks: absent `bundle` → spacer;
-a `buildFigureInputs` throw → the same placeholder. Per-block degradation never
-aborts the slide.
+a `buildFigureInputs` throw or `ok: false` result → the same placeholder.
+Per-block degradation never aborts the slide.
 
 ## Image cache, fonts, brand contracts
 

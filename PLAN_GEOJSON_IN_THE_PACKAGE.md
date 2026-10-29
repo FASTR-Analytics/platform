@@ -1109,3 +1109,7 @@ files.
 ## §6 Log
 
 Departures, one line each, written when they happen.
+
+- Step 1: `describeFigureUnavailable` is exported through
+  `client/src/components/_shared/mod.ts`, outside the Surface, because
+  `report_figure_embed.tsx` reaches the preview helper only through that entry.

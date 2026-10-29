@@ -213,11 +213,9 @@ export async function* getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator
     yield {
       status: "error",
       err: t3({
-        en: `[INFO] No values available for "${resolvedReplicant.noValuesFor}"`,
-        fr:
-          `[INFO] Aucune valeur disponible pour "${resolvedReplicant.noValuesFor}"`,
-        pt:
-          `[INFO] Nenhum valor disponível para "${resolvedReplicant.noValuesFor}"`,
+        en: `No values available for "${resolvedReplicant.noValuesFor}"`,
+        fr: `Aucune valeur disponible pour "${resolvedReplicant.noValuesFor}"`,
+        pt: `Nenhum valor disponível para "${resolvedReplicant.noValuesFor}"`,
       }),
     };
     return;

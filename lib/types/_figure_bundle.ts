@@ -14,6 +14,7 @@ import { z } from "zod";
 import type { IndicatorMetadataDisplay } from "./indicators.ts";
 import type { PeriodBounds } from "./presentation_objects.ts";
 import type { ResultsValueForVisualization } from "./modules.ts";
+import type { FacilityFamily } from "./structure.ts";
 import { presentationObjectConfigSchema } from "./_presentation_object_config.ts";
 import { thresholdsRuleSchema } from "./conditional_formatting.ts";
 import { ALL_INSTANCE_FISCAL_YEARS } from "./instance.ts";
@@ -161,3 +162,18 @@ export const figureBlockSchema = z.strictObject({
 });
 
 export type FigureBlock = z.infer<typeof figureBlockSchema>;
+
+// ── Unavailable ──────────────────────────────────────────────────────────────
+// Why a bundle cannot render, for a state the user can act on. Reasons carry
+// data, never a sentence: the display that shows one writes the words.
+// `source` names the plane that came up empty, because the action differs: no
+// instance file means upload one, no package file means regenerate.
+
+export type FigureUnavailable =
+  | {
+    kind: "no_boundaries";
+    family: FacilityFamily;
+    level: number;
+    source: "instance" | "package";
+  }
+  | { kind: "boundaries_loading"; family: FacilityFamily; level: number };

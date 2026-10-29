@@ -14,6 +14,7 @@ import {
   type FastrChartPalette,
   FigureBundle,
   FigureLocalization,
+  type FigureUnavailable,
   getEffectivePOConfig,
   getSingleValueDimsFromItems,
   type IndicatorFormat,
@@ -46,13 +47,47 @@ import {
 } from "./special_chart_checks";
 import { getGeoJsonSync } from "~/state/instance/t2_geojson";
 
+export type FigureInputsResult =
+  | { ok: true; inputs: FigureInputs }
+  | { ok: false; unavailable: FigureUnavailable };
+
 // Builds FigureInputs from a FigureBundle. All locale reads come from
-// bundle.localization: no ambient singletons. Throws on bad input.
+// bundle.localization: no ambient singletons. A state the user can act on is
+// returned as a reason; anything else is a bug and throws.
 export function buildFigureInputs(
   bundle: FigureBundle,
   deckStyle?: DeckStyleContext,
   // A document's own chart palette (see getStandardSeriesColorFunc).
   chartPalette?: FastrChartPalette,
+): FigureInputsResult {
+  const geoJson = resolveGeoJson(bundle.geo, bundle.config);
+  if (bundle.config.d.type === "map" && !geoJson) {
+    const level = getAdminAreaLevelFromMapConfig(bundle.config);
+    if (level === undefined) {
+      throw new Error("Map figure has no admin-area map dimension");
+    }
+    // Each facility registry carries its OWN boundaries, so the level alone
+    // does not identify the missing map. Stored bundles without a family
+    // predate the split and are hmis.
+    const family = bundle.geo?.kind === "level"
+      ? bundle.geo.family ?? "hmis"
+      : "hmis";
+    return {
+      ok: false,
+      unavailable: { kind: "no_boundaries", family, level, source: "instance" },
+    };
+  }
+  return {
+    ok: true,
+    inputs: buildInputs(bundle, geoJson, deckStyle, chartPalette),
+  };
+}
+
+function buildInputs(
+  bundle: FigureBundle,
+  geoJson: GeoJSONFeatureCollection | undefined,
+  deckStyle: DeckStyleContext | undefined,
+  chartPalette: FastrChartPalette | undefined,
 ): FigureInputs {
   const {
     config,
@@ -60,12 +95,9 @@ export function buildFigureInputs(
     resultsValue,
     indicatorMetadata,
     dateRange,
-    geo,
     localization,
     scope,
   } = bundle;
-
-  const geoJson = resolveGeoJson(geo, config);
 
   const indicatorLabelReplacements = indicatorMetadataToLabelMap(
     indicatorMetadata,
@@ -326,21 +358,7 @@ export function buildFigureInputs(
   }
 
   if (effectiveConfig.d.type === "map") {
-    if (!geoJson) {
-      const level = getAdminAreaLevelFromMapConfig(effectiveConfig);
-      // Each facility registry carries its OWN boundaries, so the level alone
-      // no longer identifies the missing map: an instance can have an HMIS
-      // AA2 map and no HFA one, and the maps page would show "a level 2 map
-      // exists" while this metric still cannot render.
-      const registry = geo && geo.kind === "level" && geo.family === "hfa"
-        ? "HFA"
-        : "HMIS";
-      throw new Error(
-        `[INFO] Map files not yet uploaded for the ${registry} registry at Admin Area ${
-          level ?? ""
-        }`,
-      );
-    }
+    if (!geoJson) throw new Error("Map figure built without boundaries");
     const mapDataConfig = getMapJsonDataConfigFromPresentationObjectConfig(
       resultsValue,
       effectiveConfig,

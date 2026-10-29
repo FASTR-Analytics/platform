@@ -1,4 +1,5 @@
 import {
+  type FigureUnavailable,
   type PackageScope,
   type PresentationObjectConfig,
   type ResultsValue,
@@ -62,13 +63,47 @@ export async function fetchFigureInputs(
       },
       getSnapshotInstanceLocalization(),
     );
-    return { status: "ready", data: buildFigureInputs(bundle) };
+    const built = buildFigureInputs(bundle);
+    return built.ok
+      ? { status: "ready", data: built.inputs }
+      : { status: "error", err: describeFigureUnavailable(built.unavailable) };
   } catch (e) {
     return {
       status: "error",
       err: e instanceof Error ? e.message : "Render error",
     };
   }
+}
+
+// The one wording of each unavailable reason, for every surface that shows one.
+export function describeFigureUnavailable(reason: FigureUnavailable): string {
+  const registry = reason.family.toUpperCase();
+  const level = reason.level;
+  if (reason.kind === "boundaries_loading") {
+    return t3({
+      en: "Loading map boundaries...",
+      fr: "Chargement des limites de la carte...",
+      pt: "A carregar os limites do mapa...",
+    });
+  }
+  if (reason.source === "package") {
+    return t3({
+      en:
+        `This results package was generated without the ${registry} map files at Admin Area ${level}. Regenerate the package to include them.`,
+      fr:
+        `Ce paquet de résultats a été généré sans les fichiers de carte ${registry} au niveau d'unité administrative ${level}. Régénérez le paquet pour les inclure.`,
+      pt:
+        `Este pacote de resultados foi gerado sem os ficheiros de mapa ${registry} ao nível de zona administrativa ${level}. Gere o pacote novamente para os incluir.`,
+    });
+  }
+  return t3({
+    en:
+      `Map files not yet uploaded for the ${registry} registry at Admin Area ${level}`,
+    fr:
+      `Fichiers de carte pas encore téléversés pour le registre ${registry} au niveau d'unité administrative ${level}`,
+    pt:
+      `Ficheiros de mapa ainda não carregados para o registo ${registry} ao nível de zona administrativa ${level}`,
+  });
 }
 
 export type FigurePreviewSource = {

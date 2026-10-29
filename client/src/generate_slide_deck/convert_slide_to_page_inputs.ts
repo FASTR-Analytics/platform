@@ -567,7 +567,10 @@ async function convertBlockToPageContentItem(
   }
 
   try {
-    return buildFigureInputs(block.bundle, deckStyle) as PageContentItem;
+    const built = buildFigureInputs(block.bundle, deckStyle);
+    return built.ok
+      ? built.inputs as PageContentItem
+      : makePlaceholderTextItem(textColor, deckStyle);
   } catch {
     return makePlaceholderTextItem(textColor, deckStyle);
   }

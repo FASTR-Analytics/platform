@@ -2,6 +2,7 @@ import type {
   DatasetType,
   FigureBundle,
   FigureLocalization,
+  FigureUnavailable,
   MetricWithStatus,
   PackageScope,
   PresentationObjectConfig,
@@ -134,8 +135,9 @@ async function assertMapBoundariesAvailable(
 // would otherwise be stored, shown as "could not be displayed", and reported
 // as a success.
 function assertBundleRenders(bundle: FigureBundle): void {
+  let built;
   try {
-    buildFigureInputs(bundle);
+    built = buildFigureInputs(bundle);
   } catch (e) {
     throw new AIToolFailure(
       `The figure cannot be rendered: ${
@@ -143,6 +145,22 @@ function assertBundleRenders(bundle: FigureBundle): void {
       } No changes were applied.`,
     );
   }
+  if (!built.ok) {
+    throw new AIToolFailure(
+      `The figure cannot be rendered: ${
+        describeUnavailableForAI(built.unavailable)
+      } No changes were applied.`,
+    );
+  }
+}
+
+function describeUnavailableForAI(reason: FigureUnavailable): string {
+  const map =
+    `the ${reason.family.toUpperCase()} boundary map at admin_area_${reason.level}`;
+  if (reason.kind === "boundaries_loading") return `${map} has not loaded yet.`;
+  return reason.source === "package"
+    ? `this results package was generated without ${map}; regenerating the package captures it.`
+    : `no file is uploaded for ${map}.`;
 }
 
 // The human counterpart of the resolver above: a stale figure's "Update to

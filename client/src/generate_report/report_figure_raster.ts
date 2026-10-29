@@ -146,8 +146,13 @@ export function createFigureRasterCache(
 
   async function rasterize(entry: Entry): Promise<FigureRasterState> {
     try {
-      const bundle = entry.block.bundle!;
-      const fi = buildFigureInputs(bundle, undefined, entry.chartPalette);
+      const built = buildFigureInputs(
+        entry.block.bundle!,
+        undefined,
+        entry.chartPalette,
+      );
+      if (!built.ok) return { state: "missing" };
+      const fi = built.inputs;
       const style = new CustomFigureStyle(fi.style);
       await loadFontsWithTimeout(style.getFontsToRegister());
       // Transparent raster: the report style's CSS paints whatever sits
@@ -265,22 +270,25 @@ export function createFigureSizeCache(onReady: () => void): FigureSizeCache {
   async function measure(key: string, block: FigureBlock): Promise<void> {
     let next: { width: number; height: number } | false = false;
     try {
-      const fi = buildFigureInputs(block.bundle!, undefined, undefined);
-      const style = new CustomFigureStyle(fi.style);
-      await loadFontsWithTimeout(style.getFontsToRegister());
-      if (disposed) return;
-      // At the RASTER's own width, so this box is the raster's box to the
-      // pixel: a chart's height is not linear in its width (an axis label or
-      // a legend wraps at one width and not another), and measuring at a
-      // narrow probe width and scaling up gave an aspect ~0.3% off the
-      // raster the PDF embeds, about a pixel over a page-wide figure, which
-      // is enough to move a block across a page boundary.
-      const canvas = getFigureAsCanvas(
-        figureInputsForDownload(fi, true, false),
-        FIGURE_EXPORT_WIDTH_PX,
-      );
-      if (canvas.width > 0 && canvas.height > 0) {
-        next = { width: canvas.width, height: canvas.height };
+      const built = buildFigureInputs(block.bundle!, undefined, undefined);
+      if (built.ok) {
+        const fi = built.inputs;
+        const style = new CustomFigureStyle(fi.style);
+        await loadFontsWithTimeout(style.getFontsToRegister());
+        if (disposed) return;
+        // At the RASTER's own width, so this box is the raster's box to the
+        // pixel: a chart's height is not linear in its width (an axis label or
+        // a legend wraps at one width and not another), and measuring at a
+        // narrow probe width and scaling up gave an aspect ~0.3% off the
+        // raster the PDF embeds, about a pixel over a page-wide figure, which
+        // is enough to move a block across a page boundary.
+        const canvas = getFigureAsCanvas(
+          figureInputsForDownload(fi, true, false),
+          FIGURE_EXPORT_WIDTH_PX,
+        );
+        if (canvas.width > 0 && canvas.height > 0) {
+          next = { width: canvas.width, height: canvas.height };
+        }
       }
     } catch {
       next = false;

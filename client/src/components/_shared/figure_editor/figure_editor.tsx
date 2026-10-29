@@ -92,6 +92,7 @@ import type {
   VizFigureCollabBinding,
 } from "./visualization_editor";
 import { PresentationObjectEditorPanel } from "./editor_panel";
+import { describeFigureUnavailable } from "../mod.ts";
 
 // Input types with no native undo: they must not swallow the editor's Ctrl+Z.
 const NON_TEXT_INPUT_TYPES = new Set([
@@ -662,7 +663,15 @@ export function VisualizationEditorInner(p: InnerProps) {
         },
         p.localization,
       );
-      figureInputs = buildFigureInputs(bundle, undefined, p.chartPalette?.());
+      const built = buildFigureInputs(bundle, undefined, p.chartPalette?.());
+      if (!built.ok) {
+        await openAlert({
+          text: describeFigureUnavailable(built.unavailable),
+          intent: "danger",
+        });
+        return;
+      }
+      figureInputs = built.inputs;
     } catch {
       await openAlert({ text: "Could not get figure", intent: "danger" });
       return;
@@ -1063,16 +1072,24 @@ export function VisualizationEditorInner(p: InnerProps) {
                                   },
                                   p.localization,
                                 );
-                                return {
-                                  status: "ready" as const,
-                                  // The host's palette, so the figure is
-                                  // edited in the colours it prints in.
-                                  data: buildFigureInputs(
-                                    bundle,
-                                    undefined,
-                                    p.chartPalette?.(),
-                                  ),
-                                };
+                                // The host's palette, so the figure is
+                                // edited in the colours it prints in.
+                                const built = buildFigureInputs(
+                                  bundle,
+                                  undefined,
+                                  p.chartPalette?.(),
+                                );
+                                return built.ok
+                                  ? {
+                                    status: "ready" as const,
+                                    data: built.inputs,
+                                  }
+                                  : {
+                                    status: "error" as const,
+                                    err: describeFigureUnavailable(
+                                      built.unavailable,
+                                    ),
+                                  };
                               } catch (e) {
                                 return {
                                   status: "error" as const,
