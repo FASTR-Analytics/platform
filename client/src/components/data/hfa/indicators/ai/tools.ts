@@ -3,6 +3,8 @@ import {
   createAITool,
   foldString,
   matchesSearch,
+  openComponent,
+  type ProposalPreview,
   searchTokens,
 } from "panther";
 import { z } from "zod";
@@ -45,6 +47,7 @@ import {
   getHfaDictionaryFromCacheOrFetch,
 } from "~/state/instance/t2_datasets";
 import { copilotViews } from "~/components/instance/copilot/mod.ts";
+import { HfaProposalDiff } from "./proposal_diff.tsx";
 
 // The indicators, the taxonomy and the code are read fresh on every call so
 // the AI acts on current state, its own earlier writes included; the survey
@@ -419,19 +422,36 @@ function statusOver(
   });
 }
 
-// One indicator's code as the previews lay it out: a header, then per round
-// the main code, the filter and each item's variant code, with warnings
-// beside the round.
-function codeLayout(
+// One indicator as the approval lays it out: a header, its fields, then per
+// round the main code, the filter and each item's variant code, with warnings
+// beside the round. The stored and the proposed layouts are diffed line by
+// line, so every line names what it holds.
+function indicatorLayout(
   ind: HfaIndicator,
   code: CodeRound[],
   variantCode: VariantRow[],
   status: HfaIndicatorStatus | undefined,
-  timePoints: string[],
+  state: WriteState,
 ): string {
+  const field = (label: TranslatableString, value: string) =>
+    `  ${t3(label)}: ${value || "—"}`;
   const lines = [
     `${ind.indicatorId}: ${composeHfaIndicatorLabel(ind, "full")}`,
+    field(SCALAR_FIELDS[0][1], ind.shortLabel),
+    field(SCALAR_FIELDS[1][1], ind.definition),
+    field(
+      { en: "Measure", fr: "Mesure", pt: "Medida" },
+      `${
+        t3(getHfaIndicatorMeasure(ind.type, ind.aggregation).label)
+      } (${ind.type}, ${ind.aggregation})`,
+    ),
+    field(
+      { en: "Categories", fr: "Catégories", pt: "Categorias" },
+      describeCategories(ind, state.taxonomy),
+    ),
+    field(SCALAR_FIELDS[7][1], ind.variantGroupId ?? ""),
   ];
+  const timePoints = state.dictionary.timePoints.map((tp) => tp.timePoint);
   for (const tp of timePoints) {
     const main = code.find((c) => c.timePoint === tp);
     const variants = variantCode.filter((v) => v.timePoint === tp);
@@ -650,13 +670,9 @@ function mergeUpdate(u: UpdateEntry, before: HfaIndicator, state: WriteState) {
   }
   const variantCode = [...rows.values()];
 
-  const scalarChanges = SCALAR_FIELDS
-    .filter(([key]) => scalarText(after[key]) !== scalarText(before[key]))
-    .map(([key, label]) => ({
-      label: `${id}: ${t3(label)}`,
-      before: scalarText(before[key]),
-      after: scalarText(after[key]),
-    }));
+  const fieldsChanged = SCALAR_FIELDS.some(([key]) =>
+    scalarText(after[key]) !== scalarText(before[key])
+  );
   for (const [key] of SCALAR_FIELDS) {
     if (u[key] === undefined) continue;
     const b = scalarText(before[key]);
@@ -699,13 +715,30 @@ function mergeUpdate(u: UpdateEntry, before: HfaIndicator, state: WriteState) {
     codeBefore,
     variantCodeBefore,
     writtenFields,
-    scalarChanges,
     report,
     codeChanged,
-    changed: scalarChanges.length > 0 || codeChanged,
+    changed: fieldsChanged || codeChanged,
     wroteCode: u.code !== undefined,
     wroteVariantCode: u.variantCode !== undefined,
   };
+}
+
+// A create's or an update's approval: the app's wide merge view in place of
+// panther's built-in dialog, over the same diff the preview records.
+function openProposalDiff(
+  preview: ProposalPreview & { diff: { before: string; after: string } },
+  signal: AbortSignal,
+): Promise<boolean> {
+  return openComponent({
+    element: HfaProposalDiff,
+    props: {
+      title: preview.title,
+      description: preview.description ?? "",
+      before: preview.diff.before,
+      after: preview.diff.after,
+      signal,
+    },
+  }).then((accepted) => accepted === true);
 }
 
 // The chat's HFA reads and HFA writes, gated by view through `availableIn`
@@ -1032,78 +1065,35 @@ export function buildHfaIndicatorTools() {
               r.issues.map((i) => `${id} ${issueLine(r, i)}`)
             )
           );
-          const timePoints = state.dictionary.timePoints.map((tp) =>
-            tp.timePoint
-          );
+          const diff = {
+            before: "",
+            after: created.map((c) =>
+              indicatorLayout(
+                c.indicator,
+                c.code,
+                c.variantCode,
+                status.get(c.indicator.indicatorId),
+                after,
+              )
+            ).join("\n\n"),
+          };
+          const preview = {
+            title: t3({
+              en: "Create HFA indicators",
+              fr: "Créer des indicateurs HFA",
+              pt: "Criar indicadores HFA",
+            }),
+            description: t3({
+              en: `Create ${countIndicators(created.length)}?`,
+              fr: `Créer ${countIndicators(created.length)} ?`,
+              pt: `Criar ${countIndicators(created.length)}?`,
+            }),
+            diff,
+          };
           return {
-            preview: {
-              title: t3({
-                en: "Create HFA indicators",
-                fr: "Créer des indicateurs HFA",
-                pt: "Criar indicadores HFA",
-              }),
-              description: t3({
-                en: `Create ${countIndicators(created.length)}?`,
-                fr: `Créer ${countIndicators(created.length)} ?`,
-                pt: `Criar ${countIndicators(created.length)}?`,
-              }),
-              changes: created.flatMap(({ indicator }) => {
-                const id = indicator.indicatorId;
-                return [
-                  {
-                    label: `${id}: ${
-                      t3({ en: "Label", fr: "Libellé", pt: "Etiqueta" })
-                    }`,
-                    after: composeHfaIndicatorLabel(indicator, "full"),
-                  },
-                  {
-                    label: `${id}: ${
-                      t3({ en: "Measure", fr: "Mesure", pt: "Medida" })
-                    }`,
-                    after: `${
-                      t3(
-                        getHfaIndicatorMeasure(
-                          indicator.type,
-                          indicator.aggregation,
-                        ).label,
-                      )
-                    } (${indicator.type}, ${indicator.aggregation})`,
-                  },
-                  {
-                    label: `${id}: ${
-                      t3({
-                        en: "Categories",
-                        fr: "Catégories",
-                        pt: "Categorias",
-                      })
-                    }`,
-                    after: describeCategories(indicator, state.taxonomy),
-                  },
-                  {
-                    label: `${id}: ${
-                      t3({
-                        en: "Variant group",
-                        fr: "Groupe de variantes",
-                        pt: "Grupo de variantes",
-                      })
-                    }`,
-                    after: indicator.variantGroupId ?? "—",
-                  },
-                ];
-              }),
-              diff: {
-                before: "",
-                after: created.map((c) =>
-                  codeLayout(
-                    c.indicator,
-                    c.code,
-                    c.variantCode,
-                    status.get(c.indicator.indicatorId),
-                    timePoints,
-                  )
-                ).join("\n\n"),
-              },
-            },
+            preview,
+            customProposalUI: (signal: AbortSignal) =>
+              openProposalDiff(preview, signal),
             commit: async () => {
               const res = await serverActions.batchUploadHfaIndicators({
                 indicators: created.map((c) => c.indicator),
@@ -1253,74 +1243,68 @@ export function buildHfaIndicatorTools() {
               }`,
             );
           }
-          const timePoints = state.dictionary.timePoints.map((tp) =>
-            tp.timePoint
-          );
-          const codeChanged = changed.filter((m) => m.codeChanged);
           const statusBefore = statusOver(
             state,
             state.indicators,
             state.code,
             state.variantCode,
-            codeChanged.map((m) => m.after.indicatorId),
+            changedIds,
           );
-          const layout = (
-            ind: HfaIndicator,
-            code: CodeRound[],
-            variantCode: VariantRow[],
-            s: HfaIndicatorStatus | undefined,
-          ) => codeLayout(ind, code, variantCode, s, timePoints);
-          return {
-            preview: {
-              title: t3({
-                en: "Update HFA indicators",
-                fr: "Mettre à jour des indicateurs HFA",
-                pt: "Atualizar indicadores HFA",
+          const preview = {
+            title: t3({
+              en: "Update HFA indicators",
+              fr: "Mettre à jour des indicateurs HFA",
+              pt: "Atualizar indicadores HFA",
+            }),
+            description: [
+              t3({
+                en: `Apply these changes to ${
+                  countIndicators(changed.length)
+                }?`,
+                fr: `Appliquer ces modifications à ${
+                  countIndicators(changed.length)
+                } ?`,
+                pt: `Aplicar estas alterações a ${
+                  countIndicators(changed.length)
+                }?`,
               }),
-              description: [
-                t3({
-                  en: `Apply these changes to ${
-                    countIndicators(changed.length)
-                  }?`,
-                  fr: `Appliquer ces modifications à ${
-                    countIndicators(changed.length)
-                  } ?`,
-                  pt: `Aplicar estas alterações a ${
-                    countIndicators(changed.length)
-                  }?`,
-                }),
-                ...(leftInPlace.length > 0
-                  ? [
-                    "",
-                    t3({
-                      en: "Issues this change leaves in place:",
-                      fr: "Problèmes que cette modification laisse en place :",
-                      pt: "Problemas que esta alteração deixa como estão:",
-                    }),
-                    ...leftInPlace.map((l) => `- ${l.text}`),
-                  ]
-                  : []),
-              ].join("\n"),
-              changes: changed.flatMap((m) => m.scalarChanges),
-              diff: codeChanged.length === 0 ? undefined : {
-                before: codeChanged.map((m) =>
-                  layout(
-                    m.before,
-                    m.codeBefore,
-                    m.variantCodeBefore,
-                    statusBefore.get(m.after.indicatorId),
-                  )
-                ).join("\n\n"),
-                after: codeChanged.map((m) =>
-                  layout(
-                    m.after,
-                    m.code,
-                    m.variantCode,
-                    status.get(m.after.indicatorId),
-                  )
-                ).join("\n\n"),
-              },
+              ...(leftInPlace.length > 0
+                ? [
+                  "",
+                  t3({
+                    en: "Issues this change leaves in place:",
+                    fr: "Problèmes que cette modification laisse en place :",
+                    pt: "Problemas que esta alteração deixa como estão:",
+                  }),
+                  ...leftInPlace.map((l) => `- ${l.text}`),
+                ]
+                : []),
+            ].join("\n"),
+            diff: {
+              before: changed.map((m) =>
+                indicatorLayout(
+                  m.before,
+                  m.codeBefore,
+                  m.variantCodeBefore,
+                  statusBefore.get(m.after.indicatorId),
+                  state,
+                )
+              ).join("\n\n"),
+              after: changed.map((m) =>
+                indicatorLayout(
+                  m.after,
+                  m.code,
+                  m.variantCode,
+                  status.get(m.after.indicatorId),
+                  after,
+                )
+              ).join("\n\n"),
             },
+          };
+          return {
+            preview,
+            customProposalUI: (signal: AbortSignal) =>
+              openProposalDiff(preview, signal),
             commit: async () => {
               const res = await serverActions.saveHfaIndicatorsBatch({
                 indicators: changed.map((m) => ({

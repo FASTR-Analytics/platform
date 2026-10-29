@@ -871,22 +871,22 @@ and are skipped under it.
   `err: true` and "Nothing was proposed: the code has errors", naming `syntax`
   (a single `=`). The copilot then calls `create_hfa_indicators` again with
   `1 == 1`.
-- Ground truth: a modal "Create HFA indicators" appears with a Label, a Measure,
-  a Categories and a Variant group row and the code in the two-pane block:
-  snapshot, click the confirm button. H3 shows the second
-  `create_hfa_indicators` with `err: false`, its result starting "Created:" with
-  the new id. The manager's table shows the new row: screenshot. If the refusal
-  "Your account cannot change HFA indicators" appears instead, record it and
-  skip to K.
+- Ground truth: a wide modal "Create HFA indicators" appears, a two-pane diff
+  whose right pane lays out the new indicator (its labels, measure, categories,
+  group and each round's code) and whose left pane is empty: snapshot, click
+  Accept. H3 shows the second `create_hfa_indicators` with `err: false`, its
+  result starting "Created:" with the new id. The manager's table shows the new
+  row: screenshot. If the refusal "Your account cannot change HFA indicators"
+  appears instead, record it and skip to K.
 - Pass: the screenshot.
 
 **J5. One update across a label and code (WRITE).**
 
 - Do: send "For COPILOT TEST INDICATOR, set the short label to 'Copilot test'
   and the first round's code to `2 == 2`, in one change."
-- Ground truth: one modal "Update HFA indicators", with a Short label row from
-  empty to "Copilot test" and the two-pane block showing `1 == 1` before and
-  `2 == 2` after for the first round: snapshot, confirm. H3 shows one
+- Ground truth: one wide modal "Update HFA indicators", a two-pane diff with the
+  Short label line and the first round's code line highlighted (`1 == 1` on the
+  left, `2 == 2` on the right): snapshot, click Accept. H3 shows one
   `update_hfa_indicators` with `err: false`, its result reporting `shortLabel`
   and the round's code as changed. The table's Short label column shows "Copilot
   test".

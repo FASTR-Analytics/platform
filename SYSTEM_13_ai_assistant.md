@@ -1256,24 +1256,28 @@ that is reserved or names an indicator or a survey variable, and an error issue
 the status core finds in a field the call writes (for a create, every field).
 Issues in fields the call leaves alone, and every result-type warning, ride the
 preview and the result. `create_hfa_indicators` takes each indicator's fields,
-variant group, per-round code and per-item variant code; its preview lists each
-indicator's label, measure, categories and group as `changes` and its code as
-the `diff`'s after pane. `update_hfa_indicators` takes any mix of an indicator's
-fields, group, code and variant code: a round or variant row not listed is kept,
-an omitted `rCode` or `rFilterCode` is kept and `""` clears it, clearing `rCode`
-removes the round's code, and a variant row's `rCode: ""` removes it; a category
-change clears a sub-category that no longer fits and a group change drops the
-previous group's variant code. It returns `skip` when nothing given differs from
-stored state; its preview carries `changes` per changed scalar field and one
-`diff` of every changed indicator's code, stored against merged, laid out as
-create lays it out; its result reports each given field as changed or no change,
-the dropped variant code and the issues left in place. It commits through
-`saveHfaIndicatorsBatch`, passing main or variant code only for the indicators
-whose call wrote it. `delete_hfa_indicators` labels each change with the id and
-the full label. `create_hfa_indicators` reports what the batch route created
-and, under `notCreated`, an id another save took between the proposal and the
-acceptance. Every anticipated failure throws `AIToolFailure` carrying the
-server's error (zero plain-`Error` throws in
+variant group, per-round code and per-item variant code. `update_hfa_indicators`
+takes any mix of an indicator's fields, group, code and variant code: a round or
+variant row not listed is kept, an omitted `rCode` or `rFilterCode` is kept and
+`""` clears it, clearing `rCode` removes the round's code, and a variant row's
+`rCode: ""` removes it; a category change clears a sub-category that no longer
+fits and a group change drops the previous group's variant code. It returns
+`skip` when nothing given differs from stored state; its result reports each
+given field as changed or no change, the dropped variant code and the issues
+left in place. It commits through `saveHfaIndicatorsBatch`, passing main or
+variant code only for the indicators whose call wrote it. Both present through
+`customProposalUI`, as the report editor's writes do: `HfaProposalDiff`
+(`ai/proposal_diff.tsx`) is a wide modal holding a CodeMirror `MergeView` that
+highlights what changed and folds what did not, so a batch of many indicators
+stays readable. Its two panes are the preview's `diff`, which the timeline
+records: every indicator the call creates or changes laid out as text (its
+header, fields, and per round the code, the filter and each item's variant code,
+warnings beside the round), stored against proposed, the stored pane empty for a
+create. `delete_hfa_indicators` keeps panther's built-in dialog and labels each
+change with the id and the full label. `create_hfa_indicators` reports what the
+batch route created and, under `notCreated`, an id another save took between the
+proposal and the acceptance. Every anticipated failure throws `AIToolFailure`
+carrying the server's error (zero plain-`Error` throws in
 [tools.ts](client/src/components/data/hfa/indicators/ai/tools.ts), the
 failure-channel ruling above). The survey dictionary and the dataset display are
 read through the manager's T2 caches; the indicators, the taxonomy (variant
