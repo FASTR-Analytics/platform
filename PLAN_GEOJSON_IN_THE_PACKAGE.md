@@ -1135,3 +1135,9 @@ Departures, one line each, written when they happen.
 - Step 4: `SYSTEM_05_facilities_indicators.md`, outside the Surface, changed:
   its geojson caching paragraph said bundles snapshot geometry as
   `{kind:"data"}`, which the deleted embed branch made false.
+- Step 4: `t2_run_authoring_context.ts` is unchanged and
+  `client/src/components/instance/copilot/panel.tsx`, outside the Surface,
+  awaits `ensureRunGeoJsonStamp` beside the authoring context instead: the
+  copilot is the one reader that needs the stamp before it counts a package
+  loaded, and awaiting it inside the shared read would hold the scope editor,
+  explore and six other callers on a fetch they never use.

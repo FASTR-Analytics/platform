@@ -28,6 +28,7 @@ import {
 import { clerk } from "~/state/_infra/clerk";
 import { instanceState } from "~/state/instance/t1_store";
 import { getRunAuthoringContextFromCacheOrFetch } from "~/state/instance/t2_run_authoring_context";
+import { ensureRunGeoJsonStamp } from "~/state/instance/t2_run_geojson";
 import { AI_DEBUG, setShowAi } from "~/state/t4_ui";
 import { copilotViewController, packageViewContext } from "./ai_views";
 import {
@@ -92,8 +93,14 @@ function createViewPackage(): Accessor<ViewPackage | undefined> {
     if (scope === undefined) return;
     const controller = new AbortController();
     onCleanup(() => controller.abort());
+    // The package block reads the run's geojson stamp at send, so the package
+    // is loaded only once the stamp is held too: otherwise the first message
+    // grounds on the instance's maps and the next on the package's.
     void (async () => {
-      const res = await getRunAuthoringContextFromCacheOrFetch(scope);
+      const [res] = await Promise.all([
+        getRunAuthoringContextFromCacheOrFetch(scope),
+        ensureRunGeoJsonStamp(scope.runId),
+      ]);
       if (controller.signal.aborted || !res.success) return;
       setLoaded({ scope, authoringContext: res.data });
     })();

@@ -35,7 +35,10 @@ import type {
   SplitConfig,
 } from "panther";
 import { getBaseText, resolvePageStyle } from "panther";
-import { buildFigureInputs } from "~/generate_visualization/mod";
+import {
+  awaitFigureBoundaries,
+  buildFigureInputs,
+} from "~/generate_visualization/mod";
 import { _SERVER_HOST } from "~/server_actions";
 import { getImgFromCacheOrFetch } from "~/state/products/t2_images";
 import { FASTR_LOGO_VALUES } from "./fastr_logos";
@@ -567,6 +570,7 @@ async function convertBlockToPageContentItem(
   }
 
   try {
+    await awaitFigureBoundaries(block.bundle);
     const built = buildFigureInputs(block.bundle, deckStyle);
     return built.ok
       ? built.inputs as PageContentItem

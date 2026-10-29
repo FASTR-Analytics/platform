@@ -142,17 +142,23 @@ produce are **S10/S12**; the query pipeline the data tools call is **S9**.
    shape, thresholds in display units mirroring the scorecard's inclusive cutoff
    rule, target); `buildPackageGroundingSections` states the package's calendar
    and period coverage (finest physical time column; `/mcp` only, since the SPA
-   holds no manifest). Nothing about modules, provenance, or unavailable metrics
-   goes into the package grounding: it does not help read a metric (ruled). The
-   `package` and `explore` views are the narrowing: on those two pages the
-   module and the package's status are what the user is looking at, so their
-   view state names the open module, and the package page's its status, stage,
-   error and progress. A separate indicator-dictionary tool was considered and
-   dropped as redundant. The `/mcp` surface is stateless above the wire: the
-   metric tools read the pin from the DB on every call (a pin-move is visible on
-   the next call; `get_overview` answers without a pin), and package tools are
-   boot-time templates bound per call via panther's `bindAITool` because panther
-   caches a principal's tool set per core. A core is keyed per credential:
+   holds no manifest), and the boundary maps a figure on the package can draw
+   (`mapLevels`: the package's geojson stamp, else, for a package without a
+   capture, the instance's maps; the SPA reads the run-geo store, which the
+   copilot panel awaits beside the authoring context before it counts the
+   package loaded, and `/mcp` reads the manifest). The map line rides only the
+   package block, never the instance context, which both surfaces share. Nothing
+   about modules, provenance, or unavailable metrics goes into the package
+   grounding: it does not help read a metric (ruled). The `package` and
+   `explore` views are the narrowing: on those two pages the module and the
+   package's status are what the user is looking at, so their view state names
+   the open module, and the package page's its status, stage, error and
+   progress. A separate indicator-dictionary tool was considered and dropped as
+   redundant. The `/mcp` surface is stateless above the wire: the metric tools
+   read the pin from the DB on every call (a pin-move is visible on the next
+   call; `get_overview` answers without a pin), and package tools are boot-time
+   templates bound per call via panther's `bindAITool` because panther caches a
+   principal's tool set per core. A core is keyed per credential:
    `buildMcpPrincipal` gives each PAT or OAuth access token its own principal,
    whose key is the email plus a 16-digit prefix of the token's SHA-256
    (`server/tests/mcp_principal_key_test.ts`), so a second PAT or a rotated

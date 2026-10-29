@@ -19,7 +19,10 @@ import {
   loadFontsWithTimeout,
 } from "panther";
 import { resolveLogoUrl } from "~/generate_slide_deck/fastr_logos";
-import { buildFigureInputs } from "~/generate_visualization/mod";
+import {
+  awaitFigureBoundaries,
+  buildFigureInputs,
+} from "~/generate_visualization/mod";
 import { applyInkTheme, figureInputsForDownload } from "~/generate_report/mod";
 
 // A stored report as the document Report Forge exports, and this app's half
@@ -47,6 +50,7 @@ export function reportExportHostOf(
     rasterizeFigure: async (id, ink, palette) => {
       const bundle = figures[id]?.bundle;
       if (!bundle) return undefined;
+      await awaitFigureBoundaries(bundle);
       const built = buildFigureInputs(bundle, undefined, palette);
       if (!built.ok) return undefined;
       const fi = built.inputs;

@@ -8,6 +8,7 @@ import {
 import type { FigureInputs, StateHolder } from "panther";
 import { type Accessor, createEffect, createSignal } from "solid-js";
 import {
+  awaitFigureBoundaries,
   buildFigureInputs,
   makeFigureBundleFromFetchedData,
 } from "~/generate_visualization/mod";
@@ -63,6 +64,7 @@ export async function fetchFigureInputs(
       },
       getSnapshotInstanceLocalization(),
     );
+    await awaitFigureBoundaries(bundle);
     const built = buildFigureInputs(bundle);
     return built.ok
       ? { status: "ready", data: built.inputs }

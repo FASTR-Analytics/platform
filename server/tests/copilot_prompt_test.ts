@@ -148,6 +148,11 @@ Deno.test("the package block names the package, the scope and each family's limi
       datasets: [HMIS_DATASET],
       hmisIndicators: [],
       icehIndicators: [{ id: "iceh_anc", label: "ANC coverage (survey)" }],
+      mapLevels: [{
+        family: "hmis",
+        adminAreaLevel: 2,
+        uploadedAt: "2026-10-01T00:00:00.000Z",
+      }],
     },
   });
   const lines = block.split("\n");
@@ -164,6 +169,10 @@ Deno.test("the package block names the package, the scope and each family's limi
   assertStringIncludes(block, "- HFA: excluded.");
   assertStringIncludes(block, "- ICEH: included, no limits.");
   assertStringIncludes(block, "**Calendar:** gregorian");
+  assertStringIncludes(
+    block,
+    "- Boundary map files exist for HMIS at admin_area_2",
+  );
   assertStringIncludes(block, "- HMIS data (version 3)");
   assertStringIncludes(block, "- iceh_anc: ANC coverage (survey)");
   assert(
@@ -186,6 +195,7 @@ Deno.test("the package block says when the scope is not listed", () => {
       datasets: [],
       hmisIndicators: [],
       icehIndicators: [],
+      mapLevels: [],
     },
   });
   assertStringIncludes(

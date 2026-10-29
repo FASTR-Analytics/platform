@@ -298,6 +298,8 @@ export async function resolvePackageContext(
     hmisIndicators: authoring.hmisIndicators,
     icehIndicators: authoring.icehIndicators,
     periodCoverage: packagePeriodCoverage(manifest),
+    mapLevels: manifest.geojsonMaps ??
+      (await resolveInstanceState(principal)).geojsonMaps,
   };
 
   const transport = buildPrincipalTransport(principal.token);

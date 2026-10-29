@@ -25,6 +25,7 @@ import {
 } from "lib";
 import { scopeDisplayLabel } from "~/components/_shared/mod.ts";
 import type { DataPageId } from "./ai_views";
+import { getRunGeoJsonMapsSync } from "~/state/instance/t2_run_geojson";
 
 // The copilot's system prompt: the shared grounding blocks (lib/ai_tools/
 // build_system_prompt.ts) over the instance alone: country, terminology, data
@@ -80,6 +81,7 @@ export function buildCopilotPackageBlock(
       datasets: authoringContext.datasets,
       hmisIndicators: authoringContext.hmisIndicators,
       icehIndicators: authoringContext.icehIndicators,
+      mapLevels: getRunGeoJsonMapsSync(scope.runId) ?? instance.geojsonMaps,
     },
   });
 }

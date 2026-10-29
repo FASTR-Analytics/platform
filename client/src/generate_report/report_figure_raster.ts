@@ -24,7 +24,10 @@ import {
   getFigureAsCanvas,
   loadFontsWithTimeout,
 } from "panther";
-import { buildFigureInputs } from "~/generate_visualization/mod";
+import {
+  awaitFigureBoundaries,
+  buildFigureInputs,
+} from "~/generate_visualization/mod";
 import { figureInputsForDownload } from "./_report_export_maps";
 import type { FigureInkTheme, FigureRasterState } from "report-forge";
 
@@ -146,6 +149,7 @@ export function createFigureRasterCache(
 
   async function rasterize(entry: Entry): Promise<FigureRasterState> {
     try {
+      await awaitFigureBoundaries(entry.block.bundle!);
       const built = buildFigureInputs(
         entry.block.bundle!,
         undefined,
@@ -270,6 +274,10 @@ export function createFigureSizeCache(onReady: () => void): FigureSizeCache {
   async function measure(key: string, block: FigureBlock): Promise<void> {
     let next: { width: number; height: number } | false = false;
     try {
+      // A failed measure is stored as false for the content key and never
+      // re-measured, so the boundaries are awaited rather than built loading.
+      await awaitFigureBoundaries(block.bundle!);
+      if (disposed) return;
       const built = buildFigureInputs(block.bundle!, undefined, undefined);
       if (built.ok) {
         const fi = built.inputs;

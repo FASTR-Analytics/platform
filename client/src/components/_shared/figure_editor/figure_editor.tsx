@@ -75,6 +75,7 @@ import { ReplicateByOptionsList } from "./replicate_by_options";
 import { DownloadPresentationObject } from "./download_presentation_object";
 import { ViewResultsObject } from "./view_results_object";
 import {
+  awaitFigureBoundaries,
   buildFigureInputs,
   makeFigureBundleFromFetchedData,
 } from "~/generate_visualization/mod";
@@ -648,6 +649,7 @@ export function VisualizationEditorInner(p: InnerProps) {
         },
         p.localization,
       );
+      await awaitFigureBoundaries(bundle);
       const built = buildFigureInputs(bundle, undefined, p.chartPalette?.());
       if (!built.ok) {
         await openAlert({

@@ -167,7 +167,6 @@ export function buildInstanceContextSections(
         `- The HMIS facility registry uses levels down to admin_area_${hmisDepth}; the HFA registry down to admin_area_${hfaDepth}. Each registry's data only carries its own levels.`,
       );
     }
-    sections.push(...buildMapCoverageLines(instance.geojsonMaps));
   }
   sections.push("");
   const hasHmis = instance.datasetsWithData.includes("hmis");
@@ -239,6 +238,9 @@ export type PackageGrounding = {
   // time-indexed results). Omitted when the caller cannot know it: the SPA
   // holds no manifest client-side; /mcp reads it from the manifest.
   periodCoverage?: PeriodBounds | null;
+  // The boundary maps a figure on this package can draw: the package's own
+  // geojson stamp, or the instance's maps for a package without a capture.
+  mapLevels: GeoJsonMapSummary[];
 };
 
 export function buildPackageGroundingSections(
@@ -272,6 +274,10 @@ export function buildPackageGroundingSections(
       sections.push(`- ICEH survey data`);
     }
   }
+
+  sections.push("");
+  sections.push("**Boundary maps:**");
+  sections.push(...buildMapCoverageLines(grounding.mapLevels));
 
   if (grounding.hmisIndicators.length > 0) {
     sections.push("");

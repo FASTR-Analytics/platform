@@ -331,6 +331,15 @@ stored before the capture changes what it draws: a `data` bundle keeps its copy,
 and a `level` bundle sits on a pre-capture package whose `null` stamp takes
 `run_unknown`, which is the instance read it always made.
 
+A caller that builds after an await, where a sync read tracks nothing, awaits
+`awaitFigureBoundaries(bundle)` first: the slide converter (thumbnails, the
+presenter, the deck exports, the editor's page build, the copilot's drafts), the
+report raster's `rasterize` and `measure` (a failed measure is stored and never
+retried), the HTML report export, the figure preview helper and the editor's
+download. Without it a deck exported before the files land would export every
+map as a placeholder. A report's embeds and the deck rail render through a
+tracked read and take `boundaries_loading` until the files land.
+
 The `resolve_figure_from_metric` resolver:
 `generate_visualization/resolve_figure_from_metric.ts` (+
 `resolve_bundle_from_metric_and_config.ts`) is the shared
