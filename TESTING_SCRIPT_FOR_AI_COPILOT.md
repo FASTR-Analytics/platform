@@ -832,16 +832,21 @@ open HFA indicators. NEW CONVERSATION.
   condition. Compare the counts with the manager's table on screen.
 - Pass: counts match.
 
-**J2. Create, validate, delete, each through a modal.**
+**J2. Create, refuse bad code, delete, each through a modal.**
 
 - Do: send "Create one binary/avg indicator named 'COPILOT TEST INDICATOR' with
   definition 'Facility reports the copilot test', in the first category, with
-  rCode `1 == 1` for every round. Then validate it."
-- Ground truth: a modal "Create HFA indicators" appears: snapshot, click the
-  confirm button. H3 shows `create_hfa_indicators` with `err: false` and
-  `validate_hfa_indicators`. The manager's table shows the new row: screenshot.
-  If the refusal "Your account cannot change HFA indicators" appears instead,
-  record it and skip to K.
+  rCode `1 = 1` for every round."
+- Ground truth: no modal appears; H3 shows `create_hfa_indicators` with
+  `err: true` and a message that nothing was proposed because the code has an
+  error (`syntax`, a single `=`). The copilot then calls `create_hfa_indicators`
+  again with `1 == 1`.
+- Ground truth: a modal "Create HFA indicators" appears, its code in the
+  two-pane block: snapshot, click the confirm button. H3 shows the second
+  `create_hfa_indicators` with `err: false`, and no separate validation call
+  exists. The manager's table shows the new row: screenshot. If the refusal
+  "Your account cannot change HFA indicators" appears instead, record it and
+  skip to K.
 - Do: send "Delete the indicator you just created."
 - Ground truth: a danger modal "Delete HFA indicators"; click Delete. The row is
   gone: screenshot.

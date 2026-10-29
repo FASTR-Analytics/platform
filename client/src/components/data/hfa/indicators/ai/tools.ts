@@ -8,26 +8,35 @@ import {
 import { z } from "zod";
 import {
   type APIResponseWithData,
+  composeHfaIndicatorLabel,
+  composeHfaVariantColumnName,
   COPILOT_TOOL_VIEWS,
   formatHfaIndicatorDetailsForAI,
   formatHfaIndicatorListForAI,
   formatHfaVariableDetailsForAI,
   formatHfaVariableListForAI,
+  getHfaIndicatorMeasure,
   HFA_STRUCTURAL_VARIABLE_IDS,
   type HfaDictionaryForValidation,
+  type HfaFieldIssue,
   type HfaIndicator,
   type HfaIndicatorCode,
   hfaIndicatorCodeIdentifiers,
+  hfaIndicatorCodeSchema,
+  hfaIndicatorEditSchema,
   type HfaIndicatorsForAIInput,
   hfaIndicatorsStatus,
   type HfaIndicatorStatus,
   type HfaIndicatorVariantCode,
+  hfaIndicatorVariantCodeSchema,
   type HfaTaxonomyInput,
   type HfaVariableRow,
   hfaVariableUsage,
+  isHfaCodeError,
+  isReservedHfaId,
   nextHfaIndicatorId,
-  serialiseMultiMembershipValues,
   t3,
+  type TranslatableString,
 } from "lib";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
@@ -219,48 +228,6 @@ function matchesStatus(
   }
 }
 
-// Apply a set of fully-merged indicators (read-modify-write: the batch route
-// takes whole objects), their code left as stored. Transactional server-side:
-// all applied or none.
-async function applyIndicatorUpdates(merged: HfaIndicator[]): Promise<void> {
-  const res = await serverActions.saveHfaIndicatorsBatch({
-    indicators: merged.map((indicator) => ({ indicator })),
-  });
-  if (!res.success) {
-    throw new AIToolFailure(
-      `Failed to apply the ${merged.length} HFA indicator update(s); nothing was saved: ${res.err}`,
-    );
-  }
-}
-
-type CodeRound = { timePoint: string; rCode: string; rFilterCode?: string };
-
-// What the user sees in a preview. Everything a tool returns to the model
-// stays English; everything the approval modal or the chat timeline shows the
-// user goes through t3.
-function formatCodeRound(round: CodeRound): string {
-  return round.rFilterCode?.trim()
-    ? `${round.rCode}  [${
-      t3({ en: "filter", fr: "filtre", pt: "filtro" })
-    }: ${round.rFilterCode}]`
-    : round.rCode;
-}
-
-function describeAssignment(indicator: HfaIndicator): string {
-  const none = "—";
-  return t3({
-    en: `category: ${indicator.categoryId ?? none}, sub: ${
-      indicator.subCategoryId ?? none
-    }, services: [${indicator.serviceCategoryIds.join(", ") || none}]`,
-    fr: `catégorie : ${indicator.categoryId ?? none}, sous-catégorie : ${
-      indicator.subCategoryId ?? none
-    }, services : [${indicator.serviceCategoryIds.join(", ") || none}]`,
-    pt: `categoria: ${indicator.categoryId ?? none}, subcategoria: ${
-      indicator.subCategoryId ?? none
-    }, serviços: [${indicator.serviceCategoryIds.join(", ") || none}]`,
-  });
-}
-
 function countIndicators(n: number): string {
   return t3({
     en: `${n} indicator(s)`,
@@ -269,42 +236,438 @@ function countIndicators(n: number): string {
   });
 }
 
-async function loadVariantItems() {
-  const res = await serverActions.getHfaIndicatorVariantItems({});
-  if (!res.success) {
-    throw new AIToolFailure(`Could not load the HFA variant items: ${res.err}`);
-  }
-  return res.data;
+// The write tools' inputs derive from the contract's schemas: a round of main
+// code, a variant row, and the indicator's own fields.
+const codeRoundSchema = hfaIndicatorCodeSchema.omit({ indicatorId: true });
+const variantRowSchema = hfaIndicatorVariantCodeSchema.omit({
+  indicatorId: true,
+});
+const field = hfaIndicatorEditSchema.shape;
+
+type CodeRound = z.infer<typeof codeRoundSchema>;
+type VariantRow = z.infer<typeof variantRowSchema>;
+
+// The state a write judges against, read fresh in propose.
+async function loadWriteState() {
+  const [indicators, taxonomy, code, variantCode, dictionary] = await Promise
+    .all([
+      loadIndicators(),
+      loadTaxonomy(),
+      loadAllCode(),
+      loadAllVariantCode(),
+      loadDictionary(),
+    ]);
+  return { indicators, taxonomy, code, variantCode, dictionary };
 }
 
-// The status core's verdict per indicator of `only`, as the tools report it:
-// whether any round has an error, whether the rounds agree, and each issue
-// as an English line.
-function validateIndicators(input: {
-  indicators: HfaIndicator[];
-  code: HfaIndicatorCode[];
-  variantCode: HfaIndicatorVariantCode[];
-  variantItems: { id: string; groupId: string }[];
-  dictionary: HfaDictionaryForValidation;
-  only: ReadonlySet<string>;
-}): Map<
-  string,
-  { hasErrors: boolean; codeConsistent: boolean; issues: string[] }
-> {
-  const status = hfaIndicatorsStatus(input);
-  return new Map(
-    [...status].map(([id, s]) => [id, {
-      hasErrors: s.rounds.some((r) => r.status === "error"),
-      codeConsistent: s.consistent,
-      issues: s.rounds.flatMap((r) =>
-        r.issues.map((i) =>
-          `${r.timePoint} ${
-            i.itemId === undefined ? i.field : `variant ${i.itemId}`
-          }: ${i.text.en}`
-        )
-      ),
-    }]),
+type WriteState = Awaited<ReturnType<typeof loadWriteState>>;
+
+function idList(ids: Iterable<string>): string {
+  return [...ids].join(", ") || "(none)";
+}
+
+// What create refuses for a new indicator, and update for a merged one,
+// before any preview: every id the indicator or its code names must exist and
+// fit, and its composed variant columns must be free.
+function refuseUnfitIndicator(
+  ind: HfaIndicator,
+  code: CodeRound[],
+  variantCode: VariantRow[],
+  state: WriteState,
+): void {
+  const t = state.taxonomy;
+  const id = ind.indicatorId;
+  const where = `Indicator ${id}`;
+  if (
+    ind.categoryId !== null &&
+    !t.categories.some((c) => c.id === ind.categoryId)
+  ) {
+    throw new AIToolFailure(
+      `${where}: category "${ind.categoryId}" does not exist. Valid: ${
+        idList(t.categories.map((c) => c.id))
+      }.`,
+    );
+  }
+  if (ind.subCategoryId !== null) {
+    const sub = t.subCategories.find((s) => s.id === ind.subCategoryId);
+    if (sub === undefined) {
+      throw new AIToolFailure(
+        `${where}: sub-category "${ind.subCategoryId}" does not exist.`,
+      );
+    }
+    if (sub.categoryId !== ind.categoryId) {
+      throw new AIToolFailure(
+        `${where}: sub-category "${sub.id}" belongs to category "${sub.categoryId}", not "${
+          ind.categoryId ?? "(none)"
+        }".`,
+      );
+    }
+  }
+  const badServices = ind.serviceCategoryIds.filter((s) =>
+    !t.serviceCategories.some((c) => c.id === s)
   );
+  if (badServices.length > 0) {
+    throw new AIToolFailure(
+      `${where}: service categories do not exist: ${
+        badServices.join(", ")
+      }. Valid: ${idList(t.serviceCategories.map((c) => c.id))}.`,
+    );
+  }
+  const items = t.variantItems.filter((i) => i.groupId === ind.variantGroupId);
+  if (
+    ind.variantGroupId !== null &&
+    !t.variantGroups.some((g) => g.id === ind.variantGroupId)
+  ) {
+    throw new AIToolFailure(
+      `${where}: variant group "${ind.variantGroupId}" does not exist. Valid: ${
+        idList(t.variantGroups.map((g) => g.id))
+      }.`,
+    );
+  }
+  const rounds = new Set(state.dictionary.timePoints.map((tp) => tp.timePoint));
+  for (const r of [...code, ...variantCode]) {
+    if (!rounds.has(r.timePoint)) {
+      throw new AIToolFailure(
+        `${where}: time point "${r.timePoint}" is not a round of the dataset. Rounds: ${
+          idList(rounds)
+        }.`,
+      );
+    }
+  }
+  for (const v of variantCode) {
+    if (!t.variantItems.some((i) => i.id === v.itemId)) {
+      throw new AIToolFailure(
+        `${where}: variant item "${v.itemId}" does not exist.`,
+      );
+    }
+    if (!items.some((i) => i.id === v.itemId)) {
+      throw new AIToolFailure(
+        `${where}: variant item "${v.itemId}" is not in the indicator's variant group "${
+          ind.variantGroupId ?? "(none)"
+        }". Its items: ${idList(items.map((i) => i.id))}.`,
+      );
+    }
+  }
+  const indicatorIds = new Set(state.indicators.map((i) => i.indicatorId));
+  const variableIds = new Set(
+    state.dictionary.timePoints.flatMap((tp) =>
+      tp.variables.map((v) => v.variableId)
+    ),
+  );
+  for (const item of items) {
+    const column = composeHfaVariantColumnName(id, item.id);
+    if (
+      isReservedHfaId(column) || indicatorIds.has(column) ||
+      variableIds.has(column)
+    ) {
+      throw new AIToolFailure(
+        `${where}: the variant column "${column}" for item "${item.id}" is reserved or names an existing indicator or survey variable; choose another group.`,
+      );
+    }
+  }
+}
+
+function issueLine(
+  r: { timePoint: string },
+  i: HfaFieldIssue,
+): string {
+  return `${r.timePoint} ${
+    i.itemId === undefined ? i.field : `variant ${i.itemId}`
+  } (${i.kind}): ${i.text.en}`;
+}
+
+// The status of `ids` over a state with their code in place.
+function statusOver(
+  state: WriteState,
+  indicators: HfaIndicator[],
+  code: HfaIndicatorCode[],
+  variantCode: HfaIndicatorVariantCode[],
+  ids: Iterable<string>,
+): Map<string, HfaIndicatorStatus> {
+  return hfaIndicatorsStatus({
+    indicators,
+    code,
+    variantCode,
+    variantItems: state.taxonomy.variantItems,
+    dictionary: state.dictionary,
+    only: new Set(ids),
+  });
+}
+
+// One indicator's code as the previews lay it out: a header, then per round
+// the main code, the filter and each item's variant code, with warnings
+// beside the round.
+function codeLayout(
+  ind: HfaIndicator,
+  code: CodeRound[],
+  variantCode: VariantRow[],
+  status: HfaIndicatorStatus | undefined,
+  timePoints: string[],
+): string {
+  const lines = [
+    `${ind.indicatorId}: ${composeHfaIndicatorLabel(ind, "full")}`,
+  ];
+  for (const tp of timePoints) {
+    const main = code.find((c) => c.timePoint === tp);
+    const variants = variantCode.filter((v) => v.timePoint === tp);
+    if (!main?.rCode.trim() && !main?.rFilterCode?.trim() && !variants.length) {
+      continue;
+    }
+    const warnings = status?.rounds.find((r) => r.timePoint === tp)?.issues
+      .filter((i) => i.kind === "result_type")
+      .map((i) => t3(i.text)) ?? [];
+    lines.push(
+      `  ${tp}: ${main?.rCode.trim() ?? ""}${
+        warnings.length ? `   (${warnings.join("; ")})` : ""
+      }`,
+    );
+    if (main?.rFilterCode?.trim()) {
+      lines.push(
+        `    ${
+          t3({ en: "filter", fr: "filtre", pt: "filtro" })
+        }: ${main.rFilterCode.trim()}`,
+      );
+    }
+    for (const v of variants) {
+      lines.push(`    ${v.itemId}: ${v.rCode.trim()}`);
+    }
+  }
+  return lines.join("\n");
+}
+
+function describeCategories(ind: HfaIndicator, t: HfaTaxonomyInput): string {
+  const label = (items: { id: string; label: string }[], id: string) =>
+    items.find((i) => i.id === id)?.label ?? id;
+  const none = "—";
+  return [
+    ind.categoryId === null ? none : label(t.categories, ind.categoryId),
+    ind.subCategoryId === null
+      ? none
+      : label(t.subCategories, ind.subCategoryId),
+    ind.serviceCategoryIds.map((s) => label(t.serviceCategories, s)).join(
+      ", ",
+    ) || none,
+  ].join(" / ");
+}
+
+type UpdateEntry = {
+  indicatorId: string;
+  shortLabel?: string;
+  definition?: string;
+  type?: HfaIndicator["type"];
+  aggregation?: HfaIndicator["aggregation"];
+  categoryId?: string | null;
+  subCategoryId?: string | null;
+  serviceCategoryIds?: string[];
+  variantGroupId?: string | null;
+  code?: { timePoint: string; rCode?: string; rFilterCode?: string }[];
+  variantCode?: VariantRow[];
+};
+
+const SCALAR_FIELDS = [
+  ["shortLabel", {
+    en: "Short label",
+    fr: "Libellé court",
+    pt: "Etiqueta curta",
+  }],
+  ["definition", {
+    en: "Long label",
+    fr: "Libellé long",
+    pt: "Etiqueta longa",
+  }],
+  ["type", { en: "Type", fr: "Type", pt: "Tipo" }],
+  ["aggregation", { en: "Aggregation", fr: "Agrégation", pt: "Agregação" }],
+  ["categoryId", { en: "Category", fr: "Catégorie", pt: "Categoria" }],
+  [
+    "subCategoryId",
+    { en: "Sub-category", fr: "Sous-catégorie", pt: "Subcategoria" },
+  ],
+  [
+    "serviceCategoryIds",
+    {
+      en: "Service categories",
+      fr: "Catégories de service",
+      pt: "Categorias de serviço",
+    },
+  ],
+  [
+    "variantGroupId",
+    {
+      en: "Variant group",
+      fr: "Groupe de variantes",
+      pt: "Grupo de variantes",
+    },
+  ],
+] as const satisfies readonly (readonly [
+  keyof UpdateEntry & keyof HfaIndicator,
+  TranslatableString,
+])[];
+
+function scalarText(value: string | string[] | null): string {
+  return Array.isArray(value) ? `[${value.join(", ")}]` : value ?? "(none)";
+}
+
+function firstDuplicate(keys: string[]): string | undefined {
+  const seen = new Set<string>();
+  return keys.find((k) => seen.has(k) || !seen.add(k));
+}
+
+function codeKey(code: CodeRound[], variantCode: VariantRow[]): string {
+  return JSON.stringify([
+    code.map((c) => [c.timePoint, c.rCode.trim(), c.rFilterCode?.trim() ?? ""])
+      .sort(),
+    variantCode.map((v) => [v.timePoint, v.itemId, v.rCode.trim()]).sort(),
+  ]);
+}
+
+// One update entry merged onto fresh state, with the editor's semantics: a
+// category change clears a sub-category that no longer fits, a group change
+// drops the previous group's variant code, and code is patched as the tool's
+// description states. `writtenFields` keys the fields the entry writes
+// (`round|field|item`), the ones whose errors refuse the call.
+function mergeUpdate(u: UpdateEntry, before: HfaIndicator, state: WriteState) {
+  const id = before.indicatorId;
+  const duplicateRound = firstDuplicate((u.code ?? []).map((r) => r.timePoint));
+  if (duplicateRound !== undefined) {
+    throw new AIToolFailure(
+      `${id}: round "${duplicateRound}" is listed twice; list each round once.`,
+    );
+  }
+  const duplicateRow = firstDuplicate(
+    (u.variantCode ?? []).map((r) => `${r.timePoint} / ${r.itemId}`),
+  );
+  if (duplicateRow !== undefined) {
+    throw new AIToolFailure(
+      `${id}: variant row "${duplicateRow}" is listed twice; list each row once.`,
+    );
+  }
+  const codeBefore: CodeRound[] = state.code
+    .filter((c) => c.indicatorId === id)
+    .map((c) => ({
+      timePoint: c.timePoint,
+      rCode: c.rCode,
+      rFilterCode: c.rFilterCode,
+    }));
+  const variantCodeBefore: VariantRow[] = state.variantCode
+    .filter((c) => c.indicatorId === id)
+    .map((c) => ({ timePoint: c.timePoint, itemId: c.itemId, rCode: c.rCode }));
+
+  const after: HfaIndicator = { ...before };
+  for (const [key] of SCALAR_FIELDS) {
+    const value = u[key];
+    if (value !== undefined) Object.assign(after, { [key]: value });
+  }
+  const report: string[] = [];
+  if (u.subCategoryId === undefined && after.subCategoryId !== null) {
+    const sub = state.taxonomy.subCategories.find((s) =>
+      s.id === after.subCategoryId
+    );
+    if (sub === undefined || sub.categoryId !== after.categoryId) {
+      report.push(
+        `subCategoryId: cleared ("${after.subCategoryId}" belonged to the previous category)`,
+      );
+      after.subCategoryId = null;
+    }
+  }
+  const groupChanged = after.variantGroupId !== before.variantGroupId;
+  const dropped = groupChanged ? variantCodeBefore : [];
+  if (dropped.length > 0) {
+    report.push(
+      `variant code of the previous group dropped: ${
+        dropped.map((v) => `${v.timePoint} ${v.itemId}`).join(", ")
+      }`,
+    );
+  }
+
+  const writtenFields = new Set<string>();
+  const rounds = new Map(codeBefore.map((c) => [c.timePoint, { ...c }]));
+  for (const r of u.code ?? []) {
+    const round = rounds.get(r.timePoint) ??
+      { timePoint: r.timePoint, rCode: "" };
+    if (r.rCode !== undefined) {
+      round.rCode = r.rCode;
+      writtenFields.add(`${r.timePoint}|rCode|`);
+    }
+    if (r.rFilterCode !== undefined) {
+      round.rFilterCode = r.rFilterCode || undefined;
+      writtenFields.add(`${r.timePoint}|rFilterCode|`);
+    }
+    if (r.rCode === "" && !r.rFilterCode) {
+      rounds.delete(r.timePoint);
+    } else {
+      rounds.set(r.timePoint, round);
+    }
+  }
+  const code = [...rounds.values()];
+  const rows = new Map(
+    (groupChanged ? [] : variantCodeBefore).map((
+      v,
+    ) => [`${v.timePoint}|${v.itemId}`, v]),
+  );
+  for (const v of u.variantCode ?? []) {
+    const key = `${v.timePoint}|${v.itemId}`;
+    if (v.rCode.trim() === "") rows.delete(key);
+    else rows.set(key, v);
+    writtenFields.add(`${v.timePoint}|variantCode|${v.itemId}`);
+  }
+  const variantCode = [...rows.values()];
+
+  const scalarChanges = SCALAR_FIELDS
+    .filter(([key]) => scalarText(after[key]) !== scalarText(before[key]))
+    .map(([key, label]) => ({
+      label: `${id}: ${t3(label)}`,
+      before: scalarText(before[key]),
+      after: scalarText(after[key]),
+    }));
+  for (const [key] of SCALAR_FIELDS) {
+    if (u[key] === undefined) continue;
+    const b = scalarText(before[key]);
+    const a = scalarText(after[key]);
+    report.push(b === a ? `${key}: no change` : `${key}: "${b}" → "${a}"`);
+  }
+  const roundText = (c: CodeRound | undefined) =>
+    c === undefined
+      ? "(none)"
+      : c.rFilterCode?.trim()
+      ? `${c.rCode.trim()} [filter: ${c.rFilterCode.trim()}]`
+      : c.rCode.trim();
+  for (const r of u.code ?? []) {
+    const b = roundText(codeBefore.find((c) => c.timePoint === r.timePoint));
+    const a = roundText(rounds.get(r.timePoint));
+    report.push(
+      b === a
+        ? `${r.timePoint} code: no change`
+        : `${r.timePoint} code: "${b}" → "${a}"`,
+    );
+  }
+  for (const v of u.variantCode ?? []) {
+    const b = variantCodeBefore.find((c) =>
+      c.timePoint === v.timePoint && c.itemId === v.itemId
+    )?.rCode.trim() ?? "(none)";
+    const a = rows.get(`${v.timePoint}|${v.itemId}`)?.rCode.trim() ?? "(none)";
+    report.push(
+      b === a && !groupChanged
+        ? `${v.timePoint} variant ${v.itemId}: no change`
+        : `${v.timePoint} variant ${v.itemId}: "${b}" → "${a}"`,
+    );
+  }
+  const codeChanged = codeKey(code, variantCode) !==
+    codeKey(codeBefore, variantCodeBefore);
+  return {
+    before,
+    after,
+    code,
+    variantCode,
+    codeBefore,
+    variantCodeBefore,
+    writtenFields,
+    scalarChanges,
+    report,
+    codeChanged,
+    changed: scalarChanges.length > 0 || codeChanged,
+    wroteCode: u.code !== undefined,
+    wroteVariantCode: u.variantCode !== undefined,
+  };
 }
 
 // The chat's HFA reads and HFA writes, gated by view through `availableIn`
@@ -412,10 +775,14 @@ export function buildHfaIndicatorTools() {
         }),
       completionMessage: (input) =>
         t3({
-          en: `Read ${countIndicators(input.indicatorIds.length)} in detail`,
-          fr: `${countIndicators(input.indicatorIds.length)} lu(s) en détail`,
+          en: `Read ${
+            countIndicators(new Set(input.indicatorIds).size)
+          } in detail`,
+          fr: `${
+            countIndicators(new Set(input.indicatorIds).size)
+          } lu(s) en détail`,
           pt: `${
-            countIndicators(input.indicatorIds.length)
+            countIndicators(new Set(input.indicatorIds).size)
           } lido(s) em detalhe`,
         }),
     }),
@@ -508,9 +875,9 @@ export function buildHfaIndicatorTools() {
       },
       inProgressLabel: (input) =>
         t3({
-          en: `Reading ${input.variableIds.join(", ")}...`,
-          fr: `Lecture de ${input.variableIds.join(", ")}...`,
-          pt: `A ler ${input.variableIds.join(", ")}...`,
+          en: `Reading ${[...new Set(input.variableIds)].join(", ")}...`,
+          fr: `Lecture de ${[...new Set(input.variableIds)].join(", ")}...`,
+          pt: `A ler ${[...new Set(input.variableIds)].join(", ")}...`,
         }),
       completionMessage: () =>
         t3({
@@ -522,455 +889,113 @@ export function buildHfaIndicatorTools() {
 
     createAITool({
       viewRegistry: copilotViews,
-      name: "update_hfa_indicator_labels",
-      availableIn: COPILOT_TOOL_VIEWS.update_hfa_indicator_labels,
-      description:
-        "Set the short label and/or long label (definition) of existing HFA indicators, in a batch. Only the fields you provide change. The short label is used in dense chart contexts; the long label is the full descriptive text. Does NOT change measurement, categorisation, or indicator code.",
-      kind: "write",
-      inputSchema: z.object({
-        updates: z.array(z.object({
-          indicatorId: z.string(),
-          shortLabel: z.string().optional().describe(
-            "New short label (omit to leave unchanged).",
-          ),
-          definition: z.string().optional().describe(
-            "New long label / definition (omit to leave unchanged).",
-          ),
-        })).min(1),
-      }),
-      approval: {
-        propose: async (input) => {
-          const byIndicatorId = new Map(
-            (await loadIndicators()).map((i) => [i.indicatorId, i]),
-          );
-          const merged: HfaIndicator[] = [];
-          const edits: {
-            indicatorId: string;
-            field: "short label" | "long label";
-            before: string;
-            after: string;
-          }[] = [];
-          for (const u of input.updates) {
-            const cur = byIndicatorId.get(u.indicatorId);
-            if (!cur) {
-              throw new AIToolFailure(`Unknown indicator "${u.indicatorId}".`);
-            }
-            const next = { ...cur };
-            if (u.shortLabel !== undefined && u.shortLabel !== cur.shortLabel) {
-              edits.push({
-                indicatorId: u.indicatorId,
-                field: "short label",
-                before: cur.shortLabel,
-                after: u.shortLabel,
-              });
-              next.shortLabel = u.shortLabel;
-            }
-            if (u.definition !== undefined && u.definition !== cur.definition) {
-              edits.push({
-                indicatorId: u.indicatorId,
-                field: "long label",
-                before: cur.definition,
-                after: u.definition,
-              });
-              next.definition = u.definition;
-            }
-            if (
-              next.shortLabel !== cur.shortLabel ||
-              next.definition !== cur.definition
-            ) {
-              merged.push(next);
-            }
-          }
-          if (edits.length === 0) {
-            return {
-              skip: "No changes — provided values match the current labels.",
-            };
-          }
-          const fieldLabel = (field: "short label" | "long label") =>
-            field === "short label"
-              ? t3({
-                en: "short label",
-                fr: "libellé court",
-                pt: "rótulo curto",
-              })
-              : t3({
-                en: "long label",
-                fr: "libellé long",
-                pt: "rótulo longo",
-              });
-          return {
-            preview: {
-              title: t3({
-                en: "Apply label changes",
-                fr: "Appliquer les modifications de libellés",
-                pt: "Aplicar as alterações de rótulos",
-              }),
-              description: t3({
-                en: `Apply these label changes to ${
-                  countIndicators(merged.length)
-                }?`,
-                fr: `Appliquer ces modifications de libellés à ${
-                  countIndicators(merged.length)
-                } ?`,
-                pt: `Aplicar estas alterações de rótulos a ${
-                  countIndicators(merged.length)
-                }?`,
-              }),
-              changes: edits.map((e) => ({
-                label: `${e.indicatorId} — ${fieldLabel(e.field)}`,
-                before: e.before,
-                after: e.after,
-              })),
-            },
-            commit: async () => {
-              await applyIndicatorUpdates(merged);
-              return {
-                applied: true,
-                indicatorsUpdated: merged.length,
-                changes: edits.map((e) =>
-                  `${e.indicatorId} ${e.field}: "${e.before}" → "${e.after}"`
-                ),
-              };
-            },
-          };
-        },
-        presentation: "modal",
-      },
-      inProgressLabel: () =>
-        t3({
-          en: "Proposing label changes...",
-          fr: "Proposition de modifications de libellés...",
-          pt: "A propor alterações de rótulos...",
-        }),
-      completionMessage: (input) =>
-        t3({
-          en: `Label changes for ${countIndicators(input.updates.length)}`,
-          fr: `Modifications de libellés pour ${
-            countIndicators(input.updates.length)
-          }`,
-          pt: `Alterações de rótulos para ${
-            countIndicators(input.updates.length)
-          }`,
-        }),
-    }),
-
-    createAITool({
-      viewRegistry: copilotViews,
-      name: "assign_hfa_indicator_categories",
-      availableIn: COPILOT_TOOL_VIEWS.assign_hfa_indicator_categories,
-      description:
-        "Assign or clear the category, sub-category, and/or service categories of existing HFA indicators, in a batch. Only the fields you provide change. Use null to clear a category or sub-category. All ids are validated against the live taxonomy, which get_hfa_indicators prints.",
-      kind: "write",
-      inputSchema: z.object({
-        updates: z.array(z.object({
-          indicatorId: z.string(),
-          categoryId: z.string().nullable().optional().describe(
-            "Category id, null to clear, omit to leave unchanged.",
-          ),
-          subCategoryId: z.string().nullable().optional().describe(
-            "Sub-category id (must belong to the category), null to clear, omit to leave unchanged.",
-          ),
-          serviceCategoryIds: z.array(z.string()).optional().describe(
-            "Full replacement set of service-category ids (omit to leave unchanged).",
-          ),
-        })).min(1),
-      }),
-      approval: {
-        propose: async (input) => {
-          const byIndicatorId = new Map(
-            (await loadIndicators()).map((i) => [i.indicatorId, i]),
-          );
-          const { categories, subCategories, serviceCategories } =
-            await loadTaxonomy();
-          const catIds = new Set(categories.map((c) => c.id));
-          const subById = new Map(subCategories.map((s) => [s.id, s]));
-          const svcIds = new Set(serviceCategories.map((s) => s.id));
-
-          const merged: HfaIndicator[] = [];
-          const changes: { label: string; before: string; after: string }[] =
-            [];
-          for (const u of input.updates) {
-            const cur = byIndicatorId.get(u.indicatorId);
-            if (!cur) {
-              throw new AIToolFailure(`Unknown indicator "${u.indicatorId}".`);
-            }
-            const next = { ...cur };
-
-            if (u.categoryId !== undefined) {
-              if (u.categoryId !== null && !catIds.has(u.categoryId)) {
-                throw new AIToolFailure(
-                  `Category "${u.categoryId}" does not exist. Valid category ids: ${
-                    [...catIds].join(", ") || "(none)"
-                  }.`,
-                );
-              }
-              next.categoryId = u.categoryId;
-            }
-            if (u.subCategoryId !== undefined) {
-              if (u.subCategoryId !== null) {
-                const sub = subById.get(u.subCategoryId);
-                if (!sub) {
-                  throw new AIToolFailure(
-                    `Sub-category "${u.subCategoryId}" does not exist. Valid sub-category ids: ${
-                      [...subById.keys()].join(", ") || "(none)"
-                    }.`,
-                  );
-                }
-                if (sub.categoryId !== next.categoryId) {
-                  throw new AIToolFailure(
-                    `Sub-category "${u.subCategoryId}" belongs to category "${sub.categoryId}", but "${u.indicatorId}" is in category "${
-                      next.categoryId ?? "(none)"
-                    }". Set a matching category first.`,
-                  );
-                }
-              }
-              next.subCategoryId = u.subCategoryId;
-            }
-            if (u.serviceCategoryIds !== undefined) {
-              const bad = u.serviceCategoryIds.filter((id) => !svcIds.has(id));
-              if (bad.length > 0) {
-                throw new AIToolFailure(
-                  `Service categories do not exist: ${
-                    bad.join(", ")
-                  }. Valid service-category ids: ${
-                    [...svcIds].join(", ") || "(none)"
-                  }.`,
-                );
-              }
-              next.serviceCategoryIds = u.serviceCategoryIds;
-            }
-
-            // Match the editor's invariant: a sub-category must belong to the
-            // indicator's category. If the category changed and the kept
-            // sub-category no longer fits, clear it rather than persist an orphan.
-            if (next.subCategoryId !== null) {
-              const sub = subById.get(next.subCategoryId);
-              if (!sub || sub.categoryId !== next.categoryId) {
-                next.subCategoryId = null;
-              }
-            }
-
-            const changed = next.categoryId !== cur.categoryId ||
-              next.subCategoryId !== cur.subCategoryId ||
-              serialiseMultiMembershipValues(next.serviceCategoryIds) !==
-                serialiseMultiMembershipValues(cur.serviceCategoryIds);
-            if (changed) {
-              changes.push({
-                label: u.indicatorId,
-                before: describeAssignment(cur),
-                after: describeAssignment(next),
-              });
-              merged.push(next);
-            }
-          }
-          if (merged.length === 0) {
-            return {
-              skip:
-                "No changes — provided assignments match the current state.",
-            };
-          }
-          return {
-            preview: {
-              title: t3({
-                en: "Apply category changes",
-                fr: "Appliquer les modifications de catégories",
-                pt: "Aplicar as alterações de categorias",
-              }),
-              description: t3({
-                en: `Apply these category assignments to ${
-                  countIndicators(merged.length)
-                }?`,
-                fr: `Appliquer ces affectations de catégories à ${
-                  countIndicators(merged.length)
-                } ?`,
-                pt: `Aplicar estas atribuições de categorias a ${
-                  countIndicators(merged.length)
-                }?`,
-              }),
-              changes,
-            },
-            commit: async () => {
-              await applyIndicatorUpdates(merged);
-              return {
-                applied: true,
-                indicatorsUpdated: merged.length,
-                changes: merged.map((m) =>
-                  `${m.indicatorId} → category: ${
-                    m.categoryId ?? "none"
-                  }, sub: ${m.subCategoryId ?? "none"}, services: [${
-                    m.serviceCategoryIds.join(", ")
-                  }]`
-                ),
-              };
-            },
-          };
-        },
-        presentation: "modal",
-      },
-      inProgressLabel: () =>
-        t3({
-          en: "Proposing category changes...",
-          fr: "Proposition de modifications de catégories...",
-          pt: "A propor alterações de categorias...",
-        }),
-      completionMessage: (input) =>
-        t3({
-          en: `Category changes for ${countIndicators(input.updates.length)}`,
-          fr: `Modifications de catégories pour ${
-            countIndicators(input.updates.length)
-          }`,
-          pt: `Alterações de categorias para ${
-            countIndicators(input.updates.length)
-          }`,
-        }),
-    }),
-
-    createAITool({
-      viewRegistry: copilotViews,
       name: "create_hfa_indicators",
       availableIn: COPILOT_TOOL_VIEWS.create_hfa_indicators,
       description:
-        'Create new HFA indicators from the survey dataset, in a batch. For each: a long label (definition), type + aggregation (usually binary+avg for "% of facilities" — see the modelling guidance), optional category/sub-category/service categories (must already exist), and per-round indicator code. The app assigns each indicator\'s id and returns it; time points are validated and indicator code is validated against the dictionary (including a result-type check).',
+        'Create new HFA indicators, in a batch. For each: the long label (definition), an optional short label, type and aggregation (usually binary and avg, "% of facilities"), optional category, sub-category and service categories, an optional variant group, per-round code (rCode and an optional rFilterCode) and, for a variant group, per-round code for each item. The app assigns each id and returns it. Every id is checked against the taxonomy and the rounds, and code with an error (syntax, unknown variable, a filter or variant code without code, a cycle) is refused before anything is proposed; a result-type mismatch is a warning. The user confirms the batch in a dialog.',
       kind: "write",
       inputSchema: z.object({
         indicators: z.array(z.object({
-          definition: z.string().describe(
-            "Long label / full descriptive text.",
+          definition: field.definition.describe(
+            "Long label: the full descriptive text.",
           ),
-          shortLabel: z.string().optional(),
-          type: z.enum(["binary", "numeric"]),
-          aggregation: z.enum(["sum", "avg"]),
-          categoryId: z.string().nullable().optional(),
-          subCategoryId: z.string().nullable().optional(),
-          serviceCategoryIds: z.array(z.string()).optional(),
-          code: z.array(z.object({
-            timePoint: z.string(),
-            rCode: z.string(),
-            rFilterCode: z.string().optional(),
-          })).optional().describe(
-            "Per-round indicator code. Keep identical across rounds unless the survey changed.",
+          shortLabel: field.shortLabel.optional().describe(
+            "Short label for dense charts.",
+          ),
+          type: field.type,
+          aggregation: field.aggregation,
+          categoryId: field.categoryId.optional(),
+          subCategoryId: field.subCategoryId.optional().describe(
+            "Must belong to the category.",
+          ),
+          serviceCategoryIds: field.serviceCategoryIds.optional(),
+          variantGroupId: field.variantGroupId.optional(),
+          code: z.array(codeRoundSchema).optional().describe(
+            "Per-round code. Keep it identical across rounds unless the survey changed.",
+          ),
+          variantCode: z.array(variantRowSchema).optional().describe(
+            "Per-round code for each item of the variant group; the round's filter applies to every item.",
           ),
         })).min(1),
       }),
       approval: {
         propose: async (input) => {
-          const existing = await loadIndicators();
-          const existingIds = new Set(existing.map((i) => i.indicatorId));
-          const { categories, subCategories, serviceCategories } =
-            await loadTaxonomy();
-          const dict = await loadDictionary();
-          const catIds = new Set(categories.map((c) => c.id));
-          const subById = new Map(subCategories.map((s) => [s.id, s]));
-          const svcIds = new Set(serviceCategories.map((s) => s.id));
-          const validTimePoints = new Set(
-            dict.timePoints.map((t) => t.timePoint),
-          );
-
-          const variableIds = dict.timePoints.flatMap((tp) =>
-            tp.variables.map((v) => v.variableId)
-          );
-          const taken = new Set([...existingIds, ...variableIds]);
-          const withIds = input.indicators.map((ind) => {
+          const state = await loadWriteState();
+          const taken = new Set([
+            ...state.indicators.map((i) => i.indicatorId),
+            ...state.dictionary.timePoints.flatMap((tp) =>
+              tp.variables.map((v) => v.variableId)
+            ),
+          ]);
+          const created = input.indicators.map((ind) => {
             const indicatorId = nextHfaIndicatorId(taken);
             taken.add(indicatorId);
-            return { ...ind, indicatorId };
-          });
-          const indicatorsToCreate: HfaIndicator[] = [];
-          const codeToCreate: HfaIndicatorCode[] = [];
-          for (const ind of withIds) {
-            if (ind.categoryId != null && !catIds.has(ind.categoryId)) {
-              throw new AIToolFailure(
-                `Category "${ind.categoryId}" does not exist. Valid: ${
-                  [...catIds].join(", ") || "(none)"
-                }.`,
-              );
-            }
-            if (ind.subCategoryId != null) {
-              const sub = subById.get(ind.subCategoryId);
-              if (!sub) {
-                throw new AIToolFailure(
-                  `Sub-category "${ind.subCategoryId}" does not exist.`,
-                );
-              }
-              if (sub.categoryId !== (ind.categoryId ?? null)) {
-                throw new AIToolFailure(
-                  `Sub-category "${ind.subCategoryId}" belongs to category "${sub.categoryId}", not "${
-                    ind.categoryId ?? "(none)"
-                  }".`,
-                );
-              }
-            }
-            const svc = ind.serviceCategoryIds ?? [];
-            const badSvc = svc.filter((id) => !svcIds.has(id));
-            if (badSvc.length > 0) {
-              throw new AIToolFailure(
-                `Service categories do not exist: ${badSvc.join(", ")}.`,
-              );
-            }
-            const code = ind.code ?? [];
-            for (const c of code) {
-              if (!validTimePoints.has(c.timePoint)) {
-                throw new AIToolFailure(
-                  `Time point "${c.timePoint}" is not in the dataset. Valid: ${
-                    [...validTimePoints].join(", ")
-                  }.`,
-                );
-              }
-            }
-            indicatorsToCreate.push({
-              indicatorId: ind.indicatorId,
+            const indicator: HfaIndicator = {
+              indicatorId,
               categoryId: ind.categoryId ?? null,
               subCategoryId: ind.subCategoryId ?? null,
-              serviceCategoryIds: svc,
+              serviceCategoryIds: ind.serviceCategoryIds ?? [],
               shortLabel: ind.shortLabel ?? "",
               definition: ind.definition,
               type: ind.type,
               aggregation: ind.aggregation,
               sortOrder: 0,
-              variantGroupId: null,
-            });
-            for (const c of code) {
-              codeToCreate.push({
-                indicatorId: ind.indicatorId,
-                timePoint: c.timePoint,
-                rCode: c.rCode,
-                rFilterCode: c.rFilterCode,
-              });
-            }
-          }
-          // A new indicator has no variant group and the cycle graph reads
-          // main code only, so no variant code can change these verdicts.
-          const verdicts = validateIndicators({
-            indicators: [...existing, ...indicatorsToCreate],
-            code: [...await loadAllCode(), ...codeToCreate],
-            variantCode: [],
-            variantItems: [],
-            dictionary: dict,
-            only: new Set(indicatorsToCreate.map((i) => i.indicatorId)),
-          });
-          const issuesById = new Map(
-            [...verdicts]
-              .filter(([, v]) => v.issues.length > 0)
-              .map(([id, v]) => [id, v.issues]),
-          );
-          const changes = indicatorsToCreate.map((ind) => {
-            const issues = issuesById.get(ind.indicatorId) ?? [];
+              variantGroupId: ind.variantGroupId ?? null,
+            };
             return {
-              label: ind.definition,
-              after: `${ind.type}/${ind.aggregation}${
-                issues.length
-                  ? ` — ${
-                    t3({
-                      en: `${issues.length} issue(s)`,
-                      fr: `${issues.length} problème(s)`,
-                      pt: `${issues.length} problema(s)`,
-                    })
-                  }: ${issues.join("; ")}`
-                  : ""
-              }`,
+              indicator,
+              code: ind.code ?? [],
+              variantCode: ind.variantCode ?? [],
             };
           });
-
+          const after = {
+            ...state,
+            indicators: [
+              ...state.indicators,
+              ...created.map((c) => c.indicator),
+            ],
+          };
+          for (const c of created) {
+            refuseUnfitIndicator(c.indicator, c.code, c.variantCode, after);
+          }
+          const newCode = created.flatMap((c) =>
+            c.code.map((r) => ({ ...r, indicatorId: c.indicator.indicatorId }))
+          );
+          const newVariantCode = created.flatMap((c) =>
+            c.variantCode.map((r) => ({
+              ...r,
+              indicatorId: c.indicator.indicatorId,
+            }))
+          );
+          const status = statusOver(
+            after,
+            after.indicators,
+            [...state.code, ...newCode],
+            [...state.variantCode, ...newVariantCode],
+            created.map((c) => c.indicator.indicatorId),
+          );
+          const errors = [...status].flatMap(([id, s]) =>
+            s.rounds.flatMap((r) =>
+              r.issues.filter((i) => isHfaCodeError(i.kind)).map((i) =>
+                `${id} ${issueLine(r, i)}`
+              )
+            )
+          );
+          if (errors.length > 0) {
+            throw new AIToolFailure(
+              `Nothing was proposed: the code has errors. Fix them and call again.\n${
+                errors.join("\n")
+              }`,
+            );
+          }
+          const warnings = [...status].flatMap(([id, s]) =>
+            s.rounds.flatMap((r) =>
+              r.issues.map((i) => `${id} ${issueLine(r, i)}`)
+            )
+          );
+          const timePoints = state.dictionary.timePoints.map((tp) =>
+            tp.timePoint
+          );
           return {
             preview: {
               title: t3({
@@ -979,48 +1004,88 @@ export function buildHfaIndicatorTools() {
                 pt: "Criar indicadores HFA",
               }),
               description: t3({
-                en: `Create ${countIndicators(indicatorsToCreate.length)}?`,
-                fr: `Créer ${countIndicators(indicatorsToCreate.length)} ?`,
-                pt: `Criar ${countIndicators(indicatorsToCreate.length)}?`,
+                en: `Create ${countIndicators(created.length)}?`,
+                fr: `Créer ${countIndicators(created.length)} ?`,
+                pt: `Criar ${countIndicators(created.length)}?`,
               }),
-              changes,
+              changes: created.flatMap(({ indicator }) => {
+                const id = indicator.indicatorId;
+                return [
+                  {
+                    label: `${id}: ${
+                      t3({ en: "Label", fr: "Libellé", pt: "Etiqueta" })
+                    }`,
+                    after: composeHfaIndicatorLabel(indicator, "full"),
+                  },
+                  {
+                    label: `${id}: ${
+                      t3({ en: "Measure", fr: "Mesure", pt: "Medida" })
+                    }`,
+                    after: `${
+                      t3(
+                        getHfaIndicatorMeasure(
+                          indicator.type,
+                          indicator.aggregation,
+                        ).label,
+                      )
+                    } (${indicator.type}, ${indicator.aggregation})`,
+                  },
+                  {
+                    label: `${id}: ${
+                      t3({
+                        en: "Categories",
+                        fr: "Catégories",
+                        pt: "Categorias",
+                      })
+                    }`,
+                    after: describeCategories(indicator, state.taxonomy),
+                  },
+                  {
+                    label: `${id}: ${
+                      t3({
+                        en: "Variant group",
+                        fr: "Groupe de variantes",
+                        pt: "Grupo de variantes",
+                      })
+                    }`,
+                    after: indicator.variantGroupId ?? "—",
+                  },
+                ];
+              }),
+              diff: {
+                before: "",
+                after: created.map((c) =>
+                  codeLayout(
+                    c.indicator,
+                    c.code,
+                    c.variantCode,
+                    status.get(c.indicator.indicatorId),
+                    timePoints,
+                  )
+                ).join("\n\n"),
+              },
             },
             commit: async () => {
               const res = await serverActions.batchUploadHfaIndicators({
-                indicators: indicatorsToCreate,
-                code: codeToCreate,
-                variantCode: [],
+                indicators: created.map((c) => c.indicator),
+                code: newCode,
+                variantCode: newVariantCode,
               });
               if (!res.success) {
                 throw new AIToolFailure(
-                  `Failed to create HFA indicators: ${res.err}`,
+                  `Failed to create HFA indicators; nothing was created: ${res.err}`,
                 );
               }
               const createdIds = new Set(res.data.createdIndicatorIds);
-              const created = indicatorsToCreate.filter((i) =>
-                createdIds.has(i.indicatorId)
-              );
-              return {
-                applied: true,
-                created: created.map((i) => ({
-                  indicatorId: i.indicatorId,
-                  definition: i.definition,
-                })),
-                notCreated: indicatorsToCreate
-                  .filter((i) => !createdIds.has(i.indicatorId))
-                  .map((i) => ({
-                    indicatorId: i.indicatorId,
-                    definition: i.definition,
-                    reason:
-                      "an HFA indicator with this id was saved after the proposal; nothing was created for it",
-                  })),
-                withValidationIssues: created
-                  .filter((i) => issuesById.has(i.indicatorId))
-                  .map((i) => ({
-                    indicatorId: i.indicatorId,
-                    issues: issuesById.get(i.indicatorId),
-                  })),
-              };
+              return [
+                `Created: ${idList(createdIds)}.`,
+                ...created
+                  .filter((c) => !createdIds.has(c.indicator.indicatorId))
+                  .map((c) =>
+                    `Not created: ${c.indicator.indicatorId} (${c.indicator.definition}): another save took this id after the proposal.`
+                  ),
+                ...(warnings.length > 0 ? ["Warnings:", ...warnings] : []),
+              ].join("\n");
             },
           };
         },
@@ -1042,146 +1107,223 @@ export function buildHfaIndicatorTools() {
 
     createAITool({
       viewRegistry: copilotViews,
-      name: "set_hfa_indicator_code",
-      availableIn: COPILOT_TOOL_VIEWS.set_hfa_indicator_code,
+      name: "update_hfa_indicators",
+      availableIn: COPILOT_TOOL_VIEWS.update_hfa_indicators,
       description:
-        "Set the per-round indicator code of EXISTING HFA indicators (to fix or change how they are computed). Each entry replaces that indicator+round's rCode/rFilterCode; other rounds are kept. Validation (including the result-type check) is recomputed automatically.",
+        "Change existing HFA indicators, in a batch: any of the labels, type, aggregation, category, sub-category, service categories, variant group, per-round code and per-item variant code, in one call. Give only the fields to change. Code is patched: a round or variant row not listed is kept; in a listed round an omitted rCode or rFilterCode is kept and an empty string clears it; clearing rCode removes the round's code; a variant row with an empty rCode is removed. Changing the category clears a sub-category that no longer fits; changing the variant group drops the previous group's variant code. Ids are checked against the taxonomy and the rounds, and code you write with an error is refused before anything is proposed. The user confirms the batch in a dialog.",
       kind: "write",
       inputSchema: z.object({
         updates: z.array(z.object({
           indicatorId: z.string(),
-          timePoint: z.string(),
-          rCode: z.string(),
-          rFilterCode: z.string().optional(),
+          shortLabel: field.shortLabel.optional(),
+          definition: field.definition.optional().describe("Long label."),
+          type: field.type.optional(),
+          aggregation: field.aggregation.optional(),
+          categoryId: field.categoryId.optional().describe(
+            "Category id, null to clear.",
+          ),
+          subCategoryId: field.subCategoryId.optional().describe(
+            "Sub-category id within the category, null to clear.",
+          ),
+          serviceCategoryIds: field.serviceCategoryIds.optional().describe(
+            "The full set of service-category ids.",
+          ),
+          variantGroupId: field.variantGroupId.optional().describe(
+            "Variant group id, null to clear.",
+          ),
+          code: z.array(codeRoundSchema.partial({ rCode: true })).optional()
+            .describe("Rounds to patch; a round not listed is kept."),
+          variantCode: z.array(variantRowSchema).optional().describe(
+            "Variant rows to set; an empty rCode removes the row.",
+          ),
         })).min(1),
       }),
       approval: {
         propose: async (input) => {
-          const indicators = await loadIndicators();
-          const byIndicatorId = new Map(
-            indicators.map((i) => [i.indicatorId, i]),
-          );
-          const [allCode, dict, allVariantCode, variantItems] = await Promise
-            .all([
-              loadAllCode(),
-              loadDictionary(),
-              loadAllVariantCode(),
-              loadVariantItems(),
-            ]);
-          const validTimePoints = new Set(
-            dict.timePoints.map((t) => t.timePoint),
-          );
-
-          const codeByIndicatorId = new Map<string, CodeRound[]>();
-          for (const c of allCode) {
-            const arr = codeByIndicatorId.get(c.indicatorId) ?? [];
-            arr.push({
-              timePoint: c.timePoint,
-              rCode: c.rCode,
-              rFilterCode: c.rFilterCode,
-            });
-            codeByIndicatorId.set(c.indicatorId, arr);
-          }
-          const affected = new Set<string>();
-          const changes: { label: string; before: string; after: string }[] =
-            [];
-          for (const u of input.updates) {
-            if (!byIndicatorId.has(u.indicatorId)) {
-              throw new AIToolFailure(`Unknown indicator "${u.indicatorId}".`);
-            }
-            if (!validTimePoints.has(u.timePoint)) {
+          const state = await loadWriteState();
+          const byId = new Map(state.indicators.map((i) => [i.indicatorId, i]));
+          const seen = new Set<string>();
+          const merged = input.updates.map((u) => {
+            const before = byId.get(u.indicatorId);
+            if (before === undefined) {
               throw new AIToolFailure(
-                `Time point "${u.timePoint}" is not in the dataset. Valid: ${
-                  [...validTimePoints].join(", ")
-                }.`,
+                `Unknown indicator "${u.indicatorId}". get_hfa_indicators lists the ids.`,
               );
             }
-            const arr = codeByIndicatorId.get(u.indicatorId) ?? [];
-            const idx = arr.findIndex((c) => c.timePoint === u.timePoint);
-            const before = idx >= 0
-              ? formatCodeRound(arr[idx])
-              : t3({ en: "(none)", fr: "(aucun)", pt: "(nenhum)" });
-            const round = {
-              timePoint: u.timePoint,
-              rCode: u.rCode,
-              rFilterCode: u.rFilterCode,
-            };
-            if (idx >= 0) arr[idx] = round;
-            else arr.push(round);
-            codeByIndicatorId.set(u.indicatorId, arr);
-            affected.add(u.indicatorId);
-            changes.push({
-              label: `${u.indicatorId} — ${u.timePoint}`,
-              before,
-              after: formatCodeRound(round),
-            });
-          }
-
-          const verdicts = validateIndicators({
-            indicators,
-            code: [...codeByIndicatorId].flatMap(([indicatorId, rounds]) =>
-              rounds.map((r) => ({ ...r, indicatorId }))
-            ),
-            variantCode: allVariantCode,
-            variantItems,
-            dictionary: dict,
-            only: affected,
+            if (seen.has(u.indicatorId)) {
+              throw new AIToolFailure(
+                `Indicator "${u.indicatorId}" is listed twice; give each indicator one entry.`,
+              );
+            }
+            seen.add(u.indicatorId);
+            const { indicatorId: _id, ...given } = u;
+            if (Object.values(given).every((v) => v === undefined)) {
+              throw new AIToolFailure(
+                `The entry for "${u.indicatorId}" names no field to change.`,
+              );
+            }
+            return mergeUpdate(u, before, state);
           });
+          const changed = merged.filter((m) => m.changed);
+          if (changed.length === 0) {
+            return {
+              skip: "No change: every given field already has the value given.",
+            };
+          }
+          const changedIds = new Set(changed.map((m) => m.after.indicatorId));
+          const indicatorsAfter = state.indicators.map((i) =>
+            merged.find((m) => m.after.indicatorId === i.indicatorId)?.after ??
+              i
+          );
+          const after = { ...state, indicators: indicatorsAfter };
+          for (const m of changed) {
+            refuseUnfitIndicator(m.after, m.code, m.variantCode, after);
+          }
+          const status = statusOver(
+            after,
+            indicatorsAfter,
+            [
+              ...state.code.filter((c) => !changedIds.has(c.indicatorId)),
+              ...changed.flatMap((m) =>
+                m.code.map((r) => ({ ...r, indicatorId: m.after.indicatorId }))
+              ),
+            ],
+            [
+              ...state.variantCode.filter((c) =>
+                !changedIds.has(c.indicatorId)
+              ),
+              ...changed.flatMap((m) =>
+                m.variantCode.map((r) => ({
+                  ...r,
+                  indicatorId: m.after.indicatorId,
+                }))
+              ),
+            ],
+            changedIds,
+          );
+          const written = new Map(changed.map((m) => [
+            m.after.indicatorId,
+            m.writtenFields,
+          ]));
+          const fieldKey = (tp: string, i: HfaFieldIssue) =>
+            `${tp}|${i.field}|${i.itemId ?? ""}`;
+          const errors: string[] = [];
+          const leftInPlace: { id: string; line: string; text: string }[] = [];
+          for (const [id, s] of status) {
+            for (const r of s.rounds) {
+              for (const i of r.issues) {
+                if (
+                  isHfaCodeError(i.kind) &&
+                  written.get(id)?.has(fieldKey(r.timePoint, i))
+                ) {
+                  errors.push(`${id} ${issueLine(r, i)}`);
+                } else {
+                  leftInPlace.push({
+                    id,
+                    line: `${id} ${issueLine(r, i)}`,
+                    text: `${id} ${r.timePoint}: ${t3(i.text)}`,
+                  });
+                }
+              }
+            }
+          }
+          if (errors.length > 0) {
+            throw new AIToolFailure(
+              `Nothing was proposed: the code you wrote has errors. Fix them and call again.\n${
+                errors.join("\n")
+              }`,
+            );
+          }
+          const timePoints = state.dictionary.timePoints.map((tp) =>
+            tp.timePoint
+          );
+          const codeChanged = changed.filter((m) => m.codeChanged);
+          const statusBefore = statusOver(
+            state,
+            state.indicators,
+            state.code,
+            state.variantCode,
+            codeChanged.map((m) => m.after.indicatorId),
+          );
+          const layout = (
+            ind: HfaIndicator,
+            code: CodeRound[],
+            variantCode: VariantRow[],
+            s: HfaIndicatorStatus | undefined,
+          ) => codeLayout(ind, code, variantCode, s, timePoints);
           return {
             preview: {
               title: t3({
-                en: "Update HFA indicator code",
-                fr: "Mettre à jour le code des indicateurs HFA",
-                pt: "Atualizar o código dos indicadores HFA",
+                en: "Update HFA indicators",
+                fr: "Mettre à jour des indicateurs HFA",
+                pt: "Atualizar indicadores HFA",
               }),
-              description: t3({
-                en: `Update indicator code for ${
-                  countIndicators(affected.size)
-                }?`,
-                fr: `Mettre à jour le code de ${
-                  countIndicators(affected.size)
-                } ?`,
-                pt: `Atualizar o código de ${countIndicators(affected.size)}?`,
-              }),
-              changes,
+              description: [
+                t3({
+                  en: `Apply these changes to ${
+                    countIndicators(changed.length)
+                  }?`,
+                  fr: `Appliquer ces modifications à ${
+                    countIndicators(changed.length)
+                  } ?`,
+                  pt: `Aplicar estas alterações a ${
+                    countIndicators(changed.length)
+                  }?`,
+                }),
+                ...(leftInPlace.length > 0
+                  ? [
+                    "",
+                    t3({
+                      en: "Issues this change leaves in place:",
+                      fr: "Problèmes que cette modification laisse en place :",
+                      pt: "Problemas que esta alteração deixa como estão:",
+                    }),
+                    ...leftInPlace.map((l) => `- ${l.text}`),
+                  ]
+                  : []),
+              ].join("\n"),
+              changes: changed.flatMap((m) => m.scalarChanges),
+              diff: codeChanged.length === 0 ? undefined : {
+                before: codeChanged.map((m) =>
+                  layout(
+                    m.before,
+                    m.codeBefore,
+                    m.variantCodeBefore,
+                    statusBefore.get(m.after.indicatorId),
+                  )
+                ).join("\n\n"),
+                after: codeChanged.map((m) =>
+                  layout(
+                    m.after,
+                    m.code,
+                    m.variantCode,
+                    status.get(m.after.indicatorId),
+                  )
+                ).join("\n\n"),
+              },
             },
             commit: async () => {
-              const results = [...affected].map((indicatorId) => ({
-                indicatorId,
-                indicator: byIndicatorId.get(indicatorId)!,
-                code: codeByIndicatorId.get(indicatorId) ?? [],
-                ...verdicts.get(indicatorId)!,
-              }));
               const res = await serverActions.saveHfaIndicatorsBatch({
-                indicators: results.map((r) => ({
-                  indicator: r.indicator,
-                  code: r.code.map((c) => ({
-                    timePoint: c.timePoint,
-                    rCode: c.rCode,
-                    rFilterCode: c.rFilterCode,
-                  })),
+                indicators: changed.map((m) => ({
+                  indicator: m.after,
+                  code: m.wroteCode ? m.code : undefined,
+                  variantCode: m.wroteVariantCode ? m.variantCode : undefined,
                 })),
               });
               if (!res.success) {
                 throw new AIToolFailure(
-                  `Failed to update HFA indicator code; nothing was saved: ${res.err}`,
+                  `Failed to update HFA indicators; nothing was saved: ${res.err}`,
                 );
               }
-              return {
-                applied: true,
-                updated: results.length,
-                withValidationIssues: results
-                  .filter((r) =>
-                    r.hasErrors || !r.codeConsistent ||
-                    r.issues.length > 0
-                  )
-                  .map((r) => ({
-                    indicatorId: r.indicatorId,
-                    hasErrors: r.hasErrors,
-                    codeConsistent: r.codeConsistent,
-                    issues: r.issues,
-                  })),
-              };
+              return [
+                ...merged.flatMap((m) => [
+                  `${m.after.indicatorId}:`,
+                  ...m.report.map((line) => `  ${line}`),
+                ]),
+                ...(leftInPlace.length > 0
+                  ? ["Issues left in place:", ...leftInPlace.map((l) => l.line)]
+                  : []),
+              ].join("\n");
             },
           };
         },
@@ -1189,15 +1331,15 @@ export function buildHfaIndicatorTools() {
       },
       inProgressLabel: () =>
         t3({
-          en: "Proposing code changes...",
-          fr: "Proposition de modifications de code...",
-          pt: "A propor alterações de código...",
+          en: "Proposing HFA indicator changes...",
+          fr: "Proposition de modifications d'indicateurs HFA...",
+          pt: "A propor alterações de indicadores HFA...",
         }),
       completionMessage: (input) =>
         t3({
-          en: `Code changes for ${input.updates.length} round(s)`,
-          fr: `Modifications de code pour ${input.updates.length} vague(s)`,
-          pt: `Alterações de código para ${input.updates.length} ronda(s)`,
+          en: `Changes for ${countIndicators(input.updates.length)}`,
+          fr: `Modifications pour ${countIndicators(input.updates.length)}`,
+          pt: `Alterações para ${countIndicators(input.updates.length)}`,
         }),
     }),
 
@@ -1211,8 +1353,8 @@ export function buildHfaIndicatorTools() {
       inputSchema: z.object({ indicatorIds: z.array(z.string()).min(1) }),
       approval: {
         propose: async (input) => {
-          const existing = new Set(
-            (await loadIndicators()).map((i) => i.indicatorId),
+          const existing = new Map(
+            (await loadIndicators()).map((i) => [i.indicatorId, i]),
           );
           const unknown = input.indicatorIds.filter((v) => !existing.has(v));
           if (unknown.length > 0) {
@@ -1266,17 +1408,19 @@ export function buildHfaIndicatorTools() {
               }),
               description: t3({
                 en: `Permanently delete ${
-                  countIndicators(input.indicatorIds.length)
+                  countIndicators(new Set(input.indicatorIds).size)
                 }?`,
                 fr: `Supprimer définitivement ${
-                  countIndicators(input.indicatorIds.length)
+                  countIndicators(new Set(input.indicatorIds).size)
                 } ?`,
                 pt: `Eliminar definitivamente ${
-                  countIndicators(input.indicatorIds.length)
+                  countIndicators(new Set(input.indicatorIds).size)
                 }?`,
               }) + referencedByNote,
-              changes: input.indicatorIds.map((vn) => ({
-                label: vn,
+              changes: input.indicatorIds.map((id) => ({
+                label: `${id}: ${
+                  composeHfaIndicatorLabel(existing.get(id)!, "full")
+                }`,
                 after: t3({ en: "deleted", fr: "supprimé", pt: "eliminado" }),
               })),
               intent: "danger",
@@ -1315,9 +1459,9 @@ export function buildHfaIndicatorTools() {
         }),
       completionMessage: (input) =>
         t3({
-          en: `Delete ${countIndicators(input.indicatorIds.length)}`,
-          fr: `Supprimer ${countIndicators(input.indicatorIds.length)}`,
-          pt: `Eliminar ${countIndicators(input.indicatorIds.length)}`,
+          en: `Delete ${countIndicators(new Set(input.indicatorIds).size)}`,
+          fr: `Supprimer ${countIndicators(new Set(input.indicatorIds).size)}`,
+          pt: `Eliminar ${countIndicators(new Set(input.indicatorIds).size)}`,
         }),
     }),
   ];

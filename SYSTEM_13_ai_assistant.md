@@ -1195,23 +1195,22 @@ parts S13 relies on, verified this cycle:
 `client/src/components/data/hfa/indicators/ai/` holds the HFA reads, HFA writes
 and HFA editor groups of the catalogue, registered in the one chat by
 `copilot_tools.ts` like every other tool and gated by view: the four reads in
-the three HFA views, the writes (`update_hfa_indicator_labels`,
-`assign_hfa_indicator_categories`, `create_hfa_indicators`,
-`set_hfa_indicator_code`, `delete_hfa_indicators`) in `hfa_indicators` alone,
-and the editor tools (`get_hfa_indicator_editor`, `update_hfa_indicator_editor`,
+the three HFA views, the three writes (`create_hfa_indicators`,
+`update_hfa_indicators`, `delete_hfa_indicators`) in `hfa_indicators` alone, and
+the editor tools (`get_hfa_indicator_editor`, `update_hfa_indicator_editor`,
 `editor_tools.ts`) in `hfa_indicator_editor` alone. Who may call them refuses
 through the guard: the reads need `can_configure_data`, the writes and
 `update_hfa_indicator_editor` the manager's write gate,
 `canWriteHfaIndicators()` (`indicators/write_gate.ts`, today global admin),
 which the manager's indicator write controls read too, so SYSTEM_05's open
 decision on that gate moves both at once. Every HFA route keeps its own guard.
-The five writes declare `approval.propose` with `presentation: "modal"` (panther
-owns the propose → modal → commit lifecycle); the editor write is exempt, since
-it lands in the open editor's unsaved draft, which the user saves or discards.
-The HFA guidance (the model, type and aggregation, how to write indicator code,
-how to work) is `instructions.ts`'s `getHfaIndicatorsGuidance`, attached to the
-manager's view; it names no tool, since the registered tools describe
-themselves, and promises no diff.
+The three writes declare `approval.propose` with `presentation: "modal"`
+(panther owns the propose → modal → commit lifecycle); the editor write is
+exempt, since it lands in the open editor's unsaved draft, which the user saves
+or discards. The HFA guidance (the model, type and aggregation, how to write
+indicator code, how to work) is `instructions.ts`'s `getHfaIndicatorsGuidance`,
+attached to the manager's view; it names no tool, since the registered tools
+describe themselves, and promises no diff.
 
 Every read returns English text built by a pure formatter in
 `lib/ai_tools/format_hfa_indicators_for_ai.ts`, pinned by
@@ -1240,10 +1239,34 @@ per-round detail with the indicators naming it, and lists an id in no round as
 not found. The two detail reads take at most 20 ids and refuse more, naming the
 cap. The display rows are read only when the user also holds `can_view_data`
 (the route's own guard); otherwise the output carries one line saying the counts
-and values present need that permission. `create_hfa_indicators` reports what
-the batch route created and, under `notCreated`, an id another save took between
-the proposal and the acceptance. Every anticipated failure throws
-`AIToolFailure` carrying the server's error (zero plain-`Error` throws in
+and values present need that permission.
+
+A write refuses before it proposes: `propose` loads fresh state and throws
+`AIToolFailure` on an unknown category, sub-category, service category, variant
+group, item or round, a sub-category outside its category, an item outside the
+indicator's group, a composed variant column (`composeHfaVariantColumnName`)
+that is reserved or names an indicator or a survey variable, and an error issue
+the status core finds in a field the call writes (for a create, every field).
+Issues in fields the call leaves alone, and every result-type warning, ride the
+preview and the result. `create_hfa_indicators` takes each indicator's fields,
+variant group, per-round code and per-item variant code; its preview lists each
+indicator's label, measure, categories and group as `changes` and its code as
+the `diff`'s after pane. `update_hfa_indicators` takes any mix of an indicator's
+fields, group, code and variant code: a round or variant row not listed is kept,
+an omitted `rCode` or `rFilterCode` is kept and `""` clears it, clearing `rCode`
+removes the round's code, and a variant row's `rCode: ""` removes it; a category
+change clears a sub-category that no longer fits and a group change drops the
+previous group's variant code. It returns `skip` when nothing given differs from
+stored state; its preview carries `changes` per changed scalar field and one
+`diff` of every changed indicator's code, stored against merged, laid out as
+create lays it out; its result reports each given field as changed or no change,
+the dropped variant code and the issues left in place. It commits through
+`saveHfaIndicatorsBatch`, passing main or variant code only for the indicators
+whose call wrote it. `delete_hfa_indicators` labels each change with the id and
+the full label. `create_hfa_indicators` reports what the batch route created
+and, under `notCreated`, an id another save took between the proposal and the
+acceptance. Every anticipated failure throws `AIToolFailure` carrying the
+server's error (zero plain-`Error` throws in
 [tools.ts](client/src/components/data/hfa/indicators/ai/tools.ts), the
 failure-channel ruling above). The survey dictionary and the dataset display are
 read through the manager's T2 caches; the indicators, the taxonomy (variant
@@ -1251,8 +1274,8 @@ groups and items included) and the main and variant code are read fresh on every
 call, so the model acts on current state, its own earlier writes included. Write
 commits do whole-object load → propose → save, last write wins: the app-wide
 concurrency model, deliberate (a re-read-after-confirm refactor was rejected as
-an inconsistent outlier); a label batch carries only the indicators whose label
-changed. The editor tools never await: `get_hfa_indicator_editor` reads the
+an inconsistent outlier); an update batch carries only the indicators it
+changes. The editor tools never await: `get_hfa_indicator_editor` reads the
 draft the view's context returns, and `update_hfa_indicator_editor` checks its
 ids against the taxonomy and the rounds the editor offers, applies the patch
 through `applyDraft` and reports each field as changed or as no change, so the
@@ -1366,12 +1389,9 @@ will try to resolve", which is what `reportLiveFigures` relies on.
 - **HFA tool hardening** (S–M, from the retired HFA plan). The tools are in
   [client/src/components/data/hfa/indicators/ai/](client/src/components/data/hfa/indicators/ai/),
   registered in the one chat with a modal approval per batched write. Remaining,
-  in priority order: (1) **the write previews**: the approval modal shows a
-  before-to-after list per change, with no diff; a create preview carries no
-  code and no categories, and a delete preview the ids only; build the diff and
-  the fuller previews. (2) **Taxonomy editing**: the tools can assign categories
-  but cannot create or rename them; decide whether that stays manual. (3) No
-  per-conversation cost cap (only the shared instance/user token limits). (4) No
+  in priority order: (1) **Taxonomy editing**: the tools can assign categories
+  but cannot create or rename them; decide whether that stays manual. (2) No
+  per-conversation cost cap (only the shared instance/user token limits). (3) No
   telemetry on the tools' accept and reject rates.
 
 **Surface gaps: read-projection ≠ write-schema ≠ stored-shape**

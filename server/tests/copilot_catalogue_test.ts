@@ -62,10 +62,8 @@ const GROUPS = {
     "get_hfa_variable_details",
   ],
   hfa_writes: [
-    "update_hfa_indicator_labels",
-    "assign_hfa_indicator_categories",
     "create_hfa_indicators",
-    "set_hfa_indicator_code",
+    "update_hfa_indicators",
     "delete_hfa_indicators",
   ],
   hfa_editor: ["get_hfa_indicator_editor", "update_hfa_indicator_editor"],

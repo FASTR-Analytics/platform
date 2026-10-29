@@ -678,3 +678,6 @@ deletes this file; the residue is the SYSTEM prose the steps rewrote.
   step 3 moved its line citations in `manager.tsx`, `ai/tools.ts` and the
   generator, and made M14's "the editor never receives other indicators' code"
   false.
+- Step 5 edited `lib/api-routes/mod.ts`, outside its Surface, to export the
+  three contract schemas the write tools derive from: the client reaches lib
+  only through that barrel, as it does `emailRecipientsSchema`.
