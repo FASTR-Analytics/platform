@@ -8,6 +8,7 @@
 import { assertEquals } from "@std/assert";
 import {
   hfaCodeResultType,
+  type HfaCodeRow,
   type HfaIndicatorCode,
   hfaIndicatorCodeIdentifiers,
   isReservedHfaId,
@@ -65,7 +66,7 @@ Deno.test("a syntax error keeps the parser's kind and position", () => {
 
 Deno.test("a write refuses every non-blank row that does not parse", () => {
   const row = (
-    field: "rCode" | "rFilterCode" | `variant:${string}`,
+    field: HfaCodeRow["field"],
     code: string,
   ) => ({
     indicatorId: "ind001",

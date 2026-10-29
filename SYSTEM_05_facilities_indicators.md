@@ -1468,10 +1468,10 @@ layer.
   scoped-delete scope: there is no per-row origin marker on facilities (also
   flagged in SYSTEM_06).
 - `hfa_indicator_code` is not independently hashed: code changes are visible to
-  `hfaIndicatorsVersion` only because the two code-writing routes,
-  `saveHfaIndicatorFull` (the editor's Save) and `saveHfaIndicatorsCode` (the
-  AI's one-request batch), bump the indicator row through one shared write. Any
-  new code-mutation path must do the same.
+  `hfaIndicatorsVersion` only because the two routes that rewrite an existing
+  indicator's code, `saveHfaIndicatorFull` (the editor's Save) and
+  `saveHfaIndicatorsCode` (the AI's one-request batch), bump the indicator row
+  through one shared write. Any new code-mutation path must do the same.
 - The named FK constraints from migration 048 are not used by any
   `SET CONSTRAINTS` call. The migration comments overstate; verify before
   relying on (or renaming) them.
@@ -1563,7 +1563,6 @@ layer.
   exists (`server/db/instance/dataset_hfa.ts:34-44`). Make 445-446 read "The
   code editor keys its code by time point; with no HFA time point defined, fall
   back to the metadata-only modal so labels/categories stay editable."
-
 - **Decision needed: m010 reads every variable as a number.** The module
   converts every pivoted variable with `as.numeric` (`m010/script.R:51-52`), so
   a quoted text test in indicator code never matches, a form whose choice codes

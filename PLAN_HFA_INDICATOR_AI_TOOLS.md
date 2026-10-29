@@ -671,3 +671,6 @@ deletes this file; the residue is the SYSTEM prose the steps rewrote.
 - Step 1's fix edited `HFA_WORK_CATALOGUE.md`, outside step 1's Surface, because
   step 1's deletions in `manager.tsx` and `indicator_code_editor.tsx` moved
   three of its line citations.
+- Step 2 lists every filter-only round in one refusal with the unparseable rows,
+  instead of refusing with `findFilterOnlyRound`, which returns one row, because
+  ruling 2 says the refusal lists every failing row. The function is deleted.

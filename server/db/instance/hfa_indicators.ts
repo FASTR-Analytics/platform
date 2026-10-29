@@ -1224,13 +1224,8 @@ export async function importHfaIndicatorsWorkbook(
       }
 
       // Indicators
-      let existingIndicatorIds = new Set<string>();
       let nextSortOrder = 0;
       if (!replaceAll) {
-        const existingRows = await sql<{ indicator_id: string }[]>`
-          SELECT indicator_id FROM hfa_indicators
-        `;
-        existingIndicatorIds = new Set(existingRows.map((r) => r.indicator_id));
         const maxResult = await sql<{ max_order: number | null }[]>`
           SELECT MAX(sort_order) as max_order FROM hfa_indicators
         `;
@@ -1240,7 +1235,7 @@ export async function importHfaIndicatorsWorkbook(
       const insertedIndicatorIds = new Set<string>();
       for (let i = 0; i < indicators.length; i++) {
         const ind = indicators[i];
-        if (!replaceAll && existingIndicatorIds.has(ind.indicatorId)) {
+        if (storedIds.has(ind.indicatorId)) {
           skippedExisting.push(ind.indicatorId);
           continue;
         }
@@ -1293,14 +1288,6 @@ type HfaIndicatorMainCode = {
   rFilterCode?: string | undefined;
 };
 
-function findFilterOnlyRound<T extends HfaIndicatorMainCode>(
-  code: T[],
-): T | undefined {
-  return code.find(
-    (c) => (c.rFilterCode?.trim() ?? "") !== "" && !c.rCode.trim(),
-  );
-}
-
 // Why the code a write would store is refused, or nothing: a filter without
 // main code, or a snippet that does not parse, every failing row listed.
 // Unknown variables are not refused here; the editor and the tools report them.
@@ -1308,43 +1295,42 @@ function refuseCode(
   code: HfaIndicatorCode[],
   variantCode: HfaIndicatorVariantCode[],
 ): string | undefined {
-  const filterOnly = findFilterOnlyRound(code);
-  if (filterOnly) {
-    return `Filter code requires indicator code for "${filterOnly.indicatorId}" at time point "${filterOnly.timePoint}"`;
-  }
-  const failing = unparseableHfaCode([
-    ...code.flatMap((c) => [
-      {
+  const lines = [
+    ...code
+      .filter((c) => (c.rFilterCode?.trim() ?? "") !== "" && !c.rCode.trim())
+      .map((c) =>
+        `${c.indicatorId}, time point "${c.timePoint}", rFilterCode: filter code requires indicator code`
+      ),
+    ...unparseableHfaCode([
+      ...code.flatMap((c) => [
+        {
+          indicatorId: c.indicatorId,
+          timePoint: c.timePoint,
+          field: "rCode" as const,
+          code: c.rCode,
+        },
+        {
+          indicatorId: c.indicatorId,
+          timePoint: c.timePoint,
+          field: "rFilterCode" as const,
+          code: c.rFilterCode ?? "",
+        },
+      ]),
+      ...variantCode.map((c) => ({
         indicatorId: c.indicatorId,
         timePoint: c.timePoint,
-        field: "rCode" as const,
+        field: `variant:${c.itemId}` as const,
         code: c.rCode,
-      },
-      {
-        indicatorId: c.indicatorId,
-        timePoint: c.timePoint,
-        field: "rFilterCode" as const,
-        code: c.rFilterCode ?? "",
-      },
-    ]),
-    ...variantCode.map((c) => ({
-      indicatorId: c.indicatorId,
-      timePoint: c.timePoint,
-      field: `variant:${c.itemId}` as const,
-      code: c.rCode,
-    })),
-  ]);
-  if (failing.length === 0) {
-    return undefined;
-  }
-  return [
-    `${failing.length} code snippet(s) do not parse:`,
-    ...failing.map((f) =>
+      })),
+    ]).map((f) =>
       `${f.indicatorId}, time point "${f.timePoint}", ${f.field}: ${
         describeHfaCodeError(f.error).en
       }`
     ),
-  ].join("\n");
+  ];
+  return lines.length === 0
+    ? undefined
+    : [`${lines.length} code snippet(s) refused:`, ...lines].join("\n");
 }
 
 // The indicator's row and its main code, as one write. The updated_at bump is
