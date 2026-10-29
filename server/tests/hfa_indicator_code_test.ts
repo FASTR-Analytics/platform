@@ -7,18 +7,16 @@
 
 import { assertEquals } from "@std/assert";
 import {
+  createSnippetAnalyser,
   hfaCodeResultType,
   type HfaCodeRow,
   type HfaIndicatorCode,
   hfaIndicatorCodeIdentifiers,
   isReservedHfaId,
   parseHfaIndicatorCode,
+  snippetProblems,
   unparseableHfaCode,
 } from "lib";
-import {
-  createSnippetAnalyser,
-  snippetProblems,
-} from "../server_only_funcs/hfa_dependency_analyzer.ts";
 
 function error(source: string) {
   const parsed = parseHfaIndicatorCode(source);

@@ -1,10 +1,15 @@
+// The dependency analysis over parsed HFA code: per snippet the variables and
+// indicators it names, and across indicators the graph the generator sorts.
+// The generator and the status core read this one analysis, so a cycle the
+// editor reports is the cycle a run refuses. Pure: this compiles into Deno and
+// Vite.
+
 import {
   describeHfaCodeError,
-  type ExpressionNode,
-  type HfaIndicator,
-  type HfaIndicatorCode,
   parseHfaIndicatorCode,
-} from "lib";
+} from "./hfa_indicator_code.ts";
+import type { ExpressionNode } from "./indicator_expression/mod.ts";
+import type { HfaIndicator, HfaIndicatorCode } from "./types/mod.ts";
 
 export type ExtractedDependencies = {
   // Dataset variable ids. `variableIds` is the union across rCode +

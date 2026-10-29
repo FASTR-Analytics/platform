@@ -23,6 +23,7 @@ globs:
   - lib/traffic_light_rule.ts
   - lib/hfa_indicator_labels.ts
   - lib/hfa_indicator_code.ts
+  - lib/hfa_indicator_dependencies.ts
   - lib/indicator_expression/**
   - lib/indicator_id.ts
   - lib/geojson_area_match.ts
@@ -861,11 +862,11 @@ translatable text. The vocabulary the editor's help line and the AI guidance
 state (`HFA_CODE_SYMBOLS`, `HFA_CODE_WORDS`, `HFA_CODE_LIST_EXAMPLE`) lives
 beside it. The client validator (`_shared/indicator_code_validator.ts`), the
 manager's unused-variable and deletion guards, the AI tools and the server
-dependency analyzer (`server_only_funcs/hfa_dependency_analyzer.ts`) all read
-this one parse, so editor-green code never hard-fails a run. The write boundary
-reads it too: every route that writes code from a request (the editor's
-`saveHfaIndicatorFull`, the AI's `saveHfaIndicatorsCode`, the batch upload
-`batchUploadHfaIndicators` and the workbook import
+dependency analysis (`lib/hfa_indicator_dependencies.ts`, which the generator
+imports) all read this one parse, so editor-green code never hard-fails a run.
+The write boundary reads it too: every route that writes code from a request
+(the editor's `saveHfaIndicatorFull`, the AI's `saveHfaIndicatorsCode`, the
+batch upload `batchUploadHfaIndicators` and the workbook import
 `importHfaIndicatorsWorkbook`) refuses, before any write, a main, filter or
 variant snippet that does not parse (`unparseableHfaCode`, the message listing
 every failing row with its indicator, round and field) and a filter without main

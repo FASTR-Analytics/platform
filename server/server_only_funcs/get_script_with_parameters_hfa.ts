@@ -6,20 +6,18 @@ import type {
   ModuleDefinitionInstalled,
 } from "lib";
 import {
-  composeHfaVariantColumnName,
-  isReservedHfaId,
-  serialiseMultiMembershipValues,
-} from "lib";
-import { dirname, join } from "@std/path/posix";
-import {
   type AnalyseSnippet,
   buildUnionDependencyGraph,
+  composeHfaVariantColumnName,
   createSnippetAnalyser,
   type ExtractedDependencies,
   formatCycles,
+  isReservedHfaId,
+  serialiseMultiMembershipValues,
   snippetProblems,
   topologicalSort,
-} from "./hfa_dependency_analyzer.ts";
+} from "lib";
+import { dirname, join } from "@std/path/posix";
 import { emitHfaCodeAsR } from "./hfa_r_emit.ts";
 
 // The run's person-years file sits beside the datasets dir, at
