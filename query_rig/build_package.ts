@@ -172,6 +172,7 @@ export async function buildFixturePackage(
     datasets,
     facilitiesTables,
     population: null,
+    geojsonMaps: [],
     extraInputFiles,
   }, async () => {});
   const runDir = join(runsDir, runId);
