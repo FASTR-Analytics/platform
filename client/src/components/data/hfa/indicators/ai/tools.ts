@@ -12,6 +12,7 @@ import {
   type HfaIndicator,
   type HfaIndicatorCode,
   hfaIndicatorCodeIdentifiers,
+  hfaIndicatorsStatus,
   type HfaIndicatorVariantCode,
   nextHfaIndicatorId,
   serialiseMultiMembershipValues,
@@ -23,11 +24,6 @@ import {
   getDatasetHfaDisplayInfoFromCacheOrFetch,
   getHfaDictionaryFromCacheOrFetch,
 } from "~/state/instance/t2_datasets";
-import {
-  checkIndicatorCodeResultType,
-  hasIndicatorCodeErrors,
-  validateIndicatorCode,
-} from "../_shared/mod.ts";
 import { copilotViews } from "~/components/instance/copilot/mod.ts";
 
 // ---------------------------------------------------------------------------
@@ -146,65 +142,44 @@ function countIndicators(n: number): string {
   });
 }
 
-// Syntax and variable existence make `hasErrors`; identical non-empty rounds
-// make `codeConsistent`; an unknown time point is an error too, and the
-// binary/numeric result-type check is an issue that never sets `hasErrors`.
-// Reads main code only.
-function computeIndicatorValidation(
-  code: CodeRound[],
-  dict: HfaDictionaryForValidation,
-  otherIndicatorIds: Set<string>,
-  expectedType: "binary" | "numeric",
-): { hasErrors: boolean; codeConsistent: boolean; issues: string[] } {
-  const issues: string[] = [];
-  let hasErrors = false;
-  for (const c of code) {
-    const tp = dict.timePoints.find((t) => t.timePoint === c.timePoint);
-    if (!tp) {
-      issues.push(`Time point "${c.timePoint}" is not in the dataset.`);
-      hasErrors = true;
-      continue;
-    }
-    const availableVariableIds = new Set(tp.variables.map((v) => v.variableId));
-    const fields: [string, string][] = [
-      ["rCode", c.rCode],
-      ["rFilterCode", c.rFilterCode ?? ""],
-    ];
-    for (const [field, codeStr] of fields) {
-      if (!codeStr.trim()) continue;
-      const r = validateIndicatorCode(
-        codeStr,
-        availableVariableIds,
-        otherIndicatorIds,
-      );
-      if (hasIndicatorCodeErrors(r)) {
-        hasErrors = true;
-      }
-      for (const e of r.syntaxErrors) {
-        issues.push(`${c.timePoint} ${field}: ${e}`);
-      }
-      for (const e of r.unknownVariableErrors) {
-        issues.push(`${c.timePoint} ${field}: ${e}`);
-      }
-    }
-    // Result-type only applies to the main rCode (the filter is always boolean).
-    for (const w of checkIndicatorCodeResultType(c.rCode, expectedType)) {
-      issues.push(`${c.timePoint} rCode: ${w}`);
-    }
-  }
-  const nonEmpty = code.filter((c) =>
-    c.rCode.trim() || (c.rFilterCode ?? "").trim()
-  );
-  let codeConsistent = true;
-  if (nonEmpty.length > 1) {
-    const first = nonEmpty[0];
-    codeConsistent = nonEmpty.every(
-      (c) =>
-        c.rCode.trim() === first.rCode.trim() &&
-        (c.rFilterCode?.trim() ?? "") === (first.rFilterCode?.trim() ?? ""),
+async function loadVariantItems() {
+  const res = await serverActions.getHfaIndicatorVariantItems({});
+  if (!res.success) {
+    throw new AIToolFailure(
+      `Could not load the HFA variant items: ${res.err}`,
     );
   }
-  return { hasErrors, codeConsistent, issues };
+  return res.data;
+}
+
+// The status core's verdict per indicator of `only`, as the tools report it:
+// whether any round has an error, whether the rounds agree, and each issue
+// as an English line.
+function validateIndicators(input: {
+  indicators: HfaIndicator[];
+  code: HfaIndicatorCode[];
+  variantCode: HfaIndicatorVariantCode[];
+  variantItems: { id: string; groupId: string }[];
+  dictionary: HfaDictionaryForValidation;
+  only: ReadonlySet<string>;
+}): Map<
+  string,
+  { hasErrors: boolean; codeConsistent: boolean; issues: string[] }
+> {
+  const status = hfaIndicatorsStatus(input);
+  return new Map(
+    [...status].map(([id, s]) => [id, {
+      hasErrors: s.rounds.some((r) => r.status === "error"),
+      codeConsistent: s.consistent,
+      issues: s.rounds.flatMap((r) =>
+        r.issues.map((i) =>
+          `${r.timePoint} ${
+            i.itemId === undefined ? i.field : `variant ${i.itemId}`
+          }: ${i.text.en}`
+        )
+      ),
+    }]),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -801,40 +776,23 @@ export function buildHfaIndicatorTools() {
       }),
       handler: async (input) => {
         const indicators = await loadIndicators();
-        const allCode = await loadAllCode();
-        const dict = await loadDictionary();
-        const allIds = new Set(indicators.map((i) => i.indicatorId));
-        const codeByIndicatorId = new Map<string, CodeRound[]>();
-        for (const c of allCode) {
-          const arr = codeByIndicatorId.get(c.indicatorId) ?? [];
-          arr.push({
-            timePoint: c.timePoint,
-            rCode: c.rCode,
-            rFilterCode: c.rFilterCode,
-          });
-          codeByIndicatorId.set(c.indicatorId, arr);
-        }
         const target = input.indicatorIds
           ? indicators.filter((i) =>
             input.indicatorIds!.includes(i.indicatorId)
           )
           : indicators;
-        const results = target.map((ind) => {
-          const other = new Set(allIds);
-          other.delete(ind.indicatorId);
-          const v = computeIndicatorValidation(
-            codeByIndicatorId.get(ind.indicatorId) ?? [],
-            dict,
-            other,
-            ind.type,
-          );
-          return {
-            indicatorId: ind.indicatorId,
-            hasErrors: v.hasErrors,
-            codeConsistent: v.codeConsistent,
-            issues: v.issues,
-          };
+        const verdicts = validateIndicators({
+          indicators,
+          code: await loadAllCode(),
+          variantCode: await loadAllVariantCode(),
+          variantItems: await loadVariantItems(),
+          dictionary: await loadDictionary(),
+          only: new Set(target.map((i) => i.indicatorId)),
         });
+        const results = target.map((ind) => ({
+          indicatorId: ind.indicatorId,
+          ...verdicts.get(ind.indicatorId)!,
+        }));
         const withIssues = results.filter((r) =>
           r.hasErrors || !r.codeConsistent || r.issues.length > 0
         );
@@ -910,15 +868,8 @@ export function buildHfaIndicatorTools() {
             taken.add(indicatorId);
             return { ...ind, indicatorId };
           });
-          const allIdsAfter = new Set([
-            ...existingIds,
-            ...withIds.map((i) => i.indicatorId),
-          ]);
-
           const indicatorsToCreate: HfaIndicator[] = [];
-          const issuesById = new Map<string, string[]>();
           const codeToCreate: HfaIndicatorCode[] = [];
-          const changes: { label: string; after: string }[] = [];
           for (const ind of withIds) {
             if (ind.categoryId != null && !catIds.has(ind.categoryId)) {
               throw new AIToolFailure(
@@ -959,9 +910,6 @@ export function buildHfaIndicatorTools() {
                 );
               }
             }
-            const other = new Set(allIdsAfter);
-            other.delete(ind.indicatorId);
-            const v = computeIndicatorValidation(code, dict, other, ind.type);
             indicatorsToCreate.push({
               indicatorId: ind.indicatorId,
               categoryId: ind.categoryId ?? null,
@@ -974,9 +922,6 @@ export function buildHfaIndicatorTools() {
               sortOrder: 0,
               variantGroupId: null,
             });
-            if (v.issues.length > 0) {
-              issuesById.set(ind.indicatorId, v.issues);
-            }
             for (const c of code) {
               codeToCreate.push({
                 indicatorId: ind.indicatorId,
@@ -985,21 +930,37 @@ export function buildHfaIndicatorTools() {
                 rFilterCode: c.rFilterCode,
               });
             }
-            changes.push({
+          }
+          const verdicts = validateIndicators({
+            indicators: [...existing, ...indicatorsToCreate],
+            code: [...await loadAllCode(), ...codeToCreate],
+            variantCode: await loadAllVariantCode(),
+            variantItems: await loadVariantItems(),
+            dictionary: dict,
+            only: new Set(indicatorsToCreate.map((i) => i.indicatorId)),
+          });
+          const issuesById = new Map(
+            [...verdicts]
+              .filter(([, v]) => v.issues.length > 0)
+              .map(([id, v]) => [id, v.issues]),
+          );
+          const changes = indicatorsToCreate.map((ind) => {
+            const issues = issuesById.get(ind.indicatorId) ?? [];
+            return {
               label: ind.definition,
               after: `${ind.type}/${ind.aggregation}${
-                v.issues.length
+                issues.length
                   ? ` — ${
                     t3({
-                      en: `${v.issues.length} issue(s)`,
-                      fr: `${v.issues.length} problème(s)`,
-                      pt: `${v.issues.length} problema(s)`,
+                      en: `${issues.length} issue(s)`,
+                      fr: `${issues.length} problème(s)`,
+                      pt: `${issues.length} problema(s)`,
                     })
-                  }: ${v.issues.join("; ")}`
+                  }: ${issues.join("; ")}`
                   : ""
               }`,
-            });
-          }
+            };
+          });
 
           return {
             preview: {
@@ -1093,7 +1054,6 @@ export function buildHfaIndicatorTools() {
           );
           const allCode = await loadAllCode();
           const dict = await loadDictionary();
-          const allIds = new Set(indicators.map((i) => i.indicatorId));
           const validTimePoints = new Set(
             dict.timePoints.map((t) => t.timePoint),
           );
@@ -1162,23 +1122,22 @@ export function buildHfaIndicatorTools() {
               changes,
             },
             commit: async () => {
-              const results = [...affected].map((indicatorId) => {
-                const indicator = byIndicatorId.get(indicatorId)!;
-                const code = codeByIndicatorId.get(indicatorId) ?? [];
-                const other = new Set(allIds);
-                other.delete(indicatorId);
-                return {
-                  indicatorId,
-                  indicator,
-                  code,
-                  ...computeIndicatorValidation(
-                    code,
-                    dict,
-                    other,
-                    indicator.type,
-                  ),
-                };
+              const verdicts = validateIndicators({
+                indicators,
+                code: [...codeByIndicatorId].flatMap(([indicatorId, rounds]) =>
+                  rounds.map((r) => ({ ...r, indicatorId }))
+                ),
+                variantCode: await loadAllVariantCode(),
+                variantItems: await loadVariantItems(),
+                dictionary: dict,
+                only: affected,
               });
+              const results = [...affected].map((indicatorId) => ({
+                indicatorId,
+                indicator: byIndicatorId.get(indicatorId)!,
+                code: codeByIndicatorId.get(indicatorId) ?? [],
+                ...verdicts.get(indicatorId)!,
+              }));
               const res = await serverActions.saveHfaIndicatorsCode({
                 indicators: results.map((r) => ({
                   indicator: r.indicator,

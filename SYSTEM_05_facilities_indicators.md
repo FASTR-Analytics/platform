@@ -63,6 +63,7 @@ globs:
   - server/tests/hfa_code_migration_test.ts
   - server/tests/hfa_facility_weights_import_test.ts
   - server/tests/hfa_indicator_code_test.ts
+  - server/tests/hfa_indicator_status_test.ts
   - server/tests/hfa_r_emit_test.ts
   - server/tests/hfa_workbook_text_columns_test.ts
   - server/tests/indicator_analysed_set_test.ts
@@ -860,13 +861,27 @@ brackets, such as `[q_-99]`, is refused). It returns the AST and its
 identifiers, or a structured error that `describeHfaCodeError` turns into a
 translatable text. The vocabulary the editor's help line and the AI guidance
 state (`HFA_CODE_SYMBOLS`, `HFA_CODE_WORDS`, `HFA_CODE_LIST_EXAMPLE`) lives
-beside it. The client validator (`_shared/indicator_code_validator.ts`), the
-manager's unused-variable and deletion guards, the AI tools and the server
-dependency analysis (`lib/hfa_indicator_dependencies.ts`, which the generator
-imports) all read this one parse, so editor-green code never hard-fails a run.
-The write boundary reads it too: every route that writes code from a request
-(the editor's `saveHfaIndicatorFull`, the AI's `saveHfaIndicatorsCode`, the
-batch upload `batchUploadHfaIndicators` and the workbook import
+beside it. So does the status core, which every surface that shows status reads:
+the manager's Status and Consistent columns, the code editor's messages and its
+Save, and the AI tools. `validateHfaIndicatorCode` gives one field's issues and
+the ids it names, `checkHfaCodeResultType` the result-type warning, and
+`hfaIndicatorsStatus` per indicator and round of the dictionary the issues of
+each field (`syntax`, `unknown_variable`, `filter_without_code`,
+`variant_without_code` and `cycle` are errors, `result_type` is the one
+warning), the round status (`none`, `error`, `warning`, `ready`) and whether the
+rounds agree. Main and filter code are read against the round's variables and
+the other indicators, variant code against the round's variables and every
+indicator, its own included. Its texts are `TranslatableString`s the client
+translates at render. Its cycle check takes the strongly connected components of
+the main-code dependency graph that `lib/hfa_indicator_dependencies.ts` builds,
+the analysis the generator imports, so every indicator on a cycle carries the
+issue before a run refuses it. The editor computes the core over the manager's
+code with its draft in place of its own, and its Save refuses only a filter or
+variant code in a round without indicator code. The manager's unused-variable
+and deletion guards read the same parse, so editor-green code never hard-fails a
+run. The write boundary reads it too: every route that writes code from a
+request (the editor's `saveHfaIndicatorFull`, the AI's `saveHfaIndicatorsCode`,
+the batch upload `batchUploadHfaIndicators` and the workbook import
 `importHfaIndicatorsWorkbook`) refuses, before any write, a main, filter or
 variant snippet that does not parse (`unparseableHfaCode`, the message listing
 every failing row with its indicator, round and field) and a filter without main

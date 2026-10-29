@@ -283,3 +283,57 @@ function detectCycles(
 export function formatCycles(cycles: string[][]): string {
   return cycles.map((cycle) => cycle.join(" → ")).join("\n");
 }
+
+// Every cycle of the main-code dependency graph the generator sorts, as the
+// sorted members of each strongly connected component (an indicator naming
+// itself is a cycle of one). Unlike `topologicalSort`'s cycle paths, every
+// indicator on a cycle is in exactly one of these.
+export function findHfaDependencyCycles(
+  indicators: HfaIndicator[],
+  codeByIndicator: Map<string, HfaIndicatorCode[]>,
+): string[][] {
+  const { dependenciesMap } = buildUnionDependencyGraph(
+    indicators,
+    codeByIndicator,
+    createSnippetAnalyser(
+      new Set(indicators.map((i) => i.indicatorId)),
+      new Set(),
+    ),
+  );
+  const index = new Map<string, number>();
+  const lowLink = new Map<string, number>();
+  const stack: string[] = [];
+  const onStack = new Set<string>();
+  const cycles: string[][] = [];
+  const visit = (id: string): void => {
+    index.set(id, index.size);
+    lowLink.set(id, index.get(id)!);
+    stack.push(id);
+    onStack.add(id);
+    for (const dep of dependenciesMap.get(id) ?? []) {
+      if (!index.has(dep)) {
+        visit(dep);
+        lowLink.set(id, Math.min(lowLink.get(id)!, lowLink.get(dep)!));
+      } else if (onStack.has(dep)) {
+        lowLink.set(id, Math.min(lowLink.get(id)!, index.get(dep)!));
+      }
+    }
+    if (lowLink.get(id) !== index.get(id)) return;
+    const component: string[] = [];
+    let member: string;
+    do {
+      member = stack.pop()!;
+      onStack.delete(member);
+      component.push(member);
+    } while (member !== id);
+    if (
+      component.length > 1 || (dependenciesMap.get(id) ?? []).includes(id)
+    ) {
+      cycles.push(component.sort());
+    }
+  };
+  for (const id of dependenciesMap.keys()) {
+    if (!index.has(id)) visit(id);
+  }
+  return cycles;
+}

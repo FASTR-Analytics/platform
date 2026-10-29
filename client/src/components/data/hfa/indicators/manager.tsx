@@ -6,6 +6,7 @@ import {
   type HfaIndicatorCode,
   hfaIndicatorCodeIdentifiers,
   type HfaIndicatorServiceCategory,
+  hfaIndicatorsStatus,
   type HfaIndicatorSubCategory,
   type HfaIndicatorVariantCode,
   type HfaIndicatorVariantGroup,
@@ -50,11 +51,6 @@ import { HfaCategoriesManager } from "./categories_manager";
 import { HfaServiceCategoriesManager } from "./service_categories_manager";
 import { HfaVariantGroupsManager } from "./variant_groups_manager";
 import { buildHfaWorkbookBlob } from "./xlsx_workbook";
-import {
-  checkIndicatorCodeResultType,
-  hasIndicatorCodeErrors,
-  validateIndicatorCode,
-} from "./_shared/mod.ts";
 import {
   HfaUnusedVariablesModal,
   type UnusedVariablesByTimePoint,
@@ -304,85 +300,43 @@ export function HfaIndicatorsManager(p: Props) {
     const map = new Map<string, IndicatorCodeStats>();
     const dictSt = dictionary();
     const codeSt = allCode();
+    const variantCodeSt = allVariantCode();
+    const itemsSt = variantItems();
     const indSt = indicators();
     if (
       dictSt.status !== "ready" ||
       codeSt.status !== "ready" ||
+      variantCodeSt.status !== "ready" ||
+      itemsSt.status !== "ready" ||
       indSt.status !== "ready"
     ) {
       return map;
     }
-    const dict = dictSt.data;
-    const total = dict.timePoints.length;
-
-    const codeByIndicatorId = new Map<string, HfaIndicatorCode[]>();
+    const status = hfaIndicatorsStatus({
+      indicators: indSt.data,
+      code: codeSt.data,
+      variantCode: variantCodeSt.data,
+      variantItems: itemsSt.data,
+      dictionary: dictSt.data,
+    });
+    const roundsWithCode = new Map<string, number>();
     for (const c of codeSt.data) {
-      const arr = codeByIndicatorId.get(c.indicatorId) ?? [];
-      arr.push(c);
-      codeByIndicatorId.set(c.indicatorId, arr);
-    }
-
-    const allIndicatorIds = new Set(indSt.data.map((i) => i.indicatorId));
-
-    for (const ind of indSt.data) {
-      const indCode = codeByIndicatorId.get(ind.indicatorId) ?? [];
-      const otherIndicatorIds = new Set(allIndicatorIds);
-      otherIndicatorIds.delete(ind.indicatorId);
-
-      const withCodeEntries = indCode.filter((c) => c.rCode.trim());
-      let ready = 0;
-      let warning = 0;
-      let error = 0;
-      for (const c of withCodeEntries) {
-        const tp = dict.timePoints.find((t) => t.timePoint === c.timePoint);
-        const availableVariableIds = tp
-          ? new Set(tp.variables.map((v) => v.variableId))
-          : new Set<string>();
-        let hasErr = false;
-        const rCodeResult = validateIndicatorCode(
-          c.rCode,
-          availableVariableIds,
-          otherIndicatorIds,
-        );
-        if (hasIndicatorCodeErrors(rCodeResult)) {
-          hasErr = true;
-        }
-        if (c.rFilterCode?.trim()) {
-          const rFilterResult = validateIndicatorCode(
-            c.rFilterCode,
-            availableVariableIds,
-            otherIndicatorIds,
-          );
-          if (hasIndicatorCodeErrors(rFilterResult)) {
-            hasErr = true;
-          }
-        }
-        if (hasErr) error++;
-        else if (checkIndicatorCodeResultType(c.rCode, ind.type).length > 0) {
-          warning++;
-        } else ready++;
-      }
-
-      const nonEmpty = indCode.filter(
-        (c) => c.rCode.trim() || c.rFilterCode?.trim(),
+      if (c.rCode.trim() === "") continue;
+      roundsWithCode.set(
+        c.indicatorId,
+        (roundsWithCode.get(c.indicatorId) ?? 0) + 1,
       );
-      let consistent = true;
-      if (nonEmpty.length > 1) {
-        const first = nonEmpty[0];
-        consistent = nonEmpty.every(
-          (c) =>
-            c.rCode.trim() === first.rCode.trim() &&
-            (c.rFilterCode?.trim() ?? "") === (first.rFilterCode?.trim() ?? ""),
-        );
-      }
-
-      map.set(ind.indicatorId, {
-        withCode: withCodeEntries.length,
-        total,
-        ready,
-        warning,
-        error,
-        consistent,
+    }
+    for (const [indicatorId, s] of status) {
+      const count = (kind: "ready" | "warning" | "error") =>
+        s.rounds.filter((r) => r.status === kind).length;
+      map.set(indicatorId, {
+        withCode: roundsWithCode.get(indicatorId) ?? 0,
+        total: s.rounds.length,
+        ready: count("ready"),
+        warning: count("warning"),
+        error: count("error"),
+        consistent: s.consistent,
       });
     }
     return map;
@@ -454,13 +408,17 @@ export function HfaIndicatorsManager(p: Props) {
     const svcCatSt = serviceCategories();
     const vgSt = variantGroups();
     const viSt = variantItems();
+    const codeSt = allCode();
+    const variantCodeSt = allVariantCode();
     if (
       dictState.status !== "ready" ||
       catSt.status !== "ready" ||
       subCatSt.status !== "ready" ||
       svcCatSt.status !== "ready" ||
       vgSt.status !== "ready" ||
-      viSt.status !== "ready"
+      viSt.status !== "ready" ||
+      codeSt.status !== "ready" ||
+      variantCodeSt.status !== "ready"
     ) {
       return;
     }
@@ -471,6 +429,8 @@ export function HfaIndicatorsManager(p: Props) {
         indicator,
         dictionary: dict,
         indicators: allIndicators,
+        allCode: codeSt.data,
+        allVariantCode: variantCodeSt.data,
         categories: catSt.data,
         subCategories: subCatSt.data,
         serviceCategories: svcCatSt.data,
@@ -887,7 +847,7 @@ export function HfaIndicatorsManager(p: Props) {
       render: (ind) => {
         const stats = statsByIndicatorId().get(ind.indicatorId);
         if (!stats) return "…";
-        if (stats.withCode === 0) {
+        if (stats.ready + stats.warning + stats.error === 0) {
           return <span class="text-base-content-muted">—</span>;
         }
         return (
