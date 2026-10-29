@@ -18,6 +18,7 @@ import {
   type HfaIndicatorVariantItem,
   t3,
   TC,
+  type TranslatableString,
   validateHfaIndicatorCode,
 } from "lib";
 import {
@@ -48,6 +49,56 @@ import {
   type HfaIndicatorEditorPatch,
   holdCopilotView,
 } from "~/components/instance/copilot/mod.ts";
+
+const OPERATOR_MEANING: Record<
+  (typeof HFA_CODE_SYMBOLS)[number] | (typeof HFA_CODE_WORDS)[number],
+  TranslatableString
+> = {
+  "==": { en: "equal to", fr: "égal à", pt: "igual a" },
+  "!=": { en: "not equal to", fr: "différent de", pt: "diferente de" },
+  "<": {
+    en: "strictly less than",
+    fr: "strictement inférieur à",
+    pt: "estritamente menor que",
+  },
+  ">": {
+    en: "strictly greater than",
+    fr: "strictement supérieur à",
+    pt: "estritamente maior que",
+  },
+  "<=": {
+    en: "less than or equal to",
+    fr: "inférieur ou égal à",
+    pt: "menor ou igual a",
+  },
+  ">=": {
+    en: "greater than or equal to",
+    fr: "supérieur ou égal à",
+    pt: "maior ou igual a",
+  },
+  "+": { en: "addition", fr: "addition", pt: "adição" },
+  "-": { en: "subtraction", fr: "soustraction", pt: "subtração" },
+  "*": { en: "multiplication", fr: "multiplication", pt: "multiplicação" },
+  "/": { en: "division", fr: "division", pt: "divisão" },
+  AND: {
+    en: "both conditions",
+    fr: "les deux conditions",
+    pt: "ambas as condições",
+  },
+  OR: { en: "at least one", fr: "au moins une", pt: "pelo menos uma" },
+  NOT: { en: "opposite", fr: "contraire", pt: "contrário" },
+};
+
+const HFA_CODE_OPERATOR_MEANINGS: [string, TranslatableString][] = [
+  ...[...HFA_CODE_SYMBOLS, ...HFA_CODE_WORDS].map((
+    operator,
+  ): [string, TranslatableString] => [operator, OPERATOR_MEANING[operator]]),
+  [HFA_CODE_LIST_EXAMPLE, {
+    en: "x is one of the listed values, here 1 or 2",
+    fr: "x est l'une des valeurs listées, ici 1 ou 2",
+    pt: "x é um dos valores listados, aqui 1 ou 2",
+  }],
+];
 
 type TempCodeEntry = {
   timePoint: string;
@@ -896,18 +947,23 @@ function EditorInner(p: {
                       fr: "Opérateurs : ",
                       pt: "Operadores: ",
                     })}
-                    <span class="font-mono">
-                      {[...HFA_CODE_SYMBOLS, ...HFA_CODE_WORDS].join(" ")}
-                    </span>
+                    <For each={HFA_CODE_OPERATOR_MEANINGS}>
+                      {([operator, meaning], i) => (
+                        <>
+                          {i() > 0 ? ", " : ""}
+                          <span class="font-mono">{operator}</span>
+                          {` (${t3(meaning)})`}
+                        </>
+                      )}
+                    </For>
                     {". "}
-                    <span class="font-mono">{HFA_CODE_LIST_EXAMPLE}</span>
                     {t3({
                       en:
-                        ' tests a list of values. Text is written in quotes, as in sh_03 == "c". Nothing else is accepted.',
+                        'Text values must be in quotation marks (e.g. SH_03 == "c"); numeric values are written without quotation marks (e.g. SH_03A == 1). Use only these operators.',
                       fr:
-                        " teste une liste de valeurs. Le texte s'écrit entre guillemets, comme dans sh_03 == \"c\". Rien d'autre n'est accepté.",
+                        'Les valeurs texte doivent être entre guillemets (p. ex. SH_03 == "c") ; les valeurs numériques s\'écrivent sans guillemets (p. ex. SH_03A == 1). Utilisez uniquement ces opérateurs.',
                       pt:
-                        ' testa uma lista de valores. O texto escreve-se entre aspas, como em sh_03 == "c". Nada mais é aceite.',
+                        'Os valores de texto devem estar entre aspas (p. ex. SH_03 == "c"); os valores numéricos escrevem-se sem aspas (p. ex. SH_03A == 1). Use apenas estes operadores.',
                     })}
                   </div>
                   <CodeFieldMessages
