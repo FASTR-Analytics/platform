@@ -1240,14 +1240,21 @@ export async function importHfaIndicatorsWorkbook(
           continue;
         }
         const sortOrder = replaceAll ? i : nextSortOrder++;
-        await sql`
+        const inserted = await sql<{ indicator_id: string }[]>`
           INSERT INTO hfa_indicators (indicator_id, category_id, sub_category_id, service_category_ids, short_label, definition, type, aggregation, sort_order, variant_group_id, updated_at)
           VALUES (${ind.indicatorId}, ${ind.categoryId}, ${ind.subCategoryId}, ${
           JSON.stringify(ind.serviceCategoryIds)
         }, ${ind.shortLabel}, ${ind.definition}, ${ind.type}, ${ind.aggregation}, ${sortOrder}, ${ind.variantGroupId}, CURRENT_TIMESTAMP)
           ON CONFLICT (indicator_id) DO NOTHING
+          RETURNING indicator_id
         `;
-        insertedIndicatorIds.add(ind.indicatorId);
+        // An id another write stored after the read above is skipped, so its
+        // code is never overwritten with code the refusal did not check.
+        if (inserted.length === 0) {
+          skippedExisting.push(ind.indicatorId);
+        } else {
+          insertedIndicatorIds.add(ind.indicatorId);
+        }
       }
       imported = insertedIndicatorIds.size;
 
