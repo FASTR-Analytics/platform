@@ -60,8 +60,8 @@ It does not cover the `/mcp` endpoint.
    hook, not on label text. Where this script names a button, the French and
    Portuguese labels are given in brackets.
 9. **Do not fix anything.** This is a test run. Record, do not repair.
-10. **Budget.** The whole run is around 90 model turns and two to three hours.
-    Under `read-only` it is around 30 turns.
+10. **Budget.** The whole run is around 96 model turns and two to three hours.
+    Under `read-only` it is around 33 turns.
 
 ## 2. Setup
 
@@ -817,40 +817,108 @@ open one preset figure in the figure viewer.
   this product but not change it".
 - Pass: no change on screen; the copilot reports the refusal.
 
-### J. HFA indicators (WRITE, only when HFA data exists)
+### J. HFA indicators (only when HFA data exists)
 
-Skip under `read-only`. Skip if the Data page shows no HFA data. Go to Data,
-open HFA indicators. NEW CONVERSATION.
+Skip if the Data page shows no HFA data. Go to Data, open HFA indicators. NEW
+CONVERSATION. J1 to J3 read only and run under `read-only`; J4 to J7 are WRITE
+and are skipped under it.
 
-**J1. Reads.**
+**J1. The listing.**
 
-- Ground truth: H1 is hfa_indicators; H5's instructions contain "## The HFA
-  indicator model".
+- Ground truth: H1 is hfa_indicators; H5's instructions contain "# Current View:
+  HFA indicators manager", "## The HFA indicator model" and "## The code", and
+  no tool name ending in `_hfa_indicators` or `_hfa_variables`.
 - Do: send "List the taxonomy and count the indicators per category."
-- Ground truth: H3 shows `get_hfa_indicators` with `err: false`, or with
-  `err: true` naming the `can_configure_data` permission, which is then the pass
-  condition. Compare the counts with the manager's table on screen.
-- Pass: counts match.
+- Ground truth: H3 shows `get_hfa_indicators` with `err: false`, its result a
+  text that starts with "Categories (id: label)" and has a line "N of M
+  indicators". If it is `err: true` naming the `can_configure_data` permission,
+  that is the pass condition: record it and skip to K.
+- Pass: the counts match the manager's table on screen.
 
-**J2. Create, refuse bad code, delete, each through a modal.**
+**J2. Status filter and the detail block.**
+
+- Do: send "Which indicators have an error in some round? Pick the first and
+  tell me which survey variables its code uses and whether they fit its long
+  label."
+- Ground truth: H3 shows `get_hfa_indicators` with input `status: "error"`, its
+  result's indicator lines followed by lines naming the round, the field and the
+  issue kind. Then `get_hfa_indicator_details` with that one id, its result
+  holding "## Indicator", "## Variables the code names" and "## Other indicators
+  the code names". If the listing returned 0 indicators, the copilot says none
+  has an error: send "Read the first indicator in full." and check the same
+  three headings.
+- Ground truth: if the user lacks the permission to view data, the details
+  result holds the line "Facility counts and the values present in the data are
+  not shown"; otherwise each variable's rounds hold a "data:" line.
+- Pass: the answer names the variables the details result lists and compares
+  them with the indicator's long label.
+
+**J3. Variables.**
+
+- Do: send "Which survey variables does no indicator use in the first round?
+  Then read the first one in detail."
+- Ground truth: H3 shows `get_hfa_variables` with `unusedOnly: true` and
+  `timePoint` set to the first round, then `get_hfa_variable_details` with one
+  id, its result holding "named by: no indicator" for that round.
+- Pass: both calls `err: false`.
+
+**J4. Create, refusing bad code (WRITE).**
 
 - Do: send "Create one binary/avg indicator named 'COPILOT TEST INDICATOR' with
   definition 'Facility reports the copilot test', in the first category, with
   rCode `1 = 1` for every round."
 - Ground truth: no modal appears; H3 shows `create_hfa_indicators` with
-  `err: true` and a message that nothing was proposed because the code has an
-  error (`syntax`, a single `=`). The copilot then calls `create_hfa_indicators`
-  again with `1 == 1`.
-- Ground truth: a modal "Create HFA indicators" appears, its code in the
-  two-pane block: snapshot, click the confirm button. H3 shows the second
-  `create_hfa_indicators` with `err: false`, and no separate validation call
-  exists. The manager's table shows the new row: screenshot. If the refusal
+  `err: true` and "Nothing was proposed: the code has errors", naming `syntax`
+  (a single `=`). The copilot then calls `create_hfa_indicators` again with
+  `1 == 1`.
+- Ground truth: a modal "Create HFA indicators" appears with a Label, a Measure,
+  a Categories and a Variant group row and the code in the two-pane block:
+  snapshot, click the confirm button. H3 shows the second
+  `create_hfa_indicators` with `err: false`, its result starting "Created:" with
+  the new id. The manager's table shows the new row: screenshot. If the refusal
   "Your account cannot change HFA indicators" appears instead, record it and
   skip to K.
-- Do: send "Delete the indicator you just created."
-- Ground truth: a danger modal "Delete HFA indicators"; click Delete. The row is
-  gone: screenshot.
-- Pass: both screenshots.
+- Pass: the screenshot.
+
+**J5. One update across a label and code (WRITE).**
+
+- Do: send "For COPILOT TEST INDICATOR, set the short label to 'Copilot test'
+  and the first round's code to `2 == 2`, in one change."
+- Ground truth: one modal "Update HFA indicators", with a Short label row from
+  empty to "Copilot test" and the two-pane block showing `1 == 1` before and
+  `2 == 2` after for the first round: snapshot, confirm. H3 shows one
+  `update_hfa_indicators` with `err: false`, its result reporting `shortLabel`
+  and the round's code as changed. The table's Short label column shows "Copilot
+  test".
+- Do: send the same request again.
+- Ground truth: no modal; H3 shows `update_hfa_indicators` with a result saying
+  there is no change.
+- Pass: the snapshot and the no-change result.
+
+**J6. The code editor (WRITE).** Click the COPILOT TEST INDICATOR row: the code
+editor opens.
+
+- Ground truth: H1 is hfa_indicator_editor; H5's instructions contain "# Current
+  View: HFA indicator code editor" and "## The code".
+- Do: send "Read this indicator, then set its long label to 'Facility reports
+  the copilot test, edited'."
+- Ground truth: H3 shows `get_hfa_indicator_editor` with `err: false`, its
+  result starting "The unsaved state of indicator" and naming the round on
+  screen, then `update_hfa_indicator_editor` with `err: false`, its result
+  holding "definition:" and "Round status after the change". No modal appears.
+  The editor's Long label field shows the new text and the Save buttons show:
+  screenshot.
+- Do: click Cancel. The editor closes and the table still shows the old long
+  label.
+- Pass: the screenshot.
+
+**J7. Delete (WRITE).**
+
+- Do: send "Delete the indicator COPILOT TEST INDICATOR."
+- Ground truth: a danger modal "Delete HFA indicators" whose row shows the id
+  and the long label; click Delete. H3 shows `delete_hfa_indicators` with a
+  result starting "Deleted:". The row is gone: screenshot.
+- Pass: the screenshot.
 
 ### K. Documents
 
