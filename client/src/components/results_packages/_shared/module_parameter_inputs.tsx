@@ -1,11 +1,18 @@
 import { type ModuleParameter, t3 } from "lib";
 import { Input, Select } from "panther";
-import { For, Match, Switch } from "solid-js";
+import { For, Match, Show, Switch } from "solid-js";
+import { BaselineMarker } from "./baseline_marker.tsx";
 
 type Props = {
   parameters: ModuleParameter[];
   values: Record<string, string>;
   onChange: (replacementString: string, value: string) => void;
+  // Present when the country has a baseline: each param's baseline value,
+  // and the per-param reset to it.
+  baseline?: {
+    valueFor: (replacementString: string) => string;
+    onReset: (replacementString: string) => void;
+  };
 };
 
 // A module definition's parameter selections as inputs (all values are
@@ -36,12 +43,32 @@ export function getModuleParameterInvalidMsg(
   return undefined;
 }
 
+function displayParameterValue(
+  parameter: ModuleParameter,
+  value: string,
+): string {
+  if (parameter.input.inputType === "boolean") {
+    return value === "TRUE"
+      ? t3({ en: "Yes", fr: "Oui", pt: "Sim" })
+      : t3({ en: "No", fr: "Non", pt: "Não" });
+  }
+  if (parameter.input.inputType === "select") {
+    return parameter.input.options?.find((o) => o.value === value)?.label ??
+      value;
+  }
+  return value === ""
+    ? t3({ en: "(empty)", fr: "(vide)", pt: "(vazio)" })
+    : value;
+}
+
 export function ModuleParameterInputs(p: Props) {
   return (
     <div class="ui-gap grid grid-cols-12">
       <For each={p.parameters}>
         {(inputParameter) => {
           const value = () => p.values[inputParameter.replacementString];
+          const baselineValue = () =>
+            p.baseline?.valueFor(inputParameter.replacementString);
           const invalidMsg = () =>
             getModuleParameterInvalidMsg(inputParameter, value());
           const onChange = (v: string) =>
@@ -102,6 +129,21 @@ export function ModuleParameterInputs(p: Props) {
                   />
                 </Match>
               </Switch>
+              <Show
+                when={baselineValue() !== undefined &&
+                  baselineValue() !== value()}
+              >
+                <div class="pt-1">
+                  <BaselineMarker
+                    baselineText={displayParameterValue(
+                      inputParameter,
+                      baselineValue() ?? "",
+                    )}
+                    onReset={() =>
+                      p.baseline?.onReset(inputParameter.replacementString)}
+                  />
+                </div>
+              </Show>
             </div>
           );
         }}

@@ -1,8 +1,11 @@
 import {
   getMergedModuleConfigSelections,
+  type ModuleDefaultsBaselineEntry,
+  type ModuleParameter,
   type RunGenerationDefaults,
   type RunGenerationModuleOption,
   type RunGenerationModuleOptions,
+  type RunGenerationStep1Result,
   t3,
 } from "lib";
 import {
@@ -16,9 +19,10 @@ import {
   StateHolderFormError,
   StateHolderWrapper,
 } from "panther";
-import { batch, createSignal, For, Show } from "solid-js";
+import { batch, createSignal, For, type JSX, Show } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
 import {
+  BaselineMarker,
   getModuleParameterInvalidMsg,
   ModuleParameterInputs,
 } from "./_shared/mod.ts";
@@ -47,7 +51,21 @@ import {
 // for modules not offerable here (country-filtered or removed) pass through
 // verbatim on save (the store tolerates unknown moduleIds by design), as
 // do stored keys a definition no longer declares.
+// When the country has a frozen baseline (contract on
+// ModuleDefaultsBaselineEntry), a field whose value differs from what a
+// reset to it would show is marked, and resets per param, per module or all
+// restore the baseline's STORED state: a param the baseline pinned is pinned
+// to that value, one it left unpinned is unpinned again. Like the
+// definition reset, these fill the form and land on save.
 type Props = EditorComponentProps<Record<never, never>, undefined>;
+
+type Family = keyof RunGenerationStep1Result;
+const FAMILIES: Family[] = ["hmis", "hfa", "iceh"];
+
+// Which entry a module's save starts from before this session's per-param
+// edits and unpins apply: the stored one, none (definition reset), or the
+// baseline's (module baseline reset).
+type ModuleSaveBase = "stored" | "empty" | "baseline";
 
 export function ModuleDefaultsEditor(p: Props) {
   holdCopilotView();
@@ -55,9 +73,10 @@ export function ModuleDefaultsEditor(p: Props) {
 
   const query = createQuery(
     async () => {
-      const [optionsRes, defaultsRes] = await Promise.all([
+      const [optionsRes, defaultsRes, baselineRes] = await Promise.all([
         serverActions.getRunGenerationModuleOptions({}),
         serverActions.getRunGenerationDefaults({}),
+        serverActions.getModuleDefaultsBaseline({}),
       ]);
       if (optionsRes.success === false) {
         return optionsRes;
@@ -67,7 +86,13 @@ export function ModuleDefaultsEditor(p: Props) {
       }
       return {
         success: true as const,
-        data: { options: optionsRes.data, defaults: defaultsRes.data },
+        data: {
+          options: optionsRes.data,
+          defaults: defaultsRes.data,
+          // A baseline read failure never blocks the editor: it just has no
+          // baseline controls.
+          baseline: baselineRes.success ? baselineRes.data.baseline : null,
+        },
       };
     },
     t3({
@@ -98,6 +123,7 @@ export function ModuleDefaultsEditor(p: Props) {
           <ModuleDefaultsInner
             options={keyed.options}
             defaults={keyed.defaults}
+            baseline={keyed.baseline}
             close={p.close}
           />
         )}
@@ -109,17 +135,14 @@ export function ModuleDefaultsEditor(p: Props) {
 function ModuleDefaultsInner(p: {
   options: RunGenerationModuleOptions;
   defaults: RunGenerationDefaults;
+  baseline: ModuleDefaultsBaselineEntry | null;
   close: (v: undefined) => void;
 }) {
-  const [includeHmis, setIncludeHmis] = createSignal(
-    p.defaults.step1?.hmis === true,
-  );
-  const [includeHfa, setIncludeHfa] = createSignal(
-    p.defaults.step1?.hfa === true,
-  );
-  const [includeIceh, setIncludeIceh] = createSignal(
-    p.defaults.step1?.iceh === true,
-  );
+  const [families, setFamilies] = createStore<RunGenerationStep1Result>({
+    hmis: p.defaults.step1?.hmis === true,
+    hfa: p.defaults.step1?.hfa === true,
+    iceh: p.defaults.step1?.iceh === true,
+  });
 
   const offeredIds = new Set<string>(p.options.modules.map((o) => o.id));
   const [selected, setSelected] = createStore<Record<string, boolean>>(
@@ -147,17 +170,27 @@ function ModuleDefaultsInner(p: {
     ),
   );
 
-  // Both are read only at save time, so plain Sets: no reactivity needed.
-  // Reset marks the module's stored entry for deletion; adjusting any of its
-  // params afterwards resumes normal dirty-tracked saving from the
-  // definition defaults the reset put in the form.
+  // All three are read only at save time, so plain collections: no
+  // reactivity needed. A per-param key is in at most one of dirtyParams
+  // (write the form value) and unpinParams (drop the key); a reset decides
+  // which, and adjusting a param afterwards makes it dirty again.
   const dirtyParams = new Set<string>();
-  const resetModuleIds = new Set<string>();
+  const unpinParams = new Set<string>();
+  const moduleSaveBase = new Map<string, ModuleSaveBase>();
+  const paramKey = (moduleId: string, replacementString: string) =>
+    `${moduleId}|${replacementString}`;
+
+  function clearModuleParamMarks(option: RunGenerationModuleOption): void {
+    for (const param of option.parameters) {
+      dirtyParams.delete(paramKey(option.id, param.replacementString));
+      unpinParams.delete(paramKey(option.id, param.replacementString));
+    }
+  }
 
   function resetToDefaults(option: RunGenerationModuleOption): void {
+    clearModuleParamMarks(option);
     batch(() => {
       for (const param of option.parameters) {
-        dirtyParams.delete(`${option.id}|${param.replacementString}`);
         setParamValues(
           option.id,
           param.replacementString,
@@ -165,7 +198,106 @@ function ModuleDefaultsInner(p: {
         );
       }
     });
-    resetModuleIds.add(option.id);
+    moduleSaveBase.set(option.id, "empty");
+  }
+
+  // Baseline reads. A param's baseline value is what a reset to the baseline
+  // would show: the baseline's pinned value, else the CURRENT definition
+  // default it follows, so "changed" means exactly "a reset would change it".
+  function baselinePinned(
+    b: ModuleDefaultsBaselineEntry,
+    moduleId: string,
+    replacementString: string,
+  ): string | undefined {
+    return b.stored.parameterSelections[moduleId]?.[replacementString];
+  }
+  function baselineParamValue(
+    b: ModuleDefaultsBaselineEntry,
+    moduleId: string,
+    param: ModuleParameter,
+  ): string {
+    return baselinePinned(b, moduleId, param.replacementString) ??
+      param.input.defaultValue;
+  }
+  function baselineSelected(
+    b: ModuleDefaultsBaselineEntry,
+    moduleId: string,
+  ): boolean {
+    return b.stored.moduleIds.includes(moduleId);
+  }
+  function baselineFamily(b: ModuleDefaultsBaselineEntry, f: Family): boolean {
+    return b.stored.step1?.[f] === true;
+  }
+
+  function moduleDiffers(
+    b: ModuleDefaultsBaselineEntry,
+    option: RunGenerationModuleOption,
+  ): boolean {
+    return (selected[option.id] === true) !==
+        baselineSelected(b, option.id) ||
+      option.parameters.some((param) =>
+        paramValues[option.id][param.replacementString] !==
+          baselineParamValue(b, option.id, param)
+      );
+  }
+  function anyDiffers(b: ModuleDefaultsBaselineEntry): boolean {
+    return FAMILIES.some((f) => families[f] !== baselineFamily(b, f)) ||
+      p.options.modules.some((o) => moduleDiffers(b, o));
+  }
+
+  function resetParamToBaseline(
+    b: ModuleDefaultsBaselineEntry,
+    option: RunGenerationModuleOption,
+    replacementString: string,
+  ): void {
+    const param = option.parameters.find((x) =>
+      x.replacementString === replacementString
+    );
+    if (param === undefined) {
+      return;
+    }
+    const key = paramKey(option.id, replacementString);
+    if (baselinePinned(b, option.id, replacementString) !== undefined) {
+      unpinParams.delete(key);
+      dirtyParams.add(key);
+    } else {
+      dirtyParams.delete(key);
+      unpinParams.add(key);
+    }
+    setParamValues(
+      option.id,
+      replacementString,
+      baselineParamValue(b, option.id, param),
+    );
+  }
+
+  function resetModuleToBaseline(
+    b: ModuleDefaultsBaselineEntry,
+    option: RunGenerationModuleOption,
+  ): void {
+    clearModuleParamMarks(option);
+    batch(() => {
+      setSelected(option.id, baselineSelected(b, option.id));
+      for (const param of option.parameters) {
+        setParamValues(
+          option.id,
+          param.replacementString,
+          baselineParamValue(b, option.id, param),
+        );
+      }
+    });
+    moduleSaveBase.set(option.id, "baseline");
+  }
+
+  function resetAllToBaseline(b: ModuleDefaultsBaselineEntry): void {
+    batch(() => {
+      for (const f of FAMILIES) {
+        setFamilies(f, baselineFamily(b, f));
+      }
+      for (const option of p.options.modules) {
+        resetModuleToBaseline(b, option);
+      }
+    });
   }
 
   const save = createFormAction(
@@ -174,11 +306,17 @@ function ModuleDefaultsInner(p: {
       function savedEntriesFor(
         o: RunGenerationModuleOption,
       ): Record<string, string> {
-        const entries: Record<string, string> = resetModuleIds.has(o.id)
+        const base = moduleSaveBase.get(o.id) ?? "stored";
+        const entries: Record<string, string> = base === "empty"
           ? {}
+          : base === "baseline"
+          ? { ...(p.baseline?.stored.parameterSelections[o.id] ?? {}) }
           : { ...(p.defaults.parameterSelections[o.id] ?? {}) };
         for (const param of o.parameters) {
-          if (dirtyParams.has(`${o.id}|${param.replacementString}`)) {
+          const key = paramKey(o.id, param.replacementString);
+          if (unpinParams.has(key)) {
+            delete entries[param.replacementString];
+          } else if (dirtyParams.has(key)) {
             entries[param.replacementString] =
               values[o.id][param.replacementString];
           }
@@ -221,11 +359,7 @@ function ModuleDefaultsInner(p: {
       );
       return await serverActions.saveRunGenerationDefaults({
         defaults: {
-          step1: {
-            hmis: includeHmis(),
-            hfa: includeHfa(),
-            iceh: includeIceh(),
-          },
+          step1: { ...unwrap(families) },
           moduleIds: [
             ...p.options.modules.filter((o) => selected[o.id]).map((o) => o.id),
             ...passThroughIds,
@@ -245,6 +379,47 @@ function ModuleDefaultsInner(p: {
     async () => p.close(undefined),
   );
 
+  const yesNo = (v: boolean) =>
+    v
+      ? t3({ en: "Included", fr: "Inclus", pt: "Incluído" })
+      : t3({ en: "Not included", fr: "Non inclus", pt: "Não incluído" });
+
+  // A checkbox row with its baseline marker underneath when it differs.
+  function CheckboxWithBaseline(c: {
+    checkbox: JSX.Element;
+    baselineValue: boolean | undefined;
+    current: boolean;
+    onReset: () => void;
+  }) {
+    return (
+      <div class="ui-spy-sm">
+        {c.checkbox}
+        <Show
+          when={c.baselineValue !== undefined &&
+            c.baselineValue !== c.current}
+        >
+          <div class="pl-6">
+            <BaselineMarker
+              baselineText={yesNo(c.baselineValue === true)}
+              onReset={c.onReset}
+            />
+          </div>
+        </Show>
+      </div>
+    );
+  }
+
+  const familyLabel = (f: Family) =>
+    f === "hmis"
+      ? t3({ en: "HMIS data", fr: "Données HMIS", pt: "Dados HMIS" })
+      : f === "hfa"
+      ? t3({ en: "HFA data", fr: "Données FOSA", pt: "Dados HFA" })
+      : t3({
+        en: "ICEH equity data",
+        fr: "Données d'équité ICEH",
+        pt: "Dados de equidade ICEH",
+      });
+
   return (
     <>
       <div class="text-base-content-muted max-w-2xl">
@@ -258,6 +433,45 @@ function ModuleDefaultsInner(p: {
         })}
       </div>
 
+      <Show when={p.baseline} keyed>
+        {(b) => (
+          <div class="ui-pad ui-gap flex items-center rounded border">
+            <div class="text-base-content-muted flex-1 text-sm">
+              {anyDiffers(b)
+                ? t3({
+                  en:
+                    "Some values differ from this country's baseline, the module defaults recorded for it when baselines were taken. Changed values are marked below.",
+                  fr:
+                    "Certaines valeurs diffèrent de la référence de ce pays, les paramètres par défaut des modules enregistrés lors de la prise des références. Les valeurs modifiées sont signalées ci-dessous.",
+                  pt:
+                    "Alguns valores diferem da referência deste país, as predefinições dos módulos registadas quando as referências foram tiradas. Os valores alterados estão assinalados abaixo.",
+                })
+                : t3({
+                  en: "Every value matches this country's baseline.",
+                  fr:
+                    "Toutes les valeurs correspondent à la référence de ce pays.",
+                  pt: "Todos os valores coincidem com a referência deste país.",
+                })}
+            </div>
+            <Show when={anyDiffers(b)}>
+              <Button
+                size="sm"
+                outline
+                intent="neutral"
+                iconName="refresh"
+                onClick={() => resetAllToBaseline(b)}
+              >
+                {t3({
+                  en: "Reset all to baseline",
+                  fr: "Tout réinitialiser à la référence",
+                  pt: "Repor tudo na referência",
+                })}
+              </Button>
+            </Show>
+          </div>
+        )}
+      </Show>
+
       <h3 class="ui-text-heading">
         {t3({
           en: "Default data families",
@@ -266,25 +480,25 @@ function ModuleDefaultsInner(p: {
         })}
       </h3>
       <div class="ui-pad ui-spy rounded border">
-        <Checkbox
-          label={t3({ en: "HMIS data", fr: "Données HMIS", pt: "Dados HMIS" })}
-          checked={includeHmis()}
-          onChange={setIncludeHmis}
-        />
-        <Checkbox
-          label={t3({ en: "HFA data", fr: "Données FOSA", pt: "Dados HFA" })}
-          checked={includeHfa()}
-          onChange={setIncludeHfa}
-        />
-        <Checkbox
-          label={t3({
-            en: "ICEH equity data",
-            fr: "Données d'équité ICEH",
-            pt: "Dados de equidade ICEH",
-          })}
-          checked={includeIceh()}
-          onChange={setIncludeIceh}
-        />
+        <For each={FAMILIES}>
+          {(f) => (
+            <CheckboxWithBaseline
+              checkbox={
+                <Checkbox
+                  label={familyLabel(f)}
+                  checked={families[f]}
+                  onChange={(v) => setFamilies(f, v)}
+                />
+              }
+              baselineValue={p.baseline
+                ? baselineFamily(p.baseline, f)
+                : undefined}
+              current={families[f]}
+              onReset={() =>
+                p.baseline && setFamilies(f, baselineFamily(p.baseline, f))}
+            />
+          )}
+        </For>
       </div>
 
       <h3 class="ui-text-heading">
@@ -310,12 +524,42 @@ function ModuleDefaultsInner(p: {
           <div class="ui-pad ui-spy-sm rounded border">
             <div class="ui-gap flex items-center">
               <div class="flex-1">
-                <Checkbox
-                  label={option.label}
-                  checked={selected[option.id] === true}
-                  onChange={(v) => setSelected(option.id, v)}
+                <CheckboxWithBaseline
+                  checkbox={
+                    <Checkbox
+                      label={option.label}
+                      checked={selected[option.id] === true}
+                      onChange={(v) => setSelected(option.id, v)}
+                    />
+                  }
+                  baselineValue={p.baseline
+                    ? baselineSelected(p.baseline, option.id)
+                    : undefined}
+                  current={selected[option.id] === true}
+                  onReset={() =>
+                    p.baseline &&
+                    setSelected(
+                      option.id,
+                      baselineSelected(p.baseline, option.id),
+                    )}
                 />
               </div>
+              <Show when={p.baseline && moduleDiffers(p.baseline, option)}>
+                <Button
+                  size="sm"
+                  outline
+                  intent="neutral"
+                  iconName="refresh"
+                  onClick={() =>
+                    p.baseline && resetModuleToBaseline(p.baseline, option)}
+                >
+                  {t3({
+                    en: "Reset to baseline",
+                    fr: "Réinitialiser à la référence",
+                    pt: "Repor a referência",
+                  })}
+                </Button>
+              </Show>
               <Show when={option.parameters.length > 0}>
                 <Button
                   size="sm"
@@ -337,9 +581,25 @@ function ModuleDefaultsInner(p: {
                 parameters={option.parameters}
                 values={paramValues[option.id]}
                 onChange={(k, v) => {
-                  dirtyParams.add(`${option.id}|${k}`);
+                  unpinParams.delete(paramKey(option.id, k));
+                  dirtyParams.add(paramKey(option.id, k));
                   setParamValues(option.id, k, v);
                 }}
+                baseline={p.baseline
+                  ? {
+                    valueFor: (k) => {
+                      const param = option.parameters.find((x) =>
+                        x.replacementString === k
+                      );
+                      return p.baseline && param
+                        ? baselineParamValue(p.baseline, option.id, param)
+                        : "";
+                    },
+                    onReset: (k) =>
+                      p.baseline &&
+                      resetParamToBaseline(p.baseline, option, k),
+                  }
+                  : undefined}
               />
             </Show>
           </div>

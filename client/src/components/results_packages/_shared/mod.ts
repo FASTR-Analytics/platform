@@ -1,3 +1,4 @@
+export { BaselineMarker } from "./baseline_marker.tsx";
 export {
   getModuleParameterInvalidMsg,
   ModuleParameterInputs,

@@ -10,6 +10,7 @@ import type {
   InstalledModuleWithConfigSelections,
   ItemsHolderPresentationObject,
   ItemsHolderResultsObject,
+  ModuleDefaultsBaselineEntry,
   ReadyPackage,
   ResultsValueInfoForPresentationObject,
   RunAuthoringContext,
@@ -206,6 +207,13 @@ export const runGenerationRouteRegistry = {
     path: "/run_generation/defaults",
     method: "POST",
     body: z.object({ defaults: runGenerationDefaultsSchema }),
+  }),
+  // This country's frozen baseline from the resource hub; null when it has
+  // none (contract on ModuleDefaultsBaselineEntry).
+  getModuleDefaultsBaseline: route({
+    path: "/run_generation/defaults_baseline",
+    method: "GET",
+    response: {} as { baseline: ModuleDefaultsBaselineEntry | null },
   }),
   // Step-2 module definitions resolved from the modules repo at latest
   // commit; the returned gitRef is recorded into step2Result at launch.
