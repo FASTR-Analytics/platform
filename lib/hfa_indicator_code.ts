@@ -215,6 +215,27 @@ function findRefusedNode(
   }
 }
 
+// One stored snippet, as a write route would store it: a round's main code
+// or filter, or a round's code for one variant item.
+export type HfaCodeRow = {
+  indicatorId: string;
+  timePoint: string;
+  field: "rCode" | "rFilterCode" | `variant:${string}`;
+  code: string;
+};
+
+// Every row whose code is not blank and does not parse, with the parse error:
+// what a write boundary refuses, since such a snippet can never run.
+export function unparseableHfaCode(
+  rows: HfaCodeRow[],
+): (HfaCodeRow & { error: HfaCodeError })[] {
+  return rows.flatMap((row) => {
+    if (!row.code.trim()) return [];
+    const parsed = parseHfaIndicatorCode(row.code);
+    return parsed.ok ? [] : [{ ...row, error: parsed.error }];
+  });
+}
+
 // The identifiers the code names, for guards that only need its references
 // (unused variables, deletion warnings). Code that does not parse names
 // nothing here; the editor reports it as an error.

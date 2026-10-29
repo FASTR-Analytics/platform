@@ -4,6 +4,7 @@ import {
   APIResponseNoData,
   APIResponseWithData,
   composeHfaVariantColumnName,
+  describeHfaCodeError,
   type HfaDictionaryForValidation,
   type HfaIndicator,
   type HfaIndicatorCategory,
@@ -17,6 +18,7 @@ import {
   type HfaWorkbookImportResult,
   isReservedHfaId,
   nextHfaIndicatorId,
+  unparseableHfaCode,
 } from "lib";
 import { tryCatchDatabaseAsync } from "./../utils.ts";
 
@@ -929,6 +931,10 @@ export async function batchUploadHfaIndicators(
   replaceAll: boolean,
 ): Promise<APIResponseWithData<{ createdIndicatorIds: string[] }>> {
   return await tryCatchDatabaseAsync(async () => {
+    const refusal = refuseCode(code, []);
+    if (refusal) {
+      return { success: false, err: refusal };
+    }
     const createdIndicatorIds: string[] = [];
     await mainDb.begin(async (sql) => {
       if (replaceAll) {
@@ -972,8 +978,7 @@ export async function batchUploadHfaIndicators(
         await sql`DELETE FROM hfa_indicator_code WHERE indicator_id = ${indicatorId}`;
       }
       for (const c of code) {
-        if (!c.rCode.trim()) continue;
-        if (!created.has(c.indicatorId)) continue;
+        if (!c.rCode.trim() || !created.has(c.indicatorId)) continue;
         await sql`
           INSERT INTO hfa_indicator_code (indicator_id, time_point, r_code, r_filter_code)
           VALUES (${c.indicatorId}, ${c.timePoint}, ${c.rCode}, ${
@@ -997,6 +1002,18 @@ export async function importHfaIndicatorsWorkbook(
   data: HfaWorkbookImport,
 ): Promise<APIResponseWithData<HfaWorkbookImportResult>> {
   return await tryCatchDatabaseAsync(async () => {
+    const storedIds = data.replaceAll ? new Set<string>() : new Set(
+      (await mainDb<{ indicator_id: string }[]>`
+        SELECT indicator_id FROM hfa_indicators
+      `).map((r) => r.indicator_id),
+    );
+    const refusal = refuseCode(
+      data.code.filter((c) => !storedIds.has(c.indicatorId)),
+      data.variantCode.filter((c) => !storedIds.has(c.indicatorId)),
+    );
+    if (refusal) {
+      return { success: false, err: refusal };
+    }
     const skippedExisting: string[] = [];
     let imported = 0;
     await mainDb.begin(async (sql) => {
@@ -1242,8 +1259,9 @@ export async function importHfaIndicatorsWorkbook(
         await sql`DELETE FROM hfa_indicator_code WHERE indicator_id = ${indicatorId}`;
       }
       for (const c of code) {
-        if (!c.rCode.trim()) continue;
-        if (!insertedIndicatorIds.has(c.indicatorId)) continue;
+        if (!c.rCode.trim() || !insertedIndicatorIds.has(c.indicatorId)) {
+          continue;
+        }
         await sql`
           INSERT INTO hfa_indicator_code (indicator_id, time_point, r_code, r_filter_code)
           VALUES (${c.indicatorId}, ${c.timePoint}, ${c.rCode}, ${
@@ -1274,12 +1292,58 @@ type HfaIndicatorMainCode = {
   rFilterCode?: string | undefined;
 };
 
-function findFilterOnlyRound(
-  code: HfaIndicatorMainCode[],
-): HfaIndicatorMainCode | undefined {
+function findFilterOnlyRound<T extends HfaIndicatorMainCode>(
+  code: T[],
+): T | undefined {
   return code.find(
     (c) => (c.rFilterCode?.trim() ?? "") !== "" && !c.rCode.trim(),
   );
+}
+
+// Why the code a write would store is refused, or nothing: a filter without
+// main code, or a snippet that does not parse, every failing row listed.
+// Unknown variables are not refused here; the editor and the tools report them.
+function refuseCode(
+  code: HfaIndicatorCode[],
+  variantCode: HfaIndicatorVariantCode[],
+): string | undefined {
+  const filterOnly = findFilterOnlyRound(code);
+  if (filterOnly) {
+    return `Filter code requires indicator code for "${filterOnly.indicatorId}" at time point "${filterOnly.timePoint}"`;
+  }
+  const failing = unparseableHfaCode([
+    ...code.flatMap((c) => [
+      {
+        indicatorId: c.indicatorId,
+        timePoint: c.timePoint,
+        field: "rCode" as const,
+        code: c.rCode,
+      },
+      {
+        indicatorId: c.indicatorId,
+        timePoint: c.timePoint,
+        field: "rFilterCode" as const,
+        code: c.rFilterCode ?? "",
+      },
+    ]),
+    ...variantCode.map((c) => ({
+      indicatorId: c.indicatorId,
+      timePoint: c.timePoint,
+      field: `variant:${c.itemId}` as const,
+      code: c.rCode,
+    })),
+  ]);
+  if (failing.length === 0) {
+    return undefined;
+  }
+  return [
+    `${failing.length} code snippet(s) do not parse:`,
+    ...failing.map((f) =>
+      `${f.indicatorId}, time point "${f.timePoint}", ${f.field}: ${
+        describeHfaCodeError(f.error).en
+      }`
+    ),
+  ].join("\n");
 }
 
 // The indicator's row and its main code, as one write. The updated_at bump is
@@ -1323,13 +1387,12 @@ export async function saveHfaIndicatorFull(
   variantCode: { timePoint: string; itemId: string; rCode: string }[],
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
-    const filterOnly = findFilterOnlyRound(code);
-    if (filterOnly) {
-      return {
-        success: false,
-        err:
-          `Filter code requires indicator code for time point "${filterOnly.timePoint}"`,
-      };
+    const refusal = refuseCode(
+      code.map((c) => ({ ...c, indicatorId: indicator.indicatorId })),
+      variantCode.map((c) => ({ ...c, indicatorId: indicator.indicatorId })),
+    );
+    if (refusal) {
+      return { success: false, err: refusal };
     }
     const nonEmptyVariantCode = variantCode.filter((c) =>
       c.rCode.trim() !== ""
@@ -1369,15 +1432,14 @@ export async function saveHfaIndicatorsCode(
   indicators: { indicator: HfaIndicator; code: HfaIndicatorMainCode[] }[],
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
-    for (const { indicator, code } of indicators) {
-      const filterOnly = findFilterOnlyRound(code);
-      if (filterOnly) {
-        return {
-          success: false,
-          err:
-            `Filter code requires indicator code for "${indicator.indicatorId}" at time point "${filterOnly.timePoint}"`,
-        };
-      }
+    const refusal = refuseCode(
+      indicators.flatMap(({ indicator, code }) =>
+        code.map((c) => ({ ...c, indicatorId: indicator.indicatorId }))
+      ),
+      [],
+    );
+    if (refusal) {
+      return { success: false, err: refusal };
     }
     await mainDb.begin(async (sql) => {
       for (const { indicator, code } of indicators) {

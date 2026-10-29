@@ -1,7 +1,7 @@
 // Pins HFA indicator code as the expression language minus what HFA cannot
 // use (calls, names the generator cannot bind, text outside a comparison),
-// the result type read off the root, the reserved ids, and the generator's
-// dependency analysis over the parsed code.
+// the rows a write refuses, the result type read off the root, the reserved
+// ids, and the generator's dependency analysis over the parsed code.
 //
 //   deno test -A server/tests/hfa_indicator_code_test.ts
 
@@ -12,6 +12,7 @@ import {
   hfaIndicatorCodeIdentifiers,
   isReservedHfaId,
   parseHfaIndicatorCode,
+  unparseableHfaCode,
 } from "lib";
 import {
   createSnippetAnalyser,
@@ -60,6 +61,36 @@ Deno.test("a syntax error keeps the parser's kind and position", () => {
     at: 2,
     token: "%",
   });
+});
+
+Deno.test("a write refuses every non-blank row that does not parse", () => {
+  const row = (
+    field: "rCode" | "rFilterCode" | `variant:${string}`,
+    code: string,
+  ) => ({
+    indicatorId: "ind001",
+    timePoint: "2024",
+    field,
+    code,
+  });
+  assertEquals(
+    unparseableHfaCode([
+      row("rCode", "a == 1"),
+      row("rFilterCode", "  "),
+      row("rFilterCode", "a = 1"),
+      row("variant:campaign", "abs(a) > 1"),
+    ]),
+    [
+      {
+        ...row("rFilterCode", "a = 1"),
+        error: { kind: "single_equals", at: 2, token: "=" },
+      },
+      {
+        ...row("variant:campaign", "abs(a) > 1"),
+        error: { kind: "call", name: "abs" },
+      },
+    ],
+  );
 });
 
 Deno.test("the result type is read off the root node", () => {
