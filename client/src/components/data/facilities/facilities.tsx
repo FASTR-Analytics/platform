@@ -176,6 +176,9 @@ export function Facilities(p: Props) {
       ? instanceState.structure?.hmis.facilities
       : instanceState.structure?.hfa.facilities) ?? 0;
 
+  // The HMIS CSV table runs edge to edge, as every TableFromCsv page does.
+  const csvTableShown = () => p.family === "hmis" && facilityCount() > 0;
+
   return (
     <EditorWrapper>
       <FrameTop
@@ -200,6 +203,7 @@ export function Facilities(p: Props) {
         }
       >
         <FrameRight
+          pad={csvTableShown() ? undefined : "md"}
           panelChildren={
             <Show when={instanceState.currentUserIsGlobalAdmin}>
               <div class="ui-pad ui-spy flex h-full w-64 flex-col overflow-auto">
@@ -306,32 +310,26 @@ export function Facilities(p: Props) {
             </Show>
           }
         >
-          <div class="h-full w-full">
-            <Show
-              when={facilityCount() > 0}
-              fallback={
-                <div class="ui-pad">
-                  {t3({
-                    en: "No facilities imported",
-                    fr: "Aucun établissement importé",
-                    pt: "Nenhum estabelecimento importado",
-                  })}
-                </div>
-              }
-            >
-              <Switch>
-                <Match when={p.family === "hfa"}>
-                  <HfaRegistryTable />
-                </Match>
-                <Match when={p.family === "hmis"}>
-                  <StructureWithCsv
-                    family={p.family}
-                    onCsvReady={(csv) => setCsvDataIsReady(csv)}
-                  />
-                </Match>
-              </Switch>
-            </Show>
-          </div>
+          <Show
+            when={facilityCount() > 0}
+            fallback={t3({
+              en: "No facilities imported",
+              fr: "Aucun établissement importé",
+              pt: "Nenhum estabelecimento importado",
+            })}
+          >
+            <Switch>
+              <Match when={p.family === "hfa"}>
+                <HfaRegistryTable />
+              </Match>
+              <Match when={p.family === "hmis"}>
+                <StructureWithCsv
+                  family={p.family}
+                  onCsvReady={(csv) => setCsvDataIsReady(csv)}
+                />
+              </Match>
+            </Switch>
+          </Show>
         </FrameRight>
       </FrameTop>
     </EditorWrapper>

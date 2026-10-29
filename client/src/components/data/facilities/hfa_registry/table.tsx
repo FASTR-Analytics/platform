@@ -166,7 +166,7 @@ export function HfaRegistryTable() {
   }
 
   return (
-    <StateHolderWrapper state={registry()} loadingAndErrorPad="md">
+    <StateHolderWrapper state={registry()}>
       {(rows) => (
         <Table
           config={tableConfig}
