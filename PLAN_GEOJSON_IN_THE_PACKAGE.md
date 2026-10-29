@@ -195,11 +195,16 @@ bare leaf name
 two options that read differently save the same `area_id`: the picker looks like
 it distinguishes them and does not.
 
-Nothing warns. There is no duplicate-name check in the structure import, its
+Nothing warns at level 2, and nothing warns at import. The wizard's save step
+counts repeated option values and lists them
+([step_4.tsx:39-48](client/src/components/data/geojson/upload_wizard/step_4.tsx#L39-L48)),
+which catches levels 3 and 4, but at level 2 `SELECT DISTINCT` has already
+folded the duplicates into one option, and the warning comes after the mapping
+it concerns. There is no duplicate-name check in the structure import or its
 summary ([structure.ts:286-291](lib/types/structure.ts#L286-L291) carries only
-orphan counts), or the geojson wizard.
+orphan counts).
 [SYSTEM_05:235-237](SYSTEM_05_facilities_indicators.md#L235-L237) claims "The
-wizard warns but cannot fix", which is not true of the code.
+wizard warns but cannot fix", which is true only at levels 3 and 4.
 
 ### 1.5 Two copies of an unnormalized matcher
 
