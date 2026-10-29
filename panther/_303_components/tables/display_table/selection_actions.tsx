@@ -13,9 +13,9 @@ export function getSelectionSentence(
   n: number,
   itemLabel: PluralForms<string>,
 ): string {
-  return `${t3({ en: "Selected:", fr: "Sélection :", pt: "Seleção:" })} ${n} ${
-    plural(n, itemLabel)
-  }`;
+  return `${
+    t3({ en: "Selected:", fr: "Sélection :", pt: "Seleção:", th: "เลือกแล้ว:" })
+  } ${n} ${plural(n, itemLabel)}`;
 }
 
 type SelectionActionsProps<T> = {
@@ -77,6 +77,7 @@ export function _BulkActionButtons<T>(p: BulkActionButtonsProps<T>) {
           en: "Clear selection",
           fr: "Effacer la sélection",
           pt: "Limpar seleção",
+          th: "ล้างการเลือก",
         })}
       </Button>
     </div>

@@ -130,7 +130,6 @@ function testGlobalUser(email: string, approved: boolean): GlobalUser {
     firstName: "",
     lastName: "",
     organisation: null,
-    role: null,
     approved,
     isGlobalAdmin: false,
     thisUserPermissions: {
@@ -622,7 +621,7 @@ SELECT id FROM runs WHERE status = 'ready' AND NOT pinned ORDER BY created_at DE
       "PUT",
       `/products/${report.productId}/slide-deck/config`,
       {
-        config: getStartingConfigForSlideDeck("Overwritten"),
+        config: getStartingConfigForSlideDeck(),
       },
     );
     assertEquals(crossType.status, 404);

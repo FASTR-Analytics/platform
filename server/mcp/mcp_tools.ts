@@ -13,11 +13,10 @@ import {
   buildPackageGroundingSections,
   buildSystemPrompt,
   EMPTY_HFA_TAXONOMY,
-  getSharedToolsForInfo,
-  getSharedToolsForMethodologyDocs,
   getSharedToolsForMetrics,
-  INFO_TOPICS,
+  getSharedToolsForReferenceDocs,
   isoDateToday,
+  REFERENCE_DOCS,
 } from "lib";
 import {
   buildPrincipalTransport,
@@ -88,7 +87,7 @@ export function buildMcpToolsForPrincipal(principal: McpPrincipal): AnyTool[] {
         return [
           `FASTR Analytics instance "${instanceState.instanceName}" — health-facility data analysis over the instance's pinned results package.`,
           NO_PIN_MESSAGE,
-          "Until a package is pinned, the package tools (get_available_metrics, get_metric_data) cannot answer. The reference tools (get_methodology_docs_list, get_methodology_doc_content, get_info) still work.",
+          "Until a package is pinned, the package tools (get_available_metrics, get_metric_data) cannot answer. The reference tools (get_reference_docs, get_reference_doc) still work.",
         ].join("\n\n");
       }
       const ctx = await resolvePackageContext(principal, runId);
@@ -114,7 +113,6 @@ export function buildMcpToolsForPrincipal(principal: McpPrincipal): AnyTool[] {
         contextSection,
         currentDate: isoDateToday(),
         toolCatalog: buildToolCatalog(tools),
-        infoTopics: INFO_TOPICS,
         roleAndPurpose:
           "You are an AI assistant helping users explore and analyze the health data in this instance's pinned results package. You can list metrics and query metric data (CSV), and read the FASTR methodology and reference docs. Everything is read-only.",
         extraCorePrinciples: [],
@@ -148,8 +146,10 @@ export function buildMcpToolsForPrincipal(principal: McpPrincipal): AnyTool[] {
   const tools: AnyTool[] = [
     getOverviewTool,
     ...boundPackageTools,
-    ...getSharedToolsForMethodologyDocs(),
-    ...getSharedToolsForInfo(INFO_TOPICS, transport),
+    ...getSharedToolsForReferenceDocs(REFERENCE_DOCS, {
+      instance: () => resolveInstanceState(principal),
+      transport,
+    }),
   ];
   return tools;
 }

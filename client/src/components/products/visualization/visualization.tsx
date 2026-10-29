@@ -282,6 +282,7 @@ export function VisualizationProductEditor(p: Props) {
         inputs.scope,
         inputs.metric,
         result.updated.config,
+        inputs.bundle.localization,
       );
       if (!rebuilt.ok) {
         await openAlert({ text: rebuilt.reason, intent: "danger" });
@@ -464,6 +465,7 @@ export function VisualizationProductEditor(p: Props) {
                 scope={inputs.scope}
                 metric={metric()}
                 configSnapshot={structuredClone(inputs.bundle.config)}
+                localization={inputs.bundle.localization}
                 aiView={{
                   id: "editing_visualization" as const,
                   params: { productId: p.productId },

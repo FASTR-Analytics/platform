@@ -2,7 +2,6 @@ import {
   ChartOHJsonDataConfig,
   ChartOVJsonDataConfig,
   HeaderSortConfig,
-  type Language,
   PieJsonDataConfig,
   TableJsonDataConfig,
   TimeseriesJsonDataConfig,
@@ -10,6 +9,7 @@ import {
 import {
   BLANK_SENTINEL,
   BLANK_SENTINEL_LABEL,
+  CATALOG_ORDERED_DISAGGREGATION_OPTIONS,
   CountryCodes,
   type DisaggregationOption,
   FigureLocalization,
@@ -22,6 +22,7 @@ import {
   type IndicatorFormat,
   isPieCompletionMode,
   isRollupActive,
+  type Language,
   PERIOD_DISAGGREGATION_OPTIONS,
   periodOptionToPeriodType,
   pickLang,
@@ -120,7 +121,11 @@ function getRollupRowLabel(
   const ctx = getRollupLabelContext(config);
   if (ctx?.kind === "pinned" && ctx.value) {
     return `${resolveAdminAreaLabel(ctx.value, countryIso3)} — ${
-      pickLang(language, { en: "All areas", fr: "Toutes les zones" })
+      pickLang(language, {
+        en: "All areas",
+        fr: "Toutes les zones",
+        pt: "Todas as áreas",
+      })
     }`;
   }
   if (ctx?.kind === "all_facilities") {
@@ -140,7 +145,11 @@ function getRollupRowLabel(
   // preview labels the row correctly outside any authoring shell.
   if (scope.adminArea2 !== null) {
     return `${resolveAdminAreaLabel(scope.adminArea2, countryIso3)} — ${
-      pickLang(language, { en: "All areas", fr: "Toutes les zones" })
+      pickLang(language, {
+        en: "All areas",
+        fr: "Toutes les zones",
+        pt: "Todas as áreas",
+      })
     }`;
   }
   return pickLang(language, TC.national);
@@ -269,21 +278,20 @@ function getPeriodAxisSort(
 //   5. The rolled-up dimension is alphabetical with the sentinel pinned.
 //      Dimension-keyed, so a duplicate disOpt entry on another axis pins
 //      there too (it reads the same grid column, sentinel included).
-//   6. indicator_common_id gets the catalog order on whichever axis it
-//      occupies. hfa/iceh indicator dims stay by-label: no client-side
-//      catalog order exists for them.
+//   6. A catalog-ordered dimension (CATALOG_ORDERED_DISAGGREGATION_OPTIONS:
+//      HMIS, HFA and ICEH indicators, the HFA taxonomies, ICEH strata) gets
+//      the catalog order on whichever axis it occupies.
 //   7. Everything else is alphabetical by displayed label, sentinel-pinned
 //      when the roll-up is active (the pins are id-keyed no-ops on axes
 //      without sentinel rows).
-// `indicatorSortOrder` is the ATTACHED PACKAGE's catalog order: the ids of
-// its indicator catalog, in the order the instance's dictionary put them. It
-// replaces a hardcoded 14-id list that could only ever order the seeded
-// indicators, and it is unconditional: a package always carries a catalog,
-// so there is no vintage branch and no fallback.
+// `catalogIdOrder` is the ATTACHED PACKAGE's catalog: every entry's id in its
+// stamped order (HMIS dictionary order, HFA workbook and category-manager
+// order, ICEH_STRAT_INFO order). Unconditional: a package always carries a
+// catalog, so there is no fallback.
 export function getAxisSort(
   config: PresentationObjectConfig,
   axisProp: DisaggregationOption | "--v" | undefined,
-  indicatorSortOrder: string[],
+  catalogIdOrder: string[],
 ): HeaderSortConfig | undefined {
   if (axisProp === undefined || axisProp === "--v") {
     return undefined;
@@ -299,8 +307,8 @@ export function getAxisSort(
   if (isRollupActive(config) && getRollupDimension(config) === axisProp) {
     return getRollupAwareSort(config);
   }
-  if (axisProp === "indicator_common_id") {
-    return { byIdOrder: indicatorSortOrder };
+  if (CATALOG_ORDERED_DISAGGREGATION_OPTIONS.has(axisProp)) {
+    return { byIdOrder: catalogIdOrder };
   }
   return getRollupAwareSort(config);
 }
@@ -310,7 +318,7 @@ export function getTimeseriesJsonDataConfigFromPresentationObjectConfig(
   config: PresentationObjectConfig,
   effectiveValueProps: string[],
   indicatorLabelReplacements: Record<string, string>,
-  indicatorSortOrder: string[],
+  catalogIdOrder: string[],
   localization: Pick<FigureLocalization, "language" | "countryIso3">,
   scope: FigureScope,
   jsonArray?: any[],
@@ -351,10 +359,10 @@ export function getTimeseriesJsonDataConfigFromPresentationObjectConfig(
     laneProp,
     tierProp,
     sort: {
-      series: getAxisSort(config, seriesProp, indicatorSortOrder),
-      lane: getAxisSort(config, laneProp, indicatorSortOrder),
-      tier: getAxisSort(config, tierProp, indicatorSortOrder),
-      pane: getAxisSort(config, paneProp, indicatorSortOrder),
+      series: getAxisSort(config, seriesProp, catalogIdOrder),
+      lane: getAxisSort(config, laneProp, catalogIdOrder),
+      tier: getAxisSort(config, tierProp, catalogIdOrder),
+      pane: getAxisSort(config, paneProp, catalogIdOrder),
     },
     labelReplacements: buildLabelReplacements(
       resultsValue,
@@ -373,7 +381,7 @@ export function getTableJsonDataConfigFromPresentationObjectConfig(
   config: PresentationObjectConfig,
   effectiveValueProps: string[],
   indicatorLabelReplacements: Record<string, string>,
-  indicatorSortOrder: string[],
+  catalogIdOrder: string[],
   localization: FigureLocalization,
   scope: FigureScope,
   jsonArray?: any[],
@@ -431,10 +439,10 @@ export function getTableJsonDataConfigFromPresentationObjectConfig(
     rowGroupProp,
     nProps,
     sort: {
-      colGroup: getAxisSort(config, colGroupProp, indicatorSortOrder),
-      col: getAxisSort(config, colProp, indicatorSortOrder),
-      rowGroup: getAxisSort(config, rowGroupProp, indicatorSortOrder),
-      row: getAxisSort(config, rowProp, indicatorSortOrder),
+      colGroup: getAxisSort(config, colGroupProp, catalogIdOrder),
+      col: getAxisSort(config, colProp, catalogIdOrder),
+      rowGroup: getAxisSort(config, rowGroupProp, catalogIdOrder),
+      row: getAxisSort(config, rowProp, catalogIdOrder),
     },
     // The total row must not stretch auto conditional-formatting domains.
     liveDomainExcludeIds: isRollupActive(config) ? ROLLUP_PIN_IDS : undefined,
@@ -455,7 +463,7 @@ function getChartJsonDataConfig(
   config: PresentationObjectConfig,
   effectiveValueProps: string[],
   indicatorLabelReplacements: Record<string, string>,
-  indicatorSortOrder: string[],
+  catalogIdOrder: string[],
   localization: FigureLocalization,
   scope: FigureScope,
   jsonArray?: any[],
@@ -504,20 +512,13 @@ function getChartJsonDataConfig(
     laneProp,
     tierProp,
     sort: {
-      // The bars axis rides one seam: panther honours sort.indicator only
-      // when sortIndicatorValues is undefined. "none" means the dimension's
-      // natural order, so it maps to undefined + the
-      // dispatcher's sort; asc/desc (an explicit value ranking) pass through
-      // below and panther ignores sort.indicator entirely.
-      indicator: getAxisSort(config, indicatorPropRaw, indicatorSortOrder),
-      series: getAxisSort(config, seriesProp, indicatorSortOrder),
-      lane: getAxisSort(config, laneProp, indicatorSortOrder),
-      tier: getAxisSort(config, tierProp, indicatorSortOrder),
-      pane: getAxisSort(config, paneProp, indicatorSortOrder),
+      indicator: getAxisSort(config, indicatorPropRaw, catalogIdOrder),
+      series: getAxisSort(config, seriesProp, catalogIdOrder),
+      lane: getAxisSort(config, laneProp, catalogIdOrder),
+      tier: getAxisSort(config, tierProp, catalogIdOrder),
+      pane: getAxisSort(config, paneProp, catalogIdOrder),
     },
-    sortIndicatorValues: config.s.sortIndicatorValues === "none"
-      ? undefined
-      : config.s.sortIndicatorValues,
+    sortIndicatorValues: config.s.sortIndicatorValues,
     labelReplacements: buildLabelReplacements(
       resultsValue,
       config,
@@ -535,7 +536,7 @@ export function getChartOVJsonDataConfigFromPresentationObjectConfig(
   config: PresentationObjectConfig,
   effectiveValueProps: string[],
   indicatorLabelReplacements: Record<string, string>,
-  indicatorSortOrder: string[],
+  catalogIdOrder: string[],
   localization: FigureLocalization,
   scope: FigureScope,
   jsonArray?: any[],
@@ -546,7 +547,7 @@ export function getChartOVJsonDataConfigFromPresentationObjectConfig(
       config,
       effectiveValueProps,
       indicatorLabelReplacements,
-      indicatorSortOrder,
+      catalogIdOrder,
       localization,
       scope,
       jsonArray,
@@ -575,7 +576,7 @@ export function getPieJsonDataConfigFromPresentationObjectConfig(
   config: PresentationObjectConfig,
   effectiveValueProps: string[],
   indicatorLabelReplacements: Record<string, string>,
-  indicatorSortOrder: string[],
+  catalogIdOrder: string[],
   localization: Pick<FigureLocalization, "language" | "countryIso3">,
   scope: FigureScope,
   effectiveFormatAs: IndicatorFormat,
@@ -621,11 +622,11 @@ export function getPieJsonDataConfigFromPresentationObjectConfig(
     sort: {
       // Slices sort applies under "none" only (panther gates sort.series on
       // sortSeriesValues); the Pies repeat axis is always sorted.
-      series: getAxisSort(config, seriesProp, indicatorSortOrder),
-      indicator: getAxisSort(config, indicatorProp, indicatorSortOrder),
-      pane: getAxisSort(config, paneProp, indicatorSortOrder),
-      tier: getAxisSort(config, tierProp, indicatorSortOrder),
-      lane: getAxisSort(config, laneProp, indicatorSortOrder),
+      series: getAxisSort(config, seriesProp, catalogIdOrder),
+      indicator: getAxisSort(config, indicatorProp, catalogIdOrder),
+      pane: getAxisSort(config, paneProp, catalogIdOrder),
+      tier: getAxisSort(config, tierProp, catalogIdOrder),
+      lane: getAxisSort(config, laneProp, catalogIdOrder),
     },
     sortSeriesValues: config.s.sortIndicatorValues,
     groupSmallSlices: config.s.pieGroupSmallSlices
@@ -655,7 +656,7 @@ export function getChartOHJsonDataConfigFromPresentationObjectConfig(
   config: PresentationObjectConfig,
   effectiveValueProps: string[],
   indicatorLabelReplacements: Record<string, string>,
-  indicatorSortOrder: string[],
+  catalogIdOrder: string[],
   localization: FigureLocalization,
   scope: FigureScope,
   jsonArray?: any[],
@@ -666,7 +667,7 @@ export function getChartOHJsonDataConfigFromPresentationObjectConfig(
       config,
       effectiveValueProps,
       indicatorLabelReplacements,
-      indicatorSortOrder,
+      catalogIdOrder,
       localization,
       scope,
       jsonArray,

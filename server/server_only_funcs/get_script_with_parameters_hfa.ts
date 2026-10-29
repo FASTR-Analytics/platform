@@ -8,16 +8,19 @@ import type {
 import {
   composeHfaVariantColumnName,
   isReservedHfaId,
-  normalizeRLogicalOperators,
   serialiseMultiMembershipValues,
 } from "lib";
 import { dirname, join } from "@std/path/posix";
 import {
+  type AnalyseSnippet,
   buildUnionDependencyGraph,
-  extractDependenciesFromCode,
+  createSnippetAnalyser,
+  type ExtractedDependencies,
   formatCycles,
+  snippetProblems,
   topologicalSort,
 } from "./hfa_dependency_analyzer.ts";
+import { emitHfaCodeAsR } from "./hfa_r_emit.ts";
 
 // The run's person-years file sits beside the datasets dir, at
 // inputs/population.csv — one file, written by prepare_inputs on every HMIS
@@ -160,6 +163,29 @@ function statusFilterUnknownCheck(
     : `is.na(${variableId})`;
 }
 
+// The snippet's code and filter as R. Every snippet reaching emission passed
+// the dependency analysis, so a parse failure here is a generator bug.
+function emitSnippet(
+  snippet: HfaIndicatorCode,
+  analyse: AnalyseSnippet,
+): {
+  rCode: string;
+  rFilterCode: string;
+  deps: ExtractedDependencies;
+} {
+  const analysis = analyse(snippet);
+  if (!analysis.ok) {
+    throw new Error(
+      `Indicator "${snippet.indicatorId}" (time_point "${snippet.timePoint}") reached emission unparsed: ${analysis.problem}`,
+    );
+  }
+  return {
+    rCode: emitHfaCodeAsR(analysis.code),
+    rFilterCode: analysis.filter ? emitHfaCodeAsR(analysis.filter) : "",
+    deps: analysis.deps,
+  };
+}
+
 // Gate the indicator on the RESULT of the authored expression, not on its
 // inputs: R's `&`/`|` are three-valued, so the expression itself knows when a
 // missing input cannot change the answer (a skip-logic "." on the follow-up
@@ -171,8 +197,7 @@ function statusFilterUnknownCheck(
 function buildPerTimePointMutateExpression(
   indicator: HfaIndicator,
   codeSnippets: HfaIndicatorCode[],
-  allIndicatorIds: Set<string>,
-  knownVariableIds: Set<string>,
+  analyse: AnalyseSnippet,
   dontKnowAsNo: boolean,
   sentinelMap: Map<string, VarSentinels>,
 ): string {
@@ -181,20 +206,10 @@ function buildPerTimePointMutateExpression(
   const boundVariableIds = new Set<string>();
 
   for (const snippet of codeSnippets) {
-    const rCode = normalizeRLogicalOperators(snippet.rCode.trim());
-    if (!rCode) continue;
+    if (!snippet.rCode.trim()) continue;
 
     const timePoint = snippet.timePoint.replace(/"/g, '\\"');
-
-    const rFilterCode = normalizeRLogicalOperators(
-      snippet.rFilterCode?.trim() ?? "",
-    );
-    const deps = extractDependenciesFromCode(
-      rCode,
-      snippet.rFilterCode,
-      allIndicatorIds,
-      knownVariableIds,
-    );
+    const { rCode, rFilterCode, deps } = emitSnippet(snippet, analyse);
     for (const variableId of deps.variableIds) {
       boundVariableIds.add(variableId);
     }
@@ -246,26 +261,16 @@ function buildPerTimePointMutateExpression(
 // M10_hfa_response_status.csv results object.
 function buildPerTimePointStatusExpression(
   codeSnippets: HfaIndicatorCode[],
-  allIndicatorIds: Set<string>,
-  knownVariableIds: Set<string>,
+  analyse: AnalyseSnippet,
   sentinelMap: Map<string, VarSentinels>,
 ): string {
   const branches: string[] = [];
 
   for (const snippet of codeSnippets) {
-    const rCode = snippet.rCode.trim();
-    if (!rCode) continue;
+    if (!snippet.rCode.trim()) continue;
 
     const timePoint = snippet.timePoint.replace(/"/g, '\\"');
-    const rFilterCode = normalizeRLogicalOperators(
-      snippet.rFilterCode?.trim() ?? "",
-    );
-    const deps = extractDependenciesFromCode(
-      rCode,
-      snippet.rFilterCode,
-      allIndicatorIds,
-      knownVariableIds,
-    );
+    const { rFilterCode, deps } = emitSnippet(snippet, analyse);
 
     // Applicability is decided first, over the filter variables only: a facility
     // is not_applicable when the filter is false, or when a filter variable is
@@ -330,6 +335,7 @@ export function getScriptWithParametersHfa(
       "no";
 
   const allIndicatorIds = new Set(indicators.map((ind) => ind.indicatorId));
+  const analyse = createSnippetAnalyser(allIndicatorIds, knownVariableIds);
 
   // Group code by indicator
   const codeByIndicator = new Map<string, HfaIndicatorCode[]>();
@@ -344,7 +350,7 @@ export function getScriptWithParametersHfa(
   const skippedIndicators = new Set<string>();
   const warnings: string[] = [];
 
-  // Filter out indicators without R code
+  // Filter out indicators without code
   let filteredIndicators = indicators;
   if (!stopIfIndicatorFails) {
     filteredIndicators = indicators.filter((indicator) => {
@@ -355,7 +361,7 @@ export function getScriptWithParametersHfa(
       if (activeSnippets.length === 0) {
         skippedIndicators.add(indicator.indicatorId);
         warnings.push(
-          `Skipped indicator "${indicator.indicatorId}": no R code configured for any time point`,
+          `Skipped indicator "${indicator.indicatorId}": no code configured for any time point`,
         );
         return false;
       }
@@ -367,8 +373,7 @@ export function getScriptWithParametersHfa(
   const graphResult = buildUnionDependencyGraph(
     filteredIndicators,
     codeByIndicator,
-    allIndicatorIds,
-    knownVariableIds,
+    analyse,
   );
 
   if (graphResult.validationErrors.length > 0) {
@@ -429,8 +434,7 @@ export function getScriptWithParametersHfa(
   const filteredGraphResult = buildUnionDependencyGraph(
     filteredIndicators,
     codeByIndicator,
-    allIndicatorIds,
-    knownVariableIds,
+    analyse,
   );
 
   const { ordered, cycles } = topologicalSort(
@@ -532,21 +536,11 @@ export function getScriptWithParametersHfa(
       }
       let itemSkipped = false;
       for (const snippet of snippets) {
-        const deps = extractDependenciesFromCode(
-          snippet.rCode,
-          snippet.rFilterCode,
-          allIndicatorIds,
-          knownVariableIds,
-        );
-        const problems: string[] = [];
-        if (deps.unknownVariables.length > 0) {
-          problems.push(
-            `Unknown variables [${deps.unknownVariables.join(", ")}]`,
-          );
-        }
-        const skippedDeps = deps.dependencies.filter(
-          (d) => !orderedIndex.has(d),
-        );
+        const analysis = analyse(snippet);
+        const problems = snippetProblems(analysis);
+        const skippedDeps = analysis.ok
+          ? analysis.deps.dependencies.filter((d) => !orderedIndex.has(d))
+          : [];
         if (skippedDeps.length > 0) {
           problems.push(
             `Depends on skipped indicator(s) [${skippedDeps.join(", ")}]`,
@@ -620,8 +614,7 @@ export function getScriptWithParametersHfa(
           const expr = buildPerTimePointMutateExpression(
             e.parent,
             e.snippets,
-            allIndicatorIds,
-            knownVariableIds,
+            analyse,
             dontKnowAsNo,
             sentinelMap,
           );
@@ -675,14 +668,13 @@ export function getScriptWithParametersHfa(
       );
       if (activeSnippets.length === 0) {
         throw new Error(
-          `Indicator "${indicator.indicatorId}" has no R code configured for any time point. Configure R code for this indicator before running the module.`,
+          `Indicator "${indicator.indicatorId}" has no code configured for any time point. Configure its code before running the module.`,
         );
       }
       const expr = buildPerTimePointMutateExpression(
         indicator,
         activeSnippets,
-        allIndicatorIds,
-        knownVariableIds,
+        analyse,
         dontKnowAsNo,
         sentinelMap,
       );
@@ -692,8 +684,7 @@ export function getScriptWithParametersHfa(
       }
       const statusExpr = buildPerTimePointStatusExpression(
         activeSnippets,
-        allIndicatorIds,
-        knownVariableIds,
+        analyse,
         sentinelMap,
       );
       return `${valueMutate} %>%\n  mutate(${indicator.indicatorId}__status = ${statusExpr})`;

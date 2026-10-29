@@ -22,7 +22,7 @@ import {
   renameIdentifiers,
   writeIndicatorExpression,
 } from "lib";
-import { isDefaultComboOf } from "../dhis2/goal2_indicators/attach_verdicts.ts";
+import { isDefaultComboOf } from "../dhis2/goal2_indicators/element_eligibility.ts";
 import type { ElementRoute } from "../worker_routines/import_hmis_data_dhis2/dispatch.ts";
 
 export type Dhis2IdFixRowSpan = {
@@ -264,6 +264,9 @@ function diagnoseUnknown(
         describeDhis2ParseRefusal(formula.parse.refusal).en
       }`,
     };
+  }
+  if (formula.annualized) {
+    return { kind: "uploaded", reason: "it is annualized" };
   }
   for (const operand of formula.operands) {
     if (!operand.verdict.accepted) {

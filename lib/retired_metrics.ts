@@ -1,6 +1,5 @@
-import type { TranslatableString } from "@timroberton/panther";
 import { FACILITY_ROLLUP_COLUMNS } from "./rollup.ts";
-import type { Language } from "./translate/mod.ts";
+import type { Language, TranslatableString } from "./translate/mod.ts";
 import type { FigureBundle } from "./types/_figure_bundle.ts";
 import type { PresentationObjectConfig } from "./types/_presentation_object_config.ts";
 import type { MetricWithStatus } from "./types/modules.ts";
@@ -155,6 +154,7 @@ const M2_VOLUME_BY_ADJUSTMENT: Successor = {
 const BAND_CHART_CAPTION: TranslatableString = {
   en: "Observed vs expected services with 95% credible interval",
   fr: "Services observés vs attendus avec intervalle de crédibilité à 95%",
+  pt: "Serviços observados vs esperados com intervalo de credibilidade de 95%",
 };
 
 const DISRUPTIONS_FOOTNOTE: TranslatableString = {
@@ -210,6 +210,8 @@ const DISRUPTION_FOOTNOTE: TranslatableString = {
     "Negative values indicate fewer services than expected. The expected value is the Bayesian model's estimate from trend and seasonality for the facilities that reported in the month.",
   fr:
     "Les valeurs négatives indiquent moins de services qu'attendu. La valeur attendue est l'estimation du modèle bayésien à partir de la tendance et de la saisonnalité pour les établissements ayant rapporté dans le mois.",
+  pt:
+    "Os valores negativos indicam menos serviços do que o esperado. O valor esperado é a estimativa do modelo bayesiano a partir da tendência e da sazonalidade para os estabelecimentos que reportaram no mês.",
 };
 
 function disruptionMapSubCaption(level: 2 | 3): TextSwap {
@@ -227,6 +229,8 @@ function disruptionMapSubCaption(level: 2 | 3): TextSwap {
         `Percentage difference between observed and expected services by Admin Area ${level}, DATE_RANGE`,
       fr:
         `Différence en pourcentage entre les services observés et attendus par Zone administrative ${level}, PLAGE_DE_DATES`,
+      pt:
+        `Diferença em percentagem entre os serviços observados e esperados por Área administrativa ${level}, INTERVALO_DE_DATAS`,
     },
   };
 }
@@ -246,6 +250,8 @@ const M11_PERCENT_DIFFERENCE: Successor = {
           "Percentage difference between observed and expected services, DATE_RANGE",
         fr:
           "Différence en pourcentage entre les services observés et attendus, PLAGE_DE_DATES",
+        pt:
+          "Diferença em percentagem entre os serviços observados e esperados, INTERVALO_DE_DATAS",
       },
     },
     disruptionMapSubCaption(2),

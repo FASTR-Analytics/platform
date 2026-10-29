@@ -1,8 +1,4 @@
-import {
-  getSharedToolsForInfo,
-  getSharedToolsForMethodologyDocs,
-  getSharedToolsForMetrics,
-} from "lib";
+import { getSharedToolsForMetrics, getSharedToolsForReferenceDocs } from "lib";
 import type { AnyAITool } from "panther";
 import { createAskUserQuestionsTool } from "panther";
 import {
@@ -10,7 +6,7 @@ import {
   getClientToolsForModules,
   guardCopilotTools,
   type PackageToolsBuilder,
-  SPA_INFO_TOPICS,
+  SPA_REFERENCE_DOCS,
 } from "./copilot/mod.ts";
 import {
   getClientToolsForDrafts,
@@ -24,6 +20,7 @@ import {
   canWriteHfaIndicators,
   getClientToolsForHfaIndicatorEditor,
 } from "~/components/data/hfa/indicators/mod.ts";
+import { instanceState } from "~/state/instance/t1_store";
 
 // The chat's one tool set, assembled once per shell mount and registered for
 // every user and every view, so the prompt cache survives every move. It
@@ -74,8 +71,9 @@ export function buildCopilotTools(): AnyAITool[] {
       ...getClientToolsForProducts(),
       ...buildHfaIndicatorTools(),
       ...getClientToolsForHfaIndicatorEditor(),
-      ...getSharedToolsForMethodologyDocs(),
-      ...getSharedToolsForInfo(SPA_INFO_TOPICS),
+      ...getSharedToolsForReferenceDocs(SPA_REFERENCE_DOCS, {
+        instance: () => instanceState,
+      }),
       createAskUserQuestionsTool(),
     ],
     { canWriteHfaIndicators },

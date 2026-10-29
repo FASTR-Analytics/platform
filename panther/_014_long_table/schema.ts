@@ -191,25 +191,27 @@ export function getDimensionNames(schema: LongTableSchema): string[] {
   ];
 }
 
+// Every rule a column name must pass wherever one enters the layer: a schema
+// here, a CSV header in the engine's write.
+export function validateColumnName(name: string): void {
+  if (name.length === 0) {
+    fail("A column name is empty");
+  }
+  if (name === "*") {
+    fail(`A column cannot be named "*", which a query reads as every row`);
+  }
+  if (hasControlCharacter(name)) {
+    fail(`Column name ${JSON.stringify(name)} has a control character`);
+  }
+  if (foldName(name).startsWith(SAMPLE_N_PREFIX)) {
+    fail(`Column "${name}" starts with the reserved "${SAMPLE_N_PREFIX}"`);
+  }
+}
+
 export function validateLongTableSchema(schema: LongTableSchema): void {
   const seen = new Set<string>();
   for (const column of schema.columns) {
-    if (column.name.length === 0) {
-      fail("A column name is empty");
-    }
-    if (column.name === "*") {
-      fail(`A column cannot be named "*", which a query reads as every row`);
-    }
-    if (hasControlCharacter(column.name)) {
-      fail(
-        `Column name ${JSON.stringify(column.name)} has a control character`,
-      );
-    }
-    if (foldName(column.name).startsWith(SAMPLE_N_PREFIX)) {
-      fail(
-        `Column "${column.name}" starts with the reserved "${SAMPLE_N_PREFIX}"`,
-      );
-    }
+    validateColumnName(column.name);
     if (seen.has(foldName(column.name))) {
       fail(
         `Column "${column.name}" is declared twice (names are case-insensitive)`,
@@ -381,11 +383,11 @@ function validateTime(
 // (first match wins, in the conventions' order; `sample` holds the column's
 // distinct values up to TIME_VALUES_LIMIT); a derived dimension whose default
 // name is taken by a column is renamed after the time column, so the schema
-// is always one validation accepts; text, boolean, date and
-// timestamp columns are category dimensions (the engine's view casts the
-// last three to text); integer columns are both dimension and value, except
-// the time column, which is neither (a period id is not a measure); number
-// columns are values; unsupported columns are omitted.
+// is always one validation accepts; text, boolean, date, timestamp, time and
+// uuid columns are category dimensions (the engine's view casts every one but
+// text to text); integer columns are both dimension and
+// value, except the time column, which is neither (a period id is not a
+// measure); number columns are values; unsupported columns are omitted.
 export function inferLongTableSchema(
   columns: DescribedColumn[],
   conventions?: InferConventions,

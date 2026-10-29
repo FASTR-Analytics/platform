@@ -18,6 +18,7 @@ export function ToolLoadingRenderer(p: {
           en: `Processing ${p.item.toolName}...`,
           fr: `Traitement de ${p.item.toolName}...`,
           pt: `A processar ${p.item.toolName}...`,
+          th: `กำลังประมวลผล ${p.item.toolName}...`,
         })}
     </div>
   );

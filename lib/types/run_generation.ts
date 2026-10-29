@@ -68,23 +68,16 @@ export const runGenerationDefaultsSchema = z.object({
 export type RunGenerationDefaults = z.infer<typeof runGenerationDefaultsSchema>;
 
 // One instance's module defaults as the status site scrapes them: the raw
-// store (what a baseline reset writes back) plus every offerable param
-// resolved against its definition default at modulesGitRef (for display).
-export const moduleDefaultsSnapshotSchema = z.object({
-  instanceId: z.string(),
-  platformVersion: z.string(),
-  modulesGitRef: z.string(),
-  stored: runGenerationDefaultsSchema,
-  effective: z.record(z.string(), z.record(z.string(), z.string())),
-});
-export type ModuleDefaultsSnapshot = z.infer<
-  typeof moduleDefaultsSnapshotSchema
->;
-
-// The snapshot route's response adds the definitions it resolved against
-// (in the instance's language), so the status site can label rows and show
-// definition defaults. The baseline file does not keep them.
-export type ModuleDefaultsSnapshotResponse = ModuleDefaultsSnapshot & {
+// store plus every offerable param resolved against its definition default
+// at modulesGitRef. The input to the fleet's global defaults below.
+export type ModuleDefaultsSnapshot = {
+  instanceId: string;
+  platformVersion: string;
+  modulesGitRef: string;
+  stored: RunGenerationDefaults;
+  effective: Record<string, Record<string, string>>;
+  // The definitions resolved against (in the instance's language), so the
+  // status site can label rows and show definition defaults.
   modules: {
     id: string;
     label: string;
@@ -96,30 +89,39 @@ export type ModuleDefaultsSnapshotResponse = ModuleDefaultsSnapshot & {
   }[];
 };
 
-// The per-country baseline: each country's module defaults frozen once into
-// `module_defaults_baseline.json` in the public FASTR resource hub, keyed by
-// instance id. Written only by the status site's fill-missing snapshot script,
-// which adds countries and never overwrites one. The module-defaults editor
-// marks values that differ from it and resets to it.
-export const MODULE_DEFAULTS_BASELINE_URL =
-  "https://raw.githubusercontent.com/FASTR-Analytics/fastr-resource-hub/refs/heads/main/module_defaults_baseline.json";
+// The fleet's global module parameter defaults: for each param, the value
+// most countries had when it was computed, frozen into
+// `module_defaults_global.json` in the public FASTR resource hub. Written
+// only by the status site's compute script and committed by hand; it changes
+// only when deliberately recomputed. Parameters only: default families and
+// pre-selected modules stay each country's own choice. The module-defaults
+// editor marks a param whose value differs from its global value and resets
+// to it; a param with no global entry is simply not compared.
+export const MODULE_DEFAULTS_GLOBAL_URL =
+  "https://raw.githubusercontent.com/FASTR-Analytics/fastr-resource-hub/refs/heads/main/module_defaults_global.json";
 
-export const moduleDefaultsBaselineEntrySchema = moduleDefaultsSnapshotSchema
-  .extend({
-    label: z.string(),
-    iso3: z.string().nullable(),
-    snapshotAt: z.string(),
-  });
-export type ModuleDefaultsBaselineEntry = z.infer<
-  typeof moduleDefaultsBaselineEntrySchema
+export const moduleDefaultsGlobalParamSchema = z.object({
+  value: z.string(),
+  // How many of the counted countries held `value`, out of how many offer
+  // the param.
+  agreeing: z.number(),
+  counted: z.number(),
+});
+export type ModuleDefaultsGlobalParam = z.infer<
+  typeof moduleDefaultsGlobalParamSchema
 >;
 
-export const moduleDefaultsBaselineFileSchema = z.object({
+export const moduleDefaultsGlobalFileSchema = z.object({
   version: z.literal(1),
-  countries: z.record(z.string(), moduleDefaultsBaselineEntrySchema),
+  computedAt: z.string(),
+  countries: z.array(z.string()),
+  parameters: z.record(
+    z.string(),
+    z.record(z.string(), moduleDefaultsGlobalParamSchema),
+  ),
 });
-export type ModuleDefaultsBaselineFile = z.infer<
-  typeof moduleDefaultsBaselineFileSchema
+export type ModuleDefaultsGlobalFile = z.infer<
+  typeof moduleDefaultsGlobalFileSchema
 >;
 
 // One module the wizard's step 2 can offer: the definition resolved from the

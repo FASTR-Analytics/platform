@@ -1,7 +1,10 @@
 import { t3 } from "lib";
 import { openAlert, openComponent } from "panther";
 import { serverActions } from "~/server_actions";
-import { resolveScope } from "~/state/instance/t1_store";
+import {
+  getSnapshotInstanceLocalization,
+  resolveScope,
+} from "~/state/instance/t1_store";
 import { getRunAuthoringContextFromCacheOrFetch } from "~/state/instance/t2_run_authoring_context";
 import { resolveFigureBundleInteractively } from "~/generate_visualization/mod";
 import { InsertFigureModal } from "./_shared/mod.ts";
@@ -44,6 +47,7 @@ export async function createVisualizationInteractively(
     pair,
     figure.metric,
     figure.config,
+    getSnapshotInstanceLocalization(),
   );
   if (!resolved.ok) {
     await openAlert({ text: resolved.reason, intent: "danger" });

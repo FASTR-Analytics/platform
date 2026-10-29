@@ -1,6 +1,8 @@
-import { createSignal, For, onMount, Show } from "solid-js";
+import { createSignal, For } from "solid-js";
 import {
   AlertComponentProps,
+  createFormAction,
+  createQuery,
   Input,
   ModalContainer,
   RadioGroup,
@@ -32,89 +34,55 @@ export function SaveToPromptLibraryModal(
   const [scope, setScope] = createSignal<"user" | "country">(
     p.existingPrompt?.scope ?? "user",
   );
-  const [existingCategories, setExistingCategories] = createSignal<string[]>(
-    [],
-  );
-  const [isSaving, setIsSaving] = createSignal(false);
-  const [error, setError] = createSignal("");
-
-  onMount(async () => {
-    const res = await serverActions.getCustomPrompts({});
-    if (res.success && res.data) {
-      const cats = [
-        ...new Set(res.data.map((pr) => pr.category).filter(Boolean)),
-      ].sort();
-      setExistingCategories(cats);
+  const categories = createQuery(() => serverActions.getCustomPrompts({}));
+  // The datalist is an aid, so a failed fetch leaves it empty rather than
+  // blocking the form.
+  const existingCategories = (): string[] => {
+    const st = categories.state();
+    if (st.status !== "ready") {
+      return [];
     }
-  });
-
-  const handleSave = async () => {
-    if (!name().trim()) {
-      setError(
-        t3({
-          en: "Name is required",
-          fr: "Le nom est requis",
-          pt: "O nome é obrigatório",
-        }),
-      );
-      return;
-    }
-    if (!content().trim()) {
-      setError(
-        t3({
-          en: "Prompt content is required",
-          fr: "Le contenu du prompt est requis",
-          pt: "O conteúdo do prompt é obrigatório",
-        }),
-      );
-      return;
-    }
-    setIsSaving(true);
-    setError("");
-    try {
-      if (isEdit() && p.existingPrompt) {
-        const res = await serverActions.updateCustomPrompt({
-          id: p.existingPrompt.id,
-          name: name().trim(),
-          content: content().trim(),
-          category: category().trim(),
-          scope: scope(),
-        });
-        if (!res.success) {
-          setError(
-            res.err ??
-              t3({
-                en: "Failed to save",
-                fr: "Échec de l'enregistrement",
-                pt: "Falha ao guardar",
-              }),
-          );
-          return;
-        }
-      } else {
-        const res = await serverActions.createCustomPrompt({
-          name: name().trim(),
-          content: content().trim(),
-          category: category().trim(),
-          scope: scope(),
-        });
-        if (!res.success) {
-          setError(
-            res.err ??
-              t3({
-                en: "Failed to save",
-                fr: "Échec de l'enregistrement",
-                pt: "Falha ao guardar",
-              }),
-          );
-          return;
-        }
-      }
-      p.close({ saved: true });
-    } finally {
-      setIsSaving(false);
-    }
+    return [...new Set(st.data.map((pr) => pr.category).filter(Boolean))]
+      .sort();
   };
+
+  const save = createFormAction(
+    async () => {
+      const trimmedName = name().trim();
+      const trimmedContent = content().trim();
+      if (!trimmedName) {
+        return {
+          success: false as const,
+          err: t3({
+            en: "Name is required",
+            fr: "Le nom est requis",
+            pt: "O nome é obrigatório",
+          }),
+        };
+      }
+      if (!trimmedContent) {
+        return {
+          success: false as const,
+          err: t3({
+            en: "Prompt content is required",
+            fr: "Le contenu du prompt est requis",
+            pt: "O conteúdo do prompt é obrigatório",
+          }),
+        };
+      }
+      const fields = {
+        name: trimmedName,
+        content: trimmedContent,
+        category: category().trim(),
+        scope: scope(),
+      };
+      const existing = p.existingPrompt;
+      return existing
+        ? await serverActions.updateCustomPrompt({ id: existing.id, ...fields })
+        : await serverActions.createCustomPrompt(fields);
+    },
+    () => p.close({ saved: true }),
+  );
 
   return (
     <ModalContainer
@@ -134,15 +102,11 @@ export function SaveToPromptLibraryModal(
       onCancel={() => p.close(undefined)}
       actions={[
         {
-          label: isSaving()
-            ? t3({
-              en: "Saving...",
-              fr: "Enregistrement...",
-              pt: "A guardar...",
-            })
-            : t3({ en: "Save", fr: "Enregistrer", pt: "Guardar" }),
-          onClick: handleSave,
-          disabled: isSaving(),
+          label: t3({ en: "Save", fr: "Enregistrer", pt: "Guardar" }),
+          onClick: save.click,
+          state: save.state(),
+          // Button shows a spinner for a loading state but stays clickable.
+          disabled: save.state().status === "loading",
         },
       ]}
     >
@@ -209,9 +173,6 @@ export function SaveToPromptLibraryModal(
             },
           ]}
         />
-        <Show when={error()}>
-          <div class="text-danger text-sm">{error()}</div>
-        </Show>
       </div>
     </ModalContainer>
   );

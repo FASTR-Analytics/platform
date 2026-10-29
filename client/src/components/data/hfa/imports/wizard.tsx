@@ -64,6 +64,7 @@ import {
   prefillHfaFacilityColumns,
 } from "./facility_columns_step.tsx";
 import { hfaFacilityColumnLabel } from "../../_shared/mod.ts";
+import { HfaTimePointForm } from "../_shared/mod.ts";
 
 export type HfaWizardResult = { launched: true };
 
@@ -165,6 +166,7 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
   );
   const [stepError, setStepError] = createSignal<string>("");
   const [scanning, setScanning] = createSignal<boolean>(false);
+  const [addingTimePoint, setAddingTimePoint] = createSignal<boolean>(false);
   const [prefills, setPrefills] = createSignal<HfaPrefills>({});
   const [columnsPreview, setColumnsPreview] = createSignal<
     StateHolder<HfaFacilityColumnsPreview>
@@ -335,10 +337,31 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
       clearPrefill(editedPicker);
       changes.invalidate();
     });
-    if (editedPicker !== "admin_area_1") {
-      void fetchColumnsPreview();
-    }
   }
+
+  function setFacilityColumnLabel(
+    column: OptionalFacilityColumn,
+    label: string,
+  ) {
+    setMappings(
+      "facilityColumns",
+      "optional",
+      column,
+      "label",
+      label.trim() ? label : undefined,
+    );
+  }
+
+  // The headers the preview scan reads: the country value and a custom
+  // column's label are not among them.
+  const scanHeadersKey = createMemo(() =>
+    JSON.stringify({
+      adminAreas: mappings.facilityColumns.adminAreas,
+      optional: Object.entries(mappings.facilityColumns.optional).map((
+        [column, m],
+      ) => [column, m.header, m.correctionHeader]),
+    })
+  );
 
   // setStore with an object MERGES, so a copy-with-deleted-key would never
   // clear anything: deletion must be an explicit undefined write at the leaf.
@@ -372,7 +395,7 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
   const facilityColumnsProblem = () =>
     hfaFacilityColumnsProblem(
       mappings.facilityColumns,
-      schema().adminDepth,
+      schema(),
       registryIsEmpty(),
     );
 
@@ -411,11 +434,16 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
   const currentStepKind = () => STEPS[stepper.currentStep()];
   const isLastStep = () => currentStepKind() === "review";
 
-  // The kept rows depend on the duplicate picks made after this step, so the
-  // preview is read again on every visit.
-  createEffect(on(currentStepKind, (kind) => {
-    setStepError("");
-    if (kind === "facilityColumns") {
+  createEffect(on(currentStepKind, () => setStepError("")));
+
+  // The preview is read on every visit to the Facilities step, since the kept
+  // rows depend on the duplicate picks made after it, and again whenever the
+  // scanned headers change while on it.
+  const previewKey = createMemo(() =>
+    currentStepKind() === "facilityColumns" ? scanHeadersKey() : undefined
+  );
+  createEffect(on(previewKey, (key) => {
+    if (key !== undefined) {
       void fetchColumnsPreview();
     }
   }));
@@ -776,25 +804,53 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
                   pt: "Ponto temporal",
                 })}
               </h3>
-              <div class="w-96">
-                <Select
-                  label={t3({
-                    en: "Select the time point this data belongs to",
-                    fr:
-                      "Sélectionnez le point temporel auquel ces données appartiennent",
-                    pt:
-                      "Selecione o ponto temporal a que estes dados pertencem",
-                  })}
-                  options={timePointOptions()}
-                  value={mappings.timePoint}
-                  onChange={(val) =>
-                    batch(() => {
-                      changes.invalidate();
-                      setMappings("timePoint", val);
+              <div class="flex items-end gap-4">
+                <div class="w-96">
+                  <Select
+                    label={t3({
+                      en: "Select the time point this data belongs to",
+                      fr:
+                        "Sélectionnez le point temporel auquel ces données appartiennent",
+                      pt:
+                        "Selecione o ponto temporal a que estes dados pertencem",
                     })}
-                  fullWidth
-                />
+                    options={timePointOptions()}
+                    value={mappings.timePoint}
+                    onChange={(val) =>
+                      batch(() => {
+                        changes.invalidate();
+                        setMappings("timePoint", val);
+                      })}
+                    fullWidth
+                  />
+                </div>
+                <Show when={!addingTimePoint()}>
+                  <Button
+                    iconName="plus"
+                    intent="neutral"
+                    onClick={() => setAddingTimePoint(true)}
+                  >
+                    {t3({
+                      en: "Add time point",
+                      fr: "Ajouter un point temporel",
+                      pt: "Adicionar ponto temporal",
+                    })}
+                  </Button>
+                </Show>
               </div>
+              <Show when={addingTimePoint()}>
+                <div class="mt-3 max-w-3xl">
+                  <HfaTimePointForm
+                    onSaved={(label) =>
+                      batch(() => {
+                        changes.invalidate();
+                        setMappings("timePoint", label);
+                        setAddingTimePoint(false);
+                      })}
+                    onCancel={() => setAddingTimePoint(false)}
+                  />
+                </div>
+              </Show>
             </div>
             <div>
               <h3 class="ui-text-heading mb-2">
@@ -914,6 +970,7 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
             registryIsEmpty={registryIsEmpty()}
             preview={columnsPreview()}
             onChange={setFacilityColumns}
+            onLabelChange={setFacilityColumnLabel}
           />
           <Show when={facilityColumnsProblem()}>
             {(problem) => <div class="text-danger text-sm">{problem()}</div>}

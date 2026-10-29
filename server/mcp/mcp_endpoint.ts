@@ -28,12 +28,12 @@ import { buildMcpToolsForPrincipal } from "./mcp_tools.ts";
 // auth-on.
 
 const INSTRUCTIONS = [
-  "FASTR Analytics assistant. get_available_metrics and get_metric_data read this instance's pinned national results package; get_methodology_docs_list, get_methodology_doc_content and get_info read reference docs, not the package.",
+  "FASTR Analytics assistant. get_available_metrics and get_metric_data read this instance's pinned national results package; get_reference_docs and get_reference_doc read reference docs, not the package.",
   "Rules:",
   "- Call get_overview FIRST — it carries the live grounding (which package is pinned, its datasets, indicators and period coverage) and the tool catalog.",
   "- Discover metric ids with get_available_metrics; never invent them.",
   "- All tools are read-only and safe to call freely.",
-  "- Data questions: use get_metric_data (CSV output). Load get_info topics before domain-specific analysis.",
+  "- Data questions: use get_metric_data (CSV output). Read the reference document get_reference_docs names for a subject before domain-specific analysis.",
 ].join("\n");
 
 // Exported for the boot check in main.ts, which builds the tool set once for

@@ -59,6 +59,11 @@ function UsageMeter(p: {
   label: string;
   figures: UsageFigures | undefined;
   unlimitedText: string;
+  // Who the figure counts, when that is not simply "you". The two meters count
+  // different populations under different conditions, so a row that leaves
+  // this user's own use out has to say so: otherwise one user's day reading
+  // larger than the whole country's week looks impossible.
+  note?: string;
 }) {
   const pct = () => {
     const f = p.figures;
@@ -95,6 +100,9 @@ function UsageMeter(p: {
               } (${pct()}%)`}
         </Show>
       </div>
+      <Show when={p.note} keyed>
+        {(note) => <div class="text-base-content-muted text-xs">{note}</div>}
+      </Show>
     </div>
   );
 }
@@ -229,84 +237,20 @@ export function ProfileForm(p: AlertComponentProps<object, undefined>) {
     return st.status === "error" ? st.err : undefined;
   };
 
-  // Organisation and role are the user's own words in the users table
-  // (updateMyProfile), edited one at a time in place.
-  const [editingField, setEditingField] = createSignal<
-    "organisation" | "role" | null
-  >(null);
+  // The organisation is the user's own words in the users table
+  // (updateMyProfile), edited in place.
+  const [editingOrganisation, setEditingOrganisation] = createSignal(false);
   const [draft, setDraft] = createSignal("");
-  const startEdit = (field: "organisation" | "role") => {
-    setDraft(user()?.[field] ?? "");
-    setEditingField(field);
+  const startEdit = () => {
+    setDraft(user()?.organisation ?? "");
+    setEditingOrganisation(true);
   };
-  const saveProfile = createButtonAction(
+  const saveOrganisation = createButtonAction(
+    () => serverActions.updateMyProfile({ organisation: draft() }),
     async () => {
-      const field = editingField();
-      const current = user();
-      if (!field || !current) return { success: true };
-      return await serverActions.updateMyProfile({
-        organisation: current.organisation,
-        role: current.role,
-        [field]: draft(),
-      });
-    },
-    async () => {
-      setEditingField(null);
+      setEditingOrganisation(false);
       await userDetails.silentFetch();
     },
-  );
-  const profileRow = (
-    field: "organisation" | "role",
-    label: string,
-    placeholder: string,
-  ) => (
-    <SettingRow label={label}>
-      <Show
-        when={editingField() === field}
-        fallback={
-          <>
-            <span class="text-base-content-muted min-w-0 flex-1 truncate text-right text-sm">
-              {user()?.[field] ||
-                t3({ en: "Not set", fr: "Non défini", pt: "Não definido" })}
-            </span>
-            <Button
-              onClick={() => startEdit(field)}
-              outline
-              size="sm"
-              iconName="pencil"
-            >
-              {t3({ en: "Edit", fr: "Modifier", pt: "Editar" })}
-            </Button>
-          </>
-        }
-      >
-        <Input
-          value={draft()}
-          onChange={setDraft}
-          placeholder={placeholder}
-          fullWidth
-          size="sm"
-          autoFocus
-        />
-        <Button
-          onClick={saveProfile.click}
-          state={saveProfile.state()}
-          intent="primary"
-          outline
-          size="sm"
-        >
-          {t3({ en: "Save", fr: "Enregistrer", pt: "Guardar" })}
-        </Button>
-        <Button
-          onClick={() => setEditingField(null)}
-          intent="neutral"
-          outline
-          size="sm"
-        >
-          {t3({ en: "Cancel", fr: "Annuler", pt: "Cancelar" })}
-        </Button>
-      </Show>
-    </SettingRow>
   );
 
   const manageAccountLabel = t3({
@@ -350,24 +294,58 @@ export function ProfileForm(p: AlertComponentProps<object, undefined>) {
       </div>
 
       <SettingSection label={t3({ en: "Account", fr: "Compte", pt: "Conta" })}>
-        {profileRow(
-          "organisation",
-          t3({ en: "Organisation", fr: "Organisation", pt: "Organização" }),
-          t3({
-            en: "Organisation name",
-            fr: "Nom de l'organisation",
-            pt: "Nome da organização",
-          }),
-        )}
-        {profileRow(
-          "role",
-          t3({ en: "Role", fr: "Rôle", pt: "Função" }),
-          t3({
-            en: "e.g. M&E officer, Ministry of Health",
-            fr: "p. ex. chargé de S&E, ministère de la Santé",
-            pt: "p. ex. técnico de M&A, Ministério da Saúde",
-          }),
-        )}
+        <SettingRow
+          label={t3({
+            en: "Organisation",
+            fr: "Organisation",
+            pt: "Organização",
+          })}
+        >
+          <Show
+            when={editingOrganisation()}
+            fallback={
+              <>
+                <span class="text-base-content-muted min-w-0 flex-1 truncate text-right text-sm">
+                  {user()?.organisation ||
+                    t3({ en: "Not set", fr: "Non défini", pt: "Não definido" })}
+                </span>
+                <Button onClick={startEdit} outline size="sm" iconName="pencil">
+                  {t3({ en: "Edit", fr: "Modifier", pt: "Editar" })}
+                </Button>
+              </>
+            }
+          >
+            <Input
+              value={draft()}
+              onChange={setDraft}
+              placeholder={t3({
+                en: "Organisation name",
+                fr: "Nom de l'organisation",
+                pt: "Nome da organização",
+              })}
+              fullWidth
+              size="sm"
+              autoFocus
+            />
+            <Button
+              onClick={saveOrganisation.click}
+              state={saveOrganisation.state()}
+              intent="primary"
+              outline
+              size="sm"
+            >
+              {t3({ en: "Save", fr: "Enregistrer", pt: "Guardar" })}
+            </Button>
+            <Button
+              onClick={() => setEditingOrganisation(false)}
+              intent="neutral"
+              outline
+              size="sm"
+            >
+              {t3({ en: "Cancel", fr: "Annuler", pt: "Cancelar" })}
+            </Button>
+          </Show>
+        </SettingRow>
         <SettingRow
           label={t3({ en: "Email", fr: "E-mail", pt: "E-mail" })}
         >
@@ -432,7 +410,11 @@ export function ProfileForm(p: AlertComponentProps<object, undefined>) {
       >
         <div class="grid grid-cols-1 gap-x-6 gap-y-3 py-2 sm:grid-cols-2">
           <UsageMeter
-            label={t3({ en: "Today", fr: "Aujourd'hui", pt: "Hoje" })}
+            label={t3({
+              en: "Today (you)",
+              fr: "Aujourd'hui (vous)",
+              pt: "Hoje (o seu uso)",
+            })}
             figures={todayFigures()}
             unlimitedText={t3({
               en: "tokens today · Unlimited",
@@ -442,9 +424,9 @@ export function ProfileForm(p: AlertComponentProps<object, undefined>) {
           />
           <UsageMeter
             label={t3({
-              en: "This week (whole country)",
-              fr: "Cette semaine (tout le pays)",
-              pt: "Esta semana (todo o país)",
+              en: "This week (country quota)",
+              fr: "Cette semaine (quota du pays)",
+              pt: "Esta semana (quota do país)",
             })}
             figures={weekFigures()}
             unlimitedText={t3({
@@ -452,6 +434,19 @@ export function ProfileForm(p: AlertComponentProps<object, undefined>) {
               fr: "tokens cette semaine · Illimité",
               pt: "tokens esta semana · Ilimitado",
             })}
+            // Only when there IS a country quota: with WEEKLY_TOKEN_LIMIT
+            // unset nobody's use is counted, so saying this user's is not
+            // would imply everyone else's is.
+            note={usage()?.isUnlimited && weekFigures()?.limit !== null
+              ? t3({
+                en:
+                  "Your own use is not counted here: an unlimited account does not spend the country's quota.",
+                fr:
+                  "Votre propre utilisation n'est pas comptée ici : un compte illimité n'entame pas le quota du pays.",
+                pt:
+                  "A sua própria utilização não é contada aqui: uma conta ilimitada não consome a quota do país.",
+              })
+              : undefined}
           />
         </div>
         <Show when={usageError()} keyed>

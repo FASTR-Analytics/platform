@@ -13,22 +13,20 @@ type GroupedFeature = {
 };
 
 export function Step3(p: Props) {
-  const { state } = p;
-
   const geoJsonValues = createMemo(() => {
-    const result = state.analysisResult();
-    const prop = state.selectedProp();
+    const result = p.state.analysisResult();
+    const prop = p.state.selectedProp();
     if (!result || !prop) return [];
     return result.sampleValues[prop] ?? [];
   });
 
   const groupedByMatchProp = createMemo((): GroupedFeature[] => {
-    if (state.source() === "file") {
+    if (p.state.source() === "file") {
       return geoJsonValues().map((v) => ({ geoVal: v, features: [] }));
     }
 
-    const dhis2Features = state.dhis2Features();
-    const selectedProp = state.selectedProp();
+    const dhis2Features = p.state.dhis2Features();
+    const selectedProp = p.state.selectedProp();
 
     const groups = new Map<string, Dhis2FeatureContext[]>();
     for (const f of dhis2Features) {
@@ -49,7 +47,9 @@ export function Step3(p: Props) {
     }));
   });
 
-  const mappedCount = createMemo(() => Object.keys(state.geoToAdmin()).length);
+  const mappedCount = createMemo(() =>
+    Object.keys(p.state.geoToAdmin()).length
+  );
   const unmappedGeoCount = createMemo(() =>
     geoJsonValues().length - mappedCount()
   );
@@ -64,12 +64,12 @@ export function Step3(p: Props) {
           pt: "— Não associado —",
         }),
       },
-      ...state.adminAreaOptions(),
+      ...p.state.adminAreaOptions(),
     ];
   });
 
   function updateMapping(geoJsonValue: string, adminAreaName: string) {
-    state.setGeoToAdmin((prev) => {
+    p.state.setGeoToAdmin((prev) => {
       const next = { ...prev };
       if (adminAreaName === "") {
         delete next[geoJsonValue];
@@ -94,7 +94,7 @@ export function Step3(p: Props) {
               "Étape 3 : Associer les entités GeoJSON aux unités administratives",
             pt:
               "Passo 3: Associar as entidades GeoJSON às zonas administrativas",
-          })} AA{state.adminAreaLevel()}
+          })} AA{p.state.adminAreaLevel()}
         </div>
         <div class="text-base-content-muted text-sm">
           {mappedCount()}/{geoJsonValues().length}{" "}
@@ -148,7 +148,7 @@ export function Step3(p: Props) {
                   <div class="w-1/2">
                     <Select
                       options={adminAreaOptions()}
-                      value={state.geoToAdmin()[group.geoVal] ?? ""}
+                      value={p.state.geoToAdmin()[group.geoVal] ?? ""}
                       onChange={(v) => updateMapping(group.geoVal, v)}
                       fullWidth
                       size="sm"
@@ -172,7 +172,7 @@ export function Step3(p: Props) {
                     <div class="w-1/2">
                       <Select
                         options={adminAreaOptions()}
-                        value={state.geoToAdmin()[group.geoVal] ?? ""}
+                        value={p.state.geoToAdmin()[group.geoVal] ?? ""}
                         onChange={(v) => updateMapping(group.geoVal, v)}
                         fullWidth
                         size="sm"
@@ -188,7 +188,7 @@ export function Step3(p: Props) {
 
       <div class="ui-gap-sm flex">
         <Button
-          onClick={() => state.setStep(4)}
+          onClick={() => p.state.setStep(4)}
           disabled={mappedCount() === 0}
           intent="primary"
         >
@@ -198,7 +198,7 @@ export function Step3(p: Props) {
             pt: "Rever e guardar",
           })}
         </Button>
-        <Button intent="neutral" onClick={() => state.setStep(2)}>
+        <Button intent="neutral" onClick={() => p.state.setStep(2)}>
           {t3({ en: "Back", fr: "Retour", pt: "Voltar" })}
         </Button>
       </div>

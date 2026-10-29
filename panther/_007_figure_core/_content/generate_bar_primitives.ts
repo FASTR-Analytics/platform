@@ -66,12 +66,10 @@ export function generateBarPrimitives(
       if (mappedVal === undefined) continue;
 
       const valueInfo = buildValueInfo(
+        ctx,
         seriesInfos[i_series],
         mappedVal.val,
         i_val,
-        ctx.valueRange.minVal,
-        ctx.valueRange.maxVal,
-        ctx.indicatorHeaders?.[i_val],
       );
       const barStyle = s.bars.getStyle(valueInfo);
       if (!barStyle.show) continue;

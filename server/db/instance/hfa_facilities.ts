@@ -28,12 +28,18 @@ import {
   type StructureRecodableColumn,
   type StructureRecodes,
   type StructureSchema,
+  throwIfErrNoData,
   throwIfErrWithData,
+  withOptionalFacilityColumnsEnabled,
 } from "lib";
 import type { HfaFileFacility } from "../../server_only_funcs_csvs/scan_hfa_rows.ts";
 import { cleanupUnusedAdminAreas } from "../../server_only_funcs_importing/integrate_structure_from_staging.ts";
 import { tryCatchDatabaseAsync } from "../utils.ts";
-import { getStructureSchema } from "./config.ts";
+import {
+  getStructureSchema,
+  getStructureSchemaForUpdate,
+  writeStructureSchema,
+} from "./config.ts";
 import { countOrphanedGeoJsonAreaIds } from "./geojson_maps.ts";
 
 // The HFA registry's reads and writes: facilities_hfa, admin_areas_hfa_1..4
@@ -541,18 +547,37 @@ async function readHfaSchema(sql: Sql): Promise<HfaSchema> {
 
 function mappedOptionalColumns(
   facilityColumns: HfaFacilityColumns,
-  schema: HfaSchema,
 ): OptionalFacilityColumn[] {
   const mapped = Object.keys(
     facilityColumns.optional,
   ) as OptionalFacilityColumn[];
-  const disabled = mapped.filter((c) => !schema.enabled.includes(c));
-  if (disabled.length > 0) {
-    throw new Error(
-      `The HFA structure schema does not enable ${disabled.join(", ")}.`,
-    );
-  }
   return _OPTIONAL_FACILITY_COLUMNS.filter((c) => mapped.includes(c));
+}
+
+// Switches on, in the HFA structure schema, the mapped columns it lacks, each
+// custom one under the label the mapping carries. The base is the schema row
+// read under lock here, at the end of the registry write, not the one read at
+// its start: a configuration save that committed meanwhile is kept.
+async function enableMappedHfaColumns(
+  sql: Sql,
+  facilityColumns: HfaFacilityColumns,
+): Promise<void> {
+  const schema = await getStructureSchemaForUpdate(sql, "hfa");
+  const enabled = getEnabledOptionalFacilityColumns(schema);
+  const missing = mappedOptionalColumns(facilityColumns).filter((c) =>
+    !enabled.includes(c)
+  );
+  if (missing.length === 0) {
+    return;
+  }
+  const next = withOptionalFacilityColumnsEnabled(
+    schema,
+    missing.map((column) => ({
+      column,
+      label: facilityColumns.optional[column]?.label?.trim() || undefined,
+    })),
+  );
+  throwIfErrNoData(await writeStructureSchema(sql, "hfa", next));
 }
 
 function assertFileShape(file: HfaFileFacility[], adminDepth: number): void {
@@ -731,7 +756,7 @@ export async function readHfaFacilityChangeSet(
   { changeSet: HfaFacilityChangeSet; registryRows: HfaRegistryRow[] }
 > {
   const schema = toHfaSchema(input.schema);
-  const mappedOptional = mappedOptionalColumns(input.facilityColumns, schema);
+  const mappedOptional = mappedOptionalColumns(input.facilityColumns);
   assertFileShape(input.file, schema.adminDepth);
   const registryRows = await sql<HfaRegistryRow[]>`
     SELECT ${sql(REGISTRY_COLUMNS)} FROM facilities_hfa
@@ -1002,7 +1027,7 @@ export async function writeHfaFacilitiesFromImport(
   },
 ): Promise<HfaRegistryWriteResult> {
   const schema = await readHfaSchema(sql);
-  const mappedOptional = mappedOptionalColumns(input.facilityColumns, schema);
+  const mappedOptional = mappedOptionalColumns(input.facilityColumns);
   assertFileShape(input.file, schema.adminDepth);
   const registryRows = await sql<HfaRegistryRow[]>`
     SELECT ${sql(REGISTRY_COLUMNS)} FROM facilities_hfa
@@ -1078,6 +1103,7 @@ export async function writeHfaFacilitiesFromImport(
       timePoint: input.timePoint,
     }),
   );
+  await enableMappedHfaColumns(sql, input.facilityColumns);
 
   return {
     registryChanged: changeSet.newFacilities.length > 0 ||

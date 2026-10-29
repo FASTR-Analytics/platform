@@ -25,7 +25,12 @@ export function ThinkingSummaryRenderer(p: {
           />
         </div>
         <span class="italic">
-          {t3({ en: "Thinking", fr: "Réflexion", pt: "Raciocínio" })}
+          {t3({
+            en: "Thinking",
+            fr: "Réflexion",
+            pt: "Raciocínio",
+            th: "กำลังคิด",
+          })}
         </span>
       </button>
 

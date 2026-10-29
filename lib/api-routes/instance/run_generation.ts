@@ -10,7 +10,7 @@ import type {
   InstalledModuleWithConfigSelections,
   ItemsHolderPresentationObject,
   ItemsHolderResultsObject,
-  ModuleDefaultsBaselineEntry,
+  ModuleDefaultsGlobalFile,
   ReadyPackage,
   ResultsValueInfoForPresentationObject,
   RunAuthoringContext,
@@ -208,12 +208,12 @@ export const runGenerationRouteRegistry = {
     method: "POST",
     body: z.object({ defaults: runGenerationDefaultsSchema }),
   }),
-  // This country's frozen baseline from the resource hub; null when it has
-  // none (contract on ModuleDefaultsBaselineEntry).
-  getModuleDefaultsBaseline: route({
-    path: "/run_generation/defaults_baseline",
+  // The fleet's frozen global parameter defaults from the resource hub;
+  // null when unpublished (contract on ModuleDefaultsGlobalFile).
+  getModuleDefaultsGlobal: route({
+    path: "/run_generation/defaults_global",
     method: "GET",
-    response: {} as { baseline: ModuleDefaultsBaselineEntry | null },
+    response: {} as { global: ModuleDefaultsGlobalFile | null },
   }),
   // Step-2 module definitions resolved from the modules repo at latest
   // commit; the returned gitRef is recorded into step2Result at launch.

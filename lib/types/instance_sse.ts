@@ -1,4 +1,4 @@
-import type { Language } from "@timroberton/panther";
+import type { Language } from "../translate/types.ts";
 import type { AssetInfo } from "./assets.ts";
 import type { HfaTimePoint } from "./dataset_hfa.ts";
 import type { DatasetType } from "./datasets.ts";

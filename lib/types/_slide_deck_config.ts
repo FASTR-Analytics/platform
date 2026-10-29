@@ -26,7 +26,6 @@ const logosConfigSchema = z.object({
 });
 
 export const slideDeckConfigSchema = z.object({
-  label: z.string(),
   selectedReplicantValue: z.string().optional(),
   logos: logosConfigSchema,
   globalFooterText: z.string().optional(),
@@ -70,7 +69,6 @@ const _completeLogosConfig: Required<LogosConfig> = {
 };
 
 const _completeDeckConfig: Required<SlideDeckConfig> = {
-  label: "",
   selectedReplicantValue: "",
   logos: _completeLogosConfig,
   globalFooterText: "",

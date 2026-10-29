@@ -42,7 +42,7 @@ const KNOWN_SENTINEL_CODES: Record<string, SentinelClass> = {
 
 // Classify one choice from a select_one / select_multiple list. Returns
 // undefined for a substantive answer (Yes/No, a real option): those fall
-// through to the indicator R code untouched (principle 5). undefined means "not
+// through to the indicator code untouched (principle 5). undefined means "not
 // a sentinel", not "unknown".
 export function classifyChoice(
   code: string,

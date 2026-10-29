@@ -3,7 +3,8 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { caseHint, foldName } from "./deps.ts";
+import { caseHint, foldName, LongTableValidationError } from "./deps.ts";
+import { QUOTE, readCsvHeader } from "./csv_header.ts";
 import type { DuckDBConnection, LongTableColumnType } from "./deps.ts";
 import {
   describeStatement,
@@ -50,35 +51,46 @@ export async function writeParquetFromCsv(
     );
   }
   await requireFile(opts.csv, "CSV");
-  await requireHeaderLine(opts.csv);
+  const header = await readCsvHeader(opts.csv);
   const csv = quoteLiteral(opts.csv);
+  const nullStrings = [...new Set(["", ...(opts.nullStrings ?? [])])];
+  const dialect = [
+    "header = true",
+    `delim = ${quoteLiteral(header.delimiter)}`,
+    `quote = ${quoteLiteral(QUOTE)}`,
+    `escape = ${quoteLiteral(QUOTE)}`,
+    "skip = 0",
+    "comment = ''",
+    "allow_quoted_nulls = false",
+    `nullstr = [${nullStrings.map(quoteLiteral).join(", ")}]`,
+  ].join(", ");
   const partial = `${opts.parquet}.${crypto.randomUUID()}.partial`;
   try {
     const description = await withConnection(async (connection) => {
       const types = opts.columns === undefined
-        ? checkedTypes(opts.types ?? {})
-        : await declaredTypes(connection, csv, opts.columns);
-      const options = ["header = true", "allow_quoted_nulls = false"];
-      if (Object.keys(types).length > 0) {
-        options.push(
-          `types = {${
-            Object.entries(types)
-              .map(([name, type]) =>
-                `${quoteLiteral(name)}: ${quoteLiteral(type)}`
-              )
-              .join(", ")
-          }}`,
-        );
-      }
-      const nullStrings = [...new Set(["", ...(opts.nullStrings ?? [])])];
-      options.push(`nullstr = [${nullStrings.map(quoteLiteral).join(", ")}]`);
-      const select = `SELECT * FROM read_csv(${csv}, ${options.join(", ")})`;
+        ? overriddenTypes(
+          await sniffedTypes(connection, csv, dialect, header.names),
+          opts.types ?? {},
+        )
+        : declaredTypes(header.names, opts.columns);
+      const declaration = header.names
+        .map((name) => `${quoteLiteral(name)}: ${quoteLiteral(types[name])}`)
+        .join(", ");
+      // auto_detect = false is what makes a row of the wrong cell count an
+      // error naming the line: with the sniffer on, an explicit dialect is
+      // still only its starting point, and it reports a file it cannot sniff
+      // as one it could not find a dialect for, naming no line.
+      const select =
+        `SELECT * FROM read_csv(${csv}, ${dialect}, auto_detect = false, null_padding = false, columns = {${declaration}})`;
       // DuckDB's own temp file is tmp_<name> in the same directory, which
       // would overwrite and consume a parquet of that name.
-      const copied = await connection.runAndReadAll(
-        `COPY (${select}) TO ${
-          quoteLiteral(partial)
-        } (FORMAT PARQUET, USE_TMP_FILE false)`,
+      const copied = await copying(
+        connection.runAndReadAll(
+          `COPY (${select}) TO ${
+            quoteLiteral(partial)
+          } (FORMAT PARQUET, USE_TMP_FILE false)`,
+        ),
+        opts.csv,
       );
       const rowCount = Number(copied.getRowObjects()[0]?.Count ?? 0);
       const columns = (await describeStatement(
@@ -99,21 +111,34 @@ export async function writeParquetFromCsv(
   }
 }
 
-// DuckDB reads a file with no header line as a table with one invented
-// column, column0.
-async function requireHeaderLine(path: string): Promise<void> {
-  const file = await Deno.open(path, { read: true });
+// A row whose cell count is not the header's is the caller's to correct, and
+// DuckDB's message for it names the line and the row. The lines after the
+// counts are its suggestions to pad, to skip or to leave strict mode, none of
+// which this function offers, so they are dropped rather than shown to a user
+// who cannot act on them.
+async function copying<T>(read: Promise<T>, csv: string): Promise<T> {
   try {
-    const head = new Uint8Array(4096);
-    const read = await file.read(head) ?? 0;
-    const text = new TextDecoder().decode(head.subarray(0, read));
-    if (text.trim().length === 0) {
-      throw new Error(`CSV "${path}" has no header line`);
+    return await read;
+  } catch (cause) {
+    const message = cause instanceof Error ? cause.message : String(cause);
+    if (!message.includes(CSV_ROW_ERROR)) {
+      throw cause;
     }
-  } finally {
-    file.close();
+    const said = message
+      .slice(message.indexOf(CSV_ROW_ERROR))
+      .split("\n")
+      .filter((line) => line.trim().length > 0);
+    const suggestions = said.findIndex((l) => l.startsWith(CSV_SUGGESTIONS));
+    throw new LongTableValidationError(
+      `CSV "${csv}" has a row the header does not fit: ${
+        said.slice(0, suggestions === -1 ? said.length : suggestions).join("; ")
+      }`,
+    );
   }
 }
+
+const CSV_ROW_ERROR = "CSV Error on Line:";
+const CSV_SUGGESTIONS = "Possible fixes:";
 
 function requireDistinct(names: string[]): void {
   const seen = new Set<string>();
@@ -127,23 +152,56 @@ function requireDistinct(names: string[]): void {
   }
 }
 
-function checkedTypes(types: Record<string, string>): Record<string, string> {
+// DuckDB's types for the file, from the sniffer's sample over the dialect the
+// header states. The names it reports are its own; the types are taken by
+// position, since the header line is what names the columns. `ignore_errors`
+// is what leaves the refusal to the read: without it the sniffer refuses a
+// file whose rows are not rectangular with its own message, which names no
+// line and says it could not find a dialect it was given.
+async function sniffedTypes(
+  connection: DuckDBConnection,
+  csv: string,
+  dialect: string,
+  names: string[],
+): Promise<Record<string, string>> {
+  const sniffed = (await connection.runAndReadAll(
+    `SELECT unnest(Columns).type AS type FROM sniff_csv(${csv}, ${dialect}, ignore_errors = true)`,
+  )).getRowObjects().map((row) => String(row.type));
+  if (sniffed.length !== names.length) {
+    throw new Error(
+      `CSV header states ${names.length} columns and DuckDB read ${sniffed.length}`,
+    );
+  }
+  return Object.fromEntries(names.map((name, i) => [name, sniffed[i]]));
+}
+
+// `types` overrides the sniffer for the columns it names, and naming a column
+// the header does not hold is an error: it used to be DuckDB's.
+function overriddenTypes(
+  sniffed: Record<string, string>,
+  types: Record<string, string>,
+): Record<string, string> {
   requireDistinct(Object.keys(types));
-  return types;
+  const names = Object.keys(sniffed);
+  for (const name of Object.keys(types)) {
+    if (!Object.hasOwn(sniffed, name)) {
+      throw new Error(
+        `Column "${name}" given a type is not in the CSV${
+          caseHint(name, names)
+        }`,
+      );
+    }
+  }
+  return { ...sniffed, ...types };
 }
 
 // The declared columns and the CSV's headers must be the same names, each
 // spelled as the file spells it.
-async function declaredTypes(
-  connection: DuckDBConnection,
-  csv: string,
+function declaredTypes(
+  headers: string[],
   columns: { name: string; type: LongTableColumnType }[],
-): Promise<Record<string, string>> {
+): Record<string, string> {
   requireDistinct(columns.map((c) => c.name));
-  const headers = (await describeStatement(
-    connection,
-    `SELECT * FROM read_csv(${csv}, header = true, all_varchar = true)`,
-  )).map((h) => h.name);
   const declared = columns.map((c) => c.name);
   for (const header of headers) {
     if (!declared.includes(header)) {

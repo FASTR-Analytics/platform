@@ -39,7 +39,7 @@ function compareCells(
   const rank = cellRank(a) - cellRank(b);
   if (rank !== 0 || a === undefined || b === undefined) return rank;
   if (a.value !== undefined && b.value !== undefined) return a.value - b.value;
-  return a.text.localeCompare(b.text);
+  return a.text.localeCompare(b.text, undefined, { numeric: true });
 }
 
 export function DataGrid(p: DataGridProps) {
@@ -60,7 +60,10 @@ export function DataGrid(p: DataGridProps) {
     const sign = s.direction === "asc" ? 1 : -1;
     if (s.columnId === ROW_HEADER_COLUMN_ID) {
       return indices.sort((a, b) =>
-        sign * p.rows[a].label.localeCompare(p.rows[b].label)
+        sign *
+        p.rows[a].label.localeCompare(p.rows[b].label, undefined, {
+          numeric: true,
+        })
       );
     }
     const col = columnIndex().get(s.columnId);

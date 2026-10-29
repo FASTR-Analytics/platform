@@ -20,6 +20,7 @@ import {
   applyIndicatorNaming,
   createIndicators,
   createIndicatorsFromDhis2,
+  type Dhis2ElementIdCheck,
   type Dhis2NamingElement,
   getDhis2ElementDataIds,
   getHmisIndicators,
@@ -27,6 +28,11 @@ import {
   setDhis2Labels,
   updateIndicator,
 } from "../db/instance/indicators.ts";
+
+// Every typed DHIS2 id is accepted: the check itself is pinned by
+// indicator_dhis2_id_check_test.ts.
+const ACCEPT_ALL: Dhis2ElementIdCheck = (ids) =>
+  Promise.resolve(new Map(ids.map((id) => [id, { accepted: true }])));
 import { parseDhis2Indicator } from "../dhis2/goal2_indicators/decompose_indicator.ts";
 
 const SCHEMA_PATH =
@@ -88,19 +94,17 @@ function element(
 function decomposition(
   formula: { numerator: string; denominator: string; factor: number },
   verdicts: Record<string, Dhis2ElementVerdict> = {},
+  annualized = false,
 ): Dhis2IndicatorDecomposition {
-  const parse = parseDhis2Indicator({ ...formula, annualized: false });
+  const parse = parseDhis2Indicator(formula);
   const operands = parse.accepted
     ? parse.operands.map((o) => ({
       ...o,
       verdict: verdicts[o.data_id] ?? ACCEPTED,
+      label: dhis2LabelFor(o.data_id),
     }))
     : [];
-  return {
-    accepted: parse.accepted && operands.every((o) => o.verdict.accepted),
-    parse,
-    operands,
-  };
+  return { parse, operands, annualized };
 }
 
 const RATE = {
@@ -123,7 +127,7 @@ async function seed(
     direction: "higher-is-better",
     target: null,
     expected_low_counts: false,
-  }]);
+  }], ACCEPT_ALL);
   assert(res.success, res.success ? "" : res.err);
 }
 
@@ -143,7 +147,10 @@ Deno.test("dhis2: a refused element creates nothing", async () => {
     indicators: [],
   });
   assert(!res.success);
-  assertStringIncludes(res.err, `${OTHER_ELEMENT} cannot be imported`);
+  assertStringIncludes(
+    res.err,
+    `DHIS2 id "${OTHER_ELEMENT}" cannot be imported`,
+  );
   assertStringIncludes(res.err, "none is monthly");
   assertEquals((await dictionary()).size, 0);
 });
@@ -221,7 +228,10 @@ Deno.test("dhis2: a refused operand creates nothing", async () => {
     }],
   });
   assert(!res.success);
-  assertStringIncludes(res.err, `operand ${ANC1_OPERAND} cannot be imported`);
+  assertStringIncludes(
+    res.err,
+    `DHIS2 id "${ANC1_OPERAND}" cannot be imported`,
+  );
   assertEquals((await dictionary()).size, 0);
 });
 
@@ -243,6 +253,26 @@ Deno.test("dhis2: a refused formula creates nothing", async () => {
   assert(!res.success);
   assertStringIncludes(res.err, "cannot be decomposed");
   assertStringIncludes(res.err, "OUG{abcdefghij1}");
+  assertEquals((await dictionary()).size, 0);
+});
+
+Deno.test("dhis2: an annualized indicator creates nothing", async () => {
+  await reset();
+  const res = await createIndicatorsFromDhis2(db, {
+    elements: [
+      element(ANC4_ELEMENT, "anc4"),
+      element(ANC1_ELEMENT, "anc1"),
+      element(ANC1_OPERAND, "anc1_repeat"),
+    ],
+    indicators: [{
+      uid: DHIS2_INDICATOR,
+      indicator_id: "anc4_rate",
+      label: "ANC 4 rate",
+      decomposition: decomposition(RATE, {}, true),
+    }],
+  });
+  assert(!res.success);
+  assertStringIncludes(res.err, "it is annualized");
   assertEquals((await dictionary()).size, 0);
 });
 
@@ -374,6 +404,7 @@ Deno.test("dhis2: the DHIS2 label survives a relabel and a rename, and goes with
       { type: "dhis2_element", data_id: ANC1_ELEMENT },
       "First antenatal visit",
     ),
+    ACCEPT_ALL,
   );
   assert(relabelled.success, relabelled.success ? "" : relabelled.err);
   const afterRelabel = (await dictionary()).get("anc1")!;
@@ -388,6 +419,7 @@ Deno.test("dhis2: the DHIS2 label survives a relabel and a rename, and goes with
     db,
     "anc1",
     posted("anc_first", { type: "dhis2_element", data_id: ANC1_ELEMENT }),
+    ACCEPT_ALL,
   );
   assert(renamed.success, renamed.success ? "" : renamed.err);
   assertEquals((await dictionary()).get("anc_first")!.definition, {
@@ -400,6 +432,7 @@ Deno.test("dhis2: the DHIS2 label survives a relabel and a rename, and goes with
     db,
     "anc_first",
     posted("anc_first", { type: "dhis2_element", data_id: ANC4_ELEMENT }),
+    ACCEPT_ALL,
   );
   assert(rekeyed.success, rekeyed.success ? "" : rekeyed.err);
   assertEquals((await dictionary()).get("anc_first")!.definition, {
@@ -418,6 +451,7 @@ Deno.test("dhis2: the DHIS2 label survives a relabel and a rename, and goes with
     db,
     "anc1",
     posted("anc1", { type: "uploaded" }),
+    ACCEPT_ALL,
   );
   assert(retyped.success, retyped.success ? "" : retyped.err);
   assertEquals((await dictionary()).get("anc1")!.definition, {

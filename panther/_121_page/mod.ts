@@ -6,14 +6,12 @@
 export { buildPageLayout } from "./build_page_layout.ts";
 export type { LayoutInput } from "./build_page_layout.ts";
 export { measureHeaderFooterHeights } from "./measure_header_footer_heights.ts";
-export type {
-  HeaderFooterInputs,
-  MeasuredHeaderFooterHeights,
-} from "./measure_header_footer_heights.ts";
+export type { MeasuredHeaderFooterHeights } from "./measure_header_footer_heights.ts";
 export { PageRenderer } from "./page_renderer.ts";
 export type {
   CoverPageInputs,
   FreeformPageInputs,
+  HeaderFooterInputs,
   MeasuredCoverPage,
   MeasuredFreeformPage,
   MeasuredPage,

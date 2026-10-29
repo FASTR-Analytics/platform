@@ -11,8 +11,13 @@ import {
   type StoredFigure,
   t3,
 } from "lib";
-import { Button, openAlert } from "panther";
-import { createSignal, Show } from "solid-js";
+import {
+  Button,
+  createFormAction,
+  openAlert,
+  StateHolderFormError,
+} from "panther";
+import { Show } from "solid-js";
 import { figureScopeLabel, packageLabel } from "../mod.ts";
 import { getAdminAreaLabelForLevel } from "~/state/instance/_util_disaggregation_label";
 import {
@@ -54,10 +59,13 @@ export async function updateFigureToScope(
   if (issue !== null) {
     return { ok: false, reason: describePackageIssue(issue, scope.runId) };
   }
+  // The figure keeps the language it was created in: a new package is not a
+  // reason to relabel it.
   return resolveFigureBundleInteractively(
     scope,
     resolution.metric,
     resolution.config,
+    bundle.localization,
   );
 }
 
@@ -164,24 +172,21 @@ type BadgeProps = {
 // The per-figure badge: what this figure came from, one update button, and
 // the failure reason in place when the update cannot be done.
 export function StaleFigureBadge(p: BadgeProps) {
-  const [busy, setBusy] = createSignal(false);
-  const [reason, setReason] = createSignal<string | undefined>();
-
-  async function update() {
-    setBusy(true);
-    setReason(undefined);
-    const res = await updateFigureToScope(
-      { runId: p.scope.runId, scopeId: p.scope.scopeId },
-      p.authoringContext,
-      p.bundle,
-    );
-    setBusy(false);
-    if (res.ok) {
-      p.onUpdated(res.bundle);
-      return;
-    }
-    setReason(res.reason);
-  }
+  // A form action, not a button action: the failure reason belongs on the
+  // figure, and a button action would raise it in an alert instead.
+  const update = createFormAction(
+    async () => {
+      const res = await updateFigureToScope(
+        { runId: p.scope.runId, scopeId: p.scope.scopeId },
+        p.authoringContext,
+        p.bundle,
+      );
+      return res.ok
+        ? { success: true as const, data: res.bundle }
+        : { success: false as const, err: res.reason };
+    },
+    (bundle: FigureBundle) => p.onUpdated(bundle),
+  );
 
   return (
     <div class="ui-pad-sm ui-spy-sm border-warning bg-base-100 rounded border text-xs">
@@ -197,8 +202,8 @@ export function StaleFigureBadge(p: BadgeProps) {
           size="sm"
           outline
           iconName="refresh"
-          onClick={update}
-          loading={busy()}
+          onClick={update.click}
+          state={update.state()}
         >
           {t3({
             en: `Update to ${packageLabel(p.scope.runId)}`,
@@ -207,9 +212,7 @@ export function StaleFigureBadge(p: BadgeProps) {
           })}
         </Button>
       </Show>
-      <Show when={reason()} keyed>
-        {(keyedReason) => <div class="text-danger">{keyedReason}</div>}
-      </Show>
+      <StateHolderFormError state={update.state()} />
     </div>
   );
 }

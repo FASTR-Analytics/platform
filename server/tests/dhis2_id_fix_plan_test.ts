@@ -79,7 +79,6 @@ function formula(
     numerator,
     denominator: options.denominator ?? "1",
     factor: options.factor ?? 1,
-    annualized: options.annualized ?? false,
   });
   const operands = parse.accepted
     ? parse.operands.map((o) => {
@@ -89,14 +88,11 @@ function formula(
         verdict: refusal === undefined
           ? { accepted: true as const }
           : { accepted: false as const, refusal },
+        label: o.data_id,
       };
     })
     : [];
-  return {
-    accepted: parse.accepted && operands.every((o) => o.verdict.accepted),
-    parse,
-    operands,
-  };
+  return { parse, operands, annualized: options.annualized ?? false };
 }
 
 function facts(partial: Partial<Dhis2IdFixFacts>): Dhis2IdFixFacts {
@@ -518,11 +514,11 @@ Deno.test("a refused formula and a refused operand: to_uploaded with the reason"
   );
   assertEquals(
     actionOf(plan.actions, "annual", "to_uploaded").reason,
-    "its formula is refused: it is annualized",
+    "it is annualized",
   );
   assertEquals(
     actionOf(plan.actions, "orphan", "to_uploaded").reason,
-    `its operand ${B} is refused: its data element no longer exists on the DHIS2 server`,
+    `its operand ${B} is refused: its data element is not on the DHIS2 server`,
   );
   assertEquals(plan.createdElements, []);
 });

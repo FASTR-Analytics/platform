@@ -160,12 +160,19 @@ flipped version signal.
 
 **App override of the panther base pattern: never refetch after a mutation.**
 Panther's canonical actions pass `query.silentFetch` as a success callback; this
-app forbids post-mutation `silentFetch()` / `fetch()` / manual `refresh()`
-absolutely. Server route handlers already call `notifyInstance*(...)`; SSE flips
-the version key; the watching `createEffect` re-runs; the cache misses. A manual
-refetch duplicates work and races SSE. If you want to "refresh" a `createQuery`
-after a mutation, that view is long-lived enough that it must become a live
-read. Convert it.
+app forbids post-mutation `silentFetch()` / `fetch()` / manual `refresh()` for
+every read that has a version key behind it: the server route handler already
+calls `notifyInstance*(...)`; SSE flips the key; the watching `createEffect`
+re-runs; the cache misses. A manual refetch duplicates work and races SSE. If
+you want to "refresh" a `createQuery` after a mutation, that view is long-lived
+enough that it must become a live read. Convert it.
+
+The exception is a T3 `createQuery` with no key behind it at all, because its
+own mutations fire no `notifyInstance*` and no SSE event: nothing would ever
+bring it up to date, so those mutations refetch it. Judge this per read, not per
+route, because a route may notify for a different one. `updateMyProfile` flips
+the T1 user roster, which is not the `getCurrentUser` query the profile page
+holds, so that page's refetch is the exception rather than a breach of it.
 
 ### Variant A vs Variant B
 
@@ -334,6 +341,13 @@ instance meta modal, profile refresh, the results-package wizard's module
 options + defaults (`results_packages/wizard/wizard.tsx`, read once per open,
 client-local until launch), and the `instance/logged_in_wrapper.tsx` bootstrap
 fetches (GlobalUser, InstanceMeta, needed before SSE connects).
+
+Custom AI prompts (`copilot/ai_prompt_library/`) refetch after their own
+mutations, under the T2 override's no-version-key exception: they have no
+`notifyInstance*` and no SSE event, so nothing else would bring the list up to
+date. The library modal is what refetches, after each create, edit and delete
+and after the save modal reports a save; the save modal itself only closes with
+its result.
 
 Run-keyed: a package's script / log bytes and a failed run's file listing
 (`results_packages/package_view/view_{script,logs,files}.tsx`).

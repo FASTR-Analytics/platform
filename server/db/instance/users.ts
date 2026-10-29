@@ -10,7 +10,6 @@ import {
   type ScopeAccess,
   type ScopeUuid,
   type UserPermission,
-  UserProfile,
 } from "lib";
 import { tryCatchDatabaseAsync } from "./../utils.ts";
 import { resolveAssetFilePath } from "./assets.ts";
@@ -46,21 +45,19 @@ export async function syncUserName(
   return updated.length > 0;
 }
 
-// The user's own profile words. A blank is stored as null, so "not set" has
-// one spelling. Returns true when a row changed, so a no-op write (the fleet
-// sync landing on an instance that already has it) notifies nobody.
-export async function updateUserProfile(
+// The user's own words. A blank is stored as null, so "not set" has one
+// spelling. Returns true when a row changed, so a no-op write (the fleet sync
+// landing on an instance that already has it) notifies nobody.
+export async function updateUserOrganisation(
   mainDb: Sql,
   email: string,
-  profile: UserProfile,
+  organisation: string | null,
 ): Promise<boolean> {
-  const organisation = profile.organisation?.trim() || null;
-  const role = profile.role?.trim() || null;
+  const value = organisation?.trim() || null;
   const updated = await mainDb`
     UPDATE users
-    SET organisation = ${organisation}, role = ${role}
-    WHERE email = ${email}
-      AND (organisation, role) IS DISTINCT FROM (${organisation}, ${role})
+    SET organisation = ${value}
+    WHERE email = ${email} AND organisation IS DISTINCT FROM ${value}
     RETURNING email
   `;
   return updated.length > 0;
@@ -114,7 +111,6 @@ export function otherUserFromRow(
     firstName: row.first_name ?? undefined,
     lastName: row.last_name ?? undefined,
     organisation: row.organisation ?? undefined,
-    role: row.role ?? undefined,
     unlimitedAi: row.unlimited_ai,
     isContactPerson: row.is_contact_person,
     scopeAccess: scopeAccessFromRow(

@@ -244,6 +244,7 @@ export function NestedMultiSelect<T extends string>(
                     en: "Select all",
                     fr: "Tout sélectionner",
                     pt: "Selecionar tudo",
+                    th: "เลือกทั้งหมด",
                   })}
                   checked={allSelected()}
                   indeterminate={someSelected()}

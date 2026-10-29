@@ -1,6 +1,6 @@
 import {
   createCanvasRenderContextBrowser,
-  createItemNode,
+  type ItemLayoutNode,
   type LayoutNode,
   loadFontsWithTimeout,
   optimizePageLayout,
@@ -11,7 +11,6 @@ import {
 import type {
   AiSlideInput,
   ContentBlock,
-  FigureBundle,
   MetricWithStatus,
   PackageScope,
   Slide,
@@ -24,8 +23,7 @@ import {
   PAGE_WIDTH_DU,
   slideConfigSchema,
 } from "lib";
-import { buildStyleForSlide } from "~/generate_slide_deck/convert_slide_to_page_inputs";
-import { buildFigureInputs } from "~/generate_visualization/mod";
+import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
 import { resolveFigureFromMetric } from "./resolve_figure_from_metric";
 import { createIdGeneratorForLayout } from "~/components/products/_shared/mod.ts";
 
@@ -34,16 +32,25 @@ import { createIdGeneratorForLayout } from "~/components/products/_shared/mod.ts
  *
  * Figures resolve under the caller's PackageScope: the deck the slide is
  * destined for.
+ *
+ * The optimizer is fed through the renderer's own path: the provisional slide
+ * goes through convertSlideToPageInputs, and the optimizer gets that page's
+ * chrome, style and items. `overflow` is therefore the flag the deck's canvas
+ * badges, which a caller that writes the slide for the model reports: the
+ * model cannot see the badge.
  */
 export async function convertAiInputToSlide(
   scope: PackageScope,
   slideInput: AiSlideInput,
   metrics: MetricWithStatus[],
   deckConfig: SlideDeckConfig,
-): Promise<Slide> {
+): Promise<{ slide: Slide; overflow: boolean }> {
   // Cover and section pass through unchanged
   if (slideInput.type === "cover" || slideInput.type === "section") {
-    return slideConfigSchema.parse(slideInput) as Slide;
+    return {
+      slide: slideConfigSchema.parse(slideInput) as Slide,
+      overflow: false,
+    };
   }
 
   // Content slide - resolve figures and optimize layout
@@ -74,102 +81,78 @@ export async function convertAiInputToSlide(
     }
   }
 
-  // Extract PageContentItems and build ID → bundle map
-  const bundleMap = new Map<string, FigureBundle | undefined>();
   const generateId = createIdGeneratorForLayout();
-  const itemNodes = resolvedBlocks.map((block) => {
-    let pageItem: PageContentItem;
-    if (block.type === "text") {
-      pageItem = { markdown: block.markdown };
-    } else if (block.type === "image") {
-      pageItem = { spacer: true };
-    } else if (block.bundle) {
-      try {
-        pageItem = buildFigureInputs(block.bundle) as PageContentItem;
-      } catch {
-        pageItem = { spacer: true };
-      }
-    } else {
-      pageItem = { spacer: true };
-    }
-
-    const node = createItemNode(pageItem);
-    const shortId = generateId();
-    const nodeWithShortId = { ...node, id: shortId };
-
-    if (block.type === "figure") {
-      bundleMap.set(shortId, block.bundle);
-    }
-
-    return nodeWithShortId;
-  });
-
-  // Build style and load fonts before layout optimization
-  const pageStyle = buildStyleForSlide(
-    {
-      type: "content",
-      header: slideInput.header,
-      layout: { type: "item", id: "tmp", data: { type: "text", markdown: "" } },
+  const blocksById = new Map(
+    resolvedBlocks.map((block) => [generateId(), block] as const),
+  );
+  const provisional = slideConfigSchema.parse({
+    type: "content",
+    header: slideInput.header,
+    layout: {
+      type: "rows",
+      id: generateId(),
+      children: [...blocksById].map(([id, data]) => ({
+        type: "item",
+        id,
+        data,
+      })),
     },
+  }) as Slide;
+
+  const fontFamily = getSlideDeckThemeSpec(deckConfig.theme).fontFamily;
+  await loadFontsWithTimeout(getAllSlideFontVariants(fontFamily));
+
+  const res = await convertSlideToPageInputs(
+    provisional,
+    undefined,
     deckConfig,
   );
-  const fontFamily = getSlideDeckThemeSpec(deckConfig.theme).fontFamily;
-  const fonts = getAllSlideFontVariants(fontFamily);
-  await loadFontsWithTimeout(fonts);
-
-  // Optimize layout
-  const rc = createCanvasRenderContextBrowser();
-  // Optimize at the canonical render frame so "fits at layout" == "fits at render".
-  const bounds = new RectCoordsDims([
-    0,
-    0,
-    PAGE_WIDTH_DU,
-    PAGE_HEIGHT_DU,
-  ]);
+  if (!res.success) throw new Error(res.err);
+  const page = res.data;
+  if (page.type !== "freeform") {
+    throw new Error(`Content slide converted to a ${page.type} page`);
+  }
 
   const result = optimizePageLayout(
-    rc,
-    bounds,
-    itemNodes,
-    pageStyle,
+    createCanvasRenderContextBrowser(),
+    new RectCoordsDims([0, 0, PAGE_WIDTH_DU, PAGE_HEIGHT_DU]),
+    leafItems(page.content),
+    page,
+    page.style,
     getOptimizerConfig(slideInput.layoutPreference, resolvedBlocks.length),
   );
 
-  const layoutWithMeta = restoreMetadata(result.best.layout, bundleMap);
-
-  return slideConfigSchema.parse({
-    type: "content",
-    header: slideInput.header,
-    layout: layoutWithMeta,
-  }) as Slide;
+  return {
+    slide: slideConfigSchema.parse({
+      type: "content",
+      header: slideInput.header,
+      layout: restoreBlocks(result.best.layout, blocksById),
+    }) as Slide,
+    overflow: result.best.score.overflow === 1,
+  };
 }
 
-type BundleMap = Map<string, FigureBundle | undefined>;
-
-function restoreMetadata(
+function leafItems(
   node: LayoutNode<PageContentItem>,
-  bundleMap: BundleMap,
+): ItemLayoutNode<PageContentItem>[] {
+  return node.type === "item" ? [node] : node.children.flatMap(leafItems);
+}
+
+function restoreBlocks(
+  node: LayoutNode<PageContentItem>,
+  blocksById: Map<string, ContentBlock>,
 ): LayoutNode<ContentBlock> {
   if (node.type === "item") {
-    const pageItem = node.data;
-    const isText = "markdown" in pageItem;
-    let contentBlock: ContentBlock;
-    if (isText) {
-      contentBlock = { type: "text", markdown: pageItem.markdown };
-    } else {
-      contentBlock = {
-        type: "figure",
-        bundle: bundleMap.get(node.id),
-      };
-    }
-    return { type: "item", id: node.id, span: node.span, data: contentBlock };
+    const data = blocksById.get(node.id);
+    if (!data) throw new Error(`Optimized layout lost block ${node.id}`);
+    return { type: "item", id: node.id, span: node.span, data };
   }
 
   return {
     type: node.type,
     id: node.id,
     span: node.span,
-    children: node.children.map((child) => restoreMetadata(child, bundleMap)),
+    children: node.children.map((child) => restoreBlocks(child, blocksById)),
   };
 }
 

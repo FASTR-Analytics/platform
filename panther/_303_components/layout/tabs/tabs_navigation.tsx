@@ -214,11 +214,13 @@ export function TabsNavigation<T extends string = string, M = never>(
                 en: "Expand navigation",
                 fr: "Développer la navigation",
                 pt: "Expandir a navegação",
+                th: "ขยายเมนูนำทาง",
               })
               : t3({
                 en: "Collapse navigation",
                 fr: "Réduire la navigation",
                 pt: "Recolher a navegação",
+                th: "ย่อเมนูนำทาง",
               })}
             iconName={isCollapsed() ? "chevronRight" : "chevronLeft"}
             intent="base-100"

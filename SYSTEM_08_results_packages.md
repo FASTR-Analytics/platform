@@ -241,9 +241,14 @@ definitions carrying one parse fine, the field is ignored). sha256 is the
 integrity check and the cache key.
 `getModuleDefinitionDetail(id, language, pinnedGitRef)` translates
 label/metrics/`configRequirements` via `resolveTS` and returns
-`ModuleDefinitionDetail & { gitRef }`. (Presets are not derived or stored here:
-they are projections of the manifest presets of the run a product points at,
-`lib/derive_presets.ts`.)
+`ModuleDefinitionDetail & { gitRef }`. Both callers pass `_INSTANCE_LANGUAGE`,
+which is why the installed shapes hold plain strings: a metric's `label`,
+`variantLabel`, `importantNotes` and every entry of its `valueLabelReplacements`
+(the legend and header text for a value prop or a value) are authored as
+`TranslatableString` in the repo and resolved here, so a package carries the
+instance's language and nothing downstream re-resolves them. (Presets are not
+derived or stored here: they are projections of the manifest presets of the run
+a product points at, `lib/derive_presets.ts`.)
 
 ## Module settings and the run-keyed mounts
 
@@ -511,15 +516,16 @@ package and should not pin. Rulings, all deliberate:
 - **MCP reads the pin**. The `/mcp` surface is instance-level: its two metric
   tools, `get_available_metrics` and `get_metric_data`, read the pinned package
   under "All data" (`scopeId: "all-data"`) through the run-keyed instance
-  routes, gated on an approved user, and its methodology tools and `get_info`
-  read reference docs, not the package (S13); no package id appears in any tool
-  schema. It reads `getPinnedRunId` from the DB on EVERY call (never the 30 s
-  cached `InstanceState` copy), so a pin-move is visible on the next call; its
-  context cache is keyed `(token, runId)`. No pin is a typed state:
-  `get_overview` still answers (naming the fix: an admin with
-  `can_configure_data` pins one), the package tools fail with the same sentence.
-  Deploying to an instance with MCP users and no pin therefore takes their data
-  tools dark until someone pins. Prose in S13 principle 2.
+  routes, gated on an approved user, and its reference tools
+  (`get_reference_docs`, `get_reference_doc`) read reference docs, not the
+  package (S13); no package id appears in any tool schema. It reads
+  `getPinnedRunId` from the DB on EVERY call (never the 30 s cached
+  `InstanceState` copy), so a pin-move is visible on the next call; its context
+  cache is keyed `(token, runId)`. No pin is a typed state: `get_overview` still
+  answers (naming the fix: an admin with `can_configure_data` pins one), the
+  package tools fail with the same sentence. Deploying to an instance with MCP
+  users and no pin therefore takes their data tools dark until someone pins.
+  Prose in S13 principle 2.
 
 ## Scope
 
@@ -698,17 +704,20 @@ definitions verbatim (so existing parsers apply unchanged); pinned asset names +
 hashes; and the memoization fields (`inputKey` per module, content hashes per
 output file).
 
-**`manifestSchemaVersion` gates every read**, currently `13`
-(`RUN_MANIFEST_SCHEMA_VERSION`; v13 = every `modules[].moduleDefinition` blob
-declares `family`, `tier` and `sortOrder` (stamped for legacy blobs from
-`LEGACY_MODULE_PRESENTATION`) and `metrics[].datasetFamily` is the module's
-declared family, non-null, transform block 11; v12 = the
-`hfa_indicators_snapshot.json` mirror's rows carry `indicator_id` instead of
-`var_name`, input block 2; the manifest's own shape is unchanged and transform
-block 10 only stamps; v11 = `datasets[].info` holds exactly the keys
-`lib/types/run_datasets.ts` types for its family: the pre-1.72 HMIS stamp pair
-renamed `indicatorsVersion` / `countIndicatorsVersion`, and the keys nothing
-reads (`windowing`, `facilityColumnsConfig`, `maxAdminArea`,
+**`manifestSchemaVersion` gates every read**, currently `14`
+(`RUN_MANIFEST_SCHEMA_VERSION`; v14 = every `indicators[]` entry's `sort_order`
+is its rank within its own dimension, composed with the parent's rank for HFA
+sub-categories and variant items, recomputed by block 1 and stamped by block 12,
+with `PO_CACHE_VERSION` "28" since po_items carries the list; v13 = every
+`modules[].moduleDefinition` blob declares `family`, `tier` and `sortOrder`
+(stamped for legacy blobs from `LEGACY_MODULE_PRESENTATION`) and
+`metrics[].datasetFamily` is the module's declared family, non-null, transform
+block 11; v12 = the `hfa_indicators_snapshot.json` mirror's rows carry
+`indicator_id` instead of `var_name`, input block 2; the manifest's own shape is
+unchanged and transform block 10 only stamps; v11 = `datasets[].info` holds
+exactly the keys `lib/types/run_datasets.ts` types for its family: the pre-1.72
+HMIS stamp pair renamed `indicatorsVersion` / `countIndicatorsVersion`, and the
+keys nothing reads (`windowing`, `facilityColumnsConfig`, `maxAdminArea`,
 `calculatedIndicatorsVersion`, the HFA `_legacy` and `facilityColumnsHash`
 markers) dropped, transform block 9; v10 = the indicators mirror's `derived`
 rows read `calculated`, input block 1; the manifest's own shape is unchanged and
@@ -849,24 +858,22 @@ stored defaults merged with definition defaults. One shared check,
 inline invalid messages, and blocks the wizard's modules step with a note naming
 the modules whose stored default is invalid.
 
-**Country baseline.** Each country's store was frozen once into
-`module_defaults_baseline.json` in the public FASTR resource hub, keyed by
-instance id (contract on `ModuleDefaultsBaselineEntry` in
-`lib/types/run_generation.ts`). Each entry holds the raw store plus every
-param's effective value at the snapshot's modules gitRef. The status site's
-fill-missing script is its only writer. It reads each instance's
-`GET /module_defaults_snapshot` (`server/runs/module_defaults_baseline.ts`,
-gated by `status-api-key` like the other status routes), adds countries that
-have no entry, and never overwrites one. The same route feeds the status site's
-fleet matrix. The editor reads its own entry through
-`getModuleDefaultsBaseline`, a server-side fetch, so the client never needs its
-instance id. A missing file, a bad file or a missing entry all mean "no
-baseline", and the editor then shows no baseline controls. Otherwise it marks
-each family, module checkbox and param whose value differs from what a reset
-would show, and resets per param, per module or all. A reset restores the
-baseline's stored state: a param the baseline pinned is pinned to that value,
-and one it left unpinned is unpinned and follows the current definition default.
-Semantics, authoritative comment in `module_defaults.tsx`.
+**Global defaults.** The fleet's global parameter defaults sit in
+`module_defaults_global.json` in the public FASTR resource hub (contract on
+`ModuleDefaultsGlobalFile` in `lib/types/run_generation.ts`). For each param,
+the file holds the value most countries had when it was computed, frozen until
+it is deliberately recomputed. It covers parameters only: default families and
+pre-selected modules stay each country's own choice. The status site's compute
+script produces the file from every v2 country's `GET /module_defaults_snapshot`
+(`server/runs/module_defaults_global.ts`, gated by `status-api-key` like the
+other status routes), and it is committed by hand. The same route feeds the
+status site's fleet matrix. The editor reads the file through
+`getModuleDefaultsGlobal`, a server-side fetch. A missing or bad file means "no
+global defaults", and the editor then shows no global controls. Otherwise it
+marks each param whose value differs from its global value and resets per param,
+per module or all. A reset sets the global value: unpinned when that equals the
+current definition default, pinned otherwise. Semantics, authoritative comment
+in `module_defaults.tsx`.
 
 ## Generation (`server/worker_routines/generate_run/`)
 

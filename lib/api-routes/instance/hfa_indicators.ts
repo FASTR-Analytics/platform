@@ -15,7 +15,7 @@ import {
   HFA_INDICATOR_ID_REGEX,
   HFA_VARIANT_ITEM_ID_REGEX,
   isReservedHfaId,
-} from "../../hfa_r_code_analysis.ts";
+} from "../../hfa_indicator_code.ts";
 import { route } from "../route-utils.ts";
 
 const hfaIndicatorCategorySchema = z.object({
@@ -65,7 +65,7 @@ const hfaIndicatorVariantCodeSchema = z.object({
 });
 
 const RESERVED_INDICATOR_ID_MESSAGE =
-  "Indicator ID is a reserved word (an R function or operator used in indicator code, or a column the analysis script generates). Choose a different ID";
+  "Indicator ID is reserved: indicator code or the analysis script already gives it a meaning. Choose a different ID";
 
 const hfaIndicatorIdShapeSchema = z
   .string()

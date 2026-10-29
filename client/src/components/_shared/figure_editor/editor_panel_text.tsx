@@ -39,40 +39,42 @@ export function PresentationObjectEditorPanelText(p: Props) {
   // One caption field: CollabMarkdownEditor when bound, plain TextArea otherwise.
   // The CodeMirror path mirrors edits back into tempConfig (onTextChange) so the
   // preview re-renders; the config push then syncs the Y.Text (idempotent).
-  const CaptionField = (fp: {
+  function CaptionField(fp: {
     label: string;
     key: CaptionTextKey;
     height: string;
-  }) => (
-    <Show
-      when={captionText(fp.key)}
-      keyed
-      fallback={
-        <TextArea
-          label={fp.label}
-          value={p.tempConfig.t[fp.key]}
-          onChange={(v) => p.setTempConfig("t", fp.key, v)}
-          fullWidth
-          height={fp.height}
-        />
-      }
-    >
-      {(yText) => (
-        <div>
-          <label class="ui-label">{fp.label}</label>
-          <CollabMarkdownEditor
-            yText={yText}
-            awareness={p.captionCollab!.awareness}
-            canEdit={p.captionCollab!.canEdit()}
-            onTextChange={(v) => p.setTempConfig("t", fp.key, v)}
+  }) {
+    return (
+      <Show
+        when={captionText(fp.key)}
+        keyed
+        fallback={
+          <TextArea
+            label={fp.label}
+            value={p.tempConfig.t[fp.key]}
+            onChange={(v) => p.setTempConfig("t", fp.key, v)}
+            fullWidth
             height={fp.height}
-            plain
-            undoManager={p.captionCollab!.undoManager()}
           />
-        </div>
-      )}
-    </Show>
-  );
+        }
+      >
+        {(yText) => (
+          <div>
+            <label class="ui-label">{fp.label}</label>
+            <CollabMarkdownEditor
+              yText={yText}
+              awareness={p.captionCollab!.awareness}
+              canEdit={p.captionCollab!.canEdit()}
+              onTextChange={(v) => p.setTempConfig("t", fp.key, v)}
+              height={fp.height}
+              plain
+              undoManager={p.captionCollab!.undoManager()}
+            />
+          </div>
+        )}
+      </Show>
+    );
+  }
 
   return (
     <div

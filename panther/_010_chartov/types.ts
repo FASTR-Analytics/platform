@@ -95,9 +95,10 @@ export type ChartOVDataTransformed = {
   };
   scaleAxisLimits: ChartScaleAxisLimits;
   yScaleAxisLabel?: string;
-  // Per-pane visible indicator subsets (global indices, in global sorted
-  // order), present only for unbalanced indicator membership. Absent = every
-  // pane shows the full global set. Storage (values/bounds) stays dense.
+  // Per-pane indicator masks (global indices, in this pane's slot order),
+  // present under unbalanced indicator membership, proportional bands, or a
+  // value sort (then a full permutation per pane). Absent = every pane shows
+  // the full global set in storage order. Storage (values/bounds) stays dense.
   visibleIndicatorsByPane?: number[][];
   // Per-pane visible lane subsets (global indices), present only for
   // unbalanced lane membership. Same masking model as indicators: dropped

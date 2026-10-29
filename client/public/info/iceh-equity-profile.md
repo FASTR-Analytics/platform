@@ -1,6 +1,6 @@
 # ICEH equity profile — report recipe
 
-Load this (via `get_info`) when a user asks to create an ICEH / Countdown equity
+Read this (via `get_reference_doc`) when a user asks to create an ICEH / Countdown equity
 profile. It is the recipe for building one as an in-app **report** — a markdown
 narrative with embedded live figures — and works for **any country**: it reads
 whatever ICEH (Retriever) survey data the results package holds and reproduces
@@ -19,8 +19,8 @@ available first, then build the report, then write the narrative around the
 figures. Skip any element whose data is missing rather than inventing it.
 
 > For authoritative definitions, indicator codes, stratifiers, the CCI and the
-> inequality-measure methods and caveats, also load the **`iceh`** topic with
-> `get_info`. This recipe summarises only what you need to drive the build; the
+> inequality-measure methods and caveats, also read the **`iceh`** document with
+> `get_reference_doc`. This recipe summarises only what you need to drive the build; the
 > `iceh` reference is the source of truth for the domain facts.
 
 ## What an ICEH equity profile is

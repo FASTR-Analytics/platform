@@ -767,11 +767,11 @@ export function EditIndicatorForm(
       })
       : t3({
         en:
-          "The DHIS2 data element UID or UID.COC operand the import fetches. Its rows are stored under this id.",
+          "The DHIS2 data element UID or UID.COC operand the import fetches. Its rows are stored under this id. On save, DHIS2 is asked to confirm that the id is a data element or operand that Add from DHIS2 would accept.",
         fr:
-          "L'UID d'élément de données ou l'opérande UID.COC que l'importation récupère. Ses lignes sont conservées sous cet identifiant.",
+          "L'UID d'élément de données ou l'opérande UID.COC que l'importation récupère. Ses lignes sont conservées sous cet identifiant. À l'enregistrement, DHIS2 est interrogé pour confirmer que l'identifiant est un élément de données ou un opérande qu'Ajouter depuis DHIS2 accepterait.",
         pt:
-          "O UID de elemento de dados ou o operando UID.COC que a importação obtém. As suas linhas são guardadas sob este ID.",
+          "O UID de elemento de dados ou o operando UID.COC que a importação obtém. As suas linhas são guardadas sob este ID. Ao guardar, o DHIS2 é consultado para confirmar que o ID é um elemento de dados ou operando que Adicionar do DHIS2 aceitaria.",
       });
 
   return (
@@ -790,17 +790,21 @@ export function EditIndicatorForm(
       width="xl"
       form
       onCancel={() => p.close(undefined)}
-      footer={deleteAction && (
-        <Button
-          type="button"
-          outline
-          intent="danger"
-          iconName="trash"
-          onClick={() => deleteAction.click()}
-        >
-          {t3(TC.delete)}
-        </Button>
-      )}
+      footer={
+        <Show when={deleteAction} keyed>
+          {(del) => (
+            <Button
+              type="button"
+              outline
+              intent="danger"
+              iconName="trash"
+              onClick={() => del.click()}
+            >
+              {t3(TC.delete)}
+            </Button>
+          )}
+        </Show>
+      }
       actions={[{
         label: t3({ en: "Save", fr: "Sauvegarder", pt: "Guardar" }),
         onClick: save.click,

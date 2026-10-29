@@ -23,9 +23,20 @@ export function setNavCollapsed(collapsed: boolean) {
   setNavCollapsedInternal(collapsed);
 }
 
-// Debug: true makes each new user message in the copilot chat show the exact
-// text sent to the model, context block included, as raw text.
-export const SHOW_SENT_CONTEXT = false;
+// Debug: the copilot's wire, for a tester or an agent. On when localStorage
+// holds "1" under this key at page load: each new user bubble shows the exact
+// text sent to the model, context block included, and `window.__copilot`
+// exposes every request the chat sent and what the next one would carry
+// (components/instance/copilot/debug_api.ts). Read once: set it, then reload.
+export const AI_DEBUG_KEY = "fastr:ai-debug";
+function readAiDebug(): boolean {
+  try {
+    return localStorage.getItem(AI_DEBUG_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+export const AI_DEBUG = readAiDebug();
 
 // The shell's one full-page wrapper. `ShellEditorWrapper` wraps the whole
 // frame (header, rail and tab page), so a view opened through

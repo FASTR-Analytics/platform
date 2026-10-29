@@ -21,10 +21,9 @@ CREATE TABLE users (
   is_contact_person boolean NOT NULL DEFAULT false,
   -- FALSE = restricted to the scopes in user_scopes. Ignored for a global
   -- admin. After the permission bits because migration 205 adds it to a live
-  -- table; the profile columns follow it for the same reason (219).
+  -- table; organisation follows it for the same reason (219).
   all_scopes boolean NOT NULL DEFAULT TRUE,
-  organisation text,
-  role text
+  organisation text
 );
 
 -- Results runs catalog.

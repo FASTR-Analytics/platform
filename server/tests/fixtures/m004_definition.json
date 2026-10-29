@@ -244,9 +244,21 @@
         "year"
       ],
       "valueLabelReplacements": {
-        "coverage_original_estimate": "Survey-based estimate (when available)",
-        "coverage_avgsurveyprojection": "Projected survey estimate (when survey data is missing)",
-        "coverage_cov": "Coverage calculated from HMIS data"
+        "coverage_original_estimate": {
+          "en": "Survey-based estimate (when available)",
+          "fr": "Estimation basée sur des enquêtes (si disponible)",
+          "pt": "Estimativa baseada em inquéritos (quando disponível)"
+        },
+        "coverage_avgsurveyprojection": {
+          "en": "Projected survey estimate (when survey data is missing)",
+          "fr": "Estimation d'enquête projetée (en l'absence de données d'enquête)",
+          "pt": "Estimativa de inquérito projetada (quando faltam dados de inquérito)"
+        },
+        "coverage_cov": {
+          "en": "Coverage calculated from HMIS data",
+          "fr": "Couverture calculée à partir des données HMIS",
+          "pt": "Cobertura calculada a partir dos dados HMIS"
+        }
       },
       "postAggregationExpression": null,
       "catalogExpressionEvaluation": null,
@@ -366,7 +378,11 @@
         "year"
       ],
       "valueLabelReplacements": {
-        "coverage_cov": "Coverage calculated from HMIS data"
+        "coverage_cov": {
+          "en": "Coverage calculated from HMIS data",
+          "fr": "Couverture calculée à partir des données HMIS",
+          "pt": "Cobertura calculada a partir dos dados HMIS"
+        }
       },
       "postAggregationExpression": null,
       "catalogExpressionEvaluation": null,
@@ -556,7 +572,11 @@
         "year"
       ],
       "valueLabelReplacements": {
-        "coverage_cov": "Coverage calculated from HMIS data"
+        "coverage_cov": {
+          "en": "Coverage calculated from HMIS data",
+          "fr": "Couverture calculée à partir des données HMIS",
+          "pt": "Cobertura calculada a partir dos dados HMIS"
+        }
       },
       "postAggregationExpression": null,
       "catalogExpressionEvaluation": null,

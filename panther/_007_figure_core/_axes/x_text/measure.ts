@@ -21,8 +21,9 @@ export function measureXTextAxis(
   indicatorHeaders: HeaderItem[],
   axisStyle: MergedXTextAxisStyle,
   gridStyle: MergedGridStyle,
-  // Unbalanced indicator membership: this pane's visible subset drives the
-  // slot/tick LAYOUT, while the axis EXTENT (height) stays measured from the
+  // This pane's indicator order (a subset under unbalanced membership, a
+  // permutation under a value sort) drives the slot/tick LAYOUT, while the
+  // axis EXTENT (height) stays measured from the
   // global set at the global slot width. Per-pane extents would give panes
   // different plot rects and break cross-pane scale-direction alignment; the
   // global measure is a safe upper bound (a subset at a wider slot never

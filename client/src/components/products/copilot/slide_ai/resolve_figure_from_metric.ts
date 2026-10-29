@@ -9,7 +9,10 @@ import { AIToolFailure } from "panther";
 import { resolveBundleFromMetricAndConfig } from "~/generate_visualization/mod";
 import { getAdminAreaLevelFromMapConfig } from "~/generate_visualization/get_admin_area_level_from_config";
 import { createCopilotAIToolEnv } from "~/components/instance/copilot/mod.ts";
-import { instanceState } from "~/state/instance/t1_store";
+import {
+  getSnapshotInstanceLocalization,
+  instanceState,
+} from "~/state/instance/t1_store";
 import { geoJsonFamilyFor } from "~/state/instance/t2_geojson";
 import { buildConfigFromPreset } from "./build_config_from_preset";
 
@@ -60,6 +63,7 @@ export async function resolveFigureFromMetric(
     scope,
     resultsValue,
     config,
+    getSnapshotInstanceLocalization(),
   );
   return { type: "figure", bundle };
 }

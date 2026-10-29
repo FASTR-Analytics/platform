@@ -190,7 +190,8 @@ export function EditableList<T extends string, M = never>(
               intent="primary"
               size="sm"
             >
-              {p.addLabel ?? t3({ en: "Add", fr: "Ajouter", pt: "Adicionar" })}
+              {p.addLabel ??
+                t3({ en: "Add", fr: "Ajouter", pt: "Adicionar", th: "เพิ่ม" })}
             </Button>
           </Show>
         </div>
@@ -205,6 +206,7 @@ export function EditableList<T extends string, M = never>(
                 en: "Nothing here yet",
                 fr: "Rien pour le moment",
                 pt: "Ainda não há nada aqui",
+                th: "ยังไม่มีรายการ",
               })}
           </div>
         }

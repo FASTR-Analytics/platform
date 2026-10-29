@@ -201,6 +201,7 @@ export function createUpdateFigureTool(
         view.context.getScope(),
         metric,
         newConfig,
+        bundle.localization,
       );
 
       // Slot-collision check needs the data's real dateRange (degeneracy) so it

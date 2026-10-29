@@ -38,12 +38,10 @@ export function generatePointPrimitives(
       if (mappedVal === undefined) continue;
 
       const valueInfo = buildValueInfo(
+        ctx,
         seriesInfos[i_series],
         mappedVal.val,
         i_val,
-        ctx.valueRange.minVal,
-        ctx.valueRange.maxVal,
-        ctx.indicatorHeaders?.[i_val],
       );
       const pointStyle = s.points.getStyle(valueInfo);
       if (!pointStyle.show) continue;

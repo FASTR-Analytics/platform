@@ -178,6 +178,7 @@ export function getClientToolsForFigureEditor(
           view.context.getScope(),
           metric,
           newConfig,
+          view.context.getLocalization(),
         );
         assertNoSlotCollision(
           newConfig,

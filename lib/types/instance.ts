@@ -14,7 +14,7 @@ import {
   GenericLongFormFetchConfig,
   PeriodBounds,
 } from "./presentation_objects.ts";
-import type { Language } from "@timroberton/panther";
+import type { Language } from "../translate/types.ts";
 
 // ============================================================================
 // API Response Types
@@ -215,20 +215,56 @@ export type AdminAreaColumn =
   | "admin_area_3"
   | "admin_area_4";
 
-// Helper to get list of enabled optional facility columns
+type IncludeFlagKey = {
+  [K in keyof StructureColumns]-?: StructureColumns[K] extends boolean ? K
+    : never;
+}[keyof StructureColumns];
+type LabelKey = Exclude<keyof StructureColumns, IncludeFlagKey>;
+
+export const OPTIONAL_FACILITY_COLUMN_KEYS: Record<
+  OptionalFacilityColumn,
+  { include: IncludeFlagKey; label: LabelKey }
+> = {
+  facility_name: { include: "includeNames", label: "labelNames" },
+  facility_type: { include: "includeTypes", label: "labelTypes" },
+  facility_ownership: { include: "includeOwnership", label: "labelOwnership" },
+  facility_custom_1: { include: "includeCustom1", label: "labelCustom1" },
+  facility_custom_2: { include: "includeCustom2", label: "labelCustom2" },
+  facility_custom_3: { include: "includeCustom3", label: "labelCustom3" },
+  facility_custom_4: { include: "includeCustom4", label: "labelCustom4" },
+  facility_custom_5: { include: "includeCustom5", label: "labelCustom5" },
+};
+
+export const CUSTOM_FACILITY_COLUMNS: OptionalFacilityColumn[] = [
+  "facility_custom_1",
+  "facility_custom_2",
+  "facility_custom_3",
+  "facility_custom_4",
+  "facility_custom_5",
+];
+
 export function getEnabledOptionalFacilityColumns(
   config: StructureColumns,
 ): OptionalFacilityColumn[] {
-  const columns: OptionalFacilityColumn[] = [];
-  if (config.includeNames) columns.push("facility_name");
-  if (config.includeTypes) columns.push("facility_type");
-  if (config.includeOwnership) columns.push("facility_ownership");
-  if (config.includeCustom1) columns.push("facility_custom_1");
-  if (config.includeCustom2) columns.push("facility_custom_2");
-  if (config.includeCustom3) columns.push("facility_custom_3");
-  if (config.includeCustom4) columns.push("facility_custom_4");
-  if (config.includeCustom5) columns.push("facility_custom_5");
-  return columns;
+  return _OPTIONAL_FACILITY_COLUMNS.filter((column) =>
+    config[OPTIONAL_FACILITY_COLUMN_KEYS[column].include]
+  );
+}
+
+// The schema with the given columns switched on. A label is written only for
+// a column being switched on here, so an existing label is never overwritten.
+export function withOptionalFacilityColumnsEnabled<T extends StructureColumns>(
+  schema: T,
+  columns: { column: OptionalFacilityColumn; label?: string }[],
+): T {
+  const next = { ...schema };
+  for (const { column, label } of columns) {
+    const keys = OPTIONAL_FACILITY_COLUMN_KEYS[column];
+    if (next[keys.include]) continue;
+    next[keys.include] = true;
+    if (label) next[keys.label] = label;
+  }
+  return next;
 }
 
 // Canonical string representation for staleness comparison: the include
@@ -265,15 +301,12 @@ export type GlobalUser = {
   lastName: string;
   // The user's own words, from their profile; null until they say.
   organisation: string | null;
-  role: string | null;
   approved: boolean;
   isGlobalAdmin: boolean;
   thisUserPermissions: UserPermissions;
   unlimitedAi: boolean;
   scopeAccess: ScopeAccess;
 };
-
-export type UserProfile = Pick<GlobalUser, "organisation" | "role">;
 
 // The roster row carries the STORED permission bits; a restricted user's
 // effective bits are permissionsUnderScopeAccess of them.
@@ -283,7 +316,6 @@ export type OtherUser = {
   firstName?: string;
   lastName?: string;
   organisation?: string;
-  role?: string;
   unlimitedAi: boolean;
   isContactPerson: boolean;
   scopeAccess: ScopeAccess;
@@ -380,7 +412,6 @@ export function createDevGlobalUser(
     firstName: "Dev",
     lastName: "User",
     organisation: null,
-    role: null,
     approved: true,
     isGlobalAdmin: true,
     thisUserPermissions: {

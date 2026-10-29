@@ -36,7 +36,7 @@ const patchSchema = z.object({
   code: z.array(z.object({
     timePoint: z.string(),
     rCode: z.string().optional().describe(
-      "The round's R code; omit to keep it.",
+      "The round's indicator code; omit to keep it.",
     ),
     rFilterCode: z.string().optional().describe(
       "The round's filter code, an empty string to clear it; omit to keep it.",
@@ -235,7 +235,7 @@ export function getClientToolsForHfaIndicatorEditor() {
       name: "get_hfa_indicator_editor",
       availableIn: COPILOT_TOOL_VIEWS.get_hfa_indicator_editor,
       description:
-        "Read the HFA indicator open in the code editor as its unsaved draft stands: the labels, type, aggregation, category, sub-category and service categories, the R code and filter code of every round with the issues the editor's validation finds in each, whether the rounds agree, and the round the user is looking at. Call this before update_hfa_indicator_editor.",
+        "Read the HFA indicator open in the code editor as its unsaved draft stands: the labels, type, aggregation, category, sub-category and service categories, the indicator code and filter code of every round with the issues the editor's validation finds in each, whether the rounds agree, and the round the user is looking at. Call this before update_hfa_indicator_editor.",
       inputSchema: z.object({}),
       kind: "read",
       handler: (_input, view) =>
@@ -258,7 +258,7 @@ export function getClientToolsForHfaIndicatorEditor() {
       name: "update_hfa_indicator_editor",
       availableIn: COPILOT_TOOL_VIEWS.update_hfa_indicator_editor,
       description:
-        "Change the HFA indicator open in the code editor. Provide only the fields to change (labels, type, aggregation, category, sub-category, service categories, per-round R code and filter code); everything else is kept. The change lands in the editor's draft like the user's own edit, unsaved: the user keeps it with Save or discards it with Cancel. Ids are checked against the taxonomy and the editor's rounds before anything changes. Call get_hfa_indicator_editor first.",
+        "Change the HFA indicator open in the code editor. Provide only the fields to change (labels, type, aggregation, category, sub-category, service categories, per-round indicator code and filter code); everything else is kept. The change lands in the editor's draft like the user's own edit, unsaved: the user keeps it with Save or discards it with Cancel. Ids are checked against the taxonomy and the editor's rounds before anything changes. Call get_hfa_indicator_editor first.",
       inputSchema: patchSchema,
       kind: "write",
       handler: (input, view) => {

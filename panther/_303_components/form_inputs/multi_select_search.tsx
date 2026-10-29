@@ -40,6 +40,7 @@ export function MultiSelectSearch<T extends string>(
   // pinned first) so rows don't jump around while the user toggles.
   const [pinned, setPinned] = createSignal<ReadonlySet<string>>(new Set());
   const panel = createComboBoxPanel({
+    width: "trigger",
     onOpen: () => setPinned(new Set<string>(p.values)),
   });
 
@@ -162,11 +163,13 @@ export function MultiSelectSearch<T extends string>(
               en: "Select all matching",
               fr: "Sélectionner toutes les correspondances",
               pt: "Selecionar todas as correspondências",
+              th: "เลือกทั้งหมดที่ตรงกัน",
             })
             : t3({
               en: "Select all",
               fr: "Tout sélectionner",
               pt: "Selecionar tudo",
+              th: "เลือกทั้งหมด",
             })}
         </span>
         <span class="text-base-content-muted flex-none select-none text-xs">
@@ -217,6 +220,7 @@ export function MultiSelectSearch<T extends string>(
               en: "No matching options",
               fr: "Aucune option correspondante",
               pt: "Sem opções correspondentes",
+              th: "ไม่มีตัวเลือกที่ตรงกัน",
             })}
           </div>
         </Show>

@@ -1,8 +1,10 @@
 import { Sql } from "postgres";
 import {
+  _OPTIONAL_FACILITY_COLUMNS,
   _RECODABLE_FACILITY_COLUMNS,
   APIResponseNoData,
   APIResponseWithData,
+  CUSTOM_FACILITY_COLUMNS,
   type DatasetHfaCsvStagingResult,
   decodeHfaAdminTuple,
   getEnabledOptionalFacilityColumns,
@@ -13,6 +15,7 @@ import {
   type HfaFacilityColumns,
   type HfaImportRunProgress,
   type HfaImportRunSummary,
+  type HfaOptionalColumnMapping,
   type OptionalFacilityColumn,
   parseJsonOrThrow,
   parseJsonOrUndefined,
@@ -122,7 +125,8 @@ async function assertHfaImportSlotFree(mainDb: Sql): Promise<void> {
 
 // Level 1 is one non-blank value. Levels 2 to the admin depth are mapped all
 // or none, and all when the registry is empty, since every facility is then
-// new and needs its tuple. Optional columns are the enabled set's.
+// new and needs its tuple. Any optional column may be mapped; a custom column
+// the schema has not switched on carries the label it will be shown under.
 function cleanHfaFacilityColumns(
   facilityColumns: HfaFacilityColumns,
   schema: StructureSchema,
@@ -150,17 +154,35 @@ function cleanHfaFacilityColumns(
     );
   }
   const enabled = getEnabledOptionalFacilityColumns(schema);
-  const disabled = Object.keys(facilityColumns.optional).filter((c) =>
-    !enabled.includes(c as OptionalFacilityColumn)
-  );
-  if (disabled.length > 0) {
-    throw new Error(
-      `The HFA structure schema does not enable ${disabled.join(", ")}.`,
-    );
+  const optional: HfaFacilityColumns["optional"] = {};
+  for (
+    const [column, mapping] of Object.entries(facilityColumns.optional) as [
+      OptionalFacilityColumn,
+      HfaOptionalColumnMapping,
+    ][]
+  ) {
+    if (!_OPTIONAL_FACILITY_COLUMNS.includes(column)) {
+      throw new Error(`"${column}" is not a facility column.`);
+    }
+    const needsLabel = CUSTOM_FACILITY_COLUMNS.includes(column) &&
+      !enabled.includes(column);
+    const label = mapping.label?.trim();
+    if (needsLabel && !label) {
+      throw new Error(
+        `Give a label for ${column}: this import adds it to the HFA facility list.`,
+      );
+    }
+    optional[column] = {
+      header: mapping.header,
+      ...(mapping.correctionHeader
+        ? { correctionHeader: mapping.correctionHeader }
+        : {}),
+      ...(needsLabel ? { label } : {}),
+    };
   }
   const headers = [
     ...facilityColumns.adminAreas,
-    ...Object.values(facilityColumns.optional),
+    ...Object.values(optional),
   ];
   if (headers.some((h) => h.correctionHeader === h.header)) {
     throw new Error("A correction column must differ from its column.");
@@ -170,7 +192,7 @@ function cleanHfaFacilityColumns(
     adminAreas: facilityColumns.adminAreas.toSorted((a, b) =>
       a.level - b.level
     ),
-    optional: facilityColumns.optional,
+    optional,
   };
 }
 

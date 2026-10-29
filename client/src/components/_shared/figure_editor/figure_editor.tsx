@@ -2,6 +2,7 @@ import { trackStore } from "@solid-primitives/deep";
 import {
   type FastrChartPalette,
   FIGURE_EXPORT_WIDTH_PX,
+  type FigureLocalization,
   getEffectivePOConfig,
   getReplicateByProp,
   getSingleValueDimsFromPossibleValues,
@@ -114,6 +115,8 @@ type InnerProps = {
   metric: MetricWithStatus;
   label: string;
   configSnapshot: PresentationObjectConfig;
+  /** The edited figure's own localization (VisualizationEditorProps). */
+  localization: FigureLocalization;
   /** The chat view this editor sets (VisualizationEditorProps). */
   aiView: FigureEditorView;
   authoringContext: RunAuthoringContext;
@@ -189,6 +192,7 @@ export function VisualizationEditorInner(p: InnerProps) {
     getRunId: () => scope().runId,
     getMetric: () => metric,
     getDraftConfig: () => unwrap(tempConfig),
+    getLocalization: () => p.localization,
     applyDraftConfig: (config) => setTempConfig(reconcile(config)),
   });
 
@@ -280,13 +284,17 @@ export function VisualizationEditorInner(p: InnerProps) {
         if (binding && binding.isLive()) {
           try {
             binding.onCoherentBundle(
-              makeFigureBundleFromFetchedData(fetchScope, {
-                resultsValue: metric,
-                ih: lastState.data.ih as Parameters<
-                  typeof makeFigureBundleFromFetchedData
-                >[1]["ih"],
-                effectiveConfig: lastState.data.config,
-              }),
+              makeFigureBundleFromFetchedData(
+                fetchScope,
+                {
+                  resultsValue: metric,
+                  ih: lastState.data.ih as Parameters<
+                    typeof makeFigureBundleFromFetchedData
+                  >[1]["ih"],
+                  effectiveConfig: lastState.data.config,
+                },
+                p.localization,
+              ),
             );
           } catch {
             // Transient (e.g. mid-edit shape mismatch); the next refetch re-coheres.
@@ -650,13 +658,17 @@ export function VisualizationEditorInner(p: InnerProps) {
     const downloadScope = scope();
     let figureInputs;
     try {
-      const bundle = makeFigureBundleFromFetchedData(downloadScope, {
-        resultsValue: metric,
-        ih: ih.data.ih as Parameters<
-          typeof makeFigureBundleFromFetchedData
-        >[1]["ih"],
-        effectiveConfig: ih.data.config,
-      });
+      const bundle = makeFigureBundleFromFetchedData(
+        downloadScope,
+        {
+          resultsValue: metric,
+          ih: ih.data.ih as Parameters<
+            typeof makeFigureBundleFromFetchedData
+          >[1]["ih"],
+          effectiveConfig: ih.data.config,
+        },
+        p.localization,
+      );
       figureInputs = buildFigureInputs(bundle, undefined, p.chartPalette?.());
     } catch {
       await openAlert({ text: "Could not get figure", intent: "danger" });
@@ -1062,6 +1074,7 @@ export function VisualizationEditorInner(p: InnerProps) {
                                     >[1]["ih"],
                                     effectiveConfig: keyedItemsHolder.config,
                                   },
+                                  p.localization,
                                 );
                                 return {
                                   status: "ready" as const,

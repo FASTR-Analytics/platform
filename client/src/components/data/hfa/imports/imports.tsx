@@ -166,18 +166,6 @@ export function DatasetHfaImports(p: Props) {
                         pt: "Nenhuma importação em curso.",
                       })}
                     </div>
-                    <Show when={instanceState.hfaTimePoints.length === 0}>
-                      <div class="text-sm">
-                        {t3({
-                          en:
-                            "Create a time point on the time points page before importing data.",
-                          fr:
-                            "Créez un point temporel sur la page des points temporels avant d'importer des données.",
-                          pt:
-                            "Crie um ponto temporal na página dos pontos temporais antes de importar dados.",
-                        })}
-                      </div>
-                    </Show>
                     <Button onClick={openWizard} iconName="upload">
                       {t3({
                         en: "New import",

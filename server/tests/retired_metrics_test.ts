@@ -12,6 +12,7 @@ import {
   figurePackageIssueForMetrics,
   getFetchConfigFromPresentationObjectConfig,
   type Language,
+  LANGUAGES,
   type MetricDefinitionGithub,
   type ModuleDefinitionGithub,
   moduleDefinitionGithubSchema,
@@ -20,6 +21,7 @@ import {
   resolveFigureMetric,
   resolveTS,
   RETIRED_METRICS,
+  type RetiredMetric,
   retiredMetric,
   type StoredFigure,
   succeedRetiredFigure,
@@ -32,7 +34,6 @@ import {
 } from "./_module_definitions.ts";
 
 const MODULES_DIR = Deno.env.get("FASTR_MODULES_LOCAL_DIR");
-const LANGUAGES: Language[] = ["en", "fr", "pt"];
 
 // m003 and m004 as the modules repo last built them, before their deletion,
 // with the presentation facts the manifest transform stamps on a blob written
@@ -522,13 +523,60 @@ Deno.test("retired: a user's own text is kept, a preset's text is replaced in th
     "Services observés vs attendus avec intervalle de crédibilité à 95%",
   );
 
-  // A translation the successor lacks is kept rather than replaced by the
-  // English fallback; a text the successor drops is cleared whatever the
-  // language.
+  // Portuguese is replaced like the other two, and a text the successor
+  // drops is cleared whatever the language.
   const pt = presetConfig(preset, "pt");
-  const kept = succeed(stored("m3-02-01", pt, "pt")).config;
-  assertEquals(kept.t.caption, pt.t.caption);
-  assertEquals(kept.t.footnote, "");
+  const inPt = succeed(stored("m3-02-01", pt, "pt")).config;
+  assertEquals(
+    inPt.t.caption,
+    "Serviços observados vs esperados com intervalo de credibilidade de 95%",
+  );
+  assertEquals(inPt.t.footnote, "");
+});
+
+// swapTexts' own rule, which no real pair exercises while every successor text
+// carries all three languages: an English caption is not an improvement on a
+// Portuguese one, so a successor text missing the figure's language leaves the
+// stored text alone. Synthetic, because the rule must survive the next
+// successor text that ships untranslated.
+Deno.test("retired: a successor text without the figure's language keeps the stored text", () => {
+  const retired: RetiredMetric = {
+    id: "test-only",
+    moduleId: "m000",
+    moduleLabel: { en: "Test module", fr: "Module de test" },
+    label: { en: "Test metric", fr: "Métrique de test" },
+    successor: () => ({
+      metricId: "test-only-successor",
+      moduleId: "m000",
+      valueProps: {},
+      texts: [{
+        from: {
+          en: "Old caption",
+          fr: "Ancienne légende",
+          pt: "Legenda antiga",
+        },
+        to: { en: "New caption", fr: "Nouvelle légende" },
+      }],
+    }),
+  };
+  const base = presetConfig(
+    presetOf(retiredDefinitionMetric("m3-02-01"), "disruption-chart"),
+    "en",
+  );
+  const withCaption = (caption: string): PresentationObjectConfig => ({
+    ...base,
+    t: { ...base.t, caption },
+  });
+  assertEquals(
+    succeedRetiredFigure(retired, withCaption("Legenda antiga"), "pt").config.t
+      .caption,
+    "Legenda antiga",
+  );
+  assertEquals(
+    succeedRetiredFigure(retired, withCaption("Ancienne légende"), "fr").config
+      .t.caption,
+    "Nouvelle légende",
+  );
 });
 
 // Checks against the successor definitions

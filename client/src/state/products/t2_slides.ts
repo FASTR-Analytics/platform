@@ -5,15 +5,19 @@ import { createReactiveCache } from "../_infra/reactive_cache";
 // One slide's content, versioned by its own optimistic-lock stamp (the
 // `last_updated` message): per-entity (Variant B), so a flip is one
 // incremental change to the slide on screen and consumers leave stale
-// content visible while the refetch runs. Slide ids are instance-wide unique,
-// so the slide id alone is the uniqueness key; the product id only
-// scopes the read on the wire.
+// content visible while the refetch runs. The DECK is part of the uniqueness
+// key: ids are unique over the LIVE rows only (`generateUniqueSlideId` checks
+// nothing else), so a deleted slide's id is free to be re-minted in another
+// deck, and a removal stamps nothing for the row it removed, so this client's
+// entry for the old row stays reachable at the old stamp. Keyed by the id
+// alone, that entry would be served as the successor's content the first time
+// this client could see the deck that re-minted it.
 export const _SLIDE_CACHE = createReactiveCache<
   { productId: string; slideId: string },
   SlideWithMeta
 >({
   name: "slide",
-  uniquenessKeys: (p) => [p.slideId],
+  uniquenessKeys: (p) => [p.productId, p.slideId],
   versionKey: (p, ins) => ins.lastUpdated.slides[p.slideId] ?? "unknown",
 });
 

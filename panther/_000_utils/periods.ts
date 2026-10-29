@@ -217,6 +217,7 @@ const QUARTER_PREFIX_BY_LANG: Record<Language, string> = {
   en: "Q",
   fr: "T",
   pt: "T",
+  th: "Q",
 };
 
 const MONTHS_THREE_CHARS_BY_LANG: Record<Language, string[]> = {
@@ -261,6 +262,20 @@ const MONTHS_THREE_CHARS_BY_LANG: Record<Language, string[]> = {
     "Out",
     "Nov",
     "Dez",
+  ],
+  th: [
+    "ม.ค.",
+    "ก.พ.",
+    "มี.ค.",
+    "เม.ย.",
+    "พ.ค.",
+    "มิ.ย.",
+    "ก.ค.",
+    "ส.ค.",
+    "ก.ย.",
+    "ต.ค.",
+    "พ.ย.",
+    "ธ.ค.",
   ],
 };
 

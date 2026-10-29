@@ -103,14 +103,7 @@ function collectEndpoints(
       if (!joinAcrossGaps && endpoints.length > 0) break;
       continue;
     }
-    const valueInfo = buildValueInfo(
-      seriesInfos[i_series],
-      m.val,
-      i_val,
-      ctx.valueRange.minVal,
-      ctx.valueRange.maxVal,
-      ctx.indicatorHeaders?.[i_val],
-    );
+    const valueInfo = buildValueInfo(ctx, seriesInfos[i_series], m.val, i_val);
     const pointStyle = s.points.getStyle(valueInfo);
     endpoints.push({
       coord: m.coords,
@@ -131,8 +124,8 @@ function buildConnectorInfo(
 ): ChartConnectorInfo {
   return {
     i_val,
-    isFirstVal: i_val === 0,
-    isLastVal: i_val === ctx.nVals - 1,
+    isFirstVal: i_val === ctx.slotOrder[0],
+    isLastVal: i_val === ctx.slotOrder[ctx.slotOrder.length - 1],
     valueMin: ctx.valueRange.minVal,
     valueMax: ctx.valueRange.maxVal,
     nVals: ctx.nVals,

@@ -21,9 +21,9 @@ export const HELP_TARGETS = {
     title: { en: "Opening the assistant", fr: "Ouvrir l'assistant" },
     summary: {
       en:
-        "Click AI in any project view to open the assistant panel on the right side of the screen. The panel stays open as you navigate between visualizations, slide decks, and other sections - the AI tracks…",
+        "Click the Ask AI button at the bottom-right edge of the screen to open the assistant panel. The panel slides in alongside your current view. To close it, click the chevron button in the panel header…",
       fr:
-        "Cliquez sur IA dans n'importe quelle vue de projet pour ouvrir le panneau de l'assistant sur le côté droit de l'écran. Le panneau reste ouvert lorsque vous naviguez entre les visualisations, les…",
+        "Cliquez sur le bouton Demander à l'IA en bas à droite de l'écran pour ouvrir le panneau de l'assistant. Le panneau s'affiche en regard de votre vue actuelle. Pour le fermer, cliquez sur le bouton…",
     },
   },
   "ai-prompt-library": {
@@ -94,7 +94,7 @@ export const HELP_TARGETS = {
     title: { en: "Creating a project", fr: "Créer un projet" },
     summary: {
       en:
-        'Any user with the "Create projects" permission can start a new project from the home screen. Click Create project, enter a name that identifies the project\'s scope, and choose a project scope —…',
+        'Any user with the "Create projects" permission can start a new project from the home screen. Click Create project, enter a name that identifies the project\'s scope, and choose a scope. The scope…',
       fr:
         "Tout utilisateur disposant de la permission « Créer des projets » peut démarrer un nouveau projet depuis l'écran d'accueil. Cliquez sur Créer un projet, saisissez un nom qui identifie la portée du…",
     },
@@ -172,9 +172,9 @@ export const HELP_TARGETS = {
     },
     summary: {
       en:
-        "Content slides use a flexible layout system with one or more content blocks. A block can hold text (formatted with markdown), a visualization from your project, or an uploaded image. To add a…",
+        "Content slides use a flexible layout system with one or more content blocks. A block can hold text (formatted with markdown), a visualization from the deck's results package, or an uploaded image. To…",
       fr:
-        "Les diapositives de contenu utilisent un système de mise en page flexible composé d'un ou plusieurs blocs de contenu. Un bloc peut contenir du texte (mis en forme avec Markdown), une visualisation de…",
+        "Les diapositives de contenu utilisent un système de mise en page flexible composé d'un ou plusieurs blocs de contenu. Un bloc peut contenir du texte (mis en forme avec Markdown), une visualisation…",
     },
   },
   "deck-create": {
@@ -183,9 +183,9 @@ export const HELP_TARGETS = {
     title: { en: "Creating a slide deck", fr: "Créer une présentation" },
     summary: {
       en:
-        "Open your project and click Slide decks in the left sidebar. Click Create slide deck to start. You'll name it and optionally assign it to a folder for organization. A new deck starts empty. The left…",
+        "Open the Products tab on your instance home screen. Slide decks appear as cards in the product explorer alongside reports. Click New and choose New deck to create one — a dialog opens where you name…",
       fr:
-        "Ouvrez votre projet et cliquez sur Présentations dans la barre latérale gauche. Cliquez sur Créer une présentation pour commencer. Vous lui donnerez un nom et pourrez éventuellement l'affecter à un…",
+        "Ouvrez l'onglet Produits sur l'écran d'accueil de votre instance. Les présentations apparaissent sous forme de cartes dans l'explorateur de produits, aux côtés des rapports. Cliquez sur Nouveau et…",
     },
   },
   "deck-export": {
@@ -194,9 +194,9 @@ export const HELP_TARGETS = {
     title: { en: "Exporting and sharing", fr: "Exporter et partager" },
     summary: {
       en:
-        "Click Download to export your deck. Native PDF produces a high-quality vector file where text stays sharp at any zoom level. PPTX with raster figures creates a PowerPoint file with visualizations…",
+        "Click Download to export your deck. Native PDF produces a high-quality vector file where text stays sharp at any zoom level. PPTX with raster visualizations creates a PowerPoint file with…",
       fr:
-        "Cliquez sur Télécharger pour exporter votre présentation. PDF natif produit un fichier vectoriel de haute qualité où le texte reste net à n'importe quel niveau de zoom. PPTX avec figures matricielles…",
+        "Cliquez sur Télécharger pour exporter votre présentation. PDF natif produit un fichier vectoriel de haute qualité où le texte reste net à n'importe quel niveau de zoom. PPTX avec visualisations…",
     },
   },
   "hfa-import": {
@@ -216,9 +216,9 @@ export const HELP_TARGETS = {
     title: { en: "Required files", fr: "Fichiers requis" },
     summary: {
       en:
-        "Each HFA import requires two files: CSV data file - one row per facility with columns for each survey question. The first column should contain facility identifiers matching your registry. XLSForm…",
+        "Each HFA import requires two files: CSV data file - one row per facility with columns for each survey question. The file must include a facility identifier column. XLSForm questionnaire file -…",
       fr:
-        "Chaque importation HFA nécessite deux fichiers : Fichier de données CSV - une ligne par établissement avec une colonne pour chaque question de l'enquête. La première colonne doit contenir les…",
+        "Chaque importation HFA nécessite deux fichiers : Fichier de données CSV - une ligne par établissement avec une colonne pour chaque question de l'enquête. Le fichier doit contenir une colonne…",
     },
   },
   "hfa-time-points": {
@@ -227,9 +227,9 @@ export const HELP_TARGETS = {
     title: { en: "Time points", fr: "Points temporels" },
     summary: {
       en:
-        "HFA data is organized by time points rather than continuous periods. Before importing data, create your time points on the HFA Time Points page. Each time point has a label and a calendar period…",
+        'HFA data is organized by time points rather than continuous periods. Each time point has a label and a calendar period (year and month). Time points define the named rounds - such as "Round 1" or…',
       fr:
-        "Les données HFA sont organisées par points temporels plutôt que par périodes continues. Avant d'importer des données, créez vos points temporels sur la page Points temporels HFA. Chaque point…",
+        "Les données HFA sont organisées par points temporels plutôt que par périodes continues. Chaque point temporel possède un libellé et une période calendaire (année et mois). Les points temporels…",
     },
   },
   "hmis-csv": {
@@ -238,9 +238,9 @@ export const HELP_TARGETS = {
     title: { en: "CSV import workflow", fr: "Processus d'importation CSV" },
     summary: {
       en:
-        "Click Upload CSV file. A CSV import has four steps: upload the file, match its columns to the four required fields, map the values in the indicator column to your indicators, and launch. Nothing is…",
+        "A CSV import has four steps: upload the file, match its columns to the four required fields, map the values in the indicator column to your indicators, and launch. 1. Upload your file. Select an…",
       fr:
-        "Cliquez sur Téléverser un fichier CSV. Une importation CSV comporte quatre étapes : téléverser le fichier, associer ses colonnes aux quatre champs requis, associer les valeurs de la colonne…",
+        "Une importation CSV comporte quatre étapes : téléverser le fichier, associer ses colonnes aux quatre champs requis, associer les valeurs de la colonne indicateur à vos indicateurs, puis lancer. 1.…",
     },
   },
   "hmis-dhis2": {
@@ -249,9 +249,9 @@ export const HELP_TARGETS = {
     title: { en: "DHIS2 import workflow", fr: "Processus d'importation DHIS2" },
     summary: {
       en:
-        "Click New DHIS2 import. A DHIS2 import fetches the values facilities reported, one DHIS2 element and month at a time, directly from your DHIS2 server. It uses the instance's stored DHIS2 connection,…",
+        "A DHIS2 import fetches the values facilities reported, one DHIS2 element and month at a time, directly from your DHIS2 server. It uses the instance's stored DHIS2 connection, which is set in the…",
       fr:
-        "Cliquez sur Nouvelle importation DHIS2. Une importation DHIS2 récupère les valeurs rapportées par les établissements, un élément DHIS2 et un mois à la fois, directement depuis votre serveur DHIS2.…",
+        "Une importation DHIS2 récupère les valeurs rapportées par les établissements, un élément DHIS2 et un mois à la fois, directement depuis votre serveur DHIS2. Elle utilise la connexion DHIS2…",
     },
   },
   "hmis-validation": {
@@ -266,9 +266,9 @@ export const HELP_TARGETS = {
     },
     summary: {
       en:
-        "For a CSV import, the staging results list every issue by category with a count: rows with missing required fields, rows with invalid values, facilities not in your facility list (with sample rows),…",
+        "For a CSV import, the staging results list every issue by category, with a count and sample rows. The categories are: rows with missing required fields, rows with invalid values, facilities not in…",
       fr:
-        "Pour une importation CSV, les résultats de la préparation listent chaque problème par catégorie avec un nombre : lignes avec des champs requis manquants, lignes avec des valeurs invalides,…",
+        "Pour une importation CSV, les résultats de la préparation listent chaque problème par catégorie, avec un nombre et des exemples de lignes. Les catégories sont : lignes avec des champs requis…",
     },
   },
   "ind-calculated": {
@@ -294,9 +294,9 @@ export const HELP_TARGETS = {
     },
     summary: {
       en:
-        "Click Add from DHIS2 to add data elements from your DHIS2 server to the list as DHIS2 elements. FASTR uses the instance's stored DHIS2 connection, which is set in the DHIS2 connection card on the…",
+        "Click Add from DHIS2 to add data elements or DHIS2 indicators from your DHIS2 server. FASTR uses the instance's stored DHIS2 connection, which is set in the DHIS2 connection row on the Data page; if…",
       fr:
-        "Cliquez sur Ajouter depuis DHIS2 pour ajouter des éléments de données de votre serveur DHIS2 à la liste, sous forme d'éléments DHIS2. FASTR utilise la connexion DHIS2 enregistrée de l'instance,…",
+        "Cliquez sur Ajouter depuis DHIS2 pour ajouter des éléments de données ou des indicateurs DHIS2 depuis votre serveur. FASTR utilise la connexion DHIS2 enregistrée de l'instance ; si aucune n'est…",
     },
   },
   "ind-include": {
@@ -305,31 +305,31 @@ export const HELP_TARGETS = {
     title: { en: "Include in analysis", fr: "Inclure dans l'analyse" },
     summary: {
       en:
-        "Every indicator has an Include in analysis checkbox. When it is on, every results package analyses the indicator: the data quality modules adjust it and it is available in visualizations. When it is…",
+        "Every indicator has an Include in analysis toggle. When it is on, every results package analyses the indicator: the data quality modules adjust it and it is available in visualizations. When it is…",
       fr:
-        "Chaque indicateur possède une case à cocher Inclure dans l'analyse. Lorsqu'elle est cochée, chaque paquet de résultats analyse l'indicateur : les modules de qualité des données l'ajustent et il est…",
+        "Chaque indicateur possède une case à cocher Inclure dans l'analyse. Lorsqu'elle est cochée, chaque paquet de résultats analyse l'indicateur. Lorsqu'elle est décochée, l'indicateur est uniquement dans…",
     },
   },
   "ind-list": {
     page: "admin-guide/indicators",
-    anchor: { en: "the-indicator-list", fr: "la-liste-des-indicateurs" },
-    title: { en: "The indicator list", fr: "La liste des indicateurs" },
+    anchor: { en: "managing-indicators", fr: "gérer-les-indicateurs" },
+    title: { en: "Managing indicators", fr: "Gérer les indicateurs" },
     summary: {
       en:
-        "The list shows every indicator with its id, label, type, definition, Include checkbox and, for a calculated indicator, its status. The heading above the list counts the indicators, or says how many…",
+        "To create an indicator, click Create new. Give it an ID and a label, then choose its type. The type determines what definition fields appear. To sort the list order used by every indicator axis in…",
       fr:
-        "La liste affiche chaque indicateur avec son identifiant, son libellé, son type, sa définition, sa case Inclure et, pour un indicateur calculé, son statut. L'en-tête au-dessus de la liste compte les…",
+        "Pour créer un indicateur, cliquez sur Créer. Donnez-lui un identifiant et un libellé, puis choisissez son type. Le type détermine les champs de définition qui s'affichent. Pour définir l'ordre de la…",
     },
   },
   "ind-r-code": {
     page: "admin-guide/indicators",
-    anchor: { en: "r-code-for-extraction", fr: "code-r-pour-lextraction" },
-    title: { en: "R code for extraction", fr: "Code R pour l'extraction" },
+    anchor: { en: "indicator-code", fr: "code-des-indicateurs" },
+    title: { en: "Indicator code", fr: "Code des indicateurs" },
     summary: {
       en:
-        "Each HFA indicator requires R code specifying how to extract its value from raw survey data. The code runs for each facility and should return TRUE/FALSE for binary indicators or a number for numeric…",
+        "Each HFA indicator requires indicator code specifying how to extract its value from raw survey data. The code runs for each facility and should evaluate to yes/no for binary indicators or a number…",
       fr:
-        "Chaque indicateur HFA nécessite du code R spécifiant comment extraire sa valeur à partir des données d'enquête brutes. Le code s'exécute pour chaque établissement et doit renvoyer TRUE/FALSE pour les…",
+        "Chaque indicateur HFA nécessite un code d'indicateur spécifiant comment extraire sa valeur à partir des données d'enquête brutes. Le code s'exécute pour chaque établissement et doit évaluer à oui/non…",
     },
   },
   "report-create": {
@@ -338,9 +338,9 @@ export const HELP_TARGETS = {
     title: { en: "Creating a report", fr: "Créer un rapport" },
     summary: {
       en:
-        "Open your project and go to the Reports section. Each report appears as a card showing a preview of its opening lines and a count of the figures and images inside, which makes it easy to find the one…",
+        "Open the Products tab on your instance home screen. Reports appear as cards in the product explorer alongside slide decks. Click New and choose New report to create one — a dialog opens where you…",
       fr:
-        "Ouvrez votre projet et accédez à la section Rapports. Chaque rapport apparaît sous forme de carte affichant un aperçu de ses premières lignes ainsi que le nombre de figures et d'images qu'il…",
+        "Ouvrez l'onglet Produits sur l'écran d'accueil de votre instance. Les rapports apparaissent sous forme de cartes dans l'explorateur de produits, aux côtés des présentations. Cliquez sur Nouveau et…",
     },
   },
   "report-export": {
@@ -349,26 +349,26 @@ export const HELP_TARGETS = {
     title: { en: "Exporting", fr: "Exporter" },
     summary: {
       en:
-        "Click Download and choose PDF or Word (.docx). PDF is best for a final, fixed document you're distributing or archiving; Word is best when a colleague needs to edit or comment. Both use consistent…",
+        "Click Download to open the export options. FASTR Markdown reports offer PDF (paginated exactly as the editor shows), Word (.docx), and HTML file. The PDF has exactly the pages the editor shows. The…",
       fr:
-        "Cliquez sur Télécharger et choisissez PDF ou Word (.docx). Le PDF est idéal pour un document final et figé que vous diffusez ou archivez ; le Word convient mieux lorsqu'un collègue doit le modifier…",
+        "Cliquez sur Télécharger pour ouvrir les options d'export. Les rapports FASTR Markdown proposent PDF (paginé exactement comme l'éditeur le montre), Word (.docx) et fichier HTML. Le PDF contient…",
     },
   },
   "report-figures": {
     page: "user-guide/reports",
     anchor: {
-      en: "adding-figures-and-images",
-      fr: "ajouter-des-figures-et-des-images",
+      en: "adding-visualizations-and-images",
+      fr: "ajouter-des-visualisations-et-des-images",
     },
     title: {
-      en: "Adding figures and images",
-      fr: "Ajouter des figures et des images",
+      en: "Adding visualizations and images",
+      fr: "Ajouter des visualisations et des images",
     },
     summary: {
       en:
-        "Reports hold two kinds of visual content, and the difference matters. A figure is a live visualization from your project - it renders from current data and updates when that data changes. An image is…",
+        "Reports hold two kinds of visual content, and the difference matters. A visualization is a live chart or map from the product's results package - it renders from current data and updates when that…",
       fr:
-        "Les rapports peuvent contenir deux types de contenu visuel, et la distinction est importante. Une figure est une visualisation dynamique issue de votre projet - elle se génère à partir des données…",
+        "Les rapports peuvent contenir deux types de contenu visuel, et la distinction est importante. Une visualisation est un graphique ou une carte dynamique issue du lot de résultats du produit - elle se…",
     },
   },
   "struct-admin-areas": {

@@ -1,11 +1,7 @@
 import { getTruncatedString } from "@timroberton/panther";
 import { getReplicateByProp } from "./get_disaggregator_display_prop.ts";
 import { formatReplicantLabelForDisplay } from "./format_nigeria_admin_label.ts";
-import type {
-  AdminAreaLevel,
-  OptionalFacilityColumn,
-  PresentationObjectConfig,
-} from "./types/mod.ts";
+import type { AdminAreaLevel, PresentationObjectConfig } from "./types/mod.ts";
 
 export function withReplicant(
   str: string,
@@ -51,6 +47,16 @@ export const HFA_CORE_STRATUM_COLUMN = "stratum";
 // the generic form has no id_fac_txt, and some rounds leave it blank.
 export const HFA_CORE_FACILITY_ID_COLUMNS = ["id_fac_txt", "id_fac"];
 
+// Questionnaire variables that identify the facility or the interview rather
+// than answer a question, so no indicator is expected to use them.
+export const HFA_STRUCTURAL_VARIABLE_IDS: ReadonlySet<string> = new Set([
+  "id_admin1",
+  "id_admin1_corrected",
+  "id_fac_type",
+  "id_resp_consent",
+  "result",
+]);
+
 // The questionnaire's names for the facility columns, matched ignoring case.
 // Level 1 is the country and never a column, so level 2 is the form's admin 1.
 // Ownership has no core name.
@@ -59,13 +65,6 @@ export const HFA_CORE_ADMIN_AREA_COLUMNS: Record<AdminAreaLevel, string> = {
   3: "id_admin2_name",
   4: "id_admin3_name",
 };
-export const HFA_CORE_OPTIONAL_FACILITY_COLUMNS: Partial<
-  Record<OptionalFacilityColumn, string>
-> = {
-  facility_name: "id_fac_name",
-  facility_type: "id_fac_type",
-};
-
 // The questionnaire's name for a column's correction: id_admin1_name has
 // id_admin1_corrected, id_fac_type has id_fac_type_corrected.
 export function hfaCorrectionColumnName(rawColHeader: string): string {

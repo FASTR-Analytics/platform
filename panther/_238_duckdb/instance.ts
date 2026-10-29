@@ -131,6 +131,27 @@ export async function readTimeValues(
   return reader.getRowObjects().map((row) => Number(row.v));
 }
 
+// The non-null MIN and MAX of each named integer column, in one pass that
+// the parquet's statistics usually answer without reading a row. A column of
+// nothing but NULL contributes no bound.
+export async function readIntegerBounds(
+  connection: DuckDBConnection,
+  columns: string[],
+  from: string,
+): Promise<Map<string, bigint[]>> {
+  const selects = columns.flatMap((column, i) => {
+    const ref = quoteIdentifier(column);
+    return [`MIN(${ref}) AS lo${i}`, `MAX(${ref}) AS hi${i}`];
+  });
+  const row = (await connection.runAndReadAll(
+    `SELECT ${selects.join(", ")} FROM ${from}`,
+  )).getRowObjects()[0];
+  return new Map(columns.map((column, i) => [
+    column,
+    [row?.[`lo${i}`], row?.[`hi${i}`]].filter((v) => typeof v === "bigint"),
+  ]));
+}
+
 export type PhysicalColumn = { name: string; rawType: string };
 
 export async function describeStatement(

@@ -79,12 +79,13 @@ export function AIChatConversationSelector(
         minute: "2-digit",
       });
     } else if (diffDays === 1) {
-      return t3({ en: "Yesterday", fr: "Hier", pt: "Ontem" });
+      return t3({ en: "Yesterday", fr: "Hier", pt: "Ontem", th: "เมื่อวาน" });
     } else if (diffDays < 7) {
       return t3({
         en: `${diffDays} days ago`,
         fr: `Il y a ${diffDays} jours`,
         pt: `Há ${diffDays} dias`,
+        th: `${diffDays} วันที่แล้ว`,
       });
     } else {
       return date.toLocaleDateString([], {
@@ -130,6 +131,7 @@ export function AIChatConversationSelector(
           en: "Switch to Conversation",
           fr: "Changer de conversation",
           pt: "Mudar de conversa",
+          th: "สลับไปยังบทสนทนา",
         }),
         intent: "primary",
         onClick: handleBulkSwitch,
@@ -141,6 +143,7 @@ export function AIChatConversationSelector(
         en: "Delete Selected",
         fr: "Supprimer la sélection",
         pt: "Eliminar selecionados",
+        th: "ลบที่เลือก",
       }),
       intent: "danger",
       outline: true,
@@ -153,7 +156,12 @@ export function AIChatConversationSelector(
   const columns: TableColumn<ConversationMetadata>[] = [
     {
       key: "title",
-      header: t3({ en: "Conversation", fr: "Conversation", pt: "Conversa" }),
+      header: t3({
+        en: "Conversation",
+        fr: "Conversation",
+        pt: "Conversa",
+        th: "บทสนทนา",
+      }),
       sortable: true,
       render: (conv) => (
         <div class="flex min-w-0 items-center gap-2">
@@ -178,6 +186,7 @@ export function AIChatConversationSelector(
         en: "Last Active",
         fr: "Dernière activité",
         pt: "Última atividade",
+        th: "ใช้งานล่าสุด",
       }),
       sortable: true,
       sortDescFirst: true,
@@ -211,15 +220,21 @@ export function AIChatConversationSelector(
 
   return (
     <ModalContainer
-      title={t3({ en: "Conversations", fr: "Conversations", pt: "Conversas" })}
+      title={t3({
+        en: "Conversations",
+        fr: "Conversations",
+        pt: "Conversas",
+        th: "บทสนทนา",
+      })}
       width="lg"
       onCancel={() => p.close(undefined)}
-      cancelLabel={t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
+      cancelLabel={t3({ en: "Close", fr: "Fermer", pt: "Fechar", th: "ปิด" })}
       actions={[{
         label: t3({
           en: "New Conversation",
           fr: "Nouvelle conversation",
           pt: "Nova conversa",
+          th: "บทสนทนาใหม่",
         }),
         onClick: handleNew,
         iconName: "plus",
@@ -234,6 +249,7 @@ export function AIChatConversationSelector(
               en: "No conversations yet",
               fr: "Aucune conversation pour le moment",
               pt: "Ainda não há conversas",
+              th: "ยังไม่มีบทสนทนา",
             })}
           </div>
         }
@@ -246,11 +262,17 @@ export function AIChatConversationSelector(
           onRowClick={handleSelect}
           bulkActions={bulkActions()}
           itemLabel={{
-            one: t3({ en: "conversation", fr: "conversation", pt: "conversa" }),
+            one: t3({
+              en: "conversation",
+              fr: "conversation",
+              pt: "conversa",
+              th: "บทสนทนา",
+            }),
             other: t3({
               en: "conversations",
               fr: "conversations",
               pt: "conversas",
+              th: "บทสนทนา",
             }),
           }}
           selectedKeys={selectedKeys}

@@ -123,7 +123,6 @@ export async function buildGlobalUserFromDb(
       firstName: claimFirstName ?? rawUser?.first_name ?? "",
       lastName: claimLastName ?? rawUser?.last_name ?? "",
       organisation: rawUser?.organisation ?? null,
-      role: rawUser?.role ?? null,
       approved: _OPEN_ACCESS || !!rawUser,
       isGlobalAdmin,
       thisUserPermissions,

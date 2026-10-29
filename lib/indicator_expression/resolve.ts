@@ -13,6 +13,10 @@
 // ingredients that travel as ing1..ingN on a results row, which is why the
 // cap is measured AFTER flattening.
 //
+// Comparisons and logic are numbers (1 or 0) like any other term. Text and IN
+// are refused: a calculated indicator is computed from counts, and m012's
+// script evaluates the flattened text in R, which has no IN.
+//
 // =============================================================================
 
 import {
@@ -132,12 +136,39 @@ export function resolveIndicatorExpression(args: {
           [...chain, node.name],
         );
       }
+      case "string":
+        throw new IndicatorExpressionError(
+          `${describeChain(chain)} uses the text ${
+            JSON.stringify(node.value)
+          }, and a calculated indicator is computed from numbers only`,
+        );
+      case "in":
+        throw new IndicatorExpressionError(
+          `${
+            describeChain(chain)
+          } uses IN, which a calculated indicator does not support`,
+        );
       case "negate":
-        return { kind: "negate", operand: substitute(node.operand, chain) };
+      case "not":
+        return { kind: node.kind, operand: substitute(node.operand, chain) };
       case "binary":
         return {
           kind: "binary",
           op: node.op,
+          left: substitute(node.left, chain),
+          right: substitute(node.right, chain),
+        };
+      case "compare":
+        return {
+          kind: "compare",
+          op: node.op,
+          left: substitute(node.left, chain),
+          right: substitute(node.right, chain),
+        };
+      case "and":
+      case "or":
+        return {
+          kind: node.kind,
           left: substitute(node.left, chain),
           right: substitute(node.right, chain),
         };

@@ -29,6 +29,8 @@ import {
   deriveVisibleTiersByPane,
   fillValuesWithDuplicateCheck,
   getHeaderIndex,
+  orderVisibleByPane,
+  orderVisibleByPaneBand,
   type ProcessedHeaders,
   resolveChartProportional,
   validateChartMembership,
@@ -121,19 +123,6 @@ function createEmptyValuesArray(
   );
 }
 
-function reorderLastDimension(
-  vals: (number | undefined)[][][][][],
-  sortedIndices: number[],
-): (number | undefined)[][][][][] {
-  return vals.map((panes) =>
-    panes.map((tiers) =>
-      tiers.map((lanes) =>
-        lanes.map((series) => sortedIndices.map((i) => series[i]))
-      )
-    )
-  );
-}
-
 export function transformOneWayChartJson(
   jsonArray: JsonArray,
   cfg: OneWayJsonConfigCore,
@@ -187,13 +176,13 @@ export function transformOneWayChartJson(
     ? jsonArray
     : sourceRows;
 
-  const indicatorHeadersRaw = createHeaderItems(
-    collectHeaders(headersSource, indicatorProp, valueProps),
-    labelReplacements,
+  const indicatorHeaders = sortHeaderItems(
+    createHeaderItems(
+      collectHeaders(headersSource, indicatorProp, valueProps),
+      labelReplacements,
+    ),
+    sort?.indicator,
   );
-  const indicatorHeaders = sortIndicatorValues
-    ? indicatorHeadersRaw
-    : sortHeaderItems(indicatorHeadersRaw, sort?.indicator);
   const seriesHeaders = sortHeaderItems(
     createHeaderItems(
       collectHeaders(headersSource, seriesProp, valueProps),
@@ -388,63 +377,54 @@ export function transformOneWayChartJson(
     }
   }
 
-  let finalIndicatorHeaders = indicatorHeaders;
-  let finalValues = values;
-  let finalBounds = bounds;
-
-  if (sortIndicatorValues && sortIndicatorValues !== "none") {
-    const firstSeries = values[0][0][0][0];
-    const indexValuePairs = indicatorHeaders.map(
-      (_, i) => [i, firstSeries[i] ?? 0] as const,
-    );
-    indexValuePairs.sort(([, a], [, b]) =>
-      sortIndicatorValues === "descending" ? b - a : a - b
-    );
-    const sortedIndices = indexValuePairs.map(([i]) => i);
-
-    finalIndicatorHeaders = sortedIndices.map((i) => indicatorHeaders[i]);
-    finalValues = reorderLastDimension(values, sortedIndices);
-    if (bounds) {
-      finalBounds = {
-        ub: reorderLastDimension(bounds.ub, sortedIndices),
-        lb: reorderLastDimension(bounds.lb, sortedIndices),
-      };
-    }
-  }
-
-  // Derived from the FINAL arrays (post-sortIndicatorValues reorder) so the
-  // mask's indices match the final indicator order. Proportional band layout
-  // implies per-pane indicator visibility (the per-band masks are its
-  // refinement), so the per-pane union is derived under either flag.
-  const visibleIndicatorsByPane =
-    membership?.indicator === "unbalanced" || proportionalFlags.bands
-      ? deriveVisibleIndicatorsByPane(finalValues, finalBounds, nIndicators)
-      : undefined;
+  // The value sort is a presentation order: it permutes the masks, never the
+  // storage, so every data lookup keeps sort.indicator's global index. A
+  // balanced chart under a value sort gets a full-permutation mask per pane.
+  const valueSort = sortIndicatorValues === "none"
+    ? undefined
+    : sortIndicatorValues;
+  const raggedIndicators = membership?.indicator === "unbalanced" ||
+    proportionalFlags.bands;
+  const visibleIndicatorsByPane = raggedIndicators || valueSort !== undefined
+    ? orderVisibleByPane(
+      raggedIndicators
+        ? deriveVisibleIndicatorsByPane(values, bounds, nIndicators)
+        : paneHeaders.map(() => indicatorHeaders.map((_, i) => i)),
+      values,
+      spec.bandAxis,
+      valueSort,
+    )
+    : undefined;
   const nBands = spec.bandAxis === "lane" ? nLanes : nTiers;
   const deriveVisibleBandsByPane = spec.bandAxis === "lane"
     ? deriveVisibleLanesByPane
     : deriveVisibleTiersByPane;
   const visibleBandAxisByPane = membership?.[spec.bandAxis] === "unbalanced"
-    ? deriveVisibleBandsByPane(finalValues, finalBounds, nBands)
+    ? deriveVisibleBandsByPane(values, bounds, nBands)
     : undefined;
   const visibleIndicatorsByPaneBand = proportionalFlags.bands
-    ? deriveVisibleIndicatorsByPaneBand(
-      finalValues,
-      finalBounds,
-      nIndicators,
+    ? orderVisibleByPaneBand(
+      deriveVisibleIndicatorsByPaneBand(
+        values,
+        bounds,
+        nIndicators,
+        spec.bandAxis,
+      ),
+      values,
       spec.bandAxis,
+      valueSort,
     )
     : undefined;
 
   return {
     isTransformed: true,
-    indicatorHeaders: finalIndicatorHeaders,
+    indicatorHeaders,
     seriesHeaders,
     laneHeaders,
     tierHeaders,
     paneHeaders,
-    values: finalValues,
-    bounds: finalBounds,
+    values,
+    bounds,
     scaleAxisLimits: scaleLimits,
     visibleIndicatorsByPane,
     visibleBandAxisByPane,

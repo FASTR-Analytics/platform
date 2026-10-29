@@ -151,6 +151,7 @@ export function ColumnFilter<T extends AnyRow>(p: ColumnFilterProps<T>) {
           en: `Filter ${p.column.header}`,
           fr: `Filtrer ${p.column.header}`,
           pt: `Filtrar ${p.column.header}`,
+          th: `กรอง ${p.column.header}`,
         })}
         aria-expanded={open()}
         class={p.class}
@@ -200,11 +201,13 @@ export function ColumnFilter<T extends AnyRow>(p: ColumnFilterProps<T>) {
                     en: "Select all matching",
                     fr: "Sélectionner toutes les correspondances",
                     pt: "Selecionar todas as correspondências",
+                    th: "เลือกทั้งหมดที่ตรงกัน",
                   })
                   : t3({
                     en: "Select all",
                     fr: "Tout sélectionner",
                     pt: "Selecionar tudo",
+                    th: "เลือกทั้งหมด",
                   })}
               </span>
               <span class="text-base-content-muted flex-none select-none text-xs">
@@ -240,6 +243,7 @@ export function ColumnFilter<T extends AnyRow>(p: ColumnFilterProps<T>) {
                     en: "No matching options",
                     fr: "Aucune option correspondante",
                     pt: "Sem opções correspondentes",
+                    th: "ไม่มีตัวเลือกที่ตรงกัน",
                   })}
                 </div>
               </Show>
@@ -253,6 +257,7 @@ export function ColumnFilter<T extends AnyRow>(p: ColumnFilterProps<T>) {
                   en: "Clear filter",
                   fr: "Effacer le filtre",
                   pt: "Limpar filtro",
+                  th: "ล้างตัวกรอง",
                 })}
               </div>
             </Show>
@@ -265,6 +270,6 @@ export function ColumnFilter<T extends AnyRow>(p: ColumnFilterProps<T>) {
 
 function optionLabel(value: string): string {
   return value === ""
-    ? t3({ en: "(empty)", fr: "(vide)", pt: "(vazio)" })
+    ? t3({ en: "(empty)", fr: "(vide)", pt: "(vazio)", th: "(ว่าง)" })
     : value;
 }

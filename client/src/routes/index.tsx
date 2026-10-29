@@ -1,6 +1,10 @@
 import { Instance, LoggedInWrapper } from "~/components/instance/mod.ts";
-import { LANGUAGE_STORAGE_KEY, setCalendar, setLanguage } from "lib";
-import type { Language } from "panther";
+import {
+  type Language,
+  LANGUAGE_STORAGE_KEY,
+  setCalendar,
+  setLanguage,
+} from "lib";
 import { InstanceSSEBoundary } from "~/state/instance/t1_sse";
 
 export default function InstanceLoggedInWrapper() {

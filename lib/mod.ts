@@ -11,7 +11,7 @@ export * from "./retired_metrics.ts";
 export * from "./convert_visualization_type.ts";
 export * from "./disaggregation_labels.ts";
 export * from "./hfa_indicator_labels.ts";
-export * from "./hfa_r_code_analysis.ts";
+export * from "./hfa_indicator_code.ts";
 export * from "./hfa_sentinel_classification.ts";
 export * from "./format_nigeria_admin_label.ts";
 export * from "./normalize_po_config.ts";
@@ -29,6 +29,7 @@ export * from "./run_progress.ts";
 export * from "../report-forge/engine/mod.ts";
 // The platform's own report theme, registered with the engine on load.
 export * from "./report_legacy_theme.ts";
+export * from "./report_live_figures.ts";
 export * from "./slide_text_offsets.ts";
 export * from "./group_metrics.ts";
 export * from "./explore_query.ts";

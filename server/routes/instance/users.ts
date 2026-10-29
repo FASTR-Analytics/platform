@@ -38,8 +38,8 @@ import {
   SetUserUnlimitedAi,
   syncUserName,
   toggleAdmin,
+  updateUserOrganisation,
   updateUserPermissions,
-  updateUserProfile,
 } from "../../db/mod.ts";
 import {
   _BYPASS_AUTH,
@@ -473,7 +473,7 @@ defineRoute(
 );
 
 // ---------------------------------------------------------------------------
-// Profile: organisation and role
+// Profile: organisation
 // ---------------------------------------------------------------------------
 
 defineRoute(
@@ -483,7 +483,11 @@ defineRoute(
   log("updateMyProfile"),
   async (c, { body }) => {
     const { email } = c.var.globalUser;
-    const changed = await updateUserProfile(c.var.mainDb, email, body);
+    const changed = await updateUserOrganisation(
+      c.var.mainDb,
+      email,
+      body.organisation,
+    );
     if (changed) {
       notifyInstanceUsersUpdated(await getInstanceUsers(c.var.mainDb));
       await pushToPeers("/user/sync-profile", { email, ...body });
@@ -505,8 +509,11 @@ defineRoute(
     }
     // No onward push, as for names: only the instance the user wrote on fans
     // out, so a sync can never echo around the fleet.
-    const { email, ...profile } = body;
-    const changed = await updateUserProfile(c.var.mainDb, email, profile);
+    const changed = await updateUserOrganisation(
+      c.var.mainDb,
+      body.email,
+      body.organisation,
+    );
     if (changed) {
       notifyInstanceUsersUpdated(await getInstanceUsers(c.var.mainDb));
     }

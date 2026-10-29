@@ -1,22 +1,17 @@
 import { Hono } from "hono";
 import type { Sql } from "postgres";
 import {
+  dataElementIdOf,
   type FetchOptions,
-  getDataElementsFromDHIS2,
-  getDhis2OperandVerdict,
-  getExistingMetadataIds,
-  getIndicatorsFromDHIS2,
+  getIndicatorsByIds,
+  readDhis2ElementIds,
   searchAllIndicatorsAndDataElements,
   searchDataElementsFromDHIS2,
   searchIndicatorsFromDHIS2,
   withDecompositions,
   withElementVerdicts,
 } from "../../dhis2/mod.ts";
-import {
-  DHIS2_UID_PATTERN,
-  type Dhis2Credentials,
-  dhis2ElementName,
-} from "lib";
+import { type Dhis2Credentials, dhis2ElementName } from "lib";
 import {
   createIndicatorsFromDhis2,
   getDhis2ElementDataIds,
@@ -28,28 +23,6 @@ import { log } from "../../middleware/logging.ts";
 import { requireGlobalPermission } from "../../middleware/mod.ts";
 import { notifyInstanceIndicatorsUpdated } from "../../task_management/notify_instance_updated.ts";
 import { defineRoute } from "../route-helpers.ts";
-
-// DHIS2 caps a filter's value list, so id lookups go in chunks.
-const ID_FILTER_CHUNK_SIZE = 100;
-
-async function fetchByIds<T>(
-  ids: string[],
-  fetch: (filter: string) => Promise<T[]>,
-): Promise<T[]> {
-  const unique = [...new Set(ids)];
-  const chunks: string[][] = [];
-  for (let i = 0; i < unique.length; i += ID_FILTER_CHUNK_SIZE) {
-    chunks.push(unique.slice(i, i + ID_FILTER_CHUNK_SIZE));
-  }
-  const results = await Promise.all(
-    chunks.map((chunk) => fetch(`id:in:[${chunk.join(",")}]`)),
-  );
-  return results.flat();
-}
-
-function dataElementIdOf(dataId: string): string {
-  return dataId.split(".")[0];
-}
 
 async function resolveOrErr(
   mainDb: Sql,
@@ -87,41 +60,31 @@ defineRoute(
       }
       const options: FetchOptions = { dhis2Credentials: resolved.credentials };
       const stored = await getDhis2ElementDataIds(c.var.mainDb);
-      const elements = await fetchByIds(
-        stored.map((s) => dataElementIdOf(s.data_id)),
-        (filter) =>
-          getDataElementsFromDHIS2(options, {
-            filter: [filter],
-            paging: false,
-          }),
+      const reading = await readDhis2ElementIds(
+        options,
+        stored.map((s) => s.data_id),
       );
-      const elementsById = new Map(elements.map((e) => [e.id, e]));
+      // A name is refreshed for every element the server has, whatever its
+      // verdict: the refresh changes labels, never ids.
       const labels = new Map<string, string>();
+      const formulas: string[] = [];
+      const notFound: string[] = [];
       for (const s of stored) {
-        const element = elementsById.get(dataElementIdOf(s.data_id));
+        const element = reading.elements.get(dataElementIdOf(s.data_id));
         if (element !== undefined) {
           labels.set(
             s.indicator_common_id,
             dhis2ElementName(element, s.data_id),
           );
+          continue;
+        }
+        const verdict = reading.verdicts.get(s.data_id);
+        if (!verdict?.accepted && verdict?.refusal.kind === "formula") {
+          formulas.push(s.indicator_common_id);
+        } else {
+          notFound.push(s.indicator_common_id);
         }
       }
-      const unfound = stored.filter((s) =>
-        !elementsById.has(dataElementIdOf(s.data_id))
-      );
-      const formulaUids = await getExistingMetadataIds(
-        "indicators",
-        unfound.map((s) => s.data_id).filter((id) =>
-          DHIS2_UID_PATTERN.test(id)
-        ),
-        options,
-      );
-      const formulas = unfound
-        .filter((s) => formulaUids.has(s.data_id))
-        .map((s) => s.indicator_common_id);
-      const notFound = unfound
-        .filter((s) => !formulaUids.has(s.data_id))
-        .map((s) => s.indicator_common_id);
       const refreshed = await setDhis2Labels(c.var.mainDb, labels);
       if (refreshed > 0) {
         notifyInstanceIndicatorsUpdated(
@@ -265,26 +228,14 @@ defineRoute(
       // The verdicts and the DHIS2 labels are the server's own reading of
       // the live metadata: the client's search results may be stale or
       // edited.
-      const elements = await fetchByIds(
-        body.elements.map((e) => dataElementIdOf(e.data_id)),
-        (filter) =>
-          getDataElementsFromDHIS2(options, {
-            filter: [filter],
-            paging: false,
-          }),
+      const reading = await readDhis2ElementIds(
+        options,
+        body.elements.map((e) => e.data_id),
       );
-      const elementsById = new Map(elements.map((e) => [e.id, e]));
       const indicators = await withDecompositions(
         options,
-        await fetchByIds(
-          body.indicators.map((i) => i.uid),
-          (filter) =>
-            getIndicatorsFromDHIS2(options, {
-              filter: [filter],
-              paging: false,
-            }),
-        ),
-        elements,
+        await getIndicatorsByIds(options, body.indicators.map((i) => i.uid)),
+        [...reading.elements.values()],
       );
       const indicatorsById = new Map(indicators.map((i) => [i.id, i]));
       const missing = body.indicators
@@ -301,13 +252,13 @@ defineRoute(
 
       const res = await createIndicatorsFromDhis2(c.var.mainDb, {
         elements: body.elements.map((e) => {
-          const element = elementsById.get(dataElementIdOf(e.data_id));
+          const element = reading.elements.get(dataElementIdOf(e.data_id));
           return {
             ...e,
             dhis2_label: element === undefined
               ? null
               : dhis2ElementName(element, e.data_id),
-            verdict: getDhis2OperandVerdict(element),
+            verdict: reading.verdicts.get(e.data_id)!,
           };
         }),
         indicators: body.indicators.map((i) => ({

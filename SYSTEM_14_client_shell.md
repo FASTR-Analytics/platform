@@ -6,7 +6,6 @@ globs:
   - client/src/components/instance/whats_new_modal.tsx
   - client/src/components/instance/instance.tsx
   - client/src/components/instance/mod.ts
-  - client/src/components/instance/profile_prompt_modal.tsx
   - client/src/components/instance/theme_modal.tsx
   - client/src/index.tsx
   - client/src/onboarding/**
@@ -246,9 +245,12 @@ calendar apply by full reload, nothing re-renders reactively**. Calendar
 `lib/translate/` is the app's whole translation surface over panther's
 primitives:
 
-- **`t-func.ts`**: re-exports `t3`/`setLanguage`/`getLanguage` from
-  `@timroberton/panther`; owns `LANGUAGE_STORAGE_KEY`, the app's **calendar
-  singleton** (`setCalendar`/`getCalendar`, default `"gregorian"`), and
+- **`t-func.ts`**: builds the app's `t3`/`resolveTS` with panther's
+  `createTranslator<RequiredLanguage>()`, so a string missing French is a type
+  error and Portuguese is optional; wraps panther's `setLanguage`/`getLanguage`
+  so both speak the app's `Language` (panther's own includes Thai); owns
+  `LANGUAGE_STORAGE_KEY`, the app's **calendar singleton**
+  (`setCalendar`/`getCalendar`, default `"gregorian"`), and
   `pickLang(language, ts)`, an explicit-language resolver used only by the
   viz-generation pipeline (`build_figure_inputs`, conditional formatting), not
   shell UI.
@@ -257,8 +259,11 @@ primitives:
   `national`, `columns`, `rows`, `loading`, `loadingFiles`, `loadingAssets`,
   `fetchingData`, `general`, `label`, `folder`, `mustEnterName`, and four
   `disaggregation_disabled_*` messages), all with `pt` entries.
-- **`types.ts` / `mod.ts`**: re-export `TranslatableString`, `Language`,
-  `resolveTS` from panther.
+- **`types.ts` / `mod.ts`**: `LANGUAGES` and the app's `Language` (`en`, `fr`,
+  `pt`), `RequiredLanguage` (`en`, `fr`) and `TranslatableString`, panther's
+  generic type over the required pair. Nothing in the app imports a language
+  type or translator from panther's barrel: those require every panther
+  language.
 
 There is no translation build step and no string-key table: translations are
 **inline `{ en, fr, pt? }` literals at the call site** (241 client files call
@@ -357,20 +362,17 @@ the window listeners are never attached.
 ## Onboarding modals
 
 An effect in `components/instance/instance.tsx` (after approval + Clerk user)
-opens `ProfilePromptModal` when the user's row holds neither an organisation nor
-a role (`promptForProfile`: it asks for both, skippable, and writes them through
-`updateMyProfile`; an organisation still sitting in Clerk `unsafeMetadata` from
-before the profile columns existed seeds the row instead and the key is
-dropped), then `WhatsNewModal`, a multi-page release-notes popup. The sequence
-is guarded to run ONCE per signed-in user id (the approval store re-fires the
-effect, which would otherwise re-open the modals). Posts are authored in the
-Admin-Website, fetched by `server/routes/instance/whats_new.ts` from status-api
-(60s in-memory cache, fail-silent, 30s backoff after a failed fetch) and
-pre-filtered server-side to `published && version <= _SERVER_VERSION` (the
-version gate is skipped when `SERVER_VERSION` is non-dotted, i.e. ad-hoc test
-deploys), then cut to the caller's audience by `whatsNewPostForAudience`:
-non-admins lose admins-only posts and admins-only pages, and a post left with no
-page is withheld. One post can so carry an admin version: admins see every page,
+opens `WhatsNewModal`, a multi-page release-notes popup. It is guarded to run
+ONCE per signed-in user id (the approval store re-fires the effect, which would
+otherwise re-open the modal). Nothing else is asked at login: the organisation
+is edited from the profile only (S15). Posts are authored in the Admin-Website,
+fetched by `server/routes/instance/whats_new.ts` from status-api (60s in-memory
+cache, fail-silent, 30s backoff after a failed fetch) and pre-filtered
+server-side to `published && version <= _SERVER_VERSION` (the version gate is
+skipped when `SERVER_VERSION` is non-dotted, i.e. ad-hoc test deploys), then cut
+to the caller's audience by `whatsNewPostForAudience`: non-admins lose
+admins-only posts and admins-only pages, and a post left with no page is
+withheld. One post can so carry an admin version: admins see every page,
 everyone else the rest, under one post id and one read-state. Read-state is a
 per-post id set in `unsafeMetadata.whatsNewReadPostIds` (a post counts as read
 once opened, Skip or Done alike), pruned on write to the currently-eligible ids;

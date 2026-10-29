@@ -147,15 +147,19 @@ const hfaFacilityColumnHeadersSchema = z.object({
   correctionHeader: z.string().min(1).optional(),
 });
 
+const hfaOptionalColumnMappingSchema = hfaFacilityColumnHeadersSchema.extend({
+  label: z.string().min(1).optional(),
+});
+
 // z.partialRecord: a mapping names only the optional columns it maps.
-const hfaFacilityColumnsSchema = z.object({
+export const hfaFacilityColumnsSchema = z.object({
   adminArea1: z.object({ value: z.string() }),
   adminAreas: z.array(
     hfaFacilityColumnHeadersSchema.extend({ level: adminAreaLevelSchema }),
   ),
   optional: z.partialRecord(
     optionalFacilityColumnSchema,
-    hfaFacilityColumnHeadersSchema,
+    hfaOptionalColumnMappingSchema,
   ),
 });
 

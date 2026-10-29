@@ -1,3 +1,176 @@
+[TBD] [user] [changed] - Module defaults now compare against global defaults instead of country baselines
+[TBD] [user] [changed] - "Changed from baseline" markers now read "Differs from global default"
+[TBD] [user] [changed] - Reset buttons now restore global defaults used by most countries
+[TBD] [user] [changed] - A count of differing parameters is now shown in the summary banner
+[TBD] [user] [changed] - Data family checkboxes no longer show baseline comparison markers
+[TBD] [admin] [changed] - Module defaults editor now compares against fleet-wide global defaults instead of per-country baselines
+[TBD] [admin] [changed] - Global default comparisons apply only to module parameters, not to data family selections or pre-selected modules
+[TBD] [admin] [changed] - Differing parameter count is now shown in the global defaults summary banner
+[TBD] [admin] [changed] - Reset options now restore values to the global default used by most countries
+[2.4.3] [user] [added] - Module defaults now show when values differ from the country baseline
+[2.4.3] [user] [added] - Reset individual settings, entire modules, or all defaults back to the country baseline
+[2.4.3] [user] [added] - Data family selections now show baseline comparison indicators when changed
+[2.4.3] [admin] [added] - Module defaults editor now shows baseline comparison markers
+[2.4.3] [admin] [added] - Reset individual parameters, modules, or all settings to baseline
+[2.4.3] [admin] [added] - Data family checkboxes show when they differ from baseline
+[2.4.3] [admin] [added] - Banner summarizes whether any values differ from country baseline
+[2.4.1] [user] [fixed] - Figures now keep their original language when updated to a new data package
+[2.4.1] [user] [fixed] - Figure legends and captions no longer mix languages (e.g., French caption with English legend)
+[2.4.1] [user] [added] - Portuguese translations added for "All areas" labels in figures
+[2.4.1] [user] [added] - Portuguese translations supported for custom value labels in chart legends and axes
+[2.4.1] [admin] [fixed] - Figures now keep the language they were created in when edited or updated
+[2.4.1] [admin] [fixed] - Inserting a figure no longer mixes languages between caption and legend
+[2.4.1] [admin] [added] - Portuguese translation support for area rollup labels in figures
+[2.4.1] [admin] [added] - Value label replacements in module definitions now support multiple languages
+[2.4.1] [admin] [fixed] - Updating a figure to a new package no longer changes its language
+[2.4.0] [user] [changed] - DHIS2 import errors now show clearer, plain-language explanations
+[2.4.0] [user] [changed] - Ineligible DHIS2 items hide the add button instead of showing a disabled one
+[2.4.0] [user] [changed] - DHIS2 import warnings appear in muted text instead of alarming red
+[2.4.0] [user] [changed] - DHIS2 category option combos now show import eligibility messages
+[2.4.0] [user] [changed] - AI usage profile now labels daily meter as "Today (you)"
+[2.4.0] [user] [changed] - Weekly AI usage meter relabeled to "This week (country quota)"
+[2.4.0] [user] [added] - Note explains unlimited accounts don't consume the country's AI quota
+[2.4.0] [user] [fixed] - Slide deck name no longer resets when changing deck settings like theme or logos
+[2.4.0] [user] [changed] - Deck name removed from settings screen; rename via File menu or deck header instead
+[2.4.0] [user] [fixed] - AI assistant gives more accurate claims about data trends and thresholds
+[2.4.0] [user] [fixed] - AI assistant correctly identifies partial time periods like year-to-date
+[2.4.0] [user] [fixed] - AI assistant no longer fabricates changes to reports or slides it didn't make
+[2.4.0] [user] [fixed] - Report figures referenced in non-standard markdown formats now display correctly
+[2.4.0] [user] [fixed] - Annualized DHIS2 indicators now show a clear explanation of why they cannot be imported
+[2.4.0] [admin] [changed] - DHIS2 import: clearer refusal messages explain why an indicator or data element cannot be imported
+[2.4.0] [admin] [changed] - DHIS2 import: annualized indicators are now explicitly refused with a plain explanation
+[2.4.0] [admin] [changed] - AI usage profile: daily meter now labeled "Today (you)" for clarity
+[2.4.0] [admin] [changed] - AI usage profile: weekly meter now labeled "This week (country quota)"
+[2.4.0] [admin] [added] - AI usage profile: unlimited accounts see a note explaining their use does not count against the country quota
+[2.4.0] [admin] [changed] - Slide deck name is no longer editable from the deck settings screen; use File menu or the deck header instead
+[2.4.0] [admin] [fixed] - Slide deck name no longer risks drifting out of sync between settings and the product registry
+[2.4.0] [admin] [fixed] - Deleting slides no longer causes unnecessary refetch errors on other connected clients
+[2.4.0] [admin] [fixed] - Restoring a slide deck version no longer stamps removed slides, preventing fetch errors
+[2.4.0] [admin] [improved] - AI copilot now required to verify every claim against actual data before writing it
+[2.4.0] [admin] [improved] - AI copilot must label partial periods and never fabricate trends or state changes
+[2.4.0] [admin] [fixed] - Report editor AI tools now correctly identify which figures are visible in the document
+[2.4.0] [admin] [fixed] - Rare issue where two slide decks could show each other's content after a slide ID was reused
+[2.3.2] [user] [fixed] - Slides with too many chart panels no longer overflow the page
+[2.3.2] [user] [fixed] - Chart sorting now respects your chosen indicator value order
+[2.3.2] [admin] [fixed] - Copilot now warns when a new slide overflows the page
+[2.3.2] [admin] [improved] - Copilot filters figures to named indicators, preventing page overflow
+[2.3.2] [admin] [fixed] - Chart bar sorting now correctly respects the configured sort order
+[2.3.1] [admin] [added] - Copilot debug mode now available via browser local storage setting
+[2.3.1] [admin] [changed] - Copilot debug toggle moved from code constant to local storage flag
+[2.3.0] [user] [changed] - Profile no longer asks for your role after login
+[2.3.0] [user] [changed] - Removed "Role" column from the Users admin table
+[2.3.0] [user] [fixed] - GeoJSON edit modal now shows clear error when data fails to load
+[2.3.0] [user] [fixed] - GeoJSON upload wizard shows error instead of empty mapping table when admin areas fail to load
+[2.3.0] [user] [fixed] - Report editor now shows a loading indicator while opening
+[2.3.0] [user] [fixed] - Slide editor now shows an error message when a slide fails to load
+[2.3.0] [user] [fixed] - AI copilot no longer creates maps for admin levels with no boundary file uploaded
+[2.3.0] [user] [fixed] - AI copilot now catches figures that would fail to display before saving them
+[2.3.0] [user] [fixed] - Prompt library modal shows proper loading and error states
+[2.3.0] [user] [fixed] - Saving a custom prompt now shows inline errors instead of silent failures
+[2.3.0] [user] [fixed] - Version history no longer loads discarded figure previews unnecessarily
+[2.3.0] [user] [fixed] - Deleting a custom prompt now shows a confirmation dialog with the prompt name
+[2.3.0] [admin] [changed] - Users page no longer shows a "Role" column
+[2.3.0] [admin] [changed] - New users are no longer prompted to enter role after approval
+[2.3.0] [admin] [changed] - Profile settings now only show Organisation, not Role
+[2.3.0] [admin] [fixed] - GeoJSON edit modal now shows proper error when data fails to load
+[2.3.0] [admin] [fixed] - GeoJSON upload wizard shows error if admin areas fail to load
+[2.3.0] [admin] [fixed] - Slide editor now shows an error message when a slide fails to load
+[2.3.0] [admin] [fixed] - Report editor shows a loading indicator while opening
+[2.3.0] [admin] [fixed] - AI copilot maps now fail clearly when boundary files are missing
+[2.3.0] [admin] [fixed] - AI copilot map figures now validate before saving
+[2.3.0] [admin] [fixed] - Access token creation now shows inline errors instead of failing silently
+[2.3.0] [admin] [fixed] - Prompt library loading errors no longer block custom prompts
+[2.3.0] [admin] [internal] - AI reference documents system replaces previous info topics approach
+[2.3.0] [user] [changed] - HFA weight import errors now show example facility IDs from both the file and the registry, making it easier to spot a wrong column choice
+[2.3.0] [user] [changed] - Duplicate facility ID errors now list the repeated IDs instead of only a count
+[2.3.0] [user] [fixed] - Importing weights when no HFA facilities exist yet now gives a clearer message explaining you need to import the time point's data first
+[2.3.0] [admin] [changed] - HFA weight import error messages now show example facility IDs from both the file and the registry, making it easier to spot a wrong column choice
+[2.3.0] [admin] [changed] - Duplicate facility IDs in weight files are now reported with the actual IDs listed, not just a count
+[2.3.0] [admin] [fixed] - HFA weight import now gives a clearer message when no HFA facilities exist yet, guiding you to import time point data first
+[2.3.0] [admin] [improved] - Faster and more reliable processing of large CSV file uploads
+[2.3.0] [user] [added] - DHIS2 now validates typed data element IDs on save
+[2.3.0] [user] [changed] - Clearer error messages when a DHIS2 ID cannot be imported
+[2.3.0] [user] [changed] - Tooltip for DHIS2 ID field explains the new save-time validation
+[2.3.0] [admin] [added] - DHIS2 element IDs are now validated against the DHIS2 server on save
+[2.3.0] [admin] [added] - Operands using an element's default combo are now rejected with guidance to use the bare ID
+[2.3.0] [admin] [added] - Operands referencing a combo not listed by the element are now rejected
+[2.3.0] [admin] [added] - DHIS2 formulas (what DHIS2 calls indicators) are now detected and rejected as element IDs
+[2.3.0] [admin] [changed] - Clearer error messages when a DHIS2 element ID cannot be imported
+[2.3.0] [admin] [changed] - Tooltip for the DHIS2 ID field now explains that the ID is verified on save
+[2.3.0] [user] [fixed] - Fixed errors when loading data elements with broken dataset links
+[2.3.0] [admin] [fixed] - Resolved errors when DHIS2 has broken data set element records
+[2.3.0] [admin] [changed] - Data element data set information is now read from the data set side for improved reliability
+[2.3.0] [user] [changed] - Ask AI button now appears at the bottom-right of the screen
+[2.3.0] [user] [changed] - Slide decks and reports are now created from the Products tab on the home screen
+[2.3.0] [user] [changed] - Report export now also offers an HTML file option
+[2.3.0] [user] [changed] - "Figures" renamed to "visualizations" throughout reports and slide decks
+[2.3.0] [user] [changed] - PPTX export option now labeled "PPTX with raster visualizations"
+[2.3.0] [user] [changed] - HFA indicator code no longer requires R programming knowledge
+[2.3.0] [user] [changed] - CSV data file no longer requires facility identifier in the first column
+[2.3.0] [user] [changed] - Include in analysis control is now a toggle instead of a checkbox
+[2.3.0] [user] [changed] - Indicator list section renamed to "Managing indicators" with clearer creation steps
+[2.3.0] [user] [changed] - You can now add DHIS2 indicators in addition to data elements from your DHIS2 server
+[2.3.0] [admin] [changed] - AI assistant now opens from a bottom-right button instead of the sidebar
+[2.3.0] [admin] [changed] - Slide decks and reports are created from a Products tab on the home screen
+[2.3.0] [admin] [changed] - Report export now also offers an HTML file option
+[2.3.0] [admin] [changed] - "Figures" renamed to "visualizations" throughout reports and slide decks
+[2.3.0] [admin] [changed] - Indicator "Include in analysis" is now a toggle instead of a checkbox
+[2.3.0] [admin] [changed] - "The indicator list" help section renamed to "Managing indicators"
+[2.3.0] [admin] [changed] - HFA indicator code no longer referred to as "R code"
+[2.3.0] [admin] [changed] - HFA CSV import no longer requires facility ID in the first column
+[2.3.0] [admin] [changed] - DHIS2 indicator import now supports DHIS2 indicators in addition to data elements
+[2.3.0] [admin] [changed] - Help text updated across multiple topics for clarity and accuracy
+[2.2.0] [user] [changed] - Indicator code editor now uses a simpler, dedicated expression language instead of R syntax
+[2.2.0] [user] [added] - Indicator code now supports IN and NOT IN for testing lists of values
+[2.2.0] [user] [added] - Indicator code now supports AND, OR, NOT keywords (case-insensitive) alongside & | ! symbols
+[2.2.0] [user] [added] - Indicator code now supports quoted text comparisons, e.g. sh_03 == "c"
+[2.2.0] [user] [changed] - Code editor labels updated from "R code" to "Indicator code" for clarity
+[2.2.0] [user] [changed] - Binary indicator hint changed from "should evaluate to TRUE/FALSE" to "should evaluate to yes/no"
+[2.2.0] [user] [changed] - Filter code hint changed from "should evaluate to TRUE/FALSE" to "should evaluate to yes/no"
+[2.2.0] [user] [changed] - Operator and syntax help text in the editor now shows the new language's operators instead of R functions
+[2.2.0] [user] [changed] - Warning counts in the indicator manager now labeled "type mismatch" instead of generic "warning"
+[2.2.0] [user] [fixed] - Existing indicator code using R-style %in% c(...) is automatically migrated to the new IN (...) syntax
+[2.2.0] [admin] [changed] - HFA indicator code now uses its own expression language instead of R syntax
+[2.2.0] [admin] [added] - HFA indicator code supports IN and NOT IN list tests (e.g. `x IN (1, 2)`)
+[2.2.0] [admin] [added] - HFA indicator code supports AND, OR, NOT keywords and comparison operators directly
+[2.2.0] [admin] [changed] - Editor labels updated from "R code" to "Indicator code" throughout the interface
+[2.2.0] [admin] [changed] - Binary indicator code hint now says "should evaluate to yes/no" instead of "TRUE/FALSE"
+[2.2.0] [admin] [changed] - Filter code hint now says "should evaluate to yes/no" instead of "TRUE/FALSE"
+[2.2.0] [admin] [changed] - Operator help text now shows available words and list syntax instead of R functions
+[2.2.0] [admin] [changed] - Functions like abs, is.na, pmax are no longer accepted in HFA indicator code
+[2.2.0] [admin] [changed] - Warning badge in indicator manager now reads "type mismatch" instead of "warning"
+[2.2.0] [admin] [internal] - Existing indicator code using R's %in% c(...) syntax is automatically migrated to IN (...)
+[2.2.0] [admin] [changed] - Reserved indicator ID error message simplified to explain the ID is already meaningful
+[2.2.0] [user] [fixed] - Service categories dropdown no longer appears too narrow
+[2.2.0] [user] [fixed] - Structural variables no longer incorrectly shown as unused
+[2.2.0] [admin] [fixed] - Service categories dropdown no longer collapses too narrow
+[2.2.0] [admin] [fixed] - Structural variables no longer shown as unused in indicator manager
+[2.2.0] [user] [added] - Create time points directly during data import
+[2.2.0] [user] [added] - Map custom facility columns during HFA import with labels
+[2.2.0] [user] [added] - Indicator code editor now shows accepted operators and functions
+[2.2.0] [user] [added] - Indicator code validates that only accepted functions are used
+[2.2.0] [user] [added] - Misspelled variable names now suggest the correct spelling
+[2.2.0] [user] [changed] - Delete confirmation phrase is now in your language
+[2.2.0] [user] [changed] - Simplified "No time points" message on data overview
+[2.2.0] [user] [changed] - HFA indicator type and aggregation labels are now translated
+[2.2.0] [user] [changed] - Spreadsheet import errors are now shown in your language
+[2.2.0] [user] [changed] - Indicator code syntax errors are now shown in your language
+[2.2.0] [user] [changed] - HFA categories and sub-categories now sort in their configured order in charts and tables
+[2.2.0] [user] [fixed] - "No data" message in dataset view is now translated
+[2.2.0] [admin] [added] - Create time points directly from the data import wizard
+[2.2.0] [admin] [added] - Custom facility columns can be added during HFA data import
+[2.2.0] [admin] [added] - Indicator code editor now shows accepted operators and functions
+[2.2.0] [admin] [added] - Indicator code validates that only accepted functions are used
+[2.2.0] [admin] [added] - Case-sensitive variable name suggestions in indicator code errors
+[2.2.0] [admin] [changed] - Delete confirmation phrase is now translated per language
+[2.2.0] [admin] [changed] - HFA indicator type and aggregation labels are now translated
+[2.2.0] [admin] [changed] - XLSX indicator workbook validation errors are now translated
+[2.2.0] [admin] [changed] - HFA categories, sub-categories, and variant items now sort in catalog order on chart axes
+[2.2.0] [admin] [changed] - ICEH strata now sort in catalog order on chart axes
+[2.2.0] [admin] [changed] - Simplified "No time points" message on the data overview page
+[2.2.0] [admin] [fixed] - R code validator now rejects unsupported functions before module run
+[2.2.0] [admin] [fixed] - Indicator XLSX import correctly applies one code column to all time points
+[2.2.0] [admin] [internal] - Run manifest updated to schema version 14
 [2.1.0] [user] [added] - Package picker now shows creation date and pinned status
 [2.1.0] [user] [added] - Role field added to your profile alongside organisation
 [2.1.0] [user] [added] - Organisation and Role columns visible on the Users page for admins

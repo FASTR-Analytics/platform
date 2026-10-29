@@ -107,7 +107,7 @@ const _zAxisMembershipConforms: Conforms<
   AxisMembership
 > = true;
 
-// Per-pane visible subsets (global indices) for unbalanced membership on the
+// Per-pane masks (global indices; array order is the slot order) on the
 // transformed-data types (indicators, tiers, or lanes).
 export const zVisibleByPane = z.array(z.array(z.number()));
 

@@ -74,6 +74,7 @@ export function SelectV2<T extends string, M = never>(
   const [dataAttrs] = splitDataAttrs(p);
   const [active, setActive] = createSignal<number | undefined>(undefined);
   const panel = createComboBoxPanel({
+    width: "content",
     onOpen: () => setActive(selectedIndex()),
   });
   const listId = `${panel.id}-list`;
@@ -139,6 +140,9 @@ export function SelectV2<T extends string, M = never>(
     }
   });
 
+  // Bound with a native on:keydown, not Solid's onKeyDown: keydown is a
+  // delegated event, so a Solid handler already runs at the document beside
+  // AlertProvider's own keydown listener and cannot stop it.
   function handleTriggerKeyDown(e: KeyboardEvent) {
     if (!panel.open()) {
       if (
@@ -153,9 +157,10 @@ export function SelectV2<T extends string, M = never>(
     if (e.key === "Escape") {
       // preventDefault as well as stopPropagation, for the reason the
       // controller's own Escape branch gives: the close watcher of an
-      // enclosing <dialog> runs as the default action. The controller is not
-      // delegated to because it also blurs, which is right for its readonly
-      // input and wrong for a button that can reopen from the keyboard.
+      // enclosing <dialog> runs as the default action. The controller's
+      // handler is not reused because it also blurs, which is right for its
+      // readonly input and wrong for a button that can reopen from the
+      // keyboard.
       e.preventDefault();
       e.stopPropagation();
       panel.closePanel();
@@ -278,7 +283,7 @@ export function SelectV2<T extends string, M = never>(
           disabled={p.disabled}
           onPointerDown={handleTriggerPointerDown}
           onBlur={panel.handleBlur}
-          onKeyDown={handleTriggerKeyDown}
+          on:keydown={handleTriggerKeyDown}
           onMouseEnter={(e) =>
             showTruncationTooltip(
               e.currentTarget,
@@ -304,6 +309,7 @@ export function SelectV2<T extends string, M = never>(
                     en: "Select...",
                     fr: "Sélectionner...",
                     pt: "Selecionar...",
+                    th: "เลือก...",
                   })}
               >
                 {(item) => <>{item().label}</>}

@@ -17,6 +17,7 @@ import {
   type StructureSchema,
 } from "lib";
 import { utils, write } from "xlsx/xlsx.mjs";
+import { hfaFacilityColumnsSchema } from "../../lib/api-routes/instance/datasets.ts";
 import { getPgConnection } from "../db/postgres/connection_manager.ts";
 import {
   countUnreferencedHfaFacilities,
@@ -418,6 +419,52 @@ Deno.test("the write places new facilities with their admin areas, pads above th
     "F5 facility_type round R2",
   ]);
   assertEquals((await stamp()) !== undefined, true);
+});
+
+Deno.test("mapping columns the schema lacks switches them on, a custom one under its label", async () => {
+  await resetRegistry();
+  const file = FILE.filter((f) => f.facilityId === "F5").map((f) => ({
+    ...f,
+    optional: { ...f.optional, facility_custom_2: "Rural" },
+  }));
+  // Through the launch route's body schema: the label must survive zod.
+  const facilityColumns = hfaFacilityColumnsSchema.parse({
+    ...COLUMNS,
+    optional: {
+      ...COLUMNS.optional,
+      facility_custom_2: { header: "Col 9: setting", label: "Setting" },
+    },
+  });
+  await db.begin(async (sql) =>
+    await writeHfaFacilitiesFromImport(sql, {
+      file,
+      facilityColumns,
+      timePoint: "R2",
+      decisions: [],
+      recodes: {},
+    })
+  );
+  const stored = JSON.parse(
+    (await db<{ config_json_value: string }[]>`
+      SELECT config_json_value FROM instance_config
+      WHERE config_key = 'structure_schema_hfa'
+    `)[0].config_json_value,
+  );
+  assertEquals(stored, {
+    ...SCHEMA,
+    includeCustom2: true,
+    labelCustom2: "Setting",
+  });
+  assertEquals(
+    (await db<{ v: string }[]>`
+      SELECT facility_custom_2 AS v FROM facilities_hfa WHERE facility_id = 'F5'
+    `)[0].v,
+    "Rural",
+  );
+  await db`
+    UPDATE instance_config SET config_json_value = ${JSON.stringify(SCHEMA)}
+    WHERE config_key = 'structure_schema_hfa'
+  `;
 });
 
 Deno.test("keeping every change leaves the registry and the stamp untouched", async () => {

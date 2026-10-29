@@ -22,7 +22,12 @@ export function LoadingIndicator(p: Props) {
   return (
     <div class={padClass(p.pad)}>
       {p.msg ??
-        t3({ en: "Loading...", fr: "Chargement...", pt: "A carregar..." })}
+        t3({
+          en: "Loading...",
+          fr: "Chargement...",
+          pt: "A carregar...",
+          th: "กำลังโหลด...",
+        })}
     </div>
   );
 }

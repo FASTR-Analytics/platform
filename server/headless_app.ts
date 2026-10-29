@@ -30,7 +30,7 @@ headlessApp.use("*", headlessAuthMiddleware);
 headlessApp.use("*", headlessRouteAllowlist);
 headlessApp.route("/", routesUsers);
 headlessApp.route("/", routesRunGeneration);
-// The /info reference docs (get_info tool): same files the SPA fetches from
+// The /info reference docs (get_reference_doc tool): same files the SPA fetches from
 // its origin, served from the built client (dev fallback: the source dir).
 headlessApp.get("/info/:file{[A-Za-z0-9_-]+\\.md}", async (c) => {
   const file = c.req.param("file");

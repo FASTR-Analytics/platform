@@ -29,9 +29,15 @@ import { timeSource } from "./time.ts";
 const NOT_EMPTY = "COUNT(*) > 0";
 
 // Closed: the emitted function is chosen by the aggregate, never taken from
-// the query's text.
+// the query's text. `SUM` is cast to DOUBLE because DuckDB sums an integer
+// column into a HUGEINT, which a JSON cell cannot carry past 2^53: the cast
+// is exact up to 2^53 and the nearest double beyond. The cast is on the sum,
+// not on the column, since summing doubles loses exactness for a total that
+// is itself in range (mixed signs whose partial sums are not). A DECIMAL sum
+// reaches the same double through the cell converter, so the cast does not
+// single out integer columns.
 const AGGREGATE_SQL: Record<LongTableAggregate, (ref: string) => string> = {
-  SUM: (ref) => `SUM(${ref})`,
+  SUM: (ref) => `CAST(SUM(${ref}) AS DOUBLE)`,
   AVG: (ref) => `AVG(${ref})`,
   COUNT: (ref) => `COUNT(${ref})`,
   COUNT_DISTINCT: (ref) => `COUNT(DISTINCT ${ref})`,

@@ -27,14 +27,5 @@ export function renderFreeform(
 
   renderPagePrimitives(rc, measured.primitives);
 
-  renderContent(
-    rc,
-    {
-      rcdContentOuter: measured.rcdContentOuter,
-      rcdContentInner: measured.rcdContentInner,
-      mLayout: measured.mLayout,
-      overflow: measured.overflow,
-      gaps: measured.gaps,
-    },
-  );
+  renderContent(rc, measured.mLayout);
 }

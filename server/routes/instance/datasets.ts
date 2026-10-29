@@ -55,6 +55,7 @@ import { resolveAssetFileOrThrow } from "../../db/instance/assets.ts";
 import { log } from "../../middleware/logging.ts";
 import { requireGlobalPermission } from "../../middleware/mod.ts";
 import {
+  notifyInstanceConfigUpdatedFromDb,
   notifyInstanceDatasetsUpdated,
   notifyInstanceStructureUpdated,
 } from "../../task_management/notify_instance_updated.ts";
@@ -801,17 +802,37 @@ defineRoute(
   },
 );
 
-// An HFA import writes the facility registry, so a run that completes with
-// the structure stamp moved also tells the structure channel.
+// An HFA import writes the facility registry and may switch on facility
+// columns, so a run that completes with the structure stamp moved also tells
+// the structure channel, and one that changed the HFA schema the config
+// channel.
 async function notifyHfaImportFinished(
   mainDb: Sql,
-  structureLastUpdatedBefore: string | undefined,
+  before: { structureLastUpdated: string | undefined; hfaSchema: string },
 ): Promise<void> {
   notifyInstanceDatasetsUpdated(await getInstanceDatasetsSummary(mainDb));
   const structure = await getInstanceStructureSummary(mainDb);
-  if (structure.structureLastUpdated !== structureLastUpdatedBefore) {
+  if (structure.structureLastUpdated !== before.structureLastUpdated) {
     notifyInstanceStructureUpdated(structure);
   }
+  if ((await readHfaSchemaText(mainDb)) !== before.hfaSchema) {
+    await notifyInstanceConfigUpdatedFromDb(mainDb);
+  }
+}
+
+async function readHfaSchemaText(mainDb: Sql): Promise<string> {
+  const res = await getStructureSchema(mainDb, "hfa");
+  return res.success ? JSON.stringify(res.data) : "";
+}
+
+async function snapshotBeforeHfaImport(
+  mainDb: Sql,
+): Promise<{ structureLastUpdated: string | undefined; hfaSchema: string }> {
+  return {
+    structureLastUpdated: (await getInstanceStructureSummary(mainDb))
+      .structureLastUpdated,
+    hfaSchema: await readHfaSchemaText(mainDb),
+  };
 }
 
 // Stateless: streams the named asset through the wizard's filters and reports
@@ -848,12 +869,11 @@ defineRoute(
   requireVisibleAssets("config.csvFileName", "config.xlsFormFileName"),
   log("launchDatasetHfaCsvRun"),
   async (c, { body }) => {
-    const structureBefore = (await getInstanceStructureSummary(c.var.mainDb))
-      .structureLastUpdated;
+    const before = await snapshotBeforeHfaImport(c.var.mainDb);
     const res = await launchDatasetHfaCsvImportRun(c.var.mainDb, {
       input: body.config,
       triggeredBy: c.var.globalUser?.email ?? "unknown",
-      onComplete: () => notifyHfaImportFinished(c.var.mainDb, structureBefore),
+      onComplete: () => notifyHfaImportFinished(c.var.mainDb, before),
     });
     return c.json(res);
   },
@@ -875,12 +895,11 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("resolveDatasetHfaReview"),
   async (c, { body }) => {
-    const structureBefore = (await getInstanceStructureSummary(c.var.mainDb))
-      .structureLastUpdated;
+    const before = await snapshotBeforeHfaImport(c.var.mainDb);
     const res = await resolveDatasetHfaReview(c.var.mainDb, {
       runId: body.runId,
       action: body.action,
-      onComplete: () => notifyHfaImportFinished(c.var.mainDb, structureBefore),
+      onComplete: () => notifyHfaImportFinished(c.var.mainDb, before),
     });
     return c.json(res);
   },

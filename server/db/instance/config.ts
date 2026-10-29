@@ -23,33 +23,53 @@ function structureSchemaConfigKey(family: FacilityFamily): string {
   return `structure_schema_${family}`;
 }
 
+async function selectStructureSchema(
+  sql: Sql,
+  family: FacilityFamily,
+  forUpdate: boolean,
+): Promise<StructureSchema | undefined> {
+  const rows = await sql<{ config_json_value: string }[]>`
+    SELECT config_json_value
+    FROM instance_config
+    WHERE config_key = ${structureSchemaConfigKey(family)}
+    ${forUpdate ? sql`FOR UPDATE` : sql``}
+  `;
+  return rows.length === 0
+    ? undefined
+    : structureSchemaSchema.parse(JSON.parse(rows[0].config_json_value));
+}
+
 export async function getStructureSchema(
   mainDb: Sql,
   family: FacilityFamily,
 ): Promise<APIResponseWithData<StructureSchema>> {
   return await tryCatchDatabaseAsync(async () => {
-    const result = await mainDb<{ config_json_value: string }[]>`
-      SELECT config_json_value
-      FROM instance_config
-      WHERE config_key = ${structureSchemaConfigKey(family)}
-    `;
-
-    if (result.length === 0) {
+    const config = await selectStructureSchema(mainDb, family, false);
+    if (!config) {
       return {
         success: false,
         err: `${structureSchemaConfigKey(family)} config not found`,
       };
     }
 
-    const config = structureSchemaSchema.parse(
-      JSON.parse(result[0].config_json_value),
-    );
-
     return {
       success: true,
       data: config,
     };
   });
+}
+
+// The schema under its row lock, for a transaction that writes it back from
+// this read. Throws when the row is missing: it is seeded at instance creation.
+export async function getStructureSchemaForUpdate(
+  sql: Sql,
+  family: FacilityFamily,
+): Promise<StructureSchema> {
+  const config = await selectStructureSchema(sql, family, true);
+  if (!config) {
+    throw new Error(`${structureSchemaConfigKey(family)} config not found`);
+  }
+  return config;
 }
 
 // The 3-way family selection used by query context / availability:
@@ -76,67 +96,66 @@ export async function setStructureSchema(
   schema: StructureSchema,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
-    const validated = structureSchemaSchema.parse(schema);
-    const configKey = structureSchemaConfigKey(family);
-
     // Guard checks and the config write share one transaction so a concurrent
     // structure import can't land rows between check and write.
-    return await mainDb.begin(async (sql): Promise<APIResponseNoData> => {
-      const currentRows = await sql<{ config_json_value: string }[]>`
-        SELECT config_json_value FROM instance_config
-        WHERE config_key = ${configKey}
-      `;
-      const current = currentRows.length > 0
-        ? structureSchemaSchema.parse(
-          JSON.parse(currentRows[0].config_json_value),
-        )
-        : null;
-
-      if (current !== null && current.adminDepth !== validated.adminDepth) {
-        await sql`SELECT pg_advisory_xact_lock(${STRUCTURE_GEOJSON_ADVISORY_LOCK_KEY})`;
-
-        const facilitiesTable = family === "hmis"
-          ? "facilities_hmis"
-          : "facilities_hfa";
-        const facilitiesCount = await sql<{ count: number }[]>`
-          SELECT COUNT(*) as count FROM ${sql(facilitiesTable)}
-        `;
-        if (facilitiesCount[0].count > 0) {
-          return {
-            success: false,
-            err:
-              `Cannot change the ${family.toUpperCase()} admin depth: the ${family.toUpperCase()} facility registry contains data`,
-          };
-        }
-
-        const geojsonLevels = await sql<{ admin_area_level: number }[]>`
-          SELECT admin_area_level FROM geojson_maps
-          WHERE facility_family = ${family}
-            AND admin_area_level > ${validated.adminDepth}
-          ORDER BY admin_area_level
-        `;
-        if (geojsonLevels.length > 0) {
-          const levels = geojsonLevels.map((r) => r.admin_area_level).join(
-            ", ",
-          );
-          return {
-            success: false,
-            err:
-              `Cannot lower the ${family.toUpperCase()} admin depth: GeoJSON boundaries exist above the new level. Delete the level-${levels} boundaries first.`,
-          };
-        }
-      }
-
-      await sql`
-        INSERT INTO instance_config (config_key, config_json_value)
-        VALUES (${configKey}, ${JSON.stringify(validated)})
-        ON CONFLICT (config_key)
-        DO UPDATE SET config_json_value = ${JSON.stringify(validated)}
-      `;
-
-      return { success: true };
-    });
+    return await mainDb.begin(async (sql) =>
+      await writeStructureSchema(sql, family, schema)
+    );
   });
+}
+
+// The schema write inside the caller's transaction: the HFA data import's
+// registry write switches columns on in the same transaction as the values.
+export async function writeStructureSchema(
+  sql: Sql,
+  family: FacilityFamily,
+  schema: StructureSchema,
+): Promise<APIResponseNoData> {
+  const validated = structureSchemaSchema.parse(schema);
+  const configKey = structureSchemaConfigKey(family);
+  const current = await selectStructureSchema(sql, family, false);
+
+  if (current && current.adminDepth !== validated.adminDepth) {
+    await sql`SELECT pg_advisory_xact_lock(${STRUCTURE_GEOJSON_ADVISORY_LOCK_KEY})`;
+
+    const facilitiesTable = family === "hmis"
+      ? "facilities_hmis"
+      : "facilities_hfa";
+    const facilitiesCount = await sql<{ count: number }[]>`
+      SELECT COUNT(*) as count FROM ${sql(facilitiesTable)}
+    `;
+    if (facilitiesCount[0].count > 0) {
+      return {
+        success: false,
+        err:
+          `Cannot change the ${family.toUpperCase()} admin depth: the ${family.toUpperCase()} facility registry contains data`,
+      };
+    }
+
+    const geojsonLevels = await sql<{ admin_area_level: number }[]>`
+      SELECT admin_area_level FROM geojson_maps
+      WHERE facility_family = ${family}
+        AND admin_area_level > ${validated.adminDepth}
+      ORDER BY admin_area_level
+    `;
+    if (geojsonLevels.length > 0) {
+      const levels = geojsonLevels.map((r) => r.admin_area_level).join(", ");
+      return {
+        success: false,
+        err:
+          `Cannot lower the ${family.toUpperCase()} admin depth: GeoJSON boundaries exist above the new level. Delete the level-${levels} boundaries first.`,
+      };
+    }
+  }
+
+  await sql`
+    INSERT INTO instance_config (config_key, config_json_value)
+    VALUES (${configKey}, ${JSON.stringify(validated)})
+    ON CONFLICT (config_key)
+    DO UPDATE SET config_json_value = ${JSON.stringify(validated)}
+  `;
+
+  return { success: true };
 }
 
 export async function getAdminAreaLabelsConfig(

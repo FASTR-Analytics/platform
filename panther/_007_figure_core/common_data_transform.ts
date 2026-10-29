@@ -276,8 +276,8 @@ export function resolveChartProportional(
 // indicator/tier/lane derivations. An axis member is visible in a pane iff
 // ANY cell for it has a defined value OR a defined uncertainty bound (a
 // member with bounds but no point estimate must still render its bounds).
-// Indices are in global sorted order — call this on the FINAL arrays, after
-// any sortIndicatorValues reorder.
+// Indices come out in ascending global (storage) order; a value sort then
+// reorders the indicator masks via orderVisibleByPane / orderVisibleByPaneBand.
 type PaneTensor = (number | undefined)[][][][]; // [tier][lane][series][indicator]
 type ChartBoundsTensors = {
   ub: (number | undefined)[][][][][];
@@ -327,8 +327,8 @@ export function deriveVisibleIndicatorsByPane(
 // values AND bounds — same rule as the per-pane masks. Returned arrays are
 // indexed [pane][GLOBAL band index][visible global indicator indices]; a
 // band with no data in a pane gets [] and is dropped for that pane by the
-// geometry (never asserted against — it is legitimate data). Call on the
-// FINAL arrays, after any sortIndicatorValues reorder.
+// geometry (never asserted against — it is legitimate data). Indices come out
+// in storage order; a value sort reorders them via orderVisibleByPaneBand.
 export function deriveVisibleIndicatorsByPaneBand(
   values: (number | undefined)[][][][][],
   bounds: ChartBoundsTensors | undefined,
@@ -363,6 +363,68 @@ export function deriveVisibleIndicatorsByPaneBand(
     }
     return bands;
   });
+}
+
+export type ValueSortDirection = "ascending" | "descending";
+
+// Stable, so ties keep the order the mask arrived in (storage order).
+function orderByKey(
+  visible: number[],
+  key: (i: number) => number,
+  direction: ValueSortDirection,
+): number[] {
+  const sign = direction === "descending" ? -1 : 1;
+  return [...visible].sort((a, b) => sign * (key(a) - key(b)));
+}
+
+function sumDefined(cells: (number | undefined)[][], i: number): number {
+  return cells.reduce((acc, series) => acc + (series[i] ?? 0), 0);
+}
+
+// A value sort keys on the sum over every series and every band-axis member
+// (lanes on OV, tiers on OH: the members that share one scale), at member 0
+// of the scale-direction axis, whose members carry their own limits and so
+// cannot be summed. The sort is a presentation order on the masks; storage
+// and the headers keep sort.indicator order.
+export function orderVisibleByPane(
+  visibleByPane: number[][],
+  values: (number | undefined)[][][][][],
+  bandAxis: "tier" | "lane",
+  direction: ValueSortDirection | undefined,
+): number[][] {
+  if (direction === undefined) {
+    return visibleByPane;
+  }
+  return visibleByPane.map((visible, i_pane) => {
+    const paneTensor = values[i_pane];
+    const bandCells = bandAxis === "lane"
+      ? paneTensor[0]
+      : paneTensor.map((tier) => tier[0]);
+    return orderByKey(
+      visible,
+      (i) => bandCells.reduce((acc, cells) => acc + sumDefined(cells, i), 0),
+      direction,
+    );
+  });
+}
+
+export function orderVisibleByPaneBand(
+  visibleByPaneBand: number[][][],
+  values: (number | undefined)[][][][][],
+  bandAxis: "tier" | "lane",
+  direction: ValueSortDirection | undefined,
+): number[][][] {
+  if (direction === undefined) {
+    return visibleByPaneBand;
+  }
+  return visibleByPaneBand.map((bands, i_pane) =>
+    bands.map((visible, i_band) => {
+      const cells = bandAxis === "lane"
+        ? values[i_pane][0][i_band]
+        : values[i_pane][i_band][0];
+      return orderByKey(visible, (i) => sumDefined(cells, i), direction);
+    })
+  );
 }
 
 export function deriveVisibleTiersByPane(

@@ -34,6 +34,7 @@ import { usePromptLibrary } from "./ai_prompt_library/mod.ts";
 import { SaveableUserTextRenderer } from "./ai_prompt_library/mod.ts";
 import { AIDebugPanel, type AIDebugPanelProps } from "./ai_debug_panel";
 import type {
+  AiUsage,
   CopilotViewId,
   ResolvedPackageScope,
   TranslatableString,
@@ -445,14 +446,7 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
   const placeholder = () =>
     t3(PLACEHOLDERS[copilotViewController.current().id]);
 
-  type AiUsageData = {
-    tokensUsedToday: number;
-    dailyTokenLimit: number | null;
-    isUnlimited: boolean;
-    tokensUsedThisWeek: number;
-    weeklyTokenLimit: number | null;
-  };
-  const [aiUsage, setAiUsage] = createSignal<AiUsageData | null>(null);
+  const [aiUsage, setAiUsage] = createSignal<AiUsage | null>(null);
 
   async function refreshAiUsage() {
     try {

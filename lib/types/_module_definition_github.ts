@@ -330,7 +330,11 @@ const metricDefinitionGithub = z.object({
   valueFunc: valueFuncGithub,
   formatAs: z.enum(["percent", "number", "indicator"]),
   requiredDisaggregationOptions: z.array(disaggregationOptionGithub),
-  valueLabelReplacements: z.record(z.string(), z.string()),
+  // Keyed by value prop or by a value the column can hold; the label is what
+  // a legend, an axis or a table header shows for it, so it is translatable
+  // like every other authored label. load_module resolves it to the instance
+  // language, which is why the installed shape is a plain string.
+  valueLabelReplacements: z.record(z.string(), translatableStringGithub),
   postAggregationExpression: postAggregationExpressionGithub.nullable(),
   catalogExpressionEvaluation: catalogExpressionEvaluationGithub.nullable(),
   resultsObjectId: z.string(),

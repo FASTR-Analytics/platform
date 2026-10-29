@@ -15,7 +15,7 @@ import {
   scopeAreaForFamily,
   type ViewChoices,
 } from "lib";
-import { FrameTop, getLanguage, StateHolderWrapper } from "panther";
+import { FrameTop, StateHolderWrapper } from "panther";
 import {
   createEffect,
   createMemo,
@@ -161,9 +161,14 @@ function MetricFrame(
   const view = createMemo(() =>
     resolveView({ ...p.input, possibleValues: possibleValues() })
   );
+  // Instance language, not the viewer's: an explore view builds the same
+  // figure the editor and the products do, and its bundle localizes from the
+  // instance (SYSTEM_10).
   const derived = createMemo(() => {
     const v = view();
-    return v === undefined ? undefined : deriveViewConfig(v, getLanguage());
+    return v === undefined
+      ? undefined
+      : deriveViewConfig(v, instanceState.instanceLanguage);
   });
   createEffect(() => p.onView(view()));
   onCleanup(() => p.onView(undefined));

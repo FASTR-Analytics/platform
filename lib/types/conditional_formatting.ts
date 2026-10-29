@@ -1,11 +1,11 @@
 import {
   type ColorKeyOrString,
   type ContinuousScaleConfig,
-  type Language,
   type ThresholdBoundary,
 } from "@timroberton/panther";
 import type { ZodType } from "zod";
 import { pickLang } from "../translate/t-func.ts";
+import type { Language } from "../translate/types.ts";
 import {
   cfStorageSchema,
   thresholdsRuleSchema as thresholdsRuleSchemaStandalone,

@@ -1,32 +1,59 @@
-// Pins the column-count check of getCsvStreamComponents on whichever row
-// fails it, the first data row included. No database; the reader imports
-// exposed_env_vars, so it runs with the .env the test task loads.
+// Pins getCsvStreamComponents: the column-count check on whichever row
+// fails it, the first data row included; a callback that throws rejects
+// the stream with its own error and no later row is delivered; 500,000 rows
+// arrive complete, in file order, each rowIndex its position; a file of blank
+// lines fails instead of hanging on the header read. No database;
+// the reader imports exposed_env_vars, so it runs with the .env the test
+// task loads.
 //
 //   deno test -A --env-file server/tests/csv_stream_reader_test.ts
 
-import { assertEquals, assertRejects } from "@std/assert";
+import { assert, assertEquals, assertRejects } from "@std/assert";
 import { throwIfErrWithData } from "lib";
 import {
   type CsvColumnValidation,
   getCsvStreamComponents,
+  type StreamingCsvComponents,
 } from "../server_only_funcs_csvs/get_csv_components_streaming_fast.ts";
 
 const tempPaths: string[] = [];
+
+async function writeCsv(lines: string[]): Promise<string> {
+  const csvPath = await Deno.makeTempFile({ suffix: ".csv" });
+  tempPaths.push(csvPath);
+  await Deno.writeTextFile(csvPath, lines.join("\n") + "\n");
+  return csvPath;
+}
+
+async function openCsv(
+  csvPath: string,
+  columnValidation: CsvColumnValidation,
+): Promise<StreamingCsvComponents> {
+  const res = await getCsvStreamComponents(csvPath, columnValidation);
+  throwIfErrWithData(res);
+  return res.data;
+}
 
 async function readRows(
   lines: string[],
   columnValidation: CsvColumnValidation,
 ): Promise<string[][]> {
-  const csvPath = await Deno.makeTempFile({ suffix: ".csv" });
-  tempPaths.push(csvPath);
-  await Deno.writeTextFile(csvPath, lines.join("\n") + "\n");
-  const res = await getCsvStreamComponents(csvPath, columnValidation);
-  throwIfErrWithData(res);
+  const components = await openCsv(await writeCsv(lines), columnValidation);
   const rows: string[][] = [];
-  await res.data.processRows((row) => {
+  await components.processRows((row) => {
     rows.push(row);
   });
   return rows;
+}
+
+// Spans several 2 MB chunks, so a throw in the first chunk leaves chunks that
+// must not be read or delivered.
+function largeCsvLines(nRows: number): string[] {
+  const lines = ["id,facility,value"];
+  for (let i = 0; i < nRows; i++) {
+    lines.push(`${i},facility_${i},${i * 3}`);
+  }
+  return lines;
 }
 
 Deno.test("allow-fewer-columns: a first row with more columns than the header rejects", async () => {
@@ -66,6 +93,51 @@ Deno.test("allow-fewer-columns: a row with fewer columns than the header is deli
     "1",
     "2",
   ]]);
+});
+
+Deno.test("a file of blank lines fails with an empty header instead of hanging", async () => {
+  const res = await getCsvStreamComponents(await writeCsv(["", "", ""]));
+  assertEquals(res, { success: false, err: "CSV header row is empty" });
+});
+
+Deno.test("a callback that throws rejects the stream with its own error and stops delivery", async () => {
+  const components = await openCsv(
+    await writeCsv(largeCsvLines(200_000)),
+    "strict",
+  );
+  let delivered = 0;
+  await assertRejects(
+    () =>
+      components.processRows(async (_row, rowIndex) => {
+        delivered++;
+        await Promise.resolve();
+        if (rowIndex === 1000) throw new Error("insert failed");
+      }),
+    Error,
+    "insert failed",
+  );
+  assertEquals(delivered, 1001);
+});
+
+Deno.test("500,000 rows arrive complete, in file order, each rowIndex its position, in under 10 seconds", async () => {
+  const nRows = 500_000;
+  const components = await openCsv(
+    await writeCsv(largeCsvLines(nRows)),
+    "strict",
+  );
+  let expected = 0;
+  const started = performance.now();
+  await components.processRows((row, rowIndex) => {
+    if (rowIndex !== expected || row[0] !== String(expected)) {
+      throw new Error(
+        `Row ${expected} arrived as rowIndex ${rowIndex} with id ${row[0]}`,
+      );
+    }
+    expected++;
+  });
+  const elapsedMs = performance.now() - started;
+  assertEquals(expected, nRows);
+  assert(elapsedMs < 10_000, `took ${elapsedMs.toFixed(0)} ms`);
 });
 
 Deno.test("cleanup", async () => {

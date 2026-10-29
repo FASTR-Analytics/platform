@@ -388,16 +388,9 @@ function SessionEdits(p: {
                       what="figure"
                       label={embedLabels.get(ch.key) ??
                         (ch.newVal ?? ch.oldVal)?.bundle?.config.t.caption}
-                      old={ch.oldVal && (
-                        <ReportFigureEmbed
-                          figure={ch.oldVal}
-                        />
-                      )}
-                      neu={ch.newVal && (
-                        <ReportFigureEmbed
-                          figure={ch.newVal}
-                        />
-                      )}
+                      old={ch.oldVal}
+                      neu={ch.newVal}
+                      render={(fig) => <ReportFigureEmbed figure={fig} />}
                     />
                   )}
                 </For>
@@ -407,17 +400,12 @@ function SessionEdits(p: {
                       kind={ch.kind}
                       what="image"
                       label={embedLabels.get(ch.key)}
-                      old={ch.oldVal && (
+                      old={ch.oldVal}
+                      neu={ch.newVal}
+                      render={(img) => (
                         <img
                           class="max-h-64 w-full object-contain"
-                          src={resolveLogoUrl(ch.oldVal.imgFile)}
-                          alt=""
-                        />
-                      )}
-                      neu={ch.newVal && (
-                        <img
-                          class="max-h-64 w-full object-contain"
-                          src={resolveLogoUrl(ch.newVal.imgFile)}
+                          src={resolveLogoUrl(img.imgFile)}
                           alt=""
                         />
                       )}
@@ -521,14 +509,18 @@ function markEditedEmbeds(
 // One changed figure/image: a labeled card with the before/after snapshots
 // side by side (only the surviving side for adds/removals). Attribution stays
 // session-level: registries have no per-editor ledger.
-function VizChangeRow(p: {
+// `render` rather than two JSX props: a JSX-valued prop is a getter, so a
+// parent expression is rebuilt on every read, and a card reads each side
+// twice (presence, then content). The discarded figure embed still fetched.
+function VizChangeRow<T>(p: {
   kind: "added" | "removed" | "edited";
   what: "figure" | "image";
   /** The embed's alt text (or bundle caption): ties the card to its
    *  highlighted token in the body diff. */
   label?: string;
-  old?: JSX.Element;
-  neu?: JSX.Element;
+  old?: T;
+  neu?: T;
+  render: (v: T) => JSX.Element;
 }) {
   const whatLabel = p.what === "figure"
     ? t3({ en: "Visualization", fr: "Visualisation", pt: "Visualização" })
@@ -561,25 +553,29 @@ function VizChangeRow(p: {
         — {kindLabel}
       </div>
       <div classList={{ "grid grid-cols-2 gap-3": p.kind === "edited" }}>
-        <Show when={p.old}>
-          <div class="opacity-60">
-            <Show when={p.kind === "edited"}>
-              <div class="ui-text-caption mb-1">
-                {t3({ en: "Before", fr: "Avant", pt: "Antes" })}
-              </div>
-            </Show>
-            {p.old}
-          </div>
+        <Show when={p.old} keyed>
+          {(old) => (
+            <div class="opacity-60">
+              <Show when={p.kind === "edited"}>
+                <div class="ui-text-caption mb-1">
+                  {t3({ en: "Before", fr: "Avant", pt: "Antes" })}
+                </div>
+              </Show>
+              {p.render(old)}
+            </div>
+          )}
         </Show>
-        <Show when={p.neu}>
-          <div>
-            <Show when={p.kind === "edited"}>
-              <div class="ui-text-caption mb-1">
-                {t3({ en: "After", fr: "Après", pt: "Depois" })}
-              </div>
-            </Show>
-            {p.neu}
-          </div>
+        <Show when={p.neu} keyed>
+          {(neu) => (
+            <div>
+              <Show when={p.kind === "edited"}>
+                <div class="ui-text-caption mb-1">
+                  {t3({ en: "After", fr: "Après", pt: "Depois" })}
+                </div>
+              </Show>
+              {p.render(neu)}
+            </div>
+          )}
         </Show>
       </div>
     </div>

@@ -1,6 +1,9 @@
 import {
   type APIResponseNoData,
   composeHfaIndicatorLabel,
+  HFA_CODE_LIST_EXAMPLE,
+  HFA_CODE_SYMBOLS,
+  HFA_CODE_WORDS,
   type HfaDictionaryForValidation,
   type HfaIndicator,
   type HfaIndicatorCategory,
@@ -35,10 +38,11 @@ import { createMemo, createSignal, For, Show } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
 import { serverActions } from "~/server_actions";
 import {
-  checkRCodeResultType,
-  hasRCodeErrors,
-  type RCodeValidationResult,
-  validateRCode,
+  checkIndicatorCodeResultType,
+  EMPTY_INDICATOR_CODE_VALIDATION,
+  hasIndicatorCodeErrors,
+  type IndicatorCodeValidation,
+  validateIndicatorCode,
 } from "./_shared/mod.ts";
 import {
   copilotViewController,
@@ -354,27 +358,20 @@ function EditorInner(p: {
     return new Set(dict.variables.map((v) => v.variableId));
   };
 
-  const emptyValidation: RCodeValidationResult = {
-    syntaxErrors: [],
-    unknownVariableErrors: [],
-    warnings: [],
-    referencedIds: [],
-  };
-
-  const currentRCodeValidation = (): RCodeValidationResult => {
+  const currentRCodeValidation = (): IndicatorCodeValidation => {
     const idx = currentTpIndex();
-    if (idx < 0) return emptyValidation;
-    return validateRCode(
+    if (idx < 0) return EMPTY_INDICATOR_CODE_VALIDATION;
+    return validateIndicatorCode(
       state.code[idx].rCode,
       availableVariableIds(),
       otherIndicatorIds,
     );
   };
 
-  const currentFilterValidation = (): RCodeValidationResult => {
+  const currentFilterValidation = (): IndicatorCodeValidation => {
     const idx = currentTpIndex();
-    if (idx < 0) return emptyValidation;
-    return validateRCode(
+    if (idx < 0) return EMPTY_INDICATOR_CODE_VALIDATION;
+    return validateIndicatorCode(
       state.code[idx].rFilterCode,
       availableVariableIds(),
       otherIndicatorIds,
@@ -409,11 +406,11 @@ function EditorInner(p: {
         success: false,
         err: t3({
           en:
-            `Filter code requires R code for time point "${filterOnly.timePoint}"`,
+            `Filter code requires indicator code for time point "${filterOnly.timePoint}"`,
           fr:
-            `Le code filtre nécessite un code R pour le point temporel « ${filterOnly.timePoint} »`,
+            `Le code filtre nécessite un code d'indicateur pour le point temporel « ${filterOnly.timePoint} »`,
           pt:
-            `O código de filtro requer código R para o ponto temporal "${filterOnly.timePoint}"`,
+            `O código de filtro requer código do indicador para o ponto temporal "${filterOnly.timePoint}"`,
         }),
       };
     }
@@ -423,11 +420,12 @@ function EditorInner(p: {
       return {
         success: false,
         err: t3({
-          en: "An indicator with variant code must also have overall R code",
+          en:
+            "An indicator with variant code must also have overall indicator code",
           fr:
-            "Un indicateur avec du code de variante doit aussi avoir un code R global",
+            "Un indicateur avec du code de variante doit aussi avoir un code d'indicateur global",
           pt:
-            "Um indicador com código de variante também deve ter código R global",
+            "Um indicador com código de variante também deve ter código global do indicador",
         }),
       };
     }
@@ -444,23 +442,23 @@ function EditorInner(p: {
         ? new Set(tp.variables.map((v) => v.variableId))
         : new Set<string>();
       if (c.rCode.trim()) {
-        const result = validateRCode(
+        const result = validateIndicatorCode(
           c.rCode,
           availableVariableIds,
           otherIndicatorIds,
         );
-        if (hasRCodeErrors(result)) {
+        if (hasIndicatorCodeErrors(result)) {
           hasSyntaxError = true;
           break;
         }
       }
       if (c.rFilterCode.trim()) {
-        const result = validateRCode(
+        const result = validateIndicatorCode(
           c.rFilterCode,
           availableVariableIds,
           otherIndicatorIds,
         );
-        if (hasRCodeErrors(result)) {
+        if (hasIndicatorCodeErrors(result)) {
           hasSyntaxError = true;
           break;
         }
@@ -474,12 +472,12 @@ function EditorInner(p: {
         const availableVariableIds = tp
           ? new Set(tp.variables.map((v) => v.variableId))
           : new Set<string>();
-        const result = validateRCode(
+        const result = validateIndicatorCode(
           vc.rCode,
           availableVariableIds,
           allIndicatorIdsInclSelf,
         );
-        if (hasRCodeErrors(result)) {
+        if (hasIndicatorCodeErrors(result)) {
           hasSyntaxError = true;
           break;
         }
@@ -554,7 +552,9 @@ function EditorInner(p: {
     const available = new Set(tp?.variables.map((v) => v.variableId) ?? []);
     const issues: string[] = [];
     if (c.rFilterCode.trim() && !c.rCode.trim()) {
-      issues.push("rFilterCode: filter code requires R code for this round");
+      issues.push(
+        "rFilterCode: filter code requires indicator code for this round",
+      );
     }
     const fields: [string, string][] = [
       ["rCode", c.rCode],
@@ -562,13 +562,12 @@ function EditorInner(p: {
     ];
     for (const [field, code] of fields) {
       if (!code.trim()) continue;
-      const r = validateRCode(code, available, otherIndicatorIds);
+      const r = validateIndicatorCode(code, available, otherIndicatorIds);
       for (const e of r.syntaxErrors) issues.push(`${field}: ${e}`);
       for (const e of r.unknownVariableErrors) issues.push(`${field}: ${e}`);
-      for (const w of r.warnings) issues.push(`${field}: WARNING: ${w}`);
     }
     if (c.rCode.trim()) {
-      for (const w of checkRCodeResultType(c.rCode, state.type)) {
+      for (const w of checkIndicatorCodeResultType(c.rCode, state.type)) {
         issues.push(`rCode: ${w}`);
       }
     }
@@ -707,22 +706,24 @@ function EditorInner(p: {
                   }),
                 }]}
             />
-            <MultiSelect
-              label={t3({
-                en: "Service categories",
-                fr: "Catégories de service",
-                pt: "Categorias de serviço",
-              })}
-              values={state.serviceCategoryIds}
-              onChange={(v) => {
-                setState("serviceCategoryIds", v);
-                markDirty();
-              }}
-              options={p.serviceCategories.map((sc) => ({
-                value: sc.id,
-                label: sc.label,
-              }))}
-            />
+            <div class="min-w-[200px]">
+              <MultiSelect
+                label={t3({
+                  en: "Service categories",
+                  fr: "Catégories de service",
+                  pt: "Categorias de serviço",
+                })}
+                values={state.serviceCategoryIds}
+                onChange={(v) => {
+                  setState("serviceCategoryIds", v);
+                  markDirty();
+                }}
+                options={p.serviceCategories.map((sc) => ({
+                  value: sc.id,
+                  label: sc.label,
+                }))}
+              />
+            </div>
             <Select
               label={t3({
                 en: "Variant group",
@@ -932,20 +933,20 @@ function EditorInner(p: {
                 <div>
                   <TextArea
                     label={t3({
-                      en: `R code (${
+                      en: `Indicator code (${
                         state.type === "binary"
-                          ? "should evaluate to TRUE/FALSE"
-                          : "should evaluate to numeric"
+                          ? "should evaluate to yes/no"
+                          : "should evaluate to a number"
                       })`,
-                      fr: `Code R (${
+                      fr: `Code de l'indicateur (${
                         state.type === "binary"
-                          ? "doit évaluer à TRUE/FALSE"
-                          : "doit évaluer à numérique"
+                          ? "doit donner oui/non"
+                          : "doit donner un nombre"
                       })`,
-                      pt: `Código R (${
+                      pt: `Código do indicador (${
                         state.type === "binary"
-                          ? "deve avaliar para TRUE/FALSE"
-                          : "deve avaliar para numérico"
+                          ? "deve dar sim/não"
+                          : "deve dar um número"
                       })`,
                     })}
                     value={state.code[currentTpIndex()].rCode}
@@ -957,9 +958,28 @@ function EditorInner(p: {
                     height="120px"
                     mono
                   />
+                  <div class="text-base-content-muted mt-1 text-xs">
+                    {t3({
+                      en: "Operators: ",
+                      fr: "Opérateurs : ",
+                      pt: "Operadores: ",
+                    })}
+                    <span class="font-mono">
+                      {[...HFA_CODE_SYMBOLS, ...HFA_CODE_WORDS].join(" ")}
+                    </span>
+                    {". "}
+                    <span class="font-mono">{HFA_CODE_LIST_EXAMPLE}</span>
+                    {t3({
+                      en:
+                        ' tests a list of values. Text is written in quotes, as in sh_03 == "c". Nothing else is accepted.',
+                      fr:
+                        " teste une liste de valeurs. Le texte s'écrit entre guillemets, comme dans sh_03 == \"c\". Rien d'autre n'est accepté.",
+                      pt:
+                        ' testa uma lista de valores. O texto escreve-se entre aspas, como em sh_03 == "c". Nada mais é aceite.',
+                    })}
+                  </div>
                   <Show
                     when={currentRCodeValidation().referencedIds.length > 0 ||
-                      currentRCodeValidation().warnings.length > 0 ||
                       currentRCodeValidation().unknownVariableErrors.length >
                         0 ||
                       currentRCodeValidation().syntaxErrors.length > 0}
@@ -1003,9 +1023,6 @@ function EditorInner(p: {
                           );
                         }}
                       </For>
-                      <For each={currentRCodeValidation().warnings}>
-                        {(w) => <div class="text-warning text-xs">{w}</div>}
-                      </For>
                     </div>
                   </Show>
                 </div>
@@ -1013,11 +1030,9 @@ function EditorInner(p: {
                 <div>
                   <TextArea
                     label={t3({
-                      en:
-                        "Filter code (optional, should evaluate to TRUE/FALSE)",
-                      fr: "Code filtre (optionnel, doit évaluer à TRUE/FALSE)",
-                      pt:
-                        "Código de filtro (opcional, deve avaliar para TRUE/FALSE)",
+                      en: "Filter code (optional, should evaluate to yes/no)",
+                      fr: "Code filtre (optionnel, doit donner oui/non)",
+                      pt: "Código de filtro (opcional, deve dar sim/não)",
                     })}
                     value={state.code[currentTpIndex()].rFilterCode}
                     onChange={(v) => {
@@ -1034,17 +1049,17 @@ function EditorInner(p: {
                   >
                     <div class="text-danger font-700 mt-1 text-xs">
                       {t3({
-                        en: "Filter code requires R code for this time point",
+                        en:
+                          "Filter code requires indicator code for this time point",
                         fr:
-                          "Le code filtre nécessite un code R pour ce point temporel",
+                          "Le code filtre nécessite un code d'indicateur pour ce point temporel",
                         pt:
-                          "O código de filtro requer código R para este ponto temporal",
+                          "O código de filtro requer código do indicador para este ponto temporal",
                       })}
                     </div>
                   </Show>
                   <Show
                     when={currentFilterValidation().referencedIds.length > 0 ||
-                      currentFilterValidation().warnings.length > 0 ||
                       currentFilterValidation().unknownVariableErrors.length >
                         0 ||
                       currentFilterValidation().syntaxErrors.length > 0}
@@ -1088,9 +1103,6 @@ function EditorInner(p: {
                           );
                         }}
                       </For>
-                      <For each={currentFilterValidation().warnings}>
-                        {(w) => <div class="text-warning text-xs">{w}</div>}
-                      </For>
                     </div>
                   </Show>
                 </div>
@@ -1111,8 +1123,8 @@ function EditorInner(p: {
                       {(item) => {
                         const key = () =>
                           variantKey(selectedTimePoint(), item.id);
-                        const validation = (): RCodeValidationResult =>
-                          validateRCode(
+                        const validation = (): IndicatorCodeValidation =>
+                          validateIndicatorCode(
                             state.variantCode[key()] ?? "",
                             availableVariableIds(),
                             allIndicatorIdsInclSelf,
@@ -1132,8 +1144,7 @@ function EditorInner(p: {
                             />
                             <Show
                               when={validation().syntaxErrors.length > 0 ||
-                                validation().unknownVariableErrors.length > 0 ||
-                                validation().warnings.length > 0}
+                                validation().unknownVariableErrors.length > 0}
                             >
                               <div class="mt-1">
                                 <For each={validation().syntaxErrors}>
@@ -1151,11 +1162,6 @@ function EditorInner(p: {
                                 <For each={validation().unknownVariableErrors}>
                                   {(e) => (
                                     <div class="text-danger text-xs">{e}</div>
-                                  )}
-                                </For>
-                                <For each={validation().warnings}>
-                                  {(w) => (
-                                    <div class="text-warning text-xs">{w}</div>
                                   )}
                                 </For>
                               </div>

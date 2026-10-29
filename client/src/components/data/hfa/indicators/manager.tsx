@@ -1,9 +1,10 @@
 import {
-  extractRIdentifiers,
+  HFA_STRUCTURAL_VARIABLE_IDS,
   type HfaDictionaryForValidation,
   type HfaIndicator,
   type HfaIndicatorCategory,
   type HfaIndicatorCode,
+  hfaIndicatorCodeIdentifiers,
   type HfaIndicatorServiceCategory,
   type HfaIndicatorSubCategory,
   type HfaIndicatorVariantCode,
@@ -49,7 +50,11 @@ import { HfaCategoriesManager } from "./categories_manager";
 import { HfaServiceCategoriesManager } from "./service_categories_manager";
 import { HfaVariantGroupsManager } from "./variant_groups_manager";
 import { buildHfaWorkbookBlob } from "./xlsx_workbook";
-import { hasRCodeErrors, validateRCode } from "./_shared/mod.ts";
+import {
+  checkIndicatorCodeResultType,
+  hasIndicatorCodeErrors,
+  validateIndicatorCode,
+} from "./_shared/mod.ts";
 import {
   HfaUnusedVariablesModal,
   type UnusedVariablesByTimePoint,
@@ -334,34 +339,28 @@ export function HfaIndicatorsManager(p: Props) {
           ? new Set(tp.variables.map((v) => v.variableId))
           : new Set<string>();
         let hasErr = false;
-        let hasWarn = false;
-        const rCodeResult = validateRCode(
+        const rCodeResult = validateIndicatorCode(
           c.rCode,
           availableVariableIds,
           otherIndicatorIds,
         );
-        if (hasRCodeErrors(rCodeResult)) {
+        if (hasIndicatorCodeErrors(rCodeResult)) {
           hasErr = true;
         }
-        if (rCodeResult.warnings.length > 0) {
-          hasWarn = true;
-        }
         if (c.rFilterCode?.trim()) {
-          const rFilterResult = validateRCode(
+          const rFilterResult = validateIndicatorCode(
             c.rFilterCode,
             availableVariableIds,
             otherIndicatorIds,
           );
-          if (hasRCodeErrors(rFilterResult)) {
+          if (hasIndicatorCodeErrors(rFilterResult)) {
             hasErr = true;
-          }
-          if (rFilterResult.warnings.length > 0) {
-            hasWarn = true;
           }
         }
         if (hasErr) error++;
-        else if (hasWarn) warning++;
-        else ready++;
+        else if (checkIndicatorCodeResultType(c.rCode, ind.type).length > 0) {
+          warning++;
+        } else ready++;
       }
 
       const nonEmpty = indCode.filter(
@@ -438,22 +437,22 @@ export function HfaIndicatorsManager(p: Props) {
           ? new Set(tp.variables.map((v) => v.variableId))
           : new Set<string>();
         if (c.rCode.trim()) {
-          const result = validateRCode(
+          const result = validateIndicatorCode(
             c.rCode,
             availableVariableIds,
             otherIndicatorIds,
           );
-          if (hasRCodeErrors(result)) {
+          if (hasIndicatorCodeErrors(result)) {
             hasSyntaxError = true;
           }
         }
         if (c.rFilterCode?.trim()) {
-          const result = validateRCode(
+          const result = validateIndicatorCode(
             c.rFilterCode,
             availableVariableIds,
             otherIndicatorIds,
           );
-          if (hasRCodeErrors(result)) {
+          if (hasIndicatorCodeErrors(result)) {
             hasSyntaxError = true;
           }
         }
@@ -592,8 +591,8 @@ export function HfaIndicatorsManager(p: Props) {
     for (const c of codeSt.data) {
       if (deleted.has(c.indicatorId)) continue;
       const identifiers = [
-        ...extractRIdentifiers(c.rCode),
-        ...(c.rFilterCode ? extractRIdentifiers(c.rFilterCode) : []),
+        ...hfaIndicatorCodeIdentifiers(c.rCode),
+        ...(c.rFilterCode ? hfaIndicatorCodeIdentifiers(c.rFilterCode) : []),
       ];
       if (identifiers.some((id) => deleted.has(id))) {
         referencing.add(c.indicatorId);
@@ -601,7 +600,7 @@ export function HfaIndicatorsManager(p: Props) {
     }
     for (const c of variantCodeSt.data) {
       if (deleted.has(c.indicatorId)) continue;
-      if (extractRIdentifiers(c.rCode).some((id) => deleted.has(id))) {
+      if (hfaIndicatorCodeIdentifiers(c.rCode).some((id) => deleted.has(id))) {
         referencing.add(c.indicatorId);
       }
     }
@@ -752,8 +751,8 @@ export function HfaIndicatorsManager(p: Props) {
       const used = usedByTimePoint.get(c.timePoint);
       if (!available || !used) continue;
       const identifiers = [
-        ...extractRIdentifiers(c.rCode),
-        ...(c.rFilterCode ? extractRIdentifiers(c.rFilterCode) : []),
+        ...hfaIndicatorCodeIdentifiers(c.rCode),
+        ...(c.rFilterCode ? hfaIndicatorCodeIdentifiers(c.rFilterCode) : []),
       ];
       for (const id of identifiers) {
         if (available.has(id)) used.add(id);
@@ -765,7 +764,7 @@ export function HfaIndicatorsManager(p: Props) {
       const available = availableByTimePoint.get(c.timePoint);
       const used = usedByTimePoint.get(c.timePoint);
       if (!available || !used) continue;
-      for (const id of extractRIdentifiers(c.rCode)) {
+      for (const id of hfaIndicatorCodeIdentifiers(c.rCode)) {
         if (available.has(id)) used.add(id);
       }
     }
@@ -777,7 +776,10 @@ export function HfaIndicatorsManager(p: Props) {
         return {
           timePoint: tp.timePoint,
           unused: tp.variables
-            .filter((v) => !used.has(v.variableId))
+            .filter((v) =>
+              !used.has(v.variableId) &&
+              !HFA_STRUCTURAL_VARIABLE_IDS.has(v.variableId)
+            )
             .map((v) => ({
               variableId: v.variableId,
               variableLabel: v.variableLabel,
@@ -834,8 +836,14 @@ export function HfaIndicatorsManager(p: Props) {
   };
 
   const typeText = (ind: HfaIndicator): string =>
-    `${ind.type === "binary" ? "Boolean" : "Numeric"} (${
-      ind.aggregation === "sum" ? "Sum" : "Avg"
+    `${
+      ind.type === "binary"
+        ? t3({ en: "Boolean", fr: "Booléen", pt: "Booleano" })
+        : t3({ en: "Numeric", fr: "Numérique", pt: "Numérico" })
+    } (${
+      ind.aggregation === "sum"
+        ? t3({ en: "Sum", fr: "Somme", pt: "Soma" })
+        : t3({ en: "Avg", fr: "Moy.", pt: "Méd." })
     })`;
 
   // One value per state any of the indicator's time points is in, so the
@@ -994,9 +1002,9 @@ export function HfaIndicatorsManager(p: Props) {
               </Show>
               <span class="text-warning font-700">
                 {t3({
-                  en: `${stats.warning} warning`,
-                  fr: `${stats.warning} avertissement`,
-                  pt: `${stats.warning} aviso`,
+                  en: `${stats.warning} type mismatch`,
+                  fr: `${stats.warning} type incohérent`,
+                  pt: `${stats.warning} tipo incoerente`,
                 })}
               </span>
             </Show>

@@ -30,6 +30,7 @@ import {
   type PeriodBounds,
   periodFilterHasBounds,
   replaceReportEmbedTokens,
+  reportLiveFigures,
   resolveFigureMetric,
   type ResultsValueInfoForPresentationObject,
   rewriteReportEmbedToken,
@@ -74,11 +75,35 @@ import {
 // figures.
 
 // The ids a proposed body may embed: the report's own figures and images.
+// The FULL registry, deliberately, not `reportLiveFigures`: a proposed body may
+// re-embed a still-registered id that the current body does not reference.
 function embedIdsOf(ctx: EditingReportContext): ReportEmbedIds {
   return {
     figures: Object.keys(ctx.getFigures()),
     images: Object.keys(ctx.getImages()),
   };
+}
+
+// The figures the reader can see: lib/report_live_figures.ts.
+function liveFiguresOf(
+  ctx: EditingReportContext,
+): Record<string, FigureBlock> {
+  return reportLiveFigures(ctx.getBody(), ctx.getFigures());
+}
+
+function liveFigureOrRefuse(
+  ctx: EditingReportContext,
+  figureId: string,
+): FigureBlock {
+  const live = liveFiguresOf(ctx);
+  const fig = live[figureId];
+  if (!fig) {
+    const ids = Object.keys(live).join(", ") || "(none)";
+    throw new AIToolFailure(
+      `No figure with id "${figureId}" in this report's body. Figure ids: ${ids}. Call get_report_editor.`,
+    );
+  }
+  return fig;
 }
 
 // A text edit the package refused. A body that broke a rule is a tool
@@ -253,9 +278,8 @@ export function getClientToolsForReportEditor(
       kind: "read",
       handler: async (_input, view) => {
         const ctx = view.context;
-        const figs = ctx.getFigures();
+        const figs = liveFiguresOf(ctx);
         const figureIds = Object.keys(figs);
-        const imgIds = Object.keys(ctx.getImages());
         const figureSection = figureIds.length
           ? [
             `## Figures (call get_report_figure for full config; update_report_figure to edit in place):`,
@@ -267,7 +291,9 @@ export function getClientToolsForReportEditor(
         return readReportText(ctx.getBody(), {
           title: ctx.getLabel(),
           figureLines: figureSection,
-          embeds: { figures: figureIds, images: imgIds },
+          // The ids a PROPOSED body may embed, which is the full registry,
+          // not the index above: `figureLines` is what the model reads.
+          embeds: embedIdsOf(ctx),
           selection: ctx.getSelection(),
         }).text;
       },
@@ -296,13 +322,7 @@ export function getClientToolsForReportEditor(
       kind: "read",
       handler: async (input, view) => {
         const ctx = view.context;
-        const fig = ctx.getFigures()[input.figureId];
-        if (!fig) {
-          const ids = Object.keys(ctx.getFigures()).join(", ") || "(none)";
-          throw new AIToolFailure(
-            `No figure with id "${input.figureId}". Figure ids: ${ids}.`,
-          );
-        }
+        const fig = liveFigureOrRefuse(ctx, input.figureId);
         if (!fig.bundle) {
           throw new AIToolFailure(
             `Figure "${input.figureId}" has no resolved data yet and can't be read.`,
@@ -352,25 +372,10 @@ export function getClientToolsForReportEditor(
       kind: "write",
       handler: async (input, view) => {
         const ctx = view.context;
-        const fig = ctx.getFigures()[input.figureId];
-        if (!fig) {
-          const ids = Object.keys(ctx.getFigures()).join(", ") || "(none)";
-          throw new AIToolFailure(
-            `No figure with id "${input.figureId}". Figure ids: ${ids}.`,
-          );
-        }
+        const fig = liveFigureOrRefuse(ctx, input.figureId);
         if (!fig.bundle) {
           throw new AIToolFailure(
             `Figure "${input.figureId}" has no resolved data yet and can't be edited.`,
-          );
-        }
-        if (
-          !findReportEmbeds(ctx.getBody()).some(
-            (r) => r.kind === "figure" && r.id === input.figureId,
-          )
-        ) {
-          throw new AIToolFailure(
-            `Figure "${input.figureId}" is registered but its token isn't in the report body. Call get_report_editor.`,
           );
         }
         // metricId/type are not in the patch schema (silently stripped), so an
@@ -473,6 +478,7 @@ export function getClientToolsForReportEditor(
           view.context.getScope(),
           metric,
           newConfig,
+          bundle.localization,
         );
         assertNoSlotCollision(
           newConfig,
@@ -539,13 +545,18 @@ export function getClientToolsForReportEditor(
         }
         const added = await resolveNewFigures(ctx, input.newFigures, metrics);
         // A draft keeps the report's own figures and images: the ones it
-        // still embeds print at their real size, as they will.
+        // still embeds print at their real size, as they will. Read against
+        // the full registry, since a draft may re-embed a still-registered id.
+        const body = input.markdown !== undefined
+          ? collapseFastrBlankRuns(input.markdown)
+          : ctx.getBody();
         const detail = {
           ...res.data,
-          body: input.markdown !== undefined
-            ? collapseFastrBlankRuns(input.markdown)
-            : ctx.getBody(),
-          figures: { ...ctx.getFigures(), ...Object.fromEntries(added) },
+          body,
+          figures: reportLiveFigures(body, {
+            ...ctx.getFigures(),
+            ...Object.fromEntries(added),
+          }),
           images: ctx.getImages(),
           config: { ...res.data.config, fastrTheme: theme },
         };
@@ -859,20 +870,28 @@ ${FASTR_MD_SYNTAX_DOC}`,
       approval: {
         propose: async (input, view) => {
           const ctx = view.context;
-          if (!ctx.getFigures()[input.figureId]) {
+          liveFigureOrRefuse(ctx, input.figureId);
+          // Liveness is what the DOCUMENT resolves (reportLiveFigures), while
+          // this rewrite is the canonical token's, so a figure embedded as a
+          // titled, reference or angle-bracket destination is live and not
+          // rewritable here. Without this the body comes back unchanged and the
+          // model hears only "IDENTICAL to the current body".
+          const refuseUnrewritable = (): never => {
             throw new AIToolFailure(
-              `No figure with id "${input.figureId}" in this report. Call get_report_editor to see figure ids.`,
+              `Figure "${input.figureId}" is embedded in a form this tool cannot rewrite (not the plain \`![caption](figure:<id>)\` token). Rewrite that embed as \`${
+                buildReportEmbedToken("figure", input.figureId, "<caption>")
+              }\` with replace_text, then call replace_figure again. update_report_figure works on the embed as it stands, but only for this figure's config (replicant, filters, disaggregation, period, captions): it cannot change the metric or chart type.`,
             );
-          }
-          if (
-            !findReportEmbeds(ctx.getBody()).some(
+          };
+          const rewritable = (body: string) =>
+            findReportEmbeds(body).some(
               (r) => r.kind === "figure" && r.id === input.figureId,
-            )
-          ) {
-            throw new AIToolFailure(
-              `Figure "${input.figureId}" is registered but its token isn't in the body. Call get_report_editor.`,
             );
-          }
+          // Refused before the figure is resolved, which costs a package query:
+          // whether the body can be rewritten depends only on the body and the
+          // id. This read is not the proposal's base, so it may precede the
+          // await.
+          if (!rewritable(ctx.getBody())) refuseUnrewritable();
           const figureBlock = await resolveFigureFromMetric(
             view.context.getScope(),
             input.figure,
@@ -890,6 +909,11 @@ ${FASTR_MD_SYNTAX_DOC}`,
           // the tool input has no occurrence selector, so the count is surfaced
           // in the summary and the user sees the full rewrite in the
           // accept/reject diff.
+          //
+          // The body is read HERE, after the await: `proposeEdit`'s base is
+          // `body()` at that call, so an await between this read and it makes
+          // the proposal's diff, and its rebase on accept, revert whatever was
+          // typed meanwhile.
           const swapped = replaceReportEmbedTokens(
             ctx.getBody(),
             "figure",
@@ -900,6 +924,9 @@ ${FASTR_MD_SYNTAX_DOC}`,
                 { id: newId, caption: overrideCaption },
               ),
           );
+          // A token that vanished under the await: without this it falls into
+          // proposeEdit's "IDENTICAL to the current body" skip.
+          if (swapped.count === 0) refuseUnrewritable();
           const embedCount = swapped.count;
           const newBody = swapped.body;
           validateReportBodyLength(newBody);

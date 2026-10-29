@@ -315,7 +315,9 @@ function WhatsNewMedia(p: {
   // an element that never reports) must not starve the pages behind it:
   // release the next page after a grace period regardless.
   createEffect(() => {
-    if (!p.canLoad || loaded()) {
+    const canLoad = p.canLoad;
+    const isLoaded = loaded();
+    if (!canLoad || isLoaded) {
       return;
     }
     const timer = setTimeout(() => p.onLoaded(), QUEUE_ADVANCE_TIMEOUT_MS);
@@ -324,10 +326,12 @@ function WhatsNewMedia(p: {
 
   // Don't burn CPU decoding a looping clip on a hidden page
   createEffect(() => {
-    if (!videoRef || !loaded()) {
+    const isLoaded = loaded();
+    const active = p.active;
+    if (!videoRef || !isLoaded) {
       return;
     }
-    if (p.active && !REDUCED_MOTION) {
+    if (active && !REDUCED_MOTION) {
       void videoRef.play().catch(() => {});
     } else {
       videoRef.pause();
@@ -340,7 +344,10 @@ function WhatsNewMedia(p: {
   let canvasRef: HTMLCanvasElement | undefined;
 
   createEffect(() => {
-    if (!staticFrame() || !p.canLoad) {
+    const isStatic = staticFrame();
+    const canLoad = p.canLoad;
+    const url = p.src;
+    if (!isStatic || !canLoad) {
       return;
     }
     const img = new Image();
@@ -357,7 +364,7 @@ function WhatsNewMedia(p: {
       setFailed(true);
       p.onLoaded();
     };
-    img.src = p.src;
+    img.src = url;
   });
 
   return (

@@ -25,7 +25,6 @@ import {
 } from "lib";
 import { scopeDisplayLabel } from "~/components/_shared/mod.ts";
 import type { DataPageId } from "./ai_views";
-import { SPA_INFO_TOPICS } from "./client_info_topics";
 
 // The copilot's system prompt: the shared grounding blocks (lib/ai_tools/
 // build_system_prompt.ts) over the instance alone: country, terminology, data
@@ -50,7 +49,6 @@ export function buildSystemPromptForContext(instance: InstanceState): string {
   ];
   return buildSystemPrompt({
     contextSection: sections.join("\n"),
-    infoTopics: SPA_INFO_TOPICS,
     roleAndPurpose:
       "You are an AI assistant helping users explore, analyze and present the health data in this FASTR instance. The user moves through the app while you talk: each message tells you the current view, its state and, where one is in view, the results package and scope every read resolves under. You can query data, draft slides and figures, and help build the slide deck or report the user has open; a tool outside the current view refuses when called, so work with what the view offers.",
     extraCorePrinciples: [
@@ -107,7 +105,7 @@ The product is still loading, or it failed to load and the page shows the error.
 export function getDeckSettingsInstructions(label: string): string {
   return `# Current View: Settings of the slide deck "${label}"
 
-The user is on the deck's settings screen (name, theme, logos, footer), which covers the deck. The deck's slide tools refuse here. To change slides, tell the user to close Settings with its back button to return to the deck; do not describe any other view. The package tools work as usual.`;
+The user is on the deck's settings screen (theme, logos, footer), which covers the deck. The deck's name is not on it: renaming is File > "Name and folder" or the deck's own title in its header, both behind this screen. The deck's slide tools refuse here. To change slides, tell the user to close Settings with its back button to return to the deck; do not describe any other view. The package tools work as usual.`;
 }
 
 const HISTORY_NOUNS = {
@@ -129,7 +127,7 @@ The user is looking at the ${noun}'s version history, which covers the editor: a
 // The pages with no package in view: each names itself, so the model knows
 // what the user is looking at and that no package tool runs here.
 const NO_PACKAGE_LINE =
-  "No results package is in view here, so the package tools refuse; answer from the instance context, the methodology docs and get_info.";
+  "No results package is in view here, so the package tools refuse; answer from the instance context and the reference documents (get_reference_docs, get_reference_doc).";
 
 export function getProductsInstructions(): string {
   return `# Current View: Products
@@ -245,7 +243,7 @@ ${NO_PACKAGE_LINE}`;
 export function getHfaIndicatorEditorInstructions(label: string): string {
   return `# Current View: HFA indicator code editor
 
-The user has the HFA indicator "${label}" open in the code editor. get_hfa_indicator_editor reads the editor's unsaved state: the labels, type, aggregation, categories and the R code of every round, each round with the issues the editor's own validation finds. update_hfa_indicator_editor changes that state in place: pass only the fields to change; the change shows in the editor at once and stays unsaved until the user saves it (Save) or discards it (Cancel). The HFA reads (the survey dictionary, a variable's values, the taxonomy, other indicators and their code, validation) are available here; the batched HFA writes are not, since the user edits this one indicator in the editor. ${NO_PACKAGE_LINE}`;
+The user has the HFA indicator "${label}" open in the code editor. get_hfa_indicator_editor reads the editor's unsaved state: the labels, type, aggregation, categories and the indicator code of every round, each round with the issues the editor's own validation finds. update_hfa_indicator_editor changes that state in place: pass only the fields to change; the change shows in the editor at once and stays unsaved until the user saves it (Save) or discards it (Cancel). The HFA reads (the survey dictionary, a variable's values, the taxonomy, other indicators and their code, validation) are available here; the batched HFA writes are not, since the user edits this one indicator in the editor. ${NO_PACKAGE_LINE}`;
 }
 
 // ── Editing mode instructions ──
@@ -299,7 +297,8 @@ The deck editor shows the deck's slides in a rail with one slide open beside it.
    - **Tweak an existing figure** (replicant, filters, disaggregation, period, captions; not the chart type) → update_figure (slideId + blockId)
    - **Rebuild a slide from scratch or change its type** → replace_slide (last resort)
    - **Change the deck's structure** → create_slide, delete_slides, duplicate_slides, move_slides
-4. Call get_metric_data before creating any from_metric block, to check the data it needs is available`;
+4. Call get_metric_data before creating any from_metric block, to check the data it needs is available
+5. Filter a content slide's from_metric block to the indicators the slide's text names: an unfiltered multi-indicator metric draws one panel per indicator, and the slide's layout overflows the page`;
 }
 
 // The view states of the Results, Explore and Data pages: what the user is

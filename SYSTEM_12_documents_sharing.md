@@ -43,6 +43,7 @@ globs:
   - server/tests/folder_tree_test.ts
   - server/tests/visualization_stale_test.ts
   - server/tests/products_routes_test.ts
+  - server/tests/deck_label_single_source_test.ts
   - server/tests/product_access_db_test.ts
   - server/tests/product_access_routes_test.ts
   - server/tests/product_level_test.ts
@@ -109,13 +110,16 @@ manifest because the lint does not walk it, the report editor package
 Two harnesses cover the product plane, both against the dev database.
 `server/tests/products_routes_test.ts` drives the product, folder, slide-deck,
 slide, report and visualization routes through the real registry, access guard
-and DB layer. `server/tests/consolidated_products_test.ts` proves the products
-that migration 201 consolidated, and skips when none exist (they are the ones
-with no `created_by`): every stored figure bundle on the four surfaces (slides,
-report figures, and the two version tables read through the same figure-block
-upgrade the restore paths run) parses under the strict schema, so each carries
-its package and scope, and a report version and a deck version restore through
-the real routes, on copies.
+and DB layer. `server/tests/deck_label_single_source_test.ts` pins the one name:
+a renamed deck keeps its name across a config write, a duplicate and a
+restore-as-copy, and no stored deck config carries a `label` key.
+`server/tests/consolidated_products_test.ts` proves the products that migration
+201 consolidated, and skips when none exist (they are the ones with no
+`created_by`): every stored figure bundle on the four surfaces (slides, report
+figures, and the two version tables read through the same figure-block upgrade
+the restore paths run) parses under the strict schema, so each carries its
+package and scope, and a report version and a deck version restore through the
+real routes, on copies.
 
 ## Contract
 
@@ -237,6 +241,21 @@ subfolders hold and that access is only raised.
 
 ## The products registry on `main`
 
+**A product has one name: `products.label`.** No detail row and no stored config
+carries a second copy, so an ordinary content write carries no name at all; only
+a version restore writes one, and only the name the version captured. The two
+rename surfaces reach it through `updateProductLabel`, which writes `products`
+directly: the editor header's inline title (`ProductTitle`, in both editors) and
+the product settings modal (`ProductSettings`), reached from the deck's File >
+"Name and folder…", the report's File > "Rename…" and the products list's row
+menu. A version snapshot does capture the name of its day
+(`slide_deck_versions.label`, `report_versions.label`), and three restore paths
+put that captured name back: `restoreSlideDeckStructure` and
+`restoreReportContent`, the only two callers of `touchProduct`'s optional
+`label` argument, and the report restore's in-room branch, which calls
+`updateProductLabel` itself because the label is not part of the collab room's
+doc.
+
 `main` carries the products block (`_main_database.sql`, created on existing
 instances by `200_products.sql`): `folders` (nested through a nullable
 `parent_id` self-reference), `products` (id, `type` in {`slide_deck`, `report`},
@@ -330,7 +349,7 @@ reparents child folders and products one level and returns `freedProductIds`.
 (`copySlidesToSlideDeck`, the cross-deck reuse path: configs copied verbatim,
 scoped by the source product), `reports.ts` and `versions.ts` hold the per-type
 detail: every slide read and write is scoped by `product_id` AND `slide_id`, the
-label lives on `products` and the detail reads join it, and the version
+label lives on `products` alone and the detail reads join it, and the version
 functions carry the `SlideDeck` stem on the `slide_deck_versions` table
 (`insertSlideDeckVersion`, `latestSlideDeckVersionHash`,
 `copySlideDeckFromVersion`). Every detail mutation opens its transaction with
@@ -356,9 +375,9 @@ a 404. In `routes/products/slides.ts` the move route is registered before the
 per-slide update: both match `PUT
 .../slides/move`, and Hono runs matching
 handlers in registration order. Every mutation re-reads the touched summaries
-through `notifyInstanceProductsUpserted` (S3), slide writes also stamp
-`notifyInstanceLastUpdated("slides", ...)`, and package or delete changes
-re-nonce the runs catalogue.
+through `notifyInstanceProductsUpserted` (S3), slide writes that leave their
+rows in place also stamp `notifyInstanceLastUpdated("slides", ...)`, never a
+removed id (S3), and package or delete changes re-nonce the runs catalogue.
 
 ### Scopes
 
@@ -476,15 +495,19 @@ bundle's area, else "An earlier scope definition". `packageScopeCaption` and
 ## Slide decks
 
 **Data model.** A `slide_decks` detail row keyed by the product id (free-text
-`plan` for the AI planning scratchpad, JSON `config` = deck style; the label
-lives on `products`) + one row per slide (JSON `config` = one `Slide`, integer
-`sort_order`; FK cascade on product delete). Slide ids are short nanoids,
-instance-wide unique. `getSlideDeckDetail` returns only ordered `slideIds`;
-slide bodies fetch per-slide through `_SLIDE_CACHE`
-(`state/products/t2_slides.ts`, versioned by `lastUpdated.slides[id]`). Sort
-orders are **gap-numbered** (append = max+10, insert = target±5) with
-`reSequence` (`ROW_NUMBER()*10`) run inside the create/delete/duplicate
-transactions; `moveSlides`
+`plan` for the AI planning scratchpad, JSON `config` = deck style and nothing
+else; the name lives on `products`, and `updateSlideDeckConfig` stamps without a
+label so a config write can never rename the deck) + one row per slide (JSON
+`config` = one `Slide`, integer `sort_order`; FK cascade on product delete).
+Slide ids are short nanoids, unique over the live rows only
+(`generateUniqueSlideId` checks the `slides` table, so a deleted id can be
+re-minted), which is why `_SLIDE_CACHE` is keyed by `(productId,
+slideId)`.
+`getSlideDeckDetail` returns only ordered `slideIds`; slide bodies fetch
+per-slide through `_SLIDE_CACHE` (`state/products/t2_slides.ts`, versioned by
+`lastUpdated.slides[id]`). Sort orders are **gap-numbered** (append = max+10,
+insert = target±5) with `reSequence` (`ROW_NUMBER()*10`) run inside the
+create/delete/duplicate transactions; `moveSlides`
 ([db/products/move_slides.ts](server/db/products/move_slides.ts)) is
 **within-deck reorder only**; `copySlidesToSlideDeck` is the cross-deck reuse
 path.
@@ -613,10 +636,13 @@ keyed slide editor. The menu is rendered by `SlideList`, never by
 `SlideToolbar`, for that same reason: a menu inside the keyed editor would close
 on its own first click. The full settings screen (`SlideDeckSettings`, with the
 delete action) is still there, one row down the menu as "All deck settings";
-name and folder sits in File. The settings screen takes the deck id and sets the
-chat's `deck_settings` view over the deck's (S13; its context is the product's
-live row through `productViewContext`), so the deck tools refuse while the user
-is there; History sets `deck_history` the same way (S16).
+name and folder sits in File. The settings screen NAMES the deck without owning
+the name: it takes the product label as `deckLabel` and prints it in its
+heading, and its Save writes the config alone, so sitting on this screen and
+saving cannot rename the deck. The settings screen takes the deck id and sets
+the chat's `deck_settings` view over the deck's (S13; its context is the
+product's live row through `productViewContext`), so the deck tools refuse while
+the user is there; History sets `deck_history` the same way (S16).
 
 **The slide editor**
 ([slide_editor/slide_editor.tsx](client/src/components/products/slide_deck/slide_editor/slide_editor.tsx))
@@ -2843,7 +2869,7 @@ slide), `slide_deck_detail` (per deck), `report_detail` (per report;
 `state/products/t2_report_detail.ts`). Every product mutation ends with
 `notifyInstanceProductsUpserted` (the per-row summary re-read, the only
 product-list message), which is also how a product's own `last_updated` reaches
-the client; slide writers add
+the client; a slide write that leaves its rows in place adds
 `notifyInstanceLastUpdated("slides", productId, ids, ts)` for the per-slide
 cache; deletes fire `notifyInstanceProductsDeleted`; folders re-broadcast the
 whole list through `notifyInstanceFoldersUpdated`. Because slide create, delete,
@@ -2891,20 +2917,6 @@ interpolation in every route.
   typewise; ties into the tighten-to-schema follow-on.
 - **Barrel bypass**: `slide_list.tsx` imports the vendored SortableJS wrapper
   via a deep `../../../../panther/...` path instead of `"panther"`.
-- **A deck rename is reverted by the next Deck-menu change (MED).** Renaming
-  writes `products.label` only (`products/_shared/product_title.tsx:28-36`,
-  `products/_shared/product_settings.tsx:51-56`, through
-  `server/db/products/products.ts:273-295`), the deck detail returns the stored
-  config with its stale `label` copy (`server/db/products/slide_decks.ts:66`),
-  `patchDeckConfig` sends the whole config
-  (`products/slide_deck/slide_deck.tsx:130-138`), and `updateSlideDeckConfig`
-  writes `config.label` back to `products.label` (`slide_decks.ts:114-120`).
-  Make `slide_decks.ts:66` lay the live label over the stored config:
-
-  ```ts
-  config: { ...parseSlideDeckConfig(deck.config, deck.label), label: deck.label },
-  ```
-
 - **A failed authoring-context read leaves the deck's slide area blank and the
   report's figure actions silent.** Both editors drop the failure
   (`products/slide_deck/slide_deck.tsx:204-208`,
@@ -2932,3 +2944,36 @@ interpolation in every route.
   report pairs the two in `staleContext`. Hold `{ scope, context }` together in
   the deck, set when the context lands, and pass that pair to the editor's
   update and edit paths, keeping the live `scope` for rendering and staleness.
+- **A markdown table in slide text breaks the slide.** The slide markdown
+  measurer throws on a table item in both arms
+  (`panther/_105_markdown/_internal/measure_items.ts:164` in `getItemMargins`,
+  `:195` in `measureItem`; the first is the one that fires). Measurement does
+  not surface it: `autofit.ts`'s `getHeightAtScale` swallows the throw and
+  returns a line-count estimate. Render does, uncaught through all of
+  `_121_page/`, landing at `page_holder.tsx:335-344`, so the slide is replaced
+  by
+  `Config error - Bad chart config: table items should not be measured
+  directly`.
+  PDF and PPTX export hit the same throw and fail the whole export. That is why
+  the copilot refuses tables (`validateNoMarkdownTables`, four call sites:
+  `slides.tsx:57`, `update_slide.ts:164` and `:248`, `drafts.tsx:60`, plus four
+  prompt lines at `slides.tsx:45`, `drafts.tsx:42`, `update_slide.ts:65`,
+  `instance/copilot/build_system_prompt.ts:265`). The fix is in panther: a
+  `table` variant on `MeasuredMarkdownItem` measured and rendered through the
+  table renderer (`convertMarkdownTableToTableData` exists and
+  `MarkdownRenderer`'s own `getMinComfortableWidth` already measures table
+  cells, which is why the width pass never throws), a matching arm in
+  `render_markdown.ts`, which has no table handling either, and a `table` case
+  in `_122_pptx/text_to_pptx.ts`'s three-case switch. Not an app-side split of
+  the block into text and table nodes: that breaks the one-block-one-node model
+  the slide editor's hit targets and autofit rely on. The open design question
+  is which autofit owns the block: the table renderer runs its own shrink-to-fit
+  with its own legibility floor and `cramped` flag, so the markdown scale must
+  be threaded into the table's text style and the table's own search suppressed,
+  or markdown's binary search re-runs the table's whole fit search per candidate
+  scale. A block holding a table stays side-panel edited either way:
+  `lib/slide_text_offsets.ts:125-128` keeps `table_open` unsupported, as it does
+  for fences, and the sentence above about blocks holding tables not being
+  canvas-editable stays true. Note this does not serve the reported use case on
+  its own, which was a four-column table whose last column is a live
+  platform-calculated coverage value.

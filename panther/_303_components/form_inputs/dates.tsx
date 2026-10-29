@@ -60,6 +60,20 @@ const MONTHS_BY_LANG: Record<Language, string[]> = {
     "Novembro",
     "Dezembro",
   ],
+  th: [
+    "มกราคม",
+    "กุมภาพันธ์",
+    "มีนาคม",
+    "เมษายน",
+    "พฤษภาคม",
+    "มิถุนายน",
+    "กรกฎาคม",
+    "สิงหาคม",
+    "กันยายน",
+    "ตุลาคม",
+    "พฤศจิกายน",
+    "ธันวาคม",
+  ],
 };
 
 function getMonthOptions(): SelectOption<string>[] {

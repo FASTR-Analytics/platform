@@ -39,12 +39,22 @@ export function ConfirmDeleteForm<T>(
       width="md"
       topPanel={
         <div class="ui-text-heading text-danger leading-none">
-          {t3({ en: "Warning", fr: "Avertissement", pt: "Aviso" })}
+          {t3({
+            en: "Warning",
+            fr: "Avertissement",
+            pt: "Aviso",
+            th: "คำเตือน",
+          })}
         </div>
       }
       onCancel={() => p.close(undefined)}
       actions={[{
-        label: t3({ en: "Confirm", fr: "Confirmer", pt: "Confirmar" }),
+        label: t3({
+          en: "Confirm",
+          fr: "Confirmer",
+          pt: "Confirmar",
+          th: "ยืนยัน",
+        }),
         intent: "danger",
         onClick: confirm.click,
         state: confirm.state(),

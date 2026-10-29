@@ -37,22 +37,24 @@ nothing to pick per question.
 
 The `/mcp` endpoint is for **seeing results**: it exposes the FASTR AI
 Assistant's **shared** metric tools (the same tool definitions the in-app chat
-uses to query data) over the pinned package: **6 read-only tools, no writes**.
+uses to query data) over the pinned package: **5 read-only tools, no writes**.
 Module internals (R scripts, logs, settings), product content (slide decks,
 reports and their figures) and the browser-only editor tools are **not**
 exposed. They are the in-app assistant's, belong to a product, or need a live
 browser tab.
 
-| Area      | Tools                                                                  |
-| --------- | ---------------------------------------------------------------------- |
-| Overview  | `get_overview` (call this first)                                       |
-| Metrics   | `get_available_metrics`, `get_metric_data` (CSV output)                |
-| Reference | `get_methodology_docs_list`, `get_methodology_doc_content`, `get_info` |
+| Area      | Tools                                                   |
+| --------- | ------------------------------------------------------- |
+| Overview  | `get_overview` (call this first)                        |
+| Metrics   | `get_available_metrics`, `get_metric_data` (CSV output) |
+| Reference | `get_reference_docs`, `get_reference_doc`               |
 
 No tool takes a product or package id. The two metric tools,
 `get_available_metrics` and `get_metric_data`, read whatever package is pinned
 **right now** (an admin re-pinning moves the connector on the next call); the
-reference tools read the FASTR methodology and reference docs, not the package.
+reference tools read the FASTR methodology and reference docs, not the package:
+`get_reference_docs` lists the app's own documents and the chapters of the FASTR
+methodology hub, and `get_reference_doc` reads one by the id the list gives.
 Reading the package needs an **approved** FASTR account with access to **all
 data**; global admins always have both. Otherwise the metric tools answer with
 one of two messages: "Your account is awaiting approval, which the
@@ -205,7 +207,8 @@ naturally:
   it down by region." The assistant calls `get_available_metrics` to find ids,
   then `get_metric_data` (returns CSV) and reasons over it.
 - **Reference docs**: "Load the ICEH methodology and explain the equity
-  measures." (`get_info` / methodology tools.)
+  measures." The assistant calls `get_reference_docs` for the ids, then
+  `get_reference_doc` for the document.
 
 ### Good habits
 
@@ -250,6 +253,12 @@ naturally:
 - **"No results package is pinned on this instance".** Nothing is wrong with
   your connection: no package is pinned yet. An admin with `can_configure_data`
   pins one under Results packages; the tools work from the next call.
+- **Your client lists a tool the table above does not, and calling it fails with
+  "Unknown tool".** A release renamed or removed it, and a connected client
+  keeps the tool list it fetched when it connected until it refreshes it: in
+  Claude Code, `/mcp` and reconnect the `fastr` server (or start a new session);
+  in Claude Desktop or claude.ai, disable and re-enable the connector. A saved
+  conversation that calls an old name fails once, and the assistant re-lists.
 - **Local dev: everything 401s even with a fresh token.** A dev boot with
   `BYPASS_AUTH` set does not exercise real PAT auth. Boot with
   `BYPASS_AUTH= deno task dev` when testing tokens.

@@ -1,17 +1,19 @@
 import {
+  _OPTIONAL_FACILITY_COLUMNS,
   type AdminAreaColumn,
   type AdminAreaLevel,
+  CUSTOM_FACILITY_COLUMNS,
   decodeRawCsvHeader,
   findEncodedCsvHeader,
   findEncodedCsvHeaderIgnoringCase,
   getEnabledOptionalFacilityColumns,
   HFA_CORE_ADMIN_AREA_COLUMNS,
-  HFA_CORE_OPTIONAL_FACILITY_COLUMNS,
   hfaCorrectionColumnName,
   type HfaFacilityColumnHeaders,
   type HfaFacilityColumnPreview,
   type HfaFacilityColumns,
   type HfaFacilityColumnsPreview,
+  type HfaOptionalColumnMapping,
   type OptionalFacilityColumn,
   type StructureSchema,
   t3,
@@ -50,8 +52,10 @@ function reencodeHeader(rawHeaders: string[], encoded: string): string {
 }
 
 // One column's pickers: the earlier run's header where this file has it, else
-// the questionnaire's name ignoring case; the correction the same way, its
-// questionnaire name derived from the header chosen.
+// the questionnaire's name ignoring case where the column has one; the
+// correction the same way, its questionnaire name derived from the header
+// chosen. Optional columns have no questionnaire name: nothing presumes what
+// the file holds, so they are mapped by the user or by an earlier import.
 function prefillColumn(args: {
   rawHeaders: string[];
   column: MappedColumn;
@@ -109,12 +113,12 @@ export function prefillHfaFacilityColumns(args: {
     }
   }
   const optional: HfaFacilityColumns["optional"] = {};
-  for (const column of getEnabledOptionalFacilityColumns(args.schema)) {
+  for (const column of _OPTIONAL_FACILITY_COLUMNS) {
     const headers = prefillColumn({
       rawHeaders: args.rawHeaders,
       column,
       latest: args.latest?.optional[column],
-      coreName: HFA_CORE_OPTIONAL_FACILITY_COLUMNS[column],
+      coreName: undefined,
       prefills,
     });
     if (headers) {
@@ -131,13 +135,24 @@ export function prefillHfaFacilityColumns(args: {
   };
 }
 
+// A custom column the schema has not switched on yet needs the label it will
+// be shown under.
+export function hfaCustomColumnNeedsLabel(
+  column: OptionalFacilityColumn,
+  schema: StructureSchema,
+): boolean {
+  return CUSTOM_FACILITY_COLUMNS.includes(column) &&
+    !getEnabledOptionalFacilityColumns(schema).includes(column);
+}
+
 // Why Next is refused, or undefined: the launch validation's rules on the
 // facility columns, which the user can fix on this step.
 export function hfaFacilityColumnsProblem(
   facilityColumns: HfaFacilityColumns,
-  adminDepth: number,
+  schema: StructureSchema,
   registryIsEmpty: boolean,
 ): string | undefined {
+  const adminDepth = schema.adminDepth;
   if (facilityColumns.adminArea1.value.trim() === "") {
     return t3({
       en: "Give the country, the value of the first admin area level.",
@@ -176,6 +191,24 @@ export function hfaFacilityColumnsProblem(
       pt: "Uma coluna de correção tem de ser diferente da sua coluna.",
     });
   }
+  const unlabelled = Object.entries(facilityColumns.optional).find(
+    ([column, mapping]) =>
+      hfaCustomColumnNeedsLabel(column as OptionalFacilityColumn, schema) &&
+      !mapping.label?.trim(),
+  );
+  if (unlabelled) {
+    return t3({
+      en: `Give a label for ${
+        hfaFacilityColumnLabel(unlabelled[0] as OptionalFacilityColumn)
+      }.`,
+      fr: `Indiquez un libellé pour ${
+        hfaFacilityColumnLabel(unlabelled[0] as OptionalFacilityColumn)
+      }.`,
+      pt: `Indique um rótulo para ${
+        hfaFacilityColumnLabel(unlabelled[0] as OptionalFacilityColumn)
+      }.`,
+    });
+  }
   return undefined;
 }
 
@@ -187,6 +220,7 @@ type Props = {
   registryIsEmpty: boolean;
   preview: StateHolder<HfaFacilityColumnsPreview>;
   onChange: (facilityColumns: HfaFacilityColumns, editedPicker: string) => void;
+  onLabelChange: (column: OptionalFacilityColumn, label: string) => void;
 };
 
 // The registry columns read from the file, each under its pickers with what
@@ -205,12 +239,12 @@ export function FacilityColumnsStep(p: Props) {
       { length: p.schema.adminDepth - 1 },
       (_, i): MappedColumn => `admin_area_${(i + 2) as AdminAreaLevel}`,
     ),
-    ...getEnabledOptionalFacilityColumns(p.schema),
+    ..._OPTIONAL_FACILITY_COLUMNS,
   ];
 
   function headersOf(
     column: MappedColumn,
-  ): HfaFacilityColumnHeaders | undefined {
+  ): HfaOptionalColumnMapping | undefined {
     if (column.startsWith("admin_area_")) {
       const level = Number(column.slice("admin_area_".length));
       return p.facilityColumns.adminAreas.find((a) => a.level === level);
@@ -235,7 +269,10 @@ export function FacilityColumnsStep(p: Props) {
         )
         : others;
     } else if (headers) {
-      next.optional[column as OptionalFacilityColumn] = headers;
+      const label = next.optional[column as OptionalFacilityColumn]?.label;
+      next.optional[column as OptionalFacilityColumn] = label
+        ? { ...headers, label }
+        : headers;
     } else {
       delete next.optional[column as OptionalFacilityColumn];
     }
@@ -368,6 +405,38 @@ export function FacilityColumnsStep(p: Props) {
                 )}
               </Show>
             </div>
+            <Show
+              when={headersOf(column) &&
+                !column.startsWith("admin_area_") &&
+                hfaCustomColumnNeedsLabel(
+                  column as OptionalFacilityColumn,
+                  p.schema,
+                )}
+            >
+              <div class="w-80">
+                <Input
+                  label={t3({
+                    en: "Label for this column",
+                    fr: "Libellé de cette colonne",
+                    pt: "Rótulo desta coluna",
+                  })}
+                  value={headersOf(column)?.label ?? ""}
+                  onChange={(label) =>
+                    p.onLabelChange(column as OptionalFacilityColumn, label)}
+                  fullWidth
+                />
+                <div class="text-base-content-muted text-sm">
+                  {t3({
+                    en:
+                      "This import adds the column to the HFA facility list under this label.",
+                    fr:
+                      "Cette importation ajoute la colonne à la liste des établissements HFA sous ce libellé.",
+                    pt:
+                      "Esta importação adiciona a coluna à lista de estabelecimentos HFA com este rótulo.",
+                  })}
+                </div>
+              </div>
+            </Show>
             <Show when={headersOf(column) && columnPreview(column)}>
               {(preview) => (
                 <ColumnPreview

@@ -198,10 +198,10 @@ The elegant consequence the whole design turns on:
 > A snapshot is literally "capture the current build inputs into a bundle." One
 > build function, two item sources: **live query** vs **baked items**.
 
-| Caller                                                                                  | Surface                    | Items               | Localization source                                                   |
-| --------------------------------------------------------------------------------------- | -------------------------- | ------------------- | --------------------------------------------------------------------- |
-| `figure_editor.tsx` (the live FigureInputs memo), `insert_figure/preset_preview.tsx`    | **Live editor draft**      | live query          | `getSnapshotInstanceLocalization()`, a **transient** bundle each tick |
-| `convert_slide_to_page_inputs.ts`, `report_figure_embed.tsx`, `exports/**`, AI previews | **stored Figure / export** | baked in the bundle | `bundle.localization` (frozen)                                        |
+| Caller                                                                                  | Surface                    | Items               | Localization source                                       |
+| --------------------------------------------------------------------------------------- | -------------------------- | ------------------- | --------------------------------------------------------- |
+| `figure_editor.tsx` (the live FigureInputs memo), `insert_figure/preset_preview.tsx`    | **Live editor draft**      | live query          | the edited figure's own, a **transient** bundle each tick |
+| `convert_slide_to_page_inputs.ts`, `report_figure_embed.tsx`, `exports/**`, AI previews | **stored Figure / export** | baked in the bundle | `bundle.localization` (frozen)                            |
 
 So the live editor and every stored figure run **identical code**, and a figure
 renders identically to the draft it was captured from when the two pairs match:
@@ -229,10 +229,28 @@ bundle exactly like `config` and `items`, and `buildFigureInputs` resolves
 **all** figure text/dates from `bundle.localization` only. It must **never**
 read or write the global `t3`/`getCalendar`/`getLanguage` singletons.
 
-- **What is captured = the INSTANCE locale**, not the per-user UI toggle:
-  `getSnapshotInstanceLocalization()` (`client/src/state/instance/t1_store.ts`)
-  returns `{language, calendar, countryIso3, fiscalYear}` read from the instance
-  state. Figures are instance-language artifacts.
+- **What a NEW figure captures = the INSTANCE locale**, not the per-user UI
+  toggle: `getSnapshotInstanceLocalization()`
+  (`client/src/state/instance/t1_store.ts`) returns
+  `{language, calendar, countryIso3, fiscalYear}` read from the instance state.
+  Figures are instance-language artifacts. The instance read belongs to the
+  create and preview call sites only: the insert wizard and its previews, the
+  explore view, the package's preset viewer, the AI's `from_metric` create.
+- **An EXISTING figure carries its own locale forward.**
+  `makeFigureBundleFromFetchedData` takes `localization` as an argument and
+  reads no store, so every rebuild of a stored figure (the editor's coherent
+  bundle and its close, "Update to \<package\>", `update_figure`,
+  `update_report_figure`) passes that figure's `bundle.localization` back in.
+  Rebuilding is for data and config; it is not a reason to relabel a figure, and
+  before this was threaded an edit made after `INSTANCE_LANGUAGE` changed would
+  flip a figure's legend while its stored caption stayed put.
+- **A preset's caption resolves in the figure's language, not the viewer's.**
+  `deriveConfigFromVizPreset` collapses the preset's `TranslatableString`
+  captions to the plain strings the config stores, so the language it is given
+  is baked in: the insert wizard and the explore view pass the instance's, the
+  same one the figure's bundle will carry. (Captions are user content from the
+  moment the author edits them, so they are never re-resolved; only this
+  pre-fill has a language to choose.)
 - **The threaded reads** (all app-side; panther unchanged): every language read
   in the build path is an explicit `pickLang(bundle.localization.language,
   …)`
@@ -260,8 +278,9 @@ read or write the global `t3`/`getCalendar`/`getLanguage` singletons.
   second line of defence that protects already-stored bundles.
 - **Figures are always instance-language.** A Senegal figure carries French
   legends whatever the author's session language; the EN/FR UI toggle is
-  **chrome-only** (menus/buttons). The live editor preview uses instance
-  language too (WYSIWYG: preview == capture == what every viewer sees).
+  **chrome-only** (menus/buttons). The live editor preview uses the edited
+  figure's own language, which for a new figure is the instance's (WYSIWYG:
+  preview == capture == what every viewer sees).
 - **Why frozen-in-bundle and not "pass current env":** export surfaces (PDF,
   PPTX, emailed decks) have _no_ ambient env to read, so the bundle must carry
   its own. Making it always-frozen (rather than per-surface A/B) is the simpler,
@@ -273,11 +292,10 @@ read or write the global `t3`/`getCalendar`/`getLanguage` singletons.
 GeoJSON in the bundle. `{kind:"level", level, family?}` carries no geometry:
 `buildFigureInputs` re-derives it from the sync cache (`getGeoJsonSync`) at
 render, and `family` picks the `hmis` or `hfa` registry, absent meaning `hmis`.
-Both in-app bundle builders (`resolve_bundle_from_metric_and_config.ts`,
-`resolve_figure_from_metric.ts`) write `data` whenever the sync cache holds the
-geometry and fall back to `level` only when it does not, so the split is
-cache-warm against cache-cold, not in-app against export; a `level` bundle
-renders only where the sync cache is populated.
+`makeFigureBundleFromFetchedData`, the one in-app bundle builder, writes `data`
+whenever the sync cache holds the geometry and falls back to `level` only when
+it does not, so the split is cache-warm against cache-cold, not in-app against
+export; a `level` bundle renders only where the sync cache is populated.
 
 The `resolve_figure_from_metric` resolver:
 `generate_visualization/resolve_figure_from_metric.ts` (+
@@ -285,6 +303,48 @@ The `resolve_figure_from_metric` resolver:
 snapshot-a-figure-into-FigureBlock core consumed by the report editor
 (`report/report.tsx`) and the slide editor; the same-named file under
 `products/copilot/slide_ai/` is a thin S13 AI adapter that delegates to it.
+
+### A bundle owns its data
+
+`makeFigureBundleFromFetchedData` (in `resolve_figure_from_metric.ts`) is the
+one place a bundle that is validated, stored or shared is assembled from fetched
+data, and `resolveFigureBundleFromMetric` builds through it rather than
+repeating the fields. It deep-copies everything it writes except `geo`:
+`config`, `items`, `resultsValue`, `indicatorMetadata` and `dateRange` are
+`structuredClone(unwrap(...))` of what the caller handed over, never aliases of
+it. The Explore data table
+([data_table.tsx](client/src/components/explore/data_table/data_table.tsx))
+builds a transient render-only bundle of its own from the grid-items read; it is
+never validated or stored, and folding it in is S13's figure-resolution reuse
+item, not part of this contract.
+
+That is load-bearing, not hygiene. The items cache
+(`state/_infra/reactive_cache.ts`) serves its row objects BY REFERENCE, and
+callers also pass live Solid store objects (the metrics store, a preset config).
+When a bundle lands in a store (the slide editor's `tempSlide`, whose
+`trackStore` effect walks every nested child), Solid's `wrap` defines
+`Symbol(solid-proxy)` on the RAW object it reads, and that brand is permanent:
+`unwrap` swaps proxy children for their targets, it never deletes a symbol key.
+
+A branded object fails a `z.record` in the zod the CLIENT bundles (4.3.6): its
+record parse enumerates `Reflect.ownKeys` with no enumerability filter and
+rejects a non-string key (`client/node_modules/zod/v4/core/schemas.js:1361`), so
+`jsonArrayItemSchema`, `valueLabelReplacements` and the config's own records all
+reject it, while a `z.strictObject` uses `for...in` and never sees it. That is
+how one aliased, branded cache row made every later bundle off that cache entry
+invalid ("Invalid figure bundle at \"items.0.Symbol(solid-proxy)\"") until the
+fetch config changed. From zod 4.4.3 on, which is what `deno.lock` pins for the
+server, the record parse skips non-enumerable keys and Solid's brand is
+non-enumerable, so the SYMPTOM is contingent on the client's pin
+(`client/package.json` asks for `^4.3.6`). The aliasing is not: a bundle that is
+validated, stored or shared owns its data whichever zod the client bundles,
+which is why the fix is in the constructor and not in the schema or in the
+editor that happened to do the branding.
+
+`geo` is the deliberate exception: `geo.data` is the instance's whole boundary
+file, shared by every figure at that level, and `geoRefSchema` types it
+`z.unknown()`, so it is never enumerated as a record. A copy per bundle build
+would cost the editor's live preview for nothing.
 
 ## Special chart modes: the style pipeline
 

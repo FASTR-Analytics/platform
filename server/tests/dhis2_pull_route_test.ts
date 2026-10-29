@@ -186,16 +186,19 @@ Deno.test("a data-set pull is reduced per element: each pair takes only its elem
 Deno.test("the monthly data set is the first monthly one, none without", () => {
   assertEquals(
     monthlyDataSetId([
-      { dataSet: { id: "Q", periodType: "Quarterly" } },
-      { dataSet: { id: "M1", periodType: "Monthly" } },
-      { dataSet: { id: "M2", periodType: "Monthly" } },
+      { id: "A", periodType: "Quarterly" },
+      { id: "M1", periodType: "Monthly" },
+      { id: "M2", periodType: "Monthly" },
     ]),
     "M1",
   );
   assertEquals(
-    monthlyDataSetId([{ dataSet: { id: "Q", periodType: "Quarterly" } }]),
+    monthlyDataSetId([{ id: "Q", periodType: "Quarterly" }]),
     undefined,
   );
-  assertEquals(monthlyDataSetId(undefined), undefined);
-  assertEquals(monthlyDataSetId([{ dataSet: undefined }]), undefined);
+  assertEquals(monthlyDataSetId([]), undefined);
+  assertEquals(
+    monthlyDataSetId([{ id: "X", periodType: undefined }]),
+    undefined,
+  );
 });

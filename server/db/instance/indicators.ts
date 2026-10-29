@@ -5,7 +5,7 @@ import {
   buildExpressionDictionary,
   collectIdentifiers,
   definitionDataId,
-  describeDhis2ElementRefusal,
+  describeDhis2IdRefusal,
   describeDhis2ParseRefusal,
   describeNewIndicatorIdIssue,
   type Dhis2ElementVerdict,
@@ -634,13 +634,74 @@ export async function insertIndicators(
   }
 }
 
-// Creates indicators in one transaction.
+// DHIS2's verdict on each element id, as the picker judges one, through
+// the instance's stored connection, which only the route holds. A typed id
+// (every element id in a create, and in an update one that differs from
+// the stored data id or lands on an indicator that was not a DHIS2
+// element) must pass it before it is written, so a hand-typed id can only
+// ever be one the picker would have created. An id that is not typed never
+// asks. Nothing is cached: every call asks the server.
+export type Dhis2ElementIdCheck = (
+  ids: string[],
+) => Promise<ReadonlyMap<string, Dhis2ElementVerdict>>;
+
+type TypedDhis2Id = { indicator_id: string; data_id: string };
+
+// Asks once for every typed id, after every local refusal and before the
+// transaction. No answer is a refusal: a throw (no stored connection,
+// unreachable, timeout, bad credentials) and a missing verdict both refuse
+// the save, and the throw is caught here because the database wrapper
+// would otherwise report a DHIS2 outage as a database error. The first
+// refused id names its indicator.
+async function typedDhis2IdError(
+  check: Dhis2ElementIdCheck,
+  typed: TypedDhis2Id[],
+): Promise<string | undefined> {
+  if (typed.length === 0) return undefined;
+  const quoted = typed.map((t) => JSON.stringify(t.data_id)).join(", ");
+  let verdicts: ReadonlyMap<string, Dhis2ElementVerdict>;
+  try {
+    verdicts = await check(typed.map((t) => t.data_id));
+  } catch (error) {
+    return `DHIS2 could not confirm DHIS2 ${
+      typed.length === 1 ? "id" : "ids"
+    } ${quoted}: ${error instanceof Error ? error.message : String(error)}`;
+  }
+  for (const t of typed) {
+    const verdict = verdicts.get(t.data_id);
+    if (verdict === undefined) {
+      return `DHIS2 could not confirm DHIS2 id ${
+        JSON.stringify(t.data_id)
+      }: no verdict was returned for it`;
+    }
+    if (!verdict.accepted) {
+      return `${t.indicator_id}: ${
+        t3(describeDhis2IdRefusal(t.data_id, verdict.refusal))
+      }`;
+    }
+  }
+  return undefined;
+}
+
+// Creates indicators in one transaction. Every DHIS2 element's id is typed.
 export async function createIndicators(
   mainDb: Sql,
   indicators: NewIndicator[],
+  checkDhis2Ids: Dhis2ElementIdCheck,
 ): Promise<APIResponseWithData<{ created: number }>> {
   return await tryCatchDatabaseAsync(async () => {
-    const err = await checkIndicatorWrites(mainDb, indicators);
+    const err = await checkIndicatorWrites(mainDb, indicators) ??
+      await typedDhis2IdError(
+        checkDhis2Ids,
+        indicators.flatMap((i) =>
+          i.definition.type === "dhis2_element"
+            ? [{
+              indicator_id: i.indicator_common_id,
+              data_id: i.definition.data_id,
+            }]
+            : []
+        ),
+      );
     if (err) {
       return { success: false, err };
     }
@@ -857,15 +918,15 @@ export async function createIndicatorsFromDhis2(
     if (!element.verdict.accepted) {
       return {
         success: false,
-        err: `${element.data_id} cannot be imported: ${
-          t3(describeDhis2ElementRefusal(element.verdict.refusal))
-        }`,
+        err: t3(
+          describeDhis2IdRefusal(element.data_id, element.verdict.refusal),
+        ),
       };
     }
   }
   const calculated: IndicatorNamingInput["calculated"] = [];
   for (const indicator of input.indicators) {
-    const { parse, operands } = indicator.decomposition;
+    const { parse, operands, annualized } = indicator.decomposition;
     if (!parse.accepted) {
       return {
         success: false,
@@ -874,14 +935,20 @@ export async function createIndicatorsFromDhis2(
         }`,
       };
     }
+    if (annualized) {
+      return {
+        success: false,
+        err:
+          `DHIS2 indicator ${indicator.uid} cannot be decomposed: it is annualized`,
+      };
+    }
     for (const operand of operands) {
       if (!operand.verdict.accepted) {
         return {
           success: false,
-          err:
-            `DHIS2 indicator ${indicator.uid}: operand ${operand.data_id} cannot be imported: ${
-              t3(describeDhis2ElementRefusal(operand.verdict.refusal))
-            }`,
+          err: `DHIS2 indicator ${indicator.uid}: ${
+            t3(describeDhis2IdRefusal(operand.data_id, operand.verdict.refusal))
+          }`,
         };
       }
       if (!named.has(operand.data_id)) {
@@ -943,12 +1010,14 @@ async function renameError(
 // no rows under the old key; a DHIS2 element retyped to Uploaded keeps its
 // UID as its key. Any switch to Sum or Calculated is refused with rows or
 // while a sum names the indicator. A DHIS2 id is fixed once rows exist
-// under it; without rows it may change within the type's rule, and it must
-// not belong to another indicator.
+// under it; without rows it may change within the type's rule, it must
+// not belong to another indicator, and it is typed, so DHIS2 confirms it;
+// an update that keeps its id never asks.
 export async function updateIndicator(
   mainDb: Sql,
   oldIndicatorId: string,
   update: NewIndicator,
+  checkDhis2Ids: Dhis2ElementIdCheck,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     const newId = update.indicator_common_id;
@@ -1057,6 +1126,17 @@ export async function updateIndicator(
       if (owned.length > 0) {
         return { success: false, err: describeOwnedElsewhere(owned) };
       }
+    }
+    if (
+      update.definition.type === "dhis2_element" &&
+      (current.definition_type !== "dhis2_element" ||
+        update.definition.data_id !== current.data_id)
+    ) {
+      const dhis2Err = await typedDhis2IdError(checkDhis2Ids, [{
+        indicator_id: newId,
+        data_id: update.definition.data_id,
+      }]);
+      if (dhis2Err) return { success: false, err: dhis2Err };
     }
 
     // The DHIS2 label describes the data id it was read for: it stays while

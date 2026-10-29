@@ -140,6 +140,18 @@ export function validateFigureConfigEdit(
     }
   }
 
+  // The map slot table admits row and col beside mapArea, and a type switch
+  // keeps a table's row slot, so a map can arrive with no area dimension; the
+  // renderer then silently falls back to admin_area_2.
+  if (
+    type === "map" && (touchesType || touchesDisagg) &&
+    !newConfig.d.disaggregateBy.some((d) => d.disDisplayOpt === "mapArea")
+  ) {
+    throw new AIToolFailure(
+      'A map needs one dimension displayed as "mapArea" (admin_area_2, admin_area_3 or admin_area_4). No changes were applied.',
+    );
+  }
+
   // timeseriesGrouping is read ONLY by timeseries configs (every query/render
   // reader gates on type === "timeseries"); on any other type it stores a dead
   // field the read-back would confirm. Only the viz-editor caller can supply it.

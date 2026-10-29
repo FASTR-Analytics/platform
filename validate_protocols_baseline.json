@@ -1,72 +1,47 @@
 [
   {
-    "id": "guard-before-deps",
-    "file": "client/src/components/products/_shared/report_figure_embed.tsx",
-    "text": "effect body opens with a conditional"
-  },
-  {
-    "id": "guard-before-deps",
-    "file": "client/src/components/instance/instance.tsx",
-    "text": "effect body opens with a conditional"
-  },
-  {
-    "id": "guard-before-deps",
-    "file": "client/src/components/instance/whats_new_modal.tsx",
-    "text": "effect body opens with a conditional"
-  },
-  {
-    "id": "guard-before-deps",
-    "file": "client/src/components/instance/whats_new_modal.tsx",
-    "text": "effect body opens with a conditional"
-  },
-  {
-    "id": "guard-before-deps",
-    "file": "client/src/components/instance/whats_new_modal.tsx",
-    "text": "effect body opens with a conditional"
-  },
-  {
     "id": "raw-loading-signal",
     "file": "client/src/components/products/slide_deck/slide_deck.tsx",
     "text": "const [isLoading, setIsLoading] = createSignal(true);"
   },
   {
     "id": "raw-loading-signal",
-    "file": "client/src/components/instance/copilot/ai_prompt_library/save_to_prompt_library_modal.tsx",
-    "text": "const [error, setError] = createSignal(\"\");"
+    "file": "client/src/components/instance/copilot/tab_owner.ts",
+    "text": "const [ownerBusy, setOwnerBusy] = createSignal(false);"
   },
   {
     "id": "raw-loading-signal",
-    "file": "client/src/components/instance/copilot/ai_prompt_library/prompt_library_modal.tsx",
-    "text": "const [isLoading, setIsLoading] = createSignal(true);"
+    "file": "client/src/components/data/general/admin_area_labels.tsx",
+    "text": "const [needsSaving, setNeedsSaving] = createSignal(false);"
   },
   {
     "id": "raw-loading-signal",
-    "file": "client/src/components/products/report/report.tsx",
-    "text": "const [isLoading, setIsLoading] = createSignal(true);"
+    "file": "client/src/components/data/hfa/indicators/indicator_code_editor.tsx",
+    "text": "const [needsSaving, setNeedsSaving] = createSignal(false);"
   },
   {
     "id": "raw-loading-signal",
-    "file": "client/src/components/instance/organisation_modal.tsx",
-    "text": "const [loading, setLoading] = createSignal(false);"
+    "file": "client/src/components/data/facilities/import/step_1_csv.tsx",
+    "text": "const [needsSaving, setNeedsSaving] = createSignal<boolean>(!p.step1Result);"
   },
   {
     "id": "raw-loading-signal",
-    "file": "client/src/components/data/geojson/edit_modal.tsx",
-    "text": "const [loading, setLoading] = createSignal(true);"
+    "file": "client/src/components/data/facilities/import/step_0.tsx",
+    "text": "const [needsSaving, setNeedsSaving] = createSignal<boolean>(!p.sourceType);"
   },
   {
     "id": "raw-loading-signal",
-    "file": "client/src/components/data/geojson/edit_modal.tsx",
-    "text": "const [error, setError] = createSignal<string | null>(null);"
+    "file": "client/src/components/data/facilities/import/step_2_csv.tsx",
+    "text": "const [needsSaving, setNeedsSaving] = createSignal<boolean>(!p.step2Result);"
   },
   {
-    "id": "async-effect-race",
-    "file": "client/src/components/instance/copilot/ai_documents/ai_documents_store.ts",
-    "text": "async effect writes state after await, no out-of-order guard"
+    "id": "raw-loading-signal",
+    "file": "client/src/components/data/facilities/import/step_4_recode.tsx",
+    "text": "const [needsSaving, setNeedsSaving] = createSignal<boolean>("
   },
   {
-    "id": "guard-before-deps",
-    "file": "client/src/components/products/report/body_editor.tsx",
-    "text": "effect body opens with a conditional"
+    "id": "raw-loading-signal",
+    "file": "client/src/components/data/facilities/import/step_2_dhis2.tsx",
+    "text": "const [needsSaving, setNeedsSaving] = createSignal<boolean>(!p.step2Result);"
   }
 ]

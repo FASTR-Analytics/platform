@@ -10,12 +10,17 @@ import {
   buildFigureInputs,
   makeFigureBundleFromFetchedData,
 } from "~/generate_visualization/mod";
+import { getSnapshotInstanceLocalization } from "~/state/instance/t1_store";
 import { getPresentationObjectItemsFromCacheOrFetch } from "~/state/products/t2_figure_data";
 
 // The one fetch-and-build path for a figure that is not a row: a preset
 // in the insert-figure wizard, a preset card on the package page.
 // It reads through the scope-keyed items cache, so the same (pair, metric,
 // config) seen on any surface is one cache entry.
+//
+// Every caller previews a figure that does not exist yet, so the transient
+// bundle stamps the instance localization: the same one the figure would get
+// if the user inserted it (SYSTEM_10's preview == capture rule).
 export async function fetchFigureInputs(
   scope: PackageScope,
   metric: ResultsValue,
@@ -48,11 +53,15 @@ export async function fetchFigureInputs(
   }
 
   try {
-    const bundle = makeFigureBundleFromFetchedData(scope, {
-      resultsValue: metric,
-      ih,
-      effectiveConfig,
-    });
+    const bundle = makeFigureBundleFromFetchedData(
+      scope,
+      {
+        resultsValue: metric,
+        ih,
+        effectiveConfig,
+      },
+      getSnapshotInstanceLocalization(),
+    );
     return { status: "ready", data: buildFigureInputs(bundle) };
   } catch (e) {
     return {

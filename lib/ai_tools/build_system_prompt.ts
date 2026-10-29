@@ -4,9 +4,10 @@ import type { InstanceState } from "../types/instance_sse.ts";
 import type { InstanceCalendar } from "../types/instance.ts";
 import type { PeriodBounds } from "../types/presentation_objects.ts";
 import type { RunHmisIndicator } from "../types/run_manifest.ts";
+import type { GeoJsonMapSummary } from "../types/geojson_maps.ts";
+import type { FacilityFamily } from "../types/structure.ts";
 import { inferPeriodFormatFromValue } from "../types/_metric_installed.ts";
 import { describeIndicatorFacts } from "./format_metric_data_for_ai.ts";
-import type { InfoCatalogTopic } from "./info_catalog.ts";
 import type { ScopeDefinition } from "../types/scope.ts";
 import { MODULE_FAMILY_ORDER } from "../group_metrics.ts";
 
@@ -29,10 +30,6 @@ import { MODULE_FAMILY_ORDER } from "../group_metrics.ts";
 
 export type SystemPromptParts = {
   contextSection: string;
-  // The get_info topics THIS surface exposes: the same list its
-  // getSharedToolsForInfo was built with, so the prompt never names a topic
-  // the tool would refuse.
-  infoTopics: InfoCatalogTopic[];
   // "# Role and Purpose" body: what THIS surface's assistant is for.
   roleAndPurpose: string;
   // Core principles this surface adds after the four shared ones (the SPA
@@ -59,7 +56,6 @@ export function buildSystemPrompt(parts: SystemPromptParts): string {
   const dateHeader = parts.currentDate === undefined
     ? ""
     : `${buildDateBlock(parts.currentDate)}\n\n---\n\n`;
-  const referenceDocsSection = buildReferenceDocsSection(parts.infoTopics);
   const baseInstructions = getBaseInstructions(
     parts.roleAndPurpose,
     parts.extraCorePrinciples,
@@ -67,26 +63,14 @@ export function buildSystemPrompt(parts: SystemPromptParts): string {
   const toolsSection = parts.toolCatalog === undefined
     ? ""
     : `\n# Available Tools\n\n${parts.toolCatalog}\n`;
-  return `${dateHeader}${parts.contextSection}${referenceDocsSection}${baseInstructions}${toolsSection}`;
+  return `${dateHeader}${parts.contextSection}${REFERENCE_DOCS_SECTION}${baseInstructions}${toolsSection}`;
 }
 
-// ── Reference documentation catalog ──
-
-function buildReferenceDocsSection(topics: InfoCatalogTopic[]): string {
-  if (topics.length === 0) return "";
-  const sections: string[] = [];
-  sections.push("# Reference documentation");
-  sections.push("");
-  sections.push(
-    "Authoritative reference docs you can load on demand with the **get_info** tool. When a task relates to one of these topics, call get_info for that topic FIRST and follow it.",
-  );
-  sections.push("");
-  for (const t of topics) {
-    sections.push(`- **${t.topic}** — ${t.title}: ${t.description}`);
-  }
-  sections.push("");
-  return sections.join("\n");
-}
+// The documents themselves, and when to read each, ride the two reference
+// tools: the list tool's description names them, so the prompt only points
+// there.
+const REFERENCE_DOCS_SECTION =
+  "# Reference documentation\n\nAuthoritative reference documents (the app's own and the FASTR methodology hub's chapters) are listed by get_reference_docs and read by get_reference_doc. Read the relevant document FIRST when a task touches its subject, and follow it.\n\n";
 
 // ── Instance grounding: country, terminology, data sources ──
 
@@ -183,6 +167,7 @@ export function buildInstanceContextSections(
         `- The HMIS facility registry uses levels down to admin_area_${hmisDepth}; the HFA registry down to admin_area_${hfaDepth}. Each registry's data only carries its own levels.`,
       );
     }
+    sections.push(...buildMapCoverageLines(instance.geojsonMaps));
   }
   sections.push("");
   const hasHmis = instance.datasetsWithData.includes("hmis");
@@ -206,6 +191,34 @@ export function buildInstanceContextSections(
     sections.push("");
   }
   return sections;
+}
+
+// A map figure renders only where the instance holds a boundary file for the
+// figure's registry at the figure's level, so the model is told the levels up
+// front and draws a table elsewhere instead of a map the resolver refuses.
+export function buildMapCoverageLines(maps: GeoJsonMapSummary[]): string[] {
+  if (maps.length === 0) {
+    return [
+      "- No boundary map files are uploaded, so no map figure can render: use tables.",
+    ];
+  }
+  const families: FacilityFamily[] = ["hmis", "hfa"];
+  const parts = families.flatMap((family) => {
+    const levels = maps
+      .filter((m) => m.family === family)
+      .map((m) => m.adminAreaLevel)
+      .toSorted((a, b) => a - b);
+    return levels.length === 0 ? [] : [
+      `${family.toUpperCase()} at ${
+        levels.map((l) => `admin_area_${l}`).join(", ")
+      }`,
+    ];
+  });
+  return [
+    `- Boundary map files exist for ${
+      parts.join("; ")
+    }. A map figure renders only at those levels for that registry; at any other level use a table.`,
+  ];
 }
 
 // ── Package grounding: what ONE results package holds ──
@@ -455,6 +468,20 @@ function getBaseInstructions(
   const principles = [
     "**CRITICAL: Always read data before commenting** - Use get_metric_data to see actual data before making any claims",
     "**Never fabricate statistics** - Only report what you've verified from the data",
+    "**Check every claim against the rows you were given, before you write it** - " +
+    'A comparative or superlative ("the lowest", "the highest", "rose steadily") ' +
+    "is a claim about EVERY row you were returned, not about " +
+    "the rows you happened to notice: re-read them and name the row that actually wins, " +
+    "and describe a series by its whole shape, so a dip or a plateau in the middle is " +
+    "stated and not smoothed into a trend. A claim that a value is near, approaching " +
+    "or short of a declared threshold band is checked against the band's own cutoffs, " +
+    "printed with their operators in the Dimension Summary: a value already inside the " +
+    'band is in it, not approaching it. A period the "Period coverage" line shows ' +
+    "ending short of its unit is partial: say so wherever you use it, an endpoint " +
+    'included ("2025 year-to-date, through April"), never as a finished period. And ' +
+    "describe a change to a product only as the tool result reports it: if a result " +
+    "does not say a thing changed, it did not, so never tell the user something drifted " +
+    "from an earlier state, and never offer to restore a state no tool result shows.",
     "**Acknowledge limitations** - Be clear about data gaps or quality issues",
     "**Be concise** - Keep explanations actionable and to the point",
     ...extraCorePrinciples,

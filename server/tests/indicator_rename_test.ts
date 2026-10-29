@@ -15,10 +15,16 @@ import { type HmisIndicator, renameIdentifierInExpression } from "lib";
 import { getPgConnection } from "../db/postgres/connection_manager.ts";
 import {
   createIndicators,
+  type Dhis2ElementIdCheck,
   getHmisIndicators,
   type NewIndicator,
   updateIndicator,
 } from "../db/instance/indicators.ts";
+
+// Every typed DHIS2 id is accepted: the check itself is pinned by
+// indicator_dhis2_id_check_test.ts.
+const ACCEPT_ALL: Dhis2ElementIdCheck = (ids) =>
+  Promise.resolve(new Map(ids.map((id) => [id, { accepted: true }])));
 
 const SCHEMA_PATH =
   new URL("../db/instance/_main_database.sql", import.meta.url)
@@ -80,7 +86,7 @@ async function reset(): Promise<void> {
       type: "calculated",
       expression: "[visits] * 2 + visits_share",
     }),
-  ]);
+  ], ACCEPT_ALL);
   assert(res.success, res.success ? "" : res.err);
   await db`
     INSERT INTO dataset_hmis_scheduled_imports (kind, enabled, selection, created_by)
@@ -155,7 +161,7 @@ async function rename(
     target: current.target,
     expected_low_counts: current.expected_low_counts,
     ...patch,
-  });
+  }, ACCEPT_ALL);
 }
 
 Deno.test("rename: members, expressions and schedule selections rewritten in one transaction; run rows untouched", async () => {
@@ -219,7 +225,7 @@ Deno.test("rename: a taken id and a reserved id are refused; a special id rename
   await reset();
   const special = await createIndicators(db, [
     indicator("penta1", { type: "uploaded" }),
-  ]);
+  ], ACCEPT_ALL);
   assert(special.success, special.success ? "" : special.err);
   const fromSpecial = await rename("penta1", "penta_one");
   assert(fromSpecial.success, fromSpecial.success ? "" : fromSpecial.err);
@@ -331,6 +337,10 @@ Deno.test("renamer: whole identifiers and exact [id] only, text kept, as 086 doe
   assertEquals(
     renameIdentifierInExpression("anc1 * 2", "anc", "x"),
     "anc1 * 2",
+  );
+  assertEquals(
+    renameIdentifierInExpression('anc1 == "anc1"', "anc1", "x"),
+    'x == "anc1"',
   );
 });
 

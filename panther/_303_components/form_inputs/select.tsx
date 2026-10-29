@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { For, type JSX, Show } from "solid-js";
+import { createEffect, For, type JSX, Show } from "solid-js";
 import type { Intent } from "../types.ts";
 import { type DataAttrs, splitDataAttrs } from "../data_attrs.ts";
 import { Icon } from "../icons/mod.ts";
@@ -30,6 +30,22 @@ type Props<T extends string> = {
 
 export function Select<T extends string>(p: Props<T>) {
   const [dataAttrs] = splitDataAttrs(p);
+  let el!: HTMLSelectElement;
+  const placeholderShown = () => !!p.placeholder && !p.value;
+
+  // The selection is stated as an index, which is the only thing that can also
+  // say "no option matches". A value on the <select> loses it: Solid writes
+  // that value only when it changes, while <For> keys its rows by object
+  // identity, so options handed in as new objects are made again and the
+  // browser falls back to the first one. A selected flag on each option keeps
+  // it through a rebuild but cannot express the empty case either, because the
+  // browser's own reset then picks the first enabled option. The effect runs
+  // after <For> has updated the DOM, so it reads the option list on screen.
+  createEffect(() => {
+    const i = p.options.findIndex((opt) => opt.value === p.value);
+    el.selectedIndex = placeholderShown() ? 0 : i;
+  });
+
   return (
     <Field
       {...dataAttrs}
@@ -41,8 +57,10 @@ export function Select<T extends string>(p: Props<T>) {
     >
       <div class="ui-form-text relative w-full">
         <select
-          ref={(el) => useAutoFocus(el, p.autoFocus)}
-          value={p.value ?? ""}
+          ref={(e) => {
+            el = e;
+            useAutoFocus(e, p.autoFocus);
+          }}
           onChange={(e) => p.onChange(e.currentTarget.value as T)}
           class={getSelectClasses(p.size, !!p.outline, p.intent)}
           data-mono={p.mono}
@@ -51,7 +69,7 @@ export function Select<T extends string>(p: Props<T>) {
           autofocus={p.autoFocus}
           disabled={p.disabled}
         >
-          <Show when={p.placeholder && !p.value}>
+          <Show when={placeholderShown()}>
             <option value="" disabled>
               {p.placeholder}
             </option>

@@ -1,22 +1,22 @@
 import type {
   DatasetType,
   FigureBundle,
+  FigureLocalization,
   GenericLongFormFetchConfig,
+  ItemsHolderPresentationObject,
   PackageScope,
   PresentationObjectConfig,
+  ResultsValue,
   ResultsValueForVisualization,
 } from "lib";
 import { figureBundleSchema } from "lib";
+import { unwrap } from "solid-js/store";
 import { _PO_ITEMS_CACHE } from "~/state/products/t2_figure_data";
 import { serverActions } from "~/server_actions";
 import { poItemsQueue } from "~/state/_infra/request_queue";
 import { getAdminAreaLevelFromMapConfig } from "./get_admin_area_level_from_config";
 import { geoJsonFamilyFor, getGeoJsonSync } from "~/state/instance/t2_geojson";
-import {
-  figureScopeStamp,
-  getSnapshotInstanceLocalization,
-  resolveScope,
-} from "~/state/instance/t1_store";
+import { figureScopeStamp, resolveScope } from "~/state/instance/t1_store";
 
 // Plain-inputs resolver: takes the metric data already resolved by the caller
 // (AI adapter in components/products/copilot/slide_ai). No AI types imported here.
@@ -38,6 +38,7 @@ export async function resolveFigureBundleFromMetric(
   scope: PackageScope,
   inputs: MetricInputsForBundle,
   config: PresentationObjectConfig,
+  localization: FigureLocalization,
 ): Promise<FigureBundle> {
   const {
     metricId,
@@ -76,29 +77,15 @@ export async function resolveFigureBundleFromMetric(
     throw new Error("No data available or too many items");
   }
 
-  const mapLevel = getAdminAreaLevelFromMapConfig(config);
-  const geoFamily = geoJsonFamilyFor(datasetFamily);
-  let geo: FigureBundle["geo"];
-  if (mapLevel) {
-    const geoJson = getGeoJsonSync(geoFamily, mapLevel);
-    geo = geoJson
-      ? { kind: "data", data: geoJson }
-      : { kind: "level", level: mapLevel, family: geoFamily };
-  }
-
-  const bundle: FigureBundle = {
-    config,
-    items: itemsHolder.items,
-    resultsValue: resultsValueForViz,
-    indicatorMetadata: itemsHolder.indicatorMetadata,
-    dateRange: itemsHolder.dateRange,
-    geo,
-    localization: getSnapshotInstanceLocalization(),
-    metricId,
-    scope: figureScopeStamp(scope, itemsHolder.scopeToken, datasetFamily),
-    snapshotAt: new Date().toISOString(),
-    provenance: { runId: scope.runId },
-  };
+  const bundle = makeFigureBundleFromFetchedData(
+    scope,
+    {
+      resultsValue: { id: metricId, ...resultsValueForViz, datasetFamily },
+      ih: itemsHolder,
+      effectiveConfig: config,
+    },
+    localization,
+  );
 
   // Validate at construction so the render (buildFigureInputs) and save
   // (slideConfigSchema.parse) paths can never disagree: a schema-invalid bundle
@@ -117,4 +104,76 @@ export async function resolveFigureBundleFromMetric(
     );
   }
   return bundle;
+}
+
+// Non-fetch bundle assembly for callers that already hold fetched items (the
+// embedded editor's live preview and coherent-bundle push, the editors' apply
+// paths, the preset gallery). `scope` is the pair those items were fetched
+// under, passed by the caller rather than read from any ambient store.
+export type FetchedPOData = {
+  resultsValue: Pick<
+    ResultsValue,
+    | "id"
+    | "formatAs"
+    | "valueProps"
+    | "valueLabelReplacements"
+    | "datasetFamily"
+  >;
+  ih: Extract<ItemsHolderPresentationObject, { status: "ok" }>;
+  effectiveConfig: PresentationObjectConfig;
+};
+
+// The one place a FigureBundle that is validated, stored or shared is assembled
+// from fetched data.
+//
+// `localization` is the caller's, never read from the instance store here: a
+// figure that already exists hands back its own `bundle.localization`, so
+// rebuilding it (an edit, "Update to <package>", an AI tool) cannot silently
+// relabel it in a language the instance has switched to since. Only a figure
+// being created for the first time, and a transient preview of one, passes
+// `getSnapshotInstanceLocalization()`.
+export function makeFigureBundleFromFetchedData(
+  scope: PackageScope,
+  data: FetchedPOData,
+  localization: FigureLocalization,
+): FigureBundle {
+  const { resultsValue, ih, effectiveConfig } = data;
+  const mapLevel = getAdminAreaLevelFromMapConfig(effectiveConfig);
+  const geoFamily = geoJsonFamilyFor(resultsValue.datasetFamily);
+  const geoJson = mapLevel ? getGeoJsonSync(geoFamily, mapLevel) : undefined;
+  // A bundle OWNS the data it carries. Callers hand over the items cache's own
+  // row objects (it serves them by reference) and live store objects (the
+  // metrics store, a preset config), and a bundle that reaches a Solid store is
+  // walked by that store's proxy, which brands the RAW object it reads with a
+  // symbol key that cannot be removed. Why that breaks validation, and why the
+  // copy belongs here rather than in the schema: "A bundle owns its data" in
+  // SYSTEM_10.
+  const owned = structuredClone(unwrap({
+    config: effectiveConfig,
+    items: ih.items,
+    resultsValue: {
+      formatAs: resultsValue.formatAs,
+      valueProps: resultsValue.valueProps,
+      valueLabelReplacements: resultsValue.valueLabelReplacements,
+    },
+    indicatorMetadata: ih.indicatorMetadata,
+    dateRange: ih.dateRange,
+  }));
+  return {
+    ...owned,
+    // The one field held by reference: `geo.data` is the instance's whole
+    // boundary file, megabytes of it, shared by every figure at that level and
+    // never read as a record (`geoRefSchema` types it `z.unknown()`), so a copy
+    // per bundle build would cost the editor's live preview for nothing.
+    geo: mapLevel
+      ? (geoJson
+        ? { kind: "data" as const, data: geoJson }
+        : { kind: "level" as const, level: mapLevel, family: geoFamily })
+      : undefined,
+    localization,
+    metricId: resultsValue.id,
+    scope: figureScopeStamp(scope, ih.scopeToken, resultsValue.datasetFamily),
+    snapshotAt: new Date().toISOString(),
+    provenance: { runId: scope.runId },
+  };
 }

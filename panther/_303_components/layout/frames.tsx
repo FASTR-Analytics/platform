@@ -69,6 +69,16 @@ function slotClass(base: string, pad?: PadSize, spy?: PadSize): string {
   return [base, padClass(pad), spyClass(spy)].filter(Boolean).join(" ");
 }
 
+// The grab strip's width, spelled as literals in the handle classes below
+// because Tailwind needs them literal. Two handles are centred on their own
+// boundary, so their strips overlap whenever less than this separates the two
+// boundaries, and the later one in the DOM then takes the earlier one's mouse
+// events. The three-column frame keeps at least this much centre pane for that
+// reason: without it a drag could leave the centre at 0, stack both handles on
+// one pixel and strand the frame in a state no drag could leave.
+const HANDLE_STRIP_PX = 9;
+const HANDLE_STRIP_NO_BORDER_PX = 8;
+
 // The resize handle: a hit strip that paints nothing, with a 1px line inside
 // it sitting exactly on the boundary pixel — the same pixel the non-resizable
 // frames' wrapper border occupies, which is what makes swapping FrameLeft <->
@@ -120,10 +130,19 @@ export function FrameLeft(p: SideFrameProps) {
           >
             {panel()}
           </div>
-          <div
-            class={slotClass("h-full w-0 flex-1 overflow-auto", p.pad, p.spy)}
-          >
-            {p.children}
+          {
+            /* Every content slot of a side frame is a padded scroller inside an
+              unpadded flex item, never a padded flex item: a flex item cannot
+              shrink below its own padding, so a padded slot would stop the row
+              fitting its container and push the panel beside it past the edge.
+              The three-column centre pane has the same shape. */
+          }
+          <div class="h-full w-0 flex-1 overflow-hidden">
+            <div
+              class={slotClass("h-full w-full overflow-auto", p.pad, p.spy)}
+            >
+              {p.children}
+            </div>
           </div>
         </div>
       )}
@@ -143,10 +162,12 @@ export function FrameRight(p: SideFrameProps) {
     >
       {(panel) => (
         <div class="flex h-full w-full">
-          <div
-            class={slotClass("h-full w-0 flex-1 overflow-auto", p.pad, p.spy)}
-          >
-            {p.children}
+          <div class="h-full w-0 flex-1 overflow-hidden">
+            <div
+              class={slotClass("h-full w-full overflow-auto", p.pad, p.spy)}
+            >
+              {p.children}
+            </div>
           </div>
           <div
             class={slotClass(
@@ -192,23 +213,77 @@ type ResizablePanelOptions = {
   startingWidth: () => number;
   minWidth: () => number;
   maxWidth: () => number;
-  // Keep the panel's share of the container as the container resizes.
+  // After the first drag, keep the panel's share of the container as the
+  // container resizes.
   followContainer: boolean;
   isShown?: () => boolean;
+  // Pixels of the container the panel may not take: what a sibling panel
+  // already holds, plus any floor the frame keeps between them.
+  reservedWidth?: () => number;
 };
 
-// One resizable panel: its width, the drag handle's handlers, and the
-// container observation that keeps the width proportional. Every resizable
-// frame is one or two of these.
+// One resizable panel: its width, the drag handle's handlers, and the container
+// observation that bounds it and, after a drag in follow mode, keeps its share.
+// Every resizable frame is one or two of these.
 function createResizablePanel(o: ResizablePanelOptions) {
-  const [actualWidth, setActualWidth] = createSignal(
-    clamp(o.startingWidth(), o.minWidth(), o.maxWidth()),
+  // The width a drag chose, in pixels. Undefined until the first drag, so the
+  // undragged panel reads the starting width live rather than a snapshot of it:
+  // a consumer that derives its starting width from the window's width expects
+  // the panel to track it until someone drags.
+  const [draggedWidth, setDraggedWidth] = createSignal<number | undefined>(
+    undefined,
   );
+  // The share of the container a drag chose, in follow mode only. Undefined
+  // until the first drag, so a panel shows the width it was given rather than
+  // a share of however wide its container first happened to be: a frame made
+  // in a container narrower than its starting width took a share above one and
+  // then asked for more than the whole container at every later width. Taking
+  // the share at the first measure at which the panel fits does not work
+  // either, because as a window is dragged wider that measure comes when the
+  // container is only just wide enough and the share is still close to one.
+  const [targetPercentage, setTargetPercentage] = createSignal<
+    number | undefined
+  >(undefined);
+  // Undefined until the observer's first callback. The container is measured
+  // one way throughout, as the fraction the observer reports: reading it once
+  // as a whole-number offsetWidth and then applying the share to fractional
+  // contentRect widths moved a frame made again at a kept width by a fraction
+  // of a pixel each time.
+  const [containerWidth, setContainerWidth] = createSignal<
+    number | undefined
+  >(undefined);
+  // The room the panel may take: its container, less what it may not have.
+  // Undefined until the container has been measured.
+  const room = () => {
+    const c = containerWidth();
+    if (c === undefined) return undefined;
+    return Math.max(0, c - (o.reservedWidth?.() ?? 0));
+  };
+
+  // The panel may fill its room but never run past it, so the room caps the
+  // minimum as well as the maximum: a container narrower than minWidth holds a
+  // panel as wide as the container, where clamping to a maximum alone would
+  // return the minimum and overflow.
+  const boundWidth = (width: number): number => {
+    const r = room();
+    if (r === undefined) return clamp(width, o.minWidth(), o.maxWidth());
+    return clamp(width, Math.min(o.minWidth(), r), Math.min(o.maxWidth(), r));
+  };
+
+  const chosenWidth = () => {
+    const pct = targetPercentage();
+    const c = containerWidth();
+    if (o.followContainer && pct !== undefined && c !== undefined) {
+      return pct * c;
+    }
+    return draggedWidth() ?? o.startingWidth();
+  };
+
+  const actualWidth = createMemo(() => boundWidth(chosenWidth()));
   const displayWidth = createMemo(() =>
     o.isShown?.() === false ? 0 : actualWidth()
   );
-  const [targetPercentage, setTargetPercentage] = createSignal<number>(0);
-  const [containerWidth, setContainerWidth] = createSignal<number>(0);
+
   // A signal, not a `let`: the handle styles from it. `:active` cannot cover a
   // drag (once the pointer leaves the 8px strip mid-drag both :hover and
   // :active drop), so the drag state has to be projected as a data attribute.
@@ -218,34 +293,20 @@ function createResizablePanel(o: ResizablePanelOptions) {
   let resizeObserver: ResizeObserver | undefined;
 
   function observe(container: HTMLDivElement) {
-    const initialWidth = container.offsetWidth;
-    setContainerWidth(initialWidth);
-    setTargetPercentage(actualWidth() / initialWidth);
     resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        batch(() => {
-          const newContainerWidth = entry.contentRect.width;
-          setContainerWidth(newContainerWidth);
-          setActualWidth(
-            clamp(
-              targetPercentage() * newContainerWidth,
-              o.minWidth(),
-              o.maxWidth(),
-            ),
-          );
-        });
+        setContainerWidth(entry.contentRect.width);
       }
     });
     resizeObserver.observe(container);
   }
 
   function reset() {
-    const width = clamp(o.startingWidth(), o.minWidth(), o.maxWidth());
+    // Back to the starting width in pixels, not to its share of whatever the
+    // container happens to be now.
     batch(() => {
-      setActualWidth(width);
-      if (containerWidth() > 0) {
-        setTargetPercentage(width / containerWidth());
-      }
+      setDraggedWidth(undefined);
+      setTargetPercentage(undefined);
     });
   }
 
@@ -262,11 +323,12 @@ function createResizablePanel(o: ResizablePanelOptions) {
       const deltaX = o.side === "left"
         ? e.clientX - startX
         : startX - e.clientX;
-      const newWidth = clamp(startWidth + deltaX, o.minWidth(), o.maxWidth());
+      const newWidth = boundWidth(startWidth + deltaX);
       batch(() => {
-        setActualWidth(newWidth);
-        if (o.followContainer && containerWidth() > 0) {
-          setTargetPercentage(newWidth / containerWidth());
+        setDraggedWidth(newWidth);
+        const c = containerWidth();
+        if (o.followContainer && c !== undefined && c > 0) {
+          setTargetPercentage(newWidth / c);
         }
       });
     };
@@ -311,10 +373,10 @@ function createFramePanel(p: ResizableFrameProps, side: "left" | "right") {
   });
   return {
     ...panel,
+    // Observed in both modes: preventPanelResizeOnParentResize stops the panel
+    // following the container's width, not the container bounding it.
     setContainerRef: (el: HTMLDivElement) => {
-      if (!p.preventPanelResizeOnParentResize) {
-        onMount(() => panel.observe(el));
-      }
+      onMount(() => panel.observe(el));
     },
   };
 }
@@ -346,7 +408,7 @@ export function FrameLeftResizable(p: ResizableFrameProps) {
               {panel()}
             </div>
             <div
-              class="group absolute -right-[4px] top-0 z-50 h-full cursor-col-resize"
+              class="group absolute -right-[4px] top-0 z-40 h-full cursor-col-resize"
               classList={{ "w-[9px]": !p.noBorder, "w-[8px]": !!p.noBorder }}
               onMouseDown={handleMouseDown}
               data-dragging={isDragging()}
@@ -355,10 +417,12 @@ export function FrameLeftResizable(p: ResizableFrameProps) {
               <ResizeHandleLine side="left" noBorder={p.noBorder} />
             </div>
           </div>
-          <div
-            class={slotClass("h-full w-0 flex-1 overflow-auto", p.pad, p.spy)}
-          >
-            {p.children}
+          <div class="h-full w-0 flex-1 overflow-hidden">
+            <div
+              class={slotClass("h-full w-full overflow-auto", p.pad, p.spy)}
+            >
+              {p.children}
+            </div>
           </div>
         </div>
       )}
@@ -381,17 +445,19 @@ export function FrameRightResizable(p: ResizableFrameProps) {
     >
       {(panel) => (
         <div ref={setContainerRef} class="flex h-full w-full">
-          <div
-            class={slotClass("h-full w-0 flex-1 overflow-auto", p.pad, p.spy)}
-          >
-            {p.children}
+          <div class="h-full w-0 flex-1 overflow-hidden">
+            <div
+              class={slotClass("h-full w-full overflow-auto", p.pad, p.spy)}
+            >
+              {p.children}
+            </div>
           </div>
           <div
             class="relative h-full flex-none"
             style={{ width: `${displayWidth()}px` }}
           >
             <div
-              class="group absolute -left-[4px] top-0 z-50 h-full cursor-col-resize"
+              class="group absolute -left-[4px] top-0 z-40 h-full cursor-col-resize"
               classList={{ "w-[9px]": !p.noBorder, "w-[8px]": !!p.noBorder }}
               onMouseDown={handleMouseDown}
               data-dragging={isDragging()}
@@ -417,12 +483,23 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
   const minWidths = () => p.minWidths ?? [100, 100];
   const maxWidths = () => p.maxWidths ?? [2000, 2000];
 
+  const leftChild = createMemo(() => p.leftChild);
+  const rightChild = createMemo(() => p.rightChild);
+  const hasLeft = () => !!leftChild();
+  const hasRight = () => !!rightChild();
+  const stripWidth = () =>
+    p.noBorder ? HANDLE_STRIP_NO_BORDER_PX : HANDLE_STRIP_PX;
+
   const left = createResizablePanel({
     side: "left",
     startingWidth: () => p.startingWidths[0],
     minWidth: () => minWidths()[0],
     maxWidth: () => maxWidths()[0],
     followContainer: true,
+    // A collapsed pane is not rendered and holds no room, so it must report a
+    // width of 0 to the panel that is bounded by what it leaves.
+    isShown: hasLeft,
+    reservedWidth: stripWidth,
   });
   const right = createResizablePanel({
     side: "right",
@@ -430,6 +507,7 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
     minWidth: () => minWidths()[1],
     maxWidth: () => maxWidths()[1],
     followContainer: true,
+    reservedWidth: () => left.displayWidth() + stripWidth(),
   });
 
   let containerRef!: HTMLDivElement;
@@ -446,11 +524,6 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
       });
     }
   });
-
-  const leftChild = createMemo(() => p.leftChild);
-  const rightChild = createMemo(() => p.rightChild);
-  const hasLeft = () => !!leftChild();
-  const hasRight = () => !!rightChild();
 
   const collapsedPanes = () => {
     const panes: Array<{ label: string; onClick: () => void }> = [];
@@ -479,7 +552,7 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
                 {child()}
               </div>
               <div
-                class="group absolute -right-[4px] top-0 z-50 h-full cursor-col-resize"
+                class="group absolute -right-[4px] top-0 z-40 h-full cursor-col-resize"
                 classList={{ "w-[9px]": !p.noBorder, "w-[8px]": !!p.noBorder }}
                 data-dragging={left.isDragging()}
                 onMouseDown={left.handleMouseDown}
@@ -505,7 +578,7 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
                 divider "belongs" to. */
             }
             <div
-              class="group absolute -right-[4px] top-0 z-50 h-full cursor-col-resize"
+              class="group absolute -right-[4px] top-0 z-40 h-full cursor-col-resize"
               classList={{ "w-[9px]": !p.noBorder, "w-[8px]": !!p.noBorder }}
               data-dragging={right.isDragging()}
               onMouseDown={right.handleMouseDown}

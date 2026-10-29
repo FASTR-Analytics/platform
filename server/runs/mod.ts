@@ -8,9 +8,9 @@ export { pinRun, unpinRun } from "./pin_run.ts";
 export { deriveAvailableDisaggregationOptions } from "./disaggregation_availability.ts";
 export { getRunGenerationModuleOptions } from "./generation_wizard_reads.ts";
 export {
-  getModuleDefaultsBaseline,
+  getModuleDefaultsGlobal,
   getModuleDefaultsSnapshot,
-} from "./module_defaults_baseline.ts";
+} from "./module_defaults_global.ts";
 export { type ExportedColumn, exportRowsToParquet } from "./pg_export.ts";
 export {
   evictRunFromManifestCache,

@@ -80,7 +80,12 @@ export function metricsWithStatusOf(
         formatAs: m.formatAs,
         valueProps: m.valueProps,
         valueFunc: m.valueFunc,
-        valueLabelReplacements: m.valueLabelReplacements,
+        valueLabelReplacements: Object.fromEntries(
+          Object.entries(m.valueLabelReplacements).map(([prop, ts]) => [
+            prop,
+            ts.en,
+          ]),
+        ),
         postAggregationExpression: m.postAggregationExpression ?? undefined,
         catalogExpressionEvaluation: m.catalogExpressionEvaluation ?? undefined,
         resultsObjectId: m.resultsObjectId,

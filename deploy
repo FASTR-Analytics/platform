@@ -37,7 +37,12 @@ if [ -d report-forge ]; then
     fi
 fi
 
-# Ask if this is an ad-hoc deploy
+# ── Every question the deploy asks, asked here ──────────────────────────────
+# Nothing below this block reads stdin: once these are answered the deploy
+# runs to completion unattended, and a failure aborts rather than asking.
+# The version is only DECIDED here; the VERSION file is written at the end,
+# after the last step that can fail (see "Write the VERSION file" below).
+
 echo "Is this an ad-hoc/testing deploy? (y/n)"
 read -r ADHOC_DEPLOY
 
@@ -50,16 +55,64 @@ if [ "$ADHOC_DEPLOY" = "y" ] || [ "$ADHOC_DEPLOY" = "Y" ]; then
         exit 1
     fi
     VERSION="$ADHOC_TAG"
-    echo "Ad-hoc version: $VERSION"
 else
     ADHOC_MODE=false
+
+    MAJOR=$(echo "$ORIGINAL_VERSION" | cut -d. -f1)
+    MINOR=$(echo "$ORIGINAL_VERSION" | cut -d. -f2)
+    PATCH=$(echo "$ORIGINAL_VERSION" | cut -d. -f3)
+
+    # The major version is not bumped from here.
+    echo "Bump the minor version $ORIGINAL_VERSION → $MAJOR.$((MINOR + 1)).0? (y/n)"
+    read -r BUMP_MINOR
+
+    if [ "$BUMP_MINOR" = "y" ] || [ "$BUMP_MINOR" = "Y" ]; then
+        MINOR=$((MINOR + 1))
+        PATCH=0
+    else
+        echo "Bump the patch version $ORIGINAL_VERSION → $MAJOR.$MINOR.$((PATCH + 1))? (y/n)"
+        read -r BUMP_PATCH
+
+        if [ "$BUMP_PATCH" = "y" ] || [ "$BUMP_PATCH" = "Y" ]; then
+            PATCH=$((PATCH + 1))
+        fi
+    fi
+
+    VERSION="$MAJOR.$MINOR.$PATCH"
 fi
 
-# Cleanup function to restore VERSION on failure
+echo "Validate migrations and queries? (y/n)"
+read -r RUN_TESTS_ANSWER
+
+if [ "$RUN_TESTS_ANSWER" = "y" ] || [ "$RUN_TESTS_ANSWER" = "Y" ]; then
+    RUN_TESTS=true
+else
+    RUN_TESTS=false
+fi
+
+# What was just answered, so the run can be left alone from here.
+echo ""
+if [ "$ADHOC_MODE" = "true" ]; then
+    echo "  Ad-hoc deploy:  $VERSION (VERSION file untouched, no rebase)"
+elif [ "$VERSION" = "$ORIGINAL_VERSION" ]; then
+    echo "  Version:        $VERSION (unchanged)"
+else
+    echo "  Version:        $ORIGINAL_VERSION → $VERSION"
+fi
+echo "  Validate:       $RUN_TESTS"
+echo "  Typecheck and protocol validation always run."
+echo ""
+echo "No further questions: the deploy now runs to completion."
+echo ""
+
+# Cleanup on failure. The VERSION file is written at the very end, so this
+# only has something to restore when the failure came after that write (the
+# git steps); it is unconditional because restoring the value it already
+# holds costs nothing.
 cleanup() {
     echo "ERROR: Deployment failed! Restoring original version..."
     echo "$ORIGINAL_VERSION" > VERSION
-    
+
     # Restore client_dist backup if it exists
     if [ -d "$SERVER_DIR/client_dist.backup" ]; then
         echo "Restoring client_dist backup..."
@@ -111,72 +164,24 @@ if ! docker info 2>/dev/null | grep -q "Username:"; then
     echo "Run 'docker login' if needed."
 fi
 
-# Always run protocol validation (fast, no Docker needed). A failure (real
-# violations, or the validator itself erroring) can be consciously overridden.
+# Always run protocol validation (fast, no Docker needed). It aborts the
+# deploy: overriding a failed gate is a decision, and every decision in this
+# script is made before the run starts.
 if ! "$SCRIPT_DIR/validate_protocols"; then
-    echo "WARNING: Protocol validation failed (violations, or the validator itself errored)."
-    echo "Continue deploy anyway? (y/n)"
-    read -r PROTOCOLS_CONTINUE
-
-    if [ "$PROTOCOLS_CONTINUE" != "y" ] && [ "$PROTOCOLS_CONTINUE" != "Y" ]; then
-        echo "ERROR: Deploy aborted on protocol validation."
-        exit 1
-    fi
+    echo "ERROR: Protocol validation failed (violations, or the validator itself errored)."
+    exit 1
 fi
 
-# Optionally validate migrations
-echo "Validate migrations? (y/n)"
-read -r VALIDATE_MIGRATIONS
-
-if [ "$VALIDATE_MIGRATIONS" = "y" ] || [ "$VALIDATE_MIGRATIONS" = "Y" ]; then
+if [ "$RUN_TESTS" = "true" ]; then
     if ! "$SCRIPT_DIR/validate_migrations"; then
         echo "ERROR: Migration validation failed!"
         exit 1
     fi
-fi
 
-# Optionally validate queries
-echo "Validate queries? (y/n)"
-read -r VALIDATE_QUERIES
-
-if [ "$VALIDATE_QUERIES" = "y" ] || [ "$VALIDATE_QUERIES" = "Y" ]; then
     if ! "$SCRIPT_DIR/validate_queries"; then
         echo "ERROR: Query validation failed!"
         exit 1
     fi
-fi
-
-if [ "$ADHOC_MODE" = "false" ]; then
-    # Parse current version
-    MAJOR=$(echo $ORIGINAL_VERSION | cut -d. -f1)
-    MINOR=$(echo $ORIGINAL_VERSION | cut -d. -f2)
-    PATCH=$(echo $ORIGINAL_VERSION | cut -d. -f3)
-
-    # Ask if user wants to bump minor version first
-    echo "Do you want to bump the minor version $ORIGINAL_VERSION → $MAJOR.$((MINOR + 1)).0? (y/n)"
-    read -r BUMP_MINOR
-
-    if [ "$BUMP_MINOR" = "y" ] || [ "$BUMP_MINOR" = "Y" ]; then
-        MINOR=$((MINOR + 1))
-        PATCH=0
-    else
-        # Only ask about patch if minor wasn't bumped
-        echo "Do you want to bump the patch version $ORIGINAL_VERSION → $MAJOR.$MINOR.$((PATCH + 1))? (y/n)"
-        read -r BUMP_PATCH
-
-        if [ "$BUMP_PATCH" = "y" ] || [ "$BUMP_PATCH" = "Y" ]; then
-            PATCH=$((PATCH + 1))
-        else
-            echo "Keeping current version: $ORIGINAL_VERSION"
-        fi
-    fi
-
-    NEW_VERSION="$MAJOR.$MINOR.$PATCH"
-
-    # Update VERSION file
-    echo "$NEW_VERSION" > VERSION
-    echo "Version bumped to: $NEW_VERSION"
-    VERSION=$NEW_VERSION
 fi
 
 # Build client
@@ -262,6 +267,15 @@ fi
 
 echo "Docker image pushed successfully"
 
+# Write the VERSION file, now that every step that can fail has passed: the
+# build reads the version from this script's variable and the running server
+# reads SERVER_VERSION from its environment, so nothing needed the file
+# earlier and a failed deploy leaves the version it was.
+if [ "$ADHOC_MODE" = "false" ] && [ "$VERSION" != "$ORIGINAL_VERSION" ]; then
+    echo "$VERSION" > VERSION
+    echo "Version bumped to: $VERSION"
+fi
+
 # Commit to git
 echo "Committing changes to git..."
 today=`date +%Y_%m_%d_%H_%M_%S`
@@ -336,7 +350,13 @@ printf "║  Version:        %-51s ║\n" "$VERSION"
 printf "║  Docker Image:   %-51s ║\n" "timroberton/comb:wb-fastr-server-v$VERSION"
 echo "║                                                                      ║"
 echo "║  Operations Completed:                                               ║"
-printf "║    - Version bumped from %-43s ║\n" "$ORIGINAL_VERSION to $VERSION"
+if [ "$ADHOC_MODE" = "true" ]; then
+    printf "║    - Version file left at %-42s ║\n" "$ORIGINAL_VERSION"
+elif [ "$VERSION" = "$ORIGINAL_VERSION" ]; then
+    printf "║    - Version kept at %-47s ║\n" "$ORIGINAL_VERSION"
+else
+    printf "║    - Version bumped from %-43s ║\n" "$ORIGINAL_VERSION to $VERSION"
+fi
 echo "║    - Client built successfully                                       ║"
 echo "║    - Docker image built successfully                                 ║"
 echo "║    - Docker image pushed to Docker Hub                               ║"

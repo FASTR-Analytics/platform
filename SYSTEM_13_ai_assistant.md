@@ -11,6 +11,7 @@ globs:
   - server/mcp/**
   - lib/types/ai_input.ts
   - lib/types/custom_prompts.ts
+  - lib/report_live_figures.ts
   - server/db/instance/ai_usage_logs.ts
   - server/db/instance/custom_prompts.ts
   - server/routes/anthropic_messages_proxy.ts
@@ -25,7 +26,8 @@ globs:
   - server/tests/mcp_context_cache_test.ts
   - server/tests/mcp_principal_key_test.ts
   - server/tests/mcp_tools_source_header_test.ts
-  - server/tests/methodology_docs_decode_test.ts
+  - server/tests/reference_docs_test.ts
+  - server/tests/report_live_figures_test.ts
 ---
 
 # S13: AI Copilot & Usage Governance
@@ -67,27 +69,48 @@ produce are **S10/S12**; the query pipeline the data tools call is **S9**.
    the SPA, personal access token at `/mcp`, whose actions dispatch in-process
    through the full PAT middleware chain, see S1) and can never do what the user
    can't. **Two classes of tool, one env seam**: `lib/ai_tools` holds exactly
-   the tools BOTH surfaces expose (metrics ×2, methodology docs ×2, `get_info`)
-   over `AIToolEnv`: a data source for ONE (package, scope) pair (items, value
-   info; no run id ever crosses the seam or appears in a schema). Shared tool
-   OUTPUT states only what both surfaces can act on: `from_metric` authoring
-   guidance is the SPA prompt's and block schema's contract, never a shared
-   formatter's; the metrics listing keeps its per-metric presets (grain,
-   filters, replicant requirement) as reference data about the metric, and lists
-   metrics in module order (`compareModules`: family, the primary module first,
-   then declared sort order) under one heading line per module, so both
-   `getSharedToolsForMetrics` callers pass the package's module summaries (the
-   SPA from the authoring context, MCP from `getModuleSummariesFromManifest`);
-   the copilot's `get_available_modules` lists modules in the same order with
-   their family and tier. `get_info` topics are inputs, split by location like
-   tools: `INFO_TOPICS` (lib, shared: `iceh`) and the client's `SPA_INFO_TOPICS`
-   (shared + the equity-profile report recipe); each surface passes its ONE list
-   to both `getSharedToolsForInfo` and `buildSystemPrompt`, so tool whitelist
-   and prompt never diverge. The SPA binds one env per inner tool set
-   (`createCopilotAIToolEnv(pair)`, cache-backed over the run-keyed package
-   routes; `ClientAIToolEnv` adds the module script/logs/settings getters and
-   the figure-shaping helpers) and registers outer tools bound per call to the
-   pair of the view the call runs in
+   the tools BOTH surfaces expose (metrics ×2, reference docs ×2) over
+   `AIToolEnv`: a data source for ONE (package, scope) pair (items, value info;
+   no run id ever crosses the seam or appears in a schema). Shared tool OUTPUT
+   states only what both surfaces can act on: `from_metric` authoring guidance
+   is the SPA prompt's and block schema's contract, never a shared formatter's;
+   the metrics listing keeps its per-metric presets (grain, filters, replicant
+   requirement) as reference data about the metric, and lists metrics in module
+   order (`compareModules`: family, the primary module first, then declared sort
+   order) under one heading line per module, so both `getSharedToolsForMetrics`
+   callers pass the package's module summaries (the SPA from the authoring
+   context, MCP from `getModuleSummariesFromManifest`); the copilot's
+   `get_available_modules` lists modules in the same order with their family and
+   tier. **The reference documents are one catalog behind one pair**
+   (`lib/ai_tools/tools_reference_docs.ts`): `get_reference_docs` lists every
+   document the surface exposes and `get_reference_doc({ id })` reads one, the
+   resolver picking the source by id. Two sources: the app's own documents,
+   served from `client/public/info/<id>.md` and declared as entries
+   (`REFERENCE_DOCS` in lib, shared: `iceh`; the client's `SPA_REFERENCE_DOCS`
+   adds the equity-profile report recipe, which presupposes the authoring
+   tools), and the FASTR methodology hub on GitHub, whose ids are paths under
+   its `methodology/` directory. The catalog is text, not parsed entries: one
+   line per app entry, its `readWhen` trigger in the line, then the hub's
+   `index.md` for the instance language (`fr/`, `pt/` when the mirror exists,
+   else English) verbatim, under one line saying its link targets are ids; the
+   read accepts any guarded `.md` path under the hub, since the index omits
+   chapters. An entry may declare the `dataset` it is about, and the list drops
+   it when the instance's `datasetsWithData` holds no such data
+   (`resolveInstanceState` per call on `/mcp`, the live store in the SPA); the
+   read serves every entry it was given. Hub reads go through the GitHub
+   contents API, unauthenticated, under its 60 requests per hour per IP, so
+   every hub read is memoised per process with a ten-minute TTL (a failed read
+   is dropped as it settles), and a hub failure degrades the list to the app
+   entries plus one line. The triggers ride the entries: the list tool's
+   description names every entry with its `readWhen`, so the model knows when to
+   read a document before its first call, and the system prompt's reference
+   section is one line pointing at the pair
+   (`server/tests/reference_docs_test.ts` pins the catalog text, the relevance
+   filter, the description and the base64 decode). The SPA binds one env per
+   inner tool set (`createCopilotAIToolEnv(pair)`, cache-backed over the
+   run-keyed package routes; `ClientAIToolEnv` adds the module
+   script/logs/settings getters and the figure-shaping helpers) and registers
+   outer tools bound per call to the pair of the view the call runs in
    ([bind_package_tools.ts](client/src/components/instance/copilot/bind_package_tools.ts),
    panther's `bindAIToolToView`): the inner builder in
    [copilot_tools.ts](client/src/components/instance/copilot_tools.ts)
@@ -99,25 +122,28 @@ produce are **S10/S12**; the query pipeline the data tools call is **S9**.
    unrestricted user: `resolvePackageContext` refuses a restricted one with a
    tool failure when it builds a context, and the routes refuse them "All data"
    on every read, since a restricted user cannot hold that scope) and exposes
-   only the shared tools + `get_overview`: 6 read-only tools, no writes, all six
-   listed under `# Available Tools` in the overview, which renders the same list
-   the server returns. Only `get_available_metrics` and `get_metric_data` read
-   the pin; the methodology tools and `get_info` read reference docs, and the
-   server's instructions, the overview and the endpoint's file comment say so.
-   **Interpretation context rides the grounding and the shared reads, not extra
-   tools**: `buildPackageGroundingSections` lists every HMIS indicator of the
-   package with its format, direction, thresholds, target and, for a calculated
-   indicator, its flattened formula (the manifest's `hmisIndicators`, in
-   dictionary order; the indicator's type is deliberately absent, an
-   implementation detail no reader needs), and `get_metric_data` fetches value
-   info beside the items and states the metric's full period coverage plus, per
-   indicator in the Dimension Summary, the same facts (`describeIndicatorFacts`:
-   direction on its own line item whatever the rule's shape, thresholds in
-   display units mirroring the scorecard's inclusive cutoff rule, target);
-   `buildPackageGroundingSections` states the package's calendar and period
-   coverage (finest physical time column; `/mcp` only, since the SPA holds no
-   manifest). Nothing about modules, provenance, or unavailable metrics goes
-   into the package grounding: it does not help read a metric (ruled). The
+   only the shared tools + `get_overview`: 5 read-only tools, no writes, all
+   five listed under `# Available Tools` in the overview, which renders the same
+   list the server returns. Only `get_available_metrics` and `get_metric_data`
+   read the pin; the reference tools read reference docs, and the server's
+   instructions, the overview and the endpoint's file comment say so. A renamed
+   tool is a rename and nothing else: a stored conversation's call to an old
+   name fails once with "Unknown tool" and the model re-lists, and a connected
+   MCP client keeps its cached tool list until it refreshes (USER_GUIDE_MCP's
+   troubleshooting says how). **Interpretation context rides the grounding and
+   the shared reads, not extra tools**: `buildPackageGroundingSections` lists
+   every HMIS indicator of the package with its format, direction, thresholds,
+   target and, for a calculated indicator, its flattened formula (the manifest's
+   `hmisIndicators`, in dictionary order; the indicator's type is deliberately
+   absent, an implementation detail no reader needs), and `get_metric_data`
+   fetches value info beside the items and states the metric's full period
+   coverage plus, per indicator in the Dimension Summary, the same facts
+   (`describeIndicatorFacts`: direction on its own line item whatever the rule's
+   shape, thresholds in display units mirroring the scorecard's inclusive cutoff
+   rule, target); `buildPackageGroundingSections` states the package's calendar
+   and period coverage (finest physical time column; `/mcp` only, since the SPA
+   holds no manifest). Nothing about modules, provenance, or unavailable metrics
+   goes into the package grounding: it does not help read a metric (ruled). The
    `package` and `explore` views are the narrowing: on those two pages the
    module and the package's status are what the user is looking at, so their
    view state names the open module, and the package page's its status, stage,
@@ -237,8 +263,26 @@ The flow:
 9. Increment amount is `inputTokens + outputTokens` only. Cache tokens are
    logged but never counted against limits (an implicit policy; Open items). The
    daily increment runs even for `unlimitedAi` users (tracked, never enforced);
-   the weekly increment is skipped for them. Be deliberate about which counters
-   unlimited users should affect.
+   the weekly increment is skipped for them. The asymmetry is the point, not an
+   oversight: the daily counter is PER USER, so counting an unlimited user costs
+   nobody else and keeps the number honest if the flag is later cleared mid-day,
+   while the weekly counter is SHARED and gates every limited user, so the same
+   increment would spend their quota. Counting unlimited users in while the
+   weekly gate still exempts them (`:82`) would let one of them lock out
+   everyone else, and "unlimited" would come to mean "unbounded for me, and it
+   shrinks everyone else's pool". The weekly counter is therefore a QUOTA
+   measure, not a spend measure: it is written only when `_WEEKLY_TOKEN_LIMIT`
+   is set, it excludes cache tokens, and its only readers are the gate, whose
+   429 names no number, and the two surfaces that print it beside the limit, the
+   profile panel and the health route. Real spend is `ai_usage_logs`, written
+   unconditionally for every user and every token kind.
+
+   The profile panel must therefore not imply the two figures are comparable:
+   its rows read "Today (you)" and "This week (country quota)", and the week row
+   tells a user whose own use is not counted that it is not
+   ([profile.tsx](client/src/components/instance/profile.tsx)). Without that, an
+   unlimited user sees their own day at more than double the whole country's
+   week, which as displayed is impossible.
 
 **Governance storage.** Daily counter = columns on `users`
 ([users.ts:279-311](server/db/instance/users.ts#L279-L311), S1 seam): the read
@@ -610,11 +654,11 @@ every pair and always registered with the API: the outer package tools
 (`bindPackageTools` over the inner builder: metrics, the module list, the
 editors, the figure editor and the draft preview, each bound per call to the
 inner set of the view's pair; the module internals, bound by its run id), the
-Products page's `list_products`, the reference tools (methodology docs, info)
-and panther's one `ask_user_questions`. Every tool declares a `kind` (`"read"` /
-`"write"`); no tool is `"nav"`: a navigation tool or any AI-driven move is out
-of the chat's scope, so the user moves and the view line tells the model where.
-The slide tools are nine, one set, admitted in the deck view
+Products page's `list_products`, the two reference tools and panther's one
+`ask_user_questions`. Every tool declares a `kind` (`"read"` / `"write"`); no
+tool is `"nav"`: a navigation tool or any AI-driven move is out of the chat's
+scope, so the user moves and the view line tells the model where. The slide
+tools are nine, one set, admitted in the deck view
 ([slides.tsx](client/src/components/products/copilot/ai_tools/tools/slides.tsx)
 builds it): `get_deck`, `get_slide`, `create_slide`, `update_slide`,
 `update_figure`, `replace_slide`, `delete_slides`, `duplicate_slides` and
@@ -639,13 +683,26 @@ place through a per-type union that must match the slide's type (a cover's or a
 section's fields; a content slide's header, and either `blockUpdates` or
 `layoutChange`, whose layout-spec resolution names the blocks it removes),
 `update_figure` tweaks one figure's config, and `replace_slide` rebuilds a slide
-or changes its type. The structure writes (`create_slide`, `duplicate_slides`,
-`move_slides`) go through the product routes and never open a slide: the deck's
-own rule (the first slide when none is open) is the only thing that moves the
-editor on the AI's behalf. `delete_slides` commits through the deck's
-`deleteSlides` (S12), the rail's own sequence, so a deleted open slide hands the
-editor to its neighbour before the request. The report's writes go through the
-live view context. The Figure editor group
+or changes its type. The two writes that run the page optimizer (`create_slide`
+and `replace_slide`) write the slide as asked and, when the layout they kept
+overflows the page (`convertAiInputToSlide`'s `overflow`, the optimizer's
+page-level `score.overflow`), append one sentence to their result naming the
+slide's figure block ids and the fix: filter the indicator dimension, or choose
+a preset with fewer rows, through `update_figure`. Text blocks autofit, so the
+figure blocks are the cause; a slide with no figure block reports the overflow
+alone. Nothing throws: the user can see the canvas badge and fix the slide by
+hand, and the model has a line to act on in the same turn. The flag is sound and
+incomplete: the optimizer scores the whole page box while the render gives the
+layout that box minus its header and footer, so a layout it calls overflowing
+always draws the badge, while a slide the header's height pushes over the edge
+is written with no word to the model (Open items). The structure writes
+(`create_slide`, `duplicate_slides`, `move_slides`) go through the product
+routes and never open a slide: the deck's own rule (the first slide when none is
+open) is the only thing that moves the editor on the AI's behalf.
+`delete_slides` commits through the deck's `deleteSlides` (S12), the rail's own
+sequence, so a deleted open slide hands the editor to its neighbour before the
+request. The report's writes go through the live view context. The Figure editor
+group
 ([figure_editor.ts](client/src/components/products/copilot/ai_tools/tools/figure_editor.ts),
 in the inner set, admitted in the four figure views): `get_figure_editor`
 formats the draft with `formatFigureConfigForAI`, and `update_figure_editor`
@@ -813,6 +870,31 @@ is not already in the current body trip it, so user-sanctioned colours survive
 rewrites, and `allowLiteralColors` is the deliberate escape hatch for when the
 user asked for exact colours.
 
+**A figure tool sees what the reader sees.** Every report figure tool, read or
+write, and the page map, resolve their figures through `reportLiveFigures`
+([lib/report_live_figures.ts](lib/report_live_figures.ts)): registered in the
+report AND referenced by the body. References come off the RENDERER's tokens
+(`fastrBodyReferences`), not a scan for the canonical token text, for the same
+reason `checkReportTokensResolve` does: the document resolves an embed written
+any markdown way (a title after the destination, a reference link, an
+angle-bracket destination), and a figure the reader can see must not be one the
+tools refuse to index, read or lay out. `get_report_editor` indexes those only,
+`get_report_figure` refuses an id outside them and lists only live ids in its
+message, `update_report_figure` and `replace_figure` need no separate
+"registered but its token isn't in the body" branch because the one lookup is
+that check, and `get_report_pages` lays out those only, so the paginator stops
+measuring a raster box for every orphan and waiting out `SIZE_WAIT_MS` on sizes
+that never land. The registry and the body do drift: `replace_figure` swaps a
+body token for a fresh id and leaves the old entry registered, and unreferenced
+entries are pruned at LOAD, never in session, so an editor undo can bring a
+token back (S12). An orphan is not the model's to see. Indexing it cost a turn:
+its line carried the caption the user had asked to keep, so a model aiming at
+"the figure with that caption" picked the orphan and was refused. `embedIdsOf`,
+the allowed-id set for a PROPOSED body and what `readReportText` is handed as
+`embeds`, keeps reading the full registry, because a proposed body may re-embed
+a still-registered id. `server/tests/report_live_figures_test.ts` pins the
+helper.
+
 **The text core of these tools is Report Forge's, not the copilot's.** The body
 half of `get_report_editor` and the three write tools run on the package's pure
 operations (`readReportText`, `rewriteReportBody`, `rewriteReportSection`,
@@ -881,15 +963,22 @@ reports the move in its success message; a figure with neither refuses, naming
 the retired module and the missing successor when the metric is a retired one,
 else the bare id), the same resolution `get_slide` and `get_report_figure` print
 above a figure whose metric is not the package's own: `applyFigureConfigPatch` →
-`validateFigureConfigEdit` (pure config checks: slots, field liveness, roll-up
-structure, pre-write collision) → `validateMetricInputs` (live data) →
-`describeFigureConfigPatchEffect` (the per-field leave-one-out change report in
-the success message), _before_ any store write, so a throw provably means
-"nothing changed". Pure config checks live beside the pipeline in
-`client/src/generate_visualization/` (S10's glob, deliberately: they are S13
-machinery); the fetched-data check (`validateMetricInputs`, the SPA's fetching
-wrapper around `validateMetricInputsAgainstValueInfo`, the check `/mcp` runs
-inside `getMetricDataForAI`) lives in `lib/ai_tools/content_validators.ts`. The
+`validateFigureConfigEdit` (pure config checks: slots, a map's mapArea
+dimension, field liveness, roll-up structure, pre-write collision) →
+`validateMetricInputs` (live data) → `describeFigureConfigPatchEffect` (the
+per-field leave-one-out change report in the success message) →
+`resolveBundleFromMetricAndConfig` (the replicant against its options, a map's
+boundary file against the instance's map list, the items read, then
+`buildFigureInputs` over the bundle, the renderer's own derivation, so a bundle
+the figure would show as "could not be displayed" is refused with the render
+message instead of committed), _before_ any store write, so a throw provably
+means "nothing changed". The from_metric create path and the report figure tools
+share the resolver, so they share its two refusals. Pure config checks live
+beside the pipeline in `client/src/generate_visualization/` (S10's glob,
+deliberately: they are S13 machinery); the fetched-data check
+(`validateMetricInputs`, the SPA's fetching wrapper around
+`validateMetricInputsAgainstValueInfo`, the check `/mcp` runs inside
+`getMetricDataForAI`) lives in `lib/ai_tools/content_validators.ts`. The
 accepted-but-inert-patch rule (Type 1 / Type 2) is stated once, in
 [PROTOCOL_APP_AI_TOOLS.md](PROTOCOL_APP_AI_TOOLS.md).
 
@@ -975,9 +1064,13 @@ slide tool calls the same resolvers, whichever slide it writes:
   lenient auto-default.
 - [convert_ai_input_to_slide.ts](client/src/components/products/copilot/slide_ai/convert_ai_input_to_slide.ts)
   converts AiSlideInput → stored `Slide` under a `PackageScope`: resolve blocks,
-  `optimizePageLayout` at the canonical page frame, re-attach bundles, and
-  `slideConfigSchema.parse` the result (validate-at-construction, the
-  add-to-deck ZodError lesson).
+  run a provisional slide through `convertSlideToPageInputs` so the optimizer
+  gets the page's chrome, style and items exactly as the renderer draws them,
+  `optimizePageLayout` at the canonical page frame, restore the blocks by id,
+  and `slideConfigSchema.parse` the result (validate-at-construction, the
+  add-to-deck ZodError lesson). It returns `{ slide, overflow }`, the kept
+  layout's page-level overflow beside the slide, the same flag the deck's page
+  holder badges; the draft tools ignore it, the deck writes report it.
 - [get_slide_with_updated_blocks.ts](client/src/components/products/copilot/slide_ai/get_slide_with_updated_blocks.ts)
   is targeted block replacement preserving what the AI schema can't express
   (text styles, node-level layout overrides);
@@ -996,35 +1089,61 @@ slide tool calls the same resolvers, whichever slide it writes:
 ([build_system_prompt.ts](client/src/components/instance/copilot/build_system_prompt.ts)):
 instance/terminology section (country, admin-area labels, data sources) + data
 coverage + the instance-level `ai_context` (`buildAiContextSections`, the shared
-block `/mcp`'s `get_overview` also carries after its data coverage) +
-reference-doc catalog (`SPA_INFO_TOPICS`) + base instructions (the app's role,
-read-data-first, no fabrication, ask when uncertain, indicator directionality).
-It is **instance level**: no date, no package section, no viewer sentence and no
-tool catalogue, so only an instance input changes it and one conversation keeps
-one prompt through every view and package. What used to ride it rides elsewhere:
-the date and the package in view are the consumer blocks above (the package
-block holds the package label and generation time, the scope's label and one
-line per dataset family saying what its section does: excluded, included with no
-limits, or limited to an area, years, time points, modules, indicators, HFA
-categories and HFA service categories, each listed in full, with the rule that a
-limit applies only to a table that has a column for it; then the package's
-datasets, indicator lists and calendar); the level line rides a product view's
-instructions below edit; the per-view instructions (still exported from this
-file, with short primary-tool pointers; the Products, Data page, Assets, Users
-and user detail views name their page, the figure views the figure by its label
-and its host, and the results file view its module and object) and the view
-states of the Results, Explore and Data pages (`formatExploreState`,
-`formatPackageState`, `formatResultsPackagesState` and `formatDataState`, this
-file too) are composed per view by the view registry
+block `/mcp`'s `get_overview` also carries after its data coverage) + the
+one-line reference-docs pointer + base instructions (the app's role,
+read-data-first, no fabrication, the standard a written claim must meet, ask
+when uncertain, indicator directionality).
+
+The claim standard (`getBaseInstructions` in
+[lib/ai_tools/build_system_prompt.ts](lib/ai_tools/build_system_prompt.ts),
+pinned by `server/tests/copilot_prompt_test.ts`) covers the shapes a model gets
+wrong while reading its own tool results correctly: a comparative or superlative
+is a claim about EVERY row returned, so it is re-read before it is written and a
+series is described by its whole shape rather than smoothed into a trend; a
+claim that a value is near a declared threshold band is checked against the
+band's own cutoffs, which the Dimension Summary prints with their operators, so
+a value already inside the band is not "approaching" it; a period that
+`get_metric_data`'s "Period coverage" line shows ending short of its unit is
+labelled partial wherever it is used, an endpoint included; and a change to a
+product is described only as the tool result reports it, so nothing is narrated
+as having drifted from a state no result shows. It lives in the shared base and
+not in either brief, so one edit reaches every view and `/mcp`, and the deck and
+report briefs cannot drift apart. It is prompt text, not a guarantee: nothing in
+code validates a claim.
+
+The prompt is **instance level**: no date, no package section, no viewer
+sentence and no tool catalogue, so only an instance input changes it and one
+conversation keeps one prompt through every view and package. What used to ride
+it rides elsewhere: the date and the package in view are the consumer blocks
+above (the package block holds the package label and generation time, the
+scope's label and one line per dataset family saying what its section does:
+excluded, included with no limits, or limited to an area, years, time points,
+modules, indicators, HFA categories and HFA service categories, each listed in
+full, with the rule that a limit applies only to a table that has a column for
+it; then the package's datasets, indicator lists and calendar); the level line
+rides a product view's instructions below edit; the per-view instructions (still
+exported from this file, with short primary-tool pointers; the Products, Data
+page, Assets, Users and user detail views name their page, the figure views the
+figure by its label and its host, and the results file view its module and
+object) and the view states of the Results, Explore and Data pages
+(`formatExploreState`, `formatPackageState`, `formatResultsPackagesState` and
+`formatDataState`, this file too) are composed per view by the view registry
 ([ai_views.ts](client/src/components/instance/copilot/ai_views.ts)); and the
 tools ride the request's tools array, never a catalogue in the prompt
 (`server/tests/copilot_prompt_test.ts` pins the absence; `get_overview` is the
 one surface that asks `buildSystemPrompt` for a date and a catalogue). The
-`SHOW_SENT_CONTEXT` boolean in `state/t4_ui.ts` (a code boolean, off) makes each
-new user bubble the exact text sent, its context block then what was typed
-(panther `showSentContext`). The chat menu's View system prompt shows the blocks
-the next message would carry, through the instance's `getNextTurnPreview()`,
-then the system text; the debug panel
+`AI_DEBUG` flag in `state/t4_ui.ts` (localStorage `fastr:ai-debug` = `"1"`, read
+at page load, off by default) makes each new user bubble the exact text sent,
+its context block then what was typed (panther `showSentContext`), and installs
+`window.__copilot`
+([debug_api.ts](client/src/components/instance/copilot/debug_api.ts)) while this
+tab owns the chat: `requests()` holds every POST the SDK made to the proxy with
+its body as serialised (recorded in the SDK client's fetch wrapper, bounded to
+the last 100), which is what the model received; `nextTurn()`, `messages()`,
+`tools()`, `config()`, `view()`, `conversationId()` and `isLoading()` read the
+engine and the view controller live. The chat menu's View system prompt shows
+the blocks the next message would carry, through the instance's
+`getNextTurnPreview()`, then the system text; the debug panel
 ([ai_debug_panel.tsx](client/src/components/instance/copilot/ai_debug_panel.tsx))
 renders the metric-list formatter verbatim so a human sees exactly what the
 model sees. AI data payloads exclude the admin-area roll-up row (double-counting
@@ -1124,10 +1243,10 @@ guard. The five writes declare `approval.propose` with `presentation: "modal"`
 (panther owns the propose → modal → commit lifecycle); the editor write is
 exempt, since it lands in the open editor's unsaved draft, which the user saves
 or discards. The HFA guidance (the model, type and aggregation, how to write
-r-code, how to work) is `instructions.ts`'s `getHfaIndicatorsGuidance`, attached
-to the manager's view; it names no tool, since the registered tools describe
-themselves, and promises no diff. `validate_hfa_indicators` is a read: it
-computes each indicator's issues from main code and stores nothing, since the
+indicator code, how to work) is `instructions.ts`'s `getHfaIndicatorsGuidance`,
+attached to the manager's view; it names no tool, since the registered tools
+describe themselves, and promises no diff. `validate_hfa_indicators` is a read:
+it computes each indicator's issues from main code and stores nothing, since the
 manager recomputes status at render and the stored flags' only reader is
 `get_hfa_indicators` (`bulkUpdateHfaIndicatorValidation` serves the manager's
 Revalidate all alone). `create_hfa_indicators` reports what the batch route
@@ -1191,6 +1310,34 @@ Anthropic-shaped thrown errors, CORS header enumeration, and the LOW hygiene
 tail). The HFA whole-object read-modify-write finding was **rejected**: it
 matches the app-wide last-write-wins model (see the HFA tools section).
 Remaining:
+
+**Report figure references (fixes in `report-forge/`, the submodule)**
+
+Both are gaps between what `fastrBodyReferences` reports and what the document
+resolves, so they land in the shared reader, not here. Its own contract comment
+(`report_fastr_markdown.ts:733-735`) says "Every figure:/image: the document
+will try to resolve", which is what `reportLiveFigures` relies on.
+
+- **[MED] A raw-HTML `<img src="figure:<id>">` is resolved by the document and
+  is not reported as a reference.** `html: true` is set, the compiler leaves
+  author HTML as written, and `REPORT_PURIFY_CONFIG.ALLOWED_URI_REGEXP`
+  whitelists the `figure:` scheme, so `materializeReportEmbeds` rasterises it
+  exactly like a token's. The figure tools therefore refuse to index, read or
+  lay out a figure the reader can see. Such bodies are expected to exist:
+  `checkReportTokensResolve` refuses an HTML embed only on the delta,
+  deliberately leaving one already in the user's document alone. Edit: in
+  `report_fastr_markdown.ts`, walk `html_inline` and `html_block` content for an
+  `<img>` `src` and feed it to the same `embed` helper.
+- **[LOW] `bg=figure:<id>` is reported as a figure reference and renders
+  nothing.** `fastrBodyReferences` calls `embed(v, line)` on every
+  `bg`/`background` value and `EMBED_REF_RE` accepts `figure|image`, but the
+  renderer's `EMBED_BG_RE` accepts `image:` only, so the value is dropped. That
+  makes a figure live that is on no page: the orphan failure mode from the other
+  side. Only reachable from a hand-typed body, because `checkFastrContainers`
+  refuses the attribute on the AI write path. Edit: in
+  `report_fastr_markdown.ts`, guard that call with
+  `if (v.trim().startsWith("image:"))`, which also makes the code agree with its
+  own doc comment.
 
 **Governance policy (decisions, not bugs)**
 
@@ -1312,15 +1459,14 @@ embed count is surfaced in the proposal summary). Remaining:
   [0.4, 0.6]").
 - **[MED, reuse/quality, not a bug] Unify the figure-RESOLUTION cores.** AI
   figure create/edit already share replicant validation (`assertReplicantValid`,
-  applied uniformly, no flags). Still split: two functions do "config → fetch
-  items → capture geo → assemble FigureBundle" with different item-fetch
-  mechanics: `resolveFigureBundleFromMetric` (caller precomputes the
-  fetchConfig) and `resolveFigureBundleInteractively` (items fetch auto-defaults
-  the replicant), plus a third assembler, `makeFigureBundleFromFetchedData`.
-  Goal: one `resolveFigureBundle(source, config)` used by every
-  create/edit/render path, with the metric-vs-PO difference reduced to how the
-  source is produced. The friction to design around is the two item-fetch routes
-  (`_PO_ITEMS_CACHE` with a precomputed fetchConfig vs
+  applied uniformly, no flags). Assembly is already unified: both
+  `resolveFigureBundleFromMetric` (caller precomputes the fetchConfig) and
+  `resolveFigureBundleInteractively` (items fetch auto-defaults the replicant)
+  build through `makeFigureBundleFromFetchedData`. What is still split is the
+  item fetch in front of it. Goal: one `resolveFigureBundle(source, config)`
+  used by every create/edit/render path, with the metric-vs-PO difference
+  reduced to how the source is produced. The friction to design around is the
+  two item-fetch routes (`_PO_ITEMS_CACHE` with a precomputed fetchConfig vs
   `getPresentationObjectItemsFromCacheOrFetch`, which runs
   `resolveDefaultReplicant`). Higher blast radius (the figure editor, slide
   decks and reports all render through the PO core), so it wants its own scoped

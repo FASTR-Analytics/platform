@@ -15,6 +15,7 @@ import type {
 } from "../deps.ts";
 import { Coordinates, getColor, RectCoordsDims, Z_INDEX } from "../deps.ts";
 import { buildDataLabelTextStyle } from "./content_generation_types.ts";
+import { catCenterOfRect } from "./orientation_helpers.ts";
 
 export function generateCascadeArrowPrimitives(
   barPrimitives: ChartBarPrimitive[],
@@ -41,7 +42,10 @@ export function generateCascadeArrowPrimitives(
   }
 
   for (const bars of groups.values()) {
-    bars.sort((a, b) => a.meta.value.i_val - b.meta.value.i_val);
+    bars.sort((a, b) =>
+      catCenterOfRect(a.bounds, orientation) -
+      catCenterOfRect(b.bounds, orientation)
+    );
 
     const nArrows = bars.length - 1;
 

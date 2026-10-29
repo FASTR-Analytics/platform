@@ -550,6 +550,7 @@
   body {
     font-size: var(--ui-text-body);
     line-height: var(--text-sm--line-height);
+    font-variant-numeric: tabular-nums;
   }
 }
 
@@ -996,9 +997,12 @@
      --color-focus with a genuinely transparent 2px gap (outlines don't
      paint the offset, so there is no offset color to name — the old
      ring-offset-base-100 painted an unchosen rectangle on non-base-100
-     surfaces). Outlines track border-radius in modern browsers. */
+     surfaces). Outlines track border-radius in modern browsers.
+     outline-solid is not redundant beside outline-2: outline-none sets
+     --tw-outline-style to none and outline-2 resolves outline-style from that
+     variable, so without it the ring has a width and no style. */
   .ui-focusable {
-    @apply outline-none focus:outline-none focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2;
+    @apply outline-none focus:outline-none focus-visible:z-10 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2;
   }
 
   /* Text whose weight toggles with state — public. The child span and a

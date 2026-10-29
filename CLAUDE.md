@@ -11,10 +11,11 @@ instance per country.
 `deno fmt` is the one formatter for every file in the repo: `server/`, `lib/`,
 `client/`, the root scripts, and every `.md`. Its config is the `fmt` block in
 `deno.json`. The only exclusions are `vendor/`, `client/public/`,
-`client/package-lock.json`, and `server/tests/fixtures/fastr_pdf/`, whose report
+`client/package-lock.json`, `server/tests/fixtures/fastr_pdf/`, whose report
 markdown puts each `:::` directive on its own line, which the markdown wrap
-would join into paragraphs. There is no prettier, no editor formatter, and no
-per-directory style.
+would join into paragraphs, and `URGENT_BUG_CATALOGUE_EMAILS.md`, which is
+pasted into emails and must keep one line per paragraph. There is no prettier,
+no editor formatter, and no per-directory style.
 
 - `deno task typecheck` runs `deno fmt --check` first. An unformatted file fails
   the gate, so run `deno fmt` before you commit.
@@ -37,7 +38,7 @@ per-directory style.
   plans ([PROTOCOL_APP_PLANS.md](PROTOCOL_APP_PLANS.md)), and the verification
   loop ([PROTOCOL_APP_DEVELOPMENT.md](PROTOCOL_APP_DEVELOPMENT.md)).
 - `panther/protocols/` holds the cross-project conventions those build on,
-  including how a multi-session plan is written and run
+  including how a plan is written and run
   ([PROTOCOL_ALL_PLANS.md](panther/protocols/PROTOCOL_ALL_PLANS.md)).
 - `PLAN_*.md` files are open work.
 - Setup is in [README.md](README.md), tasks in `deno.json`, and every

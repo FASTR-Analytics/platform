@@ -189,6 +189,8 @@ export function AIChat(p: Props) {
               "En attente de votre décision ci-dessus — les nouveaux messages seront traités après votre décision.",
             pt:
               "A aguardar a sua decisão acima — as novas mensagens serão respondidas depois de decidir.",
+            th:
+              "กำลังรอการตัดสินใจของคุณด้านบน ข้อความใหม่จะได้รับการตอบหลังจากคุณตัดสินใจแล้ว",
           })}
         </div>
       </Show>

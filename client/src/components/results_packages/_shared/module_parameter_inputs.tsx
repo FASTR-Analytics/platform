@@ -1,16 +1,16 @@
 import { type ModuleParameter, t3 } from "lib";
 import { Input, Select } from "panther";
 import { For, Match, Show, Switch } from "solid-js";
-import { BaselineMarker } from "./baseline_marker.tsx";
+import { GlobalDefaultMarker } from "./global_default_marker.tsx";
 
 type Props = {
   parameters: ModuleParameter[];
   values: Record<string, string>;
   onChange: (replacementString: string, value: string) => void;
-  // Present when the country has a baseline: each param's baseline value,
-  // and the per-param reset to it.
-  baseline?: {
-    valueFor: (replacementString: string) => string;
+  // Present when the fleet's global defaults are published: each param's
+  // global value (undefined = not compared), and the per-param reset to it.
+  globalDefault?: {
+    valueFor: (replacementString: string) => string | undefined;
     onReset: (replacementString: string) => void;
   };
 };
@@ -67,8 +67,8 @@ export function ModuleParameterInputs(p: Props) {
       <For each={p.parameters}>
         {(inputParameter) => {
           const value = () => p.values[inputParameter.replacementString];
-          const baselineValue = () =>
-            p.baseline?.valueFor(inputParameter.replacementString);
+          const globalValue = () =>
+            p.globalDefault?.valueFor(inputParameter.replacementString);
           const invalidMsg = () =>
             getModuleParameterInvalidMsg(inputParameter, value());
           const onChange = (v: string) =>
@@ -130,17 +130,19 @@ export function ModuleParameterInputs(p: Props) {
                 </Match>
               </Switch>
               <Show
-                when={baselineValue() !== undefined &&
-                  baselineValue() !== value()}
+                when={globalValue() !== undefined &&
+                  globalValue() !== value()}
               >
                 <div class="pt-1">
-                  <BaselineMarker
-                    baselineText={displayParameterValue(
+                  <GlobalDefaultMarker
+                    globalText={displayParameterValue(
                       inputParameter,
-                      baselineValue() ?? "",
+                      globalValue() ?? "",
                     )}
                     onReset={() =>
-                      p.baseline?.onReset(inputParameter.replacementString)}
+                      p.globalDefault?.onReset(
+                        inputParameter.replacementString,
+                      )}
                   />
                 </div>
               </Show>

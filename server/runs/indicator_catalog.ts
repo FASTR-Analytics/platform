@@ -170,13 +170,70 @@ const calculatedIndicatorRow = z.object({
 // HFA dimensions whose values are labelled but carry no format: categories,
 // sub-categories, service categories, and the variant items that label the
 // hfa_variant_item column. Files absent from a package predate the feature
-// that added them and yield no rows.
-const HFA_LABEL_ONLY_FILES = [
-  "hfa_indicator_categories_snapshot.json",
-  "hfa_indicator_sub_categories_snapshot.json",
-  "hfa_indicator_service_categories_snapshot.json",
-  "hfa_indicator_variant_items_snapshot.json",
-];
+// that added them and yield no rows. A sub-category's and a variant item's
+// stored sort_order ranks it within its parent only, so each is composed with
+// the parent's rank before stamping.
+const subCategoryRow = labeledRow.extend({ category_id: z.string() });
+const variantItemRow = labeledRow.extend({ group_id: z.string() });
+
+// The catalog's `sort_order` is the entry's rank within its own dimension:
+// what `buildCatalogIdOrder` on the client sorts an axis by, with every
+// dimension's ids interleaved in one list.
+function ranked<T extends { id: string; label: string }>(
+  rows: T[],
+  extra: (row: T) => Partial<IndicatorMetadata> = () => ({}),
+): IndicatorMetadata[] {
+  return rows.map((row, i) => ({
+    id: row.id,
+    label: row.label,
+    sort_order: i,
+    ...extra(row),
+  }));
+}
+
+function byParentThenOwn<T extends { sort_order: number; label: string }>(
+  parentRank: Map<string, number>,
+  parentOf: (row: T) => string,
+): (a: T, b: T) => number {
+  return (a, b) =>
+    (parentRank.get(parentOf(a)) ?? Number.MAX_SAFE_INTEGER) -
+      (parentRank.get(parentOf(b)) ?? Number.MAX_SAFE_INTEGER) ||
+    a.sort_order - b.sort_order ||
+    a.label.localeCompare(b.label);
+}
+
+const byOwn = (
+  a: { sort_order: number; label: string },
+  b: { sort_order: number; label: string },
+): number => a.sort_order - b.sort_order || a.label.localeCompare(b.label);
+
+async function readHfaLabelDimensions(
+  readRows: RunInputRowsReader,
+): Promise<IndicatorMetadata[]> {
+  const categories = (
+    await readRows("hfa_indicator_categories_snapshot.json", labeledRow)
+  ).sort(byOwn);
+  const categoryRank = new Map(categories.map((c, i) => [c.id, i]));
+  const subCategories = (
+    await readRows("hfa_indicator_sub_categories_snapshot.json", subCategoryRow)
+  ).sort(byParentThenOwn(categoryRank, (r) => r.category_id));
+  const serviceCategories = (
+    await readRows("hfa_indicator_service_categories_snapshot.json", labeledRow)
+  ).sort(byOwn);
+  const variantGroups = (
+    await readRows("hfa_indicator_variant_groups_snapshot.json", labeledRow)
+  ).sort(byOwn);
+  const groupRank = new Map(variantGroups.map((g, i) => [g.id, i]));
+  const variantItems = (
+    await readRows("hfa_indicator_variant_items_snapshot.json", variantItemRow)
+  ).sort(byParentThenOwn(groupRank, (r) => r.group_id));
+  return [
+    ...ranked(categories),
+    ...ranked(subCategories),
+    ...ranked(serviceCategories),
+    ...ranked(variantItems),
+  ];
+}
 
 // Reads one input mirror; yields no rows when the package does not carry it.
 export type RunInputRowsReader = <T>(
@@ -247,13 +304,13 @@ async function deriveIndicatorMetadata(
   if (isHfaModule) {
     const hfaIndicators = (
       await readRows("hfa_indicators_snapshot.json", hfaIndicatorRow)
-    ).sort(
-      (a, b) =>
-        a.sort_order - b.sort_order ||
-        a.indicator_id.localeCompare(b.indicator_id),
-    );
-    for (const row of hfaIndicators) {
-      metadata.push({
+    )
+      .sort(
+        (a, b) =>
+          a.sort_order - b.sort_order ||
+          a.indicator_id.localeCompare(b.indicator_id),
+      )
+      .map((row) => ({
         id: row.indicator_id,
         label: composeHfaIndicatorLabel(
           { shortLabel: row.short_label, definition: row.definition },
@@ -263,22 +320,11 @@ async function deriveIndicatorMetadata(
           row.type as HfaIndicatorType,
           row.aggregation as HfaIndicatorAggregation,
         ).kind,
-        sort_order: row.sort_order,
-      });
-    }
-    for (const fileName of HFA_LABEL_ONLY_FILES) {
-      const rows = (await readRows(fileName, labeledRow)).sort(
-        (a, b) => a.sort_order - b.sort_order || a.label.localeCompare(b.label),
-      );
-      for (const row of rows) {
-        metadata.push({
-          id: row.id,
-          label: row.label,
-          sort_order: row.sort_order,
-        });
-      }
-    }
-    return metadata;
+      }));
+    return [
+      ...ranked(hfaIndicators, (row) => ({ format_as: row.format_as })),
+      ...(await readHfaLabelDimensions(readRows)),
+    ];
   }
 
   if (isIcehModule) {

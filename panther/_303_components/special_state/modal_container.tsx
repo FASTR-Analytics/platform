@@ -48,8 +48,8 @@ export type ModalClose = {
 
 function closeLabel(kind: ModalClose["kind"]): string {
   return kind === "done"
-    ? t3({ en: "Done", fr: "Terminé", pt: "Concluído" })
-    : t3({ en: "Close", fr: "Fermer", pt: "Fechar" });
+    ? t3({ en: "Done", fr: "Terminé", pt: "Concluído", th: "เสร็จสิ้น" })
+    : t3({ en: "Close", fr: "Fermer", pt: "Fechar", th: "ปิด" });
 }
 
 type ModalContainerProps =
@@ -170,7 +170,12 @@ export function ModalContainer(p: ModalContainerProps) {
                   onClick={onCancel}
                 >
                   {p.cancelLabel ??
-                    t3({ en: "Cancel", fr: "Annuler", pt: "Cancelar" })}
+                    t3({
+                      en: "Cancel",
+                      fr: "Annuler",
+                      pt: "Cancelar",
+                      th: "ยกเลิก",
+                    })}
                 </Button>
               )}
             </Show>

@@ -91,6 +91,14 @@ the full token catalog, and the theming mechanics, see
     `max-h-64 overflow-auto` list) and `overflow-hidden` on an aspect box
     describe the content and are not slots.
 
+23. **Three z-index levels, so a modal never depends on mount order**: page
+    content uses `z-0` to `z-30`; `z-40` is the resizable frames' drag handles';
+    `z-50` is the alert layer's (`AlertProvider`'s scrim and dialog). An app
+    never writes `z-40` or above on page content, so `AlertProvider` may be
+    mounted anywhere in the app root. Something that must sit over a modal is a
+    `popover`, which the browser puts in its top layer above every z-index, as
+    the kit's menus, tooltips and combo-box panels are.
+
 ## Do / Don't
 
 ### Colors
@@ -547,3 +555,6 @@ foreground is not derived from the background.
       direct child only when it is the slot's only child
 - [ ] App CSS uses plain `@theme`, no `--color-*: initial`, palettes on `:root`
 - [ ] UI text in sentence case
+- [ ] No `z-40` or above on page content: `z-0` to `z-30` is content's, `z-40`
+      the frame handles', `z-50` the alert layer's, and anything that must sit
+      over a modal is a `popover`

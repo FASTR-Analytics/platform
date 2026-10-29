@@ -101,6 +101,7 @@ import { ReportEditorCursors } from "./cursors";
 import { addLastUpdatedListener } from "~/state/instance/t1_sse";
 import {
   createResolvedScope,
+  getSnapshotInstanceLocalization,
   instanceState,
   productById,
   resolveScope,
@@ -163,6 +164,12 @@ type EmbedSelection = { kind: EmbedKind; id: string };
 // the product id is also the collab document id.
 type Props = EditorComponentProps<{ productId: string }, undefined>;
 
+type ReportSaveState =
+  | { status: "saved" }
+  | { status: "unsaved" }
+  | { status: "saving" }
+  | { status: "error"; err: string };
+
 const AUTOSAVE_MS = 800;
 
 export function ReportEditor(p: Props) {
@@ -211,14 +218,17 @@ export function ReportEditor(p: Props) {
     }
   }
 
-  const [isLoading, setIsLoading] = createSignal(true);
-  // A detail read that fails at mount: the error replaces the editor, nothing
-  // is written and the copilot stays on `opening_product`. Loading itself is
-  // `isLoading`, so this is ready or error; `true` is the data because the
-  // wrapper's ready branch needs truthy data.
+  // The mount detail read. A read that fails replaces the main area with the
+  // error, nothing is written and the copilot stays on `opening_product`.
+  // `true` is the data because the wrapper's ready branch needs truthy data,
+  // and everything the editor renders from is in its own signals.
   const [loadState, setLoadState] = createSignal<StateHolder<true>>({
-    status: "ready",
-    data: true,
+    status: "loading",
+    msg: t3({
+      en: "Loading report...",
+      fr: "Chargement du rapport...",
+      pt: "A carregar o relatório...",
+    }),
   });
   const [body, setBody] = createSignal("");
   // A report still stored in a format that no longer has an editor: it opens
@@ -264,11 +274,15 @@ export function ReportEditor(p: Props) {
   // concurrency.
   const [lastUpdated, setLastUpdated] = createSignal<string>("");
   const [showConflictBanner, setShowConflictBanner] = createSignal(false);
-  const [saveError, setSaveError] = createSignal<string | undefined>();
-  // Autosave indicator. "unsaved" = an edit is pending in the debounce window.
-  const [saveStatus, setSaveStatus] = createSignal<
-    "saved" | "unsaved" | "saving" | "error"
-  >("saved");
+  // Autosave indicator. "unsaved" = an edit is pending in the debounce
+  // window; a failure carries its own message, shown under the header.
+  const [saveState, setSaveState] = createSignal<ReportSaveState>({
+    status: "saved",
+  });
+  const saveErrorMessage = () => {
+    const st = saveState();
+    return st.status === "error" ? st.err : undefined;
+  };
   const [lastSavedAt, setLastSavedAt] = createSignal<string>("");
   // The embed selected in the editor (Report Forge owns the selection; this
   // mirrors it for presence and the figure actions).
@@ -315,11 +329,13 @@ export function ReportEditor(p: Props) {
 
   const canConfigure = () => canEditProduct(p.productId);
 
-  // A deleted product closes the editor: its row leaves T1.
+  // A deleted product closes the editor: its row leaves T1. Only once the
+  // detail read has landed: before that the row may simply not be in the
+  // store yet, and a failed read must leave its error on screen.
   createEffect(() => {
     const row = product();
-    const loading = isLoading();
-    if (row === undefined && !loading) p.close(undefined);
+    const status = loadState().status;
+    if (row === undefined && status === "ready") p.close(undefined);
   });
 
   // ── Package and scope ───────────────────────────────────────────────────────
@@ -391,19 +407,21 @@ export function ReportEditor(p: Props) {
   }
   // The figure the editor's widgets draw: the report's own block, with its
   // staleness badge. Report Forge knows a figure only by its id.
-  const FigureView = (fp: FigureViewProps) => (
-    <Show when={figures()[fp.id]}>
-      {(fig) => (
-        <ReportFigureEmbed
-          figure={fig()}
-          stale={figureStale(fp.id)}
-          onMeasured={fp.onMeasured}
-          inkFor={fp.inkFor}
-          chartPalette={fp.chartPalette}
-        />
-      )}
-    </Show>
-  );
+  function FigureView(fp: FigureViewProps) {
+    return (
+      <Show when={figures()[fp.id]}>
+        {(fig) => (
+          <ReportFigureEmbed
+            figure={fig()}
+            stale={figureStale(fp.id)}
+            onMeasured={fp.onMeasured}
+            inkFor={fp.inkFor}
+            chartPalette={fp.chartPalette}
+          />
+        )}
+      </Show>
+    );
+  }
   const [updatingFigures, setUpdatingFigures] = createSignal(false);
 
   // Re-resolve them all. Per-figure failures keep the old bundle and are
@@ -494,7 +512,7 @@ export function ReportEditor(p: Props) {
         dot: "bg-warning",
       };
     }
-    switch (saveStatus()) {
+    switch (saveState().status) {
       case "saving":
         return {
           text: t3({ en: "Saving…", fr: "Enregistrement…", pt: "A guardar…" }),
@@ -666,7 +684,7 @@ export function ReportEditor(p: Props) {
         },
       );
     }
-    setIsLoading(false);
+    setLoadState({ status: "ready", data: true });
 
     // A retired report loaded nothing and mounts no editor: the copilot gets
     // no report view, or its tools would read an empty document and stage a
@@ -873,7 +891,7 @@ export function ReportEditor(p: Props) {
       // it still equals the content this editor loaded: pushing over a
       // diverged doc would force it to our draft and delete another user's
       // edits. If peers got there first, adopt their state.
-      const hasPendingLocal = saveStatus() !== "saved" ||
+      const hasPendingLocal = saveState().status !== "saved" ||
         saveTimer !== undefined;
       if (
         hasPendingLocal &&
@@ -938,11 +956,11 @@ export function ReportEditor(p: Props) {
     setLastSavedAt(
       new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     );
-    setSaveStatus("saved");
+    setSaveState({ status: "saved" });
   }
 
   async function persistBody(nextBody: string) {
-    setSaveStatus("saving");
+    setSaveState({ status: "saving" });
     const res = await serverActions.updateReportBody({
       product_id: p.productId,
       body: nextBody,
@@ -952,11 +970,9 @@ export function ReportEditor(p: Props) {
     if (res.success) {
       bumpLastUpdated(res.data.lastUpdated);
       if (res.data.conflicted) setShowConflictBanner(true);
-      setSaveError(undefined);
       markSaved();
     } else {
-      setSaveError(res.err);
-      setSaveStatus("error");
+      setSaveState({ status: "error", err: res.err });
     }
   }
 
@@ -972,7 +988,7 @@ export function ReportEditor(p: Props) {
     // Live collab: edits stream into the shared doc via yCollab and the room
     // checkpoints them: the REST autosave stays off (see collabReady note).
     if (collabReady()) return;
-    setSaveStatus("unsaved");
+    setSaveState({ status: "unsaved" });
     if (saveTimer) clearTimeout(saveTimer);
     saveTimer = setTimeout(() => void persistBody(nextBody), AUTOSAVE_MS);
   }
@@ -997,7 +1013,7 @@ export function ReportEditor(p: Props) {
       );
       return true;
     }
-    setSaveStatus("saving");
+    setSaveState({ status: "saving" });
     const res = await serverActions.updateReportFigures({
       product_id: p.productId,
       figures: next,
@@ -1007,8 +1023,7 @@ export function ReportEditor(p: Props) {
       markSaved();
       return true;
     }
-    setSaveError(res.err);
-    setSaveStatus("error");
+    setSaveState({ status: "error", err: res.err });
     return false;
   }
 
@@ -1027,7 +1042,7 @@ export function ReportEditor(p: Props) {
       );
       return;
     }
-    setSaveStatus("saving");
+    setSaveState({ status: "saving" });
     const res = await serverActions.updateReportImages({
       product_id: p.productId,
       images: next,
@@ -1036,8 +1051,7 @@ export function ReportEditor(p: Props) {
       bumpLastUpdated(res.data.lastUpdated);
       markSaved();
     } else {
-      setSaveError(res.err);
-      setSaveStatus("error");
+      setSaveState({ status: "error", err: res.err });
     }
   }
 
@@ -1074,6 +1088,7 @@ export function ReportEditor(p: Props) {
       ctx.scope,
       picked.metric,
       picked.config,
+      getSnapshotInstanceLocalization(),
     );
     if (!resolved.ok) {
       await openAlert({ text: resolved.reason, intent: "danger" });
@@ -1094,6 +1109,7 @@ export function ReportEditor(p: Props) {
       ctx.scope,
       picked.metric,
       picked.config,
+      getSnapshotInstanceLocalization(),
     );
     if (!resolved.ok) {
       await openAlert({ text: resolved.reason, intent: "danger" });
@@ -1157,6 +1173,7 @@ export function ReportEditor(p: Props) {
             scope: ctx.scope,
             metric,
             configSnapshot: structuredClone(editConfig),
+            localization: bundle.localization,
             aiView: {
               id: "editing_report_figure" as const,
               params: { reportId: p.productId, figureId: sel.id },
@@ -1189,6 +1206,7 @@ export function ReportEditor(p: Props) {
         after.scope,
         live.metric,
         live.config,
+        bundle.localization,
       );
       if (!rebuilt.ok) {
         await openAlert({ text: rebuilt.reason, intent: "danger" });
@@ -1209,11 +1227,11 @@ export function ReportEditor(p: Props) {
   // waiting tour starts the next time the user opens one themselves.
   createEffect(() => {
     const wanted = pendingVisualizationOpen();
-    const loading = isLoading();
+    const status = loadState().status;
     const contextReady = staleContext() !== undefined;
     const registry = figures();
     const mayEdit = canConfigure();
-    if (!wanted || loading || !contextReady) return;
+    if (!wanted || status !== "ready" || !contextReady) return;
     const figureId = Object.keys(registry).find((id) => registry[id]?.bundle);
     setPendingVisualizationOpen(false);
     if (figureId === undefined || !mayEdit) return;
@@ -1257,8 +1275,7 @@ export function ReportEditor(p: Props) {
   // Report Forge's menu row for a user who can write the body, and alone in a
   // row of this app's for one who cannot (a viewer, or a dead room), for whom
   // the editor draws no menus.
-  const fileMenuAloneShown = () =>
-    !isLoading() && !retiredFormat() && !canEditBody();
+  const fileMenuAloneShown = () => !retiredFormat() && !canEditBody();
 
   async function openVersionHistory() {
     await withPanesCovered(
@@ -1423,14 +1440,14 @@ export function ReportEditor(p: Props) {
     // and every peer picks the new theme up on their next load.
     const wanted: ReportConfig = { ...stored, fastrTheme: next.theme };
     setConfig(wanted);
-    setSaveStatus("saving");
+    setSaveState({ status: "saving" });
     const res = await serverActions.updateReportConfig({
       product_id: p.productId,
       config: wanted,
     });
     if (!res.success) {
       setConfig(stored);
-      setSaveStatus("error");
+      setSaveState({ status: "error", err: res.err });
       throw new Error(res.err);
     }
     bumpLastUpdated(res.data.lastUpdated);
@@ -1498,173 +1515,177 @@ export function ReportEditor(p: Props) {
           </Button>
         </div>
       </Show>
-      <Show when={saveError()}>
-        <div class="text-danger ui-pad text-xs">{saveError()}</div>
+      <Show when={saveErrorMessage()} keyed>
+        {(err) => <div class="text-danger ui-pad text-xs">{err}</div>}
       </Show>
     </>
   );
 
   // A reader's File menu: the whole-document operations their level allows,
   // built from Report Forge's own toolbar parts so it matches the editor's.
-  const ReaderFileMenu = () => (
-    <HeaderRows>
-      <MenuRow ref={() => {}}>
-        <ToolbarPopover
-          menu
-          label={t3({ en: "File", fr: "Fichier", pt: "Ficheiro" })}
-          title={t3({ en: "File", fr: "Fichier", pt: "Ficheiro" })}
-        >
-          {(close) => (
-            <div class="ui-spy-sm flex w-56 flex-col">
-              <PopoverRow
-                active={false}
-                onClick={() => {
-                  forge?.openDownload();
-                  close();
-                }}
-              >
-                {t3({
-                  en: "Download…",
-                  fr: "Télécharger…",
-                  pt: "Transferir…",
-                })}
-              </PopoverRow>
-              <PopoverRow
-                active={false}
-                onClick={() => {
-                  void emailReport();
-                  close();
-                }}
-              >
-                {t3({
-                  en: "Email this file…",
-                  fr: "Envoyer par email…",
-                  pt: "Enviar por email…",
-                })}
-              </PopoverRow>
-              <MenuDivider />
-              <Show when={canConfigure()}>
+  function ReaderFileMenu() {
+    return (
+      <HeaderRows>
+        <MenuRow ref={() => {}}>
+          <ToolbarPopover
+            menu
+            label={t3({ en: "File", fr: "Fichier", pt: "Ficheiro" })}
+            title={t3({ en: "File", fr: "Fichier", pt: "Ficheiro" })}
+          >
+            {(close) => (
+              <div class="ui-spy-sm flex w-56 flex-col">
                 <PopoverRow
                   active={false}
                   onClick={() => {
-                    void openProductSettings();
+                    forge?.openDownload();
                     close();
                   }}
                 >
                   {t3({
-                    en: "Rename…",
-                    fr: "Renommer…",
-                    pt: "Mudar o nome…",
+                    en: "Download…",
+                    fr: "Télécharger…",
+                    pt: "Transferir…",
                   })}
                 </PopoverRow>
                 <PopoverRow
                   active={false}
                   onClick={() => {
-                    void openAccess();
+                    void emailReport();
                     close();
                   }}
                 >
-                  {manageAccessLabel()}
+                  {t3({
+                    en: "Email this file…",
+                    fr: "Envoyer par email…",
+                    pt: "Enviar por email…",
+                  })}
                 </PopoverRow>
-              </Show>
-              <PopoverRow
-                active={false}
-                onClick={() => {
-                  void duplicateReport();
-                  close();
-                }}
-              >
-                {t3({
+                <MenuDivider />
+                <Show when={canConfigure()}>
+                  <PopoverRow
+                    active={false}
+                    onClick={() => {
+                      void openProductSettings();
+                      close();
+                    }}
+                  >
+                    {t3({
+                      en: "Rename…",
+                      fr: "Renommer…",
+                      pt: "Mudar o nome…",
+                    })}
+                  </PopoverRow>
+                  <PopoverRow
+                    active={false}
+                    onClick={() => {
+                      void openAccess();
+                      close();
+                    }}
+                  >
+                    {manageAccessLabel()}
+                  </PopoverRow>
+                </Show>
+                <PopoverRow
+                  active={false}
+                  onClick={() => {
+                    void duplicateReport();
+                    close();
+                  }}
+                >
+                  {t3({
+                    en: "Make a copy…",
+                    fr: "Créer une copie…",
+                    pt: "Criar uma cópia…",
+                  })}
+                </PopoverRow>
+              </div>
+            )}
+          </ToolbarPopover>
+        </MenuRow>
+      </HeaderRows>
+    );
+  }
+
+  // The content area: Report Forge, or the notice a retired report opens to.
+  function MainArea() {
+    return (
+      <>
+        <Show when={retiredFormat()}>
+          <div class="ui-pad text-base-content-muted text-sm">
+            {t3({
+              en:
+                "This report was written in the HTML format, which has been retired. It can no longer be opened or edited.",
+              fr:
+                "Ce rapport a été rédigé au format HTML, qui a été retiré. Il ne peut plus être ouvert ni modifié.",
+              pt:
+                "Este relatório foi escrito no formato HTML, que foi descontinuado. Já não pode ser aberto nem editado.",
+            })}
+          </div>
+        </Show>
+        <Show when={fileMenuAloneShown()}>
+          <ReaderFileMenu />
+        </Show>
+        <Show when={!retiredFormat()}>
+          <ReportForge
+            title={label()}
+            body={body()}
+            onBodyChange={handleBodyChange}
+            settings={settings()}
+            onSettingsChange={handleSettingsChange}
+            images={images()}
+            onImagesChange={handleImagesChange}
+            canEdit={canEditBody()}
+            lastSaved={lastSavedAt()}
+            imageHost={imageHost}
+            figures={figureHost}
+            palettes={palettes}
+            renderPdf={renderPdf}
+            collab={bodyCollab()}
+            menuItems={[
+              {
+                menu: "file",
+                label: t3({
+                  en: "Email this file…",
+                  fr: "Envoyer par email…",
+                  pt: "Enviar por email…",
+                }),
+                onClick: () => void emailReport(),
+              },
+              {
+                menu: "file",
+                dividerBefore: true,
+                label: t3({
+                  en: "Rename…",
+                  fr: "Renommer…",
+                  pt: "Mudar o nome…",
+                }),
+                onClick: () => void openProductSettings(),
+              },
+              {
+                menu: "file",
+                label: manageAccessLabel(),
+                onClick: () => void openAccess(),
+              },
+              {
+                menu: "file",
+                label: t3({
                   en: "Make a copy…",
                   fr: "Créer une copie…",
                   pt: "Criar uma cópia…",
-                })}
-              </PopoverRow>
-            </div>
-          )}
-        </ToolbarPopover>
-      </MenuRow>
-    </HeaderRows>
-  );
-
-  // The content area: Report Forge, or the notice a retired report opens to.
-  const MainArea = () => (
-    <>
-      <Show when={retiredFormat()}>
-        <div class="ui-pad text-base-content-muted text-sm">
-          {t3({
-            en:
-              "This report was written in the HTML format, which has been retired. It can no longer be opened or edited.",
-            fr:
-              "Ce rapport a été rédigé au format HTML, qui a été retiré. Il ne peut plus être ouvert ni modifié.",
-            pt:
-              "Este relatório foi escrito no formato HTML, que foi descontinuado. Já não pode ser aberto nem editado.",
-          })}
-        </div>
-      </Show>
-      <Show when={fileMenuAloneShown()}>
-        <ReaderFileMenu />
-      </Show>
-      <Show when={!isLoading() && !retiredFormat()}>
-        <ReportForge
-          title={label()}
-          body={body()}
-          onBodyChange={handleBodyChange}
-          settings={settings()}
-          onSettingsChange={handleSettingsChange}
-          images={images()}
-          onImagesChange={handleImagesChange}
-          canEdit={canEditBody()}
-          lastSaved={lastSavedAt()}
-          imageHost={imageHost}
-          figures={figureHost}
-          palettes={palettes}
-          renderPdf={renderPdf}
-          collab={bodyCollab()}
-          menuItems={[
-            {
-              menu: "file",
-              label: t3({
-                en: "Email this file…",
-                fr: "Envoyer par email…",
-                pt: "Enviar por email…",
-              }),
-              onClick: () => void emailReport(),
-            },
-            {
-              menu: "file",
-              dividerBefore: true,
-              label: t3({
-                en: "Rename…",
-                fr: "Renommer…",
-                pt: "Mudar o nome…",
-              }),
-              onClick: () => void openProductSettings(),
-            },
-            {
-              menu: "file",
-              label: manageAccessLabel(),
-              onClick: () => void openAccess(),
-            },
-            {
-              menu: "file",
-              label: t3({
-                en: "Make a copy…",
-                fr: "Créer une copie…",
-                pt: "Criar uma cópia…",
-              }),
-              onClick: () => void duplicateReport(),
-            },
-          ]}
-          banner={banners}
-          outlineClosed={reportOutlineClosed()}
-          onOutlineClosedChange={setReportOutlineClosed}
-          onSelectedEmbedChange={setSelectedEmbed}
-          ref={(api) => (forge = api)}
-        />
-      </Show>
-    </>
-  );
+                }),
+                onClick: () => void duplicateReport(),
+              },
+            ]}
+            banner={banners}
+            outlineClosed={reportOutlineClosed()}
+            onOutlineClosedChange={setReportOutlineClosed}
+            onSelectedEmbedChange={setSelectedEmbed}
+            ref={(api) => (forge = api)}
+          />
+        </Show>
+      </>
+    );
+  }
 
   // Every piece of the header is built ONCE and passed by reference:
   // panther's FrameTop reads `panelChildren` twice (a Show's `when`, then its
@@ -1724,7 +1745,7 @@ export function ReportEditor(p: Props) {
           class="h-1.5 w-1.5 flex-none rounded-full"
           classList={{
             [saveIndicator().dot]: true,
-            "animate-pulse": saveStatus() === "saving",
+            "animate-pulse": saveState().status === "saving",
           }}
         />
         <span>{saveIndicator().text}</span>
@@ -1769,7 +1790,7 @@ export function ReportEditor(p: Props) {
   return (
     <InnerEditorWrapper>
       <FrameTop panelChildren={headerPanel}>
-        <StateHolderWrapper state={loadState()}>
+        <StateHolderWrapper state={loadState()} loadingAndErrorPad="md">
           {() => <MainArea />}
         </StateHolderWrapper>
       </FrameTop>

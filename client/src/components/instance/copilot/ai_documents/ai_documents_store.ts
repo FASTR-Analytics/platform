@@ -48,17 +48,20 @@ export function useAIDocuments() {
   const conversationId = () => bound()?.conversationId() ?? null;
 
   // Load the bound conversation's pending list eagerly at bind and on every
-  // switch. The post-await guard drops a stale load overtaken by a switch;
-  // a send landing inside the load window gets [] and the doc rides the
-  // NEXT message via the engine's not-yet-sent filter.
+  // switch. The guard counts requests rather than re-reading the id: across
+  // an A, B, A switch the first load can resolve last and still match A, so
+  // an id comparison accepts its stale list, which the prune effect below
+  // then writes to IndexedDB. A send landing inside the load window gets []
+  // and the doc rides the NEXT message via the engine's not-yet-sent filter.
+  let pendingRequestId = 0;
   createEffect(async () => {
     const id = conversationId();
+    const thisRequest = ++pendingRequestId;
     setPending([]);
     if (id === null) return;
     const loaded = await getPendingAttachments(id);
-    if (conversationId() === id) {
-      setPending(loaded);
-    }
+    if (thisRequest !== pendingRequestId) return;
+    setPending(loaded);
   });
 
   const sentDocs = createMemo<SentDocument[]>(() => {

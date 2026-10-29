@@ -1,16 +1,23 @@
 // Pins parseDhis2Indicator as a pure function: a DHIS2 indicator formula is
 // accepted by whitelist (`#{uid}` / `#{uid.coc}`, numeric literals, + - * /,
-// parentheses, whitespace), its factor maps to a display format, and every
-// other form is refused with the offending term. The expression it emits must
-// re-parse in the app's own grammar. Also pins foldDefaultCombos: an operand
-// written with its element's default combo is the element itself.
+// parentheses, whitespace), its factor maps to a display format, every
+// operand carries the side it is named on, and every other form is refused
+// with the offending term. The expression it emits must re-parse in the app's
+// own grammar. Also pins foldDefaultCombos (an operand written with its
+// element's default combo is the element itself) and the import sentences a
+// refused picker row shows.
 //
 //   deno test -A --env-file server/tests/dhis2_decompose_indicator_test.ts
 
 import { assert, assertEquals } from "@std/assert";
 import {
   collectIdentifiers,
+  describeDhis2ElementImportRefusal,
+  describeDhis2IndicatorImportRefusal,
   type DHIS2DataElement,
+  type Dhis2ElementRefusal,
+  type Dhis2IndicatorDecomposition,
+  type Dhis2IndicatorParse,
   parseIndicatorExpression,
 } from "lib";
 import { foldDefaultCombos } from "../dhis2/goal2_indicators/attach_verdicts.ts";
@@ -21,13 +28,8 @@ const B = "KlMnOpQrSt2";
 const C = "UvWxYzAbCd3";
 const COC = "CoCoCoCoCo4";
 
-function parse(
-  numerator: string,
-  denominator: string,
-  factor = 100,
-  annualized = false,
-) {
-  return parseDhis2Indicator({ numerator, denominator, annualized, factor });
+function parse(numerator: string, denominator: string, factor = 100) {
+  return parseDhis2Indicator({ numerator, denominator, factor });
 }
 
 function accepted(numerator: string, denominator: string, factor = 100) {
@@ -36,13 +38,8 @@ function accepted(numerator: string, denominator: string, factor = 100) {
   return result;
 }
 
-function refused(
-  numerator: string,
-  denominator: string,
-  factor = 100,
-  annualized = false,
-) {
-  const result = parse(numerator, denominator, factor, annualized);
+function refused(numerator: string, denominator: string, factor = 100) {
+  const result = parse(numerator, denominator, factor);
   assert(!result.accepted, JSON.stringify(result));
   return result.refusal;
 }
@@ -50,8 +47,8 @@ function refused(
 Deno.test("decomposition: a simple ratio becomes operands, an expression and a percent", () => {
   const result = accepted(`#{${A}}`, `#{${B}}`);
   assertEquals(result.operands, [
-    { data_id: A, data_element_id: A },
-    { data_id: B, data_element_id: B },
+    { data_id: A, data_element_id: A, side: "numerator" },
+    { data_id: B, data_element_id: B, side: "denominator" },
   ]);
   assertEquals(result.expression, `([${A}] / [${B}])`);
   assertEquals(result.format_as, "percent");
@@ -77,12 +74,26 @@ Deno.test("decomposition: an operand with a category option combo keeps both ids
     data_id: `${A}.${COC}`,
     data_element_id: A,
     category_option_combo_id: COC,
+    side: "numerator",
   });
 });
 
-Deno.test("decomposition: an operand used on both sides is listed once", () => {
+Deno.test("decomposition: an operand used on both sides is listed once, on both", () => {
   const result = accepted(`#{${A}}`, `#{${A}} + #{${B}}`);
-  assertEquals(result.operands.map((o) => o.data_id), [A, B]);
+  assertEquals(result.operands.map((o) => [o.data_id, o.side]), [
+    [A, "both"],
+    [B, "denominator"],
+  ]);
+});
+
+Deno.test("decomposition: each operand carries the side the formula names it on", () => {
+  const result = accepted(`#{${A}} + #{${B}}`, `#{${C}} * #{${A}.${COC}}`);
+  assertEquals(result.operands.map((o) => [o.data_id, o.side]), [
+    [A, "numerator"],
+    [B, "numerator"],
+    [C, "denominator"],
+    [`${A}.${COC}`, "denominator"],
+  ]);
 });
 
 Deno.test("decomposition: any whitespace between tokens is accepted", () => {
@@ -132,16 +143,9 @@ Deno.test("decomposition: another factor is refused", () => {
   const noFactor = parseDhis2Indicator({
     numerator: `#{${A}}`,
     denominator: `#{${B}}`,
-    annualized: false,
   });
   assert(!noFactor.accepted);
   assertEquals(noFactor.refusal, { kind: "factor", value: undefined });
-});
-
-Deno.test("decomposition: an annualized indicator is refused", () => {
-  assertEquals(refused(`#{${A}}`, `#{${B}}`, 100, true), {
-    kind: "annualized",
-  });
 });
 
 Deno.test("decomposition: an empty side is refused", () => {
@@ -277,11 +281,12 @@ Deno.test("fold: an operand written with its element's default combo becomes the
   );
   assert(folded.accepted);
   assertEquals(folded.operands, [
-    { data_id: A, data_element_id: A },
+    { data_id: A, data_element_id: A, side: "both" },
     {
       data_id: `${B}.${COC}`,
       data_element_id: B,
       category_option_combo_id: COC,
+      side: "numerator",
     },
   ]);
   assertEquals(folded.expression, `(([${A}] + [${B}.${COC}]) / [${A}])`);
@@ -292,4 +297,202 @@ Deno.test("fold: an operand written with its element's default combo becomes the
   );
   assertEquals(unlisted, parse);
   assertEquals(foldDefaultCombos(parse, new Map()), parse);
+});
+
+// ----------------------------------------------------------------------------
+// The import sentences
+// ----------------------------------------------------------------------------
+
+const NAMES: Record<string, string> = {
+  [A]: "ANC 1 visits",
+  [B]: "Expected pregnancies",
+  [C]: "Live births",
+};
+
+function decomposition(
+  parse: Dhis2IndicatorParse,
+  options: {
+    annualized?: boolean;
+    refuse?: Record<string, Dhis2ElementRefusal>;
+  } = {},
+): Dhis2IndicatorDecomposition {
+  const operands = parse.accepted
+    ? parse.operands.map((o) => {
+      const refusal = options.refuse?.[o.data_id];
+      return {
+        ...o,
+        verdict: refusal === undefined
+          ? { accepted: true as const }
+          : { accepted: false as const, refusal },
+        label: NAMES[o.data_id] ?? o.data_id,
+      };
+    })
+    : [];
+  return { parse, operands, annualized: options.annualized ?? false };
+}
+
+function sentence(
+  parse: Dhis2IndicatorParse,
+  options: {
+    annualized?: boolean;
+    refuse?: Record<string, Dhis2ElementRefusal>;
+  } = {},
+): string | undefined {
+  return describeDhis2IndicatorImportRefusal(decomposition(parse, options))?.en;
+}
+
+const NOT_SUM: Dhis2ElementRefusal = {
+  kind: "aggregation_type",
+  value: "AVERAGE_SUM_ORG_UNIT",
+};
+
+Deno.test("import sentence: an operand that is not a monthly count is named by its role and its DHIS2 name", () => {
+  assertEquals(
+    sentence(parse(`#{${A}}`, `#{${B}} + #{${C}}`), {
+      refuse: { [A]: NOT_SUM },
+    }),
+    'This indicator cannot be imported: its numerator, "ANC 1 visits", is not a monthly count, and the platform only imports monthly counts from DHIS2.',
+  );
+});
+
+Deno.test("import sentence: a refused denominator over one numerator says to add the numerator instead", () => {
+  assertEquals(
+    sentence(parse(`#{${A}}`, `#{${B}}`), { refuse: { [B]: NOT_SUM } }),
+    'This indicator cannot be imported: its denominator, "Expected pregnancies", is not a monthly count, and the platform only imports monthly counts from DHIS2. Add its numerator, "ANC 1 visits", as a data element instead.',
+  );
+});
+
+Deno.test("import sentence: a numerator of two operands is not offered as a data element", () => {
+  assertEquals(
+    sentence(parse(`#{${A}} + #{${C}}`, `#{${B}}`), {
+      refuse: { [B]: NOT_SUM },
+    }),
+    'This indicator cannot be imported: its denominator, "Expected pregnancies", is not a monthly count, and the platform only imports monthly counts from DHIS2.',
+  );
+});
+
+Deno.test("import sentence: an operand on both sides is the numerator the sentence offers", () => {
+  assertEquals(
+    sentence(parse(`#{${A}}`, `#{${A}} * #{${B}}`), {
+      refuse: { [B]: NOT_SUM },
+    }),
+    'This indicator cannot be imported: its denominator, "Expected pregnancies", is not a monthly count, and the platform only imports monthly counts from DHIS2. Add its numerator, "ANC 1 visits", as a data element instead.',
+  );
+});
+
+Deno.test("import sentence: an annualized indicator's formula parses like any other, and the sentence says what annualizing does", () => {
+  const annualized = decomposition(parse(`#{${A}}`, `#{${B}}`), {
+    annualized: true,
+  });
+  assert(annualized.parse.accepted);
+  assertEquals(annualized.parse.operands.map((o) => o.data_id), [A, B]);
+  assertEquals(annualized.parse.expression, `([${A}] / [${B}])`);
+  assertEquals(
+    describeDhis2IndicatorImportRefusal(annualized)?.en,
+    "This indicator cannot be imported: it is annualized: DHIS2 scales each month up to a yearly rate, which the platform does not do.",
+  );
+});
+
+Deno.test("import sentence: a non-count operand is said before the annualizing", () => {
+  assertEquals(
+    sentence(parse(`#{${A}}`, `#{${B}}`), {
+      annualized: true,
+      refuse: { [A]: NOT_SUM },
+    }),
+    'This indicator cannot be imported: its numerator, "ANC 1 visits", is not a monthly count, and the platform only imports monthly counts from DHIS2.',
+  );
+});
+
+Deno.test("import sentence: an annualized indicator is said before a refused formula", () => {
+  assertEquals(
+    sentence(parse(`N{${A}}`, `#{${B}}`), { annualized: true }),
+    "This indicator cannot be imported: it is annualized: DHIS2 scales each month up to a yearly rate, which the platform does not do.",
+  );
+});
+
+Deno.test("import sentence: an operand DHIS2 no longer has is named, with nothing offered instead", () => {
+  assertEquals(
+    sentence(parse(`#{${A}}`, `#{${B}}`), {
+      refuse: { [B]: { kind: "element_not_found" } },
+    }),
+    'This indicator cannot be imported: its denominator, "Expected pregnancies", no longer exists in DHIS2.',
+  );
+  assertEquals(
+    sentence(parse(`#{${A}.${COC}}`, `#{${B}}`), {
+      refuse: {
+        [`${A}.${COC}`]: { kind: "combo_not_found", value: COC },
+      },
+    }),
+    `This indicator cannot be imported: its numerator, "${A}.${COC}", no longer exists in DHIS2.`,
+  );
+});
+
+Deno.test("import sentence: each refused formula has its own sentence", () => {
+  assertEquals(
+    sentence(parse(`if(#{${A}} > 0, 1, 0)`, `#{${B}}`)),
+    "This indicator cannot be imported: its formula uses DHIS2 functions or constants the platform does not read.",
+  );
+  assertEquals(
+    sentence(parse(`#{${A}} +`, `#{${B}}`)),
+    "This indicator cannot be imported: its formula uses DHIS2 functions or constants the platform does not read.",
+  );
+  assertEquals(
+    sentence(parse(`#{${A}}`, `#{${B}}`, 12)),
+    "This indicator cannot be imported: its factor is not 1, 100, 1000 or 10000.",
+  );
+  assertEquals(
+    sentence(parse("", `#{${B}}`)),
+    "This indicator cannot be imported: its numerator is empty.",
+  );
+  assertEquals(
+    sentence(parse(`#{${A}}`, "  ")),
+    "This indicator cannot be imported: its denominator is empty.",
+  );
+  assertEquals(
+    sentence(parse("1", "2")),
+    "This indicator cannot be imported: its formula names no data element.",
+  );
+  assertEquals(
+    sentence(
+      parse(
+        [
+          "AaAaAaAaAa1",
+          "BbBbBbBbBb1",
+          "CcCcCcCcCc1",
+          "DdDdDdDdDd1",
+          "EeEeEeEeEe1",
+          "FfFfFfFfFf1",
+          "GgGgGgGgGg1",
+          "HhHhHhHhHh1",
+          "IiIiIiIiIi1",
+        ].map((id) => `#{${id}}`).join(" + "),
+        `#{${B}}`,
+      ),
+    ),
+    "This indicator cannot be imported: its formula names more than 8 data elements.",
+  );
+});
+
+Deno.test("import sentence: an importable indicator has none", () => {
+  assertEquals(sentence(parse(`#{${A}}`, `#{${B}}`)), undefined);
+});
+
+Deno.test("import sentence: a refused data element reads as one sentence, whatever refused it", () => {
+  const expected =
+    "This data element cannot be imported: it is not a monthly count, and the platform only imports monthly counts from DHIS2.";
+  for (
+    const refusal of [NOT_SUM, { kind: "value_type", value: "PERCENTAGE" }, {
+      kind: "period_type",
+      value: "Yearly",
+    }] as Dhis2ElementRefusal[]
+  ) {
+    assertEquals(
+      describeDhis2ElementImportRefusal({ accepted: false, refusal })?.en,
+      expected,
+    );
+  }
+  assertEquals(
+    describeDhis2ElementImportRefusal({ accepted: true }),
+    undefined,
+  );
 });

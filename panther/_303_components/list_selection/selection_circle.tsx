@@ -36,6 +36,7 @@ export function SelectionCircle(p: SelectionCircleProps): JSX.Element {
         en: "Select",
         fr: "Sélectionner",
         pt: "Selecionar",
+        th: "เลือก",
       })}
       tabindex="0"
       onClick={(evt) => {

@@ -103,6 +103,7 @@ export function AskUserQuestionsRenderer(p: Props) {
             en: "Select all that apply",
             fr: "Sélectionnez toutes les réponses applicables",
             pt: "Selecione todas as opções aplicáveis",
+            th: "เลือกได้มากกว่าหนึ่งข้อ",
           })}
         </div>
       </Show>
@@ -159,6 +160,7 @@ export function AskUserQuestionsRenderer(p: Props) {
               en: "Other (write your own answer)",
               fr: "Autre (écrivez votre propre réponse)",
               pt: "Outra (escreva a sua própria resposta)",
+              th: "อื่น ๆ (เขียนคำตอบของคุณเอง)",
             })}
           />
         </button>
@@ -170,6 +172,7 @@ export function AskUserQuestionsRenderer(p: Props) {
               en: "Type your answer...",
               fr: "Saisissez votre réponse...",
               pt: "Escreva a sua resposta...",
+              th: "พิมพ์คำตอบของคุณ...",
             })}
             rows={2}
             size="sm"
@@ -193,14 +196,14 @@ export function AskUserQuestionsRenderer(p: Props) {
             disabled={!allAnswered()}
             onClick={handleSubmit}
           >
-            {t3({ en: "Submit", fr: "Envoyer", pt: "Enviar" })}
+            {t3({ en: "Submit", fr: "Envoyer", pt: "Enviar", th: "ส่ง" })}
           </Button>
           <button
             type="button"
             onClick={handleCancel}
             class="text-base-content-muted hover:text-base-content cursor-pointer text-xs"
           >
-            {t3({ en: "Cancel", fr: "Annuler", pt: "Cancelar" })}
+            {t3({ en: "Cancel", fr: "Annuler", pt: "Cancelar", th: "ยกเลิก" })}
           </button>
         </div>
       </Show>

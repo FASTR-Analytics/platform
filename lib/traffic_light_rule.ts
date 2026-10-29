@@ -1,4 +1,3 @@
-import type { Language } from "@timroberton/panther";
 import { unscaleValueForFormat } from "./indicator_value_scale.ts";
 import {
   _CF_LIGHTER_GREEN,
@@ -6,6 +5,7 @@ import {
   _CF_LIGHTER_YELLOW,
 } from "./key_colors.ts";
 import { pickLang } from "./translate/t-func.ts";
+import type { Language } from "./translate/types.ts";
 import type { ThresholdsRule } from "./types/conditional_formatting.ts";
 import type { IndicatorFormat } from "./types/indicators.ts";
 

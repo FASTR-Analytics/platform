@@ -14,7 +14,7 @@ import { requireGlobalPermission } from "../../middleware/mod.ts";
 import { requireApprovedUser } from "../../middleware/userPermission.ts";
 import {
   deleteRun,
-  getModuleDefaultsBaseline,
+  getModuleDefaultsGlobal,
   getRunGenerationModuleOptions,
   listRunModuleFiles,
   pinRun,
@@ -93,11 +93,11 @@ defineRoute(
 
 defineRoute(
   routesRunGeneration,
-  "getModuleDefaultsBaseline",
+  "getModuleDefaultsGlobal",
   requireGlobalPermission("can_configure_data"),
-  log("getModuleDefaultsBaseline"),
+  log("getModuleDefaultsGlobal"),
   async (c) => {
-    const res = await getModuleDefaultsBaseline();
+    const res = await getModuleDefaultsGlobal();
     return c.json(res);
   },
 );

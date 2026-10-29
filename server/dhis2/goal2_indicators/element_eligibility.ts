@@ -1,8 +1,14 @@
-// A DHIS2 data element may fill a base only when DHIS2's
-// own metadata says it is an additive monthly count. Pure: the caller fetches
-// the element (with dataSetElements[dataSet[periodType]]) and asks here.
+// A DHIS2 data element may fill a DHIS2 element indicator only when DHIS2's
+// own metadata says it is an additive monthly count, and an operand of it
+// only under a combo the element lists that is not its default one. Pure:
+// the caller fetches the element (whose data sets the fetcher attaches) and
+// asks here.
 
-import type { DHIS2DataElement, Dhis2ElementVerdict } from "lib";
+import type {
+  DHIS2DataElement,
+  DHIS2DataSetLink,
+  Dhis2ElementVerdict,
+} from "lib";
 
 // NUMBER is the DHIS2 editor's default value type and most real count
 // elements carry it; integrality is enforced per value at import.
@@ -19,13 +25,12 @@ const MONTHLY_PERIOD_TYPE = "Monthly";
 
 // The first monthly data set the element is collected in: what a
 // dataValueSets export by data set names (goal 5), on the releases whose
-// export cannot select a data element.
+// export cannot select a data element. The links are in data set id order,
+// so an element in several monthly sets always names the same one.
 export function monthlyDataSetId(
-  dataSetElements: DHIS2DataElement["dataSetElements"],
+  dataSets: readonly DHIS2DataSetLink[],
 ): string | undefined {
-  return (dataSetElements ?? []).find((dse) =>
-    dse.dataSet?.periodType === MONTHLY_PERIOD_TYPE
-  )?.dataSet?.id;
+  return dataSets.find((s) => s.periodType === MONTHLY_PERIOD_TYPE)?.id;
 }
 
 export function getDhis2ElementVerdict(
@@ -40,8 +45,8 @@ export function getDhis2ElementVerdict(
   ) {
     return refuse({ kind: "value_type", value: element.valueType });
   }
-  const periodTypes = (element.dataSetElements ?? [])
-    .map((dse) => dse.dataSet?.periodType)
+  const periodTypes = element.dataSets
+    .map((s) => s.periodType)
     .filter((p): p is string => p !== undefined);
   // An element collected in a monthly data set and also in a quarterly one
   // reports its monthly values under the monthly set, which is what the
@@ -55,14 +60,46 @@ export function getDhis2ElementVerdict(
   return { accepted: true };
 }
 
-// An operand is checked through its element; an element the server no
-// longer has is a refusal of its own.
+// The verdict on an element id, a bare UID or a `UID.COC` operand, through
+// its element: an element the server does not have is a refusal of its own,
+// and an operand's combo must be one the element lists. Its default combo
+// is refused too, naming the bare id: the default category combo has that
+// one combo, so `UID.COC` with it names the series of bare `UID`, which the
+// picker folds onto the bare id and the DHIS2 id repair treats as a
+// duplicate.
 export function getDhis2OperandVerdict(
   element: DHIS2DataElement | undefined,
+  dataId: string,
 ): Dhis2ElementVerdict {
-  return element === undefined
-    ? refuse({ kind: "element_not_found" })
-    : getDhis2ElementVerdict(element);
+  if (element === undefined) return refuse({ kind: "element_not_found" });
+  const verdict = getDhis2ElementVerdict(element);
+  if (!verdict.accepted) return verdict;
+  const coc = dataId.split(".")[1];
+  if (coc === undefined) return verdict;
+  if (isDefaultComboOf(element, coc)) {
+    return refuse({ kind: "default_combo", value: element.id });
+  }
+  if (!listsCombo(element, coc)) {
+    return refuse({ kind: "combo_not_found", value: coc });
+  }
+  return verdict;
+}
+
+export function isDefaultComboOf(
+  element: Pick<DHIS2DataElement, "categoryCombo"> | undefined,
+  coc: string,
+): boolean {
+  return element?.categoryCombo?.isDefault === true &&
+    listsCombo(element, coc);
+}
+
+function listsCombo(
+  element: Pick<DHIS2DataElement, "categoryCombo">,
+  coc: string,
+): boolean {
+  return (element.categoryCombo?.categoryOptionCombos ?? []).some((c) =>
+    c.id === coc
+  );
 }
 
 function refuse(

@@ -7,6 +7,7 @@ import {
   foldName,
   getTimeConventions,
   inferLongTableSchema,
+  isOutsideSafeRange,
   validateLongTableSchema,
 } from "./deps.ts";
 import type {
@@ -17,6 +18,7 @@ import type {
 } from "./deps.ts";
 import {
   describeStatement,
+  readIntegerBounds,
   readParquet,
   readTimeValues,
   validateParquetPath,
@@ -69,6 +71,7 @@ export async function describeLongTable(
   );
   const schema = await withConnection(async (connection) => {
     const { columns } = await describeWith(connection, path);
+    await retypeWideIntegers(connection, columns, readParquet(path));
     for (const column of columns) {
       if (column.type === "integer" && candidates.has(foldName(column.name))) {
         column.sample = await readTimeValues(
@@ -82,4 +85,34 @@ export async function describeLongTable(
   });
   validateLongTableSchema(schema);
   return schema;
+}
+
+// Only BIGINT and UBIGINT can hold an integer a JSON cell cannot carry; every
+// narrower type fits. Such a column is described as text, so inference makes
+// it a dimension rather than a value and the view casts it, which keeps an id
+// of 19 digits exact. The bounds come from the parquet's statistics, and the
+// raw type still says what the file holds.
+const WIDE_INTEGER_TYPES = new Set(["BIGINT", "UBIGINT"]);
+
+async function retypeWideIntegers(
+  connection: DuckDBConnection,
+  columns: DescribedColumn[],
+  source: string,
+): Promise<void> {
+  const wide = columns.filter((c) =>
+    WIDE_INTEGER_TYPES.has(c.rawType.toUpperCase())
+  );
+  if (wide.length === 0) {
+    return;
+  }
+  const bounds = await readIntegerBounds(
+    connection,
+    wide.map((c) => c.name),
+    source,
+  );
+  for (const column of wide) {
+    if (bounds.get(column.name)?.some(isOutsideSafeRange) === true) {
+      column.type = "text";
+    }
+  }
 }

@@ -24,6 +24,7 @@ import {
   applyTimePointMapping,
   applyVariantTimePointMapping,
   detectHfaWorkbookShape,
+  type TimePointMapping,
   type WorkbookShape,
 } from "./xlsx_workbook";
 import {
@@ -501,25 +502,22 @@ function ReconcileStep(p: {
       });
   };
 
-  const effectiveMapping = (): Array<string | null> => {
-    if (isAutoSingle) return [p.timePoints[0]];
-    if (isApplyOneOrAll && reconcileMode() === "all") {
-      return Array(N)
-        .fill(null)
-        .map(() => mapping[0]);
-    }
-    return [...mapping];
+  const effectiveMapping = (): TimePointMapping => {
+    if (isAutoSingle) return [[p.timePoints[0]]];
+    if (isApplyOneOrAll && reconcileMode() === "all") return [p.timePoints];
+    return mapping.map((tp) => (tp ? [tp] : []));
   };
 
   const [replaceCheckText, setReplaceCheckText] = createSignal("");
   const replaceConfirmed = () =>
-    p.uploadMode !== "replace" || replaceCheckText() === "yes please delete";
+    p.uploadMode !== "replace" ||
+    replaceCheckText() === t3(TC.deleteConfirmPhrase);
 
   const doImport = createFormAction(
     async () => {
       const finalMapping = effectiveMapping();
-      const usedTps = new Set(finalMapping.filter(Boolean));
-      if (usedTps.size === 0) {
+      const mappedTps = finalMapping.flat();
+      if (mappedTps.length === 0) {
         return {
           success: false,
           err: t3({
@@ -530,7 +528,6 @@ function ReconcileStep(p: {
         };
       }
 
-      const mappedTps = finalMapping.filter((tp): tp is string => !!tp);
       const duplicateTp = mappedTps.find(
         (tp, i) => mappedTps.indexOf(tp) !== i,
       );
@@ -607,19 +604,19 @@ function ReconcileStep(p: {
           success: false,
           err: t3({
             en:
-              `Filter code requires R code. Rows with filter code but no R code: ${
+              `Filter code requires indicator code. Rows with filter code but no indicator code: ${
                 filterOnly.map((c) => `${c.indicatorId} / ${c.timePoint}`).join(
                   "; ",
                 )
               }.`,
             fr:
-              `Le code filtre nécessite un code R. Lignes avec un code filtre mais sans code R : ${
+              `Le code filtre nécessite un code d'indicateur. Lignes avec un code filtre mais sans code d'indicateur : ${
                 filterOnly.map((c) => `${c.indicatorId} / ${c.timePoint}`).join(
                   "; ",
                 )
               }.`,
             pt:
-              `O código de filtro requer código R. Linhas com código de filtro mas sem código R: ${
+              `O código de filtro requer código do indicador. Linhas com código de filtro mas sem código do indicador: ${
                 filterOnly.map((c) => `${c.indicatorId} / ${c.timePoint}`).join(
                   "; ",
                 )
@@ -808,7 +805,7 @@ function ReconcileStep(p: {
             en: "To confirm, write",
             fr: "Pour confirmer, écrivez",
             pt: "Para confirmar, escreva",
-          })} <span class="font-700">yes please delete</span> {t3({
+          })} <span class="font-700">{t3(TC.deleteConfirmPhrase)}</span> {t3({
             en: "in the input box",
             fr: "dans le champ de saisie",
             pt: "no campo de introdução",

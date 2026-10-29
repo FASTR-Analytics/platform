@@ -12,7 +12,11 @@ import {
   type RenderContext,
 } from "../../deps.ts";
 import { RectCoordsDims as RCD } from "../../deps.ts";
-import type { FreeformPageInputs, PagePrimitive } from "../../types.ts";
+import type {
+  FreeformPageInputs,
+  HeaderFooterInputs,
+  PagePrimitive,
+} from "../../types.ts";
 
 export type MeasuredHeader = {
   mHeader?: MeasuredText;
@@ -27,7 +31,7 @@ export type MeasuredHeader = {
 export function measureHeader(
   rc: RenderContext,
   rcdOuter: RectCoordsDims,
-  inputs: FreeformPageInputs,
+  inputs: HeaderFooterInputs,
   s: MergedFreeformStyle,
 ): MeasuredHeader | undefined {
   if (

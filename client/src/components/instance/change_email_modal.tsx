@@ -271,26 +271,28 @@ export function ChangeEmailModal(
     }
   };
 
-  const InstanceList = (listProps: { items: RenameEmailInstanceResult[] }) => (
-    <div class="flex flex-col gap-1">
-      <For each={listProps.items}>
-        {(instance) => {
-          const label = statusLabel(instance.status);
-          return (
-            <div class="flex items-baseline gap-2 text-sm">
-              <span class="font-700">{instance.id}</span>
-              <span class={label.class}>{label.text}</span>
-              <Show when={instance.error && instance.status === "failed"}>
-                <span class="text-base-content-muted text-xs">
-                  {instance.error}
-                </span>
-              </Show>
-            </div>
-          );
-        }}
-      </For>
-    </div>
-  );
+  function InstanceList(listProps: { items: RenameEmailInstanceResult[] }) {
+    return (
+      <div class="flex flex-col gap-1">
+        <For each={listProps.items}>
+          {(instance) => {
+            const label = statusLabel(instance.status);
+            return (
+              <div class="flex items-baseline gap-2 text-sm">
+                <span class="font-700">{instance.id}</span>
+                <span class={label.class}>{label.text}</span>
+                <Show when={instance.error && instance.status === "failed"}>
+                  <span class="text-base-content-muted text-xs">
+                    {instance.error}
+                  </span>
+                </Show>
+              </div>
+            );
+          }}
+        </For>
+      </div>
+    );
+  }
 
   const footer = () => {
     switch (phase()) {

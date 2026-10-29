@@ -1,6 +1,7 @@
 import type {
+  DatasetType,
   FigureBundle,
-  ItemsHolderPresentationObject,
+  FigureLocalization,
   MetricWithStatus,
   PackageScope,
   PresentationObjectConfig,
@@ -10,13 +11,18 @@ import { getFetchConfigFromPresentationObjectConfig, t3 } from "lib";
 import { AIToolFailure } from "panther";
 import { unwrap } from "solid-js/store";
 import { assertReplicantValid } from "./assert_replicant_valid";
+import { buildFigureInputs } from "./build_figure_inputs";
 import { getAdminAreaLevelFromMapConfig } from "./get_admin_area_level_from_config";
-import { resolveFigureBundleFromMetric } from "./resolve_figure_from_metric";
-import { geoJsonFamilyFor, getGeoJsonSync } from "~/state/instance/t2_geojson";
 import {
-  figureScopeStamp,
-  getSnapshotInstanceLocalization,
-} from "~/state/instance/t1_store";
+  makeFigureBundleFromFetchedData,
+  resolveFigureBundleFromMetric,
+} from "./resolve_figure_from_metric";
+import {
+  geoJsonFamilyFor,
+  getGeoJsonSync,
+  preloadGeoJson,
+} from "~/state/instance/t2_geojson";
+import { getSnapshotInstanceState } from "~/state/instance/t1_store";
 import { getPresentationObjectItemsFromCacheOrFetch } from "~/state/products/t2_figure_data";
 
 // Unified figure resolver: given a metric + a full config, validate the
@@ -33,17 +39,16 @@ export async function resolveBundleFromMetricAndConfig(
   scope: PackageScope | undefined,
   metric: MetricWithStatus,
   config: PresentationObjectConfig,
+  localization: FigureLocalization,
 ): Promise<FigureBundle> {
   if (scope === undefined) {
     throw new AIToolFailure("No results package to resolve under");
   }
 
   // AI tool handlers pass live Solid store objects (the metrics store, preset
-  // configs). Deep-copy to plain data first: Solid stamps symbol keys onto the
-  // raw targets, which zod's record parsing surfaces via Reflect.ownKeys and
-  // then crashes formatting ("Cannot convert a Symbol value to a string"):
-  // unwrap() alone is not enough, the raw objects keep the symbol keys. A
-  // bundle destined for storage must also not alias live store objects.
+  // configs), and everything below reads this metric and config as plain data.
+  // Why a proxy or a symbol-branded object is not plain data, and why unwrap()
+  // alone is not enough: "A bundle owns its data" in SYSTEM_10.
   metric = structuredClone(unwrap(metric));
   config = structuredClone(unwrap(config));
 
@@ -65,8 +70,9 @@ export async function resolveBundleFromMetricAndConfig(
 
   // Strict replicant validation (shared with the from_visualization AI path).
   await assertReplicantValid(scope, metric, config);
+  await assertMapBoundariesAvailable(metric.datasetFamily, config);
 
-  return resolveFigureBundleFromMetric(
+  const bundle = await resolveFigureBundleFromMetric(
     scope,
     {
       metricId: metric.id,
@@ -80,7 +86,63 @@ export async function resolveBundleFromMetricAndConfig(
       fetchConfig: resFetch.data,
     },
     config,
+    localization,
   );
+  assertBundleRenders(bundle);
+  return bundle;
+}
+
+// A map draws the boundary file the instance holds for the figure's registry
+// at the figure's level. The sync cache is empty until the preload lands, so
+// the instance's map list decides, and a listed file is awaited into the
+// cache so the bundle embeds its geometry.
+async function assertMapBoundariesAvailable(
+  datasetFamily: DatasetType | undefined,
+  config: PresentationObjectConfig,
+): Promise<void> {
+  const level = getAdminAreaLevelFromMapConfig(config);
+  if (level === undefined) return;
+  const family = geoJsonFamilyFor(datasetFamily);
+  const maps = getSnapshotInstanceState().geojsonMaps.filter((m) =>
+    m.family === family
+  );
+  const map = maps.find((m) => m.adminAreaLevel === level);
+  const registry = family.toUpperCase();
+  if (map === undefined) {
+    const levels = maps
+      .map((m) => m.adminAreaLevel)
+      .toSorted((a, b) => a - b)
+      .map((l) => `admin_area_${l}`);
+    throw new AIToolFailure(
+      `No boundary map file is uploaded for the ${registry} registry at admin_area_${level}, so this map cannot render. ` +
+        (levels.length > 0
+          ? `Map files exist at ${
+            levels.join(", ")
+          }: use one of those levels, or a table.`
+          : "This registry has no map files: use a table."),
+    );
+  }
+  await preloadGeoJson([map]);
+  if (getGeoJsonSync(family, level) === undefined) {
+    throw new AIToolFailure(
+      `The ${registry} boundary map at admin_area_${level} could not be loaded, so this map cannot render.`,
+    );
+  }
+}
+
+// The renderer's own derivation, run before the commit: a bundle it rejects
+// would otherwise be stored, shown as "could not be displayed", and reported
+// as a success.
+function assertBundleRenders(bundle: FigureBundle): void {
+  try {
+    buildFigureInputs(bundle);
+  } catch (e) {
+    throw new AIToolFailure(
+      `The figure cannot be rendered: ${
+        e instanceof Error ? e.message : String(e)
+      } No changes were applied.`,
+    );
+  }
 }
 
 // The human counterpart of the resolver above: a stale figure's "Update to
@@ -100,6 +162,7 @@ export async function resolveFigureBundleInteractively(
   scope: PackageScope,
   metric: ResultsValue,
   config: PresentationObjectConfig,
+  localization: FigureLocalization,
 ): Promise<ResolveFigureResult> {
   try {
     const itemsRes = await getPresentationObjectItemsFromCacheOrFetch(
@@ -141,61 +204,17 @@ export async function resolveFigureBundleInteractively(
       ok: true,
       // The effective config, not the one passed in: it carries the replicant
       // the read auto-defaulted to, so the bundle and its data agree.
-      bundle: makeFigureBundleFromFetchedData(scope, {
-        resultsValue: metric,
-        effectiveConfig: itemsRes.data.config,
-        ih,
-      }),
+      bundle: makeFigureBundleFromFetchedData(
+        scope,
+        {
+          resultsValue: metric,
+          effectiveConfig: itemsRes.data.config,
+          ih,
+        },
+        localization,
+      ),
     };
   } catch (e) {
     return { ok: false, reason: e instanceof Error ? e.message : String(e) };
   }
-}
-
-// Non-fetch bundle assembly for callers that already hold fetched items (the
-// embedded editor's live preview and coherent-bundle push, the editors' apply
-// paths, the preset gallery). `scope` is the pair those items were fetched
-// under, passed by the caller rather than read from any ambient store.
-export type FetchedPOData = {
-  resultsValue: Pick<
-    ResultsValue,
-    | "id"
-    | "formatAs"
-    | "valueProps"
-    | "valueLabelReplacements"
-    | "datasetFamily"
-  >;
-  ih: Extract<ItemsHolderPresentationObject, { status: "ok" }>;
-  effectiveConfig: PresentationObjectConfig;
-};
-
-export function makeFigureBundleFromFetchedData(
-  scope: PackageScope,
-  data: FetchedPOData,
-): FigureBundle {
-  const { resultsValue, ih, effectiveConfig } = data;
-  const mapLevel = getAdminAreaLevelFromMapConfig(effectiveConfig);
-  const geoFamily = geoJsonFamilyFor(resultsValue.datasetFamily);
-  const geoJson = mapLevel ? getGeoJsonSync(geoFamily, mapLevel) : undefined;
-  return {
-    config: effectiveConfig,
-    items: ih.items,
-    resultsValue: {
-      formatAs: resultsValue.formatAs,
-      valueProps: resultsValue.valueProps,
-      valueLabelReplacements: resultsValue.valueLabelReplacements,
-    },
-    indicatorMetadata: ih.indicatorMetadata,
-    dateRange: ih.dateRange,
-    geo: mapLevel
-      ? (geoJson
-        ? { kind: "data" as const, data: geoJson }
-        : { kind: "level" as const, level: mapLevel, family: geoFamily })
-      : undefined,
-    localization: getSnapshotInstanceLocalization(),
-    metricId: resultsValue.id,
-    scope: figureScopeStamp(scope, ih.scopeToken, resultsValue.datasetFamily),
-    snapshotAt: new Date().toISOString(),
-    provenance: { runId: scope.runId },
-  };
 }

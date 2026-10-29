@@ -213,23 +213,31 @@ This section is the authority. Every HMIS import, DHIS2 or CSV, is a row in
   naming the DHIS2 administrator's remedy, data kept. Every other id gets no
   fetch and a permanent ledger error: a DHIS2 formula (what DHIS2 calls an
   indicator; its existing data stays), or a data id that matches no data element
-  or operand at all. Every message that names a formula id calls it a "DHIS2
-  formula" and says once that DHIS2 calls it an indicator; the internal names
-  keep DHIS2's word: `run_stats` rows store `dhis2IndicatorIds`, and the
-  dispatcher's reason `dhis2_indicator` matches it. Both kinds of id carry one
-  repair note, whose authoritative wording is: "Ask the FASTR team to run the
-  DHIS2 id repair. It keeps the data already imported." The repair is S5's
-  `fix_dhis2_ids.ts`, run by the team inside the instance's container, which
-  keeps each indicator's id; nothing in the app repairs one, since an indicator
-  with data can be neither deleted nor given a new DHIS2 id (S5). The client's
-  `dhis2IdRepairNote` (`hmis/_shared/indicator_display.ts`) carries the note
-  verbatim and is shown above both lists in the run detail, under both lists in
-  the import wizard's Review step, and under the formula list in the Refresh
-  DHIS2 names modal (S5); every refused pair's ledger message ends with the same
-  two sentences. The run detail's banners list
-  `classification.dhis2IndicatorIds` and `classification.unknownIds`, each with
-  the note, and `classification.noMonthlyDataSetIds` with its own remedy, each
-  id as `indicator id · label (UID)` through the dictionary keyed by data id
+  or operand at all. A data id can reach these buckets only from the stored
+  dictionary or from a change on the DHIS2 side: a typed DHIS2 element id is
+  refused at save time unless DHIS2 confirms it as an element or operand the
+  picker would accept (S5, `Dhis2ElementIdCheck`), so a formula id, an unknown
+  id, a non-monthly element and an unlisted combo are never saved by hand; the
+  run's classification still decides, because an element can be retyped,
+  re-aggregated or moved out of its monthly data set after the save, and the
+  DHIS2 id repair fixes the ids stored before the check existed. Every message
+  that names a formula id calls it a "DHIS2 formula" and says once that DHIS2
+  calls it an indicator; the internal names keep DHIS2's word: `run_stats` rows
+  store `dhis2IndicatorIds`, and the dispatcher's reason `dhis2_indicator`
+  matches it. Both kinds of id carry one repair note, whose authoritative
+  wording is: "Ask the FASTR team to run the DHIS2 id repair. It keeps the data
+  already imported." The repair is S5's `fix_dhis2_ids.ts`, run by the team
+  inside the instance's container, which keeps each indicator's id; nothing in
+  the app repairs one, since an indicator with data can be neither deleted nor
+  given a new DHIS2 id (S5). The client's `dhis2IdRepairNote`
+  (`hmis/_shared/indicator_display.ts`) carries the note verbatim and is shown
+  above both lists in the run detail, under both lists in the import wizard's
+  Review step, and under the formula list in the Refresh DHIS2 names modal (S5);
+  every refused pair's ledger message ends with the same two sentences. The run
+  detail's banners list `classification.dhis2IndicatorIds` and
+  `classification.unknownIds`, each with the note, and
+  `classification.noMonthlyDataSetIds` with its own remedy, each id as
+  `indicator id · label (UID)` through the dictionary keyed by data id
   (`dataIdWithIndicator`), bare where no indicator carries it; a line above them
   states the DHIS2 version and the selector the run used. The pull-route
   contract is pinned by `server/tests/dhis2_pull_route_test.ts`. A response
@@ -308,11 +316,12 @@ above is the authority on the shared mechanism; HFA differs only here:
   every column the mappings name is a header of the file, and the facility
   columns, decisions and recodes are well-formed: a non-blank level-1 value;
   levels 2 to the HFA admin depth mapped all or none, and all when the registry
-  is empty; optional columns within the HFA structure schema's enabled set; a
-  correction column different from its column; each change group decided once,
-  over a mapped column, with distinct members and exceptions among them, an
-  admin value being a tuple at the admin depth; recodes over mapped recodable
-  columns. An empty registry is no refusal: the import creates the facilities.
+  is empty; a label for a mapped custom column the HFA structure schema has not
+  switched on; a correction column different from its column; each change group
+  decided once, over a mapped column, with distinct members and exceptions among
+  them, an admin value being a tuple at the admin depth; recodes over mapped
+  recodable columns. An empty registry is no refusal: the import creates the
+  facilities.
 - The wizard's stateless reads beside the duplicates preview:
   `parseDatasetHfaCsvHeaders` also returns the encoded headers holding a
   non-blank cell (`scanHfaHeadersWithValues`, for the facility id default),
@@ -394,11 +403,17 @@ start.
   `server/tests/csv_mapping_staging_test.ts` on the real stage leg and the real
   scan.
 - CSV parsing goes through `getCsvStreamComponents`
-  (`get_csv_components_streaming_fast.ts`): streaming, 2 MB chunks,
-  quote-parity-aware chunk boundaries (quoted fields with embedded newlines
-  survive chunking); a row with more columns than the header (under `strict`, a
-  different count) rejects the stream naming the row, whichever row it is,
-  pinned by `server/tests/csv_stream_reader_test.ts`.
+  (`get_csv_components_streaming_fast.ts`): one sequential loop over 2 MB
+  chunks, each cut at its last newline outside quotes (quoted fields with
+  embedded newlines survive chunking), parsed, and delivered row by row in file
+  order with the callback awaited per row, so the next chunk is read only after
+  the chunk's rows are consumed; there is no queue. A callback that throws
+  rejects the stream with its own error and no later row is delivered, which is
+  what lets a worker's stage leg fail through its own catch when a database
+  insert fails. A row with more columns than the header (under `strict`, a
+  different count) rejects the stream naming the row, whichever row it is.
+  `server/tests/csv_stream_reader_test.ts` pins the column check, the rejection,
+  and 500,000 rows arriving complete and in order in under 10 seconds.
 - HMIS-DHIS2 semantics (run worker, the pure reduce in `dispatch.ts`, pinned by
   `server/tests/dhis2_skip_and_record_test.ts`): a facility value is accepted
   only as a non-negative integer (numeric parse, so a NUMBER-typed "12.0" counts
@@ -725,7 +740,8 @@ into its inputs plus the dataset version stamps the manifest records
   (mixed crash durability).
 - `getCsvDetails` (both CSV families' header parse) reads the whole file into
   memory for headers; the streaming variant's header read is one 64 KB
-  `file.read()` (wide XLSForm exports / short reads → confusing failure).
+  `file.read()`, and a header row wider than that is truncated silently (a
+  10,000-column header parses as 8,331 headers), as is a short read.
 - Ethiopian-calendar period math (`periodIdForDate`,
   `lib/period_id_for_date.ts`, used by the DHIS2 wizard, the import scheduler
   and the scope editor's year slider) assumes 12 months (no Pagume);

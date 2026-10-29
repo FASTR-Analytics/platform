@@ -39,6 +39,12 @@ export function normalizeDuckDbType(rawType: string): DescribedColumn["type"] {
   if (upper.startsWith("TIMESTAMP")) {
     return "timestamp";
   }
+  if (upper === "TIME" || upper === "TIME WITH TIME ZONE") {
+    return "time";
+  }
+  if (upper === "UUID") {
+    return "uuid";
+  }
   return "unsupported";
 }
 

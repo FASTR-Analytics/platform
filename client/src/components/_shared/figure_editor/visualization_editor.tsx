@@ -1,6 +1,7 @@
 import {
   type FastrChartPalette,
   type FigureBundle,
+  type FigureLocalization,
   type MetricWithStatus,
   PackageScope,
   PresentationObjectConfig,
@@ -71,6 +72,11 @@ export type VisualizationEditorProps = {
   scope: PackageScope;
   metric: MetricWithStatus;
   configSnapshot: PresentationObjectConfig;
+  /** The figure's own localization, carried so every bundle this editor builds
+   *  (the live preview, the coherent-bundle push, the download) labels the
+   *  figure in the language it was created in. A stored figure passes its
+   *  `bundle.localization`; a figure nobody owns yet passes the instance's. */
+  localization: FigureLocalization;
   /** The chat view this editor sets (S13), named by the host: the figure
    *  being edited on a slide or in a report, or the package's default
    *  visualization being viewed. */
@@ -126,6 +132,7 @@ export function VisualizationEditor(
           label={p.label}
           metric={p.metric}
           configSnapshot={p.configSnapshot}
+          localization={p.localization}
           aiView={p.aiView}
           authoringContext={p.authoringContext}
           resultsValueInfo={keyedResultsValueInfo}

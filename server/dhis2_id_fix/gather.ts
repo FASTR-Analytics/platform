@@ -109,7 +109,6 @@ export async function gatherDhis2IdFixFacts(
     const parse = parseDhis2Indicator({
       numerator: indicator.numerator,
       denominator: indicator.denominator,
-      annualized: indicator.annualized,
       factor: indicator.indicatorType?.factor,
     });
     return parse.accepted ? parse.operands.map((o) => o.data_element_id) : [];

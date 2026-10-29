@@ -10,8 +10,6 @@ type Props = {
 };
 
 export function Step1Dhis2(p: Props) {
-  const { state } = p;
-
   const [connected, setConnected] = createSignal<boolean>(false);
 
   const connectAction = createFormAction(
@@ -22,8 +20,8 @@ export function Step1Dhis2(p: Props) {
       }
       const res = await serverActions.dhis2GetOrgUnitLevels({});
       if (res.success) {
-        state.setDhis2ConnectionUrl(connectionUrl);
-        state.setDhis2Levels(res.data.levels);
+        p.state.setDhis2ConnectionUrl(connectionUrl);
+        p.state.setDhis2Levels(res.data.levels);
         setConnected(true);
       }
       return res;
@@ -32,7 +30,7 @@ export function Step1Dhis2(p: Props) {
   );
 
   function handleContinue() {
-    state.setStep(2);
+    p.state.setStep(2);
   }
 
   return (
@@ -74,7 +72,7 @@ export function Step1Dhis2(p: Props) {
           >
             {t3({ en: "Connect", fr: "Se connecter", pt: "Ligar" })}
           </Button>
-          <Button intent="neutral" onClick={() => state.setStep(0)}>
+          <Button intent="neutral" onClick={() => p.state.setStep(0)}>
             {t3({ en: "Back", fr: "Retour", pt: "Voltar" })}
           </Button>
         </div>
@@ -91,7 +89,7 @@ export function Step1Dhis2(p: Props) {
           </div>
           <div class="text-base-content-muted text-sm">
             {t3({ en: "Connected to", fr: "Connecté à", pt: "Ligado a" })}{" "}
-            {state.dhis2ConnectionUrl()}
+            {p.state.dhis2ConnectionUrl()}
           </div>
         </div>
 
@@ -105,7 +103,7 @@ export function Step1Dhis2(p: Props) {
               {t3({ en: "Org units", fr: "Unités", pt: "Unidades" })}
             </div>
           </div>
-          <For each={state.dhis2Levels()}>
+          <For each={p.state.dhis2Levels()}>
             {(level) => (
               <div class="border-base-200 flex items-center border-b px-3 py-2 text-sm last:border-b-0">
                 <div class="w-1/4">{level.level}</div>
@@ -120,7 +118,7 @@ export function Step1Dhis2(p: Props) {
           <Button onClick={handleContinue} intent="primary">
             {t3({ en: "Continue", fr: "Continuer", pt: "Continuar" })}
           </Button>
-          <Button intent="neutral" onClick={() => state.setStep(0)}>
+          <Button intent="neutral" onClick={() => p.state.setStep(0)}>
             {t3({ en: "Back", fr: "Retour", pt: "Voltar" })}
           </Button>
         </div>

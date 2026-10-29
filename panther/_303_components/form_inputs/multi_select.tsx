@@ -80,6 +80,7 @@ export function MultiSelect<T extends string>(p: MultiSelectProps<T>) {
                 en: "Select all",
                 fr: "Tout sélectionner",
                 pt: "Selecionar tudo",
+                th: "เลือกทั้งหมด",
               })}
               checked={allSelected()}
               indeterminate={someSelected()}

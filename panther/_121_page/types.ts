@@ -137,6 +137,17 @@ export type SectionPageInputs = PageInputsBase & {
   sectionSubTitle?: string;
 };
 
+// The page chrome that decides the content box. Logos are structural so a
+// FreeformPageInputs satisfies it without conversion.
+export type HeaderFooterInputs = {
+  header?: string;
+  subHeader?: string;
+  date?: string;
+  footer?: string;
+  headerLogos?: { width: number; height: number }[];
+  footerLogos?: { width: number; height: number }[];
+};
+
 // Freeform page specific inputs
 export type FreeformPageInputs = PageInputsBase & {
   type: "freeform";

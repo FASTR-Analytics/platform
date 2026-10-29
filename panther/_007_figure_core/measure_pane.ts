@@ -201,8 +201,9 @@ export function measurePane<TData>(
       )
       : undefined;
 
-  // Unbalanced indicator membership: this pane's visible subset (x-text axis
-  // only — slot layout goes per-pane, axis extent stays global).
+  // This pane's indicator order (a subset under unbalanced membership, a
+  // permutation under a value sort); x-text axis only — slot layout goes
+  // per-pane, axis extent stays global.
   const xAxisConfig = config.xAxisConfig;
   const visibleIndicators = config.dataProps.visibleIndicatorsByPane?.[i_pane];
   const visibleXTextHeaders =

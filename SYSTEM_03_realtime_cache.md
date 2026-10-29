@@ -13,6 +13,7 @@ globs:
   - server/routes/instance/instance-sse.ts
   - server/task_management/build_instance_state.ts
   - server/tests/instance_sse_filter_test.ts
+  - server/tests/slide_delete_no_stamp_test.ts
   - server/task_management/notify_instance_updated.ts
   - server/utils/request_queue.ts
   - server/valkey/**
@@ -135,15 +136,17 @@ as `products_deleted` and remembered as withdrawn; a row neither visible nor
 held is dropped. A withdrawn product that becomes visible again ends the stream,
 because its slide stamps were withheld while it was hidden; the reconnect's
 `starting` carries fresh ones. A product the connection never held arrives as an
-ordinary upsert, since the client holds no stamps for it. A `last_updated`
-passes when its deck (`productId`) is held. For a restricted connection
-`scopes_updated` is cut to the granted scopes. For every connection that is not
-a global admin the folder list is recomputed from what it holds on every product
-or folder message and sent as `folders_updated` when it changes. A restricted
-user's stored data bits never open the generation stream. A `users_updated` that
-changes the connection's own scope access or admin flag ends the stream after
-forwarding it; the client reconnects and the new `starting` is built under the
-new access. The filter and `restrictProductPlane` are pinned by
+ordinary upsert; the client holds no stamps for it, except for a slide id
+re-minted there, which the `(productId, slideId)` cache key handles (see "A
+stamp is for a row that still exists"). A `last_updated` passes when its deck
+(`productId`) is held. For a restricted connection `scopes_updated` is cut to
+the granted scopes. For every connection that is not a global admin the folder
+list is recomputed from what it holds on every product or folder message and
+sent as `folders_updated` when it changes. A restricted user's stored data bits
+never open the generation stream. A `users_updated` that changes the
+connection's own scope access or admin flag ends the stream after forwarding it;
+the client reconnects and the new `starting` is built under the new access. The
+filter and `restrictProductPlane` are pinned by
 `server/tests/instance_sse_filter_test.ts`. No other message on the channel is
 filtered per user.
 
@@ -244,11 +247,37 @@ client store keeps the matching `instanceState.lastUpdated.{products,slides}`
 index: `products[id]` from each summary's own stamp, `slides[id]` from the
 message. Both key the products T2 caches the editors read.
 
+**A stamp is for a row that still exists.** `notifyInstanceLastUpdated` means
+"re-read these rows", so only a row a client can still read may be named in one.
+The two writes that remove slides from a deck that SURVIVES stamp nothing for
+what they removed: the slide delete route names none of its `deletedIds`, and
+the version restore names only `plan.toInsert` and `plan.toUpdate`, never
+`plan.toDelete`. Both removals still reach every client, on `products_upserted`,
+in the deck summary's shrunken `slideIds`, and any editor open on a removed
+slide is told by `closeSlideRoom`. A deck delete removes its slides too and
+stamps nothing for them either (`deleteProducts`); it reaches clients as
+`products_deleted`, with no surviving summary to shrink, and `closeSlideRoom`
+tells every editor open on one of its slides. Stamping a deleted id instead made
+every client holding the deck fetch each removed slide and take a 404, because
+the rail still listed the id until the separate `products_upserted` landed, and
+it put a false "edited slide" line in the copilot's digest.
+
+Re-minting an id after a delete is safe without the stamp, but not because the
+stamp is absent. Ids are unique over the LIVE rows only, so a removed id can
+come back in another deck, and a client is never sent a stamp for a deck it does
+not hold (`routes/instance/instance-sse.ts` drops a `last_updated` whose product
+the connection cannot see). What makes it safe is that the slide cache is keyed
+by `(productId, slideId)` and not by the id alone
+([t2_slides.ts](client/src/state/products/t2_slides.ts)), so a removed row's
+entry can never be read as its successor's.
+`server/tests/slide_delete_no_stamp_test.ts` drives both routes and reads the
+hub's own channel.
+
 **The mutation recipe** (see `server/routes/products/slides.ts` and
 `server/routes/products/folders.ts`, in registry/`defineRoute` style): after a
-successful write, (1) row-level: a slide write calls
-`notifyInstanceLastUpdated("slides", productId, ids, lastUpdated)` so clients
-invalidate those slides' caches; (2) product-level:
+successful write, (1) row-level: a slide write that leaves its rows in place
+calls `notifyInstanceLastUpdated("slides", productId, ids, lastUpdated)` so
+clients invalidate those slides' caches; (2) product-level:
 `await
 notifyInstanceProductsUpserted(mainDb, [productId])` re-reads and
 broadcasts the touched summaries, whose stamps version the product detail

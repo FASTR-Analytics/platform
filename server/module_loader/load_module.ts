@@ -193,7 +193,12 @@ function translateMetrics(
     postAggregationExpression: m.postAggregationExpression ?? null,
     aiDescription: m.aiDescription ?? null,
     valueLabelReplacements: Object.keys(m.valueLabelReplacements).length > 0
-      ? m.valueLabelReplacements
+      ? Object.fromEntries(
+        Object.entries(m.valueLabelReplacements).map(([prop, ts]) => [
+          prop,
+          resolveTS(ts, language),
+        ]),
+      )
       : null,
   }));
 }

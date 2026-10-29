@@ -133,7 +133,7 @@ export function DraftSlidePreview(p: Props) {
   function getDeckConfig(draft: PackageScope): SlideDeckConfig {
     const view = openDeckOnPair(draft);
     return view === undefined
-      ? getStartingConfigForSlideDeck("Draft")
+      ? getStartingConfigForSlideDeck()
       : view.context.getDeckConfig();
   }
 
@@ -166,7 +166,7 @@ export function DraftSlidePreview(p: Props) {
         return;
       }
       const deckConfig = getDeckConfig(draft.pair);
-      const convertedSlide = await convertAiInputToSlide(
+      const { slide: convertedSlide } = await convertAiInputToSlide(
         draft.pair,
         p.slideInput,
         await metricsFor(draft.pair),

@@ -1,10 +1,10 @@
 import { getAdjustedColor } from "@timroberton/panther";
-import type { TranslatableString } from "@timroberton/panther";
 import {
   _CF_LIGHTER_GREEN,
   _CF_LIGHTER_RED,
   _CF_LIGHTER_YELLOW,
 } from "./key_colors.ts";
+import type { TranslatableString } from "./translate/types.ts";
 import type { ConditionalFormattingThresholds } from "./types/conditional_formatting.ts";
 
 export type LegacyCfPresetId =

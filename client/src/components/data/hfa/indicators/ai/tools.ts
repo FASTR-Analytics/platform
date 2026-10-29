@@ -8,10 +8,10 @@ import {
 import { z } from "zod";
 import {
   COPILOT_TOOL_VIEWS,
-  extractRIdentifiers,
   type HfaDictionaryForValidation,
   type HfaIndicator,
   type HfaIndicatorCode,
+  hfaIndicatorCodeIdentifiers,
   type HfaIndicatorVariantCode,
   nextHfaIndicatorId,
   serialiseMultiMembershipValues,
@@ -24,9 +24,9 @@ import {
   getHfaDictionaryFromCacheOrFetch,
 } from "~/state/instance/t2_datasets";
 import {
-  checkRCodeResultType,
-  hasRCodeErrors,
-  validateRCode,
+  checkIndicatorCodeResultType,
+  hasIndicatorCodeErrors,
+  validateIndicatorCode,
 } from "../_shared/mod.ts";
 import { copilotViews } from "~/components/instance/copilot/mod.ts";
 
@@ -148,11 +148,10 @@ function countIndicators(n: number): string {
 
 // Mirrors the manager's "Revalidate all" computation (syntax + variable
 // existence → hasSyntaxError; identical non-empty rounds → codeConsistent), plus
-// two additions: an unknown time point also counts as a syntax error, and
-// advisory findings (lone-`=` warnings, the binary/numeric result-type check)
-// are surfaced in `issues` ONLY: they never flip hasSyntaxError, and, unlike
-// the editor (`hfa/indicator_code_editor.tsx:471-489`), it reads main code
-// only.
+// two additions: an unknown time point also counts as a syntax error, and the
+// advisory binary/numeric result-type check is surfaced in `issues` ONLY: it
+// never flips hasSyntaxError. Unlike the editor's save, which also validates
+// variant code, it reads main code only.
 function computeIndicatorValidation(
   code: CodeRound[],
   dict: HfaDictionaryForValidation,
@@ -175,8 +174,12 @@ function computeIndicatorValidation(
     ];
     for (const [field, codeStr] of fields) {
       if (!codeStr.trim()) continue;
-      const r = validateRCode(codeStr, availableVariableIds, otherIndicatorIds);
-      if (hasRCodeErrors(r)) {
+      const r = validateIndicatorCode(
+        codeStr,
+        availableVariableIds,
+        otherIndicatorIds,
+      );
+      if (hasIndicatorCodeErrors(r)) {
         hasSyntaxError = true;
       }
       for (const e of r.syntaxErrors) {
@@ -185,12 +188,9 @@ function computeIndicatorValidation(
       for (const e of r.unknownVariableErrors) {
         issues.push(`${c.timePoint} ${field}: ${e}`);
       }
-      for (const w of r.warnings) {
-        issues.push(`${c.timePoint} ${field}: WARNING: ${w}`);
-      }
     }
     // Result-type only applies to the main rCode (the filter is always boolean).
-    for (const w of checkRCodeResultType(c.rCode, expectedType)) {
+    for (const w of checkIndicatorCodeResultType(c.rCode, expectedType)) {
       issues.push(`${c.timePoint} rCode: ${w}`);
     }
   }
@@ -335,7 +335,7 @@ export function buildHfaIndicatorTools() {
       name: "update_hfa_indicator_labels",
       availableIn: COPILOT_TOOL_VIEWS.update_hfa_indicator_labels,
       description:
-        "Set the short label and/or long label (definition) of existing HFA indicators, in a batch. Only the fields you provide change. The short label is used in dense chart contexts; the long label is the full descriptive text. Does NOT change measurement, categorisation, or r-code.",
+        "Set the short label and/or long label (definition) of existing HFA indicators, in a batch. Only the fields you provide change. The short label is used in dense chart contexts; the long label is the full descriptive text. Does NOT change measurement, categorisation, or indicator code.",
       kind: "write",
       inputSchema: z.object({
         updates: z.array(z.object({
@@ -695,7 +695,7 @@ export function buildHfaIndicatorTools() {
       name: "inspect_hfa_variable",
       availableIn: COPILOT_TOOL_VIEWS.inspect_hfa_variable,
       description:
-        "Inspect one or more HFA survey variables in depth: per round, the coded response options (value → label), how many facilities answered vs are missing, and the distinct values actually present in the data. Use this before writing r-code that compares against a variable's codes.",
+        "Inspect one or more HFA survey variables in depth: per round, the coded response options (value → label), how many facilities answered vs are missing, and the distinct values actually present in the data. Use this before writing indicator code that compares against a variable's codes.",
       kind: "read",
       inputSchema: z.object({
         variableIds: z.array(z.string()).min(1).describe(
@@ -754,7 +754,7 @@ export function buildHfaIndicatorTools() {
       name: "get_hfa_indicator_code",
       availableIn: COPILOT_TOOL_VIEWS.get_hfa_indicator_code,
       description:
-        "Read the per-round r-code (rCode and optional rFilterCode) of existing HFA indicators.",
+        "Read the per-round indicator code (rCode and optional rFilterCode) of existing HFA indicators.",
       kind: "read",
       inputSchema: z.object({
         indicatorIds: z.array(z.string()).min(1).optional().describe(
@@ -802,7 +802,7 @@ export function buildHfaIndicatorTools() {
       name: "validate_hfa_indicators",
       availableIn: COPILOT_TOOL_VIEWS.validate_hfa_indicators,
       description:
-        "Validate HFA indicators' r-code against the HFA survey dictionary. Writes nothing. Returns how many indicators were checked and, for each one with an issue, whether it has syntax / unknown-variable / result-type issues, whether its code is consistent across rounds, and the specific issues. Run it after creating or editing code, and to find indicators that need fixing.",
+        "Validate HFA indicators' code against the HFA survey dictionary. Writes nothing. Returns how many indicators were checked and, for each one with an issue, whether it has syntax / unknown-variable / result-type issues, whether its code is consistent across rounds, and the specific issues. Run it after creating or editing code, and to find indicators that need fixing.",
       kind: "read",
       inputSchema: z.object({
         indicatorIds: z.array(z.string()).min(1).optional().describe(
@@ -852,9 +852,9 @@ export function buildHfaIndicatorTools() {
       },
       inProgressLabel: () =>
         t3({
-          en: "Validating HFA indicator r-code...",
-          fr: "Validation du code R des indicateurs HFA...",
-          pt: "A validar o código R dos indicadores HFA...",
+          en: "Validating HFA indicator code...",
+          fr: "Validation du code des indicateurs HFA...",
+          pt: "A validar o código dos indicadores HFA...",
         }),
       completionMessage: (input) =>
         input.indicatorIds
@@ -875,7 +875,7 @@ export function buildHfaIndicatorTools() {
       name: "create_hfa_indicators",
       availableIn: COPILOT_TOOL_VIEWS.create_hfa_indicators,
       description:
-        'Create new HFA indicators from the survey dataset, in a batch. For each: a long label (definition), type + aggregation (usually binary+avg for "% of facilities" — see the modelling guidance), optional category/sub-category/service categories (must already exist), and per-round r-code. The app assigns each indicator\'s id and returns it; time points are validated and r-code is validated against the dictionary (including a result-type check).',
+        'Create new HFA indicators from the survey dataset, in a batch. For each: a long label (definition), type + aggregation (usually binary+avg for "% of facilities" — see the modelling guidance), optional category/sub-category/service categories (must already exist), and per-round indicator code. The app assigns each indicator\'s id and returns it; time points are validated and indicator code is validated against the dictionary (including a result-type check).',
       kind: "write",
       inputSchema: z.object({
         indicators: z.array(z.object({
@@ -893,7 +893,7 @@ export function buildHfaIndicatorTools() {
             rCode: z.string(),
             rFilterCode: z.string().optional(),
           })).optional().describe(
-            "Per-round r-code. Keep identical across rounds unless the survey changed.",
+            "Per-round indicator code. Keep identical across rounds unless the survey changed.",
           ),
         })).min(1),
       }),
@@ -1079,7 +1079,7 @@ export function buildHfaIndicatorTools() {
       name: "set_hfa_indicator_code",
       availableIn: COPILOT_TOOL_VIEWS.set_hfa_indicator_code,
       description:
-        "Set the per-round r-code of EXISTING HFA indicators (to fix or change how they are computed). Each entry replaces that indicator+round's rCode/rFilterCode; other rounds are kept. Validation (including the result-type check) is recomputed automatically.",
+        "Set the per-round indicator code of EXISTING HFA indicators (to fix or change how they are computed). Each entry replaces that indicator+round's rCode/rFilterCode; other rounds are kept. Validation (including the result-type check) is recomputed automatically.",
       kind: "write",
       inputSchema: z.object({
         updates: z.array(z.object({
@@ -1155,13 +1155,13 @@ export function buildHfaIndicatorTools() {
                 pt: "Atualizar o código dos indicadores HFA",
               }),
               description: t3({
-                en: `Update r-code for ${countIndicators(affected.size)}?`,
-                fr: `Mettre à jour le code R de ${
-                  countIndicators(affected.size)
-                } ?`,
-                pt: `Atualizar o código R de ${
+                en: `Update indicator code for ${
                   countIndicators(affected.size)
                 }?`,
+                fr: `Mettre à jour le code de ${
+                  countIndicators(affected.size)
+                } ?`,
+                pt: `Atualizar o código de ${countIndicators(affected.size)}?`,
               }),
               changes,
             },
@@ -1241,7 +1241,7 @@ export function buildHfaIndicatorTools() {
       name: "delete_hfa_indicators",
       availableIn: COPILOT_TOOL_VIEWS.delete_hfa_indicators,
       description:
-        "Permanently delete HFA indicators by indicator id (and their r-code). Use with care.",
+        "Permanently delete HFA indicators by indicator id (and their indicator code). Use with care.",
       kind: "write",
       inputSchema: z.object({ indicatorIds: z.array(z.string()).min(1) }),
       approval: {
@@ -1262,8 +1262,10 @@ export function buildHfaIndicatorTools() {
           for (const c of allCode) {
             if (deleted.has(c.indicatorId)) continue;
             const identifiers = [
-              ...extractRIdentifiers(c.rCode),
-              ...(c.rFilterCode ? extractRIdentifiers(c.rFilterCode) : []),
+              ...hfaIndicatorCodeIdentifiers(c.rCode),
+              ...(c.rFilterCode
+                ? hfaIndicatorCodeIdentifiers(c.rFilterCode)
+                : []),
             ];
             if (identifiers.some((id) => deleted.has(id))) {
               referencing.add(c.indicatorId);
@@ -1273,7 +1275,9 @@ export function buildHfaIndicatorTools() {
           // union as the manager's findReferencingIndicators.
           for (const c of allVariantCode) {
             if (deleted.has(c.indicatorId)) continue;
-            if (extractRIdentifiers(c.rCode).some((id) => deleted.has(id))) {
+            if (
+              hfaIndicatorCodeIdentifiers(c.rCode).some((id) => deleted.has(id))
+            ) {
               referencing.add(c.indicatorId);
             }
           }
