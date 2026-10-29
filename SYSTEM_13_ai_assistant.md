@@ -1234,8 +1234,9 @@ panther's `searchTokens` and `matchesSearch`), category, service category,
 status (`error`, `warning` with no error, `inconsistent`, `none`), missing
 category, missing short label and `namesVariable` (indicators whose main, filter
 or variant code names one of the ids, through `hfaVariableUsage`); a status
-filter adds each round's issues, and `withCode` ends each line with the
-indicator's code, once when every round holds the same.
+filter adds each round's issues, and `withCode` ends each line with the main
+code and filter, once when every round holds the same, "differs by round" when
+they differ and "none" without code; variant code is not shown.
 `get_hfa_indicator_details` prints the detail block for its ids: each indicator
 in full (labels, measure, categories, variant group and items, per round the
 code, filter, variant code, status and issues), then every variable the set's

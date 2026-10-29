@@ -754,7 +754,7 @@ export function buildHfaIndicatorTools() {
       name: "get_hfa_indicators",
       availableIn: COPILOT_TOOL_VIEWS.get_hfa_indicators,
       description:
-        "List HFA indicators, one line each: id, long label, type and aggregation, category, sub-category and service categories, variant group, rounds with code, round status and whether the rounds agree, under the taxonomy (categories, sub-categories, service categories, variant groups and items, each id: label). The ids it prints are what every other HFA tool takes. Filter rather than list everything: the default workbook holds hundreds of indicators. Filtering by status also prints each round's issues. withCode ends each line with the indicator's code, printed once when every round holds the same, so a filtered set can be checked against its variables in one read. The search reads labels and ids, not code: namesVariable finds the indicators whose code names given variables.",
+        "List HFA indicators, one line each: id, long label, type and aggregation, category, sub-category and service categories, variant group, rounds with code, round status and whether the rounds agree, under the taxonomy (categories, sub-categories, service categories, variant groups and items, each id: label). The ids it prints are what every other HFA tool takes. Filter rather than list everything: the default workbook holds hundreds of indicators. Filtering by status also prints each round's issues. withCode ends each line with the main code and filter, printed once when every round holds the same; it says 'differs by round' when they differ, 'none' without code, and leaves out variant code: read those with get_hfa_indicator_details. The search reads labels and ids, not code: namesVariable finds the indicators whose code names given variables.",
       kind: "read",
       inputSchema: z.object({
         search: z.string().optional().describe(
@@ -781,19 +781,21 @@ export function buildHfaIndicatorTools() {
           "Only indicators whose main, filter or variant code, in any round, names one of these ids (survey variables, or indicators).",
         ),
         withCode: z.boolean().optional().describe(
-          "End each line with the indicator's code.",
+          "End each line with the main code and filter: once when the rounds agree, else 'differs by round', 'none' without code. Variant code is not shown.",
         ),
       }),
       handler: async (input) => {
         const read = await loadReadInput(false);
         const tokens = searchTokens(input.search ?? "");
         const labels = taxonomyLabels(read.taxonomy);
-        const usage = hfaVariableUsage(read.code, read.variantCode);
-        const naming = input.namesVariable === undefined ? undefined : new Set(
-          input.namesVariable.flatMap((v) =>
-            [...(usage.get(v)?.values() ?? [])].flatMap((ids) => [...ids])
-          ),
-        );
+        const naming = input.namesVariable === undefined ? undefined : (() => {
+          const usage = hfaVariableUsage(read.code, read.variantCode);
+          return new Set(
+            input.namesVariable.flatMap((v) =>
+              [...(usage.get(v)?.values() ?? [])].flatMap((ids) => [...ids])
+            ),
+          );
+        })();
         const listed = read.indicators.filter((ind) =>
           (input.categoryId === undefined ||
             ind.categoryId === input.categoryId) &&

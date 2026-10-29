@@ -248,7 +248,7 @@ function sharedCode(
   if (rounds.length === 0) return "code: none";
   if (status?.consistent === false) return "code: differs by round";
   const c = rounds[0]!;
-  return `code: ${c.rCode.trim()}${
+  return `code: ${c.rCode.trim() || "(none)"}${
     c.rFilterCode?.trim() ? ` [filter: ${c.rFilterCode.trim()}]` : ""
   }`;
 }
