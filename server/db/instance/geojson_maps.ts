@@ -33,29 +33,22 @@ export async function getGeoJsonMapSummaries(
   }));
 }
 
-export async function getGeoJsonForLevel(
+export type StoredGeoJson = { geojson: string; uploadedAt: string };
+
+// `uploadedAt` is the string the map summaries hand the client
+// (toISOString, millisecond precision), never the microsecond timestamptz.
+export async function getStoredGeoJson(
   mainDb: Sql,
   family: FacilityFamily,
   level: number,
-): Promise<APIResponseWithData<{ geojson: string; uploadedAt: string }>> {
-  return await tryCatchDatabaseAsync(async () => {
-    const rows = await mainDb<
-      { geojson: string; uploaded_at: Date }[]
-    >`SELECT geojson, uploaded_at FROM geojson_maps WHERE facility_family = ${family} AND admin_area_level = ${level}`;
-    if (rows.length === 0) {
-      return {
-        success: false,
-        err: `No GeoJSON found for ${family} admin area level ${level}`,
-      };
-    }
-    return {
-      success: true,
-      data: {
-        geojson: rows[0].geojson,
-        uploadedAt: rows[0].uploaded_at.toISOString(),
-      },
-    };
-  });
+): Promise<StoredGeoJson | undefined> {
+  const rows = await mainDb<{ geojson: string; uploaded_at: Date }[]>`
+    SELECT geojson, uploaded_at FROM geojson_maps
+    WHERE facility_family = ${family} AND admin_area_level = ${level}`;
+  return rows.length === 0 ? undefined : {
+    geojson: rows[0].geojson,
+    uploadedAt: rows[0].uploaded_at.toISOString(),
+  };
 }
 
 // Every save path (file upload, DHIS2, remap) funnels through here, so the

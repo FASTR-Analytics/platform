@@ -68,12 +68,6 @@ export const geojsonMapRouteRegistry = {
     params: familyLevelParamsSchema,
     response: {} as AdminAreaOptionsForLevel,
   }),
-  getGeoJsonForLevel: route({
-    path: "/geojson-maps/level/:family/:level",
-    method: "GET",
-    params: familyLevelParamsSchema,
-    response: {} as { geojson: string; uploadedAt: string },
-  }),
   remapGeoJson: route({
     path: "/geojson-maps/remap",
     method: "POST",

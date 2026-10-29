@@ -58,6 +58,7 @@ globs:
   - server/tests/dhis2_id_fix_execute_test.ts
   - server/tests/dhis2_id_fix_plan_test.ts
   - server/tests/geojson_area_match_test.ts
+  - server/tests/geojson_serving_test.ts
   - server/tests/hfa_code_migration_test.ts
   - server/tests/hfa_facility_weights_import_test.ts
   - server/tests/hfa_indicator_code_test.ts
@@ -1217,12 +1218,27 @@ source name up in the mapping it is handed. The raw parsed feature types are
 declared once, in `server/geojson/types.ts`, for both the upload and the DHIS2
 paths.
 
+Serving: `GET /geojson-maps/level/:family/:level/:uploaded_at` is off the
+registry and returns the stored text itself as `application/geo+json`, gzipped
+in the handler when the request accepts it, with
+`Cache-Control: private, max-age=31536000, immutable`. The URL carries the map's
+`uploaded_at` (the summaries' `toISOString`, compared as that string, since the
+column keeps microseconds), so a boundary edit is a new URL and a stale one is a
+404; `private` because the payload is permission-gated. The response is built by
+`buildGeoJsonLevelResponse`, a pure function of the stored row, the requested
+stamp and `Accept-Encoding`. The client fetches it through `fetchStoredGeoJson`
+(`t2_geojson.ts`) over `tryCatchServerRaw`, so it keeps the server actions'
+retry and 401 policy, and parses it once; the edit modal's remap table and
+download read the same URL.
+
 Client caching: summaries (family + level + uploadedAt) live in the T1 SSE
 store; payloads live in a T2 two-layer cache (module Map + IDB
 `geojson:{family}:{level}`) keyed by `uploadedAt`, the
 `uploaded_at →
 geojson_maps_updated SSE → preloadGeoJson` triangle, plus
-`evictDeletedGeoJsonLevels` for maps absent from a push. Consumers read via
+`evictDeletedGeoJsonLevels` for maps absent from a push. The IDB layer stays
+beside the HTTP cache because it holds the parsed object, which saves the 20 MB
+`JSON.parse` an HTTP cache hit still pays. Consumers read via
 `getGeoJsonSync(family, level)`, which reads a version signal so a tracked
 computation that ran before a map loaded re-runs once it arrives; figure bundles
 snapshot geojson as `{kind:"data"}` when available.

@@ -196,8 +196,11 @@ Non-streaming calls go through `tryCatchServer`, which is more than a fetch
 wrapper: 2-retry exponential backoff for safe methods, a 401
 token-refresh/reload path (keyed off `authError`), 503 handling, and
 HTML-maintenance-page detection, all returning a parsed `APIResponse` to the
-caller. Streaming calls (`isStreaming: true`) go through `consumeStream`, have
-**no** timeout, and pre-refresh the Clerk token before connecting.
+caller. `tryCatchServerRaw` runs the same request loop for an off-registry `GET`
+whose body is not an envelope (the geojson serving route): the caller passes how
+the body is read, and the result is still an `APIResponse`. Streaming calls
+(`isStreaming: true`) go through `consumeStream`, have **no** timeout, and
+pre-refresh the Clerk token before connecting.
 
 ## The `APIResponse` envelope
 
@@ -278,6 +281,7 @@ here uses the registry.
 | `routes/instance/health.ts`                     | S15   | Diagnostics; 11 routes, bare JSON, deliberately unauthenticated for external monitoring (exposure inventory is S15's contract)                                                                                                                                       |
 | `routes/instance/structure.ts` (2 routes only)  | S5    | CSV download `Response`s (facilities export, HFA weights export) inside an otherwise-registry file, guarded and logged, but raw                                                                                                                                      |
 | `routes/instance/population.ts` (2 routes only) | S5    | CSV download `Response`s (population export, import template) inside an otherwise-registry file, guarded and logged, but raw                                                                                                                                         |
+| `routes/instance/geojson_maps.ts` (1 route)     | S5    | A raw GeoJSON body, not an envelope (`GET /geojson-maps/level/:family/:level/:uploaded_at`), gzipped and immutable-cached; guarded, unlogged (a per-connect fetch)                                                                                                   |
 | `routes/public/oauth_metadata.ts`               | S1    | OAuth discovery documents for `/mcp` clients (three `GET`s), public by protocol                                                                                                                                                                                      |
 | `main.ts` `app.all("/mcp")`                     | S13   | The remote MCP endpoint: answers the CORS preflight before auth, then hands the request to the MCP adapter                                                                                                                                                           |
 | `main.ts` `app.get("/access-tokens")`           | S1    | Serves the SPA shell for the unlisted token panel with `no-cache`, registered ahead of the cache middleware and the global auth mount (the page itself signs in)                                                                                                     |

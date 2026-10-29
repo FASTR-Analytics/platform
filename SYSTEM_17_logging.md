@@ -89,9 +89,9 @@ deliberate audit-value judgment, re-baselined against fleet-wide volume data
 - **Never log a client poll loop or per-render fetch.** That audit found 85% of
   all rows ever written came from a handful of these (`getDatasetUploadStatus`
   alone was 44%); logging was removed from `getDatasetUploadStatus`,
-  `getDatasetHmisDetail`, `getDatasetHmisImportRuns`, `getGeoJsonForLevel`,
-  `getDatasetUpload`, `getDatasetHfaUploadStatus`. When adding a status/poll
-  route, do not attach `log()`.
+  `getDatasetHmisDetail`, `getDatasetHmisImportRuns`, the raw geojson serving
+  route, `getDatasetUpload`, `getDatasetHfaUploadStatus`. When adding a
+  status/poll route, do not attach `log()`.
 
 ## Open items
 

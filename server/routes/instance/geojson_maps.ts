@@ -3,12 +3,13 @@ import { type Dhis2Credentials, isAdminAreaLevel } from "lib";
 import {
   deleteGeoJsonMap,
   getAdminAreaOptionsForLevel,
-  getGeoJsonForLevel,
   getGeoJsonMapSummaries,
   getStoredDhis2CredentialsDecrypted,
+  getStoredGeoJson,
   saveGeoJsonMap,
 } from "../../db/mod.ts";
 import { resolveAssetFilePath } from "../../db/instance/assets.ts";
+import type { StoredGeoJson } from "../../db/instance/geojson_maps.ts";
 import { log } from "../../middleware/logging.ts";
 import { requireGlobalPermission } from "../../middleware/mod.ts";
 import { notifyInstanceGeoJsonMapsUpdated } from "../../task_management/notify_instance_updated.ts";
@@ -212,22 +213,58 @@ defineRoute(
   },
 );
 
-defineRoute(
-  routesGeoJsonMaps,
-  "getGeoJsonForLevel",
+// Off the registry: the body is the stored GeoJSON itself, not an envelope.
+// The URL carries the map's uploaded_at, so a boundary edit is a new URL and
+// the body can be cached for a year. Unlogged: preloadGeoJson fetches it on
+// every SSE connect for each map level its caches miss.
+routesGeoJsonMaps.get(
+  "/geojson-maps/level/:family/:level/:uploaded_at",
   requireGlobalPermission(),
-  async (c, { params }) => {
-    if (!isAdminAreaLevel(params.level)) {
-      return c.json({ success: false, err: "Level must be 2, 3, or 4" });
+  async (c) => {
+    const family = c.req.param("family");
+    const level = Number(c.req.param("level"));
+    if ((family !== "hmis" && family !== "hfa") || !isAdminAreaLevel(level)) {
+      return c.notFound();
     }
-    const res = await getGeoJsonForLevel(
-      c.var.mainDb,
-      params.family,
-      params.level,
+    const res = await buildGeoJsonLevelResponse(
+      await getStoredGeoJson(c.var.mainDb, family, level),
+      c.req.param("uploaded_at"),
+      c.req.header("Accept-Encoding"),
     );
-    return c.json(res);
+    // CORS sets `Vary: Origin` on the context before the handler, and Hono
+    // copies the context's headers over a returned Response, so the
+    // response's own Vary is appended to the context's.
+    const vary = res.headers.get("Vary");
+    if (vary !== null) c.res.headers.append("Vary", vary);
+    return res;
   },
 );
+
+export async function buildGeoJsonLevelResponse(
+  stored: StoredGeoJson | undefined,
+  requestedUploadedAt: string,
+  acceptEncoding: string | undefined,
+): Promise<Response> {
+  if (stored === undefined || stored.uploadedAt !== requestedUploadedAt) {
+    return new Response("Not found", { status: 404 });
+  }
+  const headers = {
+    "Content-Type": "application/geo+json",
+    "Cache-Control": "private, max-age=31536000, immutable",
+    "Vary": "Accept-Encoding",
+  };
+  if (!/\bgzip\b/.test(acceptEncoding ?? "")) {
+    return new Response(stored.geojson, { headers });
+  }
+  const gzipped = await new Response(
+    new Blob([stored.geojson]).stream().pipeThrough(
+      new CompressionStream("gzip"),
+    ),
+  ).arrayBuffer();
+  return new Response(gzipped, {
+    headers: { ...headers, "Content-Encoding": "gzip" },
+  });
+}
 
 defineRoute(
   routesGeoJsonMaps,
@@ -247,19 +284,19 @@ defineRoute(
     }
 
     try {
-      const geoRes = await getGeoJsonForLevel(
+      const stored = await getStoredGeoJson(
         c.var.mainDb,
         family,
         adminAreaLevel,
       );
-      if (!geoRes.success) {
+      if (stored === undefined) {
         return c.json({
           success: false,
           err: "GeoJSON not found for this level",
         });
       }
 
-      const parsed = JSON.parse(geoRes.data.geojson) as {
+      const parsed = JSON.parse(stored.geojson) as {
         type: "FeatureCollection";
         features: Array<{
           type: "Feature";
