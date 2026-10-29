@@ -1,8 +1,8 @@
-// Pins manifest blocks 9 and 11 through transformRunManifestFile over a
+// Pins manifest blocks 9, 11 and 13 through transformRunManifestFile over a
 // scratch package on disk: datasets[].info leaves the transform holding
 // exactly the keys lib/types/run_datasets.ts types, every module blob and
-// metric carries the declared presentation facts, and a second pass writes
-// nothing.
+// metric carries the declared presentation facts, a package written before
+// the geojson capture carries a null stamp, and a second pass writes nothing.
 //
 //   deno test -A --env-file server/tests/run_manifest_transform_test.ts
 
@@ -45,6 +45,7 @@ function scratchManifest(
     indicators: [],
     hmisIndicators: [],
     population: null,
+    geojsonMaps: null,
     inputFiles: [],
     ...overrides,
   };
@@ -280,4 +281,25 @@ Deno.test("block 11 throws on a module id outside the frozen map", async () => {
     Error,
     "block 11: module m099",
   );
+});
+
+Deno.test("block 13 gives a v14 package a null geojson stamp, once", async () => {
+  const runDir = await Deno.makeTempDir({ prefix: "run_manifest_transform_" });
+  const { geojsonMaps: _absent, ...v14 } = {
+    ...scratchManifest({}),
+    manifestSchemaVersion: 14,
+  };
+  await Deno.writeTextFile(
+    join(runDir, "manifest.json"),
+    JSON.stringify(v14, null, 2),
+  );
+  const outcome = await transformRunManifestFile(runDir);
+  assert(outcome.kind === "ok");
+  assert(outcome.transformed);
+  assertEquals(outcome.manifest.manifestSchemaVersion, 15);
+  assertEquals(outcome.manifest.geojsonMaps, null);
+  const second = await transformRunManifestFile(runDir);
+  assert(second.kind === "ok");
+  assertEquals(second.transformed, false);
+  assertEquals(second.manifest.geojsonMaps, null);
 });

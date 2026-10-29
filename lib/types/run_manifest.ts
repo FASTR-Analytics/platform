@@ -63,7 +63,10 @@ import {
 // dimension, composed with the parent's rank for HFA sub-categories and
 // variant items, whose stored order is per parent. Block 1's recompute
 // produces it; block 12 only stamps.
-export const RUN_MANIFEST_SCHEMA_VERSION = 14;
+// 15: `geojsonMaps` stamps the boundary files a generation copied into
+// inputs/geojson/; null in every package written before the capture, since a
+// generation-time fact cannot be invented. Block 13.
+export const RUN_MANIFEST_SCHEMA_VERSION = 15;
 
 // Typed against DatasetType so the enum cannot drift from the union.
 export const runDatasetFamilySchema: z.ZodType<DatasetType> = z.enum([
@@ -265,6 +268,17 @@ export const runPopulationSchema = z.object({
 });
 export type RunPopulation = z.infer<typeof runPopulationSchema>;
 
+// One boundary file the generation copied, verbatim and gzipped, to
+// inputs/geojson/{family}_level_{N}.geojson.gz, with the instance row's
+// uploaded_at it was copied from.
+export const runGeoJsonMapSchema = z.object({
+  family: z.enum(["hmis", "hfa"]),
+  adminAreaLevel: z.number().int(),
+  featureCount: z.number().int(),
+  uploadedAt: z.string(),
+});
+export type RunGeoJsonMap = z.infer<typeof runGeoJsonMapSchema>;
+
 export const runProvenanceSchema = z.enum(["synthetic-backfill", "wizard"]);
 export type RunProvenance = z.infer<typeof runProvenanceSchema>;
 
@@ -296,6 +310,7 @@ export const runManifestSchema = z.object({
   indicators: z.array(runModuleIndicatorsSchema),
   hmisIndicators: z.array(runHmisIndicatorSchema),
   population: runPopulationSchema.nullable(),
+  geojsonMaps: z.array(runGeoJsonMapSchema).nullable(),
 
   // Relative paths (from the run dir root) of every input file the run
   // carries: facilities parquet, dictionary/snapshot JSONs, the

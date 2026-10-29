@@ -21,6 +21,7 @@ globs:
   - server/runs/*.ts
   - server/server_only_funcs/**
   - server/tests/_module_definitions.ts
+  - server/tests/geojson_capture_test.ts
   - server/tests/m012_expression_parity_test.ts
   - server/tests/population_coverage_issue_test.ts
   - server/tests/retired_metrics_test.ts
@@ -632,6 +633,9 @@ the format, the invariants and the schema version live here. Types:
     iceh_indicators_snapshot.json
     population.csv                  ← monthly person-years per population type
                                       (every HMIS capture; see "population.csv")
+    geojson/<family>_level_<N>.geojson.gz
+                                    ← every instance boundary file, verbatim,
+                                      gzipped (see "inputs/geojson")
     assets/<name>                   ← pinned copies of consumed instance assets
   outputs/<moduleId>/               ← one execution workspace per module
     ___script___.R                  ← the exact script that ran
@@ -704,9 +708,12 @@ definitions verbatim (so existing parsers apply unchanged); pinned asset names +
 hashes; and the memoization fields (`inputKey` per module, content hashes per
 output file).
 
-**`manifestSchemaVersion` gates every read**, currently `14`
-(`RUN_MANIFEST_SCHEMA_VERSION`; v14 = every `indicators[]` entry's `sort_order`
-is its rank within its own dimension, composed with the parent's rank for HFA
+**`manifestSchemaVersion` gates every read**, currently `15`
+(`RUN_MANIFEST_SCHEMA_VERSION`; v15 = `geojsonMaps` stamps the boundary files a
+generation copied into `inputs/geojson/` (family, level, feature count, the
+instance row's `uploadedAt`), `null` in every package written before the
+capture, transform block 13; v14 = every `indicators[]` entry's `sort_order` is
+its rank within its own dimension, composed with the parent's rank for HFA
 sub-categories and variant items, recomputed by block 1 and stamped by block 12,
 with `PO_CACHE_VERSION` "28" since po_items carries the list; v13 = every
 `modules[].moduleDefinition` blob declares `family`, `tier` and `sortOrder`
@@ -1096,6 +1103,20 @@ BY, so a row only ever carries ONE indicator and a long-format row could never
 hold the ingredients its own formula needs. m012 is the HMIS family's primary
 module; m003, whose raw-versus-adjusted facility view it does not replace, is
 retired.
+
+## inputs/geojson: the boundaries a package was generated with
+
+`prepareRunInputs` copies every `geojson_maps` row, verbatim and gzipped, to
+`inputs/geojson/{family}_level_{N}.geojson.gz` and lists each in `inputFiles`;
+the manifest's `geojsonMaps` stamps what was copied, with the feature count
+parsed during the copy and the row's `uploadedAt`. A copy is a record of what
+the instance held, defects included: nothing is re-keyed, normalized or
+simplified. Measured on the dev instance, four files of 20.5 MB plain add about
+2 MB gzipped to every package. No module declares geometry as a source, so the
+copies are in neither `inputHashes` nor `scriptInputs` and reach no reuse key
+(`server/tests/geojson_capture_test.ts`). The stamp is a generation-time fact,
+so block 13 gives every earlier package `null`, forever; such a package's map
+figures read the instance's boundaries.
 
 ## population.csv: the person-years file
 

@@ -28,6 +28,7 @@ export {
   isRunIdShape,
   publishFailedRunDirOrSweep,
   runDirPath,
+  runGeoJsonInputFileName,
   runInputFilePath,
   runManifestPath,
   runResultsObjectParquetPath,
