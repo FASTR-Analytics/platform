@@ -1,3 +1,6 @@
+[2.5.3] [user] [fixed] - AI assistant now correctly displays indicator codes when some rounds have no code
+[2.5.3] [admin] [fixed] - AI indicator listing now correctly shows "(none)" when main code is blank
+[2.5.3] [admin] [changed] - AI indicator listing clarifies when codes differ by round and omits variant codes
 [2.5.2] [user] [changed] - Delete data screen now uses radio buttons to select what to delete
 [2.5.2] [user] [changed] - Confirmation input and delete button only appear after selecting a deletion target
 [2.5.2] [user] [changed] - Code editor now shows the meaning of each operator alongside its symbol
