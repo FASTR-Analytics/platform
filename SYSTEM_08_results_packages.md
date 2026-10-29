@@ -858,24 +858,22 @@ stored defaults merged with definition defaults. One shared check,
 inline invalid messages, and blocks the wizard's modules step with a note naming
 the modules whose stored default is invalid.
 
-**Country baseline.** Each country's store was frozen once into
-`module_defaults_baseline.json` in the public FASTR resource hub, keyed by
-instance id (contract on `ModuleDefaultsBaselineEntry` in
-`lib/types/run_generation.ts`). Each entry holds the raw store plus every
-param's effective value at the snapshot's modules gitRef. The status site's
-fill-missing script is its only writer. It reads each instance's
-`GET /module_defaults_snapshot` (`server/runs/module_defaults_baseline.ts`,
-gated by `status-api-key` like the other status routes), adds countries that
-have no entry, and never overwrites one. The same route feeds the status site's
-fleet matrix. The editor reads its own entry through
-`getModuleDefaultsBaseline`, a server-side fetch, so the client never needs its
-instance id. A missing file, a bad file or a missing entry all mean "no
-baseline", and the editor then shows no baseline controls. Otherwise it marks
-each family, module checkbox and param whose value differs from what a reset
-would show, and resets per param, per module or all. A reset restores the
-baseline's stored state: a param the baseline pinned is pinned to that value,
-and one it left unpinned is unpinned and follows the current definition default.
-Semantics, authoritative comment in `module_defaults.tsx`.
+**Global defaults.** The fleet's global parameter defaults sit in
+`module_defaults_global.json` in the public FASTR resource hub (contract on
+`ModuleDefaultsGlobalFile` in `lib/types/run_generation.ts`). For each param,
+the file holds the value most countries had when it was computed, frozen until
+it is deliberately recomputed. It covers parameters only: default families and
+pre-selected modules stay each country's own choice. The status site's compute
+script produces the file from every v2 country's `GET /module_defaults_snapshot`
+(`server/runs/module_defaults_global.ts`, gated by `status-api-key` like the
+other status routes), and it is committed by hand. The same route feeds the
+status site's fleet matrix. The editor reads the file through
+`getModuleDefaultsGlobal`, a server-side fetch. A missing or bad file means "no
+global defaults", and the editor then shows no global controls. Otherwise it
+marks each param whose value differs from its global value and resets per param,
+per module or all. A reset sets the global value: unpinned when that equals the
+current definition default, pinned otherwise. Semantics, authoritative comment
+in `module_defaults.tsx`.
 
 ## Generation (`server/worker_routines/generate_run/`)
 

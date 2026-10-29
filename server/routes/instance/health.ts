@@ -228,8 +228,8 @@ LIMIT ${limit}
   });
 });
 
-// The status site's module-defaults scrape (fleet matrix + baseline
-// snapshot script). Contract on ModuleDefaultsSnapshot in lib.
+// The status site's module-defaults scrape (fleet matrix + global defaults
+// compute script). Contract on ModuleDefaultsGlobalFile in lib.
 routesHealth.get("/module_defaults_snapshot", async (c: Context) => {
   if (
     !_STATUS_API_KEY || c.req.header("status-api-key") !== _STATUS_API_KEY
