@@ -32,10 +32,9 @@ import {
   reorderHfaIndicatorVariantGroups,
   reorderHfaIndicatorVariantItems,
   saveHfaIndicatorFull,
-  saveHfaIndicatorsCode,
+  saveHfaIndicatorsBatch,
   updateHfaIndicator,
   updateHfaIndicatorCategory,
-  updateHfaIndicatorsBulk,
   updateHfaIndicatorServiceCategory,
   updateHfaIndicatorSubCategory,
   updateHfaIndicatorVariantGroup,
@@ -547,22 +546,6 @@ defineRoute(
 
 defineRoute(
   routesHfaIndicators,
-  "updateHfaIndicatorsBulk",
-  requireGlobalPermission("can_configure_data"),
-  log("updateHfaIndicatorsBulk"),
-  async (c, { body }) => {
-    const res = await updateHfaIndicatorsBulk(c.var.mainDb, body.indicators);
-    if (res.success) {
-      notifyInstanceIndicatorsUpdated(
-        await getInstanceIndicatorsSummary(c.var.mainDb),
-      );
-    }
-    return c.json(res);
-  },
-);
-
-defineRoute(
-  routesHfaIndicators,
   "deleteHfaIndicators",
   requireGlobalPermission("can_configure_data"),
   log("deleteHfaIndicators"),
@@ -587,7 +570,7 @@ defineRoute(
       c.var.mainDb,
       body.indicators,
       body.code,
-      body.replaceAll,
+      body.variantCode,
     );
     if (res.success) {
       notifyInstanceIndicatorsUpdated(
@@ -668,11 +651,11 @@ defineRoute(
 
 defineRoute(
   routesHfaIndicators,
-  "saveHfaIndicatorsCode",
+  "saveHfaIndicatorsBatch",
   requireGlobalPermission("can_configure_data"),
-  log("saveHfaIndicatorsCode"),
+  log("saveHfaIndicatorsBatch"),
   async (c, { body }) => {
-    const res = await saveHfaIndicatorsCode(c.var.mainDb, body.indicators);
+    const res = await saveHfaIndicatorsBatch(c.var.mainDb, body.indicators);
     if (res.success) {
       notifyInstanceIndicatorsUpdated(
         await getInstanceIndicatorsSummary(c.var.mainDb),

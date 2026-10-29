@@ -57,7 +57,7 @@ const hfaIndicatorVariantItemSchema = z.object({
   sortOrder: z.number(),
 });
 
-const hfaIndicatorVariantCodeSchema = z.object({
+export const hfaIndicatorVariantCodeSchema = z.object({
   indicatorId: z.string(),
   timePoint: z.string(),
   itemId: z.string(),
@@ -83,7 +83,7 @@ const hfaIndicatorIdSchema = hfaIndicatorIdShapeSchema.refine(
 // change it, so the body carries the stored id back unchanged. Applying the
 // reserved-word rule to it would lock every indicator whose id predates the
 // rule out of all edits: and fail a whole bulk batch atomically.
-const hfaIndicatorEditSchema = z.object({
+export const hfaIndicatorEditSchema = z.object({
   indicatorId: hfaIndicatorIdShapeSchema,
   categoryId: z.string().nullable(),
   subCategoryId: z.string().nullable(),
@@ -106,7 +106,7 @@ const hfaIndicatorCreateSchema = hfaIndicatorEditSchema.omit({
   indicatorId: true,
 });
 
-const hfaIndicatorCodeSchema = z.object({
+export const hfaIndicatorCodeSchema = z.object({
   indicatorId: z.string(),
   timePoint: z.string(),
   rCode: z.string(),
@@ -303,11 +303,6 @@ export const hfaIndicatorRouteRegistry = {
     method: "POST",
     body: z.object({ indicator: hfaIndicatorEditSchema }),
   }),
-  updateHfaIndicatorsBulk: route({
-    path: "/hfa-indicators/update-bulk",
-    method: "POST",
-    body: z.object({ indicators: z.array(hfaIndicatorEditSchema).min(1) }),
-  }),
   deleteHfaIndicators: route({
     path: "/hfa-indicators/delete",
     method: "POST",
@@ -319,7 +314,7 @@ export const hfaIndicatorRouteRegistry = {
     body: z.object({
       indicators: z.array(hfaIndicatorSchema),
       code: z.array(hfaIndicatorCodeSchema),
-      replaceAll: z.boolean(),
+      variantCode: z.array(hfaIndicatorVariantCodeSchema),
     }),
     response: {} as { createdIndicatorIds: string[] },
   }),
@@ -356,30 +351,24 @@ export const hfaIndicatorRouteRegistry = {
     method: "POST",
     body: z.object({
       indicator: hfaIndicatorEditSchema,
-      code: z.array(z.object({
-        timePoint: z.string(),
-        rCode: z.string(),
-        rFilterCode: z.string().optional(),
-      })),
-      variantCode: z.array(z.object({
-        timePoint: z.string(),
-        itemId: z.string(),
-        rCode: z.string(),
-      })),
+      code: z.array(hfaIndicatorCodeSchema.omit({ indicatorId: true })),
+      variantCode: z.array(
+        hfaIndicatorVariantCodeSchema.omit({ indicatorId: true }),
+      ),
     }),
   }),
-  // set_hfa_indicator_code's batch save; its contract is saveHfaIndicatorsCode.
-  saveHfaIndicatorsCode: route({
-    path: "/hfa-indicators/save-code",
+  // update_hfa_indicators' save; its contract is saveHfaIndicatorsBatch.
+  saveHfaIndicatorsBatch: route({
+    path: "/hfa-indicators/save-batch",
     method: "POST",
     body: z.object({
       indicators: z.array(z.object({
         indicator: hfaIndicatorEditSchema,
-        code: z.array(z.object({
-          timePoint: z.string(),
-          rCode: z.string(),
-          rFilterCode: z.string().optional(),
-        })),
+        code: z.array(hfaIndicatorCodeSchema.omit({ indicatorId: true }))
+          .optional(),
+        variantCode: z.array(
+          hfaIndicatorVariantCodeSchema.omit({ indicatorId: true }),
+        ).optional(),
       })).min(1),
     }),
   }),

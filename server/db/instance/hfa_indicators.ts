@@ -873,41 +873,6 @@ export async function updateHfaIndicator(
   });
 }
 
-export async function updateHfaIndicatorsBulk(
-  mainDb: Sql,
-  indicators: HfaIndicator[],
-): Promise<APIResponseNoData> {
-  return await tryCatchDatabaseAsync(async () => {
-    await mainDb.begin(async (sql) => {
-      for (const indicator of indicators) {
-        await deleteOutOfGroupVariantCode(
-          sql,
-          indicator.indicatorId,
-          indicator.variantGroupId,
-        );
-        await sql`
-          UPDATE hfa_indicators
-          SET category_id = ${indicator.categoryId},
-              sub_category_id = ${indicator.subCategoryId},
-              service_category_ids = ${
-          JSON.stringify(indicator.serviceCategoryIds)
-        },
-              short_label = ${indicator.shortLabel},
-              definition = ${indicator.definition},
-              type = ${indicator.type},
-              aggregation = ${indicator.aggregation},
-              sort_order = ${indicator.sortOrder},
-              variant_group_id = ${indicator.variantGroupId},
-              updated_at = CURRENT_TIMESTAMP
-          WHERE indicator_id = ${indicator.indicatorId}
-        `;
-      }
-      await assertVariantIntegrity(sql);
-    });
-    return { success: true };
-  });
-}
-
 export async function deleteHfaIndicators(
   mainDb: Sql,
   indicatorIds: string[],
@@ -929,38 +894,22 @@ export async function batchUploadHfaIndicators(
   mainDb: Sql,
   indicators: HfaIndicator[],
   code: HfaIndicatorCode[],
-  replaceAll: boolean,
+  variantCode: HfaIndicatorVariantCode[],
 ): Promise<APIResponseWithData<{ createdIndicatorIds: string[] }>> {
   return await tryCatchDatabaseAsync(async () => {
-    const refusal = refuseCode(code, []);
+    const refusal = refuseCode(code, variantCode) ??
+      refuseUngroupedVariantCode(indicators, variantCode);
     if (refusal) {
       return { success: false, err: refusal };
     }
     const createdIndicatorIds: string[] = [];
     await mainDb.begin(async (sql) => {
-      if (replaceAll) {
-        await sql`DELETE FROM hfa_indicators`;
-      }
-
-      let existingIndicatorIds = new Set<string>();
-      let nextSortOrder = 0;
-      if (!replaceAll) {
-        const existingRows = await sql<{ indicator_id: string }[]>`
-          SELECT indicator_id FROM hfa_indicators
-        `;
-        existingIndicatorIds = new Set(existingRows.map((r) => r.indicator_id));
-        const maxResult = await sql<{ max_order: number | null }[]>`
-          SELECT MAX(sort_order) as max_order FROM hfa_indicators
-        `;
-        nextSortOrder = (maxResult[0]?.max_order ?? -1) + 1;
-      }
-
-      for (let i = 0; i < indicators.length; i++) {
-        const ind = indicators[i];
-        if (!replaceAll && existingIndicatorIds.has(ind.indicatorId)) {
-          continue;
-        }
-        const sortOrder = replaceAll ? i : nextSortOrder++;
+      const maxResult = await sql<{ max_order: number | null }[]>`
+        SELECT MAX(sort_order) as max_order FROM hfa_indicators
+      `;
+      let nextSortOrder = (maxResult[0]?.max_order ?? -1) + 1;
+      for (const ind of indicators) {
+        const sortOrder = nextSortOrder++;
         const inserted = await sql<{ indicator_id: string }[]>`
           INSERT INTO hfa_indicators (indicator_id, category_id, sub_category_id, service_category_ids, short_label, definition, type, aggregation, sort_order, variant_group_id, updated_at)
           VALUES (${ind.indicatorId}, ${ind.categoryId}, ${ind.subCategoryId}, ${
@@ -985,6 +934,13 @@ export async function batchUploadHfaIndicators(
           VALUES (${c.indicatorId}, ${c.timePoint}, ${c.rCode}, ${
           c.rFilterCode ?? null
         })
+        `;
+      }
+      for (const c of variantCode) {
+        if (!c.rCode.trim() || !created.has(c.indicatorId)) continue;
+        await sql`
+          INSERT INTO hfa_indicator_variant_code (indicator_id, time_point, item_id, r_code)
+          VALUES (${c.indicatorId}, ${c.timePoint}, ${c.itemId}, ${c.rCode})
         `;
       }
       await assertVariantIntegrity(sql);
@@ -1340,14 +1296,52 @@ function refuseCode(
     : [`${lines.length} code snippet(s) refused:`, ...lines].join("\n");
 }
 
-// The indicator's row and its main code, as one write. The updated_at bump is
-// what makes a code change visible to hfaIndicatorsVersion: hfa_indicator_code
-// is not hashed on its own.
-async function writeHfaIndicatorRowAndMainCode(
+type HfaIndicatorItemCode = {
+  timePoint: string;
+  itemId: string;
+  rCode: string;
+};
+
+// One indicator's write: its row, and its main and variant code when given.
+// An omitted list keeps the stored rows, but variant code outside the
+// indicator's group is always deleted, since it is no longer its code.
+export type HfaIndicatorBatchEntry = {
+  indicator: HfaIndicator;
+  code?: HfaIndicatorMainCode[];
+  variantCode?: HfaIndicatorItemCode[];
+};
+
+function refuseUngroupedVariantCode(
+  indicators: HfaIndicator[],
+  variantCode: { indicatorId: string; rCode: string }[],
+): string | undefined {
+  const ungrouped = new Set(
+    indicators.filter((i) => i.variantGroupId === null).map((i) =>
+      i.indicatorId
+    ),
+  );
+  const ids = [
+    ...new Set(
+      variantCode
+        .filter((c) => c.rCode.trim() !== "" && ungrouped.has(c.indicatorId))
+        .map((c) => c.indicatorId),
+    ),
+  ];
+  return ids.length === 0
+    ? undefined
+    : `Variant code requires the indicator to be assigned a variant group: ${
+      ids.join(", ")
+    }`;
+}
+
+// The updated_at bump on the row is what makes a code change visible to
+// hfaIndicatorsVersion: neither code table is hashed on its own.
+async function writeHfaIndicatorEntry(
   sql: Sql,
-  indicator: HfaIndicator,
-  code: HfaIndicatorMainCode[],
+  { indicator, code, variantCode }: HfaIndicatorBatchEntry,
 ): Promise<void> {
+  const id = indicator.indicatorId;
+  await deleteOutOfGroupVariantCode(sql, id, indicator.variantGroupId);
   await sql`
     UPDATE hfa_indicators
     SET category_id = ${indicator.categoryId},
@@ -1360,84 +1354,73 @@ async function writeHfaIndicatorRowAndMainCode(
         sort_order = ${indicator.sortOrder},
         variant_group_id = ${indicator.variantGroupId},
         updated_at = CURRENT_TIMESTAMP
-    WHERE indicator_id = ${indicator.indicatorId}
+    WHERE indicator_id = ${id}
   `;
-  await sql`DELETE FROM hfa_indicator_code WHERE indicator_id = ${indicator.indicatorId}`;
-  for (const c of code) {
-    if (!c.rCode.trim()) continue;
-    await sql`
-      INSERT INTO hfa_indicator_code (indicator_id, time_point, r_code, r_filter_code)
-      VALUES (${indicator.indicatorId}, ${c.timePoint}, ${c.rCode}, ${
-      c.rFilterCode ?? null
-    })
-    `;
+  if (code !== undefined) {
+    await sql`DELETE FROM hfa_indicator_code WHERE indicator_id = ${id}`;
+    for (const c of code) {
+      if (!c.rCode.trim()) continue;
+      await sql`
+        INSERT INTO hfa_indicator_code (indicator_id, time_point, r_code, r_filter_code)
+        VALUES (${id}, ${c.timePoint}, ${c.rCode}, ${c.rFilterCode ?? null})
+      `;
+    }
+  }
+  if (variantCode !== undefined) {
+    await sql`DELETE FROM hfa_indicator_variant_code WHERE indicator_id = ${id}`;
+    for (const c of variantCode) {
+      if (!c.rCode.trim()) continue;
+      await sql`
+        INSERT INTO hfa_indicator_variant_code (indicator_id, time_point, item_id, r_code)
+        VALUES (${id}, ${c.timePoint}, ${c.itemId}, ${c.rCode})
+      `;
+    }
   }
 }
 
+// The editor's save: the whole indicator, its main and variant code.
 export async function saveHfaIndicatorFull(
   mainDb: Sql,
   indicator: HfaIndicator,
   code: HfaIndicatorMainCode[],
-  variantCode: { timePoint: string; itemId: string; rCode: string }[],
+  variantCode: HfaIndicatorItemCode[],
 ): Promise<APIResponseNoData> {
-  return await tryCatchDatabaseAsync(async () => {
-    const refusal = refuseCode(
-      code.map((c) => ({ ...c, indicatorId: indicator.indicatorId })),
-      variantCode.map((c) => ({ ...c, indicatorId: indicator.indicatorId })),
-    );
-    if (refusal) {
-      return { success: false, err: refusal };
-    }
-    const nonEmptyVariantCode = variantCode.filter((c) =>
-      c.rCode.trim() !== ""
-    );
-    if (nonEmptyVariantCode.length > 0 && indicator.variantGroupId === null) {
-      return {
-        success: false,
-        err:
-          "Variant code requires the indicator to be assigned a variant group",
-      };
-    }
-    await mainDb.begin(async (sql) => {
-      await deleteOutOfGroupVariantCode(
-        sql,
-        indicator.indicatorId,
-        indicator.variantGroupId,
-      );
-      await writeHfaIndicatorRowAndMainCode(sql, indicator, code);
-      await sql`DELETE FROM hfa_indicator_variant_code WHERE indicator_id = ${indicator.indicatorId}`;
-      for (const c of nonEmptyVariantCode) {
-        await sql`
-          INSERT INTO hfa_indicator_variant_code (indicator_id, time_point, item_id, r_code)
-          VALUES (${indicator.indicatorId}, ${c.timePoint}, ${c.itemId}, ${c.rCode})
-        `;
-      }
-      await assertVariantIntegrity(sql);
-    });
-    return { success: true };
-  });
+  return await saveHfaIndicatorsBatch(mainDb, [
+    { indicator, code, variantCode },
+  ]);
 }
 
-// The AI's code save: every indicator's row and main code in one transaction,
-// each written as saveHfaIndicatorFull writes them, its variant code left as
-// stored. A failure applies nothing.
-export async function saveHfaIndicatorsCode(
+// The AI's save: every entry in one transaction, refused before any write
+// when code does not parse. A failure applies nothing.
+export async function saveHfaIndicatorsBatch(
   mainDb: Sql,
-  indicators: { indicator: HfaIndicator; code: HfaIndicatorMainCode[] }[],
+  entries: HfaIndicatorBatchEntry[],
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
+    const variantCode = entries.flatMap((e) =>
+      (e.variantCode ?? []).map((c) => ({
+        ...c,
+        indicatorId: e.indicator.indicatorId,
+      }))
+    );
     const refusal = refuseCode(
-      indicators.flatMap(({ indicator, code }) =>
-        code.map((c) => ({ ...c, indicatorId: indicator.indicatorId }))
+      entries.flatMap((e) =>
+        (e.code ?? []).map((c) => ({
+          ...c,
+          indicatorId: e.indicator.indicatorId,
+        }))
       ),
-      [],
+      variantCode,
+    ) ?? refuseUngroupedVariantCode(
+      entries.map((e) => e.indicator),
+      variantCode,
     );
     if (refusal) {
       return { success: false, err: refusal };
     }
     await mainDb.begin(async (sql) => {
-      for (const { indicator, code } of indicators) {
-        await writeHfaIndicatorRowAndMainCode(sql, indicator, code);
+      for (const entry of entries) {
+        await writeHfaIndicatorEntry(sql, entry);
       }
       await assertVariantIntegrity(sql);
     });

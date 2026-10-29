@@ -774,20 +774,21 @@ not shadow a dataset column). The single create route assigns it on the server
 under a table lock; the AI batch tool and a workbook row with a blank
 `indicatorId` assign it on the client from the same rule, over the stored ids
 plus the batch's own. The batch route inserts only the ids not yet stored
-(`ON CONFLICT DO NOTHING ... RETURNING`), writes code for those alone and
-returns them, so an id taken between the AI's proposal and its acceptance is
-reported as not created. An id is immutable: every update path identifies the
-row by it and none renames. Ids are shown nowhere in the UI except the code
-editor, whose "Other indicators" list inserts one into the code on click; the
-workbook keeps its `indicatorId` column so a re-import updates rows in place.
-Stored ids that predate this rule (or violate `HFA_INDICATOR_ID_REGEX`,
-`^[a-zA-Z][a-zA-Z0-9_]{0,63}$`, which batch and workbook ids must still pass)
-are carried unchanged. Taxonomy: categories → sub-categories (real FKs) plus
-service categories stored as a JSON string array on the indicator (no FK;
-rename/delete integrity is maintained by `rewriteServiceCategoryTags`, which the
-service-category mutations call to rewrite the tagged indicators' lists in
-TypeScript, in the same transaction). `lib/hfa_indicator_labels.ts` is the
-single label authority (`composeHfaIndicatorLabel`, `getHfaIndicatorMeasure`).
+(`ON CONFLICT DO NOTHING ... RETURNING`), after the highest stored sort order,
+writes main and variant code for those alone and returns them, so an id taken
+between the AI's proposal and its acceptance is reported as not created. An id
+is immutable: every update path identifies the row by it and none renames. Ids
+are shown nowhere in the UI except the code editor, whose "Other indicators"
+list inserts one into the code on click; the workbook keeps its `indicatorId`
+column so a re-import updates rows in place. Stored ids that predate this rule
+(or violate `HFA_INDICATOR_ID_REGEX`, `^[a-zA-Z][a-zA-Z0-9_]{0,63}$`, which
+batch and workbook ids must still pass) are carried unchanged. Taxonomy:
+categories → sub-categories (real FKs) plus service categories stored as a JSON
+string array on the indicator (no FK; rename/delete integrity is maintained by
+`rewriteServiceCategoryTags`, which the service-category mutations call to
+rewrite the tagged indicators' lists in TypeScript, in the same transaction).
+`lib/hfa_indicator_labels.ts` is the single label authority
+(`composeHfaIndicatorLabel`, `getHfaIndicatorMeasure`).
 
 **HFA workbook import** (`xlsx_upload_form.tsx`) has two inputs behind one flow:
 a picked `.xlsx`, or the **default indicator set** fetched client-side from the
@@ -880,7 +881,7 @@ code with its draft in place of its own, and its Save refuses only a filter or
 variant code in a round without indicator code. The manager's unused-variable
 and deletion guards read the same parse, so editor-green code never hard-fails a
 run. The write boundary reads it too: every route that writes code from a
-request (the editor's `saveHfaIndicatorFull`, the AI's `saveHfaIndicatorsCode`,
+request (the editor's `saveHfaIndicatorFull`, the AI's `saveHfaIndicatorsBatch`,
 the batch upload `batchUploadHfaIndicators` and the workbook import
 `importHfaIndicatorsWorkbook`) refuses, before any write, a main, filter or
 variant snippet that does not parse (`unparseableHfaCode`, the message listing
@@ -1483,11 +1484,12 @@ layer.
 - A CSV-origin facility with a DHIS2-UID-shaped id falls inside S6's DHIS2
   scoped-delete scope: there is no per-row origin marker on facilities (also
   flagged in SYSTEM_06).
-- `hfa_indicator_code` is not independently hashed: code changes are visible to
-  `hfaIndicatorsVersion` only because the two routes that rewrite an existing
-  indicator's code, `saveHfaIndicatorFull` (the editor's Save) and
-  `saveHfaIndicatorsCode` (the AI's one-request batch), bump the indicator row
-  through one shared write. Any new code-mutation path must do the same.
+- Neither `hfa_indicator_code` nor `hfa_indicator_variant_code` is hashed on its
+  own: code changes are visible to `hfaIndicatorsVersion` only because the two
+  routes that rewrite an existing indicator's code, `saveHfaIndicatorFull` (the
+  editor's Save) and `saveHfaIndicatorsBatch` (the AI's one-request batch), bump
+  the indicator row through one shared write, `writeHfaIndicatorEntry`. Any new
+  code-mutation path must do the same.
 - The named FK constraints from migration 048 are not used by any
   `SET CONSTRAINTS` call. The migration comments overstate; verify before
   relying on (or renaming) them.

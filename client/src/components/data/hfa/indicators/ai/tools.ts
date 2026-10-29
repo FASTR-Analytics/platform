@@ -219,11 +219,12 @@ function matchesStatus(
   }
 }
 
-// Apply a set of fully-merged indicators (read-modify-write: the bulk route
-// takes whole objects). Transactional server-side: all applied or none.
+// Apply a set of fully-merged indicators (read-modify-write: the batch route
+// takes whole objects), their code left as stored. Transactional server-side:
+// all applied or none.
 async function applyIndicatorUpdates(merged: HfaIndicator[]): Promise<void> {
-  const res = await serverActions.updateHfaIndicatorsBulk({
-    indicators: merged,
+  const res = await serverActions.saveHfaIndicatorsBatch({
+    indicators: merged.map((indicator) => ({ indicator })),
   });
   if (!res.success) {
     throw new AIToolFailure(
@@ -988,7 +989,7 @@ export function buildHfaIndicatorTools() {
               const res = await serverActions.batchUploadHfaIndicators({
                 indicators: indicatorsToCreate,
                 code: codeToCreate,
-                replaceAll: false,
+                variantCode: [],
               });
               if (!res.success) {
                 throw new AIToolFailure(
@@ -1151,7 +1152,7 @@ export function buildHfaIndicatorTools() {
                 code: codeByIndicatorId.get(indicatorId) ?? [],
                 ...verdicts.get(indicatorId)!,
               }));
-              const res = await serverActions.saveHfaIndicatorsCode({
+              const res = await serverActions.saveHfaIndicatorsBatch({
                 indicators: results.map((r) => ({
                   indicator: r.indicator,
                   code: r.code.map((c) => ({
