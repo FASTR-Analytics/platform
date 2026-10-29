@@ -12,7 +12,10 @@ import { getFetchConfigFromPresentationObjectConfig, t3 } from "lib";
 import { AIToolFailure } from "panther";
 import { unwrap } from "solid-js/store";
 import { assertReplicantValid } from "./assert_replicant_valid";
-import { buildFigureInputs } from "./build_figure_inputs";
+import {
+  buildFigureInputs,
+  type FigureInputsResult,
+} from "./build_figure_inputs";
 import { getAdminAreaLevelFromMapConfig } from "./get_admin_area_level_from_config";
 import {
   makeFigureBundleFromFetchedData,
@@ -135,7 +138,7 @@ async function assertMapBoundariesAvailable(
 // would otherwise be stored, shown as "could not be displayed", and reported
 // as a success.
 function assertBundleRenders(bundle: FigureBundle): void {
-  let built;
+  let built: FigureInputsResult;
   try {
     built = buildFigureInputs(bundle);
   } catch (e) {

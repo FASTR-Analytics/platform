@@ -1,5 +1,4 @@
 export { buildFigureInputs } from "./build_figure_inputs";
-export type { FigureInputsResult } from "./build_figure_inputs";
 export { assertReplicantValid } from "./assert_replicant_valid";
 export {
   makeFigureBundleFromFetchedData,

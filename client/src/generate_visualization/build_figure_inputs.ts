@@ -11,6 +11,7 @@ import {
 import {
   type DeckStyleContext,
   type EffectiveIndicatorFacts,
+  type FacilityFamily,
   type FastrChartPalette,
   FigureBundle,
   FigureLocalization,
@@ -67,11 +68,8 @@ export function buildFigureInputs(
       throw new Error("Map figure has no admin-area map dimension");
     }
     // Each facility registry carries its OWN boundaries, so the level alone
-    // does not identify the missing map. Stored bundles without a family
-    // predate the split and are hmis.
-    const family = bundle.geo?.kind === "level"
-      ? bundle.geo.family ?? "hmis"
-      : "hmis";
+    // does not identify the missing map.
+    const family = geoFamily(bundle.geo);
     return {
       ok: false,
       unavailable: { kind: "no_boundaries", family, level, source: "instance" },
@@ -512,12 +510,15 @@ function resolveGeoJson(
 ): GeoJSONFeatureCollection | undefined {
   if (!geo) return undefined;
   if (geo.kind === "data") return geo.data as GeoJSONFeatureCollection;
-  // geo.kind === "level": derive from sync cache. Stored bundles without a
-  // family predate the split and default to hmis (same ruling as an absent
-  // ResultsValue.datasetFamily).
   const level = getAdminAreaLevelFromMapConfig(config);
   if (!level) return undefined;
-  return getGeoJsonSync(geo.family ?? "hmis", level) ?? undefined;
+  return getGeoJsonSync(geoFamily(geo), level) ?? undefined;
+}
+
+// Stored bundles without a family predate the split and are hmis (same
+// ruling as an absent ResultsValue.datasetFamily).
+function geoFamily(geo: FigureBundle["geo"]): FacilityFamily {
+  return geo?.kind === "level" ? geo.family ?? "hmis" : "hmis";
 }
 
 // A map's legend: a bucket list for the two rule-based sources, else the
