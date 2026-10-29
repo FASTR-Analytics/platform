@@ -244,6 +244,31 @@ const variantRowSchema = hfaIndicatorVariantCodeSchema.omit({
 });
 const field = hfaIndicatorEditSchema.shape;
 
+const updateEntrySchema = z.object({
+  indicatorId: z.string(),
+  shortLabel: field.shortLabel.optional(),
+  definition: field.definition.optional().describe("Long label."),
+  type: field.type.optional(),
+  aggregation: field.aggregation.optional(),
+  categoryId: field.categoryId.optional().describe(
+    "Category id, null to clear.",
+  ),
+  subCategoryId: field.subCategoryId.optional().describe(
+    "Sub-category id within the category, null to clear.",
+  ),
+  serviceCategoryIds: field.serviceCategoryIds.optional().describe(
+    "The full set of service-category ids.",
+  ),
+  variantGroupId: field.variantGroupId.optional().describe(
+    "Variant group id, null to clear.",
+  ),
+  code: z.array(codeRoundSchema.partial({ rCode: true })).min(1).optional()
+    .describe("Rounds to patch; a round not listed is kept."),
+  variantCode: z.array(variantRowSchema).min(1).optional().describe(
+    "Variant rows to set; an empty rCode removes the row.",
+  ),
+});
+
 type CodeRound = z.infer<typeof codeRoundSchema>;
 type VariantRow = z.infer<typeof variantRowSchema>;
 
@@ -450,19 +475,7 @@ function describeCategories(ind: HfaIndicator, t: HfaTaxonomyInput): string {
   ].join(" / ");
 }
 
-type UpdateEntry = {
-  indicatorId: string;
-  shortLabel?: string;
-  definition?: string;
-  type?: HfaIndicator["type"];
-  aggregation?: HfaIndicator["aggregation"];
-  categoryId?: string | null;
-  subCategoryId?: string | null;
-  serviceCategoryIds?: string[];
-  variantGroupId?: string | null;
-  code?: { timePoint: string; rCode?: string; rFilterCode?: string }[];
-  variantCode?: VariantRow[];
-};
+type UpdateEntry = z.infer<typeof updateEntrySchema>;
 
 const SCALAR_FIELDS = [
   ["shortLabel", {
@@ -525,22 +538,30 @@ function codeKey(code: CodeRound[], variantCode: VariantRow[]): string {
 // drops the previous group's variant code, and code is patched as the tool's
 // description states. `writtenFields` keys the fields the entry writes
 // (`round|field|item`), the ones whose errors refuse the call.
-function mergeUpdate(u: UpdateEntry, before: HfaIndicator, state: WriteState) {
-  const id = before.indicatorId;
-  const duplicateRound = firstDuplicate((u.code ?? []).map((r) => r.timePoint));
+function refuseDuplicateRows(
+  id: string,
+  code: { timePoint: string }[],
+  variantCode: VariantRow[],
+): void {
+  const duplicateRound = firstDuplicate(code.map((r) => r.timePoint));
   if (duplicateRound !== undefined) {
     throw new AIToolFailure(
       `${id}: round "${duplicateRound}" is listed twice; list each round once.`,
     );
   }
   const duplicateRow = firstDuplicate(
-    (u.variantCode ?? []).map((r) => `${r.timePoint} / ${r.itemId}`),
+    variantCode.map((r) => `${r.timePoint} / ${r.itemId}`),
   );
   if (duplicateRow !== undefined) {
     throw new AIToolFailure(
       `${id}: variant row "${duplicateRow}" is listed twice; list each row once.`,
     );
   }
+}
+
+function mergeUpdate(u: UpdateEntry, before: HfaIndicator, state: WriteState) {
+  const id = before.indicatorId;
+  refuseDuplicateRows(id, u.code ?? [], u.variantCode ?? []);
   const codeBefore: CodeRound[] = state.code
     .filter((c) => c.indicatorId === id)
     .map((c) => ({
@@ -582,6 +603,11 @@ function mergeUpdate(u: UpdateEntry, before: HfaIndicator, state: WriteState) {
   const writtenFields = new Set<string>();
   const rounds = new Map(codeBefore.map((c) => [c.timePoint, { ...c }]));
   for (const r of u.code ?? []) {
+    if (r.rCode === undefined && r.rFilterCode === undefined) {
+      throw new AIToolFailure(
+        `${id}: round "${r.timePoint}" names neither rCode nor rFilterCode.`,
+      );
+    }
     const round = rounds.get(r.timePoint) ??
       { timePoint: r.timePoint, rCode: "" };
     if (r.rCode !== undefined) {
@@ -592,7 +618,19 @@ function mergeUpdate(u: UpdateEntry, before: HfaIndicator, state: WriteState) {
       round.rFilterCode = r.rFilterCode || undefined;
       writtenFields.add(`${r.timePoint}|rFilterCode|`);
     }
-    if (r.rCode === "" && !r.rFilterCode) {
+    // Clearing a round's code orphans its variant rows, so the call writes
+    // them too and their errors refuse it.
+    if (r.rCode === "") {
+      for (const v of variantCodeBefore) {
+        if (v.timePoint === r.timePoint) {
+          writtenFields.add(`${r.timePoint}|variantCode|${v.itemId}`);
+        }
+      }
+    }
+    if (
+      (r.rCode === "" && !r.rFilterCode) ||
+      (!round.rCode.trim() && !round.rFilterCode?.trim())
+    ) {
       rounds.delete(r.timePoint);
     } else {
       rounds.set(r.timePoint, round);
@@ -956,6 +994,7 @@ export function buildHfaIndicatorTools() {
             ],
           };
           for (const c of created) {
+            refuseDuplicateRows(c.indicator.indicatorId, c.code, c.variantCode);
             refuseUnfitIndicator(c.indicator, c.code, c.variantCode, after);
           }
           const newCode = created.flatMap((c) =>
@@ -1113,30 +1152,7 @@ export function buildHfaIndicatorTools() {
         "Change existing HFA indicators, in a batch: any of the labels, type, aggregation, category, sub-category, service categories, variant group, per-round code and per-item variant code, in one call. Give only the fields to change. Code is patched: a round or variant row not listed is kept; in a listed round an omitted rCode or rFilterCode is kept and an empty string clears it; clearing rCode removes the round's code; a variant row with an empty rCode is removed. Changing the category clears a sub-category that no longer fits; changing the variant group drops the previous group's variant code. Ids are checked against the taxonomy and the rounds, and code you write with an error is refused before anything is proposed. The user confirms the batch in a dialog.",
       kind: "write",
       inputSchema: z.object({
-        updates: z.array(z.object({
-          indicatorId: z.string(),
-          shortLabel: field.shortLabel.optional(),
-          definition: field.definition.optional().describe("Long label."),
-          type: field.type.optional(),
-          aggregation: field.aggregation.optional(),
-          categoryId: field.categoryId.optional().describe(
-            "Category id, null to clear.",
-          ),
-          subCategoryId: field.subCategoryId.optional().describe(
-            "Sub-category id within the category, null to clear.",
-          ),
-          serviceCategoryIds: field.serviceCategoryIds.optional().describe(
-            "The full set of service-category ids.",
-          ),
-          variantGroupId: field.variantGroupId.optional().describe(
-            "Variant group id, null to clear.",
-          ),
-          code: z.array(codeRoundSchema.partial({ rCode: true })).optional()
-            .describe("Rounds to patch; a round not listed is kept."),
-          variantCode: z.array(variantRowSchema).optional().describe(
-            "Variant rows to set; an empty rCode removes the row.",
-          ),
-        })).min(1),
+        updates: z.array(updateEntrySchema).min(1),
       }),
       approval: {
         propose: async (input) => {
@@ -1208,6 +1224,7 @@ export function buildHfaIndicatorTools() {
           const fieldKey = (tp: string, i: HfaFieldIssue) =>
             `${tp}|${i.field}|${i.itemId ?? ""}`;
           const errors: string[] = [];
+          const warnings: string[] = [];
           const leftInPlace: { id: string; line: string; text: string }[] = [];
           for (const [id, s] of status) {
             for (const r of s.rounds) {
@@ -1217,6 +1234,8 @@ export function buildHfaIndicatorTools() {
                   written.get(id)?.has(fieldKey(r.timePoint, i))
                 ) {
                   errors.push(`${id} ${issueLine(r, i)}`);
+                } else if (written.get(id)?.has(fieldKey(r.timePoint, i))) {
+                  warnings.push(`${id} ${issueLine(r, i)}`);
                 } else {
                   leftInPlace.push({
                     id,
@@ -1320,6 +1339,7 @@ export function buildHfaIndicatorTools() {
                   `${m.after.indicatorId}:`,
                   ...m.report.map((line) => `  ${line}`),
                 ]),
+                ...(warnings.length > 0 ? ["Warnings:", ...warnings] : []),
                 ...(leftInPlace.length > 0
                   ? ["Issues left in place:", ...leftInPlace.map((l) => l.line)]
                   : []),
@@ -1353,18 +1373,20 @@ export function buildHfaIndicatorTools() {
       inputSchema: z.object({ indicatorIds: z.array(z.string()).min(1) }),
       approval: {
         propose: async (input) => {
-          const existing = new Map(
-            (await loadIndicators()).map((i) => [i.indicatorId, i]),
-          );
-          const unknown = input.indicatorIds.filter((v) => !existing.has(v));
+          const ids = [...new Set(input.indicatorIds)];
+          const [indicators, allCode, allVariantCode] = await Promise.all([
+            loadIndicators(),
+            loadAllCode(),
+            loadAllVariantCode(),
+          ]);
+          const existing = new Map(indicators.map((i) => [i.indicatorId, i]));
+          const unknown = ids.filter((v) => !existing.has(v));
           if (unknown.length > 0) {
             throw new AIToolFailure(
               `Unknown indicator(s): ${unknown.join(", ")}.`,
             );
           }
-          const allCode = await loadAllCode();
-          const allVariantCode = await loadAllVariantCode();
-          const deleted = new Set(input.indicatorIds);
+          const deleted = new Set(ids);
           const referencing = new Set<string>();
           for (const c of allCode) {
             if (deleted.has(c.indicatorId)) continue;
@@ -1407,17 +1429,11 @@ export function buildHfaIndicatorTools() {
                 pt: "Eliminar indicadores HFA",
               }),
               description: t3({
-                en: `Permanently delete ${
-                  countIndicators(new Set(input.indicatorIds).size)
-                }?`,
-                fr: `Supprimer définitivement ${
-                  countIndicators(new Set(input.indicatorIds).size)
-                } ?`,
-                pt: `Eliminar definitivamente ${
-                  countIndicators(new Set(input.indicatorIds).size)
-                }?`,
+                en: `Permanently delete ${countIndicators(ids.length)}?`,
+                fr: `Supprimer définitivement ${countIndicators(ids.length)} ?`,
+                pt: `Eliminar definitivamente ${countIndicators(ids.length)}?`,
               }) + referencedByNote,
-              changes: input.indicatorIds.map((id) => ({
+              changes: ids.map((id) => ({
                 label: `${id}: ${
                   composeHfaIndicatorLabel(existing.get(id)!, "full")
                 }`,
@@ -1432,20 +1448,21 @@ export function buildHfaIndicatorTools() {
             },
             commit: async () => {
               const res = await serverActions.deleteHfaIndicators({
-                indicatorIds: input.indicatorIds,
+                indicatorIds: ids,
               });
               if (!res.success) {
                 throw new AIToolFailure(
                   `Failed to delete HFA indicators: ${res.err}`,
                 );
               }
-              return {
-                applied: true,
-                deleted: input.indicatorIds.length,
-                stillReferencedBy: referencing.size > 0
-                  ? [...referencing].sort()
-                  : undefined,
-              };
+              return [
+                `Deleted: ${idList(ids)}.`,
+                ...(referencing.size > 0
+                  ? [
+                    `Still referenced by: ${referencedBy}; their code names a deleted indicator.`,
+                  ]
+                  : []),
+              ].join("\n");
             },
           };
         },

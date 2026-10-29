@@ -909,7 +909,7 @@ export async function batchUploadHfaIndicators(
       `;
       let nextSortOrder = (maxResult[0]?.max_order ?? -1) + 1;
       for (const ind of indicators) {
-        const sortOrder = nextSortOrder++;
+        const sortOrder = nextSortOrder;
         const inserted = await sql<{ indicator_id: string }[]>`
           INSERT INTO hfa_indicators (indicator_id, category_id, sub_category_id, service_category_ids, short_label, definition, type, aggregation, sort_order, variant_group_id, updated_at)
           VALUES (${ind.indicatorId}, ${ind.categoryId}, ${ind.subCategoryId}, ${
@@ -918,15 +918,13 @@ export async function batchUploadHfaIndicators(
           ON CONFLICT (indicator_id) DO NOTHING
           RETURNING indicator_id
         `;
+        if (inserted.length > 0) nextSortOrder++;
         for (const row of inserted) {
           createdIndicatorIds.push(row.indicator_id);
         }
       }
 
       const created = new Set(createdIndicatorIds);
-      for (const indicatorId of created) {
-        await sql`DELETE FROM hfa_indicator_code WHERE indicator_id = ${indicatorId}`;
-      }
       for (const c of code) {
         if (!c.rCode.trim() || !created.has(c.indicatorId)) continue;
         await sql`
@@ -1390,8 +1388,9 @@ export async function saveHfaIndicatorFull(
   ]);
 }
 
-// The AI's save: every entry in one transaction, refused before any write
-// when code does not parse. A failure applies nothing.
+// The editor's and the AI's save: every entry in one transaction, refused
+// before any write by refuseCode and refuseUngroupedVariantCode. A failure
+// applies nothing.
 export async function saveHfaIndicatorsBatch(
   mainDb: Sql,
   entries: HfaIndicatorBatchEntry[],
