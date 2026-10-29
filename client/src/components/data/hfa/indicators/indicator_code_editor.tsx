@@ -1,6 +1,7 @@
 import {
   type APIResponseNoData,
   composeHfaIndicatorLabel,
+  createHfaCodeParseCache,
   HFA_CODE_LIST_EXAMPLE,
   HFA_CODE_SYMBOLS,
   HFA_CODE_WORDS,
@@ -336,7 +337,9 @@ function EditorInner(p: {
 
   // The draft's status: the core over the manager's code with this
   // indicator's saved code replaced by the draft, so a cycle through another
-  // indicator shows here before the save.
+  // indicator shows here before the save. The parse cache lives as long as the
+  // editor, so a keystroke parses only the code it changed.
+  const parse = createHfaCodeParseCache();
   const draftStatus = createMemo(() => {
     const id = p.indicator.indicatorId;
     const draft: HfaIndicator = {
@@ -357,6 +360,7 @@ function EditorInner(p: {
       variantItems: p.variantItems,
       dictionary: p.dictionary,
       only: new Set([id]),
+      parse,
     }).get(id)!;
   });
 
@@ -409,7 +413,6 @@ function EditorInner(p: {
     return new Set(dict.variables.map((v) => v.variableId));
   };
 
-  // The referenced ids the editor lists under a field, with their labels.
   const referencedIds = (code: string): string[] =>
     validateHfaIndicatorCode(code, availableVariableIds(), otherIndicatorIds)
       .referencedIds;

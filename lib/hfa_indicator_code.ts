@@ -15,7 +15,10 @@ import {
   parseIndicatorExpression,
 } from "./indicator_expression/mod.ts";
 import type { TranslatableString } from "./translate/types.ts";
-import { findHfaDependencyCycles } from "./hfa_indicator_dependencies.ts";
+import {
+  createSnippetAnalyser,
+  findHfaDependencyCycles,
+} from "./hfa_indicator_dependencies.ts";
 import type {
   HfaDictionaryForValidation,
   HfaIndicator,
@@ -382,11 +385,9 @@ export function describeHfaCodeError(error: HfaCodeError): TranslatableString {
   }
 }
 
-// ---------------------------------------------------------------------------
 // The status core: what is wrong with an indicator's code, round by round.
 // Every surface that shows status (the manager, the editor, the chat's tools)
 // computes it here; the client translates the texts at render.
-// ---------------------------------------------------------------------------
 
 export type HfaCodeIssueKind =
   | "syntax"
@@ -417,9 +418,10 @@ export function validateHfaIndicatorCode(
   );
 }
 
-// One parse per distinct source within a status pass: rounds usually share
-// their code, and the issues and the result type read the same parse.
-function cachedHfaCodeParse(): (source: string) => HfaCodeParse {
+// One parse per distinct source: rounds usually share their code, the issues,
+// the result type and the cycle graph read the same parse, and the editor
+// keeps one cache across keystrokes.
+export function createHfaCodeParseCache(): (source: string) => HfaCodeParse {
   const cache = new Map<string, HfaCodeParse>();
   return (source) => {
     const known = cache.get(source);
@@ -441,7 +443,7 @@ function validateAgainst(
   parse: (source: string) => HfaCodeParse,
 ): { issues: HfaCodeIssue[]; referencedIds: string[] } {
   if (!code.trim()) return { issues: [], referencedIds: [] };
-  const parsed = parse(code);
+  const parsed = parse(code.trim());
   if (!parsed.ok) {
     return {
       issues: [{ kind: "syntax", text: describeHfaCodeError(parsed.error) }],
@@ -504,7 +506,7 @@ function resultTypeText(
   parse: (source: string) => HfaCodeParse,
 ): TranslatableString | undefined {
   if (!code.trim()) return undefined;
-  const parsed = parse(code);
+  const parsed = parse(code.trim());
   if (!parsed.ok) return undefined;
   const resultType = hfaCodeResultType(parsed.node);
   if (type === "binary" && resultType === "numeric") {
@@ -561,8 +563,9 @@ export function hfaIndicatorsStatus(input: {
   variantItems: { id: string; groupId: string }[];
   dictionary: HfaDictionaryForValidation;
   only?: ReadonlySet<string>;
+  parse?: (source: string) => HfaCodeParse;
 }): Map<string, HfaIndicatorStatus> {
-  const parse = cachedHfaCodeParse();
+  const parse = input.parse ?? createHfaCodeParseCache();
   const allIds = new Set(input.indicators.map((i) => i.indicatorId));
   const codeByIndicator = groupBy(input.code, (c) => c.indicatorId);
   const variantByIndicator = groupBy(input.variantCode, (c) => c.indicatorId);
@@ -575,7 +578,11 @@ export function hfaIndicatorsStatus(input: {
   );
   const cycleByIndicator = new Map<string, TranslatableString>();
   for (
-    const cycle of findHfaDependencyCycles(input.indicators, codeByIndicator)
+    const cycle of findHfaDependencyCycles(
+      input.indicators,
+      codeByIndicator,
+      createSnippetAnalyser(allIds, new Set(), parse),
+    )
   ) {
     const text = cycleText(cycle);
     for (const id of cycle) cycleByIndicator.set(id, text);

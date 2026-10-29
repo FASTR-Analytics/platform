@@ -565,9 +565,9 @@ registry imports nothing from `components/data/`; its code editor holds in
 `HfaIndicatorCodeEditor` and sets `hfa_indicator_editor` from `EditorInner` once
 the draft store exists, with the indicator id as identity, the open round in its
 state, and an `HfaIndicatorEditorContext` of the saved label, the selected
-round, the draft read live, each round with the issues the editor's validators
-find and the result-type check its code label states (`getDraft`), the taxonomy
-the editor offers and `applyDraft`, which writes the store with the controls'
+round, the draft read live, each round with the issues the status core finds
+over the draft, variant code and cycles included (`getDraft`), the taxonomy the
+editor offers and `applyDraft`, which writes the store with the controls'
 semantics and marks the draft unsaved; its Excel import sets
 `hfa_indicator_import`. There is no tab-to-view map.
 
@@ -1214,12 +1214,12 @@ or discards. The HFA guidance (the model, type and aggregation, how to write
 indicator code, how to work) is `instructions.ts`'s `getHfaIndicatorsGuidance`,
 attached to the manager's view; it names no tool, since the registered tools
 describe themselves, and promises no diff. `validate_hfa_indicators` is a read:
-it computes each indicator's issues from main code and stores nothing, since no
-validation status is stored anywhere and the manager computes it at render.
-`create_hfa_indicators` reports what the batch route created and, under
-`notCreated`, an id another save took between the proposal and the acceptance.
-Every anticipated failure throws `AIToolFailure` carrying the server's error
-(zero plain-`Error` throws in
+it computes each indicator's issues with the status core (SYSTEM_05), over main
+code, variant code and cycles, and stores nothing, since no validation status is
+stored anywhere and the manager computes it at render. `create_hfa_indicators`
+reports what the batch route created and, under `notCreated`, an id another save
+took between the proposal and the acceptance. Every anticipated failure throws
+`AIToolFailure` carrying the server's error (zero plain-`Error` throws in
 [tools.ts](client/src/components/data/hfa/indicators/ai/tools.ts), the
 failure-channel ruling above). The survey dictionary and the dataset display are
 read through the manager's T2 caches; the indicators, the taxonomy and the code

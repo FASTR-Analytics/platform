@@ -781,12 +781,19 @@ export function buildHfaIndicatorTools() {
             input.indicatorIds!.includes(i.indicatorId)
           )
           : indicators;
+        const [code, variantCode, variantItems, dictionary] = await Promise
+          .all([
+            loadAllCode(),
+            loadAllVariantCode(),
+            loadVariantItems(),
+            loadDictionary(),
+          ]);
         const verdicts = validateIndicators({
           indicators,
-          code: await loadAllCode(),
-          variantCode: await loadAllVariantCode(),
-          variantItems: await loadVariantItems(),
-          dictionary: await loadDictionary(),
+          code,
+          variantCode,
+          variantItems,
+          dictionary,
           only: new Set(target.map((i) => i.indicatorId)),
         });
         const results = target.map((ind) => ({
@@ -931,11 +938,13 @@ export function buildHfaIndicatorTools() {
               });
             }
           }
+          // A new indicator has no variant group and the cycle graph reads
+          // main code only, so no variant code can change these verdicts.
           const verdicts = validateIndicators({
             indicators: [...existing, ...indicatorsToCreate],
             code: [...await loadAllCode(), ...codeToCreate],
-            variantCode: await loadAllVariantCode(),
-            variantItems: await loadVariantItems(),
+            variantCode: [],
+            variantItems: [],
             dictionary: dict,
             only: new Set(indicatorsToCreate.map((i) => i.indicatorId)),
           });
@@ -1052,8 +1061,13 @@ export function buildHfaIndicatorTools() {
           const byIndicatorId = new Map(
             indicators.map((i) => [i.indicatorId, i]),
           );
-          const allCode = await loadAllCode();
-          const dict = await loadDictionary();
+          const [allCode, dict, allVariantCode, variantItems] = await Promise
+            .all([
+              loadAllCode(),
+              loadDictionary(),
+              loadAllVariantCode(),
+              loadVariantItems(),
+            ]);
           const validTimePoints = new Set(
             dict.timePoints.map((t) => t.timePoint),
           );
@@ -1103,6 +1117,16 @@ export function buildHfaIndicatorTools() {
             });
           }
 
+          const verdicts = validateIndicators({
+            indicators,
+            code: [...codeByIndicatorId].flatMap(([indicatorId, rounds]) =>
+              rounds.map((r) => ({ ...r, indicatorId }))
+            ),
+            variantCode: allVariantCode,
+            variantItems,
+            dictionary: dict,
+            only: affected,
+          });
           return {
             preview: {
               title: t3({
@@ -1122,16 +1146,6 @@ export function buildHfaIndicatorTools() {
               changes,
             },
             commit: async () => {
-              const verdicts = validateIndicators({
-                indicators,
-                code: [...codeByIndicatorId].flatMap(([indicatorId, rounds]) =>
-                  rounds.map((r) => ({ ...r, indicatorId }))
-                ),
-                variantCode: await loadAllVariantCode(),
-                variantItems: await loadVariantItems(),
-                dictionary: dict,
-                only: affected,
-              });
               const results = [...affected].map((indicatorId) => ({
                 indicatorId,
                 indicator: byIndicatorId.get(indicatorId)!,

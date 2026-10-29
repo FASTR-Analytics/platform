@@ -674,3 +674,7 @@ deletes this file; the residue is the SYSTEM prose the steps rewrote.
 - Step 2 lists every filter-only round in one refusal with the unparseable rows,
   instead of refusing with `findFilterOnlyRound`, which returns one row, because
   ruling 2 says the refusal lists every failing row. The function is deleted.
+- Step 3's fix edited `HFA_WORK_CATALOGUE.md`, outside step 3's Surface, because
+  step 3 moved its line citations in `manager.tsx`, `ai/tools.ts` and the
+  generator, and made M14's "the editor never receives other indicators' code"
+  false.

@@ -6,6 +6,7 @@
 
 import {
   describeHfaCodeError,
+  type HfaCodeParse,
   parseHfaIndicatorCode,
 } from "./hfa_indicator_code.ts";
 import type { ExpressionNode } from "./indicator_expression/mod.ts";
@@ -38,16 +39,23 @@ export type SnippetAnalysis =
 export type AnalyseSnippet = (snippet: HfaIndicatorCode) => SnippetAnalysis;
 
 // Memoised by snippet object, so the graph pass, its rebuild and the emit
-// pass share one parse.
+// pass share one parse. `parse` lets a caller share a parse cache across
+// passes, as the status core does.
 export function createSnippetAnalyser(
   allIndicatorIds: Set<string>,
   knownVariableIds: Set<string>,
+  parse: (source: string) => HfaCodeParse = parseHfaIndicatorCode,
 ): AnalyseSnippet {
   const cache = new Map<HfaIndicatorCode, SnippetAnalysis>();
   return (snippet) => {
     const cached = cache.get(snippet);
     if (cached !== undefined) return cached;
-    const analysis = analyseSnippet(snippet, allIndicatorIds, knownVariableIds);
+    const analysis = analyseSnippet(
+      snippet,
+      allIndicatorIds,
+      knownVariableIds,
+      parse,
+    );
     cache.set(snippet, analysis);
     return analysis;
   };
@@ -57,8 +65,9 @@ function analyseSnippet(
   snippet: HfaIndicatorCode,
   allIndicatorIds: Set<string>,
   knownVariableIds: Set<string>,
+  parse: (source: string) => HfaCodeParse,
 ): SnippetAnalysis {
-  const code = parseHfaIndicatorCode(snippet.rCode.trim());
+  const code = parse(snippet.rCode.trim());
   if (!code.ok) {
     return {
       ok: false,
@@ -66,7 +75,7 @@ function analyseSnippet(
     };
   }
   const filterSource = snippet.rFilterCode?.trim() ?? "";
-  const filter = filterSource ? parseHfaIndicatorCode(filterSource) : undefined;
+  const filter = filterSource ? parse(filterSource) : undefined;
   if (filter !== undefined && !filter.ok) {
     return {
       ok: false,
@@ -291,14 +300,12 @@ export function formatCycles(cycles: string[][]): string {
 export function findHfaDependencyCycles(
   indicators: HfaIndicator[],
   codeByIndicator: Map<string, HfaIndicatorCode[]>,
+  analyse: AnalyseSnippet,
 ): string[][] {
   const { dependenciesMap } = buildUnionDependencyGraph(
     indicators,
     codeByIndicator,
-    createSnippetAnalyser(
-      new Set(indicators.map((i) => i.indicatorId)),
-      new Set(),
-    ),
+    analyse,
   );
   const index = new Map<string, number>();
   const lowLink = new Map<string, number>();

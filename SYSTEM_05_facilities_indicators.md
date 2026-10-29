@@ -1573,17 +1573,17 @@ layer.
   `instanceState.currentUserIsGlobalAdmin`, the panel's gate, in place of the
   unconditional `onMount`.
 - **A manager comment ties the code editor to imported data.**
-  `data/hfa/indicators/manager.tsx:445-446` says the metadata-only fallback
+  `data/hfa/indicators/manager.tsx:399-400` says the metadata-only fallback
   applies "with no HFA data imported", but the test is `hfaDataAvailable()`
-  (272), `!!instanceState.hfaCacheHash`, which is empty only while no time point
-  exists (`server/db/instance/dataset_hfa.ts:34-44`). Make 445-446 read "The
+  (268), `!!instanceState.hfaCacheHash`, which is empty only while no time point
+  exists (`server/db/instance/dataset_hfa.ts:34-44`). Make 399-400 read "The
   code editor keys its code by time point; with no HFA time point defined, fall
   back to the metadata-only modal so labels/categories stay editable."
 - **Decision needed: m010 reads every variable as a number.** The module
   converts every pivoted variable with `as.numeric` (`m010/script.R:51-52`), so
   a quoted text test in indicator code never matches, a form whose choice codes
   are text reads as missing, and the sentinel bindings write codes unquoted
-  (`server_only_funcs/get_script_with_parameters_hfa.ts:118-121`). Either the
+  (`server_only_funcs/get_script_with_parameters_hfa.ts:116-119`). Either the
   language refuses text operands (`parseHfaIndicatorCode` returns `text_operand`
   for every string), or m010 keeps text values and the bindings quote
   non-numeric codes.

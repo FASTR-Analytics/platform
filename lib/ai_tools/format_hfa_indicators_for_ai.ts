@@ -105,6 +105,14 @@ function indexInput(input: HfaIndicatorsForAIInput) {
   for (const c of input.variantCode) {
     append(variantCode, roundKey(c.indicatorId, c.timePoint), c);
   }
+  const subCategoriesByCategory = new Map<string, HfaIndicatorSubCategory[]>();
+  for (const sc of input.taxonomy.subCategories) {
+    append(subCategoriesByCategory, sc.categoryId, sc);
+  }
+  const itemsByGroup = new Map<string, HfaIndicatorVariantItem[]>();
+  for (const i of input.taxonomy.variantItems) {
+    append(itemsByGroup, i.groupId, i);
+  }
   return {
     timePoints: input.dictionary.timePoints.map((tp) => tp.timePoint),
     indicators: new Map(input.indicators.map((i) => [i.indicatorId, i])),
@@ -118,6 +126,13 @@ function indexInput(input: HfaIndicatorsForAIInput) {
     options: (id: string, timePoint: string) =>
       options.get(roundKey(id, timePoint)) ?? [],
     roundsOf: (id: string) => roundsOfVariable.get(id) ?? [],
+    subCategoriesOf: (id: string) => subCategoriesByCategory.get(id) ?? [],
+    itemsOf: (id: string | null) =>
+      id === null ? [] : itemsByGroup.get(id) ?? [],
+    categoryLabels: labelMap(input.taxonomy.categories),
+    subCategoryLabels: labelMap(input.taxonomy.subCategories),
+    serviceCategoryLabels: labelMap(input.taxonomy.serviceCategories),
+    groupLabels: labelMap(input.taxonomy.variantGroups),
     displayRow: (() => {
       const rows = new Map(
         (input.displayRows ?? []).map((
@@ -127,7 +142,6 @@ function indexInput(input: HfaIndicatorsForAIInput) {
       return (id: string, timePoint: string) =>
         rows.get(roundKey(id, timePoint));
     })(),
-    usage: hfaVariableUsage(input.code, input.variantCode),
     roundKey,
   };
 }
@@ -173,15 +187,13 @@ function issueLines(round: HfaRoundStatus, prefix: string): string[] {
   );
 }
 
-// ── The indicator listing ───────────────────────────────────────────────────
-
-function taxonomyLines(taxonomy: HfaTaxonomyInput): string[] {
+function taxonomyLines(taxonomy: HfaTaxonomyInput, index: Index): string[] {
   const lines = ["Categories (id: label), each with its sub-categories:"];
   if (taxonomy.categories.length === 0) lines.push("- none");
   for (const c of taxonomy.categories) {
     lines.push(`- ${c.id}: ${c.label}`);
-    for (const s of taxonomy.subCategories) {
-      if (s.categoryId === c.id) lines.push(`  - ${s.id}: ${s.label}`);
+    for (const sc of index.subCategoriesOf(c.id)) {
+      lines.push(`  - ${sc.id}: ${sc.label}`);
     }
   }
   lines.push("Service categories (id: label):");
@@ -193,8 +205,8 @@ function taxonomyLines(taxonomy: HfaTaxonomyInput): string[] {
   if (taxonomy.variantGroups.length === 0) lines.push("- none");
   for (const g of taxonomy.variantGroups) {
     lines.push(`- ${g.id}: ${g.label}`);
-    for (const i of taxonomy.variantItems) {
-      if (i.groupId === g.id) lines.push(`  - ${i.id}: ${i.label}`);
+    for (const i of index.itemsOf(g.id)) {
+      lines.push(`  - ${i.id}: ${i.label}`);
     }
   }
   return lines;
@@ -209,7 +221,7 @@ export function formatHfaIndicatorListForAI(
 ): string {
   const index = indexInput(input);
   const lines = [
-    ...taxonomyLines(input.taxonomy),
+    ...taxonomyLines(input.taxonomy, index),
     "",
     `${listed.length} of ${input.indicators.length} indicators. Each line: id | long label | type, aggregation | category, sub-category, service categories | variant group | rounds with code | round status | consistency across rounds.`,
   ];
@@ -242,8 +254,6 @@ export function formatHfaIndicatorListForAI(
   }
   return lines.join("\n");
 }
-
-// ── Variables ───────────────────────────────────────────────────────────────
 
 // m010 reads every value with as.numeric, so a code that is not a number
 // reads as missing.
@@ -315,16 +325,13 @@ function variableRoundLines(
   return lines;
 }
 
-// ── The detail block ────────────────────────────────────────────────────────
-
 function indicatorBlock(
   ind: HfaIndicator,
   input: HfaIndicatorsForAIInput,
   index: Index,
 ): string[] {
-  const t = input.taxonomy;
   const status = input.status.get(ind.indicatorId);
-  const items = t.variantItems.filter((i) => i.groupId === ind.variantGroupId);
+  const items = index.itemsOf(ind.variantGroupId);
   const itemIds = new Set(items.map((i) => i.id));
   const lines = [
     `## Indicator ${ind.indicatorId}`,
@@ -335,20 +342,20 @@ function indicatorBlock(
     `Category: ${
       ind.categoryId === null
         ? "none"
-        : named(ind.categoryId, labelMap(t.categories))
+        : named(ind.categoryId, index.categoryLabels)
     }; sub-category: ${
       ind.subCategoryId === null
         ? "none"
-        : named(ind.subCategoryId, labelMap(t.subCategories))
+        : named(ind.subCategoryId, index.subCategoryLabels)
     }; service categories: ${
       ind.serviceCategoryIds
-        .map((id) => named(id, labelMap(t.serviceCategories)))
+        .map((id) => named(id, index.serviceCategoryLabels))
         .join(", ") || "none"
     }`,
     ind.variantGroupId === null
       ? "Variant group: none"
       : `Variant group: ${
-        named(ind.variantGroupId, labelMap(t.variantGroups))
+        named(ind.variantGroupId, index.groupLabels)
       }; items: ${
         items.map((i) => `${i.id} (${i.label})`).join(", ") || "none"
       }`,
@@ -447,8 +454,6 @@ export function formatHfaIndicatorDetailsForAI(
   return lines.join("\n");
 }
 
-// ── The variable listing and details ────────────────────────────────────────
-
 function countOf(n: number): string {
   return `${n} ${n === 1 ? "indicator" : "indicators"}`;
 }
@@ -460,6 +465,7 @@ export function formatHfaVariableListForAI(
   variableIds: string[],
 ): string {
   const index = indexInput(input);
+  const usage = hfaVariableUsage(input.code, input.variantCode);
   const lines = [
     `${variableIds.length} variables. Each line: id | label | type | per round it is in, the number of indicators whose code of that round names it.`,
   ];
@@ -472,7 +478,7 @@ export function formatHfaVariableListForAI(
         first?.variableLabel ?? "",
         first?.variableType ?? "",
         rounds.map((tp) =>
-          `${tp}: ${countOf(index.usage.get(id)?.get(tp)?.size ?? 0)}`
+          `${tp}: ${countOf(usage.get(id)?.get(tp)?.size ?? 0)}`
         ).join(", "),
       ].join(" | "),
     );
@@ -489,6 +495,7 @@ export function formatHfaVariableDetailsForAI(
   timePoint: string | undefined,
 ): string {
   const index = indexInput(input);
+  const usage = hfaVariableUsage(input.code, input.variantCode);
   const shown = timePoint === undefined ? index.timePoints : [timePoint];
   const lines: string[] = [];
   if (input.displayRows === undefined) lines.push(NO_DISPLAY_ROWS_LINE);
@@ -501,7 +508,7 @@ export function formatHfaVariableDetailsForAI(
     lines.push(
       `## ${id}`,
       ...variableRoundLines(id, input, index, shown, (tp) => {
-        const naming = [...(index.usage.get(id)?.get(tp) ?? [])].map((n) => {
+        const naming = [...(usage.get(id)?.get(tp) ?? [])].map((n) => {
           const ind = index.indicators.get(n);
           return ind === undefined
             ? n
