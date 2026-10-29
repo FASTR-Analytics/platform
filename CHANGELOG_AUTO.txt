@@ -1,3 +1,21 @@
+[2.5.1] [user] [added] - Map coverage indicator shown below map previews
+[2.5.1] [user] [added] - Clear error messages when map boundaries cannot be drawn
+[2.5.1] [user] [added] - Warning for duplicate admin area names during facility import
+[2.5.1] [user] [added] - Warning for duplicate admin area names on map boundary pages
+[2.5.1] [user] [added] - AI assistant can now read and edit variant group settings for HFA indicators
+[2.5.1] [user] [added] - AI assistant shows a side-by-side diff when proposing HFA indicator changes
+[2.5.1] [user] [changed] - Improved AI assistant guidance for writing HFA indicator code
+[2.5.1] [user] [changed] - AI assistant now shows round-by-round status after editing indicator code
+[2.5.1] [user] [changed] - AI assistant validates code errors before proposing new indicators
+[2.5.1] [user] [fixed] - Facilities table layout improved for HFA registry view
+[2.5.1] [admin] [added] - Map previews now show boundary coverage information
+[2.5.1] [admin] [added] - Clearer error messages when map boundaries are missing or unmatched
+[2.5.1] [admin] [added] - Duplicate admin area name warnings shown during map upload and facility import
+[2.5.1] [admin] [changed] - HFA indicator AI assistant now validates code more thoroughly before proposing changes
+[2.5.1] [admin] [changed] - AI-proposed HFA indicator changes now shown in a side-by-side diff for review
+[2.5.1] [admin] [added] - HFA indicators now support variant groups with per-item code
+[2.5.1] [admin] [changed] - Map boundary files are now loaded from versioned storage
+[2.5.1] [admin] [fixed] - Facilities page layout improved for HFA registry tables
 [2.4.4] [user] [changed] - Module defaults now compare against global defaults instead of country baselines
 [2.4.4] [user] [changed] - "Changed from baseline" markers now read "Differs from global default"
 [2.4.4] [user] [changed] - Reset buttons now restore global defaults used by most countries
