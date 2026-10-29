@@ -80,14 +80,23 @@ export async function fetchFigureInputs(
 // The one wording of each unavailable reason, for every surface that shows one.
 export function describeFigureUnavailable(reason: FigureUnavailable): string {
   if (reason.kind === "no_area_matches") {
-    return t3({
-      en:
-        `None of the ${reason.dataAreas} data areas matches one of the ${reason.boundaries} map boundaries, so the map cannot be drawn. Check the boundary mapping on the maps page.`,
-      fr:
-        `Aucune des ${reason.dataAreas} unités avec données ne correspond à l'une des ${reason.boundaries} limites de la carte, la carte ne peut donc pas être dessinée. Vérifiez l'association des limites sur la page des cartes.`,
-      pt:
-        `Nenhuma das ${reason.dataAreas} zonas com dados corresponde a um dos ${reason.boundaries} limites do mapa, por isso o mapa não pode ser desenhado. Verifique a associação dos limites na página de mapas.`,
-    });
+    return reason.source === "package"
+      ? t3({
+        en:
+          `None of the ${reason.dataAreas} data areas matches one of the ${reason.boundaries} map boundaries in this results package, so the map cannot be drawn. Fix the mapping on the maps page, then regenerate the package.`,
+        fr:
+          `Aucune des ${reason.dataAreas} unités avec données ne correspond à l'une des ${reason.boundaries} limites de carte de ce paquet de résultats, la carte ne peut donc pas être dessinée. Corrigez l'association sur la page des cartes, puis régénérez le paquet.`,
+        pt:
+          `Nenhuma das ${reason.dataAreas} zonas com dados corresponde a um dos ${reason.boundaries} limites de mapa deste pacote de resultados, por isso o mapa não pode ser desenhado. Corrija a associação na página de mapas e gere o pacote novamente.`,
+      })
+      : t3({
+        en:
+          `None of the ${reason.dataAreas} data areas matches one of the ${reason.boundaries} map boundaries, so the map cannot be drawn. Check the boundary mapping on the maps page.`,
+        fr:
+          `Aucune des ${reason.dataAreas} unités avec données ne correspond à l'une des ${reason.boundaries} limites de la carte, la carte ne peut donc pas être dessinée. Vérifiez l'association des limites sur la page des cartes.`,
+        pt:
+          `Nenhuma das ${reason.dataAreas} zonas com dados corresponde a um dos ${reason.boundaries} limites do mapa, por isso o mapa não pode ser desenhado. Verifique a associação dos limites na página de mapas.`,
+      });
   }
   const registry = reason.family.toUpperCase();
   const level = reason.level;

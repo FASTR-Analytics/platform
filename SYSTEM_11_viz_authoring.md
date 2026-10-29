@@ -5,6 +5,7 @@ globs:
   - client/src/components/explore/**
   - client/src/components/_shared/figure_editor/**
   - client/src/components/_shared/figure_preview.ts
+  - client/src/components/_shared/map_coverage_line.tsx
   - client/src/components/products/_shared/insert_figure/**
   - client/src/state/instance/_util_disaggregation_label.ts
   - client/src/state/t4_explore.ts

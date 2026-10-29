@@ -9,13 +9,14 @@ import {
   FigureHolder,
   StateHolderWrapper,
 } from "panther";
-import { createFigurePreview } from "~/components/_shared/mod.ts";
+import {
+  createFigurePreview,
+  MapCoverageLine,
+} from "~/components/_shared/mod.ts";
 import { getAdminAreaLevelFromMapConfig } from "~/generate_visualization/get_admin_area_level_from_config";
 import {
-  describeMapCoverage,
   getFigureMapCoverage,
   liveFigureStyle,
-  MAP_COVERAGE_PROMINENT_BELOW,
 } from "~/generate_visualization/mod";
 import { geoJsonFamilyFor, getGeoJsonSync } from "~/state/instance/t2_geojson";
 import { getRunGeoJsonSync } from "~/state/instance/t2_run_geojson";
@@ -79,17 +80,7 @@ export function FigureView(p: {
             : (
               <div class="flex h-full flex-col">
                 <div class="min-h-0 flex-1">{holder}</div>
-                <div
-                  class="pt-2 text-sm"
-                  classList={{
-                    "text-base-content-muted":
-                      coverage.matchedShare >= MAP_COVERAGE_PROMINENT_BELOW,
-                    "text-warning font-700":
-                      coverage.matchedShare < MAP_COVERAGE_PROMINENT_BELOW,
-                  }}
-                >
-                  {describeMapCoverage(coverage)}
-                </div>
+                <MapCoverageLine coverage={coverage} />
               </div>
             );
         }}

@@ -12,10 +12,9 @@ export type MapCoverage = {
   matchedShare: number;
 };
 
-// Below this share of matched data areas the coverage line is prominent.
 export const MAP_COVERAGE_PROMINENT_BELOW = 0.7;
 
-export function getMapCoverage(data: MapDataTransformed): MapCoverage {
+function getMapCoverage(data: MapDataTransformed): MapCoverage {
   const dataAreas = new Set<string>();
   for (const tiers of data.valueMaps) {
     for (const lanes of tiers) {
@@ -44,13 +43,22 @@ export function getMapCoverage(data: MapDataTransformed): MapCoverage {
   };
 }
 
-// The coverage of a built map figure, undefined for any other figure.
+// Keyed by the transformed data object, so the tally buildFigureInputs takes
+// is the one every surface that shows the figure reads, not a second walk of
+// up to 10,325 areas per editor keystroke.
+const coverageByData = new WeakMap<MapDataTransformed, MapCoverage>();
+
 export function getFigureMapCoverage(
   inputs: FigureInputs,
 ): MapCoverage | undefined {
-  return inputs.figureType === "map" && "isTransformed" in inputs.data
-    ? getMapCoverage(inputs.data)
-    : undefined;
+  if (inputs.figureType !== "map" || !("isTransformed" in inputs.data)) {
+    return undefined;
+  }
+  const cached = coverageByData.get(inputs.data);
+  if (cached !== undefined) return cached;
+  const coverage = getMapCoverage(inputs.data);
+  coverageByData.set(inputs.data, coverage);
+  return coverage;
 }
 
 export function describeMapCoverage(coverage: MapCoverage): string {

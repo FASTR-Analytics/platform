@@ -345,11 +345,12 @@ in panther passes a transformed input through), and
 `generate_visualization/map_coverage.ts` tallies from it how many distinct data
 areas meet a boundary of the same name, how many boundaries carry no data, and
 the matched share. A map whose data areas meet no boundary at all is the
-`no_area_matches` reason (with the data-area and boundary counts) instead of an
-empty country, in every surface that renders it, decks, reports and exports
-included; that is the one thing the tally changes in a rendered product. Any
-other share renders, and the counts themselves are shown only where a figure is
-authored (SYSTEM_11).
+`no_area_matches` reason (with the data-area and boundary counts, and `source`,
+the plane the boundaries came from, so a package's frozen copy is worded as a
+regeneration) instead of an empty country, in every surface that renders it,
+decks, reports and exports included; that is the one thing the tally changes in
+a rendered product. Any other share renders, and the counts themselves are shown
+only where a figure is authored (SYSTEM_11).
 
 The `resolve_figure_from_metric` resolver:
 `generate_visualization/resolve_figure_from_metric.ts` (+

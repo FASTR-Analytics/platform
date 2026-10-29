@@ -31,6 +31,7 @@ export {
   scopeDisplayLabel,
   scopeLabel,
 } from "./package_label.ts";
+export { MapCoverageLine } from "./map_coverage_line.tsx";
 export { PresenceAvatars } from "./presence_avatars.tsx";
 export {
   ProductCountBadge,

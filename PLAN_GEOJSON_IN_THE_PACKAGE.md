@@ -1148,3 +1148,10 @@ Departures, one line each, written when they happen.
   and `generate_visualization/resolve_bundle_from_metric_and_config.ts`, outside
   the Surface, changed: the `no_area_matches` member is declared beside the
   other reasons, and the two describers that word every reason word it too.
+- Step 5: the review's double-computation finding is met by memoizing
+  `getFigureMapCoverage` per transformed data object rather than carrying the
+  tally through `createFigurePreview`, whose other two consumers read its data
+  through an unchecked cast that a changed shape would break at runtime. The
+  shared `MapCoverageLine` is a new file,
+  `components/_shared/map_coverage_line.tsx`, exported through
+  `components/_shared/mod.ts`.

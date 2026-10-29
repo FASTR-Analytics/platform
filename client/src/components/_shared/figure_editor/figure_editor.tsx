@@ -77,10 +77,8 @@ import { ViewResultsObject } from "./view_results_object";
 import {
   awaitFigureBoundaries,
   buildFigureInputs,
-  describeMapCoverage,
   getFigureMapCoverage,
   makeFigureBundleFromFetchedData,
-  MAP_COVERAGE_PROMINENT_BELOW,
 } from "~/generate_visualization/mod";
 import { getTableExportAoa } from "~/exports/get_table_export_aoa";
 import {
@@ -93,7 +91,7 @@ import type {
   VizFigureCollabBinding,
 } from "./visualization_editor";
 import { PresentationObjectEditorPanel } from "./editor_panel";
-import { describeFigureUnavailable } from "../mod.ts";
+import { describeFigureUnavailable, MapCoverageLine } from "../mod.ts";
 
 // Input types with no native undo: they must not swallow the editor's Ctrl+Z.
 const NON_TEXT_INPUT_TYPES = new Set([
@@ -1101,30 +1099,30 @@ export function VisualizationEditorInner(p: InnerProps) {
                                       keyedFigureInputs,
                                     );
                                     return (
-                                      <>
-                                        <FigureHolder
-                                          figureInputs={keyedFigureInputs}
-                                          height={editorHeight()}
-                                          canvasElementId="VIZ_PREVIEW_CANVAS"
-                                        />
+                                      <div
+                                        class="flex flex-col"
+                                        classList={{
+                                          "h-full": editorHeight() === "flex",
+                                        }}
+                                      >
+                                        <div
+                                          classList={{
+                                            "min-h-0 flex-1":
+                                              editorHeight() === "flex",
+                                          }}
+                                        >
+                                          <FigureHolder
+                                            figureInputs={keyedFigureInputs}
+                                            height={editorHeight()}
+                                            canvasElementId="VIZ_PREVIEW_CANVAS"
+                                          />
+                                        </div>
                                         <Show when={coverage} keyed>
                                           {(c) => (
-                                            <div
-                                              class="pt-2 text-sm"
-                                              classList={{
-                                                "text-base-content-muted":
-                                                  c.matchedShare >=
-                                                    MAP_COVERAGE_PROMINENT_BELOW,
-                                                "text-warning font-700":
-                                                  c.matchedShare <
-                                                    MAP_COVERAGE_PROMINENT_BELOW,
-                                              }}
-                                            >
-                                              {describeMapCoverage(c)}
-                                            </div>
+                                            <MapCoverageLine coverage={c} />
                                           )}
                                         </Show>
-                                      </>
+                                      </div>
                                     );
                                   }}
                                 </StateHolderWrapper>

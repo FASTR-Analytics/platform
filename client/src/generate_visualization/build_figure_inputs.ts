@@ -86,6 +86,7 @@ export function buildFigureInputs(
         kind: "no_area_matches",
         dataAreas: coverage.dataAreas,
         boundaries: coverage.boundaries,
+        source: geo.source,
       },
     };
   }
@@ -527,10 +528,18 @@ function buildInputs(
 function resolveGeoJson(
   bundle: FigureBundle,
 ):
-  | { ok: true; data: GeoJSONFeatureCollection }
+  | {
+    ok: true;
+    data: GeoJSONFeatureCollection;
+    source: "instance" | "package";
+  }
   | { ok: false; unavailable: FigureUnavailable } {
   if (bundle.geo?.kind === "data") {
-    return { ok: true, data: bundle.geo.data as GeoJSONFeatureCollection };
+    return {
+      ok: true,
+      data: bundle.geo.data as GeoJSONFeatureCollection,
+      source: "package",
+    };
   }
   const level = getAdminAreaLevelFromMapConfig(bundle.config);
   if (level === undefined) {
@@ -538,7 +547,9 @@ function resolveGeoJson(
   }
   const family = geoFamily(bundle.geo);
   const read = getRunGeoJsonSync(bundle.provenance.runId, family, level);
-  if (read.state === "ready") return { ok: true, data: read.data };
+  if (read.state === "ready") {
+    return { ok: true, data: read.data, source: "package" };
+  }
   if (read.state === "loading") {
     return {
       ok: false,
@@ -552,10 +563,12 @@ function resolveGeoJson(
     };
   }
   const instance = getGeoJsonSync(family, level);
-  return instance !== undefined ? { ok: true, data: instance } : {
-    ok: false,
-    unavailable: { kind: "no_boundaries", family, level, source: "instance" },
-  };
+  return instance !== undefined
+    ? { ok: true, data: instance, source: "instance" }
+    : {
+      ok: false,
+      unavailable: { kind: "no_boundaries", family, level, source: "instance" },
+    };
 }
 
 // Awaits the boundaries a map bundle names, for a caller that builds after an
