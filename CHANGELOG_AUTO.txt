@@ -1,12 +1,12 @@
-[TBD] [user] [changed] - Module defaults now compare against global defaults instead of country baselines
-[TBD] [user] [changed] - "Changed from baseline" markers now read "Differs from global default"
-[TBD] [user] [changed] - Reset buttons now restore global defaults used by most countries
-[TBD] [user] [changed] - A count of differing parameters is now shown in the summary banner
-[TBD] [user] [changed] - Data family checkboxes no longer show baseline comparison markers
-[TBD] [admin] [changed] - Module defaults editor now compares against fleet-wide global defaults instead of per-country baselines
-[TBD] [admin] [changed] - Global default comparisons apply only to module parameters, not to data family selections or pre-selected modules
-[TBD] [admin] [changed] - Differing parameter count is now shown in the global defaults summary banner
-[TBD] [admin] [changed] - Reset options now restore values to the global default used by most countries
+[2.4.4] [user] [changed] - Module defaults now compare against global defaults instead of country baselines
+[2.4.4] [user] [changed] - "Changed from baseline" markers now read "Differs from global default"
+[2.4.4] [user] [changed] - Reset buttons now restore global defaults used by most countries
+[2.4.4] [user] [changed] - A count of differing parameters is now shown in the summary banner
+[2.4.4] [user] [changed] - Data family checkboxes no longer show baseline comparison markers
+[2.4.4] [admin] [changed] - Module defaults editor now compares against fleet-wide global defaults instead of per-country baselines
+[2.4.4] [admin] [changed] - Global default comparisons apply only to module parameters, not to data family selections or pre-selected modules
+[2.4.4] [admin] [changed] - Differing parameter count is now shown in the global defaults summary banner
+[2.4.4] [admin] [changed] - Reset options now restore values to the global default used by most countries
 [2.4.3] [user] [added] - Module defaults now show when values differ from the country baseline
 [2.4.3] [user] [added] - Reset individual settings, entire modules, or all defaults back to the country baseline
 [2.4.3] [user] [added] - Data family selections now show baseline comparison indicators when changed
