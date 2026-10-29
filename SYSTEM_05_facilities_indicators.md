@@ -25,6 +25,7 @@ globs:
   - lib/hfa_indicator_code.ts
   - lib/indicator_expression/**
   - lib/indicator_id.ts
+  - lib/geojson_area_match.ts
   - lib/population_coverage.ts
   - lib/population_person_years.ts
   - lib/special_indicators.ts
@@ -56,6 +57,7 @@ globs:
   - server/tests/dhis2_id_fix_backfill_test.ts
   - server/tests/dhis2_id_fix_execute_test.ts
   - server/tests/dhis2_id_fix_plan_test.ts
+  - server/tests/geojson_area_match_test.ts
   - server/tests/hfa_code_migration_test.ts
   - server/tests/hfa_facility_weights_import_test.ts
   - server/tests/hfa_indicator_code_test.ts
@@ -1178,25 +1180,35 @@ legal target meaning unmap).
 
 Upload flows: TUS-upload a file → `analyzeGeoJsonUpload` (property keys +
 distinct values + counts, excluding features without usable geometry; asset
-reads capped at 100 MB pre-parse) → pick level + match property →
-case-insensitive auto-map values to admin names → fix the rest →
-`saveGeoJsonMap` re-reads the asset server-side and rewrites features via the
-`areaMapping`, whose wire shape is `Record<geoJsonValue, adminAreaName>`
-(many-to-one capable: do not invert it; an inverted shape silently drops
-mappings). The DHIS2 flow splits analyze from geometry: `dhis2AnalyzeGeoJson`
-fetches org-unit METADATA only (`id,name,code,parent[id,name]`, ~KBs) plus an
-exact with-geometry count via `filter=geometry:!null` (`featureType` is absent
-on DHIS2 2.40; `level` must be expressed as a filter); the full
-FeatureCollection (~20 MB for a 200-district country) is fetched at
-`dhis2SaveGeoJsonMap` with a 180 s timeout and NO retries. Two in-memory session
-caches, SHA-256-keyed on url|user|pass|level: metadata (10 entries) and heavy
-geojson (2 entries, keeping a re-save cheap); 15-min TTL. Both save paths refuse
-to store an empty map (distinct error when the match property is absent from the
-features: the mapping is built from `.json` metadata but applied against
-`.geojson` properties) and return featureCount/matched/unmatched, which the
-wizard shows on completion. Note the `.geojson` endpoint OMITS boundary-less
-units rather than returning null geometries, so "units without boundaries" =
-metadata total − geometry count.
+reads capped at 100 MB pre-parse) → pick level + match property → auto-map
+values to admin names → fix the rest → `saveGeoJsonMap` re-reads the asset
+server-side and rewrites features via the `areaMapping`, whose wire shape is
+`Record<geoJsonValue, adminAreaName>` (many-to-one capable: do not invert it; an
+inverted shape silently drops mappings). The DHIS2 flow splits analyze from
+geometry: `dhis2AnalyzeGeoJson` fetches org-unit METADATA only
+(`id,name,code,parent[id,name]`, ~KBs) plus an exact with-geometry count via
+`filter=geometry:!null` (`featureType` is absent on DHIS2 2.40; `level` must be
+expressed as a filter); the full FeatureCollection (~20 MB for a 200-district
+country) is fetched at `dhis2SaveGeoJsonMap` with a 180 s timeout and NO
+retries. Two in-memory session caches, SHA-256-keyed on url|user|pass|level:
+metadata (10 entries) and heavy geojson (2 entries, keeping a re-save cheap);
+15-min TTL. Both save paths refuse to store an empty map (distinct error when
+the match property is absent from the features: the mapping is built from
+`.json` metadata but applied against `.geojson` properties) and return
+featureCount/matched/unmatched, which the wizard shows on completion. Note the
+`.geojson` endpoint OMITS boundary-less units rather than returning null
+geometries, so "units without boundaries" = metadata total − geometry count.
+
+Auto-mapping is `autoMapAreaNames` (`lib/geojson_area_match.ts`), the one
+matcher both wizard branches call. An exact name wins; otherwise
+`normalizeAreaName` (panther's `foldString` accent and case fold, after trimming
+and collapsing whitespace, non-breaking space included) proposes a pairing only
+when exactly one admin area carries the normalized name, so two areas that
+differ only by accent or case are left for the user. It is a proposal the wizard
+shows before anything is saved; the save path is unchanged and looks the raw
+source name up in the mapping it is handed. The raw parsed feature types are
+declared once, in `server/geojson/types.ts`, for both the upload and the DHIS2
+paths.
 
 Client caching: summaries (family + level + uploadedAt) live in the T1 SSE
 store; payloads live in a T2 two-layer cache (module Map + IDB

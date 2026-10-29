@@ -1118,3 +1118,7 @@ Departures, one line each, written when they happen.
 - Step 1: `describeFigureUnavailable` is exported through
   `client/src/components/_shared/mod.ts`, outside the Surface, because
   `report_figure_embed.tsx` reaches the preview helper only through that entry.
+- Step 2: `server/dhis2/goal4_geojson/fetch_geojson.ts` and
+  `server/dhis2/goal4_geojson/mod.ts`, outside the Surface, changed: the fetcher
+  held a third copy of the loose collection type, and the module re-exported the
+  feature type the dhis2 `types.ts` no longer declares.

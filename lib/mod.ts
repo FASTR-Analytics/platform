@@ -42,6 +42,7 @@ export * from "./population_coverage.ts";
 export * from "./population_person_years.ts";
 export * from "./indicator_expression/mod.ts";
 export * from "./indicator_id.ts";
+export * from "./geojson_area_match.ts";
 export * from "./indicator_format_metrics.ts";
 export * from "./key_colors.ts";
 export * from "./brand_presets.ts";
