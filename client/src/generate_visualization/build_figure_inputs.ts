@@ -515,12 +515,12 @@ function resolveGeoJson(
 ):
   | { ok: true; data: GeoJSONFeatureCollection }
   | { ok: false; unavailable: FigureUnavailable } {
+  if (bundle.geo?.kind === "data") {
+    return { ok: true, data: bundle.geo.data as GeoJSONFeatureCollection };
+  }
   const level = getAdminAreaLevelFromMapConfig(bundle.config);
   if (level === undefined) {
     throw new Error("Map figure has no admin-area map dimension");
-  }
-  if (bundle.geo?.kind === "data") {
-    return { ok: true, data: bundle.geo.data as GeoJSONFeatureCollection };
   }
   const family = geoFamily(bundle.geo);
   const read = getRunGeoJsonSync(bundle.provenance.runId, family, level);

@@ -84,7 +84,7 @@ export async function ensureRunGeoJson(
 ): Promise<RunGeoJsonRead> {
   await loadStamp(runId);
   let read = readRunGeoJson(runId, family, level, false);
-  if (read.state === "loading") {
+  if (read.state === "loading" && stamps.has(runId)) {
     await loadData(runId, family, level);
     read = readRunGeoJson(runId, family, level, false);
   }
@@ -207,7 +207,7 @@ export async function evictRunGeoJsonNotIn(
   readyRunIds: readonly string[],
 ): Promise<void> {
   const keep = new Set(readyRunIds);
-  const runOf = (key: string) => key.split(":")[0];
+  const runOf = (key: string) => key.slice(IDB_PREFIX.length).split(":")[0];
   let removedAny = false;
   for (const runId of [...stamps.keys()]) {
     if (!keep.has(runId)) {
@@ -226,7 +226,7 @@ export async function evictRunGeoJsonNotIn(
     for (const key of await keys()) {
       if (
         typeof key === "string" && key.startsWith(IDB_PREFIX) &&
-        !keep.has(runOf(key.slice(IDB_PREFIX.length)))
+        !keep.has(runOf(key))
       ) {
         await del(key);
       }

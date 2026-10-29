@@ -177,9 +177,6 @@ export const runGenerationRouteRegistry = {
     body: z.object({ scopeId: scopeIdSchema }),
     response: {} as ItemsHolderResultsObject,
   }),
-  // Everything an author needs FROM a package, a pure function of the run
-  // directory and the scope (lib/types/run_authoring_context.ts): the client
-  // caches it by (runId, definition hash) without revalidating.
   // The package's geojson stamp, read from its manifest. No scope: geometry
   // carries no data values. The captured files themselves are served raw,
   // off the registry, at /run_generation/run/:run_id/geojson/:family/:level.
@@ -189,6 +186,9 @@ export const runGenerationRouteRegistry = {
     params: z.object({ run_id: z.string() }),
     response: {} as RunGeoJsonStamp,
   }),
+  // Everything an author needs FROM a package, a pure function of the run
+  // directory and the scope (lib/types/run_authoring_context.ts): the client
+  // caches it by (runId, definition hash) without revalidating.
   getRunAuthoringContext: route({
     path: "/run_generation/run/:run_id/authoring_context",
     method: "POST",

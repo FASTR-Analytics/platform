@@ -8,6 +8,7 @@ import {
   type HfaIndicatorVariantCode,
   type HmisIndicatorCatalogRow,
   listMonthlyPeriodIds,
+  parseJsonOrThrow,
   personYearsForMonth,
   populationAreaKey,
   populationCellCoverage,
@@ -348,7 +349,7 @@ async function captureGeoJsonMaps(
       map.adminAreaLevel,
     );
     if (stored === undefined) continue;
-    const parsed = JSON.parse(stored.geojson) as { features?: unknown[] };
+    const parsed = parseJsonOrThrow<{ features?: unknown[] }>(stored.geojson);
     const gzipped = await new Response(
       new Blob([stored.geojson]).stream().pipeThrough(
         new CompressionStream("gzip"),

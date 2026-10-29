@@ -198,7 +198,7 @@ export function buildInstanceContextSections(
 export function buildMapCoverageLines(maps: GeoJsonMapSummary[]): string[] {
   if (maps.length === 0) {
     return [
-      "- No boundary map files are uploaded, so no map figure can render: use tables.",
+      "- This results package has no boundary map files, so no map figure can render: use tables.",
     ];
   }
   const families: FacilityFamily[] = ["hmis", "hfa"];

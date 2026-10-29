@@ -1141,3 +1141,6 @@ Departures, one line each, written when they happen.
   copilot is the one reader that needs the stamp before it counts a package
   loaded, and awaiting it inside the shared read would hold the scope editor,
   explore and six other callers on a fetch they never use.
+- Step 4: `client/src/generate_visualization/mod.ts`, outside the Surface,
+  changed: it exports `awaitFigureBoundaries`, the entry every after-await
+  caller imports it through.

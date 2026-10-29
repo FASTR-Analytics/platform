@@ -17,7 +17,6 @@ import {
   deleteRun,
   getModuleDefaultsGlobal,
   getRunGenerationModuleOptions,
-  isRunIdShape,
   listRunModuleFiles,
   openRunGeoJsonFile,
   pinRun,
@@ -383,9 +382,6 @@ defineRoute(
   "getRunGeoJsonStamp",
   requireApprovedUser(),
   async (c, { params }) => {
-    if (!isRunIdShape(params.run_id)) {
-      return c.json({ success: false, err: "Invalid results package id" });
-    }
     const manifestRes = await getRunManifestForRun(params.run_id);
     return c.json({
       success: true,

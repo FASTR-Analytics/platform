@@ -217,6 +217,6 @@ Deno.test("the map coverage line names each registry's levels, or says there are
     ],
   );
   assertEquals(buildMapCoverageLines([]), [
-    "- No boundary map files are uploaded, so no map figure can render: use tables.",
+    "- This results package has no boundary map files, so no map figure can render: use tables.",
   ]);
 });
