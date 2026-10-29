@@ -18,6 +18,7 @@ import {
   type HfaWorkbookImportResult,
   isReservedHfaId,
   nextHfaIndicatorId,
+  type SentinelClass,
   unparseableHfaCode,
 } from "lib";
 import { tryCatchDatabaseAsync } from "./../utils.ts";
@@ -1503,9 +1504,10 @@ export async function getHfaDictionaryForValidation(
         variable_id: string;
         value: string;
         value_label: string;
+        sentinel_class: SentinelClass | "";
       }[]
     >`
-      SELECT time_point, variable_id, value, value_label FROM hfa_variable_values ORDER BY time_point, variable_id, value
+      SELECT time_point, variable_id, value, value_label, sentinel_class FROM hfa_variable_values ORDER BY time_point, variable_id, value
     `;
 
     const timePoints = tpRows.map((tp) => {
@@ -1524,6 +1526,7 @@ export async function getHfaDictionaryForValidation(
             variableId: v.variable_id,
             value: v.value,
             valueLabel: v.value_label,
+            sentinelClass: v.sentinel_class,
           })),
       };
     });

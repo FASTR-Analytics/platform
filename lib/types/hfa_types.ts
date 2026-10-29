@@ -1,3 +1,5 @@
+import type { SentinelClass } from "../hfa_sentinel_classification.ts";
+
 export type HfaIndicatorCategory = {
   id: string;
   label: string;
@@ -132,6 +134,8 @@ export type HfaWorkbookImportResult = {
   skippedExisting: string[];
 };
 
+// A round's variables and their options. An option's `sentinelClass` is empty
+// for a real answer, else the class the import gave its code.
 export type HfaDictionaryForValidation = {
   timePoints: {
     timePoint: string;
@@ -140,6 +144,11 @@ export type HfaDictionaryForValidation = {
       variableLabel: string;
       variableType: string;
     }[];
-    values: { variableId: string; value: string; valueLabel: string }[];
+    values: {
+      variableId: string;
+      value: string;
+      valueLabel: string;
+      sentinelClass: SentinelClass | "";
+    }[];
   }[];
 };

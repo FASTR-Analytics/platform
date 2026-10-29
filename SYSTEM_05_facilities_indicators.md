@@ -862,8 +862,21 @@ state (`HFA_CODE_SYMBOLS`, `HFA_CODE_WORDS`, `HFA_CODE_LIST_EXAMPLE`) lives
 beside it. The client validator (`_shared/indicator_code_validator.ts`), the
 manager's unused-variable and deletion guards, the AI tools and the server
 dependency analyzer (`server_only_funcs/hfa_dependency_analyzer.ts`) all read
-this one parse, so editor-green code never hard-fails a run. No R text is ever
-parsed: R is emitted from the AST on the server only
+this one parse, so editor-green code never hard-fails a run. The write boundary
+reads it too: every route that writes code from a request (the editor's
+`saveHfaIndicatorFull`, the AI's `saveHfaIndicatorsCode`, the batch upload
+`batchUploadHfaIndicators` and the workbook import
+`importHfaIndicatorsWorkbook`) refuses, before any write, a main, filter or
+variant snippet that does not parse (`unparseableHfaCode`, the message listing
+every failing row with its indicator, round and field) and a filter without main
+code. Unknown variables are not refused on the server: they are the client's
+check, since a round's variables can arrive after its code. Time-point
+creation's carry-forward copies stored rows and is the one path that writes code
+unchecked. The dictionary the client validates against
+(`getHfaDictionaryForValidation`, cached in the browser as `hfa_dictionary_v2`)
+gives each round's variables and their options, each option with its sentinel
+class: empty for a real answer, else the class the survey import stored for the
+code. No R text is ever parsed: R is emitted from the AST on the server only
 (`server_only_funcs/hfa_r_emit.ts`), `AND OR NOT` as `& | !`, `x IN (a, b)` as
 `x %in% c(a, b)`, with parentheses only where R's precedence would regroup the
 code (R's `%in%` binds tighter than `* /`). lib compiles into both runtimes:
@@ -880,8 +893,8 @@ indicators+taxonomy+code → S8's module run parses each snippet once, builds a
 cross-indicator dependency graph from the ASTs (topological sort, cycles
 rejected), and splices each round's emitted R into `case_when` branches; a
 snippet that does not parse is a generation error naming the indicator and
-round, like an unknown variable, and `STOP_IF_INDICATOR_FAILS` (default TRUE)
-makes one invalid indicator kill the run.
+round, like an unknown variable, and `STOP_IF_INDICATOR_FAILS` (default FALSE,
+as `m010/definition.json` declares) makes one invalid indicator kill the run.
 
 An indicator is NA when its **own expression** evaluates to NA, not when an
 input is missing. R's `&`/`|` are three-valued, so a skip-logic "." on a
@@ -1550,6 +1563,21 @@ layer.
   exists (`server/db/instance/dataset_hfa.ts:34-44`). Make 445-446 read "The
   code editor keys its code by time point; with no HFA time point defined, fall
   back to the metadata-only modal so labels/categories stay editable."
+
+- **Decision needed: m010 reads every variable as a number.** The module
+  converts every pivoted variable with `as.numeric` (`m010/script.R:51-52`), so
+  a quoted text test in indicator code never matches, a form whose choice codes
+  are text reads as missing, and the sentinel bindings write codes unquoted
+  (`server_only_funcs/get_script_with_parameters_hfa.ts:118-121`). Either the
+  language refuses text operands (`parseHfaIndicatorCode` returns `text_operand`
+  for every string), or m010 keeps text values and the bindings quote
+  non-numeric codes.
+- **The manager calls code ready when it names a variable blank in every
+  round.** Run capture knows only variables with a non-blank value
+  (`server/runs/capture_inputs/hfa.ts:220-241`), so generation reports such a
+  variable as unknown and skips the indicator, while the manager's Status counts
+  the round ready. Make the Status column read the display rows and mark a
+  variable with no non-blank value in any round as unknown to the run.
 
 ### HFA variant groups: open questions
 
