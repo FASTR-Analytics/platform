@@ -40,7 +40,10 @@ export function Step2(p: Props) {
 
   function buildAutoMapping() {
     p.state.setGeoToAdmin(
-      autoMapAreaNames(geoJsonValues(), p.state.adminAreaNames()).mapping,
+      autoMapAreaNames(
+        geoJsonValues(),
+        p.state.adminAreas().options.map((o) => o.value),
+      ).mapping,
     );
   }
 
@@ -53,11 +56,9 @@ export function Step2(p: Props) {
         family: p.state.family,
         level: p.state.adminAreaLevel(),
       }),
-    ({ options, duplicates }: AdminAreaOptionsForLevel) => {
+    (adminAreas: AdminAreaOptionsForLevel) => {
       batch(() => {
-        p.state.setAdminAreaOptions(options);
-        p.state.setAdminAreaDuplicates(duplicates);
-        p.state.setAdminAreaNames(options.map((o) => o.value));
+        p.state.setAdminAreas(adminAreas);
         buildAutoMapping();
         p.state.setStep(3);
       });
@@ -90,9 +91,7 @@ export function Step2(p: Props) {
           err: aaRes.err ?? "Failed to fetch admin areas",
         };
       }
-      p.state.setAdminAreaOptions(aaRes.data.options);
-      p.state.setAdminAreaDuplicates(aaRes.data.duplicates);
-      p.state.setAdminAreaNames(aaRes.data.options.map((o) => o.value));
+      p.state.setAdminAreas(aaRes.data);
 
       // Analyze DHIS2 GeoJSON
       const analyzeRes = await serverActions.dhis2AnalyzeGeoJson({

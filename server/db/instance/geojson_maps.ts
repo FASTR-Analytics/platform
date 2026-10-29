@@ -186,7 +186,7 @@ const compareNames = (a: string, b: string) =>
 
 // One option per distinct name, labelled with its parents below level 1 when
 // the name is unique; a repeated name is reported as a duplicate group.
-export function buildAdminAreaOptions(
+function buildAdminAreaOptions(
   rows: AdminAreaRow[],
 ): AdminAreaOptionsForLevel {
   const byName = new Map<string, string[][]>();
@@ -232,8 +232,16 @@ export async function countDuplicateAdminAreaNames(
   mainDb: Sql,
   family: FacilityFamily,
 ): Promise<AdminAreaDuplicateCount[]> {
+  // Structure staging pads every level below adminDepth with the deepest
+  // name, so a level past the depth would repeat the real duplicates.
+  const schema = await getStructureSchema(mainDb, family);
+  if (!schema.success) throw new Error(schema.err);
   const counts: AdminAreaDuplicateCount[] = [];
-  for (const level of ALL_ADMIN_AREA_LEVELS) {
+  for (
+    const level of ALL_ADMIN_AREA_LEVELS.filter((l) =>
+      l <= schema.data.adminDepth
+    )
+  ) {
     const { duplicates } = buildAdminAreaOptions(
       await readAdminAreaRows(mainDb, family, level),
     );

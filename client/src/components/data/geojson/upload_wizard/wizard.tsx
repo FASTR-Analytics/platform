@@ -1,9 +1,4 @@
-import {
-  type AdminAreaDuplicateGroup,
-  type AdminAreaOption,
-  type FacilityFamily,
-  t3,
-} from "lib";
+import { type AdminAreaOptionsForLevel, type FacilityFamily, t3 } from "lib";
 import { createSignal, Match, Switch } from "solid-js";
 import { Step0 } from "./step_0";
 import { Step1File } from "./step_1_file";
@@ -53,12 +48,8 @@ export type WizardState = {
   setAdminAreaLevel: (n: number) => void;
   selectedProp: () => string;
   setSelectedProp: (s: string) => void;
-  adminAreaNames: () => string[];
-  setAdminAreaNames: (names: string[]) => void;
-  adminAreaOptions: () => AdminAreaOption[];
-  setAdminAreaOptions: (options: AdminAreaOption[]) => void;
-  adminAreaDuplicates: () => AdminAreaDuplicateGroup[];
-  setAdminAreaDuplicates: (groups: AdminAreaDuplicateGroup[]) => void;
+  adminAreas: () => AdminAreaOptionsForLevel;
+  setAdminAreas: (areas: AdminAreaOptionsForLevel) => void;
   geoToAdmin: () => Record<string, string>;
   setGeoToAdmin: (
     mapping:
@@ -91,13 +82,10 @@ export function GeoJsonUploadWizard(p: Props) {
   >(undefined);
   const [adminAreaLevel, setAdminAreaLevel] = createSignal<number>(2);
   const [selectedProp, setSelectedProp] = createSignal<string>("");
-  const [adminAreaNames, setAdminAreaNames] = createSignal<string[]>([]);
-  const [adminAreaOptions, setAdminAreaOptions] = createSignal<
-    AdminAreaOption[]
-  >([]);
-  const [adminAreaDuplicates, setAdminAreaDuplicates] = createSignal<
-    AdminAreaDuplicateGroup[]
-  >([]);
+  const [adminAreas, setAdminAreas] = createSignal<AdminAreaOptionsForLevel>({
+    options: [],
+    duplicates: [],
+  });
   const [geoToAdmin, setGeoToAdminRaw] = createSignal<Record<string, string>>(
     {},
   );
@@ -136,12 +124,8 @@ export function GeoJsonUploadWizard(p: Props) {
     setAdminAreaLevel,
     selectedProp,
     setSelectedProp,
-    adminAreaNames,
-    setAdminAreaNames,
-    adminAreaOptions,
-    setAdminAreaOptions,
-    adminAreaDuplicates,
-    setAdminAreaDuplicates,
+    adminAreas,
+    setAdminAreas,
     geoToAdmin,
     setGeoToAdmin,
     dhis2ConnectionUrl,

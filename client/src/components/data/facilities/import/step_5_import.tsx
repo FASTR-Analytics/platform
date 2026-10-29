@@ -9,6 +9,7 @@ import {
 import {
   Button,
   createFormAction,
+  plural,
   RadioGroup,
   StateHolderFormError,
   toNum0,
@@ -366,16 +367,26 @@ export function Step5Import(p: Props) {
                   <For each={duplicates}>
                     {(d) => (
                       <div>
-                        {t3({
-                          en: `Admin area ${d.adminAreaLevel}: ${
-                            toNum0(d.duplicateCount)
-                          } names are used by more than one area. Those areas share one map boundary and one value until they are renamed.`,
-                          fr: `Unité administrative ${d.adminAreaLevel} : ${
-                            toNum0(d.duplicateCount)
-                          } noms sont portés par plusieurs unités. Ces unités partagent une seule limite de carte et une seule valeur jusqu'à ce qu'elles soient renommées.`,
-                          pt: `Zona administrativa ${d.adminAreaLevel}: ${
-                            toNum0(d.duplicateCount)
-                          } nomes são usados por mais de uma zona. Essas zonas partilham um limite de mapa e um valor até serem renomeadas.`,
+                        {plural(d.duplicateCount, {
+                          one: t3({
+                            en:
+                              `Admin area ${d.adminAreaLevel}: 1 name is used by more than one area. Those areas share one map boundary and one value until they are renamed.`,
+                            fr:
+                              `Unité administrative ${d.adminAreaLevel} : 1 nom est porté par plusieurs unités. Ces unités partagent une seule limite de carte et une seule valeur jusqu'à ce qu'elles soient renommées.`,
+                            pt:
+                              `Zona administrativa ${d.adminAreaLevel}: 1 nome é usado por mais de uma zona. Essas zonas partilham um limite de mapa e um valor até serem renomeadas.`,
+                          }),
+                          other: t3({
+                            en: `Admin area ${d.adminAreaLevel}: ${
+                              toNum0(d.duplicateCount)
+                            } names are used by more than one area. Those areas share one map boundary and one value until they are renamed.`,
+                            fr: `Unité administrative ${d.adminAreaLevel} : ${
+                              toNum0(d.duplicateCount)
+                            } noms sont portés par plusieurs unités. Ces unités partagent une seule limite de carte et une seule valeur jusqu'à ce qu'elles soient renommées.`,
+                            pt: `Zona administrativa ${d.adminAreaLevel}: ${
+                              toNum0(d.duplicateCount)
+                            } nomes são usados por mais de uma zona. Essas zonas partilham um limite de mapa e um valor até serem renomeadas.`,
+                          }),
                         })}
                       </div>
                     )}

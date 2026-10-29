@@ -33,6 +33,21 @@ await admin.unsafe(`CREATE DATABASE ${dbName}`);
 const db = getPgConnection(dbName, { max: 2 });
 await db.file(SCHEMA_PATH);
 
+const hmisSchema = {
+  adminDepth: 3,
+  includeNames: false,
+  includeTypes: false,
+  includeOwnership: false,
+  includeCustom1: false,
+  includeCustom2: false,
+  includeCustom3: false,
+  includeCustom4: false,
+  includeCustom5: false,
+};
+await db`
+  INSERT INTO instance_config (config_key, config_json_value)
+  VALUES ('structure_schema_hmis', ${JSON.stringify(hmisSchema)})
+`;
 await db`
   INSERT INTO admin_areas_hmis_1 (admin_area_1) VALUES ('North'), ('South')
 `;
@@ -132,6 +147,20 @@ Deno.test("the import summary counts duplicates per level", async () => {
     { adminAreaLevel: 2, duplicateCount: 1 },
     { adminAreaLevel: 3, duplicateCount: 1 },
   ]);
+});
+
+Deno.test("levels past the structure's depth are not counted", async () => {
+  const depth = async (adminDepth: number) =>
+    await db`
+      UPDATE instance_config
+      SET config_json_value = ${JSON.stringify({ ...hmisSchema, adminDepth })}
+      WHERE config_key = 'structure_schema_hmis'
+    `;
+  await depth(2);
+  assertEquals(await countDuplicateAdminAreaNames(db, "hmis"), [
+    { adminAreaLevel: 2, duplicateCount: 1 },
+  ]);
+  await depth(3);
 });
 
 Deno.test("cleanup: drop the throwaway database", async () => {

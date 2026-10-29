@@ -16,7 +16,7 @@ import {
 } from "panther";
 import { createMemo, createSignal, For, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { AdminAreaDuplicatesWarning } from "./upload_wizard/mod.ts";
+import { AdminAreaDuplicatesWarning } from "./_shared/mod.ts";
 
 type Props = {
   family: FacilityFamily;

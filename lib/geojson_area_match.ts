@@ -3,7 +3,7 @@ import { foldString } from "@timroberton/panther";
 // Accents fold as panther's search and sort fold them, so "Boké" proposes
 // "Boke". A proposal only: the wizard shows every pairing before a save.
 export function normalizeAreaName(name: string): string {
-  return foldString(name.replace(/\s+/g, " ").trim());
+  return foldString(name).replace(/\s+/g, " ").trim();
 }
 
 export type AreaNameMapping = {

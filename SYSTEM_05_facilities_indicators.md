@@ -1208,7 +1208,7 @@ geometries, so "units without boundaries" = metadata total − geometry count.
 
 Auto-mapping is `autoMapAreaNames` (`lib/geojson_area_match.ts`), the one
 matcher both wizard branches call. An exact name wins; otherwise
-`normalizeAreaName` (panther's `foldString` accent and case fold, after trimming
+`normalizeAreaName` (panther's `foldString` accent and case fold, then trimming
 and collapsing whitespace, non-breaking space included) proposes a pairing only
 when exactly one admin area carries the normalized name, so two areas that
 differ only by accent or case are left for the user. It is a proposal the wizard
@@ -1454,6 +1454,16 @@ layer.
 
 ## Open items
 
+- **The HFA registry write reports no duplicate admin-area names.** The HMIS
+  structure import's summary carries `countDuplicateAdminAreaNames`, but the HFA
+  registry also creates admin areas (`server/db/instance/hfa_facilities.ts`, the
+  admin-area inserts after the facility write) and `reportHfaRegistryOrphans`
+  returns orphans only. Add `duplicateAdminAreaNames` from
+  `countDuplicateAdminAreaNames(sql, "hfa")` to `reportHfaRegistryOrphans`, to
+  `HfaRegistrySaveResult` (`lib/types/structure.ts`) and to the HFA import's
+  result type (`lib/types/dataset_hfa_import.ts`), and show it where
+  `data/facilities/hfa_registry/orphans_alert.tsx` and
+  `data/hfa/imports/staging_summary.tsx` show the orphan count.
 - **Decision needed:** the M10 value object and `M10_hfa_response_status.csv` do
   not share a denominator: a facility can hold a determinate 0 for an indicator
   while its per-variable status reads `missing` or `dont_know`, so a dashboard
