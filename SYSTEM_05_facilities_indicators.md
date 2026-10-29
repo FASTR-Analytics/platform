@@ -1589,7 +1589,8 @@ layer.
   back to the metadata-only modal so labels/categories stay editable."
 - **Decision needed: m010 reads every variable as a number.** The module
   converts every pivoted variable with `as.numeric` (`m010/script.R:51-52`), so
-  a quoted text test in indicator code never matches, a form whose choice codes
+  a quoted operand is compared as text (`x == "1"` matches 1, `x < "5"` is true
+  for 10, quoted non-numeric text equals no value), a form whose choice codes
   are text reads as missing, and the sentinel bindings write codes unquoted
   (`server_only_funcs/get_script_with_parameters_hfa.ts:116-119`). Either the
   language refuses text operands (`parseHfaIndicatorCode` returns `text_operand`

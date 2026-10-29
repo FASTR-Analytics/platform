@@ -54,9 +54,10 @@ SYSTEMS.md §4.1). The unguarded health routes that surface usage are **S15**.
 The HFA tools (`client/src/components/data/hfa/indicators/ai/**`) are
 **S5-owned**: S13 owns the chat they register in, the panther engine contract
 and the tool-schema conventions they follow; S5 owns their semantics, the HFA
-guidance the manager attaches to its view, and the write gate they refuse under
-(`indicators/write_gate.ts`). The slide/figure shapes the slide_ai helpers
-produce are **S10/S12**; the query pipeline the data tools call is **S9**.
+guidance the manager and the code editor attach to their views, and the write
+gate they refuse under (`indicators/write_gate.ts`). The slide/figure shapes the
+slide_ai helpers produce are **S10/S12**; the query pipeline the data tools call
+is **S9**.
 
 ## Principles
 
@@ -1297,8 +1298,11 @@ against the rounds the editor offers, its items against the group the patch
 leaves, and a round or a variant row listed twice, before the draft changes;
 applies the patch through `applyDraft` (a group change drops the previous
 group's variant code); and reports each given field as changed or as no change,
-the dropped variant code, and each round's status from the core. The
-hand-written schemas comply with the S13 conventions (storage field names,
+the dropped variant code, and each round's status from the core. The write and
+editor schemas derive from the contract schemas in
+`lib/api-routes/instance/hfa_indicators.ts` (`hfaIndicatorEditSchema`,
+`hfaIndicatorCodeSchema`, `hfaIndicatorVariantCodeSchema`) through `.shape` and
+`.omit`; every schema complies with the S13 conventions (storage field names,
 throw-don't-catch, `.min(1)` on inclusion lists, no strictObject / strict:true).
 S13 convention changes must be checked against this directory; its tool
 semantics are S5's.
