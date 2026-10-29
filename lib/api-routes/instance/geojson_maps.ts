@@ -15,7 +15,7 @@ type Dhis2FeatureContext = {
 };
 
 const facilityFamilySchema = z.enum(["hmis", "hfa"]);
-const familyLevelParamsSchema = z.object({
+export const familyLevelParamsSchema = z.object({
   family: facilityFamilySchema,
   level: z.coerce.number(),
 });

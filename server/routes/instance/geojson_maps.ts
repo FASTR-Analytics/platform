@@ -7,9 +7,10 @@ import {
   getStoredDhis2CredentialsDecrypted,
   getStoredGeoJson,
   saveGeoJsonMap,
+  type StoredGeoJson,
 } from "../../db/mod.ts";
 import { resolveAssetFilePath } from "../../db/instance/assets.ts";
-import type { StoredGeoJson } from "../../db/instance/geojson_maps.ts";
+import { familyLevelParamsSchema } from "../../../lib/api-routes/instance/geojson_maps.ts";
 import { log } from "../../middleware/logging.ts";
 import { requireGlobalPermission } from "../../middleware/mod.ts";
 import { notifyInstanceGeoJsonMapsUpdated } from "../../task_management/notify_instance_updated.ts";
@@ -221,13 +222,19 @@ routesGeoJsonMaps.get(
   "/geojson-maps/level/:family/:level/:uploaded_at",
   requireGlobalPermission(),
   async (c) => {
-    const family = c.req.param("family");
-    const level = Number(c.req.param("level"));
-    if ((family !== "hmis" && family !== "hfa") || !isAdminAreaLevel(level)) {
+    const params = familyLevelParamsSchema.safeParse({
+      family: c.req.param("family"),
+      level: c.req.param("level"),
+    });
+    if (!params.success || !isAdminAreaLevel(params.data.level)) {
       return c.notFound();
     }
     const res = await buildGeoJsonLevelResponse(
-      await getStoredGeoJson(c.var.mainDb, family, level),
+      await getStoredGeoJson(
+        c.var.mainDb,
+        params.data.family,
+        params.data.level,
+      ),
       c.req.param("uploaded_at"),
       c.req.header("Accept-Encoding"),
     );
