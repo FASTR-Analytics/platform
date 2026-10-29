@@ -21,6 +21,7 @@ globs:
   - server/tests/ai_context_sections_test.ts
   - server/tests/copilot_catalogue_test.ts
   - server/tests/copilot_prompt_test.ts
+  - server/tests/format_hfa_indicators_for_ai_test.ts
   - server/tests/format_products_list_for_ai_test.ts
   - server/tests/hfa_time_points_for_ai_test.ts
   - server/tests/mcp_context_cache_test.ts
@@ -1348,8 +1349,8 @@ will try to resolve", which is what `reportLiveFigures` relies on.
   but cannot create or rename them; decide whether that stays manual. (3) No
   per-conversation cost cap (only the shared instance/user token limits). (4)
   `inspect_hfa_variable` loads the whole dataset display then filters
-  client-side: fine now, unbounded at scale. (5) No tests and no telemetry on
-  tool accept/reject rate.
+  client-side: fine now, unbounded at scale. (5) No telemetry on the tools'
+  accept and reject rates.
 
 **Surface gaps: read-projection ≠ write-schema ≠ stored-shape**
 
