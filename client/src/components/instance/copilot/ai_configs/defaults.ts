@@ -57,12 +57,16 @@ function record(init: RequestInit | undefined): CopilotRequestRecord {
 
 // One SDK client for the whole copilot: /ai is the instance-level copilot
 // proxy (routes/instance/copilot_ai_proxy.ts), guarded by requireApprovedUser.
+// It sends no credential: the guard reads the Clerk session cookie, and Clerk
+// judges any Authorization header first, so a placeholder bearer would 401.
 export function createCopilotSDKClient() {
   const baseURL = _SERVER_HOST
     ? `${_SERVER_HOST}/ai`
     : `${window.location.origin}/ai`;
   return new Anthropic({
-    apiKey: "not-needed",
+    apiKey: null,
+    authToken: null,
+    defaultHeaders: { Authorization: null },
     baseURL,
     dangerouslyAllowBrowser: true,
     fetch: async (url: RequestInfo | URL, init?: RequestInit) => {

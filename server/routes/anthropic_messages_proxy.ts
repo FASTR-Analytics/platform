@@ -29,7 +29,6 @@ import {
 // pricing) under the same token limits.
 const FORWARDABLE_BETAS = new Set([
   "web-fetch-2025-09-10",
-  "files-api-2025-04-14",
   "structured-outputs-2025-12-15",
 ]);
 
@@ -96,31 +95,17 @@ async function runProxy(args: ProxyArgs): Promise<Response> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     "x-api-key": _ANTHROPIC_API_KEY,
-    "anthropic-version": "2023-06-01",
+    "anthropic-version": "2026-10-21",
   };
 
-  // Build beta headers based on features used. Prompt caching is GA: no
-  // beta header needed. (cache_control just works.)
-  const betaFeatures: string[] = [];
-
-  // Files API for documents
-  const hasDocuments = Array.isArray(rest.messages) &&
-    rest.messages.some(
-      (m: { content?: unknown }) =>
-        Array.isArray(m.content) &&
-        m.content.some((c: { type?: string }) => c.type === "document"),
-    );
-  if (hasDocuments) {
-    betaFeatures.push("files-api-2025-04-14");
-  }
-
-  const clientBetas = (clientBetaHeader ?? "")
-    .split(",")
-    .map((s) => s.trim())
-    .filter((b) => FORWARDABLE_BETAS.has(b));
-  const allBetas = [...new Set([...betaFeatures, ...clientBetas])];
-  if (allBetas.length > 0) {
-    headers["anthropic-beta"] = allBetas.join(",");
+  const betas = new Set(
+    (clientBetaHeader ?? "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter((b) => FORWARDABLE_BETAS.has(b)),
+  );
+  if (betas.size > 0) {
+    headers["anthropic-beta"] = [...betas].join(",");
   }
 
   const response = await fetch(_ANTHROPIC_API_URL, {

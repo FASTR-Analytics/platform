@@ -245,14 +245,13 @@ The flow:
 3. **Weekly limit**: same gate shape → `GetInstanceWeeklyTokenUsage >= limit` →
    `LogAiLimitHit("__instance__", "weekly_instance")` (sentinel, not the
    email) + 429 with next-Monday-UTC reset.
-4. **Beta headers**: `files-api-2025-04-14` computed when any message carries a
-   `document` block, merged with client-supplied `anthropic-beta` values
-   **filtered through the `FORWARDABLE_BETAS` allowlist** (web-fetch, files-api,
-   structured-outputs: the set panther actually sends; SDK ≥0.110 sends betas
-   via the header, not the body). Unknown client betas are dropped so users
-   can't enable cost-changing betas under the same token limits.
-5. `fetch(_ANTHROPIC_API_URL)`, `anthropic-version: 2023-06-01`. The SDK's
-   `?beta=true` query is ignored by the route matcher.
+4. **Beta headers**: client-supplied `anthropic-beta` values **filtered through
+   the `FORWARDABLE_BETAS` allowlist** (web-fetch, structured-outputs: the set
+   panther actually sends; SDK ≥0.110 sends betas via the header, not the body).
+   The proxy adds none of its own: the Files API is GA, so a `document` block by
+   `file_id` needs no beta. Unknown client betas are dropped so users can't
+   enable cost-changing betas under the same token limits.
+5. `fetch(_ANTHROPIC_API_URL)`, `anthropic-version: 2026-10-21`.
 6. `!ok` → Anthropic's error body forwarded unchanged at the upstream status
    (type and message intact, so the SDK's `err.type` classification works); a
    non-JSON upstream body is wrapped as an Anthropic-shaped `api_error` carrying
@@ -331,10 +330,10 @@ behavior, unbounded (Open items).
 
 [ai_files.ts](server/routes/instance/ai_files.ts): ONE raw route,
 `POST /ai/files`, guarded by `requireApprovedUser()` like the copilot proxy it
-is mounted beside, proxying the Anthropic Files API with the files-api beta
-header. It is **not** a client-upload passthrough: the body is
-`{assetFilename}`, the server reads that file from the instance assets dir on
-disk (traversal-guarded via `resolveAssetFilePath`) and multiparts it to
+is mounted beside, proxying the Anthropic Files API (GA, no beta header) at
+`anthropic-version: 2026-10-21`. It is **not** a client-upload passthrough: the
+body is `{assetFilename}`, the server reads that file from the instance assets
+dir on disk (traversal-guarded via `resolveAssetFilePath`) and multiparts it to
 Anthropic, hardcoded as `application/pdf` regardless of actual type. Uploaded
 files are referenced as `document` blocks in later `/v1/messages` calls. Nothing
 calls the Files API by file id, so there is no GET or DELETE passthrough.
@@ -413,9 +412,10 @@ check: the panel calls `validateAIChatConfig(config)` under
 
 - **sdkClient**
   ([defaults.ts](client/src/components/instance/copilot/ai_configs/defaults.ts)):
-  Anthropic browser SDK, `baseURL {host}/ai`, `apiKey: "not-needed"`, no default
-  headers, plus a fetch wrapper that rewrites the ISO reset timestamp inside 429
-  bodies to the user's locale.
+  Anthropic browser SDK, `baseURL {host}/ai`, no credential (`apiKey: null`,
+  `authToken: null`, `defaultHeaders: {Authorization: null}`, so the guard
+  judges the Clerk session cookie alone), plus a fetch wrapper that rewrites the
+  ISO reset timestamp inside 429 bodies to the user's locale.
 - **modelConfig**: omitted, so panther's `DEFAULT_MODEL_CONFIG` applies
   (`claude-sonnet-5`, `max_tokens: 32_000`, `output_config: {effort: "high"}`,
   [anthropic_consts.ts:248-252](panther/_110_ai_types/anthropic_consts.ts#L248-L252);
@@ -1172,7 +1172,7 @@ parts S13 relies on, verified this cycle:
   ([request_shaping.ts](panther/_110_ai_types/request_shaping.ts)): ≤3
   prompt-cache breakpoints placed per send (system, last user message, last
   document block of the last document-carrying user message; stored state never
-  carries `cache_control`); per-model resolution of thinking/effort/temperature
+  carries `cache_control`); per-model resolution of thinking and effort
   (prevents 400s across the whole allowed-models list, including adaptive-only
   Opus 4.8); persisted settings sanitized against retired model ids and caps at
   init.

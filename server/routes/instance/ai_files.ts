@@ -16,7 +16,6 @@ export const routesAiFiles = new Hono();
 // instance assets. _ANTHROPIC_API_URL is the /v1/messages endpoint, so the
 // Files URL is derived from the same origin rather than re-hardcoding a host.
 const ANTHROPIC_FILES_URL = new URL("/v1/files", _ANTHROPIC_API_URL).toString();
-const FILES_API_BETA_HEADER = "files-api-2025-04-14";
 
 // POST /files - Upload a file from assets to Anthropic
 routesAiFiles.post("/files", requireApprovedUser(), async (c) => {
@@ -64,8 +63,7 @@ routesAiFiles.post("/files", requireApprovedUser(), async (c) => {
     method: "POST",
     headers: {
       "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-      "anthropic-beta": FILES_API_BETA_HEADER,
+      "anthropic-version": "2026-10-21",
     },
     body: formData,
   });
