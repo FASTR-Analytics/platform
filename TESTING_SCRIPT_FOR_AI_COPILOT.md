@@ -860,7 +860,12 @@ and are skipped under it.
 - Ground truth: H3 shows `get_hfa_variables` with `unusedOnly: true` and
   `timePoint` set to the first round, then `get_hfa_variable_details` with one
   id, its result holding "named by: no indicator" for that round.
-- Pass: both calls `err: false`.
+- Do: send "List, with their code, the indicators whose code names that
+  variable's neighbour in the list." (any variable the listing showed with 1 or
+  more indicators will do).
+- Ground truth: H3 shows `get_hfa_indicators` with `namesVariable` and
+  `withCode: true`, each result line ending in "code:".
+- Pass: every call `err: false`.
 
 **J4. Create, refusing bad code (WRITE).**
 

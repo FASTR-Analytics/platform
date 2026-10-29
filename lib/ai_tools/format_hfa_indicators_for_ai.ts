@@ -187,6 +187,27 @@ function issueLines(round: HfaRoundStatus, prefix: string): string[] {
   );
 }
 
+type RoundLines = { timePoint: string; head: string; body: string[] };
+
+// Rounds whose lines are identical print once, under every round's name, so
+// a survey asked the same way each round costs one block, not one per round.
+function foldRounds(rounds: RoundLines[]): string[] {
+  const groups = new Map<string, RoundLines & { timePoints: string[] }>();
+  for (const r of rounds) {
+    const key = [r.head, ...r.body].join("\n");
+    const group = groups.get(key);
+    if (group === undefined) {
+      groups.set(key, { ...r, timePoints: [r.timePoint] });
+    } else group.timePoints.push(r.timePoint);
+  }
+  return [...groups.values()].flatMap((g) => [
+    `- ${g.timePoints.join(", ")}${
+      g.timePoints.length > 1 ? " (identical)" : ""
+    }: ${g.head}`,
+    ...g.body,
+  ]);
+}
+
 function taxonomyLines(taxonomy: HfaTaxonomyInput, index: Index): string[] {
   const lines = ["Categories (id: label), each with its sub-categories:"];
   if (taxonomy.categories.length === 0) lines.push("- none");
@@ -212,18 +233,43 @@ function taxonomyLines(taxonomy: HfaTaxonomyInput, index: Index): string[] {
   return lines;
 }
 
+// The code once, when every round with code holds the same main code and
+// filter.
+function sharedCode(
+  index: Index,
+  id: string,
+  status: HfaIndicatorStatus | undefined,
+): string {
+  const rounds = index.timePoints
+    .map((tp) => mainCode(index, id, tp))
+    .filter((c) =>
+      c !== undefined && (c.rCode.trim() || c.rFilterCode?.trim())
+    );
+  if (rounds.length === 0) return "code: none";
+  if (status?.consistent === false) return "code: differs by round";
+  const c = rounds[0]!;
+  return `code: ${c.rCode.trim()}${
+    c.rFilterCode?.trim() ? ` [filter: ${c.rFilterCode.trim()}]` : ""
+  }`;
+}
+
 // The taxonomy, then one line per listed indicator; `withIssues` adds each
-// round's issues under its line, for a listing filtered by status.
+// round's issues under its line, for a listing filtered by status, and
+// `withCode` ends each line with its code.
 export function formatHfaIndicatorListForAI(
   input: HfaIndicatorsForAIInput,
   listed: HfaIndicator[],
-  options: { withIssues: boolean },
+  options: { withIssues: boolean; withCode: boolean },
 ): string {
   const index = indexInput(input);
   const lines = [
     ...taxonomyLines(input.taxonomy, index),
     "",
-    `${listed.length} of ${input.indicators.length} indicators. Each line: id | long label | type, aggregation | category, sub-category, service categories | variant group | rounds with code | round status | consistency across rounds.`,
+    `${listed.length} of ${input.indicators.length} indicators. Each line: id | long label | type, aggregation | category, sub-category, service categories | variant group | rounds with code | round status | consistency across rounds${
+      options.withCode
+        ? " | the code, once when every round holds the same"
+        : ""
+    }.`,
   ];
   for (const ind of listed) {
     const status = input.status.get(ind.indicatorId);
@@ -242,6 +288,9 @@ export function formatHfaIndicatorListForAI(
         `code in ${withCode} of ${index.timePoints.length} rounds`,
         roundStatusCounts(status),
         status?.consistent === false ? "inconsistent" : "consistent",
+        ...(options.withCode
+          ? [sharedCode(index, ind.indicatorId, status)]
+          : []),
       ].join(" | "),
     );
     if (options.withIssues) {
@@ -269,19 +318,15 @@ function variableRoundLines(
   timePoints: string[],
   extra: (timePoint: string) => string[] = () => [],
 ): string[] {
-  const lines: string[] = [];
-  for (const timePoint of timePoints) {
+  const lines = foldRounds(timePoints.map((timePoint): RoundLines => {
     const variable = index.variable(variableId, timePoint);
     if (variable === undefined) {
-      lines.push(`- ${timePoint}: not in this round`);
-      continue;
+      return { timePoint, head: "not in this round", body: [] };
     }
-    lines.push(
-      `- ${timePoint}: "${variable.variableLabel}" (${variable.variableType})`,
-    );
+    const body: string[] = [];
     const options = index.options(variableId, timePoint);
     if (options.length > 0) {
-      lines.push(
+      body.push(
         `  options: ${
           options.map((o) =>
             `${o.value}: ${o.valueLabel}${
@@ -297,7 +342,7 @@ function variableRoundLines(
     }
     if (input.displayRows !== undefined) {
       const row = index.displayRow(variableId, timePoint);
-      lines.push(
+      body.push(
         row === undefined
           ? "  data: no rows"
           : `  data: ${row.count} facilities, ${row.missing} blank, ${
@@ -307,8 +352,13 @@ function variableRoundLines(
           }`,
       );
     }
-    lines.push(...extra(timePoint));
-  }
+    body.push(...extra(timePoint));
+    return {
+      timePoint,
+      head: `"${variable.variableLabel}" (${variable.variableType})`,
+      body,
+    };
+  }));
   // Run capture knows only variables with a value, so the run treats a
   // variable blank in every round as unknown.
   if (
@@ -319,7 +369,7 @@ function variableRoundLines(
     })
   ) {
     lines.push(
-      "Blank in every round: unknown to the run, so an indicator naming it is skipped.",
+      "Blank in every round: unknown to the run, so under the default setting an indicator naming it is skipped, and otherwise it fails the run.",
     );
   }
   return lines;
@@ -362,25 +412,27 @@ function indicatorBlock(
     `Consistent across rounds: ${status?.consistent === false ? "no" : "yes"}`,
     "Rounds:",
   ];
-  for (const r of status?.rounds ?? []) {
+  const rounds = (status?.rounds ?? []).map((r): RoundLines => {
     const main = mainCode(index, ind.indicatorId, r.timePoint);
     const variants = index.variantCode(ind.indicatorId, r.timePoint)
       .filter((c) => itemIds.has(c.itemId) && c.rCode.trim() !== "");
     if (r.status === "none" && variants.length === 0) {
-      lines.push(`- ${r.timePoint}: no code`);
-      continue;
+      return { timePoint: r.timePoint, head: "no code", body: [] };
     }
-    lines.push(`- ${r.timePoint}: ${r.status}`);
-    lines.push(`  rCode: ${main?.rCode.trim() || "(none)"}`);
-    if (main?.rFilterCode?.trim()) {
-      lines.push(`  rFilterCode: ${main.rFilterCode.trim()}`);
-    }
-    for (const v of variants) {
-      lines.push(`  variant ${v.itemId}: ${v.rCode.trim()}`);
-    }
-    lines.push(...issueLines(r, "  issue: "));
-  }
-  return lines;
+    return {
+      timePoint: r.timePoint,
+      head: r.status,
+      body: [
+        `  rCode: ${main?.rCode.trim() || "(none)"}`,
+        ...(main?.rFilterCode?.trim()
+          ? [`  rFilterCode: ${main.rFilterCode.trim()}`]
+          : []),
+        ...variants.map((v) => `  variant ${v.itemId}: ${v.rCode.trim()}`),
+        ...issueLines(r, "  issue: "),
+      ],
+    };
+  });
+  return [...lines, ...foldRounds(rounds)];
 }
 
 function namedIndicatorLines(
@@ -393,19 +445,23 @@ function namedIndicatorLines(
       composeHfaIndicatorLabel(ind, "full")
     } (${ind.type}, ${ind.aggregation})`,
   ];
-  for (const r of input.status.get(ind.indicatorId)?.rounds ?? []) {
-    const main = mainCode(index, ind.indicatorId, r.timePoint);
-    const rCode = main?.rCode.trim() ?? "";
-    const rFilterCode = main?.rFilterCode?.trim() ?? "";
-    lines.push(
-      rCode === "" && rFilterCode === ""
-        ? `- ${r.timePoint}: no code`
-        : `- ${r.timePoint}: ${r.status}; rCode: ${rCode || "(none)"}${
-          rFilterCode ? `; rFilterCode: ${rFilterCode}` : ""
-        }`,
-    );
-  }
-  return lines;
+  const rounds = (input.status.get(ind.indicatorId)?.rounds ?? []).map(
+    (r): RoundLines => {
+      const main = mainCode(index, ind.indicatorId, r.timePoint);
+      const rCode = main?.rCode.trim() ?? "";
+      const rFilterCode = main?.rFilterCode?.trim() ?? "";
+      return {
+        timePoint: r.timePoint,
+        head: rCode === "" && rFilterCode === ""
+          ? "no code"
+          : `${r.status}; rCode: ${rCode || "(none)"}${
+            rFilterCode ? `; rFilterCode: ${rFilterCode}` : ""
+          }`,
+        body: [],
+      };
+    },
+  );
+  return [...lines, ...foldRounds(rounds)];
 }
 
 // Every indicator of `indicatorIds`, then every variable their code names,

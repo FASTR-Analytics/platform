@@ -1232,7 +1232,10 @@ variant group, rounds with main code out of all rounds, round status counts,
 consistency); it filters by `search` (the manager's search text, through
 panther's `searchTokens` and `matchesSearch`), category, service category,
 status (`error`, `warning` with no error, `inconsistent`, `none`), missing
-category and missing short label, and a status filter adds each round's issues.
+category, missing short label and `namesVariable` (indicators whose main, filter
+or variant code names one of the ids, through `hfaVariableUsage`); a status
+filter adds each round's issues, and `withCode` ends each line with the
+indicator's code, once when every round holds the same.
 `get_hfa_indicator_details` prints the detail block for its ids: each indicator
 in full (labels, measure, categories, variant group and items, per round the
 code, filter, variant code, status and issues), then every variable the set's
@@ -1244,10 +1247,12 @@ is in the number of indicators whose code names it), filtered by `search`,
 round, and `unusedOnly` (a variable no code names in some round it is in,
 structural columns excluded). `get_hfa_variable_details` prints each variable's
 per-round detail with the indicators naming it, and lists an id in no round as
-not found. The two detail reads take at most 20 ids and refuse more, naming the
-cap. The display rows are read only when the user also holds `can_view_data`
-(the route's own guard); otherwise the output carries one line saying the counts
-and values present need that permission.
+not found. Every per-round block, of an indicator or a variable, prints once
+when its lines are identical in several rounds, headed by those rounds' names
+and "(identical)". The two detail reads take at most 20 ids and refuse more,
+naming the cap. The display rows are read only when the user also holds
+`can_view_data` (the route's own guard); otherwise the output carries one line
+saying the counts and values present need that permission.
 
 A write refuses before it proposes: `propose` loads fresh state and throws
 `AIToolFailure` on an unknown category, sub-category, service category, variant

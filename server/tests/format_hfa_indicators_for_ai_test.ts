@@ -1,7 +1,8 @@
 // Pins the text the chat's HFA reads print: the indicator listing, the
 // detail block, the variable listing and the variable details, over one
 // fixture with a variant indicator, a variable absent from a round, one blank
-// in every round, a text choice code, and no display rows.
+// in every round, a text choice code, identical rounds folded, and no display
+// rows.
 //
 //   deno test -A server/tests/format_hfa_indicators_for_ai_test.ts
 
@@ -217,7 +218,10 @@ const noRows = fixture(false);
 
 Deno.test("the listing prints the taxonomy, a count line and one line per indicator", () => {
   assertEquals(
-    formatHfaIndicatorListForAI(full, full.indicators, { withIssues: false }),
+    formatHfaIndicatorListForAI(full, full.indicators, {
+      withIssues: false,
+      withCode: false,
+    }),
     [
       "Categories (id: label), each with its sub-categories:",
       "- cat_a: Infrastructure",
@@ -237,10 +241,36 @@ Deno.test("the listing prints the taxonomy, a count line and one line per indica
   );
 });
 
+Deno.test("withCode ends each line with the code, once when the rounds agree", () => {
+  assertEquals(
+    formatHfaIndicatorListForAI(full, full.indicators, {
+      withIssues: false,
+      withCode: true,
+    }),
+    [
+      "Categories (id: label), each with its sub-categories:",
+      "- cat_a: Infrastructure",
+      "  - sub_a1: Water",
+      "Service categories (id: label):",
+      "- svc_x: Hospitals",
+      "Variant groups (id: label), each with its items:",
+      "- vg_mode: Delivery mode",
+      "  - campaign: Campaign",
+      "  - routine: Routine",
+      "",
+      "3 of 3 indicators. Each line: id | long label | type, aggregation | category, sub-category, service categories | variant group | rounds with code | round status | consistency across rounds | the code, once when every round holds the same.",
+      "ind001 | Long ind001 | binary, avg | category cat_a, sub-category sub_a1, services svc_x | variant group none | code in 2 of 2 rounds | 2 ready | consistent | code: wat_01 == 1 [filter: open == 1]",
+      "ind002 | Long ind002 | binary, avg | category none, sub-category none, services none | variant group vg_mode | code in 1 of 2 rounds | 1 ready, 1 error | consistent | code: ind001 == 1 AND vac IN (1, 2)",
+      "ind003 | Long ind003 | numeric, sum | category cat_a, sub-category none, services svc_x | variant group none | code in 2 of 2 rounds | 1 ready, 1 warning | inconsistent | code: differs by round",
+    ].join("\n"),
+  );
+});
+
 Deno.test("a listing filtered by status prints each round's issues under the indicator", () => {
   assertEquals(
     formatHfaIndicatorListForAI(full, [full.indicators[2]], {
       withIssues: true,
+      withCode: false,
     }),
     [
       "Categories (id: label), each with its sub-categories:",
@@ -288,17 +318,16 @@ Deno.test("the detail block of a variant indicator: its rounds, the variables an
       "  options: a: Campaign [text code: read as missing in the run]",
       "  data: 10 facilities, 10 blank, 0 non-blank (sentinel codes count as non-blank); values present: none",
       "- R2: not in this round",
-      "Blank in every round: unknown to the run, so an indicator naming it is skipped.",
+      "Blank in every round: unknown to the run, so under the default setting an indicator naming it is skipped, and otherwise it fails the run.",
       "",
       "## Other indicators the code names",
       "### ind001: Long ind001 (binary, avg)",
-      "- R1: ready; rCode: wat_01 == 1; rFilterCode: open == 1",
-      "- R2: ready; rCode: wat_01 == 1; rFilterCode: open == 1",
+      "- R1, R2 (identical): ready; rCode: wat_01 == 1; rFilterCode: open == 1",
     ].join("\n"),
   );
 });
 
-Deno.test("without display rows the detail block says why the counts are missing", () => {
+Deno.test("without display rows the detail block says why the counts are missing, and identical rounds print once", () => {
   assertEquals(
     formatHfaIndicatorDetailsForAI(noRows, ["ind001"]),
     [
@@ -311,10 +340,7 @@ Deno.test("without display rows the detail block says why the counts are missing
       "Variant group: none",
       "Consistent across rounds: yes",
       "Rounds:",
-      "- R1: ready",
-      "  rCode: wat_01 == 1",
-      "  rFilterCode: open == 1",
-      "- R2: ready",
+      "- R1, R2 (identical): ready",
       "  rCode: wat_01 == 1",
       "  rFilterCode: open == 1",
       "",
@@ -325,8 +351,7 @@ Deno.test("without display rows the detail block says why the counts are missing
       "  options: 1: Yes; 2: No; -99: Don't know [dont_know]",
       '- R2: "Has piped water" (select_one)',
       "### open",
-      '- R1: "Open" (select_one)',
-      '- R2: "Open" (select_one)',
+      '- R1, R2 (identical): "Open" (select_one)',
       "",
       "## Other indicators the code names",
       "None.",
@@ -356,7 +381,7 @@ Deno.test("the variable details name the indicators per round and list an id in 
       "  data: 10 facilities, 10 blank, 0 non-blank (sentinel codes count as non-blank); values present: none",
       "  named by: ind002 (Long ind002)",
       "- R2: not in this round",
-      "Blank in every round: unknown to the run, so an indicator naming it is skipped.",
+      "Blank in every round: unknown to the run, so under the default setting an indicator naming it is skipped, and otherwise it fails the run.",
       "Not found in any round: nope",
     ].join("\n"),
   );
