@@ -1127,3 +1127,8 @@ Departures, one line each, written when they happen.
   carries, so it moved to step 3 with the groups. The shared warning is a new
   file, `data/geojson/_shared/admin_area_duplicates_warning.tsx` with its
   `_shared/mod.ts`, because the wizard and the edit modal both show it.
+- Step 4: the stamp route returns `{ found: true, geojsonMaps }` or
+  `{ found: false }` instead of the manifest read's failure envelope, so the
+  store tells a run that is gone (`run_unknown`) from a failed request, which it
+  does not cache and retries rather than drawing the instance's boundaries for
+  the session.

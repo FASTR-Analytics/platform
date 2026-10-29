@@ -279,6 +279,13 @@ export const runGeoJsonMapSchema = z.object({
 });
 export type RunGeoJsonMap = z.infer<typeof runGeoJsonMapSchema>;
 
+// A package's geojson stamp as the client reads it. `found: false` is a run
+// that is gone or whose manifest cannot be read, which no retry changes; a
+// failed request is the envelope's failure instead, and is retried.
+export type RunGeoJsonStamp =
+  | { found: true; geojsonMaps: RunGeoJsonMap[] | null }
+  | { found: false };
+
 export const runProvenanceSchema = z.enum(["synthetic-backfill", "wizard"]);
 export type RunProvenance = z.infer<typeof runProvenanceSchema>;
 

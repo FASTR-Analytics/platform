@@ -1118,6 +1118,17 @@ copies are in neither `inputHashes` nor `scriptInputs` and reach no reuse key
 so block 13 gives every earlier package `null`, forever; such a package's map
 figures read the instance's boundaries.
 
+Two run-keyed routes serve them, both `requireApprovedUser()` and scope-less
+(geometry carries no data values). `getRunGeoJsonStamp`
+(`GET /run_generation/run/:run_id/geojson`) returns
+`{ found: true, geojsonMaps }`, `null` included, or `{ found: false }` when the
+manifest cannot be read, which is the run's own disk state and no retry changes.
+`GET /run_generation/run/:run_id/geojson/:family/:level` is off the registry: it
+streams the captured file as stored, `Content-Encoding: gzip`,
+`Cache-Control: private, max-age=31536000, immutable`, and 404s for a run or a
+level the package lacks. It is unlogged, like every per-page-load fetch, and its
+path-safe read is `openRunGeoJsonFile` in `package_internals.ts`.
+
 ## population.csv: the person-years file
 
 The run's `inputs/population.csv` is the population store (S5 "Population

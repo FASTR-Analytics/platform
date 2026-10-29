@@ -20,6 +20,7 @@ export {
 export { transformRunManifestFile } from "./manifest_transform.ts";
 export {
   listRunModuleFiles,
+  openRunGeoJsonFile,
   readRunDetail,
   readRunModuleLogs,
   readRunModuleScript,
