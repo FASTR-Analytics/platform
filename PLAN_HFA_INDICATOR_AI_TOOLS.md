@@ -9,7 +9,7 @@ the code is evaluated. On the way, the stored validation flags go, the server
 refuses code that does not parse, and validation, including variant code and
 cycles, has one home in lib.
 
-**Next step:** Do 4
+**Next step:** Do 5
 
 Branch: `main`. Repo: this app only. Read first: `CLAUDE.md`, `SYSTEMS.md`,
 [SYSTEM_13_ai_assistant.md](SYSTEM_13_ai_assistant.md) "The HFA tools",
