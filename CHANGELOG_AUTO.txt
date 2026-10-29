@@ -1,3 +1,10 @@
+[TBD] [user] [added] - Module defaults now show when values differ from the country baseline
+[TBD] [user] [added] - Reset individual settings, entire modules, or all defaults back to the country baseline
+[TBD] [user] [added] - Data family selections now show baseline comparison indicators when changed
+[TBD] [admin] [added] - Module defaults editor now shows baseline comparison markers
+[TBD] [admin] [added] - Reset individual parameters, modules, or all settings to baseline
+[TBD] [admin] [added] - Data family checkboxes show when they differ from baseline
+[TBD] [admin] [added] - Banner summarizes whether any values differ from country baseline
 [2.4.1] [user] [fixed] - Figures now keep their original language when updated to a new data package
 [2.4.1] [user] [fixed] - Figure legends and captions no longer mix languages (e.g., French caption with English legend)
 [2.4.1] [user] [added] - Portuguese translations added for "All areas" labels in figures
