@@ -370,13 +370,13 @@ a filter, the type's `values` as `valuesFilter`, and the style borrowed from the
 metric's first map preset, else the defaults: the five m001 maps carry their
 presets' threshold colouring; m012, m002, m006 and m010 have no map preset and
 take `DEFAULT_S_CONFIG`, with `cfMode: "indicator"` for an indicator-format
-metric. Boundaries the instance lacks for the map's registry and level surface
-as `buildFigureInputs`' typed `no_boundaries` reason, worded by
-`describeFigureUnavailable`, through the preview's error state until they
-arrive: the preview builds after an await, where a boundary read tracks nothing,
-so the figure view reads the map's boundaries (`getGeoJsonSync` for the metric's
-registry and the map's level) in the preview's source, and a map shown before
-they load rebuilds when they land.
+metric. Boundaries the package lacks for the map's registry and level surface as
+`buildFigureInputs`' typed reason, worded by `describeFigureUnavailable`,
+through the preview's error state: the preview builds after an await, where a
+boundary read tracks nothing, so the figure view reads the run-geo store
+(`getRunGeoJsonSync` for the view's run, the metric's registry and the map's
+level, and the instance's `getGeoJsonSync` when that answers `run_unknown`) in
+the preview's source, and a map shown before they load rebuilds when they land.
 
 ## lib config semantics
 

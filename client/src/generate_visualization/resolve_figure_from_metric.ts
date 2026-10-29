@@ -15,7 +15,7 @@ import { _PO_ITEMS_CACHE } from "~/state/products/t2_figure_data";
 import { serverActions } from "~/server_actions";
 import { poItemsQueue } from "~/state/_infra/request_queue";
 import { getAdminAreaLevelFromMapConfig } from "./get_admin_area_level_from_config";
-import { geoJsonFamilyFor, getGeoJsonSync } from "~/state/instance/t2_geojson";
+import { geoJsonFamilyFor } from "~/state/instance/t2_geojson";
 import { figureScopeStamp, resolveScope } from "~/state/instance/t1_store";
 
 // Plain-inputs resolver: takes the metric data already resolved by the caller
@@ -139,8 +139,6 @@ export function makeFigureBundleFromFetchedData(
 ): FigureBundle {
   const { resultsValue, ih, effectiveConfig } = data;
   const mapLevel = getAdminAreaLevelFromMapConfig(effectiveConfig);
-  const geoFamily = geoJsonFamilyFor(resultsValue.datasetFamily);
-  const geoJson = mapLevel ? getGeoJsonSync(geoFamily, mapLevel) : undefined;
   // A bundle OWNS the data it carries. Callers hand over the items cache's own
   // row objects (it serves them by reference) and live store objects (the
   // metrics store, a preset config), and a bundle that reaches a Solid store is
@@ -161,14 +159,14 @@ export function makeFigureBundleFromFetchedData(
   }));
   return {
     ...owned,
-    // The one field held by reference: `geo.data` is the instance's whole
-    // boundary file, megabytes of it, shared by every figure at that level and
-    // never read as a record (`geoRefSchema` types it `z.unknown()`), so a copy
-    // per bundle build would cost the editor's live preview for nothing.
+    // A map names its boundaries and draws them from the package this
+    // bundle was resolved against (provenance.runId), never a copy.
     geo: mapLevel
-      ? (geoJson
-        ? { kind: "data" as const, data: geoJson }
-        : { kind: "level" as const, level: mapLevel, family: geoFamily })
+      ? {
+        kind: "level" as const,
+        level: mapLevel,
+        family: geoJsonFamilyFor(resultsValue.datasetFamily),
+      }
       : undefined,
     localization,
     metricId: resultsValue.id,

@@ -21,11 +21,12 @@ import {
   makeFigureBundleFromFetchedData,
   resolveFigureBundleFromMetric,
 } from "./resolve_figure_from_metric";
+import { geoJsonFamilyFor, getGeoJsonSync } from "~/state/instance/t2_geojson";
 import {
-  geoJsonFamilyFor,
-  getGeoJsonSync,
-  preloadGeoJson,
-} from "~/state/instance/t2_geojson";
+  ensureRunGeoJson,
+  ensureRunGeoJsonStamp,
+  getRunGeoJsonMapsSync,
+} from "~/state/instance/t2_run_geojson";
 import { getSnapshotInstanceState } from "~/state/instance/t1_store";
 import { getPresentationObjectItemsFromCacheOrFetch } from "~/state/products/t2_figure_data";
 
@@ -74,7 +75,7 @@ export async function resolveBundleFromMetricAndConfig(
 
   // Strict replicant validation (shared with the from_visualization AI path).
   await assertReplicantValid(scope, metric, config);
-  await assertMapBoundariesAvailable(metric.datasetFamily, config);
+  await assertMapBoundariesAvailable(scope.runId, metric.datasetFamily, config);
 
   const bundle = await resolveFigureBundleFromMetric(
     scope,
@@ -96,38 +97,40 @@ export async function resolveBundleFromMetricAndConfig(
   return bundle;
 }
 
-// A map draws the boundary file the instance holds for the figure's registry
-// at the figure's level. The sync cache is empty until the preload lands, so
-// the instance's map list decides, and a listed file is awaited into the
-// cache so the bundle embeds its geometry.
+// A map draws the boundaries its package was generated with, or, for a
+// package without a capture, the instance's. The package's stamp decides
+// which levels exist; the file is then awaited so the commit renders.
 async function assertMapBoundariesAvailable(
+  runId: string,
   datasetFamily: DatasetType | undefined,
   config: PresentationObjectConfig,
 ): Promise<void> {
   const level = getAdminAreaLevelFromMapConfig(config);
   if (level === undefined) return;
   const family = geoJsonFamilyFor(datasetFamily);
-  const maps = getSnapshotInstanceState().geojsonMaps.filter((m) =>
-    m.family === family
-  );
-  const map = maps.find((m) => m.adminAreaLevel === level);
+  await ensureRunGeoJsonStamp(runId);
+  const levels = (getRunGeoJsonMapsSync(runId) ??
+    getSnapshotInstanceState().geojsonMaps)
+    .filter((m) => m.family === family)
+    .map((m) => m.adminAreaLevel)
+    .toSorted((a, b) => a - b);
   const registry = family.toUpperCase();
-  if (map === undefined) {
-    const levels = maps
-      .map((m) => m.adminAreaLevel)
-      .toSorted((a, b) => a - b)
-      .map((l) => `admin_area_${l}`);
+  if (!levels.includes(level)) {
+    const named = levels.map((l) => `admin_area_${l}`);
     throw new AIToolFailure(
       `No boundary map file is uploaded for the ${registry} registry at admin_area_${level}, so this map cannot render. ` +
-        (levels.length > 0
+        (named.length > 0
           ? `Map files exist at ${
-            levels.join(", ")
+            named.join(", ")
           }: use one of those levels, or a table.`
           : "This registry has no map files: use a table."),
     );
   }
-  await preloadGeoJson([map]);
-  if (getGeoJsonSync(family, level) === undefined) {
+  const read = await ensureRunGeoJson(runId, family, level);
+  const loaded = read.state === "ready" ||
+    (read.state === "run_unknown" &&
+      getGeoJsonSync(family, level) !== undefined);
+  if (!loaded) {
     throw new AIToolFailure(
       `The ${registry} boundary map at admin_area_${level} could not be loaded, so this map cannot render.`,
     );

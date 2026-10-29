@@ -78,10 +78,7 @@ import {
   buildFigureInputs,
   makeFigureBundleFromFetchedData,
 } from "~/generate_visualization/mod";
-import { getAdminAreaLevelFromMapConfig } from "~/generate_visualization/get_admin_area_level_from_config";
 import { getTableExportAoa } from "~/exports/get_table_export_aoa";
-import { geoJsonFamilyFor, getGeoJsonSync } from "~/state/instance/t2_geojson";
-import type { GeoJSONFeatureCollection } from "panther";
 import {
   getPresentationObjectItemsFromCacheOrFetch,
   getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator,
@@ -197,7 +194,6 @@ export function VisualizationEditorInner(p: InnerProps) {
     StateHolder<{
       ih: ItemsHolderPresentationObject;
       config: PresentationObjectConfig;
-      geoJson?: GeoJSONFeatureCollection;
     }>
   >({
     status: "loading",
@@ -261,17 +257,6 @@ export function VisualizationEditorInner(p: InnerProps) {
         ) {
           isAutoResolvingReplicant = true;
           setTempConfig("d", "selectedReplicantValue", resolvedReplicant);
-        }
-        const mapLevel = getAdminAreaLevelFromMapConfig(lastState.data.config);
-        if (mapLevel) {
-          const geoJson = getGeoJsonSync(
-            geoJsonFamilyFor(metric.datasetFamily),
-            mapLevel,
-          );
-          setItemsHolder({
-            status: "ready",
-            data: { ...lastState.data, geoJson },
-          });
         }
         // Live co-editing: push a COHERENT bundle (the config being
         // co-edited + its freshly-fetched items) to the host, so canvas peers

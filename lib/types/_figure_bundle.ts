@@ -77,8 +77,10 @@ const _rv: Required<ResultsValueForVisualization> = {
 };
 resultsValueForVisualizationSchema.parse(_rv);
 
-// Discriminated union: live editor passes level (derives GeoJSON from sync
-// cache); a bundle may instead embed the full GeoJSON.
+// A bundle names its geometry ({kind:"level"}), resolved against its own
+// package (provenance.runId). {kind:"data"} is only read: bundles stored
+// before the capture embed the instance's whole boundary file, and a stored
+// bundle is never rewritten.
 // family selects the registry's map; optional and additive: stored
 // {kind:"level"} bundles without it default to hmis at resolution (same
 // ruling as ResultsValue.datasetFamily absence), no force block needed.

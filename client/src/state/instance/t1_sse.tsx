@@ -12,6 +12,7 @@ import {
   evictDeletedGeoJsonLevels,
   preloadGeoJson,
 } from "~/state/instance/t2_geojson";
+import { evictRunGeoJsonNotIn } from "~/state/instance/t2_run_geojson";
 import {
   canSeeRunsCatalog,
   initInstanceState,
@@ -386,12 +387,14 @@ export function InstanceSSEBoundary(p: { children: JSX.Element }) {
 
       if (!instanceState.currentUserApproved) {
         updateInstanceReadyPackages([]);
+        void evictRunGeoJsonNotIn([]);
         return;
       }
       serverActions.listReadyPackages({}).then((res) => {
         if (controller.signal.aborted) return;
         if (res.success) {
           updateInstanceReadyPackages(res.data);
+          void evictRunGeoJsonNotIn(res.data.map((r) => r.id));
         } else {
           console.error("Failed to fetch ready packages:", res.err);
         }

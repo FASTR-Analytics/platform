@@ -47,6 +47,10 @@ import {
   metricAllowsNegativeScale,
 } from "./special_chart_checks";
 import { getGeoJsonSync } from "~/state/instance/t2_geojson";
+import {
+  ensureRunGeoJson,
+  getRunGeoJsonSync,
+} from "~/state/instance/t2_run_geojson";
 
 export type FigureInputsResult =
   | { ok: true; inputs: FigureInputs }
@@ -61,24 +65,19 @@ export function buildFigureInputs(
   // A document's own chart palette (see getStandardSeriesColorFunc).
   chartPalette?: FastrChartPalette,
 ): FigureInputsResult {
-  const geoJson = resolveGeoJson(bundle.geo, bundle.config);
-  if (bundle.config.d.type === "map" && !geoJson) {
-    const level = getAdminAreaLevelFromMapConfig(bundle.config);
-    if (level === undefined) {
-      throw new Error("Map figure has no admin-area map dimension");
-    }
-    // Each facility registry carries its OWN boundaries, so the level alone
-    // does not identify the missing map.
-    const family = geoFamily(bundle.geo);
+  if (bundle.config.d.type !== "map") {
     return {
-      ok: false,
-      unavailable: { kind: "no_boundaries", family, level, source: "instance" },
+      ok: true,
+      inputs: buildInputs(bundle, undefined, deckStyle, chartPalette),
     };
   }
-  return {
-    ok: true,
-    inputs: buildInputs(bundle, geoJson, deckStyle, chartPalette),
-  };
+  const geo = resolveGeoJson(bundle);
+  return geo.ok
+    ? {
+      ok: true,
+      inputs: buildInputs(bundle, geo.data, deckStyle, chartPalette),
+    }
+    : geo;
 }
 
 function buildInputs(
@@ -504,15 +503,60 @@ function buildInputs(
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
+// A bundle that carries its geometry draws it. One that names a level draws
+// its own package's boundaries, keyed by provenance.runId and not by the
+// container's package, so a stale figure keeps the boundaries it was built
+// with for as long as its package exists; only a package without a capture,
+// or a run that is gone, falls back to the instance's. Each facility registry
+// carries its OWN boundaries, so the reason names the family as well as the
+// level.
 function resolveGeoJson(
-  geo: FigureBundle["geo"],
-  config: PresentationObjectConfig,
-): GeoJSONFeatureCollection | undefined {
-  if (!geo) return undefined;
-  if (geo.kind === "data") return geo.data as GeoJSONFeatureCollection;
-  const level = getAdminAreaLevelFromMapConfig(config);
-  if (!level) return undefined;
-  return getGeoJsonSync(geoFamily(geo), level) ?? undefined;
+  bundle: FigureBundle,
+):
+  | { ok: true; data: GeoJSONFeatureCollection }
+  | { ok: false; unavailable: FigureUnavailable } {
+  const level = getAdminAreaLevelFromMapConfig(bundle.config);
+  if (level === undefined) {
+    throw new Error("Map figure has no admin-area map dimension");
+  }
+  if (bundle.geo?.kind === "data") {
+    return { ok: true, data: bundle.geo.data as GeoJSONFeatureCollection };
+  }
+  const family = geoFamily(bundle.geo);
+  const read = getRunGeoJsonSync(bundle.provenance.runId, family, level);
+  if (read.state === "ready") return { ok: true, data: read.data };
+  if (read.state === "loading") {
+    return {
+      ok: false,
+      unavailable: { kind: "boundaries_loading", family, level },
+    };
+  }
+  if (read.state === "not_in_package") {
+    return {
+      ok: false,
+      unavailable: { kind: "no_boundaries", family, level, source: "package" },
+    };
+  }
+  const instance = getGeoJsonSync(family, level);
+  return instance !== undefined ? { ok: true, data: instance } : {
+    ok: false,
+    unavailable: { kind: "no_boundaries", family, level, source: "instance" },
+  };
+}
+
+// Awaits the boundaries a map bundle names, for a caller that builds after an
+// await, where a sync read tracks nothing and would build the loading state.
+export async function awaitFigureBoundaries(
+  bundle: FigureBundle,
+): Promise<void> {
+  if (bundle.config.d.type !== "map" || bundle.geo?.kind === "data") return;
+  const level = getAdminAreaLevelFromMapConfig(bundle.config);
+  if (level === undefined) return;
+  await ensureRunGeoJson(
+    bundle.provenance.runId,
+    geoFamily(bundle.geo),
+    level,
+  );
 }
 
 // Stored bundles without a family predate the split and are hmis (same

@@ -1240,8 +1240,10 @@ geojson_maps_updated SSE → preloadGeoJson` triangle, plus
 beside the HTTP cache because it holds the parsed object, which saves the 20 MB
 `JSON.parse` an HTTP cache hit still pays. Consumers read via
 `getGeoJsonSync(family, level)`, which reads a version signal so a tracked
-computation that ran before a map loaded re-runs once it arrives; figure bundles
-snapshot geojson as `{kind:"data"}` when available.
+computation that ran before a map loaded re-runs once it arrives. It is the
+administration plane and the fallback for a package without a capture: a
+figure's boundaries come from its own package (SYSTEM_08 "inputs/geojson",
+SYSTEM_10 "Geo").
 
 ## Instance config
 

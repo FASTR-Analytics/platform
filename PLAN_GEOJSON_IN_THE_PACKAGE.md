@@ -1132,3 +1132,6 @@ Departures, one line each, written when they happen.
   store tells a run that is gone (`run_unknown`) from a failed request, which it
   does not cache and retries rather than drawing the instance's boundaries for
   the session.
+- Step 4: `SYSTEM_05_facilities_indicators.md`, outside the Surface, changed:
+  its geojson caching paragraph said bundles snapshot geometry as
+  `{kind:"data"}`, which the deleted embed branch made false.

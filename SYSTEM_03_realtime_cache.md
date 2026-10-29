@@ -202,16 +202,19 @@ structure write routes; S5 "Population store"),
 `notifyInstanceRunsCatalogUpdated` (`runs_catalog_updated`: a data-free NONCE,
 `crypto.randomUUID()`: a timestamp collided when two mutations landed in the
 same millisecond and the client store's equality guard dropped the second
-refetch. Entitled clients refetch `listRunCatalog` per the † rule above; fired
-by every in-process mutation of the catalogue's facts: launch (the route on
-success, and `generate_run/launch.ts` on the row-created-then-failed path),
-`deleteRun`, the generate-run worker's finalize-or-fail site plus the host's
-crash handler, `pinRun` / `unpinRun`, and the `products.run_id` movers
-`setProductPackage`, `duplicateProduct` and `deleteProducts`),
-`notifyInstancePinnedRunUpdated` (`pinned_run_updated`: the instance's pinned
-results package moved or was cleared, SYSTEM_08 "The pinned package"; carries
-the bare `pinnedRunId | null` and is deliberately UNFILTERED, the
-`config_updated` class: a run id alone is not sensitive (every approved user
+refetch. Entitled clients refetch `listRunCatalog` per the † rule above, and
+every approved client refetches `listReadyPackages` in `t1_sse.tsx`'s
+ready-packages effect, which, once the list is stored, evicts the run-geo store
+(`t2_run_geojson.ts`) of every run not in it, memory and IDB, and evicts it
+whole for an unapproved user; fired by every in-process mutation of the
+catalogue's facts: launch (the route on success, and `generate_run/launch.ts` on
+the row-created-then-failed path), `deleteRun`, the generate-run worker's
+finalize-or-fail site plus the host's crash handler, `pinRun` / `unpinRun`, and
+the `products.run_id` movers `setProductPackage`, `duplicateProduct` and
+`deleteProducts`), `notifyInstancePinnedRunUpdated` (`pinned_run_updated`: the
+instance's pinned results package moved or was cleared, SYSTEM_08 "The pinned
+package"; carries the bare `pinnedRunId | null` and is deliberately UNFILTERED,
+the `config_updated` class: a run id alone is not sensitive (every approved user
 already sees the ids of the packages products serve from) and it is the ONE
 field every surface derives its Pinned badge from. Its callers,
 `server/runs/pin_run.ts`'s `pinRun` and `unpinRun`, each fire it once and then
@@ -461,8 +464,10 @@ Around it:
   could live in `lib/` (Open items).
 - **`clear_caches.ts`**: `clearDataCache()` deletes every IndexedDB key except
   the AI prefixes (`ai-conv`, `ai-documents`, `ai-attachments`) and clears the
-  geojson memory cache; `clearAiChatCache()` deletes only the AI prefixes, so
-  pending attachments survive a deploy and go with Clear AI chat history.
+  memory of the instance geojson store and the run-geo store (whose
+  `run_geojson:` IDB keys that sweep already covers); `clearAiChatCache()`
+  deletes only the AI prefixes, so pending attachments survive a deploy and go
+  with Clear AI chat history.
 - **Deploy flush**: `instance/logged_in_wrapper.tsx` (S1 file, this system a
   reader) compares the server's `serverVersion` against `localStorage` on boot
   and calls `clearDataCache()` on change: client caches auto-invalidate on
