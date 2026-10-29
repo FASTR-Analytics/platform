@@ -1275,9 +1275,9 @@ header, fields, and per round the code, the filter and each item's variant code,
 warnings beside the round), stored against proposed, the stored pane empty for a
 create. `delete_hfa_indicators` keeps panther's built-in dialog and labels each
 change with the id and the full label. `create_hfa_indicators` reports what the
-batch route created and, under `notCreated`, an id another save took between the
-proposal and the acceptance. Every anticipated failure throws `AIToolFailure`
-carrying the server's error (zero plain-`Error` throws in
+batch route created and, on a "Not created:" line, each id another save took
+between the proposal and the acceptance. Every anticipated failure throws
+`AIToolFailure` carrying the server's error (zero plain-`Error` throws in
 [tools.ts](client/src/components/data/hfa/indicators/ai/tools.ts), the
 failure-channel ruling above). The survey dictionary and the dataset display are
 read through the manager's T2 caches; the indicators, the taxonomy (variant

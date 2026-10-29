@@ -553,11 +553,6 @@ function codeKey(code: CodeRound[], variantCode: VariantRow[]): string {
   ]);
 }
 
-// One update entry merged onto fresh state, with the editor's semantics: a
-// category change clears a sub-category that no longer fits, a group change
-// drops the previous group's variant code, and code is patched as the tool's
-// description states. `writtenFields` keys the fields the entry writes
-// (`round|field|item`), the ones whose errors refuse the call.
 function refuseDuplicateRows(
   id: string,
   code: { timePoint: string }[],
@@ -579,6 +574,11 @@ function refuseDuplicateRows(
   }
 }
 
+// One update entry merged onto fresh state, with the editor's semantics: a
+// category change clears a sub-category that no longer fits, a group change
+// drops the previous group's variant code, and code is patched as the tool's
+// description states. `writtenFields` keys the fields the entry writes
+// (`round|field|item`), the ones whose errors refuse the call.
 function mergeUpdate(u: UpdateEntry, before: HfaIndicator, state: WriteState) {
   const id = before.indicatorId;
   refuseDuplicateRows(id, u.code ?? [], u.variantCode ?? []);
@@ -640,7 +640,7 @@ function mergeUpdate(u: UpdateEntry, before: HfaIndicator, state: WriteState) {
     }
     // Clearing a round's code orphans its variant rows, so the call writes
     // them too and their errors refuse it.
-    if (r.rCode === "") {
+    if (r.rCode !== undefined && !r.rCode.trim()) {
       for (const v of variantCodeBefore) {
         if (v.timePoint === r.timePoint) {
           writtenFields.add(`${r.timePoint}|variantCode|${v.itemId}`);
