@@ -878,8 +878,6 @@ CREATE TABLE hfa_indicators (
   type TEXT NOT NULL CHECK (type IN ('binary', 'numeric')),
   aggregation TEXT NOT NULL DEFAULT 'sum' CHECK (aggregation IN ('sum', 'avg')),
   sort_order INTEGER NOT NULL DEFAULT 0,
-  has_syntax_error BOOLEAN NOT NULL DEFAULT FALSE,
-  code_consistent BOOLEAN NOT NULL DEFAULT TRUE,
   -- Deliberately ON DELETE RESTRICT (default NO ACTION): deleting a group that
   -- any indicator still references is refused.
   variant_group_id TEXT REFERENCES hfa_indicator_variant_groups(id) ON UPDATE CASCADE,

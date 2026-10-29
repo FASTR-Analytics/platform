@@ -1,7 +1,6 @@
 import { Hono } from "hono";
 import {
   batchUploadHfaIndicators,
-  bulkUpdateHfaIndicatorValidation,
   createHfaIndicator,
   createHfaIndicatorCategory,
   createHfaIndicatorServiceCategory,
@@ -657,8 +656,6 @@ defineRoute(
       body.indicator,
       body.code,
       body.variantCode,
-      body.hasSyntaxError,
-      body.codeConsistent,
     );
     if (res.success) {
       notifyInstanceIndicatorsUpdated(
@@ -692,25 +689,6 @@ defineRoute(
   log("getHfaDictionaryForValidation"),
   async (c) => {
     const res = await getHfaDictionaryForValidation(c.var.mainDb);
-    return c.json(res);
-  },
-);
-
-defineRoute(
-  routesHfaIndicators,
-  "bulkUpdateHfaIndicatorValidation",
-  requireGlobalPermission("can_configure_data"),
-  log("bulkUpdateHfaIndicatorValidation"),
-  async (c, { body }) => {
-    const res = await bulkUpdateHfaIndicatorValidation(
-      c.var.mainDb,
-      body.updates,
-    );
-    if (res.success) {
-      notifyInstanceIndicatorsUpdated(
-        await getInstanceIndicatorsSummary(c.var.mainDb),
-      );
-    }
     return c.json(res);
   },
 );

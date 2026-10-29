@@ -388,101 +388,6 @@ export function HfaIndicatorsManager(p: Props) {
     return map;
   });
 
-  const [revalidating, setRevalidating] = createSignal(false);
-
-  async function handleRevalidateAll() {
-    const dictState = dictionary();
-    if (dictState.status !== "ready") return;
-    const dict = dictState.data;
-
-    setRevalidating(true);
-
-    const codeRes = await serverActions.getAllHfaIndicatorCode({});
-    if (!codeRes.success) {
-      setRevalidating(false);
-      return;
-    }
-
-    const st = indicators();
-    if (st.status !== "ready") {
-      setRevalidating(false);
-      return;
-    }
-
-    // Group code by indicator id
-    const codeByIndicatorId = new Map<string, HfaIndicatorCode[]>();
-    for (const c of codeRes.data) {
-      const arr = codeByIndicatorId.get(c.indicatorId) ?? [];
-      arr.push(c);
-      codeByIndicatorId.set(c.indicatorId, arr);
-    }
-
-    const allIndicatorIds = new Set(st.data.map((i) => i.indicatorId));
-
-    // Compute validation for each indicator
-    const updates: {
-      indicatorId: string;
-      hasSyntaxError: boolean;
-      codeConsistent: boolean;
-    }[] = [];
-    for (const ind of st.data) {
-      const indCode = codeByIndicatorId.get(ind.indicatorId) ?? [];
-      const otherIndicatorIds = new Set(allIndicatorIds);
-      otherIndicatorIds.delete(ind.indicatorId);
-
-      let hasSyntaxError = false;
-      for (const c of indCode) {
-        const tp = dict.timePoints.find((t) => t.timePoint === c.timePoint);
-        const availableVariableIds = tp
-          ? new Set(tp.variables.map((v) => v.variableId))
-          : new Set<string>();
-        if (c.rCode.trim()) {
-          const result = validateIndicatorCode(
-            c.rCode,
-            availableVariableIds,
-            otherIndicatorIds,
-          );
-          if (hasIndicatorCodeErrors(result)) {
-            hasSyntaxError = true;
-          }
-        }
-        if (c.rFilterCode?.trim()) {
-          const result = validateIndicatorCode(
-            c.rFilterCode,
-            availableVariableIds,
-            otherIndicatorIds,
-          );
-          if (hasIndicatorCodeErrors(result)) {
-            hasSyntaxError = true;
-          }
-        }
-      }
-
-      const nonEmpty = indCode.filter(
-        (c) => c.rCode.trim() || c.rFilterCode?.trim(),
-      );
-      let codeConsistent = true;
-      if (nonEmpty.length > 1) {
-        const first = nonEmpty[0];
-        codeConsistent = nonEmpty.every(
-          (c) =>
-            c.rCode.trim() === first.rCode.trim() &&
-            (c.rFilterCode?.trim() ?? "") === (first.rFilterCode?.trim() ?? ""),
-        );
-      }
-
-      updates.push({
-        indicatorId: ind.indicatorId,
-        hasSyntaxError,
-        codeConsistent,
-      });
-    }
-
-    // Send bulk update - SSE will trigger refetch via createEffect
-    await serverActions.bulkUpdateHfaIndicatorValidation({ updates });
-    setRevalidating(false);
-  }
-
   async function openCreateIndicator(initialDefinition?: string) {
     const st = indicators();
     const catSt = categories();
@@ -1025,7 +930,7 @@ export function HfaIndicatorsManager(p: Props) {
       },
     },
     {
-      key: "codeConsistent",
+      key: "consistent",
       header: t3({ en: "Consistent", fr: "Cohérent", pt: "Consistente" }),
       sortable: true,
       sortValue: (ind) => {
@@ -1045,16 +950,6 @@ export function HfaIndicatorsManager(p: Props) {
   ];
 
   const otherActions = (): MenuItem[] => [
-    {
-      label: t3({
-        en: "Revalidate all",
-        fr: "Revalider tout",
-        pt: "Revalidar tudo",
-      }),
-      icon: "refresh",
-      disabled: !hfaDataAvailable() || revalidating(),
-      onClick: handleRevalidateAll,
-    },
     {
       label: t3({
         en: "Check unused variables",

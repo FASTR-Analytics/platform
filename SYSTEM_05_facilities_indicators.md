@@ -870,18 +870,16 @@ code (R's `%in%` binds tighter than `* /`). lib compiles into both runtimes:
 keep it pure (no Deno/UI imports). The result type (yes/no or number) is read
 off the AST's root; a mismatch with the indicator's `type` is a "type mismatch"
 warning in the manager's Status column and an issue in the AI tools' validation.
-The persisted `has_syntax_error`/`code_consistent` flags are advisory metadata
-that the manager does not display (its Status and Consistent columns compute
-from the code) and that only the chat's HFA tools read (`get_hfa_indicators`):
-the run's `hfa_indicators_snapshot.json` carries them and its reader
-(`hfaIndicatorRow`, `server/run_query/run_read.ts`) drops them, and bulk
-validation updates deliberately do NOT bump `updated_at` (a bump would move
-`hfaIndicatorsVersion`, the run's HFA staleness stamp, for an edit generation
-ignores). The code lifecycle: instance edits → run capture (S6's run-capture
-seam) snapshots indicators+taxonomy+code → S8's module run parses each snippet
-once, builds a cross-indicator dependency graph from the ASTs (topological sort,
-cycles rejected), and splices each round's emitted R into `case_when` branches;
-a snippet that does not parse is a generation error naming the indicator and
+No validation status is stored: the manager's Status and Consistent columns, the
+editor and the AI tools compute it from the code at render. Packages captured
+while `hfa_indicators` still had the `has_syntax_error` and `code_consistent`
+columns carry them in `hfa_indicators_snapshot.json`, and its reader
+(`hfaIndicatorRow`, `server/run_query/run_read.ts`) strips them. The code
+lifecycle: instance edits → run capture (S6's run-capture seam) snapshots
+indicators+taxonomy+code → S8's module run parses each snippet once, builds a
+cross-indicator dependency graph from the ASTs (topological sort, cycles
+rejected), and splices each round's emitted R into `case_when` branches; a
+snippet that does not parse is a generation error naming the indicator and
 round, like an unknown variable, and `STOP_IF_INDICATOR_FAILS` (default TRUE)
 makes one invalid indicator kill the run.
 
@@ -1546,21 +1544,12 @@ layer.
   `instanceState.currentUserIsGlobalAdmin`, the panel's gate, in place of the
   unconditional `onMount`.
 - **A manager comment ties the code editor to imported data.**
-  `data/hfa/indicators/manager.tsx:541-542` says the metadata-only fallback
+  `data/hfa/indicators/manager.tsx:445-446` says the metadata-only fallback
   applies "with no HFA data imported", but the test is `hfaDataAvailable()`
-  (267), `!!instanceState.hfaCacheHash`, which is empty only while no time point
-  exists (`server/db/instance/dataset_hfa.ts:34-44`). Make 541-542 read "The
+  (272), `!!instanceState.hfaCacheHash`, which is empty only while no time point
+  exists (`server/db/instance/dataset_hfa.ts:34-44`). Make 445-446 read "The
   code editor keys its code by time point; with no HFA time point defined, fall
   back to the metadata-only modal so labels/categories stay editable."
-- **Two comments misdescribe the stored validation flags.**
-  `data/hfa/indicators/indicator_code_editor.tsx:435-436` calls the flag
-  display-only editor metadata, but the manager displays no flag
-  (`manager.tsx:298-390`, 965-1035) and the chat's HFA tools read it
-  (`ai/tools.ts`, `get_hfa_indicators`). `manager.tsx:482` says SSE will trigger
-  a refetch, but the write leaves `hfaIndicatorsVersion` unchanged
-  (`server/db/instance/instance.ts:43-44`), so nothing refetches. Make the
-  parenthetical at 435-436 read "(main + variant snippets; the stored flag is
-  advisory metadata generation ignores)", and delete the comment at 482.
 
 ### HFA variant groups: open questions
 
@@ -1572,13 +1561,6 @@ raised by adversarial review of the shipped feature; none blocks it.
   is non-ready, so a failed variant-code fetch suppresses even main-code
   warnings rather than saying "references could not be checked". Pre-existing
   convention for main code; the variant union widened the surface.
-- **Decision needed:** `handleRevalidateAll`, `create_hfa_indicators` and
-  `set_hfa_indicator_code` compute `hasSyntaxError` from main code only, while
-  the editor's save includes variant snippets, so revalidate-all can wipe a
-  variant-only syntax flag. The flag is display-only advisory metadata
-  (generation validates independently); the flag's only reader is
-  `get_hfa_indicators` (`hfa/ai/tools.ts:226-241`); the manager recomputes
-  status at render (`hfa/manager.tsx:285-377`).
 - A survey-dictionary import can introduce a variable equal to an existing
   composed `<parent>__<item>` column (ODK/Kobo `group__field` exports make `__`
   common). `hfa_variables` ingestion does not assert, so the collision lands and

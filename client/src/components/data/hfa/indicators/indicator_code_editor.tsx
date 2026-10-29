@@ -40,7 +40,6 @@ import { serverActions } from "~/server_actions";
 import {
   checkIndicatorCodeResultType,
   EMPTY_INDICATOR_CODE_VALIDATION,
-  hasIndicatorCodeErrors,
   type IndicatorCodeValidation,
   validateIndicatorCode,
 } from "./_shared/mod.ts";
@@ -430,62 +429,6 @@ function EditorInner(p: {
       };
     }
 
-    // Compute validation across all timepoints (main + variant snippets; the
-    // stored flag is display-only editor metadata)
-    let hasSyntaxError = false;
-    for (let i = 0; i < state.code.length; i++) {
-      const c = state.code[i];
-      const tp = p.dictionary.timePoints.find(
-        (t) => t.timePoint === c.timePoint,
-      );
-      const availableVariableIds = tp
-        ? new Set(tp.variables.map((v) => v.variableId))
-        : new Set<string>();
-      if (c.rCode.trim()) {
-        const result = validateIndicatorCode(
-          c.rCode,
-          availableVariableIds,
-          otherIndicatorIds,
-        );
-        if (hasIndicatorCodeErrors(result)) {
-          hasSyntaxError = true;
-          break;
-        }
-      }
-      if (c.rFilterCode.trim()) {
-        const result = validateIndicatorCode(
-          c.rFilterCode,
-          availableVariableIds,
-          otherIndicatorIds,
-        );
-        if (hasIndicatorCodeErrors(result)) {
-          hasSyntaxError = true;
-          break;
-        }
-      }
-    }
-    if (!hasSyntaxError) {
-      for (const vc of variantCode) {
-        const tp = p.dictionary.timePoints.find(
-          (t) => t.timePoint === vc.timePoint,
-        );
-        const availableVariableIds = tp
-          ? new Set(tp.variables.map((v) => v.variableId))
-          : new Set<string>();
-        const result = validateIndicatorCode(
-          vc.rCode,
-          availableVariableIds,
-          allIndicatorIdsInclSelf,
-        );
-        if (hasIndicatorCodeErrors(result)) {
-          hasSyntaxError = true;
-          break;
-        }
-      }
-    }
-
-    const codeConsistent = roundsConsistency() !== "different";
-
     return await serverActions.saveHfaIndicatorFull({
       indicator: {
         indicatorId: p.indicator.indicatorId,
@@ -497,8 +440,6 @@ function EditorInner(p: {
         type: state.type,
         aggregation: state.aggregation,
         sortOrder: p.indicator.sortOrder,
-        hasSyntaxError,
-        codeConsistent,
         variantGroupId: state.variantGroupId,
       },
       code: unwrap(state.code).map((c) => ({
@@ -507,8 +448,6 @@ function EditorInner(p: {
         rFilterCode: c.rFilterCode.trim() || undefined,
       })),
       variantCode,
-      hasSyntaxError,
-      codeConsistent,
     });
   });
 

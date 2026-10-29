@@ -146,25 +146,23 @@ function countIndicators(n: number): string {
   });
 }
 
-// Mirrors the manager's "Revalidate all" computation (syntax + variable
-// existence → hasSyntaxError; identical non-empty rounds → codeConsistent), plus
-// two additions: an unknown time point also counts as a syntax error, and the
-// advisory binary/numeric result-type check is surfaced in `issues` ONLY: it
-// never flips hasSyntaxError. Unlike the editor's save, which also validates
-// variant code, it reads main code only.
+// Syntax and variable existence make `hasErrors`; identical non-empty rounds
+// make `codeConsistent`; an unknown time point is an error too, and the
+// binary/numeric result-type check is an issue that never sets `hasErrors`.
+// Reads main code only.
 function computeIndicatorValidation(
   code: CodeRound[],
   dict: HfaDictionaryForValidation,
   otherIndicatorIds: Set<string>,
   expectedType: "binary" | "numeric",
-): { hasSyntaxError: boolean; codeConsistent: boolean; issues: string[] } {
+): { hasErrors: boolean; codeConsistent: boolean; issues: string[] } {
   const issues: string[] = [];
-  let hasSyntaxError = false;
+  let hasErrors = false;
   for (const c of code) {
     const tp = dict.timePoints.find((t) => t.timePoint === c.timePoint);
     if (!tp) {
       issues.push(`Time point "${c.timePoint}" is not in the dataset.`);
-      hasSyntaxError = true;
+      hasErrors = true;
       continue;
     }
     const availableVariableIds = new Set(tp.variables.map((v) => v.variableId));
@@ -180,7 +178,7 @@ function computeIndicatorValidation(
         otherIndicatorIds,
       );
       if (hasIndicatorCodeErrors(r)) {
-        hasSyntaxError = true;
+        hasErrors = true;
       }
       for (const e of r.syntaxErrors) {
         issues.push(`${c.timePoint} ${field}: ${e}`);
@@ -206,7 +204,7 @@ function computeIndicatorValidation(
         (c.rFilterCode?.trim() ?? "") === (first.rFilterCode?.trim() ?? ""),
     );
   }
-  return { hasSyntaxError, codeConsistent, issues };
+  return { hasErrors, codeConsistent, issues };
 }
 
 // ---------------------------------------------------------------------------
@@ -224,7 +222,7 @@ export function buildHfaIndicatorTools() {
       name: "get_hfa_indicators",
       availableIn: COPILOT_TOOL_VIEWS.get_hfa_indicators,
       description:
-        "List HFA indicators with their labels, measurement (type/aggregation), category / sub-category / service-category assignments, and validation status. Optional filters narrow the result; omit all to get every indicator.",
+        "List HFA indicators with their labels, measurement (type/aggregation) and category / sub-category / service-category assignments. Optional filters narrow the result; omit all to get every indicator.",
       kind: "read",
       inputSchema: z.object({
         categoryId: z.string().optional().describe(
@@ -238,9 +236,6 @@ export function buildHfaIndicatorTools() {
         ),
         missingCategory: z.boolean().optional().describe(
           "Only indicators with no category assigned.",
-        ),
-        withValidationErrors: z.boolean().optional().describe(
-          "Only indicators flagged with a syntax error or inconsistent code.",
         ),
       }),
       handler: async (input) => {
@@ -259,9 +254,6 @@ export function buildHfaIndicatorTools() {
         if (input.missingCategory) {
           rows = rows.filter((i) => i.categoryId === null);
         }
-        if (input.withValidationErrors) {
-          rows = rows.filter((i) => i.hasSyntaxError || !i.codeConsistent);
-        }
         return {
           count: rows.length,
           indicators: rows.map((i) => ({
@@ -273,8 +265,6 @@ export function buildHfaIndicatorTools() {
             categoryId: i.categoryId,
             subCategoryId: i.subCategoryId,
             serviceCategoryIds: i.serviceCategoryIds,
-            hasSyntaxError: i.hasSyntaxError,
-            codeConsistent: i.codeConsistent,
           })),
         };
       },
@@ -840,13 +830,13 @@ export function buildHfaIndicatorTools() {
           );
           return {
             indicatorId: ind.indicatorId,
-            hasSyntaxError: v.hasSyntaxError,
+            hasErrors: v.hasErrors,
             codeConsistent: v.codeConsistent,
             issues: v.issues,
           };
         });
         const withIssues = results.filter((r) =>
-          r.hasSyntaxError || !r.codeConsistent || r.issues.length > 0
+          r.hasErrors || !r.codeConsistent || r.issues.length > 0
         );
         return { validated: results.length, withIssues };
       },
@@ -926,6 +916,7 @@ export function buildHfaIndicatorTools() {
           ]);
 
           const indicatorsToCreate: HfaIndicator[] = [];
+          const issuesById = new Map<string, string[]>();
           const codeToCreate: HfaIndicatorCode[] = [];
           const changes: { label: string; after: string }[] = [];
           for (const ind of withIds) {
@@ -981,10 +972,11 @@ export function buildHfaIndicatorTools() {
               type: ind.type,
               aggregation: ind.aggregation,
               sortOrder: 0,
-              hasSyntaxError: v.hasSyntaxError,
-              codeConsistent: v.codeConsistent,
               variantGroupId: null,
             });
+            if (v.issues.length > 0) {
+              issuesById.set(ind.indicatorId, v.issues);
+            }
             for (const c of code) {
               codeToCreate.push({
                 indicatorId: ind.indicatorId,
@@ -1052,8 +1044,12 @@ export function buildHfaIndicatorTools() {
                     reason:
                       "an HFA indicator with this id was saved after the proposal; nothing was created for it",
                   })),
-                withValidationIssues: created.filter((i) => i.hasSyntaxError)
-                  .map((i) => i.indicatorId),
+                withValidationIssues: created
+                  .filter((i) => issuesById.has(i.indicatorId))
+                  .map((i) => ({
+                    indicatorId: i.indicatorId,
+                    issues: issuesById.get(i.indicatorId),
+                  })),
               };
             },
           };
@@ -1185,11 +1181,7 @@ export function buildHfaIndicatorTools() {
               });
               const res = await serverActions.saveHfaIndicatorsCode({
                 indicators: results.map((r) => ({
-                  indicator: {
-                    ...r.indicator,
-                    hasSyntaxError: r.hasSyntaxError,
-                    codeConsistent: r.codeConsistent,
-                  },
+                  indicator: r.indicator,
                   code: r.code.map((c) => ({
                     timePoint: c.timePoint,
                     rCode: c.rCode,
@@ -1207,12 +1199,12 @@ export function buildHfaIndicatorTools() {
                 updated: results.length,
                 withValidationIssues: results
                   .filter((r) =>
-                    r.hasSyntaxError || !r.codeConsistent ||
+                    r.hasErrors || !r.codeConsistent ||
                     r.issues.length > 0
                   )
                   .map((r) => ({
                     indicatorId: r.indicatorId,
-                    hasSyntaxError: r.hasSyntaxError,
+                    hasErrors: r.hasErrors,
                     codeConsistent: r.codeConsistent,
                     issues: r.issues,
                   })),

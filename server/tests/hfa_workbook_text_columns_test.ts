@@ -186,8 +186,6 @@ Deno.test("an exported workbook re-imports with the same labels", async () => {
       type: "binary",
       aggregation: "avg",
       sortOrder: 0,
-      hasSyntaxError: false,
-      codeConsistent: true,
       variantGroupId: null,
     }],
     code: [{

@@ -50,8 +50,6 @@ export type DBHfaIndicator = {
   aggregation: "sum" | "avg";
   sort_order: number;
   updated_at: string;
-  has_syntax_error: boolean;
-  code_consistent: boolean;
   variant_group_id: string | null;
 };
 
@@ -126,8 +124,6 @@ export function dbRowToHfaIndicator(row: DBHfaIndicator): HfaIndicator {
     type: row.type,
     aggregation: row.aggregation,
     sortOrder: row.sort_order,
-    hasSyntaxError: row.has_syntax_error,
-    codeConsistent: row.code_consistent,
     variantGroupId: row.variant_group_id,
   };
 }
@@ -959,10 +955,10 @@ export async function batchUploadHfaIndicators(
         }
         const sortOrder = replaceAll ? i : nextSortOrder++;
         const inserted = await sql<{ indicator_id: string }[]>`
-          INSERT INTO hfa_indicators (indicator_id, category_id, sub_category_id, service_category_ids, short_label, definition, type, aggregation, sort_order, has_syntax_error, code_consistent, variant_group_id, updated_at)
+          INSERT INTO hfa_indicators (indicator_id, category_id, sub_category_id, service_category_ids, short_label, definition, type, aggregation, sort_order, variant_group_id, updated_at)
           VALUES (${ind.indicatorId}, ${ind.categoryId}, ${ind.subCategoryId}, ${
           JSON.stringify(ind.serviceCategoryIds)
-        }, ${ind.shortLabel}, ${ind.definition}, ${ind.type}, ${ind.aggregation}, ${sortOrder}, ${ind.hasSyntaxError}, ${ind.codeConsistent}, ${ind.variantGroupId}, CURRENT_TIMESTAMP)
+        }, ${ind.shortLabel}, ${ind.definition}, ${ind.type}, ${ind.aggregation}, ${sortOrder}, ${ind.variantGroupId}, CURRENT_TIMESTAMP)
           ON CONFLICT (indicator_id) DO NOTHING
           RETURNING indicator_id
         `;
@@ -1293,8 +1289,6 @@ async function writeHfaIndicatorRowAndMainCode(
   sql: Sql,
   indicator: HfaIndicator,
   code: HfaIndicatorMainCode[],
-  hasSyntaxError: boolean,
-  codeConsistent: boolean,
 ): Promise<void> {
   await sql`
     UPDATE hfa_indicators
@@ -1306,8 +1300,6 @@ async function writeHfaIndicatorRowAndMainCode(
         type = ${indicator.type},
         aggregation = ${indicator.aggregation},
         sort_order = ${indicator.sortOrder},
-        has_syntax_error = ${hasSyntaxError},
-        code_consistent = ${codeConsistent},
         variant_group_id = ${indicator.variantGroupId},
         updated_at = CURRENT_TIMESTAMP
     WHERE indicator_id = ${indicator.indicatorId}
@@ -1329,8 +1321,6 @@ export async function saveHfaIndicatorFull(
   indicator: HfaIndicator,
   code: HfaIndicatorMainCode[],
   variantCode: { timePoint: string; itemId: string; rCode: string }[],
-  hasSyntaxError: boolean,
-  codeConsistent: boolean,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     const filterOnly = findFilterOnlyRound(code);
@@ -1357,13 +1347,7 @@ export async function saveHfaIndicatorFull(
         indicator.indicatorId,
         indicator.variantGroupId,
       );
-      await writeHfaIndicatorRowAndMainCode(
-        sql,
-        indicator,
-        code,
-        hasSyntaxError,
-        codeConsistent,
-      );
+      await writeHfaIndicatorRowAndMainCode(sql, indicator, code);
       await sql`DELETE FROM hfa_indicator_variant_code WHERE indicator_id = ${indicator.indicatorId}`;
       for (const c of nonEmptyVariantCode) {
         await sql`
@@ -1397,42 +1381,9 @@ export async function saveHfaIndicatorsCode(
     }
     await mainDb.begin(async (sql) => {
       for (const { indicator, code } of indicators) {
-        await writeHfaIndicatorRowAndMainCode(
-          sql,
-          indicator,
-          code,
-          indicator.hasSyntaxError,
-          indicator.codeConsistent,
-        );
+        await writeHfaIndicatorRowAndMainCode(sql, indicator, code);
       }
       await assertVariantIntegrity(sql);
-    });
-    return { success: true };
-  });
-}
-
-export async function bulkUpdateHfaIndicatorValidation(
-  mainDb: Sql,
-  updates: {
-    indicatorId: string;
-    hasSyntaxError: boolean;
-    codeConsistent: boolean;
-  }[],
-): Promise<APIResponseNoData> {
-  return await tryCatchDatabaseAsync(async () => {
-    await mainDb.begin(async (sql) => {
-      for (const u of updates) {
-        // Deliberately no updated_at bump: these flags are display-only editor
-        // metadata (a package captures them, server/runs/capture_inputs/hfa.ts:85-87,
-        // and its reader drops them, server/run_query/run_read.ts:367-374), and
-        // bumping would spuriously flag the instance's HFA dataset as stale.
-        await sql`
-          UPDATE hfa_indicators
-          SET has_syntax_error = ${u.hasSyntaxError},
-              code_consistent = ${u.codeConsistent}
-          WHERE indicator_id = ${u.indicatorId}
-        `;
-      }
     });
     return { success: true };
   });

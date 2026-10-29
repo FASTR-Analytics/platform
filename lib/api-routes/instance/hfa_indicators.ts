@@ -93,8 +93,6 @@ const hfaIndicatorEditSchema = z.object({
   type: z.enum(["binary", "numeric"]),
   aggregation: z.enum(["sum", "avg"]),
   sortOrder: z.number(),
-  hasSyntaxError: z.boolean(),
-  codeConsistent: z.boolean(),
   variantGroupId: z.string().nullable(),
 });
 
@@ -368,8 +366,6 @@ export const hfaIndicatorRouteRegistry = {
         itemId: z.string(),
         rCode: z.string(),
       })),
-      hasSyntaxError: z.boolean(),
-      codeConsistent: z.boolean(),
     }),
   }),
   // set_hfa_indicator_code's batch save; its contract is saveHfaIndicatorsCode.
@@ -391,16 +387,5 @@ export const hfaIndicatorRouteRegistry = {
     path: "/hfa-indicators/dictionary",
     method: "GET",
     response: {} as HfaDictionaryForValidation,
-  }),
-  bulkUpdateHfaIndicatorValidation: route({
-    path: "/hfa-indicators/bulk-update-validation",
-    method: "POST",
-    body: z.object({
-      updates: z.array(z.object({
-        indicatorId: z.string(),
-        hasSyntaxError: z.boolean(),
-        codeConsistent: z.boolean(),
-      })),
-    }),
   }),
 } as const;

@@ -78,8 +78,6 @@ export function EditHfaIndicator(
         type: type(),
         aggregation: aggregation(),
         sortOrder: p.sortOrder,
-        hasSyntaxError: p.existingIndicator?.hasSyntaxError ?? false,
-        codeConsistent: p.existingIndicator?.codeConsistent ?? true,
         // Variant-group assignment lives in the code editor (where the
         // per-item slots are); this metadata modal preserves it untouched.
         variantGroupId: p.existingIndicator?.variantGroupId ?? null,

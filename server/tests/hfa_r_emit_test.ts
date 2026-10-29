@@ -91,8 +91,6 @@ const indicator: HfaIndicator = {
   type: "binary",
   aggregation: "avg",
   sortOrder: 1,
-  hasSyntaxError: false,
-  codeConsistent: true,
   variantGroupId: null,
 };
 
