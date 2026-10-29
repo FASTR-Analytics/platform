@@ -185,7 +185,7 @@ export function HfaRegistryTable() {
               pt: "estabelecimentos",
             }),
           }}
-          toolbar={{ search: true, nested: true }}
+          toolbar={{ search: true }}
           onRowClick={instanceState.currentUserIsGlobalAdmin
             ? (facility) => void editFacility(facility, rows)
             : undefined}
