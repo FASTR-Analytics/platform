@@ -1,3 +1,12 @@
+[2.5.2] [user] [changed] - Delete data screen now uses radio buttons to select what to delete
+[2.5.2] [user] [changed] - Confirmation input and delete button only appear after selecting a deletion target
+[2.5.2] [user] [changed] - Code editor now shows the meaning of each operator alongside its symbol
+[2.5.2] [admin] [changed] - Delete data dialog now uses radio buttons to select what to delete
+[2.5.2] [admin] [changed] - Confirmation input and delete button only appear after selecting a target
+[2.5.2] [admin] [added] - Indicator code editor now shows the meaning of each operator
+[2.5.2] [admin] [internal] - AI tools now fold identical rounds into a single block for cleaner output
+[2.5.2] [admin] [added] - AI tools can now find indicators by the variables their code references
+[2.5.2] [admin] [added] - AI indicator listing can optionally show each indicator's code
 [2.5.1] [user] [added] - Map coverage indicator shown below map previews
 [2.5.1] [user] [added] - Clear error messages when map boundaries cannot be drawn
 [2.5.1] [user] [added] - Warning for duplicate admin area names during facility import
