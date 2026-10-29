@@ -115,7 +115,7 @@ async function loadAllVariantCode(): Promise<HfaIndicatorVariantCode[]> {
 
 // The display rows need `can_view_data`, which the reads do not: without it
 // the formatters print one line saying the counts are left out.
-async function loadDisplayRows(): Promise<HfaVariableRow[] | undefined> {
+export async function loadDisplayRows(): Promise<HfaVariableRow[] | undefined> {
   if (!instanceState.currentUserPermissions.can_view_data) return undefined;
   const res = await getDatasetHfaDisplayInfoFromCacheOrFetch(
     instanceState.hfaCacheHash,

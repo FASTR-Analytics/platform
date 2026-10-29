@@ -565,11 +565,14 @@ registry imports nothing from `components/data/`; its code editor holds in
 `HfaIndicatorCodeEditor` and sets `hfa_indicator_editor` from `EditorInner` once
 the draft store exists, with the indicator id as identity, the open round in its
 state, and an `HfaIndicatorEditorContext` of the saved label, the selected
-round, the draft read live, each round with the issues the status core finds
-over the draft, variant code and cycles included (`getDraft`), the taxonomy the
-editor offers and `applyDraft`, which writes the store with the controls'
-semantics and marks the draft unsaved; its Excel import sets
-`hfa_indicator_import`. There is no tab-to-view map.
+round, the draft read live (`getDraft`: the fields, the code per round, the
+variant group and the current group's variant rows), the taxonomy the editor
+offers (variant groups and items included), what the manager handed the editor
+(`getIndicators`, `getAllCode`, `getAllVariantCode`, `getDictionary`), the HFA
+guidance (`getGuidance`) and `applyDraft`, which writes the store with the
+controls' semantics, a group change before the patch's variant rows, and marks
+the draft unsaved; its Excel import sets `hfa_indicator_import`. There is no
+tab-to-view map.
 
 **What a message carries** (panther's append-only turns). Every message carries
 the view line, the view's `state` and the interactions digest; a view's
@@ -1275,14 +1278,22 @@ call, so the model acts on current state, its own earlier writes included. Write
 commits do whole-object load → propose → save, last write wins: the app-wide
 concurrency model, deliberate (a re-read-after-confirm refactor was rejected as
 an inconsistent outlier); an update batch carries only the indicators it
-changes. The editor tools never await: `get_hfa_indicator_editor` reads the
-draft the view's context returns, and `update_hfa_indicator_editor` checks its
-ids against the taxonomy and the rounds the editor offers, applies the patch
-through `applyDraft` and reports each field as changed or as no change, so the
-editor that set the view is the one the write reaches. The hand-written schemas
-comply with the S13 conventions (storage field names, throw-don't-catch,
-`.min(1)` on inclusion lists, no strictObject / strict:true). S13 convention
-changes must be checked against this directory; its tool semantics are S5's.
+changes. `get_hfa_indicator_editor` reads the draft the view's context returns
+synchronously, then awaits the display rows as the reads do, and prints the
+detail block (`formatHfaIndicatorDetailsForAI`) over the manager's indicators
+and code with the draft in place of the indicator's saved state, headed as the
+unsaved state and naming the round the user is looking at.
+`update_hfa_indicator_editor` never awaits, so the editor that set the view is
+the one the write reaches: it checks its ids against the taxonomy, its rounds
+against the rounds the editor offers, its items against the group the patch
+leaves, and a round or a variant row listed twice, before the draft changes;
+applies the patch through `applyDraft` (a group change drops the previous
+group's variant code); and reports each given field as changed or as no change,
+the dropped variant code, and each round's status from the core. The
+hand-written schemas comply with the S13 conventions (storage field names,
+throw-don't-catch, `.min(1)` on inclusion lists, no strictObject / strict:true).
+S13 convention changes must be checked against this directory; its tool
+semantics are S5's.
 
 ## Traps
 

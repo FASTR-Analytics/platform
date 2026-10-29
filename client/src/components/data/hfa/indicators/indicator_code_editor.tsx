@@ -41,6 +41,7 @@ import {
 import { createMemo, createSignal, For, Show } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
 import { serverActions } from "~/server_actions";
+import { getHfaIndicatorsGuidance } from "./ai/mod.ts";
 import {
   copilotViewController,
   type HfaIndicatorEditorDraft,
@@ -487,16 +488,6 @@ function EditorInner(p: {
   const searchMatches = (text: string) =>
     matchesSearch(folded(text), variableSearchTokens());
 
-  // The issues the editor shows for one round, as English lines for the
-  // chat.
-  const roundIssues = (c: TempCodeEntry): string[] =>
-    draftStatus().rounds.find((r) => r.timePoint === c.timePoint)?.issues
-      .map((i) =>
-        `${
-          i.itemId === undefined ? i.field : `variant ${i.itemId}`
-        }: ${i.text.en}`
-      ) ?? [];
-
   const getDraft = (): HfaIndicatorEditorDraft => ({
     shortLabel: state.shortLabel,
     definition: state.definition,
@@ -509,14 +500,27 @@ function EditorInner(p: {
       timePoint: c.timePoint,
       rCode: c.rCode,
       rFilterCode: c.rFilterCode,
-      issues: roundIssues(c),
     })),
-    codeConsistent: roundsConsistency() !== "different",
+    variantGroupId: state.variantGroupId,
+    variantCode: variantCodeToSave(),
   });
 
+  // A group change clears the previous group's entries, so switching back
+  // never shows deleted code as if it were still stored.
+  function setVariantGroup(groupId: string | null) {
+    for (const item of currentGroupItems()) {
+      for (const tp of p.dictionary.timePoints) {
+        setState("variantCode", variantKey(tp.timePoint, item.id), "");
+      }
+    }
+    setState("variantGroupId", groupId);
+  }
+
   // The chat's write, with the controls' own semantics: a category change
-  // clears the sub-category (the category select does the same), a round
-  // keeps the field the patch omits, and the draft is marked unsaved.
+  // clears the sub-category (the category select does the same), a group
+  // change drops the previous group's variant code before the patch's own
+  // variant rows land, a round keeps the field the patch omits, and the draft
+  // is marked unsaved.
   const applyDraft = (patch: HfaIndicatorEditorPatch) => {
     if (
       patch.categoryId !== undefined && patch.categoryId !== state.categoryId
@@ -540,6 +544,12 @@ function EditorInner(p: {
     if (patch.aggregation !== undefined) {
       setState("aggregation", patch.aggregation);
     }
+    if (
+      patch.variantGroupId !== undefined &&
+      patch.variantGroupId !== state.variantGroupId
+    ) {
+      setVariantGroup(patch.variantGroupId);
+    }
     for (const round of patch.code ?? []) {
       const idx = state.code.findIndex((c) => c.timePoint === round.timePoint);
       if (idx < 0) continue;
@@ -549,6 +559,9 @@ function EditorInner(p: {
       if (round.rFilterCode !== undefined) {
         setState("code", idx, "rFilterCode", round.rFilterCode);
       }
+    }
+    for (const row of patch.variantCode ?? []) {
+      setState("variantCode", variantKey(row.timePoint, row.itemId), row.rCode);
     }
     markDirty();
   };
@@ -564,7 +577,14 @@ function EditorInner(p: {
         categories: p.categories,
         subCategories: p.subCategories,
         serviceCategories: p.serviceCategories,
+        variantGroups: p.variantGroups,
+        variantItems: p.variantItems,
       }),
+      getIndicators: () => p.indicators,
+      getAllCode: () => p.allCode,
+      getAllVariantCode: () => p.allVariantCode,
+      getDictionary: () => p.dictionary,
+      getGuidance: getHfaIndicatorsGuidance,
       applyDraft,
     },
   );
@@ -701,19 +721,8 @@ function EditorInner(p: {
                     setState("variantGroupId", current);
                     return;
                   }
-                  // Clear the old group's entries so switching back never
-                  // shows deleted code as if it were still persisted.
-                  for (const item of oldItems) {
-                    for (const tp of p.dictionary.timePoints) {
-                      setState(
-                        "variantCode",
-                        variantKey(tp.timePoint, item.id),
-                        "",
-                      );
-                    }
-                  }
                 }
-                setState("variantGroupId", newGroupId);
+                setVariantGroup(newGroupId);
                 markDirty();
               }}
               options={[

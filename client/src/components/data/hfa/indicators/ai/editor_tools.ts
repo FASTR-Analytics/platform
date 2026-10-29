@@ -1,73 +1,118 @@
 import { AIToolFailure, createAITool } from "panther";
 import { z } from "zod";
-import { COPILOT_TOOL_VIEWS, t3 } from "lib";
+import {
+  COPILOT_TOOL_VIEWS,
+  formatHfaIndicatorDetailsForAI,
+  type HfaIndicator,
+  hfaIndicatorCodeSchema,
+  hfaIndicatorEditSchema,
+  type HfaIndicatorsForAIInput,
+  hfaIndicatorsStatus,
+  hfaIndicatorVariantCodeSchema,
+  type HfaVariableRow,
+  t3,
+} from "lib";
 import {
   copilotViews,
   type HfaIndicatorEditorContext,
   type HfaIndicatorEditorDraft,
   type HfaIndicatorEditorPatch,
 } from "~/components/instance/copilot/mod.ts";
+import { loadDisplayRows } from "./tools.ts";
 
-// The HFA editor group: the code editor's unsaved draft of one
-// indicator, read and written live through the view's context. The write
-// checks its ids against the taxonomy and the rounds the editor offers
-// before it touches the draft, then lands in the editor's store like the
-// user's own edit: unsaved, for the user to save or discard. Neither tool
-// awaits, so the editor that set the view is the one a write reaches.
+// The HFA editor group: the code editor's unsaved draft of one indicator,
+// read and written through the view's context. The write checks its ids
+// against the taxonomy and the rounds the editor offers before it touches
+// the draft, then lands in the editor's store like the user's own edit:
+// unsaved, for the user to save or discard. The write never awaits, so the
+// editor that set the view is the one it reaches; the read takes the draft
+// first and only then awaits the display rows.
+
+const field = hfaIndicatorEditSchema.shape;
+const codeRoundSchema = hfaIndicatorCodeSchema.omit({ indicatorId: true });
 
 const patchSchema = z.object({
-  shortLabel: z.string().optional().describe(
-    "New short label (omit to leave unchanged).",
+  shortLabel: field.shortLabel.optional(),
+  definition: field.definition.optional().describe("Long label."),
+  type: field.type.optional(),
+  aggregation: field.aggregation.optional(),
+  categoryId: field.categoryId.optional().describe(
+    "Category id, null to clear. Changing the category clears the sub-category unless one is given.",
   ),
-  definition: z.string().optional().describe(
-    "New long label / definition (omit to leave unchanged).",
+  subCategoryId: field.subCategoryId.optional().describe(
+    "Sub-category id within the category, null to clear.",
   ),
-  type: z.enum(["binary", "numeric"]).optional(),
-  aggregation: z.enum(["sum", "avg"]).optional(),
-  categoryId: z.string().nullable().optional().describe(
-    "Category id, null to clear, omit to leave unchanged. Changing the category clears the sub-category unless one is given.",
+  serviceCategoryIds: field.serviceCategoryIds.optional().describe(
+    "The full set of service-category ids.",
   ),
-  subCategoryId: z.string().nullable().optional().describe(
-    "Sub-category id (must belong to the category), null to clear, omit to leave unchanged.",
+  variantGroupId: field.variantGroupId.optional().describe(
+    "Variant group id, null to clear. Changing the group drops the previous group's variant code.",
   ),
-  serviceCategoryIds: z.array(z.string()).optional().describe(
-    "Full replacement set of service-category ids (omit to leave unchanged).",
-  ),
-  code: z.array(z.object({
-    timePoint: z.string(),
-    rCode: z.string().optional().describe(
-      "The round's indicator code; omit to keep it.",
+  code: z.array(codeRoundSchema.partial({ rCode: true, rFilterCode: true }))
+    .optional().describe(
+      "Rounds to patch; a round not listed is kept. An omitted rCode or rFilterCode is kept and an empty string clears it.",
     ),
-    rFilterCode: z.string().optional().describe(
-      "The round's filter code, an empty string to clear it; omit to keep it.",
-    ),
-  })).optional().describe(
-    "Per-round code changes; a round not listed keeps its code.",
+  variantCode: z.array(
+    hfaIndicatorVariantCodeSchema.omit({ indicatorId: true }),
+  ).optional().describe(
+    "Variant rows to set, for items of the group the patch leaves; an empty rCode removes the row.",
   ),
 });
 
 type Patch = z.infer<typeof patchSchema>;
 
-function describeDraft(
+// The draft in place of the indicator's saved state, over everything else the
+// manager handed the editor: what the detail block and the status print.
+function draftInput(
   indicatorId: string,
+  draft: HfaIndicatorEditorDraft,
   context: HfaIndicatorEditorContext,
-): Record<string, unknown> {
-  const draft = context.getDraft();
+  displayRows: HfaVariableRow[] | undefined,
+): HfaIndicatorsForAIInput {
+  const indicators = context.getIndicators().map((i): HfaIndicator =>
+    i.indicatorId === indicatorId
+      ? {
+        ...i,
+        shortLabel: draft.shortLabel,
+        definition: draft.definition,
+        type: draft.type,
+        aggregation: draft.aggregation,
+        categoryId: draft.categoryId,
+        subCategoryId: draft.subCategoryId,
+        serviceCategoryIds: draft.serviceCategoryIds,
+        variantGroupId: draft.variantGroupId,
+      }
+      : i
+  );
+  const code = [
+    ...context.getAllCode().filter((c) => c.indicatorId !== indicatorId),
+    ...draft.code.map((c) => ({
+      indicatorId,
+      timePoint: c.timePoint,
+      rCode: c.rCode,
+      rFilterCode: c.rFilterCode || undefined,
+    })),
+  ];
+  const variantCode = [
+    ...context.getAllVariantCode().filter((c) => c.indicatorId !== indicatorId),
+    ...draft.variantCode.map((c) => ({ ...c, indicatorId })),
+  ];
+  const taxonomy = context.getTaxonomy();
+  const dictionary = context.getDictionary();
   return {
-    indicatorId,
-    label: context.getLabel(),
-    selectedTimePoint: context.getSelectedTimePoint(),
-    unsaved: {
-      shortLabel: draft.shortLabel,
-      definition: draft.definition,
-      type: draft.type,
-      aggregation: draft.aggregation,
-      categoryId: draft.categoryId,
-      subCategoryId: draft.subCategoryId,
-      serviceCategoryIds: draft.serviceCategoryIds,
-    },
-    code: draft.code,
-    codeConsistent: draft.codeConsistent,
+    indicators,
+    code,
+    variantCode,
+    taxonomy,
+    dictionary,
+    displayRows,
+    status: hfaIndicatorsStatus({
+      indicators,
+      code,
+      variantCode,
+      variantItems: taxonomy.variantItems,
+      dictionary,
+    }),
   };
 }
 
@@ -83,19 +128,17 @@ function validatePatch(
   const given = Object.entries(patch).filter(([, v]) => v !== undefined);
   if (given.length === 0) {
     throw new AIToolFailure(
-      "No fields were provided. update_hfa_indicator_editor changes the draft's labels, type, aggregation, categories or per-round code; pass at least one.",
+      "No fields were provided. Pass at least one field to change.",
     );
   }
-  const { categories, subCategories, serviceCategories } = context
-    .getTaxonomy();
-  const catIds = new Set(categories.map((c) => c.id));
-  const subById = new Map(subCategories.map((s) => [s.id, s]));
-  const svcIds = new Set(serviceCategories.map((s) => s.id));
-
-  if (patch.categoryId != null && !catIds.has(patch.categoryId)) {
+  const t = context.getTaxonomy();
+  if (
+    patch.categoryId != null &&
+    !t.categories.some((c) => c.id === patch.categoryId)
+  ) {
     throw new AIToolFailure(
       `Category "${patch.categoryId}" does not exist. Valid category ids: ${
-        [...catIds].join(", ") || none
+        t.categories.map((c) => c.id).join(", ") || none
       }.`,
     );
   }
@@ -103,11 +146,11 @@ function validatePatch(
     ? draft.categoryId
     : patch.categoryId;
   if (patch.subCategoryId != null) {
-    const sub = subById.get(patch.subCategoryId);
-    if (!sub) {
+    const sub = t.subCategories.find((s) => s.id === patch.subCategoryId);
+    if (sub === undefined) {
       throw new AIToolFailure(
         `Sub-category "${patch.subCategoryId}" does not exist. Valid sub-category ids: ${
-          [...subById.keys()].join(", ") || none
+          t.subCategories.map((s) => s.id).join(", ") || none
         }.`,
       );
     }
@@ -120,50 +163,89 @@ function validatePatch(
     }
   }
   if (patch.serviceCategoryIds !== undefined) {
-    const bad = patch.serviceCategoryIds.filter((id) => !svcIds.has(id));
+    const bad = patch.serviceCategoryIds.filter((id) =>
+      !t.serviceCategories.some((s) => s.id === id)
+    );
     if (bad.length > 0) {
       throw new AIToolFailure(
         `Service categories do not exist: ${
           bad.join(", ")
-        }. Valid service-category ids: ${[...svcIds].join(", ") || none}.`,
+        }. Valid service-category ids: ${
+          t.serviceCategories.map((s) => s.id).join(", ") || none
+        }.`,
       );
     }
   }
-  if (patch.code !== undefined) {
-    const rounds = new Set(draft.code.map((c) => c.timePoint));
-    const seen = new Set<string>();
-    for (const round of patch.code) {
-      if (!rounds.has(round.timePoint)) {
-        throw new AIToolFailure(
-          `Time point "${round.timePoint}" is not a round of this editor. Rounds: ${
-            [...rounds].join(", ")
-          }.`,
-        );
-      }
-      if (seen.has(round.timePoint)) {
-        throw new AIToolFailure(
-          `Time point "${round.timePoint}" is listed twice; list each round once.`,
-        );
-      }
-      seen.add(round.timePoint);
-      if (round.rCode === undefined && round.rFilterCode === undefined) {
-        throw new AIToolFailure(
-          `Round "${round.timePoint}" names no field to change; give rCode, rFilterCode or both.`,
-        );
-      }
+  if (
+    patch.variantGroupId != null &&
+    !t.variantGroups.some((g) => g.id === patch.variantGroupId)
+  ) {
+    throw new AIToolFailure(
+      `Variant group "${patch.variantGroupId}" does not exist. Valid group ids: ${
+        t.variantGroups.map((g) => g.id).join(", ") || none
+      }.`,
+    );
+  }
+  const rounds = new Set(draft.code.map((c) => c.timePoint));
+  const offered = (timePoint: string) => {
+    if (!rounds.has(timePoint)) {
+      throw new AIToolFailure(
+        `Time point "${timePoint}" is not a round of this editor. Rounds: ${
+          [...rounds].join(", ")
+        }.`,
+      );
     }
+  };
+  const seenRounds = new Set<string>();
+  for (const round of patch.code ?? []) {
+    offered(round.timePoint);
+    if (seenRounds.has(round.timePoint)) {
+      throw new AIToolFailure(
+        `Time point "${round.timePoint}" is listed twice; list each round once.`,
+      );
+    }
+    seenRounds.add(round.timePoint);
+    if (round.rCode === undefined && round.rFilterCode === undefined) {
+      throw new AIToolFailure(
+        `Round "${round.timePoint}" names no field to change; give rCode, rFilterCode or both.`,
+      );
+    }
+  }
+  const groupAfter = patch.variantGroupId === undefined
+    ? draft.variantGroupId
+    : patch.variantGroupId;
+  const items = t.variantItems.filter((i) => i.groupId === groupAfter);
+  const seenRows = new Set<string>();
+  for (const row of patch.variantCode ?? []) {
+    offered(row.timePoint);
+    if (!items.some((i) => i.id === row.itemId)) {
+      throw new AIToolFailure(
+        `Variant item "${row.itemId}" is not in the variant group "${
+          groupAfter ?? none
+        }" the change leaves. Its items: ${
+          items.map((i) => i.id).join(", ") || none
+        }.`,
+      );
+    }
+    const key = `${row.timePoint} / ${row.itemId}`;
+    if (seenRows.has(key)) {
+      throw new AIToolFailure(
+        `Variant row "${key}" is listed twice; list each row once.`,
+      );
+    }
+    seenRows.add(key);
   }
   return patch;
 }
 
 function changeLine(
-  field: string,
+  label: string,
   before: string | null,
   after: string | null,
 ): string {
   return before === after
-    ? `${field}: no change`
-    : `${field}: "${before ?? none}" → "${after ?? none}"`;
+    ? `${label}: no change`
+    : `${label}: "${before ?? none}" → "${after ?? none}"`;
 }
 
 // What the write did, field by field: a field whose new value equals the
@@ -174,26 +256,24 @@ function describeChanges(
   after: HfaIndicatorEditorDraft,
 ): string[] {
   const lines: string[] = [];
-  const scalar = (
-    field:
-      | "shortLabel"
-      | "definition"
-      | "type"
-      | "aggregation"
-      | "categoryId"
-      | "subCategoryId",
-  ) => {
-    if (patch[field] !== undefined) {
-      lines.push(changeLine(field, before[field], after[field]));
+  for (
+    const key of [
+      "shortLabel",
+      "definition",
+      "type",
+      "aggregation",
+      "categoryId",
+      "variantGroupId",
+    ] as const
+  ) {
+    if (patch[key] !== undefined) {
+      lines.push(changeLine(key, before[key], after[key]));
     }
-  };
-  scalar("shortLabel");
-  scalar("definition");
-  scalar("type");
-  scalar("aggregation");
-  scalar("categoryId");
+  }
   if (patch.subCategoryId !== undefined) {
-    scalar("subCategoryId");
+    lines.push(
+      changeLine("subCategoryId", before.subCategoryId, after.subCategoryId),
+    );
   } else if (before.subCategoryId !== after.subCategoryId) {
     lines.push(
       `subCategoryId: cleared ("${before.subCategoryId}" belonged to the previous category)`,
@@ -207,6 +287,14 @@ function describeChanges(
         `[${after.serviceCategoryIds.join(", ")}]`,
       ),
     );
+  }
+  if (before.variantGroupId !== after.variantGroupId) {
+    const dropped = before.variantCode.map((v) => `${v.timePoint} ${v.itemId}`);
+    if (dropped.length > 0) {
+      lines.push(
+        `variant code of the previous group dropped: ${dropped.join(", ")}`,
+      );
+    }
   }
   for (const round of patch.code ?? []) {
     const b = before.code.find((c) => c.timePoint === round.timePoint);
@@ -225,6 +313,19 @@ function describeChanges(
       );
     }
   }
+  for (const row of patch.variantCode ?? []) {
+    const find = (d: HfaIndicatorEditorDraft) =>
+      d.variantCode.find((v) =>
+        v.timePoint === row.timePoint && v.itemId === row.itemId
+      )?.rCode ?? null;
+    lines.push(
+      changeLine(
+        `${row.timePoint} variant ${row.itemId}`,
+        find(before),
+        find(after),
+      ),
+    );
+  }
   return lines;
 }
 
@@ -235,11 +336,25 @@ export function getClientToolsForHfaIndicatorEditor() {
       name: "get_hfa_indicator_editor",
       availableIn: COPILOT_TOOL_VIEWS.get_hfa_indicator_editor,
       description:
-        "Read the HFA indicator open in the code editor as its unsaved draft stands: the labels, type, aggregation, category, sub-category and service categories, the indicator code and filter code of every round with the issues the editor's validation finds in each, whether the rounds agree, and the round the user is looking at. Call this before update_hfa_indicator_editor.",
+        "Read the HFA indicator open in the code editor as its unsaved draft stands, in full: both labels, the measure, type and aggregation, categories, the variant group and its items, and per round the code, the filter, each item's variant code, the round status and its issues; then every survey variable and every other indicator the code names, once. Also names the round the user is looking at. Call this before update_hfa_indicator_editor.",
       inputSchema: z.object({}),
       kind: "read",
-      handler: (_input, view) =>
-        describeDraft(view.params.indicatorId, view.context),
+      handler: async (_input, view) => {
+        const indicatorId = view.params.indicatorId;
+        const draft = view.context.getDraft();
+        const selected = view.context.getSelectedTimePoint();
+        const input = draftInput(
+          indicatorId,
+          draft,
+          view.context,
+          await loadDisplayRows(),
+        );
+        return [
+          `The unsaved state of indicator ${indicatorId} in the code editor: nothing here is saved until the user saves. The user is looking at round ${selected}.`,
+          "",
+          formatHfaIndicatorDetailsForAI(input, [indicatorId]),
+        ].join("\n");
+      },
       inProgressLabel: () =>
         t3({
           en: "Reading the indicator editor...",
@@ -258,7 +373,7 @@ export function getClientToolsForHfaIndicatorEditor() {
       name: "update_hfa_indicator_editor",
       availableIn: COPILOT_TOOL_VIEWS.update_hfa_indicator_editor,
       description:
-        "Change the HFA indicator open in the code editor. Provide only the fields to change (labels, type, aggregation, category, sub-category, service categories, per-round indicator code and filter code); everything else is kept. The change lands in the editor's draft like the user's own edit, unsaved: the user keeps it with Save or discards it with Cancel. Ids are checked against the taxonomy and the editor's rounds before anything changes. Call get_hfa_indicator_editor first.",
+        "Change the HFA indicator open in the code editor. Provide only the fields to change (labels, type, aggregation, category, sub-category, service categories, variant group, per-round code and filter, per-item variant code); everything else is kept. The change lands in the editor's draft like the user's own edit, unsaved: the user keeps it with Save or discards it with Cancel. Ids, items and rounds are checked before anything changes. The result gives each round's status after the change. Call get_hfa_indicator_editor first.",
       inputSchema: patchSchema,
       kind: "write",
       handler: (input, view) => {
@@ -266,12 +381,25 @@ export function getClientToolsForHfaIndicatorEditor() {
         const patch = validatePatch(input, before, view.context);
         view.context.applyDraft(patch);
         const after = view.context.getDraft();
-        return {
-          applied: "in the editor, unsaved: the user saves or discards it",
-          changes: describeChanges(patch, before, after),
-          code: after.code,
-          codeConsistent: after.codeConsistent,
-        };
+        const status = draftInput(
+          view.params.indicatorId,
+          after,
+          view.context,
+          undefined,
+        ).status.get(view.params.indicatorId);
+        return [
+          "Applied in the editor, unsaved: the user saves or discards it.",
+          ...describeChanges(patch, before, after),
+          "Round status after the change:",
+          ...(status?.rounds ?? []).flatMap((r) => [
+            `- ${r.timePoint}: ${r.status}`,
+            ...r.issues.map((i) =>
+              `  ${
+                i.itemId === undefined ? i.field : `variant ${i.itemId}`
+              } (${i.kind}): ${i.text.en}`
+            ),
+          ]),
+        ].join("\n");
       },
       inProgressLabel: () =>
         t3({
