@@ -668,4 +668,6 @@ deletes this file; the residue is the SYSTEM prose the steps rewrote.
 
 ## §6 Log
 
-None yet.
+- Step 1's fix edited `HFA_WORK_CATALOGUE.md`, outside step 1's Surface, because
+  step 1's deletions in `manager.tsx` and `indicator_code_editor.tsx` moved
+  three of its line citations.
