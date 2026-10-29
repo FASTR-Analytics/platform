@@ -867,19 +867,19 @@ text in the manager's and the code editor's views) states the indicator model,
 type and aggregation, the grammar, and how m010 evaluates the code: every value
 read as a number, select_multiple expansion, the filter, missingness, sentinel
 handling and the positive-test rule, references and cycles, variant groups, and
-rounds whose question changed. So does the status core, which every surface that
-shows status reads: the manager's Status and Consistent columns, the code
-editor's messages and its Save, and the AI tools. `validateHfaIndicatorCode`
-gives one field's issues and the ids it names, `checkHfaCodeResultType` the
-result-type warning, and `hfaIndicatorsStatus` per indicator and round of the
-dictionary the issues of each field (`syntax`, `unknown_variable`,
-`filter_without_code`, `variant_without_code` and `cycle` are errors,
-`result_type` is the one warning), the round status (`none`, `error`, `warning`,
-`ready`) and whether the rounds agree. Main and filter code are read against the
-round's variables and the other indicators, variant code against the round's
-variables and every indicator, its own included. Its texts are
-`TranslatableString`s the client translates at render. Its cycle check takes the
-strongly connected components of the main-code dependency graph that
+rounds whose question changed. The status core lives beside the parser too, and
+every surface that shows status reads it: the manager's Status and Consistent
+columns, the code editor's messages and its Save, and the AI tools.
+`validateHfaIndicatorCode` gives one field's issues and the ids it names,
+`checkHfaCodeResultType` the result-type warning, and `hfaIndicatorsStatus` per
+indicator and round of the dictionary the issues of each field (`syntax`,
+`unknown_variable`, `filter_without_code`, `variant_without_code` and `cycle`
+are errors, `result_type` is the one warning), the round status (`none`,
+`error`, `warning`, `ready`) and whether the rounds agree. Main and filter code
+are read against the round's variables and the other indicators, variant code
+against the round's variables and every indicator, its own included. Its texts
+are `TranslatableString`s the client translates at render. Its cycle check takes
+the strongly connected components of the main-code dependency graph that
 `lib/hfa_indicator_dependencies.ts` builds, the analysis the generator imports,
 so every indicator on a cycle carries the issue before a run refuses it. The
 editor computes the core over the manager's code with its draft in place of its

@@ -681,3 +681,6 @@ deletes this file; the residue is the SYSTEM prose the steps rewrote.
 - Step 5 edited `lib/api-routes/mod.ts`, outside its Surface, to export the
   three contract schemas the write tools derive from: the client reaches lib
   only through that barrel, as it does `emailRecipientsSchema`.
+- Step 6 edited `client/src/components/data/hfa/indicators/ai/tools.ts`, outside
+  its Surface, to export `loadDisplayRows`, so the editor read awaits the
+  display rows through the same loader as the four reads (ruling 7).
