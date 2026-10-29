@@ -827,10 +827,9 @@ open HFA indicators. NEW CONVERSATION.
 - Ground truth: H1 is hfa_indicators; H5's instructions contain "## The HFA
   indicator model".
 - Do: send "List the taxonomy and count the indicators per category."
-- Ground truth: H3 shows `get_hfa_taxonomy` and `get_hfa_indicators`, both
-  `err: false`, or both `err: true` naming the `can_configure_data` permission,
-  which is then the pass condition. Compare the counts with the manager's table
-  on screen.
+- Ground truth: H3 shows `get_hfa_indicators` with `err: false`, or with
+  `err: true` naming the `can_configure_data` permission, which is then the pass
+  condition. Compare the counts with the manager's table on screen.
 - Pass: counts match.
 
 **J2. Create, validate, delete, each through a modal.**

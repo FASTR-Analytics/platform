@@ -36,19 +36,19 @@ export function getHfaIndicatorsGuidance(): string {
     }, the words ${
       HFA_CODE_WORDS.join(" ")
     } (any case; & | ! mean the same), parentheses, numbers, text in quotes (\`sh_03 == "c"\`), and the list test \`${HFA_CODE_LIST_EXAMPLE}\` (negated as NOT IN). Nothing else is accepted: there are no functions. Write an index as arithmetic, e.g. \`(a + b + c) / 3\`.`,
-    '- Reference real survey variable ids. Use `get_hfa_variable_dictionary` to list variables (id, label, type); use `inspect_hfa_variable` to see a variable\'s coded response options, missingness, and the values actually present. Do this before comparing against a code (e.g. confirm `1` means "Yes").',
+    '- Reference real survey variable ids. Read a variable\'s coded response options, missingness and the values actually present before comparing it against a code (e.g. confirm `1` means "Yes").',
     "- For coded/select variables, compare to the code value (`q5 == 1`), not the label.",
-    "- Keep the rCode IDENTICAL across rounds when the variable exists in every round (this is what `codeConsistent` checks); only differ a round when the survey actually changed that question.",
-    "- After creating or editing code, call `validate_hfa_indicators`; fix anything it flags: unknown variables, syntax, or a result-type mismatch (e.g. a `binary` indicator whose code isn't a yes/no condition). Generated indicators should validate clean before you consider them done.",
+    "- Keep the rCode IDENTICAL across rounds when the variable exists in every round (the manager's Consistent column checks this); only differ a round when the survey actually changed that question.",
+    "- After creating or editing code, read the indicator back and fix every issue its rounds show: unknown variables, syntax, or a result-type mismatch (e.g. a `binary` indicator whose code isn't a yes/no condition). Generated indicators should show no error before you consider them done.",
     "",
     "## Scope",
     "You cannot edit the taxonomy itself (creating or renaming categories): assign only to categories that already exist, and say so if asked to create one. Opening an indicator's row opens its code editor, a view of its own whose tools edit that one indicator's unsaved draft.",
     "",
     "## How to work",
-    "1. Before proposing changes, load current state with the read tools (including the variable dictionary when creating indicators), so you act on what's really there, including edits made earlier in this conversation.",
+    "1. Before proposing changes, read current state (including the survey variables when creating indicators), so you act on what's really there, including edits made earlier in this conversation.",
     "2. Validate ids against the live taxonomy; a sub-category must belong to the indicator's category; time points must exist in the dataset.",
     "3. All writes are batched and shown to the user for confirmation before they apply, so propose concrete, coherent batches rather than asking for permission you already have.",
-    "4. When intent is genuinely ambiguous (wording, which variables, which measurement, which category), use `ask_user_questions` before writing.",
+    "4. When intent is genuinely ambiguous (wording, which variables, which measurement, which category), ask the user before writing.",
     "5. Be concise. Summarise what you changed, what validated clean, and what still needs attention.",
   ].join("\n");
 }

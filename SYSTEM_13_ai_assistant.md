@@ -1194,48 +1194,72 @@ parts S13 relies on, verified this cycle:
 
 `client/src/components/data/hfa/indicators/ai/` holds the HFA reads, HFA writes
 and HFA editor groups of the catalogue, registered in the one chat by
-`copilot_tools.ts` like every other tool and gated by view: the reads
-(`get_hfa_indicators`, `get_hfa_taxonomy`, `get_hfa_variable_dictionary`,
-`inspect_hfa_variable`, `get_hfa_indicator_code`, `validate_hfa_indicators`) in
+`copilot_tools.ts` like every other tool and gated by view: the four reads in
 the three HFA views, the writes (`update_hfa_indicator_labels`,
 `assign_hfa_indicator_categories`, `create_hfa_indicators`,
 `set_hfa_indicator_code`, `delete_hfa_indicators`) in `hfa_indicators` alone,
 and the editor tools (`get_hfa_indicator_editor`, `update_hfa_indicator_editor`,
 `editor_tools.ts`) in `hfa_indicator_editor` alone. Who may call them refuses
-through the guard: the reads need `can_configure_data` (`inspect_hfa_variable`
-`can_view_data`), the writes and `update_hfa_indicator_editor` the manager's
-write gate, `canWriteHfaIndicators()` (`indicators/write_gate.ts`, today global
-admin), which the manager's indicator write controls read too, so SYSTEM_05's
-open decision on that gate moves both at once. Every HFA route keeps its own
-guard. The five writes declare `approval.propose` with `presentation: "modal"`
-(panther owns the propose → modal → commit lifecycle); the editor write is
-exempt, since it lands in the open editor's unsaved draft, which the user saves
-or discards. The HFA guidance (the model, type and aggregation, how to write
-indicator code, how to work) is `instructions.ts`'s `getHfaIndicatorsGuidance`,
-attached to the manager's view; it names no tool, since the registered tools
-describe themselves, and promises no diff. `validate_hfa_indicators` is a read:
-it computes each indicator's issues with the status core (SYSTEM_05), over main
-code, variant code and cycles, and stores nothing, since no validation status is
-stored anywhere and the manager computes it at render. `create_hfa_indicators`
-reports what the batch route created and, under `notCreated`, an id another save
-took between the proposal and the acceptance. Every anticipated failure throws
+through the guard: the reads need `can_configure_data`, the writes and
+`update_hfa_indicator_editor` the manager's write gate,
+`canWriteHfaIndicators()` (`indicators/write_gate.ts`, today global admin),
+which the manager's indicator write controls read too, so SYSTEM_05's open
+decision on that gate moves both at once. Every HFA route keeps its own guard.
+The five writes declare `approval.propose` with `presentation: "modal"` (panther
+owns the propose → modal → commit lifecycle); the editor write is exempt, since
+it lands in the open editor's unsaved draft, which the user saves or discards.
+The HFA guidance (the model, type and aggregation, how to write indicator code,
+how to work) is `instructions.ts`'s `getHfaIndicatorsGuidance`, attached to the
+manager's view; it names no tool, since the registered tools describe
+themselves, and promises no diff.
+
+Every read returns English text built by a pure formatter in
+`lib/ai_tools/format_hfa_indicators_for_ai.ts`, pinned by
+`server/tests/format_hfa_indicators_for_ai_test.ts`, over the indicators, the
+taxonomy, the main and variant code, the dictionary, the status core's result
+(SYSTEM_05) and the display rows. `get_hfa_indicators` prints the taxonomy
+(categories with their sub-categories, service categories, variant groups with
+their items, each `id: label`), a count line and one line per indicator (id,
+long label, type and aggregation, category, sub-category and service categories,
+variant group, rounds with main code out of all rounds, round status counts,
+consistency); it filters by `search` (the manager's search text, through
+panther's `searchTokens` and `matchesSearch`), category, service category,
+status (`error`, `warning` with no error, `inconsistent`, `none`), missing
+category and missing short label, and a status filter adds each round's issues.
+`get_hfa_indicator_details` prints the detail block for its ids: each indicator
+in full (labels, measure, categories, variant group and items, per round the
+code, filter, variant code, status and issues), then every variable the set's
+code names, once (per round its label, type, options with their sentinel class
+and a mark on a text code, which m010 reads as missing, and the facility counts
+and values present), then every other indicator the code names, once.
+`get_hfa_variables` prints one line per variable (label, type, and per round it
+is in the number of indicators whose code names it), filtered by `search`,
+round, and `unusedOnly` (a variable no code names in some round it is in,
+structural columns excluded). `get_hfa_variable_details` prints each variable's
+per-round detail with the indicators naming it, and lists an id in no round as
+not found. The two detail reads take at most 20 ids and refuse more, naming the
+cap. The display rows are read only when the user also holds `can_view_data`
+(the route's own guard); otherwise the output carries one line saying the counts
+and values present need that permission. `create_hfa_indicators` reports what
+the batch route created and, under `notCreated`, an id another save took between
+the proposal and the acceptance. Every anticipated failure throws
 `AIToolFailure` carrying the server's error (zero plain-`Error` throws in
 [tools.ts](client/src/components/data/hfa/indicators/ai/tools.ts), the
 failure-channel ruling above). The survey dictionary and the dataset display are
-read through the manager's T2 caches; the indicators, the taxonomy and the code
-are read fresh on every call, so the model acts on current state, its own
-earlier writes included. Write commits do whole-object load → propose → save,
-last write wins: the app-wide concurrency model, deliberate (a
-re-read-after-confirm refactor was rejected as an inconsistent outlier); a label
-batch carries only the indicators whose label changed. The editor tools never
-await: `get_hfa_indicator_editor` reads the draft the view's context returns,
-and `update_hfa_indicator_editor` checks its ids against the taxonomy and the
-rounds the editor offers, applies the patch through `applyDraft` and reports
-each field as changed or as no change, so the editor that set the view is the
-one the write reaches. The hand-written schemas comply with the S13 conventions
-(storage field names, throw-don't-catch, `.min(1)` on inclusion lists, no
-strictObject / strict:true). S13 convention changes must be checked against this
-directory; its tool semantics are S5's.
+read through the manager's T2 caches; the indicators, the taxonomy (variant
+groups and items included) and the main and variant code are read fresh on every
+call, so the model acts on current state, its own earlier writes included. Write
+commits do whole-object load → propose → save, last write wins: the app-wide
+concurrency model, deliberate (a re-read-after-confirm refactor was rejected as
+an inconsistent outlier); a label batch carries only the indicators whose label
+changed. The editor tools never await: `get_hfa_indicator_editor` reads the
+draft the view's context returns, and `update_hfa_indicator_editor` checks its
+ids against the taxonomy and the rounds the editor offers, applies the patch
+through `applyDraft` and reports each field as changed or as no change, so the
+editor that set the view is the one the write reaches. The hand-written schemas
+comply with the S13 conventions (storage field names, throw-don't-catch,
+`.min(1)` on inclusion lists, no strictObject / strict:true). S13 convention
+changes must be checked against this directory; its tool semantics are S5's.
 
 ## Traps
 
@@ -1347,10 +1371,8 @@ will try to resolve", which is what `reportLiveFigures` relies on.
   code and no categories, and a delete preview the ids only; build the diff and
   the fuller previews. (2) **Taxonomy editing**: the tools can assign categories
   but cannot create or rename them; decide whether that stays manual. (3) No
-  per-conversation cost cap (only the shared instance/user token limits). (4)
-  `inspect_hfa_variable` loads the whole dataset display then filters
-  client-side: fine now, unbounded at scale. (5) No telemetry on the tools'
-  accept and reject rates.
+  per-conversation cost cap (only the shared instance/user token limits). (4) No
+  telemetry on the tools' accept and reject rates.
 
 **Surface gaps: read-projection ≠ write-schema ≠ stored-shape**
 

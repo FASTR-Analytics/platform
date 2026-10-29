@@ -57,11 +57,9 @@ const GROUPS = {
   figure_editor: ["get_figure_editor", "update_figure_editor"],
   hfa_reads: [
     "get_hfa_indicators",
-    "get_hfa_taxonomy",
-    "get_hfa_variable_dictionary",
-    "inspect_hfa_variable",
-    "get_hfa_indicator_code",
-    "validate_hfa_indicators",
+    "get_hfa_indicator_details",
+    "get_hfa_variables",
+    "get_hfa_variable_details",
   ],
   hfa_writes: [
     "update_hfa_indicator_labels",
@@ -242,7 +240,6 @@ const REQUIREMENTS: Record<string, string> = Object.fromEntries([
   ["get_module_settings", "can_view_data"],
   ["get_module_log", "can_view_logs"],
   ...GROUPS.hfa_reads.map((t) => [t, "can_configure_data"]),
-  ["inspect_hfa_variable", "can_view_data"],
   ...GROUPS.hfa_writes.map((t) => [t, "hfa_write"]),
   ["update_hfa_indicator_editor", "hfa_write"],
   ...GROUPS.deck_writes.map((t) => [t, "product_edit"]),

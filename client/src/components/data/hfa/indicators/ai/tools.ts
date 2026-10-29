@@ -7,13 +7,24 @@ import {
 } from "panther";
 import { z } from "zod";
 import {
+  type APIResponseWithData,
   COPILOT_TOOL_VIEWS,
+  formatHfaIndicatorDetailsForAI,
+  formatHfaIndicatorListForAI,
+  formatHfaVariableDetailsForAI,
+  formatHfaVariableListForAI,
+  HFA_STRUCTURAL_VARIABLE_IDS,
   type HfaDictionaryForValidation,
   type HfaIndicator,
   type HfaIndicatorCode,
   hfaIndicatorCodeIdentifiers,
+  type HfaIndicatorsForAIInput,
   hfaIndicatorsStatus,
+  type HfaIndicatorStatus,
   type HfaIndicatorVariantCode,
+  type HfaTaxonomyInput,
+  type HfaVariableRow,
+  hfaVariableUsage,
   nextHfaIndicatorId,
   serialiseMultiMembershipValues,
   t3,
@@ -26,12 +37,10 @@ import {
 } from "~/state/instance/t2_datasets";
 import { copilotViews } from "~/components/instance/copilot/mod.ts";
 
-// ---------------------------------------------------------------------------
-// Loaders. The indicators, the taxonomy and the code are read fresh on every
-// call so the AI acts on current state, its own earlier writes included; the
-// survey dictionary and the dataset display read through the T2 caches the
-// manager uses, keyed on the instance's HFA cache hash.
-// ---------------------------------------------------------------------------
+// The indicators, the taxonomy and the code are read fresh on every call so
+// the AI acts on current state, its own earlier writes included; the survey
+// dictionary and the dataset display read through the T2 caches the manager
+// uses, keyed on the instance's HFA cache hash.
 
 async function loadIndicators(): Promise<HfaIndicator[]> {
   const res = await serverActions.getHfaIndicators({});
@@ -41,39 +50,28 @@ async function loadIndicators(): Promise<HfaIndicator[]> {
   return res.data;
 }
 
-async function loadTaxonomy() {
-  const [cats, subs, svcs] = await Promise.all([
-    serverActions.getHfaIndicatorCategories({}),
-    serverActions.getHfaIndicatorSubCategories({}),
-    serverActions.getHfaIndicatorServiceCategories({}),
-  ]);
-  if (!cats.success) {
-    throw new AIToolFailure(`Could not load the HFA taxonomy: ${cats.err}`);
-  }
-  if (!subs.success) {
-    throw new AIToolFailure(`Could not load the HFA taxonomy: ${subs.err}`);
-  }
-  if (!svcs.success) {
-    throw new AIToolFailure(`Could not load the HFA taxonomy: ${svcs.err}`);
-  }
-  return {
-    categories: cats.data,
-    subCategories: subs.data,
-    serviceCategories: svcs.data,
+async function loadTaxonomy(): Promise<HfaTaxonomyInput> {
+  const [categories, subCategories, serviceCategories, groups, items] =
+    await Promise.all([
+      serverActions.getHfaIndicatorCategories({}),
+      serverActions.getHfaIndicatorSubCategories({}),
+      serverActions.getHfaIndicatorServiceCategories({}),
+      serverActions.getHfaIndicatorVariantGroups({}),
+      serverActions.getHfaIndicatorVariantItems({}),
+    ]);
+  const data = <T>(res: APIResponseWithData<T>): T => {
+    if (!res.success) {
+      throw new AIToolFailure(`Could not load the HFA taxonomy: ${res.err}`);
+    }
+    return res.data;
   };
-}
-
-// Apply a set of fully-merged indicators (read-modify-write: the bulk route
-// takes whole objects). Transactional server-side: all applied or none.
-async function applyIndicatorUpdates(merged: HfaIndicator[]): Promise<void> {
-  const res = await serverActions.updateHfaIndicatorsBulk({
-    indicators: merged,
-  });
-  if (!res.success) {
-    throw new AIToolFailure(
-      `Failed to apply the ${merged.length} HFA indicator update(s); nothing was saved: ${res.err}`,
-    );
-  }
+  return {
+    categories: data(categories),
+    subCategories: data(subCategories),
+    serviceCategories: data(serviceCategories),
+    variantGroups: data(groups),
+    variantItems: data(items),
+  };
 }
 
 async function loadDictionary(): Promise<HfaDictionaryForValidation> {
@@ -104,6 +102,136 @@ async function loadAllVariantCode(): Promise<HfaIndicatorVariantCode[]> {
     );
   }
   return res.data;
+}
+
+// The display rows need `can_view_data`, which the reads do not: without it
+// the formatters print one line saying the counts are left out.
+async function loadDisplayRows(): Promise<HfaVariableRow[] | undefined> {
+  if (!instanceState.currentUserPermissions.can_view_data) return undefined;
+  const res = await getDatasetHfaDisplayInfoFromCacheOrFetch(
+    instanceState.hfaCacheHash,
+  );
+  if (!res.success) {
+    throw new AIToolFailure(
+      `Could not load the HFA dataset's variable counts: ${res.err}`,
+    );
+  }
+  return res.data.rows;
+}
+
+// Everything an HFA read prints, read fresh but for the dictionary and the
+// display rows, which come through the manager's T2 caches.
+async function loadReadInput(
+  withDisplayRows: boolean,
+): Promise<HfaIndicatorsForAIInput> {
+  const [indicators, taxonomy, code, variantCode, dictionary, displayRows] =
+    await Promise.all([
+      loadIndicators(),
+      loadTaxonomy(),
+      loadAllCode(),
+      loadAllVariantCode(),
+      loadDictionary(),
+      withDisplayRows ? loadDisplayRows() : Promise.resolve(undefined),
+    ]);
+  return {
+    indicators,
+    taxonomy,
+    code,
+    variantCode,
+    dictionary,
+    displayRows,
+    status: hfaIndicatorsStatus({
+      indicators,
+      code,
+      variantCode,
+      variantItems: taxonomy.variantItems,
+      dictionary,
+    }),
+  };
+}
+
+const DETAIL_CAP = 20;
+
+function refuseOverCap(ids: string[], what: string): void {
+  if (ids.length > DETAIL_CAP) {
+    throw new AIToolFailure(
+      `At most ${DETAIL_CAP} ${what} per call; ${ids.length} were given. Split the ids across calls.`,
+    );
+  }
+}
+
+function refuseUnknownTimePoint(
+  timePoint: string | undefined,
+  dictionary: HfaDictionaryForValidation,
+): void {
+  if (
+    timePoint !== undefined &&
+    !dictionary.timePoints.some((tp) => tp.timePoint === timePoint)
+  ) {
+    throw new AIToolFailure(
+      `Time point "${timePoint}" is not a round of the dataset. Rounds: ${
+        dictionary.timePoints.map((tp) => tp.timePoint).join(", ") || "(none)"
+      }.`,
+    );
+  }
+}
+
+function taxonomyLabels(taxonomy: HfaTaxonomyInput): Map<string, string> {
+  return new Map(
+    [
+      ...taxonomy.categories,
+      ...taxonomy.subCategories,
+      ...taxonomy.serviceCategories,
+    ].map((t) => [t.id, t.label]),
+  );
+}
+
+// The manager's search text: the id, both labels and the category,
+// sub-category and service-category labels.
+function indicatorSearchText(
+  ind: HfaIndicator,
+  labels: Map<string, string>,
+): string {
+  const label = (id: string | null) => id === null ? "" : labels.get(id) ?? "";
+  return [
+    ind.indicatorId,
+    ind.shortLabel,
+    ind.definition,
+    label(ind.categoryId),
+    label(ind.subCategoryId),
+    ...ind.serviceCategoryIds.map(label),
+  ].join(" ");
+}
+
+function matchesStatus(
+  status: HfaIndicatorStatus | undefined,
+  wanted: "error" | "warning" | "inconsistent" | "none",
+): boolean {
+  if (status === undefined) return false;
+  const has = (s: string) => status.rounds.some((r) => r.status === s);
+  switch (wanted) {
+    case "error":
+      return has("error");
+    case "warning":
+      return has("warning") && !has("error");
+    case "inconsistent":
+      return !status.consistent;
+    case "none":
+      return status.rounds.every((r) => r.status === "none");
+  }
+}
+
+// Apply a set of fully-merged indicators (read-modify-write: the bulk route
+// takes whole objects). Transactional server-side: all applied or none.
+async function applyIndicatorUpdates(merged: HfaIndicator[]): Promise<void> {
+  const res = await serverActions.updateHfaIndicatorsBulk({
+    indicators: merged,
+  });
+  if (!res.success) {
+    throw new AIToolFailure(
+      `Failed to apply the ${merged.length} HFA indicator update(s); nothing was saved: ${res.err}`,
+    );
+  }
 }
 
 type CodeRound = { timePoint: string; rCode: string; rFilterCode?: string };
@@ -143,13 +271,7 @@ function countIndicators(n: number): string {
 }
 
 async function loadVariantItems() {
-  const res = await serverActions.getHfaIndicatorVariantItems({});
-  if (!res.success) {
-    throw new AIToolFailure(
-      `Could not load the HFA variant items: ${res.err}`,
-    );
-  }
-  return res.data;
+  return (await loadTaxonomy()).variantItems;
 }
 
 // The status core's verdict per indicator of `only`, as the tools report it:
@@ -182,13 +304,11 @@ function validateIndicators(input: {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Tools: the HFA reads and HFA writes of the chat's catalogue, registered for
-// every user and gated by view through `availableIn` (the reads in the manager,
-// the code editor and the Excel import; the writes in the manager alone, where
-// each proposes a modal approval). Who may call them refuses at the call
-// through the chat's guard, under `canWriteHfaIndicators()` for the writes.
-// ---------------------------------------------------------------------------
+// The chat's HFA reads and HFA writes, gated by view through `availableIn`
+// (the reads in the manager, the code editor and the Excel import; the writes
+// in the manager alone, where each proposes a modal approval). Who may call
+// them refuses at the call through the chat's guard, under
+// `canWriteHfaIndicators()` for the writes.
 
 export function buildHfaIndicatorTools() {
   return [
@@ -197,51 +317,48 @@ export function buildHfaIndicatorTools() {
       name: "get_hfa_indicators",
       availableIn: COPILOT_TOOL_VIEWS.get_hfa_indicators,
       description:
-        "List HFA indicators with their labels, measurement (type/aggregation) and category / sub-category / service-category assignments. Optional filters narrow the result; omit all to get every indicator.",
+        "List HFA indicators, one line each: id, long label, type and aggregation, category, sub-category and service categories, variant group, rounds with code, round status and whether the rounds agree, under the taxonomy (categories, sub-categories, service categories, variant groups and items, each id: label). The ids it prints are what every other HFA tool takes. Filter rather than list everything: the default workbook holds hundreds of indicators. Filtering by status also prints each round's issues. The search reads labels and ids, not code: to find the indicators whose code names a variable, read that variable with get_hfa_variable_details.",
       kind: "read",
       inputSchema: z.object({
+        search: z.string().optional().describe(
+          "Only indicators whose id, short and long labels and category, sub-category and service-category labels together contain every word of this text, in any order (case- and accent-insensitive).",
+        ),
         categoryId: z.string().optional().describe(
           "Only indicators in this category id.",
         ),
         serviceCategoryId: z.string().optional().describe(
           "Only indicators that include this service-category id.",
         ),
-        missingShortLabel: z.boolean().optional().describe(
-          "Only indicators with an empty short label.",
-        ),
+        status: z.enum(["error", "warning", "inconsistent", "none"])
+          .optional()
+          .describe(
+            "error: some round has an error. warning: some round has a warning and none an error. inconsistent: the rounds' code differs. none: no round has code.",
+          ),
         missingCategory: z.boolean().optional().describe(
           "Only indicators with no category assigned.",
         ),
+        missingShortLabel: z.boolean().optional().describe(
+          "Only indicators with an empty short label.",
+        ),
       }),
       handler: async (input) => {
-        let rows = await loadIndicators();
-        if (input.categoryId !== undefined) {
-          rows = rows.filter((i) => i.categoryId === input.categoryId);
-        }
-        if (input.serviceCategoryId !== undefined) {
-          rows = rows.filter((i) =>
-            i.serviceCategoryIds.includes(input.serviceCategoryId!)
-          );
-        }
-        if (input.missingShortLabel) {
-          rows = rows.filter((i) => i.shortLabel.trim() === "");
-        }
-        if (input.missingCategory) {
-          rows = rows.filter((i) => i.categoryId === null);
-        }
-        return {
-          count: rows.length,
-          indicators: rows.map((i) => ({
-            indicatorId: i.indicatorId,
-            shortLabel: i.shortLabel,
-            definition: i.definition,
-            type: i.type,
-            aggregation: i.aggregation,
-            categoryId: i.categoryId,
-            subCategoryId: i.subCategoryId,
-            serviceCategoryIds: i.serviceCategoryIds,
-          })),
-        };
+        const read = await loadReadInput(false);
+        const tokens = searchTokens(input.search ?? "");
+        const labels = taxonomyLabels(read.taxonomy);
+        const listed = read.indicators.filter((ind) =>
+          (input.categoryId === undefined ||
+            ind.categoryId === input.categoryId) &&
+          (input.serviceCategoryId === undefined ||
+            ind.serviceCategoryIds.includes(input.serviceCategoryId)) &&
+          (input.status === undefined ||
+            matchesStatus(read.status.get(ind.indicatorId), input.status)) &&
+          (!input.missingCategory || ind.categoryId === null) &&
+          (!input.missingShortLabel || ind.shortLabel.trim() === "") &&
+          matchesSearch(foldString(indicatorSearchText(ind, labels)), tokens)
+        );
+        return formatHfaIndicatorListForAI(read, listed, {
+          withIssues: input.status !== undefined,
+        });
       },
       inProgressLabel: () =>
         t3({
@@ -259,39 +376,142 @@ export function buildHfaIndicatorTools() {
 
     createAITool({
       viewRegistry: copilotViews,
-      name: "get_hfa_taxonomy",
-      availableIn: COPILOT_TOOL_VIEWS.get_hfa_taxonomy,
+      name: "get_hfa_indicator_details",
+      availableIn: COPILOT_TOOL_VIEWS.get_hfa_indicator_details,
       description:
-        "List the HFA indicator taxonomy: the available categories, sub-categories (each with its parent categoryId), and service categories — the valid ids that HFA indicators can be assigned to.",
+        `Read HFA indicators in full, up to ${DETAIL_CAP} per call: both labels, the measure, type and aggregation, categories, the variant group and its items, and per round the code, the filter, each item's variant code, the round status and its issues. Then, once for the whole set, every survey variable the code names (per round its label, type, options with their sentinel class, and the facility counts and values present) and every other indicator the code names (its code and status per round). Use it to judge whether an indicator's code measures what its labels say.`,
       kind: "read",
-      inputSchema: z.object({}),
-      handler: async () => {
-        const { categories, subCategories, serviceCategories } =
-          await loadTaxonomy();
-        return {
-          categories: categories.map((c) => ({ id: c.id, label: c.label })),
-          subCategories: subCategories.map((s) => ({
-            id: s.id,
-            categoryId: s.categoryId,
-            label: s.label,
-          })),
-          serviceCategories: serviceCategories.map((s) => ({
-            id: s.id,
-            label: s.label,
-          })),
-        };
+      inputSchema: z.object({
+        indicatorIds: z.array(z.string()).min(1).describe(
+          "The indicator ids to read, as get_hfa_indicators prints them.",
+        ),
+      }),
+      handler: async (input) => {
+        refuseOverCap(input.indicatorIds, "indicators");
+        const read = await loadReadInput(true);
+        const known = new Set(read.indicators.map((i) => i.indicatorId));
+        const unknown = input.indicatorIds.filter((id) => !known.has(id));
+        if (unknown.length > 0) {
+          throw new AIToolFailure(
+            `Unknown indicator id(s): ${
+              unknown.join(", ")
+            }. get_hfa_indicators lists the ids.`,
+          );
+        }
+        return formatHfaIndicatorDetailsForAI(read, input.indicatorIds);
       },
       inProgressLabel: () =>
         t3({
-          en: "Reading the HFA taxonomy...",
-          fr: "Lecture de la taxonomie HFA...",
-          pt: "A ler a taxonomia HFA...",
+          en: "Reading HFA indicator details...",
+          fr: "Lecture du détail des indicateurs HFA...",
+          pt: "A ler o detalhe dos indicadores HFA...",
+        }),
+      completionMessage: (input) =>
+        t3({
+          en: `Read ${countIndicators(input.indicatorIds.length)} in detail`,
+          fr: `${countIndicators(input.indicatorIds.length)} lu(s) en détail`,
+          pt: `${
+            countIndicators(input.indicatorIds.length)
+          } lido(s) em detalhe`,
+        }),
+    }),
+
+    createAITool({
+      viewRegistry: copilotViews,
+      name: "get_hfa_variables",
+      availableIn: COPILOT_TOOL_VIEWS.get_hfa_variables,
+      description:
+        "List the HFA survey variables, one line each: id, label and type, and per round it is in, how many indicators' code of that round names it. Filter rather than list everything: a survey has hundreds of variables. To see a variable's options, counts and values, and which indicators name it, use get_hfa_variable_details.",
+      kind: "read",
+      inputSchema: z.object({
+        search: z.string().optional().describe(
+          "Only variables whose id and labels together contain every word of this text, in any order (case- and accent-insensitive).",
+        ),
+        timePoint: z.string().optional().describe(
+          "Only variables in this round.",
+        ),
+        unusedOnly: z.boolean().optional().describe(
+          "Only variables that no indicator's code names in some round they are in (in the given round, when one is given). Structural columns are never listed.",
+        ),
+      }),
+      handler: async (input) => {
+        const read = await loadReadInput(false);
+        refuseUnknownTimePoint(input.timePoint, read.dictionary);
+        const tokens = searchTokens(input.search ?? "");
+        const rounds = read.dictionary.timePoints.filter((tp) =>
+          input.timePoint === undefined || tp.timePoint === input.timePoint
+        );
+        const usage = hfaVariableUsage(read.code, read.variantCode);
+        const searched = new Map<string, string[]>();
+        const unusedIn = new Set<string>();
+        for (const tp of rounds) {
+          for (const v of tp.variables) {
+            searched.set(v.variableId, [
+              ...(searched.get(v.variableId) ?? [v.variableId]),
+              v.variableLabel,
+            ]);
+            if (!usage.get(v.variableId)?.get(tp.timePoint)?.size) {
+              unusedIn.add(v.variableId);
+            }
+          }
+        }
+        const ids = [...searched].filter(([id, texts]) =>
+          matchesSearch(foldString(texts.join(" ")), tokens) &&
+          (!input.unusedOnly ||
+            (unusedIn.has(id) && !HFA_STRUCTURAL_VARIABLE_IDS.has(id)))
+        ).map(([id]) => id);
+        return formatHfaVariableListForAI(read, ids);
+      },
+      inProgressLabel: () =>
+        t3({
+          en: "Reading the HFA survey variables...",
+          fr: "Lecture des variables de l'enquête HFA...",
+          pt: "A ler as variáveis do inquérito HFA...",
         }),
       completionMessage: () =>
         t3({
-          en: "Read the HFA taxonomy",
-          fr: "Taxonomie HFA lue",
-          pt: "Taxonomia HFA lida",
+          en: "Read the HFA survey variables",
+          fr: "Variables de l'enquête HFA lues",
+          pt: "Variáveis do inquérito HFA lidas",
+        }),
+    }),
+
+    createAITool({
+      viewRegistry: copilotViews,
+      name: "get_hfa_variable_details",
+      availableIn: COPILOT_TOOL_VIEWS.get_hfa_variable_details,
+      description:
+        `Read HFA survey variables in full, up to ${DETAIL_CAP} per call: per round the label and type, the options (code: label, with the sentinel class of a don't-know, refused, other, not-applicable or question-specific code, and a mark on a text code, which the run reads as missing), the facilities with a row, blank and non-blank, the values present, and the indicators whose code names it. Read a variable here before comparing it to a code.`,
+      kind: "read",
+      inputSchema: z.object({
+        variableIds: z.array(z.string()).min(1).describe(
+          "The survey variable ids to read.",
+        ),
+        timePoint: z.string().optional().describe(
+          "Only this round.",
+        ),
+      }),
+      handler: async (input) => {
+        refuseOverCap(input.variableIds, "variables");
+        const read = await loadReadInput(true);
+        refuseUnknownTimePoint(input.timePoint, read.dictionary);
+        return formatHfaVariableDetailsForAI(
+          read,
+          input.variableIds,
+          input.timePoint,
+        );
+      },
+      inProgressLabel: (input) =>
+        t3({
+          en: `Reading ${input.variableIds.join(", ")}...`,
+          fr: `Lecture de ${input.variableIds.join(", ")}...`,
+          pt: `A ler ${input.variableIds.join(", ")}...`,
+        }),
+      completionMessage: () =>
+        t3({
+          en: "Read HFA variable details",
+          fr: "Détail des variables HFA lu",
+          pt: "Detalhe das variáveis HFA lido",
         }),
     }),
 
@@ -434,7 +654,7 @@ export function buildHfaIndicatorTools() {
       name: "assign_hfa_indicator_categories",
       availableIn: COPILOT_TOOL_VIEWS.assign_hfa_indicator_categories,
       description:
-        "Assign or clear the category, sub-category, and/or service categories of existing HFA indicators, in a batch. Only the fields you provide change. Use null to clear a category or sub-category. All ids are validated against the live taxonomy (call get_hfa_taxonomy first if unsure).",
+        "Assign or clear the category, sub-category, and/or service categories of existing HFA indicators, in a batch. Only the fields you provide change. Use null to clear a category or sub-category. All ids are validated against the live taxonomy, which get_hfa_indicators prints.",
       kind: "write",
       inputSchema: z.object({
         updates: z.array(z.object({
@@ -598,231 +818,6 @@ export function buildHfaIndicatorTools() {
             countIndicators(input.updates.length)
           }`,
         }),
-    }),
-
-    createAITool({
-      viewRegistry: copilotViews,
-      name: "get_hfa_variable_dictionary",
-      availableIn: COPILOT_TOOL_VIEWS.get_hfa_variable_dictionary,
-      description:
-        "List the HFA survey variables in the dataset — variable id, human label, and data type — per round (time point). Compact by default. To see a variable's coded response options, missingness and the values actually present, use inspect_hfa_variable.",
-      kind: "read",
-      inputSchema: z.object({
-        timePoint: z.string().optional().describe(
-          "Restrict to one round / time point.",
-        ),
-        search: z.string().optional().describe(
-          "Only variables whose id and label together contain every word of this text, in any order (case- and accent-insensitive).",
-        ),
-      }),
-      handler: async (input) => {
-        const dict = await loadDictionary();
-        const tokens = searchTokens(input.search ?? "");
-        const tps = input.timePoint
-          ? dict.timePoints.filter((t) => t.timePoint === input.timePoint)
-          : dict.timePoints;
-        return {
-          timePoints: tps.map((tp) => {
-            const variables = tp.variables.filter((v) =>
-              matchesSearch(
-                foldString(`${v.variableId} ${v.variableLabel}`),
-                tokens,
-              )
-            );
-            return {
-              timePoint: tp.timePoint,
-              variableCount: variables.length,
-              variables: variables.map((v) => ({
-                variableId: v.variableId,
-                label: v.variableLabel,
-                dataType: v.variableType,
-              })),
-            };
-          }),
-        };
-      },
-      inProgressLabel: () =>
-        t3({
-          en: "Reading the HFA survey dictionary...",
-          fr: "Lecture du dictionnaire de l'enquête HFA...",
-          pt: "A ler o dicionário do inquérito HFA...",
-        }),
-      completionMessage: () =>
-        t3({
-          en: "Read the HFA survey dictionary",
-          fr: "Dictionnaire de l'enquête HFA lu",
-          pt: "Dicionário do inquérito HFA lido",
-        }),
-    }),
-
-    createAITool({
-      viewRegistry: copilotViews,
-      name: "inspect_hfa_variable",
-      availableIn: COPILOT_TOOL_VIEWS.inspect_hfa_variable,
-      description:
-        "Inspect one or more HFA survey variables in depth: per round, the coded response options (value → label), how many facilities answered vs are missing, and the distinct values actually present in the data. Use this before writing indicator code that compares against a variable's codes.",
-      kind: "read",
-      inputSchema: z.object({
-        variableIds: z.array(z.string()).min(1).describe(
-          "The survey variable id(s) to inspect.",
-        ),
-        timePoint: z.string().optional().describe(
-          "Restrict to one round / time point.",
-        ),
-      }),
-      handler: async (input) => {
-        const res = await getDatasetHfaDisplayInfoFromCacheOrFetch(
-          instanceState.hfaCacheHash,
-        );
-        if (!res.success) {
-          throw new AIToolFailure(
-            `Could not load the HFA dataset variable details: ${res.err}`,
-          );
-        }
-        const wanted = new Set(input.variableIds);
-        let rows = res.data.rows.filter((r) => wanted.has(r.variableId));
-        if (input.timePoint) {
-          rows = rows.filter((r) => r.timePoint === input.timePoint);
-        }
-        const found = new Set(rows.map((r) => r.variableId));
-        const missing = input.variableIds.filter((v) => !found.has(v));
-        return {
-          variables: rows.map((r) => ({
-            variableId: r.variableId,
-            label: r.variableLabel,
-            dataType: r.variableType,
-            timePoint: r.timePoint,
-            answered: r.count,
-            missing: r.missing,
-            responseOptions: r.questionnaireValues || "(not a coded variable)",
-            valuesPresentInData: r.dataValues,
-          })),
-          notFound: missing.length > 0 ? missing : undefined,
-        };
-      },
-      inProgressLabel: (input) =>
-        t3({
-          en: `Inspecting ${input.variableIds.join(", ")}...`,
-          fr: `Inspection de ${input.variableIds.join(", ")}...`,
-          pt: `A inspecionar ${input.variableIds.join(", ")}...`,
-        }),
-      completionMessage: () =>
-        t3({
-          en: "Inspected HFA variable(s)",
-          fr: "Variable(s) HFA inspectée(s)",
-          pt: "Variável(eis) HFA inspecionada(s)",
-        }),
-    }),
-
-    createAITool({
-      viewRegistry: copilotViews,
-      name: "get_hfa_indicator_code",
-      availableIn: COPILOT_TOOL_VIEWS.get_hfa_indicator_code,
-      description:
-        "Read the per-round indicator code (rCode and optional rFilterCode) of existing HFA indicators.",
-      kind: "read",
-      inputSchema: z.object({
-        indicatorIds: z.array(z.string()).min(1).optional().describe(
-          "Restrict to these indicators; omit for all.",
-        ),
-        timePoint: z.string().optional().describe(
-          "Restrict to one round / time point.",
-        ),
-      }),
-      handler: async (input) => {
-        let code = await loadAllCode();
-        if (input.indicatorIds) {
-          const s = new Set(input.indicatorIds);
-          code = code.filter((c) => s.has(c.indicatorId));
-        }
-        if (input.timePoint) {
-          code = code.filter((c) => c.timePoint === input.timePoint);
-        }
-        return {
-          count: code.length,
-          code: code.map((c) => ({
-            indicatorId: c.indicatorId,
-            timePoint: c.timePoint,
-            rCode: c.rCode,
-            rFilterCode: c.rFilterCode ?? null,
-          })),
-        };
-      },
-      inProgressLabel: () =>
-        t3({
-          en: "Reading HFA indicator code...",
-          fr: "Lecture du code des indicateurs HFA...",
-          pt: "A ler o código dos indicadores HFA...",
-        }),
-      completionMessage: () =>
-        t3({
-          en: "Read HFA indicator code",
-          fr: "Code des indicateurs HFA lu",
-          pt: "Código dos indicadores HFA lido",
-        }),
-    }),
-
-    createAITool({
-      viewRegistry: copilotViews,
-      name: "validate_hfa_indicators",
-      availableIn: COPILOT_TOOL_VIEWS.validate_hfa_indicators,
-      description:
-        "Validate HFA indicators' code against the HFA survey dictionary. Writes nothing. Returns how many indicators were checked and, for each one with an issue, whether it has syntax / unknown-variable / result-type issues, whether its code is consistent across rounds, and the specific issues. Run it after creating or editing code, and to find indicators that need fixing.",
-      kind: "read",
-      inputSchema: z.object({
-        indicatorIds: z.array(z.string()).min(1).optional().describe(
-          "Indicators to validate; omit to validate all.",
-        ),
-      }),
-      handler: async (input) => {
-        const indicators = await loadIndicators();
-        const target = input.indicatorIds
-          ? indicators.filter((i) =>
-            input.indicatorIds!.includes(i.indicatorId)
-          )
-          : indicators;
-        const [code, variantCode, variantItems, dictionary] = await Promise
-          .all([
-            loadAllCode(),
-            loadAllVariantCode(),
-            loadVariantItems(),
-            loadDictionary(),
-          ]);
-        const verdicts = validateIndicators({
-          indicators,
-          code,
-          variantCode,
-          variantItems,
-          dictionary,
-          only: new Set(target.map((i) => i.indicatorId)),
-        });
-        const results = target.map((ind) => ({
-          indicatorId: ind.indicatorId,
-          ...verdicts.get(ind.indicatorId)!,
-        }));
-        const withIssues = results.filter((r) =>
-          r.hasErrors || !r.codeConsistent || r.issues.length > 0
-        );
-        return { validated: results.length, withIssues };
-      },
-      inProgressLabel: () =>
-        t3({
-          en: "Validating HFA indicator code...",
-          fr: "Validation du code des indicateurs HFA...",
-          pt: "A validar o código dos indicadores HFA...",
-        }),
-      completionMessage: (input) =>
-        input.indicatorIds
-          ? t3({
-            en: `Validated ${countIndicators(input.indicatorIds.length)}`,
-            fr: `${countIndicators(input.indicatorIds.length)} validé(s)`,
-            pt: `${countIndicators(input.indicatorIds.length)} validado(s)`,
-          })
-          : t3({
-            en: "Validated all HFA indicators",
-            fr: "Tous les indicateurs HFA validés",
-            pt: "Todos os indicadores HFA validados",
-          }),
     }),
 
     createAITool({
