@@ -17,7 +17,7 @@ package and having a bundle name it there instead of carrying it or pointing
 live. It does not change the admin-area key, which is a name everywhere in the
 system and cannot be qualified from inside this repo (§1.3, §5).
 
-**Next step:** `Do 4`
+**Next step:** `Do 5`
 
 - **Branch:** `main`
 - **Repos:** this app only.
