@@ -1,4 +1,9 @@
-import { type FacilityFamily, t3 } from "lib";
+import {
+  type AdminAreaDuplicateGroup,
+  type AdminAreaOption,
+  type FacilityFamily,
+  t3,
+} from "lib";
 import { createSignal, Match, Switch } from "solid-js";
 import { Step0 } from "./step_0";
 import { Step1File } from "./step_1_file";
@@ -32,8 +37,6 @@ export type Dhis2Level = {
   orgUnitCount: number;
 };
 
-export type AdminAreaOption = { value: string; label: string };
-
 export type WizardState = {
   family: FacilityFamily;
   step: () => 0 | 1 | 2 | 3 | 4;
@@ -54,6 +57,8 @@ export type WizardState = {
   setAdminAreaNames: (names: string[]) => void;
   adminAreaOptions: () => AdminAreaOption[];
   setAdminAreaOptions: (options: AdminAreaOption[]) => void;
+  adminAreaDuplicates: () => AdminAreaDuplicateGroup[];
+  setAdminAreaDuplicates: (groups: AdminAreaDuplicateGroup[]) => void;
   geoToAdmin: () => Record<string, string>;
   setGeoToAdmin: (
     mapping:
@@ -89,6 +94,9 @@ export function GeoJsonUploadWizard(p: Props) {
   const [adminAreaNames, setAdminAreaNames] = createSignal<string[]>([]);
   const [adminAreaOptions, setAdminAreaOptions] = createSignal<
     AdminAreaOption[]
+  >([]);
+  const [adminAreaDuplicates, setAdminAreaDuplicates] = createSignal<
+    AdminAreaDuplicateGroup[]
   >([]);
   const [geoToAdmin, setGeoToAdminRaw] = createSignal<Record<string, string>>(
     {},
@@ -132,6 +140,8 @@ export function GeoJsonUploadWizard(p: Props) {
     setAdminAreaNames,
     adminAreaOptions,
     setAdminAreaOptions,
+    adminAreaDuplicates,
+    setAdminAreaDuplicates,
     geoToAdmin,
     setGeoToAdmin,
     dhis2ConnectionUrl,

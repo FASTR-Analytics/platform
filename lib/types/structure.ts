@@ -281,13 +281,21 @@ export type GeojsonOrphanedAreaIds = {
 };
 
 // Returned to the client after a successful import so step 4 can confirm what
-// actually happened (vs. the pre-commit preview). orphanedGeojsonAreaIds is
-// computed after the integrate commits; only levels with orphans are listed.
+// actually happened (vs. the pre-commit preview). orphanedGeojsonAreaIds and
+// duplicateAdminAreaNames are computed after the integrate commits.
 export type StructureIntegrateSummary = {
   inserted: number;
   updated: number;
   deleted: number;
   orphanedGeojsonAreaIds?: GeojsonOrphanedAreaIds[];
+  duplicateAdminAreaNames?: AdminAreaDuplicateCount[];
+};
+
+// Per level: how many leaf names more than one admin area carries after the
+// import. Only levels with duplicates are listed.
+export type AdminAreaDuplicateCount = {
+  adminAreaLevel: number;
+  duplicateCount: number;
 };
 
 // The facilities page's HFA registry: each facility's admin areas at the HFA

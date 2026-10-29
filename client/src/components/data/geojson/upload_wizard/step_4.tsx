@@ -36,17 +36,6 @@ export function Step4(p: Props) {
     geoJsonValues().length - mappedCount()
   );
 
-  const duplicateNames = createMemo(() => {
-    const options = p.state.adminAreaOptions();
-    const valueCounts = new Map<string, number>();
-    for (const opt of options) {
-      valueCounts.set(opt.value, (valueCounts.get(opt.value) ?? 0) + 1);
-    }
-    return [...valueCounts.entries()].filter(([_, count]) => count > 1).map((
-      [name],
-    ) => name);
-  });
-
   const saveAction = createFormAction(
     async () => {
       const mapping = p.state.geoToAdmin();
@@ -221,34 +210,6 @@ export function Step4(p: Props) {
             </div>
           </Show>
         </div>
-
-        <Show when={duplicateNames().length > 0}>
-          <div class="bg-warning-subtle border-warning text-warning-subtle-content rounded border p-3 text-sm">
-            <div class="ui-text-heading text-warning-subtle-content mb-1">
-              {t3({
-                en: "Warning: Duplicate admin area names",
-                fr: "Attention : Noms de zones administratives en double",
-                pt: "Atenção: nomes de zonas administrativas duplicados",
-              })}
-            </div>
-            <div>
-              {t3({
-                en:
-                  `${duplicateNames().length} admin areas share the same name (in different parent regions). Map visualizations may show incorrect data for these areas:`,
-                fr:
-                  `${duplicateNames().length} zones administratives partagent le même nom (dans des régions parentes différentes). Les visualisations de cartes peuvent afficher des données incorrectes pour ces zones :`,
-                pt:
-                  `${duplicateNames().length} zonas administrativas partilham o mesmo nome (em regiões-mãe diferentes). As visualizações de mapas podem apresentar dados incorretos para estas zonas:`,
-              })}
-            </div>
-            <div class="mt-1 text-xs">
-              {duplicateNames().slice(0, 5).join(", ")}
-              {duplicateNames().length > 5
-                ? `, +${duplicateNames().length - 5} more`
-                : ""}
-            </div>
-          </div>
-        </Show>
 
         <StateHolderFormError state={saveAction.state()} />
 

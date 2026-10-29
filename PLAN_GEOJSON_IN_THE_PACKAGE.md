@@ -1122,3 +1122,7 @@ Departures, one line each, written when they happen.
   `server/dhis2/goal4_geojson/mod.ts`, outside the Surface, changed: the fetcher
   held a third copy of the loose collection type, and the module re-exported the
   feature type the dhis2 `types.ts` no longer declares.
+- Step 2: `upload_wizard/step_4.tsx` and `upload_wizard/mod.ts`, outside the
+  Surface, changed: step 4's warning counted repeated option values, which the
+  one-option-per-name read no longer carries, so it moved to step 3 with the
+  groups; the shared warning is exported so the edit modal shows the same one.

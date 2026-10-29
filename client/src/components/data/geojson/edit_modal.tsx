@@ -1,5 +1,7 @@
 import {
+  type AdminAreaDuplicateGroup,
   type AdminAreaLevel,
+  type AdminAreaOption,
   type APIResponseWithData,
   type FacilityFamily,
   t3,
@@ -14,6 +16,7 @@ import {
 } from "panther";
 import { createMemo, createSignal, For, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
+import { AdminAreaDuplicatesWarning } from "./upload_wizard/mod.ts";
 
 type Props = {
   family: FacilityFamily;
@@ -28,11 +31,10 @@ type FeatureGroup = {
   count: number;
 };
 
-type AdminAreaOption = { value: string; label: string };
-
 type LevelMapping = {
   featureGroups: FeatureGroup[];
   adminAreaOptions: AdminAreaOption[];
+  adminAreaDuplicates: AdminAreaDuplicateGroup[];
 };
 
 // One feature group per stored area_id, and one per source name among the
@@ -93,7 +95,8 @@ async function loadLevelMapping(
     success: true,
     data: {
       featureGroups: groupFeatures(geoRes.data.geojson),
-      adminAreaOptions: optionsRes.data,
+      adminAreaOptions: optionsRes.data.options,
+      adminAreaDuplicates: optionsRes.data.duplicates,
     },
   };
 }
@@ -139,6 +142,7 @@ export function GeoJsonEditModal(p: Props) {
             adminAreaLevel={p.adminAreaLevel}
             featureGroups={data.featureGroups}
             adminAreaOptions={data.adminAreaOptions}
+            adminAreaDuplicates={data.adminAreaDuplicates}
             close={p.close}
           />
         )}
@@ -152,6 +156,7 @@ function GeoJsonEditBody(p: {
   adminAreaLevel: AdminAreaLevel;
   featureGroups: FeatureGroup[];
   adminAreaOptions: AdminAreaOption[];
+  adminAreaDuplicates: AdminAreaDuplicateGroup[];
   close: (p: unknown) => void;
 }) {
   // Overrides only: a group with no entry keeps its stored area_id, so there
@@ -237,6 +242,8 @@ function GeoJsonEditBody(p: {
           </span>
         </Show>
       </div>
+
+      <AdminAreaDuplicatesWarning groups={p.adminAreaDuplicates} />
 
       <div class="max-h-96 overflow-auto rounded border">
         <div class="bg-base-100 flex border-b px-3 py-2 text-sm font-700">

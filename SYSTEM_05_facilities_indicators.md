@@ -235,15 +235,22 @@ columns (`facility_name`, `facility_type`, `facility_ownership`,
 import resolves ODK codes to labels, S6 "Staging"). The 4-level admin-area model
 is name-keyed and **per facility registry**: `admin_areas_{hmis,hfa}_1..4` rows
 are names, and the name is the join key everywhere (S9 maps, geojson `area_id`).
-Duplicate names within a level are therefore ambiguous. The wizard warns but
-cannot fix. The two registries' name-spaces are independent and are never
-reconciled (migration 076; instance migration 081 drops the shared
-`admin_areas_1..4` tables and the global `max_admin_area` / `facility_columns`
-config rows that 076 left in place as its rollback path). A scope names an area
-per family: its HMIS section an area of the HMIS registry and its HFA section an
-area of the HFA registry, so the two can spell one place differently, and each
-is matched against that family's results objects at read time (S9 "The scoped
-view").
+Duplicate names within a level are therefore ambiguous: same-named areas share
+one geojson boundary and one value. Nothing can fix that short of renaming, so
+the duplicates are stated where they are created and where they bite. The
+structure import's summary carries a per-level duplicate count
+(`countDuplicateAdminAreaNames`, attached beside the orphan count after the
+commit and shown on the import's last step), and `getAdminAreaOptionsForLevel`
+returns one option per distinct name at every level plus the duplicate groups
+(each repeated name with its parent paths), which the geojson wizard's mapping
+step and the edit modal show above their mapping tables. The two registries'
+name-spaces are independent and are never reconciled (migration 076; instance
+migration 081 drops the shared `admin_areas_1..4` tables and the global
+`max_admin_area` / `facility_columns` config rows that 076 left in place as its
+rollback path). A scope names an area per family: its HMIS section an area of
+the HMIS registry and its HFA section an area of the HFA registry, so the two
+can spell one place differently, and each is matched against that family's
+results objects at read time (S9 "The scoped view").
 
 FK topology: `facilities_{family} → admin_areas_{family}_4` CASCADE;
 `dataset_hmis`/`hfa_data → facilities_*` are RESTRICT-behaving NO ACTION

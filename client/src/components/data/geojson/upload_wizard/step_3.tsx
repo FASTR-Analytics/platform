@@ -1,4 +1,4 @@
-import { t3 } from "lib";
+import { type AdminAreaDuplicateGroup, t3 } from "lib";
 import { Button, Select } from "panther";
 import { createMemo, For, Show } from "solid-js";
 import type { Dhis2FeatureContext, WizardState } from "./wizard";
@@ -121,6 +121,8 @@ export function Step3(p: Props) {
         </Show>
       </div>
 
+      <AdminAreaDuplicatesWarning groups={p.state.adminAreaDuplicates()} />
+
       <div class="max-h-96 overflow-auto rounded border">
         <div class="bg-base-100 flex border-b px-3 py-2 text-sm font-700">
           <div class="w-1/2">
@@ -203,5 +205,48 @@ export function Step3(p: Props) {
         </Button>
       </div>
     </div>
+  );
+}
+
+// Shown above every table that maps boundaries to admin areas.
+export function AdminAreaDuplicatesWarning(p: {
+  groups: AdminAreaDuplicateGroup[];
+}) {
+  return (
+    <Show when={p.groups.length > 0}>
+      <div class="bg-warning-subtle border-warning text-warning-subtle-content ui-spy-sm rounded border p-3 text-sm">
+        <div class="ui-text-heading text-warning-subtle-content">
+          {t3({
+            en:
+              `${p.groups.length} admin area names are used by more than one area`,
+            fr:
+              `${p.groups.length} noms d'unités administratives sont portés par plusieurs unités`,
+            pt:
+              `${p.groups.length} nomes de zonas administrativas são usados por mais de uma zona`,
+          })}
+        </div>
+        <div>
+          {t3({
+            en:
+              "Areas that share a name can have only one boundary and one value between them until they are renamed in the facility file and imported again.",
+            fr:
+              "Des unités qui partagent un nom ne peuvent avoir qu'une seule limite et une seule valeur à elles toutes, jusqu'à ce qu'elles soient renommées dans le fichier des établissements et importées à nouveau.",
+            pt:
+              "Zonas que partilham um nome só podem ter um limite e um valor entre todas, até serem renomeadas no ficheiro de estabelecimentos e importadas novamente.",
+          })}
+        </div>
+        <div class="max-h-40 overflow-auto">
+          <For each={p.groups}>
+            {(group) => (
+              <div>
+                <span class="font-700">{group.name}</span>
+                {": "}
+                {group.parentPaths.map((path) => path.join(" > ")).join(" · ")}
+              </div>
+            )}
+          </For>
+        </div>
+      </div>
+    </Show>
   );
 }

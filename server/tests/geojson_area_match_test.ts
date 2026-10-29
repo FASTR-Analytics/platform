@@ -1,11 +1,50 @@
-// Pins the geojson wizard's area-name matching (SYSTEM_05 "Map boundaries"):
-// the normalizer folds what a name carries invisibly or by spelling, and the
-// auto-mapper proposes a pairing only when the normalized name is unambiguous.
+// Pins the geojson wizard's area-name matching (SYSTEM_05 "Geojson
+// boundaries"): the normalizer folds what a name carries invisibly or by
+// spelling, the auto-mapper proposes a pairing only when the normalized name
+// is unambiguous, and the admin-area read reports every leaf name more than
+// one area carries. The read runs on a throwaway database built from
+// _main_database.sql on the dev postgres (the .env the test task loads),
+// dropped afterwards.
 //
 //   deno test -A --env-file server/tests/geojson_area_match_test.ts
 
 import { assertEquals } from "@std/assert";
 import { autoMapAreaNames, normalizeAreaName } from "lib";
+import { getPgConnection } from "../db/postgres/connection_manager.ts";
+import {
+  countDuplicateAdminAreaNames,
+  getAdminAreaOptionsForLevel,
+} from "../db/instance/geojson_maps.ts";
+
+const SCHEMA_PATH =
+  new URL("../db/instance/_main_database.sql", import.meta.url).pathname;
+const DB_PREFIX = "geojson_area_match_test_";
+
+const admin = getPgConnection("postgres", { max: 1 });
+for (
+  const { datname } of await admin<{ datname: string }[]>`
+    SELECT datname FROM pg_database WHERE datname LIKE ${DB_PREFIX + "%"}
+  `
+) {
+  await admin.unsafe(`DROP DATABASE IF EXISTS ${datname} WITH (FORCE)`);
+}
+const dbName = `${DB_PREFIX}${Date.now()}`;
+await admin.unsafe(`CREATE DATABASE ${dbName}`);
+const db = getPgConnection(dbName, { max: 2 });
+await db.file(SCHEMA_PATH);
+
+await db`
+  INSERT INTO admin_areas_hmis_1 (admin_area_1) VALUES ('North'), ('South')
+`;
+await db`
+  INSERT INTO admin_areas_hmis_2 (admin_area_2, admin_area_1)
+  VALUES ('Centre', 'North'), ('Centre', 'South'), ('Lake', 'South')
+`;
+await db`
+  INSERT INTO admin_areas_hmis_3 (admin_area_3, admin_area_2, admin_area_1)
+  VALUES ('Port', 'Centre', 'North'), ('Port', 'Lake', 'South'),
+    ('Hill', 'Lake', 'South')
+`;
 
 Deno.test("an NFD and an NFC spelling of one accented name match", () => {
   const nfc = "Boké".normalize("NFC");
@@ -51,4 +90,52 @@ Deno.test("two areas that differ only by accent are not guessed between", () => 
   assertEquals(autoMapAreaNames(["Boké"], ["Boké", "BOKE"]).mapping, {
     "Boké": "Boké",
   });
+});
+
+Deno.test("level 2 reports a name shared by two level-1 parents", async () => {
+  const res = await getAdminAreaOptionsForLevel(db, "hmis", 2);
+  assertEquals(res, {
+    success: true,
+    data: {
+      options: [
+        { value: "Centre", label: "Centre" },
+        { value: "Lake", label: "Lake" },
+      ],
+      duplicates: [
+        { name: "Centre", parentPaths: [["North"], ["South"]] },
+      ],
+    },
+  });
+});
+
+Deno.test("level 3 gives one option per name and reports the repeat", async () => {
+  const res = await getAdminAreaOptionsForLevel(db, "hmis", 3);
+  assertEquals(res, {
+    success: true,
+    data: {
+      options: [
+        { value: "Hill", label: "Lake > Hill" },
+        { value: "Port", label: "Port" },
+      ],
+      duplicates: [
+        {
+          name: "Port",
+          parentPaths: [["North", "Centre"], ["South", "Lake"]],
+        },
+      ],
+    },
+  });
+});
+
+Deno.test("the import summary counts duplicates per level", async () => {
+  assertEquals(await countDuplicateAdminAreaNames(db, "hmis"), [
+    { adminAreaLevel: 2, duplicateCount: 1 },
+    { adminAreaLevel: 3, duplicateCount: 1 },
+  ]);
+});
+
+Deno.test("cleanup: drop the throwaway database", async () => {
+  await db.end();
+  await admin.unsafe(`DROP DATABASE IF EXISTS ${dbName} WITH (FORCE)`);
+  await admin.end();
 });

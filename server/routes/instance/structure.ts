@@ -8,6 +8,7 @@ import {
 } from "lib";
 import {
   addStructureUploadAttempt,
+  countDuplicateAdminAreaNames,
   countOrphanedGeoJsonAreaIds,
   deleteAllHfaFacilityWeights,
   deleteFamilyFacilities,
@@ -461,6 +462,21 @@ defineRoute(
       } catch (e) {
         console.error(
           `countOrphanedGeoJsonAreaIds failed: ${
+            e instanceof Error ? e.message : e
+          }`,
+        );
+      }
+      try {
+        const duplicates = await countDuplicateAdminAreaNames(
+          c.var.mainDb,
+          "hmis",
+        );
+        if (duplicates.length > 0) {
+          res.data = { ...res.data, duplicateAdminAreaNames: duplicates };
+        }
+      } catch (e) {
+        console.error(
+          `countDuplicateAdminAreaNames failed: ${
             e instanceof Error ? e.message : e
           }`,
         );

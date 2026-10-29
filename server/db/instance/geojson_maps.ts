@@ -1,11 +1,15 @@
 import { Sql } from "postgres";
 import type {
+  AdminAreaDuplicateCount,
+  AdminAreaLevel,
+  AdminAreaOptionsForLevel,
   APIResponseNoData,
   APIResponseWithData,
   FacilityFamily,
   GeoJsonMapSummary,
   GeojsonOrphanedAreaIds,
 } from "lib";
+import { ALL_ADMIN_AREA_LEVELS } from "lib";
 import { tryCatchDatabaseAsync } from "../utils.ts";
 import {
   getStructureSchema,
@@ -156,49 +160,86 @@ export async function countOrphanedGeoJsonAreaIds(
   return results;
 }
 
-export type AdminAreaOption = { value: string; label: string };
+type AdminAreaRow = { name: string; parents: string[] };
+
+// Every admin area at a level, with its parent names from level 1 down.
+async function readAdminAreaRows(
+  mainDb: Sql,
+  family: FacilityFamily,
+  level: AdminAreaLevel,
+): Promise<AdminAreaRow[]> {
+  const parentColumns = Array.from(
+    { length: level - 1 },
+    (_, i) => `admin_area_${i + 1}`,
+  );
+  const rows = await mainDb<Record<string, string>[]>`
+    SELECT ${mainDb([`admin_area_${level}`, ...parentColumns])}
+    FROM ${mainDb(`admin_areas_${family}_${level}`)}`;
+  return rows.map((r) => ({
+    name: r[`admin_area_${level}`],
+    parents: parentColumns.map((c) => r[c]),
+  }));
+}
+
+const compareNames = (a: string, b: string) =>
+  a.localeCompare(b, undefined, { sensitivity: "base" });
+
+// One option per distinct name, labelled with its parents below level 1 when
+// the name is unique; a repeated name is reported as a duplicate group.
+export function buildAdminAreaOptions(
+  rows: AdminAreaRow[],
+): AdminAreaOptionsForLevel {
+  const byName = new Map<string, string[][]>();
+  for (const row of rows) {
+    byName.set(row.name, [...(byName.get(row.name) ?? []), row.parents]);
+  }
+  const names = [...byName.keys()].toSorted(compareNames);
+  return {
+    options: names.map((name) => {
+      const parentPaths = byName.get(name)!;
+      return {
+        value: name,
+        label: parentPaths.length === 1
+          ? [...parentPaths[0].slice(1), name].join(" > ")
+          : name,
+      };
+    }),
+    duplicates: names
+      .filter((name) => byName.get(name)!.length > 1)
+      .map((name) => ({
+        name,
+        parentPaths: byName.get(name)!.toSorted((a, b) =>
+          compareNames(a.join(" > "), b.join(" > "))
+        ),
+      })),
+  };
+}
 
 export async function getAdminAreaOptionsForLevel(
   mainDb: Sql,
   family: FacilityFamily,
-  level: number,
-): Promise<APIResponseWithData<AdminAreaOption[]>> {
-  return await tryCatchDatabaseAsync(async () => {
-    if (level === 2) {
-      const rows = await mainDb<{ name: string }[]>`
-        SELECT DISTINCT admin_area_2 as name, LOWER(admin_area_2) as sort_key
-        FROM ${mainDb(`admin_areas_${family}_2`)} ORDER BY sort_key`;
-      return {
-        success: true,
-        data: rows.map((r) => ({ value: r.name, label: r.name })),
-      };
-    } else if (level === 3) {
-      const rows = await mainDb<{ name: string; parent: string }[]>`
-        SELECT admin_area_3 as name, admin_area_2 as parent, LOWER(admin_area_2 || admin_area_3) as sort_key
-        FROM ${mainDb(`admin_areas_${family}_3`)} ORDER BY sort_key`;
-      return {
-        success: true,
-        data: rows.map((r) => ({
-          value: r.name,
-          label: `${r.parent} > ${r.name}`,
-        })),
-      };
-    } else if (level === 4) {
-      const rows = await mainDb<
-        { name: string; parent3: string; parent2: string }[]
-      >`
-        SELECT admin_area_4 as name, admin_area_3 as parent3, admin_area_2 as parent2,
-               LOWER(admin_area_2 || admin_area_3 || admin_area_4) as sort_key
-        FROM ${mainDb(`admin_areas_${family}_4`)} ORDER BY sort_key`;
-      return {
-        success: true,
-        data: rows.map((r) => ({
-          value: r.name,
-          label: `${r.parent2} > ${r.parent3} > ${r.name}`,
-        })),
-      };
-    } else {
-      return { success: false, err: "Level must be 2, 3, or 4" };
+  level: AdminAreaLevel,
+): Promise<APIResponseWithData<AdminAreaOptionsForLevel>> {
+  return await tryCatchDatabaseAsync(async () => ({
+    success: true,
+    data: buildAdminAreaOptions(
+      await readAdminAreaRows(mainDb, family, level),
+    ),
+  }));
+}
+
+export async function countDuplicateAdminAreaNames(
+  mainDb: Sql,
+  family: FacilityFamily,
+): Promise<AdminAreaDuplicateCount[]> {
+  const counts: AdminAreaDuplicateCount[] = [];
+  for (const level of ALL_ADMIN_AREA_LEVELS) {
+    const { duplicates } = buildAdminAreaOptions(
+      await readAdminAreaRows(mainDb, family, level),
+    );
+    if (duplicates.length > 0) {
+      counts.push({ adminAreaLevel: level, duplicateCount: duplicates.length });
     }
-  });
+  }
+  return counts;
 }

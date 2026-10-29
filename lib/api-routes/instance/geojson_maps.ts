@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   adminAreaLevelSchema,
+  type AdminAreaOptionsForLevel,
   type GeoJsonMapSummary,
 } from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
@@ -65,7 +66,7 @@ export const geojsonMapRouteRegistry = {
     path: "/geojson-maps/admin-area-options/:family/:level",
     method: "GET",
     params: familyLevelParamsSchema,
-    response: {} as Array<{ value: string; label: string }>,
+    response: {} as AdminAreaOptionsForLevel,
   }),
   getGeoJsonForLevel: route({
     path: "/geojson-maps/level/:family/:level",
