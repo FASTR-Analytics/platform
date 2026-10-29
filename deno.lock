@@ -40,9 +40,9 @@
     "jsr:@std/streams@^1.0.8": "1.2.0",
     "jsr:@std/yaml@^1.0.5": "1.3.0",
     "jsr:@zip-js/zip-js@^2.7.52": "2.8.26",
-    "npm:@anthropic-ai/sdk@0.110": "0.110.0_zod@4.4.3",
+    "npm:@anthropic-ai/sdk@^1.3.0": "1.3.0_zod@4.6.7",
     "npm:@clerk/backend@^3.16.11": "3.16.11_react@19.2.8_react-dom@19.2.8",
-    "npm:@clerk/clerk-js@^5.56.0": "5.127.2_react@19.2.8_react-dom@19.2.8_@babel+core@7.29.7_@solana+web3.js@1.98.4_bs58@6.0.0_react-native@0.87.1_typescript@7.0.2_zod@4.4.3",
+    "npm:@clerk/clerk-js@^5.56.0": "5.127.2_zod@4.6.7",
     "npm:@codemirror/lang-markdown@6": "6.5.0",
     "npm:@codemirror/state@6": "6.5.2",
     "npm:@duckdb/node-api@1.5.4-r.1": "1.5.4-r.1",
@@ -80,8 +80,7 @@
     "npm:sortablejs@^1.15.0": "1.15.6",
     "npm:xlsx@0.18.5": "0.18.5",
     "npm:yjs@13.6.31": "13.6.31",
-    "npm:zod@*": "4.4.3",
-    "npm:zod@4": "4.4.3"
+    "npm:zod@^4.6.0": "4.6.7"
   },
   "jsr": {
     "@astral/astral@0.5.6": {
@@ -251,9 +250,10 @@
     "@adraffy/ens-normalize@1.11.1": {
       "integrity": "sha512-nhCBV3quEgesuf7c7KYfperqSS14T8bYuvJ8PcLJp6znkZpFc0AuW4qBtr8eKVyPPe/8RSr7sglCWPU5eaxwKQ=="
     },
-    "@anthropic-ai/sdk@0.110.0_zod@4.4.3": {
-      "integrity": "sha512-hOP4bNYXDFHDxxiEgzlILXrxZIYCDnhe8sry0RDRKD/QnsEpvZcQpablCdm9X/WuD/YgOiSIkkqsL1mLLlTqJw==",
+    "@anthropic-ai/sdk@1.3.0_zod@4.6.7": {
+      "integrity": "sha512-k7z9BlLLPxfZH+ov7dS6EnaN/wiZeV8YNT1LZfrpAHIy7oY7pHr4UzirF9f2OlHtFEnRBOX+AZQ91Y5fK+TPTw==",
       "dependencies": [
+        "@opentelemetry/api",
         "json-schema-to-ts",
         "standardwebhooks",
         "zod"
@@ -396,14 +396,14 @@
         "@babel/helper-validator-identifier"
       ]
     },
-    "@base-org/account@2.0.1_react@19.2.8_typescript@7.0.2_zod@4.4.3": {
+    "@base-org/account@2.0.1_zod@4.6.7": {
       "integrity": "sha512-tySVNx+vd6XEynZL0uvB10uKiwnAfThr8AbKTwILVG86mPbLAhEOInQIk+uDnvpTvfdUhC1Bi5T/46JvFoLZQQ==",
       "dependencies": [
         "@noble/hashes@1.4.0",
         "clsx",
         "eventemitter3",
         "idb-keyval",
-        "ox@0.6.9_typescript@7.0.2_zod@4.4.3",
+        "ox@0.6.9_zod@4.6.7",
         "preact",
         "viem",
         "zustand"
@@ -426,7 +426,7 @@
         "tslib"
       ]
     },
-    "@clerk/clerk-js@5.127.2_react@19.2.8_react-dom@19.2.8_@babel+core@7.29.7_@solana+web3.js@1.98.4_bs58@6.0.0_react-native@0.87.1_typescript@7.0.2_zod@4.4.3": {
+    "@clerk/clerk-js@5.127.2_zod@4.6.7": {
       "integrity": "sha512-3utdpDMDJVGC3DH1K6qC0JwyxOFhud6l5NZ2iDJeg4Je/ybFV6964GDxP56mqVwgKkdh1g/2wakQHfqlXN08Ww==",
       "dependencies": [
         "@base-org/account",
@@ -980,6 +980,9 @@
     },
     "@noble/hashes@2.3.0": {
       "integrity": "sha512-oN+QwyX7VSHotibwubG3kpzbwKrfnyR6OOO+3Nk/53ADL7FmgHHz4TgrbaYKvvOw09u6QTx0oiH1cNCIOuN0CQ=="
+    },
+    "@opentelemetry/api@1.10.0": {
+      "integrity": "sha512-lMkyes8iHrG+mk6WH7X70MdCLI2RS0FwNBY1PyQ8UemaijE2m5mv5A0Niy3HtbYTFrgkUEQjFMXmSAk2hQDuPQ=="
     },
     "@react-native-async-storage/async-storage@1.24.0_react-native@0.87.1_@babel+core@7.29.7_react@19.2.8": {
       "integrity": "sha512-W4/vbwUOYOjco0x3toB8QCr7EjIP6nE9G7o8PMguvvjYT5Awg09lyV4enACRx4s++PPulBiBSjL0KTFx2u0Z/g==",
@@ -2181,7 +2184,7 @@
     "@zxcvbn-ts/language-common@3.0.4": {
       "integrity": "sha512-viSNNnRYtc7ULXzxrQIVUNwHAPSXRtoIwy/Tq4XQQdIknBzw4vz36lQLF6mvhMlTIlpjoN/Z1GFu/fwiAlUSsw=="
     },
-    "abitype@1.2.3_typescript@7.0.2_zod@4.4.3": {
+    "abitype@1.2.3_typescript@7.0.2_zod@4.6.7": {
       "integrity": "sha512-Ofer5QUnuUdTFsBRwARMoWKOH1ND5ehwYhJ3OJ/BQO+StkwQjHw0XyVh4vDttzHB7QOFhPHa/o413PJ82gU/Tg==",
       "dependencies": [
         "typescript",
@@ -3456,7 +3459,7 @@
       ],
       "bin": true
     },
-    "ox@0.14.34_typescript@7.0.2_zod@4.4.3": {
+    "ox@0.14.34_typescript@7.0.2_zod@4.6.7": {
       "integrity": "sha512-12seOIk7dv8eAoGQhcWaeKZxNz304IVcDvb9U5Y7JZAEVe21Nm1YMxLjhWah+su5BD4Omx4Zz0z5x3ij9M4GYQ==",
       "dependencies": [
         "@adraffy/ens-normalize",
@@ -3473,7 +3476,7 @@
         "typescript"
       ]
     },
-    "ox@0.6.9_typescript@7.0.2_zod@4.4.3": {
+    "ox@0.6.9_zod@4.6.7": {
       "integrity": "sha512-wi5ShvzE4eOcTwQVsIPdFr+8ycyX+5le/96iAJutaZAvCes1J0+RvpEPg5QDPDiaR0XQQAvZVl7AwqQcINuUug==",
       "dependencies": [
         "@adraffy/ens-normalize",
@@ -4154,7 +4157,7 @@
       "deprecated": true,
       "bin": true
     },
-    "viem@2.56.0_typescript@7.0.2_zod@4.4.3": {
+    "viem@2.56.0_zod@4.6.7": {
       "integrity": "sha512-JmkgIk4jN+im4oguLxwPv19pwSaGH9kcGSq25Ilm55106ULBBMNR3eWKKA0wZoeyLPSHIiOwZ4sGceEYEIq7LA==",
       "dependencies": [
         "@noble/curves@1.9.1",
@@ -4163,7 +4166,7 @@
         "@scure/bip39",
         "abitype",
         "isows",
-        "ox@0.14.34_typescript@7.0.2_zod@4.4.3",
+        "ox@0.14.34_typescript@7.0.2_zod@4.6.7",
         "typescript",
         "ws@8.21.0"
       ],
@@ -4359,8 +4362,8 @@
         "lib0"
       ]
     },
-    "zod@4.4.3": {
-      "integrity": "sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ=="
+    "zod@4.6.7": {
+      "integrity": "sha512-g8W2D2kU6a8untc053fX1uVBKzM7yqAxW/3zwk83+6RyF2+SKOuV+c0wBDhUwzV1PaGapmZH+rmcUzPf+3CGwg=="
     },
     "zustand@5.0.3_react@19.2.8": {
       "integrity": "sha512-14fwWQtU3pH4dE0dOpdMiWjddcH+QzKIgk1cl8epwSE7yag43k/AD/m4L6+K7DytAOr9gGBe3/EXj9g7cdostg==",
@@ -4781,7 +4784,7 @@
       "jsr:@std/fs@1",
       "jsr:@std/path@1",
       "jsr:@std/streams@^1.0.8",
-      "npm:@anthropic-ai/sdk@0.110",
+      "npm:@anthropic-ai/sdk@^1.3.0",
       "npm:@clerk/backend@^3.16.11",
       "npm:@duckdb/node-api@1.5.4-r.1",
       "npm:@hono/clerk-auth@^3.1.1",
@@ -4801,7 +4804,7 @@
       "npm:redis@^4.7.0",
       "npm:xlsx@0.18.5",
       "npm:yjs@13.6.31",
-      "npm:zod@4"
+      "npm:zod@^4.6.0"
     ],
     "members": {
       "panther": {
@@ -4810,7 +4813,7 @@
           "jsr:@std/fs@1",
           "jsr:@std/path@1",
           "jsr:@std/yaml@^1.0.5",
-          "npm:@anthropic-ai/sdk@0.110",
+          "npm:@anthropic-ai/sdk@^1.3.0",
           "npm:@clerk/backend@^3.16.11",
           "npm:@clerk/clerk-js@^5.56.0",
           "npm:@codemirror/lang-markdown@6",
@@ -4829,7 +4832,7 @@
           "npm:solid-js@^1.9.0",
           "npm:sortablejs@^1.15.0",
           "npm:xlsx@0.18.5",
-          "npm:zod@4"
+          "npm:zod@^4.6.0"
         ]
       }
     },
