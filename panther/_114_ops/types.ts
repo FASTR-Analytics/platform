@@ -50,8 +50,7 @@ export type OpContract<
   // Model-facing description (AI tool, MCP tools/list) and UI tooltip.
   description: string;
   // The keystone schema: validates the HTTP body, the UI form, and the AI
-  // tool input — one object, so divergence is unwritable. Must accept
-  // unknown keys when exposure.ai is set (createAITool's construction guard).
+  // tool input — one object, so divergence is unwritable.
   input: TInput;
   // The op's result shape as DATA, same standing as `input`: it types the
   // impl and client by inference, serializes into the catalog and the MCP

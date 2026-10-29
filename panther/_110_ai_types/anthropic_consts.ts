@@ -15,10 +15,10 @@ import type {
 
 // Only betas actually sent by the request paths. WEB_FETCH is needed only
 // for the basic web_fetch_20250910 variant on pre-4.6 models; the _20260209
-// web tools and plain tool use need no beta header.
+// web tools, plain tool use and documents by file_id (the Files API is GA)
+// need no beta header.
 export const BETA_HEADERS = {
   WEB_FETCH: "web-fetch-2025-09-10",
-  FILES_API: "files-api-2025-04-14",
 } as const;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -294,8 +294,7 @@ export function getMaxOutputTokens(model: AnthropicModel): number {
 // MODEL CAPABILITY CHECKS
 ////////////////////////////////////////////////////////////////////////////////
 
-// Models from Opus 4.7 onward reject non-default sampling parameters
-// (temperature, top_p, top_k) and manual extended thinking
+// Models from Opus 4.7 onward reject manual extended thinking
 // (thinking: {type: "enabled", budget_tokens}) with a 400 error. They use
 // adaptive thinking and the output_config.effort parameter instead.
 // Matched by prefix so dated snapshot IDs are covered.
@@ -324,16 +323,21 @@ const ALWAYS_ON_THINKING_MODEL_PREFIXES = [
   "claude-opus-5-5",
 ];
 
-function isAdaptiveOnlyModel(model: AnthropicModel): boolean {
-  return ADAPTIVE_ONLY_MODEL_PREFIXES.some((p) => model.startsWith(p));
-}
-
-export function supportsSamplingParams(model: AnthropicModel): boolean {
-  return !isAdaptiveOnlyModel(model);
-}
-
 export function supportsManualThinking(model: AnthropicModel): boolean {
-  return !isAdaptiveOnlyModel(model);
+  return !ADAPTIVE_ONLY_MODEL_PREFIXES.some((p) => model.startsWith(p));
+}
+
+// Sonnet 5.5 rejects an explicit thinking: {type: "disabled"} at every
+// effort; it turns thinking off with {type: "between_tools"} (no thinking
+// before the first tool call), which no other model accepts. Listed
+// explicitly: it shares the "claude-sonnet-5" prefix with Sonnet 5, which
+// takes disabled.
+const BETWEEN_TOOLS_THINKING_MODEL_PREFIXES = ["claude-sonnet-5-5"];
+
+export function turnsThinkingOffWithBetweenTools(
+  model: AnthropicModel,
+): boolean {
+  return BETWEEN_TOOLS_THINKING_MODEL_PREFIXES.some((p) => model.startsWith(p));
 }
 
 export function supportsDisabledThinking(model: AnthropicModel): boolean {

@@ -7,12 +7,6 @@
 // MESSAGE TYPES
 ////////////////////////////////////////////////////////////////////////////////
 
-// "system" is retained ONLY for the v1 persistence reader (pre-formatVersion-2
-// Opus 4.8 histories stored mid-conversation system entries). The live engine
-// never constructs one, and renderOutgoingMessages drops any stray entry from
-// the wire.
-export type MessageRole = "user" | "assistant" | "system";
-
 export type CacheControl = {
   type: "ephemeral";
 };
@@ -28,6 +22,11 @@ export type ThinkingConfig =
   // think. display controls whether thinking summaries are returned —
   // "omitted" (the default on 4.7+) streams thinking blocks with empty text.
   | { type: "adaptive"; display?: "summarized" | "omitted" };
+
+// What resolveThinkingConfig sends. between_tools is how a model that rejects
+// disabled turns thinking off, never a caller's choice: callers ask for
+// disabled.
+export type ThinkingParam = ThinkingConfig | { type: "between_tools" };
 
 export type ThinkingBlock = {
   type: "thinking";
@@ -101,13 +100,21 @@ export type EphemeralSection = {
   text: string;
 };
 
-export type MessageParam = {
-  role: MessageRole;
+export type UserMessageParam = {
+  role: "user";
   content: string | ContentBlock[];
   cache_control?: CacheControl;
-  // Storage-only; user entries. See EphemeralSection.
+  // Storage-only. See EphemeralSection.
   ephemeralSections?: EphemeralSection[];
 };
+
+export type AssistantMessageParam = {
+  role: "assistant";
+  content: string | ContentBlock[];
+  cache_control?: CacheControl;
+};
+
+export type MessageParam = UserMessageParam | AssistantMessageParam;
 
 export type Usage = {
   input_tokens: number;
@@ -167,7 +174,6 @@ export type OutputConfig = {
 export type AnthropicModelConfig = {
   model: AnthropicModel;
   max_tokens: number;
-  temperature?: number;
   stop_sequences?: string[];
   thinking?: ThinkingConfig;
   output_config?: OutputConfig;

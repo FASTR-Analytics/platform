@@ -27,7 +27,7 @@ type PersistedConversation = {
   messages: MessageParam[];
   displayItems: DisplayItem[];
   lastUpdated: string;
-  formatVersion?: number;
+  formatVersion: number;
   // Session-approved tool names (approval mode "session").
   // Additive within v2: absent on older records → empty set, and an older
   // library reading a record that carries it just ignores the field — no
@@ -39,6 +39,17 @@ type PersistedConversation = {
   // which the next turn reads as a changed prefix.
   prefixHash?: string;
 };
+
+type V1Message = MessageParam | {
+  role: "system";
+  content: string | ContentBlock[];
+};
+
+type V1Conversation =
+  & Omit<PersistedConversation, "messages" | "formatVersion">
+  & { messages: V1Message[]; formatVersion?: undefined };
+
+type StoredConversation = PersistedConversation | V1Conversation;
 
 function stripMarkersFromContent(
   content: string | ContentBlock[],
@@ -53,9 +64,9 @@ function stripMarkersFromContent(
   );
 }
 
-function migrateV1(record: PersistedConversation): PersistedConversation {
+function migrateV1(record: V1Conversation): PersistedConversation {
   const messages = record.messages
-    .filter((msg) => msg.role !== "system")
+    .filter((msg): msg is MessageParam => msg.role !== "system")
     .map((msg) =>
       msg.role === "user"
         ? { ...msg, content: stripMarkersFromContent(msg.content) }
@@ -91,7 +102,7 @@ export async function loadConversation(
   conversationId: string,
 ): Promise<PersistedConversation | undefined> {
   try {
-    const record = await get<PersistedConversation>(
+    const record = await get<StoredConversation>(
       `ai-conv/${conversationId}`,
     );
     if (!record) return undefined;

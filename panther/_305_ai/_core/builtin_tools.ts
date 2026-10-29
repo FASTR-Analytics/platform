@@ -49,12 +49,28 @@ export type WebSearchToolConfig = {
 // WEB FETCH CONFIG
 ////////////////////////////////////////////////////////////////////////////////
 
+export type WebFetchURLSource =
+  | { type: "all" }
+  | { type: "none" }
+  | {
+    type: "only" | "except";
+    tools: Array<{ type: "tool_reference"; name: string }>;
+  };
+
+// A source left out keeps the API's default.
+export type WebFetchURLSources = {
+  user_input?: { type: "all" } | { type: "none" };
+  client_tool_results?: WebFetchURLSource;
+  server_tool_results?: WebFetchURLSource;
+};
+
 export type WebFetchToolConfig = {
   max_uses?: number;
   allowed_domains?: string[];
   blocked_domains?: string[];
   citations?: { enabled: boolean };
   max_content_tokens?: number;
+  url_sources?: WebFetchURLSources;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -83,16 +99,11 @@ type WebSearchToolSDK = {
   user_location?: WebSearchUserLocation;
 };
 
-type WebFetchToolSDK = {
+type WebFetchToolSDK = WebFetchToolConfig & {
   type:
     | typeof BUILTIN_TOOL_TYPES.WEB_FETCH
     | typeof BUILTIN_TOOL_TYPES.WEB_FETCH_BASIC;
   name: "web_fetch";
-  max_uses?: number;
-  allowed_domains?: string[];
-  blocked_domains?: string[];
-  citations?: { enabled: boolean };
-  max_content_tokens?: number;
 };
 
 type BashToolSDK = {

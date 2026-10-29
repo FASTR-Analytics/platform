@@ -6,6 +6,7 @@
 export type {
   AnthropicModel,
   AnthropicModelConfig,
+  AssistantMessageParam,
   CacheControl,
   ContentBlock,
   DocumentContentBlock,
@@ -14,13 +15,14 @@ export type {
   EphemeralSection,
   MessageParam,
   MessagePayload,
-  MessageRole,
   OutputConfig,
   RedactedThinkingBlock,
   ThinkingBlock,
   ThinkingConfig,
+  ThinkingParam,
   ToolDefinition,
   Usage,
+  UserMessageParam,
 } from "./types.ts";
 
 export {
@@ -42,7 +44,6 @@ export {
   supportsDisabledThinking,
   supportsDynamicWebTools,
   supportsManualThinking,
-  supportsSamplingParams,
 } from "./anthropic_consts.ts";
 
 export {

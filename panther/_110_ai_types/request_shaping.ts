@@ -11,7 +11,7 @@ import type {
   EffortLevel,
   MessageParam,
   OutputConfig,
-  ThinkingConfig,
+  ThinkingParam,
 } from "./types.ts";
 import {
   capsEffortWhenThinkingDisabled,
@@ -22,7 +22,7 @@ import {
   supportsAdaptiveThinking,
   supportsDisabledThinking,
   supportsManualThinking,
-  supportsSamplingParams,
+  turnsThinkingOffWithBetweenTools,
 } from "./anthropic_consts.ts";
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -226,26 +226,34 @@ export function countPayloadBreakpoints(
 //   reject it with a 400: drop the config.
 // - An explicit {type: "disabled"} must be KEPT where accepted — on Opus 5
 //   and Sonnet 5 omitting the field silently enables adaptive thinking,
-//   which the caller explicitly asked to avoid. Only Fable 5 / Mythos 5 and
+//   which the caller explicitly asked to avoid. Fable 5 / Mythos 5 and
 //   Opus 5.5 (always-on thinking) reject explicit disabled, so it is dropped
-//   there.
-//   Opus 5 accepts disabled only at effort "high" or below — that
-//   cross-parameter constraint is enforced in resolveOutputConfig, which
-//   takes the resolved thinking config.
+//   there. Sonnet 5.5 rejects it too but turns thinking off with
+//   {type: "between_tools"}, which disabled becomes there.
+//   Opus 5 accepts disabled only at effort "high" or below, and
+//   between_tools takes the same limit — that cross-parameter constraint is
+//   enforced in resolveOutputConfig, which takes the resolved thinking
+//   config.
+// - The resolver accepts its own output (the proxy re-resolves what the
+//   client resolved): between_tools is read as disabled.
 
 export function resolveThinkingConfig(
   model: AnthropicModel,
-  thinking: ThinkingConfig | undefined,
-): ThinkingConfig | undefined {
+  thinking: ThinkingParam | undefined,
+): ThinkingParam | undefined {
   if (!thinking) return undefined;
-  if (thinking.type === "adaptive") {
-    return supportsAdaptiveThinking(model) ? thinking : undefined;
+  switch (thinking.type) {
+    case "adaptive":
+      return supportsAdaptiveThinking(model) ? thinking : undefined;
+    case "enabled":
+      return supportsManualThinking(model) ? thinking : undefined;
+    case "disabled":
+    case "between_tools":
+      if (turnsThinkingOffWithBetweenTools(model)) {
+        return { type: "between_tools" };
+      }
+      return supportsDisabledThinking(model) ? { type: "disabled" } : undefined;
   }
-  if (supportsManualThinking(model)) return thinking;
-  if (thinking.type === "disabled" && supportsDisabledThinking(model)) {
-    return thinking;
-  }
-  return undefined;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -257,27 +265,26 @@ export function resolveThinkingConfig(
 // model doesn't offer is clamped DOWN to "high" (the highest level every
 // effort-capable model accepts) rather than up to "max" — never spend more
 // than the caller asked for. The same down-clamp applies on Opus 5 when the
-// caller pairs "xhigh"/"max" with disabled thinking (a 400): disabled wins
-// and effort drops to "high", honoring the explicit no-thinking request
-// without spending more than asked. Pass the RESOLVED thinking config (the
-// return value of resolveThinkingConfig) so a config already dropped for
-// the model can't trigger the clamp.
+// caller pairs "xhigh"/"max" with disabled thinking, and on every model with
+// between_tools (each a 400): thinking off wins and effort drops to "high",
+// honoring the explicit no-thinking request without spending more than
+// asked. Pass the RESOLVED thinking config (the return value of
+// resolveThinkingConfig) so a config already dropped for the model can't
+// trigger the clamp.
 
 export function resolveOutputConfig(
   model: AnthropicModel,
   outputConfig: OutputConfig | undefined,
-  thinking?: ThinkingConfig,
+  thinking?: ThinkingParam,
 ): OutputConfig | undefined {
   const effort = outputConfig?.effort;
   if (!effort) return undefined;
   const supported = getSupportedEffortLevels(model);
   if (supported.length === 0) return undefined;
   let resolved: EffortLevel = supported.includes(effort) ? effort : "high";
-  if (
-    thinking?.type === "disabled" &&
-    (resolved === "xhigh" || resolved === "max") &&
-    capsEffortWhenThinkingDisabled(model)
-  ) {
+  const thinkingOffCapsEffort = thinking?.type === "between_tools" ||
+    (thinking?.type === "disabled" && capsEffortWhenThinkingDisabled(model));
+  if ((resolved === "xhigh" || resolved === "max") && thinkingOffCapsEffort) {
     resolved = "high";
   }
   return { effort: resolved };
@@ -289,13 +296,13 @@ export function resolveOutputConfig(
 //
 // Settings persisted by older library versions can carry retired model IDs
 // (404 on every send), max_tokens above the current model's cap (400 on
-// every send), or a temperature that adaptive-only models reject (400).
-// Sanitize before applying to the live config.
+// every send), or a temperature, which the API rejects on every model (400).
+// Sanitize before applying to the live config: only the fields below are
+// copied, so a stored temperature is dropped.
 
 export type PersistedModelSettings = {
   model?: AnthropicModel;
   max_tokens?: number;
-  temperature?: number;
   output_config?: OutputConfig;
 };
 
@@ -326,14 +333,6 @@ export function sanitizePersistedSettings(
       Math.max(Math.round(persisted.max_tokens), MAX_OUTPUT_TOKENS.MIN),
       getMaxOutputTokens(effectiveModel),
     );
-  }
-
-  if (
-    typeof persisted.temperature === "number" &&
-    Number.isFinite(persisted.temperature) &&
-    supportsSamplingParams(effectiveModel)
-  ) {
-    out.temperature = Math.min(Math.max(persisted.temperature, 0), 1);
   }
 
   // Persisted effort can predate a model switch — re-resolve against the

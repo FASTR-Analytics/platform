@@ -9,12 +9,6 @@ import type { DisplayItem } from "./types.ts";
 export function getDisplayItemsFromMessage(
   message: MessageParam,
 ): DisplayItem[] {
-  // System messages carry ephemeral context for the model, never chat
-  // content — they are not displayed.
-  if (message.role === "system") {
-    return [];
-  }
-
   if (typeof message.content === "string") {
     const trimmed = message.content.trim();
     if (!trimmed) {

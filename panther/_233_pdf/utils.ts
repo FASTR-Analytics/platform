@@ -35,7 +35,9 @@ export async function createPdfRenderContextWithFontsDeno(
   // Apply kerning patch after fonts are registered
   patchJsPdfForKerning(pdf);
 
-  const canvas = createCanvas(width, height);
+  // The canvas only measures text, so a fractional frame (a 16:9 page at
+  // 1000 by 562.5) is rounded up for skia; jsPDF keeps the exact page size.
+  const canvas = createCanvas(Math.ceil(width), Math.ceil(height));
   const ctx = canvas.getContext("2d");
   const rc = new PdfRenderContext(
     pdf,

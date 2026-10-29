@@ -24,54 +24,51 @@ is the rulebook a consumer app must follow.
    DESCRIPTIONS, never in gate messages; a view whose tools act on one entity or
    package declares `identity`, so a move inside it (another slide of the same
    deck) refuses a call planned for the old one
-5. **Input schemas must accept unknown keys everywhere**: no `z.strictObject`,
-   no `.catchall(z.never())`, no enum/pattern-keyed `z.record` inputs;
-   violations throw at construction
-6. **`AIToolFailure` for every anticipated failure** (bad input, missing
+5. **`AIToolFailure` for every anticipated failure** (bad input, missing
    referent, failed server call); plain `Error` is reserved for bugs, including
    deliberate invariant throws. Handlers throw; they never return error-shaped
    strings
-7. **Every write tool gets approval or an explicit exemption**: set
+6. **Every write tool gets approval or an explicit exemption**: set
    `approvalPolicy: { requireForKind: "write", requireKind: true }` and tag
    every tool with `kind`
-8. **`propose` is read-only; the mutation lives in `commit`**: `markAIEdit`
+7. **`propose` is read-only; the mutation lives in `commit`**: `markAIEdit`
    calls belong in `commit` (or plain write handlers), never in `propose`
-9. **Mark AI edits for echo suppression**: every persist path whose change comes
+8. **Mark AI edits for echo suppression**: every persist path whose change comes
    back on a push channel calls `markAIEdit(key)` with a payload-bearing key
    matching the interaction's `echoKey` (a constant key over-suppresses)
-10. **Clear the interaction log on consumer scope change**: the controller is a
-    singleton but its log is scope-local data; call `clearInteractionLog()`
-    where the new scope (project/workspace) mounts. Activation (mount, create,
-    switch, after a delete) moves a conversation to the log's end, so it hears
-    only what happens after
-11. **Keep the system prompt byte-stable across navigation**: per-view
+9. **Clear the interaction log on consumer scope change**: the controller is a
+   singleton but its log is scope-local data; call `clearInteractionLog()` where
+   the new scope (project/workspace) mounts. Activation (mount, create, switch,
+   after a delete) moves a conversation to the log's end, so it hears only what
+   happens after
+10. **Keep the system prompt byte-stable across navigation**: per-view
     `instructions` use `"ephemeral"` delivery; a `buildToolCatalog` call
     composed into `system` must omit `currentView`. The system prompt stays
     fixed for the whole conversation: per-view and per-package text goes in view
     `instructions`, view `state` and consumer blocks, never in `system`
-12. **No hand-maintained tool lists in prompt text**: render tool
+11. **No hand-maintained tool lists in prompt text**: render tool
     names/descriptions with `buildToolCatalog(tools)`; a hand list drifts from
     the registry immediately
-13. **Validate the real config in dev**: call `validateAIChatConfig(config)` on
+12. **Validate the real config in dev**: call `validateAIChatConfig(config)` on
     the fully-assembled config under `import.meta.env.DEV`, so tool mistakes
     fail on page load, not in a live conversation
-14. **AI-driven navigation must keep the attribution window open**:
+13. **AI-driven navigation must keep the attribution window open**:
     `onAiNavigation` awaits routing to genuine completion, or the code that
     performs the late `setView` calls `viewController.markAINavigation()` itself
-15. **Declare `headless: true` on tools that operate on persisted data**: such
+14. **Declare `headless: true` on tools that operate on persisted data**: such
     tools take explicit ids as input; view `context` is reserved for tools that
     genuinely operate on live unsaved state (chat-only, correctly). Absent flag
     = chat-only. Never combine `headless` with `availableIn`, `kind: "nav"`, or
     view-typed approval (construction throws); plain-shape approval is allowed
     and drives the MCP approval flow
-16. **The MCP surface is `createMCPServer` over the same tools array**: declare
+15. **The MCP surface is `createMCPServer` over the same tools array**: declare
     the same `approvalPolicy` as the chat (an unapproved write in the exposed
     subset fails boot, not the allowlist's problem); grounding is a ≤2KB
     `instructions` pointer plus a `groundingResource` thunk (served as a
     resource AND the `get_overview` tool); slow hydration goes behind `ready`,
     never blocks serving. Run `validateMCPServerConfig(config)` in the
     consumer's browser smoke test: it needs no Deno graph
-17. **Keep the headless subset's module graph browser-free at source**: the
+16. **Keep the headless subset's module graph browser-free at source**: the
     typecheck will NOT catch browser APIs (app graphs carry the `dom` lib) and
     only `window`/`document`/`indexedDB` crash at import; `localStorage` and
     `navigator` run silently under Deno with wrong semantics. Guard those at
@@ -86,15 +83,15 @@ differently, by construction:
 
 - Rule 1 holds: `opsToAITools` builds every tool through `createAITool`
   internally: nothing is hand-built.
-- Rule 7's mechanism moves: approval is declared per op in the registry
+- Rule 6's mechanism moves: approval is declared per op in the registry
   (`approval` / `approvalExempt`, boot-enforced by the kernel) and the
   projection carries it, so the chat config declares NO `approvalPolicy`:
   declaring one there would be a second, driftable copy of the registry's
   policy.
-- Rules 2–4 and 14 (view registry, controller, `availableIn` gating) apply only
+- Rules 2–4 and 13 (view registry, controller, `availableIn` gating) apply only
   when the surface ALSO has view-gated tools; a pure ops projection has none and
   omits the controller.
-- Rule 13 still applies verbatim: `validateAIChatConfig(config)` runs on the
+- Rule 12 still applies verbatim: `validateAIChatConfig(config)` runs on the
   real assembled config under `import.meta.env.DEV`.
 
 ## Do / Don't
@@ -346,8 +343,6 @@ UI-purpose and view-gated tools stay client-resident and off the MCP surface.
       omissions
 - [ ] Every view whose tools act on one entity or package declares `identity`
       (the entity, and any package and scope around it)
-- [ ] No `z.strictObject` / `.catchall(z.never())` / keyed `z.record` in tool
-      input schemas
 - [ ] No `throw new Error` in tool handlers except invariant/bug detectors;
       anticipated failures are `AIToolFailure`
 - [ ] `approvalPolicy: { requireForKind: "write", requireKind: true }` set;

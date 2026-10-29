@@ -19,6 +19,7 @@ import type {
   EphemeralSection,
   MessageParam,
   SystemParam,
+  UserMessageParam,
 } from "../deps.ts";
 import {
   APPROVAL_DECLINED_MESSAGE,
@@ -50,7 +51,6 @@ import {
   getBetaHeaders,
   hasWebFetchTool,
 } from "../_core/beta_headers.ts";
-import { supportsSamplingParams } from "../deps.ts";
 import { resolveBuiltInTools } from "../_core/builtin_tools.ts";
 import {
   clearConversationStore,
@@ -141,8 +141,9 @@ function saveSettings(key: string, values: AIChatSettingsValues) {
   }
 }
 
-// SDK tool union type for API calls
-type SDKToolUnion = Anthropic.Messages.ToolUnion;
+type TurnTool =
+  | AIToolWithMetadata["sdkTool"]
+  | ReturnType<typeof resolveBuiltInTools>[number];
 
 // The model, system text and tools a turn reads once after the store's
 // hydration, so every request of the turn sends one prefix (the built-in
@@ -151,7 +152,7 @@ type SDKToolUnion = Anthropic.Messages.ToolUnion;
 type TurnPrefix = {
   model: AnthropicModel;
   system: SystemParam;
-  tools: SDKToolUnion[];
+  tools: TurnTool[];
 };
 
 // Type for tool_use blocks from SDK responses
@@ -243,8 +244,8 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
   const persisted = loadSettings(settingsKey);
   if (persisted) {
     // Persisted settings can predate the current model catalog (retired
-    // model IDs, max_tokens above the model's cap, temperature on models
-    // that reject it) — sanitize before applying.
+    // model IDs, max_tokens above the model's cap, a temperature the API
+    // rejects) — sanitize before applying.
     Object.assign(
       modelConfig,
       sanitizePersistedSettings(persisted, modelConfig.model),
@@ -306,14 +307,11 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
   // Merge custom tools (SDK betaZodTools) with built-in tools (web_search,
   // bash, etc.). Read once per turn into the turn's prefix, with the model
   // it was built for — built-in web tool versions depend on the current
-  // model, which can change via updateConfig. Cast to SDK's ToolUnion type -
-  // built-in tools like web_search have different shapes but are valid for
-  // the API.
-  const getAllTools = () =>
-    [
-      ...toolRegistry.getSDKTools(),
-      ...resolveBuiltInTools(config.builtInTools, modelConfig.model),
-    ] as SDKToolUnion[];
+  // model, which can change via updateConfig.
+  const getAllTools = (): TurnTool[] => [
+    ...toolRegistry.getSDKTools(),
+    ...resolveBuiltInTools(config.builtInTools, modelConfig.model),
+  ];
 
   // Queue API — conversation-scoped (the queue lives on ConversationStore).
   // enqueueMessage never materializes a display item: queued bubbles derive
@@ -411,13 +409,6 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     }
   });
 
-  const messagesContainDocuments = (msgs: MessageParam[]): boolean => {
-    return msgs.some((msg) => {
-      if (typeof msg.content === "string") return false;
-      return msg.content.some((block) => block.type === "document");
-    });
-  };
-
   const documentFileIdsInMessages = (msgs: MessageParam[]): Set<string> => {
     const ids = new Set<string>();
     for (const msg of msgs) {
@@ -434,7 +425,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
   const createUserMessage = (
     text: string,
     existingMessages: MessageParam[],
-  ): MessageParam => {
+  ): UserMessageParam => {
     // Attach every configured document the conversation hasn't seen yet.
     // Gating on "history has no documents at all" meant a document added
     // mid-conversation was shown as attached but never reached the model.
@@ -498,7 +489,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
   // ride (selectTurnSections), since every carrier renders for good.
   function attachSections(
     turn: ActiveTurn,
-    msg: MessageParam,
+    msg: UserMessageParam,
     built: ReturnType<typeof buildTurnSections>,
     history: MessageParam[],
   ): void {
@@ -1283,7 +1274,6 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     const betas = getBetasArray(
       hasWebFetchTool(config.builtInTools) &&
         !supportsDynamicWebTools(model),
-      messagesContainDocuments(currentMessages),
     );
     const shaped = shapeCachedPayload(
       prefix.system,
@@ -1293,12 +1283,8 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     const stream = config.sdkClient.beta.messages.stream({
       model,
       max_tokens: modelConfig.max_tokens,
-      // Models from Opus 4.7 onward reject non-default sampling params with
-      // a 400 — omit temperature there. Thinking and effort are resolved
-      // per model (request_shaping.ts) so unsupported configs are never sent.
-      temperature: supportsSamplingParams(model)
-        ? modelConfig.temperature
-        : undefined,
+      // Thinking and effort are resolved per model (request_shaping.ts) so
+      // unsupported configs are never sent.
       thinking,
       output_config: resolveOutputConfig(
         model,
@@ -1829,7 +1815,6 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     saveSettings(settingsKey, {
       model: mc.model,
       max_tokens: mc.max_tokens,
-      temperature: mc.temperature,
       output_config: mc.output_config,
     });
   }
@@ -1943,14 +1928,8 @@ function getUserFacingErrorMessage(err: unknown): string {
   });
 }
 
-function getBetasArray(
-  hasBasicWebFetch: boolean,
-  hasDocuments: boolean,
-): string[] | undefined {
-  const headers = getBetaHeaders({
-    hasBasicWebFetch,
-    hasDocuments,
-  });
+function getBetasArray(hasBasicWebFetch: boolean): string[] | undefined {
+  const headers = getBetaHeaders({ hasBasicWebFetch });
   if (!headers) return undefined;
   return headers[ANTHROPIC_BETA_HEADER].split(",");
 }

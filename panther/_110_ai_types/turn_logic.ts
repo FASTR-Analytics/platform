@@ -3,7 +3,12 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { ContentBlock, EphemeralSection, MessageParam } from "./types.ts";
+import type {
+  ContentBlock,
+  EphemeralSection,
+  MessageParam,
+  UserMessageParam,
+} from "./types.ts";
 import type { SystemParam } from "./request_shaping.ts";
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -57,9 +62,9 @@ function isCarrier(msg: MessageParam): boolean {
 // message that is after the results, which the API requires first. A
 // message with no text block gets one at the end.
 function spliceSections(
-  msg: MessageParam,
+  msg: UserMessageParam,
   ephemeralSections: EphemeralSection[],
-): MessageParam {
+): UserMessageParam {
   const block = `${EPHEMERAL_CONTEXT_OPEN}${
     ephemeralSections.map((s) => collapseLiteralMarkers(s.text)).join("\n\n")
   }${EPHEMERAL_CONTEXT_CLOSE}\n\n`;
@@ -84,17 +89,10 @@ function spliceSections(
 export function renderOutgoingMessages(
   messages: MessageParam[],
 ): MessageParam[] {
-  // System-role entries are never emitted — the live engine no longer
-  // constructs them, and the v1 persistence migration strips stored ones;
-  // this filter covers any stray entry in between.
-  const wireMessages = messages.some((msg) => msg.role === "system")
-    ? messages.filter((msg) => msg.role !== "system")
-    : messages;
-
-  return wireMessages.map((msg) => {
+  return messages.map((msg) => {
     // Entries without the storage-only field pass through by reference
     // (byte- and identity-parity for no-adoption histories).
-    if (!msg.ephemeralSections) return msg;
+    if (msg.role !== "user" || !msg.ephemeralSections) return msg;
     const { ephemeralSections, ...rest } = msg;
     return ephemeralSections.length > 0
       ? spliceSections(rest, ephemeralSections)
@@ -122,6 +120,7 @@ export function selectTurnSections(
 ): EphemeralSection[] {
   const carried = new Set<string>();
   for (const msg of history) {
+    if (msg.role !== "user") continue;
     for (const section of msg.ephemeralSections ?? []) {
       if (ONCE_KINDS.has(section.kind)) carried.add(section.text);
     }
@@ -153,7 +152,7 @@ export function releaseUnansweredCarriers(
   const releasedSet = new Set(released);
   return {
     messages: messages.map((msg, i) => {
-      if (!releasedSet.has(i)) return msg;
+      if (!releasedSet.has(i) || msg.role !== "user") return msg;
       const { ephemeralSections: _dropped, ...rest } = msg;
       return rest;
     }),
@@ -316,7 +315,7 @@ export function buildCancelledToolResults(
 export function buildToolResultUserMessage(
   results: ToolResultBlock[],
   queuedTexts: string[],
-): MessageParam {
+): UserMessageParam {
   const content: ContentBlock[] = queuedTexts.length > 0
     ? [
       ...results,

@@ -16,11 +16,11 @@ import {
   betaZodOutputFormat,
   buildCancelledToolResults,
   lastMessageHasUnresolvedToolUse,
+  renderOutgoingMessages,
   resolveModelConfig,
   resolveOutputConfig,
   resolveThinkingConfig,
   supportsDynamicWebTools,
-  supportsSamplingParams,
 } from "../deps.ts";
 import { type AnyAITool, getHeadlessCapability } from "../deps.ts";
 import {
@@ -30,16 +30,12 @@ import {
 import { getBetaHeaders, hasWebFetchTool } from "./beta_headers.ts";
 import { aggregateUsage } from "./cost_utils.ts";
 
-// Server-side tools (web search, web fetch) can return
-// stop_reason: "pause_turn" when the server's iteration limit is reached.
-// Re-sending the conversation with the assistant turn appended resumes it.
-const MAX_PAUSE_TURN_CONTINUATIONS = 5;
-
-// Safety cap on the SDK tool runner's client-tool loop so a pathological
-// tool loop can't run unbounded. When hit, the runner stops with tools still
-// requested; the pending tool_use blocks are resolved with synthetic error
-// results so the returned history stays API-valid.
-const MAX_CLIENT_TOOL_ITERATIONS = 24;
+// Safety cap on the SDK tool runner's requests so a pathological tool loop
+// can't run unbounded. Every request counts: a client tool round and a
+// pause_turn the runner resumes alike. When hit, the runner stops with tools
+// still requested; the pending tool_use blocks are resolved with synthetic
+// error results so the returned history stays API-valid.
+const MAX_TOOL_RUNNER_REQUESTS = 24;
 
 ////////////////////////////////////////////////////////////////////////////////
 // TYPES
@@ -85,26 +81,23 @@ export async function callAIStructured<T>(
 ): Promise<CallAIStructuredResult<T>> {
   const modelConfig = resolveModelConfig(config.modelConfig);
   const { model, max_tokens } = modelConfig;
-  const temperature = supportsSamplingParams(model)
-    ? modelConfig.temperature
-    : undefined;
   const thinking = resolveThinkingConfig(model, modelConfig.thinking);
   const effortConfig = resolveOutputConfig(
     model,
     modelConfig.output_config,
     thinking,
   );
+  const wire = renderOutgoingMessages(messages);
 
   const res = await config.sdkClient.beta.messages.parse({
     model,
     max_tokens,
-    temperature,
     thinking,
     output_config: {
       ...effortConfig,
       format: betaZodOutputFormat(schema),
     },
-    messages,
+    messages: wire,
     system: config.system?.(),
   });
 
@@ -114,7 +107,7 @@ export async function callAIStructured<T>(
     stopReason: res.stop_reason,
     usage: res.usage as Usage,
     messages: [
-      ...messages,
+      ...wire,
       { role: "assistant", content: res.content as ContentBlock[] },
     ],
   };
@@ -178,14 +171,10 @@ export async function callAI(
   });
   const betas = betaHeaders ? [betaHeaders["anthropic-beta"]] : undefined;
 
-  // Models from Opus 4.7 onward reject non-default sampling params with a
-  // 400 — omit temperature there. Thinking config is resolved per model:
-  // manual budgets are dropped on adaptive-only models, but an explicit
-  // {type: "disabled"} is kept wherever the model accepts it (on Opus 5 and
-  // Sonnet 5, omitting the field would silently enable adaptive thinking).
-  const temperature = supportsSamplingParams(model)
-    ? modelConfig.temperature
-    : undefined;
+  // Thinking config is resolved per model: manual budgets are dropped on
+  // adaptive-only models, but an explicit {type: "disabled"} is kept wherever
+  // the model accepts it (on Opus 5 and Sonnet 5, omitting the field would
+  // silently enable adaptive thinking).
   const thinking = resolveThinkingConfig(model, modelConfig.thinking);
   const output_config = resolveOutputConfig(
     model,
@@ -199,91 +188,83 @@ export async function callAI(
       ...resolvedBuiltInTools,
     ]
     : undefined;
+  const wire = renderOutgoingMessages(messages);
 
-  let currentMessages = messages;
-  let continuations = 0;
-  // Across pause_turn continuations, accumulate usage and content so the
-  // result reflects the whole call, not just the final round. (Usage from
-  // the tool runner's internal iterations is not exposed by the SDK and is
-  // not included.)
-  const roundUsages: Usage[] = [];
-  let combinedContent: ContentBlock[] = [];
-
-  while (true) {
-    let res;
-    if (allTools) {
-      const runner = config.sdkClient.beta.messages.toolRunner({
-        model,
-        max_tokens,
-        temperature,
-        thinking,
-        output_config,
-        messages: currentMessages,
-        tools: allTools,
-        system: config.system?.(),
-        betas,
-        max_iterations: MAX_CLIENT_TOOL_ITERATIONS,
-      });
-      res = await runner.runUntilDone();
-      // The runner accumulates the full conversation internally (assistant
-      // tool_use turns + tool_result turns + the final assistant message).
-      // Use that as the history — appending only the final message would
-      // drop the intermediate tool turns, corrupting the returned messages
-      // and any pause_turn resumption.
-      currentMessages = [...runner.params.messages] as MessageParam[];
-      // If the iteration cap stopped the runner while tools were still being
-      // requested, the history ends with unresolved tool_use blocks — resolve
-      // them with synthetic error results so the returned messages stay
-      // API-valid for any later send.
-      if (lastMessageHasUnresolvedToolUse(currentMessages)) {
-        const lastMsg = currentMessages[currentMessages.length - 1];
-        currentMessages = [
-          ...currentMessages,
-          {
-            role: "user",
-            content: buildCancelledToolResults(
-              lastMsg.content as ContentBlock[],
-              "Tool execution stopped: too many tool calls in one call",
-            ),
-          },
-        ];
-      }
-    } else {
-      res = await config.sdkClient.beta.messages.create({
-        model,
-        max_tokens,
-        temperature,
-        thinking,
-        output_config,
-        messages: currentMessages,
-        system: config.system?.(),
-        betas,
-      });
-      currentMessages = [
-        ...currentMessages,
-        {
-          role: "assistant",
-          content: res.content as ContentBlock[],
-        },
-      ];
-    }
-
-    roundUsages.push(res.usage as Usage);
-    combinedContent = [...combinedContent, ...(res.content as ContentBlock[])];
-
-    if (
-      res.stop_reason === "pause_turn" &&
-      continuations < MAX_PAUSE_TURN_CONTINUATIONS
-    ) {
-      continuations++;
-      continue;
-    }
-
+  if (!allTools) {
+    // Without server tools a reply cannot stop on pause_turn, so one
+    // request is the whole call.
+    const res = await config.sdkClient.beta.messages.create({
+      model,
+      max_tokens,
+      thinking,
+      output_config,
+      messages: wire,
+      system: config.system?.(),
+      betas,
+    });
+    const content = res.content as ContentBlock[];
     return {
-      content: combinedContent,
+      content,
       stopReason: res.stop_reason,
-      usage: aggregateUsage(roundUsages),
-      messages: currentMessages,
+      usage: res.usage as Usage,
+      messages: [...wire, { role: "assistant", content }],
     };
   }
+
+  const runner = config.sdkClient.beta.messages.toolRunner({
+    model,
+    max_tokens,
+    thinking,
+    output_config,
+    messages: wire,
+    tools: allTools,
+    system: config.system?.(),
+    betas,
+    max_iterations: MAX_TOOL_RUNNER_REQUESTS,
+    // The whole history rides every request, as on every other panther
+    // request, instead of a conversation the server holds.
+    thread: false,
+  });
+
+  // Each yielded message is one request's reply, and every reply is billed.
+  // The runner resumes a pause_turn itself, so a paused reply is part of the
+  // answer; a reply that stopped on tool_use is an intermediate tool round.
+  const usages: Usage[] = [];
+  const content: ContentBlock[] = [];
+  let stopReason: string | null = null;
+  for await (const reply of runner) {
+    usages.push(reply.usage as Usage);
+    if (reply.stop_reason !== "tool_use") {
+      content.push(...(reply.content as ContentBlock[]));
+    }
+    stopReason = reply.stop_reason;
+  }
+
+  // The runner holds the full conversation: the tool_use turns, the tool
+  // results and the final reply.
+  const history = [...runner.params.messages] as MessageParam[];
+  // If the request cap stopped the runner while tools were still being
+  // requested, the history ends with unresolved tool_use blocks — resolve
+  // them with synthetic error results so the returned messages stay
+  // API-valid for any later send.
+  const lastMsg = history[history.length - 1];
+  const messagesOut = lastMessageHasUnresolvedToolUse(history)
+    ? [
+      ...history,
+      {
+        role: "user" as const,
+        content: buildCancelledToolResults(
+          lastMsg.content as ContentBlock[],
+          "Tool execution stopped: too many tool calls in one call",
+        ),
+      },
+    ]
+    : history;
+
+  return {
+    content,
+    stopReason,
+    usage: aggregateUsage(usages),
+    messages: messagesOut,
+  };
 }
