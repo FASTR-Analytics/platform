@@ -666,7 +666,7 @@ export const copilotViews = defineAIViews(
           indicator: params.indicatorId,
         }),
       instructions: (_params, context) =>
-        getHfaIndicatorEditorInstructions(context.getLabel()),
+        getHfaIndicatorEditorInstructions(context.getGuidance()),
       state: (params, context) =>
         `indicatorId: ${params.indicatorId} | round: ${context.getSelectedTimePoint()}`,
     }),

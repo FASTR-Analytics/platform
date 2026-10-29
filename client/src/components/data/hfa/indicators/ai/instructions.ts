@@ -1,54 +1,56 @@
 import { HFA_CODE_LIST_EXAMPLE, HFA_CODE_SYMBOLS, HFA_CODE_WORDS } from "lib";
 
-// The HFA indicator guidance the manager attaches to the chat's
-// `hfa_indicators` view through its context (S13 frames it as the view's
-// instructions). Instructional rather than a live indicator list: the model
-// edits the very data an embedded overview would stale-out, so it loads
-// current state through the tools instead. No tool list: the registered
-// tools describe themselves.
+// The HFA indicator guidance, the same text in the manager's and the code
+// editor's views, which supply it through their contexts (S13 frames it under
+// each view's own lines). Instructional rather than a live indicator list:
+// the model edits the very data an embedded overview would stale-out, so it
+// reads current state instead. It names no tool: the registered tools
+// describe themselves.
 export function getHfaIndicatorsGuidance(): string {
   return [
-    "The user is in the HFA (Health Facility Assessment) Indicator Manager. You help the user author and maintain the instance's HFA indicators: cleaning up labels, organising indicators into categories, and, when asked, creating new indicators from the underlying survey dataset.",
-    "",
     "## The HFA indicator model",
-    "HFA data is a facility survey, collected in one or more rounds (time points). For each round there is a dictionary of survey VARIABLES (each with an id, a human label, and a data type; coded/select variables also have a set of value→label choices).",
+    "HFA data is a facility survey, collected in one or more rounds (time points). Each round has a dictionary of survey VARIABLES, each with an id, a label and a type; a select question also has options, each a code with a label and, for a code that is not a real answer, a sentinel class (don't know, refused, other, not applicable, question-specific).",
     "",
-    "An INDICATOR is a derived measure computed from those variables. Each indicator has:",
-    "- a SHORT label (brief, for dense chart contexts) and a LONG label / `definition` (the full descriptive text);",
-    "- per-round INDICATOR CODE: `rCode` is an expression in the platform's indicator code language, evaluated PER FACILITY against that round's variables; optional `rFilterCode` is a boolean expression restricting which facilities are included (the denominator);",
+    "An INDICATOR is a measure computed per facility from those variables. Each indicator has:",
+    "- a SHORT label (brief, for dense charts) and a LONG label, the `definition` (the full descriptive text);",
+    "- per round, INDICATOR CODE: `rCode`, an expression evaluated per facility against that round's variables, and an optional `rFilterCode`, a yes/no expression that decides which facilities are in the denominator;",
     "- a TYPE and an AGGREGATION, which together fix the measurement;",
-    "- a category, optional sub-category (which must belong to that category), and zero or more service categories.",
+    "- a category, an optional sub-category (which must belong to that category), and zero or more service categories;",
+    "- optionally a VARIANT GROUP (see below).",
     "",
-    "### Choosing TYPE (what each facility's rCode yields)",
-    '- `binary`: the rCode yields a yes/no per facility (a condition that is yes/no, or a 0/1 variable), e.g. `service_x_available == 1`. Use it for "does this facility have / meet X".',
-    "- `numeric`: the rCode yields a quantity per facility (a number), e.g. `num_beds` or `staff_doctors + staff_nurses`. Use it for counts or amounts.",
+    "### Choosing TYPE (what each facility's code yields)",
+    '- `binary`: a yes/no per facility, e.g. `service_x_available == 1`. Use it for "does this facility have or meet X".',
+    "- `numeric`: a quantity per facility, e.g. `num_beds` or `staff_doctors + staff_nurses`. Use it for counts or amounts.",
     "",
-    "### Choosing AGGREGATION (how per-facility values combine across facilities)",
-    '- `avg`: the mean across facilities. For a `binary` indicator the mean of 0/1 is the PROPORTION of facilities, which renders as "% of facilities with X". For a `numeric` indicator it is the average value per facility.',
-    "- `sum`: the total across facilities. Use for `numeric` counts where the grand total matters (e.g. total number of beds).",
+    "### Choosing AGGREGATION (how facilities combine)",
+    '- `avg`: the mean across facilities. For a `binary` indicator the mean of yes/no is the PROPORTION of facilities, shown as "% of facilities with X". For a `numeric` indicator it is the average per facility.',
+    "- `sum`: the total across facilities, for `numeric` counts whose grand total matters (e.g. total beds).",
     "",
-    "### The dominant pattern",
-    'Most HFA indicators are `binary` + `avg` = "percentage of facilities with [condition]". Reach for that unless the user clearly wants an average quantity (`numeric` + `avg`) or a grand total (`numeric` + `sum`). Never bake the measurement phrase ("% of facilities…") into the label: it is added automatically at render time.',
+    'Most HFA indicators are `binary` + `avg`, "percentage of facilities with [condition]". Use that unless the user clearly wants an average quantity (`numeric` + `avg`) or a grand total (`numeric` + `sum`). Never put the measurement phrase ("% of facilities...") in a label: it is added when the indicator is shown.',
     "",
-    "## Writing indicator code",
-    `- The code is the platform's own expression language, evaluated per facility. It accepts the operators ${
+    "## The code",
+    `- The language accepts the operators ${
       HFA_CODE_SYMBOLS.join(" ")
     }, the words ${
       HFA_CODE_WORDS.join(" ")
-    } (any case; & | ! mean the same), parentheses, numbers, text in quotes (\`sh_03 == "c"\`), and the list test \`${HFA_CODE_LIST_EXAMPLE}\` (negated as NOT IN). Nothing else is accepted: there are no functions. Write an index as arithmetic, e.g. \`(a + b + c) / 3\`.`,
-    '- Reference real survey variable ids. Read a variable\'s coded response options, missingness and the values actually present before comparing it against a code (e.g. confirm `1` means "Yes").',
-    "- For coded/select variables, compare to the code value (`q5 == 1`), not the label.",
-    "- Keep the rCode IDENTICAL across rounds when the variable exists in every round (the manager's Consistent column checks this); only differ a round when the survey actually changed that question.",
-    "- After creating or editing code, read the indicator back and fix every issue its rounds show: unknown variables, syntax, or a result-type mismatch (e.g. a `binary` indicator whose code isn't a yes/no condition). Generated indicators should show no error before you consider them done.",
+    } (any case; & | ! mean the same), parentheses, numbers, and the list test \`${HFA_CODE_LIST_EXAMPLE}\` (negated as NOT IN). There are no functions: write an index as arithmetic, e.g. \`(a + b + c) / 3\`.`,
+    "- Every value is read as a number. Compare a coded variable to its numeric code (`q5 == 1`), never to its label. A test against quoted text never matches anything, and an option whose code is text reads as missing.",
+    "- select_multiple: the question has no variable of its own. Each choice is a variable `{question}_{choice}`: 1 when the choice was selected, 0 when it was not, and blank when the question was unanswered. Its unselected choices hold -99 only when the answer was the literal code -99. A choice whose code is negative cannot be named in code. Text questions are never available.",
+    "- The filter: a facility whose filter is false or missing is left out of the denominator. A filter needs indicator code in the same round.",
+    "- Missingness: the indicator is missing for a facility when its expression is. AND and OR are three-valued, so a blank on one side can still give a definite answer (`a == 1 OR b == 1` is yes when `a` is 1, whatever `b` holds).",
+    "- Sentinel codes, before the code runs: a refused code is always blanked. A don't-know code on an integer or decimal variable is always blanked. A don't-know code on a select variable is blanked, unless the run treats don't-know as No and the indicator is binary; then it stays, and it fails a positive test. Other, not-applicable and question-specific codes are real answers and stay, also inside a numeric sum. A variable with no classified option has -99 and -999999 blanked.",
+    "- The run's don't-know setting is not visible here, so code must be right under both settings. Test positively for yes (`x == 1`, `x >= 3`), never with a negation (`x != 2` counts a kept don't-know as meeting the condition), in the filter too.",
+    "- References: an id that is an indicator's id is read as that indicator's per-facility value. Indicators that name each other in a cycle are refused, and a cycle would fail the whole run. Under the default setting an indicator whose dependency fails is skipped. A variable blank in every round is unknown to the run, so an indicator naming it is skipped.",
+    '- Variant groups: an indicator with a group also has, per round, code for each item of the group, a per-item breakdown of the same measure ("provides vaccination" by campaign, routine). The round\'s filter, the type and the aggregation apply to every item. The indicator keeps its own code: the overall value is never derived from the items, which may overlap. Item code may name the indicator itself.',
+    "- Rounds: a question that changed between rounds shows as a different label or different options for the same variable. Keep the code identical across rounds, and differ a round only where its question changed.",
     "",
     "## Scope",
-    "You cannot edit the taxonomy itself (creating or renaming categories): assign only to categories that already exist, and say so if asked to create one. Opening an indicator's row opens its code editor, a view of its own whose tools edit that one indicator's unsaved draft.",
+    "You cannot create, rename or reorder categories, sub-categories, service categories, variant groups or items: assign only what already exists, and say so if asked to create one.",
     "",
     "## How to work",
-    "1. Before proposing changes, read current state (including the survey variables when creating indicators), so you act on what's really there, including edits made earlier in this conversation.",
-    "2. Validate ids against the live taxonomy; a sub-category must belong to the indicator's category; time points must exist in the dataset.",
-    "3. All writes are batched and shown to the user for confirmation before they apply, so propose concrete, coherent batches rather than asking for permission you already have.",
-    "4. When intent is genuinely ambiguous (wording, which variables, which measurement, which category), ask the user before writing.",
-    "5. Be concise. Summarise what you changed, what validated clean, and what still needs attention.",
+    "1. Read current state before writing, including the variables the code will name and their options, so you act on what is really there, including edits made earlier in this conversation.",
+    "2. After writing code, read the indicator back and fix every error its rounds show: unknown variables, syntax, a filter or variant code without indicator code, a cycle. Treat a result-type warning (a `binary` indicator whose code is not a yes/no condition) as a mistake to fix.",
+    "3. When intent is genuinely ambiguous (wording, which variables, which measurement, which category), ask the user before writing.",
+    "4. Be concise. Summarise what you changed and what still needs attention.",
   ].join("\n");
 }
