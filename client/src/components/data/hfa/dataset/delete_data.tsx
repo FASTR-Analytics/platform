@@ -6,10 +6,13 @@ import {
   FrameTop,
   HeadingBar,
   Input,
-  Select,
+  RadioGroup,
 } from "panther";
 import { createSignal, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
+
+// Time points are option values by index, so no label can collide with "all".
+type DeleteTarget = "all" | `${number}`;
 
 export function DeleteData(
   p: EditorComponentProps<
@@ -20,42 +23,55 @@ export function DeleteData(
   >,
 ) {
   const [checkText, setCheckText] = createSignal("");
-  const [deleteMode, setDeleteMode] = createSignal<"all" | "time_point">(
-    "all",
+  const [target, setTarget] = createSignal<DeleteTarget | undefined>(
+    undefined,
   );
-  const [selectedTimePoint, setSelectedTimePoint] = createSignal("");
+
+  const timePoint = () => {
+    const t = target();
+    return t === undefined || t === "all"
+      ? undefined
+      : p.timePoints[Number(t)].label;
+  };
+
+  const targetText = () => {
+    const tp = timePoint();
+    return tp === undefined
+      ? t3({
+        en: "all the data",
+        fr: "toutes les données",
+        pt: "todos os dados",
+      })
+      : t3({
+        en: `data for time point "${tp}"`,
+        fr: `les données du point temporel « ${tp} »`,
+        pt: `os dados do ponto temporal "${tp}"`,
+      });
+  };
 
   async function attemptDeleteData() {
-    const timePoint = deleteMode() === "time_point"
-      ? selectedTimePoint()
-      : undefined;
+    const tp = timePoint();
     const deleteAction = createDeleteAction(
-      timePoint
+      tp
         ? t3({
           en:
-            `Are you very sure you want to delete all data for time point "${timePoint}"?`,
+            `Are you very sure you want to delete all data for time point "${tp}"?`,
           fr:
-            `Voulez-vous vraiment supprimer toutes les données du point temporel « ${timePoint} » ?`,
+            `Voulez-vous vraiment supprimer toutes les données du point temporel « ${tp} » ?`,
           pt:
-            `Tem a certeza de que quer eliminar todos os dados do ponto temporal "${timePoint}"?`,
+            `Tem a certeza de que quer eliminar todos os dados do ponto temporal "${tp}"?`,
         })
         : t3({
           en: "Are you very sure you want to delete all of your data?",
           fr: "Voulez-vous vraiment supprimer toutes vos données ?",
           pt: "Tem a certeza de que quer eliminar todos os seus dados?",
         }),
-      () => serverActions.deleteDatasetHfaData({ timePoint }),
+      () => serverActions.deleteDatasetHfaData({ timePoint: tp }),
       () => p.close(undefined),
     );
 
     await deleteAction.click();
   }
-
-  const canDelete = () => {
-    if (checkText() !== t3(TC.deleteConfirmPhrase)) return false;
-    if (deleteMode() === "time_point" && !selectedTimePoint()) return false;
-    return true;
-  };
 
   return (
     <FrameTop
@@ -69,53 +85,37 @@ export function DeleteData(
         />
       }
     >
-      <Show when={p.timePoints.length > 0}>
-        <div class="flex gap-4">
-          <Button
-            onClick={() => setDeleteMode("all")}
-            intent={deleteMode() === "all" ? "primary" : undefined}
-            outline={deleteMode() !== "all"}
-          >
-            {t3({
-              en: "Delete all data",
-              fr: "Supprimer toutes les données",
-              pt: "Eliminar todos os dados",
-            })}
-          </Button>
-          <Button
-            onClick={() => setDeleteMode("time_point")}
-            intent={deleteMode() === "time_point" ? "primary" : undefined}
-            outline={deleteMode() !== "time_point"}
-          >
-            {t3({
-              en: "Delete by time point",
-              fr: "Supprimer par point temporel",
-              pt: "Eliminar por ponto temporal",
-            })}
-          </Button>
-        </div>
-      </Show>
-
-      <Show when={deleteMode() === "time_point"}>
-        <div class="w-96">
-          <Select
-            label={t3({
-              en: "Select time point to delete",
-              fr: "Sélectionner le point temporel à supprimer",
-              pt: "Selecionar o ponto temporal a eliminar",
-            })}
-            options={p.timePoints.map((tp) => ({
-              value: tp.label,
-              label: `${tp.label} (${tp.periodId.slice(0, 4)}-${
-                tp.periodId.slice(4, 6)
-              })`,
-            }))}
-            value={selectedTimePoint()}
-            onChange={setSelectedTimePoint}
-            fullWidth
-          />
-        </div>
-      </Show>
+      <RadioGroup<DeleteTarget>
+        label={t3({
+          en: "Data to delete",
+          fr: "Données à supprimer",
+          pt: "Dados a eliminar",
+        })}
+        options={[
+          {
+            value: "all",
+            label: t3({
+              en: "All time points",
+              fr: "Tous les points temporels",
+              pt: "Todos os pontos temporais",
+            }),
+          },
+          ...p.timePoints.map((tp, i) => ({
+            value: `${i}` as const,
+            label: `${tp.label} (${tp.periodId.slice(0, 4)}-${
+              tp.periodId.slice(4, 6)
+            })`,
+          })),
+        ]}
+        value={target()}
+        onChange={setTarget}
+        convertToSelectThreshold={6}
+        placeholderForSelect={t3({
+          en: "Choose…",
+          fr: "Choisir…",
+          pt: "Escolher…",
+        })}
+      />
 
       <div class="text-base-content-muted text-sm">
         {t3({
@@ -128,42 +128,32 @@ export function DeleteData(
         })}
       </div>
 
-      <div class="">
-        {t3({
-          en: "If you want to delete",
-          fr: "Pour supprimer",
-          pt: "Para eliminar",
-        })} {deleteMode() === "time_point"
-          ? t3({
-            en: `data for time point "${selectedTimePoint()}"`,
-            fr: `les données du point temporel « ${selectedTimePoint()} »`,
-            pt: `os dados do ponto temporal "${selectedTimePoint()}"`,
-          })
-          : t3({
-            en: "all the data",
-            fr: "toutes les données",
-            pt: "todos os dados",
+      <Show when={target() !== undefined}>
+        <div>
+          {t3({
+            en: `If you want to delete ${targetText()}, write`,
+            fr: `Pour supprimer ${targetText()}, écrivez`,
+            pt: `Para eliminar ${targetText()}, escreva`,
+          })} <span class="font-700">{t3(TC.deleteConfirmPhrase)}</span> {t3({
+            en: "in the input box",
+            fr: "dans le champ de saisie",
+            pt: "no campo de introdução",
           })}
-        , {t3({ en: "write", fr: "écrivez", pt: "escreva" })}{" "}
-        <span class="font-700">{t3(TC.deleteConfirmPhrase)}</span> {t3({
-          en: "in the input box",
-          fr: "dans le champ de saisie",
-          pt: "no campo de introdução",
-        })}
-      </div>
-      <div class="w-96">
-        <Input value={checkText()} onChange={setCheckText} />
-      </div>
-      <div class="">
-        <Button
-          intent="danger"
-          iconName="trash"
-          disabled={!canDelete()}
-          onClick={attemptDeleteData}
-        >
-          {t3(TC.delete)}
-        </Button>
-      </div>
+        </div>
+        <div class="w-96">
+          <Input value={checkText()} onChange={setCheckText} />
+        </div>
+        <div>
+          <Button
+            intent="danger"
+            iconName="trash"
+            disabled={checkText() !== t3(TC.deleteConfirmPhrase)}
+            onClick={attemptDeleteData}
+          >
+            {t3(TC.delete)}
+          </Button>
+        </div>
+      </Show>
     </FrameTop>
   );
 }
