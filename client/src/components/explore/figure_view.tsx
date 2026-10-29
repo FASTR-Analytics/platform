@@ -11,7 +11,12 @@ import {
 } from "panther";
 import { createFigurePreview } from "~/components/_shared/mod.ts";
 import { getAdminAreaLevelFromMapConfig } from "~/generate_visualization/get_admin_area_level_from_config";
-import { liveFigureStyle } from "~/generate_visualization/mod";
+import {
+  describeMapCoverage,
+  getFigureMapCoverage,
+  liveFigureStyle,
+  MAP_COVERAGE_PROMINENT_BELOW,
+} from "~/generate_visualization/mod";
 import { geoJsonFamilyFor, getGeoJsonSync } from "~/state/instance/t2_geojson";
 import { getRunGeoJsonSync } from "~/state/instance/t2_run_geojson";
 
@@ -61,12 +66,33 @@ export function FigureView(p: {
       classList={{ "overflow-y-auto": !fills() }}
     >
       <StateHolderWrapper state={figure()}>
-        {(inputs) => (
-          <FigureHolder
-            figureInputs={{ ...inputs, style: style(inputs.style ?? {}) }}
-            height={fills() ? "flex" : "ideal"}
-          />
-        )}
+        {(inputs) => {
+          const holder = (
+            <FigureHolder
+              figureInputs={{ ...inputs, style: style(inputs.style ?? {}) }}
+              height={fills() ? "flex" : "ideal"}
+            />
+          );
+          const coverage = getFigureMapCoverage(inputs);
+          return coverage === undefined
+            ? holder
+            : (
+              <div class="flex h-full flex-col">
+                <div class="min-h-0 flex-1">{holder}</div>
+                <div
+                  class="pt-2 text-sm"
+                  classList={{
+                    "text-base-content-muted":
+                      coverage.matchedShare >= MAP_COVERAGE_PROMINENT_BELOW,
+                    "text-warning font-700":
+                      coverage.matchedShare < MAP_COVERAGE_PROMINENT_BELOW,
+                  }}
+                >
+                  {describeMapCoverage(coverage)}
+                </div>
+              </div>
+            );
+        }}
       </StateHolderWrapper>
     </div>
   );

@@ -1144,3 +1144,7 @@ Departures, one line each, written when they happen.
 - Step 4: `client/src/generate_visualization/mod.ts`, outside the Surface,
   changed: it exports `awaitFigureBoundaries`, the entry every after-await
   caller imports it through.
+- Step 5: `lib/types/_figure_bundle.ts`, `components/_shared/figure_preview.ts`
+  and `generate_visualization/resolve_bundle_from_metric_and_config.ts`, outside
+  the Surface, changed: the `no_area_matches` member is declared beside the
+  other reasons, and the two describers that word every reason word it too.

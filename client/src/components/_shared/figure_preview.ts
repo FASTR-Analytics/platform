@@ -79,6 +79,16 @@ export async function fetchFigureInputs(
 
 // The one wording of each unavailable reason, for every surface that shows one.
 export function describeFigureUnavailable(reason: FigureUnavailable): string {
+  if (reason.kind === "no_area_matches") {
+    return t3({
+      en:
+        `None of the ${reason.dataAreas} data areas matches one of the ${reason.boundaries} map boundaries, so the map cannot be drawn. Check the boundary mapping on the maps page.`,
+      fr:
+        `Aucune des ${reason.dataAreas} unités avec données ne correspond à l'une des ${reason.boundaries} limites de la carte, la carte ne peut donc pas être dessinée. Vérifiez l'association des limites sur la page des cartes.`,
+      pt:
+        `Nenhuma das ${reason.dataAreas} zonas com dados corresponde a um dos ${reason.boundaries} limites do mapa, por isso o mapa não pode ser desenhado. Verifique a associação dos limites na página de mapas.`,
+    });
+  }
   const registry = reason.family.toUpperCase();
   const level = reason.level;
   if (reason.kind === "boundaries_loading") {

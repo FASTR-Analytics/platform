@@ -77,7 +77,10 @@ import { ViewResultsObject } from "./view_results_object";
 import {
   awaitFigureBoundaries,
   buildFigureInputs,
+  describeMapCoverage,
+  getFigureMapCoverage,
   makeFigureBundleFromFetchedData,
+  MAP_COVERAGE_PROMINENT_BELOW,
 } from "~/generate_visualization/mod";
 import { getTableExportAoa } from "~/exports/get_table_export_aoa";
 import {
@@ -1094,12 +1097,34 @@ export function VisualizationEditorInner(p: InnerProps) {
                               >
                                 <StateHolderWrapper state={figureInputs()}>
                                   {(keyedFigureInputs) => {
+                                    const coverage = getFigureMapCoverage(
+                                      keyedFigureInputs,
+                                    );
                                     return (
-                                      <FigureHolder
-                                        figureInputs={keyedFigureInputs}
-                                        height={editorHeight()}
-                                        canvasElementId="VIZ_PREVIEW_CANVAS"
-                                      />
+                                      <>
+                                        <FigureHolder
+                                          figureInputs={keyedFigureInputs}
+                                          height={editorHeight()}
+                                          canvasElementId="VIZ_PREVIEW_CANVAS"
+                                        />
+                                        <Show when={coverage} keyed>
+                                          {(c) => (
+                                            <div
+                                              class="pt-2 text-sm"
+                                              classList={{
+                                                "text-base-content-muted":
+                                                  c.matchedShare >=
+                                                    MAP_COVERAGE_PROMINENT_BELOW,
+                                                "text-warning font-700":
+                                                  c.matchedShare <
+                                                    MAP_COVERAGE_PROMINENT_BELOW,
+                                              }}
+                                            >
+                                              {describeMapCoverage(c)}
+                                            </div>
+                                          )}
+                                        </Show>
+                                      </>
                                     );
                                   }}
                                 </StateHolderWrapper>

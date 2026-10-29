@@ -178,4 +178,5 @@ export type FigureUnavailable =
     level: number;
     source: "instance" | "package";
   }
-  | { kind: "boundaries_loading"; family: FacilityFamily; level: number };
+  | { kind: "boundaries_loading"; family: FacilityFamily; level: number }
+  | { kind: "no_area_matches"; dataAreas: number; boundaries: number };

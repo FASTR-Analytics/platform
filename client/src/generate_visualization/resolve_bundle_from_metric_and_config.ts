@@ -161,6 +161,9 @@ function assertBundleRenders(bundle: FigureBundle): void {
 }
 
 function describeUnavailableForAI(reason: FigureUnavailable): string {
+  if (reason.kind === "no_area_matches") {
+    return `none of the ${reason.dataAreas} data areas matches one of the ${reason.boundaries} boundaries, so the map would be empty; use a table.`;
+  }
   const map =
     `the ${reason.family.toUpperCase()} boundary map at admin_area_${reason.level}`;
   if (reason.kind === "boundaries_loading") return `${map} has not loaded yet.`;

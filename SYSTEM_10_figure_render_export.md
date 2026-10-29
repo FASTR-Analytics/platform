@@ -340,6 +340,17 @@ download. Without it a deck exported before the files land would export every
 map as a placeholder. A report's embeds and the deck rail render through a
 tracked read and take `boundaries_loading` until the files land.
 
+The map branch transforms its data once (`getMapDataTransformed`, whose own call
+in panther passes a transformed input through), and
+`generate_visualization/map_coverage.ts` tallies from it how many distinct data
+areas meet a boundary of the same name, how many boundaries carry no data, and
+the matched share. A map whose data areas meet no boundary at all is the
+`no_area_matches` reason (with the data-area and boundary counts) instead of an
+empty country, in every surface that renders it, decks, reports and exports
+included; that is the one thing the tally changes in a rendered product. Any
+other share renders, and the counts themselves are shown only where a figure is
+authored (SYSTEM_11).
+
 The `resolve_figure_from_metric` resolver:
 `generate_visualization/resolve_figure_from_metric.ts` (+
 `resolve_bundle_from_metric_and_config.ts`) is the shared

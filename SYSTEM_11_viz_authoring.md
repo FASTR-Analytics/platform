@@ -378,6 +378,14 @@ boundary read tracks nothing, so the figure view reads the run-geo store
 level, and the instance's `getGeoJsonSync` when that answers `run_unknown`) in
 the preview's source, and a map shown before they load rebuilds when they land.
 
+Under a built map, the figure editor's preview and the explore view show its
+coverage (`describeMapCoverage` over `getFigureMapCoverage`, SYSTEM_10): how
+many data areas have a boundary and how many boundaries have no data. Below 70%
+matched (`MAP_COVERAGE_PROMINENT_BELOW`) the line is in the warning colour and
+bold, since a map with boundaries for 8 of 40 districts otherwise reads as 32
+missing values. It never appears on a rendered product page, in an export or in
+a raster.
+
 ## lib config semantics
 
 - **`normalizePOConfigForStorage`**: drops empty `filterBy` entries, collapses

@@ -34,3 +34,9 @@ export {
 } from "./validate_figure_config_edit";
 export { getMapJsonDataConfigFromPresentationObjectConfig } from "./get_data_config_for_map";
 export { liveFigureStyle } from "./live_figure_style";
+export {
+  describeMapCoverage,
+  getFigureMapCoverage,
+  MAP_COVERAGE_PROMINENT_BELOW,
+} from "./map_coverage";
+export type { MapCoverage } from "./map_coverage";

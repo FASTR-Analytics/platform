@@ -2,6 +2,7 @@ import {
   FigureInputs,
   formatPeriod,
   type GeoJSONFeatureCollection,
+  getMapDataTransformed,
   getPeriodTypeFromValue,
   getPieDataTransformed,
   getTimeseriesDataTransformed,
@@ -46,6 +47,7 @@ import {
   isSpecialDisruptionsChartV2Active,
   metricAllowsNegativeScale,
 } from "./special_chart_checks";
+import { getFigureMapCoverage } from "./map_coverage";
 import { getGeoJsonSync } from "~/state/instance/t2_geojson";
 import {
   ensureRunGeoJson,
@@ -72,12 +74,22 @@ export function buildFigureInputs(
     };
   }
   const geo = resolveGeoJson(bundle);
-  return geo.ok
-    ? {
-      ok: true,
-      inputs: buildInputs(bundle, geo.data, deckStyle, chartPalette),
-    }
-    : geo;
+  if (!geo.ok) return geo;
+  const inputs = buildInputs(bundle, geo.data, deckStyle, chartPalette);
+  // A map whose data areas meet no boundary would draw an empty country;
+  // any other coverage renders, partial rollouts being legitimate.
+  const coverage = getFigureMapCoverage(inputs);
+  if (coverage && coverage.dataAreas > 0 && coverage.matchedAreas === 0) {
+    return {
+      ok: false,
+      unavailable: {
+        kind: "no_area_matches",
+        dataAreas: coverage.dataAreas,
+        boundaries: coverage.boundaries,
+      },
+    };
+  }
+  return { ok: true, inputs };
 }
 
 function buildInputs(
@@ -375,13 +387,15 @@ function buildInputs(
       }
       return row;
     });
+    // Transformed here, once: the coverage tally reads it, and panther's own
+    // transform passes a transformed input through.
     return {
       figureType: "map",
-      data: {
+      data: getMapDataTransformed({
         geoData: geoJson,
         jsonArray: mapItems,
         jsonDataConfig: mapDataConfig,
-      },
+      }),
       caption: withDateRange(
         withReplicant(
           config.t.caption,
