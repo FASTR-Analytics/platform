@@ -19,6 +19,7 @@ import {
   _STATUS_API_KEY,
   _WEEKLY_TOKEN_LIMIT,
 } from "../../exposed_env_vars.ts";
+import { getModuleDefaultsSnapshot } from "../../runs/mod.ts";
 
 export const routesHealth = new Hono();
 
@@ -225,6 +226,22 @@ LIMIT ${limit}
     minMeanMs,
     statements,
   });
+});
+
+// The status site's module-defaults scrape (fleet matrix + baseline
+// snapshot script). Contract on ModuleDefaultsSnapshot in lib.
+routesHealth.get("/module_defaults_snapshot", async (c: Context) => {
+  if (
+    !_STATUS_API_KEY || c.req.header("status-api-key") !== _STATUS_API_KEY
+  ) {
+    return c.json({ error: "Unauthorized" }, 401);
+  }
+  const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
+  const res = await getModuleDefaultsSnapshot(mainDb);
+  if (res.success === false) {
+    return c.json({ error: res.err }, 500);
+  }
+  return c.json(res.data);
 });
 
 routesHealth.post("/pg_stat_statements_reset", async (c: Context) => {
