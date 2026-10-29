@@ -1248,8 +1248,8 @@ export async function importHfaIndicatorsWorkbook(
           ON CONFLICT (indicator_id) DO NOTHING
           RETURNING indicator_id
         `;
-        // An id another write stored after the read above is skipped, so its
-        // code is never overwritten with code the refusal did not check.
+        // An id another write stored after the read above belongs to that
+        // write: skip it, so its code is not replaced with this workbook's.
         if (inserted.length === 0) {
           skippedExisting.push(ind.indicatorId);
         } else {

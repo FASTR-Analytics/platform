@@ -129,8 +129,8 @@ export type HfaWorkbookImport = {
 
 export type HfaWorkbookImportResult = {
   imported: number;
-  // Add mode only: indicator ids present in the workbook that already exist on the
-  // platform and were therefore left untouched.
+  // Indicator ids in the workbook already stored when the import inserted
+  // them, left untouched.
   skippedExisting: string[];
 };
 
