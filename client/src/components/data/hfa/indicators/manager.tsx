@@ -36,7 +36,7 @@ import {
   TableColumn,
   TabsNavigation,
 } from "panther";
-import { createEffect, createMemo, createSignal, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import { getHfaDictionaryFromCacheOrFetch } from "~/state/instance/t2_datasets";
@@ -847,44 +847,48 @@ export function HfaIndicatorsManager(p: Props) {
       render: (ind) => {
         const stats = statsByIndicatorId().get(ind.indicatorId);
         if (!stats) return "…";
-        if (stats.ready + stats.warning + stats.error === 0) {
+        const parts = [
+          {
+            count: stats.ready,
+            class: "text-success",
+            text: t3({
+              en: `${stats.ready} ready`,
+              fr: `${stats.ready} prêt`,
+              pt: `${stats.ready} pronto`,
+            }),
+          },
+          {
+            count: stats.warning,
+            class: "text-warning font-700",
+            text: t3({
+              en: `${stats.warning} type mismatch`,
+              fr: `${stats.warning} type incohérent`,
+              pt: `${stats.warning} tipo incoerente`,
+            }),
+          },
+          {
+            count: stats.error,
+            class: "text-danger font-700",
+            text: t3({
+              en: `${stats.error} error`,
+              fr: `${stats.error} erreur`,
+              pt: `${stats.error} erro`,
+            }),
+          },
+        ].filter((part) => part.count > 0);
+        if (parts.length === 0) {
           return <span class="text-base-content-muted">—</span>;
         }
         return (
           <span>
-            <Show when={stats.ready > 0}>
-              <span class="text-success">
-                {t3({
-                  en: `${stats.ready} ready`,
-                  fr: `${stats.ready} prêt`,
-                  pt: `${stats.ready} pronto`,
-                })}
-              </span>
-            </Show>
-            <Show when={stats.warning > 0}>
-              <Show when={stats.ready > 0}>
-                <span>,</span>
-              </Show>
-              <span class="text-warning font-700">
-                {t3({
-                  en: `${stats.warning} type mismatch`,
-                  fr: `${stats.warning} type incohérent`,
-                  pt: `${stats.warning} tipo incoerente`,
-                })}
-              </span>
-            </Show>
-            <Show when={stats.error > 0}>
-              <Show when={stats.ready > 0 || stats.warning > 0}>
-                <span>,</span>
-              </Show>
-              <span class="text-danger font-700">
-                {t3({
-                  en: `${stats.error} error`,
-                  fr: `${stats.error} erreur`,
-                  pt: `${stats.error} erro`,
-                })}
-              </span>
-            </Show>
+            <For each={parts}>
+              {(part, i) => (
+                <>
+                  <Show when={i() > 0}>{", "}</Show>
+                  <span class={part.class}>{part.text}</span>
+                </>
+              )}
+            </For>
           </span>
         );
       },
