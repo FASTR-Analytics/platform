@@ -119,8 +119,6 @@ async function loadDisplayRows(): Promise<HfaVariableRow[] | undefined> {
   return res.data.rows;
 }
 
-// Everything an HFA read prints, read fresh but for the dictionary and the
-// display rows, which come through the manager's T2 caches.
 async function loadReadInput(
   withDisplayRows: boolean,
 ): Promise<HfaIndicatorsForAIInput> {
@@ -271,7 +269,11 @@ function countIndicators(n: number): string {
 }
 
 async function loadVariantItems() {
-  return (await loadTaxonomy()).variantItems;
+  const res = await serverActions.getHfaIndicatorVariantItems({});
+  if (!res.success) {
+    throw new AIToolFailure(`Could not load the HFA variant items: ${res.err}`);
+  }
+  return res.data;
 }
 
 // The status core's verdict per indicator of `only`, as the tools report it:
@@ -387,10 +389,11 @@ export function buildHfaIndicatorTools() {
         ),
       }),
       handler: async (input) => {
-        refuseOverCap(input.indicatorIds, "indicators");
+        const ids = [...new Set(input.indicatorIds)];
+        refuseOverCap(ids, "indicators");
         const read = await loadReadInput(true);
         const known = new Set(read.indicators.map((i) => i.indicatorId));
-        const unknown = input.indicatorIds.filter((id) => !known.has(id));
+        const unknown = ids.filter((id) => !known.has(id));
         if (unknown.length > 0) {
           throw new AIToolFailure(
             `Unknown indicator id(s): ${
@@ -398,7 +401,7 @@ export function buildHfaIndicatorTools() {
             }. get_hfa_indicators lists the ids.`,
           );
         }
-        return formatHfaIndicatorDetailsForAI(read, input.indicatorIds);
+        return formatHfaIndicatorDetailsForAI(read, ids);
       },
       inProgressLabel: () =>
         t3({
@@ -492,12 +495,13 @@ export function buildHfaIndicatorTools() {
         ),
       }),
       handler: async (input) => {
-        refuseOverCap(input.variableIds, "variables");
+        const ids = [...new Set(input.variableIds)];
+        refuseOverCap(ids, "variables");
         const read = await loadReadInput(true);
         refuseUnknownTimePoint(input.timePoint, read.dictionary);
         return formatHfaVariableDetailsForAI(
           read,
-          input.variableIds,
+          ids,
           input.timePoint,
         );
       },
