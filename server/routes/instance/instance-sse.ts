@@ -51,6 +51,9 @@ export type InstanceSseFilterResult = {
 //     message flows through whole, and the client's own-email re-derivation
 //     flips them approved and fills the roster in one step. The starting
 //     payload applies the same rule (buildInstanceState).
+//   - Grounding: the same absent-from-roster test blanks `aiContext` on
+//     `config_updated` and drops `geojson_maps_updated`, as the starting
+//     payload withholds both.
 //   - Product plane: the same absent-from-roster test drops
 //     `products_upserted` / `products_deleted` / `folders_updated` /
 //     `scopes_updated` / `last_updated`, matching the withholding
@@ -148,6 +151,15 @@ export function createInstanceSseFilter(
     }
     if (msg.type === "run_progress" || msg.type === "r_script") {
       return canSeeRunMessages ? pass(msg) : drop;
+    }
+    if (msg.type === "config_updated") {
+      return isApproved ? pass(msg) : pass({
+        type: "config_updated",
+        data: { ...msg.data, aiContext: "" },
+      });
+    }
+    if (msg.type === "geojson_maps_updated") {
+      return isApproved ? pass(msg) : drop;
     }
     if (msg.type === "assets_updated") {
       return pass({

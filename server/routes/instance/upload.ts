@@ -10,7 +10,7 @@ import {
 } from "../../db/mod.ts";
 import { _ASSETS_DIR_PATH } from "../../exposed_env_vars.ts";
 import { log } from "../../middleware/logging.ts";
-import { requireGlobalPermission } from "../../middleware/mod.ts";
+import { requireApprovedUser } from "../../middleware/userPermission.ts";
 import { notifyInstanceAssetsUpdated } from "../../task_management/notify_instance_updated.ts";
 
 export const routesUpload = new Hono();
@@ -136,7 +136,7 @@ function sanitizeUploadFilename(raw: string): string {
 // POST /upload - Create new upload
 routesUpload.post(
   "/upload",
-  requireGlobalPermission(),
+  requireApprovedUser(),
   log("upload"),
   async (c) => {
     // Cleanup old uploads when starting a new one
@@ -256,7 +256,7 @@ routesUpload.get("/upload/:id", async (c) => {
 // PATCH /upload/:id - Upload chunk
 routesUpload.patch(
   "/upload/:id",
-  requireGlobalPermission(),
+  requireApprovedUser(),
   log("upload"),
   async (c) => {
     const uploadId = c.req.param("id");
@@ -396,7 +396,7 @@ routesUpload.patch(
 // DELETE /upload/:id - Cancel upload
 routesUpload.delete(
   "/upload/:id",
-  requireGlobalPermission(),
+  requireApprovedUser(),
   log("upload"),
   async (c) => {
     const uploadId = c.req.param("id");

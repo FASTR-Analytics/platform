@@ -6,11 +6,14 @@ import { getGlobalUser } from "../auth/global_user.ts";
 import { getPgConnectionFromCacheOrNew } from "../db/mod.ts";
 import { canUserSeeAsset } from "lib";
 import { getAssetPrivacyForAnyName } from "../db/instance/assets.ts";
-import { requireGlobalPermission } from "./userPermission.ts";
+import {
+  requireApprovedUser,
+  requireGlobalPermission,
+} from "./userPermission.ts";
 
 // Uploaded IMAGE assets (logos and images placed in decks and reports) are
 // served WITHOUT auth: scoped to image extensions so non-image uploads stay
-// behind requireGlobalPermission below. Mounted AFTER the client_dist serve
+// behind requireApprovedUser below. Mounted AFTER the client_dist serve
 // (bundled assets win, no shadowing) and BEFORE the protected serves.
 const PUBLIC_IMAGE_RE = /\.(png|jpe?g|gif|svg|webp|avif|ico)$/i;
 
@@ -30,7 +33,8 @@ export function setupStaticServing(app: Hono) {
   // one): only the owner and chosen viewers get the bytes. The lookup covers
   // every spelling serveStatic might resolve to the same file (raw, decoded,
   // component-decoded, normalized), so no encoding slips past it. Everyone
-  // else gets a plain 404: a private file's existence is not revealed.
+  // else, an unapproved caller included (a deleted owner's live session),
+  // gets a plain 404: a private file's existence is not revealed.
   app.use("*", async (c, next) => {
     if (c.req.method === "OPTIONS") {
       await next();
@@ -64,6 +68,7 @@ export function setupStaticServing(app: Hono) {
     }
     if (
       globalUser === "NOT_AUTHENTICATED" ||
+      !globalUser.approved ||
       !canUserSeeAsset(privacy, globalUser.email, globalUser.isGlobalAdmin)
     ) {
       c.status(404);
@@ -118,7 +123,7 @@ export function setupStaticServing(app: Hono) {
       // Keep the raw path.
     }
     const path = normalize(decoded).replace(/\/+$/, "");
-    // CORS preflight passes through, same as requireGlobalPermission.
+    // CORS preflight passes through, same as the guards.
     if (!DATA_FILE_RE.test(path) || c.req.method === "OPTIONS") {
       await next();
       return;
@@ -146,7 +151,7 @@ export function setupStaticServing(app: Hono) {
 
   app.use(
     "*",
-    requireGlobalPermission(),
+    requireApprovedUser(),
     serveStatic({ root: _ASSETS_DIR_PATH }),
   );
 }

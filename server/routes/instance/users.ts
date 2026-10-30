@@ -57,6 +57,7 @@ import {
 } from "../../exposed_env_vars.ts";
 import { log } from "../../middleware/logging.ts";
 import {
+  requireApprovedUser,
   requireGlobalPermission,
   requireGlobalPermissionOrStatusKey,
 } from "../../middleware/userPermission.ts";
@@ -134,7 +135,7 @@ defineRoute(
 defineRoute(
   routesUsers,
   "getAiUsage",
-  requireGlobalPermission(),
+  requireApprovedUser(),
   async (c) => {
     const [tokensUsedToday, tokensUsedThisWeek] = await Promise.all([
       GetUserDailyTokenUsage(c.var.mainDb, c.var.globalUser.email),
@@ -156,7 +157,7 @@ defineRoute(
 defineRoute(
   routesUsers,
   "setUserUnlimitedAi",
-  requireGlobalPermission(),
+  requireApprovedUser(),
   log("setUserUnlimitedAi"),
   async (c, { body }) => {
     if (!H_USERS.includes(c.var.globalUser.email)) {
@@ -263,7 +264,7 @@ defineRoute(
 defineRoute(
   routesUsers,
   "setUserContactPerson",
-  requireGlobalPermission(),
+  requireApprovedUser(),
   log("setUserContactPerson"),
   async (c, { body }) => {
     if (!H_USERS.includes(c.var.globalUser.email)) {
@@ -606,7 +607,7 @@ defineRoute(
 defineRoute(
   routesUsers,
   "createPersonalAccessToken",
-  requireGlobalPermission(),
+  requireApprovedUser(),
   log("createPersonalAccessToken"),
   async (c, { body }) => {
     const res = await createPersonalAccessToken(
@@ -905,7 +906,7 @@ defineRoute(
 defineRoute(
   routesUsers,
   "listPersonalAccessTokens",
-  requireGlobalPermission(),
+  requireApprovedUser(),
   async (c) => {
     const res = await listPersonalAccessTokens(
       c.var.mainDb,
@@ -918,7 +919,7 @@ defineRoute(
 defineRoute(
   routesUsers,
   "revokePersonalAccessToken",
-  requireGlobalPermission(),
+  requireApprovedUser(),
   log("revokePersonalAccessToken"),
   async (c, { body }) => {
     const res = await revokePersonalAccessToken(

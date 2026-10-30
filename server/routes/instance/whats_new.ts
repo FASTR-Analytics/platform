@@ -5,7 +5,7 @@ import {
   whatsNewPostForAudience,
 } from "lib";
 import { AddLog } from "../../db/instance/user_logs.ts";
-import { requireGlobalPermission } from "../../middleware/userPermission.ts";
+import { requireApprovedUser } from "../../middleware/userPermission.ts";
 import { _SERVER_VERSION } from "../../exposed_env_vars.ts";
 import { defineRoute } from "../route-helpers.ts";
 
@@ -85,11 +85,8 @@ const _VERSION_GATE_ACTIVE = /^\d+\.\d+\.\d+$/.test(_SERVER_VERSION);
 defineRoute(
   routesWhatsNew,
   "getWhatsNewPosts",
-  requireGlobalPermission(),
+  requireApprovedUser(),
   async (c) => {
-    if (!c.var.globalUser.approved) {
-      return c.json({ success: true, data: [] });
-    }
     const posts = await getPublishedPosts();
     const isAdmin = c.var.globalUser.isGlobalAdmin;
     // Audience filtering happens here, not in the client, so an admins-only
@@ -111,16 +108,14 @@ defineRoute(
 defineRoute(
   routesWhatsNew,
   "recordWhatsNewEvent",
-  requireGlobalPermission(),
+  requireApprovedUser(),
   async (c, { body }) => {
-    if (c.var.globalUser.approved) {
-      AddLog(
-        c.var.mainDb,
-        c.var.globalUser.email,
-        `whats_new_${body.event}:${body.postId}`,
-        "200",
-      ).catch(() => {});
-    }
+    AddLog(
+      c.var.mainDb,
+      c.var.globalUser.email,
+      `whats_new_${body.event}:${body.postId}`,
+      "200",
+    ).catch(() => {});
     return c.json({ success: true });
   },
 );

@@ -59,8 +59,9 @@ export async function buildInstanceStateWithoutProducts(
   const me = users.find((u) => u.email === globalUser.email);
   // Roster fill mirrors the SSE forward filter (routes/instance/instance-sse.ts):
   // an unapproved caller, absent from the roster, gets [] instead of every
-  // user's email, name and permission map. Their pending-approval screen has
-  // no roster consumer, and the first `users_updated` naming them flows whole.
+  // user's email, name and permission map, and no copilot grounding or
+  // boundary files. Their pending-approval screen has no consumer of any of
+  // them, and the first `users_updated` naming them flows whole.
   const rosterForCaller = me === undefined ? [] : users;
 
   // Per-user fill (run labels must not fan out): entitled callers get the
@@ -107,7 +108,7 @@ export async function buildInstanceStateWithoutProducts(
     structureSchemaHfa: res.data.structureSchemaHfa,
     adminAreaLabels: res.data.adminAreaLabels,
     dhis2ConnectionUrl: res.data.dhis2ConnectionUrl,
-    aiContext: res.data.aiContext,
+    aiContext: me === undefined ? "" : res.data.aiContext,
     products: [],
     folders: [],
     readyPackages: [],
@@ -115,7 +116,7 @@ export async function buildInstanceStateWithoutProducts(
     lastUpdated: { products: {}, slides: {} },
     users: rosterForCaller,
     assets: res.data.assets,
-    geojsonMaps: res.data.geojsonMaps,
+    geojsonMaps: me === undefined ? [] : res.data.geojsonMaps,
     // Fresh nonce per connect: the client's boundary effect sees a changed
     // value after every `starting` and refetches: DELIBERATE, the reconnect
     // self-healing path (see the field's doc in lib/types/instance_sse.ts).

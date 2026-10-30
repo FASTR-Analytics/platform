@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { AddLog } from "../../db/instance/user_logs.ts";
-import { requireGlobalPermission } from "../../middleware/userPermission.ts";
+import { requireApprovedUser } from "../../middleware/userPermission.ts";
 import { defineRoute } from "../route-helpers.ts";
 
 export const routesOnboarding = new Hono();
@@ -16,24 +16,22 @@ export const routesOnboarding = new Hono();
 defineRoute(
   routesOnboarding,
   "recordTourEvent",
-  requireGlobalPermission(),
+  requireApprovedUser(),
   async (c, { body }) => {
-    if (c.var.globalUser.approved) {
-      const details: Record<string, unknown> = {
-        page: body.page,
-        trigger: body.trigger,
-      };
-      if (body.stepIndex !== undefined) details.stepIndex = body.stepIndex;
-      if (body.stepId !== undefined) details.stepId = body.stepId;
-      if (body.reason !== undefined) details.reason = body.reason;
-      AddLog(
-        c.var.mainDb,
-        c.var.globalUser.email,
-        `tour_${body.event}:${body.tourId}`,
-        "200",
-        JSON.stringify(details),
-      ).catch(() => {});
-    }
+    const details: Record<string, unknown> = {
+      page: body.page,
+      trigger: body.trigger,
+    };
+    if (body.stepIndex !== undefined) details.stepIndex = body.stepIndex;
+    if (body.stepId !== undefined) details.stepId = body.stepId;
+    if (body.reason !== undefined) details.reason = body.reason;
+    AddLog(
+      c.var.mainDb,
+      c.var.globalUser.email,
+      `tour_${body.event}:${body.tourId}`,
+      "200",
+      JSON.stringify(details),
+    ).catch(() => {});
     return c.json({ success: true });
   },
 );

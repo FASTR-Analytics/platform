@@ -13,6 +13,7 @@ import { resolveAssetFilePath } from "../../db/instance/assets.ts";
 import { familyLevelParamsSchema } from "../../../lib/api-routes/instance/geojson_maps.ts";
 import { log } from "../../middleware/logging.ts";
 import { requireGlobalPermission } from "../../middleware/mod.ts";
+import { requireApprovedUser } from "../../middleware/userPermission.ts";
 import { notifyInstanceGeoJsonMapsUpdated } from "../../task_management/notify_instance_updated.ts";
 import { defineRoute } from "../route-helpers.ts";
 import { requireVisibleAssets } from "../../middleware/asset_visibility.ts";
@@ -188,7 +189,7 @@ defineRoute(
 defineRoute(
   routesGeoJsonMaps,
   "getAdminAreaOptionsForLevel",
-  requireGlobalPermission(),
+  requireApprovedUser(),
   log("getAdminAreaOptionsForLevel"),
   async (c, { params }) => {
     if (!isAdminAreaLevel(params.level)) {
@@ -209,7 +210,7 @@ defineRoute(
 // every SSE connect for each map level its caches miss.
 routesGeoJsonMaps.get(
   "/geojson-maps/level/:family/:level/:uploaded_at",
-  requireGlobalPermission(),
+  requireApprovedUser(),
   async (c) => {
     const params = familyLevelParamsSchema.safeParse({
       family: c.req.param("family"),

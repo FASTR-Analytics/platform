@@ -49,7 +49,10 @@ import {
 import { getCsvDetails } from "../../server_only_funcs_csvs/get_csv_components.ts";
 import { scanHfaHeadersWithValues } from "../../server_only_funcs_csvs/scan_hfa_rows.ts";
 import { log } from "../../middleware/logging.ts";
-import { requireGlobalPermission } from "../../middleware/userPermission.ts";
+import {
+  requireApprovedUser,
+  requireGlobalPermission,
+} from "../../middleware/userPermission.ts";
 import {
   notifyInstanceConfigUpdatedFromDb,
   notifyInstancePopulationUpdated,
@@ -74,9 +77,9 @@ function parseFacilityFamily(raw: string): FacilityFamily | undefined {
 defineRoute(
   routesStructure,
   "listAdminArea2s",
-  // Any authenticated user: feeds the scope editor's area pickers (see
+  // Any approved user: feeds the scope editor's area pickers (see
   // registry).
-  requireGlobalPermission(),
+  requireApprovedUser(),
   log("listAdminArea2s"),
   async (c, { params }) => {
     const res = await listAdminArea2s(c.var.mainDb, params.family);
