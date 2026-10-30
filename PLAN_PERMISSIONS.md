@@ -10,7 +10,7 @@ should be, a permission matrix test in the floor, and a persona switch for the
 browser script. The review that found the defects is not in the repo; the plan
 carries what it decided.
 
-**Next step: Do 8.**
+**Next step: Do 9.**
 
 Branch: `main`. Repo: this one. Read first: [CLAUDE.md](CLAUDE.md),
 [SYSTEMS.md](SYSTEMS.md), [SYSTEM_01_api_contract.md](SYSTEM_01_api_contract.md)
@@ -1103,7 +1103,5 @@ commit.
   the layout did not name; edited `lib/ai_tools/build_system_prompt.ts`,
   outside the Surface, because its two grounding sections now take the
   per-instance `InstanceGrounding` the `/mcp` cache holds; edited
-  `SYSTEM_18_permissions.md`, outside the Surface, because step 4 moved
-  "Permissions (write side)" there from SYSTEM_15; edited
   `PROTOCOL_APP_STATE.md`, outside the Surface, because its store table typed
   the roster.
