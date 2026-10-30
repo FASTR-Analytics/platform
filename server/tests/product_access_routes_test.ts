@@ -22,6 +22,7 @@ import { getPgConnectionFromCacheOrNew } from "../db/mod.ts";
 import { getPinnedRunId } from "../db/instance/run_generation.ts";
 import { closeAllConnections } from "../db/postgres/connection_manager.ts";
 import {
+  FOLDER_NOT_FOUND,
   getProductSummaries,
   insertReportVersion,
   insertSlideDeckVersion,
@@ -724,6 +725,39 @@ Deno.test("product levels: the guard, the access routes and the bulk action", as
     });
     assertEquals(await raisedViewer.closeCode(), COLLAB_CLOSE_ACCESS_CHANGED);
     assert(await raisedOwner.alive());
+
+    // An unknown folder id is a typed 404 on every write that names one,
+    // never a foreign-key failure.
+    const nowhere = crypto.randomUUID();
+    for (
+      const [method, path, body] of [
+        ["POST", "/folders", { label: "x", color: null, parentId: nowhere }],
+        ["POST", "/products", {
+          type: "report",
+          folderId: nowhere,
+          runId,
+          scopeId: ALL_DATA_SCOPE_ID,
+        }],
+        ["PUT", "/products/folder", {
+          productIds: [report],
+          folderId: nowhere,
+        }],
+        [
+          "POST",
+          `/products/${report}/report/versions/${reportVersionId}/copy`,
+          { label: "x", folderId: nowhere },
+        ],
+        [
+          "POST",
+          `/products/${deck}/slide-deck/versions/${deckVersionId}/copy`,
+          { label: "x", folderId: nowhere },
+        ],
+      ] as const
+    ) {
+      const res = await call(owner, method, path, body);
+      assertEquals(res.status, 404, path);
+      assertEquals(res.body, { success: false, err: FOLDER_NOT_FOUND }, path);
+    }
   } finally {
     for (const socket of sockets) {
       await socket.stop();

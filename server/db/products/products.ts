@@ -19,7 +19,8 @@ import {
   type DBProductAccess,
 } from "../instance/_main_database_types.ts";
 import { SCOPE_NOT_FOUND } from "../instance/scopes.ts";
-import { FOLDER_NOT_FOUND } from "./folders.ts";
+import { FOLDER_NOT_FOUND, requireFolderExists } from "./folders.ts";
+import { _OPEN_ACCESS } from "../../exposed_env_vars.ts";
 import { generateUniqueProductId } from "../../utils/id_generation.ts";
 import {
   duplicateSlideDeckDetail,
@@ -44,6 +45,10 @@ export const PACKAGE_OR_SCOPE_UNAVAILABLE =
 export const PRODUCT_GRANT_IS_OWNER =
   "The owner already has full access and cannot also be given a level";
 export const PRODUCT_GRANT_DUPLICATE = "Each person can be listed only once";
+// A product's owner holds its scope, so a transfer never hands a product to
+// someone who cannot open it and a rescope never takes it from its owner.
+export const PRODUCT_OWNER_LACKS_SCOPE =
+  "The owner must have access to the product's scope";
 export const PRODUCT_ACCESS_UNKNOWN_USER =
   "Access can be given only to a user of this instance";
 
@@ -241,6 +246,7 @@ export async function createProduct(
     const label = t3(NEW_PRODUCT_LABELS[args.type]);
 
     const inserted = await mainDb.begin(async (sql) => {
+      await requireFolderExists(sql, args.folderId);
       const rows = await sql<{ id: string }[]>`
         INSERT INTO products
           (id, type, label, folder_id, run_id, scope_id, created_by, created_at,
@@ -304,6 +310,7 @@ export async function moveProductsToFolder(
   return await tryCatchDatabaseAsync(async () => {
     const lastUpdated = new Date().toISOString();
     const rows = await mainDb.begin(async (sql) => {
+      await requireFolderExists(sql, folderId);
       await carryReportCrdtStamps(sql, productIds, lastUpdated);
       return await sql<{ id: string }[]>`
         UPDATE products
@@ -363,21 +370,36 @@ export async function setProductScope(
 ): Promise<APIResponseWithData<{ lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const lastUpdated = new Date().toISOString();
-    const rows = await mainDb.begin(async (sql) => {
+    const refused = await mainDb.begin(async (sql) => {
+      const product = (
+        await sql<Pick<DBProduct, "owner">[]>`
+          SELECT owner FROM products WHERE id = ${productId} FOR UPDATE
+        `
+      ).at(0);
+      if (product === undefined) {
+        throw new Error(PRODUCT_NOT_FOUND);
+      }
+      const scope = await sql`SELECT 1 FROM scopes WHERE id = ${scopeId}`;
+      if (scope.length === 0) {
+        throw new Error(SCOPE_NOT_FOUND);
+      }
+      if (
+        product.owner !== null &&
+        !(await userHoldsScope(sql, product.owner, scopeId))
+      ) {
+        return PRODUCT_OWNER_LACKS_SCOPE;
+      }
       await carryReportCrdtStamps(sql, [productId], lastUpdated);
-      return await sql`
+      await sql`
         UPDATE products
         SET scope_id = ${scopeId}, last_updated = ${lastUpdated}
         WHERE id = ${productId}
-          AND EXISTS (SELECT 1 FROM scopes WHERE id = ${scopeId})
-        RETURNING id
       `;
+      return undefined;
     });
-    if (rows.length === 0) {
-      const scope = await mainDb`SELECT 1 FROM scopes WHERE id = ${scopeId}`;
-      throw new Error(scope.length === 0 ? SCOPE_NOT_FOUND : PRODUCT_NOT_FOUND);
-    }
-    return { success: true, data: { lastUpdated } };
+    return refused === undefined
+      ? { success: true, data: { lastUpdated } }
+      : { success: false, err: refused };
   });
 }
 
@@ -462,6 +484,25 @@ function hasDuplicateEmail(grants: ProductGrant[]): boolean {
 
 // Share-locks the named users rows, so a user deleted alongside cannot leave
 // a grant or an ownership behind; true when every email names one.
+// The same test canUseScope applies to a user's scope access: an admin, an
+// open-access instance's every user and an unrestricted user hold every
+// scope; a restricted user holds their grants.
+async function userHoldsScope(
+  sql: Sql,
+  email: string,
+  scopeId: ScopeId,
+): Promise<boolean> {
+  const rows = await sql`
+    SELECT 1 FROM users u
+    WHERE u.email = ${email}
+      AND (${_OPEN_ACCESS} OR u.is_admin OR u.all_scopes OR EXISTS (
+        SELECT 1 FROM user_scopes s
+        WHERE s.email = u.email AND s.scope_id = ${scopeId}
+      ))
+  `;
+  return rows.length > 0;
+}
+
 async function allUsersExist(sql: Sql, emails: string[]): Promise<boolean> {
   const known = await sql<{ email: string }[]>`
     SELECT email FROM users WHERE email = ANY(${emails}) FOR SHARE
@@ -546,8 +587,8 @@ export async function setProductOwner(
   return await tryCatchDatabaseAsync(async () => {
     const result = await mainDb.begin(async (sql) => {
       const product = (
-        await sql<Pick<DBProduct, "owner">[]>`
-          SELECT owner FROM products WHERE id = ${productId} FOR UPDATE
+        await sql<Pick<DBProduct, "owner" | "scope_id">[]>`
+          SELECT owner, scope_id FROM products WHERE id = ${productId} FOR UPDATE
         `
       ).at(0);
       if (product === undefined) {
@@ -557,6 +598,9 @@ export async function setProductOwner(
         return PRODUCT_ACCESS_UNKNOWN_USER;
       }
       if (product.owner !== email) {
+        if (!(await userHoldsScope(sql, email, product.scope_id))) {
+          return PRODUCT_OWNER_LACKS_SCOPE;
+        }
         if (product.owner !== null) {
           await sql`
             INSERT INTO product_access (product_id, email, level)

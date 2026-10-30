@@ -132,14 +132,20 @@ const lacksScopeLabel = (bulk: boolean) =>
       pt: "Sem acesso ao âmbito deste produto",
     });
 
+// A grantee who lacks the scope is offered with a mark; an owner must hold it
+// (the server's PRODUCT_OWNER_LACKS_SCOPE), so the owner picker leaves such a
+// user out.
 function candidateOptions(
   exclude: Set<string>,
   scopeId: ScopeId | undefined,
   bulk: boolean,
-  includeAdmins: boolean,
+  forOwner: boolean,
 ): SelectOption<string>[] {
   return instanceState.users
-    .filter((u) => !exclude.has(u.email) && (includeAdmins || !u.isGlobalAdmin))
+    .filter((u) =>
+      !exclude.has(u.email) &&
+      (forOwner ? !lacksScope(u, scopeId) : !u.isGlobalAdmin)
+    )
     .map((u) => {
       const label = personLabel(u.email, u);
       return {

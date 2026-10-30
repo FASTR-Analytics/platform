@@ -171,8 +171,11 @@ no user (`consolidation/user_scopes.ts`). `setProductAccess`
 (`PUT
 /products/:product_id/access`, `edit`) replaces a product's general access
 and grants, and `setProductOwner` (`PUT /products/:product_id/owner`, `own`)
-transfers it. An editor may remove their own grant or lower the general access
-below their own level; the owner and the admins always keep access. None of the
+transfers it. A product's owner holds its scope: `setProductOwner` refuses an
+owner who does not and `setProductScope` a scope the current owner lacks, both
+with `PRODUCT_OWNER_LACKS_SCOPE`, and the access dialog's owner picker leaves
+such users out. An editor may remove their own grant or lower the general
+access below their own level; the owner and the admins always keep access. None of the
 three bumps `last_updated` or records a version edit: each re-broadcasts the
 summaries it changed.
 
@@ -303,8 +306,9 @@ that the run is `ready` and that both rows exist, and returns the typed
 (`createProduct`, `duplicateProduct`, `copyReportFromVersion`,
 `copySlideDeckFromVersion`) writes the actor as `owner` and `default_access`
 `none`, and no grant is copied; `updateProductLabel`, `moveProductsToFolder`,
-`setProductScope` (takes a `scopeId`, and the scope's existence is checked in
-the UPDATE: an unknown scope is `SCOPE_NOT_FOUND`, a 404 through `_respond.ts`);
+`setProductScope` (takes a `scopeId`; in one transaction an unknown scope is
+`SCOPE_NOT_FOUND`, a 404 through `_respond.ts`, and a scope the owner lacks
+`PRODUCT_OWNER_LACKS_SCOPE`);
 `deleteProducts` is one `DELETE
 ... WHERE id = ANY` on the registry, with the
 batch's slide ids pre-read inside the transaction for the room closers;
@@ -327,7 +331,12 @@ whose access changed. Their refusals come back through the envelope at 200:
 `PRODUCT_GRANT_IS_OWNER` (a grant naming the owner, `setProductAccess` only),
 `PRODUCT_GRANT_DUPLICATE` (one email twice) and `PRODUCT_ACCESS_UNKNOWN_USER`
 (an email with no `users` row); an unknown product is `PRODUCT_NOT_FOUND` and an
-unknown folder `FOLDER_NOT_FOUND`. `getProductLevelRows(mainDb, ids, email)`
+unknown folder `FOLDER_NOT_FOUND`. Every write that names a folder
+(`createProduct`, `moveProductsToFolder`, `createFolder`'s parent,
+`copyReportFromVersion`, `copySlideDeckFromVersion`) answers an unknown folder
+id as `FOLDER_NOT_FOUND`, a 404, through `requireFolderExists`
+(`server/db/products/folders.ts`), which share-locks the row inside the
+write's transaction, never a foreign-key failure. `getProductLevelRows(mainDb, ids, email)`
 reads, in one query, each named product's folder, scope and access carrying only
 that user's grant, which is all `productLevelFor` needs; an id that names no row
 is absent. `getProductLevelRowsInScopes(mainDb, scopeIds, email)` reads the same

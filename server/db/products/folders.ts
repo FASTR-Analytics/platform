@@ -14,6 +14,22 @@ export const FOLDER_CYCLE =
 
 export const FOLDER_NOT_FOUND = "Folder not found";
 
+// A product or folder write that names a folder answers an unknown one as
+// the typed FOLDER_NOT_FOUND rather than a foreign-key failure. The row is
+// share-locked, so a concurrent delete cannot slip between the check and the
+// write. The root (null) always exists.
+export async function requireFolderExists(
+  sql: Sql,
+  folderId: string | null,
+): Promise<void> {
+  if (folderId === null) return;
+  const rows =
+    await sql`SELECT 1 FROM folders WHERE id = ${folderId} FOR SHARE`;
+  if (rows.length === 0) {
+    throw new Error(FOLDER_NOT_FOUND);
+  }
+}
+
 function rowToFolder(row: DBFolder): Folder {
   return {
     id: row.id,
@@ -49,14 +65,17 @@ export async function createFolder(
   return await tryCatchDatabaseAsync(async () => {
     const folderId = crypto.randomUUID();
     const lastUpdated = new Date().toISOString();
-    await mainDb`
-      INSERT INTO folders
-        (id, label, color, parent_id, created_by, created_at, last_updated)
-      VALUES (
-        ${folderId}, ${args.label.trim()}, ${args.color}, ${args.parentId},
-        ${args.createdBy}, ${lastUpdated}, ${lastUpdated}
-      )
-    `;
+    await mainDb.begin(async (sql) => {
+      await requireFolderExists(sql, args.parentId);
+      await sql`
+        INSERT INTO folders
+          (id, label, color, parent_id, created_by, created_at, last_updated)
+        VALUES (
+          ${folderId}, ${args.label.trim()}, ${args.color}, ${args.parentId},
+          ${args.createdBy}, ${lastUpdated}, ${lastUpdated}
+        )
+      `;
+    });
     return { success: true, data: { folderId, lastUpdated } };
   });
 }

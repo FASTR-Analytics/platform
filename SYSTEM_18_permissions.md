@@ -182,7 +182,8 @@ for an unrestricted user; a restricted user (`user.scopeAccess.all
 "Scope access" below) may name only the root or a folder whose subtree holds a
 product they can see, by scope and level (`visibleFolderIdsForUser`, over
 `visibleFolderIds`). An id that names no row passes the policy and fails in the
-handler. Doctrine: the product id in the path IS the authority; a future
+handler: a product as `PRODUCT_NOT_FOUND`, a folder as `FOLDER_NOT_FOUND`, both
+404s. Doctrine: the product id in the path IS the authority; a future
 permission model replaces the policy function and inherits the per-route access
 inventory, and must never be built as per-handler checks behind this guard. The
 No other guard reads a product id, and an instance route never declares the
