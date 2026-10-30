@@ -48,8 +48,8 @@ into the prose; remaining triaged findings are in Open items below.
 Boundaries: the chat engine (request shaping, turn/continuation logic,
 tool-execution loop, display registry, conversation persistence) is panther's
 `_305_ai` + `_110_ai_types` (vendored; fixes land in the panther repo and
-re-sync). Guards themselves are **S1**; the daily token counters are columns on
-`users` (`db/instance/users.ts` is S1-owned with S13 a mandatory reader, per
+re-sync). Guards themselves are **S18**; the daily token counters are columns on
+`users` (`db/instance/users.ts` is S18-owned with S13 a mandatory reader, per
 SYSTEMS.md §4.1). The unguarded health routes that surface usage are **S15**.
 The HFA tools (`client/src/components/data/hfa/indicators/ai/**`) are
 **S5-owned**: S13 owns the chat they register in, the panther engine contract
@@ -292,7 +292,7 @@ The flow:
    week, which as displayed is impossible.
 
 **Governance storage.** Daily counter = columns on `users`
-([users.ts:279-311](server/db/instance/users.ts#L279-L311), S1 seam): the read
+([users.ts:279-311](server/db/instance/users.ts#L279-L311), S18 seam): the read
 compares the stored date to today in JS UTC, the write uses Postgres
 `CURRENT_DATE`, identical only while the DB session runs UTC. Weekly counter =
 `instance_weekly_token_usage` upserted on `date_trunc('week', CURRENT_DATE)`

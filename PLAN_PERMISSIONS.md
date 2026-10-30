@@ -1048,3 +1048,6 @@ commit.
 - Step 4: the three guard traps of SYSTEM_01 "Traps" (the admin bypass, the
   unset `globalUser`, the fail-closed missing column) moved to SYSTEM_18 with
   the guard prose they describe; the two registry traps stayed.
+- Step 4: the review found pointers to S1 for moved prose in
+  SYSTEM_13_ai_assistant.md, SYSTEM_00_kernel.md and PROTOCOL_APP_ROUTES.md,
+  outside the Surface; each now names S18.

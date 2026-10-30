@@ -325,7 +325,7 @@ reads, in one query, each named product's folder, scope and access carrying only
 that user's grant, which is all `productLevelFor` needs; an id that names no row
 is absent. `getProductLevelRowsInScopes(mainDb, scopeIds, email)` reads the same
 for every product carrying one of the scopes (the restricted folder rule's
-visibility, S1). `dropAccessOfMissingUsers(sql)` runs inside every transaction
+visibility, S18). `dropAccessOfMissingUsers(sql)` runs inside every transaction
 that deletes `users` rows (S15): an owner with no `users` row becomes NULL and a
 grant with no `users` row goes, and it returns the products it changed.
 `folders.ts`: `moveFolder` is the move, writes only the parent and refuses a
@@ -356,7 +356,7 @@ ids stay valid).
 every product-scoped path lives under `/products/:product_id/...`
 (`.../slide-deck`, `.../slides/:slide_id`, `.../report`,
 `.../versions/:version_id`), batch targets ride the body as `productIds`, and
-every registry entry declares `access`, which is the whole guard (S1). Handlers
+every registry entry declares `access`, which is the whole guard (S18). Handlers
 name only `log(...)`; a not-found envelope from the DB layer leaves as a 404
 through `_respond.ts`, so a slide or version id under the wrong product is
 a 404. In `routes/products/slides.ts` the move route is registered before the

@@ -2,8 +2,9 @@
 
 > **App-specific authoring protocol** (not panther's cross-project
 > `PROTOCOL_*`). This is the _recipe_. Read it when **adding or changing an
-> endpoint**. The registry/guard machinery's ownership and architecture belong
-> to **S1**: see `SYSTEM_01_api_contract.md`; this file is the how-to. The
+> endpoint**. The registry's ownership and architecture belong to **S1**
+> (`SYSTEM_01_api_contract.md`), the guards' to **S18**
+> (`SYSTEM_18_permissions.md`); this file is the how-to. The
 > generic base rules (envelope shape, validate-at-boundary, permission checks
 > before business logic) are panther's `protocols/PROTOCOL_DENO_API.md`. In this
 > app those rules are satisfied by `defineRoute` + the guard factories, so never

@@ -44,7 +44,7 @@ holds, side by side: the `APIResponse` envelope types +
 labels and the per-family `structureSchemaSchema` / `structureColumnsSchema`
 with `getEnabledOptionalFacilityColumns`, `structureColumnsFromSchema` +
 `hashStructureSchema` (S5's config surface); `GlobalUser`/`OtherUser`/user-log
-types + the dev-mode user factory (S1/S15); generic table-column and CSV-import
+types + the dev-mode user factory (S18/S1/S13); generic table-column and CSV-import
 wizard types for S5/S6 (`CsvDetails`, `Mappings`, `Conflicts`); and the
 `ItemsHolder*` payload types, including `ItemsHolderPresentationObject` whose
 `runId` + `scopeToken` are the cache identity (S9) and the figure's provenance
@@ -71,7 +71,7 @@ error; optional ones default. The domains it carries: instance
 identity/language/ calendar, runs + assets paths (S8/S4), Postgres coords (S2),
 Valkey URL + client origins + port (S3/S1), Anthropic + token limits (S13),
 SendGrid/status/central-server secrets (S15), DHIS2 tuning +
-credentials-encryption key (S6/S7), auth flags (S1), deploy metadata, module
+credentials-encryption key (S6/S7), auth flags (S1/S18), deploy metadata, module
 file-name constants and the four staging-table names (S6/S8). Two import-time
 **side effects**: `setLanguage(_INSTANCE_LANGUAGE)` (panther's module-level
 language state) and `setCalendar(_INSTANCE_CALENDAR)` (lib's calendar state in

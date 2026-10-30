@@ -250,7 +250,7 @@ rows that exist, so `addUsers` and `batchUploadUsers` also answer 403
 `is_admin` TRUE on any row; `toggleUserAdmin` requires an admin outright, and so
 does `renameUserEmail` on a session, because a rename hands the whole account to
 an address nobody proved they own (the fleet's status-key call takes
-`requireStatusKey()`, above). An admin's own demotion and deletion are refused
+`requireGlobalPermissionOrStatusKey`, above). An admin's own demotion and deletion are refused
 as 403s (`ADMIN_SELF_DEMOTION_REFUSED`, `SELF_DELETION_REFUSED`).
 
 An admin is unrestricted: a promotion (`toggleUserAdmin`, an admin row of
