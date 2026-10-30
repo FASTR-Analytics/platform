@@ -6,7 +6,7 @@ name: `r_code`, `rCode`, `r_code__<round>`. The AI copilot reads those names in
 its tools and repeats them to users, and users see them as workbook headers.
 This plan renames every one of them to plain "code" and "filter code".
 
-**Next step:** Do 2
+**Next step:** Do 3
 
 - Branch: `main`.
 - Repos: `wb-fastr` (steps 1 to 4), `../wb-fastr-site` (step 4),
