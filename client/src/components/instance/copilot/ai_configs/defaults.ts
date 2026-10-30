@@ -9,9 +9,9 @@ export const DEFAULT_BUILTIN_TOOLS = { webSearch: true };
 const ISO_RE = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/;
 
 // One request the chat sent to the proxy, as the model receives it: the body
-// is the JSON the SDK serialised (system, messages, tools, model, sampling),
-// which the proxy forwards unchanged, and the beta header is the one it
-// filters. Recorded only under AI_DEBUG, bounded, newest last.
+// is the JSON the SDK serialised (system, messages, tools, model, thinking,
+// output_config), which the proxy forwards unchanged, and the beta header is
+// the one it filters. Recorded only under AI_DEBUG, bounded, newest last.
 export type CopilotRequestRecord = {
   at: string;
   status: number | null;
