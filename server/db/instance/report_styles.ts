@@ -10,6 +10,8 @@ import {
 import { tryCatchDatabaseAsync } from "../utils.ts";
 
 export const REPORT_STYLE_NOT_FOUND = "Report style not found";
+export const REPORT_STYLE_EXCLUDES_REPORT =
+  "A style must be available to the report it is created from";
 
 type DBReportStyle = {
   id: string;
@@ -69,11 +71,18 @@ export async function getReportStyle(
   });
 }
 
+// The routes are product scoped: a style is created from, and changed or
+// deleted through, a report it is visible to, so an editor of one report
+// never reaches a style made for other reports.
 export async function createReportStyle(
   mainDb: Sql,
+  productId: string,
   body: ReportStyleBody,
 ): Promise<APIResponseWithData<ReportCustomStyle>> {
   return await tryCatchDatabaseAsync(async () => {
+    if (!reportStyleVisibleToProduct(body, productId)) {
+      return { success: false, err: REPORT_STYLE_EXCLUDES_REPORT };
+    }
     const id = crypto.randomUUID();
     const row = (
       await mainDb<DBReportStyle[]>`
@@ -96,12 +105,17 @@ export async function createReportStyle(
 
 export async function updateReportStyle(
   mainDb: Sql,
+  productId: string,
   styleId: string,
   body: ReportStyleBody,
 ): Promise<APIResponseWithData<ReportCustomStyle>> {
   return await tryCatchDatabaseAsync(async () => {
-    const row = (
-      await mainDb<DBReportStyle[]>`
+    const row = await mainDb.begin(async (sql) => {
+      if (!(await lockStyleVisibleTo(sql, styleId, productId))) {
+        return undefined;
+      }
+      return (
+        await sql<DBReportStyle[]>`
         UPDATE report_styles
         SET label = ${body.label.trim()},
             description = ${body.description.trim()},
@@ -109,24 +123,57 @@ export async function updateReportStyle(
             reference_css = ${body.referenceCss},
             colors = ${body.colors ? JSON.stringify(body.colors) : null},
             product_ids = ${
-        body.productIds ? JSON.stringify(body.productIds) : null
-      },
+          body.productIds ? JSON.stringify(body.productIds) : null
+        },
             last_updated = now()
         WHERE id = ${styleId}
         RETURNING *
       `
-    ).at(0);
-    if (!row) throw new Error(REPORT_STYLE_NOT_FOUND);
-    return { success: true, data: rowToStyle(row) };
+      ).at(0);
+    });
+    return row === undefined
+      ? { success: false, err: REPORT_STYLE_NOT_FOUND }
+      : { success: true, data: rowToStyle(row) };
   });
 }
 
 export async function deleteReportStyle(
   mainDb: Sql,
+  productId: string,
   styleId: string,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
-    await mainDb`DELETE FROM report_styles WHERE id = ${styleId}`;
-    return { success: true };
+    const deleted = await mainDb.begin(async (sql) => {
+      if (!(await lockStyleVisibleTo(sql, styleId, productId))) {
+        return false;
+      }
+      await sql`DELETE FROM report_styles WHERE id = ${styleId}`;
+      return true;
+    });
+    return deleted
+      ? { success: true }
+      : { success: false, err: REPORT_STYLE_NOT_FOUND };
   });
+}
+
+// A style the report cannot see answers as not found, as an unknown id does.
+async function lockStyleVisibleTo(
+  sql: Sql,
+  styleId: string,
+  productId: string,
+): Promise<boolean> {
+  const row = (
+    await sql<Pick<DBReportStyle, "product_ids">[]>`
+      SELECT product_ids FROM report_styles WHERE id = ${styleId} FOR UPDATE
+    `
+  ).at(0);
+  return row !== undefined &&
+    reportStyleVisibleToProduct(
+      {
+        productIds: row.product_ids
+          ? parseJsonOrThrow<string[]>(row.product_ids)
+          : null,
+      },
+      productId,
+    );
 }

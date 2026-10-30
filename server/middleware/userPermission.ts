@@ -111,10 +111,11 @@ function scopeIdsOf(value: unknown): ScopeId[] {
 // The route's targets come from the id fields the contract declares and nowhere
 // else: path product_id / folder_id and body productIds (subjects), body
 // targetProductId (a destination product), folderId and parentId (folders;
-// null = root), and scopeId. Only the folder routes declare folder_id or
-// parentId.
+// null = root), and scopeId. Whether the route is a folder route is the
+// registry's to say, never the request's.
 async function resolveProductAccessTargets(
   c: Context,
+  folderRoute: boolean,
 ): Promise<ProductAccessTargets> {
   const params = c.req.param() as Record<string, string | undefined>;
   let body: Record<string, unknown> = {};
@@ -140,7 +141,7 @@ async function resolveProductAccessTargets(
       ...stringsOf(body.parentId),
     ],
     scopeIds: scopeIdsOf(body.scopeId),
-    folderRoute: params.folder_id !== undefined || "parentId" in body,
+    folderRoute,
   };
 }
 
@@ -151,7 +152,10 @@ async function resolveProductAccessTargets(
  * never checks access itself. The product id in the path is the authority: a
  * future permission scheme replaces the policy, never the handlers.
  */
-export function requireProductAccess(level: ProductAccessLevel) {
+export function requireProductAccess(
+  level: ProductAccessLevel,
+  folderRoute: boolean,
+) {
   return createMiddleware<{ Variables: GuardVariables }>(
     async (c: Context, next: () => Promise<void>) => {
       if (c.req.method === "OPTIONS") {
@@ -163,7 +167,7 @@ export function requireProductAccess(level: ProductAccessLevel) {
         if (globalUser instanceof Response) {
           return globalUser;
         }
-        const targets = await resolveProductAccessTargets(c);
+        const targets = await resolveProductAccessTargets(c, folderRoute);
         const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
         if (!(await productAccessPolicy(mainDb, globalUser, level, targets))) {
           c.status(403);

@@ -697,6 +697,7 @@ defineRoute(
   routesDatasets,
   "previewDatasetHfaFacilityColumns",
   requireGlobalPermission("can_configure_data"),
+  requireVisibleAssets("csvFileName", "xlsFormFileName"),
   log("previewDatasetHfaFacilityColumns"),
   async (c, { body }) => {
     return c.json(
@@ -727,6 +728,7 @@ defineRoute(
   routesDatasets,
   "previewDatasetHfaFacilityChanges",
   requireGlobalPermission("can_configure_data"),
+  requireVisibleAssets("csvFileName", "xlsFormFileName"),
   log("previewDatasetHfaFacilityChanges"),
   async (c, { body }) => {
     return c.json(

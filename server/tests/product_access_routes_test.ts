@@ -329,6 +329,56 @@ Deno.test("product levels: the guard, the access routes and the bulk action", as
       const res = await setAccess(owner, id, "none", sharing);
       assertEquals(res.status, 200, JSON.stringify(res.body));
     }
+
+    // A body naming parentId does not make a product route a folder route,
+    // which would skip every product-level check.
+    assertEquals(
+      (await call(stranger, "PUT", `/products/${report}/access`, {
+        defaultAccess: "edit",
+        grants: [],
+        parentId: null,
+      })).status,
+      403,
+    );
+
+    // A report style is reached only through a report it is visible to.
+    const otherReport = await create(owner, "report");
+    const styleBody = (productIds: string[] | null) => ({
+      label: `Levels style ${tag}`,
+      description: "",
+      brief: "b",
+      referenceCss: null,
+      colors: null,
+      productIds,
+    });
+    const style = await ok<{ id: string }>(
+      owner,
+      "POST",
+      `/products/${report}/report/styles`,
+      styleBody([report]),
+    );
+    const otherStylePath = `/products/${otherReport}/report/styles/${style.id}`;
+    const elsewhere = await call(owner, "PUT", otherStylePath, styleBody(null));
+    assertEquals(elsewhere.status, 404, JSON.stringify(elsewhere.body));
+    assertEquals(
+      (await call(owner, "DELETE", otherStylePath)).status,
+      404,
+    );
+    const excluded = await call(
+      owner,
+      "POST",
+      `/products/${otherReport}/report/styles`,
+      styleBody([report]),
+    );
+    assertEquals(excluded.body.success, false);
+    await ok(
+      owner,
+      "PUT",
+      `/products/${report}/report/styles/${style.id}`,
+      styleBody([report]),
+    );
+    await ok(owner, "DELETE", `/products/${report}/report/styles/${style.id}`);
+
     const slide = await ok<{ slideId: string }>(
       owner,
       "POST",
