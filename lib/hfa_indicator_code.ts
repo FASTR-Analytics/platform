@@ -234,6 +234,14 @@ export type HfaCodeRow = {
   code: string;
 };
 
+export function hfaCodeRowLabel(field: HfaCodeRow["field"]): string {
+  return field === "code"
+    ? "code"
+    : field === "filterCode"
+    ? "filter code"
+    : `variant ${field.slice("variant:".length)}`;
+}
+
 // Every row whose code is not blank and does not parse, with the parse error:
 // what a write boundary refuses, since such a snippet can never run.
 export function unparseableHfaCode(
@@ -539,11 +547,17 @@ export type HfaFieldIssue = HfaCodeIssue & {
   itemId?: string;
 };
 
-export const HFA_FIELD_LABELS: Record<HfaFieldIssue["field"], string> = {
+const HFA_FIELD_LABELS: Record<HfaFieldIssue["field"], string> = {
   code: "code",
   filterCode: "filter code",
   variantCode: "variant code",
 };
+
+export function describeHfaFieldIssue(i: HfaFieldIssue): string {
+  return `${
+    i.itemId === undefined ? HFA_FIELD_LABELS[i.field] : `variant ${i.itemId}`
+  } (${i.kind}): ${i.text.en}`;
+}
 
 export type HfaRoundStatus = {
   timePoint: string;

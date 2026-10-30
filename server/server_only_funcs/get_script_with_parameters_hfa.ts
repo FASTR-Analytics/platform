@@ -167,8 +167,8 @@ function emitSnippet(
   snippet: HfaIndicatorCode,
   analyse: AnalyseSnippet,
 ): {
-  code: string;
-  filterCode: string;
+  codeAsR: string;
+  filterAsR: string;
   deps: ExtractedDependencies;
 } {
   const analysis = analyse(snippet);
@@ -178,8 +178,8 @@ function emitSnippet(
     );
   }
   return {
-    code: emitHfaCodeAsR(analysis.code),
-    filterCode: analysis.filter ? emitHfaCodeAsR(analysis.filter) : "",
+    codeAsR: emitHfaCodeAsR(analysis.code),
+    filterAsR: analysis.filter ? emitHfaCodeAsR(analysis.filter) : "",
     deps: analysis.deps,
   };
 }
@@ -207,14 +207,14 @@ function buildPerTimePointMutateExpression(
     if (!snippet.code.trim()) continue;
 
     const timePoint = snippet.timePoint.replace(/"/g, '\\"');
-    const { code, filterCode, deps } = emitSnippet(snippet, analyse);
+    const { codeAsR, filterAsR, deps } = emitSnippet(snippet, analyse);
     for (const variableId of deps.variableIds) {
       boundVariableIds.add(variableId);
     }
 
-    if (filterCode) {
+    if (filterAsR) {
       timePointBranches.push(
-        `    time_point == "${timePoint}" & (is.na(${filterCode}) | !(${filterCode})) ~ NA_real_`,
+        `    time_point == "${timePoint}" & (is.na(${filterAsR}) | !(${filterAsR})) ~ NA_real_`,
       );
     }
 
@@ -222,14 +222,14 @@ function buildPerTimePointMutateExpression(
       // A numeric expression evaluating to NA already returns NA, so the
       // result gate is implicit in the value branch.
       timePointBranches.push(
-        `    time_point == "${timePoint}" ~ ${code}`,
+        `    time_point == "${timePoint}" ~ ${codeAsR}`,
       );
     } else {
       timePointBranches.push(
-        `    time_point == "${timePoint}" & is.na(${code}) ~ NA_real_`,
+        `    time_point == "${timePoint}" & is.na(${codeAsR}) ~ NA_real_`,
       );
       timePointBranches.push(
-        `    time_point == "${timePoint}" & (${code}) ~ 1`,
+        `    time_point == "${timePoint}" & (${codeAsR}) ~ 1`,
       );
       timePointBranches.push(
         `    time_point == "${timePoint}" ~ 0`,
@@ -268,7 +268,7 @@ function buildPerTimePointStatusExpression(
     if (!snippet.code.trim()) continue;
 
     const timePoint = snippet.timePoint.replace(/"/g, '\\"');
-    const { filterCode, deps } = emitSnippet(snippet, analyse);
+    const { filterAsR, deps } = emitSnippet(snippet, analyse);
 
     // Applicability is decided first, over the filter variables only: a facility
     // is not_applicable when the filter is false, or when a filter variable is
@@ -286,11 +286,11 @@ function buildPerTimePointStatusExpression(
         .join(" | ")
       : "FALSE";
 
-    if (filterCode) {
+    if (filterAsR) {
       const filterUnknownChecks = deps.filterVariableIds.map((v) =>
         statusFilterUnknownCheck(v, sentinelMap)
       );
-      const notApplicableCheck = [`!(${filterCode})`, ...filterUnknownChecks]
+      const notApplicableCheck = [`!(${filterAsR})`, ...filterUnknownChecks]
         .join(" | ");
       branches.push(
         `    time_point == "${timePoint}" & (${notApplicableCheck}) ~ "not_applicable"`,

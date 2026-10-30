@@ -5,6 +5,7 @@ import {
   APIResponseWithData,
   composeHfaVariantColumnName,
   describeHfaCodeError,
+  hfaCodeRowLabel,
   type HfaDictionaryForValidation,
   type HfaIndicator,
   type HfaIndicatorCategory,
@@ -1262,7 +1263,7 @@ function refuseCode(
     ...code
       .filter((c) => (c.filterCode?.trim() ?? "") !== "" && !c.code.trim())
       .map((c) =>
-        `${c.indicatorId}, time point "${c.timePoint}", filterCode: filter code requires indicator code`
+        `${c.indicatorId}, time point "${c.timePoint}": filter code requires indicator code`
       ),
     ...unparseableHfaCode([
       ...code.flatMap((c) => [
@@ -1286,9 +1287,9 @@ function refuseCode(
         code: c.code,
       })),
     ]).map((f) =>
-      `${f.indicatorId}, time point "${f.timePoint}", ${f.field}: ${
-        describeHfaCodeError(f.error).en
-      }`
+      `${f.indicatorId}, time point "${f.timePoint}", ${
+        hfaCodeRowLabel(f.field)
+      }: ${describeHfaCodeError(f.error).en}`
     ),
   ];
   return lines.length === 0

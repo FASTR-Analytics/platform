@@ -13,12 +13,12 @@ import {
   composeHfaIndicatorLabel,
   composeHfaVariantColumnName,
   COPILOT_TOOL_VIEWS,
+  describeHfaFieldIssue,
   formatHfaIndicatorDetailsForAI,
   formatHfaIndicatorListForAI,
   formatHfaVariableDetailsForAI,
   formatHfaVariableListForAI,
   getHfaIndicatorMeasure,
-  HFA_FIELD_LABELS,
   HFA_STRUCTURAL_VARIABLE_IDS,
   type HfaDictionaryForValidation,
   type HfaFieldIssue,
@@ -400,9 +400,7 @@ function issueLine(
   r: { timePoint: string },
   i: HfaFieldIssue,
 ): string {
-  return `${r.timePoint} ${
-    i.itemId === undefined ? HFA_FIELD_LABELS[i.field] : `variant ${i.itemId}`
-  } (${i.kind}): ${i.text.en}`;
+  return `${r.timePoint} ${describeHfaFieldIssue(i)}`;
 }
 
 // The key of one field a write touches, matched against the issues the status
@@ -636,7 +634,7 @@ function mergeUpdate(u: UpdateEntry, before: HfaIndicator, state: WriteState) {
   for (const r of u.code ?? []) {
     if (r.code === undefined && r.filterCode === undefined) {
       throw new AIToolFailure(
-        `${id}: round "${r.timePoint}" names neither code nor filterCode.`,
+        `${id}: round "${r.timePoint}" names neither code nor filter code.`,
       );
     }
     const round = rounds.get(r.timePoint) ??

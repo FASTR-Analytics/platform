@@ -2,6 +2,7 @@ import { AIToolFailure, createAITool } from "panther";
 import { z } from "zod";
 import {
   COPILOT_TOOL_VIEWS,
+  describeHfaFieldIssue,
   formatHfaIndicatorDetailsForAI,
   type HfaIndicator,
   hfaIndicatorCodeSchema,
@@ -50,7 +51,7 @@ const patchSchema = z.object({
   ),
   code: z.array(codeRoundSchema.partial({ code: true, filterCode: true }))
     .optional().describe(
-      "Rounds to patch; a round not listed is kept. An omitted code or filterCode is kept and an empty string clears it.",
+      "Rounds to patch; a round not listed is kept. An omitted code or filter code is kept and an empty string clears it.",
     ),
   variantCode: z.array(
     hfaIndicatorVariantCodeSchema.omit({ indicatorId: true }),
@@ -207,7 +208,7 @@ function validatePatch(
     seenRounds.add(round.timePoint);
     if (round.code === undefined && round.filterCode === undefined) {
       throw new AIToolFailure(
-        `Round "${round.timePoint}" names no field to change; give code, filterCode or both.`,
+        `Round "${round.timePoint}" names no field to change; give code, filter code or both.`,
       );
     }
   }
@@ -393,11 +394,7 @@ export function getClientToolsForHfaIndicatorEditor() {
           "Round status after the change:",
           ...(status?.rounds ?? []).flatMap((r) => [
             `- ${r.timePoint}: ${r.status}`,
-            ...r.issues.map((i) =>
-              `  ${
-                i.itemId === undefined ? i.field : `variant ${i.itemId}`
-              } (${i.kind}): ${i.text.en}`
-            ),
+            ...r.issues.map((i) => `  ${describeHfaFieldIssue(i)}`),
           ]),
         ].join("\n");
       },

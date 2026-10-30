@@ -1,5 +1,5 @@
 import {
-  HFA_FIELD_LABELS,
+  describeHfaFieldIssue,
   hfaIndicatorCodeIdentifiers,
   type HfaIndicatorStatus,
   type HfaRoundStatus,
@@ -181,11 +181,7 @@ function roundStatusCounts(status: HfaIndicatorStatus | undefined): string {
 }
 
 function issueLines(round: HfaRoundStatus, prefix: string): string[] {
-  return round.issues.map((i) =>
-    `${prefix}${
-      i.itemId === undefined ? HFA_FIELD_LABELS[i.field] : `variant ${i.itemId}`
-    } (${i.kind}): ${i.text.en}`
-  );
+  return round.issues.map((i) => `${prefix}${describeHfaFieldIssue(i)}`);
 }
 
 type RoundLines = { timePoint: string; head: string; body: string[] };
