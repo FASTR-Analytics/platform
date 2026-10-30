@@ -137,8 +137,8 @@ export function dbRowToHfaIndicatorCode(
   return {
     indicatorId: row.indicator_id,
     timePoint: row.time_point,
-    rCode: row.code,
-    rFilterCode: row.filter_code ?? undefined,
+    code: row.code,
+    filterCode: row.filter_code ?? undefined,
   };
 }
 
@@ -170,7 +170,7 @@ export function dbRowToHfaIndicatorVariantCode(
     indicatorId: row.indicator_id,
     timePoint: row.time_point,
     itemId: row.item_id,
-    rCode: row.code,
+    code: row.code,
   };
 }
 
@@ -928,19 +928,19 @@ export async function batchUploadHfaIndicators(
 
       const created = new Set(createdIndicatorIds);
       for (const c of code) {
-        if (!c.rCode.trim() || !created.has(c.indicatorId)) continue;
+        if (!c.code.trim() || !created.has(c.indicatorId)) continue;
         await sql`
           INSERT INTO hfa_indicator_code (indicator_id, time_point, code, filter_code)
-          VALUES (${c.indicatorId}, ${c.timePoint}, ${c.rCode}, ${
-          c.rFilterCode ?? null
+          VALUES (${c.indicatorId}, ${c.timePoint}, ${c.code}, ${
+          c.filterCode ?? null
         })
         `;
       }
       for (const c of variantCode) {
-        if (!c.rCode.trim() || !created.has(c.indicatorId)) continue;
+        if (!c.code.trim() || !created.has(c.indicatorId)) continue;
         await sql`
           INSERT INTO hfa_indicator_variant_code (indicator_id, time_point, item_id, code)
-          VALUES (${c.indicatorId}, ${c.timePoint}, ${c.itemId}, ${c.rCode})
+          VALUES (${c.indicatorId}, ${c.timePoint}, ${c.itemId}, ${c.code})
         `;
       }
       await assertVariantIntegrity(sql);
@@ -1218,13 +1218,13 @@ export async function importHfaIndicatorsWorkbook(
         await sql`DELETE FROM hfa_indicator_code WHERE indicator_id = ${indicatorId}`;
       }
       for (const c of code) {
-        if (!c.rCode.trim() || !insertedIndicatorIds.has(c.indicatorId)) {
+        if (!c.code.trim() || !insertedIndicatorIds.has(c.indicatorId)) {
           continue;
         }
         await sql`
           INSERT INTO hfa_indicator_code (indicator_id, time_point, code, filter_code)
-          VALUES (${c.indicatorId}, ${c.timePoint}, ${c.rCode}, ${
-          c.rFilterCode ?? null
+          VALUES (${c.indicatorId}, ${c.timePoint}, ${c.code}, ${
+          c.filterCode ?? null
         })
         `;
       }
@@ -1232,11 +1232,11 @@ export async function importHfaIndicatorsWorkbook(
         await sql`DELETE FROM hfa_indicator_variant_code WHERE indicator_id = ${indicatorId}`;
       }
       for (const vc of variantCode) {
-        if (!vc.rCode.trim()) continue;
+        if (!vc.code.trim()) continue;
         if (!insertedIndicatorIds.has(vc.indicatorId)) continue;
         await sql`
           INSERT INTO hfa_indicator_variant_code (indicator_id, time_point, item_id, code)
-          VALUES (${vc.indicatorId}, ${vc.timePoint}, ${vc.itemId}, ${vc.rCode})
+          VALUES (${vc.indicatorId}, ${vc.timePoint}, ${vc.itemId}, ${vc.code})
         `;
       }
       await assertVariantIntegrity(sql);
@@ -1247,8 +1247,8 @@ export async function importHfaIndicatorsWorkbook(
 
 type HfaIndicatorMainCode = {
   timePoint: string;
-  rCode: string;
-  rFilterCode?: string | undefined;
+  code: string;
+  filterCode?: string | undefined;
 };
 
 // Why the code a write would store is refused, or nothing: a filter without
@@ -1260,30 +1260,30 @@ function refuseCode(
 ): string | undefined {
   const lines = [
     ...code
-      .filter((c) => (c.rFilterCode?.trim() ?? "") !== "" && !c.rCode.trim())
+      .filter((c) => (c.filterCode?.trim() ?? "") !== "" && !c.code.trim())
       .map((c) =>
-        `${c.indicatorId}, time point "${c.timePoint}", rFilterCode: filter code requires indicator code`
+        `${c.indicatorId}, time point "${c.timePoint}", filterCode: filter code requires indicator code`
       ),
     ...unparseableHfaCode([
       ...code.flatMap((c) => [
         {
           indicatorId: c.indicatorId,
           timePoint: c.timePoint,
-          field: "rCode" as const,
-          code: c.rCode,
+          field: "code" as const,
+          code: c.code,
         },
         {
           indicatorId: c.indicatorId,
           timePoint: c.timePoint,
-          field: "rFilterCode" as const,
-          code: c.rFilterCode ?? "",
+          field: "filterCode" as const,
+          code: c.filterCode ?? "",
         },
       ]),
       ...variantCode.map((c) => ({
         indicatorId: c.indicatorId,
         timePoint: c.timePoint,
         field: `variant:${c.itemId}` as const,
-        code: c.rCode,
+        code: c.code,
       })),
     ]).map((f) =>
       `${f.indicatorId}, time point "${f.timePoint}", ${f.field}: ${
@@ -1299,7 +1299,7 @@ function refuseCode(
 type HfaIndicatorItemCode = {
   timePoint: string;
   itemId: string;
-  rCode: string;
+  code: string;
 };
 
 // One indicator's write: its row, and its main and variant code when given.
@@ -1313,7 +1313,7 @@ export type HfaIndicatorBatchEntry = {
 
 function refuseUngroupedVariantCode(
   indicators: HfaIndicator[],
-  variantCode: { indicatorId: string; rCode: string }[],
+  variantCode: { indicatorId: string; code: string }[],
 ): string | undefined {
   const ungrouped = new Set(
     indicators.filter((i) => i.variantGroupId === null).map((i) =>
@@ -1323,7 +1323,7 @@ function refuseUngroupedVariantCode(
   const ids = [
     ...new Set(
       variantCode
-        .filter((c) => c.rCode.trim() !== "" && ungrouped.has(c.indicatorId))
+        .filter((c) => c.code.trim() !== "" && ungrouped.has(c.indicatorId))
         .map((c) => c.indicatorId),
     ),
   ];
@@ -1359,20 +1359,20 @@ async function writeHfaIndicatorEntry(
   if (code !== undefined) {
     await sql`DELETE FROM hfa_indicator_code WHERE indicator_id = ${id}`;
     for (const c of code) {
-      if (!c.rCode.trim()) continue;
+      if (!c.code.trim()) continue;
       await sql`
         INSERT INTO hfa_indicator_code (indicator_id, time_point, code, filter_code)
-        VALUES (${id}, ${c.timePoint}, ${c.rCode}, ${c.rFilterCode ?? null})
+        VALUES (${id}, ${c.timePoint}, ${c.code}, ${c.filterCode ?? null})
       `;
     }
   }
   if (variantCode !== undefined) {
     await sql`DELETE FROM hfa_indicator_variant_code WHERE indicator_id = ${id}`;
     for (const c of variantCode) {
-      if (!c.rCode.trim()) continue;
+      if (!c.code.trim()) continue;
       await sql`
         INSERT INTO hfa_indicator_variant_code (indicator_id, time_point, item_id, code)
-        VALUES (${id}, ${c.timePoint}, ${c.itemId}, ${c.rCode})
+        VALUES (${id}, ${c.timePoint}, ${c.itemId}, ${c.code})
       `;
     }
   }

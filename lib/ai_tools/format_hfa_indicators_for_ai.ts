@@ -1,4 +1,5 @@
 import {
+  HFA_FIELD_LABELS,
   hfaIndicatorCodeIdentifiers,
   type HfaIndicatorStatus,
   type HfaRoundStatus,
@@ -65,7 +66,7 @@ export function hfaVariableUsage(
     for (const id of codeIdentifiers(c)) add(id, c.timePoint, c.indicatorId);
   }
   for (const c of variantCode) {
-    for (const id of hfaIndicatorCodeIdentifiers(c.rCode)) {
+    for (const id of hfaIndicatorCodeIdentifiers(c.code)) {
       add(id, c.timePoint, c.indicatorId);
     }
   }
@@ -74,8 +75,8 @@ export function hfaVariableUsage(
 
 function codeIdentifiers(c: HfaIndicatorCode): string[] {
   return [
-    ...hfaIndicatorCodeIdentifiers(c.rCode),
-    ...hfaIndicatorCodeIdentifiers(c.rFilterCode ?? ""),
+    ...hfaIndicatorCodeIdentifiers(c.code),
+    ...hfaIndicatorCodeIdentifiers(c.filterCode ?? ""),
   ];
 }
 
@@ -182,7 +183,7 @@ function roundStatusCounts(status: HfaIndicatorStatus | undefined): string {
 function issueLines(round: HfaRoundStatus, prefix: string): string[] {
   return round.issues.map((i) =>
     `${prefix}${
-      i.itemId === undefined ? i.field : `variant ${i.itemId}`
+      i.itemId === undefined ? HFA_FIELD_LABELS[i.field] : `variant ${i.itemId}`
     } (${i.kind}): ${i.text.en}`
   );
 }
@@ -242,14 +243,12 @@ function sharedCode(
 ): string {
   const rounds = index.timePoints
     .map((tp) => mainCode(index, id, tp))
-    .filter((c) =>
-      c !== undefined && (c.rCode.trim() || c.rFilterCode?.trim())
-    );
+    .filter((c) => c !== undefined && (c.code.trim() || c.filterCode?.trim()));
   if (rounds.length === 0) return "code: none";
   if (status?.consistent === false) return "code: differs by round";
   const c = rounds[0]!;
-  return `code: ${c.rCode.trim() || "(none)"}${
-    c.rFilterCode?.trim() ? ` [filter: ${c.rFilterCode.trim()}]` : ""
+  return `code: ${c.code.trim() || "(none)"}${
+    c.filterCode?.trim() ? ` [filter: ${c.filterCode.trim()}]` : ""
   }`;
 }
 
@@ -274,7 +273,7 @@ export function formatHfaIndicatorListForAI(
   for (const ind of listed) {
     const status = input.status.get(ind.indicatorId);
     const withCode = index.timePoints.filter((tp) =>
-      mainCode(index, ind.indicatorId, tp)?.rCode.trim()
+      mainCode(index, ind.indicatorId, tp)?.code.trim()
     ).length;
     lines.push(
       [
@@ -415,7 +414,7 @@ function indicatorBlock(
   const rounds = (status?.rounds ?? []).map((r): RoundLines => {
     const main = mainCode(index, ind.indicatorId, r.timePoint);
     const variants = index.variantCode(ind.indicatorId, r.timePoint)
-      .filter((c) => itemIds.has(c.itemId) && c.rCode.trim() !== "");
+      .filter((c) => itemIds.has(c.itemId) && c.code.trim() !== "");
     if (r.status === "none" && variants.length === 0) {
       return { timePoint: r.timePoint, head: "no code", body: [] };
     }
@@ -423,11 +422,11 @@ function indicatorBlock(
       timePoint: r.timePoint,
       head: r.status,
       body: [
-        `  rCode: ${main?.rCode.trim() || "(none)"}`,
-        ...(main?.rFilterCode?.trim()
-          ? [`  rFilterCode: ${main.rFilterCode.trim()}`]
+        `  code: ${main?.code.trim() || "(none)"}`,
+        ...(main?.filterCode?.trim()
+          ? [`  filter code: ${main.filterCode.trim()}`]
           : []),
-        ...variants.map((v) => `  variant ${v.itemId}: ${v.rCode.trim()}`),
+        ...variants.map((v) => `  variant ${v.itemId}: ${v.code.trim()}`),
         ...issueLines(r, "  issue: "),
       ],
     };
@@ -448,14 +447,14 @@ function namedIndicatorLines(
   const rounds = (input.status.get(ind.indicatorId)?.rounds ?? []).map(
     (r): RoundLines => {
       const main = mainCode(index, ind.indicatorId, r.timePoint);
-      const rCode = main?.rCode.trim() ?? "";
-      const rFilterCode = main?.rFilterCode?.trim() ?? "";
+      const code = main?.code.trim() ?? "";
+      const filterCode = main?.filterCode?.trim() ?? "";
       return {
         timePoint: r.timePoint,
-        head: rCode === "" && rFilterCode === ""
+        head: code === "" && filterCode === ""
           ? "no code"
-          : `${r.status}; rCode: ${rCode || "(none)"}${
-            rFilterCode ? `; rFilterCode: ${rFilterCode}` : ""
+          : `${r.status}; code: ${code || "(none)"}${
+            filterCode ? `; filter code: ${filterCode}` : ""
           }`,
         body: [],
       };
@@ -485,7 +484,7 @@ export function formatHfaIndicatorDetailsForAI(
         codeIdentifiers(main).forEach((n) => names.add(n));
       }
       for (const v of index.variantCode(id, tp)) {
-        hfaIndicatorCodeIdentifiers(v.rCode).forEach((n) => names.add(n));
+        hfaIndicatorCodeIdentifiers(v.code).forEach((n) => names.add(n));
       }
     }
   }

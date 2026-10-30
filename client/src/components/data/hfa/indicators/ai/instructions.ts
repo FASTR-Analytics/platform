@@ -13,7 +13,7 @@ export function getHfaIndicatorsGuidance(): string {
     "",
     "An INDICATOR is a measure computed per facility from those variables. Each indicator has:",
     "- a SHORT label (brief, for dense charts) and a LONG label, the `definition` (the full descriptive text);",
-    "- per round, INDICATOR CODE: `rCode`, an expression evaluated per facility against that round's variables, and an optional `rFilterCode`, a yes/no expression that decides which facilities are in the denominator;",
+    "- per round, INDICATOR CODE, the `code`: an expression evaluated per facility against that round's variables, and an optional FILTER CODE, the `filterCode`: a yes/no expression that decides which facilities are in the denominator;",
     "- a TYPE and an AGGREGATION, which together fix the measurement;",
     "- a category, an optional sub-category (which must belong to that category), and zero or more service categories;",
     "- optionally a VARIANT GROUP (see below).",

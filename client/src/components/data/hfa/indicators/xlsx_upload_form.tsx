@@ -597,7 +597,7 @@ function ReconcileStep(p: {
       }
 
       const filterOnly = code.filter(
-        (c) => !c.rCode.trim() && (c.rFilterCode ?? "").trim(),
+        (c) => !c.code.trim() && (c.filterCode ?? "").trim(),
       );
       if (filterOnly.length > 0) {
         return {

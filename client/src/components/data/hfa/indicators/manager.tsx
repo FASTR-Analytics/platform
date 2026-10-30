@@ -321,7 +321,7 @@ export function HfaIndicatorsManager(p: Props) {
     });
     const roundsWithCode = new Map<string, number>();
     for (const c of codeSt.data) {
-      if (c.rCode.trim() === "") continue;
+      if (c.code.trim() === "") continue;
       roundsWithCode.set(
         c.indicatorId,
         (roundsWithCode.get(c.indicatorId) ?? 0) + 1,
@@ -456,8 +456,8 @@ export function HfaIndicatorsManager(p: Props) {
     for (const c of codeSt.data) {
       if (deleted.has(c.indicatorId)) continue;
       const identifiers = [
-        ...hfaIndicatorCodeIdentifiers(c.rCode),
-        ...(c.rFilterCode ? hfaIndicatorCodeIdentifiers(c.rFilterCode) : []),
+        ...hfaIndicatorCodeIdentifiers(c.code),
+        ...(c.filterCode ? hfaIndicatorCodeIdentifiers(c.filterCode) : []),
       ];
       if (identifiers.some((id) => deleted.has(id))) {
         referencing.add(c.indicatorId);
@@ -465,7 +465,7 @@ export function HfaIndicatorsManager(p: Props) {
     }
     for (const c of variantCodeSt.data) {
       if (deleted.has(c.indicatorId)) continue;
-      if (hfaIndicatorCodeIdentifiers(c.rCode).some((id) => deleted.has(id))) {
+      if (hfaIndicatorCodeIdentifiers(c.code).some((id) => deleted.has(id))) {
         referencing.add(c.indicatorId);
       }
     }
@@ -616,8 +616,8 @@ export function HfaIndicatorsManager(p: Props) {
       const used = usedByTimePoint.get(c.timePoint);
       if (!available || !used) continue;
       const identifiers = [
-        ...hfaIndicatorCodeIdentifiers(c.rCode),
-        ...(c.rFilterCode ? hfaIndicatorCodeIdentifiers(c.rFilterCode) : []),
+        ...hfaIndicatorCodeIdentifiers(c.code),
+        ...(c.filterCode ? hfaIndicatorCodeIdentifiers(c.filterCode) : []),
       ];
       for (const id of identifiers) {
         if (available.has(id)) used.add(id);
@@ -629,7 +629,7 @@ export function HfaIndicatorsManager(p: Props) {
       const available = availableByTimePoint.get(c.timePoint);
       const used = usedByTimePoint.get(c.timePoint);
       if (!available || !used) continue;
-      for (const id of hfaIndicatorCodeIdentifiers(c.rCode)) {
+      for (const id of hfaIndicatorCodeIdentifiers(c.code)) {
         if (available.has(id)) used.add(id);
       }
     }

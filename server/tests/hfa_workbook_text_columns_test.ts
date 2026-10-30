@@ -191,7 +191,7 @@ Deno.test("an exported workbook re-imports with the same labels", async () => {
     code: [{
       indicatorId: "ind001",
       timePoint: "Round 1",
-      rCode: "sh_01_c==1",
+      code: "sh_01_c==1",
     }],
     variantCode: [],
     timePoints: ["Round 1"],

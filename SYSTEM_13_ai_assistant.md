@@ -1265,9 +1265,9 @@ Issues in fields the call leaves alone, and every result-type warning, ride the
 preview and the result. `create_hfa_indicators` takes each indicator's fields,
 variant group, per-round code and per-item variant code. `update_hfa_indicators`
 takes any mix of an indicator's fields, group, code and variant code: a round or
-variant row not listed is kept, an omitted `rCode` or `rFilterCode` is kept and
-`""` clears it, clearing `rCode` removes the round's code, and a variant row's
-`rCode: ""` removes it; a category change clears a sub-category that no longer
+variant row not listed is kept, an omitted `code` or `filterCode` is kept and
+`""` clears it, clearing `code` removes the round's code, and a variant row's
+`code: ""` removes it; a category change clears a sub-category that no longer
 fits and a group change drops the previous group's variant code. It returns
 `skip` when nothing given differs from stored state; its result reports each
 given field as changed or no change, the dropped variant code and the issues

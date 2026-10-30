@@ -48,18 +48,18 @@ export type HfaIndicator = {
 export type HfaIndicatorCode = {
   indicatorId: string;
   timePoint: string;
-  rCode: string;
-  rFilterCode?: string | undefined;
+  code: string;
+  filterCode?: string | undefined;
 };
 
 // Per-item numerator code for an indicator's variant group. Filter code has no
-// per-item slot: `rFilterCode` on the parent's HfaIndicatorCode row is shared
+// per-item slot: `filterCode` on the parent's HfaIndicatorCode row is shared
 // by all items of that (indicator, time_point).
 export type HfaIndicatorVariantCode = {
   indicatorId: string;
   timePoint: string;
   itemId: string;
-  rCode: string;
+  code: string;
 };
 
 // The no-run / unreadable-run state: every taxonomy list empty.

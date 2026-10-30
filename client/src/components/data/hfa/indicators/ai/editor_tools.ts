@@ -48,14 +48,14 @@ const patchSchema = z.object({
   variantGroupId: field.variantGroupId.optional().describe(
     "Variant group id, null to clear. Changing the group drops the previous group's variant code.",
   ),
-  code: z.array(codeRoundSchema.partial({ rCode: true, rFilterCode: true }))
+  code: z.array(codeRoundSchema.partial({ code: true, filterCode: true }))
     .optional().describe(
-      "Rounds to patch; a round not listed is kept. An omitted rCode or rFilterCode is kept and an empty string clears it.",
+      "Rounds to patch; a round not listed is kept. An omitted code or filterCode is kept and an empty string clears it.",
     ),
   variantCode: z.array(
     hfaIndicatorVariantCodeSchema.omit({ indicatorId: true }),
   ).optional().describe(
-    "Variant rows to set, for items of the group the patch leaves; an empty rCode removes the row.",
+    "Variant rows to set, for items of the group the patch leaves; an empty code removes the row.",
   ),
 });
 
@@ -89,8 +89,8 @@ function draftInput(
     ...draft.code.map((c) => ({
       indicatorId,
       timePoint: c.timePoint,
-      rCode: c.rCode,
-      rFilterCode: c.rFilterCode || undefined,
+      code: c.code,
+      filterCode: c.filterCode || undefined,
     })),
   ];
   const variantCode = [
@@ -205,9 +205,9 @@ function validatePatch(
       );
     }
     seenRounds.add(round.timePoint);
-    if (round.rCode === undefined && round.rFilterCode === undefined) {
+    if (round.code === undefined && round.filterCode === undefined) {
       throw new AIToolFailure(
-        `Round "${round.timePoint}" names no field to change; give rCode, rFilterCode or both.`,
+        `Round "${round.timePoint}" names no field to change; give code, filterCode or both.`,
       );
     }
   }
@@ -300,15 +300,15 @@ function describeChanges(
     const b = before.code.find((c) => c.timePoint === round.timePoint);
     const a = after.code.find((c) => c.timePoint === round.timePoint);
     if (b === undefined || a === undefined) continue;
-    if (round.rCode !== undefined) {
-      lines.push(changeLine(`${round.timePoint} rCode`, b.rCode, a.rCode));
+    if (round.code !== undefined) {
+      lines.push(changeLine(`${round.timePoint} code`, b.code, a.code));
     }
-    if (round.rFilterCode !== undefined) {
+    if (round.filterCode !== undefined) {
       lines.push(
         changeLine(
-          `${round.timePoint} rFilterCode`,
-          b.rFilterCode,
-          a.rFilterCode,
+          `${round.timePoint} filter code`,
+          b.filterCode,
+          a.filterCode,
         ),
       );
     }
@@ -317,7 +317,7 @@ function describeChanges(
     const find = (d: HfaIndicatorEditorDraft) =>
       d.variantCode.find((v) =>
         v.timePoint === row.timePoint && v.itemId === row.itemId
-      )?.rCode ?? null;
+      )?.code ?? null;
     lines.push(
       changeLine(
         `${row.timePoint} variant ${row.itemId}`,

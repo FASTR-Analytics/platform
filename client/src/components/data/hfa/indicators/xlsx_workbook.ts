@@ -85,18 +85,18 @@ export function buildHfaWorkbookBlob(args: {
     variantItemsAoa.push([vi.id, vi.groupId, vi.label]);
   }
 
-  const codeByKey = new Map<string, { rCode: string; rFilterCode: string }>();
+  const codeByKey = new Map<string, { code: string; filterCode: string }>();
   for (const c of code) {
     codeByKey.set(`${c.indicatorId}__${c.timePoint}`, {
-      rCode: c.rCode,
-      rFilterCode: c.rFilterCode ?? "",
+      code: c.code,
+      filterCode: c.filterCode ?? "",
     });
   }
   const variantCodeByKey = new Map<string, string>();
   for (const c of variantCode) {
     variantCodeByKey.set(
       `${c.indicatorId} / ${c.timePoint} / ${c.itemId}`,
-      c.rCode,
+      c.code,
     );
   }
 
@@ -136,7 +136,7 @@ export function buildHfaWorkbookBlob(args: {
     ];
     for (const tp of timePoints) {
       const entry = codeByKey.get(`${ind.indicatorId}__${tp}`);
-      row.push(entry?.rCode ?? "", entry?.rFilterCode ?? "");
+      row.push(entry?.code ?? "", entry?.filterCode ?? "");
     }
     for (const vi of sortedVariantItems) {
       for (const tp of timePoints) {
@@ -198,7 +198,7 @@ export type WorkbookShape = {
   variantItems: HfaWorkbookImport["variantItems"];
   indicators: HfaWorkbookImport["indicators"];
   // [indicatorIdx][xlsxPosition] raw code values
-  rawCode: Array<Array<{ rCode: string; rFilterCode: string }>>;
+  rawCode: Array<Array<{ code: string; filterCode: string }>>;
   // Variant code columns (labeled format only) and their per-indicator values:
   // [indicatorIdx][variantColumnIdx]
   variantColumns: Array<{ itemId: string; label: string }>;
@@ -928,10 +928,10 @@ export function detectHfaWorkbookShape(
     const rowAoa = (indicatorsAoa[indRows[i].index] ?? []).map((v) =>
       String(v ?? "").trim()
     );
-    const positionCode: Array<{ rCode: string; rFilterCode: string }> =
+    const positionCode: Array<{ code: string; filterCode: string }> =
       codeColumns.map((col) => ({
-        rCode: col.headerIndex >= 0 ? (rowAoa[col.headerIndex] ?? "") : "",
-        rFilterCode: col.filterHeaderIndex >= 0
+        code: col.headerIndex >= 0 ? (rowAoa[col.headerIndex] ?? "") : "",
+        filterCode: col.filterHeaderIndex >= 0
           ? (rowAoa[col.filterHeaderIndex] ?? "")
           : "",
       }));
@@ -999,15 +999,14 @@ export function applyTimePointMapping(
     const ind = shape.indicators[i];
     const posCode = shape.rawCode[i] ?? [];
     for (let k = 0; k < shape.xlsxCount; k++) {
-      const { rCode, rFilterCode } = posCode[k] ??
-        { rCode: "", rFilterCode: "" };
-      if (!rCode && !rFilterCode) continue;
+      const cell = posCode[k] ?? { code: "", filterCode: "" };
+      if (!cell.code && !cell.filterCode) continue;
       for (const tp of mapping[k] ?? []) {
         code.push({
           indicatorId: ind.indicatorId,
           timePoint: tp,
-          rCode,
-          rFilterCode: rFilterCode || undefined,
+          code: cell.code,
+          filterCode: cell.filterCode || undefined,
         });
       }
     }
@@ -1033,14 +1032,14 @@ export function applyVariantTimePointMapping(
     const ind = shape.indicators[i];
     const posCode = shape.rawVariantCode[i] ?? [];
     for (let k = 0; k < shape.variantColumns.length; k++) {
-      const rCode = posCode[k] ?? "";
-      if (!rCode) continue;
+      const code = posCode[k] ?? "";
+      if (!code) continue;
       for (const tp of labelToTps.get(shape.variantColumns[k].label) ?? []) {
         variantCode.push({
           indicatorId: ind.indicatorId,
           timePoint: tp,
           itemId: shape.variantColumns[k].itemId,
-          rCode,
+          code,
         });
       }
     }

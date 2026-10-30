@@ -61,7 +61,7 @@ export const hfaIndicatorVariantCodeSchema = z.object({
   indicatorId: z.string(),
   timePoint: z.string(),
   itemId: z.string(),
-  rCode: z.string(),
+  code: z.string(),
 });
 
 const RESERVED_INDICATOR_ID_MESSAGE =
@@ -109,8 +109,8 @@ const hfaIndicatorCreateSchema = hfaIndicatorEditSchema.omit({
 export const hfaIndicatorCodeSchema = z.object({
   indicatorId: z.string(),
   timePoint: z.string(),
-  rCode: z.string(),
-  rFilterCode: z.string().optional(),
+  code: z.string(),
+  filterCode: z.string().optional(),
 });
 
 const hfaWorkbookImportSchema = z.object({

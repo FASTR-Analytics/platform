@@ -13,8 +13,8 @@ import type { ExpressionNode } from "./indicator_expression/mod.ts";
 import type { HfaIndicator, HfaIndicatorCode } from "./types/mod.ts";
 
 export type ExtractedDependencies = {
-  // Dataset variable ids. `variableIds` is the union across rCode +
-  // rFilterCode (used by the value/missingness expression);
+  // Dataset variable ids. `variableIds` is the union across code + filter
+  // code (used by the value/missingness expression);
   // `codeVariableIds` and `filterVariableIds` split it by source so the
   // response-status expression can decide applicability (filter variables)
   // separately from answer status (code variables).
@@ -67,14 +67,14 @@ function analyseSnippet(
   knownVariableIds: Set<string>,
   parse: (source: string) => HfaCodeParse,
 ): SnippetAnalysis {
-  const code = parse(snippet.rCode.trim());
+  const code = parse(snippet.code.trim());
   if (!code.ok) {
     return {
       ok: false,
       problem: `Code does not parse: ${describeHfaCodeError(code.error).en}`,
     };
   }
-  const filterSource = snippet.rFilterCode?.trim() ?? "";
+  const filterSource = snippet.filterCode?.trim() ?? "";
   const filter = filterSource ? parse(filterSource) : undefined;
   if (filter !== undefined && !filter.ok) {
     return {
@@ -164,7 +164,7 @@ export function buildUnionDependencyGraph(
 
     const codeSnippets = codeByIndicator.get(indicator.indicatorId) ?? [];
     for (const snippet of codeSnippets) {
-      if (!snippet.rCode || snippet.rCode.trim() === "") continue;
+      if (!snippet.code || snippet.code.trim() === "") continue;
 
       const analysis = analyse(snippet);
       for (const problem of snippetProblems(analysis)) {

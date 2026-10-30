@@ -230,7 +230,7 @@ function findRefusedNode(
 export type HfaCodeRow = {
   indicatorId: string;
   timePoint: string;
-  field: "rCode" | "rFilterCode" | `variant:${string}`;
+  field: "code" | "filterCode" | `variant:${string}`;
   code: string;
 };
 
@@ -535,8 +535,14 @@ function resultTypeText(
 export type HfaRoundStatusKind = "none" | "error" | "warning" | "ready";
 
 export type HfaFieldIssue = HfaCodeIssue & {
-  field: "rCode" | "rFilterCode" | "variantCode";
+  field: "code" | "filterCode" | "variantCode";
   itemId?: string;
+};
+
+export const HFA_FIELD_LABELS: Record<HfaFieldIssue["field"], string> = {
+  code: "code",
+  filterCode: "filter code",
+  variantCode: "variant code",
 };
 
 export type HfaRoundStatus = {
@@ -601,9 +607,9 @@ export function hfaIndicatorsStatus(input: {
     const rounds = input.dictionary.timePoints.map((tp): HfaRoundStatus => {
       const variables = variablesByRound.get(tp.timePoint) ?? new Set();
       const main = code.find((c) => c.timePoint === tp.timePoint);
-      const rCode = main?.rCode ?? "";
-      const rFilterCode = main?.rFilterCode ?? "";
-      const hasCode = rCode.trim() !== "";
+      const mainCode = main?.code ?? "";
+      const filterCode = main?.filterCode ?? "";
+      const hasCode = mainCode.trim() !== "";
       const issues: HfaFieldIssue[] = [];
       const add = (
         field: HfaFieldIssue["field"],
@@ -618,29 +624,32 @@ export function hfaIndicatorsStatus(input: {
           );
         }
       };
-      add("rCode", validateAgainst(rCode, variables, allIds, id, parse).issues);
       add(
-        "rFilterCode",
-        validateAgainst(rFilterCode, variables, allIds, id, parse).issues,
+        "code",
+        validateAgainst(mainCode, variables, allIds, id, parse).issues,
       );
-      if (!hasCode && rFilterCode.trim() !== "") {
-        add("rFilterCode", [{
+      add(
+        "filterCode",
+        validateAgainst(filterCode, variables, allIds, id, parse).issues,
+      );
+      if (!hasCode && filterCode.trim() !== "") {
+        add("filterCode", [{
           kind: "filter_without_code",
           text: FILTER_WITHOUT_CODE,
         }]);
       }
       if (hasCode && cycle !== undefined) {
-        add("rCode", [{ kind: "cycle", text: cycle }]);
+        add("code", [{ kind: "cycle", text: cycle }]);
       }
-      const resultType = resultTypeText(rCode, ind.type, parse);
+      const resultType = resultTypeText(mainCode, ind.type, parse);
       if (resultType !== undefined) {
-        add("rCode", [{ kind: "result_type", text: resultType }]);
+        add("code", [{ kind: "result_type", text: resultType }]);
       }
       for (const v of variantCode) {
-        if (v.timePoint !== tp.timePoint || !v.rCode.trim()) continue;
+        if (v.timePoint !== tp.timePoint || !v.code.trim()) continue;
         add(
           "variantCode",
-          validateAgainst(v.rCode, variables, allIds, undefined, parse).issues,
+          validateAgainst(v.code, variables, allIds, undefined, parse).issues,
           v.itemId,
         );
         if (!hasCode) {
@@ -670,10 +679,10 @@ export function hfaIndicatorsStatus(input: {
 // The non-empty rounds have identical trimmed main and filter code. Variant
 // code is not compared.
 export function isHfaCodeConsistent(
-  code: { rCode: string; rFilterCode?: string | undefined }[],
+  code: { code: string; filterCode?: string | undefined }[],
 ): boolean {
-  const key = (c: { rCode: string; rFilterCode?: string | undefined }) =>
-    `${c.rCode.trim()}\u0000${c.rFilterCode?.trim() ?? ""}`;
+  const key = (c: { code: string; filterCode?: string | undefined }) =>
+    `${c.code.trim()}\u0000${c.filterCode?.trim() ?? ""}`;
   const nonEmpty = code.filter((c) => key(c) !== "\u0000");
   return nonEmpty.every((c) => key(c) === key(nonEmpty[0]));
 }

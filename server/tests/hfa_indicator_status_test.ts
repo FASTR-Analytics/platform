@@ -57,10 +57,10 @@ function indicator(
 function code(
   indicatorId: string,
   timePoint: string,
-  rCode: string,
-  rFilterCode?: string,
+  mainCode: string,
+  filterCode?: string,
 ): HfaIndicatorCode {
-  return { indicatorId, timePoint, rCode, rFilterCode };
+  return { indicatorId, timePoint, code: mainCode, filterCode };
 }
 
 function status(
@@ -109,11 +109,11 @@ Deno.test("a syntax error and an unknown variable are errors on their field", ()
   ]);
   assertEquals(kinds(r, "a", "R1"), {
     status: "error",
-    issues: ["rCode syntax", "rFilterCode unknown_variable"],
+    issues: ["code syntax", "filterCode unknown_variable"],
   });
   assertEquals(kinds(r, "a", "R2"), {
     status: "error",
-    issues: ["rCode unknown_variable"],
+    issues: ["code unknown_variable"],
   });
 });
 
@@ -124,8 +124,8 @@ Deno.test("main code may name another indicator but not its own id", () => {
   ]);
   assertEquals(kinds(r, "a", "R1"), { status: "ready", issues: [] });
   assertEquals(kinds(r, "b", "R1").issues, [
-    "rCode unknown_variable",
-    "rCode cycle",
+    "code unknown_variable",
+    "code cycle",
   ]);
 });
 
@@ -133,16 +133,16 @@ Deno.test("a filter without main code is filter_without_code", () => {
   const r = status([indicator("a")], [code("a", "R1", "", "q1 == 1")]);
   assertEquals(kinds(r, "a", "R1"), {
     status: "error",
-    issues: ["rFilterCode filter_without_code"],
+    issues: ["filterCode filter_without_code"],
   });
 });
 
 Deno.test("variant code is validated per item, may name its own indicator, and needs main code", () => {
   const ind = indicator("a", { variantGroupId: "g1" });
   const r = status([ind], [code("a", "R1", "q1 == 1")], [
-    { indicatorId: "a", timePoint: "R1", itemId: "campaign", rCode: "a == 1" },
-    { indicatorId: "a", timePoint: "R2", itemId: "campaign", rCode: "q7 == 1" },
-    { indicatorId: "a", timePoint: "R1", itemId: "routine", rCode: "q9 == 1" },
+    { indicatorId: "a", timePoint: "R1", itemId: "campaign", code: "a == 1" },
+    { indicatorId: "a", timePoint: "R2", itemId: "campaign", code: "q7 == 1" },
+    { indicatorId: "a", timePoint: "R1", itemId: "routine", code: "q9 == 1" },
   ]);
   assertEquals(kinds(r, "a", "R1"), { status: "ready", issues: [] });
   assertEquals(kinds(r, "a", "R2"), {
@@ -167,12 +167,12 @@ Deno.test("every indicator in a cycle carries it in each round with code", () =>
   for (const id of ["a", "b", "c"]) {
     assertEquals(kinds(r, id, "R1"), {
       status: "error",
-      issues: ["rCode cycle"],
+      issues: ["code cycle"],
     });
   }
   assertEquals(kinds(r, "c", "R2"), {
     status: "error",
-    issues: ["rCode cycle"],
+    issues: ["code cycle"],
   });
   assertEquals(kinds(r, "a", "R2"), { status: "none", issues: [] });
 });
@@ -184,11 +184,11 @@ Deno.test("a result-type mismatch is a warning and never an error", () => {
   );
   assertEquals(kinds(r, "a", "R1"), {
     status: "warning",
-    issues: ["rCode result_type"],
+    issues: ["code result_type"],
   });
   assertEquals(kinds(r, "n", "R1"), {
     status: "warning",
-    issues: ["rCode result_type"],
+    issues: ["code result_type"],
   });
   assertEquals(checkHfaCodeResultType("q1 = 1", "binary"), undefined);
 });
@@ -201,14 +201,14 @@ Deno.test("an error outranks a warning in the same round", () => {
 Deno.test("consistency compares the trimmed main and filter code of non-empty rounds", () => {
   assertEquals(
     isHfaCodeConsistent([
-      { rCode: "q1 == 1 ", rFilterCode: "q2 > 0" },
-      { rCode: "q1 == 1", rFilterCode: " q2 > 0" },
-      { rCode: "", rFilterCode: "" },
+      { code: "q1 == 1 ", filterCode: "q2 > 0" },
+      { code: "q1 == 1", filterCode: " q2 > 0" },
+      { code: "", filterCode: "" },
     ]),
     true,
   );
   assertEquals(
-    isHfaCodeConsistent([{ rCode: "q1 == 1" }, { rCode: "q1 == 2" }]),
+    isHfaCodeConsistent([{ code: "q1 == 1" }, { code: "q1 == 2" }]),
     false,
   );
   const r = status([indicator("a")], [

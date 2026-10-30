@@ -74,14 +74,14 @@ Deno.test("a write refuses every non-blank row that does not parse", () => {
   });
   assertEquals(
     unparseableHfaCode([
-      row("rCode", "a == 1"),
-      row("rFilterCode", "  "),
-      row("rFilterCode", "a = 1"),
+      row("code", "a == 1"),
+      row("filterCode", "  "),
+      row("filterCode", "a = 1"),
       row("variant:campaign", "abs(a) > 1"),
     ]),
     [
       {
-        ...row("rFilterCode", "a = 1"),
+        ...row("filterCode", "a = 1"),
         error: { kind: "single_equals", at: 2, token: "=" },
       },
       {
@@ -128,11 +128,11 @@ Deno.test("the analyser splits variables by code and filter, and reports problem
     new Set(["ind001"]),
     new Set(["a", "b"]),
   );
-  const snippet = (rCode: string, rFilterCode?: string): HfaIndicatorCode => ({
+  const snippet = (code: string, filterCode?: string): HfaIndicatorCode => ({
     indicatorId: "ind002",
     timePoint: "2024",
-    rCode,
-    rFilterCode,
+    code,
+    filterCode,
   });
   const ok = analyse(snippet("a == 1 AND ind001 == 1", "b > 0 AND z == 1"));
   assertEquals(ok.ok && ok.deps, {

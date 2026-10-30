@@ -870,7 +870,7 @@ and are skipped under it.
 
 - Do: send "Create one binary/avg indicator named 'COPILOT TEST INDICATOR' with
   definition 'Facility reports the copilot test', in the first category, with
-  rCode `1 = 1` for every round."
+  code `1 = 1` for every round."
 - Ground truth: no modal appears; H3 shows `create_hfa_indicators` with
   `err: true` and "Nothing was proposed: the code has errors", naming `syntax`
   (a single `=`). The copilot then calls `create_hfa_indicators` again with

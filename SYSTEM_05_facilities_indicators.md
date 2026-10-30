@@ -1641,9 +1641,9 @@ raised by adversarial review of the shipped feature; none blocks it.
   scoped sentinel bindings) is shipped; 3b is the additive escape hatch plus
   validation. Two parts: (1) a **per-indicator sentinel-treatment override
   column** in the indicator dictionary, which is what makes DK-rate indicators
-  authorable at all: the scoped bindings NA-ify `-99` before any `x == -99`
-  rCode could match; cheap now that the binding list is built per indicator. (2)
-  An **authoring-rule validation gate**: indicator code must test positively for
+  authorable at all: the scoped bindings NA-ify `-99` before any `x == -99` code
+  could match; cheap now that the binding list is built per indicator. (2) An
+  **authoring-rule validation gate**: indicator code must test positively for
   Yes (`x == 1`, `x >= 3`); negated tests (`x != 2`, `x <= 3`) misclassify DK
   under DK-as-No, and nothing enforces this today, so a mis-authored `!=`
   indicator silently inverts DK handling. The override column is the natural

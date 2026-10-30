@@ -18,6 +18,7 @@ import {
   formatHfaVariableDetailsForAI,
   formatHfaVariableListForAI,
   getHfaIndicatorMeasure,
+  HFA_FIELD_LABELS,
   HFA_STRUCTURAL_VARIABLE_IDS,
   type HfaDictionaryForValidation,
   type HfaFieldIssue,
@@ -265,10 +266,10 @@ const updateEntrySchema = z.object({
   variantGroupId: field.variantGroupId.optional().describe(
     "Variant group id, null to clear.",
   ),
-  code: z.array(codeRoundSchema.partial({ rCode: true })).min(1).optional()
+  code: z.array(codeRoundSchema.partial({ code: true })).min(1).optional()
     .describe("Rounds to patch; a round not listed is kept."),
   variantCode: z.array(variantRowSchema).min(1).optional().describe(
-    "Variant rows to set; an empty rCode removes the row.",
+    "Variant rows to set; an empty code removes the row.",
   ),
 });
 
@@ -400,8 +401,18 @@ function issueLine(
   i: HfaFieldIssue,
 ): string {
   return `${r.timePoint} ${
-    i.itemId === undefined ? i.field : `variant ${i.itemId}`
+    i.itemId === undefined ? HFA_FIELD_LABELS[i.field] : `variant ${i.itemId}`
   } (${i.kind}): ${i.text.en}`;
+}
+
+// The key of one field a write touches, matched against the issues the status
+// core finds in it.
+function fieldKey(
+  timePoint: string,
+  field: HfaFieldIssue["field"],
+  itemId = "",
+): string {
+  return `${timePoint}|${field}|${itemId}`;
 }
 
 // The status of `ids` over a state with their code in place.
@@ -455,26 +466,26 @@ function indicatorLayout(
   for (const tp of timePoints) {
     const main = code.find((c) => c.timePoint === tp);
     const variants = variantCode.filter((v) => v.timePoint === tp);
-    if (!main?.rCode.trim() && !main?.rFilterCode?.trim() && !variants.length) {
+    if (!main?.code.trim() && !main?.filterCode?.trim() && !variants.length) {
       continue;
     }
     const warnings = status?.rounds.find((r) => r.timePoint === tp)?.issues
       .filter((i) => i.kind === "result_type")
       .map((i) => t3(i.text)) ?? [];
     lines.push(
-      `  ${tp}: ${main?.rCode.trim() ?? ""}${
+      `  ${tp}: ${main?.code.trim() ?? ""}${
         warnings.length ? `   (${warnings.join("; ")})` : ""
       }`,
     );
-    if (main?.rFilterCode?.trim()) {
+    if (main?.filterCode?.trim()) {
       lines.push(
         `    ${
           t3({ en: "filter", fr: "filtre", pt: "filtro" })
-        }: ${main.rFilterCode.trim()}`,
+        }: ${main.filterCode.trim()}`,
       );
     }
     for (const v of variants) {
-      lines.push(`    ${v.itemId}: ${v.rCode.trim()}`);
+      lines.push(`    ${v.itemId}: ${v.code.trim()}`);
     }
   }
   return lines.join("\n");
@@ -547,9 +558,9 @@ function firstDuplicate(keys: string[]): string | undefined {
 
 function codeKey(code: CodeRound[], variantCode: VariantRow[]): string {
   return JSON.stringify([
-    code.map((c) => [c.timePoint, c.rCode.trim(), c.rFilterCode?.trim() ?? ""])
+    code.map((c) => [c.timePoint, c.code.trim(), c.filterCode?.trim() ?? ""])
       .sort(),
-    variantCode.map((v) => [v.timePoint, v.itemId, v.rCode.trim()]).sort(),
+    variantCode.map((v) => [v.timePoint, v.itemId, v.code.trim()]).sort(),
   ]);
 }
 
@@ -586,12 +597,12 @@ function mergeUpdate(u: UpdateEntry, before: HfaIndicator, state: WriteState) {
     .filter((c) => c.indicatorId === id)
     .map((c) => ({
       timePoint: c.timePoint,
-      rCode: c.rCode,
-      rFilterCode: c.rFilterCode,
+      code: c.code,
+      filterCode: c.filterCode,
     }));
   const variantCodeBefore: VariantRow[] = state.variantCode
     .filter((c) => c.indicatorId === id)
-    .map((c) => ({ timePoint: c.timePoint, itemId: c.itemId, rCode: c.rCode }));
+    .map((c) => ({ timePoint: c.timePoint, itemId: c.itemId, code: c.code }));
 
   const after: HfaIndicator = { ...before };
   for (const [key] of SCALAR_FIELDS) {
@@ -623,33 +634,33 @@ function mergeUpdate(u: UpdateEntry, before: HfaIndicator, state: WriteState) {
   const writtenFields = new Set<string>();
   const rounds = new Map(codeBefore.map((c) => [c.timePoint, { ...c }]));
   for (const r of u.code ?? []) {
-    if (r.rCode === undefined && r.rFilterCode === undefined) {
+    if (r.code === undefined && r.filterCode === undefined) {
       throw new AIToolFailure(
-        `${id}: round "${r.timePoint}" names neither rCode nor rFilterCode.`,
+        `${id}: round "${r.timePoint}" names neither code nor filterCode.`,
       );
     }
     const round = rounds.get(r.timePoint) ??
-      { timePoint: r.timePoint, rCode: "" };
-    if (r.rCode !== undefined) {
-      round.rCode = r.rCode;
-      writtenFields.add(`${r.timePoint}|rCode|`);
+      { timePoint: r.timePoint, code: "" };
+    if (r.code !== undefined) {
+      round.code = r.code;
+      writtenFields.add(fieldKey(r.timePoint, "code"));
     }
-    if (r.rFilterCode !== undefined) {
-      round.rFilterCode = r.rFilterCode || undefined;
-      writtenFields.add(`${r.timePoint}|rFilterCode|`);
+    if (r.filterCode !== undefined) {
+      round.filterCode = r.filterCode || undefined;
+      writtenFields.add(fieldKey(r.timePoint, "filterCode"));
     }
     // Clearing a round's code orphans its variant rows, so the call writes
     // them too and their errors refuse it.
-    if (r.rCode !== undefined && !r.rCode.trim()) {
+    if (r.code !== undefined && !r.code.trim()) {
       for (const v of variantCodeBefore) {
         if (v.timePoint === r.timePoint) {
-          writtenFields.add(`${r.timePoint}|variantCode|${v.itemId}`);
+          writtenFields.add(fieldKey(r.timePoint, "variantCode", v.itemId));
         }
       }
     }
     if (
-      (r.rCode === "" && !r.rFilterCode) ||
-      (!round.rCode.trim() && !round.rFilterCode?.trim())
+      (r.code === "" && !r.filterCode) ||
+      (!round.code.trim() && !round.filterCode?.trim())
     ) {
       rounds.delete(r.timePoint);
     } else {
@@ -664,9 +675,9 @@ function mergeUpdate(u: UpdateEntry, before: HfaIndicator, state: WriteState) {
   );
   for (const v of u.variantCode ?? []) {
     const key = `${v.timePoint}|${v.itemId}`;
-    if (v.rCode.trim() === "") rows.delete(key);
+    if (v.code.trim() === "") rows.delete(key);
     else rows.set(key, v);
-    writtenFields.add(`${v.timePoint}|variantCode|${v.itemId}`);
+    writtenFields.add(fieldKey(v.timePoint, "variantCode", v.itemId));
   }
   const variantCode = [...rows.values()];
 
@@ -682,9 +693,9 @@ function mergeUpdate(u: UpdateEntry, before: HfaIndicator, state: WriteState) {
   const roundText = (c: CodeRound | undefined) =>
     c === undefined
       ? "(none)"
-      : c.rFilterCode?.trim()
-      ? `${c.rCode.trim()} [filter: ${c.rFilterCode.trim()}]`
-      : c.rCode.trim();
+      : c.filterCode?.trim()
+      ? `${c.code.trim()} [filter: ${c.filterCode.trim()}]`
+      : c.code.trim();
   for (const r of u.code ?? []) {
     const b = roundText(codeBefore.find((c) => c.timePoint === r.timePoint));
     const a = roundText(rounds.get(r.timePoint));
@@ -697,8 +708,8 @@ function mergeUpdate(u: UpdateEntry, before: HfaIndicator, state: WriteState) {
   for (const v of u.variantCode ?? []) {
     const b = variantCodeBefore.find((c) =>
       c.timePoint === v.timePoint && c.itemId === v.itemId
-    )?.rCode.trim() ?? "(none)";
-    const a = rows.get(`${v.timePoint}|${v.itemId}`)?.rCode.trim() ?? "(none)";
+    )?.code.trim() ?? "(none)";
+    const a = rows.get(`${v.timePoint}|${v.itemId}`)?.code.trim() ?? "(none)";
     report.push(
       b === a && !groupChanged
         ? `${v.timePoint} variant ${v.itemId}: no change`
@@ -979,7 +990,7 @@ export function buildHfaIndicatorTools() {
       name: "create_hfa_indicators",
       availableIn: COPILOT_TOOL_VIEWS.create_hfa_indicators,
       description:
-        'Create new HFA indicators, in a batch. For each: the long label (definition), an optional short label, type and aggregation (usually binary and avg, "% of facilities"), optional category, sub-category and service categories, an optional variant group, per-round code (rCode and an optional rFilterCode) and, for a variant group, per-round code for each item. The app assigns each id and returns it. Every id is checked against the taxonomy and the rounds, and code with an error (syntax, unknown variable, a filter or variant code without code, a cycle) is refused before anything is proposed; a result-type mismatch is a warning. The user confirms the batch in a dialog.',
+        'Create new HFA indicators, in a batch. For each: the long label (definition), an optional short label, type and aggregation (usually binary and avg, "% of facilities"), optional category, sub-category and service categories, an optional variant group, per-round code and an optional filter code (the code and filterCode fields) and, for a variant group, per-round code for each item. The app assigns each id and returns it. Every id is checked against the taxonomy and the rounds, and code with an error (syntax, unknown variable, a filter or variant code without code, a cycle) is refused before anything is proposed; a result-type mismatch is a warning. The user confirms the batch in a dialog.',
       kind: "write",
       inputSchema: z.object({
         indicators: z.array(z.object({
@@ -1155,7 +1166,7 @@ export function buildHfaIndicatorTools() {
       name: "update_hfa_indicators",
       availableIn: COPILOT_TOOL_VIEWS.update_hfa_indicators,
       description:
-        "Change existing HFA indicators, in a batch: any of the labels, type, aggregation, category, sub-category, service categories, variant group, per-round code and per-item variant code, in one call. Give only the fields to change. Code is patched: a round or variant row not listed is kept; in a listed round an omitted rCode or rFilterCode is kept and an empty string clears it; clearing rCode removes the round's code; a variant row with an empty rCode is removed. Changing the category clears a sub-category that no longer fits; changing the variant group drops the previous group's variant code. Ids are checked against the taxonomy and the rounds, and code you write with an error is refused before anything is proposed. The user confirms the batch in a dialog.",
+        "Change existing HFA indicators, in a batch: any of the labels, type, aggregation, category, sub-category, service categories, variant group, per-round code and per-item variant code, in one call. Give only the fields to change. Code is patched: a round or variant row not listed is kept; in a listed round an omitted code or filter code is kept and an empty string clears it; clearing the code removes the round's code; a variant row with empty code is removed. Changing the category clears a sub-category that no longer fits; changing the variant group drops the previous group's variant code. Ids are checked against the taxonomy and the rounds, and code you write with an error is refused before anything is proposed. The user confirms the batch in a dialog.",
       kind: "write",
       inputSchema: z.object({
         updates: z.array(updateEntrySchema).min(1),
@@ -1227,20 +1238,18 @@ export function buildHfaIndicatorTools() {
             m.after.indicatorId,
             m.writtenFields,
           ]));
-          const fieldKey = (tp: string, i: HfaFieldIssue) =>
-            `${tp}|${i.field}|${i.itemId ?? ""}`;
           const errors: string[] = [];
           const warnings: string[] = [];
           const leftInPlace: { id: string; line: string; text: string }[] = [];
           for (const [id, s] of status) {
             for (const r of s.rounds) {
               for (const i of r.issues) {
-                if (
-                  isHfaCodeError(i.kind) &&
-                  written.get(id)?.has(fieldKey(r.timePoint, i))
-                ) {
+                const writes = written.get(id)?.has(
+                  fieldKey(r.timePoint, i.field, i.itemId),
+                );
+                if (isHfaCodeError(i.kind) && writes) {
                   errors.push(`${id} ${issueLine(r, i)}`);
-                } else if (written.get(id)?.has(fieldKey(r.timePoint, i))) {
+                } else if (writes) {
                   warnings.push(`${id} ${issueLine(r, i)}`);
                 } else {
                   leftInPlace.push({
@@ -1391,9 +1400,9 @@ export function buildHfaIndicatorTools() {
           for (const c of allCode) {
             if (deleted.has(c.indicatorId)) continue;
             const identifiers = [
-              ...hfaIndicatorCodeIdentifiers(c.rCode),
-              ...(c.rFilterCode
-                ? hfaIndicatorCodeIdentifiers(c.rFilterCode)
+              ...hfaIndicatorCodeIdentifiers(c.code),
+              ...(c.filterCode
+                ? hfaIndicatorCodeIdentifiers(c.filterCode)
                 : []),
             ];
             if (identifiers.some((id) => deleted.has(id))) {
@@ -1405,7 +1414,7 @@ export function buildHfaIndicatorTools() {
           for (const c of allVariantCode) {
             if (deleted.has(c.indicatorId)) continue;
             if (
-              hfaIndicatorCodeIdentifiers(c.rCode).some((id) => deleted.has(id))
+              hfaIndicatorCodeIdentifiers(c.code).some((id) => deleted.has(id))
             ) {
               referencing.add(c.indicatorId);
             }

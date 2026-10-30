@@ -48,35 +48,35 @@ function fixture(withDisplayRows: boolean): HfaIndicatorsForAIInput {
     {
       indicatorId: "ind001",
       timePoint: "R1",
-      rCode: "wat_01 == 1",
-      rFilterCode: "open == 1",
+      code: "wat_01 == 1",
+      filterCode: "open == 1",
     },
     {
       indicatorId: "ind001",
       timePoint: "R2",
-      rCode: "wat_01 == 1",
-      rFilterCode: "open == 1",
+      code: "wat_01 == 1",
+      filterCode: "open == 1",
     },
     {
       indicatorId: "ind002",
       timePoint: "R1",
-      rCode: "ind001 == 1 AND vac IN (1, 2)",
+      code: "ind001 == 1 AND vac IN (1, 2)",
     },
-    { indicatorId: "ind003", timePoint: "R1", rCode: "beds + 1" },
-    { indicatorId: "ind003", timePoint: "R2", rCode: "beds == 1" },
+    { indicatorId: "ind003", timePoint: "R1", code: "beds + 1" },
+    { indicatorId: "ind003", timePoint: "R2", code: "beds == 1" },
   ];
   const variantCode = [
     {
       indicatorId: "ind002",
       timePoint: "R1",
       itemId: "campaign",
-      rCode: "vac == 1",
+      code: "vac == 1",
     },
     {
       indicatorId: "ind002",
       timePoint: "R2",
       itemId: "routine",
-      rCode: "vac == 2",
+      code: "vac == 2",
     },
   ];
   const taxonomy = {
@@ -285,7 +285,7 @@ Deno.test("a listing filtered by status prints each round's issues under the ind
       "",
       "1 of 3 indicators. Each line: id | long label | type, aggregation | category, sub-category, service categories | variant group | rounds with code | round status | consistency across rounds.",
       "ind003 | Long ind003 | numeric, sum | category cat_a, sub-category none, services svc_x | variant group none | code in 2 of 2 rounds | 1 ready, 1 warning | inconsistent",
-      "  R2 rCode (result_type): The indicator is a number (numeric) but this code gives yes/no. For a share of facilities, make the indicator binary",
+      "  R2 code (result_type): The indicator is a number (numeric) but this code gives yes/no. For a share of facilities, make the indicator binary",
     ].join("\n"),
   );
 });
@@ -304,10 +304,10 @@ Deno.test("the detail block of a variant indicator: its rounds, the variables an
       "Consistent across rounds: yes",
       "Rounds:",
       "- R1: ready",
-      "  rCode: ind001 == 1 AND vac IN (1, 2)",
+      "  code: ind001 == 1 AND vac IN (1, 2)",
       "  variant campaign: vac == 1",
       "- R2: error",
-      "  rCode: (none)",
+      "  code: (none)",
       "  variant routine: vac == 2",
       "  issue: variant routine (unknown_variable): Variable 'vac' not found in this time point",
       "  issue: variant routine (variant_without_code): Variant code requires indicator code for this time point",
@@ -322,7 +322,7 @@ Deno.test("the detail block of a variant indicator: its rounds, the variables an
       "",
       "## Other indicators the code names",
       "### ind001: Long ind001 (binary, avg)",
-      "- R1, R2 (identical): ready; rCode: wat_01 == 1; rFilterCode: open == 1",
+      "- R1, R2 (identical): ready; code: wat_01 == 1; filter code: open == 1",
     ].join("\n"),
   );
 });
@@ -341,8 +341,8 @@ Deno.test("without display rows the detail block says why the counts are missing
       "Consistent across rounds: yes",
       "Rounds:",
       "- R1, R2 (identical): ready",
-      "  rCode: wat_01 == 1",
-      "  rFilterCode: open == 1",
+      "  code: wat_01 == 1",
+      "  filter code: open == 1",
       "",
       "## Variables the code names",
       "Facility counts and the values present in the data are not shown: they need the permission to view data, which this user does not have.",

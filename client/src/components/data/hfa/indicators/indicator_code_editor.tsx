@@ -102,8 +102,8 @@ const HFA_CODE_OPERATOR_MEANINGS: [string, TranslatableString][] = [
 
 type TempCodeEntry = {
   timePoint: string;
-  rCode: string;
-  rFilterCode: string;
+  code: string;
+  filterCode: string;
 };
 
 type TempState = {
@@ -299,14 +299,14 @@ function EditorInner(p: {
     );
     return {
       timePoint: tp.timePoint,
-      rCode: existing?.rCode ?? "",
-      rFilterCode: existing?.rFilterCode ?? "",
+      code: existing?.code ?? "",
+      filterCode: existing?.filterCode ?? "",
     };
   });
 
   const initialVariantCode: Record<string, string> = {};
   for (const c of p.initialVariantCodeSnippets) {
-    initialVariantCode[variantKey(c.timePoint, c.itemId)] = c.rCode;
+    initialVariantCode[variantKey(c.timePoint, c.itemId)] = c.code;
   }
 
   const [state, setState] = createStore<TempState>({
@@ -372,15 +372,15 @@ function EditorInner(p: {
   const variantCodeToSave = (): {
     timePoint: string;
     itemId: string;
-    rCode: string;
+    code: string;
   }[] => {
-    const entries: { timePoint: string; itemId: string; rCode: string }[] = [];
+    const entries: { timePoint: string; itemId: string; code: string }[] = [];
     for (const tp of p.dictionary.timePoints) {
       for (const item of currentGroupItems()) {
-        const rCode =
+        const code =
           (state.variantCode[variantKey(tp.timePoint, item.id)] ?? "").trim();
-        if (rCode) {
-          entries.push({ timePoint: tp.timePoint, itemId: item.id, rCode });
+        if (code) {
+          entries.push({ timePoint: tp.timePoint, itemId: item.id, code });
         }
       }
     }
@@ -426,7 +426,7 @@ function EditorInner(p: {
   const roundsConsistency = () => {
     if (!draftStatus().consistent) return "different" as const;
     const nonEmpty = state.code.filter(
-      (c) => c.rCode.trim() || c.rFilterCode.trim(),
+      (c) => c.code.trim() || c.filterCode.trim(),
     );
     return nonEmpty.length <= 1 ? ("single" as const) : ("same" as const);
   };
@@ -445,8 +445,8 @@ function EditorInner(p: {
     const src = state.code[idx];
     for (let i = 0; i < state.code.length; i++) {
       if (i === idx) continue;
-      setState("code", i, "rCode", src.rCode);
-      setState("code", i, "rFilterCode", src.rFilterCode);
+      setState("code", i, "code", src.code);
+      setState("code", i, "filterCode", src.filterCode);
     }
     const srcTp = selectedTimePoint();
     for (const item of currentGroupItems()) {
@@ -500,8 +500,8 @@ function EditorInner(p: {
       },
       code: unwrap(state.code).map((c) => ({
         timePoint: c.timePoint,
-        rCode: c.rCode.trim(),
-        rFilterCode: c.rFilterCode.trim() || undefined,
+        code: c.code.trim(),
+        filterCode: c.filterCode.trim() || undefined,
       })),
       variantCode,
     });
@@ -515,7 +515,7 @@ function EditorInner(p: {
     setState(
       "code",
       currentTpIndex(),
-      "rCode",
+      "code",
       (prev) =>
         prev + (prev.length === 0 || /\s$/.test(prev) ? "" : " ") + symbol +
         " ",
@@ -549,8 +549,8 @@ function EditorInner(p: {
     serviceCategoryIds: [...state.serviceCategoryIds],
     code: state.code.map((c) => ({
       timePoint: c.timePoint,
-      rCode: c.rCode,
-      rFilterCode: c.rFilterCode,
+      code: c.code,
+      filterCode: c.filterCode,
     })),
     variantGroupId: state.variantGroupId,
     variantCode: variantCodeToSave(),
@@ -604,15 +604,15 @@ function EditorInner(p: {
     for (const round of patch.code ?? []) {
       const idx = state.code.findIndex((c) => c.timePoint === round.timePoint);
       if (idx < 0) continue;
-      if (round.rCode !== undefined) {
-        setState("code", idx, "rCode", round.rCode);
+      if (round.code !== undefined) {
+        setState("code", idx, "code", round.code);
       }
-      if (round.rFilterCode !== undefined) {
-        setState("code", idx, "rFilterCode", round.rFilterCode);
+      if (round.filterCode !== undefined) {
+        setState("code", idx, "filterCode", round.filterCode);
       }
     }
     for (const row of patch.variantCode ?? []) {
-      setState("variantCode", variantKey(row.timePoint, row.itemId), row.rCode);
+      setState("variantCode", variantKey(row.timePoint, row.itemId), row.code);
     }
     markDirty();
   };
@@ -874,7 +874,7 @@ function EditorInner(p: {
             {(tp) => {
               const codeEntry = () =>
                 state.code.find((c) => c.timePoint === tp.timePoint);
-              const hasCode = () => !!codeEntry()?.rCode.trim();
+              const hasCode = () => !!codeEntry()?.code.trim();
               return (
                 <button
                   class={`ui-pad-sm w-full cursor-pointer border-b text-left text-sm ${
@@ -932,9 +932,9 @@ function EditorInner(p: {
                           : "deve dar um número"
                       })`,
                     })}
-                    value={state.code[currentTpIndex()].rCode}
+                    value={state.code[currentTpIndex()].code}
                     onChange={(v) => {
-                      setState("code", currentTpIndex(), "rCode", v);
+                      setState("code", currentTpIndex(), "code", v);
                       markDirty();
                     }}
                     fullWidth
@@ -967,9 +967,9 @@ function EditorInner(p: {
                     })}
                   </div>
                   <CodeFieldMessages
-                    issues={fieldIssues(selectedTimePoint(), "rCode")}
+                    issues={fieldIssues(selectedTimePoint(), "code")}
                     referenced={referencedIds(
-                      state.code[currentTpIndex()].rCode,
+                      state.code[currentTpIndex()].code,
                     )}
                     describe={describeReferenced}
                   />
@@ -982,9 +982,9 @@ function EditorInner(p: {
                       fr: "Code filtre (optionnel, doit donner oui/non)",
                       pt: "Código de filtro (opcional, deve dar sim/não)",
                     })}
-                    value={state.code[currentTpIndex()].rFilterCode}
+                    value={state.code[currentTpIndex()].filterCode}
                     onChange={(v) => {
-                      setState("code", currentTpIndex(), "rFilterCode", v);
+                      setState("code", currentTpIndex(), "filterCode", v);
                       markDirty();
                     }}
                     fullWidth
@@ -992,9 +992,9 @@ function EditorInner(p: {
                     mono
                   />
                   <CodeFieldMessages
-                    issues={fieldIssues(selectedTimePoint(), "rFilterCode")}
+                    issues={fieldIssues(selectedTimePoint(), "filterCode")}
                     referenced={referencedIds(
-                      state.code[currentTpIndex()].rFilterCode,
+                      state.code[currentTpIndex()].filterCode,
                     )}
                     describe={describeReferenced}
                   />
