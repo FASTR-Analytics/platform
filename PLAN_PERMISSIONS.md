@@ -10,7 +10,7 @@ should be, a permission matrix test in the floor, and a persona switch for the
 browser script. The review that found the defects is not in the repo; the plan
 carries what it decided.
 
-**Next step: Do 4.**
+**Next step: Do 5.**
 
 Branch: `main`. Repo: this one. Read first: [CLAUDE.md](CLAUDE.md),
 [SYSTEMS.md](SYSTEMS.md), [SYSTEM_01_api_contract.md](SYSTEM_01_api_contract.md)
