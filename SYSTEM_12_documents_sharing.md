@@ -133,7 +133,11 @@ declared level on the product and, if restricted, its scope); on the client the
 gates are `productLevel`, `canEditProduct` and `canOwnProduct` in
 `state/instance/product_access.ts` ("Access in the client" below). There is no
 unauthenticated product surface: a deck reaches recipients as an emailed PDF
-(cross-cutting audit SYSTEMS.md §4.3.9).
+(cross-cutting audit SYSTEMS.md §4.3.9). Emailing a product is capped per user:
+an attachment of at most 25,000,000 base64 characters with a bare file name of
+at most 200 characters, and `DAILY_EMAIL_LIMIT` (default 50) recipients a day,
+refused as `DAILY_EMAIL_LIMIT_REACHED` ("Emails"). Every scope picker lists the
+scopes the connection holds ("Scopes").
 
 **Access is a Google Doc's**. A product has one owner, per-user grants at `view`
 or `edit`, and a general access for everyone else in the instance (`none`,
@@ -171,13 +175,15 @@ no user (`consolidation/user_scopes.ts`). `setProductAccess`
 (`PUT
 /products/:product_id/access`, `edit`) replaces a product's general access
 and grants, and `setProductOwner` (`PUT /products/:product_id/owner`, `own`)
-transfers it. A product's owner holds its scope: `setProductOwner` refuses an
-owner who does not and `setProductScope` a scope the current owner lacks, both
-with `PRODUCT_OWNER_LACKS_SCOPE`, and the access dialog's owner picker leaves
-such users out. An editor may remove their own grant or lower the general
-access below their own level; the owner and the admins always keep access. None of the
-three bumps `last_updated` or records a version edit: each re-broadcasts the
-summaries it changed.
+transfers it. A transfer and a rescope keep a product's owner holding its
+scope: `setProductOwner` refuses an owner who does not hold it and
+`setProductScope` a scope the current owner lacks, both with
+`PRODUCT_OWNER_LACKS_SCOPE`, and the access dialog's owner picker leaves such
+users out; restricting an owner's scope access later is not checked. An editor
+may remove their own grant or lower the general access below their own level;
+the owner and the admins always keep access. None of the three bumps
+`last_updated` or records a version edit: each re-broadcasts the summaries it
+changed.
 
 **Access in the client.** `productLevel(productId)` derives the connection's own
 level from the product's summary in `instanceState.products` with
@@ -230,7 +236,7 @@ access changes. Save calls `setProductOwner` when the owner changed, then
 dialog never offers the owner as a grantee, offers only the directory (what
 every approved connection receives about each user: email, names, admin flag
 and scope access, S18 "The roster") and lists each person once, so it cannot
-produce the three refusals; one caused by a race
+produce the three refusals or `PRODUCT_OWNER_LACKS_SCOPE`; one caused by a race
 shows the server's message. Its bulk mode, "Set access for everything in this
 folder…" in the folder menu for a global admin, calls `setFolderProductsAccess`:
 a General access select whose first choice, "Leave as is", sends `none`; the
@@ -329,26 +335,28 @@ theirs and the chosen level, and a person who owns a product is skipped for it;
 nothing is lowered or removed, nothing is inherited, and it returns the ids
 whose access changed. Their refusals come back through the envelope at 200:
 `PRODUCT_GRANT_IS_OWNER` (a grant naming the owner, `setProductAccess` only),
-`PRODUCT_GRANT_DUPLICATE` (one email twice) and `PRODUCT_ACCESS_UNKNOWN_USER`
-(an email with no `users` row); an unknown product is `PRODUCT_NOT_FOUND` and an
-unknown folder `FOLDER_NOT_FOUND`. Every write that names a folder
-(`createProduct`, `moveProductsToFolder`, `createFolder`'s parent,
-`copyReportFromVersion`, `copySlideDeckFromVersion`) answers an unknown folder
-id as `FOLDER_NOT_FOUND`, a 404, through `requireFolderExists`
-(`server/db/products/folders.ts`), which share-locks the row inside the
-write's transaction, never a foreign-key failure. `getProductLevelRows(mainDb, ids, email)`
-reads, in one query, each named product's folder, scope and access carrying only
-that user's grant, which is all `productLevelFor` needs; an id that names no row
-is absent. `getProductLevelRowsInScopes(mainDb, scopeIds, email)` reads the same
-for every product carrying one of the scopes (the restricted folder rule's
-visibility, S18). `dropAccessOfMissingUsers(sql)` runs inside every transaction
-that deletes `users` rows (S15): an owner with no `users` row becomes NULL and a
-grant with no `users` row goes, and it returns the products it changed.
-`folders.ts`: `moveFolder` is the move, writes only the parent and refuses a
-cycle with a recursive CTE walking up from the new parent inside the same
-transaction (`FOLDER_CYCLE`, through the envelope); `updateFolder` writes label
-and colour only, so a rename and a move cannot undo one another; `deleteFolder`
-reparents child folders and products one level and returns `freedProductIds`.
+`PRODUCT_GRANT_DUPLICATE` (one email twice), `PRODUCT_ACCESS_UNKNOWN_USER` (an
+email with no `users` row) and `PRODUCT_OWNER_LACKS_SCOPE` (an owner without
+the product's scope, `setProductOwner` and `setProductScope`); an unknown
+product is `PRODUCT_NOT_FOUND` and an unknown folder `FOLDER_NOT_FOUND`. Every
+write that names a folder (`createProduct`, `moveProductsToFolder`,
+`createFolder`'s parent, `moveFolder`'s parent, `copyReportFromVersion`,
+`copySlideDeckFromVersion`) answers an unknown folder id as `FOLDER_NOT_FOUND`,
+a 404, through `requireFolderExists` (`server/db/products/folders.ts`), which
+share-locks the row inside the write's transaction, never a foreign-key
+failure. `getProductLevelRows(mainDb, ids, email)` reads, in one query, each
+named product's folder, scope and access carrying only that user's grant, which
+is all `productLevelFor` needs; an id that names no row is absent.
+`getProductLevelRowsInScopes(mainDb, scopeIds, email)` reads the same for every
+product carrying one of the scopes (the restricted folder rule's visibility,
+S18). `dropAccessOfMissingUsers(sql)` runs inside every transaction that deletes
+`users` rows (S15): an owner with no `users` row becomes NULL and a grant with
+no `users` row goes, and it returns the products it changed. `folders.ts`:
+`moveFolder` is the move, writes only the parent and refuses a cycle with a
+recursive CTE walking up from the new parent inside the same transaction
+(`FOLDER_CYCLE`, through the envelope); `updateFolder` writes label and colour
+only, so a rename and a move cannot undo one another; `deleteFolder` reparents
+child folders and products one level and returns `freedProductIds`.
 `slide_decks.ts`, `slides.ts`, `move_slides.ts`, `copy_slides.ts`
 (`copySlidesToSlideDeck`, the cross-deck reuse path: configs copied verbatim,
 scoped by the source product), `reports.ts` and `versions.ts` hold the per-type
@@ -2820,9 +2828,8 @@ sends cannot pass the limit, and a send it refuses answers
 `sendReportEmail` is the same route for a report (same guard, same recipient
 schema, the same per-recipient loop): the client attaches the report's paged
 PDF, built in the browser and printed by the server (`buildReportAttachment`),
-and the attachment carries its own MIME type, which the schema holds to
-`application/pdf` or `text/html` although nothing sends html any more.
-`sendHelpEmail` (`requireApprovedUser()`: an account awaiting approval sends no
+and the schema holds the attachment's MIME type to `application/pdf`.
+`sendHelpEmail` (`GUARD.approved`: an account awaiting approval sends no
 mail): one email per `_FEEDBACK_EMAIL_RECIPIENTS` with `replyTo` the user, then
 a confirmation to the user only after at least one internal send succeeded. Zero
 internal deliveries returns `success: false` (the form shows the error instead

@@ -7,7 +7,7 @@ import { buildReportPdfFromDetail } from "./export_report_as_paged_pdf";
 export type ReportAttachment = {
   content: string;
   filename: string;
-  mimeType: "application/pdf" | "text/html";
+  mimeType: "application/pdf";
 };
 
 export async function buildReportAttachment(

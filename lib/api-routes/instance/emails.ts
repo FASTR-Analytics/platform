@@ -20,12 +20,17 @@ export function emailAttachmentFilename(
   label: string,
   extension: string,
 ): string {
-  const base = label.replace(/[/\\]/g, "-").trim() || "file";
-  return `${base.slice(0, 200 - extension.length - 1)}.${extension}`;
+  // A cut through a surrogate pair would leave a malformed name, so a lone
+  // high surrogate at the cut goes.
+  const base = label.replace(/[/\\]/g, "-").trim()
+    .slice(0, 200 - extension.length - 1)
+    .replace(/[\uD800-\uDBFF]$/, "")
+    .trim() || "file";
+  return `${base}.${extension}`;
 }
 
 export const emailRouteRegistry = {
-  // The recipient roster on offer is the instance roster, a consequence of
+  // The recipients on offer are the instance directory, a consequence of
   // the permissive access model: every approved user may send.
   sendSlideDeckEmail: route({
     path: "/emails/slide-deck",
@@ -41,11 +46,8 @@ export const emailRouteRegistry = {
     }),
     response: {} as { sent: boolean; failedRecipients?: string[] },
   }),
-  // A report goes as the file its format downloads as: the standalone .html
-  // for html/fastr reports, the PDF for markdown, so the attachment carries
-  // its own MIME type, unlike the deck route's fixed PDF. Approved-user
-  // access like the deck route: the caller already holds the content it is
-  // sending.
+  // A report goes as its paged PDF. Approved-user access like the deck
+  // route: the caller already holds the content it is sending.
   sendReportEmail: route({
     path: "/emails/report",
     method: "POST",
@@ -57,7 +59,7 @@ export const emailRouteRegistry = {
       attachment: z.object({
         content: emailAttachmentContentSchema,
         filename: emailAttachmentFilenameSchema,
-        mimeType: z.enum(["application/pdf", "text/html"]),
+        mimeType: z.literal("application/pdf"),
       }),
     }),
     response: {} as { sent: boolean; failedRecipients?: string[] },

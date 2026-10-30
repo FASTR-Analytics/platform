@@ -54,7 +54,7 @@ const PRODUCT_VERSION_KIND: Record<ProductType, VersionKind> = {
 
 // The cross-type product surface: label, folder, package, scope, duplicate
 // and delete treat a deck and a report alike, so there is ONE set of routes.
-// The guard is the registry entry's `access`, installed by defineRoute: no
+// The guard is the registry entry's `guard`, installed by defineRoute: no
 // handler here checks access. Every route that changes a product re-reads the
 // touched summaries through notifyInstanceProductsUpserted, the only
 // product-list message, whose `lastUpdated` versions the detail cache.

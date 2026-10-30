@@ -379,7 +379,9 @@ export async function setProductScope(
       if (product === undefined) {
         throw new Error(PRODUCT_NOT_FOUND);
       }
-      const scope = await sql`SELECT 1 FROM scopes WHERE id = ${scopeId}`;
+      const scope = await sql`
+        SELECT 1 FROM scopes WHERE id = ${scopeId} FOR SHARE
+      `;
       if (scope.length === 0) {
         throw new Error(SCOPE_NOT_FOUND);
       }
@@ -482,8 +484,6 @@ function hasDuplicateEmail(grants: ProductGrant[]): boolean {
   return new Set(grants.map((g) => g.email)).size !== grants.length;
 }
 
-// Share-locks the named users rows, so a user deleted alongside cannot leave
-// a grant or an ownership behind; true when every email names one.
 // The same test canUseScope applies to a user's scope access: an admin, an
 // open-access instance's every user and an unrestricted user hold every
 // scope; a restricted user holds their grants.
@@ -503,6 +503,8 @@ async function userHoldsScope(
   return rows.length > 0;
 }
 
+// Share-locks the named users rows, so a user deleted alongside cannot leave
+// a grant or an ownership behind; true when every email names one.
 async function allUsersExist(sql: Sql, emails: string[]): Promise<boolean> {
   const known = await sql<{ email: string }[]>`
     SELECT email FROM users WHERE email = ANY(${emails}) FOR SHARE

@@ -92,6 +92,7 @@ export async function moveFolder(
   return await tryCatchDatabaseAsync(async () => {
     const lastUpdated = new Date().toISOString();
     const illegal = await mainDb.begin(async (sql) => {
+      await requireFolderExists(sql, parentId);
       if (parentId !== null) {
         const hits = await sql`
           WITH RECURSIVE ancestors AS (

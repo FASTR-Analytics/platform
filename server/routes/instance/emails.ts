@@ -7,7 +7,6 @@ import {
 } from "../../exposed_env_vars.ts";
 import { defineRoute } from "../route-helpers.ts";
 import { log } from "../../middleware/logging.ts";
-import { requireApprovedUser } from "../../auth/guards.ts";
 import {
   claimDailyEmailSends,
   DAILY_EMAIL_LIMIT_REACHED,
@@ -16,8 +15,8 @@ import {
 export const routesEmails = new Hono();
 
 // The only SendGrid egress. sendSlideDeckEmail is a product surface, so it
-// sits behind requireApprovedUser() like every other product read; the PDF is
-// client-rendered and the recipient roster on offer is the instance roster.
+// sits behind `GUARD.approved` like every other product read; the PDF is
+// client-rendered and the recipients on offer are the instance directory.
 
 function escapeHtml(s: string): string {
   return s

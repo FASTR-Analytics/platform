@@ -742,6 +742,7 @@ Deno.test("product levels: the guard, the access routes and the bulk action", as
           productIds: [report],
           folderId: nowhere,
         }],
+        ["PUT", `/folders/${raisedFolder}/parent`, { parentId: nowhere }],
         [
           "POST",
           `/products/${report}/report/versions/${reportVersionId}/copy`,
