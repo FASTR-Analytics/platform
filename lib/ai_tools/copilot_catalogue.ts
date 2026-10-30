@@ -1,10 +1,11 @@
 import type { AIViewIdentity } from "@timroberton/panther";
 import {
   INSTANCE_PERMISSION_LABELS,
+  type ProductLevel,
+  productLevelAtLeast,
   type UserPermission,
   type UserPermissions,
 } from "../permissions/mod.ts";
-import { type ProductLevel, productLevelAtLeast } from "../permissions/mod.ts";
 
 // The chat's catalogue as data: every view a place can set, which views
 // admit each gated tool, what a user needs for a tool to run, which writes

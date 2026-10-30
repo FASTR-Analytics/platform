@@ -65,7 +65,6 @@ import {
   ADMIN_FLAG_NEEDS_ADMIN,
   ADMIN_ROW_NEEDS_ADMIN,
   ADMIN_SELF_DEMOTION_REFUSED,
-  OPERATOR_REQUIRED,
   OWN_ROW_REFUSED,
   RESTRICTED_CALLER_REFUSED,
   SELF_DELETION_REFUSED,
@@ -254,9 +253,6 @@ defineRoute(
   "setUserContactPerson",
   log("setUserContactPerson"),
   async (c, { body }) => {
-    if (!c.var.globalUser.isHUser) {
-      return c.json({ success: false, err: OPERATOR_REQUIRED }, 403);
-    }
     const res = await setUserContactPerson(
       c.var.mainDb,
       body.email,

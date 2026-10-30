@@ -1061,3 +1061,16 @@ commit.
 - Step 5: edited `client/src/components/users/{users,user}.tsx`, outside the
   Surface, because the lib barrel no longer exports the operator list; each
   reads `isHUser` off the roster row instead.
+- Step 5: edited lib/types/instance_sse.ts, lib/ai_tools/copilot_catalogue.ts,
+  lib/ai_tools/format_products_list_for_ai.ts,
+  server/tests/format_products_list_for_ai_test.ts,
+  server/tests/products_routes_test.ts, server/tests/user_management_test.ts,
+  SYSTEM_02_persistence.md, SYSTEM_03_realtime_cache.md and
+  SYSTEM_16_collaboration.md, outside the Surface, because the permission
+  types moved (the imports), the two presets and the refusal constants moved
+  (the tests), SYSTEM_02 listed the renamed `SetUserUnlimitedAi`, SYSTEM_03
+  named the deleted `requireGlobalPermission()` and SYSTEM_16 spelled the old
+  `access:` field.
+- Step 5: `setUserContactPerson` declares `GUARD.hUser` instead of keeping its
+  inline operator check, since a handler never checks access itself; its
+  matrix class was already the operator's.

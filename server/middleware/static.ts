@@ -101,9 +101,10 @@ export function setupStaticServing(app: Hono) {
   // the listing comes from (`getRunDetail`, `can_view_data`). The path scope
   // also matters for what follows: a wildcard mount with this guard would
   // 403 every non-data request that falls through to the assets serve below.
+  const dataFileGuard = requirePermission("can_view_data");
   app.use(
     "/:run_id/outputs/*",
-    requirePermission("can_view_data"),
+    dataFileGuard,
     serveStatic({ root: _RUNS_DIR_PATH }),
   );
 
@@ -113,7 +114,6 @@ export function setupStaticServing(app: Hono) {
   // to the same file on some hono versions, and this tier fails OPEN (falls
   // through to the approved-user serve below), so the gate must see every
   // spelling of a data-file path.
-  const dataFileGuard = requirePermission("can_view_data");
   const serveDataFile = serveStatic({ root: _ASSETS_DIR_PATH });
   app.use(
     "*",

@@ -90,14 +90,7 @@ const EMPTY_INSTANCE_STATE: InstanceState = {
   currentUserApproved: false,
   currentUserIsGlobalAdmin: false,
   currentUserScopeAccess: ALL_SCOPES,
-  currentUserPermissions: {
-    can_configure_users: false,
-    can_view_users: false,
-    can_view_logs: false,
-    can_configure_settings: false,
-    can_configure_data: false,
-    can_view_data: false,
-  },
+  currentUserPermissions: userPermissions(false),
 };
 
 const [instanceState, setInstanceState] = createStore<InstanceState>(

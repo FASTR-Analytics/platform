@@ -116,6 +116,7 @@ export async function buildGlobalUserFromDb(
         ? []
         : (await getScopeGrantsByEmail(mainDb, [email])).get(email) ?? [],
     );
+    const operator = isHUser(email);
     const thisUserPermissions = effectivePermissions({
       isGlobalAdmin,
       scopeAccess,
@@ -134,9 +135,9 @@ export async function buildGlobalUserFromDb(
       organisation: rawUser?.organisation ?? null,
       approved: _OPEN_ACCESS || !!rawUser,
       isGlobalAdmin,
-      isHUser: isHUser(email),
+      isHUser: operator,
       thisUserPermissions,
-      unlimitedAi: isHUser(email) || (rawUser?.unlimited_ai ?? false),
+      unlimitedAi: operator || (rawUser?.unlimited_ai ?? false),
       scopeAccess,
     };
     return globalUser;

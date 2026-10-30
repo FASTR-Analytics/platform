@@ -75,6 +75,7 @@ import {
   AUTHENTICATION_REQUIRED,
   AWAITING_APPROVAL,
   ORIGIN_NOT_ALLOWED,
+  PRODUCT_ACCESS_REFUSED,
   SERVICE_UNAVAILABLE,
 } from "../../auth/refusals.ts";
 
@@ -106,8 +107,6 @@ async function readProductLevel(
     ? productLevelFor(row.access, auth)
     : "none";
 }
-
-const NO_PRODUCT_ACCESS = "You do not have access to this product";
 
 /**
  * Close code for "you are not allowed on this socket": a permanent condition
@@ -553,7 +552,11 @@ routesCollab.get(
                 productId,
                 () => ({
                   type: "slide_error",
-                  data: { slideId, message: NO_PRODUCT_ACCESS, fatal: true },
+                  data: {
+                    slideId,
+                    message: PRODUCT_ACCESS_REFUSED,
+                    fatal: true,
+                  },
                 }),
                 () =>
                   void subscribeSlide(
@@ -602,7 +605,11 @@ routesCollab.get(
                 productId,
                 () => ({
                   type: "report_error",
-                  data: { reportId, message: NO_PRODUCT_ACCESS, fatal: true },
+                  data: {
+                    reportId,
+                    message: PRODUCT_ACCESS_REFUSED,
+                    fatal: true,
+                  },
                 }),
                 () =>
                   void subscribeReport(

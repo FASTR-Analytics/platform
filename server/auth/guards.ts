@@ -104,30 +104,25 @@ export function requireHUser() {
   );
 }
 
-export function requireProductAccess(level: ProductAccessLevel) {
+function productGuard(level: ProductAccessLevel, folderRoute: boolean) {
   return guard(async (user, c) =>
     await productAccessPolicy(
         mainDb(),
         user,
         level,
-        await resolveProductAccessTargets(c, false),
+        await resolveProductAccessTargets(c, folderRoute),
       )
       ? undefined
       : PRODUCT_ACCESS_REFUSED
   );
 }
 
+export function requireProductAccess(level: ProductAccessLevel) {
+  return productGuard(level, false);
+}
+
 export function requireFolderAccess(level: ProductAccessLevel) {
-  return guard(async (user, c) =>
-    await productAccessPolicy(
-        mainDb(),
-        user,
-        level,
-        await resolveProductAccessTargets(c, true),
-      )
-      ? undefined
-      : PRODUCT_ACCESS_REFUSED
-  );
+  return productGuard(level, true);
 }
 
 function holdsStatusKey(c: Context): boolean {

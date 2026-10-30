@@ -218,6 +218,7 @@ tiers:
 | `_scope_access.ts`     | `ScopeAccess`, `ALL_SCOPES`, `scopeAccessOf(isAdmin, allScopes, grants)`, `canUseScope`, `scopeAccessEqual`                                                                                                                          |
 | `_user.ts`             | `GlobalUser`, `OtherUser`, `createDevGlobalUser`                                                                                                                                                                                     |
 | `_product_level.ts`    | `PRODUCT_LEVELS`, `ProductLevel`, `ProductAccessLevel`, `ProductAccess`, `ProductGrant`, `productLevelAtLeast`, `productLevelFor`                                                                                                    |
+| `_route_guard.ts`      | `RouteGuard`, `RouteGuardKind`, `GUARD`                                                                                                                                                                                              |
 | `_asset_visibility.ts` | `AssetPrivacy`, `canUserSeeAsset`, `canUserManagePrivateAsset`                                                                                                                                                                       |
 
 Six instance permissions: `can_configure_users`, `can_view_users`,
@@ -366,8 +367,8 @@ inserts the list as admin rows into a new main DB (`db_startup.ts`). `GlobalUser
 and `OtherUser` carry `isHUser`, so nothing under `client/` or `lib/` names the
 list: the Users tab reads the roster row's flag for its operator-only sections
 and its filter that hides operators by default. The tier gates `unlimitedAi`
-(`auth/global_user.ts`), the `setUserUnlimitedAi` route (`GUARD.hUser`) and
-`setUserContactPerson` (an inline `isHUser` check); S16's edit-session log rows
+(`auth/global_user.ts`) and the `setUserUnlimitedAi` and `setUserContactPerson`
+routes (`GUARD.hUser`); S16's edit-session log rows
 skip operators, and renaming one returns a warning that the status is lost.
 
 ## Traps

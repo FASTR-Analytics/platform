@@ -240,7 +240,7 @@ The flow:
    `_ANTHROPIC_API_URL` (`exposed_env_vars.ts`; the URL env is the **full**
    messages endpoint, `https://api.anthropic.com/v1/messages`).
 2. **Daily limit**: `_DAILY_TOKEN_LIMIT !== null && !unlimitedAi` →
-   `GetUserDailyTokenUsage >= limit` → `LogAiLimitHit(email, "daily_user")` +
+   `getUserDailyTokenUsage >= limit` → `LogAiLimitHit(email, "daily_user")` +
    Anthropic-shaped 429 whose message embeds the next-UTC-midnight reset ISO.
 3. **Weekly limit**: same gate shape → `GetInstanceWeeklyTokenUsage >= limit` →
    `LogAiLimitHit("__instance__", "weekly_instance")` (sentinel, not the
