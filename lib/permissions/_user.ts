@@ -21,6 +21,7 @@ export type GlobalUser = {
   organisation: string | null;
   approved: boolean;
   isGlobalAdmin: boolean;
+  isHUser: boolean;
   thisUserPermissions: UserPermissions;
   unlimitedAi: boolean;
   scopeAccess: ScopeAccess;
@@ -31,6 +32,7 @@ export type GlobalUser = {
 export type OtherUser = {
   email: string;
   isGlobalAdmin: boolean;
+  isHUser: boolean;
   firstName?: string;
   lastName?: string;
   organisation?: string;
@@ -57,6 +59,7 @@ export function createDevGlobalUser(
     organisation: null,
     approved: true,
     isGlobalAdmin: true,
+    isHUser: false,
     thisUserPermissions: userPermissions(true),
     unlimitedAi: false,
     scopeAccess: ALL_SCOPES,

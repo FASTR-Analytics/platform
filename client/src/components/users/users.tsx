@@ -1,5 +1,4 @@
 import {
-  H_USERS,
   INSTANCE_PERMISSION_LABELS,
   type ScopeAccess,
   type ScopeId,
@@ -47,7 +46,9 @@ export function InstanceUsers(p: Props) {
 
   const [showHUsers, setShowHUsers] = createSignal(false);
 
-  const currentUserIsHUser = () => H_USERS.includes(p.thisLoggedInUserEmail);
+  const currentUserIsHUser = () =>
+    instanceState.users.find((u) => u.email === p.thisLoggedInUserEmail)
+      ?.isHUser ?? false;
 
   async function attemptAddUser() {
     await openComponent({
@@ -181,6 +182,7 @@ export function InstanceUsers(p: Props) {
 type UserData = {
   email: string;
   isGlobalAdmin: boolean;
+  isHUser: boolean;
   firstName?: string;
   lastName?: string;
   organisation?: string;
@@ -322,7 +324,7 @@ function UserTable(p: {
       ) => [r.email, new Date(r.lastActive).getTime()]),
     );
     return p.users
-      .filter((user) => p.showHUsers() || !H_USERS.includes(user.email))
+      .filter((user) => p.showHUsers() || !user.isHUser)
       .map((user) => ({
         ...user,
         lastActiveTs: map.get(user.email) ?? -1,

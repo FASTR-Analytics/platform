@@ -2,7 +2,6 @@ import type { Context, MiddlewareHandler } from "hono";
 import { createMiddleware } from "hono/factory";
 import {
   type GlobalUser,
-  H_USERS,
   holdsPermission,
   type ProductAccessLevel,
   type RouteGuard,
@@ -101,9 +100,7 @@ export function requirePermission(flag: UserPermission) {
 
 export function requireHUser() {
   return guard((user) =>
-    user.approved && H_USERS.includes(user.email)
-      ? undefined
-      : OPERATOR_REQUIRED
+    user.approved && user.isHUser ? undefined : OPERATOR_REQUIRED
   );
 }
 

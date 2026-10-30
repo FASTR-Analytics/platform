@@ -1051,3 +1051,13 @@ commit.
 - Step 4: the review found pointers to S1 for moved prose in
   SYSTEM_13_ai_assistant.md, SYSTEM_00_kernel.md and PROTOCOL_APP_ROUTES.md,
   outside the Surface; each now names S18.
+- Step 5: `lib/permissions/_user.ts` holds `GlobalUser`, `OtherUser` and
+  `createDevGlobalUser`, a file the layout did not name, because the identity
+  types belong to neither the flags nor the scope-access file.
+- Step 5: `isHUser(email)` lives in `server/auth/operators.ts`, a tracked file
+  the layout did not name, because `server/db/instance/users.ts` reads it and
+  cannot import `global_user.ts` without a module cycle; `db_startup.ts` reads
+  the list itself, since the seed enumerates it and a predicate cannot.
+- Step 5: edited `client/src/components/users/{users,user}.tsx`, outside the
+  Surface, because the lib barrel no longer exports the operator list; each
+  reads `isHUser` off the roster row instead.

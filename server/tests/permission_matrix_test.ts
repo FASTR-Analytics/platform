@@ -11,7 +11,6 @@ import {
   type APIResponseWithData,
   type CollabServerMessage,
   geographyOnlyScopeDefinition,
-  H_USERS,
   pickUserPermissions,
   type ProductAccessLevel,
   type ProductLevel,
@@ -81,6 +80,7 @@ import {
   type Session,
   statusOf,
 } from "./_harness/route_app.ts";
+import { H_USERS } from "../auth/h_users.ts";
 
 // ---------------------------------------------------------------------------
 // Personas

@@ -26,7 +26,6 @@ import {
   canonicalJson,
   type FigureBlock,
   type GlobalUser,
-  H_USERS,
   type ImageBlock,
   listSlideConfigTextElements,
   type SlideDeckConfig,
@@ -62,6 +61,7 @@ import {
   type VersionKind,
   type VersionPayload,
 } from "./version_tracker.ts";
+import { isHUser } from "../auth/operators.ts";
 
 const SWEEP_INTERVAL_MS = 30_000;
 
@@ -298,11 +298,11 @@ const tracker = createVersionTracker({
   writeVersion,
   // Usage stats: one user_logs row per (session × editor), rolled up weekly
   // like any logged route and read by the Admin-Website activity views.
-  // H_USERS are skipped so the counts reflect country usage only.
+  // Operators are skipped so the counts reflect country usage only.
   onSessionEnd: ({ kind, docId, editors }) => {
     const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
     for (const editor of editors) {
-      if (H_USERS.includes(editor.email)) {
+      if (isHUser(editor.email)) {
         continue;
       }
       AddLog(

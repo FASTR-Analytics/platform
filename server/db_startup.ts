@@ -1,8 +1,4 @@
-import {
-  H_USERS,
-  type InstanceConfigAdminAreaLabels,
-  type StructureSchema,
-} from "lib";
+import { type InstanceConfigAdminAreaLabels, type StructureSchema } from "lib";
 import {
   evictRunFromManifestCache,
   runDirPath,
@@ -27,6 +23,7 @@ import { migrateReports } from "./db/migrations/data_transforms/reports.ts";
 import { migrateInstanceConfigs } from "./db/migrations/data_transforms/instance_config.ts";
 import { migrateRunsSummaries } from "./db/migrations/data_transforms/runs_summary.ts";
 import { migrateRunsProgress } from "./db/migrations/data_transforms/runs_progress.ts";
+import { H_USERS } from "./auth/h_users.ts";
 
 export async function dbStartUp() {
   const sql = getPgConnectionFromCacheOrNew("postgres", "READ_AND_WRITE");

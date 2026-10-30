@@ -343,6 +343,7 @@ Deno.test("the instance stream ends when an approved connection's user leaves th
   const me: OtherUser = {
     email: VIEWER,
     isGlobalAdmin: false,
+    isHUser: false,
     scopeAccess: ALL_SCOPES,
     unlimitedAi: false,
     isContactPerson: false,

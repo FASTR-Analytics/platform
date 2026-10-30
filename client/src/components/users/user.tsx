@@ -1,5 +1,4 @@
 import {
-  H_USERS,
   INSTANCE_PERMISSION_LABELS,
   OtherUser,
   t3,
@@ -81,7 +80,9 @@ function makeDefaultUserPermissions(): Record<UserPermission, boolean> {
 }
 
 function UserDetail(p: DetailProps) {
-  const currentUserIsHUser = () => H_USERS.includes(p.thisLoggedInUserEmail);
+  const currentUserIsHUser = () =>
+    instanceState.users.find((u) => u.email === p.thisLoggedInUserEmail)
+      ?.isHUser ?? false;
 
   const [permissions, setPermissions] = createSignal<
     Record<

@@ -75,6 +75,7 @@ function rosterRow(
   return {
     email,
     isGlobalAdmin,
+    isHUser: false,
     unlimitedAi: false,
     isContactPerson: false,
     scopeAccess,

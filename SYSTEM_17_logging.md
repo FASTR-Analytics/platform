@@ -43,7 +43,8 @@ the Admin-Website's activity analytics are built entirely on these rows.
 S16's `createVersionTracker` `onSessionEnd` hook
 ([version_capture.ts](server/collab/version_capture.ts)) writes one row per
 (session × editor) with endpoint `reportEditSession` / `deckEditSession`,
-details `{ docId }`, skipping `H_USERS` so counts reflect country usage only.
+details `{ docId }`, skipping operators (`isHUser`, S18) so counts reflect
+country usage only.
 These rows ride the same retention/aggregation as route rows and feed the
 Admin-Website document-activity views.
 

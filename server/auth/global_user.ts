@@ -26,7 +26,6 @@ import type { GlobalUser } from "lib";
 import {
   createDevGlobalUser,
   effectivePermissions,
-  H_USERS,
   normaliseEmail,
   pickUserPermissions,
   scopeAccessOf,
@@ -35,6 +34,7 @@ import {
   getClerkSessionAuth,
   getHeadlessAuthEmail,
 } from "../middleware/auth.ts";
+import { isHUser } from "./operators.ts";
 
 export async function getGlobalUser(
   c: Context,
@@ -134,8 +134,9 @@ export async function buildGlobalUserFromDb(
       organisation: rawUser?.organisation ?? null,
       approved: _OPEN_ACCESS || !!rawUser,
       isGlobalAdmin,
+      isHUser: isHUser(email),
       thisUserPermissions,
-      unlimitedAi: H_USERS.includes(email) || (rawUser?.unlimited_ai ?? false),
+      unlimitedAi: isHUser(email) || (rawUser?.unlimited_ai ?? false),
       scopeAccess,
     };
     return globalUser;

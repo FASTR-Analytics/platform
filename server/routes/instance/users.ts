@@ -3,7 +3,6 @@ import type { Sql } from "postgres";
 import {
   type APIResponseWithData,
   EMAIL_REGEX,
-  H_USERS,
   normaliseEmail,
   type RenameEmailInstanceResult,
 } from "lib";
@@ -61,6 +60,7 @@ import {
 } from "./collab.ts";
 import { defineRoute } from "../route-helpers.ts";
 import { requireVisibleAssets } from "../../auth/asset_visibility.ts";
+import { isHUser } from "../../auth/operators.ts";
 import {
   ADMIN_FLAG_NEEDS_ADMIN,
   ADMIN_ROW_NEEDS_ADMIN,
@@ -155,9 +155,6 @@ defineRoute(
   "setUserUnlimitedAi",
   log("setUserUnlimitedAi"),
   async (c, { body }) => {
-    if (!H_USERS.includes(c.var.globalUser.email)) {
-      return c.json({ success: false, err: OPERATOR_REQUIRED }, 403);
-    }
     const res = await SetUserUnlimitedAi(
       c.var.mainDb,
       body.email,
@@ -257,7 +254,7 @@ defineRoute(
   "setUserContactPerson",
   log("setUserContactPerson"),
   async (c, { body }) => {
-    if (!H_USERS.includes(c.var.globalUser.email)) {
+    if (!c.var.globalUser.isHUser) {
       return c.json({ success: false, err: OPERATOR_REQUIRED }, 403);
     }
     const res = await setUserContactPerson(
@@ -520,9 +517,9 @@ async function renameUserEmailLocally(
     return productsRes;
   }
   const warnings: string[] = [];
-  if (H_USERS.includes(oldEmail)) {
+  if (isHUser(oldEmail)) {
     warnings.push(
-      "The old email is a hardcoded superuser (lib/h_users.ts) — that status is lost until the code is updated",
+      "The old email is a hardcoded superuser (server/auth/h_users.ts) — that status is lost until the code is updated",
     );
   }
   if (_OPEN_ACCESS && mainRes.data.changed) {

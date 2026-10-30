@@ -3,7 +3,6 @@ system: 18
 name: Permissions & Identity
 globs:
   - client/src/state/instance/product_access.ts
-  - lib/h_users.ts
   - lib/permissions/**
   - server/auth/**
   - server/db/instance/rename_user_email.ts
@@ -117,8 +116,8 @@ effective permissions (else 403), so a global admin passes every flag's guard
 and a configure holder passes the matching view flag's. One flag per guard; a
 route that needs two is two routes.
 
-**`requireHUser()`**: approved and an operator (`H_USERS`), else 403
-`OPERATOR_REQUIRED`.
+**`requireHUser()`**: approved and `isHUser` (the operator tier, below), else
+403 `OPERATOR_REQUIRED`.
 
 **`requireStatusKey()`**: machine calls only. A request without the
 `status-api-key` header matching `_STATUS_API_KEY` (an unset key matches
@@ -245,22 +244,21 @@ every builder follow), never inline a permission string elsewhere.
 
 ## Special modes (precedence, highest first)
 
-| Mode           | Source                                             | Effect                                                                                                         |
-| -------------- | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `_BYPASS_AUTH` | `BYPASS_AUTH` env, dev only (`&& !_IS_PRODUCTION`) | synthetic full-access dev user; Clerk disabled entirely                                                        |
-| `_OPEN_ACCESS` | `OPEN_ACCESS` env                                  | every signed-in email treated as an approved global admin while it is set                                      |
-| `is_admin`     | `users.is_admin` column                            | global admin, bypasses all permission checks except a private asset's (S4)                                     |
-| `H_USERS`      | hardcoded `lib/h_users.ts` (9 emails)              | `unlimitedAi`; the only callers of `setUserUnlimitedAi` / `setUserContactPerson`; seeded as admin rows at init |
-| granular       | `users` permission columns                         | normal least-privilege path                                                                                    |
+| Mode           | Source                                             | Effect                                                                                                             |
+| -------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `_BYPASS_AUTH` | `BYPASS_AUTH` env, dev only (`&& !_IS_PRODUCTION`) | synthetic full-access dev user; Clerk disabled entirely                                                            |
+| `_OPEN_ACCESS` | `OPEN_ACCESS` env                                  | every signed-in email treated as an approved global admin while it is set                                          |
+| `is_admin`     | `users.is_admin` column                            | global admin, bypasses all permission checks except a private asset's (S4)                                         |
+| `H_USERS`      | untracked `server/auth/h_users.ts`                 | `isHUser`: `unlimitedAi`, the `setUserUnlimitedAi` and `setUserContactPerson` routes; seeded as admin rows at init |
+| granular       | `users` permission columns                         | normal least-privilege path                                                                                        |
 
 `_OPEN_ACCESS` inserts an unknown email as a non-admin row through the
 read-and-write pool (`ON CONFLICT DO NOTHING`) and broadcasts the roster when it
 did; effective admin is the `_OPEN_ACCESS ||` short-circuit alone, so turning
 the mode off leaves those users approved and non-admin.
-`unlimitedAi = H_USERS.includes(email) ||
-rawUser.unlimited_ai` (S13). Prefer a
-granular permission or `requireAdmin` over a new `H_USERS.includes()` check:
-it's a hardcoded allowlist, and expanding its use spreads policy into code.
+`unlimitedAi = isHUser(email) || rawUser.unlimited_ai` (S13). Prefer a granular
+permission or `GUARD.admin` over a new operator gate: it's a hardcoded
+allowlist, and expanding its use spreads policy into code.
 
 ## Scope access
 
@@ -357,16 +355,20 @@ and its route re-broadcasts their summaries (`notifyInstanceProductsUpserted`).
 - `requirePermission` (above) is the single read-side evaluator, over the
   effective permissions.
 
-## H_USERS shadow tier
+## The operator tier
 
-`lib/h_users.ts`: 9 hardcoded emails forming a permission tier outside the flag
-model. Gates: boot-seeded as admins into every new main DB (`db_startup.ts`);
-`unlimitedAi` (`auth/global_user.ts`); the `setUserUnlimitedAi` and
-`setUserContactPerson` routes; client UI sections (`currentUserIsHUser`) and the
-Users-table filter that hides H_USERS by default. They are also skipped by S16's
-edit-session log rows, and renaming one returns a warning that the status is
-lost. The same file carries `_FEEDBACK_EMAIL_RECIPIENTS` for the S12 feedback
-route.
+`H_USERS`, a hardcoded email list forming a permission tier outside the flag
+model, lives in `server/auth/h_users.ts`, untracked (`.gitignore`) and shipped
+only by the image's `COPY server server`; the same file carries
+`_FEEDBACK_EMAIL_RECIPIENTS` for the S12 feedback route. `isHUser(email)`
+(`server/auth/operators.ts`) is its one reader, beside the boot seed that
+inserts the list as admin rows into a new main DB (`db_startup.ts`). `GlobalUser`
+and `OtherUser` carry `isHUser`, so nothing under `client/` or `lib/` names the
+list: the Users tab reads the roster row's flag for its operator-only sections
+and its filter that hides operators by default. The tier gates `unlimitedAi`
+(`auth/global_user.ts`), the `setUserUnlimitedAi` route (`GUARD.hUser`) and
+`setUserContactPerson` (an inline `isHUser` check); S16's edit-session log rows
+skip operators, and renaming one returns a warning that the status is lost.
 
 ## Traps
 
@@ -382,19 +384,6 @@ route.
 
 ## Open items
 
-- **Decoupling: `lib/h_users.ts` ships access-policy emails in the client
-  bundle.** Semantically server-side access-control data; move it server-side
-  (client gets a boolean where needed). Bridge-pass move.
-- **Startup guard-audit: considered and DECLINED (ruled).** A boot-time (or
-  type-level) check that every `defineRoute` carries a guard or an explicit
-  public marker was audited and rejected: the full registry has exactly one
-  unguarded route (`getInstanceMeta`, deliberately public), so the rule stays
-  the matrix test above plus review. Do not re-propose without a new hole.
-  (Health.ts's read
-  surface is public by design (SYSTEM_15's exposure inventory); its reset and
-  module-defaults endpoints take `requireStatusKey()`.)
 - **Decide the `authError` contract.** It is 401-only in reality (no 403 carries
   it; the client only reads it on 401): either bless that as the contract or
   extend it to 403s deliberately.
-- Audit `H_USERS.includes()` call sites; document per site why `requireAdmin` /
-  a granular permission is insufficient.

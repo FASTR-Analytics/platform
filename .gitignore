@@ -31,7 +31,7 @@ CLAUDE.local.md
 .vscode
 
 lib/admin_config.ts
-lib/h_users.ts
+server/auth/h_users.ts
 
 
 # Temp

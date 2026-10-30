@@ -67,6 +67,7 @@ function testGlobalUser(email: string, approved: boolean): GlobalUser {
     organisation: null,
     approved,
     isGlobalAdmin: false,
+    isHUser: false,
     thisUserPermissions: userPermissions(false),
     unlimitedAi: false,
     scopeAccess: ALL_SCOPES,

@@ -21,6 +21,7 @@ import { DBUser } from "./_main_database_types.ts";
 import { SCOPE_NOT_FOUND } from "./scopes.ts";
 import { dropAccessOfMissingUsers } from "../products/products.ts";
 import { _OPEN_ACCESS } from "../../exposed_env_vars.ts";
+import { isHUser } from "../../auth/operators.ts";
 import {
   ADMIN_FLAG_NEEDS_ADMIN,
   ADMIN_ROW_NEEDS_ADMIN,
@@ -111,6 +112,7 @@ export function otherUserFromRow(
   return {
     email: row.email,
     isGlobalAdmin,
+    isHUser: isHUser(row.email),
     firstName: row.first_name ?? undefined,
     lastName: row.last_name ?? undefined,
     organisation: row.organisation ?? undefined,

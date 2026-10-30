@@ -300,8 +300,8 @@ compares the stored date to today in JS UTC, the write uses Postgres
 rows = `ai_usage_logs` (email, model, 4 token counts). Limit hits =
 `ai_limit_hits`, PK `(user_email, limit_type,
 hit_date)` so
-`ON CONFLICT DO NOTHING` dedupes to one row per day. `unlimitedAi` = `H_USERS`
-membership or `users.unlimited_ai`
+`ON CONFLICT DO NOTHING` dedupes to one row per day. `unlimitedAi` = `isHUser`
+(the operator tier, S18) or `users.unlimited_ai`
 ([global_user.ts:110](server/auth/global_user.ts#L110)). `_DAILY_TOKEN_LIMIT` /
 `_WEEKLY_TOKEN_LIMIT` are `parseInt`-or-`null`, with a boot-time throw on an
 unparseable value

@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { _FEEDBACK_EMAIL_RECIPIENTS } from "lib";
+import { _FEEDBACK_EMAIL_RECIPIENTS } from "../../auth/h_users.ts";
 import { _INSTANCE_ID, _SEND_GRID_API } from "../../exposed_env_vars.ts";
 import { defineRoute } from "../route-helpers.ts";
 import { log } from "../../middleware/logging.ts";

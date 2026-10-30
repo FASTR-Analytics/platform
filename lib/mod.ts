@@ -36,7 +36,6 @@ export * from "./group_metrics.ts";
 export * from "./explore_query.ts";
 export * from "./explore_views.ts";
 export * from "./grid_items.ts";
-export * from "./h_users.ts";
 export * from "./permissions/mod.ts";
 export * from "./help/mod.ts";
 export * from "./hmis_indicator_catalog.ts";
