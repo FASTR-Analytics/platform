@@ -39,8 +39,9 @@ Vocabulary, used throughout:
   (`can_configure_data` implies `can_view_data`, `can_configure_users` implies
   `can_view_users`); a restricted user (`users.all_scopes = FALSE`) holds none.
 - **guard**: a route's declared requirement: `public`, `signed_in`, `approved`,
-  `admin`, `permission` (any of a list of flags), `product` (a level) or
-  `folder` (a level).
+  `admin`, `permission` (one flag), `h_user` (the caller's `isHUser`),
+  `status_key` (the shared `status-api-key` header, no session), `product` (a
+  level) or `folder` (a level).
 - **manager**: a non-admin holder of `can_configure_users`.
 - **unapproved**: a signed-in Clerk account with no `users` row.
 - **persona**: an identity the matrix test and the browser script sign in as.
@@ -179,17 +180,21 @@ fails boot when exactly one route is not public (`getInstanceMeta`) or when a
 product-shaped path carries a non-product guard. The folder routes declare
 `folder`, so whether a route is a folder route is read from the table, never
 from the request. One factory, `guard(policy)`, backs `requireSignedIn`,
-`requireApprovedUser`, `requireAdmin`, `requirePermission(...any)`,
-`requireProductAccess(level)`, `requireFolderAccess(level)` and
-`requireStatusKey`; `orStatusKey` is a registry flag on the three fleet routes.
-`signed_in` is held by four routes: `getCurrentUser`, `/instance_updates`,
+`requireApprovedUser`, `requireAdmin`, `requirePermission(flag)`,
+`requireHUser`, `requireStatusKey`, `requireProductAccess(level)` and
+`requireFolderAccess(level)`. `receiveUserNameSync` and `receiveUserProfileSync`
+declare `status_key`; `orStatusKey` is a registry flag on `renameUserEmail`
+alone; `headless: true` is the registry flag on the three routes the headless
+app admits, and `headless_allowlist.ts` reads it from the registry. `signed_in`
+is held by four routes: `getCurrentUser`, `/instance_updates`,
 `updateMyProfile`, `renameUserEmailEverywhere`. Everything else is `approved` or
 stronger.
 
 **The client reads the same table.** `client/src/state/instance/permissions.ts`
-exports `isGlobalAdmin()`, `can(...keys)` and `canCallRoute(name, productId?)`,
-which evaluates the registry entry's guard against the store's current user (and
-`productLevel` for product routes). Every page gate, button and copilot tool
+exports `isGlobalAdmin()`, `can(key)` and `canCallRoute(name, productId?)`,
+which evaluates the registry entry's guard against the store's current user
+(`productLevel` for product routes; approved and unrestricted for folder
+routes; `isHUser` for `h_user`). Every page gate, button and copilot tool
 requirement reads them; no component spells `admin || permissions.X`.
 
 **Approval.** Approved means a `users` row exists (or `OPEN_ACCESS`).
@@ -211,9 +216,9 @@ users-flag holders receive roster rows; a viewer's own row is always a roster
 row; an unapproved connection receives nothing. The Users tab, the people
 pickers and the sharing lists read what they need from that.
 
-**The product plane.** Unchanged in its levels. A folder write (create under a
-parent, rename, move, delete) needs edit on every product in the folder's
-subtree; `setFolderProductsAccess` stays admin. A product's owner must hold its
+**The product plane.** Unchanged in its levels. Folders keep today's rule: no
+level, and any approved unrestricted user creates, renames, moves or deletes
+one; `setFolderProductsAccess` stays admin. A product's owner must hold its
 scope, on transfer and on rescope. An unknown folder id is a typed 404. The
 product email routes cap the attachment and the daily sends per user.
 
@@ -250,8 +255,11 @@ row and is refused in production exactly as `BYPASS_AUTH` is.
    stored. A restricted user's effective permissions are all false.
 3. _(proposed)_ The user-management rule: a non-admin caller never names an
    admin's row and never their own row, checked inside the transaction with the
-   rows locked, refused with one of two constants that the routes answer as 403.
-   `renameUserEmail` requires admin on the session path.
+   rows locked, refused with a constant that the routes answer as 403. Until step
+   6 reduces a restricted user's flags to none, the rule also refuses a
+   restricted caller. The admin-flag checks on `addUsers` and `batchUploadUsers`
+   stay: the rule covers rows that exist, they cover rows the caller would
+   create as admins. `renameUserEmail` requires admin on the session path.
 4. _(proposed)_ `signed_in` is a declared guard held by exactly four routes
    (§2). Every other registry route, raw endpoint and static tier that admitted
    any signed-in caller requires approval. The unapproved starting payload
@@ -265,9 +273,10 @@ row and is refused in production exactly as `BYPASS_AUTH` is.
 6. _(proposed)_ Folder routes declare `folder`. Step 2 closes the body bypass by
    deciding `folderRoute` from membership in `folderRouteRegistry`; step 4
    replaces that with the declared kind.
-7. _(proposed)_ Folder writes need edit on every product in the subtree
-   (vacuously true for an empty subtree); the delete response no longer returns
-   the freed product ids. `setFolderProductsAccess` stays admin.
+7. Folders keep today's rule (SYSTEM_12 "Contract"): no level, any approved
+   unrestricted user creates, renames, moves or deletes one, a restricted user
+   is refused every folder route. `setFolderProductsAccess` stays admin. Folder
+   ownership, if wanted, is a plan of its own.
 8. _(proposed)_ Scope CRUD and country-scoped prompts need `can_configure_data`;
    the Scopes tab follows.
 9. _(proposed)_ The fleet rename carries `clerkUserId` and the receiving
@@ -276,8 +285,12 @@ row and is refused in production exactly as `BYPASS_AUTH` is.
    which is retryable.
 10. _(proposed)_ `OPEN_ACCESS` inserts non-admin rows and broadcasts the roster;
     existing admin rows it created are left as they are.
-11. _(proposed)_ The roster projection of §2. `getAllUserLogs` moves under
-    `can_view_users` with the fold (step 6).
+11. _(proposed)_ The roster projection of §2. `getAllUserLogs` and `GetLogs` are
+    deleted in step 2: the Users tab reads only the latest timestamp per user,
+    while the route returns every row's `details` (request bodies and headers).
+    `getUsersLastActive` (`SELECT user_email, MAX(timestamp) ... GROUP BY`)
+    replaces it at `can_view_logs`, and moves under `can_view_users` with the
+    fold (step 6).
 12. _(proposed)_ Email caps: `attachment.content` at most 25,000,000 characters,
     `filename` at most 200 characters with no path separator, and a per-user
     daily send count against `DAILY_EMAIL_LIMIT` (default 50), refused with a
@@ -308,24 +321,34 @@ row and is refused in production exactly as `BYPASS_AUTH` is.
 `server/db/migrations/instance/224_admin_rows_unrestricted.sql`,
 `server/db/migrations/instance/225_lowercase_user_emails.ts`,
 `server/tests/_harness/route_app.ts`, `server/tests/user_management_test.ts`,
+`server/tests/lowercase_user_emails_migration_test.ts`,
 `server/tests/product_access_db_test.ts`,
 `server/tests/scope_grants_routes_test.ts`, `SYSTEM_01_api_contract.md`,
 `SYSTEM_15_admin_ops.md`, `SYSTEM_16_collaboration.md`.
 
 **Deliverable.**
 
-- `server/db/instance/users.ts` exports `ADMIN_ROW_NEEDS_ADMIN` and
-  `OWN_ROW_REFUSED` and one function
-  `refuseUserManagement(sql, caller: { email; isGlobalAdmin }, emails): Promise<string | undefined>`
-  that, for a non-admin caller, returns `OWN_ROW_REFUSED` when `emails` names
-  the caller and `ADMIN_ROW_NEEDS_ADMIN` when any named row is an admin
+- `server/db/instance/users.ts` exports `ADMIN_ROW_NEEDS_ADMIN`,
+  `OWN_ROW_REFUSED` and `RESTRICTED_CALLER_REFUSED` and one function
+  `refuseUserManagement(sql, caller: { email; isGlobalAdmin; scopeAccess }, emails): Promise<string | undefined>`
+  that, for a non-admin caller, returns `RESTRICTED_CALLER_REFUSED` when the
+  caller's `scopeAccess` is not all (a restricted user keeps
+  `can_configure_users` until step 6), `OWN_ROW_REFUSED` when `emails` names the
+  caller and `ADMIN_ROW_NEEDS_ADMIN` when any named row is an admin
   (`SELECT ... FOR UPDATE`). `deleteUser`, `updateUserPermissions`,
   `bulkUpdateUserPermissions`, `setUserScopeAccess`, `bulkSetUserScopeAccess`
   and `batchUploadUsers` take the caller and call it inside their transaction
-  before writing; the routes answer either string as 403. The inline checks at
-  users.ts:365-374 and the `ADMIN_FLAG_NEEDS_ADMIN` demotion path are replaced
-  by it; `addUsers` keeps its admin-flag check. `setUserScopeAccess` takes
+  before writing; the routes answer any of the strings as 403. The inline checks
+  at users.ts:365-374 are replaced by it. `addUsers` and `batchUploadUsers` keep
+  their admin-flag checks (routes users.ts:177-179, db users.ts:478-481): the
+  rule sees only rows that exist, the checks cover rows the caller would create
+  or set as admins. `setUserScopeAccess` takes
   `requireGlobalPermission("can_configure_users")`, the one scope-access policy.
+- Replace-all in `batchUploadUsers` deletes only the rows the CSV does not name
+  (`DELETE FROM users WHERE email <> ALL(${emails})`) and upserts the named
+  ones, so a retained user keeps their flags, scope access, grants, tokens,
+  prompts, asset metadata and logs; the sweep and the roster broadcast are
+  unchanged. SYSTEM_15 "Scope access" states it.
 - `renameUserEmail` is guarded
   `requireGlobalPermissionOrStatusKey({ requireAdmin: true })`; the per-target
   admin check at 617-626 is gone.
@@ -356,11 +379,26 @@ row and is refused in production exactly as `BYPASS_AUTH` is.
 - `server/tests/_harness/route_app.ts` exports `Envelope`, `clerkLeg(email)`,
   `appFor(email, ...routers)`, `call`, `ok`, `status` and `assertRealAuth()`.
   `server/tests/user_management_test.ts` uses it with personas admin, manager,
-  restricted manager and viewer, one case per bullet above: the CSV demotion,
-  the admin delete, the rename, own and admin bits, a viewer's bits by a manager
+  restricted manager and viewer, one case per bullet above: the CSV demotion, a
+  manager's CSV with a new email set `true` (403), a restricted manager's scope
+  grant through both scope-access routes (403, `RESTRICTED_CALLER_REFUSED`), the
+  admin delete, the rename, own and admin bits, a viewer's bits by a manager
   (200), the self-refusal envelopes, promotion clearing grants, the PAT
-  surviving a rename, a mixed-case add stored lowercase, and the deleted user's
-  socket closing (the socket helper of `product_access_routes_test.ts`).
+  surviving a rename, a mixed-case add stored lowercase, a restricted user and a
+  PAT holder named in a replace-all keeping their grants and token, and the
+  deleted user's socket closing (the socket helper of
+  `product_access_routes_test.ts`).
+- `server/tests/lowercase_user_emails_migration_test.ts`, on the pattern of
+  `hfa_code_migration_test.ts` (a throwaway database built from
+  `_main_database.sql` on the dev postgres, dropped afterwards): seeds
+  `Alice@Example.org` with a PAT, a scope grant, an owned product, a grant on
+  another product and a folder she created, plus the twin pair `Bob@X.org` and
+  `bob@x.org`; runs the 225 function; asserts Alice's row, every `pg_constraint`
+  FK child, `products.owner`, `product_access.email` and `folders.created_by`
+  are lowercase and the PAT still resolves to her, Bob's rows are untouched and
+  named in the log, and a second run changes nothing.
+  `./validate_migrations` globs `*.sql` only, so this test is the proof
+  PROTOCOL_APP_MIGRATIONS requires for a `.ts` migration.
 - SYSTEM_15 "Scope access" and "Admin UI" state the rule and the one
   scope-access policy; SYSTEM_16 drops the deleted-user limitation; SYSTEM_01
   names the three `requireGlobalPermissionOrStatusKey` call sites; the new test
@@ -382,13 +420,15 @@ the normalisation; the harness and the test.
 `server/routes/route-helpers.ts`,
 `server/middleware/{userPermission,static,logging}.ts`,
 `server/auth/global_user.ts`, `server/auth/product_access.ts`,
-`server/db/instance/{instance,dataset_hmis,dataset_hfa,report_styles}.ts`,
+`server/db/instance/{instance,dataset_hmis,dataset_hfa,report_styles,user_logs}.ts`,
 `server/db/products/slide_decks.ts`, `server/utils/disk_space.ts`,
 `server/task_management/build_instance_state.ts`,
 `server/routes/instance/instance-sse.ts`,
 `lib/api-routes/instance/{instance,assets,geojson_maps,datasets,users}.ts`,
 `lib/api-routes/products/{reports,slide-decks}.ts`, `lib/api-routes/mod.ts`,
 `lib/types/{dataset_hmis,dataset_hfa,instance,instance_sse}.ts`,
+`client/src/components/instance/profile.tsx`,
+`client/src/components/users/users.tsx`,
 `server/tests/{product_access_routes_test,approval_test}.ts`, `.env.example`,
 `SYSTEM_01_api_contract.md`, `SYSTEM_03_realtime_cache.md`,
 `SYSTEM_04_assets_upload.md`, `SYSTEM_05_facilities_indicators.md`,
@@ -403,6 +443,11 @@ the normalisation; the harness and the test.
   (with their DB functions and the two detail types), `getOtherUser`,
   `updateSlideDeckPlan` (registry, handler, DB function). `InstanceDetail` loses
   `users`; `buildInstanceStateWithoutProducts` reads the roster itself.
+- `getAllUserLogs` and `GetLogs` are deleted (registry, route, DB function, the
+  `UserLog` type); `getUsersLastActive` (`can_view_logs`, response
+  `{ email: string; lastActive: string }[]`, one `GROUP BY user_email` query)
+  replaces them, and `users.tsx` reads it for the Last active column. The health
+  endpoints stay the only readers of `details`.
 - `requireApprovedUser()` on every remaining zero-argument site except
   `getCurrentUser`, `/instance_updates`, `updateMyProfile` and
   `renameUserEmailEverywhere`: the TUS routes, `deleteAssets`,
@@ -410,8 +455,12 @@ the normalisation; the harness and the test.
   `setUserContactPerson`, the PAT routes, `listAdminArea2s`,
   `getAdminAreaOptionsForLevel`, the raw geojson level route, the four prompt
   routes, the two what's-new routes, `recordTourEvent`, and the static fallback
-  tier. The inline `approved` checks in `custom_prompts.ts`, `whats_new.ts` and
-  `onboarding.ts` are gone.
+  tier; the private-asset static tier answers 404 to an unapproved caller before
+  `canUserSeeAsset`, so a deleted owner with a live session downloads nothing.
+  The inline `approved` checks in `custom_prompts.ts`, `whats_new.ts` and
+  `onboarding.ts` are gone. The profile's AI-usage query and card
+  (`profile.tsx`) render only for `instanceState.currentUserApproved`, since the
+  profile is reachable before approval.
 - The unapproved starting payload has `aiContext: ""` and `geojsonMaps: []` (set
   in `getInstanceDetail` by the roster test, which also blanks the MCP grounding
   for an unapproved principal); the SSE filter blanks `aiContext` on
@@ -443,25 +492,29 @@ the normalisation; the harness and the test.
 - The dead 401 at users.ts:817-820 is a thrown invariant.
 - `server/tests/approval_test.ts`: an unapproved persona gets 403 on the TUS
   create, `sendHelpEmail`, `listAdminArea2s`, `deleteAssets` and the static
-  fallback for a `.pdf`, and its starting payload carries no `aiContext` and no
-  `geojsonMaps`; an approved persona passes each.
+  fallback for a `.pdf`, a deleted owner's private `.pdf` answers 404, and its
+  starting payload carries no `aiContext` and no `geojsonMaps`; an approved
+  persona passes each.
 - SYSTEM_01 (zero-permission guard semantics, its four sites, the off-registry
-  table with the headless `/info` row and the health count, the route count),
-  SYSTEM_03 (withheld fields), SYSTEM_04 (TUS guards, the AI-documents sentence,
-  the zero-key open item), SYSTEM_05 (`listAdminArea2s` is approved), SYSTEM_12
-  (report styles, `updateSlideDeckPlan` gone, the emails open item), SYSTEM_13
-  (prompt routes), SYSTEM_15 (`getDiskSpace` gone, 12 health endpoints,
-  `/module_defaults_snapshot` listed), SYSTEM_17 (the logged set, machine calls)
+  table with the headless `/info` row and the health count, the route count, one
+  `requireGlobalPermissionOrStatusKey` site and two status-key-only routes),
+  SYSTEM_03 (withheld fields), SYSTEM_04 (TUS guards, the private tier requires
+  approval, the AI-documents sentence, the zero-key open item), SYSTEM_05
+  (`listAdminArea2s` is approved), SYSTEM_12 (report styles,
+  `updateSlideDeckPlan` gone, the emails open item), SYSTEM_13 (prompt routes),
+  SYSTEM_15 (`getDiskSpace` gone, 12 health endpoints,
+  `/module_defaults_snapshot` listed), SYSTEM_17 (the logged set, machine calls,
+  `getUsersLastActive` as the Users tab's reader; the "log view" sentence goes)
   rewritten; `.env.example` says what `OPEN_ACCESS` grants.
 
-**Not in this step.** The registry guard field (step 4); the folder subtree rule
-(step 8); the email caps (step 8).
+**Not in this step.** The registry guard field (step 4); the email caps (step
+8).
 
 **Gates.** Floor.
 
-**Ends with.** Four commits: deletions; approval; the product-plane fixes
-(folder route, previews, styles); the identity and fleet fixes (open access,
-rename proof, status key, logging).
+**Ends with.** Four commits: deletions and `getUsersLastActive`; approval; the
+product-plane fixes (folder route, previews, styles); the identity and fleet
+fixes (open access, rename proof, status key, logging).
 
 ### Step 3: The matrix test
 
@@ -480,14 +533,31 @@ rename proof, status key, logging).
   `EXPECTED: Record<keyof typeof routeRegistry, Expectation>` (a missing route
   is a type error) plus a list for the raw endpoints and static tiers, where an
   expectation names the persona class that may call the route: signed in,
-  approved, a flag (any of), admin, product at a level, folder at a level,
-  status key. Personas: unapproved, approved with no flags, one per flag,
-  restricted with one grant, manager, admin, a status-key machine request, and a
-  PAT caller of each kind through `headlessApp`. For every route and persona it
-  sends an empty body and asserts the class: 401 for no identity, 403 for a
-  refused persona, neither for an admitted one (a 400 or 404 proves the guard
-  passed). Product and folder routes are called with unknown ids. The personas
-  are seeded and removed by the test.
+  approved, a flag (the data-file static tier names either data flag until step
+  4 derives configure-implies-view), admin, operator (`isHUser`), product at a
+  level, folder at a level, status key; and a `headless: "open" | "closed"`
+  field. Personas: unapproved, approved with no flags, one per flag, restricted
+  with one grant, manager, admin, operator (seeded from the first `H_USERS`
+  entry), a status-key machine request, and a PAT caller of each kind through
+  `headlessApp`. For every route and Clerk persona it sends an empty body and
+  asserts the class: 401 for no identity, 403 for a refused persona, neither for
+  an admitted one (a 400 or 404 proves the guard passed). Product routes cannot
+  be audited with unknown ids, because `productAccessPolicy` admits an id that
+  names no row: the test seeds one scope and one folder holding one product
+  owned by the admin persona, with `edit` granted to an editor persona and
+  `view` to a viewer persona, and adds the personas editor, viewer, stranger
+  (approved, unrestricted, no grant) and restricted-other-scope. Product routes
+  are called with that product id in the path and as `productIds: [id]`, and
+  the class is asserted per declared level: the persona one level below is
+  refused, the persona at the level is not; restricted-other-scope is refused
+  every product route. The seed is rebuilt after each route. Folder routes are
+  called with an unknown folder id (today's rule needs no row) and one case per
+  kind calls an unknown id as the admin and expects 404. PAT personas go through
+  `headlessApp`, where `headlessRouteAllowlist` answers 403 before any guard:
+  on the three allowed routes and the `/info` raw row a PAT persona asserts the
+  same class as its Clerk twin; on every other route the test asserts that 403
+  for a PAT admin, so an accidental opt-in fails. The personas and the seed are
+  created and removed by the test.
 - SYSTEM_01 "Access control" names the matrix test as the guard audit; SYSTEM_12
   keeps its test entries.
 
@@ -508,6 +578,7 @@ step 2.
 `server/middleware/{userPermission,asset_visibility,static,mod,logging}.ts`,
 `server/routes/route-helpers.ts`, `server/routes/route-tracker.ts`,
 `server/routes/**/*.ts` (every `defineRoute` and raw guard site),
+`server/middleware/headless_allowlist.ts`, `server/headless_app.ts`,
 `server/db/instance/users.ts`, `server/db_startup.ts`,
 `server/collab/version_capture.ts`, `server/mcp/context_cache.ts`,
 `server/task_management/build_instance_state.ts`,
@@ -524,36 +595,46 @@ step 2.
   of `products.ts` and the privacy section of `assets.ts` exported, plus
   `userPermissions(bit)`, `pickUserPermissions(source)`,
   `effectivePermissions(row: { isGlobalAdmin; scopeAccess } & UserPermissions)`,
-  `holdsAnyPermission(user, keys)`, `scopeAccessOf(isAdmin, allScopes, grants)`
-  and the `RouteGuard` type. `permissionsUnderScopeAccess` and the two presets
-  are gone in favour of `effectivePermissions` and `userPermissions`;
-  `createDevGlobalUser` uses the builder. The old files are deleted and the
-  barrels updated; `lib/types/products.ts` and `lib/types/assets.ts` keep their
-  other types.
+  `holdsPermission(user, key)`, `scopeAccessOf(isAdmin, allScopes, grants)` and
+  the `RouteGuard` type. `effectivePermissions` applies configure-implies-view
+  here (ruling 2; a derivation, not a guard value), so the inline
+  view-or-configure ORs in `static.ts` and the client collapse to the view flag.
+  `permissionsUnderScopeAccess` and the two presets are gone in favour of
+  `effectivePermissions` and `userPermissions`; `createDevGlobalUser` uses the
+  builder. The old files are deleted and the barrels updated;
+  `lib/types/products.ts` and `lib/types/assets.ts` keep their other types.
 - `server/auth/guards.ts`: `guard(policy)` and the factories of §2;
   `orStatusKey(inner)`; `requireStatusKey()` from step 2 moves here;
   `server/middleware/userPermission.ts` and the `mod.ts` export are gone; the
-  data-file static tier is
-  `requirePermission("can_view_data", "can_configure_data")` at the data-file
+  data-file static tier is `requirePermission("can_view_data")` at the data-file
   mount. `server/auth/refusals.ts` holds every refusal string the guards,
   `static.ts`, `collab.ts` and the users routes answer, each once.
-- `route()` requires `guard: RouteGuard` and accepts `orStatusKey?: true`; every
-  registry closes with
+- `route()` requires `guard: RouteGuard` and accepts `orStatusKey?: true` and
+  `headless?: true`; every registry closes with
   `as const satisfies Record<string, { guard: RouteGuard }>`; product entries
   declare `{ kind: "product", level }`, folder entries
-  `{ kind: "folder", level }`, and every instance entry the guard its
-  `defineRoute` carried after step 2. `defineRoute` installs the guard from the
-  entry and its signature takes no guard; `route-tracker.ts` fails boot when a
-  non-public entry is `getInstanceMeta`'s only company, when a path with
-  `:product_id` or a body `productIds` carries a guard that is not `product`, or
-  when a path with `:folder_id` or a body `parentId` carries a guard that is not
-  `folder`, and prints the inventory by kind. `requireProductAccess` takes no
-  `folderRoute` argument: the kind decides.
+  `{ kind: "folder", level }`, `receiveUserNameSync` and
+  `receiveUserProfileSync` `{ kind: "status_key" }`, `setUserUnlimitedAi`
+  `{ kind: "h_user" }`, and every other instance entry the guard its
+  `defineRoute` carried after step 2. `getCurrentUser`,
+  `getRunPresentationObjectItems` and `getRunResultsValueInfo` carry
+  `headless: true`; `HEADLESS_ALLOWED_ROUTE_NAMES` is gone and
+  `headlessRouteAllowlist` and `validateHeadlessMounts` read the flag from
+  `routeRegistry` (the raw `/info/*.md` pattern stays in the middleware).
+  `defineRoute` installs the guard from the entry and its signature takes no
+  guard; `route-tracker.ts` fails boot when a non-public entry is
+  `getInstanceMeta`'s only company, when a path with `:product_id` or a body
+  `productIds` carries a guard that is not `product`, or when a path with
+  `:folder_id` or a body `parentId` carries a guard that is not `folder`, and
+  prints the inventory by kind. `requireProductAccess` takes no `folderRoute`
+  argument: the kind decides.
 - `H_USERS` and `_FEEDBACK_EMAIL_RECIPIENTS` live in `server/auth/h_users.ts`,
   untracked (`.gitignore` moved); `isHUser(email)` is its one reader;
-  `GlobalUser` and `OtherUser` carry `isHUser`; `requireHUser()` guards
-  `setUserUnlimitedAi`; `version_capture.ts`, `db_startup.ts` and the rename
-  warning read `isHUser`; nothing under `client/` or `lib/` names the list.
+  `GlobalUser` and `OtherUser` carry `isHUser`; `requireHUser()` is the factory
+  `guard(policy)` backs for the `h_user` kind and the inline `H_USERS.includes`
+  check in `setUserUnlimitedAi` is gone; `version_capture.ts`, `db_startup.ts`
+  and the rename warning read `isHUser`; nothing under `client/` or `lib/` names
+  the list.
 - `effectivePermissions` is the one derivation: `buildGlobalUserFromDb`,
   `build_instance_state.ts`, the SSE filter and `updateCurrentUser` call it; the
   six-key literals in those files, the SQL of `getUserPermissions` and the tests
@@ -563,12 +644,16 @@ step 2.
   remaining PascalCase DB functions (`user_logs.ts`, `ai_usage_logs.ts`) are
   listed as one open item in SYSTEM_17 and SYSTEM_13. Comments that restate the
   code, banners and history notes in the touched permission files are gone.
-- The matrix test's expectation table is unchanged in meaning; where its type
-  named the old guard factories it names `RouteGuard` kinds.
+- The matrix test's expectation table is unchanged in meaning except
+  `setUserUnlimitedAi`, whose class moves from approved to operator; where its
+  type named the old guard factories it names `RouteGuard` kinds, and the
+  data-file tier's flag pair becomes `can_view_data`.
 - `PROTOCOL_APP_ROUTES.md` "Pick the guard" becomes "Declare the guard" with the
-  field, its kinds and the boot check; SYSTEM_01 "The guard factories" and
-  "Permission source of truth" describe the module and the table; SYSTEM_00,
-  SYSTEM_01, SYSTEM_04 and SYSTEM_12 manifests claim the moved and new files.
+  field, its kinds, `orStatusKey`, `headless` and the boot check; SYSTEM_01 "The
+  guard factories" (one flag, the AND-semantics sentence goes), "Permission
+  source of truth", "The headless credential seam" and the transport doctrine
+  describe the module, the table and the registry flag; SYSTEM_00, SYSTEM_01,
+  SYSTEM_04 and SYSTEM_12 manifests claim the moved and new files.
 
 **Not in this step.** Any change to a guard's value (step 6); the client
 accessors (step 5).
@@ -585,14 +670,16 @@ operator tier; the renames and comments.
 `client/src/state/instance/t1_store.ts`,
 `client/src/components/instance/{instance,copilot/tool_guard,copilot/ai_prompt_library/*,logged_in_wrapper}.tsx`,
 `client/src/components/users/*.tsx`, `client/src/components/data/**/*.tsx`,
-`client/src/components/data/hfa/indicators/write_gate.ts`,
+`client/src/components/data/hfa/indicators/{write_gate,mod}.ts`,
+`client/src/components/instance/copilot_tools.ts`,
 `client/src/components/products/{products,list_view}.tsx`,
 `client/src/components/products/folder_menu.ts`,
 `client/src/components/results_packages/**/*.tsx`,
 `client/src/components/assets/assets.tsx`,
-`client/src/onboarding/{catalogue,tours}.ts`,
+`client/src/onboarding/{catalogue,tours}.ts`, `lib/ai_tools/copilot_catalogue.ts`,
 `lib/api-routes/instance/users.ts`, `server/routes/instance/users.ts`,
-`server/db/instance/users.ts`, `SYSTEM_01_api_contract.md`,
+`server/db/instance/users.ts`, `server/tests/copilot_catalogue_test.ts`,
+`SYSTEM_01_api_contract.md`,
 `SYSTEM_05_facilities_indicators.md`, `SYSTEM_06_ingestion.md`,
 `SYSTEM_08_results_packages.md`, `SYSTEM_12_documents_sharing.md`,
 `SYSTEM_13_ai_assistant.md`, `SYSTEM_14_client_shell.md`,
@@ -600,44 +687,56 @@ operator tier; the renames and comments.
 
 **Deliverable.**
 
-- `permissions.ts` exports `isGlobalAdmin()`, `can(...keys)` and
+- `permissions.ts` exports `isGlobalAdmin()`, `can(key)` and
   `canCallRoute(name, productId?)`, the last evaluating the registry entry's
   guard against `instanceState` (approved, admin, effective permissions,
-  `productLevel` for product and folder routes). No file under `client/src`
-  spells `currentUserIsGlobalAdmin ||` beside a permission, and
+  `isHUser` for `h_user`, `productLevel` for product routes, approved and
+  unrestricted with `own` admin-only for folder routes). No file under
+  `client/src` spells `currentUserIsGlobalAdmin ||` beside a permission, and
   `canSeeRunsCatalog` and the three hand-spelled `canConfigureData` copies are
   gone.
-- The fourteen Data-page write controls and `write_gate.ts` read
-  `can("can_configure_data")`; the Retry failed pairs and Re-import controls and
-  the facilities page's upload-attempt fetch read it too; the ledger's
-  indicator-label fetch runs only when the dictionary read is callable.
+- The fourteen Data-page write controls read `can("can_configure_data")`, the
+  HFA indicator manager's write sites included; `write_gate.ts` is deleted and
+  `indicators/mod.ts` no longer exports `canWriteHfaIndicators`; the Retry
+  failed pairs and Re-import controls and the facilities page's upload-attempt
+  fetch read it too; the ledger's indicator-label fetch runs only when the
+  dictionary read is callable.
 - The Users tab: Add users and Batch import render only for
   `canCallRoute("addUsers")`; Make admin and Make non-admin only for
   `canCallRoute("toggleUserAdmin")`; the Last active column and its query exist
-  only for `canCallRoute("getAllUserLogs")`, and the default sort moves off it
-  otherwise; the Scopes column counts a restricted colleague's grants instead of
-  reading "No scopes"; Download exports what the table shows; the user detail
-  holds a patch of toggled keys over the live roster row, saves the row with the
-  patch applied, reads `unlimitedAi` and `isContactPerson` from the row, and
-  never writes all-false; `getUserPermissions` is deleted (registry, route, DB
-  function); the `UserData` type is `OtherUser`; the dead prop, the unused
-  imports and the `console.log` of the `GlobalUser` in the login wrapper are
-  gone, with its dead not-approved fallback.
+  only for `canCallRoute("getUsersLastActive")`, and the default sort moves off
+  it otherwise; Download exports what the table shows; the user detail holds a
+  patch of toggled keys over the live roster row, saves the row with the patch
+  applied, reads `unlimitedAi` and `isContactPerson` from the row, and never
+  writes all-false; the unlimited-AI toggle renders only for
+  `canCallRoute("setUserUnlimitedAi")`; `getUserPermissions` is deleted
+  (registry, route, DB function); the `UserData` type is `OtherUser`; the dead
+  prop, the unused imports and the `console.log` of the `GlobalUser` in the
+  login wrapper are gone, with its dead not-approved fallback.
 - Folder create, rename, move, delete and drag render only when
   `canCallRoute("createFolder")` holds (restricted users see none); `ListView`
   takes an optional folder-menu handler so a hidden menu has no button.
-- The prompt library offers country scope only to those `canCallRoute` admits
-  for a country prompt and shows Edit and Delete on a country prompt to its
-  author or an admin.
-- The copilot tool guard reads `can` and `canCallRoute` for its permission
-  requirements; the catalogue's requirement names are unchanged.
+- The prompt library offers country scope only when `isGlobalAdmin()` (the
+  server's inline body check in `custom_prompts.ts`, which no guard kind
+  expresses; step 6 moves both to the flag) and shows Edit and Delete on a
+  country prompt to its author or an admin (the DB rule in
+  `server/db/instance/custom_prompts.ts`).
+- The copilot tool guard passes the store's effective permissions and
+  `productLevel` as `CopilotToolUser`. `hfa_write` leaves
+  `CopilotToolRequirement`: the five HFA write tools require
+  `can_configure_data`, which is what `write_gate.ts` reduced to;
+  `CopilotToolUser.canWriteHfaIndicators`, `CopilotToolGates` and the gates
+  argument of `guardCopilotTools` are gone; `copilot_catalogue_test.ts` maps the
+  `hfa_writes` group and `update_hfa_indicator_editor` to `can_configure_data`
+  and drops the `hfa_write` refusal assertion. The other requirement names are
+  unchanged.
 - SYSTEM_14 (shell gating), SYSTEM_15 (Admin UI and its open items), SYSTEM_05
-  and SYSTEM_06 (the Data-page gates and the closed decision), SYSTEM_08 (the
-  package page's reads), SYSTEM_12 (folder affordances), SYSTEM_13 (tool guard,
-  prompt library) rewritten.
+  and SYSTEM_06 (the Data-page gates, the write-gate predicate gone, the closed
+  decision), SYSTEM_08 (the package page's reads), SYSTEM_12 (folder
+  affordances), SYSTEM_13 (tool guard, the `hfa_write` kind gone, prompt
+  library) rewritten.
 
-**Not in this step.** Guard values (step 6); the roster (step 7); the folder
-subtree rule (step 8).
+**Not in this step.** Guard values (step 6); the roster (step 7).
 
 **Gates.** Floor.
 
@@ -659,6 +758,7 @@ Users tab; products and prompts.
 `client/src/components/results_packages/**/*.tsx`,
 `client/src/components/users/*.tsx`, `client/src/components/data/data.tsx`,
 `client/src/components/_shared/scope_select.tsx`,
+`client/src/components/instance/copilot/ai_prompt_library/save_to_prompt_library_modal.tsx`,
 `client/src/onboarding/tours.ts`,
 `server/tests/{permission_matrix_test,user_management_test,scope_grants_routes_test,copilot_catalogue_test,instance_sse_filter_test}.ts`,
 `SYSTEM_01_api_contract.md`, `SYSTEM_05_facilities_indicators.md`,
@@ -672,19 +772,24 @@ Users tab; products and prompts.
   then `DROP COLUMN IF EXISTS` for `can_configure_settings` and `can_view_logs`;
   the base schema, `DBUser`, the flag type, `USER_PERMISSIONS` and the labels
   carry four flags, in the same commit.
-- `effectivePermissions` applies configure-implies-view and the all-false
-  restricted reduction; the restricted-caller branch of the scope-access routes
-  is gone (the rule now refuses through the guard).
+- `effectivePermissions` applies the all-false restricted reduction (configure
+  implies view since step 4); `RESTRICTED_CALLER_REFUSED` and its check leave
+  `refuseUserManagement` and `scopeAccess` leaves its caller parameter, since a
+  restricted caller now holds no flag and the guard refuses first; the scope
+  grants test moves the restricted-manager case to the guard's 403.
 - Guard values: `updateStructureSchema`, `updateAdminAreaLabelsConfig`,
   `updateAiContextConfig`, `createScope`, `updateScope`, `deleteScope` at
-  `can_configure_data`; country-scoped prompts at `can_configure_data`;
-  `listRunCatalog`, `getRunModuleLogs`, `getIndicators`, the HFA dictionary
-  reads (`getHfaIndicators`, the category, sub-category, service-category,
-  variant-group and variant-item lists, the four code reads,
-  `getHfaDictionaryForValidation`) at `can_view_data`; `getAllUserLogs` at
+  `can_configure_data`; `listRunCatalog`, `getRunModuleLogs`, `getIndicators`,
+  the HFA dictionary reads (`getHfaIndicators`, the category, sub-category,
+  service-category, variant-group and variant-item lists, the four code reads,
+  `getHfaDictionaryForValidation`) at `can_view_data`; `getUsersLastActive` at
   `can_view_users`; `setUserContactPerson` at `admin`. The copilot catalogue's
   `get_module_log`, `get_hfa_indicators`, `get_hfa_indicator_details`,
   `get_hfa_variables` and `get_hfa_variable_details` require `can_view_data`.
+- Country-scoped prompts: the inline body check in `custom_prompts.ts` (create
+  and update) reads `can_configure_data` from effective permissions instead of
+  `isGlobalAdmin`, and the prompt library's country option reads
+  `can("can_configure_data")`, the same test.
 - The catalogue fill and the run telemetry filter follow `can_view_data`; the
   Results tab shows for `can("can_view_data")` with Generate, Delete and Pin at
   `can("can_configure_data")`; the Scopes tab shows for
@@ -744,16 +849,13 @@ Users tab; products and prompts.
 
 ### Step 8: The product plane
 
-**Surface.** `server/auth/product_access.ts`,
-`server/db/products/{products,folders}.ts`, `server/db/products/versions.ts`,
-`server/routes/products/{folders,products}.ts`,
+**Surface.** `server/db/products/{products,folders}.ts`,
+`server/db/products/versions.ts`, `server/routes/products/{folders,products}.ts`,
 `server/routes/instance/emails.ts`, `lib/api-routes/instance/emails.ts`,
 `lib/api-routes/products/folders.ts`,
 `server/db/instance/{_main_database.sql,_main_database_types.ts,users.ts}`,
 `server/db/migrations/instance/227_daily_email_count.sql`,
 `server/exposed_env_vars.ts`, `.env.example`,
-`client/src/components/products/{products,list_view}.tsx`,
-`client/src/components/products/{folder_menu,product_menu}.ts`,
 `client/src/components/products/_shared/product_access_modal.tsx`,
 `client/src/components/_shared/scope_select.tsx`,
 `client/src/components/products/slide_deck/share_slide_deck.tsx`,
@@ -762,12 +864,6 @@ Users tab; products and prompts.
 
 **Deliverable.**
 
-- `productAccessPolicy`'s folder branch reads
-  `getProductLevelRowsInFolders(mainDb, folderIds, email)` (a recursive-CTE twin
-  of `getProductLevelRowsInScopes`) and requires edit on every row; `own` stays
-  admin's; a restricted user stays refused. `deleteFolder` answers without the
-  freed ids. The folder menu, the New folder entry and the drag gate read a
-  `canWriteFolder(folder)` derived from `productSummaryLevel` over the subtree.
 - `setProductOwner` refuses an owner who does not hold the product's scope and
   `setProductScope` refuses a scope the current owner lacks, both with
   `PRODUCT_OWNER_LACKS_SCOPE`; the dialog's owner picker omits such users.
@@ -781,17 +877,17 @@ Users tab; products and prompts.
   `DAILY_EMAIL_LIMIT`, default 50; the share dialogs show the refusal.
 - The client-only scope rule in `scope_select.tsx` is gone: the picker lists the
   scopes the connection holds.
-- Tests: the folder rule for an editor, a viewer and a stranger; the owner scope
-  refusals; the typed folder 404; the daily cap at the DB layer.
-- SYSTEM_12 "Contract" states the folder rule, the owner scope rule, the caps
-  and the picker; SYSTEM_01's policy prose follows.
+- Tests: the owner scope refusals; the typed folder 404; the daily cap at the DB
+  layer.
+- SYSTEM_12 "Contract" states the owner scope rule, the caps and the picker;
+  SYSTEM_01's policy prose follows.
 
 **Not in this step.** The persona switch (step 9).
 
 **Gates.** `./validate_migrations`, `./validate_fresh_boot`.
 
-**Ends with.** Three commits: folders; owner scope and the folder 404; the email
-caps and the picker.
+**Ends with.** Two commits: owner scope and the folder 404; the email caps and
+the picker.
 
 ### Step 9: The persona switch and the browser script
 
