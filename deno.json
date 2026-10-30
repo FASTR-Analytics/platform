@@ -3,6 +3,7 @@
   "nodeModulesDir": "auto",
   "links": ["./vendor/postgres"],
   "fmt": {
+    "proseWrap": "preserve",
     "exclude": [
       "client/public/",
       "client/package-lock.json",
