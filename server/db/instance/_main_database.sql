@@ -15,6 +15,8 @@ CREATE TABLE users (
   last_name text,
   daily_token_usage integer NOT NULL DEFAULT 0,
   daily_token_usage_date date NOT NULL DEFAULT CURRENT_DATE,
+  daily_email_count integer NOT NULL DEFAULT 0,
+  daily_email_count_date date NOT NULL DEFAULT CURRENT_DATE,
   unlimited_ai boolean NOT NULL DEFAULT false,
   is_contact_person boolean NOT NULL DEFAULT false,
   -- FALSE = restricted to the scopes in user_scopes. Ignored for a global

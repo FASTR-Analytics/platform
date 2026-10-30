@@ -228,6 +228,15 @@ if (_WEEKLY_TOKEN_LIMIT !== null && Number.isNaN(_WEEKLY_TOKEN_LIMIT)) {
   throw new Error("WEEKLY_TOKEN_LIMIT is set but is not a number");
 }
 
+// Emails one user may send per day through the product email routes, each
+// recipient one email.
+export const _DAILY_EMAIL_LIMIT: number = parseInt(
+  Deno.env.get("DAILY_EMAIL_LIMIT") ?? "50",
+);
+if (Number.isNaN(_DAILY_EMAIL_LIMIT)) {
+  throw new Error("DAILY_EMAIL_LIMIT is set but is not a number");
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // DHIS2 Import Tuning (Optional)
 ///////////////////////////////////////////////////////////////////////////////

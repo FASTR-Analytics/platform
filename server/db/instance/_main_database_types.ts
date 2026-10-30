@@ -16,6 +16,8 @@ export type DBUser = {
   can_view_data: boolean;
   daily_token_usage: number;
   daily_token_usage_date: Date;
+  daily_email_count: number;
+  daily_email_count_date: Date;
   unlimited_ai: boolean;
   is_contact_person: boolean;
   all_scopes: boolean;

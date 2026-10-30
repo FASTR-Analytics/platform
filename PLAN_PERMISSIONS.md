@@ -1105,3 +1105,13 @@ commit.
   per-instance `InstanceGrounding` the `/mcp` cache holds; edited
   `PROTOCOL_APP_STATE.md`, outside the Surface, because its store table typed
   the roster.
+- Step 9: edited `client/src/components/products/report/share_report.tsx`,
+  `client/src/exports/export_report_attachment.ts`, `lib/api-routes/mod.ts`,
+  `client/src/components/explore/explore.tsx` and
+  `client/src/components/results_packages/package_view/module_pane.tsx`,
+  outside the Surface: the report dialog shows the refusal like the deck's,
+  the report attachment takes its name from the shared rule the schema now
+  enforces, the barrel exports that rule (and drops `folderRouteRegistry`,
+  which nothing reads since the guard kinds replaced it), and the two read
+  surfaces drop the `anyScope` prop the picker no longer has; the daily cap
+  counts each recipient as one send, since each is one SendGrid email.

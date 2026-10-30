@@ -1,9 +1,17 @@
 import { Hono } from "hono";
 import { _FEEDBACK_EMAIL_RECIPIENTS } from "../../auth/h_users.ts";
-import { _INSTANCE_ID, _SEND_GRID_API } from "../../exposed_env_vars.ts";
+import {
+  _DAILY_EMAIL_LIMIT,
+  _INSTANCE_ID,
+  _SEND_GRID_API,
+} from "../../exposed_env_vars.ts";
 import { defineRoute } from "../route-helpers.ts";
 import { log } from "../../middleware/logging.ts";
 import { requireApprovedUser } from "../../auth/guards.ts";
+import {
+  claimDailyEmailSends,
+  DAILY_EMAIL_LIMIT_REACHED,
+} from "../../db/instance/users.ts";
 
 export const routesEmails = new Hono();
 
@@ -96,6 +104,16 @@ defineRoute(
     const { recipients, message, attachment } = body;
 
     const userEmail = c.var.globalUser.email;
+    if (
+      !(await claimDailyEmailSends(
+        c.var.mainDb,
+        userEmail,
+        recipients.length,
+        _DAILY_EMAIL_LIMIT,
+      ))
+    ) {
+      return c.json({ success: false, err: DAILY_EMAIL_LIMIT_REACHED });
+    }
 
     const plainText =
       `${message}\n\n---\nThis email was sent via FASTR Analytics on behalf of ${userEmail}.`;
@@ -147,6 +165,16 @@ defineRoute(
     const { recipients, message, reportLabel, attachment } = body;
 
     const userEmail = c.var.globalUser.email;
+    if (
+      !(await claimDailyEmailSends(
+        c.var.mainDb,
+        userEmail,
+        recipients.length,
+        _DAILY_EMAIL_LIMIT,
+      ))
+    ) {
+      return c.json({ success: false, err: DAILY_EMAIL_LIMIT_REACHED });
+    }
 
     const plainText =
       `${message}\n\n---\nThis email was sent via FASTR Analytics on behalf of ${userEmail}.`;

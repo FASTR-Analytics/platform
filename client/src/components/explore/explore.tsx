@@ -252,7 +252,6 @@ export function Explore() {
                 scopeId={scopeId()}
                 onChange={setExploreScopeId}
                 size="sm"
-                anyScope
               />
             </div>
           }

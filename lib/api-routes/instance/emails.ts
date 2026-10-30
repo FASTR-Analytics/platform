@@ -7,6 +7,23 @@ import { route } from "../route-utils.ts";
 // "export the whole PDF, then 400" path.
 export const emailRecipientsSchema = z.array(z.email()).min(1).max(50);
 
+// An attachment is a base64 file: at most 25,000,000 characters (about 18 MB),
+// named by a bare file name of at most 200 characters.
+const emailAttachmentContentSchema = z.string().max(25_000_000);
+const emailAttachmentFilenameSchema = z.string().min(1).max(200).refine(
+  (name) => !/[/\\]/.test(name),
+  "The file name cannot contain a path separator",
+);
+
+// The attachment name for a product's label, the rule the schema enforces.
+export function emailAttachmentFilename(
+  label: string,
+  extension: string,
+): string {
+  const base = label.replace(/[/\\]/g, "-").trim() || "file";
+  return `${base.slice(0, 200 - extension.length - 1)}.${extension}`;
+}
+
 export const emailRouteRegistry = {
   // The recipient roster on offer is the instance roster, a consequence of
   // the permissive access model: every approved user may send.
@@ -17,7 +34,10 @@ export const emailRouteRegistry = {
     body: z.object({
       recipients: emailRecipientsSchema,
       message: z.string(),
-      attachment: z.object({ content: z.string(), filename: z.string() }),
+      attachment: z.object({
+        content: emailAttachmentContentSchema,
+        filename: emailAttachmentFilenameSchema,
+      }),
     }),
     response: {} as { sent: boolean; failedRecipients?: string[] },
   }),
@@ -35,8 +55,8 @@ export const emailRouteRegistry = {
       message: z.string(),
       reportLabel: z.string(),
       attachment: z.object({
-        content: z.string(),
-        filename: z.string(),
+        content: emailAttachmentContentSchema,
+        filename: emailAttachmentFilenameSchema,
         mimeType: z.enum(["application/pdf", "text/html"]),
       }),
     }),

@@ -484,12 +484,10 @@ is the `scopeToken` of the payload the bundle was built from, and only the area
 (`components/_shared/scope_select.tsx`) is the one control that picks a scope,
 by label, in the order the list arrives: "All data" first, as an ordinary
 option. It is used by the create dialog, `PackageScopeModal`, the duplicate
-modal, Explore (S11) and the package page (S8). The three that attach a scope to
-a product offer `pickableScopes`: every scope to a global admin, the granted
-ones to a restricted user (all its T1 list holds), and "All data" alone to any
-other user, plus a product's current scope so the control still shows it.
-Explore and the package page only read, so they pass `anyScope` and list every
-scope the connection holds. `components/_shared/package_label.ts` names things:
+modal, Explore (S11) and the package page (S8). Every use lists the scopes the
+connection holds, the rule the server enforces: every scope for an
+unrestricted user, the granted ones for a restricted user, which is all its T1
+list holds. `components/_shared/package_label.ts` names things:
 `scopeLabel(scopeId)` (the scope's label, "Unlisted scope" for an id the list
 lacks) and `figureScopeLabel(stamp)` for a stored bundle, which records a hash
 and no id: the label of a scope whose definition still hashes the same, else the
@@ -2805,12 +2803,20 @@ stale.
 
 [routes/instance/emails.ts](server/routes/instance/emails.ts) is the only
 SendGrid egress (raw fetch, `Bearer _SEND_GRID_API`, from
-`noreply@fastr-analytics.org`). `sendSlideDeckEmail` (`requireApprovedUser()`;
-the recipient roster is the instance roster): the PDF is client-rendered (S10
+`noreply@fastr-analytics.org`). `sendSlideDeckEmail` (`GUARD.approved`; the
+recipient roster is the instance directory): the PDF is client-rendered (S10
 base64 export); recipients are schema-validated
 (`z.array(z.email()).min(1).max(50)`); sequential per-recipient sends with
-partial failures returned as `{sent: false,
-failedRecipients}`.
+partial failures returned as `{sent: false, failedRecipients}`. Both product
+email routes cap what one user sends: the attachment's base64 content is at
+most 25,000,000 characters and its file name a bare name of at most 200
+characters with no path separator (`emailAttachmentFilename` builds it from the
+product's label on the client), and each recipient counts as one send against
+a per-user daily count (`claimDailyEmailSends`, `users.daily_email_count`,
+migration 227) limited by `DAILY_EMAIL_LIMIT` (default 50). The claim reads and
+increments the count in one statement before anything is sent, so concurrent
+sends cannot pass the limit, and a send it refuses answers
+`DAILY_EMAIL_LIMIT_REACHED`, which both share dialogs show as it is.
 `sendReportEmail` is the same route for a report (same guard, same recipient
 schema, the same per-recipient loop): the client attaches the report's paged
 PDF, built in the browser and printed by the server (`buildReportAttachment`),

@@ -391,6 +391,36 @@ export async function getUserDailyTokenUsage(
   return isToday ? row.daily_token_usage : 0;
 }
 
+export const DAILY_EMAIL_LIMIT_REACHED =
+  "You have reached today's email limit. Try again tomorrow.";
+
+// Claims `count` of the user's daily email sends in one statement: the count
+// resets on a new day, and nothing is claimed when the claim would pass the
+// limit, so concurrent sends cannot overshoot it.
+export async function claimDailyEmailSends(
+  mainDb: Sql,
+  userEmail: string,
+  count: number,
+  limit: number,
+): Promise<boolean> {
+  const rows = await mainDb`
+    UPDATE users SET
+      daily_email_count = CASE
+        WHEN daily_email_count_date = CURRENT_DATE
+          THEN daily_email_count + ${count}
+        ELSE ${count}
+      END,
+      daily_email_count_date = CURRENT_DATE
+    WHERE email = ${userEmail}
+      AND CASE
+        WHEN daily_email_count_date = CURRENT_DATE THEN daily_email_count
+        ELSE 0
+      END + ${count} <= ${limit}
+    RETURNING email
+  `;
+  return rows.length > 0;
+}
+
 export async function incrementUserDailyTokenUsage(
   mainDb: Sql,
   userEmail: string,

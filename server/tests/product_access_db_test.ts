@@ -14,7 +14,11 @@ import {
   type ScopeUuid,
 } from "lib";
 import { getPgConnectionFromCacheOrNew } from "../db/mod.ts";
-import { deleteUser, setUserScopeAccess } from "../db/instance/users.ts";
+import {
+  claimDailyEmailSends,
+  deleteUser,
+  setUserScopeAccess,
+} from "../db/instance/users.ts";
 import { createScope } from "../db/instance/scopes.ts";
 import { renameUserEmailInMainDb } from "../db/instance/rename_user_email.ts";
 import { getPinnedRunId } from "../db/instance/run_generation.ts";
@@ -64,6 +68,7 @@ Deno.test("product access DB layer: inserts, access writes, bulk raise, user pat
   const GONE = email("gone");
   const RENAMED = email("renamed");
   const LIMITED = email("limited");
+  const GHOST = email("ghost");
   const users = [OWNER, EDITOR, VIEWER, COPIER, GONE];
   for (const u of users) {
     await mainDb`INSERT INTO users (email, is_admin) VALUES (${u}, FALSE)`;
@@ -460,6 +465,19 @@ Deno.test("product access DB layer: inserts, access writes, bulk raise, user pat
       (await setProductOwner(mainDb, report, LIMITED)).success,
       true,
     );
+
+    // The daily email cap: a claim within the limit passes and counts, one
+    // that would pass it claims nothing, and a new day starts from zero.
+    assertEquals(await claimDailyEmailSends(mainDb, OWNER, 3, 5), true);
+    assertEquals(await claimDailyEmailSends(mainDb, OWNER, 3, 5), false);
+    assertEquals(await claimDailyEmailSends(mainDb, OWNER, 2, 5), true);
+    assertEquals(await claimDailyEmailSends(mainDb, OWNER, 1, 5), false);
+    await mainDb`
+      UPDATE users SET daily_email_count_date = CURRENT_DATE - 1
+      WHERE email = ${OWNER}
+    `;
+    assertEquals(await claimDailyEmailSends(mainDb, OWNER, 5, 5), true);
+    assertEquals(await claimDailyEmailSends(mainDb, GHOST, 1, 5), false);
   } finally {
     await mainDb`DELETE FROM products WHERE id = ANY(${productIds})`;
     await mainDb`DELETE FROM folders WHERE id = ANY(${folderIds})`;

@@ -53,7 +53,6 @@ export function ModulePane(p: {
         label={scopeSelectLabel()}
         scopeId={p.scope.scopeId}
         onChange={p.onChangeScope}
-        anyScope
       />
       <ModulePresets
         presets={presets()}
