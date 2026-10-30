@@ -10,10 +10,8 @@ import {
   deleteDatasetHmisScheduledImport,
   enqueueDatasetHmisCsvImportRun,
   enqueueDatasetHmisImportRun,
-  getDatasetHfaDetail,
   getDatasetHfaImportRunSummaries,
   getDatasetHfaItemsForDisplay,
-  getDatasetHmisDetail,
   getDatasetHmisImportLedgerItems,
   getDatasetHmisImportRunDetail,
   getDatasetHmisImportRunSummaries,
@@ -78,16 +76,6 @@ export const routesDatasets = new Hono();
 //    Dataset detail    //
 //                      //
 //////////////////////////
-
-defineRoute(
-  routesDatasets,
-  "getDatasetHmisDetail",
-  requireGlobalPermission("can_view_data"),
-  async (c) => {
-    const res = await getDatasetHmisDetail(c.var.mainDb);
-    return c.json(res);
-  },
-);
 
 defineRoute(
   routesDatasets,
@@ -557,17 +545,6 @@ defineRoute(
 //    HFA Dataset detail    //
 //                      //
 //////////////////////////
-
-defineRoute(
-  routesDatasets,
-  "getDatasetHfaDetail",
-  requireGlobalPermission("can_view_data"),
-  log("getDatasetHfaDetail"),
-  async (c) => {
-    const res = await getDatasetHfaDetail(c.var.mainDb);
-    return c.json(res);
-  },
-);
 
 /////////////////////////
 //                     //

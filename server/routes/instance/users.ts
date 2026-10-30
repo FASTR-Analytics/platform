@@ -15,7 +15,7 @@ import {
   closeConnectionsWithChangedAccess,
 } from "../../collab/presence_registry.ts";
 import { renameVersionEditorEmail } from "../../collab/version_capture.ts";
-import { GetLogs } from "../../db/instance/user_logs.ts";
+import { getUsersLastActive } from "../../db/instance/user_logs.ts";
 import {
   addUsers,
   ADMIN_FLAG_NEEDS_ADMIN,
@@ -28,7 +28,6 @@ import {
   deleteUser,
   getInstanceUsers,
   GetInstanceWeeklyTokenUsage,
-  getOtherUser,
   GetUserDailyTokenUsage,
   getUserEmailPresence,
   getUserPermissions,
@@ -177,17 +176,6 @@ defineRoute(
 
 defineRoute(
   routesUsers,
-  "getOtherUser",
-  requireGlobalPermission("can_configure_users"),
-  log("getOtherUser"),
-  async (c, { params }) => {
-    const res = await getOtherUser(c.var.mainDb, params.email);
-    return c.json(res);
-  },
-);
-
-defineRoute(
-  routesUsers,
   "addUsers",
   requireGlobalPermission("can_configure_users"),
   log("addUsers"),
@@ -295,11 +283,11 @@ defineRoute(
 
 defineRoute(
   routesUsers,
-  "getAllUserLogs",
+  "getUsersLastActive",
   requireGlobalPermission("can_view_logs"),
-  log("getAllUserLogs"),
+  log("getUsersLastActive"),
   async (c) => {
-    const res = await GetLogs(c.var.mainDb);
+    const res = await getUsersLastActive(c.var.mainDb);
     return c.json(res);
   },
 );

@@ -1,7 +1,10 @@
 import { Sql } from "postgres";
 import { tryCatchDatabaseAsync } from "./../utils.ts";
-import { APIResponseNoData, APIResponseWithData } from "lib";
-import type { UserLog } from "lib";
+import {
+  APIResponseNoData,
+  APIResponseWithData,
+  type UserLastActive,
+} from "lib";
 
 export async function AddLog(
   mainDb: Sql,
@@ -21,16 +24,24 @@ VALUES
   });
 }
 
-export async function GetLogs(
+// The latest raw row per user: the Users tab's Last active column, and the
+// only reader of user_logs besides the health endpoints.
+export async function getUsersLastActive(
   mainDb: Sql,
-): Promise<APIResponseWithData<UserLog[]>> {
+): Promise<APIResponseWithData<UserLastActive[]>> {
   return await tryCatchDatabaseAsync(async () => {
-    const logs: UserLog[] = await mainDb`
-SELECT id, user_email, timestamp, endpoint, endpoint_result, details
-FROM user_logs
-ORDER BY timestamp DESC
-        `;
-    return { success: true, data: logs };
+    const rows = await mainDb<{ email: string; last_active: Date }[]>`
+      SELECT user_email AS email, MAX(timestamp) AS last_active
+      FROM user_logs
+      GROUP BY user_email
+    `;
+    return {
+      success: true,
+      data: rows.map((r) => ({
+        email: r.email,
+        lastActive: r.last_active.toISOString(),
+      })),
+    };
   });
 }
 

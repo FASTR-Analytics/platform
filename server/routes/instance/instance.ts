@@ -1,7 +1,6 @@
 import { Hono } from "hono";
 import { InstanceMeta } from "lib";
 import {
-  getInstanceDetail,
   setStructureSchema,
   updateAdminAreaLabelsConfig,
   updateAiContextConfig,
@@ -22,7 +21,6 @@ import {
 import { log } from "../../middleware/mod.ts";
 import { requireGlobalPermission } from "../../middleware/userPermission.ts";
 import { defineRoute } from "../route-helpers.ts";
-import { checkFreeDiskSpace } from "../../utils/disk_space.ts";
 
 export const routesInstance = new Hono();
 
@@ -51,17 +49,6 @@ defineRoute(routesInstance, "getInstanceMeta", async (c) => {
     data: instance,
   });
 });
-
-defineRoute(
-  routesInstance,
-  "getInstanceDetail",
-  requireGlobalPermission(),
-  log("getInstanceDetail"),
-  async (c) => {
-    const res = await getInstanceDetail(c.var.mainDb, c.var.globalUser);
-    return c.json(res);
-  },
-);
 
 defineRoute(
   routesInstance,
@@ -106,18 +93,5 @@ defineRoute(
       await notifyInstanceConfigUpdatedFromDb(c.var.mainDb);
     }
     return c.json(res);
-  },
-);
-
-defineRoute(
-  routesInstance,
-  "getDiskSpace",
-  requireGlobalPermission(),
-  async (c) => {
-    const res = await checkFreeDiskSpace();
-    return c.json({
-      success: true,
-      data: { ok: res.ok, availableGB: res.availableGB },
-    });
   },
 );

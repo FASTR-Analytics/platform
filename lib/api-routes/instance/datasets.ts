@@ -1,8 +1,5 @@
 import { z } from "zod";
-import type {
-  DatasetHfaDetail,
-  ItemsHolderDatasetHfaDisplay,
-} from "../../types/dataset_hfa.ts";
+import type { ItemsHolderDatasetHfaDisplay } from "../../types/dataset_hfa.ts";
 import type {
   HfaCsvMappingParams,
   HfaDuplicatePreview,
@@ -16,7 +13,6 @@ import {
   structureSchemaSchema,
 } from "../../types/mod.ts";
 import type {
-  DatasetHmisDetail,
   DatasetHmisImportLedgerItem,
   DatasetHmisImportRunDetail,
   DatasetHmisImportRunSummary,
@@ -205,11 +201,6 @@ const hfaCsvRunConfigSchema = z.object({
 
 export const datasetRouteRegistry = {
   // Core dataset operations
-  getDatasetHmisDetail: route({
-    path: "/datasets/hmis",
-    method: "GET",
-    response: {} as DatasetHmisDetail,
-  }),
   getDatasetHmisVersions: route({
     path: "/datasets/hmis/versions",
     method: "GET",
@@ -347,11 +338,6 @@ export const datasetRouteRegistry = {
   }),
 
   // HFA Dataset Endpoints
-  getDatasetHfaDetail: route({
-    path: "/datasets/hfa",
-    method: "GET",
-    response: {} as DatasetHfaDetail,
-  }),
   getDatasetHfaDisplayInfo: route({
     path: "/datasets/hfa/data",
     method: "POST",

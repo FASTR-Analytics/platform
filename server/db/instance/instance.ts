@@ -325,8 +325,6 @@ export async function getInstanceDetail(
       >`SELECT COUNT(*) as count FROM hfa_time_points`
     )[0].count;
 
-    const users = await getInstanceUsers(mainDb);
-
     // Get cache version for indicators (includes counts to detect deletions)
     const indicatorsVersion = await getIndicatorsVersion(mainDb);
 
@@ -354,7 +352,6 @@ export async function getInstanceDetail(
         hmis: hmisVersion,
         hfa: hfaTimePointCount > 0 ? hfaTimePointCount : undefined,
       },
-      users,
     };
     return { success: true, data: instanceDetails };
   });

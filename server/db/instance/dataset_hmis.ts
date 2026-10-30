@@ -7,7 +7,6 @@ import type { DatasetHmisWindowing, StructureSchema } from "lib";
 import {
   APIResponseNoData,
   APIResponseWithData,
-  DatasetHmisDetail,
   type DatasetHmisVersion,
   type DatasetStagingResult,
   type ItemsHolderDatasetHmisDisplay,
@@ -20,35 +19,6 @@ import { escapeSqlString, tryCatchDatabaseAsync } from "../utils.ts";
 import { reconcileHmisLedgerPairsAfterDelete } from "./dataset_hmis_import_ledger.ts";
 import { assertNoRunningDatasetHmisImportRun } from "./dataset_hmis_import_runs.ts";
 import type { DBDatasetHmisVersion } from "./_main_database_types.ts";
-
-//////////////////////////////////////////////////////
-//  _______               __                __  __  //
-// /       \             /  |              /  |/  | //
-// $$$$$$$  |  ______   _$$ |_     ______  $$/ $$ | //
-// $$ |  $$ | /      \ / $$   |   /      \ /  |$$ | //
-// $$ |  $$ |/$$$$$$  |$$$$$$/    $$$$$$  |$$ |$$ | //
-// $$ |  $$ |$$    $$ |  $$ | __  /    $$ |$$ |$$ | //
-// $$ |__$$ |$$$$$$$$/   $$ |/  |/$$$$$$$ |$$ |$$ | //
-// $$    $$/ $$       |  $$  $$/ $$    $$ |$$ |$$ | //
-// $$$$$$$/   $$$$$$$/    $$$$/   $$$$$$$/ $$/ $$/  //
-//                                                  //
-//////////////////////////////////////////////////////
-
-export async function getDatasetHmisDetail(
-  mainDb: Sql,
-): Promise<APIResponseWithData<DatasetHmisDetail>> {
-  return await tryCatchDatabaseAsync(async () => {
-    const resVersions = await getVersionsForDatasetHmis(mainDb);
-    if (resVersions.success === false) {
-      return resVersions;
-    }
-    const dataset: DatasetHmisDetail = {
-      currentVersionId: resVersions.data.at(0)?.id,
-      nVersions: resVersions.data.length,
-    };
-    return { success: true, data: dataset };
-  });
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 //  __     __                               __                                //

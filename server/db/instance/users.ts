@@ -126,25 +126,6 @@ export function otherUserFromRow(
   };
 }
 
-export async function getOtherUser(
-  mainDb: Sql,
-  email: string,
-): Promise<APIResponseWithData<OtherUser>> {
-  return await tryCatchDatabaseAsync(async () => {
-    const rawUser = (
-      await mainDb<DBUser[]>`SELECT * FROM users WHERE email = ${email}`
-    ).at(0);
-    if (rawUser === undefined) {
-      throw new Error(USER_NOT_FOUND);
-    }
-    const grants = await getScopeGrantsByEmail(mainDb, [email]);
-    return {
-      success: true,
-      data: otherUserFromRow(rawUser, grants.get(email) ?? []),
-    };
-  });
-}
-
 export const ADMIN_FLAG_NEEDS_ADMIN =
   "Only a global admin can make a user an admin";
 export const ADMIN_SELF_DEMOTION_REFUSED =

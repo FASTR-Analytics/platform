@@ -1,10 +1,9 @@
 import { z } from "zod";
 import type {
   GlobalUser,
-  OtherUser,
   PersonalAccessTokenSummary,
   RenameEmailInstanceResult,
-  UserLog,
+  UserLastActive,
   UserPermission,
 } from "../../types/mod.ts";
 import { USER_PERMISSIONS } from "../../types/mod.ts";
@@ -51,12 +50,6 @@ export const userRouteRegistry = {
     method: "GET",
     response: {} as GlobalUser,
   }),
-  getOtherUser: route({
-    path: "/user/:email",
-    method: "GET",
-    params: emailParamsSchema,
-    response: {} as OtherUser,
-  }),
   addUsers: route({
     path: "/user",
     method: "POST",
@@ -80,10 +73,10 @@ export const userRouteRegistry = {
       replace_all_existing: z.boolean(),
     }),
   }),
-  getAllUserLogs: route({
-    path: "/all-user-logs",
+  getUsersLastActive: route({
+    path: "/users/last-active",
     method: "GET",
-    response: {} as UserLog[],
+    response: {} as UserLastActive[],
   }),
   getUserPermissions: route({
     path: "/user/:email/permissions",

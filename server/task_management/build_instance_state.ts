@@ -13,6 +13,7 @@ import {
   getInstanceDetail,
   getInstanceIndicatorsSummary,
   getInstancePopulationSummary,
+  getInstanceUsers,
 } from "../db/mod.ts";
 import {
   getPinnedRunId,
@@ -54,7 +55,7 @@ export async function buildInstanceStateWithoutProducts(
   const indicatorsSummary = await getInstanceIndicatorsSummary(mainDb);
   const populationSummary = await getInstancePopulationSummary(mainDb);
 
-  const users = res.data.users;
+  const users = await getInstanceUsers(mainDb);
   const me = users.find((u) => u.email === globalUser.email);
   // Roster fill mirrors the SSE forward filter (routes/instance/instance-sse.ts):
   // an unapproved caller, absent from the roster, gets [] instead of every

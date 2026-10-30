@@ -125,27 +125,12 @@ function maybeRequestVolumeResize(stats: DiskStats): boolean {
   return true;
 }
 
-const MIN_FREE_BYTES_REPORTED_OK = 500 * 1024 * 1024; // 500 MB
 const MIN_FREE_BYTES_FOR_MODULE_RUN = 200 * 1024 * 1024; // 200 MB
 
 const DATASET_TABLE_NAMES: Record<string, string> = {
   hmis: "dataset_hmis",
   hfa: "dataset_hfa",
 };
-
-export async function checkFreeDiskSpace(): Promise<{
-  ok: boolean;
-  availableGB?: number;
-  resizeTriggered?: boolean;
-}> {
-  const stats = await getDiskStats();
-  if (stats === null) return { ok: true };
-  const resizeTriggered = maybeRequestVolumeResize(stats);
-  if (stats.availBytes < MIN_FREE_BYTES_REPORTED_OK) {
-    return { ok: false, availableGB: toGB(stats.availBytes), resizeTriggered };
-  }
-  return { ok: true };
-}
 
 export async function checkSpaceForModuleRun(): Promise<{
   ok: boolean;

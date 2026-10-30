@@ -3,7 +3,7 @@ import {
   instanceConfigAdminAreaLabelsSchema,
   structureSchemaSchema,
 } from "../../types/mod.ts";
-import type { InstanceDetail, InstanceMeta } from "../../types/mod.ts";
+import type { InstanceMeta } from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
 
 export const instanceRouteRegistry = {
@@ -11,11 +11,6 @@ export const instanceRouteRegistry = {
     path: "/instance_meta",
     method: "GET",
     response: {} as InstanceMeta,
-  }),
-  getInstanceDetail: route({
-    path: "/instance",
-    method: "GET",
-    response: {} as InstanceDetail,
   }),
   updateStructureSchema: route({
     path: "/update_structure_schema",
@@ -34,10 +29,5 @@ export const instanceRouteRegistry = {
     path: "/update_ai_context_config",
     method: "POST",
     body: z.object({ aiContext: z.string().max(20000) }),
-  }),
-  getDiskSpace: route({
-    path: "/disk_space",
-    method: "GET",
-    response: {} as { ok: boolean; availableGB?: number },
   }),
 } as const;

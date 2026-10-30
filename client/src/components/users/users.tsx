@@ -28,7 +28,7 @@ import { BulkEditScopesForm } from "./bulk_edit_scopes_form";
 import { User } from "./user";
 import { BulkAction, createTableConfig, Table, TableColumn } from "panther";
 import { serverActions } from "~/server_actions";
-import type { UserLog } from "lib";
+import type { UserLastActive } from "lib";
 import { instanceState } from "~/state/instance/t1_store";
 import { openShellEditor } from "~/state/t4_ui";
 import {
@@ -43,7 +43,7 @@ type Props = {
 export function InstanceUsers(p: Props) {
   holdCopilotView();
   copilotViewController.setView("users");
-  const userLogs = createQuery(() => serverActions.getAllUserLogs({}));
+  const lastActive = createQuery(() => serverActions.getUsersLastActive({}));
 
   const [showHUsers, setShowHUsers] = createSignal(false);
 
@@ -96,8 +96,8 @@ export function InstanceUsers(p: Props) {
         <div class="min-h-0 flex-1" data-tour="instance-users-table">
           <UserTable
             users={instanceState.users}
-            logs={(() => {
-              const s = userLogs.state();
+            lastActive={(() => {
+              const s = lastActive.state();
               return s.status === "ready" ? s.data : undefined;
             })()}
             onUserClick={(user) =>
@@ -305,7 +305,7 @@ function formatTimeAgo(date: Date): string {
 
 function UserTable(p: {
   users: UserData[];
-  logs: UserLog[] | undefined;
+  lastActive: UserLastActive[] | undefined;
   onUserClick: (user: UserData) => void;
   showCommingSoon: () => Promise<boolean>;
   showHUsers: () => boolean;
@@ -316,20 +316,11 @@ function UserTable(p: {
   });
 
   const userRows = (): UserTableData[] => {
-    const map = new Map<string, number>();
-    for (const log of p.logs ?? []) {
-      try {
-        const logDate = new Date(log.timestamp);
-        if (isNaN(logDate.getTime())) continue;
-        const ts = logDate.getTime();
-        const existing = map.get(log.user_email);
-        if (!existing || ts > existing) {
-          map.set(log.user_email, ts);
-        }
-      } catch {
-        // skip invalid log entries
-      }
-    }
+    const map = new Map(
+      (p.lastActive ?? []).map((
+        r,
+      ) => [r.email, new Date(r.lastActive).getTime()]),
+    );
     return p.users
       .filter((user) => p.showHUsers() || !H_USERS.includes(user.email))
       .map((user) => ({
@@ -384,7 +375,7 @@ function UserTable(p: {
         if (user.lastActiveTs === -1) {
           return (
             <span class="text-base-content-muted">
-              {p.logs === undefined
+              {p.lastActive === undefined
                 ? "..."
                 : t3({ en: "Never", fr: "Jamais", pt: "Nunca" })}
             </span>

@@ -2,7 +2,6 @@ import { Sql } from "postgres";
 import {
   APIResponseNoData,
   APIResponseWithData,
-  DatasetHfaDetail,
   HfaTaxonomyForAI,
   hfaTimePointsForAI,
   ItemsHolderDatasetHfaDisplay,
@@ -50,47 +49,6 @@ export function computeHfaCacheHash(
   return timePointRows
     .map((r) => `${r.label}:${r.sort_order}:${r.imported_at ?? ""}`)
     .join("|");
-}
-
-//////////////////////////////////////////////////////
-//  _______               __                __  __  //
-// /       \             /  |              /  |/  | //
-// $$$$$$$  |  ______   _$$ |_     ______  $$/ $$ | //
-// $$ |  $$ | /      \ / $$   |   /      \ /  |$$ | //
-// $$ |  $$ |/$$$$$$  |$$$$$$/    $$$$$$  |$$ |$$ | //
-// $$ |  $$ |$$    $$ |  $$ | __  /    $$ |$$ |$$ | //
-// $$ |__$$ |$$$$$$$$/   $$ |/  |/$$$$$$$ |$$ |$$ | //
-// $$    $$/ $$       |  $$  $$/ $$    $$ |$$ |$$ | //
-// $$$$$$$/   $$$$$$$/    $$$$/   $$$$$$$/ $$/ $$/  //
-//                                                  //
-//////////////////////////////////////////////////////
-
-export async function getDatasetHfaDetail(
-  mainDb: Sql,
-): Promise<APIResponseWithData<DatasetHfaDetail>> {
-  return await tryCatchDatabaseAsync(async () => {
-    const timePointRows = await mainDb<
-      {
-        label: string;
-        period_id: string;
-        sort_order: number;
-        imported_at: string | null;
-      }[]
-    >`
-      SELECT label, period_id, sort_order, imported_at FROM hfa_time_points ORDER BY sort_order
-    `;
-    const cacheHash = computeHfaCacheHash(timePointRows);
-    const dataset: DatasetHfaDetail = {
-      timePoints: timePointRows.map((r) => ({
-        label: r.label,
-        periodId: r.period_id,
-        sortOrder: r.sort_order,
-        importedAt: r.imported_at ?? undefined,
-      })),
-      cacheHash,
-    };
-    return { success: true, data: dataset };
-  });
 }
 
 ////////////////////////////////////////////////////////////////////////////////

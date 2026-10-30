@@ -65,17 +65,6 @@ async function readAssetFile(assetFileName: string): Promise<string> {
 
 defineRoute(
   routesGeoJsonMaps,
-  "getGeoJsonMaps",
-  requireGlobalPermission(),
-  log("getGeoJsonMaps"),
-  async (c) => {
-    const summaries = await getGeoJsonMapSummaries(c.var.mainDb);
-    return c.json({ success: true, data: summaries });
-  },
-);
-
-defineRoute(
-  routesGeoJsonMaps,
   "analyzeGeoJsonUpload",
   requireGlobalPermission("can_configure_data"),
   requireVisibleAssets("assetFileName"),

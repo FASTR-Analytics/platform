@@ -25,15 +25,6 @@ export const productSlideDeckRouteRegistry = {
     access: "view",
   }),
 
-  updateSlideDeckPlan: route({
-    path: "/products/:product_id/slide-deck/plan",
-    method: "PUT",
-    params: productIdParamsSchema,
-    body: z.object({ plan: z.string() }),
-    response: {} as { lastUpdated: string },
-    access: "edit",
-  }),
-
   updateSlideDeckConfig: route({
     path: "/products/:product_id/slide-deck/config",
     method: "PUT",

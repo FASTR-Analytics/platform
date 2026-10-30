@@ -2,7 +2,6 @@ import { Hono } from "hono";
 import {
   deleteAssets,
   getAssetsForInstance,
-  getAssetsForUser,
   updateAssetVisibility,
 } from "../../db/mod.ts";
 import { log } from "../../middleware/logging.ts";
@@ -11,17 +10,6 @@ import { notifyInstanceAssetsUpdated } from "../../task_management/notify_instan
 import { defineRoute } from "../route-helpers.ts";
 
 export const routesAssets = new Hono();
-
-defineRoute(
-  routesAssets,
-  "getAssets",
-  requireGlobalPermission(),
-  log("getAssets"),
-  async (c) => {
-    const res = await getAssetsForUser(c.var.mainDb, c.var.globalUser);
-    return c.json(res);
-  },
-);
 
 defineRoute(
   routesAssets,

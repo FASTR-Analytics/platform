@@ -126,7 +126,6 @@ export type InstanceDetail = {
     hmis?: number;
     hfa?: number;
   };
-  users: OtherUser[];
 };
 
 export const instanceConfigAdminAreaLabelsSchema = z.object({
@@ -374,13 +373,9 @@ export type PersonalAccessTokenSummary = {
   lastUsedAt: string | null;
 };
 
-export type UserLog = {
-  id: number;
-  user_email: string;
-  timestamp: Date;
-  endpoint: string;
-  endpoint_result: string;
-  details?: string;
+export type UserLastActive = {
+  email: string;
+  lastActive: string;
 };
 
 export type UserLogAggregate = {
