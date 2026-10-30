@@ -533,8 +533,8 @@ not tooling.
   wrappers (`generateUniqueProductId`, `generateUniqueSlideId`). Folders and
   runs use `crypto.randomUUID()` instead.
 - **PascalCase stragglers.** The DB-function convention is camelCase, but the
-  log/usage families predate it (`AddLog`, `SetUserUnlimitedAi`,
-  `DeleteOldLogs`, the `ai_usage_logs.ts` set, …). Don't copy them.
+  log/usage families predate it (`AddLog`, `DeleteOldLogs`, the
+  `ai_usage_logs.ts` set). Don't copy them.
 
 ## Rules
 

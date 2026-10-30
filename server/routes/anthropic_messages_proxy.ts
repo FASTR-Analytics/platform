@@ -2,9 +2,9 @@ import type { Sql } from "postgres";
 import {
   AddAiUsageLog,
   GetInstanceWeeklyTokenUsage,
-  GetUserDailyTokenUsage,
+  getUserDailyTokenUsage,
   IncrementInstanceWeeklyTokenUsage,
-  IncrementUserDailyTokenUsage,
+  incrementUserDailyTokenUsage,
   LogAiLimitHit,
 } from "../db/mod.ts";
 import {
@@ -66,7 +66,7 @@ async function runProxy(args: ProxyArgs): Promise<Response> {
   const model = typeof rest.model === "string" ? rest.model : "unknown";
 
   if (_DAILY_TOKEN_LIMIT !== null && !unlimitedAi) {
-    const todayUsage = await GetUserDailyTokenUsage(mainDb, userEmail);
+    const todayUsage = await getUserDailyTokenUsage(mainDb, userEmail);
     if (todayUsage >= _DAILY_TOKEN_LIMIT) {
       LogAiLimitHit(mainDb, userEmail, "daily_user").catch(() => {});
       const resetAt = new Date();
@@ -161,7 +161,7 @@ async function runProxy(args: ProxyArgs): Promise<Response> {
         cacheCreationTokens,
       ).catch(() => {});
       if (_DAILY_TOKEN_LIMIT !== null) {
-        IncrementUserDailyTokenUsage(
+        incrementUserDailyTokenUsage(
           mainDb,
           userEmail,
           inputTokens + outputTokens,
@@ -249,7 +249,7 @@ async function runProxy(args: ProxyArgs): Promise<Response> {
     u.cache_creation_input_tokens ?? 0,
   ).catch(() => {});
   if (_DAILY_TOKEN_LIMIT !== null) {
-    IncrementUserDailyTokenUsage(
+    incrementUserDailyTokenUsage(
       mainDb,
       userEmail,
       inputTokens + outputTokens,

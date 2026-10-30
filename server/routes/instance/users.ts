@@ -24,7 +24,7 @@ import {
   deleteUser,
   getInstanceUsers,
   GetInstanceWeeklyTokenUsage,
-  GetUserDailyTokenUsage,
+  getUserDailyTokenUsage,
   getUserEmailPresence,
   getUserPermissions,
   listPersonalAccessTokens,
@@ -33,7 +33,7 @@ import {
   revokePersonalAccessToken,
   setUserContactPerson,
   setUserScopeAccess,
-  SetUserUnlimitedAi,
+  setUserUnlimitedAi,
   syncUserName,
   toggleAdmin,
   updateUserOrganisation,
@@ -134,7 +134,7 @@ defineRoute(
   "getAiUsage",
   async (c) => {
     const [tokensUsedToday, tokensUsedThisWeek] = await Promise.all([
-      GetUserDailyTokenUsage(c.var.mainDb, c.var.globalUser.email),
+      getUserDailyTokenUsage(c.var.mainDb, c.var.globalUser.email),
       GetInstanceWeeklyTokenUsage(c.var.mainDb),
     ]);
     return c.json({
@@ -155,7 +155,7 @@ defineRoute(
   "setUserUnlimitedAi",
   log("setUserUnlimitedAi"),
   async (c, { body }) => {
-    const res = await SetUserUnlimitedAi(
+    const res = await setUserUnlimitedAi(
       c.var.mainDb,
       body.email,
       body.unlimited,
@@ -361,10 +361,6 @@ defineRoute(
   },
 );
 
-// ---------------------------------------------------------------------------
-// Fleet name sync
-// ---------------------------------------------------------------------------
-
 /** Pushes a user change observed on this instance to every peer's fleet
  *  route. Best-effort by design: a peer that is down, or runs an image
  *  without the route (404), is skipped silently; for a name, the peer's own
@@ -425,10 +421,6 @@ defineRoute(
   },
 );
 
-// ---------------------------------------------------------------------------
-// Profile: organisation
-// ---------------------------------------------------------------------------
-
 defineRoute(
   routesUsers,
   "updateMyProfile",
@@ -466,10 +458,6 @@ defineRoute(
     return c.json({ success: true, data: { changed } });
   },
 );
-
-// ---------------------------------------------------------------------------
-// Email rename
-// ---------------------------------------------------------------------------
 
 const FLEET_DOMAIN = "fastr-analytics.org";
 

@@ -101,6 +101,8 @@ deliberate audit-value judgment, re-baselined against fleet-wide volume data
 
 ## Open items
 
+- Rename the PascalCase DB functions in `user_logs.ts` (`AddLog`,
+  `DeleteOldLogs`) and `ai_usage_logs.ts` to camelCase; `users.ts` is done.
 - Logged routes with zero rows ever across the fleet (client never calls them):
   `searchDhis2Indicators`, `searchDhis2DataElements`. Candidates for route
   removal, not just log removal.

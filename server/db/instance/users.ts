@@ -323,7 +323,7 @@ export async function toggleAdmin(
   });
 }
 
-export async function SetUserUnlimitedAi(
+export async function setUserUnlimitedAi(
   mainDb: Sql,
   email: string,
   unlimited: boolean,
@@ -406,7 +406,7 @@ export async function getUserPermissions(
   });
 }
 
-export async function GetUserDailyTokenUsage(
+export async function getUserDailyTokenUsage(
   mainDb: Sql,
   userEmail: string,
 ): Promise<number> {
@@ -423,7 +423,7 @@ export async function GetUserDailyTokenUsage(
   return isToday ? row.daily_token_usage : 0;
 }
 
-export async function IncrementUserDailyTokenUsage(
+export async function incrementUserDailyTokenUsage(
   mainDb: Sql,
   userEmail: string,
   tokens: number,

@@ -43,8 +43,8 @@ holds, side by side: the `APIResponse` envelope types +
 `InstanceMeta`/`InstanceDetail` and the instance-config zod schemas: admin-area
 labels and the per-family `structureSchemaSchema` / `structureColumnsSchema`
 with `getEnabledOptionalFacilityColumns`, `structureColumnsFromSchema` +
-`hashStructureSchema` (S5's config surface); `GlobalUser`/`OtherUser`/user-log
-types + the dev-mode user factory (S18/S1/S13); generic table-column and CSV-import
+`hashStructureSchema` (S5's config surface); the user-log, rename and token types
+(S18/S17); generic table-column and CSV-import
 wizard types for S5/S6 (`CsvDetails`, `Mappings`, `Conflicts`); and the
 `ItemsHolder*` payload types, including `ItemsHolderPresentationObject` whose
 `runId` + `scopeToken` are the cache identity (S9) and the figure's provenance
