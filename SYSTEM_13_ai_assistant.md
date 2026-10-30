@@ -1154,9 +1154,10 @@ country-scoped ∪ own user-scoped; create stamps a server UUID + `createdBy`;
 update/delete require author-or-admin in SQL. Every prompt route takes
 `requireApprovedUser()`, the three writes are logged, and creating or re-scoping
 a prompt to `"country"` (a prompt-injection surface offered to every user's
-copilot) is admin-only, and the save dialog offers the country scope only to a
-global admin (`isGlobalAdmin()`, S18); Edit and Delete on a country prompt show
-to its author or an admin, the DB rule. `created_by` is FK-cascade on user
+copilot) needs `can_configure_data` on the effective permissions, and the save
+dialog offers the country scope to its holders (`can("can_configure_data")`,
+S18); Edit and Delete on a country prompt show to its author or an admin, the DB
+rule. `created_by` is FK-cascade on user
 delete, so deleting a user silently deletes their country-scoped prompts too.
 
 ## The panther engine (what this app depends on)
@@ -1206,9 +1207,9 @@ the three HFA views, the three writes (`create_hfa_indicators`,
 `update_hfa_indicators`, `delete_hfa_indicators`) in `hfa_indicators` alone, and
 the editor tools (`get_hfa_indicator_editor`, `update_hfa_indicator_editor`,
 `editor_tools.ts`) in `hfa_indicator_editor` alone. Who may call them refuses
-through the guard: the reads, the writes and `update_hfa_indicator_editor` all
-need `can_configure_data`, the flag the manager's own write controls read
-(`can("can_configure_data")`, S18). Every HFA route keeps its own guard. The
+through the guard: the reads need `can_view_data`, the writes and
+`update_hfa_indicator_editor` `can_configure_data`, the flag the manager's own
+write controls read (`can("can_configure_data")`, S18). Every HFA route keeps its own guard. The
 three writes declare `approval.propose` with `presentation: "modal"` (panther
 owns the propose → modal → commit lifecycle); the editor write is exempt, since
 it lands in the open editor's unsaved draft, which the user saves or discards.
@@ -1516,5 +1517,4 @@ inventory every tool against it.
 
 **Hygiene**
 
-- Rename the PascalCase DB log functions; decide the `can_use_ai` permission
-  question (any-member remains the deliberate state until then).
+- Rename the PascalCase DB log functions.

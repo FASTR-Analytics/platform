@@ -139,7 +139,7 @@ export const userRouteRegistry = {
   setUserContactPerson: route({
     path: "/user/contact-person",
     method: "POST",
-    guard: GUARD.hUser,
+    guard: GUARD.admin,
     body: z.object({ email: z.string(), isContactPerson: z.boolean() }),
   }),
   // Renames a user on THIS instance only (main DB, product attribution and

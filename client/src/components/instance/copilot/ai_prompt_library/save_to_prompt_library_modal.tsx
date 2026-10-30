@@ -11,7 +11,7 @@ import {
 import { t3 } from "lib";
 import { serverActions } from "~/server_actions";
 import type { CustomPrompt } from "lib";
-import { isGlobalAdmin } from "~/state/instance/permissions";
+import { can } from "~/state/instance/permissions";
 
 type Props = {
   initialContent: string;
@@ -156,7 +156,7 @@ export function SaveToPromptLibraryModal(
           onChange={(v) => setScope(v as "user" | "country")}
           horizontal
           // A country prompt reaches every user's copilot, so the server lets
-          // only a global admin publish or re-scope one.
+          // only a can_configure_data holder publish or re-scope one.
           options={[
             {
               value: "user",
@@ -166,7 +166,7 @@ export function SaveToPromptLibraryModal(
                 pt: "Os meus prompts (privado)",
               }),
             },
-            ...(isGlobalAdmin()
+            ...(can("can_configure_data")
               ? [{
                 value: "country",
                 label: t3({

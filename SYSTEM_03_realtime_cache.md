@@ -88,7 +88,7 @@ Exactly **one SSE-feeding** broadcast channel, with one endpoint:
 † The instance endpoint admits every logged-in user, so the two results-package
 generation messages (`run_progress` and `r_script`, which carry run labels,
 module ids and R error detail) are dropped in the forward loop for callers
-without `can_configure_data`. The filter is LIVE: every `users_updated` passing
+without `can_view_data`. The filter is LIVE: every `users_updated` passing
 through the same forward loop carries the full permission rows, and the filter
 re-derives the connection's entitlement from it (keyed on the connection's own
 email, which never changes), so a mid-session grant starts the stream and a

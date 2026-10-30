@@ -65,7 +65,7 @@ import { TourCatalogueModal } from "~/onboarding/tour_catalogue_modal";
 import { setupTours } from "~/onboarding";
 import { setupAiNudge } from "~/onboarding/ai_nudge";
 import type { InstanceTab } from "~/onboarding/catalogue";
-import { can, isGlobalAdmin } from "~/state/instance/permissions";
+import { can } from "~/state/instance/permissions";
 
 // The Instance Information button (versions icon) is hidden for now; flip
 // this to show it again.
@@ -91,8 +91,9 @@ function navItems(): ListItem<InstanceTab>[] {
     label: t3({ en: "Explore", fr: "Explorer", pt: "Explorar" }),
     iconName: "chart",
   });
-  // Generation is can_configure_data, the guard the run_generation routes use.
-  if (can("can_configure_data")) {
+  // The catalogue and the package pages are reads; the page gates Generate,
+  // Delete and Pin on can_configure_data itself.
+  if (can("can_view_data")) {
     items.push({
       id: "results_packages",
       label: t3({
@@ -103,8 +104,8 @@ function navItems(): ListItem<InstanceTab>[] {
       iconName: "package",
     });
   }
-  // Scopes are global admins' to manage, as the scope routes require.
-  if (isGlobalAdmin()) {
+  // Scopes need can_configure_data, as the scope routes require.
+  if (can("can_configure_data")) {
     items.push({
       id: "scopes",
       label: t3({ en: "Scopes", fr: "Portées", pt: "Âmbitos" }),
@@ -143,10 +144,10 @@ export default function Instance(p: Props) {
   const tab = (): InstanceTab => {
     const t = _tab();
     if (t === "data" && !can("can_view_data")) return "products";
-    if (t === "results_packages" && !can("can_configure_data")) {
+    if (t === "results_packages" && !can("can_view_data")) {
       return "products";
     }
-    if (t === "scopes" && !isGlobalAdmin()) return "products";
+    if (t === "scopes" && !can("can_configure_data")) return "products";
     if (t === "users" && !can("can_view_users")) return "products";
     return t;
   };
@@ -447,12 +448,13 @@ export default function Instance(p: Props) {
                     <InstanceData />
                   </Match>
                   <Match
-                    when={tab() === "results_packages" &&
-                      can("can_configure_data")}
+                    when={tab() === "results_packages" && can("can_view_data")}
                   >
                     <InstanceResultsPackages />
                   </Match>
-                  <Match when={tab() === "scopes" && isGlobalAdmin()}>
+                  <Match
+                    when={tab() === "scopes" && can("can_configure_data")}
+                  >
                     <InstanceScopes />
                   </Match>
                   <Match when={tab() === "assets"}>

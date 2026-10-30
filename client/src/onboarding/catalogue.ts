@@ -661,7 +661,7 @@ export function getTourCatalogue(
           "O que é um pacote de resultados, gerar um, e as predefinições dos módulos.",
       }),
       // Mirrors the instance shell's own gate for this tab.
-      available: () => can("can_configure_data"),
+      available: () => can("can_view_data"),
       unavailableReason: reasonNoPageAccess,
       navigate: openTabOnly("results_packages"),
     },
@@ -681,9 +681,9 @@ export function getTourCatalogue(
         pt:
           "Abrir um pacote a partir da lista, o que a sua página mostra, e fixá-lo ou eliminá-lo.",
       }),
-      available: () => can("can_configure_data") && hasPackage(),
+      available: () => can("can_view_data") && hasPackage(),
       unavailableReason: () =>
-        can("can_configure_data") ? reasonNeedPackage() : reasonNoPageAccess(),
+        can("can_view_data") ? reasonNeedPackage() : reasonNoPageAccess(),
       navigate: openTabOnly("results_packages"),
     },
     {

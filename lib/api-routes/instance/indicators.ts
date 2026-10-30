@@ -55,7 +55,7 @@ export const indicatorRouteRegistry = {
   getIndicators: route({
     path: "/indicators",
     method: "GET",
-    guard: GUARD.permission("can_configure_data"),
+    guard: GUARD.permission("can_view_data"),
     response: {} as InstanceIndicatorDetails,
   }),
   createIndicators: route({

@@ -54,7 +54,7 @@ export const runGenerationRouteRegistry = {
   listRunCatalog: route({
     path: "/run_generation/catalog",
     method: "GET",
-    guard: GUARD.permission("can_configure_data"),
+    guard: GUARD.permission("can_view_data"),
     response: {} as RunCatalogItem[],
   }),
   // Guarded hard delete: catalog row + run dir + the runId-keyed cache

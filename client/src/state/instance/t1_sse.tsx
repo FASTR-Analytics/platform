@@ -413,14 +413,14 @@ export function InstanceSSEBoundary(p: { children: JSX.Element }) {
   // self-healing path for backfill runs and missed signals (the payload fill
   // prevents an empty flash while it resolves).
   createEffect(on(
-    () => [instanceState.runsCatalogSignal, can("can_configure_data")] as const,
+    () => [instanceState.runsCatalogSignal, can("can_view_data")] as const,
     () => {
       const controller = new AbortController();
       onCleanup(() => controller.abort());
 
       // The catalogue entitlement is live, so a grant or revocation takes
       // effect without a reconnect.
-      if (!can("can_configure_data")) {
+      if (!can("can_view_data")) {
         updateInstanceRunsCatalog([]);
         return;
       }

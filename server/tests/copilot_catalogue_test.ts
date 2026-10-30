@@ -236,7 +236,7 @@ const REQUIREMENTS: Record<string, string> = Object.fromEntries([
   ["get_module_r_script", "can_view_data"],
   ["get_module_settings", "can_view_data"],
   ["get_module_log", "can_view_data"],
-  ...GROUPS.hfa_reads.map((t) => [t, "can_configure_data"]),
+  ...GROUPS.hfa_reads.map((t) => [t, "can_view_data"]),
   ...GROUPS.hfa_writes.map((t) => [t, "can_configure_data"]),
   ["update_hfa_indicator_editor", "can_configure_data"],
   ...GROUPS.deck_writes.map((t) => [t, "product_edit"]),

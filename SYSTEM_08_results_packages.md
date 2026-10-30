@@ -301,7 +301,10 @@ what a package contains (`getRunDetail` with per-module settings and files,
 `getRunModuleScript`, `getRunModuleLogs`, `listRunModuleFiles`, and the
 `/{runId}/outputs/…` download mount) is RUN-keyed on the instance mount and
 gated on the instance data bit, `can_view_data`, logs included (global admins
-bypass). The rule that decides what
+bypass). The Results tab, the catalogue fill (`listRunCatalog`, the starting
+payload's `runsCatalog`) and the run telemetry messages follow `can_view_data`
+too; Generate, Module defaults, Pin and Delete render for `can_configure_data`,
+the guard their routes take (S18). The rule that decides what
 belongs on the page: **if the answer to the question lives inside the run
 directory, it is the same view for everyone who can see that package.** The
 package page (`results_packages/package_page.tsx`, the package's one host) is
@@ -1282,18 +1285,6 @@ hard delete already refuses any run a product points at.
   UI luxuries (Regenerate shortcut, newer-run badge, per-run rename);
   parquet-native R scripts in the modules repo and then dropping raw CSVs from
   runs.
-- **A user with `can_configure_data` but not `can_view_data` gets an error in
-  place of every ready package.** The Results tab needs only
-  `can_configure_data` (`instance/instance.tsx:95-104`, 146), but the ready body
-  always reads `getRunDetail` (`results_packages/package_page.tsx:212-217`), a
-  `can_view_data` route (`server/routes/instance/run_generation.ts:214-215`),
-  and any failure renders the whole body as the error (219-225, 313-322),
-  presets included. Read the detail only when `canViewPackageContents()`
-  (`results_packages/package_view/status.tsx:21-23`), pass it to `FamilyTabs`
-  and `FamilyPane` as optional (`results_packages/package_page.tsx:355`;
-  `results_packages/package_view/family_pane.tsx:24`, 72), and wrap the module
-  pane's Settings (`results_packages/package_view/module_pane.tsx:67-94`) and
-  Output files (116-161) in `<Show when={canViewPackageContents()}>`.
 - **Under a limiting page scope, excluded modules show as red "No data
   available".** The page reads its authoring context at All data whatever the
   page scope (`results_packages/package_page.tsx:214-216`), takes its tabs and

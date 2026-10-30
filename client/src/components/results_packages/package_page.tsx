@@ -56,6 +56,7 @@ import {
 import { instanceState, resolveScope } from "~/state/instance/t1_store";
 import { getRunAuthoringContextFromCacheOrFetch } from "~/state/instance/t2_run_authoring_context";
 import { getRunDetailFromCacheOrFetch } from "~/state/instance/t2_runs";
+import { can } from "~/state/instance/permissions";
 
 type Props = {
   runId: string;
@@ -323,52 +324,54 @@ function PackageBody(p: {
   );
 
   const housekeeping = (
-    <div
-      class="ui-gap-sm flex items-center"
-      data-tour="instance-results-packages-actions"
-    >
-      <Switch>
-        <Match when={isPinned()}>
-          <Button
-            size="sm"
-            outline
-            onBackground="base-300"
-            state={unpinPackage.state()}
-            onClick={unpinPackage.click}
-          >
-            {t3({ en: "Unpin", fr: "Désépingler", pt: "Desafixar" })}
-          </Button>
-        </Match>
-        <Match when={p.run.status === "ready"}>
-          <Button
-            size="sm"
-            outline
-            onBackground="base-300"
-            state={pinPackage.state()}
-            onClick={pinPackage.click}
-          >
-            {t3({ en: "Pin", fr: "Épingler", pt: "Fixar" })}
-          </Button>
-        </Match>
-      </Switch>
-      <Switch>
-        <Match when={deleteBlockedReason()} keyed>
-          {(reason) => <div class="ui-text-caption">{reason}</div>}
-        </Match>
-        <Match when={deleteBlockedReason() === null}>
-          <Button
-            size="sm"
-            intent="danger"
-            outline
-            onBackground="base-300"
-            iconName="trash"
-            onClick={deletePackage.click}
-          >
-            {t3(TC.delete)}
-          </Button>
-        </Match>
-      </Switch>
-    </div>
+    <Show when={can("can_configure_data")}>
+      <div
+        class="ui-gap-sm flex items-center"
+        data-tour="instance-results-packages-actions"
+      >
+        <Switch>
+          <Match when={isPinned()}>
+            <Button
+              size="sm"
+              outline
+              onBackground="base-300"
+              state={unpinPackage.state()}
+              onClick={unpinPackage.click}
+            >
+              {t3({ en: "Unpin", fr: "Désépingler", pt: "Desafixar" })}
+            </Button>
+          </Match>
+          <Match when={p.run.status === "ready"}>
+            <Button
+              size="sm"
+              outline
+              onBackground="base-300"
+              state={pinPackage.state()}
+              onClick={pinPackage.click}
+            >
+              {t3({ en: "Pin", fr: "Épingler", pt: "Fixar" })}
+            </Button>
+          </Match>
+        </Switch>
+        <Switch>
+          <Match when={deleteBlockedReason()} keyed>
+            {(reason) => <div class="ui-text-caption">{reason}</div>}
+          </Match>
+          <Match when={deleteBlockedReason() === null}>
+            <Button
+              size="sm"
+              intent="danger"
+              outline
+              onBackground="base-300"
+              iconName="trash"
+              onClick={deletePackage.click}
+            >
+              {t3(TC.delete)}
+            </Button>
+          </Match>
+        </Switch>
+      </div>
+    </Show>
   );
 
   return (

@@ -59,12 +59,12 @@ to the registry.
 
 ## The Scopes page
 
-`components/scopes/` is where a global admin creates, edits and deletes scopes
+`components/scopes/` is where a holder of `can_configure_data` creates, edits
+and deletes scopes
 (the entity, its routes and its hash are S12 "Scopes"; what a definition filters
 is S9 "The scoped view"). It is the "Scopes" tab on the side rail
-(`instance.tsx`), after Results, shown only when
-`instanceState.currentUserIsGlobalAdmin` is true, the same rule the three scope
-routes enforce with `requireAdmin`. The page sets the chat's `scopes` view (S13)
+(`instance.tsx`), after Results, shown only when `can("can_configure_data")`
+holds, the flag the three scope routes take (S18). The page sets the chat's `scopes` view (S13)
 while it is open. `InstanceScopes` (`scopes.tsx`) is a fixed panel for the
 reserved "All data" scope above a `Table` over every other scope in
 `instanceState.scopes`. The panel (`AllDataScopePanel`) is the translated label,

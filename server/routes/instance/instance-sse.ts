@@ -41,7 +41,7 @@ export type InstanceSseFilterResult = {
 // `users_updated` carries the full roster, and the connection's own email
 // never changes, so re-finding it in each roster is sufficient):
 //   - Telemetry: `run_progress`/`r_script` (run labels, module ids, R error
-//     detail) go to instance data admins only: a mid-session grant starts the
+//     detail) go to can_view_data holders only: a mid-session grant starts the
 //     stream, a revocation stops it, no reconnect. A restricted user is never
 //     one: effectivePermissions reads its data bits as false.
 //   - Roster: an UNAPPROVED connection (its user absent from the roster) gets
@@ -98,7 +98,7 @@ export function createInstanceSseFilter(
     isGlobalAdmin: start.currentUserIsGlobalAdmin,
     scopeAccess: start.currentUserScopeAccess,
   };
-  let canSeeRunMessages = start.currentUserPermissions.can_configure_data;
+  let canSeeRunMessages = start.currentUserPermissions.can_view_data;
   let isApproved = start.currentUserApproved;
   let allFolders = deps.allFolders;
   // The connection's own copy of what it holds (product id to folder id),
@@ -131,7 +131,7 @@ export function createInstanceSseFilter(
         scopeAccess: me?.scopeAccess ?? viewer.scopeAccess,
       };
       canSeeRunMessages = me !== undefined &&
-        effectivePermissions(me).can_configure_data;
+        effectivePermissions(me).can_view_data;
       const removed = isApproved && me === undefined;
       isApproved = me !== undefined;
       const changed = removed ||

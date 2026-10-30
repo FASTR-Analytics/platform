@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { holdsPermission } from "lib";
 import {
   createCustomPrompt,
   deleteCustomPrompt,
@@ -7,12 +8,13 @@ import {
 } from "../../db/mod.ts";
 import { log } from "../../middleware/logging.ts";
 import { defineRoute } from "../route-helpers.ts";
+import { COUNTRY_PROMPT_NEEDS_CONFIGURE } from "../../auth/refusals.ts";
 
 export const routesCustomPrompts = new Hono();
 
 // Prompts are a prompt-injection surface (country-scoped ones are offered to
-// every user's copilot), so publishing or re-scoping to "country" is
-// admin-only.
+// every user's copilot), so publishing or re-scoping to "country" needs
+// can_configure_data, the flag that shapes what every user sees.
 
 defineRoute(
   routesCustomPrompts,
@@ -31,11 +33,14 @@ defineRoute(
   "createCustomPrompt",
   log("createCustomPrompt"),
   async (c, { body }) => {
-    if (body.scope === "country" && !c.var.globalUser.isGlobalAdmin) {
-      return c.json({
-        success: false,
-        err: "Country-scoped prompts require admin access",
-      }, 403);
+    if (
+      body.scope === "country" &&
+      !holdsPermission(c.var.globalUser, "can_configure_data")
+    ) {
+      return c.json(
+        { success: false, err: COUNTRY_PROMPT_NEEDS_CONFIGURE },
+        403,
+      );
     }
     const prompt = await createCustomPrompt(c.var.mainDb, {
       id: crypto.randomUUID(),
@@ -54,11 +59,14 @@ defineRoute(
   "updateCustomPrompt",
   log("updateCustomPrompt"),
   async (c, { params, body }) => {
-    if (body.scope === "country" && !c.var.globalUser.isGlobalAdmin) {
-      return c.json({
-        success: false,
-        err: "Country-scoped prompts require admin access",
-      }, 403);
+    if (
+      body.scope === "country" &&
+      !holdsPermission(c.var.globalUser, "can_configure_data")
+    ) {
+      return c.json(
+        { success: false, err: COUNTRY_PROMPT_NEEDS_CONFIGURE },
+        403,
+      );
     }
     const prompt = await updateCustomPrompt(
       c.var.mainDb,

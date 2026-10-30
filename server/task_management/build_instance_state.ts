@@ -75,7 +75,7 @@ export async function buildInstanceStateWithoutProducts(
   const myPermissions = me === undefined
     ? userPermissions(false)
     : effectivePermissions(me);
-  const canSeeRuns = myPermissions.can_configure_data;
+  const canSeeRuns = myPermissions.can_view_data;
   let runsCatalog: RunCatalogItem[] = [];
   if (canSeeRuns) {
     const runsRes = await listRunCatalog(mainDb);

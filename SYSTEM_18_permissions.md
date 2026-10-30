@@ -263,13 +263,13 @@ every builder follow), never inline a permission string elsewhere.
 
 ## Special modes (precedence, highest first)
 
-| Mode           | Source                                             | Effect                                                                                                             |
-| -------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `_BYPASS_AUTH` | `BYPASS_AUTH` env, dev only (`&& !_IS_PRODUCTION`) | synthetic full-access dev user; Clerk disabled entirely                                                            |
-| `_OPEN_ACCESS` | `OPEN_ACCESS` env                                  | every signed-in email treated as an approved global admin while it is set                                          |
-| `is_admin`     | `users.is_admin` column                            | global admin, bypasses all permission checks except a private asset's (S4)                                         |
-| `H_USERS`      | untracked `server/auth/h_users.ts`                 | `isHUser`: `unlimitedAi`, the `setUserUnlimitedAi` and `setUserContactPerson` routes; seeded as admin rows at init |
-| granular       | `users` permission columns                         | normal least-privilege path                                                                                        |
+| Mode           | Source                                             | Effect                                                                                    |
+| -------------- | -------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `_BYPASS_AUTH` | `BYPASS_AUTH` env, dev only (`&& !_IS_PRODUCTION`) | synthetic full-access dev user; Clerk disabled entirely                                   |
+| `_OPEN_ACCESS` | `OPEN_ACCESS` env                                  | every signed-in email treated as an approved global admin while it is set                 |
+| `is_admin`     | `users.is_admin` column                            | global admin, bypasses all permission checks except a private asset's (S4)                |
+| `H_USERS`      | untracked `server/auth/h_users.ts`                 | `isHUser`: `unlimitedAi` and the `setUserUnlimitedAi` route; seeded as admin rows at init |
+| granular       | `users` permission columns                         | normal least-privilege path                                                               |
 
 `_OPEN_ACCESS` inserts an unknown email as a non-admin row through the
 read-and-write pool (`ON CONFLICT DO NOTHING`) and broadcasts the roster when it
@@ -372,6 +372,16 @@ and its route re-broadcasts their summaries (`notifyInstanceProductsUpserted`).
   editing is per-flag checkboxes and tri-states.
 - `requirePermission` (above) is the single read-side evaluator, over the
   effective permissions.
+- **What each flag opens.** `can_view_data`: the Data page's reads, the
+  dictionary reads, the results catalogue and every package's contents and
+  logs, the run telemetry on the instance stream, the data-file downloads.
+  `can_configure_data`: every Data-page mutation, the instance configuration
+  routes, generation, pin and delete, scope CRUD (`createScope`, `updateScope`,
+  `deleteScope`) and country-scoped prompts. `can_view_users`: the Users tab and
+  the user activity log (`getUsersLastActive`). `can_configure_users`: the
+  user-management routes, under the rule above, scope grants included.
+  `setFolderProductsAccess`, the admin flag and `setUserContactPerson` stay the
+  admin's.
 
 ## The operator tier
 
@@ -384,8 +394,8 @@ inserts the list as admin rows into a new main DB (`db_startup.ts`). `GlobalUser
 and `OtherUser` carry `isHUser`, so nothing under `client/` or `lib/` names the
 list: the Users tab reads the roster row's flag for its operator-only sections
 and its filter that hides operators by default. The tier gates `unlimitedAi`
-(`auth/global_user.ts`) and the `setUserUnlimitedAi` and `setUserContactPerson`
-routes (`GUARD.hUser`); S16's edit-session log rows
+(`auth/global_user.ts`) and the `setUserUnlimitedAi` route (`GUARD.hUser`);
+`setUserContactPerson` is the admin's (`GUARD.admin`). S16's edit-session log rows
 skip operators, and renaming one returns a warning that the status is lost.
 
 ## Traps

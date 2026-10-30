@@ -152,7 +152,7 @@ export const hfaIndicatorRouteRegistry = {
   getHfaIndicatorCategories: route({
     path: "/hfa-indicator-categories",
     method: "GET",
-    guard: GUARD.permission("can_configure_data"),
+    guard: GUARD.permission("can_view_data"),
     response: {} as HfaIndicatorCategory[],
   }),
   createHfaIndicatorCategory: route({
@@ -183,7 +183,7 @@ export const hfaIndicatorRouteRegistry = {
   getHfaIndicatorSubCategories: route({
     path: "/hfa-indicator-sub-categories",
     method: "GET",
-    guard: GUARD.permission("can_configure_data"),
+    guard: GUARD.permission("can_view_data"),
     response: {} as HfaIndicatorSubCategory[],
   }),
   createHfaIndicatorSubCategory: route({
@@ -217,7 +217,7 @@ export const hfaIndicatorRouteRegistry = {
   getHfaIndicatorServiceCategories: route({
     path: "/hfa-indicator-service-categories",
     method: "GET",
-    guard: GUARD.permission("can_configure_data"),
+    guard: GUARD.permission("can_view_data"),
     response: {} as HfaIndicatorServiceCategory[],
   }),
   createHfaIndicatorServiceCategory: route({
@@ -251,7 +251,7 @@ export const hfaIndicatorRouteRegistry = {
   getHfaIndicatorVariantGroups: route({
     path: "/hfa-indicator-variant-groups",
     method: "GET",
-    guard: GUARD.permission("can_configure_data"),
+    guard: GUARD.permission("can_view_data"),
     response: {} as HfaIndicatorVariantGroup[],
   }),
   createHfaIndicatorVariantGroup: route({
@@ -285,7 +285,7 @@ export const hfaIndicatorRouteRegistry = {
   getHfaIndicatorVariantItems: route({
     path: "/hfa-indicator-variant-items",
     method: "GET",
-    guard: GUARD.permission("can_configure_data"),
+    guard: GUARD.permission("can_view_data"),
     response: {} as HfaIndicatorVariantItem[],
   }),
   createHfaIndicatorVariantItem: route({
@@ -316,7 +316,7 @@ export const hfaIndicatorRouteRegistry = {
   getHfaIndicators: route({
     path: "/hfa-indicators",
     method: "GET",
-    guard: GUARD.permission("can_configure_data"),
+    guard: GUARD.permission("can_view_data"),
     response: {} as HfaIndicator[],
   }),
   createHfaIndicator: route({
@@ -359,27 +359,27 @@ export const hfaIndicatorRouteRegistry = {
   getHfaIndicatorCode: route({
     path: "/hfa-indicators/code",
     method: "POST",
-    guard: GUARD.permission("can_configure_data"),
+    guard: GUARD.permission("can_view_data"),
     body: z.object({ indicatorId: z.string() }),
     response: {} as HfaIndicatorCode[],
   }),
   getAllHfaIndicatorCode: route({
     path: "/hfa-indicators/code/all",
     method: "GET",
-    guard: GUARD.permission("can_configure_data"),
+    guard: GUARD.permission("can_view_data"),
     response: {} as HfaIndicatorCode[],
   }),
   getHfaIndicatorVariantCode: route({
     path: "/hfa-indicators/variant-code",
     method: "POST",
-    guard: GUARD.permission("can_configure_data"),
+    guard: GUARD.permission("can_view_data"),
     body: z.object({ indicatorId: z.string() }),
     response: {} as HfaIndicatorVariantCode[],
   }),
   getAllHfaIndicatorVariantCode: route({
     path: "/hfa-indicators/variant-code/all",
     method: "GET",
-    guard: GUARD.permission("can_configure_data"),
+    guard: GUARD.permission("can_view_data"),
     response: {} as HfaIndicatorVariantCode[],
   }),
   saveHfaIndicatorFull: route({
@@ -413,7 +413,7 @@ export const hfaIndicatorRouteRegistry = {
   getHfaDictionaryForValidation: route({
     path: "/hfa-indicators/dictionary",
     method: "GET",
-    guard: GUARD.permission("can_configure_data"),
+    guard: GUARD.permission("can_view_data"),
     response: {} as HfaDictionaryForValidation,
   }),
 } as const satisfies Record<string, { guard: RouteGuard }>;
