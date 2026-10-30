@@ -165,7 +165,13 @@ file), which:
   `new Clerk(publishableKey)` from `VITE_CLERK_PUBLISHABLE_KEY`) and registers
   the browser server-action transport against it; a `bypassAuth` dev path
   (`VITE_BYPASS_AUTH`, non-production builds only) that skips Clerk entirely and
-  synthesizes a dev user (`"en"`/`"gregorian"`);
+  synthesizes a dev user (`"en"`/`"gregorian"`); and a `personaAuth` dev path
+  (`VITE_PERSONA_AUTH`, non-production builds only) that skips Clerk, takes the
+  persona from a `?persona=<email>` query kept in localStorage, sets the
+  `fastr_persona` cookie the server reads (S18 "Special modes") and loads the
+  real `getCurrentUser`, prompts for the query when none is kept, and clears
+  both on Sign out. Outside Clerk the profile hides Manage account and Change
+  email (`clerkActive`);
 - resolves **language**: `localStorage[LANGUAGE_STORAGE_KEY]`
   (`"fastrLanguage"`) if present, else the instance's configured language
   fetched via `getInstanceMeta` (the logged-out login screen does the same);

@@ -138,17 +138,27 @@ restart. It proves links 4–7 and says nothing about 1–3.
 write schemas and stored shapes diverge in this codebase, and the schema is the
 only authority on what a tool actually accepts.
 
-### The three local auth modes: pick deliberately
+### The four local auth modes: pick deliberately
 
 | Mode                               | Boot                                              | Identity                         | What it skips                                                                                             |
 | ---------------------------------- | ------------------------------------------------- | -------------------------------- | --------------------------------------------------------------------------------------------------------- |
 | `BYPASS_AUTH` (the `.env` default) | `deno task dev`                                   | seeded admin `dev@offline.local` | link 5 entirely, **and because that identity is an instance admin, permission gating is never exercised** |
+| Persona                            | `BYPASS_AUTH= PERSONA_AUTH=1 deno task dev`       | the row `?persona=<email>` names | Clerk only: every permission check runs as it does for that user                                          |
 | PAT                                | `BYPASS_AUTH= deno task dev`                      | whoever you minted for           | links 1–3                                                                                                 |
 | OAuth                              | `BYPASS_AUTH= deno task dev` + `claude mcp login` | the Clerk account you sign in as | link 4 only                                                                                               |
 
 ```bash
 deno task mint-pat you@example.com claude   # PAT, for the probe or a header connector
 ```
+
+**Persona mode signs the browser in as any `users` row.** Set `PERSONA_AUTH=1`
+(and `BYPASS_AUTH=` empty: the server refuses both) in `.env` and
+`VITE_PERSONA_AUTH=true` in `client/.env.development.local`, then open
+`http://localhost:3000/?persona=<email>`. The client keeps the persona and sends
+it as the `fastr_persona` cookie; the server builds that row's own `GlobalUser`,
+so an email with no row is an unapproved user. Sign out clears it. Both flags
+are dead in a production build and under `IS_PRODUCTION`.
+`TESTING_SCRIPT_FOR_AI_PERMISSIONS.md` drives it through every persona.
 
 **Local OAuth is a real rehearsal, against a different Clerk instance.** Local
 dev advertises the dev Clerk instance; a deployed instance advertises

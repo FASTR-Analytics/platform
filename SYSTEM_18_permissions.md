@@ -264,13 +264,21 @@ every builder follow), never inline a permission string elsewhere.
 
 ## Special modes (precedence, highest first)
 
-| Mode           | Source                                             | Effect                                                                                    |
-| -------------- | -------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| `_BYPASS_AUTH` | `BYPASS_AUTH` env, dev only (`&& !_IS_PRODUCTION`) | synthetic full-access dev user; Clerk disabled entirely                                   |
-| `_OPEN_ACCESS` | `OPEN_ACCESS` env                                  | every signed-in email treated as an approved global admin while it is set                 |
-| `is_admin`     | `users.is_admin` column                            | global admin, bypasses all permission checks except a private asset's (S4)                |
-| `H_USERS`      | untracked `server/auth/h_users.ts`                 | `isHUser`: `unlimitedAi` and the `setUserUnlimitedAi` route; seeded as admin rows at init |
-| granular       | `users` permission columns                         | normal least-privilege path                                                               |
+| Mode            | Source                                              | Effect                                                                                                                                  |
+| --------------- | --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `_BYPASS_AUTH`  | `BYPASS_AUTH` env, dev only (`&& !_IS_PRODUCTION`)  | synthetic full-access dev user; Clerk disabled entirely                                                                                 |
+| `_PERSONA_AUTH` | `PERSONA_AUTH` env, dev only (`&& !_IS_PRODUCTION`) | the `fastr_persona` cookie's email builds that row's own `GlobalUser`, no name claims; no cookie is `NOT_AUTHENTICATED`; Clerk disabled |
+| `_OPEN_ACCESS`  | `OPEN_ACCESS` env                                   | every signed-in email treated as an approved global admin while it is set                                                               |
+| `is_admin`      | `users.is_admin` column                             | global admin, bypasses all permission checks except a private asset's (S4)                                                              |
+| `H_USERS`       | untracked `server/auth/h_users.ts`                  | `isHUser`: `unlimitedAi` and the `setUserUnlimitedAi` route; seeded as admin rows at init                                               |
+| granular        | `users` permission columns                          | normal least-privilege path                                                                                                             |
+
+`_PERSONA_AUTH` and `_BYPASS_AUTH` refuse to boot together. Under persona mode
+`authMiddleware` passes through and `getGlobalUser` reads the cookie after the
+headless branch, so the SSE route and the collab upgrade take the same path; it
+exercises every permission check rather than bypassing them, and it is the
+switch `TESTING_SCRIPT_FOR_AI_PERMISSIONS.md` drives. The client's counterpart
+is `VITE_PERSONA_AUTH` (S14).
 
 `_OPEN_ACCESS` inserts an unknown email as a non-admin row through the
 read-and-write pool (`ON CONFLICT DO NOTHING`) and broadcasts the roster when it
