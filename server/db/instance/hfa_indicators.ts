@@ -56,7 +56,7 @@ export type DBHfaIndicator = {
   variant_group_id: string | null;
 };
 
-type DBHfaIndicatorCode = {
+export type DBHfaIndicatorCode = {
   indicator_id: string;
   time_point: string;
   code: string;
@@ -76,7 +76,7 @@ export type DBHfaIndicatorVariantItem = {
   sort_order: number;
 };
 
-type DBHfaIndicatorVariantCode = {
+export type DBHfaIndicatorVariantCode = {
   indicator_id: string;
   time_point: string;
   item_id: string;
@@ -131,7 +131,9 @@ export function dbRowToHfaIndicator(row: DBHfaIndicator): HfaIndicator {
   };
 }
 
-function dbRowToHfaIndicatorCode(row: DBHfaIndicatorCode): HfaIndicatorCode {
+export function dbRowToHfaIndicatorCode(
+  row: DBHfaIndicatorCode,
+): HfaIndicatorCode {
   return {
     indicatorId: row.indicator_id,
     timePoint: row.time_point,
@@ -161,7 +163,7 @@ export function dbRowToHfaIndicatorVariantItem(
   };
 }
 
-function dbRowToHfaIndicatorVariantCode(
+export function dbRowToHfaIndicatorVariantCode(
   row: DBHfaIndicatorVariantCode,
 ): HfaIndicatorVariantCode {
   return {

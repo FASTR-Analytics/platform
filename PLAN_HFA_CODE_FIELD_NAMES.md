@@ -36,7 +36,7 @@ This plan renames every one of them to plain "code" and "filter code".
     `r_variant_code__<itemId>__<round>`, `r_code_N`, `r_filter_code_N` (workbook
     headers); `ind-r-code` (help id).
   - **the old-name grep**:
-    `git grep -nE '\b(rCode|rFilterCode|r_code|r_filter_code|r_code_[0-9N]|r_filter_code_[0-9N])\b|\b(r_code|r_filter_code|r_variant_code)__|ind-r-code' -- . ':!server/db/migrations' ':!server/tests/hfa_code_migration_test.ts' ':!CHANGELOG_AUTO.txt' ':!PLAN_HFA_CODE_FIELD_NAMES.md'`
+    `git grep -nP '\b(rCode|rFilterCode|r_code|r_filter_code|r_code_[0-9N]|r_filter_code_[0-9N])\b|\b(r_code|r_filter_code|r_variant_code)__|ind-r-code' -- . ':!server/db/migrations' ':!server/tests/hfa_code_migration_test.ts' ':!CHANGELOG_AUTO.txt' ':!PLAN_HFA_CODE_FIELD_NAMES.md'`
 - Peculiar to this plan: existing migrations other than `220` are never edited,
   and `220` only as §3 R6 states.
 
@@ -115,8 +115,7 @@ Names that say R because they produce R keep it:
    `r_code` column. A fresh database loads the base schema and replays every
    migration, so without the guard `220` fails on a base that has `code`. Every
    instance has applied `220` and the runner never re-runs it, so production
-   behaviour does not change. _(needs Tim's word for this file, per CLAUDE.md,
-   before Do 1)_
+   behaviour does not change. _(Tim, 2026-10-30)_
 7. The `220` test builds its throwaway database from the base schema, renames
    the columns back to `r_code` and `r_filter_code`, and runs `220` against the
    shape it was written for. It adds one case: on the base schema's shape, `220`
@@ -288,3 +287,8 @@ and the old-name grep returns only the R8 test's refused header.
 - ICEH indicator codes, which are a different thing.
 
 ## §6 Log
+
+- Step 1 also edited `SYSTEM_02_persistence.md` and
+  `PROTOCOL_APP_MIGRATIONS.md`, outside its Surface, because both said the only
+  sanctioned edit of an applied migration is a table-existence guard, and 220's
+  column guard made that false.

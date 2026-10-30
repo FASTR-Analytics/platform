@@ -629,11 +629,13 @@ table, or anything referencing one, needs every such statement wrapped in a
 table-existence guard,
 `DO $$ BEGIN IF EXISTS (SELECT 1 FROM information_schema.tables WHERE
 table_schema = 'public' AND table_name = '…') THEN … END IF; END $$;`,
-so the fresh replay never creates the plane and the drop is a no-op there. This
-is the one sanctioned edit of an applied migration: every instance has already
-applied those files and the runner never re-fires them, so production behaviour
-is unchanged. `079` and `086` guard their statements on `indicators_raw` this
-way.
+so the fresh replay never creates the plane and the drop is a no-op there. The
+one sanctioned edit of an applied migration is an existence guard, on a table or
+a column, that lets a fresh replay skip work written for a shape the base schema
+no longer has: every instance has already applied those files and the runner
+never re-fires them, so production behaviour is unchanged. `079` and `086` guard
+their statements on `indicators_raw` this way, and `220` returns when
+`hfa_indicator_code` has no `r_code` column.
 
 When too many older migrations touch the dropped layer to guard each one, a
 shell migration that sorts first recreates just enough of it instead:

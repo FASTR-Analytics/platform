@@ -23,6 +23,8 @@ import {
 } from "lib";
 import {
   dbRowToHfaIndicator,
+  dbRowToHfaIndicatorCode,
+  dbRowToHfaIndicatorVariantCode,
   getGeoJsonMapSummaries,
   getPopulationAnchors,
   getPopulationLevel,
@@ -87,7 +89,7 @@ export type PreparedRunInputs = {
     knownVariableIds: Set<string>;
     hfaIndicators: HfaIndicator[];
     hfaIndicatorCode: HfaIndicatorCode[];
-    // R code is generation-input only, never a package input file (the
+    // Indicator code is generation-input only, never a package input file (the
     // executed script is already captured as ___script___.R). Group
     // assignments ride hfaIndicators' variantGroupId.
     hfaVariantCode: HfaIndicatorVariantCode[];
@@ -249,18 +251,12 @@ export async function prepareRunInputs(
           a.indicator_id.localeCompare(b.indicator_id),
       )
       .map(dbRowToHfaIndicator);
-    scriptInputs.hfaIndicatorCode = capture.indicatorCode.map((c) => ({
-      indicatorId: c.indicator_id,
-      timePoint: c.time_point,
-      rCode: c.code,
-      rFilterCode: c.filter_code ?? undefined,
-    }));
-    scriptInputs.hfaVariantCode = capture.variantCode.map((c) => ({
-      indicatorId: c.indicator_id,
-      timePoint: c.time_point,
-      itemId: c.item_id,
-      rCode: c.code,
-    }));
+    scriptInputs.hfaIndicatorCode = capture.indicatorCode.map(
+      dbRowToHfaIndicatorCode,
+    );
+    scriptInputs.hfaVariantCode = capture.variantCode.map(
+      dbRowToHfaIndicatorVariantCode,
+    );
     scriptInputs.hfaSentinelRows = capture.sentinelValues.map((r) => ({
       variableId: r.variable_id,
       value: r.value,

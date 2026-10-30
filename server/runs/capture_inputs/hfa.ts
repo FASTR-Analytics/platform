@@ -9,8 +9,10 @@ import { computeHfaCacheHash } from "../../db/instance/dataset_hfa.ts";
 import {
   DBHfaIndicator,
   DBHfaIndicatorCategory,
+  DBHfaIndicatorCode,
   DBHfaIndicatorServiceCategory,
   DBHfaIndicatorSubCategory,
+  DBHfaIndicatorVariantCode,
   DBHfaIndicatorVariantGroup,
   DBHfaIndicatorVariantItem,
 } from "../../db/instance/hfa_indicators.ts";
@@ -26,7 +28,7 @@ import {
 // See the HMIS file's header note. computeDatasetHfaRunCapture does the
 // instance reads + COPY export and returns every captured row set. Capture
 // is always the FULL dataset: every service category's indicator
-// definitions and R code ship in the run.
+// definitions and code ship in the run.
 
 export type DatasetHfaRunCapture = {
   info: RunDatasetHfaInfo;
@@ -45,18 +47,8 @@ export type DatasetHfaRunCapture = {
   variantGroups: DBHfaIndicatorVariantGroup[];
   variantItems: DBHfaIndicatorVariantItem[];
   indicators: DBHfaIndicator[];
-  indicatorCode: {
-    indicator_id: string;
-    time_point: string;
-    code: string;
-    filter_code: string | null;
-  }[];
-  variantCode: {
-    indicator_id: string;
-    time_point: string;
-    item_id: string;
-    code: string;
-  }[];
+  indicatorCode: DBHfaIndicatorCode[];
+  variantCode: DBHfaIndicatorVariantCode[];
 };
 
 export async function computeDatasetHfaRunCapture(
@@ -78,7 +70,7 @@ export async function computeDatasetHfaRunCapture(
     const resStructureSchema = await getStructureSchema(mainDb, "hfa");
     throwIfErrWithData(resStructureSchema);
 
-    // Fetch HFA indicator definitions + per-time-point R code from the instance
+    // Fetch HFA indicator definitions + per-time-point code from the instance
     // DB for the run snapshot. The module runner reads from the snapshot so
     // indicators and data stay in sync for this run.
     const hfaIndicatorRowsForSnapshot = await mainDb<DBHfaIndicator[]>`
@@ -88,14 +80,7 @@ export async function computeDatasetHfaRunCapture(
       hfaIndicatorRowsForSnapshot.map((ind) => ind.indicator_id),
     );
     const hfaIndicatorCodeRowsForSnapshot = (
-      await mainDb<
-        {
-          indicator_id: string;
-          time_point: string;
-          code: string;
-          filter_code: string | null;
-        }[]
-      >`
+      await mainDb<DBHfaIndicatorCode[]>`
       SELECT indicator_id, time_point, code, filter_code
       FROM hfa_indicator_code
       ORDER BY indicator_id, time_point
@@ -192,14 +177,7 @@ COPY (${exportStatement}) TO '${csvTarget.postgresPath}' WITH (FORMAT CSV, HEADE
       SELECT id, group_id, label, sort_order FROM hfa_indicator_variant_items ORDER BY group_id, sort_order, id
     `;
     const hfaVariantCodeRowsForSnapshot = (
-      await mainDb<
-        {
-          indicator_id: string;
-          time_point: string;
-          item_id: string;
-          code: string;
-        }[]
-      >`
+      await mainDb<DBHfaIndicatorVariantCode[]>`
       SELECT indicator_id, time_point, item_id, code
       FROM hfa_indicator_variant_code
       ORDER BY indicator_id, time_point, item_id
@@ -218,7 +196,7 @@ COPY (${exportStatement}) TO '${csvTarget.postgresPath}' WITH (FORMAT CSV, HEADE
     )) as RunFacilityRow[];
 
     // Every variable id in hfa_data with sample values. Never scoped by
-    // service category: indicator R code must be able to resolve any variable.
+    // service category: indicator code must be able to resolve any variable.
     const variables = (await mainDb.unsafe(`
       WITH distinct_values AS (
         SELECT

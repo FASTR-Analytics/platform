@@ -363,9 +363,10 @@ database each, applies every current `*.sql` instance migration to each, and
 then runs `dbStartUp()` against the empty server, which must record one
 `schema_migrations` row per `.sql` and `.ts` file. A statement error on any
 base, a non-zero boot exit, or a count mismatch fails it. The one sanctioned
-edit of an applied migration is the table-existence guard that lets a base-owned
-table leave the base schema (the protocol's "Dropping a table that older
-migrations touch").
+edit of an applied migration is an existence guard, on a table or a column, that
+lets a fresh replay skip work written for a shape the base schema no longer has
+(`079` and `086` guard on a table, per the protocol's "Dropping a table that
+older migrations touch"; `220` on the `r_code` column).
 
 ### The project consolidation: 000, 201 and 202
 
