@@ -27,12 +27,12 @@ The instruction is "Do the next step of PLAN_PERMISSIONS.md." Branch, floor,
 conditional gates, reading order and the review cadence are
 [PROTOCOL_APP_PLANS.md](PROTOCOL_APP_PLANS.md) and
 [panther/protocols/PROTOCOL_ALL_PLANS.md](panther/protocols/PROTOCOL_ALL_PLANS.md).
-The log is §6. The last step is 9; its close commit deletes this file.
+The log is §6. The last step is 10; its close commit deletes this file.
 
 Vocabulary, used throughout:
 
 - **flag**: a boolean column on `users` that a route may require. Today six;
-  after step 6 four: `can_view_data`, `can_configure_data`, `can_view_users`,
+  after step 7 four: `can_view_data`, `can_configure_data`, `can_view_users`,
   `can_configure_users`.
 - **effective permissions**: a user's flags after three rules, applied in one
   function: a global admin holds every flag; configure implies view
@@ -52,7 +52,7 @@ Vocabulary, used throughout:
 Rules peculiar to this plan:
 
 - `lib/h_users.ts` is untracked (`.gitignore:34`) and shipped only by the Docker
-  `COPY lib lib`. Step 4 moves it to `server/auth/h_users.ts`, which stays
+  `COPY lib lib`. Step 5 moves it to `server/auth/h_users.ts`, which stays
   untracked: the step moves the `.gitignore` line, moves the local file, and
   commits neither the file nor its contents. The duplicate entry and the dead
   `_DEV_USERS` export are removed from the local file by hand in that step.
@@ -61,6 +61,12 @@ Rules peculiar to this plan:
 - The review's scratch reports are not part of the plan. Every line number here
   was read from the code when the plan was written; where the code has moved,
   the code wins.
+- Step 4 gives the permission system its own SYSTEM file,
+  `SYSTEM_18_permissions.md`. Every step from 5 on has that file in its Surface
+  and writes there the prose its Deliverable assigns to SYSTEM_01 "Access
+  control" (from "Identity" through "Special modes") or to SYSTEM_15 "Scope
+  access" and "Permissions", since step 4 moves those sections; a Deliverable's
+  mention of those sections reads as SYSTEM_18.
 
 ## §1 The problem
 
@@ -271,7 +277,7 @@ row and is refused in production exactly as `BYPASS_AUTH` is.
    keeps its own expectation table rather than reading the registry, so a wrong
    declaration fails a test.
 6. _(proposed)_ Folder routes declare `folder`. Step 2 closes the body bypass by
-   deciding `folderRoute` from membership in `folderRouteRegistry`; step 4
+   deciding `folderRoute` from membership in `folderRouteRegistry`; step 5
    replaces that with the declared kind.
 7. Folders keep today's rule (SYSTEM_12 "Contract"): no level, any approved
    unrestricted user creates, renames, moves or deletes one, a restricted user
@@ -290,7 +296,7 @@ row and is refused in production exactly as `BYPASS_AUTH` is.
     while the route returns every row's `details` (request bodies and headers).
     `getUsersLastActive` (`SELECT user_email, MAX(timestamp) ... GROUP BY`)
     replaces it at `can_view_logs`, and moves under `can_view_users` with the
-    fold (step 6).
+    fold (step 7).
 12. _(proposed)_ Email caps: `attachment.content` at most 25,000,000 characters,
     `filename` at most 200 characters with no path separator, and a per-user
     daily send count against `DAILY_EMAIL_LIMIT` (default 50), refused with a
@@ -333,7 +339,7 @@ row and is refused in production exactly as `BYPASS_AUTH` is.
   `refuseUserManagement(sql, caller: { email; isGlobalAdmin; scopeAccess }, emails): Promise<string | undefined>`
   that, for a non-admin caller, returns `RESTRICTED_CALLER_REFUSED` when the
   caller's `scopeAccess` is not all (a restricted user keeps
-  `can_configure_users` until step 6), `OWN_ROW_REFUSED` when `emails` names the
+  `can_configure_users` until step 7), `OWN_ROW_REFUSED` when `emails` names the
   caller and `ADMIN_ROW_NEEDS_ADMIN` when any named row is an admin
   (`SELECT ... FOR UPDATE`). `deleteUser`, `updateUserPermissions`,
   `bulkUpdateUserPermissions`, `setUserScopeAccess`, `bulkSetUserScopeAccess`
@@ -405,7 +411,7 @@ row and is refused in production exactly as `BYPASS_AUTH` is.
   files are claimed by SYSTEM_01's manifest.
 
 **Not in this step.** Approval on the zero-argument guard sites (step 2); the
-client's Users tab (step 5); the roster projection (step 7).
+client's Users tab (step 6); the roster projection (step 8).
 
 **Gates.** `./validate_migrations`, `./validate_fresh_boot`.
 
@@ -507,8 +513,8 @@ the normalisation; the harness and the test.
   `getUsersLastActive` as the Users tab's reader; the "log view" sentence goes)
   rewritten; `.env.example` says what `OPEN_ACCESS` grants.
 
-**Not in this step.** The registry guard field (step 4); the email caps (step
-8).
+**Not in this step.** The registry guard field (step 5); the email caps (step
+9).
 
 **Gates.** Floor.
 
@@ -568,7 +574,55 @@ step 2.
 
 **Ends with.** Two commits: the harness consolidation; the matrix test.
 
-### Step 4: Guards in the contract
+### Step 4: The permission system's own SYSTEM file
+
+**Surface.** `SYSTEM_18_permissions.md` (new), `SYSTEMS.md`, `CLAUDE.md`,
+`SYSTEM_01_api_contract.md`, `SYSTEM_03_realtime_cache.md`,
+`SYSTEM_04_assets_upload.md`, `SYSTEM_12_documents_sharing.md`,
+`SYSTEM_15_admin_ops.md`, `SYSTEM_16_collaboration.md`.
+
+**Deliverable.**
+
+- `SYSTEM_18_permissions.md`, "Permissions & Identity": what a request may do
+  once its credential has become an email. Its manifest claims the code whose
+  job is deciding that: `server/auth/**` (the identity builder, the product
+  access policy), `server/middleware/userPermission.ts`,
+  `server/middleware/asset_visibility.ts`, `lib/types/permissions.ts`,
+  `lib/types/permission_labels.ts`, `lib/h_users.ts`,
+  `server/routes/instance/users.ts`, `server/db/instance/users.ts`,
+  `server/db/instance/rename_user_email.ts`,
+  `client/src/state/instance/product_access.ts`, and the tests
+  `permission_matrix_test.ts`, `user_management_test.ts`, `approval_test.ts`,
+  `lowercase_user_emails_migration_test.ts`, `product_access_db_test.ts`,
+  `product_access_routes_test.ts`, `product_level_test.ts`,
+  `project_access_match_test.ts`, `scope_grants_routes_test.ts` and the harness
+  `server/tests/_harness/route_app.ts`. The files later steps create under §2
+  "Layout" are claimed here when they appear. SYSTEM_01 keeps the registry,
+  `defineRoute`, the transport, `authMiddleware`, the headless credential seam
+  (`headless_auth.ts`, `headless_app.ts`, the allowlist, the PAT table) and
+  OAuth discovery; `static.ts` stays SYSTEM_01's with SYSTEM_18 a mandatory
+  reader of its tiers; the Users tab and the Scopes page stay SYSTEM_15's, the
+  scope entity SYSTEM_12's, asset privacy SYSTEM_04's.
+- Prose moves, it is not rewritten: SYSTEM_01 "Access control" from "Identity:
+  `getGlobalUser`" through "Special modes" (the guard factories, the guard
+  audit, the permission source of truth), SYSTEM_15 "Scope access",
+  "Permissions (write side)" and "H_USERS shadow tier", and the open items that
+  belong to those sections. SYSTEM_12 "Contract" keeps what each level allows
+  and points to SYSTEM_18 for the policy; SYSTEM_03, SYSTEM_04 and SYSTEM_16
+  keep their filter, privacy and admission prose and point to SYSTEM_18 where
+  they restate a rule it now owns.
+- SYSTEMS.md: the map row for S18, 18 systems, the custody rows for
+  `routes/instance/users.ts` and `db/instance/users.ts` (owner S18, readers S1,
+  S15, S13) and `middleware/static.ts` (owner S1, reader S18); CLAUDE.md
+  "Read first" counts 18 systems.
+
+**Not in this step.** Any code change; the module and guard field (step 5).
+
+**Gates.** Floor.
+
+**Ends with.** One commit.
+
+### Step 5: Guards in the contract
 
 **Surface.** `lib/permissions/**` (new),
 `lib/types/{permissions,permission_labels,instance,products,assets}.ts`,
@@ -655,8 +709,8 @@ step 2.
   describe the module, the table and the registry flag; SYSTEM_00, SYSTEM_01,
   SYSTEM_04 and SYSTEM_12 manifests claim the moved and new files.
 
-**Not in this step.** Any change to a guard's value (step 6); the client
-accessors (step 5).
+**Not in this step.** Any change to a guard's value (step 7); the client
+accessors (step 6).
 
 **Gates.** Floor.
 
@@ -664,7 +718,7 @@ accessors (step 5).
 the guard module and the refusals; the registry field and `defineRoute`; the
 operator tier; the renames and comments.
 
-### Step 5: The client reads the table
+### Step 6: The client reads the table
 
 **Surface.** `client/src/state/instance/permissions.ts` (new),
 `client/src/state/instance/t1_store.ts`,
@@ -718,7 +772,7 @@ operator tier; the renames and comments.
   takes an optional folder-menu handler so a hidden menu has no button.
 - The prompt library offers country scope only when `isGlobalAdmin()` (the
   server's inline body check in `custom_prompts.ts`, which no guard kind
-  expresses; step 6 moves both to the flag) and shows Edit and Delete on a
+  expresses; step 7 moves both to the flag) and shows Edit and Delete on a
   country prompt to its author or an admin (the DB rule in
   `server/db/instance/custom_prompts.ts`).
 - The copilot tool guard passes the store's effective permissions and
@@ -736,14 +790,14 @@ operator tier; the renames and comments.
   affordances), SYSTEM_13 (tool guard, the `hfa_write` kind gone, prompt
   library) rewritten.
 
-**Not in this step.** Guard values (step 6); the roster (step 7).
+**Not in this step.** Guard values (step 7); the roster (step 8).
 
 **Gates.** Floor.
 
 **Ends with.** Three commits: the accessors and the shell and Data gates; the
 Users tab; products and prompts.
 
-### Step 6: Four flags and the mapping
+### Step 7: Four flags and the mapping
 
 **Surface.** `server/db/migrations/instance/226_four_flags.sql`,
 `server/db/instance/{_main_database.sql,_main_database_types.ts,users.ts}`,
@@ -773,7 +827,7 @@ Users tab; products and prompts.
   the base schema, `DBUser`, the flag type, `USER_PERMISSIONS` and the labels
   carry four flags, in the same commit.
 - `effectivePermissions` applies the all-false restricted reduction (configure
-  implies view since step 4); `RESTRICTED_CALLER_REFUSED` and its check leave
+  implies view since step 5); `RESTRICTED_CALLER_REFUSED` and its check leave
   `refuseUserManagement` and `scopeAccess` leaves its caller parameter, since a
   restricted caller now holds no flag and the guard refuses first; the scope
   grants test moves the restricted-manager case to the guard's 403.
@@ -802,13 +856,13 @@ Users tab; products and prompts.
   access", "Permissions", the Scopes page, the H_USERS tier), SYSTEM_17 (the
   log's reader) rewritten.
 
-**Not in this step.** The roster projection (step 7).
+**Not in this step.** The roster projection (step 8).
 
 **Gates.** `./validate_migrations`, `./validate_fresh_boot`.
 
 **Ends with.** Two commits: the fold; the mapping.
 
-### Step 7: The roster
+### Step 8: The roster
 
 **Surface.** `lib/permissions/**`, `lib/types/{instance,instance_sse}.ts`,
 `server/db/instance/{instance,users}.ts`,
@@ -841,13 +895,13 @@ Users tab; products and prompts.
 - SYSTEM_03 (the roster rule), SYSTEM_12 and SYSTEM_04 (pickers), SYSTEM_13
   (grounding), SYSTEM_15 ("Permissions" write side, `can_view_users`) rewritten.
 
-**Not in this step.** Anything on the product plane (step 8).
+**Not in this step.** Anything on the product plane (step 9).
 
 **Gates.** Floor.
 
 **Ends with.** One commit.
 
-### Step 8: The product plane
+### Step 9: The product plane
 
 **Surface.** `server/db/products/{products,folders}.ts`,
 `server/db/products/versions.ts`, `server/routes/products/{folders,products}.ts`,
@@ -882,14 +936,14 @@ Users tab; products and prompts.
 - SYSTEM_12 "Contract" states the owner scope rule, the caps and the picker;
   SYSTEM_01's policy prose follows.
 
-**Not in this step.** The persona switch (step 9).
+**Not in this step.** The persona switch (step 10).
 
 **Gates.** `./validate_migrations`, `./validate_fresh_boot`.
 
 **Ends with.** Two commits: owner scope and the folder 404; the email caps and
 the picker.
 
-### Step 9: The persona switch and the browser script
+### Step 10: The persona switch and the browser script
 
 **Surface.** `server/exposed_env_vars.ts`, `server/auth/global_user.ts`,
 `server/middleware/auth.ts`,
@@ -933,11 +987,11 @@ commit.
 - Clerk's sign-up policy: the code assumes self-service sign-up and gates on
   approval.
 - A `can_use_ai` flag: the token limits bound the copilot; the S13 open item
-  closes as "no flag" in step 6.
+  closes as "no flag" in step 7.
 - Per-dataset-family data permissions.
 - The OAuth token format caveat and the 30 s revocation window (SYSTEM_01).
 - The PascalCase DB functions outside `server/db/instance/users.ts` (one open
-  item, step 4).
+  item, step 5).
 - The central reporting accounts and the status site's readers of `is_admin` and
   contact person (unchanged fields).
 
