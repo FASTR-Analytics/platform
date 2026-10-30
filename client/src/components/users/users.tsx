@@ -355,20 +355,6 @@ function UserTable(p: {
       header: t3(TC.email),
       sortable: true,
     },
-    {
-      key: "organisation",
-      header: t3({
-        en: "Organisation",
-        fr: "Organisation",
-        pt: "Organização",
-      }),
-      sortable: true,
-      filterable: true,
-      render: (user) =>
-        user.organisation
-          ? <span>{user.organisation}</span>
-          : <span class="text-base-content-muted">—</span>,
-    },
     ...(p.showLastActive ? [lastActiveColumn] : []),
     {
       key: "isGlobalAdmin",
