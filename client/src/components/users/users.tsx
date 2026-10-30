@@ -407,9 +407,13 @@ function UserTable(p: {
     },
   ]);
 
+  // toggleUserAdmin refuses any batch that names the caller, so their own
+  // row is never sent.
   const bulkMakeAdmin = createButtonAction(
     async (selectedUsers: UserTableData[]) => {
-      const emails = selectedUsers.map((u) => u.email);
+      const emails = selectedUsers
+        .map((u) => u.email)
+        .filter((email) => email !== instanceState.currentUserEmail);
       return serverActions.toggleUserAdmin({ emails, makeAdmin: true });
     },
   );

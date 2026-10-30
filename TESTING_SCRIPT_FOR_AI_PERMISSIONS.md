@@ -187,8 +187,10 @@ For each persona with the Users tab, open it and then one user's detail (pick
 
 Then, as the manager, open `persona-admin@example.com`'s detail and the
 manager's own, and tick each row in the table for Edit permissions and Remove.
-Expected: neither action is offered for the admin's row or the manager's own
-row, in bulk or on the detail page; a refusal is a FAIL by rule 1.
+Expected: the detail page offers neither action for those rows. In bulk, with
+only those rows ticked, the action sends nothing and no refusal appears; with
+other rows ticked too, it acts on the others alone. A refusal is a FAIL by rule
+1.
 
 As the manager, toggle one flag on `persona-none@example.com`'s detail and Save.
 Confirm the other flags kept their values (reopen the detail).
@@ -203,13 +205,12 @@ Open Products as each persona and find `Persona test deck` in
 - **Restricted-other** (a grant, but not the deck's scope): the deck and the
   folder are absent.
 - **The row menu** (the list's menu button on the deck): a viewer is offered
-  Duplicate only. An editor is offered Move into, Move to folder…, Settings,
+  Duplicate only. An editor is offered Move to General, Move to folder…, Settings,
   Results package and scope…, Manage access… and Duplicate. The owner (the
   admin) also has Delete.
 - **The open deck**: every level has Present (when the deck has slides),
   History, and File → Download…, Share… and Copy to deck…. An editor also has
-  File → Name and folder… and Manage access…, Add slide, the Deck menu, Update
-  all figures and a clickable package and scope chip. A viewer's chip renders
+  File → Name and folder… and Manage access…, Add slide, the Deck menu, Update all visualizations (N) when a figure is stale and a clickable package and scope chip. A viewer's chip renders
   but opens nothing, and the deck is read-only: no Add slide, no Deck menu.
 - **Restricted** (view, scope held): as the viewer.
 
