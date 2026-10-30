@@ -54,10 +54,9 @@ import {
   truncateWorkerError,
 } from "../worker_contract.ts";
 import {
-  getChildOrgUnitIds,
   getDataValueSetsFromDHIS2,
-  getDataViewRootOrgUnitIds,
   getMonthlyDataSetIdByElement,
+  getOrgUnitIdsAtLevel,
 } from "../../dhis2/goal5_data_value_sets/mod.ts";
 import type {
   DHIS2DataValue,
@@ -95,7 +94,7 @@ import {
 const CONCURRENT_REQUESTS = _DHIS2_CONCURRENT_REQUESTS;
 // dataValueSets pulls: a dense Nigeria element-month is ~10-12 MB; the cap
 // exists so a pathological response can't balloon worker memory. On cap or
-// timeout the pull splits by the roots' child subtrees: never fail a pair on
+// timeout the pull splits by level-2 subtree (state): never fail a pair on
 // size without having tried the split.
 const DVS_MAX_RESPONSE_BYTES = 100 * 1024 * 1024;
 const DVS_TIMEOUT_MS = 300_000;
@@ -518,24 +517,19 @@ async function run(std: RunWorkerMessage) {
       );
     }
 
-    // The roots whole-country dataValueSets pulls descend from.
-    const rootOrgUnitIds = await getDataViewRootOrgUnitIds(
-      metadataFetchOptions,
-    );
+    // Root org units for whole-country dataValueSets pulls.
+    const rootOrgUnitIds = await getOrgUnitIdsAtLevel(1, metadataFetchOptions);
     if (rootOrgUnitIds.length === 0 && dvsPairs.length > 0) {
       throw new Error(
-        "The DHIS2 account has no data-view organisation units: cannot run dataValueSets pulls",
+        "DHIS2 returned no level-1 (root) organisation units — cannot run dataValueSets pulls",
       );
     }
-    let splitOrgUnitIdsPromise: Promise<string[]> | null = null;
-    const getSplitOrgUnitIds = () => {
-      if (!splitOrgUnitIdsPromise) {
-        splitOrgUnitIdsPromise = getChildOrgUnitIds(
-          rootOrgUnitIds,
-          metadataFetchOptions,
-        );
+    let level2OrgUnitIdsPromise: Promise<string[]> | null = null;
+    const getLevel2OrgUnitIds = () => {
+      if (!level2OrgUnitIdsPromise) {
+        level2OrgUnitIdsPromise = getOrgUnitIdsAtLevel(2, metadataFetchOptions);
       }
-      return splitOrgUnitIdsPromise;
+      return level2OrgUnitIdsPromise;
     };
 
     statsInputs = {
@@ -562,8 +556,8 @@ async function run(std: RunWorkerMessage) {
 
     // dataValueSets pull, one selector × one month, selected by the
     // instance-calendar period token: no date conversion anywhere. On
-    // size/timeout, split by the roots' child subtrees: never fail a pair on
-    // size without having tried the split.
+    // size/timeout, split by level-2 subtree: never fail a pair on size
+    // without having tried the split.
     const fetchDvsValues = async (
       selector: Dhis2ValueSelector,
       periodId: number,
@@ -615,13 +609,13 @@ async function run(std: RunWorkerMessage) {
           throw error;
         }
         if (allowOrgSplit) {
-          const subtrees = await getSplitOrgUnitIds();
-          if (subtrees.length > 0) {
+          const level2 = await getLevel2OrgUnitIds();
+          if (level2.length > 0) {
             console.log(
-              `DVS pull ${selector.kind} ${selector.id}/${periodId} too large country-wide — splitting across ${subtrees.length} child subtrees`,
+              `DVS pull ${selector.kind} ${selector.id}/${periodId} too large country-wide — splitting across ${level2.length} level-2 subtrees`,
             );
             const all: DHIS2DataValue[] = [];
-            for (const orgUnit of subtrees) {
+            for (const orgUnit of level2) {
               const part = await fetchDvsValues(
                 selector,
                 periodId,

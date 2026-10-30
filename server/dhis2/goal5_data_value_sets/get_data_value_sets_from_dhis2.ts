@@ -133,46 +133,19 @@ export async function getMonthlyDataSetIdByElement(
   return byElement;
 }
 
-// Unvalidated JSON from /api/me: the org units the account may read values
-// under. DHIS2 falls back to the capture org units when no data-view org
-// units are assigned, and so does `dataViewRootIds`.
-export type DHIS2MeOrgUnits = {
-  dataViewOrganisationUnits: IdRow[] | null | undefined;
-  organisationUnits: IdRow[] | null | undefined;
-};
-
-export function dataViewRootIds(me: DHIS2MeOrgUnits): string[] {
-  const dataView = presentIds(me.dataViewOrganisationUnits);
-  return dataView.length > 0 ? dataView : presentIds(me.organisationUnits);
-}
-
-// The roots a whole-country dataValueSets pull descends from: the account's
-// own data-view org units, not every level-1 unit. A server can hold a root
-// the account may not view (Malawi: "Malawi" beside "MOH MALAWI Govt", which
-// holds every facility), and one such orgUnit= fails the whole request with
-// 409.
-export async function getDataViewRootOrgUnitIds(
+// Org unit ids at a hierarchy level: level 1 = the root(s) for whole-country
+// dataValueSets pulls; level 2 = the subtree split when a 1-month pull still
+// exceeds the response cap.
+export async function getOrgUnitIdsAtLevel(
+  level: number,
   options: FetchOptions,
 ): Promise<string[]> {
-  const me = await getDHIS2<DHIS2MeOrgUnits>("/api/me.json", options, {
-    fields: "dataViewOrganisationUnits[id],organisationUnits[id]",
-  });
-  return dataViewRootIds(me);
-}
-
-// The roots' children: the subtree split when a 1-month pull still exceeds
-// the response cap.
-export async function getChildOrgUnitIds(
-  parentIds: string[],
-  options: FetchOptions,
-): Promise<string[]> {
-  if (parentIds.length === 0) return [];
+  const params = new URLSearchParams();
+  params.set("fields", "id");
+  params.set("filter", `level:eq:${level}`);
+  params.set("paging", "false");
   const res = await getDHIS2<{
     organisationUnits: IdRow[] | null | undefined;
-  }>("/api/organisationUnits.json", options, {
-    fields: "id",
-    filter: `parent.id:in:[${parentIds.join(",")}]`,
-    paging: "false",
-  });
+  }>("/api/organisationUnits.json", options, params);
   return presentIds(res.organisationUnits);
 }

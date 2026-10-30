@@ -694,8 +694,7 @@ its first minute tick with no import running and none queued before it, so the
 app's Cancel reaches it and connected clients hear when it starts and ends; the
 script polls the run (`waitForDhis2IdFixBackfill`, through
 `getDatasetHmisImportRunDetail`) until it is neither queued nor running, prints
-its status and pair counts, and exits 1 unless it completed with no failed
-pair.
+its status and pair counts, and exits 1 unless it completed.
 
 Instance migration 087 (`087_indicator_data_key.sql`) gives every Uploaded row a
 key: a row whose `data_id` was NULL takes a generated `u_` key and its

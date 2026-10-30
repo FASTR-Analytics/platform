@@ -127,7 +127,7 @@ Endpoints are grouped by goal, each folder with a `mod.ts` barrel;
 | `goal1_org_units_v2/`    | org-unit hierarchy metadata and paged units                                                                          | `getOrgUnitMetadata` (levels + counts + roots, parallel), `getOrgUnitNamesAtLevel`, `pageOrgUnitPathsAtLevel` (one page of units with paths per yield), `testDHIS2Connection`                                                                                                                        |
 | `goal2_indicators/`      | indicator / data-element discovery, data-set links, element eligibility, indicator decomposition, element-id reading | `get/search{Indicators,DataElements}FromDHIS2`, `get{DataElements,Indicators}ByIds`, `searchAllIndicatorsAndDataElements`, `getDataSetLinksByElement`, `getDhis2ElementVerdict`, `getDhis2OperandVerdict`, `parseDhis2Indicator`, `withElementVerdicts`, `withDecompositions`, `readDhis2ElementIds` |
 | `goal4_geojson/`         | boundary import for maps                                                                                             | `fetchOrgUnitsMetadataForLevel`, `fetchGeometryCountForLevel`, `fetchOrgUnitsGeoJsonForLevel`, session caches                                                                                                                                                                                        |
-| `goal5_data_value_sets/` | reported values + metadata id-existence + monthly data sets                                                          | `getDataValueSetsFromDHIS2`, `getExistingMetadataIds`, `getMonthlyDataSetIdByElement`, `getDataViewRootOrgUnitIds`, `getChildOrgUnitIds`                                                                                                                                                             |
+| `goal5_data_value_sets/` | reported values + metadata id-existence + monthly data sets                                                          | `getDataValueSetsFromDHIS2`, `getExistingMetadataIds`, `getMonthlyDataSetIdByElement`, `getOrgUnitIdsAtLevel`                                                                                                                                                                                        |
 
 (`goal1`'s `_v2` suffix is vestigial: no v1 survives.)
 
@@ -287,11 +287,9 @@ which of a list of ids exist on `dataElements`, `indicators` or
 collected in, through goal 2's `getDataSetLinksByElement` and `monthlyDataSetId`
 (the same links the eligibility check reads): the first monthly set in data set
 id order, so an element in several monthly sets always pulls from the same one,
-and any set holding the element returns the same values;
-`getDataViewRootOrgUnitIds` reads the account's data-view org units from
-`/api/me` (its capture org units when none are assigned), the roots a pull
-descends from, and `getChildOrgUnitIds` their children for the split. There is
-no analytics fetcher: the importer never asks DHIS2 to evaluate a formula.
+and any set holding the element returns the same values; `getOrgUnitIdsAtLevel`
+lists the ids at one hierarchy level. There is no analytics fetcher: the
+importer never asks DHIS2 to evaluate a formula.
 
 **Geojson: metadata-vs-heavy split.** Analyze-side,
 `fetchOrgUnitsMetadataForLevel` pulls geometry-less org-unit metadata
@@ -391,8 +389,7 @@ en/fr/pt.
   connection is stored (`getStoredDhis2CredentialsInfo`) without validating it,
   then the import run worker's dispatcher uses `getDhis2Version` and goal 5
   (`getDataValueSetsFromDHIS2`, `getExistingMetadataIds`,
-  `getMonthlyDataSetIdByElement`, `getDataViewRootOrgUnitIds`,
-  `getChildOrgUnitIds`) for classification
+  `getMonthlyDataSetIdByElement`, `getOrgUnitIdsAtLevel`) for classification
   - country pulls. The worker's semantics (dispatcher classification, the
     selector by version, per-pair integration, skip-and-record, the subtree
     split) are S6's documentation.

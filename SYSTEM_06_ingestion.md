@@ -45,7 +45,6 @@ globs:
   - server/tests/csv_header_preselect_test.ts
   - server/tests/csv_mapping_staging_test.ts
   - server/tests/csv_stream_reader_test.ts
-  - server/tests/dhis2_pull_roots_test.ts
   - server/tests/dhis2_pull_route_test.ts
   - server/tests/dhis2_skip_and_record_test.ts
   - server/tests/hfa_csv_column_matching_test.ts
@@ -196,10 +195,7 @@ This section is the authority. Every HMIS import, DHIS2 or CSV, is a row in
   `period=<instance period id>` (an opaque token the DHIS2 server interprets in
   its own calendar, the same contract as DHIS2's own analytics `pe:`, and the
   app never converts calendars/dates; a calendar-configured server does not read
-  startDate/endDate as Gregorian), descending from the account's data-view
-  org units (`/api/me`; every level-1 unit would fail the request with 409 on
-  a server holding a root the account may not view, Malawi 2026-10-30), split
-  across their children on size/timeout. The
+  startDate/endDate as Gregorian), level-2 subtree split on size/timeout. The
   selector follows the version DHIS2 reports at run start (`getDhis2Version`,
   `pullByForVersion`; an unreadable version fails the run rather than guess, and
   `run_stats` records `dhis2Version` and `pullBy`): `dataElement=` on 2.39 and
