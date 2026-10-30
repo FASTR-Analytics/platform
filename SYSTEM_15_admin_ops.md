@@ -223,18 +223,22 @@ failures surface as user-facing route errors with GB figures.
 ## Admin UI
 
 - **Users tab** (`users/users.tsx` + `user.tsx` + bulk forms; visibility
-  `admin || can_configure_users || can_view_users`): user table with last-active
-  (from `getUsersLastActive`), admin toggle (server requires full admin: the bulk
-  buttons and the user detail's Make admin and Make non-admin show for
-  `can_configure_users` and 403 at click, Open item), per-user
-  instance-permission checkboxes, batch CSV upload (`email, is_global_admin`
-  headers; server validates emails, optional replace-all), H_USERS-only
-  unlimited-AI/contact-person sections. One bulk tri-state editor
+  `can("can_view_users")`, which configure implies): every affordance renders
+  only for a caller its route admits, read through `canCallRoute` (S18): Add
+  users, Batch import, the Make admin and Make non-admin buttons (bulk and on
+  the user detail, `toggleUserAdmin`, admin-only), Edit permissions, Remove,
+  the operator-only unlimited-AI and contact-person cards, and the Last active
+  column with its `getUsersLastActive` query, without which the table sorts by
+  email. Operators are hidden by default and Download exports what the table
+  shows. The user detail holds the toggled keys as a patch over the live roster
+  row (its stored bits, live over `users_updated`) and saves the row with the
+  patch applied; the unlimited-AI and contact-person checkboxes read the row.
+  Batch CSV upload takes `email, is_global_admin` headers (server validates
+  emails, optional replace-all). One bulk tri-state editor
   (`unchanged → true → false`, posting only changed keys) covers the instance
   flags. "Edit scopes" (`bulk_edit_scopes_form.tsx`) writes one scope access,
   "All data" or a scope list, to every selected user through
-  `bulkSetUserScopeAccess`: shown to a global admin and to an unrestricted
-  holder of `can_configure_users`. Every write from this tab is held to the
+  `bulkSetUserScopeAccess`: shown to an unrestricted holder of its flag. Every write from this tab is held to the
   user-management rule (S18 "Scope access"), so a manager's selection that names
   an admin or themselves is refused whole with a 403. The page holds and sets the
   chat's `users` view at mount and the user detail (opened over the shell)
@@ -282,39 +286,8 @@ currently internet-exposed behind a shared password).
   has no `iceh` entry.
 - **Hardcoded personal emails** in shipped code: health_check's exclusion list,
   the resize-alert recipients, all fleet-config candidates.
-- **Client/server guard mismatch**: Make admin and Make non-admin show for
-  `can_configure_users`, in the bulk actions (`users/users.tsx:485-506`) and on
-  the user detail (`users/user.tsx:238-265`), but `toggleUserAdmin` requires
-  full admin (`server/routes/instance/users.ts:216`), so both 403 at click. Show
-  both only when `instanceState.currentUserIsGlobalAdmin`.
 - **Legacy UUID project DBs stay on prod hosts** after consolidation; nothing
   drops them (see Production topology).
-- Cruft: dead `showCommingSoon` prop in `users/users.tsx`; unused
-  `openComponent` import in `users/user.tsx:18`.
-- **A failed permissions read lets Save write every bit false, and the
-  checkboxes are not live.** The user detail reads its bits once from
-  `getUserPermissions` (`users/user.tsx:118-128`) and seeds all-false on a
-  failure, so toggling one box makes `hasChanges` true and Save writes the rest
-  as false (130-157); the unlimited-AI and contact-person checkboxes are
-  mount-time copies (92, 104-106), against the comment at 39-41. The roster row
-  already carries the stored bits (`lib/types/instance.ts:273-283`), live over
-  `users_updated`. Keep only the toggled keys as a patch over `p.user` and save
-  `p.user`'s bits with the patch applied, read `unlimitedAi` and
-  `isContactPerson` from `p.user`, and delete `getUserPermissions`, whose only
-  caller this is (`lib/api-routes/instance/users.ts:88`,
-  `server/routes/instance/users.ts:307-316`,
-  `server/db/instance/users.ts:423-449`).
-- **Add users and Batch import show for viewers.** Both buttons render for every
-  Users-tab viewer (`users/users.tsx:143-165`), while `addUsers` and
-  `batchUploadUsers` require `can_configure_users`
-  (`server/routes/instance/users.ts:192`, 256). Lift `canConfigureUsers`
-  (`users.tsx:478-480`) into `InstanceUsers` and render both only when it holds.
-- **Last active shows "..." forever without `can_view_logs`.**
-  `users/users.tsx:46` always runs `getUsersLastActive`, which requires
-  `can_view_logs` (`server/routes/instance/users.ts:289`), so `lastActive`
-  stays undefined (99-102) and every row renders "...". Build the query and the
-  Last active column only when `instanceState.currentUserIsGlobalAdmin` or
-  `instanceState.currentUserPermissions.can_view_logs` holds.
 - **Change email's report phase has no button to leave.** After a partial
   failure the footer holds only Retry
   (`instance/change_email_modal.tsx:336-349`), so Escape is the only exit, and

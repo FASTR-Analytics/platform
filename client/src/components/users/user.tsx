@@ -1,10 +1,12 @@
 import {
   INSTANCE_PERMISSION_LABELS,
   OtherUser,
+  pickUserPermissions,
   t3,
   TC,
   USER_PERMISSIONS,
   UserPermission,
+  type UserPermissions,
 } from "lib";
 import {
   Button,
@@ -14,7 +16,6 @@ import {
   createDeleteAction,
   FrameTop,
   HeadingBar,
-  openComponent,
 } from "panther";
 import {
   createEffect,
@@ -32,10 +33,10 @@ import {
   holdCopilotView,
 } from "~/components/instance/copilot/mod.ts";
 import { UserScopesCard } from "./user_scopes";
+import { can, canCallRoute, isGlobalAdmin } from "~/state/instance/permissions";
 
 type Props = {
   email: string;
-  thisLoggedInUserEmail: string;
   close: (v: undefined) => void;
 };
 
@@ -55,113 +56,60 @@ export function User(p: Props) {
   });
   return (
     <Show when={user()}>
-      {(user) => (
-        <UserDetail
-          user={user()}
-          thisLoggedInUserEmail={p.thisLoggedInUserEmail}
-          close={() => p.close(undefined)}
-        />
-      )}
+      {(user) => <UserDetail user={user()} close={() => p.close(undefined)} />}
     </Show>
   );
 }
 
 type DetailProps = {
   user: OtherUser;
-  thisLoggedInUserEmail: string;
   close: () => void;
 };
 
-function makeDefaultUserPermissions(): Record<UserPermission, boolean> {
-  return Object.fromEntries(USER_PERMISSIONS.map((k) => [k, false])) as Record<
-    UserPermission,
-    boolean
-  >;
-}
-
 function UserDetail(p: DetailProps) {
-  const currentUserIsHUser = () =>
-    instanceState.users.find((u) => u.email === p.thisLoggedInUserEmail)
-      ?.isHUser ?? false;
+  // The toggled keys, held as a patch over the live roster row (its stored
+  // bits), so a roster update under the open page shows through and Save
+  // writes the row with the patch applied, never an all-false default.
+  const [patch, setPatch] = createSignal<
+    Partial<Record<UserPermission, boolean>>
+  >({});
+  const stored = () => pickUserPermissions(p.user);
+  const bits = (): UserPermissions => ({ ...stored(), ...patch() });
+  const hasChanges = () =>
+    USER_PERMISSIONS.some((key) => bits()[key] !== stored()[key]);
+  const togglePermission = (key: UserPermission) =>
+    setPatch((current) => {
+      const next: Partial<Record<UserPermission, boolean>> = { ...current };
+      next[key] = !bits()[key];
+      return next;
+    });
+  const savePermissions = createButtonAction(
+    () =>
+      serverActions.updateUserPermissions({
+        email: p.user.email,
+        permissions: bits(),
+      }),
+    () => {
+      setPatch({});
+    },
+  );
 
-  const [permissions, setPermissions] = createSignal<
-    Record<
-      UserPermission,
-      boolean
-    > | null
-  >(null);
-  const [originalPermissions, setOriginalPermissions] = createSignal<
-    Record<
-      UserPermission,
-      boolean
-    > | null
-  >(null);
-
-  const [unlimitedAi, setUnlimitedAi] = createSignal(p.user.unlimitedAi);
+  // Both toggles read the live row; the roster broadcast carries the change.
   const toggleUnlimitedAi = createButtonAction(
     () =>
       serverActions.setUserUnlimitedAi({
         email: p.user.email,
-        unlimited: !unlimitedAi(),
+        unlimited: !p.user.unlimitedAi,
       }),
-    () => {
-      setUnlimitedAi((v) => !v);
-    },
-  );
-
-  const [isContactPerson, setIsContactPerson] = createSignal(
-    p.user.isContactPerson,
+    async () => {},
   );
   const toggleContactPerson = createButtonAction(
     () =>
       serverActions.setUserContactPerson({
         email: p.user.email,
-        isContactPerson: !isContactPerson(),
+        isContactPerson: !p.user.isContactPerson,
       }),
-    () => {
-      setIsContactPerson((v) => !v);
-    },
-  );
-
-  // get user permissions
-  (async () => {
-    const res = await serverActions.getUserPermissions({ email: p.user.email });
-    if (res.success) {
-      setPermissions(res.data.permissions);
-      setOriginalPermissions(res.data.permissions);
-    } else {
-      setPermissions(makeDefaultUserPermissions());
-      setOriginalPermissions(makeDefaultUserPermissions());
-    }
-  })();
-
-  const hasChanges = () => {
-    const current = permissions();
-    const original = originalPermissions();
-    if (!current || !original) return false;
-    return USER_PERMISSIONS.some((key) => current[key] !== original[key]);
-  };
-
-  const togglePermission = async (key: UserPermission) => {
-    const current = permissions();
-    if (!current) return;
-    setPermissions({ ...current, [key]: !current[key] });
-  };
-
-  const savePermissions = createButtonAction(
-    () => {
-      const perms = permissions();
-      if (!perms) {
-        return Promise.resolve({ success: false, err: "No permissions" });
-      }
-      return serverActions.updateUserPermissions({
-        email: p.user.email,
-        permissions: perms,
-      });
-    },
-    () => {
-      setOriginalPermissions(permissions());
-    },
+    async () => {},
   );
 
   const attemptMakeAdmin = createButtonAction(
@@ -231,10 +179,7 @@ function UserDetail(p: DetailProps) {
           </div>
         </div>
       </Card>
-      <Show
-        when={instanceState.currentUserIsGlobalAdmin ||
-          instanceState.currentUserPermissions.can_configure_users}
-      >
+      <Show when={can("can_configure_users")}>
         <Card
           header={t3({
             en: "Instance permissions",
@@ -242,7 +187,7 @@ function UserDetail(p: DetailProps) {
             pt: "Permissões da instância",
           })}
           headerRight={
-            <div class="ui-gap-sm flex">
+            <Show when={canCallRoute("toggleUserAdmin")}>
               <Switch>
                 <Match when={p.user.isGlobalAdmin}>
                   <Button
@@ -271,7 +216,7 @@ function UserDetail(p: DetailProps) {
                   </Button>
                 </Match>
               </Switch>
-            </div>
+            </Show>
           }
         >
           <div class="ui-spy-sm">
@@ -315,34 +260,24 @@ function UserDetail(p: DetailProps) {
             }
           >
             <div class="ui-spy-sm">
-              <Show
-                when={permissions()}
-                fallback={<div>{t3(TC.loading)}</div>}
-              >
-                {(perms) => (
-                  <div class="space-y-2">
-                    <For each={USER_PERMISSIONS as readonly UserPermission[]}>
-                      {(key) => (
-                        <Checkbox
-                          label={t3(INSTANCE_PERMISSION_LABELS[key])}
-                          checked={perms()[key]}
-                          onChange={() => togglePermission(key)}
-                        />
-                      )}
-                    </For>
-                  </div>
-                )}
-              </Show>
+              <div class="space-y-2">
+                <For each={USER_PERMISSIONS as readonly UserPermission[]}>
+                  {(key) => (
+                    <Checkbox
+                      label={t3(INSTANCE_PERMISSION_LABELS[key])}
+                      checked={bits()[key]}
+                      onChange={() => togglePermission(key)}
+                    />
+                  )}
+                </For>
+              </div>
             </div>
           </Card>
         </Show>
-        <Show
-          when={instanceState.currentUserIsGlobalAdmin &&
-            !p.user.isGlobalAdmin}
-        >
+        <Show when={isGlobalAdmin() && !p.user.isGlobalAdmin}>
           <UserScopesCard user={p.user} />
         </Show>
-        <Show when={currentUserIsHUser()}>
+        <Show when={canCallRoute("setUserUnlimitedAi")}>
           <Card
             header={t3({
               en: "AI usage",
@@ -357,11 +292,13 @@ function UserDetail(p: DetailProps) {
                   fr: "Utilisation IA illimitée",
                   pt: "Utilização ilimitada de tokens de IA",
                 })}
-                checked={unlimitedAi()}
+                checked={p.user.unlimitedAi}
                 onChange={toggleUnlimitedAi.click}
               />
             </div>
           </Card>
+        </Show>
+        <Show when={canCallRoute("setUserContactPerson")}>
           <Card
             header={t3({
               en: "Contact person",
@@ -376,24 +313,26 @@ function UserDetail(p: DetailProps) {
                   fr: "Personne de contact",
                   pt: "Pessoa de contacto",
                 })}
-                checked={isContactPerson()}
+                checked={p.user.isContactPerson}
                 onChange={toggleContactPerson.click}
               />
             </div>
           </Card>
         </Show>
-        <Button
-          onClick={attemptDeleteUser}
-          intent="danger"
-          outline
-          iconName="trash"
-        >
-          {t3({
-            en: "Remove this user",
-            fr: "Supprimer cet utilisateur",
-            pt: "Remover este utilizador",
-          })}
-        </Button>
+        <Show when={canCallRoute("deleteUser")}>
+          <Button
+            onClick={attemptDeleteUser}
+            intent="danger"
+            outline
+            iconName="trash"
+          >
+            {t3({
+              en: "Remove this user",
+              fr: "Supprimer cet utilisateur",
+              pt: "Remover este utilizador",
+            })}
+          </Button>
+        </Show>
       </Show>
     </FrameTop>
   );

@@ -26,7 +26,6 @@ import {
   GetInstanceWeeklyTokenUsage,
   getUserDailyTokenUsage,
   getUserEmailPresence,
-  getUserPermissions,
   listPersonalAccessTokens,
   renameUserEmailInMainDb,
   renameUserEmailInProducts,
@@ -271,16 +270,6 @@ defineRoute(
   log("getUsersLastActive"),
   async (c) => {
     const res = await getUsersLastActive(c.var.mainDb);
-    return c.json(res);
-  },
-);
-
-defineRoute(
-  routesUsers,
-  "getUserPermissions",
-  log("getUserPermissions"),
-  async (c, { params }) => {
-    const res = await getUserPermissions(c.var.mainDb, params.email);
     return c.json(res);
   },
 );

@@ -13,8 +13,6 @@ import type {
 import { scopeUuidSchema } from "../../types/scope.ts";
 import { route } from "../route-utils.ts";
 
-const emailParamsSchema = z.object({ email: z.string() });
-
 // Closed key sets: these flow into `UPDATE users SET ${sql(permissions)}`, so the keys
 // become column identifiers. Derived from the exhaustive permission constants and `.partial()`
 // (any subset is valid); strip mode drops any non-permission key a client might send, which
@@ -87,13 +85,6 @@ export const userRouteRegistry = {
     method: "GET",
     guard: GUARD.permission("can_view_logs"),
     response: {} as UserLastActive[],
-  }),
-  getUserPermissions: route({
-    path: "/user/:email/permissions",
-    method: "GET",
-    guard: GUARD.permission("can_configure_users"),
-    params: emailParamsSchema,
-    response: {} as { permissions: Record<UserPermission, boolean> },
   }),
   updateUserPermissions: route({
     path: "/user/permissions",

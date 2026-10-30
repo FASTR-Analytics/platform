@@ -459,9 +459,7 @@ export default function Instance(p: Props) {
                     <InstanceAssets />
                   </Match>
                   <Match when={tab() === "users" && can("can_view_users")}>
-                    <InstanceUsers
-                      thisLoggedInUserEmail={instanceState.currentUserEmail}
-                    />
+                    <InstanceUsers />
                   </Match>
                 </Switch>
               </FrameLeft>

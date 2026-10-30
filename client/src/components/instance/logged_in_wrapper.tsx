@@ -155,27 +155,7 @@ export function LoggedInWrapper(p: Props) {
               state={loggedInInfo.state()}
               loadingAndErrorPad="md"
             >
-              {(globalUserOrUndefined) => {
-                return (
-                  <Show
-                    when={globalUserOrUndefined}
-                    fallback={
-                      <div class="ui-pad">
-                        {t3({
-                          en: "Not yet approved for this instance",
-                          fr: "Pas encore approuvé pour cette instance",
-                          pt: "Ainda não aprovado para esta instância",
-                        })}
-                      </div>
-                    }
-                  >
-                    {(_) => {
-                      console.log(globalUserOrUndefined);
-                      return p.children(globalUserOrUndefined, attemptSignOut);
-                    }}
-                  </Show>
-                );
-              }}
+              {(globalUser) => p.children(globalUser, attemptSignOut)}
             </StateHolderWrapper>
           );
         }}

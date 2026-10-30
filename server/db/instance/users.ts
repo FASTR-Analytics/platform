@@ -11,7 +11,6 @@ import {
   type ScopeAccess,
   scopeAccessOf,
   type ScopeUuid,
-  USER_PERMISSIONS,
   type UserPermission,
 } from "lib";
 import { tryCatchDatabaseAsync } from "./../utils.ts";
@@ -379,30 +378,6 @@ export async function bulkUpdateUserPermissions(
     return refused === undefined
       ? { success: true }
       : { success: false, err: refused };
-  });
-}
-
-export async function getUserPermissions(
-  mainDb: Sql,
-  email: string,
-): Promise<
-  APIResponseWithData<{ permissions: Record<UserPermission, boolean> }>
-> {
-  return await tryCatchDatabaseAsync(async () => {
-    const row = (
-      await mainDb<Record<UserPermission, boolean>[]>`
-        SELECT ${
-        mainDb([...USER_PERMISSIONS])
-      } FROM users WHERE email = ${email}
-      `
-    ).at(0);
-
-    if (!row) throw new Error("User not found");
-
-    return {
-      success: true,
-      data: { permissions: pickUserPermissions(row) },
-    };
   });
 }
 

@@ -481,12 +481,3 @@ its three tiers install S18's guards, and S18 reads them.
   the codebase's cleanest property; the off-registry inventory (including the
   mixed `structure.ts` and `population.ts` CSV pairs) is the erosion surface.
   Keep it deliberate and small.
-- **LoggedInWrapper's "not approved" branch is dead and logs the user.**
-  `getCurrentUser` answers every authenticated caller with its `GlobalUser`,
-  approved or not (`server/routes/instance/users.ts:88-111`), so the fallback
-  "Not yet approved for this instance"
-  (`instance/logged_in_wrapper.tsx:160-170`) never renders; the live unapproved
-  screen is the shell's (`instance/instance.tsx:412-425`). Its child
-  `console.log`s the whole `GlobalUser`, email and permission bits included, on
-  every sign-in (173). Replace 158-177 with
-  `{(globalUser) => p.children(globalUser, attemptSignOut)}`.
