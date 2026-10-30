@@ -39,20 +39,6 @@ import type {
 // Main DB
 // ---------------------------------------------------------------------------
 
-// FK children of users(email): repointed in the transaction and asserted
-// empty right before the old row is deleted, so a future FK added without
-// updating this list fails the rename loudly instead of letting the delete
-// cascade rows away silently.
-const USERS_FK_CHILDREN = [
-  { table: "user_logs", column: "user_email" },
-  { table: "user_logs_aggregate", column: "user_email" },
-  { table: "ai_usage_logs", column: "user_email" },
-  { table: "custom_prompts", column: "created_by" },
-  { table: "asset_metadata", column: "uploader_email" },
-  { table: "private_asset_viewers", column: "email" },
-  { table: "user_scopes", column: "email" },
-] as const;
-
 /** Which of the two addresses exist as users here: drives the fleet
  *  orchestrator's dry-run preview and its decision to run the local rename. */
 export async function getUserEmailPresence(
@@ -68,6 +54,67 @@ export async function getUserEmailPresence(
     hasOld: emails.includes(oldEmail),
     hasNew: emails.includes(newEmail),
   };
+}
+
+/** Moves the users row at `oldEmail`, which must exist while `newEmail` does
+ *  not, to `newEmail` inside the caller's transaction, and returns the
+ *  products whose ownership or grants moved with it. Every foreign key to
+ *  users(email) is read from pg_constraint, so a child table added later is
+ *  repointed too and the final delete has nothing left to cascade. */
+export async function repointUserEmail(
+  sql: Sql,
+  oldEmail: string,
+  newEmail: string,
+): Promise<string[]> {
+  const oldRow = (
+    await sql<DBUser[]>`SELECT * FROM users WHERE email = ${oldEmail}`
+  ).at(0);
+  if (oldRow === undefined) {
+    throw new Error(`No user ${oldEmail} to repoint`);
+  }
+  await sql`INSERT INTO users ${sql({ ...oldRow, email: newEmail })}`;
+  const children = await sql<{ table: string; column: string }[]>`
+    SELECT cl.relname AS table, a.attname AS column
+    FROM pg_constraint c
+    JOIN pg_class cl ON cl.oid = c.conrelid
+    JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = ANY(c.conkey)
+    WHERE c.contype = 'f' AND c.confrelid = 'users'::regclass
+  `;
+  for (const { table, column } of children) {
+    await sql`
+      UPDATE ${sql(table)} SET ${sql(column)} = ${newEmail}
+      WHERE ${sql(column)} = ${oldEmail}
+    `;
+  }
+  // Composite PK, no FK: rows under the new email may already exist
+  // (leftovers of a previously-deleted account), so merge instead of a
+  // blind UPDATE that could hit a unique violation.
+  await sql`
+    INSERT INTO ai_limit_hits (user_email, limit_type, hit_date)
+    SELECT ${newEmail}, limit_type, hit_date
+    FROM ai_limit_hits WHERE user_email = ${oldEmail}
+    ON CONFLICT DO NOTHING
+  `;
+  await sql`DELETE FROM ai_limit_hits WHERE user_email = ${oldEmail}`;
+  await sql`UPDATE private_assets SET owner_email = ${newEmail} WHERE owner_email = ${oldEmail}`;
+  await sql`UPDATE dataset_hmis_scheduled_imports SET created_by = ${newEmail} WHERE created_by = ${oldEmail}`;
+  await sql`UPDATE dataset_hmis_import_runs SET triggered_by = ${newEmail} WHERE triggered_by = ${oldEmail}`;
+  await sql`UPDATE instance_dhis2_credentials SET updated_by = ${newEmail} WHERE updated_by = ${oldEmail}`;
+  const owned = await sql<{ id: string }[]>`
+    UPDATE products SET owner = ${newEmail} WHERE owner = ${oldEmail}
+    RETURNING id
+  `;
+  const granted = await sql<{ product_id: string }[]>`
+    UPDATE product_access SET email = ${newEmail} WHERE email = ${oldEmail}
+    RETURNING product_id
+  `;
+  await sql`DELETE FROM users WHERE email = ${oldEmail}`;
+  return [
+    ...new Set([
+      ...owned.map((r) => r.id),
+      ...granted.map((r) => r.product_id),
+    ]),
+  ];
 }
 
 export async function renameUserEmailInMainDb(
@@ -102,51 +149,7 @@ export async function renameUserEmailInMainDb(
     }
 
     const productIds = await mainDb.begin(async (sql) => {
-      await sql`INSERT INTO users ${sql({ ...oldRow, email: newEmail })}`;
-      await sql`UPDATE user_logs SET user_email = ${newEmail} WHERE user_email = ${oldEmail}`;
-      await sql`UPDATE user_logs_aggregate SET user_email = ${newEmail} WHERE user_email = ${oldEmail}`;
-      await sql`UPDATE ai_usage_logs SET user_email = ${newEmail} WHERE user_email = ${oldEmail}`;
-      // Composite PK, no FK: rows under the new email may already exist
-      // (leftovers of a previously-deleted account), so merge instead of a
-      // blind UPDATE that could hit a unique violation.
-      await sql`
-        INSERT INTO ai_limit_hits (user_email, limit_type, hit_date)
-        SELECT ${newEmail}, limit_type, hit_date
-        FROM ai_limit_hits WHERE user_email = ${oldEmail}
-        ON CONFLICT DO NOTHING
-      `;
-      await sql`DELETE FROM ai_limit_hits WHERE user_email = ${oldEmail}`;
-      await sql`UPDATE custom_prompts SET created_by = ${newEmail} WHERE created_by = ${oldEmail}`;
-      await sql`UPDATE asset_metadata SET uploader_email = ${newEmail} WHERE uploader_email = ${oldEmail}`;
-      // owner_email has no FK (survives the owner's deletion), so it is not in
-      // USERS_FK_CHILDREN, but a rename must still carry ownership across.
-      await sql`UPDATE private_assets SET owner_email = ${newEmail} WHERE owner_email = ${oldEmail}`;
-      await sql`UPDATE private_asset_viewers SET email = ${newEmail} WHERE email = ${oldEmail}`;
-      await sql`UPDATE user_scopes SET email = ${newEmail} WHERE email = ${oldEmail}`;
-      const owned = await sql<{ id: string }[]>`
-        UPDATE products SET owner = ${newEmail} WHERE owner = ${oldEmail}
-        RETURNING id
-      `;
-      const granted = await sql<{ product_id: string }[]>`
-        UPDATE product_access SET email = ${newEmail} WHERE email = ${oldEmail}
-        RETURNING product_id
-      `;
-      await sql`UPDATE dataset_hmis_scheduled_imports SET created_by = ${newEmail} WHERE created_by = ${oldEmail}`;
-      await sql`UPDATE dataset_hmis_import_runs SET triggered_by = ${newEmail} WHERE triggered_by = ${oldEmail}`;
-      await sql`UPDATE instance_dhis2_credentials SET updated_by = ${newEmail} WHERE updated_by = ${oldEmail}`;
-
-      for (const { table, column } of USERS_FK_CHILDREN) {
-        const remaining = await sql`
-          SELECT 1 FROM ${sql(table)} WHERE ${sql(column)} = ${oldEmail} LIMIT 1
-        `;
-        if (remaining.length > 0) {
-          throw new Error(
-            `Email rename left ${table}.${column} rows behind — aborting so the users delete cannot cascade them away`,
-          );
-        }
-      }
-      await sql`DELETE FROM users WHERE email = ${oldEmail}`;
-
+      const productIds = await repointUserEmail(sql, oldEmail, newEmail);
       // Written inside the transaction (keyed to the new email, which now
       // exists) so machine-authenticated calls leave an audit row too: the
       // log() middleware's fire-and-forget insert has no valid user_email FK
@@ -157,12 +160,7 @@ export async function renameUserEmailInMainDb(
         JSON.stringify({ oldEmail, newEmail, actor })
       })
       `;
-      return [
-        ...new Set([
-          ...owned.map((r) => r.id),
-          ...granted.map((r) => r.product_id),
-        ]),
-      ];
+      return productIds;
     });
 
     return { success: true, data: { changed: true, productIds } };
@@ -180,14 +178,23 @@ export async function renameUserEmailInProducts(
   newEmail: string,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
-    await mainDb.begin(async (sql) => {
-      await sql`UPDATE products SET created_by = ${newEmail} WHERE created_by = ${oldEmail}`;
-      await sql`UPDATE folders SET created_by = ${newEmail} WHERE created_by = ${oldEmail}`;
-      await renameEmailInLiveReportAuthors(sql, oldEmail, newEmail);
-      await renameEmailInVersionRows(sql, oldEmail, newEmail);
-    });
+    await mainDb.begin((sql) =>
+      repointProductAttribution(sql, oldEmail, newEmail)
+    );
     return { success: true };
   });
+}
+
+/** The attribution sweep inside the caller's transaction. */
+export async function repointProductAttribution(
+  sql: Sql,
+  oldEmail: string,
+  newEmail: string,
+): Promise<void> {
+  await sql`UPDATE products SET created_by = ${newEmail} WHERE created_by = ${oldEmail}`;
+  await sql`UPDATE folders SET created_by = ${newEmail} WHERE created_by = ${oldEmail}`;
+  await renameEmailInLiveReportAuthors(sql, oldEmail, newEmail);
+  await renameEmailInVersionRows(sql, oldEmail, newEmail);
 }
 
 /** reports.body_authors is live collab state written by checkpoints, so the

@@ -457,11 +457,11 @@ scope). Mechanical enforcement, if ever wanted, means a separate dom-less
 `server/auth/global_user.ts` is the one place a request's identity becomes a
 `GlobalUser`: the dev bypass, a headless credential (already resolved to an
 email by `headlessAuthMiddleware`) and a Clerk session all converge on
-`buildGlobalUserFromDb`, which reads the `users` row and sets
-`approved =
-_OPEN_ACCESS || !!row`. Every guard below calls it first, except
-that `requireGlobalPermissionOrStatusKey` lets a matching status-api key through
-before it.
+`buildGlobalUserFromDb`, which normalises the claimed email (`normaliseEmail`,
+trimmed and lowercased, as every `users.email` is stored), reads the `users` row
+and sets `approved = _OPEN_ACCESS || !!row`. Every guard below calls it first,
+except that `requireGlobalPermissionOrStatusKey` lets a matching status-api key
+through before it.
 
 ### The guard factories
 
@@ -481,9 +481,10 @@ authenticates: "any signed-in caller may act", without the `approved` check
 
 **`requireGlobalPermissionOrStatusKey([opts,] ...UserPermission)`**: the same
 guard, but a request carrying the shared `status-api-key` header passes as a
-fleet-internal machine call with `mainDb` and no `globalUser`. Its one call site
-is `renameUserEmail`, whose handler treats a missing `globalUser` as the machine
-actor.
+fleet-internal machine call with `mainDb` and no `globalUser`. It has three call
+sites, each `{ requireAdmin: true }`: `renameUserEmail`, whose handler treats a
+missing `globalUser` as the machine actor, and `receiveUserNameSync` and
+`receiveUserProfileSync`, whose handlers refuse any session caller.
 
 **`requireApprovedUser()`**: the product plane's instance-level guard
 (`server/middleware/userPermission.ts`): signed in (else 401) AND

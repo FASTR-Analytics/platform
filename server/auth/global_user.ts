@@ -30,6 +30,7 @@ import {
   buildUserPermissionsFromRow,
   createDevGlobalUser,
   H_USERS,
+  normaliseEmail,
   permissionsUnderScopeAccess,
 } from "lib";
 import {
@@ -73,10 +74,11 @@ export async function getGlobalUser(
 // callers carry no name claims: pass null/null, exactly as getGlobalUser's
 // headless branch does.
 export async function buildGlobalUserFromDb(
-  email: string,
+  claimEmail: string,
   claimFirstName: string | null,
   claimLastName: string | null,
 ): Promise<GlobalUser> {
+  const email = normaliseEmail(claimEmail);
   try {
     const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
 

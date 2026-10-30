@@ -144,30 +144,54 @@ their `can_view_data`, `can_configure_data` and `can_view_logs` read as false.
 Where each rule is enforced: products and folders S1 (`productAccessPolicy`),
 data reads S8 "Scope access", the instance stream S3, collab S16.
 
-Only a global admin changes it, so a restricted user holding
-`can_configure_users` cannot lift their own restriction. That covers the admin
-flag too, since an admin is unrestricted: `addUsers` and `batchUploadUsers`
-answer 403 (`ADMIN_FLAG_NEEDS_ADMIN`) when a caller who is not a global admin
-asks for `is_admin` TRUE on any row, as `toggleUserAdmin` requires an admin
-outright, and `renameUserEmail` answers the same 403 when such a caller names an
-admin's row, because the rename moves the flag to the new address (the fleet's
-status-key call has no caller and is trusted). The user editor's Scopes card
-(`components/users/user_scopes.tsx`) is shown to global admins and hidden for a
-global admin's row: an "All data" checkbox (the unrestricted state, `all: true`)
-over a multi-select of the instance's other scopes, shown when it is off. "All
-data" is never in that list: the scope filters nothing, so a restricted user
-holding it would be unrestricted in all but name. A restricted user therefore
-never sees a product that carries "All data". `setUserScopeAccess`
-(`POST /user/scope-access`, `requireAdmin`) refuses a global admin and an
-unknown scope id. `all-data` in a grant list never reaches it: a grant is a
-`ScopeUuid` (`lib/types/scope.ts`), the route schema (`scopeUuidSchema`) answers
-it with a 400, and the `user_scopes` CHECK is the backstop. It replaces the flag
-and the grants in one transaction (an unrestricted user keeps no grants),
-re-broadcasts the roster and closes the user's collab sockets. Every route that
-can change a user's access does the same through
-`broadcastRosterAndCloseStaleCollab` (`setUserScopeAccess`, `toggleUserAdmin`,
-`batchUploadUsers`): it closes each collab socket whose access no longer equals
-its user's roster row. The client compares its own row's access with the one its
+**The user-management rule.** Every write to another user's row applies one
+rule inside its transaction, with the named rows locked
+(`refuseUserManagement`, `server/db/instance/users.ts`): a caller who is not a
+global admin never names an admin's row (`ADMIN_ROW_NEEDS_ADMIN`) and never
+their own (`OWN_ROW_REFUSED`), and a restricted caller is refused outright
+(`RESTRICTED_CALLER_REFUSED`), so no one raises, lifts or hands over their own
+access or an admin's. `deleteUser`, `updateUserPermissions`,
+`bulkUpdateUserPermissions`, `setUserScopeAccess`, `bulkSetUserScopeAccess` and
+`batchUploadUsers` apply it and answer each refusal as a 403. The rule sees only
+rows that exist, so `addUsers` and `batchUploadUsers` also answer 403
+(`ADMIN_FLAG_NEEDS_ADMIN`) when a caller who is not a global admin asks for
+`is_admin` TRUE on any row; `toggleUserAdmin` requires an admin outright, and so
+does `renameUserEmail` on a session, because a rename hands the whole account to
+an address nobody proved they own (the fleet's status-key call is S1's). An
+admin's own demotion and deletion are refused as 403s
+(`ADMIN_SELF_DEMOTION_REFUSED`, `SELF_DELETION_REFUSED`).
+
+An admin is unrestricted: a promotion (`toggleUserAdmin`, an admin row of
+`batchUploadUsers`) sets `all_scopes` and deletes the user's grants, a demotion
+leaves the user unrestricted, and the `users_admin_unrestricted` CHECK
+(`NOT is_admin OR all_scopes`, migration 224) forbids a restricted admin row.
+Every `users.email` is normalised, trimmed and lowercased (`normaliseEmail`,
+`lib/utils.ts`): `addUsers`, the batch rows, both rename routes and the login
+claim (`buildGlobalUserFromDb`) normalise, and migration 225 moved every
+existing mixed-case row to its normalised address unless that address already
+had a row, which it logged and left.
+
+The user editor's Scopes card (`components/users/user_scopes.tsx`) is shown to
+global admins and hidden for a global admin's row: an "All data" checkbox (the
+unrestricted state, `all: true`) over a multi-select of the instance's other
+scopes, shown when it is off. "All data" is never in that list: the scope
+filters nothing, so a restricted user holding it would be unrestricted in all
+but name. A restricted user therefore never sees a product that carries "All
+data". There is one scope-access policy: `setUserScopeAccess`
+(`POST /user/scope-access`) and its batch form `bulkSetUserScopeAccess` both
+take `can_configure_users` under the rule. The single form refuses a global
+admin's row and an unknown scope id; the batch form skips selected global admins
+for an admin caller. `all-data` in a grant list never reaches either: a grant is
+a `ScopeUuid` (`lib/types/scope.ts`), the route schema (`scopeUuidSchema`)
+answers it with a 400, and the `user_scopes` CHECK is the backstop. Each
+replaces the flag and the grants in one transaction (an unrestricted user keeps
+no grants), re-broadcasts the roster and closes the user's collab sockets. Every
+route that can change a user's access or remove a user does the same through
+`broadcastRosterAndCloseStaleCollab` (`setUserScopeAccess`,
+`bulkSetUserScopeAccess`, `toggleUserAdmin`, `deleteUser`, `batchUploadUsers`):
+it closes each collab socket whose access no longer equals its user's roster
+row, or whose user left the roster, and the instance stream of a user who left
+it ends (S3). The client compares its own row's access with the one its
 connection was built under and reconnects both channels on a change
 (`t1_sse.tsx`). An email rename moves the grants (`rename_user_email.ts`).
 
@@ -180,13 +204,15 @@ Product ownership and grants (S12) name users by email with no foreign key, and
 the three paths that remove or move a `users` row keep them consistent.
 `deleteUser` deletes the rows and runs `dropAccessOfMissingUsers` in one
 transaction, so a deleted user's products become ownerless (admins still own
-every product) and their grants go. `batchUploadUsers` with replace-all runs the
-same sweep after its re-inserts, in its transaction, so every user it re-inserts
-keeps their ownership and grants; without replace-all it deletes no row and
-sweeps nothing. `renameUserEmailInMainDb` moves `products.owner` and
-`product_access.email` in the transaction that moves the users row. Each path
-returns the products it changed and its route re-broadcasts their summaries
-(`notifyInstanceProductsUpserted`).
+every product) and their grants go. `batchUploadUsers` with replace-all deletes
+only the rows the file does not name and upserts the named ones, so a user it
+names keeps their flags, scope access, grants, tokens, prompts, asset metadata
+and logs, then runs the same sweep in its transaction; without replace-all it
+deletes no row and sweeps nothing. `renameUserEmailInMainDb` moves
+`products.owner` and `product_access.email` in the transaction that moves the
+users row, through `repointUserEmail`, which reads every foreign key to
+`users(email)` from `pg_constraint`. Each path returns the products it changed
+and its route re-broadcasts their summaries (`notifyInstanceProductsUpserted`).
 
 ## Permissions (write side)
 
@@ -313,11 +339,12 @@ failures surface as user-facing route errors with GB figures.
   flags. "Edit scopes" (`bulk_edit_scopes_form.tsx`) writes one scope access,
   "All data" or a scope list, to every selected user through
   `bulkSetUserScopeAccess`: shown to a global admin and to an unrestricted
-  holder of `can_configure_users`; the route refuses a restricted caller and a
-  non-admin naming themselves, so no one lifts their own restriction, and skips
-  selected global admins. The page holds and sets the chat's `users` view at
-  mount and the user detail (opened over the shell) `user` (S13); each view's
-  label and instructions name the page and never the roster or the email.
+  holder of `can_configure_users`. Every write from this tab is held to the
+  user-management rule ("Scope access"), so a manager's selection that names an
+  admin or themselves is refused whole with a 403. The page holds and sets the
+  chat's `users` view at mount and the user detail (opened over the shell)
+  `user` (S13); each view's label and instructions name the page and never the
+  roster or the email.
 - **Self-profile** (`profile.tsx`): AI usage bars; the organisation
   (`users.organisation`, migration 219; the role column it also added is dropped
   by 221) is the user's own words, written through `updateMyProfile`, which

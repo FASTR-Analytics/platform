@@ -109,6 +109,12 @@ export function findFirstEncodedCsvHeaderWithValues(
   return "";
 }
 
+// users.email is the primary key and the login claim, so every write and
+// every lookup by a claim goes through this, or one person becomes two rows.
+export function normaliseEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
 export function parseJsonOrUndefined<T>(
   str: string | null | undefined,
 ): T | undefined {

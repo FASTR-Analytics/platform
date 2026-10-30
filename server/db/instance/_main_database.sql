@@ -23,7 +23,9 @@ CREATE TABLE users (
   -- admin. After the permission bits because migration 205 adds it to a live
   -- table; organisation follows it for the same reason (219).
   all_scopes boolean NOT NULL DEFAULT TRUE,
-  organisation text
+  organisation text,
+  -- A global admin is unrestricted (224).
+  CONSTRAINT users_admin_unrestricted CHECK (NOT is_admin OR all_scopes)
 );
 
 -- Results runs catalog.

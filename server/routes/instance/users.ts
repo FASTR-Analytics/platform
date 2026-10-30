@@ -3,6 +3,7 @@ import type { Sql } from "postgres";
 import {
   type APIResponseWithData,
   H_USERS,
+  normaliseEmail,
   type RenameEmailInstanceResult,
 } from "lib";
 import { verifyClerkEmailOwnership } from "../../clerk_api.ts";
@@ -580,8 +581,8 @@ defineRoute(
   requireGlobalPermissionOrStatusKey({ requireAdmin: true }),
   log("renameUserEmail"),
   async (c, { body }) => {
-    const oldEmail = body.oldEmail.trim().toLowerCase();
-    const newEmail = body.newEmail.trim().toLowerCase();
+    const oldEmail = normaliseEmail(body.oldEmail);
+    const newEmail = normaliseEmail(body.newEmail);
     if (!EMAIL_REGEX.test(oldEmail) || !EMAIL_REGEX.test(newEmail)) {
       return c.json({ success: false, err: "Invalid email address" });
     }
@@ -593,7 +594,7 @@ defineRoute(
     }
     // No globalUser = fleet-internal machine call (status-api-key path).
     const actor = c.var.globalUser?.email as string | undefined;
-    if (actor?.toLowerCase() === oldEmail) {
+    if (actor === oldEmail) {
       return c.json({
         success: false,
         err:
@@ -753,8 +754,8 @@ defineRoute(
   requireGlobalPermission(),
   log("renameUserEmailEverywhere"),
   async (c, { body }) => {
-    const oldEmail = body.oldEmail.trim().toLowerCase();
-    const newEmail = body.newEmail.trim().toLowerCase();
+    const oldEmail = normaliseEmail(body.oldEmail);
+    const newEmail = normaliseEmail(body.newEmail);
     if (!EMAIL_REGEX.test(oldEmail) || !EMAIL_REGEX.test(newEmail)) {
       return c.json({ success: false, err: "Invalid email address" });
     }
@@ -769,7 +770,7 @@ defineRoute(
     // address while only the other has a users row. The Clerk ownership check
     // below is the real authorization; a caller with no rows anywhere just
     // gets an empty preview and renames nothing.
-    const sessionEmail = c.var.globalUser.email.toLowerCase();
+    const sessionEmail = c.var.globalUser.email;
     // Either side of the rename may be the session identity: oldEmail before
     // the Clerk primary flips, newEmail after (which is what keeps a retry of
     // a partially-failed run possible).

@@ -7,6 +7,7 @@ import {
   type BatchUser,
   buildUserPermissionsFromRow,
   type GlobalUser,
+  normaliseEmail,
   OtherUser,
   type ScopeAccess,
   type ScopeUuid,
@@ -311,7 +312,10 @@ export async function addUsers(
       return { success: true };
     }
 
-    const values = emails.map((email) => ({ email, is_admin: isGlobalAdmin }));
+    const values = [...new Set(emails.map(normaliseEmail))].map((email) => ({
+      email,
+      is_admin: isGlobalAdmin,
+    }));
     await mainDb`
       INSERT INTO users ${mainDb(values, "email", "is_admin")}
       ON CONFLICT (email) DO NOTHING
@@ -516,7 +520,7 @@ export async function batchUploadUsers(
 
     const batchUsers: BatchUser[] = csvData.map(
       (row: Record<string, string>) => ({
-        email: row.email || "",
+        email: normaliseEmail(row.email || ""),
         is_global_admin: row.is_global_admin || "false",
       }),
     );
