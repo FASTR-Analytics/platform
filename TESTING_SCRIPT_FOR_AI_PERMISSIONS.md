@@ -67,6 +67,7 @@ VALUES
   ('persona-view-users@example.com', FALSE, FALSE, FALSE, TRUE, FALSE, TRUE),
   ('persona-manager@example.com', FALSE, FALSE, FALSE, FALSE, TRUE, TRUE),
   ('persona-restricted@example.com', FALSE, TRUE, TRUE, TRUE, TRUE, FALSE),
+  ('persona-restricted-other@example.com', FALSE, TRUE, TRUE, TRUE, TRUE, FALSE),
   ('persona-admin@example.com', TRUE, FALSE, FALSE, FALSE, FALSE, TRUE),
   ('persona-editor@example.com', FALSE, FALSE, FALSE, FALSE, FALSE, TRUE),
   ('persona-viewer@example.com', FALSE, FALSE, FALSE, FALSE, FALSE, TRUE),
@@ -75,8 +76,9 @@ ON CONFLICT (email) DO NOTHING;
 SQL
 ```
 
-The restricted persona stores every flag on purpose: a restricted user holds no
-flag, whatever is stored, so its stored bits must change nothing it sees.
+The two restricted personas store every flag on purpose: a restricted user
+holds no flag, whatever is stored, so its stored bits must change nothing it
+sees.
 
 Two more personas need no row:
 
@@ -99,17 +101,22 @@ fresh context and confirm the page asks for `?persona=<email>`.
 
 ### 2.4 Fixtures (WRITE, as the admin persona)
 
-1. **A scope.** Scopes tab → New scope. Label it `Persona test scope`, keep
-   every family included, save.
-2. **The restricted grant.** Users tab → tick `persona-restricted@example.com` →
-   Edit scopes → turn off "All data", choose `Persona test scope`, save.
+1. **Two scopes.** Scopes tab → New scope. Label it `Persona test scope`, keep
+   every family included, save. Make a second, `Persona other scope`, the same
+   way.
+2. **The restricted grants.** Users tab → tick `persona-restricted@example.com`
+   → Edit scopes → turn off "All data", choose `Persona test scope`, save. Do
+   the same for `persona-restricted-other@example.com` with
+   `Persona other scope`.
 3. **A folder.** Products → New → New folder, named `Persona test folder`.
-4. **A deck.** Products → New → Slide deck. Rename it `Persona test deck`, set
+4. **A deck.** Products → New → New deck. Rename it `Persona test deck`, set
    its scope to `Persona test scope` with the package and scope chip, and move
    it into `Persona test folder`.
 5. **Its access.** On the deck, Manage access…: general access Restricted;
-   `persona-editor@example.com` at edit; `persona-viewer@example.com` and
-   `persona-restricted@example.com` at view. Save.
+   `persona-editor@example.com` at edit; `persona-viewer@example.com`,
+   `persona-restricted@example.com` and `persona-restricted-other@example.com`
+   at view. Save. The last grant stays inert: that persona lacks the deck's
+   scope.
 
 Record the deck's id (from the URL when it is open) in the results file.
 
@@ -124,7 +131,7 @@ Open the persona URL, wait for the shell, and read the rail. Expected tabs:
 | configure data                 | yes                          | yes     | yes     | yes    | yes  | yes    | no    |
 | view users                     | yes                          | yes     | no      | no     | no   | yes    | yes   |
 | manager                        | yes                          | yes     | no      | no     | no   | yes    | yes   |
-| restricted                     | yes                          | yes     | no      | no     | no   | yes    | no    |
+| restricted, restricted-other   | yes                          | yes     | no      | no     | no   | yes    | no    |
 | admin                          | yes                          | yes     | yes     | yes    | yes  | yes    | yes   |
 | operator                       | by its row's flags, as above |         |         |        |      |        |       |
 
@@ -176,11 +183,12 @@ For each persona with the Users tab, open it and then one user's detail (pick
 | Detail: Contact person card                | no            | no      | yes   |
 | Detail: Remove this user                   | no            | yes     | yes   |
 | Detail: AI usage card (unlimited AI)       | operator only |         |       |
+| Show system users, Hide system users       | operator only |         |       |
 
-Then, as the manager, tick `persona-admin@example.com` and choose Edit
-permissions, and separately tick the manager's own row: record what happens.
-The server refuses both by the user-management rule; record whether the client
-offered the action.
+Then, as the manager, open `persona-admin@example.com`'s detail and the
+manager's own, and tick each row in the table for Edit permissions and Remove.
+Expected: neither action is offered for the admin's row or the manager's own
+row, in bulk or on the detail page; a refusal is a FAIL by rule 1.
 
 As the manager, toggle one flag on `persona-none@example.com`'s detail and Save.
 Confirm the other flags kept their values (reopen the detail).
@@ -192,20 +200,24 @@ Open Products as each persona and find `Persona test deck` in
 
 - **Stranger**: the deck is absent; the folder shows only if the persona created
   it, so it is absent too.
-- **Viewer** (view): Open, Present, Download…, Share…, History, Duplicate and
-  Copy to deck… are offered. Rename…, Name and folder…, Manage access…, the
-  package and scope chip, Delete and Transfer ownership… are not. The deck opens
-  read-only: no Add slide, no Deck menu.
-- **Editor** (edit): everything the viewer has, plus Rename…, Name and folder…,
-  Manage access…, the package and scope chip and every editing control. No
-  Delete, no Transfer ownership….
-- **Admin** (own): everything, Delete and Transfer ownership… included.
+- **Restricted-other** (a grant, but not the deck's scope): the deck and the
+  folder are absent.
+- **The row menu** (the list's menu button on the deck): a viewer is offered
+  Duplicate only. An editor is offered Move into, Move to folder…, Settings,
+  Results package and scope…, Manage access… and Duplicate. The owner (the
+  admin) also has Delete.
+- **The open deck**: every level has Present (when the deck has slides),
+  History, and File → Download…, Share… and Copy to deck…. An editor also has
+  File → Name and folder… and Manage access…, Add slide, the Deck menu, Update
+  all figures and a clickable package and scope chip. A viewer's chip renders
+  but opens nothing, and the deck is read-only: no Add slide, no Deck menu.
 - **Restricted** (view, scope held): as the viewer.
 
 In the access dialog as the editor: the general access select, the grants and
 Add person work; the owner row offers no owner change. As the admin: Transfer
 ownership… lists `persona-restricted@example.com`, who holds the deck's scope,
-and every unrestricted user. Cancel without saving.
+and every unrestricted user, and does not list
+`persona-restricted-other@example.com`, who lacks it. Cancel without saving.
 
 ## 7. Folder affordances
 
@@ -224,7 +236,7 @@ Cancel without saving.
 ## 9. Cleanup (WRITE)
 
 1. As the admin: delete `Persona test deck`, then `Persona test folder`, then
-   `Persona test scope`.
+   `Persona test scope` and `Persona other scope`.
 2. Remove the persona rows:
 
    ```bash

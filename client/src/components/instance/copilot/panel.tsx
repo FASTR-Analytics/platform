@@ -43,6 +43,7 @@ import {
 import { ConsolidatedChatPane } from "./chat_pane";
 import { installCopilotDebugApi } from "./debug_api";
 import { createTabOwner } from "./tab_owner";
+import { persona } from "~/state/_infra/auth_mode";
 
 // The one chat beside the shell: the panel the shell's FrameRightResizable
 // holds, mounted once the user is approved. Threads and settings are the
@@ -53,11 +54,12 @@ import { createTabOwner } from "./tab_owner";
 // show the notice in its place.
 
 // The Clerk user id, live: Clerk reports a cross-tab user switch through its
-// listener. Under VITE_BYPASS_AUTH there is no Clerk user.
+// listener. Outside Clerk the persona's email keys the threads, so one
+// persona never sees another's; under VITE_BYPASS_AUTH there is one dev user.
 function createThreadScope(): Accessor<string> {
   const [userId, setUserId] = createSignal(clerk.user?.id);
   onCleanup(clerk.addListener((event) => setUserId(event.user?.id)));
-  return () => `copilot:${userId() ?? "dev"}`;
+  return () => `copilot:${userId() ?? persona ?? "dev"}`;
 }
 
 type ViewPackage = {

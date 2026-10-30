@@ -414,15 +414,27 @@ function UserTable(p: {
     },
   );
 
+  // An admin cannot demote themselves, so their own row is never sent.
   const bulkMakeNonAdmin = createButtonAction(
     async (selectedUsers: UserTableData[]) => {
-      const emails = selectedUsers.map((u) => u.email);
+      const emails = selectedUsers
+        .map((u) => u.email)
+        .filter((email) => email !== instanceState.currentUserEmail);
       return serverActions.toggleUserAdmin({ emails, makeAdmin: false });
     },
   );
 
+  // The rows the user-management rule lets the caller name: never their own,
+  // and no admin's unless the caller is an admin.
+  const manageable = (selectedUsers: UserTableData[]) =>
+    selectedUsers.filter((u) =>
+      u.email !== instanceState.currentUserEmail &&
+      (isGlobalAdmin() || !u.isGlobalAdmin)
+    );
+
   async function handleBulkRemoveUsers(selectedUsers: UserTableData[]) {
-    const emails = selectedUsers.map((u) => u.email);
+    const emails = manageable(selectedUsers).map((u) => u.email);
+    if (emails.length === 0) return;
     const userCount = emails.length;
     const userText = plural(userCount, {
       one: t3({
@@ -452,16 +464,13 @@ function UserTable(p: {
     await deleteAction.click();
   }
 
-  // Global admins always have every scope, and a non-admin may not change
-  // their own (the route refuses both), so neither is sent.
+  // Global admins always have every scope (the route refuses their rows),
+  // so they are skipped and counted.
   async function handleBulkEditScopes(selectedUsers: UserTableData[]) {
     const admins = selectedUsers.filter((u) => u.isGlobalAdmin);
-    const emails = selectedUsers
+    const emails = manageable(selectedUsers)
       .filter((u) => !u.isGlobalAdmin)
-      .map((u) => u.email)
-      .filter((email) =>
-        isGlobalAdmin() || email !== instanceState.currentUserEmail
-      );
+      .map((u) => u.email);
     await openComponent({
       element: BulkEditScopesForm,
       props: { emails, skippedAdmins: admins.length },
@@ -469,7 +478,8 @@ function UserTable(p: {
   }
 
   async function handleBulkEditPermissions(selectedUsers: UserTableData[]) {
-    const emails = selectedUsers.map((u) => u.email);
+    const emails = manageable(selectedUsers).map((u) => u.email);
+    if (emails.length === 0) return;
     await openComponent({
       element: BulkEditPermissionsForm,
       props: { emails },

@@ -1122,3 +1122,11 @@ commit.
   (`VITE_PERSONA_AUTH`), outside the Surface; the server refuses to boot with
   both dev modes set, and the profile hides Manage account and Change email
   outside Clerk, since both need a Clerk account.
+- Step 10: the review's fixes edited `client/src/components/users/{users,user}.tsx`
+  (no bulk or detail action names a row the user-management rule refuses, and
+  the operator's and the admin's cards stand on their own guards),
+  `client/src/components/instance/copilot/panel.tsx` and SYSTEM_13 (a persona's
+  copilot threads are keyed by its email), outside the Surface, and added
+  `client/src/state/_infra/auth_mode.ts`, a file the Surface did not name,
+  because the copilot folder may not import the shell's wrapper and the three
+  readers need one source for the dev auth mode.

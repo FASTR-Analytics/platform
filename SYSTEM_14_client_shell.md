@@ -171,7 +171,8 @@ file), which:
   `fastr_persona` cookie the server reads (S18 "Special modes") and loads the
   real `getCurrentUser`, prompts for the query when none is kept, and clears
   both on Sign out. Outside Clerk the profile hides Manage account and Change
-  email (`clerkActive`);
+  email (`clerkActive`). The two modes' flags and the persona live in
+  `state/_infra/auth_mode.ts`, which refuses both set at once;
 - resolves **language**: `localStorage[LANGUAGE_STORAGE_KEY]`
   (`"fastrLanguage"`) if present, else the instance's configured language
   fetched via `getInstanceMeta` (the logged-out login screen does the same);

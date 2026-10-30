@@ -379,8 +379,8 @@ opens it. The product opener (`openProduct` in
 `client/src/components/products/products.tsx`) opens the registry's editor
 directly; the editors set their views (below) and the chat follows. Threads and
 settings are the user's: the thread scope and the settings key are
-`copilot:<Clerk user id>` (`copilot:dev` under `VITE_BYPASS_AUTH`, where there
-is no Clerk user), read live from Clerk's listener and keyed on, so a cross-tab
+`copilot:<Clerk user id>` (`copilot:<persona email>` under `VITE_PERSONA_AUTH`,
+`copilot:dev` under `VITE_BYPASS_AUTH`, where there is no Clerk user), read live from Clerk's listener and keyed on, so a cross-tab
 user switch without a reload stops the previous user's turn and opens the next
 user's threads; the thread list, New conversation and the last-active id follow
 the user through every view and tab, and the old per-product scopes

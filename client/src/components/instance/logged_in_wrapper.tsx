@@ -6,7 +6,6 @@ import {
   GlobalUser,
   type Language,
   LANGUAGE_STORAGE_KEY,
-  PERSONA_COOKIE,
   setLanguage,
   t3,
   TC,
@@ -19,43 +18,13 @@ import {
   reportNetworkFailure,
   reportNetworkSuccess,
 } from "~/state/t4_connection_monitor";
-
-// The two dev auth modes, each off in a production build: BYPASS_AUTH's
-// synthetic admin, and PERSONA_AUTH's real user named by a cookie.
-const bypassAuth = import.meta.env.VITE_BYPASS_AUTH === "true" &&
-  import.meta.env.MODE !== "production";
-const personaAuth = import.meta.env.VITE_PERSONA_AUTH === "true" &&
-  import.meta.env.MODE !== "production";
-
-// Clerk runs only outside both dev modes; the profile hides what needs it.
-export const clerkActive = !bypassAuth && !personaAuth;
-
-const PERSONA_STORAGE_KEY = "fastr_persona";
-
-// The persona a `?persona=` query names is kept for later loads; the cookie
-// is what the server reads (PERSONA_COOKIE).
-function resolvePersona(): string | null {
-  const fromQuery = new URLSearchParams(window.location.search).get(
-    "persona",
-  );
-  if (fromQuery) {
-    localStorage.setItem(PERSONA_STORAGE_KEY, fromQuery);
-  }
-  const email = fromQuery ?? localStorage.getItem(PERSONA_STORAGE_KEY);
-  if (email) {
-    document.cookie = `${PERSONA_COOKIE}=${
-      encodeURIComponent(email)
-    }; path=/; SameSite=Lax`;
-  }
-  return email;
-}
-
-function clearPersona(): void {
-  localStorage.removeItem(PERSONA_STORAGE_KEY);
-  document.cookie = `${PERSONA_COOKIE}=; path=/; max-age=0`;
-}
-
-const persona = personaAuth ? resolvePersona() : null;
+import {
+  bypassAuth,
+  clearPersona,
+  clerkActive,
+  persona,
+  personaAuth,
+} from "~/state/_infra/auth_mode";
 
 ///////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////
@@ -108,21 +77,21 @@ export function LoggedInWrapper(p: Props) {
   const [clerkUser, setClerkUser] = createSignal(clerk.user);
 
   onMount(async () => {
-    if (clerkActive) {
-      let lang = storedLang;
-      if (!lang) {
-        const res = await serverActions.getInstanceMeta({});
-        if (res.success) {
-          lang = res.data.instanceLanguage;
-          setLanguage(lang);
-        }
+    if (bypassAuth) return;
+    let lang = storedLang;
+    if (!lang) {
+      const res = await serverActions.getInstanceMeta({});
+      if (res.success) {
+        lang = res.data.instanceLanguage;
+        setLanguage(lang);
       }
-      await clerk.load({
-        localization: lang === "fr" ? frFR : undefined,
-      });
-      clerk.addListener((e) => setClerkUser(e.user ?? null));
-      setClerkLoaded(true);
     }
+    if (personaAuth) return;
+    await clerk.load({
+      localization: lang === "fr" ? frFR : undefined,
+    });
+    clerk.addListener((e) => setClerkUser(e.user ?? null));
+    setClerkLoaded(true);
   });
 
   return (
@@ -153,7 +122,7 @@ export function LoggedInWrapper(p: Props) {
             );
 
           onMount(async () => {
-            if (!clerkActive) return;
+            if (bypassAuth) return;
             try {
               const res = await serverActions.getInstanceMeta({});
               if (res.success) {

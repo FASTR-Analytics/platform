@@ -15,7 +15,7 @@ import {
   openComponent,
 } from "panther";
 import { ChangeEmailModal } from "./change_email_modal";
-import { clerkActive } from "./logged_in_wrapper";
+import { clerkActive } from "~/state/_infra/auth_mode";
 import { confirmReloadUnderTurn } from "./copilot/mod.ts";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
@@ -264,8 +264,11 @@ export function ProfileForm(
       <div class="flex items-center gap-4">
         <button
           type="button"
-          class="hover:ring-primary bg-base-200 text-base-content-muted font-700 flex h-16 w-16 flex-none cursor-pointer items-center justify-center overflow-hidden rounded-full ring-2 ring-transparent transition"
-          onClick={() => clerkActive && openClerkUserProfile()}
+          class={`bg-base-200 text-base-content-muted font-700 flex h-16 w-16 flex-none items-center justify-center overflow-hidden rounded-full ring-2 ring-transparent transition ${
+            clerkActive ? "hover:ring-primary cursor-pointer" : ""
+          }`}
+          disabled={!clerkActive}
+          onClick={() => openClerkUserProfile()}
           title={clerkActive ? manageAccountLabel : undefined}
         >
           <Show when={clerk.user?.imageUrl} keyed fallback={initials()}>

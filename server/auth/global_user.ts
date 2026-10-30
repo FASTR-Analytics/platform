@@ -1,9 +1,9 @@
-// The one place a request's identity becomes a GlobalUser. Three credential
-// shapes converge here: the dev bypass, a headless credential (PAT or OAuth,
-// already resolved to an email by the headless auth middleware), and a Clerk
-// session. `approved` (`_OPEN_ACCESS || !!usersRow`) is what
-// requireApprovedUser() and productAccessPolicy gate on; the six instance
-// permission flags say nothing about approval.
+// The one place a request's identity becomes a GlobalUser. Four credential
+// shapes converge here: the dev bypass, the dev persona cookie, a headless
+// credential (PAT or OAuth, already resolved to an email by the headless auth
+// middleware), and a Clerk session. `approved` (`_OPEN_ACCESS || !!usersRow`)
+// is what requireApprovedUser() and productAccessPolicy gate on; the four
+// instance permission flags say nothing about approval.
 // `thisUserPermissions` is effectivePermissions of the row, derived here once.
 
 import type { Context } from "hono";

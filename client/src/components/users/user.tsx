@@ -34,7 +34,7 @@ import {
   holdCopilotView,
 } from "~/components/instance/copilot/mod.ts";
 import { UserScopesCard } from "./user_scopes";
-import { can, canCallRoute } from "~/state/instance/permissions";
+import { can, canCallRoute, isGlobalAdmin } from "~/state/instance/permissions";
 
 type Props = {
   email: string;
@@ -68,6 +68,11 @@ type DetailProps = {
 };
 
 function UserDetail(p: DetailProps) {
+  // The user-management rule: the caller never names their own row, and no
+  // admin's unless they are an admin.
+  const isSelf = () => p.user.email === instanceState.currentUserEmail;
+  const manageable = () =>
+    !isSelf() && (isGlobalAdmin() || !p.user.isGlobalAdmin);
   // The toggled keys, held as a patch over the live roster row (its stored
   // bits), so a roster update under the open page shows through and Save
   // writes the row with the patch applied, never an all-false default.
@@ -184,7 +189,7 @@ function UserDetail(p: DetailProps) {
             pt: "Permissões da instância",
           })}
           headerRight={
-            <Show when={canCallRoute("toggleUserAdmin")}>
+            <Show when={canCallRoute("toggleUserAdmin") && !isSelf()}>
               <Switch>
                 <Match when={p.user.isGlobalAdmin}>
                   <Button
@@ -234,7 +239,7 @@ function UserDetail(p: DetailProps) {
             </div>
           </div>
         </Card>
-        <Show when={p.user.isGlobalAdmin === false}>
+        <Show when={!p.user.isGlobalAdmin && manageable()}>
           <Card
             header={t3({
               en: "User Permissions",
@@ -271,67 +276,68 @@ function UserDetail(p: DetailProps) {
             </div>
           </Card>
         </Show>
-        <Show
-          when={canCallRoute("setUserScopeAccess") && !p.user.isGlobalAdmin}
+      </Show>
+      <Show
+        when={canCallRoute("setUserScopeAccess") && !p.user.isGlobalAdmin &&
+          manageable()}
+      >
+        <UserScopesCard user={p.user} />
+      </Show>
+      <Show when={canCallRoute("setUserUnlimitedAi")}>
+        <Card
+          header={t3({
+            en: "AI usage",
+            fr: "Utilisation IA",
+            pt: "Utilização de IA",
+          })}
         >
-          <UserScopesCard user={p.user} />
-        </Show>
-        <Show when={canCallRoute("setUserUnlimitedAi")}>
-          <Card
-            header={t3({
-              en: "AI usage",
-              fr: "Utilisation IA",
-              pt: "Utilização de IA",
-            })}
-          >
-            <div class="ui-spy-sm">
-              <Checkbox
-                label={t3({
-                  en: "Unlimited AI token usage",
-                  fr: "Utilisation IA illimitée",
-                  pt: "Utilização ilimitada de tokens de IA",
-                })}
-                checked={p.user.unlimitedAi}
-                onChange={toggleUnlimitedAi.click}
-              />
-            </div>
-          </Card>
-        </Show>
-        <Show when={canCallRoute("setUserContactPerson")}>
-          <Card
-            header={t3({
-              en: "Contact person",
-              fr: "Personne de contact",
-              pt: "Pessoa de contacto",
-            })}
-          >
-            <div class="ui-spy-sm">
-              <Checkbox
-                label={t3({
-                  en: "Contact person",
-                  fr: "Personne de contact",
-                  pt: "Pessoa de contacto",
-                })}
-                checked={p.user.isContactPerson}
-                onChange={toggleContactPerson.click}
-              />
-            </div>
-          </Card>
-        </Show>
-        <Show when={canCallRoute("deleteUser")}>
-          <Button
-            onClick={attemptDeleteUser}
-            intent="danger"
-            outline
-            iconName="trash"
-          >
-            {t3({
-              en: "Remove this user",
-              fr: "Supprimer cet utilisateur",
-              pt: "Remover este utilizador",
-            })}
-          </Button>
-        </Show>
+          <div class="ui-spy-sm">
+            <Checkbox
+              label={t3({
+                en: "Unlimited AI token usage",
+                fr: "Utilisation IA illimitée",
+                pt: "Utilização ilimitada de tokens de IA",
+              })}
+              checked={p.user.unlimitedAi}
+              onChange={toggleUnlimitedAi.click}
+            />
+          </div>
+        </Card>
+      </Show>
+      <Show when={canCallRoute("setUserContactPerson")}>
+        <Card
+          header={t3({
+            en: "Contact person",
+            fr: "Personne de contact",
+            pt: "Pessoa de contacto",
+          })}
+        >
+          <div class="ui-spy-sm">
+            <Checkbox
+              label={t3({
+                en: "Contact person",
+                fr: "Personne de contact",
+                pt: "Pessoa de contacto",
+              })}
+              checked={p.user.isContactPerson}
+              onChange={toggleContactPerson.click}
+            />
+          </div>
+        </Card>
+      </Show>
+      <Show when={canCallRoute("deleteUser") && manageable()}>
+        <Button
+          onClick={attemptDeleteUser}
+          intent="danger"
+          outline
+          iconName="trash"
+        >
+          {t3({
+            en: "Remove this user",
+            fr: "Supprimer cet utilisateur",
+            pt: "Remover este utilizador",
+          })}
+        </Button>
       </Show>
     </FrameTop>
   );

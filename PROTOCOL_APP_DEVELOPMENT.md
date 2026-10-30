@@ -153,7 +153,8 @@ deno task mint-pat you@example.com claude   # PAT, for the probe or a header con
 
 **Persona mode signs the browser in as any `users` row.** Set `PERSONA_AUTH=1`
 (and `BYPASS_AUTH=` empty: the server refuses both) in `.env` and
-`VITE_PERSONA_AUTH=true` in `client/.env.development.local`, then open
+`VITE_PERSONA_AUTH=true` in `client/.env.development.local` with
+`VITE_BYPASS_AUTH` unset, then open
 `http://localhost:3000/?persona=<email>`. The client keeps the persona and sends
 it as the `fastr_persona` cookie; the server builds that row's own `GlobalUser`,
 so an email with no row is an unapproved user. Sign out clears it. Both flags

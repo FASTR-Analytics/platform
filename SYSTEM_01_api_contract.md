@@ -4,6 +4,7 @@ name: API Contract, Transport & Access Control
 globs:
   - client/src/components/instance/logged_in_wrapper.tsx
   - client/src/server_actions/**
+  - client/src/state/_infra/auth_mode.ts
   - client/src/state/_infra/clerk.ts
   - lib/api-routes/**
   - lib/server_actions/**
@@ -37,9 +38,8 @@ contract: the server types its handler off it (`defineRoute`), the client
 generates a typed server-action from it, and boot fails if the two sets diverge.
 Around that seam sit the `APIResponse` envelope, the request-scoped NDJSON
 streaming sub-protocol, the `log()` audit middleware, and the seam where the
-registry's `guard` field installs the guard that S18 owns.
-Reviewed against code (first review cycle, review-only; absorbs DOC_API_ROUTES +
-DOC_ACCESS_CONTROL).
+registry's `guard` field installs the guard that S18 owns. Reviewed against code
+(first review cycle, review-only; absorbs DOC_API_ROUTES + DOC_ACCESS_CONTROL).
 
 Boundaries: the add-a-route/add-a-guard **recipe** is
 [PROTOCOL_APP_ROUTES.md](PROTOCOL_APP_ROUTES.md); the generic
@@ -255,12 +255,12 @@ coverage conventions.
 `Deno.serve`, cross-checks the contract and **`Deno.exit(1)`s on any
 violation**: registry keys never implemented, implemented routes not in the
 registry, duplicate `method + path` pairs, key collisions across feature
-registries, `:placeholder` segments without a matching `params` key, body
-keys that are also path placeholders (the client strips them from the body), a
-public route other than `getInstanceMeta`, a route with a `:product_id`
-segment or a `productIds` body whose guard is not `product`, and one with a
-`:folder_id` segment or a `parentId` body whose guard is not `folder`, so no
-request can pick the policy branch a route takes. Success prints
+registries, `:placeholder` segments without a matching `params` key, body keys
+that are also path placeholders (the client strips them from the body), a public
+route other than `getInstanceMeta`, a route with a `:product_id` segment or a
+`productIds` body whose guard is not `product`, and one with a `:folder_id`
+segment or a `parentId` body whose guard is not `folder`, so no request can pick
+the policy branch a route takes. Success prints
 `✅ All N routes correctly implemented` and the guard inventory by kind. A
 broken route cannot ship.
 
@@ -292,9 +292,10 @@ here uses the registry.
 
 ### `authMiddleware`: Clerk (populate-not-reject); headless auth is a separate mount
 
-`server/middleware/auth.ts`: `_BYPASS_AUTH ? passthrough : clerkMiddleware()`,
-which only **populates** `getAuth(c)`: it never rejects. Rejection is the job of
-a per-route guard, so a route with no guard is reachable by any authenticated
+`server/middleware/auth.ts`:
+`_BYPASS_AUTH || _PERSONA_AUTH ? passthrough : clerkMiddleware()`, which only
+**populates** `getAuth(c)`: it never rejects. Rejection is the job of a
+per-route guard, so a route with no guard is reachable by any authenticated
 caller. Mount order matters: the OAuth discovery well-knowns and the
 `/access-tokens` SPA page are registered before the global middleware
 (anonymous-reachable: Hono runs handlers registered ahead of an `app.use` before
@@ -372,11 +373,11 @@ calls. Only successes are cached: a bad token can never occupy a slot.
 > grant; confirm during live verification and, if it is JWT, either accept the
 > longer window or configure the application for opaque tokens.
 
-**The allowlist is the registry's.** `headlessRouteAllowlist` admits the
-entries declaring `headless: true` (`getCurrentUser`,
-`getRunPresentationObjectItems`, `getRunResultsValueInfo`) and the raw
-`/info/*.md` pattern it keeps itself; every other path answers 403 before any
-guard, and `validateHeadlessMounts` reads the same flag.
+**The allowlist is the registry's.** `headlessRouteAllowlist` admits the entries
+declaring `headless: true` (`getCurrentUser`, `getRunPresentationObjectItems`,
+`getRunResultsValueInfo`) and the raw `/info/*.md` pattern it keeps itself;
+every other path answers 403 before any guard, and `validateHeadlessMounts`
+reads the same flag.
 
 **Naming.** Everything that judges both credential types is named `headless`:
 `headlessAuthMiddleware`, `headlessAuthEmail`,
@@ -441,14 +442,14 @@ what the explicit form provides; SPA callers take both defaults
 (`createAllServerActions()`, global fetch). Pinned by
 `server/tests/pat_identity_parity_test.ts`, which drives the same route through
 the raw PAT app, an explicit transport, and a defaulted caller and asserts all
-three agree. The headless app's mount list and the registry's `headless` flags are two
-lists; `validateHeadlessMounts()` (`headless_app.ts`) runs at every DEV boot
-(`main.ts`, gated on `_IS_DEV`) beside `validateAllRoutesDefined()`: a
+three agree. The headless app's mount list and the registry's `headless` flags
+are two lists; `validateHeadlessMounts()` (`headless_app.ts`) runs at every DEV
+boot (`main.ts`, gated on `_IS_DEV`) beside `validateAllRoutesDefined()`: a
 structural check of Hono's route table (every flagged entry's `method + path`
 must be registered on `headlessApp`) that fail-stops on a miss (they drifted
-once: flagged run-keyed reads whose route file was never mounted 404'd
-silently through `/mcp`); production boots skip it. The server test suite is not
-run at boot: `deno task test` is part of the verification floor
+once: flagged run-keyed reads whose route file was never mounted 404'd silently
+through `/mcp`); production boots skip it. The server test suite is not run at
+boot: `deno task test` is part of the verification floor
 (PROTOCOL_APP_PLANS.md), and `deno task typecheck` checks `server/tests/*.ts`
 too, so the suite is typed at the deploy gate. Note there is NO
 compiler-enforced browser-free boundary in `lib/` either: the server typecheck
@@ -461,9 +462,9 @@ scope). Mechanical enforcement, if ever wanted, means a separate dom-less
 
 ### After the credential: S18
 
-Everything a request meets once `authMiddleware` or `headlessAuthMiddleware`
-has run, from `getGlobalUser` through the guard factories, the matrix test, the
-flag set and the special modes, is
+Everything a request meets once `authMiddleware` or `headlessAuthMiddleware` has
+run, from `getGlobalUser` through the guard factories, the matrix test, the flag
+set and the special modes, is
 [SYSTEM_18_permissions.md](SYSTEM_18_permissions.md). `static.ts` stays here:
 its three tiers install S18's guards, and S18 reads them.
 
