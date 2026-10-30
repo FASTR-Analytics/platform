@@ -3,8 +3,6 @@ import type { ScopeAccess } from "./_scope_access.ts";
 export type UserPermissions = {
   can_configure_users: boolean;
   can_view_users: boolean;
-  can_view_logs: boolean;
-  can_configure_settings: boolean;
   can_configure_data: boolean;
   can_view_data: boolean;
 };
@@ -14,8 +12,6 @@ export type UserPermission = keyof UserPermissions;
 export const USER_PERMISSIONS = [
   "can_configure_users",
   "can_view_users",
-  "can_view_logs",
-  "can_configure_settings",
   "can_configure_data",
   "can_view_data",
 ] as const satisfies readonly UserPermission[];
@@ -44,21 +40,18 @@ export function pickUserPermissions(
 }
 
 // The one derivation of what a user may do from what is stored: a global
-// admin holds every flag; configure implies view; a restricted user's data
-// flags read as false, because they expose whole packages and raw datasets.
+// admin holds every flag; configure implies view; a restricted user holds
+// none, because every flag reaches instance-wide data or the roster.
 export function effectivePermissions(
   row: { isGlobalAdmin: boolean; scopeAccess: ScopeAccess } & UserPermissions,
 ): UserPermissions {
   if (row.isGlobalAdmin) return userPermissions(true);
+  if (!row.scopeAccess.all) return userPermissions(false);
   const stored = pickUserPermissions(row);
-  const unrestricted = row.scopeAccess.all;
   return {
     ...stored,
     can_view_users: stored.can_view_users || stored.can_configure_users,
-    can_view_data: unrestricted &&
-      (stored.can_view_data || stored.can_configure_data),
-    can_configure_data: unrestricted && stored.can_configure_data,
-    can_view_logs: unrestricted && stored.can_view_logs,
+    can_view_data: stored.can_view_data || stored.can_configure_data,
   };
 }
 

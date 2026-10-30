@@ -23,7 +23,7 @@ export function canViewPackageContents(): boolean {
 }
 
 export function canViewPackageLogs(): boolean {
-  return can("can_view_logs");
+  return can("can_view_data");
 }
 
 // The gated static mount for one raw output file (`<a download>` cannot send

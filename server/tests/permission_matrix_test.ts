@@ -136,8 +136,6 @@ const ONE_FLAG = (
     "can_configure_data",
     "can_view_users",
     "can_configure_users",
-    "can_view_logs",
-    "can_configure_settings",
   ] as const
 ).map((flag) => persona(flag.replaceAll("_", "-"), { flags: flagsOf(flag) }));
 const MANAGER = persona("manager", {
@@ -315,7 +313,7 @@ const EXPECTED: Record<keyof typeof routeRegistry, Expectation> = {
   getRunGenerationModuleOptions: closed("can_configure_data"),
   getRunGeoJsonStamp: closed("approved"),
   getRunGridItems: closed("approved"),
-  getRunModuleLogs: closed("can_view_logs"),
+  getRunModuleLogs: closed("can_view_data"),
   getRunModuleScript: closed("can_view_data"),
   getRunModuleWithConfigSelections: closed("can_view_data"),
   getRunPresentationObjectItems: open("approved"),
@@ -331,7 +329,7 @@ const EXPECTED: Record<keyof typeof routeRegistry, Expectation> = {
   getStructureStagedRecodeRows: closed("can_configure_data"),
   getStructureUploadAttempt: closed("can_configure_data"),
   getStructureUploadStatus: closed("can_configure_data"),
-  getUsersLastActive: closed("can_view_logs"),
+  getUsersLastActive: closed("can_view_users"),
   getWhatsNewPosts: closed("approved"),
   importHfaFacilityWeights: closed("can_configure_data"),
   importHfaIndicatorsWorkbook: closed("can_configure_data"),
@@ -438,10 +436,10 @@ const EXPECTED: Record<keyof typeof routeRegistry, Expectation> = {
   structureStep4_ImportData: closed("can_configure_data"),
   toggleUserAdmin: closed("admin"),
   unpinResultsPackage: closed("can_configure_data"),
-  updateAdminAreaLabelsConfig: closed("can_configure_settings", {
+  updateAdminAreaLabelsConfig: closed("can_configure_data", {
     body: { label1: 1 },
   }),
-  updateAiContextConfig: closed("can_configure_settings"),
+  updateAiContextConfig: closed("can_configure_data"),
   updateAssetVisibility: closed("approved"),
   updateCustomPrompt: closed("approved"),
   updateDatasetHmisDhis2Schedule: closed("can_configure_data"),
@@ -464,7 +462,7 @@ const EXPECTED: Record<keyof typeof routeRegistry, Expectation> = {
   updateScope: closed("admin"),
   updateSlide: closed("product:edit"),
   updateSlideDeckConfig: closed("product:edit"),
-  updateStructureSchema: closed("can_configure_settings"),
+  updateStructureSchema: closed("can_configure_data"),
   updateUserPermissions: closed("can_configure_users"),
 };
 
@@ -671,20 +669,15 @@ function rawEndpoints(seed: Seed): RawEndpoint[] {
 
 // The expectation side spells the rules itself, never through the code under
 // audit: an admin holds every flag, configure implies view, a restricted
-// user's data flags read as false, a level admits the levels at or below it.
+// user holds none, a level admits the levels at or below it.
 function effectiveFlags(p: Persona): UserPermissions {
   if (p.isAdmin) return userPermissions(true);
-  const viewUsers = p.flags.can_view_users || p.flags.can_configure_users;
-  const viewData = p.flags.can_view_data || p.flags.can_configure_data;
-  return p.restricted
-    ? {
-      ...p.flags,
-      can_view_users: viewUsers,
-      can_view_data: false,
-      can_configure_data: false,
-      can_view_logs: false,
-    }
-    : { ...p.flags, can_view_users: viewUsers, can_view_data: viewData };
+  if (p.restricted) return userPermissions(false);
+  return {
+    ...p.flags,
+    can_view_users: p.flags.can_view_users || p.flags.can_configure_users,
+    can_view_data: p.flags.can_view_data || p.flags.can_configure_data,
+  };
 }
 
 const LEVEL_RANK: Record<ProductLevel, number> = {
@@ -950,12 +943,11 @@ Deno.test("permission matrix: every route and tier against every persona", async
     for (const p of seededPersonas) {
       await mainDb`
         INSERT INTO users (
-          email, is_admin, can_configure_users, can_view_users, can_view_logs,
-          can_configure_settings, can_configure_data, can_view_data
+          email, is_admin, can_configure_users, can_view_users,
+          can_configure_data, can_view_data
         ) VALUES (
           ${p.email}, ${p.isAdmin}, ${p.flags.can_configure_users},
-          ${p.flags.can_view_users}, ${p.flags.can_view_logs},
-          ${p.flags.can_configure_settings}, ${p.flags.can_configure_data},
+          ${p.flags.can_view_users}, ${p.flags.can_configure_data},
           ${p.flags.can_view_data}
         )
       `;

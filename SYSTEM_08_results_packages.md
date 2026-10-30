@@ -117,7 +117,7 @@ below are their file-level twins):
   directory it is a function of the runId alone: package contents never depend
   on who is asking, only the chrome does. So reads are mounted ONCE (run-keyed,
   `routes/instance/run_generation.ts`) under the INSTANCE data bits
-  (`can_view_data`; `can_view_logs` for logs), and one surface, the package page
+  (`can_view_data`), and one surface, the package page
   (`results_packages/package_page.tsx`, its panes under `package_view/`),
   renders a package's contents: its modules' presets, settings, scripts, logs
   and files, its viewers gated by `canViewPackageContents()` and
@@ -274,8 +274,8 @@ mount for package reads: the `(run_id, module_id)` run-dir reads
 `getRunDetail` (per-module settings resolved server-side from the manifest's
 `configSelections` + the outputs-dir file listing + the population stamp, via
 `readRunDetail` in `server/runs/package_internals.ts`; manifest-gated, so ready
-runs only), gated on the INSTANCE data bits: `can_view_data`, `can_view_logs`
-for logs (ruled: package contents are instance-level data, not an admin-only
+runs only), gated on the INSTANCE data bit, `can_view_data` (ruled: package
+contents are instance-level data, not an admin-only
 debug class and not a per-product entitlement). The raw-file download surface
 they link to carries the same `can_view_data`: the `_RUNS_DIR_PATH` static mount
 in `middleware/static.ts`, narrowed to `/:run_id/outputs/*`.
@@ -300,8 +300,8 @@ construction: they are projections of whichever package the product points at.
 what a package contains (`getRunDetail` with per-module settings and files,
 `getRunModuleScript`, `getRunModuleLogs`, `listRunModuleFiles`, and the
 `/{runId}/outputs/…` download mount) is RUN-keyed on the instance mount and
-gated on the instance data bits: `can_view_data` for all but logs,
-`can_view_logs` for logs (global admins bypass). The rule that decides what
+gated on the instance data bit, `can_view_data`, logs included (global admins
+bypass). The rule that decides what
 belongs on the page: **if the answer to the question lives inside the run
 directory, it is the same view for everyone who can see that package.** The
 package page (`results_packages/package_page.tsx`, the package's one host) is
@@ -838,9 +838,8 @@ surface; scopes have their own rail tab, S15); the wizard only reads it and has
 no "save as instance defaults" action (ruled): a save built from only the
 modules selected for one generation would silently drop curated defaults for
 every other module. The editor lives on the Results surface rather than instance
-Settings because both routes are `can_configure_data` while Settings is
-`can_configure_settings`: the other placement would render UI backed by 403ing
-routes.
+Settings: the defaults are generation configuration, read beside the packages
+they shape.
 
 **Definitions are never stored.** The editor resolves them live on open via
 `getRunGenerationModuleOptions`, the same read the wizard uses, so drift is

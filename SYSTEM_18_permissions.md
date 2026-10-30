@@ -236,17 +236,20 @@ tiers:
 | `_route_guard.ts`      | `RouteGuard`, `RouteGuardKind`, `GUARD`                                                                                                                                                                                              |
 | `_asset_visibility.ts` | `AssetPrivacy`, `canUserSeeAsset`, `canUserManagePrivateAsset`                                                                                                                                                                       |
 
-Six instance permissions: `can_configure_users`, `can_view_users`,
-`can_view_logs`, `can_configure_settings`, `can_configure_data`, `can_view_data`
-(migration 046 removes `can_configure_assets`). Product access is not one of
+Four instance permissions: `can_configure_users`, `can_view_users`,
+`can_configure_data`, `can_view_data` (migration 046 removed
+`can_configure_assets`; 226 folded `can_configure_settings` into
+`can_configure_data` and `can_view_logs` into the two view flags: a package's
+module logs are package contents, the user activity log is the Users tab's).
+Product access is not one of
 them: it is per product, a level derived from the product's owner, general
 access and grants (`productLevelFor`), enforced by `productAccessPolicy` above.
 
 **`effectivePermissions` is the one derivation** of what a user may do from
 what is stored: a global admin holds every flag; configure implies view
 (`can_configure_data` implies `can_view_data`, `can_configure_users` implies
-`can_view_users`); a restricted user's `can_view_data`, `can_configure_data`
-and `can_view_logs` read as false. It is applied wherever a row becomes a user:
+`can_view_users`); a restricted user holds no flag, since every flag reaches
+instance-wide data or the roster. It is applied wherever a row becomes a user:
 `buildGlobalUserFromDb` (so `GlobalUser.thisUserPermissions` is effective),
 `buildInstanceState` and the SSE filter (the connection's
 `currentUserPermissions` and its run-telemetry entitlement) and the client's
@@ -285,8 +288,8 @@ delete; migration 205). A global admin is unrestricted whatever the flag says.
 `{ all: false, scopeIds: ScopeUuid[] }`; `scopeAccessOf` builds it,
 `GlobalUser` and every roster row (`OtherUser`) carry it, and `canUseScope` asks
 it. A restricted user sees only products in their scopes, reads data only
-through them (Explore included), has no `/mcp`, no Results or Data page, and
-their `can_view_data`, `can_configure_data` and `can_view_logs` read as false.
+through them (Explore included), has no `/mcp`, no Results, Data or Users page,
+and holds no flag.
 Where each rule is enforced: products and folders `productAccessPolicy` (above),
 data reads S8 "Scope access", the instance stream S3, collab S16.
 
@@ -294,9 +297,9 @@ data reads S8 "Scope access", the instance stream S3, collab S16.
 rule inside its transaction, with the named rows locked
 (`refuseUserManagement`, `server/db/instance/users.ts`): a caller who is not a
 global admin never names an admin's row (`ADMIN_ROW_NEEDS_ADMIN`) and never
-their own (`OWN_ROW_REFUSED`), and a restricted caller is refused outright
-(`RESTRICTED_CALLER_REFUSED`), so no one raises, lifts or hands over their own
-access or an admin's. `addUsers`, `deleteUser`, `updateUserPermissions`,
+their own (`OWN_ROW_REFUSED`), so no one raises, lifts or hands over their own
+access or an admin's; a restricted caller never reaches the rule, since they
+hold no flag and the guard refuses first. `addUsers`, `deleteUser`, `updateUserPermissions`,
 `bulkUpdateUserPermissions`, `setUserScopeAccess`, `bulkSetUserScopeAccess` and
 `batchUploadUsers` apply it and answer each refusal as a 403. The rule sees only
 rows that exist, so `addUsers` and `batchUploadUsers` also answer 403
@@ -363,10 +366,9 @@ and its route re-broadcasts their summaries (`notifyInstanceProductsUpserted`).
 ## Permissions (write side)
 
 - **One flat flag set** (`lib/permissions/_flags.ts`, with a compile-time
-  exhaustiveness assert): 6 instance flags (`USER_PERMISSIONS`:
-  `can_configure_users`, `can_view_users`, `can_view_logs`,
-  `can_configure_settings`, `can_configure_data`, `can_view_data`) stored as
-  columns on `users`, beside `is_admin`. There are no roles and no presets: all
+  exhaustiveness assert): 4 instance flags (`USER_PERMISSIONS`:
+  `can_configure_users`, `can_view_users`, `can_configure_data`,
+  `can_view_data`) stored as columns on `users`, beside `is_admin`. There are no roles and no presets: all
   editing is per-flag checkboxes and tri-states.
 - `requirePermission` (above) is the single read-side evaluator, over the
   effective permissions.

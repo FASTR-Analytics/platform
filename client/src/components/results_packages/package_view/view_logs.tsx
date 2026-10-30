@@ -10,7 +10,7 @@ import { serverActions } from "~/server_actions";
 
 // One module's execution log from this results package: package contents,
 // read run-keyed wherever a package is explored: one route, one guard
-// (`can_view_logs`).
+// (`can_view_data`).
 export function ViewLogs(
   p: EditorComponentProps<
     {

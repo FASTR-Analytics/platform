@@ -65,7 +65,6 @@ import {
   ADMIN_ROW_NEEDS_ADMIN,
   ADMIN_SELF_DEMOTION_REFUSED,
   OWN_ROW_REFUSED,
-  RESTRICTED_CALLER_REFUSED,
   SELF_DELETION_REFUSED,
 } from "../../auth/refusals.ts";
 
@@ -76,7 +75,6 @@ const FORBIDDEN_ERRORS: ReadonlySet<string> = new Set([
   ADMIN_ROW_NEEDS_ADMIN,
   ADMIN_SELF_DEMOTION_REFUSED,
   OWN_ROW_REFUSED,
-  RESTRICTED_CALLER_REFUSED,
 ]);
 
 function statusOf(res: { success: true } | { success: false; err: string }) {

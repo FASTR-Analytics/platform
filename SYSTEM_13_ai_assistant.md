@@ -759,8 +759,8 @@ over the tool's requirement, the user's live permissions
 (`productLevel`, S12, from the view's `productId`, `deckId` or `reportId`; null
 in a view with no product), and throws the table's reason as an `AIToolFailure`.
 So a viewer can read a deck or report and ask about it while its writes refuse,
-`get_module_r_script` and `get_module_settings` refuse without `can_view_data`
-and `get_module_log` without `can_view_logs`, and a demotion reaches the next
+`get_module_r_script`, `get_module_settings` and `get_module_log` refuse
+without `can_view_data`, and a demotion reaches the next
 call. A tool outside the catalogue fails the assembly. Below edit level a
 product view's instructions carry the level line (above). The chat menu has no
 view-specific items: its one such item, "Save this report's style…" for an html
@@ -1123,7 +1123,7 @@ model sees. AI data payloads exclude the admin-area roll-up row (double-counting
 guard, S9).
 
 The instance `ai_context` is one `instance_config` row (`ai_context`), edited
-from a row on the Data page behind `can_configure_settings`
+from a row on the Data page behind `can_configure_data`
 ([ai_context_form.tsx](client/src/components/data/general/ai_context_form.tsx),
 `updateAiContextConfig`), and rides `InstanceState` with the rest of the config,
 so the SPA prompt reads it from T1 with no fetch and `/mcp`'s `get_overview`

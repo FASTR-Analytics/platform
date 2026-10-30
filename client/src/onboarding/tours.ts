@@ -1596,7 +1596,7 @@ export function buildInstanceDataTour(): TourDefinition {
         }),
         placement: "top",
         // Rendered only for those who may change settings.
-        when: () => can("can_configure_settings"),
+        when: () => can("can_configure_data"),
         ...SKIP_IF_MISSING,
       },
     ],

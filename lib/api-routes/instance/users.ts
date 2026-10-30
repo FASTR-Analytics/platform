@@ -83,7 +83,7 @@ export const userRouteRegistry = {
   getUsersLastActive: route({
     path: "/users/last-active",
     method: "GET",
-    guard: GUARD.permission("can_view_logs"),
+    guard: GUARD.permission("can_view_users"),
     response: {} as UserLastActive[],
   }),
   updateUserPermissions: route({

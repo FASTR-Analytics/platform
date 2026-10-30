@@ -9,8 +9,6 @@ CREATE TABLE users (
   is_admin boolean NOT NULL,
   can_configure_users boolean NOT NULL DEFAULT FALSE,
   can_view_users boolean NOT NULL DEFAULT FALSE,
-  can_view_logs boolean NOT NULL DEFAULT FALSE,
-  can_configure_settings boolean NOT NULL DEFAULT FALSE,
   can_configure_data boolean NOT NULL DEFAULT FALSE,
   can_view_data boolean NOT NULL DEFAULT FALSE,
   first_name text,

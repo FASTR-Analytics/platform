@@ -12,8 +12,6 @@ export type DBUser = {
   last_name: string | null;
   can_configure_users: boolean;
   can_view_users: boolean;
-  can_view_logs: boolean;
-  can_configure_settings: boolean;
   can_configure_data: boolean;
   can_view_data: boolean;
   daily_token_usage: number;

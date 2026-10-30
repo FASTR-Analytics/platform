@@ -62,7 +62,7 @@ remove that exemption and never de-log the `getCurrentUser` route.
 
 ## Readers
 
-- `getUsersLastActive` (instance `can_view_logs`): each user's latest log
+- `getUsersLastActive` (instance `can_view_users`): each user's latest log
   timestamp, one `GROUP BY user_email` query, for the Users tab's "Last active"
   column (`users/users.tsx`). No route returns a row's `details`.
 - S15's unauthenticated health endpoints (`server/routes/instance/health.ts`):

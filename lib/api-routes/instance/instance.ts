@@ -17,7 +17,7 @@ export const instanceRouteRegistry = {
   updateStructureSchema: route({
     path: "/update_structure_schema",
     method: "POST",
-    guard: GUARD.permission("can_configure_settings"),
+    guard: GUARD.permission("can_configure_data"),
     body: z.object({
       family: z.enum(["hmis", "hfa"]),
       schema: structureSchemaSchema,
@@ -26,13 +26,13 @@ export const instanceRouteRegistry = {
   updateAdminAreaLabelsConfig: route({
     path: "/update_admin_area_labels_config",
     method: "POST",
-    guard: GUARD.permission("can_configure_settings"),
+    guard: GUARD.permission("can_configure_data"),
     body: instanceConfigAdminAreaLabelsSchema,
   }),
   updateAiContextConfig: route({
     path: "/update_ai_context_config",
     method: "POST",
-    guard: GUARD.permission("can_configure_settings"),
+    guard: GUARD.permission("can_configure_data"),
     body: z.object({ aiContext: z.string().max(20000) }),
   }),
 } as const satisfies Record<string, { guard: RouteGuard }>;

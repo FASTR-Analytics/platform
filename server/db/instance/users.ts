@@ -26,7 +26,6 @@ import {
   ADMIN_ROW_NEEDS_ADMIN,
   ADMIN_SELF_DEMOTION_REFUSED,
   OWN_ROW_REFUSED,
-  RESTRICTED_CALLER_REFUSED,
   SCOPE_ACCESS_ADMIN,
 } from "../../auth/refusals.ts";
 
@@ -122,16 +121,13 @@ export function otherUserFromRow(
   };
 }
 
-export type UserManagementCaller = Pick<
-  GlobalUser,
-  "email" | "isGlobalAdmin" | "scopeAccess"
->;
+export type UserManagementCaller = Pick<GlobalUser, "email" | "isGlobalAdmin">;
 
 // The one rule every user-management write applies inside its transaction: a
 // caller who is not a global admin never names an admin's row, which would
 // let them strip or hand over an admin's account, and never their own, which
-// would let them raise their own access. A restricted caller is refused
-// outright, since a restriction is what they could otherwise lift. The named
+// would let them raise their own access. A restricted caller never reaches
+// it: a restricted user holds no flag, so the guard refuses first. The named
 // rows are locked, so a concurrent promotion cannot slip past the check.
 export async function refuseUserManagement(
   sql: Sql,
@@ -140,9 +136,6 @@ export async function refuseUserManagement(
 ): Promise<string | undefined> {
   if (caller.isGlobalAdmin) {
     return undefined;
-  }
-  if (!caller.scopeAccess.all) {
-    return RESTRICTED_CALLER_REFUSED;
   }
   if (emails.includes(caller.email)) {
     return OWN_ROW_REFUSED;

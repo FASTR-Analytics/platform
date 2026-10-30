@@ -37,8 +37,8 @@ import { route } from "../route-utils.ts";
 // A run's outputs dir holds one module's generated script, execution log and
 // raw CSVs. These reads are run-keyed and mounted ONCE: a package is
 // instance-level data, so what it contains is gated on the instance data
-// bits: `can_view_data` for detail/script/files/download, `can_view_logs`
-// for logs, wherever it is explored (the catalogue, the copilot's tools). Reader: server/runs/package_internals.ts.
+// bit, `can_view_data`, wherever it is explored (the catalogue, the copilot's
+// tools). Reader: server/runs/package_internals.ts.
 const runModuleParamsSchema = z.object({
   run_id: z.string(),
   module_id: z.string(),
@@ -100,7 +100,7 @@ export const runGenerationRouteRegistry = {
   getRunModuleLogs: route({
     path: "/run_generation/run/:run_id/module/:module_id/logs",
     method: "GET",
-    guard: GUARD.permission("can_view_logs"),
+    guard: GUARD.permission("can_view_data"),
     params: runModuleParamsSchema,
     response: {} as { logs: string },
   }),

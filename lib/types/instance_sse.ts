@@ -165,8 +165,8 @@ export type InstanceConfig = {
   structureSchemaHfa: StructureSchema | null;
   adminAreaLabels: InstanceConfigAdminAreaLabels;
   dhis2ConnectionUrl: string | null;
-  // The one instance-level copilot grounding blob, edited on the settings
-  // page behind can_configure_settings. "" when unset.
+  // The one instance-level copilot grounding blob, edited on the Data page
+  // behind can_configure_data. "" when unset.
   aiContext: string;
 };
 

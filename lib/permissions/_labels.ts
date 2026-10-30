@@ -15,16 +15,6 @@ export const INSTANCE_PERMISSION_LABELS: Record<
     fr: "Voir les utilisateurs",
     pt: "Ver os utilizadores",
   },
-  can_view_logs: {
-    en: "View logs",
-    fr: "Voir les journaux",
-    pt: "Ver os registos",
-  },
-  can_configure_settings: {
-    en: "Configure settings",
-    fr: "Configurer les paramètres",
-    pt: "Configurar as definições",
-  },
   can_configure_data: {
     en: "Configure data",
     fr: "Configurer les données",

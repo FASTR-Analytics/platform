@@ -42,7 +42,7 @@ import {
   ADMIN_ROW_NEEDS_ADMIN,
   ADMIN_SELF_DEMOTION_REFUSED,
   OWN_ROW_REFUSED,
-  RESTRICTED_CALLER_REFUSED,
+  permissionRequired,
   SELF_DELETION_REFUSED,
 } from "../auth/refusals.ts";
 
@@ -150,7 +150,7 @@ Deno.test("user management: the rule, the refusals and what each write keeps", a
     const restrict = (target: string) =>
       setUserScopeAccess(
         mainDb,
-        { email: ADMIN, isGlobalAdmin: true, scopeAccess: ALL_SCOPES },
+        { email: ADMIN, isGlobalAdmin: true },
         target,
         { all: false, scopeIds: [scopeId] },
       );
@@ -187,7 +187,7 @@ Deno.test("user management: the rule, the refusals and what each write keeps", a
       assertEquals(res.status, 403, path);
       assertEquals(res.body, {
         success: false,
-        err: RESTRICTED_CALLER_REFUSED,
+        err: permissionRequired("can_configure_users"),
       });
     }
 
@@ -199,7 +199,7 @@ Deno.test("user management: the rule, the refusals and what each write keeps", a
     assertEquals(minted.status, 403);
     assertEquals(minted.body, {
       success: false,
-      err: RESTRICTED_CALLER_REFUSED,
+      err: permissionRequired("can_configure_users"),
     });
     assertEquals(await exists(MINTED), false);
 
@@ -395,7 +395,6 @@ Deno.test("a replace-all deletes only the users it does not name", async () => {
       const res = await batchUploadUsers(db, csvName, true, {
         email: ADMIN,
         isGlobalAdmin: true,
-        scopeAccess: ALL_SCOPES,
       });
       assert(res.success, JSON.stringify(res));
     } finally {

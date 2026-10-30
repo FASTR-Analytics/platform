@@ -1083,3 +1083,9 @@ commit.
 - Step 6: edited `server/tests/permission_matrix_test.ts`, outside the Surface,
   because its `EXPECTED` table is keyed by every registry route and
   `getUserPermissions` left the registry.
+- Step 7: edited `server/auth/refusals.ts` (the restricted-caller constant left
+  with its check), `lib/types/instance_sse.ts`, `server/runs/package_internals.ts`
+  and `client/src/components/results_packages/package_view/view_logs.tsx`
+  (comments naming the dropped flags) and `server/tests/product_access_db_test.ts`
+  (a caller literal carried `scopeAccess`), outside the Surface, because the
+  fold removed what they named.

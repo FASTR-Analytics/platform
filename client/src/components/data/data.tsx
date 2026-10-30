@@ -84,7 +84,7 @@ export function InstanceData(p: Props) {
 
   // Structure config and the instance settings keep the gate of the Settings
   // tab they came from, so who can change them is unchanged.
-  const canConfigureSettings = () => can("can_configure_settings");
+  const canConfigureSettings = () => can("can_configure_data");
 
   const enabledColumnCount = (family: FacilityFamily) => {
     const schema = structureSchemaForFamily(family);

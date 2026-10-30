@@ -27,6 +27,4 @@ export const ADMIN_ROW_NEEDS_ADMIN =
   "Only a global admin can change a global admin's account";
 export const OWN_ROW_REFUSED =
   "You cannot change your own account. Ask an admin to do this.";
-export const RESTRICTED_CALLER_REFUSED =
-  "A user limited to certain scopes cannot manage users";
 export const SCOPE_ACCESS_ADMIN = "A global admin always has every scope";

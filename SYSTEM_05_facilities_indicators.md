@@ -1479,7 +1479,7 @@ layer.
   template (`can_configure_data`); the geojson reads take
   `requireApprovedUser()` too, and the starting payload withholds the boundary
   list from an unapproved connection (S3); the HMIS and HFA dictionary reads and every mutation are
-  `can_configure_data`; config mutations `can_configure_settings`. Every
+  `can_configure_data`, config mutations included. Every
   Data-page write control reads the same flag through
   `can("can_configure_data")` (`state/instance/permissions.ts`, S18), the HFA
   indicators manager's indicator write controls and the chat's HFA write tools

@@ -151,7 +151,7 @@ export const COPILOT_TOOL_REQUIREMENTS = {
   get_metric_data: "none",
   get_available_modules: "none",
   get_module_r_script: "can_view_data",
-  get_module_log: "can_view_logs",
+  get_module_log: "can_view_data",
   get_module_settings: "can_view_data",
   get_deck: "none",
   get_slide: "none",

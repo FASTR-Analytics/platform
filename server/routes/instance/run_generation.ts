@@ -173,11 +173,10 @@ defineRoute(
 
 // Script/logs/files read from runs/{runId}/outputs/{moduleId} by the shared
 // reader in server/runs/package_internals.ts, which also owns path safety.
-// Mounted ONCE, run-keyed, under the instance data bits: a package is
-// instance-level data, so `can_view_data` reads its script/files/detail (and
-// the outputs download mount in middleware/static.ts) and `can_view_logs` reads
-// its logs: the same guard whether the caller is the catalogue, an AI tool or
-// MCP.
+// Mounted ONCE, run-keyed, under the instance data bit: a package is
+// instance-level data, so `can_view_data` reads its script, files, detail and
+// logs (and the outputs download mount in middleware/static.ts): the same
+// guard whether the caller is the catalogue, an AI tool or MCP.
 
 defineRoute(
   routesRunGeneration,

@@ -25,8 +25,7 @@ import {
 // and the raw output files under runs/{runId}/outputs/{moduleId}.
 //
 // The readers are mounted once, run-keyed, on the instance routes
-// (routes/instance/run_generation.ts): `can_view_data` for the script and the
-// raw files, `can_view_logs` for the log.
+// (routes/instance/run_generation.ts), under `can_view_data`.
 //
 // Path safety is enforced HERE rather than at each route, because these
 // (with the run-lens read context, run_query/run_read.ts) are the only
