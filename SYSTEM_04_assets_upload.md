@@ -28,16 +28,17 @@ Boundaries: **serving** the stored bytes back out is S1's static middleware
 and images placed in decks and reports), data-file extensions
 (`.csv`/`.xlsx`/`.xls`/`.zip`: import-wizard inputs live here, raw
 facility-level health data) require `can_view_data` OR `can_configure_data` (the
-assets page's own gate; admins pass), and everything else is behind bare
-`requireGlobalPermission()`. A **private** asset is gated ahead of all three
-tiers (see Private assets below). Public asset _names_ stay visible to all
-authenticated users (the SSE starting payload). Only the bytes are gated. What
+assets page's own gate; admins pass), and everything else is behind
+`requireApprovedUser()`. A **private** asset is gated ahead of all three tiers
+(see Private assets below). Public asset _names_ stay visible to every signed-in
+user (the SSE starting payload). Only the bytes are gated. What
 consumers **do** with an uploaded file is theirs: the dataset import wizards are
 S6; structure/geojson/HFA-weights uploads are S5; report images and embeds are
 S12; batch user upload is S15; module runs read `assetsToImport` (e.g.
 `population.csv`) out of the assets dir at execution time (S8). S13's AI
-documents do **not** pass through here. They multipart-POST to the S13-owned
-`/ai/files` proxy. The `upload.ts` routes are raw Hono by design (custom TUS
+documents are uploaded assets: the S13-owned `/ai/files` proxy
+(`requireApprovedUser()`) sends a named asset's bytes to Anthropic after an
+inline visibility check. The `upload.ts` routes are raw Hono by design (custom TUS
 headers/handshake), one of S1's enumerated off-registry endpoints; `assets.ts`
 is normal registry/`defineRoute`.
 
@@ -46,13 +47,13 @@ is normal registry/`defineRoute`.
 A minimal implementation of the TUS 1.0.0 resumable protocol (extensions:
 `creation,termination`), mounted at `/upload`:
 
-| Route                   | Guard                               | Role                                           |
-| ----------------------- | ----------------------------------- | ---------------------------------------------- |
-| `POST /upload`          | `requireGlobalPermission()` + `log` | create upload, return `Location: /upload/<id>` |
-| `GET /upload/:id`       | **none, deliberate**                | TUS HEAD resume check (`Upload-Offset`)        |
-| `PATCH /upload/:id`     | `requireGlobalPermission()` + `log` | append chunk at `Upload-Offset`                |
-| `DELETE /upload/:id`    | `requireGlobalPermission()` + `log` | cancel + remove temp file                      |
-| `OPTIONS /upload(/:id)` | none                                | CORS preflight, advertises the extensions      |
+| Route                   | Guard                           | Role                                           |
+| ----------------------- | ------------------------------- | ---------------------------------------------- |
+| `POST /upload`          | `requireApprovedUser()` + `log` | create upload, return `Location: /upload/<id>` |
+| `GET /upload/:id`       | **none, deliberate**            | TUS HEAD resume check (`Upload-Offset`)        |
+| `PATCH /upload/:id`     | `requireApprovedUser()` + `log` | append chunk at `Upload-Offset`                |
+| `DELETE /upload/:id`    | `requireApprovedUser()` + `log` | cancel + remove temp file                      |
+| `OPTIONS /upload(/:id)` | none                            | CORS preflight, advertises the extensions      |
 
 State is an **in-memory `Map`** of
 `{ id, filename, size, offset, createdAt, metadata, uploaderEmail,
@@ -108,9 +109,10 @@ always want current bytes.
 `_ASSETS_DIR_PATH` (`readDir` + `stat`), skipping directories and dot-files
 (which hides `.tus-uploads`); the `asset_metadata` table contributes only
 `uploaderEmail` (null → shown as "system"). Type flags (`isCsv`/`isXlsx`/
-`isImage`/`isZip`) are extension-based. Registry routes: `getAssets`
-(`GET /assets`) and `deleteAssets` (`POST /assets/delete`), both zero-key
-`requireGlobalPermission()`.
+`isImage`/`isZip`) are extension-based. The list reaches the client in the SSE
+starting payload and `assets_updated`; the registry routes are `deleteAssets`
+(`POST /assets/delete`) and `updateAssetVisibility`, both
+`requireApprovedUser()`.
 
 **Delete authorization** is ownership-based: a non-admin may delete only assets
 whose `asset_metadata.uploader_email` matches them (assets with no metadata row
@@ -147,17 +149,18 @@ in `lib/types/assets.ts`.
   unknown emails and the owner are dropped.
 - **Enforced at:** the static serve (a private-asset middleware ahead of the
   image tier; it checks every spelling serveStatic may resolve, answers 404 to
-  anyone not permitted, `Cache-Control: private, no-store`, which
+  anyone not permitted and to every unapproved caller, so a deleted owner's
+  live session downloads nothing, `Cache-Control: private, no-store`, which
   `cacheMiddleware` leaves in place); the asset list (`getAssetsForUser` in
-  `getInstanceDetail`, so the SSE starting payload, the `/mcp` grounding and
-  `getAssets`; the `assets_updated` broadcast is filtered per connection in
+  `getInstanceDetail`, so the SSE starting payload and the `/mcp` grounding; the
+  `assets_updated` broadcast is filtered per connection in
   `createInstanceSseFilter`); delete; same-name overwrite
   (`canUserUploadOverAsset`, at POST and again at completion); and every by-name
   read on a user's behalf: `requireVisibleAssets`
   (`server/middleware/asset_visibility.ts`) on the HMIS CSV, HFA CSV and ICEH
   zip wizard/launch routes, the geojson analyze/save, population preview/import,
-  HFA weights read/import, structure step 1 and batch user upload routes, and an
-  inline check on the AI files proxy.
+  HFA weights read/import, structure step 1, the two HFA facility previews and
+  batch user upload routes, and an inline check on the AI files proxy.
 - **Not enforced** for module runs' `assetsToImport` (a run reads its fixed
   input names with no user context), for deferred reads of an import run or
   structure upload attempt already launched on a permitted user's behalf, or for
@@ -222,9 +225,6 @@ ownership annotation, not a registry.
   and bare-auth upload overwriting a read-gated file are all accepted residual
   risk (small trusted teams; worst case is a discardable bad import). Do not
   raise again.
-- **Zero-key guards throughout.** Upload, list, and the delete route all use
-  bare `requireGlobalPermission()` ("any authenticated user"); S1's rule is to
-  be deliberate about that. A `can_configure_data`-style key may fit.
 - **Cruft:** `deleteAssets`' handler re-checks
   `Array.isArray(body.assetFileNames)`, though the registry schema
   (`z.array(z.string())`) already guarantees it; the `onBeforeRequest` no-op

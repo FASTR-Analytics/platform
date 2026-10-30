@@ -273,6 +273,27 @@ export function requireGlobalPermission(
   });
 }
 
+function holdsStatusKey(c: Context): boolean {
+  return !!_STATUS_API_KEY &&
+    c.req.header("status-api-key") === _STATUS_API_KEY;
+}
+
+/** Fleet-internal machine calls only: the shared status-api-key header, no
+ *  session. A request without it, a signed-in user's included, is 401. Sets
+ *  mainDb and no globalUser. */
+export function requireStatusKey() {
+  return createMiddleware<{ Variables: { mainDb: Sql } }>(
+    async (c: Context, next: () => Promise<void>) => {
+      if (c.req.method !== "OPTIONS" && !holdsStatusKey(c)) {
+        c.status(401);
+        return c.json({ success: false, err: "Status key required" });
+      }
+      c.set("mainDb", getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE"));
+      await next();
+    },
+  );
+}
+
 /** Like requireGlobalPermission, but ALSO passes fleet-internal machine calls
  *  authenticated by the shared status-api-key header (same key
  *  /health_check/pg_stat_statements_reset checks). Machine calls get mainDb
@@ -289,11 +310,7 @@ export function requireGlobalPermissionOrStatusKey(
       mainDb: Sql;
     };
   }>(async (c: Context, next: () => Promise<void>) => {
-    if (
-      c.req.method !== "OPTIONS" &&
-      _STATUS_API_KEY &&
-      c.req.header("status-api-key") === _STATUS_API_KEY
-    ) {
+    if (c.req.method !== "OPTIONS" && holdsStatusKey(c)) {
       c.set("mainDb", getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE"));
       await next();
       return;

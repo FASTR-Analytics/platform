@@ -78,7 +78,7 @@ readers).
 
 ## Contract
 
-221 registry routes, zero direct client↔server imports; expected failures travel
+243 registry routes, zero direct client↔server imports; expected failures travel
 as HTTP 200 + `{ success: false, err }`, and only guards and validation emit
 real 4xx/5xx. This system also owns the _inventory_ of the ~30 off-registry
 endpoints (each owned by its home system): that list is the erosion surface of
@@ -282,7 +282,8 @@ here uses the registry.
 | `routes/instance/copilot_ai_proxy.ts`           | S13   | Anthropic passthrough (mounted `/ai` behind `requireApprovedUser()`, a thin wrapper over `routes/anthropic_messages_proxy.ts`). Returns Anthropic-shaped bodies, not `APIResponse`                                                                                   |
 | `routes/instance/ai_files.ts`                   | S13   | Anthropic Files API passthrough, mounted `/ai` beside the copilot proxy, same guard                                                                                                                                                                                  |
 | `routes/instance/upload.ts`                     | S4    | Hand-rolled TUS resumable-upload protocol (custom headers/handshake)                                                                                                                                                                                                 |
-| `routes/instance/health.ts`                     | S15   | Diagnostics; 11 routes, bare JSON, deliberately unauthenticated for external monitoring (exposure inventory is S15's contract)                                                                                                                                       |
+| `routes/instance/health.ts`                     | S15   | Diagnostics; 12 routes, bare JSON; the reads deliberately unauthenticated for external monitoring, two behind `requireStatusKey()` (exposure inventory is S15's contract)                                                                                            |
+| `headless_app.ts` `GET /info/:file.md`          | S1    | The reference docs the copilot's `get_reference_doc` tool reads, as plain text, on the headless app only; admitted by the allowlist's raw pattern                                                                                                                    |
 | `routes/instance/structure.ts` (2 routes only)  | S5    | CSV download `Response`s (facilities export, HFA weights export) inside an otherwise-registry file, guarded and logged, but raw                                                                                                                                      |
 | `routes/instance/population.ts` (2 routes only) | S5    | CSV download `Response`s (population export, import template) inside an otherwise-registry file, guarded and logged, but raw                                                                                                                                         |
 | `routes/instance/run_generation.ts` (1 route)   | S8    | A captured boundary file streamed as stored, gzipped (`GET /run_generation/run/:run_id/geojson/:family/:level`), immutable-cached; guarded, unlogged (a per-page-load fetch)                                                                                         |
@@ -465,7 +466,7 @@ email by `headlessAuthMiddleware`) and a Clerk session all converge on
 trimmed and lowercased, as every `users.email` is stored), reads the `users` row
 and sets `approved = _OPEN_ACCESS || !!row`. Every guard below calls it first,
 except that `requireGlobalPermissionOrStatusKey` lets a matching status-api key
-through before it.
+through before it and `requireStatusKey` never calls it.
 
 ### The guard factories
 
@@ -480,22 +481,36 @@ optional leading `{ requireAdmin? }` object, then variadic permission keys with
 AND semantics. `requireAdmin && !isGlobalAdmin` → 403; global admins bypass the
 permission check; otherwise every listed permission must be truthy on
 `globalUser.thisUserPermissions`, else 403. With **zero** keys it only
-authenticates: "any signed-in caller may act", without the `approved` check
-(Open items). Deliberately weak; be deliberate about using it.
+authenticates, without the `approved` check, and exactly four routes hold that
+form: `getCurrentUser`, `/instance_updates`, `updateMyProfile` and
+`renameUserEmailEverywhere`, which a signed-in account reaches before its
+approval or mid-rename. Every other route an approved user may call takes
+`requireApprovedUser()`.
 
 **`requireGlobalPermissionOrStatusKey([opts,] ...UserPermission)`**: the same
 guard, but a request carrying the shared `status-api-key` header passes as a
-fleet-internal machine call with `mainDb` and no `globalUser`. It has three call
-sites, each `{ requireAdmin: true }`: `renameUserEmail`, whose handler treats a
-missing `globalUser` as the machine actor, and `receiveUserNameSync` and
-`receiveUserProfileSync`, whose handlers refuse any session caller.
+fleet-internal machine call with `mainDb` and no `globalUser`. Its one call site
+is `renameUserEmail` (`{ requireAdmin: true }`), whose handler treats a missing
+`globalUser` as the machine actor and requires the body's `clerkUserId`, the
+account the originating instance verified, which it verifies again
+(`verifyClerkEmailOwnership`) before renaming: the shared key alone proves only
+that a peer sent the request.
 
-**`requireApprovedUser()`**: the product plane's instance-level guard
-(`server/middleware/userPermission.ts`): signed in (else 401) AND
-`globalUser.approved` (else 403 "awaiting approval"); sets `c.var.globalUser`
-and `c.var.mainDb`. It guards the run-keyed figure-data reads, the authoring
-context, the ready-package list, the product email send, and the copilot proxy
-and its Files route on `/ai`. The instance collab socket
+**`requireStatusKey()`**: machine calls only. A request without the
+`status-api-key` header matching `_STATUS_API_KEY` (an unset key matches
+nothing) is 401, a signed-in session included; it sets `mainDb` and no
+`globalUser`. It guards the two fleet sync routes, `receiveUserNameSync` and
+`receiveUserProfileSync`, and the two health routes that need it,
+`/module_defaults_snapshot` and `POST /pg_stat_statements_reset`.
+
+**`requireApprovedUser()`**: signed in (else 401) AND `globalUser.approved`
+(else 403 "awaiting approval"); sets `c.var.globalUser` and `c.var.mainDb`. It
+guards every route any approved user may call: the run-keyed figure-data reads,
+the authoring context, the ready-package list, the product email send, the
+copilot proxy and its Files route on `/ai`, the TUS upload routes, the asset
+writes, the help email, AI usage, the personal access tokens, the prompt
+library, What's New, the tour telemetry, the area pickers, the raw boundary
+files, and the static fallback tier. The instance collab socket
 (`routes/instance/collab.ts`) applies the same signed-in-and-approved test
 inline before the upgrade rather than through this middleware, because its
 denials must travel as a post-upgrade close. Unlike the zero-permission
@@ -515,8 +530,9 @@ lists, `productIds` (the subjects: path `product_id` and body `productIds`,
 which need the declared level) and `destinationProductIds` (body
 `targetProductId`, a product the route writes into, which always needs `edit`),
 plus `folderIds` (path `folder_id`, body `folderId` and `parentId`) and
-`scopeIds` (body `scopeId`); a route declaring `folder_id` or `parentId` is a
-folder route.
+`scopeIds` (body `scopeId`). A folder route is an entry of
+`folderRouteRegistry`, which `defineRoute` passes to the guard; nothing in a
+request makes a route a folder route.
 
 The policy is level-aware (S12 "Contract" says what each level allows). In
 order: an unapproved user is refused. A global admin passes with no query: an
@@ -573,15 +589,15 @@ stay correct), never inline a permission string elsewhere.
 | Mode           | Source                                             | Effect                                                                                                         |
 | -------------- | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
 | `_BYPASS_AUTH` | `BYPASS_AUTH` env, dev only (`&& !_IS_PRODUCTION`) | synthetic full-access dev user; Clerk disabled entirely                                                        |
-| `_OPEN_ACCESS` | `OPEN_ACCESS` env                                  | every authenticated email treated as approved global admin                                                     |
+| `_OPEN_ACCESS` | `OPEN_ACCESS` env                                  | every signed-in email treated as an approved global admin while it is set                                      |
 | `is_admin`     | `users.is_admin` column                            | global admin, bypasses all permission checks except a private asset's (S4)                                     |
 | `H_USERS`      | hardcoded `lib/h_users.ts` (9 emails)              | `unlimitedAi`; the only callers of `setUserUnlimitedAi` / `setUserContactPerson`; seeded as admin rows at init |
 | granular       | `users` permission columns                         | normal least-privilege path                                                                                    |
 
-`_OPEN_ACCESS` inserts unknown emails as `is_admin` rows
-(`ON CONFLICT DO NOTHING`: an existing non-admin row is never promoted in the
-DB; effective admin comes from the `_OPEN_ACCESS ||` short-circuit, so turning
-the mode off reverts them).
+`_OPEN_ACCESS` inserts an unknown email as a non-admin row through the
+read-and-write pool (`ON CONFLICT DO NOTHING`) and broadcasts the roster when it
+did; effective admin is the `_OPEN_ACCESS ||` short-circuit alone, so turning
+the mode off leaves those users approved and non-admin.
 `unlimitedAi = H_USERS.includes(email) ||
 rawUser.unlimited_ai` (S13). Prefer a
 granular permission or `requireAdmin` over a new `H_USERS.includes()` check:
@@ -593,8 +609,8 @@ it's a hardcoded allowlist, and expanding its use spreads policy into code.
   `requireGlobalPermission`'s permission loop. A bug masked by "I tested as
   admin" will bite a least-privilege user.
 - **Don't assume `c.var.globalUser` exists without a guard**: only a guard
-  populates it, and `requireGlobalPermissionOrStatusKey` leaves it unset for
-  machine calls.
+  populates it, `requireGlobalPermissionOrStatusKey` leaves it unset for machine
+  calls, and `requireStatusKey` never sets it.
 - **`buildUserPermissionsFromRow` defaults missing columns to `false` and
   warns.** A new permission column not yet migrated reads as denied
   (fail-closed) but only logs, so watch boot logs after adding a permission.
@@ -617,19 +633,12 @@ it's a hardcoded allowlist, and expanding its use spreads policy into code.
   type-level) check that every `defineRoute` carries a guard or an explicit
   public marker was audited and rejected: the full registry has exactly one
   unguarded route (`getInstanceMeta`, deliberately public), so the rule stays
-  convention + review. Do not re-propose without a new hole. (Health.ts needs no
-  guards: the read surface is public-by-design (SYSTEM_15's exposure inventory),
-  and the mutating reset endpoint requires the status-api key.)
+  convention + review. Do not re-propose without a new hole. (Health.ts's read
+  surface is public by design (SYSTEM_15's exposure inventory); its reset and
+  module-defaults endpoints take `requireStatusKey()`.)
 - **Decide the `authError` contract.** It is 401-only in reality (no 403 carries
   it; the client only reads it on 401): either bless that as the contract or
   extend it to 403s deliberately.
-- **Zero-perm `requireGlobalPermission()` skips the `approved` check**: any
-  Clerk-authenticated email (even with no `users` row) passes. Live examples
-  include `getCurrentUser` (`routes/instance/users.ts`), `sendHelpEmail`
-  (`routes/instance/emails.ts`) and `recordTourEvent`
-  (`routes/instance/onboarding.ts`). A route that needs the flag takes
-  `requireApprovedUser()` (the set named above) or
-  `requireProductAccess(level)`, whose policy checks it.
 - Audit `H_USERS.includes()` call sites; document per site why `requireAdmin` /
   a granular permission is insufficient.
 - **LoggedInWrapper's "not approved" branch is dead and logs the user.**
@@ -641,9 +650,3 @@ it's a hardcoded allowlist, and expanding its use spreads policy into code.
   `console.log`s the whole `GlobalUser`, email and permission bits included, on
   every sign-in (173). Replace 158-177 with
   `{(globalUser) => p.children(globalUser, attemptSignOut)}`.
-- **`getOtherUser` has no caller.** Nothing in `client/src` calls the route
-  (`lib/api-routes/instance/users.ts:40-45`,
-  `server/routes/instance/users.ts:156-165`) and the headless allowlist leaves
-  it out (`server/middleware/headless_allowlist.ts:17-31`). Delete both; keep
-  the db function, which `renameUserEmail` reads
-  (`server/routes/instance/users.ts:534`).

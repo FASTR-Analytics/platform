@@ -20,10 +20,10 @@ import {
   _IS_PRODUCTION,
   _SERVER_VERSION,
   _START_TIME,
-  _STATUS_API_KEY,
   _WEEKLY_TOKEN_LIMIT,
 } from "../../exposed_env_vars.ts";
 import { getModuleDefaultsSnapshot } from "../../runs/mod.ts";
+import { requireStatusKey } from "../../middleware/userPermission.ts";
 
 export const routesHealth = new Hono();
 
@@ -256,28 +256,28 @@ LIMIT ${limit}
 
 // The status site's module-defaults scrape (fleet matrix + global defaults
 // compute script). Contract on ModuleDefaultsGlobalFile in lib.
-routesHealth.get("/module_defaults_snapshot", async (c: Context) => {
-  if (
-    !_STATUS_API_KEY || c.req.header("status-api-key") !== _STATUS_API_KEY
-  ) {
-    return c.json({ error: "Unauthorized" }, 401);
-  }
-  const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
-  const res = await getModuleDefaultsSnapshot(mainDb);
-  if (res.success === false) {
-    return c.json({ error: res.err }, 500);
-  }
-  return c.json(res.data);
-});
+routesHealth.get(
+  "/module_defaults_snapshot",
+  requireStatusKey(),
+  async (c: Context) => {
+    const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
+    const res = await getModuleDefaultsSnapshot(mainDb);
+    if (res.success === false) {
+      return c.json({ error: res.err }, 500);
+    }
+    return c.json(res.data);
+  },
+);
 
-routesHealth.post("/pg_stat_statements_reset", async (c: Context) => {
-  if (c.req.header("status-api-key") !== _STATUS_API_KEY) {
-    return c.json({ error: "Unauthorized" }, 401);
-  }
-  const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
-  await mainDb`SELECT pg_stat_statements_reset()`;
-  return c.json({ reset: true, serverTime: new Date().toISOString() });
-});
+routesHealth.post(
+  "/pg_stat_statements_reset",
+  requireStatusKey(),
+  async (c: Context) => {
+    const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
+    await mainDb`SELECT pg_stat_statements_reset()`;
+    return c.json({ reset: true, serverTime: new Date().toISOString() });
+  },
+);
 
 // Every DHIS2 element in the dictionary with the indicator that holds it.
 // The wire keys (id, label, mappedTo) are read outside this repo (SYSTEM_15),

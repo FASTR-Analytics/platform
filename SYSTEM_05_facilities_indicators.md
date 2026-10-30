@@ -1474,10 +1474,11 @@ layer.
   the import in the step-4 summary.
 - Permissions: structure, weights and population reads are `can_view_data`,
   including the population CSV export, except `listAdminArea2s` (one family's
-  level-2 registry, zero-permission `requireGlobalPermission()`, any signed-in
-  user; the scope editor's area pickers, S15, are its one caller) and the
-  population import template (`can_configure_data`); geojson reads are
-  zero-permission too; the HMIS and HFA dictionary reads and every mutation are
+  level-2 registry, `requireApprovedUser()`, any approved user; the scope
+  editor's area pickers, S15, are its one caller) and the population import
+  template (`can_configure_data`); the geojson reads take
+  `requireApprovedUser()` too, and the starting payload withholds the boundary
+  list from an unapproved connection (S3); the HMIS and HFA dictionary reads and every mutation are
   `can_configure_data`; config mutations `can_configure_settings`. Several
   manager UIs still gate their write buttons on `currentUserIsGlobalAdmin`
   instead (Open items); the HFA indicators manager's indicator write controls

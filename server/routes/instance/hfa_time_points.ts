@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import type { Sql } from "postgres";
-import { requireGlobalPermission } from "../../middleware/mod.ts";
+import { log, requireGlobalPermission } from "../../middleware/mod.ts";
 import { defineRoute } from "../route-helpers.ts";
 import {
   getInstanceDatasetsSummary,
@@ -18,6 +18,7 @@ defineRoute(
   routesHfaTimePoints,
   "createHfaTimePoint",
   requireGlobalPermission("can_configure_data"),
+  log("createHfaTimePoint"),
   async (c, { body }) => {
     const mainDb = c.var.mainDb;
     const res = await tryCatchDatabaseAsync(async () => {
@@ -84,6 +85,7 @@ defineRoute(
   routesHfaTimePoints,
   "updateHfaTimePoint",
   requireGlobalPermission("can_configure_data"),
+  log("updateHfaTimePoint"),
   async (c, { body }) => {
     const mainDb = c.var.mainDb;
     const newLabel = body.newLabel;
@@ -144,6 +146,7 @@ defineRoute(
   routesHfaTimePoints,
   "reorderHfaTimePoints",
   requireGlobalPermission("can_configure_data"),
+  log("reorderHfaTimePoints"),
   async (c, { body }) => {
     const mainDb = c.var.mainDb;
     const res = await tryCatchDatabaseAsync(async () => {
@@ -169,6 +172,7 @@ defineRoute(
   routesHfaTimePoints,
   "deleteHfaTimePoint",
   requireGlobalPermission("can_configure_data"),
+  log("deleteHfaTimePoint"),
   async (c, { body }) => {
     const mainDb = c.var.mainDb;
     const res = await tryCatchDatabaseAsync(async () => {

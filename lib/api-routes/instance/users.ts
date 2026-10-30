@@ -134,14 +134,18 @@ export const userRouteRegistry = {
     body: z.object({ email: z.string(), isContactPerson: z.boolean() }),
   }),
   // Renames a user on THIS instance only (main DB, product attribution and
-  // live collab state). Fleet-internal: called machine-to-machine by
-  // renameUserEmailEverywhere with the status-api-key header, or by a global
-  // admin as a support fallback, since the rename hands the whole account to
-  // an address nobody proved they own.
+  // live collab state). Called machine-to-machine by
+  // renameUserEmailEverywhere with the status-api-key header and the Clerk
+  // user id the originating instance verified, which this instance verifies
+  // again, or by a global admin as a support fallback.
   renameUserEmail: route({
     path: "/user/rename-email",
     method: "POST",
-    body: z.object({ oldEmail: z.string(), newEmail: z.string() }),
+    body: z.object({
+      oldEmail: z.string(),
+      newEmail: z.string(),
+      clerkUserId: z.string().optional(),
+    }),
     response: {} as { changed: boolean; warnings: string[] },
   }),
   // Self-service: renames the CALLER's email in every instance that has it.

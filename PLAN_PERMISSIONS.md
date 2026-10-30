@@ -959,3 +959,18 @@ commit.
 - Step 1: removed a stale sentence from the `dropAccessOfMissingUsers` comment
   in server/db/products/products.ts, outside the Surface: it described the old
   replace-all, which deleted and re-inserted every user.
+- Step 2: edited four files outside the Surface because the Deliverable needs
+  them: server/routes/instance/hfa_time_points.ts (the four time-point writes
+  are logged there), server/routes/products/\_respond.ts (the 404 set
+  `REPORT_STYLE_NOT_FOUND` joins), lib/api-routes/instance/structure.ts (its
+  "any authenticated user" comment on `listAdminArea2s`) and SYSTEM_02 (its
+  list of PascalCase functions named the deleted `GetLogs`).
+- Step 2: the unapproved blanks of `aiContext` and `geojsonMaps` are set in
+  `buildInstanceStateWithoutProducts`, not `getInstanceDetail`, because the
+  roster test lives there once `InstanceDetail` loses `users`; the MCP grounding
+  reads the same builder.
+- Step 2: the `getOtherUser` DB function is deleted with its route, since step 1
+  removed `renameUserEmail`, its only other reader.
+- Step 2: the prompt writes' `log()` lands in the approval commit, not the
+  identity commit, because each shares a diff hunk with the guard change; the
+  SYSTEM prose for the whole step lands in the last commit.

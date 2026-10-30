@@ -18,10 +18,12 @@ import {
 } from "../exposed_env_vars.ts";
 import type { DBUser } from "../db/mod.ts";
 import {
+  getInstanceUsers,
   getPgConnectionFromCacheOrNew,
   getScopeGrantsByEmail,
   scopeAccessFromRow,
 } from "../db/mod.ts";
+import { notifyInstanceUsersUpdated } from "../task_management/notify_instance_updated.ts";
 import type { GlobalUser } from "lib";
 import {
   _USER_PERMISSIONS_DEFAULT_FULL_ACCESS,
@@ -87,13 +89,25 @@ export async function buildGlobalUserFromDb(
     >`SELECT * FROM users WHERE email = ${email}`;
     const rawUser = rawUserResult.at(0);
 
-    if (_OPEN_ACCESS && (!rawUser || !rawUser.is_admin)) {
-      // Non-critical insert, don't wait if it fails
-      mainDb`
-        INSERT INTO users (email, is_admin)
-        VALUES (${email}, TRUE)
+    // Open access approves every signed-in email and makes it an admin for
+    // as long as the mode is on; the row it writes is an ordinary user, so
+    // turning the mode off leaves no one an admin it did not appoint. Not
+    // awaited: the request does not depend on it.
+    if (_OPEN_ACCESS && !rawUser) {
+      const writeDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
+      writeDb<{ email: string }[]>`
+        INSERT INTO users (email, is_admin) VALUES (${email}, FALSE)
         ON CONFLICT DO NOTHING
-      `.catch(() => {}); // Ignore errors on this insert
+        RETURNING email
+      `
+        .then(async (inserted) => {
+          if (inserted.length > 0) {
+            notifyInstanceUsersUpdated(await getInstanceUsers(writeDb));
+          }
+        })
+        .catch((error) =>
+          console.error("Open-access user insert failed:", error)
+        );
     }
 
     const isGlobalAdmin = _OPEN_ACCESS || (!!rawUser && rawUser.is_admin);

@@ -247,10 +247,11 @@ owns the consequences).
 
 `health.ts` uses **bare Hono routes, not `defineRoute`**, with zero entries in
 `route-tracker.ts`, so `validateAllRoutesDefined()` cannot see them: the
-registry blind spot (11 endpoints). `authMiddleware` is `clerkMiddleware()`,
-which populates session state and **never rejects**, and these routes carry no
-guards, so all 11 health endpoints are public by design (external status
-dashboard). What each leaks must stay a deliberate decision:
+registry blind spot (12 endpoints). `authMiddleware` is `clerkMiddleware()`,
+which populates session state and **never rejects**, and the read routes carry
+no guards, so 10 of the 12 health endpoints are public by design (external
+status dashboard); the other two take `requireStatusKey()` (S1). What each
+leaks must stay a deliberate decision:
 
 1. `/health_check`: instance meta, uptime, **every user email + admin emails**,
    contact persons, `busy` (the work a restart would kill: the count of
@@ -265,10 +266,11 @@ dashboard). What each leaks must stay a deliberate decision:
 7. `/ai_weekly_usage`: tokens used vs `_WEEKLY_TOKEN_LIMIT`.
 8. `/ai_limit_hits`: limit-hit log.
 9. `/pg_stat_statements`: query texts + timing across all databases.
-10. `POST /pg_stat_statements_reset`: the only write (and only READ_AND_WRITE
-    connection) on the health surface; requires a `status-api-key` header
-    matching `_STATUS_API_KEY` (401 otherwise).
-11. `/dhis2-indicators-export`: every DHIS2 element in the dictionary with the
+10. `/module_defaults_snapshot`: the module default settings S8's fleet
+    script collects; `requireStatusKey()` (401 without the key).
+11. `POST /pg_stat_statements_reset`: the only write (and only READ_AND_WRITE
+    connection) on the health surface; `requireStatusKey()`.
+12. `/dhis2-indicators-export`: every DHIS2 element in the dictionary with the
     indicator that carries it (`id` = the element's `data_id`, `label`,
     `mappedTo` = the indicator id; wire keys the Admin-Website reads, so they
     stay).
@@ -282,18 +284,16 @@ streams run files instead of `ro_*` COPY.
 Owned by S17 ([SYSTEM_17_logging.md](SYSTEM_17_logging.md)): write path,
 retention cron, and the forever-retained `getCurrentUser` exemption live there.
 S15's stake: the health endpoints above read the tables directly, and
-`getAllUserLogs` backs the Users tab's "Last active" column.
+`getUsersLastActive` (the latest raw row per user, `can_view_logs`) backs the
+Users tab's "Last active" column.
 
 ## Disk autonomics
 
 [server/utils/disk_space.ts](server/utils/disk_space.ts). `df` on the runs
 volume; **fail-open**: if `df` fails (macOS dev, GNU flags absent) every check
-returns ok. Three checks: `checkFreeDiskSpace` (500 MB free; backs the
-`getDiskSpace` route in `instance.ts`), module run (200 MB; called per module
-from S8's `execute_module.ts`), and dataset extract
-(`pg_total_relation_size ×
-1.5` CSV-export headroom per selected family, called
-at run launch; hmis/hfa only: no iceh entry, Open item). Every check first calls
+returns ok. Two checks: module run (200 MB; called per module from S8's
+`execute_module.ts`) and dataset extract (`pg_total_relation_size × 1.5`
+CSV-export headroom per selected family, called at run launch; hmis/hfa only: no iceh entry, Open item). Every check first calls
 `maybeRequestVolumeResize`: at ≥90% used it fires `POST …/volumes/resize` on the
 status-api (`targetSizeGB =
 ceil(used/0.80)`) and a SendGrid alert to two
@@ -329,7 +329,7 @@ failures surface as user-facing route errors with GB figures.
 
 - **Users tab** (`users/users.tsx` + `user.tsx` + bulk forms; visibility
   `admin || can_configure_users || can_view_users`): user table with last-active
-  (from `getAllUserLogs`), admin toggle (server requires full admin: the bulk
+  (from `getUsersLastActive`), admin toggle (server requires full admin: the bulk
   buttons and the user detail's Make admin and Make non-admin show for
   `can_configure_users` and 403 at click, Open item), per-user
   instance-permission checkboxes, batch CSV upload (`email, is_global_admin`
@@ -357,7 +357,7 @@ failures surface as user-facing route errors with GB figures.
   adds and code-verifies the address through the Clerk JS SDK, runs S1's
   `renameUserEmailEverywhere` fleet rename, then flips the Clerk primary and
   refreshes the session token.
-- **Feedback form** → S12's `sendHelpEmail` route (`requireGlobalPermission()`):
+- **Feedback form** → S12's `sendHelpEmail` route (`requireApprovedUser()`):
   SendGrid confirmation to the user + copies to `_FEEDBACK_EMAIL_RECIPIENTS`,
   `replyTo` the user.
 
@@ -415,11 +415,10 @@ currently internet-exposed behind a shared password).
   (`server/routes/instance/users.ts:192`, 256). Lift `canConfigureUsers`
   (`users.tsx:478-480`) into `InstanceUsers` and render both only when it holds.
 - **Last active shows "..." forever without `can_view_logs`.**
-  `users/users.tsx:39` always runs `getAllUserLogs`, which requires
-  `can_view_logs` (`server/routes/instance/users.ts:299`), so `logs` stays
-  undefined (92-95) and every row renders "..." (363-370). Build the query and
-  the Last active column (352-374) only when
-  `instanceState.currentUserIsGlobalAdmin` or
+  `users/users.tsx:46` always runs `getUsersLastActive`, which requires
+  `can_view_logs` (`server/routes/instance/users.ts:289`), so `lastActive`
+  stays undefined (99-102) and every row renders "...". Build the query and the
+  Last active column only when `instanceState.currentUserIsGlobalAdmin` or
   `instanceState.currentUserPermissions.can_view_logs` holds.
 - **Change email's report phase has no button to leave.** After a partial
   failure the footer holds only Retry

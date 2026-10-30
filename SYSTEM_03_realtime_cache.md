@@ -103,10 +103,13 @@ unapproved) receives `users: []` in `starting` and has every `users_updated`
 rewritten to `[]` in the forward loop, until a roster payload names them, at
 which point that message flows whole and the client's own-email re-derivation
 flips them approved. The roster is an enumeration surface (emails, names,
-permission maps) with no consumer on the pending-approval screen. Deliberately
-NOT withheld from unapproved connections, pending a separate ruling if ever
-wanted: `dhis2ConnectionUrl`, the structure/indicator/dataset summaries, and
-assets; likewise approved non-admin users still receive the full roster. The
+permission maps) with no consumer on the pending-approval screen. The same rule
+withholds the copilot grounding and the boundary files: an unapproved
+connection's `starting` carries `aiContext: ""` and `geojsonMaps: []`, its
+`config_updated` arrives with `aiContext` blanked, and `geojson_maps_updated`
+does not reach it. Deliberately NOT withheld from unapproved connections:
+`dhis2ConnectionUrl`, the structure/indicator/dataset summaries, and assets;
+likewise approved non-admin users still receive the full roster. The
 product plane rides the same roster rule: `buildInstanceState` leaves
 `products`, `folders`, `readyPackages`, `scopes` and the `lastUpdated` index
 empty for an unapproved connection, and the forward loop drops

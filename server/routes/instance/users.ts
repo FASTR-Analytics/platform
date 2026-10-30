@@ -60,6 +60,7 @@ import {
   requireApprovedUser,
   requireGlobalPermission,
   requireGlobalPermissionOrStatusKey,
+  requireStatusKey,
 } from "../../middleware/userPermission.ts";
 import { getClerkSessionAuth } from "../../middleware/auth.ts";
 import {
@@ -428,13 +429,8 @@ function pushUserNameToPeers(
 defineRoute(
   routesUsers,
   "receiveUserNameSync",
-  requireGlobalPermissionOrStatusKey({ requireAdmin: true }),
+  requireStatusKey(),
   async (c, { body }) => {
-    // No globalUser = fleet-internal machine call (status-api-key path), the
-    // only caller allowed: names come from Clerk, never from an admin.
-    if (c.var.globalUser) {
-      return c.json({ success: false, err: "Fleet-internal route" }, 403);
-    }
     // No onward push: only the instance that observed the Clerk change fans
     // out, so a sync can never echo around the fleet.
     const changed = await syncUserName(
@@ -478,13 +474,8 @@ defineRoute(
 defineRoute(
   routesUsers,
   "receiveUserProfileSync",
-  requireGlobalPermissionOrStatusKey({ requireAdmin: true }),
+  requireStatusKey(),
   async (c, { body }) => {
-    // No globalUser = fleet-internal machine call, the only caller allowed:
-    // a profile is the user's own words, never an admin's.
-    if (c.var.globalUser) {
-      return c.json({ success: false, err: "Fleet-internal route" }, 403);
-    }
     // No onward push, as for names: only the instance the user wrote on fans
     // out, so a sync can never echo around the fleet.
     const changed = await updateUserOrganisation(
@@ -582,8 +573,27 @@ defineRoute(
         err: "The new email is the same as the old one",
       });
     }
-    // No globalUser = fleet-internal machine call (status-api-key path).
+    // No globalUser = fleet-internal machine call (status-api-key path). The
+    // shared key proves only that a peer sent it, so the peer also names the
+    // Clerk account it verified, and this instance checks that the account
+    // owns both addresses before renaming anything.
     const actor = c.var.globalUser?.email as string | undefined;
+    if (actor === undefined) {
+      if (body.clerkUserId === undefined) {
+        return c.json(
+          { success: false, err: "A fleet rename must name the Clerk account" },
+          403,
+        );
+      }
+      const ownership = await verifyClerkEmailOwnership(
+        body.clerkUserId,
+        oldEmail,
+        newEmail,
+      );
+      if (!ownership.ok) {
+        return c.json({ success: false, err: ownership.err }, 403);
+      }
+    }
     if (actor === oldEmail) {
       return c.json({
         success: false,
@@ -695,6 +705,7 @@ async function renameOnPeer(
   id: string,
   oldEmail: string,
   newEmail: string,
+  clerkUserId: string | undefined,
 ): Promise<{ row: RenameEmailInstanceResult; warnings: string[] }> {
   try {
     const response = await fetch(
@@ -705,7 +716,7 @@ async function renameOnPeer(
           "content-type": "application/json",
           "status-api-key": _STATUS_API_KEY,
         },
-        body: JSON.stringify({ oldEmail, newEmail }),
+        body: JSON.stringify({ oldEmail, newEmail, clerkUserId }),
         signal: AbortSignal.timeout(30_000),
       },
     );
@@ -777,13 +788,15 @@ defineRoute(
     // Dry runs are exempt: the wizard previews BEFORE the user adds the new
     // address in Clerk, and the preview only reads user lists that
     // /health_check already exposes publicly.
+    let clerkUserId: string | undefined;
     if (!_BYPASS_AUTH && !body.dryRun) {
       // Session tokens only: the ownership check is the ONLY authorization on
       // this route, so a machine token (PAT/M2M) must not be able to drive a
-      // fleet-wide rename off its userId.
+      // fleet-wide rename off its userId. The guard admitted a session, so
+      // only a session token reaches here and the accessor finds it.
       const auth = getClerkSessionAuth(c);
       if (!auth?.userId) {
-        return c.json({ success: false, err: "Not authenticated" }, 401);
+        throw new Error("renameUserEmailEverywhere reached without a session");
       }
       const ownership = await verifyClerkEmailOwnership(
         auth.userId,
@@ -793,6 +806,7 @@ defineRoute(
       if (!ownership.ok) {
         return c.json({ success: false, err: ownership.err });
       }
+      clerkUserId = auth.userId;
     }
 
     const discovery = await discoverPeers(oldEmail, newEmail);
@@ -877,7 +891,12 @@ defineRoute(
       Array.from({ length: Math.min(4, renameQueue.length) }, async () => {
         let next: { peer: PeerPresence; index: number } | undefined;
         while ((next = renameQueue.shift()) !== undefined) {
-          const res = await renameOnPeer(next.peer.id, oldEmail, newEmail);
+          const res = await renameOnPeer(
+            next.peer.id,
+            oldEmail,
+            newEmail,
+            clerkUserId,
+          );
           peerRows[next.index] = res.row;
           warnings.push(...res.warnings);
         }

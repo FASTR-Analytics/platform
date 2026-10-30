@@ -487,9 +487,10 @@ bundle's area, else "An earlier scope definition". `packageScopeCaption` and
 ## Slide decks
 
 **Data model.** A `slide_decks` detail row keyed by the product id (free-text
-`plan` for the AI planning scratchpad, JSON `config` = deck style and nothing
-else; the name lives on `products`, and `updateSlideDeckConfig` stamps without a
-label so a config write can never rename the deck) + one row per slide (JSON
+`plan`, which no route writes and a duplicate copies, JSON `config` = deck style
+and nothing else; the name lives on `products`, and `updateSlideDeckConfig`
+stamps without a label so a config write can never rename the deck) + one row
+per slide (JSON
 `config` = one `Slide`, integer `sort_order`; FK cascade on product delete).
 Slide ids are short nanoids, unique over the live rows only
 (`generateUniqueSlideId` checks the `slides` table, so a deleted id can be
@@ -963,7 +964,12 @@ via a `product_ids` JSON list or NULL = instance-wide, since the restructure
 left no project to scope one to;
 [server/db/instance/report_styles.ts](server/db/instance/report_styles.ts), CRUD
 on the product-scoped report routes: the path's report decides which styles are
-visible, list is `view` access and every mutation is `edit` and logged). Only
+visible, list is `view` access and every mutation is `edit` and logged; an
+update or delete names a style visible to the path report, else it answers
+`REPORT_STYLE_NOT_FOUND` (404) as an unknown id does, and a create whose
+`productIds` leave out the path report is refused,
+`REPORT_STYLE_EXCLUDES_REPORT`, so an editor of one report never reaches a
+style made for others). Only
 its three `colors` (page, ink, accent) do anything: they override the palette of
 the theme the report is on. `brief` and `reference_css`, the AI design brief and
 the source stylesheet a style carried while reports could be written as html,
@@ -2800,8 +2806,8 @@ schema, the same per-recipient loop): the client attaches the report's paged
 PDF, built in the browser and printed by the server (`buildReportAttachment`),
 and the attachment carries its own MIME type, which the schema holds to
 `application/pdf` or `text/html` although nothing sends html any more.
-`sendHelpEmail` (bare `requireGlobalPermission()`, which authenticates only,
-never checks `approved`, Open item): one email per `_FEEDBACK_EMAIL_RECIPIENTS`
+`sendHelpEmail` (`requireApprovedUser()`: an account awaiting approval sends
+no mail): one email per `_FEEDBACK_EMAIL_RECIPIENTS`
 with `replyTo` the user, then a confirmation to the user only after at least one
 internal send succeeded. Zero internal deliveries returns `success: false` (the
 form shows the error instead of "Thank you"). User-typed text
@@ -2815,10 +2821,10 @@ interpolation in every route.
   human + AI `applyFigureUpdate`) clobber each other. Narrowed by S16: while a
   collab room is live these route through the room and merge; the race remains
   for the no-room path.
-- **`sendHelpEmail` approved-user question**: the guard never checks `approved`,
-  so unapproved (Clerk-authenticated but not-added) users can send feedback.
-  Possibly intended: an unapproved user may legitimately need to reach support.
-  Decide and either document or add the check.
+- **The deck `plan` has no writer.** No route sets `slide_decks.plan`; it is
+  read into `SlideDeckDetail.plan` (`server/db/products/slide_decks.ts:62`) and
+  copied by a duplicate (160). Drop the column in a new migration and the field
+  from `SlideDeckDetail` and both reads.
 - **`overwrite` on `updateReportBody` is dead**: always sent `true`, ignored by
   the DB fn; wire the hard-reject mode or drop it.
 - **Type casts on mutation bodies**: `body.slide as Slide`,

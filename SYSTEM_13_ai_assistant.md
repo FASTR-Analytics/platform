@@ -1128,7 +1128,8 @@ from a row on the Data page behind `can_configure_settings`
 `updateAiContextConfig`), and rides `InstanceState` with the rest of the config,
 so the SPA prompt reads it from T1 with no fetch and `/mcp`'s `get_overview`
 reads it from the instance state its context cache holds per user for 30 s
-(`resolveInstanceState`, `server/mcp/context_cache.ts`).
+(`resolveInstanceState`, `server/mcp/context_cache.ts`). Both are built by
+`buildInstanceStateWithoutProducts`, which blanks it for an unapproved user.
 
 **Documents.** `useAIDocuments` keeps `{assetFilename, anthropicFileId}` pairs
 in IndexedDB, one instance-wide upload registry shared by every product's
@@ -1150,11 +1151,10 @@ plus custom prompts, user-scoped and country-scoped rows in the main DB
 ([lib/types/custom_prompts.ts](lib/types/custom_prompts.ts); registry routes
 [custom_prompts.ts](server/routes/instance/custom_prompts.ts)). Reads return
 country-scoped ∪ own user-scoped; create stamps a server UUID + `createdBy`;
-update/delete require author-or-admin in SQL. Because
-`requireGlobalPermission()` with zero permissions never checks `approved`, every
-handler rejects unapproved users itself, and creating or re-scoping a prompt to
-`"country"` (a prompt-injection surface offered to every user's copilot) is
-admin-only. `created_by` is FK-cascade on user delete, so deleting a user
+update/delete require author-or-admin in SQL. Every prompt route takes
+`requireApprovedUser()`, the three writes are logged, and creating or re-scoping
+a prompt to `"country"` (a prompt-injection surface offered to every user's
+copilot) is admin-only. `created_by` is FK-cascade on user delete, so deleting a user
 silently deletes their country-scoped prompts too.
 
 ## The panther engine (what this app depends on)
