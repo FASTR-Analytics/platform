@@ -8,7 +8,6 @@
 //     server/tests/slide_delete_no_stamp_test.ts
 
 import { assert, assertEquals } from "@std/assert";
-import { Hono } from "hono";
 import {
   ALL_DATA_SCOPE_ID,
   type APIResponseWithData,
@@ -25,31 +24,13 @@ import {
 } from "../db/products/mod.ts";
 import { routesProductSlideDecks } from "../routes/products/slide_decks.ts";
 import { routesProductSlides } from "../routes/products/slides.ts";
+import { appFor, ok } from "./_harness/route_app.ts";
 
 const OWNER = `slide-stamp-${crypto.randomUUID().slice(0, 8)}@example.com`;
 
 function data<T>(res: APIResponseWithData<T>): T {
   if (!res.success) throw new Error(res.err);
   return res.data;
-}
-
-// clerkMiddleware's output contract, as pat_identity_parity_test.ts and
-// products_routes_test.ts simulate it: everything downstream, the access guard
-// included, is the real code. The guard tiers themselves are
-// products_routes_test.ts's subject, not this file's.
-function clerkLegMiddleware(email: string) {
-  const auth = {
-    userId: "user_slide_stamp_test",
-    tokenType: "session_token",
-    sessionClaims: { email, firstName: null, lastName: null },
-  };
-  return async (
-    c: { set: (k: never, v: never) => void },
-    next: () => Promise<void>,
-  ) => {
-    c.set("clerkAuth" as never, (() => auth) as never);
-    await next();
-  };
 }
 
 const textSlide = (markdown: string): ContentSlide => ({
@@ -97,26 +78,9 @@ Deno.test("removing a slide stamps nothing for it", async () => {
   }
   await mainDb`INSERT INTO users (email, is_admin) VALUES (${OWNER}, FALSE)`;
 
-  const app = new Hono();
-  app.use("*", clerkLegMiddleware(OWNER) as never);
-  app.route("/", routesProductSlideDecks);
-  app.route("/", routesProductSlides);
-
-  async function ok<T>(method: string, path: string, body?: unknown) {
-    const res = await app.request(path, {
-      method,
-      headers: body === undefined ? {} : { "Content-Type": "application/json" },
-      body: body === undefined ? undefined : JSON.stringify(body),
-    });
-    const envelope = await res.json();
-    assertEquals(
-      res.status,
-      200,
-      `${method} ${path}: ${JSON.stringify(envelope)}`,
-    );
-    assert(envelope.success, `${method} ${path}: ${JSON.stringify(envelope)}`);
-    return envelope.data as T;
-  }
+  // Everything downstream of the session, the access guard included, is the
+  // real code; the guard tiers are products_routes_test.ts's subject.
+  const app = appFor(OWNER, routesProductSlideDecks, routesProductSlides);
 
   const productIds: string[] = [];
   try {
@@ -132,11 +96,13 @@ Deno.test("removing a slide stamps nothing for it", async () => {
     productIds.push(deck);
 
     const keep = (await ok<{ slideId: string }>(
+      app,
       "POST",
       `/products/${deck}/slides`,
       { position: { toEnd: true }, slide: textSlide("Keep me") },
     )).slideId;
     const doomed = (await ok<{ slideId: string }>(
+      app,
       "POST",
       `/products/${deck}/slides`,
       { position: { toEnd: true }, slide: textSlide("Delete me") },
@@ -145,6 +111,7 @@ Deno.test("removing a slide stamps nothing for it", async () => {
     // 1. The DELETE route.
     const onDelete = await captured(async () => {
       const res = await ok<{ deletedIds: string[] }>(
+        app,
         "DELETE",
         `/products/${deck}/slides`,
         { slideIds: [doomed] },
@@ -169,6 +136,7 @@ Deno.test("removing a slide stamps nothing for it", async () => {
       }),
     ).versionId;
     const extra = (await ok<{ slideId: string }>(
+      app,
       "POST",
       `/products/${deck}/slides`,
       { position: { toEnd: true }, slide: textSlide("Added after the save") },
@@ -176,6 +144,7 @@ Deno.test("removing a slide stamps nothing for it", async () => {
 
     const onRestore = await captured(async () => {
       await ok(
+        app,
         "POST",
         `/products/${deck}/slide-deck/versions/${versionId}/restore`,
       );

@@ -1,5 +1,5 @@
 // The route-test harness: a Hono app that signs every request in as one
-// email by simulating only clerkMiddleware's output contract, so the real
+// session by simulating only clerkMiddleware's output contract, so the real
 // guards, getGlobalUser and the users row decide everything after it.
 
 import { assert, assertEquals } from "@std/assert";
@@ -13,11 +13,27 @@ export type Envelope =
   | { success: true; data?: unknown }
   | { success: false; err: string };
 
-export function clerkLeg(email: string) {
-  const auth = {
-    userId: `user_${email}`,
+// The claims a Clerk session carries: an email alone means no name claims,
+// as a headless credential has none; null is a signed-out request.
+export type SessionClaims = {
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+};
+export type Session = string | SessionClaims | null;
+
+// clerkMiddleware's output contract under @hono/clerk-auth v3: c.var.clerkAuth
+// is the auth FUNCTION getAuth() invokes, its object tagged with the session
+// token type that getClerkSessionAuth checks; a signed-out request resolves
+// to null (the middleware populates, it never rejects).
+export function clerkLeg(session: Session) {
+  const claims = typeof session === "string"
+    ? { email: session, firstName: null, lastName: null }
+    : session;
+  const auth = claims === null ? null : {
+    userId: `user_${claims.email}`,
     tokenType: "session_token",
-    sessionClaims: { email, firstName: null, lastName: null },
+    sessionClaims: claims,
   };
   return async (
     c: { set: (k: never, v: never) => void },
@@ -29,11 +45,11 @@ export function clerkLeg(email: string) {
 }
 
 export function appFor<E extends Env[]>(
-  email: string,
+  session: Session,
   ...routers: { [K in keyof E]: Hono<E[K]> }
 ): Hono {
   const app = new Hono();
-  app.use("*", clerkLeg(email) as never);
+  app.use("*", clerkLeg(session) as never);
   for (const router of routers) {
     app.route("/", router);
   }

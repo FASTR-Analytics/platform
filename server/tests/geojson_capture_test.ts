@@ -13,13 +13,13 @@
 
 import { assertEquals } from "@std/assert";
 import { join } from "@std/path";
-import { Hono } from "hono";
 import type { RunManifest } from "lib";
 import { getPgConnectionFromCacheOrNew } from "../db/mod.ts";
 import { getPgConnection } from "../db/postgres/connection_manager.ts";
 import { prepareRunInputs } from "../worker_routines/generate_run/prepare_inputs.ts";
 import { runDirPath, runTmpDirPath } from "../runs/mod.ts";
 import { routesRunGeneration } from "../routes/instance/run_generation.ts";
+import { appFor } from "./_harness/route_app.ts";
 
 const SCHEMA_PATH =
   new URL("../db/instance/_main_database.sql", import.meta.url).pathname;
@@ -127,22 +127,6 @@ Deno.test("the capture reaches no reuse key", async () => {
 
 const APPROVED_EMAIL = "geojson-capture-test@example.com";
 
-// clerkMiddleware's output contract, as products_routes_test.ts simulates it.
-function clerkLeg(email: string) {
-  const auth = {
-    userId: "user_geojson_capture_test",
-    tokenType: "session_token",
-    sessionClaims: { email, firstName: null, lastName: null },
-  };
-  return async (
-    c: { set: (k: never, v: never) => void },
-    next: () => Promise<void>,
-  ) => {
-    c.set("clerkAuth" as never, (() => auth) as never);
-    await next();
-  };
-}
-
 function scratchManifest(
   runId: string,
   version: number,
@@ -214,9 +198,7 @@ Deno.test("the run-keyed routes serve the stamp and the captured file", async ()
       JSON.stringify(scratchManifest(preCapture, 14, undefined)),
     );
 
-    const app = new Hono();
-    app.use("*", clerkLeg(APPROVED_EMAIL) as never);
-    app.route("/", routesRunGeneration);
+    const app = appFor(APPROVED_EMAIL, routesRunGeneration);
     const stampOf = async (runId: string) =>
       await (await app.request(`/run_generation/run/${runId}/geojson`)).json();
 

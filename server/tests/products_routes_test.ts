@@ -1,15 +1,14 @@
 // The product plane's harness: the product, folder, slide-deck, slide and
 // report routes exercised through the real registry, defineRoute, the access
-// guard and the DB layer against the dev database. The Clerk leg simulates
-// only clerkMiddleware's output contract, as pat_identity_parity_test.ts does;
-// everything downstream is the real code.
+// guard and the DB layer against the dev database, through the route-test
+// harness; everything downstream of its Clerk leg is the real code.
 //
 // Needs a ready pinned package on the dev instance. Run alone with:
 //   BYPASS_AUTH= deno test -A --env-file server/tests/products_routes_test.ts
 
 import { assert, assertEquals, assertNotEquals } from "@std/assert";
-import { Hono } from "hono";
 import {
+  _USER_PERMISSIONS_DEFAULT_NO_ACCESS,
   ALL_DATA_SCOPE_DEFINITION,
   ALL_SCOPES,
   type ContentSlide,
@@ -33,81 +32,27 @@ import {
 } from "../db/instance/scopes.ts";
 import { closeAllConnections } from "../db/postgres/connection_manager.ts";
 import { FOLDER_CYCLE, FOLDER_NOT_FOUND } from "../db/products/mod.ts";
-import { _BYPASS_AUTH } from "../exposed_env_vars.ts";
 import { routesFolders } from "../routes/products/folders.ts";
 import { routesProducts } from "../routes/products/products.ts";
 import { routesProductReports } from "../routes/products/reports.ts";
 import { routesProductSlideDecks } from "../routes/products/slide_decks.ts";
 import { routesProductSlides } from "../routes/products/slides.ts";
 import { buildInstanceState } from "../task_management/build_instance_state.ts";
+import { appFor, assertRealAuth, call, ok } from "./_harness/route_app.ts";
 
 const APPROVED_EMAIL = "products-test-approved@example.com";
 const UNAPPROVED_EMAIL = "products-test-unapproved@example.com";
 const ID_ALPHABET = /^[23456789abcdefghjkmnpqrstuvwxyz]{4}$/;
 
-// clerkMiddleware's output contract (@hono/clerk-auth v3): c.var.clerkAuth
-// is the auth FUNCTION getAuth() invokes, tagged with the session token type;
-// a signed-out request resolves to null (the middleware populates, it never
-// rejects).
-function clerkLegMiddleware(email: string | null) {
-  const auth = email === null ? null : {
-    userId: "user_products_test",
-    tokenType: "session_token",
-    sessionClaims: { email, firstName: null, lastName: null },
-  };
-  return async (
-    c: { set: (k: never, v: never) => void },
-    next: () => Promise<void>,
-  ) => {
-    c.set("clerkAuth" as never, (() => auth) as never);
-    await next();
-  };
-}
-
-function productApp(email: string | null): Hono {
-  const app = new Hono();
-  app.use("*", clerkLegMiddleware(email) as never);
-  app.route("/", routesProducts);
-  app.route("/", routesFolders);
-  app.route("/", routesProductSlideDecks);
-  app.route("/", routesProductSlides);
-  app.route("/", routesProductReports);
-  return app;
-}
-
-type Envelope =
-  | { success: true; data?: unknown }
-  | { success: false; err: string };
-
-async function call(
-  app: Hono,
-  method: string,
-  path: string,
-  body?: unknown,
-): Promise<{ status: number; body: Envelope }> {
-  const res = await app.request(path, {
-    method,
-    headers: body === undefined ? {} : { "Content-Type": "application/json" },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-  return { status: res.status, body: await res.json() };
-}
-
-async function ok<T>(
-  app: Hono,
-  method: string,
-  path: string,
-  body?: unknown,
-): Promise<T> {
-  const res = await call(app, method, path, body);
-  assertEquals(
-    res.status,
-    200,
-    `${method} ${path}: ${JSON.stringify(res.body)}`,
+const productApp = (email: string | null) =>
+  appFor(
+    email,
+    routesProducts,
+    routesFolders,
+    routesProductSlideDecks,
+    routesProductSlides,
+    routesProductReports,
   );
-  assert(res.body.success, `${method} ${path}: ${JSON.stringify(res.body)}`);
-  return res.body.data as T;
-}
 
 function testGlobalUser(email: string, approved: boolean): GlobalUser {
   return {
@@ -122,14 +67,7 @@ function testGlobalUser(email: string, approved: boolean): GlobalUser {
     organisation: null,
     approved,
     isGlobalAdmin: false,
-    thisUserPermissions: {
-      can_configure_users: false,
-      can_view_users: false,
-      can_view_logs: false,
-      can_configure_settings: false,
-      can_configure_data: false,
-      can_view_data: false,
-    },
+    thisUserPermissions: _USER_PERMISSIONS_DEFAULT_NO_ACCESS,
     unlimitedAi: false,
     scopeAccess: ALL_SCOPES,
   };
@@ -146,11 +84,7 @@ const textSlide = (markdown: string): ContentSlide => ({
 });
 
 Deno.test("product routes: guard, ids, folders, package, scope, slides, delete", async () => {
-  if (_BYPASS_AUTH) {
-    throw new Error(
-      "BYPASS_AUTH is set: the product routes harness must exercise the real auth branches. Unset it and re-run.",
-    );
-  }
+  assertRealAuth();
 
   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
   const pinRes = await getPinnedRunId(mainDb);

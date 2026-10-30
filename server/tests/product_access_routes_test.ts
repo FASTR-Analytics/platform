@@ -1,14 +1,13 @@
 // Product levels end to end: five users (owner, editor, viewer, stranger,
 // global admin) against the real product, folder, slide, deck and report
 // routes and the level-aware guard, the starting payload and the collab
-// socket, on the dev database. The Clerk leg simulates only clerkMiddleware's
-// output contract, as products_routes_test.ts does.
+// socket, on the dev database, through the route-test harness.
 //
 // Needs a ready pinned package on the dev instance. Run alone with:
 //   BYPASS_AUTH= deno test -A --env-file --unstable-broadcast-channel server/tests/product_access_routes_test.ts
 
 import { assert, assertEquals } from "@std/assert";
-import { Hono } from "hono";
+import type { Hono } from "hono";
 import {
   ALL_DATA_SCOPE_ID,
   type APIResponseWithData,
@@ -32,7 +31,6 @@ import {
   PRODUCT_GRANT_DUPLICATE,
   PRODUCT_GRANT_IS_OWNER,
 } from "../db/products/mod.ts";
-import { _BYPASS_AUTH } from "../exposed_env_vars.ts";
 import { buildGlobalUserFromDb } from "../auth/global_user.ts";
 import {
   COLLAB_CLOSE_ACCESS_CHANGED,
@@ -44,6 +42,7 @@ import { routesProductReports } from "../routes/products/reports.ts";
 import { routesProductSlideDecks } from "../routes/products/slide_decks.ts";
 import { routesProductSlides } from "../routes/products/slides.ts";
 import { buildInstanceState } from "../task_management/build_instance_state.ts";
+import { appFor, assertRealAuth, call, ok } from "./_harness/route_app.ts";
 
 const OWNER = "product-access-test-owner@example.com";
 const EDITOR = "product-access-test-editor@example.com";
@@ -52,62 +51,16 @@ const STRANGER = "product-access-test-stranger@example.com";
 const ADMIN = "product-access-test-admin@example.com";
 const USERS = [OWNER, EDITOR, VIEWER, STRANGER, ADMIN];
 
-function clerkLegMiddleware(email: string) {
-  const auth = {
-    userId: `user_${email}`,
-    tokenType: "session_token",
-    sessionClaims: { email, firstName: null, lastName: null },
-  };
-  return async (
-    c: { set: (k: never, v: never) => void },
-    next: () => Promise<void>,
-  ) => {
-    c.set("clerkAuth" as never, (() => auth) as never);
-    await next();
-  };
-}
-
-function appFor(email: string): Hono {
-  const app = new Hono();
-  app.use("*", clerkLegMiddleware(email) as never);
-  app.route("/", routesProducts);
-  app.route("/", routesFolders);
-  app.route("/", routesProductSlideDecks);
-  app.route("/", routesProductSlides);
-  app.route("/", routesProductReports);
-  app.route("/", routesCollab);
-  return app;
-}
-
-type Envelope =
-  | { success: true; data?: unknown }
-  | { success: false; err: string };
-
-async function call(
-  app: Hono,
-  method: string,
-  path: string,
-  body?: unknown,
-): Promise<{ status: number; body: Envelope }> {
-  const res = await app.request(path, {
-    method,
-    headers: body === undefined ? {} : { "Content-Type": "application/json" },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-  return { status: res.status, body: await res.json() };
-}
-
-async function ok<T>(
-  app: Hono,
-  method: string,
-  path: string,
-  body?: unknown,
-): Promise<T> {
-  const res = await call(app, method, path, body);
-  assertEquals(res.status, 200, `${method} ${path}: ${JSON.stringify(res)}`);
-  assert(res.body.success, `${method} ${path}: ${JSON.stringify(res.body)}`);
-  return res.body.data as T;
-}
+const productApp = (email: string) =>
+  appFor(
+    email,
+    routesProducts,
+    routesFolders,
+    routesProductSlideDecks,
+    routesProductSlides,
+    routesProductReports,
+    routesCollab,
+  );
 
 async function status(
   app: Hono,
@@ -151,7 +104,7 @@ type CollabSocket = {
 async function collabSocket(email: string): Promise<CollabSocket> {
   const server = Deno.serve(
     { port: 0, onListen: () => {} },
-    appFor(email).fetch,
+    productApp(email).fetch,
   );
   const ws = new WebSocket(`ws://localhost:${server.addr.port}/collab`);
   const inbox: CollabServerMessage[] = [];
@@ -227,11 +180,7 @@ const subscribe = (reportId: string): CollabClientMessage => ({
 });
 
 Deno.test("product levels: the guard, the access routes and the bulk action", async () => {
-  if (_BYPASS_AUTH) {
-    throw new Error(
-      "BYPASS_AUTH is set: the levels harness must exercise the real auth branches. Unset it and re-run.",
-    );
-  }
+  assertRealAuth();
 
   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
   const runId = data(await getPinnedRunId(mainDb));
@@ -246,11 +195,11 @@ Deno.test("product levels: the guard, the access routes and the bulk action", as
     `;
   }
 
-  const owner = appFor(OWNER);
-  const editor = appFor(EDITOR);
-  const viewer = appFor(VIEWER);
-  const stranger = appFor(STRANGER);
-  const admin = appFor(ADMIN);
+  const owner = productApp(OWNER);
+  const editor = productApp(EDITOR);
+  const viewer = productApp(VIEWER);
+  const stranger = productApp(STRANGER);
+  const admin = productApp(ADMIN);
   const productIds: string[] = [];
   const folderIds: string[] = [];
   const sockets: CollabSocket[] = [];

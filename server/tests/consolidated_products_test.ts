@@ -10,7 +10,7 @@
 //   BYPASS_AUTH= deno test -A --env-file server/tests/consolidated_products_test.ts
 
 import { assert, assertEquals } from "@std/assert";
-import { Hono } from "hono";
+import type { Hono } from "hono";
 import {
   reportFiguresSchema,
   type ScopeId,
@@ -31,11 +31,11 @@ import {
   transformFigureBlock,
   walkSlideLayoutNodes,
 } from "../db/migrations/data_transforms/_figure_block.ts";
-import { _BYPASS_AUTH } from "../exposed_env_vars.ts";
 import { routesProducts } from "../routes/products/products.ts";
 import { routesProductReports } from "../routes/products/reports.ts";
 import { routesProductSlideDecks } from "../routes/products/slide_decks.ts";
 import { routesProductSlides } from "../routes/products/slides.ts";
+import { appFor, assertRealAuth, ok } from "./_harness/route_app.ts";
 
 const EMAIL = "consolidated-test-approved@example.com";
 
@@ -70,60 +70,19 @@ const hasMigratedProducts = (
   >`SELECT count(*)::int AS n FROM products WHERE created_by IS NULL`
 )[0].n > 0;
 
-function clerkLegMiddleware(email: string) {
-  const auth = {
-    userId: "user_consolidated_test",
-    tokenType: "session_token",
-    sessionClaims: { email, firstName: null, lastName: null },
-  };
-  return async (
-    c: { set: (k: never, v: never) => void },
-    next: () => Promise<void>,
-  ) => {
-    c.set("clerkAuth" as never, (() => auth) as never);
-    await next();
-  };
-}
-
-function productApp(): Hono {
-  const app = new Hono();
-  app.use("*", clerkLegMiddleware(EMAIL) as never);
-  app.route("/", routesProducts);
-  app.route("/", routesProductSlideDecks);
-  app.route("/", routesProductSlides);
-  app.route("/", routesProductReports);
-  return app;
-}
-
-async function ok<T>(
-  app: Hono,
-  method: string,
-  path: string,
-  body?: unknown,
-): Promise<T> {
-  const res = await app.request(path, {
-    method,
-    headers: body === undefined ? {} : { "Content-Type": "application/json" },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-  const json = await res.json();
-  assertEquals(res.status, 200, `${method} ${path}: ${JSON.stringify(json)}`);
-  assert(json.success, `${method} ${path}: ${JSON.stringify(json)}`);
-  return json.data as T;
-}
-
-function assertAuth(): void {
-  if (_BYPASS_AUTH) {
-    throw new Error(
-      "BYPASS_AUTH is set: this harness must exercise the real auth branches. Unset it and re-run.",
-    );
-  }
-}
+const productApp = () =>
+  appFor(
+    EMAIL,
+    routesProducts,
+    routesProductSlideDecks,
+    routesProductSlides,
+    routesProductReports,
+  );
 
 async function withApprovedUser(
   body: (app: Hono, created: string[]) => Promise<void>,
 ): Promise<void> {
-  assertAuth();
+  assertRealAuth();
   await mainDb`INSERT INTO users (email, is_admin) VALUES (${EMAIL}, FALSE) ON CONFLICT DO NOTHING`;
   const created: string[] = [];
   try {
