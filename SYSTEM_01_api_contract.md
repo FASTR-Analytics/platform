@@ -35,6 +35,9 @@ globs:
   - server/routes/public/oauth_metadata.ts
   - server/tests/headless_oauth_auth_test.ts
   - server/tests/pat_identity_parity_test.ts
+  - server/tests/_harness/route_app.ts
+  - server/tests/lowercase_user_emails_migration_test.ts
+  - server/tests/user_management_test.ts
 docs_absorbed:
 ---
 
