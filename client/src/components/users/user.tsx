@@ -116,7 +116,6 @@ function UserDetail(p: DetailProps) {
         emails: [p.user.email],
         makeAdmin: true,
       }),
-    async () => {},
   );
   const attemptMakeNonAdmin = createButtonAction(
     () =>
@@ -124,7 +123,6 @@ function UserDetail(p: DetailProps) {
         emails: [p.user.email],
         makeAdmin: false,
       }),
-    async () => {},
   );
 
   async function attemptDeleteUser() {
