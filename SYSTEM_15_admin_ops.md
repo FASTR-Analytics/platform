@@ -284,8 +284,8 @@ streams run files instead of `ro_*` COPY.
 Owned by S17 ([SYSTEM_17_logging.md](SYSTEM_17_logging.md)): write path,
 retention cron, and the forever-retained `getCurrentUser` exemption live there.
 S15's stake: the health endpoints above read the tables directly, and
-`getUsersLastActive` (each user's latest log timestamp, `can_view_logs`) backs the
-Users tab's "Last active" column.
+`getUsersLastActive` (each user's latest log timestamp, `can_view_logs`) backs
+the Users tab's "Last active" column.
 
 ## Disk autonomics
 
