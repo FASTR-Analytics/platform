@@ -25,9 +25,9 @@ docs_absorbed:
 
 # S15: Instance Administration & Ops
 
-The Users tab, the Scopes page, instance settings UI, plus the
-operational side-channel: health endpoints, disk autonomics, scheduled jobs,
-deploy. Small server surface, highest privilege.
+The Users tab, the Scopes page, instance settings UI, plus the operational
+side-channel: health endpoints, disk autonomics, scheduled jobs, deploy. Small
+server surface, highest privilege.
 
 ## Scope
 
@@ -50,35 +50,35 @@ in the **gitignored** `PROTOCOL_ACCESS_DBS.md`.
 Owns the admin surface for the permission rows S18's `routes/instance/users.ts`
 writes and S18 evaluates (the user-management rule, scope access, guard
 semantics, permission keys and special modes live in
-[SYSTEM_18_permissions.md](SYSTEM_18_permissions.md)). Health is
-deliberately unauthenticated (and includes one unauthenticated POST write, see
-the exposure inventory); health uses bare Hono routes, so it is invisible to the
-route registry: the sanctioned escape from S1's registry-as-contract. Disk
-autonomics fire out-of-band side effects (volume resize, alert emails) invisible
-to the registry.
+[SYSTEM_18_permissions.md](SYSTEM_18_permissions.md)). Health is deliberately
+unauthenticated (and includes one unauthenticated POST write, see the exposure
+inventory); health uses bare Hono routes, so it is invisible to the route
+registry: the sanctioned escape from S1's registry-as-contract. Disk autonomics
+fire out-of-band side effects (volume resize, alert emails) invisible to the
+registry.
 
 ## The Scopes page
 
 `components/scopes/` is where a holder of `can_configure_data` creates, edits
-and deletes scopes
-(the entity, its routes and its hash are S12 "Scopes"; what a definition filters
-is S9 "The scoped view"). It is the "Scopes" tab on the side rail
-(`instance.tsx`), after Results, shown only when `can("can_configure_data")`
-holds, the flag the three scope routes take (S18). The page sets the chat's `scopes` view (S13)
-while it is open. `InstanceScopes` (`scopes.tsx`) is a fixed panel for the
-reserved "All data" scope above a `Table` over every other scope in
-`instanceState.scopes`. The panel (`AllDataScopePanel`) is the translated label,
-a "Built in" badge, one sentence saying the scope includes every family, limits
-nothing and can be neither edited nor deleted (the routes refuse both, S12), and
-its product count; it is not a row, so no sort, search or selection moves it,
-and nothing opens from it. The table has one row per scope: the label (with a
-"Migrated" badge when `scope.migratedFrom` is set: the update that retired
-projects made it, and hovering names the projects it came from), one column per
-family (HMIS, HFA, ICEH) saying "Excluded", "No limits" or the section's limits
-in a few words, and a Usage column showing the number of products that carry it
-as a badge (`ProductCountBadge`, shared with the results packages table, S8;
-nothing for none), counted in one pass over `instanceState.products`. Each row
-has a checkbox, and the one bulk action, Delete, is the bulk form of the guarded
+and deletes scopes (the entity, its routes and its hash are S12 "Scopes"; what a
+definition filters is S9 "The scoped view"). It is the "Scopes" tab on the side
+rail (`instance.tsx`), after Results, shown only when
+`can("can_configure_data")` holds, the flag the three scope routes take (S18).
+The page sets the chat's `scopes` view (S13) while it is open. `InstanceScopes`
+(`scopes.tsx`) is a fixed panel for the reserved "All data" scope above a
+`Table` over every other scope in `instanceState.scopes`. The panel
+(`AllDataScopePanel`) is the translated label, a "Built in" badge, one sentence
+saying the scope includes every family, limits nothing and can be neither edited
+nor deleted (the routes refuse both, S12), and its product count; it is not a
+row, so no sort, search or selection moves it, and nothing opens from it. The
+table has one row per scope: the label (with a "Migrated" badge when
+`scope.migratedFrom` is set: the update that retired projects made it, and
+hovering names the projects it came from), one column per family (HMIS, HFA,
+ICEH) saying "Excluded", "No limits" or the section's limits in a few words, and
+a Usage column showing the number of products that carry it as a badge
+(`ProductCountBadge`, shared with the results packages table, S8; nothing for
+none), counted in one pass over `instanceState.products`. Each row has a
+checkbox, and the one bulk action, Delete, is the bulk form of the guarded
 delete: the confirm lists the ticked scopes by label, then `deleteScope` is
 called for each in turn through `deleteEachInTurn` (S8 "Bulk delete"), so a
 scope a product carries is refused by label while the rest go. A row opens
@@ -161,8 +161,8 @@ leaks must stay a deliberate decision:
 7. `/ai_weekly_usage`: tokens used vs `_WEEKLY_TOKEN_LIMIT`.
 8. `/ai_limit_hits`: limit-hit log.
 9. `/pg_stat_statements`: query texts + timing across all databases.
-10. `/module_defaults_snapshot`: the module default settings S8's fleet
-    script collects; `requireStatusKey()` (401 without the key).
+10. `/module_defaults_snapshot`: the module default settings S8's fleet script
+    collects; `requireStatusKey()` (401 without the key).
 11. `POST /pg_stat_statements_reset`: the only write (and only READ_AND_WRITE
     connection) on the health surface; `requireStatusKey()`.
 12. `/dhis2-indicators-export`: every DHIS2 element in the dictionary with the
@@ -188,12 +188,13 @@ the Users tab's "Last active" column.
 volume; **fail-open**: if `df` fails (macOS dev, GNU flags absent) every check
 returns ok. Two checks: module run (200 MB; called per module from S8's
 `execute_module.ts`) and dataset extract (`pg_total_relation_size × 1.5`
-CSV-export headroom per selected family, called at run launch; hmis/hfa only: no iceh entry, Open item). Every check first calls
-`maybeRequestVolumeResize`: at ≥90% used it fires `POST …/volumes/resize` on the
-status-api (`targetSizeGB =
-ceil(used/0.80)`) and a SendGrid alert to two
-hardcoded personal emails, with a 10-minute cooldown against resize spam. Check
-failures surface as user-facing route errors with GB figures.
+CSV-export headroom per selected family, called at run launch; hmis/hfa only: no
+iceh entry, Open item). Every check first calls `maybeRequestVolumeResize`: at
+≥90% used it fires `POST …/volumes/resize` on the status-api
+(`targetSizeGB =
+ceil(used/0.80)`) and a SendGrid alert to two hardcoded
+personal emails, with a 10-minute cooldown against resize spam. Check failures
+surface as user-facing route errors with GB figures.
 
 ## Ops: boot, cron, deploy
 
@@ -226,24 +227,24 @@ failures surface as user-facing route errors with GB figures.
   `can("can_view_users")`, which configure implies): every affordance renders
   only for a caller its route admits, read through `canCallRoute` (S18): Add
   users, Batch import, the Make admin and Make non-admin buttons (bulk and on
-  the user detail, `toggleUserAdmin`, admin-only), Edit permissions, Remove,
-  the operator-only unlimited-AI and contact-person cards, and the Last active
-  column with its `getUsersLastActive` query, without which the table sorts by
-  email. Operators are hidden by default and Download exports what the table
-  shows. The user detail holds the toggled keys as a patch over the live roster
-  row (its stored bits, live over `users_updated`) and saves the row with the
-  patch applied; the unlimited-AI and contact-person checkboxes read the row.
-  Batch CSV upload takes `email, is_global_admin` headers (server validates
-  emails, optional replace-all). One bulk tri-state editor
+  the user detail, `toggleUserAdmin`, admin-only), Edit permissions, Remove, the
+  operator-only unlimited-AI card, the admin-only contact-person card, and the
+  Last active column with its `getUsersLastActive` query, without which the
+  table sorts by email. Operators are hidden by default and Download exports
+  what the table shows. The user detail holds the toggled keys as a patch over
+  the live roster row (its stored bits, live over `users_updated`) and saves the
+  row with the patch applied; the unlimited-AI and contact-person checkboxes
+  read the row. Batch CSV upload takes `email, is_global_admin` headers (server
+  validates emails, optional replace-all). One bulk tri-state editor
   (`unchanged → true → false`, posting only changed keys) covers the instance
   flags. "Edit scopes" (`bulk_edit_scopes_form.tsx`) writes one scope access,
   "All data" or a scope list, to every selected user through
-  `bulkSetUserScopeAccess`: shown to an unrestricted holder of its flag. Every write from this tab is held to the
-  user-management rule (S18 "Scope access"), so a manager's selection that names
-  an admin or themselves is refused whole with a 403. The page holds and sets the
-  chat's `users` view at mount and the user detail (opened over the shell)
-  `user` (S13); each view's label and instructions name the page and never the
-  roster or the email.
+  `bulkSetUserScopeAccess`: shown to an unrestricted holder of its flag. Every
+  write from this tab is held to the user-management rule (S18 "Scope access"),
+  so a manager's selection that names an admin or themselves is refused whole
+  with a 403. The page holds and sets the chat's `users` view at mount and the
+  user detail (opened over the shell) `user` (S13); each view's label and
+  instructions name the page and never the roster or the email.
 - **Self-profile** (`profile.tsx`): AI usage bars; the organisation
   (`users.organisation`, migration 219; the role column it also added is dropped
   by 221) is the user's own words, written through `updateMyProfile`, which

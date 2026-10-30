@@ -3,7 +3,6 @@ export { FamilyPane } from "./family_pane.tsx";
 export { StatusBar } from "./status_bar.tsx";
 export {
   canViewPackageContents,
-  canViewPackageLogs,
   moduleLabel,
   ModuleProgressChip,
   PinnedBadge,

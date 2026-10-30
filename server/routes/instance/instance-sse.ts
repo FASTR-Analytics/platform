@@ -43,7 +43,7 @@ export type InstanceSseFilterResult = {
 //   - Telemetry: `run_progress`/`r_script` (run labels, module ids, R error
 //     detail) go to can_view_data holders only: a mid-session grant starts the
 //     stream, a revocation stops it, no reconnect. A restricted user is never
-//     one: effectivePermissions reads its data bits as false.
+//     one: effectivePermissions gives them no flag.
 //   - Roster: an UNAPPROVED connection (its user absent from the roster) gets
 //     `users_updated` rewritten to `[]`: the roster is an enumeration surface
 //     (emails, names, permission maps) with no consumer on the pending-approval

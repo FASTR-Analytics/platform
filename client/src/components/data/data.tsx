@@ -82,10 +82,6 @@ export function InstanceData(p: Props) {
   });
   const canConfigureData = () => can("can_configure_data");
 
-  // Structure config and the instance settings keep the gate of the Settings
-  // tab they came from, so who can change them is unchanged.
-  const canConfigureSettings = () => can("can_configure_data");
-
   const enabledColumnCount = (family: FacilityFamily) => {
     const schema = structureSchemaForFamily(family);
     return [
@@ -272,7 +268,7 @@ export function InstanceData(p: Props) {
 
   const hmisRows = (): DataRow[] => {
     const rows: DataRow[] = [];
-    if (canConfigureSettings()) {
+    if (canConfigureData()) {
       rows.push(configurationRow("hmis"));
     }
     if (canConfigureData()) {
@@ -365,7 +361,7 @@ export function InstanceData(p: Props) {
 
   const hfaRows = (): DataRow[] => {
     const rows: DataRow[] = [];
-    if (canConfigureSettings()) {
+    if (canConfigureData()) {
       rows.push(configurationRow("hfa"));
     }
     const timePoints = instanceState.hfaTimePoints.length;
@@ -483,7 +479,7 @@ export function InstanceData(p: Props) {
       section(HMIS_HEADING(), hmisRows()),
       section(HFA_HEADING(), hfaRows()),
       section(ICEH_HEADING(), icehRows()),
-      ...(canConfigureSettings()
+      ...(canConfigureData()
         ? [section(SETTINGS_HEADING(), generalRows())]
         : []),
     ];
@@ -525,7 +521,7 @@ export function InstanceData(p: Props) {
           })}
           rows={icehRows()}
         />
-        <Show when={canConfigureSettings()}>
+        <Show when={canConfigureData()}>
           <DataSection
             data-tour="instance-data-settings"
             heading={SETTINGS_HEADING()}

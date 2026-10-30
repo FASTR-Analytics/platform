@@ -33,7 +33,7 @@ import {
   holdCopilotView,
 } from "~/components/instance/copilot/mod.ts";
 import { UserScopesCard } from "./user_scopes";
-import { can, canCallRoute, isGlobalAdmin } from "~/state/instance/permissions";
+import { can, canCallRoute } from "~/state/instance/permissions";
 
 type Props = {
   email: string;
@@ -270,7 +270,9 @@ function UserDetail(p: DetailProps) {
             </div>
           </Card>
         </Show>
-        <Show when={isGlobalAdmin() && !p.user.isGlobalAdmin}>
+        <Show
+          when={canCallRoute("setUserScopeAccess") && !p.user.isGlobalAdmin}
+        >
           <UserScopesCard user={p.user} />
         </Show>
         <Show when={canCallRoute("setUserUnlimitedAi")}>

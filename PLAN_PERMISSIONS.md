@@ -1084,14 +1084,17 @@ commit.
   because its `EXPECTED` table is keyed by every registry route and
   `getUserPermissions` left the registry.
 - Step 7: edited `server/auth/refusals.ts` (the restricted-caller constant left
-  with its check; the country-prompt refusal joined), `lib/types/instance_sse.ts`, `server/runs/package_internals.ts`
-  and `client/src/components/results_packages/package_view/view_logs.tsx`
-  (comments naming the dropped flags) and `server/tests/product_access_db_test.ts`
-  (a caller literal carried `scopeAccess`), outside the Surface, because the
-  fold removed what they named.
+  with its check; the country-prompt refusal joined),
+  `lib/types/instance_sse.ts` and `server/runs/package_internals.ts` (comments
+  naming the dropped flags) and `server/tests/product_access_db_test.ts` (a
+  caller literal carried `scopeAccess`), outside the Surface, because the fold
+  removed what they named.
 - Step 7: edited `client/src/state/instance/t1_sse.tsx` and
   `client/src/onboarding/catalogue.ts` (the catalogue entitlement and the tour
   catalogue's Results entries follow `can_view_data`), and SYSTEM_03, SYSTEM_06,
   SYSTEM_12 and SYSTEM_14 (the telemetry filter, the Indicators-rows open item,
   the scope routes' guard and the rail's gates), outside the Surface, because
   each restated a rule the mapping changed.
+- Step 7: edited `client/src/components/results_packages/package_view/mod.ts`,
+  outside the Surface, because the review removed `canViewPackageLogs`, which it
+  exported.

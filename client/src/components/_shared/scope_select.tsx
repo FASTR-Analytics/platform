@@ -34,7 +34,7 @@ export function pickableScopes(keep: ScopeId | undefined): Scope[] {
 
 // Scopes are picked by label, "All data" first (the order the scopes list
 // arrives in). The author never sets a scope's dimensions: those are edited
-// by a global admin on the Scopes page, opened from Results.
+// by a `can_configure_data` holder on the Scopes page, opened from Results.
 export function ScopeSelect(p: Props) {
   const keep = untrack(() => p.scopeId);
   const scopes = () => p.anyScope ? instanceState.scopes : pickableScopes(keep);

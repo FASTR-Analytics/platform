@@ -1,11 +1,7 @@
 import { type RunProgress, runStageLabel, t3 } from "lib";
 import { Button } from "panther";
 import { createSignal, For, Show } from "solid-js";
-import {
-  canViewPackageContents,
-  canViewPackageLogs,
-  moduleLabel,
-} from "./status";
+import { canViewPackageContents, moduleLabel } from "./status";
 import { ViewFiles } from "./view_files";
 import { ViewLogs } from "./view_logs";
 import { ViewScript } from "./view_script";
@@ -63,7 +59,7 @@ export function FailedDetail(p: {
                 {t3({ en: "Script", fr: "Script", pt: "Script" })}
               </Button>
             </Show>
-            <Show when={canViewPackageLogs()}>
+            <Show when={canViewPackageContents()}>
               <Button
                 size="sm"
                 outline

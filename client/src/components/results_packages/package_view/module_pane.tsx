@@ -9,11 +9,7 @@ import {
 import { Button, formatFileSize } from "panther";
 import { createMemo, For, Show } from "solid-js";
 import { ScopeSelect, scopeSelectLabel } from "~/components/_shared/mod.ts";
-import {
-  canViewPackageContents,
-  canViewPackageLogs,
-  runOutputFileHref,
-} from "./status";
+import { canViewPackageContents, runOutputFileHref } from "./status";
 import { ViewLogs } from "./view_logs";
 import { ViewScript } from "./view_script";
 import { ModulePresets, type OpenEditor } from "./presets";
@@ -107,7 +103,7 @@ export function ModulePane(p: {
               {t3({ en: "Script", fr: "Script", pt: "Script" })}
             </Button>
           </Show>
-          <Show when={canViewPackageLogs()}>
+          <Show when={canViewPackageContents()}>
             <Button size="sm" outline onClick={() => openViewer(ViewLogs)}>
               {t3({ en: "Logs", fr: "Journaux", pt: "Registos" })}
             </Button>

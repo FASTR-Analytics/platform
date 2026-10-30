@@ -22,10 +22,6 @@ export function canViewPackageContents(): boolean {
   return can("can_view_data");
 }
 
-export function canViewPackageLogs(): boolean {
-  return can("can_view_data");
-}
-
 // The gated static mount for one raw output file (`<a download>` cannot send
 // headers, so this is a plain URL under the same `can_view_data` guard).
 export function runOutputFileHref(
