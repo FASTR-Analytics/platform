@@ -129,10 +129,10 @@ routes ride its route files. S12 owns the files, S16 the feature (SYSTEMS.md
 route declares `guard: GUARD.product(level)` and is guarded by
 `requireProductAccess` (S18,
 [SYSTEM_18_permissions.md](SYSTEM_18_permissions.md): the user needs the
-declared level on the product and, if restricted, its scope);
-on the client the gates are `productLevel`, `canEditProduct` and `canOwnProduct`
-in `state/instance/product_access.ts` ("Access in the client" below). There is
-no unauthenticated product surface: a deck reaches recipients as an emailed PDF
+declared level on the product and, if restricted, its scope); on the client the
+gates are `productLevel`, `canEditProduct` and `canOwnProduct` in
+`state/instance/product_access.ts` ("Access in the client" below). There is no
+unauthenticated product surface: a deck reaches recipients as an emailed PDF
 (cross-cutting audit SYSTEMS.md §4.3.9).
 
 **Access is a Google Doc's**. A product has one owner, per-user grants at `view`
@@ -200,10 +200,14 @@ and the slide canvas takes no divider drag, block swap or context menu; the
 report's body editor is read-only, and a FASTR report the user cannot write
 shows its File menu alone in the menu row (`ReportFileMenu`: Download…, Email
 this file…, Make a copy…). A product row in the list shows a lock icon when its
-general access is `none`. Folder and create affordances keep
-`currentUserApproved`, since folders carry no level. The `products_upserted`
-handler fires the stamp listener only for a product whose stamp moved, so an
-access re-broadcast reaches the store and no listener.
+general access is `none`. The create affordances keep `currentUserApproved`,
+since folders carry no level; the folder affordances (New folder, the folder
+menu's rename, move, set-access and delete, and folder drag) render only when
+`canCallRoute("createFolder")` holds (S18), so a restricted user, whom every
+folder route refuses, sees none, and `ListView` takes its folder-menu handler
+optionally and draws no menu button without one. The `products_upserted` handler
+fires the stamp listener only for a product whose stamp moved, so an access
+re-broadcast reaches the store and no listener.
 
 **The access dialog.** `ProductAccessModal` (`_shared/product_access_modal.tsx`)
 is behind "Manage access…" in the product menu, the deck's File menu and the
@@ -357,9 +361,9 @@ ids stay valid).
 every product-scoped path lives under `/products/:product_id/...`
 (`.../slide-deck`, `.../slides/:slide_id`, `.../report`,
 `.../versions/:version_id`), batch targets ride the body as `productIds`, and
-every registry entry declares its `guard`, which is the whole guard (S18). Handlers
-name only `log(...)`; a not-found envelope from the DB layer leaves as a 404
-through `_respond.ts`, so a slide or version id under the wrong product is
+every registry entry declares its `guard`, which is the whole guard (S18).
+Handlers name only `log(...)`; a not-found envelope from the DB layer leaves as
+a 404 through `_respond.ts`, so a slide or version id under the wrong product is
 a 404. In `routes/products/slides.ts` the move route is registered before the
 per-slide update: both match `PUT
 .../slides/move`, and Hono runs matching
@@ -447,9 +451,8 @@ is the backstop. `rowToScope` derives `definitionHash` on every read.
 **Routes** (`server/routes/instance/scopes.ts` over
 `lib/api-routes/instance/scopes.ts`): `createScope` (`POST /scopes`),
 `updateScope` (`PUT /scopes/:scope_id`) and `deleteScope`
-(`DELETE /scopes/:scope_id`), each guarded
-`requireAdmin()`. An unknown id on update or
-delete is a 404, and `all-data` on either is a 403 (`SCOPE_RESERVED`).
+(`DELETE /scopes/:scope_id`), each guarded `requireAdmin()`. An unknown id on
+update or delete is a 404, and `all-data` on either is a 403 (`SCOPE_RESERVED`).
 `server/tests/scope_routes_test.ts` pins both refusals and that the routes take
 only the per-family definition. There is no list route: every successful write
 re-reads the whole list and broadcasts it as `scopes_updated` (S3), and
@@ -487,9 +490,8 @@ bundle's area, else "An earlier scope definition". `packageScopeCaption` and
 `plan`, which no route writes and a duplicate copies, JSON `config` = deck style
 and nothing else; the name lives on `products`, and `updateSlideDeckConfig`
 stamps without a label so a config write can never rename the deck) + one row
-per slide (JSON
-`config` = one `Slide`, integer `sort_order`; FK cascade on product delete).
-Slide ids are short nanoids, unique over the live rows only
+per slide (JSON `config` = one `Slide`, integer `sort_order`; FK cascade on
+product delete). Slide ids are short nanoids, unique over the live rows only
 (`generateUniqueSlideId` checks the `slides` table, so a deleted id can be
 re-minted), which is why `_SLIDE_CACHE` is keyed by `(productId,
 slideId)`.
@@ -965,15 +967,14 @@ visible, list is `view` access and every mutation is `edit` and logged; an
 update or delete names a style visible to the path report, else it answers
 `REPORT_STYLE_NOT_FOUND` (404) as an unknown id does, and a create whose
 `productIds` leave out the path report is refused,
-`REPORT_STYLE_EXCLUDES_REPORT`, so an editor of one report never reaches a
-style made for others). Only
-its three `colors` (page, ink, accent) do anything: they override the palette of
-the theme the report is on. `brief` and `reference_css`, the AI design brief and
-the source stylesheet a style carried while reports could be written as html,
-are still stored and round-tripped, and nothing reads them
-(`lib/types/report_styles.ts`). The theme modal lists the styles as tiles of the
-default theme repainted in each palette (`FastrCustomThemeMock`) and they are
-created and edited in
+`REPORT_STYLE_EXCLUDES_REPORT`, so an editor of one report never reaches a style
+made for others). Only its three `colors` (page, ink, accent) do anything: they
+override the palette of the theme the report is on. `brief` and `reference_css`,
+the AI design brief and the source stylesheet a style carried while reports
+could be written as html, are still stored and round-tripped, and nothing reads
+them (`lib/types/report_styles.ts`). The theme modal lists the styles as tiles
+of the default theme repainted in each palette (`FastrCustomThemeMock`) and they
+are created and edited in
 [report_style_editor.tsx](client/src/components/products/report/report_style_editor.tsx)
 (name, description, the three colours, visibility; delete lives there because a
 confirm dialog would replace the picker), which sends an existing row's `brief`
@@ -2803,13 +2804,12 @@ schema, the same per-recipient loop): the client attaches the report's paged
 PDF, built in the browser and printed by the server (`buildReportAttachment`),
 and the attachment carries its own MIME type, which the schema holds to
 `application/pdf` or `text/html` although nothing sends html any more.
-`sendHelpEmail` (`requireApprovedUser()`: an account awaiting approval sends
-no mail): one email per `_FEEDBACK_EMAIL_RECIPIENTS`
-with `replyTo` the user, then a confirmation to the user only after at least one
-internal send succeeded. Zero internal deliveries returns `success: false` (the
-form shows the error instead of "Thank you"). User-typed text
-(`message`/`description`/`context`/ `userEmail`) is HTML-escaped before
-interpolation in every route.
+`sendHelpEmail` (`requireApprovedUser()`: an account awaiting approval sends no
+mail): one email per `_FEEDBACK_EMAIL_RECIPIENTS` with `replyTo` the user, then
+a confirmation to the user only after at least one internal send succeeded. Zero
+internal deliveries returns `success: false` (the form shows the error instead
+of "Thank you"). User-typed text (`message`/`description`/`context`/
+`userEmail`) is HTML-escaped before interpolation in every route.
 
 ## Open items
 

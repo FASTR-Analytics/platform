@@ -10,8 +10,8 @@ import { buildQuickMoveEntries } from "./product_menu";
 export function buildFolderMenu(args: {
   folder: Folder;
   folders: Folder[];
-  // The bulk action is a global admin's alone.
-  isGlobalAdmin: boolean;
+  // The bulk action, setFolderProductsAccess, is a global admin's alone.
+  canSetProductsAccess: boolean;
   onMoveTo: (parentId: string | null) => void;
   onMoveToFolder: () => void;
   onEdit: () => void;
@@ -40,7 +40,7 @@ export function buildFolderMenu(args: {
       icon: "pencil",
       onClick: args.onEdit,
     },
-    ...(args.isGlobalAdmin
+    ...(args.canSetProductsAccess
       ? [
         {
           label: t3({

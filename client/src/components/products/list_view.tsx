@@ -100,7 +100,9 @@ type Props = {
   onOpenProduct: (product: ProductSummary) => void;
   onToggleFolder: (folderId: string) => void;
   onProductMenu: (evt: MouseEvent, product: ProductSummary) => void;
-  onFolderMenu: (evt: MouseEvent, folder: Folder) => void;
+  // Absent when the connection may not change folders: the row then has no
+  // menu button.
+  onFolderMenu?: (evt: MouseEvent, folder: Folder) => void;
   canDrag: (row: ProductTreeRow) => boolean;
   // Called only at dragstart, so only for a row canDrag accepted.
   dragItem: (row: ProductRow | FolderRow) => DragItem;
@@ -426,7 +428,9 @@ export function ListView(p: Props) {
       dropKey: r().folder.id,
       draggable: p.canDrag(r()),
       onToggle: () => p.onToggleFolder(r().folder.id),
-      onMenu: (e) => p.onFolderMenu(e, r().folder),
+      onMenu: p.onFolderMenu === undefined
+        ? undefined
+        : (e) => p.onFolderMenu?.(e, r().folder),
       onDragStart: (e) => startDrag(e, r(), "folder", r().folder.label),
     }));
   }

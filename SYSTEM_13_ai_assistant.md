@@ -757,15 +757,15 @@ each tool where the set is assembled and, before the handler or an approval's
 over the tool's requirement, the user's live permissions
 (`instanceState.currentUserPermissions`), the live level on the view's product
 (`productLevel`, S12, from the view's `productId`, `deckId` or `reportId`; null
-in a view with no product), and throws the table's reason as an
-`AIToolFailure`. So a viewer can read a deck or
-report and ask about it while its writes refuse, `get_module_r_script` and
-`get_module_settings` refuse without `can_view_data` and `get_module_log`
-without `can_view_logs`, and a demotion reaches the next call. A tool outside
-the catalogue fails the assembly. Below edit level a product view's instructions
-carry the level line (above). The chat menu has no view-specific items: its one
-such item, "Save this report's style…" for an html report, went with that format
-on 2026-10-13, so the pane imports nothing from `components/products/`.
+in a view with no product), and throws the table's reason as an `AIToolFailure`.
+So a viewer can read a deck or report and ask about it while its writes refuse,
+`get_module_r_script` and `get_module_settings` refuse without `can_view_data`
+and `get_module_log` without `can_view_logs`, and a demotion reaches the next
+call. A tool outside the catalogue fails the assembly. Below edit level a
+product view's instructions carry the level line (above). The chat menu has no
+view-specific items: its one such item, "Save this report's style…" for an html
+report, went with that format on 2026-10-13, so the pane imports nothing from
+`components/products/`.
 
 **The approval policy** is the chat's
 `{ requireForKind: "write", requireKind: true, exempt: COPILOT_APPROVAL_EXEMPT }`
@@ -1154,8 +1154,10 @@ country-scoped ∪ own user-scoped; create stamps a server UUID + `createdBy`;
 update/delete require author-or-admin in SQL. Every prompt route takes
 `requireApprovedUser()`, the three writes are logged, and creating or re-scoping
 a prompt to `"country"` (a prompt-injection surface offered to every user's
-copilot) is admin-only. `created_by` is FK-cascade on user delete, so deleting a user
-silently deletes their country-scoped prompts too.
+copilot) is admin-only, and the save dialog offers the country scope only to a
+global admin (`isGlobalAdmin()`, S18); Edit and Delete on a country prompt show
+to its author or an admin, the DB rule. `created_by` is FK-cascade on user
+delete, so deleting a user silently deletes their country-scoped prompts too.
 
 ## The panther engine (what this app depends on)
 
@@ -1206,12 +1208,12 @@ the editor tools (`get_hfa_indicator_editor`, `update_hfa_indicator_editor`,
 `editor_tools.ts`) in `hfa_indicator_editor` alone. Who may call them refuses
 through the guard: the reads, the writes and `update_hfa_indicator_editor` all
 need `can_configure_data`, the flag the manager's own write controls read
-(`can("can_configure_data")`, S18). Every HFA route keeps its own guard.
-The three writes declare `approval.propose` with `presentation: "modal"`
-(panther owns the propose → modal → commit lifecycle); the editor write is
-exempt, since it lands in the open editor's unsaved draft, which the user saves
-or discards. The HFA guidance (the model, type and aggregation, the grammar and
-how m010 evaluates the code, scope, how to work) is `instructions.ts`'s
+(`can("can_configure_data")`, S18). Every HFA route keeps its own guard. The
+three writes declare `approval.propose` with `presentation: "modal"` (panther
+owns the propose → modal → commit lifecycle); the editor write is exempt, since
+it lands in the open editor's unsaved draft, which the user saves or discards.
+The HFA guidance (the model, type and aggregation, the grammar and how m010
+evaluates the code, scope, how to work) is `instructions.ts`'s
 `getHfaIndicatorsGuidance`; it rides both the manager's view and the editor's,
 each through its context and under its own lines
 (`getHfaIndicatorsInstructions`, `getHfaIndicatorEditorInstructions`), is

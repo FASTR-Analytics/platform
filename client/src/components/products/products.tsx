@@ -74,6 +74,7 @@ import {
   copilotViewController,
   holdCopilotView,
 } from "~/components/instance/copilot/mod.ts";
+import { canCallRoute } from "~/state/instance/permissions";
 
 const _SEARCH_MIN_LENGTH = 3;
 
@@ -273,9 +274,12 @@ export function Products() {
   // PACKAGE_OR_SCOPE_UNAVAILABLE still comes back through the dialog: it is
   // the authority, and it covers a package or scope removed while the dialog
   // is open.
-  const canEdit = () => instanceState.currentUserApproved;
+  const canCreate = () => instanceState.currentUserApproved;
+  // Every folder route refuses a restricted user, so the folder affordances
+  // follow the create route's guard.
+  const canManageFolders = () => canCallRoute("createFolder");
   const canCreateProduct = () =>
-    canEdit() &&
+    canCreate() &&
     instanceState.readyPackages.length > 0 &&
     instanceState.scopes.length > 0;
 
@@ -454,7 +458,7 @@ export function Products() {
     return buildFolderMenu({
       folder,
       folders: instanceState.folders,
-      isGlobalAdmin: instanceState.currentUserIsGlobalAdmin,
+      canSetProductsAccess: canCallRoute("setFolderProductsAccess"),
       onMoveTo: (parentId) => void quickMoveFolder(folder.id, parentId),
       onMoveToFolder: () =>
         void openComponent({
@@ -479,7 +483,7 @@ export function Products() {
   }
 
   function handleFolderMenu(e: MouseEvent, folder: Folder) {
-    if (!canEdit()) return;
+    if (!canManageFolders()) return;
     showMenu({
       anchor: { x: e.clientX, y: e.clientY, width: 0, height: 0 },
       items: folderMenuItems(folder),
@@ -504,20 +508,24 @@ export function Products() {
           disabled: !canCreateProduct(),
           onClick: () => void createProduct("report"),
         },
-        { type: "divider" },
-        {
-          label: t3({
-            en: "New folder",
-            fr: "Nouveau dossier",
-            pt: "Nova pasta",
-          }),
-          icon: "folder",
-          onClick: () =>
-            void openComponent({
-              element: EditFolderModal,
-              props: { folder: undefined, parentId: null },
-            }),
-        },
+        ...(canManageFolders()
+          ? [
+            { type: "divider" as const },
+            {
+              label: t3({
+                en: "New folder",
+                fr: "Nouveau dossier",
+                pt: "Nova pasta",
+              }),
+              icon: "folder" as const,
+              onClick: () =>
+                void openComponent({
+                  element: EditFolderModal,
+                  props: { folder: undefined, parentId: null },
+                }),
+            },
+          ]
+          : []),
       ],
     });
   }
@@ -598,7 +606,7 @@ export function Products() {
               </div>
             }
           >
-            <Show when={canEdit()}>
+            <Show when={canCreate()}>
               <div class="ui-gap-sm flex items-center">
                 <Show when={!canCreateProduct()}>
                   <span class="text-base-content-muted text-xs">
@@ -632,11 +640,11 @@ export function Products() {
         onOpenProduct={(product) => void openProduct(product)}
         onToggleFolder={toggleFolder}
         onProductMenu={handleProductMenu}
-        onFolderMenu={handleFolderMenu}
+        onFolderMenu={canManageFolders() ? handleFolderMenu : undefined}
         canDrag={(row) =>
           row.kind === "product"
             ? productLevelAtLeast(productSummaryLevel(row.product), "edit")
-            : row.kind === "folder" && canEdit()}
+            : row.kind === "folder" && canManageFolders()}
         dragItem={(row) =>
           row.kind === "product"
             ? {
