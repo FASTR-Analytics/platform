@@ -325,9 +325,6 @@ export async function getInstanceDetail(
       >`SELECT COUNT(*) as count FROM hfa_time_points`
     )[0].count;
 
-    // Get cache version for indicators (includes counts to detect deletions)
-    const indicatorsVersion = await getIndicatorsVersion(mainDb);
-
     const instanceDetails: InstanceDetail = {
       instanceId: _INSTANCE_ID,
       instanceName: _INSTANCE_NAME,

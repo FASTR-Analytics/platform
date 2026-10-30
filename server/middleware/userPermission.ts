@@ -51,13 +51,10 @@ function admit(c: Context, globalUser: GlobalUser): void {
 }
 
 /**
- * The approved-user guard: signed in AND `globalUser.approved`. It guards the
- * run-keyed figure-data reads, the authoring context, the ready-package list
- * and the copilot proxies. The collab socket applies the same two checks
- * inline in `routes/instance/collab.ts`, because a WebSocket upgrade must
- * answer with a close code, not a JSON 401. `requireGlobalPermission()` is not
- * this: its zero-permission form never checks `approved`, and its call sites
- * keep their semantics.
+ * The approved-user guard: signed in AND `globalUser.approved`; SYSTEM_01
+ * "The guard factories" lists what it guards. The collab socket applies the
+ * same two checks inline in `routes/instance/collab.ts`, because a WebSocket
+ * upgrade must answer with a close code, not a JSON 401.
  */
 export function requireApprovedUser() {
   return createMiddleware<{ Variables: GuardVariables }>(
@@ -295,8 +292,8 @@ export function requireStatusKey() {
 }
 
 /** Like requireGlobalPermission, but ALSO passes fleet-internal machine calls
- *  authenticated by the shared status-api-key header (same key
- *  /health_check/pg_stat_statements_reset checks). Machine calls get mainDb
+ *  authenticated by the shared status-api-key header (the key
+ *  requireStatusKey checks). Machine calls get mainDb
  *  but NO globalUser: a handler behind this guard must treat a missing
  *  globalUser as the machine actor. */
 export function requireGlobalPermissionOrStatusKey(

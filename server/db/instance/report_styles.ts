@@ -110,6 +110,9 @@ export async function updateReportStyle(
   body: ReportStyleBody,
 ): Promise<APIResponseWithData<ReportCustomStyle>> {
   return await tryCatchDatabaseAsync(async () => {
+    if (!reportStyleVisibleToProduct(body, productId)) {
+      return { success: false, err: REPORT_STYLE_EXCLUDES_REPORT };
+    }
     const row = await mainDb.begin(async (sql) => {
       if (!(await lockStyleVisibleTo(sql, styleId, productId))) {
         return undefined;

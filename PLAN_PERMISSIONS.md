@@ -446,8 +446,8 @@ the normalisation; the harness and the test.
 - `getAllUserLogs` and `GetLogs` are deleted (registry, route, DB function, the
   `UserLog` type); `getUsersLastActive` (`can_view_logs`, response
   `{ email: string; lastActive: string }[]`, one `GROUP BY user_email` query)
-  replaces them, and `users.tsx` reads it for the Last active column. The health
-  endpoints stay the only readers of `details`.
+  replaces them, and `users.tsx` reads it for the Last active column. No
+  endpoint reads `details`.
 - `requireApprovedUser()` on every remaining zero-argument site except
   `getCurrentUser`, `/instance_updates`, `updateMyProfile` and
   `renameUserEmailEverywhere`: the TUS routes, `deleteAssets`,

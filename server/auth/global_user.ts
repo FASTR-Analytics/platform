@@ -2,7 +2,7 @@
 // shapes converge here: the dev bypass, a headless credential (PAT or OAuth,
 // already resolved to an email by the headless auth middleware), and a Clerk
 // session. `approved` (`_OPEN_ACCESS || !!usersRow`) is what
-// requireApprovedUser() and productAccessPolicy gate the product surface on;
+// requireApprovedUser() and productAccessPolicy gate on;
 // the six instance permission flags say nothing about approval.
 // `scopeAccess` is the user's grants, and a restricted user's permission bits
 // are reduced here, once.

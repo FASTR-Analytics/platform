@@ -2,8 +2,8 @@ import { createMiddleware } from "hono/factory";
 import { AddLog } from "../db/instance/user_logs.ts";
 import { getPgConnectionFromCacheOrNew } from "../db/mod.ts";
 
-// Credential fields must never reach user_logs (rows are retained for the raw
-// window and readable through the unauthenticated health endpoints).
+// Credential fields must never reach user_logs: details is stored as plain text
+// for the raw retention window.
 const _REDACTED_BODY_KEYS = ["password", "secret", "token", "apikey"];
 
 function redactSensitiveFields(value: unknown): unknown {
@@ -47,6 +47,14 @@ export const log = (routeName: string) =>
       error = e;
     }
 
+    // Only an approved user has the users row the user_logs FK needs; a
+    // machine call has no user at all.
+    const user = c.var.globalUser;
+    if (user?.approved !== true) {
+      if (error) throw error;
+      return;
+    }
+
     try {
       const mainDb = c.var.mainDb ??
         getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
@@ -87,12 +95,7 @@ export const log = (routeName: string) =>
         details = JSON.stringify({ _truncated: true, bytes: details.length });
       }
 
-      // Only an approved user has the users row the user_logs FK needs; a
-      // machine call has no user at all.
-      if (c.var.globalUser?.approved === true) {
-        AddLog(mainDb, c.var.globalUser.email, routeName, status, details)
-          .catch(() => {});
-      }
+      AddLog(mainDb, user.email, routeName, status, details).catch(() => {});
     } catch {
       // Don't let logging errors break the response
     }

@@ -25,8 +25,7 @@ the Admin-Website's activity analytics are built entirely on these rows.
 - Captures the JSON body for POST/PUT/PATCH/DELETE (Content-Type-gated:
   `application/json` or empty), redacting `password`/`secret`/`token`/`apikey`
   keys recursively. Credential fields must never reach `user_logs`, since rows
-  are retained for the raw window and readable through S15's unauthenticated
-  health endpoints.
+  are retained for the raw window with `details` in plain text.
 - After the handler: writes one row via `AddLog` with the route name, result
   status (`"500"` if the handler threw; the error is re-thrown after), params,
   headers minus `authorization`/`cookie`, and the body, with a two-rung 64 KiB
@@ -62,10 +61,9 @@ remove that exemption and never de-log the `getCurrentUser` route.
 
 ## Readers
 
-- `getUsersLastActive` (instance `can_view_logs`): the latest raw row per user,
-  one `GROUP BY user_email` query, for the Users tab's "Last active" column
-  (`users/users.tsx`). No route returns a row's `details`; only the health
-  endpoints below read them.
+- `getUsersLastActive` (instance `can_view_logs`): each user's latest log
+  timestamp, one `GROUP BY user_email` query, for the Users tab's "Last active"
+  column (`users/users.tsx`). No route returns a row's `details`.
 - S15's unauthenticated health endpoints (`server/routes/instance/health.ts`):
   `/user_logs` (getCurrentUser trail), `/user_logs_all`, `/user_logs_aggregate`,
   plus `/health_check` and `/user_activity` derived views. S15 owns the file;
@@ -78,7 +76,7 @@ remove that exemption and never de-log the `getCurrentUser` route.
 
 ## Coverage conventions
 
-`log()` is **not** applied to every route (187 call sites across the 243
+`log()` is **not** applied to every route (216 call sites across the 243
 registry routes and the raw ones): coverage is a
 deliberate audit-value judgment, re-baselined against fleet-wide volume data
 (all-history aggregate across 35 instances):

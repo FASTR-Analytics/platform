@@ -371,6 +371,13 @@ Deno.test("product levels: the guard, the access routes and the bulk action", as
       styleBody([report]),
     );
     assertEquals(excluded.body.success, false);
+    const moved = await call(
+      owner,
+      "PUT",
+      `/products/${report}/report/styles/${style.id}`,
+      styleBody([otherReport]),
+    );
+    assertEquals(moved.body.success, false);
     await ok(
       owner,
       "PUT",

@@ -24,8 +24,6 @@ VALUES
   });
 }
 
-// The latest raw row per user: the Users tab's Last active column, and the
-// only reader of user_logs besides the health endpoints.
 export async function getUsersLastActive(
   mainDb: Sql,
 ): Promise<APIResponseWithData<UserLastActive[]>> {
