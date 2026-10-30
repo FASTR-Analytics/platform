@@ -664,7 +664,6 @@ export function detectHfaWorkbookShape(
     variantItems.push({ id, groupId, label });
   }
 
-  // Indicators sheet: its headers, before its rows
   const indHeaders = (indicatorsAoa[0] ?? []).map((h) =>
     String(h ?? "").trim()
   );
@@ -696,7 +695,6 @@ export function detectHfaWorkbookShape(
     });
   }
 
-  // Code columns in the order they appear, each with its round's filter column.
   const filterHeaderIndexByLabel = new Map<string, number>();
   for (let c = 0; c < indHeaders.length; c++) {
     const m = indHeaders[c].match(FILTER_CODE_HEADER);
@@ -715,6 +713,19 @@ export function detectHfaWorkbookShape(
     });
   }
   const codeLabels = codeColumns.map((c) => c.label);
+  const orphanFilterHeader = [...filterHeaderIndexByLabel.keys()].find(
+    (label) => !codeLabels.includes(label),
+  );
+  if (orphanFilterHeader !== undefined) {
+    return sheetError(language, SHEET_INDICATORS, {
+      en:
+        `filter code column "filter_code__${orphanFilterHeader}" has no matching code__${orphanFilterHeader} column.`,
+      fr:
+        `la colonne de code filtre « filter_code__${orphanFilterHeader} » n'a pas de colonne code__${orphanFilterHeader} correspondante.`,
+      pt:
+        `a coluna de código de filtro "filter_code__${orphanFilterHeader}" não tem coluna code__${orphanFilterHeader} correspondente.`,
+    });
+  }
 
   // Variant code columns, resolved against the Variant items sheet by
   // longest-matching item id (item ids can legally contain "__", so blind

@@ -815,7 +815,8 @@ last resolved against the Variant items sheet by longest-matching item id. The
 Indicators sheet refuses any header the import does not read, naming it: the
 known set is the export's column list, each text column's language forms and
 those three patterns, so a misnamed code column cannot import its indicators
-with no code. The reconcile step maps each code column's time point to a
+with no code. A filter code column with no code column of its time point is
+refused the same way. The reconcile step maps each code column's time point to a
 platform time point, matched by label by default. The default file carries one
 code column (`code__Round 1`), so with N time points the reconcile step offers
 apply-to-all / apply-to-one. Pinned by

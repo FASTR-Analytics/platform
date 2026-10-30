@@ -223,6 +223,27 @@ Deno.test("a column the import does not read is refused, naming it", () => {
   assertStringIncludes(err, 'unknown column "r_code__Round 1"');
 });
 
+Deno.test("a filter code column with no code column of its time point is refused", () => {
+  const orphanFilter = workbook({
+    Categories: [["id", "label"], ["shocks", "Shocks"]],
+    Indicators: [
+      [
+        "indicatorId",
+        "label",
+        "type",
+        "aggregation",
+        "code__Round 1",
+        "filter_code__Round1",
+      ],
+      ["ind001", "Shock", ...INDICATOR_TAIL, "sh_00==1"],
+    ],
+  });
+  assertStringIncludes(
+    detectErr(orphanFilter, "en"),
+    '"filter_code__Round1"',
+  );
+});
+
 Deno.test("the repo's default indicator workbook parses", async () => {
   const file = await Deno.readFile(
     new URL("../../hfa_default_indicators.xlsx", import.meta.url),
