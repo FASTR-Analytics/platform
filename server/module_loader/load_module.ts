@@ -6,6 +6,7 @@ import {
   type Metric,
   type MetricDefinitionGithub,
   MODULE_REGISTRY,
+  MODULES_BRANCH,
   type ModuleDefinitionDetail,
   type ModuleDefinitionGithub,
   moduleDefinitionGithubSchema,
@@ -67,7 +68,7 @@ export async function fetchModuleFiles(
   if (gitRef === undefined) {
     try {
       const commitsRes = await fetch(
-        `https://api.github.com/repos/${owner}/${repo}/commits?path=${path}&per_page=1`,
+        `https://api.github.com/repos/${owner}/${repo}/commits?path=${path}&sha=${MODULES_BRANCH}&per_page=1`,
         { headers },
       );
       if (commitsRes.ok) {
@@ -82,7 +83,7 @@ export async function fetchModuleFiles(
   }
 
   // Use commit SHA if available to avoid GitHub's raw content cache (~5min)
-  const ref = gitRef ?? "main";
+  const ref = gitRef ?? MODULES_BRANCH;
   const baseUrl =
     `https://raw.githubusercontent.com/${owner}/${repo}/${ref}/${path}`;
 

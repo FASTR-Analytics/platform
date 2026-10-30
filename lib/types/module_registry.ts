@@ -1,3 +1,7 @@
+// Version 1 reads the modules repo's frozen v1 branch: main moved to
+// version 2's definition schema on 2026-10-21.
+export const MODULES_BRANCH = "v1";
+
 export const MODULE_REGISTRY = [
   {
     id: "m001",

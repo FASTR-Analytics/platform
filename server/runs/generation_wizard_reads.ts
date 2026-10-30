@@ -2,6 +2,7 @@ import type { Sql } from "postgres";
 import {
   getValidatedModuleId,
   MODULE_REGISTRY,
+  MODULES_BRANCH,
   type APIResponseWithData,
   type RunGenerationModuleOption,
   type RunGenerationModuleOptions,
@@ -28,7 +29,7 @@ async function resolveModulesRepoHeadRef(): Promise<string> {
     return "local";
   }
   const { owner, repo } = MODULE_REGISTRY[0].github;
-  const res = await fetchCommits(owner, repo, "", "main");
+  const res = await fetchCommits(owner, repo, "", MODULES_BRANCH);
   if (res.success === false) {
     throw new Error(
       `Could not resolve the modules repository's latest commit: ${res.err}`,

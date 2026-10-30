@@ -1,5 +1,5 @@
 import { join } from "@std/path";
-import { MODULE_REGISTRY, type RepoAssetToImport } from "lib";
+import { MODULE_REGISTRY, MODULES_BRANCH, type RepoAssetToImport } from "lib";
 import {
   _ASSETS_DIR_PATH,
   _GITHUB_TOKEN,
@@ -25,7 +25,8 @@ export async function ensureRepoAssetCached(
   moduleId: string,
   pin: RepoAssetToImport,
   // The ref the module's definition was resolved at; null falls back to
-  // "main", exactly mirroring the definition fetch itself (load_module).
+  // MODULES_BRANCH, exactly mirroring the definition fetch itself
+  // (load_module).
   gitRef: string | null,
 ): Promise<string> {
   const cachePath = join(REPO_ASSETS_DIR, pin.sha256);
@@ -43,7 +44,7 @@ export async function ensureRepoAssetCached(
   if (sha256 !== pin.sha256) {
     throw new Error(
       `Pinned repo asset "${pin.name}" (${pin.repoPath} @ ${
-        gitRef ?? "main"
+        gitRef ?? MODULES_BRANCH
       }): sha256 mismatch — expected ${pin.sha256}, got ${sha256}`,
     );
   }
@@ -68,7 +69,7 @@ async function fetchPinnedBytes(
   }
   const { owner, repo } = registryEntry.github;
   const url = `https://raw.githubusercontent.com/${owner}/${repo}/${
-    gitRef ?? "main"
+    gitRef ?? MODULES_BRANCH
   }/${pin.repoPath}`;
   const headers: Record<string, string> = {};
   if (_GITHUB_TOKEN) {
