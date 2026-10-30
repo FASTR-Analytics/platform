@@ -9,11 +9,11 @@
 import { assert, assertEquals } from "@std/assert";
 import { join } from "@std/path";
 import {
-  _USER_PERMISSIONS_DEFAULT_NO_ACCESS,
   ALL_SCOPES,
   type CollabServerMessage,
   geographyOnlyScopeDefinition,
   type OtherUser,
+  userPermissions,
 } from "lib";
 import { getPgConnectionFromCacheOrNew } from "../db/mod.ts";
 import { createScope } from "../db/instance/scopes.ts";
@@ -347,13 +347,13 @@ Deno.test("the instance stream ends when an approved connection's user leaves th
     scopeAccess: ALL_SCOPES,
     unlimitedAi: false,
     isContactPerson: false,
-    ..._USER_PERMISSIONS_DEFAULT_NO_ACCESS,
+    ...userPermissions(false),
   };
   const filter = createInstanceSseFilter({
     currentUserEmail: VIEWER,
     currentUserApproved: true,
     currentUserIsGlobalAdmin: false,
-    currentUserPermissions: _USER_PERMISSIONS_DEFAULT_NO_ACCESS,
+    currentUserPermissions: userPermissions(false),
     currentUserScopeAccess: ALL_SCOPES,
     products: [],
     folders: [],

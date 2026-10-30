@@ -2,11 +2,11 @@ import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import {
   canUserSeeAsset,
+  effectivePermissions,
   type Folder,
   type GlobalUser,
   type InstanceSseMessage,
   type InstanceState,
-  permissionsUnderScopeAccess,
   type ProductSummary,
   scopeAccessEqual,
   type ScopeId,
@@ -43,7 +43,7 @@ export type InstanceSseFilterResult = {
 //   - Telemetry: `run_progress`/`r_script` (run labels, module ids, R error
 //     detail) go to instance data admins only: a mid-session grant starts the
 //     stream, a revocation stops it, no reconnect. A restricted user is never
-//     one: permissionsUnderScopeAccess reads its data bits as false.
+//     one: effectivePermissions reads its data bits as false.
 //   - Roster: an UNAPPROVED connection (its user absent from the roster) gets
 //     `users_updated` rewritten to `[]`: the roster is an enumeration surface
 //     (emails, names, permission maps) with no consumer on the pending-approval
@@ -98,8 +98,7 @@ export function createInstanceSseFilter(
     isGlobalAdmin: start.currentUserIsGlobalAdmin,
     scopeAccess: start.currentUserScopeAccess,
   };
-  let canSeeRunMessages = start.currentUserIsGlobalAdmin ||
-    start.currentUserPermissions.can_configure_data;
+  let canSeeRunMessages = start.currentUserPermissions.can_configure_data;
   let isApproved = start.currentUserApproved;
   let allFolders = deps.allFolders;
   // The connection's own copy of what it holds (product id to folder id),
@@ -131,11 +130,8 @@ export function createInstanceSseFilter(
         isGlobalAdmin: me?.isGlobalAdmin ?? viewer.isGlobalAdmin,
         scopeAccess: me?.scopeAccess ?? viewer.scopeAccess,
       };
-      const myPermissions = me === undefined
-        ? undefined
-        : permissionsUnderScopeAccess(me, next.scopeAccess);
-      canSeeRunMessages = (me?.isGlobalAdmin ?? false) ||
-        (myPermissions?.can_configure_data ?? false);
+      canSeeRunMessages = me !== undefined &&
+        effectivePermissions(me).can_configure_data;
       const removed = isApproved && me === undefined;
       isApproved = me !== undefined;
       const changed = removed ||

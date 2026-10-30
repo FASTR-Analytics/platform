@@ -46,8 +46,6 @@ export * from "./sort.ts";
 export * from "./ai_input.ts";
 export * from "./streaming.ts";
 export * from "./structure.ts";
-export * from "./permissions.ts";
-export * from "./permission_labels.ts";
 export * from "./custom_prompts.ts";
 export * from "./whats_new.ts";
 export * from "./collab.ts";

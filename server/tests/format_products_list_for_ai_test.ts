@@ -6,9 +6,9 @@
 
 import { assert, assertStringIncludes } from "@std/assert";
 import { formatProductsListForAI } from "../../lib/ai_tools/format_products_list_for_ai.ts";
+import type { ProductAccess } from "../../lib/permissions/mod.ts";
 import type {
   Folder,
-  ProductAccess,
   ProductBase,
   ProductSummary,
 } from "../../lib/types/products.ts";

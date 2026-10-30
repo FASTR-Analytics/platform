@@ -127,7 +127,7 @@ An asset can be private: visible only to its owner and the viewers they chose.
 Admins get no bypass, except for an asset whose owner account has been deleted,
 which admins can see and take over so it is never stranded. The one rule is
 `canUserSeeAsset` (and `canUserManagePrivateAsset` for change/delete/ overwrite)
-in `lib/types/assets.ts`.
+in `lib/permissions/` (S18).
 
 - **Storage.** `private_assets (file_name, owner_email)` plus
   `private_asset_viewers (file_name, email)` (migration 218, the same tables an

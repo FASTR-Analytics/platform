@@ -108,9 +108,8 @@ populates, it never rejects).
   handler; the policy lives in `server/auth/product_access.ts`. A handler that
   receives a `slide_id` or `version_id` still scopes its query by `product_id`
   as well, so an id from another product is a 404.
-- Permission keys come from `lib/types/permissions.ts` only. Adding a key? Add
-  it there (type + array + `buildUserPermissionsFromRow`), plus the DB column
-  migration.
+- Permission keys come from `lib/permissions/_flags.ts` only. Adding a key? Add
+  it there (type + array; every builder follows), plus the DB column migration.
 - Admin-only → `requireGlobalPermission({ requireAdmin: true })`.
 - Zero permission keys = "any authenticated caller", without the `approved`
   check: real but weak; be deliberate.

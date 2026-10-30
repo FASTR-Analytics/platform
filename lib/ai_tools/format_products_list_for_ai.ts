@@ -1,5 +1,5 @@
 import type { Folder, ProductSummary, ProductType } from "../types/products.ts";
-import { productLevelFor } from "../types/products.ts";
+import { productLevelFor } from "../permissions/mod.ts";
 
 // The Products page as the model reads it (`list_products`): every product
 // the user can see, where it sits, what it renders from and what the user may

@@ -7,8 +7,6 @@
 import { assert, assertEquals, assertNotEquals } from "@std/assert";
 import type { CopilotToolName } from "lib";
 import {
-  _USER_PERMISSIONS_DEFAULT_FULL_ACCESS,
-  _USER_PERMISSIONS_DEFAULT_NO_ACCESS,
   COPILOT_APPROVAL_EXEMPT,
   COPILOT_CHAT_WIDE_TOOLS,
   COPILOT_PACKAGE_VIEWS,
@@ -20,6 +18,7 @@ import {
   copilotViewIdentity,
   packageToolsKey,
   USER_PERMISSIONS,
+  userPermissions,
 } from "lib";
 
 const GROUPS = {
@@ -249,12 +248,12 @@ Deno.test("refusals follow the permission bits, the product level and the HFA wr
   assertEquals({ ...COPILOT_TOOL_REQUIREMENTS }, REQUIREMENTS);
 
   const nothing = {
-    permissions: _USER_PERMISSIONS_DEFAULT_NO_ACCESS,
+    permissions: userPermissions(false),
     canWriteHfaIndicators: false,
     productLevel: "view" as const,
   };
   const everything = {
-    permissions: _USER_PERMISSIONS_DEFAULT_FULL_ACCESS,
+    permissions: userPermissions(true),
     canWriteHfaIndicators: true,
     productLevel: "edit" as const,
   };

@@ -268,7 +268,7 @@ layer's barrel `server/db/products/mod.ts` is star-exported from
 `lib/types/scope.ts`.
 
 **Levels.** A user holds one level on a product, ordered `none`, `view`, `edit`,
-`own` (`PRODUCT_LEVELS`, `lib/types/products.ts`). `ProductAccess` is who holds
+`own` (`PRODUCT_LEVELS`, `lib/permissions/`, S18). `ProductAccess` is who holds
 what: `owner`, `defaultAccess` (the general access, what everyone else in the
 instance holds) and `grants` (`{ email, level }`, `view` or `edit`).
 `productLevelFor(access, user)` is the one derivation: a global admin and the

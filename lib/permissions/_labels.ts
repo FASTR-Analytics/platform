@@ -1,5 +1,5 @@
 import type { TranslatableString } from "../translate/types.ts";
-import type { UserPermission } from "./permissions.ts";
+import type { UserPermission } from "./_flags.ts";
 
 export const INSTANCE_PERMISSION_LABELS: Record<
   UserPermission,

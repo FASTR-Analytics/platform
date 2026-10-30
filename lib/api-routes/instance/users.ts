@@ -1,12 +1,14 @@
 import { z } from "zod";
+import {
+  type GlobalUser,
+  USER_PERMISSIONS,
+  type UserPermission,
+} from "../../permissions/mod.ts";
 import type {
-  GlobalUser,
   PersonalAccessTokenSummary,
   RenameEmailInstanceResult,
   UserLastActive,
-  UserPermission,
 } from "../../types/mod.ts";
-import { USER_PERMISSIONS } from "../../types/mod.ts";
 import { scopeUuidSchema } from "../../types/scope.ts";
 import { route } from "../route-utils.ts";
 

@@ -6,8 +6,6 @@ import type {
   IndicatorMetadata,
   IndicatorMetadataDisplay,
 } from "./indicators.ts";
-import type { UserPermissions } from "./permissions.ts";
-import type { ScopeId, ScopeUuid } from "./scope.ts";
 import type { HfaWeightsCoverage } from "./structure.ts";
 import type { JsonArrayItem } from "./_figure_bundle.ts";
 import {
@@ -289,75 +287,6 @@ export function hashStructureSchema(schema: StructureColumns): string {
 // User Types
 // ============================================================================
 
-export type GlobalUser = {
-  instanceName: string;
-  instanceLanguage: Language;
-  instanceCalendar: InstanceCalendar;
-  instanceFiscalYear: InstanceFiscalYear;
-  openAccess: boolean;
-  email: string;
-  firstName: string;
-  lastName: string;
-  // The user's own words, from their profile; null until they say.
-  organisation: string | null;
-  approved: boolean;
-  isGlobalAdmin: boolean;
-  thisUserPermissions: UserPermissions;
-  unlimitedAi: boolean;
-  scopeAccess: ScopeAccess;
-};
-
-// The roster row carries the STORED permission bits; a restricted user's
-// effective bits are permissionsUnderScopeAccess of them.
-export type OtherUser = {
-  email: string;
-  isGlobalAdmin: boolean;
-  firstName?: string;
-  lastName?: string;
-  organisation?: string;
-  unlimitedAi: boolean;
-  isContactPerson: boolean;
-  scopeAccess: ScopeAccess;
-} & UserPermissions;
-
-// Which scopes a user may use. `all: false` is a restricted user
-// (`users.all_scopes = FALSE`), limited to the products that carry one of
-// `scopeIds` and to package data read through one of them. A
-// global admin and every user of an open-access instance are `{ all: true }`.
-export type ScopeAccess =
-  | { all: true }
-  | { all: false; scopeIds: ScopeUuid[] };
-
-export const ALL_SCOPES: ScopeAccess = { all: true };
-
-export function canUseScope(access: ScopeAccess, scopeId: ScopeId): boolean {
-  return access.all ||
-    access.scopeIds.some((granted) => granted === scopeId);
-}
-
-export function scopeAccessEqual(a: ScopeAccess, b: ScopeAccess): boolean {
-  if (a.all || b.all) {
-    return a.all === b.all;
-  }
-  const bIds = new Set(b.scopeIds);
-  return a.scopeIds.length === bIds.size &&
-    a.scopeIds.every((id) => bIds.has(id));
-}
-
-// These three bits expose whole packages and raw datasets, which a
-// restricted user must not read, so they read as false whatever is stored.
-export function permissionsUnderScopeAccess(
-  permissions: UserPermissions,
-  access: ScopeAccess,
-): UserPermissions {
-  return access.all ? permissions : {
-    ...permissions,
-    can_view_data: false,
-    can_configure_data: false,
-    can_view_logs: false,
-  };
-}
-
 /** Per-instance outcome of a fleet-wide email rename
  *  (renameUserEmailEverywhere). "pending" appears only in dry runs. */
 export type RenameEmailInstanceResult = {
@@ -386,41 +315,6 @@ export type UserLogAggregate = {
   week_start: Date;
   count: number;
 };
-
-// ============================================================================
-// Dev/Offline Mode Helpers
-// ============================================================================
-
-export function createDevGlobalUser(
-  instanceName: string,
-  instanceLanguage: Language,
-  instanceCalendar: InstanceCalendar,
-  instanceFiscalYear: InstanceFiscalYear,
-): GlobalUser {
-  return {
-    instanceName,
-    instanceLanguage,
-    instanceCalendar,
-    instanceFiscalYear,
-    openAccess: false,
-    email: "dev@offline.local",
-    firstName: "Dev",
-    lastName: "User",
-    organisation: null,
-    approved: true,
-    isGlobalAdmin: true,
-    thisUserPermissions: {
-      can_configure_users: true,
-      can_view_users: true,
-      can_view_logs: true,
-      can_configure_settings: true,
-      can_configure_data: true,
-      can_view_data: true,
-    },
-    unlimitedAi: false,
-    scopeAccess: ALL_SCOPES,
-  };
-}
 
 export type BatchUser = {
   email: string;

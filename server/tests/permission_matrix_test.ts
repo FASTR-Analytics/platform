@@ -7,20 +7,19 @@ import { assert, assertEquals } from "@std/assert";
 import { join } from "@std/path";
 import type { Hono } from "hono";
 import {
-  _USER_PERMISSIONS_DEFAULT_FULL_ACCESS,
-  _USER_PERMISSIONS_DEFAULT_NO_ACCESS,
   ALL_SCOPES,
   type APIResponseWithData,
-  buildUserPermissionsFromRow,
   type CollabServerMessage,
   geographyOnlyScopeDefinition,
   H_USERS,
+  pickUserPermissions,
   type ProductAccessLevel,
   type ProductLevel,
   routeRegistry,
   type ScopeUuid,
   type UserPermission,
   type UserPermissions,
+  userPermissions,
 } from "lib";
 import { getPgConnectionFromCacheOrNew } from "../db/mod.ts";
 import type { DBUser } from "../db/mod.ts";
@@ -108,7 +107,7 @@ type Caller =
 const tag = crypto.randomUUID().slice(0, 8);
 const email = (name: string) => `matrix-${name}-${tag}@example.com`;
 const flagsOf = (...keys: UserPermission[]): UserPermissions => ({
-  ..._USER_PERMISSIONS_DEFAULT_NO_ACCESS,
+  ...userPermissions(false),
   ...Object.fromEntries(keys.map((k) => [k, true])),
 });
 
@@ -121,7 +120,7 @@ function persona(
     email: email(name),
     approved: true,
     isAdmin: false,
-    flags: _USER_PERMISSIONS_DEFAULT_NO_ACCESS,
+    flags: userPermissions(false),
     restricted: false,
     isHUser: false,
     productLevel: "none",
@@ -145,12 +144,12 @@ const MANAGER = persona("manager", {
   flags: flagsOf("can_configure_users", "can_view_users"),
 });
 const RESTRICTED = persona("restricted", {
-  flags: _USER_PERMISSIONS_DEFAULT_FULL_ACCESS,
+  flags: userPermissions(true),
   restricted: true,
   productLevel: "view",
 });
 const RESTRICTED_OTHER = persona("restricted-other", {
-  flags: _USER_PERMISSIONS_DEFAULT_FULL_ACCESS,
+  flags: userPermissions(true),
   restricted: true,
 });
 const ADMIN = persona("admin", { isAdmin: true, productLevel: "own" });
@@ -162,9 +161,8 @@ const STRANGER = persona("stranger");
 // The expectation table
 // ---------------------------------------------------------------------------
 
-// Who may call a route. A permission names one flag; a list of flags means
-// any of them (the data-file static tier takes either data flag). A product
-// or folder class names the level the route declares.
+// Who may call a route. A permission names one flag. A product or folder
+// class names the level the route declares.
 type GuardClass =
   | "public"
   | "signed_in"
@@ -173,7 +171,6 @@ type GuardClass =
   | "operator"
   | "status_key"
   | UserPermission
-  | readonly UserPermission[]
   | `product:${ProductAccessLevel}`
   | `folder:${ProductAccessLevel}`;
 
@@ -484,8 +481,6 @@ type RawEndpoint = {
   probe?: { body?: unknown; headers?: Record<string, string> };
 };
 
-const DATA_FLAGS = ["can_view_data", "can_configure_data"] as const;
-
 function rawEndpoints(seed: Seed): RawEndpoint[] {
   return [
     {
@@ -652,7 +647,7 @@ function rawEndpoints(seed: Seed): RawEndpoint[] {
       name: "static data file",
       method: "GET",
       path: `/${seed.files.csv}`,
-      guard: DATA_FLAGS,
+      guard: "can_view_data",
     },
     {
       name: "static run output",
@@ -676,18 +671,21 @@ function rawEndpoints(seed: Seed): RawEndpoint[] {
 }
 
 // The expectation side spells the rules itself, never through the code under
-// audit: a restricted user's data flags read as false, a level admits the
-// levels at or below it.
+// audit: an admin holds every flag, configure implies view, a restricted
+// user's data flags read as false, a level admits the levels at or below it.
 function effectiveFlags(p: Persona): UserPermissions {
-  if (p.isAdmin) return _USER_PERMISSIONS_DEFAULT_FULL_ACCESS;
+  if (p.isAdmin) return userPermissions(true);
+  const viewUsers = p.flags.can_view_users || p.flags.can_configure_users;
+  const viewData = p.flags.can_view_data || p.flags.can_configure_data;
   return p.restricted
     ? {
       ...p.flags,
+      can_view_users: viewUsers,
       can_view_data: false,
       can_configure_data: false,
       can_view_logs: false,
     }
-    : p.flags;
+    : { ...p.flags, can_view_users: viewUsers, can_view_data: viewData };
 }
 
 const LEVEL_RANK: Record<ProductLevel, number> = {
@@ -733,11 +731,9 @@ function expected(
     if (p.isAdmin) return "admitted";
     return level !== "own" && !p.restricted ? "admitted" : 403;
   }
-  const flags: readonly UserPermission[] = typeof guard === "string"
-    ? [guard as UserPermission]
-    : guard;
-  const held = effectiveFlags(p);
-  return p.approved && flags.some((f) => held[f]) ? "admitted" : 403;
+  return p.approved && effectiveFlags(p)[guard as UserPermission]
+    ? "admitted"
+    : 403;
 }
 
 // ---------------------------------------------------------------------------
@@ -915,8 +911,8 @@ Deno.test("permission matrix: every route and tier against every persona", async
     approved: true,
     isAdmin: operatorRow?.is_admin ?? false,
     flags: operatorRow === undefined
-      ? _USER_PERMISSIONS_DEFAULT_NO_ACCESS
-      : buildUserPermissionsFromRow(operatorRow),
+      ? userPermissions(false)
+      : pickUserPermissions(operatorRow),
     restricted: operatorRow === undefined ? false : !operatorRow.all_scopes,
     isHUser: true,
     productLevel: operatorRow?.is_admin ? "own" : "none",

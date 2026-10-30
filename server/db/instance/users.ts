@@ -1,17 +1,17 @@
 import { Sql } from "postgres";
 import {
-  _USER_PERMISSIONS_DEFAULT_FULL_ACCESS,
-  ALL_SCOPES,
   APIResponseNoData,
   APIResponseWithData,
   type BatchUser,
-  buildUserPermissionsFromRow,
   EMAIL_REGEX,
   type GlobalUser,
   normaliseEmail,
   OtherUser,
+  pickUserPermissions,
   type ScopeAccess,
+  scopeAccessOf,
   type ScopeUuid,
+  USER_PERMISSIONS,
   type UserPermission,
 } from "lib";
 import { tryCatchDatabaseAsync } from "./../utils.ts";
@@ -66,16 +66,6 @@ export async function updateUserOrganisation(
   return updated.length > 0;
 }
 
-// A global admin is unrestricted whatever all_scopes says.
-export function scopeAccessFromRow(
-  row: Pick<DBUser, "is_admin" | "all_scopes">,
-  grantedScopeIds: ScopeUuid[],
-): ScopeAccess {
-  return row.is_admin || row.all_scopes
-    ? ALL_SCOPES
-    : { all: false, scopeIds: grantedScopeIds };
-}
-
 // The grants of the named users, or of every user, in one read.
 export async function getScopeGrantsByEmail(
   mainDb: Sql,
@@ -103,6 +93,8 @@ export async function getScopeGrantsByEmail(
 // On an open-access instance every user is a global admin whatever the
 // stored flag says, as the guard derives it (server/auth/global_user.ts), so
 // the roster, the starting payload, the stream and the client agree with it.
+// The row keeps the STORED permission bits; a reader derives the effective
+// ones with effectivePermissions.
 export function otherUserFromRow(
   row: DBUser,
   grantedScopeIds: ScopeUuid[],
@@ -116,13 +108,8 @@ export function otherUserFromRow(
     organisation: row.organisation ?? undefined,
     unlimitedAi: row.unlimited_ai,
     isContactPerson: row.is_contact_person,
-    scopeAccess: scopeAccessFromRow(
-      { is_admin: isGlobalAdmin, all_scopes: row.all_scopes },
-      grantedScopeIds,
-    ),
-    ...(isGlobalAdmin
-      ? _USER_PERMISSIONS_DEFAULT_FULL_ACCESS
-      : buildUserPermissionsFromRow(row)),
+    scopeAccess: scopeAccessOf(isGlobalAdmin, row.all_scopes, grantedScopeIds),
+    ...pickUserPermissions(row),
   };
 }
 
@@ -409,22 +396,18 @@ export async function getUserPermissions(
 > {
   return await tryCatchDatabaseAsync(async () => {
     const row = (
-      await mainDb<Record<UserPermission, boolean>[]>`SELECT
-        can_configure_users,
-        can_view_users,
-        can_view_logs,
-        can_configure_settings,
-        can_configure_data,
-        can_view_data
-      FROM users
-      WHERE email=${email}`
+      await mainDb<Record<UserPermission, boolean>[]>`
+        SELECT ${
+        mainDb([...USER_PERMISSIONS])
+      } FROM users WHERE email = ${email}
+      `
     ).at(0);
 
     if (!row) throw new Error("User not found");
 
     return {
       success: true,
-      data: { permissions: row },
+      data: { permissions: pickUserPermissions(row) },
     };
   });
 }

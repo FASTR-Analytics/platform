@@ -2,14 +2,16 @@ import type { Language } from "../translate/types.ts";
 import type { AssetInfo } from "./assets.ts";
 import type { HfaTimePoint } from "./dataset_hfa.ts";
 import type { DatasetType } from "./datasets.ts";
-import type { UserPermissions } from "./permissions.ts";
 import type { GeoJsonMapSummary } from "./geojson_maps.ts";
+import type {
+  OtherUser,
+  ScopeAccess,
+  UserPermissions,
+} from "../permissions/mod.ts";
 import type {
   InstanceCalendar,
   InstanceConfigAdminAreaLabels,
   InstanceFiscalYear,
-  OtherUser,
-  ScopeAccess,
   StructureFamilyCounts,
   StructureSchema,
 } from "./instance.ts";
@@ -148,7 +150,7 @@ export type InstanceState = {
   currentUserEmail: string;
   currentUserApproved: boolean;
   currentUserIsGlobalAdmin: boolean;
-  // Already reduced for a restricted user (permissionsUnderScopeAccess).
+  // The effective permissions (effectivePermissions), never the stored bits.
   currentUserPermissions: UserPermissions;
   currentUserScopeAccess: ScopeAccess;
 };

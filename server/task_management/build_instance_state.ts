@@ -1,10 +1,11 @@
 import {
   ALL_SCOPES,
+  effectivePermissions,
   type GlobalUser,
   type InstanceState,
-  permissionsUnderScopeAccess,
   type RunCatalogItem,
   type ScopeId,
+  userPermissions,
 } from "lib";
 import type { Sql } from "postgres";
 import { holdsProductLevel, visibleFolderIds } from "../auth/product_access.ts";
@@ -72,10 +73,9 @@ export async function buildInstanceStateWithoutProducts(
   // inherits the same fill, which is correct.
   const scopeAccess = me?.scopeAccess ?? ALL_SCOPES;
   const myPermissions = me === undefined
-    ? undefined
-    : permissionsUnderScopeAccess(me, scopeAccess);
-  const canSeeRuns = (me?.isGlobalAdmin ?? false) ||
-    (myPermissions?.can_configure_data ?? false);
+    ? userPermissions(false)
+    : effectivePermissions(me);
+  const canSeeRuns = myPermissions.can_configure_data;
   let runsCatalog: RunCatalogItem[] = [];
   if (canSeeRuns) {
     const runsRes = await listRunCatalog(mainDb);
@@ -133,23 +133,7 @@ export async function buildInstanceStateWithoutProducts(
     currentUserApproved: !!me,
     currentUserIsGlobalAdmin: me?.isGlobalAdmin ?? false,
     currentUserScopeAccess: scopeAccess,
-    currentUserPermissions: myPermissions
-      ? {
-        can_configure_users: myPermissions.can_configure_users,
-        can_view_users: myPermissions.can_view_users,
-        can_view_logs: myPermissions.can_view_logs,
-        can_configure_settings: myPermissions.can_configure_settings,
-        can_configure_data: myPermissions.can_configure_data,
-        can_view_data: myPermissions.can_view_data,
-      }
-      : {
-        can_configure_users: false,
-        can_view_users: false,
-        can_view_logs: false,
-        can_configure_settings: false,
-        can_configure_data: false,
-        can_view_data: false,
-      },
+    currentUserPermissions: myPermissions,
   };
 
   return { success: true, data: instanceState };

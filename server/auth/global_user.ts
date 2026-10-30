@@ -4,8 +4,7 @@
 // session. `approved` (`_OPEN_ACCESS || !!usersRow`) is what
 // requireApprovedUser() and productAccessPolicy gate on; the six instance
 // permission flags say nothing about approval.
-// `scopeAccess` is the user's grants, and a restricted user's permission bits
-// are reduced here, once.
+// `thisUserPermissions` is effectivePermissions of the row, derived here once.
 
 import type { Context } from "hono";
 import {
@@ -21,19 +20,16 @@ import {
   getInstanceUsers,
   getPgConnectionFromCacheOrNew,
   getScopeGrantsByEmail,
-  scopeAccessFromRow,
 } from "../db/mod.ts";
 import { notifyInstanceUsersUpdated } from "../task_management/notify_instance_updated.ts";
 import type { GlobalUser } from "lib";
 import {
-  _USER_PERMISSIONS_DEFAULT_FULL_ACCESS,
-  _USER_PERMISSIONS_DEFAULT_NO_ACCESS,
-  ALL_SCOPES,
-  buildUserPermissionsFromRow,
   createDevGlobalUser,
+  effectivePermissions,
   H_USERS,
   normaliseEmail,
-  permissionsUnderScopeAccess,
+  pickUserPermissions,
+  scopeAccessOf,
 } from "lib";
 import {
   getClerkSessionAuth,
@@ -112,22 +108,19 @@ export async function buildGlobalUserFromDb(
 
     const isGlobalAdmin = _OPEN_ACCESS || (!!rawUser && rawUser.is_admin);
 
-    const scopeAccess = isGlobalAdmin || !rawUser || rawUser.all_scopes
-      ? ALL_SCOPES
-      : scopeAccessFromRow(
-        rawUser,
-        (await getScopeGrantsByEmail(mainDb, [email])).get(email) ?? [],
-      );
-
-    // Admins get all permissions, others get their configured permissions
-    const thisUserPermissions: GlobalUser["thisUserPermissions"] = isGlobalAdmin
-      ? _USER_PERMISSIONS_DEFAULT_FULL_ACCESS
-      : rawUser
-      ? permissionsUnderScopeAccess(
-        buildUserPermissionsFromRow(rawUser),
-        scopeAccess,
-      )
-      : _USER_PERMISSIONS_DEFAULT_NO_ACCESS;
+    const allScopes = !rawUser || rawUser.all_scopes;
+    const scopeAccess = scopeAccessOf(
+      isGlobalAdmin,
+      allScopes,
+      isGlobalAdmin || allScopes
+        ? []
+        : (await getScopeGrantsByEmail(mainDb, [email])).get(email) ?? [],
+    );
+    const thisUserPermissions = effectivePermissions({
+      isGlobalAdmin,
+      scopeAccess,
+      ...pickUserPermissions(rawUser ?? {}),
+    });
 
     const globalUser: GlobalUser = {
       instanceName: _INSTANCE_NAME,

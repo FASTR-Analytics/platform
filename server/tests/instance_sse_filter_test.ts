@@ -14,6 +14,7 @@ import type {
   ScopeAccess,
   ScopeUuid,
 } from "lib";
+import { userPermissions } from "lib";
 import {
   createInstanceSseFilter,
   type InstanceSseFilterStart,
@@ -25,14 +26,7 @@ const GRANTED: ScopeUuid = "00000000-0000-4000-8000-000000000001";
 const OTHER: ScopeUuid = "00000000-0000-4000-8000-000000000002";
 const RESTRICTED: ScopeAccess = { all: false, scopeIds: [GRANTED] };
 
-const NO_PERMISSIONS = {
-  can_configure_users: false,
-  can_view_users: false,
-  can_view_logs: false,
-  can_configure_settings: false,
-  can_configure_data: false,
-  can_view_data: false,
-};
+const NO_PERMISSIONS = userPermissions(false);
 
 function folder(id: string, parentId: string | null): Folder {
   return {

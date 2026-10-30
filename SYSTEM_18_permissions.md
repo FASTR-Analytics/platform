@@ -4,8 +4,7 @@ name: Permissions & Identity
 globs:
   - client/src/state/instance/product_access.ts
   - lib/h_users.ts
-  - lib/types/permission_labels.ts
-  - lib/types/permissions.ts
+  - lib/permissions/**
   - server/auth/**
   - server/db/instance/rename_user_email.ts
   - server/db/instance/users.ts
@@ -180,28 +179,42 @@ refusals alone, since the test runs on the dev database. The route tests share
 one harness, `server/tests/_harness/route_app.ts`, whose Clerk leg simulates
 only `clerkMiddleware`'s output contract.
 
-## Permission source of truth: `lib/types/permissions.ts`
+## Permission source of truth: `lib/permissions/`
 
-| Export                                                                          | Purpose                                                                    |
-| ------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| `UserPermissions` / `UserPermission`                                            | instance-level shape + key union                                           |
-| `USER_PERMISSIONS`                                                              | canonical key array, with a compile-time `_AssertUserExhaustive` check     |
-| `buildUserPermissionsFromRow`                                                   | DB row → permissions object; **warn** on a missing column, default `false` |
-| `_USER_PERMISSIONS_DEFAULT_FULL_ACCESS` / `_USER_PERMISSIONS_DEFAULT_NO_ACCESS` | presets for admins / unknown users                                         |
+One module, exported through `lib/permissions/mod.ts` and the `lib` barrel,
+holds every type and rule a permission decision reads, compiled into both
+tiers:
+
+| File                   | Exports                                                                                                                                                                                                                              |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `_flags.ts`            | `UserPermissions` / `UserPermission`, `USER_PERMISSIONS` (the key array, with a compile-time exhaustiveness check), `userPermissions(bit)`, `pickUserPermissions(source)`, `effectivePermissions(row)`, `holdsPermission(user, key)` |
+| `_labels.ts`           | `INSTANCE_PERMISSION_LABELS`                                                                                                                                                                                                         |
+| `_scope_access.ts`     | `ScopeAccess`, `ALL_SCOPES`, `scopeAccessOf(isAdmin, allScopes, grants)`, `canUseScope`, `scopeAccessEqual`                                                                                                                          |
+| `_user.ts`             | `GlobalUser`, `OtherUser`, `createDevGlobalUser`                                                                                                                                                                                     |
+| `_product_level.ts`    | `PRODUCT_LEVELS`, `ProductLevel`, `ProductAccessLevel`, `ProductAccess`, `ProductGrant`, `productLevelAtLeast`, `productLevelFor`                                                                                                    |
+| `_asset_visibility.ts` | `AssetPrivacy`, `canUserSeeAsset`, `canUserManagePrivateAsset`                                                                                                                                                                       |
 
 Six instance permissions: `can_configure_users`, `can_view_users`,
 `can_view_logs`, `can_configure_settings`, `can_configure_data`, `can_view_data`
 (migration 046 removes `can_configure_assets`). Product access is not one of
 them: it is per product, a level derived from the product's owner, general
-access and grants (`productLevelFor`, `lib/types/products.ts`), enforced by
-`productAccessPolicy` above. A restricted user's `can_view_data`,
-`can_configure_data` and `can_view_logs` read as false
-(`permissionsUnderScopeAccess`, `lib/types/instance.ts`), applied once where the
-row becomes a `GlobalUser` (`buildGlobalUserFromDb`) and, for the client's own
-row, where the roster row becomes `currentUserPermissions`. Display labels are
-`INSTANCE_PERMISSION_LABELS` (`lib/types/permission_labels.ts`). Add a key in
-`permissions.ts` (so the exhaustiveness assert and `buildUserPermissionsFromRow`
-stay correct), never inline a permission string elsewhere.
+access and grants (`productLevelFor`), enforced by `productAccessPolicy` above.
+
+**`effectivePermissions` is the one derivation** of what a user may do from
+what is stored: a global admin holds every flag; configure implies view
+(`can_configure_data` implies `can_view_data`, `can_configure_users` implies
+`can_view_users`); a restricted user's `can_view_data`, `can_configure_data`
+and `can_view_logs` read as false. It is applied wherever a row becomes a user:
+`buildGlobalUserFromDb` (so `GlobalUser.thisUserPermissions` is effective),
+`buildInstanceState` and the SSE filter (the connection's
+`currentUserPermissions` and its run-telemetry entitlement) and the client's
+`updateCurrentUser`. A roster row (`OtherUser`, `otherUserFromRow`) carries the
+STORED bits, which is what the Users tab edits; a reader derives the effective
+ones. No file spells the key set: `userPermissions(false)` is the no-access
+object, `userPermissions(true)` the full one, and `pickUserPermissions(row)`
+reads the stored bits off any row-shaped source, with a missing or non-boolean
+column reading as false. Add a key in `_flags.ts` (the exhaustiveness check and
+every builder follow), never inline a permission string elsewhere.
 
 ## Special modes (precedence, highest first)
 
@@ -227,8 +240,8 @@ it's a hardcoded allowlist, and expanding its use spreads policy into code.
 A user is unrestricted (`users.all_scopes`, default TRUE) or restricted to the
 scopes named in `user_scopes` (email, scope id; both foreign keys cascade on
 delete; migration 205). A global admin is unrestricted whatever the flag says.
-`ScopeAccess` (`lib/types/instance.ts`) is `{ all: true }` or
-`{ all: false, scopeIds: ScopeUuid[] }`; `scopeAccessFromRow` builds it,
+`ScopeAccess` (`lib/permissions/`) is `{ all: true }` or
+`{ all: false, scopeIds: ScopeUuid[] }`; `scopeAccessOf` builds it,
 `GlobalUser` and every roster row (`OtherUser`) carry it, and `canUseScope` asks
 it. A restricted user sees only products in their scopes, reads data only
 through them (Explore included), has no `/mcp`, no Results or Data page, and
@@ -308,7 +321,7 @@ and its route re-broadcasts their summaries (`notifyInstanceProductsUpserted`).
 
 ## Permissions (write side)
 
-- **One flat flag set** (`lib/types/permissions.ts`, with a compile-time
+- **One flat flag set** (`lib/permissions/_flags.ts`, with a compile-time
   exhaustiveness assert): 6 instance flags (`USER_PERMISSIONS`:
   `can_configure_users`, `can_view_users`, `can_view_logs`,
   `can_configure_settings`, `can_configure_data`, `can_view_data`) stored as
@@ -335,9 +348,9 @@ route.
 - **Don't assume `c.var.globalUser` exists without a guard**: only a guard
   populates it, `requireGlobalPermissionOrStatusKey` leaves it unset for machine
   calls, and `requireStatusKey` never sets it.
-- **`buildUserPermissionsFromRow` defaults missing columns to `false` and
-  warns.** A new permission column not yet migrated reads as denied
-  (fail-closed) but only logs, so watch boot logs after adding a permission.
+- **`pickUserPermissions` reads a missing column as `false`.** A new
+  permission column not yet migrated denies (fail-closed) with no warning, so
+  a flag that never turns on after a deploy means the migration did not run.
 
 ## Open items
 

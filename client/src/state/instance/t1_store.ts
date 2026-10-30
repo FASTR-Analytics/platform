@@ -26,9 +26,10 @@ import type {
 } from "lib";
 import {
   ALL_SCOPES,
-  permissionsUnderScopeAccess,
+  effectivePermissions,
   resolvePackageScope,
   scopeAreaForFamily,
+  userPermissions,
 } from "lib";
 
 // ============================================================================
@@ -397,36 +398,15 @@ export function updateInstancePopulation(
 // Current user (per-connection, populated by server in starting message)
 // ============================================================================
 
-// The roster row carries stored permission bits; the current user's are
-// reduced for a restricted user, as the server reduces them.
+// The roster row carries the stored permission bits; the current user's are
+// the effective ones, derived as the server derives them.
 export function updateCurrentUser(me: OtherUser | undefined): void {
   const scopeAccess = me?.scopeAccess ?? ALL_SCOPES;
   const permissions = me === undefined
-    ? undefined
-    : permissionsUnderScopeAccess(me, scopeAccess);
+    ? userPermissions(false)
+    : effectivePermissions(me);
   setInstanceState("currentUserApproved", !!me);
   setInstanceState("currentUserIsGlobalAdmin", me?.isGlobalAdmin ?? false);
   setInstanceState("currentUserScopeAccess", reconcile(scopeAccess));
-  setInstanceState(
-    "currentUserPermissions",
-    reconcile(
-      permissions
-        ? {
-          can_configure_users: permissions.can_configure_users,
-          can_view_users: permissions.can_view_users,
-          can_view_logs: permissions.can_view_logs,
-          can_configure_settings: permissions.can_configure_settings,
-          can_configure_data: permissions.can_configure_data,
-          can_view_data: permissions.can_view_data,
-        }
-        : {
-          can_configure_users: false,
-          can_view_users: false,
-          can_view_logs: false,
-          can_configure_settings: false,
-          can_configure_data: false,
-          can_view_data: false,
-        },
-    ),
-  );
+  setInstanceState("currentUserPermissions", reconcile(permissions));
 }

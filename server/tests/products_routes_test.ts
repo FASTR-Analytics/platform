@@ -8,7 +8,6 @@
 
 import { assert, assertEquals, assertNotEquals } from "@std/assert";
 import {
-  _USER_PERMISSIONS_DEFAULT_NO_ACCESS,
   ALL_DATA_SCOPE_DEFINITION,
   ALL_SCOPES,
   type ContentSlide,
@@ -18,6 +17,7 @@ import {
   type ProductSummary,
   type ScopeId,
   type SlideDeckConfig,
+  userPermissions,
 } from "lib";
 import { getPgConnectionFromCacheOrNew } from "../db/mod.ts";
 import {
@@ -67,7 +67,7 @@ function testGlobalUser(email: string, approved: boolean): GlobalUser {
     organisation: null,
     approved,
     isGlobalAdmin: false,
-    thisUserPermissions: _USER_PERMISSIONS_DEFAULT_NO_ACCESS,
+    thisUserPermissions: userPermissions(false),
     unlimitedAi: false,
     scopeAccess: ALL_SCOPES,
   };
