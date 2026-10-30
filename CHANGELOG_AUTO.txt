@@ -1,3 +1,5 @@
+[2.6.1] [admin] [added] - Health check now reports running data imports alongside report generation
+[2.6.1] [admin] [changed] - Restart safeguards now also wait for in-progress data imports to finish
 [2.6.0] [user] [changed] - Indicator code columns in exported spreadsheets renamed from "r_code" to "code" and "r_filter_code" to "filter_code"
 [2.6.0] [user] [changed] - Variant code columns in spreadsheets renamed from "r_variant_code" to "variant_code"
 [2.6.0] [user] [added] - Spreadsheet import now rejects unrecognized column headers with a clear error message
