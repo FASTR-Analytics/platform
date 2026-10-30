@@ -253,9 +253,9 @@ and the R8 test's refused header in `hfa_workbook_text_columns_test.ts`.
 
 **Not in this step:** pushing the site (R9).
 
-**Gates:** in `../wb-fastr-site`, `pnpm verify:help-tags` and the floor its
-CLAUDE.md names; here, `deno task build:help-buttons` unchanged on a second run,
-and the old-name grep returns only the R8 test's refused header.
+**Gates:** in `../wb-fastr-site`, `pnpm verify:help-tags` and `pnpm build`;
+here, `deno task build:help-buttons` unchanged on a second run, and the old-name
+grep returns only the R8 test's refused header.
 
 **Ends with:** one commit in `../wb-fastr-site`, one here.
 
