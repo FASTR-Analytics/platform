@@ -6,6 +6,7 @@ import {
   GlobalUser,
   type Language,
   LANGUAGE_STORAGE_KEY,
+  PERSONA_COOKIE,
   setLanguage,
   t3,
   TC,
@@ -19,11 +20,42 @@ import {
   reportNetworkSuccess,
 } from "~/state/t4_connection_monitor";
 
-// Only allow bypass auth if:
-// 1. VITE_BYPASS_AUTH is set to true
-// 2. Client is NOT built in production mode
+// The two dev auth modes, each off in a production build: BYPASS_AUTH's
+// synthetic admin, and PERSONA_AUTH's real user named by a cookie.
 const bypassAuth = import.meta.env.VITE_BYPASS_AUTH === "true" &&
   import.meta.env.MODE !== "production";
+const personaAuth = import.meta.env.VITE_PERSONA_AUTH === "true" &&
+  import.meta.env.MODE !== "production";
+
+// Clerk runs only outside both dev modes; the profile hides what needs it.
+export const clerkActive = !bypassAuth && !personaAuth;
+
+const PERSONA_STORAGE_KEY = "fastr_persona";
+
+// The persona a `?persona=` query names is kept for later loads; the cookie
+// is what the server reads (PERSONA_COOKIE).
+function resolvePersona(): string | null {
+  const fromQuery = new URLSearchParams(window.location.search).get(
+    "persona",
+  );
+  if (fromQuery) {
+    localStorage.setItem(PERSONA_STORAGE_KEY, fromQuery);
+  }
+  const email = fromQuery ?? localStorage.getItem(PERSONA_STORAGE_KEY);
+  if (email) {
+    document.cookie = `${PERSONA_COOKIE}=${
+      encodeURIComponent(email)
+    }; path=/; SameSite=Lax`;
+  }
+  return email;
+}
+
+function clearPersona(): void {
+  localStorage.removeItem(PERSONA_STORAGE_KEY);
+  document.cookie = `${PERSONA_COOKIE}=; path=/; max-age=0`;
+}
+
+const persona = personaAuth ? resolvePersona() : null;
 
 ///////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////
@@ -72,11 +104,11 @@ export function LoggedInWrapper(p: Props) {
     setLanguage(storedLang);
   }
 
-  const [clerkLoaded, setClerkLoaded] = createSignal(bypassAuth);
+  const [clerkLoaded, setClerkLoaded] = createSignal(!clerkActive);
   const [clerkUser, setClerkUser] = createSignal(clerk.user);
 
   onMount(async () => {
-    if (!bypassAuth) {
+    if (clerkActive) {
       let lang = storedLang;
       if (!lang) {
         const res = await serverActions.getInstanceMeta({});
@@ -95,7 +127,10 @@ export function LoggedInWrapper(p: Props) {
 
   return (
     <Show when={clerkLoaded()} fallback={<div />}>
-      <Show when={bypassAuth || clerkUser()} fallback={<ClerkNewLogin />}>
+      <Show
+        when={bypassAuth || (personaAuth ? persona : clerkUser())}
+        fallback={personaAuth ? <PersonaPrompt /> : <ClerkNewLogin />}
+      >
         {(_) => {
           ///////////////////////////////////////////////////////////////////////////////////
           ///////////////////////////////////////////////////////////////////////////////////
@@ -118,7 +153,7 @@ export function LoggedInWrapper(p: Props) {
             );
 
           onMount(async () => {
-            if (bypassAuth) return;
+            if (!clerkActive) return;
             try {
               const res = await serverActions.getInstanceMeta({});
               if (res.success) {
@@ -144,6 +179,11 @@ export function LoggedInWrapper(p: Props) {
           async function attemptSignOut(): Promise<void> {
             // Note: Can't update loggedInInfo loading state with createQuery
             // but page will reload anyway
+            if (personaAuth) {
+              clearPersona();
+              window.location.href = window.location.pathname;
+              return;
+            }
             if (!bypassAuth) {
               await clerk.signOut();
             }
@@ -265,6 +305,21 @@ function ClerkNewLogin() {
           <div ref={authEl} />
         </div>
       </div>
+    </div>
+  );
+}
+
+function PersonaPrompt() {
+  return (
+    <div class="ui-pad">
+      {t3({
+        en:
+          "Persona mode: open this page with ?persona=<email> to sign in as that user.",
+        fr:
+          "Mode persona : ouvrez cette page avec ?persona=<email> pour vous connecter en tant que cet utilisateur.",
+        pt:
+          "Modo persona: abra esta página com ?persona=<email> para entrar como esse utilizador.",
+      })}
     </div>
   );
 }

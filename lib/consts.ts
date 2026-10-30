@@ -202,3 +202,7 @@ export const TEXT_SIZE_REL: Record<TextSizeKey, number> = {
   "5xl": 3.81,
   "6xl": 4.77,
 };
+
+// The cookie a dev-only persona switch (PERSONA_AUTH on the server,
+// VITE_PERSONA_AUTH on the client) names the signed-in user's email by.
+export const PERSONA_COOKIE = "fastr_persona";

@@ -7,7 +7,7 @@ import { Hono } from "hono";
 import type { Env } from "hono";
 import type { Sql } from "postgres";
 import { getPgConnection } from "../../db/postgres/connection_manager.ts";
-import { _BYPASS_AUTH } from "../../exposed_env_vars.ts";
+import { _BYPASS_AUTH, _PERSONA_AUTH } from "../../exposed_env_vars.ts";
 
 export type Envelope =
   | { success: true; data?: unknown }
@@ -113,9 +113,9 @@ export async function statusOf(
 }
 
 export function assertRealAuth(): void {
-  if (_BYPASS_AUTH) {
+  if (_BYPASS_AUTH || _PERSONA_AUTH) {
     throw new Error(
-      "BYPASS_AUTH is set: route tests must exercise the real auth branches. Unset it and re-run.",
+      "BYPASS_AUTH or PERSONA_AUTH is set: route tests must exercise the real auth branches. Unset it and re-run.",
     );
   }
 }

@@ -7,6 +7,7 @@
 // `thisUserPermissions` is effectivePermissions of the row, derived here once.
 
 import type { Context } from "hono";
+import { getCookie } from "hono/cookie";
 import {
   _BYPASS_AUTH,
   _INSTANCE_CALENDAR,
@@ -14,6 +15,7 @@ import {
   _INSTANCE_LANGUAGE,
   _INSTANCE_NAME,
   _OPEN_ACCESS,
+  _PERSONA_AUTH,
 } from "../exposed_env_vars.ts";
 import type { DBUser } from "../db/mod.ts";
 import {
@@ -27,6 +29,7 @@ import {
   createDevGlobalUser,
   effectivePermissions,
   normaliseEmail,
+  PERSONA_COOKIE,
   pickUserPermissions,
   scopeAccessOf,
 } from "lib";
@@ -53,6 +56,15 @@ export async function getGlobalUser(
   const headlessEmail = getHeadlessAuthEmail(c);
   if (headlessEmail !== undefined) {
     return await buildGlobalUserFromDb(headlessEmail, null, null);
+  }
+
+  // The dev persona switch: the cookie's email is the user, built from that
+  // row with no name claims, so an unknown email is an unapproved user.
+  if (_PERSONA_AUTH) {
+    const persona = getCookie(c, PERSONA_COOKIE);
+    return persona
+      ? await buildGlobalUserFromDb(persona, null, null)
+      : "NOT_AUTHENTICATED";
   }
 
   const auth = getClerkSessionAuth(c);

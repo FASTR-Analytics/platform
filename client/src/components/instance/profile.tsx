@@ -15,6 +15,7 @@ import {
   openComponent,
 } from "panther";
 import { ChangeEmailModal } from "./change_email_modal";
+import { clerkActive } from "./logged_in_wrapper";
 import { confirmReloadUnderTurn } from "./copilot/mod.ts";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
@@ -264,8 +265,8 @@ export function ProfileForm(
         <button
           type="button"
           class="hover:ring-primary bg-base-200 text-base-content-muted font-700 flex h-16 w-16 flex-none cursor-pointer items-center justify-center overflow-hidden rounded-full ring-2 ring-transparent transition"
-          onClick={() => openClerkUserProfile()}
-          title={manageAccountLabel}
+          onClick={() => clerkActive && openClerkUserProfile()}
+          title={clerkActive ? manageAccountLabel : undefined}
         >
           <Show when={clerk.user?.imageUrl} keyed fallback={initials()}>
             {(src) => <img src={src} alt={fullName()} class="h-full w-full" />}
@@ -276,13 +277,15 @@ export function ProfileForm(
             {fullName()}
           </div>
           <div class="text-base-content-muted truncate text-sm">{email()}</div>
-          <button
-            type="button"
-            class="text-primary w-fit cursor-pointer text-xs hover:underline"
-            onClick={() => openClerkUserProfile()}
-          >
-            {manageAccountLabel}
-          </button>
+          <Show when={clerkActive}>
+            <button
+              type="button"
+              class="text-primary w-fit cursor-pointer text-xs hover:underline"
+              onClick={() => openClerkUserProfile()}
+            >
+              {manageAccountLabel}
+            </button>
+          </Show>
         </div>
       </div>
 
@@ -345,25 +348,27 @@ export function ProfileForm(
           <span class="text-base-content-muted min-w-0 flex-1 truncate text-right text-sm">
             {email()}
           </span>
-          <Button
-            onClick={() =>
-              afterTurnGuard(() =>
-                openComponent({
-                  element: ChangeEmailModal,
-                  props: { currentEmail: email() },
-                })
-              )}
-            disabled={user() === undefined}
-            outline
-            size="sm"
-            iconName="pencil"
-          >
-            {t3({
-              en: "Change email",
-              fr: "Changer d'e-mail",
-              pt: "Alterar e-mail",
-            })}
-          </Button>
+          <Show when={clerkActive}>
+            <Button
+              onClick={() =>
+                afterTurnGuard(() =>
+                  openComponent({
+                    element: ChangeEmailModal,
+                    props: { currentEmail: email() },
+                  })
+                )}
+              disabled={user() === undefined}
+              outline
+              size="sm"
+              iconName="pencil"
+            >
+              {t3({
+                en: "Change email",
+                fr: "Changer d'e-mail",
+                pt: "Alterar e-mail",
+              })}
+            </Button>
+          </Show>
         </SettingRow>
       </SettingSection>
 

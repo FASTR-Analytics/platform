@@ -1115,3 +1115,10 @@ commit.
   which nothing reads since the guard kinds replaced it), and the two read
   surfaces drop the `anyScope` prop the picker no longer has; the daily cap
   counts each recipient as one send, since each is one SendGrid email.
+- Step 10: edited `lib/consts.ts` (`PERSONA_COOKIE`, the cookie name both tiers
+  read), `server/tests/_harness/route_app.ts` (`assertRealAuth` refuses
+  `PERSONA_AUTH` as it refuses `BYPASS_AUTH`, since a cookie identity would
+  shadow the Clerk leg the route tests simulate) and `client/.env.example`
+  (`VITE_PERSONA_AUTH`), outside the Surface; the server refuses to boot with
+  both dev modes set, and the profile hides Manage account and Change email
+  outside Clerk, since both need a Clerk account.
