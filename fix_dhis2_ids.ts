@@ -103,7 +103,7 @@ try {
         run.error === undefined ? "" : `: ${run.error}`
       }`,
     );
-    exitCode = run.status === "complete" ? 0 : 1;
+    exitCode = run.status === "complete" && run.failedPairs === 0 ? 0 : 1;
   } else if (command === "plan") {
     const plan = planDhis2IdFix(
       await gatherDhis2IdFixFacts(mainDb),
