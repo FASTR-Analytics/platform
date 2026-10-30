@@ -28,11 +28,37 @@ const SHEET_VARIANT_GROUPS = "Variant groups";
 const SHEET_VARIANT_ITEMS = "Variant items";
 const SHEET_INDICATORS = "Indicators";
 
-// Export column format: r_code__<timePointLabel>, r_filter_code__<timePointLabel>
-// Import also accepts the old positional format: r_code_1, r_filter_code_1
-// Variant code columns (labeled format only): r_variant_code__<itemId>__<timePointLabel>.
-// itemId legally contains "__", so the header is resolved against the Variant
-// items sheet by longest-matching item id: never by blind splitting.
+// Code columns: code__<timePointLabel>, filter_code__<timePointLabel> and
+// variant_code__<itemId>__<timePointLabel>. itemId legally contains "__", so a
+// variant header is resolved against the Variant items sheet by
+// longest-matching item id: never by blind splitting.
+const INDICATOR_COLUMNS = [
+  "indicatorId",
+  "categoryId",
+  "subCategoryId",
+  "serviceCategoryId",
+  "shortLabel",
+  "label",
+  "type",
+  "aggregation",
+  "variantGroupId",
+];
+const INDICATOR_TEXT_COLUMNS = ["shortLabel", "label"];
+const CODE_HEADER = /^code__(.+)$/;
+const FILTER_CODE_HEADER = /^filter_code__(.+)$/;
+const VARIANT_CODE_HEADER = /^variant_code__(.+)$/;
+
+// A column the import does not read is refused rather than ignored: a
+// misnamed code column would otherwise import its indicators with no code.
+function isKnownIndicatorHeader(header: string): boolean {
+  return INDICATOR_COLUMNS.includes(header) ||
+    INDICATOR_TEXT_COLUMNS.some((field) =>
+      textColumnForms(field).includes(header)
+    ) ||
+    CODE_HEADER.test(header) ||
+    FILTER_CODE_HEADER.test(header) ||
+    VARIANT_CODE_HEADER.test(header);
+}
 
 // ============================================================================
 // Build (export): all in the browser
@@ -100,24 +126,13 @@ export function buildHfaWorkbookBlob(args: {
     );
   }
 
-  const indicatorHeaders = [
-    "indicatorId",
-    "categoryId",
-    "subCategoryId",
-    "serviceCategoryId",
-    "shortLabel",
-    "label",
-    "type",
-    "aggregation",
-    "variantGroupId",
-  ];
-  // New label-embedded format so the file is self-describing on re-import
+  const indicatorHeaders = [...INDICATOR_COLUMNS];
   for (const tp of timePoints) {
-    indicatorHeaders.push(`r_code__${tp}`, `r_filter_code__${tp}`);
+    indicatorHeaders.push(`code__${tp}`, `filter_code__${tp}`);
   }
   for (const vi of sortedVariantItems) {
     for (const tp of timePoints) {
-      indicatorHeaders.push(`r_variant_code__${vi.id}__${tp}`);
+      indicatorHeaders.push(`variant_code__${vi.id}__${tp}`);
     }
   }
 
@@ -197,16 +212,14 @@ export type WorkbookShape = {
   variantGroups: HfaWorkbookImport["variantGroups"];
   variantItems: HfaWorkbookImport["variantItems"];
   indicators: HfaWorkbookImport["indicators"];
-  // [indicatorIdx][xlsxPosition] raw code values
+  // [indicatorIdx][codeColumnIdx] raw code values
   rawCode: Array<Array<{ code: string; filterCode: string }>>;
-  // Variant code columns (labeled format only) and their per-indicator values:
+  // Variant code columns and their per-indicator values:
   // [indicatorIdx][variantColumnIdx]
   variantColumns: Array<{ itemId: string; label: string }>;
   rawVariantCode: Array<Array<string>>;
-  // How many r_code columns are in the XLSX
-  xlsxCount: number;
-  // For each position: the embedded time point label (new format), or null (old r_code_N format)
-  xlsxLabels: Array<string | null>;
+  // Each code column's time point label, in column order
+  codeLabels: string[];
 };
 
 export type DetectResult =
@@ -316,6 +329,10 @@ const notFound = (field: string, value: string): TranslatableString => ({
   pt: `${field} "${value}" não encontrado.`,
 });
 
+function textColumnForms(field: string): string[] {
+  return [field, ...LANGUAGES.map((l) => `${field}_${l}`)];
+}
+
 function missingTextColumn(
   language: Language,
   aoa: string[][] | undefined,
@@ -324,7 +341,7 @@ function missingTextColumn(
 ): DetectError | null {
   if (!aoa || aoa.length === 0) return null;
   const headers = (aoa[0] ?? []).map((h) => String(h ?? "").trim());
-  const accepted = [field, ...LANGUAGES.map((l) => `${field}_${l}`)];
+  const accepted = textColumnForms(field);
   if (accepted.some((name) => headers.includes(name))) return null;
   const list = (quote: (n: string) => string) => accepted.map(quote).join(", ");
   return sheetError(language, sheet, {
@@ -647,7 +664,7 @@ export function detectHfaWorkbookShape(
     variantItems.push({ id, groupId, label });
   }
 
-  // Indicators sheet: detect r_code columns before parsing rows
+  // Indicators sheet: its headers, before its rows
   const indHeaders = (indicatorsAoa[0] ?? []).map((h) =>
     String(h ?? "").trim()
   );
@@ -665,50 +682,43 @@ export function detectHfaWorkbookShape(
     "label",
   );
   if (labelMissing) return labelMissing;
-
-  // Detect code columns in the order they appear.
-  // New format: r_code__<label>  →  label embedded
-  // Old format: r_code_N  →  positional, label=null
-  const codeColumns: Array<
-    { headerIndex: number; filterHeaderIndex: number; label: string | null }
-  > = [];
-  {
-    // Build a map from r_code column to its corresponding r_filter_code column
-    const filterMap = new Map<string, number>(); // r_code header → index of r_filter_code header
-    for (let c = 0; c < indHeaders.length; c++) {
-      const h = indHeaders[c];
-      const newFilter = h.match(/^r_filter_code__(.+)$/);
-      const oldFilter = h.match(/^r_filter_code_(\d+)$/);
-      if (newFilter) filterMap.set(`r_code__${newFilter[1]}`, c);
-      else if (oldFilter) filterMap.set(`r_code_${oldFilter[1]}`, c);
-    }
-
-    for (let c = 0; c < indHeaders.length; c++) {
-      const h = indHeaders[c];
-      const newCode = h.match(/^r_code__(.+)$/);
-      const oldCode = h.match(/^r_code_(\d+)$/);
-      if (newCode) {
-        codeColumns.push({
-          headerIndex: c,
-          filterHeaderIndex: filterMap.get(h) ?? -1,
-          label: newCode[1],
-        });
-      } else if (oldCode) {
-        codeColumns.push({
-          headerIndex: c,
-          filterHeaderIndex: filterMap.get(h) ?? -1,
-          label: null,
-        });
-      }
-    }
+  const unknownHeader = indHeaders.find((h) =>
+    h !== "" && !isKnownIndicatorHeader(h)
+  );
+  if (unknownHeader !== undefined) {
+    return sheetError(language, SHEET_INDICATORS, {
+      en:
+        `unknown column "${unknownHeader}". Code columns are code__<time point>, filter_code__<time point> and variant_code__<item id>__<time point>.`,
+      fr:
+        `colonne inconnue « ${unknownHeader} ». Les colonnes de code sont code__<point temporel>, filter_code__<point temporel> et variant_code__<id de l'élément>__<point temporel>.`,
+      pt:
+        `coluna desconhecida "${unknownHeader}". As colunas de código são code__<ponto temporal>, filter_code__<ponto temporal> e variant_code__<id do item>__<ponto temporal>.`,
+    });
   }
 
-  const xlsxCount = codeColumns.length;
-  const xlsxLabels = codeColumns.map((c) => c.label);
+  // Code columns in the order they appear, each with its round's filter column.
+  const filterHeaderIndexByLabel = new Map<string, number>();
+  for (let c = 0; c < indHeaders.length; c++) {
+    const m = indHeaders[c].match(FILTER_CODE_HEADER);
+    if (m) filterHeaderIndexByLabel.set(m[1], c);
+  }
+  const codeColumns: Array<
+    { headerIndex: number; filterHeaderIndex: number; label: string }
+  > = [];
+  for (let c = 0; c < indHeaders.length; c++) {
+    const m = indHeaders[c].match(CODE_HEADER);
+    if (!m) continue;
+    codeColumns.push({
+      headerIndex: c,
+      filterHeaderIndex: filterHeaderIndexByLabel.get(m[1]) ?? -1,
+      label: m[1],
+    });
+  }
+  const codeLabels = codeColumns.map((c) => c.label);
 
-  // Variant code columns: r_variant_code__<itemId>__<timePointLabel>, resolved
-  // against the Variant items sheet by longest-matching item id (item ids can
-  // legally contain "__", so blind splitting is ambiguous).
+  // Variant code columns, resolved against the Variant items sheet by
+  // longest-matching item id (item ids can legally contain "__", so blind
+  // splitting is ambiguous).
   const variantColumns: Array<
     { itemId: string; label: string; headerIndex: number }
   > = [];
@@ -716,7 +726,7 @@ export function detectHfaWorkbookShape(
     b.length - a.length
   );
   for (let c = 0; c < indHeaders.length; c++) {
-    const m = indHeaders[c].match(/^r_variant_code__(.+)$/);
+    const m = indHeaders[c].match(VARIANT_CODE_HEADER);
     if (!m) continue;
     const rest = m[1];
     const itemId = knownItemIds.find((id) => rest.startsWith(`${id}__`));
@@ -750,18 +760,16 @@ export function detectHfaWorkbookShape(
     variantColumns.push({ itemId, label, headerIndex: c });
   }
   if (variantColumns.length > 0) {
-    const mainLabels = new Set(
-      xlsxLabels.filter((l): l is string => l !== null),
-    );
+    const mainLabels = new Set(codeLabels);
     for (const vc of variantColumns) {
       if (!mainLabels.has(vc.label)) {
         return sheetError(language, SHEET_INDICATORS, {
           en:
-            `variant code column for item "${vc.itemId}" uses time point label "${vc.label}", which has no matching r_code__${vc.label} column.`,
+            `variant code column for item "${vc.itemId}" uses time point label "${vc.label}", which has no matching code__${vc.label} column.`,
           fr:
-            `la colonne de code de variante de l'élément « ${vc.itemId} » utilise le libellé de point temporel « ${vc.label} », sans colonne r_code__${vc.label} correspondante.`,
+            `la colonne de code de variante de l'élément « ${vc.itemId} » utilise le libellé de point temporel « ${vc.label} », sans colonne code__${vc.label} correspondante.`,
           pt:
-            `a coluna de código de variante do item "${vc.itemId}" usa a etiqueta de ponto temporal "${vc.label}", sem coluna r_code__${vc.label} correspondente.`,
+            `a coluna de código de variante do item "${vc.itemId}" usa a etiqueta de ponto temporal "${vc.label}", sem coluna code__${vc.label} correspondente.`,
         });
       }
     }
@@ -924,24 +932,23 @@ export function detectHfaWorkbookShape(
       variantGroupId,
     });
 
-    // Collect raw code values per position using column indices directly
     const rowAoa = (indicatorsAoa[indRows[i].index] ?? []).map((v) =>
       String(v ?? "").trim()
     );
-    const positionCode: Array<{ code: string; filterCode: string }> =
-      codeColumns.map((col) => ({
-        code: col.headerIndex >= 0 ? (rowAoa[col.headerIndex] ?? "") : "",
+    const columnCode: Array<{ code: string; filterCode: string }> = codeColumns
+      .map((col) => ({
+        code: rowAoa[col.headerIndex] ?? "",
         filterCode: col.filterHeaderIndex >= 0
           ? (rowAoa[col.filterHeaderIndex] ?? "")
           : "",
       }));
-    rawCode.push(positionCode);
+    rawCode.push(columnCode);
 
-    const positionVariantCode: string[] = variantColumns.map((col) =>
+    const variantColumnCode: string[] = variantColumns.map((col) =>
       rowAoa[col.headerIndex] ?? ""
     );
     for (let k = 0; k < variantColumns.length; k++) {
-      if (!positionVariantCode[k]) continue;
+      if (!variantColumnCode[k]) continue;
       const itemGroup = variantItemGroup.get(variantColumns[k].itemId);
       if (!variantGroupId || itemGroup !== variantGroupId) {
         const itemId = variantColumns[k].itemId;
@@ -957,7 +964,7 @@ export function detectHfaWorkbookShape(
         });
       }
     }
-    rawVariantCode.push(positionVariantCode);
+    rawVariantCode.push(variantColumnCode);
   }
 
   return {
@@ -975,8 +982,7 @@ export function detectHfaWorkbookShape(
         label: c.label,
       })),
       rawVariantCode,
-      xlsxCount,
-      xlsxLabels,
+      codeLabels,
     },
   };
 }
@@ -985,9 +991,9 @@ export function detectHfaWorkbookShape(
 // Phase 2: apply time point mapping to produce final code
 // ============================================================================
 
-// mapping[xlsxPosition] = the platform time points that column's code goes to;
-// empty skips the position. A single code column applied to every time point
-// is a position with several targets.
+// mapping[codeColumnIdx] = the platform time points that column's code goes
+// to; empty skips the column. A single code column applied to every time point
+// is a column with several targets.
 export type TimePointMapping = string[][];
 
 export function applyTimePointMapping(
@@ -997,9 +1003,9 @@ export function applyTimePointMapping(
   const code: HfaIndicatorCode[] = [];
   for (let i = 0; i < shape.indicators.length; i++) {
     const ind = shape.indicators[i];
-    const posCode = shape.rawCode[i] ?? [];
-    for (let k = 0; k < shape.xlsxCount; k++) {
-      const cell = posCode[k] ?? { code: "", filterCode: "" };
+    const columnCode = shape.rawCode[i] ?? [];
+    for (let k = 0; k < shape.codeLabels.length; k++) {
+      const cell = columnCode[k] ?? { code: "", filterCode: "" };
       if (!cell.code && !cell.filterCode) continue;
       for (const tp of mapping[k] ?? []) {
         code.push({
@@ -1015,24 +1021,22 @@ export function applyTimePointMapping(
 }
 
 // Variant columns carry embedded labels (detect rejects any without a matching
-// labeled r_code__ column), so they resolve through the same mapping via
-// label → platform time points. A label mapped to nothing (skipped) skips its
+// code__ column), so they resolve through the same mapping via label →
+// platform time points. A label mapped to nothing (skipped) skips its
 // variant cells too.
 export function applyVariantTimePointMapping(
   shape: WorkbookShape,
   mapping: TimePointMapping,
 ): HfaIndicatorVariantCode[] {
-  const labelToTps = new Map<string, string[]>();
-  for (let k = 0; k < shape.xlsxCount; k++) {
-    const label = shape.xlsxLabels[k];
-    if (label !== null) labelToTps.set(label, mapping[k] ?? []);
-  }
+  const labelToTps = new Map(
+    shape.codeLabels.map((label, k) => [label, mapping[k] ?? []]),
+  );
   const variantCode: HfaIndicatorVariantCode[] = [];
   for (let i = 0; i < shape.indicators.length; i++) {
     const ind = shape.indicators[i];
-    const posCode = shape.rawVariantCode[i] ?? [];
+    const columnCode = shape.rawVariantCode[i] ?? [];
     for (let k = 0; k < shape.variantColumns.length; k++) {
-      const code = posCode[k] ?? "";
+      const code = columnCode[k] ?? "";
       if (!code) continue;
       for (const tp of labelToTps.get(shape.variantColumns[k].label) ?? []) {
         variantCode.push({

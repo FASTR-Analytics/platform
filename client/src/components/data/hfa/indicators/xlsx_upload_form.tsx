@@ -365,8 +365,8 @@ function PickStep(p: {
               fr: "séparés par | pour plusieurs",
               pt: "separados por | para vários",
             })}
-            ), shortLabel, label, type, aggregation, r_code__&lt;time point&gt;,
-            r_filter_code__&lt;time point&gt;, …
+            ), shortLabel, label, type, aggregation, code__&lt;time point&gt;,
+            filter_code__&lt;time point&gt;, …
           </li>
         </ul>
         <div class="mt-2">
@@ -408,23 +408,11 @@ function PickStep(p: {
 type ReconcileMode = "all" | "one" | "map";
 
 function buildDefaultMapping(
-  xlsxCount: number,
-  xlsxLabels: Array<string | null>,
+  codeLabels: string[],
   platformTimePoints: string[],
 ): Array<string | null> {
-  if (xlsxCount === 0) return [];
-
-  // New format with labels: map each embedded label to the matching platform TP
-  if (xlsxLabels.some((l) => l !== null)) {
-    return xlsxLabels.map((label) =>
-      label && platformTimePoints.includes(label) ? label : null
-    );
-  }
-
-  // Old positional format: map by position
-  return Array.from(
-    { length: xlsxCount },
-    (_, k) => platformTimePoints[k] ?? null,
+  return codeLabels.map((label) =>
+    platformTimePoints.includes(label) ? label : null
   );
 }
 
@@ -436,7 +424,7 @@ function ReconcileStep(p: {
   onBack: () => void;
   onDone: () => void;
 }) {
-  const N = p.shape.xlsxCount;
+  const N = p.shape.codeLabels.length;
   const M = p.timePoints.length;
   const codeColumns = `${N} ${
     plural(N, {
@@ -464,7 +452,6 @@ function ReconcileStep(p: {
   }`;
 
   // Scenario detection
-  const allLabeled = N > 0 && p.shape.xlsxLabels.every((l) => l !== null);
   const isAutoSingle = N === 1 && M === 1;
   const isApplyOneOrAll = N === 1 && M > 1;
   const isEqual = N === M && N > 1;
@@ -475,11 +462,7 @@ function ReconcileStep(p: {
     isApplyOneOrAll ? "all" : "map",
   );
 
-  const defaultMapping = buildDefaultMapping(
-    N,
-    p.shape.xlsxLabels,
-    p.timePoints,
-  );
+  const defaultMapping = buildDefaultMapping(p.shape.codeLabels, p.timePoints);
   const [mapping, setMapping] = createStore<Array<string | null>>(
     defaultMapping,
   );
@@ -491,16 +474,6 @@ function ReconcileStep(p: {
     },
     ...getSelectOptions(p.timePoints),
   ];
-
-  const xlsxPositionLabel = (k: number) => {
-    const embedded = p.shape.xlsxLabels[k];
-    return embedded ??
-      t3({
-        en: `Position ${k + 1}`,
-        fr: `Position ${k + 1}`,
-        pt: `Posição ${k + 1}`,
-      });
-  };
 
   const effectiveMapping = (): TimePointMapping => {
     if (isAutoSingle) return [[p.timePoints[0]]];
@@ -744,7 +717,7 @@ function ReconcileStep(p: {
       </Show>
 
       <Show when={!isAutoSingle && !isApplyOneOrAll}>
-        <Show when={allLabeled && isEqual}>
+        <Show when={isEqual}>
           <div class="text-success text-xs">
             {t3({
               en:
@@ -773,7 +746,7 @@ function ReconcileStep(p: {
             {(k) => (
               <div class="flex items-center gap-4">
                 <div class="w-40 flex-none font-mono text-sm">
-                  {xlsxPositionLabel(k)}
+                  {p.shape.codeLabels[k]}
                 </div>
                 <div class="flex-1">
                   <Select

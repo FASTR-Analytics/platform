@@ -47,7 +47,7 @@ const PER_LANGUAGE = workbook({
       "label_pt",
       "type",
       "aggregation",
-      "r_code__Round 1",
+      "code__Round 1",
     ],
     [
       "ind001",
@@ -103,7 +103,7 @@ Deno.test("per-language columns: a missing language column falls back to English
         "label_fr",
         "type",
         "aggregation",
-        "r_code__Round 1",
+        "code__Round 1",
       ],
       ["ind001", "shocks", "Shock EN", "Choc FR", ...INDICATOR_TAIL],
     ],
@@ -126,7 +126,7 @@ Deno.test("single text columns still import for every instance language", () => 
         "label",
         "type",
         "aggregation",
-        "r_code__Round 1",
+        "code__Round 1",
       ],
       ["ind001", "shocks", "Short", "Shock", ...INDICATOR_TAIL],
     ],
@@ -150,7 +150,7 @@ Deno.test("a required text column present in no form is rejected at the header",
         "definition",
         "type",
         "aggregation",
-        "r_code__Round 1",
+        "code__Round 1",
       ],
       ["ind001", "shocks", "Shock EN", ...INDICATOR_TAIL],
     ],
@@ -162,7 +162,7 @@ Deno.test("a required text column present in no form is rejected at the header",
   const noCategoryLabel = workbook({
     Categories: [["id", "name"], ["shocks", "Shocks"]],
     Indicators: [
-      ["indicatorId", "label", "type", "aggregation", "r_code__Round 1"],
+      ["indicatorId", "label", "type", "aggregation", "code__Round 1"],
       ["ind001", "Shock", ...INDICATOR_TAIL],
     ],
   });
@@ -192,6 +192,7 @@ Deno.test("an exported workbook re-imports with the same labels", async () => {
       indicatorId: "ind001",
       timePoint: "Round 1",
       code: "sh_01_c==1",
+      filterCode: "sh_00==1",
     }],
     variantCode: [],
     timePoints: ["Round 1"],
@@ -202,5 +203,30 @@ Deno.test("an exported workbook re-imports with the same labels", async () => {
     shortLabel: "Court",
     definition: "Choc",
   });
-  assertEquals(shape.xlsxLabels, ["Round 1"]);
+  assertEquals(shape.codeLabels, ["Round 1"]);
+  assertEquals(shape.rawCode, [[{
+    code: "sh_01_c==1",
+    filterCode: "sh_00==1",
+  }]]);
+});
+
+Deno.test("a column the import does not read is refused, naming it", () => {
+  const oldCodeHeader = workbook({
+    Categories: [["id", "label"], ["shocks", "Shocks"]],
+    Indicators: [
+      ["indicatorId", "label", "type", "aggregation", "r_code__Round 1"],
+      ["ind001", "Shock", ...INDICATOR_TAIL],
+    ],
+  });
+  const err = detectErr(oldCodeHeader, "en");
+  assertStringIncludes(err, "Indicators sheet");
+  assertStringIncludes(err, 'unknown column "r_code__Round 1"');
+});
+
+Deno.test("the repo's default indicator workbook parses", async () => {
+  const file = await Deno.readFile(
+    new URL("../../hfa_default_indicators.xlsx", import.meta.url),
+  );
+  const shape = detectOk(file.buffer, "en");
+  assertEquals(shape.codeLabels, ["Round 1"]);
 });

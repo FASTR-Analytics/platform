@@ -809,9 +809,18 @@ language), then English, then the single column, so one default file serves
 every instance and an untranslated cell shows English. A required text field
 whose column is present in none of its forms is rejected at the header, so a
 misnamed column cannot import blank labels. The export writes the single-column
-form. The default file carries one labeled code column (`r_code__Round 1`), so
-with N time points the reconcile step offers apply-to-all / apply-to-one. Pinned
-by `server/tests/hfa_workbook_text_columns_test.ts`.
+form. Code columns name their time point: `code__<time point>`,
+`filter_code__<time point>` and `variant_code__<item id>__<time point>`, the
+last resolved against the Variant items sheet by longest-matching item id. The
+Indicators sheet refuses any header the import does not read, naming it: the
+known set is the export's column list, each text column's language forms and
+those three patterns, so a misnamed code column cannot import its indicators
+with no code. The reconcile step maps each code column's time point to a
+platform time point, matched by label by default. The default file carries one
+code column (`code__Round 1`), so with N time points the reconcile step offers
+apply-to-all / apply-to-one. Pinned by
+`server/tests/hfa_workbook_text_columns_test.ts`, which also parses the repo's
+`hfa_default_indicators.xlsx`.
 
 **HFA variant groups** let one indicator carry a per-item response-option
 breakdown ("provides vaccination" × {campaign, routine, both}) without the items

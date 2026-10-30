@@ -292,3 +292,6 @@ and the old-name grep returns only the R8 test's refused header.
   `PROTOCOL_APP_MIGRATIONS.md`, outside its Surface, because both said the only
   sanctioned edit of an applied migration is a table-existence guard, and 220's
   column guard made that false.
+- The old-name grep in the gates of steps 3 and 4 also returns
+  `SYSTEM_02_persistence.md` and `PROTOCOL_APP_MIGRATIONS.md`, whose step 1 edit
+  names `r_code` as the column 220's guard checks.
