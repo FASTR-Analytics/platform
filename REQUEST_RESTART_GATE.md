@@ -25,10 +25,35 @@ An instance is busy when `generatingRuns > 0` or `runningImports` is not empty.
 A restart kills that work: the server marks the package failed and the import
 errored at the next boot, and the user has to start again.
 
-The field replaces `hasRunningModules`, which is gone. An instance on an older
-server version returns a payload with neither field. Treat a missing `busy` as
-not busy in both consumers: the fleet runs mixed versions until every instance
-is upgraded.
+The field replaces `hasRunningModules`, which is gone from v2.
+
+## Instances still on v1
+
+The fleet runs mixed versions. A v1 instance (1.76.x) reports only
+`hasRunningModules: boolean` (a results package is generating) and says nothing
+about imports. Both consumers read the two shapes through one function and work
+off the normalized result:
+
+```ts
+type InstanceBusy = { generatingRuns: number; runningImports: string[] };
+
+// null = not busy. A v1 payload can report a generation but never an
+// import, so on v1 a running import is invisible to the gate and the marker.
+function readBusy(payload: Record<string, unknown>): InstanceBusy | null {
+  const busy = payload.busy as InstanceBusy | undefined;
+  if (busy) {
+    return busy.generatingRuns > 0 || busy.runningImports.length > 0
+      ? busy
+      : null;
+  }
+  if (payload.hasRunningModules === true) {
+    return { generatingRuns: 1, runningImports: [] };
+  }
+  return null;
+}
+```
+
+A payload with neither field, or no payload at all, is not busy.
 
 ## 1. Status site (status.fastr-analytics.org)
 
@@ -38,7 +63,7 @@ Where the fleet view already fetches `/health_check` per instance:
   fine) so it is visible at a glance that the instance must not be restarted.
 - Give the marker a title or tooltip that says what is running, built from the
   field, for example `Generating 1 results package; importing hmis`.
-- No marker when `busy` is missing or reports nothing.
+- No marker when `readBusy` returns null.
 
 ## 2. Server CLI (`wb`, repo server-cli)
 
@@ -46,17 +71,13 @@ Where the fleet view already fetches `/health_check` per instance:
 
 ### Helper
 
-One helper, for example `src/utils/instance-busy.ts`:
+One helper, for example `src/utils/instance-busy.ts`, holding `InstanceBusy` and
+`readBusy` from above plus:
 
 ```ts
-export type InstanceBusy = {
-  generatingRuns: number;
-  runningImports: string[];
-};
-
-// null = not busy, or the instance cannot be asked (down, timed out, or an
-// older server version with no `busy` field). A server that cannot answer is
-// often the reason for the restart, so it never blocks one.
+// null = not busy, or the instance cannot be asked (down or timed out). A
+// server that cannot answer is often the reason for the restart, so it never
+// blocks one.
 export async function getInstanceBusy(
   port: number,
 ): Promise<InstanceBusy | null>;
@@ -66,8 +87,8 @@ export function describeBusy(busy: InstanceBusy): string;
 ```
 
 `getInstanceBusy` fetches `http://localhost:${port}/health_check` with a short
-timeout (5 s, `AbortSignal.timeout`), parses the JSON, and returns `busy` only
-when it reports work. The CLI runs on the host, so the instance's published port
+timeout (5 s, `AbortSignal.timeout`), parses the JSON and returns
+`readBusy(payload)`. The CLI runs on the host, so the instance's published port
 is the address; `serverInfo.port` already holds it.
 
 ### Commands
@@ -115,5 +136,5 @@ Stop container: ethiopia 8012
 ...
 ```
 
-An instance that is down, or on a server version without the field, restarts as
-before.
+An instance that is down restarts as before. A v1 instance is gated on
+generation only.
