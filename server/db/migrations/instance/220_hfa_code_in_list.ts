@@ -49,6 +49,16 @@ type CodeField = {
 };
 
 export async function hfaCodeInList(tx: Sql): Promise<void> {
+  // A fresh database loads a base schema whose columns 223 has already
+  // renamed, and the code there is already the language.
+  const [{ hasRCode }] = await tx<{ hasRCode: boolean }[]>`
+    SELECT EXISTS (
+      SELECT 1 FROM information_schema.columns
+      WHERE table_name = 'hfa_indicator_code' AND column_name = 'r_code'
+    ) AS "hasRCode"
+  `;
+  if (!hasRCode) return;
+
   const codeRows = await tx<
     {
       indicator_id: string;

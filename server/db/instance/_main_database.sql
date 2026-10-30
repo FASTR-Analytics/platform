@@ -892,8 +892,8 @@ CREATE TABLE hfa_indicators (
 CREATE TABLE hfa_indicator_code (
   indicator_id TEXT NOT NULL REFERENCES hfa_indicators(indicator_id) ON DELETE CASCADE,
   time_point TEXT NOT NULL REFERENCES hfa_time_points(label) ON UPDATE CASCADE ON DELETE RESTRICT,
-  r_code TEXT NOT NULL DEFAULT '',
-  r_filter_code TEXT,
+  code TEXT NOT NULL DEFAULT '',
+  filter_code TEXT,
   PRIMARY KEY (indicator_id, time_point)
 );
 
@@ -901,7 +901,7 @@ CREATE TABLE hfa_indicator_variant_code (
   indicator_id TEXT NOT NULL REFERENCES hfa_indicators(indicator_id) ON DELETE CASCADE,
   time_point TEXT NOT NULL REFERENCES hfa_time_points(label) ON UPDATE CASCADE ON DELETE RESTRICT,
   item_id TEXT NOT NULL REFERENCES hfa_indicator_variant_items(id) ON UPDATE CASCADE ON DELETE CASCADE,
-  r_code TEXT NOT NULL DEFAULT '',
+  code TEXT NOT NULL DEFAULT '',
   PRIMARY KEY (indicator_id, time_point, item_id)
 );
 

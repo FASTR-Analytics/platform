@@ -765,7 +765,7 @@ The variable id is the column the HFA extract carries to R (`hfa.csv`
 `variable_id`, the `m010` pivot column) and the id that indicator code
 references; `isReservedHfaId` reserves it with the other columns the script
 owns. User-authored code snippets in `hfa_indicator_code` (per indicator_id ×
-time_point: `r_code` + optional `r_filter_code`, filter requires main code)
+time_point: `code` + optional `filter_code`, filter requires main code)
 reference variables AND other indicators, both by id. Indicator ids are assigned
 by the app and never typed: `nextHfaIndicatorId` (`lib/hfa_indicator_code.ts`)
 takes the next `indNNN` after the highest stored one, skipping reserved words
@@ -817,7 +817,7 @@ by `server/tests/hfa_workbook_text_columns_test.ts`.
 breakdown ("provides vaccination" × {campaign, routine, both}) without the items
 becoming indicators. Storage is one indicator row plus a sibling code table:
 `hfa_indicator_variant_groups` / `_items` (id PK, group FK) and
-`hfa_indicator_variant_code` (`indicator_id, time_point, item_id` → `r_code`),
+`hfa_indicator_variant_code` (`indicator_id, time_point, item_id` → `code`),
 with a nullable `hfa_indicators.variant_group_id`. Real variant _rows_ in
 `hfa_indicators` were rejected: their failure mode is a hiding rule at every
 surface that iterates the dictionary (manager, xlsx, `HfaTaxonomyForAI`,
@@ -825,12 +825,12 @@ unused-variables, run capture and every run reader), and one miss leaks item ids
 into user-facing indicator lists. The code table's cost is the opposite and
 better shaped: a missed extension means a variant lacks a feature, visible to
 the author immediately. **The feature is purely additive**: the parent keeps its
-own overall `r_code` and its unchanged rows in `M10_hfa_results.csv`; overall is
-never derived from items (they may overlap or be non-exhaustive).
-`r_filter_code`, type, aggregation and sentinel bindings stay the parent's and
-apply to every item; only the numerator is per-item, and `time_point` stays in
-the key because each round has its own questionnaire (an item with no code row
-for a round simply drops out of it, with its own denominator).
+own overall `code` and its unchanged rows in `M10_hfa_results.csv`; overall is
+never derived from items (they may overlap or be non-exhaustive). `filter_code`,
+type, aggregation and sentinel bindings stay the parent's and apply to every
+item; only the numerator is per-item, and `time_point` stays in the key because
+each round has its own questionnaire (an item with no code row for a round
+simply drops out of it, with its own denominator).
 
 Three invariants are enforced by `assertVariantIntegrity`, re-run **in full
 inside every mutating transaction** that can touch them, including the

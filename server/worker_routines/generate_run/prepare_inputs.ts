@@ -252,14 +252,14 @@ export async function prepareRunInputs(
     scriptInputs.hfaIndicatorCode = capture.indicatorCode.map((c) => ({
       indicatorId: c.indicator_id,
       timePoint: c.time_point,
-      rCode: c.r_code,
-      rFilterCode: c.r_filter_code ?? undefined,
+      rCode: c.code,
+      rFilterCode: c.filter_code ?? undefined,
     }));
     scriptInputs.hfaVariantCode = capture.variantCode.map((c) => ({
       indicatorId: c.indicator_id,
       timePoint: c.time_point,
       itemId: c.item_id,
-      rCode: c.r_code,
+      rCode: c.code,
     }));
     scriptInputs.hfaSentinelRows = capture.sentinelValues.map((r) => ({
       variableId: r.variable_id,

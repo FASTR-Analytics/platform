@@ -59,8 +59,8 @@ export type DBHfaIndicator = {
 type DBHfaIndicatorCode = {
   indicator_id: string;
   time_point: string;
-  r_code: string;
-  r_filter_code: string | null;
+  code: string;
+  filter_code: string | null;
 };
 
 export type DBHfaIndicatorVariantGroup = {
@@ -80,7 +80,7 @@ type DBHfaIndicatorVariantCode = {
   indicator_id: string;
   time_point: string;
   item_id: string;
-  r_code: string;
+  code: string;
 };
 
 export function dbRowToHfaIndicatorCategory(
@@ -135,8 +135,8 @@ function dbRowToHfaIndicatorCode(row: DBHfaIndicatorCode): HfaIndicatorCode {
   return {
     indicatorId: row.indicator_id,
     timePoint: row.time_point,
-    rCode: row.r_code,
-    rFilterCode: row.r_filter_code ?? undefined,
+    rCode: row.code,
+    rFilterCode: row.filter_code ?? undefined,
   };
 }
 
@@ -168,7 +168,7 @@ function dbRowToHfaIndicatorVariantCode(
     indicatorId: row.indicator_id,
     timePoint: row.time_point,
     itemId: row.item_id,
-    rCode: row.r_code,
+    rCode: row.code,
   };
 }
 
@@ -575,7 +575,7 @@ async function assertVariantIntegrity(sql: Sql): Promise<void> {
     FROM hfa_indicator_variant_code c
     WHERE NOT EXISTS (
       SELECT 1 FROM hfa_indicator_code p
-      WHERE p.indicator_id = c.indicator_id AND TRIM(p.r_code) != ''
+      WHERE p.indicator_id = c.indicator_id AND TRIM(p.code) != ''
     )
     LIMIT 1
   `;
@@ -928,7 +928,7 @@ export async function batchUploadHfaIndicators(
       for (const c of code) {
         if (!c.rCode.trim() || !created.has(c.indicatorId)) continue;
         await sql`
-          INSERT INTO hfa_indicator_code (indicator_id, time_point, r_code, r_filter_code)
+          INSERT INTO hfa_indicator_code (indicator_id, time_point, code, filter_code)
           VALUES (${c.indicatorId}, ${c.timePoint}, ${c.rCode}, ${
           c.rFilterCode ?? null
         })
@@ -937,7 +937,7 @@ export async function batchUploadHfaIndicators(
       for (const c of variantCode) {
         if (!c.rCode.trim() || !created.has(c.indicatorId)) continue;
         await sql`
-          INSERT INTO hfa_indicator_variant_code (indicator_id, time_point, item_id, r_code)
+          INSERT INTO hfa_indicator_variant_code (indicator_id, time_point, item_id, code)
           VALUES (${c.indicatorId}, ${c.timePoint}, ${c.itemId}, ${c.rCode})
         `;
       }
@@ -1220,7 +1220,7 @@ export async function importHfaIndicatorsWorkbook(
           continue;
         }
         await sql`
-          INSERT INTO hfa_indicator_code (indicator_id, time_point, r_code, r_filter_code)
+          INSERT INTO hfa_indicator_code (indicator_id, time_point, code, filter_code)
           VALUES (${c.indicatorId}, ${c.timePoint}, ${c.rCode}, ${
           c.rFilterCode ?? null
         })
@@ -1233,7 +1233,7 @@ export async function importHfaIndicatorsWorkbook(
         if (!vc.rCode.trim()) continue;
         if (!insertedIndicatorIds.has(vc.indicatorId)) continue;
         await sql`
-          INSERT INTO hfa_indicator_variant_code (indicator_id, time_point, item_id, r_code)
+          INSERT INTO hfa_indicator_variant_code (indicator_id, time_point, item_id, code)
           VALUES (${vc.indicatorId}, ${vc.timePoint}, ${vc.itemId}, ${vc.rCode})
         `;
       }
@@ -1359,7 +1359,7 @@ async function writeHfaIndicatorEntry(
     for (const c of code) {
       if (!c.rCode.trim()) continue;
       await sql`
-        INSERT INTO hfa_indicator_code (indicator_id, time_point, r_code, r_filter_code)
+        INSERT INTO hfa_indicator_code (indicator_id, time_point, code, filter_code)
         VALUES (${id}, ${c.timePoint}, ${c.rCode}, ${c.rFilterCode ?? null})
       `;
     }
@@ -1369,7 +1369,7 @@ async function writeHfaIndicatorEntry(
     for (const c of variantCode) {
       if (!c.rCode.trim()) continue;
       await sql`
-        INSERT INTO hfa_indicator_variant_code (indicator_id, time_point, item_id, r_code)
+        INSERT INTO hfa_indicator_variant_code (indicator_id, time_point, item_id, code)
         VALUES (${id}, ${c.timePoint}, ${c.itemId}, ${c.rCode})
       `;
     }

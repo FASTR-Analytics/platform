@@ -48,14 +48,14 @@ export type DatasetHfaRunCapture = {
   indicatorCode: {
     indicator_id: string;
     time_point: string;
-    r_code: string;
-    r_filter_code: string | null;
+    code: string;
+    filter_code: string | null;
   }[];
   variantCode: {
     indicator_id: string;
     time_point: string;
     item_id: string;
-    r_code: string;
+    code: string;
   }[];
 };
 
@@ -92,11 +92,11 @@ export async function computeDatasetHfaRunCapture(
         {
           indicator_id: string;
           time_point: string;
-          r_code: string;
-          r_filter_code: string | null;
+          code: string;
+          filter_code: string | null;
         }[]
       >`
-      SELECT indicator_id, time_point, r_code, r_filter_code
+      SELECT indicator_id, time_point, code, filter_code
       FROM hfa_indicator_code
       ORDER BY indicator_id, time_point
     `
@@ -197,10 +197,10 @@ COPY (${exportStatement}) TO '${csvTarget.postgresPath}' WITH (FORMAT CSV, HEADE
           indicator_id: string;
           time_point: string;
           item_id: string;
-          r_code: string;
+          code: string;
         }[]
       >`
-      SELECT indicator_id, time_point, item_id, r_code
+      SELECT indicator_id, time_point, item_id, code
       FROM hfa_indicator_variant_code
       ORDER BY indicator_id, time_point, item_id
     `
