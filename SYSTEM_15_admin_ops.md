@@ -227,8 +227,10 @@ guards, so all 11 health endpoints are public by design (external status
 dashboard). What each leaks must stay a deliberate decision:
 
 1. `/health_check`: instance meta, uptime, **every user email + admin emails**,
-   contact persons, whether a run is generating, dataset stats, last user-log
-   row (excluding two hardcoded personal emails).
+   contact persons, `busy` (the work a restart would kill: the count of
+   `generating` runs and the import families with a `running` run, read by the
+   server CLI's restart gate and the status site's busy marker), dataset stats,
+   last user-log row (excluding two hardcoded personal emails).
 2. `/user_logs`: the forever-retained `getCurrentUser` login trail.
 3. `/user_activity?email=`: distinct active days for any email.
 4. `/user_logs_all`: full `user_logs` dump incl. `endpoint_result`.

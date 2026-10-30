@@ -1,4 +1,5 @@
 import { Context, Hono } from "hono";
+import { Sql } from "postgres";
 import {
   DBUser,
   GetAiLimitHits,
@@ -6,6 +7,9 @@ import {
   getCurrentDatasetHmisMaxVersionId,
   GetInstanceWeeklyTokenUsage,
   getPgConnectionFromCacheOrNew,
+  hasRunningDatasetHfaImportRun,
+  hasRunningDatasetHmisImportRun,
+  hasRunningDatasetIcehImportRun,
   UserLog,
 } from "../../db/mod.ts";
 import {
@@ -23,6 +27,35 @@ import { getModuleDefaultsSnapshot } from "../../runs/mod.ts";
 
 export const routesHealth = new Hono();
 
+type ImportFamily = "hmis" | "hfa" | "iceh";
+
+// Work a restart would kill: the restart gate in the server CLI and the
+// status site's busy marker both read this. A generation is a 'generating'
+// catalog row and an import a 'running' run row, the same rows the boot
+// sweeps mark failed, so a 'queued' HMIS run, which survives a restart, is
+// not counted.
+async function getBusy(
+  mainDb: Sql,
+): Promise<{ generatingRuns: number; runningImports: ImportFamily[] }> {
+  const [generating, hmis, hfa, iceh] = await Promise.all([
+    mainDb<{ n: string }[]>`
+SELECT count(*) AS n FROM runs WHERE status = 'generating'
+`,
+    hasRunningDatasetHmisImportRun(mainDb),
+    hasRunningDatasetHfaImportRun(mainDb),
+    hasRunningDatasetIcehImportRun(mainDb),
+  ]);
+  const families: [ImportFamily, boolean][] = [
+    ["hmis", hmis],
+    ["hfa", hfa],
+    ["iceh", iceh],
+  ];
+  return {
+    generatingRuns: Number(generating[0].n),
+    runningImports: families.filter(([, running]) => running).map(([f]) => f),
+  };
+}
+
 routesHealth.get("/health_check", async (c) => {
   const currentTime = new Date().toISOString();
   const startTime = new Date(_START_TIME);
@@ -38,14 +71,7 @@ routesHealth.get("/health_check", async (c) => {
       firstName: u.first_name,
       lastName: u.last_name,
     }));
-  // A generation in flight = a 'generating' row in the runs catalog.
-  const hasRunningModules = Number(
-    (
-      await mainDb<{ n: string }[]>`
-SELECT count(*) AS n FROM runs WHERE status = 'generating'
-`
-    )[0].n,
-  ) > 0;
+  const busy = await getBusy(mainDb);
 
   const hmisVersion = await getCurrentDatasetHmisMaxVersionId(mainDb);
   const hfaTimePointCount = (
@@ -79,7 +105,7 @@ SELECT count(*) AS n FROM runs WHERE status = 'generating'
         timestamp: lastLog.timestamp,
       }
       : null,
-    hasRunningModules,
+    busy,
     contactPersons,
     datasets: {
       hmis: hmisVersion
