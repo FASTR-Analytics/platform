@@ -270,8 +270,6 @@ export function InstanceData(p: Props) {
     const rows: DataRow[] = [];
     if (canConfigureData()) {
       rows.push(configurationRow("hmis"));
-    }
-    if (canConfigureData()) {
       const url = instanceState.dhis2ConnectionUrl;
       rows.push({
         label: t3({
