@@ -224,8 +224,10 @@ already listed. A restricted user who lacks the product's scope is marked, in
 the picker and in their row, because such a grant stays inert until their scope
 access changes. Save calls `setProductOwner` when the owner changed, then
 `setProductAccess` when the draft differs from what the transfer leaves. The
-dialog never offers the owner as a grantee, offers only roster users and lists
-each person once, so it cannot produce the three refusals; one caused by a race
+dialog never offers the owner as a grantee, offers only the directory (what
+every approved connection receives about each user: email, names, admin flag
+and scope access, S18 "The roster") and lists each person once, so it cannot
+produce the three refusals; one caused by a race
 shows the server's message. Its bulk mode, "Set access for everything in this
 folder…" in the folder menu for a global admin, calls `setFolderProductsAccess`:
 a General access select whose first choice, "Leave as is", sends `none`; the

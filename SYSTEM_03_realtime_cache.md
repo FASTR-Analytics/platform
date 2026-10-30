@@ -97,20 +97,23 @@ because these are ephemeral telemetry. Durable per-user state never relies on
 it: the runs CATALOGUE broadcasts a data-free nonce (`runs_catalog_updated`) and
 each entitled client fetches `listRunCatalog` through its per-request guard, so
 nothing sensitive rides the broadcast and permission changes take effect live.
-The one other per-connection rule on the instance channel is the ROSTER: a
-connection whose user is absent from the `users` table (Clerk-authenticated but
-unapproved) receives `users: []` in `starting` and has every `users_updated`
-rewritten to `[]` in the forward loop, until a roster payload names them, at
-which point that message flows whole and the client's own-email re-derivation
-flips them approved. The roster is an enumeration surface (emails, names,
-permission maps) with no consumer on the pending-approval screen. The same rule
+The one other per-connection rule on the instance channel is the ROSTER,
+projected per connection by `rosterForViewer` (`lib/permissions/`, S18) in
+`starting` and in every `users_updated` the forward loop passes: a connection
+whose user is absent from the `users` table (Clerk-authenticated but
+unapproved) receives `users: []`, until a roster payload names them, at which
+point the client's own-email re-derivation flips them approved; an approved
+connection receives directory rows (email, names, admin flag, scope access),
+its own row whole; a holder of `can_view_users` (an admin included) receives
+every roster row, flags included. The roster is an enumeration surface (emails,
+names, permission maps) with no consumer on the pending-approval screen. The
+same rule
 withholds the copilot grounding and the boundary files: an unapproved
 connection's `starting` carries `aiContext: ""` and `geojsonMaps: []`, its
 `config_updated` arrives with `aiContext` blanked, and `geojson_maps_updated`
 does not reach it. Deliberately NOT withheld from unapproved connections:
-`dhis2ConnectionUrl`, the structure/indicator/dataset summaries, and assets;
-likewise approved non-admin users still receive the full roster. The
-product plane rides the same roster rule: `buildInstanceState` leaves
+`dhis2ConnectionUrl`, the structure/indicator/dataset summaries, and assets.
+The product plane rides the same roster rule: `buildInstanceState` leaves
 `products`, `folders`, `readyPackages`, `scopes` and the `lastUpdated` index
 empty for an unapproved connection, and the forward loop drops
 `products_upserted`, `products_deleted`, `folders_updated`, `scopes_updated` and
@@ -165,11 +168,13 @@ always `{ type: "starting", data: <full state> }`;
 `{ type: "error", data: { message } }` terminates with an error.
 
 `buildInstanceState` (`task_management/build_instance_state.ts`) is the instance
-`starting` builder in two halves: `buildInstanceStateWithoutProducts` is the
-grounding half the `/mcp` context cache uses (instance facts only, product lists
-empty), and `buildInstanceState` adds the product plane for the SSE handler when
-the caller is approved, each list degrading to empty on a read failure rather
-than stopping the boundary.
+`starting` builder in two halves: `buildInstanceGrounding` is the per-instance
+half the `/mcp` context cache uses (instance facts only: no roster, no
+catalogue, no product plane), and `buildInstanceState` fills the connection's
+share over it, the projected roster (S18 "The roster"), the viewer's assets,
+the catalogue when entitled and, for an approved caller, the product plane,
+each list degrading to empty on a read failure rather than stopping the
+boundary.
 
 **Connection lifecycle: subscribe-before-build.** The endpoint uses Hono's
 `streamSSE` and follows six steps:

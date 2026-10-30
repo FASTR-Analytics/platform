@@ -186,7 +186,8 @@ in `lib/permissions/` (S18).
 - **`assets/assets.tsx`** is the Assets admin page: one table of every asset
   with a filterable type column (CSV/Excel/Image/ZIP/Other), size/modified/owner
   columns, a "Who can see it" column, per-row sharing (`AssetSharingForm` in
-  `assets/asset_sharing.tsx`), download (root-path `GET`, S1 static serve) and
+  `assets/asset_sharing.tsx`, whose viewer picker reads the directory rows
+  every approved connection holds, S18 "The roster"), download (root-path `GET`, S1 static serve) and
   delete, and one Upload button: `UploadAssetsForm` asks who can see the files
   (Everyone, or only the uploader and the people they choose) above a drop zone,
   and dropping or choosing files closes it and hands them to the page's one Uppy

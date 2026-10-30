@@ -1,4 +1,4 @@
-import { type AssetPrivacy, type OtherUser, t3, TC } from "lib";
+import { type AssetPrivacy, t3, TC, type UserDirectoryEntry } from "lib";
 import {
   type AlertComponentProps,
   createFormAction,
@@ -12,7 +12,7 @@ import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 
 export function userDisplayName(
-  u: Pick<OtherUser, "email" | "firstName" | "lastName">,
+  u: Pick<UserDirectoryEntry, "email" | "firstName" | "lastName">,
 ): string {
   const name = `${u.firstName ?? ""} ${u.lastName ?? ""}`.trim();
   return name ? `${name} (${u.email})` : u.email;

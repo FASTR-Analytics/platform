@@ -1,6 +1,6 @@
 import { getCountryLabel } from "../consts.ts";
 import type { RunDataset } from "../types/run_datasets.ts";
-import type { InstanceState } from "../types/instance_sse.ts";
+import type { InstanceGrounding } from "../types/instance_sse.ts";
 import type { InstanceCalendar } from "../types/instance.ts";
 import type { PeriodBounds } from "../types/presentation_objects.ts";
 import type { RunHmisIndicator } from "../types/run_manifest.ts";
@@ -75,7 +75,7 @@ const REFERENCE_DOCS_SECTION =
 // ── Instance grounding: country, terminology, data sources ──
 
 export function buildInstanceContextSections(
-  instance: InstanceState,
+  instance: InstanceGrounding,
 ): string[] {
   const sections: string[] = [];
   sections.push("# Instance Information");
@@ -413,7 +413,9 @@ export function buildPackageBlock(inputs: PackageBlockInputs): string {
 
 // ── Data coverage: the instance's facility registries ──
 
-export function buildDataCoverageSections(instance: InstanceState): string[] {
+export function buildDataCoverageSections(
+  instance: InstanceGrounding,
+): string[] {
   const sections: string[] = [];
   if (instance.structure) {
     sections.push("");

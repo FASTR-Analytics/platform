@@ -363,6 +363,20 @@ users row, through `repointUserEmail`, which reads every foreign key to
 `users(email)` from `pg_constraint`. Each path returns the products it changed
 and its route re-broadcasts their summaries (`notifyInstanceProductsUpserted`).
 
+## The roster
+
+`rosterForViewer(users, viewerEmail)` (`lib/permissions/_roster.ts`) is the
+one projection of the roster for a connection: nothing while the viewer's row
+is absent (unapproved); every `OtherUser` row, stored flags included, for a
+holder of `can_view_users` (an admin included); otherwise `UserDirectoryEntry`
+rows (email, names, admin flag, scope access) with the viewer's own row whole,
+so the client derives its own permissions from it (`isRosterRow` tells the
+two apart). `buildInstanceState` applies it to the `starting` payload and the
+SSE forward filter to every `users_updated` (S3); the client store holds the
+union, the people pickers and sharing lists read directory fields (S12, S4),
+and the Users tab, which only roster-row holders reach, reads the roster rows.
+The `/mcp` grounding (`buildInstanceGrounding`) carries no roster at all (S13).
+
 ## Permissions (write side)
 
 - **One flat flag set** (`lib/permissions/_flags.ts`, with a compile-time

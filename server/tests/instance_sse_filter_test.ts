@@ -14,7 +14,7 @@ import type {
   ScopeAccess,
   ScopeUuid,
 } from "lib";
-import { userPermissions } from "lib";
+import { directoryEntry, userPermissions } from "lib";
 import {
   createInstanceSseFilter,
   type InstanceSseFilterStart,
@@ -362,4 +362,39 @@ Deno.test("a change to the connection's own admin flag ends the stream", () => {
     data: [rosterRow(ALL_SCOPES, VIEWER, true)],
   });
   assertEquals(promoted.close, true);
+});
+
+// The roster projection, applied to every users_updated: nothing for a
+// connection whose user is absent, directory rows for an approved one with
+// its own row whole, every row for a can_view_users holder.
+Deno.test("the roster is projected per connection", () => {
+  const other = rosterRow(ALL_SCOPES, "other@example.com");
+  const mine = rosterRow(ALL_SCOPES, VIEWER);
+  const start: InstanceSseFilterStart = {
+    currentUserEmail: VIEWER,
+    currentUserApproved: true,
+    currentUserIsGlobalAdmin: false,
+    currentUserPermissions: NO_PERMISSIONS,
+    currentUserScopeAccess: ALL_SCOPES,
+    products: [],
+    folders: [],
+  };
+  const filter = createInstanceSseFilter(start, { allFolders: [] });
+
+  const directory = filter({ type: "users_updated", data: [other, mine] });
+  assertEquals(directory.messages, [{
+    type: "users_updated",
+    data: [directoryEntry(other), mine],
+  }]);
+
+  const holder = { ...mine, can_view_users: true };
+  const full = filter({ type: "users_updated", data: [other, holder] });
+  assertEquals(full.messages, [{
+    type: "users_updated",
+    data: [other, holder],
+  }]);
+
+  const gone = filter({ type: "users_updated", data: [other] });
+  assertEquals(gone.messages, [{ type: "users_updated", data: [] }]);
+  assertEquals(gone.close, true);
 });

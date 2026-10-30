@@ -4,7 +4,7 @@ import type { HfaTimePoint } from "./dataset_hfa.ts";
 import type { DatasetType } from "./datasets.ts";
 import type { GeoJsonMapSummary } from "./geojson_maps.ts";
 import type {
-  OtherUser,
+  RosterEntry,
   ScopeAccess,
   UserPermissions,
 } from "../permissions/mod.ts";
@@ -33,6 +33,28 @@ import type { HfaWeightsCoverage } from "./structure.ts";
 // ============================================================================
 // Instance SSE State
 // ============================================================================
+
+// The per-user share of the instance state: what buildInstanceState fills
+// for one connection over the per-instance grounding below.
+type PerConnectionKey =
+  | "products"
+  | "folders"
+  | "readyPackages"
+  | "scopes"
+  | "lastUpdated"
+  | "users"
+  | "assets"
+  | "runsCatalog"
+  | "runsCatalogSignal"
+  | "currentUserEmail"
+  | "currentUserApproved"
+  | "currentUserIsGlobalAdmin"
+  | "currentUserPermissions"
+  | "currentUserScopeAccess";
+
+// The instance facts every connection shares, and all the /mcp context cache
+// grounds on: no roster, no catalogue, no product plane.
+export type InstanceGrounding = Omit<InstanceState, PerConnectionKey>;
 
 export type InstanceState = {
   // Client and server share one type. The server sends `isReady: true` in the
@@ -74,10 +96,11 @@ export type InstanceState = {
   // cache-key token and the stale check) from here.
   scopes: Scope[];
   lastUpdated: Record<LastUpdateTableName, Record<string, string>>;
-  // [] for an unapproved connection (its user absent from the roster), in
-  // the starting payload and every users_updated, until a roster names them
-  //: routesInstanceSSE / buildInstanceState.
-  users: OtherUser[];
+  // Projected per connection by rosterForViewer (lib/permissions): [] for
+  // an unapproved connection, directory rows for an approved one with its
+  // own row whole, every row for a can_view_users holder, in the starting
+  // payload and every users_updated.
+  users: RosterEntry[];
   assets: AssetInfo[];
   geojsonMaps: GeoJsonMapSummary[];
   // Per-user (run labels must not fan out). Filled at build for
@@ -249,7 +272,7 @@ export type InstanceSseMessage =
       lastUpdated: string;
     };
   }
-  | { type: "users_updated"; data: OtherUser[] }
+  | { type: "users_updated"; data: RosterEntry[] }
   // Data-free nonce signal only: the catalogue itself is fetched per user.
   | { type: "runs_catalog_updated"; data: string }
   | { type: "pinned_run_updated"; data: { pinnedRunId: string | null } }

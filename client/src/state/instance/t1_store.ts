@@ -15,11 +15,11 @@ import type {
   InstanceState,
   InstanceStructureSummary,
   LastUpdateTableName,
-  OtherUser,
   PackageScope,
   ProductSummary,
   ReadyPackage,
   ResolvedPackageScope,
+  RosterEntry,
   RunCatalogItem,
   Scope,
   StructureSchema,
@@ -27,6 +27,7 @@ import type {
 import {
   ALL_SCOPES,
   effectivePermissions,
+  isRosterRow,
   resolvePackageScope,
   scopeAreaForFamily,
   userPermissions,
@@ -313,7 +314,7 @@ export function productById(id: string): ProductSummary | undefined {
   return instanceState.products.find((p) => p.id === id);
 }
 
-export function updateInstanceUsers(users: OtherUser[]): void {
+export function updateInstanceUsers(users: RosterEntry[]): void {
   setInstanceState("users", reconcile(users));
 }
 
@@ -383,13 +384,14 @@ export function updateInstancePopulation(
 // Current user (per-connection, populated by server in starting message)
 // ============================================================================
 
-// The roster row carries the stored permission bits; the current user's are
-// the effective ones, derived as the server derives them.
-export function updateCurrentUser(me: OtherUser | undefined): void {
+// The viewer's own row is always a roster row (rosterForViewer), carrying the
+// stored permission bits; the current user's are the effective ones, derived
+// as the server derives them.
+export function updateCurrentUser(me: RosterEntry | undefined): void {
   const scopeAccess = me?.scopeAccess ?? ALL_SCOPES;
-  const permissions = me === undefined
-    ? userPermissions(false)
-    : effectivePermissions(me);
+  const permissions = me !== undefined && isRosterRow(me)
+    ? effectivePermissions(me)
+    : userPermissions(false);
   setInstanceState("currentUserApproved", !!me);
   setInstanceState("currentUserIsGlobalAdmin", me?.isGlobalAdmin ?? false);
   setInstanceState("currentUserScopeAccess", reconcile(scopeAccess));

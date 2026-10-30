@@ -1,4 +1,5 @@
 import {
+  isRosterRow,
   productLevelAtLeast,
   type RouteGuard,
   routeRegistry,
@@ -17,9 +18,10 @@ export function isGlobalAdmin(): boolean {
 }
 
 export function isHUser(): boolean {
-  return instanceState.users.find((u) =>
+  const me = instanceState.users.find((u) =>
     u.email === instanceState.currentUserEmail
-  )?.isHUser ?? false;
+  );
+  return me !== undefined && isRosterRow(me) && me.isHUser;
 }
 
 export function can(key: UserPermission): boolean {

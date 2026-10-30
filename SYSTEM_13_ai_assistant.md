@@ -1128,8 +1128,11 @@ from a row on the Data page behind `can_configure_data`
 `updateAiContextConfig`), and rides `InstanceState` with the rest of the config,
 so the SPA prompt reads it from T1 with no fetch and `/mcp`'s `get_overview`
 reads it from the instance state its context cache holds per user for 30 s
-(`resolveInstanceState`, `server/mcp/context_cache.ts`). Both are built by
-`buildInstanceStateWithoutProducts`, which blanks it for an unapproved user.
+(`resolveInstanceState`, `server/mcp/context_cache.ts`). The SPA's is built by
+`buildInstanceState`, the connection's `starting` payload; `/mcp`'s by
+`buildInstanceGrounding`, the per-instance half with no roster, no catalogue
+and no product plane, blanked for an unapproved principal
+(`groundingForUnapproved`).
 
 **Documents.** `useAIDocuments` keeps `{assetFilename, anthropicFileId}` pairs
 in IndexedDB, one instance-wide upload registry shared by every product's

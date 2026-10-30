@@ -1,5 +1,6 @@
 import {
   INSTANCE_PERMISSION_LABELS,
+  isRosterRow,
   OtherUser,
   type ScopeId,
   t3,
@@ -53,7 +54,9 @@ export function InstanceUsers() {
   const [showHUsers, setShowHUsers] = createSignal(false);
   // Operators are hidden by default; Download exports what the table shows.
   const visibleUsers = () =>
-    instanceState.users.filter((user) => showHUsers() || !user.isHUser);
+    instanceState.users.filter(isRosterRow).filter((user) =>
+      showHUsers() || !user.isHUser
+    );
 
   async function attemptAddUser() {
     await openComponent({

@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { AssetInfo } from "./assets.ts";
 import type { GeoJsonMapSummary } from "./geojson_maps.ts";
 import type { DatasetType } from "./datasets.ts";
 import type {
@@ -117,7 +116,6 @@ export type InstanceDetail = {
     hmisIndicators: number;
     hfaIndicators: number;
   };
-  assets: AssetInfo[];
   geojsonMaps: GeoJsonMapSummary[];
   datasetsWithData: DatasetType[];
   datasetVersions: {

@@ -1,5 +1,6 @@
 import {
   INSTANCE_PERMISSION_LABELS,
+  isRosterRow,
   OtherUser,
   pickUserPermissions,
   t3,
@@ -48,7 +49,7 @@ export function User(p: Props) {
   holdCopilotView();
   copilotViewController.setView("user");
   const user = createMemo(() =>
-    instanceState.users.find((u) => u.email === p.email)
+    instanceState.users.filter(isRosterRow).find((u) => u.email === p.email)
   );
   createEffect(() => {
     const row = user();

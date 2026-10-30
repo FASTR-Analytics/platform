@@ -7,7 +7,9 @@ import {
   type GlobalUser,
   type InstanceSseMessage,
   type InstanceState,
+  isRosterRow,
   type ProductSummary,
+  rosterForViewer,
   scopeAccessEqual,
   type ScopeId,
 } from "lib";
@@ -124,7 +126,10 @@ export function createInstanceSseFilter(
 
   return (msg) => {
     if (msg.type === "users_updated") {
-      const me = msg.data.find((u) => u.email === viewer.email);
+      // The broadcast carries every full row; the projection for this
+      // connection happens here.
+      const rows = msg.data.filter(isRosterRow);
+      const me = rows.find((u) => u.email === viewer.email);
       const next = {
         email: viewer.email,
         isGlobalAdmin: me?.isGlobalAdmin ?? viewer.isGlobalAdmin,
@@ -140,7 +145,7 @@ export function createInstanceSseFilter(
       viewer = next;
       return {
         messages: [
-          me === undefined ? { type: "users_updated", data: [] } : msg,
+          { type: "users_updated", data: rosterForViewer(rows, viewer.email) },
         ],
         close: changed,
       };
@@ -277,9 +282,9 @@ routesInstanceSSE.get(
 
       try {
         // 1. Build initial state from database (while queuing any concurrent
-        // messages). buildInstanceState is the full payload; the /mcp context
-        // cache grounds on its product-free half
-        // (buildInstanceStateWithoutProducts).
+        // messages). buildInstanceState is the connection's payload; the /mcp
+        // context cache grounds on the per-instance half
+        // (buildInstanceGrounding).
         const res = await buildInstanceState(mainDb, globalUser);
         if (!res.success) {
           await stream.writeSSE({

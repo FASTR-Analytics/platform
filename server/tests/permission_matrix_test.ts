@@ -11,6 +11,7 @@ import {
   type APIResponseWithData,
   type CollabServerMessage,
   geographyOnlyScopeDefinition,
+  isRosterRow,
   pickUserPermissions,
   type ProductAccessLevel,
   type ProductLevel,
@@ -20,7 +21,9 @@ import {
   type UserPermissions,
   userPermissions,
 } from "lib";
+import { buildGlobalUserFromDb } from "../auth/global_user.ts";
 import { getPgConnectionFromCacheOrNew } from "../db/mod.ts";
+import { buildInstanceState } from "../task_management/build_instance_state.ts";
 import type { DBUser } from "../db/mod.ts";
 import {
   createPersonalAccessToken,
@@ -1021,6 +1024,29 @@ Deno.test("permission matrix: every route and tier against every persona", async
     );
     const headersFor = (caller: Caller) =>
       caller.kind === "machine" ? STATUS_KEY_HEADER : {};
+
+    // The starting payload's roster per persona: nothing for an unapproved
+    // connection, directory rows with the own row whole for an approved one,
+    // every row for a can_view_users holder and an admin.
+    const rosterOf = async (p: Persona) => {
+      const res = await buildInstanceState(
+        mainDb,
+        await buildGlobalUserFromDb(p.email, null, null),
+      );
+      if (!res.success) throw new Error(res.err);
+      return res.data.users;
+    };
+    assertEquals(await rosterOf(UNAPPROVED), []);
+    const directory = await rosterOf(NO_FLAGS);
+    assert(directory.length > 1);
+    for (const entry of directory) {
+      assertEquals(isRosterRow(entry), entry.email === NO_FLAGS.email);
+    }
+    for (const p of [ONE_FLAG[2], MANAGER, ADMIN]) {
+      const roster = await rosterOf(p);
+      assertEquals(roster.length, directory.length, p.name);
+      assert(roster.every(isRosterRow), p.name);
+    }
 
     // The raw endpoints and the static tiers.
     for (const raw of rawEndpoints(seed)) {

@@ -1098,3 +1098,8 @@ commit.
 - Step 7: edited `client/src/components/results_packages/package_view/mod.ts`,
   outside the Surface, because the review removed `canViewPackageLogs`, which it
   exported.
+- Step 8: `lib/permissions/_roster.ts` holds `UserDirectoryEntry`,
+  `RosterEntry`, `isRosterRow`, `directoryEntry` and `rosterForViewer`, a file
+  the layout did not name; edited `lib/ai_tools/build_system_prompt.ts`,
+  outside the Surface, because its two grounding sections now take the
+  per-instance `InstanceGrounding` the `/mcp` cache holds.
