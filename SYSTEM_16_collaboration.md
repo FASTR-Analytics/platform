@@ -1284,14 +1284,21 @@ version insert never bumps `last_updated`, by design).
   Bob". Element attribution exists only for collab edits (the observer lives on
   the room doc); REST-path slide saves fall back to the slide-level editors.
 - **Visualization** (`visualization_version_preview.tsx`): "Edits in this
-  session" shows a rename and the figure before and after (against the previous
-  version, `canonicalJson` without `snapshotAt`), noting when the two were drawn
-  from different packages or scopes; Preview shows the version's figure. The
-  history opens over the editor, which stays mounted under it, so after a
-  restore the shell (`products/visualization/visualization.tsx`, through the
-  panel's `onRestored`) remounts the figure editor: live, once the room relays
-  the restored doc (or after 3 s); offline, on the re-read row. The remounted
-  editor re-resolves the figure under the product's current pair.
+  session" shows a rename, the settings that changed and the figure before and
+  after (against the previous version, `canonicalJson` without `snapshotAt`),
+  noting when the two were drawn from different packages or scopes; Preview
+  shows the version's figure. The settings list comes from
+  `diffVisualizationSettings` (`visualization_settings_diff.ts`, pure over the
+  two bundles, the dimension and period labels injected): one line per changed
+  setting under Data, Style and Text, in the editor's labels, with its value
+  before and after; a structured setting (conditional formatting, series styles)
+  says only that it changed, and an optional style setting absent on one side
+  equals its empty value, so first writing it as off is no change. The history
+  opens over the editor, which stays mounted under it, so after a restore the
+  shell (`products/visualization/visualization.tsx`, through the panel's
+  `onRestored`) remounts the figure editor: live, once the room relays the
+  restored doc (or after 3 s); offline, on the re-read row. The remounted editor
+  re-resolves the figure under the product's current pair.
 
 Footer: **Restore as copy** for anyone who can see the product (name prompt; the
 copy is a new product in the source's folder, owned by whoever made it), and

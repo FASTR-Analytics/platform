@@ -13,11 +13,18 @@ import {
   openConfirm,
   StateHolderWrapper,
 } from "panther";
-import { createSignal, type JSX, Show } from "solid-js";
+import { formatPeriod, getPeriodTypeFromValue } from "panther";
+import { createSignal, For, type JSX, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { productById } from "~/state/instance/t1_store";
 import { ReportFigureEmbed } from "../mod.ts";
+import { getDisplayDisaggregationLabel } from "~/state/instance/_util_disaggregation_label";
 import { CopyVersionModal } from "./copy_version_modal";
+import {
+  diffVisualizationSettings,
+  type SettingChange,
+  type SettingsSection,
+} from "./visualization_settings_diff";
 
 type PreviewMode = "edits" | "preview";
 
@@ -235,6 +242,20 @@ function SessionEdits(p: {
         const renamed = prev.label !== p.version.label;
         const figureChanged = bundleContent(prev.bundle) !==
           bundleContent(p.version.bundle);
+        const settings = diffVisualizationSettings(
+          prev.bundle,
+          p.version.bundle,
+          {
+            dimension: (disOpt) =>
+              t3(getDisplayDisaggregationLabel(disOpt, undefined)),
+            period: (value) =>
+              formatPeriod(
+                value,
+                getPeriodTypeFromValue(value) ?? "year",
+                p.version.bundle.localization.calendar,
+              ),
+          },
+        );
         const redrawn = prev.bundle.provenance.runId !==
             p.version.bundle.provenance.runId ||
           prev.bundle.scope.definitionHash !==
@@ -255,6 +276,9 @@ function SessionEdits(p: {
               </Card>
             </Show>
             <Show when={figureChanged}>
+              <Card>
+                <SettingsChanges changes={settings} redrawn={redrawn} />
+              </Card>
               <Card>
                 <Show when={redrawn}>
                   <div class="ui-text-caption mb-2">
@@ -297,6 +321,111 @@ function SessionEdits(p: {
         );
       }}
     </StateHolderWrapper>
+  );
+}
+
+const SECTIONS: { id: SettingsSection; label: () => string }[] = [
+  { id: "data", label: () => t3({ en: "Data", fr: "Données", pt: "Dados" }) },
+  { id: "style", label: () => t3({ en: "Style", fr: "Style", pt: "Estilo" }) },
+  { id: "text", label: () => t3({ en: "Text", fr: "Texte", pt: "Texto" }) },
+];
+
+// The session's setting changes, grouped as the editor's panels are. With
+// none, the figure changed through its data alone.
+function SettingsChanges(p: { changes: SettingChange[]; redrawn: boolean }) {
+  return (
+    <div>
+      <div class="ui-text-heading mb-2">
+        {t3({
+          en: "Settings changed",
+          fr: "Réglages modifiés",
+          pt: "Definições alteradas",
+        })}
+      </div>
+      <Show
+        when={p.changes.length > 0}
+        fallback={
+          <div class="text-base-content-muted text-sm">
+            {p.redrawn
+              ? t3({
+                en:
+                  "No settings changed: the figure was redrawn from a different results package or scope.",
+                fr:
+                  "Aucun réglage modifié : la figure a été redessinée à partir d'un autre paquet de résultats ou d'une autre portée.",
+                pt:
+                  "Nenhuma definição alterada: a figura foi redesenhada a partir de outro pacote de resultados ou âmbito.",
+              })
+              : t3({
+                en: "No settings changed: only the data was refreshed.",
+                fr:
+                  "Aucun réglage modifié : seules les données ont été actualisées.",
+                pt:
+                  "Nenhuma definição alterada: apenas os dados foram atualizados.",
+              })}
+          </div>
+        }
+      >
+        <div class="ui-spy-sm">
+          <For each={SECTIONS}>
+            {(section) => {
+              const rows = p.changes.filter((c) => c.section === section.id);
+              return (
+                <Show when={rows.length > 0}>
+                  <div>
+                    <div class="ui-text-caption font-700 mb-1">
+                      {section.label()}
+                    </div>
+                    <ul class="ui-spy-sm text-sm">
+                      <For each={rows}>
+                        {(change) => <SettingRow change={change} />}
+                      </For>
+                    </ul>
+                  </div>
+                </Show>
+              );
+            }}
+          </For>
+        </div>
+      </Show>
+    </div>
+  );
+}
+
+function SettingRow(p: { change: SettingChange }) {
+  const c = p.change;
+  return (
+    <li>
+      <span class="font-700">{c.label}</span>
+      {": "}
+      <Show
+        when={c.before !== undefined || c.after !== undefined}
+        fallback={
+          <span class="text-base-content-muted">
+            {t3({ en: "changed", fr: "modifié", pt: "alterado" })}
+          </span>
+        }
+      >
+        <Show when={c.before !== undefined}>
+          <span class="text-base-content-muted line-through">{c.before}</span>
+        </Show>
+        <Show when={c.before !== undefined && c.after !== undefined}>
+          {" → "}
+        </Show>
+        <Show when={c.after !== undefined}>
+          <span>{c.after}</span>
+        </Show>
+        <Show when={c.before === undefined}>
+          <span class="text-base-content-muted">
+            {" "}({t3({ en: "added", fr: "ajouté", pt: "adicionado" })})
+          </span>
+        </Show>
+        <Show when={c.after === undefined}>
+          <span class="text-base-content-muted">
+            {" "}({t3({ en: "removed", fr: "supprimé", pt: "removido" })})
+          </span>
+        </Show>
+      </Show>
+    </li>
   );
 }
 
