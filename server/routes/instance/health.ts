@@ -23,7 +23,7 @@ import {
   _WEEKLY_TOKEN_LIMIT,
 } from "../../exposed_env_vars.ts";
 import { getModuleDefaultsSnapshot } from "../../runs/mod.ts";
-import { requireStatusKey } from "../../middleware/userPermission.ts";
+import { requireStatusKey } from "../../auth/guards.ts";
 
 export const routesHealth = new Hono();
 

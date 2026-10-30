@@ -6,10 +6,13 @@ import { getGlobalUser } from "../auth/global_user.ts";
 import { getPgConnectionFromCacheOrNew } from "../db/mod.ts";
 import { canUserSeeAsset } from "lib";
 import { getAssetPrivacyForAnyName } from "../db/instance/assets.ts";
+import { createMiddleware } from "hono/factory";
 import {
+  type GuardEnv,
   requireApprovedUser,
-  requireGlobalPermission,
-} from "./userPermission.ts";
+  requirePermission,
+} from "../auth/guards.ts";
+import { NOT_FOUND, SERVICE_UNAVAILABLE } from "../auth/refusals.ts";
 
 // Uploaded IMAGE assets (logos and images placed in decks and reports) are
 // served WITHOUT auth: scoped to image extensions so non-image uploads stay
@@ -18,8 +21,7 @@ import {
 const PUBLIC_IMAGE_RE = /\.(png|jpe?g|gif|svg|webp|avif|ico)$/i;
 
 // Data-file assets (import-wizard inputs live here now: raw facility-level
-// health data) require can_view_data OR can_configure_data (admins pass).
-// requireGlobalPermission(a, b) is AND, hence the inline check. The assets
+// health data) require can_view_data, which configure implies. The assets
 // PAGE itself is visible to all authenticated users: asset NAMES are public
 // (the SSE starting payload); only the bytes are gated, and the page hides
 // the data-file download button from users this tier would 403.
@@ -53,7 +55,7 @@ export function setupStaticServing(app: Hono) {
       );
     } catch {
       c.status(503);
-      return c.text("Service temporarily unavailable");
+      return c.text(SERVICE_UNAVAILABLE);
     }
     if (privacy === null) {
       await next();
@@ -64,7 +66,7 @@ export function setupStaticServing(app: Hono) {
       globalUser = await getGlobalUser(c);
     } catch {
       c.status(503);
-      return c.text("Service temporarily unavailable");
+      return c.text(SERVICE_UNAVAILABLE);
     }
     if (
       globalUser === "NOT_AUTHENTICATED" ||
@@ -72,7 +74,7 @@ export function setupStaticServing(app: Hono) {
       !canUserSeeAsset(privacy, globalUser.email, globalUser.isGlobalAdmin)
     ) {
       c.status(404);
-      return c.text("Not found");
+      return c.text(NOT_FOUND);
     }
     c.header("Cache-Control", "private, no-store");
     // A data file still needs the data bit below; anything else is served
@@ -101,59 +103,54 @@ export function setupStaticServing(app: Hono) {
   // 403 every non-data request that falls through to the assets serve below.
   app.use(
     "/:run_id/outputs/*",
-    requireGlobalPermission("can_view_data"),
+    requirePermission("can_view_data"),
     serveStatic({ root: _RUNS_DIR_PATH }),
   );
 
-  // Third tier: data-file bytes for data-permitted users only (admins pass).
-  // The extension test runs on the DECODED, NORMALIZED path with trailing
-  // slashes stripped: serveStatic resolves `/x.csv/`, `/x.csv/.`, and
-  // `/x.csv/y/..` to the same file on some hono versions, and this tier
-  // fails OPEN (falls through to the any-authenticated serve below), so the
-  // gate must see every spelling of a data-file path.
-  app.use("*", async (c, next) => {
-    // decodeURI throws on malformed escapes (a bare % survives
-    // sanitizeUploadFilename, so "coverage_100%.csv" is a real asset name);
-    // serveStatic cannot decode such a path either, so gating on the raw
-    // path is equivalent there: never let the throw escape to onError.
-    let decoded = c.req.path;
-    try {
-      decoded = decodeURI(c.req.path);
-    } catch {
-      // Keep the raw path.
-    }
-    const path = normalize(decoded).replace(/\/+$/, "");
-    // CORS preflight passes through, same as the guards.
-    if (!DATA_FILE_RE.test(path) || c.req.method === "OPTIONS") {
-      await next();
-      return;
-    }
-    let globalUser: Awaited<ReturnType<typeof getGlobalUser>>;
-    try {
-      globalUser = await getGlobalUser(c);
-    } catch {
-      c.status(503);
-      return c.text("Service temporarily unavailable");
-    }
-    if (globalUser === "NOT_AUTHENTICATED") {
-      c.status(401);
-      return c.text("Authentication required");
-    }
-    const allowed = globalUser.isGlobalAdmin ||
-      globalUser.thisUserPermissions.can_view_data ||
-      globalUser.thisUserPermissions.can_configure_data;
-    if (!allowed) {
-      c.status(403);
-      return c.text("You do not have permission to download data files");
-    }
-    return serveStatic({ root: _ASSETS_DIR_PATH })(c, next);
-  });
+  // Third tier: data-file bytes for holders of can_view_data. The extension
+  // test runs on the DECODED, NORMALIZED path with trailing slashes
+  // stripped: serveStatic resolves `/x.csv/`, `/x.csv/.`, and `/x.csv/y/..`
+  // to the same file on some hono versions, and this tier fails OPEN (falls
+  // through to the approved-user serve below), so the gate must see every
+  // spelling of a data-file path.
+  const dataFileGuard = requirePermission("can_view_data");
+  const serveDataFile = serveStatic({ root: _ASSETS_DIR_PATH });
+  app.use(
+    "*",
+    createMiddleware<GuardEnv>(async (c, next) => {
+      if (!isDataFilePath(c.req.path)) {
+        await next();
+        return;
+      }
+      // A Response the inner serve returns is not this middleware's return
+      // value, so it is captured and returned, else lost.
+      let served: Response | undefined;
+      const refusal = await dataFileGuard(c, async () => {
+        served = (await serveDataFile(c, next)) ?? undefined;
+      });
+      return refusal ?? served;
+    }),
+  );
 
   app.use(
     "*",
     requireApprovedUser(),
     serveStatic({ root: _ASSETS_DIR_PATH }),
   );
+}
+
+// decodeURI throws on malformed escapes (a bare % survives
+// sanitizeUploadFilename, so "coverage_100%.csv" is a real asset name);
+// serveStatic cannot decode such a path either, so gating on the raw path is
+// equivalent there: never let the throw escape to onError.
+function isDataFilePath(rawPath: string): boolean {
+  let decoded = rawPath;
+  try {
+    decoded = decodeURI(rawPath);
+  } catch {
+    // Keep the raw path.
+  }
+  return DATA_FILE_RE.test(normalize(decoded).replace(/\/+$/, ""));
 }
 
 // The top-level asset names a request path could be served as. Assets are

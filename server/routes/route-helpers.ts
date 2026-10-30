@@ -7,8 +7,8 @@ import {
   type ProductAccessLevel,
   routeRegistry,
 } from "lib";
-import { requireProductAccess } from "../middleware/userPermission.ts";
 import { markRouteDefined } from "./route-tracker.ts";
+import { requireFolderAccess, requireProductAccess } from "../auth/guards.ts";
 
 // Extract params type directly from route registry
 type RouteParams<K extends keyof typeof routeRegistry> =
@@ -56,7 +56,9 @@ export function defineRoute<K extends keyof typeof routeRegistry>(
   // guard: the middleware is installed here so no handler checks access itself.
   const access = (route as { access?: ProductAccessLevel }).access;
   const middlewares = access === undefined ? args.slice(0, -1) : [
-    requireProductAccess(access, routeName in folderRouteRegistry),
+    routeName in folderRouteRegistry
+      ? requireFolderAccess(access)
+      : requireProductAccess(access),
     ...args.slice(0, -1),
   ];
 

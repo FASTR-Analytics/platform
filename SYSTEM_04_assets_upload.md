@@ -158,7 +158,7 @@ in `lib/permissions/` (S18).
   `createInstanceSseFilter`); delete; same-name overwrite
   (`canUserUploadOverAsset`, at POST and again at completion); and every by-name
   read on a user's behalf: `requireVisibleAssets`
-  (`server/middleware/asset_visibility.ts`, S18) on the HMIS CSV, HFA CSV and
+  (`server/auth/asset_visibility.ts`, S18) on the HMIS CSV, HFA CSV and
   ICEH zip wizard/launch routes, the geojson analyze/save, population
   preview/import, HFA weights read/import, structure step 1, the two HFA
   facility previews and batch user upload routes, and an inline check on the AI

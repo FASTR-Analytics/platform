@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { AddLog } from "../../db/instance/user_logs.ts";
-import { requireApprovedUser } from "../../middleware/userPermission.ts";
 import { defineRoute } from "../route-helpers.ts";
+import { requireApprovedUser } from "../../auth/guards.ts";
 
 export const routesOnboarding = new Hono();
 

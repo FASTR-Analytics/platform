@@ -99,7 +99,7 @@ product summaries, whole-list folders) is S3's mutation recipe.
 Every `defineRoute` gets one. A route with no guard is public-by-accident (Clerk
 populates, it never rejects).
 
-- Instance route → `requireGlobalPermission(...UserPermission)`.
+- Instance route → `requirePermission(flag)`, one flag (`server/auth/guards.ts`).
 - Approved-user surface (run-keyed package reads, the authoring context, the
   ready-package list) → `requireApprovedUser()`.
 - Product or folder route → nothing: the registry entry's `access` field is the
@@ -110,8 +110,8 @@ populates, it never rejects).
   as well, so an id from another product is a 404.
 - Permission keys come from `lib/permissions/_flags.ts` only. Adding a key? Add
   it there (type + array; every builder follows), plus the DB column migration.
-- Admin-only → `requireGlobalPermission({ requireAdmin: true })`.
-- Zero permission keys = "any authenticated caller", without the `approved`
+- Admin-only → `requireAdmin()`.
+- `requireSignedIn()` = "any authenticated caller", without the `approved`
   check: real but weak; be deliberate.
 - Prefer a granular permission or `requireAdmin` over any new
   `H_USERS.includes()` check.

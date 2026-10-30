@@ -81,9 +81,9 @@ Client EventSource (t1_sse.tsx) → T1 store → version keys flip → caches mi
 
 Exactly **one SSE-feeding** broadcast channel, with one endpoint:
 
-| Channel              | Endpoint                | File                              | Guard                                                         |
-| -------------------- | ----------------------- | --------------------------------- | ------------------------------------------------------------- |
-| `"instance_updates"` | `GET /instance_updates` | `routes/instance/instance-sse.ts` | `requireGlobalPermission()` (hard-deny) + per-message filter† |
+| Channel              | Endpoint                | File                              | Guard                                                 |
+| -------------------- | ----------------------- | --------------------------------- | ----------------------------------------------------- |
+| `"instance_updates"` | `GET /instance_updates` | `routes/instance/instance-sse.ts` | `requireSignedIn()` (hard-deny) + per-message filter† |
 
 † The instance endpoint admits every logged-in user, so the two results-package
 generation messages (`run_progress` and `r_script`, which carry run labels,

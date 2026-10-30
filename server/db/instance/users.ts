@@ -21,6 +21,14 @@ import { DBUser } from "./_main_database_types.ts";
 import { SCOPE_NOT_FOUND } from "./scopes.ts";
 import { dropAccessOfMissingUsers } from "../products/products.ts";
 import { _OPEN_ACCESS } from "../../exposed_env_vars.ts";
+import {
+  ADMIN_FLAG_NEEDS_ADMIN,
+  ADMIN_ROW_NEEDS_ADMIN,
+  ADMIN_SELF_DEMOTION_REFUSED,
+  OWN_ROW_REFUSED,
+  RESTRICTED_CALLER_REFUSED,
+  SCOPE_ACCESS_ADMIN,
+} from "../../auth/refusals.ts";
 
 const USER_NOT_FOUND = "No matching user";
 
@@ -113,20 +121,6 @@ export function otherUserFromRow(
   };
 }
 
-export const ADMIN_FLAG_NEEDS_ADMIN =
-  "Only a global admin can make a user an admin";
-export const ADMIN_SELF_DEMOTION_REFUSED =
-  "You cannot remove yourself as admin. Ask another admin to do this.";
-export const SELF_DELETION_REFUSED =
-  "You cannot remove yourself as a user. Ask another admin to do this.";
-
-export const ADMIN_ROW_NEEDS_ADMIN =
-  "Only a global admin can change a global admin's account";
-export const OWN_ROW_REFUSED =
-  "You cannot change your own account. Ask an admin to do this.";
-export const RESTRICTED_CALLER_REFUSED =
-  "A user limited to certain scopes cannot manage users";
-
 export type UserManagementCaller = Pick<
   GlobalUser,
   "email" | "isGlobalAdmin" | "scopeAccess"
@@ -157,8 +151,6 @@ export async function refuseUserManagement(
   `;
   return rows.some((r) => r.is_admin) ? ADMIN_ROW_NEEDS_ADMIN : undefined;
 }
-
-export const SCOPE_ACCESS_ADMIN = "A global admin always has every scope";
 
 // Replaces a user's flag and grants together. An unrestricted user keeps no
 // grants, so a later restriction starts from an empty list. "All data"

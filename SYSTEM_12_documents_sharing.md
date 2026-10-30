@@ -447,7 +447,7 @@ is the backstop. `rowToScope` derives `definitionHash` on every read.
 `lib/api-routes/instance/scopes.ts`): `createScope` (`POST /scopes`),
 `updateScope` (`PUT /scopes/:scope_id`) and `deleteScope`
 (`DELETE /scopes/:scope_id`), each guarded
-`requireGlobalPermission({ requireAdmin: true })`. An unknown id on update or
+`requireAdmin()`. An unknown id on update or
 delete is a 404, and `all-data` on either is a 403 (`SCOPE_RESERVED`).
 `server/tests/scope_routes_test.ts` pins both refusals and that the routes take
 only the per-family definition. There is no list route: every successful write

@@ -21,16 +21,7 @@ import {
   createPersonalAccessToken,
   resolvePersonalAccessTokenEmail,
 } from "../db/instance/personal_access_tokens.ts";
-import {
-  ADMIN_FLAG_NEEDS_ADMIN,
-  ADMIN_ROW_NEEDS_ADMIN,
-  ADMIN_SELF_DEMOTION_REFUSED,
-  batchUploadUsers,
-  OWN_ROW_REFUSED,
-  RESTRICTED_CALLER_REFUSED,
-  SELF_DELETION_REFUSED,
-  setUserScopeAccess,
-} from "../db/instance/users.ts";
+import { batchUploadUsers, setUserScopeAccess } from "../db/instance/users.ts";
 import { closeAllConnections } from "../db/postgres/connection_manager.ts";
 import { _ASSETS_DIR_PATH } from "../exposed_env_vars.ts";
 import {
@@ -46,6 +37,14 @@ import {
   ok,
   withSchemaDb,
 } from "./_harness/route_app.ts";
+import {
+  ADMIN_FLAG_NEEDS_ADMIN,
+  ADMIN_ROW_NEEDS_ADMIN,
+  ADMIN_SELF_DEMOTION_REFUSED,
+  OWN_ROW_REFUSED,
+  RESTRICTED_CALLER_REFUSED,
+  SELF_DELETION_REFUSED,
+} from "../auth/refusals.ts";
 
 const tag = crypto.randomUUID().slice(0, 8);
 const email = (name: string) => `user-mgmt-${name}-${tag}@example.com`;

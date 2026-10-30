@@ -1,6 +1,6 @@
 import { Hono } from "hono";
-import { requireApprovedUser } from "../../middleware/userPermission.ts";
 import { proxyAnthropicMessages } from "../anthropic_messages_proxy.ts";
+import { requireApprovedUser } from "../../auth/guards.ts";
 
 export const routesCopilotAiProxy = new Hono();
 

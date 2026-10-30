@@ -6,8 +6,8 @@ import {
   updateCustomPrompt,
 } from "../../db/mod.ts";
 import { log } from "../../middleware/logging.ts";
-import { requireApprovedUser } from "../../middleware/userPermission.ts";
 import { defineRoute } from "../route-helpers.ts";
+import { requireApprovedUser } from "../../auth/guards.ts";
 
 export const routesCustomPrompts = new Hono();
 

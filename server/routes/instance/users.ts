@@ -18,9 +18,6 @@ import { renameVersionEditorEmail } from "../../collab/version_capture.ts";
 import { getUsersLastActive } from "../../db/instance/user_logs.ts";
 import {
   addUsers,
-  ADMIN_FLAG_NEEDS_ADMIN,
-  ADMIN_ROW_NEEDS_ADMIN,
-  ADMIN_SELF_DEMOTION_REFUSED,
   batchUploadUsers,
   bulkSetUserScopeAccess,
   bulkUpdateUserPermissions,
@@ -32,12 +29,9 @@ import {
   getUserEmailPresence,
   getUserPermissions,
   listPersonalAccessTokens,
-  OWN_ROW_REFUSED,
   renameUserEmailInMainDb,
   renameUserEmailInProducts,
-  RESTRICTED_CALLER_REFUSED,
   revokePersonalAccessToken,
-  SELF_DELETION_REFUSED,
   setUserContactPerson,
   setUserScopeAccess,
   SetUserUnlimitedAi,
@@ -56,12 +50,6 @@ import {
   _WEEKLY_TOKEN_LIMIT,
 } from "../../exposed_env_vars.ts";
 import { log } from "../../middleware/logging.ts";
-import {
-  requireApprovedUser,
-  requireGlobalPermission,
-  requireGlobalPermissionOrStatusKey,
-  requireStatusKey,
-} from "../../middleware/userPermission.ts";
 import { getClerkSessionAuth } from "../../middleware/auth.ts";
 import {
   notifyInstanceProductsUpserted,
@@ -72,7 +60,24 @@ import {
   COLLAB_CLOSE_UNAUTHORIZED,
 } from "./collab.ts";
 import { defineRoute } from "../route-helpers.ts";
-import { requireVisibleAssets } from "../../middleware/asset_visibility.ts";
+import { requireVisibleAssets } from "../../auth/asset_visibility.ts";
+import {
+  ADMIN_FLAG_NEEDS_ADMIN,
+  ADMIN_ROW_NEEDS_ADMIN,
+  ADMIN_SELF_DEMOTION_REFUSED,
+  OPERATOR_REQUIRED,
+  OWN_ROW_REFUSED,
+  RESTRICTED_CALLER_REFUSED,
+  SELF_DELETION_REFUSED,
+} from "../../auth/refusals.ts";
+import {
+  orStatusKey,
+  requireAdmin,
+  requireApprovedUser,
+  requirePermission,
+  requireSignedIn,
+  requireStatusKey,
+} from "../../auth/guards.ts";
 
 export const routesUsers = new Hono();
 
@@ -111,7 +116,7 @@ export async function broadcastRosterAndCloseStaleCollab(
 defineRoute(
   routesUsers,
   "getCurrentUser",
-  requireGlobalPermission(),
+  requireSignedIn(),
   log("getCurrentUser"),
   async (c) => {
     const { email, firstName, lastName } = c.var.globalUser;
@@ -162,7 +167,7 @@ defineRoute(
   log("setUserUnlimitedAi"),
   async (c, { body }) => {
     if (!H_USERS.includes(c.var.globalUser.email)) {
-      return c.json({ success: false, err: "Not authorized" }, 403);
+      return c.json({ success: false, err: OPERATOR_REQUIRED }, 403);
     }
     const res = await SetUserUnlimitedAi(
       c.var.mainDb,
@@ -179,7 +184,7 @@ defineRoute(
 defineRoute(
   routesUsers,
   "addUsers",
-  requireGlobalPermission("can_configure_users"),
+  requirePermission("can_configure_users"),
   log("addUsers"),
   async (c, { body }) => {
     // The admin flag makes a user unrestricted, so only an admin grants it,
@@ -203,7 +208,7 @@ defineRoute(
 defineRoute(
   routesUsers,
   "toggleUserAdmin",
-  requireGlobalPermission({ requireAdmin: true }),
+  requireAdmin(),
   log("toggleUserAdmin"),
   async (c, { body }) => {
     if (body.emails.includes(c.var.globalUser.email)) {
@@ -224,7 +229,7 @@ defineRoute(
 defineRoute(
   routesUsers,
   "deleteUser",
-  requireGlobalPermission("can_configure_users"),
+  requirePermission("can_configure_users"),
   log("deleteUser"),
   async (c, { body }) => {
     if (body.emails.includes(c.var.globalUser.email)) {
@@ -243,7 +248,7 @@ defineRoute(
 defineRoute(
   routesUsers,
   "batchUploadUsers",
-  requireGlobalPermission("can_configure_users"),
+  requirePermission("can_configure_users"),
   requireVisibleAssets("asset_file_name"),
   log("batchUploadUsers"),
   async (c, { body }) => {
@@ -269,7 +274,7 @@ defineRoute(
   log("setUserContactPerson"),
   async (c, { body }) => {
     if (!H_USERS.includes(c.var.globalUser.email)) {
-      return c.json({ success: false, err: "Not authorized" }, 403);
+      return c.json({ success: false, err: OPERATOR_REQUIRED }, 403);
     }
     const res = await setUserContactPerson(
       c.var.mainDb,
@@ -286,7 +291,7 @@ defineRoute(
 defineRoute(
   routesUsers,
   "getUsersLastActive",
-  requireGlobalPermission("can_view_logs"),
+  requirePermission("can_view_logs"),
   log("getUsersLastActive"),
   async (c) => {
     const res = await getUsersLastActive(c.var.mainDb);
@@ -297,7 +302,7 @@ defineRoute(
 defineRoute(
   routesUsers,
   "getUserPermissions",
-  requireGlobalPermission("can_configure_users"),
+  requirePermission("can_configure_users"),
   log("getUserPermissions"),
   async (c, { params }) => {
     const res = await getUserPermissions(c.var.mainDb, params.email);
@@ -308,7 +313,7 @@ defineRoute(
 defineRoute(
   routesUsers,
   "updateUserPermissions",
-  requireGlobalPermission("can_configure_users"),
+  requirePermission("can_configure_users"),
   log("updateUserPermissions"),
   async (c, { body }) => {
     const res = await updateUserPermissions(
@@ -327,7 +332,7 @@ defineRoute(
 defineRoute(
   routesUsers,
   "setUserScopeAccess",
-  requireGlobalPermission("can_configure_users"),
+  requirePermission("can_configure_users"),
   log("setUserScopeAccess"),
   async (c, { body }) => {
     const res = await setUserScopeAccess(
@@ -346,7 +351,7 @@ defineRoute(
 defineRoute(
   routesUsers,
   "bulkSetUserScopeAccess",
-  requireGlobalPermission("can_configure_users"),
+  requirePermission("can_configure_users"),
   log("bulkSetUserScopeAccess"),
   async (c, { body }) => {
     const res = await bulkSetUserScopeAccess(
@@ -365,7 +370,7 @@ defineRoute(
 defineRoute(
   routesUsers,
   "bulkUpdateUserPermissions",
-  requireGlobalPermission("can_configure_users"),
+  requirePermission("can_configure_users"),
   log("bulkUpdateUserPermissions"),
   async (c, { body }) => {
     const res = await bulkUpdateUserPermissions(
@@ -453,7 +458,7 @@ defineRoute(
 defineRoute(
   routesUsers,
   "updateMyProfile",
-  requireGlobalPermission(),
+  requireSignedIn(),
   log("updateMyProfile"),
   async (c, { body }) => {
     const { email } = c.var.globalUser;
@@ -559,7 +564,7 @@ async function renameUserEmailLocally(
 defineRoute(
   routesUsers,
   "renameUserEmail",
-  requireGlobalPermissionOrStatusKey({ requireAdmin: true }),
+  orStatusKey(requireAdmin()),
   log("renameUserEmail"),
   async (c, { body }) => {
     const oldEmail = normaliseEmail(body.oldEmail);
@@ -752,7 +757,7 @@ async function renameOnPeer(
 defineRoute(
   routesUsers,
   "renameUserEmailEverywhere",
-  requireGlobalPermission(),
+  requireSignedIn(),
   log("renameUserEmailEverywhere"),
   async (c, { body }) => {
     const oldEmail = normaliseEmail(body.oldEmail);

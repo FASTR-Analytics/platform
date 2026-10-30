@@ -71,6 +71,12 @@ import {
   recordVersionEdit,
 } from "../../collab/version_capture.ts";
 import { recordSlideEdited } from "../../collab/deck_session_ledger.ts";
+import {
+  AUTHENTICATION_REQUIRED,
+  AWAITING_APPROVAL,
+  ORIGIN_NOT_ALLOWED,
+  SERVICE_UNAVAILABLE,
+} from "../../auth/refusals.ts";
 
 type CollabAuth = {
   email: string;
@@ -180,7 +186,7 @@ routesCollab.get(
     const origin = c.req.header("origin");
     if (origin && !isAllowedWsOrigin(origin, c.req.header("host"))) {
       c.status(403);
-      return c.json({ success: false, err: "Origin not allowed" });
+      return c.json({ success: false, err: ORIGIN_NOT_ALLOWED });
     }
 
     // Denials from here on are surfaced as a post-upgrade close, not an HTTP
@@ -198,17 +204,14 @@ routesCollab.get(
       // reconnect behaviour.
       console.error("[collab] failed to resolve the connecting user:", error);
       c.status(503);
-      return c.json({
-        success: false,
-        err: "Service temporarily unavailable",
-      });
+      return c.json({ success: false, err: SERVICE_UNAVAILABLE });
     }
     if (globalUser === "NOT_AUTHENTICATED") {
-      deny("Authentication required");
+      deny(AUTHENTICATION_REQUIRED);
       return await next();
     }
     if (!globalUser.approved) {
-      deny("User is not approved");
+      deny(AWAITING_APPROVAL);
       return await next();
     }
 

@@ -3,11 +3,11 @@ import {
   checkAssetsVisibleToUser,
   resolveAssetFilePath,
 } from "../../db/instance/assets.ts";
-import { requireApprovedUser } from "../../middleware/userPermission.ts";
 import {
   _ANTHROPIC_API_KEY,
   _ANTHROPIC_API_URL,
 } from "../../exposed_env_vars.ts";
+import { requireApprovedUser } from "../../auth/guards.ts";
 
 export const routesAiFiles = new Hono();
 

@@ -17,7 +17,7 @@ import {
 } from "../../auth/product_access.ts";
 import { listFolders } from "../../db/products/folders.ts";
 import { buildInstanceState } from "../../task_management/build_instance_state.ts";
-import { requireGlobalPermission } from "../../middleware/userPermission.ts";
+import { requireSignedIn } from "../../auth/guards.ts";
 
 export const routesInstanceSSE = new Hono();
 
@@ -232,7 +232,7 @@ export function createInstanceSseFilter(
 
 routesInstanceSSE.get(
   "/instance_updates",
-  requireGlobalPermission(),
+  requireSignedIn(),
   async (c) => {
     const mainDb = c.var.mainDb;
     const globalUser = c.var.globalUser;
@@ -306,7 +306,7 @@ routesInstanceSSE.get(
         });
 
         // Every logged-in user, approved or not, reaches this endpoint
-        // (requireGlobalPermission()); createInstanceSseFilter holds the
+        // (requireSignedIn()); createInstanceSseFilter holds the
         // per-message rules. A global admin's messages pass whole, so only
         // everyone else needs the full folder list.
         const allFoldersRes = instanceState.currentUserIsGlobalAdmin

@@ -1,9 +1,9 @@
 import { Hono } from "hono";
 import { _FEEDBACK_EMAIL_RECIPIENTS } from "lib";
 import { _INSTANCE_ID, _SEND_GRID_API } from "../../exposed_env_vars.ts";
-import { requireApprovedUser } from "../../middleware/userPermission.ts";
 import { defineRoute } from "../route-helpers.ts";
 import { log } from "../../middleware/logging.ts";
+import { requireApprovedUser } from "../../auth/guards.ts";
 
 export const routesEmails = new Hono();
 

@@ -5,9 +5,9 @@ import {
   whatsNewPostForAudience,
 } from "lib";
 import { AddLog } from "../../db/instance/user_logs.ts";
-import { requireApprovedUser } from "../../middleware/userPermission.ts";
 import { _SERVER_VERSION } from "../../exposed_env_vars.ts";
 import { defineRoute } from "../route-helpers.ts";
+import { requireApprovedUser } from "../../auth/guards.ts";
 
 export const routesWhatsNew = new Hono();
 

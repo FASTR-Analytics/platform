@@ -19,8 +19,8 @@ import {
   _START_TIME,
 } from "../../exposed_env_vars.ts";
 import { log } from "../../middleware/mod.ts";
-import { requireGlobalPermission } from "../../middleware/userPermission.ts";
 import { defineRoute } from "../route-helpers.ts";
+import { requirePermission } from "../../auth/guards.ts";
 
 export const routesInstance = new Hono();
 
@@ -53,7 +53,7 @@ defineRoute(routesInstance, "getInstanceMeta", async (c) => {
 defineRoute(
   routesInstance,
   "updateStructureSchema",
-  requireGlobalPermission("can_configure_settings"),
+  requirePermission("can_configure_settings"),
   log("updateStructureSchema"),
   async (c, { body }) => {
     const res = await setStructureSchema(
@@ -71,7 +71,7 @@ defineRoute(
 defineRoute(
   routesInstance,
   "updateAdminAreaLabelsConfig",
-  requireGlobalPermission("can_configure_settings"),
+  requirePermission("can_configure_settings"),
   log("updateAdminAreaLabelsConfig"),
   async (c, { body }) => {
     const res = await updateAdminAreaLabelsConfig(c.var.mainDb, body);
@@ -85,7 +85,7 @@ defineRoute(
 defineRoute(
   routesInstance,
   "updateAiContextConfig",
-  requireGlobalPermission("can_configure_settings"),
+  requirePermission("can_configure_settings"),
   log("updateAiContextConfig"),
   async (c, { body }) => {
     const res = await updateAiContextConfig(c.var.mainDb, body.aiContext);

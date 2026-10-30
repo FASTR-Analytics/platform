@@ -8,8 +8,6 @@ globs:
   - server/auth/**
   - server/db/instance/rename_user_email.ts
   - server/db/instance/users.ts
-  - server/middleware/asset_visibility.ts
-  - server/middleware/userPermission.ts
   - server/routes/instance/users.ts
   - server/tests/_harness/route_app.ts
   - server/tests/approval_test.ts
@@ -57,36 +55,47 @@ email by `headlessAuthMiddleware`) and a Clerk session all converge on
 `buildGlobalUserFromDb`, which normalises the claimed email (`normaliseEmail`,
 trimmed and lowercased, as every `users.email` is stored), reads the `users` row
 and sets `approved = _OPEN_ACCESS || !!row`. Every guard below calls it first,
-except that `requireGlobalPermissionOrStatusKey` lets a matching status-api key
-through before it and `requireStatusKey` never calls it.
+except that `orStatusKey` admits a matching status-api key before it and
+`requireStatusKey` never calls it.
 
 ## The guard factories
 
-All guards live in `server/middleware/userPermission.ts`, skip `OPTIONS` (CORS
-preflight), answer `401 { success: false, err, authError: true }` when
-`getGlobalUser(c)` returns `"NOT_AUTHENTICATED"`, set `c.var.globalUser` and
-`c.var.mainDb` on success, and turn any thrown DB error into
-`503 "Service temporarily unavailable"` (no `authError`).
+`server/auth/guards.ts` holds one factory, `guard(policy)`, and the guards
+built on it. A policy reads the `GlobalUser` and answers a refusal string or
+nothing. Every guard skips `OPTIONS` (CORS preflight), answers
+`401 { success: false, err, authError: true }` when `getGlobalUser(c)` returns
+`"NOT_AUTHENTICATED"`, answers `403 { success: false, err }` with the policy's
+refusal, sets `c.var.globalUser` and `c.var.mainDb` on admission, and turns a
+thrown identity read into `503` (no `authError`). Every refusal string the
+guards, `static.ts`, the collab admission and the user-management routes answer
+is a constant in `server/auth/refusals.ts`, defined once.
 
-**`requireGlobalPermission([opts,] ...UserPermission)`**: instance routes. An
-optional leading `{ requireAdmin? }` object, then variadic permission keys with
-AND semantics. `requireAdmin && !isGlobalAdmin` → 403; global admins bypass the
-permission check; otherwise every listed permission must be truthy on
-`globalUser.thisUserPermissions`, else 403. With **zero** keys it only
-authenticates, without the `approved` check, and exactly four routes hold that
-form: `getCurrentUser`, `/instance_updates`, `updateMyProfile` and
+**`requireSignedIn()`**: any identity, approved or not. Exactly four routes hold
+it: `getCurrentUser`, `/instance_updates`, `updateMyProfile` and
 `renameUserEmailEverywhere`, which a signed-in account reaches before its
 approval or mid-rename. Every other route an approved user may call takes
-`requireApprovedUser()`.
+`requireApprovedUser()` or stronger.
 
-**`requireGlobalPermissionOrStatusKey([opts,] ...UserPermission)`**: the same
-guard, but a request carrying the shared `status-api-key` header passes as a
-fleet-internal machine call with `mainDb` and no `globalUser`. Its one call site
-is `renameUserEmail` (`{ requireAdmin: true }`), whose handler treats a missing
-`globalUser` as the machine actor and requires the body's `clerkUserId`, the
-account the originating instance verified, which it verifies again
-(`verifyClerkEmailOwnership`) before renaming: the shared key alone proves only
-that a peer sent the request.
+**`requireApprovedUser()`**: `globalUser.approved` (else 403
+`AWAITING_APPROVAL`). It guards every route any approved user may call: the
+run-keyed figure-data reads, the authoring context, the ready-package list, the
+product email send, the copilot proxy and its Files route on `/ai`, the TUS
+upload routes, the asset writes, the help email, AI usage, the personal access
+tokens, the prompt library, What's New, the tour telemetry, the area pickers,
+the raw boundary files, and the static fallback tier. The instance collab socket
+(`routes/instance/collab.ts`) applies the same signed-in-and-approved test
+inline before the upgrade rather than through this middleware, because its
+denials must travel as a post-upgrade close.
+
+**`requireAdmin()`**: `globalUser.isGlobalAdmin` (else 403 `ADMIN_REQUIRED`).
+
+**`requirePermission(flag)`**: approved and `holdsPermission(user, flag)` on the
+effective permissions (else 403), so a global admin passes every flag's guard
+and a configure holder passes the matching view flag's. One flag per guard; a
+route that needs two is two routes.
+
+**`requireHUser()`**: approved and an operator (`H_USERS`), else 403
+`OPERATOR_REQUIRED`.
 
 **`requireStatusKey()`**: machine calls only. A request without the
 `status-api-key` header matching `_STATUS_API_KEY` (an unset key matches
@@ -95,36 +104,31 @@ nothing) is 401, a signed-in session included; it sets `mainDb` and no
 `receiveUserProfileSync`, and the two health routes that need it,
 `/module_defaults_snapshot` and `POST /pg_stat_statements_reset`.
 
-**`requireApprovedUser()`**: signed in (else 401) AND `globalUser.approved`
-(else 403 "awaiting approval"); sets `c.var.globalUser` and `c.var.mainDb`. It
-guards every route any approved user may call: the run-keyed figure-data reads,
-the authoring context, the ready-package list, the product email send, the
-copilot proxy and its Files route on `/ai`, the TUS upload routes, the asset
-writes, the help email, AI usage, the personal access tokens, the prompt
-library, What's New, the tour telemetry, the area pickers, the raw boundary
-files, and the static fallback tier. The instance collab socket
-(`routes/instance/collab.ts`) applies the same signed-in-and-approved test
-inline before the upgrade rather than through this middleware, because its
-denials must travel as a post-upgrade close. Unlike the zero-permission
-`requireGlobalPermission()`, it checks `approved`.
+**`orStatusKey(inner)`**: a request carrying the shared `status-api-key` header
+passes ahead of `inner` as a fleet-internal machine call with `mainDb` and no
+`globalUser`. Its one site is `renameUserEmail` (`orStatusKey(requireAdmin())`),
+whose handler treats a missing `globalUser` as the machine actor and requires
+the body's `clerkUserId`, the account the originating instance verified, which
+it verifies again (`verifyClerkEmailOwnership`) before renaming: the shared key
+alone proves only that a peer sent the request.
 
-**`requireProductAccess(level)`**: the guard for every product and folder route,
-and the one guard a handler in `server/routes/products/` never names. Each entry
-in `lib/api-routes/products/*` declares `access: "view" | "edit"
-| "own"` (the
-`route()` helper returns the field non-optional, and each registry closes with a
-`satisfies` that requires it), and `defineRoute` installs the middleware
-whenever an entry carries the field. Per request it authenticates (401),
-resolves the route's targets from the id fields the contract declares and
-nowhere else, and awaits `productAccessPolicy(mainDb, user, level, targets)` in
-`server/auth/product_access.ts` once (403 on false). The targets are two product
-lists, `productIds` (the subjects: path `product_id` and body `productIds`,
-which need the declared level) and `destinationProductIds` (body
-`targetProductId`, a product the route writes into, which always needs `edit`),
-plus `folderIds` (path `folder_id`, body `folderId` and `parentId`) and
-`scopeIds` (body `scopeId`). A folder route is an entry of
-`folderRouteRegistry`, which `defineRoute` passes to the guard; nothing in a
-request makes a route a folder route.
+**`requireProductAccess(level)` and `requireFolderAccess(level)`**: the guards
+for every product and folder route, and the one guard a handler in
+`server/routes/products/` never names. Each entry in `lib/api-routes/products/*`
+declares `access: "view" | "edit" | "own"` (the `route()` helper returns the
+field non-optional, and each registry closes with a `satisfies` that requires
+it), and `defineRoute` installs the folder guard for an entry of
+`folderRouteRegistry` and the product guard for any other entry carrying the
+field; nothing in a request makes a route a folder route. Per request the guard
+authenticates (401), resolves the route's targets from the id fields the
+contract declares and nowhere else, and awaits
+`productAccessPolicy(mainDb, user, level, targets)` in
+`server/auth/product_access.ts` once (403 `PRODUCT_ACCESS_REFUSED` on false).
+The targets are two product lists, `productIds` (the subjects: path `product_id`
+and body `productIds`, which need the declared level) and
+`destinationProductIds` (body `targetProductId`, a product the route writes
+into, which always needs `edit`), plus `folderIds` (path `folder_id`, body
+`folderId` and `parentId`) and `scopeIds` (body `scopeId`).
 
 The policy is level-aware (S12 "Contract" says what each level allows). In
 order: an unapproved user is refused. A global admin passes with no query: an
@@ -263,7 +267,7 @@ rows that exist, so `addUsers` and `batchUploadUsers` also answer 403
 `is_admin` TRUE on any row; `toggleUserAdmin` requires an admin outright, and so
 does `renameUserEmail` on a session, because a rename hands the whole account to
 an address nobody proved they own (the fleet's status-key call takes
-`requireGlobalPermissionOrStatusKey`, above). An admin's own demotion and deletion are refused
+`orStatusKey(requireAdmin())`, above). An admin's own demotion and deletion are refused
 as 403s (`ADMIN_SELF_DEMOTION_REFUSED`, `SELF_DELETION_REFUSED`).
 
 An admin is unrestricted: a promotion (`toggleUserAdmin`, an admin row of
@@ -327,7 +331,8 @@ and its route re-broadcasts their summaries (`notifyInstanceProductsUpserted`).
   `can_configure_settings`, `can_configure_data`, `can_view_data`) stored as
   columns on `users`, beside `is_admin`. There are no roles and no presets: all
   editing is per-flag checkboxes and tri-states.
-- `requireGlobalPermission` (above) is the single read-side evaluator.
+- `requirePermission` (above) is the single read-side evaluator, over the
+  effective permissions.
 
 ## H_USERS shadow tier
 
@@ -342,12 +347,12 @@ route.
 
 ## Traps
 
-- **Global admins bypass everything.** `isGlobalAdmin` short-circuits
-  `requireGlobalPermission`'s permission loop. A bug masked by "I tested as
+- **Global admins bypass everything.** `effectivePermissions` gives an admin
+  every flag, so no permission guard refuses one. A bug masked by "I tested as
   admin" will bite a least-privilege user.
 - **Don't assume `c.var.globalUser` exists without a guard**: only a guard
-  populates it, `requireGlobalPermissionOrStatusKey` leaves it unset for machine
-  calls, and `requireStatusKey` never sets it.
+  populates it, `orStatusKey` leaves it unset for machine calls, and
+  `requireStatusKey` never sets it.
 - **`pickUserPermissions` reads a missing column as `false`.** A new
   permission column not yet migrated denies (fail-closed) with no warning, so
   a flag that never turns on after a deploy means the migration did not run.

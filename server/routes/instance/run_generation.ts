@@ -11,8 +11,6 @@ import {
 import { SCOPE_NOT_FOUND } from "../../db/instance/scopes.ts";
 import { familyLevelParamsSchema } from "../../../lib/api-routes/instance/geojson_maps.ts";
 import { log } from "../../middleware/logging.ts";
-import { requireGlobalPermission } from "../../middleware/mod.ts";
-import { requireApprovedUser } from "../../middleware/userPermission.ts";
 import {
   deleteRun,
   getModuleDefaultsGlobal,
@@ -42,6 +40,7 @@ import {
 import { notifyInstanceRunsCatalogUpdated } from "../../task_management/notify_instance_updated.ts";
 import { launchRunGeneration } from "../../worker_routines/generate_run/mod.ts";
 import { defineRoute } from "../route-helpers.ts";
+import { requireApprovedUser, requirePermission } from "../../auth/guards.ts";
 
 // Results-package wizard + catalogue: the instance defaults store, the wizard's
 // module-options read, launch, the catalogue listing (instance-T1's fetch half:
@@ -71,7 +70,7 @@ function readContextFailure(c: Context, res: { success: false; err: string }) {
 defineRoute(
   routesRunGeneration,
   "getRunGenerationDefaults",
-  requireGlobalPermission("can_configure_data"),
+  requirePermission("can_configure_data"),
   log("getRunGenerationDefaults"),
   async (c) => {
     const res = await getRunGenerationDefaultsConfig(c.var.mainDb);
@@ -82,7 +81,7 @@ defineRoute(
 defineRoute(
   routesRunGeneration,
   "saveRunGenerationDefaults",
-  requireGlobalPermission("can_configure_data"),
+  requirePermission("can_configure_data"),
   log("saveRunGenerationDefaults"),
   async (c, { body }) => {
     const res = await updateRunGenerationDefaultsConfig(
@@ -96,7 +95,7 @@ defineRoute(
 defineRoute(
   routesRunGeneration,
   "getModuleDefaultsGlobal",
-  requireGlobalPermission("can_configure_data"),
+  requirePermission("can_configure_data"),
   log("getModuleDefaultsGlobal"),
   async (c) => {
     const res = await getModuleDefaultsGlobal();
@@ -107,7 +106,7 @@ defineRoute(
 defineRoute(
   routesRunGeneration,
   "getRunGenerationModuleOptions",
-  requireGlobalPermission("can_configure_data"),
+  requirePermission("can_configure_data"),
   log("getRunGenerationModuleOptions"),
   async (c) => {
     const res = await getRunGenerationModuleOptions(c.var.mainDb);
@@ -118,7 +117,7 @@ defineRoute(
 defineRoute(
   routesRunGeneration,
   "listRunCatalog",
-  requireGlobalPermission("can_configure_data"),
+  requirePermission("can_configure_data"),
   log("listRunCatalog"),
   async (c) => {
     const res = await listRunCatalog(c.var.mainDb);
@@ -129,7 +128,7 @@ defineRoute(
 defineRoute(
   routesRunGeneration,
   "deleteRun",
-  requireGlobalPermission("can_configure_data"),
+  requirePermission("can_configure_data"),
   log("deleteRun"),
   async (c, { params }) => {
     const res = await deleteRun(c.var.mainDb, params.run_id);
@@ -145,7 +144,7 @@ defineRoute(
 defineRoute(
   routesRunGeneration,
   "pinResultsPackage",
-  requireGlobalPermission("can_configure_data"),
+  requirePermission("can_configure_data"),
   log("pinResultsPackage"),
   async (c, { params }) => {
     const res = await pinRun(c.var.mainDb, params.run_id);
@@ -156,7 +155,7 @@ defineRoute(
 defineRoute(
   routesRunGeneration,
   "unpinResultsPackage",
-  requireGlobalPermission("can_configure_data"),
+  requirePermission("can_configure_data"),
   log("unpinResultsPackage"),
   async (c, { params }) => {
     const res = await unpinRun(c.var.mainDb, params.run_id);
@@ -192,7 +191,7 @@ defineRoute(
 defineRoute(
   routesRunGeneration,
   "getRunModuleScript",
-  requireGlobalPermission("can_view_data"),
+  requirePermission("can_view_data"),
   log("getRunModuleScript"),
   async (c, { params }) => {
     return c.json(await readRunModuleScript(params.run_id, params.module_id));
@@ -202,7 +201,7 @@ defineRoute(
 defineRoute(
   routesRunGeneration,
   "getRunModuleLogs",
-  requireGlobalPermission("can_view_logs"),
+  requirePermission("can_view_logs"),
   log("getRunModuleLogs"),
   async (c, { params }) => {
     return c.json(await readRunModuleLogs(params.run_id, params.module_id));
@@ -212,7 +211,7 @@ defineRoute(
 defineRoute(
   routesRunGeneration,
   "listRunModuleFiles",
-  requireGlobalPermission("can_view_data"),
+  requirePermission("can_view_data"),
   log("listRunModuleFiles"),
   async (c, { params }) => {
     return c.json(await listRunModuleFiles(params.run_id, params.module_id));
@@ -225,7 +224,7 @@ defineRoute(
 defineRoute(
   routesRunGeneration,
   "getRunDetail",
-  requireGlobalPermission("can_view_data"),
+  requirePermission("can_view_data"),
   log("getRunDetail"),
   async (c, { params }) => {
     return c.json(await readRunDetail(params.run_id));
@@ -237,7 +236,7 @@ defineRoute(
 defineRoute(
   routesRunGeneration,
   "getRunModuleWithConfigSelections",
-  requireGlobalPermission("can_view_data"),
+  requirePermission("can_view_data"),
   log("getRunModuleWithConfigSelections"),
   async (c, { params }) => {
     const manifestRes = await getRunManifestForRun(params.run_id);
@@ -445,7 +444,7 @@ defineRoute(
 defineRoute(
   routesRunGeneration,
   "launchRunGeneration",
-  requireGlobalPermission("can_configure_data"),
+  requirePermission("can_configure_data"),
   log("launchRunGeneration"),
   async (c, { body }) => {
     const res = await launchRunGeneration(
