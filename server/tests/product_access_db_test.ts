@@ -8,6 +8,7 @@
 import { assert, assertEquals } from "@std/assert";
 import {
   ALL_DATA_SCOPE_ID,
+  ALL_SCOPES,
   type APIResponseWithData,
   type ProductAccess,
 } from "lib";
@@ -376,7 +377,13 @@ Deno.test("product access DB layer: inserts, access writes, bulk raise, user pat
       }),
     );
     await mainDb`UPDATE products SET owner = ${GONE} WHERE id = ${inSub}`;
-    const deleted = data(await deleteUser(mainDb, [GONE]));
+    const deleted = data(
+      await deleteUser(
+        mainDb,
+        { email: OWNER, isGlobalAdmin: true, scopeAccess: ALL_SCOPES },
+        [GONE],
+      ),
+    );
     for (const id of [inSub, outside]) {
       assert(deleted.productIds.includes(id), id);
     }

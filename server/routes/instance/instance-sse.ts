@@ -73,7 +73,8 @@ export type InstanceSseFilterResult = {
 //     applies to the starting payload.
 //   - Grants: a RESTRICTED connection's scopes are cut to the granted ones.
 //   - A change to the connection's own scope access or admin flag ends the
-//     stream.
+//     stream, and so does an approved connection's user leaving the roster
+//     (deleted): its reconnect is unapproved.
 export type InstanceSseFilterStart = Pick<
   InstanceState,
   | "currentUserEmail"
@@ -132,8 +133,10 @@ export function createInstanceSseFilter(
         : permissionsUnderScopeAccess(me, next.scopeAccess);
       canSeeRunMessages = (me?.isGlobalAdmin ?? false) ||
         (myPermissions?.can_configure_data ?? false);
+      const removed = isApproved && me === undefined;
       isApproved = me !== undefined;
-      const changed = !scopeAccessEqual(next.scopeAccess, viewer.scopeAccess) ||
+      const changed = removed ||
+        !scopeAccessEqual(next.scopeAccess, viewer.scopeAccess) ||
         next.isGlobalAdmin !== viewer.isGlobalAdmin;
       viewer = next;
       return {

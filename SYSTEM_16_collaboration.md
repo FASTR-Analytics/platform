@@ -148,15 +148,13 @@ URL is self-reported).
   viewer or editor, so a transfer that moves the previous owner from `own` to
   `edit` closes nothing); `setProductScope` closes every connection that opened
   the product, or whose presence names it, and does not hold its new scope
-  (`closeConnectionsLosingProduct`); and `setUserScopeAccess`, `toggleUserAdmin`
-  and `batchUploadUsers` close every connection whose scope access or admin flag
-  no longer equals its user's roster row (`closeConnectionsWithChangedAccess`),
-  since an admin flag change changes every level. The client reconnects and
-  re-subscribes, and is refused then what it can no longer see. No route closes
-  a deleted user's sockets: `deleteUser` closes none, and
-  `closeConnectionsWithChangedAccess` skips a connection whose user has no
-  roster row, so a socket of a user removed by `deleteUser` or a replace-all
-  `batchUploadUsers` keeps the levels it recorded until it closes.
+  (`closeConnectionsLosingProduct`); and `setUserScopeAccess`,
+  `bulkSetUserScopeAccess`, `toggleUserAdmin`, `deleteUser` and
+  `batchUploadUsers` close every connection whose scope access or admin flag no
+  longer equals its user's roster row, or whose user has no roster row
+  (`closeConnectionsWithChangedAccess`), since an admin flag change changes
+  every level and a deleted user's reconnect is refused. The client reconnects
+  and re-subscribes, and is refused then what it can no longer see.
   `PresenceEntry` carries identity plus opaque document ids, never labels or
   content. Authorization refusals are delivered as a **post-upgrade close** with
   `COLLAB_CLOSE_UNAUTHORIZED` (4403) rather than an HTTP status, because a

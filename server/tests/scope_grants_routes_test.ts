@@ -43,6 +43,11 @@ import { buildInstanceState } from "../task_management/build_instance_state.ts";
 const OPEN_EMAIL = "scope-grants-test-open@example.com";
 const LIMITED_EMAIL = "scope-grants-test-limited@example.com";
 const MINTED_EMAIL = "scope-grants-test-minted@example.com";
+const SYSTEM_CALLER = {
+  email: "scope-grants-test-system@example.com",
+  isGlobalAdmin: true,
+  scopeAccess: ALL_SCOPES,
+};
 
 function clerkLegMiddleware(email: string) {
   const auth = {
@@ -232,10 +237,12 @@ Deno.test("scope grants: products, folders, data reads, collab and /mcp", async 
   const csvName = `scope_grants_test_${tag}.csv`;
 
   try {
-    const grant = await setUserScopeAccess(mainDb, LIMITED_EMAIL, {
-      all: false,
-      scopeIds: [granted],
-    });
+    const restrict = () =>
+      setUserScopeAccess(mainDb, SYSTEM_CALLER, LIMITED_EMAIL, {
+        all: false,
+        scopeIds: [granted],
+      });
+    const grant = await restrict();
     assert(grant.success, JSON.stringify(grant));
 
     const limitedUser: GlobalUser = await buildGlobalUserFromDb(
@@ -502,7 +509,8 @@ Deno.test("scope grants: products, folders, data reads, collab and /mcp", async 
     });
 
     // A socket opened under one scope access closes when an admin flag change
-    // gives its user another.
+    // gives its user another. The promotion clears the restriction, so the
+    // grant is restored after the demotion.
     await mainDb`UPDATE users SET is_admin = TRUE WHERE email = ${OPEN_EMAIL}`;
     assertEquals(
       await closeCodeAfter(
@@ -521,11 +529,12 @@ Deno.test("scope grants: products, folders, data reads, collab and /mcp", async 
       makeAdmin: false,
     });
     await mainDb`UPDATE users SET is_admin = FALSE WHERE email = ${OPEN_EMAIL}`;
+    assert((await restrict()).success);
 
     // A restricted user who manages users cannot write the admin flag, which
     // would lift their own restriction: not on a new user, not on their
     // own row through the batch upload, and not by renaming an admin's row to
-    // an address of their own.
+    // an address of their own, since only an admin renames.
     await mainDb`
       UPDATE users SET can_configure_users = TRUE WHERE email = ${LIMITED_EMAIL}
     `;

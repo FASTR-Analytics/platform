@@ -76,7 +76,7 @@ export const userRouteRegistry = {
     path: "/users/batch",
     method: "POST",
     body: z.object({
-      asset_file_name: z.string(),
+      asset_file_name: z.string().min(1),
       replace_all_existing: z.boolean(),
     }),
   }),
@@ -114,18 +114,18 @@ export const userRouteRegistry = {
     method: "POST",
     body: z.object({ email: z.string(), unlimited: z.boolean() }),
   }),
-  // Global admins only, so a restricted user holding can_configure_users
-  // cannot lift their own restriction. Refused for a
-  // global admin, who always has every scope.
+  // The user-management rule (refuseUserManagement) keeps a holder of
+  // can_configure_users off their own row and any admin's, so no one lifts
+  // their own restriction. Refused for a global admin, who always has every
+  // scope.
   setUserScopeAccess: route({
     path: "/user/scope-access",
     method: "POST",
     body: z.object({ email: z.string(), scopeAccess: scopeAccessSchema }),
   }),
-  // The batch form: replaces the scope access of every named user, skipping
-  // global admins (who always have every scope). A global admin, or a holder
-  // of can_configure_users who is not restricted and is not among the named
-  // users, so no one can lift their own restriction.
+  // The batch form: replaces the scope access of every named user, under the
+  // same rule. An admin caller's selection skips global admins (who always
+  // have every scope).
   bulkSetUserScopeAccess: route({
     path: "/user/scope-access/bulk",
     method: "POST",
@@ -142,8 +142,9 @@ export const userRouteRegistry = {
   }),
   // Renames a user on THIS instance only (main DB, product attribution and
   // live collab state). Fleet-internal: called machine-to-machine by
-  // renameUserEmailEverywhere with the status-api-key header, or by a local
-  // can_configure_users admin as a support fallback.
+  // renameUserEmailEverywhere with the status-api-key header, or by a global
+  // admin as a support fallback, since the rename hands the whole account to
+  // an address nobody proved they own.
   renameUserEmail: route({
     path: "/user/rename-email",
     method: "POST",

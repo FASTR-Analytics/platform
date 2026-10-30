@@ -315,7 +315,7 @@ export function closeConnectionsWhoseLevelChanged(
 /** Closes every connection whose scope access or admin flag differs from its
  *  user's row in `users`: a grant change, or an admin flag change, which
  *  changes the scope access and every product level. A connection whose user
- *  has no row is left alone. */
+ *  has no row was deleted, and closes too: its reconnect is refused. */
 export function closeConnectionsWithChangedAccess(
   users: { email: string; scopeAccess: ScopeAccess; isGlobalAdmin: boolean }[],
   closeCode: number,
@@ -325,9 +325,9 @@ export function closeConnectionsWithChangedAccess(
   closeConnectionsWhere(
     (conn) => {
       const current = byEmail.get(conn.entry.email);
-      return current !== undefined &&
-        (!scopeAccessEqual(current.scopeAccess, conn.scopeAccess) ||
-          current.isGlobalAdmin !== conn.isGlobalAdmin);
+      return current === undefined ||
+        !scopeAccessEqual(current.scopeAccess, conn.scopeAccess) ||
+        current.isGlobalAdmin !== conn.isGlobalAdmin;
     },
     closeCode,
     reason,

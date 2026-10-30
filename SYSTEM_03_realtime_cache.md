@@ -144,9 +144,10 @@ the granted scopes. For every connection that is not a global admin the folder
 list is recomputed from what it holds on every product or folder message and
 sent as `folders_updated` when it changes. A restricted user's stored data bits
 never open the generation stream. A `users_updated` that changes the
-connection's own scope access or admin flag ends the stream after forwarding it;
-the client reconnects and the new `starting` is built under the new access. The
-filter and `restrictProductPlane` are pinned by
+connection's own scope access or admin flag, or that drops an approved
+connection's user from the roster (a deleted user), ends the stream after
+forwarding it; the client reconnects and the new `starting` is built under the
+new access. The filter and `restrictProductPlane` are pinned by
 `server/tests/instance_sse_filter_test.ts`. No other message on the channel is
 filtered per user.
 

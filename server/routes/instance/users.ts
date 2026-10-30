@@ -2,7 +2,6 @@ import { Hono } from "hono";
 import type { Sql } from "postgres";
 import {
   type APIResponseWithData,
-  type GlobalUser,
   H_USERS,
   type RenameEmailInstanceResult,
 } from "lib";
@@ -18,6 +17,8 @@ import { GetLogs } from "../../db/instance/user_logs.ts";
 import {
   addUsers,
   ADMIN_FLAG_NEEDS_ADMIN,
+  ADMIN_ROW_NEEDS_ADMIN,
+  ADMIN_SELF_DEMOTION_REFUSED,
   batchUploadUsers,
   bulkSetUserScopeAccess,
   bulkUpdateUserPermissions,
@@ -30,9 +31,12 @@ import {
   getUserEmailPresence,
   getUserPermissions,
   listPersonalAccessTokens,
+  OWN_ROW_REFUSED,
   renameUserEmailInMainDb,
   renameUserEmailInProducts,
+  RESTRICTED_CALLER_REFUSED,
   revokePersonalAccessToken,
+  SELF_DELETION_REFUSED,
   setUserContactPerson,
   setUserScopeAccess,
   SetUserUnlimitedAi,
@@ -69,12 +73,25 @@ import { requireVisibleAssets } from "../../middleware/asset_visibility.ts";
 
 export const routesUsers = new Hono();
 
+const FORBIDDEN_ERRORS: ReadonlySet<string> = new Set([
+  ADMIN_FLAG_NEEDS_ADMIN,
+  ADMIN_ROW_NEEDS_ADMIN,
+  ADMIN_SELF_DEMOTION_REFUSED,
+  OWN_ROW_REFUSED,
+  RESTRICTED_CALLER_REFUSED,
+]);
+
+function statusOf(res: { success: true } | { success: false; err: string }) {
+  return !res.success && FORBIDDEN_ERRORS.has(res.err) ? 403 : 200;
+}
+
 // Every route that can change a user's scope access or admin flag (an admin
-// is unrestricted and owns every product) broadcasts the roster and closes
-// the collab sockets whose access is no longer the roster's, so each
-// reconnects and subscribes under the new access. The instance stream ends
-// itself on the same roster (instance-sse.ts). On an open-access instance
-// every connection is an admin whatever its row says.
+// is unrestricted and owns every product), or delete a user, broadcasts the
+// roster and closes the collab sockets whose access is no longer the
+// roster's, or whose user left it, so each reconnects under the new access
+// or is refused. The instance stream ends itself on the same roster
+// (instance-sse.ts). On an open-access instance every connection is an admin
+// whatever its row says.
 export async function broadcastRosterAndCloseStaleCollab(
   mainDb: Sql,
 ): Promise<void> {
@@ -196,13 +213,8 @@ defineRoute(
   requireGlobalPermission({ requireAdmin: true }),
   log("toggleUserAdmin"),
   async (c, { body }) => {
-    if (!body.emails || !Array.isArray(body.emails)) {
-      throw new Error("Invalid request: emails array is required");
-    }
     if (body.emails.includes(c.var.globalUser.email)) {
-      throw new Error(
-        "You cannot remove yourself as admin. Ask another admin to do this.",
-      );
+      return c.json({ success: false, err: ADMIN_SELF_DEMOTION_REFUSED }, 403);
     }
     const resUser = await toggleAdmin(
       c.var.mainDb,
@@ -222,19 +234,14 @@ defineRoute(
   requireGlobalPermission("can_configure_users"),
   log("deleteUser"),
   async (c, { body }) => {
-    if (!body.emails || !Array.isArray(body.emails)) {
-      throw new Error("Invalid request: emails array is required");
-    }
     if (body.emails.includes(c.var.globalUser.email)) {
-      throw new Error(
-        "You cannot remove yourself as a user. Ask another admin to do this.",
-      );
+      return c.json({ success: false, err: SELF_DELETION_REFUSED }, 403);
     }
-    const res = await deleteUser(c.var.mainDb, body.emails);
+    const res = await deleteUser(c.var.mainDb, c.var.globalUser, body.emails);
     if (!res.success) {
-      return c.json(res);
+      return c.json(res, statusOf(res));
     }
-    notifyInstanceUsersUpdated(await getInstanceUsers(c.var.mainDb));
+    await broadcastRosterAndCloseStaleCollab(c.var.mainDb);
     await notifyInstanceProductsUpserted(c.var.mainDb, res.data.productIds);
     return c.json({ success: true });
   },
@@ -247,24 +254,14 @@ defineRoute(
   requireVisibleAssets("asset_file_name"),
   log("batchUploadUsers"),
   async (c, { body }) => {
-    if (!body.asset_file_name || typeof body.asset_file_name !== "string") {
-      return c.json({
-        success: false,
-        err: "asset_file_name is required and must be a string",
-      });
-    }
-
     const res = await batchUploadUsers(
       c.var.mainDb,
       body.asset_file_name,
       body.replace_all_existing,
-      {
-        email: c.var.globalUser.email,
-        isGlobalAdmin: c.var.globalUser.isGlobalAdmin,
-      },
+      c.var.globalUser,
     );
     if (!res.success) {
-      return c.json(res, res.err === ADMIN_FLAG_NEEDS_ADMIN ? 403 : 200);
+      return c.json(res, statusOf(res));
     }
     await broadcastRosterAndCloseStaleCollab(c.var.mainDb);
     await notifyInstanceProductsUpserted(c.var.mainDb, res.data.productIds);
@@ -323,37 +320,35 @@ defineRoute(
   async (c, { body }) => {
     const res = await updateUserPermissions(
       c.var.mainDb,
+      c.var.globalUser,
       body.email,
       body.permissions,
     );
     if (res.success) {
       notifyInstanceUsersUpdated(await getInstanceUsers(c.var.mainDb));
     }
-    return c.json(res);
+    return c.json(res, statusOf(res));
   },
 );
 
 defineRoute(
   routesUsers,
   "setUserScopeAccess",
-  requireGlobalPermission({ requireAdmin: true }),
+  requireGlobalPermission("can_configure_users"),
   log("setUserScopeAccess"),
   async (c, { body }) => {
     const res = await setUserScopeAccess(
       c.var.mainDb,
+      c.var.globalUser,
       body.email,
       body.scopeAccess,
     );
     if (res.success) {
       await broadcastRosterAndCloseStaleCollab(c.var.mainDb);
     }
-    return c.json(res);
+    return c.json(res, statusOf(res));
   },
 );
-
-const SCOPE_ACCESS_RESTRICTED_CALLER =
-  "A user limited to certain scopes cannot change scope access";
-const SCOPE_ACCESS_OWN = "You cannot change your own scope access";
 
 defineRoute(
   routesUsers,
@@ -361,26 +356,16 @@ defineRoute(
   requireGlobalPermission("can_configure_users"),
   log("bulkSetUserScopeAccess"),
   async (c, { body }) => {
-    const caller = c.var.globalUser;
-    if (!caller.isGlobalAdmin) {
-      if (!caller.scopeAccess.all) {
-        c.status(403);
-        return c.json({ success: false, err: SCOPE_ACCESS_RESTRICTED_CALLER });
-      }
-      if (body.emails.includes(caller.email)) {
-        c.status(403);
-        return c.json({ success: false, err: SCOPE_ACCESS_OWN });
-      }
-    }
     const res = await bulkSetUserScopeAccess(
       c.var.mainDb,
+      c.var.globalUser,
       body.emails,
       body.scopeAccess,
     );
     if (res.success) {
       await broadcastRosterAndCloseStaleCollab(c.var.mainDb);
     }
-    return c.json(res);
+    return c.json(res, statusOf(res));
   },
 );
 
@@ -392,13 +377,14 @@ defineRoute(
   async (c, { body }) => {
     const res = await bulkUpdateUserPermissions(
       c.var.mainDb,
+      c.var.globalUser,
       body.emails,
       body.permissions,
     );
     if (res.success) {
       notifyInstanceUsersUpdated(await getInstanceUsers(c.var.mainDb));
     }
-    return c.json(res);
+    return c.json(res, statusOf(res));
   },
 );
 
@@ -591,7 +577,7 @@ async function renameUserEmailLocally(
 defineRoute(
   routesUsers,
   "renameUserEmail",
-  requireGlobalPermissionOrStatusKey("can_configure_users"),
+  requireGlobalPermissionOrStatusKey({ requireAdmin: true }),
   log("renameUserEmail"),
   async (c, { body }) => {
     const oldEmail = body.oldEmail.trim().toLowerCase();
@@ -607,22 +593,12 @@ defineRoute(
     }
     // No globalUser = fleet-internal machine call (status-api-key path).
     const actor = c.var.globalUser?.email as string | undefined;
-    if (actor && actor.toLowerCase() === oldEmail) {
+    if (actor?.toLowerCase() === oldEmail) {
       return c.json({
         success: false,
         err:
           "You cannot rename your own email here. Use Change email in your profile instead.",
       });
-    }
-    // The rename moves the whole row, admin flag included, to an address the
-    // caller may hold, so only an admin renames an admin. The machine call
-    // has no caller and is trusted.
-    const caller = c.var.globalUser as GlobalUser | undefined;
-    if (caller !== undefined && !caller.isGlobalAdmin) {
-      const target = await getOtherUser(c.var.mainDb, oldEmail);
-      if (target.success && target.data.isGlobalAdmin) {
-        return c.json({ success: false, err: ADMIN_FLAG_NEEDS_ADMIN }, 403);
-      }
     }
     const res = await renameUserEmailLocally(
       c.var.mainDb,
