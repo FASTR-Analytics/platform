@@ -3,7 +3,7 @@
  * The dataValueSets endpoint reads the datavalue table directly, no analytics
  * engine, and is the only route of the HMIS import fetch dispatcher: one pull
  * per data element, or per data set on a release before 2.39. Also exports
- * the metadata id-existence, monthly-data-set and org-unit-level helpers the
+ * the metadata id-existence, monthly-data-set and org-unit root helpers the
  * dispatcher's classification step uses.
  */
 
