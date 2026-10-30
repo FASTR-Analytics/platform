@@ -1,3 +1,38 @@
+[2.7.0] [user] [changed] - More users can now access the Results Packages and Data tabs
+[2.7.0] [user] [changed] - Non-admin users with data configuration permission can now manage HFA indicators, categories, and variant groups
+[2.7.0] [user] [changed] - Non-admin users with data configuration permission can now manage GeoJSON, facility imports, and time points
+[2.7.0] [user] [changed] - Non-admin users with data configuration permission can now manage Scopes
+[2.7.0] [user] [changed] - Folder creation and management now requires broader data access instead of any approved user
+[2.7.0] [user] [changed] - Shared country prompts can now only be created by users with data configuration permission
+[2.7.0] [user] [changed] - Global admins can now edit or delete any user's saved prompts in the prompt library
+[2.7.0] [user] [changed] - Product owner picker no longer shows users who lack the product's scope
+[2.7.0] [user] [changed] - User permissions are now shown directly from the roster instead of loading separately
+[2.7.0] [user] [changed] - AI usage section in profile only appears after account approval
+[2.7.0] [user] [changed] - Pin, unpin, and delete buttons on results packages now require data configuration permission
+[2.7.0] [user] [changed] - Generate and module defaults buttons on results packages page now require data configuration permission
+[2.7.0] [user] [fixed] - Email sharing now shows clearer error messages when sending fails
+[2.7.0] [user] [fixed] - Slide deck PDF attachments now use sanitized filenames for better email compatibility
+[2.7.0] [user] [fixed] - Report PDF attachments now use sanitized filenames for better email compatibility
+[2.7.0] [admin] [changed] - Permission checks now use consistent per-permission gates instead of global admin overrides
+[2.7.0] [admin] [changed] - Data tab and Results Packages tab now visible to users with "can view data" permission, not only data configurers
+[2.7.0] [admin] [changed] - Scopes tab now requires "can configure data" permission instead of global admin status
+[2.7.0] [admin] [changed] - HFA indicator editing now requires "can configure data" instead of global admin
+[2.7.0] [admin] [changed] - Folder creation and management now restricted to users who can create folders
+[2.7.0] [admin] [changed] - Restricted users no longer see folder context menus or drag folders
+[2.7.0] [admin] [changed] - Country-wide shared prompts can only be published by users with "can configure data"
+[2.7.0] [admin] [changed] - Global admins can now edit or delete any user's saved prompts
+[2.7.0] [admin] [changed] - Results package generation, deletion, and pinning require "can configure data"
+[2.7.0] [admin] [changed] - Package log viewing now uses "can view data" instead of a separate "can view logs" permission
+[2.7.0] [admin] [changed] - Settings section in Data tab now governed by "can configure data"
+[2.7.0] [admin] [changed] - Users tab visible to anyone with "can view users" permission
+[2.7.0] [admin] [changed] - User management controls adapt per-action to the caller's specific permissions
+[2.7.0] [admin] [changed] - Product owners must hold the product's scope; candidates lacking it are excluded from the owner picker
+[2.7.0] [admin] [changed] - AI usage section in profile only loads for approved users
+[2.7.0] [admin] [changed] - Scope selector now shows the scopes the user actually holds
+[2.7.0] [admin] [added] - Persona authentication mode for non-production environments
+[2.7.0] [admin] [fixed] - Email share error messages now distinguish server errors from partial delivery failures
+[2.7.0] [admin] [fixed] - Shared slide deck PDF filenames are now sanitised for email attachments
+[2.7.0] [admin] [internal] - Copilot tool permissions simplified; HFA write gate removed in favour of standard permission checks
 [2.6.1] [admin] [added] - Health check now reports running data imports alongside report generation
 [2.6.1] [admin] [changed] - Restart safeguards now also wait for in-progress data imports to finish
 [2.6.0] [user] [changed] - Indicator code columns in exported spreadsheets renamed from "r_code" to "code" and "r_filter_code" to "filter_code"
