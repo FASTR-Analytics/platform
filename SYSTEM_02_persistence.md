@@ -103,7 +103,7 @@ hidden. Neither `owner` nor `product_access.email` references `users`: a
 cascading foreign key would make a replace-all batch upload delete every grant,
 and an open-access instance inserts its users without awaiting, so a product
 created on a first request could precede its creator's row. The user delete and
-rename paths keep them consistent instead (S15 "Scope access").
+rename paths keep them consistent instead (S18 "Scope access").
 `server/db/products/products.ts` reads and writes them (S12).
 
 The connection id (`"postgres"` or `"main"`) is the connection-cache key and the

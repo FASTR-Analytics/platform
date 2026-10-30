@@ -122,10 +122,11 @@ the package it serves from.
 
 Every approved connection that is not a global admin gets only the products it
 can see: those whose scope it holds (every scope for an unrestricted user; a
-RESTRICTED one, whose `currentUserScopeAccess.all` is false, S15 "Scope access",
+RESTRICTED one, whose `currentUserScopeAccess.all` is false, S18 "Scope access",
 holds its grants) and on which `productLevelFor` gives at least `view`, the one
-predicate `holdsProductLevel` in `server/auth/product_access.ts` (S12
-"Contract"). A global admin's plane is whole. `buildInstanceState` cuts the
+predicate `holdsProductLevel` in `server/auth/product_access.ts` (S18; S12
+"Contract" says what each level allows). A global admin's plane is whole.
+`buildInstanceState` cuts the
 `starting` payload with `restrictProductPlane`: the visible products; the
 folders whose subtree holds a visible product or that the connection created
 (`visibleFolderIds`), so a folder with nothing the user can see is not shown;

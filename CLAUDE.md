@@ -28,7 +28,7 @@ no editor formatter, and no per-directory style.
 
 ## Read first
 
-- [SYSTEMS.md](SYSTEMS.md) is the map: 17 systems plus a kernel of shared files
+- [SYSTEMS.md](SYSTEMS.md) is the map: 18 systems plus a kernel of shared files
   no system owns. Each system has its own `SYSTEM_NN_*.md` holding verified
   prose and a lint-enforced file manifest. Read the SYSTEM file for the area you
   touch before changing it.

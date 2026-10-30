@@ -1042,3 +1042,9 @@ commit.
   network call.
 - Step 3: `statusOf` joins the harness for the stream, file and text responses;
   `approval_test.ts` keeps its own copy, being outside the Surface.
+- Step 4: edited SYSTEM_02_persistence.md and SYSTEM_08_results_packages.md,
+  outside the Surface, because each pointed at S15 "Scope access", which the
+  step moved to SYSTEM_18.
+- Step 4: the three guard traps of SYSTEM_01 "Traps" (the admin bypass, the
+  unset `globalUser`, the fail-closed missing column) moved to SYSTEM_18 with
+  the guard prose they describe; the two registry traps stayed.

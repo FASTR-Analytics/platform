@@ -40,11 +40,6 @@ globs:
   - server/tests/folder_tree_test.ts
   - server/tests/products_routes_test.ts
   - server/tests/deck_label_single_source_test.ts
-  - server/tests/product_access_db_test.ts
-  - server/tests/product_access_routes_test.ts
-  - server/tests/product_level_test.ts
-  - server/tests/project_access_match_test.ts
-  - server/tests/scope_grants_routes_test.ts
   - server/tests/scope_routes_test.ts
   - server/tests/report_config_test.ts
   - server/tests/report_format_conversion_test.ts
@@ -131,8 +126,9 @@ functions and additive columns (`saveSlideCheckpoint` / `saveReportCheckpoint`,
 `server/db/products/{reports,slides,slide_decks}.ts`, and the version-history
 routes ride its route files. S12 owns the files, S16 the feature (SYSTEMS.md
 §4.1; [SYSTEM_16_collaboration.md](SYSTEM_16_collaboration.md)). Every product
-route declares its `access` level and is guarded by `requireProductAccess` (S1:
-the user needs the declared level on the product and, if restricted, its scope);
+route declares its `access` level and is guarded by `requireProductAccess` (S18,
+[SYSTEM_18_permissions.md](SYSTEM_18_permissions.md): the user needs the
+declared level on the product and, if restricted, its scope);
 on the client the gates are `productLevel`, `canEditProduct` and `canOwnProduct`
 in `state/instance/product_access.ts` ("Access in the client" below). There is
 no unauthenticated product surface: a deck reaches recipients as an emailed PDF

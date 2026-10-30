@@ -116,14 +116,14 @@ URL is self-reported).
 - Endpoint: `GET /collab`, upgraded in
   [server/routes/instance/collab.ts](server/routes/instance/collab.ts), mounted
   raw in `main.ts` behind the global `authMiddleware` (off-registry, S1's
-  inventory). Admission is origin plus Clerk plus `globalUser.approved`,
-  resolved **before** the upgrade so no message can precede the check. Every
-  document message names its product (`productId`; a report's equals its
-  `reportId`), rooms are keyed `productId::docType::docId`, and presence is
-  keyed by product, so a per-subscribe permission check has its subject without
-  a lookup. The connection carries its user's `scopeAccess` and admin flag,
-  fixed at connect. Its level on a product (S12 "Contract": `none`, `view`,
-  `edit`, `own`) is read once, on the first `slide_subscribe`,
+  inventory). Admission is origin plus Clerk plus `globalUser.approved` (S18
+  "Identity"), resolved **before** the upgrade so no message can precede the
+  check. Every document message names its product (`productId`; a report's
+  equals its `reportId`), rooms are keyed `productId::docType::docId`, and
+  presence is keyed by product, so a per-subscribe permission check has its
+  subject without a lookup. The connection carries its user's `scopeAccess` and
+  admin flag, fixed at connect. Its level on a product (S12 "Contract": `none`,
+  `view`, `edit`, `own`) is read once, on the first `slide_subscribe`,
   `report_subscribe` or product-naming `presence_update` that names the product
   (`readProductLevel`: `own` for a global admin with no query, otherwise one
   `getProductLevelRows` read, `none` unless the user holds the product's scope

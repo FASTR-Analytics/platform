@@ -5,41 +5,27 @@ globs:
   - client/src/components/instance/logged_in_wrapper.tsx
   - client/src/server_actions/**
   - client/src/state/_infra/clerk.ts
-  - client/src/state/instance/product_access.ts
   - lib/api-routes/**
-  - lib/h_users.ts
   - lib/server_actions/**
-  - lib/types/permission_labels.ts
-  - lib/types/permissions.ts
   - lib/types/streaming.ts
   - main.ts
-  - server/auth/**
   - mint_pat.ts
   - server/clerk_api.ts
   - server/db/instance/personal_access_tokens.ts
-  - server/db/instance/rename_user_email.ts
-  - server/db/instance/users.ts
   - server/middleware/auth.ts
   - server/middleware/cache.ts
   - server/middleware/cors.ts
   - server/middleware/mod.ts
   - server/middleware/headless_allowlist.ts
   - server/middleware/static.ts
-  - server/middleware/userPermission.ts
   - server/headless_app.ts
   - server/headless_auth.ts
-  - server/routes/instance/users.ts
   - server/routes/route-helpers.ts
   - server/routes/route-tracker.ts
   - server/routes/streaming.ts
   - server/routes/public/oauth_metadata.ts
   - server/tests/headless_oauth_auth_test.ts
   - server/tests/pat_identity_parity_test.ts
-  - server/tests/permission_matrix_test.ts
-  - server/tests/_harness/route_app.ts
-  - server/tests/approval_test.ts
-  - server/tests/lowercase_user_emails_migration_test.ts
-  - server/tests/user_management_test.ts
 docs_absorbed:
 ---
 
@@ -50,8 +36,8 @@ request passes. One route declaration in `lib/api-routes/` is the whole
 contract: the server types its handler off it (`defineRoute`), the client
 generates a typed server-action from it, and boot fails if the two sets diverge.
 Around that seam sit the `APIResponse` envelope, the request-scoped NDJSON
-streaming sub-protocol, the `log()` audit middleware, the instance guard
-factories, and the product guard the registry's `access` field installs.
+streaming sub-protocol, the `log()` audit middleware, and the seam where the
+registry's `access` field installs the product guard that S18 owns.
 Reviewed against code (first review cycle, review-only; absorbs DOC_API_ROUTES +
 DOC_ACCESS_CONTROL).
 
@@ -68,14 +54,17 @@ functions handlers call, and the error funnel that produces their envelopes, are
 proxy internals are **S13**; TUS upload is **S4**; the collaboration WebSocket
 (`GET /collab`) is **S16**
 ([SYSTEM_16_collaboration.md](SYSTEM_16_collaboration.md)), where S1 owns only
-its seat in the off-registry inventory below; health is **S15**, which also
-_writes_ the `users` rows the guards here evaluate: S1 owns the gate, S15 owns
-the admin surface behind it. Client-side consumption rules (tiers, caches) are
+its seat in the off-registry inventory below; health is **S15**. What a request
+may do once its credential has become an email, the identity builder, the guard
+factories, the product access policy, the flags and the user-management routes,
+is **S18** ([SYSTEM_18_permissions.md](SYSTEM_18_permissions.md)): S1 owns the
+credential seam and the transport, S18 the policy behind it. Client-side
+consumption rules (tiers, caches) are
 [PROTOCOL_APP_STATE.md](PROTOCOL_APP_STATE.md). Sub-file custody exceptions are
 in SYSTEMS.md §4.1 (`main.ts` owned here, S2/S15 readers;
 `instance/logged_in_wrapper.tsx` owned here, S3/S14 readers;
-`routes/instance/users.ts` + `db/instance/users.ts` owned here, S15/S13
-readers).
+`routes/instance/users.ts` + `db/instance/users.ts` owned by S18, S1/S15/S13
+readers; `middleware/static.ts` owned here, S18 reader).
 
 ## Contract
 
@@ -458,189 +447,16 @@ clean: the boundary holds by convention plus runtime guards
 scope). Mechanical enforcement, if ever wanted, means a separate dom-less
 `deno check` of `lib/` or a lint rule.
 
-### Identity: `getGlobalUser`
+### After the credential: S18
 
-`server/auth/global_user.ts` is the one place a request's identity becomes a
-`GlobalUser`: the dev bypass, a headless credential (already resolved to an
-email by `headlessAuthMiddleware`) and a Clerk session all converge on
-`buildGlobalUserFromDb`, which normalises the claimed email (`normaliseEmail`,
-trimmed and lowercased, as every `users.email` is stored), reads the `users` row
-and sets `approved = _OPEN_ACCESS || !!row`. Every guard below calls it first,
-except that `requireGlobalPermissionOrStatusKey` lets a matching status-api key
-through before it and `requireStatusKey` never calls it.
-
-### The guard factories
-
-All guards live in `server/middleware/userPermission.ts`, skip `OPTIONS` (CORS
-preflight), answer `401 { success: false, err, authError: true }` when
-`getGlobalUser(c)` returns `"NOT_AUTHENTICATED"`, set `c.var.globalUser` and
-`c.var.mainDb` on success, and turn any thrown DB error into
-`503 "Service temporarily unavailable"` (no `authError`).
-
-**`requireGlobalPermission([opts,] ...UserPermission)`**: instance routes. An
-optional leading `{ requireAdmin? }` object, then variadic permission keys with
-AND semantics. `requireAdmin && !isGlobalAdmin` → 403; global admins bypass the
-permission check; otherwise every listed permission must be truthy on
-`globalUser.thisUserPermissions`, else 403. With **zero** keys it only
-authenticates, without the `approved` check, and exactly four routes hold that
-form: `getCurrentUser`, `/instance_updates`, `updateMyProfile` and
-`renameUserEmailEverywhere`, which a signed-in account reaches before its
-approval or mid-rename. Every other route an approved user may call takes
-`requireApprovedUser()`.
-
-**`requireGlobalPermissionOrStatusKey([opts,] ...UserPermission)`**: the same
-guard, but a request carrying the shared `status-api-key` header passes as a
-fleet-internal machine call with `mainDb` and no `globalUser`. Its one call site
-is `renameUserEmail` (`{ requireAdmin: true }`), whose handler treats a missing
-`globalUser` as the machine actor and requires the body's `clerkUserId`, the
-account the originating instance verified, which it verifies again
-(`verifyClerkEmailOwnership`) before renaming: the shared key alone proves only
-that a peer sent the request.
-
-**`requireStatusKey()`**: machine calls only. A request without the
-`status-api-key` header matching `_STATUS_API_KEY` (an unset key matches
-nothing) is 401, a signed-in session included; it sets `mainDb` and no
-`globalUser`. It guards the two fleet sync routes, `receiveUserNameSync` and
-`receiveUserProfileSync`, and the two health routes that need it,
-`/module_defaults_snapshot` and `POST /pg_stat_statements_reset`.
-
-**`requireApprovedUser()`**: signed in (else 401) AND `globalUser.approved`
-(else 403 "awaiting approval"); sets `c.var.globalUser` and `c.var.mainDb`. It
-guards every route any approved user may call: the run-keyed figure-data reads,
-the authoring context, the ready-package list, the product email send, the
-copilot proxy and its Files route on `/ai`, the TUS upload routes, the asset
-writes, the help email, AI usage, the personal access tokens, the prompt
-library, What's New, the tour telemetry, the area pickers, the raw boundary
-files, and the static fallback tier. The instance collab socket
-(`routes/instance/collab.ts`) applies the same signed-in-and-approved test
-inline before the upgrade rather than through this middleware, because its
-denials must travel as a post-upgrade close. Unlike the zero-permission
-`requireGlobalPermission()`, it checks `approved`.
-
-**`requireProductAccess(level)`**: the guard for every product and folder route,
-and the one guard a handler in `server/routes/products/` never names. Each entry
-in `lib/api-routes/products/*` declares `access: "view" | "edit"
-| "own"` (the
-`route()` helper returns the field non-optional, and each registry closes with a
-`satisfies` that requires it), and `defineRoute` installs the middleware
-whenever an entry carries the field. Per request it authenticates (401),
-resolves the route's targets from the id fields the contract declares and
-nowhere else, and awaits `productAccessPolicy(mainDb, user, level, targets)` in
-`server/auth/product_access.ts` once (403 on false). The targets are two product
-lists, `productIds` (the subjects: path `product_id` and body `productIds`,
-which need the declared level) and `destinationProductIds` (body
-`targetProductId`, a product the route writes into, which always needs `edit`),
-plus `folderIds` (path `folder_id`, body `folderId` and `parentId`) and
-`scopeIds` (body `scopeId`). A folder route is an entry of
-`folderRouteRegistry`, which `defineRoute` passes to the guard; nothing in a
-request makes a route a folder route.
-
-The policy is level-aware (S12 "Contract" says what each level allows). In
-order: an unapproved user is refused. A global admin passes with no query: an
-admin is unrestricted and owns every product. A folder route is refused to a
-restricted user; one that declares `own` is refused to everyone else too,
-because nobody but an admin owns a folder (only the bulk action,
-`setFolderProductsAccess`, declares it); any other folder route passes, since
-folders carry no level. Every named scope must be one the user holds. Then one
-query, `getProductLevelRows`, reads every subject and destination: its scope,
-owner, general access and the caller's grant. Each must carry a scope the user
-holds and a level, by `productLevelFor`, at least the declared one for a subject
-and `edit` for a destination (`holdsProductLevel`). A destination folder passes
-for an unrestricted user; a restricted user (`user.scopeAccess.all
-=== false`,
-S15 "Scope access") may name only the root or a folder whose subtree holds a
-product they can see, by scope and level (`visibleFolderIdsForUser`, over
-`visibleFolderIds`). An id that names no row passes the policy and fails in the
-handler. Doctrine: the product id in the path IS the authority; a future
-permission model replaces the policy function and inherits the per-route access
-inventory, and must never be built as per-handler checks behind this guard. The
-registry's other guards never check `access`; instance routes do not declare it.
-
-**The `authError` flag is 401-only.** Only the 401 not-authenticated responses
-carry `authError: true`; no 403 in any guard does, and the client
-(`tryCatchServer`) only inspects the flag on status 401, where it drives
-token-refresh/logout. Auth-failure vs outage stays distinguishable by status:
-401/403 = denied, 503 = retry, don't log out.
-
-### The guard audit: `server/tests/permission_matrix_test.ts`
-
-The matrix test is the audit of every guard above. Its expectation table is
-written by hand, typed as `Record<keyof typeof routeRegistry, Expectation>`, so
-a registry route without a row does not compile, and it is deliberately not
-read from the registry or the headless allowlist, so changing a guard is a
-two-place edit and a wrong declaration fails a test. For every registry route,
-every raw endpoint and every static tier, against a signed-out request, a
-status-key machine request, an unapproved account, an approved account with no
-flags, one account per flag, a manager, a restricted user holding the seeded
-scope and one holding another, the admin who owns the seeded product, its
-editor and viewer, a stranger, and the operator (the first `H_USERS` entry), it
-asserts the class the guard answers: 401 with no identity, 403 for a refused
-persona, and neither for an admitted one, where the handler's 400 or 404 proves
-the guard passed. Product routes name the seeded product in the path and as
-`productIds`, so the persona one level below the declared level is refused and
-the one at it is not; folder routes are called with an unknown folder id, which
-admitted callers reach as the typed 404; the collab socket's close code and the
-headless app's allowlist (403 before any guard on every route it does not open,
-the Clerk twin's class on the three it does) are asserted in the same run. A
-handler that does real work with no body at all (a delete-all, a staging run, a
-DHIS2 call) is marked `refusals_only`: its admitted class is proven by the
-refusals alone, since the test runs on the dev database. The route tests share
-one harness, `server/tests/_harness/route_app.ts`, whose Clerk leg simulates
-only `clerkMiddleware`'s output contract.
-
-### Permission source of truth: `lib/types/permissions.ts`
-
-| Export                                                                          | Purpose                                                                    |
-| ------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| `UserPermissions` / `UserPermission`                                            | instance-level shape + key union                                           |
-| `USER_PERMISSIONS`                                                              | canonical key array, with a compile-time `_AssertUserExhaustive` check     |
-| `buildUserPermissionsFromRow`                                                   | DB row → permissions object; **warn** on a missing column, default `false` |
-| `_USER_PERMISSIONS_DEFAULT_FULL_ACCESS` / `_USER_PERMISSIONS_DEFAULT_NO_ACCESS` | presets for admins / unknown users                                         |
-
-Six instance permissions: `can_configure_users`, `can_view_users`,
-`can_view_logs`, `can_configure_settings`, `can_configure_data`, `can_view_data`
-(migration 046 removes `can_configure_assets`). Product access is not one of
-them: it is per product, a level derived from the product's owner, general
-access and grants (`productLevelFor`, `lib/types/products.ts`), enforced by
-`productAccessPolicy` above. A restricted user's `can_view_data`,
-`can_configure_data` and `can_view_logs` read as false
-(`permissionsUnderScopeAccess`, `lib/types/instance.ts`), applied once where the
-row becomes a `GlobalUser` (`buildGlobalUserFromDb`) and, for the client's own
-row, where the roster row becomes `currentUserPermissions`. Display labels are
-`INSTANCE_PERMISSION_LABELS` (`lib/types/permission_labels.ts`). Add a key in
-`permissions.ts` (so the exhaustiveness assert and `buildUserPermissionsFromRow`
-stay correct), never inline a permission string elsewhere.
-
-### Special modes (precedence, highest first)
-
-| Mode           | Source                                             | Effect                                                                                                         |
-| -------------- | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `_BYPASS_AUTH` | `BYPASS_AUTH` env, dev only (`&& !_IS_PRODUCTION`) | synthetic full-access dev user; Clerk disabled entirely                                                        |
-| `_OPEN_ACCESS` | `OPEN_ACCESS` env                                  | every signed-in email treated as an approved global admin while it is set                                      |
-| `is_admin`     | `users.is_admin` column                            | global admin, bypasses all permission checks except a private asset's (S4)                                     |
-| `H_USERS`      | hardcoded `lib/h_users.ts` (9 emails)              | `unlimitedAi`; the only callers of `setUserUnlimitedAi` / `setUserContactPerson`; seeded as admin rows at init |
-| granular       | `users` permission columns                         | normal least-privilege path                                                                                    |
-
-`_OPEN_ACCESS` inserts an unknown email as a non-admin row through the
-read-and-write pool (`ON CONFLICT DO NOTHING`) and broadcasts the roster when it
-did; effective admin is the `_OPEN_ACCESS ||` short-circuit alone, so turning
-the mode off leaves those users approved and non-admin.
-`unlimitedAi = H_USERS.includes(email) ||
-rawUser.unlimited_ai` (S13). Prefer a
-granular permission or `requireAdmin` over a new `H_USERS.includes()` check:
-it's a hardcoded allowlist, and expanding its use spreads policy into code.
+Everything a request meets once `authMiddleware` or `headlessAuthMiddleware`
+has run, from `getGlobalUser` through the guard factories, the matrix test, the
+flag set and the special modes, is
+[SYSTEM_18_permissions.md](SYSTEM_18_permissions.md). `static.ts` stays here:
+its three tiers install S18's guards, and S18 reads them.
 
 ## Traps
 
-- **Global admins bypass everything.** `isGlobalAdmin` short-circuits
-  `requireGlobalPermission`'s permission loop. A bug masked by "I tested as
-  admin" will bite a least-privilege user.
-- **Don't assume `c.var.globalUser` exists without a guard**: only a guard
-  populates it, `requireGlobalPermissionOrStatusKey` leaves it unset for machine
-  calls, and `requireStatusKey` never sets it.
-- **`buildUserPermissionsFromRow` defaults missing columns to `false` and
-  warns.** A new permission column not yet migrated reads as denied
-  (fail-closed) but only logs, so watch boot logs after adding a permission.
 - **`onError` responds 200**: never rely on HTTP status to detect a
   registry-route failure; check `success`.
 - **Don't add raw routes** outside the inventory above to "save a registry
@@ -653,22 +469,6 @@ it's a hardcoded allowlist, and expanding its use spreads policy into code.
   the codebase's cleanest property; the off-registry inventory (including the
   mixed `structure.ts` and `population.ts` CSV pairs) is the erosion surface.
   Keep it deliberate and small.
-- **Decoupling: `lib/h_users.ts` ships access-policy emails in the client
-  bundle.** Semantically server-side access-control data; move it server-side
-  (client gets a boolean where needed). Bridge-pass move.
-- **Startup guard-audit: considered and DECLINED (ruled).** A boot-time (or
-  type-level) check that every `defineRoute` carries a guard or an explicit
-  public marker was audited and rejected: the full registry has exactly one
-  unguarded route (`getInstanceMeta`, deliberately public), so the rule stays
-  the matrix test above plus review. Do not re-propose without a new hole.
-  (Health.ts's read
-  surface is public by design (SYSTEM_15's exposure inventory); its reset and
-  module-defaults endpoints take `requireStatusKey()`.)
-- **Decide the `authError` contract.** It is 401-only in reality (no 403 carries
-  it; the client only reads it on 401): either bless that as the contract or
-  extend it to 403s deliberately.
-- Audit `H_USERS.includes()` call sites; document per site why `requireAdmin` /
-  a granular permission is insufficient.
 - **LoggedInWrapper's "not approved" branch is dead and logs the user.**
   `getCurrentUser` answers every authenticated caller with its `GlobalUser`,
   approved or not (`server/routes/instance/users.ts:88-111`), so the fallback

@@ -566,11 +566,11 @@ excluded or which is outside its section's module list, and nothing else (S9).
 
 **Scope access.** The scope is a security boundary for data values. An
 unrestricted user reads any ready package under any scope, "All data" included.
-A restricted user (S15 "Scope access") reads only through a scope they hold:
+A restricted user (S18 "Scope access") reads only through a scope they hold:
 `getReadyRunReadContext` and the authoring context's manifest lens take the
 caller's `ScopeAccess`, answer an unknown scope id with `SCOPE_NOT_FOUND` (404)
 first, and then refuse every scope not held with `SCOPE_NOT_GRANTED` (403). A
-restricted user cannot hold "All data" (a grant is a `ScopeUuid`, S15), so they
+restricted user cannot hold "All data" (a grant is a `ScopeUuid`, S18), so they
 are always refused it. There is no null scope, so a lost scope id is a
 validation failure and never a wider read. Package metadata (which periods,
 modules and indicators exist) is not restricted. Package internals (scripts,

@@ -1,6 +1,6 @@
 # Systems map: wb-fastr
 
-> Canonical topology: 17 systems (+ a read-but-don't-own kernel). This is the
+> Canonical topology: 18 systems (+ a read-but-don't-own kernel). This is the
 > canonical index: the map, the custody table, the kernel rule, the
 > cross-cutting audits, the execution model, and the documentation model. Each
 > system's description (scope, contract, prose) lives in its own
@@ -13,28 +13,29 @@
 
 Platform machinery (1–3), data in (4–7), compute (8), visualization (9–11),
 artifacts (12), assist (13), frame (14–15), realtime collaboration (16),
-observability (17).
+observability (17), permissions (18).
 
-| #                                        | System                                   | One line                                                                                   |
-| ---------------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------ |
-| [S1](SYSTEM_01_api_contract.md)          | API Contract, Transport & Access Control | typed RPC registry both tiers generate from + the two permission guards                    |
-| [S2](SYSTEM_02_persistence.md)           | Persistence Core & Schema Lifecycle      | one Postgres main DB, migrations + data transforms, fail-stop boot                         |
-| [S3](SYSTEM_03_realtime_cache.md)        | Realtime Sync & Cache Invalidation       | the last_updated → SSE → version-hash triangle (notify hub, Valkey, client stores)         |
-| [S4](SYSTEM_04_assets_upload.md)         | Assets & Upload                          | the TUS file-upload front door + asset storage/metadata                                    |
-| [S5](SYSTEM_05_facilities_indicators.md) | Facilities & Indicators                  | facilities, admin areas, weights, geojson, indicator dictionaries, instance config         |
-| [S6](SYSTEM_06_ingestion.md)             | Dataset Ingestion                        | stage→integrate for HMIS/HFA/ICEH: wizards, staging workers, the run capture               |
-| [S7](SYSTEM_07_dhis2.md)                 | DHIS2 Connector                          | self-contained typed adapter for external DHIS2 (retry, paging, analytics, geojson)        |
-| [S8](SYSTEM_08_results_packages.md)      | Results Packages & Module Execution      | versioned R modules → whole-DAG generation into an immutable package (parquet + manifest)  |
-| [S9](SYSTEM_09_viz_query_cache.md)       | Visualization Query & Cache Service      | figure config → fetch-config → DuckDB over a package → (runId, scope)-keyed payloads       |
-| [S10](SYSTEM_10_figure_render_export.md) | Figure Rendering & Export Engine         | stored FigureBundle → `buildFigureInputs` → panther, slide→page render, PDF/PPTX/XLSX/DOCX |
-| [S11](SYSTEM_11_viz_authoring.md)        | Visualization Authoring UI               | the embedded figure editor + the insert-figure wizard + the Explore tab                    |
-| [S12](SYSTEM_12_documents_sharing.md)    | Documents & Sharing                      | the products registry: slide decks + reports, nested folders, versions, exports            |
-| [S13](SYSTEM_13_ai_assistant.md)         | AI Copilot & Usage Governance            | Anthropic proxy + governance + the one chat beside the shell, its views and tools          |
-| [S14](SYSTEM_14_client_shell.md)         | Client Shell & Session                   | SPA boot, page maps, language/calendar singletons, UI prefs, help chrome                   |
-| [S15](SYSTEM_15_admin_ops.md)            | Instance Administration & Ops            | users and permissions, health, disk autonomics, deploy                                     |
-| [S16](SYSTEM_16_collaboration.md)        | Realtime Collaboration & Version History | live Yjs co-editing over one instance WS; rooms checkpoint into S12 tables + S3 notifies   |
-| [S17](SYSTEM_17_logging.md)              | Activity Logging & Audit Trail           | `log()` middleware → user_logs raw + weekly aggregate → Users tab, health, Admin-Website   |
-| [S00](SYSTEM_00_kernel.md)               | Kernel (read but don't own)              | lib mega-barrel, multi-domain grab-bags, the env nexus, everyone's dependency              |
+| #                                        | System                                   | One line                                                                                                        |
+| ---------------------------------------- | ---------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| [S1](SYSTEM_01_api_contract.md)          | API Contract, Transport & Access Control | typed RPC registry both tiers generate from + the credential seam and the transport                             |
+| [S2](SYSTEM_02_persistence.md)           | Persistence Core & Schema Lifecycle      | one Postgres main DB, migrations + data transforms, fail-stop boot                                              |
+| [S3](SYSTEM_03_realtime_cache.md)        | Realtime Sync & Cache Invalidation       | the last_updated → SSE → version-hash triangle (notify hub, Valkey, client stores)                              |
+| [S4](SYSTEM_04_assets_upload.md)         | Assets & Upload                          | the TUS file-upload front door + asset storage/metadata                                                         |
+| [S5](SYSTEM_05_facilities_indicators.md) | Facilities & Indicators                  | facilities, admin areas, weights, geojson, indicator dictionaries, instance config                              |
+| [S6](SYSTEM_06_ingestion.md)             | Dataset Ingestion                        | stage→integrate for HMIS/HFA/ICEH: wizards, staging workers, the run capture                                    |
+| [S7](SYSTEM_07_dhis2.md)                 | DHIS2 Connector                          | self-contained typed adapter for external DHIS2 (retry, paging, analytics, geojson)                             |
+| [S8](SYSTEM_08_results_packages.md)      | Results Packages & Module Execution      | versioned R modules → whole-DAG generation into an immutable package (parquet + manifest)                       |
+| [S9](SYSTEM_09_viz_query_cache.md)       | Visualization Query & Cache Service      | figure config → fetch-config → DuckDB over a package → (runId, scope)-keyed payloads                            |
+| [S10](SYSTEM_10_figure_render_export.md) | Figure Rendering & Export Engine         | stored FigureBundle → `buildFigureInputs` → panther, slide→page render, PDF/PPTX/XLSX/DOCX                      |
+| [S11](SYSTEM_11_viz_authoring.md)        | Visualization Authoring UI               | the embedded figure editor + the insert-figure wizard + the Explore tab                                         |
+| [S12](SYSTEM_12_documents_sharing.md)    | Documents & Sharing                      | the products registry: slide decks + reports, nested folders, versions, exports                                 |
+| [S13](SYSTEM_13_ai_assistant.md)         | AI Copilot & Usage Governance            | Anthropic proxy + governance + the one chat beside the shell, its views and tools                               |
+| [S14](SYSTEM_14_client_shell.md)         | Client Shell & Session                   | SPA boot, page maps, language/calendar singletons, UI prefs, help chrome                                        |
+| [S15](SYSTEM_15_admin_ops.md)            | Instance Administration & Ops            | the Users and Scopes pages, health, disk autonomics, deploy                                                     |
+| [S16](SYSTEM_16_collaboration.md)        | Realtime Collaboration & Version History | live Yjs co-editing over one instance WS; rooms checkpoint into S12 tables + S3 notifies                        |
+| [S17](SYSTEM_17_logging.md)              | Activity Logging & Audit Trail           | `log()` middleware → user_logs raw + weekly aggregate → Users tab, health, Admin-Website                        |
+| [S18](SYSTEM_18_permissions.md)          | Permissions & Identity                   | what a request may do once its credential is an email: identity, guards, product policy, flags, user management |
+| [S00](SYSTEM_00_kernel.md)               | Kernel (read but don't own)              | lib mega-barrel, multi-domain grab-bags, the env nexus, everyone's dependency                                   |
 
 App-wide conventions that span systems live as `PROTOCOL_APP_*` files (§6), e.g.
 [PROTOCOL_APP_STATE.md](PROTOCOL_APP_STATE.md). They own no files in the
@@ -47,28 +48,29 @@ whole file; the others are mandatory readers of their slice. (The Seam column
 gives the reason each file is shared; this table is the authoritative custody
 list.)
 
-| File                                                                    | Owner | Mandatory readers | Seam                                                                                    |
-| ----------------------------------------------------------------------- | ----- | ----------------- | --------------------------------------------------------------------------------------- |
-| `server/db/products/**`                                                 | S12   | S2, S16, S3       | registry + per-type detail + versions; collab checkpoints; every write notifies         |
-| `server/routes/products/**`                                             | S12   | S16, S3           | room chokepoints, version-history routes, `products_upserted` emits                     |
-| `server/routes/instance/run_generation.ts`                              | S8    | S9, S1            | one file, three guard tiers: catalogue/generation, package internals, figure-data reads |
-| `server/routes/caches/visualizations.ts`                                | S9    | S3, S2            | cache instances + `PO_CACHE_VERSION`                                                    |
-| `client/src/state/products/t2_figure_data.ts`                           | S9    | S11, S10, S3      | the hottest client file: fetch, cache, replicant resolution, figure build               |
-| `server/runs/capture_inputs/**`                                         | S6    | S8, S5            | ingestion code inside the generation pipeline: reads main, writes the run workspace     |
-| `server/db/instance/dataset_hmis.ts` / `dataset_hfa.ts`                 | S6    | S2, S8            | orchestrator + worker lifecycle + CRUD                                                  |
-| `server/db/instance/run_generation.ts`                                  | S8    | S9, S3, S12       | catalogue, the pin, `attachedProducts`, `setProductRun`, the delete guard               |
-| `main.ts`                                                               | S1    | S2, S15, S12      | composition root (boot / cron / mounts)                                                 |
-| `client/src/components/instance/logged_in_wrapper.tsx`                  | S1    | S3, S14           | server-action transport + version flush + shell                                         |
-| `client/src/generate_report/**`                                         | S10   | S12               | report figure rasters and their ink: S10's drawing, for S12's Report Forge package      |
-| `lib/translate/t-func.ts`                                               | S14   | S9                | calendar semantics (two systems in one small file)                                      |
-| `server/routes/instance/users.ts` · `server/db/instance/users.ts`       | S1    | S15, S13          | guard rows + admin handlers + token governance                                          |
-| `server/routes/instance/instance.ts` · `server/db/instance/instance.ts` | S5    | S15, S6           | config routes + meta/disk + dataset versions                                            |
-| `server/utils/id_generation.ts`                                         | S12   | S2                | the one short-id generator; S2 owns the id-scheme rules                                 |
-| `_shared/file_upload_selector.tsx` · `_shared/uppy_file_upload.ts`      | S4    | S6, S5, S12, S15  | shared upload primitives                                                                |
-| `client/src/components/data/data.tsx`                                   | S6    | S5                | data-tab switchboard mounting S5 managers                                               |
-| `server/db/instance/config.ts`                                          | S5    | S6, S9, S13       | instance config parameterizes ELT, generated SQL and the copilot's `ai_context`         |
-| `server/routes/instance/health.ts`                                      | S15   | S17               | unauthenticated endpoints dump the user_logs tables                                     |
-| `server/collab/version_capture.ts`                                      | S16   | S17               | onSessionEnd writes edit-session user_logs rows                                         |
+| File                                                                    | Owner | Mandatory readers | Seam                                                                                                                         |
+| ----------------------------------------------------------------------- | ----- | ----------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `server/db/products/**`                                                 | S12   | S2, S16, S3       | registry + per-type detail + versions; collab checkpoints; every write notifies                                              |
+| `server/routes/products/**`                                             | S12   | S16, S3           | room chokepoints, version-history routes, `products_upserted` emits                                                          |
+| `server/routes/instance/run_generation.ts`                              | S8    | S9, S1            | one file, three guard tiers: catalogue/generation, package internals, figure-data reads                                      |
+| `server/routes/caches/visualizations.ts`                                | S9    | S3, S2            | cache instances + `PO_CACHE_VERSION`                                                                                         |
+| `client/src/state/products/t2_figure_data.ts`                           | S9    | S11, S10, S3      | the hottest client file: fetch, cache, replicant resolution, figure build                                                    |
+| `server/runs/capture_inputs/**`                                         | S6    | S8, S5            | ingestion code inside the generation pipeline: reads main, writes the run workspace                                          |
+| `server/db/instance/dataset_hmis.ts` / `dataset_hfa.ts`                 | S6    | S2, S8            | orchestrator + worker lifecycle + CRUD                                                                                       |
+| `server/db/instance/run_generation.ts`                                  | S8    | S9, S3, S12       | catalogue, the pin, `attachedProducts`, `setProductRun`, the delete guard                                                    |
+| `main.ts`                                                               | S1    | S2, S15, S12      | composition root (boot / cron / mounts)                                                                                      |
+| `client/src/components/instance/logged_in_wrapper.tsx`                  | S1    | S3, S14           | server-action transport + version flush + shell                                                                              |
+| `client/src/generate_report/**`                                         | S10   | S12               | report figure rasters and their ink: S10's drawing, for S12's Report Forge package                                           |
+| `lib/translate/t-func.ts`                                               | S14   | S9                | calendar semantics (two systems in one small file)                                                                           |
+| `server/routes/instance/users.ts` · `server/db/instance/users.ts`       | S18   | S1, S15, S13      | the user-management routes and their DB layer; S1's `getCurrentUser` and sync routes, S15's admin UI, S13's token governance |
+| `server/middleware/static.ts`                                           | S1    | S18               | the static tiers serve the bytes; S18's guards decide who may read each tier                                                 |
+| `server/routes/instance/instance.ts` · `server/db/instance/instance.ts` | S5    | S15, S6           | config routes + meta/disk + dataset versions                                                                                 |
+| `server/utils/id_generation.ts`                                         | S12   | S2                | the one short-id generator; S2 owns the id-scheme rules                                                                      |
+| `_shared/file_upload_selector.tsx` · `_shared/uppy_file_upload.ts`      | S4    | S6, S5, S12, S15  | shared upload primitives                                                                                                     |
+| `client/src/components/data/data.tsx`                                   | S6    | S5                | data-tab switchboard mounting S5 managers                                                                                    |
+| `server/db/instance/config.ts`                                          | S5    | S6, S9, S13       | instance config parameterizes ELT, generated SQL and the copilot's `ai_context`                                              |
+| `server/routes/instance/health.ts`                                      | S15   | S17               | unauthenticated endpoints dump the user_logs tables                                                                          |
+| `server/collab/version_capture.ts`                                      | S16   | S17               | onSessionEnd writes edit-session user_logs rows                                                                              |
 
 ## §4.2 Kernel: read but don't own
 

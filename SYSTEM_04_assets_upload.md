@@ -9,7 +9,6 @@ globs:
   - client/src/components/assets/mod.ts
   - lib/types/assets.ts
   - server/db/instance/assets.ts
-  - server/middleware/asset_visibility.ts
   - server/routes/instance/assets.ts
   - server/routes/instance/upload.ts
 docs_absorbed:
@@ -29,7 +28,9 @@ and images placed in decks and reports), data-file extensions
 (`.csv`/`.xlsx`/`.xls`/`.zip`: import-wizard inputs live here, raw
 facility-level health data) require `can_view_data` OR `can_configure_data` (the
 assets page's own gate; admins pass), and everything else is behind
-`requireApprovedUser()`. A **private** asset is gated ahead of all three tiers
+`requireApprovedUser()`; the guards and the flags are S18's
+([SYSTEM_18_permissions.md](SYSTEM_18_permissions.md)). A **private** asset is
+gated ahead of all three tiers
 (see Private assets below). Public asset _names_ stay visible to every signed-in
 user (the SSE starting payload). Only the bytes are gated. What
 consumers **do** with an uploaded file is theirs: the dataset import wizards are
@@ -149,18 +150,19 @@ in `lib/types/assets.ts`.
   unknown emails and the owner are dropped.
 - **Enforced at:** the static serve (a private-asset middleware ahead of the
   image tier; it checks every spelling serveStatic may resolve, answers 404 to
-  anyone not permitted and to every unapproved caller, so a deleted owner's
-  live session downloads nothing, `Cache-Control: private, no-store`, which
+  anyone not permitted and to every unapproved caller, so a deleted owner's live
+  session downloads nothing, `Cache-Control: private, no-store`, which
   `cacheMiddleware` leaves in place); the asset list (`getAssetsForUser` in
   `getInstanceDetail`, so the SSE starting payload and the `/mcp` grounding; the
   `assets_updated` broadcast is filtered per connection in
   `createInstanceSseFilter`); delete; same-name overwrite
   (`canUserUploadOverAsset`, at POST and again at completion); and every by-name
   read on a user's behalf: `requireVisibleAssets`
-  (`server/middleware/asset_visibility.ts`) on the HMIS CSV, HFA CSV and ICEH
-  zip wizard/launch routes, the geojson analyze/save, population preview/import,
-  HFA weights read/import, structure step 1, the two HFA facility previews and
-  batch user upload routes, and an inline check on the AI files proxy.
+  (`server/middleware/asset_visibility.ts`, S18) on the HMIS CSV, HFA CSV and
+  ICEH zip wizard/launch routes, the geojson analyze/save, population
+  preview/import, HFA weights read/import, structure step 1, the two HFA
+  facility previews and batch user upload routes, and an inline check on the AI
+  files proxy.
 - **Not enforced** for module runs' `assetsToImport` (a run reads its fixed
   input names with no user context), for deferred reads of an import run or
   structure upload attempt already launched on a permitted user's behalf, or for
