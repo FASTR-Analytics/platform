@@ -1102,4 +1102,8 @@ commit.
   `RosterEntry`, `isRosterRow`, `directoryEntry` and `rosterForViewer`, a file
   the layout did not name; edited `lib/ai_tools/build_system_prompt.ts`,
   outside the Surface, because its two grounding sections now take the
-  per-instance `InstanceGrounding` the `/mcp` cache holds.
+  per-instance `InstanceGrounding` the `/mcp` cache holds; edited
+  `SYSTEM_18_permissions.md`, outside the Surface, because step 4 moved
+  "Permissions (write side)" there from SYSTEM_15; edited
+  `PROTOCOL_APP_STATE.md`, outside the Surface, because its store table typed
+  the roster.

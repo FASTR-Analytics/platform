@@ -23,7 +23,7 @@ import {
   type McpPrincipal,
   NO_PIN_MESSAGE,
   requirePinnedPackageContext,
-  resolveInstanceState,
+  resolveInstanceGrounding,
   resolvePackageContext,
   resolvePinnedRunId,
 } from "./context_cache.ts";
@@ -79,27 +79,27 @@ export function buildMcpToolsForPrincipal(principal: McpPrincipal): AnyTool[] {
     kind: "read",
     headless: true,
     handler: async () => {
-      const instanceState = await resolveInstanceState(principal);
+      const grounding = await resolveInstanceGrounding(principal);
       const runId = await resolvePinnedRunId();
       // The overview answers WITHOUT a pin: a connector still connects and
       // the model can explain what to do; the package tools fail typed.
       if (runId === null) {
         return [
-          `FASTR Analytics instance "${instanceState.instanceName}" — health-facility data analysis over the instance's pinned results package.`,
+          `FASTR Analytics instance "${grounding.instanceName}" — health-facility data analysis over the instance's pinned results package.`,
           NO_PIN_MESSAGE,
           "Until a package is pinned, the package tools (get_available_metrics, get_metric_data) cannot answer. The reference tools (get_reference_docs, get_reference_doc) still work.",
         ].join("\n\n");
       }
       const ctx = await resolvePackageContext(principal, runId);
       const contextSection = [
-        ...buildInstanceContextSections(instanceState),
+        ...buildInstanceContextSections(grounding),
         "# Results package (pinned)",
         "",
         `**Name:** ${ctx.run.label}`,
         `**Generated:** ${ctx.run.createdAt}`,
         ...buildPackageGroundingSections(ctx.grounding),
-        ...buildDataCoverageSections(instanceState),
-        ...buildAiContextSections(instanceState.aiContext),
+        ...buildDataCoverageSections(grounding),
+        ...buildAiContextSections(grounding.aiContext),
         "",
         "get_available_metrics and get_metric_data read all data in the package. Discover metric ids with get_available_metrics; never invent them.",
         "",
@@ -147,7 +147,7 @@ export function buildMcpToolsForPrincipal(principal: McpPrincipal): AnyTool[] {
     getOverviewTool,
     ...boundPackageTools,
     ...getSharedToolsForReferenceDocs(REFERENCE_DOCS, {
-      instance: () => resolveInstanceState(principal),
+      instance: () => resolveInstanceGrounding(principal),
       transport,
     }),
   ];

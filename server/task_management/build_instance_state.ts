@@ -123,7 +123,7 @@ export async function buildInstanceState(
   const me = users.find((u) => u.email === globalUser.email);
   const assetsRes = await getAssetsForUser(mainDb, globalUser);
   if (!assetsRes.success) {
-    return assetsRes;
+    console.error(`buildInstanceState assets: ${assetsRes.err}`);
   }
   const myPermissions = me === undefined
     ? userPermissions(false)
@@ -154,7 +154,7 @@ export async function buildInstanceState(
     // The roster, projected for this connection (rosterForViewer); the SSE
     // forward filter applies the same projection to every users_updated.
     users: rosterForViewer(users, globalUser.email),
-    assets: assetsRes.data,
+    assets: assetsRes.success ? assetsRes.data : [],
     runsCatalog,
     // Fresh nonce per connect: the client's boundary effect sees a changed
     // value after every `starting` and refetches: DELIBERATE, the reconnect

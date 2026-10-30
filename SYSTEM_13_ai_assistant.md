@@ -98,7 +98,7 @@ is **S9**.
    read accepts any guarded `.md` path under the hub, since the index omits
    chapters. An entry may declare the `dataset` it is about, and the list drops
    it when the instance's `datasetsWithData` holds no such data
-   (`resolveInstanceState` per call on `/mcp`, the live store in the SPA); the
+   (`resolveInstanceGrounding` per call on `/mcp`, the live store in the SPA); the
    read serves every entry it was given. Hub reads go through the GitHub
    contents API, unauthenticated, under its 60 requests per hour per IP, so
    every hub read is memoised per process with a ten-minute TTL (a failed read
@@ -1128,7 +1128,7 @@ from a row on the Data page behind `can_configure_data`
 `updateAiContextConfig`), and rides `InstanceState` with the rest of the config,
 so the SPA prompt reads it from T1 with no fetch and `/mcp`'s `get_overview`
 reads it from the instance state its context cache holds per user for 30 s
-(`resolveInstanceState`, `server/mcp/context_cache.ts`). The SPA's is built by
+(`resolveInstanceGrounding`, `server/mcp/context_cache.ts`). The SPA's is built by
 `buildInstanceState`, the connection's `starting` payload; `/mcp`'s by
 `buildInstanceGrounding`, the per-instance half with no roster, no catalogue
 and no product plane, blanked for an unapproved principal

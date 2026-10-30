@@ -106,7 +106,7 @@ function contextKey(principal: McpPrincipal, runId: string): string {
 type CacheEntry<T> = { value: T; builtAt: number };
 
 const packageContexts = new Map<string, CacheEntry<McpPackageContext>>();
-const instanceStates = new Map<string, CacheEntry<InstanceGrounding>>();
+const instanceGroundings = new Map<string, CacheEntry<InstanceGrounding>>();
 
 function cacheGet<T>(map: Map<string, CacheEntry<T>>, key: string): T | null {
   const entry = map.get(key);
@@ -161,10 +161,10 @@ async function resolveGlobalUser(principal: McpPrincipal): Promise<GlobalUser> {
   return await buildGlobalUserFromDb(principal.email, null, null);
 }
 
-export async function resolveInstanceState(
+export async function resolveInstanceGrounding(
   principal: McpPrincipal,
 ): Promise<InstanceGrounding> {
-  const cached = cacheGet(instanceStates, principal.email);
+  const cached = cacheGet(instanceGroundings, principal.email);
   if (cached) return cached;
   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
   const globalUser = await resolveGlobalUser(principal);
@@ -175,7 +175,7 @@ export async function resolveInstanceState(
   const grounding = globalUser.approved
     ? res.data
     : groundingForUnapproved(res.data);
-  cacheSet(instanceStates, principal.email, grounding);
+  cacheSet(instanceGroundings, principal.email, grounding);
   return grounding;
 }
 
@@ -305,7 +305,7 @@ export async function resolvePackageContext(
     icehIndicators: authoring.icehIndicators,
     periodCoverage: packagePeriodCoverage(manifest),
     mapLevels: manifest.geojsonMaps ??
-      (await resolveInstanceState(principal)).geojsonMaps,
+      (await resolveInstanceGrounding(principal)).geojsonMaps,
   };
 
   const transport = buildPrincipalTransport(principal.token);

@@ -5,9 +5,9 @@ import {
   type ProductDefaultAccess,
   type ProductGrant,
   type ProductGrantLevel,
-  type RosterEntry,
   type ScopeId,
   t3,
+  type UserDirectoryEntry,
 } from "lib";
 import {
   type AlertComponentProps,
@@ -97,11 +97,14 @@ function sameAccess(a: ProductAccess, b: ProductAccess): boolean {
     key(a.grants) === key(b.grants);
 }
 
-function userByEmail(email: string): RosterEntry | undefined {
+function userByEmail(email: string): UserDirectoryEntry | undefined {
   return instanceState.users.find((u) => u.email === email);
 }
 
-function personLabel(email: string, user: RosterEntry | undefined): string {
+function personLabel(
+  email: string,
+  user: UserDirectoryEntry | undefined,
+): string {
   const name = [user?.firstName, user?.lastName].filter(Boolean).join(" ");
   return name ? `${name} (${email})` : email;
 }
@@ -109,7 +112,7 @@ function personLabel(email: string, user: RosterEntry | undefined): string {
 // A grant to a restricted user who lacks the product's scope is accepted and
 // stays inert until their scope access changes, so the dialog says so.
 function lacksScope(
-  user: RosterEntry | undefined,
+  user: UserDirectoryEntry | undefined,
   scopeId: ScopeId | undefined,
 ): boolean {
   if (user === undefined || user.scopeAccess.all) return false;

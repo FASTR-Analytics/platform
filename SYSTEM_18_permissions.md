@@ -391,8 +391,10 @@ The `/mcp` grounding (`buildInstanceGrounding`) carries no roster at all (S13).
   logs, the run telemetry on the instance stream, the data-file downloads.
   `can_configure_data`: every Data-page mutation, the instance configuration
   routes, generation, pin and delete, scope CRUD (`createScope`, `updateScope`,
-  `deleteScope`) and country-scoped prompts. `can_view_users`: the Users tab and
-  the user activity log (`getUsersLastActive`). `can_configure_users`: the
+  `deleteScope`) and country-scoped prompts. `can_view_users`: the Users tab,
+  the user activity log (`getUsersLastActive`) and every roster row whole,
+  stored flags included, in `starting` and `users_updated` (The roster).
+  `can_configure_users`: the
   user-management routes, under the rule above, scope grants included.
   `setFolderProductsAccess`, the admin flag and `setUserContactPerson` stay the
   admin's.
