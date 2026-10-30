@@ -37,7 +37,7 @@ contract: the server types its handler off it (`defineRoute`), the client
 generates a typed server-action from it, and boot fails if the two sets diverge.
 Around that seam sit the `APIResponse` envelope, the request-scoped NDJSON
 streaming sub-protocol, the `log()` audit middleware, and the seam where the
-registry's `access` field installs the product guard that S18 owns.
+registry's `guard` field installs the guard that S18 owns.
 Reviewed against code (first review cycle, review-only; absorbs DOC_API_ROUTES +
 DOC_ACCESS_CONTROL).
 
@@ -90,13 +90,14 @@ export const productReportRouteRegistry = {
   getReportDetail: route({
     path: "/products/:product_id/report",
     method: "GET",
+    guard: GUARD.product("view"),
     params: productIdParamsSchema, // z.object({ product_id: z.string() })
     response: {} as ReportDetail,
-    access: "view",
   }),
   updateReportBody: route({
     path: "/products/:product_id/report/body",
     method: "PUT",
+    guard: GUARD.product("edit"),
     params: productIdParamsSchema,
     body: z.object({
       body: z.string(),
@@ -104,9 +105,8 @@ export const productReportRouteRegistry = {
       overwrite: z.boolean().optional(),
     }),
     response: {} as { lastUpdated: string; conflicted: boolean },
-    access: "edit",
   }),
-};
+} as const satisfies Record<string, { guard: RouteGuard }>;
 ```
 
 | Field         | Purpose                                                                   | Runtime vs type                                              |
@@ -118,7 +118,9 @@ export const productReportRouteRegistry = {
 | `response`    | success `data` shape; omit for no-data                                    | compile-time phantom (`{} as T`), never validated at runtime |
 | `isStreaming` | NDJSON stream protocol                                                    | real boolean                                                 |
 | `timeoutMs`   | client fetch timeout override (default 5 min; streaming routes have none) | real number                                                  |
-| `access`      | product/folder access level (`view`, `edit`, `own`); installs the guard   | real value, product registries only                          |
+| `guard`       | what the caller must be (`RouteGuard`, S18); `defineRoute` installs it    | real value, mandatory on every entry                         |
+| `orStatusKey` | also admits a fleet machine call carrying the status key                  | real boolean, one entry (`renameUserEmail`)                  |
+| `headless`    | reachable through the headless app (`/mcp`)                               | real boolean, three entries                                  |
 
 `params`/`body` are never phantom: `route()` requires real Zod schemas for both,
 so a handler can trust they match their `z.infer<T>` types. `response` alone
@@ -253,10 +255,14 @@ coverage conventions.
 `Deno.serve`, cross-checks the contract and **`Deno.exit(1)`s on any
 violation**: registry keys never implemented, implemented routes not in the
 registry, duplicate `method + path` pairs, key collisions across feature
-registries, `:placeholder` segments without a matching `params` key, and body
-keys that are also path placeholders (the client strips them from the body).
-Success prints `✅ All N routes correctly implemented`. A broken route cannot
-ship.
+registries, `:placeholder` segments without a matching `params` key, body
+keys that are also path placeholders (the client strips them from the body), a
+public route other than `getInstanceMeta`, a route with a `:product_id`
+segment or a `productIds` body whose guard is not `product`, and one with a
+`:folder_id` segment or a `parentId` body whose guard is not `folder`, so no
+request can pick the policy branch a route takes. Success prints
+`✅ All N routes correctly implemented` and the guard inventory by kind. A
+broken route cannot ship.
 
 ## Off-registry endpoints: the complete inventory
 
@@ -366,6 +372,12 @@ calls. Only successes are cached: a bad token can never occupy a slot.
 > grant; confirm during live verification and, if it is JWT, either accept the
 > longer window or configure the application for opaque tokens.
 
+**The allowlist is the registry's.** `headlessRouteAllowlist` admits the
+entries declaring `headless: true` (`getCurrentUser`,
+`getRunPresentationObjectItems`, `getRunResultsValueInfo`) and the raw
+`/info/*.md` pattern it keeps itself; every other path answers 403 before any
+guard, and `validateHeadlessMounts` reads the same flag.
+
 **Naming.** Everything that judges both credential types is named `headless`:
 `headlessAuthMiddleware`, `headlessAuthEmail`,
 `headless_app.ts`/`headlessApp`/`headlessAppFetch`, and
@@ -429,12 +441,12 @@ what the explicit form provides; SPA callers take both defaults
 (`createAllServerActions()`, global fetch). Pinned by
 `server/tests/pat_identity_parity_test.ts`, which drives the same route through
 the raw PAT app, an explicit transport, and a defaulted caller and asserts all
-three agree. The headless app's mount list and the allowlist are two hand-kept
+three agree. The headless app's mount list and the registry's `headless` flags are two
 lists; `validateHeadlessMounts()` (`headless_app.ts`) runs at every DEV boot
 (`main.ts`, gated on `_IS_DEV`) beside `validateAllRoutesDefined()`: a
-structural check of Hono's route table (every allowlisted name's `method + path`
+structural check of Hono's route table (every flagged entry's `method + path`
 must be registered on `headlessApp`) that fail-stops on a miss (they drifted
-once: allowlisted run-keyed reads whose route file was never mounted 404'd
+once: flagged run-keyed reads whose route file was never mounted 404'd
 silently through `/mcp`); production boots skip it. The server test suite is not
 run at boot: `deno task test` is part of the verification floor
 (PROTOCOL_APP_PLANS.md), and `deno task typecheck` checks `server/tests/*.ts`

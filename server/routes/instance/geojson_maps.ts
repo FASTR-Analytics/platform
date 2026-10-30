@@ -30,7 +30,7 @@ import {
   heavyGeoJsonSessionCache,
   metadataSessionCache,
 } from "../../dhis2/goal4_geojson/mod.ts";
-import { requireApprovedUser, requirePermission } from "../../auth/guards.ts";
+import { requireApprovedUser } from "../../auth/guards.ts";
 
 // Guard before the unbounded readTextFile + JSON.parse: any authenticated
 // configure-data user could otherwise OOM the server with one huge upload.
@@ -66,7 +66,6 @@ async function readAssetFile(assetFileName: string): Promise<string> {
 defineRoute(
   routesGeoJsonMaps,
   "analyzeGeoJsonUpload",
-  requirePermission("can_configure_data"),
   requireVisibleAssets("assetFileName"),
   log("analyzeGeoJsonUpload"),
   async (c, { body }) => {
@@ -99,7 +98,6 @@ defineRoute(
 defineRoute(
   routesGeoJsonMaps,
   "saveGeoJsonMap",
-  requirePermission("can_configure_data"),
   requireVisibleAssets("assetFileName"),
   log("saveGeoJsonMap"),
   async (c, { body }) => {
@@ -168,7 +166,6 @@ defineRoute(
 defineRoute(
   routesGeoJsonMaps,
   "deleteGeoJsonMap",
-  requirePermission("can_configure_data"),
   log("deleteGeoJsonMap"),
   async (c, { body }) => {
     const res = await deleteGeoJsonMap(
@@ -188,7 +185,6 @@ defineRoute(
 defineRoute(
   routesGeoJsonMaps,
   "getAdminAreaOptionsForLevel",
-  requireApprovedUser(),
   log("getAdminAreaOptionsForLevel"),
   async (c, { params }) => {
     if (!isAdminAreaLevel(params.level)) {
@@ -265,7 +261,6 @@ export async function buildGeoJsonLevelResponse(
 defineRoute(
   routesGeoJsonMaps,
   "remapGeoJson",
-  requirePermission("can_configure_data"),
   log("remapGeoJson"),
   async (c, { body }) => {
     const { family, adminAreaLevel, remapping } = body;
@@ -347,7 +342,6 @@ defineRoute(
 defineRoute(
   routesGeoJsonMaps,
   "dhis2GetOrgUnitLevels",
-  requirePermission("can_configure_data"),
   log("dhis2GetOrgUnitLevels"),
   async (c) => {
     let credentials: Dhis2Credentials;
@@ -389,7 +383,6 @@ defineRoute(
 defineRoute(
   routesGeoJsonMaps,
   "dhis2AnalyzeGeoJson",
-  requirePermission("can_configure_data"),
   log("dhis2AnalyzeGeoJson"),
   async (c, { body }) => {
     const { dhis2Level } = body;
@@ -488,7 +481,6 @@ defineRoute(
 defineRoute(
   routesGeoJsonMaps,
   "dhis2SaveGeoJsonMap",
-  requirePermission("can_configure_data"),
   log("dhis2SaveGeoJsonMap"),
   async (c, { body }) => {
     const { dhis2Level, family, adminAreaLevel, areaMatchProp, areaMapping } =

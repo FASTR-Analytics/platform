@@ -1,3 +1,4 @@
+import { GUARD, type RouteGuard } from "../../permissions/mod.ts";
 import { z } from "zod";
 import {
   type GlobalUser,
@@ -50,26 +51,32 @@ export const userRouteRegistry = {
   getCurrentUser: route({
     path: "/user",
     method: "GET",
+    guard: GUARD.signedIn,
+    headless: true,
     response: {} as GlobalUser,
   }),
   addUsers: route({
     path: "/user",
     method: "POST",
+    guard: GUARD.permission("can_configure_users"),
     body: z.object({ emails: z.array(z.string()), isGlobalAdmin: z.boolean() }),
   }),
   toggleUserAdmin: route({
     path: "/user/toggle-admin",
     method: "POST",
+    guard: GUARD.admin,
     body: z.object({ emails: z.array(z.string()), makeAdmin: z.boolean() }),
   }),
   deleteUser: route({
     path: "/user",
     method: "DELETE",
+    guard: GUARD.permission("can_configure_users"),
     body: z.object({ emails: z.array(z.string()) }),
   }),
   batchUploadUsers: route({
     path: "/users/batch",
     method: "POST",
+    guard: GUARD.permission("can_configure_users"),
     body: z.object({
       asset_file_name: z.string().min(1),
       replace_all_existing: z.boolean(),
@@ -78,22 +85,26 @@ export const userRouteRegistry = {
   getUsersLastActive: route({
     path: "/users/last-active",
     method: "GET",
+    guard: GUARD.permission("can_view_logs"),
     response: {} as UserLastActive[],
   }),
   getUserPermissions: route({
     path: "/user/:email/permissions",
     method: "GET",
+    guard: GUARD.permission("can_configure_users"),
     params: emailParamsSchema,
     response: {} as { permissions: Record<UserPermission, boolean> },
   }),
   updateUserPermissions: route({
     path: "/user/permissions",
     method: "POST",
+    guard: GUARD.permission("can_configure_users"),
     body: z.object({ email: z.string(), permissions: userPermissionsSchema }),
   }),
   bulkUpdateUserPermissions: route({
     path: "/user/permissions/bulk",
     method: "POST",
+    guard: GUARD.permission("can_configure_users"),
     body: z.object({
       emails: z.array(z.string()),
       permissions: userPermissionsSchema,
@@ -102,11 +113,13 @@ export const userRouteRegistry = {
   getAiUsage: route({
     path: "/user/ai-usage",
     method: "GET",
+    guard: GUARD.approved,
     response: {} as AiUsage,
   }),
   setUserUnlimitedAi: route({
     path: "/user/unlimited-ai",
     method: "POST",
+    guard: GUARD.hUser,
     body: z.object({ email: z.string(), unlimited: z.boolean() }),
   }),
   // The user-management rule (refuseUserManagement) keeps a holder of
@@ -116,6 +129,7 @@ export const userRouteRegistry = {
   setUserScopeAccess: route({
     path: "/user/scope-access",
     method: "POST",
+    guard: GUARD.permission("can_configure_users"),
     body: z.object({ email: z.string(), scopeAccess: scopeAccessSchema }),
   }),
   // The batch form: replaces the scope access of every named user, under the
@@ -124,6 +138,7 @@ export const userRouteRegistry = {
   bulkSetUserScopeAccess: route({
     path: "/user/scope-access/bulk",
     method: "POST",
+    guard: GUARD.permission("can_configure_users"),
     body: z.object({
       emails: z.array(z.string()),
       scopeAccess: scopeAccessSchema,
@@ -133,6 +148,7 @@ export const userRouteRegistry = {
   setUserContactPerson: route({
     path: "/user/contact-person",
     method: "POST",
+    guard: GUARD.approved,
     body: z.object({ email: z.string(), isContactPerson: z.boolean() }),
   }),
   // Renames a user on THIS instance only (main DB, product attribution and
@@ -143,6 +159,8 @@ export const userRouteRegistry = {
   renameUserEmail: route({
     path: "/user/rename-email",
     method: "POST",
+    guard: GUARD.admin,
+    orStatusKey: true,
     body: z.object({
       oldEmail: z.string(),
       newEmail: z.string(),
@@ -156,6 +174,7 @@ export const userRouteRegistry = {
   renameUserEmailEverywhere: route({
     path: "/user/rename-email-everywhere",
     method: "POST",
+    guard: GUARD.signedIn,
     body: z.object({
       oldEmail: z.string(),
       newEmail: z.string(),
@@ -173,6 +192,7 @@ export const userRouteRegistry = {
   receiveUserNameSync: route({
     path: "/user/sync-name",
     method: "POST",
+    guard: GUARD.statusKey,
     body: z.object({
       email: z.string(),
       firstName: z.string().nullable(),
@@ -185,6 +205,7 @@ export const userRouteRegistry = {
   updateMyProfile: route({
     path: "/user/profile",
     method: "POST",
+    guard: GUARD.signedIn,
     body: userProfileSchema,
   }),
   // Applies a profile change pushed by the peer instance the user wrote it
@@ -192,6 +213,7 @@ export const userRouteRegistry = {
   receiveUserProfileSync: route({
     path: "/user/sync-profile",
     method: "POST",
+    guard: GUARD.statusKey,
     body: userProfileSchema.extend({ email: z.string() }),
     response: {} as { changed: boolean },
   }),
@@ -199,17 +221,20 @@ export const userRouteRegistry = {
   createPersonalAccessToken: route({
     path: "/personal-access-tokens",
     method: "POST",
+    guard: GUARD.approved,
     body: z.object({ label: z.string() }),
     response: {} as { token: string; pat: PersonalAccessTokenSummary },
   }),
   listPersonalAccessTokens: route({
     path: "/personal-access-tokens",
     method: "GET",
+    guard: GUARD.approved,
     response: {} as PersonalAccessTokenSummary[],
   }),
   revokePersonalAccessToken: route({
     path: "/personal-access-tokens",
     method: "DELETE",
+    guard: GUARD.approved,
     body: z.object({ id: z.number() }),
   }),
-} as const;
+} as const satisfies Record<string, { guard: RouteGuard }>;

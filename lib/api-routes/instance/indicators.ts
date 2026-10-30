@@ -1,3 +1,4 @@
+import { GUARD, type RouteGuard } from "../../permissions/mod.ts";
 import { z } from "zod";
 import { thresholdsRuleSchema } from "../../types/conditional_formatting.ts";
 import type { InstanceIndicatorDetails } from "../../types/mod.ts";
@@ -54,16 +55,19 @@ export const indicatorRouteRegistry = {
   getIndicators: route({
     path: "/indicators",
     method: "GET",
+    guard: GUARD.permission("can_configure_data"),
     response: {} as InstanceIndicatorDetails,
   }),
   createIndicators: route({
     path: "/indicators",
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
     body: z.object({ indicators: z.array(indicatorItemSchema) }),
   }),
   updateIndicator: route({
     path: "/indicators/update",
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
     body: z.object({
       old_indicator_common_id: z.string(),
       indicator: indicatorItemSchema,
@@ -72,19 +76,22 @@ export const indicatorRouteRegistry = {
   deleteIndicators: route({
     path: "/indicators/delete",
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
     body: z.object({ indicator_common_ids: z.array(z.string()) }),
   }),
   reorderIndicators: route({
     path: "/indicators/reorder",
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
     body: z.object({ order: z.array(z.string()) }),
   }),
   setIndicatorsIncludeInAnalysis: route({
     path: "/indicators/include-in-analysis",
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
     body: z.object({
       indicator_common_ids: z.array(z.string()),
       include_in_analysis: z.boolean(),
     }),
   }),
-} as const;
+} as const satisfies Record<string, { guard: RouteGuard }>;

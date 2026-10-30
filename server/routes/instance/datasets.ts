@@ -67,7 +67,6 @@ import {
   type StructureSchema,
   throwIfErrWithData,
 } from "lib";
-import { requirePermission } from "../../auth/guards.ts";
 
 export const routesDatasets = new Hono();
 
@@ -80,7 +79,6 @@ export const routesDatasets = new Hono();
 defineRoute(
   routesDatasets,
   "getDatasetHmisVersions",
-  requirePermission("can_view_data"),
   log("getDatasetHmisVersions"),
   async (c) => {
     const res = await getVersionsForDatasetHmis(c.var.mainDb);
@@ -97,7 +95,6 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "getDatasetHmisImportLedger",
-  requirePermission("can_view_data"),
   log("getDatasetHmisImportLedger"),
   async (c) => {
     const res = await getDatasetHmisImportLedgerItems(c.var.mainDb);
@@ -108,7 +105,6 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "getDatasetHmisDisplayInfo",
-  requirePermission("can_view_data"),
   log("getDatasetHmisDisplayInfo"),
   async (c, { body }) => {
     // Computed live on every call. Since vizItems moved to the import ledger
@@ -141,7 +137,6 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "launchDatasetHmisDhis2Run",
-  requirePermission("can_configure_data"),
   log("launchDatasetHmisDhis2Run"),
   async (c, { body }) => {
     // No pre-validation: validating would decrypt the password in the host,
@@ -179,7 +174,6 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "enqueueDatasetHmisDhis2Run",
-  requirePermission("can_configure_data"),
   log("enqueueDatasetHmisDhis2Run"),
   async (c, { body }) => {
     const stored = await getStoredDhis2CredentialsInfo(c.var.mainDb);
@@ -206,7 +200,6 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "getDatasetHmisImportRuns",
-  requirePermission("can_view_data"),
   async (c) => {
     const res = await getDatasetHmisImportRunSummaries(c.var.mainDb);
     return c.json(res);
@@ -216,7 +209,6 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "getDatasetHmisImportRunDetail",
-  requirePermission("can_view_data"),
   log("getDatasetHmisImportRunDetail"),
   async (c, { params }) => {
     const res = await getDatasetHmisImportRunDetail(
@@ -230,7 +222,6 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "cancelDatasetHmisDhis2Run",
-  requirePermission("can_configure_data"),
   log("cancelDatasetHmisDhis2Run"),
   async (c, { body }) => {
     const res = await cancelDatasetHmisImportRun(c.var.mainDb, body.runId);
@@ -246,7 +237,6 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "classifyDatasetHmisDhis2Selection",
-  requirePermission("can_configure_data"),
   log("classifyDatasetHmisDhis2Selection"),
   async (c, { body }) => {
     try {
@@ -290,7 +280,6 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "getDatasetHmisDhis2Scheduling",
-  requirePermission("can_view_data"),
   log("getDatasetHmisDhis2Scheduling"),
   async (c) => {
     const stored = await getStoredDhis2CredentialsInfo(c.var.mainDb);
@@ -319,7 +308,6 @@ async function assertUnattendedReady(mainDb: Sql): Promise<string | null> {
 defineRoute(
   routesDatasets,
   "createDatasetHmisDhis2Schedule",
-  requirePermission("can_configure_data"),
   log("createDatasetHmisDhis2Schedule"),
   async (c, { body }) => {
     const blocked = await assertUnattendedReady(c.var.mainDb);
@@ -343,7 +331,6 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "updateDatasetHmisDhis2Schedule",
-  requirePermission("can_configure_data"),
   log("updateDatasetHmisDhis2Schedule"),
   async (c, { body }) => {
     // Editing a one-shot re-enables it (the re-arm gesture), so it goes
@@ -373,7 +360,6 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "deleteDatasetHmisDhis2Schedule",
-  requirePermission("can_configure_data"),
   log("deleteDatasetHmisDhis2Schedule"),
   async (c, { body }) => {
     const res = await deleteDatasetHmisScheduledImport(c.var.mainDb, body.id);
@@ -390,7 +376,6 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "deleteAllDatasetHmisData",
-  requirePermission("can_configure_data"),
   log("deleteAllDatasetHmisData"),
   async (c, { body }) => {
     const res = await deleteAllDatasetHmisData(c.var.mainDb, body.windowing);
@@ -415,7 +400,6 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "parseDatasetHmisCsvHeaders",
-  requirePermission("can_configure_data"),
   requireVisibleAssets("fileName"),
   log("parseDatasetHmisCsvHeaders"),
   async (c, { body }) => {
@@ -442,7 +426,6 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "scanDatasetHmisCsvIndicatorValues",
-  requirePermission("can_configure_data"),
   requireVisibleAssets("fileName"),
   log("scanDatasetHmisCsvIndicatorValues"),
   async (c, { body }) => {
@@ -468,7 +451,6 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "launchDatasetHmisCsvRun",
-  requirePermission("can_configure_data"),
   requireVisibleAssets("config.fileName"),
   log("launchDatasetHmisCsvRun"),
   async (c, { body }) => {
@@ -495,7 +477,6 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "enqueueDatasetHmisCsvRun",
-  requirePermission("can_configure_data"),
   requireVisibleAssets("config.fileName"),
   log("enqueueDatasetHmisCsvRun"),
   async (c, { body }) => {
@@ -515,7 +496,6 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "resolveDatasetHmisCsvReview",
-  requirePermission("can_configure_data"),
   log("resolveDatasetHmisCsvReview"),
   async (c, { body }) => {
     const res = await resolveDatasetHmisCsvReview(c.var.mainDb, {
@@ -555,7 +535,6 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "getDatasetHfaDisplayInfo",
-  requirePermission("can_view_data"),
   log("getDatasetHfaDisplayInfo"),
   async (c) => {
     const tpRows = await c.var.mainDb<
@@ -592,7 +571,6 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "deleteDatasetHfaData",
-  requirePermission("can_configure_data"),
   log("deleteDatasetHfaData"),
   async (c, { body }) => {
     const res = await deleteDatasetHfaData(c.var.mainDb, body.timePoint);
@@ -617,7 +595,6 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "parseDatasetHfaCsvHeaders",
-  requirePermission("can_configure_data"),
   requireVisibleAssets("csvFileName", "xlsFormFileName"),
   log("parseDatasetHfaCsvHeaders"),
   async (c, { body }) => {
@@ -696,7 +673,6 @@ async function scanHfaFacilitiesForPreview(
 defineRoute(
   routesDatasets,
   "previewDatasetHfaFacilityColumns",
-  requirePermission("can_configure_data"),
   requireVisibleAssets("csvFileName", "xlsFormFileName"),
   log("previewDatasetHfaFacilityColumns"),
   async (c, { body }) => {
@@ -727,7 +703,6 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "previewDatasetHfaFacilityChanges",
-  requirePermission("can_configure_data"),
   requireVisibleAssets("csvFileName", "xlsFormFileName"),
   log("previewDatasetHfaFacilityChanges"),
   async (c, { body }) => {
@@ -775,7 +750,6 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "getDatasetHfaLatestMappings",
-  requirePermission("can_configure_data"),
   async (c) => {
     return c.json(await getLatestCompleteHfaMappings(c.var.mainDb));
   },
@@ -819,7 +793,6 @@ async function snapshotBeforeHfaImport(
 defineRoute(
   routesDatasets,
   "previewDatasetHfaDuplicates",
-  requirePermission("can_configure_data"),
   requireVisibleAssets("csvFileName"),
   log("previewDatasetHfaDuplicates"),
   async (c, { body }) => {
@@ -844,7 +817,6 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "launchDatasetHfaCsvRun",
-  requirePermission("can_configure_data"),
   requireVisibleAssets("config.csvFileName", "config.xlsFormFileName"),
   log("launchDatasetHfaCsvRun"),
   async (c, { body }) => {
@@ -861,7 +833,6 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "getDatasetHfaImportRuns",
-  requirePermission("can_view_data"),
   async (c) => {
     const res = await getDatasetHfaImportRunSummaries(c.var.mainDb);
     return c.json(res);
@@ -871,7 +842,6 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "resolveDatasetHfaReview",
-  requirePermission("can_configure_data"),
   log("resolveDatasetHfaReview"),
   async (c, { body }) => {
     const before = await snapshotBeforeHfaImport(c.var.mainDb);
@@ -887,7 +857,6 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "cancelDatasetHfaRun",
-  requirePermission("can_configure_data"),
   log("cancelDatasetHfaRun"),
   async (c, { body }) => {
     const res = await cancelDatasetHfaImportRun(c.var.mainDb, body.runId);

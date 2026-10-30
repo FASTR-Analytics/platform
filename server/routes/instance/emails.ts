@@ -91,7 +91,6 @@ async function sendEmail(options: SendEmailOptions): Promise<boolean> {
 defineRoute(
   routesEmails,
   "sendSlideDeckEmail",
-  requireApprovedUser(),
   log("sendSlideDeckEmail"),
   async (c, { body }) => {
     const { recipients, message, attachment } = body;
@@ -143,7 +142,6 @@ defineRoute(
 defineRoute(
   routesEmails,
   "sendReportEmail",
-  requireApprovedUser(),
   log("sendReportEmail"),
   async (c, { body }) => {
     const { recipients, message, reportLabel, attachment } = body;
@@ -195,7 +193,6 @@ defineRoute(
 defineRoute(
   routesEmails,
   "sendHelpEmail",
-  requireApprovedUser(),
   log("sendHelpEmail"),
   async (c, { body }) => {
     const { feedbackType, description, context, images } = body;

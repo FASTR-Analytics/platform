@@ -1,3 +1,4 @@
+import { GUARD, type RouteGuard } from "../../permissions/mod.ts";
 import { z } from "zod";
 import {
   disaggregationOption,
@@ -53,6 +54,7 @@ export const runGenerationRouteRegistry = {
   listRunCatalog: route({
     path: "/run_generation/catalog",
     method: "GET",
+    guard: GUARD.permission("can_configure_data"),
     response: {} as RunCatalogItem[],
   }),
   // Guarded hard delete: catalog row + run dir + the runId-keyed cache
@@ -61,6 +63,7 @@ export const runGenerationRouteRegistry = {
   deleteRun: route({
     path: "/run_generation/run/:run_id",
     method: "DELETE",
+    guard: GUARD.permission("can_configure_data"),
     params: z.object({ run_id: z.string() }),
   }),
   // The instance's pinned package (SYSTEM_08 "The pinned package"): an
@@ -69,11 +72,13 @@ export const runGenerationRouteRegistry = {
   pinResultsPackage: route({
     path: "/run_generation/run/:run_id/pin",
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
     params: z.object({ run_id: z.string() }),
   }),
   unpinResultsPackage: route({
     path: "/run_generation/run/:run_id/pin",
     method: "DELETE",
+    guard: GUARD.permission("can_configure_data"),
     params: z.object({ run_id: z.string() }),
   }),
   // The product package picker's options: every ready package as a bare ReadyPackage, approved-user data. Follows
@@ -82,23 +87,27 @@ export const runGenerationRouteRegistry = {
   listReadyPackages: route({
     path: "/run_generation/ready_packages",
     method: "GET",
+    guard: GUARD.approved,
     response: {} as ReadyPackage[],
   }),
   getRunModuleScript: route({
     path: "/run_generation/run/:run_id/module/:module_id/script",
     method: "GET",
+    guard: GUARD.permission("can_view_data"),
     params: runModuleParamsSchema,
     response: {} as { script: string },
   }),
   getRunModuleLogs: route({
     path: "/run_generation/run/:run_id/module/:module_id/logs",
     method: "GET",
+    guard: GUARD.permission("can_view_logs"),
     params: runModuleParamsSchema,
     response: {} as { logs: string },
   }),
   listRunModuleFiles: route({
     path: "/run_generation/run/:run_id/module/:module_id/files",
     method: "GET",
+    guard: GUARD.permission("can_view_data"),
     params: runModuleParamsSchema,
     response: {} as RunModuleFileListing,
   }),
@@ -108,6 +117,7 @@ export const runGenerationRouteRegistry = {
   getRunModuleWithConfigSelections: route({
     path: "/run_generation/run/:run_id/module/:module_id/config_selections",
     method: "GET",
+    guard: GUARD.permission("can_view_data"),
     params: runModuleParamsSchema,
     response: {} as InstalledModuleWithConfigSelections,
   }),
@@ -120,6 +130,8 @@ export const runGenerationRouteRegistry = {
   getRunPresentationObjectItems: route({
     path: "/run_generation/run/:run_id/presentation_object_items",
     method: "POST",
+    guard: GUARD.approved,
+    headless: true,
     params: z.object({ run_id: z.string() }),
     body: z.object({
       resultsObjectId: z.string(),
@@ -134,6 +146,7 @@ export const runGenerationRouteRegistry = {
   getRunGridItems: route({
     path: "/run_generation/run/:run_id/grid_items",
     method: "POST",
+    guard: GUARD.approved,
     params: z.object({ run_id: z.string() }),
     body: z.object({
       resultsObjectId: z.string(),
@@ -145,6 +158,8 @@ export const runGenerationRouteRegistry = {
   getRunResultsValueInfo: route({
     path: "/run_generation/run/:run_id/results_value_info",
     method: "POST",
+    guard: GUARD.approved,
+    headless: true,
     params: z.object({ run_id: z.string() }),
     body: z.object({ metricId: z.string(), scopeId: scopeIdSchema }),
     response: {} as ResultsValueInfoForPresentationObject,
@@ -157,6 +172,7 @@ export const runGenerationRouteRegistry = {
   getRunReplicantOptions: route({
     path: "/run_generation/run/:run_id/replicant_options",
     method: "POST",
+    guard: GUARD.approved,
     params: z.object({ run_id: z.string() }),
     body: z.object({
       metricId: z.string(),
@@ -171,6 +187,7 @@ export const runGenerationRouteRegistry = {
   getRunResultsObjectItems: route({
     path: "/run_generation/run/:run_id/results_object_items/:results_object_id",
     method: "POST",
+    guard: GUARD.approved,
     // results_object_id is a module-defined filename (e.g.
     // "M10_hfa_results.csv"), not a uuid.
     params: z.object({ run_id: z.string(), results_object_id: z.string() }),
@@ -183,6 +200,7 @@ export const runGenerationRouteRegistry = {
   getRunGeoJsonStamp: route({
     path: "/run_generation/run/:run_id/geojson",
     method: "GET",
+    guard: GUARD.approved,
     params: z.object({ run_id: z.string() }),
     response: {} as RunGeoJsonStamp,
   }),
@@ -192,6 +210,7 @@ export const runGenerationRouteRegistry = {
   getRunAuthoringContext: route({
     path: "/run_generation/run/:run_id/authoring_context",
     method: "POST",
+    guard: GUARD.approved,
     params: z.object({ run_id: z.string() }),
     body: z.object({ scopeId: scopeIdSchema }),
     response: {} as RunAuthoringContext,
@@ -203,6 +222,7 @@ export const runGenerationRouteRegistry = {
   getRunDetail: route({
     path: "/run_generation/run/:run_id/detail",
     method: "GET",
+    guard: GUARD.permission("can_view_data"),
     params: z.object({ run_id: z.string() }),
     response: {} as RunDetail,
   }),
@@ -211,11 +231,13 @@ export const runGenerationRouteRegistry = {
   getRunGenerationDefaults: route({
     path: "/run_generation/defaults",
     method: "GET",
+    guard: GUARD.permission("can_configure_data"),
     response: {} as RunGenerationDefaults,
   }),
   saveRunGenerationDefaults: route({
     path: "/run_generation/defaults",
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
     body: z.object({ defaults: runGenerationDefaultsSchema }),
   }),
   // The fleet's frozen global parameter defaults from the resource hub;
@@ -223,6 +245,7 @@ export const runGenerationRouteRegistry = {
   getModuleDefaultsGlobal: route({
     path: "/run_generation/defaults_global",
     method: "GET",
+    guard: GUARD.permission("can_configure_data"),
     response: {} as { global: ModuleDefaultsGlobalFile | null },
   }),
   // Step-2 module definitions resolved from the modules repo at latest
@@ -230,6 +253,7 @@ export const runGenerationRouteRegistry = {
   getRunGenerationModuleOptions: route({
     path: "/run_generation/module_options",
     method: "GET",
+    guard: GUARD.permission("can_configure_data"),
     response: {} as RunGenerationModuleOptions,
   }),
   // Launch: the wizard's whole configuration arrives here (the wizard is an
@@ -240,6 +264,7 @@ export const runGenerationRouteRegistry = {
   launchRunGeneration: route({
     path: "/run_generation/launch",
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
     body: z.object({
       label: z.string().min(1).max(RUN_LABEL_MAX_LENGTH),
       step1Result: runGenerationStep1ResultSchema,
@@ -247,4 +272,4 @@ export const runGenerationRouteRegistry = {
     }),
     response: {} as { runId: string },
   }),
-} as const;
+} as const satisfies Record<string, { guard: RouteGuard }>;

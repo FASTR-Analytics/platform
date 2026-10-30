@@ -57,7 +57,7 @@ import {
 import { defineRoute } from "../route-helpers.ts";
 import { requireVisibleAssets } from "../../auth/asset_visibility.ts";
 import { streamResponse } from "../streaming.ts";
-import { requireApprovedUser, requirePermission } from "../../auth/guards.ts";
+import { requirePermission } from "../../auth/guards.ts";
 
 export const routesStructure = new Hono();
 
@@ -74,9 +74,6 @@ function parseFacilityFamily(raw: string): FacilityFamily | undefined {
 defineRoute(
   routesStructure,
   "listAdminArea2s",
-  // Any approved user: feeds the scope editor's area pickers (see
-  // registry).
-  requireApprovedUser(),
   log("listAdminArea2s"),
   async (c, { params }) => {
     const res = await listAdminArea2s(c.var.mainDb, params.family);
@@ -87,7 +84,6 @@ defineRoute(
 defineRoute(
   routesStructure,
   "getStructureItems",
-  requirePermission("can_view_data"),
   log("getStructureItems"),
   async (c, { params }) => {
     const family = parseFacilityFamily(params.family);
@@ -102,7 +98,6 @@ defineRoute(
 defineRoute(
   routesStructure,
   "deleteFamilyFacilities",
-  requirePermission("can_configure_data"),
   log("deleteFamilyFacilities"),
   async (c, { params }) => {
     const family = parseFacilityFamily(params.family);
@@ -135,7 +130,6 @@ defineRoute(
 defineRoute(
   routesStructure,
   "getHfaRegistry",
-  requirePermission("can_view_data"),
   log("getHfaRegistry"),
   async (c) => {
     return c.json(await getHfaRegistry(c.var.mainDb));
@@ -145,7 +139,6 @@ defineRoute(
 defineRoute(
   routesStructure,
   "editHfaFacility",
-  requirePermission("can_configure_data"),
   log("editHfaFacility"),
   async (c, { body }) => {
     const res = await saveHfaFacilityEdit(c.var.mainDb, body);
@@ -161,7 +154,6 @@ defineRoute(
 defineRoute(
   routesStructure,
   "countUnreferencedHfaFacilities",
-  requirePermission("can_configure_data"),
   log("countUnreferencedHfaFacilities"),
   async (c) => {
     return c.json(await getHfaUnreferencedFacilityCount(c.var.mainDb));
@@ -171,7 +163,6 @@ defineRoute(
 defineRoute(
   routesStructure,
   "removeUnreferencedHfaFacilities",
-  requirePermission("can_configure_data"),
   log("removeUnreferencedHfaFacilities"),
   async (c) => {
     const res = await saveHfaUnreferencedFacilitiesRemoval(c.var.mainDb);
@@ -193,7 +184,6 @@ defineRoute(
 defineRoute(
   routesStructure,
   "getHfaFacilityWeightsItems",
-  requirePermission("can_view_data"),
   log("getHfaFacilityWeightsItems"),
   async (c) => {
     const res = await getHfaFacilityWeightsItems(c.var.mainDb, _DATASET_LIMIT);
@@ -204,7 +194,6 @@ defineRoute(
 defineRoute(
   routesStructure,
   "readWeightsCsvHeaders",
-  requirePermission("can_configure_data"),
   requireVisibleAssets("assetFileName"),
   log("readWeightsCsvHeaders"),
   async (c, { body }) => {
@@ -226,7 +215,6 @@ defineRoute(
 defineRoute(
   routesStructure,
   "importHfaFacilityWeights",
-  requirePermission("can_configure_data"),
   requireVisibleAssets("assetFileName"),
   log("importHfaFacilityWeights"),
   async (c, { body }) => {
@@ -249,7 +237,6 @@ defineRoute(
 defineRoute(
   routesStructure,
   "deleteAllHfaFacilityWeights",
-  requirePermission("can_configure_data"),
   log("deleteAllHfaFacilityWeights"),
   async (c) => {
     const res = await deleteAllHfaFacilityWeights(c.var.mainDb);
@@ -271,7 +258,6 @@ defineRoute(
 defineRoute(
   routesStructure,
   "addStructureUploadAttempt",
-  requirePermission("can_configure_data"),
   log("addStructureUploadAttempt"),
   async (c) => {
     const res = await addStructureUploadAttempt(c.var.mainDb);
@@ -282,7 +268,6 @@ defineRoute(
 defineRoute(
   routesStructure,
   "getStructureUploadAttempt",
-  requirePermission("can_configure_data"),
   log("getStructureUploadAttempt"),
   async (c) => {
     const res = await getStructureUploadAttempt(c.var.mainDb);
@@ -293,7 +278,6 @@ defineRoute(
 defineRoute(
   routesStructure,
   "deleteStructureUploadAttempt",
-  requirePermission("can_configure_data"),
   log("deleteStructureUploadAttempt"),
   async (c) => {
     const res = await deleteStructureUploadAttempt(c.var.mainDb);
@@ -310,7 +294,6 @@ defineRoute(
 defineRoute(
   routesStructure,
   "structureStep1Csv_UploadFile",
-  requirePermission("can_configure_data"),
   requireVisibleAssets("assetFileName", "xlsFormAssetFileName"),
   log("structureStep1Csv_UploadFile"),
   async (c, { body }) => {
@@ -325,7 +308,6 @@ defineRoute(
 defineRoute(
   routesStructure,
   "structureStep2Csv_SetColumnMappings",
-  requirePermission("can_configure_data"),
   log("structureStep2Csv_SetColumnMappings"),
   async (c, { body }) => {
     const res = await structureStep2Csv_SetColumnMappings(
@@ -339,7 +321,6 @@ defineRoute(
 defineRoute(
   routesStructure,
   "structureStep3Csv_StageDataStreaming",
-  requirePermission("can_configure_data"),
   log("structureStep3Csv_StageDataStreaming"),
   (c) => {
     return streamResponse(c, async (writer) => {
@@ -368,7 +349,6 @@ defineRoute(
 defineRoute(
   routesStructure,
   "structureStep3Dhis2_StageDataStreaming",
-  requirePermission("can_configure_data"),
   log("structureStep3Dhis2_StageDataStreaming"),
   (c) => {
     return streamResponse(c, async (writer) => {
@@ -397,7 +377,6 @@ defineRoute(
 defineRoute(
   routesStructure,
   "getStructureStagedColumnValues",
-  requirePermission("can_configure_data"),
   log("getStructureStagedColumnValues"),
   async (c, { params }) => {
     const res = await getStructureStagedColumnValues(
@@ -411,7 +390,6 @@ defineRoute(
 defineRoute(
   routesStructure,
   "getStructureStagedRecodeRows",
-  requirePermission("can_configure_data"),
   log("getStructureStagedRecodeRows"),
   async (c, { body }) => {
     const res = await getStructureStagedRecodeRows(
@@ -429,7 +407,6 @@ defineRoute(
 defineRoute(
   routesStructure,
   "setStructureRecodes",
-  requirePermission("can_configure_data"),
   log("setStructureRecodes"),
   async (c, { body }) => {
     const res = await setStructureRecodes(
@@ -444,7 +421,6 @@ defineRoute(
 defineRoute(
   routesStructure,
   "structureStep4_ImportData",
-  requirePermission("can_configure_data"),
   log("structureStep4_ImportData"),
   async (c, { body }) => {
     const res = await structureStep4_ImportData(c.var.mainDb, body.strategy);
@@ -497,7 +473,6 @@ defineRoute(
 defineRoute(
   routesStructure,
   "structureStep0_SetSourceType",
-  requirePermission("can_configure_data"),
   log("structureStep0_SetSourceType"),
   async (c, { body }) => {
     const res = await structureStep0_SetSourceType(
@@ -511,7 +486,6 @@ defineRoute(
 defineRoute(
   routesStructure,
   "structureStep1Dhis2_ConfirmConnection",
-  requirePermission("can_configure_data"),
   log("structureStep1Dhis2_ConfirmConnection"),
   async (c) => {
     let credentials: Dhis2Credentials;
@@ -545,7 +519,6 @@ defineRoute(
 defineRoute(
   routesStructure,
   "structureStep2Dhis2_SetOrgUnitSelection",
-  requirePermission("can_configure_data"),
   log("structureStep2Dhis2_SetOrgUnitSelection"),
   async (c, { body }) => {
     const res = await structureStep2Dhis2_SetOrgUnitSelection(
@@ -559,7 +532,6 @@ defineRoute(
 defineRoute(
   routesStructure,
   "getStructureUploadStatus",
-  requirePermission("can_configure_data"),
   log("getStructureUploadStatus"),
   async (c) => {
     const res = await getStructureUploadStatus(c.var.mainDb);
@@ -570,7 +542,6 @@ defineRoute(
 defineRoute(
   routesStructure,
   "structureStep2Dhis2_GetOrgUnitsMetadata",
-  requirePermission("can_configure_data"),
   log("structureStep2Dhis2_GetOrgUnitsMetadata"),
   async (c) => {
     const credentialsRes = await getStructureDhis2ResolvedCredentials(

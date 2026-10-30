@@ -126,7 +126,8 @@ functions and additive columns (`saveSlideCheckpoint` / `saveReportCheckpoint`,
 `server/db/products/{reports,slides,slide_decks}.ts`, and the version-history
 routes ride its route files. S12 owns the files, S16 the feature (SYSTEMS.md
 §4.1; [SYSTEM_16_collaboration.md](SYSTEM_16_collaboration.md)). Every product
-route declares its `access` level and is guarded by `requireProductAccess` (S18,
+route declares `guard: GUARD.product(level)` and is guarded by
+`requireProductAccess` (S18,
 [SYSTEM_18_permissions.md](SYSTEM_18_permissions.md): the user needs the
 declared level on the product and, if restricted, its scope);
 on the client the gates are `productLevel`, `canEditProduct` and `canOwnProduct`
@@ -356,7 +357,7 @@ ids stay valid).
 every product-scoped path lives under `/products/:product_id/...`
 (`.../slide-deck`, `.../slides/:slide_id`, `.../report`,
 `.../versions/:version_id`), batch targets ride the body as `productIds`, and
-every registry entry declares `access`, which is the whole guard (S18). Handlers
+every registry entry declares its `guard`, which is the whole guard (S18). Handlers
 name only `log(...)`; a not-found envelope from the DB layer leaves as a 404
 through `_respond.ts`, so a slide or version id under the wrong product is
 a 404. In `routes/products/slides.ts` the move route is registered before the

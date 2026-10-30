@@ -1,5 +1,6 @@
+import { GUARD, type RouteGuard } from "../../permissions/mod.ts";
 import { z } from "zod";
-import { type ProductAccessLevel, route } from "../route-utils.ts";
+import { route } from "../route-utils.ts";
 import { productAccessBodySchema } from "./products.ts";
 
 // Folder ids are uuids (unlike product and slide ids).
@@ -15,34 +16,34 @@ export const folderRouteRegistry = {
   createFolder: route({
     path: "/folders",
     method: "POST",
+    guard: GUARD.folder("edit"),
     body: z.object({
       label: z.string(),
       color: z.string().nullable(),
       parentId: z.uuid().nullable(),
     }),
     response: {} as { folderId: string; lastUpdated: string },
-    access: "edit",
   }),
 
   updateFolder: route({
     path: "/folders/:folder_id",
     method: "PUT",
+    guard: GUARD.folder("edit"),
     params: folderIdParamsSchema,
     body: z.object({
       label: z.string(),
       color: z.string().nullable(),
     }),
     response: {} as { lastUpdated: string },
-    access: "edit",
   }),
 
   moveFolder: route({
     path: "/folders/:folder_id/parent",
     method: "PUT",
+    guard: GUARD.folder("edit"),
     params: folderIdParamsSchema,
     body: z.object({ parentId: z.uuid().nullable() }),
     response: {} as { lastUpdated: string },
-    access: "edit",
   }),
 
   // Child folders and products reparent one level up, never cascade; the
@@ -51,9 +52,9 @@ export const folderRouteRegistry = {
   deleteFolder: route({
     path: "/folders/:folder_id",
     method: "DELETE",
+    guard: GUARD.folder("edit"),
     params: folderIdParamsSchema,
     response: {} as { freedProductIds: string[] },
-    access: "edit",
   }),
 
   // The bulk action: raises access on every product in the folder and
@@ -63,9 +64,9 @@ export const folderRouteRegistry = {
   setFolderProductsAccess: route({
     path: "/folders/:folder_id/products/access",
     method: "PUT",
+    guard: GUARD.folder("own"),
     params: folderIdParamsSchema,
     body: productAccessBodySchema,
     response: {} as { productIds: string[] },
-    access: "own",
   }),
-} as const satisfies Record<string, { access: ProductAccessLevel }>;
+} as const satisfies Record<string, { guard: RouteGuard }>;

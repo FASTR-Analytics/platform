@@ -2,30 +2,16 @@ import type { Context } from "hono";
 import { routeRegistry } from "lib";
 
 // Deny-by-default route allowlist for the internal headless app (the /mcp
-// endpoint dispatches into headlessApp in-process): a headless credential can
-// reach exactly the routes the /mcp tools need: the run-keyed package reads (all read-only, gated on an
-// approved user and the scope grant), a whoami, and the /info reference docs. A
-// route added next year is headless-closed until opted in here. Token
-// mint/list/revoke and user/admin routes are deliberately absent: a headless
-// caller can never mint or revoke PATs.
-// Exported for validateHeadlessMounts (headless_app.ts), the dev-boot check
-// that every name here is actually reachable through headlessApp (the
-// allowlist and the mount list are two lists; the check is what keeps them
-// one).
-export const HEADLESS_ALLOWED_ROUTE_NAMES = [
-  // getCurrentUser: not called by the lib tools, it is the parity test's
-  // whoami probe (server/tests/pat_identity_parity_test.ts) and grants only
-  // the caller's own identity.
-  "getCurrentUser",
-  // The run-keyed metric reads (S8 "one core, two lenses": what a package
-  // contains is a function of the runId alone, gated on an approved user). A
-  // leaked credential reaches what an approved user with its user's scope grant
-  // reaches; the /mcp tools resolve the runId from the instance's pin at call
-  // time, never from the model. The module reads (script/logs/settings) are
-  // SPA-only tools and deliberately absent.
-  "getRunPresentationObjectItems",
-  "getRunResultsValueInfo",
-] as const satisfies readonly (keyof typeof routeRegistry)[];
+// endpoint dispatches into headlessApp in-process): a headless credential
+// reaches exactly the registry entries declaring `headless: true` (the
+// run-keyed package reads the /mcp tools need, read-only and gated on an
+// approved user and the scope grant, plus the whoami probe) and the /info
+// reference docs. A route added next year is headless-closed until its entry
+// opts in. Token mint/list/revoke and user/admin routes carry no flag: a
+// headless caller can never mint or revoke PATs.
+export const HEADLESS_ROUTE_NAMES = Object.entries(routeRegistry)
+  .filter(([, entry]) => entry.headless)
+  .map(([name]) => name as keyof typeof routeRegistry);
 
 // Non-registry paths: the /info markdown docs (served by the headless app's
 // static handler).
@@ -38,7 +24,7 @@ function escapeRegExp(s: string): string {
 }
 
 const MATCHERS: { method: string; pattern: RegExp }[] = [
-  ...HEADLESS_ALLOWED_ROUTE_NAMES.map((name) => {
+  ...HEADLESS_ROUTE_NAMES.map((name) => {
     const route = routeRegistry[name];
     return {
       method: route.method.toUpperCase(),

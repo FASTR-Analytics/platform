@@ -11,14 +11,12 @@ import {
   notifyInstanceStructureUpdated,
 } from "../../task_management/notify_instance_updated.ts";
 import { tryCatchDatabaseAsync } from "../../db/utils.ts";
-import { requirePermission } from "../../auth/guards.ts";
 
 export const routesHfaTimePoints = new Hono();
 
 defineRoute(
   routesHfaTimePoints,
   "createHfaTimePoint",
-  requirePermission("can_configure_data"),
   log("createHfaTimePoint"),
   async (c, { body }) => {
     const mainDb = c.var.mainDb;
@@ -85,7 +83,6 @@ defineRoute(
 defineRoute(
   routesHfaTimePoints,
   "updateHfaTimePoint",
-  requirePermission("can_configure_data"),
   log("updateHfaTimePoint"),
   async (c, { body }) => {
     const mainDb = c.var.mainDb;
@@ -146,7 +143,6 @@ defineRoute(
 defineRoute(
   routesHfaTimePoints,
   "reorderHfaTimePoints",
-  requirePermission("can_configure_data"),
   log("reorderHfaTimePoints"),
   async (c, { body }) => {
     const mainDb = c.var.mainDb;
@@ -172,7 +168,6 @@ defineRoute(
 defineRoute(
   routesHfaTimePoints,
   "deleteHfaTimePoint",
-  requirePermission("can_configure_data"),
   log("deleteHfaTimePoint"),
   async (c, { body }) => {
     const mainDb = c.var.mainDb;

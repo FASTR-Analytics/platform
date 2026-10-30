@@ -7,7 +7,6 @@ import {
 import { AddLog } from "../../db/instance/user_logs.ts";
 import { _SERVER_VERSION } from "../../exposed_env_vars.ts";
 import { defineRoute } from "../route-helpers.ts";
-import { requireApprovedUser } from "../../auth/guards.ts";
 
 export const routesWhatsNew = new Hono();
 
@@ -85,7 +84,6 @@ const _VERSION_GATE_ACTIVE = /^\d+\.\d+\.\d+$/.test(_SERVER_VERSION);
 defineRoute(
   routesWhatsNew,
   "getWhatsNewPosts",
-  requireApprovedUser(),
   async (c) => {
     const posts = await getPublishedPosts();
     const isAdmin = c.var.globalUser.isGlobalAdmin;
@@ -108,7 +106,6 @@ defineRoute(
 defineRoute(
   routesWhatsNew,
   "recordWhatsNewEvent",
-  requireApprovedUser(),
   async (c, { body }) => {
     AddLog(
       c.var.mainDb,

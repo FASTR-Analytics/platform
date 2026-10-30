@@ -1,12 +1,12 @@
-// Utility for creating type-safe route registries
 import { z } from "zod";
-import type { ProductAccessLevel } from "../permissions/mod.ts";
-export type { ProductAccessLevel };
+import type { RouteGuard } from "../permissions/mod.ts";
 import type { APIResponseNoData, APIResponseWithData } from "../types/mod.ts";
 
-// Helper to define a route with type information.
-// params and body must be Zod schemas (z.ZodType): phantom {} as T is no longer accepted.
-// response remains a compile-time phantom ({} as T) by design.
+// Defines one registry entry. `guard` is mandatory: the server installs the
+// middleware from it and the client reads it. `orStatusKey` also admits a
+// fleet machine call carrying the status key; `headless` opens the route to
+// the headless app. `params` and `body` are real Zod schemas, validated per
+// request; `response` stays a compile-time phantom (`{} as T`).
 export function route<
   TPath extends string,
   TMethod extends "GET" | "POST" | "PUT" | "DELETE" | "PATCH",
@@ -14,30 +14,32 @@ export function route<
   TBody extends z.ZodType | undefined = undefined,
   TResponse = never,
   TIsStreaming extends boolean = false,
-  TAccess extends ProductAccessLevel | undefined = undefined,
+  THeadless extends boolean = false,
 >(config: {
   path: TPath;
   method: TMethod;
+  guard: RouteGuard;
+  orStatusKey?: true;
+  headless?: THeadless;
   params?: TParams;
   body?: TBody;
   response?: TResponse;
   isStreaming?: TIsStreaming;
   timeoutMs?: number;
-  access?: TAccess;
 }) {
-  const result: any = {
+  const result: Record<string, unknown> = {
     path: config.path,
     method: config.method,
+    guard: config.guard,
+    orStatusKey: config.orStatusKey === true,
+    headless: config.headless === true,
+    response: config.response,
   };
 
   if (config.params !== undefined) result.params = config.params;
   if (config.body !== undefined) result.body = config.body;
   if (config.isStreaming !== undefined) result.isStreaming = config.isStreaming;
   if (config.timeoutMs !== undefined) result.timeoutMs = config.timeoutMs;
-  if (config.access !== undefined) result.access = config.access;
-
-  // response stays a compile-time phantom
-  result.response = config.response;
 
   // Use non-distributive form to avoid the distributive-conditional pitfall
   type InferredResponse = [TResponse] extends [never] ? APIResponseNoData
@@ -46,13 +48,13 @@ export function route<
   return result as {
     path: TPath;
     method: TMethod;
+    guard: RouteGuard;
+    orStatusKey: boolean;
+    headless: THeadless;
     params: TParams extends z.ZodType ? z.infer<TParams> : never;
     body: TBody extends z.ZodType ? z.infer<TBody> : never;
     response: InferredResponse;
     isStreaming: TIsStreaming;
     timeoutMs: number | undefined;
-    // Non-optional on the returned type so a `satisfies` over a product
-    // registry can require every entry to declare it.
-    access: TAccess;
   };
 }

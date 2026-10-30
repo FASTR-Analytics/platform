@@ -2,13 +2,9 @@ import { type Context, Hono } from "hono";
 import type { TypedResponse } from "hono";
 import type { JSONParsed } from "hono/utils/types";
 import { z } from "zod";
-import {
-  folderRouteRegistry,
-  type ProductAccessLevel,
-  routeRegistry,
-} from "lib";
+import { routeRegistry } from "lib";
+import { guardMiddleware } from "../auth/guards.ts";
 import { markRouteDefined } from "./route-tracker.ts";
-import { requireFolderAccess, requireProductAccess } from "../auth/guards.ts";
 
 // Extract params type directly from route registry
 type RouteParams<K extends keyof typeof routeRegistry> =
@@ -44,7 +40,9 @@ function zodErr(error: z.ZodError): string {
     .join("; ");
 }
 
-// Define a route using the registry
+// Registers a registry route. The entry's `guard` is installed here, so a
+// call names only log(...), requireVisibleAssets(...) and the handler, and no
+// handler checks access itself.
 export function defineRoute<K extends keyof typeof routeRegistry>(
   router: Hono,
   routeName: K,
@@ -52,15 +50,10 @@ export function defineRoute<K extends keyof typeof routeRegistry>(
 ) {
   const route = routeRegistry[routeName];
   const handler = args[args.length - 1] as RouteHandler<K>;
-  // A product or folder entry declares `access`, and that declaration IS its
-  // guard: the middleware is installed here so no handler checks access itself.
-  const access = (route as { access?: ProductAccessLevel }).access;
-  const middlewares = access === undefined ? args.slice(0, -1) : [
-    routeName in folderRouteRegistry
-      ? requireFolderAccess(access)
-      : requireProductAccess(access),
-    ...args.slice(0, -1),
-  ];
+  const guard = guardMiddleware(route.guard, route.orStatusKey);
+  const middlewares = guard === undefined
+    ? args.slice(0, -1)
+    : [guard, ...args.slice(0, -1)];
 
   // Wrap the handler to extract params and body
   const wrappedHandler = async (c: Context) => {

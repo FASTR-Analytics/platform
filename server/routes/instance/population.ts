@@ -22,7 +22,6 @@ export const routesPopulation = new Hono();
 defineRoute(
   routesPopulation,
   "setPopulationLevel",
-  requirePermission("can_configure_data"),
   log("setPopulationLevel"),
   async (c, { body }) => {
     const res = await setPopulationLevel(c.var.mainDb, body.level);
@@ -38,7 +37,6 @@ defineRoute(
 defineRoute(
   routesPopulation,
   "getPopulationTypeStore",
-  requirePermission("can_view_data"),
   log("getPopulationTypeStore"),
   async (c, { body }) => {
     return c.json(
@@ -50,7 +48,6 @@ defineRoute(
 defineRoute(
   routesPopulation,
   "previewPopulationCsv",
-  requirePermission("can_configure_data"),
   requireVisibleAssets("assetFileName"),
   log("previewPopulationCsv"),
   async (c, { body }) => {
@@ -61,7 +58,6 @@ defineRoute(
 defineRoute(
   routesPopulation,
   "importPopulationCsv",
-  requirePermission("can_configure_data"),
   requireVisibleAssets("assetFileName"),
   log("importPopulationCsv"),
   async (c, { body }) => {
@@ -82,7 +78,6 @@ defineRoute(
 defineRoute(
   routesPopulation,
   "deletePopulationTypeData",
-  requirePermission("can_configure_data"),
   log("deletePopulationTypeData"),
   async (c, { body }) => {
     const res = await deletePopulationTypeData(
@@ -101,7 +96,6 @@ defineRoute(
 defineRoute(
   routesPopulation,
   "deleteAllPopulation",
-  requirePermission("can_configure_data"),
   log("deleteAllPopulation"),
   async (c) => {
     const res = await deleteAllPopulation(c.var.mainDb);

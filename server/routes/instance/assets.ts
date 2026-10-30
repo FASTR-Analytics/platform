@@ -7,14 +7,12 @@ import {
 import { log } from "../../middleware/logging.ts";
 import { notifyInstanceAssetsUpdated } from "../../task_management/notify_instance_updated.ts";
 import { defineRoute } from "../route-helpers.ts";
-import { requireApprovedUser } from "../../auth/guards.ts";
 
 export const routesAssets = new Hono();
 
 defineRoute(
   routesAssets,
   "deleteAssets",
-  requireApprovedUser(),
   log("deleteAssets"),
   async (c, { body }) => {
     if (!Array.isArray(body.assetFileNames)) {
@@ -46,7 +44,6 @@ defineRoute(
 defineRoute(
   routesAssets,
   "updateAssetVisibility",
-  requireApprovedUser(),
   log("updateAssetVisibility"),
   async (c, { body }) => {
     const res = await updateAssetVisibility(

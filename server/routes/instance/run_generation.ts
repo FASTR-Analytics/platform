@@ -40,7 +40,7 @@ import {
 import { notifyInstanceRunsCatalogUpdated } from "../../task_management/notify_instance_updated.ts";
 import { launchRunGeneration } from "../../worker_routines/generate_run/mod.ts";
 import { defineRoute } from "../route-helpers.ts";
-import { requireApprovedUser, requirePermission } from "../../auth/guards.ts";
+import { requireApprovedUser } from "../../auth/guards.ts";
 
 // Results-package wizard + catalogue: the instance defaults store, the wizard's
 // module-options read, launch, the catalogue listing (instance-T1's fetch half:
@@ -70,7 +70,6 @@ function readContextFailure(c: Context, res: { success: false; err: string }) {
 defineRoute(
   routesRunGeneration,
   "getRunGenerationDefaults",
-  requirePermission("can_configure_data"),
   log("getRunGenerationDefaults"),
   async (c) => {
     const res = await getRunGenerationDefaultsConfig(c.var.mainDb);
@@ -81,7 +80,6 @@ defineRoute(
 defineRoute(
   routesRunGeneration,
   "saveRunGenerationDefaults",
-  requirePermission("can_configure_data"),
   log("saveRunGenerationDefaults"),
   async (c, { body }) => {
     const res = await updateRunGenerationDefaultsConfig(
@@ -95,7 +93,6 @@ defineRoute(
 defineRoute(
   routesRunGeneration,
   "getModuleDefaultsGlobal",
-  requirePermission("can_configure_data"),
   log("getModuleDefaultsGlobal"),
   async (c) => {
     const res = await getModuleDefaultsGlobal();
@@ -106,7 +103,6 @@ defineRoute(
 defineRoute(
   routesRunGeneration,
   "getRunGenerationModuleOptions",
-  requirePermission("can_configure_data"),
   log("getRunGenerationModuleOptions"),
   async (c) => {
     const res = await getRunGenerationModuleOptions(c.var.mainDb);
@@ -117,7 +113,6 @@ defineRoute(
 defineRoute(
   routesRunGeneration,
   "listRunCatalog",
-  requirePermission("can_configure_data"),
   log("listRunCatalog"),
   async (c) => {
     const res = await listRunCatalog(c.var.mainDb);
@@ -128,7 +123,6 @@ defineRoute(
 defineRoute(
   routesRunGeneration,
   "deleteRun",
-  requirePermission("can_configure_data"),
   log("deleteRun"),
   async (c, { params }) => {
     const res = await deleteRun(c.var.mainDb, params.run_id);
@@ -144,7 +138,6 @@ defineRoute(
 defineRoute(
   routesRunGeneration,
   "pinResultsPackage",
-  requirePermission("can_configure_data"),
   log("pinResultsPackage"),
   async (c, { params }) => {
     const res = await pinRun(c.var.mainDb, params.run_id);
@@ -155,7 +148,6 @@ defineRoute(
 defineRoute(
   routesRunGeneration,
   "unpinResultsPackage",
-  requirePermission("can_configure_data"),
   log("unpinResultsPackage"),
   async (c, { params }) => {
     const res = await unpinRun(c.var.mainDb, params.run_id);
@@ -169,7 +161,6 @@ defineRoute(
 defineRoute(
   routesRunGeneration,
   "listReadyPackages",
-  requireApprovedUser(),
   async (c) => {
     const res = await listReadyPackages(c.var.mainDb);
     return c.json(res);
@@ -191,7 +182,6 @@ defineRoute(
 defineRoute(
   routesRunGeneration,
   "getRunModuleScript",
-  requirePermission("can_view_data"),
   log("getRunModuleScript"),
   async (c, { params }) => {
     return c.json(await readRunModuleScript(params.run_id, params.module_id));
@@ -201,7 +191,6 @@ defineRoute(
 defineRoute(
   routesRunGeneration,
   "getRunModuleLogs",
-  requirePermission("can_view_logs"),
   log("getRunModuleLogs"),
   async (c, { params }) => {
     return c.json(await readRunModuleLogs(params.run_id, params.module_id));
@@ -211,7 +200,6 @@ defineRoute(
 defineRoute(
   routesRunGeneration,
   "listRunModuleFiles",
-  requirePermission("can_view_data"),
   log("listRunModuleFiles"),
   async (c, { params }) => {
     return c.json(await listRunModuleFiles(params.run_id, params.module_id));
@@ -224,7 +212,6 @@ defineRoute(
 defineRoute(
   routesRunGeneration,
   "getRunDetail",
-  requirePermission("can_view_data"),
   log("getRunDetail"),
   async (c, { params }) => {
     return c.json(await readRunDetail(params.run_id));
@@ -236,7 +223,6 @@ defineRoute(
 defineRoute(
   routesRunGeneration,
   "getRunModuleWithConfigSelections",
-  requirePermission("can_view_data"),
   log("getRunModuleWithConfigSelections"),
   async (c, { params }) => {
     const manifestRes = await getRunManifestForRun(params.run_id);
@@ -267,7 +253,6 @@ defineRoute(
 defineRoute(
   routesRunGeneration,
   "getRunPresentationObjectItems",
-  requireApprovedUser(),
   async (c, { params, body }) => {
     const ctxRes = await getReadyRunReadContext(
       c.var.mainDb,
@@ -288,7 +273,6 @@ defineRoute(
 defineRoute(
   routesRunGeneration,
   "getRunGridItems",
-  requireApprovedUser(),
   async (c, { params, body }) => {
     const ctxRes = await getReadyRunReadContext(
       c.var.mainDb,
@@ -309,7 +293,6 @@ defineRoute(
 defineRoute(
   routesRunGeneration,
   "getRunResultsValueInfo",
-  requireApprovedUser(),
   async (c, { params, body }) => {
     const ctxRes = await getReadyRunReadContext(
       c.var.mainDb,
@@ -327,7 +310,6 @@ defineRoute(
 defineRoute(
   routesRunGeneration,
   "getRunReplicantOptions",
-  requireApprovedUser(),
   async (c, { params, body }) => {
     const ctxRes = await getReadyRunReadContext(
       c.var.mainDb,
@@ -353,7 +335,6 @@ defineRoute(
 defineRoute(
   routesRunGeneration,
   "getRunResultsObjectItems",
-  requireApprovedUser(),
   log("getRunResultsObjectItems"),
   async (c, { params, body }) => {
     const ctxRes = await getReadyRunReadContext(
@@ -379,7 +360,6 @@ defineRoute(
 defineRoute(
   routesRunGeneration,
   "getRunGeoJsonStamp",
-  requireApprovedUser(),
   async (c, { params }) => {
     const manifestRes = await getRunManifestForRun(params.run_id);
     return c.json({
@@ -425,7 +405,6 @@ routesRunGeneration.get(
 defineRoute(
   routesRunGeneration,
   "getRunAuthoringContext",
-  requireApprovedUser(),
   async (c, { params, body }) => {
     const ctxRes = await getRunReadContextForRun(
       c.var.mainDb,
@@ -444,7 +423,6 @@ defineRoute(
 defineRoute(
   routesRunGeneration,
   "launchRunGeneration",
-  requirePermission("can_configure_data"),
   log("launchRunGeneration"),
   async (c, { body }) => {
     const res = await launchRunGeneration(

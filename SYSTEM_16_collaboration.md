@@ -1075,7 +1075,8 @@ Registry entries in
 [lib/api-routes/products/reports.ts](lib/api-routes/products/reports.ts) and
 [slide-decks.ts](lib/api-routes/products/slide-decks.ts); handlers in the
 matching S12 route files under `/products/:product_id/...`. Reads declare
-`access: "view"`, restore and copy `access: "edit"` (the one product guard, S18).
+`GUARD.product("view")`, restore and copy `GUARD.product("edit")` (the one
+product guard, S18).
 List summaries compute sizes/counts in SQL and never ship snapshot content.
 
 **Restore sequencing** (both kinds): ⓪ validate the snapshot's content fields

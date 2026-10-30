@@ -1,3 +1,4 @@
+import { GUARD, type RouteGuard } from "../../permissions/mod.ts";
 import { z } from "zod";
 import { route } from "../route-utils.ts";
 
@@ -12,6 +13,7 @@ export const emailRouteRegistry = {
   sendSlideDeckEmail: route({
     path: "/emails/slide-deck",
     method: "POST",
+    guard: GUARD.approved,
     body: z.object({
       recipients: emailRecipientsSchema,
       message: z.string(),
@@ -27,6 +29,7 @@ export const emailRouteRegistry = {
   sendReportEmail: route({
     path: "/emails/report",
     method: "POST",
+    guard: GUARD.approved,
     body: z.object({
       recipients: emailRecipientsSchema,
       message: z.string(),
@@ -42,6 +45,7 @@ export const emailRouteRegistry = {
   sendHelpEmail: route({
     path: "/emails/help",
     method: "POST",
+    guard: GUARD.approved,
     body: z.object({
       feedbackType: z.enum(["bug", "suggestion", "help"]),
       description: z.string(),
@@ -55,4 +59,4 @@ export const emailRouteRegistry = {
     }),
     response: {} as { sent: boolean },
   }),
-} as const;
+} as const satisfies Record<string, { guard: RouteGuard }>;

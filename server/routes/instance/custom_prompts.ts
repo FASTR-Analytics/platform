@@ -7,7 +7,6 @@ import {
 } from "../../db/mod.ts";
 import { log } from "../../middleware/logging.ts";
 import { defineRoute } from "../route-helpers.ts";
-import { requireApprovedUser } from "../../auth/guards.ts";
 
 export const routesCustomPrompts = new Hono();
 
@@ -18,7 +17,6 @@ export const routesCustomPrompts = new Hono();
 defineRoute(
   routesCustomPrompts,
   "getCustomPrompts",
-  requireApprovedUser(),
   async (c) => {
     const prompts = await getCustomPromptsForUser(
       c.var.mainDb,
@@ -31,7 +29,6 @@ defineRoute(
 defineRoute(
   routesCustomPrompts,
   "createCustomPrompt",
-  requireApprovedUser(),
   log("createCustomPrompt"),
   async (c, { body }) => {
     if (body.scope === "country" && !c.var.globalUser.isGlobalAdmin) {
@@ -55,7 +52,6 @@ defineRoute(
 defineRoute(
   routesCustomPrompts,
   "updateCustomPrompt",
-  requireApprovedUser(),
   log("updateCustomPrompt"),
   async (c, { params, body }) => {
     if (body.scope === "country" && !c.var.globalUser.isGlobalAdmin) {
@@ -84,7 +80,6 @@ defineRoute(
 defineRoute(
   routesCustomPrompts,
   "deleteCustomPrompt",
-  requireApprovedUser(),
   log("deleteCustomPrompt"),
   async (c, { params }) => {
     const deleted = await deleteCustomPrompt(

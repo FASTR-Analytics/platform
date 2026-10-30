@@ -168,7 +168,7 @@ type GuardClass =
   | "signed_in"
   | "approved"
   | "admin"
-  | "operator"
+  | "h_user"
   | "status_key"
   | UserPermission
   | `product:${ProductAccessLevel}`
@@ -409,11 +409,11 @@ const EXPECTED: Record<keyof typeof routeRegistry, Expectation> = {
   setProductScope: closed("product:edit"),
   setReportStyle: closed("product:edit"),
   setStructureRecodes: closed("can_configure_data"),
-  setUserContactPerson: closed("operator", {
+  setUserContactPerson: closed("h_user", {
     body: { email: UNAPPROVED.email, isContactPerson: true },
   }),
   setUserScopeAccess: closed("can_configure_users"),
-  setUserUnlimitedAi: closed("operator", {
+  setUserUnlimitedAi: closed("h_user", {
     body: { email: UNAPPROVED.email, unlimited: true },
   }),
   structureStep0_SetSourceType: closed("can_configure_data"),
@@ -718,7 +718,7 @@ function expected(
   if (guard === "signed_in") return "admitted";
   if (guard === "approved") return p.approved ? "admitted" : 403;
   if (guard === "admin") return p.isAdmin ? "admitted" : 403;
-  if (guard === "operator") return p.isHUser ? "admitted" : 403;
+  if (guard === "h_user") return p.isHUser ? "admitted" : 403;
   if (typeof guard === "string" && guard.startsWith("product:")) {
     const level = guard.slice("product:".length) as ProductAccessLevel;
     if (!p.approved) return 403;

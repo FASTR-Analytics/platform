@@ -25,13 +25,13 @@ add it to `routeRegistryIndividualCount`).
 createFolder: route({
   path: "/folders",
   method: "POST",
+  guard: GUARD.folder("edit"),
   body: z.object({
     label: z.string(),
     color: z.string().nullable(),
     parentId: z.uuid().nullable(),
   }),
   response: {} as { folderId: string; lastUpdated: string },
-  access: "edit",
 }),
 ```
 
@@ -41,9 +41,11 @@ createFolder: route({
 - `response` is a compile-time phantom (`{} as T`); omit it for a no-data route.
   For a sometimes-absent payload use `X | null`, never `X | undefined`
   (optional-parameter inference silently strips the `undefined`).
-- Set `access: "view" | "edit" | "own"` on every product and folder route
-  (`lib/api-routes/products/*`; the file's closing `satisfies` refuses an entry
-  without it). Every product-scoped path lives under
+- Every entry declares `guard` (step 3). A product or folder route declares
+  `GUARD.product(level)` or `GUARD.folder(level)` (`lib/api-routes/products/*`;
+  the file's closing `satisfies` refuses an entry without a guard, and boot
+  refuses a product- or folder-shaped route under any other kind). Every
+  product-scoped path lives under
   `/products/:product_id/...`, the param is always `product_id`, child ids
   (`slide_id`, `version_id`) follow it, folder paths use `folder_id`, and body
   targets are `productIds` and `targetProductId` (products), `folderId` and
@@ -94,27 +96,36 @@ Product-plane handlers answer through `respond`
 canonical example file; the notify recipe (row-level `last_updated`, per-row
 product summaries, whole-list folders) is S3's mutation recipe.
 
-### 3. Pick the guard
+### 3. Declare the guard
 
-Every `defineRoute` gets one. A route with no guard is public-by-accident (Clerk
-populates, it never rejects).
+Every entry carries `guard: RouteGuard` (`lib/permissions/`), written through
+the `GUARD` helpers; `route()` refuses an entry without one. `defineRoute`
+installs the middleware from it, so a `defineRoute` call names only `log(...)`,
+`requireVisibleAssets(...)` and the handler: never a guard, and never a
+permission check inside the handler.
 
-- Instance route → `requirePermission(flag)`, one flag (`server/auth/guards.ts`).
-- Approved-user surface (run-keyed package reads, the authoring context, the
-  ready-package list) → `requireApprovedUser()`.
-- Product or folder route → nothing: the registry entry's `access` field is the
-  guard. `defineRoute` installs `requireProductAccess` from it, so the handler
-  names only `log(...)` and the handler. Never add a permission check inside the
-  handler; the policy lives in `server/auth/product_access.ts`. A handler that
-  receives a `slide_id` or `version_id` still scopes its query by `product_id`
-  as well, so an id from another product is a 404.
-- Permission keys come from `lib/permissions/_flags.ts` only. Adding a key? Add
-  it there (type + array; every builder follows), plus the DB column migration.
-- Admin-only → `requireAdmin()`.
-- `requireSignedIn()` = "any authenticated caller", without the `approved`
-  check: real but weak; be deliberate.
-- Prefer a granular permission or `requireAdmin` over any new
-  `H_USERS.includes()` check.
+- Instance route needing one flag → `GUARD.permission(flag)`. Configure implies
+  view, so a read declares the view flag. Permission keys come from
+  `lib/permissions/_flags.ts` only; adding a key means the type, the array
+  (every builder follows) and the DB column migration.
+- Any approved user (run-keyed package reads, the authoring context, the
+  ready-package list, self-service routes) → `GUARD.approved`.
+- Admin-only → `GUARD.admin`.
+- Product or folder route → `GUARD.product(level)` or `GUARD.folder(level)`.
+  The policy lives in `server/auth/product_access.ts`. A handler that receives
+  a `slide_id` or `version_id` still scopes its query by `product_id` as well,
+  so an id from another product is a 404.
+- The operator tier → `GUARD.hUser`; a fleet machine call → `GUARD.statusKey`;
+  `orStatusKey: true` beside a session guard also admits the machine call
+  (`renameUserEmail` alone). Prefer a flag or `GUARD.admin` over a new operator
+  route.
+- `GUARD.signedIn` = any authenticated caller, approved or not: four routes
+  hold it; be deliberate. `GUARD.public` is `getInstanceMeta` alone; boot fails
+  on a second.
+- `headless: true` opens the entry to the headless app (`/mcp`); the default is
+  closed.
+- Add the route's row to `EXPECTED` in `server/tests/permission_matrix_test.ts`
+  (a missing row is a type error) and run it.
 
 ### 4. Wire and verify
 

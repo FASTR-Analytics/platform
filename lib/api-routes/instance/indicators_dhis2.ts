@@ -1,3 +1,4 @@
+import { GUARD, type RouteGuard } from "../../permissions/mod.ts";
 import { z } from "zod";
 import type {
   Dhis2DataElementSearchItem,
@@ -11,6 +12,7 @@ export const indicatorsDhis2RouteRegistry = {
   searchDhis2Indicators: route({
     path: "/indicators-dhis2/search",
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
     body: z.object({
       query: z.string(),
       searchBy: z.enum(["name", "code"]).optional(),
@@ -20,6 +22,7 @@ export const indicatorsDhis2RouteRegistry = {
   searchDhis2DataElements: route({
     path: "/data-elements-dhis2/search",
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
     body: z.object({
       query: z.string(),
       additionalFilters: z.array(z.string()).optional(),
@@ -29,6 +32,7 @@ export const indicatorsDhis2RouteRegistry = {
   searchDhis2All: route({
     path: "/indicators-dhis2/search-all",
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
     body: z.object({
       query: z.string(),
       searchBy: z.enum(["name", "code"]).optional(),
@@ -46,6 +50,7 @@ export const indicatorsDhis2RouteRegistry = {
   createIndicatorsFromDhis2: route({
     path: "/indicators-dhis2/create",
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
     body: z.object({
       elements: z.array(indicatorNamingElementSchema),
       // `uid` is the DHIS2 indicator's own UID; the calculated it becomes is
@@ -65,6 +70,7 @@ export const indicatorsDhis2RouteRegistry = {
   refreshDhis2Labels: route({
     path: "/indicators-dhis2/refresh-labels",
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
     response: {} as Dhis2LabelRefresh,
   }),
-} as const;
+} as const satisfies Record<string, { guard: RouteGuard }>;

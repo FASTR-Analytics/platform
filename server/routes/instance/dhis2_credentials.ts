@@ -10,7 +10,6 @@ import { validateDhis2Connection } from "../../dhis2/mod.ts";
 import { log } from "../../middleware/logging.ts";
 import { notifyInstanceConfigUpdatedFromDb } from "../../task_management/notify_instance_updated.ts";
 import { defineRoute } from "../route-helpers.ts";
-import { requirePermission } from "../../auth/guards.ts";
 
 // Instance-wide stored DHIS2 credentials, shared by every DHIS2 flow.
 export const routesDhis2Credentials = new Hono();
@@ -18,7 +17,6 @@ export const routesDhis2Credentials = new Hono();
 defineRoute(
   routesDhis2Credentials,
   "getInstanceDhis2CredentialsInfo",
-  requirePermission("can_configure_data"),
   log("getInstanceDhis2CredentialsInfo"),
   async (c) => {
     const stored = await getStoredDhis2CredentialsInfo(c.var.mainDb);
@@ -35,7 +33,6 @@ defineRoute(
 defineRoute(
   routesDhis2Credentials,
   "saveInstanceDhis2Credentials",
-  requirePermission("can_configure_data"),
   log("saveInstanceDhis2Credentials"),
   async (c, { body }) => {
     if (!isDhis2CredentialsEncryptionKeyConfigured()) {
@@ -64,7 +61,6 @@ defineRoute(
 defineRoute(
   routesDhis2Credentials,
   "deleteInstanceDhis2Credentials",
-  requirePermission("can_configure_data"),
   log("deleteInstanceDhis2Credentials"),
   async (c) => {
     await deleteStoredDhis2Credentials(c.var.mainDb);

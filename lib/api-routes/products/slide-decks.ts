@@ -1,3 +1,4 @@
+import { GUARD, type RouteGuard } from "../../permissions/mod.ts";
 import { z } from "zod";
 import { slideDeckConfigSchema } from "../../types/mod.ts";
 import type { SlideDeckDetail } from "../../types/slides.ts";
@@ -5,7 +6,7 @@ import type {
   SlideDeckVersionDetail,
   SlideDeckVersionSummary,
 } from "../../types/versions.ts";
-import { type ProductAccessLevel, route } from "../route-utils.ts";
+import { route } from "../route-utils.ts";
 import { productIdParamsSchema } from "./products.ts";
 
 const productVersionParamsSchema = z.object({
@@ -20,42 +21,42 @@ export const productSlideDeckRouteRegistry = {
   getSlideDeckDetail: route({
     path: "/products/:product_id/slide-deck",
     method: "GET",
+    guard: GUARD.product("view"),
     params: productIdParamsSchema,
     response: {} as SlideDeckDetail,
-    access: "view",
   }),
 
   updateSlideDeckConfig: route({
     path: "/products/:product_id/slide-deck/config",
     method: "PUT",
+    guard: GUARD.product("edit"),
     params: productIdParamsSchema,
     body: z.object({ config: slideDeckConfigSchema }),
     response: {} as { lastUpdated: string },
-    access: "edit",
   }),
 
   listSlideDeckVersions: route({
     path: "/products/:product_id/slide-deck/versions",
     method: "GET",
+    guard: GUARD.product("view"),
     params: productIdParamsSchema,
     response: {} as SlideDeckVersionSummary[],
-    access: "view",
   }),
 
   getSlideDeckVersion: route({
     path: "/products/:product_id/slide-deck/versions/:version_id",
     method: "GET",
+    guard: GUARD.product("view"),
     params: productVersionParamsSchema,
     response: {} as SlideDeckVersionDetail,
-    access: "view",
   }),
 
   restoreSlideDeckVersion: route({
     path: "/products/:product_id/slide-deck/versions/:version_id/restore",
     method: "POST",
+    guard: GUARD.product("edit"),
     params: productVersionParamsSchema,
     response: {} as { lastUpdated: string },
-    access: "edit",
   }),
 
   // Creates a NEW product from the snapshot, so it carries a label and folder
@@ -63,12 +64,12 @@ export const productSlideDeckRouteRegistry = {
   copySlideDeckVersion: route({
     path: "/products/:product_id/slide-deck/versions/:version_id/copy",
     method: "POST",
+    guard: GUARD.product("view"),
     params: productVersionParamsSchema,
     body: z.object({
       label: z.string(),
       folderId: z.uuid().nullable(),
     }),
     response: {} as { productId: string; lastUpdated: string },
-    access: "view",
   }),
-} as const satisfies Record<string, { access: ProductAccessLevel }>;
+} as const satisfies Record<string, { guard: RouteGuard }>;

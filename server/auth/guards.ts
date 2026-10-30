@@ -5,6 +5,7 @@ import {
   H_USERS,
   holdsPermission,
   type ProductAccessLevel,
+  type RouteGuard,
   type ScopeId,
   scopeIdSchema,
   type UserPermission,
@@ -166,6 +167,39 @@ export function orStatusKey(inner: MiddlewareHandler) {
     }
     return await inner(c, next);
   });
+}
+
+// The middleware a registry entry's guard declares; a public route has none.
+export function guardMiddleware(
+  routeGuard: RouteGuard,
+  withStatusKey: boolean,
+): MiddlewareHandler | undefined {
+  const inner = guardFor(routeGuard);
+  if (inner === undefined) return undefined;
+  return withStatusKey ? orStatusKey(inner) : inner;
+}
+
+function guardFor(routeGuard: RouteGuard): MiddlewareHandler | undefined {
+  switch (routeGuard.kind) {
+    case "public":
+      return undefined;
+    case "signed_in":
+      return requireSignedIn();
+    case "approved":
+      return requireApprovedUser();
+    case "admin":
+      return requireAdmin();
+    case "permission":
+      return requirePermission(routeGuard.flag);
+    case "h_user":
+      return requireHUser();
+    case "status_key":
+      return requireStatusKey();
+    case "product":
+      return requireProductAccess(routeGuard.level);
+    case "folder":
+      return requireFolderAccess(routeGuard.level);
+  }
 }
 
 function stringsOf(value: unknown): string[] {

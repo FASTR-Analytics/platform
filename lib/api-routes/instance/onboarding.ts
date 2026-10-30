@@ -1,3 +1,4 @@
+import { GUARD, type RouteGuard } from "../../permissions/mod.ts";
 import { z } from "zod";
 import { route } from "../route-utils.ts";
 
@@ -7,6 +8,7 @@ export const onboardingRouteRegistry = {
   recordTourEvent: route({
     path: "/onboarding/tour_event",
     method: "POST",
+    guard: GUARD.approved,
     body: z.object({
       tourId: z.string().max(100),
       event: z.enum(["start", "finish", "abort"]),
@@ -18,4 +20,4 @@ export const onboardingRouteRegistry = {
       reason: z.enum(["skip", "timeout", "programmatic"]).optional(),
     }),
   }),
-} as const;
+} as const satisfies Record<string, { guard: RouteGuard }>;

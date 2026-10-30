@@ -58,10 +58,33 @@ and sets `approved = _OPEN_ACCESS || !!row`. Every guard below calls it first,
 except that `orStatusKey` admits a matching status-api key before it and
 `requireStatusKey` never calls it.
 
+## Guards in the contract
+
+A route's guard is declared once, on its registry entry, as `guard: RouteGuard`
+(`lib/permissions/_route_guard.ts`): `public`, `signed_in`, `approved`,
+`admin`, `permission` (one flag), `h_user`, `status_key`, `product` (a level)
+or `folder` (a level), written through the `GUARD` helpers
+(`GUARD.permission("can_view_data")`, `GUARD.product("edit")`). `route()`
+requires the field and every registry closes with
+`as const satisfies Record<string, { guard: RouteGuard }>`, so an entry without
+one does not compile. `defineRoute` installs the middleware from it
+(`guardMiddleware`, below) and takes no guard argument: a call names only
+`log(...)`, `requireVisibleAssets(...)` and the handler. Two flags ride beside
+it: `orStatusKey: true` also admits a fleet machine call carrying the status
+key (one entry, `renameUserEmail`), and `headless: true` opens the entry to the
+headless app (three entries, S1 "The headless credential seam"). Boot
+(`validateAllRoutesDefined`, S1) fails when a route other than
+`getInstanceMeta` is public, when a path with `:product_id` or a `productIds`
+body carries a guard that is not `product`, or when a path with `:folder_id` or
+a `parentId` body carries a guard that is not `folder`, so whether a route is a
+folder route is read from the table, never from the request. The client reads
+the same field to decide what to offer.
+
 ## The guard factories
 
-`server/auth/guards.ts` holds one factory, `guard(policy)`, and the guards
-built on it. A policy reads the `GlobalUser` and answers a refusal string or
+`server/auth/guards.ts` holds one factory, `guard(policy)`, the guards built on
+it, and `guardMiddleware(routeGuard, orStatusKey)`, which maps a declared kind
+to its guard (`public` to none). A policy reads the `GlobalUser` and answers a refusal string or
 nothing. Every guard skips `OPTIONS` (CORS preflight), answers
 `401 { success: false, err, authError: true }` when `getGlobalUser(c)` returns
 `"NOT_AUTHENTICATED"`, answers `403 { success: false, err }` with the policy's
@@ -115,11 +138,10 @@ alone proves only that a peer sent the request.
 **`requireProductAccess(level)` and `requireFolderAccess(level)`**: the guards
 for every product and folder route, and the one guard a handler in
 `server/routes/products/` never names. Each entry in `lib/api-routes/products/*`
-declares `access: "view" | "edit" | "own"` (the `route()` helper returns the
-field non-optional, and each registry closes with a `satisfies` that requires
-it), and `defineRoute` installs the folder guard for an entry of
-`folderRouteRegistry` and the product guard for any other entry carrying the
-field; nothing in a request makes a route a folder route. Per request the guard
+declares `GUARD.product(level)` or `GUARD.folder(level)`, and `defineRoute`
+installs the guard the kind names; nothing in a request makes a route a folder
+route, and the boot check refuses a product- or folder-shaped route under any
+other kind. Per request the guard
 authenticates (401), resolves the route's targets from the id fields the
 contract declares and nowhere else, and awaits
 `productAccessPolicy(mainDb, user, level, targets)` in
@@ -149,7 +171,8 @@ product they can see, by scope and level (`visibleFolderIdsForUser`, over
 handler. Doctrine: the product id in the path IS the authority; a future
 permission model replaces the policy function and inherits the per-route access
 inventory, and must never be built as per-handler checks behind this guard. The
-registry's other guards never check `access`; instance routes do not declare it.
+No other guard reads a product id, and an instance route never declares the
+`product` or `folder` kind.
 
 **The `authError` flag is 401-only.** Only the 401 not-authenticated responses
 carry `authError: true`; no 403 in any guard does, and the client
@@ -162,7 +185,7 @@ token-refresh/logout. Auth-failure vs outage stays distinguishable by status:
 The matrix test is the audit of every guard above. Its expectation table is
 written by hand, typed as `Record<keyof typeof routeRegistry, Expectation>`, so
 a registry route without a row does not compile, and it is deliberately not
-read from the registry or the headless allowlist, so changing a guard is a
+read from the registry or its `headless` flags, so changing a guard is a
 two-place edit and a wrong declaration fails a test. For every registry route,
 every raw endpoint and every static tier, against a signed-out request, a
 status-key machine request, an unapproved account, an approved account with no

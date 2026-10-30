@@ -70,14 +70,6 @@ import {
   RESTRICTED_CALLER_REFUSED,
   SELF_DELETION_REFUSED,
 } from "../../auth/refusals.ts";
-import {
-  orStatusKey,
-  requireAdmin,
-  requireApprovedUser,
-  requirePermission,
-  requireSignedIn,
-  requireStatusKey,
-} from "../../auth/guards.ts";
 
 export const routesUsers = new Hono();
 
@@ -116,7 +108,6 @@ export async function broadcastRosterAndCloseStaleCollab(
 defineRoute(
   routesUsers,
   "getCurrentUser",
-  requireSignedIn(),
   log("getCurrentUser"),
   async (c) => {
     const { email, firstName, lastName } = c.var.globalUser;
@@ -141,7 +132,6 @@ defineRoute(
 defineRoute(
   routesUsers,
   "getAiUsage",
-  requireApprovedUser(),
   async (c) => {
     const [tokensUsedToday, tokensUsedThisWeek] = await Promise.all([
       GetUserDailyTokenUsage(c.var.mainDb, c.var.globalUser.email),
@@ -163,7 +153,6 @@ defineRoute(
 defineRoute(
   routesUsers,
   "setUserUnlimitedAi",
-  requireApprovedUser(),
   log("setUserUnlimitedAi"),
   async (c, { body }) => {
     if (!H_USERS.includes(c.var.globalUser.email)) {
@@ -184,7 +173,6 @@ defineRoute(
 defineRoute(
   routesUsers,
   "addUsers",
-  requirePermission("can_configure_users"),
   log("addUsers"),
   async (c, { body }) => {
     // The admin flag makes a user unrestricted, so only an admin grants it,
@@ -208,7 +196,6 @@ defineRoute(
 defineRoute(
   routesUsers,
   "toggleUserAdmin",
-  requireAdmin(),
   log("toggleUserAdmin"),
   async (c, { body }) => {
     if (body.emails.includes(c.var.globalUser.email)) {
@@ -229,7 +216,6 @@ defineRoute(
 defineRoute(
   routesUsers,
   "deleteUser",
-  requirePermission("can_configure_users"),
   log("deleteUser"),
   async (c, { body }) => {
     if (body.emails.includes(c.var.globalUser.email)) {
@@ -248,7 +234,6 @@ defineRoute(
 defineRoute(
   routesUsers,
   "batchUploadUsers",
-  requirePermission("can_configure_users"),
   requireVisibleAssets("asset_file_name"),
   log("batchUploadUsers"),
   async (c, { body }) => {
@@ -270,7 +255,6 @@ defineRoute(
 defineRoute(
   routesUsers,
   "setUserContactPerson",
-  requireApprovedUser(),
   log("setUserContactPerson"),
   async (c, { body }) => {
     if (!H_USERS.includes(c.var.globalUser.email)) {
@@ -291,7 +275,6 @@ defineRoute(
 defineRoute(
   routesUsers,
   "getUsersLastActive",
-  requirePermission("can_view_logs"),
   log("getUsersLastActive"),
   async (c) => {
     const res = await getUsersLastActive(c.var.mainDb);
@@ -302,7 +285,6 @@ defineRoute(
 defineRoute(
   routesUsers,
   "getUserPermissions",
-  requirePermission("can_configure_users"),
   log("getUserPermissions"),
   async (c, { params }) => {
     const res = await getUserPermissions(c.var.mainDb, params.email);
@@ -313,7 +295,6 @@ defineRoute(
 defineRoute(
   routesUsers,
   "updateUserPermissions",
-  requirePermission("can_configure_users"),
   log("updateUserPermissions"),
   async (c, { body }) => {
     const res = await updateUserPermissions(
@@ -332,7 +313,6 @@ defineRoute(
 defineRoute(
   routesUsers,
   "setUserScopeAccess",
-  requirePermission("can_configure_users"),
   log("setUserScopeAccess"),
   async (c, { body }) => {
     const res = await setUserScopeAccess(
@@ -351,7 +331,6 @@ defineRoute(
 defineRoute(
   routesUsers,
   "bulkSetUserScopeAccess",
-  requirePermission("can_configure_users"),
   log("bulkSetUserScopeAccess"),
   async (c, { body }) => {
     const res = await bulkSetUserScopeAccess(
@@ -370,7 +349,6 @@ defineRoute(
 defineRoute(
   routesUsers,
   "bulkUpdateUserPermissions",
-  requirePermission("can_configure_users"),
   log("bulkUpdateUserPermissions"),
   async (c, { body }) => {
     const res = await bulkUpdateUserPermissions(
@@ -434,7 +412,6 @@ function pushUserNameToPeers(
 defineRoute(
   routesUsers,
   "receiveUserNameSync",
-  requireStatusKey(),
   async (c, { body }) => {
     // No onward push: only the instance that observed the Clerk change fans
     // out, so a sync can never echo around the fleet.
@@ -458,7 +435,6 @@ defineRoute(
 defineRoute(
   routesUsers,
   "updateMyProfile",
-  requireSignedIn(),
   log("updateMyProfile"),
   async (c, { body }) => {
     const { email } = c.var.globalUser;
@@ -479,7 +455,6 @@ defineRoute(
 defineRoute(
   routesUsers,
   "receiveUserProfileSync",
-  requireStatusKey(),
   async (c, { body }) => {
     // No onward push, as for names: only the instance the user wrote on fans
     // out, so a sync can never echo around the fleet.
@@ -564,7 +539,6 @@ async function renameUserEmailLocally(
 defineRoute(
   routesUsers,
   "renameUserEmail",
-  orStatusKey(requireAdmin()),
   log("renameUserEmail"),
   async (c, { body }) => {
     const oldEmail = normaliseEmail(body.oldEmail);
@@ -622,7 +596,6 @@ defineRoute(
 defineRoute(
   routesUsers,
   "createPersonalAccessToken",
-  requireApprovedUser(),
   log("createPersonalAccessToken"),
   async (c, { body }) => {
     const res = await createPersonalAccessToken(
@@ -757,7 +730,6 @@ async function renameOnPeer(
 defineRoute(
   routesUsers,
   "renameUserEmailEverywhere",
-  requireSignedIn(),
   log("renameUserEmailEverywhere"),
   async (c, { body }) => {
     const oldEmail = normaliseEmail(body.oldEmail);
@@ -930,7 +902,6 @@ defineRoute(
 defineRoute(
   routesUsers,
   "listPersonalAccessTokens",
-  requireApprovedUser(),
   async (c) => {
     const res = await listPersonalAccessTokens(
       c.var.mainDb,
@@ -943,7 +914,6 @@ defineRoute(
 defineRoute(
   routesUsers,
   "revokePersonalAccessToken",
-  requireApprovedUser(),
   log("revokePersonalAccessToken"),
   async (c, { body }) => {
     const res = await revokePersonalAccessToken(

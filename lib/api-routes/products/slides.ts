@@ -1,7 +1,8 @@
+import { GUARD, type RouteGuard } from "../../permissions/mod.ts";
 import { z } from "zod";
 import { slideConfigSchema } from "../../types/_slide_config.ts";
 import type { SlideWithMeta } from "../../types/slides.ts";
-import { type ProductAccessLevel, route } from "../route-utils.ts";
+import { route } from "../route-utils.ts";
 import { productIdParamsSchema } from "./products.ts";
 
 // slide_id is a short nanoid, never a uuid. Every slide route is scoped by
@@ -27,34 +28,35 @@ export const productSlideRouteRegistry = {
   getSlides: route({
     path: "/products/:product_id/slides",
     method: "GET",
+    guard: GUARD.product("view"),
     params: productIdParamsSchema,
     response: {} as SlideWithMeta[],
-    access: "view",
   }),
 
   getSlide: route({
     path: "/products/:product_id/slides/:slide_id",
     method: "GET",
+    guard: GUARD.product("view"),
     params: productSlideParamsSchema,
     response: {} as SlideWithMeta,
-    access: "view",
   }),
 
   createSlide: route({
     path: "/products/:product_id/slides",
     method: "POST",
+    guard: GUARD.product("edit"),
     params: productIdParamsSchema,
     body: z.object({
       position: slidePositionSchema,
       slide: slideConfigSchema,
     }),
     response: {} as { slideId: string; lastUpdated: string },
-    access: "edit",
   }),
 
   updateSlide: route({
     path: "/products/:product_id/slides/:slide_id",
     method: "PUT",
+    guard: GUARD.product("edit"),
     params: productSlideParamsSchema,
     body: z.object({
       slide: slideConfigSchema,
@@ -62,39 +64,38 @@ export const productSlideRouteRegistry = {
       overwrite: z.boolean().optional(),
     }),
     response: {} as { lastUpdated: string },
-    access: "edit",
   }),
 
   deleteSlides: route({
     path: "/products/:product_id/slides",
     method: "DELETE",
+    guard: GUARD.product("edit"),
     params: productIdParamsSchema,
     body: z.object({ slideIds: z.array(z.string()) }),
     // ACTUALLY-deleted ids: the delete is deck-scoped, so a requested id in
     // another deck is a no-op.
     response: {} as { deletedIds: string[]; lastUpdated: string },
-    access: "edit",
   }),
 
   duplicateSlides: route({
     path: "/products/:product_id/slides/duplicate",
     method: "POST",
+    guard: GUARD.product("edit"),
     params: productIdParamsSchema,
     body: z.object({ slideIds: z.array(z.string()) }),
     response: {} as { newSlideIds: string[]; lastUpdated: string },
-    access: "edit",
   }),
 
   moveSlides: route({
     path: "/products/:product_id/slides/move",
     method: "PUT",
+    guard: GUARD.product("edit"),
     params: productIdParamsSchema,
     body: z.object({
       slideIds: z.array(z.string()),
       position: slidePositionSchema,
     }),
     response: {} as { slides: SlideWithMeta[]; lastUpdated: string },
-    access: "edit",
   }),
 
   // The cross-deck reuse path (there is no figure library). Bundles are
@@ -104,12 +105,12 @@ export const productSlideRouteRegistry = {
   copySlidesToSlideDeck: route({
     path: "/products/:product_id/slides/copy-to-slide-deck",
     method: "POST",
+    guard: GUARD.product("view"),
     params: productIdParamsSchema,
     body: z.object({
       slideIds: z.array(z.string()),
       targetProductId: z.string(),
     }),
     response: {} as { newSlideIds: string[]; lastUpdated: string },
-    access: "view",
   }),
-} as const satisfies Record<string, { access: ProductAccessLevel }>;
+} as const satisfies Record<string, { guard: RouteGuard }>;

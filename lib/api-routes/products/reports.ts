@@ -1,3 +1,4 @@
+import { GUARD, type RouteGuard } from "../../permissions/mod.ts";
 import { z } from "zod";
 import {
   fastrReportThemeSchema,
@@ -13,7 +14,7 @@ import type {
   ReportVersionLineageStep,
   ReportVersionSummary,
 } from "../../types/versions.ts";
-import { type ProductAccessLevel, route } from "../route-utils.ts";
+import { route } from "../route-utils.ts";
 import { productIdParamsSchema } from "./products.ts";
 
 const productVersionParamsSchema = z.object({
@@ -31,14 +32,15 @@ export const productReportRouteRegistry = {
   getReportDetail: route({
     path: "/products/:product_id/report",
     method: "GET",
+    guard: GUARD.product("view"),
     params: productIdParamsSchema,
     response: {} as ReportDetail,
-    access: "view",
   }),
 
   updateReportBody: route({
     path: "/products/:product_id/report/body",
     method: "PUT",
+    guard: GUARD.product("edit"),
     params: productIdParamsSchema,
     body: z.object({
       body: z.string(),
@@ -46,34 +48,33 @@ export const productReportRouteRegistry = {
       overwrite: z.boolean().optional(),
     }),
     response: {} as { lastUpdated: string; conflicted: boolean },
-    access: "edit",
   }),
 
   updateReportFigures: route({
     path: "/products/:product_id/report/figures",
     method: "PUT",
+    guard: GUARD.product("edit"),
     params: productIdParamsSchema,
     body: z.object({ figures: reportFiguresSchema }),
     response: {} as { lastUpdated: string },
-    access: "edit",
   }),
 
   updateReportImages: route({
     path: "/products/:product_id/report/images",
     method: "PUT",
+    guard: GUARD.product("edit"),
     params: productIdParamsSchema,
     body: z.object({ images: reportImagesSchema }),
     response: {} as { lastUpdated: string },
-    access: "edit",
   }),
 
   updateReportConfig: route({
     path: "/products/:product_id/report/config",
     method: "PUT",
+    guard: GUARD.product("edit"),
     params: productIdParamsSchema,
     body: z.object({ config: reportConfigSchema }),
     response: {} as { lastUpdated: string },
-    access: "edit",
   }),
 
   // The paged PDF of a FASTR Markdown report. The CLIENT builds the complete
@@ -85,10 +86,10 @@ export const productReportRouteRegistry = {
   renderReportPdf: route({
     path: "/products/:product_id/report/pdf",
     method: "POST",
+    guard: GUARD.product("view"),
     params: productIdParamsSchema,
     body: z.object({ html: z.string().max(80_000_000) }),
     response: {} as { pdfBase64: string; pages: number },
-    access: "view",
     isStreaming: true,
   }),
 
@@ -98,6 +99,7 @@ export const productReportRouteRegistry = {
   setReportStyle: route({
     path: "/products/:product_id/report/style",
     method: "PUT",
+    guard: GUARD.product("edit"),
     params: productIdParamsSchema,
     body: z.object({
       fastrTheme: fastrReportThemeSchema,
@@ -109,7 +111,6 @@ export const productReportRouteRegistry = {
     // palette it must repaint with. Re-reading the report instead would race
     // the products SSE that invalidates the detail cache.
     response: {} as { lastUpdated: string; config: ReportConfig },
-    access: "edit",
   }),
 
   // Custom report styles. The library rows are instance-level (main DB), but
@@ -119,77 +120,77 @@ export const productReportRouteRegistry = {
   listReportStyles: route({
     path: "/products/:product_id/report/styles",
     method: "GET",
+    guard: GUARD.product("view"),
     params: productIdParamsSchema,
     response: {} as ReportCustomStyle[],
-    access: "view",
   }),
 
   createReportStyle: route({
     path: "/products/:product_id/report/styles",
     method: "POST",
+    guard: GUARD.product("edit"),
     params: productIdParamsSchema,
     body: reportStyleBodySchema,
     response: {} as ReportCustomStyle,
-    access: "edit",
   }),
 
   updateReportStyle: route({
     path: "/products/:product_id/report/styles/:style_id",
     method: "PUT",
+    guard: GUARD.product("edit"),
     params: productStyleParamsSchema,
     body: reportStyleBodySchema,
     response: {} as ReportCustomStyle,
-    access: "edit",
   }),
 
   deleteReportStyle: route({
     path: "/products/:product_id/report/styles/:style_id",
     method: "DELETE",
+    guard: GUARD.product("edit"),
     params: productStyleParamsSchema,
-    access: "edit",
   }),
 
   listReportVersions: route({
     path: "/products/:product_id/report/versions",
     method: "GET",
+    guard: GUARD.product("view"),
     params: productIdParamsSchema,
     response: {} as ReportVersionSummary[],
-    access: "view",
   }),
 
   getReportVersion: route({
     path: "/products/:product_id/report/versions/:version_id",
     method: "GET",
+    guard: GUARD.product("view"),
     params: productVersionParamsSchema,
     response: {} as ReportVersionDetail,
-    access: "view",
   }),
 
   getReportVersionLineage: route({
     path: "/products/:product_id/report/versions/:version_id/lineage",
     method: "GET",
+    guard: GUARD.product("view"),
     params: productVersionParamsSchema,
     response: {} as ReportVersionLineageStep[],
-    access: "view",
   }),
 
   restoreReportVersion: route({
     path: "/products/:product_id/report/versions/:version_id/restore",
     method: "POST",
+    guard: GUARD.product("edit"),
     params: productVersionParamsSchema,
     response: {} as { lastUpdated: string },
-    access: "edit",
   }),
 
   copyReportVersion: route({
     path: "/products/:product_id/report/versions/:version_id/copy",
     method: "POST",
+    guard: GUARD.product("view"),
     params: productVersionParamsSchema,
     body: z.object({
       label: z.string(),
       folderId: z.uuid().nullable(),
     }),
     response: {} as { productId: string; lastUpdated: string },
-    access: "view",
   }),
-} as const satisfies Record<string, { access: ProductAccessLevel }>;
+} as const satisfies Record<string, { guard: RouteGuard }>;

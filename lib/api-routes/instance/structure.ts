@@ -1,3 +1,4 @@
+import { GUARD, type RouteGuard } from "../../permissions/mod.ts";
 import { z } from "zod";
 import type {
   CsvDetails,
@@ -68,6 +69,7 @@ export const structureRouteRegistry = {
   getStructureItems: route({
     path: "/structure/data/:family",
     method: "GET",
+    guard: GUARD.permission("can_view_data"),
     params: z.object({ family: facilityFamilySchema }),
     response: {} as { totalCount: number; items: Record<string, string>[] },
   }),
@@ -78,18 +80,21 @@ export const structureRouteRegistry = {
   listAdminArea2s: route({
     path: "/structure/admin_area_2s/:family",
     method: "GET",
+    guard: GUARD.approved,
     params: z.object({ family: facilityFamilySchema }),
     response: {} as string[],
   }),
   deleteFamilyFacilities: route({
     path: "/structure/facilities/:family",
     method: "DELETE",
+    guard: GUARD.permission("can_configure_data"),
     params: z.object({ family: facilityFamilySchema }),
   }),
   // HFA facility sampling weights
   getHfaFacilityWeightsItems: route({
     path: "/structure/hfa_facility_weights/items",
     method: "GET",
+    guard: GUARD.permission("can_view_data"),
     response: {} as {
       totalCount: number;
       headers: string[];
@@ -103,11 +108,13 @@ export const structureRouteRegistry = {
   getHfaRegistry: route({
     path: "/structure/hfa_registry",
     method: "GET",
+    guard: GUARD.permission("can_view_data"),
     response: {} as HfaRegistryFacility[],
   }),
   editHfaFacility: route({
     path: "/structure/hfa_registry/edit",
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
     body: z.object({
       facilityId: z.string().min(1),
       admin: z.array(z.string()).optional(),
@@ -119,23 +126,27 @@ export const structureRouteRegistry = {
   countUnreferencedHfaFacilities: route({
     path: "/structure/hfa_registry/unreferenced",
     method: "GET",
+    guard: GUARD.permission("can_configure_data"),
     response: {} as { count: number },
   }),
   removeUnreferencedHfaFacilities: route({
     path: "/structure/hfa_registry/remove_unreferenced",
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
     response: {} as HfaRegistrySaveResult,
   }),
   // headersWithValues: the encoded headers holding a non-blank cell.
   readWeightsCsvHeaders: route({
     path: "/structure/hfa_facility_weights/read_headers",
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
     body: z.object({ assetFileName: z.string() }),
     response: {} as CsvDetails & { headersWithValues: string[] },
   }),
   importHfaFacilityWeights: route({
     path: "/structure/hfa_facility_weights/import",
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
     body: z.object({
       assetFileName: z.string(),
       facilityIdColumn: z.string(),
@@ -148,75 +159,89 @@ export const structureRouteRegistry = {
   deleteAllHfaFacilityWeights: route({
     path: "/structure/hfa_facility_weights",
     method: "DELETE",
+    guard: GUARD.permission("can_configure_data"),
   }),
   // The HMIS facility import: one resumable attempt. HFA facilities come from
   // each round's data import.
   addStructureUploadAttempt: route({
     path: "/structure/upload_attempt",
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
   }),
   getStructureUploadAttempt: route({
     path: "/structure/upload_attempt",
     method: "GET",
+    guard: GUARD.permission("can_configure_data"),
     response: {} as StructureUploadAttemptDetail,
   }),
   deleteStructureUploadAttempt: route({
     path: "/structure/upload_attempt",
     method: "DELETE",
+    guard: GUARD.permission("can_configure_data"),
   }),
   // Step 0
   structureStep0_SetSourceType: route({
     path: "/structure/step0_set_source_type",
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
     body: z.object({ sourceType: z.enum(["csv", "dhis2"]) }),
   }),
   // Step 1
   structureStep1Csv_UploadFile: route({
     path: "/structure/step1_csv_upload_file",
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
     body: z.object({ assetFileName: z.string() }),
   }),
   structureStep1Dhis2_ConfirmConnection: route({
     path: "/structure/step1_dhis2_confirm_connection",
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
   }),
   // Step 2
   structureStep2Csv_SetColumnMappings: route({
     path: "/structure/step2_csv_set_column_mappings",
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
     body: z.object({ columnMappings: structureColumnMappingsSchema }),
   }),
   structureStep2Dhis2_GetOrgUnitsMetadata: route({
     path: "/structure/step2_dhis2_get_org_units_metadata",
     method: "GET",
+    guard: GUARD.permission("can_configure_data"),
     response: {} as StructureDhis2OrgUnitMetadata,
   }),
   structureStep2Dhis2_SetOrgUnitSelection: route({
     path: "/structure/step2_dhis2_set_org_unit_selection",
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
     body: z.object({ selectedLevels: z.array(z.number()) }),
   }),
   // Step 3
   structureStep3Csv_StageDataStreaming: route({
     path: "/structure/step3_csv_stage_data_streaming",
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
     isStreaming: true,
   }),
   structureStep3Dhis2_StageDataStreaming: route({
     path: "/structure/step3_dhis2_stage_data_streaming",
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
     isStreaming: true,
   }),
   // Review step (between staging and import)
   getStructureStagedColumnValues: route({
     path: "/structure/staged_column_values/:column",
     method: "GET",
+    guard: GUARD.permission("can_configure_data"),
     params: z.object({ column: structureRecodableColumnSchema }),
     response: {} as StructureStagedColumnValues,
   }),
   getStructureStagedRecodeRows: route({
     path: "/structure/staged_recode_rows",
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
     body: z.object({
       column: structureRecodableColumnSchema,
       values: z.array(z.string()),
@@ -231,6 +256,7 @@ export const structureRouteRegistry = {
   setStructureRecodes: route({
     path: "/structure/set_recodes",
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
     body: z.object({
       recodes: structureRecodesSchema,
       stagingNonce: z.string(),
@@ -240,6 +266,7 @@ export const structureRouteRegistry = {
   structureStep4_ImportData: route({
     path: "/structure/step4_import_data",
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
     body: z.object({ strategy: structureIntegrateStrategySchema }),
     response: {} as StructureIntegrateSummary,
   }),
@@ -247,9 +274,10 @@ export const structureRouteRegistry = {
   getStructureUploadStatus: route({
     path: "/structure/upload_status",
     method: "GET",
+    guard: GUARD.permission("can_configure_data"),
     response: {} as {
       isActive: boolean;
       status: StructureUploadAttemptStatus;
     },
   }),
-} as const;
+} as const satisfies Record<string, { guard: RouteGuard }>;
