@@ -35,6 +35,7 @@ globs:
   - server/routes/public/oauth_metadata.ts
   - server/tests/headless_oauth_auth_test.ts
   - server/tests/pat_identity_parity_test.ts
+  - server/tests/permission_matrix_test.ts
   - server/tests/_harness/route_app.ts
   - server/tests/approval_test.ts
   - server/tests/lowercase_user_emails_migration_test.ts
@@ -561,6 +562,32 @@ carry `authError: true`; no 403 in any guard does, and the client
 token-refresh/logout. Auth-failure vs outage stays distinguishable by status:
 401/403 = denied, 503 = retry, don't log out.
 
+### The guard audit: `server/tests/permission_matrix_test.ts`
+
+The matrix test is the audit of every guard above. Its expectation table is
+written by hand, typed as `Record<keyof typeof routeRegistry, Expectation>`, so
+a registry route without a row does not compile, and it is deliberately not
+read from the registry or the headless allowlist, so changing a guard is a
+two-place edit and a wrong declaration fails a test. For every registry route,
+every raw endpoint and every static tier, against a signed-out request, a
+status-key machine request, an unapproved account, an approved account with no
+flags, one account per flag, a manager, a restricted user holding the seeded
+scope and one holding another, the admin who owns the seeded product, its
+editor and viewer, a stranger, and the operator (the first `H_USERS` entry), it
+asserts the class the guard answers: 401 with no identity, 403 for a refused
+persona, and neither for an admitted one, where the handler's 400 or 404 proves
+the guard passed. Product routes name the seeded product in the path and as
+`productIds`, so the persona one level below the declared level is refused and
+the one at it is not; folder routes are called with an unknown folder id, which
+admitted callers reach as the typed 404; the collab socket's close code and the
+headless app's allowlist (403 before any guard on every route it does not open,
+the Clerk twin's class on the three it does) are asserted in the same run. A
+handler that does real work with no body at all (a delete-all, a staging run, a
+DHIS2 call) is marked `refusals_only`: its admitted class is proven by the
+refusals alone, since the test runs on the dev database. The route tests share
+one harness, `server/tests/_harness/route_app.ts`, whose Clerk leg simulates
+only `clerkMiddleware`'s output contract.
+
 ### Permission source of truth: `lib/types/permissions.ts`
 
 | Export                                                                          | Purpose                                                                    |
@@ -633,7 +660,8 @@ it's a hardcoded allowlist, and expanding its use spreads policy into code.
   type-level) check that every `defineRoute` carries a guard or an explicit
   public marker was audited and rejected: the full registry has exactly one
   unguarded route (`getInstanceMeta`, deliberately public), so the rule stays
-  convention + review. Do not re-propose without a new hole. (Health.ts's read
+  the matrix test above plus review. Do not re-propose without a new hole.
+  (Health.ts's read
   surface is public by design (SYSTEM_15's exposure inventory); its reset and
   module-defaults endpoints take `requireStatusKey()`.)
 - **Decide the `authError` contract.** It is 401-only in reality (no 403 carries

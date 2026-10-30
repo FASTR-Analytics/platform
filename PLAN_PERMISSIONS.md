@@ -974,3 +974,17 @@ commit.
 - Step 2: the prompt writes' `log()` lands in the approval commit, not the
   identity commit, because each shares a diff hunk with the guard change; the
   SYSTEM prose for the whole step lands in the last commit.
+- Step 3: thirteen routes do their work with no body at all (the delete-alls,
+  the staging streams, the DHIS2 calls, the upload-attempt writes), so an
+  admitted call would run them against the dev database; their rows are marked
+  `refusals_only` and the admitted class is proven by the refusals alone.
+- Step 3: the operator persona is the first `H_USERS` entry's existing row when
+  the dev database has one (it is used as it is, its class following the row,
+  and only its test PAT and test-window `user_logs` rows are removed); the row
+  is seeded and removed only when absent.
+- Step 3: the raw endpoints registered in `main.ts` (`/mcp`, `/access-tokens`)
+  and the Clerk-proxied authorization-server document are not in the matrix:
+  the first two cannot be mounted without booting the server, the third is a
+  network call.
+- Step 3: `statusOf` joins the harness for the stream, file and text responses;
+  `approval_test.ts` keeps its own copy, being outside the Surface.

@@ -91,6 +91,36 @@ export async function status(
   return (await call(app, method, path, body)).status;
 }
 
+// The status alone, whatever the body is (a stream, a file, plain text): the
+// request is aborted once the status is known, so a long-lived response such
+// as the SSE stream ends with the call. A string body is sent as given, so a
+// handler can be sent what is not JSON.
+export async function statusOf(
+  app: Hono,
+  method: string,
+  path: string,
+  init: { body?: unknown; headers?: Record<string, string> } = {},
+): Promise<number> {
+  const aborter = new AbortController();
+  const body = init.body === undefined
+    ? undefined
+    : typeof init.body === "string"
+    ? init.body
+    : JSON.stringify(init.body);
+  const res = await app.request(path, {
+    method,
+    headers: {
+      ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+      ...init.headers,
+    },
+    body,
+    signal: aborter.signal,
+  });
+  aborter.abort();
+  await res.body?.cancel().catch(() => {});
+  return res.status;
+}
+
 export function assertRealAuth(): void {
   if (_BYPASS_AUTH) {
     throw new Error(
