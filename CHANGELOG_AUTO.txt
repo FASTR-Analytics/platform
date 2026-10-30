@@ -1,3 +1,13 @@
+[2.6.0] [user] [changed] - Indicator code columns in exported spreadsheets renamed from "r_code" to "code" and "r_filter_code" to "filter_code"
+[2.6.0] [user] [changed] - Variant code columns in spreadsheets renamed from "r_variant_code" to "variant_code"
+[2.6.0] [user] [added] - Spreadsheet import now rejects unrecognized column headers with a clear error message
+[2.6.0] [user] [added] - Spreadsheet import now warns when a filter code column has no matching code column
+[2.6.0] [user] [fixed] - Spreadsheet import no longer silently ignores misnamed code columns
+[2.6.0] [admin] [changed] - Indicator code columns in exported/imported workbooks renamed from r_code/r_filter_code to code/filter_code
+[2.6.0] [admin] [changed] - Workbooks using the old r_code column headers are now rejected with a clear error message
+[2.6.0] [admin] [fixed] - Unrecognized columns in indicator workbook imports are now refused instead of silently ignored
+[2.6.0] [admin] [fixed] - Filter code columns without a matching code column are now caught and reported on import
+[2.6.0] [admin] [internal] - Updated Anthropic API version and removed deprecated beta header for file uploads
 [2.5.3] [user] [fixed] - AI assistant now correctly displays indicator codes when some rounds have no code
 [2.5.3] [admin] [fixed] - AI indicator listing now correctly shows "(none)" when main code is blank
 [2.5.3] [admin] [changed] - AI indicator listing clarifies when codes differ by round and omits variant codes
