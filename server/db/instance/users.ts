@@ -6,6 +6,7 @@ import {
   APIResponseWithData,
   type BatchUser,
   buildUserPermissionsFromRow,
+  EMAIL_REGEX,
   type GlobalUser,
   normaliseEmail,
   OtherUser,
@@ -22,7 +23,6 @@ import { dropAccessOfMissingUsers } from "../products/products.ts";
 import { _OPEN_ACCESS } from "../../exposed_env_vars.ts";
 
 const USER_NOT_FOUND = "No matching user";
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // Mirrors the user's name from Clerk, the sole source of truth for names, into
 // the users table. Writes only when the stored pair differs, so it is a no-op
@@ -304,6 +304,7 @@ export async function bulkSetUserScopeAccess(
 
 export async function addUsers(
   mainDb: Sql,
+  caller: UserManagementCaller,
   emails: string[],
   isGlobalAdmin: boolean,
 ): Promise<APIResponseNoData> {
@@ -316,12 +317,24 @@ export async function addUsers(
       email,
       is_admin: isGlobalAdmin,
     }));
-    await mainDb`
-      INSERT INTO users ${mainDb(values, "email", "is_admin")}
-      ON CONFLICT (email) DO NOTHING
-    `;
-
-    return { success: true };
+    const refused = await mainDb.begin(async (sql) => {
+      const refused = await refuseUserManagement(
+        sql,
+        caller,
+        values.map((v) => v.email),
+      );
+      if (refused !== undefined) {
+        return refused;
+      }
+      await sql`
+        INSERT INTO users ${sql(values, "email", "is_admin")}
+        ON CONFLICT (email) DO NOTHING
+      `;
+      return undefined;
+    });
+    return refused === undefined
+      ? { success: true }
+      : { success: false, err: refused };
   });
 }
 

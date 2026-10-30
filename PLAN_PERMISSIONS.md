@@ -944,3 +944,18 @@ commit.
 ## §6 Log
 
 (Departures only.)
+
+- Step 1: edited SYSTEM_03_realtime_cache.md, outside the Surface, because the
+  SSE filter now ends the stream of an approved connection whose user left the
+  roster, and SYSTEM_03 states that filter's contract.
+- Step 1: user_management_test.ts has its own `closeCodeAfter` instead of
+  `collabSocket` from product_access_routes_test.ts, because that helper is
+  private to a file outside the Surface, and importing a test file registers
+  its tests.
+- Step 1: `addUsers` applies the user-management rule too, since a restricted
+  manager could otherwise create an unrestricted account at an address they
+  control; the replace-all case runs on a throwaway database
+  (`withSchemaDb`, moved into the harness), since the dev database is shared.
+- Step 1: removed a stale sentence from the `dropAccessOfMissingUsers` comment
+  in server/db/products/products.ts, outside the Surface: it described the old
+  replace-all, which deleted and re-inserted every user.

@@ -732,7 +732,6 @@ export async function getProductLevelRowsInScopes(
 // Run by every path that deletes users rows, inside its transaction, since
 // owner and grants name users by email with no foreign key: an owner with no
 // users row becomes NULL and a grant with no users row goes.
-// A users row deleted and re-inserted in the same transaction keeps both.
 // Returns the products it changed, for the caller to re-broadcast.
 export async function dropAccessOfMissingUsers(sql: Sql): Promise<string[]> {
   const unowned = await sql<{ id: string }[]>`

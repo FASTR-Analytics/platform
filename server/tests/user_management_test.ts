@@ -25,6 +25,7 @@ import {
   ADMIN_FLAG_NEEDS_ADMIN,
   ADMIN_ROW_NEEDS_ADMIN,
   ADMIN_SELF_DEMOTION_REFUSED,
+  batchUploadUsers,
   OWN_ROW_REFUSED,
   RESTRICTED_CALLER_REFUSED,
   SELF_DELETION_REFUSED,
@@ -38,7 +39,13 @@ import {
 } from "../routes/instance/collab.ts";
 import { createInstanceSseFilter } from "../routes/instance/instance-sse.ts";
 import { routesUsers } from "../routes/instance/users.ts";
-import { appFor, assertRealAuth, call, ok } from "./_harness/route_app.ts";
+import {
+  appFor,
+  assertRealAuth,
+  call,
+  ok,
+  withSchemaDb,
+} from "./_harness/route_app.ts";
 
 const tag = crypto.randomUUID().slice(0, 8);
 const email = (name: string) => `user-mgmt-${name}-${tag}@example.com`;
@@ -185,6 +192,18 @@ Deno.test("user management: the rule, the refusals and what each write keeps", a
       });
     }
 
+    // Nor creates a user, who would be unrestricted.
+    const minted = await call(restrictedManager, "POST", "/user", {
+      emails: [MINTED],
+      isGlobalAdmin: false,
+    });
+    assertEquals(minted.status, 403);
+    assertEquals(minted.body, {
+      success: false,
+      err: RESTRICTED_CALLER_REFUSED,
+    });
+    assertEquals(await exists(MINTED), false);
+
     // A manager deletes no admin, and renames no one.
     const adminDelete = await call(manager, "DELETE", "/user", {
       emails: [ADMIN],
@@ -295,26 +314,6 @@ Deno.test("user management: the rule, the refusals and what each write keeps", a
       RENAMED,
     );
 
-    // A replace-all naming every user but one deletes only that one: the
-    // restricted manager keeps their grant and the token holder their token.
-    await mainDb`INSERT INTO users (email, is_admin) VALUES (${DOOMED}, FALSE)`;
-    const everyone = await mainDb<{ email: string; is_admin: boolean }[]>`
-      SELECT email, is_admin FROM users WHERE email <> ${DOOMED}
-    `;
-    const replaceAll = await upload(
-      admin,
-      "email,is_global_admin\n" +
-        everyone.map((u) => `${u.email},${u.is_admin}`).join("\n") + "\n",
-      true,
-    );
-    assertEquals(replaceAll, { status: 200, body: { success: true } });
-    assertEquals(await exists(DOOMED), false);
-    assertEquals(await grantsOf(RESTRICTED_MANAGER), [scopeId]);
-    assertEquals(
-      await resolvePersonalAccessTokenEmail(mainDb, pat.data.token),
-      RENAMED,
-    );
-
     // A deleted user's collab socket closes.
     await mainDb`INSERT INTO users (email, is_admin) VALUES (${DOOMED}, FALSE)`;
     assertEquals(
@@ -364,4 +363,57 @@ Deno.test("the instance stream ends when an approved connection's user leaves th
     false,
   );
   assertEquals(filter({ type: "users_updated", data: [] }).close, true);
+});
+
+// On a database of its own, since a replace-all deletes every row it does not
+// name and the dev database is shared.
+Deno.test("a replace-all deletes only the users it does not name", async () => {
+  await withSchemaDb("user_management_test_", async (db) => {
+    const scopeId = "00000000-0000-4000-8000-000000000001";
+    await db`
+      INSERT INTO users (email, is_admin, all_scopes)
+      VALUES (${ADMIN}, TRUE, TRUE), (${RESTRICTED_MANAGER}, FALSE, FALSE),
+        (${PAT_HOLDER}, FALSE, TRUE), (${DOOMED}, FALSE, TRUE)
+    `;
+    await db`
+      INSERT INTO scopes (id, label, definition, created_at, last_updated)
+      VALUES (${scopeId}, 'S', '{}', 't', 't')
+    `;
+    await db`
+      INSERT INTO user_scopes (email, scope_id)
+      VALUES (${RESTRICTED_MANAGER}, ${scopeId})
+    `;
+    const pat = await createPersonalAccessToken(db, PAT_HOLDER, "test");
+    if (!pat.success) throw new Error(pat.err);
+    const csvName = `user_management_test_${tag}_replace.csv`;
+    const csvPath = join(_ASSETS_DIR_PATH, csvName);
+    await Deno.writeTextFile(
+      csvPath,
+      `email,is_global_admin\n${ADMIN},true\n${RESTRICTED_MANAGER},false\n${PAT_HOLDER},false\n`,
+    );
+    try {
+      const res = await batchUploadUsers(db, csvName, true, {
+        email: ADMIN,
+        isGlobalAdmin: true,
+        scopeAccess: ALL_SCOPES,
+      });
+      assert(res.success, JSON.stringify(res));
+    } finally {
+      await Deno.remove(csvPath).catch(() => {});
+    }
+    assertEquals(
+      (await db`SELECT 1 FROM users WHERE email = ${DOOMED}`).length,
+      0,
+    );
+    assertEquals(
+      (await db<{ scope_id: string }[]>`
+        SELECT scope_id FROM user_scopes WHERE email = ${RESTRICTED_MANAGER}
+      `).map((r) => r.scope_id),
+      [scopeId],
+    );
+    assertEquals(
+      await resolvePersonalAccessTokenEmail(db, pat.data.token),
+      PAT_HOLDER,
+    );
+  });
 });

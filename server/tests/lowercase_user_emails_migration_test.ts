@@ -13,38 +13,14 @@ import {
   createPersonalAccessToken,
   resolvePersonalAccessTokenEmail,
 } from "../db/instance/personal_access_tokens.ts";
-import { getPgConnection } from "../db/postgres/connection_manager.ts";
+import { withSchemaDb } from "./_harness/route_app.ts";
 
-const SCHEMA_PATH =
-  new URL("../db/instance/_main_database.sql", import.meta.url).pathname;
 const DB_PREFIX = "lowercase_user_emails_test_";
 
 const ALICE = "Alice@Example.org";
 const BOB_MIXED = "Bob@X.org";
 const BOB = "bob@x.org";
 const SCOPE = "00000000-0000-4000-8000-000000000001";
-
-async function withSchemaDb(run: (db: Sql) => Promise<void>): Promise<void> {
-  const admin = getPgConnection("postgres", { max: 1 });
-  for (
-    const { datname } of await admin<{ datname: string }[]>`
-      SELECT datname FROM pg_database WHERE datname LIKE ${DB_PREFIX + "%"}
-    `
-  ) {
-    await admin.unsafe(`DROP DATABASE IF EXISTS ${datname} WITH (FORCE)`);
-  }
-  const dbName = `${DB_PREFIX}${Date.now()}`;
-  await admin.unsafe(`CREATE DATABASE ${dbName}`);
-  const db = getPgConnection(dbName, { max: 2 });
-  try {
-    await db.file(SCHEMA_PATH);
-    await run(db);
-  } finally {
-    await db.end();
-    await admin.unsafe(`DROP DATABASE IF EXISTS ${dbName} WITH (FORCE)`);
-    await admin.end();
-  }
-}
 
 async function migrate(db: Sql): Promise<string[]> {
   const warnings: string[] = [];
@@ -81,7 +57,7 @@ async function fkChildRows(db: Sql): Promise<[string, string][]> {
 }
 
 Deno.test("225 lowercases a user with everything that names them, and leaves a twin", async () => {
-  await withSchemaDb(async (db) => {
+  await withSchemaDb(DB_PREFIX, async (db) => {
     await db`
       INSERT INTO users (email, is_admin, all_scopes)
       VALUES (${ALICE}, FALSE, FALSE), (${BOB_MIXED}, FALSE, TRUE),

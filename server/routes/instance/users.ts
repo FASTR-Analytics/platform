@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { Sql } from "postgres";
 import {
   type APIResponseWithData,
+  EMAIL_REGEX,
   H_USERS,
   normaliseEmail,
   type RenameEmailInstanceResult,
@@ -198,13 +199,14 @@ defineRoute(
     }
     const resUser = await addUsers(
       c.var.mainDb,
+      c.var.globalUser,
       body.emails,
       body.isGlobalAdmin,
     );
     if (resUser.success) {
       notifyInstanceUsersUpdated(await getInstanceUsers(c.var.mainDb));
     }
-    return c.json(resUser);
+    return c.json(resUser, statusOf(resUser));
   },
 );
 
@@ -512,7 +514,6 @@ defineRoute(
 // Email rename
 // ---------------------------------------------------------------------------
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const FLEET_DOMAIN = "fastr-analytics.org";
 
 type LocalRenameResult = {

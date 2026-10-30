@@ -150,7 +150,7 @@ rule inside its transaction, with the named rows locked
 global admin never names an admin's row (`ADMIN_ROW_NEEDS_ADMIN`) and never
 their own (`OWN_ROW_REFUSED`), and a restricted caller is refused outright
 (`RESTRICTED_CALLER_REFUSED`), so no one raises, lifts or hands over their own
-access or an admin's. `deleteUser`, `updateUserPermissions`,
+access or an admin's. `addUsers`, `deleteUser`, `updateUserPermissions`,
 `bulkUpdateUserPermissions`, `setUserScopeAccess`, `bulkSetUserScopeAccess` and
 `batchUploadUsers` apply it and answer each refusal as a 403. The rule sees only
 rows that exist, so `addUsers` and `batchUploadUsers` also answer 403
@@ -390,7 +390,7 @@ currently internet-exposed behind a shared password).
 - **Client/server guard mismatch**: Make admin and Make non-admin show for
   `can_configure_users`, in the bulk actions (`users/users.tsx:485-506`) and on
   the user detail (`users/user.tsx:238-265`), but `toggleUserAdmin` requires
-  full admin (`server/routes/instance/users.ts:193`), so both 403 at click. Show
+  full admin (`server/routes/instance/users.ts:216`), so both 403 at click. Show
   both only when `instanceState.currentUserIsGlobalAdmin`.
 - **Legacy UUID project DBs stay on prod hosts** after consolidation; nothing
   drops them (see Production topology).
@@ -406,17 +406,17 @@ currently internet-exposed behind a shared password).
   `users_updated`. Keep only the toggled keys as a patch over `p.user` and save
   `p.user`'s bits with the patch applied, read `unlimitedAi` and
   `isContactPerson` from `p.user`, and delete `getUserPermissions`, whose only
-  caller this is (`lib/api-routes/instance/users.ts:74`,
-  `server/routes/instance/users.ts:303-312`,
-  `server/db/instance/users.ts:266-292`).
+  caller this is (`lib/api-routes/instance/users.ts:88`,
+  `server/routes/instance/users.ts:307-316`,
+  `server/db/instance/users.ts:423-449`).
 - **Add users and Batch import show for viewers.** Both buttons render for every
   Users-tab viewer (`users/users.tsx:143-165`), while `addUsers` and
   `batchUploadUsers` require `can_configure_users`
-  (`server/routes/instance/users.ts:170`, 243). Lift `canConfigureUsers`
+  (`server/routes/instance/users.ts:192`, 256). Lift `canConfigureUsers`
   (`users.tsx:478-480`) into `InstanceUsers` and render both only when it holds.
 - **Last active shows "..." forever without `can_view_logs`.**
   `users/users.tsx:39` always runs `getAllUserLogs`, which requires
-  `can_view_logs` (`server/routes/instance/users.ts:295`), so `logs` stays
+  `can_view_logs` (`server/routes/instance/users.ts:299`), so `logs` stays
   undefined (92-95) and every row renders "..." (363-370). Build the query and
   the Last active column (352-374) only when
   `instanceState.currentUserIsGlobalAdmin` or
