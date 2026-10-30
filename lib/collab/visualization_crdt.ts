@@ -59,6 +59,15 @@ export function materializeVisualization(
   return { bundle: block.bundle };
 }
 
+/** The metric the doc's figure is on, read from figData without
+ *  materializing the bundle; undefined before the doc holds a figure. */
+export function visualizationDocMetricId(doc: Y.Doc): string | undefined {
+  const figData = figureEntry(doc).get(FIG_DATA_KEY);
+  if (figData === null || typeof figData !== "object") return undefined;
+  const metricId = (figData as { metricId?: unknown }).metricId;
+  return typeof metricId === "string" ? metricId : undefined;
+}
+
 /** The figConfig Y.Map, for binding the figure editor to co-edit the config;
  *  undefined before the doc holds a figure. */
 export function findVisualizationConfigMap(

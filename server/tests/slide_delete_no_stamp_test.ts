@@ -123,6 +123,7 @@ Deno.test("removing a slide stamps nothing for it", async () => {
     const deck = data(
       await createProduct(mainDb, {
         type: "slide_deck",
+        label: "Test product",
         folderId: null,
         runId,
         scopeId: ALL_DATA_SCOPE_ID,

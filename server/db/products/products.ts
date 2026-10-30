@@ -291,12 +291,12 @@ async function insertProductWithDetail(
   });
 }
 
-// An empty deck or report. The server mints the label in the instance
-// language.
+// An empty deck or report, under the name the user gave it.
 export async function createProduct(
   mainDb: Sql,
   args: {
     type: EmptyCreatableProductType;
+    label: string;
     folderId: string | null;
     runId: string;
     scopeId: ScopeId;
@@ -306,7 +306,7 @@ export async function createProduct(
   return await tryCatchDatabaseAsync(async () => {
     const productId = await generateUniqueProductId(mainDb);
     const lastUpdated = new Date().toISOString();
-    const label = t3(NEW_PRODUCT_LABELS[args.type]);
+    const label = args.label.trim();
     const inserted = await insertProductWithDetail(
       mainDb,
       productId,
@@ -323,7 +323,7 @@ export async function createProduct(
 
 // A visualization arrives with its first figure already resolved under the
 // pair, so it never exists empty. The label is the caller's (the metric's
-// label) when given, else minted like createProduct's.
+// label) when given, else minted in the instance language.
 export async function createVisualization(
   mainDb: Sql,
   args: {

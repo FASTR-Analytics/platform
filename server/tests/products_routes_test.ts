@@ -1121,7 +1121,7 @@ Deno.test("visualization routes: create with its figure, read, update, cross-typ
   }
 });
 
-Deno.test("visualization versions: capture, dedup, list, read, restore with a safety version, restore as copy, cascade", async () => {
+Deno.test("visualization versions: capture, dedup, list, read, restore with a safety version, restore as copy, metric change, cascade", async () => {
   if (_BYPASS_AUTH) {
     throw new Error(
       "BYPASS_AUTH is set: the product routes harness must exercise the real auth branches. Unset it and re-run.",
@@ -1279,6 +1279,34 @@ Deno.test("visualization versions: capture, dedup, list, read, restore with a sa
         `/products/${copy.productId}/visualization/versions/${v1.id}`,
       )).body.success,
       false,
+    );
+
+    // A metric change keeps what it replaces: the current state, with an
+    // edit still in its session, is a version before the new figure lands,
+    // and the new figure is the changer's next version.
+    await ok(app, "PUT", `/products/${viz.productId}/visualization`, {
+      bundle: visualizationBundle(pinnedRunId, 0.6),
+    });
+    const otherMetric = {
+      ...visualizationBundle(pinnedRunId, 0.3),
+      metricId: "m1-02-01",
+    };
+    await ok(app, "PUT", `/products/${viz.productId}/visualization`, {
+      bundle: otherMetric,
+      keepVersion: true,
+    });
+    assertEquals((await detailOf(viz.productId)).bundle.metricId, "m1-02-01");
+    const beforeSwap = await versionsOf(viz.productId);
+    assertEquals(beforeSwap.length, 6);
+    const kept = await versionOf(viz.productId, beforeSwap[0].id);
+    assertEquals(kept.bundle.metricId, "m1-01-01");
+    assertEquals(kept.bundle.items, [{ admin_area_2: "Kano", value: 0.6 }]);
+    await flushAllVersions();
+    const afterSwap = await versionsOf(viz.productId);
+    assertEquals(afterSwap.length, 7);
+    assertEquals(
+      (await versionOf(viz.productId, afterSwap[0].id)).bundle,
+      otherMetric,
     );
 
     // Delete cascades the versions.

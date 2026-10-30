@@ -32,6 +32,8 @@ type Props = {
   onTabChange?: (tab: "data" | "style" | "text") => void;
   /** Collaborators currently on each tab (live), for per-tab avatars. */
   tabPeers?: Record<"data" | "style" | "text", PresenceEntry[]>;
+  /** See VizEditorProductChrome.changeMetric. */
+  onChangeMetric?: () => void;
 };
 
 // One panel tab: label + live avatars of collaborators currently ON that tab.
@@ -151,6 +153,7 @@ export function PresentationObjectEditorPanel(p: Props) {
                 .effectiveValueProps}
               hasMultipleValueProps={effectivePOConfigResult()
                 .hasMultipleValueProps}
+              onChangeMetric={p.onChangeMetric}
             />
           </Match>
           <Match when={tab() === "style"}>

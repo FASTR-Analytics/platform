@@ -1,6 +1,8 @@
 import {
   canonicalJson,
   type FigureBundle,
+  getMetricDisplayLabel,
+  productScope,
   t3,
   type VisualizationVersionDetail,
 } from "lib";
@@ -16,7 +18,8 @@ import {
 import { formatPeriod, getPeriodTypeFromValue } from "panther";
 import { createSignal, For, type JSX, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { productById } from "~/state/instance/t1_store";
+import { productById, resolveScope } from "~/state/instance/t1_store";
+import { getRunAuthoringContextFromCacheOrFetch } from "~/state/instance/t2_run_authoring_context";
 import { ReportFigureEmbed } from "../mod.ts";
 import { getDisplayDisaggregationLabel } from "~/state/instance/_util_disaggregation_label";
 import { CopyVersionModal } from "./copy_version_modal";
@@ -191,7 +194,12 @@ function SessionEdits(p: {
   // Wrapped in an object: StateHolderWrapper renders nothing for falsy
   // ready-data, and the oldest version has no predecessor.
   const previous = createQuery<
-    { label: string; bundle: FigureBundle } | { none: true }
+    | {
+      label: string;
+      bundle: FigureBundle;
+      metricLabels: Map<string, string>;
+    }
+    | { none: true }
   >(
     async () => {
       if (!p.previousVersionId) {
@@ -204,7 +212,11 @@ function SessionEdits(p: {
       return res.success
         ? {
           success: true as const,
-          data: { label: res.data.label, bundle: res.data.bundle },
+          data: {
+            label: res.data.label,
+            bundle: res.data.bundle,
+            metricLabels: await packageMetricLabels(p.productId),
+          },
         }
         : res;
     },
@@ -246,6 +258,7 @@ function SessionEdits(p: {
           prev.bundle,
           p.version.bundle,
           {
+            metric: (id) => prev.metricLabels.get(id) ?? id,
             dimension: (disOpt) =>
               t3(getDisplayDisaggregationLabel(disOpt, undefined)),
             period: (value) =>
@@ -427,6 +440,21 @@ function SettingRow(p: { change: SettingChange }) {
       </Show>
     </li>
   );
+}
+
+// Metric names from the product's current package, for a metric change in
+// the settings list. Empty when the package is unreadable, and a metric the
+// package no longer has keeps its id: the list then names the id.
+async function packageMetricLabels(
+  productId: string,
+): Promise<Map<string, string>> {
+  const row = productById(productId);
+  if (!row) return new Map();
+  const res = await getRunAuthoringContextFromCacheOrFetch(
+    resolveScope(productScope(row)),
+  );
+  if (!res.success) return new Map();
+  return new Map(res.data.metrics.map((m) => [m.id, getMetricDisplayLabel(m)]));
 }
 
 function Card(p: { children: JSX.Element }) {

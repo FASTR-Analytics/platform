@@ -15,9 +15,9 @@ import {
 // the words of the figure editor's panels: one line per setting, with its
 // value before and after when it has one to show (a setting added has no
 // before, one removed no after; a structured setting such as conditional
-// formatting says only that it changed). The two labels that need instance
-// state (a dimension's name, a period's) are injected, so this stays a pure
-// function of the two bundles.
+// formatting says only that it changed). The labels that need instance or
+// package state (a metric's name, a dimension's, a period's) are injected, so
+// this stays a pure function of the two bundles.
 
 export type SettingsSection = "data" | "style" | "text";
 
@@ -29,6 +29,7 @@ export type SettingChange = {
 };
 
 export type SettingsLabels = {
+  metric: (metricId: string) => string;
   dimension: (disOpt: DisaggregationOption) => string;
   period: (value: number) => string;
 };
@@ -46,8 +47,8 @@ export function diffVisualizationSettings(
     out.push({
       section: "data",
       label: t3({ en: "Metric", fr: "Indicateur", pt: "Métrica" }),
-      before: prev.metricId,
-      after: next.metricId,
+      before: labels.metric(prev.metricId),
+      after: labels.metric(next.metricId),
     });
   }
   diffData(prev.config, next.config, labels, out);

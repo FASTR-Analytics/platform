@@ -73,6 +73,7 @@ Deno.test("product access DB layer: inserts, access writes, bulk raise, user pat
     const { productId } = data(
       await createProduct(mainDb, {
         type,
+        label: "Test product",
         folderId,
         runId: runId as string,
         scopeId: ALL_DATA_SCOPE_ID,

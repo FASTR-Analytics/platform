@@ -104,6 +104,10 @@ export type VisualizationEditorProps = {
 export type VizEditorProductChrome = {
   title: JSX.Element;
   actions: JSX.Element;
+  /** Swaps the figure for one on another metric: offered beside the metric
+   *  in the Data tab, never to a viewer. Only a host whose document is the
+   *  figure can, since nothing carries over from the old figure. */
+  changeMetric?: () => void;
 };
 
 // The editor holds the chat view it opens over at mount; the inner editor

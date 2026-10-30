@@ -1,5 +1,6 @@
 import { Hono } from "hono";
-import { figureBundleSchema } from "lib";
+import type { Sql } from "postgres";
+import { figureBundleSchema, type VersionEditor } from "lib";
 import {
   copyVisualizationFromVersion,
   createVisualization,
@@ -92,6 +93,67 @@ defineRoute(
   },
 );
 
+// The current state kept as a version before a write replaces it wholesale
+// (a restore, a metric change), so the history always holds what was there.
+// The live room is flushed first (a failed flush means the row is stale, so
+// no safety version can be promised), and the open editing session is
+// drained into it: left in the tracker, those editors would never appear in
+// any version. Skipped when the state already equals the newest version. On
+// success the caller re-injects `drained` itself if its own write then fails.
+async function keepCurrentAsVersion(
+  mainDb: Sql,
+  productId: string,
+  actor: VersionEditor,
+): Promise<
+  | { ok: true; createdAt: string; drained: VersionEditor[] }
+  | { ok: false; err: string }
+> {
+  if (!await flushVisualizationRoom(productId, productId)) {
+    return {
+      ok: false,
+      err:
+        "This visualization has unsaved live edits that could not be saved yet, so a safety version cannot be created. Please retry once saving recovers.",
+    };
+  }
+  const drained = drainVersionEditors("visualization", productId);
+  const fail = (err: string) => {
+    reinjectVersionEditors(productId, drained);
+    return { ok: false as const, err };
+  };
+  let current;
+  try {
+    current = await loadVisualizationVersionData(productId);
+  } catch (error) {
+    return fail(error instanceof Error ? error.message : "Load failed");
+  }
+  if (!current) {
+    return { ok: false, err: VISUALIZATION_NOT_FOUND };
+  }
+  const currentHash = visualizationContentHash(current);
+  const latestRes = await latestVisualizationVersionHash(mainDb, productId);
+  const createdAt = new Date().toISOString();
+  if (currentHash !== (latestRes.success ? latestRes.data.hash : null)) {
+    const safetyRes = await insertVisualizationVersion(mainDb, {
+      productId,
+      createdAt,
+      label: current.label,
+      bundle: current.bundle,
+      editors: drained.length > 0 ? drained : [actor],
+      contentHash: currentHash,
+    });
+    if (!safetyRes.success) {
+      return fail(safetyRes.err);
+    }
+  }
+  return { ok: true, createdAt, drained };
+}
+
+function reinjectVersionEditors(productId: string, editors: VersionEditor[]) {
+  for (const e of editors) {
+    recordVersionEdit("visualization", productId, e);
+  }
+}
+
 // The route answered on the live-room path. `save_failed` means the room
 // applied the change (peers already see it) but could not persist it: no
 // direct-write fallback, the room owns persistence.
@@ -104,6 +166,20 @@ defineRoute(
   log("updateVisualization"),
   async (c, { params, body }) => {
     const editor = editorFromGlobalUser(c.var.globalUser);
+    // A write that replaces the figure wholesale (a metric change) keeps
+    // what it replaces; the new figure is then this editor's session.
+    let drained: VersionEditor[] = [];
+    if (body.keepVersion) {
+      const kept = await keepCurrentAsVersion(
+        c.var.mainDb,
+        params.product_id,
+        editor,
+      );
+      if (!kept.ok) {
+        return respond(c, { success: false as const, err: kept.err });
+      }
+      drained = kept.drained;
+    }
     const roomRes = await applyVisualizationToLiveRoom(
       params.product_id,
       params.product_id,
@@ -117,6 +193,7 @@ defineRoute(
       });
     }
     if (roomRes.status === "save_failed") {
+      reinjectVersionEditors(params.product_id, drained);
       return respond(c, { success: false as const, err: SAVE_FAILED_ERR });
     }
     const res = await updateVisualizationBundle(
@@ -125,6 +202,7 @@ defineRoute(
       body.bundle,
     );
     if (!res.success) {
+      reinjectVersionEditors(params.product_id, drained);
       return respond(c, res);
     }
     recordVersionEdit("visualization", params.product_id, editor);
@@ -193,54 +271,13 @@ defineRoute(
     }
     const bundle = parsed.data;
 
-    if (!await flushVisualizationRoom(productId, productId)) {
-      return respond(c, {
-        success: false as const,
-        err:
-          "This visualization has unsaved live edits that could not be saved yet, so a safety version cannot be created. Please retry once saving recovers.",
-      });
+    const kept = await keepCurrentAsVersion(mainDb, productId, restorer);
+    if (!kept.ok) {
+      return respond(c, { success: false as const, err: kept.err });
     }
-
-    const drained = drainVersionEditors("visualization", productId);
-    const reinjectDrained = () => {
-      for (const e of drained) {
-        recordVersionEdit("visualization", productId, e);
-      }
-    };
-
-    let current;
-    try {
-      current = await loadVisualizationVersionData(productId);
-    } catch (error) {
-      reinjectDrained();
-      return respond(c, {
-        success: false as const,
-        err: error instanceof Error ? error.message : "Load failed",
-      });
-    }
-    if (!current) {
-      return respond(c, {
-        success: false as const,
-        err: VISUALIZATION_NOT_FOUND,
-      });
-    }
-    const currentHash = visualizationContentHash(current);
-    const latestRes = await latestVisualizationVersionHash(mainDb, productId);
-    const safetyCreatedAt = new Date().toISOString();
-    if (currentHash !== (latestRes.success ? latestRes.data.hash : null)) {
-      const safetyRes = await insertVisualizationVersion(mainDb, {
-        productId,
-        createdAt: safetyCreatedAt,
-        label: current.label,
-        bundle: current.bundle,
-        editors: drained.length > 0 ? drained : [restorer],
-        contentHash: currentHash,
-      });
-      if (!safetyRes.success) {
-        reinjectDrained();
-        return respond(c, safetyRes);
-      }
-    }
+    const safetyCreatedAt = kept.createdAt;
+    const reinjectDrained = () =>
+      reinjectVersionEditors(productId, kept.drained);
 
     // No editor: the restore versions itself below.
     const roomRes = await applyVisualizationToLiveRoom(productId, productId, {

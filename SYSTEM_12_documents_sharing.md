@@ -2810,6 +2810,16 @@ admitted the type in the `products.type` CHECK.
   header is the editor's, with the product title, the pair chip, presence and a
   menu (manage access, make a copy) passed in as `productChrome`. A metric the
   package no longer has shows the stored snapshot and the reason.
+- **Change metric.** An editor can start the figure again on another metric
+  ("Change metric" beside the metric in the Data tab). A confirm says nothing
+  carries over and the current figure is kept in History; then the insert-figure
+  wizard (metric, preset), the resolve, and one `updateVisualization` with
+  `keepVersion: true`, which writes the current state as a version first (the
+  safety version a restore writes, `keepCurrentAsVersion`) and then applies the
+  new figure as the changer's edit. The editor never changes a figure's metric
+  itself: its binding drops a coherent bundle whose metric is not the doc's (or
+  the one a change is moving to), and the shell remounts it when the doc's
+  metric moves, from this change, a peer's or a restore across metrics.
 - **Versioned, not emailed.** It has its own version history (S16): one version
   per editing session holding its label and bundle, in `visualization_versions`,
   with list, read, restore and restore-as-copy routes under

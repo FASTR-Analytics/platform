@@ -45,12 +45,17 @@ export const productVisualizationRouteRegistry = {
   }),
 
   // The non-collab save (the editor's fallback when its room never went
-  // live). Routed through the live room when one exists.
+  // live, a metric change). Routed through the live room when one exists.
+  // `keepVersion` first writes the current state as a version, for a write
+  // that replaces the figure wholesale.
   updateVisualization: route({
     path: "/products/:product_id/visualization",
     method: "PUT",
     params: productIdParamsSchema,
-    body: z.object({ bundle: figureBundleSchema }),
+    body: z.object({
+      bundle: figureBundleSchema,
+      keepVersion: z.boolean().optional(),
+    }),
     response: {} as { lastUpdated: string },
     access: "edit",
   }),

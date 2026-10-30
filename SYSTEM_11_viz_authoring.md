@@ -96,8 +96,11 @@ collab binding, Back is the only way out, and the draft never leaves the editor.
 Every host passes the pair as a plain value and the editor reads it once, so the
 pair is fixed for the editor's life, which is what the figure views' identity
 needs; the visualization product's editor remounts it (keyed) when its pair
-changes. `productChrome` (`{ title, actions }`, built once by the host) is how
-that host puts its product title and its own buttons in the editor's header;
+changes. `productChrome` (`{ title, actions, changeMetric? }`, built once by the
+host) is how that host puts its product title and its own buttons in the
+editor's header, and offers "Change metric" beside the metric in the Data tab
+(`DataValuesSummary`, hidden when `viewOnly`): only a host whose document is the
+figure passes `changeMetric`, since nothing of the old figure carries over;
 `label` is read live, so a rename reaches the header and the chat's label. Under
 a live binding the editor ships local edits only while `canEdit()` holds, so a
 viewer's local draft never reaches the room. The editor is a place of the chat

@@ -25,6 +25,7 @@ type Props = {
   ineffectiveDisaggregators: IneffectiveDisaggregator[];
   effectiveValueProps: string[];
   hasMultipleValueProps: boolean;
+  onChangeMetric?: () => void;
 };
 
 export function PresentationObjectEditorPanelData(p: Props) {
@@ -55,7 +56,10 @@ export function PresentationObjectEditorPanelData(p: Props) {
         <HelpButton id="viz-data-tab" />
       </div> */
       }
-      <DataValuesSummary metric={p.metric} />
+      <DataValuesSummary
+        metric={p.metric}
+        onChangeMetric={p.onChangeMetric}
+      />
       <PresentationTypeSummary
         tempConfig={p.tempConfig}
         setTempConfig={p.setTempConfig}

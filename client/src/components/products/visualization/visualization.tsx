@@ -10,6 +10,7 @@ import {
   type RunAuthoringContext,
   t3,
   TC,
+  visualizationDocMetricId,
 } from "lib";
 import {
   Button,
@@ -19,6 +20,7 @@ import {
   HeadingBar,
   openAlert,
   openComponent,
+  openConfirm,
   showMenu,
   type StateHolder,
   StateHolderWrapper,
@@ -30,6 +32,7 @@ import {
   onCleanup,
   onMount,
   Show,
+  untrack,
 } from "solid-js";
 import { serverActions } from "~/server_actions";
 import {
@@ -51,6 +54,7 @@ import {
 } from "~/components/_shared/figure_editor/mod.ts";
 import {
   DuplicateProductsModal,
+  InsertFigureModal,
   manageAccessLabel,
   PackageScopeChip,
   PackageScopeModal,
@@ -117,6 +121,9 @@ export function VisualizationProductEditor(p: Props) {
   const [lineage, setLineage] = createSignal(0);
   // A FATAL collab error (deleted, room gone): further edits would be dropped.
   const [fatal, setFatal] = createSignal<string | undefined>();
+  // A metric change in flight (changeMetric): the metric the doc is about to
+  // be on, set before the save and cleared once the room relays it.
+  let pendingMetricId: string | undefined;
   let permErrorShown = false;
   let syncTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -249,6 +256,97 @@ export function VisualizationProductEditor(p: Props) {
     };
   });
 
+  // The editor reads its metric once, at mount, so a doc that moves to
+  // another metric remounts it. Re-attached per lineage: the session swaps
+  // its doc on a lineage reset.
+  createEffect(() => {
+    const s = session();
+    lineage();
+    if (!s) return;
+    const doc = s.doc;
+    const onUpdate = () => {
+      const metricId = visualizationDocMetricId(doc);
+      if (metricId === undefined) return;
+      if (pendingMetricId !== undefined) {
+        if (metricId !== pendingMetricId) return;
+        pendingMetricId = undefined;
+      }
+      const mounted = untrack(editorInputs);
+      if (mounted && mounted.session && mounted.bundle.metricId !== metricId) {
+        setLineage((n) => n + 1);
+      }
+    };
+    doc.on("update", onUpdate);
+    onCleanup(() => doc.off("update", onUpdate));
+  });
+
+  // Starts the figure again on another metric, from the same wizard a new
+  // visualization is made with: nothing carries over, so the user is told
+  // first, and the server keeps the current figure as a version before it is
+  // replaced. Live, the room relays the new figure and the observer above
+  // remounts the editor on it; offline, the editor remounts on what was saved.
+  async function changeMetric() {
+    const inputs = editorInputs();
+    if (!inputs || !canEdit() || fatal() !== undefined) return;
+    const ok = await openConfirm({
+      title: t3({
+        en: "Change the metric?",
+        fr: "Changer d'indicateur ?",
+        pt: "Mudar de métrica?",
+      }),
+      text: t3({
+        en:
+          "You will choose a new metric and start this visualization again from it. None of its current settings carry over: filters, disaggregations, style and captions all start fresh. The current visualization is saved in its version history first, so you can restore it from History.",
+        fr:
+          "Vous allez choisir un nouvel indicateur et recommencer cette visualisation à partir de celui-ci. Aucun de ses réglages actuels n'est conservé : filtres, désagrégations, style et légendes repartent de zéro. La visualisation actuelle est d'abord enregistrée dans son historique des versions : vous pouvez la restaurer depuis l'Historique.",
+        pt:
+          "Vai escolher uma nova métrica e recomeçar esta visualização a partir dela. Nenhuma das definições atuais é mantida: filtros, desagregações, estilo e legendas começam do zero. A visualização atual é primeiro guardada no seu histórico de versões, por isso pode restaurá-la a partir do Histórico.",
+      }),
+      confirmButtonLabel: t3({
+        en: "Choose a metric",
+        fr: "Choisir un indicateur",
+        pt: "Escolher uma métrica",
+      }),
+    });
+    if (!ok) return;
+    const figure = await openComponent({
+      element: InsertFigureModal,
+      props: {
+        scope: inputs.scope,
+        context: inputs.context,
+        preselectedMetricId: null,
+      },
+    });
+    if (!figure) return;
+    const resolved = await resolveFigureBundleInteractively(
+      inputs.scope,
+      figure.metric,
+      figure.config,
+      inputs.bundle.localization,
+    );
+    if (!resolved.ok) {
+      await openAlert({ text: resolved.reason, intent: "danger" });
+      return;
+    }
+    const s = session();
+    const live = mode() === "live" && s !== undefined && s.isLive();
+    if (live) pendingMetricId = resolved.bundle.metricId;
+    const res = await serverActions.updateVisualization({
+      product_id: p.productId,
+      bundle: resolved.bundle,
+      keepVersion: true,
+    });
+    if (!res.success) {
+      pendingMetricId = undefined;
+      await openAlert({ text: res.err, intent: "danger" });
+      return;
+    }
+    if (!live) {
+      setStored(resolved.bundle);
+      setLineage((n) => n + 1);
+    }
+  }
+
   function bindingFor(
     s: VisualizationSession,
   ): VizFigureCollabBinding {
@@ -261,9 +359,16 @@ export function VisualizationProductEditor(p: Props) {
       canEdit: () => canEdit() && fatal() === undefined,
       localOrigin: {},
       // Each refetch's coherent bundle carries the data for the co-edited
-      // config; only an editor writes it into the room.
+      // config; only an editor writes it into the room. The editor edits a
+      // figure's settings, never its metric: once the doc's metric has moved
+      // (a metric change here or by a peer, a restore across metrics), this
+      // editor's late fetches carry the old one and are dropped until it
+      // remounts on the new one.
       onCoherentBundle: (bundle: FigureBundle) => {
-        if (canEdit() && fatal() === undefined) s.pushFigData(bundle);
+        if (!canEdit() || fatal() !== undefined) return;
+        const metricId = pendingMetricId ?? visualizationDocMetricId(s.doc);
+        if (bundle.metricId !== metricId) return;
+        s.pushFigData(bundle);
       },
     };
   }
@@ -422,7 +527,11 @@ export function VisualizationProductEditor(p: Props) {
       <Button iconName="moreVertical" outline onClick={openMenu} />
     </div>
   );
-  const chrome = { title: chromeTitle, actions: chromeActions };
+  const chrome = {
+    title: chromeTitle,
+    actions: chromeActions,
+    changeMetric: () => void changeMetric(),
+  };
 
   const loadingHeader = (
     <HeadingBar

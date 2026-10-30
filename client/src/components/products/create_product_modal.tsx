@@ -4,14 +4,16 @@ import {
   type EmptyCreatableProductType,
   type ScopeId,
   t3,
+  TC,
 } from "lib";
 import {
   type AlertComponentProps,
   createFormAction,
+  Input,
   ModalContainer,
   Select,
 } from "panther";
-import { createSignal } from "solid-js";
+import { createMemo, createSignal, Show } from "solid-js";
 import {
   readyPackageOptionLabel,
   ScopeSelect,
@@ -19,6 +21,7 @@ import {
 } from "~/components/_shared/mod.ts";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
+import { folderPathOptions, GENERAL_ID, generalLabel } from "./_shared/mod.ts";
 
 // `create` makes an empty deck or report on the chosen pair. `pick` only
 // returns the pair: a visualization is created after its first figure is
@@ -36,8 +39,16 @@ type ReturnType =
 // A new product names its package and its scope before it exists: the row
 // needs both at insert. The package starts on the pin and the scope on "All
 // data". A restricted user's list never holds "All data", so their scope
-// starts chosen only when there is exactly one to choose.
+// starts chosen only when there is exactly one to choose. A deck or report
+// also takes its name (required, no default) and its folder (General first)
+// here; a picked visualization is named after its figure and lands in General.
 export function CreateProductModal(p: AlertComponentProps<Props, ReturnType>) {
+  const [label, setLabel] = createSignal("");
+  const [folderId, setFolderId] = createSignal(GENERAL_ID);
+  const folderOptions = createMemo(() => [
+    { value: GENERAL_ID, label: generalLabel() },
+    ...folderPathOptions(instanceState.folders, {}),
+  ]);
   const pinIsReady = instanceState.readyPackages.some(
     (pkg) => pkg.id === instanceState.pinnedRunId,
   );
@@ -61,6 +72,10 @@ export function CreateProductModal(p: AlertComponentProps<Props, ReturnType>) {
       e: MouseEvent,
     ): Promise<APIResponseWithData<NonNullable<ReturnType>>> => {
       e.preventDefault();
+      const chosenLabel = label().trim();
+      if (p.mode.kind === "create" && !chosenLabel) {
+        return { success: false, err: t3(TC.mustEnterName) };
+      }
       const chosenRunId = runId();
       const chosenScopeId = scopeId();
       if (chosenRunId === undefined || chosenScopeId === undefined) {
@@ -85,7 +100,8 @@ export function CreateProductModal(p: AlertComponentProps<Props, ReturnType>) {
       }
       const res = await serverActions.createProduct({
         type: p.mode.type,
-        folderId: null,
+        label: chosenLabel,
+        folderId: folderId() === GENERAL_ID ? null : folderId(),
         runId: chosenRunId,
         scopeId: chosenScopeId,
       });
@@ -115,6 +131,22 @@ export function CreateProductModal(p: AlertComponentProps<Props, ReturnType>) {
       }]}
     >
       <div class="ui-spy-sm">
+        <Show when={p.mode.kind === "create"}>
+          <Input
+            label={t3({ en: "Name", fr: "Nom", pt: "Nome" })}
+            value={label()}
+            onChange={setLabel}
+            autoFocus
+            fullWidth
+          />
+          <Select
+            label={t3(TC.folder)}
+            options={folderOptions()}
+            value={folderId()}
+            onChange={setFolderId}
+            fullWidth
+          />
+        </Show>
         <Select
           label={t3({
             en: "Results package",

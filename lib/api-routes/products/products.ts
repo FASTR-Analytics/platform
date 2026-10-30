@@ -21,8 +21,8 @@ export const productAccessBodySchema = z.object({
 // own. Every entry declares `access`; defineRoute installs the guard from it.
 export const productRouteRegistry = {
   // An empty deck or report (a visualization is createVisualization). The
-  // caller names the package and the scope (a create dialog asks for both);
-  // the server mints the label. Fails typed
+  // caller names the label, folder, package and scope (the create dialog asks
+  // for all four). Fails typed
   // (PACKAGE_OR_SCOPE_UNAVAILABLE) when the package is not ready or either
   // row is gone.
   createProduct: route({
@@ -30,6 +30,7 @@ export const productRouteRegistry = {
     method: "POST",
     body: z.object({
       type: z.enum(EMPTY_CREATABLE_PRODUCT_TYPES),
+      label: z.string().trim().min(1),
       folderId: z.uuid().nullable(),
       runId: z.string(),
       scopeId: scopeIdSchema,

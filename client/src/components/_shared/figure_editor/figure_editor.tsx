@@ -904,6 +904,9 @@ export function VisualizationEditorInner(p: InnerProps) {
               captionCollab={captionCollab()}
               onTabChange={setPanelTab}
               tabPeers={tabPeers()}
+              onChangeMetric={p.viewOnly
+                ? undefined
+                : p.productChrome?.changeMetric}
             />
           }
         >

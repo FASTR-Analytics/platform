@@ -51,6 +51,7 @@ Deno.test("the deck's name is products.label alone", async () => {
     const deck = data(
       await createProduct(mainDb, {
         type: "slide_deck",
+        label: "Test product",
         folderId: null,
         runId,
         scopeId: ALL_DATA_SCOPE_ID,

@@ -74,6 +74,7 @@ defineRoute(
   async (c, { body }) => {
     const res = await createProduct(c.var.mainDb, {
       type: body.type,
+      label: body.label,
       folderId: body.folderId,
       runId: body.runId,
       scopeId: body.scopeId,

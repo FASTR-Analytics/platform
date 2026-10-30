@@ -9,19 +9,40 @@ import {
   t3,
   VIZ_TYPE_CONFIG,
 } from "lib";
-import { Select } from "panther";
-import { batch } from "solid-js";
+import { Button, Select } from "panther";
+import { batch, Show } from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
 
 type DataValuesSummaryProps = {
   metric: ResultsValue;
+  /** See VizEditorProductChrome.changeMetric. */
+  onChangeMetric?: () => void;
 };
 
 export function DataValuesSummary(p: DataValuesSummaryProps) {
   return (
     <div class="">
-      <div class="ui-text-heading pb-1">
-        {t3({ en: "Metric", fr: "Indicateur", pt: "Métrica" })}
+      <div class="flex items-center justify-between gap-2 pb-1">
+        <div class="ui-text-heading">
+          {t3({ en: "Metric", fr: "Indicateur", pt: "Métrica" })}
+        </div>
+        <Show when={p.onChangeMetric}>
+          {(change) => (
+            <Button
+              id="viz-change-metric-button"
+              outline
+              size="sm"
+              iconName="refresh"
+              onClick={() => change()()}
+            >
+              {t3({
+                en: "Change metric",
+                fr: "Changer d'indicateur",
+                pt: "Mudar de métrica",
+              })}
+            </Button>
+          )}
+        </Show>
       </div>
       <div class="text-sm">{p.metric.label}</div>
     </div>

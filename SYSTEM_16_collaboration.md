@@ -1034,6 +1034,10 @@ the HTTP routes, including client-side AI tools):
   Visualization rooms and `applyVisualizationToLiveRoom` feed `onEdit` as the
   report's do.
 - **Restore routes do NOT record**: they write versions explicitly (below).
+- **A visualization metric change** (`updateVisualization` with `keepVersion`)
+  writes the current state as a version first, through the same
+  flush-drain-insert step as a restore's safety version
+  (`keepCurrentAsVersion`), then records the new figure as the changer's edit.
 
 ### Per-character authorship (report bodies)
 
