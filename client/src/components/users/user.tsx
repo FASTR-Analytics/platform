@@ -101,7 +101,6 @@ function UserDetail(p: DetailProps) {
         email: p.user.email,
         unlimited: !p.user.unlimitedAi,
       }),
-    async () => {},
   );
   const toggleContactPerson = createButtonAction(
     () =>
@@ -109,7 +108,6 @@ function UserDetail(p: DetailProps) {
         email: p.user.email,
         isContactPerson: !p.user.isContactPerson,
       }),
-    async () => {},
   );
 
   const attemptMakeAdmin = createButtonAction(

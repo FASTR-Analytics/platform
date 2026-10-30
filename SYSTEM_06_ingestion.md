@@ -759,13 +759,13 @@ into its inputs plus the dataset version stamps the manifest records
   consuming panther's `_100_csv`/`_232_csv` (panther's modules are whole-string
   today. Adoption would mean adding streaming there first).
 - **The Indicators rows are offered to view-only users, whose pages then fail.**
-  Neither Indicators row is gated (`data/data.tsx:306-322`, 439-455) while the
-  tab admits `can_view_data` (`instance/instance.tsx:113-117`), and both pages'
+  Neither Indicators row is gated (`data/data.tsx:303-319`, 436-452) while the
+  tab admits `can_view_data` (`instance/instance.tsx:114-118`), and both pages'
   main reads require `can_configure_data`: `getIndicators`
   (`server/routes/instance/indicators.ts:66-67`) and all 40 routes in
   `server/routes/instance/hfa_indicators.ts` (`getHfaIndicators` at 508-509).
-  Push both rows only when `canConfigureData()` (`data.tsx:82-84`), the
-  predicate the DHIS2 row uses (281).
+  Push both rows only when `canConfigureData()` (`data.tsx:83`), the predicate
+  the DHIS2 row uses (278).
 - **HMIS Data resets the indicator selection on every refetch.** The display
   effect (`data/hmis/dataset/dataset.tsx:88-116`) re-runs on
   `datasetVersions.hmis`, `countIndicatorsVersion`, the HMIS schema,

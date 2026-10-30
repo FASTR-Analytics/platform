@@ -122,12 +122,12 @@ below are their file-level twins):
   renders a package's contents: its modules' presets, settings, scripts, logs
   and files, its viewers gated by `canViewPackageContents()` and
   `canViewPackageLogs()` (`package_view/status.tsx`, over `can()`, S18); the
-  Explore tab (S11) reads a ready package's metrics at a scope.
-  AI tools take a run RESOLVER, never a runId from the model: the package page
-  sets the chat's `package` view (S13) with the page's package at the page
-  scope, and its state names the status, stage, error, progress and open module,
-  so a generating or failed package's script and log reads work while its
-  package reads refuse; the Results page sets `results_packages`.
+  Explore tab (S11) reads a ready package's metrics at a scope. AI tools take a
+  run RESOLVER, never a runId from the model: the package page sets the chat's
+  `package` view (S13) with the page's package at the page scope, and its state
+  names the status, stage, error, progress and open module, so a generating or
+  failed package's script and log reads work while its package reads refuse; the
+  Results page sets `results_packages`.
 - **Retention.** No automatic or time-based GC, ever. Reclamation is ONLY the
   catalogue's guarded hard delete (row + dir), refused while referenced or
   generating.
@@ -1285,12 +1285,12 @@ hard delete already refuses any run a product points at.
   runs.
 - **A user with `can_configure_data` but not `can_view_data` gets an error in
   place of every ready package.** The Results tab needs only
-  `can_configure_data` (`instance/instance.tsx:67-74`, 98), but the ready body
+  `can_configure_data` (`instance/instance.tsx:95-104`, 146), but the ready body
   always reads `getRunDetail` (`results_packages/package_page.tsx:212-217`), a
   `can_view_data` route (`server/routes/instance/run_generation.ts:214-215`),
   and any failure renders the whole body as the error (219-225, 313-322),
   presets included. Read the detail only when `canViewPackageContents()`
-  (`results_packages/package_view/status.tsx:21-26`), pass it to `FamilyTabs`
+  (`results_packages/package_view/status.tsx:21-23`), pass it to `FamilyTabs`
   and `FamilyPane` as optional (`results_packages/package_page.tsx:355`;
   `results_packages/package_view/family_pane.tsx:24`, 72), and wrap the module
   pane's Settings (`results_packages/package_view/module_pane.tsx:67-94`) and

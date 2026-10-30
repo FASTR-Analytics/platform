@@ -199,9 +199,9 @@ stronger.
 **The client reads the same table.** `client/src/state/instance/permissions.ts`
 exports `isGlobalAdmin()`, `can(key)` and `canCallRoute(name, productId?)`,
 which evaluates the registry entry's guard against the store's current user
-(`productLevel` for product routes; approved and unrestricted for folder
-routes; `isHUser` for `h_user`). Every page gate, button and copilot tool
-requirement reads them; no component spells `admin || permissions.X`.
+(`productLevel` for product routes; approved and unrestricted for folder routes;
+`isHUser` for `h_user`). Every page gate, button and copilot tool requirement
+reads them; no component spells `admin || permissions.X`.
 
 **Approval.** Approved means a `users` row exists (or `OPEN_ACCESS`).
 `OPEN_ACCESS` inserts an unknown email as a non-admin row; effective admin is
@@ -261,8 +261,8 @@ row and is refused in production exactly as `BYPASS_AUTH` is.
    stored. A restricted user's effective permissions are all false.
 3. _(proposed)_ The user-management rule: a non-admin caller never names an
    admin's row and never their own row, checked inside the transaction with the
-   rows locked, refused with a constant that the routes answer as 403. Until step
-   6 reduces a restricted user's flags to none, the rule also refuses a
+   rows locked, refused with a constant that the routes answer as 403. Until
+   step 6 reduces a restricted user's flags to none, the rule also refuses a
    restricted caller. The admin-flag checks on `addUsers` and `batchUploadUsers`
    stay: the rule covers rows that exist, they cover rows the caller would
    create as admins. `renameUserEmail` requires admin on the session path.
@@ -402,9 +402,9 @@ row and is refused in production exactly as `BYPASS_AUTH` is.
   `bob@x.org`; runs the 225 function; asserts Alice's row, every `pg_constraint`
   FK child, `products.owner`, `product_access.email` and `folders.created_by`
   are lowercase and the PAT still resolves to her, Bob's rows are untouched and
-  named in the log, and a second run changes nothing.
-  `./validate_migrations` globs `*.sql` only, so this test is the proof
-  PROTOCOL_APP_MIGRATIONS requires for a `.ts` migration.
+  named in the log, and a second run changes nothing. `./validate_migrations`
+  globs `*.sql` only, so this test is the proof PROTOCOL_APP_MIGRATIONS requires
+  for a `.ts` migration.
 - SYSTEM_15 "Scope access" and "Admin UI" state the rule and the one
   scope-access policy; SYSTEM_16 drops the deleted-user limitation; SYSTEM_01
   names the three `requireGlobalPermissionOrStatusKey` call sites; the new test
@@ -553,14 +553,14 @@ fixes (open access, rename proof, status key, logging).
   owned by the admin persona, with `edit` granted to an editor persona and
   `view` to a viewer persona, and adds the personas editor, viewer, stranger
   (approved, unrestricted, no grant) and restricted-other-scope. Product routes
-  are called with that product id in the path and as `productIds: [id]`, and
-  the class is asserted per declared level: the persona one level below is
-  refused, the persona at the level is not; restricted-other-scope is refused
-  every product route. The seed is rebuilt after each route. Folder routes are
-  called with an unknown folder id (today's rule needs no row) and one case per
-  kind calls an unknown id as the admin and expects 404. PAT personas go through
-  `headlessApp`, where `headlessRouteAllowlist` answers 403 before any guard:
-  on the three allowed routes and the `/info` raw row a PAT persona asserts the
+  are called with that product id in the path and as `productIds: [id]`, and the
+  class is asserted per declared level: the persona one level below is refused,
+  the persona at the level is not; restricted-other-scope is refused every
+  product route. The seed is rebuilt after each route. Folder routes are called
+  with an unknown folder id (today's rule needs no row) and one case per kind
+  calls an unknown id as the admin and expects 404. PAT personas go through
+  `headlessApp`, where `headlessRouteAllowlist` answers 403 before any guard: on
+  the three allowed routes and the `/info` raw row a PAT persona asserts the
   same class as its Clerk twin; on every other route the test asserts that 403
   for a PAT admin, so an accidental opt-in fails. The personas and the seed are
   created and removed by the test.
@@ -605,16 +605,16 @@ step 2.
   scope entity SYSTEM_12's, asset privacy SYSTEM_04's.
 - Prose moves, it is not rewritten: SYSTEM_01 "Access control" from "Identity:
   `getGlobalUser`" through "Special modes" (the guard factories, the guard
-  audit, the permission source of truth), SYSTEM_15 "Scope access",
-  "Permissions (write side)" and "H_USERS shadow tier", and the open items that
-  belong to those sections. SYSTEM_12 "Contract" keeps what each level allows
-  and points to SYSTEM_18 for the policy; SYSTEM_03, SYSTEM_04 and SYSTEM_16
-  keep their filter, privacy and admission prose and point to SYSTEM_18 where
-  they restate a rule it now owns.
+  audit, the permission source of truth), SYSTEM_15 "Scope access", "Permissions
+  (write side)" and "H_USERS shadow tier", and the open items that belong to
+  those sections. SYSTEM_12 "Contract" keeps what each level allows and points
+  to SYSTEM_18 for the policy; SYSTEM_03, SYSTEM_04 and SYSTEM_16 keep their
+  filter, privacy and admission prose and point to SYSTEM_18 where they restate
+  a rule it now owns.
 - SYSTEMS.md: the map row for S18, 18 systems, the custody rows for
   `routes/instance/users.ts` and `db/instance/users.ts` (owner S18, readers S1,
-  S15, S13) and `middleware/static.ts` (owner S1, reader S18); CLAUDE.md
-  "Read first" counts 18 systems.
+  S15, S13) and `middleware/static.ts` (owner S1, reader S18); CLAUDE.md "Read
+  first" counts 18 systems.
 
 **Not in this step.** Any code change; the module and guard field (step 5).
 
@@ -730,10 +730,10 @@ operator tier; the renames and comments.
 `client/src/components/products/folder_menu.ts`,
 `client/src/components/results_packages/**/*.tsx`,
 `client/src/components/assets/assets.tsx`,
-`client/src/onboarding/{catalogue,tours}.ts`, `lib/ai_tools/copilot_catalogue.ts`,
-`lib/api-routes/instance/users.ts`, `server/routes/instance/users.ts`,
-`server/db/instance/users.ts`, `server/tests/copilot_catalogue_test.ts`,
-`SYSTEM_01_api_contract.md`,
+`client/src/onboarding/{catalogue,tours}.ts`,
+`lib/ai_tools/copilot_catalogue.ts`, `lib/api-routes/instance/users.ts`,
+`server/routes/instance/users.ts`, `server/db/instance/users.ts`,
+`server/tests/copilot_catalogue_test.ts`, `SYSTEM_01_api_contract.md`,
 `SYSTEM_05_facilities_indicators.md`, `SYSTEM_06_ingestion.md`,
 `SYSTEM_08_results_packages.md`, `SYSTEM_12_documents_sharing.md`,
 `SYSTEM_13_ai_assistant.md`, `SYSTEM_14_client_shell.md`,
@@ -904,7 +904,8 @@ Users tab; products and prompts.
 ### Step 9: The product plane
 
 **Surface.** `server/db/products/{products,folders}.ts`,
-`server/db/products/versions.ts`, `server/routes/products/{folders,products}.ts`,
+`server/db/products/versions.ts`,
+`server/routes/products/{folders,products}.ts`,
 `server/routes/instance/emails.ts`, `lib/api-routes/instance/emails.ts`,
 `lib/api-routes/products/folders.ts`,
 `server/db/instance/{_main_database.sql,_main_database_types.ts,users.ts}`,
@@ -1004,12 +1005,12 @@ commit.
   roster, and SYSTEM_03 states that filter's contract.
 - Step 1: user_management_test.ts has its own `closeCodeAfter` instead of
   `collabSocket` from product_access_routes_test.ts, because that helper is
-  private to a file outside the Surface, and importing a test file registers
-  its tests.
+  private to a file outside the Surface, and importing a test file registers its
+  tests.
 - Step 1: `addUsers` applies the user-management rule too, since a restricted
   manager could otherwise create an unrestricted account at an address they
-  control; the replace-all case runs on a throwaway database
-  (`withSchemaDb`, moved into the harness), since the dev database is shared.
+  control; the replace-all case runs on a throwaway database (`withSchemaDb`,
+  moved into the harness), since the dev database is shared.
 - Step 1: removed a stale sentence from the `dropAccessOfMissingUsers` comment
   in server/db/products/products.ts, outside the Surface: it described the old
   replace-all, which deleted and re-inserted every user.
@@ -1017,8 +1018,8 @@ commit.
   them: server/routes/instance/hfa_time_points.ts (the four time-point writes
   are logged there), server/routes/products/\_respond.ts (the 404 set
   `REPORT_STYLE_NOT_FOUND` joins), lib/api-routes/instance/structure.ts (its
-  "any authenticated user" comment on `listAdminArea2s`) and SYSTEM_02 (its
-  list of PascalCase functions named the deleted `GetLogs`).
+  "any authenticated user" comment on `listAdminArea2s`) and SYSTEM_02 (its list
+  of PascalCase functions named the deleted `GetLogs`).
 - Step 2: the unapproved blanks of `aiContext` and `geojsonMaps` are set in
   `buildInstanceStateWithoutProducts`, not `getInstanceDetail`, because the
   roster test lives there once `InstanceDetail` loses `users`; the MCP grounding
@@ -1037,9 +1038,9 @@ commit.
   and only its test PAT and test-window `user_logs` rows are removed); the row
   is seeded and removed only when absent.
 - Step 3: the raw endpoints registered in `main.ts` (`/mcp`, `/access-tokens`)
-  and the Clerk-proxied authorization-server document are not in the matrix:
-  the first two cannot be mounted without booting the server, the third is a
-  network call.
+  and the Clerk-proxied authorization-server document are not in the matrix: the
+  first two cannot be mounted without booting the server, the third is a network
+  call.
 - Step 3: `statusOf` joins the harness for the stream, file and text responses;
   `approval_test.ts` keeps its own copy, being outside the Surface.
 - Step 4: edited SYSTEM_02_persistence.md and SYSTEM_08_results_packages.md,
@@ -1066,16 +1067,19 @@ commit.
   server/tests/format_products_list_for_ai_test.ts,
   server/tests/products_routes_test.ts, server/tests/user_management_test.ts,
   SYSTEM_02_persistence.md, SYSTEM_03_realtime_cache.md and
-  SYSTEM_16_collaboration.md, outside the Surface, because the permission
-  types moved (the imports), the two presets and the refusal constants moved
-  (the tests), SYSTEM_02 listed the renamed `SetUserUnlimitedAi`, SYSTEM_03
-  named the deleted `requireGlobalPermission()` and SYSTEM_16 spelled the old
-  `access:` field.
+  SYSTEM_16_collaboration.md, outside the Surface, because the permission types
+  moved (the imports), the two presets and the refusal constants moved (the
+  tests), SYSTEM_02 listed the renamed `SetUserUnlimitedAi`, SYSTEM_03 named the
+  deleted `requireGlobalPermission()` and SYSTEM_16 spelled the old `access:`
+  field.
 - Step 5: `setUserContactPerson` declares `GUARD.hUser` instead of keeping its
-  inline operator check, since a handler never checks access itself; its
-  matrix class was already the operator's.
+  inline operator check, since a handler never checks access itself; its matrix
+  class was already the operator's.
 - Step 6: edited `client/src/state/instance/t1_sse.tsx` and
   `client/src/components/data/hfa/indicators/ai/tools.ts`, outside the Surface,
   because the first read the deleted `canSeeRunsCatalog` and the second read
   `currentUserPermissions` by hand and named the deleted write gate in a
   comment.
+- Step 6: edited `server/tests/permission_matrix_test.ts`, outside the Surface,
+  because its `EXPECTED` table is keyed by every registry route and
+  `getUserPermissions` left the registry.
