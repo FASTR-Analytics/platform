@@ -1,14 +1,5 @@
-// The permission matrix: every registry route, raw endpoint and static tier
-// against every persona, on the dev database. EXPECTED is written by hand and
-// typed over the registry, so a guard that changes in the code without a
-// matching change here fails, and a route added without a row here does not
-// compile. For every route and persona the test sends an empty body (product
-// routes name the seeded product, folder routes an unknown folder) and asserts
-// the class: 401 with no identity, 403 for a persona the guard refuses, and
-// neither for one it admits, where the handler's 400 or 404 proves the guard
-// passed without doing the work. A handler that would do real work with no
-// body at all (a delete-all, a staging run, a DHIS2 call) is marked
-// refusals_only: its admitted class is proven by the refusals alone.
+// The guard audit: SYSTEM_01 "The guard audit" states what it covers and why
+// EXPECTED is hand-written.
 //
 //   BYPASS_AUTH= deno test -A --env-file --unstable-broadcast-channel server/tests/permission_matrix_test.ts
 
@@ -24,10 +15,8 @@ import {
   type CollabServerMessage,
   geographyOnlyScopeDefinition,
   H_USERS,
-  permissionsUnderScopeAccess,
   type ProductAccessLevel,
   type ProductLevel,
-  productLevelAtLeast,
   routeRegistry,
   type ScopeUuid,
   type UserPermission,
@@ -93,6 +82,81 @@ import {
   type Session,
   statusOf,
 } from "./_harness/route_app.ts";
+
+// ---------------------------------------------------------------------------
+// Personas
+// ---------------------------------------------------------------------------
+
+type Persona = {
+  name: string;
+  email: string;
+  approved: boolean;
+  isAdmin: boolean;
+  // The stored flags; the effective ones are derived where the guard does it.
+  flags: UserPermissions;
+  restricted: boolean;
+  isHUser: boolean;
+  // The level held on the seeded product.
+  productLevel: ProductLevel;
+};
+
+type Caller =
+  | { kind: "none" }
+  | { kind: "machine" }
+  | { kind: "clerk"; persona: Persona };
+
+const tag = crypto.randomUUID().slice(0, 8);
+const email = (name: string) => `matrix-${name}-${tag}@example.com`;
+const flagsOf = (...keys: UserPermission[]): UserPermissions => ({
+  ..._USER_PERMISSIONS_DEFAULT_NO_ACCESS,
+  ...Object.fromEntries(keys.map((k) => [k, true])),
+});
+
+function persona(
+  name: string,
+  over: Partial<Omit<Persona, "name" | "email">> = {},
+): Persona {
+  return {
+    name,
+    email: email(name),
+    approved: true,
+    isAdmin: false,
+    flags: _USER_PERMISSIONS_DEFAULT_NO_ACCESS,
+    restricted: false,
+    isHUser: false,
+    productLevel: "none",
+    ...over,
+  };
+}
+
+const UNAPPROVED = persona("unapproved", { approved: false });
+const NO_FLAGS = persona("no-flags");
+const ONE_FLAG = (
+  [
+    "can_view_data",
+    "can_configure_data",
+    "can_view_users",
+    "can_configure_users",
+    "can_view_logs",
+    "can_configure_settings",
+  ] as const
+).map((flag) => persona(flag.replaceAll("_", "-"), { flags: flagsOf(flag) }));
+const MANAGER = persona("manager", {
+  flags: flagsOf("can_configure_users", "can_view_users"),
+});
+const RESTRICTED = persona("restricted", {
+  flags: _USER_PERMISSIONS_DEFAULT_FULL_ACCESS,
+  restricted: true,
+  productLevel: "view",
+});
+const RESTRICTED_OTHER = persona("restricted-other", {
+  flags: _USER_PERMISSIONS_DEFAULT_FULL_ACCESS,
+  restricted: true,
+});
+const ADMIN = persona("admin", { isAdmin: true, productLevel: "own" });
+const EDITOR = persona("editor", { productLevel: "edit" });
+const VIEWER = persona("viewer", { productLevel: "view" });
+const STRANGER = persona("stranger");
 
 // ---------------------------------------------------------------------------
 // The expectation table
@@ -348,9 +412,13 @@ const EXPECTED: Record<keyof typeof routeRegistry, Expectation> = {
   setProductScope: closed("product:edit"),
   setReportStyle: closed("product:edit"),
   setStructureRecodes: closed("can_configure_data"),
-  setUserContactPerson: closed("approved"),
+  setUserContactPerson: closed("operator", {
+    body: { email: UNAPPROVED.email, isContactPerson: true },
+  }),
   setUserScopeAccess: closed("can_configure_users"),
-  setUserUnlimitedAi: closed("approved"),
+  setUserUnlimitedAi: closed("operator", {
+    body: { email: UNAPPROVED.email, unlimited: true },
+  }),
   structureStep0_SetSourceType: closed("can_configure_data"),
   structureStep1Csv_UploadFile: closed("can_configure_data"),
   structureStep1Dhis2_ConfirmConnection: closed(
@@ -607,88 +675,27 @@ function rawEndpoints(seed: Seed): RawEndpoint[] {
   ];
 }
 
-// ---------------------------------------------------------------------------
-// Personas
-// ---------------------------------------------------------------------------
-
-type Persona = {
-  name: string;
-  email: string;
-  approved: boolean;
-  isAdmin: boolean;
-  // The stored flags; the effective ones are derived where the guard does it.
-  flags: UserPermissions;
-  restricted: boolean;
-  isHUser: boolean;
-  // The level held on the seeded product.
-  productLevel: ProductLevel;
-};
-
-type Caller =
-  | { kind: "none" }
-  | { kind: "machine" }
-  | { kind: "clerk"; persona: Persona };
-
-const tag = crypto.randomUUID().slice(0, 8);
-const email = (name: string) => `matrix-${name}-${tag}@example.com`;
-const flagsOf = (...keys: UserPermission[]): UserPermissions => ({
-  ..._USER_PERMISSIONS_DEFAULT_NO_ACCESS,
-  ...Object.fromEntries(keys.map((k) => [k, true])),
-});
-
-function persona(
-  name: string,
-  over: Partial<Omit<Persona, "name" | "email">> = {},
-): Persona {
-  return {
-    name,
-    email: email(name),
-    approved: true,
-    isAdmin: false,
-    flags: _USER_PERMISSIONS_DEFAULT_NO_ACCESS,
-    restricted: false,
-    isHUser: false,
-    productLevel: "none",
-    ...over,
-  };
-}
-
-const UNAPPROVED = persona("unapproved", { approved: false });
-const NO_FLAGS = persona("no-flags");
-const ONE_FLAG = (
-  [
-    "can_view_data",
-    "can_configure_data",
-    "can_view_users",
-    "can_configure_users",
-    "can_view_logs",
-    "can_configure_settings",
-  ] as const
-).map((flag) => persona(flag.replaceAll("_", "-"), { flags: flagsOf(flag) }));
-const MANAGER = persona("manager", {
-  flags: flagsOf("can_configure_users", "can_view_users"),
-});
-const RESTRICTED = persona("restricted", {
-  flags: _USER_PERMISSIONS_DEFAULT_FULL_ACCESS,
-  restricted: true,
-  productLevel: "view",
-});
-const RESTRICTED_OTHER = persona("restricted-other", {
-  flags: _USER_PERMISSIONS_DEFAULT_FULL_ACCESS,
-  restricted: true,
-});
-const ADMIN = persona("admin", { isAdmin: true, productLevel: "own" });
-const EDITOR = persona("editor", { productLevel: "edit" });
-const VIEWER = persona("viewer", { productLevel: "view" });
-const STRANGER = persona("stranger");
-
+// The expectation side spells the rules itself, never through the code under
+// audit: a restricted user's data flags read as false, a level admits the
+// levels at or below it.
 function effectiveFlags(p: Persona): UserPermissions {
   if (p.isAdmin) return _USER_PERMISSIONS_DEFAULT_FULL_ACCESS;
-  return permissionsUnderScopeAccess(
-    p.flags,
-    p.restricted ? { all: false, scopeIds: [] } : ALL_SCOPES,
-  );
+  return p.restricted
+    ? {
+      ...p.flags,
+      can_view_data: false,
+      can_configure_data: false,
+      can_view_logs: false,
+    }
+    : p.flags;
 }
+
+const LEVEL_RANK: Record<ProductLevel, number> = {
+  none: 0,
+  view: 1,
+  edit: 2,
+  own: 3,
+};
 
 // The status the guard answers, or "admitted" when the request reaches the
 // handler.
@@ -718,7 +725,7 @@ function expected(
     const level = guard.slice("product:".length) as ProductAccessLevel;
     if (!p.approved) return 403;
     if (p.isAdmin) return "admitted";
-    return productLevelAtLeast(p.productLevel, level) ? "admitted" : 403;
+    return LEVEL_RANK[p.productLevel] >= LEVEL_RANK[level] ? "admitted" : 403;
   }
   if (typeof guard === "string" && guard.startsWith("folder:")) {
     const level = guard.slice("folder:".length) as ProductAccessLevel;
@@ -940,6 +947,8 @@ Deno.test("permission matrix: every route and tier against every persona", async
     privatePdf: `matrix_private_${tag}.pdf`,
   };
   const pats = new Map<string, { token: string; id: number }>();
+  const scopeIds: ScopeUuid[] = [];
+  let folderId: string | undefined;
   let seed: Seed | undefined;
 
   try {
@@ -961,20 +970,19 @@ Deno.test("permission matrix: every route and tier against every persona", async
       isGlobalAdmin: true,
       scopeAccess: ALL_SCOPES,
     };
-    const scopeIn = data(
-      await createScope(mainDb, {
-        label: `Matrix in ${tag}`,
-        definition: geographyOnlyScopeDefinition(`Matrix In ${tag}`),
-        createdBy: ADMIN.email,
-      }),
-    ).scopeId;
-    const scopeOther = data(
-      await createScope(mainDb, {
-        label: `Matrix other ${tag}`,
-        definition: geographyOnlyScopeDefinition(`Matrix Other ${tag}`),
-        createdBy: ADMIN.email,
-      }),
-    ).scopeId;
+    const newScope = async (label: string) => {
+      const { scopeId } = data(
+        await createScope(mainDb, {
+          label: `Matrix ${label} ${tag}`,
+          definition: geographyOnlyScopeDefinition(`Matrix ${label} ${tag}`),
+          createdBy: ADMIN.email,
+        }),
+      );
+      scopeIds.push(scopeId);
+      return scopeId;
+    };
+    const scopeIn = await newScope("in");
+    const scopeOther = await newScope("other");
     for (
       const [p, scopeId] of [
         [RESTRICTED, scopeIn],
@@ -987,7 +995,7 @@ Deno.test("permission matrix: every route and tier against every persona", async
       });
       if (!granted.success) throw new Error(granted.err);
     }
-    const folderId = data(
+    folderId = data(
       await createFolder(mainDb, {
         label: `Matrix ${tag}`,
         color: null,
@@ -1165,7 +1173,9 @@ Deno.test("permission matrix: every route and tier against every persona", async
   } finally {
     if (seed !== undefined) {
       await mainDb`DELETE FROM products WHERE id = ${seed.productId}`;
-      await mainDb`DELETE FROM folders WHERE id = ${seed.folderId}`;
+    }
+    if (folderId !== undefined) {
+      await mainDb`DELETE FROM folders WHERE id = ${folderId}`;
     }
     await mainDb`DELETE FROM private_assets WHERE file_name = ${files.privatePdf}`;
     for (const name of Object.values(files)) {
@@ -1174,8 +1184,8 @@ Deno.test("permission matrix: every route and tier against every persona", async
     await mainDb`DELETE FROM users WHERE email = ANY(${
       seededPersonas.map((p) => p.email)
     })`;
-    if (seed !== undefined) {
-      await mainDb`DELETE FROM scopes WHERE id IN (${seed.scopeIn}, ${seed.scopeOther})`;
+    if (scopeIds.length > 0) {
+      await mainDb`DELETE FROM scopes WHERE id = ANY(${scopeIds})`;
     }
     const operatorPat = pats.get(operatorEmail);
     if (operatorSeeded) {

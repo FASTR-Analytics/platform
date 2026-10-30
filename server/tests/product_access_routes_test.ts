@@ -42,7 +42,13 @@ import { routesProductReports } from "../routes/products/reports.ts";
 import { routesProductSlideDecks } from "../routes/products/slide_decks.ts";
 import { routesProductSlides } from "../routes/products/slides.ts";
 import { buildInstanceState } from "../task_management/build_instance_state.ts";
-import { appFor, assertRealAuth, call, ok } from "./_harness/route_app.ts";
+import {
+  appFor,
+  assertRealAuth,
+  call,
+  ok,
+  statusOf,
+} from "./_harness/route_app.ts";
 
 const OWNER = "product-access-test-owner@example.com";
 const EDITOR = "product-access-test-editor@example.com";
@@ -61,15 +67,6 @@ const productApp = (email: string) =>
     routesProductReports,
     routesCollab,
   );
-
-async function status(
-  app: Hono,
-  method: string,
-  path: string,
-  body?: unknown,
-): Promise<number> {
-  return (await call(app, method, path, body)).status;
-}
 
 function data<T>(res: APIResponseWithData<T>): T {
   if (!res.success) throw new Error(res.err);
@@ -380,11 +377,11 @@ Deno.test("product levels: the guard, the access routes and the bulk action", as
 
     // A stranger holds none: both detail reads are refused.
     assertEquals(
-      await status(stranger, "GET", `/products/${deck}/slide-deck`),
+      await statusOf(stranger, "GET", `/products/${deck}/slide-deck`),
       403,
     );
     assertEquals(
-      await status(stranger, "GET", `/products/${report}/report`),
+      await statusOf(stranger, "GET", `/products/${report}/report`),
       403,
     );
 
@@ -438,7 +435,7 @@ Deno.test("product levels: the guard, the access routes and the bulk action", as
     ];
     for (const [method, path, body] of writes) {
       assertEquals(
-        await status(viewer, method, path, body),
+        await statusOf(viewer, method, path, { body }),
         403,
         `viewer ${method} ${path}`,
       );
@@ -450,12 +447,16 @@ Deno.test("product levels: the guard, the access routes and the bulk action", as
       await ok(editor, method, path, body);
     }
     assertEquals(
-      await status(editor, "DELETE", "/products", { productIds: [report] }),
+      await statusOf(editor, "DELETE", "/products", {
+        body: { productIds: [report] },
+      }),
       403,
     );
     assertEquals(
-      await status(editor, "PUT", `/products/${report}/owner`, {
-        email: EDITOR,
+      await statusOf(editor, "PUT", `/products/${report}/owner`, {
+        body: {
+          email: EDITOR,
+        },
       }),
       403,
     );
@@ -508,11 +509,11 @@ Deno.test("product levels: the guard, the access routes and the bulk action", as
       `/products/${viewerDeck.productId}/slides`,
     );
     assertEquals(
-      await status(
+      await statusOf(
         viewer,
         "POST",
         `/products/${viewerDeck.productId}/slides/copy-to-slide-deck`,
-        { slideIds: [viewerSlides[0].id], targetProductId: deck },
+        { body: { slideIds: [viewerSlides[0].id], targetProductId: deck } },
       ),
       403,
     );
@@ -605,13 +606,17 @@ Deno.test("product levels: the guard, the access routes and the bulk action", as
     `;
     for (const app of [owner, editor, stranger]) {
       assertEquals(
-        await status(app, "DELETE", "/products", { productIds: [ownerless] }),
+        await statusOf(app, "DELETE", "/products", {
+          body: { productIds: [ownerless] },
+        }),
         403,
       );
     }
     assertEquals(
-      await status(owner, "PUT", `/products/${ownerless}/owner`, {
-        email: OWNER,
+      await statusOf(owner, "PUT", `/products/${ownerless}/owner`, {
+        body: {
+          email: OWNER,
+        },
       }),
       403,
     );
@@ -656,11 +661,13 @@ Deno.test("product levels: the guard, the access routes and the bulk action", as
       ],
     };
     assertEquals(
-      await status(editor, "PUT", `/folders/${top}/products/access`, bulk),
+      await statusOf(editor, "PUT", `/folders/${top}/products/access`, {
+        body: bulk,
+      }),
       403,
     );
     assertEquals(
-      await status(stranger, "GET", `/products/${privateInSub}/slide-deck`),
+      await statusOf(stranger, "GET", `/products/${privateInSub}/slide-deck`),
       403,
     );
     const raised = await ok<{ productIds: string[] }>(
@@ -672,8 +679,10 @@ Deno.test("product levels: the guard, the access routes and the bulk action", as
     assertEquals(raised.productIds.sort(), [openInTop, privateInSub].sort());
     await ok(stranger, "GET", `/products/${privateInSub}/slide-deck`);
     assertEquals(
-      await status(stranger, "PUT", `/products/${privateInSub}/label`, {
-        label: "x",
+      await statusOf(stranger, "PUT", `/products/${privateInSub}/label`, {
+        body: {
+          label: "x",
+        },
       }),
       403,
     );

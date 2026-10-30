@@ -82,15 +82,6 @@ export async function ok<T>(
   return res.body.data as T;
 }
 
-export async function status(
-  app: Hono,
-  method: string,
-  path: string,
-  body?: unknown,
-): Promise<number> {
-  return (await call(app, method, path, body)).status;
-}
-
 // The status alone, whatever the body is (a stream, a file, plain text): the
 // request is aborted once the status is known, so a long-lived response such
 // as the SSE stream ends with the call. A string body is sent as given, so a
