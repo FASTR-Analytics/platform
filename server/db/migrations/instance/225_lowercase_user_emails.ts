@@ -1,5 +1,5 @@
 // Migration 225: every users.email is stored normalised (trimmed, lowercased),
-// as every write and the login claim now normalise it, so a mixed-case row
+// as every write and the login claim normalise it, so a mixed-case row
 // would otherwise never match its owner's sign-in again. Each row whose email
 // is not normalised is moved to the normalised address with everything that
 // names it, through the rename's own repoint. A row whose normalised address
