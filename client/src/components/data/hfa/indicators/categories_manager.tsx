@@ -12,9 +12,9 @@ import {
 import { createEffect, createMemo, Show } from "solid-js";
 import { createStore, reconcile } from "solid-js/store";
 import { serverActions } from "~/server_actions";
-import { instanceState } from "~/state/instance/t1_store";
 import { EditHfaIndicatorCategory } from "./edit_category";
 import { EditHfaIndicatorSubCategory } from "./edit_sub_category";
+import { can } from "~/state/instance/permissions";
 
 type Props = {
   categories: HfaIndicatorCategory[];
@@ -83,7 +83,7 @@ function CategoriesPane(p: {
   selectedCategoryId: string | null;
   onSelect: (id: string) => void;
 }) {
-  const isAdmin = () => instanceState.currentUserIsGlobalAdmin;
+  const canConfigure = () => can("can_configure_data");
   const [items, setItems] = createStore<HfaIndicatorCategory[]>([
     ...p.categories,
   ]);
@@ -151,7 +151,7 @@ function CategoriesPane(p: {
           {t3({ en: "Categories", fr: "Catégories", pt: "Categorias" })}{" "}
           ({items.length})
         </div>
-        <Show when={isAdmin()}>
+        <Show when={canConfigure()}>
           <Button onClick={handleCreate} iconName="plus" intent="primary">
             {t3({ en: "Add", fr: "Ajouter", pt: "Adicionar" })}
           </Button>
@@ -171,7 +171,7 @@ function CategoriesPane(p: {
           }
         >
           <Show
-            when={isAdmin()}
+            when={canConfigure()}
             fallback={
               <div class="ui-spy-sm">
                 {items.map((cat) => (
@@ -253,7 +253,7 @@ function SubCategoriesPane(p: {
   subCategories: HfaIndicatorSubCategory[];
   allSubCategoryIds: string[];
 }) {
-  const isAdmin = () => instanceState.currentUserIsGlobalAdmin;
+  const canConfigure = () => can("can_configure_data");
   const [items, setItems] = createStore<HfaIndicatorSubCategory[]>([]);
 
   createEffect(() => {
@@ -330,7 +330,7 @@ function SubCategoriesPane(p: {
             pt: "Subcategorias",
           })} ({items.length})
         </div>
-        <Show when={isAdmin()}>
+        <Show when={canConfigure()}>
           <Button onClick={handleCreate} iconName="plus" intent="primary">
             {t3({ en: "Add", fr: "Ajouter", pt: "Adicionar" })}
           </Button>
@@ -350,7 +350,7 @@ function SubCategoriesPane(p: {
           }
         >
           <Show
-            when={isAdmin()}
+            when={canConfigure()}
             fallback={
               <div class="ui-spy-sm">
                 {items.map((sc) => (

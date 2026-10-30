@@ -1479,12 +1479,11 @@ layer.
   template (`can_configure_data`); the geojson reads take
   `requireApprovedUser()` too, and the starting payload withholds the boundary
   list from an unapproved connection (S3); the HMIS and HFA dictionary reads and every mutation are
-  `can_configure_data`; config mutations `can_configure_settings`. Several
-  manager UIs still gate their write buttons on `currentUserIsGlobalAdmin`
-  instead (Open items); the HFA indicators manager's indicator write controls
-  read it through one predicate, `canWriteHfaIndicators()`
-  (`data/hfa/indicators/write_gate.ts`), which the chat's HFA write tools refuse
-  under too (S13).
+  `can_configure_data`; config mutations `can_configure_settings`. Every
+  Data-page write control reads the same flag through
+  `can("can_configure_data")` (`state/instance/permissions.ts`, S18), the HFA
+  indicators manager's indicator write controls and the chat's HFA write tools
+  (S13) included, so a user the route would refuse sees no control.
 - The HFA manager's unused-variables modal (`HfaUnusedVariablesModal`) lists,
   per time point, the survey variables no indicator code references. Each row
   has an Add button: the modal closes with that variable, and the manager opens
@@ -1535,26 +1534,6 @@ layer.
   Either the status object gains an indicator-level "contributed to the
   denominator" classification, or the per-variable reading is documented as
   answering a different question.
-- **Decision needed:** UI write-gates use `currentUserIsGlobalAdmin` while the
-  server gates on `can_configure_data`, at nine sites: the HMIS indicators
-  manager (`data/hmis/indicators/manager.tsx:557`, 652, 679), the HFA indicators
-  manager, whose three indicator write controls (the bulk delete, the row click
-  into the code editor and the toolbar) read `canWriteHfaIndicators()` in
-  `data/hfa/indicators/write_gate.ts`, the one predicate the chat's HFA write
-  tools refuse under too (S13), so this decision moves both at once, and its
-  taxonomy managers (`data/hfa/indicators/categories_manager.tsx:86`, 256;
-  `data/hfa/indicators/service_categories_manager.tsx:19`;
-  `data/hfa/indicators/variant_groups_manager.tsx:88`, 290), the geojson manager
-  (`data/geojson/manager.tsx:113`, 149), the weights import
-  (`data/hfa/hfa_weights.tsx:105`), the facilities panel
-  (`data/facilities/facilities.tsx:204`) and the HFA registry's row edit
-  (`data/facilities/hfa_registry/table.tsx:189`), HFA time points
-  (`data/hfa/_shared/time_points.tsx:234`), and S6's HMIS, HFA and ICEH dataset
-  controls (`data/hmis/dataset/dataset.tsx:293`,
-  `data/hfa/dataset/dataset.tsx:67`, `data/iceh/dataset/dataset.tsx:81`).
-  Population (`data/hmis/population/manager.tsx:32-34`) and the DHIS2 connection
-  row (`data/data.tsx:237`) already take admin or `can_configure_data`. Decide
-  which contract wins and align every site.
 - Server-produced wizard/staging/integration error strings are English-only and
   rendered verbatim by the client, and need a mechanism (error codes or
   translatable errs), not per-string patching.
@@ -1583,14 +1562,6 @@ layer.
   Back (`data/geojson/manager.tsx:52-60`) and the shell view covers the rail, so
   a failed load leaves a reload as the only exit. Move Cancel out of the `Show`
   so it renders in the loading and error states too.
-- **The HMIS facilities page fetches the upload attempt for every viewer.**
-  `data/facilities/facilities.tsx:130` calls `getStructureUploadAttempt` on
-  mount, for the HMIS family only (115-117), a `can_configure_data` route
-  (`server/routes/instance/structure.ts:280-281`), though only the admin-only
-  Imports panel reads the result (204); for a viewer without the bit the request
-  fails and the failure is swallowed (118-127). Fetch it from an effect on
-  `instanceState.currentUserIsGlobalAdmin`, the panel's gate, in place of the
-  unconditional `onMount`.
 - **A manager comment ties the code editor to imported data.**
   `data/hfa/indicators/manager.tsx:399-400` says the metadata-only fallback
   applies "with no HFA data imported", but the test is `hfaDataAvailable()`

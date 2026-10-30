@@ -137,12 +137,10 @@ export type CopilotToolName =
   | (typeof COPILOT_CHAT_WIDE_TOOLS)[number];
 
 // What a user needs for a tool to run, beyond being in a view that admits
-// it: a permission bit, the HFA write gate the indicator manager's own write
-// controls read, or edit level on the view's product.
+// it: a permission bit, or edit level on the view's product.
 export type CopilotToolRequirement =
   | "none"
   | UserPermission
-  | "hfa_write"
   | "product_edit";
 
 export const COPILOT_TOOL_REQUIREMENTS = {
@@ -180,11 +178,11 @@ export const COPILOT_TOOL_REQUIREMENTS = {
   get_hfa_indicator_details: "can_configure_data",
   get_hfa_variables: "can_configure_data",
   get_hfa_variable_details: "can_configure_data",
-  create_hfa_indicators: "hfa_write",
-  update_hfa_indicators: "hfa_write",
-  delete_hfa_indicators: "hfa_write",
+  create_hfa_indicators: "can_configure_data",
+  update_hfa_indicators: "can_configure_data",
+  delete_hfa_indicators: "can_configure_data",
   get_hfa_indicator_editor: "none",
-  update_hfa_indicator_editor: "hfa_write",
+  update_hfa_indicator_editor: "can_configure_data",
   list_products: "none",
 } as const satisfies Record<CopilotToolName, CopilotToolRequirement>;
 
@@ -205,8 +203,8 @@ export const COPILOT_APPROVAL_EXEMPT: CopilotGatedToolName[] = [
 ];
 
 export type CopilotToolUser = {
+  // The effective permissions (effectivePermissions).
   permissions: UserPermissions;
-  canWriteHfaIndicators: boolean;
   // The user's level on the view's product; null in a view with no product
   // (the package figure viewer's draft belongs to no product), where the
   // edit-level requirement has nothing to bind to.
@@ -227,10 +225,6 @@ export function copilotToolRefusal(
           productLevelAtLeast(user.productLevel, "edit")
         ? undefined
         : "Your account can view this product but not change it, so this tool is refused.";
-    case "hfa_write":
-      return user.canWriteHfaIndicators
-        ? undefined
-        : "Your account cannot change HFA indicators, so this tool is refused.";
     default:
       return user.permissions[requirement]
         ? undefined

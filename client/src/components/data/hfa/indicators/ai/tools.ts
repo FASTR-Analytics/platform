@@ -49,6 +49,7 @@ import {
 } from "~/state/instance/t2_datasets";
 import { copilotViews } from "~/components/instance/copilot/mod.ts";
 import { HfaProposalDiff } from "./proposal_diff.tsx";
+import { can } from "~/state/instance/permissions";
 
 // The indicators, the taxonomy and the code are read fresh on every call so
 // the AI acts on current state, its own earlier writes included; the survey
@@ -120,7 +121,7 @@ async function loadAllVariantCode(): Promise<HfaIndicatorVariantCode[]> {
 // The display rows need `can_view_data`, which the reads do not: without it
 // the formatters print one line saying the counts are left out.
 export async function loadDisplayRows(): Promise<HfaVariableRow[] | undefined> {
-  if (!instanceState.currentUserPermissions.can_view_data) return undefined;
+  if (!can("can_view_data")) return undefined;
   const res = await getDatasetHfaDisplayInfoFromCacheOrFetch(
     instanceState.hfaCacheHash,
   );
@@ -753,8 +754,8 @@ function openProposalDiff(
 // The chat's HFA reads and HFA writes, gated by view through `availableIn`
 // (the reads in the manager, the code editor and the Excel import; the writes
 // in the manager alone, where each proposes a modal approval). Who may call
-// them refuses at the call through the chat's guard, under
-// `canWriteHfaIndicators()` for the writes.
+// them refuses at the call through the chat's guard: the reads and the writes
+// both need `can_configure_data`.
 
 export function buildHfaIndicatorTools() {
   return [

@@ -13,18 +13,11 @@ import { copilotViewController, type CopilotViewState } from "./ai_views";
 // Every user registers the same tools, so the prompt cache survives every
 // move; what a user may not do refuses here, at the call, from the one table
 // (copilotToolRefusal, lib/ai_tools/copilot_catalogue.ts) over the user's
-// live permissions, the live level on the view's product and the HFA write
-// gate the assembler supplies. The refusal runs before the handler and before
+// live effective permissions and the live level on the view's product. The
+// refusal runs before the handler and before
 // an approval's `propose`, so nothing is proposed, previewed or applied for a
 // user the routes would refuse. A tool outside the catalogue is a bug the
 // assembly fails on.
-
-export type CopilotToolGates = {
-  // The HFA indicator manager's write gate, which its own write controls
-  // read: the assembler passes it so this folder imports nothing from
-  // components/data/.
-  canWriteHfaIndicators: () => boolean;
-};
 
 // The product a view shows, for the edit-level requirement; null in a view
 // with no product (the package pages, Explore, the Data pages), where the
@@ -47,16 +40,15 @@ function viewProductId(view: CopilotViewState): string | null {
   }
 }
 
-function currentToolUser(gates: CopilotToolGates): CopilotToolUser {
+function currentToolUser(): CopilotToolUser {
   const productId = viewProductId(copilotViewController.current());
   return {
     permissions: instanceState.currentUserPermissions,
-    canWriteHfaIndicators: gates.canWriteHfaIndicators(),
     productLevel: productId === null ? null : productLevel(productId),
   };
 }
 
-function guardCopilotTool(tool: AnyAITool, gates: CopilotToolGates): AnyAITool {
+function guardCopilotTool(tool: AnyAITool): AnyAITool {
   const name = tool.sdkTool.name;
   if (!Object.hasOwn(COPILOT_TOOL_REQUIREMENTS, name)) {
     throw new Error(
@@ -65,7 +57,7 @@ function guardCopilotTool(tool: AnyAITool, gates: CopilotToolGates): AnyAITool {
   }
   const toolName = name as CopilotToolName;
   const refuseUnlessAllowed = () => {
-    const reason = copilotToolRefusal(toolName, currentToolUser(gates));
+    const reason = copilotToolRefusal(toolName, currentToolUser());
     if (reason !== undefined) throw new AIToolFailure(reason);
   };
   const inner = tool.sdkTool;
@@ -104,9 +96,6 @@ function guardCopilotTool(tool: AnyAITool, gates: CopilotToolGates): AnyAITool {
   };
 }
 
-export function guardCopilotTools(
-  tools: AnyAITool[],
-  gates: CopilotToolGates,
-): AnyAITool[] {
-  return tools.map((tool) => guardCopilotTool(tool, gates));
+export function guardCopilotTools(tools: AnyAITool[]): AnyAITool[] {
+  return tools.map(guardCopilotTool);
 }

@@ -120,7 +120,9 @@ below are their file-level twins):
   (`can_view_data`; `can_view_logs` for logs), and one surface, the package page
   (`results_packages/package_page.tsx`, its panes under `package_view/`),
   renders a package's contents: its modules' presets, settings, scripts, logs
-  and files; the Explore tab (S11) reads a ready package's metrics at a scope.
+  and files, its viewers gated by `canViewPackageContents()` and
+  `canViewPackageLogs()` (`package_view/status.tsx`, over `can()`, S18); the
+  Explore tab (S11) reads a ready package's metrics at a scope.
   AI tools take a run RESOLVER, never a runId from the model: the package page
   sets the chat's `package` view (S13) with the page's package at the page
   scope, and its state names the status, stage, error, progress and open module,

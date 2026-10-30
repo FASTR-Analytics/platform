@@ -2,6 +2,7 @@
 system: 18
 name: Permissions & Identity
 globs:
+  - client/src/state/instance/permissions.ts
   - client/src/state/instance/product_access.ts
   - lib/permissions/**
   - server/auth/**
@@ -78,6 +79,20 @@ body carries a guard that is not `product`, or when a path with `:folder_id` or
 a `parentId` body carries a guard that is not `folder`, so whether a route is a
 folder route is read from the table, never from the request. The client reads
 the same field to decide what to offer.
+
+## The client reads the same table
+
+`client/src/state/instance/permissions.ts` exports `isGlobalAdmin()`,
+`isHUser()` (the connection's own roster row), `can(key)` (the connection's
+effective permissions, so an admin and a configure holder pass a view flag) and
+`canCallRoute(name, productId?)`, which evaluates the registry entry's declared
+guard against the store: approved, admin, the effective permissions, `isHUser`
+for `h_user`, `productLevel` (S12) for a product route, approved and
+unrestricted for a folder route with `own` admin-only, never for `status_key`.
+Every page gate, button, fetch and copilot tool requirement reads them; no
+component spells `currentUserIsGlobalAdmin ||` beside a permission, and the
+server stays the authority: the accessors exist so a caller the route would
+refuse sees no control rather than one that 403s.
 
 ## The guard factories
 

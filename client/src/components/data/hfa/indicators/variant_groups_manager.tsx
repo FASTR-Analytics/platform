@@ -14,9 +14,9 @@ import {
 import { createEffect, createMemo, Show } from "solid-js";
 import { createStore, reconcile } from "solid-js/store";
 import { serverActions } from "~/server_actions";
-import { instanceState } from "~/state/instance/t1_store";
 import { EditHfaIndicatorVariantGroup } from "./edit_variant_group";
 import { EditHfaIndicatorVariantItem } from "./edit_variant_item";
+import { can } from "~/state/instance/permissions";
 
 type Props = {
   variantGroups: HfaIndicatorVariantGroup[];
@@ -85,7 +85,7 @@ function GroupsPane(p: {
   selectedGroupId: string | null;
   onSelect: (id: string) => void;
 }) {
-  const isAdmin = () => instanceState.currentUserIsGlobalAdmin;
+  const canConfigure = () => can("can_configure_data");
   const [items, setItems] = createStore<HfaIndicatorVariantGroup[]>([
     ...p.variantGroups,
   ]);
@@ -166,7 +166,7 @@ function GroupsPane(p: {
             pt: "Grupos de variantes",
           })} ({items.length})
         </div>
-        <Show when={isAdmin()}>
+        <Show when={canConfigure()}>
           <Button onClick={handleCreate} iconName="plus" intent="primary">
             {t3({ en: "Add", fr: "Ajouter", pt: "Adicionar" })}
           </Button>
@@ -189,7 +189,7 @@ function GroupsPane(p: {
           }
         >
           <Show
-            when={isAdmin()}
+            when={canConfigure()}
             fallback={
               <div class="ui-spy-sm">
                 {items.map((group) => (
@@ -287,7 +287,7 @@ function ItemsPane(p: {
   group: HfaIndicatorVariantGroup;
   items: HfaIndicatorVariantItem[];
 }) {
-  const isAdmin = () => instanceState.currentUserIsGlobalAdmin;
+  const canConfigure = () => can("can_configure_data");
   const [items, setItems] = createStore<HfaIndicatorVariantItem[]>([]);
 
   createEffect(() => {
@@ -358,7 +358,7 @@ function ItemsPane(p: {
         <div class="ui-text-heading min-w-0 flex-1 truncate">
           {t3({ en: "Items", fr: "Éléments", pt: "Itens" })} ({items.length})
         </div>
-        <Show when={isAdmin()}>
+        <Show when={canConfigure()}>
           <Button onClick={handleCreate} iconName="plus" intent="primary">
             {t3({ en: "Add", fr: "Ajouter", pt: "Adicionar" })}
           </Button>
@@ -378,7 +378,7 @@ function ItemsPane(p: {
           }
         >
           <Show
-            when={isAdmin()}
+            when={canConfigure()}
             fallback={
               <div class="ui-spy-sm">
                 {items.map((it) => (

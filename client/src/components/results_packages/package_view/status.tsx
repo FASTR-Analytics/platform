@@ -7,7 +7,7 @@ import {
 import { Badge, type Intent } from "panther";
 import { Show } from "solid-js";
 import { _SERVER_HOST } from "~/server_actions";
-import { instanceState } from "~/state/instance/t1_store";
+import { can } from "~/state/instance/permissions";
 
 // Results-package status display, shared by every surface that lists or
 // explores a package: the same run shown from two places must read
@@ -19,17 +19,11 @@ import { instanceState } from "~/state/instance/t1_store";
 // mount); these exist so a caller without access sees no button rather than one
 // that 403s.
 export function canViewPackageContents(): boolean {
-  return (
-    instanceState.currentUserIsGlobalAdmin ||
-    instanceState.currentUserPermissions.can_view_data
-  );
+  return can("can_view_data");
 }
 
 export function canViewPackageLogs(): boolean {
-  return (
-    instanceState.currentUserIsGlobalAdmin ||
-    instanceState.currentUserPermissions.can_view_logs
-  );
+  return can("can_view_logs");
 }
 
 // The gated static mount for one raw output file (`<a download>` cannot send

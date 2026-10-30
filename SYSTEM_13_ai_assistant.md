@@ -54,8 +54,8 @@ SYSTEMS.md §4.1). The unguarded health routes that surface usage are **S15**.
 The HFA tools (`client/src/components/data/hfa/indicators/ai/**`) are
 **S5-owned**: S13 owns the chat they register in, the panther engine contract
 and the tool-schema conventions they follow; S5 owns their semantics, the HFA
-guidance the manager and the code editor attach to their views, and the write
-gate they refuse under (`indicators/write_gate.ts`). The slide/figure shapes the
+guidance the manager and the code editor attach to their views, and the
+`can_configure_data` flag they refuse under. The slide/figure shapes the
 slide_ai helpers produce are **S10/S12**; the query pipeline the data tools call
 is **S9**.
 
@@ -757,8 +757,8 @@ each tool where the set is assembled and, before the handler or an approval's
 over the tool's requirement, the user's live permissions
 (`instanceState.currentUserPermissions`), the live level on the view's product
 (`productLevel`, S12, from the view's `productId`, `deckId` or `reportId`; null
-in a view with no product) and the HFA write gate the assembler supplies, and
-throws the table's reason as an `AIToolFailure`. So a viewer can read a deck or
+in a view with no product), and throws the table's reason as an
+`AIToolFailure`. So a viewer can read a deck or
 report and ask about it while its writes refuse, `get_module_r_script` and
 `get_module_settings` refuse without `can_view_data` and `get_module_log`
 without `can_view_logs`, and a demotion reaches the next call. A tool outside
@@ -1204,11 +1204,9 @@ the three HFA views, the three writes (`create_hfa_indicators`,
 `update_hfa_indicators`, `delete_hfa_indicators`) in `hfa_indicators` alone, and
 the editor tools (`get_hfa_indicator_editor`, `update_hfa_indicator_editor`,
 `editor_tools.ts`) in `hfa_indicator_editor` alone. Who may call them refuses
-through the guard: the reads need `can_configure_data`, the writes and
-`update_hfa_indicator_editor` the manager's write gate,
-`canWriteHfaIndicators()` (`indicators/write_gate.ts`, today global admin),
-which the manager's indicator write controls read too, so SYSTEM_05's open
-decision on that gate moves both at once. Every HFA route keeps its own guard.
+through the guard: the reads, the writes and `update_hfa_indicator_editor` all
+need `can_configure_data`, the flag the manager's own write controls read
+(`can("can_configure_data")`, S18). Every HFA route keeps its own guard.
 The three writes declare `approval.propose` with `presentation: "modal"`
 (panther owns the propose → modal → commit lifecycle); the editor write is
 exempt, since it lands in the open editor's unsaved draft, which the user saves

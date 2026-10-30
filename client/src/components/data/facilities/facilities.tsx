@@ -29,6 +29,7 @@ import {
 } from "~/state/instance/t1_store";
 import { getAdminAreaLabel } from "~/state/instance/_util_disaggregation_label";
 import { StructureWithCsv } from "./with_csv";
+import { can } from "~/state/instance/permissions";
 
 type Props = {
   family: FacilityFamily;
@@ -110,9 +111,10 @@ export function Facilities(p: Props) {
     StructureUploadAttemptDetail | undefined
   >(undefined);
 
-  // HFA facilities come from each round's data import, never from here.
+  // HFA facilities come from each round's data import, never from here, and
+  // only the Imports panel, a configure control, reads the attempt.
   async function fetchUploadAttempt() {
-    if (p.family !== "hmis") {
+    if (p.family !== "hmis" || !can("can_configure_data")) {
       return;
     }
     try {
@@ -205,7 +207,7 @@ export function Facilities(p: Props) {
         <FrameRight
           pad={csvTableShown() ? undefined : "md"}
           panelChildren={
-            <Show when={instanceState.currentUserIsGlobalAdmin}>
+            <Show when={can("can_configure_data")}>
               <div class="ui-pad ui-spy flex h-full w-64 flex-col overflow-auto">
                 <Switch>
                   <Match when={p.family === "hfa"}>

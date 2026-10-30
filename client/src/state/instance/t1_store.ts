@@ -337,14 +337,6 @@ export function updatePinnedRunId(pinnedRunId: string | null): void {
   setInstanceState("pinnedRunId", pinnedRunId);
 }
 
-// Live read of the current user's own catalogue entitlement: the
-// boundary's catalogue fetch tracks this, so a grant or revocation takes
-// effect without a reconnect.
-export function canSeeRunsCatalog(): boolean {
-  return instanceState.currentUserIsGlobalAdmin ||
-    instanceState.currentUserPermissions.can_configure_data;
-}
-
 export function updateInstanceStructure(data: InstanceStructureSummary): void {
   setInstanceState("structure", reconcile(data.structure));
   setInstanceState("structureLastUpdated", data.structureLastUpdated);

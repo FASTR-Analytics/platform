@@ -12,6 +12,7 @@ import { instanceState } from "~/state/instance/t1_store";
 import { DatasetItemsHolder } from "./dataset_items_holder";
 import { DeleteData } from "./delete_data";
 import { DatasetIcehImports } from "../imports/mod.ts";
+import { can } from "~/state/instance/permissions";
 
 type Props = {
   close: (v: undefined) => void;
@@ -78,7 +79,7 @@ export function InstanceDatasetIceh(p: Props) {
       >
         <FrameRight
           panelChildren={
-            <Show when={instanceState.currentUserIsGlobalAdmin}>
+            <Show when={can("can_configure_data")}>
               <div class="ui-pad ui-spy flex h-full max-w-64 flex-col overflow-auto">
                 <div class="">
                   <Button

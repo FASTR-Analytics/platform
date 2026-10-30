@@ -56,11 +56,11 @@ import {
   type UnusedVariablesByTimePoint,
 } from "./unused_variables_modal";
 import { getHfaIndicatorsGuidance } from "./ai/mod.ts";
-import { canWriteHfaIndicators } from "./write_gate.ts";
 import {
   copilotViewController,
   holdCopilotView,
 } from "~/components/instance/copilot/mod.ts";
+import { can } from "~/state/instance/permissions";
 
 type Props = {
   close: (v: undefined) => void;
@@ -948,7 +948,7 @@ export function HfaIndicatorsManager(p: Props) {
   ];
 
   const bulkActions = createMemo<BulkAction<HfaIndicator>[]>(() =>
-    canWriteHfaIndicators()
+    can("can_configure_data")
       ? [
         {
           label: t3(TC.delete),
@@ -1001,7 +1001,7 @@ export function HfaIndicatorsManager(p: Props) {
                       columns={columns}
                       keyField="indicatorId"
                       config={indicatorsTable}
-                      onRowClick={canWriteHfaIndicators()
+                      onRowClick={can("can_configure_data")
                         ? (ind) => handleOpenCodeEditor(ind, keyedIndicators)
                         : undefined}
                       noRowsMessage={t3({
@@ -1032,7 +1032,7 @@ export function HfaIndicatorsManager(p: Props) {
                           }),
                         },
                         children: (
-                          <Show when={canWriteHfaIndicators()}>
+                          <Show when={can("can_configure_data")}>
                             <div
                               title={hfaDataAvailable() ? "" : noHfaDataMsg()}
                             >

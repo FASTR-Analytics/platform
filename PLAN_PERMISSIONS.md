@@ -1074,3 +1074,8 @@ commit.
 - Step 5: `setUserContactPerson` declares `GUARD.hUser` instead of keeping its
   inline operator check, since a handler never checks access itself; its
   matrix class was already the operator's.
+- Step 6: edited `client/src/state/instance/t1_sse.tsx` and
+  `client/src/components/data/hfa/indicators/ai/tools.ts`, outside the Surface,
+  because the first read the deleted `canSeeRunsCatalog` and the second read
+  `currentUserPermissions` by hand and named the deleted write gate in a
+  comment.

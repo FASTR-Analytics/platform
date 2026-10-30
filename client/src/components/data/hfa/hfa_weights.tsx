@@ -43,6 +43,7 @@ import { createStore, unwrap } from "solid-js/store";
 import { FileUploadSelector } from "~/components/_shared/mod.ts";
 import { _SERVER_HOST, serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
+import { can } from "~/state/instance/permissions";
 
 type Props = {
   close: (v: undefined) => void;
@@ -102,7 +103,7 @@ export function HfaWeights(p: Props) {
       >
         <FrameRight
           panelChildren={
-            <Show when={instanceState.currentUserIsGlobalAdmin}>
+            <Show when={can("can_configure_data")}>
               <div class="ui-pad ui-spy flex h-full w-64 flex-col overflow-auto">
                 <div class="ui-text-heading">
                   {t3({ en: "Imports", fr: "Importations", pt: "Importações" })}

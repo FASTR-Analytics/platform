@@ -2,7 +2,7 @@ import { tourTarget } from "@njwse/roadtrip";
 import type { TourDefinition, TourLabels, TourStep } from "@njwse/roadtrip";
 import { t3 } from "lib";
 import { copilotViewController } from "~/components/instance/copilot/mod.ts";
-import { instanceState } from "~/state/instance/t1_store";
+import { can } from "~/state/instance/permissions";
 
 // Built as factories (not module-level constants) so t3() resolves after the
 // app language has been set.
@@ -53,8 +53,6 @@ const SKIP_IF_MISSING_AFTER_LOAD = {
   waitForTargetTimeoutMs: 8000,
   onTargetTimeout: "skip",
 } as const;
-
-const isGlobalAdmin = () => instanceState.currentUserIsGlobalAdmin;
 
 // ------------------------------------------------- Package and scope chip
 
@@ -1598,9 +1596,7 @@ export function buildInstanceDataTour(): TourDefinition {
         }),
         placement: "top",
         // Rendered only for those who may change settings.
-        when: () =>
-          isGlobalAdmin() ||
-          instanceState.currentUserPermissions.can_configure_settings,
+        when: () => can("can_configure_settings"),
         ...SKIP_IF_MISSING,
       },
     ],

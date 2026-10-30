@@ -11,6 +11,7 @@ import {
 } from "~/state/t4_ui";
 import { getSlideDeckDetailFromCacheOrFetch } from "~/state/products/t2_slide_deck_detail";
 import { getSlideFromCacheOrFetch } from "~/state/products/t2_slides";
+import { can } from "~/state/instance/permissions";
 
 // The instance's tabs, as the tour manager and the catalogue modal name them.
 // The shell (components/instance/instance.tsx) imports this union rather than
@@ -57,8 +58,6 @@ export type TourCatalogueEntry = {
 
 export type TourReplayTarget = { productId?: string };
 
-const perms = () => instanceState.currentUserPermissions;
-const admin = () => instanceState.currentUserIsGlobalAdmin;
 const decks = () =>
   instanceState.products.filter((p) => p.type === "slide_deck");
 // The deck settings and slide tours walk the Deck menu and the slide toolbar,
@@ -662,7 +661,7 @@ export function getTourCatalogue(
           "O que é um pacote de resultados, gerar um, e as predefinições dos módulos.",
       }),
       // Mirrors the instance shell's own gate for this tab.
-      available: () => admin() || perms().can_configure_data,
+      available: () => can("can_configure_data"),
       unavailableReason: reasonNoPageAccess,
       navigate: openTabOnly("results_packages"),
     },
@@ -682,11 +681,9 @@ export function getTourCatalogue(
         pt:
           "Abrir um pacote a partir da lista, o que a sua página mostra, e fixá-lo ou eliminá-lo.",
       }),
-      available: () => (admin() || perms().can_configure_data) && hasPackage(),
+      available: () => can("can_configure_data") && hasPackage(),
       unavailableReason: () =>
-        admin() || perms().can_configure_data
-          ? reasonNeedPackage()
-          : reasonNoPageAccess(),
+        can("can_configure_data") ? reasonNeedPackage() : reasonNoPageAccess(),
       navigate: openTabOnly("results_packages"),
     },
     {
@@ -705,8 +702,7 @@ export function getTourCatalogue(
         pt:
           "Onde os dados são carregados: dados de rotina, avaliações de unidades de saúde e dados de equidade.",
       }),
-      available: () =>
-        admin() || perms().can_view_data || perms().can_configure_data,
+      available: () => can("can_view_data"),
       unavailableReason: reasonNoPageAccess,
       navigate: openTabOnly("data"),
     },
@@ -743,8 +739,7 @@ export function getTourCatalogue(
         fr: "Gérer qui a accès et ce que chacun peut faire.",
         pt: "Gerir quem tem acesso e o que cada pessoa pode fazer.",
       }),
-      available: () =>
-        admin() || perms().can_configure_users || perms().can_view_users,
+      available: () => can("can_view_users"),
       unavailableReason: reasonNoPageAccess,
       navigate: openTabOnly("users"),
     },

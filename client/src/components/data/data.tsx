@@ -45,6 +45,7 @@ import {
   restoreCopilotView,
 } from "~/components/instance/copilot/mod.ts";
 import { AdminAreaLabels, AiContextForm } from "./general/mod.ts";
+import { can } from "~/state/instance/permissions";
 
 type Props = {};
 
@@ -79,15 +80,11 @@ export function InstanceData(p: Props) {
   onCleanup(() => {
     mounted = false;
   });
-  const canConfigureData = () =>
-    instanceState.currentUserIsGlobalAdmin ||
-    instanceState.currentUserPermissions.can_configure_data;
+  const canConfigureData = () => can("can_configure_data");
 
   // Structure config and the instance settings keep the gate of the Settings
   // tab they came from, so who can change them is unchanged.
-  const canConfigureSettings = () =>
-    instanceState.currentUserIsGlobalAdmin ||
-    instanceState.currentUserPermissions.can_configure_settings;
+  const canConfigureSettings = () => can("can_configure_settings");
 
   const enabledColumnCount = (family: FacilityFamily) => {
     const schema = structureSchemaForFamily(family);

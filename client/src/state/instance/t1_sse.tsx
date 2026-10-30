@@ -14,7 +14,6 @@ import {
 } from "~/state/instance/t2_geojson";
 import { evictRunGeoJsonNotIn } from "~/state/instance/t2_run_geojson";
 import {
-  canSeeRunsCatalog,
   initInstanceState,
   instanceState,
   removeInstanceProducts,
@@ -38,6 +37,7 @@ import {
   upsertInstanceProducts,
 } from "./t1_store";
 import { connectCollab, disconnectCollab } from "./collab";
+import { can } from "./permissions";
 
 // Live results-package generation: ephemeral execution state, not T1:
 // these go to listeners and never touch the store. (The catalogue LISTING is
@@ -413,12 +413,14 @@ export function InstanceSSEBoundary(p: { children: JSX.Element }) {
   // self-healing path for backfill runs and missed signals (the payload fill
   // prevents an empty flash while it resolves).
   createEffect(on(
-    () => [instanceState.runsCatalogSignal, canSeeRunsCatalog()] as const,
+    () => [instanceState.runsCatalogSignal, can("can_configure_data")] as const,
     () => {
       const controller = new AbortController();
       onCleanup(() => controller.abort());
 
-      if (!canSeeRunsCatalog()) {
+      // The catalogue entitlement is live, so a grant or revocation takes
+      // effect without a reconnect.
+      if (!can("can_configure_data")) {
         updateInstanceRunsCatalog([]);
         return;
       }
