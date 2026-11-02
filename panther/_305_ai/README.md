@@ -73,7 +73,7 @@ async function handOver(chat: AIChatInstance, channel: BroadcastChannel) {
 import { callAI, createSDKClient } from "@timroberton/panther";
 
 const anthropic = createSDKClient({
-  baseURL: "https://api.anthropic.com/v1",
+  baseURL: "https://api.anthropic.com",
   apiKey: Deno.env.get("ANTHROPIC_API_KEY"),
 });
 
@@ -337,6 +337,15 @@ builtInTools: {
     allowed_domains: ["docs.example.com"],
     citations: { enabled: true },
     max_content_tokens: 10000,
+    // Where fetchable URLs may come from. A source left out keeps the API's
+    // default. Here: not URLs the user typed, and only URLs a web search found.
+    url_sources: {
+      user_input: { type: "none" },
+      server_tool_results: {
+        type: "only",
+        tools: [{ type: "tool_reference", name: "web_search" }],
+      },
+    },
   },
 }
 ```

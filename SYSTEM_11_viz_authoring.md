@@ -5,6 +5,7 @@ globs:
   - client/src/components/explore/**
   - client/src/components/_shared/figure_editor/**
   - client/src/components/_shared/figure_preview.ts
+  - client/src/components/_shared/map_coverage_line.tsx
   - client/src/components/products/_shared/insert_figure/**
   - client/src/state/instance/_util_disaggregation_label.ts
   - client/src/state/t4_explore.ts
@@ -404,12 +405,21 @@ a filter, the type's `values` as `valuesFilter`, and the style borrowed from the
 metric's first map preset, else the defaults: the five m001 maps carry their
 presets' threshold colouring; m012, m002, m006 and m010 have no map preset and
 take `DEFAULT_S_CONFIG`, with `cfMode: "indicator"` for an indicator-format
-metric. Boundaries the instance lacks for the map's registry and level surface
-as `buildFigureInputs`' `[INFO] Map files not yet uploaded` error through the
-preview's error state until they arrive: the preview builds after an await,
-where a boundary read tracks nothing, so the figure view reads the map's
-boundaries (`getGeoJsonSync` for the metric's registry and the map's level) in
+metric. Boundaries the package lacks for the map's registry and level surface as
+`buildFigureInputs`' typed reason, worded by `describeFigureUnavailable`,
+through the preview's error state: the preview builds after an await, where a
+boundary read tracks nothing, so the figure view reads the run-geo store
+(`getRunGeoJsonSync` for the view's run, the metric's registry and the map's
+level, and the instance's `getGeoJsonSync` when that answers `run_unknown`) in
 the preview's source, and a map shown before they load rebuilds when they land.
+
+Under a built map, the figure editor's preview and the explore view show its
+coverage (`describeMapCoverage` over `getFigureMapCoverage`, SYSTEM_10): how
+many data areas have a boundary and how many boundaries have no data. Below 70%
+matched (`MAP_COVERAGE_PROMINENT_BELOW`) the line is in the warning colour and
+bold, since a map with boundaries for 8 of 40 districts otherwise reads as 32
+missing values. It never appears on a rendered product page, in an export or in
+a raster.
 
 ## lib config semantics
 

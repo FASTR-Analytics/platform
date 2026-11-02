@@ -2,6 +2,7 @@ import { join } from "@std/path";
 import {
   type APIResponseWithData,
   compareModules,
+  type FacilityFamily,
   type ModuleConfigSelections,
   parseInstalledModuleDefinition,
   type RunDetail,
@@ -13,14 +14,19 @@ import {
   _MODULE_SCRIPT_FILE_NAME,
 } from "../exposed_env_vars.ts";
 import { getRunManifestCached } from "./manifest_cache.ts";
-import { isRunIdShape, runDirPath, runTmpDirPath } from "./run_paths.ts";
+import {
+  isRunIdShape,
+  runDirPath,
+  runGeoJsonInputFileName,
+  runInputFilePath,
+  runTmpDirPath,
+} from "./run_paths.ts";
 
 // Reading a package's INTERNALS: the generated R script, the execution log,
 // and the raw output files under runs/{runId}/outputs/{moduleId}.
 //
 // The readers are mounted once, run-keyed, on the instance routes
-// (routes/instance/run_generation.ts): `can_view_data` for the script and the
-// raw files, `can_view_logs` for the log.
+// (routes/instance/run_generation.ts), under `can_view_data`.
 //
 // Path safety is enforced HERE rather than at each route, because these
 // (with the run-lens read context, run_query/run_read.ts) are the only
@@ -245,4 +251,26 @@ function resolveModuleSettings(
       return { label: param?.description ?? key, value: displayValue };
     },
   );
+}
+
+// A captured boundary file, still gzipped, or undefined when the run or the
+// file is absent. The run id is shape-checked before it becomes a path.
+export async function openRunGeoJsonFile(
+  runId: string,
+  family: FacilityFamily,
+  level: number,
+): Promise<ReadableStream<Uint8Array> | undefined> {
+  if (!isRunIdShape(runId)) return undefined;
+  try {
+    const file = await Deno.open(
+      runInputFilePath(
+        runDirPath(runId),
+        runGeoJsonInputFileName(family, level),
+      ),
+    );
+    return file.readable;
+  } catch (e) {
+    if (e instanceof Deno.errors.NotFound) return undefined;
+    throw e;
+  }
 }

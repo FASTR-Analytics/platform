@@ -2,6 +2,7 @@ import {
   FigureInputs,
   formatPeriod,
   type GeoJSONFeatureCollection,
+  getMapDataTransformed,
   getPeriodTypeFromValue,
   getPieDataTransformed,
   getTimeseriesDataTransformed,
@@ -11,9 +12,11 @@ import {
 import {
   type DeckStyleContext,
   type EffectiveIndicatorFacts,
+  type FacilityFamily,
   type FastrChartPalette,
   FigureBundle,
   FigureLocalization,
+  type FigureUnavailable,
   getEffectivePOConfig,
   getSingleValueDimsFromItems,
   type IndicatorFormat,
@@ -44,15 +47,57 @@ import {
   isSpecialDisruptionsChartV2Active,
   metricAllowsNegativeScale,
 } from "./special_chart_checks";
+import { getFigureMapCoverage } from "./map_coverage";
 import { getGeoJsonSync } from "~/state/instance/t2_geojson";
+import {
+  ensureRunGeoJson,
+  getRunGeoJsonSync,
+} from "~/state/instance/t2_run_geojson";
+
+export type FigureInputsResult =
+  | { ok: true; inputs: FigureInputs }
+  | { ok: false; unavailable: FigureUnavailable };
 
 // Builds FigureInputs from a FigureBundle. All locale reads come from
-// bundle.localization: no ambient singletons. Throws on bad input.
+// bundle.localization: no ambient singletons. A state the user can act on is
+// returned as a reason; anything else is a bug and throws.
 export function buildFigureInputs(
   bundle: FigureBundle,
   deckStyle?: DeckStyleContext,
   // A document's own chart palette (see getStandardSeriesColorFunc).
   chartPalette?: FastrChartPalette,
+): FigureInputsResult {
+  if (bundle.config.d.type !== "map") {
+    return {
+      ok: true,
+      inputs: buildInputs(bundle, undefined, deckStyle, chartPalette),
+    };
+  }
+  const geo = resolveGeoJson(bundle);
+  if (!geo.ok) return geo;
+  const inputs = buildInputs(bundle, geo.data, deckStyle, chartPalette);
+  // A map whose data areas meet no boundary would draw an empty country;
+  // any other coverage renders, partial rollouts being legitimate.
+  const coverage = getFigureMapCoverage(inputs);
+  if (coverage && coverage.dataAreas > 0 && coverage.matchedAreas === 0) {
+    return {
+      ok: false,
+      unavailable: {
+        kind: "no_area_matches",
+        dataAreas: coverage.dataAreas,
+        boundaries: coverage.boundaries,
+        source: geo.source,
+      },
+    };
+  }
+  return { ok: true, inputs };
+}
+
+function buildInputs(
+  bundle: FigureBundle,
+  geoJson: GeoJSONFeatureCollection | undefined,
+  deckStyle: DeckStyleContext | undefined,
+  chartPalette: FastrChartPalette | undefined,
 ): FigureInputs {
   const {
     config,
@@ -60,12 +105,9 @@ export function buildFigureInputs(
     resultsValue,
     indicatorMetadata,
     dateRange,
-    geo,
     localization,
     scope,
   } = bundle;
-
-  const geoJson = resolveGeoJson(geo, config);
 
   const indicatorLabelReplacements = indicatorMetadataToLabelMap(
     indicatorMetadata,
@@ -326,21 +368,7 @@ export function buildFigureInputs(
   }
 
   if (effectiveConfig.d.type === "map") {
-    if (!geoJson) {
-      const level = getAdminAreaLevelFromMapConfig(effectiveConfig);
-      // Each facility registry carries its OWN boundaries, so the level alone
-      // no longer identifies the missing map: an instance can have an HMIS
-      // AA2 map and no HFA one, and the maps page would show "a level 2 map
-      // exists" while this metric still cannot render.
-      const registry = geo && geo.kind === "level" && geo.family === "hfa"
-        ? "HFA"
-        : "HMIS";
-      throw new Error(
-        `[INFO] Map files not yet uploaded for the ${registry} registry at Admin Area ${
-          level ?? ""
-        }`,
-      );
-    }
+    if (!geoJson) throw new Error("Map figure built without boundaries");
     const mapDataConfig = getMapJsonDataConfigFromPresentationObjectConfig(
       resultsValue,
       effectiveConfig,
@@ -360,13 +388,15 @@ export function buildFigureInputs(
       }
       return row;
     });
+    // Transformed here, once: the coverage tally reads it, and panther's own
+    // transform passes a transformed input through.
     return {
       figureType: "map",
-      data: {
+      data: getMapDataTransformed({
         geoData: geoJson,
         jsonArray: mapItems,
         jsonDataConfig: mapDataConfig,
-      },
+      }),
       caption: withDateRange(
         withReplicant(
           config.t.caption,
@@ -488,18 +518,78 @@ export function buildFigureInputs(
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
+// A bundle that carries its geometry draws it. One that names a level draws
+// its own package's boundaries, keyed by provenance.runId and not by the
+// container's package, so a stale figure keeps the boundaries it was built
+// with for as long as its package exists; only a package without a capture,
+// or a run that is gone, falls back to the instance's. Each facility registry
+// carries its OWN boundaries, so the reason names the family as well as the
+// level.
 function resolveGeoJson(
-  geo: FigureBundle["geo"],
-  config: PresentationObjectConfig,
-): GeoJSONFeatureCollection | undefined {
-  if (!geo) return undefined;
-  if (geo.kind === "data") return geo.data as GeoJSONFeatureCollection;
-  // geo.kind === "level": derive from sync cache. Stored bundles without a
-  // family predate the split and default to hmis (same ruling as an absent
-  // ResultsValue.datasetFamily).
-  const level = getAdminAreaLevelFromMapConfig(config);
-  if (!level) return undefined;
-  return getGeoJsonSync(geo.family ?? "hmis", level) ?? undefined;
+  bundle: FigureBundle,
+):
+  | {
+    ok: true;
+    data: GeoJSONFeatureCollection;
+    source: "instance" | "package";
+  }
+  | { ok: false; unavailable: FigureUnavailable } {
+  if (bundle.geo?.kind === "data") {
+    return {
+      ok: true,
+      data: bundle.geo.data as GeoJSONFeatureCollection,
+      source: "package",
+    };
+  }
+  const level = getAdminAreaLevelFromMapConfig(bundle.config);
+  if (level === undefined) {
+    throw new Error("Map figure has no admin-area map dimension");
+  }
+  const family = geoFamily(bundle.geo);
+  const read = getRunGeoJsonSync(bundle.provenance.runId, family, level);
+  if (read.state === "ready") {
+    return { ok: true, data: read.data, source: "package" };
+  }
+  if (read.state === "loading") {
+    return {
+      ok: false,
+      unavailable: { kind: "boundaries_loading", family, level },
+    };
+  }
+  if (read.state === "not_in_package") {
+    return {
+      ok: false,
+      unavailable: { kind: "no_boundaries", family, level, source: "package" },
+    };
+  }
+  const instance = getGeoJsonSync(family, level);
+  return instance !== undefined
+    ? { ok: true, data: instance, source: "instance" }
+    : {
+      ok: false,
+      unavailable: { kind: "no_boundaries", family, level, source: "instance" },
+    };
+}
+
+// Awaits the boundaries a map bundle names, for a caller that builds after an
+// await, where a sync read tracks nothing and would build the loading state.
+export async function awaitFigureBoundaries(
+  bundle: FigureBundle,
+): Promise<void> {
+  if (bundle.config.d.type !== "map" || bundle.geo?.kind === "data") return;
+  const level = getAdminAreaLevelFromMapConfig(bundle.config);
+  if (level === undefined) return;
+  await ensureRunGeoJson(
+    bundle.provenance.runId,
+    geoFamily(bundle.geo),
+    level,
+  );
+}
+
+// Stored bundles without a family predate the split and are hmis (same
+// ruling as an absent ResultsValue.datasetFamily).
+function geoFamily(geo: FigureBundle["geo"]): FacilityFamily {
+  return geo?.kind === "level" ? geo.family ?? "hmis" : "hmis";
 }
 
 // A map's legend: a bucket list for the two rule-based sources, else the

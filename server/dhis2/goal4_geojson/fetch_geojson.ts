@@ -1,11 +1,7 @@
 import { buildUrl, fetchFromDHIS2 } from "../common/base_fetcher.ts";
 import type { Dhis2Credentials } from "lib";
-import type { GeoJsonFeature, GeoJsonFeatureCollection } from "./types.ts";
-
-type GeoJsonFeatureCollectionWire = {
-  type: string | null | undefined;
-  features: GeoJsonFeature[] | null | undefined;
-};
+import type { GeoJsonFeatureCollection as GeoJsonFeatureCollectionWire } from "../../geojson/types.ts";
+import type { GeoJsonFeatureCollection } from "./types.ts";
 
 // The heavy fetch: full-resolution boundaries for every org unit at a level,
 // ~20 MB / up to ~43 s for a 200-district country. Callers pass the timeout,

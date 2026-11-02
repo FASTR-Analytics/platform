@@ -1,6 +1,6 @@
 import { getCountryLabel } from "../consts.ts";
 import type { RunDataset } from "../types/run_datasets.ts";
-import type { InstanceState } from "../types/instance_sse.ts";
+import type { InstanceGrounding } from "../types/instance_sse.ts";
 import type { InstanceCalendar } from "../types/instance.ts";
 import type { PeriodBounds } from "../types/presentation_objects.ts";
 import type { RunHmisIndicator } from "../types/run_manifest.ts";
@@ -75,7 +75,7 @@ const REFERENCE_DOCS_SECTION =
 // ── Instance grounding: country, terminology, data sources ──
 
 export function buildInstanceContextSections(
-  instance: InstanceState,
+  instance: InstanceGrounding,
 ): string[] {
   const sections: string[] = [];
   sections.push("# Instance Information");
@@ -167,7 +167,6 @@ export function buildInstanceContextSections(
         `- The HMIS facility registry uses levels down to admin_area_${hmisDepth}; the HFA registry down to admin_area_${hfaDepth}. Each registry's data only carries its own levels.`,
       );
     }
-    sections.push(...buildMapCoverageLines(instance.geojsonMaps));
   }
   sections.push("");
   const hasHmis = instance.datasetsWithData.includes("hmis");
@@ -199,7 +198,7 @@ export function buildInstanceContextSections(
 export function buildMapCoverageLines(maps: GeoJsonMapSummary[]): string[] {
   if (maps.length === 0) {
     return [
-      "- No boundary map files are uploaded, so no map figure can render: use tables.",
+      "- This results package has no boundary map files, so no map figure can render: use tables.",
     ];
   }
   const families: FacilityFamily[] = ["hmis", "hfa"];
@@ -239,6 +238,9 @@ export type PackageGrounding = {
   // time-indexed results). Omitted when the caller cannot know it: the SPA
   // holds no manifest client-side; /mcp reads it from the manifest.
   periodCoverage?: PeriodBounds | null;
+  // The boundary maps a figure on this package can draw: the package's own
+  // geojson stamp, or the instance's maps for a package without a capture.
+  mapLevels: GeoJsonMapSummary[];
 };
 
 export function buildPackageGroundingSections(
@@ -272,6 +274,10 @@ export function buildPackageGroundingSections(
       sections.push(`- ICEH survey data`);
     }
   }
+
+  sections.push("");
+  sections.push("**Boundary maps:**");
+  sections.push(...buildMapCoverageLines(grounding.mapLevels));
 
   if (grounding.hmisIndicators.length > 0) {
     sections.push("");
@@ -407,7 +413,9 @@ export function buildPackageBlock(inputs: PackageBlockInputs): string {
 
 // ── Data coverage: the instance's facility registries ──
 
-export function buildDataCoverageSections(instance: InstanceState): string[] {
+export function buildDataCoverageSections(
+  instance: InstanceGrounding,
+): string[] {
   const sections: string[] = [];
   if (instance.structure) {
     sections.push("");

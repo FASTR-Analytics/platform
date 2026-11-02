@@ -1,22 +1,22 @@
 // Pins HFA indicator code as the expression language minus what HFA cannot
 // use (calls, names the generator cannot bind, text outside a comparison),
-// the result type read off the root, the reserved ids, and the generator's
-// dependency analysis over the parsed code.
+// the rows a write refuses, the result type read off the root, the reserved
+// ids, and the generator's dependency analysis over the parsed code.
 //
 //   deno test -A server/tests/hfa_indicator_code_test.ts
 
 import { assertEquals } from "@std/assert";
 import {
+  createSnippetAnalyser,
   hfaCodeResultType,
+  type HfaCodeRow,
   type HfaIndicatorCode,
   hfaIndicatorCodeIdentifiers,
   isReservedHfaId,
   parseHfaIndicatorCode,
-} from "lib";
-import {
-  createSnippetAnalyser,
   snippetProblems,
-} from "../server_only_funcs/hfa_dependency_analyzer.ts";
+  unparseableHfaCode,
+} from "lib";
 
 function error(source: string) {
   const parsed = parseHfaIndicatorCode(source);
@@ -62,6 +62,36 @@ Deno.test("a syntax error keeps the parser's kind and position", () => {
   });
 });
 
+Deno.test("a write refuses every non-blank row that does not parse", () => {
+  const row = (
+    field: HfaCodeRow["field"],
+    code: string,
+  ) => ({
+    indicatorId: "ind001",
+    timePoint: "2024",
+    field,
+    code,
+  });
+  assertEquals(
+    unparseableHfaCode([
+      row("code", "a == 1"),
+      row("filterCode", "  "),
+      row("filterCode", "a = 1"),
+      row("variant:campaign", "abs(a) > 1"),
+    ]),
+    [
+      {
+        ...row("filterCode", "a = 1"),
+        error: { kind: "single_equals", at: 2, token: "=" },
+      },
+      {
+        ...row("variant:campaign", "abs(a) > 1"),
+        error: { kind: "call", name: "abs" },
+      },
+    ],
+  );
+});
+
 Deno.test("the result type is read off the root node", () => {
   const typeOf = (source: string) => {
     const parsed = parseHfaIndicatorCode(source);
@@ -98,11 +128,11 @@ Deno.test("the analyser splits variables by code and filter, and reports problem
     new Set(["ind001"]),
     new Set(["a", "b"]),
   );
-  const snippet = (rCode: string, rFilterCode?: string): HfaIndicatorCode => ({
+  const snippet = (code: string, filterCode?: string): HfaIndicatorCode => ({
     indicatorId: "ind002",
     timePoint: "2024",
-    rCode,
-    rFilterCode,
+    code,
+    filterCode,
   });
   const ok = analyse(snippet("a == 1 AND ind001 == 1", "b > 0 AND z == 1"));
   assertEquals(ok.ok && ok.deps, {

@@ -17,7 +17,6 @@ import {
 } from "~/components/products/copilot/mod.ts";
 import {
   buildHfaIndicatorTools,
-  canWriteHfaIndicators,
   getClientToolsForHfaIndicatorEditor,
 } from "~/components/data/hfa/indicators/mod.ts";
 import { instanceState } from "~/state/instance/t1_store";
@@ -62,8 +61,8 @@ const buildPackageTools: PackageToolsBuilder = (
 // internals by its run id), the Products page's list, the HFA reads, writes
 // and editor tools, the reference tools and panther's ask_user_questions.
 // What a user may not do refuses at the call through the guard
-// (copilot/tool_guard.ts), which reads the permissions, the level on the
-// view's product and the HFA manager's write gate live.
+// (copilot/tool_guard.ts), which reads the permissions and the level on the
+// view's product live.
 export function buildCopilotTools(): AnyAITool[] {
   return guardCopilotTools(
     [
@@ -76,6 +75,5 @@ export function buildCopilotTools(): AnyAITool[] {
       }),
       createAskUserQuestionsTool(),
     ],
-    { canWriteHfaIndicators },
   );
 }

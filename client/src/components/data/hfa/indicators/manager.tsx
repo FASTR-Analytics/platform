@@ -6,6 +6,7 @@ import {
   type HfaIndicatorCode,
   hfaIndicatorCodeIdentifiers,
   type HfaIndicatorServiceCategory,
+  hfaIndicatorsStatus,
   type HfaIndicatorSubCategory,
   type HfaIndicatorVariantCode,
   type HfaIndicatorVariantGroup,
@@ -35,7 +36,7 @@ import {
   TableColumn,
   TabsNavigation,
 } from "panther";
-import { createEffect, createMemo, createSignal, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import { getHfaDictionaryFromCacheOrFetch } from "~/state/instance/t2_datasets";
@@ -51,20 +52,15 @@ import { HfaServiceCategoriesManager } from "./service_categories_manager";
 import { HfaVariantGroupsManager } from "./variant_groups_manager";
 import { buildHfaWorkbookBlob } from "./xlsx_workbook";
 import {
-  checkIndicatorCodeResultType,
-  hasIndicatorCodeErrors,
-  validateIndicatorCode,
-} from "./_shared/mod.ts";
-import {
   HfaUnusedVariablesModal,
   type UnusedVariablesByTimePoint,
 } from "./unused_variables_modal";
 import { getHfaIndicatorsGuidance } from "./ai/mod.ts";
-import { canWriteHfaIndicators } from "./write_gate.ts";
 import {
   copilotViewController,
   holdCopilotView,
 } from "~/components/instance/copilot/mod.ts";
+import { can } from "~/state/instance/permissions";
 
 type Props = {
   close: (v: undefined) => void;
@@ -304,184 +300,47 @@ export function HfaIndicatorsManager(p: Props) {
     const map = new Map<string, IndicatorCodeStats>();
     const dictSt = dictionary();
     const codeSt = allCode();
+    const variantCodeSt = allVariantCode();
+    const itemsSt = variantItems();
     const indSt = indicators();
     if (
       dictSt.status !== "ready" ||
       codeSt.status !== "ready" ||
+      variantCodeSt.status !== "ready" ||
+      itemsSt.status !== "ready" ||
       indSt.status !== "ready"
     ) {
       return map;
     }
-    const dict = dictSt.data;
-    const total = dict.timePoints.length;
-
-    const codeByIndicatorId = new Map<string, HfaIndicatorCode[]>();
+    const status = hfaIndicatorsStatus({
+      indicators: indSt.data,
+      code: codeSt.data,
+      variantCode: variantCodeSt.data,
+      variantItems: itemsSt.data,
+      dictionary: dictSt.data,
+    });
+    const roundsWithCode = new Map<string, number>();
     for (const c of codeSt.data) {
-      const arr = codeByIndicatorId.get(c.indicatorId) ?? [];
-      arr.push(c);
-      codeByIndicatorId.set(c.indicatorId, arr);
-    }
-
-    const allIndicatorIds = new Set(indSt.data.map((i) => i.indicatorId));
-
-    for (const ind of indSt.data) {
-      const indCode = codeByIndicatorId.get(ind.indicatorId) ?? [];
-      const otherIndicatorIds = new Set(allIndicatorIds);
-      otherIndicatorIds.delete(ind.indicatorId);
-
-      const withCodeEntries = indCode.filter((c) => c.rCode.trim());
-      let ready = 0;
-      let warning = 0;
-      let error = 0;
-      for (const c of withCodeEntries) {
-        const tp = dict.timePoints.find((t) => t.timePoint === c.timePoint);
-        const availableVariableIds = tp
-          ? new Set(tp.variables.map((v) => v.variableId))
-          : new Set<string>();
-        let hasErr = false;
-        const rCodeResult = validateIndicatorCode(
-          c.rCode,
-          availableVariableIds,
-          otherIndicatorIds,
-        );
-        if (hasIndicatorCodeErrors(rCodeResult)) {
-          hasErr = true;
-        }
-        if (c.rFilterCode?.trim()) {
-          const rFilterResult = validateIndicatorCode(
-            c.rFilterCode,
-            availableVariableIds,
-            otherIndicatorIds,
-          );
-          if (hasIndicatorCodeErrors(rFilterResult)) {
-            hasErr = true;
-          }
-        }
-        if (hasErr) error++;
-        else if (checkIndicatorCodeResultType(c.rCode, ind.type).length > 0) {
-          warning++;
-        } else ready++;
-      }
-
-      const nonEmpty = indCode.filter(
-        (c) => c.rCode.trim() || c.rFilterCode?.trim(),
+      if (c.code.trim() === "") continue;
+      roundsWithCode.set(
+        c.indicatorId,
+        (roundsWithCode.get(c.indicatorId) ?? 0) + 1,
       );
-      let consistent = true;
-      if (nonEmpty.length > 1) {
-        const first = nonEmpty[0];
-        consistent = nonEmpty.every(
-          (c) =>
-            c.rCode.trim() === first.rCode.trim() &&
-            (c.rFilterCode?.trim() ?? "") === (first.rFilterCode?.trim() ?? ""),
-        );
-      }
-
-      map.set(ind.indicatorId, {
-        withCode: withCodeEntries.length,
-        total,
-        ready,
-        warning,
-        error,
-        consistent,
+    }
+    for (const [indicatorId, s] of status) {
+      const count = (kind: "ready" | "warning" | "error") =>
+        s.rounds.filter((r) => r.status === kind).length;
+      map.set(indicatorId, {
+        withCode: roundsWithCode.get(indicatorId) ?? 0,
+        total: s.rounds.length,
+        ready: count("ready"),
+        warning: count("warning"),
+        error: count("error"),
+        consistent: s.consistent,
       });
     }
     return map;
   });
-
-  const [revalidating, setRevalidating] = createSignal(false);
-
-  async function handleRevalidateAll() {
-    const dictState = dictionary();
-    if (dictState.status !== "ready") return;
-    const dict = dictState.data;
-
-    setRevalidating(true);
-
-    const codeRes = await serverActions.getAllHfaIndicatorCode({});
-    if (!codeRes.success) {
-      setRevalidating(false);
-      return;
-    }
-
-    const st = indicators();
-    if (st.status !== "ready") {
-      setRevalidating(false);
-      return;
-    }
-
-    // Group code by indicator id
-    const codeByIndicatorId = new Map<string, HfaIndicatorCode[]>();
-    for (const c of codeRes.data) {
-      const arr = codeByIndicatorId.get(c.indicatorId) ?? [];
-      arr.push(c);
-      codeByIndicatorId.set(c.indicatorId, arr);
-    }
-
-    const allIndicatorIds = new Set(st.data.map((i) => i.indicatorId));
-
-    // Compute validation for each indicator
-    const updates: {
-      indicatorId: string;
-      hasSyntaxError: boolean;
-      codeConsistent: boolean;
-    }[] = [];
-    for (const ind of st.data) {
-      const indCode = codeByIndicatorId.get(ind.indicatorId) ?? [];
-      const otherIndicatorIds = new Set(allIndicatorIds);
-      otherIndicatorIds.delete(ind.indicatorId);
-
-      let hasSyntaxError = false;
-      for (const c of indCode) {
-        const tp = dict.timePoints.find((t) => t.timePoint === c.timePoint);
-        const availableVariableIds = tp
-          ? new Set(tp.variables.map((v) => v.variableId))
-          : new Set<string>();
-        if (c.rCode.trim()) {
-          const result = validateIndicatorCode(
-            c.rCode,
-            availableVariableIds,
-            otherIndicatorIds,
-          );
-          if (hasIndicatorCodeErrors(result)) {
-            hasSyntaxError = true;
-          }
-        }
-        if (c.rFilterCode?.trim()) {
-          const result = validateIndicatorCode(
-            c.rFilterCode,
-            availableVariableIds,
-            otherIndicatorIds,
-          );
-          if (hasIndicatorCodeErrors(result)) {
-            hasSyntaxError = true;
-          }
-        }
-      }
-
-      const nonEmpty = indCode.filter(
-        (c) => c.rCode.trim() || c.rFilterCode?.trim(),
-      );
-      let codeConsistent = true;
-      if (nonEmpty.length > 1) {
-        const first = nonEmpty[0];
-        codeConsistent = nonEmpty.every(
-          (c) =>
-            c.rCode.trim() === first.rCode.trim() &&
-            (c.rFilterCode?.trim() ?? "") === (first.rFilterCode?.trim() ?? ""),
-        );
-      }
-
-      updates.push({
-        indicatorId: ind.indicatorId,
-        hasSyntaxError,
-        codeConsistent,
-      });
-    }
-
-    // Send bulk update - SSE will trigger refetch via createEffect
-    await serverActions.bulkUpdateHfaIndicatorValidation({ updates });
-    setRevalidating(false);
-  }
 
   async function openCreateIndicator(initialDefinition?: string) {
     const st = indicators();
@@ -549,13 +408,17 @@ export function HfaIndicatorsManager(p: Props) {
     const svcCatSt = serviceCategories();
     const vgSt = variantGroups();
     const viSt = variantItems();
+    const codeSt = allCode();
+    const variantCodeSt = allVariantCode();
     if (
       dictState.status !== "ready" ||
       catSt.status !== "ready" ||
       subCatSt.status !== "ready" ||
       svcCatSt.status !== "ready" ||
       vgSt.status !== "ready" ||
-      viSt.status !== "ready"
+      viSt.status !== "ready" ||
+      codeSt.status !== "ready" ||
+      variantCodeSt.status !== "ready"
     ) {
       return;
     }
@@ -566,6 +429,8 @@ export function HfaIndicatorsManager(p: Props) {
         indicator,
         dictionary: dict,
         indicators: allIndicators,
+        allCode: codeSt.data,
+        allVariantCode: variantCodeSt.data,
         categories: catSt.data,
         subCategories: subCatSt.data,
         serviceCategories: svcCatSt.data,
@@ -591,8 +456,8 @@ export function HfaIndicatorsManager(p: Props) {
     for (const c of codeSt.data) {
       if (deleted.has(c.indicatorId)) continue;
       const identifiers = [
-        ...hfaIndicatorCodeIdentifiers(c.rCode),
-        ...(c.rFilterCode ? hfaIndicatorCodeIdentifiers(c.rFilterCode) : []),
+        ...hfaIndicatorCodeIdentifiers(c.code),
+        ...(c.filterCode ? hfaIndicatorCodeIdentifiers(c.filterCode) : []),
       ];
       if (identifiers.some((id) => deleted.has(id))) {
         referencing.add(c.indicatorId);
@@ -600,7 +465,7 @@ export function HfaIndicatorsManager(p: Props) {
     }
     for (const c of variantCodeSt.data) {
       if (deleted.has(c.indicatorId)) continue;
-      if (hfaIndicatorCodeIdentifiers(c.rCode).some((id) => deleted.has(id))) {
+      if (hfaIndicatorCodeIdentifiers(c.code).some((id) => deleted.has(id))) {
         referencing.add(c.indicatorId);
       }
     }
@@ -751,8 +616,8 @@ export function HfaIndicatorsManager(p: Props) {
       const used = usedByTimePoint.get(c.timePoint);
       if (!available || !used) continue;
       const identifiers = [
-        ...hfaIndicatorCodeIdentifiers(c.rCode),
-        ...(c.rFilterCode ? hfaIndicatorCodeIdentifiers(c.rFilterCode) : []),
+        ...hfaIndicatorCodeIdentifiers(c.code),
+        ...(c.filterCode ? hfaIndicatorCodeIdentifiers(c.filterCode) : []),
       ];
       for (const id of identifiers) {
         if (available.has(id)) used.add(id);
@@ -764,7 +629,7 @@ export function HfaIndicatorsManager(p: Props) {
       const available = availableByTimePoint.get(c.timePoint);
       const used = usedByTimePoint.get(c.timePoint);
       if (!available || !used) continue;
-      for (const id of hfaIndicatorCodeIdentifiers(c.rCode)) {
+      for (const id of hfaIndicatorCodeIdentifiers(c.code)) {
         if (available.has(id)) used.add(id);
       }
     }
@@ -982,50 +847,54 @@ export function HfaIndicatorsManager(p: Props) {
       render: (ind) => {
         const stats = statsByIndicatorId().get(ind.indicatorId);
         if (!stats) return "…";
-        if (stats.withCode === 0) {
+        const parts = [
+          {
+            count: stats.ready,
+            class: "text-success",
+            text: t3({
+              en: `${stats.ready} ready`,
+              fr: `${stats.ready} prêt`,
+              pt: `${stats.ready} pronto`,
+            }),
+          },
+          {
+            count: stats.warning,
+            class: "text-warning font-700",
+            text: t3({
+              en: `${stats.warning} type mismatch`,
+              fr: `${stats.warning} type incohérent`,
+              pt: `${stats.warning} tipo incoerente`,
+            }),
+          },
+          {
+            count: stats.error,
+            class: "text-danger font-700",
+            text: t3({
+              en: `${stats.error} error`,
+              fr: `${stats.error} erreur`,
+              pt: `${stats.error} erro`,
+            }),
+          },
+        ].filter((part) => part.count > 0);
+        if (parts.length === 0) {
           return <span class="text-base-content-muted">—</span>;
         }
         return (
           <span>
-            <Show when={stats.ready > 0}>
-              <span class="text-success">
-                {t3({
-                  en: `${stats.ready} ready`,
-                  fr: `${stats.ready} prêt`,
-                  pt: `${stats.ready} pronto`,
-                })}
-              </span>
-            </Show>
-            <Show when={stats.warning > 0}>
-              <Show when={stats.ready > 0}>
-                <span>,</span>
-              </Show>
-              <span class="text-warning font-700">
-                {t3({
-                  en: `${stats.warning} type mismatch`,
-                  fr: `${stats.warning} type incohérent`,
-                  pt: `${stats.warning} tipo incoerente`,
-                })}
-              </span>
-            </Show>
-            <Show when={stats.error > 0}>
-              <Show when={stats.ready > 0 || stats.warning > 0}>
-                <span>,</span>
-              </Show>
-              <span class="text-danger font-700">
-                {t3({
-                  en: `${stats.error} error`,
-                  fr: `${stats.error} erreur`,
-                  pt: `${stats.error} erro`,
-                })}
-              </span>
-            </Show>
+            <For each={parts}>
+              {(part, i) => (
+                <>
+                  <Show when={i() > 0}>{", "}</Show>
+                  <span class={part.class}>{part.text}</span>
+                </>
+              )}
+            </For>
           </span>
         );
       },
     },
     {
-      key: "codeConsistent",
+      key: "consistent",
       header: t3({ en: "Consistent", fr: "Cohérent", pt: "Consistente" }),
       sortable: true,
       sortValue: (ind) => {
@@ -1045,16 +914,6 @@ export function HfaIndicatorsManager(p: Props) {
   ];
 
   const otherActions = (): MenuItem[] => [
-    {
-      label: t3({
-        en: "Revalidate all",
-        fr: "Revalider tout",
-        pt: "Revalidar tudo",
-      }),
-      icon: "refresh",
-      disabled: !hfaDataAvailable() || revalidating(),
-      onClick: handleRevalidateAll,
-    },
     {
       label: t3({
         en: "Check unused variables",
@@ -1089,7 +948,7 @@ export function HfaIndicatorsManager(p: Props) {
   ];
 
   const bulkActions = createMemo<BulkAction<HfaIndicator>[]>(() =>
-    canWriteHfaIndicators()
+    can("can_configure_data")
       ? [
         {
           label: t3(TC.delete),
@@ -1142,7 +1001,7 @@ export function HfaIndicatorsManager(p: Props) {
                       columns={columns}
                       keyField="indicatorId"
                       config={indicatorsTable}
-                      onRowClick={canWriteHfaIndicators()
+                      onRowClick={can("can_configure_data")
                         ? (ind) => handleOpenCodeEditor(ind, keyedIndicators)
                         : undefined}
                       noRowsMessage={t3({
@@ -1173,7 +1032,7 @@ export function HfaIndicatorsManager(p: Props) {
                           }),
                         },
                         children: (
-                          <Show when={canWriteHfaIndicators()}>
+                          <Show when={can("can_configure_data")}>
                             <div
                               title={hfaDataAvailable() ? "" : noHfaDataMsg()}
                             >

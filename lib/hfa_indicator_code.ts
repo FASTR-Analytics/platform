@@ -15,6 +15,16 @@ import {
   parseIndicatorExpression,
 } from "./indicator_expression/mod.ts";
 import type { TranslatableString } from "./translate/types.ts";
+import {
+  createSnippetAnalyser,
+  findHfaDependencyCycles,
+} from "./hfa_indicator_dependencies.ts";
+import type {
+  HfaDictionaryForValidation,
+  HfaIndicator,
+  HfaIndicatorCode,
+  HfaIndicatorVariantCode,
+} from "./types/mod.ts";
 
 // Shape rule for an *authored HFA indicator* id (`HfaIndicator.indicatorId`):
 // starts with a letter, then letters/digits/underscores, max 64 chars. This is
@@ -215,6 +225,35 @@ function findRefusedNode(
   }
 }
 
+// One stored snippet, as a write route would store it: a round's main code
+// or filter, or a round's code for one variant item.
+export type HfaCodeRow = {
+  indicatorId: string;
+  timePoint: string;
+  field: "code" | "filterCode" | `variant:${string}`;
+  code: string;
+};
+
+export function hfaCodeRowLabel(field: HfaCodeRow["field"]): string {
+  return field === "code"
+    ? "code"
+    : field === "filterCode"
+    ? "filter code"
+    : `variant ${field.slice("variant:".length)}`;
+}
+
+// Every row whose code is not blank and does not parse, with the parse error:
+// what a write boundary refuses, since such a snippet can never run.
+export function unparseableHfaCode(
+  rows: HfaCodeRow[],
+): (HfaCodeRow & { error: HfaCodeError })[] {
+  return rows.flatMap((row) => {
+    if (!row.code.trim()) return [];
+    const parsed = parseHfaIndicatorCode(row.code);
+    return parsed.ok ? [] : [{ ...row, error: parsed.error }];
+  });
+}
+
 // The identifiers the code names, for guards that only need its references
 // (unused variables, deletion warnings). Code that does not parse names
 // nothing here; the editor reports it as an error.
@@ -352,4 +391,355 @@ export function describeHfaCodeError(error: HfaCodeError): TranslatableString {
         pt: `'${token}' inesperado no carácter ${position}`,
       };
   }
+}
+
+// The status core: what is wrong with an indicator's code, round by round.
+// Every surface that shows status (the manager, the editor, the chat's tools)
+// computes it here; the client translates the texts at render.
+
+export type HfaCodeIssueKind =
+  | "syntax"
+  | "unknown_variable"
+  | "filter_without_code"
+  | "variant_without_code"
+  | "cycle"
+  | "result_type";
+
+export type HfaCodeIssue = { kind: HfaCodeIssueKind; text: TranslatableString };
+
+// A result-type mismatch is the one warning; every other kind is an error.
+export function isHfaCodeError(kind: HfaCodeIssueKind): boolean {
+  return kind !== "result_type";
+}
+
+export function validateHfaIndicatorCode(
+  code: string,
+  availableVariableIds: ReadonlySet<string>,
+  otherIndicatorIds: ReadonlySet<string>,
+): { issues: HfaCodeIssue[]; referencedIds: string[] } {
+  return validateAgainst(
+    code,
+    availableVariableIds,
+    otherIndicatorIds,
+    undefined,
+    parseHfaIndicatorCode,
+  );
+}
+
+// One parse per distinct source: rounds usually share their code, the issues,
+// the result type and the cycle graph read the same parse, and the editor
+// keeps one cache across keystrokes.
+export function createHfaCodeParseCache(): (source: string) => HfaCodeParse {
+  const cache = new Map<string, HfaCodeParse>();
+  return (source) => {
+    const known = cache.get(source);
+    if (known !== undefined) return known;
+    const parsed = parseHfaIndicatorCode(source);
+    cache.set(source, parsed);
+    return parsed;
+  };
+}
+
+// `excludedId` is an indicator id that `indicatorIds` holds but the code may
+// not name: an indicator's own id in its main code. Excluding it here saves
+// building a copy of the id set per indicator.
+function validateAgainst(
+  code: string,
+  variableIds: ReadonlySet<string>,
+  indicatorIds: ReadonlySet<string>,
+  excludedId: string | undefined,
+  parse: (source: string) => HfaCodeParse,
+): { issues: HfaCodeIssue[]; referencedIds: string[] } {
+  if (!code.trim()) return { issues: [], referencedIds: [] };
+  const parsed = parse(code.trim());
+  if (!parsed.ok) {
+    return {
+      issues: [{ kind: "syntax", text: describeHfaCodeError(parsed.error) }],
+      referencedIds: [],
+    };
+  }
+  const isKnown = (id: string) =>
+    variableIds.has(id) || (id !== excludedId && indicatorIds.has(id));
+  const issues: HfaCodeIssue[] = [];
+  const referencedIds: string[] = [];
+  for (const id of parsed.identifiers) {
+    if (isKnown(id)) {
+      referencedIds.push(id);
+      continue;
+    }
+    const lower = id.toLowerCase();
+    const sameCase = [...variableIds, ...indicatorIds].find((k) =>
+      k !== excludedId && k.toLowerCase() === lower
+    );
+    issues.push({
+      kind: "unknown_variable",
+      text: unknownIdText(id, sameCase),
+    });
+  }
+  return { issues, referencedIds };
+}
+
+function unknownIdText(
+  id: string,
+  sameCase: string | undefined,
+): TranslatableString {
+  return sameCase
+    ? {
+      en:
+        `Variable '${id}' not found in this time point. Did you mean '${sameCase}'?`,
+      fr:
+        `Variable « ${id} » introuvable dans ce point temporel. Vouliez-vous dire « ${sameCase} » ?`,
+      pt:
+        `Variável '${id}' não encontrada neste ponto temporal. Queria dizer '${sameCase}'?`,
+    }
+    : {
+      en: `Variable '${id}' not found in this time point`,
+      fr: `Variable « ${id} » introuvable dans ce point temporel`,
+      pt: `Variável '${id}' não encontrada neste ponto temporal`,
+    };
+}
+
+// Whether the code's result fits the indicator's `type`. Code that does not
+// parse has no type; its syntax issue is reported instead.
+export function checkHfaCodeResultType(
+  code: string,
+  type: "binary" | "numeric",
+): TranslatableString | undefined {
+  return resultTypeText(code, type, parseHfaIndicatorCode);
+}
+
+function resultTypeText(
+  code: string,
+  type: "binary" | "numeric",
+  parse: (source: string) => HfaCodeParse,
+): TranslatableString | undefined {
+  if (!code.trim()) return undefined;
+  const parsed = parse(code.trim());
+  if (!parsed.ok) return undefined;
+  const resultType = hfaCodeResultType(parsed.node);
+  if (type === "binary" && resultType === "numeric") {
+    return {
+      en:
+        "The indicator is yes/no (binary) but this code gives a number. Write a condition, such as var == 1",
+      fr:
+        "L'indicateur est oui/non (binaire) mais ce code donne un nombre. Écrivez une condition, comme var == 1",
+      pt:
+        "O indicador é sim/não (binário) mas este código dá um número. Escreva uma condição, como var == 1",
+    };
+  }
+  if (type === "numeric" && resultType === "boolean") {
+    return {
+      en:
+        "The indicator is a number (numeric) but this code gives yes/no. For a share of facilities, make the indicator binary",
+      fr:
+        "L'indicateur est un nombre (numérique) mais ce code donne oui/non. Pour une part des établissements, rendez l'indicateur binaire",
+      pt:
+        "O indicador é um número (numérico) mas este código dá sim/não. Para uma proporção de estabelecimentos, torne o indicador binário",
+    };
+  }
+  return undefined;
+}
+
+export type HfaRoundStatusKind = "none" | "error" | "warning" | "ready";
+
+export type HfaFieldIssue = HfaCodeIssue & {
+  field: "code" | "filterCode" | "variantCode";
+  itemId?: string;
+};
+
+const HFA_FIELD_LABELS: Record<HfaFieldIssue["field"], string> = {
+  code: "code",
+  filterCode: "filter code",
+  variantCode: "variant code",
+};
+
+export function describeHfaFieldIssue(i: HfaFieldIssue): string {
+  return `${
+    i.itemId === undefined ? HFA_FIELD_LABELS[i.field] : `variant ${i.itemId}`
+  } (${i.kind}): ${i.text.en}`;
+}
+
+export type HfaRoundStatus = {
+  timePoint: string;
+  status: HfaRoundStatusKind;
+  issues: HfaFieldIssue[];
+};
+
+export type HfaIndicatorStatus = {
+  rounds: HfaRoundStatus[];
+  consistent: boolean;
+};
+
+// Per indicator, per round of the dictionary. Main and filter code are read
+// against the round's variables and the other indicators; variant code may
+// also name its own indicator. Variant rows of items outside the indicator's
+// group are not its code and are ignored. `only` limits the result to some
+// indicators, as the editor needs on every keystroke; cycles are still read
+// off the whole graph.
+export function hfaIndicatorsStatus(input: {
+  indicators: HfaIndicator[];
+  code: HfaIndicatorCode[];
+  variantCode: HfaIndicatorVariantCode[];
+  variantItems: { id: string; groupId: string }[];
+  dictionary: HfaDictionaryForValidation;
+  only?: ReadonlySet<string>;
+  parse?: (source: string) => HfaCodeParse;
+}): Map<string, HfaIndicatorStatus> {
+  const parse = input.parse ?? createHfaCodeParseCache();
+  const allIds = new Set(input.indicators.map((i) => i.indicatorId));
+  const codeByIndicator = groupBy(input.code, (c) => c.indicatorId);
+  const variantByIndicator = groupBy(input.variantCode, (c) => c.indicatorId);
+  const groupByItem = new Map(input.variantItems.map((i) => [i.id, i.groupId]));
+  const variablesByRound = new Map(
+    input.dictionary.timePoints.map((tp) => [
+      tp.timePoint,
+      new Set(tp.variables.map((v) => v.variableId)),
+    ]),
+  );
+  const cycleByIndicator = new Map<string, TranslatableString>();
+  for (
+    const cycle of findHfaDependencyCycles(
+      input.indicators,
+      codeByIndicator,
+      createSnippetAnalyser(allIds, new Set(), parse),
+    )
+  ) {
+    const text = cycleText(cycle);
+    for (const id of cycle) cycleByIndicator.set(id, text);
+  }
+
+  const result = new Map<string, HfaIndicatorStatus>();
+  for (const ind of input.indicators) {
+    const id = ind.indicatorId;
+    if (input.only !== undefined && !input.only.has(id)) continue;
+    const code = codeByIndicator.get(id) ?? [];
+    const variantCode = (variantByIndicator.get(id) ?? []).filter((c) =>
+      ind.variantGroupId !== null &&
+      groupByItem.get(c.itemId) === ind.variantGroupId
+    );
+    const cycle = cycleByIndicator.get(id);
+    const rounds = input.dictionary.timePoints.map((tp): HfaRoundStatus => {
+      const variables = variablesByRound.get(tp.timePoint) ?? new Set();
+      const main = code.find((c) => c.timePoint === tp.timePoint);
+      const mainCode = main?.code ?? "";
+      const filterCode = main?.filterCode ?? "";
+      const hasCode = mainCode.trim() !== "";
+      const issues: HfaFieldIssue[] = [];
+      const add = (
+        field: HfaFieldIssue["field"],
+        found: HfaCodeIssue[],
+        itemId?: string,
+      ) => {
+        for (const issue of found) {
+          issues.push(
+            itemId === undefined
+              ? { ...issue, field }
+              : { ...issue, field, itemId },
+          );
+        }
+      };
+      add(
+        "code",
+        validateAgainst(mainCode, variables, allIds, id, parse).issues,
+      );
+      add(
+        "filterCode",
+        validateAgainst(filterCode, variables, allIds, id, parse).issues,
+      );
+      if (!hasCode && filterCode.trim() !== "") {
+        add("filterCode", [{
+          kind: "filter_without_code",
+          text: FILTER_WITHOUT_CODE,
+        }]);
+      }
+      if (hasCode && cycle !== undefined) {
+        add("code", [{ kind: "cycle", text: cycle }]);
+      }
+      const resultType = resultTypeText(mainCode, ind.type, parse);
+      if (resultType !== undefined) {
+        add("code", [{ kind: "result_type", text: resultType }]);
+      }
+      for (const v of variantCode) {
+        if (v.timePoint !== tp.timePoint || !v.code.trim()) continue;
+        add(
+          "variantCode",
+          validateAgainst(v.code, variables, allIds, undefined, parse).issues,
+          v.itemId,
+        );
+        if (!hasCode) {
+          add("variantCode", [{
+            kind: "variant_without_code",
+            text: VARIANT_WITHOUT_CODE,
+          }], v.itemId);
+        }
+      }
+      return {
+        timePoint: tp.timePoint,
+        status: issues.some((i) => isHfaCodeError(i.kind))
+          ? "error"
+          : issues.length > 0
+          ? "warning"
+          : hasCode
+          ? "ready"
+          : "none",
+        issues,
+      };
+    });
+    result.set(id, { rounds, consistent: isHfaCodeConsistent(code) });
+  }
+  return result;
+}
+
+// The non-empty rounds have identical trimmed main and filter code. Variant
+// code is not compared.
+export function isHfaCodeConsistent(
+  code: { code: string; filterCode?: string | undefined }[],
+): boolean {
+  const key = (c: { code: string; filterCode?: string | undefined }) =>
+    `${c.code.trim()}\u0000${c.filterCode?.trim() ?? ""}`;
+  const nonEmpty = code.filter((c) => key(c) !== "\u0000");
+  return nonEmpty.every((c) => key(c) === key(nonEmpty[0]));
+}
+
+const FILTER_WITHOUT_CODE: TranslatableString = {
+  en: "Filter code requires indicator code for this time point",
+  fr: "Le code filtre nécessite un code d'indicateur pour ce point temporel",
+  pt: "O código de filtro requer código do indicador para este ponto temporal",
+};
+
+const VARIANT_WITHOUT_CODE: TranslatableString = {
+  en: "Variant code requires indicator code for this time point",
+  fr:
+    "Le code de variante nécessite un code d'indicateur pour ce point temporel",
+  pt:
+    "O código de variante requer código do indicador para este ponto temporal",
+};
+
+function cycleText(cycle: string[]): TranslatableString {
+  const members = cycle.join(", ");
+  return cycle.length === 1
+    ? {
+      en: "The indicator names itself: a run refuses a cycle",
+      fr: "L'indicateur se nomme lui-même : une exécution refuse un cycle",
+      pt: "O indicador nomeia-se a si próprio: uma execução recusa um ciclo",
+    }
+    : {
+      en:
+        `The indicators ${members} name each other in a cycle: a run refuses a cycle`,
+      fr:
+        `Les indicateurs ${members} se nomment en cycle : une exécution refuse un cycle`,
+      pt:
+        `Os indicadores ${members} nomeiam-se em ciclo: uma execução recusa um ciclo`,
+    };
+}
+
+function groupBy<T>(items: T[], key: (item: T) => string): Map<string, T[]> {
+  const out = new Map<string, T[]>();
+  for (const item of items) {
+    const k = key(item);
+    const list = out.get(k);
+    if (list === undefined) out.set(k, [item]);
+    else list.push(item);
+  }
+  return out;
 }

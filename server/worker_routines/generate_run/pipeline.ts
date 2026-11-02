@@ -179,6 +179,7 @@ export async function runGenerationPipeline(
       datasets: prepared.datasets,
       facilitiesTables: prepared.facilitiesTables,
       population: prepared.population,
+      geojsonMaps: prepared.geojsonMaps,
       extraInputFiles: prepared.extraInputFiles,
     },
     pushStage,

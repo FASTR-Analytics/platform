@@ -1,4 +1,5 @@
 import { join } from "@std/path";
+import type { FacilityFamily } from "lib";
 import { _RUNS_DIR_PATH } from "../exposed_env_vars.ts";
 
 // Immutable run-directory layout: manifest.json + inputs/ + outputs/{moduleId}/
@@ -31,6 +32,13 @@ export function runManifestPath(runDir: string): string {
 
 export function runInputFilePath(runDir: string, fileName: string): string {
   return join(runDir, "inputs", fileName);
+}
+
+export function runGeoJsonInputFileName(
+  family: FacilityFamily,
+  level: number,
+): string {
+  return `geojson/${family}_level_${level}.geojson.gz`;
 }
 
 export function runResultsObjectParquetPath(

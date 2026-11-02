@@ -8,15 +8,15 @@ import {
 import { createEffect, Show } from "solid-js";
 import { createStore, reconcile } from "solid-js/store";
 import { serverActions } from "~/server_actions";
-import { instanceState } from "~/state/instance/t1_store";
 import { EditHfaIndicatorServiceCategory } from "./edit_service_category";
+import { can } from "~/state/instance/permissions";
 
 type Props = {
   serviceCategories: HfaIndicatorServiceCategory[];
 };
 
 export function HfaServiceCategoriesManager(p: Props) {
-  const isAdmin = () => instanceState.currentUserIsGlobalAdmin;
+  const canConfigure = () => can("can_configure_data");
   const [items, setItems] = createStore<HfaIndicatorServiceCategory[]>([
     ...p.serviceCategories,
   ]);
@@ -91,7 +91,7 @@ export function HfaServiceCategoriesManager(p: Props) {
           })} (
           {items.length})
         </div>
-        <Show when={isAdmin()}>
+        <Show when={canConfigure()}>
           <Button onClick={handleCreate} iconName="plus" intent="primary">
             {t3({ en: "Add", fr: "Ajouter", pt: "Adicionar" })}
           </Button>
@@ -111,7 +111,7 @@ export function HfaServiceCategoriesManager(p: Props) {
           }
         >
           <Show
-            when={isAdmin()}
+            when={canConfigure()}
             fallback={
               <div class="ui-spy-sm">
                 {items.map((sc) => (

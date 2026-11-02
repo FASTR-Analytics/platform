@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import type { Sql } from "postgres";
-import { requireGlobalPermission } from "../../middleware/mod.ts";
+import { log } from "../../middleware/mod.ts";
 import { defineRoute } from "../route-helpers.ts";
 import {
   getInstanceDatasetsSummary,
@@ -17,7 +17,7 @@ export const routesHfaTimePoints = new Hono();
 defineRoute(
   routesHfaTimePoints,
   "createHfaTimePoint",
-  requireGlobalPermission("can_configure_data"),
+  log("createHfaTimePoint"),
   async (c, { body }) => {
     const mainDb = c.var.mainDb;
     const res = await tryCatchDatabaseAsync(async () => {
@@ -47,8 +47,8 @@ defineRoute(
         // Carry indicator and variant code forward from the latest existing
         // time point, so a new round starts from the previous round's scripts.
         await sql`
-          INSERT INTO hfa_indicator_code (indicator_id, time_point, r_code, r_filter_code)
-          SELECT indicator_id, ${label}, r_code, r_filter_code
+          INSERT INTO hfa_indicator_code (indicator_id, time_point, code, filter_code)
+          SELECT indicator_id, ${label}, code, filter_code
           FROM hfa_indicator_code
           WHERE time_point = (
             SELECT tp.label FROM hfa_time_points tp
@@ -59,8 +59,8 @@ defineRoute(
           ON CONFLICT DO NOTHING
         `;
         await sql`
-          INSERT INTO hfa_indicator_variant_code (indicator_id, time_point, item_id, r_code)
-          SELECT indicator_id, ${label}, item_id, r_code
+          INSERT INTO hfa_indicator_variant_code (indicator_id, time_point, item_id, code)
+          SELECT indicator_id, ${label}, item_id, code
           FROM hfa_indicator_variant_code
           WHERE time_point = (
             SELECT tp.label FROM hfa_time_points tp
@@ -83,7 +83,7 @@ defineRoute(
 defineRoute(
   routesHfaTimePoints,
   "updateHfaTimePoint",
-  requireGlobalPermission("can_configure_data"),
+  log("updateHfaTimePoint"),
   async (c, { body }) => {
     const mainDb = c.var.mainDb;
     const newLabel = body.newLabel;
@@ -143,7 +143,7 @@ defineRoute(
 defineRoute(
   routesHfaTimePoints,
   "reorderHfaTimePoints",
-  requireGlobalPermission("can_configure_data"),
+  log("reorderHfaTimePoints"),
   async (c, { body }) => {
     const mainDb = c.var.mainDb;
     const res = await tryCatchDatabaseAsync(async () => {
@@ -168,7 +168,7 @@ defineRoute(
 defineRoute(
   routesHfaTimePoints,
   "deleteHfaTimePoint",
-  requireGlobalPermission("can_configure_data"),
+  log("deleteHfaTimePoint"),
   async (c, { body }) => {
     const mainDb = c.var.mainDb;
     const res = await tryCatchDatabaseAsync(async () => {

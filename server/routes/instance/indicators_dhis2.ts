@@ -20,7 +20,6 @@ import {
   setDhis2Labels,
 } from "../../db/mod.ts";
 import { log } from "../../middleware/logging.ts";
-import { requireGlobalPermission } from "../../middleware/mod.ts";
 import { notifyInstanceIndicatorsUpdated } from "../../task_management/notify_instance_updated.ts";
 import { defineRoute } from "../route-helpers.ts";
 
@@ -50,7 +49,6 @@ export const routesIndicatorsDhis2 = new Hono();
 defineRoute(
   routesIndicatorsDhis2,
   "refreshDhis2Labels",
-  requireGlobalPermission("can_configure_data"),
   log("refreshDhis2Labels"),
   async (c) => {
     try {
@@ -114,7 +112,6 @@ defineRoute(
 defineRoute(
   routesIndicatorsDhis2,
   "searchDhis2Indicators",
-  requireGlobalPermission("can_configure_data"),
   log("searchDhis2Indicators"),
   async (c, { body }) => {
     try {
@@ -143,7 +140,6 @@ defineRoute(
 defineRoute(
   routesIndicatorsDhis2,
   "searchDhis2DataElements",
-  requireGlobalPermission("can_configure_data"),
   log("searchDhis2DataElements"),
   async (c, { body }) => {
     try {
@@ -175,7 +171,6 @@ defineRoute(
 defineRoute(
   routesIndicatorsDhis2,
   "searchDhis2All",
-  requireGlobalPermission("can_configure_data"),
   log("searchDhis2All"),
   async (c, { body }) => {
     try {
@@ -216,7 +211,6 @@ defineRoute(
 defineRoute(
   routesIndicatorsDhis2,
   "createIndicatorsFromDhis2",
-  requireGlobalPermission("can_configure_data"),
   log("createIndicatorsFromDhis2"),
   async (c, { body }) => {
     try {

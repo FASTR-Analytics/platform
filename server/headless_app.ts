@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { routeRegistry } from "lib";
-import { HEADLESS_ALLOWED_ROUTE_NAMES } from "./middleware/headless_allowlist.ts";
+import { HEADLESS_ROUTE_NAMES } from "./middleware/headless_allowlist.ts";
 import {
   headlessAuthMiddleware,
   headlessRouteAllowlist,
@@ -19,11 +19,10 @@ import { routesUsers } from "./routes/instance/users.ts";
 // with the cookie mount is structural (pinned by
 // server/tests/pat_identity_parity).
 //
-// Only the route FILES containing allowlisted routes are registered: the
-// allowlist (middleware/headless_allowlist.ts) remains the authority on which
-// individual routes a headless caller can reach. Since 2026-08-19 those are
-// the run-keyed package reads (routes/instance/run_generation.ts) and the
-// whoami.
+// Only the route FILES containing headless routes are registered: the
+// registry's `headless` flag, read by middleware/headless_allowlist.ts, is the
+// authority on which individual routes a headless caller can reach: the
+// run-keyed package reads (routes/instance/run_generation.ts) and the whoami.
 export const headlessApp = new Hono();
 //@ts-ignore - middleware typed loosely, same as authMiddleware in main.ts
 headlessApp.use("*", headlessAuthMiddleware);
@@ -55,8 +54,8 @@ export function headlessAppFetch(
 }
 
 // Boot-time self-check (dev only: main.ts): every allowlisted route must be
-// MOUNTED above. The allowlist and the mount list are two hand-kept lists and
-// drifted once: allowlisted run-keyed reads whose route file was never
+// MOUNTED above. The flagged entries and the mount list are two lists and
+// drifted once: flagged run-keyed reads whose route file was never
 // mounted 404'd silently through /mcp, because a 404 is a well-formed
 // response. Structural, not behavioural: it reads Hono's route table
 // (method + path pattern, exactly what defineRoute registers from the
@@ -66,7 +65,7 @@ export function validateHeadlessMounts(): void {
   const mounted = new Set(
     headlessApp.routes.map((r) => `${r.method.toUpperCase()} ${r.path}`),
   );
-  const unmounted = HEADLESS_ALLOWED_ROUTE_NAMES
+  const unmounted = HEADLESS_ROUTE_NAMES
     .map((name) => {
       const route = routeRegistry[name];
       return { name, key: `${route.method.toUpperCase()} ${route.path}` };
@@ -82,6 +81,6 @@ export function validateHeadlessMounts(): void {
     Deno.exit(1);
   }
   console.log(
-    `✅ All ${HEADLESS_ALLOWED_ROUTE_NAMES.length} allowlisted headless routes are mounted\n`,
+    `✅ All ${HEADLESS_ROUTE_NAMES.length} headless routes are mounted\n`,
   );
 }

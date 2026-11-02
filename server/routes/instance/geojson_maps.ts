@@ -3,17 +3,18 @@ import { type Dhis2Credentials, isAdminAreaLevel } from "lib";
 import {
   deleteGeoJsonMap,
   getAdminAreaOptionsForLevel,
-  getGeoJsonForLevel,
   getGeoJsonMapSummaries,
   getStoredDhis2CredentialsDecrypted,
+  getStoredGeoJson,
   saveGeoJsonMap,
+  type StoredGeoJson,
 } from "../../db/mod.ts";
 import { resolveAssetFilePath } from "../../db/instance/assets.ts";
+import { familyLevelParamsSchema } from "../../../lib/api-routes/instance/geojson_maps.ts";
 import { log } from "../../middleware/logging.ts";
-import { requireGlobalPermission } from "../../middleware/mod.ts";
 import { notifyInstanceGeoJsonMapsUpdated } from "../../task_management/notify_instance_updated.ts";
 import { defineRoute } from "../route-helpers.ts";
-import { requireVisibleAssets } from "../../middleware/asset_visibility.ts";
+import { requireVisibleAssets } from "../../auth/asset_visibility.ts";
 import {
   analyzeGeoJson,
   processGeoJson,
@@ -29,6 +30,7 @@ import {
   heavyGeoJsonSessionCache,
   metadataSessionCache,
 } from "../../dhis2/goal4_geojson/mod.ts";
+import { requireApprovedUser } from "../../auth/guards.ts";
 
 // Guard before the unbounded readTextFile + JSON.parse: any authenticated
 // configure-data user could otherwise OOM the server with one huge upload.
@@ -63,19 +65,7 @@ async function readAssetFile(assetFileName: string): Promise<string> {
 
 defineRoute(
   routesGeoJsonMaps,
-  "getGeoJsonMaps",
-  requireGlobalPermission(),
-  log("getGeoJsonMaps"),
-  async (c) => {
-    const summaries = await getGeoJsonMapSummaries(c.var.mainDb);
-    return c.json({ success: true, data: summaries });
-  },
-);
-
-defineRoute(
-  routesGeoJsonMaps,
   "analyzeGeoJsonUpload",
-  requireGlobalPermission("can_configure_data"),
   requireVisibleAssets("assetFileName"),
   log("analyzeGeoJsonUpload"),
   async (c, { body }) => {
@@ -108,7 +98,6 @@ defineRoute(
 defineRoute(
   routesGeoJsonMaps,
   "saveGeoJsonMap",
-  requireGlobalPermission("can_configure_data"),
   requireVisibleAssets("assetFileName"),
   log("saveGeoJsonMap"),
   async (c, { body }) => {
@@ -177,7 +166,6 @@ defineRoute(
 defineRoute(
   routesGeoJsonMaps,
   "deleteGeoJsonMap",
-  requireGlobalPermission("can_configure_data"),
   log("deleteGeoJsonMap"),
   async (c, { body }) => {
     const res = await deleteGeoJsonMap(
@@ -197,7 +185,6 @@ defineRoute(
 defineRoute(
   routesGeoJsonMaps,
   "getAdminAreaOptionsForLevel",
-  requireGlobalPermission(),
   log("getAdminAreaOptionsForLevel"),
   async (c, { params }) => {
     if (!isAdminAreaLevel(params.level)) {
@@ -212,27 +199,68 @@ defineRoute(
   },
 );
 
-defineRoute(
-  routesGeoJsonMaps,
-  "getGeoJsonForLevel",
-  requireGlobalPermission(),
-  async (c, { params }) => {
-    if (!isAdminAreaLevel(params.level)) {
-      return c.json({ success: false, err: "Level must be 2, 3, or 4" });
+// Off the registry: the body is the stored GeoJSON itself, not an envelope.
+// The URL carries the map's uploaded_at, so a boundary edit is a new URL and
+// the body can be cached for a year. Unlogged: preloadGeoJson fetches it on
+// every SSE connect for each map level its caches miss.
+routesGeoJsonMaps.get(
+  "/geojson-maps/level/:family/:level/:uploaded_at",
+  requireApprovedUser(),
+  async (c) => {
+    const params = familyLevelParamsSchema.safeParse({
+      family: c.req.param("family"),
+      level: c.req.param("level"),
+    });
+    if (!params.success || !isAdminAreaLevel(params.data.level)) {
+      return c.notFound();
     }
-    const res = await getGeoJsonForLevel(
-      c.var.mainDb,
-      params.family,
-      params.level,
+    const res = await buildGeoJsonLevelResponse(
+      await getStoredGeoJson(
+        c.var.mainDb,
+        params.data.family,
+        params.data.level,
+      ),
+      c.req.param("uploaded_at"),
+      c.req.header("Accept-Encoding"),
     );
-    return c.json(res);
+    // CORS sets `Vary: Origin` on the context before the handler, and Hono
+    // copies the context's headers over a returned Response, so the
+    // response's own Vary is appended to the context's.
+    const vary = res.headers.get("Vary");
+    if (vary !== null) c.res.headers.append("Vary", vary);
+    return res;
   },
 );
+
+export async function buildGeoJsonLevelResponse(
+  stored: StoredGeoJson | undefined,
+  requestedUploadedAt: string,
+  acceptEncoding: string | undefined,
+): Promise<Response> {
+  if (stored === undefined || stored.uploadedAt !== requestedUploadedAt) {
+    return new Response("Not found", { status: 404 });
+  }
+  const headers = {
+    "Content-Type": "application/geo+json",
+    "Cache-Control": "private, max-age=31536000, immutable",
+    "Vary": "Accept-Encoding",
+  };
+  if (!/\bgzip\b/.test(acceptEncoding ?? "")) {
+    return new Response(stored.geojson, { headers });
+  }
+  const gzipped = await new Response(
+    new Blob([stored.geojson]).stream().pipeThrough(
+      new CompressionStream("gzip"),
+    ),
+  ).arrayBuffer();
+  return new Response(gzipped, {
+    headers: { ...headers, "Content-Encoding": "gzip" },
+  });
+}
 
 defineRoute(
   routesGeoJsonMaps,
   "remapGeoJson",
-  requireGlobalPermission("can_configure_data"),
   log("remapGeoJson"),
   async (c, { body }) => {
     const { family, adminAreaLevel, remapping } = body;
@@ -247,19 +275,19 @@ defineRoute(
     }
 
     try {
-      const geoRes = await getGeoJsonForLevel(
+      const stored = await getStoredGeoJson(
         c.var.mainDb,
         family,
         adminAreaLevel,
       );
-      if (!geoRes.success) {
+      if (stored === undefined) {
         return c.json({
           success: false,
           err: "GeoJSON not found for this level",
         });
       }
 
-      const parsed = JSON.parse(geoRes.data.geojson) as {
+      const parsed = JSON.parse(stored.geojson) as {
         type: "FeatureCollection";
         features: Array<{
           type: "Feature";
@@ -314,7 +342,6 @@ defineRoute(
 defineRoute(
   routesGeoJsonMaps,
   "dhis2GetOrgUnitLevels",
-  requireGlobalPermission("can_configure_data"),
   log("dhis2GetOrgUnitLevels"),
   async (c) => {
     let credentials: Dhis2Credentials;
@@ -356,7 +383,6 @@ defineRoute(
 defineRoute(
   routesGeoJsonMaps,
   "dhis2AnalyzeGeoJson",
-  requireGlobalPermission("can_configure_data"),
   log("dhis2AnalyzeGeoJson"),
   async (c, { body }) => {
     const { dhis2Level } = body;
@@ -455,7 +481,6 @@ defineRoute(
 defineRoute(
   routesGeoJsonMaps,
   "dhis2SaveGeoJsonMap",
-  requireGlobalPermission("can_configure_data"),
   log("dhis2SaveGeoJsonMap"),
   async (c, { body }) => {
     const { dhis2Level, family, adminAreaLevel, areaMatchProp, areaMapping } =

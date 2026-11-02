@@ -22,6 +22,7 @@ import {
   buildFigureInputs,
   isFigureBundleStale,
 } from "~/generate_visualization/mod";
+import { describeFigureUnavailable } from "~/components/_shared/mod.ts";
 import { StaleFigureBadge } from "~/components/_shared/figure_editor/mod.ts";
 import { applyInkTheme, type FigureInkTheme } from "~/generate_report/mod";
 
@@ -63,10 +64,10 @@ export function ReportFigureEmbed(p: Props): JSX.Element {
       };
     }
     try {
-      return {
-        ok: true,
-        inputs: buildFigureInputs(bundle, undefined, p.chartPalette?.()),
-      };
+      const built = buildFigureInputs(bundle, undefined, p.chartPalette?.());
+      return built.ok
+        ? { ok: true, inputs: built.inputs }
+        : { ok: false, err: describeFigureUnavailable(built.unavailable) };
     } catch (e) {
       return {
         ok: false,

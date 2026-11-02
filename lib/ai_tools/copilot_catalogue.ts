@@ -1,7 +1,11 @@
 import type { AIViewIdentity } from "@timroberton/panther";
-import type { UserPermission, UserPermissions } from "../types/permissions.ts";
-import { INSTANCE_PERMISSION_LABELS } from "../types/permission_labels.ts";
-import { type ProductLevel, productLevelAtLeast } from "../types/products.ts";
+import {
+  INSTANCE_PERMISSION_LABELS,
+  type ProductLevel,
+  productLevelAtLeast,
+  type UserPermission,
+  type UserPermissions,
+} from "../permissions/mod.ts";
 
 // The chat's catalogue as data: every view a place can set, which views
 // admit each gated tool, what a user needs for a tool to run, which writes
@@ -139,15 +143,11 @@ export const COPILOT_TOOL_VIEWS = {
   get_figure_editor: FIGURE_EDITOR_VIEWS,
   update_figure_editor: FIGURE_EDITOR_VIEWS,
   get_hfa_indicators: HFA_VIEWS,
-  get_hfa_taxonomy: HFA_VIEWS,
-  get_hfa_variable_dictionary: HFA_VIEWS,
-  inspect_hfa_variable: HFA_VIEWS,
-  get_hfa_indicator_code: HFA_VIEWS,
-  validate_hfa_indicators: HFA_VIEWS,
-  update_hfa_indicator_labels: HFA_MANAGER_VIEWS,
-  assign_hfa_indicator_categories: HFA_MANAGER_VIEWS,
+  get_hfa_indicator_details: HFA_VIEWS,
+  get_hfa_variables: HFA_VIEWS,
+  get_hfa_variable_details: HFA_VIEWS,
   create_hfa_indicators: HFA_MANAGER_VIEWS,
-  set_hfa_indicator_code: HFA_MANAGER_VIEWS,
+  update_hfa_indicators: HFA_MANAGER_VIEWS,
   delete_hfa_indicators: HFA_MANAGER_VIEWS,
   get_hfa_indicator_editor: HFA_EDITOR_VIEWS,
   update_hfa_indicator_editor: HFA_EDITOR_VIEWS,
@@ -160,12 +160,10 @@ export type CopilotToolName =
   | (typeof COPILOT_CHAT_WIDE_TOOLS)[number];
 
 // What a user needs for a tool to run, beyond being in a view that admits
-// it: a permission bit, the HFA write gate the indicator manager's own write
-// controls read, or edit level on the view's product.
+// it: a permission bit, or edit level on the view's product.
 export type CopilotToolRequirement =
   | "none"
   | UserPermission
-  | "hfa_write"
   | "product_edit";
 
 export const COPILOT_TOOL_REQUIREMENTS = {
@@ -176,7 +174,7 @@ export const COPILOT_TOOL_REQUIREMENTS = {
   get_metric_data: "none",
   get_available_modules: "none",
   get_module_r_script: "can_view_data",
-  get_module_log: "can_view_logs",
+  get_module_log: "can_view_data",
   get_module_settings: "can_view_data",
   get_deck: "none",
   get_slide: "none",
@@ -200,19 +198,15 @@ export const COPILOT_TOOL_REQUIREMENTS = {
   update_report_figure: "product_edit",
   get_figure_editor: "none",
   update_figure_editor: "product_edit",
-  get_hfa_indicators: "can_configure_data",
-  get_hfa_taxonomy: "can_configure_data",
-  get_hfa_variable_dictionary: "can_configure_data",
-  inspect_hfa_variable: "can_view_data",
-  get_hfa_indicator_code: "can_configure_data",
-  validate_hfa_indicators: "can_configure_data",
-  update_hfa_indicator_labels: "hfa_write",
-  assign_hfa_indicator_categories: "hfa_write",
-  create_hfa_indicators: "hfa_write",
-  set_hfa_indicator_code: "hfa_write",
-  delete_hfa_indicators: "hfa_write",
+  get_hfa_indicators: "can_view_data",
+  get_hfa_indicator_details: "can_view_data",
+  get_hfa_variables: "can_view_data",
+  get_hfa_variable_details: "can_view_data",
+  create_hfa_indicators: "can_configure_data",
+  update_hfa_indicators: "can_configure_data",
+  delete_hfa_indicators: "can_configure_data",
   get_hfa_indicator_editor: "none",
-  update_hfa_indicator_editor: "hfa_write",
+  update_hfa_indicator_editor: "can_configure_data",
   list_products: "none",
 } as const satisfies Record<CopilotToolName, CopilotToolRequirement>;
 
@@ -233,8 +227,8 @@ export const COPILOT_APPROVAL_EXEMPT: CopilotGatedToolName[] = [
 ];
 
 export type CopilotToolUser = {
+  // The effective permissions (effectivePermissions).
   permissions: UserPermissions;
-  canWriteHfaIndicators: boolean;
   // The user's level on the view's product; null in a view with no product
   // (the package figure viewer's draft belongs to no product), where the
   // edit-level requirement has nothing to bind to.
@@ -255,10 +249,6 @@ export function copilotToolRefusal(
           productLevelAtLeast(user.productLevel, "edit")
         ? undefined
         : "Your account can view this product but not change it, so this tool is refused.";
-    case "hfa_write":
-      return user.canWriteHfaIndicators
-        ? undefined
-        : "Your account cannot change HFA indicators, so this tool is refused.";
     default:
       return user.permissions[requirement]
         ? undefined

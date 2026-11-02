@@ -1,11 +1,6 @@
 import { z } from "zod";
 import { DatasetStagingResult } from "./dataset_hmis_import.ts";
 
-export type DatasetHmisDetail = {
-  currentVersionId: number | undefined;
-  nVersions: number;
-};
-
 export type DatasetHmisVersion = {
   id: number;
   nRowsTotalImported: number;

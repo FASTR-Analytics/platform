@@ -80,6 +80,12 @@ cd client && npm run dev
 The server runs on `http://localhost:8000` and the client on
 `http://localhost:3000`.
 
+Four local auth modes are available: `BYPASS_AUTH` (a synthetic admin, the
+`.env` default), the persona switch (`PERSONA_AUTH` with `VITE_PERSONA_AUTH`),
+which signs the browser in as any `users` row through `?persona=<email>`, a
+personal access token, and OAuth. `PROTOCOL_APP_DEVELOPMENT.md` says when to use
+each.
+
 ## Type Checking
 
 ```bash

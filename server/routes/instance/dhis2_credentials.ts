@@ -8,7 +8,6 @@ import {
 } from "../../db/mod.ts";
 import { validateDhis2Connection } from "../../dhis2/mod.ts";
 import { log } from "../../middleware/logging.ts";
-import { requireGlobalPermission } from "../../middleware/mod.ts";
 import { notifyInstanceConfigUpdatedFromDb } from "../../task_management/notify_instance_updated.ts";
 import { defineRoute } from "../route-helpers.ts";
 
@@ -18,7 +17,6 @@ export const routesDhis2Credentials = new Hono();
 defineRoute(
   routesDhis2Credentials,
   "getInstanceDhis2CredentialsInfo",
-  requireGlobalPermission("can_configure_data"),
   log("getInstanceDhis2CredentialsInfo"),
   async (c) => {
     const stored = await getStoredDhis2CredentialsInfo(c.var.mainDb);
@@ -35,7 +33,6 @@ defineRoute(
 defineRoute(
   routesDhis2Credentials,
   "saveInstanceDhis2Credentials",
-  requireGlobalPermission("can_configure_data"),
   log("saveInstanceDhis2Credentials"),
   async (c, { body }) => {
     if (!isDhis2CredentialsEncryptionKeyConfigured()) {
@@ -64,7 +61,6 @@ defineRoute(
 defineRoute(
   routesDhis2Credentials,
   "deleteInstanceDhis2Credentials",
-  requireGlobalPermission("can_configure_data"),
   log("deleteInstanceDhis2Credentials"),
   async (c) => {
     await deleteStoredDhis2Credentials(c.var.mainDb);

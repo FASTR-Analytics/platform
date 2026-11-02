@@ -63,11 +63,11 @@ export {
   supportsDisabledThinking,
   supportsDynamicWebTools,
   supportsManualThinking,
-  supportsSamplingParams,
 } from "./_110_ai_types/mod.ts";
 export type {
   AnthropicModel,
   AnthropicModelConfig,
+  AssistantMessageParam,
   CacheControl,
   ContentBlock,
   DocumentContentBlock,
@@ -76,7 +76,6 @@ export type {
   EphemeralSection,
   MessageParam,
   MessagePayload,
-  MessageRole,
   ModelPricing,
   OutputConfig,
   RedactedThinkingBlock,
@@ -84,6 +83,7 @@ export type {
   ThinkingConfig,
   ToolDefinition,
   Usage,
+  UserMessageParam,
 } from "./_110_ai_types/mod.ts";
 export * from "./_111_api_contract/mod.ts";
 export * from "./_112_ai_tool_core/mod.ts";

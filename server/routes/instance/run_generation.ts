@@ -9,14 +9,14 @@ import {
   listRunCatalog,
 } from "../../db/instance/run_generation.ts";
 import { SCOPE_NOT_FOUND } from "../../db/instance/scopes.ts";
+import { familyLevelParamsSchema } from "../../../lib/api-routes/instance/geojson_maps.ts";
 import { log } from "../../middleware/logging.ts";
-import { requireGlobalPermission } from "../../middleware/mod.ts";
-import { requireApprovedUser } from "../../middleware/userPermission.ts";
 import {
   deleteRun,
   getModuleDefaultsGlobal,
   getRunGenerationModuleOptions,
   listRunModuleFiles,
+  openRunGeoJsonFile,
   pinRun,
   readRunDetail,
   readRunModuleLogs,
@@ -40,6 +40,7 @@ import {
 import { notifyInstanceRunsCatalogUpdated } from "../../task_management/notify_instance_updated.ts";
 import { launchRunGeneration } from "../../worker_routines/generate_run/mod.ts";
 import { defineRoute } from "../route-helpers.ts";
+import { requireApprovedUser } from "../../auth/guards.ts";
 
 // Results-package wizard + catalogue: the instance defaults store, the wizard's
 // module-options read, launch, the catalogue listing (instance-T1's fetch half:
@@ -69,7 +70,6 @@ function readContextFailure(c: Context, res: { success: false; err: string }) {
 defineRoute(
   routesRunGeneration,
   "getRunGenerationDefaults",
-  requireGlobalPermission("can_configure_data"),
   log("getRunGenerationDefaults"),
   async (c) => {
     const res = await getRunGenerationDefaultsConfig(c.var.mainDb);
@@ -80,7 +80,6 @@ defineRoute(
 defineRoute(
   routesRunGeneration,
   "saveRunGenerationDefaults",
-  requireGlobalPermission("can_configure_data"),
   log("saveRunGenerationDefaults"),
   async (c, { body }) => {
     const res = await updateRunGenerationDefaultsConfig(
@@ -94,7 +93,6 @@ defineRoute(
 defineRoute(
   routesRunGeneration,
   "getModuleDefaultsGlobal",
-  requireGlobalPermission("can_configure_data"),
   log("getModuleDefaultsGlobal"),
   async (c) => {
     const res = await getModuleDefaultsGlobal();
@@ -105,7 +103,6 @@ defineRoute(
 defineRoute(
   routesRunGeneration,
   "getRunGenerationModuleOptions",
-  requireGlobalPermission("can_configure_data"),
   log("getRunGenerationModuleOptions"),
   async (c) => {
     const res = await getRunGenerationModuleOptions(c.var.mainDb);
@@ -116,7 +113,6 @@ defineRoute(
 defineRoute(
   routesRunGeneration,
   "listRunCatalog",
-  requireGlobalPermission("can_configure_data"),
   log("listRunCatalog"),
   async (c) => {
     const res = await listRunCatalog(c.var.mainDb);
@@ -127,7 +123,6 @@ defineRoute(
 defineRoute(
   routesRunGeneration,
   "deleteRun",
-  requireGlobalPermission("can_configure_data"),
   log("deleteRun"),
   async (c, { params }) => {
     const res = await deleteRun(c.var.mainDb, params.run_id);
@@ -143,7 +138,6 @@ defineRoute(
 defineRoute(
   routesRunGeneration,
   "pinResultsPackage",
-  requireGlobalPermission("can_configure_data"),
   log("pinResultsPackage"),
   async (c, { params }) => {
     const res = await pinRun(c.var.mainDb, params.run_id);
@@ -154,7 +148,6 @@ defineRoute(
 defineRoute(
   routesRunGeneration,
   "unpinResultsPackage",
-  requireGlobalPermission("can_configure_data"),
   log("unpinResultsPackage"),
   async (c, { params }) => {
     const res = await unpinRun(c.var.mainDb, params.run_id);
@@ -168,7 +161,6 @@ defineRoute(
 defineRoute(
   routesRunGeneration,
   "listReadyPackages",
-  requireApprovedUser(),
   async (c) => {
     const res = await listReadyPackages(c.var.mainDb);
     return c.json(res);
@@ -181,16 +173,14 @@ defineRoute(
 
 // Script/logs/files read from runs/{runId}/outputs/{moduleId} by the shared
 // reader in server/runs/package_internals.ts, which also owns path safety.
-// Mounted ONCE, run-keyed, under the instance data bits: a package is
-// instance-level data, so `can_view_data` reads its script/files/detail (and
-// the outputs download mount in middleware/static.ts) and `can_view_logs` reads
-// its logs: the same guard whether the caller is the catalogue, an AI tool or
-// MCP.
+// Mounted ONCE, run-keyed, under the instance data bit: a package is
+// instance-level data, so `can_view_data` reads its script, files, detail and
+// logs (and the outputs download mount in middleware/static.ts): the same
+// guard whether the caller is the catalogue, an AI tool or MCP.
 
 defineRoute(
   routesRunGeneration,
   "getRunModuleScript",
-  requireGlobalPermission("can_view_data"),
   log("getRunModuleScript"),
   async (c, { params }) => {
     return c.json(await readRunModuleScript(params.run_id, params.module_id));
@@ -200,7 +190,6 @@ defineRoute(
 defineRoute(
   routesRunGeneration,
   "getRunModuleLogs",
-  requireGlobalPermission("can_view_logs"),
   log("getRunModuleLogs"),
   async (c, { params }) => {
     return c.json(await readRunModuleLogs(params.run_id, params.module_id));
@@ -210,7 +199,6 @@ defineRoute(
 defineRoute(
   routesRunGeneration,
   "listRunModuleFiles",
-  requireGlobalPermission("can_view_data"),
   log("listRunModuleFiles"),
   async (c, { params }) => {
     return c.json(await listRunModuleFiles(params.run_id, params.module_id));
@@ -223,7 +211,6 @@ defineRoute(
 defineRoute(
   routesRunGeneration,
   "getRunDetail",
-  requireGlobalPermission("can_view_data"),
   log("getRunDetail"),
   async (c, { params }) => {
     return c.json(await readRunDetail(params.run_id));
@@ -235,7 +222,6 @@ defineRoute(
 defineRoute(
   routesRunGeneration,
   "getRunModuleWithConfigSelections",
-  requireGlobalPermission("can_view_data"),
   log("getRunModuleWithConfigSelections"),
   async (c, { params }) => {
     const manifestRes = await getRunManifestForRun(params.run_id);
@@ -266,7 +252,6 @@ defineRoute(
 defineRoute(
   routesRunGeneration,
   "getRunPresentationObjectItems",
-  requireApprovedUser(),
   async (c, { params, body }) => {
     const ctxRes = await getReadyRunReadContext(
       c.var.mainDb,
@@ -287,7 +272,6 @@ defineRoute(
 defineRoute(
   routesRunGeneration,
   "getRunGridItems",
-  requireApprovedUser(),
   async (c, { params, body }) => {
     const ctxRes = await getReadyRunReadContext(
       c.var.mainDb,
@@ -308,7 +292,6 @@ defineRoute(
 defineRoute(
   routesRunGeneration,
   "getRunResultsValueInfo",
-  requireApprovedUser(),
   async (c, { params, body }) => {
     const ctxRes = await getReadyRunReadContext(
       c.var.mainDb,
@@ -326,7 +309,6 @@ defineRoute(
 defineRoute(
   routesRunGeneration,
   "getRunReplicantOptions",
-  requireApprovedUser(),
   async (c, { params, body }) => {
     const ctxRes = await getReadyRunReadContext(
       c.var.mainDb,
@@ -352,7 +334,6 @@ defineRoute(
 defineRoute(
   routesRunGeneration,
   "getRunResultsObjectItems",
-  requireApprovedUser(),
   log("getRunResultsObjectItems"),
   async (c, { params, body }) => {
     const ctxRes = await getReadyRunReadContext(
@@ -372,13 +353,57 @@ defineRoute(
   },
 );
 
+// A manifest read fails only on the run's own disk state (gone, or
+// unreadable), which no retry changes, so it answers `found: false` rather
+// than an error the client would retry.
+defineRoute(
+  routesRunGeneration,
+  "getRunGeoJsonStamp",
+  async (c, { params }) => {
+    const manifestRes = await getRunManifestForRun(params.run_id);
+    return c.json({
+      success: true,
+      data: manifestRes.success
+        ? { found: true, geojsonMaps: manifestRes.data.geojsonMaps }
+        : { found: false },
+    });
+  },
+);
+
+// Off the registry: the body is the captured file, already gzipped, and a
+// ready run directory never changes, so it is cached for a year. Unlogged:
+// every page that draws a map fetches it.
+routesRunGeneration.get(
+  "/run_generation/run/:run_id/geojson/:family/:level",
+  requireApprovedUser(),
+  async (c) => {
+    const params = familyLevelParamsSchema.safeParse({
+      family: c.req.param("family"),
+      level: c.req.param("level"),
+    });
+    if (!params.success) return c.notFound();
+    const body = await openRunGeoJsonFile(
+      c.req.param("run_id"),
+      params.data.family,
+      params.data.level,
+    );
+    if (body === undefined) return c.notFound();
+    return new Response(body, {
+      headers: {
+        "Content-Type": "application/geo+json",
+        "Content-Encoding": "gzip",
+        "Cache-Control": "private, max-age=31536000, immutable",
+      },
+    });
+  },
+);
+
 // A pure function of the run directory and the scope
 // (lib/types/run_authoring_context.ts): the manifest lens under the caller's
 // scope, with no ready gate.
 defineRoute(
   routesRunGeneration,
   "getRunAuthoringContext",
-  requireApprovedUser(),
   async (c, { params, body }) => {
     const ctxRes = await getRunReadContextForRun(
       c.var.mainDb,
@@ -397,7 +422,6 @@ defineRoute(
 defineRoute(
   routesRunGeneration,
   "launchRunGeneration",
-  requireGlobalPermission("can_configure_data"),
   log("launchRunGeneration"),
   async (c, { body }) => {
     const res = await launchRunGeneration(

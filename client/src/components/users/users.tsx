@@ -1,12 +1,11 @@
 import {
-  H_USERS,
   INSTANCE_PERMISSION_LABELS,
-  type ScopeAccess,
+  isRosterRow,
+  OtherUser,
   type ScopeId,
   t3,
   TC,
   USER_PERMISSIONS,
-  type UserPermission,
 } from "lib";
 import {
   Button,
@@ -28,26 +27,36 @@ import { BulkEditScopesForm } from "./bulk_edit_scopes_form";
 import { User } from "./user";
 import { BulkAction, createTableConfig, Table, TableColumn } from "panther";
 import { serverActions } from "~/server_actions";
-import type { UserLog } from "lib";
+import type { UserLastActive } from "lib";
 import { instanceState } from "~/state/instance/t1_store";
 import { openShellEditor } from "~/state/t4_ui";
 import {
   copilotViewController,
   holdCopilotView,
 } from "~/components/instance/copilot/mod.ts";
+import {
+  canCallRoute,
+  isGlobalAdmin,
+  isHUser,
+} from "~/state/instance/permissions";
 
-type Props = {
-  thisLoggedInUserEmail: string;
-};
-
-export function InstanceUsers(p: Props) {
+export function InstanceUsers() {
   holdCopilotView();
   copilotViewController.setView("users");
-  const userLogs = createQuery(() => serverActions.getAllUserLogs({}));
+  // The Last active column exists only for a caller its route admits; the
+  // query follows the permission live.
+  const lastActiveQuery = createMemo(() =>
+    canCallRoute("getUsersLastActive")
+      ? createQuery(() => serverActions.getUsersLastActive({}))
+      : undefined
+  );
 
   const [showHUsers, setShowHUsers] = createSignal(false);
-
-  const currentUserIsHUser = () => H_USERS.includes(p.thisLoggedInUserEmail);
+  // Operators are hidden by default; Download exports what the table shows.
+  const visibleUsers = () =>
+    instanceState.users.filter(isRosterRow).filter((user) =>
+      showHUsers() || !user.isHUser
+    );
 
   async function attemptAddUser() {
     await openComponent({
@@ -63,24 +72,10 @@ export function InstanceUsers(p: Props) {
     });
   }
 
-  async function showCommingSoon() {
-    const _res = await openAlert({
-      text: t3({
-        en:
-          "This functionality is coming soon. For now, click on the 'edit' button for individual users.",
-        fr:
-          "Cette fonctionnalité sera bientôt disponible. Pour l'instant, cliquez sur le bouton « modifier » pour chaque utilisateur.",
-        pt:
-          "Esta funcionalidade estará disponível em breve. Por agora, clique no botão 'editar' para cada utilizador.",
-      }),
-    });
-    return true;
-  }
-
   function downloadUsersCSV() {
     const csv = new Csv({
       colHeaders: ["email", "is_global_admin"],
-      aoa: instanceState.users.map((user) => [
+      aoa: visibleUsers().map((user) => [
         user.email,
         String(user.isGlobalAdmin),
       ]),
@@ -95,24 +90,20 @@ export function InstanceUsers(p: Props) {
       <div class="flex h-full w-full flex-col gap-4">
         <div class="min-h-0 flex-1" data-tour="instance-users-table">
           <UserTable
-            users={instanceState.users}
-            logs={(() => {
-              const s = userLogs.state();
-              return s.status === "ready" ? s.data : undefined;
+            users={visibleUsers()}
+            showLastActive={lastActiveQuery() !== undefined}
+            lastActive={(() => {
+              const s = lastActiveQuery()?.state();
+              return s?.status === "ready" ? s.data : undefined;
             })()}
             onUserClick={(user) =>
               void openShellEditor({
                 element: User,
-                props: {
-                  email: user.email,
-                  thisLoggedInUserEmail: p.thisLoggedInUserEmail,
-                },
+                props: { email: user.email },
               })}
-            showCommingSoon={showCommingSoon}
-            showHUsers={showHUsers}
             toolbarChildren={
               <div class="ui-gap-sm flex items-center">
-                <Show when={currentUserIsHUser()}>
+                <Show when={isHUser()}>
                   <Button
                     onClick={() => setShowHUsers((v) => !v)}
                     iconName={showHUsers() ? "eyeOff" : "eye"}
@@ -146,29 +137,33 @@ export function InstanceUsers(p: Props) {
                       pt: "Transferir",
                     })}
                   </Button>
+                  <Show when={canCallRoute("batchUploadUsers")}>
+                    <Button
+                      onClick={attemptBatchUploadUsers}
+                      iconName="upload"
+                      outline
+                    >
+                      {t3({
+                        en: "Batch import",
+                        fr: "Importation groupée",
+                        pt: "Importação em lote",
+                      })}
+                    </Button>
+                  </Show>
+                </div>
+                <Show when={canCallRoute("addUsers")}>
                   <Button
-                    onClick={attemptBatchUploadUsers}
-                    iconName="upload"
-                    outline
+                    data-tour="instance-users-add"
+                    onClick={attemptAddUser}
+                    iconName="plus"
                   >
                     {t3({
-                      en: "Batch import",
-                      fr: "Importation groupée",
-                      pt: "Importação em lote",
+                      en: "Add users",
+                      fr: "Ajouter des utilisateurs",
+                      pt: "Adicionar utilizadores",
                     })}
                   </Button>
-                </div>
-                <Button
-                  data-tour="instance-users-add"
-                  onClick={attemptAddUser}
-                  iconName="plus"
-                >
-                  {t3({
-                    en: "Add users",
-                    fr: "Ajouter des utilisateurs",
-                    pt: "Adicionar utilizadores",
-                  })}
-                </Button>
+                </Show>
               </div>
             }
           />
@@ -178,25 +173,15 @@ export function InstanceUsers(p: Props) {
   );
 }
 
-type UserData = {
-  email: string;
-  isGlobalAdmin: boolean;
-  firstName?: string;
-  lastName?: string;
-  organisation?: string;
-  isContactPerson: boolean;
-  scopeAccess: ScopeAccess;
-} & Record<UserPermission, boolean>;
-
-function hasGlobalPermissions(user: UserData): boolean {
+function hasGlobalPermissions(user: OtherUser): boolean {
   return USER_PERMISSIONS.some((k) => user[k]);
 }
 
-function getFullName(user: UserData): string {
+function getFullName(user: OtherUser): string {
   return [user.firstName, user.lastName].filter(Boolean).join(" ");
 }
 
-function getStatusLabel(user: UserData): string {
+function getStatusLabel(user: OtherUser): string {
   if (user.isContactPerson) {
     return t3({
       en: "Contact person",
@@ -214,7 +199,7 @@ function getStatusLabel(user: UserData): string {
   return getGlobalPermissionSummary(user);
 }
 
-function getGlobalPermissionSummary(user: UserData): string {
+function getGlobalPermissionSummary(user: OtherUser): string {
   const active = USER_PERMISSIONS.filter((k) => user[k]);
   if (active.length === 0) {
     return t3({
@@ -240,7 +225,7 @@ function summariseLabels(labels: string[]): string {
   return shown;
 }
 
-function getScopeLabels(user: UserData): string[] {
+function getScopeLabels(user: OtherUser): string[] {
   if (user.scopeAccess.all) {
     return [];
   }
@@ -250,7 +235,7 @@ function getScopeLabels(user: UserData): string[] {
     .map((s) => s.label);
 }
 
-function getScopesLabel(user: UserData): string {
+function getScopesLabel(user: OtherUser): string {
   if (user.scopeAccess.all) {
     return t3(TC.allData);
   }
@@ -261,7 +246,7 @@ function getScopesLabel(user: UserData): string {
   return summariseLabels(labels);
 }
 
-type UserTableData = UserData & {
+type UserTableData = OtherUser & {
   lastActiveTs: number;
 };
 
@@ -304,41 +289,55 @@ function formatTimeAgo(date: Date): string {
 }
 
 function UserTable(p: {
-  users: UserData[];
-  logs: UserLog[] | undefined;
-  onUserClick: (user: UserData) => void;
-  showCommingSoon: () => Promise<boolean>;
-  showHUsers: () => boolean;
+  users: OtherUser[];
+  showLastActive: boolean;
+  lastActive: UserLastActive[] | undefined;
+  onUserClick: (user: OtherUser) => void;
   toolbarChildren: JSX.Element;
 }) {
   const usersTable = createTableConfig({
-    sort: { key: "lastActiveTs", direction: "desc" },
+    sort: p.showLastActive
+      ? { key: "lastActiveTs", direction: "desc" }
+      : { key: "email", direction: "asc" },
   });
 
   const userRows = (): UserTableData[] => {
-    const map = new Map<string, number>();
-    for (const log of p.logs ?? []) {
-      try {
-        const logDate = new Date(log.timestamp);
-        if (isNaN(logDate.getTime())) continue;
-        const ts = logDate.getTime();
-        const existing = map.get(log.user_email);
-        if (!existing || ts > existing) {
-          map.set(log.user_email, ts);
-        }
-      } catch {
-        // skip invalid log entries
-      }
-    }
-    return p.users
-      .filter((user) => p.showHUsers() || !H_USERS.includes(user.email))
-      .map((user) => ({
-        ...user,
-        lastActiveTs: map.get(user.email) ?? -1,
-      }));
+    const map = new Map(
+      (p.lastActive ?? []).map((
+        r,
+      ) => [r.email, new Date(r.lastActive).getTime()]),
+    );
+    return p.users.map((user) => ({
+      ...user,
+      lastActiveTs: map.get(user.email) ?? -1,
+    }));
   };
 
-  const columns: TableColumn<UserTableData>[] = [
+  const lastActiveColumn: TableColumn<UserTableData> = {
+    key: "lastActiveTs",
+    header: t3({
+      en: "Last active",
+      fr: "Dernière activité",
+      pt: "Última atividade",
+    }),
+    sortable: true,
+    sortDescFirst: true,
+    searchable: false,
+    render: (user) => {
+      if (user.lastActiveTs === -1) {
+        return (
+          <span class="text-base-content-muted">
+            {p.lastActive === undefined
+              ? "..."
+              : t3({ en: "Never", fr: "Jamais", pt: "Nunca" })}
+          </span>
+        );
+      }
+      return <span>{formatTimeAgo(new Date(user.lastActiveTs))}</span>;
+    },
+  };
+
+  const columns = createMemo((): TableColumn<UserTableData>[] => [
     {
       key: "firstName",
       header: t3({ en: "Name", fr: "Nom", pt: "Nome" }),
@@ -356,43 +355,7 @@ function UserTable(p: {
       header: t3(TC.email),
       sortable: true,
     },
-    {
-      key: "organisation",
-      header: t3({
-        en: "Organisation",
-        fr: "Organisation",
-        pt: "Organização",
-      }),
-      sortable: true,
-      filterable: true,
-      render: (user) =>
-        user.organisation
-          ? <span>{user.organisation}</span>
-          : <span class="text-base-content-muted">—</span>,
-    },
-    {
-      key: "lastActiveTs",
-      header: t3({
-        en: "Last active",
-        fr: "Dernière activité",
-        pt: "Última atividade",
-      }),
-      sortable: true,
-      sortDescFirst: true,
-      searchable: false,
-      render: (user) => {
-        if (user.lastActiveTs === -1) {
-          return (
-            <span class="text-base-content-muted">
-              {p.logs === undefined
-                ? "..."
-                : t3({ en: "Never", fr: "Jamais", pt: "Nunca" })}
-            </span>
-          );
-        }
-        return <span>{formatTimeAgo(new Date(user.lastActiveTs))}</span>;
-      },
-    },
+    ...(p.showLastActive ? [lastActiveColumn] : []),
     {
       key: "isGlobalAdmin",
       header: t3({ en: "Status", fr: "Statut", pt: "Estado" }),
@@ -428,24 +391,40 @@ function UserTable(p: {
         </span>
       ),
     },
-  ];
+  ]);
 
+  // toggleUserAdmin refuses any batch that names the caller, so their own
+  // row is never sent.
   const bulkMakeAdmin = createButtonAction(
     async (selectedUsers: UserTableData[]) => {
-      const emails = selectedUsers.map((u) => u.email);
+      const emails = selectedUsers
+        .map((u) => u.email)
+        .filter((email) => email !== instanceState.currentUserEmail);
       return serverActions.toggleUserAdmin({ emails, makeAdmin: true });
     },
   );
 
+  // An admin cannot demote themselves, so their own row is never sent.
   const bulkMakeNonAdmin = createButtonAction(
     async (selectedUsers: UserTableData[]) => {
-      const emails = selectedUsers.map((u) => u.email);
+      const emails = selectedUsers
+        .map((u) => u.email)
+        .filter((email) => email !== instanceState.currentUserEmail);
       return serverActions.toggleUserAdmin({ emails, makeAdmin: false });
     },
   );
 
+  // The rows the user-management rule lets the caller name: never their own,
+  // and no admin's unless the caller is an admin.
+  const manageable = (selectedUsers: UserTableData[]) =>
+    selectedUsers.filter((u) =>
+      u.email !== instanceState.currentUserEmail &&
+      (isGlobalAdmin() || !u.isGlobalAdmin)
+    );
+
   async function handleBulkRemoveUsers(selectedUsers: UserTableData[]) {
-    const emails = selectedUsers.map((u) => u.email);
+    const emails = manageable(selectedUsers).map((u) => u.email);
+    if (emails.length === 0) return;
     const userCount = emails.length;
     const userText = plural(userCount, {
       one: t3({
@@ -475,17 +454,13 @@ function UserTable(p: {
     await deleteAction.click();
   }
 
-  // Global admins always have every scope, and a non-admin may not change
-  // their own (the route refuses both), so neither is sent.
+  // Global admins always have every scope (the route refuses their rows),
+  // so they are skipped and counted.
   async function handleBulkEditScopes(selectedUsers: UserTableData[]) {
     const admins = selectedUsers.filter((u) => u.isGlobalAdmin);
-    const emails = selectedUsers
+    const emails = manageable(selectedUsers)
       .filter((u) => !u.isGlobalAdmin)
-      .map((u) => u.email)
-      .filter((email) =>
-        instanceState.currentUserIsGlobalAdmin ||
-        email !== instanceState.currentUserEmail
-      );
+      .map((u) => u.email);
     await openComponent({
       element: BulkEditScopesForm,
       props: { emails, skippedAdmins: admins.length },
@@ -493,7 +468,8 @@ function UserTable(p: {
   }
 
   async function handleBulkEditPermissions(selectedUsers: UserTableData[]) {
-    const emails = selectedUsers.map((u) => u.email);
+    const emails = manageable(selectedUsers).map((u) => u.email);
+    if (emails.length === 0) return;
     await openComponent({
       element: BulkEditPermissionsForm,
       props: { emails },
@@ -513,12 +489,9 @@ function UserTable(p: {
     downloadCsv(csv.stringify(), filename);
   }
 
-  const canConfigureUsers = () =>
-    instanceState.currentUserIsGlobalAdmin ||
-    instanceState.currentUserPermissions.can_configure_users;
-
+  // Each bulk action renders only for a caller its route admits.
   const bulkActions = createMemo<BulkAction<UserTableData>[]>(() => [
-    ...(canConfigureUsers()
+    ...(canCallRoute("toggleUserAdmin")
       ? [
         {
           label: t3({
@@ -542,23 +515,24 @@ function UserTable(p: {
           state: bulkMakeNonAdmin.state,
           outline: true,
         },
-        {
-          label: t3({
-            en: "Edit permissions",
-            fr: "Modifier les droits d'accès",
-            pt: "Editar permissões",
-          }),
-          intent: "primary" as const,
-          outline: true,
-          onClick: handleBulkEditPermissions,
-        },
       ]
       : []),
-    // Scope access: a global admin, or a holder of can_configure_users who
-    // is not limited to scopes themselves (bulkSetUserScopeAccess).
-    ...(canConfigureUsers() &&
-        (instanceState.currentUserIsGlobalAdmin ||
-          instanceState.currentUserScopeAccess.all)
+    ...(canCallRoute("bulkUpdateUserPermissions")
+      ? [{
+        label: t3({
+          en: "Edit permissions",
+          fr: "Modifier les droits d'accès",
+          pt: "Editar permissões",
+        }),
+        intent: "primary" as const,
+        outline: true,
+        onClick: handleBulkEditPermissions,
+      }]
+      : []),
+    // Scope access: a holder of the route's flag who is not limited to
+    // scopes themselves (the user-management rule refuses a restricted caller).
+    ...(canCallRoute("bulkSetUserScopeAccess") &&
+        instanceState.currentUserScopeAccess.all
       ? [{
         label: t3({
           en: "Edit scopes",
@@ -580,7 +554,7 @@ function UserTable(p: {
       outline: true,
       onClick: handleBulkDownloadCSV,
     },
-    ...(canConfigureUsers()
+    ...(canCallRoute("deleteUser")
       ? [
         {
           label: t3({ en: "Remove", fr: "Supprimer", pt: "Remover" }),
@@ -595,7 +569,7 @@ function UserTable(p: {
   return (
     <Table
       data={userRows()}
-      columns={columns}
+      columns={columns()}
       config={usersTable}
       keyField="email"
       noRowsMessage={t3({

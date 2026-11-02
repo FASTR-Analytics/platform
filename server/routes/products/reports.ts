@@ -517,8 +517,11 @@ defineRoute(
   routesProductReports,
   "createReportStyle",
   log("createReportStyle"),
-  async (c, { body }) => {
-    return respond(c, await createReportStyle(c.var.mainDb, body));
+  async (c, { params, body }) => {
+    return respond(
+      c,
+      await createReportStyle(c.var.mainDb, params.product_id, body),
+    );
   },
 );
 
@@ -529,7 +532,12 @@ defineRoute(
   async (c, { params, body }) => {
     return respond(
       c,
-      await updateReportStyle(c.var.mainDb, params.style_id, body),
+      await updateReportStyle(
+        c.var.mainDb,
+        params.product_id,
+        params.style_id,
+        body,
+      ),
     );
   },
 );
@@ -539,7 +547,14 @@ defineRoute(
   "deleteReportStyle",
   log("deleteReportStyle"),
   async (c, { params }) => {
-    return respond(c, await deleteReportStyle(c.var.mainDb, params.style_id));
+    return respond(
+      c,
+      await deleteReportStyle(
+        c.var.mainDb,
+        params.product_id,
+        params.style_id,
+      ),
+    );
   },
 );
 

@@ -12,6 +12,5 @@ export type {
   CachedGeoJsonMetadata,
   CachedHeavyGeoJson,
   Dhis2FeatureContext,
-  GeoJsonFeature,
   GeoJsonFeatureCollection,
 } from "./types.ts";

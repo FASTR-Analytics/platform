@@ -42,6 +42,7 @@ import {
   generateUniqueSlideId,
 } from "../../utils/id_generation.ts";
 import { touchProduct } from "./_product_row.ts";
+import { requireFolderExists } from "./folders.ts";
 import { getSlides, mintSlideIds, reSequence } from "./slides.ts";
 import { getSlideDeckDetail } from "./slide_decks.ts";
 import { getReportBodyAuthors, getReportDetail } from "./reports.ts";
@@ -365,8 +366,9 @@ export async function copyReportFromVersion(
 
     const newProductId = await generateUniqueProductId(mainDb);
     const lastUpdated = new Date().toISOString();
-    await mainDb.begin((sql) => [
-      sql`
+    await mainDb.begin(async (sql) => {
+      await requireFolderExists(sql, args.folderId);
+      await sql`
         INSERT INTO products
           (id, type, label, folder_id, run_id, scope_id, created_by, created_at,
            last_updated, owner, default_access)
@@ -375,8 +377,8 @@ export async function copyReportFromVersion(
           run_id, scope_id, ${args.createdBy}, ${lastUpdated}, ${lastUpdated},
           ${args.createdBy}, 'none'
         FROM products WHERE id = ${args.productId}
-      `,
-      sql`
+      `;
+      await sql`
         INSERT INTO reports (id, body, figures, images, config)
         VALUES (
           ${newProductId},
@@ -385,8 +387,8 @@ export async function copyReportFromVersion(
           ${JSON.stringify(images)},
           ${source?.config ?? null}
         )
-      `,
-    ]);
+      `;
+    });
     return { success: true, data: { productId: newProductId, lastUpdated } };
   });
 }
@@ -790,8 +792,9 @@ export async function copySlideDeckFromVersion(
     const newSlideIds = await mintSlideIds(mainDb, slides.length);
     const lastUpdated = new Date().toISOString();
 
-    await mainDb.begin((sql) => [
-      sql`
+    await mainDb.begin(async (sql) => {
+      await requireFolderExists(sql, args.folderId);
+      await sql`
         INSERT INTO products
           (id, type, label, folder_id, run_id, scope_id, created_by, created_at,
            last_updated, owner, default_access)
@@ -800,12 +803,12 @@ export async function copySlideDeckFromVersion(
           run_id, scope_id, ${args.createdBy}, ${lastUpdated}, ${lastUpdated},
           ${args.createdBy}, 'none'
         FROM products WHERE id = ${args.productId}
-      `,
-      sql`
+      `;
+      await sql`
         INSERT INTO slide_decks (id, plan, config)
         VALUES (${newProductId}, '', ${parsedDeckConfig})
-      `,
-      ...slides.map((slide, i) =>
+      `;
+      await Promise.all(slides.map((slide, i) =>
         sql`
           INSERT INTO slides (id, slide_deck_id, sort_order, config, last_updated)
           VALUES (
@@ -816,8 +819,8 @@ export async function copySlideDeckFromVersion(
             ${lastUpdated}
           )
         `
-      ),
-    ]);
+      ));
+    });
 
     return { success: true, data: { productId: newProductId, lastUpdated } };
   });

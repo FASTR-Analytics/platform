@@ -133,7 +133,7 @@ FigureBundle = {
                                            // pair stored bundles carried was converted into
                                            // `thresholds` by the _figure_block sweep
   dateRange?: PeriodBounds;                // {min,max}: DATE_RANGE caption text + earliest/latest point
-  geo?: GeoRef;                            // maps only: {kind:"level"} | {kind:"data"} (see Geo)
+  geo?: GeoRef;                            // maps only: {kind:"level"}; stored {kind:"data"} is read-only (see Geo)
   localization: { language; calendar; countryIso3; fiscalYear }; // REQUIRED, frozen, see Localization
   metricId: string;                        // re-query pointer for the update action ONLY (never render)
   scope: { definitionHash: string; adminArea2: string | null }; // the hash of the scope definition the bundle
@@ -179,12 +179,23 @@ past the skip-gate).
 ### `buildFigureInputs`: one transform, two item sources
 
 [client/src/generate_visualization/build_figure_inputs.ts](client/src/generate_visualization/build_figure_inputs.ts).
-Signature `buildFigureInputs(bundle, deckStyle?): FigureInputs`. It does three
-things in one pass: the data transform (`getTimeseriesDataTransformed` + the
-`get*JsonDataConfig` builders), style derivation, and geo resolution. It then
-branches on `effectiveConfig.d.type` (timeseries / table / chart / map / pie).
-It **throws** on bad input (callers catch). Timeseries and pie transform their
-data eagerly (`get*DataTransformed`) so transform-time throws (e.g. pie's
+Signature `buildFigureInputs(bundle, deckStyle?, chartPalette?)`, returning
+`{ ok: true, inputs: FigureInputs } | { ok: false, unavailable: FigureUnavailable }`.
+It does three things in one pass: the data transform
+(`getTimeseriesDataTransformed` + the `get*JsonDataConfig` builders), style
+derivation, and geo resolution. It then branches on `effectiveConfig.d.type`
+(timeseries / table / chart / map / pie). A state the user can act on is the
+`ok: false` result, never a throw: `FigureUnavailable`
+([lib/types/\_figure_bundle.ts](lib/types/_figure_bundle.ts)) carries data and
+no sentence, and today one state is built, a map whose boundaries are not in the
+instance's store (`no_boundaries`, `source: "instance"`, with the family and
+level). The display writes the words: `describeFigureUnavailable` in
+`components/_shared/figure_preview.ts` is the one localized wording, used by the
+report embed, the explore preview and the figure editor; the raster, the HTML
+export and the slide converter degrade to their placeholder or `missing` state;
+the AI tool path raises its `AIToolFailure` from the reason. Everything else is
+a bug and **throws** (callers catch). Timeseries and pie transform their data
+eagerly (`get*DataTransformed`) so transform-time throws (e.g. pie's
 negative-value rejection) surface inside the caller's catch rather than at
 measure time in panther; the other types pass `{jsonArray, jsonDataConfig}`
 untransformed. Pie never passes an explicit legend: CF is unwired for slices
@@ -288,14 +299,58 @@ read or write the global `t3`/`getCalendar`/`getLanguage` singletons.
 
 ### Geo
 
-`GeoRef` is a discriminated union. `{kind:"data", data}` carries the full
-GeoJSON in the bundle. `{kind:"level", level, family?}` carries no geometry:
-`buildFigureInputs` re-derives it from the sync cache (`getGeoJsonSync`) at
-render, and `family` picks the `hmis` or `hfa` registry, absent meaning `hmis`.
-`makeFigureBundleFromFetchedData`, the one in-app bundle builder, writes `data`
-whenever the sync cache holds the geometry and falls back to `level` only when
-it does not, so the split is cache-warm against cache-cold, not in-app against
-export; a `level` bundle renders only where the sync cache is populated.
+`GeoRef` is a discriminated union. A new bundle names its geometry:
+`makeFigureBundleFromFetchedData`, the one in-app bundle builder, writes
+`{kind:"level", level, family}` for every map, and `family` picks the `hmis` or
+`hfa` registry (absent, in a bundle stored before the split, meaning `hmis`).
+`{kind:"data", data}` is read-only history: bundles stored before the capture
+carry the instance's whole boundary file, and since a stored bundle is never
+rewritten they keep drawing their own copy; nothing writes it any more.
+
+A `level` bundle resolves against its OWN package, `provenance.runId`, never the
+container's, through the run-geo store (`t2_run_geojson.ts`, SYSTEM_09), which
+answers in four states:
+
+- `ready`: the package's captured file, drawn.
+- `loading`: the stamp, or the file it lists, has not arrived. The result is
+  `boundaries_loading`, a neutral line naming no action, and the store's version
+  signal rebuilds a tracked render when it lands. Every transition is forward: a
+  figure never draws one plane and then the other.
+- `not_in_package`: the package was generated without that level. The result is
+  `no_boundaries` with `source: "package"`, worded as a regeneration.
+- `run_unknown`: the package predates the capture (its stamp is `null`), or the
+  run is gone. The instance's file is drawn (`getGeoJsonSync`), else
+  `no_boundaries` with `source: "instance"`, worded as an upload.
+
+This interacts with staleness. A stale map figure, one whose `provenance.runId`
+is not its container's package, draws its own package's boundaries for as long
+as that package exists, because the store and the routes are keyed by run; only
+once the run is deleted does it draw the instance's current boundaries until it
+is re-resolved, where a stale `data` bundle draws its own frozen copy. No bundle
+stored before the capture changes what it draws: a `data` bundle keeps its copy,
+and a `level` bundle sits on a pre-capture package whose `null` stamp takes
+`run_unknown`, which is the instance read it always made.
+
+A caller that builds after an await, where a sync read tracks nothing, awaits
+`awaitFigureBoundaries(bundle)` first: the slide converter (thumbnails, the
+presenter, the deck exports, the editor's page build, the copilot's drafts), the
+report raster's `rasterize` and `measure` (a failed measure is stored and never
+retried), the HTML report export, the figure preview helper and the editor's
+download. Without it a deck exported before the files land would export every
+map as a placeholder. A report's embeds and the deck rail render through a
+tracked read and take `boundaries_loading` until the files land.
+
+The map branch transforms its data once (`getMapDataTransformed`, whose own call
+in panther passes a transformed input through), and
+`generate_visualization/map_coverage.ts` tallies from it how many distinct data
+areas meet a boundary of the same name, how many boundaries carry no data, and
+the matched share. A map whose data areas meet no boundary at all is the
+`no_area_matches` reason (with the data-area and boundary counts, and `source`,
+the plane the boundaries came from, so a package's frozen copy is worded as a
+regeneration) instead of an empty country, in every surface that renders it,
+decks, reports and exports included; that is the one thing the tally changes in
+a rendered product. Any other share renders, and the counts themselves are shown
+only where a figure is authored (SYSTEM_11).
 
 The `resolve_figure_from_metric` resolver:
 `generate_visualization/resolve_figure_from_metric.ts` (+
@@ -309,10 +364,10 @@ snapshot-a-figure-into-FigureBlock core consumed by the report editor
 `makeFigureBundleFromFetchedData` (in `resolve_figure_from_metric.ts`) is the
 one place a bundle that is validated, stored or shared is assembled from fetched
 data, and `resolveFigureBundleFromMetric` builds through it rather than
-repeating the fields. It deep-copies everything it writes except `geo`:
-`config`, `items`, `resultsValue`, `indicatorMetadata` and `dateRange` are
+repeating the fields. It deep-copies everything it writes: `config`, `items`,
+`resultsValue`, `indicatorMetadata` and `dateRange` are
 `structuredClone(unwrap(...))` of what the caller handed over, never aliases of
-it. The Explore data table
+it, and `geo` is a three-field literal it builds itself. The Explore data table
 ([data_table.tsx](client/src/components/explore/data_table/data_table.tsx))
 builds a transient render-only bundle of its own from the grid-items read; it is
 never validated or stored, and folding it in is S13's figure-resolution reuse
@@ -340,11 +395,6 @@ non-enumerable, so the SYMPTOM is contingent on the client's pin
 validated, stored or shared owns its data whichever zod the client bundles,
 which is why the fix is in the constructor and not in the schema or in the
 editor that happened to do the branding.
-
-`geo` is the deliberate exception: `geo.data` is the instance's whole boundary
-file, shared by every figure at that level, and `geoRefSchema` types it
-`z.unknown()`, so it is never enumerated as a record. A copy per bundle build
-would cost the editor's live preview for nothing.
 
 ## Special chart modes: the style pipeline
 
@@ -771,8 +821,8 @@ renders `_SLIDE_BACKGROUND_COLOR` = `_NIGERIA_GREEN`, not the success token, an
 Open item). Image blocks await `getImgFromCacheOrFetch`: no `imgFile` →
 `{spacer:true}`, fetch failure → a placeholder text item rendering the shared
 localized `unavailableItemMarkdown()`. Figure blocks: absent `bundle` → spacer;
-a `buildFigureInputs` throw → the same placeholder. Per-block degradation never
-aborts the slide.
+a `buildFigureInputs` throw or `ok: false` result → the same placeholder.
+Per-block degradation never aborts the slide.
 
 ## Image cache, fonts, brand contracts
 

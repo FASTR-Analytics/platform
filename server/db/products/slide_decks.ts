@@ -68,21 +68,6 @@ export async function getSlideDeckDetail(
   });
 }
 
-export async function updateSlideDeckPlan(
-  mainDb: Sql,
-  productId: string,
-  plan: string,
-): Promise<APIResponseWithData<{ lastUpdated: string }>> {
-  return await tryCatchDatabaseAsync(async () => {
-    const lastUpdated = new Date().toISOString();
-    await mainDb.begin(async (sql) => {
-      await touchProduct(sql, productId, "slide_deck", lastUpdated);
-      await sql`UPDATE slide_decks SET plan = ${plan} WHERE id = ${productId}`;
-    });
-    return { success: true, data: { lastUpdated } };
-  });
-}
-
 // A new deck is minted with `themeChosen: false` and no slides. The write that
 // first answers the theme question (false -> true) also makes the deck's
 // cover, in the same transaction, so the deck's first slide is born in the

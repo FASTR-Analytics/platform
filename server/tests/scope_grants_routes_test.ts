@@ -1,14 +1,13 @@
 // Scope grants end to end: one unrestricted and one restricted user against
 // the real product, folder, user and run-keyed read routes, the collab socket
-// and the /mcp door check, on the dev database. The Clerk leg simulates only
-// clerkMiddleware's output contract, as products_routes_test.ts does.
+// and the /mcp door check, on the dev database, through the route-test
+// harness.
 //
 // Needs a ready pinned package on the dev instance. Run alone with:
 //   BYPASS_AUTH= deno test -A --env-file --unstable-broadcast-channel server/tests/scope_grants_routes_test.ts
 
 import { assert, assertEquals, assertRejects } from "@std/assert";
 import { join } from "@std/path";
-import { Hono } from "hono";
 import { AIToolFailure } from "@timroberton/panther";
 import {
   ALL_DATA_SCOPE_ID,
@@ -23,7 +22,7 @@ import { getPinnedRunId } from "../db/instance/run_generation.ts";
 import { createScope } from "../db/instance/scopes.ts";
 import { setUserScopeAccess } from "../db/instance/users.ts";
 import { closeAllConnections } from "../db/postgres/connection_manager.ts";
-import { _ASSETS_DIR_PATH, _BYPASS_AUTH } from "../exposed_env_vars.ts";
+import { _ASSETS_DIR_PATH } from "../exposed_env_vars.ts";
 import { buildGlobalUserFromDb } from "../auth/global_user.ts";
 import {
   buildMcpPrincipal,
@@ -39,67 +38,27 @@ import { routesFolders } from "../routes/products/folders.ts";
 import { routesProducts } from "../routes/products/products.ts";
 import { routesProductReports } from "../routes/products/reports.ts";
 import { buildInstanceState } from "../task_management/build_instance_state.ts";
+import { appFor, assertRealAuth, call, ok } from "./_harness/route_app.ts";
 
 const OPEN_EMAIL = "scope-grants-test-open@example.com";
 const LIMITED_EMAIL = "scope-grants-test-limited@example.com";
 const MINTED_EMAIL = "scope-grants-test-minted@example.com";
+const SYSTEM_CALLER = {
+  email: "scope-grants-test-system@example.com",
+  isGlobalAdmin: true,
+  scopeAccess: ALL_SCOPES,
+};
 
-function clerkLegMiddleware(email: string) {
-  const auth = {
-    userId: `user_${email}`,
-    tokenType: "session_token",
-    sessionClaims: { email, firstName: null, lastName: null },
-  };
-  return async (
-    c: { set: (k: never, v: never) => void },
-    next: () => Promise<void>,
-  ) => {
-    c.set("clerkAuth" as never, (() => auth) as never);
-    await next();
-  };
-}
-
-function appFor(email: string): Hono {
-  const app = new Hono();
-  app.use("*", clerkLegMiddleware(email) as never);
-  app.route("/", routesProducts);
-  app.route("/", routesFolders);
-  app.route("/", routesProductReports);
-  app.route("/", routesRunGeneration);
-  app.route("/", routesCollab);
-  app.route("/", routesUsers);
-  return app;
-}
-
-type Envelope =
-  | { success: true; data?: unknown }
-  | { success: false; err: string };
-
-async function call(
-  app: Hono,
-  method: string,
-  path: string,
-  body?: unknown,
-): Promise<{ status: number; body: Envelope }> {
-  const res = await app.request(path, {
-    method,
-    headers: body === undefined ? {} : { "Content-Type": "application/json" },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-  return { status: res.status, body: await res.json() };
-}
-
-async function ok<T>(
-  app: Hono,
-  method: string,
-  path: string,
-  body?: unknown,
-): Promise<T> {
-  const res = await call(app, method, path, body);
-  assertEquals(res.status, 200, `${method} ${path}: ${JSON.stringify(res)}`);
-  assert(res.body.success, `${method} ${path}: ${JSON.stringify(res.body)}`);
-  return res.body.data as T;
-}
+const userApp = (email: string) =>
+  appFor(
+    email,
+    routesProducts,
+    routesFolders,
+    routesProductReports,
+    routesRunGeneration,
+    routesCollab,
+    routesUsers,
+  );
 
 // Subscribes to a report over a real socket and returns the first message
 // about it: a sync when admitted, an error when refused.
@@ -109,7 +68,7 @@ async function subscribeReport(
 ): Promise<CollabServerMessage> {
   const server = Deno.serve(
     { port: 0, onListen: () => {} },
-    appFor(email).fetch,
+    userApp(email).fetch,
   );
   try {
     const ws = new WebSocket(`ws://localhost:${server.addr.port}/collab`);
@@ -148,7 +107,7 @@ async function closeCodeAfter(
 ): Promise<number> {
   const server = Deno.serve(
     { port: 0, onListen: () => {} },
-    appFor(email).fetch,
+    userApp(email).fetch,
   );
   try {
     const ws = new WebSocket(`ws://localhost:${server.addr.port}/collab`);
@@ -188,11 +147,7 @@ async function closeCodeAfter(
 }
 
 Deno.test("scope grants: products, folders, data reads, collab and /mcp", async () => {
-  if (_BYPASS_AUTH) {
-    throw new Error(
-      "BYPASS_AUTH is set: the grants harness must exercise the real auth branches. Unset it and re-run.",
-    );
-  }
+  assertRealAuth();
 
   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
   const pinRes = await getPinnedRunId(mainDb);
@@ -225,17 +180,19 @@ Deno.test("scope grants: products, folders, data reads, collab and /mcp", async 
   const granted = grantedRes.data.scopeId;
   const other = otherRes.data.scopeId;
 
-  const open = appFor(OPEN_EMAIL);
-  const limited = appFor(LIMITED_EMAIL);
+  const open = userApp(OPEN_EMAIL);
+  const limited = userApp(LIMITED_EMAIL);
   const productIds: string[] = [];
   const folderIds: string[] = [];
   const csvName = `scope_grants_test_${tag}.csv`;
 
   try {
-    const grant = await setUserScopeAccess(mainDb, LIMITED_EMAIL, {
-      all: false,
-      scopeIds: [granted],
-    });
+    const restrict = () =>
+      setUserScopeAccess(mainDb, SYSTEM_CALLER, LIMITED_EMAIL, {
+        all: false,
+        scopeIds: [granted],
+      });
+    const grant = await restrict();
     assert(grant.success, JSON.stringify(grant));
 
     const limitedUser: GlobalUser = await buildGlobalUserFromDb(
@@ -502,7 +459,8 @@ Deno.test("scope grants: products, folders, data reads, collab and /mcp", async 
     });
 
     // A socket opened under one scope access closes when an admin flag change
-    // gives its user another.
+    // gives its user another. The promotion clears the restriction, so the
+    // grant is restored after the demotion.
     await mainDb`UPDATE users SET is_admin = TRUE WHERE email = ${OPEN_EMAIL}`;
     assertEquals(
       await closeCodeAfter(
@@ -521,11 +479,12 @@ Deno.test("scope grants: products, folders, data reads, collab and /mcp", async 
       makeAdmin: false,
     });
     await mainDb`UPDATE users SET is_admin = FALSE WHERE email = ${OPEN_EMAIL}`;
+    assert((await restrict()).success);
 
     // A restricted user who manages users cannot write the admin flag, which
     // would lift their own restriction: not on a new user, not on their
     // own row through the batch upload, and not by renaming an admin's row to
-    // an address of their own.
+    // an address of their own, since only an admin renames.
     await mainDb`
       UPDATE users SET can_configure_users = TRUE WHERE email = ${LIMITED_EMAIL}
     `;

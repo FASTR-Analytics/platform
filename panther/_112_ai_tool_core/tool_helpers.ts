@@ -498,97 +498,15 @@ export type CreateUngatedViewAIToolConfig<
     }
   );
 
-// Construction-time guard: a tool input schema must ACCEPT unknown keys
-// everywhere in its tree (Claude sometimes emits underscore-prefixed
-// metadata keys; a strict schema then errors on every call). Detection is
-// empirical and pinned by tests/ai_tool_schema_test.ts: under
-// z.toJSONSchema(schema, { io: "input" }), plain z.object omits
-// additionalProperties while z.strictObject and .catchall(z.never()) emit
-// `additionalProperties: false` — including at nested nodes and inside
-// $defs (reused: "ref"). z.record emits an object there, never false.
-// Keywords whose values are DATA, not schemas — a default/example payload
-// may legitimately contain {additionalProperties: false} as a literal (e.g.
-// tools that edit JSON-schema-shaped config) and must not trip the guard.
-const NON_SCHEMA_KEYWORDS = new Set(["default", "examples", "const", "enum"]);
-// Keywords whose value is a map of arbitrary NAME → subschema: the names
-// themselves are data (a property may be called "default"), the values are
-// schema positions.
-const SCHEMA_MAP_KEYWORDS = new Set([
-  "properties",
-  "patternProperties",
-  "$defs",
-  "definitions",
-  "dependentSchemas",
-]);
-
-function findUnknownKeyRejectingPath(
-  node: unknown,
-  path: string,
-): string | null {
-  if (Array.isArray(node)) {
-    for (let i = 0; i < node.length; i++) {
-      const hit = findUnknownKeyRejectingPath(node[i], `${path}[${i}]`);
-      if (hit !== null) return hit;
-    }
-    return null;
-  }
-  if (node === null || typeof node !== "object") return null;
-  const obj = node as Record<string, unknown>;
-  if (obj.additionalProperties === false) return path;
-  // Keyed records (z.record(z.enum(...)) / regex-keyed) emit no `false`
-  // marker but still reject unknown keys at parse — the constraint lives on
-  // propertyNames instead.
-  const pn = obj.propertyNames;
-  if (
-    pn !== null && typeof pn === "object" && !Array.isArray(pn) &&
-    ("enum" in pn || "const" in pn || "pattern" in pn)
-  ) {
-    return `${path}.propertyNames`;
-  }
-  for (const [key, value] of Object.entries(obj)) {
-    if (NON_SCHEMA_KEYWORDS.has(key)) continue;
-    if (
-      SCHEMA_MAP_KEYWORDS.has(key) && value !== null &&
-      typeof value === "object" && !Array.isArray(value)
-    ) {
-      for (const [name, sub] of Object.entries(value)) {
-        const hit = findUnknownKeyRejectingPath(sub, `${path}.${key}.${name}`);
-        if (hit !== null) return hit;
-      }
-      continue;
-    }
-    const hit = findUnknownKeyRejectingPath(value, `${path}.${key}`);
-    if (hit !== null) return hit;
-  }
-  return null;
-}
-
-function assertSchemaAcceptsUnknownKeys(
-  toolName: string,
-  schema: zType.ZodType,
-): void {
-  const inputSchema = z.toJSONSchema(schema, { io: "input", reused: "ref" });
-  const hit = findUnknownKeyRejectingPath(inputSchema, "$");
-  if (hit !== null) {
-    throw new Error(
-      `createAITool("${toolName}"): input schema rejects unknown keys at ${hit} (z.strictObject, .catchall(z.never()), or an enum/pattern-keyed z.record). Tool schemas must accept unknown keys — Claude sometimes emits extra metadata keys, and a rejecting schema then errors on every call.`,
-    );
-  }
-}
-
-// Emitted with io: "input", the same mode assertSchemaAcceptsUnknownKeys
-// walks, so the guard and the wire describe one schema: a plain z.object
-// stays open (no additionalProperties, which is why the field is optional
-// in ObjectJsonSchema), .default() fields are optional on the wire, and
-// .transform() inputs are representable. Output io would close every
-// object and list defaulted fields as required, contradicting the
-// accept-unknown-keys invariant enforced above. One known laxity: a
-// z.preprocess field is advertised optional, so its fn must tolerate
-// undefined or parse rejects what the wire allowed. `additionalProperties`
-// becomes mandatory the day `strict: true` tool use is adopted, which
-// conflicts with the same invariant: resolve both together. These schemas
-// also serve the remote MCP endpoint's tools/list (_220), so any change ripples
-// to MCP clients and must re-run the mcp rigs.
+// Emitted with io: "input": .default() fields are optional on the wire and
+// .transform() inputs are representable, where output io would list
+// defaulted fields as required and cannot represent a transform. A plain
+// z.object emits no additionalProperties and z.strictObject emits false, so
+// the wire says exactly what parse accepts. One known laxity: a z.preprocess
+// field is advertised optional, so its fn must tolerate undefined or parse
+// rejects what the wire allowed. These schemas also serve the MCP
+// tools/list (_220), so any change ripples to MCP clients and must re-run
+// the mcp rigs.
 function zodToJsonSchema(zodSchema: zType.ZodType): ObjectJsonSchema {
   const jsonSchema = z.toJSONSchema(zodSchema, { io: "input", reused: "ref" });
 
@@ -682,7 +600,6 @@ export function createAITool<TInput>(
 export function buildAITool<TInput>(
   config: ErasedCreateAIToolConfig,
 ): AIToolWithMetadata<TInput> {
-  assertSchemaAcceptsUnknownKeys(config.name, config.inputSchema);
   if (config.availableIn !== undefined && config.availableIn.length === 0) {
     throw new Error(
       `createAITool("${config.name}"): availableIn is empty — the tool would be executable nowhere. Omit the field for an everywhere-available tool.`,
@@ -742,7 +659,7 @@ export function buildAITool<TInput>(
   }
   // headless construction invariants: throw on combinations that are
   // structurally impossible with no view and no user — same philosophy as the
-  // strict-schema / empty-availableIn / session×modal throws (a bad
+  // empty-availableIn / session×modal throws (a bad
   // combination fails boot, never a live call). `viewRegistry` presence alone
   // is deliberately NOT a disqualifier: aiToolFactory stamps it on every tool
   // it builds, gated or not, and an ungated view-typed handler may never

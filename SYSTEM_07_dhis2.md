@@ -19,9 +19,11 @@ fetcher owning auth/timeout/retry, four `goalN_` endpoint groups (org units,
 indicators, geojson, data value sets + metadata id-existence for the S6 import
 dispatcher), two-phase connection validation with a never-throw user boundary,
 and the client credentials UX. No DB access in the adapter (`server/dhis2/**`);
-the route file reaches the DB only through S5 and S6 functions. It fetches and
-shapes; callers persist. Reviewed against code (first review cycle, review-only;
-absorbs DOC_DHIS2_INTEGRATION).
+the route file reaches the DB only through S5 and S6 functions. One import
+crosses the other way: `goal4_geojson` takes the raw parsed GeoJSON feature
+types from `server/geojson/types.ts` (S5), so an uploaded file and a DHIS2
+response are one shape. It fetches and shapes; callers persist. Reviewed against
+code (first review cycle, review-only; absorbs DOC_DHIS2_INTEGRATION).
 
 Boundaries: what happens to fetched data is the consumer's system:
 structure/facility staging and geojson storage are **S5**, HMIS dataset staging

@@ -9,21 +9,23 @@ CREATE TABLE users (
   is_admin boolean NOT NULL,
   can_configure_users boolean NOT NULL DEFAULT FALSE,
   can_view_users boolean NOT NULL DEFAULT FALSE,
-  can_view_logs boolean NOT NULL DEFAULT FALSE,
-  can_configure_settings boolean NOT NULL DEFAULT FALSE,
   can_configure_data boolean NOT NULL DEFAULT FALSE,
   can_view_data boolean NOT NULL DEFAULT FALSE,
   first_name text,
   last_name text,
   daily_token_usage integer NOT NULL DEFAULT 0,
   daily_token_usage_date date NOT NULL DEFAULT CURRENT_DATE,
+  daily_email_count integer NOT NULL DEFAULT 0,
+  daily_email_count_date date NOT NULL DEFAULT CURRENT_DATE,
   unlimited_ai boolean NOT NULL DEFAULT false,
   is_contact_person boolean NOT NULL DEFAULT false,
   -- FALSE = restricted to the scopes in user_scopes. Ignored for a global
   -- admin. After the permission bits because migration 205 adds it to a live
   -- table; organisation follows it for the same reason (219).
   all_scopes boolean NOT NULL DEFAULT TRUE,
-  organisation text
+  organisation text,
+  -- A global admin is unrestricted (224).
+  CONSTRAINT users_admin_unrestricted CHECK (NOT is_admin OR all_scopes)
 );
 
 -- Results runs catalog.
@@ -913,8 +915,6 @@ CREATE TABLE hfa_indicators (
   type TEXT NOT NULL CHECK (type IN ('binary', 'numeric')),
   aggregation TEXT NOT NULL DEFAULT 'sum' CHECK (aggregation IN ('sum', 'avg')),
   sort_order INTEGER NOT NULL DEFAULT 0,
-  has_syntax_error BOOLEAN NOT NULL DEFAULT FALSE,
-  code_consistent BOOLEAN NOT NULL DEFAULT TRUE,
   -- Deliberately ON DELETE RESTRICT (default NO ACTION): deleting a group that
   -- any indicator still references is refused.
   variant_group_id TEXT REFERENCES hfa_indicator_variant_groups(id) ON UPDATE CASCADE,
@@ -929,8 +929,8 @@ CREATE TABLE hfa_indicators (
 CREATE TABLE hfa_indicator_code (
   indicator_id TEXT NOT NULL REFERENCES hfa_indicators(indicator_id) ON DELETE CASCADE,
   time_point TEXT NOT NULL REFERENCES hfa_time_points(label) ON UPDATE CASCADE ON DELETE RESTRICT,
-  r_code TEXT NOT NULL DEFAULT '',
-  r_filter_code TEXT,
+  code TEXT NOT NULL DEFAULT '',
+  filter_code TEXT,
   PRIMARY KEY (indicator_id, time_point)
 );
 
@@ -938,7 +938,7 @@ CREATE TABLE hfa_indicator_variant_code (
   indicator_id TEXT NOT NULL REFERENCES hfa_indicators(indicator_id) ON DELETE CASCADE,
   time_point TEXT NOT NULL REFERENCES hfa_time_points(label) ON UPDATE CASCADE ON DELETE RESTRICT,
   item_id TEXT NOT NULL REFERENCES hfa_indicator_variant_items(id) ON UPDATE CASCADE ON DELETE CASCADE,
-  r_code TEXT NOT NULL DEFAULT '',
+  code TEXT NOT NULL DEFAULT '',
   PRIMARY KEY (indicator_id, time_point, item_id)
 );
 

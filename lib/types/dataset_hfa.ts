@@ -13,11 +13,6 @@ export type HfaTimePoint = {
 // Detail Types
 // ============================================================================
 
-export type DatasetHfaDetail = {
-  timePoints: HfaTimePoint[];
-  cacheHash: string;
-};
-
 export type HfaVariableRow = {
   variableId: string;
   variableType: string;

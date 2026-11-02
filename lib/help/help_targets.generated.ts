@@ -282,6 +282,17 @@ export const HELP_TARGETS = {
         "Un indicateur calculé est défini par une formule portant sur d'autres indicateurs, par exemple anc4 / anc1 pour un taux de couverture. Il est calculé après l'agrégation des données : un chiffre…",
     },
   },
+  "ind-code": {
+    page: "admin-guide/indicators",
+    anchor: { en: "indicator-code", fr: "code-des-indicateurs" },
+    title: { en: "Indicator code", fr: "Code des indicateurs" },
+    summary: {
+      en:
+        "Each HFA indicator requires indicator code specifying how to extract its value from raw survey data. The code runs for each facility and should evaluate to yes/no for binary indicators or a number…",
+      fr:
+        "Chaque indicateur HFA nécessite un code d'indicateur spécifiant comment extraire sa valeur à partir des données d'enquête brutes. Le code s'exécute pour chaque établissement et doit évaluer à oui/non…",
+    },
+  },
   "ind-dhis2-import": {
     page: "admin-guide/indicators",
     anchor: {
@@ -319,17 +330,6 @@ export const HELP_TARGETS = {
         "To create an indicator, click Create new. Give it an ID and a label, then choose its type. The type determines what definition fields appear. To sort the list order used by every indicator axis in…",
       fr:
         "Pour créer un indicateur, cliquez sur Créer. Donnez-lui un identifiant et un libellé, puis choisissez son type. Le type détermine les champs de définition qui s'affichent. Pour définir l'ordre de la…",
-    },
-  },
-  "ind-r-code": {
-    page: "admin-guide/indicators",
-    anchor: { en: "indicator-code", fr: "code-des-indicateurs" },
-    title: { en: "Indicator code", fr: "Code des indicateurs" },
-    summary: {
-      en:
-        "Each HFA indicator requires indicator code specifying how to extract its value from raw survey data. The code runs for each facility and should evaluate to yes/no for binary indicators or a number…",
-      fr:
-        "Chaque indicateur HFA nécessite un code d'indicateur spécifiant comment extraire sa valeur à partir des données d'enquête brutes. Le code s'exécute pour chaque établissement et doit évaluer à oui/non…",
     },
   },
   "report-create": {

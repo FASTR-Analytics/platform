@@ -1,4 +1,5 @@
 import {
+  type FigureUnavailable,
   type PackageScope,
   type PresentationObjectConfig,
   type ResultsValue,
@@ -7,6 +8,7 @@ import {
 import type { FigureInputs, StateHolder } from "panther";
 import { type Accessor, createEffect, createSignal } from "solid-js";
 import {
+  awaitFigureBoundaries,
   buildFigureInputs,
   makeFigureBundleFromFetchedData,
 } from "~/generate_visualization/mod";
@@ -62,13 +64,67 @@ export async function fetchFigureInputs(
       },
       getSnapshotInstanceLocalization(),
     );
-    return { status: "ready", data: buildFigureInputs(bundle) };
+    await awaitFigureBoundaries(bundle);
+    const built = buildFigureInputs(bundle);
+    return built.ok
+      ? { status: "ready", data: built.inputs }
+      : { status: "error", err: describeFigureUnavailable(built.unavailable) };
   } catch (e) {
     return {
       status: "error",
       err: e instanceof Error ? e.message : "Render error",
     };
   }
+}
+
+// The one wording of each unavailable reason, for every surface that shows one.
+export function describeFigureUnavailable(reason: FigureUnavailable): string {
+  if (reason.kind === "no_area_matches") {
+    return reason.source === "package"
+      ? t3({
+        en:
+          `None of the ${reason.dataAreas} data areas matches one of the ${reason.boundaries} map boundaries in this results package, so the map cannot be drawn. Fix the mapping on the maps page, then regenerate the package.`,
+        fr:
+          `Aucune des ${reason.dataAreas} unités avec données ne correspond à l'une des ${reason.boundaries} limites de carte de ce paquet de résultats, la carte ne peut donc pas être dessinée. Corrigez l'association sur la page des cartes, puis régénérez le paquet.`,
+        pt:
+          `Nenhuma das ${reason.dataAreas} zonas com dados corresponde a um dos ${reason.boundaries} limites de mapa deste pacote de resultados, por isso o mapa não pode ser desenhado. Corrija a associação na página de mapas e gere o pacote novamente.`,
+      })
+      : t3({
+        en:
+          `None of the ${reason.dataAreas} data areas matches one of the ${reason.boundaries} map boundaries, so the map cannot be drawn. Check the boundary mapping on the maps page.`,
+        fr:
+          `Aucune des ${reason.dataAreas} unités avec données ne correspond à l'une des ${reason.boundaries} limites de la carte, la carte ne peut donc pas être dessinée. Vérifiez l'association des limites sur la page des cartes.`,
+        pt:
+          `Nenhuma das ${reason.dataAreas} zonas com dados corresponde a um dos ${reason.boundaries} limites do mapa, por isso o mapa não pode ser desenhado. Verifique a associação dos limites na página de mapas.`,
+      });
+  }
+  const registry = reason.family.toUpperCase();
+  const level = reason.level;
+  if (reason.kind === "boundaries_loading") {
+    return t3({
+      en: "Loading map boundaries...",
+      fr: "Chargement des limites de la carte...",
+      pt: "A carregar os limites do mapa...",
+    });
+  }
+  if (reason.source === "package") {
+    return t3({
+      en:
+        `This results package was generated without the ${registry} map files at Admin Area ${level}. Regenerate the package to include them.`,
+      fr:
+        `Ce paquet de résultats a été généré sans les fichiers de carte ${registry} au niveau d'unité administrative ${level}. Régénérez le paquet pour les inclure.`,
+      pt:
+        `Este pacote de resultados foi gerado sem os ficheiros de mapa ${registry} ao nível de zona administrativa ${level}. Gere o pacote novamente para os incluir.`,
+    });
+  }
+  return t3({
+    en:
+      `Map files not yet uploaded for the ${registry} registry at Admin Area ${level}`,
+    fr:
+      `Fichiers de carte pas encore téléversés pour le registre ${registry} au niveau d'unité administrative ${level}`,
+    pt:
+      `Ficheiros de mapa ainda não carregados para o registo ${registry} ao nível de zona administrativa ${level}`,
+  });
 }
 
 export type FigurePreviewSource = {

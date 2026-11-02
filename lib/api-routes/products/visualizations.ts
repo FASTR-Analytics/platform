@@ -1,3 +1,4 @@
+import { GUARD, type RouteGuard } from "../../permissions/mod.ts";
 import { z } from "zod";
 import { figureBundleSchema } from "../../types/_figure_bundle.ts";
 import { scopeIdSchema } from "../../types/scope.ts";
@@ -6,7 +7,7 @@ import type {
   VisualizationVersionDetail,
   VisualizationVersionSummary,
 } from "../../types/versions.ts";
-import { type ProductAccessLevel, route } from "../route-utils.ts";
+import { route } from "../route-utils.ts";
 import { productIdParamsSchema } from "./products.ts";
 
 const productVersionParamsSchema = z.object({
@@ -25,6 +26,7 @@ export const productVisualizationRouteRegistry = {
   createVisualization: route({
     path: "/products/visualization",
     method: "POST",
+    guard: GUARD.product("edit"),
     body: z.object({
       folderId: z.uuid().nullable(),
       runId: z.string(),
@@ -33,15 +35,14 @@ export const productVisualizationRouteRegistry = {
       bundle: figureBundleSchema,
     }),
     response: {} as { productId: string; lastUpdated: string },
-    access: "edit",
   }),
 
   getVisualizationDetail: route({
     path: "/products/:product_id/visualization",
     method: "GET",
+    guard: GUARD.product("view"),
     params: productIdParamsSchema,
     response: {} as VisualizationDetail,
-    access: "view",
   }),
 
   // The non-collab save (the editor's fallback when its room never went
@@ -51,48 +52,48 @@ export const productVisualizationRouteRegistry = {
   updateVisualization: route({
     path: "/products/:product_id/visualization",
     method: "PUT",
+    guard: GUARD.product("edit"),
     params: productIdParamsSchema,
     body: z.object({
       bundle: figureBundleSchema,
       keepVersion: z.boolean().optional(),
     }),
     response: {} as { lastUpdated: string },
-    access: "edit",
   }),
 
   listVisualizationVersions: route({
     path: "/products/:product_id/visualization/versions",
     method: "GET",
+    guard: GUARD.product("view"),
     params: productIdParamsSchema,
     response: {} as VisualizationVersionSummary[],
-    access: "view",
   }),
 
   getVisualizationVersion: route({
     path: "/products/:product_id/visualization/versions/:version_id",
     method: "GET",
+    guard: GUARD.product("view"),
     params: productVersionParamsSchema,
     response: {} as VisualizationVersionDetail,
-    access: "view",
   }),
 
   restoreVisualizationVersion: route({
     path: "/products/:product_id/visualization/versions/:version_id/restore",
     method: "POST",
+    guard: GUARD.product("edit"),
     params: productVersionParamsSchema,
     response: {} as { lastUpdated: string },
-    access: "edit",
   }),
 
   copyVisualizationVersion: route({
     path: "/products/:product_id/visualization/versions/:version_id/copy",
     method: "POST",
+    guard: GUARD.product("view"),
     params: productVersionParamsSchema,
     body: z.object({
       label: z.string(),
       folderId: z.uuid().nullable(),
     }),
     response: {} as { productId: string; lastUpdated: string },
-    access: "view",
   }),
-} as const satisfies Record<string, { access: ProductAccessLevel }>;
+} as const satisfies Record<string, { guard: RouteGuard }>;

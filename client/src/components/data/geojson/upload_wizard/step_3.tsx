@@ -1,6 +1,7 @@
 import { t3 } from "lib";
 import { Button, Select } from "panther";
 import { createMemo, For, Show } from "solid-js";
+import { AdminAreaDuplicatesWarning } from "../_shared/mod.ts";
 import type { Dhis2FeatureContext, WizardState } from "./wizard";
 
 type Props = {
@@ -64,7 +65,7 @@ export function Step3(p: Props) {
           pt: "— Não associado —",
         }),
       },
-      ...p.state.adminAreaOptions(),
+      ...p.state.adminAreas().options,
     ];
   });
 
@@ -120,6 +121,8 @@ export function Step3(p: Props) {
           </div>
         </Show>
       </div>
+
+      <AdminAreaDuplicatesWarning groups={p.state.adminAreas().duplicates} />
 
       <div class="max-h-96 overflow-auto rounded border">
         <div class="bg-base-100 flex border-b px-3 py-2 text-sm font-700">

@@ -1,13 +1,13 @@
-// The one place a request's identity becomes a GlobalUser. Three credential
-// shapes converge here: the dev bypass, a headless credential (PAT or OAuth,
-// already resolved to an email by the headless auth middleware), and a Clerk
-// session. `approved` (`_OPEN_ACCESS || !!usersRow`) is what
-// requireApprovedUser() and productAccessPolicy gate the product surface on;
-// the six instance permission flags say nothing about approval.
-// `scopeAccess` is the user's grants, and a restricted user's permission bits
-// are reduced here, once.
+// The one place a request's identity becomes a GlobalUser. Four credential
+// shapes converge here: the dev bypass, the dev persona cookie, a headless
+// credential (PAT or OAuth, already resolved to an email by the headless auth
+// middleware), and a Clerk session. `approved` (`_OPEN_ACCESS || !!usersRow`)
+// is what requireApprovedUser() and productAccessPolicy gate on; the four
+// instance permission flags say nothing about approval.
+// `thisUserPermissions` is effectivePermissions of the row, derived here once.
 
 import type { Context } from "hono";
+import { getCookie } from "hono/cookie";
 import {
   _BYPASS_AUTH,
   _INSTANCE_CALENDAR,
@@ -15,27 +15,29 @@ import {
   _INSTANCE_LANGUAGE,
   _INSTANCE_NAME,
   _OPEN_ACCESS,
+  _PERSONA_AUTH,
 } from "../exposed_env_vars.ts";
 import type { DBUser } from "../db/mod.ts";
 import {
+  getInstanceUsers,
   getPgConnectionFromCacheOrNew,
   getScopeGrantsByEmail,
-  scopeAccessFromRow,
 } from "../db/mod.ts";
+import { notifyInstanceUsersUpdated } from "../task_management/notify_instance_updated.ts";
 import type { GlobalUser } from "lib";
 import {
-  _USER_PERMISSIONS_DEFAULT_FULL_ACCESS,
-  _USER_PERMISSIONS_DEFAULT_NO_ACCESS,
-  ALL_SCOPES,
-  buildUserPermissionsFromRow,
   createDevGlobalUser,
-  H_USERS,
-  permissionsUnderScopeAccess,
+  effectivePermissions,
+  normaliseEmail,
+  PERSONA_COOKIE,
+  pickUserPermissions,
+  scopeAccessOf,
 } from "lib";
 import {
   getClerkSessionAuth,
   getHeadlessAuthEmail,
 } from "../middleware/auth.ts";
+import { isHUser } from "./operators.ts";
 
 export async function getGlobalUser(
   c: Context,
@@ -56,6 +58,15 @@ export async function getGlobalUser(
     return await buildGlobalUserFromDb(headlessEmail, null, null);
   }
 
+  // The dev persona switch: the cookie's email is the user, built from that
+  // row with no name claims, so an unknown email is an unapproved user.
+  if (_PERSONA_AUTH) {
+    const persona = getCookie(c, PERSONA_COOKIE);
+    return persona
+      ? await buildGlobalUserFromDb(persona, null, null)
+      : "NOT_AUTHENTICATED";
+  }
+
   const auth = getClerkSessionAuth(c);
   if (!auth?.userId) {
     return "NOT_AUTHENTICATED";
@@ -73,10 +84,11 @@ export async function getGlobalUser(
 // callers carry no name claims: pass null/null, exactly as getGlobalUser's
 // headless branch does.
 export async function buildGlobalUserFromDb(
-  email: string,
+  claimEmail: string,
   claimFirstName: string | null,
   claimLastName: string | null,
 ): Promise<GlobalUser> {
+  const email = normaliseEmail(claimEmail);
   try {
     const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
 
@@ -85,33 +97,43 @@ export async function buildGlobalUserFromDb(
     >`SELECT * FROM users WHERE email = ${email}`;
     const rawUser = rawUserResult.at(0);
 
-    if (_OPEN_ACCESS && (!rawUser || !rawUser.is_admin)) {
-      // Non-critical insert, don't wait if it fails
-      mainDb`
-        INSERT INTO users (email, is_admin)
-        VALUES (${email}, TRUE)
+    // Open access approves every signed-in email and makes it an admin for
+    // as long as the mode is on; the row it writes is an ordinary user, so
+    // turning the mode off leaves no one an admin it did not appoint. Not
+    // awaited: the request does not depend on it.
+    if (_OPEN_ACCESS && !rawUser) {
+      const writeDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
+      writeDb<{ email: string }[]>`
+        INSERT INTO users (email, is_admin) VALUES (${email}, FALSE)
         ON CONFLICT DO NOTHING
-      `.catch(() => {}); // Ignore errors on this insert
+        RETURNING email
+      `
+        .then(async (inserted) => {
+          if (inserted.length > 0) {
+            notifyInstanceUsersUpdated(await getInstanceUsers(writeDb));
+          }
+        })
+        .catch((error) =>
+          console.error("Open-access user insert failed:", error)
+        );
     }
 
     const isGlobalAdmin = _OPEN_ACCESS || (!!rawUser && rawUser.is_admin);
 
-    const scopeAccess = isGlobalAdmin || !rawUser || rawUser.all_scopes
-      ? ALL_SCOPES
-      : scopeAccessFromRow(
-        rawUser,
-        (await getScopeGrantsByEmail(mainDb, [email])).get(email) ?? [],
-      );
-
-    // Admins get all permissions, others get their configured permissions
-    const thisUserPermissions: GlobalUser["thisUserPermissions"] = isGlobalAdmin
-      ? _USER_PERMISSIONS_DEFAULT_FULL_ACCESS
-      : rawUser
-      ? permissionsUnderScopeAccess(
-        buildUserPermissionsFromRow(rawUser),
-        scopeAccess,
-      )
-      : _USER_PERMISSIONS_DEFAULT_NO_ACCESS;
+    const allScopes = !rawUser || rawUser.all_scopes;
+    const scopeAccess = scopeAccessOf(
+      isGlobalAdmin,
+      allScopes,
+      isGlobalAdmin || allScopes
+        ? []
+        : (await getScopeGrantsByEmail(mainDb, [email])).get(email) ?? [],
+    );
+    const operator = isHUser(email);
+    const thisUserPermissions = effectivePermissions({
+      isGlobalAdmin,
+      scopeAccess,
+      ...pickUserPermissions(rawUser ?? {}),
+    });
 
     const globalUser: GlobalUser = {
       instanceName: _INSTANCE_NAME,
@@ -125,8 +147,9 @@ export async function buildGlobalUserFromDb(
       organisation: rawUser?.organisation ?? null,
       approved: _OPEN_ACCESS || !!rawUser,
       isGlobalAdmin,
+      isHUser: operator,
       thisUserPermissions,
-      unlimitedAi: H_USERS.includes(email) || (rawUser?.unlimited_ai ?? false),
+      unlimitedAi: operator || (rawUser?.unlimited_ai ?? false),
       scopeAccess,
     };
     return globalUser;

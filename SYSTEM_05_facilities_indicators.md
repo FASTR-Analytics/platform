@@ -23,8 +23,10 @@ globs:
   - lib/traffic_light_rule.ts
   - lib/hfa_indicator_labels.ts
   - lib/hfa_indicator_code.ts
+  - lib/hfa_indicator_dependencies.ts
   - lib/indicator_expression/**
   - lib/indicator_id.ts
+  - lib/geojson_area_match.ts
   - lib/population_coverage.ts
   - lib/population_person_years.ts
   - lib/special_indicators.ts
@@ -56,9 +58,12 @@ globs:
   - server/tests/dhis2_id_fix_backfill_test.ts
   - server/tests/dhis2_id_fix_execute_test.ts
   - server/tests/dhis2_id_fix_plan_test.ts
+  - server/tests/geojson_area_match_test.ts
+  - server/tests/geojson_serving_test.ts
   - server/tests/hfa_code_migration_test.ts
   - server/tests/hfa_facility_weights_import_test.ts
   - server/tests/hfa_indicator_code_test.ts
+  - server/tests/hfa_indicator_status_test.ts
   - server/tests/hfa_r_emit_test.ts
   - server/tests/hfa_workbook_text_columns_test.ts
   - server/tests/indicator_analysed_set_test.ts
@@ -233,15 +238,22 @@ columns (`facility_name`, `facility_type`, `facility_ownership`,
 import resolves ODK codes to labels, S6 "Staging"). The 4-level admin-area model
 is name-keyed and **per facility registry**: `admin_areas_{hmis,hfa}_1..4` rows
 are names, and the name is the join key everywhere (S9 maps, geojson `area_id`).
-Duplicate names within a level are therefore ambiguous. The wizard warns but
-cannot fix. The two registries' name-spaces are independent and are never
-reconciled (migration 076; instance migration 081 drops the shared
-`admin_areas_1..4` tables and the global `max_admin_area` / `facility_columns`
-config rows that 076 left in place as its rollback path). A scope names an area
-per family: its HMIS section an area of the HMIS registry and its HFA section an
-area of the HFA registry, so the two can spell one place differently, and each
-is matched against that family's results objects at read time (S9 "The scoped
-view").
+Duplicate names within a level are therefore ambiguous: same-named areas share
+one geojson boundary and one value. Nothing can fix that short of renaming, so
+the duplicates are stated where they are created and where they bite. The
+structure import's summary carries a per-level duplicate count
+(`countDuplicateAdminAreaNames`, attached beside the orphan count after the
+commit and shown on the import's last step), and `getAdminAreaOptionsForLevel`
+returns one option per distinct name at every level plus the duplicate groups
+(each repeated name with its parent paths), which the geojson wizard's mapping
+step and the edit modal show above their mapping tables. The two registries'
+name-spaces are independent and are never reconciled (migration 076; instance
+migration 081 drops the shared `admin_areas_1..4` tables and the global
+`max_admin_area` / `facility_columns` config rows that 076 left in place as its
+rollback path). A scope names an area per family: its HMIS section an area of
+the HMIS registry and its HFA section an area of the HFA registry, so the two
+can spell one place differently, and each is matched against that family's
+results objects at read time (S9 "The scoped view").
 
 FK topology: `facilities_{family} → admin_areas_{family}_4` CASCADE;
 `dataset_hmis`/`hfa_data → facilities_*` are RESTRICT-behaving NO ACTION
@@ -753,7 +765,7 @@ The variable id is the column the HFA extract carries to R (`hfa.csv`
 `variable_id`, the `m010` pivot column) and the id that indicator code
 references; `isReservedHfaId` reserves it with the other columns the script
 owns. User-authored code snippets in `hfa_indicator_code` (per indicator_id ×
-time_point: `r_code` + optional `r_filter_code`, filter requires main code)
+time_point: `code` + optional `filter_code`, filter requires main code)
 reference variables AND other indicators, both by id. Indicator ids are assigned
 by the app and never typed: `nextHfaIndicatorId` (`lib/hfa_indicator_code.ts`)
 takes the next `indNNN` after the highest stored one, skipping reserved words
@@ -762,20 +774,21 @@ not shadow a dataset column). The single create route assigns it on the server
 under a table lock; the AI batch tool and a workbook row with a blank
 `indicatorId` assign it on the client from the same rule, over the stored ids
 plus the batch's own. The batch route inserts only the ids not yet stored
-(`ON CONFLICT DO NOTHING ... RETURNING`), writes code for those alone and
-returns them, so an id taken between the AI's proposal and its acceptance is
-reported as not created. An id is immutable: every update path identifies the
-row by it and none renames. Ids are shown nowhere in the UI except the code
-editor, whose "Other indicators" list inserts one into the code on click; the
-workbook keeps its `indicatorId` column so a re-import updates rows in place.
-Stored ids that predate this rule (or violate `HFA_INDICATOR_ID_REGEX`,
-`^[a-zA-Z][a-zA-Z0-9_]{0,63}$`, which batch and workbook ids must still pass)
-are carried unchanged. Taxonomy: categories → sub-categories (real FKs) plus
-service categories stored as a JSON string array on the indicator (no FK;
-rename/delete integrity is maintained by `rewriteServiceCategoryTags`, which the
-service-category mutations call to rewrite the tagged indicators' lists in
-TypeScript, in the same transaction). `lib/hfa_indicator_labels.ts` is the
-single label authority (`composeHfaIndicatorLabel`, `getHfaIndicatorMeasure`).
+(`ON CONFLICT DO NOTHING ... RETURNING`), after the highest stored sort order,
+writes main and variant code for those alone and returns them, so an id taken
+between the AI's proposal and its acceptance is reported as not created. An id
+is immutable: every update path identifies the row by it and none renames. Ids
+are shown nowhere in the UI except the code editor, whose "Other indicators"
+list inserts one into the code on click; the workbook keeps its `indicatorId`
+column so a re-import updates rows in place. Stored ids that predate this rule
+(or violate `HFA_INDICATOR_ID_REGEX`, `^[a-zA-Z][a-zA-Z0-9_]{0,63}$`, which
+batch and workbook ids must still pass) are carried unchanged. Taxonomy:
+categories → sub-categories (real FKs) plus service categories stored as a JSON
+string array on the indicator (no FK; rename/delete integrity is maintained by
+`rewriteServiceCategoryTags`, which the service-category mutations call to
+rewrite the tagged indicators' lists in TypeScript, in the same transaction).
+`lib/hfa_indicator_labels.ts` is the single label authority
+(`composeHfaIndicatorLabel`, `getHfaIndicatorMeasure`).
 
 **HFA workbook import** (`xlsx_upload_form.tsx`) has two inputs behind one flow:
 a picked `.xlsx`, or the **default indicator set** fetched client-side from the
@@ -796,15 +809,25 @@ language), then English, then the single column, so one default file serves
 every instance and an untranslated cell shows English. A required text field
 whose column is present in none of its forms is rejected at the header, so a
 misnamed column cannot import blank labels. The export writes the single-column
-form. The default file carries one labeled code column (`r_code__Round 1`), so
-with N time points the reconcile step offers apply-to-all / apply-to-one. Pinned
-by `server/tests/hfa_workbook_text_columns_test.ts`.
+form. Code columns name their time point: `code__<time point>`,
+`filter_code__<time point>` and `variant_code__<item id>__<time point>`, the
+last resolved against the Variant items sheet by longest-matching item id. The
+Indicators sheet refuses any header the import does not read, naming it: the
+known set is the export's column list, each text column's language forms and
+those three patterns, so a misnamed code column cannot import its indicators
+with no code. A filter code column with no code column of its time point is
+refused the same way. The reconcile step maps each code column's time point to a
+platform time point, matched by label by default. The default file carries one
+code column (`code__Round 1`), so with N time points the reconcile step offers
+apply-to-all / apply-to-one. Pinned by
+`server/tests/hfa_workbook_text_columns_test.ts`, which also parses the repo's
+`hfa_default_indicators.xlsx`.
 
 **HFA variant groups** let one indicator carry a per-item response-option
 breakdown ("provides vaccination" × {campaign, routine, both}) without the items
 becoming indicators. Storage is one indicator row plus a sibling code table:
 `hfa_indicator_variant_groups` / `_items` (id PK, group FK) and
-`hfa_indicator_variant_code` (`indicator_id, time_point, item_id` → `r_code`),
+`hfa_indicator_variant_code` (`indicator_id, time_point, item_id` → `code`),
 with a nullable `hfa_indicators.variant_group_id`. Real variant _rows_ in
 `hfa_indicators` were rejected: their failure mode is a hiding rule at every
 surface that iterates the dictionary (manager, xlsx, `HfaTaxonomyForAI`,
@@ -812,12 +835,12 @@ unused-variables, run capture and every run reader), and one miss leaks item ids
 into user-facing indicator lists. The code table's cost is the opposite and
 better shaped: a missed extension means a variant lacks a feature, visible to
 the author immediately. **The feature is purely additive**: the parent keeps its
-own overall `r_code` and its unchanged rows in `M10_hfa_results.csv`; overall is
-never derived from items (they may overlap or be non-exhaustive).
-`r_filter_code`, type, aggregation and sentinel bindings stay the parent's and
-apply to every item; only the numerator is per-item, and `time_point` stays in
-the key because each round has its own questionnaire (an item with no code row
-for a round simply drops out of it, with its own denominator).
+own overall `code` and its unchanged rows in `M10_hfa_results.csv`; overall is
+never derived from items (they may overlap or be non-exhaustive). `filter_code`,
+type, aggregation and sentinel bindings stay the parent's and apply to every
+item; only the numerator is per-item, and `time_point` stays in the key because
+each round has its own questionnaire (an item with no code row for a round
+simply drops out of it, with its own denominator).
 
 Three invariants are enforced by `assertVariantIntegrity`, re-run **in full
 inside every mutating transaction** that can touch them, including the
@@ -849,31 +872,62 @@ brackets, such as `[q_-99]`, is refused). It returns the AST and its
 identifiers, or a structured error that `describeHfaCodeError` turns into a
 translatable text. The vocabulary the editor's help line and the AI guidance
 state (`HFA_CODE_SYMBOLS`, `HFA_CODE_WORDS`, `HFA_CODE_LIST_EXAMPLE`) lives
-beside it. The client validator (`_shared/indicator_code_validator.ts`), the
-manager's unused-variable and deletion guards, the AI tools and the server
-dependency analyzer (`server_only_funcs/hfa_dependency_analyzer.ts`) all read
-this one parse, so editor-green code never hard-fails a run. No R text is ever
-parsed: R is emitted from the AST on the server only
+beside it. The AI guidance (`data/hfa/indicators/ai/instructions.ts`, the same
+text in the manager's and the code editor's views) states the indicator model,
+type and aggregation, the grammar, and how m010 evaluates the code: every value
+read as a number, select_multiple expansion, the filter, missingness, sentinel
+handling and the positive-test rule, references and cycles, variant groups, and
+rounds whose question changed. The status core lives beside the parser too, and
+every surface that shows status reads it: the manager's Status and Consistent
+columns, the code editor's messages and its Save, and the AI tools.
+`validateHfaIndicatorCode` gives one field's issues and the ids it names,
+`checkHfaCodeResultType` the result-type warning, and `hfaIndicatorsStatus` per
+indicator and round of the dictionary the issues of each field (`syntax`,
+`unknown_variable`, `filter_without_code`, `variant_without_code` and `cycle`
+are errors, `result_type` is the one warning), the round status (`none`,
+`error`, `warning`, `ready`) and whether the rounds agree. Main and filter code
+are read against the round's variables and the other indicators, variant code
+against the round's variables and every indicator, its own included. Its texts
+are `TranslatableString`s the client translates at render. Its cycle check takes
+the strongly connected components of the main-code dependency graph that
+`lib/hfa_indicator_dependencies.ts` builds, the analysis the generator imports,
+so every indicator on a cycle carries the issue before a run refuses it. The
+editor computes the core over the manager's code with its draft in place of its
+own, and its Save refuses only a filter or variant code in a round without
+indicator code. The manager's unused-variable and deletion guards read the same
+parse, so editor-green code never hard-fails a run. The write boundary reads it
+too: every route that writes code from a request (the editor's
+`saveHfaIndicatorFull`, the AI's `saveHfaIndicatorsBatch`, the batch upload
+`batchUploadHfaIndicators` and the workbook import
+`importHfaIndicatorsWorkbook`) refuses, before any write, a main, filter or
+variant snippet that does not parse (`unparseableHfaCode`, the message listing
+every failing row with its indicator, round and field) and a filter without main
+code. Unknown variables are not refused on the server: they are the client's
+check, since a round's variables can arrive after its code. Time-point
+creation's carry-forward copies stored rows and is the one path that writes code
+unchecked. The dictionary the client validates against
+(`getHfaDictionaryForValidation`, cached in the browser as `hfa_dictionary_v2`)
+gives each round's variables and their options, each option with its sentinel
+class: empty for a real answer, else the class the survey import stored for the
+code. No R text is ever parsed: R is emitted from the AST on the server only
 (`server_only_funcs/hfa_r_emit.ts`), `AND OR NOT` as `& | !`, `x IN (a, b)` as
 `x %in% c(a, b)`, with parentheses only where R's precedence would regroup the
 code (R's `%in%` binds tighter than `* /`). lib compiles into both runtimes:
 keep it pure (no Deno/UI imports). The result type (yes/no or number) is read
 off the AST's root; a mismatch with the indicator's `type` is a "type mismatch"
 warning in the manager's Status column and an issue in the AI tools' validation.
-The persisted `has_syntax_error`/`code_consistent` flags are advisory metadata
-that the manager does not display (its Status and Consistent columns compute
-from the code) and that only the chat's HFA tools read (`get_hfa_indicators`):
-the run's `hfa_indicators_snapshot.json` carries them and its reader
-(`hfaIndicatorRow`, `server/run_query/run_read.ts`) drops them, and bulk
-validation updates deliberately do NOT bump `updated_at` (a bump would move
-`hfaIndicatorsVersion`, the run's HFA staleness stamp, for an edit generation
-ignores). The code lifecycle: instance edits → run capture (S6's run-capture
-seam) snapshots indicators+taxonomy+code → S8's module run parses each snippet
-once, builds a cross-indicator dependency graph from the ASTs (topological sort,
-cycles rejected), and splices each round's emitted R into `case_when` branches;
-a snippet that does not parse is a generation error naming the indicator and
-round, like an unknown variable, and `STOP_IF_INDICATOR_FAILS` (default TRUE)
-makes one invalid indicator kill the run.
+No validation status is stored: the manager's Status and Consistent columns, the
+editor and the AI tools compute it from the code at render. Packages captured
+while `hfa_indicators` still had the `has_syntax_error` and `code_consistent`
+columns carry them in `hfa_indicators_snapshot.json`, and its reader
+(`hfaIndicatorRow`, `server/run_query/run_read.ts`) strips them. The code
+lifecycle: instance edits → run capture (S6's run-capture seam) snapshots
+indicators+taxonomy+code → S8's module run parses each snippet once, builds a
+cross-indicator dependency graph from the ASTs (topological sort, cycles
+rejected), and splices each round's emitted R into `case_when` branches; a
+snippet that does not parse is a generation error naming the indicator and
+round, like an unknown variable, and `STOP_IF_INDICATOR_FAILS` (default FALSE,
+as `m010/definition.json` declares) makes one invalid indicator kill the run.
 
 An indicator is NA when its **own expression** evaluates to NA, not when an
 input is missing. R's `&`/`|` are three-valued, so a skip-logic "." on a
@@ -1178,35 +1232,62 @@ legal target meaning unmap).
 
 Upload flows: TUS-upload a file → `analyzeGeoJsonUpload` (property keys +
 distinct values + counts, excluding features without usable geometry; asset
-reads capped at 100 MB pre-parse) → pick level + match property →
-case-insensitive auto-map values to admin names → fix the rest →
-`saveGeoJsonMap` re-reads the asset server-side and rewrites features via the
-`areaMapping`, whose wire shape is `Record<geoJsonValue, adminAreaName>`
-(many-to-one capable: do not invert it; an inverted shape silently drops
-mappings). The DHIS2 flow splits analyze from geometry: `dhis2AnalyzeGeoJson`
-fetches org-unit METADATA only (`id,name,code,parent[id,name]`, ~KBs) plus an
-exact with-geometry count via `filter=geometry:!null` (`featureType` is absent
-on DHIS2 2.40; `level` must be expressed as a filter); the full
-FeatureCollection (~20 MB for a 200-district country) is fetched at
-`dhis2SaveGeoJsonMap` with a 180 s timeout and NO retries. Two in-memory session
-caches, SHA-256-keyed on url|user|pass|level: metadata (10 entries) and heavy
-geojson (2 entries, keeping a re-save cheap); 15-min TTL. Both save paths refuse
-to store an empty map (distinct error when the match property is absent from the
-features: the mapping is built from `.json` metadata but applied against
-`.geojson` properties) and return featureCount/matched/unmatched, which the
-wizard shows on completion. Note the `.geojson` endpoint OMITS boundary-less
-units rather than returning null geometries, so "units without boundaries" =
-metadata total − geometry count.
+reads capped at 100 MB pre-parse) → pick level + match property → auto-map
+values to admin names → fix the rest → `saveGeoJsonMap` re-reads the asset
+server-side and rewrites features via the `areaMapping`, whose wire shape is
+`Record<geoJsonValue, adminAreaName>` (many-to-one capable: do not invert it; an
+inverted shape silently drops mappings). The DHIS2 flow splits analyze from
+geometry: `dhis2AnalyzeGeoJson` fetches org-unit METADATA only
+(`id,name,code,parent[id,name]`, ~KBs) plus an exact with-geometry count via
+`filter=geometry:!null` (`featureType` is absent on DHIS2 2.40; `level` must be
+expressed as a filter); the full FeatureCollection (~20 MB for a 200-district
+country) is fetched at `dhis2SaveGeoJsonMap` with a 180 s timeout and NO
+retries. Two in-memory session caches, SHA-256-keyed on url|user|pass|level:
+metadata (10 entries) and heavy geojson (2 entries, keeping a re-save cheap);
+15-min TTL. Both save paths refuse to store an empty map (distinct error when
+the match property is absent from the features: the mapping is built from
+`.json` metadata but applied against `.geojson` properties) and return
+featureCount/matched/unmatched, which the wizard shows on completion. Note the
+`.geojson` endpoint OMITS boundary-less units rather than returning null
+geometries, so "units without boundaries" = metadata total − geometry count.
+
+Auto-mapping is `autoMapAreaNames` (`lib/geojson_area_match.ts`), the one
+matcher both wizard branches call. An exact name wins; otherwise
+`normalizeAreaName` (panther's `foldString` accent and case fold, then trimming
+and collapsing whitespace, non-breaking space included) proposes a pairing only
+when exactly one admin area carries the normalized name, so two areas that
+differ only by accent or case are left for the user. It is a proposal the wizard
+shows before anything is saved; the save path is unchanged and looks the raw
+source name up in the mapping it is handed. The raw parsed feature types are
+declared once, in `server/geojson/types.ts`, for both the upload and the DHIS2
+paths.
+
+Serving: `GET /geojson-maps/level/:family/:level/:uploaded_at` is off the
+registry and returns the stored text itself as `application/geo+json`, gzipped
+in the handler when the request accepts it, with
+`Cache-Control: private, max-age=31536000, immutable`. The URL carries the map's
+`uploaded_at` (the summaries' `toISOString`, compared as that string, since the
+column keeps microseconds), so a boundary edit is a new URL and a stale one is a
+404; `private` because the payload is permission-gated. The response is built by
+`buildGeoJsonLevelResponse`, a pure function of the stored row, the requested
+stamp and `Accept-Encoding`. The client fetches it through `fetchStoredGeoJson`
+(`t2_geojson.ts`) over `tryCatchServerRaw`, so it keeps the server actions'
+retry and 401 policy, and parses it once; the edit modal's remap table and
+download read the same URL.
 
 Client caching: summaries (family + level + uploadedAt) live in the T1 SSE
 store; payloads live in a T2 two-layer cache (module Map + IDB
 `geojson:{family}:{level}`) keyed by `uploadedAt`, the
 `uploaded_at →
 geojson_maps_updated SSE → preloadGeoJson` triangle, plus
-`evictDeletedGeoJsonLevels` for maps absent from a push. Consumers read via
+`evictDeletedGeoJsonLevels` for maps absent from a push. The IDB layer stays
+beside the HTTP cache because it holds the parsed object, which saves the 20 MB
+`JSON.parse` an HTTP cache hit still pays. Consumers read via
 `getGeoJsonSync(family, level)`, which reads a version signal so a tracked
-computation that ran before a map loaded re-runs once it arrives; figure bundles
-snapshot geojson as `{kind:"data"}` when available.
+computation that ran before a map loaded re-runs once it arrives. It is the
+administration plane and the fallback for a package without a capture: a
+figure's boundaries come from its own package (SYSTEM_08 "inputs/geojson",
+SYSTEM_10 "Geo").
 
 ## Instance config
 
@@ -1393,16 +1474,17 @@ layer.
   the import in the step-4 summary.
 - Permissions: structure, weights and population reads are `can_view_data`,
   including the population CSV export, except `listAdminArea2s` (one family's
-  level-2 registry, zero-permission `requireGlobalPermission()`, any signed-in
-  user; the scope editor's area pickers, S15, are its one caller) and the
-  population import template (`can_configure_data`); geojson reads are
-  zero-permission too; the HMIS and HFA dictionary reads and every mutation are
-  `can_configure_data`; config mutations `can_configure_settings`. Several
-  manager UIs still gate their write buttons on `currentUserIsGlobalAdmin`
-  instead (Open items); the HFA indicators manager's indicator write controls
-  read it through one predicate, `canWriteHfaIndicators()`
-  (`data/hfa/indicators/write_gate.ts`), which the chat's HFA write tools refuse
-  under too (S13).
+  level-2 registry, `requireApprovedUser()`, any approved user; the scope
+  editor's area pickers, S15, are its one caller) and the population import
+  template (`can_configure_data`); the geojson reads take
+  `requireApprovedUser()` too, and the starting payload withholds the boundary
+  list from an unapproved connection (S3); the HMIS and HFA dictionary reads
+  take `can_view_data` and every mutation `can_configure_data`, config mutations
+  included. Every
+  Data-page write control reads the same flag through
+  `can("can_configure_data")` (`state/instance/permissions.ts`, S18), the HFA
+  indicators manager's indicator write controls and the chat's HFA write tools
+  (S13) included, so a user the route would refuse sees no control.
 - The HFA manager's unused-variables modal (`HfaUnusedVariablesModal`) lists,
   per time point, the survey variables no indicator code references. Each row
   has an Add button: the modal closes with that variable, and the manager opens
@@ -1419,11 +1501,12 @@ layer.
 - A CSV-origin facility with a DHIS2-UID-shaped id falls inside S6's DHIS2
   scoped-delete scope: there is no per-row origin marker on facilities (also
   flagged in SYSTEM_06).
-- `hfa_indicator_code` is not independently hashed: code changes are visible to
-  `hfaIndicatorsVersion` only because the two code-writing routes,
-  `saveHfaIndicatorFull` (the editor's Save) and `saveHfaIndicatorsCode` (the
-  AI's one-request batch), bump the indicator row through one shared write. Any
-  new code-mutation path must do the same.
+- Neither `hfa_indicator_code` nor `hfa_indicator_variant_code` is hashed on its
+  own: code changes are visible to `hfaIndicatorsVersion` only because the two
+  routes that rewrite an existing indicator's code, `saveHfaIndicatorFull` (the
+  editor's Save) and `saveHfaIndicatorsBatch` (the AI's one-request batch), bump
+  the indicator row through one shared write, `writeHfaIndicatorEntry`. Any new
+  code-mutation path must do the same.
 - The named FK constraints from migration 048 are not used by any
   `SET CONSTRAINTS` call. The migration comments overstate; verify before
   relying on (or renaming) them.
@@ -1435,6 +1518,16 @@ layer.
 
 ## Open items
 
+- **The HFA registry write reports no duplicate admin-area names.** The HMIS
+  structure import's summary carries `countDuplicateAdminAreaNames`, but the HFA
+  registry also creates admin areas (`server/db/instance/hfa_facilities.ts`, the
+  admin-area inserts after the facility write) and `reportHfaRegistryOrphans`
+  returns orphans only. Add `duplicateAdminAreaNames` from
+  `countDuplicateAdminAreaNames(sql, "hfa")` to `reportHfaRegistryOrphans`, to
+  `HfaRegistrySaveResult` (`lib/types/structure.ts`) and to the HFA import's
+  result type (`lib/types/dataset_hfa_import.ts`), and show it where
+  `data/facilities/hfa_registry/orphans_alert.tsx` and
+  `data/hfa/imports/staging_summary.tsx` show the orphan count.
 - **Decision needed:** the M10 value object and `M10_hfa_response_status.csv` do
   not share a denominator: a facility can hold a determinate 0 for an indicator
   while its per-variable status reads `missing` or `dont_know`, so a dashboard
@@ -1442,26 +1535,6 @@ layer.
   Either the status object gains an indicator-level "contributed to the
   denominator" classification, or the per-variable reading is documented as
   answering a different question.
-- **Decision needed:** UI write-gates use `currentUserIsGlobalAdmin` while the
-  server gates on `can_configure_data`, at nine sites: the HMIS indicators
-  manager (`data/hmis/indicators/manager.tsx:557`, 652, 679), the HFA indicators
-  manager, whose three indicator write controls (the bulk delete, the row click
-  into the code editor and the toolbar) read `canWriteHfaIndicators()` in
-  `data/hfa/indicators/write_gate.ts`, the one predicate the chat's HFA write
-  tools refuse under too (S13), so this decision moves both at once, and its
-  taxonomy managers (`data/hfa/indicators/categories_manager.tsx:86`, 256;
-  `data/hfa/indicators/service_categories_manager.tsx:19`;
-  `data/hfa/indicators/variant_groups_manager.tsx:88`, 290), the geojson manager
-  (`data/geojson/manager.tsx:113`, 149), the weights import
-  (`data/hfa/hfa_weights.tsx:105`), the facilities panel
-  (`data/facilities/facilities.tsx:204`) and the HFA registry's row edit
-  (`data/facilities/hfa_registry/table.tsx:189`), HFA time points
-  (`data/hfa/_shared/time_points.tsx:234`), and S6's HMIS, HFA and ICEH dataset
-  controls (`data/hmis/dataset/dataset.tsx:293`,
-  `data/hfa/dataset/dataset.tsx:67`, `data/iceh/dataset/dataset.tsx:81`).
-  Population (`data/hmis/population/manager.tsx:32-34`) and the DHIS2 connection
-  row (`data/data.tsx:237`) already take admin or `can_configure_data`. Decide
-  which contract wins and align every site.
 - Server-produced wizard/staging/integration error strings are English-only and
   rendered verbatim by the client, and need a mechanism (error codes or
   translatable errs), not per-string patching.
@@ -1490,30 +1563,28 @@ layer.
   Back (`data/geojson/manager.tsx:52-60`) and the shell view covers the rail, so
   a failed load leaves a reload as the only exit. Move Cancel out of the `Show`
   so it renders in the loading and error states too.
-- **The HMIS facilities page fetches the upload attempt for every viewer.**
-  `data/facilities/facilities.tsx:130` calls `getStructureUploadAttempt` on
-  mount, for the HMIS family only (115-117), a `can_configure_data` route
-  (`server/routes/instance/structure.ts:280-281`), though only the admin-only
-  Imports panel reads the result (204); for a viewer without the bit the request
-  fails and the failure is swallowed (118-127). Fetch it from an effect on
-  `instanceState.currentUserIsGlobalAdmin`, the panel's gate, in place of the
-  unconditional `onMount`.
 - **A manager comment ties the code editor to imported data.**
-  `data/hfa/indicators/manager.tsx:541-542` says the metadata-only fallback
+  `data/hfa/indicators/manager.tsx:399-400` says the metadata-only fallback
   applies "with no HFA data imported", but the test is `hfaDataAvailable()`
-  (267), `!!instanceState.hfaCacheHash`, which is empty only while no time point
-  exists (`server/db/instance/dataset_hfa.ts:34-44`). Make 541-542 read "The
+  (268), `!!instanceState.hfaCacheHash`, which is empty only while no time point
+  exists (`server/db/instance/dataset_hfa.ts:34-44`). Make 399-400 read "The
   code editor keys its code by time point; with no HFA time point defined, fall
   back to the metadata-only modal so labels/categories stay editable."
-- **Two comments misdescribe the stored validation flags.**
-  `data/hfa/indicators/indicator_code_editor.tsx:435-436` calls the flag
-  display-only editor metadata, but the manager displays no flag
-  (`manager.tsx:298-390`, 965-1035) and the chat's HFA tools read it
-  (`ai/tools.ts`, `get_hfa_indicators`). `manager.tsx:482` says SSE will trigger
-  a refetch, but the write leaves `hfaIndicatorsVersion` unchanged
-  (`server/db/instance/instance.ts:43-44`), so nothing refetches. Make the
-  parenthetical at 435-436 read "(main + variant snippets; the stored flag is
-  advisory metadata generation ignores)", and delete the comment at 482.
+- **Decision needed: m010 reads every variable as a number.** The module
+  converts every pivoted variable with `as.numeric` (`m010/script.R:51-52`), so
+  a quoted operand is compared as text (`x == "1"` matches 1, `x < "5"` is true
+  for 10, quoted non-numeric text equals no value), a form whose choice codes
+  are text reads as missing, and the sentinel bindings write codes unquoted
+  (`server_only_funcs/get_script_with_parameters_hfa.ts:116-119`). Either the
+  language refuses text operands (`parseHfaIndicatorCode` returns `text_operand`
+  for every string), or m010 keeps text values and the bindings quote
+  non-numeric codes.
+- **The manager calls code ready when it names a variable blank in every
+  round.** Run capture knows only variables with a non-blank value
+  (`server/runs/capture_inputs/hfa.ts:220-241`), so generation reports such a
+  variable as unknown and skips the indicator, while the manager's Status counts
+  the round ready. Make the Status column read the display rows and mark a
+  variable with no non-blank value in any round as unknown to the run.
 
 ### HFA variant groups: open questions
 
@@ -1525,13 +1596,6 @@ raised by adversarial review of the shipped feature; none blocks it.
   is non-ready, so a failed variant-code fetch suppresses even main-code
   warnings rather than saying "references could not be checked". Pre-existing
   convention for main code; the variant union widened the surface.
-- **Decision needed:** `handleRevalidateAll`, `create_hfa_indicators` and
-  `set_hfa_indicator_code` compute `hasSyntaxError` from main code only, while
-  the editor's save includes variant snippets, so revalidate-all can wipe a
-  variant-only syntax flag. The flag is display-only advisory metadata
-  (generation validates independently); the flag's only reader is
-  `get_hfa_indicators` (`hfa/ai/tools.ts:226-241`); the manager recomputes
-  status at render (`hfa/manager.tsx:285-377`).
 - A survey-dictionary import can introduce a variable equal to an existing
   composed `<parent>__<item>` column (ODK/Kobo `group__field` exports make `__`
   common). `hfa_variables` ingestion does not assert, so the collision lands and
@@ -1560,9 +1624,9 @@ raised by adversarial review of the shipped feature; none blocks it.
   scoped sentinel bindings) is shipped; 3b is the additive escape hatch plus
   validation. Two parts: (1) a **per-indicator sentinel-treatment override
   column** in the indicator dictionary, which is what makes DK-rate indicators
-  authorable at all: the scoped bindings NA-ify `-99` before any `x == -99`
-  rCode could match; cheap now that the binding list is built per indicator. (2)
-  An **authoring-rule validation gate**: indicator code must test positively for
+  authorable at all: the scoped bindings NA-ify `-99` before any `x == -99` code
+  could match; cheap now that the binding list is built per indicator. (2) An
+  **authoring-rule validation gate**: indicator code must test positively for
   Yes (`x == 1`, `x >= 3`); negated tests (`x != 2`, `x <= 3`) misclassify DK
   under DK-as-No, and nothing enforces this today, so a mis-authored `!=`
   indicator silently inverts DK handling. The override column is the natural

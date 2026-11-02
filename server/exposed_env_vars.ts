@@ -228,6 +228,15 @@ if (_WEEKLY_TOKEN_LIMIT !== null && Number.isNaN(_WEEKLY_TOKEN_LIMIT)) {
   throw new Error("WEEKLY_TOKEN_LIMIT is set but is not a number");
 }
 
+// Emails one user may send per day through the product email routes, each
+// recipient one email.
+export const _DAILY_EMAIL_LIMIT: number = parseInt(
+  Deno.env.get("DAILY_EMAIL_LIMIT") ?? "50",
+);
+if (Number.isNaN(_DAILY_EMAIL_LIMIT)) {
+  throw new Error("DAILY_EMAIL_LIMIT is set but is not a number");
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // DHIS2 Import Tuning (Optional)
 ///////////////////////////////////////////////////////////////////////////////
@@ -261,6 +270,15 @@ export const _OPEN_ACCESS = !!Deno.env.get("OPEN_ACCESS");
 
 // Only enabled if BYPASS_AUTH=true AND not in production
 export const _BYPASS_AUTH = !!Deno.env.get("BYPASS_AUTH") && !_IS_PRODUCTION;
+
+// Dev only, like BYPASS_AUTH: the request's user is the email in the
+// fastr_persona cookie, built from that user's own row, so every permission
+// check runs as it does for them. The two modes replace Clerk in different
+// ways, so one boot takes one of them.
+export const _PERSONA_AUTH = !!Deno.env.get("PERSONA_AUTH") && !_IS_PRODUCTION;
+if (_PERSONA_AUTH && _BYPASS_AUTH) {
+  throw new Error("PERSONA_AUTH and BYPASS_AUTH are both set: set one");
+}
 
 // Clerk keys. NOT boot-required: clerkMiddleware reads them from the process
 // env itself and fails per-request, and a BYPASS_AUTH dev instance runs with

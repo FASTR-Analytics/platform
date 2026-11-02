@@ -1,29 +1,25 @@
 import { Hono } from "hono";
+import { holdsPermission } from "lib";
 import {
   createCustomPrompt,
   deleteCustomPrompt,
   getCustomPromptsForUser,
   updateCustomPrompt,
 } from "../../db/mod.ts";
-import { requireGlobalPermission } from "../../middleware/userPermission.ts";
+import { log } from "../../middleware/logging.ts";
 import { defineRoute } from "../route-helpers.ts";
+import { COUNTRY_PROMPT_NEEDS_CONFIGURE } from "../../auth/refusals.ts";
 
 export const routesCustomPrompts = new Hono();
 
-// requireGlobalPermission() with no permissions only authenticates: it never
-// checks `approved` (unlike requireApprovedUser()). Prompts are a
-// prompt-injection surface (country-scoped ones are offered to every user's
-// copilot), so every handler rejects unapproved users, and publishing or
-// re-scoping to "country" is admin-only.
+// Prompts are a prompt-injection surface (country-scoped ones are offered to
+// every user's copilot), so publishing or re-scoping to "country" needs
+// can_configure_data, the flag that shapes what every user sees.
 
 defineRoute(
   routesCustomPrompts,
   "getCustomPrompts",
-  requireGlobalPermission(),
   async (c) => {
-    if (!c.var.globalUser.approved) {
-      return c.json({ success: false, err: "User is not approved" }, 403);
-    }
     const prompts = await getCustomPromptsForUser(
       c.var.mainDb,
       c.var.globalUser.email,
@@ -35,16 +31,16 @@ defineRoute(
 defineRoute(
   routesCustomPrompts,
   "createCustomPrompt",
-  requireGlobalPermission(),
+  log("createCustomPrompt"),
   async (c, { body }) => {
-    if (!c.var.globalUser.approved) {
-      return c.json({ success: false, err: "User is not approved" }, 403);
-    }
-    if (body.scope === "country" && !c.var.globalUser.isGlobalAdmin) {
-      return c.json({
-        success: false,
-        err: "Country-scoped prompts require admin access",
-      }, 403);
+    if (
+      body.scope === "country" &&
+      !holdsPermission(c.var.globalUser, "can_configure_data")
+    ) {
+      return c.json(
+        { success: false, err: COUNTRY_PROMPT_NEEDS_CONFIGURE },
+        403,
+      );
     }
     const prompt = await createCustomPrompt(c.var.mainDb, {
       id: crypto.randomUUID(),
@@ -61,16 +57,16 @@ defineRoute(
 defineRoute(
   routesCustomPrompts,
   "updateCustomPrompt",
-  requireGlobalPermission(),
+  log("updateCustomPrompt"),
   async (c, { params, body }) => {
-    if (!c.var.globalUser.approved) {
-      return c.json({ success: false, err: "User is not approved" }, 403);
-    }
-    if (body.scope === "country" && !c.var.globalUser.isGlobalAdmin) {
-      return c.json({
-        success: false,
-        err: "Country-scoped prompts require admin access",
-      }, 403);
+    if (
+      body.scope === "country" &&
+      !holdsPermission(c.var.globalUser, "can_configure_data")
+    ) {
+      return c.json(
+        { success: false, err: COUNTRY_PROMPT_NEEDS_CONFIGURE },
+        403,
+      );
     }
     const prompt = await updateCustomPrompt(
       c.var.mainDb,
@@ -92,11 +88,8 @@ defineRoute(
 defineRoute(
   routesCustomPrompts,
   "deleteCustomPrompt",
-  requireGlobalPermission(),
+  log("deleteCustomPrompt"),
   async (c, { params }) => {
-    if (!c.var.globalUser.approved) {
-      return c.json({ success: false, err: "User is not approved" }, 403);
-    }
     const deleted = await deleteCustomPrompt(
       c.var.mainDb,
       params.id,

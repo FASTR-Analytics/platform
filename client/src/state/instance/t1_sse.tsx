@@ -12,8 +12,8 @@ import {
   evictDeletedGeoJsonLevels,
   preloadGeoJson,
 } from "~/state/instance/t2_geojson";
+import { evictRunGeoJsonNotIn } from "~/state/instance/t2_run_geojson";
 import {
-  canSeeRunsCatalog,
   initInstanceState,
   instanceState,
   removeInstanceProducts,
@@ -37,6 +37,7 @@ import {
   upsertInstanceProducts,
 } from "./t1_store";
 import { connectCollab, disconnectCollab } from "./collab";
+import { can } from "./permissions";
 
 // Live results-package generation: ephemeral execution state, not T1:
 // these go to listeners and never touch the store. (The catalogue LISTING is
@@ -386,12 +387,14 @@ export function InstanceSSEBoundary(p: { children: JSX.Element }) {
 
       if (!instanceState.currentUserApproved) {
         updateInstanceReadyPackages([]);
+        void evictRunGeoJsonNotIn([]);
         return;
       }
       serverActions.listReadyPackages({}).then((res) => {
         if (controller.signal.aborted) return;
         if (res.success) {
           updateInstanceReadyPackages(res.data);
+          void evictRunGeoJsonNotIn(res.data.map((r) => r.id));
         } else {
           console.error("Failed to fetch ready packages:", res.err);
         }
@@ -410,12 +413,14 @@ export function InstanceSSEBoundary(p: { children: JSX.Element }) {
   // self-healing path for backfill runs and missed signals (the payload fill
   // prevents an empty flash while it resolves).
   createEffect(on(
-    () => [instanceState.runsCatalogSignal, canSeeRunsCatalog()] as const,
+    () => [instanceState.runsCatalogSignal, can("can_view_data")] as const,
     () => {
       const controller = new AbortController();
       onCleanup(() => controller.abort());
 
-      if (!canSeeRunsCatalog()) {
+      // The catalogue entitlement is live, so a grant or revocation takes
+      // effect without a reconnect.
+      if (!can("can_view_data")) {
         updateInstanceRunsCatalog([]);
         return;
       }

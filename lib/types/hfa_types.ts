@@ -1,3 +1,5 @@
+import type { SentinelClass } from "../hfa_sentinel_classification.ts";
+
 export type HfaIndicatorCategory = {
   id: string;
   label: string;
@@ -40,26 +42,24 @@ export type HfaIndicator = {
   type: "binary" | "numeric";
   aggregation: "sum" | "avg";
   sortOrder: number;
-  hasSyntaxError: boolean;
-  codeConsistent: boolean;
   variantGroupId: string | null;
 };
 
 export type HfaIndicatorCode = {
   indicatorId: string;
   timePoint: string;
-  rCode: string;
-  rFilterCode?: string | undefined;
+  code: string;
+  filterCode?: string | undefined;
 };
 
 // Per-item numerator code for an indicator's variant group. Filter code has no
-// per-item slot: `rFilterCode` on the parent's HfaIndicatorCode row is shared
+// per-item slot: `filterCode` on the parent's HfaIndicatorCode row is shared
 // by all items of that (indicator, time_point).
 export type HfaIndicatorVariantCode = {
   indicatorId: string;
   timePoint: string;
   itemId: string;
-  rCode: string;
+  code: string;
 };
 
 // The no-run / unreadable-run state: every taxonomy list empty.
@@ -129,11 +129,13 @@ export type HfaWorkbookImport = {
 
 export type HfaWorkbookImportResult = {
   imported: number;
-  // Add mode only: indicator ids present in the workbook that already exist on the
-  // platform and were therefore left untouched.
+  // Indicator ids in the workbook already stored when the import inserted
+  // them, left untouched.
   skippedExisting: string[];
 };
 
+// A round's variables and their options. An option's `sentinelClass` is empty
+// for a real answer, else the class the import gave its code.
 export type HfaDictionaryForValidation = {
   timePoints: {
     timePoint: string;
@@ -142,6 +144,11 @@ export type HfaDictionaryForValidation = {
       variableLabel: string;
       variableType: string;
     }[];
-    values: { variableId: string; value: string; valueLabel: string }[];
+    values: {
+      variableId: string;
+      value: string;
+      valueLabel: string;
+      sentinelClass: SentinelClass | "";
+    }[];
   }[];
 };

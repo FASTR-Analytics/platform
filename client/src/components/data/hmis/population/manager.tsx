@@ -21,6 +21,7 @@ import { getAdminAreaLabel } from "~/state/instance/_util_disaggregation_label";
 import { instanceState } from "~/state/instance/t1_store";
 import { PopulationImportForm } from "./import_form";
 import { PopulationGrid } from "./grid";
+import { can } from "~/state/instance/permissions";
 
 type Props = {
   close: (v: undefined) => void;
@@ -29,9 +30,7 @@ type Props = {
 export function PopulationManager(p: Props) {
   const { openEditor, EditorWrapper } = getEditorWrapper();
 
-  const canConfigure = () =>
-    instanceState.currentUserIsGlobalAdmin ||
-    instanceState.currentUserPermissions.can_configure_data;
+  const canConfigure = () => can("can_configure_data");
 
   const hasData = () => instanceState.populationRowCount > 0;
   const levelIsSet = () => instanceState.populationLevel !== undefined;

@@ -9,9 +9,9 @@ export const DEFAULT_BUILTIN_TOOLS = { webSearch: true };
 const ISO_RE = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/;
 
 // One request the chat sent to the proxy, as the model receives it: the body
-// is the JSON the SDK serialised (system, messages, tools, model, sampling),
-// which the proxy forwards unchanged, and the beta header is the one it
-// filters. Recorded only under AI_DEBUG, bounded, newest last.
+// is the JSON the SDK serialised (system, messages, tools, model, thinking,
+// output_config), which the proxy forwards unchanged, and the beta header is
+// the one it filters. Recorded only under AI_DEBUG, bounded, newest last.
 export type CopilotRequestRecord = {
   at: string;
   status: number | null;
@@ -57,12 +57,16 @@ function record(init: RequestInit | undefined): CopilotRequestRecord {
 
 // One SDK client for the whole copilot: /ai is the instance-level copilot
 // proxy (routes/instance/copilot_ai_proxy.ts), guarded by requireApprovedUser.
+// It sends no credential: the guard reads the Clerk session cookie, and Clerk
+// judges any Authorization header first, so a placeholder bearer would 401.
 export function createCopilotSDKClient() {
   const baseURL = _SERVER_HOST
     ? `${_SERVER_HOST}/ai`
     : `${window.location.origin}/ai`;
   return new Anthropic({
-    apiKey: "not-needed",
+    apiKey: null,
+    authToken: null,
+    defaultHeaders: { Authorization: null },
     baseURL,
     dangerouslyAllowBrowser: true,
     fetch: async (url: RequestInfo | URL, init?: RequestInit) => {

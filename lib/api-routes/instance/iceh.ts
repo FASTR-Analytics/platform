@@ -1,3 +1,4 @@
+import { GUARD, type RouteGuard } from "../../permissions/mod.ts";
 import { z } from "zod";
 import type {
   IcehDataDetail,
@@ -12,11 +13,13 @@ import { route } from "../route-utils.ts";
 export const icehRouteRegistry = {
   getDatasetIcehDetail: route({
     method: "GET",
+    guard: GUARD.permission("can_view_data"),
     path: "/iceh/detail",
     response: {} as IcehDataDetail,
   }),
   getDatasetIcehDisplayData: route({
     method: "GET",
+    guard: GUARD.permission("can_view_data"),
     path: "/iceh/display-data",
     response: {} as IcehDisplayData,
   }),
@@ -27,23 +30,27 @@ export const icehRouteRegistry = {
   // refused.
   parseDatasetIcehZipPreview: route({
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
     path: "/iceh/runs/parse-zip",
     body: z.object({ zipFileName: z.string() }),
     response: {} as IcehStep1Result,
   }),
   launchDatasetIcehRun: route({
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
     path: "/iceh/runs",
     body: z.object({ zipFileName: z.string() }),
     response: {} as { runId: number },
   }),
   getDatasetIcehImportRuns: route({
     method: "GET",
+    guard: GUARD.permission("can_view_data"),
     path: "/iceh/runs",
     response: {} as IcehImportRunSummary[],
   }),
   resolveDatasetIcehReview: route({
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
     path: "/iceh/runs/resolve-review",
     body: z.object({
       runId: z.number().int(),
@@ -52,17 +59,20 @@ export const icehRouteRegistry = {
   }),
   cancelDatasetIcehRun: route({
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
     path: "/iceh/runs/cancel",
     body: z.object({ runId: z.number().int() }),
   }),
 
   deleteDatasetIcehData: route({
     method: "DELETE",
+    guard: GUARD.permission("can_configure_data"),
     path: "/iceh/data",
   }),
   deleteDatasetIcehIndicators: route({
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
     path: "/iceh/data/delete-indicators",
     body: z.object({ indicatorCodes: z.array(z.string()) }),
   }),
-};
+} as const satisfies Record<string, { guard: RouteGuard }>;

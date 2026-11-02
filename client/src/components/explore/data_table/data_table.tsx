@@ -247,8 +247,9 @@ function buildGrid(args: {
     provenance: { runId: args.scope.runId },
   };
   try {
-    const inputs = buildFigureInputs(bundle);
-    if (inputs.figureType !== "table") {
+    const built = buildFigureInputs(bundle);
+    const inputs = built.ok ? built.inputs : undefined;
+    if (inputs?.figureType !== "table") {
       return { ok: false, err: "Expected a table" };
     }
     const indicatorDim = INDICATOR_DIMENSION[args.family];

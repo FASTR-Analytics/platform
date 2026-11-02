@@ -10,10 +10,8 @@ import {
   deleteDatasetHmisScheduledImport,
   enqueueDatasetHmisCsvImportRun,
   enqueueDatasetHmisImportRun,
-  getDatasetHfaDetail,
   getDatasetHfaImportRunSummaries,
   getDatasetHfaItemsForDisplay,
-  getDatasetHmisDetail,
   getDatasetHmisImportLedgerItems,
   getDatasetHmisImportRunDetail,
   getDatasetHmisImportRunSummaries,
@@ -53,7 +51,6 @@ import { scanHmisCsvIndicatorValues } from "../../worker_routines/import_hmis_da
 import { classifyElements } from "../../worker_routines/import_hmis_data_dhis2/dispatch.ts";
 import { resolveAssetFileOrThrow } from "../../db/instance/assets.ts";
 import { log } from "../../middleware/logging.ts";
-import { requireGlobalPermission } from "../../middleware/mod.ts";
 import {
   notifyInstanceConfigUpdatedFromDb,
   notifyInstanceDatasetsUpdated,
@@ -61,7 +58,7 @@ import {
 } from "../../task_management/notify_instance_updated.ts";
 import { _FETCH_CACHE_DATASET_HFA_ITEMS } from "../caches/dataset.ts";
 import { defineRoute } from "../route-helpers.ts";
-import { requireVisibleAssets } from "../../middleware/asset_visibility.ts";
+import { requireVisibleAssets } from "../../auth/asset_visibility.ts";
 import {
   _RECODABLE_FACILITY_COLUMNS,
   type HfaCsvMappingParams,
@@ -81,18 +78,7 @@ export const routesDatasets = new Hono();
 
 defineRoute(
   routesDatasets,
-  "getDatasetHmisDetail",
-  requireGlobalPermission("can_view_data"),
-  async (c) => {
-    const res = await getDatasetHmisDetail(c.var.mainDb);
-    return c.json(res);
-  },
-);
-
-defineRoute(
-  routesDatasets,
   "getDatasetHmisVersions",
-  requireGlobalPermission("can_view_data"),
   log("getDatasetHmisVersions"),
   async (c) => {
     const res = await getVersionsForDatasetHmis(c.var.mainDb);
@@ -109,7 +95,6 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "getDatasetHmisImportLedger",
-  requireGlobalPermission("can_view_data"),
   log("getDatasetHmisImportLedger"),
   async (c) => {
     const res = await getDatasetHmisImportLedgerItems(c.var.mainDb);
@@ -120,7 +105,6 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "getDatasetHmisDisplayInfo",
-  requireGlobalPermission("can_view_data"),
   log("getDatasetHmisDisplayInfo"),
   async (c, { body }) => {
     // Computed live on every call. Since vizItems moved to the import ledger
@@ -153,7 +137,6 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "launchDatasetHmisDhis2Run",
-  requireGlobalPermission("can_configure_data"),
   log("launchDatasetHmisDhis2Run"),
   async (c, { body }) => {
     // No pre-validation: validating would decrypt the password in the host,
@@ -191,7 +174,6 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "enqueueDatasetHmisDhis2Run",
-  requireGlobalPermission("can_configure_data"),
   log("enqueueDatasetHmisDhis2Run"),
   async (c, { body }) => {
     const stored = await getStoredDhis2CredentialsInfo(c.var.mainDb);
@@ -218,7 +200,6 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "getDatasetHmisImportRuns",
-  requireGlobalPermission("can_view_data"),
   async (c) => {
     const res = await getDatasetHmisImportRunSummaries(c.var.mainDb);
     return c.json(res);
@@ -228,7 +209,6 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "getDatasetHmisImportRunDetail",
-  requireGlobalPermission("can_view_data"),
   log("getDatasetHmisImportRunDetail"),
   async (c, { params }) => {
     const res = await getDatasetHmisImportRunDetail(
@@ -242,7 +222,6 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "cancelDatasetHmisDhis2Run",
-  requireGlobalPermission("can_configure_data"),
   log("cancelDatasetHmisDhis2Run"),
   async (c, { body }) => {
     const res = await cancelDatasetHmisImportRun(c.var.mainDb, body.runId);
@@ -258,7 +237,6 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "classifyDatasetHmisDhis2Selection",
-  requireGlobalPermission("can_configure_data"),
   log("classifyDatasetHmisDhis2Selection"),
   async (c, { body }) => {
     try {
@@ -302,7 +280,6 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "getDatasetHmisDhis2Scheduling",
-  requireGlobalPermission("can_view_data"),
   log("getDatasetHmisDhis2Scheduling"),
   async (c) => {
     const stored = await getStoredDhis2CredentialsInfo(c.var.mainDb);
@@ -331,7 +308,6 @@ async function assertUnattendedReady(mainDb: Sql): Promise<string | null> {
 defineRoute(
   routesDatasets,
   "createDatasetHmisDhis2Schedule",
-  requireGlobalPermission("can_configure_data"),
   log("createDatasetHmisDhis2Schedule"),
   async (c, { body }) => {
     const blocked = await assertUnattendedReady(c.var.mainDb);
@@ -355,7 +331,6 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "updateDatasetHmisDhis2Schedule",
-  requireGlobalPermission("can_configure_data"),
   log("updateDatasetHmisDhis2Schedule"),
   async (c, { body }) => {
     // Editing a one-shot re-enables it (the re-arm gesture), so it goes
@@ -385,7 +360,6 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "deleteDatasetHmisDhis2Schedule",
-  requireGlobalPermission("can_configure_data"),
   log("deleteDatasetHmisDhis2Schedule"),
   async (c, { body }) => {
     const res = await deleteDatasetHmisScheduledImport(c.var.mainDb, body.id);
@@ -402,7 +376,6 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "deleteAllDatasetHmisData",
-  requireGlobalPermission("can_configure_data"),
   log("deleteAllDatasetHmisData"),
   async (c, { body }) => {
     const res = await deleteAllDatasetHmisData(c.var.mainDb, body.windowing);
@@ -427,7 +400,6 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "parseDatasetHmisCsvHeaders",
-  requireGlobalPermission("can_configure_data"),
   requireVisibleAssets("fileName"),
   log("parseDatasetHmisCsvHeaders"),
   async (c, { body }) => {
@@ -454,7 +426,6 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "scanDatasetHmisCsvIndicatorValues",
-  requireGlobalPermission("can_configure_data"),
   requireVisibleAssets("fileName"),
   log("scanDatasetHmisCsvIndicatorValues"),
   async (c, { body }) => {
@@ -480,7 +451,6 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "launchDatasetHmisCsvRun",
-  requireGlobalPermission("can_configure_data"),
   requireVisibleAssets("config.fileName"),
   log("launchDatasetHmisCsvRun"),
   async (c, { body }) => {
@@ -507,7 +477,6 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "enqueueDatasetHmisCsvRun",
-  requireGlobalPermission("can_configure_data"),
   requireVisibleAssets("config.fileName"),
   log("enqueueDatasetHmisCsvRun"),
   async (c, { body }) => {
@@ -527,7 +496,6 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "resolveDatasetHmisCsvReview",
-  requireGlobalPermission("can_configure_data"),
   log("resolveDatasetHmisCsvReview"),
   async (c, { body }) => {
     const res = await resolveDatasetHmisCsvReview(c.var.mainDb, {
@@ -558,17 +526,6 @@ defineRoute(
 //                      //
 //////////////////////////
 
-defineRoute(
-  routesDatasets,
-  "getDatasetHfaDetail",
-  requireGlobalPermission("can_view_data"),
-  log("getDatasetHfaDetail"),
-  async (c) => {
-    const res = await getDatasetHfaDetail(c.var.mainDb);
-    return c.json(res);
-  },
-);
-
 /////////////////////////
 //                     //
 //    HFA Dataset items    //
@@ -578,7 +535,6 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "getDatasetHfaDisplayInfo",
-  requireGlobalPermission("can_view_data"),
   log("getDatasetHfaDisplayInfo"),
   async (c) => {
     const tpRows = await c.var.mainDb<
@@ -615,7 +571,6 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "deleteDatasetHfaData",
-  requireGlobalPermission("can_configure_data"),
   log("deleteDatasetHfaData"),
   async (c, { body }) => {
     const res = await deleteDatasetHfaData(c.var.mainDb, body.timePoint);
@@ -640,7 +595,6 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "parseDatasetHfaCsvHeaders",
-  requireGlobalPermission("can_configure_data"),
   requireVisibleAssets("csvFileName", "xlsFormFileName"),
   log("parseDatasetHfaCsvHeaders"),
   async (c, { body }) => {
@@ -719,7 +673,7 @@ async function scanHfaFacilitiesForPreview(
 defineRoute(
   routesDatasets,
   "previewDatasetHfaFacilityColumns",
-  requireGlobalPermission("can_configure_data"),
+  requireVisibleAssets("csvFileName", "xlsFormFileName"),
   log("previewDatasetHfaFacilityColumns"),
   async (c, { body }) => {
     return c.json(
@@ -749,7 +703,7 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "previewDatasetHfaFacilityChanges",
-  requireGlobalPermission("can_configure_data"),
+  requireVisibleAssets("csvFileName", "xlsFormFileName"),
   log("previewDatasetHfaFacilityChanges"),
   async (c, { body }) => {
     return c.json(
@@ -796,7 +750,6 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "getDatasetHfaLatestMappings",
-  requireGlobalPermission("can_configure_data"),
   async (c) => {
     return c.json(await getLatestCompleteHfaMappings(c.var.mainDb));
   },
@@ -840,7 +793,6 @@ async function snapshotBeforeHfaImport(
 defineRoute(
   routesDatasets,
   "previewDatasetHfaDuplicates",
-  requireGlobalPermission("can_configure_data"),
   requireVisibleAssets("csvFileName"),
   log("previewDatasetHfaDuplicates"),
   async (c, { body }) => {
@@ -865,7 +817,6 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "launchDatasetHfaCsvRun",
-  requireGlobalPermission("can_configure_data"),
   requireVisibleAssets("config.csvFileName", "config.xlsFormFileName"),
   log("launchDatasetHfaCsvRun"),
   async (c, { body }) => {
@@ -882,7 +833,6 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "getDatasetHfaImportRuns",
-  requireGlobalPermission("can_view_data"),
   async (c) => {
     const res = await getDatasetHfaImportRunSummaries(c.var.mainDb);
     return c.json(res);
@@ -892,7 +842,6 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "resolveDatasetHfaReview",
-  requireGlobalPermission("can_configure_data"),
   log("resolveDatasetHfaReview"),
   async (c, { body }) => {
     const before = await snapshotBeforeHfaImport(c.var.mainDb);
@@ -908,7 +857,6 @@ defineRoute(
 defineRoute(
   routesDatasets,
   "cancelDatasetHfaRun",
-  requireGlobalPermission("can_configure_data"),
   log("cancelDatasetHfaRun"),
   async (c, { body }) => {
     const res = await cancelDatasetHfaImportRun(c.var.mainDb, body.runId);

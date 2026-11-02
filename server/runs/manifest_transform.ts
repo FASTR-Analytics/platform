@@ -363,6 +363,11 @@ async function transformRunManifest(
   //     stamp only.
   m.manifestSchemaVersion = 14;
 
+  // 13. `geojsonMaps`: what a generation copied is a generation-time fact, so
+  //     a package written before the capture carries null.
+  if (m.geojsonMaps === undefined) m.geojsonMaps = null;
+  m.manifestSchemaVersion = 15;
+
   const validated = runManifestSchema.parse(m);
   // The schema deliberately accepts ANY integer version: it has to, so a
   // manifest from a newer server can be detected rather than rejected as

@@ -44,7 +44,6 @@ export {
   SERVER_TOOL_LABELS,
   shapeCachedPayload,
   supportsDynamicWebTools,
-  supportsSamplingParams,
   trimDanglingServerToolUse,
 } from "../_110_ai_types/mod.ts";
 export type {
@@ -62,6 +61,7 @@ export type {
   SystemNoticeType,
   SystemParam,
   Usage,
+  UserMessageParam,
 } from "../_110_ai_types/mod.ts";
 export {
   AIToolFailure,

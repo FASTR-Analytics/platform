@@ -26,6 +26,7 @@ import {
   UploadAssetsForm,
   userDisplayName,
 } from "./asset_sharing.tsx";
+import { can } from "~/state/instance/permissions";
 
 type FileType = "csv" | "excel" | "image" | "zip" | "other";
 
@@ -304,9 +305,7 @@ function AssetTable(p: {
         // static tier): hide the button rather than let the browser save a
         // 403 body to disk.
         const canDownload = !(asset.isCsv || asset.isXlsx || asset.isZip) ||
-          instanceState.currentUserIsGlobalAdmin ||
-          instanceState.currentUserPermissions.can_view_data ||
-          instanceState.currentUserPermissions.can_configure_data;
+          can("can_view_data");
         return (
           <div class="flex items-center justify-end">
             <Show

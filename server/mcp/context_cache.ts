@@ -2,7 +2,7 @@ import { AIToolFailure } from "@timroberton/panther";
 import type { AIToolWithMetadata } from "@timroberton/panther";
 import type {
   HfaTaxonomyForAI,
-  InstanceState,
+  InstanceGrounding,
   PackageGrounding,
   PeriodBounds,
   RunListingItem,
@@ -25,7 +25,10 @@ import {
   getRunListingItem,
 } from "../db/instance/run_generation.ts";
 import { buildGlobalUserFromDb } from "../auth/global_user.ts";
-import { buildInstanceStateWithoutProducts } from "../task_management/build_instance_state.ts";
+import {
+  buildInstanceGrounding,
+  groundingForUnapproved,
+} from "../task_management/build_instance_state.ts";
 import { headlessAppFetch } from "../headless_app.ts";
 import {
   buildRunAuthoringContext,
@@ -43,7 +46,7 @@ import {
 // The /mcp endpoint reads the instance's PINNED results package (S8 "The
 // pinned package"): every tool call resolves the pin, and this
 // cache is PURELY performance: correctness never depends on it. The pin is
-// read from the DB on EVERY call (never from the 30 s InstanceState copy), so
+// read from the DB on EVERY call (never from the 30 s InstanceGrounding copy), so
 // a pin-move is visible on the next call; the context behind a given
 // (token, runId) is what the cache holds. Keyed by token because a context
 // captures server actions bound to the building request's credential, a
@@ -103,7 +106,7 @@ function contextKey(principal: McpPrincipal, runId: string): string {
 type CacheEntry<T> = { value: T; builtAt: number };
 
 const packageContexts = new Map<string, CacheEntry<McpPackageContext>>();
-const instanceStates = new Map<string, CacheEntry<InstanceState>>();
+const instanceGroundings = new Map<string, CacheEntry<InstanceGrounding>>();
 
 function cacheGet<T>(map: Map<string, CacheEntry<T>>, key: string): T | null {
   const entry = map.get(key);
@@ -158,19 +161,22 @@ async function resolveGlobalUser(principal: McpPrincipal): Promise<GlobalUser> {
   return await buildGlobalUserFromDb(principal.email, null, null);
 }
 
-export async function resolveInstanceState(
+export async function resolveInstanceGrounding(
   principal: McpPrincipal,
-): Promise<InstanceState> {
-  const cached = cacheGet(instanceStates, principal.email);
+): Promise<InstanceGrounding> {
+  const cached = cacheGet(instanceGroundings, principal.email);
   if (cached) return cached;
   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
   const globalUser = await resolveGlobalUser(principal);
-  const res = await buildInstanceStateWithoutProducts(mainDb, globalUser);
+  const res = await buildInstanceGrounding(mainDb);
   if (!res.success) {
     throw new Error(`Could not load instance state: ${res.err}`);
   }
-  cacheSet(instanceStates, principal.email, res.data);
-  return res.data;
+  const grounding = globalUser.approved
+    ? res.data
+    : groundingForUnapproved(res.data);
+  cacheSet(instanceGroundings, principal.email, grounding);
+  return grounding;
 }
 
 // The pin, read now. null is a typed, expected state (a fresh instance, or
@@ -298,6 +304,8 @@ export async function resolvePackageContext(
     hmisIndicators: authoring.hmisIndicators,
     icehIndicators: authoring.icehIndicators,
     periodCoverage: packagePeriodCoverage(manifest),
+    mapLevels: manifest.geojsonMaps ??
+      (await resolveInstanceGrounding(principal)).geojsonMaps,
   };
 
   const transport = buildPrincipalTransport(principal.token);

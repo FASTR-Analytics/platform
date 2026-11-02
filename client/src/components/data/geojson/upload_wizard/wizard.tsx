@@ -1,4 +1,4 @@
-import { type FacilityFamily, t3 } from "lib";
+import { type AdminAreaOptionsForLevel, type FacilityFamily, t3 } from "lib";
 import { createSignal, Match, Switch } from "solid-js";
 import { Step0 } from "./step_0";
 import { Step1File } from "./step_1_file";
@@ -32,8 +32,6 @@ export type Dhis2Level = {
   orgUnitCount: number;
 };
 
-export type AdminAreaOption = { value: string; label: string };
-
 export type WizardState = {
   family: FacilityFamily;
   step: () => 0 | 1 | 2 | 3 | 4;
@@ -50,10 +48,8 @@ export type WizardState = {
   setAdminAreaLevel: (n: number) => void;
   selectedProp: () => string;
   setSelectedProp: (s: string) => void;
-  adminAreaNames: () => string[];
-  setAdminAreaNames: (names: string[]) => void;
-  adminAreaOptions: () => AdminAreaOption[];
-  setAdminAreaOptions: (options: AdminAreaOption[]) => void;
+  adminAreas: () => AdminAreaOptionsForLevel;
+  setAdminAreas: (areas: AdminAreaOptionsForLevel) => void;
   geoToAdmin: () => Record<string, string>;
   setGeoToAdmin: (
     mapping:
@@ -86,10 +82,10 @@ export function GeoJsonUploadWizard(p: Props) {
   >(undefined);
   const [adminAreaLevel, setAdminAreaLevel] = createSignal<number>(2);
   const [selectedProp, setSelectedProp] = createSignal<string>("");
-  const [adminAreaNames, setAdminAreaNames] = createSignal<string[]>([]);
-  const [adminAreaOptions, setAdminAreaOptions] = createSignal<
-    AdminAreaOption[]
-  >([]);
+  const [adminAreas, setAdminAreas] = createSignal<AdminAreaOptionsForLevel>({
+    options: [],
+    duplicates: [],
+  });
   const [geoToAdmin, setGeoToAdminRaw] = createSignal<Record<string, string>>(
     {},
   );
@@ -128,10 +124,8 @@ export function GeoJsonUploadWizard(p: Props) {
     setAdminAreaLevel,
     selectedProp,
     setSelectedProp,
-    adminAreaNames,
-    setAdminAreaNames,
-    adminAreaOptions,
-    setAdminAreaOptions,
+    adminAreas,
+    setAdminAreas,
     geoToAdmin,
     setGeoToAdmin,
     dhis2ConnectionUrl,

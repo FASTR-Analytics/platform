@@ -26,9 +26,11 @@ import type {
   DatasetType,
   FigureBlock,
   FigureLocalization,
-  HfaIndicatorCategory,
-  HfaIndicatorServiceCategory,
-  HfaIndicatorSubCategory,
+  HfaDictionaryForValidation,
+  HfaIndicator,
+  HfaIndicatorCode,
+  HfaIndicatorVariantCode,
+  HfaTaxonomyInput,
   ImageBlock,
   MetricWithStatus,
   PresentationObjectConfig,
@@ -381,17 +383,15 @@ export type HfaIndicatorsContext = {
 export type HfaIndicatorEditorParams = {
   indicatorId: string;
 };
-// One round of the code editor's draft, with the issues the editor's own
-// validation finds in it (syntax, unknown variables, warnings, the result
-// type), as English lines.
+// One round of the code editor's draft: its main code and filter.
 export type HfaIndicatorEditorRound = {
   timePoint: string;
-  rCode: string;
-  rFilterCode: string;
-  issues: string[];
+  code: string;
+  filterCode: string;
 };
-// The code editor's unsaved state: the fields its tools may change, the
-// code per round, and whether the non-empty rounds agree.
+// The code editor's unsaved state: the fields its tools may change, the code
+// per round, the variant group and the current group's non-empty variant
+// rows. Its issues and consistency are the status core's, computed over it.
 export type HfaIndicatorEditorDraft = {
   shortLabel: string;
   definition: string;
@@ -401,10 +401,12 @@ export type HfaIndicatorEditorDraft = {
   subCategoryId: string | null;
   serviceCategoryIds: string[];
   code: HfaIndicatorEditorRound[];
-  codeConsistent: boolean;
+  variantGroupId: string | null;
+  variantCode: { timePoint: string; itemId: string; code: string }[];
 };
-// What `update_hfa_indicator_editor` may change: every field optional, the
-// code by round, a round's field omitted to keep it.
+// What `update_hfa_indicator_editor` may change: every field optional. A
+// round not listed is kept, and in a listed round an omitted field is kept
+// and an empty string clears it; a variant row's empty `code` removes it.
 export type HfaIndicatorEditorPatch = {
   shortLabel?: string;
   definition?: string;
@@ -413,22 +415,26 @@ export type HfaIndicatorEditorPatch = {
   categoryId?: string | null;
   subCategoryId?: string | null;
   serviceCategoryIds?: string[];
-  code?: { timePoint: string; rCode?: string; rFilterCode?: string }[];
+  variantGroupId?: string | null;
+  code?: { timePoint: string; code?: string; filterCode?: string }[];
+  variantCode?: { timePoint: string; itemId: string; code: string }[];
 };
-export type HfaIndicatorEditorTaxonomy = {
-  categories: HfaIndicatorCategory[];
-  subCategories: HfaIndicatorSubCategory[];
-  serviceCategories: HfaIndicatorServiceCategory[];
-};
+export type HfaIndicatorEditorTaxonomy = HfaTaxonomyInput;
 // The code editor's view: the open indicator's saved label, the round the
-// user is looking at, the draft read live with the editor's validation, the
-// taxonomy the editor offers, and the write that lands in the draft and
-// marks it unsaved, for the user to save.
+// user is looking at, the draft read live, the taxonomy the editor offers,
+// what else it holds from the manager (the indicators, their saved main and
+// variant code, the dictionary), the HFA guidance, and the write that lands
+// in the draft and marks it unsaved, for the user to save.
 export type HfaIndicatorEditorContext = {
   getLabel: () => string;
   getSelectedTimePoint: () => string;
   getDraft: () => HfaIndicatorEditorDraft;
   getTaxonomy: () => HfaIndicatorEditorTaxonomy;
+  getIndicators: () => HfaIndicator[];
+  getAllCode: () => HfaIndicatorCode[];
+  getAllVariantCode: () => HfaIndicatorVariantCode[];
+  getDictionary: () => HfaDictionaryForValidation;
+  getGuidance: () => string;
   applyDraft: (patch: HfaIndicatorEditorPatch) => void;
 };
 
@@ -700,7 +706,7 @@ export const copilotViews = defineAIViews(
           indicator: params.indicatorId,
         }),
       instructions: (_params, context) =>
-        getHfaIndicatorEditorInstructions(context.getLabel()),
+        getHfaIndicatorEditorInstructions(context.getGuidance()),
       state: (params, context) =>
         `indicatorId: ${params.indicatorId} | round: ${context.getSelectedTimePoint()}`,
     }),

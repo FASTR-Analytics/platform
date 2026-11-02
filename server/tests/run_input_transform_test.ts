@@ -37,6 +37,7 @@ function scratchManifest(inputFiles: string[]): RunManifest {
     indicators: [],
     hmisIndicators: [],
     population: null,
+    geojsonMaps: null,
     inputFiles,
   };
 }

@@ -1,8 +1,12 @@
 import { del, get, keys, set } from "idb-keyval";
 import type { GeoJSONFeatureCollection } from "panther";
-import type { DatasetType, FacilityFamily, GeoJsonMapSummary } from "lib";
+import {
+  type DatasetType,
+  type FacilityFamily,
+  type GeoJsonMapSummary,
+  tryCatchServerRaw,
+} from "lib";
 import { createSignal } from "solid-js";
-import { serverActions } from "~/server_actions";
 
 const IDB_PREFIX = "geojson:";
 
@@ -97,16 +101,32 @@ async function loadMap(
     return;
   }
 
-  const res = await serverActions.getGeoJsonForLevel({ family, level });
+  const res = await fetchStoredGeoJson(
+    family,
+    level,
+    uploadedAt,
+    async (r) => (await r.json()) as GeoJSONFeatureCollection,
+  );
   if (!res.success) throw new Error(res.err);
 
-  const entry: CacheEntry = {
-    uploadedAt: res.data.uploadedAt,
-    data: JSON.parse(res.data.geojson) as GeoJSONFeatureCollection,
-  };
+  const entry: CacheEntry = { uploadedAt, data: res.data };
   memoryCache.set(key, entry);
   setGeoJsonVersion((v) => v + 1);
   await set(idbKey, entry);
+}
+
+// The map's content-addressed URL: `uploadedAt` is an ISO timestamp and
+// carries `:`, so it is encoded here as a path segment.
+export async function fetchStoredGeoJson<D>(
+  family: FacilityFamily,
+  level: number,
+  uploadedAt: string,
+  readBody: (res: Response) => Promise<D>,
+) {
+  return await tryCatchServerRaw(
+    `/geojson-maps/level/${family}/${level}/${encodeURIComponent(uploadedAt)}`,
+    readBody,
+  );
 }
 
 export async function evictDeletedGeoJsonLevels(

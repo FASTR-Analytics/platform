@@ -8,11 +8,13 @@ import {
   type HfaIndicatorVariantCode,
   type HmisIndicatorCatalogRow,
   listMonthlyPeriodIds,
+  parseJsonOrThrow,
   personYearsForMonth,
   populationAreaKey,
   populationCellCoverage,
   populationTypesReferencedByCatalog,
   type RunGenerationStep1Result,
+  type RunGeoJsonMap,
   type RunManifestDataset,
   type RunPopulation,
   type RunPopulationCoverage,
@@ -21,8 +23,12 @@ import {
 } from "lib";
 import {
   dbRowToHfaIndicator,
+  dbRowToHfaIndicatorCode,
+  dbRowToHfaIndicatorVariantCode,
+  getGeoJsonMapSummaries,
   getPopulationAnchors,
   getPopulationLevel,
+  getStoredGeoJson,
   listHmisStructureAreas,
 } from "../../db/mod.ts";
 import { computeDatasetHfaRunCapture } from "../../runs/capture_inputs/hfa.ts";
@@ -38,6 +44,7 @@ import {
   type ExportedColumn,
   exportRowsToParquet,
   readCsvHeaders,
+  runGeoJsonInputFileName,
   runInputFilePath,
   runTmpDirPath,
 } from "../../runs/mod.ts";
@@ -69,6 +76,8 @@ export type PreparedRunInputs = {
   inputHashes: RunInputHashes;
   // The manifest's `population` stamp.
   population: RunPopulation | null;
+  // The manifest's `geojsonMaps` stamp: every boundary file copied.
+  geojsonMaps: RunGeoJsonMap[];
   // Relative paths (from the run dir root) for the manifest's inputFiles.
   extraInputFiles: string[];
   // Manifest `datasets` entries, built from the captures.
@@ -80,7 +89,7 @@ export type PreparedRunInputs = {
     knownVariableIds: Set<string>;
     hfaIndicators: HfaIndicator[];
     hfaIndicatorCode: HfaIndicatorCode[];
-    // R code is generation-input only, never a package input file (the
+    // Indicator code is generation-input only, never a package input file (the
     // executed script is already captured as ___script___.R). Group
     // assignments ride hfaIndicators' variantGroupId.
     hfaVariantCode: HfaIndicatorVariantCode[];
@@ -242,18 +251,12 @@ export async function prepareRunInputs(
           a.indicator_id.localeCompare(b.indicator_id),
       )
       .map(dbRowToHfaIndicator);
-    scriptInputs.hfaIndicatorCode = capture.indicatorCode.map((c) => ({
-      indicatorId: c.indicator_id,
-      timePoint: c.time_point,
-      rCode: c.r_code,
-      rFilterCode: c.r_filter_code ?? undefined,
-    }));
-    scriptInputs.hfaVariantCode = capture.variantCode.map((c) => ({
-      indicatorId: c.indicator_id,
-      timePoint: c.time_point,
-      itemId: c.item_id,
-      rCode: c.r_code,
-    }));
+    scriptInputs.hfaIndicatorCode = capture.indicatorCode.map(
+      dbRowToHfaIndicatorCode,
+    );
+    scriptInputs.hfaVariantCode = capture.variantCode.map(
+      dbRowToHfaIndicatorVariantCode,
+    );
     scriptInputs.hfaSentinelRows = capture.sentinelValues.map((r) => ({
       variableId: r.variable_id,
       value: r.value,
@@ -307,15 +310,62 @@ export async function prepareRunInputs(
     );
   }
 
+  const geojsonMaps = await captureGeoJsonMaps(mainDb, tmpDir);
+  extraInputFiles.push(
+    ...geojsonMaps.map((g) =>
+      `inputs/${runGeoJsonInputFileName(g.family, g.adminAreaLevel)}`
+    ),
+  );
+
   return {
     selectedFamilies,
     inputHashes: { datasets: datasetExtractHashes, population: populationHash },
     population,
+    geojsonMaps,
     extraInputFiles,
     datasets,
     facilitiesTables,
     scriptInputs,
   };
+}
+
+// Every boundary file the instance holds, copied verbatim and gzipped, so a
+// figure draws the boundaries its package was generated with. No module
+// declares geometry as a source, so the copies reach no reuse key.
+async function captureGeoJsonMaps(
+  mainDb: Sql,
+  tmpDir: string,
+): Promise<RunGeoJsonMap[]> {
+  await Deno.mkdir(join(tmpDir, "inputs", "geojson"), { recursive: true });
+  const captured: RunGeoJsonMap[] = [];
+  for (const map of await getGeoJsonMapSummaries(mainDb)) {
+    const stored = await getStoredGeoJson(
+      mainDb,
+      map.family,
+      map.adminAreaLevel,
+    );
+    if (stored === undefined) continue;
+    const parsed = parseJsonOrThrow<{ features?: unknown[] }>(stored.geojson);
+    const gzipped = await new Response(
+      new Blob([stored.geojson]).stream().pipeThrough(
+        new CompressionStream("gzip"),
+      ),
+    ).arrayBuffer();
+    await Deno.writeFile(
+      runInputFilePath(
+        tmpDir,
+        runGeoJsonInputFileName(map.family, map.adminAreaLevel),
+      ),
+      new Uint8Array(gzipped),
+    );
+    captured.push({
+      family: map.family,
+      adminAreaLevel: map.adminAreaLevel,
+      featureCount: parsed.features?.length ?? 0,
+      uploadedAt: stored.uploadedAt,
+    });
+  }
+  return captured;
 }
 
 export const POPULATION_FILE_NAME = "population.csv";

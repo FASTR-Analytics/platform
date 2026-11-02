@@ -19,7 +19,6 @@ import {
   restoreSlideDeckStructure,
   updateSlide,
   updateSlideDeckConfig,
-  updateSlideDeckPlan,
 } from "../../db/products/mod.ts";
 import {
   compactSlideElementTombstones,
@@ -68,23 +67,6 @@ defineRoute(
       c,
       await getSlideDeckDetail(c.var.mainDb, params.product_id),
     );
-  },
-);
-
-defineRoute(
-  routesProductSlideDecks,
-  "updateSlideDeckPlan",
-  async (c, { params, body }) => {
-    const res = await updateSlideDeckPlan(
-      c.var.mainDb,
-      params.product_id,
-      body.plan,
-    );
-    if (!res.success) {
-      return respond(c, res);
-    }
-    await notifyInstanceProductsUpserted(c.var.mainDb, [params.product_id]);
-    return respond(c, res);
   },
 );
 

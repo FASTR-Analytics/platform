@@ -10,7 +10,6 @@ import {
   updateScope,
 } from "../../db/instance/scopes.ts";
 import { log } from "../../middleware/logging.ts";
-import { requireGlobalPermission } from "../../middleware/mod.ts";
 import { notifyInstanceScopesUpdated } from "../../task_management/notify_instance_updated.ts";
 import { defineRoute } from "../route-helpers.ts";
 import { broadcastRosterAndCloseStaleCollab } from "./users.ts";
@@ -20,7 +19,6 @@ export const routesScopes = new Hono();
 defineRoute(
   routesScopes,
   "createScope",
-  requireGlobalPermission({ requireAdmin: true }),
   log("createScope"),
   async (c, { body }) => {
     const res = await createScope(c.var.mainDb, {
@@ -37,7 +35,6 @@ defineRoute(
 defineRoute(
   routesScopes,
   "updateScope",
-  requireGlobalPermission({ requireAdmin: true }),
   log("updateScope"),
   async (c, { params, body }) => {
     const res = await updateScope(c.var.mainDb, params.scope_id, body);
@@ -51,7 +48,6 @@ defineRoute(
 defineRoute(
   routesScopes,
   "deleteScope",
-  requireGlobalPermission({ requireAdmin: true }),
   log("deleteScope"),
   async (c, { params }) => {
     const res = await deleteScope(c.var.mainDb, params.scope_id);

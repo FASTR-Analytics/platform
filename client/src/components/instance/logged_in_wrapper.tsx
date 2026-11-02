@@ -18,12 +18,13 @@ import {
   reportNetworkFailure,
   reportNetworkSuccess,
 } from "~/state/t4_connection_monitor";
-
-// Only allow bypass auth if:
-// 1. VITE_BYPASS_AUTH is set to true
-// 2. Client is NOT built in production mode
-const bypassAuth = import.meta.env.VITE_BYPASS_AUTH === "true" &&
-  import.meta.env.MODE !== "production";
+import {
+  bypassAuth,
+  clearPersona,
+  clerkActive,
+  persona,
+  personaAuth,
+} from "~/state/_infra/auth_mode";
 
 ///////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////
@@ -72,30 +73,33 @@ export function LoggedInWrapper(p: Props) {
     setLanguage(storedLang);
   }
 
-  const [clerkLoaded, setClerkLoaded] = createSignal(bypassAuth);
+  const [clerkLoaded, setClerkLoaded] = createSignal(!clerkActive);
   const [clerkUser, setClerkUser] = createSignal(clerk.user);
 
   onMount(async () => {
-    if (!bypassAuth) {
-      let lang = storedLang;
-      if (!lang) {
-        const res = await serverActions.getInstanceMeta({});
-        if (res.success) {
-          lang = res.data.instanceLanguage;
-          setLanguage(lang);
-        }
+    if (bypassAuth) return;
+    let lang = storedLang;
+    if (!lang) {
+      const res = await serverActions.getInstanceMeta({});
+      if (res.success) {
+        lang = res.data.instanceLanguage;
+        setLanguage(lang);
       }
-      await clerk.load({
-        localization: lang === "fr" ? frFR : undefined,
-      });
-      clerk.addListener((e) => setClerkUser(e.user ?? null));
-      setClerkLoaded(true);
     }
+    if (personaAuth) return;
+    await clerk.load({
+      localization: lang === "fr" ? frFR : undefined,
+    });
+    clerk.addListener((e) => setClerkUser(e.user ?? null));
+    setClerkLoaded(true);
   });
 
   return (
     <Show when={clerkLoaded()} fallback={<div />}>
-      <Show when={bypassAuth || clerkUser()} fallback={<ClerkNewLogin />}>
+      <Show
+        when={bypassAuth || (personaAuth ? persona : clerkUser())}
+        fallback={personaAuth ? <PersonaPrompt /> : <ClerkNewLogin />}
+      >
         {(_) => {
           ///////////////////////////////////////////////////////////////////////////////////
           ///////////////////////////////////////////////////////////////////////////////////
@@ -144,6 +148,11 @@ export function LoggedInWrapper(p: Props) {
           async function attemptSignOut(): Promise<void> {
             // Note: Can't update loggedInInfo loading state with createQuery
             // but page will reload anyway
+            if (personaAuth) {
+              clearPersona();
+              window.location.href = window.location.pathname;
+              return;
+            }
             if (!bypassAuth) {
               await clerk.signOut();
             }
@@ -155,27 +164,7 @@ export function LoggedInWrapper(p: Props) {
               state={loggedInInfo.state()}
               loadingAndErrorPad="md"
             >
-              {(globalUserOrUndefined) => {
-                return (
-                  <Show
-                    when={globalUserOrUndefined}
-                    fallback={
-                      <div class="ui-pad">
-                        {t3({
-                          en: "Not yet approved for this instance",
-                          fr: "Pas encore approuvé pour cette instance",
-                          pt: "Ainda não aprovado para esta instância",
-                        })}
-                      </div>
-                    }
-                  >
-                    {(_) => {
-                      console.log(globalUserOrUndefined);
-                      return p.children(globalUserOrUndefined, attemptSignOut);
-                    }}
-                  </Show>
-                );
-              }}
+              {(globalUser) => p.children(globalUser, attemptSignOut)}
             </StateHolderWrapper>
           );
         }}
@@ -285,6 +274,21 @@ function ClerkNewLogin() {
           <div ref={authEl} />
         </div>
       </div>
+    </div>
+  );
+}
+
+function PersonaPrompt() {
+  return (
+    <div class="ui-pad">
+      {t3({
+        en:
+          "Persona mode: open this page with ?persona=<email> to sign in as that user.",
+        fr:
+          "Mode persona : ouvrez cette page avec ?persona=<email> pour vous connecter en tant que cet utilisateur.",
+        pt:
+          "Modo persona: abra esta página com ?persona=<email> para entrar como esse utilizador.",
+      })}
     </div>
   );
 }

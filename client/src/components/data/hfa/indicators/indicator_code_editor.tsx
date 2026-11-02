@@ -1,20 +1,25 @@
 import {
   type APIResponseNoData,
   composeHfaIndicatorLabel,
+  createHfaCodeParseCache,
   HFA_CODE_LIST_EXAMPLE,
   HFA_CODE_SYMBOLS,
   HFA_CODE_WORDS,
   type HfaDictionaryForValidation,
+  type HfaFieldIssue,
   type HfaIndicator,
   type HfaIndicatorCategory,
   type HfaIndicatorCode,
   type HfaIndicatorServiceCategory,
+  hfaIndicatorsStatus,
   type HfaIndicatorSubCategory,
   type HfaIndicatorVariantCode,
   type HfaIndicatorVariantGroup,
   type HfaIndicatorVariantItem,
   t3,
   TC,
+  type TranslatableString,
+  validateHfaIndicatorCode,
 } from "lib";
 import {
   Button,
@@ -37,13 +42,7 @@ import {
 import { createMemo, createSignal, For, Show } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
 import { serverActions } from "~/server_actions";
-import {
-  checkIndicatorCodeResultType,
-  EMPTY_INDICATOR_CODE_VALIDATION,
-  hasIndicatorCodeErrors,
-  type IndicatorCodeValidation,
-  validateIndicatorCode,
-} from "./_shared/mod.ts";
+import { getHfaIndicatorsGuidance } from "./ai/mod.ts";
 import {
   copilotViewController,
   type HfaIndicatorEditorDraft,
@@ -51,10 +50,60 @@ import {
   holdCopilotView,
 } from "~/components/instance/copilot/mod.ts";
 
+const OPERATOR_MEANING: Record<
+  (typeof HFA_CODE_SYMBOLS)[number] | (typeof HFA_CODE_WORDS)[number],
+  TranslatableString
+> = {
+  "==": { en: "equal to", fr: "égal à", pt: "igual a" },
+  "!=": { en: "not equal to", fr: "différent de", pt: "diferente de" },
+  "<": {
+    en: "strictly less than",
+    fr: "strictement inférieur à",
+    pt: "estritamente menor que",
+  },
+  ">": {
+    en: "strictly greater than",
+    fr: "strictement supérieur à",
+    pt: "estritamente maior que",
+  },
+  "<=": {
+    en: "less than or equal to",
+    fr: "inférieur ou égal à",
+    pt: "menor ou igual a",
+  },
+  ">=": {
+    en: "greater than or equal to",
+    fr: "supérieur ou égal à",
+    pt: "maior ou igual a",
+  },
+  "+": { en: "addition", fr: "addition", pt: "adição" },
+  "-": { en: "subtraction", fr: "soustraction", pt: "subtração" },
+  "*": { en: "multiplication", fr: "multiplication", pt: "multiplicação" },
+  "/": { en: "division", fr: "division", pt: "divisão" },
+  AND: {
+    en: "both conditions",
+    fr: "les deux conditions",
+    pt: "ambas as condições",
+  },
+  OR: { en: "at least one", fr: "au moins une", pt: "pelo menos uma" },
+  NOT: { en: "opposite", fr: "contraire", pt: "contrário" },
+};
+
+const HFA_CODE_OPERATOR_MEANINGS: [string, TranslatableString][] = [
+  ...[...HFA_CODE_SYMBOLS, ...HFA_CODE_WORDS].map((
+    operator,
+  ): [string, TranslatableString] => [operator, OPERATOR_MEANING[operator]]),
+  [HFA_CODE_LIST_EXAMPLE, {
+    en: "x is one of the listed values, here 1 or 2",
+    fr: "x est l'une des valeurs listées, ici 1 ou 2",
+    pt: "x é um dos valores listados, aqui 1 ou 2",
+  }],
+];
+
 type TempCodeEntry = {
   timePoint: string;
-  rCode: string;
-  rFilterCode: string;
+  code: string;
+  filterCode: string;
 };
 
 type TempState = {
@@ -84,6 +133,8 @@ export function HfaIndicatorCodeEditor(
       indicator: HfaIndicator;
       dictionary: HfaDictionaryForValidation;
       indicators: HfaIndicator[];
+      allCode: HfaIndicatorCode[];
+      allVariantCode: HfaIndicatorVariantCode[];
       categories: HfaIndicatorCategory[];
       subCategories: HfaIndicatorSubCategory[];
       serviceCategories: HfaIndicatorServiceCategory[];
@@ -204,6 +255,8 @@ export function HfaIndicatorCodeEditor(
                 indicator={p.indicator}
                 dictionary={p.dictionary}
                 indicators={p.indicators}
+                allCode={p.allCode}
+                allVariantCode={p.allVariantCode}
                 categories={p.categories}
                 subCategories={p.subCategories}
                 serviceCategories={p.serviceCategories}
@@ -228,6 +281,8 @@ function EditorInner(p: {
   indicator: HfaIndicator;
   dictionary: HfaDictionaryForValidation;
   indicators: HfaIndicator[];
+  allCode: HfaIndicatorCode[];
+  allVariantCode: HfaIndicatorVariantCode[];
   categories: HfaIndicatorCategory[];
   subCategories: HfaIndicatorSubCategory[];
   serviceCategories: HfaIndicatorServiceCategory[];
@@ -244,14 +299,14 @@ function EditorInner(p: {
     );
     return {
       timePoint: tp.timePoint,
-      rCode: existing?.rCode ?? "",
-      rFilterCode: existing?.rFilterCode ?? "",
+      code: existing?.code ?? "",
+      filterCode: existing?.filterCode ?? "",
     };
   });
 
   const initialVariantCode: Record<string, string> = {};
   for (const c of p.initialVariantCodeSnippets) {
-    initialVariantCode[variantKey(c.timePoint, c.itemId)] = c.rCode;
+    initialVariantCode[variantKey(c.timePoint, c.itemId)] = c.code;
   }
 
   const [state, setState] = createStore<TempState>({
@@ -289,11 +344,6 @@ function EditorInner(p: {
     (i) => i.indicatorId !== p.indicator.indicatorId,
   );
   const otherIndicatorIds = new Set(otherIndicators.map((i) => i.indicatorId));
-  // Variant snippets may legitimately reference their own parent indicator
-  // (e.g. `vacc == 1 & q12 == 2`), so their validation set includes it.
-  const allIndicatorIdsInclSelf = new Set(
-    p.indicators.map((i) => i.indicatorId),
-  );
 
   const currentTpIndex = () =>
     state.code.findIndex((c) => c.timePoint === selectedTimePoint());
@@ -318,19 +368,76 @@ function EditorInner(p: {
       : undefined;
   };
 
-  const roundsConsistency = () => {
-    const nonEmpty = state.code.filter(
-      (c) => c.rCode.trim() || c.rFilterCode.trim(),
-    );
-    if (nonEmpty.length <= 1) return "single" as const;
-    const first = nonEmpty[0];
-    const allSame = nonEmpty.every(
-      (c) =>
-        c.rCode.trim() === first.rCode.trim() &&
-        c.rFilterCode.trim() === first.rFilterCode.trim(),
-    );
-    return allSame ? ("same" as const) : ("different" as const);
+  // Variant entries to save: current group's items only, non-empty code.
+  const variantCodeToSave = (): {
+    timePoint: string;
+    itemId: string;
+    code: string;
+  }[] => {
+    const entries: { timePoint: string; itemId: string; code: string }[] = [];
+    for (const tp of p.dictionary.timePoints) {
+      for (const item of currentGroupItems()) {
+        const code =
+          (state.variantCode[variantKey(tp.timePoint, item.id)] ?? "").trim();
+        if (code) {
+          entries.push({ timePoint: tp.timePoint, itemId: item.id, code });
+        }
+      }
+    }
+    return entries;
   };
+
+  // The draft's status: the core over the manager's code with this
+  // indicator's saved code replaced by the draft, so a cycle through another
+  // indicator shows here before the save. The parse cache lives as long as the
+  // editor, so a keystroke parses only the code it changed.
+  const parse = createHfaCodeParseCache();
+  const draftStatus = createMemo(() => {
+    const id = p.indicator.indicatorId;
+    const draft: HfaIndicator = {
+      ...p.indicator,
+      type: state.type,
+      variantGroupId: state.variantGroupId,
+    };
+    return hfaIndicatorsStatus({
+      indicators: p.indicators.map((i) => i.indicatorId === id ? draft : i),
+      code: [
+        ...p.allCode.filter((c) => c.indicatorId !== id),
+        ...state.code.map((c) => ({ ...c, indicatorId: id })),
+      ],
+      variantCode: [
+        ...p.allVariantCode.filter((c) => c.indicatorId !== id),
+        ...variantCodeToSave().map((c) => ({ ...c, indicatorId: id })),
+      ],
+      variantItems: p.variantItems,
+      dictionary: p.dictionary,
+      only: new Set([id]),
+      parse,
+    }).get(id)!;
+  });
+
+  const describeReferenced = (id: string) => ({
+    label: referencedLabel(id),
+    values: valuesForVariable(id)
+      .map((vv) => `${vv.value}=${vv.valueLabel}`)
+      .join(", "),
+  });
+
+  const roundsConsistency = () => {
+    if (!draftStatus().consistent) return "different" as const;
+    const nonEmpty = state.code.filter(
+      (c) => c.code.trim() || c.filterCode.trim(),
+    );
+    return nonEmpty.length <= 1 ? ("single" as const) : ("same" as const);
+  };
+
+  const fieldIssues = (
+    timePoint: string,
+    field: HfaFieldIssue["field"],
+    itemId?: string,
+  ): HfaFieldIssue[] =>
+    draftStatus().rounds.find((r) => r.timePoint === timePoint)?.issues
+      .filter((i) => i.field === field && i.itemId === itemId) ?? [];
 
   function applyToOtherRounds() {
     const idx = currentTpIndex();
@@ -338,8 +445,8 @@ function EditorInner(p: {
     const src = state.code[idx];
     for (let i = 0; i < state.code.length; i++) {
       if (i === idx) continue;
-      setState("code", i, "rCode", src.rCode);
-      setState("code", i, "rFilterCode", src.rFilterCode);
+      setState("code", i, "code", src.code);
+      setState("code", i, "filterCode", src.filterCode);
     }
     const srcTp = selectedTimePoint();
     for (const item of currentGroupItems()) {
@@ -358,133 +465,25 @@ function EditorInner(p: {
     return new Set(dict.variables.map((v) => v.variableId));
   };
 
-  const currentRCodeValidation = (): IndicatorCodeValidation => {
-    const idx = currentTpIndex();
-    if (idx < 0) return EMPTY_INDICATOR_CODE_VALIDATION;
-    return validateIndicatorCode(
-      state.code[idx].rCode,
-      availableVariableIds(),
-      otherIndicatorIds,
-    );
-  };
+  const referencedIds = (code: string): string[] =>
+    validateHfaIndicatorCode(code, availableVariableIds(), otherIndicatorIds)
+      .referencedIds;
 
-  const currentFilterValidation = (): IndicatorCodeValidation => {
-    const idx = currentTpIndex();
-    if (idx < 0) return EMPTY_INDICATOR_CODE_VALIDATION;
-    return validateIndicatorCode(
-      state.code[idx].rFilterCode,
-      availableVariableIds(),
-      otherIndicatorIds,
-    );
-  };
-
-  // Variant entries to save: current group's items only, non-empty code.
-  const variantCodeToSave = (): {
-    timePoint: string;
-    itemId: string;
-    rCode: string;
-  }[] => {
-    const entries: { timePoint: string; itemId: string; rCode: string }[] = [];
-    for (const tp of p.dictionary.timePoints) {
-      for (const item of currentGroupItems()) {
-        const rCode =
-          (state.variantCode[variantKey(tp.timePoint, item.id)] ?? "").trim();
-        if (rCode) {
-          entries.push({ timePoint: tp.timePoint, itemId: item.id, rCode });
-        }
-      }
-    }
-    return entries;
-  };
-
+  // Save refuses only what a run could never use: a filter or variant code in
+  // a round without indicator code. Every other issue is shown and saved.
   p.registerSave(async () => {
-    const filterOnly = state.code.find(
-      (c) => c.rFilterCode.trim() && !c.rCode.trim(),
+    const refused = draftStatus().rounds.flatMap((r) =>
+      r.issues
+        .filter((i) =>
+          i.kind === "filter_without_code" || i.kind === "variant_without_code"
+        )
+        .map((i) => `${r.timePoint}: ${t3(i.text)}`)
     );
-    if (filterOnly) {
-      return {
-        success: false,
-        err: t3({
-          en:
-            `Filter code requires indicator code for time point "${filterOnly.timePoint}"`,
-          fr:
-            `Le code filtre nécessite un code d'indicateur pour le point temporel « ${filterOnly.timePoint} »`,
-          pt:
-            `O código de filtro requer código do indicador para o ponto temporal "${filterOnly.timePoint}"`,
-        }),
-      };
+    if (refused.length > 0) {
+      return { success: false, err: refused.join("\n") };
     }
 
     const variantCode = variantCodeToSave();
-    if (variantCode.length > 0 && !state.code.some((c) => c.rCode.trim())) {
-      return {
-        success: false,
-        err: t3({
-          en:
-            "An indicator with variant code must also have overall indicator code",
-          fr:
-            "Un indicateur avec du code de variante doit aussi avoir un code d'indicateur global",
-          pt:
-            "Um indicador com código de variante também deve ter código global do indicador",
-        }),
-      };
-    }
-
-    // Compute validation across all timepoints (main + variant snippets; the
-    // stored flag is display-only editor metadata)
-    let hasSyntaxError = false;
-    for (let i = 0; i < state.code.length; i++) {
-      const c = state.code[i];
-      const tp = p.dictionary.timePoints.find(
-        (t) => t.timePoint === c.timePoint,
-      );
-      const availableVariableIds = tp
-        ? new Set(tp.variables.map((v) => v.variableId))
-        : new Set<string>();
-      if (c.rCode.trim()) {
-        const result = validateIndicatorCode(
-          c.rCode,
-          availableVariableIds,
-          otherIndicatorIds,
-        );
-        if (hasIndicatorCodeErrors(result)) {
-          hasSyntaxError = true;
-          break;
-        }
-      }
-      if (c.rFilterCode.trim()) {
-        const result = validateIndicatorCode(
-          c.rFilterCode,
-          availableVariableIds,
-          otherIndicatorIds,
-        );
-        if (hasIndicatorCodeErrors(result)) {
-          hasSyntaxError = true;
-          break;
-        }
-      }
-    }
-    if (!hasSyntaxError) {
-      for (const vc of variantCode) {
-        const tp = p.dictionary.timePoints.find(
-          (t) => t.timePoint === vc.timePoint,
-        );
-        const availableVariableIds = tp
-          ? new Set(tp.variables.map((v) => v.variableId))
-          : new Set<string>();
-        const result = validateIndicatorCode(
-          vc.rCode,
-          availableVariableIds,
-          allIndicatorIdsInclSelf,
-        );
-        if (hasIndicatorCodeErrors(result)) {
-          hasSyntaxError = true;
-          break;
-        }
-      }
-    }
-
-    const codeConsistent = roundsConsistency() !== "different";
 
     return await serverActions.saveHfaIndicatorFull({
       indicator: {
@@ -497,18 +496,14 @@ function EditorInner(p: {
         type: state.type,
         aggregation: state.aggregation,
         sortOrder: p.indicator.sortOrder,
-        hasSyntaxError,
-        codeConsistent,
         variantGroupId: state.variantGroupId,
       },
       code: unwrap(state.code).map((c) => ({
         timePoint: c.timePoint,
-        rCode: c.rCode.trim(),
-        rFilterCode: c.rFilterCode.trim() || undefined,
+        code: c.code.trim(),
+        filterCode: c.filterCode.trim() || undefined,
       })),
       variantCode,
-      hasSyntaxError,
-      codeConsistent,
     });
   });
 
@@ -520,7 +515,7 @@ function EditorInner(p: {
     setState(
       "code",
       currentTpIndex(),
-      "rCode",
+      "code",
       (prev) =>
         prev + (prev.length === 0 || /\s$/.test(prev) ? "" : " ") + symbol +
         " ",
@@ -544,36 +539,6 @@ function EditorInner(p: {
   const searchMatches = (text: string) =>
     matchesSearch(folded(text), variableSearchTokens());
 
-  // The issues the editor shows for one round, as English lines for the
-  // chat: the validation of the code and the filter against this round's
-  // variables, and the result-type check the code's label states.
-  const roundIssues = (c: TempCodeEntry): string[] => {
-    const tp = p.dictionary.timePoints.find((t) => t.timePoint === c.timePoint);
-    const available = new Set(tp?.variables.map((v) => v.variableId) ?? []);
-    const issues: string[] = [];
-    if (c.rFilterCode.trim() && !c.rCode.trim()) {
-      issues.push(
-        "rFilterCode: filter code requires indicator code for this round",
-      );
-    }
-    const fields: [string, string][] = [
-      ["rCode", c.rCode],
-      ["rFilterCode", c.rFilterCode],
-    ];
-    for (const [field, code] of fields) {
-      if (!code.trim()) continue;
-      const r = validateIndicatorCode(code, available, otherIndicatorIds);
-      for (const e of r.syntaxErrors) issues.push(`${field}: ${e}`);
-      for (const e of r.unknownVariableErrors) issues.push(`${field}: ${e}`);
-    }
-    if (c.rCode.trim()) {
-      for (const w of checkIndicatorCodeResultType(c.rCode, state.type)) {
-        issues.push(`rCode: ${w}`);
-      }
-    }
-    return issues;
-  };
-
   const getDraft = (): HfaIndicatorEditorDraft => ({
     shortLabel: state.shortLabel,
     definition: state.definition,
@@ -584,16 +549,29 @@ function EditorInner(p: {
     serviceCategoryIds: [...state.serviceCategoryIds],
     code: state.code.map((c) => ({
       timePoint: c.timePoint,
-      rCode: c.rCode,
-      rFilterCode: c.rFilterCode,
-      issues: roundIssues(c),
+      code: c.code,
+      filterCode: c.filterCode,
     })),
-    codeConsistent: roundsConsistency() !== "different",
+    variantGroupId: state.variantGroupId,
+    variantCode: variantCodeToSave(),
   });
 
+  // A group change clears the previous group's entries, so switching back
+  // never shows deleted code as if it were still stored.
+  function setVariantGroup(groupId: string | null) {
+    for (const item of currentGroupItems()) {
+      for (const tp of p.dictionary.timePoints) {
+        setState("variantCode", variantKey(tp.timePoint, item.id), "");
+      }
+    }
+    setState("variantGroupId", groupId);
+  }
+
   // The chat's write, with the controls' own semantics: a category change
-  // clears the sub-category (the category select does the same), a round
-  // keeps the field the patch omits, and the draft is marked unsaved.
+  // clears the sub-category (the category select does the same), a group
+  // change drops the previous group's variant code before the patch's own
+  // variant rows land, a round keeps the field the patch omits, and the draft
+  // is marked unsaved.
   const applyDraft = (patch: HfaIndicatorEditorPatch) => {
     if (
       patch.categoryId !== undefined && patch.categoryId !== state.categoryId
@@ -617,15 +595,24 @@ function EditorInner(p: {
     if (patch.aggregation !== undefined) {
       setState("aggregation", patch.aggregation);
     }
+    if (
+      patch.variantGroupId !== undefined &&
+      patch.variantGroupId !== state.variantGroupId
+    ) {
+      setVariantGroup(patch.variantGroupId);
+    }
     for (const round of patch.code ?? []) {
       const idx = state.code.findIndex((c) => c.timePoint === round.timePoint);
       if (idx < 0) continue;
-      if (round.rCode !== undefined) {
-        setState("code", idx, "rCode", round.rCode);
+      if (round.code !== undefined) {
+        setState("code", idx, "code", round.code);
       }
-      if (round.rFilterCode !== undefined) {
-        setState("code", idx, "rFilterCode", round.rFilterCode);
+      if (round.filterCode !== undefined) {
+        setState("code", idx, "filterCode", round.filterCode);
       }
+    }
+    for (const row of patch.variantCode ?? []) {
+      setState("variantCode", variantKey(row.timePoint, row.itemId), row.code);
     }
     markDirty();
   };
@@ -641,7 +628,14 @@ function EditorInner(p: {
         categories: p.categories,
         subCategories: p.subCategories,
         serviceCategories: p.serviceCategories,
+        variantGroups: p.variantGroups,
+        variantItems: p.variantItems,
       }),
+      getIndicators: () => p.indicators,
+      getAllCode: () => p.allCode,
+      getAllVariantCode: () => p.allVariantCode,
+      getDictionary: () => p.dictionary,
+      getGuidance: getHfaIndicatorsGuidance,
       applyDraft,
     },
   );
@@ -778,19 +772,8 @@ function EditorInner(p: {
                     setState("variantGroupId", current);
                     return;
                   }
-                  // Clear the old group's entries so switching back never
-                  // shows deleted code as if it were still persisted.
-                  for (const item of oldItems) {
-                    for (const tp of p.dictionary.timePoints) {
-                      setState(
-                        "variantCode",
-                        variantKey(tp.timePoint, item.id),
-                        "",
-                      );
-                    }
-                  }
                 }
-                setState("variantGroupId", newGroupId);
+                setVariantGroup(newGroupId);
                 markDirty();
               }}
               options={[
@@ -891,7 +874,7 @@ function EditorInner(p: {
             {(tp) => {
               const codeEntry = () =>
                 state.code.find((c) => c.timePoint === tp.timePoint);
-              const hasCode = () => !!codeEntry()?.rCode.trim();
+              const hasCode = () => !!codeEntry()?.code.trim();
               return (
                 <button
                   class={`ui-pad-sm w-full cursor-pointer border-b text-left text-sm ${
@@ -949,9 +932,9 @@ function EditorInner(p: {
                           : "deve dar um número"
                       })`,
                     })}
-                    value={state.code[currentTpIndex()].rCode}
+                    value={state.code[currentTpIndex()].code}
                     onChange={(v) => {
-                      setState("code", currentTpIndex(), "rCode", v);
+                      setState("code", currentTpIndex(), "code", v);
                       markDirty();
                     }}
                     fullWidth
@@ -964,67 +947,32 @@ function EditorInner(p: {
                       fr: "Opérateurs : ",
                       pt: "Operadores: ",
                     })}
-                    <span class="font-mono">
-                      {[...HFA_CODE_SYMBOLS, ...HFA_CODE_WORDS].join(" ")}
-                    </span>
+                    <For each={HFA_CODE_OPERATOR_MEANINGS}>
+                      {([operator, meaning], i) => (
+                        <>
+                          {i() > 0 ? ", " : ""}
+                          <span class="font-mono">{operator}</span>
+                          {` (${t3(meaning)})`}
+                        </>
+                      )}
+                    </For>
                     {". "}
-                    <span class="font-mono">{HFA_CODE_LIST_EXAMPLE}</span>
                     {t3({
                       en:
-                        ' tests a list of values. Text is written in quotes, as in sh_03 == "c". Nothing else is accepted.',
+                        'Text values must be in quotation marks (e.g. SH_03 == "c"); numeric values are written without quotation marks (e.g. SH_03A == 1). Use only these operators.',
                       fr:
-                        " teste une liste de valeurs. Le texte s'écrit entre guillemets, comme dans sh_03 == \"c\". Rien d'autre n'est accepté.",
+                        'Les valeurs texte doivent être entre guillemets (p. ex. SH_03 == "c") ; les valeurs numériques s\'écrivent sans guillemets (p. ex. SH_03A == 1). Utilisez uniquement ces opérateurs.',
                       pt:
-                        ' testa uma lista de valores. O texto escreve-se entre aspas, como em sh_03 == "c". Nada mais é aceite.',
+                        'Os valores de texto devem estar entre aspas (p. ex. SH_03 == "c"); os valores numéricos escrevem-se sem aspas (p. ex. SH_03A == 1). Use apenas estes operadores.',
                     })}
                   </div>
-                  <Show
-                    when={currentRCodeValidation().referencedIds.length > 0 ||
-                      currentRCodeValidation().unknownVariableErrors.length >
-                        0 ||
-                      currentRCodeValidation().syntaxErrors.length > 0}
-                  >
-                    <div class="mt-1">
-                      <For each={currentRCodeValidation().syntaxErrors}>
-                        {(e) => (
-                          <div class="text-danger font-700 text-xs">
-                            {t3({
-                              en: "Syntax: ",
-                              fr: "Syntaxe : ",
-                              pt: "Sintaxe: ",
-                            })}
-                            {e}
-                          </div>
-                        )}
-                      </For>
-                      <For
-                        each={currentRCodeValidation().unknownVariableErrors}
-                      >
-                        {(e) => <div class="text-danger text-xs">{e}</div>}
-                      </For>
-                      <For each={currentRCodeValidation().referencedIds}>
-                        {(id) => {
-                          const label = referencedLabel(id);
-                          const vals = valuesForVariable(id);
-                          return (
-                            <div class="text-success text-xs">
-                              <div>
-                                {id}
-                                {label ? ` — ${label}` : ""}
-                              </div>
-                              <Show when={vals.length > 0}>
-                                <div class="text-base-content-muted ml-3">
-                                  {vals
-                                    .map((vv) => `${vv.value}=${vv.valueLabel}`)
-                                    .join(", ")}
-                                </div>
-                              </Show>
-                            </div>
-                          );
-                        }}
-                      </For>
-                    </div>
-                  </Show>
+                  <CodeFieldMessages
+                    issues={fieldIssues(selectedTimePoint(), "code")}
+                    referenced={referencedIds(
+                      state.code[currentTpIndex()].code,
+                    )}
+                    describe={describeReferenced}
+                  />
                 </div>
 
                 <div>
@@ -1034,77 +982,22 @@ function EditorInner(p: {
                       fr: "Code filtre (optionnel, doit donner oui/non)",
                       pt: "Código de filtro (opcional, deve dar sim/não)",
                     })}
-                    value={state.code[currentTpIndex()].rFilterCode}
+                    value={state.code[currentTpIndex()].filterCode}
                     onChange={(v) => {
-                      setState("code", currentTpIndex(), "rFilterCode", v);
+                      setState("code", currentTpIndex(), "filterCode", v);
                       markDirty();
                     }}
                     fullWidth
                     height="80px"
                     mono
                   />
-                  <Show
-                    when={state.code[currentTpIndex()].rFilterCode.trim() &&
-                      !state.code[currentTpIndex()].rCode.trim()}
-                  >
-                    <div class="text-danger font-700 mt-1 text-xs">
-                      {t3({
-                        en:
-                          "Filter code requires indicator code for this time point",
-                        fr:
-                          "Le code filtre nécessite un code d'indicateur pour ce point temporel",
-                        pt:
-                          "O código de filtro requer código do indicador para este ponto temporal",
-                      })}
-                    </div>
-                  </Show>
-                  <Show
-                    when={currentFilterValidation().referencedIds.length > 0 ||
-                      currentFilterValidation().unknownVariableErrors.length >
-                        0 ||
-                      currentFilterValidation().syntaxErrors.length > 0}
-                  >
-                    <div class="mt-1">
-                      <For each={currentFilterValidation().syntaxErrors}>
-                        {(e) => (
-                          <div class="text-danger font-700 text-xs">
-                            {t3({
-                              en: "Syntax: ",
-                              fr: "Syntaxe : ",
-                              pt: "Sintaxe: ",
-                            })}
-                            {e}
-                          </div>
-                        )}
-                      </For>
-                      <For
-                        each={currentFilterValidation().unknownVariableErrors}
-                      >
-                        {(e) => <div class="text-danger text-xs">{e}</div>}
-                      </For>
-                      <For each={currentFilterValidation().referencedIds}>
-                        {(id) => {
-                          const label = referencedLabel(id);
-                          const vals = valuesForVariable(id);
-                          return (
-                            <div class="text-success text-xs">
-                              <div>
-                                {id}
-                                {label ? ` — ${label}` : ""}
-                              </div>
-                              <Show when={vals.length > 0}>
-                                <div class="text-base-content-muted ml-3">
-                                  {vals
-                                    .map((vv) => `${vv.value}=${vv.valueLabel}`)
-                                    .join(", ")}
-                                </div>
-                              </Show>
-                            </div>
-                          );
-                        }}
-                      </For>
-                    </div>
-                  </Show>
+                  <CodeFieldMessages
+                    issues={fieldIssues(selectedTimePoint(), "filterCode")}
+                    referenced={referencedIds(
+                      state.code[currentTpIndex()].filterCode,
+                    )}
+                    describe={describeReferenced}
+                  />
                 </div>
 
                 <Show when={currentGroupItems().length > 0}>
@@ -1123,12 +1016,6 @@ function EditorInner(p: {
                       {(item) => {
                         const key = () =>
                           variantKey(selectedTimePoint(), item.id);
-                        const validation = (): IndicatorCodeValidation =>
-                          validateIndicatorCode(
-                            state.variantCode[key()] ?? "",
-                            availableVariableIds(),
-                            allIndicatorIdsInclSelf,
-                          );
                         return (
                           <div>
                             <TextArea
@@ -1142,30 +1029,15 @@ function EditorInner(p: {
                               height="80px"
                               mono
                             />
-                            <Show
-                              when={validation().syntaxErrors.length > 0 ||
-                                validation().unknownVariableErrors.length > 0}
-                            >
-                              <div class="mt-1">
-                                <For each={validation().syntaxErrors}>
-                                  {(e) => (
-                                    <div class="text-danger font-700 text-xs">
-                                      {t3({
-                                        en: "Syntax: ",
-                                        fr: "Syntaxe : ",
-                                        pt: "Sintaxe: ",
-                                      })}
-                                      {e}
-                                    </div>
-                                  )}
-                                </For>
-                                <For each={validation().unknownVariableErrors}>
-                                  {(e) => (
-                                    <div class="text-danger text-xs">{e}</div>
-                                  )}
-                                </For>
-                              </div>
-                            </Show>
+                            <CodeFieldMessages
+                              issues={fieldIssues(
+                                selectedTimePoint(),
+                                "variantCode",
+                                item.id,
+                              )}
+                              referenced={[]}
+                              describe={describeReferenced}
+                            />
                           </div>
                         );
                       }}
@@ -1305,5 +1177,54 @@ function EditorInner(p: {
         </div>
       </div>
     </div>
+  );
+}
+
+// A code field's issues, translated here at render, and the ids it names with
+// their labels and options.
+function CodeFieldMessages(p: {
+  issues: HfaFieldIssue[];
+  referenced: string[];
+  describe: (id: string) => { label: string | undefined; values: string };
+}) {
+  return (
+    <Show when={p.issues.length > 0 || p.referenced.length > 0}>
+      <div class="mt-1">
+        <For each={p.issues}>
+          {(issue) => (
+            <div
+              class={issue.kind === "result_type"
+                ? "text-warning text-xs"
+                : issue.kind === "syntax"
+                ? "text-danger font-700 text-xs"
+                : "text-danger text-xs"}
+            >
+              <Show when={issue.kind === "syntax"}>
+                {t3({ en: "Syntax: ", fr: "Syntaxe : ", pt: "Sintaxe: " })}
+              </Show>
+              {t3(issue.text)}
+            </div>
+          )}
+        </For>
+        <For each={p.referenced}>
+          {(id) => {
+            const described = p.describe(id);
+            return (
+              <div class="text-success text-xs">
+                <div>
+                  {id}
+                  {described.label ? ` — ${described.label}` : ""}
+                </div>
+                <Show when={described.values !== ""}>
+                  <div class="text-base-content-muted ml-3">
+                    {described.values}
+                  </div>
+                </Show>
+              </div>
+            );
+          }}
+        </For>
+      </div>
+    </Show>
   );
 }

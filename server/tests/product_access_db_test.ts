@@ -9,10 +9,17 @@ import { assert, assertEquals } from "@std/assert";
 import {
   ALL_DATA_SCOPE_ID,
   type APIResponseWithData,
+  geographyOnlyScopeDefinition,
   type ProductAccess,
+  type ScopeUuid,
 } from "lib";
 import { getPgConnectionFromCacheOrNew } from "../db/mod.ts";
-import { deleteUser } from "../db/instance/users.ts";
+import {
+  claimDailyEmailSends,
+  deleteUser,
+  setUserScopeAccess,
+} from "../db/instance/users.ts";
+import { createScope } from "../db/instance/scopes.ts";
 import { renameUserEmailInMainDb } from "../db/instance/rename_user_email.ts";
 import { getPinnedRunId } from "../db/instance/run_generation.ts";
 import { closeAllConnections } from "../db/postgres/connection_manager.ts";
@@ -33,9 +40,11 @@ import {
   PRODUCT_GRANT_DUPLICATE,
   PRODUCT_GRANT_IS_OWNER,
   PRODUCT_NOT_FOUND,
+  PRODUCT_OWNER_LACKS_SCOPE,
   raiseFolderProductsAccess,
   setProductAccess,
   setProductOwner,
+  setProductScope,
 } from "../db/products/mod.ts";
 
 function data<T>(res: APIResponseWithData<T>): T {
@@ -58,6 +67,8 @@ Deno.test("product access DB layer: inserts, access writes, bulk raise, user pat
   const COPIER = email("copier");
   const GONE = email("gone");
   const RENAMED = email("renamed");
+  const LIMITED = email("limited");
+  const GHOST = email("ghost");
   const users = [OWNER, EDITOR, VIEWER, COPIER, GONE];
   for (const u of users) {
     await mainDb`INSERT INTO users (email, is_admin) VALUES (${u}, FALSE)`;
@@ -65,6 +76,7 @@ Deno.test("product access DB layer: inserts, access writes, bulk raise, user pat
 
   const productIds: string[] = [];
   const folderIds: string[] = [];
+  const scopeIds: ScopeUuid[] = [];
   async function create(
     type: "slide_deck" | "report",
     folderId: string | null,
@@ -377,7 +389,13 @@ Deno.test("product access DB layer: inserts, access writes, bulk raise, user pat
       }),
     );
     await mainDb`UPDATE products SET owner = ${GONE} WHERE id = ${inSub}`;
-    const deleted = data(await deleteUser(mainDb, [GONE]));
+    const deleted = data(
+      await deleteUser(
+        mainDb,
+        { email: OWNER, isGlobalAdmin: true },
+        [GONE],
+      ),
+    );
     for (const id of [inSub, outside]) {
       assert(deleted.productIds.includes(id), id);
     }
@@ -401,9 +419,71 @@ Deno.test("product access DB layer: inserts, access writes, bulk raise, user pat
       assert(grants.includes(RENAMED), id);
       assert(!grants.includes(VIEWER), id);
     }
+
+    // A product's owner holds its scope: a transfer to a user who lacks it is
+    // refused, and so is a rescope to a scope the owner lacks.
+    const scoped = data(
+      await createScope(mainDb, {
+        label: `Access db ${tag}`,
+        definition: geographyOnlyScopeDefinition(`Access db ${tag}`),
+        createdBy: OWNER,
+      }),
+    ).scopeId;
+    scopeIds.push(scoped);
+    await mainDb`INSERT INTO users (email, is_admin) VALUES (${LIMITED}, FALSE)`;
+    users.push(LIMITED);
+    const restricted = await setUserScopeAccess(
+      mainDb,
+      { email: OWNER, isGlobalAdmin: true },
+      LIMITED,
+      { all: false, scopeIds: [scoped] },
+    );
+    assert(restricted.success, JSON.stringify(restricted));
+    assertEquals(await setProductOwner(mainDb, report, LIMITED), {
+      success: false,
+      err: PRODUCT_OWNER_LACKS_SCOPE,
+    });
+    const limitedOwned = data(
+      await createProduct(mainDb, {
+        type: "report",
+        label: "Test product",
+        folderId: null,
+        runId: runId as string,
+        scopeId: scoped,
+        createdBy: LIMITED,
+      }),
+    ).productId;
+    productIds.push(limitedOwned);
+    assertEquals(
+      await setProductScope(mainDb, limitedOwned, ALL_DATA_SCOPE_ID),
+      { success: false, err: PRODUCT_OWNER_LACKS_SCOPE },
+    );
+    assertEquals(
+      (await setProductScope(mainDb, limitedOwned, scoped)).success,
+      true,
+    );
+    data(await setProductScope(mainDb, report, scoped));
+    assertEquals(
+      (await setProductOwner(mainDb, report, LIMITED)).success,
+      true,
+    );
+
+    // The daily email cap: a claim within the limit passes and counts, one
+    // that would pass it claims nothing, and a new day starts from zero.
+    assertEquals(await claimDailyEmailSends(mainDb, OWNER, 3, 5), true);
+    assertEquals(await claimDailyEmailSends(mainDb, OWNER, 3, 5), false);
+    assertEquals(await claimDailyEmailSends(mainDb, OWNER, 2, 5), true);
+    assertEquals(await claimDailyEmailSends(mainDb, OWNER, 1, 5), false);
+    await mainDb`
+      UPDATE users SET daily_email_count_date = CURRENT_DATE - 1
+      WHERE email = ${OWNER}
+    `;
+    assertEquals(await claimDailyEmailSends(mainDb, OWNER, 5, 5), true);
+    assertEquals(await claimDailyEmailSends(mainDb, GHOST, 1, 5), false);
   } finally {
     await mainDb`DELETE FROM products WHERE id = ANY(${productIds})`;
     await mainDb`DELETE FROM folders WHERE id = ANY(${folderIds})`;
+    await mainDb`DELETE FROM scopes WHERE id = ANY(${scopeIds})`;
     await mainDb`DELETE FROM users WHERE email = ANY(${users})`;
     await closeAllConnections();
   }

@@ -12,12 +12,12 @@ export type DBUser = {
   last_name: string | null;
   can_configure_users: boolean;
   can_view_users: boolean;
-  can_view_logs: boolean;
-  can_configure_settings: boolean;
   can_configure_data: boolean;
   can_view_data: boolean;
   daily_token_usage: number;
   daily_token_usage_date: Date;
+  daily_email_count: number;
+  daily_email_count_date: Date;
   unlimited_ai: boolean;
   is_contact_person: boolean;
   all_scopes: boolean;

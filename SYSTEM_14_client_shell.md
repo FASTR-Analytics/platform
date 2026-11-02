@@ -165,7 +165,14 @@ file), which:
   `new Clerk(publishableKey)` from `VITE_CLERK_PUBLISHABLE_KEY`) and registers
   the browser server-action transport against it; a `bypassAuth` dev path
   (`VITE_BYPASS_AUTH`, non-production builds only) that skips Clerk entirely and
-  synthesizes a dev user (`"en"`/`"gregorian"`);
+  synthesizes a dev user (`"en"`/`"gregorian"`); and a `personaAuth` dev path
+  (`VITE_PERSONA_AUTH`, non-production builds only) that skips Clerk, takes the
+  persona from a `?persona=<email>` query kept in localStorage, sets the
+  `fastr_persona` cookie the server reads (S18 "Special modes") and loads the
+  real `getCurrentUser`, prompts for the query when none is kept, and clears
+  both on Sign out. Outside Clerk the profile hides Manage account and Change
+  email (`clerkActive`). The two modes' flags and the persona live in
+  `state/_infra/auth_mode.ts`, which refuses both set at once;
 - resolves **language**: `localStorage[LANGUAGE_STORAGE_KEY]`
   (`"fastrLanguage"`) if present, else the instance's configured language
   fetched via `getInstanceMeta` (the logged-out login screen does the same);
@@ -195,8 +202,11 @@ product's editor once the store has hydrated (S12). No other product parameter
 
 Everything else is a **signal-driven switchboard**, never the URL:
 `components/instance/instance.tsx` holds a local `_tab` signal filtered through
-a permission-guarded derivation that selects Products / Explore / Results / Data
-/ Assets / Users, in that nav order; Products (S12's `components/products/`) is
+a derivation over the client's permission accessors (`can`, `isGlobalAdmin`,
+`state/instance/permissions.ts`, S18) that selects Products / Explore / Results
+/ Data / Assets / Users, in that nav order (Results and Data need
+`can_view_data`, Scopes `can_configure_data`, Users `can_view_users`; configure
+implies view, so a configure holder reaches the view pages); Products (S12's `components/products/`) is
 first and the default, and Explore (S11's `components/explore/`, one package at
 one scope, a family's modules in a select, a module's views in a select with a
 type toggle, and a frame per view, S11 "The Explore page") needs approval only:

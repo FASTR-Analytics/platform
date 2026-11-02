@@ -1,4 +1,5 @@
 import { Context, Hono } from "hono";
+import { Sql } from "postgres";
 import {
   DBUser,
   GetAiLimitHits,
@@ -6,6 +7,9 @@ import {
   getCurrentDatasetHmisMaxVersionId,
   GetInstanceWeeklyTokenUsage,
   getPgConnectionFromCacheOrNew,
+  hasRunningDatasetHfaImportRun,
+  hasRunningDatasetHmisImportRun,
+  hasRunningDatasetIcehImportRun,
   UserLog,
 } from "../../db/mod.ts";
 import {
@@ -16,12 +20,41 @@ import {
   _IS_PRODUCTION,
   _SERVER_VERSION,
   _START_TIME,
-  _STATUS_API_KEY,
   _WEEKLY_TOKEN_LIMIT,
 } from "../../exposed_env_vars.ts";
 import { getModuleDefaultsSnapshot } from "../../runs/mod.ts";
+import { requireStatusKey } from "../../auth/guards.ts";
 
 export const routesHealth = new Hono();
+
+type ImportFamily = "hmis" | "hfa" | "iceh";
+
+// Work a restart would kill: the restart gate in the server CLI and the
+// status site's busy marker both read this. A generation is a 'generating'
+// catalog row and an import a 'running' run row, the same rows the boot
+// sweeps mark failed, so a 'queued' HMIS run, which survives a restart, is
+// not counted.
+async function getBusy(
+  mainDb: Sql,
+): Promise<{ generatingRuns: number; runningImports: ImportFamily[] }> {
+  const [generating, hmis, hfa, iceh] = await Promise.all([
+    mainDb<{ n: string }[]>`
+SELECT count(*) AS n FROM runs WHERE status = 'generating'
+`,
+    hasRunningDatasetHmisImportRun(mainDb),
+    hasRunningDatasetHfaImportRun(mainDb),
+    hasRunningDatasetIcehImportRun(mainDb),
+  ]);
+  const families: [ImportFamily, boolean][] = [
+    ["hmis", hmis],
+    ["hfa", hfa],
+    ["iceh", iceh],
+  ];
+  return {
+    generatingRuns: Number(generating[0].n),
+    runningImports: families.filter(([, running]) => running).map(([f]) => f),
+  };
+}
 
 routesHealth.get("/health_check", async (c) => {
   const currentTime = new Date().toISOString();
@@ -38,14 +71,7 @@ routesHealth.get("/health_check", async (c) => {
       firstName: u.first_name,
       lastName: u.last_name,
     }));
-  // A generation in flight = a 'generating' row in the runs catalog.
-  const hasRunningModules = Number(
-    (
-      await mainDb<{ n: string }[]>`
-SELECT count(*) AS n FROM runs WHERE status = 'generating'
-`
-    )[0].n,
-  ) > 0;
+  const busy = await getBusy(mainDb);
 
   const hmisVersion = await getCurrentDatasetHmisMaxVersionId(mainDb);
   const hfaTimePointCount = (
@@ -79,7 +105,7 @@ SELECT count(*) AS n FROM runs WHERE status = 'generating'
         timestamp: lastLog.timestamp,
       }
       : null,
-    hasRunningModules,
+    busy,
     contactPersons,
     datasets: {
       hmis: hmisVersion
@@ -230,28 +256,28 @@ LIMIT ${limit}
 
 // The status site's module-defaults scrape (fleet matrix + global defaults
 // compute script). Contract on ModuleDefaultsGlobalFile in lib.
-routesHealth.get("/module_defaults_snapshot", async (c: Context) => {
-  if (
-    !_STATUS_API_KEY || c.req.header("status-api-key") !== _STATUS_API_KEY
-  ) {
-    return c.json({ error: "Unauthorized" }, 401);
-  }
-  const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
-  const res = await getModuleDefaultsSnapshot(mainDb);
-  if (res.success === false) {
-    return c.json({ error: res.err }, 500);
-  }
-  return c.json(res.data);
-});
+routesHealth.get(
+  "/module_defaults_snapshot",
+  requireStatusKey(),
+  async (c: Context) => {
+    const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
+    const res = await getModuleDefaultsSnapshot(mainDb);
+    if (res.success === false) {
+      return c.json({ error: res.err }, 500);
+    }
+    return c.json(res.data);
+  },
+);
 
-routesHealth.post("/pg_stat_statements_reset", async (c: Context) => {
-  if (c.req.header("status-api-key") !== _STATUS_API_KEY) {
-    return c.json({ error: "Unauthorized" }, 401);
-  }
-  const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
-  await mainDb`SELECT pg_stat_statements_reset()`;
-  return c.json({ reset: true, serverTime: new Date().toISOString() });
-});
+routesHealth.post(
+  "/pg_stat_statements_reset",
+  requireStatusKey(),
+  async (c: Context) => {
+    const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
+    await mainDb`SELECT pg_stat_statements_reset()`;
+    return c.json({ reset: true, serverTime: new Date().toISOString() });
+  },
+);
 
 // Every DHIS2 element in the dictionary with the indicator that holds it.
 // The wire keys (id, label, mappedTo) are read outside this repo (SYSTEM_15),

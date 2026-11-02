@@ -75,6 +75,7 @@ import { IndicatorTypeBadge } from "~/components/data/hmis/_shared/mod.ts";
 import { WrapOnUnderscore } from "~/components/data/hmis/_shared/mod.ts";
 import { IndicatorTypesModal } from "./type_facts";
 import { RefreshDhis2LabelsModal } from "./refresh_dhis2_labels_modal";
+import { can } from "~/state/instance/permissions";
 
 type Props = {
   close: (v: undefined) => void;
@@ -555,7 +556,7 @@ function IndicatorsTable(p: {
   ];
 
   const bulkActions = createMemo<BulkAction<HmisIndicator>[]>(() =>
-    instanceState.currentUserIsGlobalAdmin
+    can("can_configure_data")
       ? [
         {
           label: t3(DHIS2_DATA_IMPORT_TITLE),
@@ -650,7 +651,7 @@ function IndicatorsTable(p: {
         data={p.indicators}
         columns={columns}
         keyField="indicator_common_id"
-        onRowClick={instanceState.currentUserIsGlobalAdmin
+        onRowClick={can("can_configure_data")
           ? handleUpdateIndicator
           : undefined}
         noRowsMessage={t3({
@@ -677,7 +678,7 @@ function IndicatorsTable(p: {
             }),
           },
           children: (
-            <Show when={instanceState.currentUserIsGlobalAdmin}>
+            <Show when={can("can_configure_data")}>
               <Button
                 onClick={handleSortIndicators}
                 iconName="gripVertical"

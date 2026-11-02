@@ -1,5 +1,7 @@
 import {
+  type AdminAreaDuplicateGroup,
   type AdminAreaLevel,
+  type AdminAreaOption,
   type APIResponseWithData,
   type FacilityFamily,
   t3,
@@ -14,6 +16,9 @@ import {
 } from "panther";
 import { createMemo, createSignal, For, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
+import { instanceState } from "~/state/instance/t1_store";
+import { fetchStoredGeoJson } from "~/state/instance/t2_geojson";
+import { AdminAreaDuplicatesWarning } from "./_shared/mod.ts";
 
 type Props = {
   family: FacilityFamily;
@@ -28,27 +33,27 @@ type FeatureGroup = {
   count: number;
 };
 
-type AdminAreaOption = { value: string; label: string };
-
 type LevelMapping = {
+  uploadedAt: string;
   featureGroups: FeatureGroup[];
   adminAreaOptions: AdminAreaOption[];
+  adminAreaDuplicates: AdminAreaDuplicateGroup[];
 };
 
 // One feature group per stored area_id, and one per source name among the
 // features that carry no area_id.
-function groupFeatures(geojson: string): FeatureGroup[] {
-  const parsed = JSON.parse(geojson) as {
-    type: "FeatureCollection";
-    features: Array<{
-      properties: {
-        area_id?: string;
-        source_name?: string;
-        dhis2_name?: string;
-      };
-    }>;
-  };
+type StoredFeatureCollection = {
+  type: "FeatureCollection";
+  features: Array<{
+    properties: {
+      area_id?: string;
+      source_name?: string;
+      dhis2_name?: string;
+    };
+  }>;
+};
 
+function groupFeatures(parsed: StoredFeatureCollection): FeatureGroup[] {
   const groups = new Map<string, FeatureGroup>();
   for (const feature of parsed.features) {
     const areaId = feature.properties?.area_id ?? "";
@@ -78,9 +83,15 @@ function groupFeatures(geojson: string): FeatureGroup[] {
 async function loadLevelMapping(
   family: FacilityFamily,
   level: AdminAreaLevel,
+  uploadedAt: string,
 ): Promise<APIResponseWithData<LevelMapping>> {
   const [geoRes, optionsRes] = await Promise.all([
-    serverActions.getGeoJsonForLevel({ family, level }),
+    fetchStoredGeoJson(
+      family,
+      level,
+      uploadedAt,
+      async (res) => (await res.json()) as StoredFeatureCollection,
+    ),
     serverActions.getAdminAreaOptionsForLevel({ family, level }),
   ]);
   if (!geoRes.success) {
@@ -92,15 +103,31 @@ async function loadLevelMapping(
   return {
     success: true,
     data: {
-      featureGroups: groupFeatures(geoRes.data.geojson),
-      adminAreaOptions: optionsRes.data,
+      uploadedAt,
+      featureGroups: groupFeatures(geoRes.data),
+      adminAreaOptions: optionsRes.data.options,
+      adminAreaDuplicates: optionsRes.data.duplicates,
     },
   };
 }
 
 export function GeoJsonEditModal(p: Props) {
   const mapping = createQuery(
-    () => loadLevelMapping(p.family, p.adminAreaLevel),
+    async (): Promise<APIResponseWithData<LevelMapping>> => {
+      const uploadedAt = instanceState.geojsonMaps.find((m) =>
+        m.family === p.family && m.adminAreaLevel === p.adminAreaLevel
+      )?.uploadedAt;
+      return uploadedAt === undefined
+        ? {
+          success: false,
+          err: t3({
+            en: "This map no longer exists",
+            fr: "Cette carte n'existe plus",
+            pt: "Este mapa já não existe",
+          }),
+        }
+        : await loadLevelMapping(p.family, p.adminAreaLevel, uploadedAt);
+    },
     t3({ en: "Loading...", fr: "Chargement...", pt: "A carregar..." }),
   );
 
@@ -139,6 +166,8 @@ export function GeoJsonEditModal(p: Props) {
             adminAreaLevel={p.adminAreaLevel}
             featureGroups={data.featureGroups}
             adminAreaOptions={data.adminAreaOptions}
+            adminAreaDuplicates={data.adminAreaDuplicates}
+            uploadedAt={data.uploadedAt}
             close={p.close}
           />
         )}
@@ -152,6 +181,8 @@ function GeoJsonEditBody(p: {
   adminAreaLevel: AdminAreaLevel;
   featureGroups: FeatureGroup[];
   adminAreaOptions: AdminAreaOption[];
+  adminAreaDuplicates: AdminAreaDuplicateGroup[];
+  uploadedAt: string;
   close: (p: unknown) => void;
 }) {
   // Overrides only: a group with no entry keeps its stored area_id, so there
@@ -211,11 +242,15 @@ function GeoJsonEditBody(p: {
   );
 
   function handleDownload() {
-    serverActions
-      .getGeoJsonForLevel({ family: p.family, level: p.adminAreaLevel })
+    fetchStoredGeoJson(
+      p.family,
+      p.adminAreaLevel,
+      p.uploadedAt,
+      async (res) => await res.text(),
+    )
       .then((res) => {
         if (!res.success) return;
-        const blob = new Blob([res.data.geojson], { type: "application/json" });
+        const blob = new Blob([res.data], { type: "application/json" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
@@ -237,6 +272,8 @@ function GeoJsonEditBody(p: {
           </span>
         </Show>
       </div>
+
+      <AdminAreaDuplicatesWarning groups={p.adminAreaDuplicates} />
 
       <div class="max-h-96 overflow-auto rounded border">
         <div class="bg-base-100 flex border-b px-3 py-2 text-sm font-700">

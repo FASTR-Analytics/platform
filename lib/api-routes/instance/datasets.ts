@@ -1,8 +1,6 @@
+import { GUARD, type RouteGuard } from "../../permissions/mod.ts";
 import { z } from "zod";
-import type {
-  DatasetHfaDetail,
-  ItemsHolderDatasetHfaDisplay,
-} from "../../types/dataset_hfa.ts";
+import type { ItemsHolderDatasetHfaDisplay } from "../../types/dataset_hfa.ts";
 import type {
   HfaCsvMappingParams,
   HfaDuplicatePreview,
@@ -16,7 +14,6 @@ import {
   structureSchemaSchema,
 } from "../../types/mod.ts";
 import type {
-  DatasetHmisDetail,
   DatasetHmisImportLedgerItem,
   DatasetHmisImportRunDetail,
   DatasetHmisImportRunSummary,
@@ -205,24 +202,22 @@ const hfaCsvRunConfigSchema = z.object({
 
 export const datasetRouteRegistry = {
   // Core dataset operations
-  getDatasetHmisDetail: route({
-    path: "/datasets/hmis",
-    method: "GET",
-    response: {} as DatasetHmisDetail,
-  }),
   getDatasetHmisVersions: route({
     path: "/datasets/hmis/versions",
     method: "GET",
+    guard: GUARD.permission("can_view_data"),
     response: {} as DatasetHmisVersion[],
   }),
   getDatasetHmisImportLedger: route({
     path: "/datasets/hmis/import-ledger",
     method: "GET",
+    guard: GUARD.permission("can_view_data"),
     response: {} as DatasetHmisImportLedgerItem[],
   }),
   getDatasetHmisDisplayInfo: route({
     path: "/datasets/hmis/data",
     method: "POST",
+    guard: GUARD.permission("can_view_data"),
     body: z.object({
       versionId: z.number(),
       countIndicatorsVersion: z.string(),
@@ -233,6 +228,7 @@ export const datasetRouteRegistry = {
   deleteAllDatasetHmisData: route({
     path: "/datasets/hmis/data",
     method: "DELETE",
+    guard: GUARD.permission("can_configure_data"),
     body: z.object({ windowing: datasetHmisWindowingSchema }),
   }),
 
@@ -240,6 +236,7 @@ export const datasetRouteRegistry = {
   launchDatasetHmisDhis2Run: route({
     path: "/datasets/hmis/dhis2-runs",
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
     body: z.object({
       selection: dhis2RunSelectionSchema,
     }),
@@ -248,6 +245,7 @@ export const datasetRouteRegistry = {
   getDatasetHmisImportRuns: route({
     path: "/datasets/hmis/dhis2-runs",
     method: "GET",
+    guard: GUARD.permission("can_view_data"),
     response: {} as DatasetHmisImportRunSummary[],
   }),
   // Summary + the run_stats blob (per-pair failures, unknown ids):
@@ -255,6 +253,7 @@ export const datasetRouteRegistry = {
   getDatasetHmisImportRunDetail: route({
     path: "/datasets/hmis/dhis2-runs/:run_id",
     method: "GET",
+    guard: GUARD.permission("can_view_data"),
     params: z.object({ run_id: z.coerce.number().int() }),
     response: {} as DatasetHmisImportRunDetail,
   }),
@@ -262,11 +261,13 @@ export const datasetRouteRegistry = {
   cancelDatasetHmisDhis2Run: route({
     path: "/datasets/hmis/dhis2-runs/cancel",
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
     body: z.object({ runId: z.number().int() }),
   }),
   classifyDatasetHmisDhis2Selection: route({
     path: "/datasets/hmis/dhis2-runs/classify-selection",
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
     body: z.object({ dataIds: z.array(z.string()) }),
     response: {} as Dhis2SelectionClassification,
   }),
@@ -275,23 +276,27 @@ export const datasetRouteRegistry = {
   enqueueDatasetHmisDhis2Run: route({
     path: "/datasets/hmis/dhis2-runs/enqueue",
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
     body: z.object({ selection: dhis2RunSelectionSchema }),
     response: {} as { runId: number },
   }),
   getDatasetHmisDhis2Scheduling: route({
     path: "/datasets/hmis/dhis2-scheduling",
     method: "GET",
+    guard: GUARD.permission("can_view_data"),
     response: {} as Dhis2ImportSchedulingInfo,
   }),
   createDatasetHmisDhis2Schedule: route({
     path: "/datasets/hmis/dhis2-schedules",
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
     body: z.object({ schedule: dhis2ScheduleFieldsSchema }),
     response: {} as DatasetHmisScheduledImport,
   }),
   updateDatasetHmisDhis2Schedule: route({
     path: "/datasets/hmis/dhis2-schedules/update",
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
     body: z.object({
       id: z.number().int(),
       schedule: dhis2ScheduleFieldsSchema,
@@ -300,6 +305,7 @@ export const datasetRouteRegistry = {
   deleteDatasetHmisDhis2Schedule: route({
     path: "/datasets/hmis/dhis2-schedules",
     method: "DELETE",
+    guard: GUARD.permission("can_configure_data"),
     body: z.object({ id: z.number().int() }),
   }),
 
@@ -309,6 +315,7 @@ export const datasetRouteRegistry = {
   parseDatasetHmisCsvHeaders: route({
     path: "/datasets/hmis/csv-runs/parse-headers",
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
     body: z.object({ fileName: z.string() }),
     response: {} as { headers: string[] },
   }),
@@ -318,12 +325,14 @@ export const datasetRouteRegistry = {
   scanDatasetHmisCsvIndicatorValues: route({
     path: "/datasets/hmis/csv-runs/scan-indicator-values",
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
     body: z.object({ fileName: z.string(), columns: hmisCsvColumnsSchema }),
     response: {} as HmisCsvIndicatorScan,
   }),
   launchDatasetHmisCsvRun: route({
     path: "/datasets/hmis/csv-runs",
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
     body: z.object({ config: hmisCsvRunConfigSchema }),
     response: {} as { runId: number },
   }),
@@ -332,6 +341,7 @@ export const datasetRouteRegistry = {
   enqueueDatasetHmisCsvRun: route({
     path: "/datasets/hmis/csv-runs/enqueue",
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
     body: z.object({ config: hmisCsvRunConfigSchema }),
     response: {} as { runId: number },
   }),
@@ -340,6 +350,7 @@ export const datasetRouteRegistry = {
   resolveDatasetHmisCsvReview: route({
     path: "/datasets/hmis/csv-runs/resolve-review",
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
     body: z.object({
       runId: z.number().int(),
       action: z.enum(["integrate_anyway", "discard"]),
@@ -347,19 +358,16 @@ export const datasetRouteRegistry = {
   }),
 
   // HFA Dataset Endpoints
-  getDatasetHfaDetail: route({
-    path: "/datasets/hfa",
-    method: "GET",
-    response: {} as DatasetHfaDetail,
-  }),
   getDatasetHfaDisplayInfo: route({
     path: "/datasets/hfa/data",
     method: "POST",
+    guard: GUARD.permission("can_view_data"),
     response: {} as ItemsHolderDatasetHfaDisplay,
   }),
   deleteDatasetHfaData: route({
     path: "/datasets/hfa/data",
     method: "DELETE",
+    guard: GUARD.permission("can_configure_data"),
     body: z.object({ timePoint: z.string().optional() }),
   }),
 
@@ -370,6 +378,7 @@ export const datasetRouteRegistry = {
   parseDatasetHfaCsvHeaders: route({
     path: "/datasets/hfa/runs/parse-headers",
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
     body: z.object({
       csvFileName: z.string(),
       xlsFormFileName: z.string(),
@@ -380,6 +389,7 @@ export const datasetRouteRegistry = {
   previewDatasetHfaDuplicates: route({
     path: "/datasets/hfa/runs/duplicate-preview",
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
     body: z.object({
       csvFileName: z.string(),
       facilityIdColumn: z.string(),
@@ -390,6 +400,7 @@ export const datasetRouteRegistry = {
   previewDatasetHfaFacilityColumns: route({
     path: "/datasets/hfa/runs/facility-columns-preview",
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
     body: hfaFacilityScanSchema,
     response: {} as HfaFacilityColumnsPreview,
   }),
@@ -398,6 +409,7 @@ export const datasetRouteRegistry = {
   previewDatasetHfaFacilityChanges: route({
     path: "/datasets/hfa/runs/facility-changes-preview",
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
     body: hfaFacilityScanSchema.extend({
       timePoint: z.string(),
       facilityChanges: z.array(hfaFacilityChangeGroupDecisionSchema),
@@ -409,22 +421,26 @@ export const datasetRouteRegistry = {
   getDatasetHfaLatestMappings: route({
     path: "/datasets/hfa/runs/latest-mappings",
     method: "GET",
+    guard: GUARD.permission("can_configure_data"),
     response: {} as HfaCsvMappingParams | null,
   }),
   launchDatasetHfaCsvRun: route({
     path: "/datasets/hfa/runs",
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
     body: z.object({ config: hfaCsvRunConfigSchema }),
     response: {} as { runId: number },
   }),
   getDatasetHfaImportRuns: route({
     path: "/datasets/hfa/runs",
     method: "GET",
+    guard: GUARD.permission("can_view_data"),
     response: {} as HfaImportRunSummary[],
   }),
   resolveDatasetHfaReview: route({
     path: "/datasets/hfa/runs/resolve-review",
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
     body: z.object({
       runId: z.number().int(),
       action: z.enum(["integrate_anyway", "discard"]),
@@ -433,6 +449,7 @@ export const datasetRouteRegistry = {
   cancelDatasetHfaRun: route({
     path: "/datasets/hfa/runs/cancel",
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
     body: z.object({ runId: z.number().int() }),
   }),
-} as const;
+} as const satisfies Record<string, { guard: RouteGuard }>;

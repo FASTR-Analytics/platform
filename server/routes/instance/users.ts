@@ -2,8 +2,8 @@ import { Hono } from "hono";
 import type { Sql } from "postgres";
 import {
   type APIResponseWithData,
-  type GlobalUser,
-  H_USERS,
+  EMAIL_REGEX,
+  normaliseEmail,
   type RenameEmailInstanceResult,
 } from "lib";
 import { verifyClerkEmailOwnership } from "../../clerk_api.ts";
@@ -14,10 +14,9 @@ import {
   closeConnectionsWithChangedAccess,
 } from "../../collab/presence_registry.ts";
 import { renameVersionEditorEmail } from "../../collab/version_capture.ts";
-import { GetLogs } from "../../db/instance/user_logs.ts";
+import { getUsersLastActive } from "../../db/instance/user_logs.ts";
 import {
   addUsers,
-  ADMIN_FLAG_NEEDS_ADMIN,
   batchUploadUsers,
   bulkSetUserScopeAccess,
   bulkUpdateUserPermissions,
@@ -25,17 +24,15 @@ import {
   deleteUser,
   getInstanceUsers,
   GetInstanceWeeklyTokenUsage,
-  getOtherUser,
-  GetUserDailyTokenUsage,
+  getUserDailyTokenUsage,
   getUserEmailPresence,
-  getUserPermissions,
   listPersonalAccessTokens,
   renameUserEmailInMainDb,
   renameUserEmailInProducts,
   revokePersonalAccessToken,
   setUserContactPerson,
   setUserScopeAccess,
-  SetUserUnlimitedAi,
+  setUserUnlimitedAi,
   syncUserName,
   toggleAdmin,
   updateUserOrganisation,
@@ -51,10 +48,6 @@ import {
   _WEEKLY_TOKEN_LIMIT,
 } from "../../exposed_env_vars.ts";
 import { log } from "../../middleware/logging.ts";
-import {
-  requireGlobalPermission,
-  requireGlobalPermissionOrStatusKey,
-} from "../../middleware/userPermission.ts";
 import { getClerkSessionAuth } from "../../middleware/auth.ts";
 import {
   notifyInstanceProductsUpserted,
@@ -65,16 +58,36 @@ import {
   COLLAB_CLOSE_UNAUTHORIZED,
 } from "./collab.ts";
 import { defineRoute } from "../route-helpers.ts";
-import { requireVisibleAssets } from "../../middleware/asset_visibility.ts";
+import { requireVisibleAssets } from "../../auth/asset_visibility.ts";
+import { isHUser } from "../../auth/operators.ts";
+import {
+  ADMIN_FLAG_NEEDS_ADMIN,
+  ADMIN_ROW_NEEDS_ADMIN,
+  ADMIN_SELF_DEMOTION_REFUSED,
+  OWN_ROW_REFUSED,
+  SELF_DELETION_REFUSED,
+} from "../../auth/refusals.ts";
 
 export const routesUsers = new Hono();
 
+const FORBIDDEN_ERRORS: ReadonlySet<string> = new Set([
+  ADMIN_FLAG_NEEDS_ADMIN,
+  ADMIN_ROW_NEEDS_ADMIN,
+  ADMIN_SELF_DEMOTION_REFUSED,
+  OWN_ROW_REFUSED,
+]);
+
+function statusOf(res: { success: true } | { success: false; err: string }) {
+  return !res.success && FORBIDDEN_ERRORS.has(res.err) ? 403 : 200;
+}
+
 // Every route that can change a user's scope access or admin flag (an admin
-// is unrestricted and owns every product) broadcasts the roster and closes
-// the collab sockets whose access is no longer the roster's, so each
-// reconnects and subscribes under the new access. The instance stream ends
-// itself on the same roster (instance-sse.ts). On an open-access instance
-// every connection is an admin whatever its row says.
+// is unrestricted and owns every product), or delete a user, broadcasts the
+// roster and closes the collab sockets whose access is no longer the
+// roster's, or whose user left it, so each reconnects under the new access
+// or is refused. The instance stream ends itself on the same roster
+// (instance-sse.ts). On an open-access instance every connection is an admin
+// whatever its row says.
 export async function broadcastRosterAndCloseStaleCollab(
   mainDb: Sql,
 ): Promise<void> {
@@ -91,7 +104,6 @@ export async function broadcastRosterAndCloseStaleCollab(
 defineRoute(
   routesUsers,
   "getCurrentUser",
-  requireGlobalPermission(),
   log("getCurrentUser"),
   async (c) => {
     const { email, firstName, lastName } = c.var.globalUser;
@@ -116,10 +128,9 @@ defineRoute(
 defineRoute(
   routesUsers,
   "getAiUsage",
-  requireGlobalPermission(),
   async (c) => {
     const [tokensUsedToday, tokensUsedThisWeek] = await Promise.all([
-      GetUserDailyTokenUsage(c.var.mainDb, c.var.globalUser.email),
+      getUserDailyTokenUsage(c.var.mainDb, c.var.globalUser.email),
       GetInstanceWeeklyTokenUsage(c.var.mainDb),
     ]);
     return c.json({
@@ -138,13 +149,9 @@ defineRoute(
 defineRoute(
   routesUsers,
   "setUserUnlimitedAi",
-  requireGlobalPermission(),
   log("setUserUnlimitedAi"),
   async (c, { body }) => {
-    if (!H_USERS.includes(c.var.globalUser.email)) {
-      return c.json({ success: false, err: "Not authorized" }, 403);
-    }
-    const res = await SetUserUnlimitedAi(
+    const res = await setUserUnlimitedAi(
       c.var.mainDb,
       body.email,
       body.unlimited,
@@ -158,19 +165,7 @@ defineRoute(
 
 defineRoute(
   routesUsers,
-  "getOtherUser",
-  requireGlobalPermission("can_configure_users"),
-  log("getOtherUser"),
-  async (c, { params }) => {
-    const res = await getOtherUser(c.var.mainDb, params.email);
-    return c.json(res);
-  },
-);
-
-defineRoute(
-  routesUsers,
   "addUsers",
-  requireGlobalPermission("can_configure_users"),
   log("addUsers"),
   async (c, { body }) => {
     // The admin flag makes a user unrestricted, so only an admin grants it,
@@ -180,29 +175,24 @@ defineRoute(
     }
     const resUser = await addUsers(
       c.var.mainDb,
+      c.var.globalUser,
       body.emails,
       body.isGlobalAdmin,
     );
     if (resUser.success) {
       notifyInstanceUsersUpdated(await getInstanceUsers(c.var.mainDb));
     }
-    return c.json(resUser);
+    return c.json(resUser, statusOf(resUser));
   },
 );
 
 defineRoute(
   routesUsers,
   "toggleUserAdmin",
-  requireGlobalPermission({ requireAdmin: true }),
   log("toggleUserAdmin"),
   async (c, { body }) => {
-    if (!body.emails || !Array.isArray(body.emails)) {
-      throw new Error("Invalid request: emails array is required");
-    }
     if (body.emails.includes(c.var.globalUser.email)) {
-      throw new Error(
-        "You cannot remove yourself as admin. Ask another admin to do this.",
-      );
+      return c.json({ success: false, err: ADMIN_SELF_DEMOTION_REFUSED }, 403);
     }
     const resUser = await toggleAdmin(
       c.var.mainDb,
@@ -219,22 +209,16 @@ defineRoute(
 defineRoute(
   routesUsers,
   "deleteUser",
-  requireGlobalPermission("can_configure_users"),
   log("deleteUser"),
   async (c, { body }) => {
-    if (!body.emails || !Array.isArray(body.emails)) {
-      throw new Error("Invalid request: emails array is required");
-    }
     if (body.emails.includes(c.var.globalUser.email)) {
-      throw new Error(
-        "You cannot remove yourself as a user. Ask another admin to do this.",
-      );
+      return c.json({ success: false, err: SELF_DELETION_REFUSED }, 403);
     }
-    const res = await deleteUser(c.var.mainDb, body.emails);
+    const res = await deleteUser(c.var.mainDb, c.var.globalUser, body.emails);
     if (!res.success) {
-      return c.json(res);
+      return c.json(res, statusOf(res));
     }
-    notifyInstanceUsersUpdated(await getInstanceUsers(c.var.mainDb));
+    await broadcastRosterAndCloseStaleCollab(c.var.mainDb);
     await notifyInstanceProductsUpserted(c.var.mainDb, res.data.productIds);
     return c.json({ success: true });
   },
@@ -243,28 +227,17 @@ defineRoute(
 defineRoute(
   routesUsers,
   "batchUploadUsers",
-  requireGlobalPermission("can_configure_users"),
   requireVisibleAssets("asset_file_name"),
   log("batchUploadUsers"),
   async (c, { body }) => {
-    if (!body.asset_file_name || typeof body.asset_file_name !== "string") {
-      return c.json({
-        success: false,
-        err: "asset_file_name is required and must be a string",
-      });
-    }
-
     const res = await batchUploadUsers(
       c.var.mainDb,
       body.asset_file_name,
       body.replace_all_existing,
-      {
-        email: c.var.globalUser.email,
-        isGlobalAdmin: c.var.globalUser.isGlobalAdmin,
-      },
+      c.var.globalUser,
     );
     if (!res.success) {
-      return c.json(res, res.err === ADMIN_FLAG_NEEDS_ADMIN ? 403 : 200);
+      return c.json(res, statusOf(res));
     }
     await broadcastRosterAndCloseStaleCollab(c.var.mainDb);
     await notifyInstanceProductsUpserted(c.var.mainDb, res.data.productIds);
@@ -275,12 +248,8 @@ defineRoute(
 defineRoute(
   routesUsers,
   "setUserContactPerson",
-  requireGlobalPermission(),
   log("setUserContactPerson"),
   async (c, { body }) => {
-    if (!H_USERS.includes(c.var.globalUser.email)) {
-      return c.json({ success: false, err: "Not authorized" }, 403);
-    }
     const res = await setUserContactPerson(
       c.var.mainDb,
       body.email,
@@ -295,22 +264,10 @@ defineRoute(
 
 defineRoute(
   routesUsers,
-  "getAllUserLogs",
-  requireGlobalPermission("can_view_logs"),
-  log("getAllUserLogs"),
+  "getUsersLastActive",
+  log("getUsersLastActive"),
   async (c) => {
-    const res = await GetLogs(c.var.mainDb);
-    return c.json(res);
-  },
-);
-
-defineRoute(
-  routesUsers,
-  "getUserPermissions",
-  requireGlobalPermission("can_configure_users"),
-  log("getUserPermissions"),
-  async (c, { params }) => {
-    const res = await getUserPermissions(c.var.mainDb, params.email);
+    const res = await getUsersLastActive(c.var.mainDb);
     return c.json(res);
   },
 );
@@ -318,93 +275,74 @@ defineRoute(
 defineRoute(
   routesUsers,
   "updateUserPermissions",
-  requireGlobalPermission("can_configure_users"),
   log("updateUserPermissions"),
   async (c, { body }) => {
     const res = await updateUserPermissions(
       c.var.mainDb,
+      c.var.globalUser,
       body.email,
       body.permissions,
     );
     if (res.success) {
       notifyInstanceUsersUpdated(await getInstanceUsers(c.var.mainDb));
     }
-    return c.json(res);
+    return c.json(res, statusOf(res));
   },
 );
 
 defineRoute(
   routesUsers,
   "setUserScopeAccess",
-  requireGlobalPermission({ requireAdmin: true }),
   log("setUserScopeAccess"),
   async (c, { body }) => {
     const res = await setUserScopeAccess(
       c.var.mainDb,
+      c.var.globalUser,
       body.email,
       body.scopeAccess,
     );
     if (res.success) {
       await broadcastRosterAndCloseStaleCollab(c.var.mainDb);
     }
-    return c.json(res);
+    return c.json(res, statusOf(res));
   },
 );
-
-const SCOPE_ACCESS_RESTRICTED_CALLER =
-  "A user limited to certain scopes cannot change scope access";
-const SCOPE_ACCESS_OWN = "You cannot change your own scope access";
 
 defineRoute(
   routesUsers,
   "bulkSetUserScopeAccess",
-  requireGlobalPermission("can_configure_users"),
   log("bulkSetUserScopeAccess"),
   async (c, { body }) => {
-    const caller = c.var.globalUser;
-    if (!caller.isGlobalAdmin) {
-      if (!caller.scopeAccess.all) {
-        c.status(403);
-        return c.json({ success: false, err: SCOPE_ACCESS_RESTRICTED_CALLER });
-      }
-      if (body.emails.includes(caller.email)) {
-        c.status(403);
-        return c.json({ success: false, err: SCOPE_ACCESS_OWN });
-      }
-    }
     const res = await bulkSetUserScopeAccess(
       c.var.mainDb,
+      c.var.globalUser,
       body.emails,
       body.scopeAccess,
     );
     if (res.success) {
       await broadcastRosterAndCloseStaleCollab(c.var.mainDb);
     }
-    return c.json(res);
+    return c.json(res, statusOf(res));
   },
 );
 
 defineRoute(
   routesUsers,
   "bulkUpdateUserPermissions",
-  requireGlobalPermission("can_configure_users"),
   log("bulkUpdateUserPermissions"),
   async (c, { body }) => {
     const res = await bulkUpdateUserPermissions(
       c.var.mainDb,
+      c.var.globalUser,
       body.emails,
       body.permissions,
     );
     if (res.success) {
       notifyInstanceUsersUpdated(await getInstanceUsers(c.var.mainDb));
     }
-    return c.json(res);
+    return c.json(res, statusOf(res));
   },
 );
-
-// ---------------------------------------------------------------------------
-// Fleet name sync
-// ---------------------------------------------------------------------------
 
 /** Pushes a user change observed on this instance to every peer's fleet
  *  route. Best-effort by design: a peer that is down, or runs an image
@@ -450,13 +388,7 @@ function pushUserNameToPeers(
 defineRoute(
   routesUsers,
   "receiveUserNameSync",
-  requireGlobalPermissionOrStatusKey({ requireAdmin: true }),
   async (c, { body }) => {
-    // No globalUser = fleet-internal machine call (status-api-key path), the
-    // only caller allowed: names come from Clerk, never from an admin.
-    if (c.var.globalUser) {
-      return c.json({ success: false, err: "Fleet-internal route" }, 403);
-    }
     // No onward push: only the instance that observed the Clerk change fans
     // out, so a sync can never echo around the fleet.
     const changed = await syncUserName(
@@ -472,14 +404,9 @@ defineRoute(
   },
 );
 
-// ---------------------------------------------------------------------------
-// Profile: organisation
-// ---------------------------------------------------------------------------
-
 defineRoute(
   routesUsers,
   "updateMyProfile",
-  requireGlobalPermission(),
   log("updateMyProfile"),
   async (c, { body }) => {
     const { email } = c.var.globalUser;
@@ -500,13 +427,7 @@ defineRoute(
 defineRoute(
   routesUsers,
   "receiveUserProfileSync",
-  requireGlobalPermissionOrStatusKey({ requireAdmin: true }),
   async (c, { body }) => {
-    // No globalUser = fleet-internal machine call, the only caller allowed:
-    // a profile is the user's own words, never an admin's.
-    if (c.var.globalUser) {
-      return c.json({ success: false, err: "Fleet-internal route" }, 403);
-    }
     // No onward push, as for names: only the instance the user wrote on fans
     // out, so a sync can never echo around the fleet.
     const changed = await updateUserOrganisation(
@@ -521,11 +442,6 @@ defineRoute(
   },
 );
 
-// ---------------------------------------------------------------------------
-// Email rename
-// ---------------------------------------------------------------------------
-
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const FLEET_DOMAIN = "fastr-analytics.org";
 
 type LocalRenameResult = {
@@ -572,9 +488,9 @@ async function renameUserEmailLocally(
     return productsRes;
   }
   const warnings: string[] = [];
-  if (H_USERS.includes(oldEmail)) {
+  if (isHUser(oldEmail)) {
     warnings.push(
-      "The old email is a hardcoded superuser (lib/h_users.ts) — that status is lost until the code is updated",
+      "The old email is a hardcoded superuser (server/auth/h_users.ts) — that status is lost until the code is updated",
     );
   }
   if (_OPEN_ACCESS && mainRes.data.changed) {
@@ -591,11 +507,10 @@ async function renameUserEmailLocally(
 defineRoute(
   routesUsers,
   "renameUserEmail",
-  requireGlobalPermissionOrStatusKey("can_configure_users"),
   log("renameUserEmail"),
   async (c, { body }) => {
-    const oldEmail = body.oldEmail.trim().toLowerCase();
-    const newEmail = body.newEmail.trim().toLowerCase();
+    const oldEmail = normaliseEmail(body.oldEmail);
+    const newEmail = normaliseEmail(body.newEmail);
     if (!EMAIL_REGEX.test(oldEmail) || !EMAIL_REGEX.test(newEmail)) {
       return c.json({ success: false, err: "Invalid email address" });
     }
@@ -605,24 +520,33 @@ defineRoute(
         err: "The new email is the same as the old one",
       });
     }
-    // No globalUser = fleet-internal machine call (status-api-key path).
+    // No globalUser = fleet-internal machine call (status-api-key path). The
+    // shared key proves only that a peer sent it, so the peer also names the
+    // Clerk account it verified, and this instance checks that the account
+    // owns both addresses before renaming anything.
     const actor = c.var.globalUser?.email as string | undefined;
-    if (actor && actor.toLowerCase() === oldEmail) {
+    if (actor === undefined) {
+      if (body.clerkUserId === undefined) {
+        return c.json(
+          { success: false, err: "A fleet rename must name the Clerk account" },
+          403,
+        );
+      }
+      const ownership = await verifyClerkEmailOwnership(
+        body.clerkUserId,
+        oldEmail,
+        newEmail,
+      );
+      if (!ownership.ok) {
+        return c.json({ success: false, err: ownership.err }, 403);
+      }
+    }
+    if (actor === oldEmail) {
       return c.json({
         success: false,
         err:
           "You cannot rename your own email here. Use Change email in your profile instead.",
       });
-    }
-    // The rename moves the whole row, admin flag included, to an address the
-    // caller may hold, so only an admin renames an admin. The machine call
-    // has no caller and is trusted.
-    const caller = c.var.globalUser as GlobalUser | undefined;
-    if (caller !== undefined && !caller.isGlobalAdmin) {
-      const target = await getOtherUser(c.var.mainDb, oldEmail);
-      if (target.success && target.data.isGlobalAdmin) {
-        return c.json({ success: false, err: ADMIN_FLAG_NEEDS_ADMIN }, 403);
-      }
     }
     const res = await renameUserEmailLocally(
       c.var.mainDb,
@@ -640,7 +564,6 @@ defineRoute(
 defineRoute(
   routesUsers,
   "createPersonalAccessToken",
-  requireGlobalPermission(),
   log("createPersonalAccessToken"),
   async (c, { body }) => {
     const res = await createPersonalAccessToken(
@@ -728,6 +651,7 @@ async function renameOnPeer(
   id: string,
   oldEmail: string,
   newEmail: string,
+  clerkUserId: string | undefined,
 ): Promise<{ row: RenameEmailInstanceResult; warnings: string[] }> {
   try {
     const response = await fetch(
@@ -738,7 +662,7 @@ async function renameOnPeer(
           "content-type": "application/json",
           "status-api-key": _STATUS_API_KEY,
         },
-        body: JSON.stringify({ oldEmail, newEmail }),
+        body: JSON.stringify({ oldEmail, newEmail, clerkUserId }),
         signal: AbortSignal.timeout(30_000),
       },
     );
@@ -774,11 +698,10 @@ async function renameOnPeer(
 defineRoute(
   routesUsers,
   "renameUserEmailEverywhere",
-  requireGlobalPermission(),
   log("renameUserEmailEverywhere"),
   async (c, { body }) => {
-    const oldEmail = body.oldEmail.trim().toLowerCase();
-    const newEmail = body.newEmail.trim().toLowerCase();
+    const oldEmail = normaliseEmail(body.oldEmail);
+    const newEmail = normaliseEmail(body.newEmail);
     if (!EMAIL_REGEX.test(oldEmail) || !EMAIL_REGEX.test(newEmail)) {
       return c.json({ success: false, err: "Invalid email address" });
     }
@@ -793,7 +716,7 @@ defineRoute(
     // address while only the other has a users row. The Clerk ownership check
     // below is the real authorization; a caller with no rows anywhere just
     // gets an empty preview and renames nothing.
-    const sessionEmail = c.var.globalUser.email.toLowerCase();
+    const sessionEmail = c.var.globalUser.email;
     // Either side of the rename may be the session identity: oldEmail before
     // the Clerk primary flips, newEmail after (which is what keeps a retry of
     // a partially-failed run possible).
@@ -810,13 +733,15 @@ defineRoute(
     // Dry runs are exempt: the wizard previews BEFORE the user adds the new
     // address in Clerk, and the preview only reads user lists that
     // /health_check already exposes publicly.
+    let clerkUserId: string | undefined;
     if (!_BYPASS_AUTH && !body.dryRun) {
       // Session tokens only: the ownership check is the ONLY authorization on
       // this route, so a machine token (PAT/M2M) must not be able to drive a
-      // fleet-wide rename off its userId.
+      // fleet-wide rename off its userId. The guard admitted a session, so
+      // only a session token reaches here and the accessor finds it.
       const auth = getClerkSessionAuth(c);
       if (!auth?.userId) {
-        return c.json({ success: false, err: "Not authenticated" }, 401);
+        throw new Error("renameUserEmailEverywhere reached without a session");
       }
       const ownership = await verifyClerkEmailOwnership(
         auth.userId,
@@ -826,6 +751,7 @@ defineRoute(
       if (!ownership.ok) {
         return c.json({ success: false, err: ownership.err });
       }
+      clerkUserId = auth.userId;
     }
 
     const discovery = await discoverPeers(oldEmail, newEmail);
@@ -910,7 +836,12 @@ defineRoute(
       Array.from({ length: Math.min(4, renameQueue.length) }, async () => {
         let next: { peer: PeerPresence; index: number } | undefined;
         while ((next = renameQueue.shift()) !== undefined) {
-          const res = await renameOnPeer(next.peer.id, oldEmail, newEmail);
+          const res = await renameOnPeer(
+            next.peer.id,
+            oldEmail,
+            newEmail,
+            clerkUserId,
+          );
           peerRows[next.index] = res.row;
           warnings.push(...res.warnings);
         }
@@ -939,7 +870,6 @@ defineRoute(
 defineRoute(
   routesUsers,
   "listPersonalAccessTokens",
-  requireGlobalPermission(),
   async (c) => {
     const res = await listPersonalAccessTokens(
       c.var.mainDb,
@@ -952,7 +882,6 @@ defineRoute(
 defineRoute(
   routesUsers,
   "revokePersonalAccessToken",
-  requireGlobalPermission(),
   log("revokePersonalAccessToken"),
   async (c, { body }) => {
     const res = await revokePersonalAccessToken(

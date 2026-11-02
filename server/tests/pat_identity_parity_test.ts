@@ -5,7 +5,7 @@
 //
 // The PAT leg is fully real: the exported headlessApp, with its real
 // headlessAuthMiddleware, allowlist and route registration, over the real DB.
-// The Clerk leg simulates only clerkMiddleware's output contract:
+// The Clerk leg is the route-test harness's, clerkMiddleware's output contract:
 // c.set("clerkAuth", authFn), the seam getAuth() invokes, because verifying
 // Clerk's network handshake belongs to Clerk, not this app. Everything
 // downstream (getGlobalUser → buildGlobalUserFromDb → permission middleware →
@@ -17,7 +17,6 @@
 //   BYPASS_AUTH= deno test -A --env-file server/tests/pat_identity_parity_test.ts
 
 import { assertEquals } from "@std/assert";
-import { Hono } from "hono";
 import type { ServerActionTransport } from "../../lib/server_actions/transport.ts";
 import { setServerActionTransport } from "../../lib/server_actions/transport.ts";
 import { createAllServerActions } from "../../lib/server_actions/create_server_action.ts";
@@ -29,38 +28,12 @@ import {
   revokePersonalAccessToken,
 } from "../db/instance/personal_access_tokens.ts";
 import { closeAllConnections } from "../db/postgres/connection_manager.ts";
-import { _BYPASS_AUTH } from "../exposed_env_vars.ts";
+import { appFor, assertRealAuth } from "./_harness/route_app.ts";
 
 const TEST_EMAIL = "pat-parity-test@example.com";
 
-// clerkMiddleware's output contract, as of @hono/clerk-auth v3: c.var.clerkAuth
-// is the auth FUNCTION getAuth() invokes (v2 stored the auth object itself),
-// and the object it returns is tagged with tokenType, which getClerkSessionAuth
-// checks, because v3 authenticates with acceptsToken:"any" and would otherwise
-// let a machine token through the cookie mount.
-function clerkLegMiddleware(sessionClaims: Record<string, unknown>) {
-  return async (
-    c: { set: (k: never, v: never) => void },
-    next: () => Promise<void>,
-  ) => {
-    c.set(
-      "clerkAuth" as never,
-      (() => ({
-        userId: "user_parity_test",
-        tokenType: "session_token",
-        sessionClaims,
-      })) as never,
-    );
-    await next();
-  };
-}
-
 Deno.test("PAT auth resolves to the identical user context as Clerk auth (GET /user)", async () => {
-  if (_BYPASS_AUTH) {
-    throw new Error(
-      "BYPASS_AUTH is set — the parity test must exercise the real auth branches. Unset it and re-run.",
-    );
-  }
+  assertRealAuth();
 
   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
   await mainDb`
@@ -83,16 +56,7 @@ Deno.test("PAT auth resolves to the identical user context as Clerk auth (GET /u
     const patBody = await patRes.json();
 
     // Clerk leg: the same route registration behind clerkMiddleware's output.
-    const clerkApp = new Hono();
-    clerkApp.use(
-      "*",
-      clerkLegMiddleware({
-        email: TEST_EMAIL,
-        firstName: null,
-        lastName: null,
-      }) as never,
-    );
-    clerkApp.route("/", routesUsers);
+    const clerkApp = appFor(TEST_EMAIL, routesUsers);
     const clerkRes = await clerkApp.request("/user");
     assertEquals(clerkRes.status, 200);
     const clerkBody = await clerkRes.json();
@@ -108,16 +72,10 @@ Deno.test("PAT auth resolves to the identical user context as Clerk auth (GET /u
     // this is what catches permission-set drift between the two branches
     // without being calibrated to the null-claims case where both legs
     // trivially agree.
-    const clerkNamedApp = new Hono();
-    clerkNamedApp.use(
-      "*",
-      clerkLegMiddleware({
-        email: TEST_EMAIL,
-        firstName: "Parity",
-        lastName: "Probe",
-      }) as never,
+    const clerkNamedApp = appFor(
+      { email: TEST_EMAIL, firstName: "Parity", lastName: "Probe" },
+      routesUsers,
     );
-    clerkNamedApp.route("/", routesUsers);
     const clerkNamedRes = await clerkNamedApp.request("/user");
     assertEquals(clerkNamedRes.status, 200);
     const clerkNamedBody = await clerkNamedRes.json();
@@ -139,16 +97,10 @@ Deno.test("PAT auth resolves to the identical user context as Clerk auth (GET /u
 
     // Rename leg: Clerk is the sole source of truth for names, so a changed
     // claim must overwrite the stored name (not first-login-only).
-    const clerkRenamedApp = new Hono();
-    clerkRenamedApp.use(
-      "*",
-      clerkLegMiddleware({
-        email: TEST_EMAIL,
-        firstName: "Renamed",
-        lastName: "Probe",
-      }) as never,
+    const clerkRenamedApp = appFor(
+      { email: TEST_EMAIL, firstName: "Renamed", lastName: "Probe" },
+      routesUsers,
     );
-    clerkRenamedApp.route("/", routesUsers);
     assertEquals((await clerkRenamedApp.request("/user")).status, 200);
     await new Promise((r) => setTimeout(r, 300));
     const renamedRows = await mainDb<{ first_name: string | null }[]>`

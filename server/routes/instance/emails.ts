@@ -1,18 +1,22 @@
 import { Hono } from "hono";
-import { _FEEDBACK_EMAIL_RECIPIENTS } from "lib";
-import { _INSTANCE_ID, _SEND_GRID_API } from "../../exposed_env_vars.ts";
+import { _FEEDBACK_EMAIL_RECIPIENTS } from "../../auth/h_users.ts";
 import {
-  requireApprovedUser,
-  requireGlobalPermission,
-} from "../../middleware/userPermission.ts";
+  _DAILY_EMAIL_LIMIT,
+  _INSTANCE_ID,
+  _SEND_GRID_API,
+} from "../../exposed_env_vars.ts";
 import { defineRoute } from "../route-helpers.ts";
 import { log } from "../../middleware/logging.ts";
+import {
+  claimDailyEmailSends,
+  DAILY_EMAIL_LIMIT_REACHED,
+} from "../../db/instance/users.ts";
 
 export const routesEmails = new Hono();
 
 // The only SendGrid egress. sendSlideDeckEmail is a product surface, so it
-// sits behind requireApprovedUser() like every other product read; the PDF is
-// client-rendered and the recipient roster on offer is the instance roster.
+// sits behind `GUARD.approved` like every other product read; the PDF is
+// client-rendered and the recipients on offer are the instance directory.
 
 function escapeHtml(s: string): string {
   return s
@@ -94,12 +98,21 @@ async function sendEmail(options: SendEmailOptions): Promise<boolean> {
 defineRoute(
   routesEmails,
   "sendSlideDeckEmail",
-  requireApprovedUser(),
   log("sendSlideDeckEmail"),
   async (c, { body }) => {
     const { recipients, message, attachment } = body;
 
     const userEmail = c.var.globalUser.email;
+    if (
+      !(await claimDailyEmailSends(
+        c.var.mainDb,
+        userEmail,
+        recipients.length,
+        _DAILY_EMAIL_LIMIT,
+      ))
+    ) {
+      return c.json({ success: false, err: DAILY_EMAIL_LIMIT_REACHED });
+    }
 
     const plainText =
       `${message}\n\n---\nThis email was sent via FASTR Analytics on behalf of ${userEmail}.`;
@@ -146,12 +159,21 @@ defineRoute(
 defineRoute(
   routesEmails,
   "sendReportEmail",
-  requireApprovedUser(),
   log("sendReportEmail"),
   async (c, { body }) => {
     const { recipients, message, reportLabel, attachment } = body;
 
     const userEmail = c.var.globalUser.email;
+    if (
+      !(await claimDailyEmailSends(
+        c.var.mainDb,
+        userEmail,
+        recipients.length,
+        _DAILY_EMAIL_LIMIT,
+      ))
+    ) {
+      return c.json({ success: false, err: DAILY_EMAIL_LIMIT_REACHED });
+    }
 
     const plainText =
       `${message}\n\n---\nThis email was sent via FASTR Analytics on behalf of ${userEmail}.`;
@@ -198,7 +220,6 @@ defineRoute(
 defineRoute(
   routesEmails,
   "sendHelpEmail",
-  requireGlobalPermission(),
   log("sendHelpEmail"),
   async (c, { body }) => {
     const { feedbackType, description, context, images } = body;

@@ -6,20 +6,18 @@ import type {
   ModuleDefinitionInstalled,
 } from "lib";
 import {
-  composeHfaVariantColumnName,
-  isReservedHfaId,
-  serialiseMultiMembershipValues,
-} from "lib";
-import { dirname, join } from "@std/path/posix";
-import {
   type AnalyseSnippet,
   buildUnionDependencyGraph,
+  composeHfaVariantColumnName,
   createSnippetAnalyser,
   type ExtractedDependencies,
   formatCycles,
+  isReservedHfaId,
+  serialiseMultiMembershipValues,
   snippetProblems,
   topologicalSort,
-} from "./hfa_dependency_analyzer.ts";
+} from "lib";
+import { dirname, join } from "@std/path/posix";
 import { emitHfaCodeAsR } from "./hfa_r_emit.ts";
 
 // The run's person-years file sits beside the datasets dir, at
@@ -169,8 +167,8 @@ function emitSnippet(
   snippet: HfaIndicatorCode,
   analyse: AnalyseSnippet,
 ): {
-  rCode: string;
-  rFilterCode: string;
+  codeAsR: string;
+  filterAsR: string;
   deps: ExtractedDependencies;
 } {
   const analysis = analyse(snippet);
@@ -180,8 +178,8 @@ function emitSnippet(
     );
   }
   return {
-    rCode: emitHfaCodeAsR(analysis.code),
-    rFilterCode: analysis.filter ? emitHfaCodeAsR(analysis.filter) : "",
+    codeAsR: emitHfaCodeAsR(analysis.code),
+    filterAsR: analysis.filter ? emitHfaCodeAsR(analysis.filter) : "",
     deps: analysis.deps,
   };
 }
@@ -206,17 +204,17 @@ function buildPerTimePointMutateExpression(
   const boundVariableIds = new Set<string>();
 
   for (const snippet of codeSnippets) {
-    if (!snippet.rCode.trim()) continue;
+    if (!snippet.code.trim()) continue;
 
     const timePoint = snippet.timePoint.replace(/"/g, '\\"');
-    const { rCode, rFilterCode, deps } = emitSnippet(snippet, analyse);
+    const { codeAsR, filterAsR, deps } = emitSnippet(snippet, analyse);
     for (const variableId of deps.variableIds) {
       boundVariableIds.add(variableId);
     }
 
-    if (rFilterCode) {
+    if (filterAsR) {
       timePointBranches.push(
-        `    time_point == "${timePoint}" & (is.na(${rFilterCode}) | !(${rFilterCode})) ~ NA_real_`,
+        `    time_point == "${timePoint}" & (is.na(${filterAsR}) | !(${filterAsR})) ~ NA_real_`,
       );
     }
 
@@ -224,14 +222,14 @@ function buildPerTimePointMutateExpression(
       // A numeric expression evaluating to NA already returns NA, so the
       // result gate is implicit in the value branch.
       timePointBranches.push(
-        `    time_point == "${timePoint}" ~ ${rCode}`,
+        `    time_point == "${timePoint}" ~ ${codeAsR}`,
       );
     } else {
       timePointBranches.push(
-        `    time_point == "${timePoint}" & is.na(${rCode}) ~ NA_real_`,
+        `    time_point == "${timePoint}" & is.na(${codeAsR}) ~ NA_real_`,
       );
       timePointBranches.push(
-        `    time_point == "${timePoint}" & (${rCode}) ~ 1`,
+        `    time_point == "${timePoint}" & (${codeAsR}) ~ 1`,
       );
       timePointBranches.push(
         `    time_point == "${timePoint}" ~ 0`,
@@ -267,10 +265,10 @@ function buildPerTimePointStatusExpression(
   const branches: string[] = [];
 
   for (const snippet of codeSnippets) {
-    if (!snippet.rCode.trim()) continue;
+    if (!snippet.code.trim()) continue;
 
     const timePoint = snippet.timePoint.replace(/"/g, '\\"');
-    const { rFilterCode, deps } = emitSnippet(snippet, analyse);
+    const { filterAsR, deps } = emitSnippet(snippet, analyse);
 
     // Applicability is decided first, over the filter variables only: a facility
     // is not_applicable when the filter is false, or when a filter variable is
@@ -288,11 +286,11 @@ function buildPerTimePointStatusExpression(
         .join(" | ")
       : "FALSE";
 
-    if (rFilterCode) {
+    if (filterAsR) {
       const filterUnknownChecks = deps.filterVariableIds.map((v) =>
         statusFilterUnknownCheck(v, sentinelMap)
       );
-      const notApplicableCheck = [`!(${rFilterCode})`, ...filterUnknownChecks]
+      const notApplicableCheck = [`!(${filterAsR})`, ...filterUnknownChecks]
         .join(" | ");
       branches.push(
         `    time_point == "${timePoint}" & (${notApplicableCheck}) ~ "not_applicable"`,
@@ -356,7 +354,7 @@ export function getScriptWithParametersHfa(
     filteredIndicators = indicators.filter((indicator) => {
       const snippets = codeByIndicator.get(indicator.indicatorId) ?? [];
       const activeSnippets = snippets.filter(
-        (s) => s.rCode && s.rCode.trim() !== "",
+        (s) => s.code && s.code.trim() !== "",
       );
       if (activeSnippets.length === 0) {
         skippedIndicators.add(indicator.indicatorId);
@@ -483,7 +481,7 @@ export function getScriptWithParametersHfa(
 
     const byPair = new Map<string, HfaIndicatorVariantCode[]>();
     for (const vc of variantCode) {
-      if (!vc.rCode.trim()) continue;
+      if (!vc.code.trim()) continue;
       const key = `${vc.indicatorId} ${vc.itemId}`;
       if (!byPair.has(key)) {
         byPair.set(key, []);
@@ -509,7 +507,7 @@ export function getScriptWithParametersHfa(
         continue;
       }
       // The shared filter comes from ALL parent code rows, not activeSnippets
-      // (a parent row with empty rCode and non-empty rFilterCode is excluded
+      // (a parent row with empty code and non-empty filter code is excluded
       // from the latter).
       const parentRowsByTp = new Map(
         (codeByIndicator.get(parentName) ?? []).map((r) => [r.timePoint, r]),
@@ -530,8 +528,8 @@ export function getScriptWithParametersHfa(
         snippets.push({
           indicatorId: parentName,
           timePoint: row.timePoint,
-          rCode: row.rCode,
-          rFilterCode: parentRow.rFilterCode,
+          code: row.code,
+          filterCode: parentRow.filterCode,
         });
       }
       let itemSkipped = false;
@@ -664,7 +662,7 @@ export function getScriptWithParametersHfa(
     .map((indicator) => {
       const snippets = codeByIndicator.get(indicator.indicatorId) ?? [];
       const activeSnippets = snippets.filter(
-        (s) => s.rCode && s.rCode.trim() !== "",
+        (s) => s.code && s.code.trim() !== "",
       );
       if (activeSnippets.length === 0) {
         throw new Error(

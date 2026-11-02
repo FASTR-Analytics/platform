@@ -10,6 +10,7 @@ import {
   RUN_MANIFEST_SCHEMA_VERSION,
   type RunAsset,
   type RunFacilitiesTable,
+  type RunGeoJsonMap,
   type RunManifest,
   type RunManifestDataset,
   runManifestSchema,
@@ -63,6 +64,8 @@ export type RunBuildOptions = {
   facilitiesTables: RunFacilitiesTable[];
   // The person-years file the caller wrote (null without an HMIS capture).
   population: RunPopulation | null;
+  // The boundary files the caller copied into inputs/geojson/.
+  geojsonMaps: RunGeoJsonMap[];
   // Relative paths (from the run dir root) of input files the caller already
   // placed in the tmp dir (dataset extracts, twins, mirrors).
   extraInputFiles: string[];
@@ -278,6 +281,7 @@ export async function buildRunPackageIntoTmp(
     indicators,
     hmisIndicators,
     population: opts.population,
+    geojsonMaps: opts.geojsonMaps,
     inputFiles,
   };
   runManifestSchema.parse(manifest);

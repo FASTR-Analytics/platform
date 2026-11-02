@@ -75,13 +75,12 @@ import { ReplicateByOptionsList } from "./replicate_by_options";
 import { DownloadPresentationObject } from "./download_presentation_object";
 import { ViewResultsObject } from "./view_results_object";
 import {
+  awaitFigureBoundaries,
   buildFigureInputs,
+  getFigureMapCoverage,
   makeFigureBundleFromFetchedData,
 } from "~/generate_visualization/mod";
-import { getAdminAreaLevelFromMapConfig } from "~/generate_visualization/get_admin_area_level_from_config";
 import { getTableExportAoa } from "~/exports/get_table_export_aoa";
-import { geoJsonFamilyFor, getGeoJsonSync } from "~/state/instance/t2_geojson";
-import type { GeoJSONFeatureCollection } from "panther";
 import {
   getPresentationObjectItemsFromCacheOrFetch,
   getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator,
@@ -93,6 +92,7 @@ import type {
   VizFigureCollabBinding,
 } from "./visualization_editor";
 import { PresentationObjectEditorPanel } from "./editor_panel";
+import { describeFigureUnavailable, MapCoverageLine } from "../mod.ts";
 
 // Input types with no native undo: they must not swallow the editor's Ctrl+Z.
 const NON_TEXT_INPUT_TYPES = new Set([
@@ -200,7 +200,6 @@ export function VisualizationEditorInner(p: InnerProps) {
     StateHolder<{
       ih: ItemsHolderPresentationObject;
       config: PresentationObjectConfig;
-      geoJson?: GeoJSONFeatureCollection;
     }>
   >({
     status: "loading",
@@ -264,17 +263,6 @@ export function VisualizationEditorInner(p: InnerProps) {
         ) {
           isAutoResolvingReplicant = true;
           setTempConfig("d", "selectedReplicantValue", resolvedReplicant);
-        }
-        const mapLevel = getAdminAreaLevelFromMapConfig(lastState.data.config);
-        if (mapLevel) {
-          const geoJson = getGeoJsonSync(
-            geoJsonFamilyFor(metric.datasetFamily),
-            mapLevel,
-          );
-          setItemsHolder({
-            status: "ready",
-            data: { ...lastState.data, geoJson },
-          });
         }
         // Live co-editing: push a COHERENT bundle (the config being
         // co-edited + its freshly-fetched items) to the host, so canvas peers
@@ -669,7 +657,16 @@ export function VisualizationEditorInner(p: InnerProps) {
         },
         p.localization,
       );
-      figureInputs = buildFigureInputs(bundle, undefined, p.chartPalette?.());
+      await awaitFigureBoundaries(bundle);
+      const built = buildFigureInputs(bundle, undefined, p.chartPalette?.());
+      if (!built.ok) {
+        await openAlert({
+          text: describeFigureUnavailable(built.unavailable),
+          intent: "danger",
+        });
+        return;
+      }
+      figureInputs = built.inputs;
     } catch {
       await openAlert({ text: "Could not get figure", intent: "danger" });
       return;
@@ -1079,16 +1076,24 @@ export function VisualizationEditorInner(p: InnerProps) {
                                   },
                                   p.localization,
                                 );
-                                return {
-                                  status: "ready" as const,
-                                  // The host's palette, so the figure is
-                                  // edited in the colours it prints in.
-                                  data: buildFigureInputs(
-                                    bundle,
-                                    undefined,
-                                    p.chartPalette?.(),
-                                  ),
-                                };
+                                // The host's palette, so the figure is
+                                // edited in the colours it prints in.
+                                const built = buildFigureInputs(
+                                  bundle,
+                                  undefined,
+                                  p.chartPalette?.(),
+                                );
+                                return built.ok
+                                  ? {
+                                    status: "ready" as const,
+                                    data: built.inputs,
+                                  }
+                                  : {
+                                    status: "error" as const,
+                                    err: describeFigureUnavailable(
+                                      built.unavailable,
+                                    ),
+                                  };
                               } catch (e) {
                                 return {
                                   status: "error" as const,
@@ -1106,12 +1111,34 @@ export function VisualizationEditorInner(p: InnerProps) {
                               >
                                 <StateHolderWrapper state={figureInputs()}>
                                   {(keyedFigureInputs) => {
+                                    const coverage = getFigureMapCoverage(
+                                      keyedFigureInputs,
+                                    );
                                     return (
-                                      <FigureHolder
-                                        figureInputs={keyedFigureInputs}
-                                        height={editorHeight()}
-                                        canvasElementId="VIZ_PREVIEW_CANVAS"
-                                      />
+                                      <div
+                                        class="flex flex-col"
+                                        classList={{
+                                          "h-full": editorHeight() === "flex",
+                                        }}
+                                      >
+                                        <div
+                                          classList={{
+                                            "min-h-0 flex-1":
+                                              editorHeight() === "flex",
+                                          }}
+                                        >
+                                          <FigureHolder
+                                            figureInputs={keyedFigureInputs}
+                                            height={editorHeight()}
+                                            canvasElementId="VIZ_PREVIEW_CANVAS"
+                                          />
+                                        </div>
+                                        <Show when={coverage} keyed>
+                                          {(c) => (
+                                            <MapCoverageLine coverage={c} />
+                                          )}
+                                        </Show>
+                                      </div>
                                     );
                                   }}
                                 </StateHolderWrapper>

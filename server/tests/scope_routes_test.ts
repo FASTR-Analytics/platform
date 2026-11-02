@@ -1,13 +1,12 @@
 // The scope routes end to end, as a global admin on the dev database: the
 // reserved "All data" scope is there, it can be neither edited nor deleted,
-// and the routes take only the per-family definition. The Clerk leg simulates
-// only clerkMiddleware's output contract, as products_routes_test.ts does.
+// and the routes take only the per-family definition, through the route-test
+// harness.
 //
 // Run alone with:
 //   BYPASS_AUTH= deno test -A --env-file --unstable-broadcast-channel server/tests/scope_routes_test.ts
 
 import { assert, assertEquals } from "@std/assert";
-import { Hono } from "hono";
 import {
   ALL_DATA_DEFINITION_HASH,
   ALL_DATA_SCOPE_DEFINITION,
@@ -25,54 +24,19 @@ import {
   SCOPE_RESERVED,
 } from "../db/instance/scopes.ts";
 import { closeAllConnections } from "../db/postgres/connection_manager.ts";
-import { _BYPASS_AUTH } from "../exposed_env_vars.ts";
 import { routesScopes } from "../routes/instance/scopes.ts";
+import { appFor, assertRealAuth, call } from "./_harness/route_app.ts";
 
 const ADMIN_EMAIL = "scope-routes-test-admin@example.com";
 
-function adminApp(): Hono {
-  const auth = {
-    userId: `user_${ADMIN_EMAIL}`,
-    tokenType: "session_token",
-    sessionClaims: { email: ADMIN_EMAIL, firstName: null, lastName: null },
-  };
-  const app = new Hono();
-  app.use("*", async (c, next) => {
-    c.set("clerkAuth" as never, (() => auth) as never);
-    await next();
-  });
-  app.route("/", routesScopes);
-  return app;
-}
-
-type Envelope =
-  | { success: true; data?: unknown }
-  | { success: false; err: string };
-
-async function call(
-  app: Hono,
-  method: string,
-  path: string,
-  body?: unknown,
-): Promise<{ status: number; body: Envelope }> {
-  const res = await app.request(path, {
-    method,
-    headers: body === undefined ? {} : { "Content-Type": "application/json" },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-  return { status: res.status, body: await res.json() };
-}
-
 Deno.test("scope routes: All data is reserved, and only the per-family definition is taken", async () => {
-  if (_BYPASS_AUTH) {
-    throw new Error("Run with BYPASS_AUTH= so the admin guard is exercised.");
-  }
+  assertRealAuth();
   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
   await mainDb`
     INSERT INTO users (email, is_admin) VALUES (${ADMIN_EMAIL}, TRUE)
     ON CONFLICT (email) DO UPDATE SET is_admin = TRUE
   `;
-  const app = adminApp();
+  const app = appFor(ADMIN_EMAIL, routesScopes);
   const tag = crypto.randomUUID().slice(0, 8);
   const created: ScopeUuid[] = [];
   const allData = async (): Promise<Scope> => {

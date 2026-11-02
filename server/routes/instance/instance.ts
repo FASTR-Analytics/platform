@@ -1,7 +1,6 @@
 import { Hono } from "hono";
 import { InstanceMeta } from "lib";
 import {
-  getInstanceDetail,
   setStructureSchema,
   updateAdminAreaLabelsConfig,
   updateAiContextConfig,
@@ -20,9 +19,7 @@ import {
   _START_TIME,
 } from "../../exposed_env_vars.ts";
 import { log } from "../../middleware/mod.ts";
-import { requireGlobalPermission } from "../../middleware/userPermission.ts";
 import { defineRoute } from "../route-helpers.ts";
-import { checkFreeDiskSpace } from "../../utils/disk_space.ts";
 
 export const routesInstance = new Hono();
 
@@ -54,19 +51,7 @@ defineRoute(routesInstance, "getInstanceMeta", async (c) => {
 
 defineRoute(
   routesInstance,
-  "getInstanceDetail",
-  requireGlobalPermission(),
-  log("getInstanceDetail"),
-  async (c) => {
-    const res = await getInstanceDetail(c.var.mainDb, c.var.globalUser);
-    return c.json(res);
-  },
-);
-
-defineRoute(
-  routesInstance,
   "updateStructureSchema",
-  requireGlobalPermission("can_configure_settings"),
   log("updateStructureSchema"),
   async (c, { body }) => {
     const res = await setStructureSchema(
@@ -84,7 +69,6 @@ defineRoute(
 defineRoute(
   routesInstance,
   "updateAdminAreaLabelsConfig",
-  requireGlobalPermission("can_configure_settings"),
   log("updateAdminAreaLabelsConfig"),
   async (c, { body }) => {
     const res = await updateAdminAreaLabelsConfig(c.var.mainDb, body);
@@ -98,7 +82,6 @@ defineRoute(
 defineRoute(
   routesInstance,
   "updateAiContextConfig",
-  requireGlobalPermission("can_configure_settings"),
   log("updateAiContextConfig"),
   async (c, { body }) => {
     const res = await updateAiContextConfig(c.var.mainDb, body.aiContext);
@@ -106,18 +89,5 @@ defineRoute(
       await notifyInstanceConfigUpdatedFromDb(c.var.mainDb);
     }
     return c.json(res);
-  },
-);
-
-defineRoute(
-  routesInstance,
-  "getDiskSpace",
-  requireGlobalPermission(),
-  async (c) => {
-    const res = await checkFreeDiskSpace();
-    return c.json({
-      success: true,
-      data: { ok: res.ok, availableGB: res.availableGB },
-    });
   },
 );

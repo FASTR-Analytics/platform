@@ -1,6 +1,6 @@
 import { clerkMiddleware, getAuth } from "@hono/clerk-auth";
 import type { Context } from "hono";
-import { _BYPASS_AUTH } from "../exposed_env_vars.ts";
+import { _BYPASS_AUTH, _PERSONA_AUTH } from "../exposed_env_vars.ts";
 import { resolveHeadlessCredentialEmail } from "../headless_auth.ts";
 
 type HeadlessVariables = { headlessAuthEmail?: string };
@@ -54,7 +54,9 @@ export function getClerkSessionAuth(c: Context): ClerkSessionAuth | null {
 // Cookie mount: Clerk ONLY. Headless clients authenticate through the headless
 // app (headlessAuthMiddleware below); a headless credential presented here
 // falls through to Clerk and fails like any other bad credential.
-export const authMiddleware = _BYPASS_AUTH
+// Under either dev mode Clerk is not consulted at all: getGlobalUser builds
+// the identity from the mode.
+export const authMiddleware = _BYPASS_AUTH || _PERSONA_AUTH
   ? async (c: any, next: any) => await next()
   : clerkAuth;
 

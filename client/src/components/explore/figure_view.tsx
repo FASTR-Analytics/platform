@@ -9,10 +9,17 @@ import {
   FigureHolder,
   StateHolderWrapper,
 } from "panther";
-import { createFigurePreview } from "~/components/_shared/mod.ts";
+import {
+  createFigurePreview,
+  MapCoverageLine,
+} from "~/components/_shared/mod.ts";
 import { getAdminAreaLevelFromMapConfig } from "~/generate_visualization/get_admin_area_level_from_config";
-import { liveFigureStyle } from "~/generate_visualization/mod";
+import {
+  getFigureMapCoverage,
+  liveFigureStyle,
+} from "~/generate_visualization/mod";
 import { geoJsonFamilyFor, getGeoJsonSync } from "~/state/instance/t2_geojson";
+import { getRunGeoJsonSync } from "~/state/instance/t2_run_geojson";
 
 // The figure types' body: the derived config fetched and built through
 // `createFigurePreview`, so it shares the scope-keyed items cache with
@@ -33,10 +40,13 @@ export function FigureView(p: {
     // tracks nothing; reading them here rebuilds a map when they arrive.
     const mapLevel = getAdminAreaLevelFromMapConfig(p.derived.config);
     if (mapLevel !== undefined) {
-      getGeoJsonSync(
-        geoJsonFamilyFor(p.derived.metric.datasetFamily),
-        mapLevel,
-      );
+      const family = geoJsonFamilyFor(p.derived.metric.datasetFamily);
+      if (
+        getRunGeoJsonSync(p.scope.runId, family, mapLevel).state ===
+          "run_unknown"
+      ) {
+        getGeoJsonSync(family, mapLevel);
+      }
     }
     return {
       scope: p.scope,
@@ -57,12 +67,23 @@ export function FigureView(p: {
       classList={{ "overflow-y-auto": !fills() }}
     >
       <StateHolderWrapper state={figure()}>
-        {(inputs) => (
-          <FigureHolder
-            figureInputs={{ ...inputs, style: style(inputs.style ?? {}) }}
-            height={fills() ? "flex" : "ideal"}
-          />
-        )}
+        {(inputs) => {
+          const holder = (
+            <FigureHolder
+              figureInputs={{ ...inputs, style: style(inputs.style ?? {}) }}
+              height={fills() ? "flex" : "ideal"}
+            />
+          );
+          const coverage = getFigureMapCoverage(inputs);
+          return coverage === undefined
+            ? holder
+            : (
+              <div class="flex h-full flex-col">
+                <div class="min-h-0 flex-1">{holder}</div>
+                <MapCoverageLine coverage={coverage} />
+              </div>
+            );
+        }}
       </StateHolderWrapper>
     </div>
   );

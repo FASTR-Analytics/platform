@@ -15,6 +15,45 @@ export async function tryCatchServer<
   timeoutMs?: number,
   explicitTransport?: ServerActionTransport,
 ): Promise<T> {
+  return await requestWithRetries<T>(
+    input,
+    init,
+    timeoutMs,
+    explicitTransport,
+    async (res) => await res.json(),
+  );
+}
+
+// For a route whose body is not an envelope: the same session refresh, retry
+// and 401 policy as every server action, with the body read by `readBody`.
+export async function tryCatchServerRaw<D>(
+  path: string,
+  readBody: (res: Response) => Promise<D>,
+): Promise<APIResponseWithData<D>> {
+  const transport = getServerActionTransport();
+  const headers = transport.getHeaders();
+  return await requestWithRetries<APIResponseWithData<D>>(
+    `${transport.baseUrl}${path}`,
+    {
+      method: "GET",
+      credentials: transport.credentials,
+      headers: Object.keys(headers).length > 0 ? headers : undefined,
+    },
+    undefined,
+    transport,
+    async (res) => ({ success: true, data: await readBody(res) }),
+  );
+}
+
+async function requestWithRetries<
+  T extends APIResponseNoData | APIResponseWithData<unknown>,
+>(
+  input: string | URL | Request,
+  init: RequestInit | undefined,
+  timeoutMs: number | undefined,
+  explicitTransport: ServerActionTransport | undefined,
+  readOk: (res: Response) => Promise<T>,
+): Promise<T> {
   const transport = explicitTransport ?? getServerActionTransport();
   const doFetch = transport.fetchImpl ??
     ((i: string | URL | Request, r: RequestInit) => fetch(i, r));
@@ -139,13 +178,12 @@ export async function tryCatchServer<
         } as T;
       }
 
-      // Parse JSON response
       try {
-        const result = await res.json();
+        const result = await readOk(res);
         // Report success if we got a valid response
         transport.onNetworkSuccess?.();
         return result;
-      } catch (_jsonError) {
+      } catch (_readError) {
         return {
           success: false,
           err: "Invalid response format from server",

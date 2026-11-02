@@ -1,7 +1,8 @@
+import { GUARD, type RouteGuard } from "../../permissions/mod.ts";
 import { z } from "zod";
 import {
   adminAreaLevelSchema,
-  type GeoJsonMapSummary,
+  type AdminAreaOptionsForLevel,
 } from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
 
@@ -14,19 +15,15 @@ type Dhis2FeatureContext = {
 };
 
 const facilityFamilySchema = z.enum(["hmis", "hfa"]);
-const familyLevelParamsSchema = z.object({
+export const familyLevelParamsSchema = z.object({
   family: facilityFamilySchema,
   level: z.coerce.number(),
 });
 export const geojsonMapRouteRegistry = {
-  getGeoJsonMaps: route({
-    path: "/geojson-maps",
-    method: "GET",
-    response: {} as GeoJsonMapSummary[],
-  }),
   analyzeGeoJsonUpload: route({
     path: "/geojson-maps/analyze",
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
     body: z.object({ assetFileName: z.string() }),
     response: {} as {
       properties: string[];
@@ -37,6 +34,7 @@ export const geojsonMapRouteRegistry = {
   saveGeoJsonMap: route({
     path: "/geojson-maps/save",
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
     body: z.object({
       family: facilityFamilySchema,
       adminAreaLevel: adminAreaLevelSchema,
@@ -53,6 +51,7 @@ export const geojsonMapRouteRegistry = {
   deleteGeoJsonMap: route({
     path: "/geojson-maps/delete",
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
     // adminAreaLevel stays a plain number: the delete handler has no 2|3|4 guard and the
     // client sources this from `number`-typed map summaries. Tightening belongs with a
     // GeoJsonMapSummary type change, not here.
@@ -64,18 +63,14 @@ export const geojsonMapRouteRegistry = {
   getAdminAreaOptionsForLevel: route({
     path: "/geojson-maps/admin-area-options/:family/:level",
     method: "GET",
+    guard: GUARD.approved,
     params: familyLevelParamsSchema,
-    response: {} as Array<{ value: string; label: string }>,
-  }),
-  getGeoJsonForLevel: route({
-    path: "/geojson-maps/level/:family/:level",
-    method: "GET",
-    params: familyLevelParamsSchema,
-    response: {} as { geojson: string; uploadedAt: string },
+    response: {} as AdminAreaOptionsForLevel,
   }),
   remapGeoJson: route({
     path: "/geojson-maps/remap",
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
     body: z.object({
       family: facilityFamilySchema,
       adminAreaLevel: adminAreaLevelSchema,
@@ -85,6 +80,7 @@ export const geojsonMapRouteRegistry = {
   dhis2GetOrgUnitLevels: route({
     path: "/geojson-maps/dhis2/levels",
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
     response: {} as {
       levels: Array<{ level: number; name: string; orgUnitCount: number }>;
     },
@@ -92,6 +88,7 @@ export const geojsonMapRouteRegistry = {
   dhis2AnalyzeGeoJson: route({
     path: "/geojson-maps/dhis2/analyze",
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
     body: z.object({
       dhis2Level: z.number(),
     }),
@@ -106,6 +103,7 @@ export const geojsonMapRouteRegistry = {
   dhis2SaveGeoJsonMap: route({
     path: "/geojson-maps/dhis2/save",
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
     body: z.object({
       dhis2Level: z.number(),
       family: facilityFamilySchema,
@@ -122,4 +120,4 @@ export const geojsonMapRouteRegistry = {
     // 180 s) plus processing: make the client budget explicit.
     timeoutMs: 300000,
   }),
-} as const;
+} as const satisfies Record<string, { guard: RouteGuard }>;

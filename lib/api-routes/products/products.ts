@@ -1,7 +1,8 @@
+import { GUARD, type RouteGuard } from "../../permissions/mod.ts";
 import { z } from "zod";
 import { EMPTY_CREATABLE_PRODUCT_TYPES } from "../../types/products.ts";
 import { scopeIdSchema } from "../../types/scope.ts";
-import { type ProductAccessLevel, route } from "../route-utils.ts";
+import { route } from "../route-utils.ts";
 
 // A product id is a short nanoid, never a uuid, and never length-validated:
 // pre-restructure 3-char ids keep working beside newly minted 4-char ones.
@@ -28,6 +29,7 @@ export const productRouteRegistry = {
   createProduct: route({
     path: "/products",
     method: "POST",
+    guard: GUARD.product("edit"),
     body: z.object({
       type: z.enum(EMPTY_CREATABLE_PRODUCT_TYPES),
       label: z.string().trim().min(1),
@@ -36,36 +38,35 @@ export const productRouteRegistry = {
       scopeId: scopeIdSchema,
     }),
     response: {} as { productId: string; lastUpdated: string },
-    access: "edit",
   }),
 
   updateProductLabel: route({
     path: "/products/:product_id/label",
     method: "PUT",
+    guard: GUARD.product("edit"),
     params: productIdParamsSchema,
     body: z.object({ label: z.string() }),
     response: {} as { lastUpdated: string },
-    access: "edit",
   }),
 
   moveProductsToFolder: route({
     path: "/products/folder",
     method: "PUT",
+    guard: GUARD.product("edit"),
     body: z.object({
       productIds: z.array(z.string()),
       folderId: z.uuid().nullable(),
     }),
     response: {} as { lastUpdated: string },
-    access: "edit",
   }),
 
   // Hard delete, no trash: the daily main-DB dump is the recovery path.
   deleteProducts: route({
     path: "/products",
     method: "DELETE",
+    guard: GUARD.product("own"),
     body: z.object({ productIds: z.array(z.string()) }),
     response: {} as { deletedIds: string[] },
-    access: "own",
   }),
 
   // Reattach never blocks and has no compatibility pre-flight: figures that
@@ -74,19 +75,19 @@ export const productRouteRegistry = {
   setProductPackage: route({
     path: "/products/:product_id/package",
     method: "PUT",
+    guard: GUARD.product("edit"),
     params: productIdParamsSchema,
     body: z.object({ runId: z.string() }),
     response: {} as { lastUpdated: string },
-    access: "edit",
   }),
 
   setProductScope: route({
     path: "/products/:product_id/scope",
     method: "PUT",
+    guard: GUARD.product("edit"),
     params: productIdParamsSchema,
     body: z.object({ scopeId: scopeIdSchema }),
     response: {} as { lastUpdated: string },
-    access: "edit",
   }),
 
   // Clones run_id verbatim into the source's folder under the scope the
@@ -95,10 +96,10 @@ export const productRouteRegistry = {
   duplicateProduct: route({
     path: "/products/:product_id/duplicate",
     method: "POST",
+    guard: GUARD.product("view"),
     params: productIdParamsSchema,
     body: z.object({ scopeId: scopeIdSchema }),
     response: {} as { productId: string; lastUpdated: string },
-    access: "view",
   }),
 
   // Replaces the general access and the whole grant list in one
@@ -107,9 +108,9 @@ export const productRouteRegistry = {
   setProductAccess: route({
     path: "/products/:product_id/access",
     method: "PUT",
+    guard: GUARD.product("edit"),
     params: productIdParamsSchema,
     body: productAccessBodySchema,
-    access: "edit",
   }),
 
   // The previous owner, if any, becomes an edit grantee; the new owner's
@@ -117,8 +118,8 @@ export const productRouteRegistry = {
   setProductOwner: route({
     path: "/products/:product_id/owner",
     method: "PUT",
+    guard: GUARD.product("own"),
     params: productIdParamsSchema,
     body: z.object({ email: z.string() }),
-    access: "own",
   }),
-} as const satisfies Record<string, { access: ProductAccessLevel }>;
+} as const satisfies Record<string, { guard: RouteGuard }>;

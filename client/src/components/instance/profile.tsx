@@ -15,8 +15,10 @@ import {
   openComponent,
 } from "panther";
 import { ChangeEmailModal } from "./change_email_modal";
+import { clerkActive } from "~/state/_infra/auth_mode";
 import { confirmReloadUnderTurn } from "./copilot/mod.ts";
 import { serverActions } from "~/server_actions";
+import { instanceState } from "~/state/instance/t1_store";
 import { createSignal, type JSX, onCleanup, Show } from "solid-js";
 
 // The one panther dark palette: same source as the CSS pairs and the canvas
@@ -162,15 +164,6 @@ export function ProfileForm(p: AlertComponentProps<object, undefined>) {
   });
   onCleanup(unsubscribeClerk);
 
-  const aiUsage = createQuery(
-    () => serverActions.getAiUsage({}),
-    t3({
-      en: "Loading AI usage...",
-      fr: "Chargement de l'utilisation IA...",
-      pt: "A carregar a utilização de IA...",
-    }),
-  );
-
   // Each of these reloads the page, which loses an AI turn in flight, so each
   // asks first while one runs (S13's turn guard).
   const clearCache = createButtonAction(
@@ -217,26 +210,6 @@ export function ProfileForm(p: AlertComponentProps<object, undefined>) {
       .slice(0, 2)
       .toUpperCase();
 
-  const usage = () => {
-    const st = aiUsage.state();
-    return st.status === "ready" ? st.data : undefined;
-  };
-  const todayFigures = (): UsageFigures | undefined => {
-    const u = usage();
-    return u && {
-      used: u.tokensUsedToday,
-      limit: u.isUnlimited ? null : u.dailyTokenLimit,
-    };
-  };
-  const weekFigures = (): UsageFigures | undefined => {
-    const u = usage();
-    return u && { used: u.tokensUsedThisWeek, limit: u.weeklyTokenLimit };
-  };
-  const usageError = () => {
-    const st = aiUsage.state();
-    return st.status === "error" ? st.err : undefined;
-  };
-
   // The organisation is the user's own words in the users table
   // (updateMyProfile), edited in place.
   const [editingOrganisation, setEditingOrganisation] = createSignal(false);
@@ -270,9 +243,12 @@ export function ProfileForm(p: AlertComponentProps<object, undefined>) {
       <div class="flex items-center gap-4">
         <button
           type="button"
-          class="hover:ring-primary bg-base-200 text-base-content-muted font-700 flex h-16 w-16 flex-none cursor-pointer items-center justify-center overflow-hidden rounded-full ring-2 ring-transparent transition"
+          class={`bg-base-200 text-base-content-muted font-700 flex h-16 w-16 flex-none items-center justify-center overflow-hidden rounded-full ring-2 ring-transparent transition ${
+            clerkActive ? "hover:ring-primary cursor-pointer" : ""
+          }`}
+          disabled={!clerkActive}
           onClick={() => openClerkUserProfile()}
-          title={manageAccountLabel}
+          title={clerkActive ? manageAccountLabel : undefined}
         >
           <Show when={clerk.user?.imageUrl} keyed fallback={initials()}>
             {(src) => <img src={src} alt={fullName()} class="h-full w-full" />}
@@ -283,13 +259,15 @@ export function ProfileForm(p: AlertComponentProps<object, undefined>) {
             {fullName()}
           </div>
           <div class="text-base-content-muted truncate text-sm">{email()}</div>
-          <button
-            type="button"
-            class="text-primary w-fit cursor-pointer text-xs hover:underline"
-            onClick={() => openClerkUserProfile()}
-          >
-            {manageAccountLabel}
-          </button>
+          <Show when={clerkActive}>
+            <button
+              type="button"
+              class="text-primary w-fit cursor-pointer text-xs hover:underline"
+              onClick={() => openClerkUserProfile()}
+            >
+              {manageAccountLabel}
+            </button>
+          </Show>
         </div>
       </div>
 
@@ -352,25 +330,27 @@ export function ProfileForm(p: AlertComponentProps<object, undefined>) {
           <span class="text-base-content-muted min-w-0 flex-1 truncate text-right text-sm">
             {email()}
           </span>
-          <Button
-            onClick={() =>
-              afterTurnGuard(() =>
-                openComponent({
-                  element: ChangeEmailModal,
-                  props: { currentEmail: email() },
-                })
-              )}
-            disabled={user() === undefined}
-            outline
-            size="sm"
-            iconName="pencil"
-          >
-            {t3({
-              en: "Change email",
-              fr: "Changer d'e-mail",
-              pt: "Alterar e-mail",
-            })}
-          </Button>
+          <Show when={clerkActive}>
+            <Button
+              onClick={() =>
+                afterTurnGuard(() =>
+                  openComponent({
+                    element: ChangeEmailModal,
+                    props: { currentEmail: email() },
+                  })
+                )}
+              disabled={user() === undefined}
+              outline
+              size="sm"
+              iconName="pencil"
+            >
+              {t3({
+                en: "Change email",
+                fr: "Changer d'e-mail",
+                pt: "Alterar e-mail",
+              })}
+            </Button>
+          </Show>
         </SettingRow>
       </SettingSection>
 
@@ -401,58 +381,10 @@ export function ProfileForm(p: AlertComponentProps<object, undefined>) {
         </SettingRow>
       </SettingSection>
 
-      <SettingSection
-        label={t3({
-          en: "AI usage",
-          fr: "Utilisation de l'IA",
-          pt: "Utilização de IA",
-        })}
-      >
-        <div class="grid grid-cols-1 gap-x-6 gap-y-3 py-2 sm:grid-cols-2">
-          <UsageMeter
-            label={t3({
-              en: "Today (you)",
-              fr: "Aujourd'hui (vous)",
-              pt: "Hoje (o seu uso)",
-            })}
-            figures={todayFigures()}
-            unlimitedText={t3({
-              en: "tokens today · Unlimited",
-              fr: "tokens aujourd'hui · Illimité",
-              pt: "tokens hoje · Ilimitado",
-            })}
-          />
-          <UsageMeter
-            label={t3({
-              en: "This week (country quota)",
-              fr: "Cette semaine (quota du pays)",
-              pt: "Esta semana (quota do país)",
-            })}
-            figures={weekFigures()}
-            unlimitedText={t3({
-              en: "tokens this week · Unlimited",
-              fr: "tokens cette semaine · Illimité",
-              pt: "tokens esta semana · Ilimitado",
-            })}
-            // Only when there IS a country quota: with WEEKLY_TOKEN_LIMIT
-            // unset nobody's use is counted, so saying this user's is not
-            // would imply everyone else's is.
-            note={usage()?.isUnlimited && weekFigures()?.limit !== null
-              ? t3({
-                en:
-                  "Your own use is not counted here: an unlimited account does not spend the country's quota.",
-                fr:
-                  "Votre propre utilisation n'est pas comptée ici : un compte illimité n'entame pas le quota du pays.",
-                pt:
-                  "A sua própria utilização não é contada aqui: uma conta ilimitada não consome a quota do país.",
-              })
-              : undefined}
-          />
-        </div>
-        <Show when={usageError()} keyed>
-          {(err) => <div class="text-danger py-1 text-sm">{err}</div>}
-        </Show>
-      </SettingSection>
+      {/* The profile opens before approval; usage is an approved user's. */}
+      <Show when={instanceState.currentUserApproved}>
+        <AiUsageSection />
+      </Show>
 
       <SettingSection
         label={t3({
@@ -503,5 +435,92 @@ export function ProfileForm(p: AlertComponentProps<object, undefined>) {
         </div>
       </SettingSection>
     </ModalContainer>
+  );
+}
+
+// Owns its query, so it runs only when the section renders.
+function AiUsageSection() {
+  const aiUsage = createQuery(
+    () => serverActions.getAiUsage({}),
+    t3({
+      en: "Loading AI usage...",
+      fr: "Chargement de l'utilisation IA...",
+      pt: "A carregar a utilização de IA...",
+    }),
+  );
+
+  const usage = () => {
+    const st = aiUsage.state();
+    return st.status === "ready" ? st.data : undefined;
+  };
+  const todayFigures = (): UsageFigures | undefined => {
+    const u = usage();
+    return u && {
+      used: u.tokensUsedToday,
+      limit: u.isUnlimited ? null : u.dailyTokenLimit,
+    };
+  };
+  const weekFigures = (): UsageFigures | undefined => {
+    const u = usage();
+    return u && { used: u.tokensUsedThisWeek, limit: u.weeklyTokenLimit };
+  };
+  const usageError = () => {
+    const st = aiUsage.state();
+    return st.status === "error" ? st.err : undefined;
+  };
+
+  return (
+    <SettingSection
+      label={t3({
+        en: "AI usage",
+        fr: "Utilisation de l'IA",
+        pt: "Utilização de IA",
+      })}
+    >
+      <div class="grid grid-cols-1 gap-x-6 gap-y-3 py-2 sm:grid-cols-2">
+        <UsageMeter
+          label={t3({
+            en: "Today (you)",
+            fr: "Aujourd'hui (vous)",
+            pt: "Hoje (o seu uso)",
+          })}
+          figures={todayFigures()}
+          unlimitedText={t3({
+            en: "tokens today · Unlimited",
+            fr: "tokens aujourd'hui · Illimité",
+            pt: "tokens hoje · Ilimitado",
+          })}
+        />
+        <UsageMeter
+          label={t3({
+            en: "This week (country quota)",
+            fr: "Cette semaine (quota du pays)",
+            pt: "Esta semana (quota do país)",
+          })}
+          figures={weekFigures()}
+          unlimitedText={t3({
+            en: "tokens this week · Unlimited",
+            fr: "tokens cette semaine · Illimité",
+            pt: "tokens esta semana · Ilimitado",
+          })}
+          // Only when there IS a country quota: with WEEKLY_TOKEN_LIMIT
+          // unset nobody's use is counted, so saying this user's is not
+          // would imply everyone else's is.
+          note={usage()?.isUnlimited && weekFigures()?.limit !== null
+            ? t3({
+              en:
+                "Your own use is not counted here: an unlimited account does not spend the country's quota.",
+              fr:
+                "Votre propre utilisation n'est pas comptée ici : un compte illimité n'entame pas le quota du pays.",
+              pt:
+                "A sua própria utilização não é contada aqui: uma conta ilimitada não consome a quota do país.",
+            })
+            : undefined}
+        />
+      </div>
+      <Show when={usageError()} keyed>
+        {(err) => <div class="text-danger py-1 text-sm">{err}</div>}
+      </Show>
+    </SettingSection>
   );
 }

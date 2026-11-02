@@ -107,5 +107,4 @@ export {
   MODEL_PRICING,
   SERVER_TOOL_LABELS,
   supportsManualThinking,
-  supportsSamplingParams,
 } from "../_110_ai_types/mod.ts";

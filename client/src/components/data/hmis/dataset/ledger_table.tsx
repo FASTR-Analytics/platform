@@ -14,6 +14,7 @@ import {
 } from "panther";
 import { Show } from "solid-js";
 import { WrapOnUnderscore } from "~/components/data/hmis/_shared/mod.ts";
+import { can } from "~/state/instance/permissions";
 
 export type LedgerPeriodWindow = { min: number; max: number };
 
@@ -185,7 +186,7 @@ export function LedgerTable(p: Props) {
         ).length;
         return (
           <div class="ui-spy-sm h-full w-full">
-            <Show when={failedCount > 0}>
+            <Show when={failedCount > 0 && can("can_configure_data")}>
               <div class="">
                 <Button
                   onClick={() => retryFailedPairs(keyedItems)}

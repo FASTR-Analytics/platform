@@ -49,6 +49,16 @@ type CodeField = {
 };
 
 export async function hfaCodeInList(tx: Sql): Promise<void> {
+  // No r_code column means a fresh base schema, which holds no code, or a
+  // database that ran 223 and so ran this first: nothing to rewrite.
+  const [{ hasRCode }] = await tx<{ hasRCode: boolean }[]>`
+    SELECT EXISTS (
+      SELECT 1 FROM information_schema.columns
+      WHERE table_name = 'hfa_indicator_code' AND column_name = 'r_code'
+    ) AS "hasRCode"
+  `;
+  if (!hasRCode) return;
+
   const codeRows = await tx<
     {
       indicator_id: string;

@@ -7,8 +7,6 @@
 import { assert, assertEquals, assertNotEquals } from "@std/assert";
 import type { CopilotToolName } from "lib";
 import {
-  _USER_PERMISSIONS_DEFAULT_FULL_ACCESS,
-  _USER_PERMISSIONS_DEFAULT_NO_ACCESS,
   COPILOT_APPROVAL_EXEMPT,
   COPILOT_CHAT_WIDE_TOOLS,
   COPILOT_PACKAGE_VIEWS,
@@ -20,6 +18,7 @@ import {
   copilotViewIdentity,
   packageToolsKey,
   USER_PERMISSIONS,
+  userPermissions,
 } from "lib";
 
 const GROUPS = {
@@ -62,17 +61,13 @@ const GROUPS = {
   figure_editor: ["get_figure_editor", "update_figure_editor"],
   hfa_reads: [
     "get_hfa_indicators",
-    "get_hfa_taxonomy",
-    "get_hfa_variable_dictionary",
-    "inspect_hfa_variable",
-    "get_hfa_indicator_code",
-    "validate_hfa_indicators",
+    "get_hfa_indicator_details",
+    "get_hfa_variables",
+    "get_hfa_variable_details",
   ],
   hfa_writes: [
-    "update_hfa_indicator_labels",
-    "assign_hfa_indicator_categories",
     "create_hfa_indicators",
-    "set_hfa_indicator_code",
+    "update_hfa_indicators",
     "delete_hfa_indicators",
   ],
   hfa_editor: ["get_hfa_indicator_editor", "update_hfa_indicator_editor"],
@@ -255,27 +250,24 @@ const REQUIREMENTS: Record<string, string> = Object.fromEntries([
   ...ALL_TOOLS.map((t) => [t, "none"]),
   ["get_module_r_script", "can_view_data"],
   ["get_module_settings", "can_view_data"],
-  ["get_module_log", "can_view_logs"],
-  ...GROUPS.hfa_reads.map((t) => [t, "can_configure_data"]),
-  ["inspect_hfa_variable", "can_view_data"],
-  ...GROUPS.hfa_writes.map((t) => [t, "hfa_write"]),
-  ["update_hfa_indicator_editor", "hfa_write"],
+  ["get_module_log", "can_view_data"],
+  ...GROUPS.hfa_reads.map((t) => [t, "can_view_data"]),
+  ...GROUPS.hfa_writes.map((t) => [t, "can_configure_data"]),
+  ["update_hfa_indicator_editor", "can_configure_data"],
   ...GROUPS.deck_writes.map((t) => [t, "product_edit"]),
   ...GROUPS.report_writes.map((t) => [t, "product_edit"]),
   ["update_figure_editor", "product_edit"],
 ]);
 
-Deno.test("refusals follow the permission bits, the product level and the HFA write gate", () => {
+Deno.test("refusals follow the permission bits and the product level", () => {
   assertEquals({ ...COPILOT_TOOL_REQUIREMENTS }, REQUIREMENTS);
 
   const nothing = {
-    permissions: _USER_PERMISSIONS_DEFAULT_NO_ACCESS,
-    canWriteHfaIndicators: false,
+    permissions: userPermissions(false),
     productLevel: "view" as const,
   };
   const everything = {
-    permissions: _USER_PERMISSIONS_DEFAULT_FULL_ACCESS,
-    canWriteHfaIndicators: true,
+    permissions: userPermissions(true),
     productLevel: "edit" as const,
   };
   const refusedFor = (user: Parameters<typeof copilotToolRefusal>[1]) =>
@@ -307,10 +299,6 @@ Deno.test("refusals follow the permission bits, the product level and the HFA wr
       permission,
     );
   }
-  assertEquals(
-    refusedFor({ ...everything, canWriteHfaIndicators: false }),
-    requiring("hfa_write"),
-  );
   for (const level of ["none", "view"] as const) {
     assertEquals(
       refusedFor({ ...everything, productLevel: level }),

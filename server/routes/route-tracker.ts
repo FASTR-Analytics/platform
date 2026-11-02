@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { routeRegistry, routeRegistryIndividualCount } from "lib";
+import {
+  type RouteGuardKind,
+  routeRegistry,
+  routeRegistryIndividualCount,
+} from "lib";
 
 // Track which routes have been defined
 const definedRoutes = new Set<keyof typeof routeRegistry>();
@@ -157,12 +161,70 @@ export function validateAllRoutesDefined(): void {
     console.error("");
   }
 
+  // The guard contract. Exactly one route is public, the sign-in screen's
+  // getInstanceMeta; a route shaped like a product route (a :product_id
+  // segment or a productIds body) must declare the product guard, and one
+  // shaped like a folder route (a :folder_id segment or a parentId body) the
+  // folder guard, so no body can decide which policy branch a route takes.
+  const publicRoutes = Object.entries(routeRegistry)
+    .filter(([, entry]) => entry.guard.kind === "public")
+    .map(([name]) => name);
+  if (publicRoutes.length !== 1 || publicRoutes[0] !== "getInstanceMeta") {
+    hasErrors = true;
+    console.error(
+      `❌ Public routes must be exactly [getInstanceMeta], found: [${
+        publicRoutes.join(", ")
+      }]`,
+    );
+    console.error("");
+  }
+  const guardShapeMismatches: string[] = [];
+  for (const [routeName, entry] of Object.entries(routeRegistry)) {
+    const bodySchema = (entry as any).body;
+    const bodyKeys = new Set(
+      bodySchema instanceof z.ZodType && "shape" in bodySchema
+        ? Object.keys((bodySchema as z.ZodObject<any>).shape)
+        : [],
+    );
+    const productShaped = entry.path.includes(":product_id") ||
+      bodyKeys.has("productIds");
+    const folderShaped = entry.path.includes(":folder_id") ||
+      bodyKeys.has("parentId");
+    if (productShaped && entry.guard.kind !== "product") {
+      guardShapeMismatches.push(
+        `${routeName}: product-shaped but guard is ${entry.guard.kind}`,
+      );
+    }
+    if (folderShaped && entry.guard.kind !== "folder") {
+      guardShapeMismatches.push(
+        `${routeName}: folder-shaped but guard is ${entry.guard.kind}`,
+      );
+    }
+  }
+  if (guardShapeMismatches.length > 0) {
+    hasErrors = true;
+    console.error(`❌ Guard/shape mismatches: ${guardShapeMismatches.length}`);
+    for (const m of guardShapeMismatches) {
+      console.error(`   - ${m}`);
+    }
+    console.error("");
+  }
+
   if (hasErrors) {
     console.error(
       "💥 Route validation failed — fix the above errors before shipping.\n",
     );
     Deno.exit(1);
   } else {
-    console.log(`✅ All ${allRoutes.length} routes correctly implemented!\n`);
+    console.log(`✅ All ${allRoutes.length} routes correctly implemented!`);
+    const byKind = new Map<RouteGuardKind, number>();
+    for (const entry of Object.values(routeRegistry)) {
+      byKind.set(entry.guard.kind, (byKind.get(entry.guard.kind) ?? 0) + 1);
+    }
+    console.log(
+      `   guards: ${
+        [...byKind.entries()].map(([kind, n]) => `${kind} ${n}`).join(", ")
+      }\n`,
+    );
   }
 }

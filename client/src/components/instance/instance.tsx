@@ -66,19 +66,11 @@ import { TourCatalogueModal } from "~/onboarding/tour_catalogue_modal";
 import { setupTours } from "~/onboarding";
 import { setupAiNudge } from "~/onboarding/ai_nudge";
 import type { InstanceTab } from "~/onboarding/catalogue";
+import { can } from "~/state/instance/permissions";
 
 // The Instance Information button (versions icon) is hidden for now; flip
 // this to show it again.
 const INSTANCE_META_BUTTON_ENABLED = false;
-
-// Generation is instance-admin only (can_configure_data: the same guard the
-// run_generation routes use).
-function canConfigureData(): boolean {
-  return (
-    instanceState.currentUserIsGlobalAdmin ||
-    instanceState.currentUserPermissions.can_configure_data
-  );
-}
 
 // One gated, ordered list for the rail; the tab derivation below applies the
 // same gates.
@@ -100,7 +92,9 @@ function navItems(): ListItem<InstanceTab>[] {
     label: t3({ en: "Explore", fr: "Explorer", pt: "Explorar" }),
     iconName: "chart",
   });
-  if (canConfigureData()) {
+  // The catalogue and the package pages are reads; the page gates Generate,
+  // Delete and Pin on can_configure_data itself.
+  if (can("can_view_data")) {
     items.push({
       id: "results_packages",
       label: t3({
@@ -111,19 +105,15 @@ function navItems(): ListItem<InstanceTab>[] {
       iconName: "package",
     });
   }
-  // Scopes are global admins' to manage, as the scope routes require.
-  if (instanceState.currentUserIsGlobalAdmin) {
+  // Scopes need can_configure_data, as the scope routes require.
+  if (can("can_configure_data")) {
     items.push({
       id: "scopes",
       label: t3({ en: "Scopes", fr: "Portées", pt: "Âmbitos" }),
       iconName: "filter",
     });
   }
-  if (
-    instanceState.currentUserIsGlobalAdmin ||
-    instanceState.currentUserPermissions.can_view_data ||
-    instanceState.currentUserPermissions.can_configure_data
-  ) {
+  if (can("can_view_data")) {
     items.push({
       id: "data",
       label: t3({ en: "Data", fr: "Données", pt: "Dados" }),
@@ -135,11 +125,7 @@ function navItems(): ListItem<InstanceTab>[] {
     label: t3({ en: "Assets", fr: "Ressources", pt: "Recursos" }),
     iconName: "paperclip",
   });
-  if (
-    instanceState.currentUserIsGlobalAdmin ||
-    instanceState.currentUserPermissions.can_configure_users ||
-    instanceState.currentUserPermissions.can_view_users
-  ) {
+  if (can("can_view_users")) {
     items.push({
       id: "users",
       label: t3({ en: "Users", fr: "Utilisateurs", pt: "Utilizadores" }),
@@ -156,18 +142,14 @@ type Props = {
 export default function Instance(p: Props) {
   const [_tab, setTab] = createSignal<InstanceTab>("products");
 
-  const p_ = () => instanceState.currentUserPermissions;
-  const a_ = () => instanceState.currentUserIsGlobalAdmin;
   const tab = (): InstanceTab => {
     const t = _tab();
-    const admin = a_();
-    const perms = p_();
-    const canData = admin || perms.can_view_data || perms.can_configure_data;
-    const canUsers = admin || perms.can_configure_users || perms.can_view_users;
-    if (t === "data" && !canData) return "products";
-    if (t === "results_packages" && !canConfigureData()) return "products";
-    if (t === "scopes" && !admin) return "products";
-    if (t === "users" && !canUsers) return "products";
+    if (t === "data" && !can("can_view_data")) return "products";
+    if (t === "results_packages" && !can("can_view_data")) {
+      return "products";
+    }
+    if (t === "scopes" && !can("can_configure_data")) return "products";
+    if (t === "users" && !can("can_view_users")) return "products";
     return t;
   };
 
@@ -542,39 +524,24 @@ export default function Instance(p: Props) {
                   <Match when={tab() === "explore"}>
                     <Explore />
                   </Match>
-                  <Match
-                    when={tab() === "data" &&
-                      (instanceState.currentUserIsGlobalAdmin ||
-                        instanceState.currentUserPermissions.can_view_data ||
-                        instanceState.currentUserPermissions
-                          .can_configure_data)}
-                  >
+                  <Match when={tab() === "data" && can("can_view_data")}>
                     <InstanceData />
                   </Match>
                   <Match
-                    when={tab() === "results_packages" && canConfigureData()}
+                    when={tab() === "results_packages" && can("can_view_data")}
                   >
                     <InstanceResultsPackages />
                   </Match>
                   <Match
-                    when={tab() === "scopes" &&
-                      instanceState.currentUserIsGlobalAdmin}
+                    when={tab() === "scopes" && can("can_configure_data")}
                   >
                     <InstanceScopes />
                   </Match>
                   <Match when={tab() === "assets"}>
                     <InstanceAssets />
                   </Match>
-                  <Match
-                    when={(instanceState.currentUserIsGlobalAdmin ||
-                      instanceState.currentUserPermissions
-                        .can_configure_users ||
-                      instanceState.currentUserPermissions.can_view_users) &&
-                      tab() === "users"}
-                  >
-                    <InstanceUsers
-                      thisLoggedInUserEmail={instanceState.currentUserEmail}
-                    />
+                  <Match when={tab() === "users" && can("can_view_users")}>
+                    <InstanceUsers />
                   </Match>
                 </Switch>
               </FrameLeft>

@@ -21,6 +21,7 @@ globs:
   - server/runs/*.ts
   - server/server_only_funcs/**
   - server/tests/_module_definitions.ts
+  - server/tests/geojson_capture_test.ts
   - server/tests/m012_expression_parity_test.ts
   - server/tests/population_coverage_issue_test.ts
   - server/tests/retired_metrics_test.ts
@@ -116,15 +117,17 @@ below are their file-level twins):
   directory it is a function of the runId alone: package contents never depend
   on who is asking, only the chrome does. So reads are mounted ONCE (run-keyed,
   `routes/instance/run_generation.ts`) under the INSTANCE data bits
-  (`can_view_data`; `can_view_logs` for logs), and one surface, the package page
+  (`can_view_data`), and one surface, the package page
   (`results_packages/package_page.tsx`, its panes under `package_view/`),
   renders a package's contents: its modules' presets, settings, scripts, logs
-  and files; the Explore tab (S11) reads a ready package's metrics at a scope.
-  AI tools take a run RESOLVER, never a runId from the model: the package page
-  sets the chat's `package` view (S13) with the page's package at the page
-  scope, and its state names the status, stage, error, progress and open module,
-  so a generating or failed package's script and log reads work while its
-  package reads refuse; the Results page sets `results_packages`.
+  and files, its viewers gated by `canViewPackageContents()`
+  (`package_view/status.tsx`, over `can()`, S18); the
+  Explore tab (S11) reads a ready package's metrics at a scope. AI tools take a
+  run RESOLVER, never a runId from the model: the package page sets the chat's
+  `package` view (S13) with the page's package at the page scope, and its state
+  names the status, stage, error, progress and open module, so a generating or
+  failed package's script and log reads work while its package reads refuse; the
+  Results page sets `results_packages`.
 - **Retention.** No automatic or time-based GC, ever. Reclamation is ONLY the
   catalogue's guarded hard delete (row + dir), refused while referenced or
   generating.
@@ -271,11 +274,11 @@ mount for package reads: the `(run_id, module_id)` run-dir reads
 `getRunDetail` (per-module settings resolved server-side from the manifest's
 `configSelections` + the outputs-dir file listing + the population stamp, via
 `readRunDetail` in `server/runs/package_internals.ts`; manifest-gated, so ready
-runs only), gated on the INSTANCE data bits: `can_view_data`, `can_view_logs`
-for logs (ruled: package contents are instance-level data, not an admin-only
-debug class and not a per-product entitlement). The raw-file download surface
-they link to carries the same `can_view_data`: the `_RUNS_DIR_PATH` static mount
-in `middleware/static.ts`, narrowed to `/:run_id/outputs/*`.
+runs only), gated on the INSTANCE data bit, `can_view_data` (ruled: package
+contents are instance-level data, not an admin-only debug class and not a
+per-product entitlement). The raw-file download surface they link to carries the
+same `can_view_data`: the `_RUNS_DIR_PATH` static mount in
+`middleware/static.ts`, narrowed to `/:run_id/outputs/*`.
 
 **A product's relationship with packages** is one pointer write,
 `setProductPackage` (product `edit` access, S12) → `setProductRun`: the ready
@@ -297,47 +300,49 @@ construction: they are projections of whichever package the product points at.
 what a package contains (`getRunDetail` with per-module settings and files,
 `getRunModuleScript`, `getRunModuleLogs`, `listRunModuleFiles`, and the
 `/{runId}/outputs/…` download mount) is RUN-keyed on the instance mount and
-gated on the instance data bits: `can_view_data` for all but logs,
-`can_view_logs` for logs (global admins bypass). The rule that decides what
-belongs on the page: **if the answer to the question lives inside the run
-directory, it is the same view for everyone who can see that package.** The
-package page (`results_packages/package_page.tsx`, the package's one host) is
-one shape for every status: a heading bar (the label, the pinned and status
-badges, Pin or Unpin and the guarded Delete, with the provenance line as its
-subheading: created, by whom, `synthetic-backfill` when so, disk size), a
-**status bar** under it (`package_view/status_bar.tsx`), and the body. The
-status bar is the package's facts for every status. While generating it opens
-with a full-width panther `ProgressBar small busy`: the width is
-`runProgressSteps` over `p.progress` with a 10% floor (the stripe rides the
-fill, so an honest 0% during prepare would show nothing moving), the message is
-`runStageLabel` ("The stage" below), both read in one memo before any branch and
-rendered under a `Show` on the generating status. Then the labelled rows: one
-`ModuleProgressChip` per module of `run.progress.moduleOrder` with its
-`moduleStatus` (the final progress is stored at publish, so a ready package has
-chips too: done and reused), pulsing on the chip whose module is
-`currentModuleId` whatever its status, so a reused module's copy shows activity,
-and only while generating; the "Running" row with the live R line, shown only in
-a `module` stage; "in use by"; and the population stamp when active
-("population.csv", read from the authoring context). A ready package's chips are
-grouped under family labels from `RunAuthoringContext.modules` in module order;
-a generating or failed run has no manifest and the registry declares no family,
-so its chips stay flat in execution order and are named from the registry. The
-body is by status: a READY package's is a tab bar (`TabsNavigation`) of **one
-tab per family the package ran**, in family order (from
-`RunAuthoringContext.modules` through `compareModules`, so a package with
-modules of one family has one tab); a FAILED package's is
-`package_view/failed_detail.tsx`, the stage sentence the run died in above the
-error detail (omitted for a stored `ended`, the transform's stamp on a run that
-recorded no stage) and each started module's Script, Logs and Files viewers (the
-last via `ViewFiles`, since a failed run has no manifest); a GENERATING
-package's is a line saying results appear once generation completes. A family
-tab (`package_view/family_pane.tsx`) is a `SelectList` of the family's modules,
-the primary first and the secondaries under a "Supporting analyses" header,
-beside the selected module's pane (`package_view/module_pane.tsx`), which shows
-one module whole: the page scope select (the shared `ScopeSelect`; the page
-starts on "All data", the choice is shared by every tab and module and is never
-stored, and a chosen scope that is deleted falls back to "All data"), the
-module's presets (`package_view/presets.tsx`: the entries of
+gated on the instance data bit, `can_view_data`, logs included (global admins
+bypass). The Results tab, the catalogue fill (`listRunCatalog`, the starting
+payload's `runsCatalog`) and the run telemetry messages follow `can_view_data`
+too; Generate, Module defaults, Pin and Delete render for `can_configure_data`,
+the guard their routes take (S18). The rule that decides what belongs on the
+page: **if the answer to the question lives inside the run directory, it is the
+same view for everyone who can see that package.** The package page
+(`results_packages/package_page.tsx`, the package's one host) is one shape for
+every status: a heading bar (the label, the pinned and status badges, Pin or
+Unpin and the guarded Delete, with the provenance line as its subheading:
+created, by whom, `synthetic-backfill` when so, disk size), a **status bar**
+under it (`package_view/status_bar.tsx`), and the body. The status bar is the
+package's facts for every status. While generating it opens with a full-width
+panther `ProgressBar small busy`: the width is `runProgressSteps` over
+`p.progress` with a 10% floor (the stripe rides the fill, so an honest 0% during
+prepare would show nothing moving), the message is `runStageLabel` ("The stage"
+below), both read in one memo before any branch and rendered under a `Show` on
+the generating status. Then the labelled rows: one `ModuleProgressChip` per
+module of `run.progress.moduleOrder` with its `moduleStatus` (the final progress
+is stored at publish, so a ready package has chips too: done and reused),
+pulsing on the chip whose module is `currentModuleId` whatever its status, so a
+reused module's copy shows activity, and only while generating; the "Running"
+row with the live R line, shown only in a `module` stage; "in use by"; and the
+population stamp when active ("population.csv", read from the authoring
+context). A ready package's chips are grouped under family labels from
+`RunAuthoringContext.modules` in module order; a generating or failed run has no
+manifest and the registry declares no family, so its chips stay flat in
+execution order and are named from the registry. The body is by status: a READY
+package's is a tab bar (`TabsNavigation`) of **one tab per family the package
+ran**, in family order (from `RunAuthoringContext.modules` through
+`compareModules`, so a package with modules of one family has one tab); a FAILED
+package's is `package_view/failed_detail.tsx`, the stage sentence the run died
+in above the error detail (omitted for a stored `ended`, the transform's stamp
+on a run that recorded no stage) and each started module's Script, Logs and
+Files viewers (the last via `ViewFiles`, since a failed run has no manifest); a
+GENERATING package's is a line saying results appear once generation completes.
+A family tab (`package_view/family_pane.tsx`) is a `SelectList` of the family's
+modules, the primary first and the secondaries under a "Supporting analyses"
+header, beside the selected module's pane (`package_view/module_pane.tsx`),
+which shows one module whole: the page scope select (the shared `ScopeSelect`;
+the page starts on "All data", the choice is shared by every tab and module and
+is never stored, and a chosen scope that is deleted falls back to "All data"),
+the module's presets (`package_view/presets.tsx`: the entries of
 `RunAuthoringContext.presets` whose metric the module produced, in preset order,
 each rendered through S11's shared `_shared/figure_preview.ts` helper under the
 page scope; a preset whose metric is stamped unavailable shows the stamped
@@ -349,22 +354,22 @@ editor wrapper, with the default's metric and config, the page scope and the
 package's authoring context, so the user can disaggregate it differently to look
 at, and closing returns nothing: no draft, no storage, no route, no cache key,
 no write of any kind), then its settings, Script and Logs viewers (gated
-client-side by `canViewPackageContents()`/`canViewPackageLogs()` in
-`status.tsx`) and output files with download, from `RunDetail.modules[]`, which
-`readRunDetail` fills from the manifest's own definition blob (label and the
-three presentation facts). The active family (starts at the first), the selected
-module per family (starts at the primary) and the page scope are page signals
-that die with the page. Modules are named from the package's manifest on every
-ready surface; the registry label (`moduleLabel` in `status.tsx`) names modules
-only where there is no manifest: the status bar's chips of a generating or
-failed package, the failed body, and the wizard's confirm step. Both ready reads
-run once the row is ready (a run that becomes ready under the open page fetches
-then); a manifest the server cannot read fails them, and the page shows that
-error as the body. The detail is **T2, immutable-by-identity**
-(`state/instance/t2_runs.ts`, `createReactiveCache` keyed `[runId]`,
-`versionKey: () => "immutable"`, the `t2_images` shape: nothing ever invalidates
-it because a ready run dir never changes; bump the cache name when `RunDetail`
-changes shape). Script/log bytes stay T3.
+client-side by `canViewPackageContents()` in `status.tsx`) and output files with
+download, from `RunDetail.modules[]`, which `readRunDetail` fills from the
+manifest's own definition blob (label and the three presentation facts). The
+active family (starts at the first), the selected module per family (starts at
+the primary) and the page scope are page signals that die with the page. Modules
+are named from the package's manifest on every ready surface; the registry label
+(`moduleLabel` in `status.tsx`) names modules only where there is no manifest:
+the status bar's chips of a generating or failed package, the failed body, and
+the wizard's confirm step. Both ready reads run once the row is ready (a run
+that becomes ready under the open page fetches then); a manifest the server
+cannot read fails them, and the page shows that error as the body. The detail is
+**T2, immutable-by-identity** (`state/instance/t2_runs.ts`,
+`createReactiveCache` keyed `[runId]`, `versionKey: () => "immutable"`, the
+`t2_images` shape: nothing ever invalidates it because a ready run dir never
+changes; bump the cache name when `RunDetail` changes shape). Script/log bytes
+stay T3.
 
 The same rule governs the AI tools: the shared tools' `AIToolEnv`
 (`lib/ai_tools/env.ts`) is bound to ONE package at construction: a runId never
@@ -565,11 +570,11 @@ excluded or which is outside its section's module list, and nothing else (S9).
 
 **Scope access.** The scope is a security boundary for data values. An
 unrestricted user reads any ready package under any scope, "All data" included.
-A restricted user (S15 "Scope access") reads only through a scope they hold:
+A restricted user (S18 "Scope access") reads only through a scope they hold:
 `getReadyRunReadContext` and the authoring context's manifest lens take the
 caller's `ScopeAccess`, answer an unknown scope id with `SCOPE_NOT_FOUND` (404)
 first, and then refuse every scope not held with `SCOPE_NOT_GRANTED` (403). A
-restricted user cannot hold "All data" (a grant is a `ScopeUuid`, S15), so they
+restricted user cannot hold "All data" (a grant is a `ScopeUuid`, S18), so they
 are always refused it. There is no null scope, so a lost scope id is a
 validation failure and never a wider read. Package metadata (which periods,
 modules and indicators exist) is not restricted. Package internals (scripts,
@@ -632,6 +637,9 @@ the format, the invariants and the schema version live here. Types:
     iceh_indicators_snapshot.json
     population.csv                  ← monthly person-years per population type
                                       (every HMIS capture; see "population.csv")
+    geojson/<family>_level_<N>.geojson.gz
+                                    ← every instance boundary file, verbatim,
+                                      gzipped (see "inputs/geojson")
     assets/<name>                   ← pinned copies of consumed instance assets
   outputs/<moduleId>/               ← one execution workspace per module
     ___script___.R                  ← the exact script that ran
@@ -704,9 +712,12 @@ definitions verbatim (so existing parsers apply unchanged); pinned asset names +
 hashes; and the memoization fields (`inputKey` per module, content hashes per
 output file).
 
-**`manifestSchemaVersion` gates every read**, currently `14`
-(`RUN_MANIFEST_SCHEMA_VERSION`; v14 = every `indicators[]` entry's `sort_order`
-is its rank within its own dimension, composed with the parent's rank for HFA
+**`manifestSchemaVersion` gates every read**, currently `15`
+(`RUN_MANIFEST_SCHEMA_VERSION`; v15 = `geojsonMaps` stamps the boundary files a
+generation copied into `inputs/geojson/` (family, level, feature count, the
+instance row's `uploadedAt`), `null` in every package written before the
+capture, transform block 13; v14 = every `indicators[]` entry's `sort_order` is
+its rank within its own dimension, composed with the parent's rank for HFA
 sub-categories and variant items, recomputed by block 1 and stamped by block 12,
 with `PO_CACHE_VERSION` "28" since po_items carries the list; v13 = every
 `modules[].moduleDefinition` blob declares `family`, `tier` and `sortOrder`
@@ -829,9 +840,8 @@ surface; scopes have their own rail tab, S15); the wizard only reads it and has
 no "save as instance defaults" action (ruled): a save built from only the
 modules selected for one generation would silently drop curated defaults for
 every other module. The editor lives on the Results surface rather than instance
-Settings because both routes are `can_configure_data` while Settings is
-`can_configure_settings`: the other placement would render UI backed by 403ing
-routes.
+Settings: the defaults are generation configuration, read beside the packages
+they shape.
 
 **Definitions are never stored.** The editor resolves them live on open via
 `getRunGenerationModuleOptions`, the same read the wizard uses, so drift is
@@ -1097,6 +1107,31 @@ hold the ingredients its own formula needs. m012 is the HMIS family's primary
 module; m003, whose raw-versus-adjusted facility view it does not replace, is
 retired.
 
+## inputs/geojson: the boundaries a package was generated with
+
+`prepareRunInputs` copies every `geojson_maps` row, verbatim and gzipped, to
+`inputs/geojson/{family}_level_{N}.geojson.gz` and lists each in `inputFiles`;
+the manifest's `geojsonMaps` stamps what was copied, with the feature count
+parsed during the copy and the row's `uploadedAt`. A copy is a record of what
+the instance held, defects included: nothing is re-keyed, normalized or
+simplified. Measured on the dev instance, four files of 20.5 MB plain add about
+2 MB gzipped to every package. No module declares geometry as a source, so the
+copies are in neither `inputHashes` nor `scriptInputs` and reach no reuse key
+(`server/tests/geojson_capture_test.ts`). The stamp is a generation-time fact,
+so block 13 gives every earlier package `null`, forever; such a package's map
+figures read the instance's boundaries.
+
+Two run-keyed routes serve them, both `requireApprovedUser()` and scope-less
+(geometry carries no data values). `getRunGeoJsonStamp`
+(`GET /run_generation/run/:run_id/geojson`) returns
+`{ found: true, geojsonMaps }`, `null` included, or `{ found: false }` when the
+manifest cannot be read, which is the run's own disk state and no retry changes.
+`GET /run_generation/run/:run_id/geojson/:family/:level` is off the registry: it
+streams the captured file as stored, `Content-Encoding: gzip`,
+`Cache-Control: private, max-age=31536000, immutable`, and 404s for a run or a
+level the package lacks. It is unlogged, like every per-page-load fetch, and its
+path-safe read is `openRunGeoJsonFile` in `package_internals.ts`.
+
 ## population.csv: the person-years file
 
 The run's `inputs/population.csv` is the population store (S5 "Population
@@ -1249,18 +1284,6 @@ hard delete already refuses any run a product points at.
   UI luxuries (Regenerate shortcut, newer-run badge, per-run rename);
   parquet-native R scripts in the modules repo and then dropping raw CSVs from
   runs.
-- **A user with `can_configure_data` but not `can_view_data` gets an error in
-  place of every ready package.** The Results tab needs only
-  `can_configure_data` (`instance/instance.tsx:67-74`, 98), but the ready body
-  always reads `getRunDetail` (`results_packages/package_page.tsx:212-217`), a
-  `can_view_data` route (`server/routes/instance/run_generation.ts:214-215`),
-  and any failure renders the whole body as the error (219-225, 313-322),
-  presets included. Read the detail only when `canViewPackageContents()`
-  (`results_packages/package_view/status.tsx:21-26`), pass it to `FamilyTabs`
-  and `FamilyPane` as optional (`results_packages/package_page.tsx:355`;
-  `results_packages/package_view/family_pane.tsx:24`, 72), and wrap the module
-  pane's Settings (`results_packages/package_view/module_pane.tsx:67-94`) and
-  Output files (116-161) in `<Show when={canViewPackageContents()}>`.
 - **Under a limiting page scope, excluded modules show as red "No data
   available".** The page reads its authoring context at All data whatever the
   page scope (`results_packages/package_page.tsx:214-216`), takes its tabs and

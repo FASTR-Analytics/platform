@@ -19,6 +19,7 @@ import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import { GeoJsonUploadWizard } from "./upload_wizard/mod.ts";
 import { GeoJsonEditModal } from "./edit_modal";
+import { can } from "~/state/instance/permissions";
 
 type Props = {
   family: FacilityFamily;
@@ -110,7 +111,7 @@ export function GeoJsonManager(p: Props) {
             }),
         );
         return (
-          <Show when={instanceState.currentUserIsGlobalAdmin}>
+          <Show when={can("can_configure_data")}>
             <div class="flex gap-2">
               <Button
                 iconName="pencil"
@@ -146,7 +147,7 @@ export function GeoJsonManager(p: Props) {
             onBack={() => p.close(undefined)}
             heading={familyHeading(p.family)}
           >
-            <Show when={instanceState.currentUserIsGlobalAdmin}>
+            <Show when={can("can_configure_data")}>
               <Button iconName="plus" onClick={() => handleUpload(p.family)}>
                 {t3({
                   en: "Upload GeoJSON",

@@ -20,18 +20,20 @@ import {
   guardedHandler,
   resolveOutputConfig,
   resolveThinkingConfig,
-  supportsSamplingParams,
 } from "./deps.ts";
 import type {
   Guard,
   IdentityProvider,
   OutputConfig,
-  ThinkingConfig,
+  ThinkingParam,
 } from "./deps.ts";
 
 const DEFAULT_ANTHROPIC_BASE = "https://api.anthropic.com";
 const DEFAULT_PATH_PREFIX = "/api/ai";
-const DEFAULT_ANTHROPIC_VERSION = "2023-06-01";
+// The sanitizer is written against this version, so it is sent whatever the
+// client asks for: a client built against an older SDK still gets requests
+// the sanitizer has made valid for it.
+const ANTHROPIC_VERSION = "2026-10-21";
 
 // The server key reaches only the endpoints the chat client uses. Every
 // SDK call panther makes (stream, create, parse, toolRunner) is a POST to
@@ -108,10 +110,7 @@ export function createAIProxyHandler<TIdentity>(
     const headers = new Headers();
     headers.set("content-type", "application/json");
     headers.set("x-api-key", config.apiKey);
-    headers.set(
-      "anthropic-version",
-      req.headers.get("anthropic-version") ?? DEFAULT_ANTHROPIC_VERSION,
-    );
+    headers.set("anthropic-version", ANTHROPIC_VERSION);
     const beta = req.headers.get("anthropic-beta");
     if (beta !== null) {
       headers.set("anthropic-beta", beta);
@@ -177,28 +176,28 @@ function forwardedResponseHeaders(upstream: Headers): Headers {
   return out;
 }
 
-// Drop or clamp parameters the request's model rejects. Keyed on
-// `body.model`; a body without a string model is forwarded untouched
-// (the API's own validation answers it). A model ID outside _110's prefix
-// lists keeps sampling params and manual or disabled thinking and loses
-// adaptive thinking and effort, exactly as in the browser client.
+// Drop or clamp parameters the request's model rejects. Sampling params are
+// dropped on every model: API version 2026-10-21 rejects them everywhere, and
+// a client built before panther removed them may still send them.
+// The rest is keyed on `body.model`; a body without a string model is
+// otherwise forwarded untouched (the API's own validation answers it). A
+// model ID outside _110's prefix lists keeps manual or disabled thinking and
+// loses adaptive thinking and effort, exactly as in the browser client.
 function sanitizeRequest(b: unknown): unknown {
   if (!b || typeof b !== "object") {
     return b;
   }
-  const out = { ...(b as Record<string, unknown>) };
+  const { temperature: _t, top_p: _p, top_k: _k, ...out } = b as Record<
+    string,
+    unknown
+  >;
   const model = out.model;
   if (typeof model !== "string") {
     return out;
   }
-  if (!supportsSamplingParams(model)) {
-    delete out.temperature;
-    delete out.top_p;
-    delete out.top_k;
-  }
   const thinking = resolveThinkingConfig(
     model,
-    out.thinking as ThinkingConfig | undefined,
+    out.thinking as ThinkingParam | undefined,
   );
   if (thinking === undefined) {
     delete out.thinking;

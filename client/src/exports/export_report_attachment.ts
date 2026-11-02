@@ -1,4 +1,4 @@
-import { type APIResponseWithData } from "lib";
+import { type APIResponseWithData, emailAttachmentFilename } from "lib";
 import { serverActions } from "~/server_actions";
 import { buildReportPdfFromDetail } from "./export_report_as_paged_pdf";
 
@@ -7,7 +7,7 @@ import { buildReportPdfFromDetail } from "./export_report_as_paged_pdf";
 export type ReportAttachment = {
   content: string;
   filename: string;
-  mimeType: "application/pdf" | "text/html";
+  mimeType: "application/pdf";
 };
 
 export async function buildReportAttachment(
@@ -31,7 +31,7 @@ export async function buildReportAttachment(
       success: true,
       data: {
         content: pdf.data.base64,
-        filename: pdf.data.filename,
+        filename: emailAttachmentFilename(detail.label, "pdf"),
         mimeType: "application/pdf",
       },
     };

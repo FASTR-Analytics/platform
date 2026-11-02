@@ -18,21 +18,16 @@ import {
   Select,
   Show,
   Slider,
-  supportsSamplingParams,
   t3,
 } from "../deps.ts";
 
 export type AIChatSettingsValues = Pick<
   AnthropicModelConfig,
-  "model" | "max_tokens" | "temperature" | "output_config"
+  "model" | "max_tokens" | "output_config"
 >;
 
 // UI field names — "effort" adjusts output_config.effort.
-export type AIChatSettingsField =
-  | "model"
-  | "max_tokens"
-  | "temperature"
-  | "effort";
+export type AIChatSettingsField = "model" | "max_tokens" | "effort";
 
 export type AIChatSettingsPanelProps = {
   initialValues: AIChatSettingsValues;
@@ -60,9 +55,6 @@ export function AIChatSettingsPanel(p: Props) {
       : p.initialValues.model;
 
   const [model, setModel] = createSignal<AnthropicModel>(initialModel);
-  const [temperature, setTemperature] = createSignal(
-    p.initialValues.temperature ?? 1,
-  );
   const [maxTokens, setMaxTokens] = createSignal(p.initialValues.max_tokens);
   const [effort, setEffort] = createSignal<EffortLevel | "">(
     p.initialValues.output_config?.effort ?? "",
@@ -117,11 +109,6 @@ export function AIChatSettingsPanel(p: Props) {
         onClick: () =>
           p.close({
             model: model(),
-            // Models from Opus 4.7 onward reject non-default sampling
-            // params; don't carry a temperature setting onto them.
-            temperature: supportsSamplingParams(model())
-              ? temperature()
-              : undefined,
             max_tokens: Math.min(maxTokens(), getMaxOutputTokens(model())),
             // Re-resolve in case the model changed after the effort was
             // picked (unsupported levels are clamped/dropped per model).
@@ -156,23 +143,6 @@ export function AIChatSettingsPanel(p: Props) {
           value={effort()}
           options={effortOptions()}
           onChange={setEffort}
-          fullWidth
-        />
-      </Show>
-      <Show when={fields.has("temperature") && supportsSamplingParams(model())}>
-        <Slider
-          label={t3({
-            en: "Temperature",
-            fr: "Température",
-            pt: "Temperatura",
-            th: "อุณหภูมิ",
-          })}
-          value={temperature()}
-          onChange={setTemperature}
-          min={0}
-          max={1}
-          step={0.05}
-          showValueInLabel
           fullWidth
         />
       </Show>

@@ -11,6 +11,7 @@ import { createSignal, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import { HfaTimePointForm } from "./time_point_form.tsx";
+import { can } from "~/state/instance/permissions";
 
 type Props = {
   close: (v: undefined) => void;
@@ -139,7 +140,7 @@ export function HfaTimePointsEditor() {
         onEdit={openEdit}
         onDelete={handleDelete}
         onReorder={handleReorder}
-        readOnly={!instanceState.currentUserIsGlobalAdmin}
+        readOnly={!can("can_configure_data")}
         emptyMessage={t3({
           en: "No time points. Add one here or in the data import.",
           fr:

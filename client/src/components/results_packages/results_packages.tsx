@@ -36,6 +36,7 @@ import {
   holdCopilotView,
 } from "~/components/instance/copilot/mod.ts";
 import { serverActions } from "~/server_actions";
+import { can } from "~/state/instance/permissions";
 
 // The instance "Results packages" surface: generation is an instance-level act,
 // so this is both where the launch wizard is entered (an ephemeral modal,
@@ -134,14 +135,17 @@ export function InstanceResultsPackages() {
     await deleteAction.click();
   }
 
-  const bulkActions = (): BulkAction<RunCatalogItem>[] => [
-    {
-      label: t3(TC.delete),
-      intent: "danger",
-      outline: true,
-      onClick: handleBulkDelete,
-    },
-  ];
+  // Generation, the defaults and deletion are can_configure_data, the guard
+  // their routes take; the catalogue itself is a read.
+  const bulkActions = (): BulkAction<RunCatalogItem>[] =>
+    can("can_configure_data")
+      ? [{
+        label: t3(TC.delete),
+        intent: "danger",
+        outline: true,
+        onClick: handleBulkDelete,
+      }]
+      : [];
 
   async function openModuleDefaults(): Promise<void> {
     await openShellEditor({
@@ -238,34 +242,36 @@ export function InstanceResultsPackages() {
           toolbar={{
             search: true,
             children: (
-              <div
-                class="ui-gap-sm flex items-center"
-                data-tour="instance-results-packages-header"
-              >
-                <Button
-                  data-tour="instance-results-packages-defaults"
-                  onClick={openModuleDefaults}
-                  outline
-                  iconName="settings"
+              <Show when={can("can_configure_data")}>
+                <div
+                  class="ui-gap-sm flex items-center"
+                  data-tour="instance-results-packages-header"
                 >
-                  {t3({
-                    en: "Module defaults",
-                    fr: "Paramètres par défaut des modules",
-                    pt: "Predefinições dos módulos",
-                  })}
-                </Button>
-                <Button
-                  data-tour="instance-results-packages-generate"
-                  onClick={openWizard}
-                  iconName="package"
-                >
-                  {t3({
-                    en: "Generate new results package",
-                    fr: "Générer un nouveau paquet de résultats",
-                    pt: "Gerar novo pacote de resultados",
-                  })}
-                </Button>
-              </div>
+                  <Button
+                    data-tour="instance-results-packages-defaults"
+                    onClick={openModuleDefaults}
+                    outline
+                    iconName="settings"
+                  >
+                    {t3({
+                      en: "Module defaults",
+                      fr: "Paramètres par défaut des modules",
+                      pt: "Predefinições dos módulos",
+                    })}
+                  </Button>
+                  <Button
+                    data-tour="instance-results-packages-generate"
+                    onClick={openWizard}
+                    iconName="package"
+                  >
+                    {t3({
+                      en: "Generate new results package",
+                      fr: "Générer un nouveau paquet de résultats",
+                      pt: "Gerar novo pacote de resultados",
+                    })}
+                  </Button>
+                </div>
+              </Show>
             ),
           }}
         />

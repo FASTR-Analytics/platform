@@ -1,14 +1,20 @@
+// The dependency analysis over parsed HFA code: per snippet the variables and
+// indicators it names, and across indicators the graph the generator sorts.
+// The generator and the status core read this one analysis, so a cycle the
+// editor reports is the cycle a run refuses. Pure: this compiles into Deno and
+// Vite.
+
 import {
   describeHfaCodeError,
-  type ExpressionNode,
-  type HfaIndicator,
-  type HfaIndicatorCode,
+  type HfaCodeParse,
   parseHfaIndicatorCode,
-} from "lib";
+} from "./hfa_indicator_code.ts";
+import type { ExpressionNode } from "./indicator_expression/mod.ts";
+import type { HfaIndicator, HfaIndicatorCode } from "./types/mod.ts";
 
 export type ExtractedDependencies = {
-  // Dataset variable ids. `variableIds` is the union across rCode +
-  // rFilterCode (used by the value/missingness expression);
+  // Dataset variable ids. `variableIds` is the union across code + filter
+  // code (used by the value/missingness expression);
   // `codeVariableIds` and `filterVariableIds` split it by source so the
   // response-status expression can decide applicability (filter variables)
   // separately from answer status (code variables).
@@ -33,16 +39,23 @@ export type SnippetAnalysis =
 export type AnalyseSnippet = (snippet: HfaIndicatorCode) => SnippetAnalysis;
 
 // Memoised by snippet object, so the graph pass, its rebuild and the emit
-// pass share one parse.
+// pass share one parse. `parse` lets a caller share a parse cache across
+// passes, as the status core does.
 export function createSnippetAnalyser(
   allIndicatorIds: Set<string>,
   knownVariableIds: Set<string>,
+  parse: (source: string) => HfaCodeParse = parseHfaIndicatorCode,
 ): AnalyseSnippet {
   const cache = new Map<HfaIndicatorCode, SnippetAnalysis>();
   return (snippet) => {
     const cached = cache.get(snippet);
     if (cached !== undefined) return cached;
-    const analysis = analyseSnippet(snippet, allIndicatorIds, knownVariableIds);
+    const analysis = analyseSnippet(
+      snippet,
+      allIndicatorIds,
+      knownVariableIds,
+      parse,
+    );
     cache.set(snippet, analysis);
     return analysis;
   };
@@ -52,16 +65,17 @@ function analyseSnippet(
   snippet: HfaIndicatorCode,
   allIndicatorIds: Set<string>,
   knownVariableIds: Set<string>,
+  parse: (source: string) => HfaCodeParse,
 ): SnippetAnalysis {
-  const code = parseHfaIndicatorCode(snippet.rCode.trim());
+  const code = parse(snippet.code.trim());
   if (!code.ok) {
     return {
       ok: false,
       problem: `Code does not parse: ${describeHfaCodeError(code.error).en}`,
     };
   }
-  const filterSource = snippet.rFilterCode?.trim() ?? "";
-  const filter = filterSource ? parseHfaIndicatorCode(filterSource) : undefined;
+  const filterSource = snippet.filterCode?.trim() ?? "";
+  const filter = filterSource ? parse(filterSource) : undefined;
   if (filter !== undefined && !filter.ok) {
     return {
       ok: false,
@@ -150,7 +164,7 @@ export function buildUnionDependencyGraph(
 
     const codeSnippets = codeByIndicator.get(indicator.indicatorId) ?? [];
     for (const snippet of codeSnippets) {
-      if (!snippet.rCode || snippet.rCode.trim() === "") continue;
+      if (!snippet.code || snippet.code.trim() === "") continue;
 
       const analysis = analyse(snippet);
       for (const problem of snippetProblems(analysis)) {
@@ -277,4 +291,56 @@ function detectCycles(
 
 export function formatCycles(cycles: string[][]): string {
   return cycles.map((cycle) => cycle.join(" → ")).join("\n");
+}
+
+// Every cycle of the main-code dependency graph the generator sorts, as the
+// sorted members of each strongly connected component (an indicator naming
+// itself is a cycle of one). Unlike `topologicalSort`'s cycle paths, every
+// indicator on a cycle is in exactly one of these.
+export function findHfaDependencyCycles(
+  indicators: HfaIndicator[],
+  codeByIndicator: Map<string, HfaIndicatorCode[]>,
+  analyse: AnalyseSnippet,
+): string[][] {
+  const { dependenciesMap } = buildUnionDependencyGraph(
+    indicators,
+    codeByIndicator,
+    analyse,
+  );
+  const index = new Map<string, number>();
+  const lowLink = new Map<string, number>();
+  const stack: string[] = [];
+  const onStack = new Set<string>();
+  const cycles: string[][] = [];
+  const visit = (id: string): void => {
+    index.set(id, index.size);
+    lowLink.set(id, index.get(id)!);
+    stack.push(id);
+    onStack.add(id);
+    for (const dep of dependenciesMap.get(id) ?? []) {
+      if (!index.has(dep)) {
+        visit(dep);
+        lowLink.set(id, Math.min(lowLink.get(id)!, lowLink.get(dep)!));
+      } else if (onStack.has(dep)) {
+        lowLink.set(id, Math.min(lowLink.get(id)!, index.get(dep)!));
+      }
+    }
+    if (lowLink.get(id) !== index.get(id)) return;
+    const component: string[] = [];
+    let member: string;
+    do {
+      member = stack.pop()!;
+      onStack.delete(member);
+      component.push(member);
+    } while (member !== id);
+    if (
+      component.length > 1 || (dependenciesMap.get(id) ?? []).includes(id)
+    ) {
+      cycles.push(component.sort());
+    }
+  };
+  for (const id of dependenciesMap.keys()) {
+    if (!index.has(id)) visit(id);
+  }
+  return cycles;
 }

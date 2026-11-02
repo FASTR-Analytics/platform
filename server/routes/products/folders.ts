@@ -20,7 +20,7 @@ import { respond } from "./_respond.ts";
 
 export const routesFolders = new Hono();
 
-// The guard is the registry entry's `access` (defineRoute installs it), and
+// The guard is the registry entry's `guard` (defineRoute installs it), and
 // productAccessPolicy refuses a restricted user every route here; the DB
 // layer refuses a cycle with the typed FOLDER_CYCLE failure, which returns
 // through the envelope before any notify fires.

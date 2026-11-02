@@ -1,4 +1,9 @@
-import { ALL_ADMIN_AREA_LEVELS, t3 } from "lib";
+import {
+  type AdminAreaOptionsForLevel,
+  ALL_ADMIN_AREA_LEVELS,
+  autoMapAreaNames,
+  t3,
+} from "lib";
 import {
   Button,
   createButtonAction,
@@ -34,17 +39,12 @@ export function Step2(p: Props) {
   });
 
   function buildAutoMapping() {
-    const names = p.state.adminAreaNames();
-    const geoVals = geoJsonValues();
-    const mapping: Record<string, string> = {};
-    const nameLower = new Map(names.map((n) => [n.toLowerCase(), n]));
-    for (const geoVal of geoVals) {
-      const match = nameLower.get(geoVal.toLowerCase());
-      if (match) {
-        mapping[geoVal] = match;
-      }
-    }
-    p.state.setGeoToAdmin(mapping);
+    p.state.setGeoToAdmin(
+      autoMapAreaNames(
+        geoJsonValues(),
+        p.state.adminAreas().options.map((o) => o.value),
+      ).mapping,
+    );
   }
 
   // The admin areas are what the auto-mapping matches against, so a failed
@@ -56,10 +56,9 @@ export function Step2(p: Props) {
         family: p.state.family,
         level: p.state.adminAreaLevel(),
       }),
-    (options: Array<{ value: string; label: string }>) => {
+    (adminAreas: AdminAreaOptionsForLevel) => {
       batch(() => {
-        p.state.setAdminAreaOptions(options);
-        p.state.setAdminAreaNames(options.map((o) => o.value));
+        p.state.setAdminAreas(adminAreas);
         buildAutoMapping();
         p.state.setStep(3);
       });
@@ -92,8 +91,7 @@ export function Step2(p: Props) {
           err: aaRes.err ?? "Failed to fetch admin areas",
         };
       }
-      p.state.setAdminAreaOptions(aaRes.data);
-      p.state.setAdminAreaNames(aaRes.data.map((o) => o.value));
+      p.state.setAdminAreas(aaRes.data);
 
       // Analyze DHIS2 GeoJSON
       const analyzeRes = await serverActions.dhis2AnalyzeGeoJson({
@@ -130,17 +128,12 @@ export function Step2(p: Props) {
         : analyzeRes.data.properties[0];
       p.state.setSelectedProp(defaultProp);
 
-      const aaNames = aaRes.data.map((o) => o.value);
-      const nameLower = new Map(aaNames.map((n) => [n.toLowerCase(), n]));
-      const geoVals = analyzeRes.data.sampleValues[defaultProp] ?? [];
-      const mapping: Record<string, string> = {};
-      for (const geoVal of geoVals) {
-        const match = nameLower.get(geoVal.toLowerCase());
-        if (match) {
-          mapping[geoVal] = match;
-        }
-      }
-      p.state.setGeoToAdmin(mapping);
+      p.state.setGeoToAdmin(
+        autoMapAreaNames(
+          analyzeRes.data.sampleValues[defaultProp] ?? [],
+          aaRes.data.options.map((o) => o.value),
+        ).mapping,
+      );
 
       p.state.setStep(3);
       return { success: true };

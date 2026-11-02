@@ -26,6 +26,7 @@ import {
 } from "../../_shared/mod.ts";
 import { EditHfaFacility } from "./edit_facility.tsx";
 import { alertHfaRegistryOrphans } from "./orphans_alert.tsx";
+import { can } from "~/state/instance/permissions";
 
 // The HFA registry with who set each facility's admin areas and type. A
 // global admin edits a facility by clicking its row.
@@ -166,7 +167,7 @@ export function HfaRegistryTable() {
   }
 
   return (
-    <StateHolderWrapper state={registry()} loadingAndErrorPad="md">
+    <StateHolderWrapper state={registry()}>
       {(rows) => (
         <Table
           config={tableConfig}
@@ -185,8 +186,8 @@ export function HfaRegistryTable() {
               pt: "estabelecimentos",
             }),
           }}
-          toolbar={{ search: true, nested: true }}
-          onRowClick={instanceState.currentUserIsGlobalAdmin
+          toolbar={{ search: true }}
+          onRowClick={can("can_configure_data")
             ? (facility) => void editFacility(facility, rows)
             : undefined}
           paddingY="compact"

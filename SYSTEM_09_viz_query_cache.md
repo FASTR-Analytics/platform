@@ -3,6 +3,7 @@ system: 9
 name: Visualization Query & Cache Service
 globs:
   - client/src/state/instance/t2_run_authoring_context.ts
+  - client/src/state/instance/t2_run_geojson.ts
   - client/src/state/products/t2_figure_data.ts
   - client/src/state/products/t2_grid_items.ts
   - client/src/state/products/t2_replicant_options.ts
@@ -858,6 +859,20 @@ with `resolveScope` inside the effect so an edit to the scope's definition
 re-reads; the package page reads it under "All data", whatever scope its select
 shows, since the page describes the package. A stale figure's update action
 takes its metric from it.
+
+Beside it, [t2_run_geojson.ts](client/src/state/instance/t2_run_geojson.ts)
+holds a package's boundaries, keyed by `runId` alone (geometry carries no data
+values) and immutable for the same reason: each run's geojson stamp
+(`getRunGeoJsonStamp`) and each captured file it lists, in memory and in IDB
+under its own `run_geojson:` prefix. It fetches a stamp itself the first time
+any read names a run it does not hold, so no answer depends on which page asked.
+Its tracked read answers in four states, `ready`, `loading`, `not_in_package`
+and `run_unknown` (no capture, or the run is gone), with a version signal that
+re-runs a tracked read when a stamp or a file lands; `ensureRunGeoJson` is the
+awaitable read for a caller that builds after an await, and on `run_unknown` it
+also loads the instance's file for the level. A failed request is neither held
+nor cached, so a transient failure never settles a run as unknown. Eviction
+drops the runs no longer ready (SYSTEM_03).
 
 **HFA dataset display cache**
 ([routes/caches/dataset.ts](server/routes/caches/dataset.ts)): `ds_hfa` is a

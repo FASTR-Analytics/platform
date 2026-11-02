@@ -1,3 +1,4 @@
+import { GUARD, type RouteGuard } from "../../permissions/mod.ts";
 import { z } from "zod";
 import {
   scopeDefinitionSchema,
@@ -20,6 +21,7 @@ export const scopeRouteRegistry = {
   createScope: route({
     path: "/scopes",
     method: "POST",
+    guard: GUARD.permission("can_configure_data"),
     body: scopeBodySchema,
     response: {} as { scopeId: ScopeUuid },
   }),
@@ -29,6 +31,7 @@ export const scopeRouteRegistry = {
   updateScope: route({
     path: "/scopes/:scope_id",
     method: "PUT",
+    guard: GUARD.permission("can_configure_data"),
     params: scopeIdParamsSchema,
     body: scopeBodySchema,
   }),
@@ -36,6 +39,7 @@ export const scopeRouteRegistry = {
   deleteScope: route({
     path: "/scopes/:scope_id",
     method: "DELETE",
+    guard: GUARD.permission("can_configure_data"),
     params: scopeIdParamsSchema,
   }),
-} as const;
+} as const satisfies Record<string, { guard: RouteGuard }>;

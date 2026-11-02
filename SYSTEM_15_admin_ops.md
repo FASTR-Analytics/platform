@@ -25,9 +25,9 @@ docs_absorbed:
 
 # S15: Instance Administration & Ops
 
-User and permission management, the Scopes page, instance settings UI, plus the
-operational side-channel: health endpoints, disk autonomics, scheduled jobs,
-deploy. Small server surface, highest privilege.
+The Users tab, the Scopes page, instance settings UI, plus the operational
+side-channel: health endpoints, disk autonomics, scheduled jobs, deploy. Small
+server surface, highest privilege.
 
 ## Scope
 
@@ -39,7 +39,7 @@ entry and the four header modals → S14, `logged_in_wrapper.tsx` → S1). Serve
 `routes/instance/health.ts`, `utils/disk_space.ts` (`db/instance/user_logs.ts` →
 S17); cron jobs in `main.ts` (S1-owned, S15 reader);
 `routes/instance/instance.ts` is S5-owned with S15 reading its meta/disk slice;
-the user and permission handlers live in S1's `routes/instance/users.ts`; the
+the user and permission handlers live in S18's `routes/instance/users.ts`; the
 feedback email handler lives in S12's `routes/instance/emails.ts`. Repo:
 `./run`, `./deploy`, `Dockerfile`. External: status-api, SendGrid, the
 ~40-instance production topology (below). The operator connection recipes live
@@ -47,37 +47,38 @@ in the **gitignored** `PROTOCOL_ACCESS_DBS.md`.
 
 ## Contract
 
-Owns the admin surface for the permission rows S1's `routes/instance/users.ts`
-writes and S1 evaluates (guard semantics, permission keys, and special modes
-live in [SYSTEM_01_api_contract.md](SYSTEM_01_api_contract.md)). Health is
-deliberately unauthenticated (and includes one unauthenticated POST write, see
-the exposure inventory); health uses bare Hono routes, so it is invisible to the
-route registry: the sanctioned escape from S1's registry-as-contract. Disk
-autonomics fire out-of-band side effects (volume resize, alert emails) invisible
-to the registry.
+Owns the admin surface for the permission rows S18's `routes/instance/users.ts`
+writes and S18 evaluates (the user-management rule, scope access, guard
+semantics, permission keys and special modes live in
+[SYSTEM_18_permissions.md](SYSTEM_18_permissions.md)). Health is deliberately
+unauthenticated (and includes one unauthenticated POST write, see the exposure
+inventory); health uses bare Hono routes, so it is invisible to the route
+registry: the sanctioned escape from S1's registry-as-contract. Disk autonomics
+fire out-of-band side effects (volume resize, alert emails) invisible to the
+registry.
 
 ## The Scopes page
 
-`components/scopes/` is where a global admin creates, edits and deletes scopes
-(the entity, its routes and its hash are S12 "Scopes"; what a definition filters
-is S9 "The scoped view"). It is the "Scopes" tab on the side rail
-(`instance.tsx`), after Results, shown only when
-`instanceState.currentUserIsGlobalAdmin` is true, the same rule the three scope
-routes enforce with `requireAdmin`. The page sets the chat's `scopes` view (S13)
-while it is open. `InstanceScopes` (`scopes.tsx`) is a fixed panel for the
-reserved "All data" scope above a `Table` over every other scope in
-`instanceState.scopes`. The panel (`AllDataScopePanel`) is the translated label,
-a "Built in" badge, one sentence saying the scope includes every family, limits
-nothing and can be neither edited nor deleted (the routes refuse both, S12), and
-its product count; it is not a row, so no sort, search or selection moves it,
-and nothing opens from it. The table has one row per scope: the label (with a
-"Migrated" badge when `scope.migratedFrom` is set: the update that retired
-projects made it, and hovering names the projects it came from), one column per
-family (HMIS, HFA, ICEH) saying "Excluded", "No limits" or the section's limits
-in a few words, and a Usage column showing the number of products that carry it
-as a badge (`ProductCountBadge`, shared with the results packages table, S8;
-nothing for none), counted in one pass over `instanceState.products`. Each row
-has a checkbox, and the one bulk action, Delete, is the bulk form of the guarded
+`components/scopes/` is where a holder of `can_configure_data` creates, edits
+and deletes scopes (the entity, its routes and its hash are S12 "Scopes"; what a
+definition filters is S9 "The scoped view"). It is the "Scopes" tab on the side
+rail (`instance.tsx`), after Results, shown only when
+`can("can_configure_data")` holds, the flag the three scope routes take (S18).
+The page sets the chat's `scopes` view (S13) while it is open. `InstanceScopes`
+(`scopes.tsx`) is a fixed panel for the reserved "All data" scope above a
+`Table` over every other scope in `instanceState.scopes`. The panel
+(`AllDataScopePanel`) is the translated label, a "Built in" badge, one sentence
+saying the scope includes every family, limits nothing and can be neither edited
+nor deleted (the routes refuse both, S12), and its product count; it is not a
+row, so no sort, search or selection moves it, and nothing opens from it. The
+table has one row per scope: the label (with a "Migrated" badge when
+`scope.migratedFrom` is set: the update that retired projects made it, and
+hovering names the projects it came from), one column per family (HMIS, HFA,
+ICEH) saying "Excluded", "No limits" or the section's limits in a few words, and
+a Usage column showing the number of products that carry it as a badge
+(`ProductCountBadge`, shared with the results packages table, S8; nothing for
+none), counted in one pass over `instanceState.products`. Each row has a
+checkbox, and the one bulk action, Delete, is the bulk form of the guarded
 delete: the confirm lists the ticked scopes by label, then `deleteScope` is
 called for each in turn through `deleteEachInTurn` (S8 "Bulk delete"), so a
 scope a product carries is refused by label while the rest go. A row opens
@@ -130,86 +131,6 @@ Delete is offered on an existing scope and disabled while a product carries it
 count, and that changing what the scope limits marks every visualization in
 those products as out of date (the definition hash changes, S10).
 
-## Scope access
-
-A user is unrestricted (`users.all_scopes`, default TRUE) or restricted to the
-scopes named in `user_scopes` (email, scope id; both foreign keys cascade on
-delete; migration 205). A global admin is unrestricted whatever the flag says.
-`ScopeAccess` (`lib/types/instance.ts`) is `{ all: true }` or
-`{ all: false, scopeIds: ScopeUuid[] }`; `scopeAccessFromRow` builds it,
-`GlobalUser` and every roster row (`OtherUser`) carry it, and `canUseScope` asks
-it. A restricted user sees only products in their scopes, reads data only
-through them (Explore included), has no `/mcp`, no Results or Data page, and
-their `can_view_data`, `can_configure_data` and `can_view_logs` read as false.
-Where each rule is enforced: products and folders S1 (`productAccessPolicy`),
-data reads S8 "Scope access", the instance stream S3, collab S16.
-
-Only a global admin changes it, so a restricted user holding
-`can_configure_users` cannot lift their own restriction. That covers the admin
-flag too, since an admin is unrestricted: `addUsers` and `batchUploadUsers`
-answer 403 (`ADMIN_FLAG_NEEDS_ADMIN`) when a caller who is not a global admin
-asks for `is_admin` TRUE on any row, as `toggleUserAdmin` requires an admin
-outright, and `renameUserEmail` answers the same 403 when such a caller names an
-admin's row, because the rename moves the flag to the new address (the fleet's
-status-key call has no caller and is trusted). The user editor's Scopes card
-(`components/users/user_scopes.tsx`) is shown to global admins and hidden for a
-global admin's row: an "All data" checkbox (the unrestricted state, `all: true`)
-over a multi-select of the instance's other scopes, shown when it is off. "All
-data" is never in that list: the scope filters nothing, so a restricted user
-holding it would be unrestricted in all but name. A restricted user therefore
-never sees a product that carries "All data". `setUserScopeAccess`
-(`POST /user/scope-access`, `requireAdmin`) refuses a global admin and an
-unknown scope id. `all-data` in a grant list never reaches it: a grant is a
-`ScopeUuid` (`lib/types/scope.ts`), the route schema (`scopeUuidSchema`) answers
-it with a 400, and the `user_scopes` CHECK is the backstop. It replaces the flag
-and the grants in one transaction (an unrestricted user keeps no grants),
-re-broadcasts the roster and closes the user's collab sockets. Every route that
-can change a user's access does the same through
-`broadcastRosterAndCloseStaleCollab` (`setUserScopeAccess`, `toggleUserAdmin`,
-`batchUploadUsers`): it closes each collab socket whose access no longer equals
-its user's roster row. The client compares its own row's access with the one its
-connection was built under and reconnects both channels on a change
-(`t1_sse.tsx`). An email rename moves the grants (`rename_user_email.ts`).
-
-The roster row reports a global admin as the guard derives one: on an
-open-access instance every user is a global admin whatever `users.is_admin` says
-(`server/auth/global_user.ts`), so `otherUserFromRow` reports every user of such
-an instance as an admin, with full permissions and every scope.
-
-Product ownership and grants (S12) name users by email with no foreign key, and
-the three paths that remove or move a `users` row keep them consistent.
-`deleteUser` deletes the rows and runs `dropAccessOfMissingUsers` in one
-transaction, so a deleted user's products become ownerless (admins still own
-every product) and their grants go. `batchUploadUsers` with replace-all runs the
-same sweep after its re-inserts, in its transaction, so every user it re-inserts
-keeps their ownership and grants; without replace-all it deletes no row and
-sweeps nothing. `renameUserEmailInMainDb` moves `products.owner` and
-`product_access.email` in the transaction that moves the users row. Each path
-returns the products it changed and its route re-broadcasts their summaries
-(`notifyInstanceProductsUpserted`).
-
-## Permissions (write side)
-
-- **One flat flag set** (`lib/types/permissions.ts`, with a compile-time
-  exhaustiveness assert): 6 instance flags (`USER_PERMISSIONS`:
-  `can_configure_users`, `can_view_users`, `can_view_logs`,
-  `can_configure_settings`, `can_configure_data`, `can_view_data`) stored as
-  columns on `users`, beside `is_admin`. There are no roles and no presets: all
-  editing is per-flag checkboxes and tri-states.
-- S1's `requireGlobalPermission` is the single read-side evaluator, pointer only
-  ([SYSTEM_01](SYSTEM_01_api_contract.md)).
-
-## H_USERS shadow tier
-
-`lib/h_users.ts`: 9 hardcoded emails forming a permission tier outside the flag
-model. Gates: boot-seeded as admins into every new main DB (`db_startup.ts`);
-`unlimitedAi` (`auth/global_user.ts`); the `setUserUnlimitedAi` and
-`setUserContactPerson` routes; client UI sections (`currentUserIsHUser`) and the
-Users-table filter that hides H_USERS by default. They are also skipped by S16's
-edit-session log rows, and renaming one returns a warning that the status is
-lost. The same file carries `_FEEDBACK_EMAIL_RECIPIENTS` for the S12 feedback
-route.
-
 ## Backups
 
 The app has no backup or restore code. Instance backups are a status-api and
@@ -221,14 +142,17 @@ owns the consequences).
 
 `health.ts` uses **bare Hono routes, not `defineRoute`**, with zero entries in
 `route-tracker.ts`, so `validateAllRoutesDefined()` cannot see them: the
-registry blind spot (11 endpoints). `authMiddleware` is `clerkMiddleware()`,
-which populates session state and **never rejects**, and these routes carry no
-guards, so all 11 health endpoints are public by design (external status
-dashboard). What each leaks must stay a deliberate decision:
+registry blind spot (12 endpoints). `authMiddleware` is `clerkMiddleware()`,
+which populates session state and **never rejects**, and the read routes carry
+no guards, so 10 of the 12 health endpoints are public by design (external
+status dashboard); the other two take `requireStatusKey()` (S18). What each
+leaks must stay a deliberate decision:
 
 1. `/health_check`: instance meta, uptime, **every user email + admin emails**,
-   contact persons, whether a run is generating, dataset stats, last user-log
-   row (excluding two hardcoded personal emails).
+   contact persons, `busy` (the work a restart would kill: the count of
+   `generating` runs and the import families with a `running` run, read by the
+   server CLI's restart gate and the status site's busy marker), dataset stats,
+   last user-log row (excluding two hardcoded personal emails).
 2. `/user_logs`: the forever-retained `getCurrentUser` login trail.
 3. `/user_activity?email=`: distinct active days for any email.
 4. `/user_logs_all`: full `user_logs` dump incl. `endpoint_result`.
@@ -237,10 +161,11 @@ dashboard). What each leaks must stay a deliberate decision:
 7. `/ai_weekly_usage`: tokens used vs `_WEEKLY_TOKEN_LIMIT`.
 8. `/ai_limit_hits`: limit-hit log.
 9. `/pg_stat_statements`: query texts + timing across all databases.
-10. `POST /pg_stat_statements_reset`: the only write (and only READ_AND_WRITE
-    connection) on the health surface; requires a `status-api-key` header
-    matching `_STATUS_API_KEY` (401 otherwise).
-11. `/dhis2-indicators-export`: every DHIS2 element in the dictionary with the
+10. `/module_defaults_snapshot`: the module default settings S8's fleet script
+    collects; `requireStatusKey()` (401 without the key).
+11. `POST /pg_stat_statements_reset`: the only write (and only READ_AND_WRITE
+    connection) on the health surface; `requireStatusKey()`.
+12. `/dhis2-indicators-export`: every DHIS2 element in the dictionary with the
     indicator that carries it (`id` = the element's `data_id`, `label`,
     `mappedTo` = the indicator id; wire keys the Admin-Website reads, so they
     stay).
@@ -254,23 +179,22 @@ streams run files instead of `ro_*` COPY.
 Owned by S17 ([SYSTEM_17_logging.md](SYSTEM_17_logging.md)): write path,
 retention cron, and the forever-retained `getCurrentUser` exemption live there.
 S15's stake: the health endpoints above read the tables directly, and
-`getAllUserLogs` backs the Users tab's "Last active" column.
+`getUsersLastActive` (each user's latest log timestamp, `can_view_users`) backs
+the Users tab's "Last active" column.
 
 ## Disk autonomics
 
 [server/utils/disk_space.ts](server/utils/disk_space.ts). `df` on the runs
 volume; **fail-open**: if `df` fails (macOS dev, GNU flags absent) every check
-returns ok. Three checks: `checkFreeDiskSpace` (500 MB free; backs the
-`getDiskSpace` route in `instance.ts`), module run (200 MB; called per module
-from S8's `execute_module.ts`), and dataset extract
-(`pg_total_relation_size ×
-1.5` CSV-export headroom per selected family, called
-at run launch; hmis/hfa only: no iceh entry, Open item). Every check first calls
-`maybeRequestVolumeResize`: at ≥90% used it fires `POST …/volumes/resize` on the
-status-api (`targetSizeGB =
-ceil(used/0.80)`) and a SendGrid alert to two
-hardcoded personal emails, with a 10-minute cooldown against resize spam. Check
-failures surface as user-facing route errors with GB figures.
+returns ok. Two checks: module run (200 MB; called per module from S8's
+`execute_module.ts`) and dataset extract (`pg_total_relation_size × 1.5`
+CSV-export headroom per selected family, called at run launch; hmis/hfa only: no
+iceh entry, Open item). Every check first calls `maybeRequestVolumeResize`: at
+≥90% used it fires `POST …/volumes/resize` on the status-api
+(`targetSizeGB =
+ceil(used/0.80)`) and a SendGrid alert to two hardcoded
+personal emails, with a 10-minute cooldown against resize spam. Check failures
+surface as user-facing route errors with GB figures.
 
 ## Ops: boot, cron, deploy
 
@@ -300,35 +224,39 @@ failures surface as user-facing route errors with GB figures.
 ## Admin UI
 
 - **Users tab** (`users/users.tsx` + `user.tsx` + bulk forms; visibility
-  `admin || can_configure_users || can_view_users`): user table with last-active
-  (from `getAllUserLogs`), admin toggle (server requires full admin: the bulk
-  buttons and the user detail's Make admin and Make non-admin show for
-  `can_configure_users` and 403 at click, Open item), per-user
-  instance-permission checkboxes, batch CSV upload (`email, is_global_admin`
-  headers; server validates emails, optional replace-all), H_USERS-only
-  unlimited-AI/contact-person sections. One bulk tri-state editor
+  `can("can_view_users")`, which configure implies): every affordance renders
+  only for a caller its route admits, read through `canCallRoute` (S18): Add
+  users, Batch import, the Make admin and Make non-admin buttons (bulk and on
+  the user detail, `toggleUserAdmin`, admin-only), Edit permissions, Remove, the
+  operator-only unlimited-AI card, the admin-only contact-person card, and the
+  Last active column with its `getUsersLastActive` query, without which the
+  table sorts by email. Operators are hidden by default and Download exports
+  what the table shows. The user detail holds the toggled keys as a patch over
+  the live roster row (its stored bits, live over `users_updated`) and saves the
+  row with the patch applied; the unlimited-AI and contact-person checkboxes
+  read the row. Batch CSV upload takes `email, is_global_admin` headers (server
+  validates emails, optional replace-all). One bulk tri-state editor
   (`unchanged → true → false`, posting only changed keys) covers the instance
   flags. "Edit scopes" (`bulk_edit_scopes_form.tsx`) writes one scope access,
   "All data" or a scope list, to every selected user through
-  `bulkSetUserScopeAccess`: shown to a global admin and to an unrestricted
-  holder of `can_configure_users`; the route refuses a restricted caller and a
-  non-admin naming themselves, so no one lifts their own restriction, and skips
-  selected global admins. The page holds and sets the chat's `users` view at
-  mount and the user detail (opened over the shell) `user` (S13); each view's
-  label and instructions name the page and never the roster or the email.
+  `bulkSetUserScopeAccess`: shown to an unrestricted holder of its flag. Every
+  write from this tab is held to the user-management rule (S18 "Scope access"),
+  so a manager's selection that names an admin or themselves is refused whole
+  with a 403. The page holds and sets the chat's `users` view at mount and the
+  user detail (opened over the shell) `user` (S13); each view's label and
+  instructions name the page and never the roster or the email.
 - **Self-profile** (`profile.tsx`): AI usage bars; the organisation
   (`users.organisation`, migration 219; the role column it also added is dropped
   by 221) is the user's own words, written through `updateMyProfile`, which
   notifies the roster and pushes the change to every peer's
-  `receiveUserProfileSync` the way a name change travels (`pushToPeers`), and
-  shown to admins as a Users-page column. Nothing asks for it at login. Clear
-  data cache, Clear AI chat history, Sign out and Change email each reload the
-  page, so each asks first while an AI turn runs (S13's
-  `confirmReloadUnderTurn`). Change-email wizard (`change_email_modal.tsx`):
-  adds and code-verifies the address through the Clerk JS SDK, runs S1's
-  `renameUserEmailEverywhere` fleet rename, then flips the Clerk primary and
-  refreshes the session token.
-- **Feedback form** → S12's `sendHelpEmail` route (`requireGlobalPermission()`):
+  `receiveUserProfileSync` the way a name change travels (`pushToPeers`).
+  Nothing asks for it at login. Clear data cache, Clear AI chat history, Sign
+  out and Change email each reload the page, so each asks first while an AI turn
+  runs (S13's `confirmReloadUnderTurn`). Change-email wizard
+  (`change_email_modal.tsx`): adds and code-verifies the address through the
+  Clerk JS SDK, runs S18's `renameUserEmailEverywhere` fleet rename, then flips
+  the Clerk primary and refreshes the session token.
+- **Feedback form** → S12's `sendHelpEmail` route (`requireApprovedUser()`):
   SendGrid confirmation to the user + copies to `_FEEDBACK_EMAIL_RECIPIENTS`,
   `replyTo` the user.
 
@@ -358,40 +286,8 @@ currently internet-exposed behind a shared password).
   has no `iceh` entry.
 - **Hardcoded personal emails** in shipped code: health_check's exclusion list,
   the resize-alert recipients, all fleet-config candidates.
-- **Client/server guard mismatch**: Make admin and Make non-admin show for
-  `can_configure_users`, in the bulk actions (`users/users.tsx:485-506`) and on
-  the user detail (`users/user.tsx:238-265`), but `toggleUserAdmin` requires
-  full admin (`server/routes/instance/users.ts:193`), so both 403 at click. Show
-  both only when `instanceState.currentUserIsGlobalAdmin`.
 - **Legacy UUID project DBs stay on prod hosts** after consolidation; nothing
   drops them (see Production topology).
-- Cruft: dead `showCommingSoon` prop in `users/users.tsx`; unused
-  `openComponent` import in `users/user.tsx:18`.
-- **A failed permissions read lets Save write every bit false, and the
-  checkboxes are not live.** The user detail reads its bits once from
-  `getUserPermissions` (`users/user.tsx:118-128`) and seeds all-false on a
-  failure, so toggling one box makes `hasChanges` true and Save writes the rest
-  as false (130-157); the unlimited-AI and contact-person checkboxes are
-  mount-time copies (92, 104-106), against the comment at 39-41. The roster row
-  already carries the stored bits (`lib/types/instance.ts:273-283`), live over
-  `users_updated`. Keep only the toggled keys as a patch over `p.user` and save
-  `p.user`'s bits with the patch applied, read `unlimitedAi` and
-  `isContactPerson` from `p.user`, and delete `getUserPermissions`, whose only
-  caller this is (`lib/api-routes/instance/users.ts:74`,
-  `server/routes/instance/users.ts:303-312`,
-  `server/db/instance/users.ts:266-292`).
-- **Add users and Batch import show for viewers.** Both buttons render for every
-  Users-tab viewer (`users/users.tsx:143-165`), while `addUsers` and
-  `batchUploadUsers` require `can_configure_users`
-  (`server/routes/instance/users.ts:170`, 243). Lift `canConfigureUsers`
-  (`users.tsx:478-480`) into `InstanceUsers` and render both only when it holds.
-- **Last active shows "..." forever without `can_view_logs`.**
-  `users/users.tsx:39` always runs `getAllUserLogs`, which requires
-  `can_view_logs` (`server/routes/instance/users.ts:295`), so `logs` stays
-  undefined (92-95) and every row renders "..." (363-370). Build the query and
-  the Last active column (352-374) only when
-  `instanceState.currentUserIsGlobalAdmin` or
-  `instanceState.currentUserPermissions.can_view_logs` holds.
 - **Change email's report phase has no button to leave.** After a partial
   failure the footer holds only Retry
   (`instance/change_email_modal.tsx:336-349`), so Escape is the only exit, and

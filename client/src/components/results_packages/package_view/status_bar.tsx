@@ -22,7 +22,11 @@ import {
 } from "solid-js";
 import { PRODUCT_TYPE_REGISTRY } from "~/components/products/mod.ts";
 import { getAdminAreaLabelForLevel } from "~/state/instance/_util_disaggregation_label";
-import { canViewPackageLogs, moduleLabel, ModuleProgressChip } from "./status";
+import {
+  canViewPackageContents,
+  moduleLabel,
+  ModuleProgressChip,
+} from "./status";
 import { ModuleLogsModal } from "./view_logs";
 
 type ModuleChip = {
@@ -145,7 +149,7 @@ export function StatusBar(p: {
                         label={mod.label}
                         status={mod.status}
                         active={mod.active}
-                        onClick={canViewPackageLogs() &&
+                        onClick={canViewPackageContents() &&
                             mod.status !== "pending"
                           ? () => openLogs(mod)
                           : undefined}

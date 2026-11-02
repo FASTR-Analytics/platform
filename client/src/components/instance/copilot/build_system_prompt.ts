@@ -25,6 +25,7 @@ import {
 } from "lib";
 import { scopeDisplayLabel } from "~/components/_shared/mod.ts";
 import type { DataPageId } from "./ai_views";
+import { getRunGeoJsonMapsSync } from "~/state/instance/t2_run_geojson";
 
 // The copilot's system prompt: the shared grounding blocks (lib/ai_tools/
 // build_system_prompt.ts) over the instance alone: country, terminology, data
@@ -80,6 +81,7 @@ export function buildCopilotPackageBlock(
       datasets: authoringContext.datasets,
       hmisIndicators: authoringContext.hmisIndicators,
       icehIndicators: authoringContext.icehIndicators,
+      mapLevels: getRunGeoJsonMapsSync(scope.runId) ?? instance.geojsonMaps,
     },
   });
 }
@@ -227,11 +229,13 @@ export function getUserInstructions(): string {
 The user is on one user's detail page (permissions and scope access). You are told nothing of that user: no name, no email. ${NO_PACKAGE_LINE}`;
 }
 
-// The HFA indicators manager's view: the guidance S5 supplies through the
-// view's context (components/data/hfa/indicators/ai/instructions.ts), under
-// the chat's framing.
+// The HFA indicators manager's view: its own lines, then the guidance S5
+// supplies through the view's context
+// (components/data/hfa/indicators/ai/instructions.ts).
 export function getHfaIndicatorsInstructions(guidance: string): string {
   return `# Current View: HFA indicators manager
+
+The user is in the HFA (Health Facility Assessment) Indicator Manager. You help the user author and maintain the instance's HFA indicators: cleaning up labels, organising indicators into categories, checking that each indicator's code measures what its labels say, and creating new indicators from the survey when asked. Opening an indicator's row opens its code editor, a view of its own. Every write here is batched and shown to the user for confirmation before it applies, so propose concrete, coherent batches rather than asking for permission you already have.
 
 ${guidance}
 
@@ -239,11 +243,16 @@ ${NO_PACKAGE_LINE}`;
 }
 
 // The HFA code editor's view: one indicator's unsaved draft, read and
-// written live through the two editor tools, which the HFA reads serve.
-export function getHfaIndicatorEditorInstructions(label: string): string {
+// written live, under the same guidance as the manager. The view's label
+// names the indicator.
+export function getHfaIndicatorEditorInstructions(guidance: string): string {
   return `# Current View: HFA indicator code editor
 
-The user has the HFA indicator "${label}" open in the code editor. get_hfa_indicator_editor reads the editor's unsaved state: the labels, type, aggregation, categories and the indicator code of every round, each round with the issues the editor's own validation finds. update_hfa_indicator_editor changes that state in place: pass only the fields to change; the change shows in the editor at once and stays unsaved until the user saves it (Save) or discards it (Cancel). The HFA reads (the survey dictionary, a variable's values, the taxonomy, other indicators and their code, validation) are available here; the batched HFA writes are not, since the user edits this one indicator in the editor. ${NO_PACKAGE_LINE}`;
+The user has one HFA indicator open in its code editor. You work on the editor's unsaved state: a change you make shows in the editor at once and stays unsaved until the user saves it (Save) or discards it (Cancel). Change only what the user asked for. The batched writes of the manager are not available here.
+
+${guidance}
+
+${NO_PACKAGE_LINE}`;
 }
 
 // ── Editing mode instructions ──

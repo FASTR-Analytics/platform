@@ -121,14 +121,14 @@ URL is self-reported).
 - Endpoint: `GET /collab`, upgraded in
   [server/routes/instance/collab.ts](server/routes/instance/collab.ts), mounted
   raw in `main.ts` behind the global `authMiddleware` (off-registry, S1's
-  inventory). Admission is origin plus Clerk plus `globalUser.approved`,
-  resolved **before** the upgrade so no message can precede the check. Every
-  document message names its product (`productId`; a report's equals its
-  `reportId`), rooms are keyed `productId::docType::docId`, and presence is
-  keyed by product, so a per-subscribe permission check has its subject without
-  a lookup. The connection carries its user's `scopeAccess` and admin flag,
-  fixed at connect. Its level on a product (S12 "Contract": `none`, `view`,
-  `edit`, `own`) is read once, on the first `slide_subscribe`,
+  inventory). Admission is origin plus Clerk plus `globalUser.approved` (S18
+  "Identity"), resolved **before** the upgrade so no message can precede the
+  check. Every document message names its product (`productId`; a report's
+  equals its `reportId`), rooms are keyed `productId::docType::docId`, and
+  presence is keyed by product, so a per-subscribe permission check has its
+  subject without a lookup. The connection carries its user's `scopeAccess` and
+  admin flag, fixed at connect. Its level on a product (S12 "Contract": `none`,
+  `view`, `edit`, `own`) is read once, on the first `slide_subscribe`,
   `report_subscribe` or product-naming `presence_update` that names the product
   (`readProductLevel`: `own` for a global admin with no query, otherwise one
   `getProductLevelRows` read, `none` unless the user holds the product's scope
@@ -153,15 +153,13 @@ URL is self-reported).
   viewer or editor, so a transfer that moves the previous owner from `own` to
   `edit` closes nothing); `setProductScope` closes every connection that opened
   the product, or whose presence names it, and does not hold its new scope
-  (`closeConnectionsLosingProduct`); and `setUserScopeAccess`, `toggleUserAdmin`
-  and `batchUploadUsers` close every connection whose scope access or admin flag
-  no longer equals its user's roster row (`closeConnectionsWithChangedAccess`),
-  since an admin flag change changes every level. The client reconnects and
-  re-subscribes, and is refused then what it can no longer see. No route closes
-  a deleted user's sockets: `deleteUser` closes none, and
-  `closeConnectionsWithChangedAccess` skips a connection whose user has no
-  roster row, so a socket of a user removed by `deleteUser` or a replace-all
-  `batchUploadUsers` keeps the levels it recorded until it closes.
+  (`closeConnectionsLosingProduct`); and `setUserScopeAccess`,
+  `bulkSetUserScopeAccess`, `toggleUserAdmin`, `deleteUser` and
+  `batchUploadUsers` close every connection whose scope access or admin flag no
+  longer equals its user's roster row, or whose user has no roster row
+  (`closeConnectionsWithChangedAccess`), since an admin flag change changes
+  every level and a deleted user's reconnect is refused. The client reconnects
+  and re-subscribes, and is refused then what it can no longer see.
   `PresenceEntry` carries identity plus opaque document ids, never labels or
   content. Authorization refusals are delivered as a **post-upgrade close** with
   `COLLAB_CLOSE_UNAUTHORIZED` (4403) rather than an HTTP status, because a
@@ -1145,7 +1143,8 @@ Registry entries in
 [slide-decks.ts](lib/api-routes/products/slide-decks.ts) and
 [visualizations.ts](lib/api-routes/products/visualizations.ts); handlers in the
 matching S12 route files under `/products/:product_id/...`. Reads declare
-`access: "view"`, restore and copy `access: "edit"` (the one product guard, S1).
+`GUARD.product("view")`, restore and copy `GUARD.product("edit")` (the one
+product guard, S18).
 List summaries compute sizes/counts in SQL and never ship snapshot content.
 
 **Restore sequencing** (both kinds): ⓪ validate the snapshot's content fields

@@ -9,6 +9,7 @@ import { structureAttemptCsvDetails } from "./instance/215_structure_attempt_csv
 import { applyLegacyUserScopes } from "./instance/217_legacy_user_scopes.ts";
 import { hfaCodeInList } from "./instance/220_hfa_code_in_list.ts";
 import { backfillVisualizationResolvedPair } from "./instance/222_visualizations_resolved_pair_backfill.ts";
+import { lowercaseUserEmails } from "./instance/225_lowercase_user_emails.ts";
 
 // A TypeScript migration runs inside the migration transaction and throws on
 // failure, never Deno.exit, so this runner stays the single rollback and
@@ -29,6 +30,7 @@ export const TS_MIGRATIONS: Record<string, TsMigration> = {
   "220_hfa_code_in_list": hfaCodeInList,
   "222_visualizations_resolved_pair_backfill":
     backfillVisualizationResolvedPair,
+  "225_lowercase_user_emails": lowercaseUserEmails,
 };
 
 interface MigrationFile {

@@ -18,15 +18,29 @@ export type SDKClientConfig = {
     | Record<string, string>;
 };
 
+// Without a key the client authenticates through its proxy (a session in
+// getHeaders or defaultHeaders, or a cookie), so it must never pick up a
+// credential of the machine it runs on: the SDK would otherwise resolve one
+// from its config files and environment.
+class ProxiedAnthropic extends Anthropic {
+  protected override _shouldResolveDefaultCredentials(): boolean {
+    return false;
+  }
+}
+
 export function createSDKClient(config: SDKClientConfig): Anthropic {
   const getHeaders = config.getHeaders;
-  return new Anthropic({
-    // API key placeholder - backend will use real key
-    apiKey: config.apiKey || "not-needed",
-    // Point to your backend proxy
+  const apiKey = config.apiKey || null;
+  return new ProxiedAnthropic({
+    apiKey,
+    // A null keeps ANTHROPIC_AUTH_TOKEN unread.
+    authToken: null,
     baseURL: config.baseURL,
-    // Optional custom headers
-    defaultHeaders: config.defaultHeaders,
+    // A null Authorization tells the SDK no credential is intended, where a
+    // placeholder key would reach the proxy's guard as a bogus bearer token.
+    defaultHeaders: apiKey === null
+      ? { Authorization: null, ...config.defaultHeaders }
+      : config.defaultHeaders,
     ...(getHeaders === undefined ? {} : {
       fetch: async (
         input: RequestInfo | URL,

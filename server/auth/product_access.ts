@@ -24,7 +24,7 @@ import {
 // writes into (body targetProductId), which always need edit. `folderIds`
 // are the folders acted on (a folder route) or named as a destination (a
 // product route). `folderRoute` is true for a route on the folders
-// themselves, which declare folder_id or parentId and no product id.
+// themselves: the folder registry's entries, never decided by a request.
 export type ProductAccessTargets = {
   productIds: string[];
   destinationProductIds: string[];

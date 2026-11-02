@@ -1,13 +1,15 @@
 import { Sql } from "postgres";
 import {
-  _USER_PERMISSIONS_DEFAULT_FULL_ACCESS,
-  ALL_SCOPES,
   APIResponseNoData,
   APIResponseWithData,
   type BatchUser,
-  buildUserPermissionsFromRow,
+  EMAIL_REGEX,
+  type GlobalUser,
+  normaliseEmail,
   OtherUser,
+  pickUserPermissions,
   type ScopeAccess,
+  scopeAccessOf,
   type ScopeUuid,
   type UserPermission,
 } from "lib";
@@ -18,6 +20,14 @@ import { DBUser } from "./_main_database_types.ts";
 import { SCOPE_NOT_FOUND } from "./scopes.ts";
 import { dropAccessOfMissingUsers } from "../products/products.ts";
 import { _OPEN_ACCESS } from "../../exposed_env_vars.ts";
+import { isHUser } from "../../auth/operators.ts";
+import {
+  ADMIN_FLAG_NEEDS_ADMIN,
+  ADMIN_ROW_NEEDS_ADMIN,
+  ADMIN_SELF_DEMOTION_REFUSED,
+  OWN_ROW_REFUSED,
+  SCOPE_ACCESS_ADMIN,
+} from "../../auth/refusals.ts";
 
 const USER_NOT_FOUND = "No matching user";
 
@@ -63,16 +73,6 @@ export async function updateUserOrganisation(
   return updated.length > 0;
 }
 
-// A global admin is unrestricted whatever all_scopes says.
-export function scopeAccessFromRow(
-  row: Pick<DBUser, "is_admin" | "all_scopes">,
-  grantedScopeIds: ScopeUuid[],
-): ScopeAccess {
-  return row.is_admin || row.all_scopes
-    ? ALL_SCOPES
-    : { all: false, scopeIds: grantedScopeIds };
-}
-
 // The grants of the named users, or of every user, in one read.
 export async function getScopeGrantsByEmail(
   mainDb: Sql,
@@ -100,6 +100,8 @@ export async function getScopeGrantsByEmail(
 // On an open-access instance every user is a global admin whatever the
 // stored flag says, as the guard derives it (server/auth/global_user.ts), so
 // the roster, the starting payload, the stream and the client agree with it.
+// The row keeps the STORED permission bits; a reader derives the effective
+// ones with effectivePermissions.
 export function otherUserFromRow(
   row: DBUser,
   grantedScopeIds: ScopeUuid[],
@@ -108,44 +110,41 @@ export function otherUserFromRow(
   return {
     email: row.email,
     isGlobalAdmin,
+    isHUser: isHUser(row.email),
     firstName: row.first_name ?? undefined,
     lastName: row.last_name ?? undefined,
     organisation: row.organisation ?? undefined,
     unlimitedAi: row.unlimited_ai,
     isContactPerson: row.is_contact_person,
-    scopeAccess: scopeAccessFromRow(
-      { is_admin: isGlobalAdmin, all_scopes: row.all_scopes },
-      grantedScopeIds,
-    ),
-    ...(isGlobalAdmin
-      ? _USER_PERMISSIONS_DEFAULT_FULL_ACCESS
-      : buildUserPermissionsFromRow(row)),
+    scopeAccess: scopeAccessOf(isGlobalAdmin, row.all_scopes, grantedScopeIds),
+    ...pickUserPermissions(row),
   };
 }
 
-export async function getOtherUser(
-  mainDb: Sql,
-  email: string,
-): Promise<APIResponseWithData<OtherUser>> {
-  return await tryCatchDatabaseAsync(async () => {
-    const rawUser = (
-      await mainDb<DBUser[]>`SELECT * FROM users WHERE email = ${email}`
-    ).at(0);
-    if (rawUser === undefined) {
-      throw new Error(USER_NOT_FOUND);
-    }
-    const grants = await getScopeGrantsByEmail(mainDb, [email]);
-    return {
-      success: true,
-      data: otherUserFromRow(rawUser, grants.get(email) ?? []),
-    };
-  });
+export type UserManagementCaller = Pick<GlobalUser, "email" | "isGlobalAdmin">;
+
+// The one rule every user-management write applies inside its transaction: a
+// caller who is not a global admin never names an admin's row, which would
+// let them strip or hand over an admin's account, and never their own, which
+// would let them raise their own access. A restricted caller never reaches
+// it: a restricted user holds no flag, so the guard refuses first. The named
+// rows are locked, so a concurrent promotion cannot slip past the check.
+export async function refuseUserManagement(
+  sql: Sql,
+  caller: UserManagementCaller,
+  emails: string[],
+): Promise<string | undefined> {
+  if (caller.isGlobalAdmin) {
+    return undefined;
+  }
+  if (emails.includes(caller.email)) {
+    return OWN_ROW_REFUSED;
+  }
+  const rows = await sql<Pick<DBUser, "is_admin">[]>`
+    SELECT is_admin FROM users WHERE email = ANY(${emails}) FOR UPDATE
+  `;
+  return rows.some((r) => r.is_admin) ? ADMIN_ROW_NEEDS_ADMIN : undefined;
 }
-
-export const ADMIN_FLAG_NEEDS_ADMIN =
-  "Only a global admin can make a user an admin";
-
-export const SCOPE_ACCESS_ADMIN = "A global admin always has every scope";
 
 // Replaces a user's flag and grants together. An unrestricted user keeps no
 // grants, so a later restriction starts from an empty list. "All data"
@@ -154,6 +153,7 @@ export const SCOPE_ACCESS_ADMIN = "A global admin always has every scope";
 // user_scopes CHECK is the backstop.
 export async function setUserScopeAccess(
   mainDb: Sql,
+  caller: UserManagementCaller,
   email: string,
   access: ScopeAccess,
 ): Promise<APIResponseNoData> {
@@ -162,6 +162,10 @@ export async function setUserScopeAccess(
     // The checks lock the rows they read, so a user or scope deleted
     // alongside cannot turn the write into a raw foreign-key error.
     const refusal = await mainDb.begin(async (sql) => {
+      const refused = await refuseUserManagement(sql, caller, [email]);
+      if (refused !== undefined) {
+        return refused;
+      }
       const row = (
         await sql<Pick<DBUser, "is_admin">[]>`
           SELECT is_admin FROM users WHERE email = ${email} FOR UPDATE
@@ -196,16 +200,22 @@ export async function setUserScopeAccess(
   });
 }
 
-// setUserScopeAccess for several users in one transaction. Global admins
-// among them are skipped, not refused, and counted.
+// setUserScopeAccess for several users in one transaction. The rule refuses a
+// caller who is not an admin from naming an admin, so only an admin caller's
+// selection can hold one: those are skipped, not refused, and counted.
 export async function bulkSetUserScopeAccess(
   mainDb: Sql,
+  caller: UserManagementCaller,
   emails: string[],
   access: ScopeAccess,
 ): Promise<APIResponseWithData<{ updated: number; skippedAdmins: number }>> {
   const scopeIds = access.all ? [] : [...new Set(access.scopeIds)];
   return await tryCatchDatabaseAsync(async () => {
     const result = await mainDb.begin(async (sql) => {
+      const refused = await refuseUserManagement(sql, caller, emails);
+      if (refused !== undefined) {
+        return refused;
+      }
       const rows = await sql<Pick<DBUser, "email" | "is_admin">[]>`
         SELECT email, is_admin FROM users WHERE email = ANY(${emails})
         FOR UPDATE
@@ -248,6 +258,7 @@ export async function bulkSetUserScopeAccess(
 
 export async function addUsers(
   mainDb: Sql,
+  caller: UserManagementCaller,
   emails: string[],
   isGlobalAdmin: boolean,
 ): Promise<APIResponseNoData> {
@@ -256,28 +267,55 @@ export async function addUsers(
       return { success: true };
     }
 
-    const values = emails.map((email) => ({ email, is_admin: isGlobalAdmin }));
-    await mainDb`
-      INSERT INTO users ${mainDb(values, "email", "is_admin")}
-      ON CONFLICT (email) DO NOTHING
-    `;
-
-    return { success: true };
+    const values = [...new Set(emails.map(normaliseEmail))].map((email) => ({
+      email,
+      is_admin: isGlobalAdmin,
+    }));
+    const refused = await mainDb.begin(async (sql) => {
+      const refused = await refuseUserManagement(
+        sql,
+        caller,
+        values.map((v) => v.email),
+      );
+      if (refused !== undefined) {
+        return refused;
+      }
+      await sql`
+        INSERT INTO users ${sql(values, "email", "is_admin")}
+        ON CONFLICT (email) DO NOTHING
+      `;
+      return undefined;
+    });
+    return refused === undefined
+      ? { success: true }
+      : { success: false, err: refused };
   });
 }
 
+// An admin is unrestricted (the users CHECK), so a promotion clears the
+// restriction and its grants; a demotion leaves the user unrestricted.
 export async function toggleAdmin(
   mainDb: Sql,
   emails: string[],
   makeAdmin: boolean,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
-    await mainDb`UPDATE users SET is_admin = ${makeAdmin} WHERE email = ANY(${emails})`;
+    await mainDb.begin(async (sql) => {
+      if (!makeAdmin) {
+        await sql`UPDATE users SET is_admin = FALSE WHERE email = ANY(${emails})`;
+        return;
+      }
+      await sql`
+        UPDATE users SET is_admin = TRUE, all_scopes = TRUE
+        WHERE email = ANY(${emails})
+      `;
+      await sql`DELETE FROM user_scopes WHERE email = ANY(${emails})`;
+    });
     return { success: true };
   });
 }
 
-export async function SetUserUnlimitedAi(
+export async function setUserUnlimitedAi(
   mainDb: Sql,
   email: string,
   unlimited: boolean,
@@ -301,21 +339,16 @@ export async function setUserContactPerson(
 
 export async function updateUserPermissions(
   mainDb: Sql,
+  caller: UserManagementCaller,
   email: string,
   permissions: Partial<Record<UserPermission, boolean>>,
 ): Promise<APIResponseNoData> {
-  return await tryCatchDatabaseAsync(async () => {
-    await mainDb`
-      UPDATE users
-      SET ${mainDb(permissions)}
-      WHERE email = ${email}
-    `;
-    return { success: true };
-  });
+  return await bulkUpdateUserPermissions(mainDb, caller, [email], permissions);
 }
 
 export async function bulkUpdateUserPermissions(
   mainDb: Sql,
+  caller: UserManagementCaller,
   emails: string[],
   permissions: Partial<Record<UserPermission, boolean>>,
 ): Promise<APIResponseNoData> {
@@ -323,44 +356,25 @@ export async function bulkUpdateUserPermissions(
     if (Object.keys(permissions).length === 0) {
       return { success: true };
     }
-    await mainDb`
-      UPDATE users
-      SET ${mainDb(permissions)}
-      WHERE email = ANY(${emails})
-    `;
-    return { success: true };
+    const refused = await mainDb.begin(async (sql) => {
+      const refused = await refuseUserManagement(sql, caller, emails);
+      if (refused !== undefined) {
+        return refused;
+      }
+      await sql`
+        UPDATE users
+        SET ${sql(permissions)}
+        WHERE email = ANY(${emails})
+      `;
+      return undefined;
+    });
+    return refused === undefined
+      ? { success: true }
+      : { success: false, err: refused };
   });
 }
 
-export async function getUserPermissions(
-  mainDb: Sql,
-  email: string,
-): Promise<
-  APIResponseWithData<{ permissions: Record<UserPermission, boolean> }>
-> {
-  return await tryCatchDatabaseAsync(async () => {
-    const row = (
-      await mainDb<Record<UserPermission, boolean>[]>`SELECT
-        can_configure_users,
-        can_view_users,
-        can_view_logs,
-        can_configure_settings,
-        can_configure_data,
-        can_view_data
-      FROM users
-      WHERE email=${email}`
-    ).at(0);
-
-    if (!row) throw new Error("User not found");
-
-    return {
-      success: true,
-      data: { permissions: row },
-    };
-  });
-}
-
-export async function GetUserDailyTokenUsage(
+export async function getUserDailyTokenUsage(
   mainDb: Sql,
   userEmail: string,
 ): Promise<number> {
@@ -377,7 +391,37 @@ export async function GetUserDailyTokenUsage(
   return isToday ? row.daily_token_usage : 0;
 }
 
-export async function IncrementUserDailyTokenUsage(
+export const DAILY_EMAIL_LIMIT_REACHED =
+  "You have reached today's email limit. Try again tomorrow.";
+
+// Claims `count` of the user's daily email sends in one statement: the count
+// resets on a new day, and nothing is claimed when the claim would pass the
+// limit, so concurrent sends cannot overshoot it.
+export async function claimDailyEmailSends(
+  mainDb: Sql,
+  userEmail: string,
+  count: number,
+  limit: number,
+): Promise<boolean> {
+  const rows = await mainDb`
+    UPDATE users SET
+      daily_email_count = CASE
+        WHEN daily_email_count_date = CURRENT_DATE
+          THEN daily_email_count + ${count}
+        ELSE ${count}
+      END,
+      daily_email_count_date = CURRENT_DATE
+    WHERE email = ${userEmail}
+      AND CASE
+        WHEN daily_email_count_date = CURRENT_DATE THEN daily_email_count
+        ELSE 0
+      END + ${count} <= ${limit}
+    RETURNING email
+  `;
+  return rows.length > 0;
+}
+
+export async function incrementUserDailyTokenUsage(
   mainDb: Sql,
   userEmail: string,
   tokens: number,
@@ -398,25 +442,34 @@ export async function IncrementUserDailyTokenUsage(
 // for the caller to re-broadcast.
 export async function deleteUser(
   mainDb: Sql,
+  caller: UserManagementCaller,
   emails: string[],
 ): Promise<APIResponseWithData<{ productIds: string[] }>> {
   return await tryCatchDatabaseAsync(async () => {
-    const productIds = await mainDb.begin(async (sql) => {
+    const result = await mainDb.begin(async (sql) => {
+      const refused = await refuseUserManagement(sql, caller, emails);
+      if (refused !== undefined) {
+        return refused;
+      }
       await sql`DELETE FROM users WHERE email = ANY(${emails})`;
       return await dropAccessOfMissingUsers(sql);
     });
-    return { success: true, data: { productIds } };
+    return typeof result === "string"
+      ? { success: false, err: result }
+      : { success: true, data: { productIds: result } };
   });
 }
 
+// Replace-all deletes only the rows the file does not name, so a user it
+// names keeps their flags, scope access, grants, tokens, prompts and history;
+// the sweep then drops the product access of the users it deleted.
 export async function batchUploadUsers(
   mainDb: Sql,
   assetFileName: string,
   replaceAllExisting: boolean,
-  caller: { email: string; isGlobalAdmin: boolean },
+  caller: UserManagementCaller,
 ): Promise<APIResponseWithData<{ productIds: string[] }>> {
   return await tryCatchDatabaseAsync(async () => {
-    // Read and parse the CSV file
     const filePath = resolveAssetFilePath(assetFileName);
     let csvData: Record<string, string>[];
     try {
@@ -434,15 +487,13 @@ export async function batchUploadUsers(
       };
     }
 
-    // Parse batch users from CSV
     const batchUsers: BatchUser[] = csvData.map(
       (row: Record<string, string>) => ({
-        email: row.email || "",
+        email: normaliseEmail(row.email || ""),
         is_global_admin: row.is_global_admin || "false",
       }),
     );
 
-    // Validate required fields
     for (const batchUser of batchUsers) {
       if (!batchUser.email) {
         return {
@@ -450,17 +501,12 @@ export async function batchUploadUsers(
           err: "Each row must have an email address",
         };
       }
-
-      // Validate email format (basic check)
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(batchUser.email)) {
+      if (!EMAIL_REGEX.test(batchUser.email)) {
         return {
           success: false,
           err: `Invalid email format: ${batchUser.email}`,
         };
       }
-
-      // Validate is_global_admin field
       if (
         !["true", "false"].includes(batchUser.is_global_admin.toLowerCase())
       ) {
@@ -474,66 +520,60 @@ export async function batchUploadUsers(
 
     const isAdminRow = (u: BatchUser) =>
       u.is_global_admin.toLowerCase() === "true";
+    // A later row for the same email wins, as it would row by row.
+    const isAdminByEmail = new Map(
+      batchUsers.map((u) => [u.email, isAdminRow(u)]),
+    );
+    const emails = [...isAdminByEmail.keys()];
+    const adminEmails = emails.filter((e) => isAdminByEmail.get(e));
 
     // The admin flag makes a user unrestricted, so only an admin grants it.
-    if (!caller.isGlobalAdmin && batchUsers.some(isAdminRow)) {
+    if (!caller.isGlobalAdmin && adminEmails.length > 0) {
       return { success: false, err: ADMIN_FLAG_NEEDS_ADMIN };
     }
-
-    // Check if current user would lose admin status or be deleted
-    {
-      const currentUserInBatch = batchUsers.find(
-        (u) => u.email === caller.email,
-      );
-      if (
-        replaceAllExisting &&
-        (!currentUserInBatch || !isAdminRow(currentUserInBatch))
-      ) {
-        return {
-          success: false,
-          err:
-            "You cannot replace all existing users without including yourself as admin. Ask another admin to do this.",
-        };
-      }
-      if (
-        caller.isGlobalAdmin && currentUserInBatch &&
-        !isAdminRow(currentUserInBatch)
-      ) {
-        return {
-          success: false,
-          err:
-            "You cannot remove yourself as admin. Ask another admin to do this.",
-        };
-      }
+    const callerIsAdminRow = isAdminByEmail.get(caller.email);
+    if (replaceAllExisting && callerIsAdminRow !== true) {
+      return {
+        success: false,
+        err:
+          "You cannot replace all existing users without including yourself as admin. Ask another admin to do this.",
+      };
+    }
+    if (caller.isGlobalAdmin && callerIsAdminRow === false) {
+      return { success: false, err: ADMIN_SELF_DEMOTION_REFUSED };
+    }
+    if (emails.length === 0) {
+      return { success: true, data: { productIds: [] } };
     }
 
-    // Process the batch users in a transaction. A replace-all sweeps product
-    // access after the re-inserts, so a user it re-inserts keeps their
-    // ownership and grants.
-    const productIds = await mainDb.begin(async (sql) => {
-      // If replaceAllExisting is true, delete all existing users first
+    const result = await mainDb.begin(async (sql) => {
+      const refused = await refuseUserManagement(sql, caller, emails);
+      if (refused !== undefined) {
+        return refused;
+      }
       if (replaceAllExisting) {
-        await sql`
-          DELETE FROM users
-        `;
+        await sql`DELETE FROM users WHERE email <> ALL(${emails})`;
       }
-
-      for (const batchUser of batchUsers) {
-        const isAdmin = isAdminRow(batchUser);
-
-        // Insert or update the user
-        await sql`
-          INSERT INTO users (email, is_admin)
-          VALUES (${batchUser.email}, ${isAdmin})
-          ON CONFLICT (email)
-          DO UPDATE SET
-            is_admin = EXCLUDED.is_admin
-        `;
+      await sql`
+        INSERT INTO users ${
+        sql(
+          emails.map((email) => ({
+            email,
+            is_admin: isAdminByEmail.get(email) ?? false,
+          })),
+          "email",
+          "is_admin",
+        )
       }
-
+        ON CONFLICT (email) DO UPDATE SET
+          is_admin = EXCLUDED.is_admin,
+          all_scopes = users.all_scopes OR EXCLUDED.is_admin
+      `;
+      await sql`DELETE FROM user_scopes WHERE email = ANY(${adminEmails})`;
       return replaceAllExisting ? await dropAccessOfMissingUsers(sql) : [];
     });
-
-    return { success: true, data: { productIds } };
+    return typeof result === "string"
+      ? { success: false, err: result }
+      : { success: true, data: { productIds: result } };
   });
 }

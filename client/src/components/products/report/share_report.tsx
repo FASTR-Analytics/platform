@@ -129,10 +129,10 @@ export function ShareReport(
 
     if (res.success && res.data.sent) {
       setSent(true);
+    } else if (!res.success) {
+      setErr(res.err);
     } else {
-      const failedList = res.success
-        ? (res.data.failedRecipients?.join(", ") ?? "")
-        : res.err;
+      const failedList = res.data.failedRecipients?.join(", ") ?? "";
       setErr(
         t3({
           en: `Failed to send${failedList ? ` to: ${failedList}` : ""}`,

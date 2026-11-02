@@ -1,14 +1,13 @@
 // Product levels end to end: five users (owner, editor, viewer, stranger,
 // global admin) against the real product, folder, slide, deck and report
 // routes and the level-aware guard, the starting payload and the collab
-// socket, on the dev database. The Clerk leg simulates only clerkMiddleware's
-// output contract, as products_routes_test.ts does.
+// socket, on the dev database, through the route-test harness.
 //
 // Needs a ready pinned package on the dev instance. Run alone with:
 //   BYPASS_AUTH= deno test -A --env-file --unstable-broadcast-channel server/tests/product_access_routes_test.ts
 
 import { assert, assertEquals } from "@std/assert";
-import { Hono } from "hono";
+import type { Hono } from "hono";
 import {
   ALL_DATA_SCOPE_ID,
   type APIResponseWithData,
@@ -23,6 +22,7 @@ import { getPgConnectionFromCacheOrNew } from "../db/mod.ts";
 import { getPinnedRunId } from "../db/instance/run_generation.ts";
 import { closeAllConnections } from "../db/postgres/connection_manager.ts";
 import {
+  FOLDER_NOT_FOUND,
   getProductSummaries,
   insertReportVersion,
   insertSlideDeckVersion,
@@ -32,7 +32,6 @@ import {
   PRODUCT_GRANT_DUPLICATE,
   PRODUCT_GRANT_IS_OWNER,
 } from "../db/products/mod.ts";
-import { _BYPASS_AUTH } from "../exposed_env_vars.ts";
 import { buildGlobalUserFromDb } from "../auth/global_user.ts";
 import {
   COLLAB_CLOSE_ACCESS_CHANGED,
@@ -44,6 +43,13 @@ import { routesProductReports } from "../routes/products/reports.ts";
 import { routesProductSlideDecks } from "../routes/products/slide_decks.ts";
 import { routesProductSlides } from "../routes/products/slides.ts";
 import { buildInstanceState } from "../task_management/build_instance_state.ts";
+import {
+  appFor,
+  assertRealAuth,
+  call,
+  ok,
+  statusOf,
+} from "./_harness/route_app.ts";
 
 const OWNER = "product-access-test-owner@example.com";
 const EDITOR = "product-access-test-editor@example.com";
@@ -52,71 +58,16 @@ const STRANGER = "product-access-test-stranger@example.com";
 const ADMIN = "product-access-test-admin@example.com";
 const USERS = [OWNER, EDITOR, VIEWER, STRANGER, ADMIN];
 
-function clerkLegMiddleware(email: string) {
-  const auth = {
-    userId: `user_${email}`,
-    tokenType: "session_token",
-    sessionClaims: { email, firstName: null, lastName: null },
-  };
-  return async (
-    c: { set: (k: never, v: never) => void },
-    next: () => Promise<void>,
-  ) => {
-    c.set("clerkAuth" as never, (() => auth) as never);
-    await next();
-  };
-}
-
-function appFor(email: string): Hono {
-  const app = new Hono();
-  app.use("*", clerkLegMiddleware(email) as never);
-  app.route("/", routesProducts);
-  app.route("/", routesFolders);
-  app.route("/", routesProductSlideDecks);
-  app.route("/", routesProductSlides);
-  app.route("/", routesProductReports);
-  app.route("/", routesCollab);
-  return app;
-}
-
-type Envelope =
-  | { success: true; data?: unknown }
-  | { success: false; err: string };
-
-async function call(
-  app: Hono,
-  method: string,
-  path: string,
-  body?: unknown,
-): Promise<{ status: number; body: Envelope }> {
-  const res = await app.request(path, {
-    method,
-    headers: body === undefined ? {} : { "Content-Type": "application/json" },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-  return { status: res.status, body: await res.json() };
-}
-
-async function ok<T>(
-  app: Hono,
-  method: string,
-  path: string,
-  body?: unknown,
-): Promise<T> {
-  const res = await call(app, method, path, body);
-  assertEquals(res.status, 200, `${method} ${path}: ${JSON.stringify(res)}`);
-  assert(res.body.success, `${method} ${path}: ${JSON.stringify(res.body)}`);
-  return res.body.data as T;
-}
-
-async function status(
-  app: Hono,
-  method: string,
-  path: string,
-  body?: unknown,
-): Promise<number> {
-  return (await call(app, method, path, body)).status;
-}
+const productApp = (email: string) =>
+  appFor(
+    email,
+    routesProducts,
+    routesFolders,
+    routesProductSlideDecks,
+    routesProductSlides,
+    routesProductReports,
+    routesCollab,
+  );
 
 function data<T>(res: APIResponseWithData<T>): T {
   if (!res.success) throw new Error(res.err);
@@ -151,7 +102,7 @@ type CollabSocket = {
 async function collabSocket(email: string): Promise<CollabSocket> {
   const server = Deno.serve(
     { port: 0, onListen: () => {} },
-    appFor(email).fetch,
+    productApp(email).fetch,
   );
   const ws = new WebSocket(`ws://localhost:${server.addr.port}/collab`);
   const inbox: CollabServerMessage[] = [];
@@ -227,11 +178,7 @@ const subscribe = (reportId: string): CollabClientMessage => ({
 });
 
 Deno.test("product levels: the guard, the access routes and the bulk action", async () => {
-  if (_BYPASS_AUTH) {
-    throw new Error(
-      "BYPASS_AUTH is set: the levels harness must exercise the real auth branches. Unset it and re-run.",
-    );
-  }
+  assertRealAuth();
 
   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
   const runId = data(await getPinnedRunId(mainDb));
@@ -246,11 +193,11 @@ Deno.test("product levels: the guard, the access routes and the bulk action", as
     `;
   }
 
-  const owner = appFor(OWNER);
-  const editor = appFor(EDITOR);
-  const viewer = appFor(VIEWER);
-  const stranger = appFor(STRANGER);
-  const admin = appFor(ADMIN);
+  const owner = productApp(OWNER);
+  const editor = productApp(EDITOR);
+  const viewer = productApp(VIEWER);
+  const stranger = productApp(STRANGER);
+  const admin = productApp(ADMIN);
   const productIds: string[] = [];
   const folderIds: string[] = [];
   const sockets: CollabSocket[] = [];
@@ -329,6 +276,63 @@ Deno.test("product levels: the guard, the access routes and the bulk action", as
       const res = await setAccess(owner, id, "none", sharing);
       assertEquals(res.status, 200, JSON.stringify(res.body));
     }
+
+    // A body naming parentId does not make a product route a folder route,
+    // which would skip every product-level check.
+    assertEquals(
+      (await call(stranger, "PUT", `/products/${report}/access`, {
+        defaultAccess: "edit",
+        grants: [],
+        parentId: null,
+      })).status,
+      403,
+    );
+
+    // A report style is reached only through a report it is visible to.
+    const otherReport = await create(owner, "report");
+    const styleBody = (productIds: string[] | null) => ({
+      label: `Levels style ${tag}`,
+      description: "",
+      brief: "b",
+      referenceCss: null,
+      colors: null,
+      productIds,
+    });
+    const style = await ok<{ id: string }>(
+      owner,
+      "POST",
+      `/products/${report}/report/styles`,
+      styleBody([report]),
+    );
+    const otherStylePath = `/products/${otherReport}/report/styles/${style.id}`;
+    const elsewhere = await call(owner, "PUT", otherStylePath, styleBody(null));
+    assertEquals(elsewhere.status, 404, JSON.stringify(elsewhere.body));
+    assertEquals(
+      (await call(owner, "DELETE", otherStylePath)).status,
+      404,
+    );
+    const excluded = await call(
+      owner,
+      "POST",
+      `/products/${otherReport}/report/styles`,
+      styleBody([report]),
+    );
+    assertEquals(excluded.body.success, false);
+    const moved = await call(
+      owner,
+      "PUT",
+      `/products/${report}/report/styles/${style.id}`,
+      styleBody([otherReport]),
+    );
+    assertEquals(moved.body.success, false);
+    await ok(
+      owner,
+      "PUT",
+      `/products/${report}/report/styles/${style.id}`,
+      styleBody([report]),
+    );
+    await ok(owner, "DELETE", `/products/${report}/report/styles/${style.id}`);
+
     const slide = await ok<{ slideId: string }>(
       owner,
       "POST",
@@ -374,11 +378,11 @@ Deno.test("product levels: the guard, the access routes and the bulk action", as
 
     // A stranger holds none: both detail reads are refused.
     assertEquals(
-      await status(stranger, "GET", `/products/${deck}/slide-deck`),
+      await statusOf(stranger, "GET", `/products/${deck}/slide-deck`),
       403,
     );
     assertEquals(
-      await status(stranger, "GET", `/products/${report}/report`),
+      await statusOf(stranger, "GET", `/products/${report}/report`),
       403,
     );
 
@@ -432,7 +436,7 @@ Deno.test("product levels: the guard, the access routes and the bulk action", as
     ];
     for (const [method, path, body] of writes) {
       assertEquals(
-        await status(viewer, method, path, body),
+        await statusOf(viewer, method, path, { body }),
         403,
         `viewer ${method} ${path}`,
       );
@@ -444,12 +448,16 @@ Deno.test("product levels: the guard, the access routes and the bulk action", as
       await ok(editor, method, path, body);
     }
     assertEquals(
-      await status(editor, "DELETE", "/products", { productIds: [report] }),
+      await statusOf(editor, "DELETE", "/products", {
+        body: { productIds: [report] },
+      }),
       403,
     );
     assertEquals(
-      await status(editor, "PUT", `/products/${report}/owner`, {
-        email: EDITOR,
+      await statusOf(editor, "PUT", `/products/${report}/owner`, {
+        body: {
+          email: EDITOR,
+        },
       }),
       403,
     );
@@ -502,11 +510,11 @@ Deno.test("product levels: the guard, the access routes and the bulk action", as
       `/products/${viewerDeck.productId}/slides`,
     );
     assertEquals(
-      await status(
+      await statusOf(
         viewer,
         "POST",
         `/products/${viewerDeck.productId}/slides/copy-to-slide-deck`,
-        { slideIds: [viewerSlides[0].id], targetProductId: deck },
+        { body: { slideIds: [viewerSlides[0].id], targetProductId: deck } },
       ),
       403,
     );
@@ -599,13 +607,17 @@ Deno.test("product levels: the guard, the access routes and the bulk action", as
     `;
     for (const app of [owner, editor, stranger]) {
       assertEquals(
-        await status(app, "DELETE", "/products", { productIds: [ownerless] }),
+        await statusOf(app, "DELETE", "/products", {
+          body: { productIds: [ownerless] },
+        }),
         403,
       );
     }
     assertEquals(
-      await status(owner, "PUT", `/products/${ownerless}/owner`, {
-        email: OWNER,
+      await statusOf(owner, "PUT", `/products/${ownerless}/owner`, {
+        body: {
+          email: OWNER,
+        },
       }),
       403,
     );
@@ -650,11 +662,13 @@ Deno.test("product levels: the guard, the access routes and the bulk action", as
       ],
     };
     assertEquals(
-      await status(editor, "PUT", `/folders/${top}/products/access`, bulk),
+      await statusOf(editor, "PUT", `/folders/${top}/products/access`, {
+        body: bulk,
+      }),
       403,
     );
     assertEquals(
-      await status(stranger, "GET", `/products/${privateInSub}/slide-deck`),
+      await statusOf(stranger, "GET", `/products/${privateInSub}/slide-deck`),
       403,
     );
     const raised = await ok<{ productIds: string[] }>(
@@ -666,8 +680,10 @@ Deno.test("product levels: the guard, the access routes and the bulk action", as
     assertEquals(raised.productIds.sort(), [openInTop, privateInSub].sort());
     await ok(stranger, "GET", `/products/${privateInSub}/slide-deck`);
     assertEquals(
-      await status(stranger, "PUT", `/products/${privateInSub}/label`, {
-        label: "x",
+      await statusOf(stranger, "PUT", `/products/${privateInSub}/label`, {
+        body: {
+          label: "x",
+        },
       }),
       403,
     );
@@ -709,6 +725,40 @@ Deno.test("product levels: the guard, the access routes and the bulk action", as
     });
     assertEquals(await raisedViewer.closeCode(), COLLAB_CLOSE_ACCESS_CHANGED);
     assert(await raisedOwner.alive());
+
+    // An unknown folder id is a typed 404 on every write that names one,
+    // never a foreign-key failure.
+    const nowhere = crypto.randomUUID();
+    for (
+      const [method, path, body] of [
+        ["POST", "/folders", { label: "x", color: null, parentId: nowhere }],
+        ["POST", "/products", {
+          type: "report",
+          folderId: nowhere,
+          runId,
+          scopeId: ALL_DATA_SCOPE_ID,
+        }],
+        ["PUT", "/products/folder", {
+          productIds: [report],
+          folderId: nowhere,
+        }],
+        ["PUT", `/folders/${raisedFolder}/parent`, { parentId: nowhere }],
+        [
+          "POST",
+          `/products/${report}/report/versions/${reportVersionId}/copy`,
+          { label: "x", folderId: nowhere },
+        ],
+        [
+          "POST",
+          `/products/${deck}/slide-deck/versions/${deckVersionId}/copy`,
+          { label: "x", folderId: nowhere },
+        ],
+      ] as const
+    ) {
+      const res = await call(owner, method, path, body);
+      assertEquals(res.status, 404, path);
+      assertEquals(res.body, { success: false, err: FOLDER_NOT_FOUND }, path);
+    }
   } finally {
     for (const socket of sockets) {
       await socket.stop();

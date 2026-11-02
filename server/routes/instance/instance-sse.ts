@@ -2,12 +2,14 @@ import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import {
   canUserSeeAsset,
+  effectivePermissions,
   type Folder,
   type GlobalUser,
   type InstanceSseMessage,
   type InstanceState,
-  permissionsUnderScopeAccess,
+  isRosterRow,
   type ProductSummary,
+  rosterForViewer,
   scopeAccessEqual,
   type ScopeId,
 } from "lib";
@@ -17,7 +19,7 @@ import {
 } from "../../auth/product_access.ts";
 import { listFolders } from "../../db/products/folders.ts";
 import { buildInstanceState } from "../../task_management/build_instance_state.ts";
-import { requireGlobalPermission } from "../../middleware/userPermission.ts";
+import { requireSignedIn } from "../../auth/guards.ts";
 
 export const routesInstanceSSE = new Hono();
 
@@ -41,9 +43,9 @@ export type InstanceSseFilterResult = {
 // `users_updated` carries the full roster, and the connection's own email
 // never changes, so re-finding it in each roster is sufficient):
 //   - Telemetry: `run_progress`/`r_script` (run labels, module ids, R error
-//     detail) go to instance data admins only: a mid-session grant starts the
+//     detail) go to can_view_data holders only: a mid-session grant starts the
 //     stream, a revocation stops it, no reconnect. A restricted user is never
-//     one: permissionsUnderScopeAccess reads its data bits as false.
+//     one: effectivePermissions gives them no flag.
 //   - Roster: an UNAPPROVED connection (its user absent from the roster) gets
 //     `users_updated` rewritten to `[]`: the roster is an enumeration surface
 //     (emails, names, permission maps) with no consumer on the pending-approval
@@ -51,6 +53,9 @@ export type InstanceSseFilterResult = {
 //     message flows through whole, and the client's own-email re-derivation
 //     flips them approved and fills the roster in one step. The starting
 //     payload applies the same rule (buildInstanceState).
+//   - Grounding: the same absent-from-roster test blanks `aiContext` on
+//     `config_updated` and drops `geojson_maps_updated`, as the starting
+//     payload withholds both.
 //   - Product plane: the same absent-from-roster test drops
 //     `products_upserted` / `products_deleted` / `folders_updated` /
 //     `scopes_updated` / `last_updated`, matching the withholding
@@ -73,7 +78,8 @@ export type InstanceSseFilterResult = {
 //     applies to the starting payload.
 //   - Grants: a RESTRICTED connection's scopes are cut to the granted ones.
 //   - A change to the connection's own scope access or admin flag ends the
-//     stream.
+//     stream, and so does an approved connection's user leaving the roster
+//     (deleted): its reconnect is unapproved.
 export type InstanceSseFilterStart = Pick<
   InstanceState,
   | "currentUserEmail"
@@ -94,8 +100,7 @@ export function createInstanceSseFilter(
     isGlobalAdmin: start.currentUserIsGlobalAdmin,
     scopeAccess: start.currentUserScopeAccess,
   };
-  let canSeeRunMessages = start.currentUserIsGlobalAdmin ||
-    start.currentUserPermissions.can_configure_data;
+  let canSeeRunMessages = start.currentUserPermissions.can_view_data;
   let isApproved = start.currentUserApproved;
   let allFolders = deps.allFolders;
   // The connection's own copy of what it holds (product id to folder id),
@@ -121,30 +126,41 @@ export function createInstanceSseFilter(
 
   return (msg) => {
     if (msg.type === "users_updated") {
-      const me = msg.data.find((u) => u.email === viewer.email);
+      // The broadcast carries every full row; the projection for this
+      // connection happens here.
+      const rows = msg.data.filter(isRosterRow);
+      const me = rows.find((u) => u.email === viewer.email);
       const next = {
         email: viewer.email,
         isGlobalAdmin: me?.isGlobalAdmin ?? viewer.isGlobalAdmin,
         scopeAccess: me?.scopeAccess ?? viewer.scopeAccess,
       };
-      const myPermissions = me === undefined
-        ? undefined
-        : permissionsUnderScopeAccess(me, next.scopeAccess);
-      canSeeRunMessages = (me?.isGlobalAdmin ?? false) ||
-        (myPermissions?.can_configure_data ?? false);
+      canSeeRunMessages = me !== undefined &&
+        effectivePermissions(me).can_view_data;
+      const removed = isApproved && me === undefined;
       isApproved = me !== undefined;
-      const changed = !scopeAccessEqual(next.scopeAccess, viewer.scopeAccess) ||
+      const changed = removed ||
+        !scopeAccessEqual(next.scopeAccess, viewer.scopeAccess) ||
         next.isGlobalAdmin !== viewer.isGlobalAdmin;
       viewer = next;
       return {
         messages: [
-          me === undefined ? { type: "users_updated", data: [] } : msg,
+          { type: "users_updated", data: rosterForViewer(rows, viewer.email) },
         ],
         close: changed,
       };
     }
     if (msg.type === "run_progress" || msg.type === "r_script") {
       return canSeeRunMessages ? pass(msg) : drop;
+    }
+    if (msg.type === "config_updated") {
+      return isApproved ? pass(msg) : pass({
+        type: "config_updated",
+        data: { ...msg.data, aiContext: "" },
+      });
+    }
+    if (msg.type === "geojson_maps_updated") {
+      return isApproved ? pass(msg) : drop;
     }
     if (msg.type === "assets_updated") {
       return pass({
@@ -221,7 +237,7 @@ export function createInstanceSseFilter(
 
 routesInstanceSSE.get(
   "/instance_updates",
-  requireGlobalPermission(),
+  requireSignedIn(),
   async (c) => {
     const mainDb = c.var.mainDb;
     const globalUser = c.var.globalUser;
@@ -266,9 +282,9 @@ routesInstanceSSE.get(
 
       try {
         // 1. Build initial state from database (while queuing any concurrent
-        // messages). buildInstanceState is the full payload; the /mcp context
-        // cache grounds on its product-free half
-        // (buildInstanceStateWithoutProducts).
+        // messages). buildInstanceState is the connection's payload; the /mcp
+        // context cache grounds on the per-instance half
+        // (buildInstanceGrounding).
         const res = await buildInstanceState(mainDb, globalUser);
         if (!res.success) {
           await stream.writeSSE({
@@ -295,7 +311,7 @@ routesInstanceSSE.get(
         });
 
         // Every logged-in user, approved or not, reaches this endpoint
-        // (requireGlobalPermission()); createInstanceSseFilter holds the
+        // (requireSignedIn()); createInstanceSseFilter holds the
         // per-message rules. A global admin's messages pass whole, so only
         // everyone else needs the full folder list.
         const allFoldersRes = instanceState.currentUserIsGlobalAdmin

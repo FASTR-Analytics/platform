@@ -84,6 +84,13 @@ import {
   recordVersionEdit,
 } from "../../collab/version_capture.ts";
 import { recordSlideEdited } from "../../collab/deck_session_ledger.ts";
+import {
+  AUTHENTICATION_REQUIRED,
+  AWAITING_APPROVAL,
+  ORIGIN_NOT_ALLOWED,
+  PRODUCT_ACCESS_REFUSED,
+  SERVICE_UNAVAILABLE,
+} from "../../auth/refusals.ts";
 
 type CollabAuth = {
   email: string;
@@ -113,8 +120,6 @@ async function readProductLevel(
     ? productLevelFor(row.access, auth)
     : "none";
 }
-
-const NO_PRODUCT_ACCESS = "You do not have access to this product";
 
 /**
  * Close code for "you are not allowed on this socket": a permanent condition
@@ -194,7 +199,7 @@ routesCollab.get(
     const origin = c.req.header("origin");
     if (origin && !isAllowedWsOrigin(origin, c.req.header("host"))) {
       c.status(403);
-      return c.json({ success: false, err: "Origin not allowed" });
+      return c.json({ success: false, err: ORIGIN_NOT_ALLOWED });
     }
 
     // Denials from here on are surfaced as a post-upgrade close, not an HTTP
@@ -212,17 +217,14 @@ routesCollab.get(
       // reconnect behaviour.
       console.error("[collab] failed to resolve the connecting user:", error);
       c.status(503);
-      return c.json({
-        success: false,
-        err: "Service temporarily unavailable",
-      });
+      return c.json({ success: false, err: SERVICE_UNAVAILABLE });
     }
     if (globalUser === "NOT_AUTHENTICATED") {
-      deny("Authentication required");
+      deny(AUTHENTICATION_REQUIRED);
       return await next();
     }
     if (!globalUser.approved) {
-      deny("User is not approved");
+      deny(AWAITING_APPROVAL);
       return await next();
     }
 
@@ -608,7 +610,11 @@ routesCollab.get(
                 productId,
                 () => ({
                   type: "slide_error",
-                  data: { slideId, message: NO_PRODUCT_ACCESS, fatal: true },
+                  data: {
+                    slideId,
+                    message: PRODUCT_ACCESS_REFUSED,
+                    fatal: true,
+                  },
                 }),
                 () =>
                   void subscribeSlide(
@@ -657,7 +663,11 @@ routesCollab.get(
                 productId,
                 () => ({
                   type: "report_error",
-                  data: { reportId, message: NO_PRODUCT_ACCESS, fatal: true },
+                  data: {
+                    reportId,
+                    message: PRODUCT_ACCESS_REFUSED,
+                    fatal: true,
+                  },
                 }),
                 () =>
                   void subscribeReport(
@@ -712,7 +722,7 @@ routesCollab.get(
                   type: "visualization_error",
                   data: {
                     visualizationId,
-                    message: NO_PRODUCT_ACCESS,
+                    message: PRODUCT_ACCESS_REFUSED,
                     fatal: true,
                   },
                 }),

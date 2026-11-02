@@ -81,14 +81,14 @@ Client EventSource (t1_sse.tsx) → T1 store → version keys flip → caches mi
 
 Exactly **one SSE-feeding** broadcast channel, with one endpoint:
 
-| Channel              | Endpoint                | File                              | Guard                                                         |
-| -------------------- | ----------------------- | --------------------------------- | ------------------------------------------------------------- |
-| `"instance_updates"` | `GET /instance_updates` | `routes/instance/instance-sse.ts` | `requireGlobalPermission()` (hard-deny) + per-message filter† |
+| Channel              | Endpoint                | File                              | Guard                                                 |
+| -------------------- | ----------------------- | --------------------------------- | ----------------------------------------------------- |
+| `"instance_updates"` | `GET /instance_updates` | `routes/instance/instance-sse.ts` | `requireSignedIn()` (hard-deny) + per-message filter† |
 
 † The instance endpoint admits every logged-in user, so the two results-package
 generation messages (`run_progress` and `r_script`, which carry run labels,
 module ids and R error detail) are dropped in the forward loop for callers
-without `can_configure_data`. The filter is LIVE: every `users_updated` passing
+without `can_view_data`. The filter is LIVE: every `users_updated` passing
 through the same forward loop carries the full permission rows, and the filter
 re-derives the connection's entitlement from it (keyed on the connection's own
 email, which never changes), so a mid-session grant starts the stream and a
@@ -97,17 +97,23 @@ because these are ephemeral telemetry. Durable per-user state never relies on
 it: the runs CATALOGUE broadcasts a data-free nonce (`runs_catalog_updated`) and
 each entitled client fetches `listRunCatalog` through its per-request guard, so
 nothing sensitive rides the broadcast and permission changes take effect live.
-The one other per-connection rule on the instance channel is the ROSTER: a
-connection whose user is absent from the `users` table (Clerk-authenticated but
-unapproved) receives `users: []` in `starting` and has every `users_updated`
-rewritten to `[]` in the forward loop, until a roster payload names them, at
-which point that message flows whole and the client's own-email re-derivation
-flips them approved. The roster is an enumeration surface (emails, names,
-permission maps) with no consumer on the pending-approval screen. Deliberately
-NOT withheld from unapproved connections, pending a separate ruling if ever
-wanted: `dhis2ConnectionUrl`, the structure/indicator/dataset summaries, and
-assets; likewise approved non-admin users still receive the full roster. The
-product plane rides the same roster rule: `buildInstanceState` leaves
+The one other per-connection rule on the instance channel is the ROSTER,
+projected per connection by `rosterForViewer` (`lib/permissions/`, S18) in
+`starting` and in every `users_updated` the forward loop passes: a connection
+whose user is absent from the `users` table (Clerk-authenticated but
+unapproved) receives `users: []`, until a roster payload names them, at which
+point the client's own-email re-derivation flips them approved; an approved
+connection receives directory rows (email, names, admin flag, scope access),
+its own row whole; a holder of `can_view_users` (an admin included) receives
+every roster row, flags included. The roster is an enumeration surface (emails,
+names, permission maps) with no consumer on the pending-approval screen. The
+same rule
+withholds the copilot grounding and the boundary files: an unapproved
+connection's `starting` carries `aiContext: ""` and `geojsonMaps: []`, its
+`config_updated` arrives with `aiContext` blanked, and `geojson_maps_updated`
+does not reach it. Deliberately NOT withheld from unapproved connections:
+`dhis2ConnectionUrl`, the structure/indicator/dataset summaries, and assets.
+The product plane rides the same roster rule: `buildInstanceState` leaves
 `products`, `folders`, `readyPackages`, `scopes` and the `lastUpdated` index
 empty for an unapproved connection, and the forward loop drops
 `products_upserted`, `products_deleted`, `folders_updated`, `scopes_updated` and
@@ -119,10 +125,11 @@ the package it serves from.
 
 Every approved connection that is not a global admin gets only the products it
 can see: those whose scope it holds (every scope for an unrestricted user; a
-RESTRICTED one, whose `currentUserScopeAccess.all` is false, S15 "Scope access",
+RESTRICTED one, whose `currentUserScopeAccess.all` is false, S18 "Scope access",
 holds its grants) and on which `productLevelFor` gives at least `view`, the one
-predicate `holdsProductLevel` in `server/auth/product_access.ts` (S12
-"Contract"). A global admin's plane is whole. `buildInstanceState` cuts the
+predicate `holdsProductLevel` in `server/auth/product_access.ts` (S18; S12
+"Contract" says what each level allows). A global admin's plane is whole.
+`buildInstanceState` cuts the
 `starting` payload with `restrictProductPlane`: the visible products; the
 folders whose subtree holds a visible product or that the connection created
 (`visibleFolderIds`), so a folder with nothing the user can see is not shown;
@@ -144,9 +151,10 @@ the granted scopes. For every connection that is not a global admin the folder
 list is recomputed from what it holds on every product or folder message and
 sent as `folders_updated` when it changes. A restricted user's stored data bits
 never open the generation stream. A `users_updated` that changes the
-connection's own scope access or admin flag ends the stream after forwarding it;
-the client reconnects and the new `starting` is built under the new access. The
-filter and `restrictProductPlane` are pinned by
+connection's own scope access or admin flag, or that drops an approved
+connection's user from the roster (a deleted user), ends the stream after
+forwarding it; the client reconnects and the new `starting` is built under the
+new access. The filter and `restrictProductPlane` are pinned by
 `server/tests/instance_sse_filter_test.ts`. No other message on the channel is
 filtered per user.
 
@@ -160,11 +168,13 @@ always `{ type: "starting", data: <full state> }`;
 `{ type: "error", data: { message } }` terminates with an error.
 
 `buildInstanceState` (`task_management/build_instance_state.ts`) is the instance
-`starting` builder in two halves: `buildInstanceStateWithoutProducts` is the
-grounding half the `/mcp` context cache uses (instance facts only, product lists
-empty), and `buildInstanceState` adds the product plane for the SSE handler when
-the caller is approved, each list degrading to empty on a read failure rather
-than stopping the boundary.
+`starting` builder in two halves: `buildInstanceGrounding` is the per-instance
+half the `/mcp` context cache uses (instance facts only: no roster, no
+catalogue, no product plane), and `buildInstanceState` fills the connection's
+share over it, the projected roster (S18 "The roster"), the viewer's assets,
+the catalogue when entitled and, for an approved caller, the product plane,
+each list degrading to empty on a read failure rather than stopping the
+boundary.
 
 **Connection lifecycle: subscribe-before-build.** The endpoint uses Hono's
 `streamSSE` and follows six steps:
@@ -202,16 +212,19 @@ structure write routes; S5 "Population store"),
 `notifyInstanceRunsCatalogUpdated` (`runs_catalog_updated`: a data-free NONCE,
 `crypto.randomUUID()`: a timestamp collided when two mutations landed in the
 same millisecond and the client store's equality guard dropped the second
-refetch. Entitled clients refetch `listRunCatalog` per the † rule above; fired
-by every in-process mutation of the catalogue's facts: launch (the route on
-success, and `generate_run/launch.ts` on the row-created-then-failed path),
-`deleteRun`, the generate-run worker's finalize-or-fail site plus the host's
-crash handler, `pinRun` / `unpinRun`, and the `products.run_id` movers
-`setProductPackage`, `duplicateProduct` and `deleteProducts`),
-`notifyInstancePinnedRunUpdated` (`pinned_run_updated`: the instance's pinned
-results package moved or was cleared, SYSTEM_08 "The pinned package"; carries
-the bare `pinnedRunId | null` and is deliberately UNFILTERED, the
-`config_updated` class: a run id alone is not sensitive (every approved user
+refetch. Entitled clients refetch `listRunCatalog` per the † rule above, and
+every approved client refetches `listReadyPackages` in `t1_sse.tsx`'s
+ready-packages effect, which, once the list is stored, evicts the run-geo store
+(`t2_run_geojson.ts`) of every run not in it, memory and IDB, and evicts it
+whole for an unapproved user; fired by every in-process mutation of the
+catalogue's facts: launch (the route on success, and `generate_run/launch.ts` on
+the row-created-then-failed path), `deleteRun`, the generate-run worker's
+finalize-or-fail site plus the host's crash handler, `pinRun` / `unpinRun`, and
+the `products.run_id` movers `setProductPackage`, `duplicateProduct` and
+`deleteProducts`), `notifyInstancePinnedRunUpdated` (`pinned_run_updated`: the
+instance's pinned results package moved or was cleared, SYSTEM_08 "The pinned
+package"; carries the bare `pinnedRunId | null` and is deliberately UNFILTERED,
+the `config_updated` class: a run id alone is not sensitive (every approved user
 already sees the ids of the packages products serve from) and it is the ONE
 field every surface derives its Pinned badge from. Its callers,
 `server/runs/pin_run.ts`'s `pinRun` and `unpinRun`, each fire it once and then
@@ -461,8 +474,10 @@ Around it:
   could live in `lib/` (Open items).
 - **`clear_caches.ts`**: `clearDataCache()` deletes every IndexedDB key except
   the AI prefixes (`ai-conv`, `ai-documents`, `ai-attachments`) and clears the
-  geojson memory cache; `clearAiChatCache()` deletes only the AI prefixes, so
-  pending attachments survive a deploy and go with Clear AI chat history.
+  memory of the instance geojson store and the run-geo store (whose
+  `run_geojson:` IDB keys that sweep already covers); `clearAiChatCache()`
+  deletes only the AI prefixes, so pending attachments survive a deploy and go
+  with Clear AI chat history.
 - **Deploy flush**: `instance/logged_in_wrapper.tsx` (S1 file, this system a
   reader) compares the server's `serverVersion` against `localStorage` on boot
   and calls `clearDataCache()` on change: client caches auto-invalidate on

@@ -1,5 +1,5 @@
 import type { TranslatableString } from "../translate/types.ts";
-import type { UserPermission } from "./permissions.ts";
+import type { UserPermission } from "./_flags.ts";
 
 export const INSTANCE_PERMISSION_LABELS: Record<
   UserPermission,
@@ -14,16 +14,6 @@ export const INSTANCE_PERMISSION_LABELS: Record<
     en: "View users",
     fr: "Voir les utilisateurs",
     pt: "Ver os utilizadores",
-  },
-  can_view_logs: {
-    en: "View logs",
-    fr: "Voir les journaux",
-    pt: "Ver os registos",
-  },
-  can_configure_settings: {
-    en: "Configure settings",
-    fr: "Configurer les paramètres",
-    pt: "Configurar as definições",
   },
   can_configure_data: {
     en: "Configure data",

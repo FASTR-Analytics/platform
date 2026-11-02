@@ -15,20 +15,22 @@ import type {
   InstanceState,
   InstanceStructureSummary,
   LastUpdateTableName,
-  OtherUser,
   PackageScope,
   ProductSummary,
   ReadyPackage,
   ResolvedPackageScope,
+  RosterEntry,
   RunCatalogItem,
   Scope,
   StructureSchema,
 } from "lib";
 import {
   ALL_SCOPES,
-  permissionsUnderScopeAccess,
+  effectivePermissions,
+  isRosterRow,
   resolvePackageScope,
   scopeAreaForFamily,
+  userPermissions,
 } from "lib";
 
 // ============================================================================
@@ -89,14 +91,7 @@ const EMPTY_INSTANCE_STATE: InstanceState = {
   currentUserApproved: false,
   currentUserIsGlobalAdmin: false,
   currentUserScopeAccess: ALL_SCOPES,
-  currentUserPermissions: {
-    can_configure_users: false,
-    can_view_users: false,
-    can_view_logs: false,
-    can_configure_settings: false,
-    can_configure_data: false,
-    can_view_data: false,
-  },
+  currentUserPermissions: userPermissions(false),
 };
 
 const [instanceState, setInstanceState] = createStore<InstanceState>(
@@ -319,7 +314,7 @@ export function productById(id: string): ProductSummary | undefined {
   return instanceState.products.find((p) => p.id === id);
 }
 
-export function updateInstanceUsers(users: OtherUser[]): void {
+export function updateInstanceUsers(users: RosterEntry[]): void {
   setInstanceState("users", reconcile(users));
 }
 
@@ -341,14 +336,6 @@ export function updateRunsCatalogSignal(signal: string): void {
 
 export function updatePinnedRunId(pinnedRunId: string | null): void {
   setInstanceState("pinnedRunId", pinnedRunId);
-}
-
-// Live read of the current user's own catalogue entitlement: the
-// boundary's catalogue fetch tracks this, so a grant or revocation takes
-// effect without a reconnect.
-export function canSeeRunsCatalog(): boolean {
-  return instanceState.currentUserIsGlobalAdmin ||
-    instanceState.currentUserPermissions.can_configure_data;
 }
 
 export function updateInstanceStructure(data: InstanceStructureSummary): void {
@@ -397,36 +384,16 @@ export function updateInstancePopulation(
 // Current user (per-connection, populated by server in starting message)
 // ============================================================================
 
-// The roster row carries stored permission bits; the current user's are
-// reduced for a restricted user, as the server reduces them.
-export function updateCurrentUser(me: OtherUser | undefined): void {
+// The viewer's own row is always a roster row (rosterForViewer), carrying the
+// stored permission bits; the current user's are the effective ones, derived
+// as the server derives them.
+export function updateCurrentUser(me: RosterEntry | undefined): void {
   const scopeAccess = me?.scopeAccess ?? ALL_SCOPES;
-  const permissions = me === undefined
-    ? undefined
-    : permissionsUnderScopeAccess(me, scopeAccess);
+  const permissions = me !== undefined && isRosterRow(me)
+    ? effectivePermissions(me)
+    : userPermissions(false);
   setInstanceState("currentUserApproved", !!me);
   setInstanceState("currentUserIsGlobalAdmin", me?.isGlobalAdmin ?? false);
   setInstanceState("currentUserScopeAccess", reconcile(scopeAccess));
-  setInstanceState(
-    "currentUserPermissions",
-    reconcile(
-      permissions
-        ? {
-          can_configure_users: permissions.can_configure_users,
-          can_view_users: permissions.can_view_users,
-          can_view_logs: permissions.can_view_logs,
-          can_configure_settings: permissions.can_configure_settings,
-          can_configure_data: permissions.can_configure_data,
-          can_view_data: permissions.can_view_data,
-        }
-        : {
-          can_configure_users: false,
-          can_view_users: false,
-          can_view_logs: false,
-          can_configure_settings: false,
-          can_configure_data: false,
-          can_view_data: false,
-        },
-    ),
-  );
+  setInstanceState("currentUserPermissions", reconcile(permissions));
 }

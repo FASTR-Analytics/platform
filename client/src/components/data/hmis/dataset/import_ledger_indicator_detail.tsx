@@ -1,3 +1,4 @@
+import { Show } from "solid-js";
 import {
   type DatasetHmisImportLedgerItem,
   type Dhis2RunPairInput,
@@ -17,6 +18,7 @@ import {
 } from "panther";
 import { indicatorNameText } from "~/components/data/hmis/_shared/mod.ts";
 import { importRouteLabel, type LedgerPeriodWindow } from "./ledger_table";
+import { can } from "~/state/instance/permissions";
 
 type MonthRow = {
   periodId: number;
@@ -194,13 +196,15 @@ export function ImportLedgerIndicatorDetail(
           subheading={subheading()}
         >
           <div class="ui-gap-sm flex items-center">
-            <Button iconName="databaseImport" onClick={reimportIndicator}>
-              {t3({
-                en: "Re-import this indicator",
-                fr: "Réimporter cet indicateur",
-                pt: "Reimportar este indicador",
-              })}
-            </Button>
+            <Show when={can("can_configure_data")}>
+              <Button iconName="databaseImport" onClick={reimportIndicator}>
+                {t3({
+                  en: "Re-import this indicator",
+                  fr: "Réimporter cet indicateur",
+                  pt: "Reimportar este indicador",
+                })}
+              </Button>
+            </Show>
           </div>
         </HeadingBar>
       }

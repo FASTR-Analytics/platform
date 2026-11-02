@@ -30,6 +30,7 @@ import {
   SaveToPromptLibraryModal,
   type SaveToPromptLibraryResult,
 } from "./save_to_prompt_library_modal";
+import { isGlobalAdmin } from "~/state/instance/permissions";
 
 type Props = {};
 
@@ -456,7 +457,8 @@ function BrowsePhase(p: BrowsePhaseProps) {
                       onSelect={() => p.onSelectCustomPrompt(prompt)}
                       onEdit={() => p.onEditCustomPrompt(prompt)}
                       onDeleted={p.onPromptDeleted}
-                      canEdit={prompt.createdBy === p.currentUserEmail}
+                      canEdit={prompt.createdBy === p.currentUserEmail ||
+                        isGlobalAdmin()}
                     />
                   )}
                 </For>

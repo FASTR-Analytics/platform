@@ -11,6 +11,7 @@ import {
 import { t3 } from "lib";
 import { serverActions } from "~/server_actions";
 import type { CustomPrompt } from "lib";
+import { can } from "~/state/instance/permissions";
 
 type Props = {
   initialContent: string;
@@ -154,6 +155,8 @@ export function SaveToPromptLibraryModal(
           value={scope()}
           onChange={(v) => setScope(v as "user" | "country")}
           horizontal
+          // A country prompt reaches every user's copilot, so the server lets
+          // only a can_configure_data holder publish or re-scope one.
           options={[
             {
               value: "user",
@@ -163,14 +166,16 @@ export function SaveToPromptLibraryModal(
                 pt: "Os meus prompts (privado)",
               }),
             },
-            {
-              value: "country",
-              label: t3({
-                en: "Country prompts (shared)",
-                fr: "Prompts pays (partagé)",
-                pt: "Prompts do país (partilhado)",
-              }),
-            },
+            ...(can("can_configure_data")
+              ? [{
+                value: "country",
+                label: t3({
+                  en: "Country prompts (shared)",
+                  fr: "Prompts pays (partagé)",
+                  pt: "Prompts do país (partilhado)",
+                }),
+              }]
+              : []),
           ]}
         />
       </div>

@@ -29,6 +29,7 @@ import {
 } from "~/state/instance/t1_store";
 import { getAdminAreaLabel } from "~/state/instance/_util_disaggregation_label";
 import { StructureWithCsv } from "./with_csv";
+import { can } from "~/state/instance/permissions";
 
 type Props = {
   family: FacilityFamily;
@@ -110,9 +111,10 @@ export function Facilities(p: Props) {
     StructureUploadAttemptDetail | undefined
   >(undefined);
 
-  // HFA facilities come from each round's data import, never from here.
+  // HFA facilities come from each round's data import, never from here, and
+  // only the Imports panel, a configure control, reads the attempt.
   async function fetchUploadAttempt() {
-    if (p.family !== "hmis") {
+    if (p.family !== "hmis" || !can("can_configure_data")) {
       return;
     }
     try {
@@ -176,6 +178,9 @@ export function Facilities(p: Props) {
       ? instanceState.structure?.hmis.facilities
       : instanceState.structure?.hfa.facilities) ?? 0;
 
+  // The HMIS CSV table runs edge to edge, as every TableFromCsv page does.
+  const csvTableShown = () => p.family === "hmis" && facilityCount() > 0;
+
   return (
     <EditorWrapper>
       <FrameTop
@@ -200,8 +205,9 @@ export function Facilities(p: Props) {
         }
       >
         <FrameRight
+          pad={csvTableShown() ? undefined : "md"}
           panelChildren={
-            <Show when={instanceState.currentUserIsGlobalAdmin}>
+            <Show when={can("can_configure_data")}>
               <div class="ui-pad ui-spy flex h-full w-64 flex-col overflow-auto">
                 <Switch>
                   <Match when={p.family === "hfa"}>
@@ -306,32 +312,26 @@ export function Facilities(p: Props) {
             </Show>
           }
         >
-          <div class="h-full w-full">
-            <Show
-              when={facilityCount() > 0}
-              fallback={
-                <div class="ui-pad">
-                  {t3({
-                    en: "No facilities imported",
-                    fr: "Aucun établissement importé",
-                    pt: "Nenhum estabelecimento importado",
-                  })}
-                </div>
-              }
-            >
-              <Switch>
-                <Match when={p.family === "hfa"}>
-                  <HfaRegistryTable />
-                </Match>
-                <Match when={p.family === "hmis"}>
-                  <StructureWithCsv
-                    family={p.family}
-                    onCsvReady={(csv) => setCsvDataIsReady(csv)}
-                  />
-                </Match>
-              </Switch>
-            </Show>
-          </div>
+          <Show
+            when={facilityCount() > 0}
+            fallback={t3({
+              en: "No facilities imported",
+              fr: "Aucun établissement importé",
+              pt: "Nenhum estabelecimento importado",
+            })}
+          >
+            <Switch>
+              <Match when={p.family === "hfa"}>
+                <HfaRegistryTable />
+              </Match>
+              <Match when={p.family === "hmis"}>
+                <StructureWithCsv
+                  family={p.family}
+                  onCsvReady={(csv) => setCsvDataIsReady(csv)}
+                />
+              </Match>
+            </Switch>
+          </Show>
         </FrameRight>
       </FrameTop>
     </EditorWrapper>

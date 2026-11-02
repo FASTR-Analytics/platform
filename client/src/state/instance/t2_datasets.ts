@@ -186,8 +186,8 @@ const _HFA_DICTIONARY_CACHE = createReactiveCache<
   { hfaCacheHash: string },
   HfaDictionaryForValidation
 >({
-  name: "hfa_dictionary",
-  uniquenessKeys: () => ["hfa_dictionary"],
+  name: "hfa_dictionary_v2",
+  uniquenessKeys: () => ["hfa_dictionary_v2"],
   versionKey: (params) => params.hfaCacheHash,
 });
 

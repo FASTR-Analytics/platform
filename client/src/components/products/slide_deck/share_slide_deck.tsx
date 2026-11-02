@@ -1,4 +1,4 @@
-import { emailRecipientsSchema, t3, TC } from "lib";
+import { emailAttachmentFilename, emailRecipientsSchema, t3, TC } from "lib";
 import {
   createTableConfig,
   EditorComponentProps,
@@ -127,7 +127,7 @@ export function ShareSlideDeck(
       message: message(),
       attachment: {
         content: pdfResult.data,
-        filename: `${p.deckLabel}.pdf`,
+        filename: emailAttachmentFilename(p.deckLabel, "pdf"),
       },
     });
 
@@ -135,10 +135,10 @@ export function ShareSlideDeck(
 
     if (res.success && res.data.sent) {
       setSent(true);
+    } else if (!res.success) {
+      setErr(res.err);
     } else {
-      const failedList = res.success
-        ? (res.data.failedRecipients?.join(", ") ?? "")
-        : res.err;
+      const failedList = res.data.failedRecipients?.join(", ") ?? "";
       setErr(
         t3({
           en: `Failed to send${failedList ? ` to: ${failedList}` : ""}`,

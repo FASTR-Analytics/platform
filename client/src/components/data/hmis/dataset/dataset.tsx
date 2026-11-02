@@ -53,6 +53,7 @@ import {
   DatasetDisplayPresentation,
   type VizConfig,
 } from "./dataset_display_presentation";
+import { can, canCallRoute } from "~/state/instance/permissions";
 
 type Props = {
   close: (v: undefined) => void;
@@ -157,7 +158,7 @@ export function InstanceDatasetHmis(p: Props) {
   let indicatorsRequestId = 0;
   createEffect(() => {
     const version = instanceState.indicatorsVersion;
-    if (!version) {
+    if (!version || !canCallRoute("getIndicators")) {
       return;
     }
     const requestId = ++indicatorsRequestId;
@@ -289,7 +290,7 @@ export function InstanceDatasetHmis(p: Props) {
               pt: "Dados HMIS",
             })}
           >
-            <Show when={instanceState.currentUserIsGlobalAdmin}>
+            <Show when={can("can_configure_data")}>
               <div class="ui-gap-sm flex items-center">
                 <Show when={instanceState.hmisImportRunActive}>
                   <Badge intent="neutral">

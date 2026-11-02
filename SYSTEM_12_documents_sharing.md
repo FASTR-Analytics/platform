@@ -44,11 +44,6 @@ globs:
   - server/tests/visualization_stale_test.ts
   - server/tests/products_routes_test.ts
   - server/tests/deck_label_single_source_test.ts
-  - server/tests/product_access_db_test.ts
-  - server/tests/product_access_routes_test.ts
-  - server/tests/product_level_test.ts
-  - server/tests/project_access_match_test.ts
-  - server/tests/scope_grants_routes_test.ts
   - server/tests/scope_routes_test.ts
   - server/tests/report_config_test.ts
   - server/tests/report_format_conversion_test.ts
@@ -138,12 +133,18 @@ functions and additive columns (`saveSlideCheckpoint` / `saveReportCheckpoint`,
 `server/db/products/{reports,slides,slide_decks}.ts`, and the version-history
 routes ride its route files. S12 owns the files, S16 the feature (SYSTEMS.md
 §4.1; [SYSTEM_16_collaboration.md](SYSTEM_16_collaboration.md)). Every product
-route declares its `access` level and is guarded by `requireProductAccess` (S1:
-the user needs the declared level on the product and, if restricted, its scope);
-on the client the gates are `productLevel`, `canEditProduct` and `canOwnProduct`
-in `state/instance/product_access.ts` ("Access in the client" below). There is
-no unauthenticated product surface: a deck reaches recipients as an emailed PDF
-(cross-cutting audit SYSTEMS.md §4.3.9).
+route declares `guard: GUARD.product(level)` and is guarded by
+`requireProductAccess` (S18,
+[SYSTEM_18_permissions.md](SYSTEM_18_permissions.md): the user needs the
+declared level on the product and, if restricted, its scope); on the client the
+gates are `productLevel`, `canEditProduct` and `canOwnProduct` in
+`state/instance/product_access.ts` ("Access in the client" below). There is no
+unauthenticated product surface: a deck reaches recipients as an emailed PDF
+(cross-cutting audit SYSTEMS.md §4.3.9). Emailing a product is capped per user:
+an attachment of at most 25,000,000 base64 characters with a bare file name of
+at most 200 characters, and `DAILY_EMAIL_LIMIT` (default 50) recipients a day,
+refused as `DAILY_EMAIL_LIMIT_REACHED` ("Emails"). Every scope picker lists the
+scopes the connection holds ("Scopes").
 
 **Access is a Google Doc's**. A product has one owner, per-user grants at `view`
 or `edit`, and a general access for everyone else in the instance (`none`,
@@ -181,10 +182,15 @@ no user (`consolidation/user_scopes.ts`). `setProductAccess`
 (`PUT
 /products/:product_id/access`, `edit`) replaces a product's general access
 and grants, and `setProductOwner` (`PUT /products/:product_id/owner`, `own`)
-transfers it. An editor may remove their own grant or lower the general access
-below their own level; the owner and the admins always keep access. None of the
-three bumps `last_updated` or records a version edit: each re-broadcasts the
-summaries it changed.
+transfers it. A transfer and a rescope keep a product's owner holding its
+scope: `setProductOwner` refuses an owner who does not hold it and
+`setProductScope` a scope the current owner lacks, both with
+`PRODUCT_OWNER_LACKS_SCOPE`, and the access dialog's owner picker leaves such
+users out; restricting an owner's scope access later is not checked. An editor
+may remove their own grant or lower the general access below their own level;
+the owner and the admins always keep access. None of the three bumps
+`last_updated` or records a version edit: each re-broadcasts the summaries it
+changed.
 
 **Access in the client.** `productLevel(productId)` derives the connection's own
 level from the product's summary in `instanceState.products` with
@@ -210,10 +216,14 @@ and the slide canvas takes no divider drag, block swap or context menu; the
 report's body editor is read-only, and a FASTR report the user cannot write
 shows its File menu alone in the menu row (`ReportFileMenu`: Download…, Email
 this file…, Make a copy…). A product row in the list shows a lock icon when its
-general access is `none`. Folder and create affordances keep
-`currentUserApproved`, since folders carry no level. The `products_upserted`
-handler fires the stamp listener only for a product whose stamp moved, so an
-access re-broadcast reaches the store and no listener.
+general access is `none`. The create affordances keep `currentUserApproved`,
+since folders carry no level; the folder affordances (New folder, the folder
+menu's rename, move, set-access and delete, and folder drag) render only when
+`canCallRoute("createFolder")` holds (S18), so a restricted user, whom every
+folder route refuses, sees none, and `ListView` takes its folder-menu handler
+optionally and draws no menu button without one. The `products_upserted` handler
+fires the stamp listener only for a product whose stamp moved, so an access
+re-broadcast reaches the store and no listener.
 
 **The access dialog.** `ProductAccessModal` (`_shared/product_access_modal.tsx`)
 is behind "Manage access…" in the product menu, the deck's File menu and the
@@ -230,8 +240,10 @@ already listed. A restricted user who lacks the product's scope is marked, in
 the picker and in their row, because such a grant stays inert until their scope
 access changes. Save calls `setProductOwner` when the owner changed, then
 `setProductAccess` when the draft differs from what the transfer leaves. The
-dialog never offers the owner as a grantee, offers only roster users and lists
-each person once, so it cannot produce the three refusals; one caused by a race
+dialog never offers the owner as a grantee, offers only the directory (what
+every approved connection receives about each user: email, names, admin flag
+and scope access, S18 "The roster") and lists each person once, so it cannot
+produce the three refusals or `PRODUCT_OWNER_LACKS_SCOPE`; one caused by a race
 shows the server's message. Its bulk mode, "Set access for everything in this
 folder…" in the folder menu for a global admin, calls `setFolderProductsAccess`:
 a General access select whose first choice, "Leave as is", sends `none`; the
@@ -279,7 +291,7 @@ layer's barrel `server/db/products/mod.ts` is star-exported from
 `lib/types/scope.ts`.
 
 **Levels.** A user holds one level on a product, ordered `none`, `view`, `edit`,
-`own` (`PRODUCT_LEVELS`, `lib/types/products.ts`). `ProductAccess` is who holds
+`own` (`PRODUCT_LEVELS`, `lib/permissions/`, S18). `ProductAccess` is who holds
 what: `owner`, `defaultAccess` (the general access, what everyone else in the
 instance holds) and `grants` (`{ email, level }`, `view` or `edit`).
 `productLevelFor(access, user)` is the one derivation: a global admin and the
@@ -308,16 +320,16 @@ that the run is `ready` and that both rows exist, and returns the typed
 (`createProduct`, `createVisualization`, `duplicateProduct`,
 `copyReportFromVersion`, `copySlideDeckFromVersion`) writes the actor as `owner`
 and `default_access` `none`, and no grant is copied; `updateProductLabel`,
-`moveProductsToFolder`, `setProductScope` (takes a `scopeId`, and the scope's
-existence is checked in the UPDATE: an unknown scope is `SCOPE_NOT_FOUND`, a 404
-through `_respond.ts`); `deleteProducts` is one `DELETE
-... WHERE id = ANY` on
-the registry, with the batch's slide ids pre-read inside the transaction for the
-room closers; `duplicateProduct` clones `run_id` through `INSERT ... SELECT`,
-takes `scopeId` from the body (the duplicate modal's "keep" sends each source's
-own; an unknown scope is `SCOPE_NOT_FOUND`) and copies the detail through a
-per-type `Record<ProductType, fn>`. The access functions, also in `products.ts`,
-never bump `last_updated`, since the content did not change. `setProductAccess`
+`moveProductsToFolder`, `setProductScope` (takes a `scopeId`; in one transaction
+an unknown scope is `SCOPE_NOT_FOUND`, a 404 through `_respond.ts`, and a scope
+the owner lacks `PRODUCT_OWNER_LACKS_SCOPE`); `deleteProducts` is one `DELETE
+... WHERE id = ANY` on the registry, with the batch's slide ids pre-read inside
+the transaction for the room closers; `duplicateProduct` clones `run_id` through
+`INSERT ... SELECT`, takes `scopeId` from the body (the duplicate modal's "keep"
+sends each source's own; an unknown scope is `SCOPE_NOT_FOUND`) and copies the
+detail through a per-type `Record<ProductType, fn>`. The access functions, also
+in `products.ts`, never bump `last_updated`, since the content did not change.
+`setProductAccess`
 replaces the general access and the whole grant list in one transaction, and
 `setProductOwner` sets the owner, turns the previous owner, if any, into an
 `edit` grantee and drops the new owner's grant, so the owner is never a grantee;
@@ -330,21 +342,28 @@ theirs and the chosen level, and a person who owns a product is skipped for it;
 nothing is lowered or removed, nothing is inherited, and it returns the ids
 whose access changed. Their refusals come back through the envelope at 200:
 `PRODUCT_GRANT_IS_OWNER` (a grant naming the owner, `setProductAccess` only),
-`PRODUCT_GRANT_DUPLICATE` (one email twice) and `PRODUCT_ACCESS_UNKNOWN_USER`
-(an email with no `users` row); an unknown product is `PRODUCT_NOT_FOUND` and an
-unknown folder `FOLDER_NOT_FOUND`. `getProductLevelRows(mainDb, ids, email)`
-reads, in one query, each named product's folder, scope and access carrying only
-that user's grant, which is all `productLevelFor` needs; an id that names no row
-is absent. `getProductLevelRowsInScopes(mainDb, scopeIds, email)` reads the same
-for every product carrying one of the scopes (the restricted folder rule's
-visibility, S1). `dropAccessOfMissingUsers(sql)` runs inside every transaction
-that deletes `users` rows (S15): an owner with no `users` row becomes NULL and a
-grant with no `users` row goes, and it returns the products it changed.
-`folders.ts`: `moveFolder` is the move, writes only the parent and refuses a
-cycle with a recursive CTE walking up from the new parent inside the same
-transaction (`FOLDER_CYCLE`, through the envelope); `updateFolder` writes label
-and colour only, so a rename and a move cannot undo one another; `deleteFolder`
-reparents child folders and products one level and returns `freedProductIds`.
+`PRODUCT_GRANT_DUPLICATE` (one email twice), `PRODUCT_ACCESS_UNKNOWN_USER` (an
+email with no `users` row) and `PRODUCT_OWNER_LACKS_SCOPE` (an owner without
+the product's scope, `setProductOwner` and `setProductScope`); an unknown
+product is `PRODUCT_NOT_FOUND` and an unknown folder `FOLDER_NOT_FOUND`. Every
+write that names a folder (`createProduct`, `moveProductsToFolder`,
+`createFolder`'s parent, `moveFolder`'s parent, `copyReportFromVersion`,
+`copySlideDeckFromVersion`) answers an unknown folder id as `FOLDER_NOT_FOUND`,
+a 404, through `requireFolderExists` (`server/db/products/folders.ts`), which
+share-locks the row inside the write's transaction, never a foreign-key
+failure. `getProductLevelRows(mainDb, ids, email)` reads, in one query, each
+named product's folder, scope and access carrying only that user's grant, which
+is all `productLevelFor` needs; an id that names no row is absent.
+`getProductLevelRowsInScopes(mainDb, scopeIds, email)` reads the same for every
+product carrying one of the scopes (the restricted folder rule's visibility,
+S18). `dropAccessOfMissingUsers(sql)` runs inside every transaction that deletes
+`users` rows (S15): an owner with no `users` row becomes NULL and a grant with
+no `users` row goes, and it returns the products it changed. `folders.ts`:
+`moveFolder` is the move, writes only the parent and refuses a cycle with a
+recursive CTE walking up from the new parent inside the same transaction
+(`FOLDER_CYCLE`, through the envelope); `updateFolder` writes label and colour
+only, so a rename and a move cannot undo one another; `deleteFolder` reparents
+child folders and products one level and returns `freedProductIds`.
 `slide_decks.ts`, `slides.ts`, `move_slides.ts`, `copy_slides.ts`
 (`copySlidesToSlideDeck`, the cross-deck reuse path: configs copied verbatim,
 scoped by the source product), `reports.ts` and `versions.ts` hold the per-type
@@ -368,9 +387,9 @@ ids stay valid).
 every product-scoped path lives under `/products/:product_id/...`
 (`.../slide-deck`, `.../slides/:slide_id`, `.../report`,
 `.../versions/:version_id`), batch targets ride the body as `productIds`, and
-every registry entry declares `access`, which is the whole guard (S1). Handlers
-name only `log(...)`; a not-found envelope from the DB layer leaves as a 404
-through `_respond.ts`, so a slide or version id under the wrong product is
+every registry entry declares its `guard`, which is the whole guard (S18).
+Handlers name only `log(...)`; a not-found envelope from the DB layer leaves as
+a 404 through `_respond.ts`, so a slide or version id under the wrong product is
 a 404. In `routes/products/slides.ts` the move route is registered before the
 per-slide update: both match `PUT
 .../slides/move`, and Hono runs matching
@@ -458,9 +477,9 @@ is the backstop. `rowToScope` derives `definitionHash` on every read.
 **Routes** (`server/routes/instance/scopes.ts` over
 `lib/api-routes/instance/scopes.ts`): `createScope` (`POST /scopes`),
 `updateScope` (`PUT /scopes/:scope_id`) and `deleteScope`
-(`DELETE /scopes/:scope_id`), each guarded
-`requireGlobalPermission({ requireAdmin: true })`. An unknown id on update or
-delete is a 404, and `all-data` on either is a 403 (`SCOPE_RESERVED`).
+(`DELETE /scopes/:scope_id`), each guarded `GUARD.permission("can_configure_data")`
+(S18). An unknown id on
+update or delete is a 404, and `all-data` on either is a 403 (`SCOPE_RESERVED`).
 `server/tests/scope_routes_test.ts` pins both refusals and that the routes take
 only the per-family definition. There is no list route: every successful write
 re-reads the whole list and broadcasts it as `scopes_updated` (S3), and
@@ -480,12 +499,10 @@ is the `scopeToken` of the payload the bundle was built from, and only the area
 (`components/_shared/scope_select.tsx`) is the one control that picks a scope,
 by label, in the order the list arrives: "All data" first, as an ordinary
 option. It is used by the create dialog, `PackageScopeModal`, the duplicate
-modal, Explore (S11) and the package page (S8). The three that attach a scope to
-a product offer `pickableScopes`: every scope to a global admin, the granted
-ones to a restricted user (all its T1 list holds), and "All data" alone to any
-other user, plus a product's current scope so the control still shows it.
-Explore and the package page only read, so they pass `anyScope` and list every
-scope the connection holds. `components/_shared/package_label.ts` names things:
+modal, Explore (S11) and the package page (S8). Every use lists the scopes the
+connection holds, the rule the server enforces: every scope for an
+unrestricted user, the granted ones for a restricted user, which is all its T1
+list holds. `components/_shared/package_label.ts` names things:
 `scopeLabel(scopeId)` (the scope's label, "Unlisted scope" for an id the list
 lacks) and `figureScopeLabel(stamp)` for a stored bundle, which records a hash
 and no id: the label of a scope whose definition still hashes the same, else the
@@ -495,11 +512,11 @@ bundle's area, else "An earlier scope definition". `packageScopeCaption` and
 ## Slide decks
 
 **Data model.** A `slide_decks` detail row keyed by the product id (free-text
-`plan` for the AI planning scratchpad, JSON `config` = deck style and nothing
-else; the name lives on `products`, and `updateSlideDeckConfig` stamps without a
-label so a config write can never rename the deck) + one row per slide (JSON
-`config` = one `Slide`, integer `sort_order`; FK cascade on product delete).
-Slide ids are short nanoids, unique over the live rows only
+`plan`, which no route writes and a duplicate copies, JSON `config` = deck style
+and nothing else; the name lives on `products`, and `updateSlideDeckConfig`
+stamps without a label so a config write can never rename the deck) + one row
+per slide (JSON `config` = one `Slide`, integer `sort_order`; FK cascade on
+product delete). Slide ids are short nanoids, unique over the live rows only
 (`generateUniqueSlideId` checks the `slides` table, so a deleted id can be
 re-minted), which is why `_SLIDE_CACHE` is keyed by `(productId,
 slideId)`.
@@ -971,14 +988,18 @@ via a `product_ids` JSON list or NULL = instance-wide, since the restructure
 left no project to scope one to;
 [server/db/instance/report_styles.ts](server/db/instance/report_styles.ts), CRUD
 on the product-scoped report routes: the path's report decides which styles are
-visible, list is `view` access and every mutation is `edit` and logged). Only
-its three `colors` (page, ink, accent) do anything: they override the palette of
-the theme the report is on. `brief` and `reference_css`, the AI design brief and
-the source stylesheet a style carried while reports could be written as html,
-are still stored and round-tripped, and nothing reads them
-(`lib/types/report_styles.ts`). The theme modal lists the styles as tiles of the
-default theme repainted in each palette (`FastrCustomThemeMock`) and they are
-created and edited in
+visible, list is `view` access and every mutation is `edit` and logged; an
+update or delete names a style visible to the path report, else it answers
+`REPORT_STYLE_NOT_FOUND` (404) as an unknown id does, and a create whose
+`productIds` leave out the path report is refused,
+`REPORT_STYLE_EXCLUDES_REPORT`, so an editor of one report never reaches a style
+made for others). Only its three `colors` (page, ink, accent) do anything: they
+override the palette of the theme the report is on. `brief` and `reference_css`,
+the AI design brief and the source stylesheet a style carried while reports
+could be written as html, are still stored and round-tripped, and nothing reads
+them (`lib/types/report_styles.ts`). The theme modal lists the styles as tiles
+of the default theme repainted in each palette (`FastrCustomThemeMock`) and they
+are created and edited in
 [report_style_editor.tsx](client/src/components/products/report/report_style_editor.tsx)
 (name, description, the three colours, visibility; delete lives there because a
 confirm dialog would replace the picker), which sends an existing row's `brief`
@@ -2890,24 +2911,30 @@ stale.
 
 [routes/instance/emails.ts](server/routes/instance/emails.ts) is the only
 SendGrid egress (raw fetch, `Bearer _SEND_GRID_API`, from
-`noreply@fastr-analytics.org`). `sendSlideDeckEmail` (`requireApprovedUser()`;
-the recipient roster is the instance roster): the PDF is client-rendered (S10
+`noreply@fastr-analytics.org`). `sendSlideDeckEmail` (`GUARD.approved`; the
+recipient roster is the instance directory): the PDF is client-rendered (S10
 base64 export); recipients are schema-validated
 (`z.array(z.email()).min(1).max(50)`); sequential per-recipient sends with
-partial failures returned as `{sent: false,
-failedRecipients}`.
+partial failures returned as `{sent: false, failedRecipients}`. Both product
+email routes cap what one user sends: the attachment's base64 content is at
+most 25,000,000 characters and its file name a bare name of at most 200
+characters with no path separator (`emailAttachmentFilename` builds it from the
+product's label on the client), and each recipient counts as one send against
+a per-user daily count (`claimDailyEmailSends`, `users.daily_email_count`,
+migration 227) limited by `DAILY_EMAIL_LIMIT` (default 50). The claim reads and
+increments the count in one statement before anything is sent, so concurrent
+sends cannot pass the limit, and a send it refuses answers
+`DAILY_EMAIL_LIMIT_REACHED`, which both share dialogs show as it is.
 `sendReportEmail` is the same route for a report (same guard, same recipient
 schema, the same per-recipient loop): the client attaches the report's paged
 PDF, built in the browser and printed by the server (`buildReportAttachment`),
-and the attachment carries its own MIME type, which the schema holds to
-`application/pdf` or `text/html` although nothing sends html any more.
-`sendHelpEmail` (bare `requireGlobalPermission()`, which authenticates only,
-never checks `approved`, Open item): one email per `_FEEDBACK_EMAIL_RECIPIENTS`
-with `replyTo` the user, then a confirmation to the user only after at least one
-internal send succeeded. Zero internal deliveries returns `success: false` (the
-form shows the error instead of "Thank you"). User-typed text
-(`message`/`description`/`context`/ `userEmail`) is HTML-escaped before
-interpolation in every route.
+and the schema holds the attachment's MIME type to `application/pdf`.
+`sendHelpEmail` (`GUARD.approved`: an account awaiting approval sends no
+mail): one email per `_FEEDBACK_EMAIL_RECIPIENTS` with `replyTo` the user, then
+a confirmation to the user only after at least one internal send succeeded. Zero
+internal deliveries returns `success: false` (the form shows the error instead
+of "Thank you"). User-typed text (`message`/`description`/`context`/
+`userEmail`) is HTML-escaped before interpolation in every route.
 
 ## Open items
 
@@ -2916,10 +2943,10 @@ interpolation in every route.
   human + AI `applyFigureUpdate`) clobber each other. Narrowed by S16: while a
   collab room is live these route through the room and merge; the race remains
   for the no-room path.
-- **`sendHelpEmail` approved-user question**: the guard never checks `approved`,
-  so unapproved (Clerk-authenticated but not-added) users can send feedback.
-  Possibly intended: an unapproved user may legitimately need to reach support.
-  Decide and either document or add the check.
+- **The deck `plan` has no writer.** No route sets `slide_decks.plan`; it is
+  read into `SlideDeckDetail.plan` (`server/db/products/slide_decks.ts:62`) and
+  copied by a duplicate (160). Drop the column in a new migration and the field
+  from `SlideDeckDetail` and both reads.
 - **`overwrite` on `updateReportBody` is dead**: always sent `true`, ignored by
   the DB fn; wire the hard-reject mode or drop it.
 - **Type casts on mutation bodies**: `body.slide as Slide`,
