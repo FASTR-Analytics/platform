@@ -35,7 +35,7 @@ import {
   type ResultsValueInfoForPresentationObject,
   rewriteReportEmbedToken,
 } from "lib";
-import { FASTR_MD_SYNTAX_DOC } from "lib";
+import { FASTR_MD_SYNTAX_DOC, FASTR_PAGE_MUST_FIX } from "lib";
 import {
   applyFigureConfigPatch,
   assertNoSlotCollision,
@@ -619,7 +619,7 @@ ${FASTR_MD_SYNTAX_DOC}`,
           "The figures this draft adds, each embedded in the body as ![caption](figure:<key>). Each becomes a figure of the report when the user accepts.",
         ),
         acceptPageProblems: z.boolean().optional().describe(
-          "The draft is laid out before it is proposed, and one whose pages have problems (a short or overfull page, a stub last page, an over-long caption) is refused with the list. Set true ONLY after such a refusal, for a problem you cannot fix, and tell the user which remain.",
+          "The draft is laid out before it is proposed, and one whose pages have problems (a short or overfull page, a stub last page, an over-long caption) is refused with the list. Set true ONLY after such a refusal, for a problem you cannot fix, and tell the user which remain. It never waives a problem marked MUST FIX (a page more than half empty).",
         ),
       }),
       availableIn: COPILOT_TOOL_VIEWS.rewrite_report,
@@ -656,16 +656,26 @@ ${FASTR_MD_SYNTAX_DOC}`,
             newBody = swapped.body;
             addFigures[id] = block;
           }
-          if (input.acceptPageProblems !== true) {
-            const problems = await pageProblemsOf(ctx, view.params.reportId, {
-              body: newBody,
-              figures: addFigures,
-            });
-            if (problems !== undefined) {
-              throw new AIToolFailure(
-                `Not proposed: the draft's pages have problems the reader would see.\n\n${problems}\n\nFix them (get_report_pages checks a draft) and re-propose. Only if one cannot be fixed, re-propose with acceptPageProblems: true and tell the user which remain.`,
-              );
-            }
+          const problems = await pageProblemsOf(ctx, view.params.reportId, {
+            body: newBody,
+            figures: addFigures,
+          });
+          if (problems !== undefined && input.acceptPageProblems !== true) {
+            throw new AIToolFailure(
+              `Not proposed: the draft's pages have problems the reader would see.\n\n${problems}\n\nFix them (get_report_pages checks a draft) and re-propose. Only if one cannot be fixed, re-propose with acceptPageProblems: true and tell the user which remain; a problem marked ${FASTR_PAGE_MUST_FIX} cannot be waived.`,
+            );
+          }
+          // A page more than half empty is a hole the waiver does not
+          // cover: models waived one rather than move prose (2026-11-02).
+          const holes = (problems ?? "").split("\n").filter((l) =>
+            l.includes(FASTR_PAGE_MUST_FIX)
+          );
+          if (holes.length > 0) {
+            throw new AIToolFailure(
+              `Not proposed: acceptPageProblems does not waive a page left more than half empty.\n\n${
+                holes.join("\n")
+              }\n\nFix these (get_report_pages checks a draft) and re-propose.`,
+            );
           }
           const prep = ctx.proposeEdit({
             newBody,
