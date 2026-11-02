@@ -44,8 +44,7 @@ its backfill failed on an app defect in the import worker's root selection and
 Tim chose not to roll back, so its four EPI Sums hold no rows until that defect
 is fixed deliberately and `backfill` reruns from
 `rollout_logs/dhis2_ids_malawi_cleanup.json`. `ethiopia` waits on its DHIS2
-administrator, then `plan` and `apply` (no backfill). `guinee`, `niger`, `rca`,
-`uganda` wait on their upgrade.
+administrator, then `plan` and `apply` (no backfill). `guinee`, `niger`, `rca` wait on their upgrade; `uganda` is done (its 2026-11-02 row).
 
 Per instance, one at a time, each on Tim's word after he has read its plan file:
 
