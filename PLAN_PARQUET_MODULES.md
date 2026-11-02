@@ -23,9 +23,9 @@ package format", "Generation", "m012" and "population.csv",
 [SYSTEM_09_viz_query_cache.md](SYSTEM_09_viz_query_cache.md) "The scoped view",
 [PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md) "Run Manifest
 Transforms", [PROTOCOL_APP_WORKER_ROUTINES.md](PROTOCOL_APP_WORKER_ROUTINES.md),
-and the modules repo's `DOC_MODULES.md`. Start when: both trees are clean, the
-`parquet` branch of the modules repo is approved (ruling 14), the host R has the
-`arrow` package, and the dev `main` database holds HMIS data.
+and the modules repo's `DOC_MODULES.md`. Start when: both trees are clean,
+the host R has the `arrow` package, and the dev `main` database holds HMIS
+data.
 
 ## §0 How to work this plan
 
@@ -252,8 +252,7 @@ typed per the declaration, header-only outputs included.
     production resolves definitions and pinned assets from; the testing
     instance runs `parquet` during step 8. _(proposed)_
 14. **The modules repo work lands on branch `parquet`**, created from `main`
-    in step 5 and merged in step 9 after the fleet deploy. _(proposed; needs
-    Tim's word, CLAUDE.md "Never create a branch unless I ask".)_
+    in step 5 and merged in step 9 after the fleet deploy. Ruled.
 15. **Release order.** The fleet deploy of the app, then the merge of
     `parquet` into the modules repo's `main`, back to back. Between the two,
     an updated instance's wizard refuses the CSV modules at the schema (the id
