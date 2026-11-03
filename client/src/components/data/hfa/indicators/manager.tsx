@@ -66,6 +66,7 @@ import {
 import {
   createHfaVerificationHashes,
   type HfaVerificationProgress,
+  HfaVerificationRulesModal,
   hfaVerificationRun,
   hfaVerificationState,
   startRun,
@@ -1189,6 +1190,25 @@ export function HfaIndicatorsManager(p: Props) {
           startRun(st.data.map((i) => i.indicatorId));
         }
       },
+    },
+    {
+      label: t3({
+        en: "Verification rules",
+        fr: "Règles de vérification",
+        pt: "Regras de verificação",
+      }),
+      icon: "settings",
+      disabled: verificationRows().status !== "ready",
+      onClick: () =>
+        openComponent({
+          element: HfaVerificationRulesModal,
+          props: {
+            rows: () => {
+              const st = verificationRows();
+              return st.status === "ready" ? st.data : undefined;
+            },
+          },
+        }),
     },
     { type: "divider" },
     {

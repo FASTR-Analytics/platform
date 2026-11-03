@@ -1318,6 +1318,16 @@ hashes and rows land. It sorts by the open count and filters by Problem,
 Warning, No findings, Not verified, Changed and the text of each rule an open
 finding names.
 
+**The rules modal** (`indicators/verification/rules_modal.tsx`), the actions
+menu's Verification rules, lists the app rules and the model rules apart, each
+under its group with its severity and text. Each model rule has a switch, which
+writes the whole list of switched-off rules through `setHfaVerificationRulesOff`;
+a switched-off rule shows how many of its undismissed findings it hides. The
+switches show the stored list; after a switch they show what was written and
+stay disabled until newer rows land, so a second switch is never computed from
+rows that lack the first. A failed write shows in an alert and restores the
+stored list.
+
 Pinned by `server/tests/hfa_verification_test.ts`: the rules list (unique ids,
 every text and label, the app rules equal to the status core's issue kinds), the
 instruction block (every model rule, no app rule, the one-per-rule-and-round
