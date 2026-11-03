@@ -765,7 +765,8 @@ rules modal. Each green.
 `client/src/components/data/hfa/indicators/verification/field_findings.tsx`
 (new), `client/src/components/data/hfa/indicators/verification/draft_fix.ts`
 (new), `client/src/components/data/hfa/indicators/verification/mod.ts`,
-SYSTEM_05.
+`client/src/components/data/hfa/indicators/verification/runner.ts`,
+`client/src/components/data/hfa/indicators/manager.tsx`, SYSTEM_05.
 
 **Deliverable.**
 
@@ -880,3 +881,19 @@ SYSTEM_05.
   `validate_protocols` flags a bare error signal.
 - Step 4: Verify is hidden, not disabled, without `can_configure_data`, because
   every control in the indicators toolbar's slot renders inside that gate.
+- Step 5: `manager.tsx` joined the Surface, because the editor's only input is
+  the props the manager opens it with, and §2 has the manager pass it the state
+  memo; `runner.ts` joined it, because the fix call sends the run's system
+  blocks byte for byte (ruling 11) and words a failed or null answer as the run
+  does, so the runner exports them instead of the fix copying them.
+- Step 5: `validateHfaIndicatorPatch(patch, draft, taxonomy)` takes no `rounds`,
+  because the draft's code lists every round the editor offers, which is what
+  the lifted check read.
+- Step 5: the editor also shows the run's not-checked mark for its indicator and
+  the stop error, because a Verify from the editor otherwise ends with no word
+  of why.
+- Step 5: a fix lands only when the draft equals the draft it was asked for, not
+  when the dirty flag is clear, because a save while the fix is drafted leaves
+  the flag clear and the draft different from what the model saw.
+- Step 5: Verify, Draft a fix, Dismiss and Undo carry no `can_configure_data`
+  check of their own, because the manager opens the editor only with it.
