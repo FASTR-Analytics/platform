@@ -1,3 +1,5 @@
+[TBD] [user] [fixed] - Renaming a round now correctly updates verification results
+[TBD] [admin] [fixed] - Renaming a round now correctly refreshes verification results
 [TBD] [user] [added] - HFA indicators can now be automatically verified for issues
 [TBD] [admin] [added] - HFA indicators can now be verified by AI with findings, dismissals, and rule toggles
 [TBD] [admin] [added] - Admins can dismiss or restore individual HFA verification findings
