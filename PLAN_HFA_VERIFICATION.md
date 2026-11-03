@@ -872,3 +872,9 @@ SYSTEM_05.
   fails a `_shared/` file with one consuming child and a file nothing imports:
   the proxy client's second consumer is the runner, and the runner's importer
   is the manager.
+- Step 4: the not-checked list and the stop error show above the table, beside
+  the no-HFA-data notice, not under the toolbar, because panther's `Table` has
+  no slot between its toolbar and its rows.
+- Step 4: the runner's progress, not-checked list and stop error are one
+  signal, `hfaVerificationRun`, not three, because they describe one run and
+  `validate_protocols` flags a bare error signal.

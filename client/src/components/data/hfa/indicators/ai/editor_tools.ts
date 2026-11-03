@@ -19,7 +19,7 @@ import {
   copilotViews,
   type HfaIndicatorEditorContext,
 } from "~/components/instance/copilot/mod.ts";
-import { loadDisplayRows } from "./tools.ts";
+import { loadDisplayRows } from "../_shared/mod.ts";
 
 // The HFA editor group: the code editor's unsaved draft of one indicator,
 // read and written through the view's context. The write checks its ids

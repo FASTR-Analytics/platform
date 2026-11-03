@@ -1,3 +1,5 @@
+export { aiProxyRequests, createAiProxyClient } from "./ai_proxy_client.ts";
+export type { AiProxyRequestRecord } from "./ai_proxy_client.ts";
 export {
   CollabMarkdownEditor,
   darkMarkdownExtensions,

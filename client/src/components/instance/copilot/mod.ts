@@ -36,7 +36,6 @@ export type {
   ReportEditProposal,
   ReportEditProposalResult,
 } from "./types.ts";
-export { createCopilotSDKClient } from "./ai_configs/mod.ts";
 export { getClientToolsForModules } from "./tools/mod.ts";
 export { guardCopilotTools } from "./tool_guard.ts";
 export { CopilotPanel } from "./panel.tsx";

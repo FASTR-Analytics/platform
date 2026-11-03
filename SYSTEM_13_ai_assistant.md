@@ -2,6 +2,7 @@
 system: 13
 name: AI Copilot & Usage Governance
 globs:
+  - client/src/components/_shared/ai_proxy_client.ts
   - client/src/components/instance/copilot/**
   - client/src/components/instance/copilot_tools.ts
   - client/src/components/products/copilot/**
@@ -101,8 +102,8 @@ verification"). The slide/figure shapes the slide_ai helpers produce are
    read accepts any guarded `.md` path under the hub, since the index omits
    chapters. An entry may declare the `dataset` it is about, and the list drops
    it when the instance's `datasetsWithData` holds no such data
-   (`resolveInstanceGrounding` per call on `/mcp`, the live store in the SPA); the
-   read serves every entry it was given. Hub reads go through the GitHub
+   (`resolveInstanceGrounding` per call on `/mcp`, the live store in the SPA);
+   the read serves every entry it was given. Hub reads go through the GitHub
    contents API, unauthenticated, under its 60 requests per hour per IP, so
    every hub read is memoised per process with a ten-minute TTL (a failed read
    is dropped as it settles), and a hub failure degrades the list to the app
@@ -233,9 +234,10 @@ route (deliberately outside the S1 route registry): `POST /ai/v1/messages`
 `/ai` in [main.ts:179](main.ts#L179) beside the Files proxy
 ([main.ts:180](main.ts#L180)), guarded by `requireApprovedUser()` and nothing
 finer: the chat's tools run in the browser and reach a product or the HFA
-indicators only through the routes, which guard themselves. Its client is the
-copilot's SDK client
-([defaults.ts](client/src/components/instance/copilot/ai_configs/defaults.ts)).
+indicators only through the routes, which guard themselves. Its client is
+`createAiProxyClient`
+([ai_proxy_client.ts](client/src/components/_shared/ai_proxy_client.ts)), which
+the chat and the HFA indicator verification (S5) both use.
 
 The flow:
 
@@ -351,8 +353,8 @@ The chat's code has two homes. The shell-level half is
 ([panel.tsx](client/src/components/instance/copilot/panel.tsx)) and its tab
 ownership ([tab_owner.ts](client/src/components/instance/copilot/tab_owner.ts)),
 the pane
-([chat_pane.tsx](client/src/components/instance/copilot/chat_pane.tsx)), the SDK
-client and built-in tools (`ai_configs/`), documents (`ai_documents/`), the
+([chat_pane.tsx](client/src/components/instance/copilot/chat_pane.tsx)), the
+built-in tools (`ai_configs/`), documents (`ai_documents/`), the
 prompt library (`ai_prompt_library/`), the debug panel, the view registry,
 controller and interactions, the system prompt, the env (`client_env.ts`), the
 package-tool binder (`bind_package_tools.ts`), the guard (`tool_guard.ts`), the
@@ -386,38 +388,39 @@ opens it. The product opener (`openProduct` in
 directly; the editors set their views (below) and the chat follows. Threads and
 settings are the user's: the thread scope and the settings key are
 `copilot:<Clerk user id>` (`copilot:<persona email>` under `VITE_PERSONA_AUTH`,
-`copilot:dev` under `VITE_BYPASS_AUTH`, where there is no Clerk user), read live from Clerk's listener and keyed on, so a cross-tab
-user switch without a reload stops the previous user's turn and opens the next
-user's threads; the thread list, New conversation and the last-active id follow
-the user through every view and tab, and the old per-product scopes
-(`copilot:<productId>`) and the old settings key (`panther-ai-settings-copilot`)
-stay unlisted and unread. One browser tab owns the chat: the panel requests the
-Web Lock `copilot-owner/<scope>` when it mounts and mounts the chat only while
-it holds it; another tab's panel shows the notice ("The AI chat is open in
-another tab.") and the Use it here button in the chat's place, and the button
-posts `takeover` on a `BroadcastChannel` of the lock's name, on which the owner
-stops its turn (`stopGeneration`), awaits the record's save (`whenIdle`),
-releases the lock, shows the notice and queues a new request, unless its turn is
-running (`isLoading`), when it answers `busy` and keeps the chat and the taker's
-notice says the AI is answering in another tab; the browser grants the taker's
-pending request, releases a closed or crashed owner's lock by itself, releases
-at once a grant that lands after the panel's cleanup (the abort is ignored once
-a lock is granted), and without the Web Locks API (an insecure context) the tab
-is the owner at once. A store is therefore always built from a record no other
-live tab writes. The panel stops the chat's turn and awaits its save the same
-way when it unmounts (sign-out, a user switch, the instance-stream reset on
-approval or a change to the user's own scope access, which remounts the shell
-and with it the chat on the same thread). The panel creates the one engine
-instance (`createAIChat`, inside the provider once the lock is granted), keeps
-it to stop and await at a hand-over and at its own cleanup, and hands it to the
-pane, which hands it to `AIChat` as `chat`, so the pane and the chat share one
-registry, one settings copy and one queue drain. The panel builds one panther
-`AIChatProvider` config, validated in dev by panther's no-mount construction
-check: the panel calls `validateAIChatConfig(config)` under
-`import.meta.env.DEV` at config assembly:
+`copilot:dev` under `VITE_BYPASS_AUTH`, where there is no Clerk user), read live
+from Clerk's listener and keyed on, so a cross-tab user switch without a reload
+stops the previous user's turn and opens the next user's threads; the thread
+list, New conversation and the last-active id follow the user through every view
+and tab, and the old per-product scopes (`copilot:<productId>`) and the old
+settings key (`panther-ai-settings-copilot`) stay unlisted and unread. One
+browser tab owns the chat: the panel requests the Web Lock
+`copilot-owner/<scope>` when it mounts and mounts the chat only while it holds
+it; another tab's panel shows the notice ("The AI chat is open in another tab.")
+and the Use it here button in the chat's place, and the button posts `takeover`
+on a `BroadcastChannel` of the lock's name, on which the owner stops its turn
+(`stopGeneration`), awaits the record's save (`whenIdle`), releases the lock,
+shows the notice and queues a new request, unless its turn is running
+(`isLoading`), when it answers `busy` and keeps the chat and the taker's notice
+says the AI is answering in another tab; the browser grants the taker's pending
+request, releases a closed or crashed owner's lock by itself, releases at once a
+grant that lands after the panel's cleanup (the abort is ignored once a lock is
+granted), and without the Web Locks API (an insecure context) the tab is the
+owner at once. A store is therefore always built from a record no other live tab
+writes. The panel stops the chat's turn and awaits its save the same way when it
+unmounts (sign-out, a user switch, the instance-stream reset on approval or a
+change to the user's own scope access, which remounts the shell and with it the
+chat on the same thread). The panel creates the one engine instance
+(`createAIChat`, inside the provider once the lock is granted), keeps it to stop
+and await at a hand-over and at its own cleanup, and hands it to the pane, which
+hands it to `AIChat` as `chat`, so the pane and the chat share one registry, one
+settings copy and one queue drain. The panel builds one panther `AIChatProvider`
+config, validated in dev by panther's no-mount construction check: the panel
+calls `validateAIChatConfig(config)` under `import.meta.env.DEV` at config
+assembly:
 
 - **sdkClient**
-  ([defaults.ts](client/src/components/instance/copilot/ai_configs/defaults.ts)):
+  ([ai_proxy_client.ts](client/src/components/_shared/ai_proxy_client.ts)):
   Anthropic browser SDK, `baseURL {host}/ai`, no credential (`apiKey: null`,
   `authToken: null`, `defaultHeaders: {Authorization: null}`, so the guard
   judges the Clerk session cookie alone), plus a fetch wrapper that rewrites the
@@ -463,16 +466,16 @@ check: the panel calls `validateAIChatConfig(config)` under
 
 The chat pane (`ConsolidatedChatPane`,
 [chat_pane.tsx](client/src/components/instance/copilot/chat_pane.tsx)) fills the
-panel while this tab owns the chat, and registers two custom renderers, keyed
-to panther's `AIChatDisplayRegistry`: `systemNotice`, which shows
+panel while this tab owns the chat, and registers two custom renderers, keyed to
+panther's `AIChatDisplayRegistry`: `systemNotice`, which shows
 `RateLimitErrorBox` for the proxy's quota rejection (a `turn_error` notice whose
 details name the daily or weekly token limit) and panther's `AIChatSystemNotice`
 card for every other notice (refusals, truncation, context exceeded,
 continuation caps, any other failed turn); and `userText`
-(`SaveableUserTextRenderer`: adds save-to-prompt-library and renders the text
-as typed, with image syntax disabled, so a user's or a library prompt's text
-never fetches an image URL as it renders). Tool errors use panther's card,
-which shows the call's input and the error's stack.
+(`SaveableUserTextRenderer`: adds save-to-prompt-library and renders the text as
+typed, with image syntax disabled, so a user's or a library prompt's text never
+fetches an image URL as it renders). Tool errors use panther's card, which shows
+the call's input and the error's stack.
 
 The pane also keeps the reload guard
 ([turn_guard.ts](client/src/components/instance/copilot/turn_guard.ts)) current:
@@ -570,8 +573,8 @@ from its props with the same pair, and instructions naming the module and the
 results object. The HFA indicators manager (S5) holds the switchboard's
 `data_page` and sets `hfa_indicators`, whose state is the open tab and whose
 instructions are the manager's own lines (`getHfaIndicatorsInstructions`) and
-the HFA guidance S5 keeps in `lib/hfa_indicator_guidance.ts`, supplied
-through the view's context (`getGuidance`); its code editor holds in
+the HFA guidance S5 keeps in `lib/hfa_indicator_guidance.ts`, supplied through
+the view's context (`getGuidance`); its code editor holds in
 `HfaIndicatorCodeEditor` and sets `hfa_indicator_editor` from `EditorInner` once
 the draft store exists, with the indicator id as identity, the open round in its
 state, and an `HfaIndicatorEditorContext` of the saved label, the selected
@@ -584,8 +587,7 @@ controls' semantics, a group change before the patch's variant rows, and marks
 the draft unsaved; the draft, its round and the patch are S5's types
 (`HfaIndicatorEditorDraft`, `HfaIndicatorEditorRound`,
 `HfaIndicatorEditorPatch`, `lib/types/hfa_types.ts`), which the context names.
-Its Excel import sets `hfa_indicator_import`. There is no tab-to-view
-map.
+Its Excel import sets `hfa_indicator_import`. There is no tab-to-view map.
 
 **What a message carries** (panther's append-only turns). Every message carries
 the view line, the view's `state` and the interactions digest; a view's
@@ -770,13 +772,12 @@ over the tool's requirement, the user's live permissions
 (`productLevel`, S12, from the view's `productId`, `deckId` or `reportId`; null
 in a view with no product), and throws the table's reason as an `AIToolFailure`.
 So a viewer can read a deck or report and ask about it while its writes refuse,
-`get_module_r_script`, `get_module_settings` and `get_module_log` refuse
-without `can_view_data`, and a demotion reaches the next
-call. A tool outside the catalogue fails the assembly. Below edit level a
-product view's instructions carry the level line (above). The chat menu has no
-view-specific items: its one such item, "Save this report's style…" for an html
-report, went with that format on 2026-10-13, so the pane imports nothing from
-`components/products/`.
+`get_module_r_script`, `get_module_settings` and `get_module_log` refuse without
+`can_view_data`, and a demotion reaches the next call. A tool outside the
+catalogue fails the assembly. Below edit level a product view's instructions
+carry the level line (above). The chat menu has no view-specific items: its one
+such item, "Save this report's style…" for an html report, went with that format
+on 2026-10-13, so the pane imports nothing from `components/products/`.
 
 **The approval policy** is the chat's
 `{ requireForKind: "write", requireKind: true, exempt: COPILOT_APPROVAL_EXEMPT }`
@@ -1121,9 +1122,10 @@ at page load, off by default) makes each new user bubble the exact text sent,
 its context block then what was typed (panther `showSentContext`), and installs
 `window.__copilot`
 ([debug_api.ts](client/src/components/instance/copilot/debug_api.ts)) while this
-tab owns the chat: `requests()` holds every POST the SDK made to the proxy with
-its body as serialised (recorded in the SDK client's fetch wrapper, bounded to
-the last 100), which is what the model received; `nextTurn()`, `messages()`,
+tab owns the chat: `requests()` holds every POST the tab made to the proxy, the
+chat's and the HFA verification's, with its body as serialised (recorded in the
+proxy client's fetch wrapper, bounded to the last 100), which is what the model
+received; `nextTurn()`, `messages()`,
 `tools()`, `config()`, `view()`, `conversationId()` and `isLoading()` read the
 engine and the view controller live. The chat menu's View system prompt shows
 the blocks the next message would carry, through the instance's
@@ -1139,10 +1141,10 @@ from a row on the Data page behind `can_configure_data`
 `updateAiContextConfig`), and rides `InstanceState` with the rest of the config,
 so the SPA prompt reads it from T1 with no fetch and `/mcp`'s `get_overview`
 reads it from the instance state its context cache holds per user for 30 s
-(`resolveInstanceGrounding`, `server/mcp/context_cache.ts`). The SPA's is built by
-`buildInstanceState`, the connection's `starting` payload; `/mcp`'s by
-`buildInstanceGrounding`, the per-instance half with no roster, no catalogue
-and no product plane, blanked for an unapproved principal
+(`resolveInstanceGrounding`, `server/mcp/context_cache.ts`). The SPA's is built
+by `buildInstanceState`, the connection's `starting` payload; `/mcp`'s by
+`buildInstanceGrounding`, the per-instance half with no roster, no catalogue and
+no product plane, blanked for an unapproved principal
 (`groundingForUnapproved`).
 
 **Documents.** `useAIDocuments` keeps `{assetFilename, anthropicFileId}` pairs
@@ -1171,8 +1173,8 @@ a prompt to `"country"` (a prompt-injection surface offered to every user's
 copilot) needs `can_configure_data` on the effective permissions, and the save
 dialog offers the country scope to its holders (`can("can_configure_data")`,
 S18); Edit and Delete on a country prompt show to its author or an admin, the DB
-rule. `created_by` is FK-cascade on user
-delete, so deleting a user silently deletes their country-scoped prompts too.
+rule. `created_by` is FK-cascade on user delete, so deleting a user silently
+deletes their country-scoped prompts too.
 
 ## The panther engine (what this app depends on)
 
@@ -1224,11 +1226,12 @@ the editor tools (`get_hfa_indicator_editor`, `update_hfa_indicator_editor`,
 through the guard: the reads need `can_view_data`, the writes and
 `update_hfa_indicator_editor` `can_configure_data`, the flag the manager's own
 write controls read (`can("can_configure_data")`, S18). Every HFA route keeps
-its own guard. The three writes declare `approval.propose` with `presentation:
-"modal"` (panther owns the propose → modal → commit lifecycle); the editor write
-is exempt, since it lands in the open editor's unsaved draft, which the user
-saves or discards. The HFA guidance (the model, type and aggregation, the
-grammar and how m010 evaluates the code, scope, how to work) is
+its own guard. The three writes declare `approval.propose` with
+`presentation:
+"modal"` (panther owns the propose → modal → commit lifecycle);
+the editor write is exempt, since it lands in the open editor's unsaved draft,
+which the user saves or discards. The HFA guidance (the model, type and
+aggregation, the grammar and how m010 evaluates the code, scope, how to work) is
 `getHfaIndicatorsGuidance` (`lib/hfa_indicator_guidance.ts`); it rides both the
 manager's view and the editor's, each through its context and under its own
 lines (`getHfaIndicatorsInstructions`, `getHfaIndicatorEditorInstructions`), and
@@ -1307,7 +1310,9 @@ between the proposal and the acceptance. Every anticipated failure throws
 failure-channel ruling above). The survey dictionary and the dataset display are
 read through the manager's T2 caches; the indicators, the taxonomy (variant
 groups and items included) and the main and variant code are read fresh on every
-call, so the model acts on current state, its own earlier writes included. Write
+call, so the model acts on current state, its own earlier writes included. The
+loaders are S5's `indicators/_shared/read_input.ts`, which the HFA
+verification's runner reads too; each throws `AIToolFailure` on a failed read. Write
 commits do whole-object load → propose → save, last write wins: the app-wide
 concurrency model, deliberate (a re-read-after-confirm refactor was rejected as
 an inconsistent outlier); an update batch carries only the indicators it

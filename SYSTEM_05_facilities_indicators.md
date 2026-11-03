@@ -1164,8 +1164,8 @@ warn on one. Every other rule is checked by the model;
 rule switch may name.
 
 **Storage.** `hfa_indicator_verifications` holds one row per checked indicator,
-its latest check only: the input hash it was asked about, the request's model
-id, when, and by whom. `hfa_verification_findings` holds one row per finding:
+its latest check only: the input hash it was asked about, the model the
+response names, when, and by whom. `hfa_verification_findings` holds one row per finding:
 the indicator, the rule, the round (`time_point`, NULL for a finding about the
 whole indicator), the message and suggestion, written in the instance language,
 and `dismissed_at` and `dismissed_by`. Neither a verdict nor a severity is
@@ -1268,6 +1268,49 @@ text, and what to return. `fixToPatch` turns the edit into an
 `HfaIndicatorEditorPatch` (the code editor's draft types,
 `lib/types/hfa_types.ts`) with every null field absent. The fix call sends the
 verification's two system blocks unchanged.
+
+**The current hashes** (`indicators/verification/hashes.ts`). The manager builds
+a read input from what it already loads (the indicators, the taxonomy, the main
+and variant code, the dictionary and the status core's result, no display rows)
+and `createHfaVerificationHashes` turns it into every indicator's current input
+hash. A digest is asynchronous, so an effect writes the map, dropping a pass a
+newer read input supersedes; it reruns when the indicators' or the dataset's
+stamp moves the manager's reads, never on the verification stamp. One pass
+formats every indicator through one formatter and hashes it, about 20 ms for
+421 indicators over three rounds, so a rerun per landed read costs little. `hfaVerificationState` joins the map
+with the T2 rows: each indicator is not verified (no row), changed (the row's
+hash differs) or verified, with its open findings, those neither dismissed nor
+of a switched-off rule; and the queue is every indicator not verified or changed,
+in the manager's order.
+
+**The runner** (`indicators/verification/runner.ts`) is module-level state, one
+run per browser tab: a run outlives the manager, the editor and tab switches,
+and closing the browser tab ends it, the next run's queue being whatever is then
+unverified. `startRun(queue)` reads the snapshot once (`loadReadInput(true)`,
+with display rows, and the T2 rows for the dismissed findings), builds the two
+blocks, every message and the queued indicators' hashes, and calls the model
+through `createAiProxyClient` with `callAIStructured`: the first call alone, so
+its write of the context block to the prompt cache lands before the rest read
+it, then four in flight. Each result carries its hash and the response's model
+and is saved through `saveHfaIndicatorVerifications` in batches of ten; the batch
+in hand is saved when the run ends, stops or fails. A `null` answer lists the
+indicator as not checked with the response's stop reason, and the run goes on. A
+thrown error (a failed read or save, a 429, whose reset time the proxy client
+shows in the user's locale, a network failure) stops the run, aborts the calls in
+flight and is kept as the stop error. `stopRun()` aborts every call in flight.
+`hfaVerificationRun` holds the progress (done, queued, the indicator last
+started), undefined while no run is in progress, and the not-checked list and
+stop error of the current or last run until the next starts.
+
+**The manager.** For `can_configure_data`, the indicators toolbar holds Verify,
+labelled with the queue's size ("Verify 87", "Verify …" until the hashes and
+rows land), disabled at zero and without HFA data (its title then the no-data
+message); while a run is in progress it shows "Verifying n of N: id" and Stop
+instead. The not-checked list, each id with its reason, and the stop error show
+above the table until the next run, beside the no-data notice, since the
+`Table` has no slot between its toolbar and its rows. The actions menu's Verify
+all queues every indicator, disabled without HFA data and while a run is in
+progress.
 
 Pinned by `server/tests/hfa_verification_test.ts`: the rules list (unique ids,
 every text and label, the app rules equal to the status core's issue kinds), the
