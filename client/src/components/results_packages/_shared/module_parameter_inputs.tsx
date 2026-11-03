@@ -1,18 +1,15 @@
 import { type ModuleParameter, t3 } from "lib";
 import { Input, Select } from "panther";
 import { For, Match, Show, Switch } from "solid-js";
-import { GlobalDefaultMarker } from "./global_default_marker.tsx";
+import { DefinitionDefaultMarker } from "./definition_default_marker.tsx";
 
 type Props = {
   parameters: ModuleParameter[];
   values: Record<string, string>;
   onChange: (replacementString: string, value: string) => void;
-  // Present when the fleet's global defaults are published: each param's
-  // global value (undefined = not compared), and the per-param reset to it.
-  globalDefault?: {
-    valueFor: (replacementString: string) => string | undefined;
-    onReset: (replacementString: string) => void;
-  };
+  // When present, a param whose value differs from its definition default
+  // is marked, with this per-param reset to it.
+  onResetToDefault?: (replacementString: string) => void;
 };
 
 // A module definition's parameter selections as inputs (all values are
@@ -67,8 +64,6 @@ export function ModuleParameterInputs(p: Props) {
       <For each={p.parameters}>
         {(inputParameter) => {
           const value = () => p.values[inputParameter.replacementString];
-          const globalValue = () =>
-            p.globalDefault?.valueFor(inputParameter.replacementString);
           const invalidMsg = () =>
             getModuleParameterInvalidMsg(inputParameter, value());
           const onChange = (v: string) =>
@@ -130,19 +125,17 @@ export function ModuleParameterInputs(p: Props) {
                 </Match>
               </Switch>
               <Show
-                when={globalValue() !== undefined &&
-                  globalValue() !== value()}
+                when={p.onResetToDefault &&
+                  value() !== inputParameter.input.defaultValue}
               >
                 <div class="pt-1">
-                  <GlobalDefaultMarker
-                    globalText={displayParameterValue(
+                  <DefinitionDefaultMarker
+                    defaultText={displayParameterValue(
                       inputParameter,
-                      globalValue() ?? "",
+                      inputParameter.input.defaultValue,
                     )}
                     onReset={() =>
-                      p.globalDefault?.onReset(
-                        inputParameter.replacementString,
-                      )}
+                      p.onResetToDefault?.(inputParameter.replacementString)}
                   />
                 </div>
               </Show>

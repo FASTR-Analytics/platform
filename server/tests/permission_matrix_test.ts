@@ -307,7 +307,6 @@ const EXPECTED: Record<keyof typeof routeRegistry, Expectation> = {
   getIndicators: closed("can_view_data"),
   getInstanceDhis2CredentialsInfo: closed("can_configure_data"),
   getInstanceMeta: closed("public"),
-  getModuleDefaultsGlobal: closed("can_configure_data"),
   getPopulationTypeStore: closed("can_view_data"),
   getReportDetail: closed("product:view"),
   getReportVersion: closed("product:view"),

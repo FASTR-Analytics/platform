@@ -254,8 +254,8 @@ LIMIT ${limit}
   });
 });
 
-// The status site's module-defaults scrape (fleet matrix + global defaults
-// compute script). Contract on ModuleDefaultsGlobalFile in lib.
+// The status site's module-defaults scrape for its fleet matrix. Contract on
+// ModuleDefaultsSnapshot in lib.
 routesHealth.get(
   "/module_defaults_snapshot",
   requireStatusKey(),

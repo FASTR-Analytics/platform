@@ -67,17 +67,17 @@ export const runGenerationDefaultsSchema = z.object({
 });
 export type RunGenerationDefaults = z.infer<typeof runGenerationDefaultsSchema>;
 
-// One instance's module defaults as the status site scrapes them: the raw
-// store plus every offerable param resolved against its definition default
-// at modulesGitRef. The input to the fleet's global defaults below.
+// One instance's module defaults as the status site scrapes them for its
+// fleet matrix: the raw store plus every offerable param resolved against its
+// definition default at modulesGitRef, and the definitions resolved against
+// (in the instance's language), so the matrix can label rows and compare each
+// country's values with its definition defaults.
 export type ModuleDefaultsSnapshot = {
   instanceId: string;
   platformVersion: string;
   modulesGitRef: string;
   stored: RunGenerationDefaults;
   effective: Record<string, Record<string, string>>;
-  // The definitions resolved against (in the instance's language), so the
-  // status site can label rows and show definition defaults.
   modules: {
     id: string;
     label: string;
@@ -88,41 +88,6 @@ export type ModuleDefaultsSnapshot = {
     }[];
   }[];
 };
-
-// The fleet's global module parameter defaults: for each param, the value
-// most countries had when it was computed, frozen into
-// `module_defaults_global.json` in the public FASTR resource hub. Written
-// only by the status site's compute script and committed by hand; it changes
-// only when deliberately recomputed. Parameters only: default families and
-// pre-selected modules stay each country's own choice. The module-defaults
-// editor marks a param whose value differs from its global value and resets
-// to it; a param with no global entry is simply not compared.
-export const MODULE_DEFAULTS_GLOBAL_URL =
-  "https://raw.githubusercontent.com/FASTR-Analytics/fastr-resource-hub/refs/heads/main/module_defaults_global.json";
-
-export const moduleDefaultsGlobalParamSchema = z.object({
-  value: z.string(),
-  // How many of the counted countries held `value`, out of how many offer
-  // the param.
-  agreeing: z.number(),
-  counted: z.number(),
-});
-export type ModuleDefaultsGlobalParam = z.infer<
-  typeof moduleDefaultsGlobalParamSchema
->;
-
-export const moduleDefaultsGlobalFileSchema = z.object({
-  version: z.literal(1),
-  computedAt: z.string(),
-  countries: z.array(z.string()),
-  parameters: z.record(
-    z.string(),
-    z.record(z.string(), moduleDefaultsGlobalParamSchema),
-  ),
-});
-export type ModuleDefaultsGlobalFile = z.infer<
-  typeof moduleDefaultsGlobalFileSchema
->;
 
 // One module the wizard's step 2 can offer: the definition resolved from the
 // modules repo at the shared gitRef. datasetTypes/moduleDependencies mirror

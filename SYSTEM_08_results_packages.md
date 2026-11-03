@@ -868,22 +868,17 @@ stored defaults merged with definition defaults. One shared check,
 inline invalid messages, and blocks the wizard's modules step with a note naming
 the modules whose stored default is invalid.
 
-**Global defaults.** The fleet's global parameter defaults sit in
-`module_defaults_global.json` in the public FASTR resource hub (contract on
-`ModuleDefaultsGlobalFile` in `lib/types/run_generation.ts`). For each param,
-the file holds the value most countries had when it was computed, frozen until
-it is deliberately recomputed. It covers parameters only: default families and
-pre-selected modules stay each country's own choice. The status site's compute
-script produces the file from every v2 country's `GET /module_defaults_snapshot`
-(`server/runs/module_defaults_global.ts`, gated by `status-api-key` like the
-other status routes), and it is committed by hand. The same route feeds the
-status site's fleet matrix. The editor reads the file through
-`getModuleDefaultsGlobal`, a server-side fetch. A missing or bad file means "no
-global defaults", and the editor then shows no global controls. Otherwise it
-marks each param whose value differs from its global value and resets per param,
-per module or all. A reset sets the global value: unpinned when that equals the
-current definition default, pinned otherwise. Semantics, authoritative comment
-in `module_defaults.tsx`.
+**Definition defaults as the shared default.** Each param's `defaultValue` in
+its module's `definition.json` is the one default every country shares. The
+editor marks a param whose value differs from it, and offers a per-param reset
+plus "Reset all to definition defaults" next to the per-module reset. Each
+reset unpins, so the param follows the definition again. Default families and
+pre-selected modules have no shared default and are never compared. The status
+site's fleet matrix reads every country's values from
+`GET /module_defaults_snapshot` (`server/runs/module_defaults_snapshot.ts`,
+gated by `status-api-key` like the other status routes) and compares each with
+its definition default. Semantics, authoritative comment in
+`module_defaults.tsx`.
 
 ## Generation (`server/worker_routines/generate_run/`)
 

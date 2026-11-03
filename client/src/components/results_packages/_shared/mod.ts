@@ -1,4 +1,4 @@
-export { GlobalDefaultMarker } from "./global_default_marker.tsx";
+export { DefinitionDefaultMarker } from "./definition_default_marker.tsx";
 export {
   getModuleParameterInvalidMsg,
   ModuleParameterInputs,

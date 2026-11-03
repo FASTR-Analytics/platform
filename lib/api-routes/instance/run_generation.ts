@@ -11,7 +11,6 @@ import type {
   InstalledModuleWithConfigSelections,
   ItemsHolderPresentationObject,
   ItemsHolderResultsObject,
-  ModuleDefaultsGlobalFile,
   ReadyPackage,
   ResultsValueInfoForPresentationObject,
   RunAuthoringContext,
@@ -239,14 +238,6 @@ export const runGenerationRouteRegistry = {
     method: "POST",
     guard: GUARD.permission("can_configure_data"),
     body: z.object({ defaults: runGenerationDefaultsSchema }),
-  }),
-  // The fleet's frozen global parameter defaults from the resource hub;
-  // null when unpublished (contract on ModuleDefaultsGlobalFile).
-  getModuleDefaultsGlobal: route({
-    path: "/run_generation/defaults_global",
-    method: "GET",
-    guard: GUARD.permission("can_configure_data"),
-    response: {} as { global: ModuleDefaultsGlobalFile | null },
   }),
   // Step-2 module definitions resolved from the modules repo at latest
   // commit; the returned gitRef is recorded into step2Result at launch.

@@ -13,7 +13,6 @@ import { familyLevelParamsSchema } from "../../../lib/api-routes/instance/geojso
 import { log } from "../../middleware/logging.ts";
 import {
   deleteRun,
-  getModuleDefaultsGlobal,
   getRunGenerationModuleOptions,
   listRunModuleFiles,
   openRunGeoJsonFile,
@@ -86,16 +85,6 @@ defineRoute(
       c.var.mainDb,
       body.defaults,
     );
-    return c.json(res);
-  },
-);
-
-defineRoute(
-  routesRunGeneration,
-  "getModuleDefaultsGlobal",
-  log("getModuleDefaultsGlobal"),
-  async (c) => {
-    const res = await getModuleDefaultsGlobal();
     return c.json(res);
   },
 );

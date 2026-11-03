@@ -1,6 +1,5 @@
 import {
   getMergedModuleConfigSelections,
-  type ModuleDefaultsGlobalFile,
   type ModuleParameter,
   type RunGenerationDefaults,
   type RunGenerationModuleOption,
@@ -49,12 +48,11 @@ import {
 // for modules not offerable here (country-filtered or removed) pass through
 // verbatim on save (the store tolerates unknown moduleIds by design), as
 // do stored keys a definition no longer declares.
-// When the fleet's global defaults are published (contract on
-// ModuleDefaultsGlobalFile), a param whose value differs from its global
-// value is marked, and resets per param, per module or all set it to the
-// global value: unpinned when that equals the current definition default
-// (so it keeps following the definition), pinned otherwise. Like the
-// definition reset, these fill the form and land on save.
+// The definition default (the module's own defaultValue) is the one shared
+// default for a param. A param whose value differs from it is marked, and the
+// per-param reset unpins it so it follows the definition again; "Reset all to
+// definition defaults" is the per-module reset across every module. Like the
+// per-module reset, these fill the form and land on save.
 type Props = EditorComponentProps<Record<never, never>, undefined>;
 
 export function ModuleDefaultsEditor(p: Props) {
@@ -63,10 +61,9 @@ export function ModuleDefaultsEditor(p: Props) {
 
   const query = createQuery(
     async () => {
-      const [optionsRes, defaultsRes, globalRes] = await Promise.all([
+      const [optionsRes, defaultsRes] = await Promise.all([
         serverActions.getRunGenerationModuleOptions({}),
         serverActions.getRunGenerationDefaults({}),
-        serverActions.getModuleDefaultsGlobal({}),
       ]);
       if (optionsRes.success === false) {
         return optionsRes;
@@ -76,13 +73,7 @@ export function ModuleDefaultsEditor(p: Props) {
       }
       return {
         success: true as const,
-        data: {
-          options: optionsRes.data,
-          defaults: defaultsRes.data,
-          // A global-defaults read failure never blocks the editor: it just
-          // has no global controls.
-          global: globalRes.success ? globalRes.data.global : null,
-        },
+        data: { options: optionsRes.data, defaults: defaultsRes.data },
       };
     },
     t3({
@@ -113,7 +104,6 @@ export function ModuleDefaultsEditor(p: Props) {
           <ModuleDefaultsInner
             options={keyed.options}
             defaults={keyed.defaults}
-            global={keyed.global}
             close={p.close}
           />
         )}
@@ -125,7 +115,6 @@ export function ModuleDefaultsEditor(p: Props) {
 function ModuleDefaultsInner(p: {
   options: RunGenerationModuleOptions;
   defaults: RunGenerationDefaults;
-  global: ModuleDefaultsGlobalFile | null;
   close: (v: undefined) => void;
 }) {
   const [includeHmis, setIncludeHmis] = createSignal(
@@ -191,21 +180,9 @@ function ModuleDefaultsInner(p: {
     resetModuleIds.add(option.id);
   }
 
-  function globalValue(
-    moduleId: string,
-    replacementString: string,
-  ): string | undefined {
-    return p.global?.parameters[moduleId]?.[replacementString]?.value;
-  }
-
   function paramDiffers(moduleId: string, param: ModuleParameter): boolean {
-    const g = globalValue(moduleId, param.replacementString);
-    return g !== undefined &&
-      paramValues[moduleId][param.replacementString] !== g;
-  }
-
-  function moduleDiffers(option: RunGenerationModuleOption): boolean {
-    return option.parameters.some((param) => paramDiffers(option.id, param));
+    return paramValues[moduleId][param.replacementString] !==
+      param.input.defaultValue;
   }
 
   const differingCount = () =>
@@ -215,37 +192,26 @@ function ModuleDefaultsInner(p: {
       0,
     );
 
-  function resetParamToGlobal(
+  function resetParamToDefault(
     option: RunGenerationModuleOption,
-    param: ModuleParameter,
+    replacementString: string,
   ): void {
-    const g = globalValue(option.id, param.replacementString);
-    if (g === undefined) {
+    const param = option.parameters.find((x) =>
+      x.replacementString === replacementString
+    );
+    if (param === undefined) {
       return;
     }
-    const key = paramKey(option.id, param.replacementString);
-    if (g === param.input.defaultValue) {
-      dirtyParams.delete(key);
-      unpinParams.add(key);
-    } else {
-      unpinParams.delete(key);
-      dirtyParams.add(key);
-    }
-    setParamValues(option.id, param.replacementString, g);
+    const key = paramKey(option.id, replacementString);
+    dirtyParams.delete(key);
+    unpinParams.add(key);
+    setParamValues(option.id, replacementString, param.input.defaultValue);
   }
 
-  function resetModuleToGlobal(option: RunGenerationModuleOption): void {
-    batch(() => {
-      for (const param of option.parameters) {
-        resetParamToGlobal(option, param);
-      }
-    });
-  }
-
-  function resetAllToGlobal(): void {
+  function resetAllToDefaults(): void {
     batch(() => {
       for (const option of p.options.modules) {
-        resetModuleToGlobal(option);
+        resetToDefaults(option);
       }
     });
   }
@@ -343,46 +309,41 @@ function ModuleDefaultsInner(p: {
         })}
       </div>
 
-      <Show when={p.global}>
-        <div class="ui-pad ui-gap flex items-center rounded border">
-          <div class="text-base-content-muted flex-1 text-sm">
-            {differingCount() > 0
-              ? `${
-                t3({
-                  en:
-                    "Parameters that differ from the global defaults (the value most countries use)",
-                  fr:
-                    "Paramètres qui diffèrent des valeurs par défaut globales (la valeur utilisée par la plupart des pays)",
-                  pt:
-                    "Parâmetros que diferem das predefinições globais (o valor usado pela maioria dos países)",
-                })
-              }: ${differingCount()}`
-              : t3({
-                en:
-                  "Every parameter matches the global defaults (the value most countries use).",
+      <div class="ui-pad ui-gap flex items-center rounded border">
+        <div class="text-base-content-muted flex-1 text-sm">
+          {differingCount() > 0
+            ? `${
+              t3({
+                en: "Parameters that differ from their definition default",
                 fr:
-                  "Tous les paramètres correspondent aux valeurs par défaut globales (la valeur utilisée par la plupart des pays).",
-                pt:
-                  "Todos os parâmetros coincidem com as predefinições globais (o valor usado pela maioria dos países).",
-              })}
-          </div>
-          <Show when={differingCount() > 0}>
-            <Button
-              size="sm"
-              outline
-              intent="neutral"
-              iconName="refresh"
-              onClick={resetAllToGlobal}
-            >
-              {t3({
-                en: "Reset all to global defaults",
-                fr: "Tout réinitialiser aux valeurs par défaut globales",
-                pt: "Repor tudo nas predefinições globais",
-              })}
-            </Button>
-          </Show>
+                  "Paramètres qui diffèrent de leur valeur par défaut de la définition",
+                pt: "Parâmetros que diferem da predefinição da definição",
+              })
+            }: ${differingCount()}`
+            : t3({
+              en: "Every parameter matches its definition default.",
+              fr:
+                "Tous les paramètres correspondent à leur valeur par défaut de la définition.",
+              pt:
+                "Todos os parâmetros coincidem com a predefinição da definição.",
+            })}
         </div>
-      </Show>
+        <Show when={differingCount() > 0}>
+          <Button
+            size="sm"
+            outline
+            intent="neutral"
+            iconName="refresh"
+            onClick={resetAllToDefaults}
+          >
+            {t3({
+              en: "Reset all to definition defaults",
+              fr: "Tout réinitialiser aux valeurs par défaut de la définition",
+              pt: "Repor tudo nas predefinições da definição",
+            })}
+          </Button>
+        </Show>
+      </div>
 
       <h3 class="ui-text-heading">
         {t3({
@@ -442,21 +403,6 @@ function ModuleDefaultsInner(p: {
                   onChange={(v) => setSelected(option.id, v)}
                 />
               </div>
-              <Show when={moduleDiffers(option)}>
-                <Button
-                  size="sm"
-                  outline
-                  intent="neutral"
-                  iconName="refresh"
-                  onClick={() => resetModuleToGlobal(option)}
-                >
-                  {t3({
-                    en: "Reset to global defaults",
-                    fr: "Réinitialiser aux valeurs par défaut globales",
-                    pt: "Repor as predefinições globais",
-                  })}
-                </Button>
-              </Show>
               <Show when={option.parameters.length > 0}>
                 <Button
                   size="sm"
@@ -482,19 +428,7 @@ function ModuleDefaultsInner(p: {
                   dirtyParams.add(paramKey(option.id, k));
                   setParamValues(option.id, k, v);
                 }}
-                globalDefault={p.global
-                  ? {
-                    valueFor: (k) => globalValue(option.id, k),
-                    onReset: (k) => {
-                      const param = option.parameters.find((x) =>
-                        x.replacementString === k
-                      );
-                      if (param) {
-                        resetParamToGlobal(option, param);
-                      }
-                    },
-                  }
-                  : undefined}
+                onResetToDefault={(k) => resetParamToDefault(option, k)}
               />
             </Show>
           </div>
