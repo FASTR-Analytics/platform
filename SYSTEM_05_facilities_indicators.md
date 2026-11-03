@@ -1291,14 +1291,17 @@ with display rows, and the T2 rows for the dismissed findings), builds the two
 blocks, every message and the queued indicators' hashes, and calls the model
 through `createAiProxyClient` with `callAIStructured`: the first call alone, so
 its write of the context block to the prompt cache lands before the rest read
-it, then four in flight. Each result carries its hash and the response's model
+it, then four in flight. `hfaVerificationSystem` makes the two system blocks,
+the context block marked for the prompt cache, for every call and for a drafted
+fix. Each result carries its hash and the response's model
 and is saved through `saveHfaIndicatorVerifications` in batches of ten; the
 batch in hand is saved when the run ends, stops or fails. A `null` answer lists
 the indicator as not checked with the response's stop reason, and the run goes
-on. A thrown error (a failed read or save, a 429, whose reset time the proxy
+on; `noAnswerReason` words the stop reason for the manager, the editor and a
+fix. A thrown error (a failed read or save, a 429, whose reset time the proxy
 client shows in the user's locale, a network failure) stops the run, aborts the
 calls in flight and is kept as the stop error: for an API error, the response
-body's own message, not the SDK's status and JSON. `stopRun()` aborts every call
+body's own message (`callErrorMessage`), not the SDK's status and JSON. `stopRun()` aborts every call
 in flight. `hfaVerificationRun` holds the progress (done, queued, the indicator
 last started), undefined while no run is in progress, and the not-checked list
 and stop error of the current or last run until the next starts.
@@ -1317,7 +1320,49 @@ its severity's colour; "not verified" or "changed", muted, beside them or alone;
 "No findings", muted, for a verified indicator with none open; "…" until the
 hashes and rows land. It sorts by the open count and filters by Problem,
 Warning, No findings, Not verified, Changed and the text of each rule an open
-finding names.
+finding names. The manager hands the code editor the state and the rows as
+accessors, so the editor shows what the column shows and follows each save,
+dismissal and switch.
+
+**The code editor.** It opens only for `can_configure_data`, so every control
+below needs no gate of its own. Each field shows, under the app's own issues,
+the findings of the rules whose `field` it is
+(`indicators/verification/field_findings.tsx`): the category and the type
+findings under the row of selects, the label findings under each label, the
+code, filter and variant findings under those fields, and the `rounds` findings
+under the round list. A finding about a round shows only while that round is
+selected; a finding about the whole indicator shows in every round. An open
+finding shows its severity, its rule's text, its round, the message, the
+suggestion and Dismiss; a field's dismissed findings collapse to "n dismissed",
+each with Undo. Dismiss and Undo call `setHfaVerificationFindingsDismissed`. A
+switched-off rule's findings, dismissed ones included, are hidden. Each round
+button counts the open findings about that round, in the danger colour when one
+is a problem. Lines above the fields say that the indicator is not verified, or
+has changed since it was verified and its findings describe the version
+verified, or, while a run is in progress and the indicator is in it or being
+checked, that it is verifying; that the findings describe the saved version
+while the draft has unsaved edits; that the run did not check it, and why; and
+the run's stop error. The header's Verify runs `startRun` over this one
+indicator, against its saved version, while no run is in progress.
+
+**Draft a fix** (`indicators/verification/draft_fix.ts`), the header button
+beside Verify, asks the model for an edit that resolves the indicator's open
+findings. It is enabled with open findings and a draft that is the saved
+version; with unsaved edits its title says to save first. It reads the
+indicator fresh (`loadReadInput(false)`), since the editor's props are the
+manager's state when it opened and go stale after a save in the editor, and
+makes one `callAIStructured` call with the verification's two system blocks and
+`buildHfaFixMessage`. The answer becomes a patch through `fixToPatch`, which
+`validateHfaIndicatorPatch` (`indicators/_shared/indicator_patch.ts`, shared
+with the copilot's `update_hfa_indicator_editor`) checks against the editor's
+taxonomy and rounds, since `applyDraft` skips a round it does not hold without
+saying so. A valid patch lands through `applyDraft`, as the copilot's does,
+only when the draft is unchanged since the fix was asked for; the banner then
+shows the model's note and each changed field with its value before the fix,
+and Discard restores the draft as it was, saved. A null answer, an empty edit,
+an edit to a draft changed meanwhile, a failed validation and a thrown error
+each show their reason in the banner and change nothing. Nothing is persisted
+until Save, which clears the banner; closing the editor aborts the call.
 
 **The rules modal** (`indicators/verification/rules_modal.tsx`), the actions
 menu's Verification rules, lists the app rules and the model rules apart, each
@@ -1793,7 +1838,9 @@ Valkey at this layer.
   (`server_only_funcs/get_script_with_parameters_hfa.ts:116-119`). Either the
   language refuses text operands (`parseHfaIndicatorCode` returns `text_operand`
   for every string), or m010 keeps text values and the bindings quote
-  non-numeric codes.
+  non-numeric codes. The verification's rules list holds the matching app rule,
+  `quoted_value`, commented out (`lib/hfa_verification_rules.ts`): the decision
+  either enables it with the status core's new issue kind or deletes it.
 - **The manager calls code ready when it names a variable blank in every
   round.** Run capture knows only variables with a non-blank value
   (`server/runs/capture_inputs/hfa.ts:220-241`), so generation reports such a

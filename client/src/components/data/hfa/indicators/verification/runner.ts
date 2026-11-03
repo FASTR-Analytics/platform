@@ -6,6 +6,7 @@ import {
   hfaVerificationInputHash,
   hfaVerificationOutputSchema,
   type HfaVerificationResult,
+  t3,
 } from "lib";
 import { callAIStructured } from "panther";
 import { createSignal } from "solid-js";
@@ -35,6 +36,30 @@ export type HfaVerificationNotChecked = {
   indicatorId: string;
   stopReason: string | null;
 };
+
+// Why a structured answer was null, for a verification or a fix.
+export function noAnswerReason(stopReason: string | null): string {
+  switch (stopReason) {
+    case "refusal":
+      return t3({
+        en: "the model declined",
+        fr: "le modèle a refusé",
+        pt: "o modelo recusou",
+      });
+    case "max_tokens":
+      return t3({
+        en: "the answer was cut off",
+        fr: "la réponse a été tronquée",
+        pt: "a resposta foi cortada",
+      });
+    default:
+      return t3({
+        en: "the answer was not in the expected form",
+        fr: "la réponse n'avait pas la forme attendue",
+        pt: "a resposta não tinha a forma esperada",
+      });
+  }
+}
 
 // `progress` is undefined while no run is in progress; `notChecked` and
 // `stopError` are the current or last run's until the next starts.
@@ -80,10 +105,26 @@ export function stopRun(): void {
   controller?.abort();
 }
 
+// The two system blocks of every verification call, which the fix call sends
+// unchanged: the context block is cached, so every call after the first of a
+// run, and a fix drafted after it, reads it instead of writing it.
+export function hfaVerificationSystem(
+  blocks: { instructionBlock: string; contextBlock: string },
+) {
+  return () => [
+    { type: "text" as const, text: blocks.instructionBlock },
+    {
+      type: "text" as const,
+      text: blocks.contextBlock,
+      cache_control: { type: "ephemeral" as const },
+    },
+  ];
+}
+
 // An API error's message is its status and the response body as JSON; the
 // body's own message is the readable part (the proxy's quota rejection and
 // its reset time).
-function messageOf(e: unknown): string {
+export function callErrorMessage(e: unknown): string {
   if (e instanceof APIError) {
     const body = e.error as { error?: { message?: unknown } } | undefined;
     if (typeof body?.error?.message === "string") return body.error.message;
@@ -100,7 +141,7 @@ async function run(
   // The first failure stops the run; the aborts it causes are not failures.
   const stopWith = (e: unknown) => {
     if (signal.aborted) return;
-    setRun((r) => ({ ...r, stopError: messageOf(e) }));
+    setRun((r) => ({ ...r, stopError: callErrorMessage(e) }));
     runController.abort();
   };
   const flush = async () => {
@@ -126,7 +167,7 @@ async function run(
       list.push(f);
       dismissedByIndicator.set(f.indicatorId, list);
     }
-    const { instructionBlock, contextBlock } = buildHfaVerificationBlocks(
+    const blocks = buildHfaVerificationBlocks(
       read,
       getSnapshotInstanceState().instanceLanguage,
     );
@@ -138,7 +179,7 @@ async function run(
           [
             id,
             await hfaVerificationInputHash(
-              instructionBlock,
+              blocks.instructionBlock,
               messages.get(id)!.hashedMessage,
             ),
           ] as const
@@ -147,14 +188,7 @@ async function run(
     );
     setProgress((p) => ({ ...p, queued: ids.length }));
     const sdkClient = createAiProxyClient();
-    const system = () => [
-      { type: "text" as const, text: instructionBlock },
-      {
-        type: "text" as const,
-        text: contextBlock,
-        cache_control: { type: "ephemeral" as const },
-      },
-    ];
+    const system = hfaVerificationSystem(blocks);
 
     const check = async (indicatorId: string) => {
       setProgress((p) => ({ ...p, current: indicatorId }));
@@ -207,6 +241,6 @@ async function run(
   try {
     await flush();
   } catch (e) {
-    setRun((r) => ({ ...r, stopError: r.stopError ?? messageOf(e) }));
+    setRun((r) => ({ ...r, stopError: r.stopError ?? callErrorMessage(e) }));
   }
 }

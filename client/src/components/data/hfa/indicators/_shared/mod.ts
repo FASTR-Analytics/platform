@@ -1,3 +1,4 @@
+export { validateHfaIndicatorPatch } from "./indicator_patch.ts";
 export {
   loadAllCode,
   loadAllVariantCode,

@@ -69,6 +69,7 @@ import {
   HfaVerificationRulesModal,
   hfaVerificationRun,
   hfaVerificationState,
+  noAnswerReason,
   startRun,
   stopRun,
 } from "./verification/mod.ts";
@@ -443,32 +444,9 @@ export function HfaIndicatorsManager(p: Props) {
     });
   };
 
-  const notCheckedReason = (stopReason: string | null): string => {
-    switch (stopReason) {
-      case "refusal":
-        return t3({
-          en: "the model declined",
-          fr: "le modèle a refusé",
-          pt: "o modelo recusou",
-        });
-      case "max_tokens":
-        return t3({
-          en: "the answer was cut off",
-          fr: "la réponse a été tronquée",
-          pt: "a resposta foi cortada",
-        });
-      default:
-        return t3({
-          en: "the answer was not in the expected form",
-          fr: "la réponse n'avait pas la forme attendue",
-          pt: "a resposta não tinha a forma esperada",
-        });
-    }
-  };
-
   const notCheckedMessage = () => {
     const list = hfaVerificationRun().notChecked.map((n) =>
-      `${n.indicatorId} (${notCheckedReason(n.stopReason)})`
+      `${n.indicatorId} (${noAnswerReason(n.stopReason)})`
     ).join(", ");
     return t3({
       en: `Not checked: ${list}`,
@@ -580,6 +558,11 @@ export function HfaIndicatorsManager(p: Props) {
         serviceCategories: svcCatSt.data,
         variantGroups: vgSt.data,
         variantItems: viSt.data,
+        verificationState,
+        verificationRows: () => {
+          const st = verificationRows();
+          return st.status === "ready" ? st.data : undefined;
+        },
         deleteIndicator: (onDeleted: () => void) =>
           deleteIndicators([indicator.indicatorId], onDeleted),
       },

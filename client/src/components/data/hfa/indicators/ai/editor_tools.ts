@@ -19,7 +19,7 @@ import {
   copilotViews,
   type HfaIndicatorEditorContext,
 } from "~/components/instance/copilot/mod.ts";
-import { loadDisplayRows } from "../_shared/mod.ts";
+import { loadDisplayRows, validateHfaIndicatorPatch } from "../_shared/mod.ts";
 
 // The HFA editor group: the code editor's unsaved draft of one indicator,
 // read and written through the view's context. The write checks its ids
@@ -59,8 +59,6 @@ const patchSchema = z.object({
     "Variant rows to set, for items of the group the patch leaves; an empty code removes the row.",
   ),
 });
-
-type Patch = z.infer<typeof patchSchema>;
 
 // The draft in place of the indicator's saved state, over everything else the
 // manager handed the editor: what the detail block and the status print.
@@ -118,126 +116,6 @@ function draftInput(
 }
 
 const none = "(none)";
-
-// Every id the patch names is checked against what the editor offers, so a
-// throw means nothing changed.
-function validatePatch(
-  patch: Patch,
-  draft: HfaIndicatorEditorDraft,
-  context: HfaIndicatorEditorContext,
-): HfaIndicatorEditorPatch {
-  const given = Object.entries(patch).filter(([, v]) => v !== undefined);
-  if (given.length === 0) {
-    throw new AIToolFailure(
-      "No fields were provided. Pass at least one field to change.",
-    );
-  }
-  const t = context.getTaxonomy();
-  if (
-    patch.categoryId != null &&
-    !t.categories.some((c) => c.id === patch.categoryId)
-  ) {
-    throw new AIToolFailure(
-      `Category "${patch.categoryId}" does not exist. Valid category ids: ${
-        t.categories.map((c) => c.id).join(", ") || none
-      }.`,
-    );
-  }
-  const categoryAfter = patch.categoryId === undefined
-    ? draft.categoryId
-    : patch.categoryId;
-  if (patch.subCategoryId != null) {
-    const sub = t.subCategories.find((s) => s.id === patch.subCategoryId);
-    if (sub === undefined) {
-      throw new AIToolFailure(
-        `Sub-category "${patch.subCategoryId}" does not exist. Valid sub-category ids: ${
-          t.subCategories.map((s) => s.id).join(", ") || none
-        }.`,
-      );
-    }
-    if (sub.categoryId !== categoryAfter) {
-      throw new AIToolFailure(
-        `Sub-category "${patch.subCategoryId}" belongs to category "${sub.categoryId}", but the indicator's category is "${
-          categoryAfter ?? none
-        }". Set a matching category in the same call.`,
-      );
-    }
-  }
-  if (patch.serviceCategoryIds !== undefined) {
-    const bad = patch.serviceCategoryIds.filter((id) =>
-      !t.serviceCategories.some((s) => s.id === id)
-    );
-    if (bad.length > 0) {
-      throw new AIToolFailure(
-        `Service categories do not exist: ${
-          bad.join(", ")
-        }. Valid service-category ids: ${
-          t.serviceCategories.map((s) => s.id).join(", ") || none
-        }.`,
-      );
-    }
-  }
-  if (
-    patch.variantGroupId != null &&
-    !t.variantGroups.some((g) => g.id === patch.variantGroupId)
-  ) {
-    throw new AIToolFailure(
-      `Variant group "${patch.variantGroupId}" does not exist. Valid group ids: ${
-        t.variantGroups.map((g) => g.id).join(", ") || none
-      }.`,
-    );
-  }
-  const rounds = new Set(draft.code.map((c) => c.timePoint));
-  const offered = (timePoint: string) => {
-    if (!rounds.has(timePoint)) {
-      throw new AIToolFailure(
-        `Time point "${timePoint}" is not a round of this editor. Rounds: ${
-          [...rounds].join(", ")
-        }.`,
-      );
-    }
-  };
-  const seenRounds = new Set<string>();
-  for (const round of patch.code ?? []) {
-    offered(round.timePoint);
-    if (seenRounds.has(round.timePoint)) {
-      throw new AIToolFailure(
-        `Time point "${round.timePoint}" is listed twice; list each round once.`,
-      );
-    }
-    seenRounds.add(round.timePoint);
-    if (round.code === undefined && round.filterCode === undefined) {
-      throw new AIToolFailure(
-        `Round "${round.timePoint}" names no field to change; give code, filter code or both.`,
-      );
-    }
-  }
-  const groupAfter = patch.variantGroupId === undefined
-    ? draft.variantGroupId
-    : patch.variantGroupId;
-  const items = t.variantItems.filter((i) => i.groupId === groupAfter);
-  const seenRows = new Set<string>();
-  for (const row of patch.variantCode ?? []) {
-    offered(row.timePoint);
-    if (!items.some((i) => i.id === row.itemId)) {
-      throw new AIToolFailure(
-        `Variant item "${row.itemId}" is not in the variant group "${
-          groupAfter ?? none
-        }" the change leaves. Its items: ${
-          items.map((i) => i.id).join(", ") || none
-        }.`,
-      );
-    }
-    const key = `${row.timePoint} / ${row.itemId}`;
-    if (seenRows.has(key)) {
-      throw new AIToolFailure(
-        `Variant row "${key}" is listed twice; list each row once.`,
-      );
-    }
-    seenRows.add(key);
-  }
-  return patch;
-}
 
 function changeLine(
   label: string,
@@ -379,8 +257,13 @@ export function getClientToolsForHfaIndicatorEditor() {
       kind: "write",
       handler: (input, view) => {
         const before = view.context.getDraft();
-        const patch = validatePatch(input, before, view.context);
-        view.context.applyDraft(patch);
+        const checked = validateHfaIndicatorPatch(
+          input,
+          before,
+          view.context.getTaxonomy(),
+        );
+        if ("error" in checked) throw new AIToolFailure(checked.error);
+        view.context.applyDraft(checked.patch);
         const after = view.context.getDraft();
         const status = draftInput(
           view.params.indicatorId,
@@ -390,7 +273,7 @@ export function getClientToolsForHfaIndicatorEditor() {
         ).status.get(view.params.indicatorId);
         return [
           "Applied in the editor, unsaved: the user saves or discards it.",
-          ...describeChanges(patch, before, after),
+          ...describeChanges(checked.patch, before, after),
           "Round status after the change:",
           ...(status?.rounds ?? []).flatMap((r) => [
             `- ${r.timePoint}: ${r.status}`,
