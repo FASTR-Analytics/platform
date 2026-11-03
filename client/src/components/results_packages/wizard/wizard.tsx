@@ -119,8 +119,9 @@ type InnerProps = {
 function WizardInner(p: InnerProps) {
   const graph = buildModuleGraph(p.options);
 
-  // Step 1: data. Seed: instance defaults, masked by what is uploaded and,
-  // for HMIS, by a running import (the launch guard's client half).
+  // Step 1: data. Seed: every family that can be turned on, i.e. what is
+  // uploaded and, for HMIS, not blocked by a running import (the launch
+  // guard's client half).
   const blocked = (family: DatasetType): FamilyBlockedReason | undefined => {
     if (
       !instanceState.datasetsWithData.includes(family) ||
@@ -136,9 +137,9 @@ function WizardInner(p: InnerProps) {
   const available = (family: DatasetType): boolean =>
     blocked(family) === undefined;
   const [families, setFamilies] = createStore<RunGenerationStep1Result>({
-    hmis: p.defaults.step1?.hmis === true && available("hmis"),
-    hfa: p.defaults.step1?.hfa === true && available("hfa"),
-    iceh: p.defaults.step1?.iceh === true && available("iceh"),
+    hmis: available("hmis"),
+    hfa: available("hfa"),
+    iceh: available("iceh"),
   });
 
   // Step 2: modules. `selected` is what the user ticked; `chosen` is what
@@ -147,12 +148,14 @@ function WizardInner(p: InnerProps) {
   // Deriving the closure at read time is what keeps the launch payload
   // closed under prerequisites whatever order families and ticks change in:
   // a ticked module whose family is dropped simply falls out (and comes
-  // back with the family). Seed: instance defaults. Parameter values are
+  // back with the family). Seed: every module ticked, so the launch set
+  // starts as everything the chosen data can run (the offerability mask
+  // drops the rest). Parameter values are
   // not editable in the wizard: the module-defaults editor is their only
   // writer, so they are a plain constant here, instance defaults beating
   // definition defaults (getMergedModuleConfigSelections).
   const [selected, setSelected] = createStore<Record<string, boolean>>(
-    Object.fromEntries(p.defaults.moduleIds.map((id) => [id, true])),
+    Object.fromEntries(p.options.modules.map((o) => [o.id, true])),
   );
   const paramValues: Record<string, Record<string, string>> = Object
     .fromEntries(

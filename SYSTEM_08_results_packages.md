@@ -121,13 +121,13 @@ below are their file-level twins):
   (`results_packages/package_page.tsx`, its panes under `package_view/`),
   renders a package's contents: its modules' presets, settings, scripts, logs
   and files, its viewers gated by `canViewPackageContents()`
-  (`package_view/status.tsx`, over `can()`, S18); the
-  Explore tab (S11) reads a ready package's metrics at a scope. AI tools take a
-  run RESOLVER, never a runId from the model: the package page sets the chat's
-  `package` view (S13) with the page's package at the page scope, and its state
-  names the status, stage, error, progress and open module, so a generating or
-  failed package's script and log reads work while its package reads refuse; the
-  Results page sets `results_packages`.
+  (`package_view/status.tsx`, over `can()`, S18); the Explore tab (S11) reads a
+  ready package's metrics at a scope. AI tools take a run RESOLVER, never a
+  runId from the model: the package page sets the chat's `package` view (S13)
+  with the page's package at the page scope, and its state names the status,
+  stage, error, progress and open module, so a generating or failed package's
+  script and log reads work while its package reads refuse; the Results page
+  sets `results_packages`.
 - **Retention.** No automatic or time-based GC, ever. Reclamation is ONLY the
   catalogue's guarded hard delete (row + dir), refused while referenced or
   generating.
@@ -830,18 +830,21 @@ carry no `inputKey` and are never reuse sources.
 
 ## Instance module defaults (`instance_config.run_generation_defaults`)
 
-The wizard's starting values (default data families, default module set, and
-per-module parameter values) live in one `instance_config` row, seeded into the
-wizard as instance defaults > definition defaults
+The wizard turns on everything it can: step 1 starts with every family that has
+data and is not blocked, and step 2 starts with every module ticked, so the
+launch set opens as everything that data supports (the offerability mask drops
+the rest). The user can still untick. The per-module parameter values live in
+one `instance_config` row, merged as instance defaults > definition defaults
 (`results_packages/wizard/wizard.tsx` via `getMergedModuleConfigSelections`).
-Its **sole writer** is the module-defaults editor
-(`results_packages/module_defaults.tsx`, opened from the Results packages
-surface; scopes have their own rail tab, S15); the wizard only reads it and has
-no "save as instance defaults" action (ruled): a save built from only the
-modules selected for one generation would silently drop curated defaults for
-every other module. The editor lives on the Results surface rather than instance
-Settings: the defaults are generation configuration, read beside the packages
-they shape.
+The row still carries `step1` and `moduleIds` from when they seeded the wizard;
+nothing reads them now and the editor saves them back unchanged. Its **sole
+writer** is the module-defaults editor (`results_packages/module_defaults.tsx`,
+opened from the Results packages surface; scopes have their own rail tab, S15);
+the wizard only reads it and has no "save as instance defaults" action (ruled):
+a save built from only the modules selected for one generation would silently
+drop curated defaults for every other module. The editor lives on the Results
+surface rather than instance Settings: the defaults are generation
+configuration, read beside the packages they shape.
 
 **Definitions are never stored.** The editor resolves them live on open via
 `getRunGenerationModuleOptions`, the same read the wizard uses, so drift is
@@ -854,14 +857,12 @@ following future definition defaults, while a stored value stays pinned;
 per-module "Reset to definition defaults" is the unpin act, dropping that
 module's stored entry. Entries for modules not offerable here (country-filtered
 or removed) and stored keys a definition no longer declares pass through
-verbatim: the store tolerates unknowns by design. The editor enforces neither
-DAG closure nor data availability: the wizard's modules step renders one section
-per family in family order, the primary module first and the secondary modules
-under a "Supporting analyses" subheading, from the module-ordered options the
-read returns; the wizard sanitizes at read time (step 1 re-masks families by
-what is uploaded; the launched module set is the closure-completed,
-offerability-masked derivation of what is ticked, so a stored default whose
-family is absent simply never launches). The wizard does not edit parameter
+verbatim: the store tolerates unknowns by design. The wizard's modules step
+renders one section per family in family order, the primary module first and the
+secondary modules under a "Supporting analyses" subheading, from the
+module-ordered options the read returns; the launched module set is the
+closure-completed, offerability-masked derivation of what is ticked, so a module
+whose family is absent simply never launches. The wizard does not edit parameter
 values (ruled): the editor is the only place they are set, and launch sends the
 stored defaults merged with definition defaults. One shared check,
 `getModuleParameterInvalidMsg`, gates the editor's save, drives its inputs'
@@ -871,14 +872,13 @@ the modules whose stored default is invalid.
 **Definition defaults as the shared default.** Each param's `defaultValue` in
 its module's `definition.json` is the one default every country shares. The
 editor marks a param whose value differs from it, and offers a per-param reset
-plus "Reset all to definition defaults" next to the per-module reset. Each
-reset unpins, so the param follows the definition again. Default families and
-pre-selected modules have no shared default and are never compared. The status
-site's fleet matrix reads every country's values from
-`GET /module_defaults_snapshot` (`server/runs/module_defaults_snapshot.ts`,
-gated by `status-api-key` like the other status routes) and compares each with
-its definition default. Semantics, authoritative comment in
-`module_defaults.tsx`.
+plus "Reset all to definition defaults" next to the per-module reset. Each reset
+unpins, so the param follows the definition again. The stored families and
+module set are never compared. The status site's fleet matrix reads every
+country's values from `GET /module_defaults_snapshot`
+(`server/runs/module_defaults_snapshot.ts`, gated by `status-api-key` like the
+other status routes) and compares each with its definition default. Semantics,
+authoritative comment in `module_defaults.tsx`.
 
 ## Generation (`server/worker_routines/generate_run/`)
 

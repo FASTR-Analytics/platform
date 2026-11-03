@@ -1,5 +1,7 @@
 import {
   getMergedModuleConfigSelections,
+  getModuleFamilyLabel,
+  MODULE_FAMILY_ORDER,
   type ModuleParameter,
   type RunGenerationDefaults,
   type RunGenerationModuleOption,
@@ -8,16 +10,19 @@ import {
 } from "lib";
 import {
   Button,
-  Checkbox,
   createFormAction,
   createQuery,
   EditorComponentProps,
+  FrameLeftResizable,
   FrameTop,
   HeadingBar,
+  type ListEntry,
+  LoadingIndicator,
+  SelectList,
   StateHolderFormError,
   StateHolderWrapper,
 } from "panther";
-import { batch, createSignal, For, Show } from "solid-js";
+import { batch, createMemo, createSignal, type JSX, Show } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
 import {
   getModuleParameterInvalidMsg,
@@ -30,14 +35,16 @@ import {
 } from "~/components/instance/copilot/mod.ts";
 
 // The instance's module-defaults editor (S8 "Instance module defaults"): the
-// ONE writer of the `run_generation_defaults` store, which pre-fills the
-// generation wizard (these defaults beat definition defaults). The wizard
-// no longer edits parameter values, so this editor is the ONLY place they
-// are set.
+// ONE writer of the `run_generation_defaults` store, whose parameter values
+// the generation wizard launches with (these defaults beat definition
+// defaults). The wizard does not edit parameter values, so this editor is
+// the ONLY place they are set. The store's `step1` and `moduleIds` no longer
+// seed anything (the wizard turns on every family and module it can), so
+// the editor shows neither and saves them back as stored.
 // Definitions are never stored: they are resolved live on open via the same
 // read the wizard uses, and drift is absorbed by
 // getMergedModuleConfigSelections on the next read. Params render for EVERY
-// offerable module regardless of the default module set. The save is SPARSE
+// offerable module. The save is SPARSE
 // by intent: it writes the already-stored values plus the values ADJUSTED in
 // this session (dirty-tracked per field), so a param no admin ever touched
 // is not stored and keeps following future definition-default changes,
@@ -84,9 +91,39 @@ export function ModuleDefaultsEditor(p: Props) {
   );
 
   return (
+    <StateHolderWrapper
+      state={query.state()}
+      loadingRenderer={(msg) => (
+        <ModuleDefaultsFrame close={p.close}>
+          <LoadingIndicator msg={msg} />
+        </ModuleDefaultsFrame>
+      )}
+      errorRenderer={(err) => (
+        <ModuleDefaultsFrame close={p.close}>
+          <div class="ui-pad text-danger">{err}</div>
+        </ModuleDefaultsFrame>
+      )}
+    >
+      {(keyed) => (
+        <ModuleDefaultsInner
+          options={keyed.options}
+          defaults={keyed.defaults}
+          close={p.close}
+        />
+      )}
+    </StateHolderWrapper>
+  );
+}
+
+// The page shell: the heading bar, with the editor's page-wide actions on its
+// right once the definitions have loaded.
+function ModuleDefaultsFrame(p: {
+  close: (v: undefined) => void;
+  actions?: JSX.Element;
+  children: JSX.Element;
+}) {
+  return (
     <FrameTop
-      pad="md"
-      spy="md"
       panelChildren={
         <HeadingBar
           tonal
@@ -96,18 +133,12 @@ export function ModuleDefaultsEditor(p: Props) {
             fr: "Paramètres par défaut des modules",
             pt: "Predefinições dos módulos",
           })}
-        />
+        >
+          {p.actions}
+        </HeadingBar>
       }
     >
-      <StateHolderWrapper state={query.state()}>
-        {(keyed) => (
-          <ModuleDefaultsInner
-            options={keyed.options}
-            defaults={keyed.defaults}
-            close={p.close}
-          />
-        )}
-      </StateHolderWrapper>
+      {p.children}
     </FrameTop>
   );
 }
@@ -117,24 +148,7 @@ function ModuleDefaultsInner(p: {
   defaults: RunGenerationDefaults;
   close: (v: undefined) => void;
 }) {
-  const [includeHmis, setIncludeHmis] = createSignal(
-    p.defaults.step1?.hmis === true,
-  );
-  const [includeHfa, setIncludeHfa] = createSignal(
-    p.defaults.step1?.hfa === true,
-  );
-  const [includeIceh, setIncludeIceh] = createSignal(
-    p.defaults.step1?.iceh === true,
-  );
-
   const offeredIds = new Set<string>(p.options.modules.map((o) => o.id));
-  const [selected, setSelected] = createStore<Record<string, boolean>>(
-    Object.fromEntries(
-      p.defaults.moduleIds
-        .filter((id) => offeredIds.has(id))
-        .map((id) => [id, true]),
-    ),
-  );
 
   const [paramValues, setParamValues] = createStore<
     Record<string, Record<string, string>>
@@ -185,12 +199,10 @@ function ModuleDefaultsInner(p: {
       param.input.defaultValue;
   }
 
+  const differingIn = (o: RunGenerationModuleOption) =>
+    o.parameters.filter((param) => paramDiffers(o.id, param)).length;
   const differingCount = () =>
-    p.options.modules.reduce(
-      (n, o) =>
-        n + o.parameters.filter((param) => paramDiffers(o.id, param)).length,
-      0,
-    );
+    p.options.modules.reduce((n, o) => n + differingIn(o), 0);
 
   function resetParamToDefault(
     option: RunGenerationModuleOption,
@@ -262,9 +274,6 @@ function ModuleDefaultsInner(p: {
         };
       }
 
-      const passThroughIds = p.defaults.moduleIds.filter(
-        (id) => !offeredIds.has(id),
-      );
       const passThroughParams = Object.fromEntries(
         Object.entries(p.defaults.parameterSelections).filter(
           ([id]) => !offeredIds.has(id),
@@ -272,15 +281,8 @@ function ModuleDefaultsInner(p: {
       );
       return await serverActions.saveRunGenerationDefaults({
         defaults: {
-          step1: {
-            hmis: includeHmis(),
-            hfa: includeHfa(),
-            iceh: includeIceh(),
-          },
-          moduleIds: [
-            ...p.options.modules.filter((o) => selected[o.id]).map((o) => o.id),
-            ...passThroughIds,
-          ],
+          step1: p.defaults.step1,
+          moduleIds: p.defaults.moduleIds,
           parameterSelections: {
             ...passThroughParams,
             ...Object.fromEntries(
@@ -296,114 +298,137 @@ function ModuleDefaultsInner(p: {
     async () => p.close(undefined),
   );
 
-  return (
-    <>
-      <div class="text-base-content-muted max-w-2xl">
-        {t3({
-          en:
-            "These defaults configure the generation wizard when a new results package is generated. Module parameter values are set only here and apply to every package that includes the module.",
-          fr:
-            "Ces valeurs par défaut configurent l'assistant de génération lors de la création d'un nouveau paquet de résultats. Les valeurs des paramètres des modules se règlent uniquement ici et s'appliquent à chaque paquet qui inclut le module.",
-          pt:
-            "Estas predefinições configuram o assistente de geração quando um novo pacote de resultados é gerado. Os valores dos parâmetros dos módulos definem-se apenas aqui e aplicam-se a todos os pacotes que incluam o módulo.",
-        })}
-      </div>
+  // The picker lists only modules that take parameters, one header per
+  // family in family order; the options arrive in module order
+  // (compareModules), so filtering keeps the primary module first.
+  const editable = p.options.modules.filter((o) => o.parameters.length > 0);
+  const [selectedId, setSelectedId] = createSignal<string | undefined>(
+    editable.at(0)?.id,
+  );
+  const selected = () => editable.find((o) => o.id === selectedId());
 
-      <div class="ui-pad ui-gap flex items-center rounded border">
-        <div class="text-base-content-muted flex-1 text-sm">
-          {differingCount() > 0
-            ? `${
-              t3({
-                en: "Parameters that differ from their definition default",
+  const hasInvalid = (o: RunGenerationModuleOption) =>
+    o.parameters.some((param) =>
+      getModuleParameterInvalidMsg(
+        param,
+        paramValues[o.id][param.replacementString],
+      ) !== undefined
+    );
+
+  const items = createMemo((): ListEntry<string>[] =>
+    MODULE_FAMILY_ORDER.flatMap((family) => {
+      const options = editable.filter((o) => o.family === family);
+      return options.length === 0 ? [] : [
+        { header: getModuleFamilyLabel(family) },
+        ...options.map((o) => ({ id: o.id, label: o.label })),
+      ];
+    })
+  );
+
+  return (
+    <ModuleDefaultsFrame
+      close={p.close}
+      actions={
+        <div class="ui-gap-sm flex items-center">
+          <Show when={differingCount() > 0}>
+            <Button
+              outline
+              intent="neutral"
+              iconName="refresh"
+              onClick={resetAllToDefaults}
+            >
+              {t3({
+                en: "Reset all to definition defaults",
                 fr:
-                  "Paramètres qui diffèrent de leur valeur par défaut de la définition",
-                pt: "Parâmetros que diferem da predefinição da definição",
-              })
-            }: ${differingCount()}`
-            : t3({
-              en: "Every parameter matches its definition default.",
-              fr:
-                "Tous les paramètres correspondent à leur valeur par défaut de la définition.",
-              pt:
-                "Todos os parâmetros coincidem com a predefinição da definição.",
-            })}
-        </div>
-        <Show when={differingCount() > 0}>
+                  "Tout réinitialiser aux valeurs par défaut de la définition",
+                pt: "Repor tudo nas predefinições da definição",
+              })}
+            </Button>
+          </Show>
           <Button
-            size="sm"
-            outline
-            intent="neutral"
-            iconName="refresh"
-            onClick={resetAllToDefaults}
+            onClick={save.click}
+            intent="success"
+            state={save.state()}
+            iconName="save"
           >
             {t3({
-              en: "Reset all to definition defaults",
-              fr: "Tout réinitialiser aux valeurs par défaut de la définition",
-              pt: "Repor tudo nas predefinições da definição",
+              en: "Save defaults",
+              fr: "Enregistrer les valeurs par défaut",
+              pt: "Guardar as predefinições",
             })}
           </Button>
-        </Show>
-      </div>
-
-      <h3 class="ui-text-heading">
-        {t3({
-          en: "Default data families",
-          fr: "Familles de données par défaut",
-          pt: "Famílias de dados predefinidas",
-        })}
-      </h3>
-      <div class="ui-pad ui-spy rounded border">
-        <Checkbox
-          label={t3({ en: "HMIS data", fr: "Données HMIS", pt: "Dados HMIS" })}
-          checked={includeHmis()}
-          onChange={setIncludeHmis}
-        />
-        <Checkbox
-          label={t3({ en: "HFA data", fr: "Données FOSA", pt: "Dados HFA" })}
-          checked={includeHfa()}
-          onChange={setIncludeHfa}
-        />
-        <Checkbox
-          label={t3({
-            en: "ICEH equity data",
-            fr: "Données d'équité ICEH",
-            pt: "Dados de equidade ICEH",
+        </div>
+      }
+    >
+      <FrameLeftResizable
+        startingWidth={300}
+        minWidth={150}
+        maxWidth={400}
+        panelPad="md"
+        pad="md"
+        spy="md"
+        panelChildren={
+          <SelectList
+            items={items()}
+            value={selectedId()}
+            onChange={setSelectedId}
+            fullWidth
+            emptyMessage={t3({
+              en: "No module takes parameters",
+              fr: "Aucun module ne prend de paramètres",
+              pt: "Nenhum módulo tem parâmetros",
+            })}
+            renderItem={(item) => {
+              const option = editable.find((o) => o.id === item.id)!;
+              return (
+                <div class="ui-gap-sm flex items-center justify-between">
+                  <span class="truncate">{item.label}</span>
+                  <Show
+                    when={!hasInvalid(option)}
+                    fallback={
+                      <span class="text-danger shrink-0 text-xs">
+                        {t3({
+                          en: "Invalid",
+                          fr: "Non valide",
+                          pt: "Inválido",
+                        })}
+                      </span>
+                    }
+                  >
+                    <Show when={differingIn(option) > 0}>
+                      <span class="ui-text-caption shrink-0">
+                        {differingIn(option)} {t3({
+                          en: "changed",
+                          fr: "modifié(s)",
+                          pt: "alterado(s)",
+                        })}
+                      </span>
+                    </Show>
+                  </Show>
+                </div>
+              );
+            }}
+          />
+        }
+      >
+        <div class="text-base-content-muted max-w-2xl text-sm">
+          {t3({
+            en:
+              "Parameter values are set only here and apply to every results package that includes the module. The generation wizard turns on every module the data supports.",
+            fr:
+              "Les valeurs des paramètres se règlent uniquement ici et s'appliquent à chaque paquet de résultats qui inclut le module. L'assistant de génération active tous les modules que les données permettent.",
+            pt:
+              "Os valores dos parâmetros definem-se apenas aqui e aplicam-se a todos os pacotes de resultados que incluam o módulo. O assistente de geração ativa todos os módulos que os dados permitem.",
           })}
-          checked={includeIceh()}
-          onChange={setIncludeIceh}
-        />
-      </div>
+        </div>
 
-      <h3 class="ui-text-heading">
-        {t3({
-          en: "Default modules and parameters",
-          fr: "Modules et paramètres par défaut",
-          pt: "Módulos e parâmetros predefinidos",
-        })}
-      </h3>
-      <div class="text-base-content-muted text-sm">
-        {t3({
-          en:
-            "Checked modules are pre-selected in the wizard. Parameter values apply whenever the module is included.",
-          fr:
-            "Les modules cochés sont présélectionnés dans l'assistant. Les valeurs des paramètres s'appliquent chaque fois que le module est inclus.",
-          pt:
-            "Os módulos marcados são pré-selecionados no assistente. Os valores dos parâmetros aplicam-se sempre que o módulo é incluído.",
-        })}
-      </div>
+        <StateHolderFormError state={save.state()} />
 
-      <For each={p.options.modules}>
-        {(option) => (
-          <div class="ui-pad ui-spy-sm rounded border">
-            <div class="ui-gap flex items-center">
-              <div class="flex-1">
-                <Checkbox
-                  label={option.label}
-                  checked={selected[option.id] === true}
-                  onChange={(v) => setSelected(option.id, v)}
-                />
-              </div>
-              <Show when={option.parameters.length > 0}>
+        <Show when={selected()} keyed>
+          {(option) => (
+            <div class="ui-spy">
+              <div class="ui-gap flex items-center">
+                <h3 class="ui-text-heading flex-1">{option.label}</h3>
                 <Button
                   size="sm"
                   outline
@@ -417,9 +442,7 @@ function ModuleDefaultsInner(p: {
                     pt: "Repor as predefinições da definição",
                   })}
                 </Button>
-              </Show>
-            </div>
-            <Show when={option.parameters.length > 0}>
+              </div>
               <ModuleParameterInputs
                 parameters={option.parameters}
                 values={paramValues[option.id]}
@@ -430,27 +453,10 @@ function ModuleDefaultsInner(p: {
                 }}
                 onResetToDefault={(k) => resetParamToDefault(option, k)}
               />
-            </Show>
-          </div>
-        )}
-      </For>
-
-      <StateHolderFormError state={save.state()} />
-
-      <div class="ui-gap-sm flex">
-        <Button
-          onClick={save.click}
-          intent="success"
-          state={save.state()}
-          iconName="save"
-        >
-          {t3({
-            en: "Save defaults",
-            fr: "Enregistrer les valeurs par défaut",
-            pt: "Guardar as predefinições",
-          })}
-        </Button>
-      </div>
-    </>
+            </div>
+          )}
+        </Show>
+      </FrameLeftResizable>
+    </ModuleDefaultsFrame>
   );
 }
