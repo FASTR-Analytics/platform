@@ -82,17 +82,15 @@ export function AIChat(p: Props) {
     });
   };
 
-  let scrollContainer: HTMLDivElement | undefined;
-
-  const { checkScrollPosition, scrollToBottom } = createScrollManager(
-    () => scrollContainer,
-    () => [
-      displayItems(),
-      isLoading(),
-      currentStreamingText(),
-      queuedMessages(),
-    ],
-  );
+  const { ref, scrollToBottom } = createScrollManager(() => [
+    displayItems(),
+    isLoading(),
+    isStreaming(),
+    pendingUserAction(),
+    currentStreamingText(),
+    serverToolLabel(),
+    queuedMessages(),
+  ]);
 
   onMount(() => {
     if (p.onScrollReady) {
@@ -124,24 +122,17 @@ export function AIChat(p: Props) {
       sendMessage(message);
     }
 
-    // Force scroll to bottom - immediate and after DOM updates
     scrollToBottom(true);
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        scrollToBottom(true);
-      });
-    });
   };
 
   return (
     <div class={p.containerClass ?? "flex h-full w-full flex-col"}>
       {p.headerContent}
       <div
-        ref={scrollContainer}
+        ref={ref}
         data-ai-messages-container
         class={p.messagesClass ??
           "ui-pad h-0 w-full flex-1 overflow-y-auto"}
-        onScroll={checkScrollPosition}
       >
         <MessageList
           displayItems={displayItems()}

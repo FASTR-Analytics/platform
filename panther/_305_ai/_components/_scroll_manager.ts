@@ -5,58 +5,48 @@
 
 import { createEffect, onCleanup } from "solid-js";
 
-export type ScrollManagerOptions = {
-  threshold?: number;
-};
+const BOTTOM_ZONE_PX = 50;
 
-export function createScrollManager(
-  containerRef: () => HTMLElement | undefined,
-  dependencies: () => unknown[],
-  options: ScrollManagerOptions = {},
-) {
-  const { threshold = 50 } = options;
-  let shouldAutoScroll = true;
-  let ignoreScrollEvents = false;
-  let ignoreScrollTimeout: ReturnType<typeof setTimeout> | undefined;
-  onCleanup(() => clearTimeout(ignoreScrollTimeout));
-
-  const checkScrollPosition = () => {
-    if (ignoreScrollEvents) return;
-
-    const container = containerRef();
-    if (!container) return;
-
-    const distanceFromBottom = container.scrollHeight - container.scrollTop -
-      container.clientHeight;
-
-    shouldAutoScroll = distanceFromBottom < threshold;
-  };
+// Following: every engine write and every resize of the transcript ends at
+// the bottom, until the user scrolls up. The manager's own scrolls never lower
+// scrollTop, so a scroll event that lowers it is the user's (or a clamp after
+// the content shrank, which lands in the bottom zone and turns following back
+// on), and no timer is needed to tell the manager's events from the user's.
+export function createScrollManager(engineWrite: () => unknown) {
+  let el: HTMLElement | undefined;
+  let following = true;
+  let lastTop = 0;
 
   const scrollToBottom = (force = false) => {
-    const container = containerRef();
-    if (!container) return;
-
-    if (force) {
-      shouldAutoScroll = true;
-      ignoreScrollEvents = true;
-      clearTimeout(ignoreScrollTimeout);
-      ignoreScrollTimeout = setTimeout(() => (ignoreScrollEvents = false), 100);
-    }
-
-    if (!shouldAutoScroll) return;
-    // Standard approach from SolidJS chat examples
-    container.scrollTo(0, container.scrollHeight);
+    if (force) following = true;
+    if (!following || !el) return;
+    el.scrollTo(0, el.scrollHeight);
+    lastTop = el.scrollTop;
   };
 
-  createEffect(() => {
-    dependencies();
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => scrollToBottom());
+  const ref = (element: HTMLElement) => {
+    el = element;
+    element.addEventListener("scroll", () => {
+      const top = element.scrollTop;
+      if (top < lastTop) following = false;
+      if (element.scrollHeight - top - element.clientHeight <= BOTTOM_ZONE_PX) {
+        following = true;
+      }
+      lastTop = top;
     });
+    const observer = new ResizeObserver(() => scrollToBottom());
+    observer.observe(element);
+    onCleanup(() => observer.disconnect());
+  };
+
+  // The effect runs once the DOM holds the write, and reading scrollHeight
+  // lays the transcript out, so the write and its follow paint in the same
+  // frame: the bottom never leaves the view between them, and a wheel that
+  // lands before the next frame is judged against the followed transcript.
+  createEffect(() => {
+    engineWrite();
+    scrollToBottom();
   });
 
-  return {
-    checkScrollPosition,
-    scrollToBottom,
-  };
+  return { ref, scrollToBottom };
 }
