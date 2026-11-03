@@ -684,3 +684,19 @@ SYSTEM_05.
 - Step 1: the mockup draws the heading bar, toolbar and table header
   approximately. Steps 5 and 6 use the app's own `HeadingBar`, `Table`, `Button`
   and `Input`, which win wherever they differ from it.
+- Step 2: the tool runner's requests stream too (`stream: true` on
+  `toolRunner`, each reply settled with `finalMessage()`), because the SDK's
+  ten-minute rule refuses its non-streaming requests at the default
+  `max_tokens` exactly as it refuses the tool-less request; proven with a stub
+  fetch.
+- Step 2: `tests/ai_one_shot_test.ts` did not land. `deno test` cannot load
+  `_305_ai`: its `deps.ts` evaluates the UI kit, whose Solid JSX compiles to a
+  `solid-js/jsx-runtime` that solid-js does not ship and whose vendored
+  sortable calls `solid-js/web`'s Deno build at load, and the test task grants
+  no env access, which the SDK client reads at construction. The test is
+  written and parked in panther's `testing_sandbox/ai_one_shot/` with the SDK
+  proof script, pending a ruling on where it lives.
+- Step 2: the sync carried panther's `CanvasRenderContext` constructor change,
+  so `text_geometry.ts` passes `createCanvasBrowser` as every browser call site
+  in panther does; the file is outside the step's Surface, and without the
+  change the client typecheck is red after the sync.
