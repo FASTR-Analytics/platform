@@ -885,7 +885,8 @@ rules modal. Each green.
   the props the manager opens it with, and §2 has the manager pass it the state
   memo; `runner.ts` joined it, because the fix call sends the run's system
   blocks byte for byte (ruling 11) and words a failed or null answer as the run
-  does, so the runner exports them instead of the fix copying them.
+  does, so the runner exports them instead of the fix copying them (Tim,
+  2026-11-03).
 - Step 5: `validateHfaIndicatorPatch(patch, draft, taxonomy)` takes no `rounds`,
   because the draft's code lists every round the editor offers, which is what
   the lifted check read.
