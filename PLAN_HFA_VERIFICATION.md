@@ -752,8 +752,9 @@ T2 cache and the docs. Each green.
 
 **Gates.** The floor.
 
-**Ends with.** Several commits: the proxy client's move; the `_shared/` move
-with the runner as its second consumer; the manager. Each green.
+**Ends with.** Several commits: the runner and the manager's Verify controls,
+with the proxy client's move and the `_shared/` move; the Findings column; the
+rules modal. Each green.
 
 ### Step 5: The editor: findings beside fields, Dismiss, Verify, Draft a fix (this repo)
 
@@ -866,3 +867,8 @@ SYSTEM_05.
 - Step 4: `client/src/components/_shared/mod.ts` joined the Surface, because
   the structure lint lets another folder import `components/_shared/` only
   through its `mod.ts`, so the proxy client is exported there.
+- Step 4: the proxy client's move, the `_shared/` move and the runner land in
+  one commit with the manager's Verify controls, because the structure lint
+  fails a `_shared/` file with one consuming child and a file nothing imports:
+  the proxy client's second consumer is the runner, and the runner's importer
+  is the manager.
