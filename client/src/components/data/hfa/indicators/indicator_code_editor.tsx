@@ -11,6 +11,8 @@ import {
   type HfaIndicator,
   type HfaIndicatorCategory,
   type HfaIndicatorCode,
+  type HfaIndicatorEditorDraft,
+  type HfaIndicatorEditorPatch,
   type HfaIndicatorServiceCategory,
   hfaIndicatorsStatus,
   type HfaIndicatorSubCategory,
@@ -45,8 +47,6 @@ import { createStore, unwrap } from "solid-js/store";
 import { serverActions } from "~/server_actions";
 import {
   copilotViewController,
-  type HfaIndicatorEditorDraft,
-  type HfaIndicatorEditorPatch,
   holdCopilotView,
 } from "~/components/instance/copilot/mod.ts";
 

@@ -568,17 +568,20 @@ results object. The HFA indicators manager (S5) holds the switchboard's
 `data_page` and sets `hfa_indicators`, whose state is the open tab and whose
 instructions are the manager's own lines (`getHfaIndicatorsInstructions`) and
 the HFA guidance S5 keeps in `lib/hfa_indicator_guidance.ts`, supplied
-through the view's context (`getGuidance`); its code editor holds in `HfaIndicatorCodeEditor` and sets
-`hfa_indicator_editor` from `EditorInner` once the draft store exists, with the
-indicator id as identity, the open round in its state, and an
-`HfaIndicatorEditorContext` of the saved label, the selected round, the draft
-read live (`getDraft`: the fields, the code per round, the variant group and the
-current group's variant rows), the taxonomy the editor offers (variant groups
-and items included), what the manager handed the editor (`getIndicators`,
-`getAllCode`, `getAllVariantCode`, `getDictionary`), the HFA guidance
-(`getGuidance`) and `applyDraft`, which writes the store with the controls'
-semantics, a group change before the patch's variant rows, and marks the draft
-unsaved; its Excel import sets `hfa_indicator_import`. There is no tab-to-view
+through the view's context (`getGuidance`); its code editor holds in
+`HfaIndicatorCodeEditor` and sets `hfa_indicator_editor` from `EditorInner` once
+the draft store exists, with the indicator id as identity, the open round in its
+state, and an `HfaIndicatorEditorContext` of the saved label, the selected
+round, the draft read live (`getDraft`: the fields, the code per round, the
+variant group and the current group's variant rows), the taxonomy the editor
+offers (variant groups and items included), what the manager handed the editor
+(`getIndicators`, `getAllCode`, `getAllVariantCode`, `getDictionary`), the HFA
+guidance (`getGuidance`) and `applyDraft`, which writes the store with the
+controls' semantics, a group change before the patch's variant rows, and marks
+the draft unsaved; the draft, its round and the patch are S5's types
+(`HfaIndicatorEditorDraft`, `HfaIndicatorEditorRound`,
+`HfaIndicatorEditorPatch`, `lib/types/hfa_types.ts`), which the context names.
+Its Excel import sets `hfa_indicator_import`. There is no tab-to-view
 map.
 
 **What a message carries** (panther's append-only turns). Every message carries

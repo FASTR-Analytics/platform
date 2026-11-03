@@ -6,6 +6,8 @@ import {
   formatHfaIndicatorDetailsForAI,
   type HfaIndicator,
   hfaIndicatorCodeSchema,
+  type HfaIndicatorEditorDraft,
+  type HfaIndicatorEditorPatch,
   hfaIndicatorEditSchema,
   type HfaIndicatorsForAIInput,
   hfaIndicatorsStatus,
@@ -16,8 +18,6 @@ import {
 import {
   copilotViews,
   type HfaIndicatorEditorContext,
-  type HfaIndicatorEditorDraft,
-  type HfaIndicatorEditorPatch,
 } from "~/components/instance/copilot/mod.ts";
 import { loadDisplayRows } from "./tools.ts";
 
