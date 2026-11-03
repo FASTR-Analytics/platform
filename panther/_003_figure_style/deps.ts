@@ -39,6 +39,7 @@ export type {
   TextInfo,
   TextInfoOptions,
   TextInfoUnkeyed,
+  TextKeyDefaults,
 } from "../_001_font/mod.ts";
 export { msPadding, Padding } from "../_001_geometry/mod.ts";
 export type { PaddingOptions } from "../_001_geometry/mod.ts";
@@ -52,6 +53,14 @@ export type {
   ChartSeriesInfoFunc,
   ChartValueInfo,
   ChartValueInfoFunc,
+  DiagramBadgeInfo,
+  DiagramBadgeInfoFunc,
+  DiagramEdgeInfo,
+  DiagramEdgeInfoFunc,
+  DiagramNodeInfo,
+  DiagramNodeInfoFunc,
+  DiagramTextInfo,
+  DiagramTextInfoFunc,
   LineStyle,
   MapRegionInfo,
   MapRegionInfoFunc,
@@ -64,8 +73,4 @@ export type {
   TableCellInfoFunc,
   TableHeaderInfo,
   TableHeaderInfoFunc,
-  VizGraphEdgeInfo,
-  VizGraphEdgeInfoFunc,
-  VizGraphNodeInfo,
-  VizGraphNodeInfoFunc,
 } from "../_001_render_system/mod.ts";

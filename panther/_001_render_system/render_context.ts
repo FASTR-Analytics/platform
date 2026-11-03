@@ -92,13 +92,11 @@ export type PathSegment =
 export type PathStyle = {
   fill?: {
     color: ColorKeyOrString;
-    opacity?: number;
     fillRule?: "nonzero" | "evenodd";
   };
   stroke?: {
     color: ColorKeyOrString;
     width: number;
-    opacity?: number;
     lineDash?: "solid" | "dashed"; // dash pattern derives from width
     //   (×5 on / ×4 off), matching LineStyle's convention
   };
@@ -157,4 +155,8 @@ export type RenderContext = {
   rPath: (segments: PathSegment[], style: PathStyle) => void;
 
   withClip: (bounds: RectCoordsDimsOptions, fn: () => void) => void;
+
+  // A group alpha: what fn paints composites over what is beneath it at
+  // alpha. Nested calls multiply.
+  withOpacity: (alpha: number, fn: () => void) => void;
 };

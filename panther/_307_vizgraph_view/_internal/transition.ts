@@ -4,14 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { tween } from "../deps.ts";
-import type { Geometry } from "../deps.ts";
-
-// lv4-style two-phase transition (DOC_VIZGRAPH_ARCHITECTURE.md): survivors move
-// (and removed elements fade out) during the first portion of the timeline;
-// newcomers fade in at their destination during the rest. Matched edges are
-// tweened pairwise by the engine.
-const MOVE_PORTION = 0.7;
-const GROUP_FADE_PORTION = 0.25;
+import type { Geometry, PhaseProgress } from "../deps.ts";
 
 // Opacity keys are namespaced ("n:" / "e:") — node and edge id spaces are
 // independent, so a shared raw-id record could cross-talk.
@@ -19,10 +12,9 @@ export type TransitionFrame = {
   geometry: Geometry;
   opacities: Record<string, number> | undefined;
   // Group rings + headers fade as ONE layer: the hug outline is not in the
-  // tween contract, so the departing geometry's rings fade out over the first
-  // part of the move and the settled geometry's rings fade in with the
-  // newcomers (a ring re-derivation per frame is not cheap; snapping looks
-  // broken).
+  // tween contract, so the departing geometry's rings fade out over the exit
+  // and the settled geometry's rings fade in with the newcomers (a ring
+  // re-derivation per frame is not cheap; snapping looks broken).
   groupOpacity: number;
 };
 
@@ -34,22 +26,22 @@ export function edgeOpacityKey(id: string): string {
   return `e:${id}`;
 }
 
+// The geometry between `from` and `to` at the transition's phase progress
+// (DOC_VIZGRAPH_ARCHITECTURE.md): removed nodes and edges fade out over the
+// exit, survivors move over the move, newcomers fade in at their destination
+// over the enter. Matched edges are tweened pairwise by the engine.
 export function buildTransitionFrame(
   from: Geometry,
   to: Geometry,
-  t: number,
+  ph: PhaseProgress,
 ): TransitionFrame {
-  if (t <= 0) {
+  if (ph.exit <= 0 && ph.move <= 0 && ph.enter <= 0) {
     return { geometry: from, opacities: undefined, groupOpacity: 1 };
   }
-  if (t >= 1) {
+  if (ph.exit >= 1 && ph.move >= 1 && ph.enter >= 1) {
     return { geometry: to, opacities: undefined, groupOpacity: 1 };
   }
-  const moveT = easeInOut(Math.min(1, t / MOVE_PORTION));
-  const fadeOut = Math.min(1, t / MOVE_PORTION);
-  const fadeIn = t <= MOVE_PORTION
-    ? 0
-    : (t - MOVE_PORTION) / (1 - MOVE_PORTION);
+  const move = ph.move;
 
   const opacities: Record<string, number> = {};
   const nodes: Geometry["nodes"] = {};
@@ -57,21 +49,21 @@ export function buildTransitionFrame(
     const nb = to.nodes[id];
     if (nb === undefined) {
       nodes[id] = na;
-      opacities[nodeOpacityKey(id)] = 1 - fadeOut;
+      opacities[nodeOpacityKey(id)] = 1 - ph.exit;
     } else {
       nodes[id] = {
         ...nb,
-        x: na.x + (nb.x - na.x) * moveT,
-        y: na.y + (nb.y - na.y) * moveT,
-        w: na.w + (nb.w - na.w) * moveT,
-        h: na.h + (nb.h - na.h) * moveT,
+        x: na.x + (nb.x - na.x) * move,
+        y: na.y + (nb.y - na.y) * move,
+        w: na.w + (nb.w - na.w) * move,
+        h: na.h + (nb.h - na.h) * move,
       };
     }
   }
   for (const [id, nb] of Object.entries(to.nodes)) {
     if (from.nodes[id] === undefined) {
       nodes[id] = nb;
-      opacities[nodeOpacityKey(id)] = fadeIn;
+      opacities[nodeOpacityKey(id)] = ph.enter;
     }
   }
 
@@ -80,30 +72,31 @@ export function buildTransitionFrame(
     const eb = to.edges[id];
     if (eb === undefined) {
       edges[id] = ea;
-      opacities[edgeOpacityKey(id)] = 1 - fadeOut;
+      opacities[edgeOpacityKey(id)] = 1 - ph.exit;
     } else {
-      edges[id] = { ...eb, path: tween(ea.path, eb.path, moveT) };
+      edges[id] = { ...eb, path: tween(ea.path, eb.path, move) };
     }
   }
   for (const [id, eb] of Object.entries(to.edges)) {
     if (from.edges[id] === undefined) {
       edges[id] = eb;
-      opacities[edgeOpacityKey(id)] = fadeIn;
+      opacities[edgeOpacityKey(id)] = ph.enter;
     }
   }
 
+  const moving = move < 1;
   return {
     geometry: {
       bounds: {
-        x: from.bounds.x + (to.bounds.x - from.bounds.x) * moveT,
-        y: from.bounds.y + (to.bounds.y - from.bounds.y) * moveT,
-        w: from.bounds.w + (to.bounds.w - from.bounds.w) * moveT,
-        h: from.bounds.h + (to.bounds.h - from.bounds.h) * moveT,
+        x: from.bounds.x + (to.bounds.x - from.bounds.x) * move,
+        y: from.bounds.y + (to.bounds.y - from.bounds.y) * move,
+        w: from.bounds.w + (to.bounds.w - from.bounds.w) * move,
+        h: from.bounds.h + (to.bounds.h - from.bounds.h) * move,
       },
       nodes,
       edges,
-      lanes: t <= MOVE_PORTION ? from.lanes : to.lanes,
-      groups: t <= MOVE_PORTION ? from.groups : to.groups,
+      lanes: moving ? from.lanes : to.lanes,
+      groups: moving ? from.groups : to.groups,
       // The settled target's hit areas and order record: mid-tween positions
       // never matched either geometry, so the target is the only coherent
       // answer — and carrying `to.order` keeps a mid-tween relayout's prior
@@ -113,12 +106,6 @@ export function buildTransitionFrame(
       order: to.order,
     },
     opacities,
-    groupOpacity: t <= MOVE_PORTION
-      ? Math.max(0, 1 - t / (MOVE_PORTION * GROUP_FADE_PORTION))
-      : fadeIn,
+    groupOpacity: moving ? 1 - ph.exit : ph.enter,
   };
-}
-
-function easeInOut(t: number): number {
-  return t < 0.5 ? 2 * t * t : 1 - 2 * (1 - t) * (1 - t);
 }

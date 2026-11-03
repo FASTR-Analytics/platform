@@ -21,7 +21,6 @@ export {
   getFontsToRegister,
   getMergedFonts,
   getTextInfo,
-  getTextInfoForSpecialHeadings,
 } from "./style_helpers.ts";
 export {
   type CustomStyleTextOptions,
@@ -39,4 +38,5 @@ export {
   type TextInfo,
   type TextInfoOptions,
   type TextInfoUnkeyed,
+  type TextKeyDefaults,
 } from "./types.ts";

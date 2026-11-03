@@ -5,7 +5,6 @@
 
 import { Coordinates, getColor, RectCoordsDims, Z_INDEX } from "../deps.ts";
 import type {
-  Primitive,
   RectStyle,
   ScaleLegendGradientPrimitive,
   ScaleLegendSteppedPrimitive,
@@ -20,7 +19,7 @@ export function generateScaleLegendPrimitive(
   coords: Coordinates,
   mScaleLegend: MeasuredScaleLegend,
   bounds: RectCoordsDims,
-): Primitive {
+): ScaleLegendGradientPrimitive | ScaleLegendSteppedPrimitive {
   if (mScaleLegend.type === "gradient") {
     return generateGradientPrimitive(coords, mScaleLegend, bounds);
   }

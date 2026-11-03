@@ -10,9 +10,12 @@ import {
   zPeriodType,
 } from "./deps.ts";
 import type {
-  Conforms,
+  ConformsExactly,
+  DescribedColumn,
+  DimensionValuesResult,
   FiscalYearRule,
   FullPeriodUnit,
+  ItemsResult,
   LongTableAggregate,
   LongTableColumn,
   LongTableDimension,
@@ -25,28 +28,16 @@ import type {
   LongTableSchema,
   LongTableTime,
   LongTableValue,
+  PeriodBounds,
   PeriodFilter,
   PeriodUnit,
+  RowsResult,
 } from "./deps.ts";
 
 // Zod twins of the long-table wire types, each bound to its hand-written
 // type in _014 by a conformance check. Every object is strict: a query is
 // written by hand, often by an AI, and a misspelled key that a lenient
 // parser stripped would be intent silently ignored.
-
-type DeepRequired<T> = T extends (infer U)[] ? DeepRequired<U>[]
-  : T extends object
-    ? { [K in keyof T]-?: DeepRequired<Exclude<T[K], undefined>> }
-  : T;
-
-// Conforms is mutual assignability, which an optional field on one side only
-// passes: the way this contract grows. The twins are strict, so a field the
-// type gains and the twin lacks would be refused at runtime with the
-// typecheck green. Comparing the two with every field made required closes
-// that.
-type ConformsExactly<A, B> = Conforms<A, B> extends true
-  ? Conforms<DeepRequired<A>, DeepRequired<B>>
-  : false;
 
 export const zFiscalYearRule = z.strictObject({
   startMonth: z.number(),
@@ -157,9 +148,11 @@ const _zLongTableValueConforms: ConformsExactly<
   LongTableValue
 > = true;
 
+const zStringsOrNumbers = z.array(z.union([z.string(), z.number()]));
+
 export const zLongTableFilter = z.strictObject({
   dim: z.string(),
-  values: z.array(z.union([z.string(), z.number()])),
+  values: zStringsOrNumbers,
 });
 const _zLongTableFilterConforms: ConformsExactly<
   z.infer<typeof zLongTableFilter>,
@@ -212,3 +205,78 @@ const _zLongTableQueryConforms: ConformsExactly<
 > = true;
 
 export const zLongTableRow: z.ZodType<LongTableRow> = zJsonArrayItem;
+
+// What the reads return, for an app that sends them on as an op's output.
+// Strict too: an output schema is closed in JSON Schema, so a parse that
+// accepted an extra key would pass what a client refuses.
+
+export const zPeriodBounds = z.strictObject({
+  min: z.number(),
+  max: z.number(),
+});
+const _zPeriodBoundsConforms: ConformsExactly<
+  z.infer<typeof zPeriodBounds>,
+  PeriodBounds
+> = true;
+
+export const zItemsResult = z.discriminatedUnion("status", [
+  z.strictObject({
+    status: z.literal("ok"),
+    items: z.array(zLongTableRow),
+    periodBounds: zPeriodBounds.optional(),
+    unknownFilterValues: z.array(zLongTableFilter).optional(),
+  }),
+  z.strictObject({
+    status: z.literal("too_many_items"),
+    periodBounds: zPeriodBounds.optional(),
+    unknownFilterValues: z.array(zLongTableFilter).optional(),
+  }),
+  z.strictObject({
+    status: z.literal("no_data"),
+    unknownFilterValues: z.array(zLongTableFilter).optional(),
+  }),
+]);
+const _zItemsResultConforms: ConformsExactly<
+  z.infer<typeof zItemsResult>,
+  ItemsResult
+> = true;
+
+export const zDimensionValuesResult = z.discriminatedUnion("status", [
+  z.strictObject({ status: z.literal("ok"), values: zStringsOrNumbers }),
+  z.strictObject({ status: z.literal("too_many_values") }),
+  z.strictObject({ status: z.literal("no_values") }),
+]);
+const _zDimensionValuesResultConforms: ConformsExactly<
+  z.infer<typeof zDimensionValuesResult>,
+  DimensionValuesResult
+> = true;
+
+export const zRowsResult = z.discriminatedUnion("status", [
+  z.strictObject({ status: z.literal("ok"), rows: z.array(zLongTableRow) }),
+  z.strictObject({ status: z.literal("no_data") }),
+]);
+const _zRowsResultConforms: ConformsExactly<
+  z.infer<typeof zRowsResult>,
+  RowsResult
+> = true;
+
+export const zDescribedColumn = z.strictObject({
+  name: z.string(),
+  type: z.enum([
+    "text",
+    "integer",
+    "number",
+    "boolean",
+    "date",
+    "timestamp",
+    "time",
+    "uuid",
+    "unsupported",
+  ]),
+  rawType: z.string(),
+  sample: zStringsOrNumbers.optional(),
+});
+const _zDescribedColumnConforms: ConformsExactly<
+  z.infer<typeof zDescribedColumn>,
+  DescribedColumn
+> = true;

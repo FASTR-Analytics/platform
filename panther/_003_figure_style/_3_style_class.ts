@@ -26,9 +26,9 @@ import type {
   MergedPieStyle,
   MergedSankeyStyle,
   MergedScaleLegendStyle,
+  MergedSceneStyle,
   MergedTableStyle,
   MergedTimeseriesStyle,
-  MergedVizGraphStyle,
   MergedXPeriodAxisStyle,
   MergedXScaleAxisStyle,
   MergedXTextAxisStyle,
@@ -1314,7 +1314,7 @@ export class CustomFigureStyle {
     };
   }
 
-  getMergedVizGraphStyle(): MergedVizGraphStyle {
+  getMergedSceneStyle(): MergedSceneStyle {
     const c = this._c;
     const g = this._g;
     const d = this._d;
@@ -1323,78 +1323,344 @@ export class CustomFigureStyle {
     return {
       alreadyScaledValue: sf,
       text: {
-        primary: getTextInfo(
-          c.text?.vizgraphNodeTextPrimary,
-          g.text?.vizgraphNodeTextPrimary,
+        boxTitle: getTextInfo(
+          c.text?.sceneBoxTitle,
+          g.text?.sceneBoxTitle,
           baseText,
+          d.scene.text.boxTitle,
         ),
-        secondary: getTextInfo(
-          c.text?.vizgraphNodeTextSecondary,
-          g.text?.vizgraphNodeTextSecondary,
+        boxSub: getTextInfo(
+          c.text?.sceneBoxSub,
+          g.text?.sceneBoxSub,
           baseText,
+          d.scene.text.boxSub,
         ),
-        groupLabel: getTextInfo(
-          c.text?.vizgraphGroupLabel,
-          g.text?.vizgraphGroupLabel,
+        boxLine: getTextInfo(
+          c.text?.sceneBoxLine,
+          g.text?.sceneBoxLine,
           baseText,
+          d.scene.text.boxLine,
         ),
-        laneLabel: getTextInfo(
-          c.text?.vizgraphLaneLabel,
-          g.text?.vizgraphLaneLabel,
+        badge: getTextInfo(
+          c.text?.sceneBadge,
+          g.text?.sceneBadge,
           baseText,
+          d.scene.text.badge,
         ),
-        base: baseText,
+        regionLabel: getTextInfo(
+          c.text?.sceneRegionLabel,
+          g.text?.sceneRegionLabel,
+          baseText,
+          d.scene.text.regionLabel,
+        ),
+        connectorLabel: getTextInfo(
+          c.text?.sceneConnectorLabel,
+          g.text?.sceneConnectorLabel,
+          baseText,
+          d.scene.text.connectorLabel,
+        ),
+        text: getTextInfo(
+          c.text?.sceneText,
+          g.text?.sceneText,
+          baseText,
+          d.scene.text.text,
+        ),
       },
-      nodes: {
+      boxes: {
         fillColor: getColor(
           m(
-            c.vizgraph?.nodes?.fillColor,
-            g.vizgraph?.nodes?.fillColor,
-            d.vizgraph.nodes.fillColor,
+            c.scene?.boxes?.fillColor,
+            g.scene?.boxes?.fillColor,
+            d.scene.boxes.fillColor,
           ),
         ),
         strokeColor: getColor(
           m(
-            c.vizgraph?.nodes?.strokeColor,
-            g.vizgraph?.nodes?.strokeColor,
-            d.vizgraph.nodes.strokeColor,
+            c.scene?.boxes?.strokeColor,
+            g.scene?.boxes?.strokeColor,
+            d.scene.boxes.strokeColor,
           ),
         ),
         strokeWidth: ms(
           sf,
-          c.vizgraph?.nodes?.strokeWidth,
-          g.vizgraph?.nodes?.strokeWidth,
-          d.vizgraph.nodes.strokeWidth,
+          c.scene?.boxes?.strokeWidth,
+          g.scene?.boxes?.strokeWidth,
+          d.scene.boxes.strokeWidth,
         ),
         rectRadius: ms(
           sf,
-          c.vizgraph?.nodes?.rectRadius,
-          g.vizgraph?.nodes?.rectRadius,
-          d.vizgraph.nodes.rectRadius,
+          c.scene?.boxes?.rectRadius,
+          g.scene?.boxes?.rectRadius,
+          d.scene.boxes.rectRadius,
         ),
         padding: msPadding(
           sf,
-          c.vizgraph?.nodes?.padding,
-          g.vizgraph?.nodes?.padding,
-          d.vizgraph.nodes.padding,
-        ),
-        maxTextWidth: ms(
-          sf,
-          c.vizgraph?.nodes?.maxTextWidth,
-          g.vizgraph?.nodes?.maxTextWidth,
-          d.vizgraph.nodes.maxTextWidth,
+          c.scene?.boxes?.padding,
+          g.scene?.boxes?.padding,
+          d.scene.boxes.padding,
         ),
         textGap: ms(
           sf,
-          c.vizgraph?.nodes?.textGap,
-          g.vizgraph?.nodes?.textGap,
-          d.vizgraph.nodes.textGap,
+          c.scene?.boxes?.textGap,
+          g.scene?.boxes?.textGap,
+          d.scene.boxes.textGap,
+        ),
+        gap: ms(
+          sf,
+          c.scene?.boxes?.gap,
+          g.scene?.boxes?.gap,
+          d.scene.boxes.gap,
+        ),
+        alignH: m(
+          c.scene?.boxes?.alignH,
+          g.scene?.boxes?.alignH,
+          d.scene.boxes.alignH,
+        ),
+      },
+      badges: {
+        fillColor: getColor(
+          m(
+            c.scene?.badges?.fillColor,
+            g.scene?.badges?.fillColor,
+            d.scene.badges.fillColor,
+          ),
+        ),
+        strokeColor: getColor(
+          m(
+            c.scene?.badges?.strokeColor,
+            g.scene?.badges?.strokeColor,
+            d.scene.badges.strokeColor,
+          ),
+        ),
+        strokeWidth: ms(
+          sf,
+          c.scene?.badges?.strokeWidth,
+          g.scene?.badges?.strokeWidth,
+          d.scene.badges.strokeWidth,
+        ),
+        padding: msPadding(
+          sf,
+          c.scene?.badges?.padding,
+          g.scene?.badges?.padding,
+          d.scene.badges.padding,
+        ),
+        gap: ms(
+          sf,
+          c.scene?.badges?.gap,
+          g.scene?.badges?.gap,
+          d.scene.badges.gap,
+        ),
+      },
+      connectors: {
+        strokeColor: getColor(
+          m(
+            c.scene?.connectors?.strokeColor,
+            g.scene?.connectors?.strokeColor,
+            d.scene.connectors.strokeColor,
+          ),
+        ),
+        strokeWidth: ms(
+          sf,
+          c.scene?.connectors?.strokeWidth,
+          g.scene?.connectors?.strokeWidth,
+          d.scene.connectors.strokeWidth,
+        ),
+        lineDash: m(
+          c.scene?.connectors?.lineDash,
+          g.scene?.connectors?.lineDash,
+          d.scene.connectors.lineDash,
+        ),
+        headSize: ms(
+          sf,
+          c.scene?.connectors?.headSize,
+          g.scene?.connectors?.headSize,
+          d.scene.connectors.headSize,
+        ),
+        gap: ms(
+          sf,
+          c.scene?.connectors?.gap,
+          g.scene?.connectors?.gap,
+          d.scene.connectors.gap,
+        ),
+        cornerRadius: ms(
+          sf,
+          c.scene?.connectors?.cornerRadius,
+          g.scene?.connectors?.cornerRadius,
+          d.scene.connectors.cornerRadius,
+        ),
+        labelFillColor: getColor(
+          m(
+            c.scene?.connectors?.labelFillColor,
+            g.scene?.connectors?.labelFillColor,
+            d.scene.connectors.labelFillColor,
+          ),
+        ),
+        labelPadding: msPadding(
+          sf,
+          c.scene?.connectors?.labelPadding,
+          g.scene?.connectors?.labelPadding,
+          d.scene.connectors.labelPadding,
+        ),
+      },
+      regions: {
+        labelInset: ms(
+          sf,
+          c.scene?.regions?.labelInset,
+          g.scene?.regions?.labelInset,
+          d.scene.regions.labelInset,
+        ),
+        rect: {
+          fillColor: getColor(
+            m(
+              c.scene?.regions?.rect?.fillColor,
+              g.scene?.regions?.rect?.fillColor,
+              d.scene.regions.rect.fillColor,
+            ),
+          ),
+          strokeColor: getColor(
+            m(
+              c.scene?.regions?.rect?.strokeColor,
+              g.scene?.regions?.rect?.strokeColor,
+              d.scene.regions.rect.strokeColor,
+            ),
+          ),
+          strokeWidth: ms(
+            sf,
+            c.scene?.regions?.rect?.strokeWidth,
+            g.scene?.regions?.rect?.strokeWidth,
+            d.scene.regions.rect.strokeWidth,
+          ),
+          rectRadius: ms(
+            sf,
+            c.scene?.regions?.rect?.rectRadius,
+            g.scene?.regions?.rect?.rectRadius,
+            d.scene.regions.rect.rectRadius,
+          ),
+        },
+        panel: {
+          fillColor: getColor(
+            m(
+              c.scene?.regions?.panel?.fillColor,
+              g.scene?.regions?.panel?.fillColor,
+              d.scene.regions.panel.fillColor,
+            ),
+          ),
+          strokeColor: getColor(
+            m(
+              c.scene?.regions?.panel?.strokeColor,
+              g.scene?.regions?.panel?.strokeColor,
+              d.scene.regions.panel.strokeColor,
+            ),
+          ),
+          strokeWidth: ms(
+            sf,
+            c.scene?.regions?.panel?.strokeWidth,
+            g.scene?.regions?.panel?.strokeWidth,
+            d.scene.regions.panel.strokeWidth,
+          ),
+          rectRadius: ms(
+            sf,
+            c.scene?.regions?.panel?.rectRadius,
+            g.scene?.regions?.panel?.rectRadius,
+            d.scene.regions.panel.rectRadius,
+          ),
+        },
+        band: {
+          fillColor: getColor(
+            m(
+              c.scene?.regions?.band?.fillColor,
+              g.scene?.regions?.band?.fillColor,
+              d.scene.regions.band.fillColor,
+            ),
+          ),
+          strokeColor: getColor(
+            m(
+              c.scene?.regions?.band?.strokeColor,
+              g.scene?.regions?.band?.strokeColor,
+              d.scene.regions.band.strokeColor,
+            ),
+          ),
+          strokeWidth: ms(
+            sf,
+            c.scene?.regions?.band?.strokeWidth,
+            g.scene?.regions?.band?.strokeWidth,
+            d.scene.regions.band.strokeWidth,
+          ),
+          rectRadius: ms(
+            sf,
+            c.scene?.regions?.band?.rectRadius,
+            g.scene?.regions?.band?.rectRadius,
+            d.scene.regions.band.rectRadius,
+          ),
+        },
+        bracket: {
+          strokeColor: getColor(
+            m(
+              c.scene?.regions?.bracket?.strokeColor,
+              g.scene?.regions?.bracket?.strokeColor,
+              d.scene.regions.bracket.strokeColor,
+            ),
+          ),
+          strokeWidth: ms(
+            sf,
+            c.scene?.regions?.bracket?.strokeWidth,
+            g.scene?.regions?.bracket?.strokeWidth,
+            d.scene.regions.bracket.strokeWidth,
+          ),
+          depth: ms(
+            sf,
+            c.scene?.regions?.bracket?.depth,
+            g.scene?.regions?.bracket?.depth,
+            d.scene.regions.bracket.depth,
+          ),
+        },
+        ring: {
+          fillColor: getColor(
+            m(
+              c.scene?.regions?.ring?.fillColor,
+              g.scene?.regions?.ring?.fillColor,
+              d.scene.regions.ring.fillColor,
+            ),
+          ),
+          strokeColor: getColor(
+            m(
+              c.scene?.regions?.ring?.strokeColor,
+              g.scene?.regions?.ring?.strokeColor,
+              d.scene.regions.ring.strokeColor,
+            ),
+          ),
+          strokeWidth: ms(
+            sf,
+            c.scene?.regions?.ring?.strokeWidth,
+            g.scene?.regions?.ring?.strokeWidth,
+            d.scene.regions.ring.strokeWidth,
+          ),
+          rectRadius: ms(
+            sf,
+            c.scene?.regions?.ring?.rectRadius,
+            g.scene?.regions?.ring?.rectRadius,
+            d.scene.regions.ring.rectRadius,
+          ),
+        },
+      },
+      diagram: {
+        maxNodeTextWidth: ms(
+          sf,
+          c.diagram?.maxNodeTextWidth,
+          g.diagram?.maxNodeTextWidth,
+          d.diagram.maxNodeTextWidth,
+        ),
+        groupPad: ms(
+          sf,
+          c.diagram?.groupPad,
+          g.diagram?.groupPad,
+          d.diagram.groupPad,
         ),
         nodeInfo: (info) => {
           const raw = m(
-            c.vizgraph?.nodes?.nodeInfo,
-            g.vizgraph?.nodes?.nodeInfo,
-            d.vizgraph.nodes.nodeInfo,
+            c.diagram?.nodeInfo,
+            g.diagram?.nodeInfo,
+            d.diagram.nodeInfo,
           )(info);
           return {
             fillColor: raw.fillColor === undefined
@@ -1412,39 +1678,33 @@ export class CustomFigureStyle {
             textColor: raw.textColor === undefined
               ? undefined
               : getColor(raw.textColor),
+            opacity: raw.opacity,
           };
         },
-      },
-      edges: {
-        strokeColor: getColor(
-          m(
-            c.vizgraph?.edges?.strokeColor,
-            g.vizgraph?.edges?.strokeColor,
-            d.vizgraph.edges.strokeColor,
-          ),
-        ),
-        strokeWidth: ms(
-          sf,
-          c.vizgraph?.edges?.strokeWidth,
-          g.vizgraph?.edges?.strokeWidth,
-          d.vizgraph.edges.strokeWidth,
-        ),
-        lineDash: m(
-          c.vizgraph?.edges?.lineDash,
-          g.vizgraph?.edges?.lineDash,
-          d.vizgraph.edges.lineDash,
-        ),
-        arrowheadSize: ms(
-          sf,
-          c.vizgraph?.edges?.arrowheadSize,
-          g.vizgraph?.edges?.arrowheadSize,
-          d.vizgraph.edges.arrowheadSize,
-        ),
+        badgeInfo: (info) => {
+          const raw = m(
+            c.diagram?.badgeInfo,
+            g.diagram?.badgeInfo,
+            d.diagram.badgeInfo,
+          )(info);
+          return {
+            fillColor: raw.fillColor === undefined
+              ? undefined
+              : getColor(raw.fillColor),
+            strokeColor: raw.strokeColor === undefined
+              ? undefined
+              : getColor(raw.strokeColor),
+            textColor: raw.textColor === undefined
+              ? undefined
+              : getColor(raw.textColor),
+            opacity: raw.opacity,
+          };
+        },
         edgeInfo: (info) => {
           const raw = m(
-            c.vizgraph?.edges?.edgeInfo,
-            g.vizgraph?.edges?.edgeInfo,
-            d.vizgraph.edges.edgeInfo,
+            c.diagram?.edgeInfo,
+            g.diagram?.edgeInfo,
+            d.diagram.edgeInfo,
           )(info);
           return {
             thickness: raw.thickness === undefined
@@ -1454,76 +1714,22 @@ export class CustomFigureStyle {
               ? undefined
               : getColor(raw.strokeColor),
             lineDash: raw.lineDash,
+            opacity: raw.opacity,
           };
         },
-      },
-      groups: {
-        fillColor: getColor(
-          m(
-            c.vizgraph?.groups?.fillColor,
-            g.vizgraph?.groups?.fillColor,
-            d.vizgraph.groups.fillColor,
-          ),
-        ),
-        strokeColor: getColor(
-          m(
-            c.vizgraph?.groups?.strokeColor,
-            g.vizgraph?.groups?.strokeColor,
-            d.vizgraph.groups.strokeColor,
-          ),
-        ),
-        strokeWidth: ms(
-          sf,
-          c.vizgraph?.groups?.strokeWidth,
-          g.vizgraph?.groups?.strokeWidth,
-          d.vizgraph.groups.strokeWidth,
-        ),
-        rectRadius: ms(
-          sf,
-          c.vizgraph?.groups?.rectRadius,
-          g.vizgraph?.groups?.rectRadius,
-          d.vizgraph.groups.rectRadius,
-        ),
-        labelInset: ms(
-          sf,
-          c.vizgraph?.groups?.labelInset,
-          g.vizgraph?.groups?.labelInset,
-          d.vizgraph.groups.labelInset,
-        ),
-      },
-      lanes: {
-        fillColor: getColor(
-          m(
-            c.vizgraph?.lanes?.fillColor,
-            g.vizgraph?.lanes?.fillColor,
-            d.vizgraph.lanes.fillColor,
-          ),
-        ),
-        strokeColor: getColor(
-          m(
-            c.vizgraph?.lanes?.strokeColor,
-            g.vizgraph?.lanes?.strokeColor,
-            d.vizgraph.lanes.strokeColor,
-          ),
-        ),
-        strokeWidth: ms(
-          sf,
-          c.vizgraph?.lanes?.strokeWidth,
-          g.vizgraph?.lanes?.strokeWidth,
-          d.vizgraph.lanes.strokeWidth,
-        ),
-        rectRadius: ms(
-          sf,
-          c.vizgraph?.lanes?.rectRadius,
-          g.vizgraph?.lanes?.rectRadius,
-          d.vizgraph.lanes.rectRadius,
-        ),
-        labelInset: ms(
-          sf,
-          c.vizgraph?.lanes?.labelInset,
-          g.vizgraph?.lanes?.labelInset,
-          d.vizgraph.lanes.labelInset,
-        ),
+        textInfo: (info) => {
+          const raw = m(
+            c.diagram?.textInfo,
+            g.diagram?.textInfo,
+            d.diagram.textInfo,
+          )(info);
+          return {
+            textColor: raw.textColor === undefined
+              ? undefined
+              : getColor(raw.textColor),
+            opacity: raw.opacity,
+          };
+        },
       },
     };
   }
@@ -1581,11 +1787,21 @@ export class CustomFigureStyle {
   }
 
   getFontsToRegister(): FontInfo[] {
+    const sceneText = this._d.scene.text;
     return getFontsToRegister(
       FIGURE_TEXT_STYLE_KEYS,
       this._c.text,
       this._g.text,
       getBaseText().font,
+      {
+        sceneBoxTitle: sceneText.boxTitle.font,
+        sceneBoxSub: sceneText.boxSub.font,
+        sceneBoxLine: sceneText.boxLine.font,
+        sceneBadge: sceneText.badge.font,
+        sceneRegionLabel: sceneText.regionLabel.font,
+        sceneConnectorLabel: sceneText.connectorLabel.font,
+        sceneText: sceneText.text.font,
+      },
     );
   }
 }

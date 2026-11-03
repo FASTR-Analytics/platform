@@ -6,6 +6,12 @@
 export { loadFontsWithTimeout } from "../_001_font/mod.ts";
 export type { FontInfo } from "../_001_font/mod.ts";
 export {
+  phaseProgress,
+  resolveTransition,
+  transitionTotalMs,
+} from "../_001_motion/mod.ts";
+export type { PhaseProgress, Transition } from "../_001_motion/mod.ts";
+export {
   DEFAULT_SPACING,
   layout,
   toSvgPath,

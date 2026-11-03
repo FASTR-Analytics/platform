@@ -74,6 +74,13 @@ export type TextInfoOptions = {
   letterSpacing?: LetterSpacing;
 };
 
+// A text key's own defaults beneath the custom and global options: a size
+// relative to the base text, and an adjustment of the base font.
+export type TextKeyDefaults = {
+  relFontSize?: number;
+  font?: FontInfoOptions;
+};
+
 export type CustomStyleTextOptions = {
   font?: FontInfoOptions | "same-as-base";
   relFontSize?: number;

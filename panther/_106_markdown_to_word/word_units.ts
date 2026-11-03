@@ -3,6 +3,8 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
+import { Color } from "./deps.ts";
+
 export function pixelsToHalfPoints(pixels: number): number {
   // Assumes 96 DPI (standard web)
   // 1 inch = 72 points = 96 pixels
@@ -27,7 +29,9 @@ export function emToInches(em: number, fontSize: number): number {
   return pixels / 96;
 }
 
-export function rgbToHex(color: { r: number; g: number; b: number }): string {
-  const toHex = (n: number) => Math.round(n).toString(16).padStart(2, "0");
-  return toHex(color.r) + toHex(color.g) + toHex(color.b);
+// Word has no alpha: a translucent colour is flattened over the white page
+// before it is written as the six hex digits docx takes.
+export function wordHex(color: string): string {
+  const c = new Color(color);
+  return c.tint(1 - c.rgba().a).hexNoHash();
 }

@@ -29,13 +29,17 @@ import type {
 import type { LongTableHandle } from "./handle.ts";
 import { buildBoundsPlan } from "./_sql/bounds.ts";
 import { emitQuery } from "./_sql/emit.ts";
+import { buildHeldValuesPlan } from "./_sql/held.ts";
 import { buildItemsPlan } from "./_sql/items.ts";
 import type { QueryPlan } from "./_sql/plan.ts";
 import { quoteIdentifier } from "./_sql/quote.ts";
 import { buildRowsPlan } from "./_sql/rows.ts";
 import { buildValuesPlan, OPTION_ALIAS } from "./_sql/values.ts";
 
-export type LongTableItemsOptions = { maxItems?: number };
+export type LongTableItemsOptions = {
+  maxItems?: number;
+  reportUnknownFilterValues?: boolean;
+};
 export type LongTableValuesOptions = {
   maxValues?: number;
   ranges?: LongTableRange[];
@@ -164,6 +168,20 @@ export async function getItems(
       `limit ${query.limit} exceeds maxItems ${maxItems}`,
     );
   }
+  const unknown = opts.reportUnknownFilterValues === true
+    ? await findUnknownFilterValues(handle, query.filters)
+    : [];
+  const result = await readItems(handle, query, maxItems);
+  return unknown.length === 0
+    ? result
+    : { ...result, unknownFilterValues: unknown };
+}
+
+async function readItems(
+  handle: LongTableHandle,
+  query: LongTableQuery,
+  maxItems: number,
+): Promise<ItemsResult> {
   const { bounds, none } = await resolveBounds(
     handle,
     query.filters,
@@ -189,6 +207,31 @@ export async function getItems(
     return { status: "too_many_items", ...withBounds(bounds) };
   }
   return { status: "ok", items, ...withBounds(bounds) };
+}
+
+// Per filter, the requested values no row of the whole table holds, as the
+// caller wrote them. Only a declared dimension is checked: a period outside
+// the data is ordinary, and periodBounds already says what the data holds.
+async function findUnknownFilterValues(
+  handle: LongTableHandle,
+  filters: LongTableFilter[],
+): Promise<LongTableFilter[]> {
+  const unknown: LongTableFilter[] = [];
+  for (const filter of filters) {
+    if (resolveDimension(handle.schema, filter.dim)?.kind !== "dimension") {
+      continue;
+    }
+    const plan = buildHeldValuesPlan(handle.schema, filter, source(handle));
+    const [counts] = await runPlan(handle, plan, () => filter.dim);
+    const values = filter.values.filter((_, i) => {
+      const count = counts?.[String(i)];
+      return typeof count !== "number" || count === 0;
+    });
+    if (values.length > 0) {
+      unknown.push({ dim: filter.dim, values });
+    }
+  }
+  return unknown;
 }
 
 function withBounds(

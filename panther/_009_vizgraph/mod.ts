@@ -40,6 +40,7 @@ export { collapseFolded } from "./transform/collapse.ts";
 export { computePlacementMetrics } from "./placement/metrics.ts";
 export type { PlacementMetrics } from "./placement/metrics.ts";
 export { tween } from "./path/normalize.ts";
+export { pullBackEnd } from "./path/pull_back.ts";
 export {
   pathRenderCommands,
   pathRenderCommandsClosedRing,

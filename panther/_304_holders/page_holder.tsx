@@ -23,10 +23,11 @@ import type {
   PageHitTargetColDivider,
   PageHitTargetLayoutItem,
   PageInputs,
-} from "../deps.ts";
+} from "./deps.ts";
 import {
   buildHitRegions,
   CanvasRenderContext,
+  createCanvasBrowser,
   findHitTarget,
   getFontsForPage,
   getMinimumSpan,
@@ -37,7 +38,7 @@ import {
   releaseCanvasGPUMemory,
   trackCanvas,
   untrackCanvas,
-} from "../deps.ts";
+} from "./deps.ts";
 
 export type EditableHoverStyle = {
   fillColor?: string;
@@ -319,7 +320,7 @@ export function PageHolder(p: Props) {
       const ctx = mainCanvas.getContext("2d", { willReadFrequently: false })!;
       ctx.setTransform(d.devicePxPerDu, 0, 0, d.devicePxPerDu, 0, 0);
       ctx.clearRect(0, 0, d.frameW, d.frameH);
-      const rc = new CanvasRenderContext(ctx);
+      const rc = new CanvasRenderContext(ctx, createCanvasBrowser);
       const rcd = new RectCoordsDims([0, 0, d.frameW, d.frameH]);
       const myVersion = ++renderVersion; // stale-async guard (R9)
       (async () => {

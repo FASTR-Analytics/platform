@@ -3,6 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
+export { Color } from "../_001_color/mod.ts";
 export { CustomMarkdownStyle } from "../_004_markdown_style/mod.ts";
 export type {
   CustomMarkdownStyleOptions,

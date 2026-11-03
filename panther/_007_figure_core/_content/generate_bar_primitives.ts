@@ -47,7 +47,8 @@ export function generateBarPrimitives(
   // values extend from it. Used by every stacking mode.
   //
   // Bars whose baseline edge rests against the zero line are extended past
-  // that line by `baselineFudge` so the grid line doesn't show through.
+  // that line by `baselineFudge` so the grid line doesn't show through. A
+  // zero-extent bar is not: the fudge alone would paint a hairline.
   const valBaseline = valBaselineCoord(
     ctx.subChartRcd,
     orientation,
@@ -83,6 +84,8 @@ export function generateBarPrimitives(
       // Value-axis coordinate of this bar's value end (e.g. bar's top in
       // vertical, right-edge in horizontal).
       const valAtMapped = valCoord(mappedVal.coords, orientation);
+      const baselineStart = valBaseline +
+        (mappedVal.barExtent > 0 ? baselineFudge : 0);
 
       let barRcd: RectCoordsDims;
       let isTopOfStack = false;
@@ -103,12 +106,11 @@ export function generateBarPrimitives(
           if (mv !== undefined) accumulatedExtent += mv.barExtent;
         }
 
-        // First series's baseline edge extends past the baseline to mask the
-        // grid line. Non-first series's inner edge touches the previous bar
-        // and needs no fudge.
-        const valStart = valBaseline +
-          extendDir * accumulatedExtent +
-          (i_series === 0 ? baselineFudge : 0);
+        // Non-first series's inner edge touches the previous bar and needs no
+        // fudge.
+        const valStart = i_series === 0
+          ? baselineStart
+          : valBaseline + extendDir * accumulatedExtent;
         const valEnd = valBaseline +
           extendDir * (accumulatedExtent + mappedVal.barExtent);
 
@@ -146,7 +148,7 @@ export function generateBarPrimitives(
           {
             catStart: seriesStart,
             catExtent: seriesThickness,
-            valStart: valBaseline + baselineFudge,
+            valStart: baselineStart,
             valEnd: valAtMapped,
           },
           orientation,
@@ -178,7 +180,7 @@ export function generateBarPrimitives(
             {
               catStart: seriesStart,
               catExtent: seriesThickness,
-              valStart: valBaseline + baselineFudge,
+              valStart: baselineStart,
               valEnd: valAtMapped,
             },
             orientation,
@@ -226,7 +228,7 @@ export function generateBarPrimitives(
           {
             catStart: seriesStart,
             catExtent: seriesThickness,
-            valStart: valBaseline + baselineFudge,
+            valStart: baselineStart,
             valEnd: valAtMapped,
           },
           orientation,

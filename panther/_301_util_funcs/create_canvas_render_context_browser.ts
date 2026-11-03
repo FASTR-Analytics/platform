@@ -5,6 +5,16 @@
 
 import { CanvasRenderContext } from "./deps.ts";
 
+export function createCanvasBrowser(
+  width: number,
+  height: number,
+): HTMLCanvasElement {
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  return canvas;
+}
+
 // Cache canvas render contexts by dimensions
 const _contextCache = new Map<string, CanvasRenderContext>();
 
@@ -21,16 +31,13 @@ export function createCanvasRenderContextBrowser(
   const existing = _contextCache.get(cacheKey);
   if (existing) return existing;
 
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext("2d");
+  const ctx = createCanvasBrowser(width, height).getContext("2d");
 
   if (!ctx) {
     throw new Error("Failed to get 2D canvas context");
   }
 
-  const rc = new CanvasRenderContext(ctx);
+  const rc = new CanvasRenderContext(ctx, createCanvasBrowser);
   _contextCache.set(cacheKey, rc);
   return rc;
 }

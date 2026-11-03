@@ -3,7 +3,6 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { Color } from "./deps.ts";
 import type {
   FormattedRunStyle,
   LetterSpacing,
@@ -17,6 +16,8 @@ import type { PptxSlide } from "./types.ts";
 import {
   pixelsToInches,
   pixelsToPoints,
+  pptxColor,
+  pptxHighlight,
   rcdToSlidePosition,
 } from "./pptx_units.ts";
 import { mapFontForPptx } from "./font_mapping.ts";
@@ -40,7 +41,7 @@ export function addMeasuredTextToSlide(
     ...rcdToSlidePosition(bounds),
     fontFace: mapFontForPptx(ti.font.fontFamily),
     fontSize: pixelsToPoints(ti.fontSize),
-    color: Color.toHexNoHash(ti.color),
+    ...pptxColor(ti.color),
     bold: ti.font.weight >= 700,
     italic: ti.font.italic ?? false,
     valign: "top",
@@ -169,7 +170,7 @@ function getListItemRuns(
       options: {
         fontFace: mapFontForPptx(markerTi.font.fontFamily),
         fontSize: pixelsToPoints(markerTi.fontSize),
-        color: Color.toHexNoHash(markerTi.color),
+        ...pptxColor(markerTi.color),
       },
     });
   }
@@ -189,7 +190,7 @@ function addBlockquoteToSlide(
     w: 0,
     h: pixelsToInches(item.border.line.end.y() - item.border.line.start.y()),
     line: {
-      color: Color.toHexNoHash(item.border.style.strokeColor),
+      ...pptxColor(item.border.style.strokeColor),
       width: pixelsToPoints(item.border.style.strokeWidth),
     },
   });
@@ -228,8 +229,8 @@ function addCodeBlockToSlide(
   // Add background
   slide.addShape("rect", {
     ...rcdToSlidePosition(item.background.rcd),
-    fill: { color: Color.toHexNoHash(item.background.color) },
-    line: { color: Color.toHexNoHash(item.background.color), width: 0 },
+    fill: pptxColor(item.background.color),
+    line: { ...pptxColor(item.background.color), width: 0 },
   });
 
   const codeText = item.lines
@@ -253,7 +254,7 @@ function addCodeBlockToSlide(
       h: pixelsToInches(contentHeight),
       fontFace: mapFontForPptx(ti.font.fontFamily),
       fontSize: pixelsToPoints(ti.fontSize),
-      color: Color.toHexNoHash(ti.color),
+      ...pptxColor(ti.color),
       valign: "top",
       margin: 0,
     });
@@ -274,7 +275,7 @@ function addHorizontalRuleToSlide(
     w: pixelsToInches(item.line.end.x() - item.line.start.x()),
     h: 0,
     line: {
-      color: Color.toHexNoHash(color),
+      ...pptxColor(color),
       width: pixelsToPoints(item.style.strokeWidth),
     },
   });
@@ -315,7 +316,7 @@ function formattedTextToRuns(mFormattedText: MeasuredFormattedText): TextRun[] {
       const options: Record<string, unknown> = {
         fontFace: mapFontForPptx(mText.ti.font.fontFamily),
         fontSize: pixelsToPoints(mText.ti.fontSize),
-        color: Color.toHexNoHash(runColor),
+        ...pptxColor(runColor),
         bold: isBold,
         italic: isItalic,
         lineSpacingMultiple: baseLineSpacingMultiple,
@@ -336,7 +337,7 @@ function formattedTextToRuns(mFormattedText: MeasuredFormattedText): TextRun[] {
       }
 
       if (run.background) {
-        options.highlight = Color.toHexNoHash(run.background.color);
+        options.highlight = pptxHighlight(run.background.color);
       }
 
       runs.push({ text, options });

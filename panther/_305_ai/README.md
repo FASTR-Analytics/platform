@@ -69,24 +69,40 @@ async function handOver(chat: AIChatInstance, channel: BroadcastChannel) {
 
 ## One-Shot Requests
 
+Every request of `callAI` and `callAIStructured` streams and settles on its
+final message, the tool runner's requests included, so panther's default
+`max_tokens` is accepted (the SDK refuses a non-streaming request that could run
+past ten minutes). Both take `options?: { signal?: AbortSignal }`, passed to
+every SDK request of the call, and both return the `model` the response names.
+
 ```typescript
-import { callAI, createSDKClient } from "@timroberton/panther";
+import {
+  callAI,
+  callAIStructured,
+  createSDKClient,
+} from "@timroberton/panther";
+import { z } from "zod";
 
 const anthropic = createSDKClient({
   baseURL: "https://api.anthropic.com",
   apiKey: Deno.env.get("ANTHROPIC_API_KEY"),
 });
 
+const controller = new AbortController();
 const result = await callAI(
-  {
-    sdkClient: anthropic,
-    modelConfig: {
-      model: "claude-sonnet-5",
-      max_tokens: 1024,
-    },
-  },
+  { sdkClient: anthropic },
   [{ role: "user", content: "Hello!" }],
+  { signal: controller.signal },
 );
+
+const structured = await callAIStructured(
+  { sdkClient: anthropic },
+  [{ role: "user", content: "What is 2 + 2?" }],
+  z.object({ answer: z.number() }),
+  { signal: controller.signal },
+);
+// structured.data is { answer: 4 }, or null on a refusal, on max_tokens or
+// when the text fails the schema; structured.model is the response's model.
 ```
 
 ## Custom Tools

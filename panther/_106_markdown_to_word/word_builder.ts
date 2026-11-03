@@ -44,7 +44,7 @@ import {
   DEFAULT_WORD_SPECIFIC_CONFIG,
   type WordSpecificConfig,
 } from "./word_specific_config.ts";
-import { pixelsToTwips } from "./word_units.ts";
+import { pixelsToTwips, wordHex } from "./word_units.ts";
 
 export function buildWordDocument(
   parsedDoc: ParsedMarkdown,
@@ -254,7 +254,7 @@ function buildParagraph(
     }
 
     case "horizontal-rule": {
-      const hrColor = merged.horizontalRule.strokeColor.replace("#", "");
+      const hrColor = wordHex(merged.horizontalRule.strokeColor);
       const hrWidth = merged.horizontalRule.strokeWidth * 8;
       return new Paragraph({
         text: "",
@@ -274,7 +274,7 @@ function buildParagraph(
     }
 
     case "blockquote": {
-      const borderColor = merged.blockquote.leftBorderColor.replace("#", "");
+      const borderColor = wordHex(merged.blockquote.leftBorderColor);
       const borderWidth = pixelsToTwips(merged.blockquote.leftBorderWidth);
       const paddingTop = pixelsToTwips(merged.blockquote.paddingTop);
       const paddingBottom = pixelsToTwips(merged.blockquote.paddingBottom);
@@ -441,7 +441,7 @@ function buildParagraph(
           }),
         );
       }
-      const bgColor = merged.code.backgroundColor.replace("#", "");
+      const bgColor = wordHex(merged.code.backgroundColor);
       const codePaddingH = pixelsToTwips(merged.code.paddingHorizontal);
       const codePaddingV = pixelsToTwips(merged.code.paddingVertical);
 
@@ -739,7 +739,7 @@ function buildWordTable(
   };
 
   const borderSize = merged.table.borderWidth * 8;
-  const borderColor = merged.table.borderColor;
+  const borderColor = wordHex(merged.table.borderColor);
 
   if (element.header && element.header.length > 0) {
     for (const headerRow of element.header) {
@@ -758,7 +758,7 @@ function buildWordTable(
             ],
             shading: {
               type: ShadingType.CLEAR,
-              fill: merged.table.headerShadingColor.replace("#", ""),
+              fill: wordHex(merged.table.headerShadingColor),
               color: "auto",
             },
             margins: cellMargins,

@@ -13,7 +13,7 @@ export {
   lineHeightToWordSpacing,
   pixelsToHalfPoints,
   pixelsToTwips,
-  rgbToHex,
+  wordHex,
 } from "./word_units.ts";
 
 export { wordDocumentToBlob } from "./utils.ts";

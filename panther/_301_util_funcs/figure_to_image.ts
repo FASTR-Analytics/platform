@@ -11,6 +11,7 @@ import {
   RectCoordsDims,
   REFERENCE_WIDTH_DU,
 } from "./deps.ts";
+import { createCanvasBrowser } from "./create_canvas_render_context_browser.ts";
 
 // Browser figure export. A file always renders the canonical REFERENCE_WIDTH_DU
 // frame; `outputWidthPx` is the file's pixel width (the supersample). Layout is
@@ -29,7 +30,7 @@ export function getFigureAsCanvas(
     throw new Error("Could not create canvas context");
   }
 
-  const rc = new CanvasRenderContext(ctx);
+  const rc = new CanvasRenderContext(ctx, createCanvasBrowser);
   const devicePxPerDu = getExportDevicePxPerDu(outputWidthPx);
 
   let frameHDu: number;

@@ -76,13 +76,12 @@ export type {
   SankeyNodePrimitive,
   ScaleLegendGradientPrimitive,
   ScaleLegendSteppedPrimitive,
+  ShapePathPrimitive,
+  ShapePrimitive,
+  SurroundsPrimitive,
   TableBorderPrimitive,
   TableGridPrimitive,
   TableHeaderAxisPrimitive,
-  VizGraphEdgePrimitive,
-  VizGraphLanePrimitive,
-  VizGraphNodePrimitive,
-  VizGraphUnfoldedGroupPrimitive,
 } from "../_001_render_system/mod.ts";
 export { CustomFigureStyle } from "../_003_figure_style/mod.ts";
 export type {

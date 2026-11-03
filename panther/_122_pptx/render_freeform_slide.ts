@@ -4,7 +4,6 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
-  Color,
   type FigureInputs,
   FigureRenderer,
   getBackgroundBaseColor,
@@ -31,6 +30,7 @@ import {
   imageToDataUrl,
   pixelsToInches,
   pixelsToPoints,
+  pptxColor,
   rcdToSlidePosition,
 } from "./pptx_units.ts";
 import { mapFontForPptx } from "./font_mapping.ts";
@@ -54,8 +54,8 @@ export function renderFreeformSlide(
     y: 0,
     w: pixelsToInches(bounds.w()),
     h: pixelsToInches(bounds.h()),
-    fill: { color: Color.toHexNoHash(bgColor) },
-    line: { color: Color.toHexNoHash(bgColor), width: 0 },
+    fill: pptxColor(bgColor),
+    line: { ...pptxColor(bgColor), width: 0 },
   });
 
   // Split background
@@ -66,7 +66,7 @@ export function renderFreeformSlide(
       : getColor(splitBg);
     slide.addShape("rect", {
       ...rcdToSlidePosition(measured.splitImageBounds),
-      fill: { color: Color.toHexNoHash(splitColor) },
+      fill: pptxColor(splitColor),
       line: { width: 0 },
     });
   }
@@ -101,8 +101,6 @@ export function renderFreeformSlide(
   // Watermark
   if (item.watermark) {
     const mText = rc.mText(item.watermark, s.text.watermark, bounds.w());
-    const watermarkColor = new Color(mText.ti.color);
-    const alpha = watermarkColor.rgba().a;
     slide.addText(item.watermark, {
       x: pixelsToInches(bounds.x()),
       y: pixelsToInches(bounds.centerY() - mText.dims.h() / 2),
@@ -110,8 +108,7 @@ export function renderFreeformSlide(
       h: pixelsToInches(mText.dims.h()),
       fontFace: mapFontForPptx(mText.ti.font.fontFamily),
       fontSize: pixelsToPoints(mText.ti.fontSize),
-      color: watermarkColor.hexNoHash(),
-      transparency: alpha < 1 ? (1 - alpha) * 100 : 0,
+      ...pptxColor(mText.ti.color),
       align: "center",
       valign: "middle",
       margin: 0,
@@ -135,8 +132,8 @@ function renderHeader(
   const headerBgColor = getColor(getBackgroundBaseColor(s.header.background));
   slide.addShape("rect", {
     ...rcdToSlidePosition(header.rcdHeaderOuter),
-    fill: { color: Color.toHexNoHash(headerBgColor) },
-    line: { color: Color.toHexNoHash(headerBgColor), width: 0 },
+    fill: pptxColor(headerBgColor),
+    line: { ...pptxColor(headerBgColor), width: 0 },
   });
 
   // Header overlay image (covers header area, matching PDF behavior)
@@ -252,7 +249,7 @@ function renderHeader(
       w: pixelsToInches(header.rcdHeaderOuter.w()),
       h: 0,
       line: {
-        color: Color.toHexNoHash(getColor(s.header.bottomBorderColor)),
+        ...pptxColor(getColor(s.header.bottomBorderColor)),
         width: pixelsToPoints(s.header.bottomBorderStrokeWidth),
       },
     });
@@ -275,8 +272,8 @@ function renderFooter(
   if (footerBgColor !== contentBgColor) {
     slide.addShape("rect", {
       ...rcdToSlidePosition(footer.rcdFooterOuter),
-      fill: { color: Color.toHexNoHash(footerBgColor) },
-      line: { color: Color.toHexNoHash(footerBgColor), width: 0 },
+      fill: pptxColor(footerBgColor),
+      line: { ...pptxColor(footerBgColor), width: 0 },
     });
   }
 
@@ -364,9 +361,9 @@ function renderContainerStyle(
     slide.addShape(shapeType, {
       ...pos,
       ...radiusOpts,
-      fill: { color: Color.toHexNoHash(rs.backgroundColor) },
+      fill: pptxColor(rs.backgroundColor),
       line: {
-        color: Color.toHexNoHash(rs.borderColor),
+        ...pptxColor(rs.borderColor),
         width: borderWidthPts,
       },
     });
@@ -374,7 +371,7 @@ function renderContainerStyle(
     slide.addShape(shapeType, {
       ...pos,
       ...radiusOpts,
-      fill: { color: Color.toHexNoHash(rs.backgroundColor) },
+      fill: pptxColor(rs.backgroundColor),
       line: { width: 0 },
     });
   } else {
@@ -383,7 +380,7 @@ function renderContainerStyle(
       ...radiusOpts,
       fill: { type: "none" },
       line: {
-        color: Color.toHexNoHash(rs.borderColor),
+        ...pptxColor(rs.borderColor),
         width: borderWidthPts,
       },
     });
@@ -493,7 +490,7 @@ function addMeasuredTextToSlide(
     h: pixelsToInches(h),
     fontFace: mapFontForPptx(ti.font.fontFamily),
     fontSize: pixelsToPoints(ti.fontSize),
-    color: Color.toHexNoHash(ti.color),
+    ...pptxColor(ti.color),
     bold: ti.font.weight >= 700,
     italic: ti.font.italic ?? false,
     align,

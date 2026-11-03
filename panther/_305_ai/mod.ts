@@ -77,6 +77,7 @@ export type {
 } from "./_core/ask_user_questions_types.ts";
 export type {
   CallAIConfig,
+  CallAIOptions,
   CallAIResult,
   CallAIStructuredResult,
 } from "./_core/one_shot.ts";

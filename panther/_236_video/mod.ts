@@ -7,3 +7,6 @@ export {
   makeVideoFromImagesAndAudio,
   type MakeVideoOptions,
 } from "./make_video_from_images_and_audio.ts";
+export { makeVideoFromFrames } from "./make_video_from_frames.ts";
+export { makeVideoFromTimedFrames } from "./make_video_from_timed_frames.ts";
+export { renderSequenceVideo } from "./render_sequence_video.ts";

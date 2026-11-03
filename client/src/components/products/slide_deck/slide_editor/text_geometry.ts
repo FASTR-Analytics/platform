@@ -20,6 +20,7 @@ import {
 } from "lib";
 import {
   CanvasRenderContext,
+  createCanvasBrowser,
   MarkdownRenderer,
   quotedFontFamilyForCanvas,
   RectCoordsDims,
@@ -326,7 +327,7 @@ export function buildBlockGeometry(
   }
   const input = node.data as MarkdownRendererInput;
   const bounds = node.contentRpd;
-  const rc = new CanvasRenderContext(ctx2d());
+  const rc = new CanvasRenderContext(ctx2d(), createCanvasBrowser);
   const measured = MarkdownRenderer.measure(rc, bounds, input);
   // input.markdown is slideRenderMarkdown's output; offsets are the source's.
   const source = slideSourceFromRender(input.markdown);

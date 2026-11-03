@@ -3,7 +3,13 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { createEffect, createSignal, onCleanup, untrack } from "../deps.ts";
+import {
+  createEffect,
+  createSignal,
+  ease,
+  onCleanup,
+  untrack,
+} from "../deps.ts";
 import type { Pt, Rect } from "../deps.ts";
 import type { Camera, PanZoomApi } from "../types.ts";
 
@@ -176,7 +182,7 @@ export function createCamera(
         setCamera(target);
         return;
       }
-      const p = pathAt(easeInOut(t) * S);
+      const p = pathAt(ease("ease-in-out", t) * S);
       const scale = size.w / p.w;
       setCamera({
         x: size.w / 2 - (cx0 + p.u * dx) * scale,
@@ -455,10 +461,6 @@ export function createCamera(
 
 function clamp(v: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, v));
-}
-
-function easeInOut(t: number): number {
-  return t < 0.5 ? 2 * t * t : 1 - 2 * (1 - t) * (1 - t);
 }
 
 function sameRect(a: Rect, b: Rect): boolean {

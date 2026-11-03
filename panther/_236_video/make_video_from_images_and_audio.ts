@@ -8,7 +8,7 @@ import { join } from "./deps.ts";
 const SECONDS_AT_START_OF_EACH_CLIP = 0.3;
 const SECONDS_AT_END_OF_EACH_CLIP = 0.5;
 
-function extractNumber(str: string): number {
+export function extractNumber(str: string): number {
   const arr = str.match(/[0-9]+/);
   if (!arr || arr.length !== 1) {
     throw new Error(`No number found in filename: ${str}`);

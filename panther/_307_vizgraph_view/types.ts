@@ -12,6 +12,7 @@ import type {
   LaneGeom,
   LayoutOptions,
   NodeGeom,
+  Transition,
 } from "./deps.ts";
 
 // Fields are live getters — read them where reactivity is wanted; don't
@@ -95,5 +96,6 @@ export type VizGraphViewProps = {
   selected?: string[];
   onSelect?: (ids: string[]) => void;
   onReady?: (api: VizGraphViewApi) => void;
-  transitionMs?: number;
+  // The transition a relayout runs, filled from DEFAULT_TRANSITION.
+  transition?: Partial<Transition>;
 };

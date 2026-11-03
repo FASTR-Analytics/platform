@@ -11,6 +11,7 @@ import {
   PdfRenderContext,
 } from "./deps.ts";
 import { loadFontsWithTimeout } from "./deps.ts";
+import { createCanvasBrowser } from "./create_canvas_render_context_browser.ts";
 
 export async function createPdfRenderContextWithFontsBrowser(
   width: number,
@@ -28,21 +29,11 @@ export async function createPdfRenderContextWithFontsBrowser(
     compress: true,
   });
 
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext("2d");
+  const ctx = createCanvasBrowser(width, height).getContext("2d");
 
   if (!ctx) {
     throw new Error("Failed to get canvas context");
   }
-
-  const createCanvasFn = (w: number, h: number): HTMLCanvasElement => {
-    const c = document.createElement("canvas");
-    c.width = w;
-    c.height = h;
-    return c;
-  };
 
   // Register fonts if provided
   if (fonts && fonts.length > 0) {
@@ -89,7 +80,7 @@ export async function createPdfRenderContextWithFontsBrowser(
     await loadFontsWithTimeout(fonts);
   }
 
-  const rc = new PdfRenderContext(pdf, ctx, createCanvasFn);
+  const rc = new PdfRenderContext(pdf, ctx, createCanvasBrowser);
   return { pdf, rc };
 }
 

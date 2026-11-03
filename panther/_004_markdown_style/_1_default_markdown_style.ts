@@ -105,7 +105,6 @@ const _DS = {
     },
     headerShading: {
       color: typed<ColorKeyOrString>({ key: "base200" }),
-      opacity: 1,
     },
   },
 };

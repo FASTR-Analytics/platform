@@ -27,6 +27,20 @@ export type Conforms<A, B> = [A] extends [B] ? [B] extends [A] ? true
   : false
   : false;
 
+type DeepRequired<T> = T extends (infer U)[] ? DeepRequired<U>[]
+  : T extends object
+    ? { [K in keyof T]-?: DeepRequired<Exclude<T[K], undefined>> }
+  : T;
+
+// Conforms passes an optional field present on one side only, which is how a
+// wire contract grows. A twin that lacks a field its type gained then keeps
+// the typecheck green while a strict parse refuses the field and a closed
+// output schema forbids it. Comparing the two with every field made required,
+// at every depth, closes that.
+export type ConformsExactly<A, B> = Conforms<A, B> extends true
+  ? Conforms<DeepRequired<A>, DeepRequired<B>>
+  : false;
+
 // Stored figureInputs blobs are JSON round-tripped: `undefined` array elements
 // become `null`, and `key: undefined` props are dropped. These leaves accept
 // null/absent at runtime while staying bound to the hand-written

@@ -27,6 +27,7 @@ import {
   lineHeightToWordSpacing,
   pixelsToHalfPoints,
   pixelsToTwips,
+  wordHex,
 } from "./word_units.ts";
 
 function getFontFamily(wordFont: WordFont): string {
@@ -94,7 +95,7 @@ export function createStylesFromMerged(
         run: {
           font: fontFamily,
           size: pixelsToHalfPoints(merged.text.paragraph.fontSize),
-          color: merged.text.paragraph.color,
+          color: wordHex(merged.text.paragraph.color),
         },
         paragraph: {
           spacing: {
@@ -109,7 +110,7 @@ export function createStylesFromMerged(
           font: fontFamily,
           size: pixelsToHalfPoints(merged.text.h1.fontSize),
           bold: true,
-          color: merged.text.h1.color,
+          color: wordHex(merged.text.h1.color),
         },
         paragraph: {
           spacing: {
@@ -123,7 +124,7 @@ export function createStylesFromMerged(
           font: fontFamily,
           size: pixelsToHalfPoints(merged.text.h2.fontSize),
           bold: true,
-          color: merged.text.h2.color,
+          color: wordHex(merged.text.h2.color),
         },
         paragraph: {
           spacing: {
@@ -137,7 +138,7 @@ export function createStylesFromMerged(
           font: fontFamily,
           size: pixelsToHalfPoints(merged.text.h3.fontSize),
           bold: true,
-          color: merged.text.h3.color,
+          color: wordHex(merged.text.h3.color),
         },
         paragraph: {
           spacing: {
@@ -151,7 +152,7 @@ export function createStylesFromMerged(
           font: fontFamily,
           size: pixelsToHalfPoints(merged.text.h4.fontSize),
           bold: true,
-          color: merged.text.h4.color,
+          color: wordHex(merged.text.h4.color),
         },
         paragraph: {
           spacing: {
@@ -165,7 +166,7 @@ export function createStylesFromMerged(
           font: fontFamily,
           size: pixelsToHalfPoints(merged.text.h5.fontSize),
           bold: true,
-          color: merged.text.h5.color,
+          color: wordHex(merged.text.h5.color),
         },
         paragraph: {
           spacing: {
@@ -179,7 +180,7 @@ export function createStylesFromMerged(
           font: fontFamily,
           size: pixelsToHalfPoints(merged.text.h6.fontSize),
           bold: true,
-          color: merged.text.h6.color,
+          color: wordHex(merged.text.h6.color),
         },
         paragraph: {
           spacing: {
@@ -407,5 +408,5 @@ export function createFooterFromWordConfig(
 }
 
 export function getLinkColorFromMerged(merged: MergedMarkdownStyle): string {
-  return typeof merged.link.color === "string" ? merged.link.color : "#0000FF";
+  return wordHex(merged.link.color);
 }
