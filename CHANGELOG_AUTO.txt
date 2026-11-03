@@ -1,3 +1,7 @@
+[TBD] [user] [fixed] - Verification spinner now accurately tracks which indicators are still processing
+[TBD] [user] [fixed] - Auto-fix no longer silently clears an indicator's sub-category when moving categories
+[TBD] [admin] [fixed] - Verification progress indicator now tracks each indicator accurately
+[TBD] [admin] [fixed] - AI-suggested fixes no longer silently clear an indicator's sub-category when moving it to a new category
 [TBD] [user] [added] - Verify button added to the indicator code editor
 [TBD] [user] [added] - "Draft a fix" button uses AI to propose corrections for verification findings
 [TBD] [user] [added] - Verification findings now appear inline next to each editor field
