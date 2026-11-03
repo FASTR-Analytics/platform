@@ -380,7 +380,7 @@ alone so its cache write lands, then keeps four calls in flight. Results are
 saved in batches of ten through `saveHfaIndicatorVerifications`, and the batch
 in hand is flushed on Stop, on the run's end and on error, so the live stamp
 moves about forty times a run, not four hundred; each result carries the
-request's model id. A `null` `data` lists the indicator as not checked with its
+response's model. A `null` `data` lists the indicator as not checked with its
 stop reason and the run goes on; a thrown error (a 429 whose message the proxy
 client already rewrites, a network failure) stops the run and shows the
 message; Stop aborts every in-flight call. The run survives tab switches, the
@@ -490,8 +490,9 @@ system text is its own; none of `build_system_prompt.ts`, the instance
 3. The model never runs server-side: the browser calls `/ai` through the proxy
    client, and the proxy is unchanged.
 4. The model config is panther's default, unnamed in this repo. The
-   verification row records the request's model id as a record; it is not in
-   the hash.
+   verification row records the response's model as a record; it is not in
+   the hash (Tim, 2026-11-03: panther's UI entry exports no default model, so
+   this repo cannot see the request's).
 5. One snapshot per run. The context block carries
    `cache_control: { type: "ephemeral" }`; the first call of a run runs alone,
    then four are in flight.
@@ -843,8 +844,8 @@ SYSTEM_05.
   the hash without the model id, batched saves, the editor's Verify, the
   patch validation, the clean-draft gate, the fresh read for Draft a fix, the
   time point foreign key, the asynchronous hash map. Steps 3 to 6 became steps
-  3 to 5. Step 2's `model` on `CallAIResult` is the response's model; this
-  plan stores the request's model id (ruling 4) and does not read it.
+  3 to 5. Step 2's `model` on `CallAIResult` is the response's model, which
+  the verification row stores (ruling 4).
 - Step 3: the Surface's barrels were corrected to the files the code registers
   in, `server/db/instance/mod.ts`, `lib/types/mod.ts` and
   `lib/api-routes/combined.ts` (Tim, 2026-11-03).
