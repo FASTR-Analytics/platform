@@ -442,8 +442,7 @@ further commits of this step.
 
 **Surface.** `modules/_305_ai/_core/one_shot.ts`, `modules/_305_ai/mod.ts`,
 `modules/_305_ai/README.md` "One-Shot Requests", the `callAI` paragraph of
-`DOC_AI_CHAT.md`, `tests/ai_one_shot_test.ts` (new); in this repo, `panther/**`
-through the sync.
+`DOC_AI_CHAT.md`; in this repo, `panther/**` through the sync.
 
 **Deliverable.**
 
@@ -459,10 +458,6 @@ through the sync.
   parsed value, `null` on a refusal, on `max_tokens`, or when the text fails
   the schema.
 - `CallAIResult` gains `model: string`, the response's model.
-- `tests/ai_one_shot_test.ts`: a `createSDKClient` whose `fetch` is a stub
-  answering a minimal SSE stream pins that the body carries `stream: true`,
-  that the signal reaches fetch, that `data` is the parsed object and `model`
-  the response's; and that an already-aborted signal rejects before fetch.
 - The README's one-shot section and the `DOC_AI_CHAT.md` paragraph state the
   streaming and the options.
 - `./sync` for the `wb-fastr` target, then this repo's floor.
@@ -689,13 +684,13 @@ SYSTEM_05.
   ten-minute rule refuses its non-streaming requests at the default
   `max_tokens` exactly as it refuses the tool-less request; proven with a stub
   fetch.
-- Step 2: `tests/ai_one_shot_test.ts` did not land. `deno test` cannot load
+- Step 2: the committed test `tests/ai_one_shot_test.ts` left the Surface and
+  the Deliverable on Tim's word (2026-11-03). `deno test` cannot load
   `_305_ai`: its `deps.ts` evaluates the UI kit, whose Solid JSX compiles to a
   `solid-js/jsx-runtime` that solid-js does not ship and whose vendored
   sortable calls `solid-js/web`'s Deno build at load, and the test task grants
-  no env access, which the SDK client reads at construction. The test is
-  written and parked in panther's `testing_sandbox/ai_one_shot/` with the SDK
-  proof script, pending a ruling on where it lives.
+  no env access, which the SDK client reads at construction. The test and the
+  SDK proof script live in panther's `testing_sandbox/ai_one_shot/`.
 - Step 2: the sync carried panther's `CanvasRenderContext` constructor change,
   so `text_geometry.ts` passes `createCanvasBrowser` as every browser call site
   in panther does; the file is outside the step's Surface, and without the
