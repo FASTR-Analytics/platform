@@ -1310,7 +1310,13 @@ instead. The not-checked list, each id with its reason, and the stop error show
 above the table until the next run, beside the no-data notice, since the
 `Table` has no slot between its toolbar and its rows. The actions menu's Verify
 all queues every indicator, disabled without HFA data and while a run is in
-progress.
+progress. Every user who can open the manager sees the Findings column: an
+indicator's open problems and warnings ("2 problems, 1 warning"), each count in
+its severity's colour; "not verified" or "changed", muted, beside them or alone;
+"No findings", muted, for a verified indicator with none open; "…" until the
+hashes and rows land. It sorts by the open count and filters by Problem,
+Warning, No findings, Not verified, Changed and the text of each rule an open
+finding names.
 
 Pinned by `server/tests/hfa_verification_test.ts`: the rules list (unique ids,
 every text and label, the app rules equal to the status core's issue kinds), the

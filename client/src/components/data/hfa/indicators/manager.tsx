@@ -1,6 +1,7 @@
 import {
   getHfaIndicatorsGuidance,
   HFA_STRUCTURAL_VARIABLE_IDS,
+  HFA_VERIFICATION_SEVERITIES,
   type HfaDictionaryForValidation,
   type HfaIndicator,
   type HfaIndicatorCategory,
@@ -14,6 +15,7 @@ import {
   type HfaIndicatorVariantGroup,
   type HfaIndicatorVariantItem,
   type HfaVerificationRows,
+  hfaVerificationRule,
   t3,
   TC,
 } from "lib";
@@ -878,6 +880,44 @@ export function HfaIndicatorsManager(p: Props) {
       : t3({ en: "No", fr: "Non", pt: "Não" });
   };
 
+  const noFindingsText = () =>
+    t3({ en: "No findings", fr: "Aucun constat", pt: "Sem constatações" });
+
+  // Undefined until the verification state lands.
+  const verificationOf = (ind: HfaIndicator) => {
+    const state = verificationState()?.byIndicator.get(ind.indicatorId);
+    if (state === undefined) return undefined;
+    const problems =
+      state.open.filter((f) =>
+        hfaVerificationRule(f.rule).severity === "problem"
+      ).length;
+    return {
+      status: state.status,
+      open: state.open,
+      problems,
+      warnings: state.open.length - problems,
+    };
+  };
+
+  const findingsFilterValues = (ind: HfaIndicator): string[] => {
+    const v = verificationOf(ind);
+    if (v === undefined) return [];
+    return [
+      ...(v.problems > 0 ? [t3(HFA_VERIFICATION_SEVERITIES.problem)] : []),
+      ...(v.warnings > 0 ? [t3(HFA_VERIFICATION_SEVERITIES.warning)] : []),
+      ...(v.status === "verified" && v.open.length === 0
+        ? [noFindingsText()]
+        : []),
+      ...(v.status === "not_verified"
+        ? [t3({ en: "Not verified", fr: "Non vérifié", pt: "Não verificado" })]
+        : []),
+      ...(v.status === "changed"
+        ? [t3({ en: "Changed", fr: "Modifié", pt: "Alterado" })]
+        : []),
+      ...new Set(v.open.map((f) => t3(hfaVerificationRule(f.rule).text))),
+    ];
+  };
+
   // The table's search text. The indicator id has no column, and the category
   // columns hold ids whose labels are resolved here.
   const indicatorSearchText = (ind: HfaIndicator): string =>
@@ -1050,6 +1090,84 @@ export function HfaIndicatorsManager(p: Props) {
         return text === ""
           ? <span class="text-base-content-muted">—</span>
           : <span>{text}</span>;
+      },
+    },
+    {
+      key: "findings",
+      header: t3({ en: "Findings", fr: "Constats", pt: "Constatações" }),
+      sortable: true,
+      sortValue: (ind) => verificationOf(ind)?.open.length ?? -1,
+      filterable: true,
+      filterValue: findingsFilterValues,
+      render: (ind) => {
+        const v = verificationOf(ind);
+        if (v === undefined) return "…";
+        const muted = "text-base-content-muted";
+        const parts = [
+          ...(v.problems > 0
+            ? [{
+              class: "text-danger font-700",
+              text: plural(v.problems, {
+                one: t3({
+                  en: `${v.problems} problem`,
+                  fr: `${v.problems} problème`,
+                  pt: `${v.problems} problema`,
+                }),
+                other: t3({
+                  en: `${v.problems} problems`,
+                  fr: `${v.problems} problèmes`,
+                  pt: `${v.problems} problemas`,
+                }),
+              }),
+            }]
+            : []),
+          ...(v.warnings > 0
+            ? [{
+              class: "text-warning font-700",
+              text: plural(v.warnings, {
+                one: t3({
+                  en: `${v.warnings} warning`,
+                  fr: `${v.warnings} avertissement`,
+                  pt: `${v.warnings} aviso`,
+                }),
+                other: t3({
+                  en: `${v.warnings} warnings`,
+                  fr: `${v.warnings} avertissements`,
+                  pt: `${v.warnings} avisos`,
+                }),
+              }),
+            }]
+            : []),
+          ...(v.status === "not_verified"
+            ? [{
+              class: muted,
+              text: t3({
+                en: "not verified",
+                fr: "non vérifié",
+                pt: "não verificado",
+              }),
+            }]
+            : v.status === "changed"
+            ? [{
+              class: muted,
+              text: t3({ en: "changed", fr: "modifié", pt: "alterado" }),
+            }]
+            : v.open.length === 0
+            ? [{ class: muted, text: noFindingsText() }]
+            : []),
+        ];
+        return (
+          <span>
+            <For each={parts}>
+              {(part, i) => (
+                <>
+                  <Show when={i() > 0}>{", "}</Show>
+                  <span class={part.class}>{part.text}</span>
+                </>
+              )}
+            </For>
+          </span>
+        );
       },
     },
   ];
