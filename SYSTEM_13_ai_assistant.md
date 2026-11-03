@@ -1125,11 +1125,11 @@ its context block then what was typed (panther `showSentContext`), and installs
 tab owns the chat: `requests()` holds every POST the tab made to the proxy, the
 chat's and the HFA verification's, with its body as serialised (recorded in the
 proxy client's fetch wrapper, bounded to the last 100), which is what the model
-received; `nextTurn()`, `messages()`,
-`tools()`, `config()`, `view()`, `conversationId()` and `isLoading()` read the
-engine and the view controller live. The chat menu's View system prompt shows
-the blocks the next message would carry, through the instance's
-`getNextTurnPreview()`, then the system text; the debug panel
+received; `nextTurn()`, `messages()`, `tools()`, `config()`, `view()`,
+`conversationId()` and `isLoading()` read the engine and the view controller
+live. The chat menu's View system prompt shows the blocks the next message would
+carry, through the instance's `getNextTurnPreview()`, then the system text; the
+debug panel
 ([ai_debug_panel.tsx](client/src/components/instance/copilot/ai_debug_panel.tsx))
 renders the metric-list formatter verbatim so a human sees exactly what the
 model sees. AI data payloads exclude the admin-area roll-up row (double-counting
@@ -1227,8 +1227,7 @@ through the guard: the reads need `can_view_data`, the writes and
 `update_hfa_indicator_editor` `can_configure_data`, the flag the manager's own
 write controls read (`can("can_configure_data")`, S18). Every HFA route keeps
 its own guard. The three writes declare `approval.propose` with
-`presentation:
-"modal"` (panther owns the propose → modal → commit lifecycle);
+`presentation: "modal"` (panther owns the propose → modal → commit lifecycle);
 the editor write is exempt, since it lands in the open editor's unsaved draft,
 which the user saves or discards. The HFA guidance (the model, type and
 aggregation, the grammar and how m010 evaluates the code, scope, how to work) is
@@ -1312,15 +1311,15 @@ read through the manager's T2 caches; the indicators, the taxonomy (variant
 groups and items included) and the main and variant code are read fresh on every
 call, so the model acts on current state, its own earlier writes included. The
 loaders are S5's `indicators/_shared/read_input.ts`, which the HFA
-verification's runner reads too; each throws `AIToolFailure` on a failed read. Write
-commits do whole-object load → propose → save, last write wins: the app-wide
-concurrency model, deliberate (a re-read-after-confirm refactor was rejected as
-an inconsistent outlier); an update batch carries only the indicators it
-changes. `get_hfa_indicator_editor` reads the draft the view's context returns
-synchronously, then awaits the display rows as the reads do, and prints the
-detail block (`formatHfaIndicatorDetailsForAI`) over the manager's indicators
-and code with the draft in place of the indicator's saved state, headed as the
-unsaved state and naming the round the user is looking at.
+verification's runner reads too; each throws `AIToolFailure` on a failed read.
+Write commits do whole-object load → propose → save, last write wins: the
+app-wide concurrency model, deliberate (a re-read-after-confirm refactor was
+rejected as an inconsistent outlier); an update batch carries only the
+indicators it changes. `get_hfa_indicator_editor` reads the draft the view's
+context returns synchronously, then awaits the display rows as the reads do, and
+prints the detail block (`formatHfaIndicatorDetailsForAI`) over the manager's
+indicators and code with the draft in place of the indicator's saved state,
+headed as the unsaved state and naming the round the user is looking at.
 `update_hfa_indicator_editor` never awaits, so the editor that set the view is
 the one the write reaches: it checks its ids against the taxonomy, its rounds
 against the rounds the editor offers, its items against the group the patch

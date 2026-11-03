@@ -1164,8 +1164,8 @@ warn on one. Every other rule is checked by the model;
 rule switch may name.
 
 **Storage.** `hfa_indicator_verifications` holds one row per checked indicator,
-its latest check only: the input hash it was asked about, the model the
-response names, when, and by whom. `hfa_verification_findings` holds one row per finding:
+its latest check only: the input hash it was asked about, the model the response
+names, when, and by whom. `hfa_verification_findings` holds one row per finding:
 the indicator, the rule, the round (`time_point`, NULL for a finding about the
 whole indicator), the message and suggestion, written in the instance language,
 and `dismissed_at` and `dismissed_by`. Neither a verdict nor a severity is
@@ -1276,12 +1276,12 @@ and `createHfaVerificationHashes` turns it into every indicator's current input
 hash. A digest is asynchronous, so an effect writes the map, dropping a pass a
 newer read input supersedes; it reruns when the indicators' or the dataset's
 stamp moves the manager's reads, never on the verification stamp. One pass
-formats every indicator through one formatter and hashes it, about 20 ms for
-421 indicators over three rounds, so a rerun per landed read costs little. `hfaVerificationState` joins the map
-with the T2 rows: each indicator is not verified (no row), changed (the row's
-hash differs) or verified, with its open findings, those neither dismissed nor
-of a switched-off rule; and the queue is every indicator not verified or changed,
-in the manager's order.
+formats every indicator through one formatter and hashes it, about 20 ms for 421
+indicators over three rounds, so a rerun per landed read costs little.
+`hfaVerificationState` joins the map with the T2 rows: each indicator is not
+verified (no row), changed (the row's hash differs) or verified, with its open
+findings, those neither dismissed nor of a switched-off rule; and the queue is
+every indicator not verified or changed, in the manager's order.
 
 **The runner** (`indicators/verification/runner.ts`) is module-level state, one
 run per browser tab: a run outlives the manager, the editor and tab switches,
@@ -1292,15 +1292,16 @@ blocks, every message and the queued indicators' hashes, and calls the model
 through `createAiProxyClient` with `callAIStructured`: the first call alone, so
 its write of the context block to the prompt cache lands before the rest read
 it, then four in flight. Each result carries its hash and the response's model
-and is saved through `saveHfaIndicatorVerifications` in batches of ten; the batch
-in hand is saved when the run ends, stops or fails. A `null` answer lists the
-indicator as not checked with the response's stop reason, and the run goes on. A
-thrown error (a failed read or save, a 429, whose reset time the proxy client
-shows in the user's locale, a network failure) stops the run, aborts the calls in
-flight and is kept as the stop error. `stopRun()` aborts every call in flight.
-`hfaVerificationRun` holds the progress (done, queued, the indicator last
-started), undefined while no run is in progress, and the not-checked list and
-stop error of the current or last run until the next starts.
+and is saved through `saveHfaIndicatorVerifications` in batches of ten; the
+batch in hand is saved when the run ends, stops or fails. A `null` answer lists
+the indicator as not checked with the response's stop reason, and the run goes
+on. A thrown error (a failed read or save, a 429, whose reset time the proxy
+client shows in the user's locale, a network failure) stops the run, aborts the
+calls in flight and is kept as the stop error: for an API error, the response
+body's own message, not the SDK's status and JSON. `stopRun()` aborts every call
+in flight. `hfaVerificationRun` holds the progress (done, queued, the indicator
+last started), undefined while no run is in progress, and the not-checked list
+and stop error of the current or last run until the next starts.
 
 **The manager.** For `can_configure_data`, the indicators toolbar holds Verify,
 labelled with the queue's size ("Verify 87", "Verify …" until the hashes and
@@ -1321,12 +1322,12 @@ finding names.
 **The rules modal** (`indicators/verification/rules_modal.tsx`), the actions
 menu's Verification rules, lists the app rules and the model rules apart, each
 under its group with its severity and text. Each model rule has a switch, which
-writes the whole list of switched-off rules through `setHfaVerificationRulesOff`;
-a switched-off rule shows how many of its undismissed findings it hides. The
-switches show the stored list; after a switch they show what was written and
-stay disabled until newer rows land, so a second switch is never computed from
-rows that lack the first. A failed write shows in an alert and restores the
-stored list.
+writes the whole list of switched-off rules through
+`setHfaVerificationRulesOff`; a switched-off rule shows how many of its
+undismissed findings it hides. The switches show the stored list; after a switch
+they show what was written and stay disabled until newer rows land, so a second
+switch is never computed from rows that lack the first. A failed write shows in
+an alert and restores the stored list.
 
 Pinned by `server/tests/hfa_verification_test.ts`: the rules list (unique ids,
 every text and label, the app rules equal to the status core's issue kinds), the

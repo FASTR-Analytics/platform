@@ -1,3 +1,4 @@
+import { APIError } from "@anthropic-ai/sdk";
 import {
   buildHfaVerificationBlocks,
   buildHfaVerificationMessages,
@@ -79,7 +80,14 @@ export function stopRun(): void {
   controller?.abort();
 }
 
+// An API error's message is its status and the response body as JSON; the
+// body's own message is the readable part (the proxy's quota rejection and
+// its reset time).
 function messageOf(e: unknown): string {
+  if (e instanceof APIError) {
+    const body = e.error as { error?: { message?: unknown } } | undefined;
+    if (typeof body?.error?.message === "string") return body.error.message;
+  }
   return e instanceof Error ? e.message : String(e);
 }
 

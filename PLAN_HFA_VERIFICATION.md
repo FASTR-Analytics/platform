@@ -866,7 +866,8 @@ SYSTEM_05.
   §2's terms.
 - Step 4: `client/src/components/_shared/mod.ts` joined the Surface, because
   the structure lint lets another folder import `components/_shared/` only
-  through its `mod.ts`, so the proxy client is exported there.
+  through its `mod.ts`, so the proxy client is exported there (Tim,
+  2026-11-03).
 - Step 4: the proxy client's move, the `_shared/` move and the runner land in
   one commit with the manager's Verify controls, because the structure lint
   fails a `_shared/` file with one consuming child and a file nothing imports:
@@ -878,3 +879,5 @@ SYSTEM_05.
 - Step 4: the runner's progress, not-checked list and stop error are one
   signal, `hfaVerificationRun`, not three, because they describe one run and
   `validate_protocols` flags a bare error signal.
+- Step 4: Verify is hidden, not disabled, without `can_configure_data`, because
+  every control in the indicators toolbar's slot renders inside that gate.
