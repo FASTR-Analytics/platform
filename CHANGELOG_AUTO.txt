@@ -1,3 +1,18 @@
+[TBD] [user] [added] - Verify button added to the indicator code editor
+[TBD] [user] [added] - "Draft a fix" button uses AI to propose corrections for verification findings
+[TBD] [user] [added] - Verification findings now appear inline next to each editor field
+[TBD] [user] [added] - Dismiss and undo options for individual verification findings
+[TBD] [user] [added] - Fix summary shows what changed with previous values for review
+[TBD] [user] [added] - Discard button to revert an AI-drafted fix before saving
+[TBD] [user] [added] - Finding counts shown on each round tab in the editor sidebar
+[TBD] [user] [added] - Status messages for verification progress, errors, and unsaved edits
+[TBD] [admin] [added] - Indicator editor now shows verification findings inline next to each field
+[TBD] [admin] [added] - "Verify" button added to the indicator code editor
+[TBD] [admin] [added] - "Draft a fix" button uses AI to propose corrections for open verification findings
+[TBD] [admin] [added] - Drafted fixes can be reviewed, saved, or discarded from the editor
+[TBD] [admin] [added] - Verification findings can be dismissed or restored per finding
+[TBD] [admin] [added] - Round selector shows finding counts with severity-based color coding
+[TBD] [admin] [changed] - Verification status messages now appear inside the indicator editor
 [TBD] [user] [added] - Automatic verification of HFA indicators with AI
 [TBD] [user] [added] - Findings column showing problems and warnings per indicator
 [TBD] [user] [added] - "Verify" button to check unverified or changed indicators
