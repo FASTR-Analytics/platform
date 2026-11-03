@@ -24,6 +24,7 @@ globs:
   - lib/hfa_indicator_labels.ts
   - lib/hfa_indicator_code.ts
   - lib/hfa_indicator_guidance.ts
+  - lib/hfa_verification_rules.ts
   - lib/hfa_indicator_dependencies.ts
   - lib/indicator_expression/**
   - lib/indicator_id.ts
@@ -66,6 +67,7 @@ globs:
   - server/tests/hfa_indicator_code_test.ts
   - server/tests/hfa_indicator_status_test.ts
   - server/tests/hfa_r_emit_test.ts
+  - server/tests/hfa_verification_test.ts
   - server/tests/hfa_workbook_text_columns_test.ts
   - server/tests/indicator_analysed_set_test.ts
   - server/tests/indicator_data_key_test.ts

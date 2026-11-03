@@ -13,6 +13,7 @@ export * from "./disaggregation_labels.ts";
 export * from "./hfa_indicator_labels.ts";
 export * from "./hfa_indicator_code.ts";
 export * from "./hfa_indicator_guidance.ts";
+export * from "./hfa_verification_rules.ts";
 export * from "./hfa_indicator_dependencies.ts";
 export * from "./hfa_sentinel_classification.ts";
 export * from "./format_nigeria_admin_label.ts";
