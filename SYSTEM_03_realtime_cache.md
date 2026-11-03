@@ -203,7 +203,11 @@ through a typed wrapper, never `postMessage` directly.
 `notifyInstanceUsersUpdated` (`users_updated`), `notifyInstanceAssetsUpdated`
 (`assets_updated`), `notifyInstanceGeoJsonMapsUpdated` (`geojson_maps_updated`),
 `notifyInstanceStructureUpdated` (`structure_updated`),
-`notifyInstanceIndicatorsUpdated` (`indicators_updated`),
+`notifyInstanceIndicatorsUpdated` (`indicators_updated`: the dictionary
+counts and the four stamps `indicatorsVersion`, `countIndicatorsVersion`,
+`hfaIndicatorsVersion` and `hfaVerificationVersion`, fired by every HMIS and HFA
+dictionary write and by every HFA verification write; S5 "HFA indicator
+verification"),
 `notifyInstanceDatasetsUpdated` (`datasets_updated`),
 `notifyInstancePopulationUpdated` (`population_updated`: the population level
 setting, the stored row count, per-type coverage and the

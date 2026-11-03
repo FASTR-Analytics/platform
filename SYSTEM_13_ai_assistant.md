@@ -55,9 +55,12 @@ The HFA tools (`client/src/components/data/hfa/indicators/ai/**`) are
 **S5-owned**: S13 owns the chat they register in, the panther engine contract
 and the tool-schema conventions they follow; S5 owns their semantics, the HFA
 guidance the manager and the code editor attach to their views, and the
-`can_configure_data` flag they refuse under. The slide/figure shapes the
-slide_ai helpers produce are **S10/S12**; the query pipeline the data tools call
-is **S9**.
+`can_configure_data` flag they refuse under. The HFA indicator verification is
+**S5's** and no part of the chat: it builds its own system text and messages
+(`lib/hfa_verification.ts`) for panther's one-shot structured call through the
+proxy, and holds no conversation, view or tool (SYSTEM_05 "HFA indicator
+verification"). The slide/figure shapes the slide_ai helpers produce are
+**S10/S12**; the query pipeline the data tools call is **S9**.
 
 ## Principles
 
@@ -1233,7 +1236,9 @@ neutral between them, names no tool, since the registered tools describe
 themselves, and promises no diff.
 
 Every read returns English text built by a pure formatter in
-`lib/ai_tools/format_hfa_indicators_for_ai.ts`, pinned by
+`lib/ai_tools/format_hfa_indicators_for_ai.ts`, which the HFA verification's
+blocks and messages read too (`createHfaIndicatorDetailsFormatter` builds the
+detail block over one index for many indicators), pinned by
 `server/tests/format_hfa_indicators_for_ai_test.ts`, over the indicators, the
 taxonomy, the main and variant code, the dictionary, the status core's result
 (SYSTEM_05) and the display rows. `get_hfa_indicators` prints the taxonomy

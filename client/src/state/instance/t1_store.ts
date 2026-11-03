@@ -87,6 +87,7 @@ const EMPTY_INSTANCE_STATE: InstanceState = {
   indicatorsVersion: "",
   countIndicatorsVersion: "",
   hfaIndicatorsVersion: "",
+  hfaVerificationVersion: "",
   currentUserEmail: "",
   currentUserApproved: false,
   currentUserIsGlobalAdmin: false,
@@ -354,6 +355,7 @@ export function updateInstanceIndicators(
     data.countIndicatorsVersion,
   );
   setInstanceState("hfaIndicatorsVersion", data.hfaIndicatorsVersion);
+  setInstanceState("hfaVerificationVersion", data.hfaVerificationVersion);
 }
 
 export function updateInstanceDatasets(data: InstanceDatasetsSummary): void {

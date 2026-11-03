@@ -1,4 +1,8 @@
-import type { HfaIndicator, InstanceIndicatorDetails } from "lib";
+import type {
+  HfaIndicator,
+  HfaVerificationRows,
+  InstanceIndicatorDetails,
+} from "lib";
 import { serverActions } from "~/server_actions";
 import { createReactiveCache } from "../_infra/reactive_cache";
 
@@ -54,5 +58,35 @@ export async function getHfaIndicatorsFromCacheOrFetch(
 
   const promise = serverActions.getHfaIndicators({});
   _HFA_INDICATORS_CACHE.setPromise(promise, { hfaIndicatorsVersion }, version);
+  return await promise;
+}
+
+// ============================================================================
+// HFA verification
+// ============================================================================
+
+const _HFA_VERIFICATION_CACHE = createReactiveCache<
+  { hfaVerificationVersion: string },
+  HfaVerificationRows
+>({
+  name: "instance_hfa_verification",
+  uniquenessKeys: () => ["hfa_verification"],
+  versionKey: (params) => params.hfaVerificationVersion,
+});
+
+export async function getHfaVerificationFromCacheOrFetch(
+  hfaVerificationVersion: string,
+) {
+  const { data, version } = await _HFA_VERIFICATION_CACHE.get({
+    hfaVerificationVersion,
+  });
+  if (data) return { success: true, data } as const;
+
+  const promise = serverActions.getHfaVerification({});
+  _HFA_VERIFICATION_CACHE.setPromise(
+    promise,
+    { hfaVerificationVersion },
+    version,
+  );
   return await promise;
 }
