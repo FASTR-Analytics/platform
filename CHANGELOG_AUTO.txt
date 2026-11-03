@@ -1,3 +1,17 @@
+[TBD] [user] [added] - Automatic verification of HFA indicators with AI
+[TBD] [user] [added] - Findings column showing problems and warnings per indicator
+[TBD] [user] [added] - "Verify" button to check unverified or changed indicators
+[TBD] [user] [added] - "Verify all" option to check every indicator at once
+[TBD] [user] [added] - Verification rules settings to turn individual checks on or off
+[TBD] [user] [added] - Progress display while verification is running with stop button
+[TBD] [user] [added] - Filter and sort indicators by verification findings
+[TBD] [user] [changed] - Rate limit timestamps now display in your local date and time format
+[TBD] [admin] [added] - HFA indicators now have automated AI-powered verification
+[TBD] [admin] [added] - Verify button checks indicators that are new or changed
+[TBD] [admin] [added] - Findings column shows problems and warnings per indicator
+[TBD] [admin] [added] - Verification rules modal lets you switch individual rules on or off
+[TBD] [admin] [added] - "Verify all" option available in the indicators menu
+[TBD] [admin] [changed] - Rate-limit reset times now shown in your local time format
 [TBD] [user] [fixed] - Renaming a round now correctly updates verification results
 [TBD] [admin] [fixed] - Renaming a round now correctly refreshes verification results
 [TBD] [user] [added] - HFA indicators can now be automatically verified for issues
