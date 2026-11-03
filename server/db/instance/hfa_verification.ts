@@ -121,7 +121,9 @@ function findingsToInsert(
 // replaced, its undismissed findings are replaced by what the result leaves,
 // and its dismissed findings stay. A result for an indicator deleted since
 // the run read it is skipped, so one deletion does not fail the batch; a
-// later result for the same indicator wins.
+// later result for the same indicator wins. The indicators and time points
+// read are share-locked, so a delete cannot land between the read and the
+// inserts that reference them.
 export async function saveHfaIndicatorVerifications(
   mainDb: Sql,
   results: HfaVerificationResult[],
@@ -134,6 +136,7 @@ export async function saveHfaIndicatorVerifications(
         (await sql<{ indicator_id: string }[]>`
           SELECT indicator_id FROM hfa_indicators
           WHERE indicator_id = ANY(${[...byIndicator.keys()]})
+          FOR SHARE
         `).map((r) => r.indicator_id),
       );
       const kept = [...byIndicator.values()].filter((r) =>
@@ -143,8 +146,9 @@ export async function saveHfaIndicatorVerifications(
       const ids = kept.map((r) => r.indicatorId);
       const [{ now }] = await sql<{ now: Date }[]>`SELECT now() AS now`;
       const timePoints = new Set(
-        (await sql<{ label: string }[]>`SELECT label FROM hfa_time_points`)
-          .map((r) => r.label),
+        (await sql<{ label: string }[]>`
+          SELECT label FROM hfa_time_points FOR SHARE
+        `).map((r) => r.label),
       );
       const dismissed = new Map<string, DismissedPair[]>();
       for (

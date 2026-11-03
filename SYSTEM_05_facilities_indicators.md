@@ -1201,7 +1201,8 @@ call.
 
 **The save transaction**, one per batch. A result for an indicator deleted since
 the run read it is skipped, so one deletion does not fail the batch, and a later
-result for the same indicator wins. One `now()` stamps every verification and
+result for the same indicator wins. The indicators and time points it reads are
+share-locked, so a delete waits for the save rather than failing its inserts. One `now()` stamps every verification and
 finding of the batch. Per indicator, the verification row is upserted, the
 undismissed findings are deleted, and the returned findings are inserted after
 three steps, in TypeScript over the rows the transaction read (never a SQL
