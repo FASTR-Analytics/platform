@@ -45,6 +45,7 @@ globs:
   - server/db/instance/hfa_facilities.ts
   - server/db/instance/hfa_facility_weights.ts
   - server/db/instance/hfa_indicators.ts
+  - server/db/instance/hfa_verification.ts
   - server/db/instance/indicators.ts
   - server/db/instance/instance.ts
   - server/db/instance/population.ts
@@ -54,6 +55,7 @@ globs:
   - server/routes/instance/geojson_maps.ts
   - server/routes/instance/hfa_indicators.ts
   - server/routes/instance/hfa_time_points.ts
+  - server/routes/instance/hfa_verification.ts
   - server/routes/instance/indicators.ts
   - server/routes/instance/instance.ts
   - server/routes/instance/population.ts

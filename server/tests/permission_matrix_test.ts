@@ -57,6 +57,7 @@ import { routesGeoJsonMaps } from "../routes/instance/geojson_maps.ts";
 import { routesHealth } from "../routes/instance/health.ts";
 import { routesHfaIndicators } from "../routes/instance/hfa_indicators.ts";
 import { routesHfaTimePoints } from "../routes/instance/hfa_time_points.ts";
+import { routesHfaVerification } from "../routes/instance/hfa_verification.ts";
 import { routesIceh } from "../routes/instance/iceh.ts";
 import { routesIndicators } from "../routes/instance/indicators.ts";
 import { routesIndicatorsDhis2 } from "../routes/instance/indicators_dhis2.ts";
@@ -302,6 +303,7 @@ const EXPECTED: Record<keyof typeof routeRegistry, Expectation> = {
   getHfaIndicatorVariantItems: closed("can_view_data"),
   getHfaIndicators: closed("can_view_data"),
   getHfaRegistry: closed("can_view_data"),
+  getHfaVerification: closed("can_view_data"),
   getIndicators: closed("can_view_data"),
   getInstanceDhis2CredentialsInfo: closed("can_configure_data"),
   getInstanceMeta: closed("public"),
@@ -390,6 +392,7 @@ const EXPECTED: Record<keyof typeof routeRegistry, Expectation> = {
   revokePersonalAccessToken: closed("approved"),
   saveGeoJsonMap: closed("can_configure_data"),
   saveHfaIndicatorFull: closed("can_configure_data"),
+  saveHfaIndicatorVerifications: closed("can_configure_data"),
   saveHfaIndicatorsBatch: closed("can_configure_data"),
   saveInstanceDhis2Credentials: closed("can_configure_data"),
   saveRunGenerationDefaults: closed("can_configure_data"),
@@ -401,6 +404,8 @@ const EXPECTED: Record<keyof typeof routeRegistry, Expectation> = {
   sendReportEmail: closed("approved"),
   sendSlideDeckEmail: closed("approved"),
   setFolderProductsAccess: closed("folder:own"),
+  setHfaVerificationFindingsDismissed: closed("can_configure_data"),
+  setHfaVerificationRulesOff: closed("can_configure_data"),
   setIndicatorsIncludeInAnalysis: closed("can_configure_data"),
   setPopulationLevel: closed("can_configure_data"),
   setProductAccess: closed("product:edit"),
@@ -802,6 +807,7 @@ function mainApp(session: Session): Hono {
     routesDhis2Credentials,
     routesHfaIndicators,
     routesHfaTimePoints,
+    routesHfaVerification,
     routesIceh,
     routesIndicators,
     routesIndicatorsDhis2,

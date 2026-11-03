@@ -42,6 +42,12 @@ export const hfaVerificationOutputSchema = z.object({
   findings: z.array(hfaVerificationNewFindingSchema),
 });
 
+// The model rules switched off for the instance, as the config stores them
+// and the rules-off route takes them.
+export const hfaVerificationRulesOffSchema = z.array(
+  z.enum(HFA_VERIFICATION_MODEL_RULE_IDS),
+);
+
 const nullableCode = z.string().nullable();
 
 // Every field null when the edit leaves it as it is.

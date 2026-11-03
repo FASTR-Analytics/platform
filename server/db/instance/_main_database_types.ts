@@ -249,6 +249,26 @@ export type DBHfaImportRun = {
   ended_at: string | Date | null;
 };
 
+export type DBHfaIndicatorVerification = {
+  indicator_id: string;
+  input_hash: string;
+  model: string;
+  verified_at: Date;
+  verified_by: string;
+};
+
+export type DBHfaVerificationFinding = {
+  id: string;
+  indicator_id: string;
+  rule: string;
+  time_point: string | null;
+  message: string;
+  suggestion: string | null;
+  dismissed_at: Date | null;
+  dismissed_by: string | null;
+  created_at: Date;
+};
+
 export type DBIcehImportRun = {
   id: number;
   triggered_by: string | null;

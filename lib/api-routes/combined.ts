@@ -4,6 +4,7 @@ import { datasetRouteRegistry } from "./instance/datasets.ts";
 import { dhis2CredentialsRouteRegistry } from "./instance/dhis2_credentials.ts";
 import { hfaIndicatorRouteRegistry } from "./instance/hfa_indicators.ts";
 import { hfaTimePointRouteRegistry } from "./instance/hfa_time_points.ts";
+import { hfaVerificationRouteRegistry } from "./instance/hfa_verification.ts";
 import { icehRouteRegistry } from "./instance/iceh.ts";
 import { indicatorRouteRegistry } from "./instance/indicators.ts";
 import { indicatorsDhis2RouteRegistry } from "./instance/indicators_dhis2.ts";
@@ -33,6 +34,7 @@ export const routeRegistryIndividualCount =
   Object.keys(dhis2CredentialsRouteRegistry).length +
   Object.keys(hfaIndicatorRouteRegistry).length +
   Object.keys(hfaTimePointRouteRegistry).length +
+  Object.keys(hfaVerificationRouteRegistry).length +
   Object.keys(icehRouteRegistry).length +
   Object.keys(indicatorRouteRegistry).length +
   Object.keys(indicatorsDhis2RouteRegistry).length +
@@ -60,6 +62,7 @@ export const routeRegistry = {
   ...dhis2CredentialsRouteRegistry,
   ...hfaIndicatorRouteRegistry,
   ...hfaTimePointRouteRegistry,
+  ...hfaVerificationRouteRegistry,
   ...icehRouteRegistry,
   ...indicatorRouteRegistry,
   ...indicatorsDhis2RouteRegistry,
