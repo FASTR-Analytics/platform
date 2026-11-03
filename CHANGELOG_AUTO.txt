@@ -1,3 +1,7 @@
+[TBD] [user] [added] - HFA indicators can now be automatically verified for issues
+[TBD] [admin] [added] - HFA indicators can now be verified by AI with findings, dismissals, and rule toggles
+[TBD] [admin] [added] - Admins can dismiss or restore individual HFA verification findings
+[TBD] [admin] [added] - Admins can turn specific HFA verification rules on or off
 [TBD] [user] [fixed] - AI assistant no longer retries unnecessarily after reaching usage limits
 [TBD] [user] [changed] - Improved display of AI usage limit warnings in chat
 [TBD] [admin] [fixed] - Copilot no longer retries when AI usage quota is exhausted
