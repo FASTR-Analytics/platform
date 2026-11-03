@@ -606,8 +606,9 @@ deleted), `client/src/components/data/hfa/indicators/ai/mod.ts`,
 `client/src/components/data/hfa/indicators/manager.tsx`,
 `client/src/components/data/hfa/indicators/indicator_code_editor.tsx`,
 `client/src/components/instance/copilot/ai_views.ts`,
-`client/src/components/instance/copilot/mod.ts`, `lib/types/hfa_types.ts`,
-`lib/types/hfa_verification.ts` (new), `lib/types/mod.ts`,
+`client/src/components/instance/copilot/mod.ts`,
+`client/src/components/instance/copilot/build_system_prompt.ts`,
+`lib/types/hfa_types.ts`, `lib/types/hfa_verification.ts` (new), `lib/types/mod.ts`,
 `lib/hfa_verification_rules.ts` (new),
 `lib/hfa_verification.ts` (new), `lib/ai_tools/format_hfa_indicators_for_ai.ts`,
 `lib/mod.ts`, `lib/types/instance_sse.ts`,
@@ -842,3 +843,5 @@ SYSTEM_05.
   time point foreign key, the asynchronous hash map. Steps 3 to 6 became steps
   3 to 5. Step 2's `model` on `CallAIResult` is the response's model; this
   plan stores the request's model id (ruling 4) and does not read it.
+- Step 3: `build_system_prompt.ts` joined the Surface, because its comment
+  named the guidance's file, which the move to lib deletes.
