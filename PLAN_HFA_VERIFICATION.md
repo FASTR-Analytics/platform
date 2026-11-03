@@ -845,3 +845,8 @@ SYSTEM_05.
   plan stores the request's model id (ruling 4) and does not read it.
 - Step 3: `build_system_prompt.ts` joined the Surface, because its comment
   named the guidance's file, which the move to lib deletes.
+- Step 3: `HfaVerificationFinding.rule` is `HfaVerificationModelRuleId`, not
+  `HfaVerificationRuleId`, because only a model rule has findings; the rules
+  off are typed the same. `buildHfaVerificationInstructionBlock(language)` is
+  exported beside `buildHfaVerificationBlocks`, because the manager's hashes
+  need the instruction block and not the context block.

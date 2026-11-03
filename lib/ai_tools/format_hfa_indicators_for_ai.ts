@@ -21,9 +21,9 @@ import type {
   HfaVariableRow,
 } from "../types/mod.ts";
 
-// The English text the chat's HFA reads return: the indicator listing, the
-// detail block for a set of indicators, the variable listing and the variable
-// details.
+// The English text the chat's HFA reads return and the HFA verification
+// sends: the indicator listing, the detail block for a set of indicators, the
+// variable listing and the variable details.
 
 export type HfaTaxonomyInput = {
   categories: HfaIndicatorCategory[];
@@ -466,7 +466,23 @@ export function formatHfaIndicatorDetailsForAI(
   input: HfaIndicatorsForAIInput,
   indicatorIds: string[],
 ): string {
+  return createHfaIndicatorDetailsFormatter(input)(indicatorIds);
+}
+
+// The detail block over one index of the input, for formatting many
+// indicators one at a time without rebuilding the index for each.
+export function createHfaIndicatorDetailsFormatter(
+  input: HfaIndicatorsForAIInput,
+): (indicatorIds: string[]) => string {
   const index = indexInput(input);
+  return (indicatorIds) => formatDetails(input, index, indicatorIds);
+}
+
+function formatDetails(
+  input: HfaIndicatorsForAIInput,
+  index: Index,
+  indicatorIds: string[],
+): string {
   const set = new Set(indicatorIds);
   const lines: string[] = [];
   const names = new Set<string>();

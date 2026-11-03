@@ -24,6 +24,7 @@ globs:
   - lib/hfa_indicator_labels.ts
   - lib/hfa_indicator_code.ts
   - lib/hfa_indicator_guidance.ts
+  - lib/hfa_verification.ts
   - lib/hfa_verification_rules.ts
   - lib/hfa_indicator_dependencies.ts
   - lib/indicator_expression/**
@@ -34,6 +35,7 @@ globs:
   - lib/special_indicators.ts
   - lib/types/geojson_maps.ts
   - lib/types/hfa_types.ts
+  - lib/types/hfa_verification.ts
   - lib/types/iceh_strats.ts
   - lib/types/indicators.ts
   - lib/types/population.ts
