@@ -1146,7 +1146,14 @@ the browser through the proxy (S13 "The proxy"); nothing server-side calls it.
 The verification is not part of the copilot: its system text is its own (no
 copilot system prompt, instance `ai_context`, tool catalogue or date block), it
 holds no conversation, and none of its files, tables or routes declares a name
-that says ai, assistant or copilot.
+that says ai, assistant or copilot. The request names no model, so panther's
+default applies; the verification row records the model the response names. Its
+calls count against the user's daily and the instance's weekly token limits as
+the chat's do, and `ai_usage_logs` has no column that tells a verification call
+from a chat call. It covers HFA indicators only, not HMIS indicators, the
+taxonomy or the survey dictionary; findings are not exposed on `/mcp` or to the
+copilot's tools; a fix is drafted and applied one indicator at a time; the new
+controls have no help buttons.
 
 **The rules list.** `HFA_VERIFICATION_RULES` (`lib/hfa_verification_rules.ts`)
 is the one statement of what is checked. Each rule has an id, a group
@@ -1293,27 +1300,28 @@ through `createAiProxyClient` with `callAIStructured`: the first call alone, so
 its write of the context block to the prompt cache lands before the rest read
 it, then four in flight. `hfaVerificationSystem` makes the two system blocks,
 the context block marked for the prompt cache, for every call and for a drafted
-fix. Each result carries its hash and the response's model
-and is saved through `saveHfaIndicatorVerifications` in batches of ten; the
-batch in hand is saved when the run ends, stops or fails. A `null` answer lists
-the indicator as not checked with the response's stop reason, and the run goes
-on; `noAnswerReason` words the stop reason for the manager, the editor and a
-fix. A thrown error (a failed read or save, a 429, whose reset time the proxy
-client shows in the user's locale, a network failure) stops the run, aborts the
-calls in flight and is kept as the stop error: for an API error, the response
-body's own message (`callErrorMessage`), not the SDK's status and JSON. `stopRun()` aborts every call
-in flight. `hfaVerificationRun` holds the progress (done, queued, the indicator
-last started), undefined while no run is in progress, and the not-checked list
-and stop error of the current or last run until the next starts.
+fix. Each result carries its hash and the response's model and is saved through
+`saveHfaIndicatorVerifications` in batches of ten; the batch in hand is saved
+when the run ends, stops or fails. A `null` answer lists the indicator as not
+checked with the response's stop reason, and the run goes on; `noAnswerReason`
+words the stop reason for the manager, the editor and a fix. A thrown error (a
+failed read or save, a 429, whose reset time the proxy client shows in the
+user's locale, a network failure) stops the run, aborts the calls in flight and
+is kept as the stop error: for an API error, the response body's own message
+(`callErrorMessage`), not the SDK's status and JSON. `stopRun()` aborts every
+call in flight. `hfaVerificationRun` holds the progress (done, queued, the
+indicator last started, the ids not yet answered), undefined while no run is in
+progress, and the not-checked list and stop error of the current or last run
+until the next starts.
 
 **The manager.** For `can_configure_data`, the indicators toolbar holds Verify,
 labelled with the queue's size ("Verify 87", "Verify …" until the hashes and
 rows land), disabled at zero and without HFA data (its title then the no-data
 message); while a run is in progress it shows "Verifying n of N: id" and Stop
 instead. The not-checked list, each id with its reason, and the stop error show
-above the table until the next run, beside the no-data notice, since the
-`Table` has no slot between its toolbar and its rows. The actions menu's Verify
-all queues every indicator, disabled without HFA data and while a run is in
+above the table until the next run, beside the no-data notice, since the `Table`
+has no slot between its toolbar and its rows. The actions menu's Verify all
+queues every indicator, disabled without HFA data and while a run is in
 progress. Every user who can open the manager sees the Findings column: an
 indicator's open problems and warnings ("2 problems, 1 warning"), each count in
 its severity's colour; "not verified" or "changed", muted, beside them or alone;
@@ -1339,30 +1347,32 @@ switched-off rule's findings, dismissed ones included, are hidden. Each round
 button counts the open findings about that round, in the danger colour when one
 is a problem. Lines above the fields say that the indicator is not verified, or
 has changed since it was verified and its findings describe the version
-verified, or, while a run is in progress and the indicator is in it or being
-checked, that it is verifying; that the findings describe the saved version
-while the draft has unsaved edits; that the run did not check it, and why; and
-the run's stop error. The header's Verify runs `startRun` over this one
-indicator, against its saved version, while no run is in progress.
+verified, or, while a run has the indicator queued and not yet answered, that it
+is verifying; that the findings describe the saved version while the draft has
+unsaved edits; that the run did not check it, and why; and the run's stop error.
+The header's Verify runs `startRun` over this one indicator, against its saved
+version, while no run is in progress.
 
 **Draft a fix** (`indicators/verification/draft_fix.ts`), the header button
 beside Verify, asks the model for an edit that resolves the indicator's open
 findings. It is enabled with open findings and a draft that is the saved
-version; with unsaved edits its title says to save first. It reads the
-indicator fresh (`loadReadInput(false)`), since the editor's props are the
-manager's state when it opened and go stale after a save in the editor, and
-makes one `callAIStructured` call with the verification's two system blocks and
-`buildHfaFixMessage`. The answer becomes a patch through `fixToPatch`, which
-`validateHfaIndicatorPatch` (`indicators/_shared/indicator_patch.ts`, shared
-with the copilot's `update_hfa_indicator_editor`) checks against the editor's
-taxonomy and rounds, since `applyDraft` skips a round it does not hold without
-saying so. A valid patch lands through `applyDraft`, as the copilot's does,
-only when the draft is unchanged since the fix was asked for; the banner then
-shows the model's note and each changed field with its value before the fix,
-and Discard restores the draft as it was, saved. A null answer, an empty edit,
-an edit to a draft changed meanwhile, a failed validation and a thrown error
-each show their reason in the banner and change nothing. Nothing is persisted
-until Save, which clears the banner; closing the editor aborts the call.
+version; with unsaved edits its title says to save first. It reads the indicator
+fresh (`loadReadInput(true)`, with display rows as a run reads them), since the
+editor's props are the manager's state when it opened and go stale after a save
+in the editor, and makes one `callAIStructured` call with the verification's two
+system blocks and `buildHfaFixMessage`. The answer becomes a patch through
+`fixToPatch`, which `validateHfaIndicatorPatch`
+(`indicators/_shared/indicator_patch.ts`, shared with the copilot's
+`update_hfa_indicator_editor`) checks against the editor's taxonomy and rounds,
+since `applyDraft` skips a round it does not hold without saying so. A valid
+patch lands through `applyDraft`, as the copilot's does, only when the draft is
+unchanged since the fix was asked for; the banner then shows the model's note
+and each changed field with its value before the fix, and Discard restores the
+draft as it was, saved. A null answer, an empty edit, an edit to a draft changed
+meanwhile, a category change that names no sub-category of the new category
+while the indicator has one, a failed validation and a thrown error each show
+their reason in the banner and change nothing. Nothing is persisted until Save,
+which clears the banner; closing the editor aborts the call.
 
 **The rules modal** (`indicators/verification/rules_modal.tsx`), the actions
 menu's Verification rules, lists the app rules and the model rules apart, each

@@ -100,7 +100,7 @@ async function draftFix(
   signal: AbortSignal,
 ): Promise<HfaDraftFixState> {
   const asked = JSON.stringify(request.draft());
-  const read = await loadReadInput(false);
+  const read = await loadReadInput(true);
   const res = await callAIStructured(
     {
       sdkClient: createAiProxyClient(),
@@ -157,6 +157,24 @@ async function draftFix(
           "L'indicateur a été modifié pendant la préparation de la correction, qui n'a donc pas été appliquée. Sauvegardez, puis proposez à nouveau une correction.",
         pt:
           "O indicador foi editado enquanto a correção era preparada, por isso a correção não foi aplicada. Guarde e proponha novamente uma correção.",
+      }),
+    };
+  }
+  if (
+    patch.categoryId !== undefined &&
+    patch.categoryId !== before.categoryId &&
+    before.subCategoryId !== null &&
+    patch.subCategoryId === undefined
+  ) {
+    return {
+      status: "not_applied",
+      reason: t3({
+        en:
+          "The fix moves the indicator to another category without naming a sub-category of it, which would clear its sub-category, so it was not applied.",
+        fr:
+          "La correction déplace l'indicateur vers une autre catégorie sans nommer l'une de ses sous-catégories, ce qui effacerait sa sous-catégorie ; elle n'a donc pas été appliquée.",
+        pt:
+          "A correção move o indicador para outra categoria sem indicar uma das suas subcategorias, o que apagaria a sua subcategoria; por isso não foi aplicada.",
       }),
     };
   }

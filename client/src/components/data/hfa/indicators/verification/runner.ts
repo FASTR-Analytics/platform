@@ -27,6 +27,7 @@ export type HfaVerificationProgress = {
   done: number;
   queued: number;
   current: string | undefined;
+  pending: ReadonlySet<string>;
 };
 
 // An indicator the model gave no usable answer for: `stopReason` is the
@@ -91,7 +92,12 @@ export function startRun(queue: string[]): void {
   const runController = new AbortController();
   controller = runController;
   setRun({
-    progress: { done: 0, queued: queue.length, current: undefined },
+    progress: {
+      done: 0,
+      queued: queue.length,
+      current: undefined,
+      pending: new Set(queue),
+    },
     notChecked: [],
     stopError: undefined,
   });
@@ -106,8 +112,8 @@ export function stopRun(): void {
 }
 
 // The two system blocks of every verification call, which the fix call sends
-// unchanged: the context block is cached, so every call after the first of a
-// run, and a fix drafted after it, reads it instead of writing it.
+// unchanged, so a fix drafted over the same state within the prompt cache's
+// lifetime reads the context block a run wrote.
 export function hfaVerificationSystem(
   blocks: { instructionBlock: string; contextBlock: string },
 ) {
@@ -186,7 +192,7 @@ async function run(
         ),
       ),
     );
-    setProgress((p) => ({ ...p, queued: ids.length }));
+    setProgress((p) => ({ ...p, queued: ids.length, pending: new Set(ids) }));
     const sdkClient = createAiProxyClient();
     const system = hfaVerificationSystem(blocks);
 
@@ -214,7 +220,11 @@ async function run(
           findings: res.data.findings,
         });
       }
-      setProgress((p) => ({ ...p, done: p.done + 1 }));
+      setProgress((p) => ({
+        ...p,
+        done: p.done + 1,
+        pending: new Set([...p.pending].filter((id) => id !== indicatorId)),
+      }));
       if (batch.length >= SAVE_BATCH) await flush();
     };
 

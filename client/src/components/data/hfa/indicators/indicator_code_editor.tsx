@@ -756,12 +756,9 @@ function EditorInner(p: {
       }),
   });
 
-  const verifying = () => {
-    const progress = hfaVerificationRun().progress;
-    const status = p.findings().status;
-    return progress !== undefined &&
-      (progress.current === p.indicator.indicatorId || status !== "verified");
-  };
+  const verifying = () =>
+    hfaVerificationRun().progress?.pending.has(p.indicator.indicatorId) ??
+      false;
   const notChecked = () =>
     hfaVerificationRun().notChecked.find((n) =>
       n.indicatorId === p.indicator.indicatorId
