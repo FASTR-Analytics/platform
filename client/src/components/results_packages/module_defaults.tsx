@@ -7,6 +7,7 @@ import {
   type RunGenerationModuleOption,
   type RunGenerationModuleOptions,
   t3,
+  TC,
 } from "lib";
 import {
   Button,
@@ -116,9 +117,11 @@ export function ModuleDefaultsEditor(p: Props) {
 }
 
 // The page shell: the heading bar, with the editor's page-wide actions on its
-// right once the definitions have loaded.
+// right once the definitions have loaded. `leftChildren`, when given, takes the
+// back button's place.
 function ModuleDefaultsFrame(p: {
   close: (v: undefined) => void;
+  leftChildren?: JSX.Element;
   actions?: JSX.Element;
   children: JSX.Element;
 }) {
@@ -127,7 +130,10 @@ function ModuleDefaultsFrame(p: {
       panelChildren={
         <HeadingBar
           tonal
-          onBack={() => p.close(undefined)}
+          onBack={p.leftChildren === undefined
+            ? () => p.close(undefined)
+            : undefined}
+          leftChildren={p.leftChildren}
           heading={t3({
             en: "Module defaults",
             fr: "Paramètres par défaut des modules",
@@ -178,6 +184,9 @@ function ModuleDefaultsInner(p: {
   const resetModuleIds = new Set<string>();
   const paramKey = (moduleId: string, replacementString: string) =>
     `${moduleId}|${replacementString}`;
+  // Any edit or reset this session: the header then swaps its back button for
+  // Apply (save and close) and Cancel (close without saving).
+  const [hasChanges, setHasChanges] = createSignal(false);
 
   function resetToDefaults(option: RunGenerationModuleOption): void {
     batch(() => {
@@ -192,6 +201,7 @@ function ModuleDefaultsInner(p: {
       }
     });
     resetModuleIds.add(option.id);
+    setHasChanges(true);
   }
 
   function paramDiffers(moduleId: string, param: ModuleParameter): boolean {
@@ -218,6 +228,7 @@ function ModuleDefaultsInner(p: {
     dirtyParams.delete(key);
     unpinParams.add(key);
     setParamValues(option.id, replacementString, param.input.defaultValue);
+    setHasChanges(true);
   }
 
   function resetAllToDefaults(): void {
@@ -328,6 +339,31 @@ function ModuleDefaultsInner(p: {
   return (
     <ModuleDefaultsFrame
       close={p.close}
+      leftChildren={
+        <Show
+          when={hasChanges()}
+          fallback={
+            <Button
+              iconName="chevronLeft"
+              onClick={() => p.close(undefined)}
+            />
+          }
+        >
+          <div class="ui-gap-sm flex items-center">
+            <Button
+              intent="success"
+              iconName="check"
+              onClick={save.click}
+              state={save.state()}
+            >
+              {t3({ en: "Apply", fr: "Appliquer", pt: "Aplicar" })}
+            </Button>
+            <Button outline iconName="x" onClick={() => p.close(undefined)}>
+              {t3(TC.cancel)}
+            </Button>
+          </div>
+        </Show>
+      }
       actions={
         <div class="ui-gap-sm flex items-center">
           <Show when={differingCount() > 0}>
@@ -345,18 +381,6 @@ function ModuleDefaultsInner(p: {
               })}
             </Button>
           </Show>
-          <Button
-            onClick={save.click}
-            intent="success"
-            state={save.state()}
-            iconName="save"
-          >
-            {t3({
-              en: "Save defaults",
-              fr: "Enregistrer les valeurs par défaut",
-              pt: "Guardar as predefinições",
-            })}
-          </Button>
         </div>
       }
     >
@@ -450,6 +474,7 @@ function ModuleDefaultsInner(p: {
                   unpinParams.delete(paramKey(option.id, k));
                   dirtyParams.add(paramKey(option.id, k));
                   setParamValues(option.id, k, v);
+                  setHasChanges(true);
                 }}
                 onResetToDefault={(k) => resetParamToDefault(option, k)}
               />
