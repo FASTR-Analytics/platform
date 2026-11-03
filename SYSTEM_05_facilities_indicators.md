@@ -881,8 +881,9 @@ translatable text. The vocabulary the editor's help line and the AI guidance
 state (`HFA_CODE_SYMBOLS`, `HFA_CODE_WORDS`, `HFA_CODE_LIST_EXAMPLE`) lives
 beside it. The AI guidance (`getHfaIndicatorsGuidance`,
 `lib/hfa_indicator_guidance.ts`, the same text in the manager's and the code
-editor's views) states the indicator model,
-type and aggregation, the grammar, and how m010 evaluates the code: every value
+editor's views and at the head of the HFA verification's instruction block)
+states the indicator model, type and aggregation, the grammar, and how m010
+evaluates the code: every value
 read as a number, select_multiple expansion, the filter, missingness, sentinel
 handling and the positive-test rule, references and cycles, variant groups, and
 rounds whose question changed. The status core lives beside the parser too, and
@@ -1202,8 +1203,9 @@ call.
 **The save transaction**, one per batch. A result for an indicator deleted since
 the run read it is skipped, so one deletion does not fail the batch, and a later
 result for the same indicator wins. The indicators and time points it reads are
-share-locked, so a delete waits for the save rather than failing its inserts. One `now()` stamps every verification and
-finding of the batch. Per indicator, the verification row is upserted, the
+key-share-locked: a delete or a round rename waits for the save; an edit or an
+import's stamp does not. One `now()` stamps every verification and finding of
+the batch. Per indicator, the verification row is upserted, the
 undismissed findings are deleted, and the returned findings are inserted after
 three steps, in TypeScript over the rows the transaction read (never a SQL
 equality on `time_point`, which is NULL for a whole-indicator finding): a
@@ -1218,9 +1220,11 @@ indicator.
 (`getHfaVerificationVersion`): MD5 over `MAX(verified_at)` and `COUNT(*)` of the
 verifications, `MAX(created_at)`, `COUNT(*)`, `COUNT(dismissed_at)` and
 `MAX(dismissed_at)` of the findings (the dismissed count moves on every
-dismissal and undismissal), and the rules-off value. The T2 cache
-`getHfaVerificationFromCacheOrFetch` (`state/instance/t2_indicators.ts`) keys
-the rows on it. No new SSE message type.
+dismissal and undismissal), the distinct rounds the findings name (a round
+rename cascades into them and moves no other term), and the rules-off value. The
+T2 cache `getHfaVerificationFromCacheOrFetch`
+(`state/instance/t2_indicators.ts`) keys the rows on it. No new SSE message
+type.
 
 **What is sent** (`lib/hfa_verification.ts`). One structured call per indicator,
 with two system text blocks and one user message, all English apart from the
@@ -1231,11 +1235,11 @@ rule id per finding; at most one finding per rule and round, a finding about
 several variables, values or items naming them all; `timePoint` null for a
 finding about the whole indicator; every text in the instance language;
 dismissed findings not raised again; and no finding for an indicator that is
-right. It describes the app's checks without naming their rules and says their
-issues ride the message. The context block is the taxonomy, every indicator with
-its code (`formatHfaIndicatorListForAI` with `withCode`) and the compact
-variable list (`formatHfaVariableListForAI`), one text per snapshot, built with
-the instruction block by `buildHfaVerificationBlocks(read, language)`; answer
+right. It lists the app rules' texts, without their ids, as checks whose issues
+ride the message. The context block is the taxonomy, every indicator with its
+code (`formatHfaIndicatorListForAI` with `withCode`) and the compact variable
+list (`formatHfaVariableListForAI`), one text per snapshot, built with the
+instruction block by `buildHfaVerificationBlocks(read, language)`; answer
 options are not in it. The message (`buildHfaVerificationMessages(read,
 dismissedByIndicator)`) is the indicator's detail block
 (`createHfaIndicatorDetailsFormatter`, which builds the input index once for
@@ -1248,7 +1252,9 @@ instruction block and the hashed message: the detail block built without display
 rows and without the dismissed section. A data upload and a dismissal therefore
 change no hash, the facility counts are sent but not hashed, and a client that
 holds no display rows can compute every indicator's current hash. The model id
-is not an ingredient; the verification row records it. The server stores the
+is not an ingredient; the verification row records it. An edit to the HFA
+guidance or to a model rule's English text changes every indicator's hash. The
+server stores the
 hash it is sent and never computes one. An indicator with no verification row is
 not verified; one whose row's hash differs from its current hash has changed.
 

@@ -106,7 +106,10 @@ export function buildHfaVerificationInstructionBlock(
     getHfaIndicatorsGuidance(),
     "",
     "## The rules",
-    "The app already checks that the code is well formed, that every name in it is known, that a filter or variant code has indicator code, that indicators do not name each other in a loop, and that the code's result fits the type. Those issues are listed under each round of the message: do not report them.",
+    "The app already checks these and lists their issues under each round of the message: do not report them.",
+    ...HFA_VERIFICATION_RULES.filter((r) => r.checker === "app").map((r) =>
+      `- ${r.text.en}`
+    ),
     ...ruleLines,
     "",
     "## What to return",

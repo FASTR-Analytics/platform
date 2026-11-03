@@ -156,13 +156,16 @@ function snapshot(withDisplayRows: boolean): HfaIndicatorsForAIInput {
     displayRows: withDisplayRows
       ? [{
         variableId: "wat_01",
+        variableType: "select_one",
+        variableLabel: "Water",
         timePoint: "R1",
         count: 40,
         missing: 3,
+        questionnaireValues: "1, 2",
         dataValues: "1, 2",
       }]
       : undefined,
-  } as HfaIndicatorsForAIInput;
+  };
 }
 
 const dismissed: HfaVerificationFinding = {
@@ -477,7 +480,7 @@ Deno.test("save: a dismissal suppresses its rule for an equal round, and for eve
   ]);
 });
 
-Deno.test("version: moves on a save, a dismissal, an undismissal and a rule switch", async () => {
+Deno.test("version: moves on a save, a dismissal, an undismissal, a rule switch and a round rename", async () => {
   const rows = await getHfaVerification(db);
   assert(rows.success);
   const open = rows.data.findings.find((f) => f.dismissedAt === null)!;
@@ -497,7 +500,10 @@ Deno.test("version: moves on a save, a dismissal, an undismissal and a rule swit
   const v3 = await getHfaVerificationVersion(db);
   assertNotEquals(v3, v2);
   await setHfaVerificationRulesOff(db, ["category_fits"]);
-  assertNotEquals(await getHfaVerificationVersion(db), v3);
+  const v4 = await getHfaVerificationVersion(db);
+  assertNotEquals(v4, v3);
+  await db`UPDATE hfa_time_points SET label = 'R1 renamed' WHERE label = 'R1'`;
+  assertNotEquals(await getHfaVerificationVersion(db), v4);
 });
 
 Deno.test("rules off: stored in the rules list's order without duplicates, and read back", async () => {

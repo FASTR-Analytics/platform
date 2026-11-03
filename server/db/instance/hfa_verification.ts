@@ -122,8 +122,8 @@ function findingsToInsert(
 // and its dismissed findings stay. A result for an indicator deleted since
 // the run read it is skipped, so one deletion does not fail the batch; a
 // later result for the same indicator wins. The indicators and time points
-// read are share-locked, so a delete cannot land between the read and the
-// inserts that reference them.
+// read are key-share-locked: a delete or a round rename waits for the save;
+// an edit or an import's stamp does not.
 export async function saveHfaIndicatorVerifications(
   mainDb: Sql,
   results: HfaVerificationResult[],
@@ -136,7 +136,7 @@ export async function saveHfaIndicatorVerifications(
         (await sql<{ indicator_id: string }[]>`
           SELECT indicator_id FROM hfa_indicators
           WHERE indicator_id = ANY(${[...byIndicator.keys()]})
-          FOR SHARE
+          FOR KEY SHARE
         `).map((r) => r.indicator_id),
       );
       const kept = [...byIndicator.values()].filter((r) =>
@@ -147,7 +147,7 @@ export async function saveHfaIndicatorVerifications(
       const [{ now }] = await sql<{ now: Date }[]>`SELECT now() AS now`;
       const timePoints = new Set(
         (await sql<{ label: string }[]>`
-          SELECT label FROM hfa_time_points FOR SHARE
+          SELECT label FROM hfa_time_points FOR KEY SHARE
         `).map((r) => r.label),
       );
       const dismissed = new Map<string, DismissedPair[]>();
@@ -271,8 +271,9 @@ export async function setHfaVerificationRulesOff(
 }
 
 // Moves on every write: a save moves the verification and finding stamps
-// and counts, a dismissal or an undismissal moves the dismissed count, and a
-// rule switch moves the config value.
+// and counts, a dismissal or an undismissal moves the dismissed count, a
+// rule switch moves the config value, and a round rename, which cascades into
+// the findings, moves the rounds they name.
 export async function getHfaVerificationVersion(mainDb: Sql): Promise<string> {
   const result = await mainDb<{ version: string | null }[]>`
     SELECT MD5(
@@ -282,6 +283,7 @@ export async function getHfaVerificationVersion(mainDb: Sql): Promise<string> {
       (SELECT COUNT(*) FROM hfa_verification_findings)::text || '|' ||
       (SELECT COUNT(dismissed_at) FROM hfa_verification_findings)::text || '|' ||
       COALESCE((SELECT MAX(dismissed_at) FROM hfa_verification_findings)::text, '') || '|' ||
+      COALESCE((SELECT string_agg(DISTINCT time_point, ',' ORDER BY time_point) FROM hfa_verification_findings), '') || '|' ||
       COALESCE((
         SELECT config_json_value FROM instance_config WHERE config_key = ${RULES_OFF_KEY}
       ), '')

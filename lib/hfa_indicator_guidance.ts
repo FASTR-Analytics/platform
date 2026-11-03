@@ -6,10 +6,11 @@ import {
 
 // The HFA indicator guidance, the same text in the manager's and the code
 // editor's views, which supply it through their contexts (S13 frames it under
-// each view's own lines). Instructional rather than a live indicator list:
-// the model edits the very data an embedded overview would stale-out, so it
-// reads current state instead. It names no tool: the registered tools
-// describe themselves.
+// each view's own lines), and at the head of the HFA verification's
+// instruction block, so an edit here changes every indicator's verification
+// hash. Instructional rather than a live indicator list: the model edits the
+// very data an embedded overview would stale-out, so it reads current state
+// instead. It names no tool: the registered tools describe themselves.
 export function getHfaIndicatorsGuidance(): string {
   return [
     "## The HFA indicator model",

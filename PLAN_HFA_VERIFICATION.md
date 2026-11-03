@@ -845,8 +845,11 @@ SYSTEM_05.
   time point foreign key, the asynchronous hash map. Steps 3 to 6 became steps
   3 to 5. Step 2's `model` on `CallAIResult` is the response's model; this
   plan stores the request's model id (ruling 4) and does not read it.
+- Step 3: the Surface's barrels were corrected to the files the code registers
+  in, `server/db/instance/mod.ts`, `lib/types/mod.ts` and
+  `lib/api-routes/combined.ts` (Tim, 2026-11-03).
 - Step 3: `build_system_prompt.ts` joined the Surface, because its comment
-  named the guidance's file, which the move to lib deletes.
+  named the guidance's file, which the move to lib deletes (Tim, 2026-11-03).
 - Step 3: `HfaVerificationFinding.rule` is `HfaVerificationModelRuleId`, not
   `HfaVerificationRuleId`, because only a model rule has findings; the rules
   off are typed the same. `buildHfaVerificationInstructionBlock(language)` is
@@ -854,4 +857,7 @@ SYSTEM_05.
   need the instruction block and not the context block.
 - Step 3: `PROTOCOL_APP_STATE.md` joined the Surface, because its T1 field
   table and T2 inventory list the indicator summary's stamps and the caches
-  that key on them.
+  that key on them (Tim, 2026-11-03).
+- Step 3: `getHfaVerificationVersion` also hashes the distinct rounds the
+  findings name, because a round rename cascades into them and moves none of
+  §2's terms.

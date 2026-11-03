@@ -1229,10 +1229,10 @@ owns the propose → modal → commit lifecycle); the editor write is exempt, si
 it lands in the open editor's unsaved draft, which the user saves or discards.
 The HFA guidance (the model, type and aggregation, the grammar and how m010
 evaluates the code, scope, how to work) is `getHfaIndicatorsGuidance`
-(`lib/hfa_indicator_guidance.ts`); it rides both the manager's view and the editor's,
-each through its context and under its own lines
-(`getHfaIndicatorsInstructions`, `getHfaIndicatorEditorInstructions`), is
-neutral between them, names no tool, since the registered tools describe
+(`lib/hfa_indicator_guidance.ts`); it rides both the manager's view and the
+editor's, each through its context and under its own lines
+(`getHfaIndicatorsInstructions`, `getHfaIndicatorEditorInstructions`), and opens
+the HFA verification's instruction block (S5); it is neutral between them, names no tool, since the registered tools describe
 themselves, and promises no diff.
 
 Every read returns English text built by a pure formatter in
