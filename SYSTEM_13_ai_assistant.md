@@ -456,13 +456,16 @@ check: the panel calls `validateAIChatConfig(config)` under
 
 The chat pane (`ConsolidatedChatPane`,
 [chat_pane.tsx](client/src/components/instance/copilot/chat_pane.tsx)) fills the
-panel while this tab owns the chat, and registers three custom renderers, keyed
-to panther's `DisplayRegistry`: `toolError`, `systemNotice`
-(refusals/truncation/context-exceeded/ continuation caps arrive as
-`system_notice` items), and `userText` (`SaveableUserTextRenderer`: adds
-save-to-prompt-library and renders the text as typed, with image syntax
-disabled, so a user's or a library prompt's text never fetches an image URL as
-it renders).
+panel while this tab owns the chat, and registers two custom renderers, keyed
+to panther's `AIChatDisplayRegistry`: `systemNotice`, which shows
+`RateLimitErrorBox` for the proxy's quota rejection (a `turn_error` notice whose
+details name the daily or weekly token limit) and panther's `AIChatSystemNotice`
+card for every other notice (refusals, truncation, context exceeded,
+continuation caps, any other failed turn); and `userText`
+(`SaveableUserTextRenderer`: adds save-to-prompt-library and renders the text
+as typed, with image syntax disabled, so a user's or a library prompt's text
+never fetches an image URL as it renders). Tool errors use panther's card,
+which shows the call's input and the error's stack.
 
 The pane also keeps the reload guard
 ([turn_guard.ts](client/src/components/instance/copilot/turn_guard.ts)) current:
