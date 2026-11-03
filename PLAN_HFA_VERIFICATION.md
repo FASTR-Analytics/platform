@@ -13,7 +13,7 @@ rows a user triages over many sessions, shows progress on a full-screen page,
 and turns the findings the user marks as to-do into proposed edits applied
 through the existing write path. It is not part of the copilot.
 
-**Next step: Do 2.**
+**Next step: Do 3.**
 
 Branch: `main` here and in panther. Repos: this one and panther
 (`/Users/timroberton/projects/panther/timroberton-panther`, whose `./sync`
