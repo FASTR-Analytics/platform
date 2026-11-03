@@ -13,7 +13,7 @@ rows a user triages over many sessions, shows progress on a full-screen page,
 and turns the findings the user marks as to-do into proposed edits applied
 through the existing write path. It is not part of the copilot.
 
-**Next step: Do 1.**
+**Next step: Do 2.**
 
 Branch: `main` here and in panther. Repos: this one and panther
 (`/Users/timroberton/projects/panther/timroberton-panther`, whose `./sync`
@@ -369,11 +369,10 @@ system text is its own; none of `build_system_prompt.ts`, the instance
 
 ## §3 Rulings
 
-1. _(proposed)_ Step 1 publishes a Design artifact of the page, the proposals
-   view and the manager's additions, and writes its URL here:
-   <https://claude.ai/artifact/DfX1Ap3H7StuoM8i44QtEt>. Steps 5 and 6 build what
-   it shows. This ruling is ruled when Tim removes its mark; until then step 2
-   does not start.
+1. Step 1 published a Design artifact of the page, the proposals view and the
+   manager's additions:
+   <https://claude.ai/artifact/DfX1Ap3H7StuoM8i44QtEt>. Steps 5 and 6 build
+   what it shows (Tim, 2026-11-03).
 2. Findings are rows in their own tables. `hfaIndicatorsStatus` stays
    deterministic and the model never writes to it. The rules list of §2 is the
    one statement of what is checked: the instruction block and the page's info
@@ -682,3 +681,6 @@ SYSTEM_05.
   `panther/_303_components/_fixed.css` directly.
 - Step 1: (c) is two artboards, the manager with the Findings column and the
   manager with the actions menu open, because the open menu covers that column.
+- Step 1: the mockup draws the heading bar, toolbar and table header
+  approximately. Steps 5 and 6 use the app's own `HeadingBar`, `Table`, `Button`
+  and `Input`, which win wherever they differ from it.
