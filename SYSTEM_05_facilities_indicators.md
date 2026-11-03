@@ -1152,7 +1152,7 @@ calls count against the user's daily and the instance's weekly token limits as
 the chat's do, and `ai_usage_logs` has no column that tells a verification call
 from a chat call. It covers HFA indicators only, not HMIS indicators, the
 taxonomy or the survey dictionary; findings are not exposed on `/mcp` or to the
-copilot's tools; a fix is drafted and applied one indicator at a time; the new
+copilot's tools; a fix is drafted and applied one indicator at a time; its
 controls have no help buttons.
 
 **The rules list.** `HFA_VERIFICATION_RULES` (`lib/hfa_verification_rules.ts`)
