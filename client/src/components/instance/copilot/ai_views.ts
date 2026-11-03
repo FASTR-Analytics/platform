@@ -359,9 +359,8 @@ export type DataPageParams = {
   family?: DatasetType;
 };
 
-// The HFA indicators manager's view: the guidance the manager supplies
-// (`components/data/hfa/indicators/ai/instructions.ts`, S5's, so this
-// registry imports nothing from `components/data/`) and the open tab.
+// The HFA indicators manager's view: the HFA guidance the manager supplies
+// (S5's `getHfaIndicatorsGuidance`) and the open tab.
 export type HfaIndicatorsContext = {
   getGuidance: () => string;
   getTab: () => string;

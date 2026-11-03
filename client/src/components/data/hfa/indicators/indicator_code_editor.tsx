@@ -2,6 +2,7 @@ import {
   type APIResponseNoData,
   composeHfaIndicatorLabel,
   createHfaCodeParseCache,
+  getHfaIndicatorsGuidance,
   HFA_CODE_LIST_EXAMPLE,
   HFA_CODE_SYMBOLS,
   HFA_CODE_WORDS,
@@ -42,7 +43,6 @@ import {
 import { createMemo, createSignal, For, Show } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
 import { serverActions } from "~/server_actions";
-import { getHfaIndicatorsGuidance } from "./ai/mod.ts";
 import {
   copilotViewController,
   type HfaIndicatorEditorDraft,

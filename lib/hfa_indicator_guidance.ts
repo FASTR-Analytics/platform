@@ -1,4 +1,8 @@
-import { HFA_CODE_LIST_EXAMPLE, HFA_CODE_SYMBOLS, HFA_CODE_WORDS } from "lib";
+import {
+  HFA_CODE_LIST_EXAMPLE,
+  HFA_CODE_SYMBOLS,
+  HFA_CODE_WORDS,
+} from "./hfa_indicator_code.ts";
 
 // The HFA indicator guidance, the same text in the manager's and the code
 // editor's views, which supply it through their contexts (S13 frames it under

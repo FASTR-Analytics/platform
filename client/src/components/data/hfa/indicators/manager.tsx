@@ -1,4 +1,5 @@
 import {
+  getHfaIndicatorsGuidance,
   HFA_STRUCTURAL_VARIABLE_IDS,
   type HfaDictionaryForValidation,
   type HfaIndicator,
@@ -55,7 +56,6 @@ import {
   HfaUnusedVariablesModal,
   type UnusedVariablesByTimePoint,
 } from "./unused_variables_modal";
-import { getHfaIndicatorsGuidance } from "./ai/mod.ts";
 import {
   copilotViewController,
   holdCopilotView,
@@ -68,9 +68,8 @@ type Props = {
 
 // The manager sets the chat's `hfa_indicators` view (S13) over the
 // switchboard's `data_page`: its state is the open tab and its instructions
-// the HFA guidance in ./ai/instructions.ts, supplied through the context so
-// the chat's registry imports nothing from this folder. The code editor and
-// the Excel import it opens set their own views on top.
+// the HFA guidance, supplied through the context. The code editor and the
+// Excel import it opens set their own views on top.
 export function HfaIndicatorsManager(p: Props) {
   const { openEditor, EditorWrapper } = getEditorWrapper();
   holdCopilotView();

@@ -23,6 +23,7 @@ globs:
   - lib/traffic_light_rule.ts
   - lib/hfa_indicator_labels.ts
   - lib/hfa_indicator_code.ts
+  - lib/hfa_indicator_guidance.ts
   - lib/hfa_indicator_dependencies.ts
   - lib/indicator_expression/**
   - lib/indicator_id.ts
@@ -872,8 +873,9 @@ brackets, such as `[q_-99]`, is refused). It returns the AST and its
 identifiers, or a structured error that `describeHfaCodeError` turns into a
 translatable text. The vocabulary the editor's help line and the AI guidance
 state (`HFA_CODE_SYMBOLS`, `HFA_CODE_WORDS`, `HFA_CODE_LIST_EXAMPLE`) lives
-beside it. The AI guidance (`data/hfa/indicators/ai/instructions.ts`, the same
-text in the manager's and the code editor's views) states the indicator model,
+beside it. The AI guidance (`getHfaIndicatorsGuidance`,
+`lib/hfa_indicator_guidance.ts`, the same text in the manager's and the code
+editor's views) states the indicator model,
 type and aggregation, the grammar, and how m010 evaluates the code: every value
 read as a number, select_multiple expansion, the filter, missingness, sentinel
 handling and the positive-test rule, references and cycles, variant groups, and

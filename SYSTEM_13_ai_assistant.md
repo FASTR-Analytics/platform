@@ -567,10 +567,8 @@ from its props with the same pair, and instructions naming the module and the
 results object. The HFA indicators manager (S5) holds the switchboard's
 `data_page` and sets `hfa_indicators`, whose state is the open tab and whose
 instructions are the manager's own lines (`getHfaIndicatorsInstructions`) and
-the HFA guidance S5 keeps in
-`components/data/hfa/indicators/ai/instructions.ts`, supplied through the view's
-context (`getGuidance`), so the registry imports nothing from
-`components/data/`; its code editor holds in `HfaIndicatorCodeEditor` and sets
+the HFA guidance S5 keeps in `lib/hfa_indicator_guidance.ts`, supplied
+through the view's context (`getGuidance`); its code editor holds in `HfaIndicatorCodeEditor` and sets
 `hfa_indicator_editor` from `EditorInner` once the draft store exists, with the
 indicator id as identity, the open round in its state, and an
 `HfaIndicatorEditorContext` of the saved label, the selected round, the draft
@@ -1224,8 +1222,8 @@ three writes declare `approval.propose` with `presentation: "modal"` (panther
 owns the propose → modal → commit lifecycle); the editor write is exempt, since
 it lands in the open editor's unsaved draft, which the user saves or discards.
 The HFA guidance (the model, type and aggregation, the grammar and how m010
-evaluates the code, scope, how to work) is `instructions.ts`'s
-`getHfaIndicatorsGuidance`; it rides both the manager's view and the editor's,
+evaluates the code, scope, how to work) is `getHfaIndicatorsGuidance`
+(`lib/hfa_indicator_guidance.ts`); it rides both the manager's view and the editor's,
 each through its context and under its own lines
 (`getHfaIndicatorsInstructions`, `getHfaIndicatorEditorInstructions`), is
 neutral between them, names no tool, since the registered tools describe
