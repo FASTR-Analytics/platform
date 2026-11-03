@@ -708,6 +708,7 @@ T2 cache and the docs. Each green.
 ### Step 4: The manager: Verify, the Findings column and the rules modal (this repo)
 
 **Surface.** `client/src/components/_shared/ai_proxy_client.ts` (new),
+`client/src/components/_shared/mod.ts`,
 `client/src/components/instance/copilot/ai_configs/defaults.ts`,
 `client/src/components/instance/copilot/ai_configs/mod.ts`,
 `client/src/components/instance/copilot/mod.ts`,
@@ -862,3 +863,6 @@ SYSTEM_05.
 - Step 3: `getHfaVerificationVersion` also hashes the distinct rounds the
   findings name, because a round rename cascades into them and moves none of
   §2's terms.
+- Step 4: `client/src/components/_shared/mod.ts` joined the Surface, because
+  the structure lint lets another folder import `components/_shared/` only
+  through its `mod.ts`, so the proxy client is exported there.
