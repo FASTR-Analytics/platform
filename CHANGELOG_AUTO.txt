@@ -1,46 +1,46 @@
-[TBD] [user] [fixed] - Verification spinner now accurately tracks which indicators are still processing
-[TBD] [user] [fixed] - Auto-fix no longer silently clears an indicator's sub-category when moving categories
-[TBD] [admin] [fixed] - Verification progress indicator now tracks each indicator accurately
-[TBD] [admin] [fixed] - AI-suggested fixes no longer silently clear an indicator's sub-category when moving it to a new category
-[TBD] [user] [added] - Verify button added to the indicator code editor
-[TBD] [user] [added] - "Draft a fix" button uses AI to propose corrections for verification findings
-[TBD] [user] [added] - Verification findings now appear inline next to each editor field
-[TBD] [user] [added] - Dismiss and undo options for individual verification findings
-[TBD] [user] [added] - Fix summary shows what changed with previous values for review
-[TBD] [user] [added] - Discard button to revert an AI-drafted fix before saving
-[TBD] [user] [added] - Finding counts shown on each round tab in the editor sidebar
-[TBD] [user] [added] - Status messages for verification progress, errors, and unsaved edits
-[TBD] [admin] [added] - Indicator editor now shows verification findings inline next to each field
-[TBD] [admin] [added] - "Verify" button added to the indicator code editor
-[TBD] [admin] [added] - "Draft a fix" button uses AI to propose corrections for open verification findings
-[TBD] [admin] [added] - Drafted fixes can be reviewed, saved, or discarded from the editor
-[TBD] [admin] [added] - Verification findings can be dismissed or restored per finding
-[TBD] [admin] [added] - Round selector shows finding counts with severity-based color coding
-[TBD] [admin] [changed] - Verification status messages now appear inside the indicator editor
-[TBD] [user] [added] - Automatic verification of HFA indicators with AI
-[TBD] [user] [added] - Findings column showing problems and warnings per indicator
-[TBD] [user] [added] - "Verify" button to check unverified or changed indicators
-[TBD] [user] [added] - "Verify all" option to check every indicator at once
-[TBD] [user] [added] - Verification rules settings to turn individual checks on or off
-[TBD] [user] [added] - Progress display while verification is running with stop button
-[TBD] [user] [added] - Filter and sort indicators by verification findings
-[TBD] [user] [changed] - Rate limit timestamps now display in your local date and time format
-[TBD] [admin] [added] - HFA indicators now have automated AI-powered verification
-[TBD] [admin] [added] - Verify button checks indicators that are new or changed
-[TBD] [admin] [added] - Findings column shows problems and warnings per indicator
-[TBD] [admin] [added] - Verification rules modal lets you switch individual rules on or off
-[TBD] [admin] [added] - "Verify all" option available in the indicators menu
-[TBD] [admin] [changed] - Rate-limit reset times now shown in your local time format
-[TBD] [user] [fixed] - Renaming a round now correctly updates verification results
-[TBD] [admin] [fixed] - Renaming a round now correctly refreshes verification results
-[TBD] [user] [added] - HFA indicators can now be automatically verified for issues
-[TBD] [admin] [added] - HFA indicators can now be verified by AI with findings, dismissals, and rule toggles
-[TBD] [admin] [added] - Admins can dismiss or restore individual HFA verification findings
-[TBD] [admin] [added] - Admins can turn specific HFA verification rules on or off
-[TBD] [user] [fixed] - AI assistant no longer retries unnecessarily after reaching usage limits
-[TBD] [user] [changed] - Improved display of AI usage limit warnings in chat
-[TBD] [admin] [fixed] - Copilot no longer retries when AI usage quota is exhausted
-[TBD] [admin] [fixed] - Rate limit warnings display correctly in Copilot chat
+[2.8.0] [user] [fixed] - Verification spinner now accurately tracks which indicators are still processing
+[2.8.0] [user] [fixed] - Auto-fix no longer silently clears an indicator's sub-category when moving categories
+[2.8.0] [admin] [fixed] - Verification progress indicator now tracks each indicator accurately
+[2.8.0] [admin] [fixed] - AI-suggested fixes no longer silently clear an indicator's sub-category when moving it to a new category
+[2.8.0] [user] [added] - Verify button added to the indicator code editor
+[2.8.0] [user] [added] - "Draft a fix" button uses AI to propose corrections for verification findings
+[2.8.0] [user] [added] - Verification findings now appear inline next to each editor field
+[2.8.0] [user] [added] - Dismiss and undo options for individual verification findings
+[2.8.0] [user] [added] - Fix summary shows what changed with previous values for review
+[2.8.0] [user] [added] - Discard button to revert an AI-drafted fix before saving
+[2.8.0] [user] [added] - Finding counts shown on each round tab in the editor sidebar
+[2.8.0] [user] [added] - Status messages for verification progress, errors, and unsaved edits
+[2.8.0] [admin] [added] - Indicator editor now shows verification findings inline next to each field
+[2.8.0] [admin] [added] - "Verify" button added to the indicator code editor
+[2.8.0] [admin] [added] - "Draft a fix" button uses AI to propose corrections for open verification findings
+[2.8.0] [admin] [added] - Drafted fixes can be reviewed, saved, or discarded from the editor
+[2.8.0] [admin] [added] - Verification findings can be dismissed or restored per finding
+[2.8.0] [admin] [added] - Round selector shows finding counts with severity-based color coding
+[2.8.0] [admin] [changed] - Verification status messages now appear inside the indicator editor
+[2.8.0] [user] [added] - Automatic verification of HFA indicators with AI
+[2.8.0] [user] [added] - Findings column showing problems and warnings per indicator
+[2.8.0] [user] [added] - "Verify" button to check unverified or changed indicators
+[2.8.0] [user] [added] - "Verify all" option to check every indicator at once
+[2.8.0] [user] [added] - Verification rules settings to turn individual checks on or off
+[2.8.0] [user] [added] - Progress display while verification is running with stop button
+[2.8.0] [user] [added] - Filter and sort indicators by verification findings
+[2.8.0] [user] [changed] - Rate limit timestamps now display in your local date and time format
+[2.8.0] [admin] [added] - HFA indicators now have automated AI-powered verification
+[2.8.0] [admin] [added] - Verify button checks indicators that are new or changed
+[2.8.0] [admin] [added] - Findings column shows problems and warnings per indicator
+[2.8.0] [admin] [added] - Verification rules modal lets you switch individual rules on or off
+[2.8.0] [admin] [added] - "Verify all" option available in the indicators menu
+[2.8.0] [admin] [changed] - Rate-limit reset times now shown in your local time format
+[2.8.0] [user] [fixed] - Renaming a round now correctly updates verification results
+[2.8.0] [admin] [fixed] - Renaming a round now correctly refreshes verification results
+[2.8.0] [user] [added] - HFA indicators can now be automatically verified for issues
+[2.8.0] [admin] [added] - HFA indicators can now be verified by AI with findings, dismissals, and rule toggles
+[2.8.0] [admin] [added] - Admins can dismiss or restore individual HFA verification findings
+[2.8.0] [admin] [added] - Admins can turn specific HFA verification rules on or off
+[2.8.0] [user] [fixed] - AI assistant no longer retries unnecessarily after reaching usage limits
+[2.8.0] [user] [changed] - Improved display of AI usage limit warnings in chat
+[2.8.0] [admin] [fixed] - Copilot no longer retries when AI usage quota is exhausted
+[2.8.0] [admin] [fixed] - Rate limit warnings display correctly in Copilot chat
 [2.7.0] [user] [changed] - More users can now access the Results Packages and Data tabs
 [2.7.0] [user] [changed] - Non-admin users with data configuration permission can now manage HFA indicators, categories, and variant groups
 [2.7.0] [user] [changed] - Non-admin users with data configuration permission can now manage GeoJSON, facility imports, and time points
