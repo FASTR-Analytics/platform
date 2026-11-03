@@ -36,7 +36,7 @@ The instruction is "Do the next step of PLAN_HFA_VERIFICATION.md." Branch,
 floor, conditional gates, reading order and the review cadence are
 [PROTOCOL_APP_PLANS.md](PROTOCOL_APP_PLANS.md) and
 [panther/protocols/PROTOCOL_ALL_PLANS.md](panther/protocols/PROTOCOL_ALL_PLANS.md).
-The log is §6. The last step is 7; its close commit deletes this file. Nothing
+The log is §6. The last step is 6; its close commit deletes this file. Nothing
 in this plan ships (ruling 13).
 
 Step 1 is not code: it has no review or re-review agents, and its close is
@@ -48,8 +48,13 @@ Vocabulary, used throughout:
 
 - **verification**: one check of one indicator by the model, recorded as one
   `hfa_indicator_verifications` row, the latest check only.
-- **finding**: one thing the model reports about an indicator, one
+- **finding**: one rule the model reports as violated by an indicator, one
   `hfa_verification_findings` row.
+- **rule**: one entry of the rules list, with an id, a group, who checks it
+  (the app or the model), a fixed severity and a text in en, fr and pt.
+- **rules list**: `HFA_VERIFICATION_RULES` in `lib/hfa_verification_rules.ts`,
+  the one statement of what is checked; the instruction block and the page's
+  info button are generated from it.
 - **triage**: a finding's state, `undecided`, `todo` or `ignored`.
 - **check state**: an indicator is _unchecked_ (no verification row), _changed_
   (its row's hash differs from the current input hash) or _checked_.
@@ -59,7 +64,7 @@ Vocabulary, used throughout:
 - **context block**: the system text block built from the snapshot and sent,
   cached, with every call of a run.
 - **instruction block**: the system text block that holds the HFA guidance and
-  the checklist; fixed per instance language.
+  the model-checked rules of the rules list; fixed per instance language.
 - **message**: the user text of one call: one indicator in full, as
   `formatHfaIndicatorDetailsForAI` prints it, plus its dismissed section.
 - **dismissed section**: the indicator's `ignored` findings, appended to the
@@ -100,6 +105,7 @@ Rules peculiar to this plan:
   On production Mali (read-only, 2026-11-03), 46 code rows compare against a
   quoted value; `mli011` is `sh_03=="e"` over a variable whose option codes
   are the letters `c` to `z`, so it can never be yes, and no status says so.
+  Ruling 2 lists the rule and keeps it out of the status core for now.
 - **The copilot's HFA tools are the wrong shape for a sweep.** They are
   interactive, view-gated and per-request
   ([tools.ts:760-838](client/src/components/data/hfa/indicators/ai/tools.ts#L760-L838)),
@@ -154,8 +160,7 @@ CREATE TABLE IF NOT EXISTS hfa_indicator_verifications (
 CREATE TABLE IF NOT EXISTS hfa_verification_findings (
   id text PRIMARY KEY,
   indicator_id text NOT NULL REFERENCES hfa_indicators(indicator_id) ON DELETE CASCADE,
-  aspect text NOT NULL CHECK (aspect IN ('label', 'variables', 'code_logic', 'filter', 'type_aggregation', 'rounds', 'category')),
-  severity text NOT NULL CHECK (severity IN ('problem', 'warning')),
+  rule text NOT NULL,
   time_point text,
   message text NOT NULL,
   suggestion text,
@@ -167,9 +172,73 @@ CREATE TABLE IF NOT EXISTS hfa_verification_findings (
 CREATE INDEX IF NOT EXISTS idx_hfa_verification_findings_indicator ON hfa_verification_findings(indicator_id);
 ```
 
-No verdict column: an indicator's verdict derives from its open findings. A
-deleted indicator takes its rows with it; `replaceAll` workbook imports do the
-same through the cascade.
+No verdict column: an indicator's verdict derives from its open findings. No
+severity column: it is the rule's. `rule` is validated against the rules list
+at the route, not by a CHECK. A deleted indicator takes its rows with it;
+`replaceAll` workbook imports do the same through the cascade.
+
+**The rules list**, `HFA_VERIFICATION_RULES` in `lib/hfa_verification_rules.ts`,
+one entry per rule: `id`, `group`, `checker` (`app` or `model`), `severity`
+(`problem` or `warning`) and `text` (en, fr, pt). The instruction block is
+generated from the model rules; the info button on the page shows every rule
+in the instance language; a finding names one rule id. The app rules are the
+status core's issue kinds, listed so the page can say what is checked without
+a run and the model is told not to repeat them. The list, as ruled:
+
+App rules (the status core, deterministic):
+
+- `syntax`: the code parses.
+- `unknown_variable`: every id the code names is a variable of that round or an
+  indicator.
+- `filter_without_code`, `variant_without_code`: a filter or variant code has
+  main code in the same round.
+- `cycle`: indicators do not reference each other in a loop.
+- `result_type` (warning): binary code is a yes/no condition; numeric code is a
+  number.
+- `quoted_value` (warning): no comparison against a quoted value. Present in
+  the file as a commented-out entry whose comment states the reason: the
+  parser accepts a quoted value under compare and in, and the status core does
+  not warn on it yet.
+
+Model rules, severity fixed per rule:
+
+- Labels: `label_measure_phrase` (warning): neither label contains the measure
+  phrase ("% of facilities", "number of", "average"); it is added at display.
+  `label_matches_code` (problem): the long label says exactly what the code
+  computes: the condition, the threshold, the items.
+  `label_denominator_matches_filter` (problem): an "among ..." qualifier in the
+  long label has a filter that implements it, and a filter has a qualifier in
+  the label. `short_label_consistent` (warning): the short label is a
+  shortening of the long label, not a different measure.
+- Variables: `variable_matches_intent` (problem): each variable named is the
+  question the label refers to, judged by the variable's label.
+  `better_variable_exists` (warning): no other variable in the dictionary
+  matches the label more exactly. `option_code_matches` (problem): each value
+  compared against is a real option code of that variable, with the meaning
+  the label needs (`== 1` where 1 is Yes). `variable_blank` (warning): no
+  named variable is blank in every round it is used in.
+- Code logic: `positive_test` (problem): conditions test for yes positively
+  (`x == 1`, `x >= 3`), never by negation, in the filter too.
+  `sentinel_in_numeric` (problem): a numeric sum or average does not include a
+  variable whose kept sentinel codes (other, not applicable,
+  question-specific) would be summed as values. `all_any_logic` (problem):
+  "all of" is AND and "any of" is OR, matching the label.
+  `threshold_matches_label` (problem): a threshold in the code equals the one
+  the label states. `items_match_label` (problem): where the label or the code
+  enumerates items, the two sets agree.
+- Filter: `filter_yes_no` (problem): the filter is a yes/no condition.
+- Type and aggregation: `type_matches_measure` (problem): "% of facilities" is
+  binary + avg; "average per facility" is numeric + avg; a total is
+  numeric + sum.
+- Rounds: `rounds_consistent` (problem): code is identical across rounds
+  unless the round's question changed; where it changed, the round's code
+  follows the change. `round_coverage` (warning): every round whose variables
+  exist has code.
+- Category: `category_fits` (warning): category, sub-category and service
+  categories match the indicator's subject.
+- Variants: `variant_items_consistent` (problem): each item's code is the main
+  measure restricted to that item; the main code is not derived from the
+  items.
 
 **Three routes** in `lib/api-routes/instance/hfa_verification.ts`:
 `getHfaVerification` (GET `/hfa-verification`, `can_view_data`: every
@@ -208,19 +277,11 @@ const res = await callAIStructured(
 ```
 
 - The instruction block is the HFA guidance (`getHfaIndicatorsGuidance`, moved
-  to lib) followed by the checklist: **label** (short and long say what the
-  code measures; no measure phrase; an "among" clause has a matching filter),
-  **variables** (the right ones; a better-matching variable in the context
-  block is a finding), **code_logic** (sentinel codes, negation, three-valued
-  AND/OR, a number where a condition is needed), **filter** (the denominator
-  the long label implies), **type_aggregation**, **rounds** (code identical
-  across rounds unless the round's question changed), **category** (the
-  assigned category, sub-category and service categories fit). It says: what
-  the status already reports rides the message as issues and is not repeated;
-  `timePoint` is null for a finding about the whole indicator; `severity` is
-  `problem` when the indicator measures something other than what its labels
-  say, `warning` otherwise; write `message` and `suggestion` in the instance
-  language; return no finding for an indicator that is right.
+  to lib) followed by the model rules of the rules list, each as its id and
+  its English text, grouped. It says: the app rules ride the message as issues
+  and are not repeated; a finding names one rule id; `timePoint` is null for a
+  finding about the whole indicator; write `message` and `suggestion` in the
+  instance language; return no finding for an indicator that is right.
 - The context block is the taxonomy and every indicator with its code
   (`formatHfaIndicatorListForAI`, `withCode`,
   [format_hfa_indicators_for_ai.ts:254](lib/ai_tools/format_hfa_indicators_for_ai.ts#L254))
@@ -237,8 +298,7 @@ const res = await callAIStructured(
 ```ts
 z.object({
   findings: z.array(z.object({
-    aspect: z.enum(HFA_VERIFICATION_ASPECTS),
-    severity: z.enum(["problem", "warning"]),
+    rule: z.enum(HFA_VERIFICATION_MODEL_RULE_IDS),
     timePoint: z.string().nullable(),
     message: z.string(),
     suggestion: z.string().nullable(),
@@ -260,10 +320,12 @@ next run's queue is recomputed from the hashes.
 **The page**: a header with the counts by check state and the open findings by
 severity, a `ProgressBar` with "n of N: id", Verify (the queue), Verify all,
 Stop; a table of indicators (id, short label, check state, open problems and
-warnings) with each row's open findings under it (aspect, severity, round,
-message, suggestion, the three triage buttons), bulk triage of the selected
-findings, filters by check state, triage, severity and aspect; a row opens the
-indicator in the code editor through the manager's `handleOpenCodeEditor`
+warnings) with each row's open findings under it (the rule's text and
+severity, round, message, suggestion, the three triage buttons), bulk triage of
+the selected findings, filters by check state, triage, severity and rule group,
+and an info button opening the rules list in the instance language, app rules
+and model rules apart; a row opens the indicator in the code editor through the
+manager's `handleOpenCodeEditor`
 ([manager.tsx:395](client/src/components/data/hfa/indicators/manager.tsx#L395)).
 The manager gains the "Verify indicators" item in its actions menu
 ([manager.tsx:916](client/src/components/data/hfa/indicators/manager.tsx#L916))
@@ -273,7 +335,8 @@ filterable).
 **The fix flow**: the user selects `todo` findings and asks for proposals; the
 page groups them by indicator and sends one structured call per indicator with
 the verification's system blocks and a message holding the indicator in full,
-the selected findings and the instruction to return the edit; the output is a
+the selected findings with their rules' text and the instruction to return the
+edit; the output is a
 fix schema whose every field is nullable, null meaning unchanged; the page turns
 it into an update entry, merges it on fresh state with `mergeUpdate`, refuses it
 with `refuseUnfitIndicator`'s message where it does not fit, and shows the
@@ -284,8 +347,9 @@ and re-verifies that indicator at once, which replaces its findings; Apply all
 remaining applies the proposals in turn.
 
 **Where it lives.** `lib/types/hfa_verification.ts` (row types),
-`lib/hfa_verification.ts` (the output and fix schemas, the block, message and
-hash builders), `server/db/instance/hfa_verification.ts`,
+`lib/hfa_verification_rules.ts` (the rules list), `lib/hfa_verification.ts`
+(the output and fix schemas, the block, message and hash builders),
+`server/db/instance/hfa_verification.ts`,
 `server/routes/instance/hfa_verification.ts`,
 `client/src/components/data/hfa/indicators/verification/` (the page, the
 runner, the proposals), `client/src/components/data/hfa/indicators/_shared/`
@@ -307,12 +371,14 @@ system text is its own; none of `build_system_prompt.ts`, the instance
 
 1. _(proposed)_ Step 1 publishes a Design artifact of the page, the proposals
    view and the manager's additions, and writes its URL here: (none yet).
-   Steps 6 and 7 build what it shows. This ruling is ruled when Tim removes its
+   Steps 5 and 6 build what it shows. This ruling is ruled when Tim removes its
    mark; until then step 2 does not start.
 2. Findings are rows in their own tables. `hfaIndicatorsStatus` stays
-   deterministic and the model never writes to it. _(proposed)_ The
-   quoted-value check is deterministic, so it goes to the status core (step 3),
-   as a warning like `result_type`.
+   deterministic and the model never writes to it. The rules list of §2 is the
+   one statement of what is checked: the instruction block and the page's info
+   button are generated from it, a finding names one rule, and a rule's
+   severity is fixed. The `quoted_value` rule is in the list as a commented-out
+   entry and not in the status core (Tim, 2026-11-03).
 3. The model never runs server-side: the page calls `/ai` through the proxy
    client, and the proxy is unchanged.
 4. The model config is panther's default, unnamed in this repo; the
@@ -344,7 +410,7 @@ system text is its own; none of `build_system_prompt.ts`, the instance
     rows needs `can_view_data`.
 15. The live stamp is `hfaVerificationVersion` on `InstanceIndicatorsSummary`;
     no new SSE event type.
-16. The moves of step 6 (the proxy client, the read loaders, the merge and
+16. The moves of step 5 (the proxy client, the read loaders, the merge and
     layout helpers, the merge view) change no behaviour of the copilot or its
     HFA tools.
 
@@ -360,7 +426,9 @@ to panther's tokens), showing in the app's visual system: (a) the page as §2
 describes it, with a run in progress; (b) the proposals view: one card per
 indicator with its before and after diff, Apply, Apply all remaining, and a
 refused proposal's message; (c) the manager with its "Findings" column and
-"Verify indicators" menu item. The URL is written into ruling 1.
+"Verify indicators" menu item; (d) the rules list behind the page's info
+button, app rules and model rules apart, each with its severity. The URL is
+written into ruling 1.
 
 **Not in this step.** Code.
 
@@ -407,28 +475,7 @@ sync.
 **Ends with.** The panther commits, then one sync commit here naming them in
 its body.
 
-### Step 3: The quoted-value warning (this repo)
-
-**Surface.** `lib/hfa_indicator_code.ts`,
-`server/tests/hfa_indicator_status_test.ts`, SYSTEM_05 where it describes the
-status core.
-
-**Deliverable.** `HfaCodeIssueKind` gains `quoted_value`, a warning
-(`isHfaCodeError` false), raised once per `string` node of a parsed snippet,
-with text in en, fr and pt saying that a quoted value is compared as text and
-never matches a numeric answer, to write the option's numeric code instead, and
-that an option whose code is text is read as missing. The test pins: `x == "1"`
-and `x IN (1, "2")` warn, `x == 1` does not, and the warning leaves the round's
-status at `warning`.
-
-**Not in this step.** The guidance text (it already says never to quote); the
-verification.
-
-**Gates.** The floor.
-
-**Ends with.** One commit.
-
-### Step 4: Persistence, routes and the live stamp (this repo)
+### Step 3: Persistence, routes and the live stamp (this repo)
 
 **Surface.** `server/db/migrations/instance/228_hfa_verification.sql` (new),
 `server/db/instance/_main_database.sql`,
@@ -440,8 +487,8 @@ deleted), `client/src/components/data/hfa/indicators/ai/mod.ts`,
 `client/src/components/data/hfa/indicators/mod.ts`,
 `client/src/components/data/hfa/indicators/manager.tsx`,
 `client/src/components/data/hfa/indicators/indicator_code_editor.tsx`,
-`lib/types/hfa_verification.ts` (new), `lib/hfa_verification.ts` (new),
-`lib/mod.ts`, `lib/types/instance_sse.ts`,
+`lib/types/hfa_verification.ts` (new), `lib/hfa_verification_rules.ts` (new),
+`lib/hfa_verification.ts` (new), `lib/mod.ts`, `lib/types/instance_sse.ts`,
 `lib/api-routes/instance/hfa_verification.ts` (new), `lib/api-routes/mod.ts`,
 `server/routes/instance/hfa_verification.ts` (new), `main.ts`,
 `client/src/state/instance/t1_store.ts`, `client/src/state/instance/t1_sse.tsx`,
@@ -452,9 +499,14 @@ deleted), `client/src/components/data/hfa/indicators/ai/mod.ts`,
 **Deliverable.**
 
 - The two tables of §2 in the migration and the base schema, idempotent.
+- `lib/hfa_verification_rules.ts`: `HFA_VERIFICATION_RULES` as §2 lists it,
+  the `quoted_value` entry commented out with its reason, and the derived
+  `HFA_VERIFICATION_MODEL_RULE_IDS`, `HfaVerificationRuleId`,
+  `HfaVerificationRuleGroup`, `HfaVerificationSeverity` and
+  `hfaVerificationRule(id)`.
 - `lib/types/hfa_verification.ts`: `HfaIndicatorVerification`,
-  `HfaVerificationFinding`, `HfaVerificationTriage`, `HfaVerificationAspect`,
-  `HfaVerificationSeverity`, and `HFA_VERIFICATION_ASPECTS`.
+  `HfaVerificationFinding` (with `rule: HfaVerificationRuleId`) and
+  `HfaVerificationTriage`.
 - `lib/hfa_indicator_guidance.ts` holds `getHfaIndicatorsGuidance` unchanged;
   the manager, the code editor and the copilot's HFA tools read it from lib.
 - `lib/hfa_verification.ts`: `hfaVerificationOutputSchema`;
@@ -473,13 +525,16 @@ deleted), `client/src/components/data/hfa/indicators/ai/mod.ts`,
   the two write routes notify; `getHfaVerificationFromCacheOrFetch(version)`
   in `t2_indicators.ts` on the pattern of
   [t2_indicators.ts:38-57](client/src/state/instance/t2_indicators.ts#L38-L57).
-- `server/tests/hfa_verification_test.ts` pins: the output schema accepts the
-  §2 shape and rejects an unknown aspect; the hash is stable, changes with the
-  model id, and ignores the dismissed section; the message ends with the
-  dismissed section when there are ignored findings and has none otherwise;
-  two indicators of one snapshot get a byte-identical context block.
-- SYSTEM_05 gains a section "HFA indicator verification" (tables, routes, the
-  stamp, the blocks, the hash, the ringfence); SYSTEM_03's catalogue names the
+- `server/tests/hfa_verification_test.ts` pins: rule ids are unique and every
+  rule has en, fr and pt text; the instruction block names every model rule
+  and no app rule; the output schema accepts the §2 shape and rejects an app
+  rule id and an unknown id; the hash is stable, changes with the model id,
+  and ignores the dismissed section; the message ends with the dismissed
+  section when there are ignored findings and has none otherwise; two
+  indicators of one snapshot get a byte-identical context block.
+- SYSTEM_05 gains a section "HFA indicator verification" (the rules list,
+  tables, routes, the stamp, the blocks, the hash, the ringfence); SYSTEM_03's
+  catalogue names the
   summary's new field; SYSTEM_13's HFA paragraph says the verification is
   S5's, uses the proxy and no chat; the manifests claim every new file.
 
@@ -488,10 +543,11 @@ client's move.
 
 **Gates.** The floor, `./validate_migrations`, `./validate_fresh_boot`.
 
-**Ends with.** Several commits: the guidance's move to lib; the tables, DB
-layer and routes; the stamp, the T2 cache and the docs. Each green.
+**Ends with.** Several commits: the guidance's move to lib; the rules list;
+the tables, DB layer and routes; the stamp, the T2 cache and the docs. Each
+green.
 
-### Step 5: The copilot view with no tools (this repo)
+### Step 4: The copilot view with no tools (this repo)
 
 **Surface.** `client/src/components/instance/copilot/ai_views.ts`,
 `client/src/components/instance/copilot/chat_pane.tsx`,
@@ -510,13 +566,13 @@ and in the catalogue test's view list with no groups
 so no tool is available in it. SYSTEM_13 lists it among the HFA views as the
 one with no tools.
 
-**Not in this step.** Setting the view: the page does that in step 6.
+**Not in this step.** Setting the view: the page does that in step 5.
 
 **Gates.** The floor.
 
 **Ends with.** One commit.
 
-### Step 6: The page and the runner (this repo)
+### Step 5: The page and the runner (this repo)
 
 **Surface.** `client/src/components/_shared/ai_proxy_client.ts` (new),
 `client/src/components/instance/copilot/ai_configs/defaults.ts`,
@@ -550,7 +606,10 @@ one with no tools.
 - `indicators/verification/`: `verification.tsx` (`HfaVerification`, the page
   of §2), `runner.ts` (the runner of §2, signals for progress, the current
   indicator, the not-checked list and the error; no UI), `findings.tsx` (a
-  row's findings with triage), `mod.ts`. The page calls `holdCopilotView()`
+  row's findings with their rules' text and severity, and triage),
+  `rules_info.tsx` (the info button's modal: the rules list in the instance
+  language, app rules and model rules apart), `mod.ts`. The page calls
+  `holdCopilotView()`
   then sets `hfa_verification`; its rows come from the T2 cache keyed on
   `instanceState.hfaVerificationVersion`; every string is a `t3` literal in
   en, fr and pt.
@@ -568,7 +627,7 @@ one with no tools.
 **Ends with.** Several commits: the proxy client's move; the `_shared/` moves
 with the page as their second consumer; the manager. Each green.
 
-### Step 7: Fix proposals (this repo)
+### Step 6: Fix proposals (this repo)
 
 **Surface.** `lib/hfa_verification.ts`, `server/tests/hfa_verification_test.ts`,
 `client/src/components/data/hfa/indicators/verification/**`,
@@ -582,7 +641,8 @@ SYSTEM_05.
   `variantGroupId`, `code` (rounds with `code` and `filterCode`) and
   `variantCode`, each nullable, null meaning unchanged, plus `note`, one
   sentence on what the edit does; `buildHfaFixMessage(read, indicatorId,
-  findings)`; `fixToUpdateEntry(indicatorId, output)` returning the
+  findings)`, each finding with its rule's text;
+  `fixToUpdateEntry(indicatorId, output)` returning the
   `updateEntrySchema` shape with every null field absent.
 - `verification/proposals.tsx`: Propose fixes over the selected `todo`
   findings, one abortable call per indicator with the verification's system
@@ -610,6 +670,8 @@ SYSTEM_05.
 - Verifying the taxonomy or the survey dictionary themselves.
 - Exposing verifications or findings on `/mcp` or to the copilot's tools.
 - Applying a proposal without showing its diff.
-- Help buttons on the page.
+- Help buttons on the page (the info button shows the rules list, not help).
+- The `quoted_value` check in the status core: its rule is listed, commented
+  out (ruling 2).
 
 ## §6 Log
