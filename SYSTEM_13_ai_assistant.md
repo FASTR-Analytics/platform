@@ -1223,17 +1223,18 @@ the editor tools (`get_hfa_indicator_editor`, `update_hfa_indicator_editor`,
 `editor_tools.ts`) in `hfa_indicator_editor` alone. Who may call them refuses
 through the guard: the reads need `can_view_data`, the writes and
 `update_hfa_indicator_editor` `can_configure_data`, the flag the manager's own
-write controls read (`can("can_configure_data")`, S18). Every HFA route keeps its own guard. The
-three writes declare `approval.propose` with `presentation: "modal"` (panther
-owns the propose → modal → commit lifecycle); the editor write is exempt, since
-it lands in the open editor's unsaved draft, which the user saves or discards.
-The HFA guidance (the model, type and aggregation, the grammar and how m010
-evaluates the code, scope, how to work) is `getHfaIndicatorsGuidance`
-(`lib/hfa_indicator_guidance.ts`); it rides both the manager's view and the
-editor's, each through its context and under its own lines
-(`getHfaIndicatorsInstructions`, `getHfaIndicatorEditorInstructions`), and opens
-the HFA verification's instruction block (S5); it is neutral between them, names no tool, since the registered tools describe
-themselves, and promises no diff.
+write controls read (`can("can_configure_data")`, S18). Every HFA route keeps
+its own guard. The three writes declare `approval.propose` with `presentation:
+"modal"` (panther owns the propose → modal → commit lifecycle); the editor write
+is exempt, since it lands in the open editor's unsaved draft, which the user
+saves or discards. The HFA guidance (the model, type and aggregation, the
+grammar and how m010 evaluates the code, scope, how to work) is
+`getHfaIndicatorsGuidance` (`lib/hfa_indicator_guidance.ts`); it rides both the
+manager's view and the editor's, each through its context and under its own
+lines (`getHfaIndicatorsInstructions`, `getHfaIndicatorEditorInstructions`), and
+opens the HFA verification's instruction block (S5); it is neutral between them,
+names no tool, since the registered tools describe themselves, and promises no
+diff.
 
 Every read returns English text built by a pure formatter in
 `lib/ai_tools/format_hfa_indicators_for_ai.ts`, which the HFA verification's

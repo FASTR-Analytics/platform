@@ -883,31 +883,30 @@ beside it. The AI guidance (`getHfaIndicatorsGuidance`,
 `lib/hfa_indicator_guidance.ts`, the same text in the manager's and the code
 editor's views and at the head of the HFA verification's instruction block)
 states the indicator model, type and aggregation, the grammar, and how m010
-evaluates the code: every value
-read as a number, select_multiple expansion, the filter, missingness, sentinel
-handling and the positive-test rule, references and cycles, variant groups, and
-rounds whose question changed. The status core lives beside the parser too, and
-every surface that shows status reads it: the manager's Status and Consistent
-columns, the code editor's messages and its Save, and the AI tools.
-`validateHfaIndicatorCode` gives one field's issues and the ids it names,
-`checkHfaCodeResultType` the result-type warning, and `hfaIndicatorsStatus` per
-indicator and round of the dictionary the issues of each field (`syntax`,
-`unknown_variable`, `filter_without_code`, `variant_without_code` and `cycle`
-are errors, `result_type` is the one warning), the round status (`none`,
-`error`, `warning`, `ready`) and whether the rounds agree. Main and filter code
-are read against the round's variables and the other indicators, variant code
-against the round's variables and every indicator, its own included. Its texts
-are `TranslatableString`s the client translates at render. Its cycle check takes
-the strongly connected components of the main-code dependency graph that
-`lib/hfa_indicator_dependencies.ts` builds, the analysis the generator imports,
-so every indicator on a cycle carries the issue before a run refuses it. The
-editor computes the core over the manager's code with its draft in place of its
-own, and its Save refuses only a filter or variant code in a round without
-indicator code. The manager's unused-variable and deletion guards read the same
-parse, so editor-green code never hard-fails a run. The write boundary reads it
-too: every route that writes code from a request (the editor's
-`saveHfaIndicatorFull`, the AI's `saveHfaIndicatorsBatch`, the batch upload
-`batchUploadHfaIndicators` and the workbook import
+evaluates the code: every value read as a number, select_multiple expansion, the
+filter, missingness, sentinel handling and the positive-test rule, references
+and cycles, variant groups, and rounds whose question changed. The status core
+lives beside the parser too, and every surface that shows status reads it: the
+manager's Status and Consistent columns, the code editor's messages and its
+Save, and the AI tools. `validateHfaIndicatorCode` gives one field's issues and
+the ids it names, `checkHfaCodeResultType` the result-type warning, and
+`hfaIndicatorsStatus` per indicator and round of the dictionary the issues of
+each field (`syntax`, `unknown_variable`, `filter_without_code`,
+`variant_without_code` and `cycle` are errors, `result_type` is the one
+warning), the round status (`none`, `error`, `warning`, `ready`) and whether the
+rounds agree. Main and filter code are read against the round's variables and
+the other indicators, variant code against the round's variables and every
+indicator, its own included. Its texts are `TranslatableString`s the client
+translates at render. Its cycle check takes the strongly connected components of
+the main-code dependency graph that `lib/hfa_indicator_dependencies.ts` builds,
+the analysis the generator imports, so every indicator on a cycle carries the
+issue before a run refuses it. The editor computes the core over the manager's
+code with its draft in place of its own, and its Save refuses only a filter or
+variant code in a round without indicator code. The manager's unused-variable
+and deletion guards read the same parse, so editor-green code never hard-fails a
+run. The write boundary reads it too: every route that writes code from a
+request (the editor's `saveHfaIndicatorFull`, the AI's `saveHfaIndicatorsBatch`,
+the batch upload `batchUploadHfaIndicators` and the workbook import
 `importHfaIndicatorsWorkbook`) refuses, before any write, a main, filter or
 variant snippet that does not parse (`unparseableHfaCode`, the message listing
 every failing row with its indicator, round and field) and a filter without main
@@ -1205,15 +1204,15 @@ the run read it is skipped, so one deletion does not fail the batch, and a later
 result for the same indicator wins. The indicators and time points it reads are
 key-share-locked: a delete or a round rename waits for the save; an edit or an
 import's stamp does not. One `now()` stamps every verification and finding of
-the batch. Per indicator, the verification row is upserted, the
-undismissed findings are deleted, and the returned findings are inserted after
-three steps, in TypeScript over the rows the transaction read (never a SQL
-equality on `time_point`, which is NULL for a whole-indicator finding): a
-finding about a round that is not a time point is dropped, so one bad round does
-not fail the save; findings sharing a rule and round are merged into one, their
-messages and suggestions joined by a blank line; and a finding is dropped when a
-dismissed finding of the indicator has the same rule and a NULL or equal round.
-A dismissal of one round does not suppress a returned finding about the whole
+the batch. Per indicator, the verification row is upserted, the undismissed
+findings are deleted, and the returned findings are inserted after three steps,
+in TypeScript over the rows the transaction read (never a SQL equality on
+`time_point`, which is NULL for a whole-indicator finding): a finding about a
+round that is not a time point is dropped, so one bad round does not fail the
+save; findings sharing a rule and round are merged into one, their messages and
+suggestions joined by a blank line; and a finding is dropped when a dismissed
+finding of the indicator has the same rule and a NULL or equal round. A
+dismissal of one round does not suppress a returned finding about the whole
 indicator.
 
 **The stamp.** `hfaVerificationVersion` rides `InstanceIndicatorsSummary`
@@ -1253,10 +1252,10 @@ rows and without the dismissed section. A data upload and a dismissal therefore
 change no hash, the facility counts are sent but not hashed, and a client that
 holds no display rows can compute every indicator's current hash. The model id
 is not an ingredient; the verification row records it. An edit to the HFA
-guidance or to a model rule's English text changes every indicator's hash. The
-server stores the
-hash it is sent and never computes one. An indicator with no verification row is
-not verified; one whose row's hash differs from its current hash has changed.
+guidance or to any rule's English text changes every indicator's hash. The
+server stores the hash it is sent and never computes one. An indicator with no
+verification row is not verified; one whose row's hash differs from its current
+hash has changed.
 
 **The fix.** `hfaFixOutputSchema` is the model's edit of one indicator: every
 field nullable, null meaning unchanged; rounds and variant rows listed only

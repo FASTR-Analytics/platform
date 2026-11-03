@@ -81,7 +81,7 @@ const LANGUAGE_NAMES: Record<Language, string> = {
   pt: "Portuguese",
 };
 
-// The guidance and the model rules; the same text for every indicator and
+// The guidance, the app rules' texts and the model rules; the same text for every indicator and
 // every run of an instance, so it is part of each indicator's input hash.
 export function buildHfaVerificationInstructionBlock(
   language: Language,
