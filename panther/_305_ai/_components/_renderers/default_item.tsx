@@ -5,7 +5,7 @@
 
 import type { DisplayItem } from "../../_core/types.ts";
 
-export function DefaultRenderer(p: { item: DisplayItem }) {
+export function AIChatDefaultItem(p: { item: DisplayItem }) {
   return (
     <div class="ui-pad bg-base-200 w-fit max-w-full rounded">
       <div class="font-mono text-sm">

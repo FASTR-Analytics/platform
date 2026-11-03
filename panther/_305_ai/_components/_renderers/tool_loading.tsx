@@ -7,7 +7,7 @@ import { t3 } from "../../deps.ts";
 import type { DisplayItem } from "../../_core/types.ts";
 import { SpinningCursor } from "./spinning_cursor.tsx";
 
-export function ToolLoadingRenderer(p: {
+export function AIChatToolLoading(p: {
   item: Extract<DisplayItem, { type: "tool_in_progress" }>;
 }) {
   return (

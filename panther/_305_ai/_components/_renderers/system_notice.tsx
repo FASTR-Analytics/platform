@@ -6,7 +6,7 @@
 import { createSignal, Icon, Show } from "../../deps.ts";
 import type { DisplayItem } from "../../_core/types.ts";
 
-export function SystemNoticeRenderer(p: {
+export function AIChatSystemNotice(p: {
   item: Extract<DisplayItem, { type: "system_notice" }>;
 }) {
   const [expanded, setExpanded] = createSignal(false);

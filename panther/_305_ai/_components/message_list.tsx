@@ -7,24 +7,24 @@ import { type Component, For, Match, Show, Switch } from "solid-js";
 import type { CustomMarkdownStyleOptions } from "../deps.ts";
 import type { ToolRegistry } from "../_core/tool_engine.ts";
 import type {
+  AIChatDisplayRegistry,
   DisplayItem,
-  DisplayRegistry,
   MessageStyle,
 } from "../_core/types.ts";
 import {
-  ApprovalDecisionRenderer,
-  ApprovalPendingRenderer,
-} from "./_renderers/approval_renderer.tsx";
-import { AssistantCompletedTextRenderer } from "./_renderers/assistant_completed_text_renderer.tsx";
-import { AssistantStreamingTextRenderer } from "./_renderers/assistant_streaming_text_renderer.tsx";
-import { DefaultRenderer } from "./_renderers/default_renderer.tsx";
+  AIChatApprovalDecision,
+  AIChatApprovalPending,
+} from "./_renderers/approval.tsx";
+import { AIChatAssistantCompletedText } from "./_renderers/assistant_completed_text.tsx";
+import { AIChatAssistantStreamingText } from "./_renderers/assistant_streaming_text.tsx";
+import { AIChatDefaultItem } from "./_renderers/default_item.tsx";
 import { SpinningCursor } from "./_renderers/spinning_cursor.tsx";
-import { SystemNoticeRenderer } from "./_renderers/system_notice_renderer.tsx";
-import { ThinkingSummaryRenderer } from "./_renderers/thinking_summary_renderer.tsx";
-import { ToolErrorRenderer } from "./_renderers/tool_error_renderer.tsx";
-import { ToolLoadingRenderer } from "./_renderers/tool_loading_renderer.tsx";
-import { ToolSuccessRenderer } from "./_renderers/tool_success_renderer.tsx";
-import { UserTextRenderer } from "./_renderers/user_text_renderer.tsx";
+import { AIChatSystemNotice } from "./_renderers/system_notice.tsx";
+import { AIChatThinkingSummary } from "./_renderers/thinking_summary.tsx";
+import { AIChatToolError } from "./_renderers/tool_error.tsx";
+import { AIChatToolLoading } from "./_renderers/tool_loading.tsx";
+import { AIChatToolSuccess } from "./_renderers/tool_success.tsx";
+import { AIChatUserText } from "./_renderers/user_text.tsx";
 
 type Props = {
   displayItems: DisplayItem[];
@@ -41,7 +41,7 @@ type Props = {
   // so clearing the queue clears the bubbles by construction and nothing
   // unsent can persist.
   queuedTexts?: string[];
-  customRenderers?: DisplayRegistry;
+  customRenderers?: AIChatDisplayRegistry;
   fallbackContent?: Component;
   toolRegistry: ToolRegistry;
   // Resolves the ACTIVE conversation's pending approval decision (Feature
@@ -59,7 +59,7 @@ export function MessageList(p: Props) {
 
     switch (item.type) {
       case "user_text": {
-        const Renderer = registry.userText ?? UserTextRenderer;
+        const Renderer = registry.userText ?? AIChatUserText;
         return (
           <Renderer
             item={item}
@@ -70,7 +70,7 @@ export function MessageList(p: Props) {
       }
       case "assistant_text": {
         const Renderer = registry.assistantCompletedText ??
-          AssistantCompletedTextRenderer;
+          AIChatAssistantCompletedText;
         return (
           <Renderer
             item={item}
@@ -87,27 +87,27 @@ export function MessageList(p: Props) {
             toolWithMetadata.metadata.inProgressComponent;
           return <InProgressComponent input={item.toolInput} />;
         }
-        const Renderer = registry.toolLoading ?? ToolLoadingRenderer;
+        const Renderer = registry.toolLoading ?? AIChatToolLoading;
         return <Renderer item={item} />;
       }
       case "tool_success": {
-        const Renderer = registry.toolSuccess ?? ToolSuccessRenderer;
+        const Renderer = registry.toolSuccess ?? AIChatToolSuccess;
         return <Renderer item={item} />;
       }
       case "tool_error": {
-        const Renderer = registry.toolError ?? ToolErrorRenderer;
+        const Renderer = registry.toolError ?? AIChatToolError;
         return <Renderer item={item} />;
       }
       case "system_notice": {
-        const Renderer = registry.systemNotice ?? SystemNoticeRenderer;
+        const Renderer = registry.systemNotice ?? AIChatSystemNotice;
         return <Renderer item={item} />;
       }
       case "thinking_summary": {
-        const Renderer = registry.thinkingSummary ?? ThinkingSummaryRenderer;
+        const Renderer = registry.thinkingSummary ?? AIChatThinkingSummary;
         return <Renderer item={item} />;
       }
       case "approval_pending": {
-        const Renderer = registry.approvalPending ?? ApprovalPendingRenderer;
+        const Renderer = registry.approvalPending ?? AIChatApprovalPending;
         return (
           <Renderer
             item={item}
@@ -116,7 +116,7 @@ export function MessageList(p: Props) {
         );
       }
       case "approval_decision": {
-        const Renderer = registry.approvalDecision ?? ApprovalDecisionRenderer;
+        const Renderer = registry.approvalDecision ?? AIChatApprovalDecision;
         return <Renderer item={item} />;
       }
       case "tool_display": {
@@ -128,7 +128,7 @@ export function MessageList(p: Props) {
         return null;
       }
       default: {
-        const Renderer = registry.default ?? DefaultRenderer;
+        const Renderer = registry.default ?? AIChatDefaultItem;
         return <Renderer item={item} />;
       }
     }
@@ -154,7 +154,7 @@ export function MessageList(p: Props) {
           >
             {(() => {
               const Renderer = p.customRenderers?.assistantStreamingText ??
-                AssistantStreamingTextRenderer;
+                AIChatAssistantStreamingText;
               return (
                 <Renderer
                   text={p.currentStreamingText!}

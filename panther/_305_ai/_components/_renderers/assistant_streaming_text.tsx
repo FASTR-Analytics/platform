@@ -15,7 +15,7 @@ type Props = {
   markdownStyle?: CustomMarkdownStyleOptions;
 };
 
-export function AssistantStreamingTextRenderer(p: Props) {
+export function AIChatAssistantStreamingText(p: Props) {
   const wash = messageWashClasses(p.messageStyle?.intent ?? "primary");
 
   return (

@@ -6,7 +6,7 @@
 import { createSignal, Icon, Show, t3 } from "../../deps.ts";
 import type { DisplayItem } from "../../_core/types.ts";
 
-export function ThinkingSummaryRenderer(p: {
+export function AIChatThinkingSummary(p: {
   item: Extract<DisplayItem, { type: "thinking_summary" }>;
 }) {
   const [expanded, setExpanded] = createSignal(false);

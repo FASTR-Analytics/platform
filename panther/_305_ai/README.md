@@ -290,24 +290,43 @@ const readSlide = bindAIToolToView(
 
 ## Tool Results Display
 
-Tool executions now show their results to users (collapsible):
+Every tool call ends as a collapsible card. Expanded, both cards open with the
+input the model sent, under an `Input (tool name):` heading, so what the model
+asked for is read beside what came back.
 
 **Success:**
 
-- Shows success message (e.g., "Weather retrieved")
-- Click to expand and see actual result data
-- Useful for understanding what tools returned
+- Shows the success message (e.g., "Weather retrieved")
+- Click to expand and see the input and the result data
 
 **Errors:**
 
-- Shows error message
-- Click "stack trace" to see full error details (unexpected throws only —
-  `AIToolFailure` renders without a stack section)
-- Helps debug tool issues
+- Shows the error message
+- Click to expand and see the input, the error details and the stack trace
+  (unexpected throws only — `AIToolFailure` renders without a stack section)
 
 **Custom cards:** a tool's `displayComponent` receives `{ input, view }`, where
 `view` is the id and identity of the view the call ran in (`AIViewSnapshot`),
 stored with the card; absent on cards stored before the view declared one.
+
+## Custom Renderers
+
+`AIChat`'s `customRenderers` prop is an `AIChatDisplayRegistry`: one optional
+component per kind of display item (`userText`, `assistantCompletedText`,
+`assistantStreamingText`, `toolLoading`, `toolSuccess`, `toolError`,
+`systemNotice`, `thinkingSummary`, `approvalPending`, `approvalDecision` and
+`default`). Every slot's default is exported under the matching `AIChat*` name
+(`AIChatToolError`, `AIChatSystemNotice`, ...), so a custom renderer can take
+one case and hand the rest back to the default:
+
+```tsx
+const customRenderers: AIChatDisplayRegistry = {
+  systemNotice: (p) =>
+    p.item.noticeType === "turn_error" && isQuotaRejection(p.item.details)
+      ? <QuotaBox details={p.item.details} />
+      : <AIChatSystemNotice item={p.item} />,
+};
+```
 
 ## Built-in Tools
 
@@ -372,6 +391,11 @@ builtInTools: {
 
 - `AIChat` - Complete chat UI
 - `AIChatProvider` - Config provider
+- `AIChatUserText`, `AIChatAssistantCompletedText`,
+  `AIChatAssistantStreamingText`, `AIChatToolLoading`, `AIChatToolSuccess`,
+  `AIChatToolError`, `AIChatSystemNotice`, `AIChatThinkingSummary`,
+  `AIChatApprovalPending`, `AIChatApprovalDecision`, `AIChatDefaultItem` - The
+  default renderer of each `AIChatDisplayRegistry` slot
 
 **Functions:**
 
@@ -395,6 +419,7 @@ builtInTools: {
 **Types:**
 
 - `AIChatConfig`
+- `AIChatDisplayRegistry` - the `customRenderers` prop of `AIChat`
 - `AIChatInstance` - what `createAIChat()` returns; `AIChat`'s `chat` prop; its
   `getNextTurnPreview()` gives the system text and the sections the next message
   would carry, for a prompt panel, and its `whenIdle()` resolves once the active

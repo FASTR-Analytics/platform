@@ -106,7 +106,7 @@ export function ProposalPreviewBody(p: { preview: ProposalPreview }) {
 // pendingDecision (idempotent — a no-op once resolved), so unmounting and
 // remounting the pane keeps the decision fully workable. No onCleanup
 // cancel — only explicit paths resolve a decision (decision log #6).
-export function ApprovalPendingRenderer(p: {
+export function AIChatApprovalPending(p: {
   item: Extract<DisplayItem, { type: "approval_pending" }>;
   onDecide: (accepted: boolean, alwaysThisSession?: boolean) => void;
 }) {
@@ -212,7 +212,7 @@ function decisionLabel(
 }
 
 // The persisted decision record — a quiet timeline line.
-export function ApprovalDecisionRenderer(p: {
+export function AIChatApprovalDecision(p: {
   item: Extract<DisplayItem, { type: "approval_decision" }>;
 }) {
   return (
