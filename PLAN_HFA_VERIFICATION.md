@@ -442,7 +442,9 @@ further commits of this step.
 
 **Surface.** `modules/_305_ai/_core/one_shot.ts`, `modules/_305_ai/mod.ts`,
 `modules/_305_ai/README.md` "One-Shot Requests", the `callAI` paragraph of
-`DOC_AI_CHAT.md`; in this repo, `panther/**` through the sync.
+`DOC_AI_CHAT.md`; in this repo, `panther/**` through the sync and
+`client/src/components/products/slide_deck/slide_editor/text_geometry.ts`,
+where the sync's constructor change lands.
 
 **Deliverable.**
 
@@ -693,5 +695,5 @@ SYSTEM_05.
   SDK proof script live in panther's `testing_sandbox/ai_one_shot/`.
 - Step 2: the sync carried panther's `CanvasRenderContext` constructor change,
   so `text_geometry.ts` passes `createCanvasBrowser` as every browser call site
-  in panther does; the file is outside the step's Surface, and without the
-  change the client typecheck is red after the sync.
+  in panther does; without the change the client typecheck is red after the
+  sync. The file joined the step's Surface on Tim's word (2026-11-03).
