@@ -1,3 +1,7 @@
+[TBD] [user] [fixed] - AI assistant no longer retries unnecessarily after reaching usage limits
+[TBD] [user] [changed] - Improved display of AI usage limit warnings in chat
+[TBD] [admin] [fixed] - Copilot no longer retries when AI usage quota is exhausted
+[TBD] [admin] [fixed] - Rate limit warnings display correctly in Copilot chat
 [2.7.0] [user] [changed] - More users can now access the Results Packages and Data tabs
 [2.7.0] [user] [changed] - Non-admin users with data configuration permission can now manage HFA indicators, categories, and variant groups
 [2.7.0] [user] [changed] - Non-admin users with data configuration permission can now manage GeoJSON, facility imports, and time points
