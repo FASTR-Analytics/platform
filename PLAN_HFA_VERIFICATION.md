@@ -16,7 +16,7 @@ tab or table: a column and a button on the manager, findings and two buttons
 in the editor, and one modal for the rule switches. It is not part of the
 copilot.
 
-**Next step: Do 4.**
+**Next step: Do 5.**
 
 Branch: `main` here and in panther. Repos: this one and panther
 (`/Users/timroberton/projects/panther/timroberton-panther`, whose `./sync`
