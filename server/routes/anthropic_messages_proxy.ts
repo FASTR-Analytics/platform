@@ -264,9 +264,11 @@ async function runProxy(args: ProxyArgs): Promise<Response> {
   return Response.json(data);
 }
 
+// The SDK retries a 429 twice unless the response says not to, and a quota
+// that is spent does not come back in a retry's wait.
 function rateLimitResponse(message: string): Response {
   return Response.json(
     { type: "error", error: { type: "rate_limit_error", message } },
-    { status: 429 },
+    { status: 429, headers: { "x-should-retry": "false" } },
   );
 }

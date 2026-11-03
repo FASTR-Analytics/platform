@@ -244,7 +244,10 @@ The flow:
    Anthropic-shaped 429 whose message embeds the next-UTC-midnight reset ISO.
 3. **Weekly limit**: same gate shape → `GetInstanceWeeklyTokenUsage >= limit` →
    `LogAiLimitHit("__instance__", "weekly_instance")` (sentinel, not the
-   email) + 429 with next-Monday-UTC reset.
+   email) + 429 with next-Monday-UTC reset. Both 429s carry
+   `x-should-retry: false`, which the SDK obeys over its default of retrying a
+   429 twice, so a spent quota is one request, not three; `corsMiddleware`
+   exposes the header, since the dev client reads it across origins.
 4. **Beta headers**: client-supplied `anthropic-beta` values **filtered through
    the `FORWARDABLE_BETAS` allowlist** (web-fetch, structured-outputs: the set
    panther actually sends; SDK ≥0.110 sends betas via the header, not the body).
@@ -415,7 +418,8 @@ check: the panel calls `validateAIChatConfig(config)` under
   Anthropic browser SDK, `baseURL {host}/ai`, no credential (`apiKey: null`,
   `authToken: null`, `defaultHeaders: {Authorization: null}`, so the guard
   judges the Clerk session cookie alone), plus a fetch wrapper that rewrites the
-  ISO reset timestamp inside 429 bodies to the user's locale.
+  ISO reset timestamp inside 429 bodies to the user's locale and keeps the
+  response's headers, the retry header among them.
 - **modelConfig**: omitted, so panther's `DEFAULT_MODEL_CONFIG` applies
   (`claude-sonnet-5`, `max_tokens: 32_000`, `output_config: {effort: "high"}`,
   [anthropic_consts.ts:248-252](panther/_110_ai_types/anthropic_consts.ts#L248-L252);

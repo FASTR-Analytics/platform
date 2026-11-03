@@ -90,7 +90,7 @@ export function createCopilotSDKClient() {
               ...body,
               error: { ...body.error, message: newMsg },
             }),
-            { status: 429, headers: { "Content-Type": "application/json" } },
+            { status: 429, headers: response.headers },
           );
         }
       }
