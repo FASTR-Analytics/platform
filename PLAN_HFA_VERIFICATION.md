@@ -608,7 +608,8 @@ deleted), `client/src/components/data/hfa/indicators/ai/mod.ts`,
 `client/src/components/instance/copilot/ai_views.ts`,
 `client/src/components/instance/copilot/mod.ts`,
 `client/src/components/instance/copilot/build_system_prompt.ts`,
-`lib/types/hfa_types.ts`, `lib/types/hfa_verification.ts` (new), `lib/types/mod.ts`,
+`lib/types/hfa_types.ts`, `lib/types/hfa_verification.ts` (new),
+`lib/types/mod.ts`,
 `lib/hfa_verification_rules.ts` (new),
 `lib/hfa_verification.ts` (new), `lib/ai_tools/format_hfa_indicators_for_ai.ts`,
 `lib/mod.ts`, `lib/types/instance_sse.ts`,
@@ -617,7 +618,8 @@ deleted), `client/src/components/data/hfa/indicators/ai/mod.ts`,
 `client/src/state/instance/t1_store.ts`, `client/src/state/instance/t1_sse.tsx`,
 `client/src/state/instance/t2_indicators.ts`,
 `server/tests/hfa_verification_test.ts` (new),
-`server/tests/permission_matrix_test.ts`, SYSTEM_03, SYSTEM_05, SYSTEM_13.
+`server/tests/permission_matrix_test.ts`, SYSTEM_03, SYSTEM_05, SYSTEM_13,
+`PROTOCOL_APP_STATE.md`.
 
 **Deliverable.**
 
@@ -850,3 +852,6 @@ SYSTEM_05.
   off are typed the same. `buildHfaVerificationInstructionBlock(language)` is
   exported beside `buildHfaVerificationBlocks`, because the manager's hashes
   need the instruction block and not the context block.
+- Step 3: `PROTOCOL_APP_STATE.md` joined the Surface, because its T1 field
+  table and T2 inventory list the indicator summary's stamps and the caches
+  that key on them.
