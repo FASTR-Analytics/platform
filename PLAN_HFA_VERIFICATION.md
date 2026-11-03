@@ -370,9 +370,10 @@ system text is its own; none of `build_system_prompt.ts`, the instance
 ## §3 Rulings
 
 1. _(proposed)_ Step 1 publishes a Design artifact of the page, the proposals
-   view and the manager's additions, and writes its URL here: (none yet).
-   Steps 5 and 6 build what it shows. This ruling is ruled when Tim removes its
-   mark; until then step 2 does not start.
+   view and the manager's additions, and writes its URL here:
+   <https://claude.ai/artifact/DfX1Ap3H7StuoM8i44QtEt>. Steps 5 and 6 build what
+   it shows. This ruling is ruled when Tim removes its mark; until then step 2
+   does not start.
 2. Findings are rows in their own tables. `hfaIndicatorsStatus` stays
    deterministic and the model never writes to it. The rules list of §2 is the
    one statement of what is checked: the instruction block and the page's info
@@ -675,3 +676,9 @@ SYSTEM_05.
   out (ruling 2).
 
 ## §6 Log
+
+- Step 1: built without a design system, because the account lists none; the
+  mockup takes panther's light-scheme tokens from
+  `panther/_303_components/_fixed.css` directly.
+- Step 1: (c) is two artboards, the manager with the Findings column and the
+  manager with the actions menu open, because the open menu covers that column.
