@@ -1457,7 +1457,13 @@ separator between blocks, not a block), takes each block's own box from the
 height map (`lineBox`: the line or the region widget without the block widgets,
 a seam or the page head, attached before or after it) and hands the list to
 `layoutFastrPages`: whole blocks fill a page, a heading travels with the block
-after it, `:::pagebreak` and `break=` end or open a page, a cover opens page 1
+after it, a figure or table that does not fit takes its section's opening along
+(the heading and a lead-in of up to two paragraphs or lists:
+`fastrOpeningStart`, `FASTR_OPENING_LEAD_BLOCKS`; print's runner sets the same
+keep on the lead-in, as a sheet rule cannot express it because Paged.js splits
+selector lists at every comma), the contents block is a page of its own (print's
+`.fm-toc` breaks before and after it), `:::pagebreak` and `break=` end or open a
+page, a cover opens page 1
 (natural: flush to the sheet's top; fill=page: alone), a block taller than a
 page continues at the inner boundaries its rendered DOM offers
 (`innerCandidates`: anchored descendants, a seam placed inside the widget by
@@ -1586,8 +1592,9 @@ under 40% that is a stub. The brief carries a page budget (100 units a page: a
 line of prose 3, a heading 10 and an h1 11, a blank line of space 2.5, a cover
 60, a tiles row 22, a band 25, a columns pair 30, a callout 8 plus 4 a line, a
 steps block 12 a step, a full-width figure 45 to 75 by its shape, a table 6 a
-row plus 6, a logos row 8, a contents block 13 plus 3.5 an entry, 1.75 in two
-columns), tells the model to plan pages to 85 to 95 units, to check the draft
+row plus 6, a logos row 8, a contents block a page of its own), tells the model to plan pages to 85 to 95 units (on a theme that names its own
+body, the editing brief adds the budget in that body's numbers:
+`fastrThemeProse`, from the theme's measured `proseWordsPerLine`), to check the draft
 with the tool before proposing (`rewrite_report`'s description and the editing
 instructions say so too) and to fix what it flags by moving prose or blocks
 across the boundary, never with blank lines.

@@ -10,6 +10,10 @@ import { inferPeriodFormatFromValue } from "../types/_metric_installed.ts";
 import { describeIndicatorFacts } from "./format_metric_data_for_ai.ts";
 import type { ScopeDefinition } from "../types/scope.ts";
 import { MODULE_FAMILY_ORDER } from "../group_metrics.ts";
+import {
+  fastrThemeProse,
+  fastrThemeTokens,
+} from "../../report-forge/engine/report_fastr_themes.ts";
 
 // The shared halves of the AI system prompt: what both surfaces (the SPA
 // copilot and the /mcp get_overview) ground the model with. Each surface
@@ -545,11 +549,42 @@ This report is still EMPTY (a title at most). When the user asks you to write it
 
 If the user explicitly says to skip the questions or the plan ("just write it"), go straight to the draft.`;
 
+// The page budget in the format guide is written for the house body. A
+// report on a theme that sets its own (smaller) body holds more prose a
+// page, so the brief says how to read the budget there, in numbers and
+// without naming the theme (which the model never writes for).
+function reportTypeSection(theme: string | undefined): string {
+  if (theme === undefined) return "";
+  const prose = fastrThemeProse(fastrThemeTokens(theme));
+  if (prose === undefined) return "";
+  const round = (n: number, to: number) => Math.round(n / to) * to;
+  const times = prose.capacity.toFixed(1);
+  return `
+
+## This report's type
+
+Its body is set smaller than the page budget in the format guide assumes, so a page holds about ${times} times the prose. Read the budget with these numbers instead: a line of prose is about ${
+    Math.round(prose.wordsPerLine)
+  } words and costs about ${
+    prose.lineUnits.toFixed(1)
+  } units (paragraph spacing included); a heading, a callout's lines, a table's rows, a steps block and every other block set in type cost about ${
+    prose.typeScale.toFixed(1)
+  } of what the guide gives; a figure, a cover and a page template cost what it says. Scale every word count in the guide with it: give each chart about ${
+    round(120 * prose.capacity, 10)
+  } words or more that read it, write paragraphs of about ${
+    round(55 * prose.capacity, 10)
+  } to ${
+    round(75 * prose.capacity, 10)
+  } words, and fill a page template's slots with about ${times} times the words its slot guidance names. Otherwise the pages come out thin and short.`;
+}
+
 export function getEditingReportInstructions(
   reportLabel: string,
   // The report still holds nothing anyone wrote (isUntouchedReport): asked
   // to write it, the model agrees a brief and an outline before drafting.
-  opts: { untouched?: boolean } = {},
+  // `theme`: the report's, for how its pages read the guide's page budget
+  // (reportTypeSection).
+  opts: { untouched?: boolean; theme?: string } = {},
 ): string {
   const common = `## How editing works
 
@@ -578,5 +613,7 @@ ${common}
 - Use the blocks where they earn their place — a callout for a caveat or key finding, a tiles row of stats only for several separate headline numbers, columns to set commentary beside a figure, a page template wherever a section has the shape one is built for. Plain prose and lists are still the backbone of the document.
 - **Sections** (rewrite_section, the headings index) are flat: a section runs from its \`#\` heading to the next heading of the same or higher level, and your newBody replaces that whole range starting with the heading. Only TOP-LEVEL headings are sections — a heading inside a \`:::\` block is not addressable, so keep headings outside blocks.
 - For insert_figure, pass afterHeading so the figure lands in the right section.
-- The report prints on pages, and the pages are the deliverable. Before proposing a rewrite_report, or a rewrite_section that changes what a page holds, call get_report_pages with the body as it would stand (the current body from get_report_editor with your section swapped in, as \`markdown\`) and fix every page it flags; the page budget is in the format guide above.`;
+- The report prints on pages, and the pages are the deliverable. Before proposing a rewrite_report, or a rewrite_section that changes what a page holds, call get_report_pages with the body as it would stand (the current body from get_report_editor with your section swapped in, as \`markdown\`) and fix every page it flags; the page budget is in the format guide above.${
+    reportTypeSection(opts.theme)
+  }`;
 }

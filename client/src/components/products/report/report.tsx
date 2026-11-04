@@ -703,6 +703,7 @@ export function ReportEditor(p: Props) {
         getFigures: () => figures(),
         getImages: () => images(),
         getSelection: () => forge?.getSelection(),
+        getTheme: () => fastrTheme(),
         proposeEdit: (proposal): ReportEditProposalResult => {
           // The base the proposal was computed from. Every proposing tool builds
           // newBody from getBody() with only synchronous work before calling

@@ -163,6 +163,27 @@ Deno.test("the AI agrees a brief and an outline only on an untouched report", as
   assertEquals(getEditingReportInstructions("R"), written);
 });
 
+// A theme on its own, smaller body holds more prose a page than the format
+// guide's budget assumes: the brief gives the numbers for it, never the
+// theme's name, and says nothing on a theme on the house body.
+Deno.test("the brief reads the page budget for a report on its own body", async () => {
+  const { getEditingReportInstructions } = await import(
+    "../../lib/ai_tools/build_system_prompt.ts"
+  );
+  const dense = getEditingReportInstructions("R", { theme: "assessment" });
+  assertStringIncludes(dense, "## This report's type");
+  assertStringIncludes(dense, "about 2.4 times the prose");
+  assertStringIncludes(dense, "a line of prose is about 21 words");
+  assertStringIncludes(dense, "give each chart about 290 words");
+  assert(!/assessment/i.test(dense.split("## This report's type")[1]));
+  for (const theme of ["default", "ministry", "legacy"]) {
+    assertEquals(
+      getEditingReportInstructions("R", { theme }),
+      getEditingReportInstructions("R"),
+    );
+  }
+});
+
 // A config written while templates existed still parses; its `template` key
 // rides along unread.
 Deno.test("a stored template key from before templates were removed still parses", () => {

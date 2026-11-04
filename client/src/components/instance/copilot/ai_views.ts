@@ -237,6 +237,9 @@ export type EditingReportContext = PackageViewContext & {
   getFigures: () => Record<string, FigureBlock>;
   getImages: () => Record<string, ImageBlock>;
   getSelection: () => ReportEditorSelection | undefined;
+  // The report's theme: its body decides how the editing brief reads the
+  // format guide's page budget (getEditingReportInstructions).
+  getTheme: () => string;
   proposeEdit: (proposal: ReportEditProposal) => ReportEditProposalResult;
   applyFigureUpdate: (figureId: string, block: FigureBlock) => Promise<boolean>;
 };
@@ -576,6 +579,7 @@ export const copilotViews = defineAIViews(
               figures: context.getFigures(),
               images: context.getImages(),
             }),
+            theme: context.getTheme(),
           })
         }${productViewOnlyLine(params.reportId)}`,
       state: (params, context) => {
