@@ -22,6 +22,8 @@ const RUN: RunListingItem = {
   progress: null,
 };
 
+const CTX = { toolUseId: "tool-use-1", signal: new AbortController().signal };
+
 const HEADER =
   'Source: results package "National package 2026-Q2" (generated 2026-08-19T10:00:00.000Z), scope "All data"';
 
@@ -42,7 +44,10 @@ Deno.test("withSourceHeader: success text starts with the Source line, then the 
 
   assertEquals(buildSourceHeader(RUN), HEADER);
   assertEquals(await wrapped.sdkTool.run({}), `${HEADER}\n\nbody`);
-  assertEquals(await wrapped.sdkTool.runWithView!({}), `${HEADER}\n\nbody`);
+  assertEquals(
+    await wrapped.sdkTool.runWithView!({}, undefined, CTX),
+    `${HEADER}\n\nbody`,
+  );
   assertStrictEquals(wrapped.sdkTool.name, "stub_tool");
   assertStrictEquals(wrapped.metadata, tool.metadata);
 });
@@ -59,7 +64,7 @@ Deno.test("withSourceHeader: runStructured carries the Source line", async () =>
   });
   const wrapped = withSourceHeader(tool, () => HEADER);
 
-  assertEquals(await wrapped.sdkTool.runStructured!({}), {
+  assertEquals(await wrapped.sdkTool.runStructured!({}, undefined, CTX), {
     text: `${HEADER}\n\n{"n":1}`,
     structured: { n: 1 },
   });
@@ -94,12 +99,12 @@ Deno.test("withSourceHeader: an AIToolFailure propagates unchanged on every path
 
   await assertRejects(() => wrapped.sdkTool.run({}), AIToolFailure, "nope");
   await assertRejects(
-    () => wrapped.sdkTool.runWithView!({}),
+    () => wrapped.sdkTool.runWithView!({}, undefined, CTX),
     AIToolFailure,
     "nope",
   );
   await assertRejects(
-    () => wrapped.sdkTool.runStructured!({}),
+    () => wrapped.sdkTool.runStructured!({}, undefined, CTX),
     AIToolFailure,
     "nope",
   );

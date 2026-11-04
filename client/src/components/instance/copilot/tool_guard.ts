@@ -76,21 +76,24 @@ function guardCopilotTool(tool: AnyAITool): AnyAITool {
     },
     sdkTool: {
       ...inner,
-      run: (input) => {
+      run: (input, context) => {
         refuseUnlessAllowed();
-        return inner.run(input);
+        return inner.run(input, context);
       },
-      runWithView: (input, getView) => {
+      runWithView: (input, getView, ctx) => {
         refuseUnlessAllowed();
         return inner.runWithView
-          ? inner.runWithView(input, getView)
-          : inner.run(input);
+          ? inner.runWithView(input, getView, ctx)
+          : inner.run(input, {
+            toolUse: { id: ctx.toolUseId },
+            signal: ctx.signal,
+          });
       },
       runStructured: runStructured === undefined
         ? undefined
-        : (input, getView) => {
+        : (input, getView, ctx) => {
           refuseUnlessAllowed();
-          return runStructured(input, getView);
+          return runStructured(input, getView, ctx);
         },
     },
   };
