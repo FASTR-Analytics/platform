@@ -176,10 +176,26 @@ export const userRouteRegistry = {
       warnings: string[];
     },
   }),
+  // An admin sets another user's name: written to Clerk first (the source of
+  // truth for names), then this instance's row, then pushed to every peer
+  // through receiveUserNameSync. The caller's own name goes through their
+  // Clerk profile instead.
+  setUserName: route({
+    path: "/user/name",
+    method: "POST",
+    guard: GUARD.admin,
+    body: z.object({
+      email: z.string(),
+      firstName: z.string().max(100),
+      lastName: z.string().max(100),
+    }),
+    response: {} as { warnings: string[] },
+  }),
   // Applies a Clerk name change pushed by the peer instance that observed it
   // (contract on syncUserName). Fleet-internal and machine-only: the
   // status-api-key header is the sole authorization, a session caller is
-  // refused because Clerk, not an admin, is the source of truth for names.
+  // refused because a session-side name change goes through Clerk first
+  // (setUserName).
   receiveUserNameSync: route({
     path: "/user/sync-name",
     method: "POST",

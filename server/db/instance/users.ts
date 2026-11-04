@@ -37,7 +37,8 @@ const USER_NOT_FOUND = "No matching user";
 // "no information" (headless callers carry no claims; a session-token template
 // missing the name claims looks the same), never "clear the name": skipping
 // keeps a misconfiguration from nulling every name on the instance.
-// Returns true when a row changed.
+// Returns true when a row changed. An admin's edit (setUserName) reaches it
+// after Clerk.
 export async function syncUserName(
   mainDb: Sql,
   email: string,

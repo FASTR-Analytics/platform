@@ -17,6 +17,7 @@ import {
   createDeleteAction,
   FrameTop,
   HeadingBar,
+  openComponent,
 } from "panther";
 import {
   createEffect,
@@ -33,6 +34,7 @@ import {
   copilotViewController,
   holdCopilotView,
 } from "~/components/instance/copilot/mod.ts";
+import { EditUserNameForm } from "./edit_user_name_form";
 import { UserScopesCard } from "./user_scopes";
 import { can, canCallRoute, isGlobalAdmin } from "~/state/instance/permissions";
 
@@ -131,6 +133,13 @@ function UserDetail(p: DetailProps) {
       }),
   );
 
+  async function attemptEditName() {
+    await openComponent({
+      element: EditUserNameForm,
+      props: { user: p.user },
+    });
+  }
+
   async function attemptDeleteUser() {
     const deleteAction = createDeleteAction(
       {
@@ -173,8 +182,28 @@ function UserDetail(p: DetailProps) {
           fr: "Identifiants",
           pt: "Dados de início de sessão",
         })}
+        headerRight={
+          <Show when={canCallRoute("setUserName") && !isSelf()}>
+            <Button onClick={attemptEditName} outline iconName="pencil">
+              {t3({
+                en: "Edit name",
+                fr: "Modifier le nom",
+                pt: "Editar nome",
+              })}
+            </Button>
+          </Show>
+        }
       >
         <div class="ui-spy-sm">
+          <div class="flex">
+            <div class="w-48 flex-none">
+              {t3({ en: "Name", fr: "Nom", pt: "Nome" })}:
+            </div>
+            <div class="flex-1">
+              {[p.user.firstName, p.user.lastName].filter(Boolean).join(" ") ||
+                "—"}
+            </div>
+          </div>
           <div class="flex">
             <div class="w-48 flex-none">{t3(TC.email)}:</div>
             <div class="flex-1">{p.user.email}</div>

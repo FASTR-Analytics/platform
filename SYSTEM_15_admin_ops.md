@@ -7,6 +7,7 @@ globs:
   - client/src/components/users/batch_upload_users_form.tsx
   - client/src/components/users/bulk_edit_permissions_form.tsx
   - client/src/components/users/bulk_edit_scopes_form.tsx
+  - client/src/components/users/edit_user_name_form.tsx
   - client/src/components/instance/change_email_modal.tsx
   - client/src/components/instance/feedback_form.tsx
   - client/src/components/instance/instance_meta_form.tsx
@@ -245,6 +246,17 @@ surface as user-facing route errors with GB figures.
   with a 403. The page holds and sets the chat's `users` view at mount and the
   user detail (opened over the shell) `user` (S13); each view's label and
   instructions name the page and never the roster or the email.
+- **Admin name edit** (`edit_user_name_form.tsx`, opened from the user detail's
+  Login details card): an admin sets another user's first and last name through
+  `setUserName`. Clerk is written first (`updateClerkUserNameByEmail`,
+  `server/clerk_api.ts`), and a Clerk failure writes nothing, because a row
+  ahead of Clerk would be put back by the user's next `getCurrentUser`. Then
+  `syncUserName` updates the row and `pushUserNameToPeers` sends the name to
+  every peer's `receiveUserNameSync`, on every call, so a retry repairs a missed
+  peer. An email with no Clerk account (invited, never signed up) skips Clerk
+  with a warning. The caller's own row is refused: their session token still
+  carries the old name. A target who loads a page before their token refreshes
+  (about 60s) syncs the old name back until their next load.
 - **Self-profile** (`profile.tsx`): AI usage bars; the organisation
   (`users.organisation`, migration 219; the role column it also added is dropped
   by 221) is the user's own words, written through `updateMyProfile`, which

@@ -422,6 +422,9 @@ const EXPECTED: Record<keyof typeof routeRegistry, Expectation> = {
   setUserContactPerson: closed("admin", {
     body: { email: UNAPPROVED.email, isContactPerson: true },
   }),
+  setUserName: closed("admin", {
+    body: { email: UNAPPROVED.email, firstName: "A", lastName: "B" },
+  }),
   setUserScopeAccess: closed("can_configure_users"),
   setUserUnlimitedAi: closed("h_user", {
     body: { email: UNAPPROVED.email, unlimited: true },

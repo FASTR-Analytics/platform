@@ -6,7 +6,10 @@ import {
   normaliseEmail,
   type RenameEmailInstanceResult,
 } from "lib";
-import { verifyClerkEmailOwnership } from "../../clerk_api.ts";
+import {
+  updateClerkUserNameByEmail,
+  verifyClerkEmailOwnership,
+} from "../../clerk_api.ts";
 import { renameAuthorEmails } from "../../collab/authorship.ts";
 import { renameDeckLedgerEmails } from "../../collab/deck_session_ledger.ts";
 import {
@@ -40,6 +43,7 @@ import {
 } from "../../db/mod.ts";
 import {
   _BYPASS_AUTH,
+  _CLERK_SECRET_KEY,
   _DAILY_TOKEN_LIMIT,
   _INSTANCE_ID,
   _IS_PRODUCTION,
@@ -383,6 +387,58 @@ function pushUserNameToPeers(
 ): Promise<void> {
   return pushToPeers("/user/sync-name", { email, firstName, lastName });
 }
+
+defineRoute(
+  routesUsers,
+  "setUserName",
+  log("setUserName"),
+  async (c, { body }) => {
+    const email = normaliseEmail(body.email);
+    if (email === c.var.globalUser.email) {
+      return c.json({
+        success: false,
+        err: "Change your own name from your profile instead",
+      }, 403);
+    }
+    const firstName = body.firstName.trim() || null;
+    const lastName = body.lastName.trim() || null;
+    // Both blank would be "no information" to syncUserName, never a write.
+    if (firstName === null && lastName === null) {
+      return c.json({ success: false, err: "Enter a first or last name" });
+    }
+    // Clerk first: a users row ahead of Clerk would be put back by the user's
+    // next getCurrentUser, so a Clerk failure writes nothing.
+    const warnings: string[] = [];
+    if (_CLERK_SECRET_KEY) {
+      const clerk = await updateClerkUserNameByEmail(
+        email,
+        firstName,
+        lastName,
+      );
+      if (!clerk.ok) {
+        return c.json({ success: false, err: clerk.err });
+      }
+      if (!clerk.found) {
+        warnings.push(
+          "This user has no account yet — the name they enter when they sign up will replace this one",
+        );
+      }
+    }
+    const changed = await syncUserName(
+      c.var.mainDb,
+      email,
+      firstName,
+      lastName,
+    );
+    if (changed) {
+      notifyInstanceUsersUpdated(await getInstanceUsers(c.var.mainDb));
+    }
+    // Pushed even when this row was already current, so a retry reaches the
+    // peers an earlier best-effort push missed.
+    await pushUserNameToPeers(email, firstName, lastName);
+    return c.json({ success: true, data: { warnings } });
+  },
+);
 
 // No log(): a machine call has no user row for the user_logs FK.
 defineRoute(
