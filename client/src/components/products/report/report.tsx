@@ -1295,7 +1295,10 @@ export function ReportEditor(p: Props) {
 
   // The figures' raster boxes (what the PDF embeds): Report Forge gives each
   // live figure the same box before it draws, and re-boxes when one lands.
-  const figureSizes = createFigureSizeCache(() => forge?.refreshEmbedSizes());
+  const figureSizes = createFigureSizeCache(
+    () => forge?.refreshEmbedSizes(),
+    chartPalette,
+  );
   onCleanup(() => figureSizes.dispose());
 
   // The editor's collab binding: the shared body text, once the room has

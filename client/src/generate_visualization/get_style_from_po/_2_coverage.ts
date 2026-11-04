@@ -26,7 +26,7 @@ export function buildCoverageChartStyle(
 ): CustomFigureStyleOptions {
   return {
     seriesColorFunc: getCoverageSeriesColorFunc(chartPalette),
-    text: getTextStyle(config, deckStyle),
+    text: getTextStyle(config, deckStyle, chartPalette),
     panes: { nCols: config.s.nColsInCellDisplay },
     xPeriodAxis: { calendar },
     yScaleAxis: {

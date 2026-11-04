@@ -97,10 +97,21 @@ export const GLOBAL_STYLE_OPTIONS: GlobalStyleOptions = {
   },
 };
 
+// A deck's font wins; outside a deck, a report theme's chart face
+// (FastrChartPalette.font, self-hosted in app.css) at its 400 and 700; else
+// the app's own.
 function getFigureFont(
   deckStyle: DeckStyleContext | undefined,
   bold: boolean,
+  chartPalette: FastrChartPalette | undefined,
 ): FontInfo {
+  if (deckStyle === undefined && chartPalette?.font !== undefined) {
+    return {
+      fontFamily: chartPalette.font,
+      weight: bold ? 700 : 400,
+      italic: false,
+    };
+  }
   const family = deckStyle?.fontFamily ?? "International Inter";
   return getSlideFontInfo(family, bold, false);
 }
@@ -108,9 +119,10 @@ function getFigureFont(
 export function getTextStyle(
   config: PresentationObjectConfig,
   deckStyle?: DeckStyleContext,
+  chartPalette?: FastrChartPalette,
 ): CustomFigureStyleOptions["text"] {
-  const baseFont = getFigureFont(deckStyle, false);
-  const boldFont = getFigureFont(deckStyle, true);
+  const baseFont = getFigureFont(deckStyle, false, chartPalette);
+  const boldFont = getFigureFont(deckStyle, true, chartPalette);
   return {
     base: { font: baseFont },
     // caption: { relFontSize: config.t.captionRelFontSize ?? 2, font: boldFont },

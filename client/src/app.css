@@ -492,6 +492,39 @@
     font-display: block;
   }
 
+  /* Roboto Condensed (the Assessment report theme's chart text) */
+  @font-face {
+    font-family: "Roboto Condensed";
+    src: url("/fonts/RobotoCondensed-Regular.woff2") format("woff2");
+    font-weight: 400;
+    font-style: normal;
+    font-display: block;
+  }
+
+  @font-face {
+    font-family: "Roboto Condensed";
+    src: url("/fonts/RobotoCondensed-Italic.woff2") format("woff2");
+    font-weight: 400;
+    font-style: italic;
+    font-display: block;
+  }
+
+  @font-face {
+    font-family: "Roboto Condensed";
+    src: url("/fonts/RobotoCondensed-Bold.woff2") format("woff2");
+    font-weight: 700;
+    font-style: normal;
+    font-display: block;
+  }
+
+  @font-face {
+    font-family: "Roboto Condensed";
+    src: url("/fonts/RobotoCondensed-BoldItalic.woff2") format("woff2");
+    font-weight: 700;
+    font-style: italic;
+    font-display: block;
+  }
+
   html,
   body,
   #app {

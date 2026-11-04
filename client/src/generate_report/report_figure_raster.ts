@@ -263,7 +263,12 @@ export type FigureSizeCache = {
   dispose: () => void;
 };
 
-export function createFigureSizeCache(onReady: () => void): FigureSizeCache {
+export function createFigureSizeCache(
+  onReady: () => void,
+  // The report's chart palette: only its FONT changes a figure's box (a
+  // condensed face wraps a legend elsewhere), so sizes are kept per font.
+  chartPalette?: () => FastrChartPalette | undefined,
+): FigureSizeCache {
   // Content key → size, null while in flight, false when the figure failed.
   const sizes = new Map<
     string,
@@ -271,14 +276,18 @@ export function createFigureSizeCache(onReady: () => void): FigureSizeCache {
   >();
   let disposed = false;
 
-  async function measure(key: string, block: FigureBlock): Promise<void> {
+  async function measure(
+    key: string,
+    block: FigureBlock,
+    palette: FastrChartPalette | undefined,
+  ): Promise<void> {
     let next: { width: number; height: number } | false = false;
     try {
       // A failed measure is stored as false for the content key and never
       // re-measured, so the boundaries are awaited rather than built loading.
       await awaitFigureBoundaries(block.bundle!);
       if (disposed) return;
-      const built = buildFigureInputs(block.bundle!, undefined, undefined);
+      const built = buildFigureInputs(block.bundle!, undefined, palette);
       if (built.ok) {
         const fi = built.inputs;
         const style = new CustomFigureStyle(fi.style);
@@ -308,12 +317,14 @@ export function createFigureSizeCache(onReady: () => void): FigureSizeCache {
 
   return {
     get(_id, block) {
-      const key = figureRasterKey(block);
-      if (key === undefined) return undefined;
+      const content = figureRasterKey(block);
+      if (content === undefined) return undefined;
+      const palette = chartPalette?.();
+      const key = `${content}|${palette?.font ?? ""}`;
       const hit = sizes.get(key);
       if (hit === undefined) {
         sizes.set(key, null);
-        void measure(key, block);
+        void measure(key, block, palette);
         return undefined;
       }
       return hit === null || hit === false ? undefined : hit;

@@ -1244,17 +1244,21 @@ not by the compiler.
 ONE structure sheet plus a per-theme token block. Themes are a registry
 (`registerFastrTheme`, `fastrThemeIds()`, `fastrThemeTokens(theme)`,
 `isFastrReportTheme`; `report-forge/tests/fastr_registry_test.ts` pins it). The
-platform has **11** themes: the engine's ten built-ins (`FASTR_REPORT_THEMES`:
+platform has **12** themes: the engine's eleven built-ins (`FASTR_REPORT_THEMES`:
 default, minimal, corporate, ministry, executive, clinical, editorial, swiss,
-bauhaus, broadsheet), plus **`legacy`**, which is the platform's own and is
+bauhaus, broadsheet, assessment), plus **`legacy`**, which is the platform's own and is
 registered when [lib/report_legacy_theme.ts](lib/report_legacy_theme.ts) loads.
 `lib/types/reports.ts` imports that file itself, so the registration has always
 run before `reportConfigSchema` validates a stored theme (the schema is a
 membership test against the registry, and an unknown id must keep failing it:
 Block 3 of the reports data transform, which drops a retired theme id so the
 report opens on the default and moves `monochrome` to `minimal`, depends on
-that). `server/tests/report_config_test.ts` pins the eleven, the three
-templates, and that `legacy` is its own tokens. `legacy` is not a design but a
+that). `assessment` (after the Somalia HHFA national results: Roboto
+Condensed at 10pt on 1.15, navy, figure panels, chart colours of its own via
+`chartSeries`/`chartRamp`) is the one built-in that names its own body, so it
+is its own geometry (`fastrThemeHasOwnGeometry`) rather than a skin of the
+default theme's boxes, and a switch to or from it re-paginates the report.
+`server/tests/report_config_test.ts` pins the twelve, the three templates, and that `legacy` is its own tokens. `legacy` is not a design but a
 reproduction. It restates the panther markdown look that every markdown-format
 report rendered in until those reports were converted (panther's
 `_004_markdown_style` defaults under the app's report style), so such a report
@@ -1263,8 +1267,9 @@ panther's near-black ink, Inter, its link blue `#0066cc` (the one saturated
 accent in the set, and exempt for that reason from the muted-palette test the
 engine holds its built-ins to), its heading scale, its ruled tables and its
 block rhythm. Two things it cannot carry over, both the FORMAT's and not the
-theme's: the document is set at 16px/1.55 (`REPORT_BASE_CSS`) where panther set
-it at 14px/1.4, and figures are PNG rasters where panther drew vectors into the
+theme's: the document is set at the house 16px/1.55 where panther set it at
+14px/1.4 (a theme may now name its own body, but converted reports have been
+laid out at the house one since), and figures are PNG rasters where panther drew vectors into the
 PDF. It is chosen deliberately and never seeded. A theme is a short token block
 and its own extra rules against one shared structure sheet, which is why every
 block, tone and background added since landed on all of them at once. Two WERE
@@ -1916,20 +1921,20 @@ for every block and text row, its seven page starts equal print's, and its three
 figure boxes match print's to 0.00px (one to 0.03px). Two findings stay OPEN,
 both recorded here rather than half-fixed:
 
-- **A theme's own body typography never reaches the editor.** Three themes set
-  it then (classic's `line-height: 1.7`, japanese's 1.85, artdeco's
-  `font-size: 1.06em`). `buildFastrReportCss` rewrites a theme's `body` selector
-  onto the scope root, but `livePreviewTheme` pins `font-size` and `line-height`
-  on `.cm-content` (16px/1.55), so the theme's value never reaches a line: both
-  classic-theme reports disagreed with their PDFs (14 editor pages against 17,
-  and 7 against 9) while the risograph and bauhaus ones, which set no body
-  typography, agreed exactly. All three themes are retired and none of the
-  eleven left sets body typography, so nothing shows the defect today, but the
-  editor still cannot follow one that did. That is a RULE for a new theme: its
-  `extraCss` must not set the body's font size or line height. Letting the two
-  inherit from the scope root (which would then carry the document's base
-  typography, as the shell gives print) is the shape of a fix; tried once, it
-  moved BOTH sides, so it needs its own pass and its own sweep.
+- **A theme's body typography is a token, never `extraCss`.** Three retired
+  themes set it in their rules (classic's `line-height: 1.7`, japanese's 1.85,
+  artdeco's `font-size: 1.06em`). `buildFastrReportCss` rewrote a theme's
+  `body` selector onto the scope root, but the editor's lines never read it,
+  so both classic-theme reports disagreed with their PDFs (14 editor pages
+  against 17, and 7 against 9). A theme now names its body through
+  `FastrThemeSpec.bodySize`/`bodyLeading` (`fastrBodyType`): the theme vars
+  carry them as `--fm-body-size`/`--fm-body-leading`, print sets them on
+  `<body>` (never `<html>`, where they would move every rem), and
+  `livePreviewTheme` sets the same two on `.cm-content`. They are named vars,
+  not inheritance from the scope root: inheriting was tried once and moved
+  BOTH sides, because the scope root also sizes the app chrome. A body rule in
+  `extraCss` still reaches print and not the editor, so a theme's `extraCss`
+  must not set the body's font size or line height.
 - **Two layouts while scrolling a report with real charts.** The risograph
   report settles on the right pages and agrees with print, but the stability
   sweep sees one intermediate layout as the charts re-mount and re-draw (page 4

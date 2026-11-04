@@ -32,7 +32,7 @@ export function buildDisruptionsChartStyle(
 
   return {
     seriesColorFunc: getDisruptionsSeriesColorFunc(inverted, chartPalette),
-    text: getTextStyle(config, deckStyle),
+    text: getTextStyle(config, deckStyle, chartPalette),
     panes: {
       nCols: config.s.nColsInCellDisplay,
     },

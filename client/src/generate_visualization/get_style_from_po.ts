@@ -63,7 +63,13 @@ export function getStyleFromPresentationObject(
     );
   }
   if (isSpecialDisruptionsChartV2Active(config)) {
-    return buildDisruptionsChartV2Style(config, formatAs, calendar, deckStyle);
+    return buildDisruptionsChartV2Style(
+      config,
+      formatAs,
+      calendar,
+      deckStyle,
+      chartPalette,
+    );
   }
   return buildStandardStyle(
     config,

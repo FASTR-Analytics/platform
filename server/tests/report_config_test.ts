@@ -31,11 +31,11 @@ Deno.test("getFastrReportTheme is total", () => {
   );
 });
 
-// The engine's themes are a registry: it ships ten and the platform registers
+// The engine's themes are a registry: it ships eleven and the platform registers
 // `legacy` (lib/report_legacy_theme.ts). The stored-config schema is a
 // membership test against that registry, so what it accepts is pinned here.
-Deno.test("the stored theme is one of the engine's ten or legacy, legacy last", () => {
-  assertEquals(FASTR_REPORT_THEMES.length, 10);
+Deno.test("the stored theme is one of the engine's eleven or legacy, legacy last", () => {
+  assertEquals(FASTR_REPORT_THEMES.length, 11);
   assertEquals(fastrThemeIds(), [...FASTR_REPORT_THEMES, "legacy"]);
   for (const theme of fastrThemeIds()) {
     assertEquals(
@@ -95,7 +95,7 @@ Deno.test("the legacy theme is its own tokens, not the default's", () => {
 });
 
 // The whole theme as written, pinned. Report Forge's own baseline covers the
-// engine on its ten themes and cannot see this one, so the two together are
+// engine on its eleven themes and cannot see this one, so the two together are
 // what says a `legacy` report renders as it did: the engine unchanged there,
 // the theme unchanged here. The value was taken when the theme moved out of
 // the engine, with its rendered output identical before and after. A change

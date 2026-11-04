@@ -73,7 +73,7 @@ export type ReportConfig = {
   themeChosen?: boolean;
 };
 
-// A theme id the engine knows: its ten built-ins plus `legacy`
+// A theme id the engine knows: its eleven built-ins plus `legacy`
 // (report_legacy_theme.ts). The themes are a registry, not a closed list, so
 // this is a membership test instead of an enum. It must keep REJECTING an
 // unknown id: that failure is what routes a report on a retired theme into

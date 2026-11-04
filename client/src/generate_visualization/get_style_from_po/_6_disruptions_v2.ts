@@ -4,6 +4,7 @@ import {
   _CF_GREEN,
   _CF_RED,
   type DeckStyleContext,
+  type FastrChartPalette,
   type IndicatorFormat,
   PresentationObjectConfig,
 } from "lib";
@@ -22,13 +23,14 @@ export function buildDisruptionsChartV2Style(
   formatAs: IndicatorFormat,
   calendar: CalendarType,
   deckStyle?: DeckStyleContext,
+  chartPalette?: FastrChartPalette,
 ): CustomFigureStyleOptions {
   const inverted = config.s.diffInverted;
   const aboveBandColor = inverted ? _CF_RED : _CF_GREEN;
   const belowBandColor = inverted ? _CF_GREEN : _CF_RED;
 
   return {
-    text: getTextStyle(config, deckStyle),
+    text: getTextStyle(config, deckStyle, chartPalette),
     panes: {
       nCols: config.s.nColsInCellDisplay,
     },

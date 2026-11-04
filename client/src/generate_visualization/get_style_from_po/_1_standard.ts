@@ -79,7 +79,7 @@ export function buildStandardStyle(
 
   return {
     seriesColorFunc: getStandardSeriesColorFunc(config, chartPalette),
-    text: getTextStyle(config, deckStyle),
+    text: getTextStyle(config, deckStyle, chartPalette),
     surrounds: {
       legendPosition: config.s.hideLegend ? "none" : undefined,
     },

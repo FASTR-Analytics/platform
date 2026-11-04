@@ -7,8 +7,11 @@
 // as in the editor, so the map is the PDF's pages give or take a fit.
 
 import {
+  fastrChartPalette,
   type FastrPagedResult,
   fastrPageMapText,
+  getFastrReportTheme,
+  getReportCustomStyle,
   type ReportDetail,
 } from "lib";
 import { createReportPaginator, fastrPagedFooter } from "report-forge";
@@ -25,7 +28,15 @@ export async function describeReportPages(
   // Every figure's box first: a size landing after the layout would have
   // left that figure a zero-height box on the page.
   let sizeLanded: (() => void) | undefined;
-  const figureSizes = createFigureSizeCache(() => sizeLanded?.());
+  // Its theme's chart face changes a figure's box, so sizes take its palette.
+  const palette = fastrChartPalette(
+    getFastrReportTheme(detail.config),
+    getReportCustomStyle(detail.config)?.colors ?? undefined,
+  );
+  const figureSizes = createFigureSizeCache(
+    () => sizeLanded?.(),
+    () => palette,
+  );
   const imageSizes = new Map<string, { width: number; height: number }>();
   try {
     const figureIds = Object.keys(detail.figures);
@@ -83,7 +94,11 @@ export async function describeReportPages(
     if (result === undefined) {
       return "The page layout did not run (the body may be empty).";
     }
-    return fastrPageMapText(result, detail.body);
+    return fastrPageMapText(
+      result,
+      detail.body,
+      getFastrReportTheme(detail.config),
+    );
   } finally {
     figureSizes.dispose();
   }

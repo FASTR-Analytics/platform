@@ -35,7 +35,7 @@ export function buildPercentChangeChartStyle(
 
   return {
     seriesColorFunc: getStandardSeriesColorFunc(config, chartPalette),
-    text: getTextStyle(config, deckStyle),
+    text: getTextStyle(config, deckStyle, chartPalette),
     panes: { nCols: config.s.nColsInCellDisplay },
     xPeriodAxis: { forceSideTicksWhenYear: true, calendar },
     yScaleAxis: {

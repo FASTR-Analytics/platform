@@ -16,10 +16,12 @@
 // block rhythm. Chosen deliberately, so a converted report keeps it and a
 // new report is never started on it.
 //
-// What it CANNOT carry over, because these are the format's and not the
-// theme's: the document is set at 16px/1.55 (REPORT_BASE_CSS) where panther
-// set it at 14px/1.4, so the column holds fewer words per line; and figures
-// are PNG rasters where panther drew them into the PDF as vectors.
+// What it does not carry over: the body is the house 16px/1.55 where panther
+// set it at 14px/1.4, so the column holds fewer words per line. A theme may
+// now name its own body (FastrThemeSpec.bodySize/bodyLeading), but converted
+// reports have been laid out at the house body since, so moving them would
+// re-paginate every one. And figures are PNG rasters where panther drew them
+// into the PDF as vectors, which is the format's, not the theme's.
 //
 // REGISTRATION ORDER IS LOAD-BEARING. The theme exists only once this module
 // has run, and a stored config naming it fails validation before then (the
