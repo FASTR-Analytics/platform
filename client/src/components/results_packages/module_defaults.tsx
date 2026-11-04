@@ -96,7 +96,7 @@ export function ModuleDefaultsEditor(p: Props) {
       state={query.state()}
       loadingRenderer={(msg) => (
         <ModuleDefaultsFrame close={p.close}>
-          <LoadingIndicator msg={msg} />
+          <LoadingIndicator msg={msg} pad="md" />
         </ModuleDefaultsFrame>
       )}
       errorRenderer={(err) => (
