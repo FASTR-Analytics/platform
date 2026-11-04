@@ -30,7 +30,7 @@ import type { AIViewRegistry, AIViewState, AnyAIView } from "./view_types.ts";
 
 // A run-only inner tool reads the call's context where the SDK's tool runner
 // puts it.
-function runContextOf(ctx: AIToolCallContext): SDKToolRunContext {
+export function runContextOf(ctx: AIToolCallContext): SDKToolRunContext {
   return { toolUse: { id: ctx.toolUseId }, signal: ctx.signal };
 }
 

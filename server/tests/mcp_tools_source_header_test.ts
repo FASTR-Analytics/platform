@@ -6,6 +6,11 @@
 
 import { assertEquals, assertRejects, assertStrictEquals } from "@std/assert";
 import { AIToolFailure, createAITool } from "@timroberton/panther";
+import type {
+  AIToolCallContext,
+  AnyAITool,
+  SDKToolRunContext,
+} from "@timroberton/panther";
 import { z } from "zod";
 import type { RunListingItem } from "lib";
 import { formatSourceHeader, withSourceHeader } from "lib";
@@ -67,6 +72,62 @@ Deno.test("withSourceHeader: runStructured carries the Source line", async () =>
   assertEquals(await wrapped.sdkTool.runStructured!({}, undefined, CTX), {
     text: `${HEADER}\n\n{"n":1}`,
     structured: { n: 1 },
+  });
+});
+
+Deno.test("withSourceHeader: the call's context reaches the handler on every path", async () => {
+  const seen: AIToolCallContext[] = [];
+  const tool = createAITool({
+    name: "stub_tool",
+    description: "stub",
+    inputSchema: z.object({}),
+    outputSchema: z.object({ n: z.number() }),
+    handler: async (_input, ctx) => {
+      seen.push(ctx);
+      return { n: 1 };
+    },
+    kind: "read",
+    headless: true,
+  });
+  const wrapped = withSourceHeader(tool, () => HEADER);
+
+  await wrapped.sdkTool.runWithView!({}, undefined, CTX);
+  await wrapped.sdkTool.runStructured!({}, undefined, CTX);
+  await wrapped.sdkTool.run({}, {
+    toolUse: { id: CTX.toolUseId },
+    signal: CTX.signal,
+  });
+
+  assertEquals(seen.length, 3);
+  for (const ctx of seen) {
+    assertEquals(ctx.toolUseId, CTX.toolUseId);
+    assertStrictEquals(ctx.signal, CTX.signal);
+  }
+});
+
+Deno.test("withSourceHeader: a tool with only run() gets the call's id and signal as the SDK runner passes them", async () => {
+  let got: SDKToolRunContext | undefined;
+  const runOnly = {
+    metadata: stubTool(async () => "").metadata,
+    sdkTool: {
+      name: "run_only",
+      description: "stub",
+      input_schema: { type: "object" },
+      run: async (_input: unknown, context?: SDKToolRunContext) => {
+        got = context;
+        return "body";
+      },
+    },
+  } as unknown as AnyAITool;
+  const wrapped = withSourceHeader(runOnly, () => HEADER);
+
+  assertEquals(
+    await wrapped.sdkTool.runWithView!({}, undefined, CTX),
+    `${HEADER}\n\nbody`,
+  );
+  assertEquals(got, {
+    toolUse: { id: CTX.toolUseId },
+    signal: CTX.signal,
   });
 });
 

@@ -1,4 +1,4 @@
-import { AIToolFailure } from "panther";
+import { AIToolFailure, runContextOf } from "panther";
 import type { AnyAITool } from "panther";
 import {
   COPILOT_TOOL_REQUIREMENTS,
@@ -84,10 +84,7 @@ function guardCopilotTool(tool: AnyAITool): AnyAITool {
         refuseUnlessAllowed();
         return inner.runWithView
           ? inner.runWithView(input, getView, ctx)
-          : inner.run(input, {
-            toolUse: { id: ctx.toolUseId },
-            signal: ctx.signal,
-          });
+          : inner.run(input, runContextOf(ctx));
       },
       runStructured: runStructured === undefined
         ? undefined
