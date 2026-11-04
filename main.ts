@@ -31,6 +31,7 @@ import { routesDhis2Credentials } from "./server/routes/instance/dhis2_credentia
 import { routesHealth } from "./server/routes/instance/health.ts";
 import { routesHfaIndicators } from "./server/routes/instance/hfa_indicators.ts";
 import { routesHfaTimePoints } from "./server/routes/instance/hfa_time_points.ts";
+import { routesHfaVerification } from "./server/routes/instance/hfa_verification.ts";
 import { routesIceh } from "./server/routes/instance/iceh.ts";
 import { routesIndicators } from "./server/routes/instance/indicators.ts";
 import { routesIndicatorsDhis2 } from "./server/routes/instance/indicators_dhis2.ts";
@@ -167,6 +168,7 @@ app.route("/", routesUpload);
 app.route("/", routesDatasets);
 app.route("/", routesDhis2Credentials);
 app.route("/", routesHfaIndicators);
+app.route("/", routesHfaVerification);
 app.route("/", routesHfaTimePoints);
 app.route("/", routesIceh);
 app.route("/", routesIndicators);

@@ -79,7 +79,7 @@ import type {
   ProposalResult,
   ToolUIMetadata,
 } from "../deps.ts";
-import { ProposalPreviewBody } from "./_renderers/approval_renderer.tsx";
+import { ProposalPreviewBody } from "./_renderers/approval.tsx";
 import type { AIChatConfig, DisplayItem } from "../_core/types.ts";
 import type { AIChatSettingsValues } from "./ai_chat_settings_panel.tsx";
 import { ConversationsContext } from "./use_conversations.ts";
@@ -605,7 +605,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     // turn lock, and the lock is released on EVERY exit — including a
     // synchronous throw from a consumer callback (getEphemeralContext,
     // getDocumentRefs) in the prologue below. A throw surfaces through the
-    // normal error path (error() + tool_error item); the send promise still
+    // normal error path (error() + turn_error notice); the send promise still
     // resolves (await means "the attempt finished"). Later phases run more
     // consumer callbacks in the turn's extent (view labels, approval
     // propose) — they must stay inside this region.
@@ -714,10 +714,10 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
           ts.serverToolLabel[1](undefined);
           addDisplayItemsTo(ts, [
             {
-              type: "tool_error",
-              toolName: "system",
-              errorMessage: getUserFacingErrorMessage(err),
-              errorDetails,
+              type: "system_notice",
+              noticeType: "turn_error",
+              message: getUserFacingErrorMessage(err),
+              details: errorDetails,
             },
           ]);
         });

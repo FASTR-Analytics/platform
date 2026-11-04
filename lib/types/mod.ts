@@ -15,6 +15,7 @@ export * from "./dhis2.ts";
 export * from "./run_datasets.ts";
 export * from "./disaggregation_options.ts";
 export * from "./hfa_types.ts";
+export * from "./hfa_verification.ts";
 export * from "./indicators.ts";
 export * from "./population.ts";
 export * from "./instance.ts";

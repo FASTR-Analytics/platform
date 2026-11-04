@@ -1,16 +1,21 @@
 import {
+  getHfaIndicatorsGuidance,
   HFA_STRUCTURAL_VARIABLE_IDS,
+  HFA_VERIFICATION_SEVERITIES,
   type HfaDictionaryForValidation,
   type HfaIndicator,
   type HfaIndicatorCategory,
   type HfaIndicatorCode,
   hfaIndicatorCodeIdentifiers,
   type HfaIndicatorServiceCategory,
+  type HfaIndicatorsForAIInput,
   hfaIndicatorsStatus,
   type HfaIndicatorSubCategory,
   type HfaIndicatorVariantCode,
   type HfaIndicatorVariantGroup,
   type HfaIndicatorVariantItem,
+  type HfaVerificationRows,
+  hfaVerificationRule,
   t3,
   TC,
 } from "lib";
@@ -40,7 +45,10 @@ import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import { getHfaDictionaryFromCacheOrFetch } from "~/state/instance/t2_datasets";
-import { getHfaIndicatorsFromCacheOrFetch } from "~/state/instance/t2_indicators";
+import {
+  getHfaIndicatorsFromCacheOrFetch,
+  getHfaVerificationFromCacheOrFetch,
+} from "~/state/instance/t2_indicators";
 import { EditHfaIndicator } from "./edit_indicator";
 import { HfaIndicatorCodeEditor } from "./indicator_code_editor";
 import {
@@ -55,7 +63,16 @@ import {
   HfaUnusedVariablesModal,
   type UnusedVariablesByTimePoint,
 } from "./unused_variables_modal";
-import { getHfaIndicatorsGuidance } from "./ai/mod.ts";
+import {
+  createHfaVerificationHashes,
+  type HfaVerificationProgress,
+  HfaVerificationRulesModal,
+  hfaVerificationRun,
+  hfaVerificationState,
+  noAnswerReason,
+  startRun,
+  stopRun,
+} from "./verification/mod.ts";
 import {
   copilotViewController,
   holdCopilotView,
@@ -68,9 +85,8 @@ type Props = {
 
 // The manager sets the chat's `hfa_indicators` view (S13) over the
 // switchboard's `data_page`: its state is the open tab and its instructions
-// the HFA guidance in ./ai/instructions.ts, supplied through the context so
-// the chat's registry imports nothing from this folder. The code editor and
-// the Excel import it opens set their own views on top.
+// the HFA guidance, supplied through the context. The code editor and the
+// Excel import it opens set their own views on top.
 export function HfaIndicatorsManager(p: Props) {
   const { openEditor, EditorWrapper } = getEditorWrapper();
   holdCopilotView();
@@ -125,6 +141,11 @@ export function HfaIndicatorsManager(p: Props) {
   });
   const [allVariantCode, setAllVariantCode] = createSignal<
     StateHolder<HfaIndicatorVariantCode[]>
+  >({
+    status: "loading",
+  });
+  const [verificationRows, setVerificationRows] = createSignal<
+    StateHolder<HfaVerificationRows>
   >({
     status: "loading",
   });
@@ -265,6 +286,16 @@ export function HfaIndicatorsManager(p: Props) {
     setAllVariantCode(getQueryStateFromApiResponse(res));
   });
 
+  let verificationRowsRunId = 0;
+  createEffect(async () => {
+    const version = instanceState.hfaVerificationVersion;
+    if (!version) return;
+    const runId = ++verificationRowsRunId;
+    const res = await getHfaVerificationFromCacheOrFetch(version);
+    if (runId !== verificationRowsRunId) return;
+    setVerificationRows(getQueryStateFromApiResponse(res));
+  });
+
   const hfaDataAvailable = () => !!instanceState.hfaCacheHash;
 
   const noHfaDataMsg = () =>
@@ -296,8 +327,7 @@ export function HfaIndicatorsManager(p: Props) {
     consistent: boolean;
   };
 
-  const statsByIndicatorId = createMemo(() => {
-    const map = new Map<string, IndicatorCodeStats>();
+  const indicatorsStatus = createMemo(() => {
     const dictSt = dictionary();
     const codeSt = allCode();
     const variantCodeSt = allVariantCode();
@@ -310,15 +340,22 @@ export function HfaIndicatorsManager(p: Props) {
       itemsSt.status !== "ready" ||
       indSt.status !== "ready"
     ) {
-      return map;
+      return undefined;
     }
-    const status = hfaIndicatorsStatus({
+    return hfaIndicatorsStatus({
       indicators: indSt.data,
       code: codeSt.data,
       variantCode: variantCodeSt.data,
       variantItems: itemsSt.data,
       dictionary: dictSt.data,
     });
+  });
+
+  const statsByIndicatorId = createMemo(() => {
+    const map = new Map<string, IndicatorCodeStats>();
+    const status = indicatorsStatus();
+    const codeSt = allCode();
+    if (status === undefined || codeSt.status !== "ready") return map;
     const roundsWithCode = new Map<string, number>();
     for (const c of codeSt.data) {
       if (c.code.trim() === "") continue;
@@ -341,6 +378,91 @@ export function HfaIndicatorsManager(p: Props) {
     }
     return map;
   });
+
+  // The verification's read input, built from what the manager loads: no
+  // display rows, which the hash leaves out, so the hashes need no data read.
+  const verificationReadInput = createMemo(
+    (): HfaIndicatorsForAIInput | undefined => {
+      const status = indicatorsStatus();
+      const indSt = indicators();
+      const catSt = categories();
+      const subCatSt = subCategories();
+      const svcCatSt = serviceCategories();
+      const vgSt = variantGroups();
+      const viSt = variantItems();
+      const codeSt = allCode();
+      const variantCodeSt = allVariantCode();
+      const dictSt = dictionary();
+      if (
+        status === undefined ||
+        indSt.status !== "ready" ||
+        catSt.status !== "ready" ||
+        subCatSt.status !== "ready" ||
+        svcCatSt.status !== "ready" ||
+        vgSt.status !== "ready" ||
+        viSt.status !== "ready" ||
+        codeSt.status !== "ready" ||
+        variantCodeSt.status !== "ready" ||
+        dictSt.status !== "ready"
+      ) {
+        return undefined;
+      }
+      return {
+        indicators: indSt.data,
+        taxonomy: {
+          categories: catSt.data,
+          subCategories: subCatSt.data,
+          serviceCategories: svcCatSt.data,
+          variantGroups: vgSt.data,
+          variantItems: viSt.data,
+        },
+        code: codeSt.data,
+        variantCode: variantCodeSt.data,
+        dictionary: dictSt.data,
+        displayRows: undefined,
+        status,
+      };
+    },
+  );
+
+  const verificationHashes = createHfaVerificationHashes(verificationReadInput);
+
+  // Undefined until both the hashes and the rows have landed.
+  const verificationState = createMemo(() => {
+    const hashes = verificationHashes();
+    const rowsSt = verificationRows();
+    if (hashes === undefined || rowsSt.status !== "ready") return undefined;
+    return hfaVerificationState(hashes, rowsSt.data);
+  });
+
+  const verifyLabel = () => {
+    const queued = verificationState()?.queue.length ?? "…";
+    return t3({
+      en: `Verify ${queued}`,
+      fr: `Vérifier ${queued}`,
+      pt: `Verificar ${queued}`,
+    });
+  };
+
+  const notCheckedMessage = () => {
+    const list = hfaVerificationRun().notChecked.map((n) =>
+      `${n.indicatorId} (${noAnswerReason(n.stopReason)})`
+    ).join(", ");
+    return t3({
+      en: `Not checked: ${list}`,
+      fr: `Non vérifiés : ${list}`,
+      pt: `Não verificados: ${list}`,
+    });
+  };
+
+  const progressLabel = (p: HfaVerificationProgress) => {
+    const current = p.current ?? "…";
+    return t3({
+      en: `Verifying ${p.done} of ${p.queued}: ${current}`,
+      fr: `Vérification ${p.done} sur ${p.queued} : ${current}`,
+      pt: `A verificar ${p.done} de ${p.queued}: ${current}`,
+    });
+  };
 
   async function openCreateIndicator(initialDefinition?: string) {
     const st = indicators();
@@ -436,6 +558,11 @@ export function HfaIndicatorsManager(p: Props) {
         serviceCategories: svcCatSt.data,
         variantGroups: vgSt.data,
         variantItems: viSt.data,
+        verificationState,
+        verificationRows: () => {
+          const st = verificationRows();
+          return st.status === "ready" ? st.data : undefined;
+        },
         deleteIndicator: (onDeleted: () => void) =>
           deleteIndicators([indicator.indicatorId], onDeleted),
       },
@@ -737,6 +864,44 @@ export function HfaIndicatorsManager(p: Props) {
       : t3({ en: "No", fr: "Non", pt: "Não" });
   };
 
+  const noFindingsText = () =>
+    t3({ en: "No findings", fr: "Aucun constat", pt: "Sem constatações" });
+
+  // Undefined until the verification state lands.
+  const verificationOf = (ind: HfaIndicator) => {
+    const state = verificationState()?.byIndicator.get(ind.indicatorId);
+    if (state === undefined) return undefined;
+    const problems =
+      state.open.filter((f) =>
+        hfaVerificationRule(f.rule).severity === "problem"
+      ).length;
+    return {
+      status: state.status,
+      open: state.open,
+      problems,
+      warnings: state.open.length - problems,
+    };
+  };
+
+  const findingsFilterValues = (ind: HfaIndicator): string[] => {
+    const v = verificationOf(ind);
+    if (v === undefined) return [];
+    return [
+      ...(v.problems > 0 ? [t3(HFA_VERIFICATION_SEVERITIES.problem)] : []),
+      ...(v.warnings > 0 ? [t3(HFA_VERIFICATION_SEVERITIES.warning)] : []),
+      ...(v.status === "verified" && v.open.length === 0
+        ? [noFindingsText()]
+        : []),
+      ...(v.status === "not_verified"
+        ? [t3({ en: "Not verified", fr: "Non vérifié", pt: "Não verificado" })]
+        : []),
+      ...(v.status === "changed"
+        ? [t3({ en: "Changed", fr: "Modifié", pt: "Alterado" })]
+        : []),
+      ...new Set(v.open.map((f) => t3(hfaVerificationRule(f.rule).text))),
+    ];
+  };
+
   // The table's search text. The indicator id has no column, and the category
   // columns hold ids whose labels are resolved here.
   const indicatorSearchText = (ind: HfaIndicator): string =>
@@ -911,9 +1076,124 @@ export function HfaIndicatorsManager(p: Props) {
           : <span>{text}</span>;
       },
     },
+    {
+      key: "findings",
+      header: t3({ en: "Findings", fr: "Constats", pt: "Constatações" }),
+      sortable: true,
+      sortValue: (ind) => verificationOf(ind)?.open.length ?? -1,
+      filterable: true,
+      filterValue: findingsFilterValues,
+      render: (ind) => {
+        const v = verificationOf(ind);
+        if (v === undefined) return "…";
+        const muted = "text-base-content-muted";
+        const parts = [
+          ...(v.problems > 0
+            ? [{
+              class: "text-danger font-700",
+              text: plural(v.problems, {
+                one: t3({
+                  en: `${v.problems} problem`,
+                  fr: `${v.problems} problème`,
+                  pt: `${v.problems} problema`,
+                }),
+                other: t3({
+                  en: `${v.problems} problems`,
+                  fr: `${v.problems} problèmes`,
+                  pt: `${v.problems} problemas`,
+                }),
+              }),
+            }]
+            : []),
+          ...(v.warnings > 0
+            ? [{
+              class: "text-warning font-700",
+              text: plural(v.warnings, {
+                one: t3({
+                  en: `${v.warnings} warning`,
+                  fr: `${v.warnings} avertissement`,
+                  pt: `${v.warnings} aviso`,
+                }),
+                other: t3({
+                  en: `${v.warnings} warnings`,
+                  fr: `${v.warnings} avertissements`,
+                  pt: `${v.warnings} avisos`,
+                }),
+              }),
+            }]
+            : []),
+          ...(v.status === "not_verified"
+            ? [{
+              class: muted,
+              text: t3({
+                en: "not verified",
+                fr: "non vérifié",
+                pt: "não verificado",
+              }),
+            }]
+            : v.status === "changed"
+            ? [{
+              class: muted,
+              text: t3({ en: "changed", fr: "modifié", pt: "alterado" }),
+            }]
+            : v.open.length === 0
+            ? [{ class: muted, text: noFindingsText() }]
+            : []),
+        ];
+        return (
+          <span>
+            <For each={parts}>
+              {(part, i) => (
+                <>
+                  <Show when={i() > 0}>{", "}</Show>
+                  <span class={part.class}>{part.text}</span>
+                </>
+              )}
+            </For>
+          </span>
+        );
+      },
+    },
   ];
 
   const otherActions = (): MenuItem[] => [
+    {
+      label: t3({
+        en: "Verify all",
+        fr: "Tout vérifier",
+        pt: "Verificar tudo",
+      }),
+      icon: "refresh",
+      disabled: !hfaDataAvailable() ||
+        indicators().status !== "ready" ||
+        hfaVerificationRun().progress !== undefined,
+      onClick: () => {
+        const st = indicators();
+        if (st.status === "ready") {
+          startRun(st.data.map((i) => i.indicatorId));
+        }
+      },
+    },
+    {
+      label: t3({
+        en: "Verification rules",
+        fr: "Règles de vérification",
+        pt: "Regras de verificação",
+      }),
+      icon: "settings",
+      disabled: verificationRows().status !== "ready",
+      onClick: () =>
+        openComponent({
+          element: HfaVerificationRulesModal,
+          props: {
+            rows: () => {
+              const st = verificationRows();
+              return st.status === "ready" ? st.data : undefined;
+            },
+          },
+        }),
+    },
+    { type: "divider" },
     {
       label: t3({
         en: "Check unused variables",
@@ -995,6 +1275,22 @@ export function HfaIndicatorsManager(p: Props) {
                       {noHfaDataMsg()}
                     </div>
                   </Show>
+                  <Show when={hfaVerificationRun().stopError}>
+                    {(stopError) => (
+                      <div class="bg-danger-subtle text-danger-subtle-content mb-4 flex-none rounded px-3 py-2 text-sm">
+                        {t3({
+                          en: `The verification stopped: ${stopError()}`,
+                          fr: `La vérification s'est arrêtée : ${stopError()}`,
+                          pt: `A verificação parou: ${stopError()}`,
+                        })}
+                      </div>
+                    )}
+                  </Show>
+                  <Show when={hfaVerificationRun().notChecked.length > 0}>
+                    <div class="bg-warning-subtle text-warning-subtle-content mb-4 flex-none rounded px-3 py-2 text-sm">
+                      {notCheckedMessage()}
+                    </div>
+                  </Show>
                   <div class="h-0 w-full flex-1">
                     <Table
                       data={keyedIndicators}
@@ -1033,6 +1329,47 @@ export function HfaIndicatorsManager(p: Props) {
                         },
                         children: (
                           <Show when={can("can_configure_data")}>
+                            <Show
+                              when={hfaVerificationRun().progress}
+                              fallback={
+                                <div
+                                  title={hfaDataAvailable()
+                                    ? ""
+                                    : noHfaDataMsg()}
+                                >
+                                  <Button
+                                    iconName="check"
+                                    onClick={() => startRun(
+                                      verificationState()?.queue ?? [],
+                                    )}
+                                    disabled={!hfaDataAvailable() ||
+                                      !verificationState()?.queue.length}
+                                    outline
+                                  >
+                                    {verifyLabel()}
+                                  </Button>
+                                </div>
+                              }
+                            >
+                              {(progress) => (
+                                <>
+                                  <span class="text-sm">
+                                    {progressLabel(progress())}
+                                  </span>
+                                  <Button
+                                    iconName="x"
+                                    onClick={stopRun}
+                                    outline
+                                  >
+                                    {t3({
+                                      en: "Stop",
+                                      fr: "Arrêter",
+                                      pt: "Parar",
+                                    })}
+                                  </Button>
+                                </>
+                              )}
+                            </Show>
                             <div
                               title={hfaDataAvailable() ? "" : noHfaDataMsg()}
                             >

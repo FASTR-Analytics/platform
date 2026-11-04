@@ -10,6 +10,9 @@ import type {
   ChartOVInputs,
   ColorKeyOrString,
   CustomFigureStyleOptions,
+  DiagramCustomNode,
+  DiagramData,
+  DiagramInputs,
   FigureAnnotation,
   FigureAutofitOptions,
   FigureInputs,
@@ -20,11 +23,10 @@ import type {
   PieInputs,
   PointType,
   ScaleLegendConfig,
+  SceneBuilder,
+  SceneInputs,
   TableInputs,
   TimeseriesInputs,
-  VizGraphCustomNode,
-  VizGraphData,
-  VizGraphInputs,
 } from "./deps.ts";
 import { type Conforms, zAnyPresentObject } from "./shared.ts";
 import { zChartOHData } from "./chartoh.ts";
@@ -197,27 +199,6 @@ const _zTimeseriesInputsConforms: Conforms<
   TimeseriesInputs
 > = true;
 
-// Function-pair leaf (cf. zLabelFormatter): accepted for in-memory inputs,
-// never survives JSON storage.
-const zVizGraphCustomNode = z.custom<VizGraphCustomNode>(
-  (v) =>
-    typeof v === "object" &&
-    v !== null &&
-    typeof (v as Record<string, unknown>).measure === "function" &&
-    typeof (v as Record<string, unknown>).generate === "function",
-);
-
-export const zVizGraphInputs = z.object({
-  ...figureInputsBaseFields,
-  figureType: z.literal("vizgraph"),
-  data: zAnyPresentObject<VizGraphData>(),
-  customNode: zVizGraphCustomNode.optional(),
-});
-const _zVizGraphInputsConforms: Conforms<
-  z.infer<typeof zVizGraphInputs>,
-  VizGraphInputs
-> = true;
-
 export const zMapInputs = z.object({
   ...figureInputsBaseFields,
   figureType: z.literal("map"),
@@ -234,12 +215,49 @@ export const zPieInputs = z.object({
 const _zPieInputsConforms: Conforms<z.infer<typeof zPieInputs>, PieInputs> =
   true;
 
+// A scene is code (cf. zLabelFormatter): accepted for in-memory inputs, never
+// survives JSON storage.
+const zSceneBuild = z.custom<(s: SceneBuilder) => void>(
+  (v) => typeof v === "function",
+);
+
+export const zSceneInputs = z.object({
+  ...figureInputsBaseFields,
+  figureType: z.literal("scene"),
+  frame: z.object({ w: z.number(), h: z.number().optional() }).optional(),
+  build: zSceneBuild,
+});
+const _zSceneInputsConforms: Conforms<
+  z.infer<typeof zSceneInputs>,
+  SceneInputs
+> = true;
+
+// A custom node is a pair of functions (cf. zLabelFormatter): accepted for
+// in-memory inputs, never survives JSON storage.
+const zDiagramCustomNode = z.custom<DiagramCustomNode>(
+  (v) =>
+    typeof v === "object" &&
+    v !== null &&
+    typeof (v as Record<string, unknown>).measure === "function" &&
+    typeof (v as Record<string, unknown>).draw === "function",
+);
+
+export const zDiagramInputs = z.object({
+  ...figureInputsBaseFields,
+  figureType: z.literal("diagram"),
+  data: zAnyPresentObject<DiagramData>(),
+  customNode: zDiagramCustomNode.optional(),
+});
+const _zDiagramInputsConforms: Conforms<
+  z.infer<typeof zDiagramInputs>,
+  DiagramInputs
+> = true;
+
 // The full FigureInputs union, discriminated on figureType: surrounds and data
-// validated, style opaque. The vizgraph/map `data` members are deliberately
-// unvalidated — map has no production drift history (and map geoData is
-// stripped before storage); vizgraph has no consumer
-// storing blobs at all (checked wb-fastr/marker/panrunner, 2026-07-13). Deep
-// zVizGraphData is warranted only when a consumer persists vizgraph figures.
+// validated, style opaque. The map and diagram `data` members are deliberately
+// unvalidated: map has no production drift history (and map geoData is
+// stripped before storage), and no consumer stores diagram blobs. A deep
+// zDiagramData is warranted only when a consumer persists diagram figures.
 export const zFigureInputs: z.ZodType<FigureInputs> = z.discriminatedUnion(
   "figureType",
   [
@@ -247,9 +265,10 @@ export const zFigureInputs: z.ZodType<FigureInputs> = z.discriminatedUnion(
     zChartOVInputs,
     zChartOHInputs,
     zTimeseriesInputs,
-    zVizGraphInputs,
     zMapInputs,
     zPieInputs,
+    zSceneInputs,
+    zDiagramInputs,
   ],
 );
 

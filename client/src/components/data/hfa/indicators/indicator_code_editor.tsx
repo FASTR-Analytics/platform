@@ -2,6 +2,7 @@ import {
   type APIResponseNoData,
   composeHfaIndicatorLabel,
   createHfaCodeParseCache,
+  getHfaIndicatorsGuidance,
   HFA_CODE_LIST_EXAMPLE,
   HFA_CODE_SYMBOLS,
   HFA_CODE_WORDS,
@@ -10,12 +11,19 @@ import {
   type HfaIndicator,
   type HfaIndicatorCategory,
   type HfaIndicatorCode,
+  type HfaIndicatorEditorDraft,
+  type HfaIndicatorEditorPatch,
   type HfaIndicatorServiceCategory,
   hfaIndicatorsStatus,
   type HfaIndicatorSubCategory,
   type HfaIndicatorVariantCode,
   type HfaIndicatorVariantGroup,
   type HfaIndicatorVariantItem,
+  type HfaTaxonomyInput,
+  type HfaVerificationField,
+  type HfaVerificationFinding,
+  type HfaVerificationRows,
+  hfaVerificationRule,
   t3,
   TC,
   type TranslatableString,
@@ -33,22 +41,38 @@ import {
   matchesSearch,
   MultiSelect,
   openConfirm,
+  plural,
   RadioGroup,
   searchTokens,
   Select,
   StateHolderWrapper,
   TextArea,
 } from "panther";
-import { createMemo, createSignal, For, Show } from "solid-js";
+import {
+  createMemo,
+  createSignal,
+  For,
+  Match,
+  onCleanup,
+  Show,
+  Switch,
+} from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
 import { serverActions } from "~/server_actions";
-import { getHfaIndicatorsGuidance } from "./ai/mod.ts";
 import {
   copilotViewController,
-  type HfaIndicatorEditorDraft,
-  type HfaIndicatorEditorPatch,
   holdCopilotView,
 } from "~/components/instance/copilot/mod.ts";
+import {
+  createHfaDraftFix,
+  type HfaDraftFix,
+  HfaFieldFindings,
+  type HfaIndicatorVerificationState,
+  hfaVerificationRun,
+  type HfaVerificationState,
+  noAnswerReason,
+  startRun,
+} from "./verification/mod.ts";
 
 const OPERATOR_MEANING: Record<
   (typeof HFA_CODE_SYMBOLS)[number] | (typeof HFA_CODE_WORDS)[number],
@@ -127,6 +151,22 @@ function variantKey(timePoint: string, itemId: string): string {
   return `${timePoint} / ${itemId}`;
 }
 
+// The open indicator's verification: its state, undefined until the
+// manager's hashes and rows land, its open findings, and its dismissed
+// findings of rules not switched off.
+type IndicatorFindings = {
+  status: HfaIndicatorVerificationState["status"] | undefined;
+  open: HfaVerificationFinding[];
+  dismissed: HfaVerificationFinding[];
+};
+
+// What the loaded editor hands its frame: the save, and the fix, which needs
+// the draft the frame does not hold.
+type EditorHandle = {
+  save: () => Promise<APIResponseNoData>;
+  draftFix: () => void;
+};
+
 export function HfaIndicatorCodeEditor(
   p: EditorComponentProps<
     {
@@ -140,6 +180,8 @@ export function HfaIndicatorCodeEditor(
       serviceCategories: HfaIndicatorServiceCategory[];
       variantGroups: HfaIndicatorVariantGroup[];
       variantItems: HfaIndicatorVariantItem[];
+      verificationState: () => HfaVerificationState | undefined;
+      verificationRows: () => HfaVerificationRows | undefined;
       deleteIndicator: (onDeleted: () => void) => Promise<void>;
     },
     undefined
@@ -172,18 +214,39 @@ export function HfaIndicatorCodeEditor(
   );
 
   const [needsSaving, setNeedsSaving] = createSignal(false);
-  let doSave: (() => Promise<APIResponseNoData>) | undefined;
+  const [handle, setHandle] = createSignal<EditorHandle>();
 
   const runSave = () =>
-    doSave?.() ?? Promise.resolve({ success: true } as APIResponseNoData);
+    handle()?.save() ??
+      Promise.resolve({ success: true } as APIResponseNoData);
+
+  const fix = createHfaDraftFix();
+  onCleanup(fix.abort);
 
   const save = createButtonAction(runSave, () => {
     setNeedsSaving(false);
+    fix.clear();
   });
 
   const saveAndClose = createButtonAction(runSave, () => {
     p.close(undefined);
   });
+
+  const findings = createMemo((): IndicatorFindings => {
+    const id = p.indicator.indicatorId;
+    const state = p.verificationState()?.byIndicator.get(id);
+    const rows = p.verificationRows();
+    const rulesOff = new Set<string>(rows?.rulesOff ?? []);
+    return {
+      status: state?.status,
+      open: state?.open ?? [],
+      dismissed: rows?.findings.filter((f) =>
+        f.indicatorId === id && f.dismissedAt !== null && !rulesOff.has(f.rule)
+      ) ?? [],
+    };
+  });
+
+  const drafting = () => fix.state().status === "drafting";
 
   return (
     <FrameTop
@@ -225,6 +288,43 @@ export function HfaIndicatorCodeEditor(
                   {t3({ en: "Cancel", fr: "Annuler", pt: "Cancelar" })}
                 </Button>
               </Show>
+              <Button
+                iconName="check"
+                outline
+                onBackground="base-300"
+                onClick={() => startRun([p.indicator.indicatorId])}
+                disabled={hfaVerificationRun().progress !== undefined}
+              >
+                {t3({ en: "Verify", fr: "Vérifier", pt: "Verificar" })}
+              </Button>
+              <div
+                title={needsSaving()
+                  ? t3({
+                    en:
+                      "Save first: the fix is drafted against the saved version and would land over your unsaved edits.",
+                    fr:
+                      "Sauvegardez d'abord : la correction est préparée à partir de la version sauvegardée et remplacerait vos modifications non sauvegardées.",
+                    pt:
+                      "Guarde primeiro: a correção é preparada a partir da versão guardada e substituiria as suas edições não guardadas.",
+                  })
+                  : ""}
+              >
+                <Button
+                  iconName="sparkles"
+                  outline
+                  onBackground="base-300"
+                  onClick={() => handle()?.draftFix()}
+                  disabled={handle() === undefined || needsSaving() ||
+                    findings().open.length === 0 || drafting()}
+                  loading={drafting()}
+                >
+                  {t3({
+                    en: "Draft a fix",
+                    fr: "Proposer une correction",
+                    pt: "Propor uma correção",
+                  })}
+                </Button>
+              </div>
             </div>
           }
           heading={composeHfaIndicatorLabel(p.indicator, "compact")}
@@ -264,10 +364,11 @@ export function HfaIndicatorCodeEditor(
                 variantItems={p.variantItems}
                 initialCodeSnippets={codeSnippets}
                 initialVariantCodeSnippets={variantCodeSnippets}
+                needsSaving={needsSaving}
                 setNeedsSaving={setNeedsSaving}
-                registerSave={(fn) => {
-                  doSave = fn;
-                }}
+                findings={findings}
+                fix={fix}
+                register={(h) => setHandle(h)}
               />
             )}
           </StateHolderWrapper>
@@ -290,8 +391,11 @@ function EditorInner(p: {
   variantItems: HfaIndicatorVariantItem[];
   initialCodeSnippets: HfaIndicatorCode[];
   initialVariantCodeSnippets: HfaIndicatorVariantCode[];
+  needsSaving: () => boolean;
   setNeedsSaving: (v: boolean) => void;
-  registerSave: (fn: () => Promise<APIResponseNoData>) => void;
+  findings: () => IndicatorFindings;
+  fix: HfaDraftFix;
+  register: (handle: EditorHandle) => void;
 }) {
   const initialCode: TempCodeEntry[] = p.dictionary.timePoints.map((tp) => {
     const existing = p.initialCodeSnippets.find(
@@ -471,7 +575,7 @@ function EditorInner(p: {
 
   // Save refuses only what a run could never use: a filter or variant code in
   // a round without indicator code. Every other issue is shown and saved.
-  p.registerSave(async () => {
+  async function saveDraft(): Promise<APIResponseNoData> {
     const refused = draftStatus().rounds.flatMap((r) =>
       r.issues
         .filter((i) =>
@@ -505,7 +609,7 @@ function EditorInner(p: {
       })),
       variantCode,
     });
-  });
+  }
 
   function markDirty() {
     p.setNeedsSaving(true);
@@ -567,11 +671,11 @@ function EditorInner(p: {
     setState("variantGroupId", groupId);
   }
 
-  // The chat's write, with the controls' own semantics: a category change
-  // clears the sub-category (the category select does the same), a group
-  // change drops the previous group's variant code before the patch's own
-  // variant rows land, a round keeps the field the patch omits, and the draft
-  // is marked unsaved.
+  // The chat's write and a drafted fix's, with the controls' own semantics: a
+  // category change clears the sub-category (the category select does the
+  // same), a group change drops the previous group's variant code before the
+  // patch's own variant rows land, a round keeps the field the patch omits,
+  // and the draft is marked unsaved.
   const applyDraft = (patch: HfaIndicatorEditorPatch) => {
     if (
       patch.categoryId !== undefined && patch.categoryId !== state.categoryId
@@ -617,6 +721,66 @@ function EditorInner(p: {
     markDirty();
   };
 
+  const taxonomy = (): HfaTaxonomyInput => ({
+    categories: p.categories,
+    subCategories: p.subCategories,
+    serviceCategories: p.serviceCategories,
+    variantGroups: p.variantGroups,
+    variantItems: p.variantItems,
+  });
+
+  // The draft as it was before a fix landed, which Discard restores. A fix
+  // lands only on a draft that is the saved version, so the restored draft is
+  // saved too.
+  let beforeFix: TempState | undefined;
+
+  function discardFix() {
+    if (beforeFix !== undefined) setState(beforeFix);
+    beforeFix = undefined;
+    p.setNeedsSaving(false);
+    p.fix.clear();
+  }
+
+  p.register({
+    save: saveDraft,
+    draftFix: () =>
+      void p.fix.draft({
+        indicatorId: p.indicator.indicatorId,
+        findings: p.findings().open,
+        taxonomy: taxonomy(),
+        draft: getDraft,
+        apply: (patch) => {
+          beforeFix = structuredClone(unwrap(state));
+          applyDraft(patch);
+        },
+      }),
+  });
+
+  const verifying = () =>
+    hfaVerificationRun().progress?.pending.has(p.indicator.indicatorId) ??
+      false;
+  const notChecked = () =>
+    hfaVerificationRun().notChecked.find((n) =>
+      n.indicatorId === p.indicator.indicatorId
+    );
+  const fixApplied = () => {
+    const st = p.fix.state();
+    return st.status === "applied" ? st : undefined;
+  };
+  const fixNotApplied = () => {
+    const st = p.fix.state();
+    return st.status === "not_applied" ? st : undefined;
+  };
+  const roundOpenFindings = (timePoint: string) =>
+    p.findings().open.filter((f) => f.timePoint === timePoint);
+  const findingsAt = (field: HfaVerificationField) => (
+    <HfaFieldFindings
+      findings={p.findings()}
+      field={field}
+      timePoint={selectedTimePoint()}
+    />
+  );
+
   copilotViewController.setView(
     "hfa_indicator_editor",
     { indicatorId: p.indicator.indicatorId },
@@ -624,13 +788,7 @@ function EditorInner(p: {
       getLabel: () => composeHfaIndicatorLabel(p.indicator, "compact"),
       getSelectedTimePoint: selectedTimePoint,
       getDraft,
-      getTaxonomy: () => ({
-        categories: p.categories,
-        subCategories: p.subCategories,
-        serviceCategories: p.serviceCategories,
-        variantGroups: p.variantGroups,
-        variantItems: p.variantItems,
-      }),
+      getTaxonomy: taxonomy,
       getIndicators: () => p.indicators,
       getAllCode: () => p.allCode,
       getAllVariantCode: () => p.allVariantCode,
@@ -644,6 +802,155 @@ function EditorInner(p: {
     <div class="flex h-full flex-col">
       <div class="flex-none border-b">
         <div class="ui-pad ui-spy-sm">
+          <Switch>
+            <Match when={verifying()}>
+              <div class="text-base-content-muted text-sm">
+                {t3({
+                  en: "Verifying…",
+                  fr: "Vérification en cours…",
+                  pt: "A verificar…",
+                })}
+              </div>
+            </Match>
+            <Match when={p.findings().status === "changed"}>
+              <div class="text-base-content-muted text-sm">
+                {t3({
+                  en:
+                    "Changed since it was verified: the findings describe the version that was verified.",
+                  fr:
+                    "Modifié depuis sa vérification : les constats décrivent la version vérifiée.",
+                  pt:
+                    "Alterado desde a verificação: as constatações descrevem a versão verificada.",
+                })}
+              </div>
+            </Match>
+            <Match when={p.findings().status === "not_verified"}>
+              <div class="text-base-content-muted text-sm">
+                {t3({
+                  en: "Not verified.",
+                  fr: "Non vérifié.",
+                  pt: "Não verificado.",
+                })}
+              </div>
+            </Match>
+          </Switch>
+          <Show when={p.needsSaving() && p.findings().open.length > 0}>
+            <div class="text-base-content-muted text-sm">
+              {t3({
+                en:
+                  "The findings describe the saved version, not your unsaved edits.",
+                fr:
+                  "Les constats décrivent la version sauvegardée, pas vos modifications non sauvegardées.",
+                pt:
+                  "As constatações descrevem a versão guardada, não as suas edições não guardadas.",
+              })}
+            </div>
+          </Show>
+          <Show when={notChecked()}>
+            {(n) => (
+              <div class="text-warning text-sm">
+                {t3({
+                  en: `Not checked: ${noAnswerReason(n().stopReason)}.`,
+                  fr: `Non vérifié : ${noAnswerReason(n().stopReason)}.`,
+                  pt: `Não verificado: ${noAnswerReason(n().stopReason)}.`,
+                })}
+              </div>
+            )}
+          </Show>
+          <Show when={hfaVerificationRun().stopError}>
+            {(stopError) => (
+              <div class="text-danger text-sm">
+                {t3({
+                  en: `The verification stopped: ${stopError()}`,
+                  fr: `La vérification s'est arrêtée : ${stopError()}`,
+                  pt: `A verificação parou: ${stopError()}`,
+                })}
+              </div>
+            )}
+          </Show>
+          <Switch>
+            <Match when={p.fix.state().status === "drafting"}>
+              <div class="bg-primary-subtle text-primary-subtle-content rounded px-3 py-2 text-sm">
+                {t3({
+                  en: "Drafting a fix for the open findings…",
+                  fr: "Préparation d'une correction des constats ouverts…",
+                  pt: "A preparar uma correção das constatações abertas…",
+                })}
+              </div>
+            </Match>
+            <Match when={fixApplied()}>
+              {(applied) => (
+                <div class="bg-success-subtle text-success-subtle-content ui-spy-sm rounded px-3 py-2 text-sm">
+                  <div class="ui-gap-sm flex items-start">
+                    <div class="min-w-0 flex-1">
+                      <div class="font-700">{applied().note}</div>
+                      <div>
+                        {t3({
+                          en:
+                            "Applied to the draft, unsaved: review it, then save or discard it.",
+                          fr:
+                            "Appliquée au brouillon, non sauvegardée : vérifiez-la, puis sauvegardez-la ou rejetez-la.",
+                          pt:
+                            "Aplicada ao rascunho, não guardada: reveja-a e depois guarde-a ou rejeite-a.",
+                        })}
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      intent="neutral"
+                      outline
+                      onClick={discardFix}
+                    >
+                      {t3({ en: "Discard", fr: "Rejeter", pt: "Rejeitar" })}
+                    </Button>
+                  </div>
+                  <Show
+                    when={applied().changes.length > 0}
+                    fallback={
+                      <div>
+                        {t3({
+                          en: "No field changed.",
+                          fr: "Aucun champ n'a changé.",
+                          pt: "Nenhum campo mudou.",
+                        })}
+                      </div>
+                    }
+                  >
+                    <div class="text-xs">
+                      <div>
+                        {t3({
+                          en: "Changed, with the value before the fix:",
+                          fr: "Modifié, avec la valeur avant la correction :",
+                          pt: "Alterado, com o valor antes da correção:",
+                        })}
+                      </div>
+                      <For each={applied().changes}>
+                        {(change) => (
+                          <div>
+                            <span class="font-700">{change.field}</span>
+                            {": "}
+                            <span
+                              class="whitespace-pre-wrap"
+                              classList={{ "font-mono": change.mono }}
+                            >
+                              {change.previous}
+                            </span>
+                          </div>
+                        )}
+                      </For>
+                    </div>
+                  </Show>
+                </div>
+              )}
+            </Match>
+            <Match when={fixNotApplied()}>
+              {(notApplied) => (
+                <div class="bg-warning-subtle text-warning-subtle-content rounded px-3 py-2 text-sm">
+                  {notApplied().reason}
+                </div>
+              )}
+            </Match>
+          </Switch>
           <div class="flex items-end gap-4">
             <Select
               label={t3({ en: "Category", fr: "Catégorie", pt: "Categoria" })}
@@ -832,6 +1139,8 @@ function EditorInner(p: {
               ]}
             />
           </div>
+          {findingsAt("category")}
+          {findingsAt("type")}
           <Input
             label={t3({
               en: "Short label",
@@ -845,6 +1154,7 @@ function EditorInner(p: {
             }}
             fullWidth
           />
+          {findingsAt("shortLabel")}
           <Input
             label={t3({
               en: "Long label",
@@ -858,6 +1168,7 @@ function EditorInner(p: {
             }}
             fullWidth
           />
+          {findingsAt("definition")}
         </div>
       </div>
 
@@ -875,6 +1186,7 @@ function EditorInner(p: {
               const codeEntry = () =>
                 state.code.find((c) => c.timePoint === tp.timePoint);
               const hasCode = () => !!codeEntry()?.code.trim();
+              const open = () => roundOpenFindings(tp.timePoint);
               return (
                 <button
                   class={`ui-pad-sm w-full cursor-pointer border-b text-left text-sm ${
@@ -892,10 +1204,33 @@ function EditorInner(p: {
                       pt: "sem código",
                     })}
                   </div>
+                  <Show when={open().length > 0}>
+                    <div
+                      class={open().some((f) =>
+                          hfaVerificationRule(f.rule).severity === "problem"
+                        )
+                        ? "text-danger text-xs"
+                        : "text-warning text-xs"}
+                    >
+                      {plural(open().length, {
+                        one: t3({
+                          en: "1 finding",
+                          fr: "1 constat",
+                          pt: "1 constatação",
+                        }),
+                        other: t3({
+                          en: `${open().length} findings`,
+                          fr: `${open().length} constats`,
+                          pt: `${open().length} constatações`,
+                        }),
+                      })}
+                    </div>
+                  </Show>
                 </button>
               );
             }}
           </For>
+          <div class="ui-pad-sm">{findingsAt("rounds")}</div>
         </div>
 
         <div class="flex min-w-0 flex-1 flex-col overflow-auto">
@@ -973,6 +1308,7 @@ function EditorInner(p: {
                     )}
                     describe={describeReferenced}
                   />
+                  {findingsAt("code")}
                 </div>
 
                 <div>
@@ -998,6 +1334,7 @@ function EditorInner(p: {
                     )}
                     describe={describeReferenced}
                   />
+                  {findingsAt("filterCode")}
                 </div>
 
                 <Show when={currentGroupItems().length > 0}>
@@ -1044,6 +1381,7 @@ function EditorInner(p: {
                     </For>
                   </div>
                 </Show>
+                {findingsAt("variantCode")}
 
                 <div class="ui-gap-sm flex items-center">
                   <Button

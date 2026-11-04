@@ -143,10 +143,21 @@ export type InferConventions = {
   timeColumns?: Record<string, PeriodType>;
 };
 
+// `unknownFilterValues` lists, per filter, the requested values no row of the
+// table holds, so a misspelled value is not read as an empty slice.
 export type ItemsResult =
-  | { status: "ok"; items: LongTableRow[]; periodBounds?: PeriodBounds }
-  | { status: "too_many_items"; periodBounds?: PeriodBounds }
-  | { status: "no_data" };
+  | {
+    status: "ok";
+    items: LongTableRow[];
+    periodBounds?: PeriodBounds;
+    unknownFilterValues?: LongTableFilter[];
+  }
+  | {
+    status: "too_many_items";
+    periodBounds?: PeriodBounds;
+    unknownFilterValues?: LongTableFilter[];
+  }
+  | { status: "no_data"; unknownFilterValues?: LongTableFilter[] };
 
 export type DimensionValuesResult =
   | { status: "ok"; values: (string | number)[] }

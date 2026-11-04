@@ -12,20 +12,28 @@ import {
 } from "./deps.ts";
 import { FontRegistrationError } from "./errors.ts";
 
-const registeredFonts: Set<string> = new Set();
+// A load is stored from the moment it starts, so a concurrent caller awaits it
+// instead of returning at once and measuring in Skia's fallback font.
+const fontLoads: Map<string, Promise<void>> = new Map();
 
-export async function registerFontWithSkiaIfNeeded(
+export function registerFontWithSkiaIfNeeded(
   fontInfo: FontInfo,
 ): Promise<void> {
   const fontInfoId = getFontInfoId(fontInfo);
-
-  if (registeredFonts.has(fontInfoId)) {
-    return;
+  const existing = fontLoads.get(fontInfoId);
+  if (existing !== undefined) {
+    return existing;
   }
+  const load = registerFont(fontInfo).catch((error) => {
+    fontLoads.delete(fontInfoId);
+    throw error;
+  });
+  fontLoads.set(fontInfoId, load);
+  return load;
+}
 
-  registeredFonts.add(fontInfoId);
+async function registerFont(fontInfo: FontInfo): Promise<void> {
   const absFilePath = getWoffFontAbsoluteFilePath(fontInfo);
-
   try {
     const dataArray = await Deno.readFile(absFilePath);
     if (dataArray.length === 0) {
@@ -33,7 +41,6 @@ export async function registerFontWithSkiaIfNeeded(
     }
     Fonts.register(dataArray);
   } catch (error) {
-    registeredFonts.delete(fontInfoId);
     if (error instanceof FontRegistrationError) {
       throw error;
     }

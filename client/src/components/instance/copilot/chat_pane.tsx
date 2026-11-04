@@ -2,15 +2,16 @@ import {
   ActionMenuButton,
   AIChat,
   AIChatConversationSelector,
+  type AIChatDisplayRegistry,
   type AIChatInstance,
   AIChatSettingsPanel,
   type AIChatSettingsPanelProps,
   type AIChatSettingsValues,
+  AIChatSystemNotice,
   AIChatSystemPromptPanel,
   type AIChatSystemPromptPanelProps,
   Button,
   HeadingBar,
-  Icon,
   type MenuItem,
   openComponent,
   openConfirm,
@@ -110,9 +111,9 @@ const PLACEHOLDERS: Record<CopilotViewId, TranslatableString> = {
 
 const RESET_RE = /will reset at ([^".}]+)/i;
 
-function RateLimitErrorBox(p: { item: { errorDetails: string } }) {
-  const isWeekly = () => /weekly|country/i.test(p.item.errorDetails);
-  const resetTime = () => p.item.errorDetails.match(RESET_RE)?.[1] ?? null;
+function RateLimitErrorBox(p: { details: string }) {
+  const isWeekly = () => /weekly|country/i.test(p.details);
+  const resetTime = () => p.details.match(RESET_RE)?.[1] ?? null;
   return (
     <div class="bg-base-100 my-1 max-w-sm rounded border p-3">
       <div class="text-warning text-sm">
@@ -143,73 +144,22 @@ function RateLimitErrorBox(p: { item: { errorDetails: string } }) {
   );
 }
 
-function ToolErrorRenderer(p: {
-  item: { errorMessage: string; errorDetails: string };
-}) {
-  const isRateLimit = () =>
-    /daily AI token limit|weekly AI token limit/i.test(p.item.errorDetails);
-  const [expanded, setExpanded] = createSignal(false);
-  return (
+// The proxy's quota rejection reaches the chat as a turn_error notice whose
+// details carry the proxy's message; every other notice is panther's card.
+const QUOTA_RE = /daily AI token limit|weekly AI token limit/i;
+
+const customChatRenderers: AIChatDisplayRegistry = {
+  systemNotice: (p) => (
     <Show
-      when={isRateLimit()}
-      fallback={
-        <div class="my-1">
-          <button
-            type="button"
-            onClick={() => setExpanded((v) => !v)}
-            class="text-base-content-muted hover:text-base-content flex w-full cursor-pointer items-start gap-1 text-left text-xs"
-          >
-            <div class="mt-0.5">
-              {expanded()
-                ? <Icon iconName="chevronDown" class="h-3 w-3" />
-                : <Icon iconName="chevronRight" class="h-3 w-3" />}
-            </div>
-            <span>{p.item.errorMessage}</span>
-          </button>
-          <Show when={expanded()}>
-            <div class="mt-1 ml-4 text-xs">{p.item.errorDetails}</div>
-          </Show>
-        </div>
-      }
+      when={p.item.noticeType === "turn_error" &&
+        QUOTA_RE.test(p.item.details)}
+      fallback={<AIChatSystemNotice item={p.item} />}
     >
-      <RateLimitErrorBox item={p.item} />
+      <RateLimitErrorBox details={p.item.details} />
     </Show>
-  );
-}
-
-// Non-error turn outcomes (refusal, truncation, context-window exceeded,
-// continuation caps) arrive as system_notice items. Match the collapsible
-// look of ToolErrorRenderer so they read like the rest of the chat.
-function SystemNoticeRenderer(p: {
-  item: { message: string; details: string };
-}) {
-  const [expanded, setExpanded] = createSignal(false);
-  return (
-    <div class="my-1">
-      <button
-        type="button"
-        onClick={() => setExpanded((v) => !v)}
-        class="text-base-content-muted hover:text-base-content flex w-full cursor-pointer items-start gap-1 text-left text-xs"
-      >
-        <div class="mt-0.5">
-          {expanded()
-            ? <Icon iconName="chevronDown" class="h-3 w-3" />
-            : <Icon iconName="chevronRight" class="h-3 w-3" />}
-        </div>
-        <span>{p.item.message}</span>
-      </button>
-      <Show when={expanded()}>
-        <div class="mt-1 ml-4 text-xs">{p.item.details}</div>
-      </Show>
-    </div>
-  );
-}
-
-const customChatRenderers = {
-  toolError: ToolErrorRenderer,
-  systemNotice: SystemNoticeRenderer,
+  ),
   userText: SaveableUserTextRenderer,
-} as Parameters<typeof AIChat>[0]["customRenderers"];
+};
 
 type ConsolidatedChatPaneProps = {
   // The panel's engine instance, which the pane also hands to AIChat:

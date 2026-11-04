@@ -25,16 +25,14 @@ import {
   onMount,
   Show,
 } from "solid-js";
+import { createAiProxyClient } from "~/components/_shared/mod.ts";
 import { clerk } from "~/state/_infra/clerk";
 import { instanceState } from "~/state/instance/t1_store";
 import { getRunAuthoringContextFromCacheOrFetch } from "~/state/instance/t2_run_authoring_context";
 import { ensureRunGeoJsonStamp } from "~/state/instance/t2_run_geojson";
 import { AI_DEBUG, setShowAi } from "~/state/t4_ui";
 import { copilotViewController, packageViewContext } from "./ai_views";
-import {
-  createCopilotSDKClient,
-  DEFAULT_BUILTIN_TOOLS,
-} from "./ai_configs/mod.ts";
+import { DEFAULT_BUILTIN_TOOLS } from "./ai_configs/mod.ts";
 import { useAIDocuments } from "./ai_documents/mod.ts";
 import {
   buildCopilotPackageBlock,
@@ -120,7 +118,7 @@ export function CopilotPanel(p: { tools: AnyAITool[] }) {
 }
 
 function CopilotChat(p: { scope: string; tools: AnyAITool[] }) {
-  const sdkClient = createCopilotSDKClient();
+  const sdkClient = createAiProxyClient();
   const aiDocs = useAIDocuments();
   const viewPackage = createViewPackage();
 

@@ -33,11 +33,24 @@ import {
 } from "./_internal/text/measure_text.ts";
 import { writeText, writeVerticalText } from "./_internal/text/write_text.ts";
 
-export class CanvasRenderContext implements RenderContext {
-  _ctx: CanvasRenderingContext2D;
+// The canvas a withOpacity layer paints into, the size of the target's
+// backing store: document.createElement("canvas") in the browser, @gfx/canvas's
+// createCanvas in Deno (cast at the site, as its context is).
+export type CreateCanvas = (width: number, height: number) => HTMLCanvasElement;
 
-  constructor(ctx: CanvasRenderingContext2D) {
+export class CanvasRenderContext implements RenderContext {
+  // The context the ops paint into: the target's, or the open layer's inside
+  // withOpacity.
+  _ctx: CanvasRenderingContext2D;
+  private readonly _createCanvas: CreateCanvas;
+  // One layer canvas per nesting depth, kept across withOpacity calls so a
+  // tween's frames allocate none.
+  private readonly _layers: HTMLCanvasElement[] = [];
+  private _depth = 0;
+
+  constructor(ctx: CanvasRenderingContext2D, createCanvas: CreateCanvas) {
     this._ctx = ctx;
+    this._createCanvas = createCanvas;
   }
 
   mText(
@@ -117,13 +130,11 @@ export class CanvasRenderContext implements RenderContext {
   }
 
   rRect(rcd: RectCoordsDimsOptions, s: RectStyle) {
-    const r = new RectCoordsDims(rcd);
-    addRect(this._ctx, r, s);
+    addRect(this._ctx, new RectCoordsDims(rcd), s);
   }
 
   rPoint(coords: CoordinatesOptions, s: PointStyle) {
-    const c = new Coordinates(coords);
-    addPoint(this._ctx, c, s);
+    addPoint(this._ctx, new Coordinates(coords), s);
   }
 
   rImage(
@@ -187,7 +198,6 @@ export class CanvasRenderContext implements RenderContext {
     if (style.fill) {
       const fillStr = getColor(style.fill.color);
       if (fillStr !== "none") {
-        ctx.globalAlpha = style.fill.opacity ?? 1;
         ctx.fillStyle = fillStr;
         ctx.fill(style.fill.fillRule ?? "nonzero");
       }
@@ -196,7 +206,6 @@ export class CanvasRenderContext implements RenderContext {
     if (style.stroke) {
       const strokeStr = getColor(style.stroke.color);
       if (strokeStr !== "none") {
-        ctx.globalAlpha = style.stroke.opacity ?? 1;
         ctx.strokeStyle = strokeStr;
         ctx.lineWidth = style.stroke.width;
         if (style.stroke.lineDash === "dashed") {
@@ -206,8 +215,6 @@ export class CanvasRenderContext implements RenderContext {
         ctx.setLineDash([]);
       }
     }
-
-    ctx.globalAlpha = 1;
   }
 
   withClip(bounds: RectCoordsDimsOptions, fn: () => void): void {
@@ -219,5 +226,49 @@ export class CanvasRenderContext implements RenderContext {
     ctx.clip();
     fn();
     ctx.restore();
+  }
+
+  // fn paints into an offscreen layer under the target's transform; the layer
+  // then composites onto the target at alpha, so what fn paints over itself
+  // (a box's text over its fill) is not tinted by what is beneath it. The skia
+  // canvas honours globalAlpha for drawImage alone, which is all a layer needs.
+  withOpacity(alpha: number, fn: () => void): void {
+    const target = this._ctx;
+    const layer = this.openLayer(target);
+    this._ctx = layer;
+    try {
+      fn();
+    } finally {
+      this._ctx = target;
+      this._depth--;
+    }
+    target.save();
+    target.setTransform(1, 0, 0, 1, 0, 0);
+    target.globalAlpha = alpha;
+    target.drawImage(layer.canvas, 0, 0);
+    target.restore();
+  }
+
+  private openLayer(
+    target: CanvasRenderingContext2D,
+  ): CanvasRenderingContext2D {
+    const { width, height } = target.canvas;
+    let canvas = this._layers[this._depth];
+    if (
+      canvas === undefined || canvas.width !== width ||
+      canvas.height !== height
+    ) {
+      canvas = this._createCanvas(width, height);
+      this._layers[this._depth] = canvas;
+    }
+    this._depth++;
+    const ctx = canvas.getContext("2d");
+    if (ctx === null) {
+      throw new Error("Failed to get a 2D context for the opacity layer");
+    }
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, width, height);
+    ctx.setTransform(target.getTransform());
+    return ctx;
   }
 }

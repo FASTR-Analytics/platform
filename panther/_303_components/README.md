@@ -26,15 +26,6 @@ Your application must have:
 
 ## Component Categories
 
-### Charts (`charts/`)
-
-```tsx
-<FigureHolder figureInputs={figureInputs} />
-<PageHolder pageInputs={pageInputs} />
-```
-
-Display panther visualizations and pages in SolidJS apps.
-
 ### Display (`display/`)
 
 ```tsx

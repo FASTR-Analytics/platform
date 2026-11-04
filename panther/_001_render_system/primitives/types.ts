@@ -49,11 +49,6 @@ export const Z_INDEX = {
   LABEL: 700,
   LEGEND: 800,
   CAPTION: 900,
-  // VizGraph defaults
-  VIZGRAPH_LANE: 470, // Lane bands behind group boxes
-  VIZGRAPH_UNFOLDED_GROUP: 480, // Group boxes behind edges and nodes
-  VIZGRAPH_EDGE: 490, // Behind nodes by default
-  VIZGRAPH_NODE: 500,
   // Cascade defaults
   CASCADE_ARROW: 550,
   // Map defaults
@@ -73,6 +68,10 @@ export const Z_INDEX = {
   TABLE_BORDER: 300,
   TABLE_TEXT: 400,
   ANNOTATION_RECT: 750,
+  // Scene defaults: regions behind connectors behind elements
+  SCENE_REGION: 470,
+  SCENE_CONNECTOR: 490,
+  SCENE_ELEMENT: 500,
 } as const;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -86,6 +85,12 @@ export type BasePrimitive = {
   key: string;
   bounds: RectCoordsDims;
   zIndex?: number;
+  // A group alpha: the primitive composites over what is beneath it at this
+  // alpha (RenderContext.withOpacity). Consecutive primitives sharing a
+  // `group` and an `opacity` composite as one layer, so a scene element's
+  // text is not tinted by its own fill.
+  opacity?: number;
+  group?: string;
   annotationGroup?: string;
   annotationBounds?: RectCoordsDims;
 };
@@ -331,90 +336,6 @@ export type ChartLabelPrimitive = BasePrimitive & {
   alignment: {
     h: "left" | "center" | "right";
     v: "top" | "middle" | "bottom";
-  };
-};
-
-////////////////////////////////////////////////////////////////////////////////
-//                                                                            //
-//    VizGraph Primitives                                                     //
-//                                                                            //
-////////////////////////////////////////////////////////////////////////////////
-
-// VizGraph owns its primitive types (Tim, 2026-07-13). Four primitives:
-// vizgraph-node (real nodes AND folded-group reps), vizgraph-edge,
-// vizgraph-unfolded-group (a folded group renders as a node, never as this),
-// and vizgraph-lane.
-
-export type VizGraphNodePrimitive = BasePrimitive & {
-  type: "vizgraph-node";
-  meta: {
-    // A folded rep's nodeId is its group id.
-    nodeId: string;
-  };
-  // Visual
-  rcd: RectCoordsDims;
-  rectStyle: RectStyle;
-  // Text (if present)
-  text?: {
-    mText: MeasuredText;
-    position: Coordinates;
-  };
-  secondaryText?: {
-    mText: MeasuredText;
-    position: Coordinates;
-  };
-};
-
-// The decorative box behind an unfolded group's members, label in the header
-// row. `outline` is the engine's edge-hug ring(s) — pre-rounded closed
-// path(s), possibly several disjoint rings — painted with the rectStyle's
-// fill/stroke when present; rcd stays the bounding-box fallback and hit-test
-// rect.
-export type VizGraphUnfoldedGroupPrimitive = BasePrimitive & {
-  type: "vizgraph-unfolded-group";
-  meta: {
-    groupId: string;
-  };
-  // Visual
-  rcd: RectCoordsDims;
-  rectStyle: RectStyle;
-  outline?: PathSegment[];
-  // Label (if present)
-  text?: {
-    mText: MeasuredText;
-    position: Coordinates;
-  };
-};
-
-// A lane box (M5): the full-height band behind a lane's columns, header text
-// left-aligned in the row the engine reserved.
-export type VizGraphLanePrimitive = BasePrimitive & {
-  type: "vizgraph-lane";
-  meta: {
-    laneId: string;
-  };
-  rcd: RectCoordsDims;
-  rectStyle: RectStyle;
-  text?: {
-    mText: MeasuredText;
-    position: Coordinates;
-  };
-};
-
-// Orthogonal edge route with rounded corners (cubic segments) and optional
-// arrowheads.
-export type VizGraphEdgePrimitive = BasePrimitive & {
-  type: "vizgraph-edge";
-  meta: {
-    edgeId: string;
-    fromNodeId: string;
-    toNodeId: string;
-  };
-  pathSegments: PathSegment[];
-  pathStyle: PathStyle;
-  arrowheads?: {
-    start?: Arrowhead;
-    end?: Arrowhead;
   };
 };
 
@@ -709,6 +630,59 @@ export type AnnotationRectPrimitive = BasePrimitive & {
 
 ////////////////////////////////////////////////////////////////////////////////
 //                                                                            //
+//    Shape Primitives                                                        //
+//                                                                            //
+////////////////////////////////////////////////////////////////////////////////
+
+// The generic shapes a scene element lowers to. `meta.element` is the key of
+// the element the shape belongs to.
+type ShapeBase = BasePrimitive & {
+  meta: { element: string };
+};
+
+export type ShapeRectPrimitive = ShapeBase & {
+  type: "shape-rect";
+  rcd: RectCoordsDims;
+  style: RectStyle;
+};
+
+export type ShapeTextPrimitive = ShapeBase & {
+  type: "shape-text";
+  mText: MeasuredText;
+  position: Coordinates | RectCoordsDims;
+  alignH: AlignH;
+  alignV: AlignV;
+};
+
+export type ShapePathPrimitive = ShapeBase & {
+  type: "shape-path";
+  pathSegments: PathSegment[];
+  pathStyle: PathStyle;
+  arrowheads?: {
+    start?: Arrowhead;
+    end?: Arrowhead;
+  };
+};
+
+export type ShapeImagePrimitive = ShapeBase & {
+  type: "shape-image";
+  image: HTMLImageElement | HTMLCanvasElement;
+  rcd: RectCoordsDims;
+};
+
+export type ShapePrimitive =
+  | ShapeRectPrimitive
+  | ShapeTextPrimitive
+  | ShapePathPrimitive
+  | ShapeImagePrimitive;
+
+export function isShapePrimitive(p: Primitive): p is ShapePrimitive {
+  return p.type === "shape-rect" || p.type === "shape-text" ||
+    p.type === "shape-path" || p.type === "shape-image";
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//                                                                            //
 //    Primitive Union Type                                                    //
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
@@ -728,11 +702,6 @@ export type Primitive =
   | ChartLegendPrimitive
   | ChartCaptionPrimitive
   | ChartLabelPrimitive
-  // VizGraph primitives
-  | VizGraphNodePrimitive
-  | VizGraphLanePrimitive
-  | VizGraphUnfoldedGroupPrimitive
-  | VizGraphEdgePrimitive
   // Sankey primitives
   | SankeyNodePrimitive
   | SankeyLinkPrimitive
@@ -755,4 +724,6 @@ export type Primitive =
   | TableGridPrimitive
   | TableHeaderAxisPrimitive
   // Annotation primitives
-  | AnnotationRectPrimitive;
+  | AnnotationRectPrimitive
+  // Shapes (scene elements lowered)
+  | ShapePrimitive;

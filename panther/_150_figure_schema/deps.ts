@@ -49,6 +49,13 @@ export type {
   PieInputs,
   PieJsonDataConfig,
 } from "../_010_pie/mod.ts";
+export { SceneBuilder } from "../_010_scene/mod.ts";
+export type {
+  DiagramCustomNode,
+  DiagramData,
+  DiagramInputs,
+  SceneInputs,
+} from "../_010_scene/mod.ts";
 export type {
   ColGroup,
   ColGroupCol,
@@ -67,10 +74,5 @@ export type {
   TimeseriesInputs,
   TimeseriesJsonDataConfig,
 } from "../_010_timeseries/mod.ts";
-export type {
-  VizGraphCustomNode,
-  VizGraphData,
-  VizGraphInputs,
-} from "../_010_vizgraph_figure/mod.ts";
 export type { FigureInputs } from "../_011_figure_renderer/mod.ts";
 export { z } from "zod";

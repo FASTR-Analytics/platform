@@ -62,6 +62,43 @@ export type HfaIndicatorVariantCode = {
   code: string;
 };
 
+// One round of the code editor's draft: its main code and filter.
+export type HfaIndicatorEditorRound = {
+  timePoint: string;
+  code: string;
+  filterCode: string;
+};
+// The code editor's unsaved state: its fields, the code per round, the
+// variant group and the current group's non-empty variant rows. Its issues
+// and consistency are the status core's, computed over it.
+export type HfaIndicatorEditorDraft = {
+  shortLabel: string;
+  definition: string;
+  type: "binary" | "numeric";
+  aggregation: "sum" | "avg";
+  categoryId: string | null;
+  subCategoryId: string | null;
+  serviceCategoryIds: string[];
+  code: HfaIndicatorEditorRound[];
+  variantGroupId: string | null;
+  variantCode: { timePoint: string; itemId: string; code: string }[];
+};
+// A change to the code editor's draft: every field optional. A round not
+// listed is kept, and in a listed round an omitted field is kept and an empty
+// string clears it; a variant row's empty `code` removes it.
+export type HfaIndicatorEditorPatch = {
+  shortLabel?: string;
+  definition?: string;
+  type?: "binary" | "numeric";
+  aggregation?: "sum" | "avg";
+  categoryId?: string | null;
+  subCategoryId?: string | null;
+  serviceCategoryIds?: string[];
+  variantGroupId?: string | null;
+  code?: { timePoint: string; code?: string; filterCode?: string }[];
+  variantCode?: { timePoint: string; itemId: string; code: string }[];
+};
+
 // The no-run / unreadable-run state: every taxonomy list empty.
 export const EMPTY_HFA_TAXONOMY: HfaTaxonomyForAI = {
   categories: [],

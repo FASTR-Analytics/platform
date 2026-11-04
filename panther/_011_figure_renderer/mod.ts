@@ -3,6 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
+export { embedFigure } from "./embed.ts";
 export { FigureRenderer } from "./figure_renderer.ts";
 export type {
   FigureInputs,

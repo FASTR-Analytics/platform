@@ -69,24 +69,40 @@ async function handOver(chat: AIChatInstance, channel: BroadcastChannel) {
 
 ## One-Shot Requests
 
+Every request of `callAI` and `callAIStructured` streams and settles on its
+final message, the tool runner's requests included, so panther's default
+`max_tokens` is accepted (the SDK refuses a non-streaming request that could run
+past ten minutes). Both take `options?: { signal?: AbortSignal }`, passed to
+every SDK request of the call, and both return the `model` the response names.
+
 ```typescript
-import { callAI, createSDKClient } from "@timroberton/panther";
+import {
+  callAI,
+  callAIStructured,
+  createSDKClient,
+} from "@timroberton/panther";
+import { z } from "zod";
 
 const anthropic = createSDKClient({
   baseURL: "https://api.anthropic.com",
   apiKey: Deno.env.get("ANTHROPIC_API_KEY"),
 });
 
+const controller = new AbortController();
 const result = await callAI(
-  {
-    sdkClient: anthropic,
-    modelConfig: {
-      model: "claude-sonnet-5",
-      max_tokens: 1024,
-    },
-  },
+  { sdkClient: anthropic },
   [{ role: "user", content: "Hello!" }],
+  { signal: controller.signal },
 );
+
+const structured = await callAIStructured(
+  { sdkClient: anthropic },
+  [{ role: "user", content: "What is 2 + 2?" }],
+  z.object({ answer: z.number() }),
+  { signal: controller.signal },
+);
+// structured.data is { answer: 4 }, or null on a refusal, on max_tokens or
+// when the text fails the schema; structured.model is the response's model.
 ```
 
 ## Custom Tools
@@ -274,24 +290,43 @@ const readSlide = bindAIToolToView(
 
 ## Tool Results Display
 
-Tool executions now show their results to users (collapsible):
+Every tool call ends as a collapsible card. Expanded, both cards open with the
+input the model sent, under an `Input (tool name):` heading, so what the model
+asked for is read beside what came back.
 
 **Success:**
 
-- Shows success message (e.g., "Weather retrieved")
-- Click to expand and see actual result data
-- Useful for understanding what tools returned
+- Shows the success message (e.g., "Weather retrieved")
+- Click to expand and see the input and the result data
 
 **Errors:**
 
-- Shows error message
-- Click "stack trace" to see full error details (unexpected throws only —
-  `AIToolFailure` renders without a stack section)
-- Helps debug tool issues
+- Shows the error message
+- Click to expand and see the input, the error details and the stack trace
+  (unexpected throws only — `AIToolFailure` renders without a stack section)
 
 **Custom cards:** a tool's `displayComponent` receives `{ input, view }`, where
 `view` is the id and identity of the view the call ran in (`AIViewSnapshot`),
 stored with the card; absent on cards stored before the view declared one.
+
+## Custom Renderers
+
+`AIChat`'s `customRenderers` prop is an `AIChatDisplayRegistry`: one optional
+component per kind of display item (`userText`, `assistantCompletedText`,
+`assistantStreamingText`, `toolLoading`, `toolSuccess`, `toolError`,
+`systemNotice`, `thinkingSummary`, `approvalPending`, `approvalDecision` and
+`default`). Every slot's default is exported under the matching `AIChat*` name
+(`AIChatToolError`, `AIChatSystemNotice`, ...), so a custom renderer can take
+one case and hand the rest back to the default:
+
+```tsx
+const customRenderers: AIChatDisplayRegistry = {
+  systemNotice: (p) =>
+    p.item.noticeType === "turn_error" && isQuotaRejection(p.item.details)
+      ? <QuotaBox details={p.item.details} />
+      : <AIChatSystemNotice item={p.item} />,
+};
+```
 
 ## Built-in Tools
 
@@ -356,6 +391,11 @@ builtInTools: {
 
 - `AIChat` - Complete chat UI
 - `AIChatProvider` - Config provider
+- `AIChatUserText`, `AIChatAssistantCompletedText`,
+  `AIChatAssistantStreamingText`, `AIChatToolLoading`, `AIChatToolSuccess`,
+  `AIChatToolError`, `AIChatSystemNotice`, `AIChatThinkingSummary`,
+  `AIChatApprovalPending`, `AIChatApprovalDecision`, `AIChatDefaultItem` - The
+  default renderer of each `AIChatDisplayRegistry` slot
 
 **Functions:**
 
@@ -379,6 +419,7 @@ builtInTools: {
 **Types:**
 
 - `AIChatConfig`
+- `AIChatDisplayRegistry` - the `customRenderers` prop of `AIChat`
 - `AIChatInstance` - what `createAIChat()` returns; `AIChat`'s `chat` prop; its
   `getNextTurnPreview()` gives the system text and the sections the next message
   would carry, for a prompt panel, and its `whenIdle()` resolves once the active

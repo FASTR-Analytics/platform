@@ -33,6 +33,7 @@ import {
 import { hasScheduledImportAttention } from "./dataset_hmis_scheduled_imports.ts";
 import { computeHfaCacheHash } from "./dataset_hfa.ts";
 import { getHfaWeightsCoverage } from "./hfa_facility_weights.ts";
+import { getHfaVerificationVersion } from "./hfa_verification.ts";
 import { getIcehCacheHash } from "./dataset_iceh.ts";
 import { getScopeGrantsByEmail, otherUserFromRow } from "./users.ts";
 
@@ -126,6 +127,7 @@ export async function getInstanceIndicatorsSummary(
   const indicatorsVersion = await getIndicatorsVersion(mainDb);
   const countIndicatorsVersion = await getCountIndicatorsVersion(mainDb);
   const hfaIndicatorsVersion = await getHfaIndicatorsVersion(mainDb);
+  const hfaVerificationVersion = await getHfaVerificationVersion(mainDb);
   return {
     indicators: {
       hmisIndicators,
@@ -134,6 +136,7 @@ export async function getInstanceIndicatorsSummary(
     indicatorsVersion,
     countIndicatorsVersion,
     hfaIndicatorsVersion,
+    hfaVerificationVersion,
   };
 }
 

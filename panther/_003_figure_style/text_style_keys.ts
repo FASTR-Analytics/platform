@@ -32,11 +32,14 @@ export const FIGURE_TEXT_STYLE_KEYS = [
   "paneHeaders",
   // Pie (indicator-slot headers; read as mergedStyle.pie.text.indicatorHeaders)
   "indicatorHeaders",
-  // VizGraph
-  "vizgraphNodeTextPrimary",
-  "vizgraphNodeTextSecondary",
-  "vizgraphGroupLabel",
-  "vizgraphLaneLabel",
+  // Scene
+  "sceneBoxTitle",
+  "sceneBoxSub",
+  "sceneBoxLine",
+  "sceneBadge",
+  "sceneRegionLabel",
+  "sceneConnectorLabel",
+  "sceneText",
 ] as const;
 
 // Extract the type from the const array

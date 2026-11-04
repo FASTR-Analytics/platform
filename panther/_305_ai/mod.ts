@@ -13,9 +13,20 @@ export { AIChatSettingsPanel } from "./_components/ai_chat_settings_panel.tsx";
 export { AIChatSystemPromptPanel } from "./_components/ai_chat_system_prompt_panel.tsx";
 export { AIChatProvider } from "./context.tsx";
 export {
+  AIChatApprovalDecision,
+  AIChatApprovalPending,
   openProposalPreview,
   ProposalPreviewBody,
-} from "./_components/_renderers/approval_renderer.tsx";
+} from "./_components/_renderers/approval.tsx";
+export { AIChatAssistantCompletedText } from "./_components/_renderers/assistant_completed_text.tsx";
+export { AIChatAssistantStreamingText } from "./_components/_renderers/assistant_streaming_text.tsx";
+export { AIChatDefaultItem } from "./_components/_renderers/default_item.tsx";
+export { AIChatSystemNotice } from "./_components/_renderers/system_notice.tsx";
+export { AIChatThinkingSummary } from "./_components/_renderers/thinking_summary.tsx";
+export { AIChatToolError } from "./_components/_renderers/tool_error.tsx";
+export { AIChatToolLoading } from "./_components/_renderers/tool_loading.tsx";
+export { AIChatToolSuccess } from "./_components/_renderers/tool_success.tsx";
+export { AIChatUserText } from "./_components/_renderers/user_text.tsx";
 
 ////////////////////////////////////////////////////////////////////////////////
 // SIGNALS & HOOKS
@@ -45,7 +56,7 @@ export { getBetaHeaders } from "./_core/beta_headers.ts";
 // TYPES
 ////////////////////////////////////////////////////////////////////////////////
 
-export type { AIChatConfig } from "./_core/types.ts";
+export type { AIChatConfig, AIChatDisplayRegistry } from "./_core/types.ts";
 export type { AIChatInstance } from "./_components/_create_ai_chat.ts";
 export type { AIViewController } from "./_core/views.ts";
 export type {
@@ -77,6 +88,7 @@ export type {
 } from "./_core/ask_user_questions_types.ts";
 export type {
   CallAIConfig,
+  CallAIOptions,
   CallAIResult,
   CallAIStructuredResult,
 } from "./_core/one_shot.ts";

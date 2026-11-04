@@ -12,6 +12,10 @@ import type {
   ChartValueInfoFunc,
   ColorAdjustmentStrategy,
   ColorKeyOrString,
+  DiagramBadgeInfo,
+  DiagramEdgeInfo,
+  DiagramNodeInfo,
+  DiagramTextInfo,
   LineStyle,
   MapRegionInfoFunc,
   Padding,
@@ -20,11 +24,8 @@ import type {
   RectStyle,
   TableCellInfoFunc,
   TableHeaderInfoFunc,
-  TextInfo,
   TextInfoUnkeyed,
   TickLabelFormatterOption,
-  VizGraphEdgeInfo,
-  VizGraphNodeInfo,
 } from "./deps.ts";
 import type {
   AreaDiffPair,
@@ -430,57 +431,92 @@ export type MergedXPeriodAxisStyle = {
   calendar: CalendarType;
 };
 
-export type MergedVizGraphStyle = {
+export type MergedSceneRegionChrome = {
+  fillColor: string;
+  strokeColor: string;
+  strokeWidth: number;
+  rectRadius: number;
+};
+
+export type MergedSceneStyle = {
   alreadyScaledValue: number;
   text: {
-    primary: TextInfoUnkeyed;
-    secondary: TextInfoUnkeyed;
-    groupLabel: TextInfoUnkeyed;
-    laneLabel: TextInfoUnkeyed;
-    base: TextInfo; // Unscaled base for per-node text style overrides
+    boxTitle: TextInfoUnkeyed;
+    boxSub: TextInfoUnkeyed;
+    boxLine: TextInfoUnkeyed;
+    badge: TextInfoUnkeyed;
+    regionLabel: TextInfoUnkeyed;
+    connectorLabel: TextInfoUnkeyed;
+    text: TextInfoUnkeyed;
   };
-  nodes: {
+  boxes: {
     fillColor: string;
     strokeColor: string;
     strokeWidth: number;
     rectRadius: number;
     padding: Padding;
-    maxTextWidth: number;
     textGap: number;
-    // Resolved per-node overrides: colors to strings, widths/radii scaled.
-    nodeInfo: (info: VizGraphNodeInfo) => {
+    gap: number;
+    alignH: "left" | "center" | "right";
+  };
+  badges: {
+    fillColor: string;
+    strokeColor: string;
+    strokeWidth: number;
+    padding: Padding;
+    gap: number;
+  };
+  connectors: {
+    strokeColor: string;
+    strokeWidth: number;
+    lineDash: "solid" | "dashed";
+    headSize: number;
+    gap: number;
+    cornerRadius: number;
+    labelFillColor: string;
+    labelPadding: Padding;
+  };
+  regions: {
+    labelInset: number;
+    rect: MergedSceneRegionChrome;
+    panel: MergedSceneRegionChrome;
+    band: MergedSceneRegionChrome;
+    bracket: {
+      strokeColor: string;
+      strokeWidth: number;
+      depth: number;
+    };
+    ring: MergedSceneRegionChrome;
+  };
+  // The diagram block, merged here because a diagram is a producer of
+  // scenes and the builder lays diagrams out too.
+  diagram: {
+    maxNodeTextWidth: number;
+    groupPad: number;
+    nodeInfo: (info: DiagramNodeInfo) => {
       fillColor?: string;
       strokeColor?: string;
       strokeWidth?: number;
       rectRadius?: number;
       textColor?: string;
+      opacity?: number;
     };
-  };
-  edges: {
-    strokeColor: string;
-    strokeWidth: number;
-    lineDash: "solid" | "dashed";
-    arrowheadSize: number;
-    // Resolved per-edge overrides: colors to strings, thickness scaled.
-    edgeInfo: (info: VizGraphEdgeInfo) => {
+    badgeInfo: (info: DiagramBadgeInfo) => {
+      fillColor?: string;
+      strokeColor?: string;
+      textColor?: string;
+      opacity?: number;
+    };
+    edgeInfo: (info: DiagramEdgeInfo) => {
       thickness?: number;
       strokeColor?: string;
       lineDash?: "solid" | "dashed";
+      opacity?: number;
     };
-  };
-  groups: {
-    fillColor: string;
-    strokeColor: string;
-    strokeWidth: number;
-    rectRadius: number;
-    labelInset: number;
-  };
-  lanes: {
-    fillColor: string;
-    strokeColor: string;
-    strokeWidth: number;
-    rectRadius: number;
-    labelInset: number;
+    textInfo: (info: DiagramTextInfo) => {
+      textColor?: string;
+      opacity?: number;
+    };
   };
 };
 

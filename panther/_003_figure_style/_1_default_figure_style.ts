@@ -12,6 +12,11 @@ import {
   Color,
   type ColorAdjustmentStrategy,
   type ColorKeyOrString,
+  type DiagramBadgeInfoFunc,
+  type DiagramEdgeInfoFunc,
+  type DiagramNodeInfoFunc,
+  type DiagramTextInfoFunc,
+  type FontInfoOptions,
   getColor,
   type MapRegionInfoFunc,
   normalizeTo01,
@@ -19,10 +24,9 @@ import {
   type PieSliceInfoFunc,
   type TableCellInfoFunc,
   type TableHeaderInfoFunc,
+  type TextKeyDefaults,
   toPct0,
   typed,
-  type VizGraphEdgeInfoFunc,
-  type VizGraphNodeInfoFunc,
 } from "./deps.ts";
 import type {
   AreaDiffPair,
@@ -490,44 +494,108 @@ const _DS = {
     nCols: typed<number | "auto">("auto"),
     minWidth: 230,
   },
-  // VizGraph
-  vizgraph: {
-    nodes: {
+  // Scene: the element model under hand-built figures and diagrams. A box's
+  // chrome sits inside its rect (the stroke is inset by half its width), so
+  // an element's rect is its full painted extent.
+  scene: {
+    // A text key's default size and font beneath the custom and global
+    // options; the keys themselves are text.sceneBoxTitle and so on.
+    text: {
+      boxTitle: typed<TextKeyDefaults>({
+        relFontSize: 1,
+        font: typed<FontInfoOptions>({ weight: 700 }),
+      }),
+      boxSub: typed<TextKeyDefaults>({
+        relFontSize: 0.85,
+        font: typed<FontInfoOptions>({ italic: true }),
+      }),
+      boxLine: typed<TextKeyDefaults>({ relFontSize: 0.85 }),
+      badge: typed<TextKeyDefaults>({
+        relFontSize: 0.75,
+        font: typed<FontInfoOptions>({ weight: 500 }),
+      }),
+      regionLabel: typed<TextKeyDefaults>({
+        relFontSize: 1,
+        font: typed<FontInfoOptions>({ weight: 700 }),
+      }),
+      connectorLabel: typed<TextKeyDefaults>({ relFontSize: 0.8 }),
+      text: typed<TextKeyDefaults>({ relFontSize: 1 }),
+    },
+    boxes: {
       fillColor: typed<ColorKeyOrString>({ key: "base100" }),
       strokeColor: typed<ColorKeyOrString>({ key: "baseContent" }),
       strokeWidth: 1,
-      rectRadius: 6,
-      padding: typed<PaddingOptions>(10),
-      maxTextWidth: 200,
-      textGap: 6,
-      nodeInfo: typed<VizGraphNodeInfoFunc>(() => ({})),
+      rectRadius: 5,
+      padding: typed<PaddingOptions>([6, 9]),
+      textGap: 3,
+      // Between boxes in a stack or a row.
+      gap: 8,
+      alignH: typed<"left" | "center" | "right">("center"),
     },
-    edges: {
+    badges: {
+      fillColor: typed<ColorKeyOrString>({ key: "base200" }),
+      strokeColor: typed<ColorKeyOrString>("transparent"),
+      strokeWidth: 0,
+      padding: typed<PaddingOptions>([2, 6]),
+      gap: 4,
+    },
+    connectors: {
       strokeColor: typed<ColorKeyOrString>({ key: "baseContent" }),
-      strokeWidth: 1.5,
+      strokeWidth: 1.4,
       lineDash: typed<"solid" | "dashed">("solid"),
-      arrowheadSize: 7,
-      edgeInfo: typed<VizGraphEdgeInfoFunc>(() => ({})),
+      headSize: 7,
+      // The clearance between a box's edge and a connector's endpoint.
+      gap: 1.5,
+      cornerRadius: 6,
+      labelFillColor: typed<ColorKeyOrString>({ key: "base100" }),
+      labelPadding: typed<PaddingOptions>([1, 4]),
     },
-    // Defaults for UNFOLDED group boxes (drawn behind member nodes); folded
-    // reps default to node chrome. Per-group overrides flow through
-    // nodes.nodeInfo with info.isGroup.
-    groups: {
-      fillColor: typed<ColorKeyOrString>("transparent"),
-      strokeColor: typed<ColorKeyOrString>({ key: "base300" }),
-      strokeWidth: 1,
-      rectRadius: 6,
+    regions: {
       labelInset: 8,
+      // A plain rect: invisible until given a fill or a stroke colour.
+      rect: {
+        fillColor: typed<ColorKeyOrString>("transparent"),
+        strokeColor: typed<ColorKeyOrString>("transparent"),
+        strokeWidth: 1,
+        rectRadius: 0,
+      },
+      panel: {
+        fillColor: typed<ColorKeyOrString>({ key: "base200" }),
+        strokeColor: typed<ColorKeyOrString>("transparent"),
+        strokeWidth: 0,
+        rectRadius: 8,
+      },
+      band: {
+        fillColor: typed<ColorKeyOrString>("transparent"),
+        strokeColor: typed<ColorKeyOrString>({ key: "base300" }),
+        strokeWidth: 1,
+        rectRadius: 6,
+      },
+      bracket: {
+        strokeColor: typed<ColorKeyOrString>({ key: "baseContent" }),
+        strokeWidth: 1.2,
+        // How far the bracket stands off the rect it groups.
+        depth: 6,
+      },
+      ring: {
+        fillColor: typed<ColorKeyOrString>("transparent"),
+        strokeColor: typed<ColorKeyOrString>({ key: "base300" }),
+        strokeWidth: 1,
+        rectRadius: 6,
+      },
     },
-    // Lane boxes (M5): full-height bands behind a lane's columns; header
-    // text via text.vizgraphLaneLabel.
-    lanes: {
-      fillColor: typed<ColorKeyOrString>("transparent"),
-      strokeColor: typed<ColorKeyOrString>({ key: "base300" }),
-      strokeWidth: 1,
-      rectRadius: 6,
-      labelInset: 8,
-    },
+  },
+  // Diagram: a scene laid out from data. Its boxes, connectors and regions
+  // take the scene block's chrome; these are what only a layout needs.
+  diagram: {
+    // The widest a node's text wraps where the engine allocates node widths.
+    maxNodeTextWidth: 200,
+    // Between a placed group's region and its members.
+    groupPad: 8,
+    nodeInfo: typed<DiagramNodeInfoFunc>(() => ({})),
+    badgeInfo: typed<DiagramBadgeInfoFunc>(() => ({})),
+    edgeInfo: typed<DiagramEdgeInfoFunc>(() => ({})),
+    textInfo: typed<DiagramTextInfoFunc>(() => ({})),
   },
   // Sankey
   sankey: {

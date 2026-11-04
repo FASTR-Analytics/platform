@@ -70,7 +70,6 @@ type MergedAuthoringView = {
     };
     headerShading: {
       color: MergedMarkdownStyle["table"]["headerShadingColor"];
-      opacity: MergedMarkdownStyle["table"]["headerShadingOpacity"];
     };
   };
 };

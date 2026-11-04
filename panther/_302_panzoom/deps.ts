@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 export type { Pt, Rect } from "../_001_geometry/mod.ts";
+export { ease } from "../_001_motion/mod.ts";
 export {
   createEffect,
   createSignal,

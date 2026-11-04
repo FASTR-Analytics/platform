@@ -15,7 +15,7 @@ export {
   zPeriodType,
   zUncertaintyConfig,
 } from "./shared.ts";
-export type { Conforms } from "./shared.ts";
+export type { Conforms, ConformsExactly } from "./shared.ts";
 export {
   zTimeseriesData,
   zTimeseriesDataJson,
@@ -50,11 +50,12 @@ export {
   isValidFigureInputs,
   zChartOHInputs,
   zChartOVInputs,
+  zDiagramInputs,
   zFigureInputs,
   zLegendInput,
   zMapInputs,
   zPieInputs,
+  zSceneInputs,
   zTableInputs,
   zTimeseriesInputs,
-  zVizGraphInputs,
 } from "./figure_inputs.ts";

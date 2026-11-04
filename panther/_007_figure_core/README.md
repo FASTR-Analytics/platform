@@ -1,7 +1,7 @@
 # _007_figure_core
 
 Core visualization framework providing the foundational rendering system for all
-Figures (Charts, VizGraph, Tables).
+Figures (Charts, Tables, Scenes and Diagrams).
 
 ## Purpose
 
@@ -31,8 +31,8 @@ All Figures share common infrastructure from this module.
 with panes, tiers, and lanes:
 
 - **Chart types**: Timeseries (`_010_timeseries/`), ChartOV (`_010_chartov/`)
-- **Non-Chart Figures**: VizGraph (`_010_vizgraph_figure/`), Table
-  (`_010_table/`)
+- **Non-Chart Figures**: Table (`_010_table/`), Scene and Diagram
+  (`_010_scene/`)
 
 See `DOC_FIGURE_ARCHITECTURE.md` for detailed taxonomy.
 
@@ -70,14 +70,9 @@ renderPrimitives(rc, measured.primitives);
 - `ChartCaptionPrimitive` - Titles, subtitles, footnotes
 - `ChartLegendPrimitive` - Legend with symbols and labels
 
-**VizGraph primitives**:
-
-- `VizGraphNodePrimitive` - Nodes and folded-group reps
-- `VizGraphEdgePrimitive` - Routed edges with arrowheads
-- `VizGraphUnfoldedGroupPrimitive` - Group boxes as edge-hug rings
-- `VizGraphLanePrimitive` - Lane bands
-- `ChartCaptionPrimitive` - Captions (shared)
-- `ChartLegendPrimitive` - Legend (shared)
+**Shape primitives** (`shape-rect`, `shape-text`, `shape-path`, `shape-image`):
+the generic shapes a scene element lowers to (`_010_scene`), each keyed under
+its element and painted with an optional ambient `opacity`.
 
 **Table**: Uses surrounds primitives for captions/legend
 

@@ -15,7 +15,6 @@ export {
   getBaseTextInfo,
   getFontsToRegister,
   getTextInfo,
-  getTextInfoForSpecialHeadings,
 } from "../_001_font/mod.ts";
 export type {
   CustomStyleTextOptions,

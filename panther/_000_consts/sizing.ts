@@ -22,9 +22,10 @@ export type SizingMode = "reflow" | "zoom";
 
 // Stage-1 frame width (DUs). reflow lays out at the container width (so 1 DU = 1
 // CSS px); zoom lays out at a fixed DU frame and is scaled to fit. That zoom
-// frame is REFERENCE_WIDTH_DU for a figure, or the page's own width for a page
-// (passed in via referenceWidthDu). The default is the figure frame — a page
-// always passes its pageWidthDu explicitly.
+// frame is REFERENCE_WIDTH_DU for a figure unless its holder passes another (a
+// sequence's frame.w), or the page's own width for a page, passed in via
+// referenceWidthDu. The default is the figure frame — a page always passes its
+// pageWidthDu explicitly.
 export function getFrameWidthDu(
   sizing: SizingMode,
   containerWidthPx: number,
@@ -38,8 +39,8 @@ export function getFrameWidthDu(
 // devicePxPerDu = backing-px / frame-width-DU is the single transform applied
 // with ctx.setTransform (absolute, so re-applying it every frame is idempotent).
 //   - reflow: frameWidthDu === displayedWidthPx, so devicePxPerDu = dpr × resolution.
-//   - zoom:   frameWidthDu === REFERENCE_WIDTH_DU, so devicePxPerDu = displayedWidthPx
-//             × dpr × resolution / REFERENCE_WIDTH_DU (crisp at any display size).
+//   - zoom:   frameWidthDu is the reference width, so devicePxPerDu = displayedWidthPx
+//             × dpr × resolution / frameWidthDu (crisp at any display size).
 export function getStage2Sizing(opts: {
   sizing: SizingMode;
   displayedWidthPx: number;

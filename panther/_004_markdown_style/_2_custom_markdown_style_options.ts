@@ -102,7 +102,6 @@ export type CustomMarkdownStyleOptions = {
     };
     headerShading?: {
       color?: ColorKeyOrString;
-      opacity?: number; // 0-1
     };
   };
 };

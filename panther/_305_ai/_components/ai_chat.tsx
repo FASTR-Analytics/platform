@@ -24,7 +24,7 @@ import {
   type AIChatInstance,
   createAIChat,
 } from "./_create_ai_chat.ts";
-import type { DisplayRegistry } from "../_core/types.ts";
+import type { AIChatDisplayRegistry } from "../_core/types.ts";
 import { MessageInput } from "./message_input.tsx";
 import { MessageList } from "./message_list.tsx";
 import { UsageDisplay } from "./usage_display.tsx";
@@ -34,7 +34,7 @@ type Props = {
   // the instance itself and passes it here, so the pane and the chat share
   // one registry, one settings copy, one watcher and one queue drain.
   chat?: AIChatInstance;
-  customRenderers?: DisplayRegistry;
+  customRenderers?: AIChatDisplayRegistry;
   placeholder?: string;
   submitLabel?: string;
   inputHeight?: string;
@@ -82,17 +82,15 @@ export function AIChat(p: Props) {
     });
   };
 
-  let scrollContainer: HTMLDivElement | undefined;
-
-  const { checkScrollPosition, scrollToBottom } = createScrollManager(
-    () => scrollContainer,
-    () => [
-      displayItems(),
-      isLoading(),
-      currentStreamingText(),
-      queuedMessages(),
-    ],
-  );
+  const { ref, scrollToBottom } = createScrollManager(() => [
+    displayItems(),
+    isLoading(),
+    isStreaming(),
+    pendingUserAction(),
+    currentStreamingText(),
+    serverToolLabel(),
+    queuedMessages(),
+  ]);
 
   onMount(() => {
     if (p.onScrollReady) {
@@ -124,24 +122,17 @@ export function AIChat(p: Props) {
       sendMessage(message);
     }
 
-    // Force scroll to bottom - immediate and after DOM updates
     scrollToBottom(true);
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        scrollToBottom(true);
-      });
-    });
   };
 
   return (
     <div class={p.containerClass ?? "flex h-full w-full flex-col"}>
       {p.headerContent}
       <div
-        ref={scrollContainer}
+        ref={ref}
         data-ai-messages-container
         class={p.messagesClass ??
           "ui-pad h-0 w-full flex-1 overflow-y-auto"}
-        onScroll={checkScrollPosition}
       >
         <MessageList
           displayItems={displayItems()}

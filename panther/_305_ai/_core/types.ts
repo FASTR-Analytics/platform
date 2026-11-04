@@ -80,7 +80,7 @@ export type DisplayItem =
     errorStack?: string;
     // True when the handler threw AIToolFailure (expected, model-correctable).
     expected?: boolean;
-    toolInput?: unknown;
+    toolInput: unknown;
   }
   // view: the id and identity of the view the call ran in (persisted; absent
   // on cards stored before the engine recorded it).
@@ -90,9 +90,9 @@ export type DisplayItem =
     input: unknown;
     view?: AIViewSnapshot;
   }
-  // Non-error turn outcomes surfaced by the API (refusal, truncation,
-  // context exceeded, continuation caps) — distinct from tool_error, which
-  // is reserved for genuine tool/API failures.
+  // Turn outcomes (refusal, truncation, context exceeded, continuation
+  // caps) and a turn that threw — distinct from tool_error, which is one
+  // tool call's failure and always carries that call's input.
   | {
     type: "system_notice";
     noticeType: SystemNoticeType;
@@ -133,7 +133,7 @@ export type DisplayItem =
 
 export type DisplayItemRenderer<T = unknown> = Component<{ item: T }>;
 
-export type DisplayRegistry = {
+export type AIChatDisplayRegistry = {
   userText?: DisplayItemRenderer<Extract<DisplayItem, { type: "user_text" }>>;
   assistantCompletedText?: DisplayItemRenderer<
     Extract<DisplayItem, { type: "assistant_text" }>

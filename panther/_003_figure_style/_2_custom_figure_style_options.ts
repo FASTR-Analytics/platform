@@ -12,14 +12,16 @@ import {
   type ChartValueInfoFunc,
   type ColorAdjustmentStrategy,
   type ColorKeyOrString,
+  type DiagramBadgeInfoFunc,
+  type DiagramEdgeInfoFunc,
+  type DiagramNodeInfoFunc,
+  type DiagramTextInfoFunc,
   type MapRegionInfoFunc,
   type PaddingOptions,
   type PieSliceInfoFunc,
   type TableCellInfoFunc,
   type TableHeaderInfoFunc,
   type TickLabelFormatterOption,
-  type VizGraphEdgeInfoFunc,
-  type VizGraphNodeInfoFunc,
 } from "./deps.ts";
 import type {
   AreaDiffPair,
@@ -294,49 +296,84 @@ export type CustomFigureStyleOptions = {
     minWidth?: number;
   };
 
-  // VizGraph (node-edge graph figures; layout config lives in the data's
-  // layoutOptions — this is visual style only)
-  vizgraph?: {
-    nodes?: {
+  // Scene (hand-built figures and diagrams; the element model). Text via
+  // text.sceneBoxTitle, sceneBoxSub, sceneBoxLine, sceneBadge,
+  // sceneRegionLabel, sceneConnectorLabel and sceneText.
+  scene?: {
+    boxes?: {
       fillColor?: ColorKeyOrString;
       strokeColor?: ColorKeyOrString;
       strokeWidth?: number;
       rectRadius?: number;
       padding?: PaddingOptions;
-      maxTextWidth?: number;
+      // Between a box's title, sub, lines and badges.
       textGap?: number;
-      // Per-node overrides; precedence: this callback > the global values
-      // above. Resolved BEFORE layout: strokeWidth folds into the measured
-      // size. info.isGroup marks folded reps / group boxes.
-      nodeInfo?: VizGraphNodeInfoFunc;
+      // Between boxes in a stack or a row.
+      gap?: number;
+      alignH?: "left" | "center" | "right";
     };
-    edges?: {
+    // Pills inside a box and standalone pills.
+    badges?: {
+      fillColor?: ColorKeyOrString;
+      strokeColor?: ColorKeyOrString;
+      strokeWidth?: number;
+      padding?: PaddingOptions;
+      gap?: number;
+    };
+    connectors?: {
       strokeColor?: ColorKeyOrString;
       strokeWidth?: number;
       lineDash?: "solid" | "dashed";
-      arrowheadSize?: number;
-      // Per-edge overrides; precedence: per-edge data > this callback >
-      // the global values above. thickness also feeds engine clearance.
-      edgeInfo?: VizGraphEdgeInfoFunc;
+      headSize?: number;
+      // The clearance between a box's edge and a connector's endpoint.
+      gap?: number;
+      cornerRadius?: number;
+      labelFillColor?: ColorKeyOrString;
+      labelPadding?: PaddingOptions;
     };
-    // Unfolded group boxes; per-group overrides go through nodes.nodeInfo
-    // (info.isGroup). Label text via text.vizgraphGroupLabel.
-    groups?: {
-      fillColor?: ColorKeyOrString;
-      strokeColor?: ColorKeyOrString;
-      strokeWidth?: number;
-      rectRadius?: number;
+    regions?: {
       labelInset?: number;
+      rect?: {
+        fillColor?: ColorKeyOrString;
+        strokeColor?: ColorKeyOrString;
+        strokeWidth?: number;
+        rectRadius?: number;
+      };
+      panel?: {
+        fillColor?: ColorKeyOrString;
+        strokeColor?: ColorKeyOrString;
+        strokeWidth?: number;
+        rectRadius?: number;
+      };
+      band?: {
+        fillColor?: ColorKeyOrString;
+        strokeColor?: ColorKeyOrString;
+        strokeWidth?: number;
+        rectRadius?: number;
+      };
+      bracket?: {
+        strokeColor?: ColorKeyOrString;
+        strokeWidth?: number;
+        depth?: number;
+      };
+      ring?: {
+        fillColor?: ColorKeyOrString;
+        strokeColor?: ColorKeyOrString;
+        strokeWidth?: number;
+        rectRadius?: number;
+      };
     };
-    // Lane boxes (M5): the full-height band behind a lane's columns. Label
-    // text via text.vizgraphLaneLabel.
-    lanes?: {
-      fillColor?: ColorKeyOrString;
-      strokeColor?: ColorKeyOrString;
-      strokeWidth?: number;
-      rectRadius?: number;
-      labelInset?: number;
-    };
+  };
+  // Diagram (a scene laid out from data; its chrome is the scene block's).
+  // The callbacks are resolved before layout, so a strokeWidth or a
+  // thickness they return folds into the measured layout.
+  diagram?: {
+    maxNodeTextWidth?: number;
+    groupPad?: number;
+    nodeInfo?: DiagramNodeInfoFunc;
+    badgeInfo?: DiagramBadgeInfoFunc;
+    edgeInfo?: DiagramEdgeInfoFunc;
+    textInfo?: DiagramTextInfoFunc;
   };
   sankey?: {
     nodeWidth?: number;

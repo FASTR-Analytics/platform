@@ -37,6 +37,10 @@ import { aggregateUsage } from "./cost_utils.ts";
 // error results so the returned history stays API-valid.
 const MAX_TOOL_RUNNER_REQUESTS = 24;
 
+// `beta.messages.parse` sends this beta with every structured request; the
+// streaming request that stands in for it has to send it too.
+const STRUCTURED_OUTPUTS_BETA = "structured-outputs-2025-12-15";
+
 ////////////////////////////////////////////////////////////////////////////////
 // TYPES
 ////////////////////////////////////////////////////////////////////////////////
@@ -53,16 +57,24 @@ export type CallAIConfig = {
   builtInTools?: BuiltInToolsConfig;
 };
 
+export type CallAIOptions = {
+  // Reaches every SDK request of the call, the tool runner's included.
+  signal?: AbortSignal;
+};
+
 export type CallAIResult = {
   content: ContentBlock[];
   stopReason: string | null;
   usage: Usage;
   messages: MessageParam[];
+  // The model the response names, which a server-side fallback can make a
+  // different one from the model requested.
+  model: string;
 };
 
 export type CallAIStructuredResult<T> = CallAIResult & {
-  // null when the model refused or the output failed schema validation —
-  // check stopReason ("refusal", "max_tokens") before retrying.
+  // null when the model refused, when max_tokens cut the output, or when the
+  // text fails the schema — check stopReason before retrying.
   data: T | null;
 };
 
@@ -71,13 +83,13 @@ export type CallAIStructuredResult<T> = CallAIResult & {
 ////////////////////////////////////////////////////////////////////////////////
 
 // Schema-constrained one-shot call (structured outputs via
-// output_config.format). The response is validated against the Zod schema
-// by the SDK and returned as typed data. Tools are not supported on this
-// path — use callAI for tool loops.
+// output_config.format). Tools are not supported on this path — use callAI
+// for tool loops.
 export async function callAIStructured<T>(
   config: Omit<CallAIConfig, "tools" | "builtInTools">,
   messages: MessageParam[],
   schema: zType.ZodType<T>,
+  options?: CallAIOptions,
 ): Promise<CallAIStructuredResult<T>> {
   const modelConfig = resolveModelConfig(config.modelConfig);
   const { model, max_tokens } = modelConfig;
@@ -88,29 +100,55 @@ export async function callAIStructured<T>(
     thinking,
   );
   const wire = renderOutgoingMessages(messages);
+  // The SDK's parser on the format throws on a schema miss and fails the
+  // stream with it; sent without the parser, the final text is validated
+  // here and a miss is a null.
+  const { parse: _parse, ...format } = betaZodOutputFormat(schema);
 
-  const res = await config.sdkClient.beta.messages.parse({
+  // A non-streaming request with panther's default max_tokens is refused by
+  // the SDK before it is sent (its ten-minute rule), so the one request
+  // streams and settles on its final message.
+  const res = await config.sdkClient.beta.messages.stream({
     model,
     max_tokens,
     thinking,
-    output_config: {
-      ...effortConfig,
-      format: betaZodOutputFormat(schema),
-    },
+    output_config: { ...effortConfig, format },
     messages: wire,
     system: config.system?.(),
-  });
+    betas: [STRUCTURED_OUTPUTS_BETA],
+  }, { signal: options?.signal }).finalMessage();
 
+  const content = res.content as ContentBlock[];
   return {
-    data: (res.parsed_output ?? null) as T | null,
-    content: res.content as ContentBlock[],
+    data: parseStructuredText(schema, content),
+    content,
     stopReason: res.stop_reason,
     usage: res.usage as Usage,
-    messages: [
-      ...wire,
-      { role: "assistant", content: res.content as ContentBlock[] },
-    ],
+    messages: [...wire, { role: "assistant", content }],
+    model: res.model,
   };
+}
+
+function parseStructuredText<T>(
+  schema: zType.ZodType<T>,
+  content: ContentBlock[],
+): T | null {
+  const text = content.find(isTextBlock)?.text;
+  if (text === undefined) return null;
+  let json: unknown;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    return null;
+  }
+  const parsed = schema.safeParse(json);
+  return parsed.success ? parsed.data : null;
+}
+
+function isTextBlock(
+  block: ContentBlock,
+): block is Extract<ContentBlock, { type: "text" }> {
+  return block.type === "text";
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -120,6 +158,7 @@ export async function callAIStructured<T>(
 export async function callAI(
   config: CallAIConfig,
   messages: MessageParam[],
+  options?: CallAIOptions,
 ): Promise<CallAIResult> {
   // Structural eligibility via the shared headless helper (one concept with
   // the MCP surface, so the rules can never drift). callAI's mapping: every
@@ -189,11 +228,14 @@ export async function callAI(
     ]
     : undefined;
   const wire = renderOutgoingMessages(messages);
+  const requestOptions = { signal: options?.signal };
 
   if (!allTools) {
-    // Without server tools a reply cannot stop on pause_turn, so one
-    // request is the whole call.
-    const res = await config.sdkClient.beta.messages.create({
+    // Without server tools a reply cannot stop on pause_turn, so one request
+    // is the whole call. It streams because the SDK refuses a non-streaming
+    // request with panther's default max_tokens before it is sent (its
+    // ten-minute rule).
+    const res = await config.sdkClient.beta.messages.stream({
       model,
       max_tokens,
       thinking,
@@ -201,13 +243,14 @@ export async function callAI(
       messages: wire,
       system: config.system?.(),
       betas,
-    });
+    }, requestOptions).finalMessage();
     const content = res.content as ContentBlock[];
     return {
       content,
       stopReason: res.stop_reason,
       usage: res.usage as Usage,
       messages: [...wire, { role: "assistant", content }],
+      model: res.model,
     };
   }
 
@@ -224,20 +267,27 @@ export async function callAI(
     // The whole history rides every request, as on every other panther
     // request, instead of a conversation the server holds.
     thread: false,
-  });
+    // Each request streams for the same reason the tool-less request does:
+    // the SDK refuses a non-streaming request at panther's default
+    // max_tokens.
+    stream: true,
+  }, requestOptions);
 
-  // Each yielded message is one request's reply, and every reply is billed.
+  // Each yielded stream is one request's reply, and every reply is billed.
   // The runner resumes a pause_turn itself, so a paused reply is part of the
   // answer; a reply that stopped on tool_use is an intermediate tool round.
   const usages: Usage[] = [];
   const content: ContentBlock[] = [];
   let stopReason: string | null = null;
-  for await (const reply of runner) {
+  let responseModel = model;
+  for await (const stream of runner) {
+    const reply = await stream.finalMessage();
     usages.push(reply.usage as Usage);
     if (reply.stop_reason !== "tool_use") {
       content.push(...(reply.content as ContentBlock[]));
     }
     stopReason = reply.stop_reason;
+    responseModel = reply.model;
   }
 
   // The runner holds the full conversation: the tool_use turns, the tool
@@ -266,5 +316,6 @@ export async function callAI(
     stopReason,
     usage: aggregateUsage(usages),
     messages: messagesOut,
+    model: responseModel,
   };
 }

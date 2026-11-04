@@ -14,6 +14,7 @@ import {
   type TextInfo,
   type TextInfoOptions,
   type TextInfoUnkeyed,
+  type TextKeyDefaults,
 } from "./types.ts";
 
 export function getAdjustedBaseTextOptions(
@@ -63,11 +64,14 @@ export function getBaseTextInfo(
   };
 }
 
+// The cascade for one text key: custom → global → the key's own defaults →
+// the base text. A key default's font adjusts the base font beneath the
+// options; its size is the relFontSize the options fall back to.
 export function getTextInfo(
   cText: CustomStyleTextOptions | undefined,
   gText: CustomStyleTextOptions | undefined,
   baseText: TextInfo,
-  keyDefaultFont?: FontInfoOptions,
+  keyDefaults?: TextKeyDefaults,
 ): TextInfoUnkeyed {
   const rawColor = m(cText?.color, gText?.color, baseText.color);
   const rawLineHeight = m(
@@ -85,57 +89,14 @@ export function getTextInfo(
     gText?.letterSpacing,
     baseText.letterSpacing,
   );
-  const keyBaseFont = keyDefaultFont
-    ? getAdjustedFont(baseText.font, keyDefaultFont)
+  const keyBaseFont = keyDefaults?.font
+    ? getAdjustedFont(baseText.font, keyDefaults.font)
     : baseText.font;
   return {
     font: getMergedFonts(cText, gText, keyBaseFont),
     fontSize: baseText.fontSize *
-      (cText?.relFontSize ?? gText?.relFontSize ?? 1),
-    color: getColor(rawColor === "same-as-base" ? baseText.color : rawColor),
-    lineHeight: rawLineHeight === "same-as-base"
-      ? baseText.lineHeight
-      : rawLineHeight,
-    lineBreakGap: rawLineBreakGap === "same-as-base"
-      ? baseText.lineBreakGap
-      : rawLineBreakGap,
-    letterSpacing: rawLetterSpacing === "same-as-base"
-      ? baseText.letterSpacing
-      : rawLetterSpacing,
-  };
-}
-
-export function getTextInfoForSpecialHeadings(
-  cText: CustomStyleTextOptions | undefined,
-  gText: CustomStyleTextOptions | undefined,
-  defaultRelFontSize: number,
-  baseText: TextInfo,
-): TextInfoUnkeyed {
-  const rawColor = m(cText?.color, gText?.color, baseText.color);
-  const rawLineHeight = m(
-    cText?.lineHeight,
-    gText?.lineHeight,
-    baseText.lineHeight,
-  );
-  const rawLineBreakGap = m(
-    cText?.lineBreakGap,
-    gText?.lineBreakGap,
-    baseText.lineBreakGap,
-  );
-  const rawLetterSpacing = m(
-    cText?.letterSpacing,
-    gText?.letterSpacing,
-    baseText.letterSpacing,
-  );
-
-  const baseFontForPurposeOfSpecialHeadings = getAdjustedFont(baseText.font, {
-    weight: Math.max(baseText.font.weight, 700) as FontWeight,
-  });
-
-  return {
-    font: getMergedFonts(cText, gText, baseFontForPurposeOfSpecialHeadings),
-    fontSize: baseText.fontSize *
-      (cText?.relFontSize ?? gText?.relFontSize ?? defaultRelFontSize),
+      (cText?.relFontSize ?? gText?.relFontSize ?? keyDefaults?.relFontSize ??
+        1),
     color: getColor(rawColor === "same-as-base" ? baseText.color : rawColor),
     lineHeight: rawLineHeight === "same-as-base"
       ? baseText.lineHeight

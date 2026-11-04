@@ -8,28 +8,31 @@ import {
   ChartOHRenderer,
   type ChartOVInputs,
   ChartOVRenderer,
+  type DiagramInputs,
+  DiagramRenderer,
   generateAnnotationPrimitives,
   type HeightConstraints,
   type MapInputs,
   MapRenderer,
   type MeasuredChartOH,
   type MeasuredChartOV,
+  type MeasuredDiagram,
   type MeasuredMap,
   type MeasuredPie,
+  type MeasuredScene,
   type MeasuredTable,
   type MeasuredTimeseries,
-  type MeasuredVizGraph,
   type PieInputs,
   PieRenderer,
   type RectCoordsDims,
   type RenderContext,
   type Renderer,
+  type SceneInputs,
+  SceneRenderer,
   type TableInputs,
   TableRenderer,
   type TimeseriesInputs,
   TimeseriesRenderer,
-  type VizGraphInputs,
-  VizGraphRenderer,
 } from "./deps.ts";
 
 // ================================================================================
@@ -41,18 +44,20 @@ export type FigureInputs =
   | ChartOVInputs
   | ChartOHInputs
   | TimeseriesInputs
-  | VizGraphInputs
   | MapInputs
-  | PieInputs;
+  | PieInputs
+  | SceneInputs
+  | DiagramInputs;
 
 export type MeasuredFigure =
   | MeasuredTable
   | MeasuredChartOV
   | MeasuredChartOH
   | MeasuredTimeseries
-  | MeasuredVizGraph
   | MeasuredMap
-  | MeasuredPie;
+  | MeasuredPie
+  | MeasuredScene
+  | MeasuredDiagram;
 
 export type FigureType = FigureInputs["figureType"];
 
@@ -76,9 +81,10 @@ export const FigureRenderer: Renderer<FigureInputs, MeasuredFigure> = {
       case "chart-ov":
       case "chart-oh":
       case "timeseries":
-      case "vizgraph":
       case "map":
       case "pie":
+      case "scene":
+      case "diagram":
         return true;
       default: {
         const _exhaustive: never = figureType;
@@ -174,12 +180,14 @@ function pickRenderer(item: FigureInputs) {
       return ChartOHRenderer;
     case "timeseries":
       return TimeseriesRenderer;
-    case "vizgraph":
-      return VizGraphRenderer;
     case "map":
       return MapRenderer;
     case "pie":
       return PieRenderer;
+    case "scene":
+      return SceneRenderer;
+    case "diagram":
+      return DiagramRenderer;
     default: {
       const _exhaustive: never = item;
       throw new Error("Unknown figure type");

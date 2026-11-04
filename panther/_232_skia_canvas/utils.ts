@@ -6,6 +6,7 @@
 import {
   type Canvas,
   CanvasRenderContext,
+  type CreateCanvas,
   createCanvas,
   RectCoordsDims,
   validateFilePath,
@@ -44,6 +45,7 @@ export function createCanvasRenderContext(
 
     const rc = new CanvasRenderContext(
       ctx as unknown as CanvasRenderingContext2D,
+      createCanvas as unknown as CreateCanvas,
     );
     const rcd = new RectCoordsDims([0, 0, roundedW, roundedH]);
     return { canvas, rc, rcd };

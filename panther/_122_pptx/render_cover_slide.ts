@@ -6,7 +6,6 @@
 import {
   type AlignH,
   type AlignV,
-  Color,
   getBackgroundBaseColor,
   getColor,
   isPatternConfig,
@@ -26,6 +25,7 @@ import {
   imageToDataUrl,
   pixelsToInches,
   pixelsToPoints,
+  pptxColor,
   rcdToSlidePosition,
 } from "./pptx_units.ts";
 import { mapFontForPptx } from "./font_mapping.ts";
@@ -47,7 +47,7 @@ export function renderCoverSlide(
   const s = measured.style;
 
   // Background
-  const bgColor = Color.toHexNoHash(
+  const bg = pptxColor(
     getColor(getBackgroundBaseColor(s.background)),
   );
   slide.addShape("rect", {
@@ -55,8 +55,8 @@ export function renderCoverSlide(
     y: 0,
     w: pixelsToInches(bounds.w()),
     h: pixelsToInches(bounds.h()),
-    fill: { color: bgColor },
-    line: { color: bgColor, width: 0 },
+    fill: bg,
+    line: { ...bg, width: 0 },
   });
 
   // Split background
@@ -67,7 +67,7 @@ export function renderCoverSlide(
       : getColor(splitBg);
     slide.addShape("rect", {
       ...rcdToSlidePosition(measured.splitImageBounds),
-      fill: { color: Color.toHexNoHash(splitColor) },
+      fill: pptxColor(splitColor),
       line: { width: 0 },
     });
   }
@@ -127,8 +127,6 @@ export function renderCoverSlide(
   // Watermark
   if (item.watermark) {
     const mText = rc.mText(item.watermark, s.text.watermark, bounds.w());
-    const watermarkColor = new Color(mText.ti.color);
-    const alpha = watermarkColor.rgba().a;
     slide.addText(item.watermark, {
       x: pixelsToInches(bounds.x()),
       y: pixelsToInches(bounds.centerY() - mText.dims.h() / 2),
@@ -136,8 +134,7 @@ export function renderCoverSlide(
       h: pixelsToInches(mText.dims.h()),
       fontFace: mapFontForPptx(mText.ti.font.fontFamily),
       fontSize: pixelsToPoints(mText.ti.fontSize),
-      color: watermarkColor.hexNoHash(),
-      transparency: alpha < 1 ? (1 - alpha) * 100 : 0,
+      ...pptxColor(mText.ti.color),
       align: "center",
       valign: "middle",
       margin: 0,
@@ -434,7 +431,7 @@ function addTextToSlide(
     h: pixelsToInches(h),
     fontFace: mapFontForPptx(ti.font.fontFamily),
     fontSize: pixelsToPoints(ti.fontSize),
-    color: Color.toHexNoHash(ti.color),
+    ...pptxColor(ti.color),
     bold: ti.font.weight >= 700,
     italic: ti.font.italic ?? false,
     align: alignH,

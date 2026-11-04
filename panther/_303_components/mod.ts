@@ -3,7 +3,6 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-export * from "./charts/mod.ts";
 export * from "./content/mod.ts";
 export * from "./display/mod.ts";
 export * from "./form_inputs/mod.ts";

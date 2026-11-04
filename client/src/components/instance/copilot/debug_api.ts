@@ -6,9 +6,9 @@ import type {
 } from "panther";
 import type { CopilotViewId } from "lib";
 import {
-  type CopilotRequestRecord,
-  copilotRequests,
-} from "./ai_configs/mod.ts";
+  type AiProxyRequestRecord,
+  aiProxyRequests,
+} from "~/components/_shared/mod.ts";
 import { copilotViewController } from "./ai_views";
 
 // The copilot's wire, on `window.__copilot`, for a tester or an agent driving
@@ -30,8 +30,8 @@ export type CopilotDebugApi = {
   view: () => CopilotDebugView;
   nextTurn: () => { system: string; sections: EphemeralSection[] };
   messages: () => MessageParam[];
-  requests: () => CopilotRequestRecord[];
-  lastRequest: () => CopilotRequestRecord | undefined;
+  requests: () => AiProxyRequestRecord[];
+  lastRequest: () => AiProxyRequestRecord | undefined;
   tools: () => { name: string; description: string; inputSchema: unknown }[];
   config: () => AnthropicModelConfig;
   conversationId: () => string;
@@ -52,8 +52,8 @@ export function installCopilotDebugApi(chat: AIChatInstance): () => void {
     },
     nextTurn: () => chat.getNextTurnPreview(),
     messages: () => chat.messages(),
-    requests: copilotRequests,
-    lastRequest: () => copilotRequests().at(-1),
+    requests: aiProxyRequests,
+    lastRequest: () => aiProxyRequests().at(-1),
     tools: () =>
       chat.toolRegistry.getSDKTools().map((tool) => ({
         name: tool.name,

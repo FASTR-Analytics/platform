@@ -16,6 +16,11 @@ export {
   writeSlide,
   writeSlides,
 } from "./write_slide.ts";
+export {
+  type SequenceExportOptions,
+  type TimedFrame,
+  writeSequenceFrames,
+} from "./write_sequence.ts";
 
 // Utility exports for advanced usage
 export { createCanvasRenderContext, writeCanvas } from "./utils.ts";

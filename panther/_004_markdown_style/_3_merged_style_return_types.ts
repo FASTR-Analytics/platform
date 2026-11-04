@@ -104,6 +104,5 @@ export type MergedMarkdownStyle = {
     cellPaddingHorizontal: number;
     cellPaddingVertical: number;
     headerShadingColor: string;
-    headerShadingOpacity: number;
   };
 };

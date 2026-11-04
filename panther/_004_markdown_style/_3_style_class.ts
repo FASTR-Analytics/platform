@@ -20,7 +20,6 @@ import {
   getColor,
   getFontsToRegister,
   getTextInfo,
-  getTextInfoForSpecialHeadings,
   m,
   type TextInfo,
 } from "./deps.ts";
@@ -276,24 +275,18 @@ export class CustomMarkdownStyle {
       g.text?.paragraph,
       baseText,
     );
-    const h1Text = getTextInfoForSpecialHeadings(
-      c.text?.h1,
-      g.text?.h1,
-      d.headingRelFontSizes.h1,
-      baseText,
-    );
-    const h2Text = getTextInfoForSpecialHeadings(
-      c.text?.h2,
-      g.text?.h2,
-      d.headingRelFontSizes.h2,
-      baseText,
-    );
-    const h3Text = getTextInfoForSpecialHeadings(
-      c.text?.h3,
-      g.text?.h3,
-      d.headingRelFontSizes.h3,
-      baseText,
-    );
+    const h1Text = getTextInfo(c.text?.h1, g.text?.h1, baseText, {
+      relFontSize: d.headingRelFontSizes.h1,
+      font: { weight: 700 },
+    });
+    const h2Text = getTextInfo(c.text?.h2, g.text?.h2, baseText, {
+      relFontSize: d.headingRelFontSizes.h2,
+      font: { weight: 700 },
+    });
+    const h3Text = getTextInfo(c.text?.h3, g.text?.h3, baseText, {
+      relFontSize: d.headingRelFontSizes.h3,
+      font: { weight: 700 },
+    });
     const h4Text = getTextInfo(c.text?.h4, g.text?.h4, baseText);
     const h5Text = getTextInfo(c.text?.h5, g.text?.h5, baseText);
     const h6Text = getTextInfo(c.text?.h6, g.text?.h6, baseText);
@@ -303,12 +296,9 @@ export class CustomMarkdownStyle {
       g.text?.blockquote,
       baseText,
     );
-    const codeText = getTextInfo(
-      c.text?.code,
-      g.text?.code,
-      baseText,
-      d.textFonts.code,
-    );
+    const codeText = getTextInfo(c.text?.code, g.text?.code, baseText, {
+      font: d.textFonts.code,
+    });
 
     // Project an em margin to px against a given element fontSize.
     const px = (mar: EmMargin, fontSize: number) => ({
@@ -495,11 +485,6 @@ export class CustomMarkdownStyle {
             g.table?.headerShading?.color,
             d.table.headerShading.color,
           ),
-        ),
-        headerShadingOpacity: m(
-          c.table?.headerShading?.opacity,
-          g.table?.headerShading?.opacity,
-          d.table.headerShading.opacity,
         ),
       },
     };

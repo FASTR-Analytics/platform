@@ -230,8 +230,7 @@ The user is on one user's detail page (permissions and scope access). You are to
 }
 
 // The HFA indicators manager's view: its own lines, then the guidance S5
-// supplies through the view's context
-// (components/data/hfa/indicators/ai/instructions.ts).
+// supplies through the view's context (lib/hfa_indicator_guidance.ts).
 export function getHfaIndicatorsInstructions(guidance: string): string {
   return `# Current View: HFA indicators manager
 

@@ -16,6 +16,9 @@ export const corsMiddleware = cors({
     "*",
   ],
   exposeHeaders: [
+    // The copilot proxy's quota rejection tells the SDK not to retry; across
+    // origins (the dev client) the SDK reads the header only if it is exposed.
+    "x-should-retry",
     "Location",
     "Upload-Offset",
     "Upload-Length",

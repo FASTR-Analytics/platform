@@ -24,13 +24,11 @@ import type {
   SankeyNodePrimitive,
   ScaleLegendGradientPrimitive,
   ScaleLegendSteppedPrimitive,
+  ShapePathPrimitive,
+  ShapePrimitive,
   TableBorderPrimitive,
   TableGridPrimitive,
   TableHeaderAxisPrimitive,
-  VizGraphEdgePrimitive,
-  VizGraphLanePrimitive,
-  VizGraphNodePrimitive,
-  VizGraphUnfoldedGroupPrimitive,
 } from "./deps.ts";
 import { Coordinates, Padding, RectCoordsDims } from "./deps.ts";
 import type { MeasuredSurrounds } from "./_surrounds/measure_surrounds.ts";
@@ -52,18 +50,40 @@ export function renderFigureBackground(
   }
 }
 
+// Sorted by zIndex alone (a stable sort, so an element's primitives, emitted
+// together at one z, stay together). A run of consecutive primitives sharing
+// a group and an opacity below 1 paints inside one withOpacity scope, so the
+// run composites as one layer where the context can (DOC_SCENE.md "Opacity").
 export function renderFigurePrimitives(
   rc: RenderContext,
   primitives: Primitive[],
 ): void {
-  // Sort by zIndex only
   const sorted = primitives.slice().sort((a, b) => {
     return (a.zIndex ?? 0) - (b.zIndex ?? 0);
   });
-
-  // Render each primitive
-  for (const primitive of sorted) {
-    renderPrimitive(rc, primitive);
+  let i = 0;
+  while (i < sorted.length) {
+    const first = sorted[i];
+    const alpha = first.opacity ?? 1;
+    if (alpha >= 1) {
+      renderPrimitive(rc, first);
+      i++;
+      continue;
+    }
+    let end = i + 1;
+    while (
+      first.group !== undefined && end < sorted.length &&
+      sorted[end].group === first.group && sorted[end].opacity === alpha
+    ) {
+      end++;
+    }
+    const run = sorted.slice(i, end);
+    rc.withOpacity(alpha, () => {
+      for (const primitive of run) {
+        renderPrimitive(rc, primitive);
+      }
+    });
+    i = end;
   }
 }
 
@@ -290,19 +310,6 @@ function renderPrimitive(rc: RenderContext, primitive: Primitive): void {
       renderLabelPrimitive(rc, primitive);
       break;
 
-    case "vizgraph-node":
-      renderVizGraphNodePrimitive(rc, primitive);
-      break;
-    case "vizgraph-lane":
-      renderVizGraphLanePrimitive(rc, primitive);
-      break;
-    case "vizgraph-unfolded-group":
-      renderVizGraphUnfoldedGroupPrimitive(rc, primitive);
-      break;
-    case "vizgraph-edge":
-      renderVizGraphEdgePrimitive(rc, primitive);
-      break;
-
     case "sankey-node":
       renderSankeyNodePrimitive(rc, primitive);
       break;
@@ -391,12 +398,76 @@ function renderPrimitive(rc: RenderContext, primitive: Primitive): void {
       renderScaleLegendSteppedPrimitive(rc, primitive);
       break;
 
+    case "shape-rect":
+    case "shape-text":
+    case "shape-path":
+    case "shape-image":
+      renderShapePrimitive(rc, primitive);
+      break;
+
     default: {
       const _exhaustive: never = primitive;
       throw new Error(
         `Unknown primitive type: ${(primitive as { type: string }).type}`,
       );
     }
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//                                                                            //
+//    Shape Rendering                                                         //
+//                                                                            //
+////////////////////////////////////////////////////////////////////////////////
+
+function renderShapePrimitive(rc: RenderContext, primitive: ShapePrimitive) {
+  switch (primitive.type) {
+    case "shape-rect":
+      rc.rRect(primitive.rcd, primitive.style);
+      break;
+    case "shape-text":
+      rc.rText(
+        primitive.mText,
+        primitive.position,
+        primitive.alignH,
+        primitive.alignV,
+      );
+      break;
+    case "shape-path":
+      renderShapePathPrimitive(rc, primitive);
+      break;
+    case "shape-image":
+      rc.rImage(
+        primitive.image,
+        primitive.rcd.x(),
+        primitive.rcd.y(),
+        primitive.rcd.w(),
+        primitive.rcd.h(),
+      );
+      break;
+  }
+}
+
+function renderShapePathPrimitive(
+  rc: RenderContext,
+  primitive: ShapePathPrimitive,
+): void {
+  rc.rPath(primitive.pathSegments, primitive.pathStyle);
+  const stroke = primitive.pathStyle.stroke;
+  if (stroke === undefined) {
+    return;
+  }
+  const lineStyle: LineStyle = {
+    strokeWidth: stroke.width,
+    strokeColor: stroke.color,
+    // Solid even when the shaft is dashed: a dashed arrowhead reads as broken.
+    lineDash: "solid",
+  };
+  if (primitive.arrowheads?.start) {
+    renderArrowhead(rc, primitive.arrowheads.start, lineStyle);
+  }
+  if (primitive.arrowheads?.end) {
+    renderArrowhead(rc, primitive.arrowheads.end, lineStyle);
   }
 }
 
@@ -649,79 +720,6 @@ function renderLabelPrimitive(
     primitive.alignment.h,
     primitive.alignment.v,
   );
-}
-
-function renderVizGraphNodePrimitive(
-  rc: RenderContext,
-  primitive: VizGraphNodePrimitive,
-): void {
-  rc.rRect(primitive.rcd, primitive.rectStyle);
-  if (primitive.text) {
-    rc.rText(primitive.text.mText, primitive.text.position, "center", "middle");
-  }
-  if (primitive.secondaryText) {
-    rc.rText(
-      primitive.secondaryText.mText,
-      primitive.secondaryText.position,
-      "center",
-      "middle",
-    );
-  }
-}
-
-function renderVizGraphLanePrimitive(
-  rc: RenderContext,
-  primitive: VizGraphLanePrimitive,
-): void {
-  rc.rRect(primitive.rcd, primitive.rectStyle);
-  if (primitive.text) {
-    rc.rText(primitive.text.mText, primitive.text.position, "center", "middle");
-  }
-}
-
-function renderVizGraphUnfoldedGroupPrimitive(
-  rc: RenderContext,
-  primitive: VizGraphUnfoldedGroupPrimitive,
-): void {
-  if (primitive.outline !== undefined && primitive.outline.length > 0) {
-    const { fillColor, strokeColor, strokeWidth } = primitive.rectStyle;
-    rc.rPath(primitive.outline, {
-      fill: { color: fillColor },
-      stroke: strokeColor !== undefined && strokeWidth !== undefined &&
-          strokeWidth > 0
-        ? { color: strokeColor, width: strokeWidth }
-        : undefined,
-    });
-  } else {
-    rc.rRect(primitive.rcd, primitive.rectStyle);
-  }
-  if (primitive.text) {
-    rc.rText(primitive.text.mText, primitive.text.position, "center", "middle");
-  }
-}
-
-function renderVizGraphEdgePrimitive(
-  rc: RenderContext,
-  primitive: VizGraphEdgePrimitive,
-): void {
-  rc.rPath(primitive.pathSegments, primitive.pathStyle);
-  const stroke = primitive.pathStyle.stroke;
-  if (stroke === undefined) {
-    return;
-  }
-  const lineStyle: LineStyle = {
-    strokeWidth: stroke.width,
-    strokeColor: stroke.color,
-    // Deliberately solid even when the shaft is dashed — a dashed arrowhead
-    // reads as broken.
-    lineDash: "solid",
-  };
-  if (primitive.arrowheads?.start) {
-    renderArrowhead(rc, primitive.arrowheads.start, lineStyle);
-  }
-  if (primitive.arrowheads?.end) {
-    renderArrowhead(rc, primitive.arrowheads.end, lineStyle);
-  }
 }
 
 function renderConnectorPrimitive(

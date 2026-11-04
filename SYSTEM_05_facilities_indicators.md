@@ -23,6 +23,9 @@ globs:
   - lib/traffic_light_rule.ts
   - lib/hfa_indicator_labels.ts
   - lib/hfa_indicator_code.ts
+  - lib/hfa_indicator_guidance.ts
+  - lib/hfa_verification.ts
+  - lib/hfa_verification_rules.ts
   - lib/hfa_indicator_dependencies.ts
   - lib/indicator_expression/**
   - lib/indicator_id.ts
@@ -32,6 +35,7 @@ globs:
   - lib/special_indicators.ts
   - lib/types/geojson_maps.ts
   - lib/types/hfa_types.ts
+  - lib/types/hfa_verification.ts
   - lib/types/iceh_strats.ts
   - lib/types/indicators.ts
   - lib/types/population.ts
@@ -41,6 +45,7 @@ globs:
   - server/db/instance/hfa_facilities.ts
   - server/db/instance/hfa_facility_weights.ts
   - server/db/instance/hfa_indicators.ts
+  - server/db/instance/hfa_verification.ts
   - server/db/instance/indicators.ts
   - server/db/instance/instance.ts
   - server/db/instance/population.ts
@@ -50,6 +55,7 @@ globs:
   - server/routes/instance/geojson_maps.ts
   - server/routes/instance/hfa_indicators.ts
   - server/routes/instance/hfa_time_points.ts
+  - server/routes/instance/hfa_verification.ts
   - server/routes/instance/indicators.ts
   - server/routes/instance/instance.ts
   - server/routes/instance/population.ts
@@ -65,6 +71,7 @@ globs:
   - server/tests/hfa_indicator_code_test.ts
   - server/tests/hfa_indicator_status_test.ts
   - server/tests/hfa_r_emit_test.ts
+  - server/tests/hfa_verification_test.ts
   - server/tests/hfa_workbook_text_columns_test.ts
   - server/tests/indicator_analysed_set_test.ts
   - server/tests/indicator_data_key_test.ts
@@ -872,33 +879,34 @@ brackets, such as `[q_-99]`, is refused). It returns the AST and its
 identifiers, or a structured error that `describeHfaCodeError` turns into a
 translatable text. The vocabulary the editor's help line and the AI guidance
 state (`HFA_CODE_SYMBOLS`, `HFA_CODE_WORDS`, `HFA_CODE_LIST_EXAMPLE`) lives
-beside it. The AI guidance (`data/hfa/indicators/ai/instructions.ts`, the same
-text in the manager's and the code editor's views) states the indicator model,
-type and aggregation, the grammar, and how m010 evaluates the code: every value
-read as a number, select_multiple expansion, the filter, missingness, sentinel
-handling and the positive-test rule, references and cycles, variant groups, and
-rounds whose question changed. The status core lives beside the parser too, and
-every surface that shows status reads it: the manager's Status and Consistent
-columns, the code editor's messages and its Save, and the AI tools.
-`validateHfaIndicatorCode` gives one field's issues and the ids it names,
-`checkHfaCodeResultType` the result-type warning, and `hfaIndicatorsStatus` per
-indicator and round of the dictionary the issues of each field (`syntax`,
-`unknown_variable`, `filter_without_code`, `variant_without_code` and `cycle`
-are errors, `result_type` is the one warning), the round status (`none`,
-`error`, `warning`, `ready`) and whether the rounds agree. Main and filter code
-are read against the round's variables and the other indicators, variant code
-against the round's variables and every indicator, its own included. Its texts
-are `TranslatableString`s the client translates at render. Its cycle check takes
-the strongly connected components of the main-code dependency graph that
-`lib/hfa_indicator_dependencies.ts` builds, the analysis the generator imports,
-so every indicator on a cycle carries the issue before a run refuses it. The
-editor computes the core over the manager's code with its draft in place of its
-own, and its Save refuses only a filter or variant code in a round without
-indicator code. The manager's unused-variable and deletion guards read the same
-parse, so editor-green code never hard-fails a run. The write boundary reads it
-too: every route that writes code from a request (the editor's
-`saveHfaIndicatorFull`, the AI's `saveHfaIndicatorsBatch`, the batch upload
-`batchUploadHfaIndicators` and the workbook import
+beside it. The AI guidance (`getHfaIndicatorsGuidance`,
+`lib/hfa_indicator_guidance.ts`, the same text in the manager's and the code
+editor's views and at the head of the HFA verification's instruction block)
+states the indicator model, type and aggregation, the grammar, and how m010
+evaluates the code: every value read as a number, select_multiple expansion, the
+filter, missingness, sentinel handling and the positive-test rule, references
+and cycles, variant groups, and rounds whose question changed. The status core
+lives beside the parser too, and every surface that shows status reads it: the
+manager's Status and Consistent columns, the code editor's messages and its
+Save, and the AI tools. `validateHfaIndicatorCode` gives one field's issues and
+the ids it names, `checkHfaCodeResultType` the result-type warning, and
+`hfaIndicatorsStatus` per indicator and round of the dictionary the issues of
+each field (`syntax`, `unknown_variable`, `filter_without_code`,
+`variant_without_code` and `cycle` are errors, `result_type` is the one
+warning), the round status (`none`, `error`, `warning`, `ready`) and whether the
+rounds agree. Main and filter code are read against the round's variables and
+the other indicators, variant code against the round's variables and every
+indicator, its own included. Its texts are `TranslatableString`s the client
+translates at render. Its cycle check takes the strongly connected components of
+the main-code dependency graph that `lib/hfa_indicator_dependencies.ts` builds,
+the analysis the generator imports, so every indicator on a cycle carries the
+issue before a run refuses it. The editor computes the core over the manager's
+code with its draft in place of its own, and its Save refuses only a filter or
+variant code in a round without indicator code. The manager's unused-variable
+and deletion guards read the same parse, so editor-green code never hard-fails a
+run. The write boundary reads it too: every route that writes code from a
+request (the editor's `saveHfaIndicatorFull`, the AI's `saveHfaIndicatorsBatch`,
+the batch upload `batchUploadHfaIndicators` and the workbook import
 `importHfaIndicatorsWorkbook`) refuses, before any write, a main, filter or
 variant snippet that does not parse (`unparseableHfaCode`, the message listing
 every failing row with its indicator, round and field) and a filter without main
@@ -1126,6 +1134,268 @@ forward from the previous latest round. Time-point routes notify the
 additionally bump `structure_last_updated` + notify structure because of the
 weights cascades.
 
+## HFA indicator verification
+
+A check of every HFA indicator by the model, one call per indicator, stored as
+findings that users dismiss or fix over many sessions. The status core (above)
+finds what code can decide; the verification asks what it cannot: whether the
+code measures what the labels say, whether the variables are the right ones,
+whether a filter implements the long label's "among" clause, and whether a
+sentinel code or a negation makes the indicator wrong. The model is called from
+the browser through the proxy (S13 "The proxy"); nothing server-side calls it.
+The verification is not part of the copilot: its system text is its own (no
+copilot system prompt, instance `ai_context`, tool catalogue or date block), it
+holds no conversation, and none of its files, tables or routes declares a name
+that says ai, assistant or copilot. The request names no model, so panther's
+default applies; the verification row records the model the response names. Its
+calls count against the user's daily and the instance's weekly token limits as
+the chat's do, and `ai_usage_logs` has no column that tells a verification call
+from a chat call. It covers HFA indicators only, not HMIS indicators, the
+taxonomy or the survey dictionary; findings are not exposed on `/mcp` or to the
+copilot's tools; a fix is drafted and applied one indicator at a time; its
+controls have no help buttons.
+
+**The rules list.** `HFA_VERIFICATION_RULES` (`lib/hfa_verification_rules.ts`)
+is the one statement of what is checked. Each rule has an id, a group
+(`HFA_VERIFICATION_RULE_GROUPS`, labelled in en, fr and pt), who checks it
+(`app` or `model`), a fixed severity (`problem` or `warning`, labelled in
+`HFA_VERIFICATION_SEVERITIES`), the code editor field a finding shows beside
+(`shortLabel`, `definition`, `type`, `category`, `code`, `filterCode`,
+`variantCode`, or `rounds` for the round list), and its text in en, fr and pt.
+The app rules are the status core's issue kinds, one for one, listed so the
+rules can be shown without a run and the model is told not to repeat them.
+`quoted_value` is in the list as a commented-out entry: the parser accepts a
+quoted value under a comparison and in an IN list, and the status core does not
+warn on one. Every other rule is checked by the model;
+`HFA_VERIFICATION_MODEL_RULE_IDS` holds their ids, the only ids a finding or a
+rule switch may name.
+
+**Storage.** `hfa_indicator_verifications` holds one row per checked indicator,
+its latest check only: the input hash it was asked about, the model the response
+names, when, and by whom. `hfa_verification_findings` holds one row per finding:
+the indicator, the rule, the round (`time_point`, NULL for a finding about the
+whole indicator), the message and suggestion, written in the instance language,
+and `dismissed_at` and `dismissed_by`. Neither a verdict nor a severity is
+stored: an indicator's verdict derives from its open findings, and a severity is
+its rule's. Both tables cascade from `hfa_indicators`, so deleting an indicator
+or a `replaceAll` workbook import takes their rows. A finding's round references
+`hfa_time_points` with `ON UPDATE CASCADE ON DELETE CASCADE`, since a finding
+about a deleted round is void; the time-point routes notify the datasets
+channel, not the indicators one, so an open manager sees such a cascade on the
+next indicators notify. The rule is not CHECKed in SQL: the save route's body
+takes model rule ids only. A dismissed finding stays stored and suppresses its
+rule for its round, or for every round when it was about the whole indicator,
+until it is undismissed. The rule switches are the `instance_config` key
+`hfa_verification_rules_off`, a JSON array of model rule ids in the rules list's
+order, read by `getHfaVerificationRulesOff` and written by
+`setHfaVerificationRulesOff`; a switched-off rule's findings are hidden, and the
+model is still asked about it.
+
+**Routes** (`lib/api-routes/instance/hfa_verification.ts`,
+`server/routes/instance/hfa_verification.ts`, DB layer
+`server/db/instance/hfa_verification.ts`). `getHfaVerification`
+(`GET
+/hfa-verification`, `can_view_data`) returns `HfaVerificationRows`: every
+verification row, every finding, dismissed ones included, and the switched-off
+rules. `saveHfaIndicatorVerifications` (`POST /hfa-verification/save`,
+`can_configure_data`) takes a batch of results, each an indicator's hash, model
+id and returned findings. `setHfaVerificationFindingsDismissed`
+(`POST
+/hfa-verification/dismissed`, `can_configure_data`) sets or clears
+`dismissed_at` and `dismissed_by` on the given findings; a finding already in
+the asked state keeps its stamp. `setHfaVerificationRulesOff`
+(`POST
+/hfa-verification/rules-off`, `can_configure_data`) stores the
+switched-off rules. Every write notifies through
+`notifyInstanceIndicatorsUpdated`, once per call.
+
+**The save transaction**, one per batch. A result for an indicator deleted since
+the run read it is skipped, so one deletion does not fail the batch, and a later
+result for the same indicator wins. The indicators and time points it reads are
+key-share-locked: a delete or a round rename waits for the save; an edit or an
+import's stamp does not. One `now()` stamps every verification and finding of
+the batch. Per indicator, the verification row is upserted, the undismissed
+findings are deleted, and the returned findings are inserted after three steps,
+in TypeScript over the rows the transaction read (never a SQL equality on
+`time_point`, which is NULL for a whole-indicator finding): a finding about a
+round that is not a time point is dropped, so one bad round does not fail the
+save; findings sharing a rule and round are merged into one, their messages and
+suggestions joined by a blank line; and a finding is dropped when a dismissed
+finding of the indicator has the same rule and a NULL or equal round. A
+dismissal of one round does not suppress a returned finding about the whole
+indicator.
+
+**The stamp.** `hfaVerificationVersion` rides `InstanceIndicatorsSummary`
+(`getHfaVerificationVersion`): MD5 over `MAX(verified_at)` and `COUNT(*)` of the
+verifications, `MAX(created_at)`, `COUNT(*)`, `COUNT(dismissed_at)` and
+`MAX(dismissed_at)` of the findings (the dismissed count moves on every
+dismissal and undismissal), the distinct rounds the findings name (a round
+rename cascades into them and moves no other term), and the rules-off value. The
+T2 cache `getHfaVerificationFromCacheOrFetch`
+(`state/instance/t2_indicators.ts`) keys the rows on it. No new SSE message
+type.
+
+**What is sent** (`lib/hfa_verification.ts`). One structured call per indicator,
+with two system text blocks and one user message, all English apart from the
+instance language the model is told to write in. The instruction block
+(`buildHfaVerificationInstructionBlock(language)`) is the HFA guidance, then the
+model rules grouped, each as its id and English text, then what to return: one
+rule id per finding; at most one finding per rule and round, a finding about
+several variables, values or items naming them all; `timePoint` null for a
+finding about the whole indicator; every text in the instance language;
+dismissed findings not raised again; and no finding for an indicator that is
+right. It lists the app rules' texts, without their ids, as checks whose issues
+ride the message. The context block is the taxonomy, every indicator with its
+code (`formatHfaIndicatorListForAI` with `withCode`) and the compact variable
+list (`formatHfaVariableListForAI`), one text per snapshot, built with the
+instruction block by `buildHfaVerificationBlocks(read, language)`; answer
+options are not in it. The message
+(`buildHfaVerificationMessages(read,
+dismissedByIndicator)`) is the indicator's
+detail block (`createHfaIndicatorDetailsFormatter`, which builds the input index
+once for every indicator of the snapshot), followed, when the indicator has
+dismissed findings, by them under "Findings the user dismissed".
+`hfaVerificationOutputSchema` takes findings of model rules only.
+
+**The input hash** (`hfaVerificationInputHash`) is SHA-256 hex over the
+instruction block and the hashed message: the detail block built without display
+rows and without the dismissed section. A data upload and a dismissal therefore
+change no hash, the facility counts are sent but not hashed, and a client that
+holds no display rows can compute every indicator's current hash. The model id
+is not an ingredient; the verification row records it. An edit to the HFA
+guidance or to any rule's English text changes every indicator's hash. The
+server stores the hash it is sent and never computes one. An indicator with no
+verification row is not verified; one whose row's hash differs from its current
+hash has changed.
+
+**The fix.** `hfaFixOutputSchema` is the model's edit of one indicator: every
+field nullable, null meaning unchanged; rounds and variant rows listed only
+where the edit changes them, a round's code or filter null to keep it and empty
+to clear it, a variant row's empty code removing it; and `note`, one sentence on
+what the edit does. It names no indicator id and cannot clear a category,
+sub-category or variant group, since null keeps them.
+`buildHfaFixMessage(read,
+indicatorId, findings)` is the detail block, the open
+findings with their rules' text, and what to return. `fixToPatch` turns the edit
+into an `HfaIndicatorEditorPatch` (the code editor's draft types,
+`lib/types/hfa_types.ts`) with every null field absent. The fix call sends the
+verification's two system blocks unchanged.
+
+**The current hashes** (`indicators/verification/hashes.ts`). The manager builds
+a read input from what it already loads (the indicators, the taxonomy, the main
+and variant code, the dictionary and the status core's result, no display rows)
+and `createHfaVerificationHashes` turns it into every indicator's current input
+hash. A digest is asynchronous, so an effect writes the map, dropping a pass a
+newer read input supersedes; it reruns when the indicators' or the dataset's
+stamp moves the manager's reads, never on the verification stamp. One pass
+formats every indicator through one formatter and hashes it, about 20 ms for 421
+indicators over three rounds, so a rerun per landed read costs little.
+`hfaVerificationState` joins the map with the T2 rows: each indicator is not
+verified (no row), changed (the row's hash differs) or verified, with its open
+findings, those neither dismissed nor of a switched-off rule; and the queue is
+every indicator not verified or changed, in the manager's order.
+
+**The runner** (`indicators/verification/runner.ts`) is module-level state, one
+run per browser tab: a run outlives the manager, the editor and tab switches,
+and closing the browser tab ends it, the next run's queue being whatever is then
+unverified. `startRun(queue)` reads the snapshot once (`loadReadInput(true)`,
+with display rows, and the T2 rows for the dismissed findings), builds the two
+blocks, every message and the queued indicators' hashes, and calls the model
+through `createAiProxyClient` with `callAIStructured`: the first call alone, so
+its write of the context block to the prompt cache lands before the rest read
+it, then four in flight. `hfaVerificationSystem` makes the two system blocks,
+the context block marked for the prompt cache, for every call and for a drafted
+fix. Each result carries its hash and the response's model and is saved through
+`saveHfaIndicatorVerifications` in batches of ten; the batch in hand is saved
+when the run ends, stops or fails. A `null` answer lists the indicator as not
+checked with the response's stop reason, and the run goes on; `noAnswerReason`
+words the stop reason for the manager, the editor and a fix. A thrown error (a
+failed read or save, a 429, whose reset time the proxy client shows in the
+user's locale, a network failure) stops the run, aborts the calls in flight and
+is kept as the stop error: for an API error, the response body's own message
+(`callErrorMessage`), not the SDK's status and JSON. `stopRun()` aborts every
+call in flight. `hfaVerificationRun` holds the progress (done, queued, the
+indicator last started, the ids not yet answered), undefined while no run is in
+progress, and the not-checked list and stop error of the current or last run
+until the next starts.
+
+**The manager.** For `can_configure_data`, the indicators toolbar holds Verify,
+labelled with the queue's size ("Verify 87", "Verify …" until the hashes and
+rows land), disabled at zero and without HFA data (its title then the no-data
+message); while a run is in progress it shows "Verifying n of N: id" and Stop
+instead. The not-checked list, each id with its reason, and the stop error show
+above the table until the next run, beside the no-data notice, since the `Table`
+has no slot between its toolbar and its rows. The actions menu's Verify all
+queues every indicator, disabled without HFA data and while a run is in
+progress. Every user who can open the manager sees the Findings column: an
+indicator's open problems and warnings ("2 problems, 1 warning"), each count in
+its severity's colour; "not verified" or "changed", muted, beside them or alone;
+"No findings", muted, for a verified indicator with none open; "…" until the
+hashes and rows land. It sorts by the open count and filters by Problem,
+Warning, No findings, Not verified, Changed and the text of each rule an open
+finding names. The manager hands the code editor the state and the rows as
+accessors, so the editor shows what the column shows and follows each save,
+dismissal and switch.
+
+**The code editor.** It opens only for `can_configure_data`, so every control
+below needs no gate of its own. Each field shows, under the app's own issues,
+the findings of the rules whose `field` it is
+(`indicators/verification/field_findings.tsx`): the category and the type
+findings under the row of selects, the label findings under each label, the
+code, filter and variant findings under those fields, and the `rounds` findings
+under the round list. A finding about a round shows only while that round is
+selected; a finding about the whole indicator shows in every round. An open
+finding shows its severity, its rule's text, its round, the message, the
+suggestion and Dismiss; a field's dismissed findings collapse to "n dismissed",
+each with Undo. Dismiss and Undo call `setHfaVerificationFindingsDismissed`. A
+switched-off rule's findings, dismissed ones included, are hidden. Each round
+button counts the open findings about that round, in the danger colour when one
+is a problem. Lines above the fields say that the indicator is not verified, or
+has changed since it was verified and its findings describe the version
+verified, or, while a run has the indicator queued and not yet answered, that it
+is verifying; that the findings describe the saved version while the draft has
+unsaved edits; that the run did not check it, and why; and the run's stop error.
+The header's Verify runs `startRun` over this one indicator, against its saved
+version, while no run is in progress.
+
+**Draft a fix** (`indicators/verification/draft_fix.ts`), the header button
+beside Verify, asks the model for an edit that resolves the indicator's open
+findings. It is enabled with open findings and a draft that is the saved
+version; with unsaved edits its title says to save first. It reads the indicator
+fresh (`loadReadInput(true)`, with display rows as a run reads them), since the
+editor's props are the manager's state when it opened and go stale after a save
+in the editor, and makes one `callAIStructured` call with the verification's two
+system blocks and `buildHfaFixMessage`. The answer becomes a patch through
+`fixToPatch`, which `validateHfaIndicatorPatch`
+(`indicators/_shared/indicator_patch.ts`, shared with the copilot's
+`update_hfa_indicator_editor`) checks against the editor's taxonomy and rounds,
+since `applyDraft` skips a round it does not hold without saying so. A valid
+patch lands through `applyDraft`, as the copilot's does, only when the draft is
+unchanged since the fix was asked for; the banner then shows the model's note
+and each changed field with its value before the fix, and Discard restores the
+draft as it was, saved. A null answer, an empty edit, an edit to a draft changed
+meanwhile, a category change that names no sub-category of the new category
+while the indicator has one, a failed validation and a thrown error each show
+their reason in the banner and change nothing. Nothing is persisted until Save,
+which clears the banner; closing the editor aborts the call.
+
+**The rules modal** (`indicators/verification/rules_modal.tsx`), the actions
+menu's Verification rules, lists the app rules and the model rules apart, each
+under its group with its severity and text. Each model rule has a switch, which
+writes the whole list of switched-off rules through
+`setHfaVerificationRulesOff`; a switched-off rule shows how many of its
+undismissed findings it hides. The switches show the stored list; after a switch
+they show what was written and stay disabled until newer rows land, so a second
+switch is never computed from rows that lack the first. A failed write shows in
+an alert and restores the stored list.
+
+Pinned by `server/tests/hfa_verification_test.ts`: the rules list (unique ids,
+every text and label, the app rules equal to the status core's issue kinds), the
+instruction block (every model rule, no app rule, the one-per-rule-and-round
+line), the schemas, the hash ignoring display rows and the dismissed section,
+the dismissed section, the context block, `fixToPatch`, and on a throwaway
+database the save transaction, the dismissal, the rule switches and the stamp.
+
 ## Population store
 
 **The vocabulary** is `POPULATION_TYPES` in `lib/types/population.ts`: six ids
@@ -1314,6 +1584,9 @@ SYSTEM_10 "Geo").
   `data/general/admin_area_labels.tsx`.
 - `structure_last_updated`: see above; written by the structure world, not by
   the settings UI.
+- `hfa_verification_rules_off`: the model rules switched off for the instance
+  ("HFA indicator verification"). Its writes notify the indicators channel, not
+  `config_updated`, since the value rides the verification's stamp.
 
 **Country is NOT here: it is `ISO_COUNTRY_CODE`**, an env var passed by the
 server-cli Docker run system and read once as `_INSTANCE_COUNTRY_ISO3`
@@ -1324,9 +1597,9 @@ ISO3 code. The value is substituted into R module scripts as `COUNTRY_ISO3` and
 into caption/localization, which is why it is validated as a clean token rather
 than passed through. Migration 074 deletes the dead `country_iso3` config row.
 
-Every config mutation re-reads all configs and pushes one consolidated
-`config_updated` SSE (`notifyInstanceConfigUpdatedFromDb`). No Valkey at this
-layer.
+Every config mutation but the rule switches re-reads all configs and pushes one
+consolidated `config_updated` SSE (`notifyInstanceConfigUpdatedFromDb`). No
+Valkey at this layer.
 
 ## Client state & wizard
 
@@ -1343,7 +1616,8 @@ layer.
   in the run manifest's `datasets[].info` at capture (`RunDatasetHmisInfo`,
   `lib/types/run_datasets.ts`; manifest transform block 9 renames the pre-1.72
   keys in stored manifests). HFA's stamps are `hfaIndicatorsVersion` and
-  `hfaCacheHash`.
+  `hfaCacheHash`, and the verification's rows key on `hfaVerificationVersion`
+  ("HFA indicator verification").
 - The indicator editor's expression palette (ruled; storage unchanged, the
   identifier inserted is the stored id): two "Insert …" pickers above the
   formula box, indicators (label-searchable, every indicator but the one being
@@ -1480,8 +1754,7 @@ layer.
   `requireApprovedUser()` too, and the starting payload withholds the boundary
   list from an unapproved connection (S3); the HMIS and HFA dictionary reads
   take `can_view_data` and every mutation `can_configure_data`, config mutations
-  included. Every
-  Data-page write control reads the same flag through
+  included. Every Data-page write control reads the same flag through
   `can("can_configure_data")` (`state/instance/permissions.ts`, S18), the HFA
   indicators manager's indicator write controls and the chat's HFA write tools
   (S13) included, so a user the route would refuse sees no control.
@@ -1578,7 +1851,9 @@ layer.
   (`server_only_funcs/get_script_with_parameters_hfa.ts:116-119`). Either the
   language refuses text operands (`parseHfaIndicatorCode` returns `text_operand`
   for every string), or m010 keeps text values and the bindings quote
-  non-numeric codes.
+  non-numeric codes. The verification's rules list holds the matching app rule,
+  `quoted_value`, commented out (`lib/hfa_verification_rules.ts`): the decision
+  either enables it with the status core's new issue kind or deletes it.
 - **The manager calls code ready when it names a variable blank in every
   round.** Run capture knows only variables with a non-blank value
   (`server/runs/capture_inputs/hfa.ts:220-241`), so generation reports such a

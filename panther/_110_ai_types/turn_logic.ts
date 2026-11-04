@@ -374,19 +374,24 @@ export function lastMessageHasUnresolvedToolUse(msgs: MessageParam[]): boolean {
 // additionally requires trimming dangling server_tool_use blocks from the
 // persisted assistant message (trimDanglingServerToolUse) before stopping.
 // noticeType is the stable machine-readable key consumers can dispatch on;
-// message/details are default English display copy.
+// message/details are default English display copy. "turn_error" is raised
+// by the chat when a turn throws (an API error or a consumer callback run in
+// the turn).
 
 export type SystemNoticeType =
   | "refusal"
   | "truncation"
   | "context_exceeded"
-  | "turn_limit";
+  | "turn_limit"
+  | "turn_error";
+
+type ContinuationNoticeType = Exclude<SystemNoticeType, "turn_error">;
 
 export type TurnContinuation =
   | { kind: "done" }
   | {
     kind: "halt";
-    noticeType: SystemNoticeType;
+    noticeType: ContinuationNoticeType;
     message: string;
     details: string;
   }
@@ -394,13 +399,13 @@ export type TurnContinuation =
   | { kind: "run-tools" }
   | {
     kind: "cap-tools";
-    noticeType: SystemNoticeType;
+    noticeType: ContinuationNoticeType;
     message: string;
     details: string;
   }
   | {
     kind: "cap-pause";
-    noticeType: SystemNoticeType;
+    noticeType: ContinuationNoticeType;
     message: string;
     details: string;
   };

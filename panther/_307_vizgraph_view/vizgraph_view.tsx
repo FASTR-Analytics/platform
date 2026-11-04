@@ -15,8 +15,11 @@ import {
   onCleanup,
   onMount,
   PanZoomSvg,
+  phaseProgress,
+  resolveTransition,
   Show,
   toSvgPathClosedRing,
+  transitionTotalMs,
   untrack,
 } from "./deps.ts";
 import type {
@@ -25,6 +28,7 @@ import type {
   JSX,
   LayoutOptions,
   PanZoomApi,
+  Transition,
 } from "./deps.ts";
 import type {
   VizGraphViewApi,
@@ -43,7 +47,6 @@ import {
 import type { TransitionFrame } from "./_internal/transition.ts";
 import { arrowheadPath, shaftPath } from "./_internal/edge_paint.ts";
 
-const DEFAULT_TRANSITION_MS = 500;
 const DEFAULT_EDGE_THICKNESS = 1.5;
 const RESIZE_RELAYOUT_DEBOUNCE_MS = 100;
 
@@ -166,10 +169,10 @@ export function VizGraphView(p: VizGraphViewProps) {
   // ONE layout effect: an empty PRIOR geometry (first layout, or content
   // replacing an empty canvas) swaps the frame in with no transition; later
   // changes relayout with prior = what is currently displayed (survivors
-  // barely move) and run the two-phase transition.
+  // barely move) and run the transition.
   createEffect(() => {
     const model = p.model;
-    const durationMs = p.transitionMs ?? DEFAULT_TRANSITION_MS;
+    const tr = resolveTransition(p.transition);
     const m = measurer();
     const options = resolvedOptions(model, m);
     if (options === undefined) {
@@ -183,7 +186,7 @@ export function VizGraphView(p: VizGraphViewProps) {
       return;
     }
     const next = layoutModel(model, { ...options, prior: current }, m);
-    runTransition(current, next, durationMs);
+    runTransition(current, next, tr);
     setContentBounds(next.bounds);
   });
 
@@ -252,13 +255,10 @@ export function VizGraphView(p: VizGraphViewProps) {
     return layout(withHeaderSizes(model, measureGroup, measureLane), options);
   }
 
-  function runTransition(
-    from: Geometry,
-    to: Geometry,
-    durationMs: number,
-  ): void {
+  function runTransition(from: Geometry, to: Geometry, tr: Transition): void {
     const version = ++transitionVersion;
-    if (durationMs <= 0) {
+    const totalMs = transitionTotalMs(tr);
+    if (totalMs <= 0) {
       setFrame({ geometry: to, opacities: undefined, groupOpacity: 1 });
       return;
     }
@@ -267,9 +267,9 @@ export function VizGraphView(p: VizGraphViewProps) {
       if (version !== transitionVersion) {
         return;
       }
-      const t = Math.min(1, (now - startTime) / durationMs);
-      setFrame(buildTransitionFrame(from, to, t));
-      if (t < 1) {
+      const elapsedMs = Math.min(totalMs, now - startTime);
+      setFrame(buildTransitionFrame(from, to, phaseProgress(tr, elapsedMs)));
+      if (elapsedMs < totalMs) {
         transitionRaf = requestAnimationFrame(step);
       }
     }

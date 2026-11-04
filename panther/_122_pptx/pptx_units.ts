@@ -3,6 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
+import { Color } from "./deps.ts";
 import type { RectCoordsDims } from "./deps.ts";
 import type { CreateCanvasRenderContext } from "./types.ts";
 
@@ -50,4 +51,21 @@ export function imageToDataUrl(
   }
 
   return canvas.toDataURL("png");
+}
+
+// A panther colour as PptxGenJS takes it: hex without the hash, and the
+// colour's alpha as transparency (0 opaque, 100 clear), the one form every text
+// run, fill and line accepts.
+export function pptxColor(
+  color: string,
+): { color: string; transparency: number } {
+  const c = new Color(color);
+  return { color: c.hexNoHash(), transparency: (1 - c.rgba().a) * 100 };
+}
+
+// A run highlight takes hex alone, so a translucent colour is flattened over
+// the white slide.
+export function pptxHighlight(color: string): string {
+  const c = new Color(color);
+  return c.tint(1 - c.rgba().a).hexNoHash();
 }

@@ -163,10 +163,12 @@ export type InstanceState = {
   // keys the indicator manager; the count one moves only when the
   // extract-relevant rows (the analysed counts: Uploaded, DHIS2 element and Sum
   // with the checkbox on) change, so editing a calculated definition costs the
-  // HMIS datatable caches nothing.
+  // HMIS datatable caches nothing. The HFA verification stamp moves on every
+  // save, dismissal and rule switch of the verification.
   indicatorsVersion: string;
   countIndicatorsVersion: string;
   hfaIndicatorsVersion: string;
+  hfaVerificationVersion: string;
 
   // Per-connection current user (populated by server in starting message,
   // re-derived on users_updated: different for each connected client)
@@ -212,6 +214,7 @@ export type InstanceIndicatorsSummary = {
   indicatorsVersion: string;
   countIndicatorsVersion: string;
   hfaIndicatorsVersion: string;
+  hfaVerificationVersion: string;
 };
 
 export type InstanceDatasetsSummary = {

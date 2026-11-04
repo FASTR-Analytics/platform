@@ -155,12 +155,6 @@ export function markdownClasses(
   }`;
 }
 
-function opacityToHex(opacity: number): string {
-  if (opacity >= 1) return "";
-  const alpha = Math.round(opacity * 255).toString(16).padStart(2, "0");
-  return alpha;
-}
-
 // The blessed spelling of "document look with model defaults". Passing any
 // style object (this constant included) projects the document style model as
 // inline vars; passing nothing/null yields the app look via the _fixed.css
@@ -316,8 +310,7 @@ export function deriveMarkdownCssVars(
     "--md-table-border-color": merged.table.borderColor,
     "--md-table-cell-px": `${em.table.cellPaddingH}em`,
     "--md-table-cell-py": `${em.table.cellPaddingV}em`,
-    "--md-table-header-bg": merged.table.headerShadingColor +
-      opacityToHex(merged.table.headerShadingOpacity),
+    "--md-table-header-bg": merged.table.headerShadingColor,
   };
 
   return vars as JSX.CSSProperties;

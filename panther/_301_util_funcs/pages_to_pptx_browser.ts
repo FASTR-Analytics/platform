@@ -12,6 +12,7 @@ import {
   type PptxGenJSInstance,
   RectCoordsDims,
 } from "./deps.ts";
+import { createCanvasBrowser } from "./create_canvas_render_context_browser.ts";
 
 const PptxGenJSConstructor = PptxGenJS as unknown as {
   new (): PptxGenJSInstance;
@@ -30,14 +31,12 @@ export function pagesToPptxBrowser(
     w: number,
     h: number,
   ) => {
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.floor(w);
-    canvas.height = Math.floor(h);
+    const canvas = createCanvasBrowser(Math.floor(w), Math.floor(h));
     const ctx = canvas.getContext("2d");
     if (!ctx) {
       throw new Error("Failed to get canvas context");
     }
-    const rc = new CanvasRenderContext(ctx);
+    const rc = new CanvasRenderContext(ctx, createCanvasBrowser);
     const rcd = new RectCoordsDims([0, 0, canvas.width, canvas.height]);
     return { canvas, rc, rcd };
   };

@@ -57,6 +57,9 @@ export class PdfRenderContext implements RenderContext {
   _crc: CanvasRenderContext;
   // deno-lint-ignore no-explicit-any -- cross-env canvas factory (skia Canvas or DOM HTMLCanvasElement)
   _createCanvas: (width: number, height: number) => any;
+  // The ambient alpha of withOpacity: every GState opacity written below is
+  // the op's own alpha times this, so nested scopes compose.
+  private _alpha = 1;
 
   constructor(
     pdf: jsPDF,
@@ -65,7 +68,7 @@ export class PdfRenderContext implements RenderContext {
     createCanvas: (width: number, height: number) => any,
   ) {
     this._jsPdf = pdf;
-    this._crc = new CanvasRenderContext(ctx);
+    this._crc = new CanvasRenderContext(ctx, createCanvas);
     this._createCanvas = createCanvas;
   }
 
@@ -80,11 +83,11 @@ export class PdfRenderContext implements RenderContext {
   // Fill colour + matching alpha via GState (hex → opaque, rgba → its alpha).
   private applyFill(color: string): void {
     if (color.at(0) === "#") {
-      this.setGStateOpacity({ opacity: 1 });
+      this.setGStateOpacity({ opacity: this._alpha });
       this._jsPdf.setFillColor(color);
     } else {
       const rgba = new Color(color).rgba();
-      this.setGStateOpacity({ opacity: rgba.a });
+      this.setGStateOpacity({ opacity: rgba.a * this._alpha });
       this._jsPdf.setFillColor(rgba.r, rgba.g, rgba.b);
     }
   }
@@ -92,11 +95,11 @@ export class PdfRenderContext implements RenderContext {
   // Stroke colour + matching alpha via the GState stroke-opacity channel.
   private applyStroke(color: string): void {
     if (color.at(0) === "#") {
-      this.setGStateOpacity({ "stroke-opacity": 1 });
+      this.setGStateOpacity({ "stroke-opacity": this._alpha });
       this._jsPdf.setDrawColor(color);
     } else {
       const rgba = new Color(color).rgba();
-      this.setGStateOpacity({ "stroke-opacity": rgba.a });
+      this.setGStateOpacity({ "stroke-opacity": rgba.a * this._alpha });
       this._jsPdf.setDrawColor(rgba.r, rgba.g, rgba.b);
     }
   }
@@ -104,11 +107,11 @@ export class PdfRenderContext implements RenderContext {
   // Text colour + matching alpha via GState opacity.
   private applyTextColor(color: string): void {
     if (color.at(0) === "#") {
-      this.setGStateOpacity({ opacity: 1 });
+      this.setGStateOpacity({ opacity: this._alpha });
       this._jsPdf.setTextColor(color);
     } else {
       const rgba = new Color(color).rgba();
-      this.setGStateOpacity({ opacity: rgba.a });
+      this.setGStateOpacity({ opacity: rgba.a * this._alpha });
       this._jsPdf.setTextColor(rgba.r, rgba.g, rgba.b);
     }
   }
@@ -422,13 +425,7 @@ export class PdfRenderContext implements RenderContext {
 
       // Set up stroke color and width
       if (hasStroke) {
-        const strokeColor = getColor(s.strokeColor!);
-        if (strokeColor.at(0) === "#") {
-          this._jsPdf.setDrawColor(strokeColor);
-        } else {
-          const rgba = new Color(strokeColor).rgba();
-          this._jsPdf.setDrawColor(rgba.r, rgba.g, rgba.b);
-        }
+        this.applyStroke(getColor(s.strokeColor!));
         this._jsPdf.setLineWidth(s.strokeWidth!);
       }
 
@@ -606,6 +603,9 @@ export class PdfRenderContext implements RenderContext {
     ...args: number[]
   ): void {
     try {
+      // Always written: the GState persists from the previous op, so an
+      // opaque image after a translucent fill would inherit its alpha.
+      this.setGStateOpacity({ opacity: this._alpha });
       if (args.length === 4) {
         // 5-parameter version: drawImage(image, dx, dy, dw, dh)
         const [dx, dy, dw, dh] = args;
@@ -745,31 +745,11 @@ export class PdfRenderContext implements RenderContext {
     const hasStroke = style.stroke && getColor(style.stroke.color) !== "none";
 
     if (hasFill && style.fill) {
-      const fillColor = getColor(style.fill.color);
-      if (fillColor.at(0) === "#") {
-        this.setGStateOpacity({ opacity: style.fill.opacity ?? 1 });
-        this._jsPdf.setFillColor(fillColor);
-      } else {
-        const rgba = new Color(fillColor).rgba();
-        this.setGStateOpacity({
-          opacity: (style.fill.opacity ?? 1) * rgba.a,
-        });
-        this._jsPdf.setFillColor(rgba.r, rgba.g, rgba.b);
-      }
+      this.applyFill(getColor(style.fill.color));
     }
 
     if (hasStroke && style.stroke) {
-      const strokeColor = getColor(style.stroke.color);
-      if (strokeColor.at(0) === "#") {
-        this.setGStateOpacity({ opacity: style.stroke.opacity ?? 1 });
-        this._jsPdf.setDrawColor(strokeColor);
-      } else {
-        const rgba = new Color(strokeColor).rgba();
-        this.setGStateOpacity({
-          opacity: (style.stroke.opacity ?? 1) * rgba.a,
-        });
-        this._jsPdf.setDrawColor(rgba.r, rgba.g, rgba.b);
-      }
+      this.applyStroke(getColor(style.stroke.color));
       this._jsPdf.setLineWidth(style.stroke.width);
       if (style.stroke.lineDash === "dashed") {
         this._jsPdf.setLineDashPattern(
@@ -811,5 +791,15 @@ export class PdfRenderContext implements RenderContext {
     this._jsPdf.discardPath();
     fn();
     this._jsPdf.restoreGraphicsState();
+  }
+
+  withOpacity(alpha: number, fn: () => void): void {
+    const previous = this._alpha;
+    this._alpha = previous * alpha;
+    try {
+      fn();
+    } finally {
+      this._alpha = previous;
+    }
   }
 }

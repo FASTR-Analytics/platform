@@ -25,9 +25,9 @@ import type {
   MergedPieStyle,
   MergedSankeyStyle,
   MergedScaleLegendStyle,
+  MergedSceneStyle,
   MergedSurroundsStyle,
   MergedTableStyle,
-  MergedVizGraphStyle,
   MergedXPeriodAxisStyle,
   MergedXScaleAxisStyle,
   MergedXTextAxisStyle,
@@ -110,8 +110,9 @@ export type FigureStyleKeyCoverage = {
   >;
   grid: AssertNoMissingKeys<Missing<"grid", MergedGridStyle>>;
   panes: AssertNoMissingKeys<Missing<"panes", MergedPaneStyle>>;
-  vizgraph: AssertNoMissingKeys<Missing<"vizgraph", MergedVizGraphStyle>>;
   sankey: AssertNoMissingKeys<Missing<"sankey", MergedSankeyStyle>>;
+  scene: AssertNoMissingKeys<Missing<"scene", MergedSceneStyle>>;
+  diagram: AssertNoMissingKeys<Missing<"diagram", MergedSceneStyle["diagram"]>>;
   map: AssertNoMissingKeys<Missing<"map", MergedMapStyle["map"]>>;
   pie: AssertNoMissingKeys<Missing<"pie", MergedPieStyle["pie"]>>;
   idealHeight: AssertNoMissingKeys<
@@ -146,15 +147,12 @@ type MergedFigureTextKey =
   | keyof MergedYScaleAxisStyle["text"]
   | keyof MergedPieStyle["pie"]["text"]
   | (MergedLegendStyle["text"] extends TextInfoUnkeyed ? "legend" : never)
-  | (MergedVizGraphStyle["text"]["primary"] extends TextInfoUnkeyed
-    ? "vizgraphNodeTextPrimary"
-    : never)
-  | (MergedVizGraphStyle["text"]["secondary"] extends TextInfoUnkeyed
-    ? "vizgraphNodeTextSecondary"
-    : never)
-  | (MergedVizGraphStyle["text"]["groupLabel"] extends TextInfoUnkeyed
-    ? "vizgraphGroupLabel"
-    : never)
-  | (MergedVizGraphStyle["text"]["laneLabel"] extends TextInfoUnkeyed
-    ? "vizgraphLaneLabel"
-    : never);
+  | MergedSceneTextKey;
+
+// scene.text.boxTitle lands text.sceneBoxTitle, and so on for every field.
+type MergedSceneTextKey = {
+  [K in keyof MergedSceneStyle["text"] & string]:
+    MergedSceneStyle["text"][K] extends TextInfoUnkeyed
+      ? `scene${Capitalize<K>}`
+      : never;
+}[keyof MergedSceneStyle["text"] & string];

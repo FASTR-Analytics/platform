@@ -6,10 +6,14 @@
 export type {
   FiscalYearRule,
   FullPeriodUnit,
+  PeriodBounds,
   PeriodUnit,
 } from "../_000_utils/mod.ts";
 export { ALL_LONG_TABLE_AGGREGATES } from "../_014_long_table/mod.ts";
 export type {
+  DescribedColumn,
+  DimensionValuesResult,
+  ItemsResult,
   LongTableAggregate,
   LongTableColumn,
   LongTableDimension,
@@ -23,7 +27,8 @@ export type {
   LongTableTime,
   LongTableValue,
   PeriodFilter,
+  RowsResult,
 } from "../_014_long_table/mod.ts";
 export { zJsonArrayItem, zPeriodType } from "../_150_figure_schema/mod.ts";
-export type { Conforms } from "../_150_figure_schema/mod.ts";
+export type { ConformsExactly } from "../_150_figure_schema/mod.ts";
 export { z } from "zod";

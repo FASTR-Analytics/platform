@@ -4,7 +4,6 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
-  Color,
   type MeasuredPage,
   type MeasuredText,
   type MergedPageNumberStyle,
@@ -18,7 +17,7 @@ import type {
   PptxGenJSInstance,
   PptxSlide,
 } from "./types.ts";
-import { pixelsToInches, pixelsToPoints } from "./pptx_units.ts";
+import { pixelsToInches, pixelsToPoints, pptxColor } from "./pptx_units.ts";
 import { mapFontForPptx } from "./font_mapping.ts";
 import { renderCoverSlide } from "./render_cover_slide.ts";
 import { renderSectionSlide } from "./render_section_slide.ts";
@@ -119,7 +118,7 @@ function renderSlideFromMeasured(
       h: pixelsToInches(mText.dims.h()),
       fontFace: mapFontForPptx(mText.ti.font.fontFamily),
       fontSize: pixelsToPoints(mText.ti.fontSize),
-      color: Color.toHexNoHash(mText.ti.color),
+      ...pptxColor(mText.ti.color),
       align: alignH,
       valign: "bottom",
       margin: 0,
@@ -135,7 +134,7 @@ function renderPptxPageNumberBackground(
   measured: MeasuredPage,
 ): void {
   const bg = s.background;
-  const bgColor = Color.toHexNoHash(s.backgroundColor);
+  const fill = pptxColor(s.backgroundColor);
   const pad = s.padding;
   const textW = mText.dims.w();
   const textH = mText.dims.h();
@@ -156,7 +155,7 @@ function renderPptxPageNumberBackground(
         y: pixelsToInches(rectTop),
         w: pixelsToInches(rectW),
         h: pixelsToInches(rectH),
-        fill: { color: bgColor },
+        fill,
         line: { width: 0 },
       });
       return;
@@ -172,7 +171,7 @@ function renderPptxPageNumberBackground(
       y: pixelsToInches(pageBottom - triSize),
       w: pixelsToInches(triSize),
       h: pixelsToInches(triSize),
-      fill: { color: bgColor },
+      fill,
       line: { width: 0 },
       flipH: placement === "bottom-right",
     });
@@ -183,7 +182,7 @@ function renderPptxPageNumberBackground(
       w: pixelsToInches(rectW),
       h: pixelsToInches(rectH),
       rectRadius: pixelsToInches(rectH / 2),
-      fill: { color: bgColor },
+      fill,
       line: { width: 0 },
     });
   } else {
@@ -192,7 +191,7 @@ function renderPptxPageNumberBackground(
       y: pixelsToInches(rectTop),
       w: pixelsToInches(rectW),
       h: pixelsToInches(rectH),
-      fill: { color: bgColor },
+      fill,
       line: { width: 0 },
     });
   }
