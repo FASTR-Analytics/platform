@@ -40,6 +40,7 @@ export type {
 
 export type {
   AIToolApprovalConfig,
+  AIToolCallContext,
   AIToolKind,
   AIToolWithMetadata,
   AnyAITool,

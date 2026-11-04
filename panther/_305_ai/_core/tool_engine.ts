@@ -248,7 +248,7 @@ function safeLabel(
 // One block's in-progress item. Used by getInProgressItems for the upfront
 // batch and by the chat loop for awaitsUserAction tools at block start.
 export function buildInProgressItem(
-  block: { name: string; input: unknown },
+  block: { id: string; name: string; input: unknown },
   toolRegistry: ToolRegistry,
 ): DisplayItem {
   const metadata = toolRegistry.getMetadata(block.name);
@@ -261,6 +261,7 @@ export function buildInProgressItem(
 
   return {
     type: "tool_in_progress" as const,
+    toolUseId: block.id,
     toolName: block.name,
     toolInput: block.input,
     label,
@@ -293,10 +294,12 @@ export async function processToolUses(
   // Live view accessor from the chat's controller, injected into every
   // handler at execution (undefined for a chat with no view controller).
   // Handlers see a snapshot: createAITool calls it once, at handler entry.
-  getView?: () => unknown,
+  getView: (() => unknown) | undefined,
+  // The turn's abort signal, which Stop aborts; each handler gets it in its
+  // context with the id of the call it answers.
+  signal: AbortSignal,
 ): Promise<{
   results: ToolResult[];
-  inProgressItems: DisplayItem[];
   errorItems: DisplayItem[];
   successItems: DisplayItem[];
 }> {
@@ -304,8 +307,6 @@ export async function processToolUses(
     (block): block is ContentBlock & { type: "tool_use" } =>
       block.type === "tool_use",
   );
-
-  const inProgressItems = getInProgressItems(content, toolRegistry);
 
   const toolPromises = toolUseBlocks.map(
     async (block): Promise<ToolResultInternal> => {
@@ -329,8 +330,11 @@ export async function processToolUses(
         // hand-constructed consumer tool that only has run() still works.
         const sdk = toolWithMetadata.sdkTool;
         const result = sdk.runWithView
-          ? await sdk.runWithView(block.input, getView)
-          : await sdk.run(block.input);
+          ? await sdk.runWithView(block.input, getView, {
+            toolUseId: block.id,
+            signal,
+          })
+          : await sdk.run(block.input, { toolUse: { id: block.id }, signal });
         return {
           type: "tool_result" as const,
           tool_use_id: block.id,
@@ -411,7 +415,6 @@ export async function processToolUses(
 
   return {
     results,
-    inProgressItems,
     errorItems,
     successItems,
   };

@@ -134,7 +134,7 @@ export type ToolDefinition = {
     type: "object";
     properties?: Record<string, unknown>;
     required?: string[];
-    additionalProperties: false;
+    additionalProperties?: false;
     [key: string]: unknown;
   };
 };
@@ -145,9 +145,13 @@ export type ToolDefinition = {
 
 export type AnthropicModel =
   // Claude 5 family (latest)
+  | "claude-fable-5-1"
   | "claude-fable-5"
+  | "claude-opus-5-5"
   | "claude-opus-5"
+  | "claude-sonnet-5-5"
   | "claude-sonnet-5"
+  | "claude-haiku-5-5"
   // Claude 4.7 / 4.8
   | "claude-opus-4-8"
   | "claude-opus-4-7"
@@ -159,8 +163,6 @@ export type AnthropicModel =
   | "claude-haiku-4-5"
   | "claude-haiku-4-5-20251001"
   | "claude-sonnet-4-5-20250929"
-  // Claude 4.1 (deprecated, retires 2026-08-05)
-  | "claude-opus-4-1-20250805"
   | string;
 
 // Effort (GA, no beta header) controls thinking depth and overall token
@@ -174,13 +176,8 @@ export type OutputConfig = {
 export type AnthropicModelConfig = {
   model: AnthropicModel;
   max_tokens: number;
-  stop_sequences?: string[];
   thinking?: ThinkingConfig;
   output_config?: OutputConfig;
-  metadata?: {
-    user_id?: string;
-    [key: string]: unknown;
-  };
 };
 
 // Request-body shape for proxy servers that validate/forward Messages API

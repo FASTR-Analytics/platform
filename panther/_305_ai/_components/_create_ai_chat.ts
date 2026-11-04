@@ -28,30 +28,28 @@ import {
   buildApprovalViewExitMessage,
   buildCancelledToolResults,
   buildToolResultUserMessage,
+  clampMaxOutputTokens,
   classifyTurnContinuation,
   decideViewGate,
+  EMPTY_REPLY_PLACEHOLDER,
   getUserFacingAIErrorMessage,
   hashRequestPrefix,
-  lastMessageHasUnresolvedToolUse,
   openConfirm,
   reconcileRequestPrefix,
   releaseUnansweredCarriers,
   renderOutgoingMessages,
+  repairStrandedToolUse,
+  resolveBetas,
+  resolveBuiltInTools,
   resolveModelConfig,
   resolveOutputConfig,
   resolveThinkingConfig,
+  RETIRED_MODEL_IDS,
   sanitizePersistedSettings,
   selectTurnSections,
   shapeCachedPayload,
-  supportsDynamicWebTools,
   trimDanglingServerToolUse,
 } from "../deps.ts";
-import {
-  ANTHROPIC_BETA_HEADER,
-  getBetaHeaders,
-  hasWebFetchTool,
-} from "../_core/beta_headers.ts";
-import { resolveBuiltInTools } from "../_core/builtin_tools.ts";
 import {
   clearConversationStore,
   getOrCreateConversationStore,
@@ -121,6 +119,13 @@ function viewSnapshotOf(
   return view.identity
     ? { id: view.id, identity: view.identity }
     : { id: view.id };
+}
+
+// A whitespace-only text is dropped wherever a text enters the engine: it
+// would reach the wire as an empty block, or, with sections, as a message of
+// context alone that the user never wrote.
+function isBlank(text: string): boolean {
+  return text.trim() === "";
 }
 
 function loadSettings(key: string): AIChatSettingsValues | undefined {
@@ -277,9 +282,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
   const isStreaming = () => store().isStreaming[0]();
   const isProcessingTools = () => store().isProcessingTools[0]();
   const error = () => store().error[0]();
-  const usage = () => store().usage[0]();
   const currentStreamingText = () => store().currentStreamingText[0]();
-  const usageHistory = () => store().usageHistory[0]();
   const serverToolLabel = () => store().serverToolLabel[0]();
 
   // Bind BEFORE registering so construction-time tools and later dynamic
@@ -318,6 +321,9 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
   // from the queue signal itself, so clearing the queue clears the bubbles
   // by construction and nothing unsent can persist.
   function enqueueMessage(text: string) {
+    if (isBlank(text)) {
+      return;
+    }
     const s = store();
     const [queued, setQueued] = s.queuedMessages;
     setQueued([...queued(), { text, resolve: () => {} }]);
@@ -474,7 +480,6 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       containerId: undefined,
       resolveOnFinish: [],
       viewReference: null,
-      cancelPendingInteraction: null,
       firstIndex: null,
       lastModelReplyIndex: -1,
       carriers: [],
@@ -501,6 +506,23 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     });
   }
 
+  const readConsumerBlocks = () => config.getEphemeralContext?.() ?? null;
+
+  // The tool results are already owed to the model when a typed message
+  // joins them, so a throwing hook loses its blocks for that message and the
+  // results still land; at turn creation a throw fails the turn instead.
+  const readConsumerBlocksForToolResults = () => {
+    try {
+      return readConsumerBlocks();
+    } catch (err) {
+      console.error(
+        "getEphemeralContext threw while a typed message joined the tool results; sending it without the consumer blocks.",
+        err,
+      );
+      return null;
+    }
+  };
+
   // The turn's ephemeral sections, resolved at turn creation (inside the
   // protected region — a consumer callback throw surfaces through the normal
   // error path). With a view controller, sections ride EVERY turn-creating
@@ -516,7 +538,11 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
   // (the unanswered carrier's sections are released at the turn's end;
   // restored entries ride the retry's fresh digest). The consumer hook runs
   // BEFORE the drain so a hook throw cannot strand already-drained entries.
-  function buildTurnSections(directSend: boolean, conversationId: string): {
+  function buildTurnSections(
+    directSend: boolean,
+    conversationId: string,
+    readConsumer: () => string | string[] | null,
+  ): {
     sections: EphemeralSection[];
     restoreInteractions: (() => void) | null;
     // The view the sections tell the model about, which the turn's gate
@@ -525,7 +551,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
   } {
     const vc = config.viewController;
     if (vc) {
-      const consumer = config.getEphemeralContext?.() ?? null;
+      const consumer = readConsumer();
       const parts = vc._turnSectionParts();
       const drained = vc._drainForSend(conversationId);
       return {
@@ -543,9 +569,8 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     if (!directSend) {
       return { sections: [], restoreInteractions: null, reference: null };
     }
-    const consumer = config.getEphemeralContext?.() ?? null;
     return {
-      sections: assembleTurnSections({ consumer }),
+      sections: assembleTurnSections({ consumer: readConsumer() }),
       restoreInteractions: null,
       reference: null,
     };
@@ -577,17 +602,25 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
   }
 
   function sendMessage(userMessage: string): Promise<void> {
+    if (isBlank(userMessage)) {
+      return Promise.resolve();
+    }
     return startOrEnqueue([userMessage], true);
   }
 
   function sendMessages(userMessages: string[]): Promise<void> {
-    if (userMessages.length === 0) return Promise.resolve();
+    const texts = userMessages.filter((text) => !isBlank(text));
+    if (texts.length === 0) {
+      return Promise.resolve();
+    }
     // Without a view controller the consumer blocks ride direct sends only
     // (the historical sendMessages behaviour); with one, sections ride every
     // turn-creating path, this batch included (buildTurnSections).
-    return startOrEnqueue(userMessages, false);
+    return startOrEnqueue(texts, false);
   }
 
+  // texts holds at least one text and none blank: the send and enqueue entry
+  // points drop blank ones and send nothing when none is left.
   async function runTurn(
     turn: ActiveTurn,
     texts: string[],
@@ -641,45 +674,39 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       }
       ts.prefixHash[1](reconciled.hash);
 
-      if (texts.length > 0) {
-        const isFirstMessage = tMessages().length === 0;
-        turn.firstIndex = tMessages().length;
-        const built: MessageParam[] = [];
-        const displayMessages: MessageParam[] = [];
-        // createUserMessage attaches only not-yet-sent documents, so the
-        // first message of a batch carries any new ones and the rest stay
-        // plain text. Sections attach to the batch's FIRST message at turn
-        // creation, storage-only; the wire renders them per request
-        // (renderOutgoingMessages tolerates trailing batch messages).
-        const firstMsg = createUserMessage(texts[0], tMessages());
-        const turnSections = buildTurnSections(
-          directSend,
+      const isFirstMessage = tMessages().length === 0;
+      turn.firstIndex = tMessages().length;
+      // createUserMessage attaches only not-yet-sent documents, so the
+      // first message of a batch carries any new ones and the rest stay
+      // plain text. Sections attach to the batch's FIRST message at turn
+      // creation, storage-only; the wire renders them per request
+      // (renderOutgoingMessages tolerates trailing batch messages).
+      const firstMsg = createUserMessage(texts[0], tMessages());
+      const turnSections = buildTurnSections(
+        directSend,
+        turn.conversationId,
+        readConsumerBlocks,
+      );
+      turn.viewReference = turnSections.reference;
+      attachSections(turn, firstMsg, turnSections, tMessages());
+      const built: MessageParam[] = [
+        firstMsg,
+        ...texts.slice(1).map((text): MessageParam => ({
+          role: "user",
+          content: text,
+        })),
+      ];
+
+      batch(() => {
+        setTMessages([...tMessages(), ...built]);
+        for (const msg of built) processMessageForDisplayTo(ts, msg);
+      });
+
+      if (isFirstMessage && conversationsContext) {
+        conversationsContext.updateTitleFromFirstMessage(
           turn.conversationId,
+          texts[0],
         );
-        turn.viewReference = turnSections.reference;
-        attachSections(turn, firstMsg, turnSections, tMessages());
-        built.push(firstMsg);
-        if (texts[0].trim()) displayMessages.push(firstMsg);
-        for (const text of texts.slice(1)) {
-          const userMsg: MessageParam = { role: "user", content: text };
-          built.push(userMsg);
-          if (text.trim()) displayMessages.push(userMsg);
-        }
-
-        batch(() => {
-          setTMessages([...tMessages(), ...built]);
-          for (const msg of displayMessages) {
-            processMessageForDisplayTo(ts, msg);
-          }
-        });
-
-        // Update title from first message
-        if (isFirstMessage && texts[0]?.trim() && conversationsContext) {
-          conversationsContext.updateTitleFromFirstMessage(
-            turn.conversationId,
-            texts[0],
-          );
-        }
       }
 
       batch(() => {
@@ -723,6 +750,16 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
         });
       }
     } finally {
+      // Any throw between storing a tool_use reply and storing its results
+      // (a consumer render, a handler's unconvertible throw value) leaves
+      // the list stranded, and every later request would be refused.
+      const repaired = repairStrandedToolUse(
+        tMessages(),
+        "Tool execution failed: the turn ended with an error before this tool's result was recorded",
+      );
+      if (repaired !== tMessages()) {
+        setTMessages(repaired);
+      }
       if (turn.abort.signal.aborted) {
         const msgs = tMessages();
         const lastMsg = msgs[msgs.length - 1];
@@ -761,6 +798,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
         setTCurrentStreamingText(undefined);
         ts.serverToolLabel[1](undefined);
         ts.isProcessingTools[1](false);
+        clearInProgressItemsIn(ts);
       });
 
       // Save conversation state after turn completes — the finally-only
@@ -1266,15 +1304,10 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     depth: number = 0,
   ): Promise<void> {
     const ts = turn.store;
-    // Use SDK's beta streaming. The web-fetch beta header is only needed
-    // for the basic web_fetch variant used on pre-4.6 models. The turn's
-    // one prefix serves every request, and the model it was built for goes
-    // with it.
+    // The turn's one prefix serves every request, and the model it was
+    // built for goes with it.
     const { model, tools: allTools } = prefix;
-    const betas = getBetasArray(
-      hasWebFetchTool(config.builtInTools) &&
-        !supportsDynamicWebTools(model),
-    );
+    const betas = resolveBetas(config.builtInTools, model);
     const shaped = shapeCachedPayload(
       prefix.system,
       renderOutgoingMessages(currentMessages),
@@ -1338,29 +1371,23 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     turn.activeStream = null;
     if (turn.abort.signal.aborted) return;
 
-    // Update usage
-    if (finalMessage.usage) {
-      batch(() => {
-        ts.usage[1](finalMessage.usage);
-        ts.usageHistory[1]([...ts.usageHistory[0](), finalMessage.usage]);
-      });
-    }
-
     // Carry the latest container id forward — a continuation response may
     // return a fresh container, or none (keep the current one then).
     turn.containerId = finalMessage.container?.id ?? turn.containerId;
 
-    // Add assistant message
+    const replyContent = finalMessage.content as ContentBlock[];
     const assistantMsg: MessageParam = {
       role: "assistant",
-      content: finalMessage.content as ContentBlock[],
+      content: replyContent.length > 0 ? replyContent : EMPTY_REPLY_PLACEHOLDER,
     };
 
     const updatedMessages = [...currentMessages, assistantMsg];
     batch(() => {
       ts.messages[1](updatedMessages);
       turn.lastModelReplyIndex = updatedMessages.length - 1;
-      processMessageForDisplayTo(ts, assistantMsg);
+      if (replyContent.length > 0) {
+        processMessageForDisplayTo(ts, assistantMsg);
+      }
 
       // Clear streaming state immediately after message is processed
       ts.isStreaming[1](false);
@@ -1373,6 +1400,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       finalMessage.stop_reason,
       depth,
       MAX_TURN_CONTINUATIONS,
+      finalMessage.stop_details,
     );
 
     if (continuation.kind === "halt") {
@@ -1382,7 +1410,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       // assistant turn with unresolved tool_use and every subsequent send
       // 400s (permanently bricking the conversation).
       const cancelled = buildCancelledToolResults(
-        finalMessage.content as ContentBlock[],
+        replyContent,
         `Tool execution stopped: ${continuation.message}`,
       );
       batch(() => {
@@ -1421,10 +1449,10 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       // results never arrived — trim them so the persisted conversation
       // cannot end in a state a later send might reject.
       const trimmed = trimDanglingServerToolUse(
-        finalMessage.content as ContentBlock[],
+        replyContent,
       );
       batch(() => {
-        if (trimmed.length < (finalMessage.content as ContentBlock[]).length) {
+        if (trimmed.length < replyContent.length) {
           // The API rejects an assistant message with empty content — if every
           // block was a dangling server_tool_use, persist a placeholder text
           // instead (same pattern as the abort "[Stopped]" message).
@@ -1461,7 +1489,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
           {
             role: "user",
             content: buildCancelledToolResults(
-              finalMessage.content as ContentBlock[],
+              replyContent,
               "Tool execution stopped: too many tool calls in one turn",
             ),
           },
@@ -1481,14 +1509,14 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     // Handle tool execution manually since streaming doesn't support toolRunner
     if (continuation.kind === "run-tools") {
       // Filter tool_use blocks
-      const toolUseBlocks = (finalMessage.content as ContentBlock[]).filter(
+      const toolUseBlocks = replyContent.filter(
         (block): block is ToolUseBlock => block.type === "tool_use",
       );
       ts.isProcessingTools[1](true);
 
       // Show in-progress items
       const inProgressItems = getInProgressItems(
-        finalMessage.content as ContentBlock[],
+        replyContent,
         toolRegistry,
       );
       addDisplayItemsTo(ts, inProgressItems);
@@ -1499,10 +1527,9 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       const allSuccessItems: DisplayItem[] = [];
 
       // CONTRACT: tool blocks execute SEQUENTIALLY, one at a time, in
-      // block order. ask_user_questions' single-slot resolver and the
-      // approval lifecycle's one-pending-decision-per-conversation both
-      // depend on it. Any future parallelization must first add an explicit
-      // approval/question serialization queue.
+      // block order. The approval lifecycle's one pending decision per
+      // conversation depends on it. Any future parallelization must first add
+      // an explicit approval serialization queue.
       for (const block of toolUseBlocks) {
         if (turn.abort.signal.aborted) {
           allResults.push(
@@ -1602,22 +1629,11 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
           // their card was excluded from the upfront batch — create it at
           // block start, in the same synchronous section as the handler
           // call below, so a click can never land before the handler wires
-          // its resolver (the old premature-interaction race). Cleared by
-          // the batch-end clearInProgressItemsIn like every spinner. The
-          // turn-scoped canceller lets stopGeneration cancel THIS turn's
-          // pending card only (review H2: a registry-wide sweep cancelled
-          // another conversation's question when chats shared the tool
-          // instance).
+          // its resolver. Cleared by the batch-end clearInProgressItemsIn
+          // like every spinner; Stop reaches the handler through the turn's
+          // signal in its context.
           if (blockTool?.metadata.awaitsUserAction) {
             addDisplayItemsTo(ts, [buildInProgressItem(block, toolRegistry)]);
-            const cancelHook = blockTool.metadata._cancelPending;
-            if (cancelHook) {
-              turn.cancelPendingInteraction = () => {
-                try {
-                  cancelHook();
-                } catch { /* a cancel hook must never break Stop */ }
-              };
-            }
           }
 
           // Use existing tool processing for custom tools — raced against
@@ -1649,11 +1665,11 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
               [block],
               toolRegistry,
               vc ? () => vc.current() : undefined,
+              turn.abort.signal,
             ).finally(() => {
               if (attributesNav) vc!.markAINavigation();
             }),
           );
-          turn.cancelPendingInteraction = null;
           if (outcome.aborted) {
             allResults.push(
               ...buildCancelledToolResults(
@@ -1707,13 +1723,21 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       // sections, so the model learns where the user is now and the gate's
       // reference moves with it; a bare tool-result message carries none.
       if (queuedTexts.length > 0) {
-        const built = buildTurnSections(false, turn.conversationId);
+        const built = buildTurnSections(
+          false,
+          turn.conversationId,
+          readConsumerBlocksForToolResults,
+        );
         turn.viewReference = built.reference;
         attachSections(turn, toolResultMsg, built, updatedMessages);
       }
 
-      if (queueEntries.length > 0) {
-        batch(() => {
+      const messagesWithToolResults = [...updatedMessages, toolResultMsg];
+      // Stored before the typed messages' bubbles: a consumer render that
+      // throws there must not leave them taken from the queue and unsent.
+      batch(() => {
+        ts.messages[1](messagesWithToolResults);
+        if (queueEntries.length > 0) {
           ts.queuedMessages[1]([]);
           turn.resolveOnFinish.push(...queueEntries.map((q) => q.resolve));
           addDisplayItemsTo(
@@ -1722,15 +1746,13 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
               ? getDisplayItemsFromMessage(
                 renderOutgoingMessages([toolResultMsg])[0],
               )
-              : queuedTexts
-                .filter((text) => text.trim())
-                .map((text) => ({ type: "user_text", text: text.trim() })),
+              : queuedTexts.map((text) => ({
+                type: "user_text",
+                text: text.trim(),
+              })),
           );
-        });
-      }
-
-      const messagesWithToolResults = [...updatedMessages, toolResultMsg];
-      ts.messages[1](messagesWithToolResults);
+        }
+      });
 
       if (turn.abort.signal.aborted) return;
 
@@ -1756,12 +1778,8 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     const id = conversationId();
     const turn = s.activeTurn[0]();
     const queue = s.queuedMessages[0]();
-    const msgs = s.messages[0]();
 
     if (turn !== null || queue.length === 0) return;
-    // A persisted conversation stranded on unresolved tool_use would 400 on
-    // any send — hold the queue (matches the historical drain guard).
-    if (lastMessageHasUnresolvedToolUse(msgs)) return;
 
     s.queuedMessages[1]([]);
     const claimed = claimTurn(s, id);
@@ -1794,14 +1812,6 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     // conversation can never dangle on an approval.
     const pending = turn.store.pendingDecision[0]();
     if (pending) pending.resolve({ kind: "interrupted" });
-    // Unblock THIS turn's promise-blocking card (ask_user_questions) so its
-    // closure guard resets — with unmount-cancel removed (decision log #6),
-    // Stop is the explicit path that cancels an abandoned question.
-    // Turn-scoped, never a registry sweep (review H2: the sweep cancelled
-    // another conversation's pending question when two chats shared the
-    // same tool instance).
-    turn.cancelPendingInteraction?.();
-    turn.cancelPendingInteraction = null;
     clearInProgressItemsIn(turn.store);
   }
 
@@ -1809,13 +1819,24 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     clearConversationStore(conversationId());
   }
 
+  // A retired model would 404 and a max_tokens above the model's cap would
+  // 400 on every send until corrected, so neither is taken. Thinking and
+  // effort stay as given: every request resolves them for its model, and
+  // resolving them here would drop an effort a later model takes.
   function updateConfig(updates: Partial<AnthropicModelConfig>) {
-    Object.assign(modelConfig, updates);
-    const mc = modelConfig;
+    const { model, ...rest } = updates;
+    Object.assign(modelConfig, rest);
+    if (model !== undefined && !RETIRED_MODEL_IDS.includes(model)) {
+      modelConfig.model = model;
+    }
+    modelConfig.max_tokens = clampMaxOutputTokens(
+      modelConfig.max_tokens,
+      modelConfig.model,
+    );
     saveSettings(settingsKey, {
-      model: mc.model,
-      max_tokens: mc.max_tokens,
-      output_config: mc.output_config,
+      model: modelConfig.model,
+      max_tokens: modelConfig.max_tokens,
+      output_config: modelConfig.output_config,
     });
   }
 
@@ -1838,7 +1859,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       ? system
       : system.map((block) => block.text).join("\n\n");
     const vc = config.viewController;
-    const consumer = config.getEphemeralContext?.() ?? null;
+    const consumer = readConsumerBlocks();
     const candidates = vc
       ? assembleTurnSections({
         ...vc._turnSectionParts(),
@@ -1875,9 +1896,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     isStreaming,
     isProcessingTools,
     error,
-    usage,
     currentStreamingText,
-    usageHistory,
     serverToolLabel,
     sendMessage,
     sendMessages,
@@ -1926,10 +1945,4 @@ function getUserFacingErrorMessage(err: unknown): string {
     isApiError: false,
     message: err instanceof Error ? err.message : String(err),
   });
-}
-
-function getBetasArray(hasBasicWebFetch: boolean): string[] | undefined {
-  const headers = getBetaHeaders({ hasBasicWebFetch });
-  if (!headers) return undefined;
-  return headers[ANTHROPIC_BETA_HEADER].split(",");
 }

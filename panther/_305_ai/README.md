@@ -15,22 +15,28 @@ README is the quickstart.
 import { AIChat, AIChatProvider, createSDKClient } from "@timroberton/panther";
 
 const anthropic = createSDKClient({ baseURL: "/api/ai" });
+const system = () => "You are a helpful assistant.";
 
 function App() {
   return (
-    <AIChatProvider
-      config={{
-        sdkClient: anthropic,
-        modelConfig: {
-          model: "claude-sonnet-5",
-          max_tokens: 2048,
-        },
-      }}
-    >
+    <AIChatProvider config={{ sdkClient: anthropic, system }}>
       <AIChat />
     </AIChatProvider>
   );
 }
+```
+
+Model defaults live in panther, so an app names no model: it omits
+`modelConfig` and takes panther's model, thinking and effort on its next sync.
+An app with a need of its own overrides only the field concerned, such as a
+`max_tokens` cap:
+
+```typescript
+<AIChatProvider
+  config={{ sdkClient: anthropic, system, modelConfig: { max_tokens: 4096 } }}
+>
+  <AIChat />
+</AIChatProvider>;
 ```
 
 A pane that calls `updateConfig`, `getConfig` or `sendMessage` itself builds the
@@ -68,6 +74,10 @@ async function handOver(chat: AIChatInstance, channel: BroadcastChannel) {
 ```
 
 ## One-Shot Requests
+
+`callAIStructured` and the one-shot types live in `_116_ai_one_shot`, which
+loads in Deno, so a server imports it from `mod.deno.ts`; `callAI` stays here.
+`_305_ai` re-exports them, so a browser import is unchanged.
 
 Every request of `callAI` and `callAIStructured` streams and settles on its
 final message, the tool runner's requests included, so panther's default
@@ -252,8 +262,7 @@ const navTool = createNavigationTool({
   onAiNavigation: (target) => router.go(target),
 });
 
-// 6. Derived tool catalog for your system prompt (omit currentView there —
-//    cache rule, see DOC_AI_CHAT.md).
+// 6. Derived tool catalog for your system prompt.
 const system = () => `${basePrompt}\n\n${buildToolCatalog(allTools)}`;
 
 // 7. Every message keeps its sections on the wire, so the prompt cache and
@@ -336,7 +345,7 @@ Enable Anthropic's built-in tools with a simple boolean or config object:
 <AIChatProvider
   config={{
     sdkClient: anthropic,
-    modelConfig: { ... },
+    system,
     builtInTools: {
       webSearch: true,                    // Enable with defaults
       webFetch: { max_uses: 3 },          // Enable with config
@@ -427,6 +436,9 @@ builtInTools: {
 - `AnthropicModelConfig`
 - `BuiltInToolsConfig`
 - `CallAIConfig`
+- `CallAIOptions`
 - `CallAIResult`
+- `CallAIStructuredConfig`
+- `CallAIStructuredResult`
 - `WebSearchToolConfig`
 - `WebFetchToolConfig`

@@ -19,12 +19,20 @@
 import { buildAvailabilityHint } from "./deps.ts";
 import { AIToolFailure } from "./tool_failure.ts";
 import type {
+  AIToolCallContext,
   AnyAITool,
   ErasedApprovalConfig,
   SDKTool,
+  SDKToolRunContext,
 } from "./tool_helpers.ts";
 import { getHeadlessCapability } from "./tool_helpers.ts";
 import type { AIViewRegistry, AIViewState, AnyAIView } from "./view_types.ts";
+
+// A run-only inner tool reads the call's context where the SDK's tool runner
+// puts it.
+function runContextOf(ctx: AIToolCallContext): SDKToolRunContext {
+  return { toolUse: { id: ctx.toolUseId }, signal: ctx.signal };
+}
 
 export type ScopeAIToolOptions = {
   // Name of the injected required string property.
@@ -99,21 +107,25 @@ export function bindAITool(
     }
   };
 
-  const run = async (input: unknown): Promise<string> => {
+  const run = async (
+    input: unknown,
+    context?: SDKToolRunContext,
+  ): Promise<string> => {
     requireNoApproval();
     const inner = await Promise.resolve(resolve());
-    return await inner.sdkTool.run(input);
+    return await inner.sdkTool.run(input, context);
   };
 
   const runWithView = async (
     input: unknown,
-    getView?: () => unknown,
+    getView: (() => unknown) | undefined,
+    ctx: AIToolCallContext,
   ): Promise<string> => {
     requireNoApproval();
     const inner = await Promise.resolve(resolve());
     return inner.sdkTool.runWithView
-      ? await inner.sdkTool.runWithView(input, getView)
-      : await inner.sdkTool.run(input);
+      ? await inner.sdkTool.runWithView(input, getView, ctx)
+      : await inner.sdkTool.run(input, runContextOf(ctx));
   };
 
   const approval: ErasedApprovalConfig | undefined = templateApproval
@@ -210,7 +222,10 @@ export function scopeAITool(
 
   const templateApproval = template.metadata.approval;
 
-  const run = async (input: unknown): Promise<string> => {
+  const run = async (
+    input: unknown,
+    context?: SDKToolRunContext,
+  ): Promise<string> => {
     if (templateApproval) {
       // Mirrors createAITool's guard: approval tools only execute inside an
       // approval lifecycle.
@@ -220,12 +235,13 @@ export function scopeAITool(
     }
     const { value, rest } = peelScopeParam(input, param);
     const inner = await resolveInner(value);
-    return await inner.sdkTool.run(rest);
+    return await inner.sdkTool.run(rest, context);
   };
 
   const runWithView = async (
     input: unknown,
-    getView?: () => unknown,
+    getView: (() => unknown) | undefined,
+    ctx: AIToolCallContext,
   ): Promise<string> => {
     if (templateApproval) {
       throw new Error(
@@ -235,8 +251,8 @@ export function scopeAITool(
     const { value, rest } = peelScopeParam(input, param);
     const inner = await resolveInner(value);
     return inner.sdkTool.runWithView
-      ? await inner.sdkTool.runWithView(rest, getView)
-      : await inner.sdkTool.run(rest);
+      ? await inner.sdkTool.runWithView(rest, getView, ctx)
+      : await inner.sdkTool.run(rest, runContextOf(ctx));
   };
 
   // The approval wrapper peels + resolves + delegates; the returned
@@ -358,15 +374,16 @@ export function bindAIToolToView<TDefs extends Record<string, AnyAIView>>(
 
   const runWithView = async (
     input: unknown,
-    getView?: () => unknown,
+    getView: (() => unknown) | undefined,
+    ctx: AIToolCallContext,
   ): Promise<string> => {
     if (templateApproval) throw approvalError();
     if (getView === undefined) throw noView();
     const snapshot = getView() as AIViewState<TDefs>;
     const inner = await resolveInner(snapshot);
     return inner.sdkTool.runWithView
-      ? await inner.sdkTool.runWithView(input, () => snapshot)
-      : await inner.sdkTool.run(input);
+      ? await inner.sdkTool.runWithView(input, () => snapshot, ctx)
+      : await inner.sdkTool.run(input, runContextOf(ctx));
   };
 
   const approval: ErasedApprovalConfig | undefined = templateApproval

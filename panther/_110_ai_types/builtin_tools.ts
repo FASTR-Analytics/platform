@@ -3,28 +3,12 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { AnthropicModel } from "../deps.ts";
-import { BUILTIN_TOOL_TYPES, supportsDynamicWebTools } from "../deps.ts";
-
-////////////////////////////////////////////////////////////////////////////////
-// BUILT-IN TOOLS
-////////////////////////////////////////////////////////////////////////////////
-//
-// Anthropic provides several built-in tools that can be used directly in API calls:
-// - web_search: Real-time internet access with citations
-// - web_fetch: Fetch specific URLs
-// - bash: Execute shell commands in persistent session
-// - text_editor: File viewing and editing capabilities
-//
-// Usage in AIChatConfig:
-//   builtInTools: {
-//     webSearch: true,  // or { max_uses: 5, allowed_domains: ["example.com"] }
-//     webFetch: true,
-//     bash: true,
-//     textEditor: true,
-//   }
-//
-// See: https://docs.claude.com/en/docs/agents-and-tools/tool-use/web-search-tool
+import type { AnthropicModel } from "./types.ts";
+import {
+  BETA_HEADERS,
+  BUILTIN_TOOL_TYPES,
+  supportsDynamicWebTools,
+} from "./anthropic_consts.ts";
 
 ////////////////////////////////////////////////////////////////////////////////
 // WEB SEARCH CONFIG
@@ -176,4 +160,34 @@ export function resolveBuiltInTools(
   }
 
   return tools;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// BETA HEADER HELPERS
+////////////////////////////////////////////////////////////////////////////////
+
+type BetaHeaderConfig = {
+  // True only when the request carries the basic web_fetch_20250910 tool
+  // (pre-4.6 models); the _20260209 web tools are GA and need no beta.
+  hasBasicWebFetch?: boolean;
+};
+
+const ANTHROPIC_BETA_HEADER = "anthropic-beta";
+
+export function getBetaHeaders(
+  config: BetaHeaderConfig,
+): Record<typeof ANTHROPIC_BETA_HEADER, string> | undefined {
+  return config.hasBasicWebFetch
+    ? { [ANTHROPIC_BETA_HEADER]: BETA_HEADERS.WEB_FETCH }
+    : undefined;
+}
+
+export function resolveBetas(
+  builtInTools: BuiltInToolsConfig | undefined,
+  model: AnthropicModel,
+): string[] | undefined {
+  const carriesBasicWebFetch = resolveBuiltInTools(builtInTools, model).some(
+    (t) => t.type === BUILTIN_TOOL_TYPES.WEB_FETCH_BASIC,
+  );
+  return carriesBasicWebFetch ? [BETA_HEADERS.WEB_FETCH] : undefined;
 }

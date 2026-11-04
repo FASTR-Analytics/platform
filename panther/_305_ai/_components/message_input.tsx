@@ -12,15 +12,24 @@ type Props = {
   onSubmit: () => void;
   onStop?: () => void;
   isGenerating?: boolean;
-  disabled?: boolean;
   placeholder?: string;
   submitLabel?: string;
   height?: string;
 };
 
+// Enter sends, Shift+Enter breaks the line, and an Enter that confirms an
+// IME composition does neither. Safari ends the composition before that
+// Enter's keydown, which then reports keyCode 229 instead.
+export function submitsOnKey(
+  e: Pick<KeyboardEvent, "key" | "shiftKey" | "isComposing" | "keyCode">,
+): boolean {
+  return e.key === "Enter" && !e.shiftKey && !e.isComposing &&
+    e.keyCode !== 229;
+}
+
 export function MessageInput(p: Props) {
   const handleKeyDown = (e: KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+    if (submitsOnKey(e)) {
       e.preventDefault();
       p.onSubmit();
     }
@@ -49,11 +58,7 @@ export function MessageInput(p: Props) {
         class="ui-gap-sm flex flex-none flex-col items-start"
         data-ai-submit-wrapper
       >
-        <Button
-          onClick={p.onSubmit}
-          disabled={p.disabled}
-          intent="primary"
-        >
+        <Button onClick={p.onSubmit} intent="primary">
           {p.submitLabel ??
             t3({ en: "Submit", fr: "Envoyer", pt: "Enviar", th: "ส่ง" })}
         </Button>

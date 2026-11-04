@@ -147,7 +147,9 @@ export type ToolUIMetadata<TInput = unknown> = {
   // the engine recorded it.
   displayComponent?: Component<{ input: TInput; view?: AIViewSnapshot }>;
 
-  inProgressComponent?: Component<{ input: TInput }>;
+  // toolUseId names the call the card is for: one tool instance can have
+  // calls pending in several chats at once.
+  inProgressComponent?: Component<{ input: TInput; toolUseId: string }>;
 
   inProgressLabel?: string | ((input: TInput) => string);
 
@@ -207,13 +209,6 @@ export type ToolUIMetadata<TInput = unknown> = {
   // __navigation digest instead of reading as "User navigated". Set by
   // createNavigationTool. Never set by consumers.
   attributesNavigation?: boolean;
-
-  // Engine-internal: cancels a promise-blocking card's pending interaction
-  // (ask_user_questions). Called by stopGeneration so the tool's closure
-  // guard resets — with unmount-cancel removed (decision log #6), Stop is
-  // the explicit path that unblocks an abandoned question. Never set by
-  // consumers.
-  _cancelPending?: () => void;
 };
 
 export type JsonValue =
@@ -234,25 +229,57 @@ export type ObjectJsonSchema = {
   additionalProperties?: false;
 };
 
+// What a handler gets beside its input: the tool_use id the call answers and
+// the abort signal of the turn it runs in, which Stop aborts first.
+export type AIToolCallContext = {
+  toolUseId: string;
+  signal: AbortSignal;
+};
+
+let detachedCalls = 0;
+
+// For a call no chat turn and no tool runner owns (an MCP client, a direct
+// run()): a fresh id, and a signal that never aborts.
+export function detachedCallContext(): AIToolCallContext {
+  detachedCalls += 1;
+  return {
+    toolUseId: `detached-${detachedCalls}`,
+    signal: new AbortController().signal,
+  };
+}
+
+// The part of the context the SDK's tool runner passes as run()'s second
+// argument (BetaToolRunner: `tool.run(input, { toolUse, toolUseBlock,
+// signal })`) that run() reads: the call's id and callAI's signal.
+export type SDKToolRunContext = {
+  toolUse: { id: string };
+  signal?: AbortSignal | null;
+};
+
 export type SDKTool<TInput = unknown> = {
   name: string;
   description: string;
   input_schema: ObjectJsonSchema;
   // SDK-shaped, and it stays that way: run()'s SECOND parameter belongs to
-  // the SDK's tool runner, which passes a context object there
-  // (BetaToolRunner: `tool.run(input, { toolUse, toolUseBlock, signal })`).
-  // Panther must never read that slot — an earlier revision put the view
-  // accessor in it, and every callAI tool call died on `getView is not a
-  // function` because the SDK's object is truthy. View state gets its own
+  // the SDK's tool runner. run() reads the call's id and signal from it and
+  // never puts anything of panther's there: an earlier revision put the view
+  // accessor in that slot, and every callAI tool call died on `getView is not
+  // a function` because the SDK's object is truthy. View state gets its own
   // method below instead of competing for this one.
-  run: (input: TInput) => Promise<string>;
+  run: (input: TInput, context?: SDKToolRunContext) => Promise<string>;
   // Engine-only execution path: same work as run(), plus the live view
-  // accessor the chat loop injects. Handlers receive a SNAPSHOT (getView()
-  // is called once, at handler entry), which is what the gate guarantees:
-  // the check and the call are the same microtask. Optional because
-  // hand-constructed consumer tools only have run(); processToolUses falls
-  // back to run() when it is absent. Never given to the SDK.
-  runWithView?: (input: TInput, getView?: () => unknown) => Promise<string>;
+  // accessor the chat loop injects and the call's context. Handlers receive
+  // a view SNAPSHOT (getView() is called once, at handler entry), which is
+  // what the gate guarantees: the check and the call are the same microtask.
+  // ctx is required so a wrapper that forwards the call cannot drop it.
+  // Optional because hand-constructed consumer tools only have run();
+  // processToolUses falls back to run() when it is absent. Never given to
+  // the SDK.
+  runWithView?: (
+    input: TInput,
+    getView: (() => unknown) | undefined,
+    ctx: AIToolCallContext,
+  ) => Promise<string>;
   // Matches the SDK's BetaRunnableTool contract — the tool runner calls
   // parse() (when present) before run(). Optional so hand-constructed tools
   // in consumer apps keep compiling; createAITool always provides it.
@@ -264,7 +291,8 @@ export type SDKTool<TInput = unknown> = {
   // hand-constructed tools keep compiling; createAITool always provides it.
   runStructured?: (
     input: TInput,
-    getView?: () => unknown,
+    getView: (() => unknown) | undefined,
+    ctx: AIToolCallContext,
   ) => Promise<{ text: string; structured?: unknown }>;
 };
 
@@ -337,7 +365,8 @@ export type CreateAIToolConfigCommon<TInput> = {
   // See ToolUIMetadata.displayComponent.
   displayComponent?: Component<{ input: TInput; view?: AIViewSnapshot }>;
 
-  inProgressComponent?: Component<{ input: TInput }>;
+  // See ToolUIMetadata.inProgressComponent.
+  inProgressComponent?: Component<{ input: TInput; toolUseId: string }>;
 
   inProgressLabel?: string | ((input: TInput) => string);
 
@@ -387,7 +416,7 @@ export type CreateAIToolConfigCommon<TInput> = {
 //
 // The plain shape: no view registry, so availableIn is unchecked strings
 // (validated against the chat's registry at registration) and the handler
-// takes input only.
+// takes (input, ctx).
 export type CreateAIToolConfig<TInput, TOutput = string> =
   & CreateAIToolConfigCommon<TInput>
   & {
@@ -399,15 +428,18 @@ export type CreateAIToolConfig<TInput, TOutput = string> =
     // checking only fires on FRESH object literals, so a config assembled
     // via a spread or an intermediate const could otherwise carry
     // `viewRegistry` into this shape — and it is what buildAITool reads to decide
-    // whether propose takes (input, view, ctx) or (input, ctx). That
-    // mismatch put the view state in propose's ctx slot at runtime. As a
+    // whether handler and propose take (input, view, ctx) or (input, ctx).
+    // That mismatch puts the view state in the ctx slot at runtime. As a
     // declared property this is a plain assignability failure, which
     // freshness does not gate.
     viewRegistry?: never;
   }
   & (
     | {
-      handler: (input: TInput) => Promise<TOutput> | TOutput;
+      handler: (
+        input: TInput,
+        ctx: AIToolCallContext,
+      ) => Promise<TOutput> | TOutput;
       approval?: never;
     }
     | {
@@ -458,6 +490,7 @@ export type CreateViewAIToolConfig<
       handler: (
         input: TInput,
         view: NoInfer<AIViewStateFor<TDefs, K>>,
+        ctx: AIToolCallContext,
       ) => Promise<TOutput> | TOutput;
       approval?: never;
     }
@@ -489,6 +522,7 @@ export type CreateUngatedViewAIToolConfig<
       handler: (
         input: TInput,
         view: NoInfer<AIViewState<TDefs>>,
+        ctx: AIToolCallContext,
       ) => Promise<TOutput> | TOutput;
       approval?: never;
     }
@@ -544,7 +578,7 @@ type ErasedCreateAIToolConfig =
   & {
     viewRegistry?: AIViewRegistry<Record<string, AnyAIView>>;
     availableIn?: readonly PropertyKey[];
-    handler?: (input: Any, view?: Any) => Any;
+    handler?: (input: Any, viewOrCtx: Any, ctx?: Any) => Any;
     // createNavigationTool only: pass the live view ACCESSOR to the handler
     // instead of an entry-time snapshot. The navigation tool must read the
     // view AFTER its routing callback settles; every other handler wants the
@@ -631,10 +665,11 @@ export function buildAITool<TInput>(
       `createAITool("${config.name}"): exactly one of handler or approval must be set — a tool either executes directly or goes through the confirm-before-apply lifecycle.`,
     );
   }
-  // `viewRegistry` decides propose's shape: view-typed tools receive
-  // (input, view, ctx), plain ones keep (input, ctx). The engine always has
-  // both to hand, so the split is a declaration read, never arity sniffing.
-  const proposeTakesView = config.viewRegistry !== undefined;
+  // `viewRegistry` decides the shape of handler and propose: view-typed tools
+  // receive (input, view, ctx), plain ones (input, ctx). The engine always
+  // has both to hand, so the split is a declaration read, never arity
+  // sniffing.
+  const takesView = config.viewRegistry !== undefined;
   const approvalMeta: ErasedApprovalConfig | undefined = config.approval
     ? {
       propose: (
@@ -642,7 +677,7 @@ export function buildAITool<TInput>(
         view: unknown,
         ctx: { signal: AbortSignal },
       ) =>
-        proposeTakesView
+        takesView
           ? config.approval!.propose(input as TInput, view, ctx)
           : config.approval!.propose(input as TInput, ctx),
       mode: config.approval.mode ?? "always",
@@ -676,7 +711,7 @@ export function buildAITool<TInput>(
         `createAITool("${config.name}"): headless: true cannot combine with kind "nav" — navigation is meaningless with no surface.`,
       );
     }
-    if (approvalMeta && proposeTakesView) {
+    if (approvalMeta && takesView) {
       throw new Error(
         `createAITool("${config.name}"): headless: true cannot combine with view-typed approval — a propose that receives the live view closes over editor state no headless surface can supply. Use the plain createAITool shape (propose(input, ctx)) for a headless approval tool.`,
       );
@@ -692,11 +727,14 @@ export function buildAITool<TInput>(
     ? `${config.description}\n\n${buildAvailabilityHint(availableIn)}`
     : config.description;
 
-  // One implementation, two entry points: run() for the SDK (input only) and
-  // runWithView() for the chat loop (input + the live view accessor).
+  // One implementation, three entry points: run() for the SDK's tool runner,
+  // runWithView() for the chat loop (input, the live view accessor and the
+  // call's context), and runStructured(), which keeps the handler's raw
+  // return for the MCP surface.
   const execute = async (
     input: TInput,
-    getView?: () => unknown,
+    getView: (() => unknown) | undefined,
+    ctx: AIToolCallContext,
   ): Promise<{ text: string; structured?: unknown }> => {
     // An approval tool never executes here: every sanctioned lifecycle
     // (createAIChat's chat loop, createMCPServer's approval driver) branches
@@ -716,13 +754,14 @@ export function buildAITool<TInput>(
     const validated = config.validation === "internal"
       ? input
       : parseToolInput(config.inputSchema, input);
-    // The engine injects the live view state; a handler that ignores it
-    // (every plain tool) simply declares one parameter.
     const result = await Promise.resolve(
-      config.handler!(
-        validated,
-        config._liveViewAccessor ? getView : getView?.(),
-      ),
+      takesView
+        ? config.handler!(
+          validated,
+          config._liveViewAccessor ? getView : getView?.(),
+          ctx,
+        )
+        : config.handler!(validated, ctx),
     );
     // JSON.stringify(undefined) is the VALUE undefined, not a string — a
     // handler that mutates and returns nothing must still produce text.
@@ -738,12 +777,20 @@ export function buildAITool<TInput>(
     name: config.name,
     description,
     input_schema: zodToJsonSchema(config.inputSchema),
-    // Exactly one parameter: the SDK owns the rest of the signature.
-    run: async (input: TInput) => (await execute(input)).text,
-    runWithView: async (input: TInput, getView?: () => unknown) =>
-      (await execute(input, getView)).text,
-    runStructured: (input: TInput, getView?: () => unknown) =>
-      execute(input, getView),
+    run: async (input: TInput, context?: SDKToolRunContext) =>
+      (await execute(
+        input,
+        undefined,
+        context
+          ? {
+            toolUseId: context.toolUse.id,
+            signal: context.signal ?? new AbortController().signal,
+          }
+          : detachedCallContext(),
+      )).text,
+    runWithView: async (input, getView, ctx) =>
+      (await execute(input, getView, ctx)).text,
+    runStructured: execute,
   };
   if (config.validation !== "internal") {
     // Every driver already tolerates absent parse (`parse ? parse(x) : x`),
@@ -791,7 +838,7 @@ export function buildAITool<TInput>(
 // createAITool and every compile-time property survives the wrapper —
 // availableIn is still checked against the registry, the handler/propose
 // view is still narrowed to availableIn, and a narrowed view with no gate is
-// still unwritable (all pinned in ai_2_gating's _typeChecks). The returned
+// still unwritable (all pinned in tests_ai/tool_types_test.ts). The returned
 // function carries the SAME gated/ungated overload pair as createAITool, so
 // the gate-soundness split holds through partial application: an explicit K
 // (mk<In, Out, "v">) matches only the gated overload, which requires

@@ -15,9 +15,8 @@ import type {
 } from "./types.ts";
 import {
   capsEffortWhenThinkingDisabled,
-  getMaxOutputTokens,
+  clampMaxOutputTokens,
   getSupportedEffortLevels,
-  MAX_OUTPUT_TOKENS,
   RETIRED_MODEL_IDS,
   supportsAdaptiveThinking,
   supportsDisabledThinking,
@@ -329,10 +328,7 @@ export function sanitizePersistedSettings(
     typeof persisted.max_tokens === "number" &&
     Number.isFinite(persisted.max_tokens)
   ) {
-    out.max_tokens = Math.min(
-      Math.max(Math.round(persisted.max_tokens), MAX_OUTPUT_TOKENS.MIN),
-      getMaxOutputTokens(effectiveModel),
-    );
+    out.max_tokens = clampMaxOutputTokens(persisted.max_tokens, effectiveModel);
   }
 
   // Persisted effort can predate a model switch — re-resolve against the

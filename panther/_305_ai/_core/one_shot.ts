@@ -4,31 +4,25 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
-  Anthropic,
-  AnthropicModelConfig,
-  CacheControl,
+  BuiltInToolsConfig,
+  CallAIOptions,
+  CallAIResult,
+  CallAIStructuredConfig,
   ContentBlock,
   MessageParam,
   Usage,
 } from "../deps.ts";
-import type { zType } from "../deps.ts";
 import {
-  betaZodOutputFormat,
-  buildCancelledToolResults,
-  lastMessageHasUnresolvedToolUse,
+  fillEmptyReplies,
   renderOutgoingMessages,
+  repairStrandedToolUse,
+  resolveBetas,
+  resolveBuiltInTools,
   resolveModelConfig,
   resolveOutputConfig,
   resolveThinkingConfig,
-  supportsDynamicWebTools,
 } from "../deps.ts";
 import { type AnyAITool, getHeadlessCapability } from "../deps.ts";
-import {
-  type BuiltInToolsConfig,
-  resolveBuiltInTools,
-} from "./builtin_tools.ts";
-import { getBetaHeaders, hasWebFetchTool } from "./beta_headers.ts";
-import { aggregateUsage } from "./cost_utils.ts";
 
 // Safety cap on the SDK tool runner's requests so a pathological tool loop
 // can't run unbounded. Every request counts: a client tool round and a
@@ -37,119 +31,14 @@ import { aggregateUsage } from "./cost_utils.ts";
 // error results so the returned history stays API-valid.
 const MAX_TOOL_RUNNER_REQUESTS = 24;
 
-// `beta.messages.parse` sends this beta with every structured request; the
-// streaming request that stands in for it has to send it too.
-const STRUCTURED_OUTPUTS_BETA = "structured-outputs-2025-12-15";
-
 ////////////////////////////////////////////////////////////////////////////////
 // TYPES
 ////////////////////////////////////////////////////////////////////////////////
 
-export type CallAIConfig = {
-  sdkClient: Anthropic;
-  // Model defaults live in panther (DEFAULT_MODEL_CONFIG) — omit entirely to
-  // track them; pass a partial only for a genuinely call-specific override.
-  modelConfig?: Partial<AnthropicModelConfig>;
-  system?: () =>
-    | string
-    | Array<{ type: "text"; text: string; cache_control?: CacheControl }>;
+export type CallAIConfig = CallAIStructuredConfig & {
   tools?: AnyAITool[];
   builtInTools?: BuiltInToolsConfig;
 };
-
-export type CallAIOptions = {
-  // Reaches every SDK request of the call, the tool runner's included.
-  signal?: AbortSignal;
-};
-
-export type CallAIResult = {
-  content: ContentBlock[];
-  stopReason: string | null;
-  usage: Usage;
-  messages: MessageParam[];
-  // The model the response names, which a server-side fallback can make a
-  // different one from the model requested.
-  model: string;
-};
-
-export type CallAIStructuredResult<T> = CallAIResult & {
-  // null when the model refused, when max_tokens cut the output, or when the
-  // text fails the schema — check stopReason before retrying.
-  data: T | null;
-};
-
-////////////////////////////////////////////////////////////////////////////////
-// STRUCTURED ONE-SHOT
-////////////////////////////////////////////////////////////////////////////////
-
-// Schema-constrained one-shot call (structured outputs via
-// output_config.format). Tools are not supported on this path — use callAI
-// for tool loops.
-export async function callAIStructured<T>(
-  config: Omit<CallAIConfig, "tools" | "builtInTools">,
-  messages: MessageParam[],
-  schema: zType.ZodType<T>,
-  options?: CallAIOptions,
-): Promise<CallAIStructuredResult<T>> {
-  const modelConfig = resolveModelConfig(config.modelConfig);
-  const { model, max_tokens } = modelConfig;
-  const thinking = resolveThinkingConfig(model, modelConfig.thinking);
-  const effortConfig = resolveOutputConfig(
-    model,
-    modelConfig.output_config,
-    thinking,
-  );
-  const wire = renderOutgoingMessages(messages);
-  // The SDK's parser on the format throws on a schema miss and fails the
-  // stream with it; sent without the parser, the final text is validated
-  // here and a miss is a null.
-  const { parse: _parse, ...format } = betaZodOutputFormat(schema);
-
-  // A non-streaming request with panther's default max_tokens is refused by
-  // the SDK before it is sent (its ten-minute rule), so the one request
-  // streams and settles on its final message.
-  const res = await config.sdkClient.beta.messages.stream({
-    model,
-    max_tokens,
-    thinking,
-    output_config: { ...effortConfig, format },
-    messages: wire,
-    system: config.system?.(),
-    betas: [STRUCTURED_OUTPUTS_BETA],
-  }, { signal: options?.signal }).finalMessage();
-
-  const content = res.content as ContentBlock[];
-  return {
-    data: parseStructuredText(schema, content),
-    content,
-    stopReason: res.stop_reason,
-    usage: res.usage as Usage,
-    messages: [...wire, { role: "assistant", content }],
-    model: res.model,
-  };
-}
-
-function parseStructuredText<T>(
-  schema: zType.ZodType<T>,
-  content: ContentBlock[],
-): T | null {
-  const text = content.find(isTextBlock)?.text;
-  if (text === undefined) return null;
-  let json: unknown;
-  try {
-    json = JSON.parse(text);
-  } catch {
-    return null;
-  }
-  const parsed = schema.safeParse(json);
-  return parsed.success ? parsed.data : null;
-}
-
-function isTextBlock(
-  block: ContentBlock,
-): block is Extract<ContentBlock, { type: "text" }> {
-  return block.type === "text";
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 // ONE-SHOT FUNCTION
@@ -202,13 +91,7 @@ export async function callAI(
   const resolvedBuiltInTools = resolveBuiltInTools(config.builtInTools, model);
   const hasTools = config.tools?.length || resolvedBuiltInTools.length;
 
-  // Build beta headers based on features used. The web-fetch beta header is
-  // only needed for the basic web_fetch variant used on pre-4.6 models.
-  const betaHeaders = getBetaHeaders({
-    hasBasicWebFetch: hasWebFetchTool(config.builtInTools) &&
-      !supportsDynamicWebTools(model),
-  });
-  const betas = betaHeaders ? [betaHeaders["anthropic-beta"]] : undefined;
+  const betas = resolveBetas(config.builtInTools, model);
 
   // Thinking config is resolved per model: manual budgets are dropped on
   // adaptive-only models, but an explicit {type: "disabled"} is kept wherever
@@ -249,7 +132,7 @@ export async function callAI(
       content,
       stopReason: res.stop_reason,
       usage: res.usage as Usage,
-      messages: [...wire, { role: "assistant", content }],
+      messages: fillEmptyReplies([...wire, { role: "assistant", content }]),
       model: res.model,
     };
   }
@@ -291,25 +174,13 @@ export async function callAI(
   }
 
   // The runner holds the full conversation: the tool_use turns, the tool
-  // results and the final reply.
-  const history = [...runner.params.messages] as MessageParam[];
-  // If the request cap stopped the runner while tools were still being
-  // requested, the history ends with unresolved tool_use blocks — resolve
-  // them with synthetic error results so the returned messages stay
-  // API-valid for any later send.
-  const lastMsg = history[history.length - 1];
-  const messagesOut = lastMessageHasUnresolvedToolUse(history)
-    ? [
-      ...history,
-      {
-        role: "user" as const,
-        content: buildCancelledToolResults(
-          lastMsg.content as ContentBlock[],
-          "Tool execution stopped: too many tool calls in one call",
-        ),
-      },
-    ]
-    : history;
+  // results and the final reply. If the request cap stopped the runner while
+  // tools were still being requested, the history ends stranded; the
+  // returned messages must stay sendable.
+  const messagesOut = fillEmptyReplies(repairStrandedToolUse(
+    [...runner.params.messages] as MessageParam[],
+    "Tool execution stopped: too many tool calls in one call",
+  ));
 
   return {
     content,
@@ -318,4 +189,23 @@ export async function callAI(
     messages: messagesOut,
     model: responseModel,
   };
+}
+
+function aggregateUsage(usages: Usage[]): Usage {
+  return usages.reduce(
+    (acc, usage) => ({
+      input_tokens: acc.input_tokens + usage.input_tokens,
+      output_tokens: acc.output_tokens + usage.output_tokens,
+      cache_creation_input_tokens: (acc.cache_creation_input_tokens ?? 0) +
+        (usage.cache_creation_input_tokens ?? 0),
+      cache_read_input_tokens: (acc.cache_read_input_tokens ?? 0) +
+        (usage.cache_read_input_tokens ?? 0),
+    }),
+    {
+      input_tokens: 0,
+      output_tokens: 0,
+      cache_creation_input_tokens: 0,
+      cache_read_input_tokens: 0,
+    },
+  );
 }

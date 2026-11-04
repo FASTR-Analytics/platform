@@ -38,8 +38,8 @@ export function AIChatConversationSelector(
 
   // In-flight guard: no switching away from (or deleting, or replacing via
   // "New Conversation") a conversation whose turn is running. Non-creating
-  // peek — never getConversationState, which would create and hydrate every
-  // listed conversation.
+  // peek — never a read that creates the store, which would create and
+  // hydrate every listed conversation.
   const activeBusy = () => {
     const id = conversations.activeConversationId();
     return id ? hasActiveTurn(id) : false;

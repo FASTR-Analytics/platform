@@ -42,8 +42,7 @@ is the rulebook a consumer app must follow.
    after a delete) moves a conversation to the log's end, so it hears only what
    happens after
 10. **Keep the system prompt byte-stable across navigation**: per-view
-    `instructions` use `"ephemeral"` delivery; a `buildToolCatalog` call
-    composed into `system` must omit `currentView`. The system prompt stays
+    `instructions` use `"ephemeral"` delivery. The system prompt stays
     fixed for the whole conversation: per-view and per-package text goes in view
     `instructions`, view `state` and consumer blocks, never in `system`
 11. **No hand-maintained tool lists in prompt text**: render tool
@@ -150,17 +149,16 @@ approval: { propose, mode: "session", presentation: "inline" }
 ### Prompt composition
 
 ```tsx
-// ❌ DON'T: view-grouped catalog in the system prompt (cache-busts per navigation),
-// or a hand-typed tool list in any prompt text
-const system = () => `${base}\n${buildToolCatalog(tools, vc.current())}`;
+// ❌ DON'T: a hand-typed tool list in any prompt text
+const system = () => `${base}\n- get_figures: reads the figures`;
 
-// ✅ DO: no-view catalog composed once into the byte-stable system prompt
+// ✅ DO: the catalog composed once into the byte-stable system prompt
 const toolCatalog = buildToolCatalog(tools);
 const system = () => `${base}\n# Available Tools\n${toolCatalog}`;
 ```
 
-**Why:** the no-view output is byte-stable, so the system cache breakpoint keeps
-hitting; the view-grouped variant belongs in per-send content only.
+**Why:** the catalog is the registry, so it cannot drift from it, and its output
+is byte-stable, so the system cache breakpoint keeps hitting.
 
 ### Echo suppression keys
 
@@ -199,7 +197,7 @@ export const createAppAITool = aiToolFactory(appViews); // recommended form
 
 // index.tsx: assemble, then validate the REAL config in dev
 const tools = buildTools();
-const toolCatalog = buildToolCatalog(tools); // no currentView: system-prompt cache rule
+const toolCatalog = buildToolCatalog(tools);
 const config: AIChatConfig = {
   tools,
   viewController: appViewController,
@@ -352,10 +350,9 @@ UI-purpose and view-gated tools stay client-resident and off the MCP surface.
 - [ ] `clearInteractionLog()` called at each scope root if scopes are switchable
       within one SPA session; a conversation hears only actions after its
       activation
-- [ ] `buildToolCatalog` in the `system` accessor has no `currentView` argument;
-      no hand-maintained tool list in any prompt text; nothing per-view or
-      per-package in `system` (it goes in `instructions`, `state` or consumer
-      blocks)
+- [ ] Tool names and descriptions in prompt text come from `buildToolCatalog`,
+      never a hand-maintained list; nothing per-view or per-package in `system`
+      (it goes in `instructions`, `state` or consumer blocks)
 - [ ] `validateAIChatConfig(config)` runs on the real assembled config under
       `import.meta.env.DEV` for every surface
 - [ ] No `mode: "session"` combined with `presentation: "modal"`
