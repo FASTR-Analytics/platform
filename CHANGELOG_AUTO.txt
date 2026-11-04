@@ -1,3 +1,4 @@
+[TBD] [admin] [internal] - Improved reliability of AI tool context passing
 [TBD] [admin] [internal] - Copilot tool infrastructure updated for improved context handling
 [2.8.0] [user] [fixed] - Verification spinner now accurately tracks which indicators are still processing
 [2.8.0] [user] [fixed] - Auto-fix no longer silently clears an indicator's sub-category when moving categories
