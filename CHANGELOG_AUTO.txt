@@ -1,3 +1,38 @@
+[TBD] [user] [added] - Saved visualizations are now a standalone product type you can create, edit, and manage
+[TBD] [user] [added] - Insert a copy of a saved visualization into slides and reports
+[TBD] [user] [added] - "Change metric" button in the figure editor's Data tab
+[TBD] [user] [added] - Version history for saved visualizations with restore and restore-as-copy
+[TBD] [user] [added] - Detailed settings diff view in visualization version history showing what changed between sessions
+[TBD] [user] [added] - Out-of-date badge on visualizations when their data source changed, with one-click update
+[TBD] [user] [added] - AI assistant now works inside saved visualizations
+[TBD] [user] [added] - AI can add new figures when rewriting a report in one step
+[TBD] [user] [added] - AI checks report page layout before proposing a rewrite and flags problems automatically
+[TBD] [user] [added] - AI tool to look up page template details on demand
+[TBD] [user] [changed] - AI button label shortened from "Ask AI" to "AI"
+[TBD] [user] [changed] - AI button on the right edge can now be dragged up and down to reposition it
+[TBD] [user] [changed] - Profile icon now opens an account menu with profile and sign-out options
+[TBD] [user] [changed] - Sign out moved from the profile dialog to the top bar account menu
+[TBD] [user] [changed] - Creating a deck or report now asks for a name and folder upfront
+[TBD] [user] [changed] - Insert and replace visualization buttons now offer a choice between new or existing visualization
+[TBD] [user] [fixed] - Maps on metrics without uploaded boundaries no longer insert as broken visualizations
+[TBD] [admin] [added] - Visualizations are now a standalone product type alongside slide decks and reports
+[TBD] [admin] [added] - Create saved visualizations from the Products page via New > New visualization
+[TBD] [admin] [added] - Insert copies of saved visualizations into slide decks and reports
+[TBD] [admin] [added] - Version history with restore and restore-as-copy for saved visualizations
+[TBD] [admin] [added] - Real-time collaborative editing for saved visualizations
+[TBD] [admin] [added] - AI copilot support for editing and viewing saved visualizations
+[TBD] [admin] [added] - "Change metric" button in the figure editor's Data tab for saved visualizations
+[TBD] [admin] [added] - Out-of-date badge on visualizations when their package or scope changes
+[TBD] [admin] [added] - AI can now insert new figures when rewriting reports in a single proposal
+[TBD] [admin] [added] - AI page layout tool now checks for page template issues and back-to-back figures
+[TBD] [admin] [changed] - Profile button replaced with an account menu containing profile and sign out
+[TBD] [admin] [changed] - Sign out moved from the profile dialog to the top bar account menu
+[TBD] [admin] [changed] - AI opener button on the right edge can now be dragged up and down
+[TBD] [admin] [changed] - AI opener button label shortened to "AI"
+[TBD] [admin] [changed] - Product creation dialog now includes name and folder fields
+[TBD] [admin] [changed] - Slide deck and report insert/replace figure buttons now offer new or existing visualization
+[TBD] [admin] [fixed] - AI map preset no longer produces a blank figure when boundary files are missing
+[TBD] [admin] [fixed] - Viewers no longer push config changes to the collaboration room on reconnect
 [TBD] [admin] [internal] - Improved reliability of AI tool context passing
 [TBD] [admin] [internal] - Copilot tool infrastructure updated for improved context handling
 [2.8.0] [user] [fixed] - Verification spinner now accurately tracks which indicators are still processing
