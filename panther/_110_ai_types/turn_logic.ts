@@ -160,6 +160,24 @@ export function releaseUnansweredCarriers(
   };
 }
 
+// The API refuses an assistant message with no content, so a reply with none
+// (a refusal before any output, an end_turn after a tool result) is stored as
+// this text, which is never displayed.
+export const EMPTY_REPLY_PLACEHOLDER = "[No response]";
+
+// Input by reference when no assistant message is empty.
+export function fillEmptyReplies(messages: MessageParam[]): MessageParam[] {
+  const isEmpty = (m: MessageParam) =>
+    m.role === "assistant" && Array.isArray(m.content) &&
+    m.content.length === 0;
+  if (!messages.some(isEmpty)) {
+    return messages;
+  }
+  return messages.map((m) =>
+    isEmpty(m) ? { role: "assistant", content: EMPTY_REPLY_PLACEHOLDER } : m
+  );
+}
+
 // The text an assistant message keeps when the strip empties it: the API
 // rejects an assistant message with no content.
 export const STRIPPED_THINKING_PLACEHOLDER = "[Thinking omitted]";
@@ -222,22 +240,16 @@ export function hashRequestPrefix(
 }
 
 // At turn start. Unchanged prefix: the messages stand. Changed (a
-// conversation with messages and no stored hash counts as
-// changed: its blocks were minted under a prefix nothing recorded): the
-// thinking blocks are stripped and the new hash stored. A tool_use awaiting
-// a result keeps the strip waiting, since that reply's own thinking must
-// return with its results: the messages and the stored hash stand and the
-// next turn start reconciles again.
+// conversation with messages and no stored hash counts as changed: its
+// blocks were minted under a prefix nothing recorded): the thinking blocks
+// are stripped and the new hash stored.
 export function reconcileRequestPrefix(
   messages: MessageParam[],
   storedHash: string | undefined,
   currentHash: string,
-): { messages: MessageParam[]; hash: string | undefined } {
+): { messages: MessageParam[]; hash: string } {
   if (messages.length === 0 || storedHash === currentHash) {
     return { messages, hash: currentHash };
-  }
-  if (lastMessageHasUnresolvedToolUse(messages)) {
-    return { messages, hash: storedHash };
   }
   return { messages: stripThinkingBlocks(messages), hash: currentHash };
 }
@@ -353,30 +365,40 @@ export function trimDanglingServerToolUse(
   });
 }
 
-// One home for "the last message is an assistant turn with tool_use blocks
-// still awaiting results" — used to gate queueing and turn-completion.
-export function lastMessageHasUnresolvedToolUse(msgs: MessageParam[]): boolean {
-  const lastMsg = msgs[msgs.length - 1];
-  return msgs.length > 0 &&
-    lastMsg?.role === "assistant" &&
-    Array.isArray(lastMsg.content) &&
-    lastMsg.content.some((block) => block.type === "tool_use");
+// A stranded list (its last message an assistant turn whose tool_use blocks
+// have no results) gains one user message answering each call with reason,
+// so a later request is not refused; any other list returns by reference.
+// Run wherever a list can end stranded: a turn's end, a record's load, a
+// one-shot call's history.
+export function repairStrandedToolUse(
+  messages: MessageParam[],
+  reason: string,
+): MessageParam[] {
+  const last = messages[messages.length - 1];
+  if (last?.role !== "assistant" || typeof last.content === "string") {
+    return messages;
+  }
+  const results = buildCancelledToolResults(last.content, reason);
+  return results.length === 0
+    ? messages
+    : [...messages, { role: "user", content: results }];
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // TURN CONTINUATION
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Maps a response's stop_reason (plus the current continuation depth) to the
-// next action in the chat turn loop. "halt" surfaces a system notice and
-// stops; "cap-tools" additionally requires resolving the pending tool_use
-// blocks with buildCancelledToolResults before stopping; "cap-pause"
-// additionally requires trimming dangling server_tool_use blocks from the
-// persisted assistant message (trimDanglingServerToolUse) before stopping.
-// noticeType is the stable machine-readable key consumers can dispatch on;
-// message/details are default English display copy. "turn_error" is raised
-// by the chat when a turn throws (an API error or a consumer callback run in
-// the turn).
+// Maps a response's stop_reason and stop_details (plus the current
+// continuation depth) to the next action in the chat turn loop. "halt"
+// surfaces a system notice and stops; "cap-tools" additionally requires
+// resolving the pending tool_use blocks with buildCancelledToolResults before
+// stopping; "cap-pause" additionally requires trimming dangling
+// server_tool_use blocks from the persisted assistant message
+// (trimDanglingServerToolUse) before stopping. noticeType is the stable
+// machine-readable key consumers can dispatch on; message/details are default
+// English display copy, and a refusal's details end with the API's explanation
+// when it gives one. "turn_error" is raised by the chat when a turn throws (an
+// API error or a consumer callback run in the turn).
 
 export type SystemNoticeType =
   | "refusal"
@@ -410,17 +432,30 @@ export type TurnContinuation =
     details: string;
   };
 
+const REQUEST_TOO_LARGE_MESSAGE =
+  "Request too large. Remove attachments or start a new conversation.";
+const MODEL_NOT_FOUND_MESSAGE =
+  "Model not found or unavailable. Check the model in AI settings.";
+const CONTEXT_EXCEEDED_MESSAGE =
+  "Conversation too long — context window exceeded";
+
+type StopDetailsLike = { explanation?: string | null } | null;
+
 export function classifyTurnContinuation(
   stopReason: string | null | undefined,
   depth: number,
   maxContinuations: number,
+  stopDetails: StopDetailsLike = null,
 ): TurnContinuation {
   if (stopReason === "refusal") {
+    const declined =
+      "Claude's safety system declined to respond to this request.";
+    const explanation = stopDetails?.explanation?.trim();
     return {
       kind: "halt",
       noticeType: "refusal",
       message: "Request declined",
-      details: "Claude's safety system declined to respond to this request.",
+      details: explanation ? `${declined} ${explanation}` : declined,
     };
   }
   if (stopReason === "max_tokens") {
@@ -436,7 +471,7 @@ export function classifyTurnContinuation(
     return {
       kind: "halt",
       noticeType: "context_exceeded",
-      message: "Conversation too long — context window exceeded",
+      message: CONTEXT_EXCEEDED_MESSAGE,
       details:
         "This conversation no longer fits in the model's context window. Start a new conversation to continue.",
     };
@@ -486,6 +521,11 @@ export type AIErrorInfo = {
   message: string;
 };
 
+function isContextOverflow(lower: string): boolean {
+  return (lower.includes("context") && lower.includes("exceed")) ||
+    lower.includes("prompt is too long");
+}
+
 export function getUserFacingAIErrorMessage(info: AIErrorInfo): string {
   if (info.isConnectionError) {
     return "Network error — check your connection";
@@ -512,10 +552,22 @@ export function getUserFacingAIErrorMessage(info: AIErrorInfo): string {
     ) {
       return "Anthropic API error — try again in a moment";
     }
+    // The type, never the status: a proxy answers a wrong path with 404 and
+    // no error type, which is no fault of the model.
+    if (info.type === "not_found_error") {
+      return MODEL_NOT_FOUND_MESSAGE;
+    }
+    // A host in front of a proxy answers 413 with no error type.
+    if (info.type === "request_too_large" || info.status === 413) {
+      return REQUEST_TOO_LARGE_MESSAGE;
+    }
     if (info.type === "invalid_request_error" || info.status === 400) {
       const lower = info.message.toLowerCase();
-      if (lower.includes("context") && lower.includes("exceed")) {
-        return "Conversation too long — context window exceeded";
+      if (lower.includes("too many total text bytes")) {
+        return REQUEST_TOO_LARGE_MESSAGE;
+      }
+      if (isContextOverflow(lower)) {
+        return CONTEXT_EXCEEDED_MESSAGE;
       }
       if (lower.includes("credit")) {
         return "Insufficient credits — check your Anthropic billing";
@@ -533,8 +585,17 @@ export function getUserFacingAIErrorMessage(info: AIErrorInfo): string {
   if (lower.includes("authentication") || lower.includes("unauthorized")) {
     return "Authentication failed — check your API key";
   }
-  if (lower.includes("context") && lower.includes("exceed")) {
-    return "Conversation too long — context window exceeded";
+  if (lower.includes("not_found_error")) {
+    return MODEL_NOT_FOUND_MESSAGE;
+  }
+  if (
+    lower.includes("request_too_large") ||
+    lower.includes("too many total text bytes")
+  ) {
+    return REQUEST_TOO_LARGE_MESSAGE;
+  }
+  if (isContextOverflow(lower)) {
+    return CONTEXT_EXCEEDED_MESSAGE;
   }
   if (lower.includes("insufficient") && lower.includes("credit")) {
     return "Insufficient credits — check your Anthropic billing";

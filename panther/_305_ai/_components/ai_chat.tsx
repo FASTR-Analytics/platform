@@ -12,12 +12,7 @@ import {
   Show,
   useContext,
 } from "solid-js";
-import {
-  type AnthropicModel,
-  type CustomMarkdownStyleOptions,
-  lastMessageHasUnresolvedToolUse,
-  t3,
-} from "../deps.ts";
+import { type CustomMarkdownStyleOptions, t3 } from "../deps.ts";
 import { createScrollManager } from "./_scroll_manager.ts";
 import {
   AIChatConfigContext,
@@ -27,7 +22,6 @@ import {
 import type { AIChatDisplayRegistry } from "../_core/types.ts";
 import { MessageInput } from "./message_input.tsx";
 import { MessageList } from "./message_list.tsx";
-import { UsageDisplay } from "./usage_display.tsx";
 
 type Props = {
   // Read once at setup. A pane that needs updateConfig or sendMessage builds
@@ -44,9 +38,6 @@ type Props = {
   fallbackContent?: Component;
   headerContent?: JSX.Element;
   footerContent?: JSX.Element;
-  showUsage?: boolean;
-  showCost?: boolean;
-  model?: AnthropicModel;
   markdownStyle?: CustomMarkdownStyleOptions;
   onBeforeSubmit?: (userMessage: string) => string;
   onScrollReady?: (scrollToBottom: (force?: boolean) => void) => void;
@@ -55,14 +46,12 @@ type Props = {
 export function AIChat(p: Props) {
   const config = useContext(AIChatConfigContext);
   const {
-    messages,
     displayItems,
     isLoading,
     isStreaming,
     isProcessingTools,
     currentStreamingText,
     serverToolLabel,
-    usage,
     sendMessage,
     stopGeneration,
     toolRegistry,
@@ -109,11 +98,7 @@ export function AIChat(p: Props) {
       message = p.onBeforeSubmit(message);
     }
 
-    // Check if we should queue (loading, processing tools, or unresolved tools)
-    const msgs = messages();
-    const hasUnresolvedTools = lastMessageHasUnresolvedToolUse(msgs);
-
-    if (isLoading() || isProcessingTools() || hasUnresolvedTools) {
+    if (isLoading() || isProcessingTools()) {
       batch(() => {
         enqueueMessage(message);
         if (isProcessingTools()) clearInProgressItems();
@@ -151,16 +136,6 @@ export function AIChat(p: Props) {
           markdownStyle={p.markdownStyle}
         />
       </div>
-      <Show when={p.showUsage && usage() && p.model}>
-        <div class="ui-pad-sm border-t">
-          <UsageDisplay
-            usage={usage()}
-            model={p.model!}
-            showCost={p.showCost}
-            compact
-          />
-        </div>
-      </Show>
       {p.footerContent}
       <Show when={pendingUserAction()}>
         {

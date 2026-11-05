@@ -49,8 +49,8 @@ export { defineAIInteractions, interaction } from "./_core/interactions.ts";
 export { validateAIChatConfig } from "./_core/validate_config.ts";
 export { createAskUserQuestionsTool } from "./_components/ask_user_questions.tsx";
 export { createSDKClient } from "./_core/sdk_client.ts";
-export { callAI, callAIStructured } from "./_core/one_shot.ts";
-export { getBetaHeaders } from "./_core/beta_headers.ts";
+export { callAI } from "./_core/one_shot.ts";
+export { callAIStructured } from "../_116_ai_one_shot/mod.ts";
 
 ////////////////////////////////////////////////////////////////////////////////
 // TYPES
@@ -86,37 +86,34 @@ export type {
   AskUserQuestionsInput,
   AskUserQuestionsOption,
 } from "./_core/ask_user_questions_types.ts";
+export type { CallAIConfig } from "./_core/one_shot.ts";
 export type {
-  CallAIConfig,
   CallAIOptions,
   CallAIResult,
+  CallAIStructuredConfig,
   CallAIStructuredResult,
-} from "./_core/one_shot.ts";
-export type {
-  BuiltInToolsConfig,
-  WebFetchToolConfig,
-  WebSearchToolConfig,
-} from "./_core/builtin_tools.ts";
+} from "../_116_ai_one_shot/mod.ts";
 
 // Re-export commonly used types and consts from _110_ai_types
 export type {
   AnthropicModel,
   AnthropicModelConfig,
+  BuiltInToolsConfig,
   ContentBlock,
   DocumentContentBlock,
   MessageParam,
-  ModelPricing,
   Usage,
+  WebFetchToolConfig,
+  WebSearchToolConfig,
 } from "../_110_ai_types/mod.ts";
 
 export {
   BETA_HEADERS,
   BUILTIN_TOOL_TYPES,
-  DEFAULT_PRICING,
+  getBetaHeaders,
   getMaxOutputTokens,
   MAX_OUTPUT_TOKENS,
   MODEL_OPTIONS,
-  MODEL_PRICING,
   SERVER_TOOL_LABELS,
   supportsManualThinking,
 } from "../_110_ai_types/mod.ts";

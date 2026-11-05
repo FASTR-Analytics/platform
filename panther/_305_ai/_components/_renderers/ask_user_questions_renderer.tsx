@@ -37,7 +37,7 @@ export function AskUserQuestionsRenderer(p: Props) {
   // Deliberately NO onCleanup cancel (decision log #6): unmount is inert —
   // a pane hidden in a tab/<Show> leaves the question pending and
   // recoverable on remount. Only explicit paths cancel: the Cancel button
-  // here, and Stop (via the tool's _cancelPending hook).
+  // here, and Stop (through the turn's signal in the tool's context).
 
   const options = () => Array.isArray(p.input?.options) ? p.input.options : [];
 

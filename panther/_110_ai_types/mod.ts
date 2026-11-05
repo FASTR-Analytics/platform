@@ -29,14 +29,13 @@ export {
   BETA_HEADERS,
   BUILTIN_TOOL_TYPES,
   capsEffortWhenThinkingDisabled,
+  clampMaxOutputTokens,
   DEFAULT_MODEL_CONFIG,
-  DEFAULT_PRICING,
   getMaxOutputTokens,
   getSupportedEffortLevels,
   MAX_OUTPUT_TOKENS,
   MODEL_MAX_OUTPUT_TOKENS,
   MODEL_OPTIONS,
-  MODEL_PRICING,
   resolveModelConfig,
   RETIRED_MODEL_IDS,
   SERVER_TOOL_LABELS,
@@ -61,14 +60,16 @@ export {
   buildToolResultUserMessage,
   classifyTurnContinuation,
   demoteStaleCarriers,
+  EMPTY_REPLY_PLACEHOLDER,
+  fillEmptyReplies,
   fnv1a32,
   getUserFacingAIErrorMessage,
   hashRequestPrefix,
-  lastMessageHasUnresolvedToolUse,
   legacyStripEphemeralMarkers,
   reconcileRequestPrefix,
   releaseUnansweredCarriers,
   renderOutgoingMessages,
+  repairStrandedToolUse,
   selectTurnSections,
   STRIPPED_THINKING_PLACEHOLDER,
   stripThinkingBlocks,
@@ -124,4 +125,14 @@ export {
 
 export type { InteractionLog } from "./interaction_log.ts";
 
-export type { ModelPricing } from "./anthropic_consts.ts";
+export {
+  getBetaHeaders,
+  resolveBetas,
+  resolveBuiltInTools,
+} from "./builtin_tools.ts";
+
+export type {
+  BuiltInToolsConfig,
+  WebFetchToolConfig,
+  WebSearchToolConfig,
+} from "./builtin_tools.ts";

@@ -8,6 +8,7 @@ import {
   demoteStaleCarriers,
   get,
   legacyStripEphemeralMarkers,
+  repairStrandedToolUse,
   set,
 } from "../deps.ts";
 import type { ContentBlock, MessageParam } from "../deps.ts";
@@ -98,6 +99,50 @@ function demotePreReleaseCarriers(
   return messages === record.messages ? record : { ...record, messages };
 }
 
+// A record an earlier library version saved stranded on an unanswered
+// tool_use would refuse every later request.
+function answerStrandedToolUse(
+  record: PersistedConversation,
+): PersistedConversation {
+  const messages = repairStrandedToolUse(
+    record.messages,
+    "Tool execution interrupted: the conversation was reloaded before this tool ran",
+  );
+  return messages === record.messages ? record : { ...record, messages };
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isArrayOf(
+  value: unknown,
+  isItem: (item: unknown) => boolean,
+): boolean {
+  return Array.isArray(value) && value.every(isItem);
+}
+
+function isMessage(value: unknown): boolean {
+  return isObject(value) &&
+    (value.role === "user" || value.role === "assistant") &&
+    (typeof value.content === "string" || Array.isArray(value.content));
+}
+
+function isDisplayItem(value: unknown): boolean {
+  return isObject(value) && typeof value.type === "string";
+}
+
+// A record the engine cannot read would fail every send of the session; it
+// loads as no record instead.
+function isReadableRecord(record: Record<string, unknown>): boolean {
+  return record.formatVersion === CURRENT_FORMAT_VERSION &&
+    isArrayOf(record.messages, isMessage) &&
+    isArrayOf(record.displayItems, isDisplayItem) &&
+    (record.approvedTools === undefined ||
+      isArrayOf(record.approvedTools, (t) => typeof t === "string")) &&
+    (record.prefixHash === undefined || typeof record.prefixHash === "string");
+}
+
 export async function loadConversation(
   conversationId: string,
 ): Promise<PersistedConversation | undefined> {
@@ -106,14 +151,27 @@ export async function loadConversation(
       `ai-conv/${conversationId}`,
     );
     if (!record) return undefined;
-    // Migrate ONLY true v1 records (formatVersion absent). Records at or
-    // ABOVE the current version pass through untouched — running the v1
-    // migration on a future format (version skew: rollback, or a lagging
-    // consumer app on the same origin) would destructively strip literal
-    // marker text the user typed.
-    return demotePreReleaseCarriers(
-      record.formatVersion === undefined ? migrateV1(record) : record,
-    );
+    // A record ABOVE the current version passes through untouched: routing
+    // a future format (version skew: rollback, or a lagging consumer app on
+    // the same origin) through this version's migration, check or repairs
+    // could destroy what it holds, such as literal marker text the user
+    // typed. Only a true v1 record (formatVersion absent) migrates.
+    if (
+      typeof record.formatVersion === "number" &&
+      record.formatVersion > CURRENT_FORMAT_VERSION
+    ) {
+      return record;
+    }
+    const current = record.formatVersion === undefined
+      ? migrateV1(record)
+      : record;
+    if (!isReadableRecord(current)) {
+      console.error(
+        `Conversation record "${conversationId}" has a shape this version cannot read; loading it as no record.`,
+      );
+      return undefined;
+    }
+    return answerStrandedToolUse(demotePreReleaseCarriers(current));
   } catch (err) {
     console.error("Failed to load conversation:", err);
     return undefined;
@@ -131,10 +189,12 @@ export async function saveConversation(
     const record: PersistedConversation = {
       conversationId,
       messages,
-      // A pending approval card is turn-scoped UI state, never a record —
-      // structural backstop on top of the lifecycle's finally removal.
+      // A pending approval card and an in-progress spinner are turn-scoped
+      // UI state, never a record: a backstop beside the engine clearing
+      // both before the save, since either reloaded would wait forever.
       displayItems: displayItems.filter(
-        (item) => item.type !== "approval_pending",
+        (item) =>
+          item.type !== "approval_pending" && item.type !== "tool_in_progress",
       ),
       lastUpdated: new Date().toISOString(),
       formatVersion: CURRENT_FORMAT_VERSION,

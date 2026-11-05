@@ -11,45 +11,47 @@ export {
   APPROVAL_DECLINED_MESSAGE,
   APPROVAL_STALE_MESSAGE,
   assembleTurnSections,
-  BETA_HEADERS,
   buildApprovalViewExitMessage,
   buildCancelledToolResults,
   buildInteractionDigest,
   buildNavigationDoneMessage,
   buildNavigationPendingMessage,
   buildToolResultUserMessage,
-  BUILTIN_TOOL_TYPES,
+  clampMaxOutputTokens,
   classifyTurnContinuation,
   createInteractionLog,
   decideViewGate,
-  DEFAULT_PRICING,
   demoteStaleCarriers,
+  EMPTY_REPLY_PLACEHOLDER,
+  fillEmptyReplies,
   getMaxOutputTokens,
   getSupportedEffortLevels,
   getUserFacingAIErrorMessage,
   hashRequestPrefix,
-  lastMessageHasUnresolvedToolUse,
   legacyStripEphemeralMarkers,
   MAX_OUTPUT_TOKENS,
   MODEL_OPTIONS,
-  MODEL_PRICING,
   reconcileRequestPrefix,
   releaseUnansweredCarriers,
   renderOutgoingMessages,
+  repairStrandedToolUse,
+  resolveBetas,
+  resolveBuiltInTools,
   resolveModelConfig,
   resolveOutputConfig,
   resolveThinkingConfig,
+  RETIRED_MODEL_IDS,
   sanitizePersistedSettings,
   selectTurnSections,
   SERVER_TOOL_LABELS,
   shapeCachedPayload,
-  supportsDynamicWebTools,
   trimDanglingServerToolUse,
 } from "../_110_ai_types/mod.ts";
 export type {
   AIInteractionDefLike,
   AnthropicModel,
   AnthropicModelConfig,
+  BuiltInToolsConfig,
   CacheControl,
   ContentBlock,
   DocumentContentBlock,
@@ -89,6 +91,11 @@ export type {
   SetViewArgs,
   ToolUIMetadata,
 } from "../_112_ai_tool_core/mod.ts";
+export type {
+  CallAIOptions,
+  CallAIResult,
+  CallAIStructuredConfig,
+} from "../_116_ai_one_shot/mod.ts";
 export {
   Button,
   createTableConfig,
@@ -109,7 +116,6 @@ export type {
   TableColumn,
 } from "../_303_components/mod.ts";
 export { default as Anthropic } from "@anthropic-ai/sdk";
-export { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 export { del, get, set } from "idb-keyval";
 export { default as MarkdownIt } from "markdown-it";
 export {
